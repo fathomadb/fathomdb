@@ -380,8 +380,46 @@ def _read_diagnostic_manifest(path: Path) -> dict[str, Any]:
         raise ParityError(f"qualification diagnostic Cargo contract: {error}") from error
 
 
+def _resolve_sdk_dependency(
+    crate: Path, cargo: dict[str, Any], alias: str, declaration: Any
+) -> tuple[str, list[Any]]:
+    """Resolve inherited package identity before any package-specific classification."""
+    specifications = [declaration]
+    effective = declaration
+    if isinstance(declaration, dict) and "workspace" in declaration:
+        if declaration["workspace"] is not True or set(declaration) - {"workspace", "features", "optional"}:
+            raise ParityError("unsupported SDK workspace dependency override")
+        package_metadata = cargo.get("package", {})
+        if not isinstance(package_metadata, dict) or "workspace" in package_metadata:
+            raise ParityError("explicit SDK workspace routing is unsupported")
+        effective = None
+        for parent in crate.parents:
+            candidate = parent / "Cargo.toml"
+            if not candidate.is_file():
+                continue
+            ancestor = _read_diagnostic_manifest(candidate)
+            if "workspace" not in ancestor:
+                continue
+            workspace = ancestor["workspace"]
+            if not isinstance(workspace, dict) or not isinstance(workspace.get("dependencies", {}), dict):
+                raise ParityError("unsupported SDK workspace dependency declaration")
+            effective = workspace.get("dependencies", {}).get(alias)
+            break
+        if effective is None or isinstance(effective, dict) and "workspace" in effective:
+            raise ParityError("SDK workspace dependency cannot be resolved")
+        specifications.append(effective)
+    if isinstance(effective, str):
+        return alias, specifications
+    if not isinstance(effective, dict):
+        raise ParityError("unsupported SDK dependency declaration")
+    package = effective.get("package", alias)
+    if not isinstance(package, str) or not package:
+        raise ParityError("unsupported SDK dependency package identity")
+    return package, specifications
+
+
 def _validate_engine_dependency_features(crate: Path, cargo: dict[str, Any]) -> None:
-    """Reject eager/aliased engine activation; inspect inherited and target declarations."""
+    """Classify resolved dependencies, then reject unsupported engine activation."""
     sections = [cargo]
     targets = cargo.get("target", {})
     if not isinstance(targets, dict) or not all(isinstance(value, dict) for value in targets.values()):
@@ -393,34 +431,11 @@ def _validate_engine_dependency_features(crate: Path, cargo: dict[str, Any]) -> 
             if not isinstance(declarations, dict):
                 raise ParityError("unsupported SDK dependency table")
             for alias, declaration in declarations.items():
-                package = declaration.get("package", alias) if isinstance(declaration, dict) else alias
+                package, specifications = _resolve_sdk_dependency(crate, cargo, alias, declaration)
                 if alias != "fathomdb-engine" and package != "fathomdb-engine":
                     continue
                 if alias != "fathomdb-engine" or package != "fathomdb-engine":
                     raise ParityError("renamed SDK engine dependencies are unsupported")
-                specifications = [declaration]
-                if isinstance(declaration, dict) and "workspace" in declaration:
-                    if declaration["workspace"] is not True or set(declaration) - {"workspace", "features", "optional"}:
-                        raise ParityError("unsupported SDK engine workspace dependency override")
-                    package_metadata = cargo.get("package", {})
-                    if not isinstance(package_metadata, dict) or "workspace" in package_metadata:
-                        raise ParityError("explicit SDK workspace routing is unsupported")
-                    inherited = None
-                    for parent in crate.parents:
-                        candidate = parent / "Cargo.toml"
-                        if not candidate.is_file():
-                            continue
-                        ancestor = _read_diagnostic_manifest(candidate)
-                        if "workspace" not in ancestor:
-                            continue
-                        workspace = ancestor["workspace"]
-                        if not isinstance(workspace, dict) or not isinstance(workspace.get("dependencies", {}), dict):
-                            raise ParityError("unsupported SDK engine workspace declaration")
-                        inherited = workspace.get("dependencies", {}).get("fathomdb-engine")
-                        break
-                    if inherited is None or isinstance(inherited, dict) and "workspace" in inherited:
-                        raise ParityError("SDK engine workspace dependency cannot be resolved")
-                    specifications.append(inherited)
                 for specification in specifications:
                     if isinstance(specification, str):
                         continue

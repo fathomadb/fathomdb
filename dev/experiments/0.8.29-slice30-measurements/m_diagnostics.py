@@ -94,6 +94,8 @@ def run_case(case, session, control):
         return _wait_deadline(session, control)
     if case == "running_cancel":
         return _running_cancel(session, control)
+    if case == "run_limit":
+        return _run_limit(session, control)
     return session.tool("search", {"store": "a", "query": "alpha", "mode": "text", "limit": 10})
 
 
@@ -230,4 +232,26 @@ def _running_cancel(session, control):
         "held_after_release": after, "probe": probe, "recovery_held": held,
         "recovery_rpc_ids": recovery,
         "complete": terminal_ok and busy.get("abandoned") == 1 and busy.get("in_flight") == 4
+                    and all(session.records[item].get("ok") is True for item in recovery)})
+
+
+def _run_limit(session, control):
+    requests = _hold_four(session, control)
+    try:
+        session.wait(requests[0])
+        _drain(session, requests)
+        probe = session.tool("search", {"store": "a", "query": "alpha", "mode": "text", "limit": 10})
+        before = control.wait_held(4)["held_calls"]
+    finally:
+        control.send("release_all")
+        _drain(session, requests)
+    after = control.wait_held(0)["held_calls"]
+    held, recovery = _recover_four(session, control)
+    result = session.records[requests[0]]
+    busy = probe.get("payload", {}).get("error", {}).get("busy", {})
+    return dict(result, diagnostic={"case": "run_limit", "held_before_release": before,
+        "held_after_release": after, "original_rpc_ids": requests, "probe": probe,
+        "recovery_held": held, "recovery_rpc_ids": recovery,
+        "complete": busy.get("abandoned") == 4 and busy.get("in_flight") == 4
+                    and all(session.records[item].get("error") == "timeout/deadline" for item in requests)
                     and all(session.records[item].get("ok") is True for item in recovery)})

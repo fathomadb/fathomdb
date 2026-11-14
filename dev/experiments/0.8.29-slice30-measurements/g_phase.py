@@ -18,6 +18,7 @@ receipt_root = closed_guard.directory / "receipts" if closed_guard else task / "
 if closed_guard:
     log_root.mkdir(parents=True, exist_ok=True)
     receipt_root.mkdir(parents=True, exist_ok=True)
+    os.environ["S30_CLOSED_RECEIPT"] = str(receipt_root / f"{phase}.json")
 
 
 def git(*args):

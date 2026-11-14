@@ -182,7 +182,7 @@ def run_prepared(manifest, root):
     from g_campaign import run_g_plan
     root = Path(root)
     root.mkdir(parents=True, exist_ok=True)
-    path = root / f"prepared-{uuid.uuid4().hex}.json"
+    path = Path(manifest["_prepared_manifest"]) if manifest.get("_prepared_manifest") else root / f"prepared-{uuid.uuid4().hex}.json"
     spec = json.loads(Path(__file__).with_name("g-cells.json").read_text())
     if manifest.get("preparation") == "closed-copy-v1":
         spec = dict(manifest["spec"], closed_mode=manifest["stage"])
@@ -249,6 +249,9 @@ def run_frozen(root):
     from g_boundary import require_known_containment
     require_known_containment(os.environ["S30_TASK"])
     root = Path(root).resolve()
+    if json.loads((root / "manifest.json").read_text()).get("preparation") == "closed-copy-v1":
+        from g_closed_entry import run_entry
+        return run_entry(root)
     preliminary = json.loads((root / "manifest.json").read_text())
     if preliminary.get("schema") != "slice30-g-campaign/v1" or preliminary["source_sha"] != git("rev-parse", "HEAD") or git("status", "--porcelain"):
         raise ValueError("run requires the exact clean frozen G source")

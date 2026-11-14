@@ -76,6 +76,8 @@ class RpcChild:
         """Wait for one response under a bounded deadline; absent replies stay explicit."""
         until = time.monotonic() + (self.timeout if timeout is None else timeout)
         while True:
+            if "response" in self.records[request_id]:
+                return self.records[request_id]["response"]
             remaining = until - time.monotonic()
             if remaining <= 0:
                 self.records[request_id]["status"] = "unresolved"
@@ -90,13 +92,10 @@ class RpcChild:
             if "id" not in message:
                 self.notifications.append(message)
                 continue
-            if message["id"] != request_id:
-                continue
-            row = self.records[request_id]
+            row = self.records[message["id"]]
             row.update(response=message, response_raw=raw.decode(), response_bytes=len(raw),
                        arrival_ns=arrived, elapsed_ns=arrived - row["send_start_ns"],
                        parse_ns=time.monotonic_ns() - parse_start, status="completed")
-            return message
 
     def close(self):
         """Close stdin, wait normally, and stop only this child on a bounded failure."""

@@ -91,7 +91,7 @@ def predict_seed(cell, previous, cell_usage):
             "seed_ns": (2 * observed_ns * cell["n"] + observed_rows - 1) // observed_rows,
             "seed_bytes": (2 * active_bytes(lower["attempt"]) * cell["n"] + observed_rows - 1) // observed_rows}
 
-def run_g_plan(spec, root, command, prepare=None, allocation_root=None, assess=None):
+def run_g_plan(spec, root, command, prepare=None, allocation_root=None, assess=None, reused=None):
     """Run every fixed G obligation against one shared allocation and absolute cell clock."""
     plan = make_g_plan(spec)
     root = Path(root)

@@ -97,6 +97,18 @@ parent native-window GO, use a real seeded Engine plus a legal existing
 SQLite/admission assertions, then separately visibility Io/provider/SQLite/
 admission assertions. Assert the same independent errors and ownership outcomes
 through the real open path; no helper-only assertion or changed expected value.
+Run each new semantic fixture in its own fresh child process, not the parent
+unit-test process: installers overwrite global single-slot hooks, so adding
+ordinary in-process fixtures would race the existing tests. The registered
+parent regression launches the same unit-test executable with one exact selector
+and an explicit child-dispatch marker; only that child installs hooks. The marker
+selects execution context, never supplies the RED oracle. Require the child to
+reach the real-engine assertion, run exactly one semantic case and exit cleanly
+for GREEN. Preserve raw child stdout/stderr/status; missing/zero-case/timeout is
+failure. Parent owns a90s absolute child deadline and kills/reaps only that exact
+child on failure; Engine workers are threads inside it. No detached actors or
+unbounded rendezvous. Default parallel affected-target execution must run these
+parent regressions alongside all original tests, with no parent hook mutation.
 Each actual failing behavior gets its semantic RED committed with raw failure
 before its minimal hook-key repair and unchanged oracle at separate GREEN.
 Do not change existing four Windows test bodies to make them pass. Admission's

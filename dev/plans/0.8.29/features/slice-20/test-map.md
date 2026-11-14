@@ -76,7 +76,16 @@ tests/executable tools change; docs-only use scoped Markdown validation.
 
 After design PASS, first add a real seeded-engine startup regression using an
 existing nested/../ path alias and the original exact Io/profile/provider/
-SQLite/admission assertions. If it actually fails, commit RED with raw assertion,
+SQLite/admission assertions. Each registered regression runs its semantic body
+in a fresh bounded child of the same unit-test executable, with one exact
+selector/child-dispatch marker. Install hooks only in that child; the parent
+never arms the global slots shared by the original tests. Child dispatch is not
+the failure oracle: actual RED must show the real-engine semantic assertion.
+Preserve raw output/status, require exactly one executed child case, and enforce
+an absolute90s deadline with exact owned-child kill/reap on timeout. No ignored
+or zero-case success and no detached actors. Run the affected engine lib target
+with ordinary parallelism as well as focused selectors, preserving all four
+original Windows bodies. If it actually fails, commit RED with raw assertion,
 then minimal startup hook-key fix and unchanged GREEN. Separately reproduce the
 visibility exact Io/provider/SQLite/admission behavior before any corresponding
 fix. Each command uses the engine operator,test-hooks --lib prefix, exact new

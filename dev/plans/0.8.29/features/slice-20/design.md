@@ -137,6 +137,13 @@ The [plan](plan.md#current-path-alias-hypothesis-and-genuine-red-route) names th
 real-engine Linux alias reproduction and per-behavior RED/GREEN order. Existing
 Windows bodies/oracles stay frozen. Canonical hook-key identity is diagnosed
 through actual exact errors and ownership, never source text or helper equality.
+New startup/visibility semantic fixtures execute only in separate fresh child
+processes because their installers overwrite global Mutex<Option> slots. Parent
+regressions never install hooks; exact child selector/dispatch identifies the
+real-engine case without becoming its RED oracle. Require actual assertion and
+nonzero case count, raw output/status, absolute90s child deadline and exact owned
+kill/reap; no detached actor or new unbounded Barrier. Ordinary parallel affected
+lib execution must include both parent regressions and unchanged original tests.
 No source repair is selected before observed failure. The bounded native window
 and remaining actual Windows qualification are separate.
 

@@ -86,4 +86,5 @@ def execute(cell, command, root, *, queries, deadline_ns, files=None, control_pa
     for phase, value in result.get("phases", {}).items():
         value["summary"] = summarize_invocations(
             [session.records[key] for key in value["submitted"]], value["wall_ns"])
+        del value["summary"]["queue"]
     return result

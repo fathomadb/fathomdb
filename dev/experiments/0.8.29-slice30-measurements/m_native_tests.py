@@ -8,6 +8,8 @@ import tempfile
 import unittest
 
 from m_client import RpcChild
+from m_lifecycle import first_calls
+from m_session import McpSession
 from m_wire import decode_tool
 
 
@@ -173,6 +175,31 @@ class OrientTests(NativeCase):
                     self.assertEqual(payload["budget"]["max_tokens"], 4000)
                 self.assertEqual(client.exit["code"], 0)
                 self.assertTrue(client.exit["readers_joined"])
+
+
+class FirstLifecycleTests(NativeCase):
+    """Actual first/immediate calls retain their lifecycle and inclusive client clocks."""
+
+    def test_actual_lazy_first_process_records_listing_and_immediate_call(self):
+        with McpSession([str(self.cli), "--config", str(self.config())],
+                        self.root / "lazy") as session:
+            session.initialize()
+            result = first_calls(session, "alpha", mode="text")
+            self.assertEqual([event["event"] for event in result.get("events", [])],
+                             ["before", "first", "immediate"],
+                             f"actual lazy lifecycle records absent; retained={self.root}")
+            self.assertEqual(result["events"][0]["payload"]["stores"][0]["readiness"], "closed")
+            for event in result["events"][1:]:
+                self.assertEqual(event["payload"]["results"][0]["ref"], "l:alpha")
+                self.assertEqual(event["payload"]["epoch"], 1)
+            self.assertEqual(result["first_call_ns"], result["events"][1]["elapsed_ns"])
+            self.assertEqual(result["spawn_to_first_ns"],
+                             result["events"][1]["arrival_ns"] - session.started_ns)
+            self.assertGreater(result["spawn_to_handshake_ns"], 0)
+            self.assertLessEqual(session.handshake_complete_ns,
+                                 result["events"][1]["send_start_ns"])
+        self.assertEqual(session.exit["code"], 0)
+        self.assertTrue(session.exit["readers_joined"])
 
 
 if __name__ == "__main__":

@@ -203,6 +203,7 @@ pub(crate) fn install_post_probe_visibility_fault_for_test(
         Arc<ManagedConnectionRegistry>,
     )>,
 ) {
+    let path = canonical_database_path(&path).expect("canonical visibility fault database path");
     *POST_PROBE_VISIBILITY_FAULT_FOR_TEST.lock().expect("visibility fault hook lock") =
         Some(PostProbeVisibilityFaultForTest { path, observed });
 }

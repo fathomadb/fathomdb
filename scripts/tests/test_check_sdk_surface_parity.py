@@ -370,5 +370,83 @@ class RustSdkObserverTests(unittest.TestCase):
         self.assertEqual(checker.main(["--binding", "rust", "--rust-crate", str(RUST_SDK)]), 0)
 
 
+DIAGNOSTIC_FORWARDER = """
+    #[cfg(feature = "slice30-observer")]
+    #[doc(hidden)]
+    pub fn begin_slice30_observation(&self, max_records: usize)
+        -> Result<fathomdb_engine::Slice30ObservationGuard> {
+        Ok(self.core.begin_slice30_observation(max_records)?)
+    }
+"""
+DIAGNOSTIC_FEATURES = {
+    "default": [],
+    "slice30-observer": ["fathomdb-engine/slice30-observer"],
+    "embed-cuda": [],
+}
+
+
+class RustQualificationDiagnosticTests(unittest.TestCase):
+    def observe(self, declaration=DIAGNOSTIC_FORWARDER, features=None, extra=""):
+        files = dict(RUST_CRATE)
+        files["engine.rs"] += "\nimpl Engine {\n" + declaration + extra + "\n}\n"
+        with tempfile.TemporaryDirectory() as temporary:
+            crate = write_crate(Path(temporary), files)
+            selected = DIAGNOSTIC_FEATURES if features is None else features
+            manifest = '[package]\nname="policy-fixture"\nversion="0.0.0"\n[features]\n'
+            manifest += "".join(f'{name}={json.dumps(values)}\n' for name, values in selected.items())
+            (crate / "Cargo.toml").write_text(manifest)
+            observed = checker.observe_rust_sdk(crate)
+            return checker.validate_observed(COMPANION, "rust", observed)
+
+    def test_exact_optional_observation_is_separate_from_governed_operations(self):
+        self.assertEqual(self.observe(), {"engine.open", "read.get_many"})
+
+    def test_missing_wrong_or_broadened_method_gate_is_rejected(self):
+        gate = '#[cfg(feature = "slice30-observer")]'
+        for replacement in ["", '#[cfg(feature = "test-hooks")]',
+                            '#[cfg(any(test, feature = "slice30-observer"))]',
+                            '#[cfg(any(feature = "slice30-observer", feature = "embed-cuda"))]']:
+            with self.subTest(gate=replacement), self.assertRaises(checker.ParityError):
+                self.observe(DIAGNOSTIC_FORWARDER.replace(gate, replacement))
+
+    def test_missing_hidden_attribute_or_wrong_forwarding_is_rejected(self):
+        for declaration in [DIAGNOSTIC_FORWARDER.replace('#[doc(hidden)]', ''),
+                            DIAGNOSTIC_FORWARDER.replace('self.core.begin_slice30_observation(max_records)',
+                                                         'self.core.begin_other_observation(max_records)'),
+                            DIAGNOSTIC_FORWARDER.replace('max_records: usize', 'max_records: u32')]:
+            with self.subTest(declaration=declaration), self.assertRaises(checker.ParityError):
+                self.observe(declaration)
+
+    def test_unknown_members_are_rejected_even_with_identical_diagnostic_attributes(self):
+        for name in ['unknown_observation', 'unknown_for_test', 'begin_slice30_observation_for_test']:
+            extra = DIAGNOSTIC_FORWARDER.replace('pub fn begin_slice30_observation(', f'pub fn {name}(')
+            with self.subTest(name=name), self.assertRaises(checker.ParityError):
+                self.observe(extra=extra)
+
+    def test_default_and_other_feature_activation_are_rejected(self):
+        for origin in ['default', 'embed-cuda']:
+            features = copy.deepcopy(DIAGNOSTIC_FEATURES)
+            features[origin] = ['slice30-observer']
+            with self.subTest(origin=origin), self.assertRaises(checker.ParityError):
+                self.observe(features=features)
+        features = copy.deepcopy(DIAGNOSTIC_FEATURES)
+        features.update(default=['alias'], alias=['slice30-observer'])
+        with self.assertRaises(checker.ParityError):
+            self.observe(features=features)
+
+    def test_wrong_diagnostic_forwarding_or_prohibited_sdk_features_are_rejected(self):
+        for values in [[], ['alias'], ['fathomdb-engine/slice30-observer', 'fathomdb-engine/test-hooks'],
+                       ['fathomdb-engine/slice30-observer', 'fathomdb-engine?/operator']]:
+            features = copy.deepcopy(DIAGNOSTIC_FEATURES)
+            features.update({'slice30-observer': values, 'alias': ['fathomdb-engine/slice30-observer']})
+            with self.subTest(values=values), self.assertRaises(checker.ParityError):
+                self.observe(features=features)
+        for prohibited in ['test-hooks', 'operator']:
+            features = copy.deepcopy(DIAGNOSTIC_FEATURES)
+            features['unrelated'] = [f'fathomdb-engine/{prohibited}']
+            with self.subTest(prohibited=prohibited), self.assertRaises(checker.ParityError):
+                self.observe(features=features)
+
+
 if __name__ == "__main__":
     unittest.main()

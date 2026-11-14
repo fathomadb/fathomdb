@@ -176,6 +176,17 @@ Shared non-command members are reproduced with core semantics:
 These members stay outside the operation map, as they are for Python and
 TypeScript.
 
+The separate optional qualification diagnostic catalog contains exactly
+`Engine::begin_slice30_observation(max_records: usize)`, doc-hidden and directly
+gated by nondefault `slice30-observer`. It returns the existing bounded core
+observation guard through normal SDK error translation, without exposing the
+core engine. The feature forwards only `fathomdb-engine/slice30-observer`; no other
+SDK feature may enable it. It is passive observation, not state/provider/SQL
+injection or a test hook. Its feature/declaration/forwarding are checked separately
+from all53 governed operations and ordinary non-command members. See the
+[narrow addendum](../adr/ADR-0.8.29-sdk-qualification-observation.md) and
+[guard contract](rust.md#private-slice30-qualification-observations).
+
 ## Options structs
 
 Each struct derives `Clone`, `Debug`, `PartialEq`, and `Default`.

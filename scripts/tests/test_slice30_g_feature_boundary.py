@@ -24,8 +24,8 @@ class GFeatureBoundaryTests(unittest.TestCase):
         )
         (consumer / "src/main.rs").write_text(
             'fn main() {\n'
-            '    let _ = fathomdb_engine::Engine::begin_slice30_observation_for_test;\n'
-            '    let _ = fathomdb_sdk::Engine::begin_slice30_observation_for_test;\n'
+            '    let _ = fathomdb_engine::Engine::begin_slice30_observation;\n'
+            '    let _ = fathomdb_sdk::Engine::begin_slice30_observation;\n'
             '}\n'
         )
         environment = dict(os.environ)

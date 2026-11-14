@@ -1260,3 +1260,33 @@ removed. Assertion ASTs match the fitted committed RED. Ruff passes. This
 completes the accepted fixture fit and coherent lifecycle recheck; full/native
 preparation may resume under the existing window, while model/GPU/campaign GO
 and final G acceptance remain separately held.
+
+### Assembled full source qualification and diagnostic policy RED
+
+Original `g-full-source` stops at actual SC2312 in the G platform check; repair
+`66ce84ad8` uses a checked standalone uname assignment without suppression or
+ratchet change. Canonical contributor digest regeneration is retained. Failed
+lint continuation passes; subsequent typecheck and unchanged strict security
+pass (0violations/0blockers/0downgrades). Collect-all under frozen66ce runs all220
+registered suites:218pass/2fail/0skip/0exclude, no resource stop, no surviving
+foreground work or cleanup uncertainty. Rust, normal G suites, Python/native
+receipt and TS pass. Inner ignored/skipped tests remain their own limits.
+
+The failures are maintained root blob currency and the SDK's unclassified
+observational member, not runtime product failures. Same Astra approves the
+precise passive diagnostic addendum/catalog/feature-graph intent within existing
+G scope; no new owner ruling is required. ADR decision4 and exclusions remain
+verbatim. Coordinated engine/SDK `begin_slice30_observation` replaces misleading
+_for_test wording without an alias; this is a mechanical rename, not runtime
+RED. Rust source/value assertions change only that name and rustfmt wrapping.
+
+`g-sdk-renamed-policy-red` still fails the unchanged28 entrypoint tests on the
+actual ungoverned new member (1failure/1error). Added static policy controls use
+the existing checker, with no missing helper/compiler failure:34tests yield
+1failure/2errors, including the valid exact diagnostic's missing classification.
+All original28 class ASTs are unchanged. Their exact53-operation assertion and
+signed/default/core-leak rules stay fixed. Raw logs retain both actual policy
+REDs. `g-root-inventory-green` separately passes all8 unchanged structural guards
+after updating only the maintained source blob/composition prose; all48 fields
+and root method/declaration assertions remain unchanged. Checker GREEN and
+affected requalification are pending; no second full wrapper or P replay follows.

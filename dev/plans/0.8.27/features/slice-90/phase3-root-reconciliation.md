@@ -1,7 +1,7 @@
 ---
 title: Slice 90 Phase 3 root reconciliation
 target_release: 0.8.27
-lib_rs_blob: 2303100aa5363f09f57629864b61a4ffd1553d66
+lib_rs_blob: 727963021c16da3aa7302269d9a409bbc5c1da63
 ---
 
 # Slice 90 Phase 3 root reconciliation
@@ -153,3 +153,8 @@ transaction-owned visibility guard, adds the two private visibility test
 containers above, and advances the current-format composition fixture to 37.
 The whole-file blob above tracks that composition; the 46 storage fields,
 root item closure and production ownership assertions remain unchanged.
+
+2026-11-13: Slice30 adds the feature-qualified private `slice30_observer` module
+and its doc-hidden record/batch/guard re-exports. The current blob reflects only
+this reviewed composition change; all48 root fields, root declarations and
+method ownership remain unchanged. Observation state remains owned below root.

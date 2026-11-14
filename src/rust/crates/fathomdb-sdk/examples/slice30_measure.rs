@@ -67,12 +67,8 @@ impl Adapter {
     #[cfg(feature = "slice30-observer")]
     fn begin_observation(&self) -> fathomdb_engine::Slice30ObservationGuard {
         match self {
-            Self::Core(engine) => {
-                engine.begin_slice30_observation_for_test(512).expect("core observer")
-            }
-            Self::Sdk(engine) => {
-                engine.begin_slice30_observation_for_test(512).expect("SDK observer")
-            }
+            Self::Core(engine) => engine.begin_slice30_observation(512).expect("core observer"),
+            Self::Sdk(engine) => engine.begin_slice30_observation(512).expect("SDK observer"),
         }
     }
 

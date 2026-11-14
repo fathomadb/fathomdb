@@ -25,7 +25,7 @@ fn observation_is_owned_bounded_and_transported_to_the_actual_reader() {
     let directory = tempfile::tempdir().unwrap();
     let a = seed(&directory.path().join("a.sqlite"));
     let b = seed(&directory.path().join("b.sqlite"));
-    let guard = a.begin_slice30_observation_for_test(32).unwrap();
+    let guard = a.begin_slice30_observation(32).unwrap();
     guard.with_operation(41, || {
         assert_eq!(a.search_text_only("needle").unwrap().results[0].id.value, "alpha")
     });
@@ -44,10 +44,7 @@ fn observation_is_owned_bounded_and_transported_to_the_actual_reader() {
     assert!(first.records.iter().all(|r| r.operation_id == 41));
     assert_eq!(first.dropped_records, 0);
     assert!(first.session_sequence > 0);
-    assert!(matches!(
-        a.begin_slice30_observation_for_test(2),
-        Err(EngineError::InvalidArgument { .. })
-    ));
+    assert!(matches!(a.begin_slice30_observation(2), Err(EngineError::InvalidArgument { .. })));
     assert!(catch_unwind(AssertUnwindSafe(|| guard.with_operation(7, || {
         a.search_text_only("needle").unwrap();
         panic!("contained observation unwind");
@@ -62,15 +59,9 @@ fn observation_is_owned_bounded_and_transported_to_the_actual_reader() {
     assert!(after.records.iter().any(|r| r.operation_id == 8));
     assert!(after.records.iter().all(|r| r.operation_id == 7 || r.operation_id == 8));
     drop(guard);
-    assert!(matches!(
-        a.begin_slice30_observation_for_test(0),
-        Err(EngineError::InvalidArgument { .. })
-    ));
-    assert!(matches!(
-        a.begin_slice30_observation_for_test(32769),
-        Err(EngineError::InvalidArgument { .. })
-    ));
-    let bounded = a.begin_slice30_observation_for_test(2).unwrap();
+    assert!(matches!(a.begin_slice30_observation(0), Err(EngineError::InvalidArgument { .. })));
+    assert!(matches!(a.begin_slice30_observation(32769), Err(EngineError::InvalidArgument { .. })));
+    let bounded = a.begin_slice30_observation(2).unwrap();
     for id in 0..5 {
         bounded.with_operation(id, || {
             a.search_text_only("needle").unwrap();
@@ -81,7 +72,7 @@ fn observation_is_owned_bounded_and_transported_to_the_actual_reader() {
     assert!(batch.dropped_records > 0);
     a.close().unwrap();
     drop(bounded);
-    assert!(matches!(a.begin_slice30_observation_for_test(2), Err(EngineError::Closing)));
+    assert!(matches!(a.begin_slice30_observation(2), Err(EngineError::Closing)));
     b.close().unwrap();
 }
 
@@ -134,7 +125,7 @@ fn seed_dense(path: &std::path::Path) -> Engine {
 fn no_dependency_hybrid_observes_each_actual_guard_once_without_invented_sql() {
     let directory = tempfile::tempdir().unwrap();
     let engine = seed_dense(&directory.path().join("dense.sqlite"));
-    let observation = engine.begin_slice30_observation_for_test(128).unwrap();
+    let observation = engine.begin_slice30_observation(128).unwrap();
     let result = observation.with_operation(100, || engine.search("needle")).unwrap();
     assert_eq!(result.results[0].id.value, "alpha");
     let batch = observation.take();
@@ -168,7 +159,7 @@ fn no_dependency_hybrid_observes_each_actual_guard_once_without_invented_sql() {
 fn skipped_guards_remain_explicit_for_direct_text_and_filtered_hybrid() {
     let directory = tempfile::tempdir().unwrap();
     let engine = seed_dense(&directory.path().join("guards.sqlite"));
-    let observer = engine.begin_slice30_observation_for_test(128).unwrap();
+    let observer = engine.begin_slice30_observation(128).unwrap();
     observer.with_operation(201, || {
         assert_eq!(engine.search_text_only("needle").unwrap().results[0].id.value, "alpha");
     });
@@ -266,7 +257,7 @@ fn source_window_controls_observe_actual_fallback_selection_without_clock_change
         )
         .unwrap();
     engine.drain(5_000).unwrap();
-    let observer = engine.begin_slice30_observation_for_test(256).unwrap();
+    let observer = engine.begin_slice30_observation(256).unwrap();
     for (operation, time, expected_fallback) in [(301, boundary - 1, false), (302, boundary, true)]
     {
         let view = ReadView { valid_as_of: Some(time), ..ReadView::default() };
@@ -342,7 +333,7 @@ fn pending_vector_probe_records_the_selected_fallback_not_only_eligibility() {
         .cursor;
     let pending = engine.read_embedding_readiness().unwrap().pending_count;
     let vector_present = engine.has_vector_for_cursor_for_test(cursor).unwrap();
-    let observer = engine.begin_slice30_observation_for_test(128).unwrap();
+    let observer = engine.begin_slice30_observation(128).unwrap();
     let result = observer.with_operation(601, || engine.search("needle")).unwrap();
     let batch = observer.take();
     engine.set_projection_scheduler_frozen_for_test(false);
@@ -371,7 +362,7 @@ fn pending_vector_probe_records_the_selected_fallback_not_only_eligibility() {
 fn authority_observation_uses_reader_transaction_and_frozen_validity() {
     let directory = tempfile::tempdir().unwrap();
     let engine = seed_dense(&directory.path().join("authority.sqlite"));
-    let observer = engine.begin_slice30_observation_for_test(256).unwrap();
+    let observer = engine.begin_slice30_observation(256).unwrap();
     let capture = |operation: u64, time: i64| {
         let view = fathomdb_engine::ReadView { valid_as_of: Some(time), ..Default::default() };
         let result =
@@ -483,7 +474,7 @@ fn boundary_capture_binds_same_call_authority_to_derived_membership() {
         )
         .unwrap();
     engine.drain(5_000).unwrap();
-    let observer = engine.begin_slice30_observation_for_test(256).unwrap();
+    let observer = engine.begin_slice30_observation(256).unwrap();
     let mut before: Option<serde_json::Value> = None;
     for (operation, time, present) in [(801, boundary - 1, true), (802, boundary, false)] {
         let view = ReadView { valid_as_of: Some(time), ..ReadView::default() };
@@ -530,7 +521,7 @@ fn boundary_capture_binds_same_call_authority_to_derived_membership() {
 fn api_phases_attribute_actual_compile_dispatch_wait_and_response_per_route() {
     let directory = tempfile::tempdir().unwrap();
     let engine = seed_dense(&directory.path().join("api-phases.sqlite"));
-    let observer = engine.begin_slice30_observation_for_test(256).unwrap();
+    let observer = engine.begin_slice30_observation(256).unwrap();
     for (operation, api, phases) in [
         (
             901,
@@ -604,7 +595,7 @@ fn api_phases_attribute_actual_compile_dispatch_wait_and_response_per_route() {
     }
     engine.close().unwrap();
     let absent = seed(&directory.path().join("absent-api.sqlite"));
-    let observer = absent.begin_slice30_observation_for_test(32).unwrap();
+    let observer = absent.begin_slice30_observation(32).unwrap();
     assert!(matches!(
         observer.with_operation(904, || absent.embed_text("needle")),
         Err(EngineError::EmbedderNotConfigured)
@@ -626,7 +617,7 @@ fn api_phases_attribute_actual_compile_dispatch_wait_and_response_per_route() {
 fn reader_phases_preserve_combined_vector_sql_fts_fusion_and_identity_parentage() {
     let directory = tempfile::tempdir().unwrap();
     let engine = seed_dense(&directory.path().join("reader-phases.sqlite"));
-    let observer = engine.begin_slice30_observation_for_test(256).unwrap();
+    let observer = engine.begin_slice30_observation(256).unwrap();
     let result = observer.with_operation(1001, || engine.search("needle")).unwrap();
     assert_eq!(result.results.len(), 2);
     assert_eq!(result.results[0].id.value, "alpha");

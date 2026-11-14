@@ -345,7 +345,7 @@ impl Engine {
     /// Bounds outside1..=32768 or duplicate sessions return InvalidArgument;
     /// closed engines return Closing. No SQL/provider work occurs on begin/drop.
     #[doc(hidden)]
-    pub fn begin_slice30_observation_for_test(
+    pub fn begin_slice30_observation(
         &self,
         max_records: usize,
     ) -> Result<Slice30ObservationGuard, EngineError> {

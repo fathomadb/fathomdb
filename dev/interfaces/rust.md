@@ -181,10 +181,10 @@ already armed hook on the same engine panics; callbacks must provide their own
 bounded release/cleanup. An unfired callback is dropped with its engine. Ordinary
 search and shipped artifacts carry no hook state or new contract fields.
 
-### Private Slice30 measurement observations
+### Private Slice30 qualification observations
 
 The nondefault `fathomdb-engine/slice30-observer` feature exposes doc-hidden
-`Engine::begin_slice30_observation_for_test(max_records)` and the returned
+`Engine::begin_slice30_observation(max_records)` and the returned
 `Slice30ObservationGuard`/batch/record types. The SDK's same-named feature forwards
 only that engine capability; its method returns the guard with normal SDK error
 translation and exposes no core engine. Shipped bindings/facade/CLI/MCP feature

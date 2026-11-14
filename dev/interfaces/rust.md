@@ -230,8 +230,10 @@ CLI forwards this test hook. The caller supplies its whole-cell monotonic
 bounded observer contract. Begin/drop performs no SQL, wake or provider call.
 The D guard is Send+Sync, not Clone, and retains no engine/SQL/provider lifetime.
 `with_operation` preserves return/unwind behavior; `take` retains bounded loss
-accounting. The current source-preparation scaffold has no worker admission or
-background records yet; these require the ordered runtime RED/GREEN units in
+accounting. D worker admission is engine/session-owned, carried weakly from actual scans
+through bounded queued jobs. Untimed dequeue and actual processing/submit-wait
+intervals retain actual cursors; stale/mixed admission cannot relabel work.
+Further numeric/outcome/overlap contracts follow ordered runtime RED/GREEN in
 [the D contract](../plans/0.8.29/features/slice-30/continuation-gd.md#d-source-fit-and-exact-private-observer-contract).
 The foreground G guard and signed/default SDK surface remain unchanged.
 

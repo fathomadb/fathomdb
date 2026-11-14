@@ -34,6 +34,8 @@ pub(crate) fn collect_projection_jobs(
                     kind: kind.clone(),
                     body: body.clone(),
                     generation_id: generation_id.clone(),
+                    #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+                    observation: None,
                 });
             }
         }

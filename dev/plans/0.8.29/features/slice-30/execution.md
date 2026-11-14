@@ -1689,3 +1689,14 @@ subcases followed by1/1 GREEN and5/5 affected live preservation
 Existing owned/inflight records are not overwritten. The explicit final live
 route now includes21 cases; its new common-worker pair is separately qualified
 above, not relabelled as a new21-case full-route pass.
+
+D-T1a entered integrated6696 in its exclusive checkout. Actual RED ef582b59a
+compiled and failed the missing `projection_scan` runtime assertion (0/1);
+minimal engine-owned weak scan/job custody plus untimed dequeue, processing
+and actual per-row submit/wait intervals now pass the frozen1/1 test. Raw
+`d-t1a-initial-red.log`, first compile-failed GREEN and corrected GREEN remain
+under the owned D task logs. Module/Clippy checks pass; the unchanged G target
+passes9/10 with one ENOENT starting the new checkout's absent owned Python
+witness. That setup limitation remains open, without test edits or borrowed
+Python/native modules. No numeric snapshot, commit/outcome, overlap, planner or
+scale measurement qualification is claimed; further native work needs its lease.

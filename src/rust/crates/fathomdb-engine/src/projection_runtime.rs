@@ -152,6 +152,8 @@ pub(crate) struct ProjectionJob {
     pub(crate) kind: String,
     pub(crate) body: String,
     pub(crate) generation_id: ProjectionGenerationId,
+    #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+    pub(crate) observation: Option<crate::slice30_observer::ProjectionTicket>,
 }
 
 #[derive(Debug, Default)]

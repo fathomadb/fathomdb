@@ -76,6 +76,11 @@ def make_g_plan(spec):
                 n=100000, repeat=repeat, batch_size=batch, searches_per_batch=ratio,
                 adapters=[adapter], routes=[route], warmup=500, samples=1000,
                 record_first_call=False, fresh_seed=True)
+    if spec.get("preparation") == "closed-copy-v1":
+        for cell in plan:
+            if cell["stage"] == "G-W" or cell["id"] == "g-r-n100000-r1":
+                cell.update(cell_seconds=1500, preparation="closed-copy-v1",
+                            fresh_copy=True, fresh_seed=False)
     return plan
 
 

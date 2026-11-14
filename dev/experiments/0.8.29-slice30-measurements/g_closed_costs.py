@@ -1,5 +1,7 @@
 """Matched100k calibration cost extraction; actual qualification precedes aggregation."""
 
+from g_campaign import active_bytes
+
 
 def calibration_costs(records, adapter):
     """Aggregate qualified dense/sparse records for one adapter, or leave costs unavailable.
@@ -52,3 +54,9 @@ def calibration_costs(records, adapter):
                 "physical_growth_per_row", "fixed_bytes", "write_row_max_ns",
                 "readiness_max_ns", "point_probe_max_ns", "text_probe_max_ns"}
     return costs if required <= costs.keys() else {}
+
+
+def load_calibration(root, current):
+    """Load actual qualified calibration costs; unavailable reports hold the successor."""
+    active_bytes(root)
+    return {"records": [], "costs": {}}

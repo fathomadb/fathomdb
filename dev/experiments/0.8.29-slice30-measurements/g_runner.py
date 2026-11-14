@@ -414,9 +414,10 @@ def main():
     elif args.action == "run":
         if os.environ.get("AGENT_LONG") != "1":
             parser.error("G production campaign requires AGENT_LONG=1")
+        from g_campaign import completed_record
         outcomes = run_frozen(args.root)
-        print(json.dumps({"cells":len(outcomes),"complete":all(row["status"]=="complete" for row in outcomes)}))
-        if any(row["status"] != "complete" for row in outcomes) or not json.loads((args.root / "last-run.json").read_text()).get("environment_ok", False):
+        print(json.dumps({"cells":len(outcomes),"complete":all(completed_record(row) for row in outcomes)}))
+        if any(not completed_record(row) for row in outcomes) or not json.loads((args.root / "last-run.json").read_text()).get("environment_ok", False):
             raise SystemExit(1)
     elif args.action == "report":
         from g_campaign import active_bytes

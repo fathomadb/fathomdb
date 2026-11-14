@@ -88,6 +88,8 @@ def run_case(case, session, control):
     """Run a tiny actual Adapter call; diagnostic orchestration is case-specific."""
     if case == "queue_full":
         return _queue_full(session, control)
+    if case == "queued_cancel":
+        return _queued_cancel(session, control)
     return session.tool("search", {"store": "a", "query": "alpha", "mode": "text", "limit": 10})
 
 
@@ -143,3 +145,35 @@ def _queue_full(session, control):
     return dict(result, diagnostic={"case": "queue_full", "held_before_release": before,
                 "held_after_release": after, "queued_stage": stage, "unexpected_errors": unexpected,
                 "complete": result.get("error") == "busy/admission/queue_full" and not unexpected})
+
+
+def _queued_cancel(session, control):
+    requests = _hold_four(session, control)
+    try:
+        target = _submit_search(session, "cancel-target")
+        requests.append(target)
+        _progress(session, lambda params: params.get("progressToken") == "cancel-target"
+                  and params.get("message") == "queued: 1 waiting, 4 running")
+        witness = _submit_search(session, "cancel-witness")
+        requests.append(witness)
+        before_stage = _progress(session, lambda params: params.get("progressToken") == "cancel-witness"
+                                 and params.get("message") == "queued: 2 waiting, 4 running")
+        session.notify("notifications/cancelled", {"requestId": target, "reason": "source diagnostic"})
+        after_stage = _progress(session, lambda params: params.get("progressToken") == "cancel-witness"
+            and params.get("progress", -1) > before_stage["params"]["progress"]
+            and params.get("message") == "queued: 1 waiting, 4 running")
+        session.wait(target, timeout=0.2)
+        before = control.wait_held(4)["held_calls"]
+    finally:
+        control.send("release_all")
+        _drain(session, requests)
+    after = control.wait_held(0)["held_calls"]
+    result = session.records[target]
+    terminal_ok = (result["status"] == "unresolved" or result.get("error") == "timeout/cancelled")
+    return dict(result, diagnostic={"case": "queued_cancel", "held_before_release": before,
+        "held_after_release": after, "witness_rpc_id": witness,
+        "queued_before_cancel": int(before_stage["params"]["message"].split()[1]),
+        "queued_after_cancel": int(after_stage["params"]["message"].split()[1]),
+        "before_cancel_stage": before_stage, "after_cancel_stage": after_stage,
+        "complete": terminal_ok and all(session.records[item].get("ok") is True
+                                        for item in requests if item != target)})

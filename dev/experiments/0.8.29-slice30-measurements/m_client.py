@@ -100,6 +100,11 @@ class RpcChild:
         sent = time.monotonic_ns()
         self.child.stdin.write(raw)
         self.child.stdin.flush()
+        if method == "notifications/cancelled" and params.get("requestId") in self.records:
+            row = self.records[params["requestId"]]
+            row["cancellation_requested"] = True
+            row["cancellation_send_start_ns"] = sent
+            row["cancellation_flush_end_ns"] = time.monotonic_ns()
         self._submissions.write({"status": "notification", "request": request,
                                  "request_raw": raw.decode(), "request_bytes": len(raw),
                                  "send_start_ns": sent, "flush_end_ns": time.monotonic_ns()})

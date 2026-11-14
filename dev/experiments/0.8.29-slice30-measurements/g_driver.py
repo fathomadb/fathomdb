@@ -23,7 +23,11 @@ def run_program_step(command, config, output, deadline_ns, observe=None):
     # Short controls may exit before one observation; observer latency adds to the wait.
     short_control = (config.get("stage") == "G0" or config.get("calibration") is True
                      or (config.get("stage") == "G-O" and config.get("kind") == "branches"))
-    observation_wait = 0.05 if observe and short_control else 1
+    declared_wait = config.get("observation_wait_ms")
+    if declared_wait is not None and (config.get("stage") != "G-W" or declared_wait not in (50, 1000)):
+        raise ValueError("observation cadence is outside the reviewed primary write contract")
+    observation_wait = (declared_wait / 1000 if observe and declared_wait is not None
+                        else 0.05 if observe and short_control else 1)
     def collect(pid):
         nonlocal observation_wall_ns, observation_parent_cpu_ns, observation_max_wall_ns
         wall, cpu = time.monotonic_ns(), time.process_time_ns()

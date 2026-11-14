@@ -87,6 +87,15 @@ def make_g_plan(spec):
             if cell["stage"] == "G-W" or cell["id"] == "g-r-n100000-r1":
                 cell.update(cell_seconds=1500, preparation="closed-copy-v1",
                             fresh_copy=True, fresh_seed=False)
+    if spec.get("_closed_limits") is not None:
+        from g_closed_limits import effective_limits
+        limits = effective_limits(spec)
+        cadence = spec.get("_closed_observation_wait_ms")
+        if cadence not in (50, 1000):
+            raise ValueError("prospective writes require a declared reviewed observation cadence")
+        for cell in plan:
+            if cell["stage"] == "G-W":
+                cell.update(limits, observation_wait_ms=cadence)
     return plan
 
 
@@ -151,6 +160,10 @@ def run_g_plan(spec, root, command, prepare=None, allocation_root=None, assess=N
 
 def _run_plan(spec, plan, root, command, prepare, allocation_root, assess, reused,
               stage, prior_outcome_path, prerequisites=None):
+    from g_closed_limits import effective_limits
+    limits = effective_limits(spec)
+    shared_limit_ns = limits["campaign_seconds"] * 10**9
+    storage_limit = limits["active_bytes"]
     target = stage_target(stage)
     if spec.get("preparation") == "closed-copy-v1" and spec.get("closed_mode") == "closed-copy-read-r1":
         target = "g-r-n100000-r1"
@@ -230,17 +243,17 @@ def _run_plan(spec, plan, root, command, prepare, allocation_root, assess, reuse
             (root / "g-outcomes.json").write_text(json.dumps(outcomes, indent=2) + "\n")
             continue
         reason = ("unfinished_shared_attempt" if budget.get("inflight") else
-                  "shared_time_exhausted" if budget["used_ns"] >= 14400 * 10**9 else
+                  "shared_time_exhausted" if budget["used_ns"] >= shared_limit_ns else
                   "cell_time_exhausted" if cell_usage.get(cell["id"], 0) >= cell["cell_seconds"] * 10**9 else
                   "exploratory_admission_consumed" if stage == "first-100k-seed-exploratory"
                   and budget.get("exploratory_seed100k", {}).get("consumed") else
-                  "active_storage_exhausted" if active_bytes(allocation) >= 16 * 1024**3 else None)
+                  "active_storage_exhausted" if active_bytes(allocation) >= storage_limit else None)
         if reason:
             outcomes.append({"id": cell["id"], "cell": cell, "status": "not_run_cap",
                              "complete": False, "reason": reason})
         else:
             started = time.monotonic_ns()
-            shared_allowance = 14400 * 10**9 - budget["used_ns"]
+            shared_allowance = shared_limit_ns - budget["used_ns"]
             cell_allowance = cell["cell_seconds"] * 10**9 - cell_usage.get(cell["id"], 0)
             deadline = started + min(shared_allowance, cell_allowance)
             if spec.get("preparation") == "closed-copy-v1":
@@ -261,7 +274,7 @@ def _run_plan(spec, plan, root, command, prepare, allocation_root, assess, reuse
                 elapsed = time.monotonic_ns() - started
                 reason = ("shared_time_exhausted" if elapsed >= shared_allowance else
                           "cell_time_exhausted" if elapsed >= cell_allowance else
-                          "active_storage_exhausted" if active_bytes(allocation) >= 16 * 1024**3 else None)
+                          "active_storage_exhausted" if active_bytes(allocation) >= storage_limit else None)
                 if exploratory and "seed_ns" in prediction:
                     prediction["conservative_time_feasible"] = prediction["seed_ns"] <= min(
                         cell_allowance - elapsed, shared_allowance - elapsed)
@@ -273,7 +286,7 @@ def _run_plan(spec, plan, root, command, prepare, allocation_root, assess, reuse
                     outcome = dict(assessment, id=cell["id"], cell=cell, complete=False)
                 elif (prediction.get("unavailable") is not None
                       or forecast_ns > min(cell_allowance - elapsed, shared_allowance - elapsed)
-                      or prediction.get("seed_bytes", 0) + active_bytes(allocation) > 16 * 1024**3):
+                      or prediction.get("seed_bytes", 0) + active_bytes(allocation) > storage_limit):
                     outcome = {"id": cell["id"], "cell": cell, "status": "not_run_cap",
                                "complete": False, "reason": "cap_feasibility", "prediction": prediction}
                 else:
@@ -281,7 +294,7 @@ def _run_plan(spec, plan, root, command, prepare, allocation_root, assess, reuse
                     elapsed = time.monotonic_ns() - started
                     reason = ("shared_time_exhausted" if elapsed >= shared_allowance else
                               "cell_time_exhausted" if elapsed >= cell_allowance else
-                              "active_storage_exhausted" if active_bytes(allocation) >= 16 * 1024**3 else None)
+                              "active_storage_exhausted" if active_bytes(allocation) >= storage_limit else None)
                     if reason:
                         outcome = {"id": cell["id"], "cell": cell, "status": "not_run_cap",
                                    "complete": False, "reason": reason}
@@ -318,7 +331,7 @@ def _run_plan(spec, plan, root, command, prepare, allocation_root, assess, reuse
                             now_elapsed = time.monotonic_ns() - started
                             if cell.get("calibration") and active_bytes(root / cell["id"]) >= CALIBRATION_CELL_BYTES:
                                 return "calibration_cell_storage_exhausted"
-                            if active_bytes(allocation) >= 16 * 1024**3:
+                            if active_bytes(allocation) >= storage_limit:
                                 return "active_storage_exhausted"
                             if now_elapsed >= shared_allowance:
                                 return "shared_time_exhausted"

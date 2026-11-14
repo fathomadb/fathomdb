@@ -7,9 +7,11 @@ import subprocess
 import tempfile
 import time
 import unittest
+from contextlib import contextmanager
 
 from m_client import RpcChild
 from m_lifecycle import alternating, first_calls, idle_cycle
+from m_diagnostics import PrivateControl, run_case
 from m_session import McpSession
 from m_wire import decode_tool
 
@@ -55,6 +57,22 @@ class NativeCase(unittest.TestCase):
         request_id = client.submit("tools/call", {"name": name, "arguments": arguments},
                                    phase="control", tool=name)
         return decode_tool(client.wait(request_id))
+
+    @contextmanager
+    def helper_session(self, result_format):
+        """Serve the real Adapter and arm only its private existing Seams channel."""
+        control_path = self.root / "ctl.sock"
+        command = [str(self.helper), "--config", str(self.config(result_format)),
+                   "--control-socket", str(control_path)]
+        with McpSession(command, self.root / f"helper-{result_format}",
+                        result_format=result_format) as session:
+            with PrivateControl(control_path, session.root) as control:
+                session.initialize()
+                yield session, control
+            self.assertEqual(control.failures, [])
+        self.assertEqual(session.exit["code"], 0)
+        self.assertTrue(session.exit["readers_joined"])
+        self.assertEqual(session.failures, [])
 
 
 class CompactSearchTests(NativeCase):
@@ -299,6 +317,25 @@ class ProviderWordsTests(NativeCase):
                     self.assertEqual(payload["hints"][0], {"action": "none", "reason": "degraded",
                                                         "arm": "vector", "cause": "embedder_absent"})
                 self.assertEqual(client.exit["code"], 0)
+
+
+class QueueFullTests(NativeCase):
+    """Actual cap4 plus32 observed waiters refuses the next call in both formats."""
+
+    def test_actual_queue_full_keeps_busy_fields_and_all_invocations(self):
+        for result_format in ("text", "structured"):
+            with self.subTest(result_format=result_format):
+                with self.helper_session(result_format) as (session, control):
+                    result = run_case("queue_full", session, control)
+                    self.assertEqual(result.get("error"), "busy/admission/queue_full",
+                                     f"actual queue_full disposition absent; retained={self.root}")
+                    busy = result["payload"]["error"]["busy"]
+                    self.assertEqual((busy["in_flight"], busy["queued"], busy["abandoned"]), (4, 32, 0))
+                    self.assertEqual(result["diagnostic"]["held_before_release"], 4)
+                    self.assertEqual(result["diagnostic"]["held_after_release"], 0)
+                    self.assertEqual(sum(row["request"]["method"] == "tools/call"
+                                         for row in session.records.values()), 38)
+                    self.assertTrue(all(row["status"] == "completed" for row in session.records.values()))
 
 
 if __name__ == "__main__":

@@ -400,5 +400,26 @@ class RunningCancelTests(NativeCase):
                     self.assertTrue(facts["complete"])
 
 
+class RunLimitTests(NativeCase):
+    """Actual default30s run-limit replies abandon all four still-held closures."""
+
+    def test_actual_run_limit_retains_timeout_held_permits_and_post_release_recovery(self):
+        for result_format in ("text", "structured"):
+            with self.subTest(result_format=result_format):
+                with self.helper_session(result_format) as (session, control):
+                    result = run_case("run_limit", session, control)
+                    self.assertEqual(result.get("error"), "timeout/deadline",
+                                     f"actual run-limit disposition absent; retained={self.root}")
+                    facts = result["diagnostic"]
+                    busy = facts["probe"]["payload"]["error"]["busy"]
+                    self.assertEqual((busy["in_flight"], busy["abandoned"]), (4, 4))
+                    self.assertEqual((facts["held_before_release"], facts["held_after_release"]), (4, 0))
+                    self.assertEqual([session.records[item]["error"] for item in facts["original_rpc_ids"]],
+                                     ["timeout/deadline"] * 4)
+                    self.assertEqual(facts["recovery_held"], 4)
+                    self.assertTrue(all(session.records[item]["ok"] for item in facts["recovery_rpc_ids"]))
+                    self.assertTrue(facts["complete"])
+
+
 if __name__ == "__main__":
     unittest.main()

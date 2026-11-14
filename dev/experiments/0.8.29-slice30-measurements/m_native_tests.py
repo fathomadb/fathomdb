@@ -77,5 +77,28 @@ class CompactSearchTests(NativeCase):
         self.assertEqual(client.failures, [])
 
 
+class TypedErrorTests(NativeCase):
+    """Both actual wire formats retain the typed error and its complete remedy."""
+
+    def test_actual_unknown_store_keeps_error_words_candidates_and_label(self):
+        for result_format in ("text", "structured"):
+            with self.subTest(result_format=result_format):
+                with RpcChild([str(self.cli), "--config", str(self.config(result_format))],
+                              self.root / result_format) as client:
+                    self.initialize(client)
+                    result = self.call(client, "search", {"store": "aa", "query": "alpha"})
+                    error = result["payload"].get("error", {})
+                    self.assertEqual(error.get("class"), "invalid_request",
+                                     f"actual typed error was lost: {result}; retained={self.root}")
+                    self.assertEqual(error["code"], "unknown_store")
+                    self.assertEqual(error["candidates"], ["a", "b"])
+                    self.assertEqual(error["message"], 'store "aa" is not addressable')
+                    self.assertEqual(error["remedy"], "call list_stores and use one of the listed names")
+                    self.assertFalse(result["ok"])
+                    self.assertEqual(result.get("error"), "invalid_request/unknown_store")
+                self.assertEqual(client.exit["code"], 0)
+                self.assertTrue(client.exit["readers_joined"])
+
+
 if __name__ == "__main__":
     unittest.main()

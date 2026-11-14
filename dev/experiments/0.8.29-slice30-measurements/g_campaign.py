@@ -145,9 +145,46 @@ def run_g_plan(spec, root, command, prepare=None, allocation_root=None, assess=N
         root = Path(root)
         root.mkdir(parents=True, exist_ok=True)
         calibration = calibration_plan(spec)
-        separate = _run_plan(spec, calibration, root / "calibration", command, prepare,
-                             allocation_root, assess, None, None, prior_outcome_path,
-                             prerequisites=reused)
+        def phase_reservation(previous, remaining_ns, retained_bytes):
+            from g_common_storage import common_bytes
+            allocation = Path(allocation_root) if allocation_root is not None else root
+            budget_path = allocation / "g-budget.json"
+            budget = json.loads(budget_path.read_text()) if budget_path.exists() else {}
+            outstanding = [item for item in calibration if not completed_record(previous.get(item["id"]))]
+            remaining_time = (sum(max(0, item["cell_seconds"]*10**9
+                                     - budget.get("cell_used_ns", {}).get(item["id"], 0))
+                                  for item in outstanding)
+                              + max(0, 600*10**9-budget.get("common_used_ns", {}).get(spec["closed_mode"], 0)))
+            remaining_bytes = (len(outstanding)*CALIBRATION_CELL_BYTES
+                               + max(0, 1024**3-common_bytes(allocation)))
+            reservation = {"remaining_time_ns": remaining_time,
+                           "new_bytes": 4*CALIBRATION_CELL_BYTES+1024**3,
+                           "remaining_new_bytes": remaining_bytes}
+            if remaining_time > remaining_ns or remaining_bytes + retained_bytes > 16*1024**3:
+                return {"status": "not_run_cap", "reason": "calibration_phase_reservation",
+                        "reservation": reservation}
+            return None
+        def reserved_assessment(cell, previous, remaining_ns, retained_bytes):
+            refusal = phase_reservation(previous, remaining_ns, retained_bytes)
+            return refusal or (assess(cell, previous, remaining_ns, retained_bytes) if assess else None)
+        allocation = Path(allocation_root) if allocation_root is not None else root
+        budget_path = allocation / "g-budget.json"
+        budget = json.loads(budget_path.read_text()) if budget_path.exists() else {"used_ns": 0, "inflight": None}
+        state_path = root / "calibration/campaign-state.json"
+        previous = {row["id"]: row for row in json.loads(state_path.read_text())} if state_path.exists() else {}
+        refusal = phase_reservation(previous, 14400*10**9-budget["used_ns"], active_bytes(allocation))
+        if refusal and not budget.get("inflight") and not budget.get("closed_calibration_stop"):
+            from g_closed_guard import write_budget
+            separate = [dict(refusal, id=cell["id"], cell=cell, complete=False) for cell in calibration]
+            (root / "calibration").mkdir(exist_ok=True)
+            (root / "calibration/g-outcomes.json").write_text(json.dumps(separate, indent=2)+"\n")
+            budget["closed_calibration_stop"] = {"cell": separate[0]["id"], "outcome": separate[0],
+                "path": str(root / "calibration/g-outcomes.json")}
+            write_budget(budget_path, budget)
+        else:
+            separate = _run_plan(spec, calibration, root / "calibration", command, prepare,
+                                 allocation_root, reserved_assessment, None, None, prior_outcome_path,
+                                 prerequisites=reused)
         (root / "calibration-outcomes.json").write_text(json.dumps(separate, indent=2) + "\n")
         rows = [(reused or {}).get(cell["id"], {"id": cell["id"], "cell": cell,
                  "status": "not_run_stage", "complete": False, "reason": "outside_closed_calibration"})
@@ -221,6 +258,10 @@ def _run_plan(spec, plan, root, command, prepare, allocation_root, assess, reuse
             (root / "g-outcomes.json").write_text(json.dumps(outcomes, indent=2) + "\n")
             continue
         stopped = budget.get("closed_calibration_stop") if cell.get("calibration") else None
+        if stopped and stopped["outcome"].get("reason") == "calibration_phase_reservation":
+            outcomes.append(dict(stopped["outcome"], id=cell["id"], cell=cell))
+            (root / "g-outcomes.json").write_text(json.dumps(outcomes, indent=2) + "\n")
+            continue
         if stopped:
             outcomes.append(stopped["outcome"] if stopped["cell"] == cell["id"] else {
                 "id": cell["id"], "cell": cell, "status": "not_run_prerequisite", "complete": False,

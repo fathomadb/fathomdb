@@ -5,6 +5,7 @@ from pathlib import Path
 import time
 
 from g_attempt import run_g_attempt
+from g_campaign import active_bytes
 
 COMMON_BYTES = 1024**3
 
@@ -25,6 +26,8 @@ def run_common(allocation, mode, command):
     reason = ("unfinished_shared_attempt" if budget.get("inflight") else
               "common_time_exhausted" if common.get(mode, 0) >= 600 * 10**9 else
               "shared_time_exhausted" if budget["used_ns"] >= 14400 * 10**9 else
+              "common_storage_exhausted" if active_bytes(allocation / "common") >= COMMON_BYTES else
+              "shared_storage_exhausted" if active_bytes(allocation) >= 16 * 1024**3 else
               "common_cleanup_reserve" if remaining <= 40 * 10**9 else None)
     if reason:
         return {"status": "not_run_cap", "complete": False, "reason": reason}
@@ -33,7 +36,14 @@ def run_common(allocation, mode, command):
     budget_path.write_text(json.dumps(budget, indent=2) + "\n")
     outcome = None
     try:
-        outcome = run_g_attempt({"id": "g-common-" + mode}, allocation / "common", command, deadline)
+        def monitor(_pid):
+            if active_bytes(allocation / "common") >= COMMON_BYTES:
+                return "common_storage_exhausted"
+            if active_bytes(allocation) >= 16 * 1024**3:
+                return "shared_storage_exhausted"
+            return None
+        outcome = run_g_attempt({"id": "g-common-" + mode}, allocation / "common", command,
+                                deadline, monitor=monitor)
         return outcome
     finally:
         elapsed = time.monotonic_ns() - started

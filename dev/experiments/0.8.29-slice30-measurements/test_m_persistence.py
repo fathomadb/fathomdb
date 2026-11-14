@@ -50,6 +50,20 @@ class PersistenceTests(unittest.TestCase):
             self.assertTrue(issues)
             self.assertTrue((root / "stdout.raw").read_bytes().endswith(b'"id":'))
 
+    def test_raw_stream_write_and_flush_costs_remain_separate_from_invocations(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            with RpcChild([sys.executable, "-u", "-c", PARTIAL_CHILD], root) as client:
+                for index in range(16):
+                    client.wait(client.submit("echo", {"ordinal": index}))
+            stdout = client.exit["persistence"].get("raw", {}).get("stdout", {})
+            self.assertEqual(stdout.get("encoded_bytes", 0), len((root / "stdout.raw").read_bytes()),
+                             "raw saved bytes/costs disappeared from persistence accounting")
+            self.assertEqual(stdout["records"], 17)
+            self.assertEqual(stdout["checkpoints"], 17)
+            self.assertIsInstance(stdout["persistence_ns"], int)
+            self.assertGreaterEqual(stdout["persistence_ns"], stdout["checkpoint_ns"])
+
 
 if __name__ == "__main__":
     unittest.main()

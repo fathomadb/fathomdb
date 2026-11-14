@@ -12,7 +12,7 @@ from g_span_coverage import stored_coverage
 def run_program_step(command, config, output, deadline_ns, observe=None):
     """Retain one normal-program step under the same absolute parent cell deadline."""
     started = time.monotonic_ns()
-    observation_wall_ns = observation_parent_cpu_ns = 0
+    observation_wall_ns = observation_parent_cpu_ns = observation_max_wall_ns = 0
     output = Path(output)
     output.parent.mkdir(parents=True, exist_ok=True)
     path = output.with_name(output.name + "-native-config.json")
@@ -25,16 +25,19 @@ def run_program_step(command, config, output, deadline_ns, observe=None):
                      or (config.get("stage") == "G-O" and config.get("kind") == "branches"))
     observation_wait = 0.05 if observe and short_control else 1
     def collect(pid):
-        nonlocal observation_wall_ns, observation_parent_cpu_ns
+        nonlocal observation_wall_ns, observation_parent_cpu_ns, observation_max_wall_ns
         wall, cpu = time.monotonic_ns(), time.process_time_ns()
         try:
             step["gpu_samples"].append(observe(pid))
         finally:
-            observation_wall_ns += time.monotonic_ns() - wall
+            elapsed = time.monotonic_ns() - wall
+            observation_wall_ns += elapsed
+            observation_max_wall_ns = max(observation_max_wall_ns, elapsed)
             observation_parent_cpu_ns += time.process_time_ns() - cpu
     def finish(value):
         return dict(value, host_wall_ns=time.monotonic_ns() - started,
                     observation_wall_ns=observation_wall_ns,
+                    observation_max_wall_ns=observation_max_wall_ns,
                     observation_parent_cpu_ns=observation_parent_cpu_ns,
                     observation_count=len(step["gpu_samples"]),
                     observation_raw_bytes=len(json.dumps(step["gpu_samples"]).encode()),

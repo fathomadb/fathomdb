@@ -8,6 +8,7 @@ import time
 from g_attempt import run_g_attempt
 
 CALIBRATION_CELL_BYTES = 3 * 1024**3
+CLOSED_CLEANUP_RESERVE_NS = 40 * 10**9
 
 
 STAGES = {"branch-controls": "g-o-branches",

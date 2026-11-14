@@ -448,5 +448,14 @@ class RustQualificationDiagnosticTests(unittest.TestCase):
                 self.observe(features=features)
 
 
+    def test_unknown_extern_members_remain_ungoverned_even_with_diagnostic_attributes(self):
+        for declaration in ['pub extern "C" fn unknown_observation(&self) {}',
+                            'pub extern fn unknown_observation(&self) {}',
+                            'pub unsafe extern "C" fn unknown_observation(&self) {}']:
+            extra = '#[cfg(feature = "slice30-observer")]\n#[doc(hidden)]\n' + declaration
+            with self.subTest(declaration=declaration), self.assertRaises(checker.ParityError):
+                self.observe(extra=extra)
+
+
 if __name__ == "__main__":
     unittest.main()

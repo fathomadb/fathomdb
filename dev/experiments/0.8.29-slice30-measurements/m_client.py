@@ -32,6 +32,8 @@ class RpcChild:
         self.failures = []
         self.protocol_failures = []
         self.transport_failures = []
+        self.raw_persistence = {name: dict(records=0, encoded_bytes=0, checkpoints=0,
+            persistence_ns=0, checkpoint_ns=0) for name in ("stdout", "stderr")}
         self._next_id = 1
         self._events = queue.Queue(maxsize=4096)
         self._stop = threading.Event()
@@ -44,6 +46,7 @@ class RpcChild:
 
     def _read(self, name, pipe, max_line, max_stream):
         total = 0
+        accounting = self.raw_persistence[name]
         try:
             with (self.root / f"{name}.raw").open("wb") as saved:
                 while not self._stop.is_set():
@@ -52,8 +55,16 @@ class RpcChild:
                     if not line:
                         break
                     total += len(line)
+                    began = time.monotonic_ns()
                     saved.write(line)
+                    flush_start = time.monotonic_ns()
                     saved.flush()
+                    finished = time.monotonic_ns()
+                    accounting["records"] += 1
+                    accounting["encoded_bytes"] += len(line)
+                    accounting["checkpoints"] += 1
+                    accounting["persistence_ns"] += finished-began
+                    accounting["checkpoint_ns"] += finished-flush_start
                     if len(line) > max_line or total > max_stream or not line.endswith(b"\n"):
                         raise ValueError(f"{name}: bounded stream incomplete")
                     if name == "stdout":
@@ -198,7 +209,8 @@ class RpcChild:
                      "readers_joined": all(not thread.is_alive() for thread in self._threads),
                      "persistence": {"submissions": self._submissions.summary(),
                                      "invocations": self._invocations.summary(),
-                                     "protocol": self._protocol.summary()},
+                                     "protocol": self._protocol.summary(),
+                                     "raw": self.raw_persistence},
                      "protocol_failures": self.protocol_failures,
                      "transport_failures": self.transport_failures}
         return self.exit

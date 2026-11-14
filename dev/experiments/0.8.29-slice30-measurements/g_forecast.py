@@ -3,6 +3,10 @@
 
 def forecast_write(cell, observed, remaining_ns, retained_bytes):
     """Conservatively estimate every required synchronous phase before G-W preparation."""
+    if cell.get("fresh_copy"):
+        from g_closed_forecast import forecast_closed_write
+        legacy = forecast_write(dict(cell, fresh_copy=False), observed, remaining_ns, retained_bytes)
+        return forecast_closed_write(cell, observed, remaining_ns, retained_bytes, legacy)
     required = {"seed_wall_ns", "seed_bytes", "seed_write_ns", "seed_rows",
                 "route_wall_ns", "route_requests", "open_ns", "close_ns", "text_max_ns",
                 "point_probe_max_ns", "text_probe_max_ns", "readiness_max_ns",

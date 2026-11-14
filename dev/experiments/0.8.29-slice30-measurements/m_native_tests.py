@@ -14,6 +14,8 @@ from m_lifecycle import alternating, first_calls, idle_cycle
 from m_diagnostics import PrivateControl, run_case
 from m_session import McpSession
 from m_wire import decode_tool
+from m_cell import execute
+from m_controller import load_plan
 
 
 class NativeCase(unittest.TestCase):
@@ -96,6 +98,23 @@ class CompactSearchTests(NativeCase):
         self.assertEqual(client.exit["code"], 0)
         self.assertTrue(client.exit["readers_joined"])
         self.assertEqual(client.failures, [])
+
+
+class PublicCellTests(NativeCase):
+    """The registered M0 path executes its whole literal real-process contract."""
+
+    def test_m0_binding_retains_literal_steps_in_both_formats(self):
+        for cell in (row for row in load_plan() if row["family"] == "M0"):
+            with self.subTest(format=cell["result_format"]):
+                result = execute(cell, [str(self.cli), "--config",
+                                 str(self.config(cell["result_format"]))],
+                                 self.root / cell["id"], queries=["alpha"],
+                                 deadline_ns=time.monotonic_ns() + 30 * 10**9)
+                self.assertEqual(result["events"], ["search", "fetch", "orient", "typed_error"])
+                self.assertEqual(result["literal_refs"], ["l:alpha"])
+                self.assertEqual(result["fetch_body"], "alpha river crossing\né😀")
+                self.assertEqual(result["typed_error"], "store/unknown")
+                self.assertTrue(result["complete"])
 
 
 class TypedErrorTests(NativeCase):

@@ -44,7 +44,18 @@ def _budget(fields):
             "cut": fields.pop("cut", False)}
 
 
+def _error(text):
+    words, tail = text.split(" ", 1)
+    error_class, code = words.split("/", 1)
+    fields, remaining = _fields(tail)
+    if remaining:
+        raise ValueError("unexpected compact error body")
+    return dict(fields, **{"class": error_class, "code": code})
+
+
 def _compact(text):
+    if text.startswith("error "):
+        return {"error": _error(text[len("error "):])}
     lines = text.split("\n")
     if not lines or not lines[0].startswith("search "):
         return {"raw_text": text}
@@ -82,6 +93,11 @@ def decode_tool(message):
                 "payload": message["error"]}
     result = message["result"]
     text = "".join(block.get("text", "") for block in result.get("content", []))
-    return {"ok": result.get("isError") is not True,
-            "payload": result["structuredContent"] if "structuredContent" in result else _compact(text),
-            "text": text}
+    payload = result["structuredContent"] if "structuredContent" in result else _compact(text)
+    decoded = {"ok": result.get("isError") is not True, "payload": payload, "text": text}
+    if not decoded["ok"] and "error" in payload:
+        error = payload["error"]
+        decoded["error"] = f"{error['class']}/{error['code']}"
+        if "busy" in error:
+            decoded["error"] += f"/{error['busy']['reason']}"
+    return decoded

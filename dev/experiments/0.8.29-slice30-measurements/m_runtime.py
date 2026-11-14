@@ -21,8 +21,12 @@ from m_record import CheckpointLog
 
 
 def read_queries(path):
-    """Read the registered query records in their original file order."""
-    return Path(path).read_text(encoding="utf-8").splitlines()
+    """Decode UTF8 JSON string lines in the same original order as the G reader."""
+    with Path(path).open("rb") as stream:
+        queries = [json.loads(line.decode("utf-8")) for line in stream]
+    if any(not isinstance(value, str) for value in queries):
+        raise ValueError("registered query records must be JSON strings")
+    return queries
 
 
 def controller_admission(fd, root):

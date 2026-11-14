@@ -6,6 +6,7 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from m_guard import guard
 
@@ -87,6 +88,44 @@ while not marker.exists() and time.monotonic()<until: time.sleep(.005)
             self.assertNotEqual(result["exit"], 0, "live work survived an allegedly successful controller")
             self.assertFalse(result["cleanup_uncertain"])
             self.assertTrue(result["boundary"]["removed_exact_empty_boundary"])
+
+    def test_entry_refuses_observed_load_above_two_before_controller_start(self):
+        task = Path(os.environ["S30_TASK"])
+        with tempfile.TemporaryDirectory(prefix="m-load-entry-", dir=task / "tmp") as temporary:
+            allocation = Path(temporary)
+            ledger = allocation / "g-budget.json"
+            ledger.write_text(json.dumps({"schema": "slice30-gd-budget/v1", "used_ns": 0,
+                                          "inflight": None, "cell_used_ns": {}}))
+            marker = allocation / "started"
+            profile = {"schema": "slice30-m-budget/v1", "status": "APPROVED",
+                "ledger": str(ledger), "whole_cell_ns": 900 * 10**9,
+                "total_shared_ns": 60 * 10**9, "total_shared_retained_bytes": 1024**3}
+            child = f"import pathlib;pathlib.Path({str(marker)!r}).write_text('started')"
+            with patch("os.getloadavg", return_value=(2.0001, 0.0, 0.0)):
+                with self.assertRaisesRegex(RuntimeError, "load"):
+                    guard([sys.executable, "-c", child], allocation=allocation,
+                          profile=profile, root=allocation / "results", task=task)
+            self.assertFalse(marker.exists())
+
+    def test_completed_phase_reports_observed_noise_without_discarding_success(self):
+        task = Path(os.environ["S30_TASK"])
+        with tempfile.TemporaryDirectory(prefix="m-load-phase-", dir=task / "tmp") as temporary:
+            allocation = Path(temporary)
+            ledger = allocation / "g-budget.json"
+            ledger.write_text(json.dumps({"schema": "slice30-gd-budget/v1", "used_ns": 0,
+                                          "inflight": None, "cell_used_ns": {}}))
+            profile = {"schema": "slice30-m-budget/v1", "status": "APPROVED",
+                "ledger": str(ledger), "whole_cell_ns": 900 * 10**9,
+                "total_shared_ns": 60 * 10**9, "total_shared_retained_bytes": 1024**3}
+            observations = iter((2.0, 2.5001))
+            with patch("os.getloadavg", side_effect=lambda: (next(observations, 2.5001), 0.0, 0.0)):
+                result = guard([sys.executable, "-c", "print('actual harmless child')"],
+                               allocation=allocation, profile=profile,
+                               root=allocation / "results", task=task)
+            self.assertEqual(result["exit"], 0)
+            self.assertEqual(result.get("load", {}).get("noisy"), True,
+                             "completed guardian phase lost actual observed noise facts")
+            self.assertEqual(result["load"]["max_load"], 2.5001)
 
 
 if __name__ == "__main__":

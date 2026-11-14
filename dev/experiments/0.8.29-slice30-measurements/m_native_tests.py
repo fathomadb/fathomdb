@@ -8,6 +8,7 @@ import sys
 import tempfile
 import time
 import unittest
+from unittest.mock import patch
 from contextlib import contextmanager
 
 from m_client import RpcChild
@@ -178,6 +179,23 @@ class PublicPhaseAccountingTests(NativeCase):
         self.assertEqual(result["whole_process"]["queue"]["whole_process_submitted"], 8)
         self.assertNotIn("queue", result["phases"]["timed"]["summary"],
                          "uncorrelated queue accounting was attached to a selected phase")
+
+
+class PublicPhaseLoadTests(NativeCase):
+    """Phase load observations annotate actual CLI results without filtering samples."""
+
+    def test_actual_search_phases_retain_load_and_success_when_observed_noisy(self):
+        cell = next(row for row in load_plan() if row["id"] == "M-R-1-1-warn")
+        cell = dict(cell, use_default_embedder=False, search_mode="text", first=1, warmups=1, timed=1)
+        with patch("os.getloadavg", return_value=(2.5001, 0.0, 0.0)):
+            result = execute(cell, [str(self.cli), "--config", str(self.config())], self.root / "load",
+                             queries=["alpha"], deadline_ns=time.monotonic_ns() + 30 * 10**9)
+        self.assertTrue(result["complete"])
+        for phase in ("first", "warmup", "timed"):
+            self.assertEqual(result["phases"][phase]["summary"]["submitted"], 1)
+            self.assertTrue(result["phases"][phase].get("load", {}).get("noisy"),
+                            "actual search phase omitted observed noisy-load facts")
+            self.assertEqual(result["phases"][phase]["load"]["max_load"], 2.5001)
 
 
 class PublicControlRoutesTests(NativeCase):

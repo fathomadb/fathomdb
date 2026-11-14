@@ -1540,7 +1540,8 @@ released only after verified quiescence. Phase logs/receipts are `g-branch-v3`
 and `g-seed100k-v4`. M now has a qualified CLOSED100k input, without M source/
 runtime or wholeG/30 clearance. The next
 [normal fixed84 assessment](continuation-gd.md#proposed-normal-fixed84-assessment)
-received independent Astra design PASS at53c81a015; actual assessment is unrun.
+received independent Astra design PASS at53c81a015; its accepted actual result is
+recorded below.
 
 Normal-entry semantic RED38d5063f4 fails1/1 with the literal existing refusal
 `closed stage and original completed source must be selected together`.
@@ -1578,5 +1579,59 @@ Both receipts retain unchangedbfe source/empty deltas and verified exact
 private-boundary cleanup; original-context actors/boundaries/markers are absent.
 The remaining-only receipt exits0 with no resource stop/cleanup uncertainty.
 The original124, strict sampler/limits, ledger/token and closed100k input remain
-unchanged. Actual normal assessment, five-case qualification and73-refusal
-outcome remain unrun and require separate readiness/technical GO.
+unchanged through source qualification. The separately authorized actual normal
+assessment follows; it does not replace the original interrupted full wrapper.
+
+## Accepted normal fixed84 assessment at29de
+
+Fresh independent Astra ACCEPT covers UUID4fb7a91f-2d41-445d-a132-258334a8f3fe
+at clean `29de06806cc22ab6b8e67f970133f856f3c42f78`, root
+`gd-allocation/g-frozen-g-assessment-v5`, phase/log/receipt `g-assessment-v5`.
+All84 ordered outcomes are6 original references reused without redispatch,
+5 new qualified completions and73 required cap refusals. Original60f/UUID5e89,
+d9b8/UUID9559 andd9b8/UUIDeb4 source/UUID/paths, binaries/native receipt, earlier
+failed runs and charges remain intact; nothing is retagged.
+
+The new `g-r-n100000-r0` completes in709385925507ns with6000 timed,
+3000 warmup and6 first calls, all successful;295/660 GPU samples meet the strict
+own-PID memory plus selected-device utilization witness. Four natural G-O cells
+run r0 off→on, r1 on→off, each with300 successful timed calls and no warmup/first
+call. Their elapsed ns are25747976322/25662231974/25897951947/25926702876;
+strict-positive GPU samples are13/24,11/24,10/24,9/24 respectively. Each on-cell
+retains300 observation batches with0 lost/empty/issues and clean span summaries;
+off-cells retain0. All adapter closes are okay. Stored83644 full/16356 partial/
+0 unknown spans remain partial-body evidence, not fidelity or full-body coverage.
+
+Ordinary R0 SDK statistics below each use1000 timed requests; route wall includes
+loop diagnostics/persistence and is not the sum of isolated observer phases.
+
+| SDK route | Mean ms | p50 ms | p99 ms | Route wall ns |
+| --- | --- | --- | --- | --- |
+| Direct text |32.966658396 |27.195064 |105.893519 |33007299668 |
+| Hybrid |195.889437617 |186.792685 |350.029897 |196056669924 |
+| Embed only |3.023451822 |3.036230 |3.421036 |3028534869 |
+
+Default open/close is945054791/10452648ns once for the SDK adapter, shared by its
+three routes, not three opens. Original accepted seed fresh-empty open/close is
+504969801/30748115ns; dense reopen/reopen-close is1301977835/16371621ns.
+These are standalone SDK costs, not MCP startup/transport measurements. Natural
+G-O uses only50 queries per route/adapter: summaries are descriptive diagnostics,
+not canonical percentile acceptance, a causal overhead estimate or exclusive GPU
+cost. Ordinary hybrid does not qualify the direct-text target.
+
+All73 refusals remain required and unsatisfied: fresh-seed
+`g-r-n100000-r1` retains `cap_feasibility` with1315871925088ns conservative2x
+forecast above900s;36 G-W repeat0 cells retain `cap_feasibility` /
+`whole_cell_time_forecast`;36 G-W repeat1 cells retain `cap_feasibility` /
+`cost_observation_unavailable`. No R0 borrowing, smaller fixture, forecast waiver
+or G-W disposal follows. Overall exit1/`campaign_complete=false` is expected.
+
+Final shared use is1845130877940ns (new charge814648281333ns), `inflight:null`;
+retained allocation is1903142018B. Prior per-cell charges, consumed exploratory
+token, both900s limits and shared14400s/16GiB remain unchanged. Receipt records
+no resource stop or cleanup uncertainty; exact private boundary reached populated0
+and was removed, with original-context guardian/runner/native actors and marker
+absent. Selected3090 was quiet; supervisor864821 exited after RELEASE_VERIFIED
+and FD9 was released only after owned quiescence. Source remained clean29de.
+M has a qualified CLOSED100k input, but its predecessor-fit/budget review remains
+separate and inactive. No wholeG/30, M/D, fidelity or downstream clearance follows.

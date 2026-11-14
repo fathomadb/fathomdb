@@ -1370,3 +1370,31 @@ one MD012 blank-line error in requirements.md; that exact failure is retained in
 `g-final-markdown.log`. After the single formatting correction,
 `g-final-markdown-corrected.log` passes with no resource stop. This final checkpoint
 changes documentation only after the tested a3 source; no native input is retagged.
+
+## Accepted source and first G runtime observation
+
+Fresh final Astra accepted assembled source/tooling at4dbc67f39; parent acceptance
+5c7b1988d changes only release metadata. Compiler inputs remain d644d89f…3114.
+The owned pinned BGE snapshot and separate ordinary/diagnostic CUDA12.6 SM86
+artifacts were prepared without changing source, driver or primary toolkit.
+
+First registered campaign98d487ef-d47e-4b8c-b25b-5a92669df788 at clean5c7b1988d
+retains1failed G0 and83 prerequisite-not-run obligations. Native seed/read both
+completed, but the exact issue is `actual_reserved_gpu_engagement_unobserved`:
+seed samples had own-PID memory and zero utilization; the read process had only
+an initial sample with zero own-PID memory. No sample from another PID qualifies
+engagement. Original raw evidence remains under owned `gd-allocation/g-frozen`;
+shared `g-budget.json` retains11157694114ns charged, with no reset or retry.
+Registered actors/groups were absent and selected GPU quiet before releasing
+the agreed UUID cooperative lock. No resource stop or cleanup uncertainty occurred.
+
+Reviewed G0-only polling correction has genuine real-child RED9dfa5d2a5:
+`G0 observed only pre-initialization and missed the actual live ready child`.
+The ordinary-stage control passes on the original driver. The correction changes
+only observed G0 polling waits from1s to50ms; observation latency still adds to
+each wait. Focused2/2 and combined39/39 Python controls pass with unchanged RED
+assertions and prior controls; Ruff passes. This proves scheduling only, not GPU
+engagement. All16 G0 calls per route/adapter,84 cells, strict evidence predicates,
+deadlines, cleanup and shared caps remain unchanged. Independent implementation
+review and a separately authorized fresh actual G0 proof still precede runtime
+qualification. The first failed run remains failed; D/M/F/whole30 holds remain.

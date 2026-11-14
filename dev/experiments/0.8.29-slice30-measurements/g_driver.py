@@ -18,6 +18,8 @@ def run_program_step(command, config, output, deadline_ns, observe=None):
     path.write_text(json.dumps(config, indent=2) + "\n")
     step = {"family": config["family"], "config": str(path), "output": str(output),
             "complete": False, "exit": None, "result": None, "gpu_samples": []}
+    # G0 may exit before a one-second observation; observer latency adds to this wait.
+    observation_wait = 0.05 if observe and config.get("stage") == "G0" else 1
     remaining = (deadline_ns - time.monotonic_ns()) / 10**9
     if config["remaining_cell_ms"] == 0 or remaining <= 0:
         return dict(step, status="not_run_cap", reason="cell_time_exhausted")
@@ -34,7 +36,7 @@ def run_program_step(command, config, output, deadline_ns, observe=None):
                 if remaining <= 0:
                     raise subprocess.TimeoutExpired(command, 0)
                 try:
-                    child.wait(timeout=min(1, remaining))
+                    child.wait(timeout=min(observation_wait, remaining))
                     break
                 except subprocess.TimeoutExpired:
                     if observe:

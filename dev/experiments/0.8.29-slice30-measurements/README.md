@@ -277,7 +277,10 @@ Run preserves all84 obligations and failed attempts. Preparation/startup share
 ledger. Unknown inflight work refuses; completed matching outcomes survive.
 G-W needs qualified current seed/read/tiny-probe costs and the complete forecast.
 Each native PID is independently observed; selected-GPU memory/utilization is
-sampled at1s with full raw records. Provider null optional driver/toolkit values
+sampled after1s polling waits with full raw records. G0 alone uses50ms polling
+waits to observe short-lived native processes; observation latency adds to each
+wait, so this does not guarantee20Hz. Actual same-PID memory and selected-GPU
+positive-utilization evidence remains required; scheduling controls cannot qualify it. Provider null optional driver/toolkit values
 remain null; actual host checks supply those facts. Environment/attempt metadata
 uses unique retained invocation/prepared files; a failed postflight invalidates
 its new final attempt rather than rewriting native raw data or older evidence.

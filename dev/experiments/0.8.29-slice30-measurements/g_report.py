@@ -67,7 +67,7 @@ def summarize(root):
                                                 if key in ("count", "mean_ms")}
                 report["populations"].append({"adapter": item["adapter"], "route": item["route"],
                                               "statistics": statistics})
-                if cell["stage"] == "G-R" and outcome["status"] == "complete":
+                if cell["stage"] == "G-R" and outcome["status"] in ("complete", "reused_complete"):
                     paired.setdefault(f"n{cell['n']}/{item['route']}", []).extend(rows)
     invocation = json.loads((root / "last-run.json").read_text()) if (root / "last-run.json").exists() else None
     return {"invocation": invocation, "scope": "G only; no D/M/F/whole30/40/50/Block1 clearance", "manifest": manifest,

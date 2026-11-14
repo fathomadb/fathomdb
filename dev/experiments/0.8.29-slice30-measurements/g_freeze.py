@@ -136,6 +136,10 @@ def freeze(options):
                                 ("HF_HOME", "XDG_CACHE_HOME", "CUDA_CACHE_PATH", "CUDA_VISIBLE_DEVICES")},
                 "device_policy": f"cuda:{options['gpu_ordinal']}", "format": 37,
                 "measurement_scope": "G only; no D/M/F/whole30 or release clearance"}
+    if options.get("reuse_completed_from"):
+        from g_reuse import collect_reuse
+        manifest["reuse_completed_from"] = str(Path(options["reuse_completed_from"]).resolve())
+        manifest["reused"] = collect_reuse(manifest, manifest["reuse_completed_from"])
     output.mkdir(parents=True, exist_ok=False)
     for name, value in (("manifest.json", manifest), ("plan.json", manifest["plan"])):
         path = output / name
@@ -156,6 +160,10 @@ def validate_frozen(root):
                manifest["lock"], manifest["build_receipt"], manifest["python_receipt"], manifest["python_native"]]
     if any(identify(record["path"]) != record for record in records):
         raise ValueError("frozen G input/native/model bytes changed")
+    if manifest.get("reuse_completed_from"):
+        from g_reuse import collect_reuse
+        if manifest.get("reused") != collect_reuse(manifest, manifest["reuse_completed_from"]):
+            raise ValueError("original completed references are unavailable or differ")
     if any(os.environ.get(key) != value for key, value in manifest["environment"].items()):
         raise ValueError("frozen G owned cache/device visibility environment changed")
     return manifest

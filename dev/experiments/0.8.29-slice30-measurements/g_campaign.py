@@ -74,16 +74,21 @@ def active_bytes(root):
 
 
 
+def completed_record(row):
+    """Recognize a completed execution or a validated original-identity reference."""
+    return bool(row) and row.get("status") in ("complete", "reused_complete")
+
+
 def predict_seed(cell, previous, cell_usage):
     """Forecast fresh preparation at twice observed per-row wall and retained bytes."""
     if cell["n"] < 10000 or cell["id"] == "g1-n10000":
         return {}
     exact = previous.get(f"g1-n{cell['n']}")
-    lower = exact if exact and exact.get("status") == "complete" else previous.get("g1-n10000")
-    if not lower or lower.get("status") != "complete":
+    lower = exact if completed_record(exact) else previous.get("g1-n10000")
+    if not completed_record(lower):
         return {"unavailable": "missing_completed_lower_seed"}
     if not cell.get("fresh_seed"):
-        return {} if exact and exact.get("status") == "complete" else {
+        return {} if completed_record(exact) else {
             "unavailable": "required_seed_not_complete"}
     observed_rows = lower["cell"]["n"]
     observed_ns = max(lower["elapsed_ns"], cell_usage.get(lower["id"], 0))
@@ -110,10 +115,19 @@ def run_g_plan(spec, root, command, prepare=None, allocation_root=None, assess=N
     state_path = root / "campaign-state.json"
     previous = ({row["id"]: row for row in json.loads(state_path.read_text())}
                 if state_path.exists() else {})
+    for identifier, reference in (reused or {}).items():
+        cell = next((item for item in plan if item["id"] == identifier), None)
+        if (cell is None or reference.get("cell") != cell
+                or reference.get("status") != "reused_complete" or not reference.get("origin")):
+            raise ValueError("invalid original completed reference")
+        if not completed_record(previous.get(identifier)):
+            previous[identifier] = reference
+    if reused:
+        state_path.write_text(json.dumps(list(previous.values()), indent=2) + "\n")
     outcomes = []
     for cell in plan:
         completed = previous.get(cell["id"])
-        if completed and completed.get("status") == "complete" and completed.get("cell") == cell:
+        if completed_record(completed) and completed.get("cell") == cell:
             outcomes.append(completed)
             (root / "g-outcomes.json").write_text(json.dumps(outcomes, indent=2) + "\n")
             continue

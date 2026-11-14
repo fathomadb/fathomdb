@@ -117,7 +117,7 @@ def execute_cell(cell, manifest, attempt, deadline_ns):
 
 def qualified_result(outcome, cache=None):
     """Read only completed current production results, never protocol-only controls."""
-    if not outcome or outcome.get("status") != "complete":
+    if not outcome or outcome.get("status") not in ("complete", "reused_complete"):
         return None
     key = outcome["attempt"]
     if cache is not None and key in cache:
@@ -206,7 +206,7 @@ def run_prepared(manifest, root):
         prediction = predictions.get(cell["id"])
         return {"prospective_prediction": prediction} if prediction is not None else None
     return run_g_plan(spec, root / "results", command, prepare=prepare,
-                      allocation_root=manifest["allocation"], assess=assess)
+                      allocation_root=manifest["allocation"], assess=assess, reused=manifest.get("reused"))
 
 
 def run_cell_job(manifest_path, deadline_ns, config_path, output):
@@ -217,14 +217,14 @@ def run_cell_job(manifest_path, deadline_ns, config_path, output):
     state_path = root / "results" / "campaign-state.json"
     previous = {row["id"]: row for row in json.loads(state_path.read_text())} if state_path.exists() else {}
     g0 = previous.get("g0-smoke")
-    if cell["stage"] != "G0" and (not g0 or g0.get("status") != "complete"):
+    if cell["stage"] != "G0" and (not g0 or g0.get("status") not in ("complete", "reused_complete")):
         Path(output, "result.json").write_text(json.dumps({"complete":False,"qualification_issues":["g0_not_qualified"]}) + "\n")
         return False
     manifest["command"] = manifest["commands"][cell["artifact"]]
     manifest["subjects"] = {}
     for identifier in ["g1-n10000", "g1-n100000"]:
         prior = previous.get(identifier)
-        if prior and prior.get("status") == "complete":
+        if prior and prior.get("status") in ("complete", "reused_complete"):
             report = json.loads(Path(prior["attempt"], "result.json").read_text())
             manifest["subjects"][identifier] = str(Path(report["steps"][0]["output"]) / "store.sqlite")
     if manifest.get("gpu"):
@@ -257,8 +257,10 @@ def run_frozen(root):
             return dict(manifest, corpus=manifest["inputs"]["corpus"]["path"], queries=manifest["inputs"]["queries"]["path"],
                         commands={key:[value["path"]] for key,value in manifest["binaries"].items()})
         state_path = root / "results/campaign-state.json"
-        previous = {row["id"]:row for row in json.loads(state_path.read_text())} if state_path.exists() else {}
-        if all(previous.get(cell["id"], {}).get("status") == "complete"
+        previous = dict(preliminary.get("reused", {}))
+        if state_path.exists():
+            previous.update({row["id"]: row for row in json.loads(state_path.read_text())})
+        if all(previous.get(cell["id"], {}).get("status") in ("complete", "reused_complete")
                and previous[cell["id"]].get("cell") == cell for cell in preliminary["plan"]):
             validate_frozen(root)
             return run_prepared(prepared(preliminary), root)
@@ -273,7 +275,7 @@ def run_frozen(root):
             (root / "last-run.json").write_text(json.dumps(value,indent=2)+"\n")
         budget["inflight"] = {"cell":"g-preflight","started_at_ns":time.time_ns()}
         budget_path.write_text(json.dumps(budget, indent=2) + "\n")
-        pending = next((cell["id"] for cell in preliminary["plan"] if previous.get(cell["id"],{}).get("status") != "complete"), None)
+        pending = next((cell["id"] for cell in preliminary["plan"] if previous.get(cell["id"],{}).get("status") not in ("complete", "reused_complete")), None)
         failure = None
         try:
             manifest = validate_frozen(root)
@@ -296,7 +298,7 @@ def run_frozen(root):
             budget["inflight"] = None
             budget_path.write_text(json.dumps(budget, indent=2) + "\n")
         if failure:
-            outcomes = [previous[cell["id"]] if previous.get(cell["id"],{}).get("status") == "complete" else
+            outcomes = [previous[cell["id"]] if previous.get(cell["id"],{}).get("status") in ("complete", "reused_complete") else
                         {"id":cell["id"],"cell":cell,"status":"not_run_prerequisite","complete":False,"reason":"frozen_preflight_failed","error":failure}
                         for cell in preliminary["plan"]]
             (root / "results").mkdir(exist_ok=True)
@@ -335,6 +337,7 @@ def main():
     freeze_parser = commands.add_parser("freeze")
     for field in ("corpus", "queries", "license", "ordinary", "diagnostic", "build_receipt", "model_cache", "allocation", "out"):
         freeze_parser.add_argument("--"+field.replace("_","-"), dest=field, type=Path, required=True)
+    freeze_parser.add_argument("--reuse-completed-from", type=Path)
     freeze_parser.add_argument("--gpu-uuid", required=True)
     freeze_parser.add_argument("--gpu-ordinal", type=int, required=True)
     run = commands.add_parser("run")

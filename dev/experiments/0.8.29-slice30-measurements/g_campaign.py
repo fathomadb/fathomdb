@@ -187,7 +187,7 @@ def _run_plan(spec, plan, root, command, prepare, allocation_root, assess, reuse
             continue
         reason = ("unfinished_shared_attempt" if budget.get("inflight") else
                   "shared_time_exhausted" if budget["used_ns"] >= 14400 * 10**9 else
-                  "cell_time_exhausted" if cell_usage.get(cell["id"], 0) >= 900 * 10**9 else
+                  "cell_time_exhausted" if cell_usage.get(cell["id"], 0) >= cell["cell_seconds"] * 10**9 else
                   "exploratory_admission_consumed" if stage == "first-100k-seed-exploratory"
                   and budget.get("exploratory_seed100k", {}).get("consumed") else
                   "active_storage_exhausted" if active_bytes(allocation) >= 16 * 1024**3 else None)
@@ -197,7 +197,7 @@ def _run_plan(spec, plan, root, command, prepare, allocation_root, assess, reuse
         else:
             started = time.monotonic_ns()
             shared_allowance = 14400 * 10**9 - budget["used_ns"]
-            cell_allowance = 900 * 10**9 - cell_usage.get(cell["id"], 0)
+            cell_allowance = cell["cell_seconds"] * 10**9 - cell_usage.get(cell["id"], 0)
             deadline = started + min(shared_allowance, cell_allowance)
             budget["inflight"] = {"cell": cell["id"], "started_at_ns": time.time_ns()}
             budget_path.write_text(json.dumps(budget, indent=2) + "\n")

@@ -15,6 +15,10 @@ class McpSession(RpcChild):
         self.result_format = result_format
         self._outcomes = CheckpointLog(self.root / "outcomes.jsonl")
 
+    def submit(self, method, params, **facts):
+        """Retain wire-format identity at submission, including unanswered calls."""
+        return super().submit(method, params, **dict(facts, format=self.result_format))
+
     def _consume(self, timeout):
         prior = len(self._completion_order)
         consumed = super()._consume(timeout)

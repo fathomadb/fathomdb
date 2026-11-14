@@ -4,6 +4,8 @@ from pathlib import Path
 import time
 
 from m_report import summarize_invocations
+from m_diagnostics import PrivateControl, run_case
+from m_lifecycle import alternating, first_calls, idle_cycle
 from m_schedule import closed_loop
 from m_session import McpSession
 
@@ -32,6 +34,25 @@ def execute(cell, command, root, *, queries, deadline_ns, files=None, control_pa
         session.initialize()
         if cell["family"] in ("M-R", "M-C"):
             result = _loops(session, cell, queries, deadline_ns)
+        elif cell["family"] == "M-L":
+            if cell["case"] in ("lazy", "eager"):
+                value = first_calls(session, queries[0], mode=cell["search_mode"])
+            elif cell["case"] == "idle":
+                value = idle_cycle(session, queries[0], mode=cell["search_mode"],
+                                   deadline_ns=deadline_ns)
+            elif cell["case"] == "alternating":
+                value = alternating(session, queries[0], mode=cell["search_mode"], files=files)
+            else:
+                raise ValueError("unregistered lifecycle case")
+            result = {"lifecycle": value, "complete": value["complete"]}
+        elif cell["family"] == "M-E":
+            if control_path is None:
+                raise ValueError("private diagnostic control socket required")
+            with PrivateControl(control_path, root) as control:
+                value = run_case(cell["case"], session, control)
+            result = {"diagnostic": value["diagnostic"], "outcome": value,
+                      "control_failures": control.failures,
+                      "complete": value["diagnostic"]["complete"] and not control.failures}
         else:
             search = session.tool("search", {"query": queries[0], "mode": cell["search_mode"], "limit": 10})
             fetched = session.tool("fetch", {"refs": ["l:alpha"]})

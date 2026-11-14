@@ -1442,5 +1442,11 @@ controls pass with all5 RED testfiles unchanged. Ruff passes. Exclusive state
 ownership prevents overwrite, and missing/unknown/stale state refuses dispatch.
 Population uncertainty retains the exact private path/identity; it is never
 automatically removed or bypassed. Fixed resource/grace/kill/quiescence bounds
-remain. Independent implementation recheck and root-scheduled final qualification
-are pending. No new full wrapper, Default/GPU continuation or D/M/Q1 run occurred.
+remain. Independent Astra ACCEPT atf8703b466 and its final canonical220/220
+suite PASS (0suite skips/exclusions) are now qualified. Rust reports2727passed/
+72ignored; current Python/TS suites pass but their inner counts are unavailable
+after canonical passing-log cleanup. The owned native receipt retains its actual
+a3c483fa7 build with unchanged d644 compiler inputs, without retagging. Private
+boundary populated0/exact removal and absent owned actors were verified, with no
+resource stop or cleanup uncertainty. No Default/GPU continuation or D/M/Q1 run
+followed.

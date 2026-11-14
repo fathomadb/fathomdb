@@ -75,3 +75,8 @@ def run_required(spec, records, budget, prepare):
                     result = prepare(cell)
                     outcomes.append({"id": cell["id"], **result})
     return outcomes
+
+
+def run_initial_quartet(spec, records, budget, prepare):
+    """Run the named initial held quartet; retain every other obligation."""
+    return run_required(spec, records, budget, prepare)

@@ -1,11 +1,11 @@
 ---
-title: "Slice 20 — approved verification continuation"
+title: "Slice 20 — remaining Windows qualification"
 status: ACTIVE
 target_release: 0.8.29
 slice: 20
 ---
 
-# Slice 20 approved continuation
+# Slice 20 remaining Windows qualification
 
 Direct Sol-high owner in `/mnt/data/worktrees/fathomdb-0.8.29-s20-20261114`,
 branch `llm/0.8.29-s20-20261114`, entered clean at
@@ -87,6 +87,49 @@ cleanup, remote CI or publication.
    Parent integrates passing scope and closes20 only after all criteria have
    actual dispositions. CI/publication remain outside current scope.
 
+## Current path-alias hypothesis and genuine RED route
+
+Read-only source inspection finds that startup, visibility and admission hooks
+store the caller PathBuf, while open invokes them with canonical_database_path.
+This is a hypothesis, not a current reproduced failure. After design PASS and
+parent native-window GO, use a real seeded Engine plus a legal existing
+`nested/../database.sqlite` alias. Keep original startup Io/profile/provider/
+SQLite/admission assertions, then separately visibility Io/provider/SQLite/
+admission assertions. Assert the same independent errors and ownership outcomes
+through the real open path; no helper-only assertion or changed expected value.
+Each actual failing behavior gets its semantic RED committed with raw failure
+before its minimal hook-key repair and unchanged oracle at separate GREEN.
+Do not change existing four Windows test bodies to make them pass. Admission's
+existing Barrier remains bounded by the original outer Windows90s process limit;
+no unsafe new Linux barrier fixture or speculative rendezvous rewrite is added.
+Linux alias proof can repair a demonstrated shared hook defect but never closes A6.
+
+Exact Linux reproduction prefix: `cargo test -p fathomdb-engine --features
+operator,test-hooks --lib`, new exact semantic selector, `-- --exact --nocapture`.
+Own task-local CARGO_HOME/target, jobs2, compile1200s/test90s, no model/GPU/Python
+binding. Parent schedules one native window; same host/cap limits below apply.
+No source/test or compiler execution before independent design PASS.
+
+## Capacity options for technical review
+
+A session-only `virsh setmem gh-runner-wonl-win11 25165824 --live` is a candidate
+for reclaiming8GiB after boot without changing persistent32GiB configuration.
+It is not executed or selected. Existing virtio balloon device is present, but
+actual guest driver/reclaim behavior remains unobserved. Require actual host16GiB
+and guest16GiB before workload; otherwise refuse. Normal shutdown returns the
+original persistent32GiB/off state. No --config/current, driver install or fallback.
+
+All reviewed owned compiler/cargo/TEMP/cache/log writes target R:, while existing
+C binaries/references are read. That does not raise actual C free6.37GiB to8GiB;
+OS/pagefile/background writes remain C. No permitted existing-data cleanup,
+relocation, boot-disk resize or safe owned-only C-space solution is established.
+A proposed temporary C-start6GiB/unchanged5GiB stop would be a real policy change,
+not accepted readiness:1s sampling/stale3s termination and all owned writes on R:.
+It requires explicit technical review and actual authority before adoption;
+seq-370 cannot supply it. Otherwise retain8/5GiB and use separately authorized
+adequate venue/capacity. Bundle only the selected necessary extension with the
+actual owned-disk format decision after review; do not ask generic acceptance.
+
 ## Resource bounds
 
 All new mutable tools/cache/targets/temp/logs stay in this checkout or own task
@@ -107,3 +150,12 @@ C: and heavy-phase host start floors currently hold A6. Initial wrapper's added
 48GiB pre-start combined-reservation assertion refused before mutation; that
 unreviewed stricter check was removed in favor of existing16/8GiB protocol.
 No reviewed floor was weakened. Refresh immediately before any new window.
+
+The second bounded metadata window stopped before its guest query: retained DHCP
+lease appeared before Windows networking and pinned SSH returned No route to
+host. Original diagnostics remain in own task; metadata is UNKNOWN, not absent.
+Normal ACPI request during boot did not finish shutdown; read-only guest-agent
+ping then succeeded and normal agent shutdown restored verified SHUT OFF within
+122.01s. No queried helper/compiler/storage/memory/config mutation occurred.
+A later authorized metadata window must establish live guest readiness before
+using a retained lease; no blind retry or missing-metadata inference.

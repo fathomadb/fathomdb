@@ -130,3 +130,20 @@ An actual current failure gets committed semantic RED before minimal repair,
 retaining exact provider/SQLite/profile/admission/error/lock/schema37 assertions.
 New helper defects retain observed failure before correction. No fabricated
 compile/import/flag RED, backdating or unnecessary passing-check replay.
+
+## Current defect reproduction and capacity alternatives
+
+The [plan](plan.md#current-path-alias-hypothesis-and-genuine-red-route) names the
+real-engine Linux alias reproduction and per-behavior RED/GREEN order. Existing
+Windows bodies/oracles stay frozen. Canonical hook-key identity is diagnosed
+through actual exact errors and ownership, never source text or helper equality.
+No source repair is selected before observed failure. The bounded native window
+and remaining actual Windows qualification are separate.
+
+The [capacity alternatives](plan.md#capacity-options-for-technical-review) are
+prospective only: live24GiB balloon with original persistent32GiB/off restoration,
+and a separately reviewed/authorized C floor change or adequate venue if8GiB
+cannot be met without prohibited existing-data mutation. No option is inferred
+from seq-370, no guest driver/reclaim result is known, and no resource floor has
+changed. Second metadata attempt failed before guest query; absence of results
+cannot justify a storage, OS or floor action.

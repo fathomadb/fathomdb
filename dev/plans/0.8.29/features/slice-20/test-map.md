@@ -71,3 +71,16 @@ orders bounded read-only refresh, exact existing-image reattachment, pending
 format ruling and actual native A6. Do not replay passing checks to relabel them.
 Fresh implementation review precedes one final clean source full gate if source/
 tests/executable tools change; docs-only use scoped Markdown validation.
+
+## Deterministic path-alias hypothesis
+
+After design PASS, first add a real seeded-engine startup regression using an
+existing nested/../ path alias and the original exact Io/profile/provider/
+SQLite/admission assertions. If it actually fails, commit RED with raw assertion,
+then minimal startup hook-key fix and unchanged GREEN. Separately reproduce the
+visibility exact Io/provider/SQLite/admission behavior before any corresponding
+fix. Each command uses the engine operator,test-hooks --lib prefix, exact new
+selector and --exact --nocapture; compile1200s/test90s/jobs2 in own target.
+Do not add an unbounded alias Barrier test, replace existing Windows assertions,
+or promote these Linux proofs into A6. Actual existing opener selector retains
+its outer90s bound and genuine Windows runtime diagnosis.

@@ -7,18 +7,18 @@ slice: 20
 
 # Slice 20 approved continuation
 
-Direct Sol-high owner; parent commissions independent Astra-medium design PASS
-before implementation and a fresh distinct final implementation review. Planning
-input is0a7df81fd4b6f17d716c950e6fd2748daa3565c2 on llm/0.8.29-chat, including actual
-seq-369/370 rulings. Parent created /mnt/data/worktrees/fathomdb-0.8.29-s20-approved-20261113
-on llm/0.8.29-s20-approved-20261113 at that exact base. Strict closed10
-preflight passed with zero warnings; initial omitted-path CLI usage error is
-parent tooling evidence only. The approved Linux proof/capacity subset subsequently
-completed independent design and fresh final implementation review at
-f803a964ad8c8154a481e6f9385599bef5c0e054 and is integrated on the local release
-branch. [Final execution](execution.md#final-qualified-linux-proof-and-capacity-subset)
-records actual checks, original failures and qualification limits. A6 and whole20
-remain open; this ACTIVE plan retains the remaining Windows obligations.
+Direct Sol-high owner in `/mnt/data/worktrees/fathomdb-0.8.29-s20-20261114`,
+branch `llm/0.8.29-s20-20261114`, entered clean at
+`a00bf9b9228318e7c236148551bb188f63ff66ee`. Strict closed10 landing preflight
+passed with zero warnings. Parent commissions independent Astra-medium design
+review before implementation and a fresh independent implementation/results
+review; parent owns state/integration and native-window coordination.
+
+Accepted Linux hook repairs657edeb and A3/A5 proofs f803a964 remain qualified
+within [execution](execution.md) limits. Do not redo those proofs or passing
+sensitivity controls. Actual Windows A6 remains the completion work. Current
+source includes integrated10/60/70,30 source and100 coverage/native predecessors;
+whole20/30/60-F11/100 and Block1 remain open.
 
 ## Scope and current integrated inputs
 
@@ -29,62 +29,81 @@ completed70 e875f36042f89c1d84756f78135db0e8926c1ed4; measured30 P integrated
 in2381. Their qualified subset evidence remains valid within recorded limits;
 whole20/30/60-F11 and pre90 Block1 exit remain open.
 
-R29-3P-06/O3-06 still requires queue wait/run/permit preservation and actual
-Ready-to-pre-accounting proof plus live tripwire constants. Reconcile current60
-format-bound schema helper and70 bounded degradation/Closing propagation:
-new race fixtures explicitly request structured output and text search.
+R29-3P-06/O3-06 queue preservation, Ready-to-pre-accounting proof and live
+tripwire guards are qualified at f803a964. Current60 format-bound schema helper
+and70 bounded degradation/Closing propagation remain preserved; qualified race
+fixtures explicitly request structured output and text search.
 No new production queue policy or architecture successor is needed.
 
 Owner2026-11-13 seq-369 approves A3/A5 verification-only proofs and negative
 controls without manufactured RED. All actual defects keep genuine committed
 semantic RED before GREEN. Seq-370 approves only64GiB host image creation,
-necessary narrow ACLs and live attachment to existing Windows VM. Formatting,
-compiler/helper/test execution remain held. No renewed approval question.
+necessary narrow ACLs and live attachment to existing Windows VM. Formatting
+remains an unanswered specific decision; compiler/helper/test entry
+requires refreshed readiness and review. No generic renewed approval question.
 
 Keep schema37/no migration, query scaffold, accepted hints/spans/compact default,
 W0.8.29/E0.8.0, R580/primary CUDA12.6/no K620. No model/GPU fault/toolkit work,
 cleanup, remote CI or publication.
 
-## Ordered execution
+## Ordered Windows completion
 
-1. Independent Astra-medium review of these five canonical candidates and exact
-   capacity-only derivative. No source/test/VM mutation before PASS.
-2. Parent has committed rulings/state and created the fresh isolated checkout; owner
-   rereads actual resulting base, confirms input equivalence and strict closed10
-   preflight. Parent owns all worktrees, ledgers/state and integration. No old
-   continuation checkout or parent native environment is reused.
-3. Capacity route may proceed independently once technically reviewed: refresh
-   exact VM/disk/UID/port/resources and execute only capacity-only.py with actual
-   parent ruling record. Stop after attachment/read-only new-disk identity.
-   Do not invoke frozen full provisioning or any compiler/helper/test entry point.
-4. In owned source, canonical ownership check/provision with all targets/caches/
-   TMPDIR/AGENT_LOG_DIR under /mnt/data. One heavy phase/jobs2; canonical final
-   Rust jobs1. Add A3 owned async observation/proofs and A5 live unit guards.
-   Passing-on-arrival is stated as verification under seq-369. Negative controls
-   run in distinct parent-owned isolated copies, unchanged assertions.
-5. Scoped lint/check then affected admission/lifecycle/test-seam and feature-on
-   no-model constant tests. Real defects use committed RED then GREEN; no test
-   weakening. One final stable clean source full gate, source/native identity
-   refresh only where compiled inputs changed, fresh distinct Astra final review.
-6. Parent integrates qualified scope and updates criterion disposition. A6 remains
-   open until actual authorized technically ready Windows execution passes its
-   four controls. No20/30/Block1 or release closure from capacity/proof subsets.
+1. Refresh exact standing VM identity, host resources and guest readiness read-only.
+   November14 initial state is shut off,32GiB/8vCPU; inactive topology has only
+   original sda and three CDROMs. Previous live-only attachment is gone; same
+   owned64GiB image remains at
+   `/mnt/data/tmp2/fathomdb-0829-continuation/slice20-windows-images-approved-20261113/windows-a6-64g.qcow2`.
+   Parent schedules a bounded start/read-only inventory/normal shutdown window.
+   Discover current lease; do not assume old endpoint, Disk1, RAW or C free space.
+2. Independent Astra design review covers this refreshed remaining scope before
+   source or qualified payload execution. Reattach only the existing image at
+   exact sdg/USB0:10/serialFDB29S20A6 after current UUID/QEMU UID/unused topology/
+   original disk checks; verify unchanged inactive XML and existing disks. No
+   recreate, persistent attachment or ACL broadening. The create-once capacity
+   script must not be rerun against the occupied image.
+3. The guarded format-only operator at Git
+   `396a023e02580a1bb82ddcb7f16817874ad0046c` already has qualified contained
+   controls and independent preparation review. Reuse equivalent reviewed bytes
+   and retained results, updating only affected runtime inputs. Actual owner
+   ruling for GPT/new R:/quick NTFS remains unanswered; no live format before it.
+   Seq-370 capacity-only is not formatting authority. No generic renewed
+   acceptance question is needed for ordinary source/testing completion.
+4. When owned volume and actual floors are ready, adapt retained frozen5122
+   operator into a tracked experiment using this task/source/image/current
+   endpoint. Review the concrete portability delta. Actual PowerShell parse,
+   existing compiler/reference hashes and Reflection.Emit null-handle ABI probe
+   precede supervised helper compilation. Independent binary/hash review and
+   private-job death/lease/transport/transfer controls precede A6. No alternate
+   compiler/install route or containment weakening.
+5. Transfer exact committed clean source under standing disposable-fixture
+   authority, verify both ends/checked extraction on owned NTFS. One jobs2 engine
+   build1200s, then four exact90s selectors in test-map with nonzero counts,
+   original raw outputs/exits and authoritative private-job-empty outcomes.
+   Hypothesized path/rendezvous defects require actual deterministic semantic
+   RED commit before minimal GREEN with unchanged original assertions.
+6. Fresh independent implementation/results review then required source full
+   gate once on final clean tree if source/tests/executable tools change; only
+   affected failed suites rerun after narrow repairs. Docs-only scoped checks.
+   Parent integrates passing scope and closes20 only after all criteria have
+   actual dispositions. CI/publication remain outside current scope.
 
 ## Resource bounds
 
-Use existing reviewed limits: root32/20GiB, taskfs250/50GiB, MemAvailable16/8GiB
-start/stop; total owned200GiB; sustained swap64MiB/s for three30s samples stops
-heavy work. Reserve64GiB Windows image plus at least64GiB Linux build/source in
-the total, counting task/source actual usage without duplicated filesystem free
-capacity. Use one control checkout at the frozen proof commit and one control target,
-serialized across all seven mutations. Restore each exact production file and
-confirm Git identity before the next case. Reusing this same slice-owned control
-target serially is a build cache, never borrowed native qualification: each Cargo
-invocation recompiles the selected mutation and records its source and actual
-executed binary identity. No full gate runs on negative candidates. Reserve
-128GiB combined Linux candidate/control/source/tools plus64GiB image (192GiB);
-stop before the next phase if measured total would exceed200GiB. Keep only these
-two native targets; do not create seven full targets.
-Capacity-only does no heavy compiler phase. Its current checks and
-exact no-format stop are in capacity-only.md. Preserve failed/UNKNOWN outcomes;
-no blind retries, cleanup or broader infrastructure fallback.
+All new mutable tools/cache/targets/temp/logs stay in this checkout or own task
+`/mnt/data/tmp2/fathomdb-0829-continuation/slice20-20261114`; installed immutable
+tools are read-only inputs. No borrowed native environment. Host root32/20GiB,
+taskfs250/50GiB, MemAvailable16/8GiB start/stop; total owned200GiB includes full
+64GiB image reservation and retained slice-owned bytes. One parent-coordinated
+heavy phase, jobs2; canonical final Rust gate jobs1. Sustained swap64MiB/s for
+three30s samples stops heavy work. Guest C8/5GiB, owned workspace32/20GiB and
+RAM16/8GiB remain workload floors. No cleanup or silent floor waiver.
+
+The actual November14 bounded read-only VM window completed in32.77s and normal
+shutdown restored verified SHUT OFF. Guest C free6,843,457,536B (6.37GiB),
+RAM32,048,726,016B, no native actors; only original Disk0/QM00001, no R:.
+Host post-start MemAvailable14,632,603,648B (13.63GiB), above stop8GiB but below
+heavy start16GiB; after shutdown49,886,126,080B. Compiler helper not executed.
+C: and heavy-phase host start floors currently hold A6. Initial wrapper's added
+48GiB pre-start combined-reservation assertion refused before mutation; that
+unreviewed stricter check was removed in favor of existing16/8GiB protocol.
+No reviewed floor was weakened. Refresh immediately before any new window.

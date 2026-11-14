@@ -18,7 +18,7 @@ Proofs may pass on arrival; record that honestly. Negative controls establish
 sensitivity and are never product RED/GREEN. Genuine defects retain committed
 semantic RED before separate GREEN with unchanged tests. Owner seq-370 approves
 only64GiB host image, necessary narrow ACL and live attachment; guest format,
-compiler/helper/test execution remain HELD. No whole20/30/Block1 clearance follows.
+compiler/helper/test entry requires current readiness and reviewed scope. Specific format ruling remains unanswered. No whole20/30/Block1 clearance follows.
 Fresh independent implementation review and assembled final source checks passed
 for A3/A5 and capacity preparation at f803a964; see the final execution record.
 Those outcomes do not satisfy A6, whose actual Windows qualification remains required. CI/publication are separately outstanding under the

@@ -14,3 +14,10 @@ def first_calls(session, query, *, store="a", mode="hybrid"):
             "spawn_to_handshake_ns": session.handshake_complete_ns - session.started_ns,
             "spawn_to_first_ns": first["arrival_ns"] - session.started_ns,
             "complete": all(row["ok"] for row in (before, first, immediate))}
+
+
+def alternating(session, query, *, stores=("a", "b", "a"), mode="hybrid", files=None):
+    """Run the explicit A/B/A calls through the actual session."""
+    return {"searches": [session.tool("search", {"store": store, "query": query,
+                                                "mode": mode, "limit": 10}, store=store)
+                         for store in stores]}

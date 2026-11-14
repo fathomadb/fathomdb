@@ -8,7 +8,7 @@ import tempfile
 import unittest
 
 from m_client import RpcChild
-from m_lifecycle import first_calls
+from m_lifecycle import alternating, first_calls
 from m_session import McpSession
 from m_wire import decode_tool
 
@@ -200,6 +200,41 @@ class FirstLifecycleTests(NativeCase):
                                  result["events"][1]["send_start_ns"])
         self.assertEqual(session.exit["code"], 0)
         self.assertTrue(session.exit["readers_joined"])
+
+
+class AlternatingLifecycleTests(NativeCase):
+    """Actual A/B/A observes states, epochs and distinct literal routing fixtures."""
+
+    def test_actual_a_b_a_retains_closed_ready_states_and_next_epoch(self):
+        config = self.config()
+        with McpSession([str(self.cli), "--config", str(config)],
+                        self.root / "alternating") as session:
+            session.initialize()
+            result = alternating(session, "river", mode="text",
+                                 files={name: self.stores / f"{name}.sqlite" for name in ("a", "b")})
+            events = result.get("events", [])
+            self.assertEqual([(row["event"], row["store"]) for row in events],
+                             [("search","a"),("states","a"),("search","b"),
+                              ("states","b"),("search","a"),("states","a")],
+                             f"actual alternating lifecycle records absent; retained={self.root}")
+            searches = events[::2]
+            self.assertEqual([row["payload"]["results"][0]["ref"] for row in searches],
+                             ["l:alpha", "l:beta", "l:alpha"])
+            self.assertEqual([row["payload"]["epoch"] for row in searches], [1, 1, 2])
+            for row in events[1::2]:
+                states = {entry["name"]: entry for entry in row["payload"]["stores"]}
+                other = "b" if row["store"] == "a" else "a"
+                self.assertEqual(states[row["store"]]["readiness"], "ready")
+                self.assertEqual(states[other]["readiness"], "closed")
+            self.assertNotEqual(result["files"]["a"]["inode"], result["files"]["b"]["inode"])
+        self.assertEqual(session.exit["code"], 0)
+        self.assertTrue(session.exit["readers_joined"])
+        with McpSession([str(self.cli), "--config", str(config)],
+                        self.root / "released-lock") as later:
+            later.initialize()
+            reopened = later.tool("search", {"store": "a", "query": "alpha", "mode": "text"})
+            self.assertEqual(reopened["payload"]["results"][0]["ref"], "l:alpha")
+        self.assertEqual(later.exit["code"], 0)
 
 
 if __name__ == "__main__":

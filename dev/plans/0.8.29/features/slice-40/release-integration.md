@@ -16,8 +16,8 @@ before50, not its semantic gate.
 Suggested non-generated master prose: “Slice40 remains conditional on actual30
 read-mostly and write-interleaved evidence and a reviewed concrete snapshot or
 batch-invariance design. Existing caching/hoists are baseline. Each opportunity
-may be selected, not selected or deferred with evidence; no measurements exist
-yet. Missing inputs cannot be replaced by an invented prototype or schema.”
+may be selected, not selected or deferred with evidence; accepted30 P and11 G
+read results exist, write-interleaved results do not. Missing inputs cannot be replaced by an invented prototype or schema.”
 
 ## Unchanged acceptance and targets
 
@@ -29,12 +29,14 @@ yet. Missing inputs cannot be replaced by an invented prototype or schema.”
 
 ## Present readiness
 
-Slice10 complete; integrated20 Linux subset is not whole20 exit. A3/A5 TDD
-exception and WindowsA6 remain pending. 30 still lacks its full20 gate, exact
-TC5 bridge pack on disconnected UUID `C8D47C11D47C03CA`, and all actual.29
-measurements. No new live Memex database access/copy/write is part of40.
-Slice60 source work is elsewhere;70 reason-enum proposal and80 stored-span
-aggregate proposal are not settled source contracts for40 to absorb.
+Slice10 complete; integrated20 Linux subset is not whole20 exit. A3/A5 proofs
+are integrated under seq-369; WindowsA6 remains pending. 30 has accepted P
+direct-text results and11 qualified G cases; it still lacks the exact TC5 bridge
+pack on disconnected UUID `C8D47C11D47C03CA`, its73 cap-refused G cases
+(including write-interleaved cells), M and D. No new live Memex database
+access/copy/write is part of40. The60 format/filter/budget subset and complete70
+reasons are integrated; reread them at source entry. The80 stored-span aggregate
+proposal is not a settled source contract for40 to absorb.
 
 This package can receive a **bounded design review**. It cannot justify source
 entry, treatment selection, runtime acceptance, release readiness or publication.

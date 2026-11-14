@@ -40,10 +40,11 @@ Read-only source inspection is bound to clean release parent
 `2f6913c1d59ac8ff3a30de835b57290a8635998c`. Slice10 implementation
 `104dcbcbe92a1eca730d146b99ab17d444df6217` and closure `d7d928f8` are included.
 Slice20 Linux repairs through `657edeb76caaf9c8d2aab433766bec9362e73217`
-are included; A3/A5 policy and Windows A6 remain open. Slice60's separate
-worktree has reviewed runtime RED/GREEN work, but final full source qualification
-and fresh final review are pending. Its historical-flag feedback ambiguity is
-unruled. Neither subset closes20/60 or the Block1 follow-up exit.
+are included; that inspection predates later integration. Current release state
+governs: A3/A5 are ruled and integrated, Windows A6 remains open, the60
+format/filter/budget subset is integrated and70 is complete.60's historical-flag
+feedback ambiguity is unruled. No subset closes20/60 or the Block1 follow-up
+exit;160 rereads the actual integrated baseline at entry.
 
 Format37 is the current substrate: **no database migration**, compatibility shim,
 span-storage rebuild, new calibrated verdict or weak-result threshold. Preserve

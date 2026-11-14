@@ -21,16 +21,21 @@ the package's origin, not an instruction to stop after drafting.
 
 ## Current completion boundary
 
-The owner requests completion of the remaining selected .29 work through direct,
-sequential slice agents, excluding CI work/execution and registry publication.
-Each slice owner rereads integrated predecessors and revises scope, plan,
+The owner requests completion of the remaining selected .29 work through direct
+slice agents working in parallel in isolated trees, excluding CI work/execution
+and registry publication. Root plan/state/ledger integration is serial and
+parent-owned, and one owner at a time holds the local heavy window (native
+builds, full gates, GPU, Windows VM). Each slice owner rereads integrated
+predecessors at source entry and integration and revises scope, plan,
 requirements/acceptance, design and product architecture where necessary. A fresh
 independent Astra-medium adversarial review must pass before implementation;
 implementation uses genuine per-behavior RED/GREEN and a fresh Astra-medium final
-review. The parent evaluates each result, adjusts release allocation where needed,
-integrates accepted work and dispatches the next slice owner. Completed slices
-retain their verified exits unless subsequent evidence invalidates affected scope.
-No Steward or Orchestrator role is used.
+review. The parent evaluates each result, adjusts release allocation where needed
+and integrates accepted work. A slice waits for the named artifact, contract,
+ruling or measurement it consumes, not for a predecessor's whole closure unless
+the ladder says so. Completed slices retain their verified exits unless
+subsequent evidence invalidates affected scope. No Steward or Orchestrator role
+is used.
 
 The owner requires `/mnt/data/` for parent and slice worktrees, owned task scratch,
 build targets, caches, temporary files and qualification output. Set task-local
@@ -209,6 +214,23 @@ formats and approved smoke/item-4 remeasure. It precedes 90 and is not 160,
 avoiding a 90↔close dependency cycle. Resolve inherited conformance failures
 against supported capabilities; no silent baseline waiver.
 
+It is not a numbered slice. The Slice90 owner runs it as the pre-source entry
+step of90 (S90-R12), on the integrated root baseline, in the heavy window. It
+is complete when the Slice160 Q12 content has real results on that baseline:
+the checks and both-format conformance above with inherited failures resolved,
+plus the approved smoke and item-4 remeasure. The parent records that result in
+Slice90's state evidence. Each of20–70 enters it closed or, for conditional40,
+by its authorized rejection/defer. Its smoke model, prompt, budget and fixture
+are an open owner input; preparation and conformance triage do not wait for it.
+
+**Proposed, pending Astra design review; source for40/50 stays held until it is
+accepted.** 40 and50 consume named Slice30 results, not whole-30 closure:
+accepted P direct-text and the qualified G cases as the read baseline, the
+write-interleaved cells for40's selection, and the accepted identity ruling for
+50's production route. Neither consumes Windows A6, M, D or frozen-TC5 F. Until
+that amendment is reviewed, the JSON `depends_on` and the reviewed40/50 entry
+gates apply unchanged.
+
 The reviewed [Slice30 prerequisite amendment](0.8.29/features/slice-30/prerequisite-change.md)
 permits initial provider-free Linux direct-text P work from closed10 and the
 qualified integrated Linux20/current70 baseline. Parent-owned state records10
@@ -222,8 +244,14 @@ separate. Numerical order is not an execution prerequisite.
 40 before 50 is preferred landing order for attribution/shared engine files, not
 a semantic requirement. 60 can develop independently of their implementation;
 its final parity control runs on the same fused build. 80 design can start early,
-but approval/build use settled contracts. Engine landings 40/50/70/100/110 are
-serialized, as are shared state/ledger/manifest/interface writes.
+but approval/build use settled contracts. Owners of 40/50/100/110 work in
+parallel in their own worktrees; only their root integration is serialized, as
+are shared state/ledger/manifest/interface writes. Each rereads the engine
+changes integrated before it at source entry and at integration.
+
+The one local host serves every native build and full gate, the GPU campaign
+and the Windows VM. The parent grants that window to one owner at a time;
+design, review and non-native work proceed outside it.
 
 Owner ruling, steward `seq-367`: .29 focuses on A, required fork repairs only.
 The [Candle rebase, marker cleanup and multiarchitecture work](0.8.30/fork-maintenance-plan.md)
@@ -266,7 +294,9 @@ flowchart LR
     I --> Z[160 combined close]
     X --> Z
     Q --> Z
-    U --> Z
+    U -. only if selected .-> Z
+    T --> Z
+    C -. or authorized reject/defer .-> Z
 ```
 
 Edges into 80 denote settled contracts, not completion of the source feature
@@ -351,10 +381,14 @@ approved work from genuinely pending item decisions. Actual0–9 reviews are
 complete. Approved10 preparation and qualified product subsets are recorded in
 the live state; [30 P results](0.8.29/features/slice-30/results-p.md) now provide
 current direct-text evidence. P acceptance does not close whole30 or downstream
-source gates. The same30 owner next prepares a concrete G/D extension design
-for independent Astra review before parent source/runtime GO. Product work
-continues through the selected ladder, actual prerequisites and genuine TDD.
-Publication remains separately authorized.
+source gates. Slice30 also has11 qualified G cases; its73 required cap-refused
+G cases, M, D and frozen-TC5 F are not measured, and the reviewed
+[G/D](0.8.29/features/slice-30/continuation-gd.md) and
+[M](0.8.29/features/slice-30/continuation-m.md) continuations govern them.
+Slice70 is complete on the release branch. Slices110 and120 are in owner design
+drafting ahead of their Astra design reviews. Product work continues through
+the selected ladder, actual prerequisites and genuine TDD. Publication remains
+separately authorized.
 
 ## Immediate next slice
 

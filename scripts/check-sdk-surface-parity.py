@@ -260,6 +260,7 @@ def _strip_cfg_test(text: str) -> str:
     return text
 
 
+# ABI literals are blanked before matching; Rust also permits an omitted ABI.
 _PUB_FN = re.compile(
     r"(?<![\w)])pub\s+(?:(?:const|async|unsafe|extern(?:\s+\"[^\"]*\")?)\s+)*fn\s+(\w+)"
 )

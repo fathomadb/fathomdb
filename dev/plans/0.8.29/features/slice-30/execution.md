@@ -1310,3 +1310,17 @@ or expected values. Distinct `g-sdk-diagnostic-policy-green-rustfmt.log` records
 parser/feature consumers/native identities still require affected qualification
 and fresh independent implementation recheck before integration. No full-wrapper
 restart or model/GPU/campaign authority follows.
+
+### Unknown extern diagnostic member repair
+
+Within the approved unknown-member rejection requirement, an existing-entrypoint
+probe found that ABI literal masking made the pre-existing extern recognizer miss
+unknown members. Separate RED `7027e4841` preserves the prior34 oracles and adds
+one test with three source-policy cases: extern C, omitted ABI, and unsafe
+extern C, each gated/hidden exactly like the accepted diagnostic. All three were
+wrongly accepted (`ParityError not raised`); no compiler/runtime-product RED is
+claimed. Minimal GREEN `7673fdef7` makes the masked/omitted ABI optional in the
+recognizer, without granting any capability or changing the literal masker.
+All35 tests pass, including original28 and actual53/53 governed operations; every
+RED assertion is unchanged. This closes the concrete lexer gap without a new
+exception, diagnostic, signed operation or broader feature policy.

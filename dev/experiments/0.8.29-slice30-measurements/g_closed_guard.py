@@ -69,6 +69,9 @@ class ClosedGuard:
             raise RuntimeError("unfinished shared attempt blocks closed guardian")
         if self.prior_common >= 560 * 10**9:
             raise RuntimeError("common reserve exhausted or cleanup reserve unavailable")
+        roots = budget.setdefault("closed_common_roots", [])
+        if str(self.root) not in roots:
+            roots.append(str(self.root))
         self.owned = True
         budget["closed_guardian"] = {"pid": os.getpid(), "mode": self.mode,
                                     "started_monotonic_ns": self.started}
@@ -91,6 +94,7 @@ class ClosedGuard:
     def check(self):
         """Return a common/whole-phase/storage stop without changing resource floors."""
         from g_campaign import active_bytes
+        from g_common_storage import common_bytes
         budget = self.read()
         now = time.monotonic_ns()
         common = budget.get("common_used_ns", {}).get(self.mode, 0) + self.residual(budget, now)
@@ -98,7 +102,7 @@ class ClosedGuard:
             return "closed_common_cleanup_reserve"
         if budget["used_ns"] + self.residual(budget, now) >= self.limits["campaign_seconds"] * 10**9:
             return "closed_shared_time_exhausted"
-        if active_bytes(self.allocation / "common") >= 1024**3:
+        if common_bytes(self.allocation) >= 1024**3:
             return "closed_common_storage_exhausted"
         if active_bytes(self.allocation) >= self.limits["active_bytes"]:
             return "closed_shared_storage_exhausted"

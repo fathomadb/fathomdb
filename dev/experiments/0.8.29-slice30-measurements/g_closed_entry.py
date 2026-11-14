@@ -17,6 +17,8 @@ def worker_command(job):
 
 
 def _call(allocation, mode, action, options):
+    from g_common_storage import register_root
+    register_root(allocation, options["out"] if action == "freeze" else options["root"])
     jobs = allocation / "common" / "jobs"
     jobs.mkdir(parents=True, exist_ok=True)
     job = jobs / f"{action}-{uuid.uuid4().hex}.json"

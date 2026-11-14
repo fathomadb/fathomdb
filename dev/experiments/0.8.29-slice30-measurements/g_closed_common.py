@@ -6,6 +6,7 @@ import time
 
 from g_attempt import run_g_attempt
 from g_campaign import active_bytes
+from g_common_storage import common_bytes
 from g_closed_guard import write_budget
 
 COMMON_BYTES = 1024**3
@@ -27,7 +28,7 @@ def run_common(allocation, mode, command):
     reason = ("unfinished_shared_attempt" if budget.get("inflight") else
               "common_time_exhausted" if common.get(mode, 0) >= 600 * 10**9 else
               "shared_time_exhausted" if budget["used_ns"] >= 14400 * 10**9 else
-              "common_storage_exhausted" if active_bytes(allocation / "common") >= COMMON_BYTES else
+              "common_storage_exhausted" if common_bytes(allocation) >= COMMON_BYTES else
               "shared_storage_exhausted" if active_bytes(allocation) >= 16 * 1024**3 else
               "common_cleanup_reserve" if remaining <= 40 * 10**9 else None)
     if reason:
@@ -38,7 +39,7 @@ def run_common(allocation, mode, command):
     outcome = None
     try:
         def monitor(_pid):
-            if active_bytes(allocation / "common") >= COMMON_BYTES:
+            if common_bytes(allocation) >= COMMON_BYTES:
                 return "common_storage_exhausted"
             if active_bytes(allocation) >= 16 * 1024**3:
                 return "shared_storage_exhausted"

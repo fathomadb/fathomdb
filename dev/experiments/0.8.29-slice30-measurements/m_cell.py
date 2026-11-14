@@ -28,9 +28,11 @@ def _loops(session, cell, queries, deadline_ns):
     return {"phases": phases, "complete": complete}
 
 
-def execute(cell, command, root, *, queries, deadline_ns, files=None, control_path=None):
+def execute(cell, command, root, *, queries, deadline_ns, files=None, control_path=None, on_spawn=None):
     """Run a cell against its actual stdio process and retain decoded outcomes."""
     with McpSession(command, root, result_format=cell["result_format"]) as session:
+        if on_spawn:
+            on_spawn(session.child.pid)
         session.initialize()
         if cell["family"] in ("M-R", "M-C"):
             result = _loops(session, cell, queries, deadline_ns)
@@ -66,7 +68,13 @@ def execute(cell, command, root, *, queries, deadline_ns, files=None, control_pa
                 and all(row["ok"] for row in (search, fetched, orient))
                 and error.get("error") == "invalid_request/unknown_store")
     result["exit"] = session.exit
+    result["pid"] = session.child.pid
     result["complete"] &= session.exit["code"] == 0 and not session.failures
+    if cell["family"] in ("M-R", "M-C", "M-L"):
+        degraded = [row["rpc_id"] for row in session.records.values()
+                    if row.get("tool") == "search" and row.get("payload", {}).get("degradation")]
+        result["unexpected_degradation"] = degraded
+        result["complete"] &= not degraded
     result["failures"] = session.failures
     result["whole_process"] = summarize_invocations(session.records.values(),
         session.exit["exit_ns"] - session.started_ns,

@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import subprocess
 import time
+import uuid
 
 from g_attempt import live_owned_pids, stop_owned_group, unreaped_exit
 from g_boundary import TaskBoundary
@@ -85,7 +86,7 @@ class Accounting:
                 "charged_ns": value["used_ns"] - self.prior_used}
 
 
-def guard(command, *, allocation, profile, root, task, admission=False):
+def guard(command, *, allocation, profile, root, task, admission=False, common_limit_ns=None):
     """Own the whole controller phase, private boundary, resource floors and final charge."""
     began = time.monotonic_ns()
     allocation, root, task = map(lambda p: Path(p).resolve(), (allocation, root, task))
@@ -99,26 +100,29 @@ def guard(command, *, allocation, profile, root, task, admission=False):
     if any(type(value) is not int or value <= 0 for value in limits):
         raise ValueError("positive approved shared caps required")
     root.mkdir(parents=True, exist_ok=True)
+    phase = root / "guardians" / str(uuid.uuid4())
+    phase.mkdir(parents=True)
     receipt = {"started_monotonic_ns": began, "cleanup_uncertain": False, "exit": 125}
     with (allocation / "g-campaign.lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         budget = accounting.read()
         if budget.get("inflight") or budget.get("m_guardian") or budget.get("closed_guardian"):
             raise RuntimeError("retained shared ownership/inflight blocks M admission")
-        if accounting.total(time.monotonic_ns()) + 10 * 10**9 >= limits[0]:
+        if accounting.total(time.monotonic_ns()) + 20 * 10**9 >= limits[0]:
             raise RuntimeError("shared cleanup reserve unavailable")
         source = Path(__file__).resolve().parents[3]
         sample = resource_sample(source, task)
         gib = 1024**3
         if (sample["root_free"] < 32 * gib or sample["task_free"] < 250 * gib
-                or sample["memory_available"] < 16 * gib or sample["owned"] >= 200 * gib):
+                or sample["memory_available"] < 16 * gib or sample["owned"] >= 200 * gib
+                or active_bytes(allocation) >= limits[1]):
             raise RuntimeError("M resource start floor fails")
         budget["m_guardian"] = {"pid": os.getpid(), "start": process_start(os.getpid()),
                                 "started_monotonic_ns": began, "root": str(root)}
         write_budget(accounting.path, budget)
         boundary, child = TaskBoundary(task), None
         reader = writer = None
-        with (root / "guardian.log").open("a") as log:
+        with (phase / "guardian.log").open("a") as log:
             try:
                 boundary.create()
                 reader, writer = os.pipe()
@@ -134,7 +138,10 @@ def guard(command, *, allocation, profile, root, task, admission=False):
                 os.close(writer)
                 writer = None
                 receipt["controller_pid"] = child.pid
-                last_sample, swap_streak, last_swap, sampled_at = began, 0, None, None
+                vm = dict(line.split() for line in Path("/proc/vmstat").read_text().splitlines())
+                last_sample, swap_streak = began, 0
+                last_swap, sampled_at = int(vm["pswpin"]) + int(vm["pswpout"]), began
+                receipt["resources"] = [sample]
                 while True:
                     now = time.monotonic_ns()
                     code = unreaped_exit(child)
@@ -145,11 +152,20 @@ def guard(command, *, allocation, profile, root, task, admission=False):
                         else:
                             child.wait()
                         break
-                    if accounting.total(now) + 10 * 10**9 >= limits[0]:
+                    current = accounting.read()
+                    uncommitted = accounting.uncommitted(current, now)
+                    common_wall = max(0, now-began-(current["used_ns"]-accounting.prior_used)-uncommitted)
+                    active = current.get("inflight") or {}
+                    cell_wall = (now-active["started_monotonic_ns"]
+                                 + accounting.prior_cells.get(active["cell"], 0)) if active else 0
+                    if (accounting.total(now) + 20 * 10**9 >= limits[0]
+                            or cell_wall + 20 * 10**9 >= profile["whole_cell_ns"]
+                            or (common_limit_ns is not None and common_wall + 20 * 10**9 >= common_limit_ns)):
                         receipt.update(exit=124, stop="shared cleanup reserve")
                         break
                     if now - last_sample >= 30 * 10**9:
                         sample = resource_sample(source, task)
+                        receipt["resources"].append(sample)
                         vm = dict(line.split() for line in Path("/proc/vmstat").read_text().splitlines())
                         swap = int(vm["pswpin"]) + int(vm["pswpout"])
                         if last_swap is not None:
@@ -171,12 +187,19 @@ def guard(command, *, allocation, profile, root, task, admission=False):
                 try:
                     if child is not None and child.returncode is None:
                         receipt["survivors"] = stop_owned_group(child)
-                    boundary.cleanup()
                 except BaseException as error:
                     receipt.update(cleanup_uncertain=True, cleanup_error=str(error), exit=125)
+                try:
+                    boundary.cleanup()
+                except BaseException as error:
+                    receipt.update(cleanup_uncertain=True, boundary_cleanup_error=str(error), exit=125)
                 receipt["stopped_monotonic_ns"] = time.monotonic_ns()
                 receipt["boundary"] = boundary.evidence
+        try:
+            receipt.setdefault("resources", []).append(resource_sample(source, task))
+        except Exception as error:
+            receipt.update(exit=124, final_resource_error=str(error))
         receipt["accounting"] = accounting.finish(uncertain=receipt["cleanup_uncertain"],
                                                   stopped_ns=receipt["stopped_monotonic_ns"])
-        (root / "guardian.json").write_text(json.dumps(receipt, indent=2) + "\n")
+        (phase / "guardian.json").write_text(json.dumps(receipt, indent=2) + "\n")
     return receipt

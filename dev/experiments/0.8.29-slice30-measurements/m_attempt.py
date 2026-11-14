@@ -87,7 +87,8 @@ def _wait_owned(child, deadline_ns, monitor):
     return code, error, uncertain, live
 
 
-def run_attempt(cell, root, command, *, deadline_ns, prepare=None, authorize=None, monitor=None):
+def run_attempt(cell, root, command, *, deadline_ns, prepare=None, authorize=None, monitor=None,
+                register=None):
     """Supervise fresh preparation/payload sessions; retain failures and original files."""
     started = time.monotonic_ns()
     work_deadline_ns = deadline_ns - CLEANUP_RESERVE_NS
@@ -106,6 +107,8 @@ def run_attempt(cell, root, command, *, deadline_ns, prepare=None, authorize=Non
     error = None
     with (attempt / "child.log").open("a", encoding="utf-8", buffering=1) as log:
         try:
+            if register:
+                register(cell, attempt)
             error = authorize(False) if authorize else None
             if not error and time.monotonic_ns() >= work_deadline_ns:
                 error = "insufficient work allowance after bounded cleanup reserve"

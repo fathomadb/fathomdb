@@ -7,6 +7,7 @@ import time
 from campaign import run_campaign
 from g_campaign import active_bytes
 from m_attempt import CLEANUP_RESERVE_NS, run_attempt
+from m_guard import write_budget
 
 
 COMPONENTS = ("copy", "packaging", "open", "first", "warmups", "timed", "logging",
@@ -60,7 +61,8 @@ def run_table(root, command, *, plan=None):
     return run_campaign(load_plan() if plan is None else plan, root, command)
 
 
-def run_budgeted_table(root, command, *, profile, allocation, forecasts, plan=None, prepare=None):
+def run_budgeted_table(root, command, *, profile, allocation, forecasts, plan=None, prepare=None,
+                       common_reserved_ns=0, register=None):
     """Dispatch through a caller-selected shared budget profile and complete forecasts."""
     began = time.monotonic_ns()
     plan = load_plan() if plan is None else plan
@@ -72,6 +74,7 @@ def run_budgeted_table(root, command, *, profile, allocation, forecasts, plan=No
                  and previous[cell["id"]].get("cell") == cell}
     remaining = [cell for cell in plan if cell["id"] not in completed]
     allocation = Path(allocation)
+    profile = dict(profile, total_shared_ns=profile["total_shared_ns"] - common_reserved_ns) if isinstance(profile, dict) and "total_shared_ns" in profile else profile
     reason = None
     if not isinstance(profile, dict) or profile.get("status") != "APPROVED":
         reason = "shared allocation absent or not approved"
@@ -118,16 +121,18 @@ def run_budgeted_table(root, command, *, profile, allocation, forecasts, plan=No
         prior = ledger.setdefault("cell_used_ns", {}).get(cell["id"], 0)
         deadline = min(started + profile["whole_cell_ns"] - prior,
                        started + total_ns - ledger["used_ns"])
-        ledger["inflight"] = {"cell": cell["id"], "started_at_ns": time.time_ns()}
-        ledger_path.write_text(json.dumps(ledger, indent=2) + "\n")
+        ledger["inflight"] = {"cell": cell["id"], "started_at_ns": time.time_ns(),
+                              "started_monotonic_ns": started}
+        write_budget(ledger_path, ledger)
 
         def monitor():
             return ("shared retained storage exhausted"
                     if active_bytes(allocation) > total_bytes else None)
 
         outcome = run_attempt(cell, root, command, deadline_ns=deadline, prepare=prepare,
-                              authorize=authorize, monitor=monitor)
+                              authorize=authorize, monitor=monitor, register=register)
         elapsed = time.monotonic_ns() - started
+        ledger = json.loads(ledger_path.read_text())
         ledger["used_ns"] += elapsed
         ledger["cell_used_ns"][cell["id"]] = prior + elapsed
         clean = not outcome["cleanup_uncertain"] and outcome["live_owned_pids"] == []
@@ -135,7 +140,7 @@ def run_budgeted_table(root, command, *, profile, allocation, forecasts, plan=No
             ledger["inflight"] = None
         else:
             ledger["inflight"]["status"] = "cleanup_uncertain"
-        ledger_path.write_text(json.dumps(ledger, indent=2) + "\n")
+        write_budget(ledger_path, ledger)
         outcome["charged_ns"] = elapsed
         results[cell["id"]] = outcome
         previous[cell["id"]] = outcome

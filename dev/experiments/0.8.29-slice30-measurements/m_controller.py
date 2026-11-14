@@ -6,7 +6,7 @@ import time
 
 from campaign import run_campaign
 from g_campaign import active_bytes
-from m_attempt import run_attempt
+from m_attempt import CLEANUP_RESERVE_NS, run_attempt
 
 
 COMPONENTS = ("copy", "packaging", "open", "first", "warmups", "timed", "logging",
@@ -27,11 +27,12 @@ def _assessment(plan, profile, ledger, forecasts, allocation, *, spent=0, prepar
             raise ValueError("retained-byte bound unavailable")
         prior = ledger.get("cell_used_ns", {}).get(cell["id"], 0)
         if (type(prior) is not int or prior < 0
-                or cost + prior + (spent if cell == plan[0] else 0) > profile["whole_cell_ns"]):
+                or cost + prior + CLEANUP_RESERVE_NS
+                + (spent if cell == plan[0] else 0) > profile["whole_cell_ns"]):
             raise ValueError("whole-cell bound exceeds remaining900s")
         time_needed += cost
         bytes_needed += 2 * retained
-    if time_needed + ledger["used_ns"] + spent > profile["total_shared_ns"]:
+    if time_needed + ledger["used_ns"] + spent + (CLEANUP_RESERVE_NS if plan else 0) > profile["total_shared_ns"]:
         raise ValueError("complete remaining table exceeds shared time")
     if bytes_needed + active_bytes(allocation) > profile["total_shared_retained_bytes"]:
         raise ValueError("complete remaining table exceeds retained storage")

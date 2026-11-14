@@ -11,6 +11,8 @@ import traceback
 
 from g_attempt import live_owned_pids, stop_owned_group, unreaped_exit
 
+CLEANUP_RESERVE_NS = 7 * 10**9
+
 
 class _Preparation:
     def __init__(self, callback, cell, attempt, deadline_ns, log):
@@ -88,6 +90,7 @@ def _wait_owned(child, deadline_ns, monitor):
 def run_attempt(cell, root, command, *, deadline_ns, prepare=None, authorize=None, monitor=None):
     """Supervise fresh preparation/payload sessions; retain failures and original files."""
     started = time.monotonic_ns()
+    work_deadline_ns = deadline_ns - CLEANUP_RESERVE_NS
     cell_root = Path(root) / cell["id"]
     cell_root.mkdir(parents=True, exist_ok=True)
     prior = [int(path.name.split("-")[1]) for path in cell_root.glob("attempt-*") if path.is_dir()]
@@ -97,14 +100,18 @@ def run_attempt(cell, root, command, *, deadline_ns, prepare=None, authorize=Non
     config.write_text(json.dumps(cell, indent=2) + "\n")
     outcome = {"id": cell["id"], "cell": cell, "attempt": str(attempt), "status": "failed",
                "complete": False, "exit": None, "cleanup_uncertain": False,
-               "live_owned_pids": [], "deadline_ns": deadline_ns, "sessions": []}
+               "live_owned_pids": [], "deadline_ns": deadline_ns,
+               "work_deadline_ns": work_deadline_ns, "cleanup_reserve_ns": CLEANUP_RESERVE_NS,
+               "sessions": []}
     error = None
     with (attempt / "child.log").open("a", encoding="utf-8", buffering=1) as log:
         try:
             error = authorize(False) if authorize else None
+            if not error and time.monotonic_ns() >= work_deadline_ns:
+                error = "insufficient work allowance after bounded cleanup reserve"
             if not error and prepare:
-                child = _Preparation(prepare, cell, attempt, deadline_ns, log)
-                code, error, uncertain, live = _wait_owned(child, deadline_ns, monitor)
+                child = _Preparation(prepare, cell, attempt, work_deadline_ns, log)
+                code, error, uncertain, live = _wait_owned(child, work_deadline_ns, monitor)
                 outcome["sessions"].append({"kind": "preparation", "pid": child.pid,
                                              "exit": child.returncode})
                 outcome.update(exit=code, cleanup_uncertain=uncertain, live_owned_pids=live)
@@ -112,12 +119,12 @@ def run_attempt(cell, root, command, *, deadline_ns, prepare=None, authorize=Non
                     error = error or "preparation failed"
             if not error:
                 error = authorize(bool(prepare)) if authorize else None
-            if not error and time.monotonic_ns() < deadline_ns:
-                argv = command(cell, attempt, deadline_ns) if callable(command) else command
+            if not error and time.monotonic_ns() < work_deadline_ns:
+                argv = command(cell, attempt, work_deadline_ns) if callable(command) else command
                 argv = [*argv, str(config), str(attempt)]
                 child = subprocess.Popen(argv, stdout=log, stderr=subprocess.STDOUT,
                                          start_new_session=True)
-                code, error, uncertain, live = _wait_owned(child, deadline_ns, monitor)
+                code, error, uncertain, live = _wait_owned(child, work_deadline_ns, monitor)
                 outcome["sessions"].append({"kind": "payload", "pid": child.pid,
                                              "exit": child.returncode})
                 outcome.update(exit=code, child_exit=child.returncode, pid=child.pid, pgid=child.pid,

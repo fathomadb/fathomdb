@@ -166,6 +166,20 @@ class PublicDegradedLoopTests(NativeCase):
         self.assertTrue(result["unexpected_degradation"])
 
 
+class PublicPhaseAccountingTests(NativeCase):
+    """Uncorrelated admission logs belong only to the complete process population."""
+
+    def test_phase_summaries_do_not_present_a_phase_count_as_whole_process_queue_denominator(self):
+        cell = next(row for row in load_plan() if row["id"] == "M-R-1-1-warn")
+        cell = dict(cell, use_default_embedder=False, search_mode="text", first=1, warmups=2, timed=3)
+        result = execute(cell, [str(self.cli), "--config", str(self.config())], self.root / "phases",
+                         queries=["alpha"], deadline_ns=time.monotonic_ns() + 30 * 10**9)
+        self.assertTrue(result["complete"])
+        self.assertEqual(result["whole_process"]["queue"]["whole_process_submitted"], 8)
+        self.assertNotIn("queue", result["phases"]["timed"]["summary"],
+                         "uncorrelated queue accounting was attached to a selected phase")
+
+
 class PublicControlRoutesTests(NativeCase):
     """Lifecycle and private diagnostics use the same registered cell execution path."""
 

@@ -40,7 +40,11 @@ def assess_stage(n, mode, records, budget):
             sizes.append((2 * max(row["peak_bytes"] for row in rows) * n + lower_n - 1) // lower_n)
         predictions[layer] = {"time_ns": max(times), "active_bytes": max(sizes)}
     quartet_bytes = 2 * sum(value["active_bytes"] for value in predictions.values())
-    assessment = {"status": "admit", "predictions": predictions, "quartet_bytes": quartet_bytes}
+    quartet_time_ns = 2 * sum(value["time_ns"] for value in predictions.values())
+    assessment = {"status": "admit", "predictions": predictions, "quartet_bytes": quartet_bytes,
+                  "quartet_time_ns": quartet_time_ns}
+    if budget["used_ns"] + quartet_time_ns > budget["shared_ns"]:
+        assessment.update(status="not_run_cap_feasibility", reason="predicted quartet exceeds remaining shared time")
     if any(value["active_bytes"] >= budget["storage_limit"] for value in predictions.values()) or budget["retained_bytes"] + quartet_bytes >= budget["storage_limit"]:
         assessment.update(status="not_run_cap_feasibility", reason="predicted quartet exceeds retained storage headroom")
     if any(value["time_ns"] >= 900 * 10**9 for value in predictions.values()):

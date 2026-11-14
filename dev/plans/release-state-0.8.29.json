@@ -214,7 +214,7 @@
       ],
       "phase": "P_AND_G_11_CASES_QUALIFIED_73_CAP_REFUSED",
       "plan_sha": "bea7f05cd2497af0d73c6eb8da509e11a947ca08",
-      "conditions": "P and G source qualification plus11 actual G cases are accepted. Normal fixed84 assessment preserved6 original cases and qualified5 new cases:100k R0 and four paired natural diagnostics.73 required obligations remain unsatisfied: fresh R1 cap refusal,36 G-W whole-cell forecast refusals and36 G-W missing-cost refusals. No waiver or wholeG/30 exit. M has a qualified closed100k input; source/tooling, actual MCP/native/cache/GPU proof and a reviewed complete-table budget disposition remain. Read-only M fit proposes6h TOTAL shared time/64GiB TOTAL storage because actual lower bounds exceed4h/16GiB; this is not active or runtime authority. D/F and whole20/40/50/pre90/100Q1 remain open.",
+      "conditions": "P and G source qualification plus11 actual G cases are accepted;73 required primary obligations remain unsatisfied. Closed-copy design at90a883f8 and M fit atf90714a0 passed independent Astra review. G Python tooling implementation is next, before M Rust helper work to preserve native compiler inputs. All84 primary G obligations and46 M cells/defaults remain. Candidate future envelopes are inactive pending actual costs and complete forecasts. No new runtime or cap adoption. D/F and whole20/40/50/pre90/100Q1 remain open.",
       "evidence": "P tools and measured Linux direct-text subset at2fd772558 passed fresh independent Astra-medium final P review on clean documentation0d8be5bb;16grouped genuine RED/GREEN units and invalid124 fixture history remain explicit.16/16 frozen first-attempt cells complete,20000successful timed natural calls,zero errors/noisy cells/retries/resource stops. Unfiltered100k P1 p50 27.184-27.509ms/p99 106.911-107.682ms is below tracked nongated80/300; filtered P2 is not AC083. Parent independently checked hashes/raw counts/percentiles/means; Astra checked batch/probe/match identities. Qualification is assembled from original1f214/216 plus actual affected reruns; original SC2312/Pages/MD012 failures and inner skips retain subjects. Production native receipt remains1f with unchanged relevant inputs; normal release measurement executable was built and run at2fd. See features/slice-30/results-p.md,execution.md and review-log.md. No model/GPU/MCP/frozen-fidelity or whole-slice/release completion follows.",
       "qualified_subset_sha": "2fd772558e46d0b1645dce2ffea730d0bdd3305c",
       "continuation_plan_sha": "0d8be5bb75516955ebf99b94913b9b54921bb3a4",
@@ -222,7 +222,7 @@
       "g_source_entry": {
         "branch": "llm/0.8.29-s30-g-20261113",
         "worktree": "/mnt/data/worktrees/fathomdb-0.8.29-s30-g-20261113",
-        "scope": "Qualified controller including strict accepted-seed chain reuse on normal fixed84 entry. Fresh independent Astra ACCEPT,63 affected controls and accepted assembled source verification at bfe039; original full124 and separate canonical28/28 remainder retained. Six prior actual cases preserve original subjects. Separate fresh normal84 runtime GO remains; no G-R100k/D/M/F/whole30 qualification."
+        "scope": "Accepted normal fixed84 controller and assembled source verification atbfe039; actual normal assessment at29de leaves11 qualified primary cases and73 required cap refusals. Reviewed closed-copy successor design awaits implementation/review/qualification. No new runtime."
       },
       "g_source_qualified_sha": "bfe03918dda8262891086a9ae532a8fd68950e19",
       "g_source_evidence": "Source, measurement-tooling and no-provider subset accepted at 4dbc67f39254bd78cc2c58bdf4d91ee76a8713ae after final independent Astra ACCEPT. Original shell-lint failure and 220-suite collector with 218 passes/two governance failures remain retained. Repaired root inventory passes 8/8 with 48 structural oracles unchanged; SDK policy passes 41/41 with 53 governed operations unchanged. Affected post-rename observer 10/10, normal CLI 12/12, feature consumers, module boundaries, strict Clippy and fresh owned Python/TS rebuilds/native child proof pass. Qualification is assembled; inner ignores/skips, unavailable Python/TS body counts, all prior REDs and failed attempts remain explicit in features/slice-30/execution.md. No Default, dense-provider, GPU/CUDA measurement, G campaign, D/M/F, whole 30 or release qualification follows. G0-only short-child observation repair: committed RED9dfa5d2a5 to GREEN21d8d4e7e, unchanged new test bytes and prior regression oracles,2/2 focused and39/39 G Python controls plus Ruff/scoped Markdown/views/hooks pass. Independent Astra accepts source/protocol correction only; actual engagement criterion remains unchanged. Final containment implementation f8703b466f1778e4db59cf86fd1fb11f03d52d67 passed fresh independent Astra recheck and51/51 actual controls with five frozen RED testfiles unchanged. One final canonical wrapper on clean f870 passed220/220 suites, no suite skips/exclusions; Rust2727 passed/72 ignored. Current Python/TS suites and native-receipt checks passed, inner counts unavailable after canonical passing-log cleanup. Exact private boundary populated0/removal and original-context no-survivor checks passed. Earlier failed wrappers, fixture/preflight failures, original G0 and single hints resumption remain retained with their proper subjects. Staged continuation at bf647231eba70d562888ab312f33b904008a7565 passed fresh distinct Astra-medium implementation review, four genuine RED/GREEN units and60/60 affected controls with four new RED files and existing51 controls unchanged. Its single final canonical gate passed220/220,0suite skips/exclusions and security0; Rust/Python/TS suites passed, current inner counts unavailable after canonical passing-log cleanup. Exact frozen source and empty deltas, no resource stop/cleanup uncertainty, private-boundary populated0/removal and original-context no-survivor checks passed. No new actual GPU/100k qualification follows. Normal six-reference reuse at bfe03918dda8262891086a9ae532a8fd68950e19 passed a genuine semantic RED/GREEN,63/63 affected controls and fresh independent Astra implementation/assembled-qualification reviews. Strict original full attempt exited124/child-15 on owned du ENOENT; lint/typecheck/security0 passed,192-prefix completion supported by serial checkpoint progress/no failure output. One reviewed unchanged canonical28-suite remainder passed28/28 with0suite skips/exclusions and verified private-boundary/actor cleanup. This is assembled qualification, not one uninterrupted220 wrapper. Sampler/caps/source remained unchanged; current Rust/Python/TS inner totals unavailable after canonical passing-log cleanup. Original measurement ledger/token/closed100k input untouched.",
@@ -245,7 +245,7 @@
         "implementation_review": "Fresh independent Astra ACCEPT after root-path and missing-marker findings were fixed with genuine RED/GREEN; actual live-guardian positive control passed.51 combined controls, five frozen RED files unchanged. Root-namespace coverage is protocol-only.",
         "qualification_scope": "Exact task-owned containment/source implementation and final canonical gate. This is not Default/GPU, D/M/F, whole30 or release qualification; fresh runtime prerequisites remain."
       },
-      "m_design_review": "Independent Astra PASS on ca76af9f5c7c710b1aca7f8ee79f2c90549a4874; ac9bb090286c9be723e5736b6bbaa3e527421001 only records that verdict.46 proposed cells,24 natural throughput cells,36024 submissions/24000 timed samples. Current CLI/private-helper distinction, unavailable service attribution, actual lifecycle and retained-budget rules fit existing requirements. No source/runtime GO or renewed4h/16GiB allocation; qualified closed G100k and candidate-owned MCP/cache/GPU proof remain absent.",
+      "m_design_review": "Independent Astra PASS on original ca76af9f5c7c710b1aca7f8ee79f2c90549a4874 and predecessor/provider/budget amendment f90714a0e2132bab3b2a2b2d60425a598c157e34. All46 cells/defaults preserved. Direct-text query GPU use is N/A; hybrid compute requires strict own-PID GPU proof; tiny private diagnostics are provider-free. Qualified closed100k input exists. No source/runtime GO.",
       "g_previous_full_verification": {
         "source_sha": "973b2e692f54b2944d809cec2367ff53b8c152d0",
         "wrapper_exit": 1,
@@ -458,9 +458,9 @@
         "continuation": "Normal six-reference reuse source qualified at bfe039 through accepted assembled verification; six completed measurements remain original. Separate normal fixed84 readiness/technical GO is next. Expected five runnable/73cap remains forecast until actual assessment. All required rows/caps/charges/consumed token preserved; no runtime yet."
       },
       "m_source_fit_pending": {
-        "status": "READ_ONLY_PREPARATION_COMPLETE_AMENDMENT_REVIEW_PENDING",
+        "status": "DESIGN_ACCEPTED_SOURCE_PENDING",
         "scope": "No production API/config/environment/observer/schema change needed; test-seams-only private stdio helper and new concurrent invocation/metrics tooling. Existing aggregate assumes responses and old RawClient discards unmatched IDs; actual code gaps identified.",
-        "qualification_clarifications": "Hybrid compute stages need actual same-PID GPU evidence. Direct text has no embedding/vector work: preserve owned CUDA/provider identity and report query GPU use not-applicable, no extra pulses/queries. Tiny M-E diagnostics should be explicitly provider-free. Both need Astra fit review.",
+        "qualification_clarifications": "Astra accepted: hybrid compute requires same-PID GPU memory plus positive selected-GPU utilization; direct text retains CUDA/provider identity with query GPU use N/A, no extra pulses/queries; tiny M-E diagnostics are provider-free. No production API/config/environment/schema change.",
         "prospective_budget": {
           "total_shared_seconds": 21600,
           "total_shared_retained_bytes": 68719476736,
@@ -475,7 +475,32 @@
           "serialized_2x_SDK_natural_proxy_ns": 13146542536068,
           "remaining_original_4h_ns": 12554869122060,
           "note": "6h/64GiB TOTAL including all prior charges/bytes, not renewed/additional. Actual natural-loop proxy alone exceeds old remaining time;34copies exceed16GiB. Complete remaining copy/open/lifecycle/diagnostic/output/failure forecasts must fit before dispatch. Independent design review and parent disposition precede any amendment; oldG caps/freezes/refusals stay historical."
-        }
+        },
+        "plan_sha": "f90714a0e2132bab3b2a2b2d60425a598c157e34"
+      },
+      "g_closed_copy_plan": {
+        "status": "DESIGN_ACCEPTED_IMPLEMENTATION_NEXT_NO_RUNTIME_GO",
+        "plan_sha": "90a883f8b9d2d7d292c4d2b99275a6c7e3bad242",
+        "review": "Same independent Astra-medium PASS after fixes for common overhead, supervised copy/validation and enforced R1 cost-review stop.",
+        "scope": "One coherent Python tooling phase for calibration, R1-only, write-matrix and reference/cost transitions; per-behavior RED/GREEN, fresh independent implementation review, final clean source gate. No Rust/native rebuild or qualified-case replay.",
+        "preservation": "Original11 exact900s configurations/identities and all84 rows/order preserved;73 remain required. Physical copies are independent mutable subjects, not regenerated projection populations. Format37/no migration.",
+        "calibration_candidate": {
+          "cells": 4,
+          "cell_seconds": 1500,
+          "common_seconds": 600,
+          "new_bytes_per_cell": 3221225472,
+          "common_bytes": 1073741824,
+          "maximum_phase_seconds": 6600,
+          "maximum_terminal_shared_ns": 8445130877940,
+          "maximum_terminal_retained_bytes": 15861785730,
+          "status": "DESIGN_ONLY_NOT_ACTIVE; within original14400s/16GiB; no runtime GO"
+        },
+        "successor_candidate": {
+          "total_shared_seconds": 43200,
+          "total_shared_retained_bytes": 137438953472,
+          "status": "INACTIVE_CONDITIONAL; actual costs and complete G/D/M forecasts required; includes prior charges, no reset or additive M ceiling"
+        },
+        "sequencing": "G Python source first preserves native fingerprints. Calibration, R1-only and write-matrix terminate separately; reviewed actual costs required before writes."
       }
     },
     {

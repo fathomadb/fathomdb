@@ -8,6 +8,17 @@ import time
 from g_attempt import run_g_attempt
 
 
+STAGES = {"branch-controls": "g-o-branches",
+          "first-100k-seed-exploratory": "g1-n100000"}
+
+
+def stage_target(stage):
+    """Resolve only the two reviewed staged stops; default keeps the original full plan."""
+    if stage is not None and stage not in STAGES:
+        raise ValueError("unsupported closed G stage")
+    return STAGES.get(stage)
+
+
 def make_g_plan(spec):
     """Expand the reviewed fixed G stages and paired orders without executing models."""
     if (spec["schema"] != "slice30-g/v1" or spec["format"] != 37
@@ -96,9 +107,10 @@ def predict_seed(cell, previous, cell_usage):
             "seed_ns": (2 * observed_ns * cell["n"] + observed_rows - 1) // observed_rows,
             "seed_bytes": (2 * active_bytes(lower["attempt"]) * cell["n"] + observed_rows - 1) // observed_rows}
 
-def run_g_plan(spec, root, command, prepare=None, allocation_root=None, assess=None, reused=None, stage=None):
+def run_g_plan(spec, root, command, prepare=None, allocation_root=None, assess=None, reused=None, stage=None, prior_outcome_path=None):
     """Run every fixed G obligation against one shared allocation and absolute cell clock."""
     plan = make_g_plan(spec)
+    target = stage_target(stage)
     root = Path(root)
     allocation = Path(allocation_root) if allocation_root is not None else root
     root.mkdir(parents=True, exist_ok=True)
@@ -129,6 +141,14 @@ def run_g_plan(spec, root, command, prepare=None, allocation_root=None, assess=N
         completed = previous.get(cell["id"])
         if completed_record(completed) and completed.get("cell") == cell:
             outcomes.append(completed)
+            (root / "g-outcomes.json").write_text(json.dumps(outcomes, indent=2) + "\n")
+            continue
+        if target is not None and cell["id"] != target:
+            held = {"id": cell["id"], "cell": cell, "status": "not_run_stage",
+                    "complete": False, "reason": "outside_closed_stage", "stage": stage}
+            if prior_outcome_path:
+                held["prior_outcome_path"] = str(prior_outcome_path)
+            outcomes.append(held)
             (root / "g-outcomes.json").write_text(json.dumps(outcomes, indent=2) + "\n")
             continue
         reason = ("unfinished_shared_attempt" if budget.get("inflight") else

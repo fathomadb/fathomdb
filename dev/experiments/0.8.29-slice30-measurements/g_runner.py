@@ -206,7 +206,8 @@ def run_prepared(manifest, root):
         prediction = predictions.get(cell["id"])
         return {"prospective_prediction": prediction} if prediction is not None else None
     return run_g_plan(spec, root / "results", command, prepare=prepare,
-                      allocation_root=manifest["allocation"], assess=assess, reused=manifest.get("reused"))
+                      allocation_root=manifest["allocation"], assess=assess, reused=manifest.get("reused"),
+                      stage=manifest.get("stage"), prior_outcome_path=manifest.get("prior_outcome_path"))
 
 
 def run_cell_job(manifest_path, deadline_ns, config_path, output):
@@ -260,6 +261,11 @@ def run_frozen(root):
         previous = dict(preliminary.get("reused", {}))
         if state_path.exists():
             previous.update({row["id"]: row for row in json.loads(state_path.read_text())})
+        from g_campaign import completed_record, stage_target
+        target = stage_target(preliminary.get("stage"))
+        if target and completed_record(previous.get(target)):
+            validate_frozen(root)
+            return run_prepared(prepared(preliminary), root)
         if all(previous.get(cell["id"], {}).get("status") in ("complete", "reused_complete")
                and previous[cell["id"]].get("cell") == cell for cell in preliminary["plan"]):
             validate_frozen(root)
@@ -270,12 +276,18 @@ def run_frozen(root):
         invocation = root / "invocations" / f"run-{uuid.uuid4().hex}"
         invocation.mkdir(parents=True)
         def publish_invocation(ok, error=None):
-            value = {"path":str(invocation),"environment_ok":ok,"error":error,"finished_at_ns":time.time_ns()}
+            rows_path = root / "results/g-outcomes.json"
+            rows = json.loads(rows_path.read_text()) if rows_path.exists() else []
+            selected = next((row for row in rows if row["id"] == target), None)
+            value = {"path":str(invocation),"environment_ok":ok,"error":error,"finished_at_ns":time.time_ns(),
+                     "stage": preliminary.get("stage"),
+                     "stage_complete": bool(ok and target and completed_record(selected)),
+                     "campaign_complete": bool(ok and len(rows) == 84 and all(completed_record(row) for row in rows))}
             (invocation / "invocation.json").write_text(json.dumps(value,indent=2)+"\n")
             (root / "last-run.json").write_text(json.dumps(value,indent=2)+"\n")
         budget["inflight"] = {"cell":"g-preflight","started_at_ns":time.time_ns()}
         budget_path.write_text(json.dumps(budget, indent=2) + "\n")
-        pending = next((cell["id"] for cell in preliminary["plan"] if previous.get(cell["id"],{}).get("status") not in ("complete", "reused_complete")), None)
+        pending = target or next((cell["id"] for cell in preliminary["plan"] if previous.get(cell["id"],{}).get("status") not in ("complete", "reused_complete")), None)
         failure = None
         try:
             manifest = validate_frozen(root)
@@ -337,6 +349,8 @@ def main():
     freeze_parser = commands.add_parser("freeze")
     for field in ("corpus", "queries", "license", "ordinary", "diagnostic", "build_receipt", "model_cache", "allocation", "out"):
         freeze_parser.add_argument("--"+field.replace("_","-"), dest=field, type=Path, required=True)
+    from g_campaign import STAGES
+    freeze_parser.add_argument("--stage", choices=tuple(STAGES))
     freeze_parser.add_argument("--reuse-completed-from", type=Path)
     freeze_parser.add_argument("--gpu-uuid", required=True)
     freeze_parser.add_argument("--gpu-ordinal", type=int, required=True)

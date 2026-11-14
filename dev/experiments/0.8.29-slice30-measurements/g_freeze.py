@@ -74,6 +74,10 @@ def build_tools(output):
 
 def freeze(options):
     """Refuse nonregistered bytes, then freeze exact local inputs/build/device prerequisites."""
+    from g_campaign import stage_target
+    stage_target(options.get("stage"))
+    if bool(options.get("stage")) != bool(options.get("reuse_completed_from")):
+        raise ValueError("closed stage and original completed source must be selected together")
     spec = json.loads(Path(__file__).with_name("g-cells.json").read_text())
     inputs = {}
     for key, expected in PINS.items():
@@ -136,10 +140,15 @@ def freeze(options):
                                 ("HF_HOME", "XDG_CACHE_HOME", "CUDA_CACHE_PATH", "CUDA_VISIBLE_DEVICES")},
                 "device_policy": f"cuda:{options['gpu_ordinal']}", "format": 37,
                 "measurement_scope": "G only; no D/M/F/whole30 or release clearance"}
+    if options.get("stage"):
+        manifest["stage"] = options["stage"]
     if options.get("reuse_completed_from"):
         from g_reuse import collect_reuse
         manifest["reuse_completed_from"] = str(Path(options["reuse_completed_from"]).resolve())
         manifest["reused"] = collect_reuse(manifest, manifest["reuse_completed_from"])
+        manifest["prior_outcome_path"] = str(Path(manifest["reuse_completed_from"]) / "results/g-outcomes.json")
+        if options["stage"] == "first-100k-seed-exploratory" and "g-o-branches" not in manifest["reused"]:
+            raise ValueError("exploratory seed stage requires the qualified branch-stage subject")
     output.mkdir(parents=True, exist_ok=False)
     for name, value in (("manifest.json", manifest), ("plan.json", manifest["plan"])):
         path = output / name

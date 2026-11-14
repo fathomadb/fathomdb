@@ -7,6 +7,8 @@ import subprocess
 import threading
 import time
 
+from m_record import CheckpointLog
+
 
 class RpcChild:
     """Own one stdio child and retain submission facts until bounded completion."""
@@ -22,6 +24,9 @@ class RpcChild:
                                       stderr=subprocess.PIPE, cwd=self.root)
         self.records = {}
         self._completion_order = []
+        self._persisted = set()
+        self._submissions = CheckpointLog(self.root / "submissions.jsonl")
+        self._invocations = CheckpointLog(self.root / "invocations.jsonl")
         self.notifications = []
         self.failures = []
         self._next_id = 1
@@ -71,6 +76,7 @@ class RpcChild:
         self.child.stdin.write(raw)
         self.child.stdin.flush()
         row["flush_end_ns"] = time.monotonic_ns()
+        self._submissions.write(row)
         return request_id
 
     def wait(self, request_id, *, timeout=None):
@@ -102,6 +108,8 @@ class RpcChild:
                    arrival_ns=arrived, elapsed_ns=arrived - row["send_start_ns"],
                    parse_ns=time.monotonic_ns() - parse_start, status="completed")
         self._completion_order.append(message["id"])
+        self._invocations.write(row)
+        self._persisted.add(message["id"])
         return True
 
     def wait_any(self, pending, *, timeout=None):
@@ -119,6 +127,8 @@ class RpcChild:
 
     def close(self):
         """Close stdin, wait normally, and stop only this child on a bounded failure."""
+        if hasattr(self, "exit"):
+            return self.exit
         if self.child.stdin and not self.child.stdin.closed:
             self.child.stdin.close()
         try:
@@ -136,9 +146,23 @@ class RpcChild:
         if any(thread.is_alive() for thread in self._threads):
             self.failures.append("stream reader did not reach EOF")
         self._stop.set()
+        for request_id, row in self.records.items():
+            if request_id not in self._persisted:
+                row["status"] = "unresolved"
+                self._invocations.write(row)
+                self._persisted.add(request_id)
+        self._submissions.close()
+        self._invocations.close()
         self.exit = {"code": code, "exit_ns": time.monotonic_ns(),
-                     "readers_joined": all(not thread.is_alive() for thread in self._threads)}
+                     "readers_joined": all(not thread.is_alive() for thread in self._threads),
+                     "persistence": {"submissions": self._submissions.summary(),
+                                     "invocations": self._invocations.summary()}}
         return self.exit
+
+    def phase_boundary(self):
+        """Checkpoint submitted and terminal records after a fully drained phase."""
+        self._submissions.boundary()
+        self._invocations.boundary()
 
     def __enter__(self):
         return self

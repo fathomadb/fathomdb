@@ -1696,7 +1696,20 @@ minimal engine-owned weak scan/job custody plus untimed dequeue, processing
 and actual per-row submit/wait intervals now pass the frozen1/1 test. Raw
 `d-t1a-initial-red.log`, first compile-failed GREEN and corrected GREEN remain
 under the owned D task logs. Module/Clippy checks pass; the unchanged G target
-passes9/10 with one ENOENT starting the new checkout's absent owned Python
-witness. That setup limitation remains open, without test edits or borrowed
-Python/native modules. No numeric snapshot, commit/outcome, overlap, planner or
+initially passed9/10 with one ENOENT starting the new checkout's absent owned
+Python witness. The canonical minimal-venv helper selected own CPython3.13.13;
+only that failed case resumed1/1 (9filtered), with clean source and known exact
+boundary cleanup. Original failure remains; no borrowed Python/native modules. No numeric snapshot, commit/outcome, overlap, planner or
 scale measurement qualification is claimed; further native work needs its lease.
+
+Independent Python-only D-T4 work preserves the fixed24 C/T table. Genuine
+harmless-child RED→GREEN units now cover lower C/T repeat prerequisites,
+conservative2x layer time/equality900 refusal, four-cell retained-storage and
+shared-time headroom, initial held-quartet review stop and exhausted-entry
+refusal. The six stdlib controls use literal unit costs and temporary budgets;
+no fixture is real D cost/overlap evidence. `d_controller.py` is the mathematical
+admission/dispatch seam, not completed supervised native execution: actual
+fresh budget/clock custody, resource floors, per-cell charges and worker/report
+qualification remain integration work. G1845130877940ns/1903142018B and all
+original measurement identities remain untouched. Rust D-T1b/D-T2/D-T3 await
+the next native lease; these Python units do not qualify them.

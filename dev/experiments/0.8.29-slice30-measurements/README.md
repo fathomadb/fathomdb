@@ -378,3 +378,19 @@ Portable source controls remain under `test_g*.py`; selected actual cgroup
 controls use the explicit live route above. Tiny real SQLite/harmless children
 are source protocol evidence, never Default/GPU qualification. Current scoped
 results and original failures are retained in the existing execution record.
+
+### D fixed-table feasibility controls
+
+`d-cells.json` retains all24 required fresh C/T executions and900s cell limits.
+`d_controller.py` exposes the pure prospective assessment/dispatch seam and a
+closed initial held quartet, with all remaining obligations explicit. Its
+stdlib controls run with the checkout-owned minimal Python:
+
+```sh
+.venv/bin/python -m unittest discover -s dev/experiments/0.8.29-slice30-measurements -p 'test_d_*.py'
+```
+
+Literal lower-cost fixtures and harmless child markers qualify admission math
+and ordering only. They do not measure D, supply GPU/overlap/fidelity evidence,
+or mutate the real shared allocation. Fresh supervised wall/retention/budget
+custody and native observation/report bindings remain required before runtime.

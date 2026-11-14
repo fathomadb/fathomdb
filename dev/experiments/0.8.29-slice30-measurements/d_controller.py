@@ -19,6 +19,8 @@ def _qualified_lower(n, mode, records):
 
 def assess_stage(n, mode, records, budget):
     """Return prospective admission for one required size/mode quartet."""
+    if budget["used_ns"] >= budget["shared_ns"] or budget["retained_bytes"] >= budget["storage_limit"]:
+        return {"status": "not_run_cap_feasibility", "reason": "shared time or retained storage exhausted"}
     if n == 10000:
         return {"status": "admit"}
     lower = 10000 if n == 100000 else 100000

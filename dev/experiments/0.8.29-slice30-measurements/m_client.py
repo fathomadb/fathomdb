@@ -21,6 +21,7 @@ class RpcChild:
         self.child = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                       stderr=subprocess.PIPE, cwd=self.root)
         self.records = {}
+        self._completion_order = []
         self.notifications = []
         self.failures = []
         self._next_id = 1
@@ -82,20 +83,39 @@ class RpcChild:
             if remaining <= 0:
                 self.records[request_id]["status"] = "unresolved"
                 return None
-            try:
-                arrived, raw = self._events.get(timeout=remaining)
-            except queue.Empty:
+            if not self._consume(remaining):
                 self.records[request_id]["status"] = "unresolved"
                 return None
-            parse_start = time.monotonic_ns()
-            message = json.loads(raw)
-            if "id" not in message:
-                self.notifications.append(message)
-                continue
-            row = self.records[message["id"]]
-            row.update(response=message, response_raw=raw.decode(), response_bytes=len(raw),
-                       arrival_ns=arrived, elapsed_ns=arrived - row["send_start_ns"],
-                       parse_ns=time.monotonic_ns() - parse_start, status="completed")
+
+    def _consume(self, timeout):
+        try:
+            arrived, raw = self._events.get(timeout=timeout)
+        except queue.Empty:
+            return False
+        parse_start = time.monotonic_ns()
+        message = json.loads(raw)
+        if "id" not in message:
+            self.notifications.append(message)
+            return True
+        row = self.records[message["id"]]
+        row.update(response=message, response_raw=raw.decode(), response_bytes=len(raw),
+                   arrival_ns=arrived, elapsed_ns=arrived - row["send_start_ns"],
+                   parse_ns=time.monotonic_ns() - parse_start, status="completed")
+        self._completion_order.append(message["id"])
+        return True
+
+    def wait_any(self, pending, *, timeout=None):
+        """Return the earliest terminal request from the caller's outstanding set."""
+        until = time.monotonic() + (self.timeout if timeout is None else timeout)
+        while True:
+            for request_id in self._completion_order:
+                if request_id in pending:
+                    return request_id
+            remaining = until - time.monotonic()
+            if remaining <= 0 or not self._consume(remaining):
+                for request_id in pending:
+                    self.records[request_id]["status"] = "unresolved"
+                return None
 
     def close(self):
         """Close stdin, wait normally, and stop only this child on a bounded failure."""

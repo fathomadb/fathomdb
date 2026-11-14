@@ -71,7 +71,7 @@ class PrivateControl:
         if self.socket.fileno() >= 0:
             try:
                 self.send("release_all")
-            except (OSError, ValueError, TimeoutError) as error:
+            except (OSError, ValueError, TimeoutError, EOFError) as error:
                 self.failures.append(str(error))
             finally:
                 self.socket.close()
@@ -86,4 +86,60 @@ class PrivateControl:
 
 def run_case(case, session, control):
     """Run a tiny actual Adapter call; diagnostic orchestration is case-specific."""
+    if case == "queue_full":
+        return _queue_full(session, control)
     return session.tool("search", {"store": "a", "query": "alpha", "mode": "text", "limit": 10})
+
+
+def _submit_search(session, token=None):
+    params = {"name": "search", "arguments": {"store": "a", "query": "alpha", "mode": "text", "limit": 10}}
+    if token is not None:
+        params["_meta"] = {"progressToken": token}
+    return session.submit("tools/call", params, phase="control", tool="search", store="a", mode="text")
+
+
+def _progress(session, predicate, timeout=5):
+    until = time.monotonic() + timeout
+    while time.monotonic() < until:
+        for notification in session.notifications:
+            if notification.get("method") == "notifications/progress" and predicate(notification["params"]):
+                return notification
+        session._consume(min(0.2, max(0.001, until - time.monotonic())))
+    raise TimeoutError("actual queued/open progress stage was not observed")
+
+
+def _drain(session, requests, timeout=5):
+    until = time.monotonic() + timeout
+    pending = {request_id for request_id in requests if "response" not in session.records[request_id]
+               and not session.records[request_id]["cancellation_requested"]}
+    while pending:
+        request_id = session.wait_any(pending, timeout=max(0.001, until - time.monotonic()))
+        if request_id is None:
+            raise TimeoutError("released helper calls did not drain under the source bound")
+        pending.remove(request_id)
+
+
+def _hold_four(session, control):
+    session.tool("orient", {"store": "a"})
+    control.send("block_calls")
+    requests = [_submit_search(session) for _ in range(4)]
+    control.wait_held(4)
+    return requests
+
+
+def _queue_full(session, control):
+    requests = _hold_four(session, control)
+    try:
+        requests.extend(_submit_search(session, f"queue-{index}") for index in range(32))
+        stage = _progress(session, lambda params: params.get("message") == "queued: 32 waiting, 4 running")
+        result = session.tool("search", {"store": "a", "query": "alpha", "mode": "text", "limit": 10})
+        before = control.wait_held(4)["held_calls"]
+    finally:
+        control.send("release_all")
+        _drain(session, requests)
+    after = control.wait_held(0)["held_calls"]
+    unexpected = [session.records[request_id].get("error", "missing successful outcome")
+                  for request_id in requests if session.records[request_id].get("ok") is not True]
+    return dict(result, diagnostic={"case": "queue_full", "held_before_release": before,
+                "held_after_release": after, "queued_stage": stage, "unexpected_errors": unexpected,
+                "complete": result.get("error") == "busy/admission/queue_full" and not unexpected})

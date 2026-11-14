@@ -20,6 +20,11 @@ from m_guard import process_start, write_budget
 from m_record import CheckpointLog
 
 
+def read_queries(path):
+    """Read the registered query records in their original file order."""
+    return Path(path).read_text(encoding="utf-8").splitlines()
+
+
 def controller_admission(fd, root):
     """Accept only the active owning guardian's inherited bounded anonymous admission."""
     ready = select.select([fd], [], [], 2)[0]
@@ -121,7 +126,7 @@ def payload(manifest, cell, attempt, deadline_ns):
     if natural:
         os.environ.update(HF_HOME=manifest["hf_home"], HF_HUB_OFFLINE="1",
                           FATHOMDB_EMBED_DEVICE=f"cuda:{manifest['gpu']['ordinal']}")
-    queries = Path(manifest["inputs"]["queries"]["path"]).read_text().splitlines() if natural else ["alpha"]
+    queries = read_queries(manifest["inputs"]["queries"]["path"]) if natural else ["alpha"]
     samples, failures, stop, thread = [], [], threading.Event(), None
     stream = None
     observer = None

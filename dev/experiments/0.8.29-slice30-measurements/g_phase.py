@@ -42,7 +42,7 @@ record = dict(
     samples=[start],
     resource_stop=None,
 )
-with (task / "logs" / f"{phase}.log").open("wb") as log:
+with (task / "logs" / f"{phase}.log").open("w", encoding="utf-8") as log:
     child = None
     boundary = TaskBoundary(task)
     last = start

@@ -150,5 +150,30 @@ class ListStateTests(NativeCase):
                 self.assertTrue(client.exit["readers_joined"])
 
 
+class OrientTests(NativeCase):
+    """Actual orient readiness is retained without inventing provider availability."""
+
+    def test_actual_orient_retains_provider_free_runtime_and_embedding_facts(self):
+        for result_format in ("text", "structured"):
+            with self.subTest(result_format=result_format):
+                with RpcChild([str(self.cli), "--config", str(self.config(result_format))],
+                              self.root / result_format) as client:
+                    self.initialize(client)
+                    result = self.call(client, "orient", {})
+                    payload = result["payload"]
+                    status = payload.get("projection_status", {})
+                    self.assertEqual(status.get("runtime_embedder_available"), False,
+                                     f"actual orient readiness was lost: {result}; retained={self.root}")
+                    self.assertEqual(status["runtime_unavailability_reason"], "no_runtime")
+                    self.assertEqual(status["vector_unsupported_kinds"], [])
+                    self.assertEqual(payload["embedding_readiness"]["usable_embedder"], False)
+                    self.assertEqual(payload["embedding_readiness"]["pending_count"], 0)
+                    self.assertEqual(payload["store"], "a")
+                    self.assertEqual(payload["epoch"], 1)
+                    self.assertEqual(payload["budget"]["max_tokens"], 4000)
+                self.assertEqual(client.exit["code"], 0)
+                self.assertTrue(client.exit["readers_joined"])
+
+
 if __name__ == "__main__":
     unittest.main()

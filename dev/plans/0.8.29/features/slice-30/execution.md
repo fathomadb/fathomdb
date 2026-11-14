@@ -1425,11 +1425,22 @@ proves actual harmless-child dispatch from normal entry with retained unknown
 cleanup and cleared shared inflight; synthetic prerequisites are policy controls,
 never model/GPU evidence.
 
-Current durable-state correction passes3 focused entry oracles and48 combined
-G Python controls, with all4 RED testfiles unchanged and Ruff passing. Exclusive
-state ownership prevents overwrite; normal entry permits only a known live own
-boundary and rejects retained unknown/stale state before dispatch. Population
-uncertainty retains the exact private path/identity; it is not automatically
-removed or bypassed. All fixed resource/grace/kill/quiescence bounds remain.
-Independent implementation review and root-scheduled final qualification remain
-pending. No new full wrapper, Default/GPU continuation or D/M/Q1 run occurred.
+Initial durable-state correction passed3 focused entry oracles and48 combined
+G Python controls with all4 RED testfiles unchanged. Fresh review then exposed
+absent-marker fallback and a duplicate separator at namespace root. RED3dd7d0014
+proves actual bare-entry harmless-child dispatch and the literal root-record
+mismatch; its actual live-guardian/matching-cgroup positive control already
+passed and is preservation coverage, not a fabricated RED. The root control
+stops before opening/creating a global-root cgroup and proves record protocol,
+not actual namespace execution.
+
+Correction f3c855335 requires the live matching guardian and normalizes the join.
+Both negative cases passed initially; the positive case correctly refused the
+then-uncommitted tree. That failed GREEN remains retained. After normal commit,
+the unchanged positive control passes1/1 on clean source; combined51/51 G Python
+controls pass with all5 RED testfiles unchanged. Ruff passes. Exclusive state
+ownership prevents overwrite, and missing/unknown/stale state refuses dispatch.
+Population uncertainty retains the exact private path/identity; it is never
+automatically removed or bypassed. Fixed resource/grace/kill/quiescence bounds
+remain. Independent implementation recheck and root-scheduled final qualification
+are pending. No new full wrapper, Default/GPU continuation or D/M/Q1 run occurred.

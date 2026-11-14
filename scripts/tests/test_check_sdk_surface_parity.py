@@ -457,5 +457,57 @@ class RustQualificationDiagnosticTests(unittest.TestCase):
                 self.observe(extra=extra)
 
 
+class RustDiagnosticActivationPathTests(unittest.TestCase):
+    def observe(self, dependency='', features=None, inherited=None):
+        files = dict(RUST_CRATE)
+        files['engine.rs'] += '\nimpl Engine {\n' + DIAGNOSTIC_FORWARDER + '\n}\n'
+        with tempfile.TemporaryDirectory() as temporary:
+            parent = Path(temporary)
+            crate = write_crate(parent / 'member', files)
+            selected = DIAGNOSTIC_FEATURES if features is None else features
+            manifest = '[package]\nname="activation-fixture"\nversion="0.0.0"\n[features]\n'
+            manifest += ''.join(f'{name}={json.dumps(values)}\n' for name, values in selected.items())
+            manifest += dependency
+            (crate / 'Cargo.toml').write_text(manifest)
+            if inherited is not None:
+                (parent / 'Cargo.toml').write_text('[workspace]\nmembers=["member"]\n'
+                    '[workspace.dependencies]\nfathomdb-engine={version="0.0.0",features='
+                    + json.dumps(inherited) + '}\n')
+            return checker.validate_observed(COMPANION, 'rust', checker.observe_rust_sdk(crate))
+
+    def test_plain_and_workspace_engine_dependency_without_extra_features_remain_valid(self):
+        self.assertEqual(self.observe('[dependencies]\nfathomdb-engine={version="0.0.0",features=[]}\n'),
+                         {'engine.open', 'read.get_many'})
+        self.assertEqual(self.observe('[dependencies]\nfathomdb-engine.workspace=true\n', inherited=[]),
+                         {'engine.open', 'read.get_many'})
+
+    def test_engine_dependency_privileged_features_are_rejected(self):
+        for feature in ['test-hooks', 'operator', 'slice30-observer']:
+            dependency = '[dependencies]\nfathomdb-engine={version="0.0.0",features=' + json.dumps([feature]) + '}\n'
+            with self.subTest(feature=feature), self.assertRaises(checker.ParityError):
+                self.observe(dependency)
+
+    def test_inherited_and_target_specific_engine_privileged_features_are_rejected(self):
+        for feature in ['test-hooks', 'operator']:
+            with self.subTest(inherited=feature), self.assertRaises(checker.ParityError):
+                self.observe('[dependencies]\nfathomdb-engine.workspace=true\n', inherited=[feature])
+            target = '[target.\'cfg(unix)\'.dependencies]\nfathomdb-engine={version="0.0.0",features=' + json.dumps([feature]) + '}\n'
+            with self.subTest(target=feature), self.assertRaises(checker.ParityError):
+                self.observe(target)
+
+    def test_weak_observer_forwarding_from_other_features_is_rejected(self):
+        for origin in ['default', 'embed-cuda']:
+            features = copy.deepcopy(DIAGNOSTIC_FEATURES)
+            features[origin] = ['fathomdb-engine?/slice30-observer']
+            with self.subTest(origin=origin), self.assertRaises(checker.ParityError):
+                self.observe(features=features)
+
+    def test_normalization_does_not_authorize_weak_catalog_forwarding(self):
+        features = copy.deepcopy(DIAGNOSTIC_FEATURES)
+        features['slice30-observer'] = ['fathomdb-engine?/slice30-observer']
+        with self.assertRaises(checker.ParityError):
+            self.observe(features=features)
+
+
 if __name__ == "__main__":
     unittest.main()

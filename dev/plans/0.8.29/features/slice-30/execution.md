@@ -1635,3 +1635,49 @@ absent. Selected3090 was quiet; supervisor864821 exited after RELEASE_VERIFIED
 and FD9 was released only after owned quiescence. Source remained clean29de.
 M has a qualified CLOSED100k input, but its predecessor-fit/budget review remains
 separate and inactive. No wholeG/30, M/D, fidelity or downstream clearance follows.
+
+## CLOSED-copy source candidate against a00bf9
+
+The accepted90a883 design is implemented through8ac913c28: fixed separate
+calibration, R1-only stop, reviewed full-table write admission, supervised tiny
+CLOSED-copy/validation controls, original11→qualified R1 reference custody,
+common/cell/cleanup charging and prospective-only profile binding. Every new
+behavior retains its committed semantic RED before GREEN; no Rust/native,
+compiler, model, qualifier or original measurement identity changes. Specific
+COPY/VALIDATION stall controls passed as inherited-supervision preservation,
+not a fabricated RED. Actual calibration/R1/write-matrix, new totals and
+measurement authority remain held.
+
+Review findings have distinct runtime pairs: uncommitted-cell charging
+0c40b5725→45f0181b9, inside-cap cleanup d635a81c5→eb85555cc and public-cell
+admission211c01c53→5aaa2be21. The latter actual private-controller transport stays
+runner-only/unqualified. Public report73d7ed268→ee632310b, common metadata
+dcf88e0c4→debc39031 and aggregate reservation19f77cb7d→6d5fa2ccc retain actual
+failures and unchanged assertions, including both failed reservation GREEN
+attempts. Initial reservation refuses before cell clocks; actual common entry
+work is charged by the outer guardian. R1 reference preservation atcf43b10e4
+was3/3, correcting its commit body's accidental5/5 without replay.
+
+Scoped `g-closed-final-portable.log` ran90 tests in42.101s:88 passed, one failure
+and one error. Canonical discovery exposed the callable child helper's missing
+own module path, previously supplied by focused `PYTHONPATH`;991c207b5 repairs
+only that startup path. Unchanged failed-suite resumptions are2/2 and1/1 in
+`g-closed-final-pipeline-resumption.log` and
+`g-closed-final-copy-pipeline-resumption.log`; no passing-suite replay or
+uninterrupted90/90 claim. Explicit live route atc96d43b45 passed19/19;
+affected final guardian/accounting/admission controls pass5/5 in0.816s under
+strict actual entry floors (`g-closed-final-affected-live.log`). The final
+canonical owned gate MUST select `AGENT_SLICE30_LIVE_CONTROLS=1`; ordinary
+portable discovery alone makes no live-cgroup claim. Fresh final Astra and
+that gate remain pending. Final direct `_common` report bypass has its own
+8f7b7289e→395aebb30 pair: actual bare output is refused while live public
+transport passes2/2; affected common/cell preservation10/10 passes in
+`g-common-cli-preservation.log`. Both private CLI workers now require matching
+live controller/boundary admission. Prior source/full/raw evidence, ledger/token
+and selected CLOSED100k input are untouched. Final no-payload entry refusals
+retain actual sampler/admission charges in1154900a3→8ac913c28: two literal RED
+subcases followed by1/1 GREEN and5/5 affected live preservation
+(`g-closed-entry-refusal-green.log`, `g-closed-entry-refusal-preservation.log`).
+Existing owned/inflight records are not overwritten. The explicit final live
+route now includes21 cases; its new common-worker pair is separately qualified
+above, not relabelled as a new21-case full-route pass.

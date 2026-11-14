@@ -23,8 +23,8 @@ No old prototype timing is a current baseline or fidelity result.
 | [test_g_controller.py](test_g_controller.py) | Actual harmless Python children prove the literal complete stage inventory; no database/model simulation or positive GPU evidence. |
 | [g_spans.py](g_spans.py) | G-only sample-level inclusive span tree and demonstrated disjoint direct-child remainders; overlap remains nonadditive, errors/missing/drop attribution unavailable. No percentile subtraction. |
 | [test_g_spans.py](test_g_spans.py) | Six frozen literal interval/availability/operation-identity/containment oracles. Selected by existing Python discovery; no natural campaign. |
-| [g_phase.py](g_phase.py), [g_resource.py](g_resource.py), [test_g_phase.py](test_g_phase.py) | Owned native/build executor: exact reviewed strict resource sampling, pinned foreground-group cleanup and refusal of leader-only success; actual harmless-descendant runtime controls. Resource caps are independent from measurement budgets and unchanged. |
-| [g_boundary.py](g_boundary.py), [test_g_boundary.py](test_g_boundary.py), [test_g_boundary_entry.py](test_g_boundary_entry.py), [test_g_boundary_dispatch.py](test_g_boundary_dispatch.py), [test_g_phase_errors.py](test_g_phase_errors.py), [test_g_guarded_entry.py](test_g_guarded_entry.py) | Held task-owned cgroup-v2 controls contain the actual outer runner, separate cell session and native descendants. Real default-TERM/forced-escalation/normal-exit chains and controlled create/attach refusal retain independent runtime oracles. Unsupported delegation refuses before payload exec. |
+| [g_phase.py](g_phase.py), [g_resource.py](g_resource.py), [g_phase_tests.py](g_phase_tests.py) | Owned native/build executor: exact reviewed strict resource sampling, pinned foreground-group cleanup and refusal of leader-only success; actual harmless-descendant runtime controls. Resource caps are independent from measurement budgets and unchanged. |
+| [g_boundary.py](g_boundary.py), [g_boundary_tests.py](g_boundary_tests.py), [g_boundary_entry_tests.py](g_boundary_entry_tests.py), [g_boundary_dispatch_tests.py](g_boundary_dispatch_tests.py), [g_phase_error_tests.py](g_phase_error_tests.py), [g_guarded_entry_tests.py](g_guarded_entry_tests.py) | Held task-owned cgroup-v2 controls contain the actual outer runner, separate cell session and native descendants. Real default-TERM/forced-escalation/normal-exit chains and controlled create/attach refusal retain independent runtime oracles. Unsupported delegation refuses before payload exec. |
 | [g_runtime_tests.py](g_runtime_tests.py) and [normal CLI runner](../../../scripts/test-slice30-g-cli.sh) | Twelve actual normal-program controls (including closed-store span witness binding): engine/SDK collector+nested unwind,shared public seed/configure/drain/report/reopen,governed1000-row boundary,early cap refusal,shared first/warmup/read/off-on populations,exact diagnostic calls,normal G-W replacements,adjacent readiness,typed filters/future views,and actual open/device/close reports. Both use no provider and never qualify dense/GPU work. Canonical heavy runner registration is present; scoped native controls pass as recorded in execution.md; assembled source qualification is under final review; actual Default/GPU qualification remains pending. |
 | [g_driver.py](g_driver.py), [g_attempt.py](g_attempt.py) | Current foreground driver binding and retained owned-process attempts under one absolute deadline. |
 | [g_runner.py](g_runner.py), [g_freeze.py](g_freeze.py), [g_gpu.py](g_gpu.py), [g_report.py](g_report.py) | Strict build/freeze/run/report entry, registered source/input/cache/native pins, actual selected3090 observations and scoped retained reports. Native/GPU execution remains separately gated. |
@@ -202,6 +202,16 @@ implemented; actual native/Default/GPU qualification remains pending. Run contro
 discovery (`-p 'test_g_*.py'`), so classes following the historical direct-file
 main guard in `test_g_controller.py` are imported and exercised.
 
+Actual private-cgroup controls are separate from portable `test_*.py` discovery.
+Run `AGENT_SLICE30_LIVE_CONTROLS=1 bash scripts/test-slice30-g-control.sh` with
+checkout-owned `.venv`, task-owned `S30_TASK`/temporary files and an unconfined
+executor with writable delegated cgroup-v2 support. Selection hard-fails missing
+prerequisites and checks the unchanged32GiB root/250GiB task/16GiB memory floors.
+The final owned source gate selects this route with
+`AGENT_SLICE30_LIVE_CONTROLS=1 ./scripts/agent-verify.sh`; an ordinary unselected
+gate is portable and does not establish live containment coverage. No model or
+selected measurement store is accessed by these controls.
+
 G stage binding now covers G0, G1, G-R, natural G-O and all six tiny G-O cases.
 Tiny branches retain a common untouched subject for direct/hybrid/filter/no-match
 reads, a public source fixture with returned future T-1/T views, and four fresh
@@ -344,3 +354,27 @@ known represented-byte totals. Unknown ends remain null; span counts alone make
 no full-body claim. The real-store scalar-head Unicode control uses a test
 provider and does not qualify Default384/GPU behavior. This reporting does not
 change projection storage or impose a new partial-coverage acceptance threshold.
+
+
+## CLOSED-copy source candidate
+
+The existing G entry now supports `--preparation closed-copy-v1` with fixed
+`closed-copy-calibration`, `closed-copy-read-r1` and `closed-copy-write-matrix`
+modes. Each stops before another mode; all84 primary obligations remain visible,
+calibration is separate and exact original references are never redispatched.
+`--calibration-from` binds qualified records; `--cost-review-from` binds the
+reviewed write table/profile. Freeze records the prerequisite; supervised run
+recomputes actual costs and refuses unavailable/changed admission. These source
+interfaces grant no measurement or prospective-cap authority.
+
+| Tools | Contract |
+| --- | --- |
+| [g_closed_entry.py](g_closed_entry.py), [g_closed_common.py](g_closed_common.py), [g_closed_guard.py](g_closed_guard.py), [g_common_storage.py](g_common_storage.py) | Supervise and charge common freeze/preflight/report/guardian work, including retained metadata and interrupted active cells; unknown cleanup blocks entry. |
+| [g_closed_copy.py](g_closed_copy.py), [g_admission.py](g_admission.py) | Supervised fresh CLOSED copies and validation before native calls; public cell/common workers require live matching owned controller/boundary and exact admitted config/deadline. |
+| [g_closed_costs.py](g_closed_costs.py), [g_closed_forecast.py](g_closed_forecast.py), [g_closed_matrix.py](g_closed_matrix.py) | Match actual qualified calibration/R0/R1 costs, retain original refusals and conservative2x forecasts, and bind the complete reviewed G table with explicit held D/M unknowns. |
+| [g_closed_limits.py](g_closed_limits.py), [g_closed_review.py](g_closed_review.py) | Validate prospective-only named G profile/table; preserve old11 and qualified R1 subject identities, prior charges/token and unchanged native artifacts. |
+
+Portable source controls remain under `test_g*.py`; selected actual cgroup
+controls use the explicit live route above. Tiny real SQLite/harmless children
+are source protocol evidence, never Default/GPU qualification. Current scoped
+results and original failures are retained in the existing execution record.

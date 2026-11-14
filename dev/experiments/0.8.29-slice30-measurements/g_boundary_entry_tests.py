@@ -13,7 +13,7 @@ from unittest.mock import patch
 
 from g_campaign import make_g_plan
 from g_runner import run_frozen
-from test_g_boundary import PHASE, PinnedRescue, actor_facts
+from g_boundary_tests import PHASE, PinnedRescue, actor_facts
 
 
 @contextmanager

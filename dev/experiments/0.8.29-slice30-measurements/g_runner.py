@@ -182,19 +182,40 @@ def run_prepared(manifest, root):
     from g_campaign import run_g_plan
     root = Path(root)
     root.mkdir(parents=True, exist_ok=True)
-    path = root / f"prepared-{uuid.uuid4().hex}.json"
+    path = Path(manifest["_prepared_manifest"]) if manifest.get("_prepared_manifest") else root / f"prepared-{uuid.uuid4().hex}.json"
     spec = json.loads(Path(__file__).with_name("g-cells.json").read_text())
+    if manifest.get("preparation") == "closed-copy-v1":
+        spec = dict(manifest["spec"], closed_mode=manifest["stage"])
+        for key in ("_reviewed_costs", "_calibration_origin", "_closed_limits"):
+            if key in manifest:
+                spec[key] = manifest[key]
     def command(_cell, deadline):
         if not path.exists():
             path.write_text(json.dumps(manifest, indent=2) + "\n")
             path.chmod(0o444)
+        if manifest.get("schema") != "slice30-g-campaign/v1":
+            # Callable protocol fixtures exercise the helper without a production CLI bypass.
+            code = (f"import sys;sys.path.insert(0,{str(Path(__file__).resolve().parent)!r});"
+                    "from g_runner import run_cell_job;sys.exit(not run_cell_job(sys.argv[1],int(sys.argv[2]),sys.argv[3],sys.argv[4]))")
+            return [sys.executable, "-c", code, str(path), str(deadline)]
         return [sys.executable, str(Path(__file__).resolve()), "_cell", str(path), str(deadline)]
     cache = {}
     predictions = {}
     def assess(cell, previous, remaining_ns, retained_bytes):
         if cell["stage"] != "G0" and qualified_result(previous.get("g0-smoke"), cache) is None:
             return {"status": "not_run_prerequisite", "reason": "g0_not_qualified"}
-        if cell["stage"] == "G-W":
+        if manifest.get("preparation") == "closed-copy-v1" and not cell.get("calibration"):
+            prediction = manifest.get("_closed_predictions", {}).get(cell["id"])
+            if prediction is None:
+                return {"status": "not_run_prerequisite", "reason": "qualified_calibration_costs_required"}
+            if not prediction.get("allowed"):
+                return {"status": "not_run_cap", "reason": "cap_feasibility", "prediction": prediction}
+            if (prediction.get("new_bytes", 0) + retained_bytes > cell["active_bytes"]
+                    or prediction["total_ns"] > remaining_ns):
+                return {"status": "not_run_cap", "reason": "current_remaining_feasibility", "prediction": prediction}
+            predictions[cell["id"]] = prediction
+            return None
+        if cell["stage"] == "G-W" and not cell.get("calibration"):
             from g_forecast import forecast_write
             observed = observed_write_costs(cell, previous, manifest, cache)
             prediction = forecast_write(cell, observed, remaining_ns, retained_bytes)
@@ -204,7 +225,10 @@ def run_prepared(manifest, root):
         return None
     def prepare(cell, _root):
         prediction = predictions.get(cell["id"])
-        return {"prospective_prediction": prediction} if prediction is not None else None
+        context = {"prospective_prediction": prediction} if prediction is not None else {}
+        if manifest.get("schema") == "slice30-g-campaign/v1":
+            context["prepared_manifest"] = str(path)
+        return context or None
     return run_g_plan(spec, root / "results", command, prepare=prepare,
                       allocation_root=manifest["allocation"], assess=assess, reused=manifest.get("reused"),
                       stage=manifest.get("stage"), prior_outcome_path=manifest.get("prior_outcome_path"))
@@ -216,6 +240,8 @@ def run_cell_job(manifest_path, deadline_ns, config_path, output):
     cell = json.loads(Path(config_path).read_text())
     root = Path(manifest_path).parent
     state_path = root / "results" / "campaign-state.json"
+    if cell.get("calibration"):
+        state_path = root / "results" / "calibration" / "campaign-state.json"
     previous = {row["id"]: row for row in json.loads(state_path.read_text())} if state_path.exists() else {}
     g0 = previous.get("g0-smoke")
     if cell["stage"] != "G0" and (not g0 or g0.get("status") not in ("complete", "reused_complete")):
@@ -223,11 +249,12 @@ def run_cell_job(manifest_path, deadline_ns, config_path, output):
         return False
     manifest["command"] = manifest["commands"][cell["artifact"]]
     manifest["subjects"] = {}
-    for identifier in ["g1-n10000", "g1-n100000"]:
-        prior = previous.get(identifier)
-        if prior and prior.get("status") in ("complete", "reused_complete"):
-            report = json.loads(Path(prior["attempt"], "result.json").read_text())
-            manifest["subjects"][identifier] = str(Path(report["steps"][0]["output"]) / "store.sqlite")
+    if not cell.get("fresh_copy"):
+        for identifier in ["g1-n10000", "g1-n100000"]:
+            prior = previous.get(identifier)
+            if prior and prior.get("status") in ("complete", "reused_complete"):
+                report = json.loads(Path(prior["attempt"], "result.json").read_text())
+                manifest["subjects"][identifier] = str(Path(report["steps"][0]["output"]) / "store.sqlite")
     if manifest.get("gpu"):
         from g_gpu import GpuObserver
         observer = GpuObserver(manifest["gpu"])
@@ -244,6 +271,9 @@ def run_frozen(root):
     from g_boundary import require_known_containment
     require_known_containment(os.environ["S30_TASK"])
     root = Path(root).resolve()
+    if json.loads((root / "manifest.json").read_text()).get("preparation") == "closed-copy-v1":
+        from g_closed_entry import run_entry
+        return run_entry(root)
     preliminary = json.loads((root / "manifest.json").read_text())
     if preliminary.get("schema") != "slice30-g-campaign/v1" or preliminary["source_sha"] != git("rev-parse", "HEAD") or git("status", "--porcelain"):
         raise ValueError("run requires the exact clean frozen G source")
@@ -352,6 +382,9 @@ def main():
     from g_campaign import STAGES
     freeze_parser.add_argument("--stage", choices=tuple(STAGES))
     freeze_parser.add_argument("--reuse-completed-from", type=Path)
+    freeze_parser.add_argument("--preparation", choices=("closed-copy-v1",))
+    freeze_parser.add_argument("--calibration-from", type=Path)
+    freeze_parser.add_argument("--cost-review-from", type=Path)
     freeze_parser.add_argument("--gpu-uuid", required=True)
     freeze_parser.add_argument("--gpu-ordinal", type=int, required=True)
     run = commands.add_parser("run")
@@ -363,35 +396,57 @@ def main():
     job.add_argument("deadline", type=int)
     job.add_argument("config", type=Path)
     job.add_argument("output", type=Path)
+    common = commands.add_parser("_common")
+    common.add_argument("job", type=Path)
+    common.add_argument("config", type=Path)
+    common.add_argument("output", type=Path)
     args = parser.parse_args()
     if args.action == "build":
         from g_freeze import build_tools
         build_tools(args.out)
     elif args.action == "freeze":
         from g_freeze import freeze
-        manifest = freeze(vars(args))
+        if args.preparation == "closed-copy-v1":
+            from g_closed_entry import freeze_entry
+            manifest = freeze_entry(vars(args))
+        else:
+            manifest = freeze(vars(args))
         print(json.dumps({"campaign_uuid":manifest["campaign_uuid"],"source_sha":manifest["source_sha"],"root":manifest["root"]}))
     elif args.action == "run":
         if os.environ.get("AGENT_LONG") != "1":
             parser.error("G production campaign requires AGENT_LONG=1")
+        from g_campaign import completed_record
         outcomes = run_frozen(args.root)
-        print(json.dumps({"cells":len(outcomes),"complete":all(row["status"]=="complete" for row in outcomes)}))
-        if any(row["status"] != "complete" for row in outcomes) or not json.loads((args.root / "last-run.json").read_text()).get("environment_ok", False):
+        print(json.dumps({"cells":len(outcomes),"complete":all(completed_record(row) for row in outcomes)}))
+        if any(not completed_record(row) for row in outcomes) or not json.loads((args.root / "last-run.json").read_text()).get("environment_ok", False):
             raise SystemExit(1)
     elif args.action == "report":
         from g_campaign import active_bytes
         from g_report import summarize
-        value = summarize(args.root)
-        payload = json.dumps(value, indent=2) + "\n"
-        allocation = Path(value["manifest"]["allocation"])
-        if active_bytes(allocation) + len(payload.encode()) > 16 * 1024**3:
-            raise RuntimeError("retained cap cannot hold a new summary; raw obligations remain retained")
-        (args.root / "summary-g.json").write_text(payload)
+        bootstrap = json.loads((args.root / "manifest.json").read_text())
+        if bootstrap.get("preparation") == "closed-copy-v1":
+            from g_closed_entry import report_entry
+            value = report_entry(args.root)
+        else:
+            value = summarize(args.root)
+            payload = json.dumps(value, indent=2) + "\n"
+            allocation = Path(value["manifest"]["allocation"])
+            if active_bytes(allocation) + len(payload.encode()) > 16 * 1024**3:
+                raise RuntimeError("retained cap cannot hold a new summary; raw obligations remain retained")
+            (args.root / "summary-g.json").write_text(payload)
         print(json.dumps({"cells":len(value["cells"]),"complete":value["complete"]}))
         if not value["complete"]:
             raise SystemExit(1)
-    elif not run_cell_job(args.manifest, args.deadline, args.config, args.output):
-        raise SystemExit(1)
+    elif args.action == "_common":
+        from g_admission import require_common_admission
+        from g_closed_entry import common_worker
+        require_common_admission(args.job, args.config, args.output)
+        common_worker(args.job, args.output)
+    else:
+        from g_admission import require_cell_admission
+        require_cell_admission(args.manifest, args.deadline, args.config, args.output)
+        if not run_cell_job(args.manifest, args.deadline, args.config, args.output):
+            raise SystemExit(1)
 
 
 if __name__ == "__main__":

@@ -5,6 +5,7 @@ from pathlib import Path
 
 from metrics import aggregate, paired_difference
 from g_spans import summarize_spans
+from g_campaign import completed_record
 
 
 def summarize(root):
@@ -71,6 +72,6 @@ def summarize(root):
                     paired.setdefault(f"n{cell['n']}/{item['route']}", []).extend(rows)
     invocation = json.loads((root / "last-run.json").read_text()) if (root / "last-run.json").exists() else None
     return {"invocation": invocation, "scope": "G only; no D/M/F/whole30/40/50/Block1 clearance", "manifest": manifest,
-            "complete": bool(cells) and all(row["status"] == "complete" for row in cells)
+            "complete": bool(cells) and all(completed_record(row) for row in cells)
             and invocation is not None and invocation.get("environment_ok") is True,
             "cells": cells, "paired_adapters": {key: paired_difference(rows) for key, rows in paired.items()}}

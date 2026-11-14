@@ -7,6 +7,10 @@ import subprocess
 
 BASE_SOURCE = "60f471aaf042203d07a15025662ebf572f6cc242"
 BASE_UUID = "5e89e1dc-8fbd-4848-bc2a-8dc84e478f16"
+NORMAL_SOURCE = "29de06806cc22ab6b8e67f970133f856f3c42f78"
+NORMAL_UUID = "4fb7a91f-2d41-445d-a132-258334a8f3fe"
+NORMAL_CELLS = {"g-r-n100000-r0", "g-o-natural-r0-off", "g-o-natural-r0-on",
+                "g-o-natural-r1-on", "g-o-natural-r1-off"}
 BASE_CELLS = {"g0-smoke", "g1-n10000", "g-r-n10000-r0", "g-r-n10000-r1"}
 
 
@@ -19,7 +23,24 @@ def collect_reuse(current, original_root):
     original = json.loads((root / "manifest.json").read_text())
     if original.get("root") != str(root):
         raise ValueError("reuse root does not name its original manifest")
-    for key in ("schema", "compiler_inputs", "lock", "spec", "plan", "inputs", "model_files",
+    successor = current.get("spec", {}).get("preparation") == "closed-copy-v1"
+    if successor:
+        from g_campaign import make_g_plan
+        canonical = json.loads(Path(__file__).with_name("g-cells.json").read_text())
+        expected = dict(canonical, preparation="closed-copy-v1")
+        prospective = {"closed_mode"}
+        if current.get("stage") == "closed-copy-write-matrix":
+            prospective |= {"_closed_limits", "_closed_observation_wait_ms", "_reviewed_costs", "_calibration_origin"}
+        normalized = {key: value for key, value in current["spec"].items() if key not in prospective}
+        r1_source = original.get("stage") == "closed-copy-read-r1" and current.get("stage") == "closed-copy-write-matrix"
+        original_spec = {key: value for key, value in original["spec"].items() if key != "closed_mode"}
+        expected_original = expected if r1_source else canonical
+        if (original_spec != expected_original or original["plan"] != make_g_plan(expected_original)
+                or normalized != expected or current["plan"] != make_g_plan(current["spec"])):
+            raise ValueError("reuse differs beyond the named unmeasured closed-copy successor")
+    elif original.get("spec") != current.get("spec") or original.get("plan") != current.get("plan"):
+        raise ValueError("reuse measurement equivalence mismatch: spec/plan")
+    for key in ("schema", "compiler_inputs", "lock", "inputs", "model_files",
                 "binaries", "build_receipt", "python_receipt", "python_native", "allocation",
                 "device_policy", "format", "environment"):
         if original.get(key) != current.get(key):
@@ -39,16 +60,43 @@ def collect_reuse(current, original_root):
     inherited = {}
     if (original.get("source_sha"), original.get("campaign_uuid")) != (BASE_SOURCE, BASE_UUID):
         stage = original.get("stage")
-        if stage not in ("branch-controls", "first-100k-seed-exploratory") or not original.get("reuse_completed_from"):
-            raise ValueError("reuse source is not the accepted base or its qualified branch/seed stage")
+        normal = (original.get("source_sha"), original.get("campaign_uuid")) == (NORMAL_SOURCE, NORMAL_UUID)
+        closed_r1 = successor and stage == "closed-copy-read-r1" and current.get("stage") == "closed-copy-write-matrix"
+        if ((not normal or not successor) and not closed_r1 and stage not in ("branch-controls", "first-100k-seed-exploratory")) or not original.get("reuse_completed_from"):
+            raise ValueError("reuse source is not an accepted original measurement chain")
         inherited = collect_reuse(current, original["reuse_completed_from"])
         if stage == "first-100k-seed-exploratory" and set(inherited) != BASE_CELLS | {"g-o-branches"}:
             raise ValueError("seed reuse requires its qualified branch/base chain")
-        selected = {"g1-n100000"} if stage == "first-100k-seed-exploratory" else {"g-o-branches"}
+        if closed_r1:
+            eleven = BASE_CELLS | NORMAL_CELLS | {"g-o-branches", "g1-n100000"}
+            if (set(inherited) != eleven or original.get("reused") != inherited
+                    or not current.get("calibration_from")
+                    or original.get("calibration_from") != current["calibration_from"]):
+                raise ValueError("R1 reuse requires its exact original11/calibration chain")
+            selected = {"g-r-n100000-r1"}
+        elif normal:
+            if set(inherited) != BASE_CELLS | {"g-o-branches", "g1-n100000"}:
+                raise ValueError("normal assessment reuse requires its original six-record chain")
+            selected = NORMAL_CELLS
+        else:
+            selected = {"g1-n100000"} if stage == "first-100k-seed-exploratory" else {"g-o-branches"}
     rows = {row["id"]: row for row in json.loads((root / "results/g-outcomes.json").read_text())}
     invocation = json.loads((root / "last-run.json").read_text())
     if invocation.get("environment_ok") is not True:
         raise ValueError("reuse original actor/environment cleanup is not qualified")
+    if original.get("stage") == "closed-copy-read-r1":
+        if invocation.get("stage_complete") is not True:
+            raise ValueError("R1 stage qualification is incomplete")
+        receipt = json.loads(Path(invocation["guardian_receipt"]).read_text())
+        boundary = receipt.get("boundary") or {}
+        if (receipt.get("exit") not in (0, 1) or receipt.get("resource_stop") is not None
+                or receipt.get("cleanup_uncertain") is not False or receipt.get("live_owned_pids") != []
+                or receipt.get("final_sample_error") is not None
+                or receipt.get("sha_start") != original["source_sha"] or receipt.get("sha_end") != original["source_sha"]
+                or receipt.get("delta_start") != "" or receipt.get("delta_end") != ""
+                or boundary.get("status") != "quiescent" or boundary.get("populated_after") is not False
+                or boundary.get("removed_exact_empty_boundary") is not True):
+            raise ValueError("R1 final guardian/source evidence is unavailable")
     references = dict(inherited)
     for identifier in selected:
         row = rows.get(identifier) or {}

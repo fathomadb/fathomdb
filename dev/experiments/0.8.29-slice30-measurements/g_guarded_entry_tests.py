@@ -12,7 +12,7 @@ from unittest.mock import patch
 from g_boundary import TaskBoundary
 from g_campaign import make_g_plan
 from g_freeze import git
-from test_g_boundary import PHASE
+from g_boundary_tests import PHASE
 
 
 def prepare_entry(root):

@@ -137,6 +137,31 @@ class PublicThroughputTests(NativeCase):
         self.assertTrue(result["complete"])
 
 
+class PublicControlRoutesTests(NativeCase):
+    """Lifecycle and private diagnostics use the same registered cell execution path."""
+
+    def test_actual_lifecycle_is_bound_to_registered_family(self):
+        lazy = next(row for row in load_plan() if row["family"] == "M-L" and row["case"] == "lazy")
+        lazy = dict(lazy, search_mode="text", use_default_embedder=False)
+        result = execute(lazy, [str(self.cli), "--config", str(self.config())],
+                         self.root / "lazy-public", queries=["alpha"],
+                         deadline_ns=time.monotonic_ns() + 30 * 10**9)
+        self.assertEqual([row["event"] for row in result.get("lifecycle", {}).get("events", [])],
+                         ["before", "first", "immediate"])
+        self.assertTrue(result["complete"])
+
+    def test_actual_helper_is_bound_to_registered_family(self):
+        diagnostic = next(row for row in load_plan() if row["family"] == "M-E"
+                          and row["case"] == "queue_full" and row["result_format"] == "text")
+        control = self.root / "public.sock"
+        result = execute(diagnostic, [str(self.helper), "--config", str(self.config()),
+                         "--control-socket", str(control)], self.root / "diag-public",
+                         queries=["alpha"], control_path=control,
+                         deadline_ns=time.monotonic_ns() + 30 * 10**9)
+        self.assertEqual(result.get("diagnostic", {}).get("case"), "queue_full")
+        self.assertTrue(result["complete"])
+
+
 class TypedErrorTests(NativeCase):
     """Both actual wire formats retain the typed error and its complete remedy."""
 

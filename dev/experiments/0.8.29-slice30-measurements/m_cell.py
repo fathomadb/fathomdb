@@ -26,7 +26,7 @@ def _loops(session, cell, queries, deadline_ns):
     return {"phases": phases, "complete": complete}
 
 
-def execute(cell, command, root, *, queries, deadline_ns, files=None):
+def execute(cell, command, root, *, queries, deadline_ns, files=None, control_path=None):
     """Run a cell against its actual stdio process and retain decoded outcomes."""
     with McpSession(command, root, result_format=cell["result_format"]) as session:
         session.initialize()

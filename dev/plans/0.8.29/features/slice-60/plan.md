@@ -91,6 +91,56 @@ No product tests, source/environment/Git/ledger mutations or provisioning ran.
    AC evidence and limits in status. Parent integrates passing scope/state;
    recheck affected seams on integrated50/70 before Block1 exit.
 
+## Bounded hints-overhead remediation (2026-11-13)
+
+The integrated source at `973b2e692f54b2944d809cec2367ff53b8c152d0`
+failed the unchanged `hints_overhead_devloop` gate in G's canonical workspace
+run: limit100 p50=209.8us, one budget-loop iteration, against the accepted
+**≤200us** ceiling. Limit10 p50=60.0us/p99=71.5us are notify-only warnings.
+Retain the failure; proximity to the ceiling does not establish noise.
+[Hints design](../../../../design/agent-access/hints-sidecar.md) §4.2–4.3 and
+[performance gates](../../../../design/perf-gates.md) govern the measurement.
+The immutable test times planning and shaping, including serialization/accounting,
+after synthetic page/snippet preparation; it does not measure retrieval latency.
+
+The accepted5271c1bf subset already contains production optimization1f28b1609.
+Current `fathomdb-mcp/src/tools.rs` shaping/`finish`, `shape.rs::with_budget`
+and the timing assertions are unchanged from that subset. Integrated70 adds
+absence/timeout cause translation, while this fixture has no degradation entries;
+integrated20's pre-enqueue observer is outside this shaping path. Repeated JSON
+serialization and hint ref/text allocations are profiling hypotheses, not a
+proven cause. Preserve the actual integrated SDK/fusion selection, hints/span
+storage and schema37 without migration. [Requirements](requirements.md)
+R29-60-BUD/SIG and AC29-60-BUD/SIG, the accepted hints contract, both formats'
+final counts/fit, four-render convergence, whole-hit prefixes, hints-off fallback
+and current degradation vocabulary remain unchanged. F11 remains held.
+
+Independent Astra-medium design review passed069f9d0e. After the full collector
+was terminal, G's owner completed the sole unchanged-artifact failed-target
+follow-up in its original checkout; [execution](execution.md) records the result
+and independent Astra acceptance. Its retained inputs were
+`TASK_G=/mnt/data/tmp2/fathomdb-0829-continuation/slice30-g-20261113` and its
+retained `artifacts/hints-overhead-first-failure-973b2e692/subject.json` and
+`cargo-fingerprint.json`: default test/dev profile, features default/test-seams,
+no rustflags or root profile override. The completed executable invocation was:
+
+```bash
+"$TASK_G/artifacts/hints-overhead-first-failure-973b2e692/hints_overhead-367415ad6c7c8ced" --test-threads=1 --quiet
+```
+
+Preserve that artifact, original source, recorded environment and arguments;
+retain stdout and real exit. Do not rebuild with standalone Cargo, switch to
+release, change the host settings, alter tests/thresholds or rerun the full gate.
+No sibling runtime was imported into this docs checkout. The follow-up passed;
+no source repair is needed from this result, and no noise cause was established.
+The original failure remains. The one-measurement allowance is exhausted: no
+replay to expose quiet-captured numbers. A future reproducible failure requires
+reviewed bounded profiling and isolated production optimization, not unchanged
+retries. Existing tests stay read-only; any newly changed semantic behavior needs
+its own observed RED before GREEN, preserving output/accounting, hints/baseline/
+property and allocation contracts. No numerical gate, further source/runtime GO,
+whole60 closure or release qualification follows.
+
 ## Verification and stop conditions
 
 Use real SQLite and real MCP calls, independent hand-specified selections and
@@ -109,6 +159,6 @@ setup and its existing specific authorization; no run is claimed here.
 Stop the affected change for schema/result mismatch, nonconvergence, ambiguous
 framing, changed public semantics outside reviewed scope, or unsupported provider
 assumptions. Resolve contract findings through the direct review pipeline; do not
-reopen generic release authorization.20's pending test-only TDD-policy choice
-creates no60 exception or feature scope; every changed behavior keeps its own
-observed RED/GREEN. See [status](status.md) for baseline and actual scoped checks.
+reopen generic release authorization. Seq369 approved a narrow20-only
+verification exception; it transfers no exception or feature scope to60.
+Every changed60 behavior keeps its own observed RED/GREEN. See [status](status.md) for baseline and actual scoped checks.

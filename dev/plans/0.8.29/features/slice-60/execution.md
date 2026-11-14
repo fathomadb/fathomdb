@@ -192,3 +192,25 @@ format/direct-filter/budget subset at5271c1bf022f0ea22f95f7433e226feb2315043e.
 Parent integrated that commit by fast-forward after strict closed10 preflight.
 Runtime inputs remain those qualified at7038; final record updates are Markdown
 only. F11 remains held and the release remains NOT_READY/publication HELD.
+
+## Integrated hints-overhead follow-up (2026-11-13)
+
+The canonical G run at clean973b2e692 retained its original hints-overhead
+209.8us failure against the unchanged200us ceiling and full-wrapper exit1.
+Independent Astra-medium design PASS accepted plan069f9d0e. After the collector
+was terminal, G ran exactly one failed-target follow-up with the retained
+artifact and exact `--test-threads=1 --quiet` arguments in its original checkout.
+Child3826353 exited0:1passed/0failed/0ignored in9.67s, with clean source973b at
+start/end. Artifact digest/size/profile/features and the selected recorded
+environment matched launch assertions. Those assertions/output remain in the
+original tool trace; selected keys do not prove full-environment identity.
+The literal execv adapter replaced the guarded PID with the exact artifact.
+G's existing `logs/g-hints-failed-only-preserved.log` and corresponding JSON
+under `receipts/` retain the result in
+`/mnt/data/tmp2/fathomdb-0829-continuation/slice30-g-20261113`.
+
+Independent Astra inspected the adapter and accepted this as bounded assembled
+evidence without a material gap. Quiet capture hides numeric deltas; no replay
+occurred or is planned. No source repair is needed from this result, and no
+noise cause was established. Both outcomes remain; no uninterrupted full-green,
+GPU qualification, whole60/F11 closure or release qualification follows.

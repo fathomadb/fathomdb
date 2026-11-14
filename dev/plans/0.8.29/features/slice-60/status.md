@@ -110,3 +110,12 @@ implementation/results review passed at5271c1bf022f0ea22f95f7433e226feb2315043e.
 The parent integrated only that qualified format/direct-filter/budget subset.
 F11 remains held: no whole60 closure,20/30/Block1 exit or platform/release
 readiness follows.
+
+## Integrated hints-overhead follow-up (2026-11-13)
+
+The original G-source973b hints-overhead209.8us failure/full-wrapper exit1 remain.
+Astra passed plan069f9d0e, then independently accepted the sole same-artifact
+follow-up: child3826353 exited0,1passed/0failed/0ignored in9.67s on unchanged
+clean973b. [Execution](execution.md) records the bounded evidence and its limits.
+Quiet capture hides numbers; no replay or source repair follows, and no noise
+cause was established. F11 remains held; this is no whole60 or release qualification.

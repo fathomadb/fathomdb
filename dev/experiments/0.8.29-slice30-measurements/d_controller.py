@@ -39,7 +39,10 @@ def assess_stage(n, mode, records, budget):
             times.append((2 * max(row["elapsed_ns"] for row in rows) * n + lower_n - 1) // lower_n)
             sizes.append((2 * max(row["peak_bytes"] for row in rows) * n + lower_n - 1) // lower_n)
         predictions[layer] = {"time_ns": max(times), "active_bytes": max(sizes)}
-    assessment = {"status": "admit", "predictions": predictions}
+    quartet_bytes = 2 * sum(value["active_bytes"] for value in predictions.values())
+    assessment = {"status": "admit", "predictions": predictions, "quartet_bytes": quartet_bytes}
+    if any(value["active_bytes"] >= budget["storage_limit"] for value in predictions.values()) or budget["retained_bytes"] + quartet_bytes >= budget["storage_limit"]:
+        assessment.update(status="not_run_cap_feasibility", reason="predicted quartet exceeds retained storage headroom")
     if any(value["time_ns"] >= 900 * 10**9 for value in predictions.values()):
         assessment.update(status="not_run_cap_feasibility", reason="predicted cell time is not strictly below900s")
     return assessment

@@ -509,5 +509,24 @@ class RustDiagnosticActivationPathTests(unittest.TestCase):
             self.observe(features=features)
 
 
+    def test_workspace_package_identity_is_resolved_before_dependency_filtering(self):
+        for flags in [[], ['test-hooks'], ['operator'], ['slice30-observer']]:
+            with self.subTest(inherited_alias_flags=flags), tempfile.TemporaryDirectory() as directory:
+                parent = Path(directory)
+                files = dict(RUST_CRATE)
+                files['engine.rs'] += '\nimpl Engine {\n' + DIAGNOSTIC_FORWARDER + '\n}\n'
+                crate = write_crate(parent / 'member', files)
+                manifest = '[package]\nname="inherited-alias-fixture"\nversion="0.0.0"\n[features]\n'
+                manifest += ''.join(f'{key}={json.dumps(values)}\n' for key, values in DIAGNOSTIC_FEATURES.items())
+                manifest += '[dependencies]\nfathomdb-engine.workspace=true\nengine_alias.workspace=true\n'
+                (crate / 'Cargo.toml').write_text(manifest)
+                (parent / 'Cargo.toml').write_text('[workspace]\nmembers=["member"]\n[workspace.dependencies]\n'
+                    'fathomdb-engine={version="0.0.0"}\n'
+                    'engine_alias={package="fathomdb-engine",version="0.0.0",features='
+                    + json.dumps(flags) + '}\n')
+                with self.assertRaises(checker.ParityError):
+                    checker.validate_observed(COMPANION, 'rust', checker.observe_rust_sdk(crate))
+
+
 if __name__ == "__main__":
     unittest.main()

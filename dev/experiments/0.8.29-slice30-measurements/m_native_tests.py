@@ -113,7 +113,7 @@ class PublicCellTests(NativeCase):
                 self.assertEqual(result["events"], ["search", "fetch", "orient", "typed_error"])
                 self.assertEqual(result["literal_refs"], ["l:alpha"])
                 self.assertEqual(result["fetch_body"], "alpha river crossing\né😀")
-                self.assertEqual(result["typed_error"], "store/unknown")
+                self.assertEqual(result["typed_error"], "invalid_request/unknown_store")
                 self.assertTrue(result["complete"])
 
 

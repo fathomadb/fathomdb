@@ -117,6 +117,26 @@ class PublicCellTests(NativeCase):
                 self.assertTrue(result["complete"])
 
 
+class PublicThroughputTests(NativeCase):
+    """A tiny provider-free store exercises exact phase counts through the cell binding."""
+
+    def test_registered_loop_binding_keeps_first_warm_timed_populations(self):
+        cell = next(row for row in load_plan() if row["id"] == "M-R-1-4-warn")
+        cell = dict(cell, search_mode="text", use_default_embedder=False)
+        root = self.root / "source-loop"
+        result = execute(cell, [str(self.cli), "--config", str(self.config())], root,
+                         queries=["alpha"] * 500, deadline_ns=time.monotonic_ns() + 60 * 10**9)
+        rows = [json.loads(line) for line in (root / "outcomes.jsonl").read_text().splitlines()]
+        self.assertEqual([sum(row.get("phase") == phase for row in rows)
+                          for phase in ("first", "warmup", "timed")], [1, 500, 1000])
+        for phase, count in (("warmup", 500), ("timed", 1000)):
+            selected = sorted((row for row in rows if row.get("phase") == phase),
+                              key=lambda row: row["rpc_id"])
+            self.assertEqual([row["query_index"] for row in selected],
+                             [index % 500 for index in range(count)])
+        self.assertTrue(result["complete"])
+
+
 class TypedErrorTests(NativeCase):
     """Both actual wire formats retain the typed error and its complete remedy."""
 

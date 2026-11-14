@@ -224,6 +224,7 @@ pub(crate) fn install_post_probe_startup_fault_for_test(
     path: PathBuf,
     observed: std::sync::mpsc::Sender<PostProbeStartupObservationForTest>,
 ) {
+    let path = canonical_database_path(&path).expect("canonical startup fault database path");
     *POST_PROBE_STARTUP_FAULT_FOR_TEST.lock().expect("startup fault hook lock") =
         Some(PostProbeStartupFaultForTest { path, observed });
 }

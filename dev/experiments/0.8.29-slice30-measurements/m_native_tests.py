@@ -338,5 +338,27 @@ class QueueFullTests(NativeCase):
                     self.assertTrue(all(row["status"] == "completed" for row in session.records.values()))
 
 
+class QueuedCancelTests(NativeCase):
+    """Actual queued cancellation retains its flag and observed counter removal."""
+
+    def test_actual_queued_cancel_keeps_disposition_and_observed_queue_removal(self):
+        for result_format in ("text", "structured"):
+            with self.subTest(result_format=result_format):
+                with self.helper_session(result_format) as (session, control):
+                    result = run_case("queued_cancel", session, control)
+                    self.assertTrue(result.get("cancellation_requested"),
+                                    f"actual queued cancel was not requested; retained={self.root}")
+                    if "response" in result:
+                        self.assertEqual(result.get("error"), "timeout/cancelled")
+                    else:
+                        self.assertEqual(result["status"], "unresolved")
+                    facts = result["diagnostic"]
+                    self.assertEqual((facts["queued_before_cancel"], facts["queued_after_cancel"]), (2, 1))
+                    self.assertEqual((facts["held_before_release"], facts["held_after_release"]), (4, 0))
+                    witness = session.records[facts["witness_rpc_id"]]
+                    self.assertTrue(witness["ok"])
+                    self.assertEqual(witness["payload"]["results"][0]["ref"], "l:alpha")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -5,6 +5,8 @@ and parent acceptance2381de882. Accepted implementation remains **P only**.
 The [G/D continuation](continuation-gd.md) is the concrete next G/D design candidate;
 G/D/M/F are not implicit runtime/source authority.
 All prerequisites in [parent proposal](prerequisite-change.md) remain in force.
+The [proposed M continuation](continuation-m.md) refines the held stdio cells
+without changing executed P/G freezes, production defaults or resource allocation.
 
 ## Current source and original tool fit
 
@@ -78,7 +80,7 @@ do not introduce a production API just to fill the field.
 | P | Reviewed dependency cut, closed10/current source, own tools/input/native artifacts | Provider-free direct-text baseline and write schedules;16cells measured, final Astra PASS and parent P-subset acceptance2381de882. |
 | G | P tools qualified; updated concrete G packet/review; own pinned BGE cache, available reserved engaged3090 | Same BGE384 store for engine/SDK hybrid/direct-text/embed-only; read/write schedules and guarded branch attribution. No TC5 dependency. NOT_RUN. |
 | D | P tools; reviewed current worker observer/fixture fit and cap feasibility | Synthetic deterministic768-d held/overlap10k/100k/300k drain follow-ups, pending counts, worker concurrency and WAL;300k requires lower-scale extrapolation under15min/16GiB. NOT_RUN. |
-| M | Dependable selected G store;20 A3/A5 proof or actual owner disposition; reviewed exact MCP tooling | Real stdio c1/4/8/16/32, actual queue denominator/errors, fresh-process/open/idle/alternating-store costs. NOT_RUN/HELD. No claimed queue proof from timing. |
+| M | Accepted20 A3/A5; selected qualified closed G store and reviewed exact MCP tooling still required | [Proposed real stdio continuation](continuation-m.md): c1/4/8/16/32, queue denominator/errors, fresh-process/open/idle/alternating-store and logging controls. NOT_RUN/HELD; no queue proof from timing or implicit new budget. |
 | F | Exact accepted frozen pack, qualified manifest and candidate-bound CUDA/native/model identities | AC075 TC5 bridge, unchanged accepted CI-high>=0.90; missing exact pack. HELD. |
 
 G diagnostics must separately observe has_source_dependencies,

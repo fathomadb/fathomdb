@@ -59,3 +59,11 @@ D-T1..4 runtime RED/GREEN proposals with literal real-store/count/branch/time/
 ownership oracles. P tests/evidence remain unchanged. Candidate test names and
 ordinary/long-run registration must be finalized before each actual RED; this
 proposal is not implementation, executed coverage or a Slice20 exception.
+
+## M extension candidate
+
+The [proposed M continuation](continuation-m.md) specifies small runtime
+RED/GREEN units for the new wire recorder, call ledger, schedule/accounting,
+lifecycle and private-helper outcomes. It separates normal CLI real-process
+controls from nondefault existing-Seams diagnostics. No M source/runtime or
+blanket passing-coverage exception follows; P/G tests and freezes stay unchanged.

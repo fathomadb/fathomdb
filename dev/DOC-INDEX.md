@@ -68,6 +68,7 @@ refresh in the closing commit when you touch a doc).
 | `dev/plans/plan-0.8.29.md` | Active .29 release plan with reviewed preparation and gated feature allocation | 0.8.29 planning | 2026-11-10 |
 | `dev/plans/release-state-0.8.29.json` · `dev/plans/runs/STATUS-0.8.29.md` | Active .29 state authority and generated live board | 0.8.29 Slice10 | 2026-11-10 |
 | `dev/plans/0.8.29/features/slice-10/` | Reviewed owned-setup, survey, dependency, route and preparation evidence | 0.8.29 Slice10 | 2026-11-10 |
+| [Slice30 M continuation](plans/0.8.29/features/slice-30/continuation-m.md) | Proposed stdio measurement inventory, attribution, lifecycle, TDD and fixed-cap fit | 0.8.29 Slice30 | 2026-11-13 |
 | `dev/plans/0.8.29/README.md` | Index of .29 slice drafts, proposal decisions and planning evidence | 0.8.29 planning | 2026-11-09 |
 | `dev/plans/plan-0.8.28.md` | Published .28 release plan and retained qualification history | 0.8.28 Slices 92/95 | 2026-11-10 |
 | `dev/plans/release-state-0.8.28.json` | Published .28 state and immutable publication receipt | 0.8.28 Slices 92/95 | 2026-11-10 |

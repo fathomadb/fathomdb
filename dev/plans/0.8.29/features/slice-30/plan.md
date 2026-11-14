@@ -20,6 +20,11 @@ review; parent authorized the isolated G source entry at03bdd0eb. Current G
 source/TDD evidence is in [execution](execution.md). G campaign and D source remain
 separately gated; whole20/30, M/F,40/50 source and pre90 Block1 remain open.
 
+The [M continuation](continuation-m.md) proposes exact stdio cells, attribution,
+lifecycle/TDD and remaining-allocation controls for independent Astra review.
+It authorizes design only; M runtime remains held pending a qualified closed G
+subject and reviewed candidate-owned MCP/cache/GPU proof.
+
 Historical PhaseA inspected c0c94b4203ffeb9e573efcc14e8b10df653318c5 and proposed
 this cut before source execution. It already included qualified Linux20 repairs
 657edeb76caaf9c8d2aab433766bec9362e73217,60subset

@@ -7,6 +7,8 @@ import time
 
 from g_attempt import run_g_attempt
 
+CALIBRATION_CELL_BYTES = 3 * 1024**3
+
 
 STAGES = {"branch-controls": "g-o-branches",
           "first-100k-seed-exploratory": "g1-n100000",

@@ -1,149 +1,92 @@
 ---
-title: "Slice 120 — CUDA usage policy and second artifact"
-status: PROPOSED
+title: "Slice 120 — explicit CUDA artifact selection and delivery"
+status: DESIGN_REVIEWED — owner contract ruling and technical prerequisites held
 target_release: 0.8.29
 slice: 120
 ---
 
-# Slice 120 — CUDA usage policy and second artifact
+# Slice 120 — explicit CUDA artifact selection and delivery
 
-## Goal, maturity and boundary
+Deliver a qualified, unpublished Linux x86_64 CUDA-13-library artifact beside
+unchanged CUDA 12.6 delivery. This draft proposes a contract; it records no
+owner acceptance, compiler clearance, build, runtime qualification or publication.
+Format 37 stays fixed; no migration or production operation/API policy change.
+[Requirements](requirements.md), [design](design.md) and [test map](test-map.md)
+are the complete local design set; no additional needs/status/review packet.
 
-Complete the required usage→importance→actions review and deliver a qualified,
-unpublished CUDA 13.0 artifact beside 12.6, after the Slice 9/10 decisions in the
-[drafting brief](../../planning-brief.md). This is newly proposed placement for
-TC-a5afe8b8; the former Slice 120 release close moves to 160, not silently forward.
-The [reconciliation](../../reconciliation-plan.md) and
-[planning evidence](../../planning-evidence.md) establish format37/current .29:
-.28 CUDA 13 GCP library/build qualification exists; second product delivery does
-not. November 9 quantitative shares are incomplete; October proxies are historical.
-Q5 Tegra CUDA 13 remains unmeasured. No Orin/Thor/generic Arm CUDA 13 claim follows
-from an archive listing, compatible driver, fork pass or successful x86 build.
-Drafting authorizes no build, install, publication, host change or policy amendment.
-Retain accepted 12.6 shipping floor and R580 host constraint pending ratification;
-windchill3 primary CUDA stays 12.6, its driver never changes and K620 never runs.
+## Decisions ready for the owner
 
-## November10 review input
+**Recommended artifact contract:** retain normal 12.6 artifacts; deliver Python
+`fathomdb==0.8.29+cu130` (same import, one installed variant) and separately named
+Node `fathomdb-linux-x64-gnu-cuda13@0.8.29`, both by exact digest-bearing URL in
+an approved first-party CUDA channel. Node selects 13 only through
+`FATHOMDB_CUDA_VARIANT=13`, set before importing `fathomdb`; unset means the
+existing 12 route. Explicit `12` also selects the published 12 package.
+No library-presence selection or loading both native modules. Do not add the
+13 package to optionalDependencies or publish it to npm/PyPI. Proposed channel
+layout is `/cuda/0.8.29/cu130/` on the project's existing first-party Pages host;
+this is a proposed namespace, not authorization to modify or publish that site.
 
-[Fresh review and saved inputs](../../research/cuda-version-adoption.md) provide
-current primary packaging/vendor facts, with comparable download shares still
-unavailable. NVIDIA13.2.2 reports compiler issue6111901, present since12.8;
-PyTorch cited it when removing13.0 nightlies. This does not establish FathomDB
-exposure. Before delivery, assess exact consumed kernels/compiler pipeline and
-review mitigation. Any change from accepted13.0 artifact/toolkit/PTX/driver policy
-requires owner ratification; no automatic13.2 build or host change follows.
-The proposed delivery hold is a checkpoint/design input, not a ratified policy
-amendment. Keep importance ratings and R580/primary12.6 constraints unchanged.
+Approve public Rust **source-consumer instructions and external qualification**
+for each single-major build, using exact qualified pins and a consumer-root
+`candle-kernels` patch; defer a new prebuilt CUDA-13 CLI archive. Still qualify a
+source-built 13 CLI diagnostic companion and existing 12 CLI; this does not
+promise a new public binary. These are explicit scope choices, not inferred
+exclusions. A separately named Node 13 package needs a narrow amendment to
+ADR-0.8.25-driverless-cuda-runtime-linkage's rejected alternative; retain every
+loadability requirement. No change to the 12 default or Tegra selector follows.
 
-## Inspected sources and architecture preparation
+**Recommended compiler disposition:** retain the accepted 13.0 target policy and
+hold its artifact build/delivery until the concrete compiler-safety criterion in
+design.md is met. Source examination neither proves miscompilation nor clears
+6111901. Do not substitute 13.2.2, undocumented compiler switches, or a host-driver
+change. If the criterion cannot be met, return a specific alternative to the
+owner; the second-artifact outcome remains incomplete rather than waived.
 
-Read the [policy ADR](../../../../adr/ADR-0.8.28-cuda-version-support-policy.md),
-[review procedure](../../../../design/cuda-version-support-review.md),
-[October adoption baseline](../../../0.8.28/features/slice-31/research/cuda-version-adoption.md),
-[.28 delivery status](../../../0.8.28/features/slice-95/status.md),
-[release mechanics](../../../../design/release.md),
-[package rehearsal contract](../../../../design/0.8.23-slice-20-cuda-package-rehearsal.md),
-[Tegra distribution ADR](../../../../adr/ADR-0.8.27-jetson-tegra-node-addon-distribution.md)
-and [artifact inputs](../../../../../scripts/release/cuda-artifact-contract.sh).
-Source inspection covered release.yml's 12.6 lanes, embedder Cargo/library checks,
-Python packaging and Node platform/version resolution. Existing Tegra channels
-and early-cuInit exception are distinct from generic Arm.
-Prepare local `needs.md`, `requirements.md`, `acceptance.md`, `design.md`,
-`test-map.md` and `qualification.md`; review actual loaders/build provenance before
-revising contracts. No new canonical AC IDs or invented completed reviews.
+**Recommended quantitative disposition:** accept the November review as bounded,
+with September/October comparable shares UNKNOWN and importance ratings unchanged;
+carry only the exact missing query in design.md. Alternatively authorize one
+bounded read-only collection of that query and release-asset counts. Neither
+option permits invented shares or treating packaging defaults as adoption. The
+owner must explicitly dispose of this limitation before A1 is claimed complete.
 
-## Draft needs, requirements and acceptance
+## Work and dependencies
 
-All S120 identifiers below are release-local draft criteria.
+1. Independent Astra-medium design review is complete (PASS after native-identity
+   symmetry and exact-candidate licence/SBOM corrections). Obtain the decisions
+   above; unchanged design is not reviewed again. Update the
+   affected ADR/interface docs in the same implementation change.
+2. Genuine per-behavior RED, visible to the reviewer, then GREEN: Python variant
+   validation; Node pre-load selection; release-version/CUDA identity on BOTH
+   installed x86 variants; major-correct errors; artifact axes and installed
+   selection. Include opposite-major and stale same-major native displacement
+   controls. Preserve frozen RED tests and the explicit development exception.
+3. Resolve compiler safety and select exact toolchain/image/pins/venue before
+   building any 13 artifact. The current 12.6 route remains unchanged.
+4. Only a demonstrated required fork repair enters 140: fork-local RED/GREEN,
+   review and qualification, then cudarc→Candle→FathomDB pin adoption. No repair
+   has been established by this design. Broad rebase/marker/multiarch work stays
+   in .30. A selected 110 remedy gates only an artifact it changes.
+5. Build once in the approved owned environment; inspect and install exact bytes;
+   retain licence/SBOM acceptance on the actual local-version wheel and separately
+   named Node tarball using existing machinery, then run local consumer
+   qualification. Source licence proxies do not qualify the wheel. Integrate selected source,
+   then 130 runs its affected platform/library cells on final artifacts. There
+   is no 120↔130 cycle and no blanket 110/140 prerequisite.
+6. One final canonical source gate per completed code phase, scoped checks while
+   working, independent Astra implementation review. Hand exact unpublished
+   candidates and residual cells to 130/160. Publication remains separate.
 
-| Need / requirement | Falsifiable acceptance |
-| --- | --- |
-| S120-N1 / R1: policy reflects observed use | A1: saved raw inputs and replayable queries compute comparable major/minor shares, dated windows/denominators and trends; each claim is MEASURED/REPORTED/INFERRED. Missing sources stay explicit; no historical/current substitution. |
-| S120-N1 / R2: importance/actions are accountable | A2: compare every policy row with October and current evidence; record artifact/test/venue actions and owner ratification of changes in ADR amendment/successor and release plan. Unchanged rows retain their rationale. |
-| S120-N2 / R3: consumers identify/select compatible bytes | A3: approved names, versions, channels and selection table cover Python/Node/Rust/CLI, 12-only/13-only/both/no libraries and driverless hosts; installed selected bytes/digests and actual loaded library paths agree. |
-| S120-N2 / R4: executable support claims match the build | A4: source/pins, toolchain/image, features, CPU ABI/glibc, architecture, extracted PTX ISA/target, driver floor and required cuBLAS/cuRAND majors/symbols are bound to each artifact; unsupported cells fail plainly or remain UNMEASURED. |
-| S120-N3 / R5: delivery preserves operation and fallback | A5: retained installed Python/Node and external Rust consumers perform real model work, persisted write/read, separate-process reopen, close/exit; forced CUDA is typed on failure and auto CPU fallback is truthful, with allocation witnesses where claimed. |
-| S120-N3 / R6: package evidence survives promotion | A6: exact-candidate rehearsal inventory/digests, linkage/licence/SBOM checks and installed-consumer receipts verify; substituted/missing package controls refuse. Handoff to 160 is unpublished and source-bound; registry/Pages proof follows separate publication authorization. |
+Apply the quality roadmap's package-boundary, failure, close/reopen and selected
+reference comparisons. Defer exhaustive compiler/driver/fuzz matrices; the new
+risk is dual-major selection, not a reason to repeat all historical CUDA cells.
+G and M candidate source acceptance is not final runtime qualification and does
+not discharge any artifact or installed-package requirement here.
 
-## Research and proposed design to challenge
+## Resource boundary
 
-Run read-only collection later through a research subagent per the review procedure.
-Save `research/cuda-version-adoption.md` and `research/data/` at release root:
-query ClickPy runtime downloads and cross-check pypistats/pepy; retain query text,
-raw responses, URL, retrieval date, package/version mapping and denominator.
-Compare matching completed windows; label incomplete windows and download/bot noise.
-If inaccessible, find an accessible quantitative source or keep review incomplete;
-default package metadata cannot replace adoption shares. Plan primary-source reads
-of PyPI torch metadata, llama.cpp/Ollama release assets, NVIDIA JetPack archives,
-release notes/PTX/compatibility/driver lifecycle, peer maintainers' supported builds,
-and official distro/cloud images. Separate proxies; never invent a combined fleet.
-Review each CUDA version's importance, lowest viable per-major toolkit, library
-compatibility cells and available venues; submit changed ratings/actions for ruling.
-
-Proposed starting design, requiring fit review: explicitly install one Python
-variant, then keep runtime `auto|cpu|cuda:N` within that artifact. Candidate 13 wheel
-coordinate is `fathomdb==0.8.29+cu130`, import `fathomdb`, via exact digest URL on an
-approved first-party channel; no co-install with 12.6 and no assumption PyPI accepts
-local versions. Candidate Node identity `fathomdb-linux-x64-gnu-cuda13` is separate
-from the existing generic package; decide explicit pre-load selection versus a
-reviewed presence-based selector before implementation. npm os/cpu/libc cannot
-choose CUDA major. Specify conflict/version/missing-variant errors before dlopen;
-never load both majors to guess compatibility or silently satisfy forced 13 with 12.
-Rust remains a source-consumer build with qualified exact pins and explicit toolkit/
-CUDARC_CUDA_VERSION identity; decide feature-unification constraints and publishable
-consumer instructions. Name any 13 CLI archive distinctly or explicitly defer it.
-Review alternative distribution/naming and automatic artifact selection against
-these needs; revise local design and governed interfaces before code, then rule.
-
-Keep 12.6 existing artifacts. 13.0 builds must measure PTX/driver/library requirements,
-not infer them from the installed toolkit or minor-version compatibility alone.
-Preserve static cudart/lazy driver loading, no shipped NVIDIA shared libraries and
-no CUDA/NVIDIA NEEDED entries, typed wrong-major/missing-symbol refusal and reports.
-Do not widen x86 compute 7.5, Tegra 8.7, generic Arm or architecture claims by naming;
-Slice 140 multiarchitecture work is separate and selected only with its own evidence.
-Apply [quality-roadmap](../../../../notes/fathomdb-quality-testing-roadmap.md)
-boundary/anomaly and installed-package checks; defer exhaustive CUDA/fuzz matrices.
-New evidence is dual-major selection/delivery, not a reason to rerun all old cells.
-
-## Dependencies, tasks and safe integration
-
-- Hard: recorded 9/10 authorization, reviewed needs/design, owned environment and
-  approved build/qualification venue; settle distribution identities/channel,
-  driver/PTX/library contract and any policy change before corresponding build.
-- Conditional: selected 140 fork changes qualify in their forks before exact pin
-  adoption and 120 builds. Pin chain cudarc→Candle→FathomDB; 130 affected final
-  qualification follows 120 integration, not a prerequisite for starting design.
-  No 120↔130 cycle. Reset 110 is a dependency only for an affected selected remedy.
-- Q5 access/approved venue and130 evidence precede any Tegra 13 support statement;
-  no Jetson reflash, driver upgrade or host availability assumption. Slice 7/9/10
-  must resolve .29 trusted-route prerequisites; .28 first-tag exception is scoped.
-- Serialize release.yml, artifact contracts, Cargo pins, Python packaging, Node
-  loader and public docs with 10/110/130/140/160; one writer per isolated checkout.
-
-1. Complete research/review and local requirement→test map; independently review
-   needs, architecture fit, selection conflicts and exact policy/delivery decisions.
-2. For approved behavior changes stage/commit meaningful failing regressions first:
-   package selection/version conflicts, wrong-major/symbol errors, driverless auto,
-   forced CUDA and immutable rehearsal inputs; preserve existing fallback controls.
-3. Implement per-artifact input axes and approved loaders/package routes; build only
-   on authorized venues after owned-tool preflight, pin decisions and review.
-4. Install retained bytes outside source imports; execute A3–A6 per selected scope,
-   retain failures/raw receipts; hand affected platform/pool/soak cells to 130.
-5. Run scoped checks during work, full agent gate on final code phase, affected
-   package/native parity and actionlint; docs use Markdown/public-doc validators.
-6. Obtain independent code/evidence review, sample RED assertions, resolve findings,
-   then recheck affected integrated seams; provide 160 exact artifact/consumer map.
-
-## Open prerequisites and exit
-
-Quantitative sources, names/channels/selection, Rust/CLI scope and permitted venues
-remain open. Exit needs A1–A6 evidence or explicit owner deferral, reviewed contracts
-and unqualified-platform exclusions. Post-publication consumers remain 160 work;
-this draft claims no review approval, policy ruling, execution pass or publication.
-
-## Fork scope boundary (owner seq-367)
-
-Only required repairs from .29 Slice140 may supply affected pins here. The
-[broader .30 maintenance](../../../0.8.30/fork-maintenance-plan.md) is not a
-prerequisite. A need for that broader work returns to the owner for explicit
-scope review; it is not pulled into .29 automatically.
+Design uses source reads only. No build, provisioning, native install, GPU use,
+fault, CI, cloud spend, ledger write or publication is authorized here. windchill3
+stays R580/580.178.04 permanently and primary `/usr/local/cuda` stays 12.6; K620
+is never a test device. A separately authorized 13.0 toolkit is user-local only.
+Tegra 13, Thor and generic Arm are unmeasured/outside this x86 artifact scope.

@@ -685,11 +685,16 @@
       "depends_on": [
         10
       ],
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "design_refs": [
-        "dev/plans/0.8.29/features/slice-110/plan.md"
+        "dev/plans/0.8.29/features/slice-110/plan.md",
+        "dev/plans/0.8.29/features/slice-110/requirements.md",
+        "dev/plans/0.8.29/features/slice-110/design.md",
+        "dev/plans/0.8.29/features/slice-110/test-map.md"
       ],
-      "conditions": "Actual reset timing/venue answer and reviewed lifetime remedy remain required. One-way seam, no cycle:110 reviewed design names any required fork repair;140 qualifies it fork-locally; only then110 adopts the affected pin. With no required repair110 does not wait on140."
+      "conditions": "Actual reset timing/venue answer and reviewed lifetime remedy remain required. One-way seam, no cycle:110 reviewed design names any required fork repair;140 qualifies it fork-locally; only then110 adopts the affected pin. With no required repair110 does not wait on140.",
+      "phase": "DESIGN_REVIEWED_OWNER_POLICY_AND_TECHNICAL_PREREQUISITES_HELD",
+      "evidence": "Independent Astra-medium design PASS after partial-load loss was kept seam-only; the real reset envelope requires completed construction. Complete native ownership and required-only fork-A lifetime repair are designed. Fault policy, finite frozen residue with unknown opaque-host-byte bound, and venues remain unselected. No implementation, reset execution, original Orin survival or whole110 qualification."
     },
     {
       "slice": 120,
@@ -698,11 +703,16 @@
       "depends_on": [
         10
       ],
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "design_refs": [
-        "dev/plans/0.8.29/features/slice-120/plan.md"
+        "dev/plans/0.8.29/features/slice-120/plan.md",
+        "dev/plans/0.8.29/features/slice-120/requirements.md",
+        "dev/plans/0.8.29/features/slice-120/design.md",
+        "dev/plans/0.8.29/features/slice-120/test-map.md"
       ],
-      "conditions": "Actual artifact selection and consumed-kernel/compiler exposure assessment required; support changes owner-ratified, publishing separately authorized.120 closes only on its own A1-A6 qualification of the selected artifact, installed consumer and technical compiler exposure; artifact delivery alone does not close it.130's broader final matrix then qualifies that artifact and is not a120 prerequisite, so there is no120/130 cycle."
+      "conditions": "Actual artifact selection and consumed-kernel/compiler exposure assessment required; support changes owner-ratified, publishing separately authorized.120 closes only on its own A1-A6 qualification of the selected artifact, installed consumer and technical compiler exposure; artifact delivery alone does not close it.130's broader final matrix then qualifies that artifact and is not a120 prerequisite, so there is no120/130 cycle.",
+      "phase": "DESIGN_REVIEWED_OWNER_POLICY_AND_TECHNICAL_PREREQUISITES_HELD",
+      "evidence": "Independent Astra-medium design PASS after bidirectional native release/CUDA identity controls and exact-candidate licence/SBOM acceptance were restored. Explicit Python/Node artifact selection, source Rust and CLI scope remain owner proposals. Compiler6111901 safety is UNKNOWN and blocks CUDA13 builds/delivery; quantitative disposition, exact toolchain/image/pins and venues remain held. No implementation, artifact delivery or runtime qualification."
     },
     {
       "slice": 130,
@@ -892,13 +902,15 @@
     "unruled": [
       {
         "id": "reset-timing-venue",
-        "title": "Actual reset timing/venue answer before110 fault execution.",
-        "owner_slice": 110
+        "title": "Owner choice: coordinated quiescent child-context reset with one frozen native live set until mandatory process restart, including the explicitly unknown opaque-host-byte bound, versus isolation or defer; actual fault venues remain separate.",
+        "owner_slice": 110,
+        "source": "dev/plans/0.8.29/features/slice-110/design.md \u2014 Owner decision"
       },
       {
         "id": "artifact-selection",
-        "title": "Actual CUDA-major artifact selection contract before120 delivery.",
-        "owner_slice": 120
+        "title": "Owner choice of proposed explicit CUDA13 Python/Node package/channel/selector and Rust/CLI scope, plus the quantitative adoption-review disposition. Compiler safety remains a technical prerequisite, not an owner waiver.",
+        "owner_slice": 120,
+        "source": "dev/plans/0.8.29/features/slice-120/plan.md \u2014 Decisions ready for the owner"
       },
       {
         "id": "qualified-session-caps",

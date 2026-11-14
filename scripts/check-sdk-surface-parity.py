@@ -373,6 +373,83 @@ def _validate_rust_diagnostic(
         raise ParityError(f"qualification diagnostic {located} must preserve exact signature/core forwarding")
 
 
+def _read_diagnostic_manifest(path: Path) -> dict[str, Any]:
+    try:
+        return tomllib.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as error:
+        raise ParityError(f"qualification diagnostic Cargo contract: {error}") from error
+
+
+def _validate_engine_dependency_features(crate: Path, cargo: dict[str, Any]) -> None:
+    """Reject eager/aliased engine activation; inspect inherited and target declarations."""
+    sections = [cargo]
+    targets = cargo.get("target", {})
+    if not isinstance(targets, dict) or not all(isinstance(value, dict) for value in targets.values()):
+        raise ParityError("unsupported SDK target dependency contract")
+    sections.extend(targets.values())
+    for section in sections:
+        for category in ("dependencies", "dev-dependencies", "build-dependencies"):
+            declarations = section.get(category, {})
+            if not isinstance(declarations, dict):
+                raise ParityError("unsupported SDK dependency table")
+            for alias, declaration in declarations.items():
+                package = declaration.get("package", alias) if isinstance(declaration, dict) else alias
+                if alias != "fathomdb-engine" and package != "fathomdb-engine":
+                    continue
+                if alias != "fathomdb-engine" or package != "fathomdb-engine":
+                    raise ParityError("renamed SDK engine dependencies are unsupported")
+                specifications = [declaration]
+                if isinstance(declaration, dict) and "workspace" in declaration:
+                    if declaration["workspace"] is not True or set(declaration) - {"workspace", "features", "optional"}:
+                        raise ParityError("unsupported SDK engine workspace dependency override")
+                    package_metadata = cargo.get("package", {})
+                    if not isinstance(package_metadata, dict) or "workspace" in package_metadata:
+                        raise ParityError("explicit SDK workspace routing is unsupported")
+                    inherited = None
+                    for parent in crate.parents:
+                        candidate = parent / "Cargo.toml"
+                        if not candidate.is_file():
+                            continue
+                        ancestor = _read_diagnostic_manifest(candidate)
+                        if "workspace" not in ancestor:
+                            continue
+                        workspace = ancestor["workspace"]
+                        if not isinstance(workspace, dict) or not isinstance(workspace.get("dependencies", {}), dict):
+                            raise ParityError("unsupported SDK engine workspace declaration")
+                        inherited = workspace.get("dependencies", {}).get("fathomdb-engine")
+                        break
+                    if inherited is None or isinstance(inherited, dict) and "workspace" in inherited:
+                        raise ParityError("SDK engine workspace dependency cannot be resolved")
+                    specifications.append(inherited)
+                for specification in specifications:
+                    if isinstance(specification, str):
+                        continue
+                    if not isinstance(specification, dict):
+                        raise ParityError("unsupported SDK engine dependency declaration")
+                    if specification.get("package", "fathomdb-engine") != "fathomdb-engine" or specification.get("optional", False):
+                        raise ParityError("unsupported SDK engine dependency activation")
+                    flags = specification.get("features", [])
+                    if not isinstance(flags, list) or not all(isinstance(flag, str) for flag in flags):
+                        raise ParityError("SDK engine dependency features must be a list of strings")
+                    if flags:
+                        raise ParityError("eager SDK engine dependency features are unsupported; use reviewed SDK feature forwarding")
+
+
+def _diagnostic_feature_edge(edge: str) -> str:
+    """Normalize weak forwarding for rejection only, never for catalog authorization."""
+    if not edge or edge.count("/") > 1:
+        raise ParityError("unsupported SDK feature activation edge")
+    if "/" not in edge:
+        if "?" in edge:
+            raise ParityError("unsupported SDK feature activation edge")
+        return edge
+    dependency, feature = edge.split("/", 1)
+    dependency = dependency.removesuffix("?")
+    if not dependency or not feature or "?" in dependency or "?" in feature:
+        raise ParityError("unsupported SDK feature activation edge")
+    return dependency + "/" + feature
+
+
 def _validate_rust_diagnostic_features(crate: Path, observed: set[str]) -> None:
     """Keep diagnostic activation isolated from default/other SDK capabilities."""
     manifest = crate / "Cargo.toml"
@@ -380,10 +457,8 @@ def _validate_rust_diagnostic_features(crate: Path, observed: set[str]) -> None:
         if observed:
             raise ParityError("qualification diagnostic Cargo feature contract is missing")
         return
-    try:
-        features = tomllib.loads(manifest.read_text(encoding="utf-8")).get("features", {})
-    except (OSError, ValueError) as error:
-        raise ParityError(f"qualification diagnostic Cargo feature contract: {error}") from error
+    cargo = _read_diagnostic_manifest(manifest)
+    features = cargo.get("features", {})
     if not isinstance(features, dict):
         raise ParityError("SDK features must be a table")
     declared = {name for name, spec in RUST_QUALIFICATION_DIAGNOSTICS.items()
@@ -392,11 +467,12 @@ def _validate_rust_diagnostic_features(crate: Path, observed: set[str]) -> None:
         raise ParityError("qualification diagnostic feature/member closure differs from the exact catalog")
     if not declared:
         return
+    _validate_engine_dependency_features(crate, cargo)
     if any(not isinstance(values, list) or not all(isinstance(edge, str) for edge in values)
            for values in features.values()):
         raise ParityError("SDK feature forwarding must be lists of strings")
     for values in features.values():
-        if any(edge.rsplit("/", 1)[-1] in {"test-hooks", "operator"} for edge in values):
+        if any(_diagnostic_feature_edge(edge).rsplit("/", 1)[-1] in {"test-hooks", "operator"} for edge in values):
             raise ParityError("SDK qualification cannot forward test-hooks/operator")
     for name in declared:
         spec = RUST_QUALIFICATION_DIAGNOSTICS[name]
@@ -413,7 +489,8 @@ def _validate_rust_diagnostic_features(crate: Path, observed: set[str]) -> None:
                     continue
                 visited.add(current)
                 for edge in features.get(current, []):
-                    if edge in {feature, forwarding}:
+                    normalized = _diagnostic_feature_edge(edge)
+                    if normalized in {feature, forwarding}:
                         raise ParityError(f"SDK feature {origin} activates qualification-only {feature}")
                     if edge in features:
                         pending.append(edge)

@@ -212,9 +212,9 @@
         "dev/plans/0.8.29/features/slice-30/continuation-gd.md",
         "dev/plans/0.8.29/features/slice-30/continuation-m.md"
       ],
-      "phase": "P_AND_G_10K_QUALIFIED_100K_HELD",
+      "phase": "P_AND_G_SEED_100K_QUALIFIED_REMAINING_G_PENDING",
       "plan_sha": "bea7f05cd2497af0d73c6eb8da509e11a947ca08",
-      "conditions": "P measurements, G source/controller qualification and four actual G cases are accepted within recorded bounds. The second campaign qualified G0, the 10k seed and both 10k read repeats; 100k was refused by the conservative duration forecast. G-O branches failed GPU-engagement qualification although all 15 native steps completed. Preserve original results and shared charges; review a prospective continuation before further execution. D source/runtime remains separate. M requires a qualified closed G100k input, implemented tooling and remaining-budget fit; F requires exact frozen inputs. Whole20/30,40/50 and pre90 Block1 remain open.",
+      "conditions": "P/source qualification and six actual G cases are accepted with original provenance: G0,10k seed/two read repeats, synthetic branches and100k seed. First failed G0/branch attempts and original conservative100k refusal remain retained. The completed exploratory100k seed is Ready/pending0 before close/after reopen with100000natural/vector/physical/span rows; this is not a search-snapshot proof.78 G obligations remain. A narrow six-reference reuse plan passed Astra design review; source implementation/review/full qualification and separate fresh runtime GO precede normal fixed84 assessment. M has a qualified closed100k input, but exact MCP tooling/source/runtime proof and remaining-budget fit remain. D/F/whole30,40/50/pre90 and whole20 remain open.",
       "evidence": "P tools and measured Linux direct-text subset at2fd772558 passed fresh independent Astra-medium final P review on clean documentation0d8be5bb;16grouped genuine RED/GREEN units and invalid124 fixture history remain explicit.16/16 frozen first-attempt cells complete,20000successful timed natural calls,zero errors/noisy cells/retries/resource stops. Unfiltered100k P1 p50 27.184-27.509ms/p99 106.911-107.682ms is below tracked nongated80/300; filtered P2 is not AC083. Parent independently checked hashes/raw counts/percentiles/means; Astra checked batch/probe/match identities. Qualification is assembled from original1f214/216 plus actual affected reruns; original SC2312/Pages/MD012 failures and inner skips retain subjects. Production native receipt remains1f with unchanged relevant inputs; normal release measurement executable was built and run at2fd. See features/slice-30/results-p.md,execution.md and review-log.md. No model/GPU/MCP/frozen-fidelity or whole-slice/release completion follows.",
       "qualified_subset_sha": "2fd772558e46d0b1645dce2ffea730d0bdd3305c",
       "continuation_plan_sha": "0d8be5bb75516955ebf99b94913b9b54921bb3a4",
@@ -277,6 +277,56 @@
         "evidence": "Owned G task logs/receipts/g-staged-final-full-verify; earlier f870 qualification and973b failure/resumption remain in source/execution history."
       },
       "g_campaign_current": {
+        "source_sha": "d9b81334b8bc2c0476fe4438673f1361e3c46504",
+        "campaign_uuid": "eb4da153-0185-4335-a41c-38f8a8c12af5",
+        "stage": "first-100k-seed-exploratory",
+        "status": "QUALIFIED_SEED_WITH_5_REUSED_78_HELD",
+        "stage_complete": true,
+        "campaign_complete": false,
+        "outcomes": {
+          "reused_complete": 5,
+          "complete": 1,
+          "not_run_stage": 78
+        },
+        "qualified_case_total": 6,
+        "provenance": "Original60f/5e89 G0/10k seed/two10k repeats and d9b8/9559 branch retain exact original paths/source/UUID. No completed case rerun or retagged. New seed is d9b8/eb4da153.",
+        "branch": "All15 native steps complete with strict own-PID selected-GPU engagement,59 positive samples. Attempt14.612571089s/newcharged15.450495708s; original failed branch retained.",
+        "seed_100k": {
+          "attempt_elapsed_ns": 657095755807,
+          "driver_elapsed_ns": 656440143910,
+          "new_charge_ns": 657933061238,
+          "cumulative_cell_ns": 657935962544,
+          "rows": 100000,
+          "format": 37,
+          "before_close_after_reopen": "Ready,pending0,generationfailed0; natural/vector/physical/span counts100000. Adjacent public observations/separate count transactions, not a search snapshot.",
+          "gpu_samples": 612,
+          "strict_positive_samples": 597,
+          "full_body_spans": 83644,
+          "partial_body_spans": 16356,
+          "unknown_coverage_spans": 0,
+          "store_bytes": 715223040,
+          "attempt_bytes": 730417530
+        },
+        "forecast": "Original2x1306635944940ns refusal remains explicit; linear653317972470ns was only a hypothesis for one prospective exploratory admission. Current retained-byte estimate1449268520B and original1449923880B refusal retain separate subjects.",
+        "shared_used_ns": 1030482596607,
+        "retained_bytes": 1540312679,
+        "inflight": null,
+        "one_shot_consumed": true,
+        "caps": "Both900s hard limits including prior/preparation charges, shared14400s and16GiB unchanged.",
+        "review": "Fresh Astra-medium ACCEPT actual branch+seed, no actionable findings. No G-R100k/M/D/fidelity/exclusive-GPU-cost/wholeG30 qualification.",
+        "cleanup": "Owned actors, exact private boundaries and markers absent after populated0/removal; no resource stop/cleanup uncertainty. Final selected3090 quiet; persistent supervisor absent and FD9 claim released normally.",
+        "continuation": "Only design PASS53c81a015 for minimal accepted-seed chain reuse on normal fixed84 path. Six completed cases preserved; five potentially runnable/73cap is forecast, not actual. No implementation/runtime yet; no waiver of required cells."
+      },
+      "g_staged_source": {
+        "design_sha": "a5aa4b8935ce455ce67eb6fce681855a3b1bb85a",
+        "design_correction_sha": "c5984246887dda0e14dec2a25161ea7df9d25f1a",
+        "implementation_sha": "bf647231eba70d562888ab312f33b904008a7565",
+        "documentation_sha": "94d8341b32af62fca7289d068bab551344a7e204",
+        "review": "Distinct independent Astra-medium implementation ACCEPT, no actionable findings. Original design review passed; the prospective2x admission-policy amendment changes no hard limit or outcome criterion and needs no additional owner ruling solely for that technical rule.",
+        "tdd": "Four actual RED/GREEN pairs cover branch-only polling, original-result reuse, closed-stage stop and exploratory admission.60/60 affected controls; frozen new RED files and existing51 unchanged.",
+        "runtime_boundary": "Source qualification only. Separate branch-controls stage first; only after qualified branch results and separate technical GO may first-100k-seed-exploratory run once. Original4 case identities/charges preserved, all84 obligations visible. Both900s hard limits/shared14400s/16GiB and failed conservative forecast unchanged."
+      },
+      "g_campaign_10k_checkpoint": {
         "source_sha": "60f471aaf042203d07a15025662ebf572f6cc242",
         "campaign_uuid": "5e89e1dc-8fbd-4848-bc2a-8dc84e478f16",
         "status": "PARTIAL_4_COMPLETE_79_NOT_RUN_CAP_1_FAILED",
@@ -301,15 +351,14 @@
         "cleanup": "All owned actors gone, exact private cgroup populated0 and removed, marker absent, selected3090 quiet and cooperative claim released. No resource stop or cleanup uncertainty.",
         "continuation": "Reviewed staged controller implementation is source-qualified at bf647 with final220/220. Actual branch/100k runtime still awaits separate fresh technical readiness/GO. Preserve original four completed measurements and all84 obligations. Both900s limits/shared14400s/16GiB unchanged; no cap growth, charge reset, passing-case replay or automatic stage advance."
       },
-      "g_staged_source": {
-        "design_sha": "a5aa4b8935ce455ce67eb6fce681855a3b1bb85a",
-        "design_correction_sha": "c5984246887dda0e14dec2a25161ea7df9d25f1a",
-        "implementation_sha": "bf647231eba70d562888ab312f33b904008a7565",
-        "documentation_sha": "94d8341b32af62fca7289d068bab551344a7e204",
-        "review": "Distinct independent Astra-medium implementation ACCEPT, no actionable findings. Original design review passed; the prospective2x admission-policy amendment changes no hard limit or outcome criterion and needs no additional owner ruling solely for that technical rule.",
-        "tdd": "Four actual RED/GREEN pairs cover branch-only polling, original-result reuse, closed-stage stop and exploratory admission.60/60 affected controls; frozen new RED files and existing51 unchanged.",
-        "runtime_boundary": "Source qualification only. Separate branch-controls stage first; only after qualified branch results and separate technical GO may first-100k-seed-exploratory run once. Original4 case identities/charges preserved, all84 obligations visible. Both900s hard limits/shared14400s/16GiB and failed conservative forecast unchanged."
-      }
+      "g_selected_input_for_m": {
+        "source_sha": "d9b81334b8bc2c0476fe4438673f1361e3c46504",
+        "campaign_uuid": "eb4da153-0185-4335-a41c-38f8a8c12af5",
+        "store": "/mnt/data/tmp2/fathomdb-0829-continuation/slice30-g-20261113/gd-allocation/g-frozen-seed100k-v4/results/g1-n100000/attempt-0001/seed/store.sqlite",
+        "status": "Qualified closed Default SDK100k input; all owned actors gone. M must pin its selected subject and own source/native/model/device/tooling before runtime; no M source/runtime GO follows."
+      },
+      "g_remaining_plan_sha": "53c81a0155738b4477fcd931d119c976d5d50c66",
+      "g_remaining_design_review": "Astra-medium PASS: strict six-reference seed\u2192branch\u2192base reuse via existing normal full84 entry, unchanged ordering/caps/token/qualification. R1 remains fresh; no waiver. One callable semantic RED plus actual harmless schedule/resume controls before minimal GREEN. No new owner ruling required for this implementation scope."
     },
     {
       "slice": 40,
@@ -748,7 +797,7 @@
   },
   "release_readiness": {
     "status": "NOT_READY",
-    "qualification": "Slice10 preparation and Slice70 bounded SDK parity are complete. Qualified subsets are integrated for20 Linux,30 P/source and four actual G0/10k cases,60 MCP and100 coverage/native work. Windows20 A6,100k G and D/M/F plus whole30/60-F11,100 Q1, other selected outcomes and final160 remain pending. Original failures, resumptions, inner ignores/skips and unavailable counts remain explicit; no uninterrupted full-wrapper or published-package claim.",
+    "qualification": "Slice10 preparation and Slice70 bounded SDK parity complete. Qualified subsets are integrated for20 Linux,30 P/source and six actual G cases including the closed100k seed,60 MCP and100 coverage/native work.78 G obligations and D/M/F plus whole30/60-F11, Windows20 A6,100 Q1, other selected outcomes and final160 remain pending. All original failures, forecast refusals, resumptions, ignores/skips and unavailable counts retain their subjects; no whole-release or published-package claim.",
     "publication": "HELD; no tag, dispatch, external ACL mutation or registry publication authorized by bootstrap."
   },
   "generated_views": [

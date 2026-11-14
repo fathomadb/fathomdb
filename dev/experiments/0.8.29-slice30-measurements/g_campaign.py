@@ -182,6 +182,13 @@ def _run_plan(spec, plan, root, command, prepare, allocation_root, assess, reuse
             outcomes.append(completed)
             (root / "g-outcomes.json").write_text(json.dumps(outcomes, indent=2) + "\n")
             continue
+        stopped = budget.get("closed_calibration_stop") if cell.get("calibration") else None
+        if stopped:
+            outcomes.append(stopped["outcome"] if stopped["cell"] == cell["id"] else {
+                "id": cell["id"], "cell": cell, "status": "not_run_prerequisite", "complete": False,
+                "reason": "calibration_stopped", "prior_outcome_path": stopped["path"]})
+            (root / "g-outcomes.json").write_text(json.dumps(outcomes, indent=2) + "\n")
+            continue
         if target is not None and cell["id"] != target:
             held = {"id": cell["id"], "cell": cell, "status": "not_run_stage",
                     "complete": False, "reason": "outside_closed_stage", "stage": stage}
@@ -263,6 +270,8 @@ def _run_plan(spec, plan, root, command, prepare, allocation_root, assess, reuse
                             budget_path.write_text(json.dumps(budget, indent=2) + "\n")
                         def monitor(_pid):
                             now_elapsed = time.monotonic_ns() - started
+                            if cell.get("calibration") and active_bytes(root / cell["id"]) >= CALIBRATION_CELL_BYTES:
+                                return "calibration_cell_storage_exhausted"
                             if active_bytes(allocation) >= 16 * 1024**3:
                                 return "active_storage_exhausted"
                             if now_elapsed >= shared_allowance:
@@ -290,6 +299,10 @@ def _run_plan(spec, plan, root, command, prepare, allocation_root, assess, reuse
                 else:
                     budget["inflight"]["status"] = "cleanup_uncertain"
                 budget_path.write_text(json.dumps(budget, indent=2) + "\n")
+        if cell.get("calibration") and not completed_record(outcomes[-1]):
+            budget.setdefault("closed_calibration_stop", {"cell": cell["id"], "outcome": outcomes[-1],
+                "path": str(root / "g-outcomes.json")})
+            budget_path.write_text(json.dumps(budget, indent=2) + "\n")
         previous[cell["id"]] = outcomes[-1]
         (root / "g-outcomes.json").write_text(json.dumps(outcomes, indent=2) + "\n")
     return outcomes

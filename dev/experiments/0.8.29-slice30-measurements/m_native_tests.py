@@ -61,7 +61,7 @@ class NativeCase(unittest.TestCase):
     @contextmanager
     def helper_session(self, result_format):
         """Serve the real Adapter and arm only its private existing Seams channel."""
-        control_path = self.root / "ctl.sock"
+        control_path = self.root / f"c-{result_format[0]}.sock"
         command = [str(self.helper), "--config", str(self.config(result_format)),
                    "--control-socket", str(control_path)]
         with McpSession(command, self.root / f"helper-{result_format}",

@@ -93,6 +93,17 @@ class RpcChild:
                 self.records[request_id]["status"] = "unresolved"
                 return None
 
+    def notify(self, method, params):
+        """Send an ID-less protocol notification and retain its actual wire boundary."""
+        request = {"jsonrpc": "2.0", "method": method, "params": params}
+        raw = (json.dumps(request, ensure_ascii=False, separators=(",", ":")) + "\n").encode()
+        sent = time.monotonic_ns()
+        self.child.stdin.write(raw)
+        self.child.stdin.flush()
+        self._submissions.write({"status": "notification", "request": request,
+                                 "request_raw": raw.decode(), "request_bytes": len(raw),
+                                 "send_start_ns": sent, "flush_end_ns": time.monotonic_ns()})
+
     def _consume(self, timeout):
         try:
             arrived, raw = self._events.get(timeout=timeout)

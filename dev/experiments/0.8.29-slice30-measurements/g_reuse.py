@@ -29,7 +29,10 @@ def collect_reuse(current, original_root):
         canonical = json.loads(Path(__file__).with_name("g-cells.json").read_text())
         expected = dict(canonical, preparation="closed-copy-v1")
         normalized = {key: value for key, value in current["spec"].items() if key != "closed_mode"}
-        if (original["spec"] != canonical or original["plan"] != make_g_plan(canonical)
+        r1_source = original.get("stage") == "closed-copy-read-r1" and current.get("stage") == "closed-copy-write-matrix"
+        original_spec = {key: value for key, value in original["spec"].items() if key != "closed_mode"}
+        expected_original = expected if r1_source else canonical
+        if (original_spec != expected_original or original["plan"] != make_g_plan(expected_original)
                 or normalized != expected or current["plan"] != make_g_plan(expected)):
             raise ValueError("reuse differs beyond the named unmeasured closed-copy successor")
     elif original.get("spec") != current.get("spec") or original.get("plan") != current.get("plan"):
@@ -55,12 +58,20 @@ def collect_reuse(current, original_root):
     if (original.get("source_sha"), original.get("campaign_uuid")) != (BASE_SOURCE, BASE_UUID):
         stage = original.get("stage")
         normal = (original.get("source_sha"), original.get("campaign_uuid")) == (NORMAL_SOURCE, NORMAL_UUID)
-        if ((not normal or not successor) and stage not in ("branch-controls", "first-100k-seed-exploratory")) or not original.get("reuse_completed_from"):
+        closed_r1 = successor and stage == "closed-copy-read-r1" and current.get("stage") == "closed-copy-write-matrix"
+        if ((not normal or not successor) and not closed_r1 and stage not in ("branch-controls", "first-100k-seed-exploratory")) or not original.get("reuse_completed_from"):
             raise ValueError("reuse source is not an accepted original measurement chain")
         inherited = collect_reuse(current, original["reuse_completed_from"])
         if stage == "first-100k-seed-exploratory" and set(inherited) != BASE_CELLS | {"g-o-branches"}:
             raise ValueError("seed reuse requires its qualified branch/base chain")
-        if normal:
+        if closed_r1:
+            eleven = BASE_CELLS | NORMAL_CELLS | {"g-o-branches", "g1-n100000"}
+            if (set(inherited) != eleven or original.get("reused") != inherited
+                    or not current.get("calibration_from")
+                    or original.get("calibration_from") != current["calibration_from"]):
+                raise ValueError("R1 reuse requires its exact original11/calibration chain")
+            selected = {"g-r-n100000-r1"}
+        elif normal:
             if set(inherited) != BASE_CELLS | {"g-o-branches", "g1-n100000"}:
                 raise ValueError("normal assessment reuse requires its original six-record chain")
             selected = NORMAL_CELLS
@@ -70,6 +81,19 @@ def collect_reuse(current, original_root):
     invocation = json.loads((root / "last-run.json").read_text())
     if invocation.get("environment_ok") is not True:
         raise ValueError("reuse original actor/environment cleanup is not qualified")
+    if original.get("stage") == "closed-copy-read-r1":
+        if invocation.get("stage_complete") is not True:
+            raise ValueError("R1 stage qualification is incomplete")
+        receipt = json.loads(Path(invocation["guardian_receipt"]).read_text())
+        boundary = receipt.get("boundary") or {}
+        if (receipt.get("exit") not in (0, 1) or receipt.get("resource_stop") is not None
+                or receipt.get("cleanup_uncertain") is not False or receipt.get("live_owned_pids") != []
+                or receipt.get("final_sample_error") is not None
+                or receipt.get("sha_start") != original["source_sha"] or receipt.get("sha_end") != original["source_sha"]
+                or receipt.get("delta_start") != "" or receipt.get("delta_end") != ""
+                or boundary.get("status") != "quiescent" or boundary.get("populated_after") is not False
+                or boundary.get("removed_exact_empty_boundary") is not True):
+            raise ValueError("R1 final guardian/source evidence is unavailable")
     references = dict(inherited)
     for identifier in selected:
         row = rows.get(identifier) or {}

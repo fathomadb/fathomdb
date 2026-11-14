@@ -22,7 +22,9 @@ def _loops(session, cell, queries, deadline_ns):
         session.phase_boundary()
         phases[phase] = value
         complete &= len(value["completed"]) == count
-        complete &= all(session.records[key].get("ok") is True for key in value["submitted"])
+        complete &= all(session.records[key].get("ok") is True
+                        and not session.records[key].get("payload", {}).get("degradation")
+                        for key in value["submitted"])
         if not complete:
             break
     return {"phases": phases, "complete": complete}
@@ -72,7 +74,8 @@ def execute(cell, command, root, *, queries, deadline_ns, files=None, control_pa
     result["complete"] &= session.exit["code"] == 0 and not session.failures
     if cell["family"] in ("M-R", "M-C", "M-L"):
         degraded = [row["rpc_id"] for row in session.records.values()
-                    if row.get("tool") == "search" and row.get("payload", {}).get("degradation")]
+                    if row["request"]["params"].get("name") == "search"
+                    and row.get("payload", {}).get("degradation")]
         result["unexpected_degradation"] = degraded
         result["complete"] &= not degraded
     result["failures"] = session.failures

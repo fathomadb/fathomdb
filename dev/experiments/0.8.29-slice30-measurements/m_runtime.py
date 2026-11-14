@@ -193,6 +193,7 @@ def control(root, owner, *, source_manifest=None):
     rows = run_budgeted_table(Path(root) / "results", command, profile=manifest["profile"],
         allocation=manifest["allocation"], forecasts=manifest["forecasts"]["cells"], plan=manifest["plan"],
         prepare=admit_preparation, register=register,
+        common_reserved_bytes=2 * manifest["forecasts"]["common_new_retained_bytes"],
         common_reserved_ns=2 * sum(manifest["forecasts"]["common_components_ns"].values()))
     (Path(root) / "results").mkdir(exist_ok=True)
     (Path(root) / "results/campaign-state.json").write_text(json.dumps(rows, indent=2) + "\n")

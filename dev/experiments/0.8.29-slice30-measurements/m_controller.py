@@ -74,7 +74,6 @@ def run_budgeted_table(root, command, *, profile, allocation, forecasts, plan=No
                  and previous[cell["id"]].get("cell") == cell}
     remaining = [cell for cell in plan if cell["id"] not in completed]
     allocation = Path(allocation)
-    profile = dict(profile, total_shared_ns=profile["total_shared_ns"] - common_reserved_ns) if isinstance(profile, dict) and "total_shared_ns" in profile else profile
     reason = None
     if not isinstance(profile, dict) or profile.get("status") != "APPROVED":
         reason = "shared allocation absent or not approved"
@@ -82,6 +81,14 @@ def run_budgeted_table(root, command, *, profile, allocation, forecasts, plan=No
         try:
             if profile["schema"] != "slice30-m-budget/v1":
                 raise ValueError("unrecognized budget profile")
+            reservations = (common_reserved_ns, common_reserved_bytes,
+                            profile.get("reserved_other_work_ns", 0),
+                            profile.get("reserved_other_work_bytes", 0))
+            if any(type(value) is not int or value < 0 for value in reservations):
+                raise ValueError("bounded common/other-work reservations unavailable")
+            profile = dict(profile,
+                total_shared_ns=profile["total_shared_ns"]-reservations[0]-reservations[2],
+                total_shared_retained_bytes=profile["total_shared_retained_bytes"]-reservations[1]-reservations[3])
             ledger_path = allocation / "g-budget.json"
             if Path(profile["ledger"]).resolve() != ledger_path.resolve():
                 raise ValueError("selected shared ledger differs")

@@ -97,9 +97,12 @@ def guard(command, *, allocation, profile, root, task, admission=False, common_l
             or not root.is_relative_to(allocation)):
         raise ValueError("approved pinned shared profile and owned M allocation required")
     accounting = Accounting(allocation / "g-budget.json", began)
-    limits = profile["total_shared_ns"], profile["total_shared_retained_bytes"]
+    reserved = profile.get("reserved_other_work_ns", 0), profile.get("reserved_other_work_bytes", 0)
+    if any(type(value) is not int or value < 0 for value in reserved):
+        raise ValueError("bounded other-work reservation unavailable")
+    limits = profile["total_shared_ns"]-reserved[0], profile["total_shared_retained_bytes"]-reserved[1]
     if any(type(value) is not int or value <= 0 for value in limits):
-        raise ValueError("positive approved shared caps required")
+        raise RuntimeError("shared reserve leaves no positive M allowance")
     root.mkdir(parents=True, exist_ok=True)
     phase = root / "guardians" / str(uuid.uuid4())
     phase.mkdir(parents=True)

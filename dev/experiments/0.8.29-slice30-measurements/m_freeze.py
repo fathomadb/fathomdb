@@ -8,7 +8,7 @@ import subprocess
 import uuid
 
 from g_freeze import MODEL_FILES, PINS, SOURCE, compiler_inputs, git, identify
-from m_controller import COMPONENTS, load_plan
+from m_controller import COMPONENTS, _assessment, load_plan
 
 VARIANTS = {"providerfree": [], "helper": ["test-seams"], "ordinary": ["embed-cuda"]}
 
@@ -21,6 +21,12 @@ def approved(profile, allocation):
             or any(type(profile.get(key)) is not int or profile[key] <= 0
                    for key in ("total_shared_ns", "total_shared_retained_bytes"))):
         raise ValueError("selected approved shared profile required; M candidates remain inactive")
+    if (any(type(profile.get(key)) is not int or profile[key] < 0
+            for key in ("reserved_other_work_ns", "reserved_other_work_bytes"))
+            or profile.get("other_work_cost_status") not in ("BOUNDED", "HELD_UNAVAILABLE")
+            or not isinstance(profile.get("reservation_disposition"), str)
+            or not profile["reservation_disposition"].strip()):
+        raise ValueError("explicit reviewed other-work reservation/disposition required; unknown cost is not zero")
 
 
 def build(output, variant):
@@ -81,6 +87,14 @@ def freeze(options, output):
         raise ValueError("complete bounded common component forecasts required")
     if sum(common.values()) <= 0:
         raise ValueError("common controller/qualification/polling/finalization forecast unavailable")
+    common_bytes = forecasts["common_new_retained_bytes"]
+    if type(common_bytes) is not int or common_bytes <= 0:
+        raise ValueError("bounded remaining common freeze/report retained bytes required")
+    ledger = json.loads((allocation / "g-budget.json").read_text())
+    effective = dict(profile,
+        total_shared_ns=profile["total_shared_ns"]-profile["reserved_other_work_ns"]-2*sum(common.values()),
+        total_shared_retained_bytes=profile["total_shared_retained_bytes"]-profile["reserved_other_work_bytes"]-2*common_bytes)
+    _assessment(load_plan(), effective, ledger, forecasts["cells"], allocation)
     selected = json.loads((SOURCE / "dev/plans/release-state-0.8.29.json").read_text())
     # The release state owns this metadata's location; recursive lookup avoids another state view.
     def find(value):
@@ -108,6 +122,7 @@ def freeze(options, output):
             or custody["stored_coverage"] != {"full": 83644, "partial": 16356, "unknown": 0}):
         raise ValueError("released qualified closed100k subject/provenance facts required")
     main = Path(custody["main"]).resolve()
+    custody = dict(custody, main=str(main))
     expected = {main, *(Path(str(main) + suffix) for suffix in ("-wal", "-shm")
                         if Path(str(main) + suffix).exists())}
     package = [identify(path) for path in custody["package"]]
@@ -146,6 +161,8 @@ def freeze(options, output):
         "profile": profile, "forecasts": forecasts, "closed_subject": custody, "package": package,
         "inputs": inputs, "model": model, "model_cache": str(cache), "hf_home": os.environ["HF_HOME"],
         "gpu": gpu, "builds": binaries, "plan": load_plan(), "runtime_status": "HELD_UNTIL_SELECTED_RUN"}
+    manifest["combined_feasibility"] = ("UNKNOWN" if profile["other_work_cost_status"] == "HELD_UNAVAILABLE"
+                                         else "BOUNDED_BY_SELECTED_PROFILE")
     output.mkdir(parents=True, exist_ok=True)
     path = output / "manifest.json"
     with path.open("x") as stream:

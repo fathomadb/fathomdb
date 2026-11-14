@@ -89,7 +89,10 @@ def main():
             "used_ns": 0, "inflight": None, "cell_used_ns": {}, "common_used_ns": {}}))
         profile = {"schema": "slice30-m-budget/v1", "status": "APPROVED",
             "ledger": str(root / "g-budget.json"), "whole_cell_ns": 900 * 10**9,
-            "total_shared_ns": options.source_total_ns, "total_shared_retained_bytes": 256 * 1024**2}
+            "total_shared_ns": options.source_total_ns, "total_shared_retained_bytes": 256 * 1024**2,
+            "reserved_other_work_ns": 0, "reserved_other_work_bytes": 0,
+            "other_work_cost_status": "BOUNDED",
+            "reservation_disposition": "Tiny source control only; no external work or natural qualification"}
         # These literal source-control bounds cannot name or qualify a natural subject.
         components = dict.fromkeys(COMPONENTS, 0)
         components.update(copy=200000000, first=100000000, close=100000000)
@@ -101,7 +104,8 @@ def main():
             "plan": load_plan()[:2], "builds": {name: {"binary": identify(path)} for name, path in
                 (("providerfree", options.cli), ("helper", options.helper))},
             "forecasts": {"cells": {cell["id"]: {"components_ns": components,
-                "new_retained_bytes": 1024**2} for cell in load_plan()[:2]}, "common_components_ns": common}}
+                "new_retained_bytes": 1024**2} for cell in load_plan()[:2]},
+                "common_components_ns": common, "common_new_retained_bytes": 1024**2}}
         (root / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
         try:
             outcome = guard([sys.executable, str(Path(__file__).resolve()), "_source_controller",

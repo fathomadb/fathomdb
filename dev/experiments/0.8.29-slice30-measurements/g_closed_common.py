@@ -12,7 +12,7 @@ from g_closed_guard import write_budget
 COMMON_BYTES = 1024**3
 
 
-def run_common(allocation, mode, command, limits=None):
+def run_common(allocation, mode, command, limits=None, admission_job=None):
     """Charge actual common work once; caller owns the allocation lock and guardian.
 
     A40s cleanup reservation remains outside the child execution deadline. Unknown
@@ -43,6 +43,13 @@ def run_common(allocation, mode, command, limits=None):
         return {"status": "not_run_cap", "complete": False, "reason": reason}
     deadline = started + remaining - 40 * 10**9
     budget["inflight"] = {"cell": "g-common-" + mode, "started_at_ns": time.time_ns()}
+    context = None
+    if admission_job is not None:
+        from g_admission import controller_admission
+        admission = controller_admission(allocation, allocation / "common", {"id": "g-common-"+mode},
+                                         deadline, admission_job, mode)
+        budget["inflight"]["admission"] = admission
+        context = {"common_admission": admission}
     write_budget(budget_path, budget)
     outcome = None
     try:
@@ -53,7 +60,7 @@ def run_common(allocation, mode, command, limits=None):
                 return "shared_storage_exhausted"
             return None
         outcome = run_g_attempt({"id": "g-common-" + mode}, allocation / "common", command,
-                                deadline, monitor=monitor)
+                                deadline, context=context, monitor=monitor)
         return outcome
     finally:
         elapsed = time.monotonic_ns() - started

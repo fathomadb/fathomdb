@@ -438,7 +438,9 @@ def main():
         if not value["complete"]:
             raise SystemExit(1)
     elif args.action == "_common":
+        from g_admission import require_common_admission
         from g_closed_entry import common_worker
+        require_common_admission(args.job, args.config, args.output)
         common_worker(args.job, args.output)
     else:
         from g_admission import require_cell_admission

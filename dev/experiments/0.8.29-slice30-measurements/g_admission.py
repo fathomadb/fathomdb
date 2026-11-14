@@ -17,27 +17,12 @@ def controller_admission(allocation, root, cell, deadline, manifest, mode):
 
 def require_cell_admission(manifest_path, deadline, config_path, output):
     """Refuse bare/stale cells before copying or invoking a measured program."""
-    from g_boundary import require_known_containment
     from g_campaign import calibration_plan, make_g_plan
 
     if os.environ.get("AGENT_LONG") != "1":
         raise RuntimeError("production cell requires AGENT_LONG=1 and active controller admission")
-    require_known_containment(os.environ["S30_TASK"])
-    credential = json.loads(os.environ.get("S30_G_CELL_ADMISSION", "null"))
-    if not isinstance(credential, dict):
-        raise RuntimeError("production cell requires active controller admission")
-    allocation = Path(credential["allocation"])
-    budget = json.loads((allocation / "g-budget.json").read_text())
-    inflight = budget.get("inflight") or {}
-    admission = inflight.get("admission")
-    if admission != credential or inflight.get("status", "running") != "running":
-        raise RuntimeError("cell admission is absent, stale or cleanup is unknown")
-    parent = os.getppid()
-    fields = Path(f"/proc/{parent}/stat").read_text().rsplit(") ", 1)[1].split()
-    if (parent != admission["controller_pid"] or int(fields[19]) != admission["controller_start"]
-            or fields[0] in ("Z", "X")
-            or Path(f"/proc/{parent}/cgroup").read_text() != Path("/proc/self/cgroup").read_text()):
-        raise RuntimeError("cell controller identity/boundary does not match admission")
+    admission, inflight = _active_admission("S30_G_CELL_ADMISSION")
+    allocation = Path(admission["allocation"])
     manifest_path, config_path, output = map(lambda value: Path(value).resolve(),
                                              (manifest_path, config_path, output))
     cell = json.loads(config_path.read_text())
@@ -59,3 +44,40 @@ def require_cell_admission(manifest_path, deadline, config_path, output):
             or (mode == "first-100k-seed-exploratory" and cell["id"] != "g1-n100000")
             or cell["id"] in manifest.get("reused", {})):
         raise RuntimeError("cell is outside the admitted closed stage or is already qualified")
+
+
+def _active_admission(variable):
+    from g_boundary import require_known_containment
+    require_known_containment(os.environ["S30_TASK"])
+    credential = json.loads(os.environ.get(variable, "null"))
+    if not isinstance(credential, dict):
+        raise RuntimeError("production cell requires active controller admission")
+    allocation = Path(credential["allocation"])
+    budget = json.loads((allocation / "g-budget.json").read_text())
+    inflight = budget.get("inflight") or {}
+    admission = inflight.get("admission")
+    if admission != credential or inflight.get("status", "running") != "running":
+        raise RuntimeError("cell admission is absent, stale or cleanup is unknown")
+    parent = os.getppid()
+    fields = Path(f"/proc/{parent}/stat").read_text().rsplit(") ", 1)[1].split()
+    if (parent != admission["controller_pid"] or int(fields[19]) != admission["controller_start"]
+            or fields[0] in ("Z", "X")
+            or Path(f"/proc/{parent}/cgroup").read_text() != Path("/proc/self/cgroup").read_text()):
+        raise RuntimeError("cell controller identity/boundary does not match admission")
+    return admission, inflight
+
+
+def require_common_admission(job, config, output):
+    """Refuse bare metadata workers before any freeze/preflight/report output or read."""
+    admission, inflight = _active_admission("S30_G_COMMON_ADMISSION")
+    job, config, output = (Path(value).resolve() for value in (job, config, output))
+    cell = json.loads(config.read_text())
+    mode = admission["mode"]
+    expected = {"id": "g-common-"+mode}
+    if (mode not in ("closed-copy-calibration", "closed-copy-read-r1", "closed-copy-write-matrix")
+            or cell != expected or admission["cell"] != expected or inflight.get("cell") != expected["id"]
+            or str(job) != admission["manifest"] or time.monotonic_ns() >= admission["deadline_ns"]
+            or not job.is_relative_to(Path(admission["allocation"]) / "common/jobs")
+            or config != output / "cell.json" or output.parent != Path(admission["results"]) / expected["id"]
+            or not output.name.startswith("attempt-")):
+        raise RuntimeError("common worker is outside its live fixed admission")

@@ -101,8 +101,13 @@ def run_g_attempt(cell, root, command, deadline_ns, context=None, monitor=None):
             error = "complete forecast exceeds actual remaining allowance or is unavailable"
         else:
             environment = None
-            if isinstance(context, dict) and context.get("cell_admission"):
-                environment = dict(os.environ, S30_G_CELL_ADMISSION=json.dumps(context["cell_admission"]))
+            if isinstance(context, dict):
+                for key, variable in (("cell_admission", "S30_G_CELL_ADMISSION"),
+                                      ("common_admission", "S30_G_COMMON_ADMISSION")):
+                    if context.get(key):
+                        if environment is None:
+                            environment = dict(os.environ)
+                        environment[variable] = json.dumps(context[key])
             child = subprocess.Popen(argv, stdout=log, stderr=subprocess.STDOUT, start_new_session=True,
                                      env=environment)
             try:

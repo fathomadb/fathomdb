@@ -31,7 +31,7 @@ def _call(allocation, mode, action, options):
         else:
             review_path = json.loads(Path(options["root"], "manifest.json").read_text())["cost_review_from"]
         limits = reviewed_limits(review_path)
-    outcome = run_common(allocation, mode, worker_command(job), limits=limits)
+    outcome = run_common(allocation, mode, worker_command(job), limits=limits, admission_job=job)
     if outcome["status"] != "complete":
         raise RuntimeError(f"supervised {action} incomplete: {outcome}")
     return json.loads(Path(outcome["attempt"], "result.json").read_text())["value"]

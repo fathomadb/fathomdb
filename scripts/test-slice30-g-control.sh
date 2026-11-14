@@ -26,4 +26,4 @@ export TMPDIR="$S30_TASK/tmp/g-live-controls"
 exec .venv/bin/python -m unittest -v \
   g_phase_tests g_boundary_tests g_boundary_entry_tests g_boundary_dispatch_tests \
   g_guarded_entry_tests g_phase_error_tests g_closed_guard_tests \
-  g_closed_uncommitted_tests g_closed_cell_cli_tests
+  g_closed_uncommitted_tests g_closed_cell_cli_tests g_common_cli_tests

@@ -131,6 +131,9 @@ mod runtime_lifecycle;
 mod search;
 #[cfg(any(test, feature = "slice30-observer"))]
 mod slice30_observer;
+#[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+#[doc(hidden)]
+pub use slice30_observer::Slice30ProjectionObservationGuard;
 #[cfg(any(test, feature = "slice30-observer"))]
 #[doc(hidden)]
 pub use slice30_observer::{

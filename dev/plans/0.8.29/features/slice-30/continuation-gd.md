@@ -840,6 +840,15 @@ The accepted G11/73 result, original sources/UUIDs, caps and compiler pins remai
 unchanged. D adds a separately built artifact/source identity; no fingerprint
 relaxation or retagging makes a future G binary equivalent to it.
 
+Independent Astra D design PASS approved the amendment. The exclusive D source
+checkout now enters integrated `6696f3a1dacb93749a1ea9580403e4d334230ea3`:
+G closed tooling and qualified20 Linux451 are integrated. The only engine Rust
+delta from the fit base is20's cfg(test) open-hook module/aliases; projection
+production paths and the G observer are unchanged. M remains separate. Preserve
+both test modules; reconcile any later predecessor before the final source gate.
+The first bounded D-T1a native slot authorizes only compilation, actual semantic
+RED and minimal ownership-phase GREEN, not measurement or cap adoption.
+
 Existing G `Slice30ObservationGuard` is deliberately neither Send nor Clone;
 its TLS is not inherited by dispatcher/projection workers. Public projection
 status is categorical, not the private numeric runtime state. These are actual

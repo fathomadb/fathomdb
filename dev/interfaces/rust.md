@@ -219,6 +219,22 @@ Snapshot authority reads are feature+active gated, explicitly observer-added on
 the actual reader transaction; read failure records unavailable without authority
 values or changing the product outcome.
 
+### Private Slice30 projection test observations
+
+Only the conjunction of engine features `slice30-observer` and `test-hooks`
+exposes doc-hidden
+`Engine::begin_slice30_projection_observation_for_test(max_records, origin)`
+and `Slice30ProjectionObservationGuard`. No SDK, facade, binding or shipped
+CLI forwards this test hook. The caller supplies its whole-cell monotonic
+`Instant`; capacity/errors and the single G-or-D engine slot follow the existing
+bounded observer contract. Begin/drop performs no SQL, wake or provider call.
+The D guard is Send+Sync, not Clone, and retains no engine/SQL/provider lifetime.
+`with_operation` preserves return/unwind behavior; `take` retains bounded loss
+accounting. The current source-preparation scaffold has no worker admission or
+background records yet; these require the ordered runtime RED/GREEN units in
+[the D contract](../plans/0.8.29/features/slice-30/continuation-gd.md#d-source-fit-and-exact-private-observer-contract).
+The foreground G guard and signed/default SDK surface remain unchanged.
+
 ### Explicit MCP admission observations
 
 `fathomdb-mcp/test-seams` alone exposes `Seams::observe_pre_enqueue` and its

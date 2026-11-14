@@ -105,3 +105,12 @@ Parent verified those bytes and clean applicability before import. This approves
 the design only: fresh isolated G source entry/parent GO and actual runtime/GPU
 qualification remain; D source GO is separate. No accepted P timing is rerun or
 relabelled, and no whole30/40/50/Block1 clearance follows.
+
+## D source-fit amendment — design PASS
+
+Independent Astra `/root/slice30_d_astra_design` approved the D-only amendment
+at the actual2a6401da fit base, with no findings. Fixed24 C/T cells, unchanged
+caps, pre-seed observation window, per-engine worker custody and ordered
+D-T1a..4 runtime RED/GREEN remain required. The new exclusive D checkout has
+source-preparation authority only until its native lease; no RED execution,
+measurement qualification or G/M/whole30 clearance is claimed.

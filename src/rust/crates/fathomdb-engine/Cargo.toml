@@ -943,3 +943,7 @@ required-features = ["slice30-observer", "test-hooks"]
 [[test]]
 name = "slice100_interruption"
 required-features = ["operator", "test-hooks"]
+
+[[test]]
+name = "slice30_d_observer"
+required-features = ["slice30-observer", "test-hooks"]

@@ -387,3 +387,110 @@ impl Engine {
         })
     }
 }
+
+/// Shareable private projection observation session; not an engine lifetime pin.
+#[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+pub struct Slice30ProjectionObservationGuard {
+    owner: Weak<WalAttributionCollector>,
+    collector: Arc<Collector>,
+}
+
+#[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+impl Slice30ProjectionObservationGuard {
+    /// Run work with this engine/session and caller-assigned operation identity.
+    /// Nested calls and unwind restore the prior context; work returns unchanged.
+    pub fn with_operation<R>(&self, operation_id: u64, work: impl FnOnce() -> R) -> R {
+        let token = OperationToken {
+            collector: Arc::downgrade(&self.collector),
+            engine_id: self.collector.engine_id,
+            operation_id,
+            parent_span_id: None,
+        };
+        let _restore = OperationScope(CURRENT.with(|slot| slot.replace(Some(token))));
+        work()
+    }
+
+    /// Drain bounded records outside product clocks, retaining loss/issue counts.
+    pub fn take(&self) -> Slice30ObservationBatch {
+        let mut issues = vec![];
+        let records = match self.collector.records.lock() {
+            Ok(mut records) => {
+                std::mem::replace(&mut *records, Vec::with_capacity(self.collector.capacity))
+            }
+            Err(_) => {
+                issues.push("record_buffer_unavailable");
+                vec![]
+            }
+        };
+        Slice30ObservationBatch {
+            session_sequence: self.collector.take_sequence.fetch_add(1, Ordering::Relaxed) + 1,
+            records,
+            dropped_records: self.collector.dropped.load(Ordering::Relaxed),
+            issues,
+        }
+    }
+}
+
+#[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+impl Drop for Slice30ProjectionObservationGuard {
+    fn drop(&mut self) {
+        self.collector.active.store(false, Ordering::Release);
+        if let Some(owner) = self.owner.upgrade() {
+            if let Ok(mut active) = owner.slice30_observation.active.lock() {
+                if active.ptr_eq(&Arc::downgrade(&self.collector)) {
+                    *active = Weak::new();
+                }
+            }
+        }
+    }
+}
+
+#[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+impl Engine {
+    /// Begin a bounded, shareable projection diagnostic session for this engine.
+    /// The supplied monotonic origin belongs to the driver's whole-cell clock.
+    /// Bounds outside1..=32768 or duplicate sessions return InvalidArgument;
+    /// closed engines return Closing. No SQL/provider work occurs on begin/drop.
+    #[doc(hidden)]
+    pub fn begin_slice30_projection_observation_for_test(
+        &self,
+        max_records: usize,
+        origin: Instant,
+    ) -> Result<Slice30ProjectionObservationGuard, EngineError> {
+        let _operation = self.ensure_open()?;
+        if !(1..=32768).contains(&max_records) {
+            return Err(EngineError::InvalidArgument {
+                msg: "observer records must be in1..=32768".into(),
+            });
+        }
+        let slot = &self.wal_attribution.slice30_observation;
+        let mut active = slot.active.lock().map_err(|_| EngineError::Storage)?;
+        if active.upgrade().is_some_and(|collector| collector.active.load(Ordering::Acquire)) {
+            return Err(EngineError::InvalidArgument {
+                msg: "engine already has an observation".into(),
+            });
+        }
+        let session_id = slot
+            .next_session
+            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |n| n.checked_add(1))
+            .map_err(|_| EngineError::InvalidArgument {
+                msg: "observation session exhausted".into(),
+            })?;
+        let collector = Arc::new(Collector {
+            engine_id: Arc::as_ptr(&self.wal_attribution) as usize,
+            session_id,
+            origin,
+            capacity: max_records,
+            active: AtomicBool::new(true),
+            next_span: AtomicU64::new(1),
+            take_sequence: AtomicU64::new(0),
+            dropped: AtomicU64::new(0),
+            records: Mutex::new(Vec::with_capacity(max_records)),
+        });
+        *active = Arc::downgrade(&collector);
+        Ok(Slice30ProjectionObservationGuard {
+            owner: Arc::downgrade(&self.wal_attribution),
+            collector,
+        })
+    }
+}

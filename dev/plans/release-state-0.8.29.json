@@ -212,9 +212,9 @@
         "dev/plans/0.8.29/features/slice-30/continuation-gd.md",
         "dev/plans/0.8.29/features/slice-30/continuation-m.md"
       ],
-      "phase": "P_AND_G_SEED_100K_QUALIFIED_REMAINING_G_PENDING",
+      "phase": "P_AND_G_11_CASES_QUALIFIED_73_CAP_REFUSED",
       "plan_sha": "bea7f05cd2497af0d73c6eb8da509e11a947ca08",
-      "conditions": "P/source qualification and six actual G cases are accepted with original provenance: G0,10k seed/two read repeats, synthetic branches and100k seed. First failed G0/branch attempts and original conservative100k refusal remain retained. The completed exploratory100k seed is Ready/pending0 before close/after reopen with100000natural/vector/physical/span rows; this is not a search-snapshot proof.78 G obligations remain. A narrow six-reference reuse plan passed Astra design review; source implementation/review/full qualification and separate fresh runtime GO precede normal fixed84 assessment. M has a qualified closed100k input, but exact MCP tooling/source/runtime proof and remaining-budget fit remain. D/F/whole30,40/50/pre90 and whole20 remain open.",
+      "conditions": "P and G source qualification plus11 actual G cases are accepted. Normal fixed84 assessment preserved6 original cases and qualified5 new cases:100k R0 and four paired natural diagnostics.73 required obligations remain unsatisfied: fresh R1 cap refusal,36 G-W whole-cell forecast refusals and36 G-W missing-cost refusals. No waiver or wholeG/30 exit. M has a qualified closed100k input; source/tooling, actual MCP/native/cache/GPU proof and a reviewed complete-table budget disposition remain. Read-only M fit proposes6h TOTAL shared time/64GiB TOTAL storage because actual lower bounds exceed4h/16GiB; this is not active or runtime authority. D/F and whole20/40/50/pre90/100Q1 remain open.",
       "evidence": "P tools and measured Linux direct-text subset at2fd772558 passed fresh independent Astra-medium final P review on clean documentation0d8be5bb;16grouped genuine RED/GREEN units and invalid124 fixture history remain explicit.16/16 frozen first-attempt cells complete,20000successful timed natural calls,zero errors/noisy cells/retries/resource stops. Unfiltered100k P1 p50 27.184-27.509ms/p99 106.911-107.682ms is below tracked nongated80/300; filtered P2 is not AC083. Parent independently checked hashes/raw counts/percentiles/means; Astra checked batch/probe/match identities. Qualification is assembled from original1f214/216 plus actual affected reruns; original SC2312/Pages/MD012 failures and inner skips retain subjects. Production native receipt remains1f with unchanged relevant inputs; normal release measurement executable was built and run at2fd. See features/slice-30/results-p.md,execution.md and review-log.md. No model/GPU/MCP/frozen-fidelity or whole-slice/release completion follows.",
       "qualified_subset_sha": "2fd772558e46d0b1645dce2ffea730d0bdd3305c",
       "continuation_plan_sha": "0d8be5bb75516955ebf99b94913b9b54921bb3a4",
@@ -277,6 +277,146 @@
         "evidence": "Owned G task logs/receipts/g-staged-final-full-verify; earlier f870 qualification and973b failure/resumption remain in source/execution history."
       },
       "g_campaign_current": {
+        "source_sha": "29de06806cc22ab6b8e67f970133f856f3c42f78",
+        "campaign_uuid": "4fb7a91f-2d41-445d-a132-258334a8f3fe",
+        "stage": "NORMAL_FIXED_84_ASSESSMENT",
+        "status": "ASSESSED_11_QUALIFIED_73_REQUIRED_CAP_REFUSED",
+        "campaign_complete": false,
+        "outcomes": {
+          "reused_complete": 6,
+          "complete": 5,
+          "not_run_cap": 73
+        },
+        "failed": 0,
+        "qualified_case_total": 11,
+        "new_cases": [
+          "g-r-n100000-r0",
+          "g-o-natural-r0-off",
+          "g-o-natural-r0-on",
+          "g-o-natural-r1-on",
+          "g-o-natural-r1-off"
+        ],
+        "provenance": "Six previous cases retain exact original source/UUID/path/charges, not retagged or rerun. Five new cases belong to29de/4fb7. Original first failures/refusals/consumed seed token retained.",
+        "read_100k_r0": {
+          "attempt_elapsed_ns": 709385925507,
+          "timed": 6000,
+          "warmups": 3000,
+          "first_calls": 6,
+          "qualification_issues": [],
+          "sdk_samples_per_route": 1000,
+          "sdk_text_ms": {
+            "mean": 32.966658396,
+            "p50": 27.195064,
+            "p99": 105.893519
+          },
+          "sdk_hybrid_ms": {
+            "mean": 195.889437617,
+            "p50": 186.792685,
+            "p99": 350.029897
+          },
+          "sdk_embed_ms": {
+            "mean": 3.023451822,
+            "p50": 3.03623,
+            "p99": 3.421036
+          },
+          "sdk_route_wall_ns": {
+            "text": 33007299668,
+            "hybrid": 196056669924,
+            "embed": 3028534869
+          },
+          "sdk_open_once_ns": 945054791,
+          "sdk_close_ns": 10452648,
+          "note": "Standalone SDK execution, not MCP transport/exclusiveGPU/fidelity; R1 remains unqualified. Open occurs once peradapter, not once perroute. AC083 remains text-only/nongated."
+        },
+        "natural_diagnostics": "Each of four cells300timed/0warmups/0first; off0observations/on300. Paired order preserved, no loss/attribution issues; descriptive50queries perroute/adapter only, no canonical diagnostic percentile qualification.",
+        "cap_refusals": {
+          "R1_fresh_seed_1315871925088ns_over_900s": 1,
+          "G_W_whole_cell_time_forecast": 36,
+          "G_W_cost_observation_unavailable": 36
+        },
+        "shared_used_ns": 1845130877940,
+        "new_charge_ns": 814648281333,
+        "retained_bytes": 1903142018,
+        "inflight": null,
+        "one_shot_consumed": true,
+        "caps": "Actual G remains both900s, shared14400s/16GiB. No reset/deletion/expansion/substitution/retry.",
+        "review": "Independent Astra ACCEPT actual ordered84 outcomes, populations/GPU/closes/observers/provenance/accounting. Parent independently recomputed SDK means/nearest-rank percentiles from raw1000-call populations and checked counts/budget.",
+        "cleanup": "No resource stop/cleanup uncertainty; exact private boundary populated0/removed, native/guardian/runner/marker absent. Supervisor absent after RELEASE_VERIFIED; selected3090 quiet and FD9 released.",
+        "scope": "73 refused rows remain required and unsatisfied. No wholeG/30/M/D/fidelity/downstream clearance."
+      },
+      "g_staged_source": {
+        "design_sha": "a5aa4b8935ce455ce67eb6fce681855a3b1bb85a",
+        "design_correction_sha": "c5984246887dda0e14dec2a25161ea7df9d25f1a",
+        "implementation_sha": "bf647231eba70d562888ab312f33b904008a7565",
+        "documentation_sha": "94d8341b32af62fca7289d068bab551344a7e204",
+        "review": "Distinct independent Astra-medium implementation ACCEPT, no actionable findings. Original design review passed; the prospective2x admission-policy amendment changes no hard limit or outcome criterion and needs no additional owner ruling solely for that technical rule.",
+        "tdd": "Four actual RED/GREEN pairs cover branch-only polling, original-result reuse, closed-stage stop and exploratory admission.60/60 affected controls; frozen new RED files and existing51 unchanged.",
+        "runtime_boundary": "Source qualification only. Separate branch-controls stage first; only after qualified branch results and separate technical GO may first-100k-seed-exploratory run once. Original4 case identities/charges preserved, all84 obligations visible. Both900s hard limits/shared14400s/16GiB and failed conservative forecast unchanged."
+      },
+      "g_campaign_10k_checkpoint": {
+        "source_sha": "60f471aaf042203d07a15025662ebf572f6cc242",
+        "campaign_uuid": "5e89e1dc-8fbd-4848-bc2a-8dc84e478f16",
+        "status": "PARTIAL_4_COMPLETE_79_NOT_RUN_CAP_1_FAILED",
+        "complete_cells": [
+          "g0-smoke",
+          "g1-n10000",
+          "g-r-n10000-r0",
+          "g-r-n10000-r1"
+        ],
+        "qualification": "Independent Astra-medium ACCEPT for these four completed cells only. Actual same-PID positive GPU memory/utilization witnesses qualify G0 and10k work; original source, campaign and native-build identities retained.",
+        "seed_10k": "Ready, pending0, natural/vector/physical/span rows10000; elapsed65.326146421s. Stored span coverage8471 full-body/1529 partial/0 unknown.",
+        "reads_10k": "Each repeat6000 successful timed calls,3000 warmups and6 first calls; adapter/route order reversed. Descriptive host measurements, no CPU-isolated causal comparison, exclusive GPU-cost or fidelity claim.",
+        "seed_100k": {
+          "status": "NOT_RUN_CAP_FEASIBILITY",
+          "forecast_ns": 1306635944940,
+          "hard_cell_cap_ns": 900000000000,
+          "retained_bytes_forecast": 1449923880
+        },
+        "g_o_branches": "Failed qualification: actual_reserved_gpu_engagement_unobserved. All15 native steps completed/exit0; ordinary1s polling supplied no strict positive witness. No product-failure inference or borrowed G0 witness.",
+        "shared_used_ns": 357099039661,
+        "inflight": null,
+        "cleanup": "All owned actors gone, exact private cgroup populated0 and removed, marker absent, selected3090 quiet and cooperative claim released. No resource stop or cleanup uncertainty.",
+        "continuation": "Reviewed staged controller implementation is source-qualified at bf647 with final220/220. Actual branch/100k runtime still awaits separate fresh technical readiness/GO. Preserve original four completed measurements and all84 obligations. Both900s limits/shared14400s/16GiB unchanged; no cap growth, charge reset, passing-case replay or automatic stage advance."
+      },
+      "g_selected_input_for_m": {
+        "source_sha": "d9b81334b8bc2c0476fe4438673f1361e3c46504",
+        "campaign_uuid": "eb4da153-0185-4335-a41c-38f8a8c12af5",
+        "store": "/mnt/data/tmp2/fathomdb-0829-continuation/slice30-g-20261113/gd-allocation/g-frozen-seed100k-v4/results/g1-n100000/attempt-0001/seed/store.sqlite",
+        "status": "Qualified closed Default SDK100k input; all owned actors gone. M must pin its selected subject and own source/native/model/device/tooling before runtime; no M source/runtime GO follows.",
+        "latest_custody": "Original seed subject d9b8/eb4da153 preserved. Subsequent29de/4fb7 read-only assessment is complete with verified closes, all actors absent and cooperative claim released. Future M must verify closed packaging and pin its selected input before making owned copies."
+      },
+      "g_remaining_plan_sha": "53c81a0155738b4477fcd931d119c976d5d50c66",
+      "g_remaining_design_review": "Astra-medium PASS: strict six-reference seed\u2192branch\u2192base reuse via existing normal full84 entry, unchanged ordering/caps/token/qualification. R1 remains fresh; no waiver. One callable semantic RED plus actual harmless schedule/resume controls before minimal GREEN. No new owner ruling required for this implementation scope.",
+      "g_residual_source_verification": {
+        "source_sha": "bfe03918dda8262891086a9ae532a8fd68950e19",
+        "documentation_sha": "04c8306389067de45884c42a4e4c56d7ff10f633",
+        "state": "ASSEMBLED_QUALIFICATION_ACCEPTED",
+        "review": "Independent Astra ACCEPT implementation and assembled qualification; no actionable findings.",
+        "affected_controls": "63/63 in33.481s; frozen semantic RED unchanged, existing60 unchanged. Production change only13insertions/5deletions in two Python files; no qualifier/native/compiler-input/cap/token change.",
+        "original_full_attempt": {
+          "wrapper_exit": 124,
+          "child_exit": -15,
+          "lint_typecheck": "PASS",
+          "security": "0violations/0blockers/0downgrades",
+          "resource_stop": "owned allocation observation failed: du: cannot access '/mnt/data/tmp2/fathomdb-0829-continuation/slice30-g-20261113/tmp/tmp5t264c2j': No such file or directory\n",
+          "collector": "Interrupted during test-runtime-checkpoints.192 completed-prefix registrations supported by serial checkpoint progress and no failure output; no original final table."
+        },
+        "remaining_run": {
+          "wrapper_exit": 0,
+          "registered": 28,
+          "ran": 28,
+          "passed": 28,
+          "failed": 0,
+          "suite_skips": 0,
+          "excluded": 0,
+          "scope": "Whole interrupted suite and every later canonical registration, including late fast suites. Exact reviewed preamble/tail; no prefix replay/exclusions/source or sampler changes."
+        },
+        "source_identity": "Both attempts start/end clean bfe with empty deltas; docs04c only existing qualification status. Native/compiler inputs and original artifact identities unchanged.",
+        "cleanup": "Both exact private boundaries populated0/removed; marker and owned actors independently absent, no cleanup uncertainty. Remainder no resource stop.",
+        "limits": "Original124 remains unqualified as a full wrapper. Assembled source coverage192+28, no uninterrupted220 claim; Rust/Python/TS suites pass, current inner counts unavailable. No actual normal84/G-R100k/M/D/fidelity/wholeG30 acceptance.",
+        "evidence": "Owned G task logs/receipts/g-normal-six-final-full-verify and g-normal-six-remaining-only; exact remaining operator outside repo."
+      },
+      "g_campaign_seed_checkpoint": {
         "source_sha": "d9b81334b8bc2c0476fe4438673f1361e3c46504",
         "campaign_uuid": "eb4da153-0185-4335-a41c-38f8a8c12af5",
         "stage": "first-100k-seed-exploratory",
@@ -317,76 +457,25 @@
         "cleanup": "Owned actors, exact private boundaries and markers absent after populated0/removal; no resource stop/cleanup uncertainty. Final selected3090 quiet; persistent supervisor absent and FD9 claim released normally.",
         "continuation": "Normal six-reference reuse source qualified at bfe039 through accepted assembled verification; six completed measurements remain original. Separate normal fixed84 readiness/technical GO is next. Expected five runnable/73cap remains forecast until actual assessment. All required rows/caps/charges/consumed token preserved; no runtime yet."
       },
-      "g_staged_source": {
-        "design_sha": "a5aa4b8935ce455ce67eb6fce681855a3b1bb85a",
-        "design_correction_sha": "c5984246887dda0e14dec2a25161ea7df9d25f1a",
-        "implementation_sha": "bf647231eba70d562888ab312f33b904008a7565",
-        "documentation_sha": "94d8341b32af62fca7289d068bab551344a7e204",
-        "review": "Distinct independent Astra-medium implementation ACCEPT, no actionable findings. Original design review passed; the prospective2x admission-policy amendment changes no hard limit or outcome criterion and needs no additional owner ruling solely for that technical rule.",
-        "tdd": "Four actual RED/GREEN pairs cover branch-only polling, original-result reuse, closed-stage stop and exploratory admission.60/60 affected controls; frozen new RED files and existing51 unchanged.",
-        "runtime_boundary": "Source qualification only. Separate branch-controls stage first; only after qualified branch results and separate technical GO may first-100k-seed-exploratory run once. Original4 case identities/charges preserved, all84 obligations visible. Both900s hard limits/shared14400s/16GiB and failed conservative forecast unchanged."
-      },
-      "g_campaign_10k_checkpoint": {
-        "source_sha": "60f471aaf042203d07a15025662ebf572f6cc242",
-        "campaign_uuid": "5e89e1dc-8fbd-4848-bc2a-8dc84e478f16",
-        "status": "PARTIAL_4_COMPLETE_79_NOT_RUN_CAP_1_FAILED",
-        "complete_cells": [
-          "g0-smoke",
-          "g1-n10000",
-          "g-r-n10000-r0",
-          "g-r-n10000-r1"
-        ],
-        "qualification": "Independent Astra-medium ACCEPT for these four completed cells only. Actual same-PID positive GPU memory/utilization witnesses qualify G0 and10k work; original source, campaign and native-build identities retained.",
-        "seed_10k": "Ready, pending0, natural/vector/physical/span rows10000; elapsed65.326146421s. Stored span coverage8471 full-body/1529 partial/0 unknown.",
-        "reads_10k": "Each repeat6000 successful timed calls,3000 warmups and6 first calls; adapter/route order reversed. Descriptive host measurements, no CPU-isolated causal comparison, exclusive GPU-cost or fidelity claim.",
-        "seed_100k": {
-          "status": "NOT_RUN_CAP_FEASIBILITY",
-          "forecast_ns": 1306635944940,
-          "hard_cell_cap_ns": 900000000000,
-          "retained_bytes_forecast": 1449923880
-        },
-        "g_o_branches": "Failed qualification: actual_reserved_gpu_engagement_unobserved. All15 native steps completed/exit0; ordinary1s polling supplied no strict positive witness. No product-failure inference or borrowed G0 witness.",
-        "shared_used_ns": 357099039661,
-        "inflight": null,
-        "cleanup": "All owned actors gone, exact private cgroup populated0 and removed, marker absent, selected3090 quiet and cooperative claim released. No resource stop or cleanup uncertainty.",
-        "continuation": "Reviewed staged controller implementation is source-qualified at bf647 with final220/220. Actual branch/100k runtime still awaits separate fresh technical readiness/GO. Preserve original four completed measurements and all84 obligations. Both900s limits/shared14400s/16GiB unchanged; no cap growth, charge reset, passing-case replay or automatic stage advance."
-      },
-      "g_selected_input_for_m": {
-        "source_sha": "d9b81334b8bc2c0476fe4438673f1361e3c46504",
-        "campaign_uuid": "eb4da153-0185-4335-a41c-38f8a8c12af5",
-        "store": "/mnt/data/tmp2/fathomdb-0829-continuation/slice30-g-20261113/gd-allocation/g-frozen-seed100k-v4/results/g1-n100000/attempt-0001/seed/store.sqlite",
-        "status": "Qualified closed Default SDK100k input; all owned actors gone. M must pin its selected subject and own source/native/model/device/tooling before runtime; no M source/runtime GO follows."
-      },
-      "g_remaining_plan_sha": "53c81a0155738b4477fcd931d119c976d5d50c66",
-      "g_remaining_design_review": "Astra-medium PASS: strict six-reference seed\u2192branch\u2192base reuse via existing normal full84 entry, unchanged ordering/caps/token/qualification. R1 remains fresh; no waiver. One callable semantic RED plus actual harmless schedule/resume controls before minimal GREEN. No new owner ruling required for this implementation scope.",
-      "g_residual_source_verification": {
-        "source_sha": "bfe03918dda8262891086a9ae532a8fd68950e19",
-        "documentation_sha": "04c8306389067de45884c42a4e4c56d7ff10f633",
-        "state": "ASSEMBLED_QUALIFICATION_ACCEPTED",
-        "review": "Independent Astra ACCEPT implementation and assembled qualification; no actionable findings.",
-        "affected_controls": "63/63 in33.481s; frozen semantic RED unchanged, existing60 unchanged. Production change only13insertions/5deletions in two Python files; no qualifier/native/compiler-input/cap/token change.",
-        "original_full_attempt": {
-          "wrapper_exit": 124,
-          "child_exit": -15,
-          "lint_typecheck": "PASS",
-          "security": "0violations/0blockers/0downgrades",
-          "resource_stop": "owned allocation observation failed: du: cannot access '/mnt/data/tmp2/fathomdb-0829-continuation/slice30-g-20261113/tmp/tmp5t264c2j': No such file or directory\n",
-          "collector": "Interrupted during test-runtime-checkpoints.192 completed-prefix registrations supported by serial checkpoint progress and no failure output; no original final table."
-        },
-        "remaining_run": {
-          "wrapper_exit": 0,
-          "registered": 28,
-          "ran": 28,
-          "passed": 28,
-          "failed": 0,
-          "suite_skips": 0,
-          "excluded": 0,
-          "scope": "Whole interrupted suite and every later canonical registration, including late fast suites. Exact reviewed preamble/tail; no prefix replay/exclusions/source or sampler changes."
-        },
-        "source_identity": "Both attempts start/end clean bfe with empty deltas; docs04c only existing qualification status. Native/compiler inputs and original artifact identities unchanged.",
-        "cleanup": "Both exact private boundaries populated0/removed; marker and owned actors independently absent, no cleanup uncertainty. Remainder no resource stop.",
-        "limits": "Original124 remains unqualified as a full wrapper. Assembled source coverage192+28, no uninterrupted220 claim; Rust/Python/TS suites pass, current inner counts unavailable. No actual normal84/G-R100k/M/D/fidelity/wholeG30 acceptance.",
-        "evidence": "Owned G task logs/receipts/g-normal-six-final-full-verify and g-normal-six-remaining-only; exact remaining operator outside repo."
+      "m_source_fit_pending": {
+        "status": "READ_ONLY_PREPARATION_COMPLETE_AMENDMENT_REVIEW_PENDING",
+        "scope": "No production API/config/environment/observer/schema change needed; test-seams-only private stdio helper and new concurrent invocation/metrics tooling. Existing aggregate assumes responses and old RawClient discards unmatched IDs; actual code gaps identified.",
+        "qualification_clarifications": "Hybrid compute stages need actual same-PID GPU evidence. Direct text has no embedding/vector work: preserve owned CUDA/provider identity and report query GPU use not-applicable, no extra pulses/queries. Tiny M-E diagnostics should be explicitly provider-free. Both need Astra fit review.",
+        "prospective_budget": {
+          "total_shared_seconds": 21600,
+          "total_shared_retained_bytes": 68719476736,
+          "whole_cell_seconds": 900,
+          "status": "PROPOSED_NOT_ACTIVE",
+          "carried_used_ns": 1845130877940,
+          "carried_retained_bytes": 1903142018,
+          "fresh_100k_copies": 34,
+          "copy_lower_bound_bytes": 24317583360,
+          "conservative_2x_copies_plus_G_bytes": 50538308738,
+          "ancillary_reserve_bytes": 17179869184,
+          "serialized_2x_SDK_natural_proxy_ns": 13146542536068,
+          "remaining_original_4h_ns": 12554869122060,
+          "note": "6h/64GiB TOTAL including all prior charges/bytes, not renewed/additional. Actual natural-loop proxy alone exceeds old remaining time;34copies exceed16GiB. Complete remaining copy/open/lifecycle/diagnostic/output/failure forecasts must fit before dispatch. Independent design review and parent disposition precede any amendment; oldG caps/freezes/refusals stay historical."
+        }
       }
     },
     {
@@ -826,7 +915,7 @@
   },
   "release_readiness": {
     "status": "NOT_READY",
-    "qualification": "Slice10 preparation and Slice70 bounded SDK parity complete. Qualified subsets are integrated for20 Linux,30 P/source and six actual G cases including the closed100k seed,60 MCP and100 coverage/native work.78 G obligations and D/M/F plus whole30/60-F11, Windows20 A6,100 Q1, other selected outcomes and final160 remain pending. All original failures, forecast refusals, resumptions, ignores/skips and unavailable counts retain their subjects; no whole-release or published-package claim.",
+    "qualification": "Slice10 preparation and Slice70 bounded SDK parity complete. Qualified subsets:20 Linux,30 P/source and11 actual G cases,60 MCP,100 coverage/native.73 required G cap refusals plus D/M/F, whole30/60-F11, Windows20 A6,100 Q1, other selected outcomes and final160 remain pending. Source normal-entry qualification is assembled with original124 preserved; all failures/refusals/inner skips and unavailable counts keep their subjects. No whole-release or published-package claim.",
     "publication": "HELD; no tag, dispatch, external ACL mutation or registry publication authorized by bootstrap."
   },
   "generated_views": [

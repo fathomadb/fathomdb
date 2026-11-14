@@ -50,24 +50,20 @@ uninterrupted220-suite wrapper pass. Both owned boundaries/actors were cleaned
 and verified; current Rust/Python/TS inner totals are unavailable after canonical
 passing-log cleanup. Earlier full/source evidence retains its original subject.
 
-Six actual G cases are independently qualified: original G0, 10k seed and two
-10k reads, followed by synthetic branches and the 100k seed. All 15 branch native
-steps completed with strict GPU engagement. The 100k seed completed in 657.096s;
-close/reopen checks show Ready/pending0/generationfailed0 and 100000 natural,
-vector, physical-vector and span rows. Coverage is 83644 full-body spans, 16356
-partial and zero unknown; these counts are not a search-snapshot proof.
+Eleven actual G cases are independently qualified. The latest normal84-row
+assessment preserved six original cases, qualified five new cases and recorded73
+required cap refusals, with no failures. The new ordinary100k R0 has6000 timed
+calls,3000 warmups and six first calls. SDK text p50/p99 is27.195/105.894ms;
+hybrid is186.793/350.030ms. These are standalone SDK measurements, not MCP or
+fidelity results; AC083 remains text-only and nongated. Four paired natural
+diagnostic cells each have300 calls and descriptive50-query populations.
 
-Original failed attempts and the conservative 1306.636-second forecast/refusal
-remain retained. The separately reviewed one-shot admission kept both 900-second
-hard limits, shared14400s and16GiB unchanged. The latest stage has five original
-references, one new completed seed and78 held obligations. Shared charge is
-1030.482596607 seconds, retained allocation1540312679B, inflight null and the
-one-shot consumed. Owned actors/boundaries/markers are gone; GPU quiescence and
-normal cooperative-claim release are verified.
-
-The narrow normal fixed84 reuse extension is source-qualified; fresh readiness
-and separate runtime GO still precede remaining assessment. No
-G-R100k, D/M/F, fidelity, whole-G or whole30 acceptance follows.
+The73 unsatisfied rows are the fresh R1 (2x seed1315.872s>900s),36 G-W whole-cell
+forecast refusals and36 G-W missing-cost refusals. They are not waived. Shared
+charge is1845.130877940s, retained allocation1903142018B, inflight null and the
+seed token consumed. All original provenance, failures and forecasts remain.
+Owned actors/boundaries/markers are gone; the selectedGPU is quiet and the
+cooperative claim is released. WholeG/30, D/M/F and downstream gates stay open.
 
 The earlier 973b full wrapper failed hints overhead at 209.8us against the
 unchanged 200us limit; one preserved-artifact resumption passed and was reviewed.
@@ -78,7 +74,11 @@ remain recorded, without a source hints repair or causal inference; see the
 The [M continuation](../0.8.29/features/slice-30/continuation-m.md) passed
 independent Astra design review and now has a qualified closed G100k input.
 Its proposed 46-cell matrix still needs selected-subject pins, implemented/
-reviewed tools, own MCP/native/GPU proof and remaining-budget fit; no M GO follows. D and F retain their own holds. The Slice20 A3/A5 prerequisite for M is
+reviewed tools, own MCP/native/GPU proof and remaining-budget fit; no M GO follows.
+Read-only fit found that required copies and the conservative natural-loop proxy
+exceed the old16GiB/4h envelope. A prospective6h TOTAL/64GiB TOTAL amendment carries
+all prior charges/bytes; independent design review and complete component
+forecasts precede adoption or execution. Current execution bounds stay unchanged. D and F retain their own holds. The Slice20 A3/A5 prerequisite for M is
 satisfied; Windows A6, whole30,40/50 and pre90 gates remain open. Independently
 qualified60 and completed70 retain their recorded bounds.
 

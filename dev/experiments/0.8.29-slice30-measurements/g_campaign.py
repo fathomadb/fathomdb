@@ -118,17 +118,24 @@ def predict_seed(cell, previous, cell_usage):
             "seed_ns": (2 * observed_ns * cell["n"] + observed_rows - 1) // observed_rows,
             "seed_bytes": (2 * active_bytes(lower["attempt"]) * cell["n"] + observed_rows - 1) // observed_rows}
 
+def calibration_plan(spec):
+    """Return the four separately identified fixed calibration controls."""
+    plan = make_g_plan(spec)
+    template = next(cell for cell in plan if cell["id"] == "g-w-b1-s1-engine-text-r0")
+    calibration = [dict(template, id=f"g-cal-{adapter}-b{batch}-s{ratio}",
+                            name=f"g-cal-{adapter}-b{batch}-s{ratio}", adapters=[adapter],
+                            batch_size=batch, searches_per_batch=ratio, calibration=True)
+                       for batch, ratio in ((10, 1), (1, 100)) for adapter in ("engine", "sdk")]
+    return calibration
+
+
 def run_g_plan(spec, root, command, prepare=None, allocation_root=None, assess=None, reused=None, stage=None, prior_outcome_path=None):
     """Run every fixed G obligation against one shared allocation and absolute cell clock."""
     plan = make_g_plan(spec)
     if spec.get("preparation") == "closed-copy-v1" and spec.get("closed_mode") == "closed-copy-calibration":
         root = Path(root)
         root.mkdir(parents=True, exist_ok=True)
-        template = next(cell for cell in plan if cell["id"] == "g-w-b1-s1-engine-text-r0")
-        calibration = [dict(template, id=f"g-cal-{adapter}-b{batch}-s{ratio}",
-                            name=f"g-cal-{adapter}-b{batch}-s{ratio}", adapters=[adapter],
-                            batch_size=batch, searches_per_batch=ratio, calibration=True)
-                       for batch, ratio in ((10, 1), (1, 100)) for adapter in ("engine", "sdk")]
+        calibration = calibration_plan(spec)
         separate = _run_plan(spec, calibration, root / "calibration", command, prepare,
                              allocation_root, assess, None, None, prior_outcome_path,
                              prerequisites=reused)
@@ -289,6 +296,13 @@ def _run_plan(spec, plan, root, command, prepare, allocation_root, assess, reuse
                             # Consume the admission durably before any child can start, including a new-root retry.
                             budget["exploratory_seed100k"] = {"consumed": True, "cell": cell["id"],
                                 "root": str(root), "consumed_at_ns": time.time_ns(), "prediction": prediction}
+                            save_budget()
+                        if isinstance(context, dict) and context.get("prepared_manifest"):
+                            from g_admission import controller_admission
+                            admission = controller_admission(allocation, root, cell, deadline,
+                                context["prepared_manifest"], spec.get("closed_mode", stage))
+                            budget["inflight"]["admission"] = admission
+                            context = dict(context, cell_admission=admission)
                             save_budget()
                         peak_retained = peak_store = 0
                         def observe_growth():

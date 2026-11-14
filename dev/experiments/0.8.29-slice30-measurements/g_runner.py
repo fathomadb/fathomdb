@@ -193,6 +193,10 @@ def run_prepared(manifest, root):
         if not path.exists():
             path.write_text(json.dumps(manifest, indent=2) + "\n")
             path.chmod(0o444)
+        if manifest.get("schema") != "slice30-g-campaign/v1":
+            # Callable protocol fixtures exercise the helper without a production CLI bypass.
+            code = "from g_runner import run_cell_job;import sys;sys.exit(not run_cell_job(sys.argv[1],int(sys.argv[2]),sys.argv[3],sys.argv[4]))"
+            return [sys.executable, "-c", code, str(path), str(deadline)]
         return [sys.executable, str(Path(__file__).resolve()), "_cell", str(path), str(deadline)]
     cache = {}
     predictions = {}
@@ -220,7 +224,10 @@ def run_prepared(manifest, root):
         return None
     def prepare(cell, _root):
         prediction = predictions.get(cell["id"])
-        return {"prospective_prediction": prediction} if prediction is not None else None
+        context = {"prospective_prediction": prediction} if prediction is not None else {}
+        if manifest.get("schema") == "slice30-g-campaign/v1":
+            context["prepared_manifest"] = str(path)
+        return context or None
     return run_g_plan(spec, root / "results", command, prepare=prepare,
                       allocation_root=manifest["allocation"], assess=assess, reused=manifest.get("reused"),
                       stage=manifest.get("stage"), prior_outcome_path=manifest.get("prior_outcome_path"))
@@ -426,8 +433,11 @@ def main():
     elif args.action == "_common":
         from g_closed_entry import common_worker
         common_worker(args.job, args.output)
-    elif not run_cell_job(args.manifest, args.deadline, args.config, args.output):
-        raise SystemExit(1)
+    else:
+        from g_admission import require_cell_admission
+        require_cell_admission(args.manifest, args.deadline, args.config, args.output)
+        if not run_cell_job(args.manifest, args.deadline, args.config, args.output):
+            raise SystemExit(1)
 
 
 if __name__ == "__main__":

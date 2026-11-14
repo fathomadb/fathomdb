@@ -196,6 +196,17 @@ def run_prepared(manifest, root):
     def assess(cell, previous, remaining_ns, retained_bytes):
         if cell["stage"] != "G0" and qualified_result(previous.get("g0-smoke"), cache) is None:
             return {"status": "not_run_prerequisite", "reason": "g0_not_qualified"}
+        if manifest.get("preparation") == "closed-copy-v1" and not cell.get("calibration"):
+            prediction = manifest.get("_closed_predictions", {}).get(cell["id"])
+            if prediction is None:
+                return {"status": "not_run_prerequisite", "reason": "qualified_calibration_costs_required"}
+            if not prediction.get("allowed"):
+                return {"status": "not_run_cap", "reason": "cap_feasibility", "prediction": prediction}
+            if (prediction.get("new_bytes", 0) + retained_bytes > cell["active_bytes"]
+                    or prediction["total_ns"] > remaining_ns):
+                return {"status": "not_run_cap", "reason": "current_remaining_feasibility", "prediction": prediction}
+            predictions[cell["id"]] = prediction
+            return None
         if cell["stage"] == "G-W" and not cell.get("calibration"):
             from g_forecast import forecast_write
             observed = observed_write_costs(cell, previous, manifest, cache)

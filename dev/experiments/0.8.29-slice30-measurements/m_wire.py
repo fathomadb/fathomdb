@@ -53,6 +53,22 @@ def _error(text):
     return dict(fields, **{"class": error_class, "code": code})
 
 
+def _hint(line):
+    head, explanation = line[len("hint: "):].rsplit(" (", 1)
+    reason, _ = explanation.split(": ", 1)
+    action, _, rest = head.partition(" ")
+    hint = {"action": action, "reason": reason}
+    if rest.startswith("["):
+        refs, size = json.JSONDecoder().raw_decode(rest)
+        hint["refs"] = refs
+        rest = rest[size:]
+    fields, remaining = _fields(rest)
+    if remaining:
+        raise ValueError("unexpected compact hint body")
+    hint.update(fields)
+    return hint
+
+
 def _fetch(text):
     header, separator, tail = text.partition("\n")
     if not separator:
@@ -68,7 +84,7 @@ def _fetch(text):
             raise ValueError("compact fetch item header lacks its framing LF")
         line = line.decode("utf-8")
         if line.startswith("hint: "):
-            payload["hints"].append({"raw_text": line})
+            payload["hints"].append(_hint(line))
             continue
         word, fields = line.split(" ", 1)
         reference, size = json.JSONDecoder().raw_decode(fields)
@@ -134,7 +150,7 @@ def _compact(text):
         payload = {"stores": [], "hints": []}
         for line in lines[1:]:
             if line.startswith("hint: "):
-                payload["hints"].append({"raw_text": line})
+                payload["hints"].append(_hint(line))
                 continue
             name, size = json.JSONDecoder().raw_decode(line)
             fields, _ = _fields(line[size:])
@@ -155,7 +171,7 @@ def _compact(text):
             arm, reason = line[len("degraded: "):].split(" ", 1)
             payload["degradation"].append({"arm": arm, "reason": reason})
         elif line.startswith("hint: "):
-            payload["hints"].append({"raw_text": line})
+            payload["hints"].append(_hint(line))
         elif line.startswith('"'):
             reference, size = json.JSONDecoder().raw_decode(line)
             fields, snippet = _fields(line[size:])

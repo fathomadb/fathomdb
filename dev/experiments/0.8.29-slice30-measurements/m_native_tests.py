@@ -278,5 +278,28 @@ class IdleLifecycleTests(NativeCase):
         self.assertTrue(session.exit["readers_joined"])
 
 
+class ProviderWordsTests(NativeCase):
+    """Existing explicit provider absence remains distinct from unavailable epoch metadata."""
+
+    def test_actual_none_provider_keeps_both_degradations_and_hint_cause(self):
+        for result_format in ("text", "structured"):
+            with self.subTest(result_format=result_format):
+                with RpcChild([str(self.cli), "--config", str(self.config(result_format))],
+                              self.root / result_format) as client:
+                    self.initialize(client)
+                    result = self.call(client, "search", {"query": "alpha", "mode": "hybrid"})
+                    payload = result["payload"]
+                    self.assertTrue(result["ok"])
+                    self.assertEqual(payload["degradation"], [
+                        {"arm": "vector", "reason": "embedder_absent"},
+                        {"arm": "vector", "reason": "embedder_unavailable"}])
+                    self.assertEqual(payload["completeness"], "partial")
+                    self.assertEqual(payload.get("hints", [])[0].get("cause"), "embedder_absent",
+                                     f"actual degraded hint cause was lost; retained={self.root}")
+                    self.assertEqual(payload["hints"][0], {"action": "none", "reason": "degraded",
+                                                        "arm": "vector", "cause": "embedder_absent"})
+                self.assertEqual(client.exit["code"], 0)
+
+
 if __name__ == "__main__":
     unittest.main()

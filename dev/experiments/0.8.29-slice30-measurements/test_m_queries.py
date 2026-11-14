@@ -29,7 +29,7 @@ class RegisteredQueryTests(unittest.TestCase):
             path.write_bytes(b'"river crossing"\n"say \\"alpha\\""\n"line one\\nline two"\n'
                              b'"c:\\\\notes\\\\alpha"\n"caf\xc3\xa9 \\ud83d\\ude00"\n')
             expected = ["river crossing", 'say "alpha"', "line one\nline two",
-                        "c:\\notes\\alpha", "café U0001f600"]
+                        "c:\\notes\\alpha", "café 😀"]
             with RpcChild([sys.executable, "-u", "-c", ECHO], root / "rpc") as client:
                 result = closed_loop(client, read_queries(path), 4, total=10, mode="text")
                 actual = [client.records[key]["response"]["result"]["arguments"]["query"]

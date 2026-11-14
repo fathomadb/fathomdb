@@ -1556,6 +1556,27 @@ shared1030482596607ns/`inflight:null` remain untouched.
 Clean e6d6093a3 combined G discovery passes63/63 in33.481s; existing60 oracles
 and the new RED file are unchanged. Raw `g-normal-six-reuse-{red,green}.log`,
 `g-normal-schedule-preservation.log` and `g-normal-six-combined.log` are retained.
-Fresh independent implementation review and this phase's final canonical full
-gate remain pending; no actual normal assessment, five-case qualification or
-73-refusal outcome is inferred from these controls.
+Fresh independent Astra ACCEPT covers implementation and assembled source
+qualification at unchanged cleanbfe03918d. The original full wrapper
+`g-normal-six-final-full-verify` exits124/child-15 on this exact strict sampler
+diagnostic:
+
+```text
+owned allocation observation failed: du: cannot access '/mnt/data/tmp2/fathomdb-0829-continuation/slice30-g-20261113/tmp/tmp5t264c2j': No such file or directory
+```
+
+Its lint/typecheck/security0 passes and serial checkpoint progress/no failure
+output support192 completed prefix registrations; there is no original final
+table. The reviewed canonical remaining-only operator reruns the interrupted
+runtime-checkpoints suite and every later registration, including late fast
+suites: `agent-test.sh: 28/28 suites passed (skipped=0 excluded=0)` in
+`g-normal-six-remaining-only.log`. This is assembled coverage, not an
+uninterrupted220-suite wrapper pass. Current inner Rust/Python/TS totals are
+unavailable after normal passing-log cleanup; no replay for counts.
+
+Both receipts retain unchangedbfe source/empty deltas and verified exact
+private-boundary cleanup; original-context actors/boundaries/markers are absent.
+The remaining-only receipt exits0 with no resource stop/cleanup uncertainty.
+The original124, strict sampler/limits, ledger/token and closed100k input remain
+unchanged. Actual normal assessment, five-case qualification and73-refusal
+outcome remain unrun and require separate readiness/technical GO.

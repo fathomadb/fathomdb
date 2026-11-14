@@ -11,12 +11,13 @@ observed_on: 2026-11-14
 ## Scope, predecessor review and release contracts
 
 The original FIX1/actual20 fit below grounded G-first implementation. Source/
-tooling atbf647231e has fresh independent Astra ACCEPT and canonical220/220.
+tooling atbfe03918d has fresh independent Astra ACCEPT and assembled source
+qualification (original124 plus reviewed canonical remainder28/28).
 The original60f/UUID5e89 four-case subset and the separately accepted d9b8
 branch/100k stages now supply six qualified original cases; see
 [execution](execution.md). Earlier failures/refusals remain unchanged. The new
-normal fixed84 reuse extension below is plan-only pending independent design
-review; no source/runtime or wholeG/30 authority follows. Parent owns release
+normal fixed84 reuse extension below is source-qualified; actual assessment
+remains held for fresh readiness/technical GO. No wholeG/30 authority follows. Parent owns release
 state; this checkout owns its plan. No roles, skills or nested agents are used.
 
 The original G-first sequence is **G routes and G observation**, followed by its
@@ -508,8 +509,9 @@ new native build is needed if compiler inputs and binaries remain identical.
 ### Proposed normal fixed84 assessment
 
 Independent Astra design PASS at53c81a015 covers this extension. The minimal
-source candidate and63-control result are recorded in execution.md; fresh
-implementation review/full qualification and actual runtime GO remain pending.
+source implementation/assembled qualification ACCEPT atbfe03918d and63-control
+result are recorded in execution.md. Actual assessment remains held for fresh
+readiness and separate technical GO.
 
 Review against unchanged R30-1..9/A30-1..7 and release req*/AC retains current
 format37, accepted20 A3/A5/60/70/100 predecessors, P evidence, freshness/provider

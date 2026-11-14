@@ -2,6 +2,7 @@
 
 import json, os, pathlib, subprocess, sys, time, traceback
 from g_resource import resource_sample
+from g_boundary import TaskBoundary
 from g_attempt import live_owned_pids, stop_owned_group, wait_unreaped
 
 root = pathlib.Path(os.environ["S30_SOURCE"]).resolve()
@@ -42,16 +43,20 @@ record = dict(
     resource_stop=None,
 )
 with (task / "logs" / f"{phase}.log").open("wb") as log:
-    child = subprocess.Popen(
-        cmd, cwd=root, stdout=log, stderr=subprocess.STDOUT, start_new_session=True
-    )
-    record["pid"] = child.pid
+    child = None
+    boundary = TaskBoundary(task)
     last = start
     swap_streak = 0
-    code = None
+    code = 125
     record["cleanup_uncertain"] = False
     record["live_owned_pids"] = []
     try:
+        boundary.create()
+        child = subprocess.Popen(
+            cmd, cwd=root, stdout=log, stderr=subprocess.STDOUT, start_new_session=True,
+            pass_fds=(boundary.procs_fd,), preexec_fn=boundary.attach,
+        )
+        record["pid"] = child.pid
         while True:
             code = wait_unreaped(child, 30)
             if code is not None:
@@ -62,6 +67,9 @@ with (task / "logs" / f"{phase}.log").open("wb") as log:
                     code = 125
                 else:
                     child.wait()
+                    if boundary.populated():
+                        record["executor_error"] = "owned_boundary_work_survived_leader"
+                        code = 125
                 break
             try:
                 s = sample()
@@ -92,16 +100,24 @@ with (task / "logs" / f"{phase}.log").open("wb") as log:
         traceback.print_exc(file=log)
         code = 125
     finally:
-        if child.returncode is None:
+        if child is not None and child.returncode is None:
             try:
                 record["live_owned_pids"] = stop_owned_group(child)
             except BaseException as error:
-                record["cleanup_uncertain"] = True
-                record["live_owned_pids"] = None
-                record["cleanup_error"] = f"{type(error).__name__}: {error}"
+                record["group_cleanup_error"] = f"{type(error).__name__}: {error}"
                 traceback.print_exc(file=log)
                 code = 125
-    record["child_exit"] = child.returncode
+        try:
+            boundary.cleanup()
+        except BaseException as error:
+            record["cleanup_uncertain"] = True
+            record["live_owned_pids"] = None
+            record["cleanup_error"] = f"{type(error).__name__}: {error}"
+            traceback.print_exc(file=log)
+            code = 125
+        record["boundary"] = boundary.evidence
+    record["child_exit"] = child.returncode if child else None
+    record.setdefault("pid", None)
 
 record.update(
     exit=code,

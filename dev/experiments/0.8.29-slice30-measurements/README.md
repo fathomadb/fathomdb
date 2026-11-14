@@ -24,6 +24,7 @@ No old prototype timing is a current baseline or fidelity result.
 | [g_spans.py](g_spans.py) | G-only sample-level inclusive span tree and demonstrated disjoint direct-child remainders; overlap remains nonadditive, errors/missing/drop attribution unavailable. No percentile subtraction. |
 | [test_g_spans.py](test_g_spans.py) | Six frozen literal interval/availability/operation-identity/containment oracles. Selected by existing Python discovery; no natural campaign. |
 | [g_phase.py](g_phase.py), [g_resource.py](g_resource.py), [test_g_phase.py](test_g_phase.py) | Owned native/build executor: exact reviewed strict resource sampling, pinned foreground-group cleanup and refusal of leader-only success; actual harmless-descendant runtime controls. Resource caps are independent from measurement budgets and unchanged. |
+| [g_boundary.py](g_boundary.py), [test_g_boundary.py](test_g_boundary.py) | Held task-owned cgroup-v2 controls contain the actual outer runner, separate cell session and native descendants. Real default-TERM/forced-escalation/normal-exit chains and controlled create/attach refusal retain independent runtime oracles. Unsupported delegation refuses before payload exec. |
 | [g_runtime_tests.py](g_runtime_tests.py) and [normal CLI runner](../../../scripts/test-slice30-g-cli.sh) | Twelve actual normal-program controls (including closed-store span witness binding): engine/SDK collector+nested unwind,shared public seed/configure/drain/report/reopen,governed1000-row boundary,early cap refusal,shared first/warmup/read/off-on populations,exact diagnostic calls,normal G-W replacements,adjacent readiness,typed filters/future views,and actual open/device/close reports. Both use no provider and never qualify dense/GPU work. Canonical heavy runner registration is present; scoped native controls pass as recorded in execution.md; assembled source qualification is under final review; actual Default/GPU qualification remains pending. |
 | [g_driver.py](g_driver.py), [g_attempt.py](g_attempt.py) | Current foreground driver binding and retained owned-process attempts under one absolute deadline. |
 | [g_runner.py](g_runner.py), [g_freeze.py](g_freeze.py), [g_gpu.py](g_gpu.py), [g_report.py](g_report.py) | Strict build/freeze/run/report entry, registered source/input/cache/native pins, actual selected3090 observations and scoped retained reports. Native/GPU execution remains separately gated. |
@@ -225,6 +226,16 @@ live foreground descendants. Fixed G production drivers inherit their attempt's
 private session; detached commands are not part of this contract. Group scans
 exclude already dead zombies, retain uncertainty on unavailable evidence, and
 never release the leader pin before the last signal/quiescence decision.
+
+`g_phase.py` additionally holds an exclusive private cgroup under its current
+delegated scope; its guardian stays outside that child boundary. Attachment is
+only a preopened-descriptor write/close before exec in a single-threaded guardian.
+Existing pinned outer TERM/grace remains; exact private cgroup forced cleanup
+also contains nested sessions, and populated0 precedes exact empty-group removal.
+No parent controller, limit or unrelated process is changed. Unavailable control
+or cleanup is a refusal/unknown result, never an uncontained fallback. Composed
+controls use real harmless children and test-only direct-libc pidfd rescue;
+forbidden writes are judged only after guardian completion.
 
 `g_runner.py` is the bounded G build/freeze/run/report entry.
 `test_g_runner.py` uses actual harmless commands to prove protocol-only reports

@@ -1,0 +1,199 @@
+{
+  "schema": "slice30-d-cells/v1",
+  "shared_ns": 14400000000000,
+  "retained_bytes": 17179869184,
+  "cells": [
+    {
+      "id": "d-c-held-n10000-r0",
+      "n": 10000,
+      "mode": "held",
+      "repeat": 0,
+      "layer": "C",
+      "cell_ns": 900000000000
+    },
+    {
+      "id": "d-t-held-n10000-r0",
+      "n": 10000,
+      "mode": "held",
+      "repeat": 0,
+      "layer": "T",
+      "cell_ns": 900000000000
+    },
+    {
+      "id": "d-t-held-n10000-r1",
+      "n": 10000,
+      "mode": "held",
+      "repeat": 1,
+      "layer": "T",
+      "cell_ns": 900000000000
+    },
+    {
+      "id": "d-c-held-n10000-r1",
+      "n": 10000,
+      "mode": "held",
+      "repeat": 1,
+      "layer": "C",
+      "cell_ns": 900000000000
+    },
+    {
+      "id": "d-c-overlap-n10000-r0",
+      "n": 10000,
+      "mode": "overlap",
+      "repeat": 0,
+      "layer": "C",
+      "cell_ns": 900000000000
+    },
+    {
+      "id": "d-t-overlap-n10000-r0",
+      "n": 10000,
+      "mode": "overlap",
+      "repeat": 0,
+      "layer": "T",
+      "cell_ns": 900000000000
+    },
+    {
+      "id": "d-t-overlap-n10000-r1",
+      "n": 10000,
+      "mode": "overlap",
+      "repeat": 1,
+      "layer": "T",
+      "cell_ns": 900000000000
+    },
+    {
+      "id": "d-c-overlap-n10000-r1",
+      "n": 10000,
+      "mode": "overlap",
+      "repeat": 1,
+      "layer": "C",
+      "cell_ns": 900000000000
+    },
+    {
+      "id": "d-c-held-n100000-r0",
+      "n": 100000,
+      "mode": "held",
+      "repeat": 0,
+      "layer": "C",
+      "cell_ns": 900000000000
+    },
+    {
+      "id": "d-t-held-n100000-r0",
+      "n": 100000,
+      "mode": "held",
+      "repeat": 0,
+      "layer": "T",
+      "cell_ns": 900000000000
+    },
+    {
+      "id": "d-t-held-n100000-r1",
+      "n": 100000,
+      "mode": "held",
+      "repeat": 1,
+      "layer": "T",
+      "cell_ns": 900000000000
+    },
+    {
+      "id": "d-c-held-n100000-r1",
+      "n": 100000,
+      "mode": "held",
+      "repeat": 1,
+      "layer": "C",
+      "cell_ns": 900000000000
+    },
+    {
+      "id": "d-c-overlap-n100000-r0",
+      "n": 100000,
+      "mode": "overlap",
+      "repeat": 0,
+      "layer": "C",
+      "cell_ns": 900000000000
+    },
+    {
+      "id": "d-t-overlap-n100000-r0",
+      "n": 100000,
+      "mode": "overlap",
+      "repeat": 0,
+      "layer": "T",
+      "cell_ns": 900000000000
+    },
+    {
+      "id": "d-t-overlap-n100000-r1",
+      "n": 100000,
+      "mode": "overlap",
+      "repeat": 1,
+      "layer": "T",
+      "cell_ns": 900000000000
+    },
+    {
+      "id": "d-c-overlap-n100000-r1",
+      "n": 100000,
+      "mode": "overlap",
+      "repeat": 1,
+      "layer": "C",
+      "cell_ns": 900000000000
+    },
+    {
+      "id": "d-c-held-n300000-r0",
+      "n": 300000,
+      "mode": "held",
+      "repeat": 0,
+      "layer": "C",
+      "cell_ns": 900000000000
+    },
+    {
+      "id": "d-t-held-n300000-r0",
+      "n": 300000,
+      "mode": "held",
+      "repeat": 0,
+      "layer": "T",
+      "cell_ns": 900000000000
+    },
+    {
+      "id": "d-t-held-n300000-r1",
+      "n": 300000,
+      "mode": "held",
+      "repeat": 1,
+      "layer": "T",
+      "cell_ns": 900000000000
+    },
+    {
+      "id": "d-c-held-n300000-r1",
+      "n": 300000,
+      "mode": "held",
+      "repeat": 1,
+      "layer": "C",
+      "cell_ns": 900000000000
+    },
+    {
+      "id": "d-c-overlap-n300000-r0",
+      "n": 300000,
+      "mode": "overlap",
+      "repeat": 0,
+      "layer": "C",
+      "cell_ns": 900000000000
+    },
+    {
+      "id": "d-t-overlap-n300000-r0",
+      "n": 300000,
+      "mode": "overlap",
+      "repeat": 0,
+      "layer": "T",
+      "cell_ns": 900000000000
+    },
+    {
+      "id": "d-t-overlap-n300000-r1",
+      "n": 300000,
+      "mode": "overlap",
+      "repeat": 1,
+      "layer": "T",
+      "cell_ns": 900000000000
+    },
+    {
+      "id": "d-c-overlap-n300000-r1",
+      "n": 300000,
+      "mode": "overlap",
+      "repeat": 1,
+      "layer": "C",
+      "cell_ns": 900000000000
+    }
+  ]
+}

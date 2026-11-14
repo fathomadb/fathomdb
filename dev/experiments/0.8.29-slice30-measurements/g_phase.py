@@ -134,6 +134,7 @@ with (log_root / f"{phase}.log").open("w", encoding="utf-8") as log:
             traceback.print_exc(file=log)
             code = 125
         record["boundary"] = boundary.evidence
+        record["owned_stop_observed_monotonic_ns"] = time.monotonic_ns()
     record["child_exit"] = child.returncode if child else None
     record.setdefault("pid", None)
 
@@ -152,7 +153,8 @@ except Exception as error:
         code = 124
     record["exit"] = code
 if closed_guard:
-    record["closed_common"] = closed_guard.finish(record["cleanup_uncertain"])
+    record["closed_common"] = closed_guard.finish(record["cleanup_uncertain"],
+                                                 record["owned_stop_observed_monotonic_ns"])
     if record["closed_common"].get("reserve_exceeded"):
         record["resource_stop"] = "closed_common_reserve_exceeded"
         code = 124

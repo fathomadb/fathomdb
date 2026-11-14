@@ -51,6 +51,7 @@ class ClosedGuard:
         budget = self.read()
         self.prior = budget["used_ns"]
         self.prior_common = budget.get("common_used_ns", {}).get(self.mode, 0)
+        self.prior_cells = dict(budget.get("cell_used_ns", {}))
         self.owned = False
         self.directory = self.allocation / "common" / "guardian" / self.mode
 
@@ -78,11 +79,13 @@ class ClosedGuard:
         charged = budget["used_ns"] - self.prior
         active = budget.get("inflight") or {}
         active_cell = 0
-        if active and not active.get("cell", "").startswith("g-common-"):
+        if (active and active.get("status") != "guardian_stopped"
+                and not active.get("cell", "").startswith("g-common-")):
             origin = active.get("started_monotonic_ns")
             if type(origin) is not int or origin < self.started:
                 raise RuntimeError("active closed cell has no matching monotonic accounting")
-            active_cell = now - origin
+            committed = budget.get("cell_used_ns", {}).get(active["cell"], 0) - self.prior_cells.get(active["cell"], 0)
+            active_cell = max(0, now - origin - committed)
         return max(0, now - self.started - charged - active_cell)
 
     def check(self):
@@ -101,12 +104,26 @@ class ClosedGuard:
             return "closed_shared_storage_exhausted"
         return None
 
-    def finish(self, uncertain):
+    def finish(self, uncertain, stopped_ns=None):
         """Charge observed residual wall after exact owned quiescence and final probes."""
         if not self.owned:
             return {"admitted": False, "charged_phase_ns": 0}
         now = time.monotonic_ns()
         budget = self.read()
+        recovered = 0
+        active = budget.get("inflight") or {}
+        if active and not active.get("cell", "").startswith("g-common-"):
+            origin = active.get("started_monotonic_ns")
+            if type(origin) is not int or origin < self.started:
+                raise RuntimeError("uncommitted closed cell has no owned monotonic interval")
+            through = now if uncertain else stopped_ns or now
+            committed = budget.get("cell_used_ns", {}).get(active["cell"], 0) - self.prior_cells.get(active["cell"], 0)
+            recovered = max(0, through - origin - committed)
+            usage = budget.setdefault("cell_used_ns", {})
+            usage[active["cell"]] = usage.get(active["cell"], 0) + recovered
+            budget["used_ns"] += recovered
+            active.update(status="cleanup_uncertain" if uncertain else "guardian_stopped",
+                          accounted_through_monotonic_ns=through, quiescence_known=not uncertain)
         residual = self.residual(budget, now)
         budget["used_ns"] += residual
         common = budget.setdefault("common_used_ns", {})
@@ -117,6 +134,6 @@ class ClosedGuard:
         else:
             budget["closed_guardian"] = None
         write_budget(self.path, budget)
-        return {"admitted": True, "residual_ns": residual,
+        return {"admitted": True, "residual_ns": residual, "recovered_cell_ns": recovered,
                 "charged_phase_ns": budget["used_ns"] - self.prior,
                 "common_used_ns": common[self.mode], "reserve_exceeded": exceeded}

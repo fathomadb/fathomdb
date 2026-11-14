@@ -43,6 +43,17 @@ class InvocationTests(unittest.TestCase):
             self.assertTrue(client.exit["readers_joined"])
             self.assertEqual(client.failures, [])
 
+    def test_normal_close_drains_arrived_responses_before_unresolved_disposition(self):
+        with tempfile.TemporaryDirectory() as root:
+            client = RpcChild([sys.executable, "-u", "-c", REVERSE_PAIR], root)
+            ids = [client.submit("echo", {"ordinal": index}) for index in range(2)]
+            client.close()
+            self.assertEqual(client.exit["code"], 0)
+            self.assertEqual([client.records[key]["status"] for key in ids],
+                             ["completed", "completed"])
+            self.assertEqual([client.records[key]["response"]["result"]["ordinal"]
+                              for key in ids], [0, 1])
+
 
 if __name__ == "__main__":
     unittest.main()

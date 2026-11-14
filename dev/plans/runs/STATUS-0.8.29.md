@@ -39,16 +39,16 @@ artifact-hash, ancestry and clean-tree checks; see
 [P results](../0.8.29/features/slice-30/results-p.md) and the
 [execution record](../0.8.29/features/slice-30/execution.md).
 Qualification remains assembled, with original failures and inner skips retained.
-G source/controller qualification, including the staged continuation, is
-integrated at `bf647231eba70d562888ab312f33b904008a7565` after fresh independent
-Astra ACCEPT, four genuine RED/GREEN units, 60 affected controls and a final
-canonical **220/220** gate with zero suite skips/exclusions. Rust/Python/TS suites
-passed; current inner counts are unavailable after canonical passing-log cleanup.
-Source/native identities and earlier failed attempts remain attributed honestly.
-The private guardian contains nested sessions, refuses missing/unknown/stale
-state and verifies quiescence; final boundary removal and independent no-survivor
-checks passed. Actual staged branch/100k measurements require separate readiness
-and technical GO; source qualification alone does not supply those results.
+Current G source/controller qualification is integrated at
+`bfe03918dda8262891086a9ae532a8fd68950e19` after independent Astra acceptance
+and63 affected controls. Its full attempt passed lint/typecheck/security, then
+stopped124 on a strict owned-allocation `du` ENOENT observation. Qualification
+is assembled from the192-prefix supported by serial checkpoint progress/no
+failure output and one exact canonical28/28 remainder, with zero suite skips/
+exclusions. The original interruption remains recorded; this is not an
+uninterrupted220-suite wrapper pass. Both owned boundaries/actors were cleaned
+and verified; current Rust/Python/TS inner totals are unavailable after canonical
+passing-log cleanup. Earlier full/source evidence retains its original subject.
 
 Six actual G cases are independently qualified: original G0, 10k seed and two
 10k reads, followed by synthetic branches and the 100k seed. All 15 branch native
@@ -65,8 +65,8 @@ references, one new completed seed and78 held obligations. Shared charge is
 one-shot consumed. Owned actors/boundaries/markers are gone; GPU quiescence and
 normal cooperative-claim release are verified.
 
-The narrow normal fixed84 reuse extension passed Astra design review; source
-work and fresh runtime qualification still precede remaining assessment. No
+The narrow normal fixed84 reuse extension is source-qualified; fresh readiness
+and separate runtime GO still precede remaining assessment. No
 G-R100k, D/M/F, fidelity, whole-G or whole30 acceptance follows.
 
 The earlier 973b full wrapper failed hints overhead at 209.8us against the

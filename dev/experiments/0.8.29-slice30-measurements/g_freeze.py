@@ -79,6 +79,11 @@ def freeze(options):
     if options.get("stage") and not options.get("reuse_completed_from"):
         raise ValueError("closed stage and original completed source must be selected together")
     spec = json.loads(Path(__file__).with_name("g-cells.json").read_text())
+    closed = options.get("preparation") == "closed-copy-v1"
+    if closed:
+        if options.get("stage") not in ("closed-copy-calibration", "closed-copy-read-r1", "closed-copy-write-matrix"):
+            raise ValueError("closed preparation requires one named reviewed controller mode")
+        spec["preparation"] = "closed-copy-v1"
     inputs = {}
     for key, expected in PINS.items():
         inputs[key] = identify(options[key])
@@ -140,6 +145,10 @@ def freeze(options):
                                 ("HF_HOME", "XDG_CACHE_HOME", "CUDA_CACHE_PATH", "CUDA_VISIBLE_DEVICES")},
                 "device_policy": f"cuda:{options['gpu_ordinal']}", "format": 37,
                 "measurement_scope": "G only; no D/M/F/whole30 or release clearance"}
+    if closed:
+        manifest.update(preparation="closed-copy-v1", closed_limits={"cell_seconds": 1500,
+            "campaign_seconds": 14400, "active_bytes": 16 * 1024**3,
+            "common_seconds": 600, "common_bytes": 1024**3, "calibration_cell_bytes": 3 * 1024**3})
     if options.get("stage"):
         manifest["stage"] = options["stage"]
     if options.get("reuse_completed_from"):
@@ -147,13 +156,23 @@ def freeze(options):
         original_stage = json.loads((Path(options["reuse_completed_from"]) / "manifest.json").read_text()).get("stage")
         if not options.get("stage") and original_stage != "first-100k-seed-exploratory":
             raise ValueError("normal G reuse requires the qualified exploratory seed source")
-        if options.get("stage") and original_stage == "first-100k-seed-exploratory":
+        if not closed and options.get("stage") and original_stage == "first-100k-seed-exploratory":
             raise ValueError("exploratory seed references require normal G entry")
         manifest["reuse_completed_from"] = str(Path(options["reuse_completed_from"]).resolve())
         manifest["reused"] = collect_reuse(manifest, manifest["reuse_completed_from"])
         manifest["prior_outcome_path"] = str(Path(manifest["reuse_completed_from"]) / "results/g-outcomes.json")
         if options.get("stage") == "first-100k-seed-exploratory" and "g-o-branches" not in manifest["reused"]:
             raise ValueError("exploratory seed stage requires the qualified branch-stage subject")
+    if closed:
+        reference = manifest["reused"]["g1-n100000"]
+        seed = json.loads(Path(reference["attempt"], "result.json").read_text())["steps"][0]
+        store = Path(seed["closed_store"]) if "closed_store" in seed else Path(seed["output"]) / "store.sqlite"
+        files = {"": identify(store)}
+        wal = store.with_name(store.name + "-wal")
+        if wal.exists():
+            files["-wal"] = identify(wal)
+        manifest["closed_subject"] = {"files": files, "coverage": seed["span_coverage"],
+            "fixture": seed["result"].get("after_reopen", {}), "origin": reference["origin"]}
     output.mkdir(parents=True, exist_ok=False)
     for name, value in (("manifest.json", manifest), ("plan.json", manifest["plan"])):
         path = output / name

@@ -4,11 +4,21 @@ import json, os, pathlib, subprocess, sys, time, traceback
 from g_resource import resource_sample
 from g_boundary import TaskBoundary
 from g_attempt import live_owned_pids, stop_owned_group, wait_unreaped
+from g_closed_guard import ClosedGuard, discover
 
+phase_started_ns = time.monotonic_ns()
 root = pathlib.Path(os.environ["S30_SOURCE"]).resolve()
 task = pathlib.Path(os.environ["S30_TASK"]).resolve()
 phase = sys.argv[1]
 cmd = sys.argv[2:]
+closed_profile = discover(cmd)
+closed_guard = ClosedGuard(closed_profile, phase_started_ns, task) if closed_profile else None
+log_root = closed_guard.directory / "logs" if closed_guard else task / "logs"
+receipt_root = closed_guard.directory / "receipts" if closed_guard else task / "receipts"
+if closed_guard:
+    log_root.mkdir(parents=True, exist_ok=True)
+    receipt_root.mkdir(parents=True, exist_ok=True)
+    os.environ["S30_CLOSED_RECEIPT"] = str(receipt_root / f"{phase}.json")
 
 
 def git(*args):
@@ -23,15 +33,20 @@ def sample():
                 measurement_retries=observed["measurement_retries"],
                 swap_pages=int(vm["pswpin"]) + int(vm["pswpout"]))
 
-start = sample()
-GiB = 1024**3
-if (
-    start["root_free"] < 32 * GiB
-    or start["task_free"] < 250 * GiB
-    or start["memory_available"] < 16 * GiB
-    or start["owned_bytes"] >= 200 * GiB
-):
-    raise SystemExit("resource start floor fails: " + json.dumps(start))
+try:
+    start = sample()
+    GiB = 1024**3
+    if (
+        start["root_free"] < 32 * GiB
+        or start["task_free"] < 250 * GiB
+        or start["memory_available"] < 16 * GiB
+        or start["owned_bytes"] >= 200 * GiB
+    ):
+        raise SystemExit("resource start floor fails: " + json.dumps(start))
+except BaseException as error:
+    if closed_guard:
+        closed_guard.charge_refusal(f"entry {type(error).__name__}: {error}")
+    raise
 record = dict(
     phase=phase,
     command=cmd,
@@ -42,7 +57,7 @@ record = dict(
     samples=[start],
     resource_stop=None,
 )
-with (task / "logs" / f"{phase}.log").open("w", encoding="utf-8") as log:
+with (log_root / f"{phase}.log").open("w", encoding="utf-8") as log:
     child = None
     boundary = TaskBoundary(task)
     last = start
@@ -51,6 +66,8 @@ with (task / "logs" / f"{phase}.log").open("w", encoding="utf-8") as log:
     record["cleanup_uncertain"] = False
     record["live_owned_pids"] = []
     try:
+        if closed_guard:
+            closed_guard.admit()
         boundary.create()
         child = subprocess.Popen(
             cmd, cwd=root, stdout=log, stderr=subprocess.STDOUT, start_new_session=True,
@@ -58,6 +75,12 @@ with (task / "logs" / f"{phase}.log").open("w", encoding="utf-8") as log:
         )
         record["pid"] = child.pid
         while True:
+            if closed_guard:
+                common_stop = closed_guard.check()
+                if common_stop:
+                    record["resource_stop"] = common_stop
+                    code = 124
+                    break
             code = wait_unreaped(child, 30)
             if code is not None:
                 survivors = live_owned_pids(child)
@@ -116,6 +139,7 @@ with (task / "logs" / f"{phase}.log").open("w", encoding="utf-8") as log:
             traceback.print_exc(file=log)
             code = 125
         record["boundary"] = boundary.evidence
+        record["owned_stop_observed_monotonic_ns"] = time.monotonic_ns()
     record["child_exit"] = child.returncode if child else None
     record.setdefault("pid", None)
 
@@ -133,11 +157,18 @@ except Exception as error:
     if code == 0:
         code = 124
     record["exit"] = code
-(task / "receipts" / f"{phase}.json").write_text(json.dumps(record, indent=2) + "\n")
+if closed_guard:
+    record["closed_common"] = closed_guard.finish(record["cleanup_uncertain"],
+                                                 record["owned_stop_observed_monotonic_ns"])
+    if record["closed_common"].get("reserve_exceeded"):
+        record["resource_stop"] = "closed_common_reserve_exceeded"
+        code = 124
+        record["exit"] = code
+(receipt_root / f"{phase}.json").write_text(json.dumps(record, indent=2) + "\n")
 print(
     json.dumps({k: record[k] for k in ["phase", "exit", "pid", "resource_stop"]}),
     flush=True,
 )
 if code:
-    print((task / "logs" / f"{phase}.log").read_text(errors="replace")[-18000:])
+    print((log_root / f"{phase}.log").read_text(errors="replace")[-18000:])
 raise SystemExit(code if code >= 0 else 128 - code)

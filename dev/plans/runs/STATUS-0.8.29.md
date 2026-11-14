@@ -24,79 +24,26 @@ selected platform/artifact and final acceptance remain pending.
 
 <!-- BEGIN GENERATED release-state:0.8.29:status-next-action -->**Continue Slice 30 (MEASURE)** — Current source-bound baseline and tracked AC083 measurements. **Remaining ladder:** 30 → 20 → 40 → 50 → 60 → 80 → 90 → 100 → 110 → 120 → 130 → 140 → 150 → 160.<!-- END GENERATED release-state:0.8.29:status-next-action -->
 
-Slice20's independently reviewed Linux hook-ownership repairs are integrated
-at657edeb76caaf9c8d2aab433766bec9362e73217;
-[execution](../0.8.29/features/slice-20/execution.md) preserves assembled
-qualification and limits. Owner rulings seq-369/370 now govern the A3/A5
-verification-only continuation and capacity-only disk preparation. These proofs
-and RAW preparation are integrated at f803a964 after fresh final Astra PASS and
-assembled216-suite qualification; Windows A6 remains unqualified.20 and the
-Block1 exit are not closed. The reviewed30
-[prerequisite amendment](../0.8.29/features/slice-30/prerequisite-change.md)
-was satisfied for the provider-free Linux P subset. The parent accepts that
-subset after independent code/results/documentation PASS and its own raw-data,
-artifact-hash, ancestry and clean-tree checks; see
-[P results](../0.8.29/features/slice-30/results-p.md) and the
-[execution record](../0.8.29/features/slice-30/execution.md).
-Qualification remains assembled, with original failures and inner skips retained.
-Current G source/controller qualification is integrated at
-`bfe03918dda8262891086a9ae532a8fd68950e19` after independent Astra acceptance
-and63 affected controls. Its full attempt passed lint/typecheck/security, then
-stopped124 on a strict owned-allocation `du` ENOENT observation. Qualification
-is assembled from the192-prefix supported by serial checkpoint progress/no
-failure output and one exact canonical28/28 remainder, with zero suite skips/
-exclusions. The original interruption remains recorded; this is not an
-uninterrupted220-suite wrapper pass. Both owned boundaries/actors were cleaned
-and verified; current Rust/Python/TS inner totals are unavailable after canonical
-passing-log cleanup. Earlier full/source evidence retains its original subject.
+Current source and measurement subjects are distinct; the JSON remains the
+ladder authority. Original failures, interrupted wrappers, inner skips and native
+build attribution stay in the linked execution records.
 
-Eleven actual G cases are independently qualified. The latest normal84-row
-assessment preserved six original cases, qualified five new cases and recorded73
-required cap refusals, with no failures. The new ordinary100k R0 has6000 timed
-calls,3000 warmups and six first calls. SDK text p50/p99 is27.195/105.894ms;
-hybrid is186.793/350.030ms. These are standalone SDK measurements, not MCP or
-fidelity results; AC083 remains text-only and nongated. Four paired natural
-diagnostic cells each have300 calls and descriptive50-query populations.
+| Work | Qualified or reviewed | Still open |
+| --- | --- | --- |
+| 20 | Linux source45167677 has fresh Astra acceptance and assembled220/220 qualification. Two genuine hook-alias RED/GREEN repairs preserve all old oracles; original wrapper exit1 and both metadata corrections remain in [execution](../0.8.29/features/slice-20/execution.md). | Actual Windows A6: owned RAW disk reattachment/format answer, capacity/readiness and real selectors. Whole20 and Block1 are open. |
+| 30 G | Closed-copy tooling0fa61810 has implementation and assembled-source Astra ACCEPT: original completed prefix, unchanged Rust proof attributed tobfe03918 and current18/18 suffix. [Execution](../0.8.29/features/slice-30/execution.md) preserves the lost guardian/missing original terminal receipt. | Calibration/R1/write runtime needs separate technical GO. Actual G stays11qualified/73required cap refusals of84; no expanded profile is active. |
+| 30 M | Source candidated942 has implementation ACCEPT; qualified closed100k input exists. [Continuation](../0.8.29/features/slice-30/continuation-m.md). | Reconcile integrated predecessors, complete owned final source qualification, then actual46-cell work under a reviewed fitting allocation. |
+| 30 D | Scoped source-fit design has Astra PASS; a real-store D-T1a test and compilable seam are staged in an isolated checkout. | Actual semantic RED/GREEN, source qualification and all24 C/T cells. No runtime or cost-probe GO. F still needs the exact TC5 pack. |
+| 40 | [Measurement table and artifact amendment](../0.8.29/features/slice-40/measurement-plan.md) have Astra PASS. Real hybrid direct-eligibility opportunity remains open; no treatment or owner deferral is selected. | Affected write evidence, exact safety/invariance, prospective tolerances and paired treatment qualification before adoption. |
+| 50/60/80/90 | Census access method is reviewed;60's format/filter/budget subset and completed70 are integrated. | Exact census input, identity/F11 rulings, settled full80 contracts and actual Block1 follow-up exit before90. |
+| 100 | Source/G2/native subset85f7 is accepted. The original healthy Q1 case is qualified. [Execution](../0.8.29/features/slice-100/execution.md). | Original interruption remains UNQUALIFIED; an additional corrected pair is unanswered. No extra fault authority. |
+| 110/120 | Canonical requirements/design/test maps have independent Astra PASS. | Reset/residue/venue policy and artifact/channel/scope choices; compiler6111901 safety is UNKNOWN and blocks CUDA13 builds/delivery. |
 
-The73 unsatisfied rows are the fresh R1 (2x seed1315.872s>900s),36 G-W whole-cell
-forecast refusals and36 G-W missing-cost refusals. They are not waived. Shared
-charge is1845.130877940s, retained allocation1903142018B, inflight null and the
-seed token consumed. All original provenance, failures and forecasts remain.
-Owned actors/boundaries/markers are gone; the selectedGPU is quiet and the
-cooperative claim is released. WholeG/30, D/M/F and downstream gates stay open.
-
-The earlier 973b full wrapper failed hints overhead at 209.8us against the
-unchanged 200us limit; one preserved-artifact resumption passed and was reviewed.
-The later final f870 full gate passed without another target retry. Both outcomes
-remain recorded, without a source hints repair or causal inference; see the
-[Slice60 execution record](../0.8.29/features/slice-60/execution.md).
-
-The [M continuation](../0.8.29/features/slice-30/continuation-m.md) passed
-independent Astra design review and now has a qualified closed G100k input.
-Its proposed 46-cell matrix still needs selected-subject pins, implemented/
-reviewed tools, own MCP/native/GPU proof and remaining-budget fit; no M GO follows.
-Read-only fit found that required copies and the conservative natural-loop proxy
-exceed the old16GiB/4h envelope. A prospective6h TOTAL/64GiB TOTAL amendment carries
-all prior charges/bytes; independent design review and complete component
-forecasts precede adoption or execution. Current execution bounds stay unchanged. D and F retain their own holds. The Slice20 A3/A5 prerequisite for M is
-satisfied; Windows A6, whole30,40/50 and pre90 gates remain open. Independently
-qualified60 and completed70 retain their recorded bounds.
-
-The corrected [Slice50 access method](../0.8.29/features/slice-50/census.md)
-passed independent Astra review. Existing census scope is already approved;
-exact artifact/provenance/custody inputs remain missing. New acquisition is a
-separate specifically authorized action. No consumer data was accessed or copied.
-
-Slice 100 owner decisions seq-371/372 are recorded in the
-[ledger](../../steward/steward-ledger.jsonl). Its qualified source, G2 coverage and
-native subset is integrated at `85f7eb219d96ff75c27cf24660218aa1a1c79780` after
-final independent Astra ACCEPT. Assembled coverage accounts for all 217 registered
-suites, with original failures and targeted repairs retained; see the
-[execution record](../0.8.29/features/slice-100/execution.md). This includes the
-original qualified healthy Q1 run. The interruption remains UNQUALIFIED, without
-confirmed fault-exit, raw snapshot or recovery qualification. An additional
-matched pair question is unanswered; Slice 100 and D28-09 stay open. Native work
-has returned to G; Slice 100 is held for additional scope and a scheduled window.
+G's shared allocation remains charged1845130877940ns with1903142018B retained,
+no inflight cell and the exploratory token consumed. All73 refusals and original
+reference identities remain required/historical. Source acceptance is not new
+Default/GPU, M/D/F, cache, whole30 or release qualification. Existing60/70 exits
+are preserved unless affected code changes invalidate specific evidence.
 
 ## Retained gates
 

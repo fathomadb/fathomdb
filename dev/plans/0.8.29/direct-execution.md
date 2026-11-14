@@ -18,13 +18,23 @@ the requested slice owners and reviewers directly.
 
 ## Current continuation scope
 
-The owner requests sequential remaining-slice completion with one dedicated owner
-per slice and parent evaluation before dispatching the next. Each owner reconciles
-actual integrated predecessor work and updates its scope, plan, requirements/AC,
-design and product architecture as needed before the independent Astra-medium
-adversarial design review. After PASS, use real RED/GREEN and a fresh Astra-medium
-implementation review. Preserve existing completed exits unless affected evidence
-requires a scoped recheck. Parent owns release-plan/state integration serially.
+The owner requests remaining-slice completion by parallel isolated owners, one
+dedicated owner per slice, each in its own task tree or worktree. Three things
+stay serial: root release-plan/state/ledger integration by the parent; the single
+local heavy window (native builds, full gates, GPU, Windows VM), held by one owner
+at a time; and each slice's own design review → RED/GREEN → implementation review.
+Each owner reconciles actual integrated predecessor work and updates its scope,
+plan, requirements/AC, design and product architecture as needed before the
+independent Astra-medium adversarial design review. After PASS, use real RED/GREEN
+and a fresh Astra-medium implementation review. Preserve existing completed exits
+unless affected evidence requires a scoped recheck.
+
+A slice waits only for what it consumes: a named reviewed artifact, contract,
+ruling, measurement or input. Whole-slice closure of a predecessor is required
+only where the JSON ladder or a reviewed plan says so. Scope, research, design
+and design review never wait on another slice's closure or on full20. Narrowing
+an existing reviewed source-entry gate is itself a design change: it needs Astra
+design review and parent integration, and the old gate holds until then.
 
 Use `/mnt/data/` for parent and slice worktrees and all owned task scratch, build
 targets, caches, temp files and qualification output. Set `TMPDIR` and
@@ -37,6 +47,36 @@ and selected permitted hardware/installed-consumer proof remain in scope. Keep
 CI/publication and post-publication smoke explicitly outstanding at160; local
 completion is distinct from published-release completion. Specific unresolved
 policy/artifact/fault/venue/spend choices are not answered by this mandate.
+
+Excluding CI discharges no evidence. A selected mandatory160
+installed-consumer or platform row (Q14) that a permitted local or owned venue
+can qualify must be qualified there, and stays open until it is; the same
+holds for any locally runnable part of the Q18 release dry-run. Finished
+bounded local tasks are recorded as such and are not local completion. The
+local mandate is complete only when the sole unmet rows are those that need
+excluded CI execution or publication; each such row is named outstanding,
+neither waived nor passed.
+
+## Work before records
+
+Per slice, the maintained record is: scope, requirements/AC, design, test map,
+the committed failing tests and fixes, raw results and real exits, and the two
+review verdicts. Update these once, with the substantive work.
+
+- Do not add supplemental receipts, audit packets, review recaps, hash
+  inventories, execution diaries or status appendices, and do not add
+  bookkeeping-only commits or documentation phases beyond the work. Explicitly
+  requested plan or contract work, such as a plan correction or the required
+  new110/120 designs, is real work, not bookkeeping.
+- Do not replay passing tests, rehash artifacts or reconstruct old receipts for
+  bookkeeping. A reviewer reads the diff and the recorded results; a rerun needs
+  a concrete doubt about a specific result.
+- Do not add approval stops for settled scope or per-helper reviews. Batch
+  review at coherent implementation milestones.
+- Keep: raw scientific measurements with their inputs and caps, source/native
+  binding checks, resource limits and owned cleanup, per-behavior RED/GREEN,
+  both independent reviews and real platform proof. Existing append-only
+  ledgers and historical records stay as they are.
 
 ## Per-slice sequence
 
@@ -54,10 +94,11 @@ policy/artifact/fault/venue/spend choices are not answered by this mandate.
    verification. Fix actionable findings and re-review within repository retry
    bounds. No self-review or narration substitutes for a terminal verdict.
 5. Verify actual files/diff, test exits and both review results; integrate only
-   passing scope, update the maintained plan/state and start the next owner on
-   that resulting baseline. Later owners must account for predecessor changes.
+   passing scope and update the maintained plan/state. Owners already running
+   reread integrated predecessor changes at source entry and again at
+   integration; they do not restart for unrelated landings.
 
-Use dependency order rather than launching all26 against the original tree.
+Dispatch by true dependency, not ladder number.
 Slice8 remains explicitly reserved.0–8 remain proposal-producing prework;9
 resolves genuinely open scope choices.10 prepares the approved environment/state.
 The current execution mandate authorizes advancing approved work through these
@@ -73,6 +114,9 @@ preflight success. Never borrow a venv or repoint another checkout's bindings.
 
 Use relevant scoped checks while editing, then required final source-phase full
 verification once on a stable tree; repeat affected failed checks as needed.
+A full gate interrupted for a reason outside the source is finished by running
+its remaining registrations on the unchanged source, not replayed from the
+start; it is not a PASS until those complete.
 Run Markdown/state checks for documents/metadata; no source qualification claim
 follows a proposal review. Retain raw compiler diagnostics and real exits.
 
@@ -161,3 +205,31 @@ and actual source/nonce/native child proof, preserving its first lint failure an
 strict resumed phases. The64GiB disk is attached RAW only; no formatting or actual
 Windows native A6 evidence is inferred. The G-first/D proposal and actual-integrated20 fit have independent design
 PASS and are imported; fresh isolated G entry and parent source GO remain.
+
+## Parallel lanes
+
+JSON holds slice status; this lists only what each isolated lane still owes.
+No lane below is integrated at root or qualified until its own gate and review
+pass and the parent integrates it.
+
+- **20:** Linux hook-alias source is qualified at45167677 after genuine
+  RED/GREEN, final Astra acceptance and assembled220/220 suites. Original
+  wrapper exit1 and native build subjectdff remain explicit. Original Windows
+  test bodies stay frozen; actual A6 still needs reattachment/format answer,
+  current C:8/5GiB and host-memory readiness, then real execution.
+- **30 G/M/D:** closed-copy G tooling0fa has assembled-source acceptance,
+  with unchanged Rust proof kept atbfe and current18/18 suffix. M sourced942
+  has implementation ACCEPT; integrated-base/final qualification is pending.
+  D design passed and source tests/scaffolds are staged without a runtime RED
+  claim. G campaign stays11qualified/73required refusals of84; M46/D24 remain.
+  Successor caps and bounded cost probes are inactive until their specific
+  reviewed disposition and readiness; the accepted inventory is unchanged.
+- **100:** qualified subset is integrated; Q1 interruption stays UNQUALIFIED
+  pending the additional matched-pair question.
+- **110, 120:** canonical requirements/design/test maps have independent
+  Astra PASS. Actual reset/residue/venue and artifact/channel/scope choices
+  remain open; compiler safety is a technical hold on13 builds/delivery.
+- **40:** its evidence/artifact amendment has Astra PASS; adoption is open and
+  source held for affected write evidence, exact safety and paired proof.
+- **50, 80, 90, 130–160:** reviewed bounded designs; source held on their
+  JSON conditions.

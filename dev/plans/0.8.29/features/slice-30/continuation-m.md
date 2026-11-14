@@ -1,9 +1,13 @@
 # Slice 30 M continuation — proposed real stdio measurements
 
-Status: **PROPOSED FIT AMENDMENT**, pending fresh independent Astra review.
+Status: **INTEGRATED SOURCE FIT**, pending affected-seam Astra recheck and the
+final owned source gate. Design fit passed at
+f90714a0e2132bab3b2a2b2d60425a598c157e34; the M implementation passed independent
+review at d942aa91e74a9463e82b6a9384ca41ca28698c42. No M campaign is qualified.
 The original design passed at ca76af9f5c7c710b1aca7f8ee79f2c90549a4874;
-this update reconciles accepted parent2a6ef143358ec178c41d9a8f4281c7e4ddcd68ef.
-It refines held M only and grants no source, native setup or runtime GO.
+the current fit incorporates release baseline
+6696f3a1dacb93749a1ea9580403e4d334230ea3 without rewriting those source histories.
+It refines held M only and grants no new setup, allocation or runtime GO.
 Accepted P and executed G preregistrations/freezes remain unchanged. G now has
 11qualified cases and73still-required refused obligations; wholeG is incomplete,
 but is not an additional hard prerequisite for M source qualification.
@@ -14,9 +18,9 @@ but is not an additional hard prerequisite for M source qualification.
 remain unchanged. Inherited M dimensions are real stdio c1/4/8/16/32, honest
 queue/all-call denominators, errors/cancel/timeouts, first-process/open/idle/
 alternating-store costs and logging controls. The exact counts/modes/formats
-below are **new preregistration proposals**, not already accepted gates.
+below are **accepted preregistration choices**, not new numerical acceptance gates.
 
-Current parent includes accepted20 A3/A5
+The original fit parent includes accepted20 A3/A5
 f803a964ad8c8154a481e6f9385599bef5c0e054, accepted60 subset
 5271c1bf022f0ea22f95f7433e226feb2315043e and complete70
 e875f36042f89c1d84756f78135db0e8926c1ed4. The [G/D fit](continuation-gd.md)
@@ -25,6 +29,20 @@ whole20/WindowsA6 is independent.60 supplies compact-default/structured formats,
 filters and budgets, but F11 remains open.70 supplies current provider absence,
 overload, timeout, Closing and CUDA-kind outcomes; M must preserve these words
 and remedies rather than collapse them to a generic error.
+
+The integrated baseline adds qualified20 Linux source45167677 and qualified
+G CLOSED-copy tooling0fa618. The20 changes canonicalize two `cfg(test)` hook
+paths and add a bounded test module; production MCP/SDK interfaces, format37,
+hints and span storage are unchanged. M's imported G process/containment,
+retained-byte and input-identity helpers retain their contracts. The G phase
+wrapper recognizes its named G commands only; source verification remains
+outside campaign allocation. Both G and M live-control routes are retained in
+the canonical runner under `AGENT_SLICE30_LIVE_CONTROLS=1`, with `AGENT_LONG`
+unset for the source gate. The original owned native setup receipt remains an
+actual e3ba665cff1227dfe83dfac5fd7f792814783191 subject; the new Rust inventory
+requires canonical owned setup on the integrated source before qualification,
+under a separately scheduled lease, without retagging the old receipt. Reviewed
+D source fit supplies no measured D cost: unknown costs remain held, not zero.
 
 The released closed100k G subject is recorded under `g_selected_input_for_m` in
 [release state](../../../release-state-0.8.29.json), from source
@@ -78,10 +96,10 @@ M must separately retain submitted/completed/success/error/unresolved counts.
 Compact fetch uses exact UTF8 byte frames, with literal preservation oracles in
 [formats.rs](../../../../../src/rust/crates/fathomdb-mcp/tests/formats.rs).
 
-Proposed future tools belong in that existing experiment directory: a separate
-M cell inventory and client/controller, with bounded tests and commands indexed
-in its README. They do not exist or execute by virtue of this proposal. Keep P/G
-entry points and freezes unchanged. Current production launch is exactly
+Implemented M tools live in that existing experiment directory: a separate M
+cell inventory and client/controller, with bounded tests and commands indexed
+in its README. Their source review does not qualify natural runtime. M remains
+separate from P/G entry points and historical freezes. Production launch is exactly
 `fathomdb-mcp --config <path.json>`; `--check-config` validates without opening.
 Normal M0 uses a locally built no-feature binary, explicit closed tiny stores,
 `use_default_embedder:false`, `search_mode:text`, and each result format in turn.
@@ -208,9 +226,9 @@ do not claim fresh verification or remove its marker to manufacture open cost.
 
 ## Small implementation and genuine runtime TDD units
 
-No tests execute under this design-only authority. After reviewed source GO,
-select exact commands/names and register new bounded tests in the maintained
-runner. Each missing behavior gets a compiling scaffold, committed runtime
+Design approval alone did not authorize execution. Subsequent source GO produced
+the reviewed bounded tests and maintained commands; their oracles/history remain
+frozen across integration. Each missing behavior gets a compiling scaffold, committed runtime
 assertion failure, then separate GREEN with unchanged oracle. Existing passing
 product behavior is reuse, not manufactured RED; no new golden/tamper suite.
 Keep compact and structured decoding, invocation records, schedule, accounting,

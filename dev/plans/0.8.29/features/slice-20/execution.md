@@ -381,3 +381,68 @@ Actual capacity outcome remains attached RAW only. Formatting, native Windows
 operator/compiler and four-selector A6 qualification remain outside this accepted
 subset; later C:8/5GiB workload policy remains unchanged. Whole30/60-F11, the
 pre90 Block1 exit and final release/publication readiness remain separate.
+
+## November14 real-engine path-alias repairs
+
+Own source entered at a00bf9b9228318e7c236148551bb188f63ff66ee with strict
+closed10 preflight PASS/zero warnings. Independent Astra design PASS at
+6f38f0d4570a2850fc66c97acb9867ab08cc7821 includes bounded process isolation:
+new parent regressions never arm global hook slots shared by original tests.
+Parent released the exclusive native window after G cleanup; owned Cargo home,
+target/temp/logs and full retained-allocation monitor remained under /mnt/data.
+Initial root130,574,848,000B/task374,565,859,328B/MemAvailable43,626,549,248B;
+retained/current source/task plus64GiB image reserve120,831,842,595B, below200GiB.
+
+Actual semantic TDD, with original complete compiler/test output under
+`/mnt/data/tmp2/fathomdb-0829-continuation/slice20-20261114/logs`:
+
+| Behavior | RED / original failure | Minimal GREEN / unchanged result |
+| --- | --- | --- |
+| Startup hook alias | 2ccae97af8303da227b9ab1dd3cf62b2de8a11fd; `injected post-probe startup failure was ignored for canonical database alias`; isolated child/parent exit101,0passed/1failed,0ignored; startup-red.log; phase57.04s | af0e81d998b8d887838dcd7675b3be5c9bc9f935; one cfg(test) installer canonicalization line; exact one child and parent case pass,0ignored; startup-green.log; exit0/25.84s |
+| Visibility hook alias | 190203be02379d3b0109f67e57ced986777d348f; `accepted post-probe visibility failure was ignored for canonical database alias`; isolated child/parent exit101,0passed/1failed,0ignored; visibility-red.log; phase14.87s | 9d000d0f34feec2ba760ff4826676514a58f4b07; one cfg(test) installer canonicalization line; exact one child and parent case pass,0ignored; visibility-green.log; exit0/24.89s |
+
+Exact selectors and preserved oracles are in [test-map](test-map.md#actual-path-alias-regressions).
+These failures came from real seeded Engine::open accepting a fault through a
+legal existing nested/../ alias, not dispatch/import/compile failure or altered
+expectations. Each RED was committed before its corresponding fix. The new test
+module is classified in the existing module-boundary policy; no production API,
+queue policy, storage format or original Windows test body changed.
+
+Affected source9d000d0f3 checks: engine operator,test-hooks `clippy --lib --tests
+-- -D warnings` exit0/37.03s; `check --lib --tests` exit0/19.18s; ordinary
+`RUST_TEST_THREADS=2 cargo test --locked -p fathomdb-engine --features
+operator,test-hooks --lib` exit0/13.79s,175passed/0failed/0ignored. Raw files are
+`affected-clippy.log`, `affected-typecheck.log`, `affected-parallel-lib.log`.
+Both new child cases and all four original startup/timeout/visibility/opener
+selectors actually executed in that Linux suite. No model/GPU/VM payload ran.
+
+Fresh independent Astra implementation review ACCEPTs clean
+dffea9dcd80b4a5ab6a622b60892e0bb11663c7c with no findings. Its original
+canonical `scripts/agent-verify.sh` completed all220 registrations in3411.32s:
+218passed,2failed,0skipped,0excluded; wrapper exit1. Lint, typecheck, strict
+security and native suites passed. The failures are release-baseline ancestry
+(test-preflight-release-state,1/11) after reviewed metadata advanced to
+2a6401da02123ddc0016023a4bd8e747ef3717da, and the root source-inventory blob
+pin (test-slice90-root-reconciliation,1/8) after the new cfg(test) module.
+Original raw logs remain `final-full-gate.log` and their retained spills; the
+original PID/PGID687086 and its owned descendants exited.
+
+After terminal quiescence, the reviewed parent metadata was merged into this
+isolated checkout and the existing source inventory refreshed. Only these two
+failed guards and scoped documentation/state checks resume; no full-gate replay
+or source/test-oracle change is authorized by those metadata failures. The
+owned Python3.12.3 noneditable native receipt remains attributed to actual
+build subject dffea9dcd80b4a5ab6a622b60892e0bb11663c7c; metadata composition
+does not retag that artifact. The two targeted resumptions pass unchanged:
+preflight11/11 in0.71s and root reconciliation8/8 in10.43s, with raw logs
+`resumed-preflight-release-state.log` and
+`resumed-slice90-root-reconciliation.log`. Scoped Markdown and release-state
+validation pass. Reviewed source, scripts, Cargo inputs and test oracles are
+byte-identical to dff; the composed checkout descends from reviewed2a640.
+All220 registered suites therefore have passing results across the original
+run and these two metadata-only resumptions. This is assembled qualification;
+the original full wrapper remains exit1 with both raw failures preserved.
+
+Current Windows readiness/format/reattachment holds remain in [plan](plan.md);
+no live resource policy was changed. Actual Windows A6, whole20 and Block1
+remain open. Linux qualification cannot substitute for actual Windows results.

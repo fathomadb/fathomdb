@@ -79,39 +79,84 @@ Do not alter product predicates or constants to manufacture RED. Any actual
 new defect gets a separately committed unchanged failing regression before its
 repair. The healthy candidate and sensitivity mutations remain distinct.
 
-## A6 capacity-only preparation and later qualification
+## A6 current Windows completion
 
-Owner2026-11-13 seq-370 approves creation/necessary narrow ACL/live attachment of
-one uniquely owned64GiB scratch disk to the existing Windows VM. It does not
-approve GPT initialization, partitions, formatting, drive assignment, compiler,
-helper or test execution. [Capacity-only proposal](capacity-only.md) and its
-capacity-only.py derivative stop after live attachment and read-only identity.
-Frozen5122aa08 remains unchanged. Do not run its provision-host.py: that script
-continues into provision-guest.ps1 initialization/format after attachment.
+The [current plan](plan.md#ordered-windows-completion) replaces stale live-disk/
+readiness assumptions. November14 VM is shut off; original inactive disks are
+intact, same uniquely owned image remains and previous live-only attachment is
+absent. Refresh guest facts during parent-scheduled bounded VM window; restore
+original off state through normal shutdown. No old endpoint/disk number/RAW/
+C free-space sample establishes current readiness.
 
-Current read-only libvirt refresh confirms VM UUID3a928939-57ed-4c62-999b-b610f3e44d42,
-original sda OS image, USB0 qemu-xhci15ports, unused sdg/USB0:10/serialFDB29S20A6,
-and DAC UID64055/GID993. This is topology observation, not disk readiness or A6.
-Latest host sample: root80,429,350,912B, /mnt/data609,778,946,048B,
-MemAvailable30,873,688KiB. Refresh immediately before work; current read-only guest
-C:7,055,458,304B (6.57GiB), RAM30,404,480KiB, only Disk0/QM00001 and no native
-processes. C: is below the later8GiB workload start floor. Capacity-only stages
-nothing on C: and has no guest free-space consumption; that workload floor does
-not apply to host create/attach. C:8/5GiB remains the later start/stop policy.
-The script reads current guest disk identity,
-C:/RAM/build-process inventory before mutation and stops on unavailable facts.
+A narrow reviewed reattachment selects only existing exact image, matching
+VM UUID3a928939-57ed-4c62-999b-b610f3e44d42, sdg/USB0:10/serialFDB29S20A6 and
+current QEMU UID. Require unused target/port/serial, unchanged original disks
+and inactive XML. No image creation, ACL, format or persistent branch. Existing
+create-once capacity tool correctly refuses an occupied image and is not reused.
 
-Later A6 retains the four exact selectors and all original typed-error/provider/
-SQLite/profile/admission/lock/schema assertions in test-map.md. The inherited
-operator package has static source review only. Actual PowerShell parsing,
-Reflection.Emit ABI, existing compiler/reference hashes, supervised compilation,
-independent binary review, private-job death/lease/transport controls and exact
-source transfer/extraction precede native A6 execution. These remain technical
-and authority gates; capacity-only approval does not silently open them. No
-cross-build route or alternate compiler/install fallback is selected. Transfer
-standing approval remains as in windows-vm-for-fathomdb-testing.md, limited to
-exact-source disposable verification. Preserve source-bound/native identity.
+Existing format-only source at Git396a023e02580a1bb82ddcb7f16817874ad0046c has
+qualified26 in-memory guard/three transport-refusal controls. Reuse original
+results where inputs are equivalent; preparation is not live storage proof.
+Actual owner formatting answer remains required for exact64GiB/nonboot/nonsystem/
+RAW serialFDB29S20A6 only: GPT, new maximum R: partition, quick NTFS. Original
+disk identities are denied and exact target/partition correspondence rechecked
+before each mutation. Started synchronous storage may finish after transport
+loss; UNKNOWN stops later host requests pending read-only resolution, no retry/
+rollback. Seq-370 is capacity-only, never broader formatting authority.
 
-If Windows reveals a real path-hook or opener-rendezvous defect, diagnose under
-bounded execution, commit a deterministic current semantic RED, then repair with
-unchanged intended assertions. Capacity preparation alone cannot close A6 or20.
+Retained frozen5122 operator sources supply parse/probe/compile/private Job
+Object containment, source transfer/extraction and four A6 selectors. Adapt
+only current owned source/task/image/accounting and discovered endpoint into
+tracked experiment tools. Actual PowerShell parser, existing compiler/reference
+hashes and Reflection.Emit null-handle ABI check precede supervised csc. Child
+creation enters private no-breakaway kill-on-close Job Object with restricted
+stdio inheritance, original absolute lease/deadline and authoritative active-zero.
+Independent actual binary/hash review precedes child/death/lease/transport
+controls, then exact source-bound A6. No alternate compiler or tool installation.
+
+Host start/stop root32/20GiB, taskfs250/50GiB, MemAvailable16/8GiB and200GiB
+owned cap include the existing64GiB image reservation. Guest C8/5GiB, owned
+workspace32/20GiB and RAM16/8GiB remain workload floors, with no silent waiver or
+cleanup. Actual November14 C free6.37GiB and post-start host memory13.63GiB
+fail their respective start floors; they are actual workload holds. One parent-coordinated heavy phase. Source archive must be clean/exact,
+hash verified on both ends and per-file extracted on owned NTFS. Build jobs2/
+1200s; each of four exact selectors90s/nonzero count; preserve original raw
+outputs/exits and private-job-empty receipts. Missing termination outcome is
+UNKNOWN. No Windows F64/CUDA input is inferred.
+
+Startup/visibility caller-path/canonical-path mismatch has actual semantic
+RED/GREEN repairs; admission-hook alias behavior and the Windows opener's
+unbounded Barrier remain unqualified. Run existing Windows semantic oracles
+inside the outer bounded process before any corresponding repair.
+An actual current failure gets committed semantic RED before minimal repair,
+retaining exact provider/SQLite/profile/admission/error/lock/schema37 assertions.
+New helper defects retain observed failure before correction. No fabricated
+compile/import/flag RED, backdating or unnecessary passing-check replay.
+
+## Current defect reproduction and capacity alternatives
+
+The [plan](plan.md#current-path-alias-diagnosis-and-genuine-red-route) names the
+real-engine Linux alias reproduction and per-behavior RED/GREEN order. Existing
+Windows bodies/oracles stay frozen. Canonical hook-key identity is diagnosed
+through actual exact errors and ownership, never source text or helper equality.
+New startup/visibility semantic fixtures execute only in separate fresh child
+processes because their installers overwrite global Mutex<Option> slots. Parent
+regressions never install hooks; exact child selector/dispatch identifies the
+real-engine case without becoming its RED oracle. Require actual assertion and
+nonzero case count, raw output/status, absolute90s child deadline and exact owned
+kill/reap; no detached actor or new unbounded Barrier. Ordinary parallel affected
+lib execution must include both parent regressions and unchanged original tests.
+The actual startup/visibility REDs each preceded their one-line canonical-key
+repair. Both new regressions plus unchanged originals passed ordinary two-thread
+lib execution175/175; scoped Clippy/check also passed. No production policy,
+public API or original test body changed. Final independent implementation review
+and required clean source gate remain pending. Linux source proof and remaining
+actual Windows qualification are separate.
+
+The [capacity alternatives](plan.md#capacity-options-for-technical-review) are
+prospective only: live24GiB balloon with original persistent32GiB/off restoration,
+and a separately reviewed/authorized C floor change or adequate venue if8GiB
+cannot be met without prohibited existing-data mutation. No option is inferred
+from seq-370, no guest driver/reclaim result is known, and no resource floor has
+changed. Second metadata attempt failed before guest query; absence of results
+cannot justify a storage, OS or floor action.

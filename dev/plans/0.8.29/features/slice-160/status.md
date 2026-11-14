@@ -14,18 +14,23 @@ Run-state is an evidence locator, not source/runtime proof or current ladder aut
 
 ## Current concrete holds
 
-- 20 qualified Linux repairs are integrated, not whole20 completion. A3/A5
-  already-correct additions need the actual pending policy answer; Windows A6
-  needs approved capacity plus real execution.64GiB proposal is capacity only.
+- 20 qualified Linux repairs and the seq-369 A3/A5 proofs are integrated, not
+  whole20 completion. Windows A6 needs real execution. Seq-370 created the owned
+  64GiB RAW image (serial `FDB29S20A6`) and attached it live-only; that
+  qualification is historical. Read-only observation now: the windows20 VM is
+  off, the image exists, the attachment was lost on shutdown and must be
+  reattached, and the formatting question is unanswered. Guest C: has6.37GiB
+  free, below the existing8GiB start/5GiB stop floors; a32GiB VM leaves the
+  host13.63GiB, below its16GiB start floor. The24GiB live-balloon and
+  C:-start-6GiB alternatives are not selected.
 - 30 exact TC5 frozen input pack remains inaccessible; drive UUID
   `C8D47C11D47C03CA` reconnect/existing-copy question is unanswered. No substitute,
   regeneration or fresh fidelity measurement is authorized by this proposal.
 - 50 identity/census/baseline gates remain. Historical repeated-ref feedback
   ambiguity has its actual pending question; no new native ABI is selected.
-- 60 runtime RED/GREEN and supplemental post-code projection acceptance are in
-  progress in its isolated checkout. Final full source gate/fresh final review
-  and held historical-flag contract work are not complete.70 proposal review
-  and80 bounded/aggregate proposal PASS are not runtime or whole80 approval.
+- 60's format/filter/budget subset is integrated; its held historical-flag
+  (F11) contract work is not complete.70 is complete on the release branch.
+  80 bounded/aggregate proposal PASS is not whole80 approval.
 - 90 needs real Block1 follow-up exit after selected20–70 plus approved80;
   neither exit depends on160.100 existing eight-control execution reuse retains
   inference limits; active-checkpoint/richer-postcrash gaps stay open.
@@ -39,6 +44,13 @@ Run-state is an evidence locator, not source/runtime proof or current ladder aut
 - Final integrated matrix/native/rehearsal evidence does not exist yet.
   Publication stays HELD; separate authorization precedes tags/publish and
   fresh registry consumer proof. No READY_TO_PUBLISH or release-complete claim.
+- Under the current CI/publication exclusion,160 may record bounded local
+  tasks as done, but that is not local completion. Every selected mandatory
+  Q14 installed/platform row that a permitted local or owned venue can qualify
+  stays open until it is actually qualified there, and so does any Q18 dry-run
+  part runnable locally. Local-mandate completion is reached only when the
+  sole unmet rows are those needing excluded CI execution or publication; each
+  is then named outstanding, not waived and not passed.
 
 ## Proposal validation boundary
 

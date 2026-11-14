@@ -1,17 +1,17 @@
 ---
 title: Slice 40 — conditional eligibility reuse and batch metadata
-status: PROPOSED
+status: DESIGN_REVIEWED_ADOPTION_HELD
 target_release: 0.8.29
 slice: 40
 ---
 
 # Slice 40 — conditional eligibility reuse and batch metadata
 
-This bounded design package is ready for independent design review only. No
-cache, prototype, benchmark, implementation or runtime qualification is selected
-or claimed. Source authority is frozen parent
-`2f6913c1d59ac8ff3a30de835b57290a8635998c`; proposals live only under
-`/tmp/fathomdb-0829-direct/slice-40/phase-a`. The main session owns integration.
+The concrete [measurement/disposition amendment](measurement-plan.md) passed
+independent Astra-medium review. Its named artifact dependencies are accepted;
+no treatment, source entry, runtime or closure is authorized. Source inspection
+remains attributed to `2a6401da02123ddc0016023a4bd8e747ef3717da`. Adoption stays
+open under the existing conditional scope; no owner deferral has been recorded.
 
 ## Mandate and current inputs
 
@@ -24,10 +24,10 @@ reader prepared-statement capacity is 10, a different quantity. No capacity,
 layout, candidate-cap, ranking, embedder or SQLite build change is proposed.
 
 - Slice 10 preparation is complete at implementation `104dcbcbe92a1eca730d146b99ab17d444df6217`, closure `d7d928f8e49d7af6a792385534f4e991c13232b3`.
-- Only Slice 20's qualified Linux repair subset `657edeb76caaf9c8d2aab433766bec9362e73217` is integrated. A3/A5's existing-correct TDD exception and Windows A6 capacity/qualification remain pending. This is not full 20 exit.
-- Slice 30 has no actual .29 measurements. Full 20 exit and the exact frozen TC5 bridge input pack remain held. The missing drive is UUID `C8D47C11D47C03CA`; its real reconnect/path question is pending. Do not regenerate or substitute that pack.
+- Slice 20's qualified Linux repair subset `657edeb76caaf9c8d2aab433766bec9362e73217` is integrated, and so are the A3/A5 existing-correct ruling (seq 369) and its proofs `f803a964ad8c8154a481e6f9385599bef5c0e054`. Windows A6 capacity/qualification remains open. This is not full 20 exit.
+- Slice 30 now has accepted P direct-text results and 11 qualified G cases (see [P results](../slice-30/results-p.md) and release state). Its 73 cap-refused G cases, including the write-interleaved cells affected 40 adoption needs, plus M, D and frozen-TC5 F are not measured. Whole 20 and the exact frozen TC5 bridge remain independent release holds, not prerequisites for this decision or the accepted artifact narrowing. The missing drive is UUID `C8D47C11D47C03CA`; its real reconnect/path question is pending. Do not regenerate or substitute that pack.
 - Slice 30's `/tmp/fathomdb-0829-direct/slice-30/phase-a` input inventory is documentary evidence, not current performance proof; its older predecessor narrative must be rereconciled before use.
-- The sole source writer is Slice 60 in its separate checkout. This package makes no writes to the parent, release JSON, generated regions, ledgers or another slice.
+- Slice 60's format/filter/budget subset is integrated at `5271c1bf` and Slice 70 is complete at `e875f360`; neither is a current source writer. This package makes no writes to the parent, release JSON, generated regions, ledgers or another slice.
 
 ## Scope and outputs
 
@@ -49,21 +49,23 @@ mean reads are already batch scoped; credit them as baseline behavior.
 
 | Kind | Dependency and consequence |
 | --- | --- |
-| Hard for runtime selection | Dependable completed 20 and actual 30 read-mostly/write-interleaved evidence against the integrated source and exact inputs. Neither exists yet. |
+| Accepted artifact prerequisites | Qualified Linux20 subset `657edeb76caaf9c8d2aab433766bec9362e73217`, A3/A5 proof/ruling `f803a964ad8c8154a481e6f9385599bef5c0e054`, accepted P measured source `2fd772558e46d0b1645dce2ffea730d0bdd3305c` and G normal84 assessment `29de06806cc22ab6b8e67f970133f856f3c42f78` with original artifact provenance. G has 11 qualified/73 required cap-refused cases; affected G-W write-interleaved baseline is hard for adoption, not owner-approved rejection/defer. Whole 20/Windows A6, whole 30/M/D/F and exact TC5 pack are independent gates. The bounded amendment passed Astra review; source stays HELD on the treatment-specific conditions below. |
 | Hard for each selected treatment | Reviewed exact scope, snapshot/invalidation or batch-invariance proof, fixed cost/benefit rule and per-behavior test design. This generic design review does not approve an unspecified cache. |
 | Conditional | Changed source/artifact/provider or relevant 50/60/70 contract after measurement requires scoped reattribution. An unexpected public contract/authority change requires its ADR/interface review; persisted format changes return for owner scope review. |
 | Preferred only | 40 before 50 improves attribution and reduces search-file conflict. 40 is not a semantic prerequisite of 50's identity census or 60's MCP work. |
-| Serialization | Main session sequences engine writers 40/50/70/100/110; each implementation writer has its own parent-created checkout. Recheck actual 60 and 70 contracts before a later source entry. |
+| Serialization | Engine owners 40/50/100/110 work in parallel, each in its own parent-created checkout; the main session serializes only their root integration and the local native window. Recheck actual 60 and 70 contracts before a later source entry. |
 
-1. Obtain independent Astra-medium bounded design review through the main session.
-2. Wait for full 20 and genuine 30 evidence; reread integrated predecessor changes.
-3. Complete the decision table and review a concrete selected treatment, or record an evidence-backed not-selected/deferred disposition. Do not prototype to bypass missing measurements.
+1. Bounded evidence/dependency review is complete (Astra-medium PASS); do not repeat it unchanged.
+2. Review the populated decision table and exact dependency narrowing from accepted P/G results and current source. Distinguish the material direct-node scan from small/already-shared work; no supported adopt-now option exists.
+3. Obtain the owner's actual rejection/defer disposition for named opportunities, or keep adoption open for affected write-interleaved evidence and exact safety/benefit review. Reread relevant integrated changes before later source entry. Do not prototype to bypass missing measurements.
 4. Only after authorization, use genuine per-behavior staged runtime RED then separate GREEN. Implement eligibility and batch changes independently; freeze tests during each fix.
 5. Qualify correctness and current paired workloads, then obtain fresh independent Astra final implementation review. Keep failed and missing evidence explicit.
 
 Completion means a reviewed disposition for **both** eligibility and batch work.
-Not-selected can discharge the conditional work only with actual measurement
-and safety evidence; it cannot be declared now. Release acceptance/publication
+An independently reviewed owner rejection/defer can discharge conditional
+work with explicit evidence limits; it is not measured treatment success. The
+current table recommends that choice but cannot declare it made. Adoption-only
+measurements/proofs are not manufactured to close an authorized exclusion. Release acceptance/publication
 remain separate. No new live Memex database read, copy or write is authorized.
 
 ## Validation and remaining holds
@@ -76,7 +78,9 @@ batch hoisting. These narrow the old two-scan premise.
 
 This package uses scoped Markdown, local link and source-symbol checks only.
 No native build, product test, model load, database open or network operation is
-part of preparation. Full 20, exact TC5 inputs, actual 30 results, treatment
-selection/tolerances and exact reviewed safety remain held. Future code uses
+part of this amendment. Affected write-interleaved evidence, treatment selection/
+tolerances and exact reviewed safety remain adoption holds. Windows A6, M/D/F
+and exact TC5 inputs retain their own release scope. The dependency amendment is accepted. Any early rejection/defer closure needs
+an actual owner disposition; none is recorded. Future code uses
 focused checks while working and the required full gate once on the final owned
 code phase; scoped passes never imply full-workspace green.

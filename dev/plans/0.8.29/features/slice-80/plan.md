@@ -10,7 +10,9 @@ slice: 80
 This documentary consolidation incorporates the independently bounded
 Astra-medium PASS for aggregate v2, exact source proposal SHA-256
 `a5e4851df2fedcbcce3e7d1b93138980c25e172d0ceb802792d218940bca0e53`.
-The consolidated packet's narrow consistency recheck is pending; this is no
+The consolidated packet's narrow nine-document consistency recheck is COMPLETE
+(PASS, recorded in [review log](review-log.md) and canonical
+[release state](../../../release-state-0.8.29.json)); it is not repeated. This is no
 new ABI/policy approval or full80/source-entry approval. All original packets
 remain frozen. Parent source stays clean2f6913 with no imports.
 
@@ -45,9 +47,10 @@ choice. SDK hints Stage2/default placement stays conditional150.
 
 ## Work and remaining entrance
 
-1. Documentary consolidation is complete. Parent obtains the same-Astra narrow
-   consistency recheck against the exact nine files/digests; no implementation
-   or full80 verdict is inferred from bounded proposal PASS.
+1. COMPLETE: documentary consolidation and its same-Astra narrow nine-document
+   consistency recheck (PASS; see [review log](review-log.md)). Nothing here is
+   rerun; no implementation or full80 verdict is inferred from either PASS.
+   Only items 2–5 remain pending.
 2. Reconcile actual selected50 identity/ref/packing/vector-membership consequence,
    final60 fields/accounting and actual70 reasons after integration. Recheck
    release requirements/AC mappings against that source. No stale contracts.
@@ -61,11 +64,14 @@ choice. SDK hints Stage2/default placement stays conditional150.
    preserves human oracles, completes owned-tooling source/native checks and
    receives a fresh independent final implementation review.
 
-10 is completed preparation evidence;20 is not closed,30 measured baseline/TC5
-inputs remain absent,50 has bounded design review without the actual identity/
-runtime-census/carrier proof, and70 has reviewed PhaseA without implementation.
+10 is completed preparation evidence;20 is not closed,30 has accepted P and11 G
+read results while its remaining cells and TC5 inputs are absent,50 has bounded
+design review without the actual identity/runtime-census/carrier proof, and70 is
+implemented and integrated; reconcile its actual reasons before full80 approval.
 
-Parent-supplied60 checkpoint: clean candidate
+Historical record only (consolidation-time snapshot; it reopens no completed
+qualification and is not a pending step; current60 inputs are reconciled solely
+under item 2). Parent-supplied60 checkpoint: clean candidate
 `307c92e3b4b8c674eec28fc940c879e9054fff90` has source TDD for formats,
 filters and budgets, and post-code real-GPU manual SDK plus both MCP formats
 14-case PASS. Native/full gate and fresh final review remain pending; F11
@@ -85,9 +91,12 @@ Apply quality-roadmap boundary/Unicode/snapshot/anomaly/bounded-work methods;
 defer broad MC/DC/fuzz/allocation/chunking campaigns. Existing release CUDA
 review stays; this consolidation adds no venue/model/GPU/paid permission.
 
-Only document structure/internal links/hand arithmetic are checked here. Parent
-runs relevant scoped Markdown/release checks after import. Source qualification
+Historical consolidation-time note (non-import narrative; requests no further
+document qualification): only document structure/internal links/hand arithmetic
+were checked here, with parent scoped Markdown/release checks at import. Still
+pending, as actual source/runtime gates: source qualification
 uses the required owned-tooling full gate, exact native identity and actual
 exits; this document validation is no workspace-green claim. Originals stay
 frozen, [status](status.md) retains all source-entry holds, and root manifest.json
-records exact candidate files/digests for the consistency recheck.
+recorded the exact candidate files/digests used by the completed consistency
+recheck; they are not regenerated.

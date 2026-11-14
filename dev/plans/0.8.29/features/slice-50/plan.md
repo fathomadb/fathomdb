@@ -28,16 +28,18 @@ Completed10 source `104dcbcbe92a1eca730d146b99ab17d444df6217`, closure
 `d7d928f8e49d7af6a792385534f4e991c13232b3`, supplies owned preparation and
 current security/tool/state corrections. Integrated20 subset
 `657edeb76caaf9c8d2aab433766bec9362e73217` includes Linux test-hook repairs;
-20 remains open for A3/A5 policy and Windows A6. No30 clearance or Block1 exit
-follows. Actual30 measurements have not run: the exact frozen TC5 input pack
-is unavailable; the owner was asked to reconnect original cold storage or
-supply an existing copy. Retain that hard prerequisite. Historical100k numbers
-are neither a baseline nor measured benefit for50.
+20 remains open for Windows A6; A3/A5 are ruled (seq-369) and integrated. No30
+clearance or Block1 exit follows. Slice30 has accepted P direct-text results
+and11 qualified G cases as the current read baseline; its remaining G cases, M,
+D and F are not measured, and the exact frozen TC5 input pack for F is still
+unavailable pending the owner's reconnect/existing-copy answer. Historical100k
+numbers are neither a baseline nor measured benefit for50. A proposed narrowing
+of50's source entry to the named30 results plus the identity ruling is in the
+master plan and applies only after Astra design review.
 
-60 source work is active in a sibling checkout under the parent's native
-window. Its reviewed formats/flags/direct-text-filter contract informs parity;
-unfinished60 code is not integrated evidence. 60 can proceed independently;
-50 must reconcile the actual integrated delta before its eventual source phase.
+The60 formats/flags/direct-text-filter/budget subset and complete70 reasons are
+integrated; F11 remains held.50 must reconcile the actual integrated delta at
+its source entry.
 
 ## Intended outcome and fixed boundaries
 

@@ -1,50 +1,76 @@
 # Slice 40 conditional selection method
 
-Status: methodology only. No benchmark, tool/prototype implementation or native
-execution is authorized by this document. Actual Slice 30 measurements are
-absent; full20 and the exact TC5 input pack remain held. Do not replace them with
-synthetic, legacy .28 or cache-friendly results.
+Status: evidence table and bounded dependency amendment passed independent
+Astra-medium review. The recommended dispositions remain unselected. No treatment, source entry, runtime or closure
+is authorized here. The owner approved caching only if current measurements and
+snapshot safety justify it ([Batch 3](../../prework/slice-9/decision-log.md#batch-3-tests-measurements-and-exact-search)).
+The recommendation leaves the existing reference paths in place.
 
-## Receiving evidence and opportunity table
+## Accepted inputs and what they establish
 
-After 30's real exit, bind its source, actual native artifacts, workload inputs,
-provider/backend, schema, query order, warmup/repeat schedule and resource limits.
-Reread current source after 60 and any intervening engine changes. Preserve
-read-mostly and committed write→search/batch-write→search schedules separately;
-projection overlap/drain policy is part of each cell. TC5 remains the accepted
-recall bridge; legacy EU7 is not a substitute. Preserve exact frozen inputs.
+Current source was read at frozen parent
+`2a6401da02123ddc0016023a4bd8e747ef3717da`: `search.rs`,
+`dependency_closure.rs`, `projection_commit.rs`, `projection_registry.rs`,
+`projection_generation.rs` and format37/frozen-read authority. No database,
+model or GPU was opened; the numbers below reuse completed raw results.
 
-Populate one row per candidate: source function/caller, number of consumers,
-observed component cost, end-to-end share, reuse opportunities per authority/time,
-invalidations, full miss cost, key cost, memory cost, correctness proof status and
-proposed disposition. Include dependency presence, direct eligibility, source
-fallback and each residual batch descriptor separately. Existing per-call/batch
-reuse receives zero invented incremental saving.
+- **P:** [accepted results](../slice-30/results-p.md), measured source `2fd772558e46d0b1645dce2ffea730d0bdd3305c`, default SDK, provider none, format37, no vector rows. The 16 cells contain 20,000 timed natural calls. Four unfiltered100k passes have p50 27.184–27.509 ms/p99 106.911–107.682 ms against tracked, nongated AC083 targets 80/300 ms. This establishes direct-text baseline behavior, not hybrid performance or cache benefit. P2's kind-filtered write/probe/search route differs from P1.
+- **G:** accepted normal84 assessment at `29de06806cc22ab6b8e67f970133f856f3c42f78`, UUID `4fb7a91f-2d41-445d-a132-258334a8f3fe`: 11 qualified cases, 73 required cap refusals. The 100k R0 ordinary SDK text/hybrid means are 32.967/195.889 ms, p50 27.195/186.793 ms and p99 105.894/350.030 ms. R1 at 100k and G-W write-interleaved cells are unmeasured. Hybrid has no AC083 target. M/D/F remain independent unfinished 30 work.
+- **G attribution:** `g-o-natural-r0-on` and `g-o-natural-r1-on` each contain 300 observations: 50 queries per route/adapter, no warmup. They are descriptive instrumented first-50 subsets, not canonical latency percentiles. Component means/shares below are per adapter/repeat; share is summed component duration divided by summed enclosing API duration on the same records. No percentile subtraction or ordinary-minus-instrumented speedup is used.
+- **Raw provenance:** P retains `p-campaign-v1/summary.json` and per-cell raw under `/mnt/data/tmp2/fathomdb-0829-continuation/slice30`. G retains `manifest.json`, `results/g-outcomes.json` and each named `results/<cell>/attempt-0001/read/observations.jsonl` under `/mnt/data/tmp2/fathomdb-0829-continuation/slice30-g-20261113/gd-allocation/g-frozen-g-assessment-v5`. The manifest owns actual artifact/model/input identities; ordinary/diagnostic native builds remain their original `5c7b1988d342488288ae83e022b358254c60edc8` subjects, not new builds at 29de. Six reused cases retain original provenance.
 
-Estimate an upper bound before code: an answer can save at most the measured
-work avoided on observed hits, less authority/lookup and miss bookkeeping cost.
-Time/view churn and a committed write before each search may eliminate hits.
-No speculative throughput multiplier, new counter table or schema fallback
-follows a weak estimate. Transaction-local reuse needs an actual repeated
-consumer; batch hoisting needs a material residual.
+## Concrete opportunity and disposition table
 
-## Decision stages
+All dispositions are recommendations for review/owner choice. Unknown costs are
+unmeasured, not zero. Existing statement/page caches receive no new saving.
 
-| Evidence state | Permitted next step |
+| Opportunity and current consumers | Accepted cost, actual change and reuse opportunity | Proposed disposition and adoption-only gap |
+| --- | --- | --- |
+| Dependency presence: `has_source_dependencies`; one call in `read_search_in_tx`, captured by arm predicates | Already one prepared `EXISTS` per search transaction, not per arm. G diagnostic text means 0.00494–0.00657 ms (0.0312–0.0408% of observed API totals); hybrid 0.00996–0.01452 ms (0.00652–0.00951%). A local memo has no second consumer; cross-read caching adds authority/lookup/invalidation to avoid this one small query. | **NOT_SELECTED** another local/per-arm memo and cross-read presence cache for .29 on this evidence. Source-bearing scale and cache overhead are unmeasured; no universal no-benefit claim. Preserve existing reuse. |
+| Whole-node direct eligibility: `all_nodes_directly_eligible`; one guarded deferred-text decision per eligible hybrid search | Direct text never calls it in G. Each of 200 observed hybrid calls executes SQL once and returns true. Per adapter/repeat means 48.336–49.223 ms, 31.994–32.439% of observed API totals. A local memo avoids no duplicate. A cross-read boolean could avoid the scan on a proven hit; native pre-cap KNN eligibility and all deferred-route guards must remain. | **NOT_SELECTED** local memo; **DEFER** cross-read treatment. This is a material read opportunity, not a measured negative. Component cost is only a gross per-hit upper bound, not promised latency saving. Missing: write-interleaved hit/miss/authority costs, safe reader key/time/invalidation proof, bounded ownership and paired treatment evidence. |
+| Source fallback: `vector_arm_requires_fallback`; one conditional call per vector route | Dependency-free G hybrid returns false without SQL; descriptive means 0.01048–0.01655 ms (0.00686–0.01111%). Direct text skips it. Cached false cannot replace direct-node proof. Source-bearing branch controls execute SQL and flip false→true across a validity boundary with unchanged generation/nonce. | **NOT_SELECTED** memo of the existing dependency-free return; **DEFER** source-bearing cross-read reuse. Large source-dependent cost/reuse is unmeasured. Time/view and unconditional closure-barrier proof are hard adoption needs; no general fallback-cache rejection. |
+| Generation, effective time and initial mean in `commit_projection_outcomes` | Already once per admitted IMMEDIATE batch. `current_mean` changes at threshold pin; accumulator/events publish only after commit. Re-hoisting supplies no incremental saving. | **NOT_SELECTED** duplicated hoists. Preserve mutable mean and row-specific eligibility/terminal/physical checks. |
+| Live attribute-column shape: `actual_vector_attr_columns` | Every successful projected row checks shape; attribute-bearing rows read it again inside `vector_attr_insert_fragments`. Batch reuse could remove repeated shape reads. No-attribute path already avoids body lookup. | **DEFER**. No isolated shape cost, multi-outcome saving or write regression/memory evidence. Need fresh trigger-sensitive invariance/admission proof and material residual before selection. |
+| Registry extraction descriptors: `load_projection_registry` in `vector_attr_insert_fragments` | Loaded per attribute-bearing success; potential reuse across outcomes in one batch. Body/scalar extraction and lifecycle/validity stay per row. P has zero vectors; G seed/drain totals do not isolate this work. | **DEFER**. Need descriptor cost/reuse and invariance across every reachable trigger/mean-pin write, including configuration changes with unchanged column names. IMMEDIATE alone only excludes external writers. |
+| Attribute SQL/placeholder shape in `vector_attr_insert_fragments` and projection commit | Rebuilt per attribute-bearing row; candidate reuses validated shape/fragments only, still binding every live column and preserving absent versus present-empty encoding. | **DEFER**. No component cost/material residual established. Need descriptor invariance, row/error-order equivalence and bounded per-batch lifetime; no retained row bodies/scalars. |
+
+P2 has governed-write means 1.316–1.834 ms for 1-row calls and 3.360–3.459 ms
+for 10-row calls, outside natural API timing. These are filtered provider-free
+writes with marker probes, not projection-outcome batch cost or candidate
+invalidation overhead. Search snapshot authority is unavailable in P; write
+receipt cursors cannot prove cache reuse. G-W cap refusals supply no
+write-interleaved measurement. Candidate hit rates, key/miss cost, retained bytes
+and invalidation cost are unknown.
+
+## Decision and exact remaining conditions
+
+**Recommended owner disposition:** retain .29 reference paths, adopt none of the
+new Slice 40 treatments, accept the table's NOT_SELECTED redundant/small-work
+opportunities, and explicitly DEFER the material cross-read direct check,
+source-bearing fallback and unmeasured residual batch descriptors. This avoids
+a measured-negative claim for a real hybrid opportunity. Conditional-scope
+closure requires independent review and the owner's actual choice; this draft
+neither selects nor closes Slice 40. The alternative is to keep those opportunities
+open for adoption after their exact missing evidence arrives. There is no
+supported adopt-now option, prototype or new measurement campaign here.
+
+| Outcome | Required evidence or action |
 | --- | --- |
-| 20/input/30 missing | BLOCKED for selection and source/runtime entry; bounded document review may proceed. |
-| Current cost negligible, reuse absent or projected overhead consumes saving | Propose NOT_SELECTED for that opportunity with source/measurement evidence. No prototype needed. |
-| Cost exists but snapshot authority/invariance proof incomplete | DEFERRED or BLOCKED with exact missing proof; preserve reference path. No performance shortcut. |
-| Cost/reuse and safety both support a concrete treatment | Freeze exact scope, ownership/limits, tests and prospective tolerances; independent review before per-behavior implementation. |
-| Qualified treatment improves only a narrower workload or regresses writes/memory | Narrow only within reviewed scope and report tradeoff, or reject/defer. Do not quietly make it a default. |
-| Treatment passes reviewed benefit and correctness rule on both required schedules | Recommend adoption with uncertainty and release-gate results; fresh final code review remains. |
+| Adopt eligibility treatment | Consume qualified Linux 20 subset `657edeb76caaf9c8d2aab433766bec9362e73217`, A3/A5 proof/ruling `f803a964ad8c8154a481e6f9385599bef5c0e054`, P/G baseline above and actual affected G-W committed-write/search schedules. Resolve 100k repeat/noise uncertainty where comparison requires it. Demonstrate hits under authority/time churn and full lookup/miss/write/memory cost. Fix benefit/regression tolerances before paired treatment runs. |
+| Prove cross-read correctness before source selection | Establish/read authority in the consuming reader transaction's own SQLite snapshot. Bind database/branch nonce, complete relevant invalidation state, effective time and view. Prove external writes/custom triggers, old/new WAL readers, reopen/diverged copies, fresh clean-state refusal and frozen reproduce-or-fail. Primary-connection status caching/shared latest generation is no reader-pool proof. G's source-window control has identical generation/nonce at consecutive times and different fallback answers: generation alone fails. Numeric entry/byte limits, eviction and unsupported-proof fallback remain unset. |
+| Adopt batch descriptors | Attribute repeated shape/registry/fragment costs in current multi-outcome projection batches and establish material saving after admission/miss cost, including read/write regressions and memory. Prove invariance across reachable main/TEMP custom-trigger and mean-pin paths, or fresh reviewed bypass preserving effects/errors. Existing coalescing admission is not automatically that proof. No per-row body/scalar/mean/eligibility hoist. |
+| Select and qualify code | Concrete scope/safety/test review, prospective absolute/relative benefit and regression/memory rule, genuine per-behavior runtime RED then GREEN, paired reference correctness and affected schedules, required final code-phase gate and fresh Astra implementation review. No new global ACs. |
+| Close by negative/defer disposition | Independent review verifies source/result distinctions and every opportunity disposition; owner explicitly accepts no new Slice 40 treatment for .29 and named deferrals under Batch 3 conditional approval. Parent records actual choice in existing release state. No cache, new test, paired treatment run or adoption-only proof is required to claim an authorized exclusion; unavailable evidence is not PASS. |
 
-Before treatment measurements, reviewers must fix minimum meaningful absolute
-and relative benefit, permitted regression, memory bound, percentile statistic,
-repeat count/order and uncertainty method using 30's observed scale/noise. Those
-values are currently **unset**; historical thresholds are not .29 policy. This
-is a hard prerequisite for a treatment campaign, not a reason to run exploratory
-caches now. Existing accepted release thresholds remain independently binding.
+Hard adoption dependencies are relevant qualified Linux 20/P/G inputs, affected
+write-interleaved baseline, selected safety/invariance proof and reviewed
+benefit/correctness rule. Whole 20 Windows A6, whole 30 completion, M/D/frozen-TC5 F,
+pack reconnection and unrelated planning are not technical prerequisites for
+this decision or the accepted artifact narrowing. Their release gates remain
+open. The bounded narrowing is accepted; source entry remains HELD on the
+treatment-specific adoption conditions. Changed relevant 50/60/70/source contracts need scoped
+reconciliation before eventual adoption; 40 before 50 is attribution/merge
+preference, not a semantic dependency.
 
 ## Later paired comparison, if selected and authorized
 

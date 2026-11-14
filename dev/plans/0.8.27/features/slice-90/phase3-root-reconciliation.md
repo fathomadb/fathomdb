@@ -1,7 +1,7 @@
 ---
 title: Slice 90 Phase 3 root reconciliation
 target_release: 0.8.27
-lib_rs_blob: 727963021c16da3aa7302269d9a409bbc5c1da63
+lib_rs_blob: 7d495ef619a3842539b0b92bb7f618adc8873e44
 ---
 
 # Slice 90 Phase 3 root reconciliation
@@ -74,6 +74,11 @@ has 48 fields; ordinary production builds omit these two test controls. Root met
 ownership and production queue semantics are unchanged. The source blob above
 tracks this reviewed ownership repair, not a behavior golden or qualification.
 
+2026-11-14: 0.8.29 Slice20 adds only the `#[cfg(test)]`
+`slice20_open_hook_tests` module declaration for isolated real-engine path-alias
+regressions. This refreshes the source blob above without changing root fields,
+method ownership or production behavior.
+
 ## Remaining root declarations
 
 | Declaration | Disposition |
@@ -103,7 +108,7 @@ The exact 48 storage fields are grouped here to prevent a generic
 Root also composes module declarations, imports, and public re-exports. The
 remaining `#[cfg(test)]` modules are `gpu_allocation_witness_opt_in_tests`,
 `provider_admission_tests`,
-`slice20_fix1_tests`, `slice90_close_tests`,
+`slice20_fix1_tests`, `slice20_open_hook_tests`, `slice90_close_tests`,
 `slice90_concurrent_close_tests`, `slice90_close_review_tests`,
 `slice90_post_probe_real_error_tests`, `visibility_admission_tests`,
 `visibility_coalescing_tests`, and `tests`. They are test containers,

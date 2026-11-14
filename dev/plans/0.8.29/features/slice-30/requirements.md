@@ -7,9 +7,11 @@ The accepted P subset is preserved. The [G/D continuation](continuation-gd.md) r
 TDD contracts and stages G first. Independent design/actual20-fit PASS and parent
 G source GO now authorize the owned source unit recorded in execution.md; G
 campaign/D source remain separate. All unqualified cells/downstream holds remain.
-The [proposed M continuation](continuation-m.md) maps these unchanged IDs to
+The [reviewed M continuation](continuation-m.md) maps these unchanged IDs to
 explicit stdio measurements, unavailable exclusive attribution and held resource/
-input prerequisites. Its new matrix choices still require independent review.
+runtime prerequisites. Its accepted source now incorporates current G/20;
+affected-seam recheck, owned final source qualification and campaign authority
+remain separate. The matrix and all requirement/acceptance IDs remain unchanged.
 
 | ID | Requirement and reason | Acceptance |
 | --- | --- | --- |
@@ -40,8 +42,9 @@ history. Its production G inputs are unchanged; only the engine manifest and
 new interruption/support tests extend source inventory. R30-1..9/A30-1..7 and
 release requirements/AC remain unchanged. Canonical suite registration is220
 labels; no execution or whole100/Q1 closure follows. Accepted20 A3/A5 remains
-satisfied for M, which still needs a qualified selected G store and exact MCP
-tool review. D, F and model/GPU/campaign authority remain separately held.
+satisfied for M. At that entry the selected qualified G store and exact MCP
+tool review were pending; accepted normal29de later supplies the CLOSED100k
+input, while exact MCP tooling/runtime qualification remains separate. D, F and model/GPU/campaign authority remain separately held.
 
 ## Qualified G source and bounded result
 
@@ -52,9 +55,12 @@ all53 governed operations and the unchanged signed/default surface. Original
 failures, ignored/skipped limits and unavailable current Python/TS inner counts
 remain in execution.md.
 
-The accepted60f/campaign5e89 subset supplies G0 and10k seed/two read repeats;
-79 cap refusals and one branch engagement failure remain explicit. No qualified
-selected100k G store for M or D/F/whole30 clearance follows. The prospective
-[staged amendment](continuation-gd.md#november14-proposed-staged-g-continuation)
-changes no hard cap or qualification criterion; independent design review and
-reviewed concrete tooling precede separately authorized runtime.
+Historical60f/campaign5e89 G0/10k evidence and its failed branch/79 refusals
+remain retained. Accepted normal29de/campaign4fb7 assessment now has11 qualified
+primary cases (6 original references plus5 new completions) and73 required cap
+refusals. It supplies a qualified CLOSED100k input for M; M source/runtime/budget,
+D/F and wholeG/30 clearance remain separate. The reviewed
+[CLOSED-copy successor](continuation-gd.md)
+is a source candidate only: no calibration, R1, write-matrix or prospective total
+has run or been adopted. All R30/A30/release requirements and existing actual
+subjects, charges and limits remain unchanged.

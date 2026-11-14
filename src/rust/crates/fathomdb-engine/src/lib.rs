@@ -853,6 +853,9 @@ mod provider_admission_tests;
 mod slice20_fix1_tests;
 
 #[cfg(test)]
+mod slice20_open_hook_tests;
+
+#[cfg(test)]
 mod slice90_close_tests;
 
 #[cfg(test)]

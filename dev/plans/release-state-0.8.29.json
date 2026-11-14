@@ -1,6 +1,6 @@
 {
   "release": "0.8.29",
-  "release_kind": "Direct sequential local completion; CI and registry publication excluded; remaining product qualification pending",
+  "release_kind": "Direct local completion by parallel isolated slice owners with serial root integration; CI and registry publication excluded; remaining product qualification pending",
   "board": "dev/plans/runs/STATUS-0.8.29.md",
   "plan": "dev/plans/plan-0.8.29.md",
   "master": "dev/plans/0.8.20-0.9.0-PROGRAM-SEQUENCING.md",
@@ -180,13 +180,14 @@
         "dev/plans/0.8.29/features/slice-20/test-map.md",
         "dev/plans/0.8.29/features/slice-20/review-log.md"
       ],
-      "phase": "LINUX_A3_A5_AND_CAPACITY_SUBSET_QUALIFIED_WINDOWS_A6_HELD",
-      "evidence": "Approved seq-369 A3/A5 verification-only proofs and seq-370 capacity preparation integrated at f803a964ad8c8154a481e6f9385599bef5c0e054 after independent design and fresh final Astra-medium PASS. Real idle/stale/deadline/cleanup and five live-constant guards passed; seven isolated mutations each failed the unchanged runtime oracle and restored exact source. Genuine operator capability and receipt-loss tooling RED/GREEN are separate from these coverage controls. Assembled216/216 suites passed: Rust2726 passed67 ignored, Python1750 passed36 skipped, TS629 passed6 skipped plus15 in-body skip markers; strict security0 and actual nonce/source/native child identity passed. Original df177 wrapper module-classification failure, exact two-change lint resumption and all202 retained spill hashes remain recorded in features/slice-20/execution.md and review-log.md. Actual64GiB new disk is attached RAW; no live formatting or Windows A6 engine/compiler qualification. A6/whole20, whole30/60-F11, Block1 and release closure remain open.",
-      "qualified_subset_sha": "f803a964ad8c8154a481e6f9385599bef5c0e054",
+      "phase": "LINUX_SOURCE_QUALIFIED_WINDOWS_A6_HELD",
+      "evidence": "Qualified Linux source at45167677bee0d00b59194897e63ad05be40d6e63 includes unchanged prior seq-369 A3/A5 proofs and seq-370 capacity-only preparation plus genuine startup/visibility alias RED/GREEN. Fresh independent Astra implementation and assembled-results ACCEPT; affected parallel engine lib175/175, Clippy/check pass. Original final wrapper ran220 suites:218 passed and2 metadata guards failed. Reviewed baseline merge and exact inventory refresh made unchanged failed guards pass11/11 and8/8, yielding assembled220/220 without wrapper replay. Source/scripts/Cargo/toolchain/test oracles are unchanged from accepteddff; actual owned Python3.12.3/native receipt staysdff. Original wrapper exit1/failures retained. WindowsA6 remains unqualified: owned RAW image needs reattachment, format answer and refreshed guest/host readiness; no whole20/Block1/release closure.",
+      "qualified_subset_sha": "45167677bee0d00b59194897e63ad05be40d6e63",
       "continuation_plan_sha": "391ae66aa9d36fc0dbdfe5326ed028551a6774f5",
       "linux_repair_sha": "657edeb76caaf9c8d2aab433766bec9362e73217",
       "linux_proof_sha": "f803a964ad8c8154a481e6f9385599bef5c0e054",
-      "capacity_preparation": "ATTACHED_RAW_CAPACITY_ONLY"
+      "capacity_preparation": "ATTACHED_RAW_CAPACITY_ONLY",
+      "linux_hook_alias_qualified_sha": "45167677bee0d00b59194897e63ad05be40d6e63"
     },
     {
       "slice": 30,
@@ -212,9 +213,9 @@
         "dev/plans/0.8.29/features/slice-30/continuation-gd.md",
         "dev/plans/0.8.29/features/slice-30/continuation-m.md"
       ],
-      "phase": "P_AND_G_11_CASES_QUALIFIED_73_CAP_REFUSED",
+      "phase": "G_CLOSED_COPY_SOURCE_QUALIFIED_M_FINAL_GATE_PENDING_D_TDD_READY",
       "plan_sha": "bea7f05cd2497af0d73c6eb8da509e11a947ca08",
-      "conditions": "P and G source qualification plus11 actual G cases are accepted;73 required primary obligations remain unsatisfied. Closed-copy design at90a883f8 and M fit atf90714a0 passed independent Astra review. G Python tooling implementation is next, before M Rust helper work to preserve native compiler inputs. All84 primary G obligations and46 M cells/defaults remain. Candidate future envelopes are inactive pending actual costs and complete forecasts. No new runtime or cap adoption. D/F and whole20/40/50/pre90/100Q1 remain open.",
+      "conditions": "P and11 actual G primary cases are qualified;73 required G primary obligations remain unsatisfied. Closed-copy G source0fa is independently accepted and assembled-qualified; calibration/R1/write stages need their separate fresh technical GO. M sourced942 has implementation ACCEPT but needs actual integrated-base reconciliation and final qualification. D scoped design PASS/tests staged; no runtime RED or measurement GO. All84G/46M/24D cells and defaults remain; candidate caps are inactive, unknown costs remain held. F input, whole20/40/50/pre90/100Q1 remain open.",
       "evidence": "P tools and measured Linux direct-text subset at2fd772558 passed fresh independent Astra-medium final P review on clean documentation0d8be5bb;16grouped genuine RED/GREEN units and invalid124 fixture history remain explicit.16/16 frozen first-attempt cells complete,20000successful timed natural calls,zero errors/noisy cells/retries/resource stops. Unfiltered100k P1 p50 27.184-27.509ms/p99 106.911-107.682ms is below tracked nongated80/300; filtered P2 is not AC083. Parent independently checked hashes/raw counts/percentiles/means; Astra checked batch/probe/match identities. Qualification is assembled from original1f214/216 plus actual affected reruns; original SC2312/Pages/MD012 failures and inner skips retain subjects. Production native receipt remains1f with unchanged relevant inputs; normal release measurement executable was built and run at2fd. See features/slice-30/results-p.md,execution.md and review-log.md. No model/GPU/MCP/frozen-fidelity or whole-slice/release completion follows.",
       "qualified_subset_sha": "2fd772558e46d0b1645dce2ffea730d0bdd3305c",
       "continuation_plan_sha": "0d8be5bb75516955ebf99b94913b9b54921bb3a4",
@@ -222,10 +223,10 @@
       "g_source_entry": {
         "branch": "llm/0.8.29-s30-g-20261113",
         "worktree": "/mnt/data/worktrees/fathomdb-0.8.29-s30-g-20261113",
-        "scope": "Accepted normal fixed84 controller and assembled source verification atbfe039; actual normal assessment at29de leaves11 qualified primary cases and73 required cap refusals. Reviewed closed-copy successor design awaits implementation/review/qualification. No new runtime."
+        "scope": "Pinned closed-copy tooling0fa is source-qualified; G worktree/native artifacts and compiler inputs stay frozen for reviewed runtime stages. Actual campaign remains11 qualified/73 required refusals, no new runtime GO."
       },
-      "g_source_qualified_sha": "bfe03918dda8262891086a9ae532a8fd68950e19",
-      "g_source_evidence": "Source, measurement-tooling and no-provider subset accepted at 4dbc67f39254bd78cc2c58bdf4d91ee76a8713ae after final independent Astra ACCEPT. Original shell-lint failure and 220-suite collector with 218 passes/two governance failures remain retained. Repaired root inventory passes 8/8 with 48 structural oracles unchanged; SDK policy passes 41/41 with 53 governed operations unchanged. Affected post-rename observer 10/10, normal CLI 12/12, feature consumers, module boundaries, strict Clippy and fresh owned Python/TS rebuilds/native child proof pass. Qualification is assembled; inner ignores/skips, unavailable Python/TS body counts, all prior REDs and failed attempts remain explicit in features/slice-30/execution.md. No Default, dense-provider, GPU/CUDA measurement, G campaign, D/M/F, whole 30 or release qualification follows. G0-only short-child observation repair: committed RED9dfa5d2a5 to GREEN21d8d4e7e, unchanged new test bytes and prior regression oracles,2/2 focused and39/39 G Python controls plus Ruff/scoped Markdown/views/hooks pass. Independent Astra accepts source/protocol correction only; actual engagement criterion remains unchanged. Final containment implementation f8703b466f1778e4db59cf86fd1fb11f03d52d67 passed fresh independent Astra recheck and51/51 actual controls with five frozen RED testfiles unchanged. One final canonical wrapper on clean f870 passed220/220 suites, no suite skips/exclusions; Rust2727 passed/72 ignored. Current Python/TS suites and native-receipt checks passed, inner counts unavailable after canonical passing-log cleanup. Exact private boundary populated0/removal and original-context no-survivor checks passed. Earlier failed wrappers, fixture/preflight failures, original G0 and single hints resumption remain retained with their proper subjects. Staged continuation at bf647231eba70d562888ab312f33b904008a7565 passed fresh distinct Astra-medium implementation review, four genuine RED/GREEN units and60/60 affected controls with four new RED files and existing51 controls unchanged. Its single final canonical gate passed220/220,0suite skips/exclusions and security0; Rust/Python/TS suites passed, current inner counts unavailable after canonical passing-log cleanup. Exact frozen source and empty deltas, no resource stop/cleanup uncertainty, private-boundary populated0/removal and original-context no-survivor checks passed. No new actual GPU/100k qualification follows. Normal six-reference reuse at bfe03918dda8262891086a9ae532a8fd68950e19 passed a genuine semantic RED/GREEN,63/63 affected controls and fresh independent Astra implementation/assembled-qualification reviews. Strict original full attempt exited124/child-15 on owned du ENOENT; lint/typecheck/security0 passed,192-prefix completion supported by serial checkpoint progress/no failure output. One reviewed unchanged canonical28-suite remainder passed28/28 with0suite skips/exclusions and verified private-boundary/actor cleanup. This is assembled qualification, not one uninterrupted220 wrapper. Sampler/caps/source remained unchanged; current Rust/Python/TS inner totals unavailable after canonical passing-log cleanup. Original measurement ledger/token/closed100k input untouched.",
+      "g_source_qualified_sha": "0fa61810bcd5c348b23d0ae89206ae3b3033366e",
+      "g_source_evidence": "Closed-copy tooling0fa has fresh Astra implementation/assembled-qualification ACCEPT. Original final attempt selected live controls and completed lint/typecheck/security0 plus fast prefix before guardian loss during Rust; original terminal receipt is missing and exact boundary cleanup is recorded. Unchanged Rust proof remains acceptedbfe03918 under identical Rust/tests/Cargo/toolchain1.95.0/owned CPython3.13.13. Current canonical suffix passed18/18,0skips/exclusions, exit0 with no resource stop/cleanup uncertainty, clean source and exact boundary removal. This is assembled source qualification; prior failures, skips and unavailable current inner Python/TS totals remain in execution.md. No actual calibration, new profile, Default/GPU or whole30 qualification follows.",
       "g_campaign_first_attempt": {
         "source_sha": "5c7b1988d342488288ae83e022b358254c60edc8",
         "campaign_uuid": "98d487ef-d47e-4b8c-b25b-5a92669df788",
@@ -458,7 +459,7 @@
         "continuation": "Normal six-reference reuse source qualified at bfe039 through accepted assembled verification; six completed measurements remain original. Separate normal fixed84 readiness/technical GO is next. Expected five runnable/73cap remains forecast until actual assessment. All required rows/caps/charges/consumed token preserved; no runtime yet."
       },
       "m_source_fit_pending": {
-        "status": "DESIGN_ACCEPTED_SOURCE_PENDING",
+        "status": "IMPLEMENTATION_ACCEPTED_INTEGRATED_BASE_AND_FINAL_QUALIFICATION_PENDING",
         "scope": "No production API/config/environment/observer/schema change needed; test-seams-only private stdio helper and new concurrent invocation/metrics tooling. Existing aggregate assumes responses and old RawClient discards unmatched IDs; actual code gaps identified.",
         "qualification_clarifications": "Astra accepted: hybrid compute requires same-PID GPU memory plus positive selected-GPU utilization; direct text retains CUDA/provider identity with query GPU use N/A, no extra pulses/queries; tiny M-E diagnostics are provider-free. No production API/config/environment/schema change.",
         "prospective_budget": {
@@ -476,10 +477,11 @@
           "remaining_original_4h_ns": 12554869122060,
           "note": "6h/64GiB TOTAL including all prior charges/bytes, not renewed/additional. Actual natural-loop proxy alone exceeds old remaining time;34copies exceed16GiB. Complete remaining copy/open/lifecycle/diagnostic/output/failure forecasts must fit before dispatch. Independent design review and parent disposition precede any amendment; oldG caps/freezes/refusals stay historical."
         },
-        "plan_sha": "f90714a0e2132bab3b2a2b2d60425a598c157e34"
+        "plan_sha": "f90714a0e2132bab3b2a2b2d60425a598c157e34",
+        "source_sha": "d942aa91e74a9463e82b6a9384ca41ca28698c42"
       },
       "g_closed_copy_plan": {
-        "status": "DESIGN_ACCEPTED_IMPLEMENTATION_NEXT_NO_RUNTIME_GO",
+        "status": "SOURCE_QUALIFIED_RUNTIME_HELD",
         "plan_sha": "90a883f8b9d2d7d292c4d2b99275a6c7e3bad242",
         "review": "Same independent Astra-medium PASS after fixes for common overhead, supervised copy/validation and enforced R1 cost-review stop.",
         "scope": "One coherent Python tooling phase for calibration, R1-only, write-matrix and reference/cost transitions; per-behavior RED/GREEN, fresh independent implementation review, final clean source gate. No Rust/native rebuild or qualified-case replay.",
@@ -500,7 +502,14 @@
           "total_shared_retained_bytes": 137438953472,
           "status": "INACTIVE_CONDITIONAL; actual costs and complete G/D/M forecasts required; includes prior charges, no reset or additive M ceiling"
         },
-        "sequencing": "G Python source first preserves native fingerprints. Calibration, R1-only and write-matrix terminate separately; reviewed actual costs required before writes."
+        "sequencing": "G Python source first preserves native fingerprints. Calibration, R1-only and write-matrix terminate separately; reviewed actual costs required before writes.",
+        "source_sha": "0fa61810bcd5c348b23d0ae89206ae3b3033366e"
+      },
+      "d_source_entry": {
+        "worktree": "/mnt/data/worktrees/fathomdb-0.8.29-s30-d-20261114",
+        "branch": "llm/0.8.29-s30-d-20261114",
+        "base": "2a6401da02123ddc0016023a4bd8e747ef3717da",
+        "scope": "Astra-medium scoped design PASS; D-T1a real-store test and compilable observer seam staged, no build/RED claim. Fresh integrated-predecessor reconciliation and owned native window precede execution; no measurement GO."
       }
     },
     {
@@ -508,9 +517,9 @@
       "short": "CACHE",
       "title": "Conditional measured snapshot-safe eligibility cache",
       "depends_on": [
-        30
+        10
       ],
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "design_refs": [
         "dev/plans/0.8.29/features/slice-40/acceptance.md",
         "dev/plans/0.8.29/features/slice-40/design.md",
@@ -521,9 +530,9 @@
         "dev/plans/0.8.29/features/slice-40/review-log.md",
         "dev/plans/0.8.29/features/slice-40/test-map.md"
       ],
-      "conditions": "Adopt only if30 measurements and reviewed snapshot/invalidation safety justify it; otherwise record authorized rejection/defer.",
-      "phase": "BOUNDED_DESIGN_REVIEWED_SOURCE_HELD",
-      "evidence": "Astra-medium design PASS after FIX1 corrected AC-083 to text only. This is a bounded proposal: current Slice30 measurements, prospective tolerances, concrete selection and snapshot/invariance proof still precede implementation. No cache has been selected."
+      "conditions": "Accepted bounded artifact amendment consumes qualified Linux20/A3/A5 and named accepted30P/G read artifacts, not whole20/30, WindowsA6, M/D/F or TC5. Adoption still requires affected write-interleaved baseline, exact snapshot/invalidation or batch-invariance proof, bounded ownership, prospective tolerances and paired treatment qualification. No treatment selected; the real hybrid opportunity stays open. Whole40 closure by rejection/defer requires an actual owner disposition; none is recorded.",
+      "phase": "MEASUREMENT_DECISION_AND_ARTIFACT_DEPENDENCIES_REVIEWED_ADOPTION_HELD",
+      "evidence": "Independent Astra-medium PASS on current measurement table, plan and acceptance amendment. Raw matching first50 G-O observations across200hybrid calls confirm direct-eligibility SQL48.336\u201349.223ms/~31.994\u201332.439% of enclosing observed API spans, not canonical ordinary-run latency. Presence is already once/call and small; existing batch hoists get no invented saving. Residual/source-bearing/write costs and safety remain unmeasured/unproved. No cache source/runtime, owner deferral or whole40 closure."
     },
     {
       "slice": 50,
@@ -542,7 +551,7 @@
         "dev/plans/0.8.29/features/slice-50/review-log.md",
         "dev/plans/0.8.29/features/slice-50/test-map.md"
       ],
-      "conditions": "Accepted identity successor precedes production semantic change.",
+      "conditions": "Accepted identity successor precedes production semantic change. PROPOSED pending Astra design review, source held meanwhile: entry consumes accepted30 P/G read baseline plus the identity ruling and census input, not whole30 closure, M/D/F or Windows A6.",
       "phase": "BOUNDED_DESIGN_REVIEWED_SOURCE_HELD",
       "evidence": "Astra-medium bounded PhaseA PASS after context-pack and role-tagged fixture corrections. The feedback decision presentation also passed review; the actual human ruling remains unanswered. Current measurements, representative safe census inputs and identity/ADR decisions remain held. No identity or new feedback ABI was selected.",
       "census_access_review": {
@@ -627,7 +636,7 @@
         "dev/plans/0.8.29/features/slice-80/status.md",
         "dev/plans/0.8.29/features/slice-80/test-map.md"
       ],
-      "conditions": "Settled identity/field/degradation contracts; design may start before predecessor implementations finish.",
+      "conditions": "Settled identity/field/degradation contracts; design may start before predecessor implementations finish. Contract inputs:50 accepted identity ruling,60 integrated fields plus the F11 feedback ruling,70 integrated reasons. Full80 acceptance needs those contracts and the owner's contract acceptance. Reviewed hold on whole50/60/70 before80 closes is unchanged; closing80 on the contracts alone is PROPOSED pending Astra design review.",
       "phase": "BOUNDED_DESIGN_REVIEWED_SOURCE_HELD",
       "evidence": "Astra-medium bounded PhaseA and aggregate-v2 PASS, then nine-document consolidation consistency PASS. Exact carriers, numeric profile.dimension, stored-mapped-span population, unavailable semantics and writer-only cache authority agree. No aggregate physical-vector probes or strengthened validation/refusal policy are proposed. Actual50/60/70 reconciliation and full80/90 gates remain held; this is not accepted new ABI or implementation clearance."
     },
@@ -650,7 +659,7 @@
         "dev/plans/0.8.29/features/slice-90/status.md",
         "dev/plans/0.8.29/features/slice-90/test-map.md"
       ],
-      "conditions": "Approved80 AND actual Block1 follow-up exit after integrated selected20\u201370;160 is not that exit.",
+      "conditions": "Approved80 AND actual Block1 follow-up exit after integrated selected20\u201370;160 is not that exit. Block1 exit is not a slice: the Slice90 owner runs it as90's pre-source entry step on the integrated root baseline; complete when applicable full/feature/performance checks, both-format conformance with inherited failures resolved and the approved smoke/item-4 remeasure (Slice160 Q12 content) have real results there, recorded by the parent in this slice's evidence.20,50,60,70 enter it closed;40 closed or by authorized rejection/defer.",
       "phase": "BOUNDED_DESIGN_REVIEWED_SOURCE_HELD",
       "evidence": "Astra-medium bounded early design PASS after FIX1: installed Python/TS semantic REDs precede corresponding shared converter GREEN; aggregate count/byte/fraction transport is distinct from numeric profile.dimension. Actual integrated predecessors, approved80 and the real Block1 follow-up exit precede source work. No90-to160 cycle, implementation authority or completion follows this review."
     },
@@ -685,11 +694,16 @@
       "depends_on": [
         10
       ],
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "design_refs": [
-        "dev/plans/0.8.29/features/slice-110/plan.md"
+        "dev/plans/0.8.29/features/slice-110/plan.md",
+        "dev/plans/0.8.29/features/slice-110/requirements.md",
+        "dev/plans/0.8.29/features/slice-110/design.md",
+        "dev/plans/0.8.29/features/slice-110/test-map.md"
       ],
-      "conditions": "Actual reset timing/venue answer and reviewed lifetime remedy remain required;140 fork-first proof before affected pin adoption."
+      "conditions": "Actual reset timing/venue answer and reviewed lifetime remedy remain required. One-way seam, no cycle:110 reviewed design names any required fork repair;140 qualifies it fork-locally; only then110 adopts the affected pin. With no required repair110 does not wait on140.",
+      "phase": "DESIGN_REVIEWED_OWNER_POLICY_AND_TECHNICAL_PREREQUISITES_HELD",
+      "evidence": "Independent Astra-medium design PASS after partial-load loss was kept seam-only; the real reset envelope requires completed construction. Complete native ownership and required-only fork-A lifetime repair are designed. Fault policy, finite frozen residue with unknown opaque-host-byte bound, and venues remain unselected. No implementation, reset execution, original Orin survival or whole110 qualification."
     },
     {
       "slice": 120,
@@ -698,11 +712,16 @@
       "depends_on": [
         10
       ],
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "design_refs": [
-        "dev/plans/0.8.29/features/slice-120/plan.md"
+        "dev/plans/0.8.29/features/slice-120/plan.md",
+        "dev/plans/0.8.29/features/slice-120/requirements.md",
+        "dev/plans/0.8.29/features/slice-120/design.md",
+        "dev/plans/0.8.29/features/slice-120/test-map.md"
       ],
-      "conditions": "Actual artifact selection and consumed-kernel/compiler exposure assessment required; support changes owner-ratified, publishing separately authorized."
+      "conditions": "Actual artifact selection and consumed-kernel/compiler exposure assessment required; support changes owner-ratified, publishing separately authorized.120 closes only on its own A1-A6 qualification of the selected artifact, installed consumer and technical compiler exposure; artifact delivery alone does not close it.130's broader final matrix then qualifies that artifact and is not a120 prerequisite, so there is no120/130 cycle.",
+      "phase": "DESIGN_REVIEWED_OWNER_POLICY_AND_TECHNICAL_PREREQUISITES_HELD",
+      "evidence": "Independent Astra-medium design PASS after bidirectional native release/CUDA identity controls and exact-candidate licence/SBOM acceptance were restored. Explicit Python/Node artifact selection, source Rust and CLI scope remain owner proposals. Compiler6111901 safety is UNKNOWN and blocks CUDA13 builds/delivery; quantitative disposition, exact toolchain/image/pins and venues remain held. No implementation, artifact delivery or runtime qualification."
     },
     {
       "slice": 130,
@@ -745,7 +764,7 @@
         "dev/plans/0.8.29/features/slice-140/status.md",
         "dev/plans/0.8.29/features/slice-140/test-map.md"
       ],
-      "conditions": "Concrete required110/120 repair design only, fork-local qualified before product pins; B/C maintenance belongs.30 and never gates.29.",
+      "conditions": "Concrete required110/120 repair design only, fork-local qualified before product pins; B/C maintenance belongs.30 and never gates.29. Consumes the reviewed110/120 design artifact, not their closure; with no required repair it is disposed without source work.",
       "phase": "BOUNDED_DESIGN_REVIEWED_SOURCE_HELD",
       "evidence": "Astra-medium bounded PhaseA PASS. Only concrete repairs required by110/120 and necessary repair-release versioning belong in.29. Broader upstream/rebase/marker/multiarch B/C work belongs in.30 and is not a.29 prerequisite. Required repair selection, fork-local design/qualification and publication gates remain held; no speculative repair or no-repair result is claimed."
     },
@@ -777,6 +796,8 @@
       "short": "COMBINED-CLOSE",
       "title": "Selected combined qualification documentation and release readiness",
       "depends_on": [
+        20,
+        40,
         90,
         100,
         110,
@@ -793,7 +814,7 @@
         "dev/plans/0.8.29/features/slice-160/status.md",
         "dev/plans/0.8.29/features/slice-160/test-map.md"
       ],
-      "conditions": "Every selected mandatory outcome qualified or explicitly disposed; actual installed/publication proof separate. Optional140/150 only if selected. Publication held.",
+      "conditions": "Every selected mandatory outcome qualified or explicitly disposed; actual installed/publication proof separate.20 closes only with actual Windows A6;40 may close by authorized rejection/defer;30/50/60/70/80 reach160 through90. Optional140/150 only if selected. Finished bounded local tasks are not local completion: every selected mandatory installed/platform (Q14) row and release dry-run (Q18) part that a permitted local or owned venue can qualify stays open until qualified there. The local mandate completes only when the sole unmet rows need excluded CI execution or publication; each is named outstanding, neither waived nor passed. Publication held.",
       "phase": "BOUNDED_DESIGN_REVIEWED_SOURCE_HELD",
       "evidence": "Astra-medium bounded PhaseA design PASS. The matrix preserves mandatory versus conditional coverage, release-specific measurement freshness, justified unchanged-input reuse, assembled-evidence limits, native identity, Block1-before90 sequencing and separate publication authorization. No runtime qualification, final implementation approval or publish readiness follows."
     }
@@ -890,13 +911,15 @@
     "unruled": [
       {
         "id": "reset-timing-venue",
-        "title": "Actual reset timing/venue answer before110 fault execution.",
-        "owner_slice": 110
+        "title": "Owner choice: coordinated quiescent child-context reset with one frozen native live set until mandatory process restart, including the explicitly unknown opaque-host-byte bound, versus isolation or defer; actual fault venues remain separate.",
+        "owner_slice": 110,
+        "source": "dev/plans/0.8.29/features/slice-110/design.md \u2014 Owner decision"
       },
       {
         "id": "artifact-selection",
-        "title": "Actual CUDA-major artifact selection contract before120 delivery.",
-        "owner_slice": 120
+        "title": "Owner choice of proposed explicit CUDA13 Python/Node package/channel/selector and Rust/CLI scope, plus the quantitative adoption-review disposition. Compiler safety remains a technical prerequisite, not an owner waiver.",
+        "owner_slice": 120,
+        "source": "dev/plans/0.8.29/features/slice-120/plan.md \u2014 Decisions ready for the owner"
       },
       {
         "id": "qualified-session-caps",
@@ -920,6 +943,48 @@
         "halts_run": false,
         "source": "Prepared operator git:396a023e02580a1bb82ddcb7f16817874ad0046c dev/experiments/0.8.29-slice20-format/README.md; fresh independent preparation review PASS; actual async question2026-11-13",
         "conditions": "No live storage mutation before explicit answer and parent GO. Existing disks/C cleanup/compiler/A6 remain outside this operation; in-flight guarded sequence may finish after disconnect; uncertain state stops with read-only inspection. C:8/5GiB later workload floor unchanged."
+      },
+      {
+        "id": "slice30-frozen-tc5-input",
+        "title": "Owner input: reconnect drive UUID C8D47C11D47C03CA or supply an existing exact copy of the frozen TC5 pack for30 F and160 Q8/AC-075. No regenerated or substitute pack.",
+        "owner_slice": 30,
+        "source": "dev/plans/0.8.29/features/slice-30/inputs.md; dev/plans/0.8.29/features/slice-160/qualification.md Q8"
+      },
+      {
+        "id": "slice50-census-input",
+        "title": "Owner input: exact existing census artifact, path, provenance and closed custody for the already-approved aggregate census. Scope approval is not re-asked.",
+        "owner_slice": 50,
+        "source": "dev/plans/0.8.29/features/slice-50/census.md; ladder slice50 census_access_review"
+      },
+      {
+        "id": "slice50-identity-ruling",
+        "title": "Owner ruling on the proposed retrieval record identity ADR before50's production semantic change and80's scored-bytes contract.",
+        "owner_slice": 50,
+        "source": "dev/adr/ADR-0.8.29-retrieval-record-identity.md (proposed); dev/plans/0.8.29/features/slice-50/plan.md"
+      },
+      {
+        "id": "f11-repeated-ref-feedback",
+        "title": "Owner ruling on F11 historical-flag/repeated-ref feedback semantics; reviewed presentation exists, answer does not.",
+        "owner_slice": 60,
+        "source": "dev/plans/0.8.29/features/slice-50/feedback-decision.md"
+      },
+      {
+        "id": "slice100-additional-q1-pair",
+        "title": "Owner answer on one additional corrected Q1 matched healthy/interrupted pair; seq-372 covered the original pair only and is not reused.",
+        "owner_slice": 100,
+        "source": "dev/plans/0.8.29/features/slice-100/status.md"
+      },
+      {
+        "id": "block1-smoke-inputs",
+        "title": "Owner input: model, prompt, budget and fixture for the Block1 LoCoMo smoke and item-4 remeasure before90 source entry. No spend inferred.",
+        "owner_slice": 90,
+        "source": "dev/plans/0.8.29/features/slice-160/qualification.md Q12"
+      },
+      {
+        "id": "slice80-contract-acceptance",
+        "title": "Owner acceptance of the exact full80 contract revision after its50/60/70 contract inputs settle; bounded design PASS is not that acceptance.",
+        "owner_slice": 80,
+        "source": "dev/plans/0.8.29/features/slice-80/plan.md; dev/plans/0.8.29/features/slice-90/requirements.md S90-R12"
       }
     ]
   },

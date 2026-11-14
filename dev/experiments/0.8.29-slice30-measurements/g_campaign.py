@@ -115,6 +115,29 @@ def predict_seed(cell, previous, cell_usage):
 def run_g_plan(spec, root, command, prepare=None, allocation_root=None, assess=None, reused=None, stage=None, prior_outcome_path=None):
     """Run every fixed G obligation against one shared allocation and absolute cell clock."""
     plan = make_g_plan(spec)
+    if spec.get("preparation") == "closed-copy-v1" and spec.get("closed_mode") == "closed-copy-calibration":
+        root = Path(root)
+        root.mkdir(parents=True, exist_ok=True)
+        template = next(cell for cell in plan if cell["id"] == "g-w-b1-s1-engine-text-r0")
+        calibration = [dict(template, id=f"g-cal-{adapter}-b{batch}-s{ratio}",
+                            name=f"g-cal-{adapter}-b{batch}-s{ratio}", adapters=[adapter],
+                            batch_size=batch, searches_per_batch=ratio, calibration=True)
+                       for batch, ratio in ((10, 1), (1, 100)) for adapter in ("engine", "sdk")]
+        separate = _run_plan(spec, calibration, root / "calibration", command, prepare,
+                             allocation_root, assess, None, None, prior_outcome_path,
+                             prerequisites=reused)
+        (root / "calibration-outcomes.json").write_text(json.dumps(separate, indent=2) + "\n")
+        rows = [(reused or {}).get(cell["id"], {"id": cell["id"], "cell": cell,
+                 "status": "not_run_stage", "complete": False, "reason": "outside_closed_calibration"})
+                for cell in plan]
+        (root / "g-outcomes.json").write_text(json.dumps(rows, indent=2) + "\n")
+        return rows
+    return _run_plan(spec, plan, root, command, prepare, allocation_root, assess,
+                     reused, stage, prior_outcome_path)
+
+
+def _run_plan(spec, plan, root, command, prepare, allocation_root, assess, reused,
+              stage, prior_outcome_path, prerequisites=None):
     target = stage_target(stage)
     if spec.get("preparation") == "closed-copy-v1" and spec.get("closed_mode") == "closed-copy-read-r1":
         target = "g-r-n100000-r1"
@@ -135,6 +158,9 @@ def run_g_plan(spec, root, command, prepare=None, allocation_root=None, assess=N
     state_path = root / "campaign-state.json"
     previous = ({row["id"]: row for row in json.loads(state_path.read_text())}
                 if state_path.exists() else {})
+    previous.update(prerequisites or {})
+    if prerequisites:
+        state_path.write_text(json.dumps(list(previous.values()), indent=2) + "\n")
     for identifier, reference in (reused or {}).items():
         cell = next((item for item in plan if item["id"] == identifier), None)
         if (cell is None or reference.get("cell") != cell

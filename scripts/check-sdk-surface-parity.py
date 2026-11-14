@@ -261,7 +261,7 @@ def _strip_cfg_test(text: str) -> str:
 
 
 _PUB_FN = re.compile(
-    r"(?<![\w)])pub\s+(?:(?:const|async|unsafe|extern\s+\"[^\"]*\")\s+)*fn\s+(\w+)"
+    r"(?<![\w)])pub\s+(?:(?:const|async|unsafe|extern(?:\s+\"[^\"]*\")?)\s+)*fn\s+(\w+)"
 )
 _CORE_ONLY_NAMES = {"Engine", "OpenedEngine", "EmbedderChoice"}
 

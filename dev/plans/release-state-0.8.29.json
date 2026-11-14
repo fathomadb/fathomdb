@@ -222,10 +222,10 @@
       "g_source_entry": {
         "branch": "llm/0.8.29-s30-g-20261113",
         "worktree": "/mnt/data/worktrees/fathomdb-0.8.29-s30-g-20261113",
-        "scope": "Qualified source/controller and provider-free proof, including reviewed sampling and private-cgroup containment. Final canonical gate220/220 passed at f870. The actual60f campaign adds only G0 and10k seed/read qualification. D/M/F,100k,whole30/release exits remain unsatisfied."
+        "scope": "Qualified source/controller, including staged branch polling, original-result reuse, closed stages and one-shot exploratory admission. Fresh independent Astra ACCEPT and final canonical220/220 at bf647. Actual60f four-case G0/10k evidence retains its original identity; branch and100k stages still need separate fresh technical readiness/GO. D/M/F,whole30/release exits remain unsatisfied."
       },
-      "g_source_qualified_sha": "f8703b466f1778e4db59cf86fd1fb11f03d52d67",
-      "g_source_evidence": "Source, measurement-tooling and no-provider subset accepted at 4dbc67f39254bd78cc2c58bdf4d91ee76a8713ae after final independent Astra ACCEPT. Original shell-lint failure and 220-suite collector with 218 passes/two governance failures remain retained. Repaired root inventory passes 8/8 with 48 structural oracles unchanged; SDK policy passes 41/41 with 53 governed operations unchanged. Affected post-rename observer 10/10, normal CLI 12/12, feature consumers, module boundaries, strict Clippy and fresh owned Python/TS rebuilds/native child proof pass. Qualification is assembled; inner ignores/skips, unavailable Python/TS body counts, all prior REDs and failed attempts remain explicit in features/slice-30/execution.md. No Default, dense-provider, GPU/CUDA measurement, G campaign, D/M/F, whole 30 or release qualification follows. G0-only short-child observation repair: committed RED9dfa5d2a5 to GREEN21d8d4e7e, unchanged new test bytes and prior regression oracles,2/2 focused and39/39 G Python controls plus Ruff/scoped Markdown/views/hooks pass. Independent Astra accepts source/protocol correction only; actual engagement criterion remains unchanged. Final containment implementation f8703b466f1778e4db59cf86fd1fb11f03d52d67 passed fresh independent Astra recheck and51/51 actual controls with five frozen RED testfiles unchanged. One final canonical wrapper on clean f870 passed220/220 suites, no suite skips/exclusions; Rust2727 passed/72 ignored. Current Python/TS suites and native-receipt checks passed, inner counts unavailable after canonical passing-log cleanup. Exact private boundary populated0/removal and original-context no-survivor checks passed. Earlier failed wrappers, fixture/preflight failures, original G0 and single hints resumption remain retained with their proper subjects.",
+      "g_source_qualified_sha": "bf647231eba70d562888ab312f33b904008a7565",
+      "g_source_evidence": "Source, measurement-tooling and no-provider subset accepted at 4dbc67f39254bd78cc2c58bdf4d91ee76a8713ae after final independent Astra ACCEPT. Original shell-lint failure and 220-suite collector with 218 passes/two governance failures remain retained. Repaired root inventory passes 8/8 with 48 structural oracles unchanged; SDK policy passes 41/41 with 53 governed operations unchanged. Affected post-rename observer 10/10, normal CLI 12/12, feature consumers, module boundaries, strict Clippy and fresh owned Python/TS rebuilds/native child proof pass. Qualification is assembled; inner ignores/skips, unavailable Python/TS body counts, all prior REDs and failed attempts remain explicit in features/slice-30/execution.md. No Default, dense-provider, GPU/CUDA measurement, G campaign, D/M/F, whole 30 or release qualification follows. G0-only short-child observation repair: committed RED9dfa5d2a5 to GREEN21d8d4e7e, unchanged new test bytes and prior regression oracles,2/2 focused and39/39 G Python controls plus Ruff/scoped Markdown/views/hooks pass. Independent Astra accepts source/protocol correction only; actual engagement criterion remains unchanged. Final containment implementation f8703b466f1778e4db59cf86fd1fb11f03d52d67 passed fresh independent Astra recheck and51/51 actual controls with five frozen RED testfiles unchanged. One final canonical wrapper on clean f870 passed220/220 suites, no suite skips/exclusions; Rust2727 passed/72 ignored. Current Python/TS suites and native-receipt checks passed, inner counts unavailable after canonical passing-log cleanup. Exact private boundary populated0/removal and original-context no-survivor checks passed. Earlier failed wrappers, fixture/preflight failures, original G0 and single hints resumption remain retained with their proper subjects. Staged continuation at bf647231eba70d562888ab312f33b904008a7565 passed fresh distinct Astra-medium implementation review, four genuine RED/GREEN units and60/60 affected controls with four new RED files and existing51 controls unchanged. Its single final canonical gate passed220/220,0suite skips/exclusions and security0; Rust/Python/TS suites passed, current inner counts unavailable after canonical passing-log cleanup. Exact frozen source and empty deltas, no resource stop/cleanup uncertainty, private-boundary populated0/removal and original-context no-survivor checks passed. No new actual GPU/100k qualification follows.",
       "g_campaign_first_attempt": {
         "source_sha": "5c7b1988d342488288ae83e022b358254c60edc8",
         "campaign_uuid": "98d487ef-d47e-4b8c-b25b-5a92669df788",
@@ -262,7 +262,7 @@
         "failed_only_resumption": "Exactly one retained hints executable invocation passed1/1 in9.67s at clean973b. Astra accepted same-PID execv adapter and actual original launch assertions for artifact/args/features/selected environment. Quiet capture has no numeric result; no replay, source-repair, full-env identity or noise-cause claim. Original209.8us>200 failure and failed full wrapper remain retained."
       },
       "g_last_full_verification": {
-        "source_sha": "f8703b466f1778e4db59cf86fd1fb11f03d52d67",
+        "source_sha": "bf647231eba70d562888ab312f33b904008a7565",
         "wrapper_exit": 0,
         "registered": 220,
         "ran": 220,
@@ -270,12 +270,11 @@
         "failed": 0,
         "suite_skips": 0,
         "excluded": 0,
-        "rust": "2727 passed,0 failed,72 ignored;407 retained summaries.",
-        "python_typescript": "Suites and canonical Python-native-receipt check passed. Current per-case counts unavailable after passing-log cleanup; no replay or inference.",
-        "security": "0 violations,0 blockers,0 downgrades. Expected x64 Tegra lint platform skip retained.",
-        "source_native_identity": "Source start/end clean f870 with no delta. Owned native receipt retains actual a3c483fa7 build and unchanged d644 compiler inputs; not relabelled as f870.",
-        "resource_cleanup": "No resource stop or cleanup uncertainty; exact held private boundary populated0 and removed, marker/path absent; original-context owned actor scan empty.",
-        "evidence": "containment-final-full-verify normal log/receipt and containment-final-rust-retained.log under owned G task; previous973b failure/resumption retained."
+        "rust_python_typescript": "Suites passed; current inner counts unavailable after canonical passing-log cleanup. No replay or inference; prior ignores/skips retain their original subjects.",
+        "security": "0 violations,0 blockers,0 downgrades.",
+        "source_native_identity": "Source start/end clean bf647 with empty deltas. No Rust/src/Cargo/lock change. Native and CUDA artifacts retain their actual original build identities and unchanged compiler inputs; no rebuild or retag.",
+        "resource_cleanup": "No resource stop or cleanup uncertainty; exact held private boundary populated0/removed, marker absent and original-context owned actors absent.",
+        "evidence": "Owned G task logs/receipts/g-staged-final-full-verify; earlier f870 qualification and973b failure/resumption remain in source/execution history."
       },
       "g_campaign_current": {
         "source_sha": "60f471aaf042203d07a15025662ebf572f6cc242",
@@ -300,7 +299,16 @@
         "shared_used_ns": 357099039661,
         "inflight": null,
         "cleanup": "All owned actors gone, exact private cgroup populated0 and removed, marker absent, selected3090 quiet and cooperative claim released. No resource stop or cleanup uncertainty.",
-        "continuation": "No further runtime authorized by results review. Preserve all84 obligations and four completed records; branch sampling, provenance-preserving reuse and staged continuation are under design review. Both900s native/controller hard caps, shared14400s and16GiB remain unchanged. No cap growth, charge reset or replay of passing cases."
+        "continuation": "Reviewed staged controller implementation is source-qualified at bf647 with final220/220. Actual branch/100k runtime still awaits separate fresh technical readiness/GO. Preserve original four completed measurements and all84 obligations. Both900s limits/shared14400s/16GiB unchanged; no cap growth, charge reset, passing-case replay or automatic stage advance."
+      },
+      "g_staged_source": {
+        "design_sha": "a5aa4b8935ce455ce67eb6fce681855a3b1bb85a",
+        "design_correction_sha": "c5984246887dda0e14dec2a25161ea7df9d25f1a",
+        "implementation_sha": "bf647231eba70d562888ab312f33b904008a7565",
+        "documentation_sha": "94d8341b32af62fca7289d068bab551344a7e204",
+        "review": "Distinct independent Astra-medium implementation ACCEPT, no actionable findings. Original design review passed; the prospective2x admission-policy amendment changes no hard limit or outcome criterion and needs no additional owner ruling solely for that technical rule.",
+        "tdd": "Four actual RED/GREEN pairs cover branch-only polling, original-result reuse, closed-stage stop and exploratory admission.60/60 affected controls; frozen new RED files and existing51 unchanged.",
+        "runtime_boundary": "Source qualification only. Separate branch-controls stage first; only after qualified branch results and separate technical GO may first-100k-seed-exploratory run once. Original4 case identities/charges preserved, all84 obligations visible. Both900s hard limits/shared14400s/16GiB and failed conservative forecast unchanged."
       }
     },
     {

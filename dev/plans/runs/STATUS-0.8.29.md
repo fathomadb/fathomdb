@@ -39,14 +39,16 @@ artifact-hash, ancestry and clean-tree checks; see
 [P results](../0.8.29/features/slice-30/results-p.md) and the
 [execution record](../0.8.29/features/slice-30/execution.md).
 Qualification remains assembled, with original failures and inner skips retained.
-G source/controller qualification is integrated at
-`f8703b466f1778e4db59cf86fd1fb11f03d52d67` after fresh independent Astra ACCEPT,
-51 affected controls and a final canonical **220/220** gate. Rust recorded
-2727 passed/72 ignored; current Python/TS suites passed, but their inner counts
-were removed by canonical log cleanup. Source/native identities and earlier
-failed attempts remain attributed honestly. The private guardian contains nested
-sessions, refuses missing/unknown/stale state and verifies quiescence; final
-boundary removal and independent no-survivor checks passed.
+G source/controller qualification, including the staged continuation, is
+integrated at `bf647231eba70d562888ab312f33b904008a7565` after fresh independent
+Astra ACCEPT, four genuine RED/GREEN units, 60 affected controls and a final
+canonical **220/220** gate with zero suite skips/exclusions. Rust/Python/TS suites
+passed; current inner counts are unavailable after canonical passing-log cleanup.
+Source/native identities and earlier failed attempts remain attributed honestly.
+The private guardian contains nested sessions, refuses missing/unknown/stale
+state and verifies quiescence; final boundary removal and independent no-survivor
+checks passed. Actual staged branch/100k measurements require separate readiness
+and technical GO; source qualification alone does not supply those results.
 
 The second actual G campaign at `60f471aaf` qualified G0, the 10k seed and
 both 10k read repeats; independent Astra accepted those four cases. Each read

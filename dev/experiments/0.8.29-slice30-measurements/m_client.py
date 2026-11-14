@@ -27,8 +27,11 @@ class RpcChild:
         self._persisted = set()
         self._submissions = CheckpointLog(self.root / "submissions.jsonl")
         self._invocations = CheckpointLog(self.root / "invocations.jsonl")
+        self._protocol = CheckpointLog(self.root / "protocol.jsonl")
         self.notifications = []
         self.failures = []
+        self.protocol_failures = []
+        self.transport_failures = []
         self._next_id = 1
         self._events = queue.Queue(maxsize=4096)
         self._stop = threading.Event()
@@ -57,6 +60,7 @@ class RpcChild:
                         self._events.put((arrived, line), timeout=self.timeout)
         except (OSError, ValueError, queue.Full) as error:
             self.failures.append(str(error))
+            self.transport_failures.append(str(error))
         finally:
             pipe.close()
 
@@ -115,7 +119,25 @@ class RpcChild:
         except queue.Empty:
             return False
         parse_start = time.monotonic_ns()
-        message = json.loads(raw)
+        try:
+            message = json.loads(raw.decode("utf-8"))
+            if not isinstance(message, dict) or message.get("jsonrpc") != "2.0":
+                raise ValueError("JSON-RPC2 object required")
+            if "id" in message:
+                if (type(message["id"]) is not int or message["id"] not in self.records
+                        or self.records[message["id"]]["status"] == "completed"):
+                    raise ValueError("unassociated or duplicate response ID")
+                if ("result" in message) == ("error" in message):
+                    raise ValueError("exactly one JSON-RPC result/error required")
+            elif not isinstance(message.get("method"), str):
+                raise ValueError("notification method required")
+        except (UnicodeError, ValueError, TypeError) as error:
+            failure = f"protocol: {type(error).__name__}: {error}"
+            self.failures.append(failure)
+            self.protocol_failures.append(failure)
+            self._protocol.write({"arrival_ns": arrived, "raw": raw.decode("utf-8", errors="replace"),
+                                  "error": failure, "parse_ns": time.monotonic_ns() - parse_start})
+            return True
         if "id" not in message:
             self.notifications.append(message)
             return True
@@ -171,16 +193,21 @@ class RpcChild:
                 self._persisted.add(request_id)
         self._submissions.close()
         self._invocations.close()
+        self._protocol.close()
         self.exit = {"code": code, "exit_ns": time.monotonic_ns(),
                      "readers_joined": all(not thread.is_alive() for thread in self._threads),
                      "persistence": {"submissions": self._submissions.summary(),
-                                     "invocations": self._invocations.summary()}}
+                                     "invocations": self._invocations.summary(),
+                                     "protocol": self._protocol.summary()},
+                     "protocol_failures": self.protocol_failures,
+                     "transport_failures": self.transport_failures}
         return self.exit
 
     def phase_boundary(self):
         """Checkpoint submitted and terminal records after a fully drained phase."""
         self._submissions.boundary()
         self._invocations.boundary()
+        self._protocol.boundary()
 
     def __enter__(self):
         return self

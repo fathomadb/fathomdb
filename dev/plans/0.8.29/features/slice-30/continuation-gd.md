@@ -20,7 +20,9 @@ normal fixed84 extension and actual assessment have independent Astra ACCEPT:
 6 reused/5 new qualified/73 required cap refusals, with original identities and
 all charges retained. The73 refusals remain unsatisfied; no wholeG/30 authority
 follows. Parent owns release state; this checkout owns its plan. No roles, skills
-or nested agents are used.
+or nested agents are used. The
+[closed-copy successor](#proposed-closed-copy-calibration-and-remaining-g) is
+plan-only; no further source or runtime authority follows.
 
 The original G-first sequence is **G routes and G observation**, followed by its
 bounded G0/G1 diagnostics and read-mostly measurements. G write schedules remain
@@ -577,6 +579,152 @@ persist and ordinary rules remain. Existing60 controls/oracles stayed unchanged;
 no tamper/hash-inventory tests. The accepted normal assessment ends after G;
 even qualified100k input does not clear M, D, fidelity, wholeG/30 or downstream
 release gates.
+
+## Proposed CLOSED-copy calibration and remaining G
+
+This prospective amendment preserves R30-1..9/A30-1..7 and release req*/AC.
+It changes preparation/admission choices, not required populations, freshness,
+order, qualification or past evidence. All11 accepted cells keep their exact900s
+configuration and original source/UUID/path/native/model/qualifier identities.
+The accepted normal root is29de/UUID4fb7a91f, inheriting the six earlier records;
+no qualified case is rerun. Shared1845130877940ns, retained1903142018B, prior
+per-cell charges, failed forecasts and consumed exploratory token carry forward.
+The73 primary obligations remain required: R1 then72 G-W in the original order.
+
+### Closed-copy custody and independence
+
+Prepare each new subject from the released, normally CLOSED100k seed-v4 file
+(715223040B), with its valid closed SQLite packaging; never copy a live store or
+omit required WAL companions. Freeze the selected released baseline after known
+actor quiescence; do not checkpoint, force generation, rebuild projections or
+reuse a previously mutated subject. Each copy gets a distinct new owned path,
+fresh process/handles and separate retained write history. Before workload,
+verify current generation/readiness/pending0, exact100k active/vector/physical/
+span counts and unchanged body/range coverage against that baseline. Preserve
+model/provider/format37 and normal close/reopen semantics; failure stops the
+preparation, retaining its partial files and charge. No DB mock qualifies this.
+
+Physical copies share the original regenerated projection population and initial
+generation/authority values: they are independent mutable subjects, **not**
+independent projection-generation trials. R1 estimates reversed-order read
+behavior on a fresh physical copy, not reseeding variance. This methodological
+change, especially R1, requires independent design acceptance. New73 configs
+explicitly say `preparation=closed-copy`, `fresh_copy=true`, `fresh_seed=false`;
+past11 configs stay byte-for-byte original. Retain original input/model/native
+identity and generation observations, not a fabricated new seed receipt. Governed
+writes, revision tokens, point/FTS probes,500 warmups/1000 calls and no interbatch
+drain remain unchanged. Copies, validation and open/close consume the whole-cell
+clock. OS/cache independence is not claimed.
+
+### Step1 — fixed calibration within the existing allocation
+
+Propose exactly four separately named calibration cells, in this fixed order:
+engine b10/s1, SDK b10/s1, engine b1/s100, SDK b1/s100. Each is100k direct-text,
+500 warmups followed by1000 natural calls, with original cohorts/probes/readiness
+and independent CLOSED copy. Densest cells commit1000 cohorts/10000 replacements;
+sparsest commit10 cohorts/10 replacements. They are diagnostic records, never
+silently credited as R1 or one of72 primary G-W cells. No arbitrary subset input.
+
+Only these new read/write/calibration cells may prospectively use1500s. Native
+`run_g_read`/`run_g_write` have no900000ms ceiling; no G-seed/source-fixture is
+invoked. Those native paths retain their900000ms=900s bound. Keep original
+binaries/compiler pins: no Rust rebuild, retagging or silent allowance clamp.
+The outer absolute deadline includes custody/copy/prep/queries/close, with all
+prior use deducted; native output remains subject to that guardian/deadline.
+
+Four1500s maxima add6000s: terminal shared use cannot exceed7845130877940ns,
+leaving6554869122060ns of the existing14400s. Four baseline copies add2860892160B,
+so baseline retention becomes4764034178B. Reserve at most3GiB **new retained bytes
+per calibration**, including its copy/WAL/raw/config/log growth: existing total
+plus four allowances is14788043906B, leaving2391825278B below16GiB. Charge common
+entry overhead too, within remaining shared/storage headroom. Check reservation
+and floors before each copy; no precreation when unavailable. Monitor actual
+allocation and per-cell growth; at deadline/3GiB/shared cap/resource stop retain
+the failed/partial cell and every remaining calibration as unrun. Unknown
+cleanup durably blocks entry. No retry, deletion, reset or next-step chaining.
+
+Record separate actual copy/open/close, commit, per-row point/FTS probe,
+per-cohort readiness, natural calls, output/WAL/growth and total clocks. Retain
+strict actual own-PID GPU memory plus selected3090 utilization evidence. Sparse
+text writes can produce short asynchronous embedding bursts after seed removal.
+Propose50ms observation waits for the four calibration native processes, with
+observer latency added (not guaranteed20Hz); no extra GPU calls, sleeps or
+warmups. Measure sampling wall/CPU/raw cost separately and keep it in whole-cell
+accounting. Individual route clocks retain their existing boundaries; loop wall
+includes observation/persistence perturbation. Missing engagement remains failed,
+not CPU qualification. Calibration must justify a declared primary G-W cadence
+and its perturbation before that matrix is authorized; never borrow another PID
+or the seed's engagement. Hold the exact-UUID claim through owned quiescence.
+
+### Step2 — all remaining primary cells after actual cost review
+
+Propose an inactive shared ceiling of43200s (12h TOTAL) and128GiB TOTAL across
+G/D/M, carrying every earlier charge/retained file, not12h/128GiB per phase.
+M's independently reviewed fit candidate f90714a0 and6h/64GiB proposal remain
+inactive: the time ceiling is not measured M consumption or an additive6h charge.
+Actual calibration must support complete-table phasewise forecasts for remaining
+G, all required D cells and M; unavailable costs remain explicit holds. Ceilings
+alone prove neither feasibility nor completion.
+
+Seventy-three baseline copies plus current retained files already require
+54114423938B (50.398GiB), before calibration, histories/WAL/raw. With the full12GiB
+calibration reservation that floor becomes66999325826B (62.398GiB);128GiB leaves
+headroom, not a validated growth bound. Preserve outer start floors root32GiB/
+task250GiB/MemAvailable16GiB and stops root20GiB/task50GiB/MemAvailable8GiB/
+owned200GiB/swap rule. Forecast all retained G/D/M growth against both128GiB and
+actual owned/free headroom before dispatch; no cleanup is assumed to make it fit.
+
+Observed ordinary route walls give an unvalidated8363.378s proxy for72 G-W
+500+1000 natural calls;2x is16726.756s before copies/writes/probes/R1. M's current
+natural-loop proxy is13146.543s, with other components still unbounded. Prior
+1845.131s plus those two proxies totals31718.430s, leaving11481.570s of12h before
+actual calibration, R1, G probes/writes/copies, other M work and D. Calibration
+contributes actual charged time, not automatically its6000s admission maximum.
+Therefore12h sufficiency is **not established**: actual calibration and complete
+phase forecasts must fit the total or return a revised explicit envelope for
+review, leaving all unmet rows required/held.
+
+Preserve conservative2x costs: replace the reseed component only with observed
+copy/preparation costs under the explicit new policy. Bound100k point/FTS/
+readiness/write/growth from calibration rather than silently lowering the factor
+or substituting a tiny-fixture cost. Keep the original max(tiny,100k text-max)
+forecasts/refusals; any more specific calibrated cost model is a preregistered
+technical amendment, with maxima/coverage and uncertainty visible. The full table
+must list bounded forecasts or explicit unavailable holds. R1 is first in the
+normal required order: it needs its own admitted read/copy forecast, then actual
+qualification supplies its route costs before repeat1 G-W. Missing R1 costs hold
+those dependent cells; R0 cannot silently substitute. Review actual R1 and refresh
+the complete-table allowance before broad G-W dispatch. Each prospective cell's
+full2x forecast must fit its remaining1500s and shared/
+storage allowance; otherwise refuse it honestly, not increase its cap implicitly.
+
+### One coherent source phase, then separate runtime decisions
+
+Proposed future CLI adds a closed `--preparation closed-copy-v1` policy, fixed
+`--stage closed-copy-calibration`, and `--calibration-from` for subsequent normal
+(no-stage) entry. These flags do not exist yet. Calibration references accepted
+`g-frozen-g-assessment-v5`; later normal entry references the same11 original
+primary cases plus the separately retained calibration costs, and emits all84
+primary outcomes in original order. No private `_cell` entry/subset bypass.
+The calibration profile retains original14400s/16GiB; the successor profile may
+activate only an explicitly reviewed total envelope after actual calibration.
+No source edit should be needed merely to advance from calibration to matrix.
+
+Implement/test the complete preparation, cadence, cost/limit policy and reuse
+semantics before one final source gate: genuine callable runtime RED→GREEN for
+closed custody/preparation refusal and copy charge, fixed calibration stop,
+prospective1500s deadline/prior-use handling, calibrated forecasting and exact
+original-reference reuse. Real tiny stores/harmless children prove no mutation
+leak between copies, preserved ordinary/write/probe order, all84 outcomes and
+retained failures/charges; no tamper/hash suite or invented compile RED. Current
+whole-plan/spec equality must become a closed successor comparison: every reused
+cell and its measured native/model/input/qualifier/config stays exact; only the
+named unmeasured preparation/limits and separate calibration policy may differ.
+Do not relax compiler/binary/qualifier fingerprints or accept arbitrary roots.
+Fresh independent implementation review precedes the single clean full gate.
+Runtime decisions remain separate: calibration first, then review actual costs/
+observability/full-table feasibility before any73-cell G matrix. No automatic
+D/M runtime or wholeG/30/fidelity clearance follows.
 
 ## D extension — exact required work, separate source gate
 

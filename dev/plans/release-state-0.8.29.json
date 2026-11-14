@@ -211,9 +211,9 @@
         "dev/plans/0.8.29/features/slice-30/results-p.md",
         "dev/plans/0.8.29/features/slice-30/continuation-gd.md"
       ],
-      "phase": "P_SUBSET_QUALIFIED_G_IMPLEMENTATION_AND_NATIVE_QUALIFICATION_ACTIVE",
+      "phase": "P_MEASUREMENTS_AND_G_SOURCE_SUBSET_QUALIFIED_G_CAMPAIGN_HELD",
       "plan_sha": "bea7f05cd2497af0d73c6eb8da509e11a947ca08",
-      "conditions": "P-only Linux subset remains qualified. G design and actual Slice 20 input-fit passed Astra. G implementation is active in its owned branch and is not integrated or qualified. Frozen Python runner 58e153d86 passed 33 controls; Astra found a P2 remaining-cell-allowance forecast issue, now under RED/GREEN correction. G has the native window for controlled span byte-range/Unicode and normal CLI/consumer qualification after that fix. Actual Default/model/GPU/preregistration readiness precedes campaign GO; D source/runtime remains separate. Slice 20 A3/A5 proof is satisfied at f803a964. M still requires a qualified G store and reviewed exact MCP tooling. F requires the exact frozen TC5 pack and current-candidate proof. Whole 20/30, 40/50 and pre-90 Block 1 remain open.",
+      "conditions": "P measurements and G source/tooling/no-provider qualification are accepted within recorded bounds. G campaign still requires owned pinned BGE assets, separately retained ordinary/diagnostic CUDA 12.6 programs, fresh device/reservation/source/input readiness and technical GO. No model construction or GPU execution has run. D source/runtime remains separate. Slice 20 A3/A5 proof is satisfied at f803a964; M needs a qualified G store and reviewed exact MCP tooling. F needs the exact frozen TC5 pack and current-candidate proof. Whole 20/30, 40/50 and pre-90 Block 1 remain open.",
       "evidence": "P tools and measured Linux direct-text subset at2fd772558 passed fresh independent Astra-medium final P review on clean documentation0d8be5bb;16grouped genuine RED/GREEN units and invalid124 fixture history remain explicit.16/16 frozen first-attempt cells complete,20000successful timed natural calls,zero errors/noisy cells/retries/resource stops. Unfiltered100k P1 p50 27.184-27.509ms/p99 106.911-107.682ms is below tracked nongated80/300; filtered P2 is not AC083. Parent independently checked hashes/raw counts/percentiles/means; Astra checked batch/probe/match identities. Qualification is assembled from original1f214/216 plus actual affected reruns; original SC2312/Pages/MD012 failures and inner skips retain subjects. Production native receipt remains1f with unchanged relevant inputs; normal release measurement executable was built and run at2fd. See features/slice-30/results-p.md,execution.md and review-log.md. No model/GPU/MCP/frozen-fidelity or whole-slice/release completion follows.",
       "qualified_subset_sha": "2fd772558e46d0b1645dce2ffea730d0bdd3305c",
       "continuation_plan_sha": "0d8be5bb75516955ebf99b94913b9b54921bb3a4",
@@ -221,8 +221,10 @@
       "g_source_entry": {
         "branch": "llm/0.8.29-s30-g-20261113",
         "worktree": "/mnt/data/worktrees/fathomdb-0.8.29-s30-g-20261113",
-        "scope": "Reviewed G source only; own setup and genuine per-behavior runtime RED/GREEN. Actual GPU/cache/preregistration checks precede campaign; D/M/F remain separately held."
-      }
+        "scope": "Accepted G source/tooling/no-provider subset; exact owned asset/build preparation and fresh pre-run technical readiness precede model/GPU/campaign GO. D/M/F remain separately held."
+      },
+      "g_source_qualified_sha": "4dbc67f39254bd78cc2c58bdf4d91ee76a8713ae",
+      "g_source_evidence": "Source, measurement-tooling and no-provider subset accepted at 4dbc67f39254bd78cc2c58bdf4d91ee76a8713ae after final independent Astra ACCEPT. Original shell-lint failure and 220-suite collector with 218 passes/two governance failures remain retained. Repaired root inventory passes 8/8 with 48 structural oracles unchanged; SDK policy passes 41/41 with 53 governed operations unchanged. Affected post-rename observer 10/10, normal CLI 12/12, feature consumers, module boundaries, strict Clippy and fresh owned Python/TS rebuilds/native child proof pass. Qualification is assembled; inner ignores/skips, unavailable Python/TS body counts, all prior REDs and failed attempts remain explicit in features/slice-30/execution.md. No Default, dense-provider, GPU/CUDA measurement, G campaign, D/M/F, whole 30 or release qualification follows."
     },
     {
       "slice": 40,
@@ -645,7 +647,7 @@
   },
   "release_readiness": {
     "status": "NOT_READY",
-    "qualification": "Slice 10 preparation and Slice 70 bounded SDK parity are complete. Qualified Slice 20 Linux repairs/A3-A5 proofs/capacity preparation, Slice 30 P measurements, Slice 60 MCP subset and Slice 100 coverage/native subset are integrated within recorded limits. Windows 20 A6, whole 30/60-F11, 100 Q1, other selected outcomes and final 160 qualification remain pending. Assembled evidence retains original failures, resumptions, ignored/skipped bodies and missing count limits; no uninterrupted full-wrapper or published-package claim.",
+    "qualification": "Slice 10 preparation and Slice 70 bounded SDK parity are complete. Qualified Slice 20 Linux repairs/A3-A5 proofs/capacity preparation, Slice 30 P measurements and G source/tooling/no-provider subset, Slice 60 MCP subset and Slice 100 coverage/native subset are integrated within recorded limits. Windows 20 A6, actual G/D/M/F and whole 30/60-F11, 100 Q1, other selected outcomes and final 160 qualification remain pending. Assembled evidence retains original failures, resumptions, inner ignores/skips and unavailable counts; no uninterrupted full-wrapper or published-package claim.",
     "publication": "HELD; no tag, dispatch, external ACL mutation or registry publication authorized by bootstrap."
   },
   "generated_views": [

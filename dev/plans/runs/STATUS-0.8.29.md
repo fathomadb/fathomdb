@@ -39,11 +39,14 @@ artifact-hash, ancestry and clean-tree checks; see
 [P results](../0.8.29/features/slice-30/results-p.md) and the
 [execution record](../0.8.29/features/slice-30/execution.md).
 Qualification remains assembled, with original failures and inner skips retained.
-The reviewed G-first design and actual Slice 20 fit are imported. G implementation
-continues in its isolated checkout; Astra found one remaining-cell-allowance
-forecast issue in the frozen Python runner, now under RED/GREEN correction.
-G has the native window for subsequent controlled span coverage and CLI/consumer
-qualification. D source/runtime and GPU/model/campaign execution remain gated. The20 proof condition for M is satisfied; its
+G source, measurement-tooling and no-provider qualification is integrated at
+`4dbc67f39254bd78cc2c58bdf4d91ee76a8713ae` after final independent Astra ACCEPT.
+The original 220-suite collector and affected repairs remain assembled evidence;
+see the [execution record](../0.8.29/features/slice-30/execution.md).
+Actual Default/dense-provider, GPU/CUDA measurement and G campaign qualification
+remain open. Owned pinned assets, separate ordinary/diagnostic CUDA programs and
+fresh device/reservation/input readiness precede technical GO. D source/runtime
+and M/F remain separately gated. The20 proof condition for M is satisfied; its
 selected G-store/tooling prerequisites and F frozen-input,
 whole30/40/50 and pre90 gates remain. Independently qualified60 subset and
 completed70 retain their recorded bounds. Each source owner uses a fresh

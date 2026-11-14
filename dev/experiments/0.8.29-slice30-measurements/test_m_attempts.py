@@ -8,6 +8,7 @@ import sqlite3
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from m_controller import load_plan, run_budgeted_table
 
@@ -16,7 +17,8 @@ class AttemptIsolationTests(unittest.TestCase):
     """Failed attempts remain retained and completed cells are not replayed."""
 
     def test_prepare_fresh_closed_copy_charge_and_resume_without_replaying_complete(self):
-        with tempfile.TemporaryDirectory() as temporary:
+        # Isolation/resume owns a quiet fixture; dedicated load tests cover admission boundaries.
+        with tempfile.TemporaryDirectory() as temporary, patch("os.getloadavg", return_value=(0.0, 0.0, 0.0)):
             root = Path(temporary)
             source = root / "closed.sqlite"
             with closing(sqlite3.connect(source)) as db:

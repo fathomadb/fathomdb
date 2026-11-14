@@ -124,8 +124,10 @@ hash verified on both ends and per-file extracted on owned NTFS. Build jobs2/
 outputs/exits and private-job-empty receipts. Missing termination outcome is
 UNKNOWN. No Windows F64/CUDA input is inferred.
 
-Caller-path/canonical-path mismatch and opener's unbounded Barrier remain
-hypotheses. First run existing semantic oracles inside outer bounded process.
+Startup/visibility caller-path/canonical-path mismatch has actual semantic
+RED/GREEN repairs; admission-hook alias behavior and the Windows opener's
+unbounded Barrier remain unqualified. Run existing Windows semantic oracles
+inside the outer bounded process before any corresponding repair.
 An actual current failure gets committed semantic RED before minimal repair,
 retaining exact provider/SQLite/profile/admission/error/lock/schema37 assertions.
 New helper defects retain observed failure before correction. No fabricated
@@ -133,7 +135,7 @@ compile/import/flag RED, backdating or unnecessary passing-check replay.
 
 ## Current defect reproduction and capacity alternatives
 
-The [plan](plan.md#current-path-alias-hypothesis-and-genuine-red-route) names the
+The [plan](plan.md#current-path-alias-diagnosis-and-genuine-red-route) names the
 real-engine Linux alias reproduction and per-behavior RED/GREEN order. Existing
 Windows bodies/oracles stay frozen. Canonical hook-key identity is diagnosed
 through actual exact errors and ownership, never source text or helper equality.
@@ -144,8 +146,12 @@ real-engine case without becoming its RED oracle. Require actual assertion and
 nonzero case count, raw output/status, absolute90s child deadline and exact owned
 kill/reap; no detached actor or new unbounded Barrier. Ordinary parallel affected
 lib execution must include both parent regressions and unchanged original tests.
-No source repair is selected before observed failure. The bounded native window
-and remaining actual Windows qualification are separate.
+The actual startup/visibility REDs each preceded their one-line canonical-key
+repair. Both new regressions plus unchanged originals passed ordinary two-thread
+lib execution175/175; scoped Clippy/check also passed. No production policy,
+public API or original test body changed. Final independent implementation review
+and required clean source gate remain pending. Linux source proof and remaining
+actual Windows qualification are separate.
 
 The [capacity alternatives](plan.md#capacity-options-for-technical-review) are
 prospective only: live24GiB balloon with original persistent32GiB/off restoration,

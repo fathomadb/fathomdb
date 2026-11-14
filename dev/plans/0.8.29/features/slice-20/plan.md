@@ -87,16 +87,19 @@ cleanup, remote CI or publication.
    Parent integrates passing scope and closes20 only after all criteria have
    actual dispositions. CI/publication remain outside current scope.
 
-## Current path-alias hypothesis and genuine RED route
+## Current path-alias diagnosis and genuine RED route
 
-Read-only source inspection finds that startup, visibility and admission hooks
-store the caller PathBuf, while open invokes them with canonical_database_path.
-This is a hypothesis, not a current reproduced failure. After design PASS and
-parent native-window GO, use a real seeded Engine plus a legal existing
-`nested/../database.sqlite` alias. Keep original startup Io/profile/provider/
-SQLite/admission assertions, then separately visibility Io/provider/SQLite/
-admission assertions. Assert the same independent errors and ownership outcomes
-through the real open path; no helper-only assertion or changed expected value.
+Startup and visibility caller/canonical path mismatch is now reproduced and
+repaired through actual real-engine alias failures. Startup RED2ccae97af precedes
+GREENaf0e81d99; visibility RED190203be0 precedes GREEN9d000d0f3. Each fix adds only
+canonical_database_path to its cfg(test) installer before storing the key; the
+real seeded `nested/../database.sqlite` fixture keeps the original exact errors
+and profile/provider/SQLite/admission assertions. Both frozen regressions pass.
+Affected operator,test-hooks engine lib/test Clippy and check pass; ordinary
+two-thread lib execution passes175/175,0ignored, including all four unchanged
+original startup/timeout/visibility/opener bodies. [Execution](execution.md#november14-real-engine-path-alias-repairs)
+records actual subjects, commands and original failures. Admission-hook alias
+behavior and actual Windows qualification remain hypotheses/unqualified.
 Run each new semantic fixture in its own fresh child process, not the parent
 unit-test process: installers overwrite global single-slot hooks, so adding
 ordinary in-process fixtures would race the existing tests. The registered

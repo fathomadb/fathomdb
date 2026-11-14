@@ -72,24 +72,30 @@ format ruling and actual native A6. Do not replay passing checks to relabel them
 Fresh implementation review precedes one final clean source full gate if source/
 tests/executable tools change; docs-only use scoped Markdown validation.
 
-## Deterministic path-alias hypothesis
+## Actual path-alias regressions
 
-After design PASS, first add a real seeded-engine startup regression using an
-existing nested/../ path alias and the original exact Io/profile/provider/
-SQLite/admission assertions. Each registered regression runs its semantic body
-in a fresh bounded child of the same unit-test executable, with one exact
-selector/child-dispatch marker. Install hooks only in that child; the parent
-never arms the global slots shared by the original tests. Child dispatch is not
-the failure oracle: actual RED must show the real-engine semantic assertion.
-Preserve raw output/status, require exactly one executed child case, and enforce
-an absolute90s deadline with exact owned-child kill/reap on timeout. No ignored
-or zero-case success and no detached actors. Run the affected engine lib target
-with ordinary parallelism as well as focused selectors, preserving all four
-original Windows bodies. If it actually fails, commit RED with raw assertion,
-then minimal startup hook-key fix and unchanged GREEN. Separately reproduce the
-visibility exact Io/provider/SQLite/admission behavior before any corresponding
-fix. Each command uses the engine operator,test-hooks --lib prefix, exact new
-selector and --exact --nocapture; compile1200s/test90s/jobs2 in own target.
-Do not add an unbounded alias Barrier test, replace existing Windows assertions,
-or promote these Linux proofs into A6. Actual existing opener selector retains
-its outer90s bound and genuine Windows runtime diagnosis.
+Both selectors use `cargo test --locked -p fathomdb-engine --features
+operator,test-hooks --lib`, followed by exact name and `-- --exact --nocapture`:
+
+- `slice20_open_hook_tests::startup_fault_matches_canonical_database_alias`:
+  actual ignored-startup-fault RED2ccae97af, unchanged GREENaf0e81d99; retain exact
+  startup Io, profile release order/count, provider0, SQLite0 and admission.
+- `slice20_open_hook_tests::visibility_fault_matches_canonical_database_alias`:
+  actual ignored-visibility-fault RED190203be0, unchanged GREEN9d000d0f3; retain
+  exact visibility Io, provider0, SQLite0 and admission.
+
+Each registered regression runs its real-engine alias body in a fresh bounded
+same-binary child with one exact selector/dispatch marker. Only that child arms
+process-global hooks; parent never arms slots shared by original tests. The
+actual engine assertion is RED, never dispatch/compile/import. Raw output/status,
+exact child PID/case and one nonignored case are checked; absolute90s deadline
+kills/reaps only that owned child. No detached actor or unbounded new Barrier.
+All original Windows test bodies and both committed semantic oracles remain fixed.
+
+Affected engine operator,test-hooks lib/test Clippy (`-D warnings`) and check
+passed. `RUST_TEST_THREADS=2 cargo test --locked -p fathomdb-engine --features
+operator,test-hooks --lib` passed175/175,0ignored, including both wrappers and all
+four originals. Scoped execution and each original RED remain in
+[execution](execution.md#november14-real-engine-path-alias-repairs). These Linux
+outcomes do not qualify A6. Existing Windows opener retains its outer90s bound;
+no admission/rendezvous repair, Windows proof or resource-policy waiver follows.

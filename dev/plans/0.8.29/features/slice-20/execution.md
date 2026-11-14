@@ -381,3 +381,43 @@ Actual capacity outcome remains attached RAW only. Formatting, native Windows
 operator/compiler and four-selector A6 qualification remain outside this accepted
 subset; later C:8/5GiB workload policy remains unchanged. Whole30/60-F11, the
 pre90 Block1 exit and final release/publication readiness remain separate.
+
+## November14 real-engine path-alias repairs
+
+Own source entered at a00bf9b9228318e7c236148551bb188f63ff66ee with strict
+closed10 preflight PASS/zero warnings. Independent Astra design PASS at
+6f38f0d4570a2850fc66c97acb9867ab08cc7821 includes bounded process isolation:
+new parent regressions never arm global hook slots shared by original tests.
+Parent released the exclusive native window after G cleanup; owned Cargo home,
+target/temp/logs and full retained-allocation monitor remained under /mnt/data.
+Initial root130,574,848,000B/task374,565,859,328B/MemAvailable43,626,549,248B;
+retained/current source/task plus64GiB image reserve120,831,842,595B, below200GiB.
+
+Actual semantic TDD, with original complete compiler/test output under
+`/mnt/data/tmp2/fathomdb-0829-continuation/slice20-20261114/logs`:
+
+| Behavior | RED / original failure | Minimal GREEN / unchanged result |
+| --- | --- | --- |
+| Startup hook alias | 2ccae97af8303da227b9ab1dd3cf62b2de8a11fd; `injected post-probe startup failure was ignored for canonical database alias`; isolated child/parent exit101,0passed/1failed,0ignored; startup-red.log; phase57.04s | af0e81d998b8d887838dcd7675b3be5c9bc9f935; one cfg(test) installer canonicalization line; exact one child and parent case pass,0ignored; startup-green.log; exit0/25.84s |
+| Visibility hook alias | 190203be02379d3b0109f67e57ced986777d348f; `accepted post-probe visibility failure was ignored for canonical database alias`; isolated child/parent exit101,0passed/1failed,0ignored; visibility-red.log; phase14.87s | 9d000d0f34feec2ba760ff4826676514a58f4b07; one cfg(test) installer canonicalization line; exact one child and parent case pass,0ignored; visibility-green.log; exit0/24.89s |
+
+Exact selectors and preserved oracles are in [test-map](test-map.md#actual-path-alias-regressions).
+These failures came from real seeded Engine::open accepting a fault through a
+legal existing nested/../ alias, not dispatch/import/compile failure or altered
+expectations. Each RED was committed before its corresponding fix. The new test
+module is classified in the existing module-boundary policy; no production API,
+queue policy, storage format or original Windows test body changed.
+
+Affected source9d000d0f3 checks: engine operator,test-hooks `clippy --lib --tests
+-- -D warnings` exit0/37.03s; `check --lib --tests` exit0/19.18s; ordinary
+`RUST_TEST_THREADS=2 cargo test --locked -p fathomdb-engine --features
+operator,test-hooks --lib` exit0/13.79s,175passed/0failed/0ignored. Raw files are
+`affected-clippy.log`, `affected-typecheck.log`, `affected-parallel-lib.log`.
+Both new child cases and all four original startup/timeout/visibility/opener
+selectors actually executed in that Linux suite. No model/GPU/VM payload ran.
+
+Fresh independent implementation/results review and the required once-only final
+clean source full gate remain pending at this checkpoint. Current Windows
+readiness/format/reattachment holds remain in [plan](plan.md); no live resource
+policy was changed. Actual Windows A6, whole20 and Block1 remain open. Linux
+qualification and this record cannot substitute for actual Windows results.

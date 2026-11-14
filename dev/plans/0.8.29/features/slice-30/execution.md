@@ -1448,8 +1448,9 @@ suite PASS (0suite skips/exclusions) are now qualified. Rust reports2727passed/
 after canonical passing-log cleanup. The owned native receipt retains its actual
 a3c483fa7 build with unchanged d644 compiler inputs, without retagging. Private
 boundary populated0/exact removal and absent owned actors were verified, with no
-resource stop or cleanup uncertainty. D/M/Q1 remain unrun. The separately
-authorized G continuation below followed on the unchanged qualified source.
+resource stop or cleanup uncertainty. No additional D/M/Q1 run followed that
+final gate. The separately authorized G continuation below followed on the
+unchanged qualified source.
 
 ## Accepted bounded G continuation at60f
 

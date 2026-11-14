@@ -48,8 +48,9 @@ tool review. D, F and model/GPU/campaign authority remain separately held.
 All R30-1..9/A30-1..7 and release req*/AC remain unchanged. Independent Astra
 ACCEPT and final canonical220/220 atf8703b466 qualify source/tooling with the
 actual native a3c483fa7/d644 identity. The passive diagnostic addendum preserves
-all53 signed/default operations. Original failures, ignored/skipped limits and
-unavailable current Python/TS inner counts remain in execution.md.
+all53 governed operations and the unchanged signed/default surface. Original
+failures, ignored/skipped limits and unavailable current Python/TS inner counts
+remain in execution.md.
 
 The accepted60f/campaign5e89 subset supplies G0 and10k seed/two read repeats;
 79 cap refusals and one branch engagement failure remain explicit. No qualified

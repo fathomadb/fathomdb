@@ -421,5 +421,23 @@ class RunLimitTests(NativeCase):
                     self.assertTrue(facts["complete"])
 
 
+class OpenDeadlineTests(NativeCase):
+    """Actual opening deadline remains not_ready/opening, distinct from admission timeout."""
+
+    def test_actual_open_deadline_keeps_phase_and_later_ready_engine(self):
+        for result_format in ("text", "structured"):
+            with self.subTest(result_format=result_format):
+                with self.helper_session(result_format) as (session, control):
+                    result = run_case("open_deadline", session, control)
+                    self.assertEqual(result.get("error"), "not_ready/opening",
+                                     f"actual opening deadline was lost; retained={self.root}")
+                    facts = result["diagnostic"]
+                    self.assertEqual(facts["opening"]["payload"]["stores"][0]["readiness"], "opening")
+                    self.assertEqual((facts["held_before_release"], facts["held_after_release"]), (0, 0))
+                    self.assertEqual(facts["recovered"]["payload"]["epoch"], 1)
+                    self.assertEqual(facts["recovered"]["payload"]["results"][0]["ref"], "l:alpha")
+                    self.assertTrue(facts["complete"])
+
+
 if __name__ == "__main__":
     unittest.main()

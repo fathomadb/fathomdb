@@ -236,6 +236,8 @@ def _run_plan(spec, plan, root, command, prepare, allocation_root, assess, reuse
             shared_allowance = 14400 * 10**9 - budget["used_ns"]
             cell_allowance = cell["cell_seconds"] * 10**9 - cell_usage.get(cell["id"], 0)
             deadline = started + min(shared_allowance, cell_allowance)
+            if spec.get("preparation") == "closed-copy-v1":
+                deadline -= CLOSED_CLEANUP_RESERVE_NS
             budget["inflight"] = {"cell": cell["id"], "started_at_ns": time.time_ns()}
             if spec.get("preparation") == "closed-copy-v1":
                 budget["inflight"]["started_monotonic_ns"] = started

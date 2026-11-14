@@ -1,5 +1,6 @@
-"""Supervised common-work entry; shared-budget attribution is not yet implemented."""
+"""Supervised common-work accounting under one nonrenewable named reserve."""
 
+import json
 from pathlib import Path
 import time
 
@@ -7,6 +8,37 @@ from g_attempt import run_g_attempt
 
 
 def run_common(allocation, mode, command):
-    """Execute common work in an owned bounded child; caller owns the allocation lock."""
-    return run_g_attempt({"id": "g-common-" + mode}, Path(allocation) / "common", command,
-                         time.monotonic_ns() + 600 * 10**9)
+    """Charge actual common work once; caller owns the allocation lock and guardian.
+
+    A40s cleanup reservation remains outside the child execution deadline. Unknown
+    cleanup retains inflight and blocks subsequent normal entry.
+    """
+    started = time.monotonic_ns()
+    allocation = Path(allocation)
+    budget_path = allocation / "g-budget.json"
+    budget = (json.loads(budget_path.read_text()) if budget_path.exists() else
+              {"schema": "slice30-gd-budget/v1", "used_ns": 0, "inflight": None, "cell_used_ns": {}})
+    common = budget.setdefault("common_used_ns", {})
+    remaining = min(600 * 10**9 - common.get(mode, 0), 14400 * 10**9 - budget["used_ns"])
+    reason = ("unfinished_shared_attempt" if budget.get("inflight") else
+              "common_time_exhausted" if common.get(mode, 0) >= 600 * 10**9 else
+              "shared_time_exhausted" if budget["used_ns"] >= 14400 * 10**9 else
+              "common_cleanup_reserve" if remaining <= 40 * 10**9 else None)
+    if reason:
+        return {"status": "not_run_cap", "complete": False, "reason": reason}
+    deadline = started + remaining - 40 * 10**9
+    budget["inflight"] = {"cell": "g-common-" + mode, "started_at_ns": time.time_ns()}
+    budget_path.write_text(json.dumps(budget, indent=2) + "\n")
+    outcome = None
+    try:
+        outcome = run_g_attempt({"id": "g-common-" + mode}, allocation / "common", command, deadline)
+        return outcome
+    finally:
+        elapsed = time.monotonic_ns() - started
+        budget["used_ns"] += elapsed
+        common[mode] = common.get(mode, 0) + elapsed
+        if outcome is not None and not outcome.get("cleanup_uncertain", True):
+            budget["inflight"] = None
+        else:
+            budget["inflight"]["status"] = "cleanup_uncertain"
+        budget_path.write_text(json.dumps(budget, indent=2) + "\n")

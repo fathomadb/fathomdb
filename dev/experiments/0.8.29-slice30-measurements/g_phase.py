@@ -33,15 +33,20 @@ def sample():
                 measurement_retries=observed["measurement_retries"],
                 swap_pages=int(vm["pswpin"]) + int(vm["pswpout"]))
 
-start = sample()
-GiB = 1024**3
-if (
-    start["root_free"] < 32 * GiB
-    or start["task_free"] < 250 * GiB
-    or start["memory_available"] < 16 * GiB
-    or start["owned_bytes"] >= 200 * GiB
-):
-    raise SystemExit("resource start floor fails: " + json.dumps(start))
+try:
+    start = sample()
+    GiB = 1024**3
+    if (
+        start["root_free"] < 32 * GiB
+        or start["task_free"] < 250 * GiB
+        or start["memory_available"] < 16 * GiB
+        or start["owned_bytes"] >= 200 * GiB
+    ):
+        raise SystemExit("resource start floor fails: " + json.dumps(start))
+except BaseException as error:
+    if closed_guard:
+        closed_guard.charge_refusal(f"entry {type(error).__name__}: {error}")
+    raise
 record = dict(
     phase=phase,
     command=cmd,

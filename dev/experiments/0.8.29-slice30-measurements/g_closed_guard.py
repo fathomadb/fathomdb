@@ -120,10 +120,27 @@ class ClosedGuard:
             return "closed_shared_storage_exhausted"
         return None
 
+    def charge_refusal(self, reason):
+        """Retain actual pre-payload work when no other allocation actor owns the budget."""
+        budget = self.read()
+        elapsed = max(0, time.monotonic_ns()-self.started)
+        if budget.get("closed_guardian") or budget.get("inflight"):
+            # Ownership uncertainty blocks entry; do not overwrite another active accounting record.
+            return {"admitted": False, "charged_phase_ns": 0, "uncommitted_entry_ns": elapsed,
+                    "accounting_blocked": True}
+        budget["used_ns"] += elapsed
+        common = budget.setdefault("common_used_ns", {})
+        common[self.mode] = common.get(self.mode, 0)+elapsed
+        value = {"admitted": False, "charged_phase_ns": elapsed, "reason": reason,
+                 "mode": self.mode, "reserve_exceeded": common[self.mode] > 600*10**9}
+        budget.setdefault("closed_entry_refusals", []).append(value)
+        write_budget(self.path, budget)
+        return value
+
     def finish(self, uncertain, stopped_ns=None):
         """Charge observed residual wall after exact owned quiescence and final probes."""
         if not self.owned:
-            return {"admitted": False, "charged_phase_ns": 0}
+            return self.charge_refusal("closed_guardian_admission_refused")
         now = time.monotonic_ns()
         budget = self.read()
         recovered = 0

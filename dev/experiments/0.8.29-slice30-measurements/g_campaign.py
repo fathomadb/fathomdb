@@ -9,7 +9,10 @@ from g_attempt import run_g_attempt
 
 
 STAGES = {"branch-controls": "g-o-branches",
-          "first-100k-seed-exploratory": "g1-n100000"}
+          "first-100k-seed-exploratory": "g1-n100000",
+          "closed-copy-calibration": None,
+          "closed-copy-read-r1": "g-r-n100000-r1",
+          "closed-copy-write-matrix": None}
 
 
 def stage_target(stage):

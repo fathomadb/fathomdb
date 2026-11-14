@@ -49,6 +49,15 @@ class AccountingTests(unittest.TestCase):
         self.assertEqual(result["p99_ms"], 0.0001)
         self.assertEqual(result["mean_ms"], 0.0000265)
 
+    def test_all_request_label_includes_a_submission_with_no_reply(self):
+        result = summarize_invocations([
+            {"rpc_id": 1, "status": "completed", "ok": True, "elapsed_ns": 1},
+            {"rpc_id": 2, "status": "unresolved"}], 2 * 10**9)
+        self.assertEqual(result["throughput_all_per_s"], 1,
+                         "all-request throughput silently used only returned replies")
+        self.assertEqual(result["requests"], 2)
+        self.assertEqual(result["throughput_completed_per_s"], .5)
+
 
 if __name__ == "__main__":
     unittest.main()

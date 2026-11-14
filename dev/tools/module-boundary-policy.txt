@@ -109,6 +109,7 @@ reported search::historical_property_lifecycle_tests
 governed search_api
 governed search_types
 reported slice20_fix1_tests
+reported slice20_open_hook_tests
 reported slice90_close_review_tests
 reported slice90_close_tests
 reported slice90_concurrent_close_tests

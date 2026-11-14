@@ -89,7 +89,7 @@ def main():
             "used_ns": 0, "inflight": None, "cell_used_ns": {}, "common_used_ns": {}}))
         profile = {"schema": "slice30-m-budget/v1", "status": "APPROVED",
             "ledger": str(root / "g-budget.json"), "whole_cell_ns": 900 * 10**9,
-            "total_shared_ns": 60 * 10**9, "total_shared_retained_bytes": 256 * 1024**2}
+            "total_shared_ns": options.source_total_ns, "total_shared_retained_bytes": 256 * 1024**2}
         # These literal source-control bounds cannot name or qualify a natural subject.
         components = dict.fromkeys(COMPONENTS, 0)
         components.update(copy=200000000, first=100000000, close=100000000)
@@ -103,9 +103,16 @@ def main():
             "forecasts": {"cells": {cell["id"]: {"components_ns": components,
                 "new_retained_bytes": 1024**2} for cell in load_plan()[:2]}, "common_components_ns": common}}
         (root / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
-        outcome = guard([sys.executable, str(Path(__file__).resolve()), "_source_controller",
-                         "--root", str(root)], allocation=root, profile=profile, root=root, task=task,
-                         admission=True, common_limit_ns=40 * 10**9, started_ns=began)
+        try:
+            outcome = guard([sys.executable, str(Path(__file__).resolve()), "_source_controller",
+                             "--root", str(root)], allocation=root, profile=profile, root=root, task=task,
+                             admission=True, common_limit_ns=40 * 10**9, started_ns=began)
+        except (RuntimeError, ValueError, OSError) as error:
+            result = {"complete": False, "qualifies_natural": False, "rows": [
+                {"id": cell["id"], "status": "held", "complete": False, "reason": str(error)}
+                for cell in manifest["plan"]]}
+            print(json.dumps(result))
+            return 1
         reports = sorted((root / "reports").glob("report-*.json"))
         result = json.loads(reports[-1].read_text()) if reports else {"complete": False, "rows": []}
         result.update(qualifies_natural=False, scope=manifest["scope"], guardian=outcome)

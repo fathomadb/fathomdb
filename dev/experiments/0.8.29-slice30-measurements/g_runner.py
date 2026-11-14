@@ -184,6 +184,8 @@ def run_prepared(manifest, root):
     root.mkdir(parents=True, exist_ok=True)
     path = root / f"prepared-{uuid.uuid4().hex}.json"
     spec = json.loads(Path(__file__).with_name("g-cells.json").read_text())
+    if manifest.get("preparation") == "closed-copy-v1":
+        spec = dict(manifest["spec"], closed_mode=manifest["stage"])
     def command(_cell, deadline):
         if not path.exists():
             path.write_text(json.dumps(manifest, indent=2) + "\n")
@@ -194,7 +196,7 @@ def run_prepared(manifest, root):
     def assess(cell, previous, remaining_ns, retained_bytes):
         if cell["stage"] != "G0" and qualified_result(previous.get("g0-smoke"), cache) is None:
             return {"status": "not_run_prerequisite", "reason": "g0_not_qualified"}
-        if cell["stage"] == "G-W":
+        if cell["stage"] == "G-W" and not cell.get("calibration"):
             from g_forecast import forecast_write
             observed = observed_write_costs(cell, previous, manifest, cache)
             prediction = forecast_write(cell, observed, remaining_ns, retained_bytes)
@@ -216,6 +218,8 @@ def run_cell_job(manifest_path, deadline_ns, config_path, output):
     cell = json.loads(Path(config_path).read_text())
     root = Path(manifest_path).parent
     state_path = root / "results" / "campaign-state.json"
+    if cell.get("calibration"):
+        state_path = root / "results" / "calibration" / "campaign-state.json"
     previous = {row["id"]: row for row in json.loads(state_path.read_text())} if state_path.exists() else {}
     g0 = previous.get("g0-smoke")
     if cell["stage"] != "G0" and (not g0 or g0.get("status") not in ("complete", "reused_complete")):
@@ -223,11 +227,12 @@ def run_cell_job(manifest_path, deadline_ns, config_path, output):
         return False
     manifest["command"] = manifest["commands"][cell["artifact"]]
     manifest["subjects"] = {}
-    for identifier in ["g1-n10000", "g1-n100000"]:
-        prior = previous.get(identifier)
-        if prior and prior.get("status") in ("complete", "reused_complete"):
-            report = json.loads(Path(prior["attempt"], "result.json").read_text())
-            manifest["subjects"][identifier] = str(Path(report["steps"][0]["output"]) / "store.sqlite")
+    if not cell.get("fresh_copy"):
+        for identifier in ["g1-n10000", "g1-n100000"]:
+            prior = previous.get(identifier)
+            if prior and prior.get("status") in ("complete", "reused_complete"):
+                report = json.loads(Path(prior["attempt"], "result.json").read_text())
+                manifest["subjects"][identifier] = str(Path(report["steps"][0]["output"]) / "store.sqlite")
     if manifest.get("gpu"):
         from g_gpu import GpuObserver
         observer = GpuObserver(manifest["gpu"])

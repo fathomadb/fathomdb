@@ -1,6 +1,6 @@
 {
   "release": "0.8.29",
-  "release_kind": "Direct sequential local completion; CI and registry publication excluded; remaining product qualification pending",
+  "release_kind": "Direct local completion by parallel isolated slice owners with serial root integration; CI and registry publication excluded; remaining product qualification pending",
   "board": "dev/plans/runs/STATUS-0.8.29.md",
   "plan": "dev/plans/plan-0.8.29.md",
   "master": "dev/plans/0.8.20-0.9.0-PROGRAM-SEQUENCING.md",
@@ -521,7 +521,7 @@
         "dev/plans/0.8.29/features/slice-40/review-log.md",
         "dev/plans/0.8.29/features/slice-40/test-map.md"
       ],
-      "conditions": "Adopt only if30 measurements and reviewed snapshot/invalidation safety justify it; otherwise record authorized rejection/defer.",
+      "conditions": "Adopt only if30 measurements and reviewed snapshot/invalidation safety justify it; otherwise record authorized rejection/defer. PROPOSED pending Astra design review, source held meanwhile: entry consumes accepted30 P/G read results and the write-interleaved cells, not whole30 closure, M/D/F or Windows A6.",
       "phase": "BOUNDED_DESIGN_REVIEWED_SOURCE_HELD",
       "evidence": "Astra-medium design PASS after FIX1 corrected AC-083 to text only. This is a bounded proposal: current Slice30 measurements, prospective tolerances, concrete selection and snapshot/invariance proof still precede implementation. No cache has been selected."
     },
@@ -542,7 +542,7 @@
         "dev/plans/0.8.29/features/slice-50/review-log.md",
         "dev/plans/0.8.29/features/slice-50/test-map.md"
       ],
-      "conditions": "Accepted identity successor precedes production semantic change.",
+      "conditions": "Accepted identity successor precedes production semantic change. PROPOSED pending Astra design review, source held meanwhile: entry consumes accepted30 P/G read baseline plus the identity ruling and census input, not whole30 closure, M/D/F or Windows A6.",
       "phase": "BOUNDED_DESIGN_REVIEWED_SOURCE_HELD",
       "evidence": "Astra-medium bounded PhaseA PASS after context-pack and role-tagged fixture corrections. The feedback decision presentation also passed review; the actual human ruling remains unanswered. Current measurements, representative safe census inputs and identity/ADR decisions remain held. No identity or new feedback ABI was selected.",
       "census_access_review": {
@@ -627,7 +627,7 @@
         "dev/plans/0.8.29/features/slice-80/status.md",
         "dev/plans/0.8.29/features/slice-80/test-map.md"
       ],
-      "conditions": "Settled identity/field/degradation contracts; design may start before predecessor implementations finish.",
+      "conditions": "Settled identity/field/degradation contracts; design may start before predecessor implementations finish. Contract inputs:50 accepted identity ruling,60 integrated fields plus the F11 feedback ruling,70 integrated reasons. Full80 acceptance needs those contracts and the owner's contract acceptance. Reviewed hold on whole50/60/70 before80 closes is unchanged; closing80 on the contracts alone is PROPOSED pending Astra design review.",
       "phase": "BOUNDED_DESIGN_REVIEWED_SOURCE_HELD",
       "evidence": "Astra-medium bounded PhaseA and aggregate-v2 PASS, then nine-document consolidation consistency PASS. Exact carriers, numeric profile.dimension, stored-mapped-span population, unavailable semantics and writer-only cache authority agree. No aggregate physical-vector probes or strengthened validation/refusal policy are proposed. Actual50/60/70 reconciliation and full80/90 gates remain held; this is not accepted new ABI or implementation clearance."
     },
@@ -650,7 +650,7 @@
         "dev/plans/0.8.29/features/slice-90/status.md",
         "dev/plans/0.8.29/features/slice-90/test-map.md"
       ],
-      "conditions": "Approved80 AND actual Block1 follow-up exit after integrated selected20\u201370;160 is not that exit.",
+      "conditions": "Approved80 AND actual Block1 follow-up exit after integrated selected20\u201370;160 is not that exit. Block1 exit is not a slice: the Slice90 owner runs it as90's pre-source entry step on the integrated root baseline; complete when applicable full/feature/performance checks, both-format conformance with inherited failures resolved and the approved smoke/item-4 remeasure (Slice160 Q12 content) have real results there, recorded by the parent in this slice's evidence.20,50,60,70 enter it closed;40 closed or by authorized rejection/defer.",
       "phase": "BOUNDED_DESIGN_REVIEWED_SOURCE_HELD",
       "evidence": "Astra-medium bounded early design PASS after FIX1: installed Python/TS semantic REDs precede corresponding shared converter GREEN; aggregate count/byte/fraction transport is distinct from numeric profile.dimension. Actual integrated predecessors, approved80 and the real Block1 follow-up exit precede source work. No90-to160 cycle, implementation authority or completion follows this review."
     },
@@ -685,11 +685,16 @@
       "depends_on": [
         10
       ],
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "design_refs": [
-        "dev/plans/0.8.29/features/slice-110/plan.md"
+        "dev/plans/0.8.29/features/slice-110/plan.md",
+        "dev/plans/0.8.29/features/slice-110/requirements.md",
+        "dev/plans/0.8.29/features/slice-110/design.md",
+        "dev/plans/0.8.29/features/slice-110/test-map.md"
       ],
-      "conditions": "Actual reset timing/venue answer and reviewed lifetime remedy remain required;140 fork-first proof before affected pin adoption."
+      "conditions": "Actual reset timing/venue answer and reviewed lifetime remedy remain required. One-way seam, no cycle:110 reviewed design names any required fork repair;140 qualifies it fork-locally; only then110 adopts the affected pin. With no required repair110 does not wait on140.",
+      "phase": "DESIGN_REVIEWED_OWNER_POLICY_AND_TECHNICAL_PREREQUISITES_HELD",
+      "evidence": "Independent Astra-medium design PASS after partial-load loss was kept seam-only; the real reset envelope requires completed construction. Complete native ownership and required-only fork-A lifetime repair are designed. Fault policy, finite frozen residue with unknown opaque-host-byte bound, and venues remain unselected. No implementation, reset execution, original Orin survival or whole110 qualification."
     },
     {
       "slice": 120,
@@ -698,11 +703,16 @@
       "depends_on": [
         10
       ],
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "design_refs": [
-        "dev/plans/0.8.29/features/slice-120/plan.md"
+        "dev/plans/0.8.29/features/slice-120/plan.md",
+        "dev/plans/0.8.29/features/slice-120/requirements.md",
+        "dev/plans/0.8.29/features/slice-120/design.md",
+        "dev/plans/0.8.29/features/slice-120/test-map.md"
       ],
-      "conditions": "Actual artifact selection and consumed-kernel/compiler exposure assessment required; support changes owner-ratified, publishing separately authorized."
+      "conditions": "Actual artifact selection and consumed-kernel/compiler exposure assessment required; support changes owner-ratified, publishing separately authorized.120 closes only on its own A1-A6 qualification of the selected artifact, installed consumer and technical compiler exposure; artifact delivery alone does not close it.130's broader final matrix then qualifies that artifact and is not a120 prerequisite, so there is no120/130 cycle.",
+      "phase": "DESIGN_REVIEWED_OWNER_POLICY_AND_TECHNICAL_PREREQUISITES_HELD",
+      "evidence": "Independent Astra-medium design PASS after bidirectional native release/CUDA identity controls and exact-candidate licence/SBOM acceptance were restored. Explicit Python/Node artifact selection, source Rust and CLI scope remain owner proposals. Compiler6111901 safety is UNKNOWN and blocks CUDA13 builds/delivery; quantitative disposition, exact toolchain/image/pins and venues remain held. No implementation, artifact delivery or runtime qualification."
     },
     {
       "slice": 130,
@@ -745,7 +755,7 @@
         "dev/plans/0.8.29/features/slice-140/status.md",
         "dev/plans/0.8.29/features/slice-140/test-map.md"
       ],
-      "conditions": "Concrete required110/120 repair design only, fork-local qualified before product pins; B/C maintenance belongs.30 and never gates.29.",
+      "conditions": "Concrete required110/120 repair design only, fork-local qualified before product pins; B/C maintenance belongs.30 and never gates.29. Consumes the reviewed110/120 design artifact, not their closure; with no required repair it is disposed without source work.",
       "phase": "BOUNDED_DESIGN_REVIEWED_SOURCE_HELD",
       "evidence": "Astra-medium bounded PhaseA PASS. Only concrete repairs required by110/120 and necessary repair-release versioning belong in.29. Broader upstream/rebase/marker/multiarch B/C work belongs in.30 and is not a.29 prerequisite. Required repair selection, fork-local design/qualification and publication gates remain held; no speculative repair or no-repair result is claimed."
     },
@@ -777,6 +787,8 @@
       "short": "COMBINED-CLOSE",
       "title": "Selected combined qualification documentation and release readiness",
       "depends_on": [
+        20,
+        40,
         90,
         100,
         110,
@@ -793,7 +805,7 @@
         "dev/plans/0.8.29/features/slice-160/status.md",
         "dev/plans/0.8.29/features/slice-160/test-map.md"
       ],
-      "conditions": "Every selected mandatory outcome qualified or explicitly disposed; actual installed/publication proof separate. Optional140/150 only if selected. Publication held.",
+      "conditions": "Every selected mandatory outcome qualified or explicitly disposed; actual installed/publication proof separate.20 closes only with actual Windows A6;40 may close by authorized rejection/defer;30/50/60/70/80 reach160 through90. Optional140/150 only if selected. Finished bounded local tasks are not local completion: every selected mandatory installed/platform (Q14) row and release dry-run (Q18) part that a permitted local or owned venue can qualify stays open until qualified there. The local mandate completes only when the sole unmet rows need excluded CI execution or publication; each is named outstanding, neither waived nor passed. Publication held.",
       "phase": "BOUNDED_DESIGN_REVIEWED_SOURCE_HELD",
       "evidence": "Astra-medium bounded PhaseA design PASS. The matrix preserves mandatory versus conditional coverage, release-specific measurement freshness, justified unchanged-input reuse, assembled-evidence limits, native identity, Block1-before90 sequencing and separate publication authorization. No runtime qualification, final implementation approval or publish readiness follows."
     }
@@ -890,13 +902,15 @@
     "unruled": [
       {
         "id": "reset-timing-venue",
-        "title": "Actual reset timing/venue answer before110 fault execution.",
-        "owner_slice": 110
+        "title": "Owner choice: coordinated quiescent child-context reset with one frozen native live set until mandatory process restart, including the explicitly unknown opaque-host-byte bound, versus isolation or defer; actual fault venues remain separate.",
+        "owner_slice": 110,
+        "source": "dev/plans/0.8.29/features/slice-110/design.md \u2014 Owner decision"
       },
       {
         "id": "artifact-selection",
-        "title": "Actual CUDA-major artifact selection contract before120 delivery.",
-        "owner_slice": 120
+        "title": "Owner choice of proposed explicit CUDA13 Python/Node package/channel/selector and Rust/CLI scope, plus the quantitative adoption-review disposition. Compiler safety remains a technical prerequisite, not an owner waiver.",
+        "owner_slice": 120,
+        "source": "dev/plans/0.8.29/features/slice-120/plan.md \u2014 Decisions ready for the owner"
       },
       {
         "id": "qualified-session-caps",
@@ -920,6 +934,48 @@
         "halts_run": false,
         "source": "Prepared operator git:396a023e02580a1bb82ddcb7f16817874ad0046c dev/experiments/0.8.29-slice20-format/README.md; fresh independent preparation review PASS; actual async question2026-11-13",
         "conditions": "No live storage mutation before explicit answer and parent GO. Existing disks/C cleanup/compiler/A6 remain outside this operation; in-flight guarded sequence may finish after disconnect; uncertain state stops with read-only inspection. C:8/5GiB later workload floor unchanged."
+      },
+      {
+        "id": "slice30-frozen-tc5-input",
+        "title": "Owner input: reconnect drive UUID C8D47C11D47C03CA or supply an existing exact copy of the frozen TC5 pack for30 F and160 Q8/AC-075. No regenerated or substitute pack.",
+        "owner_slice": 30,
+        "source": "dev/plans/0.8.29/features/slice-30/inputs.md; dev/plans/0.8.29/features/slice-160/qualification.md Q8"
+      },
+      {
+        "id": "slice50-census-input",
+        "title": "Owner input: exact existing census artifact, path, provenance and closed custody for the already-approved aggregate census. Scope approval is not re-asked.",
+        "owner_slice": 50,
+        "source": "dev/plans/0.8.29/features/slice-50/census.md; ladder slice50 census_access_review"
+      },
+      {
+        "id": "slice50-identity-ruling",
+        "title": "Owner ruling on the proposed retrieval record identity ADR before50's production semantic change and80's scored-bytes contract.",
+        "owner_slice": 50,
+        "source": "dev/adr/ADR-0.8.29-retrieval-record-identity.md (proposed); dev/plans/0.8.29/features/slice-50/plan.md"
+      },
+      {
+        "id": "f11-repeated-ref-feedback",
+        "title": "Owner ruling on F11 historical-flag/repeated-ref feedback semantics; reviewed presentation exists, answer does not.",
+        "owner_slice": 60,
+        "source": "dev/plans/0.8.29/features/slice-50/feedback-decision.md"
+      },
+      {
+        "id": "slice100-additional-q1-pair",
+        "title": "Owner answer on one additional corrected Q1 matched healthy/interrupted pair; seq-372 covered the original pair only and is not reused.",
+        "owner_slice": 100,
+        "source": "dev/plans/0.8.29/features/slice-100/status.md"
+      },
+      {
+        "id": "block1-smoke-inputs",
+        "title": "Owner input: model, prompt, budget and fixture for the Block1 LoCoMo smoke and item-4 remeasure before90 source entry. No spend inferred.",
+        "owner_slice": 90,
+        "source": "dev/plans/0.8.29/features/slice-160/qualification.md Q12"
+      },
+      {
+        "id": "slice80-contract-acceptance",
+        "title": "Owner acceptance of the exact full80 contract revision after its50/60/70 contract inputs settle; bounded design PASS is not that acceptance.",
+        "owner_slice": 80,
+        "source": "dev/plans/0.8.29/features/slice-80/plan.md; dev/plans/0.8.29/features/slice-90/requirements.md S90-R12"
       }
     ]
   },

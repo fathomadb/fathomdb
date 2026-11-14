@@ -24,10 +24,10 @@ reader prepared-statement capacity is 10, a different quantity. No capacity,
 layout, candidate-cap, ranking, embedder or SQLite build change is proposed.
 
 - Slice 10 preparation is complete at implementation `104dcbcbe92a1eca730d146b99ab17d444df6217`, closure `d7d928f8e49d7af6a792385534f4e991c13232b3`.
-- Only Slice 20's qualified Linux repair subset `657edeb76caaf9c8d2aab433766bec9362e73217` is integrated. A3/A5's existing-correct TDD exception and Windows A6 capacity/qualification remain pending. This is not full 20 exit.
-- Slice 30 has no actual .29 measurements. Full 20 exit and the exact frozen TC5 bridge input pack remain held. The missing drive is UUID `C8D47C11D47C03CA`; its real reconnect/path question is pending. Do not regenerate or substitute that pack.
+- Slice 20's qualified Linux repair subset `657edeb76caaf9c8d2aab433766bec9362e73217` is integrated, and so are the A3/A5 existing-correct ruling (seq 369) and its proofs `f803a964ad8c8154a481e6f9385599bef5c0e054`. Windows A6 capacity/qualification remains open. This is not full 20 exit.
+- Slice 30 now has accepted P direct-text results and 11 qualified G cases (see [P results](../slice-30/results-p.md) and release state). Its 73 cap-refused G cases, including the write-interleaved cells 40's selection needs, plus M, D and frozen-TC5 F are not measured. Full 20 exit and the exact frozen TC5 bridge input pack remain held. The missing drive is UUID `C8D47C11D47C03CA`; its real reconnect/path question is pending. Do not regenerate or substitute that pack.
 - Slice 30's `/tmp/fathomdb-0829-direct/slice-30/phase-a` input inventory is documentary evidence, not current performance proof; its older predecessor narrative must be rereconciled before use.
-- The sole source writer is Slice 60 in its separate checkout. This package makes no writes to the parent, release JSON, generated regions, ledgers or another slice.
+- Slice 60's format/filter/budget subset is integrated at `5271c1bf` and Slice 70 is complete at `e875f360`; neither is a current source writer. This package makes no writes to the parent, release JSON, generated regions, ledgers or another slice.
 
 ## Scope and outputs
 
@@ -49,14 +49,14 @@ mean reads are already batch scoped; credit them as baseline behavior.
 
 | Kind | Dependency and consequence |
 | --- | --- |
-| Hard for runtime selection | Dependable completed 20 and actual 30 read-mostly/write-interleaved evidence against the integrated source and exact inputs. Neither exists yet. |
+| Hard for runtime selection | Dependable completed 20 and actual 30 read-mostly/write-interleaved evidence against the integrated source and exact inputs. 20 is open; 30 has read-mostly P/G results but no write-interleaved evidence. A proposed narrowing to the named 30 results, without Windows A6, is in the master plan and applies only after Astra design review. |
 | Hard for each selected treatment | Reviewed exact scope, snapshot/invalidation or batch-invariance proof, fixed cost/benefit rule and per-behavior test design. This generic design review does not approve an unspecified cache. |
 | Conditional | Changed source/artifact/provider or relevant 50/60/70 contract after measurement requires scoped reattribution. An unexpected public contract/authority change requires its ADR/interface review; persisted format changes return for owner scope review. |
 | Preferred only | 40 before 50 improves attribution and reduces search-file conflict. 40 is not a semantic prerequisite of 50's identity census or 60's MCP work. |
-| Serialization | Main session sequences engine writers 40/50/70/100/110; each implementation writer has its own parent-created checkout. Recheck actual 60 and 70 contracts before a later source entry. |
+| Serialization | Engine owners 40/50/100/110 work in parallel, each in its own parent-created checkout; the main session serializes only their root integration and the local native window. Recheck actual 60 and 70 contracts before a later source entry. |
 
 1. Obtain independent Astra-medium bounded design review through the main session.
-2. Wait for full 20 and genuine 30 evidence; reread integrated predecessor changes.
+2. Start the decision table now from the accepted 30 P/G results. Source entry waits for full 20 and the remaining 30 evidence unless the proposed narrowing is reviewed; reread integrated predecessor changes.
 3. Complete the decision table and review a concrete selected treatment, or record an evidence-backed not-selected/deferred disposition. Do not prototype to bypass missing measurements.
 4. Only after authorization, use genuine per-behavior staged runtime RED then separate GREEN. Implement eligibility and batch changes independently; freeze tests during each fix.
 5. Qualify correctness and current paired workloads, then obtain fresh independent Astra final implementation review. Keep failed and missing evidence explicit.
@@ -76,7 +76,7 @@ batch hoisting. These narrow the old two-scan premise.
 
 This package uses scoped Markdown, local link and source-symbol checks only.
 No native build, product test, model load, database open or network operation is
-part of preparation. Full 20, exact TC5 inputs, actual 30 results, treatment
+part of preparation. Full 20, exact TC5 inputs, the unmeasured 30 write-interleaved results, treatment
 selection/tolerances and exact reviewed safety remain held. Future code uses
 focused checks while working and the required full gate once on the final owned
 code phase; scoped passes never imply full-workspace green.

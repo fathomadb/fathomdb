@@ -1,7 +1,8 @@
 use super::reader_pool::READER_POOL_SIZE;
 use super::{
-    acquire_lock_without_metadata_mutation, install_post_probe_startup_fault_for_test, Engine,
-    EngineConfig, EngineOpenError, TestEmbedderChoice,
+    acquire_lock_without_metadata_mutation, install_post_probe_startup_fault_for_test,
+    install_post_probe_visibility_fault_for_test, Engine, EngineConfig, EngineOpenError,
+    TestEmbedderChoice,
 };
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use std::fs::File;
@@ -150,4 +151,49 @@ fn startup_fault_alias_body() {
     assert_eq!(owners_at_return, 0, "all managed SQLite owners must exit");
     assert_eq!(retained_at_return, 0, "accepted provider workers leave on failed startup");
     assert!(admission_released, "failed open must release admission lock");
+}
+
+#[test]
+fn visibility_fault_matches_canonical_database_alias() {
+    isolated_case(
+        "slice20_open_hook_tests::visibility_fault_matches_canonical_database_alias",
+        visibility_fault_alias_body,
+    );
+}
+
+fn visibility_fault_alias_body() {
+    let dir = TempDir::new().expect("real database directory");
+    std::fs::create_dir(dir.path().join("nested")).expect("existing alias parent");
+    let path = dir.path().join("nested").join("..").join("visibility-alias.sqlite");
+    let initial = Engine::open_with_test_choice_for_test(
+        &path,
+        TestEmbedderChoice::Caller(Arc::new(FixedProvider)),
+    )
+    .expect("first real open");
+    initial.engine.configure_vector_kind_for_test("doc").expect("enrol vector kind");
+    initial.engine.close().expect("close first session");
+
+    let (observed_tx, observed_rx) = mpsc::channel();
+    install_post_probe_visibility_fault_for_test(path.clone(), observed_tx);
+    let result = Engine::open_with_test_choice_for_test(
+        &path,
+        TestEmbedderChoice::Caller(Arc::new(FixedProvider)),
+    );
+    let error = match result {
+        Ok(opened) => {
+            opened.engine.close().expect("close unexpected open");
+            panic!(
+                "accepted post-probe visibility failure was ignored for canonical database alias"
+            )
+        }
+        Err(error) => error,
+    };
+    assert!(
+        matches!(error, EngineOpenError::Io { message } if message == "could not load frozen-read visibility generation")
+    );
+    let (accounting, registry) =
+        observed_rx.recv_timeout(Duration::from_secs(2)).expect("fault observation");
+    assert_eq!(accounting.snapshot().live_workers, 0, "accepted provider workers exit");
+    assert_eq!(registry.live.lock().expect("registry").len(), 0, "all SQLite owners exit");
+    assert!(acquire_lock_without_metadata_mutation(&path).is_ok(), "admission lock released");
 }

@@ -3,12 +3,20 @@
 import json
 from pathlib import Path
 
-from campaign import make_plan, run_campaign
+from campaign import run_campaign
 
 
 def load_plan():
-    """Select the current measurement inventory using the existing balanced selector."""
-    return make_plan(json.loads(Path(__file__).with_name("cells.json").read_text()), 2)
+    """Expand the separately declared46-cell M inventory and unchanged MCP defaults."""
+    spec = json.loads(Path(__file__).with_name("m-cells.json").read_text())
+    plan = []
+    for entry in spec["cells"]:
+        cell = dict(spec["defaults"], **entry)
+        cell["runtime_status"] = spec["runtime_status"]
+        cell["config"] = dict(spec["config"], **{key: cell[key] for key in
+                              ("result_format", "search_mode", "use_default_embedder")})
+        plan.append(cell)
+    return plan
 
 
 def run_table(root, command, *, plan=None):

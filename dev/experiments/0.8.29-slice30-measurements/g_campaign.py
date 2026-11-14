@@ -157,6 +157,12 @@ def _run_plan(spec, plan, root, command, prepare, allocation_root, assess, reuse
     if (budget.get("schema") != "slice30-gd-budget/v1"
             or type(budget.get("used_ns")) is not int or budget["used_ns"] < 0):
         raise ValueError("invalid shared G/D allocation record")
+    def save_budget():
+        if spec.get("preparation") == "closed-copy-v1":
+            from g_closed_guard import write_budget
+            write_budget(budget_path, budget)
+        else:
+            budget_path.write_text(json.dumps(budget, indent=2) + "\n")
     cell_usage = budget.setdefault("cell_used_ns", {})
     if not isinstance(cell_usage, dict) or any(type(value) is not int or value < 0 for value in cell_usage.values()):
         raise ValueError("invalid per-cell G allowance record")
@@ -219,7 +225,9 @@ def _run_plan(spec, plan, root, command, prepare, allocation_root, assess, reuse
             cell_allowance = cell["cell_seconds"] * 10**9 - cell_usage.get(cell["id"], 0)
             deadline = started + min(shared_allowance, cell_allowance)
             budget["inflight"] = {"cell": cell["id"], "started_at_ns": time.time_ns()}
-            budget_path.write_text(json.dumps(budget, indent=2) + "\n")
+            if spec.get("preparation") == "closed-copy-v1":
+                budget["inflight"]["started_monotonic_ns"] = started
+            save_budget()
             work_stopped = True
             try:
                 assessment = assess(cell, previous, shared_allowance, active_bytes(allocation)) if assess else None
@@ -267,7 +275,7 @@ def _run_plan(spec, plan, root, command, prepare, allocation_root, assess, reuse
                             # Consume the admission durably before any child can start, including a new-root retry.
                             budget["exploratory_seed100k"] = {"consumed": True, "cell": cell["id"],
                                 "root": str(root), "consumed_at_ns": time.time_ns(), "prediction": prediction}
-                            budget_path.write_text(json.dumps(budget, indent=2) + "\n")
+                            save_budget()
                         def monitor(_pid):
                             now_elapsed = time.monotonic_ns() - started
                             if cell.get("calibration") and active_bytes(root / cell["id"]) >= CALIBRATION_CELL_BYTES:
@@ -298,11 +306,11 @@ def _run_plan(spec, plan, root, command, prepare, allocation_root, assess, reuse
                     budget["inflight"] = None
                 else:
                     budget["inflight"]["status"] = "cleanup_uncertain"
-                budget_path.write_text(json.dumps(budget, indent=2) + "\n")
+                save_budget()
         if cell.get("calibration") and not completed_record(outcomes[-1]):
             budget.setdefault("closed_calibration_stop", {"cell": cell["id"], "outcome": outcomes[-1],
                 "path": str(root / "g-outcomes.json")})
-            budget_path.write_text(json.dumps(budget, indent=2) + "\n")
+            save_budget()
         previous[cell["id"]] = outcomes[-1]
         (root / "g-outcomes.json").write_text(json.dumps(outcomes, indent=2) + "\n")
     return outcomes

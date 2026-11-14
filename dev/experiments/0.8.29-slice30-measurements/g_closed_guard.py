@@ -1,7 +1,9 @@
-"""Closed-profile guardian discovery; phase accounting integration is pending."""
+"""Closed-profile guardian accounting; ordinary verification phases remain unchanged."""
 
 import json
+import os
 from pathlib import Path
+import time
 
 
 def discover(command):
@@ -22,3 +24,99 @@ def discover(command):
         if manifest.get("preparation") == "closed-copy-v1":
             return {"allocation": manifest["allocation"], "mode": manifest["stage"], "root": str(root)}
     return None
+
+
+def write_budget(path, value):
+    """Publish complete budget observations atomically for the live guardian."""
+    path = Path(path)
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    temporary.write_text(json.dumps(value, indent=2) + "\n")
+    os.replace(temporary, path)
+
+
+class ClosedGuard:
+    """Fund outer work without recharging nested common/cell wall intervals."""
+
+    def __init__(self, profile, started_ns, task):
+        self.started = started_ns
+        self.allocation = Path(profile["allocation"]).resolve()
+        self.root = Path(profile["root"]).resolve()
+        self.mode = profile["mode"]
+        if (self.mode not in ("closed-copy-calibration", "closed-copy-read-r1", "closed-copy-write-matrix")
+                or not self.allocation.is_relative_to(Path(task).resolve())
+                or not self.root.is_relative_to(self.allocation)):
+            raise ValueError("closed guardian requires a known mode and owned allocation")
+        self.limits = profile.get("limits") or {"campaign_seconds": 14400, "active_bytes": 16 * 1024**3}
+        self.path = self.allocation / "g-budget.json"
+        budget = self.read()
+        self.prior = budget["used_ns"]
+        self.prior_common = budget.get("common_used_ns", {}).get(self.mode, 0)
+        self.owned = False
+        self.directory = self.allocation / "common" / "guardian" / self.mode
+
+    def read(self):
+        if self.path.exists():
+            return json.loads(self.path.read_text())
+        return {"schema": "slice30-gd-budget/v1", "used_ns": 0, "inflight": None, "cell_used_ns": {}}
+
+    def admit(self):
+        """Refuse before child/cgroup creation when common ownership or reserve is unavailable."""
+        budget = self.read()
+        if budget.get("closed_guardian"):
+            raise RuntimeError("previous closed guardian has not established quiescence")
+        if budget.get("inflight"):
+            raise RuntimeError("unfinished shared attempt blocks closed guardian")
+        if self.prior_common >= 560 * 10**9:
+            raise RuntimeError("common reserve exhausted or cleanup reserve unavailable")
+        self.owned = True
+        budget["closed_guardian"] = {"pid": os.getpid(), "mode": self.mode,
+                                    "started_monotonic_ns": self.started}
+        write_budget(self.path, budget)
+
+    def residual(self, budget, now):
+        """Subtract completed charges and the currently active cell interval only."""
+        charged = budget["used_ns"] - self.prior
+        active = budget.get("inflight") or {}
+        active_cell = 0
+        if active and not active.get("cell", "").startswith("g-common-"):
+            origin = active.get("started_monotonic_ns")
+            if type(origin) is not int or origin < self.started:
+                raise RuntimeError("active closed cell has no matching monotonic accounting")
+            active_cell = now - origin
+        return max(0, now - self.started - charged - active_cell)
+
+    def check(self):
+        """Return a common/whole-phase/storage stop without changing resource floors."""
+        from g_campaign import active_bytes
+        budget = self.read()
+        now = time.monotonic_ns()
+        common = budget.get("common_used_ns", {}).get(self.mode, 0) + self.residual(budget, now)
+        if common >= 560 * 10**9:
+            return "closed_common_cleanup_reserve"
+        if budget["used_ns"] + self.residual(budget, now) >= self.limits["campaign_seconds"] * 10**9:
+            return "closed_shared_time_exhausted"
+        if active_bytes(self.allocation / "common") >= 1024**3:
+            return "closed_common_storage_exhausted"
+        if active_bytes(self.allocation) >= self.limits["active_bytes"]:
+            return "closed_shared_storage_exhausted"
+        return None
+
+    def finish(self, uncertain):
+        """Charge observed residual wall after exact owned quiescence and final probes."""
+        if not self.owned:
+            return {"admitted": False, "charged_phase_ns": 0}
+        now = time.monotonic_ns()
+        budget = self.read()
+        residual = self.residual(budget, now)
+        budget["used_ns"] += residual
+        common = budget.setdefault("common_used_ns", {})
+        common[self.mode] = common.get(self.mode, 0) + residual
+        exceeded = common[self.mode] > 600 * 10**9
+        if uncertain:
+            budget["closed_guardian"]["status"] = "cleanup_uncertain"
+        else:
+            budget["closed_guardian"] = None
+        write_budget(self.path, budget)
+        return {"admitted": True, "residual_ns": residual,
+                "charged_phase_ns": budget["used_ns"] - self.prior,
+                "common_used_ns": common[self.mode], "reserve_exceeded": exceeded}

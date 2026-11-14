@@ -6,6 +6,7 @@ import time
 
 from g_attempt import run_g_attempt
 from g_campaign import active_bytes
+from g_closed_guard import write_budget
 
 COMMON_BYTES = 1024**3
 
@@ -33,7 +34,7 @@ def run_common(allocation, mode, command):
         return {"status": "not_run_cap", "complete": False, "reason": reason}
     deadline = started + remaining - 40 * 10**9
     budget["inflight"] = {"cell": "g-common-" + mode, "started_at_ns": time.time_ns()}
-    budget_path.write_text(json.dumps(budget, indent=2) + "\n")
+    write_budget(budget_path, budget)
     outcome = None
     try:
         def monitor(_pid):
@@ -53,4 +54,4 @@ def run_common(allocation, mode, command):
             budget["inflight"] = None
         else:
             budget["inflight"]["status"] = "cleanup_uncertain"
-        budget_path.write_text(json.dumps(budget, indent=2) + "\n")
+        write_budget(budget_path, budget)

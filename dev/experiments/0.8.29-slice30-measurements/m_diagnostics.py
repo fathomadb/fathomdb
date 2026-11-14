@@ -92,6 +92,8 @@ def run_case(case, session, control):
         return _queued_cancel(session, control)
     if case == "wait_deadline":
         return _wait_deadline(session, control)
+    if case == "running_cancel":
+        return _running_cancel(session, control)
     return session.tool("search", {"store": "a", "query": "alpha", "mode": "text", "limit": 10})
 
 
@@ -194,3 +196,38 @@ def _wait_deadline(session, control):
         "held_after_release": after,
         "complete": result.get("error") == "busy/admission/deadline"
                     and all(session.records[item].get("ok") is True for item in requests)})
+
+
+def _recover_four(session, control):
+    control.send("block_calls")
+    requests = [_submit_search(session) for _ in range(4)]
+    try:
+        held = control.wait_held(4)["held_calls"]
+    finally:
+        control.send("release_all")
+        _drain(session, requests)
+    control.wait_held(0)
+    return held, requests
+
+
+def _running_cancel(session, control):
+    requests = _hold_four(session, control)
+    target = requests[0]
+    try:
+        session.notify("notifications/cancelled", {"requestId": target, "reason": "source diagnostic"})
+        probe = session.tool("search", {"store": "a", "query": "alpha", "mode": "text", "limit": 10})
+        session.wait(target, timeout=0.2)
+        before = control.wait_held(4)["held_calls"]
+    finally:
+        control.send("release_all")
+        _drain(session, requests)
+    after = control.wait_held(0)["held_calls"]
+    held, recovery = _recover_four(session, control)
+    result = session.records[target]
+    busy = probe.get("payload", {}).get("error", {}).get("busy", {})
+    terminal_ok = result["status"] == "unresolved" or result.get("error") == "timeout/cancelled"
+    return dict(result, diagnostic={"case": "running_cancel", "held_before_release": before,
+        "held_after_release": after, "probe": probe, "recovery_held": held,
+        "recovery_rpc_ids": recovery,
+        "complete": terminal_ok and busy.get("abandoned") == 1 and busy.get("in_flight") == 4
+                    and all(session.records[item].get("ok") is True for item in recovery)})

@@ -52,7 +52,7 @@ def assess_stage(n, mode, records, budget):
     return assessment
 
 
-def run_required(spec, records, budget, prepare):
+def _run_required(spec, records, budget, prepare, initial):
     """Retain all required rows; call preparation only for admitted obligations.
 
     Records and budget are caller-owned observations; this seam never opens a
@@ -62,7 +62,9 @@ def run_required(spec, records, budget, prepare):
     outcomes = []
     for n in (10000, 100000, 300000):
         for mode in ("held", "overlap"):
-            assessment = assess_stage(n, mode, records, budget)
+            assessment = ({"status": "not_run_stage_review", "reason": "mandatory review after initial held quartet"}
+                          if initial and (n != 10000 or mode != "held")
+                          else assess_stage(n, mode, records, budget))
             for cell in spec["cells"]:
                 if cell["n"] != n or cell["mode"] != mode:
                     continue
@@ -79,4 +81,9 @@ def run_required(spec, records, budget, prepare):
 
 def run_initial_quartet(spec, records, budget, prepare):
     """Run the named initial held quartet; retain every other obligation."""
-    return run_required(spec, records, budget, prepare)
+    return _run_required(spec, records, budget, prepare, initial=True)
+
+
+def run_required(spec, records, budget, prepare):
+    """Assess the fixed24 continuation, preserving every outstanding obligation."""
+    return _run_required(spec, records, budget, prepare, initial=False)

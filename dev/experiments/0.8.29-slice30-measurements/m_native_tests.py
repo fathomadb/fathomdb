@@ -127,5 +127,28 @@ class FetchTests(NativeCase):
                 self.assertTrue(client.exit["readers_joined"])
 
 
+class ListStateTests(NativeCase):
+    """Lifecycle observations come from actual list_stores without touching engines."""
+
+    def test_actual_list_retains_closed_and_ready_states(self):
+        for result_format in ("text", "structured"):
+            with self.subTest(result_format=result_format):
+                with RpcChild([str(self.cli), "--config", str(self.config(result_format))],
+                              self.root / result_format) as client:
+                    self.initialize(client)
+                    before = self.call(client, "list_stores", {})["payload"]
+                    self.assertEqual(before.get("stores", []), [
+                        {"name": "a", "open": False, "readiness": "closed", "default": True},
+                        {"name": "b", "open": False, "readiness": "closed", "default": False}],
+                        f"actual initial listing was lost; retained={self.root}")
+                    self.call(client, "search", {"store": "a", "query": "alpha"})
+                    after = self.call(client, "list_stores", {})["payload"]
+                    self.assertEqual(after["stores"], [
+                        {"name": "a", "open": True, "readiness": "ready", "default": True},
+                        {"name": "b", "open": False, "readiness": "closed", "default": False}])
+                self.assertEqual(client.exit["code"], 0)
+                self.assertTrue(client.exit["readers_joined"])
+
+
 if __name__ == "__main__":
     unittest.main()

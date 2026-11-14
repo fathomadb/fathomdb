@@ -1448,5 +1448,31 @@ suite PASS (0suite skips/exclusions) are now qualified. Rust reports2727passed/
 after canonical passing-log cleanup. The owned native receipt retains its actual
 a3c483fa7 build with unchanged d644 compiler inputs, without retagging. Private
 boundary populated0/exact removal and absent owned actors were verified, with no
-resource stop or cleanup uncertainty. No Default/GPU continuation or D/M/Q1 run
-followed.
+resource stop or cleanup uncertainty. D/M/Q1 remain unrun. The separately
+authorized G continuation below followed on the unchanged qualified source.
+
+## Accepted bounded G continuation at60f
+
+Campaign5e89e1dc-8fbd-4848-bc2a-8dc84e478f16 at clean
+60f471aaf042203d07a15025662ebf572f6cc242 retains all84 outcomes under
+`gd-allocation/g-frozen-g0-polling-v2`. Independent Astra ACCEPT covers four
+complete cases: `g0-smoke`, `g1-n10000`, `g-r-n10000-r0`, `g-r-n10000-r1`.
+G0 now has strict actual same-PID GPU witnesses. The10k seed is ready/pending0
+with10000 natural/vector/physical/span rows; actual stored coverage remains
+8471full/1529partial/0unknown, not full-body qualification. Each read repeat has
+6000timed calls,3000warmups and6first calls; repeat1 reverses adapter/route order.
+
+The other outcomes are79 cap refusals and1 failed `g-o-branches` qualification.
+All15 branch native steps exit0/complete; the sole issue remains
+`actual_reserved_gpu_engagement_unobserved`. The100k conservative2x forecast
+1306.635944940s correctly exceeds900s; no100k result is inferred. Terminal shared
+charge is357099039661ns, `inflight:null`, including the original11157694114ns.
+Original failed G0 UUID98d487ef/raw, original per-cell charges and both freezes
+remain untouched. No resource stop/cleanup uncertainty occurred; exact private
+boundary populated0/removal and absent owned actors were verified before the
+cooperative claim was released and native window returned. No wholeG/M/30 claim.
+
+The [November14 continuation proposal](continuation-gd.md#november14-proposed-staged-g-continuation)
+is plan-only: branch-only polling, original-identity reuse, normal-controller
+stops and one exploratory100k seed under both unchanged900s hard caps. It grants
+no new attempt, native change or matrix disposition.

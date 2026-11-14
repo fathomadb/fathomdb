@@ -43,15 +43,17 @@ labels; no execution or whole100/Q1 closure follows. Accepted20 A3/A5 remains
 satisfied for M, which still needs a qualified selected G store and exact MCP
 tool review. D, F and model/GPU/campaign authority remain separately held.
 
-## Assembled G source qualification candidate
+## Qualified G source and bounded result
 
-The current source candidate retains all R30-1..9/A30-1..7 and release req*/AC
-obligations. The original220-suite collector has218 passes and two governance
-failures, now repaired by unchanged root48-field guards and41 policy tests with
-53 governed operations. The passive diagnostic addendum changes no signed/default
-operation; current code uses `begin_slice30_observation` without an alias.
-Affected observer/CLI/feature/native identity checks pass on a3c483fa7. Evidence,
-inner-skip/no-provider limits and all original failures are in execution.md.
-Fresh assembled source review is pending; positive Default384/3090 and campaign
-qualification remain held. No source control establishes a qualified selected
-G store for M or clears D/F/whole30/downstream/Block1.
+All R30-1..9/A30-1..7 and release req*/AC remain unchanged. Independent Astra
+ACCEPT and final canonical220/220 atf8703b466 qualify source/tooling with the
+actual native a3c483fa7/d644 identity. The passive diagnostic addendum preserves
+all53 signed/default operations. Original failures, ignored/skipped limits and
+unavailable current Python/TS inner counts remain in execution.md.
+
+The accepted60f/campaign5e89 subset supplies G0 and10k seed/two read repeats;
+79 cap refusals and one branch engagement failure remain explicit. No qualified
+selected100k G store for M or D/F/whole30 clearance follows. The prospective
+[staged amendment](continuation-gd.md#november14-proposed-staged-g-continuation)
+changes no hard cap or qualification criterion; independent design review and
+reviewed concrete tooling precede separately authorized runtime.

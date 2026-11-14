@@ -3,26 +3,24 @@ title: Slice30 G/D continuation — bounded current-source design
 status: DESIGN_CANDIDATE_NOT_GO
 target_release: 0.8.29
 slice: 30
-observed_on: 2026-11-13
+observed_on: 2026-11-14
 ---
 
 # Slice30 G/D continuation
 
 ## Scope, predecessor review and release contracts
 
-This actual20 base-fit candidate is grounded in integrated
-`f803a964ad8c8154a481e6f9385599bef5c0e054` on `llm/0.8.29-chat`, compared
-against the independently reviewed FIX1 baseline
-`0a7df81fd4b6f17d716c950e6fd2748daa3565c2`. SAME Astra returned terminal
-FIX1 design PASS with no material regression; the approved contracts below stay
-fixed. This packet requests only bounded actual-base fit recheck, not a new design.
-No source, test, environment, model, database or campaign work ran to prepare it.
-The Slice20 heavy window is released, but parent acceptance/import and explicit
-G source GO in a fresh isolated checkout still precede implementation. The
-parent checkout stays read-only; no source or campaign authority is inferred.
-No Steward/Orchestrator role, skill or nested agent is used.
+The original FIX1/actual20 fit below grounded the G-first source unit; it is
+retained as design history. G source/tooling subsequently received independent
+Astra ACCEPT and canonical220/220 qualification atf8703b466. The bounded campaign
+at60f471aaf, UUID5e89e1dc-8fbd-4848-bc2a-8dc84e478f16, now has four accepted
+completed cases, one failed branch qualification and79 cap refusals; see
+[execution](execution.md). The November14 amendment below proposes only the
+next Python tooling changes. It is plan-only pending independent design review;
+no new runtime authority or whole-G/30 disposition follows. Parent owns release
+state; this checkout owns its plan. No roles, skills or nested agents are used.
 
-The minimum next source unit is **G routes and G observation**, followed by its
+The original G-first sequence is **G routes and G observation**, followed by its
 bounded G0/G1 diagnostics and read-mostly measurements. G write schedules remain
 required and explicitly staged behind the initial seed/latency feasibility
 observations, within the same fixed overall resource budget. D has its own
@@ -355,6 +353,156 @@ independent queries) and paired means/query-cluster descriptive intervals with
 seed20261111/2000 resamples. Fewer-than1000 diagnostic calls have counts and
 observed durations, no canonical percentile qualification. No tuning, treatment
 selection, benefit threshold or causal speedup verdict follows.
+
+## November14 proposed staged G continuation
+
+R30-1..9/A30-1..7 and release req*/AC remain unchanged. Accepted20 A3/A5 and
+accepted100 subset are integrated; whole20/WindowsA6 and whole100/Q1 remain open.
+Accepted P is not replayed. M still needs a qualified selected100k G store and
+exact MCP tooling; the accepted10k store does not supply that subject. D source
+and runtime remain separate; F still needs the exact frozen TC5 pack.
+
+**Proposed tooling only:** preserve the original84-cell inventory, original
+artifacts and all charges. Both native and outer hard limits remain900s/cell,
+including prior charges and new preparation; shared G/D14400s and retained16GiB
+remain fixed. The native seed rejects allowances above900000ms. No1320s option,
+Rust change, rebuild, fingerprint relaxation or hidden clamp is proposed.
+
+### Branch observation and original-result reuse
+
+Extend the existing G0 50ms polling wait only to the15 synthetic native steps
+of `g-o-branches` (G-O/kind=branches). Other ordinary/natural stages retain1s.
+Observation latency adds to the wait, so this is not guaranteed20Hz. Preserve
+all branch calls, route order, workloads, strict same-PID memory plus selected
+GPU-utilization predicate and existing cell-wide engagement qualification. No
+extra queries, sleeps, warmups or synthetic GPU work. Another missed witness
+remains failed qualification, not a product defect or zero-cost evidence.
+
+New freezes may reference only accepted completed records in the original
+`gd-allocation/g-frozen-g0-polling-v2`: `g0-smoke`, `g1-n10000`,
+`g-r-n10000-r0`, `g-r-n10000-r1`. They retain source60f471aaf, UUID5e89e1dc,
+original attempt paths, timestamps and raw observations. A reference is labelled
+`reused_complete`, not a new measurement under the successor source/UUID.
+The new manifest identifies original records in place; no copying, retagging,
+DB opening or rerunning these four cases. Later stages may reference a newly
+qualified branch record by its own original identity through that same chain.
+
+Before accepting reuse, compare registered corpus/query/license/model identities,
+configuration and ordering, compiler inputs d644d89f…3114, actual owned native
+a3c483fa7 identity, exact retained ordinary/diagnostic bytes/features, device UUID/
+ordinal and CUDA12.6/R580 constraints. Require the original complete outcome,
+empty qualification issues, strict GPU evidence, required route/count/readiness/
+close witnesses and known actor cleanup. The changed Python scheduling/reuse
+code must leave the reused measurement semantics and qualifier unchanged.
+The validated reference resolves to its original result for G0 gating, seed
+forecasting and closed-store selection; a successor timestamp never replaces it.
+Mismatch or incomplete evidence refuses reuse and dispatch; it does not trigger
+a rerun. These are scientific equivalence checks, not a tamper/hash test suite.
+
+### Closed stages and exploratory admission
+
+Propose `freeze --stage STAGE --reuse-completed-from ROOT`; these flags do not
+exist yet. The controller freezes a closed stage policy alongside all84 cells:
+
+| Stage | New dispatch and mandatory terminal boundary |
+| --- | --- |
+| `branch-controls` | Reuse the four accepted records; dispatch only `g-o-branches`, then stop even on success. Preserve its earlier failed attempt. |
+| `first-100k-seed-exploratory` | After reviewed branch success and a separate technical GO, reuse those records; admit only `g1-n100000` once under the unchanged hard limits, then stop for actual-cost review. No read/natural/write matrix expansion. |
+
+All other cells remain explicit `not_run_stage` obligations referencing earlier
+cap refusals where present. Reused G0 supplies the qualified prerequisite without
+rerun; it does not authorize other cells. `run ROOT` keeps its incomplete-campaign
+exit1 while required cells remain; `last-run.json` separately records
+`stage_complete`, `campaign_complete=false` and cleanup. Reports distinguish
+reused/new/failed/held cells and retain overall incomplete. New entry/assessment/preparation overhead is charged to the named dispatched
+cell and shared ledger, never to a reused or held cell. No stage advances
+automatically and no arbitrary subset or private `_cell` entry is exposed.
+
+The current rule above says: “before100k predict from10k conservatively using2x
+observed per-row time and bytes. If predicted whole preparation exceeds900s or
+active16GiB, stop before that size.” That correctly refused the original100k
+seed. Observed10k elapsed65.326146421s and charged65.331797247s yield linear
+653.317972470s and conservative2x1306.635944940s at100k; predicted storage is
+1449923880B. The conservative time forecast **still fails**. Linear scaling is
+an exploratory hypothesis, not feasibility or qualification proof.
+
+Propose a prospective, explicitly recorded one-shot admission-policy amendment
+only for that named seed. It retains the failed conservative forecast/refusal
+and uses the linear forecast to decide whether a bounded exploratory attempt
+fits the actual remaining allowance. Prior seed bookkeeping is0.002901306s,
+so at the retained checkpoint only899.997098694s remain before new preparation;
+linear headroom246.679126224s is not a renewed allowance. Recheck after assessment
+and preparation against `min(cell remaining, shared remaining)` immediately
+before native dispatch. Storage/resource checks and absolute deadlines remain
+unchanged; charge every new assessment/preparation/attempt to the same ledger.
+Persist one-shot consumption before dispatch across freezes/resumes; no new-root
+renewal, timeout retry or partial-as-complete. Uncertain cleanup blocks entry.
+
+This is proposed as a technical preregistration amendment within the already
+authorized100k/900s measurement scope: no release requirement/AC or identified
+owner ruling requires the2x multiplier itself. Independent Astra must assess
+scientific/resource fit before implementation; no waiver is inferred from this
+proposal. The ordinary2x admission rule remains for every other cell. Runtime
+still needs separate technical GO after concrete reviewed/full-qualified tooling,
+fresh readiness and the same cooperative UUID lock. An actual100k cost, timeout
+or partial result must be reviewed before any further matrix proposal.
+
+### Proposed normal-entry commands and behavior-first implementation
+
+The following commands are queued contract examples, **not executable today**.
+Run each stage only under its separate GO, from the owned environment with the
+existing persistent supervisor/FD9 exact-UUID lock, fresh quiet/resource checks,
+exact UUID mask and visible ordinal0. Hold the claim through owned quiescence.
+Never chain stage2 automatically after stage1's incomplete-campaign exit1.
+
+```bash
+source /mnt/data/tmp2/fathomdb-0829-continuation/slice30-g-20261113/env.sh
+G_DIR="$S30_SOURCE/dev/experiments/0.8.29-slice30-measurements"
+G_TOOLS="$S30_TASK/artifacts/g-cuda-5c7b1988d342488288ae83e022b358254c60edc8"
+OLD="$S30_TASK/gd-allocation/g-frozen-g0-polling-v2"
+BRANCH="$S30_TASK/gd-allocation/g-frozen-branch-v3"
+SEED="$S30_TASK/gd-allocation/g-frozen-seed100k-v4"
+export CUDA_VISIBLE_DEVICES=GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b
+# Proposed flags; call once with branch-controls/OLD/BRANCH after its GO.
+g_stage_freeze() {
+  .venv/bin/python "$G_DIR/g_runner.py" freeze \
+    --stage "$1" --reuse-completed-from "$2" --out "$3" \
+    --corpus "$S30_TASK/inputs/corpus.jsonl" --queries "$S30_TASK/inputs/queries.jsonl" \
+    --license "$S30_TASK/inputs/LICENSE.txt" --allocation "$S30_TASK/gd-allocation" \
+    --ordinary "$G_TOOLS/slice30-measure-ordinary" \
+    --diagnostic "$G_TOOLS/slice30-measure-diagnostic" \
+    --build-receipt "$G_TOOLS/build-receipt.json" \
+    --model-cache "$HF_HOME/hub/models--BAAI--bge-small-en-v1.5/snapshots/5c38ec7c405ec4b44b94cc5a9bb96e735b38267a" \
+    --gpu-uuid "$CUDA_VISIBLE_DEVICES" --gpu-ordinal 0
+}
+g_stage_freeze branch-controls "$OLD" "$BRANCH"
+AGENT_LONG=1 .venv/bin/python "$G_DIR/g_phase.py" g-branch-v3 \
+  .venv/bin/python "$G_DIR/g_runner.py" run "$BRANCH"
+```
+
+Only after separate review/GO for the exploratory seed:
+
+```bash
+g_stage_freeze first-100k-seed-exploratory "$BRANCH" "$SEED"
+AGENT_LONG=1 .venv/bin/python "$G_DIR/g_phase.py" g-seed100k-v4 \
+  .venv/bin/python "$G_DIR/g_runner.py" run "$SEED"
+```
+
+Each behavior gets an actual compiling/callable runtime RED committed before
+minimal GREEN with frozen assertions. Existing51 controls stay unchanged.
+
+| Ordered unit | Literal runtime RED and required GREEN contract |
+| --- | --- |
+| Branch cadence | Real short ready child is missed by old1s branch polling; preserve G0 and natural-stage controls. New branch-only wait observes it without added work. |
+| Reuse/resume | Harmless dispatch marker proves accepted original cases would rerun; new normal entry references them, retains original provenance and never dispatches them. Ineligible result refuses instead of replay. |
+| Staged stop/order | Actual harmless next-cell marker exposes continuation beyond the named stage; fix stops with all84 explicit, original outcomes and cumulative charges preserved. |
+| Exploratory admission | Existing callable controller refuses the named seed on its retained2x forecast; explicit exploratory stage admits only that harmless seed when linear forecast fits. Prove one-shot/resume, prior charge and assessment/preparation depletion refusal before any forbidden dispatch. Keep conservative forecast failed and ordinary2x rule intact. |
+
+CLI/scaffold import or missing-flag failures are preparation, not semantic RED.
+Tests focus sampling, resume/order and measurement/budget correctness; no tamper
+inventory. Source freeze, applicable controls/Ruff/scoped docs, required canonical
+verification and independent implementation/results review precede runtime. No
+new native build is needed if compiler inputs and binaries remain identical.
 
 ## D extension — exact required work, separate source gate
 

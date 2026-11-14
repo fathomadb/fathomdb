@@ -151,6 +151,22 @@ def freeze(options):
             "common_seconds": 600, "common_bytes": 1024**3, "calibration_cell_bytes": 3 * 1024**3})
     if options.get("stage"):
         manifest["stage"] = options["stage"]
+    if closed and options["stage"] != "closed-copy-calibration":
+        if not options.get("calibration_from"):
+            raise ValueError("closed successor requires its actual qualified calibration root")
+        manifest["calibration_from"] = str(Path(options["calibration_from"]).resolve())
+    if closed and options["stage"] == "closed-copy-write-matrix":
+        from g_closed_limits import reviewed_limits
+        if not options.get("cost_review_from"):
+            raise ValueError("write-matrix requires its named reviewed cost record")
+        review_path = Path(options["cost_review_from"]).resolve()
+        limits = reviewed_limits(review_path)
+        review = json.loads(review_path.read_text())
+        manifest.update(cost_review_from=str(review_path), cost_review=review, cost_review_pin=identify(review_path))
+        manifest["closed_limits"].update(limits)
+        spec.update(closed_mode=options["stage"], _closed_limits=limits, _reviewed_costs=review,
+                    _closed_observation_wait_ms=review["observation_wait_ms"])
+        manifest["plan"] = make_g_plan(spec)
     if options.get("reuse_completed_from"):
         from g_reuse import collect_reuse
         original_stage = json.loads((Path(options["reuse_completed_from"]) / "manifest.json").read_text()).get("stage")
@@ -199,6 +215,8 @@ def validate_frozen(root):
                manifest["lock"], manifest["build_receipt"], manifest["python_receipt"], manifest["python_native"]]
     if manifest.get("preparation") == "closed-copy-v1":
         records += list(manifest["closed_subject"]["files"].values())
+        if manifest.get("stage") == "closed-copy-write-matrix":
+            records.append(manifest["cost_review_pin"])
     if any(identify(record["path"]) != record for record in records):
         raise ValueError("frozen G input/native/model bytes changed")
     if manifest.get("reuse_completed_from"):

@@ -19,7 +19,7 @@ def run_program_step(command, config, output, deadline_ns, observe=None):
     step = {"family": config["family"], "config": str(path), "output": str(output),
             "complete": False, "exit": None, "result": None, "gpu_samples": []}
     # Short controls may exit before one observation; observer latency adds to the wait.
-    short_control = (config.get("stage") == "G0"
+    short_control = (config.get("stage") == "G0" or config.get("calibration") is True
                      or (config.get("stage") == "G-O" and config.get("kind") == "branches"))
     observation_wait = 0.05 if observe and short_control else 1
     remaining = (deadline_ns - time.monotonic_ns()) / 10**9

@@ -18,8 +18,10 @@ def run_program_step(command, config, output, deadline_ns, observe=None):
     path.write_text(json.dumps(config, indent=2) + "\n")
     step = {"family": config["family"], "config": str(path), "output": str(output),
             "complete": False, "exit": None, "result": None, "gpu_samples": []}
-    # G0 may exit before a one-second observation; observer latency adds to this wait.
-    observation_wait = 0.05 if observe and config.get("stage") == "G0" else 1
+    # Short controls may exit before one observation; observer latency adds to the wait.
+    short_control = (config.get("stage") == "G0"
+                     or (config.get("stage") == "G-O" and config.get("kind") == "branches"))
+    observation_wait = 0.05 if observe and short_control else 1
     remaining = (deadline_ns - time.monotonic_ns()) / 10**9
     if config["remaining_cell_ms"] == 0 or remaining <= 0:
         return dict(step, status="not_run_cap", reason="cell_time_exhausted")

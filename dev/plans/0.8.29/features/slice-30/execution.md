@@ -1492,6 +1492,18 @@ controls remain unchanged. Clean9c52f2604 discovery passes60/60 in32.763s
 Ruff caught a misplaced freeze-hook insertion, corrected before the reuse GREEN
 commit; no build ran. Read-only validation accepts exactly the four original
 accepted records, without store/model/GPU execution. No artifact was rebuilt or
-retagged; the original shared budget/raw remain unchanged. This candidate still
-needs fresh independent implementation review and its final canonical full gate;
-none of these harmless-child controls establish100k feasibility or GPU evidence.
+retagged; the original shared budget/raw remain unchanged. Fresh distinct
+Astra-medium implementation ACCEPT covers cleanbf647231e. Its single final
+canonical `./scripts/agent-verify.sh` passes220/220 suites (0suite skips/exclusions),
+with lint/typecheck and strict security0 violations/blockers/downgrades. Source
+start/end remain bf647231e with empty deltas. Current Rust/Python/TS suites pass;
+their inner counts are unavailable after canonical passing-log cleanup, without
+replay. Existing ignored/skipped limits and all prior failures remain preserved.
+
+`g-staged-final-full-verify.log` and its guardian receipt retain exit0, no resource
+stop/cleanup uncertainty, empty owned survivors and exact private-boundary
+populated0/removal. Guardian/gate actors and that boundary were independently
+absent in the original executor context; the marker is absent. Original shared
+charge357099039661ns/`inflight:null` and raw remain unchanged. These controls and
+source qualification establish no new100k or GPU evidence; both actual stages
+remain held pending parent acceptance and separate fresh technical GO.

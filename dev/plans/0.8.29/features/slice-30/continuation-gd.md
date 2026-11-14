@@ -632,16 +632,31 @@ binaries/compiler pins: no Rust rebuild, retagging or silent allowance clamp.
 The outer absolute deadline includes custody/copy/prep/queries/close, with all
 prior use deducted; native output remains subject to that guardian/deadline.
 
-Four1500s maxima add6000s: terminal shared use cannot exceed7845130877940ns,
-leaving6554869122060ns of the existing14400s. Four baseline copies add2860892160B,
-so baseline retention becomes4764034178B. Reserve at most3GiB **new retained bytes
-per calibration**, including its copy/WAL/raw/config/log growth: existing total
-plus four allowances is14788043906B, leaving2391825278B below16GiB. Charge common
-entry overhead too, within remaining shared/storage headroom. Check reservation
-and floors before each copy; no precreation when unavailable. Monitor actual
-allocation and per-cell growth; at deadline/3GiB/shared cap/resource stop retain
-the failed/partial cell and every remaining calibration as unrun. Unknown
-cleanup durably blocks entry. No retry, deletion, reset or next-step chaining.
+Four1500s cell allowances plus a separate600s/1GiB common reserve bound the
+whole calibration phase. Common entry/freeze/assessment/reporting/guardian work
+is supervised, measured and charged exactly once against that reserve, not
+omitted or renewed per cell. Bound each common operation by remaining reserve;
+reserve the existing fixed cleanup bounds before launching work. Phase maximum
+is6600s, so terminal shared use is at most8445130877940ns, leaving5954869122060ns
+of14400s. Charge actual elapsed use, not automatically the admission maximum.
+
+Four baseline copies add2860892160B, giving4764034178B baseline retention.
+Reserve3GiB **new retained bytes per calibration**, including copy/WAL/raw/config/
+log growth, plus1GiB common: total bound15861785730B leaves1318083454B below16GiB.
+Check reservation/floors before each copy; unavailable bounds refuse before
+precreation. Copy AND validation execute in a supervised owned worker inside
+the same private cgroup/absolute cell deadline/storage monitor as the native
+workload; preparation consumes that1500s allowance. Never perform blocking copy/
+validation in the current synchronous `prepare` callback and rely on post-return
+checks: that callback may only construct the supervised command/configuration.
+A stalled copy or validation must be terminated by the guardian with bounded
+owned cleanup, and native dispatch remains forbidden until validation succeeds.
+
+At cell deadline/3GiB, common reserve exhaustion, shared cap or resource stop,
+retain partials and all unstarted calibration rows; stop, no next-mode chaining.
+Cleanup is never skipped to satisfy accounting: uncertain/over-bound cleanup
+is retained as failure with actual charges and durably blocks redispatch, not
+reported as a qualified bounded phase. No retry, deletion or reset.
 
 Record separate actual copy/open/close, commit, per-row point/FTS probe,
 per-cohort readiness, natural calls, output/WAL/growth and total clocks. Retain
@@ -667,8 +682,8 @@ G, all required D cells and M; unavailable costs remain explicit holds. Ceilings
 alone prove neither feasibility nor completion.
 
 Seventy-three baseline copies plus current retained files already require
-54114423938B (50.398GiB), before calibration, histories/WAL/raw. With the full12GiB
-calibration reservation that floor becomes66999325826B (62.398GiB);128GiB leaves
+54114423938B (50.398GiB), before calibration, histories/WAL/raw. With the full13GiB
+calibration/common reservation that floor becomes68073067650B (63.398GiB);128GiB leaves
 headroom, not a validated growth bound. Preserve outer start floors root32GiB/
 task250GiB/MemAvailable16GiB and stops root20GiB/task50GiB/MemAvailable8GiB/
 owned200GiB/swap rule. Forecast all retained G/D/M growth against both128GiB and
@@ -679,7 +694,7 @@ Observed ordinary route walls give an unvalidated8363.378s proxy for72 G-W
 natural-loop proxy is13146.543s, with other components still unbounded. Prior
 1845.131s plus those two proxies totals31718.430s, leaving11481.570s of12h before
 actual calibration, R1, G probes/writes/copies, other M work and D. Calibration
-contributes actual charged time, not automatically its6000s admission maximum.
+contributes actual cell/common charges, not automatically its6600s maximum.
 Therefore12h sufficiency is **not established**: actual calibration and complete
 phase forecasts must fit the total or return a revised explicit envelope for
 review, leaving all unmet rows required/held.
@@ -692,27 +707,38 @@ forecasts/refusals; any more specific calibrated cost model is a preregistered
 technical amendment, with maxima/coverage and uncertainty visible. The full table
 must list bounded forecasts or explicit unavailable holds. R1 is first in the
 normal required order: it needs its own admitted read/copy forecast, then actual
-qualification supplies its route costs before repeat1 G-W. Missing R1 costs hold
-those dependent cells; R0 cannot silently substitute. Review actual R1 and refresh
-the complete-table allowance before broad G-W dispatch. Each prospective cell's
+qualification supplies its route costs. A closed R1-only controller mode MUST
+stop after its actual result, before ANY G-W dispatch, even if R1 qualifies and
+time remains. Missing R1 costs hold dependent cells; R0 cannot silently substitute.
+The separate write-matrix mode requires a recorded reviewed-cost prerequisite
+binding the actual qualified R1/calibration roots, complete-table forecasts,
+remaining allowance and declared cadence to its frozen configuration. Missing
+review, failure or changed prerequisite refuses before copy/native dispatch.
+No in-process automatic advance or boolean auto-approval substitutes for that
+boundary. Each prospective cell's
 full2x forecast must fit its remaining1500s and shared/
 storage allowance; otherwise refuse it honestly, not increase its cap implicitly.
 
 ### One coherent source phase, then separate runtime decisions
 
-Proposed future CLI adds a closed `--preparation closed-copy-v1` policy, fixed
-`--stage closed-copy-calibration`, and `--calibration-from` for subsequent normal
-(no-stage) entry. These flags do not exist yet. Calibration references accepted
-`g-frozen-g-assessment-v5`; later normal entry references the same11 original
-primary cases plus the separately retained calibration costs, and emits all84
-primary outcomes in original order. No private `_cell` entry/subset bypass.
-The calibration profile retains original14400s/16GiB; the successor profile may
-activate only an explicitly reviewed total envelope after actual calibration.
-No source edit should be needed merely to advance from calibration to matrix.
+Proposed future CLI adds `--preparation closed-copy-v1` and three closed stage
+values: `closed-copy-calibration`, `closed-copy-read-r1`, `closed-copy-write-matrix`.
+They do not exist yet. `--calibration-from` binds actual calibration; write-matrix
+also requires `--cost-review-from` identifying its recorded reviewed frozen
+prerequisite. Calibration references accepted `g-frozen-g-assessment-v5`; R1-only
+references the same11 original primary cases; write-matrix additionally references
+qualified R1. Preserve all84 primary rows/order in every mode; only the named
+mode's fixed obligations may dispatch, with all other unrun rows explicitly held.
+Calibration rows stay separate, never primary credit. No arbitrary subset or
+private `_cell` bypass. Each mode terminates before another begins. Calibration
+retains original14400s/16GiB; successor totals activate only after explicit review.
+Support all three modes, reference transitions and the required R1 review stop
+in one source phase; no code edit merely to advance between modes.
 
 Implement/test the complete preparation, cadence, cost/limit policy and reuse
 semantics before one final source gate: genuine callable runtime RED→GREEN for
-closed custody/preparation refusal and copy charge, fixed calibration stop,
+supervised stalled copy/validation and charge, bounded common reserve, fixed
+calibration stop and mandatory R1→review→write boundary,
 prospective1500s deadline/prior-use handling, calibrated forecasting and exact
 original-reference reuse. Real tiny stores/harmless children prove no mutation
 leak between copies, preserved ordinary/write/probe order, all84 outcomes and
@@ -723,7 +749,8 @@ named unmeasured preparation/limits and separate calibration policy may differ.
 Do not relax compiler/binary/qualifier fingerprints or accept arbitrary roots.
 Fresh independent implementation review precedes the single clean full gate.
 Runtime decisions remain separate: calibration first, then review actual costs/
-observability/full-table feasibility before any73-cell G matrix. No automatic
+observability/full-table feasibility, then R1-only and its mandatory review stop
+before the72-cell write matrix. No automatic
 D/M runtime or wholeG/30/fidelity clearance follows.
 
 ## D extension — exact required work, separate source gate

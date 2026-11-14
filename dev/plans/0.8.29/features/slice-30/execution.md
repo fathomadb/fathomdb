@@ -1667,9 +1667,17 @@ only that startup path. Unchanged failed-suite resumptions are2/2 and1/1 in
 uninterrupted90/90 claim. Explicit live route atc96d43b45 passed19/19;
 affected final guardian/accounting/admission controls pass5/5 in0.816s under
 strict actual entry floors (`g-closed-final-affected-live.log`). The final
-canonical owned gate MUST select `AGENT_SLICE30_LIVE_CONTROLS=1`; ordinary
-portable discovery alone makes no live-cgroup claim. Fresh final Astra and
-that gate remain pending. Final direct `_common` report bypass has its own
+canonical attempt selected `AGENT_SLICE30_LIVE_CONTROLS=1`. Source0fa has
+fresh Astra implementation and assembled-qualification ACCEPT. Its original
+guardian was lost during Rust; the missing terminal receipt and exact owned
+boundary cleanup remain explicit. Completed lint/type/security/fast-prefix
+results remain original. Unchanged Rust proof is attributed to acceptedbfe03918
+(same sources/tests/Cargo, pinned Rust1.95.0 and owned CPython3.13.13), not the
+interrupted run. The current canonical suffix from the measurement adapter
+passed18/18 with0skips/exclusions, no resource stop or cleanup uncertainty,
+clean0fa and exact boundary removal. Python/TS inner totals are unavailable.
+This is assembled source qualification, not an uninterrupted wrapper pass or
+measurement/profile authority. Final direct `_common` report bypass has its own
 8f7b7289e→395aebb30 pair: actual bare output is refused while live public
 transport passes2/2; affected common/cell preservation10/10 passes in
 `g-common-cli-preservation.log`. Both private CLI workers now require matching

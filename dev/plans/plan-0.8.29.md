@@ -223,13 +223,17 @@ Slice90's state evidence. Each of20–70 enters it closed or, for conditional40,
 by its authorized rejection/defer. Its smoke model, prompt, budget and fixture
 are an open owner input; preparation and conformance triage do not wait for it.
 
-**Proposed, pending Astra design review; source for40/50 stays held until it is
-accepted.** 40 and50 consume named Slice30 results, not whole-30 closure:
-accepted P direct-text and the qualified G cases as the read baseline, the
-write-interleaved cells for40's selection, and the accepted identity ruling for
-50's production route. Neither consumes Windows A6, M, D or frozen-TC5 F. Until
-that amendment is reviewed, the JSON `depends_on` and the reviewed40/50 entry
-gates apply unchanged.
+The [Slice40 evidence and artifact amendment](0.8.29/features/slice-40/measurement-plan.md)
+has independent Astra-medium PASS. It consumes qualified Linux20/A3/A5 and
+accepted P/G read artifacts; affected write-interleaved evidence and exact safety,
+tolerances and paired treatment qualification remain adoption conditions.
+Whole20/WindowsA6, whole30/M/D/F and TC5 are independent release gates, not
+blanket40 prerequisites. No cache or owner rejection/defer is selected.
+
+**Slice50 narrowing remains proposed, pending its specific design review.**
+The proposed inputs are named30 P/G read artifacts plus the identity ruling and
+census input, instead of whole30. Its existing JSON dependency and source hold
+remain unchanged until that amendment is accepted.
 
 The reviewed [Slice30 prerequisite amendment](0.8.29/features/slice-30/prerequisite-change.md)
 permits initial provider-free Linux direct-text P work from closed10 and the
@@ -271,7 +275,7 @@ flowchart LR
     S --> M[30 staged measurements]
     T -. MCP proof cells .-> M
     T --> E[Block 1 follow-up exit]
-    M --> C[40 eligibility]
+    M -->|accepted artifacts; writes for adoption| C[40 eligibility]
     M --> F[50 identity and text]
     S --> A[60 MCP]
     S --> D[70 SDK and degradation]

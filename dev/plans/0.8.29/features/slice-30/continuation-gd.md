@@ -826,6 +826,124 @@ label it a pass. D-T-O deliberately has no such interval/pending proof and must
 be labelled ACTUAL_OVERLAP_UNOBSERVED; its ordinary timing cannot qualify this
 oracle by borrowing D-C-O evidence from any execution.
 
+### D source fit and exact private observer contract
+
+Read-only fit base is clean `2a6401da02123ddc0016023a4bd8e747ef3717da`:
+its product source remains the integrated a00 predecessor. Accepted20 A3/A5,
+60/70 and100 subsets remain accepted; current20 dff and M d942 are separate
+accepted source candidates with final qualification/integration pending. Neither
+is imported by this draft. M d942 adds its private MCP helper/Cargo declaration,
+not engine projection instrumentation. Reconcile their actual landed deltas at
+D entry; never borrow their targets/environments or silently replace this base.
+G0fa stays frozen for its remaining source qualification and exact d644 artifacts.
+The accepted G11/73 result, original sources/UUIDs, caps and compiler pins remain
+unchanged. D adds a separately built artifact/source identity; no fingerprint
+relaxation or retagging makes a future G binary equivalent to it.
+
+Existing G `Slice30ObservationGuard` is deliberately neither Send nor Clone;
+its TLS is not inherited by dispatcher/projection workers. Public projection
+status is categorical, not the private numeric runtime state. These are actual
+missing D seams, not a need to reimplement scheduling, CS64, capacity or D27.
+Add only the following doc-hidden engine test-hook contract, all gated by
+`all(feature="slice30-observer", feature="test-hooks")`:
+
+- `Engine::begin_slice30_projection_observation_for_test(max_records: usize,
+  origin: Instant) -> Result<Slice30ProjectionObservationGuard, EngineError>`.
+  The origin is the driver's monotonic whole-cell origin, shared by calls,
+  worker records and polling brackets. Bounds remain1..=32768 and only one
+  G-or-D session may be active on an engine. Use existing InvalidArgument,
+  Closing/Storage errors. Begin/drop performs no SQL, wake, provider call or
+  scheduler mutation. G begin/guard/SDK forwarding remain unchanged.
+- The new D guard is Send+Sync, not Clone; the driver may share one Arc with
+  its reader and sole drainer. It exposes `with_operation(id, work)` returning
+  work unchanged, and `take()` with the existing bounded batch/loss contract.
+  Foreground IDs use the lower63-bit range; worker/scan IDs use a checked
+  session-local upper-range sequence. No wrap/reuse or unbounded ID map.
+  Scopes remain thread-local and unwind-safe. Guard/tickets own no Engine,
+  connection or provider lifetime; stale guards cannot disarm a newer session.
+- Acquire worker admission from that exact engine's `ObservationSlot`, not
+  foreground TLS or a process-global recorder. Only a D session admits workers;
+  a G session or collection-off T run does not. Release the slot lock before
+  SQL, provider waits, queue/state/commit locks, callbacks or output.
+  Carry a diagnostic-only weak engine/session/scan ticket with fetched jobs,
+  bounded by current admission128. A dequeued group remains at most64 rows.
+  Old/inactive/foreign/mixed tickets never relabel work into a new session:
+  leave production batching/order unchanged and record bounded loss/issue state;
+  unavailable admission makes C incomplete rather than splitting/retrying jobs.
+- `Engine::slice30_projection_snapshot_for_test() ->
+  Result<Slice30ProjectionSnapshotForTest, EngineError>` returns resolved S/E,
+  admission capacity, active_jobs, active_scans, queued_jobs, in_flight_count,
+  frozen, pending_scan and stopping. Copy counters/flags under one state-lock
+  acquisition, then release it before serialization/SQL. Counts name rows where
+  current code counts rows, not inferred active worker threads. Immutable
+  resolved configuration supplies S/E. Poison is Storage and closed is Closing;
+  neither becomes zero. Caller brackets this instant separately from durable
+  readiness and generation transactions; it is never their atomic snapshot.
+
+Assembly is pre-seed, never retrospective. For C-H, open/configure the fresh
+empty engine, freeze before the first governed write, establish no active scan/
+job/queued/in-flight work, then arm the collector and acknowledge drainer/poller
+startup before seeding. Held SQL inspector calls have their own labels; only
+release starts the actual dispatcher timeline. For C-O, keep the scheduler
+unfrozen: establish the fresh empty runtime quiescent with no pending scan,
+arm/acknowledge collection before starting the sole writer, and admit tickets
+only at subsequently invoked scans. If that boundary cannot be established,
+refuse before seed; never attach records to earlier jobs. Keep the C session
+active through writer/reader completion and final real drain; stop/join the
+poller/drainer, close normally, take final records and drop the guard. Query/scan
+and dequeue/worker facts outside this window remain unobserved, never rebuilt
+from terminal rows or another execution. T performs the same boundary/cleanup
+sequence with no collector/poller. H runs its1000 natural calls after release/
+drain; O starts the reader after first successful commit, without per-batch drain.
+
+Per-cell observer memory is at most one bounded buffer plus bounded batch facts;
+stream `take()` batches to retained output at100ms, with one final take after
+worker quiescence. Buffer contention/capacity loss, unavailable required data or
+mixed admission leaves C incomplete. Use bounded issue flags; require observed
+committed-success coverage and physical closure for the declared n rows, not
+only a nonempty trace. No unbounded provider-call Vec/D27 reuse.
+The D-only gate must also cover added job fields/call sites, so default and
+G-only diagnostic builds carry no D worker clocks/admission. Add the narrow
+engine interface documentation and classify exports/module boundaries before
+full qualification. ADR SDK decision4/test-hook exclusion remains unchanged:
+no D method/type is forwarded through SDK, bindings, facade or shipped CLI.
+
+### D phase boundaries grounded in current worker/commit code
+
+`projection_worker::next_pending_projection_jobs` owns the real scan span,
+including SQL execution/eligibility filtering and its actual returned count/
+fetch cap. Capture its existing effective_at/generation/cursors; no extra scan
+or metadata query is attribution. After the queue/state locks have been released,
+record an **untimed dequeue fact** with actual worker index/cursors/count, then
+start the worker-processing interval. Do not include idle queue wait or invent a
+zero-cost timed dequeue. Link scan and processing through tickets/cursors, not
+fabricated cross-thread parentage. Timed children are actual
+`embed_projection_batch`/per-job submit-and-wait attempts and commit work;
+provider dispatch wall includes queue/service and is not exclusive GPU/kernel time.
+
+In `commit_projection_outcomes`, time gate acquisition alone, IMMEDIATE begin
+alone, preparation (existing clean/fence/trigger/mean/generation/time reads),
+publication SQL, SQLite commit and post-commit accumulator/event publication.
+Preserve exact lock/statement/order and the one already-hoisted generation,
+effective_at and initial mean; copy local facts, never re-read them per row.
+Distinguish outcome inputs success/failure/deferred, generation/member skips,
+staged publication and **durably committed** success/failure terminals. Rollback
+must not claim a publication; unknown/panic is unavailable, not zero. Release
+worker active/in-flight state through the existing catch-unwind/cleanup path;
+observation never suppresses an error, changes a retry or publishes a mean early.
+Nested/overlapping intervals remain nonadditive. The untimed dequeue/runtime
+facts are separate from timed spans in D aggregation, never missing-time zeros.
+
+D's C reader uses `with_operation` to retain natural API intervals in the same
+origin; the drainer/poller emits its own bracketing times and observed overhead.
+For a conservative actual-overlap verdict, a positive durable-pending read's
+entire `[started_ns,ended_ns]` bracket must fit inside a nonempty natural-call /
+worker-processing intersection in the same engine/session/cell/attempt. A sample
+that merely straddles it is insufficient. Keep the raw bounds. Existing1s
+readiness sampling may miss fast synthetic work; this is an explicit runtime
+observability risk, not permission to add sleeps, speed controls or transfer a
+proof. Tiny rendezvous controls below prove the classifier, not a scale cell.
+
 D diagnostic observer additions (not included in initial G source GO):
 
 - Reuse G's bounded per-engine collector/monotonic origin, adding events at
@@ -893,6 +1011,76 @@ includes seed/hold/release/read/drain/close and observer/probe costs where enabl
 no hidden900s per phase or uncharged extra execution. No settledCS64/armlimit/
 cache/default implementation is repeated.
 
+### D source work, runtime proposal and stop boundary
+
+Source scope is only `slice30_observer`, `projection_runtime`/`ProjectionJob`,
+`projection_worker`, `projection_commit` and gated exports; a separate
+`fathomdb-engine` example `slice30_d_measure` requires both features. It uses
+`open_with_test_choice_and_config_for_test(Caller(...), EngineConfig::default())`,
+current governed vector declarations, `write`, `search` (limit10), real drain
+and normal close. Do not alter the accepted G SDK example or its qualifier.
+The fixed provider remains identity `varying/perf-gates-dense/768`: current
+FNV-1a→xorshift64 dense signed coordinates with existing f32 normalization.
+Copy current `perf_gates` generator semantics into the private helper, without
+changing canonical perf tests: vocabulary1024, Zipf generator, corpus seed
+`0x0AC0_13D0_13D0`, query seed `0x0AC0_130D_EC0D_E000`, fixed768 (ignore/refuse
+AC013_VECTOR_DIM overrides),500 query bodies cycled twice, no extra warmups.
+Governed batches stay1000 despite the historical perf seeder's1024. Probe an
+actual just-committed natural cursor/body via point read and row-restricted
+current-compiler FTS membership; no added marker/vector population or changed
+natural body. Record these probe clocks separately, inside the whole cell.
+
+Implement/index fixed `d-cells.json`, controller/driver/report and tiny tests in
+the existing experiment directory. Freeze all24 IDs/order before source GREEN.
+Use same binary C/T; T never begins the worker collector or periodic state/
+readiness polling. C takes/polls as specified above; boundary checks and WAL/
+resource stat remain explicit. Retain current G/M record schemas as references,
+not aliases: no MCP queue event is a D worker interval and no G store is a D seed.
+Reuse only integrated/qualified owned resource/attempt/private-cgroup primitives,
+never imports/artifacts from a held sibling. Reconcile M's whole-outer-wall and
+reserved-other-phase accounting at integration without inventing a D cap/profile.
+
+D-T1a→D-T1b→D-T2 phase/accounting subunits→D-T3 schedule/classifier→D-T4
+controller/admission is the genuine RED/GREEN order. API/driver scaffolds must
+compile before semantic RED; compile-contract default-negative/both-feature-
+positive consumers are labelled separately. Freeze each semantic RED through GREEN; existing G/P/M assertions stay unchanged.
+Retain correct reused behavior without a fabricated regression. Ordinary tests
+use tiny real stores/harmless children; actual cgroup controls use the explicit
+selected live route. Tools stay committed/indexed; no tamper/hash-inventory suite.
+
+Use existing bounded after-WAL/scan handles for tiny controls, never the raw
+unbounded Barrier pair for new custody. A scope guard unfreezes the scheduler,
+releases every pause, stops/joins writer/reader/poller/drainer before assertions
+and close, and retains timeout/errors. Releasing handles is mandatory on unwind;
+a diagnostic wait never parks a scale transaction. One absolute900s cell clock
+starts before entry/prep and includes data generation, seed, probes, collection,
+drain, close, output and known owned cleanup. Reserve existing cleanup bounds
+INSIDE that allowance, not after it; charge actual entry/refusal/failed prefixes
+once, never the admission maximum. Shared ownership/inflight and the allocation
+lock prevent another G/D/M entry. Unknown cleanup remains durably blocked.
+Use the persistent unconfined owned supervisor/private boundary at later runtime;
+guardian loss is interrupted/unqualified and requires exact owned recovery,
+never a new guardian/cap reset or an orphaned continuation.
+
+Actual D costs remain UNKNOWN. A bounded runtime **proposal**, not GO, is the
+first required10k held quartet only: C-H-r0,T-H-r0,T-H-r1,C-H-r1, then mandatory
+stop/review before overlap or larger preparation. All24 rows remain visible;
+the other20 are required/unstarted, not waived. If these exact primary cells
+actually qualify, they are their original D records, not a separate calibration
+silently substituted for another execution. Keep the source capable of normal
+fixed24 continuation/resume; no arbitrary subset, automatic retry or new source
+edit merely to advance. Current known G charge1845130877940ns leaves
+12554869122060ns of14400s; four whole900s limits would leave8954869122060ns,
+with all common work funded inside those limits. Known retained1903142018B leaves
+15276727166B under16GiB. These are arithmetic ceilings, not observed D feasibility:
+all real growth, G partials and other allocations still count; no deletion/reset
+or M6h/G1500s/candidate12h128GiB adoption. Before runtime GO, preregister the
+initial bounded output/monitor plan and actual available floors. Any missing
+cost, overlap, closure, required lower repeat or aggregate headroom refuses the
+next stage and retains every unsatisfied obligation. R30/A30 and release
+REQ-013/014, AC-072/073/075/076/083 dispositions are unchanged; synthetic D
+neither supplies BGE/fidelity/AC083 evidence nor a latency waiver.
+
 ## Requirements, acceptance and ordered runtime TDD
 
 Local refinements below map to existing Slice30 IDs. A design review is not a
@@ -913,13 +1101,20 @@ not command-not-found. Keep new behaviors small; do not build all G/D in one GRE
 | Phase math/overhead | R30-4; A30-4/5 | G-T8 literal nested intervals parent[0,10], children[1,4],[5,7] produce parent inclusive10, eligible remainder5; overlapping/nested duplicate child must report non-additive rather than summed shares. Span error/not-run/missing never zero. Retain P math tests unchanged. |
 | G fresh write schedule | R30-2/3/6; A30-2/3/5 | G-T9 bounded real fixture four natural calls,s2,b1 or b10: exact two governed cohorts, current logical counts, revision tokens, direct probe IDs/body, route/sample order, no intervening drain. New G schedule initially emits zero writes vs literal2; GREEN changes only new driver. Independent source assertions, not echoed cell metadata. |
 | G campaign registration | R30-6/7/8; A30-5/6/7 | G-T10 real harmless children prove G stage order, all route IDs, new attempt paths, prospective cap refusal and retained NOT_RUN cells; resume/checkpoint behavior is reused unchanged. New table selection initially omits G rows, causing count/order failure; no new tamper framework. |
-| D bounded worker/state observer | R30-3/4/5; A30-3/4/5 | D-T1 release-held tiny real store expects actual scan→dequeue→embed→commit spans with bounded cursors and exact durable closure; runtime snapshot must show frozen pending then real nonzero work, no cross-engine records. Missing D events fail literal count before GREEN. Separate D-T2 commit phases and outcome accounting; no re-hoisting production reads. |
-| D schedule/overlap qualification | R30-3/6; A30-3/5/6 | D-T3 tiny real instrumented writer/reader/worker rendezvous requires actual pending and interval intersection from that execution; a completed/drained fixture is NO_OBSERVED_OVERLAP. Its separate collector-off timing is ACTUAL_OVERLAP_UNOBSERVED even when the matching characterization qualified. Literal two-size/two-repeat records must not transfer an overlap verdict between executions. New schedule must initially misclassify/miss these runtime facts before GREEN. Always release owned pause/provider handles before assertions/close; no database mock or indefinite barrier. |
-| D scale feasibility | R30-7/8; A30-6/7 | D-T4 hand per-layer tables100k total100s/2GiB predict300k600s/12GiB permitted per cell; total200s predicts1200s refused. Four600s predictions require at least2400s remaining campaign budget before advancing; missing either lower C/T repeat, insufficient remaining time or retained-byte headroom refuses. No qualified10k C record substitutes for100k C. Runtime new planner initially dispatches forbidden harmless child; RED proves it, GREEN refuses before actual300k DB preparation. |
+| D bounded worker/state observer | R30-3/4/5; A30-3/4/5 | D-T1a real tiny engine A held/released and independent B: expect actual A scan/dequeue-fact/processing/embed records, bounded cursors, exact dense closure and no B records. D-T1b frozen/busy/closed numeric snapshot and stale-session admission. Compile the API scaffold first; each missing runtime observation gets its own committed RED before minimal GREEN. |
+| D commit phases/outcomes | R30-4/5; A30-4/5 | D-T2 actual tiny commit expects gate/begin/preparation/publication/commit/completion ownership and copied hoisted facts. Separately force the existing one-shot tiny commit error with bounded RAII custody; expect rollback/no committed-publication claim, real durable pending and later correct drain. Missing phase/accounting is semantic RED; no compiler error, SQL rewrite or product re-hoist. |
+| D schedule/overlap qualification | R30-3/6; A30-3/5/6 | D-T3 real tiny writer/reader/worker after-WAL RAII rendezvous binds same-call natural intervals and positive pending bounds; initially missing classifier/report verdict must fail. A drained/no-intersection execution is NO_OBSERVED_OVERLAP; T is ACTUAL_OVERLAP_UNOBSERVED. Two-size/two-repeat literal records cannot transfer a verdict. The primary scale overlap cells use no pause/sleep. |
+| D scale feasibility | R30-7/8; A30-6/7 | D-T4 callable fixed24 planner initially launches a forbidden harmless child with missing lower C/T repeat or1200s forecast; commit runtime RED then refuse before larger DB preparation. Preserve100k100s/2GiB→300k600s/12GiB per-cell arithmetic and200s→1200s refusal. Four12GiB outputs still fail cumulative16GiB. A separate256MiB lower-byte fixture predicts1536MiB each, permitting the four-cell time test only with2400s remaining after assessment and enough retained headroom. Equality900s refuses. |
 
 Implementation order: G-T1/2; G-T3 ownership; G-T4/5/6 guards; G-T7 authority;
 G-T8 aggregation; G-T9 schedule; G-T10 orchestration. Get coherent G source and
-measurement review before adding separately authorized D-T1..4. Any genuine
+measurement review before adding separately authorized D-T1..4: the already
+accepted bounded G subset supplies that predecessor context, not a whole-G
+completion gate. The D source-fit amendment has independent Astra-medium PASS;
+its isolated tests/scaffolds are staged without a runtime RED claim. Native
+execution awaits its owned window; actual predecessor reconciliation remains
+required before final qualification. Whole20/WindowsA6, TC5/F, M completion and unknown D/M
+runtime costs are not D source prerequisites. Any genuine
 product defect discovered returns through its own actual RED/GREEN and required
 ADR/interface change, not an unrelated optimization fix in the observer commit.
 
@@ -985,8 +1180,9 @@ Material needs: SAME Astra bounded actual20-base fit recheck and parent import/
 fresh source-worktree GO for the **G source unit**; owned setup/static model copy
 plus actual3090 reservation/engagement; subsequent bounded feasibility observations.
 FIX1 design PASS and release of the native window are already recorded; neither
-alone grants G source or campaign GO. D observer/source needs separate scoped review/GO after G ownership
-seams exist. Exact frozen TC5 availability remains a real F input need; selected
+alone grants campaign GO. Closed-copy G tooling is now source-qualified;
+D has its separate scoped design PASS and source-preparation GO. Neither
+authorizes D/G measurement runtime or a new shared profile. Exact frozen TC5 availability remains a real F input need; selected
 qualified G store/M tooling review and Windows technical qualification remain
 separate. Accepted20 proof is not reopened. No new
 policy/model/dataset/driver or paid-input decision is needed to review G now.

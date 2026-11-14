@@ -212,20 +212,24 @@ JSON holds slice status; this lists only what each isolated lane still owes.
 No lane below is integrated at root or qualified until its own gate and review
 pass and the parent integrates it.
 
-- **20:** remaining repairs proceed by per-behavior RED/GREEN in the owner's
-  worktree under an exclusive heavy window. Original Windows test bodies stay
-  frozen. Actual Windows A6 remains mandatory; it needs the VM's existing
-  C:8/5GiB and host-memory start floors met and the disk-format answer.
-- **30 G/M:** the closed-copy tooling and M source candidates each have
-  implementation-review ACCEPT but no full-gate PASS. G campaign stands at11
-  qualified and73 required cap-refused of84; M46 cells and D24 remain;
-  successor caps are inactive and no runtime GO exists. The owner may propose a
-  bounded cost-probe admission; it takes effect only through review and parent
-  disposition, and the accepted inventory is unchanged.
+- **20:** Linux hook-alias source is qualified at45167677 after genuine
+  RED/GREEN, final Astra acceptance and assembled220/220 suites. Original
+  wrapper exit1 and native build subjectdff remain explicit. Original Windows
+  test bodies stay frozen; actual A6 still needs reattachment/format answer,
+  current C:8/5GiB and host-memory readiness, then real execution.
+- **30 G/M/D:** closed-copy G tooling0fa has assembled-source acceptance,
+  with unchanged Rust proof kept atbfe and current18/18 suffix. M sourced942
+  has implementation ACCEPT; integrated-base/final qualification is pending.
+  D design passed and source tests/scaffolds are staged without a runtime RED
+  claim. G campaign stays11qualified/73required refusals of84; M46/D24 remain.
+  Successor caps and bounded cost probes are inactive until their specific
+  reviewed disposition and readiness; the accepted inventory is unchanged.
 - **100:** qualified subset is integrated; Q1 interruption stays UNQUALIFIED
   pending the additional matched-pair question.
-- **110, 120:** owners are drafting requirements/design/test map in isolated
-  task trees, source read-only. Design review, the fault-scope and
-  artifact-selection answers and all source/runtime work remain.
-- **40, 50, 80, 90, 130–160:** reviewed bounded designs; source held on their
+- **110, 120:** canonical requirements/design/test maps have independent
+  Astra PASS. Actual reset/residue/venue and artifact/channel/scope choices
+  remain open; compiler safety is a technical hold on13 builds/delivery.
+- **40:** its evidence/artifact amendment has Astra PASS; adoption is open and
+  source held for affected write evidence, exact safety and paired proof.
+- **50, 80, 90, 130–160:** reviewed bounded designs; source held on their
   JSON conditions.

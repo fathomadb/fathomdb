@@ -1,13 +1,12 @@
-"""Closed-profile public worker dispatch; named common attribution is pending."""
+"""Closed-profile public operations under the named common reserve and guardian."""
 
 import fcntl
 import json
 from pathlib import Path
 import sys
-import time
 import uuid
 
-from g_attempt import run_g_attempt
+from g_closed_common import run_common
 
 
 def worker_command(job):
@@ -28,8 +27,7 @@ def freeze_entry(options):
     job.write_text(json.dumps({"action": "freeze", "options": options}, default=str) + "\n")
     with (allocation / "g-campaign.lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        outcome = run_g_attempt({"id": "g-common-" + mode}, allocation / "common",
-                                worker_command(job), time.monotonic_ns() + 600 * 10**9)
+        outcome = run_common(allocation, mode, worker_command(job))
     if outcome["status"] != "complete":
         raise RuntimeError(f"supervised freeze incomplete: {outcome}")
     return json.loads(Path(outcome["attempt"], "result.json").read_text())["value"]

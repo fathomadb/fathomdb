@@ -195,7 +195,8 @@ def run_prepared(manifest, root):
             path.chmod(0o444)
         if manifest.get("schema") != "slice30-g-campaign/v1":
             # Callable protocol fixtures exercise the helper without a production CLI bypass.
-            code = "from g_runner import run_cell_job;import sys;sys.exit(not run_cell_job(sys.argv[1],int(sys.argv[2]),sys.argv[3],sys.argv[4]))"
+            code = (f"import sys;sys.path.insert(0,{str(Path(__file__).resolve().parent)!r});"
+                    "from g_runner import run_cell_job;sys.exit(not run_cell_job(sys.argv[1],int(sys.argv[2]),sys.argv[3],sys.argv[4]))")
             return [sys.executable, "-c", code, str(path), str(deadline)]
         return [sys.executable, str(Path(__file__).resolve()), "_cell", str(path), str(deadline)]
     cache = {}

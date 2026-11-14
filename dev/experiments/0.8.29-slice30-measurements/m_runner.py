@@ -39,6 +39,7 @@ def source_smoke(root, cli, helper):
 
 def main():
     """Dispatch explicit owned M source or future selected campaign commands."""
+    began = time.monotonic_ns()
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="action", required=True)
     smoke = commands.add_parser("source-smoke")
@@ -58,6 +59,9 @@ def main():
     internal = commands.add_parser("_controller")
     internal.add_argument("--root", required=True)
     internal.add_argument("--admission-fd", type=int, required=True)
+    source_internal = commands.add_parser("_source_controller")
+    source_internal.add_argument("--root", required=True)
+    source_internal.add_argument("--admission-fd", type=int, required=True)
     internal_freeze = commands.add_parser("_freeze")
     internal_freeze.add_argument("--options", required=True)
     internal_freeze.add_argument("--root", required=True)
@@ -72,11 +76,39 @@ def main():
     cell.add_argument("attempt")
     options = parser.parse_args()
     if options.action == "source-dispatch":
+        from g_freeze import identify
+        from m_controller import COMPONENTS
+        from m_guard import guard
         root = Path(options.root).resolve()
+        task = Path(os.environ["S30_TASK"]).resolve()
+        if not root.is_relative_to(task):
+            raise ValueError("source dispatch requires a new root within its owned S30_TASK")
         root.mkdir(parents=True, exist_ok=False)
         (root / "g-budget.json").write_text(json.dumps({"schema": "slice30-gd-budget/v1",
             "used_ns": 0, "inflight": None, "cell_used_ns": {}, "common_used_ns": {}}))
-        result = source_smoke(root / "tiny", options.cli, options.helper)
+        profile = {"schema": "slice30-m-budget/v1", "status": "APPROVED",
+            "ledger": str(root / "g-budget.json"), "whole_cell_ns": 900 * 10**9,
+            "total_shared_ns": 60 * 10**9, "total_shared_retained_bytes": 256 * 1024**2}
+        # These literal source-control bounds cannot name or qualify a natural subject.
+        components = dict.fromkeys(COMPONENTS, 0)
+        components.update(copy=200000000, first=100000000, close=100000000)
+        common = dict.fromkeys(COMPONENTS, 0)
+        common.update(packaging=10 * 10**9, close=10 * 10**9)
+        manifest = {"schema": "slice30-m-source-control/v1", "scope": "tiny-provider-free-source-control",
+            "uuid": f"source-{time.time_ns()}", "source_sha": "source-control-unqualified",
+            "root": str(root), "task": str(task), "allocation": str(root), "profile": profile,
+            "plan": load_plan()[:2], "builds": {name: {"binary": identify(path)} for name, path in
+                (("providerfree", options.cli), ("helper", options.helper))},
+            "forecasts": {"cells": {cell["id"]: {"components_ns": components,
+                "new_retained_bytes": 1024**2} for cell in load_plan()[:2]}, "common_components_ns": common}}
+        (root / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+        outcome = guard([sys.executable, str(Path(__file__).resolve()), "_source_controller",
+                         "--root", str(root)], allocation=root, profile=profile, root=root, task=task,
+                         admission=True, common_limit_ns=40 * 10**9, started_ns=began)
+        reports = sorted((root / "reports").glob("report-*.json"))
+        result = json.loads(reports[-1].read_text()) if reports else {"complete": False, "rows": []}
+        result.update(qualifies_natural=False, scope=manifest["scope"], guardian=outcome)
+        result["complete"] &= outcome["exit"] == 0 and not outcome["cleanup_uncertain"]
     elif options.action == "source-smoke":
         result = source_smoke(options.root, options.cli, options.helper)
     elif options.action == "build":
@@ -106,7 +138,8 @@ def main():
         if common_limit <= 20 * 10**9:
             raise ValueError("complete common forecast must fund bounded guardian cleanup")
         result = guard(command, allocation=allocation, profile=profile, root=options.root,
-                       task=os.environ["S30_TASK"], admission=True, common_limit_ns=common_limit)
+                       task=os.environ["S30_TASK"], admission=True, common_limit_ns=common_limit,
+                       started_ns=began)
         print(json.dumps(result))
         return 0 if result["exit"] == 0 and not result["cleanup_uncertain"] else 1
     else:
@@ -123,7 +156,8 @@ def main():
             elif options.action == "_report":
                 result = report(options.root)
             else:
-                rows = control(options.root, owner)
+                source = json.loads((Path(options.root) / "manifest.json").read_text()) if options.action == "_source_controller" else None
+                rows = control(options.root, owner, source_manifest=source)
                 result = {"complete": all(row["complete"] for row in rows), "rows": rows}
                 report(options.root)
         print(json.dumps(result, allow_nan=False))

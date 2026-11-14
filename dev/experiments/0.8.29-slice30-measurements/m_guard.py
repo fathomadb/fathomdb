@@ -86,9 +86,10 @@ class Accounting:
                 "charged_ns": value["used_ns"] - self.prior_used}
 
 
-def guard(command, *, allocation, profile, root, task, admission=False, common_limit_ns=None):
+def guard(command, *, allocation, profile, root, task, admission=False, common_limit_ns=None,
+          started_ns=None):
     """Own the whole controller phase, private boundary, resource floors and final charge."""
-    began = time.monotonic_ns()
+    began = time.monotonic_ns() if started_ns is None else started_ns
     allocation, root, task = map(lambda p: Path(p).resolve(), (allocation, root, task))
     if (profile.get("schema") != "slice30-m-budget/v1" or profile.get("status") != "APPROVED"
             or profile.get("whole_cell_ns") != 900 * 10**9

@@ -168,9 +168,12 @@ def payload(manifest, cell, attempt, deadline_ns):
     return result
 
 
-def control(root, owner):
+def control(root, owner, *, source_manifest=None):
     """Validate the exact freeze, then dispatch all46 cells with whole shared accounting."""
-    manifest = validate(root)
+    manifest = validate(root) if source_manifest is None else source_manifest
+    if source_manifest is not None and (manifest.get("scope") != "tiny-provider-free-source-control"
+            or manifest["plan"] != load_plan()[:2]):
+        raise ValueError("source controller permits only the exact two provider-free M0 cells")
     budget_path = Path(manifest["allocation"]) / "g-budget.json"
     if json.loads(budget_path.read_text()).get("m_guardian") != owner:
         raise RuntimeError("current shared guardian admission differs")
@@ -188,7 +191,7 @@ def control(root, owner):
         prepare(manifest, cell, attempt, deadline)
 
     rows = run_budgeted_table(Path(root) / "results", command, profile=manifest["profile"],
-        allocation=manifest["allocation"], forecasts=manifest["forecasts"]["cells"], plan=load_plan(),
+        allocation=manifest["allocation"], forecasts=manifest["forecasts"]["cells"], plan=manifest["plan"],
         prepare=admit_preparation, register=register,
         common_reserved_ns=2 * sum(manifest["forecasts"]["common_components_ns"].values()))
     (Path(root) / "results").mkdir(exist_ok=True)

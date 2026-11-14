@@ -185,6 +185,13 @@ def _run_plan(spec, plan, root, command, prepare, allocation_root, assess, reuse
             outcomes.append(held)
             (root / "g-outcomes.json").write_text(json.dumps(outcomes, indent=2) + "\n")
             continue
+        if (spec.get("preparation") == "closed-copy-v1"
+                and spec.get("closed_mode") == "closed-copy-write-matrix"
+                and cell["stage"] == "G-W" and not spec.get("_reviewed_costs")):
+            outcomes.append({"id": cell["id"], "cell": cell, "status": "not_run_prerequisite",
+                             "complete": False, "reason": "reviewed_write_costs_required"})
+            (root / "g-outcomes.json").write_text(json.dumps(outcomes, indent=2) + "\n")
+            continue
         reason = ("unfinished_shared_attempt" if budget.get("inflight") else
                   "shared_time_exhausted" if budget["used_ns"] >= 14400 * 10**9 else
                   "cell_time_exhausted" if cell_usage.get(cell["id"], 0) >= cell["cell_seconds"] * 10**9 else

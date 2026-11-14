@@ -48,12 +48,20 @@ failed attempts remain attributed honestly. The private guardian contains nested
 sessions, refuses missing/unknown/stale state and verifies quiescence; final
 boundary removal and independent no-survivor checks passed.
 
-Owned pinned inputs/cache and ordinary/diagnostic CUDA programs are ready.
-The first G0 remains failed for missing same-sample own-PID GPU memory plus
-utilization; 83 later obligations remain prerequisite NOT_RUN. Its raw output
-and 11.157694114-second shared charge remain retained. Fresh source/input/native,
-claimed quiet3090 and resource checks precede bounded continuation. Source/full
-verification alone does not qualify actual Default/GPU measurements.
+The second actual G campaign at `60f471aaf` qualified G0, the 10k seed and
+both 10k read repeats; independent Astra accepted those four cases. Each read
+repeat has 6000 successful timed calls, 3000 warmups and six first calls, with
+reversed adapter/route order. The 100k seed was refused: its conservative
+1306.636-second forecast exceeds the unchanged 900-second cell limit. G-O
+branches failed engagement qualification although all 15 native steps completed;
+this does not establish a product failure. All 84 obligations remain visible:
+four complete, 79 cap-not-run and one failed qualification.
+
+Original failures and raw results remain retained. Shared G/D charge is
+357.099039661 seconds, with no inflight work; all owned actors are gone, the
+private boundary is empty and removed, and the selected GPU is quiet. A bounded
+continuation is under design review. No 100k, D/M/F, whole-G or whole30 acceptance
+follows, and passing G0/10k cases will retain their original provenance.
 
 The earlier 973b full wrapper failed hints overhead at 209.8us against the
 unchanged 200us limit; one preserved-artifact resumption passed and was reviewed.

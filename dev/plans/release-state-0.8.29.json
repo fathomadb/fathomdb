@@ -212,9 +212,9 @@
         "dev/plans/0.8.29/features/slice-30/continuation-gd.md",
         "dev/plans/0.8.29/features/slice-30/continuation-m.md"
       ],
-      "phase": "P_AND_G_SOURCE_QUALIFIED_CAMPAIGN_PENDING",
+      "phase": "P_AND_G_10K_QUALIFIED_100K_HELD",
       "plan_sha": "bea7f05cd2497af0d73c6eb8da509e11a947ca08",
-      "conditions": "P measurements and G source/controller qualification are accepted within recorded bounds. Containment implementation f870 passed fresh independent Astra review,51 affected controls and one final canonical220/220 gate. Missing/unknown/stale guardian state refuses normal dispatch; nested-session cleanup uses the exact private cgroup and observed emptiness. First actual G0 still lacks same-sample own-PID GPU memory plus utilization;83 later obligations remain prerequisite NOT_RUN. Fresh source/input/native/cache checks, claimed quiet3090 and resources precede bounded continuation under original shared charges/caps. D source/runtime remains separate; M design requires qualified closed G100k input, exact implemented tooling and remaining-budget fit; F requires exact frozen inputs. Whole20/30,40/50 and pre90 Block1 remain open.",
+      "conditions": "P measurements, G source/controller qualification and four actual G cases are accepted within recorded bounds. The second campaign qualified G0, the 10k seed and both 10k read repeats; 100k was refused by the conservative duration forecast. G-O branches failed GPU-engagement qualification although all 15 native steps completed. Preserve original results and shared charges; review a prospective continuation before further execution. D source/runtime remains separate. M requires a qualified closed G100k input, implemented tooling and remaining-budget fit; F requires exact frozen inputs. Whole20/30,40/50 and pre90 Block1 remain open.",
       "evidence": "P tools and measured Linux direct-text subset at2fd772558 passed fresh independent Astra-medium final P review on clean documentation0d8be5bb;16grouped genuine RED/GREEN units and invalid124 fixture history remain explicit.16/16 frozen first-attempt cells complete,20000successful timed natural calls,zero errors/noisy cells/retries/resource stops. Unfiltered100k P1 p50 27.184-27.509ms/p99 106.911-107.682ms is below tracked nongated80/300; filtered P2 is not AC083. Parent independently checked hashes/raw counts/percentiles/means; Astra checked batch/probe/match identities. Qualification is assembled from original1f214/216 plus actual affected reruns; original SC2312/Pages/MD012 failures and inner skips retain subjects. Production native receipt remains1f with unchanged relevant inputs; normal release measurement executable was built and run at2fd. See features/slice-30/results-p.md,execution.md and review-log.md. No model/GPU/MCP/frozen-fidelity or whole-slice/release completion follows.",
       "qualified_subset_sha": "2fd772558e46d0b1645dce2ffea730d0bdd3305c",
       "continuation_plan_sha": "0d8be5bb75516955ebf99b94913b9b54921bb3a4",
@@ -222,7 +222,7 @@
       "g_source_entry": {
         "branch": "llm/0.8.29-s30-g-20261113",
         "worktree": "/mnt/data/worktrees/fathomdb-0.8.29-s30-g-20261113",
-        "scope": "Qualified source/controller and provider-free proof, including reviewed G0 sampling and private-cgroup containment. One final canonical gate220/220 passed at f870. Actual Default/GPU campaign remains a separate fresh readiness/technical-GO boundary; D/M/F and whole30/release exits remain unsatisfied."
+        "scope": "Qualified source/controller and provider-free proof, including reviewed sampling and private-cgroup containment. Final canonical gate220/220 passed at f870. The actual60f campaign adds only G0 and10k seed/read qualification. D/M/F,100k,whole30/release exits remain unsatisfied."
       },
       "g_source_qualified_sha": "f8703b466f1778e4db59cf86fd1fb11f03d52d67",
       "g_source_evidence": "Source, measurement-tooling and no-provider subset accepted at 4dbc67f39254bd78cc2c58bdf4d91ee76a8713ae after final independent Astra ACCEPT. Original shell-lint failure and 220-suite collector with 218 passes/two governance failures remain retained. Repaired root inventory passes 8/8 with 48 structural oracles unchanged; SDK policy passes 41/41 with 53 governed operations unchanged. Affected post-rename observer 10/10, normal CLI 12/12, feature consumers, module boundaries, strict Clippy and fresh owned Python/TS rebuilds/native child proof pass. Qualification is assembled; inner ignores/skips, unavailable Python/TS body counts, all prior REDs and failed attempts remain explicit in features/slice-30/execution.md. No Default, dense-provider, GPU/CUDA measurement, G campaign, D/M/F, whole 30 or release qualification follows. G0-only short-child observation repair: committed RED9dfa5d2a5 to GREEN21d8d4e7e, unchanged new test bytes and prior regression oracles,2/2 focused and39/39 G Python controls plus Ruff/scoped Markdown/views/hooks pass. Independent Astra accepts source/protocol correction only; actual engagement criterion remains unchanged. Final containment implementation f8703b466f1778e4db59cf86fd1fb11f03d52d67 passed fresh independent Astra recheck and51/51 actual controls with five frozen RED testfiles unchanged. One final canonical wrapper on clean f870 passed220/220 suites, no suite skips/exclusions; Rust2727 passed/72 ignored. Current Python/TS suites and native-receipt checks passed, inner counts unavailable after canonical passing-log cleanup. Exact private boundary populated0/removal and original-context no-survivor checks passed. Earlier failed wrappers, fixture/preflight failures, original G0 and single hints resumption remain retained with their proper subjects.",
@@ -276,6 +276,31 @@
         "source_native_identity": "Source start/end clean f870 with no delta. Owned native receipt retains actual a3c483fa7 build and unchanged d644 compiler inputs; not relabelled as f870.",
         "resource_cleanup": "No resource stop or cleanup uncertainty; exact held private boundary populated0 and removed, marker/path absent; original-context owned actor scan empty.",
         "evidence": "containment-final-full-verify normal log/receipt and containment-final-rust-retained.log under owned G task; previous973b failure/resumption retained."
+      },
+      "g_campaign_current": {
+        "source_sha": "60f471aaf042203d07a15025662ebf572f6cc242",
+        "campaign_uuid": "5e89e1dc-8fbd-4848-bc2a-8dc84e478f16",
+        "status": "PARTIAL_4_COMPLETE_79_NOT_RUN_CAP_1_FAILED",
+        "complete_cells": [
+          "g0-smoke",
+          "g1-n10000",
+          "g-r-n10000-r0",
+          "g-r-n10000-r1"
+        ],
+        "qualification": "Independent Astra-medium ACCEPT for these four completed cells only. Actual same-PID positive GPU memory/utilization witnesses qualify G0 and10k work; original source, campaign and native-build identities retained.",
+        "seed_10k": "Ready, pending0, natural/vector/physical/span rows10000; elapsed65.326146421s. Stored span coverage8471 full-body/1529 partial/0 unknown.",
+        "reads_10k": "Each repeat6000 successful timed calls,3000 warmups and6 first calls; adapter/route order reversed. Descriptive host measurements, no CPU-isolated causal comparison, exclusive GPU-cost or fidelity claim.",
+        "seed_100k": {
+          "status": "NOT_RUN_CAP_FEASIBILITY",
+          "forecast_ns": 1306635944940,
+          "hard_cell_cap_ns": 900000000000,
+          "retained_bytes_forecast": 1449923880
+        },
+        "g_o_branches": "Failed qualification: actual_reserved_gpu_engagement_unobserved. All15 native steps completed/exit0; ordinary1s polling supplied no strict positive witness. No product-failure inference or borrowed G0 witness.",
+        "shared_used_ns": 357099039661,
+        "inflight": null,
+        "cleanup": "All owned actors gone, exact private cgroup populated0 and removed, marker absent, selected3090 quiet and cooperative claim released. No resource stop or cleanup uncertainty.",
+        "continuation": "No further runtime authorized by results review. Preserve all84 obligations and four completed records; branch sampling, provenance-preserving reuse and staged continuation are under design review. Both900s native/controller hard caps, shared14400s and16GiB remain unchanged. No cap growth, charge reset or replay of passing cases."
       }
     },
     {
@@ -715,7 +740,7 @@
   },
   "release_readiness": {
     "status": "NOT_READY",
-    "qualification": "Slice 10 preparation and Slice 70 bounded SDK parity are complete. Qualified Slice 20 Linux repairs/A3-A5 proofs/capacity preparation, Slice 30 P measurements and G source/tooling/no-provider subset, Slice 60 MCP subset and Slice 100 coverage/native subset are integrated within recorded limits. Windows 20 A6, actual G/D/M/F and whole 30/60-F11, 100 Q1, other selected outcomes and final 160 qualification remain pending. Assembled evidence retains original failures, resumptions, inner ignores/skips and unavailable counts; no uninterrupted full-wrapper or published-package claim.",
+    "qualification": "Slice10 preparation and Slice70 bounded SDK parity are complete. Qualified subsets are integrated for20 Linux,30 P/source and four actual G0/10k cases,60 MCP and100 coverage/native work. Windows20 A6,100k G and D/M/F plus whole30/60-F11,100 Q1, other selected outcomes and final160 remain pending. Original failures, resumptions, inner ignores/skips and unavailable counts remain explicit; no uninterrupted full-wrapper or published-package claim.",
     "publication": "HELD; no tag, dispatch, external ACL mutation or registry publication authorized by bootstrap."
   },
   "generated_views": [

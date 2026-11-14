@@ -48,3 +48,9 @@ def alternating(session, query, *, stores=("a", "b", "a"), mode="hybrid", files=
     return {"events": events, "files": identities, "issues": issues,
             "switch_call_ns": [row["elapsed_ns"] for row in events if row["event"] == "search"],
             "complete": not issues}
+
+
+def idle_cycle(session, query, *, deadline_ns, store="a", mode="hybrid"):
+    """Record the initial actual idle-subject search."""
+    return {"first": session.tool("search", {"store": store, "query": query,
+                                            "mode": mode, "limit": 10}, phase="first")}

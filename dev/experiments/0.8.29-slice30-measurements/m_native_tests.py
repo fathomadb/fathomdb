@@ -5,10 +5,11 @@ import os
 from pathlib import Path
 import subprocess
 import tempfile
+import time
 import unittest
 
 from m_client import RpcChild
-from m_lifecycle import alternating, first_calls
+from m_lifecycle import alternating, first_calls, idle_cycle
 from m_session import McpSession
 from m_wire import decode_tool
 
@@ -201,6 +202,21 @@ class FirstLifecycleTests(NativeCase):
         self.assertEqual(session.exit["code"], 0)
         self.assertTrue(session.exit["readers_joined"])
 
+    def test_actual_eager_reuses_first_call_recorder_without_exclusive_open_claim(self):
+        config = self.config()
+        value = json.loads(config.read_text())
+        value["stores"]["a"]["eager"] = True
+        config.write_text(json.dumps(value))
+        with McpSession([str(self.cli), "--config", str(config)],
+                        self.root / "eager") as session:
+            session.initialize()
+            result = first_calls(session, "alpha", mode="text")
+            self.assertTrue(result["complete"])
+            self.assertIn(result["events"][0]["payload"]["stores"][0]["readiness"],
+                          ("opening", "ready"))
+            self.assertEqual([row["payload"]["epoch"] for row in result["events"][1:]], [1, 1])
+        self.assertEqual(session.exit["code"], 0)
+
 
 class AlternatingLifecycleTests(NativeCase):
     """Actual A/B/A observes states, epochs and distinct literal routing fixtures."""
@@ -235,6 +251,31 @@ class AlternatingLifecycleTests(NativeCase):
             reopened = later.tool("search", {"store": "a", "query": "alpha", "mode": "text"})
             self.assertEqual(reopened["payload"]["results"][0]["ref"], "l:alpha")
         self.assertEqual(later.exit["code"], 0)
+
+
+class IdleLifecycleTests(NativeCase):
+    """Actual default60s eviction must be observed before calling it a reopen."""
+
+    def test_actual_default_idle_close_precedes_epoch2_reopen(self):
+        with McpSession([str(self.cli), "--config", str(self.config())],
+                        self.root / "idle") as session:
+            session.initialize()
+            result = idle_cycle(session, "alpha", mode="text",
+                                deadline_ns=time.monotonic_ns() + 70 * 10**9)
+            events = result.get("events", [])
+            self.assertTrue(any(row["event"] == "idle_closed" for row in events),
+                            f"no actual closed observation retained; retained={self.root}")
+            closed = next(row for row in events if row["event"] == "idle_closed")
+            self.assertEqual(closed["payload"]["stores"][0]["readiness"], "closed")
+            searches = [row for row in events if row["event"] in ("first", "reopened", "immediate")]
+            self.assertEqual([row["payload"]["results"][0]["ref"] for row in searches],
+                             ["l:alpha", "l:alpha", "l:alpha"])
+            self.assertEqual([row["payload"]["epoch"] for row in searches], [1, 2, 2])
+            self.assertLess(closed["arrival_ns"], searches[1]["send_start_ns"])
+            self.assertEqual(result["poll_interval_ms"], 250)
+            self.assertTrue(result["complete"])
+        self.assertEqual(session.exit["code"], 0)
+        self.assertTrue(session.exit["readers_joined"])
 
 
 if __name__ == "__main__":

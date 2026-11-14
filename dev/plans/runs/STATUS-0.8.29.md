@@ -43,14 +43,21 @@ G source, measurement-tooling and no-provider qualification is integrated at
 `4dbc67f39254bd78cc2c58bdf4d91ee76a8713ae` after final independent Astra ACCEPT.
 The original 220-suite collector and affected repairs remain assembled evidence;
 see the [execution record](../0.8.29/features/slice-30/execution.md).
-Actual Default/dense-provider, GPU/CUDA measurement and G campaign qualification
-remain open. Owned pinned assets, separate ordinary/diagnostic CUDA programs and
-fresh device/reservation/input readiness precede technical GO. D source/runtime
-and M/F remain separately gated. The20 proof condition for M is satisfied; its
-selected G-store/tooling prerequisites and F frozen-input,
-whole30/40/50 and pre90 gates remain. Independently qualified60 subset and
-completed70 retain their recorded bounds. Each source owner uses a fresh
-parent-created worktree and own /mnt/data resources.
+Pinned inputs, owned BGE cache and separate ordinary/diagnostic CUDA programs passed
+preparation. The first actual campaign at `5c7b1988d` stopped at G0: native
+seed/read steps completed, but same-sample own-PID GPU memory plus utilization
+was not observed. G0 remains failed and 83 later obligations remain prerequisite
+NOT_RUN; the original raw output and 11.157694114-second shared charge are retained.
+The G0-only polling correction at `21d8d4e7e0a05d77338da5d20aad580fd3a5aa54`
+passed genuine RED/GREEN, 39 affected Python controls and independent Astra
+implementation review. This qualifies source/protocol behavior, not actual GPU
+engagement. Fresh device claim, source/input freeze and technical GO precede
+continuation under the original allocation. D source/runtime and M/F remain
+separately gated. The20 proof condition for M is satisfied; its selected
+G-store/tooling prerequisites and F frozen-input, whole30/40/50 and pre90 gates
+remain. Independently qualified60 subset and completed70 retain their recorded
+bounds. Each source owner uses a fresh parent-created worktree and own /mnt/data
+resources.
 
 Slice 100 owner decisions seq-371/372 are recorded in the
 [ledger](../../steward/steward-ledger.jsonl). Its qualified source, G2 coverage and

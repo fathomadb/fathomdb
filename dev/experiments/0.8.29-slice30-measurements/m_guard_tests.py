@@ -62,6 +62,32 @@ os.kill(os.getpid(),signal.SIGTERM)
                       profile=profile, root=allocation / "results", task=task)
             self.assertFalse(marker.exists())
 
+    def test_successful_controller_with_live_detached_work_is_incomplete(self):
+        task = Path(os.environ["S30_TASK"])
+        with tempfile.TemporaryDirectory(prefix="m-survivor-", dir=task / "tmp") as temporary:
+            allocation = Path(temporary)
+            ledger = allocation / "g-budget.json"
+            ledger.write_text(json.dumps({"schema": "slice30-gd-budget/v1", "used_ns": 0,
+                                          "inflight": None, "cell_used_ns": {}}))
+            marker = allocation / "started"
+            controller = """
+import pathlib,subprocess,sys,time
+marker=pathlib.Path(sys.argv[1])
+child='import pathlib,time;pathlib.Path('+repr(str(marker))+').write_text("started");time.sleep(60)'
+subprocess.Popen([sys.executable,'-c',child],start_new_session=True)
+until=time.monotonic()+2
+while not marker.exists() and time.monotonic()<until: time.sleep(.005)
+"""
+            profile = {"schema": "slice30-m-budget/v1", "status": "APPROVED",
+                       "ledger": str(ledger), "whole_cell_ns": 900 * 10**9,
+                       "total_shared_ns": 60 * 10**9, "total_shared_retained_bytes": 1024**3}
+            result = guard([sys.executable, "-c", controller, str(marker)], allocation=allocation,
+                           profile=profile, root=allocation / "results", task=task)
+            self.assertTrue(marker.exists())
+            self.assertNotEqual(result["exit"], 0, "live work survived an allegedly successful controller")
+            self.assertFalse(result["cleanup_uncertain"])
+            self.assertTrue(result["boundary"]["removed_exact_empty_boundary"])
+
 
 if __name__ == "__main__":
     unittest.main()

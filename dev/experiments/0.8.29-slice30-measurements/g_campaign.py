@@ -154,6 +154,8 @@ def run_g_plan(spec, root, command, prepare=None, allocation_root=None, assess=N
         reason = ("unfinished_shared_attempt" if budget.get("inflight") else
                   "shared_time_exhausted" if budget["used_ns"] >= 14400 * 10**9 else
                   "cell_time_exhausted" if cell_usage.get(cell["id"], 0) >= 900 * 10**9 else
+                  "exploratory_admission_consumed" if stage == "first-100k-seed-exploratory"
+                  and budget.get("exploratory_seed100k", {}).get("consumed") else
                   "active_storage_exhausted" if active_bytes(allocation) >= 16 * 1024**3 else None)
         if reason:
             outcomes.append({"id": cell["id"], "cell": cell, "status": "not_run_cap",
@@ -169,17 +171,26 @@ def run_g_plan(spec, root, command, prepare=None, allocation_root=None, assess=N
             try:
                 assessment = assess(cell, previous, shared_allowance, active_bytes(allocation)) if assess else None
                 prediction = predict_seed(cell, previous, cell_usage) if not assessment else {}
+                exploratory = stage == "first-100k-seed-exploratory" and cell["id"] == "g1-n100000"
+                if exploratory and "seed_ns" in prediction:
+                    prediction = dict(prediction, linear_seed_ns=(prediction["seed_ns"] + 1) // 2,
+                                      admission_policy="one_shot_exploratory_100k")
+                forecast_ns = prediction.get("linear_seed_ns" if exploratory else "seed_ns", 0)
                 elapsed = time.monotonic_ns() - started
                 reason = ("shared_time_exhausted" if elapsed >= shared_allowance else
                           "cell_time_exhausted" if elapsed >= cell_allowance else
                           "active_storage_exhausted" if active_bytes(allocation) >= 16 * 1024**3 else None)
+                if exploratory and "seed_ns" in prediction:
+                    prediction["conservative_time_feasible"] = prediction["seed_ns"] <= min(
+                        cell_allowance - elapsed, shared_allowance - elapsed)
+                    prediction["total_ns"] = forecast_ns
                 if reason:
                     outcome = {"id": cell["id"], "cell": cell, "status": "not_run_cap",
                                "complete": False, "reason": reason}
                 elif assessment:
                     outcome = dict(assessment, id=cell["id"], cell=cell, complete=False)
                 elif (prediction.get("unavailable") is not None
-                      or prediction.get("seed_ns", 0) > min(cell_allowance - elapsed, shared_allowance - elapsed)
+                      or forecast_ns > min(cell_allowance - elapsed, shared_allowance - elapsed)
                       or prediction.get("seed_bytes", 0) + active_bytes(allocation) > 16 * 1024**3):
                     outcome = {"id": cell["id"], "cell": cell, "status": "not_run_cap",
                                "complete": False, "reason": "cap_feasibility", "prediction": prediction}
@@ -192,7 +203,18 @@ def run_g_plan(spec, root, command, prepare=None, allocation_root=None, assess=N
                     if reason:
                         outcome = {"id": cell["id"], "cell": cell, "status": "not_run_cap",
                                    "complete": False, "reason": reason}
+                    elif exploratory and forecast_ns > min(cell_allowance - elapsed, shared_allowance - elapsed):
+                        outcome = {"id": cell["id"], "cell": cell, "status": "not_run_cap",
+                                   "complete": False, "reason": "cap_feasibility", "prediction": prediction}
                     else:
+                        if exploratory:
+                            prediction["conservative_time_feasible"] = prediction["seed_ns"] <= min(
+                                cell_allowance - elapsed, shared_allowance - elapsed)
+                            context = dict(context or {}, prospective_prediction=prediction)
+                            # Consume the admission durably before any child can start, including a new-root retry.
+                            budget["exploratory_seed100k"] = {"consumed": True, "cell": cell["id"],
+                                "root": str(root), "consumed_at_ns": time.time_ns(), "prediction": prediction}
+                            budget_path.write_text(json.dumps(budget, indent=2) + "\n")
                         def monitor(_pid):
                             now_elapsed = time.monotonic_ns() - started
                             if active_bytes(allocation) >= 16 * 1024**3:

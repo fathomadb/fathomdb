@@ -181,11 +181,22 @@ def _run_plan(spec, plan, root, command, prepare, allocation_root, assess, reuse
             previous[identifier] = reference
     if reused:
         state_path.write_text(json.dumps(list(previous.values()), indent=2) + "\n")
+    write_mode = (spec.get("preparation") == "closed-copy-v1"
+                  and spec.get("closed_mode") == "closed-copy-write-matrix")
+    write_reviewed = False
+    if write_mode:
+        from g_closed_review import reviewed_costs_match
+        write_reviewed = reviewed_costs_match(spec, plan, previous)
     outcomes = []
     for cell in plan:
         completed = previous.get(cell["id"])
         if completed_record(completed) and completed.get("cell") == cell:
             outcomes.append(completed)
+            (root / "g-outcomes.json").write_text(json.dumps(outcomes, indent=2) + "\n")
+            continue
+        if write_mode and cell["stage"] != "G-W":
+            outcomes.append({"id": cell["id"], "cell": cell, "status": "not_run_stage", "complete": False,
+                             "reason": "outside_closed_write_stage"})
             (root / "g-outcomes.json").write_text(json.dumps(outcomes, indent=2) + "\n")
             continue
         stopped = budget.get("closed_calibration_stop") if cell.get("calibration") else None
@@ -205,7 +216,7 @@ def _run_plan(spec, plan, root, command, prepare, allocation_root, assess, reuse
             continue
         if (spec.get("preparation") == "closed-copy-v1"
                 and spec.get("closed_mode") == "closed-copy-write-matrix"
-                and cell["stage"] == "G-W" and not spec.get("_reviewed_costs")):
+                and cell["stage"] == "G-W" and not write_reviewed):
             outcomes.append({"id": cell["id"], "cell": cell, "status": "not_run_prerequisite",
                              "complete": False, "reason": "reviewed_write_costs_required"})
             (root / "g-outcomes.json").write_text(json.dumps(outcomes, indent=2) + "\n")

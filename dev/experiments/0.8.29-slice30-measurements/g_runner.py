@@ -186,6 +186,9 @@ def run_prepared(manifest, root):
     spec = json.loads(Path(__file__).with_name("g-cells.json").read_text())
     if manifest.get("preparation") == "closed-copy-v1":
         spec = dict(manifest["spec"], closed_mode=manifest["stage"])
+        for key in ("_reviewed_costs", "_calibration_origin", "_closed_limits"):
+            if key in manifest:
+                spec[key] = manifest[key]
     def command(_cell, deadline):
         if not path.exists():
             path.write_text(json.dumps(manifest, indent=2) + "\n")

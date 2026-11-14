@@ -31,6 +31,18 @@ class PublicDispatchTests(NativeCase):
         self.assertEqual([row["id"] for row in result["rows"]], ["M0-text", "M0-structured"])
         self.assertFalse(result["qualifies_natural"])
 
+    def test_public_source_refusal_keeps_required_rows_without_native_preparation(self):
+        root = self.root / "refused"
+        child = subprocess.run([sys.executable, str(Path(__file__).with_name("m_runner.py")),
+            "source-dispatch", "--root", str(root), "--cli", str(self.cli), "--helper", str(self.helper),
+            "--source-total-ns", "1"], capture_output=True, timeout=45)
+        self.assertEqual(child.returncode, 1, "infeasible public selection executed actual MCP work")
+        result = json.loads(child.stdout)
+        self.assertEqual([row["id"] for row in result["rows"]], ["M0-text", "M0-structured"])
+        self.assertTrue(all(row["status"] == "held" for row in result["rows"]))
+        self.assertFalse(list(root.rglob("*.sqlite")))
+        self.assertEqual(json.loads((root / "g-budget.json").read_text())["used_ns"], 0)
+
 
 if __name__ == "__main__":
     unittest.main()

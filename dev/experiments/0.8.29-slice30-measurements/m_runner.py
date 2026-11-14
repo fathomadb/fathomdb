@@ -48,6 +48,7 @@ def main():
     source_dispatch = commands.add_parser("source-dispatch")
     for name in ("root", "cli", "helper"):
         source_dispatch.add_argument(f"--{name}", required=True)
+    source_dispatch.add_argument("--source-total-ns", type=int, default=60 * 10**9)
     tools = commands.add_parser("build")
     tools.add_argument("--variant", choices=("providerfree", "helper", "ordinary"), required=True)
     tools.add_argument("--output", required=True)

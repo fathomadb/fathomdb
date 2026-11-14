@@ -360,5 +360,22 @@ class QueuedCancelTests(NativeCase):
                     self.assertEqual(witness["payload"]["results"][0]["ref"], "l:alpha")
 
 
+class WaitDeadlineTests(NativeCase):
+    """Actual admission wait expires while the four running closures remain held."""
+
+    def test_actual_default_wait_deadline_keeps_busy_load_and_live_holds(self):
+        for result_format in ("text", "structured"):
+            with self.subTest(result_format=result_format):
+                with self.helper_session(result_format) as (session, control):
+                    result = run_case("wait_deadline", session, control)
+                    self.assertEqual(result.get("error"), "busy/admission/deadline",
+                                     f"actual wait-deadline outcome absent; retained={self.root}")
+                    busy = result["payload"]["error"]["busy"]
+                    self.assertEqual((busy["in_flight"], busy["queued"], busy["abandoned"]), (4, 0, 0))
+                    self.assertEqual((result["diagnostic"]["held_before_release"],
+                                      result["diagnostic"]["held_after_release"]), (4, 0))
+                    self.assertTrue(result["diagnostic"]["complete"])
+
+
 if __name__ == "__main__":
     unittest.main()

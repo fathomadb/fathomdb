@@ -24,7 +24,7 @@ No old prototype timing is a current baseline or fidelity result.
 | [g_spans.py](g_spans.py) | G-only sample-level inclusive span tree and demonstrated disjoint direct-child remainders; overlap remains nonadditive, errors/missing/drop attribution unavailable. No percentile subtraction. |
 | [test_g_spans.py](test_g_spans.py) | Six frozen literal interval/availability/operation-identity/containment oracles. Selected by existing Python discovery; no natural campaign. |
 | [g_phase.py](g_phase.py), [g_resource.py](g_resource.py), [test_g_phase.py](test_g_phase.py) | Owned native/build executor: exact reviewed strict resource sampling, pinned foreground-group cleanup and refusal of leader-only success; actual harmless-descendant runtime controls. Resource caps are independent from measurement budgets and unchanged. |
-| [g_boundary.py](g_boundary.py), [test_g_boundary.py](test_g_boundary.py), [test_g_boundary_entry.py](test_g_boundary_entry.py), [test_g_boundary_dispatch.py](test_g_boundary_dispatch.py), [test_g_phase_errors.py](test_g_phase_errors.py) | Held task-owned cgroup-v2 controls contain the actual outer runner, separate cell session and native descendants. Real default-TERM/forced-escalation/normal-exit chains and controlled create/attach refusal retain independent runtime oracles. Unsupported delegation refuses before payload exec. |
+| [g_boundary.py](g_boundary.py), [test_g_boundary.py](test_g_boundary.py), [test_g_boundary_entry.py](test_g_boundary_entry.py), [test_g_boundary_dispatch.py](test_g_boundary_dispatch.py), [test_g_phase_errors.py](test_g_phase_errors.py), [test_g_guarded_entry.py](test_g_guarded_entry.py) | Held task-owned cgroup-v2 controls contain the actual outer runner, separate cell session and native descendants. Real default-TERM/forced-escalation/normal-exit chains and controlled create/attach refusal retain independent runtime oracles. Unsupported delegation refuses before payload exec. |
 | [g_runtime_tests.py](g_runtime_tests.py) and [normal CLI runner](../../../scripts/test-slice30-g-cli.sh) | Twelve actual normal-program controls (including closed-store span witness binding): engine/SDK collector+nested unwind,shared public seed/configure/drain/report/reopen,governed1000-row boundary,early cap refusal,shared first/warmup/read/off-on populations,exact diagnostic calls,normal G-W replacements,adjacent readiness,typed filters/future views,and actual open/device/close reports. Both use no provider and never qualify dense/GPU work. Canonical heavy runner registration is present; scoped native controls pass as recorded in execution.md; assembled source qualification is under final review; actual Default/GPU qualification remains pending. |
 | [g_driver.py](g_driver.py), [g_attempt.py](g_attempt.py) | Current foreground driver binding and retained owned-process attempts under one absolute deadline. |
 | [g_runner.py](g_runner.py), [g_freeze.py](g_freeze.py), [g_gpu.py](g_gpu.py), [g_report.py](g_report.py) | Strict build/freeze/run/report entry, registered source/input/cache/native pins, actual selected3090 observations and scoped retained reports. Native/GPU execution remains separately gated. |
@@ -238,9 +238,11 @@ controls use real harmless children and test-only direct-libc pidfd rescue;
 forbidden writes are judged only after guardian completion.
 The task's `g-containment-state.json` is claimed exclusively before any payload.
 A retained marker prevents another guardian from overwriting unresolved ownership.
-Normal G entry rejects unknown, malformed or stale state before redispatch, even
-if the shared budget's inflight field is clear. Active state permits only its
-live guardian's matching private boundary; no marker is silently cleared to retry.
+Normal G entry requires a live guardian and matching private boundary. Missing,
+unknown, malformed or stale state refuses before dispatch, even if the shared
+budget's inflight field is clear; a bare unguarded run has no fallback. Root
+membership records use one separator. That root-path protocol control does not
+claim actual namespace execution. No marker is silently cleared to retry.
 Unknown private boundaries remain retained for explicit resolution. Resource
 errors retain original text diagnostics and a failed terminal receipt; child
 stdout/stderr still write directly through the log's file descriptor.

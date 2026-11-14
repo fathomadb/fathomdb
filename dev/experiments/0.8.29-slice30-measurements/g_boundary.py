@@ -13,9 +13,7 @@ def require_known_containment(task):
     try:
         value = state_path.read_text()
     except FileNotFoundError:
-        if not state_path.is_symlink():
-            return
-        raise RuntimeError("G containment marker is unavailable; redispatch refused") from None
+        raise RuntimeError("G containment marker is missing or unavailable; unguarded dispatch refused") from None
     try:
         state = json.loads(value)
         if state["schema"] != "slice30-g-containment/v1" or state["status"] != "active":
@@ -58,7 +56,7 @@ class TaskBoundary:
                         if line.startswith("0:"))
         parent = Path("/sys/fs/cgroup") / relative.lstrip("/")
         self.evidence["path"] = str(parent / self.name)
-        self.evidence["relative_path"] = relative + "/" + self.name
+        self.evidence["relative_path"] = relative.rstrip("/") + "/" + self.name
         self.publish()
         self.parent_fd = os.open(parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
         os.mkdir(self.name, mode=0o700, dir_fd=self.parent_fd)

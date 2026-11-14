@@ -1538,5 +1538,24 @@ and were removed; original-context actors/markers were absent, no resource stop
 or cleanup uncertainty occurred, selected3090 was quiet and each FD9 claim was
 released only after verified quiescence. Phase logs/receipts are `g-branch-v3`
 and `g-seed100k-v4`. M now has a qualified CLOSED100k input, without M source/
-runtime or wholeG/30 clearance. The next normal fixed84 assessment remains
-[plan-only](continuation-gd.md#proposed-normal-fixed84-assessment).
+runtime or wholeG/30 clearance. The next
+[normal fixed84 assessment](continuation-gd.md#proposed-normal-fixed84-assessment)
+received independent Astra design PASS at53c81a015; actual assessment is unrun.
+
+Normal-entry semantic RED38d5063f4 fails1/1 with the literal existing refusal
+`closed stage and original completed source must be selected together`.
+Minimal GREENf7e2900b2 passes the frozen entry oracle1/1. Separate existing-correct
+preservation coverage e6d6093a3 passes2/2: actual harmless5-case order/resume,
+all84 retained, no six-reference replay, R1fresh/72G-W ordinary forecasts and
+prior charges/consumed token preserved. It is not actual G measurement evidence.
+The new entry uses synthetic typed readiness observations, never constructs a
+model/native module or queries a GPU. Source changes only freeze/collector
+eligibility, not qualifiers/fingerprints/native artifacts/caps. Original raw and
+shared1030482596607ns/`inflight:null` remain untouched.
+
+Clean e6d6093a3 combined G discovery passes63/63 in33.481s; existing60 oracles
+and the new RED file are unchanged. Raw `g-normal-six-reuse-{red,green}.log`,
+`g-normal-schedule-preservation.log` and `g-normal-six-combined.log` are retained.
+Fresh independent implementation review and this phase's final canonical full
+gate remain pending; no actual normal assessment, five-case qualification or
+73-refusal outcome is inferred from these controls.

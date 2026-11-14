@@ -507,6 +507,10 @@ new native build is needed if compiler inputs and binaries remain identical.
 
 ### Proposed normal fixed84 assessment
 
+Independent Astra design PASS at53c81a015 covers this extension. The minimal
+source candidate and63-control result are recorded in execution.md; fresh
+implementation review/full qualification and actual runtime GO remain pending.
+
 Review against unchanged R30-1..9/A30-1..7 and release req*/AC retains current
 format37, accepted20 A3/A5/60/70/100 predecessors, P evidence, freshness/provider
 contracts and fidelity/latency distinctions. Whole20/WindowsA6 and100/Q1 remain

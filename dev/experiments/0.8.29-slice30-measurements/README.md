@@ -30,8 +30,9 @@ No old prototype timing is a current baseline or fidelity result.
 | [g_runner.py](g_runner.py), [g_freeze.py](g_freeze.py), [g_gpu.py](g_gpu.py), [g_report.py](g_report.py) | Strict build/freeze/run/report entry, registered source/input/cache/native pins, actual selected3090 observations and scoped retained reports. Native/GPU execution remains separately gated. |
 | [g_forecast.py](g_forecast.py) | Whole G-W preparation/warmup/natural/write/readiness/point+FTS/raw-growth forecast with unchanged fixed caps. |
 | [test_g_dispatch.py](test_g_dispatch.py), [test_g_lifecycle.py](test_g_lifecycle.py), [test_g_runner.py](test_g_runner.py), [test_g_pipeline.py](test_g_pipeline.py), [test_g_forecast.py](test_g_forecast.py), [test_g_freeze.py](test_g_freeze.py), [test_g_report.py](test_g_report.py), [test_g_entry.py](test_g_entry.py) | Frozen literal/actual harmless-child controls selected by discovery; no positive native/model/GPU qualification. |
-| [g_reuse.py](g_reuse.py) | Read-only original-identity references for the four accepted G records and later qualified branch stage; strict measurement equivalence, no replay/retagging. |
+| [g_reuse.py](g_reuse.py) | Read-only original-identity references through accepted base/branch/100k seed records; strict measurement equivalence, no replay/retagging. |
 | [test_g_branch_polling.py](test_g_branch_polling.py), [test_g_reuse.py](test_g_reuse.py), [test_g_stages.py](test_g_stages.py), [test_g_exploratory.py](test_g_exploratory.py) | Nine real-child scheduling/resume/stop/admission controls; original51 G controls unchanged. No100k or positive GPU qualification. |
+| [test_g_normal_resume.py](test_g_normal_resume.py), [test_g_normal_schedule.py](test_g_normal_schedule.py) | Normal seed-chain entry semantic RED/GREEN and harmless full84 order/resume preservation. Typed readiness fixtures are not native/model/GPU evidence. |
 | [test_tools.py](test_tools.py) | Fourteen bounded literal converter/math/runner/freeze/summary/manual-opt-in assertions. No database mocking, generated golden, tamper/digest-drift/path-hardening suite. |
 
 The Rust example's independently specified real-store assertions are
@@ -255,7 +256,11 @@ adds `freeze --stage branch-controls|first-100k-seed-exploratory
 --reuse-completed-from ROOT`. These closed stages retain all84 obligations and
 original completed-record identities. Each normal `run ROOT` stops after its
 named cell and keeps incomplete-campaign exit1; `last-run.json` separately
-reports stage completion. Exploratory admission is one-shot in the same shared
+reports stage completion. Normal no-stage freeze may instead use only the accepted
+exploratory seed root, inheriting all six original references while assessing the
+unchanged full84 plan; it adds no subset or stage flag. New actual assessment
+remains held pending source acceptance/full qualification and technical GO.
+Exploratory admission is one-shot in the same shared
 ledger, retains the failed2x forecast and both900s hard caps, and checks prior/
 assessment/preparation use before dispatch. Source acceptance/full qualification
 and separate technical GO remain required before either new actual stage.

@@ -29,8 +29,10 @@ def source_smoke(root, cli, helper):
         value = execute(cell, [str(Path(cli).resolve()), "--config", str(path)], root / cell["id"],
                         queries=["alpha"], deadline_ns=time.monotonic_ns() + 60 * 10**9)
         rows.append(dict(value, id=cell["id"]))
-    return {"scope": "tiny-provider-free-source-control", "qualifies_natural": False,
-            "complete": all(row["complete"] for row in rows), "rows": []}
+    result = {"scope": "tiny-provider-free-source-control", "qualifies_natural": False,
+              "complete": all(row["complete"] for row in rows), "rows": rows}
+    (root / "source-report.json").write_text(json.dumps(result, indent=2) + "\n")
+    return result
 
 
 def main():

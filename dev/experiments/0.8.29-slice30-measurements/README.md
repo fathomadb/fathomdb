@@ -437,3 +437,12 @@ write/flush bytes and costs separately; decoded JSONL uses16-record/phase
 checkpoints. Queue summaries remain at whole-process scope, with phase counts
 as population context; uncorrelated admitted-wait events are never assigned to
 first/warmup/timed windows.
+
+Registered queries are JSONL strings, decoded before both loop and lifecycle
+submission; quotes, escapes, Unicode and original query indices are preserved.
+[m_load.py](m_load.py) observes actual one-minute host load. Guardian/cell entry
+requires load<=2; observed runtime load>2.5 marks noisy without discarding
+results, changing ceilings or correcting latency. Cell monitor observations,
+search-phase boundary observations and completed guardian-phase facts remain
+in their respective raw outcomes/reports. The live control executor also needs
+the inherited quiet-entry condition; missing observations are never zero load.

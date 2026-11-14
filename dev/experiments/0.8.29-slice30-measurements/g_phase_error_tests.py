@@ -5,7 +5,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from test_g_boundary_entry import unknown_boundary
+from g_boundary_entry_tests import unknown_boundary
 
 
 class GPhaseErrorReportingTests(unittest.TestCase):

@@ -12,7 +12,7 @@ from unittest.mock import patch
 from g_campaign import make_g_plan
 from g_freeze import git
 from g_runner import run_frozen
-from test_g_boundary_entry import PHASE, unknown_boundary
+from g_boundary_entry_tests import PHASE, unknown_boundary
 
 
 class GUnknownBoundaryDispatchTests(unittest.TestCase):

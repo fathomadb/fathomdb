@@ -709,6 +709,12 @@ if [ "$slice30_g_host_os" != "Linux" ]; then
 fi
 run_tier_maybe_suite heavy test-slice30-g-cli "$slice30_g_platform_reason" \
   bash scripts/test-slice30-g-cli.sh
+slice30_g_live_reason="$slice30_g_platform_reason"
+if [ "${AGENT_SLICE30_LIVE_CONTROLS:-0}" != "1" ]; then
+  slice30_g_live_reason="live private-cgroup controls require explicit AGENT_SLICE30_LIVE_CONTROLS=1; ordinary gate does not claim live coverage"
+fi
+run_tier_maybe_suite heavy test-slice30-g-control "$slice30_g_live_reason" \
+  bash scripts/test-slice30-g-control.sh
 run_tier_suite heavy test-slice30-g-feature-boundary \
   python3 scripts/tests/test_slice30_g_feature_boundary.py
 

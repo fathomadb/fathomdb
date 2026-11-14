@@ -8,7 +8,7 @@ import sys
 import tempfile
 import unittest
 
-from test_g_phase import PHASE
+from g_phase_tests import PHASE
 
 MODE = "closed-copy-calibration"
 

@@ -23,8 +23,8 @@ No old prototype timing is a current baseline or fidelity result.
 | [test_g_controller.py](test_g_controller.py) | Actual harmless Python children prove the literal complete stage inventory; no database/model simulation or positive GPU evidence. |
 | [g_spans.py](g_spans.py) | G-only sample-level inclusive span tree and demonstrated disjoint direct-child remainders; overlap remains nonadditive, errors/missing/drop attribution unavailable. No percentile subtraction. |
 | [test_g_spans.py](test_g_spans.py) | Six frozen literal interval/availability/operation-identity/containment oracles. Selected by existing Python discovery; no natural campaign. |
-| [g_phase.py](g_phase.py), [g_resource.py](g_resource.py), [test_g_phase.py](test_g_phase.py) | Owned native/build executor: exact reviewed strict resource sampling, pinned foreground-group cleanup and refusal of leader-only success; actual harmless-descendant runtime controls. Resource caps are independent from measurement budgets and unchanged. |
-| [g_boundary.py](g_boundary.py), [test_g_boundary.py](test_g_boundary.py), [test_g_boundary_entry.py](test_g_boundary_entry.py), [test_g_boundary_dispatch.py](test_g_boundary_dispatch.py), [test_g_phase_errors.py](test_g_phase_errors.py), [test_g_guarded_entry.py](test_g_guarded_entry.py) | Held task-owned cgroup-v2 controls contain the actual outer runner, separate cell session and native descendants. Real default-TERM/forced-escalation/normal-exit chains and controlled create/attach refusal retain independent runtime oracles. Unsupported delegation refuses before payload exec. |
+| [g_phase.py](g_phase.py), [g_resource.py](g_resource.py), [g_phase_tests.py](g_phase_tests.py) | Owned native/build executor: exact reviewed strict resource sampling, pinned foreground-group cleanup and refusal of leader-only success; actual harmless-descendant runtime controls. Resource caps are independent from measurement budgets and unchanged. |
+| [g_boundary.py](g_boundary.py), [g_boundary_tests.py](g_boundary_tests.py), [g_boundary_entry_tests.py](g_boundary_entry_tests.py), [g_boundary_dispatch_tests.py](g_boundary_dispatch_tests.py), [g_phase_error_tests.py](g_phase_error_tests.py), [g_guarded_entry_tests.py](g_guarded_entry_tests.py) | Held task-owned cgroup-v2 controls contain the actual outer runner, separate cell session and native descendants. Real default-TERM/forced-escalation/normal-exit chains and controlled create/attach refusal retain independent runtime oracles. Unsupported delegation refuses before payload exec. |
 | [g_runtime_tests.py](g_runtime_tests.py) and [normal CLI runner](../../../scripts/test-slice30-g-cli.sh) | Twelve actual normal-program controls (including closed-store span witness binding): engine/SDK collector+nested unwind,shared public seed/configure/drain/report/reopen,governed1000-row boundary,early cap refusal,shared first/warmup/read/off-on populations,exact diagnostic calls,normal G-W replacements,adjacent readiness,typed filters/future views,and actual open/device/close reports. Both use no provider and never qualify dense/GPU work. Canonical heavy runner registration is present; scoped native controls pass as recorded in execution.md; assembled source qualification is under final review; actual Default/GPU qualification remains pending. |
 | [g_driver.py](g_driver.py), [g_attempt.py](g_attempt.py) | Current foreground driver binding and retained owned-process attempts under one absolute deadline. |
 | [g_runner.py](g_runner.py), [g_freeze.py](g_freeze.py), [g_gpu.py](g_gpu.py), [g_report.py](g_report.py) | Strict build/freeze/run/report entry, registered source/input/cache/native pins, actual selected3090 observations and scoped retained reports. Native/GPU execution remains separately gated. |
@@ -201,6 +201,16 @@ DB or supplies model/GPU evidence. All fixed stage bindings and frozen entry are
 implemented; actual native/Default/GPU qualification remains pending. Run controller/dispatch guards via unittest
 discovery (`-p 'test_g_*.py'`), so classes following the historical direct-file
 main guard in `test_g_controller.py` are imported and exercised.
+
+Actual private-cgroup controls are separate from portable `test_*.py` discovery.
+Run `AGENT_SLICE30_LIVE_CONTROLS=1 bash scripts/test-slice30-g-control.sh` with
+checkout-owned `.venv`, task-owned `S30_TASK`/temporary files and an unconfined
+executor with writable delegated cgroup-v2 support. Selection hard-fails missing
+prerequisites and checks the unchanged32GiB root/250GiB task/16GiB memory floors.
+The final owned source gate selects this route with
+`AGENT_SLICE30_LIVE_CONTROLS=1 ./scripts/agent-verify.sh`; an ordinary unselected
+gate is portable and does not establish live containment coverage. No model or
+selected measurement store is accessed by these controls.
 
 G stage binding now covers G0, G1, G-R, natural G-O and all six tiny G-O cases.
 Tiny branches retain a common untouched subject for direct/hybrid/filter/no-match

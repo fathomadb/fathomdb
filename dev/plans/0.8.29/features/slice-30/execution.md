@@ -1474,6 +1474,24 @@ boundary populated0/removal and absent owned actors were verified before the
 cooperative claim was released and native window returned. No wholeG/M/30 claim.
 
 The [November14 continuation proposal](continuation-gd.md#november14-proposed-staged-g-continuation)
-is plan-only: branch-only polling, original-identity reuse, normal-controller
-stops and one exploratory100k seed under both unchanged900s hard caps. It grants
-no new attempt, native change or matrix disposition.
+received independent Astra design PASS. Its Python implementation retains both
+900s hard caps and the original native artifacts; actual runtime remains held.
+
+| Behavior | Actual committed RED → separate GREEN |
+| --- | --- |
+| Branch-only short-child observation |ae2b692f8:1 intended missing-live-ready assertion/2 preservation passes → bcef9bcb3:3/3. |
+| Original-record reuse |9b1f6aa30: actual four-ID redispatch assertion →911e148b7:1/1, original reference paths/charges and84 rows preserved. |
+| Closed controller stage |1bf6728e1:80 actual children instead of the named branch →f1158343c:1/1, only branch dispatch/79 explicit holds. |
+| One-shot exploratory admission |c3fc64f53:2 intended undispatched-seed assertions/2 refusal controls pass →9c52f2604:4/4, retained failed2x forecast, prior/preparation charge and failed new-root retry refusal. |
+
+Raw logs are owned `logs/g-branch-polling-{red,green}.log`,
+`g-original-reuse-{red,green}.log`, `g-closed-stage-{red,green}.log` and
+`g-exploratory-seed-{red,green}.log`. All new frozen oracles and existing51 G
+controls remain unchanged. Clean9c52f2604 discovery passes60/60 in32.763s
+(`g-staged-controls-green.log`), including actual private-boundary controls.
+Ruff caught a misplaced freeze-hook insertion, corrected before the reuse GREEN
+commit; no build ran. Read-only validation accepts exactly the four original
+accepted records, without store/model/GPU execution. No artifact was rebuilt or
+retagged; the original shared budget/raw remain unchanged. This candidate still
+needs fresh independent implementation review and its final canonical full gate;
+none of these harmless-child controls establish100k feasibility or GPU evidence.

@@ -16,7 +16,9 @@ Astra ACCEPT and canonical220/220 qualification atf8703b466. The bounded campaig
 at60f471aaf, UUID5e89e1dc-8fbd-4848-bc2a-8dc84e478f16, now has four accepted
 completed cases, one failed branch qualification and79 cap refusals; see
 [execution](execution.md). The November14 amendment below proposes only the
-next Python tooling changes. It is plan-only pending independent design review;
+next Python tooling changes. Independent Astra design PASS covers the November14
+amendment; its implemented candidate awaits fresh implementation review and
+final source qualification before runtime;
 no new runtime authority or whole-G/30 disposition follows. Parent owns release
 state; this checkout owns its plan. No roles, skills or nested agents are used.
 
@@ -362,7 +364,7 @@ Accepted P is not replayed. M still needs a qualified selected100k G store and
 exact MCP tooling; the accepted10k store does not supply that subject. D source
 and runtime remain separate; F still needs the exact frozen TC5 pack.
 
-**Proposed tooling only:** preserve the original84-cell inventory, original
+**Design PASS, implementation candidate/runtime held:** preserve the original84-cell inventory, original
 artifacts and all charges. Both native and outer hard limits remain900s/cell,
 including prior charges and new preparation; shared G/D14400s and retained16GiB
 remain fixed. The native seed rejects allowances above900000ms. No1320s option,
@@ -401,8 +403,8 @@ a rerun. These are scientific equivalence checks, not a tamper/hash test suite.
 
 ### Closed stages and exploratory admission
 
-Propose `freeze --stage STAGE --reuse-completed-from ROOT`; these flags do not
-exist yet. The controller freezes a closed stage policy alongside all84 cells:
+The implemented candidate provides `freeze --stage STAGE
+--reuse-completed-from ROOT`; runtime remains held. The controller freezes a closed stage policy alongside all84 cells:
 
 | Stage | New dispatch and mandatory terminal boundary |
 | --- | --- |
@@ -447,9 +449,9 @@ still needs separate technical GO after concrete reviewed/full-qualified tooling
 fresh readiness and the same cooperative UUID lock. An actual100k cost, timeout
 or partial result must be reviewed before any further matrix proposal.
 
-### Proposed normal-entry commands and behavior-first implementation
+### Normal-entry commands and behavior-first implementation
 
-The following commands are queued contract examples, **not executable today**.
+The following commands describe the implemented candidate; **runtime is held**.
 Run each stage only under its separate GO, from the owned environment with the
 existing persistent supervisor/FD9 exact-UUID lock, fresh quiet/resource checks,
 exact UUID mask and visible ordinal0. Hold the claim through owned quiescence.
@@ -463,7 +465,7 @@ OLD="$S30_TASK/gd-allocation/g-frozen-g0-polling-v2"
 BRANCH="$S30_TASK/gd-allocation/g-frozen-branch-v3"
 SEED="$S30_TASK/gd-allocation/g-frozen-seed100k-v4"
 export CUDA_VISIBLE_DEVICES=GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b
-# Proposed flags; call once with branch-controls/OLD/BRANCH after its GO.
+# Call once with branch-controls/OLD/BRANCH only after its technical GO.
 g_stage_freeze() {
   .venv/bin/python "$G_DIR/g_runner.py" freeze \
     --stage "$1" --reuse-completed-from "$2" --out "$3" \

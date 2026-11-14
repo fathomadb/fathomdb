@@ -28,12 +28,15 @@ def collect_reuse(current, original_root):
         from g_campaign import make_g_plan
         canonical = json.loads(Path(__file__).with_name("g-cells.json").read_text())
         expected = dict(canonical, preparation="closed-copy-v1")
-        normalized = {key: value for key, value in current["spec"].items() if key != "closed_mode"}
+        prospective = {"closed_mode"}
+        if current.get("stage") == "closed-copy-write-matrix":
+            prospective |= {"_closed_limits", "_closed_observation_wait_ms", "_reviewed_costs", "_calibration_origin"}
+        normalized = {key: value for key, value in current["spec"].items() if key not in prospective}
         r1_source = original.get("stage") == "closed-copy-read-r1" and current.get("stage") == "closed-copy-write-matrix"
         original_spec = {key: value for key, value in original["spec"].items() if key != "closed_mode"}
         expected_original = expected if r1_source else canonical
         if (original_spec != expected_original or original["plan"] != make_g_plan(expected_original)
-                or normalized != expected or current["plan"] != make_g_plan(expected)):
+                or normalized != expected or current["plan"] != make_g_plan(current["spec"])):
             raise ValueError("reuse differs beyond the named unmeasured closed-copy successor")
     elif original.get("spec") != current.get("spec") or original.get("plan") != current.get("plan"):
         raise ValueError("reuse measurement equivalence mismatch: spec/plan")

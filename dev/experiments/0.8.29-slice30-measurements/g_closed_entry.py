@@ -92,7 +92,8 @@ def _preflight(root):
                 active_bytes(manifest["allocation"]), old_seed)
             manifest["_closed_predictions"] = {cell["id"]: prediction}
         else:
-            raise ValueError("write-matrix requires recorded reviewed costs after qualified R1")
+            from g_closed_matrix import prepare_matrix
+            prepare_matrix(manifest, calibration)
     manifest.update(corpus=manifest["inputs"]["corpus"]["path"], queries=manifest["inputs"]["queries"]["path"],
                     commands={key: [value["path"]] for key, value in manifest["binaries"].items()})
     manifest["_prepared_manifest"] = str(root / f"prepared-closed-{uuid.uuid4().hex}.json")

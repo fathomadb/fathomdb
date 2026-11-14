@@ -151,9 +151,13 @@ def guard(command, *, allocation, profile, root, task, admission=False, common_l
                     code = unreaped_exit(child)
                     if code is not None:
                         receipt["exit"] = code
-                        if live_owned_pids(child):
-                            receipt["exit"] = 125
-                        else:
+                        receipt["child_exit"] = code
+                        live = live_owned_pids(child)
+                        receipt["boundary_populated_at_controller_exit"] = boundary.populated()
+                        if live or receipt["boundary_populated_at_controller_exit"]:
+                            receipt["exit"] = code if code else 125
+                            receipt["stop"] = "owned work survived controller exit"
+                        if not live:
                             child.wait()
                         break
                     current = accounting.read()

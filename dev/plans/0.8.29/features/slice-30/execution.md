@@ -1290,3 +1290,23 @@ REDs. `g-root-inventory-green` separately passes all8 unchanged structural guard
 after updating only the maintained source blob/composition prose; all48 fields
 and root method/declaration assertions remain unchanged. Checker GREEN and
 affected requalification are pending; no second full wrapper or P replay follows.
+
+### Closed diagnostic classifier GREEN
+
+Against committed policy RED `ee9a07a88`, all34 frozen static policy tests pass,
+including the original28 and actual repository53/53 live operations. The separate
+closed catalog requires exact direct feature/doc-hidden attributes, signature,
+SDK-to-engine forwarding and isolated nondefault feature activation. Unknown
+members still enter ordinary parity; prohibited hooks/operator forwarding and
+broadened/default/other-feature activation fail closed. Signed map, ordinary
+RUST_NON_COMMAND and existing core-leak logic are unchanged.
+
+The first implementation's Ruff E731 refusal is retained in the tool transcript;
+the first actual GREEN attempt remains in `g-sdk-diagnostic-policy-green.log`:
+it rejected Rustfmt's legitimate trailing parameter comma at the actual SDK
+forwarder. Corrected punctuation normalization changes no arguments/types/gates
+or expected values. Distinct `g-sdk-diagnostic-policy-green-rustfmt.log` records
+34/34 pass; test bytes remain identical to committed RED. Mechanical rename and
+parser/feature consumers/native identities still require affected qualification
+and fresh independent implementation recheck before integration. No full-wrapper
+restart or model/GPU/campaign authority follows.

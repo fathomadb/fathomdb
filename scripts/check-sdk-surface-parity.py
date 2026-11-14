@@ -10,6 +10,11 @@ import re
 import sys
 from typing import Any
 
+try:
+    import tomllib
+except ModuleNotFoundError:
+    import tomli as tomllib
+
 
 SCHEMA = "fathomdb.governed-operation-parity/v1"
 BINDINGS = ("python", "typescript", "rust")
@@ -36,6 +41,16 @@ RUST_NON_COMMAND = {
     "package:embed_batch_cls",
     "package:search_hints",
     "package:snippet_for",
+}
+# Closed passive qualification surface; ADR-0.8.29-sdk-qualification-observation.
+# Validation is required before classification; attribute/name patterns alone grant nothing.
+RUST_QUALIFICATION_DIAGNOSTICS = {
+    "engine_instance:begin_slice30_observation": {
+        "feature": "slice30-observer",
+        "signature": "(&self,max_records:usize)->Result<fathomdb_engine::Slice30ObservationGuard>",
+        "forwarder": "Ok(self.core.begin_slice30_observation(max_records)?)",
+        "engine_feature": "fathomdb-engine/slice30-observer",
+    },
 }
 # Trait impls the SDK `Engine` may carry; anything else (e.g. `Deref`) could
 # expose the core engine without a governed operation.
@@ -312,6 +327,97 @@ def _refuse_core_leaks(path: Path, text: str) -> None:
                     raise ParityError(f"pub mod {name} in lib.rs must be empty")
 
 
+def _outer_rust_attributes(masked: str, raw: str, offset: int) -> list[str]:
+    """Read contiguous real attributes; preserve feature-string bytes, ignoring comments."""
+    attributes = []
+    end = offset
+    while True:
+        while end and masked[end - 1].isspace():
+            end -= 1
+        if not end or masked[end - 1] != "]":
+            return attributes
+        start, depth = end - 1, 1
+        while start and depth:
+            start -= 1
+            depth += (masked[start] == "]") - (masked[start] == "[")
+        if depth or not start or masked[start - 1] != "#":
+            raise ParityError("unparsed qualification diagnostic attribute")
+        attributes.append(raw[start - 1:end])
+        end = start - 1
+
+
+def _validate_rust_diagnostic(
+    located: str, path: Path, raw: str, masked: str, offset: int, direct: bool
+) -> None:
+    """Require the single approved passive forwarder, not an arbitrary gated method."""
+    specification = RUST_QUALIFICATION_DIAGNOSTICS[located]
+    attributes = _outer_rust_attributes(masked, raw, offset)
+    feature = re.escape(specification["feature"])
+    gate = rf'#\s*\[\s*cfg\s*\(\s*feature\s*=\s*"{feature}"\s*\)\s*\]'
+    hidden = r"#\s*\[\s*doc\s*\(\s*hidden\s*\)\s*\]"
+    if (not direct or path.name != "engine.rs" or len(attributes) != 2
+            or sum(re.fullmatch(gate, value) is not None for value in attributes) != 1
+            or sum(re.fullmatch(hidden, value) is not None for value in attributes) != 1):
+        raise ParityError(f"qualification diagnostic {located} requires exact feature/doc-hidden declaration")
+    function = _PUB_FN.match(masked, offset)
+    if function is None:
+        raise ParityError(f"unparsed qualification diagnostic {located}")
+    opening = masked.find("{", function.end())
+    def compact(value):
+        return re.sub(r"\s+", "", value)
+    if (compact(function.group()) != "pubfn" + located.split(":", 1)[1]
+            or opening < 0
+            or compact(masked[function.end():opening]).replace(",)->", ")->", 1) != specification["signature"]
+            or compact(masked[opening + 1:_block_end(masked, opening) - 1]) != specification["forwarder"]):
+        raise ParityError(f"qualification diagnostic {located} must preserve exact signature/core forwarding")
+
+
+def _validate_rust_diagnostic_features(crate: Path, observed: set[str]) -> None:
+    """Keep diagnostic activation isolated from default/other SDK capabilities."""
+    manifest = crate / "Cargo.toml"
+    if not manifest.is_file():
+        if observed:
+            raise ParityError("qualification diagnostic Cargo feature contract is missing")
+        return
+    try:
+        features = tomllib.loads(manifest.read_text(encoding="utf-8")).get("features", {})
+    except (OSError, ValueError) as error:
+        raise ParityError(f"qualification diagnostic Cargo feature contract: {error}") from error
+    if not isinstance(features, dict):
+        raise ParityError("SDK features must be a table")
+    declared = {name for name, spec in RUST_QUALIFICATION_DIAGNOSTICS.items()
+                if spec["feature"] in features}
+    if observed != declared:
+        raise ParityError("qualification diagnostic feature/member closure differs from the exact catalog")
+    if not declared:
+        return
+    if any(not isinstance(values, list) or not all(isinstance(edge, str) for edge in values)
+           for values in features.values()):
+        raise ParityError("SDK feature forwarding must be lists of strings")
+    for values in features.values():
+        if any(edge.rsplit("/", 1)[-1] in {"test-hooks", "operator"} for edge in values):
+            raise ParityError("SDK qualification cannot forward test-hooks/operator")
+    for name in declared:
+        spec = RUST_QUALIFICATION_DIAGNOSTICS[name]
+        feature, forwarding = spec["feature"], spec["engine_feature"]
+        if features[feature] != [forwarding]:
+            raise ParityError(f"qualification feature {feature} must forward only {forwarding}")
+        for origin in features:
+            if origin == feature:
+                continue
+            pending, visited = [origin], set()
+            while pending:
+                current = pending.pop()
+                if current in visited:
+                    continue
+                visited.add(current)
+                for edge in features.get(current, []):
+                    if edge in {feature, forwarding}:
+                        raise ParityError(f"SDK feature {origin} activates qualification-only {feature}")
+                    if edge in features:
+                        pending.append(edge)
+
+
 def observe_rust_sdk(crate: Path) -> set[str]:
     """Observe `fathomdb-sdk` governed members from its source tree.
 
@@ -329,8 +435,10 @@ def observe_rust_sdk(crate: Path) -> set[str]:
     if not files:
         raise ParityError(f"no Rust sources under {src}")
     observed: set[str] = set()
+    diagnostics: set[str] = set()
     for path in files:
-        text = _strip_cfg_test(_blank_literals(path.read_text(encoding="utf-8")))
+        raw = path.read_text(encoding="utf-8")
+        text = _strip_cfg_test(_blank_literals(raw))
         _refuse_core_leaks(path, text)
         impl_spans: list[tuple[int, int]] = []
         for match in re.finditer(r"\bimpl\b(?:\s*<[^{]*?>)?\s+([^{;]+?)\s*\{", text):
@@ -351,12 +459,23 @@ def observe_rust_sdk(crate: Path) -> set[str]:
                 for fn in _PUB_FN.finditer(body):
                     signature = body[fn.end() : body.find("{", fn.end())]
                     locator = "engine_instance" if "self" in signature else "engine_static"
-                    observed.add(f"{locator}:{fn.group(1)}")
+                    located = f"{locator}:{fn.group(1)}"
+                    if located in RUST_QUALIFICATION_DIAGNOSTICS:
+                        if located in diagnostics:
+                            raise ParityError(f"duplicate qualification diagnostic {located}")
+                        direct = (text[:match.start()].count("{") == text[:match.start()].count("}")
+                                  and body[:fn.start()].count("{") == body[:fn.start()].count("}"))
+                        _validate_rust_diagnostic(located, path, raw, text,
+                                                  match.end() + fn.start(), direct)
+                        diagnostics.add(located)
+                    else:
+                        observed.add(located)
         locator = RUST_NAMESPACE_FILES.get(path.name, "package")
         for fn in _PUB_FN.finditer(text):
             if any(start <= fn.start() < end for start, end in impl_spans):
                 continue
             observed.add(f"{locator}:{fn.group(1)}")
+    _validate_rust_diagnostic_features(crate, diagnostics)
     return observed - RUST_NON_COMMAND
 
 

@@ -6,6 +6,8 @@ import time
 
 from g_attempt import run_g_attempt
 
+COMMON_BYTES = 1024**3
+
 
 def run_common(allocation, mode, command):
     """Charge actual common work once; caller owns the allocation lock and guardian.

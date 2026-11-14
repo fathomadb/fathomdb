@@ -1,4 +1,4 @@
-"""A real controller/nested child failure retains exact actual shared time."""
+"""Explicit live control: real controller/nested child failure retains actual shared time."""
 
 import json
 import os
@@ -43,6 +43,24 @@ os.kill(os.getpid(),signal.SIGTERM)
             self.assertEqual(final["used_ns"] - 123,
                              final["cell_used_ns"]["M-source-interrupted"] + final["common_used_ns"]["M"])
             self.assertIsNone(final["m_guardian"])
+
+    def test_other_work_reservation_blocks_actual_controller_start(self):
+        task = Path(os.environ["S30_TASK"])
+        with tempfile.TemporaryDirectory(prefix="m-reserved-", dir=task / "tmp") as temporary:
+            allocation = Path(temporary)
+            ledger = allocation / "g-budget.json"
+            ledger.write_text(json.dumps({"schema": "slice30-gd-budget/v1", "used_ns": 1,
+                                          "inflight": None, "cell_used_ns": {}}))
+            marker = allocation / "started"
+            profile = {"schema": "slice30-m-budget/v1", "status": "APPROVED",
+                "ledger": str(ledger), "whole_cell_ns": 900 * 10**9,
+                "total_shared_ns": 60 * 10**9, "total_shared_retained_bytes": 1024**3,
+                "reserved_other_work_ns": 60 * 10**9, "reserved_other_work_bytes": 0}
+            child = f"import pathlib;pathlib.Path({str(marker)!r}).write_text('started')"
+            with self.assertRaisesRegex(RuntimeError, "reserve"):
+                guard([sys.executable, "-c", child], allocation=allocation,
+                      profile=profile, root=allocation / "results", task=task)
+            self.assertFalse(marker.exists())
 
 
 if __name__ == "__main__":

@@ -62,7 +62,7 @@ def run_table(root, command, *, plan=None):
 
 
 def run_budgeted_table(root, command, *, profile, allocation, forecasts, plan=None, prepare=None,
-                       common_reserved_ns=0, register=None):
+                       common_reserved_ns=0, common_reserved_bytes=0, register=None):
     """Dispatch through a caller-selected shared budget profile and complete forecasts."""
     began = time.monotonic_ns()
     plan = load_plan() if plan is None else plan

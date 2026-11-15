@@ -243,9 +243,9 @@ plus actual `active_jobs`, `active_scans`, `queued_jobs`, `in_flight_count`,
 `frozen`, `pending_scan` and `stopping`. Active/queued counts name rows, not
 worker threads. This is one runtime-state-lock instant; it never composes a
 SQLite readiness/generation snapshot. Closed/unavailable state is Closing/
-Storage, never zero. The staged numeric API scaffold currently returns Storage
-for open engines until its real-store semantic RED has run; no observation is
-claimed from it.
+Storage, never zero. The state lock is released before serialization or any
+separate readiness/SQL work. Numeric fields expose current rows and flags;
+they never infer physical closure, provider engagement or atomic SQL authority.
 The foreground G guard and signed/default SDK surface remain unchanged.
 
 ### Explicit MCP admission observations

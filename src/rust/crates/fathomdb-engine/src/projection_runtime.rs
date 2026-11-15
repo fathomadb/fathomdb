@@ -1222,13 +1222,29 @@ impl Engine {
 impl Engine {
     /// Read a private numeric runtime instant, separate from durable SQL status.
     /// Closed engines return Closing; unavailable state returns Storage, never
-    /// fabricated zero counters. This compile-only scaffold is unavailable
-    /// until the following numeric observation runtime unit is implemented.
+    /// fabricated zero counters. Copy state under one short runtime lock and
+    /// release it before the caller serializes or performs separate SQL reads.
     #[doc(hidden)]
     pub fn slice30_projection_snapshot_for_test(
         &self,
     ) -> Result<Slice30ProjectionSnapshotForTest, EngineError> {
         let _operation = self.ensure_open()?;
-        Err(EngineError::Storage)
+        let snapshot = {
+            let state =
+                self.projection_runtime.shared.state.lock().map_err(|_| EngineError::Storage)?;
+            Slice30ProjectionSnapshotForTest {
+                scheduler_runtime_threads: self.resolved_config.scheduler_runtime_threads,
+                embedder_pool_size: self.resolved_config.embedder_pool_size,
+                admission_capacity: self.resolved_config.projection_admission_capacity,
+                active_jobs: state.active_jobs,
+                active_scans: state.active_scans,
+                queued_jobs: state.queued_jobs,
+                in_flight_count: state.in_flight.len(),
+                frozen: state.frozen,
+                pending_scan: state.pending_scan,
+                stopping: state.stopping,
+            }
+        };
+        Ok(snapshot)
     }
 }

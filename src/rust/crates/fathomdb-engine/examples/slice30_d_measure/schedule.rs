@@ -7,7 +7,8 @@ use fathomdb_engine::{
 use rusqlite::{Connection, OpenFlags, OptionalExtension};
 use serde_json::{json, Value};
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{mpsc, Arc};
 use std::time::{Duration, Instant};
 
 const CLOSE_RESERVE: Duration = Duration::from_secs(30);
@@ -170,20 +171,28 @@ fn seed_held(
     }
 }
 
+fn natural_call(
+    engine: &Engine,
+    cell: &OrdinaryCell<'_>,
+    index: usize,
+    query: &str,
+) -> Result<Value, String> {
+    work_remaining(cell)?;
+    let started = elapsed(cell.origin);
+    let result = engine.search_with_limit(query, 10).map_err(|error| format!("{error:?}"))?;
+    let ended = elapsed(cell.origin);
+    Ok(json!({"sample_index":index,"query_index":index % 500,
+        "route":"engine_hybrid","limit":10,"ok":true,"started_ns":started,"ended_ns":ended,
+        "returned_hits":result.results.len(),"projection_cursor":result.projection_cursor,
+        "ids":result.results.iter().map(|hit|hit.id.to_prefixed()).collect::<Vec<_>>(),
+        "soft_fallback":format!("{:?}",result.soft_fallback),"degradations":format!("{:?}",result.degradations)}))
+}
+
 fn natural_calls(engine: &Engine, cell: &OrdinaryCell<'_>) -> Result<Vec<Value>, String> {
-    let mut calls = Vec::with_capacity(1000);
-    for (index, query) in super::workload::natural_queries(cell.queries).enumerate() {
-        work_remaining(cell)?;
-        let started = elapsed(cell.origin);
-        let result = engine.search_with_limit(query, 10).map_err(|error| format!("{error:?}"))?;
-        let ended = elapsed(cell.origin);
-        calls.push(json!({"sample_index":index,"query_index":index % 500,
-            "route":"engine_hybrid","limit":10,"ok":true,"started_ns":started,"ended_ns":ended,
-            "returned_hits":result.results.len(),"projection_cursor":result.projection_cursor,
-            "ids":result.results.iter().map(|hit|hit.id.to_prefixed()).collect::<Vec<_>>(),
-            "soft_fallback":format!("{:?}",result.soft_fallback),"degradations":format!("{:?}",result.degradations)}));
-    }
-    Ok(calls)
+    super::workload::natural_queries(cell.queries)
+        .enumerate()
+        .map(|(index, query)| natural_call(engine, cell, index, query))
+        .collect()
 }
 
 fn held(
@@ -230,6 +239,200 @@ fn held(
         "actual_overlap":"ACTUAL_OVERLAP_UNOBSERVED"}))
 }
 
+struct Committed {
+    cursor: u64,
+    body: String,
+}
+
+struct CancelOnFailure<'a> {
+    cancel: &'a AtomicBool,
+    succeeded: bool,
+}
+impl Drop for CancelOnFailure<'_> {
+    fn drop(&mut self) {
+        if !self.succeeded {
+            self.cancel.store(true, Ordering::Release);
+        }
+    }
+}
+
+struct WriterResult {
+    batches: Vec<Value>,
+    span: Value,
+}
+
+struct ReaderResult {
+    calls: Vec<Value>,
+    probes: Vec<Value>,
+    span: Value,
+}
+
+fn write_overlap(
+    engine: &Engine,
+    cell: &OrdinaryCell<'_>,
+    mut bodies: impl Iterator<Item = String>,
+    sender: mpsc::SyncSender<Committed>,
+    cancel: &AtomicBool,
+) -> Result<WriterResult, String> {
+    let started = elapsed(cell.origin);
+    let source = SourceId::new("test:fixture").map_err(|error| format!("{error:?}"))?;
+    let mut batches = Vec::new();
+    loop {
+        work_remaining(cell)?;
+        if cancel.load(Ordering::Acquire) {
+            return Err("D reader cancelled writer before the next governed batch".into());
+        }
+        let batch = bodies
+            .by_ref()
+            .take(1000)
+            .map(|body| PreparedWrite::Node {
+                kind: "doc".into(),
+                body,
+                source_id: source.clone(),
+                logical_id: None,
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            })
+            .collect::<Vec<_>>();
+        if batch.is_empty() {
+            break;
+        }
+        let write_started = elapsed(cell.origin);
+        let receipt = engine.write(&batch).map_err(|error| format!("{error:?}"))?;
+        let write_ended = elapsed(cell.origin);
+        let PreparedWrite::Node { body, .. } = batch.last().expect("nonempty governed batch")
+        else {
+            unreachable!("D seeding constructs only natural nodes")
+        };
+        batches.push(json!({"rows":batch.len(),"cursor":receipt.cursor,
+            "started_ns":write_started,"ended_ns":write_ended}));
+        let mut notice = Committed { cursor: receipt.cursor, body: body.clone() };
+        loop {
+            work_remaining(cell)?;
+            if cancel.load(Ordering::Acquire) {
+                return Err("D reader cancelled bounded commit notification".into());
+            }
+            match sender.try_send(notice) {
+                Ok(()) => break,
+                Err(mpsc::TrySendError::Full(returned)) => {
+                    notice = returned;
+                    // Capacity backpressure only; no experimental delay or provider speed control.
+                    std::thread::yield_now();
+                }
+                Err(mpsc::TrySendError::Disconnected(_)) => {
+                    return Err("D reader disconnected before all commit notifications".into());
+                }
+            }
+        }
+    }
+    Ok(WriterResult {
+        batches,
+        span: json!({"started_ns":started,"ended_ns":elapsed(cell.origin)}),
+    })
+}
+
+fn read_overlap(
+    engine: &Engine,
+    cell: &OrdinaryCell<'_>,
+    receiver: mpsc::Receiver<Committed>,
+    cancel: &AtomicBool,
+) -> Result<ReaderResult, String> {
+    let started = elapsed(cell.origin);
+    let first = receiver
+        .recv_timeout(work_remaining(cell)?)
+        .map_err(|error| format!("D first real commit was unavailable: {error:?}"))?;
+    let mut probes = vec![freshness(cell, first.cursor, &first.body)?];
+    let mut calls = Vec::with_capacity(1000);
+    for (index, query) in super::workload::natural_queries(cell.queries).enumerate() {
+        if cancel.load(Ordering::Acquire) {
+            return Err("D writer failed before reader completion".into());
+        }
+        while let Ok(notice) = receiver.try_recv() {
+            probes.push(freshness(cell, notice.cursor, &notice.body)?);
+        }
+        calls.push(natural_call(engine, cell, index, query)?);
+    }
+    loop {
+        if cancel.load(Ordering::Acquire) {
+            return Err("D writer failed before final commit notification".into());
+        }
+        match receiver.recv_timeout(work_remaining(cell)?) {
+            Ok(notice) => probes.push(freshness(cell, notice.cursor, &notice.body)?),
+            Err(mpsc::RecvTimeoutError::Disconnected) => break,
+            Err(mpsc::RecvTimeoutError::Timeout) => {
+                return Err("D commit notification deadline reached".into())
+            }
+        }
+    }
+    Ok(ReaderResult {
+        calls,
+        probes,
+        span: json!({"started_ns":started,"ended_ns":elapsed(cell.origin)}),
+    })
+}
+
+fn overlap(
+    engine: &Engine,
+    cell: &OrdinaryCell<'_>,
+    bodies: impl Iterator<Item = String> + Send,
+) -> Result<Value, String> {
+    engine
+        .drain(u64::try_from(work_remaining(cell)?.as_millis()).unwrap())
+        .map_err(|error| format!("{error:?}"))?;
+    let runtime = runtime_boundary(engine)?;
+    if runtime["frozen"] != false || runtime["pending_scan"] != false {
+        return Err("D overlap entry cannot establish an unfrozen empty runtime".into());
+    }
+    let cancel = AtomicBool::new(false);
+    let (sender, receiver) = mpsc::sync_channel(1);
+    let (writer, reader) = std::thread::scope(|scope| {
+        let writer = scope.spawn(|| {
+            let mut custody = CancelOnFailure { cancel: &cancel, succeeded: false };
+            let result = write_overlap(engine, cell, bodies, sender, &cancel);
+            custody.succeeded = result.is_ok();
+            result
+        });
+        let reader = scope.spawn(|| {
+            let mut custody = CancelOnFailure { cancel: &cancel, succeeded: false };
+            let result = read_overlap(engine, cell, receiver, &cancel);
+            custody.succeeded = result.is_ok();
+            result
+        });
+        // Join both owners before propagating either error or starting close.
+        (writer.join(), reader.join())
+    });
+    let writer = writer.map_err(|_| "D writer panicked after bounded custody".to_string())??;
+    let reader = reader.map_err(|_| "D reader panicked after bounded custody".to_string())??;
+    let n = writer.batches.iter().map(|batch| batch["rows"].as_u64().unwrap()).sum::<u64>();
+    if n == 0 || writer.batches.len() != reader.probes.len() {
+        return Err(
+            "D overlap did not retain one natural freshness probe per committed cohort".into()
+        );
+    }
+    let drain_started = elapsed(cell.origin);
+    engine
+        .drain(u64::try_from(work_remaining(cell)?.as_millis()).unwrap())
+        .map_err(|error| format!("{error:?}"))?;
+    let drain_ended = elapsed(cell.origin);
+    let terminal = boundary(engine, cell)?;
+    if terminal["pending_count"] != 0
+        || terminal["failed_rows"] != 0
+        || terminal["generation_failed_count"] != 0
+        || ["natural_rows", "physical_rows", "vector_rows", "span_rows", "terminal_rows"]
+            .iter()
+            .any(|field| terminal[*field] != n)
+    {
+        return Err("D overlap drain did not establish exact physical and terminal closure".into());
+    }
+    Ok(json!({"complete":true,"calls":reader.calls,"batches":writer.batches,"probes":reader.probes,
+        "held":null,"release_ns":null,"final":terminal,"writer":writer.span,"reader":reader.span,
+        "drain":{"started_ns":drain_started,"ended_ns":drain_ended,"calls_after_seed_started":1},
+        "runtime":runtime,"collection_enabled":false,"periodic_numeric_polls":0,
+        "periodic_readiness_polls":0,"actual_overlap":"ACTUAL_OVERLAP_UNOBSERVED"}))
+}
+
 pub(crate) fn run_ordinary(
     cell: OrdinaryCell<'_>,
     bodies: impl Iterator<Item = String> + Send,
@@ -261,8 +464,7 @@ pub(crate) fn run_ordinary(
             .map_err(|error| format!("{error:?}"))?;
         match cell.mode {
             Mode::Held => held(&engine, &cell, bodies),
-            Mode::Overlap => Ok(json!({"complete":false,"state":"not_run",
-                "reason":"ordinary overlap schedule is not implemented","calls":[]})),
+            Mode::Overlap => overlap(&engine, &cell, bodies),
         }
     })();
     let closed = engine.close().map_err(|error| format!("{error:?}"));

@@ -1237,6 +1237,44 @@ unknown/exhausting other-work reservations must prevent actual child start.
 Recheck only affected M default guardian controls for this shared refinement.
 No new guardian framework, cap reset, G schema alias or campaign GO follows.
 
+#### D owned refusal cost clarification
+
+The new D negative fixture's whole-ledger equality was too broad for refusals
+under D's own acquired shared lock and known ledger custody. Those entry costs
+are actual common D work: add them once to `used_ns` and `common_used_ns.D`,
+then release D custody without starting a child. M defaults/oracles remain
+unchanged. If the lock is unavailable or any foreign/retained custody exists,
+D cannot write that ledger: report positive actual `elapsed_ns`,
+`charged_ns=None` and an unreconciled held result. No zero charge or qualified
+campaign follows; original failure records remain retained.
+
+Proposed correction only to the new D refusal oracle, before implementation:
+seed prior D common19ns and add19ns to its existing total123ns, preserving the
+existing M17ns/G101ns portions. Keep every no-child/profile/reservation/custody
+assertion. For unknown-time/unknown-bytes/reserved-time/reserved-bytes, require:
+
+```python
+assert not ready.exists()
+assert result["state"] == "held"
+assert result["elapsed_ns"] > 0
+charge = final["used_ns"] - before["used_ns"]
+assert charge > 0
+assert charge == final["common_used_ns"]["D"] - 19
+assert result["charged_ns"] == charge
+assert final["common_used_ns"] == {"M": 17, "D": 19 + charge}
+assert final["cell_used_ns"] == {"g-prior": 101}
+assert final["inflight"] is None and final["d_guardian"] is None
+assert all(final[key] == value for key, value in before.items()
+           if key not in ("used_ns", "common_used_ns"))
+```
+
+For retained inflight/M/closed/D guardian state or lock refusal, keep exact
+`final == before`, no actual child start, positive actual elapsed and
+`charged_ns is None`. Original positive D controller/common and reciprocal M
+custody oracles remain frozen. Observe the corrected D-owned refusal cost RED
+on the unchanged not-run/uncharged implementation before the stronger GREEN;
+a passing default refusal is not relabelled as old semantic RED.
+
 ## Requirements, acceptance and ordered runtime TDD
 
 Local refinements below map to existing Slice30 IDs. A design review is not a

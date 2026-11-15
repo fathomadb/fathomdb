@@ -14,7 +14,7 @@
 # distributed only by the hosted Tegra Pages job, behind a separate release
 # publication ruling, and never through the npm registry.
 #
-# Usage: build-napi-cuda-tegra.sh [--base-version <version>] [--out <dir>] [--assert-only]
+# Usage: build-napi-cuda-tegra.sh [--base-version <version>] [--out <dir>] [--assert-only] [--qualification-observer]
 #
 #   --base-version  Version stamped into both staged package manifests.
 #                   Defaults to src/ts/package.json's version. Must be a plain
@@ -38,11 +38,12 @@ TS_DIR="$REPO_ROOT/src/ts"
 TEGRA_PACKAGE_SOURCE="$TS_DIR/npm-tegra/linux-arm64-gnu-tegra"
 OUT_DIR="$REPO_ROOT/target/tegra-napi-dist"
 ASSERT_ONLY=0
+QUALIFICATION_OBSERVER=0
 BASE_VERSION=''
 
 usage_error() {
   printf 'build-napi-cuda-tegra: %s\n' "$1" >&2
-  printf 'usage: %s [--base-version <version>] [--out <dir>] [--assert-only]\n' "$(basename "$0")" >&2
+  printf 'usage: %s [--base-version <version>] [--out <dir>] [--assert-only] [--qualification-observer]\n' "$(basename "$0")" >&2
   exit 2
 }
 
@@ -57,6 +58,10 @@ while [ "$#" -gt 0 ]; do
       [ "$#" -ge 2 ] || usage_error '--base-version needs a version'
       BASE_VERSION="$2"
       shift 2
+      ;;
+    --qualification-observer)
+      QUALIFICATION_OBSERVER=1
+      shift
       ;;
     --assert-only)
       ASSERT_ONLY=1
@@ -77,6 +82,14 @@ fail() {
   printf 'build-napi-cuda-tegra: %s\n' "$1" >&2
   exit 1
 }
+
+# Qualification counterparts add only the passive observer; shipping defaults
+# remain the contract tuple. Separate output/target directories are caller-owned.
+if [ "$QUALIFICATION_OBSERVER" -eq 1 ]; then
+  CUDA_TEGRA_NAPI_FEATURES="$CUDA_TEGRA_NAPI_FEATURES,cuda-pool-observer"
+fi
+printf 'build-napi-cuda-tegra: features=%s\n' "$CUDA_TEGRA_NAPI_FEATURES"
+export CARGO_NET_OFFLINE=true
 
 # --- Host and toolchain identity, asserted before anything is built ---------
 
@@ -214,6 +227,7 @@ NATIVE_DEST="$(realpath --relative-to="$TS_DIR" "$NATIVE_DIR")"
 cd "$TS_DIR"
 npm exec --offline -- napi build --platform --release \
   --cargo-cwd ../rust/crates/fathomdb-napi \
+  --cargo-flags "--offline --locked" \
   --features "$CUDA_TEGRA_NAPI_FEATURES" \
   --js false \
   "$NATIVE_DEST"

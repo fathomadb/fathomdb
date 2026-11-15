@@ -6,6 +6,7 @@ set -euo pipefail
 
 usage() {
   printf 'usage: %s <version+tegra> <https://fathomadb.github.io/fathomdb/tegra/simple/> <wheel-sha256> <candidate-sha> <pages-deployment-run> <new-evidence-dir>\n' "$0" >&2
+  printf '       %s --local-wheel FILE <version+tegra> <wheel-sha256> <candidate-sha> <new-evidence-dir>\n' "$0" >&2
 }
 
 if [ "$#" -ne 6 ]; then
@@ -13,19 +14,32 @@ if [ "$#" -ne 6 ]; then
   exit 2
 fi
 
-VERSION="$1"
-INDEX_URL="$2"
-EXPECTED_SHA256="$3"
-CANDIDATE_SHA="$4"
-PAGES_DEPLOYMENT_RUN="$5"
-EVIDENCE_DIR="$6"
+LOCAL_WHEEL=''
+if [ "$1" = --local-wheel ]; then
+  LOCAL_WHEEL="$2"
+  VERSION="$3"
+  EXPECTED_SHA256="$4"
+  CANDIDATE_SHA="$5"
+  EVIDENCE_DIR="$6"
+  INDEX_URL=''
+  PAGES_DEPLOYMENT_RUN=''
+  [ -f "$LOCAL_WHEEL" ] || { printf 'smoke-tegra-pages-wheel: local wheel is absent: %s\n' "$LOCAL_WHEEL" >&2; exit 1; }
+  LOCAL_WHEEL="$(realpath -- "$LOCAL_WHEEL")"
+else
+  VERSION="$1"
+  INDEX_URL="$2"
+  EXPECTED_SHA256="$3"
+  CANDIDATE_SHA="$4"
+  PAGES_DEPLOYMENT_RUN="$5"
+  EVIDENCE_DIR="$6"
+fi
 EXPECTED_INDEX_URL='https://fathomadb.github.io/fathomdb/tegra/simple/'
 
 if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+\+tegra$ ]]; then
   printf 'smoke-tegra-pages-wheel: invalid version %q; expected X.Y.Z+tegra\n' "$VERSION" >&2
   exit 2
 fi
-if [ "$INDEX_URL" != "$EXPECTED_INDEX_URL" ]; then
+if [ -z "$LOCAL_WHEEL" ] && [ "$INDEX_URL" != "$EXPECTED_INDEX_URL" ]; then
   printf 'smoke-tegra-pages-wheel: invalid index %q; expected the authorized first-party index\n' "$INDEX_URL" >&2
   exit 2
 fi
@@ -37,7 +51,7 @@ if [[ ! "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
   printf 'smoke-tegra-pages-wheel: invalid candidate SHA\n' >&2
   exit 2
 fi
-if [[ ! "$PAGES_DEPLOYMENT_RUN" =~ ^[0-9]+$ ]]; then
+if [ -z "$LOCAL_WHEEL" ] && [[ ! "$PAGES_DEPLOYMENT_RUN" =~ ^[0-9]+$ ]]; then
   printf 'smoke-tegra-pages-wheel: invalid Pages deployment run\n' >&2
   exit 2
 fi
@@ -91,8 +105,12 @@ pip_clean() {
     -u PIP_NO_INDEX -u PIP_NO_BINARY -u PIP_ONLY_BINARY -u PYTHONPATH \
     PIP_CONFIG_FILE=/dev/null python3 -m pip --isolated "$@"
 }
+if [ -n "$LOCAL_WHEEL" ]; then
+  cp -- "$LOCAL_WHEEL" "$DOWNLOADS/"
+else
 pip_clean download --quiet --index-url "$INDEX_URL" --only-binary=:all: --no-cache-dir --no-deps \
   --dest "$DOWNLOADS" "fathomdb==${VERSION}"
+fi
 
 WHEEL_LIST="$WORK/wheels.txt"
 find "$DOWNLOADS" -maxdepth 1 -type f \
@@ -123,9 +141,11 @@ export TRANSFORMERS_OFFLINE=1
 export FATHOMDB_EMBED_DEVICE=cuda:0
 export FATHOMDB_GPU_ALLOCATION_WITNESS=1
 GPU_INFO="$(timeout 2s "$NVIDIA_SMI" --query-gpu=uuid,name,driver_version --format=csv,noheader)"
-export EVIDENCE_DIR VERSION INDEX_URL EXPECTED_SHA256 ACTUAL_SHA256 CANDIDATE_SHA PAGES_DEPLOYMENT_RUN GPU_INFO
+export EVIDENCE_DIR VERSION INDEX_URL EXPECTED_SHA256 ACTUAL_SHA256 CANDIDATE_SHA PAGES_DEPLOYMENT_RUN GPU_INFO LOCAL_WHEEL
 unset PYTHONPATH
-python3 - "$WORK/smoke.sqlite" <<'PY'
+for policy in cpu auto cuda:0; do
+timeout --kill-after=5s 120s env FATHOMDB_EMBED_DEVICE="$policy" FATHOMDB_RERANK_DEVICE="$policy" \
+  python3 - "$WORK/smoke-$policy.sqlite" <<'PY'
 import json
 import os
 import sys
@@ -133,7 +153,8 @@ from dataclasses import asdict
 from importlib.metadata import version
 from pathlib import Path
 
-from fathomdb import Engine
+from fathomdb import Engine, embed_batch_cls, rerank
+import math
 
 def _witness_for_process(witness):
     if witness is not None:
@@ -151,29 +172,52 @@ try:
     report = engine.open_report()
     resolution = report.embedder_device_resolution
     witness = _witness_for_process(report.embedder_gpu_allocation_witness)
-    if resolution is None or resolution.effective_device.kind != "cuda" or witness is None:
+    policy = os.environ["FATHOMDB_EMBED_DEVICE"]
+    expected_device = "cpu" if policy == "cpu" else "cuda"
+    if resolution is None or resolution.effective_device.kind != expected_device:
+        raise SystemExit(f"{policy} did not produce expected {expected_device} embedding")
+    reranker = report.reranker_device_resolution
+    if reranker is None or reranker.effective_device.kind != expected_device:
+        raise SystemExit(f"{policy} did not produce expected {expected_device} reranker")
+    if expected_device == "cuda" and witness is None:
         raise SystemExit("forced CUDA did not produce an effective CUDA device and allocation witness")
     engine.write([{"kind": "doc", "body": "{}", "source_id": "smoke:tegra-pages-wheel"}])
     engine.search("smoke")
-    (evidence / "tegra-gpu-allocation-witness.json").write_text(
+    vector = engine.embed("fathomdb sync allocator repair experiment")
+    batch = embed_batch_cls([f"batch32 item {k} about pools" for k in range(32)])
+    if len(vector) != 384 or len(batch) != 32 or any(len(v) != 384 or not all(math.isfinite(x) for x in v) for v in [vector, *batch]):
+        raise SystemExit("installed shipping embedding single/batch32 output is invalid")
+    ranked = rerank("Which device shares DRAM?", [
+        {"id": 1, "body": "The Jetson AGX Orin shares DRAM between CPU and GPU.", "score": 0.5},
+        {"id": 2, "body": "Stream-ordered allocation uses a per-device memory pool.", "score": 0.4},
+    ], 2)
+    if len(ranked) != 2 or any(r["ce_score"] is None or not math.isfinite(r["ce_score"]) for r in ranked):
+        raise SystemExit("installed shipping reranker forward is missing")
+    if witness is not None:
+        (evidence / "tegra-gpu-allocation-witness.json").write_text(
         json.dumps(asdict(witness), ensure_ascii=True, separators=(",", ":"), sort_keys=True) + "\n",
         encoding="ascii",
     )
-    (evidence / "tegra-pages-smoke.json").write_text(
+    record_name = "tegra-pages-smoke.json" if policy == "cuda:0" else f"tegra-pages-smoke-{policy}.json"
+    (evidence / record_name).write_text(
         json.dumps(
             {
                 "schema_version": "fathomdb.tegra-pages-installed-smoke/v1",
+                "source": "local" if os.environ["LOCAL_WHEEL"] else "pages",
+                "local_wheel": os.environ["LOCAL_WHEEL"] or None,
                 "distribution": "fathomdb",
                 "version": os.environ["VERSION"],
-                "index_url": os.environ["INDEX_URL"],
+                "index_url": os.environ["INDEX_URL"] or None,
                 "expected_wheel_sha256": os.environ["EXPECTED_SHA256"],
                 "actual_wheel_sha256": os.environ["ACTUAL_SHA256"],
                 "candidate_sha": os.environ["CANDIDATE_SHA"],
-                "pages_deployment_run": os.environ["PAGES_DEPLOYMENT_RUN"],
+                "pages_deployment_run": os.environ["PAGES_DEPLOYMENT_RUN"] or None,
                 "host": {"system": os.uname().sysname, "machine": os.uname().machine},
                 "python_version": sys.version.split()[0],
                 "nvidia_smi": os.environ["GPU_INFO"],
+                "policy": policy,
                 "effective_device": resolution.effective_device.kind,
+                "reranker_effective_device": reranker.effective_device.kind,
                 "selected_cuda_uuid": resolution.selected_cuda_uuid,
                 "lifecycle": "open/write/search/close",
             },
@@ -184,10 +228,14 @@ try:
         encoding="ascii",
     )
 finally:
+    import signal
+    signal.signal(signal.SIGALRM, lambda *_: os._exit(124))
+    signal.alarm(5)
     engine.close()
 PY
+done
 
 PATH="/usr/sbin:$PATH" python3 "$REPO_ROOT/scripts/release/verify-tegra-gpu-witness.py" \
   --witness "$EVIDENCE_DIR/tegra-gpu-allocation-witness.json" --nvidia-smi
-printf 'smoke-tegra-pages-wheel: ok — %s from public Pages index passed installed lifecycle and CUDA witness\n' \
+printf 'smoke-tegra-pages-wheel: ok — %s selected artifact passed installed CPU/auto/CUDA lifecycle and CUDA witness\n' \
   "$VERSION"

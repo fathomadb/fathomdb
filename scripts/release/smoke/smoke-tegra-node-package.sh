@@ -395,7 +395,7 @@ run_in_consumer() {
   local name="$1" label="$2" status
   shift 2
   set +e
-  (cd "${CONSUMER_ROOTS[$name]}" && runtime_env "$@" node tegra_node_package_row.mjs \
+  (cd "${CONSUMER_ROOTS[$name]}" && runtime_env "$@" timeout --kill-after=5s 120s node tegra_node_package_row.mjs \
     "$name" "${ROW_ARGS[@]}" "$EVIDENCE_DIR/rows/$label.json" "$DB_ROOT") \
     >"$EVIDENCE_DIR/rows/$label.log" 2>&1
   status=$?

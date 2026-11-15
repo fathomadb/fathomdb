@@ -82,6 +82,11 @@ try {
     const vector = await engine.embed("FathomDB installed Jetson Tegra package smoke");
     if (!vector.every(Number.isFinite)) throw new Error("embedding contains a non-finite value");
     out.embedding_dim = vector.length;
+    const batch = await fathomdb.embedBatchCls(Array.from({ length: 32 }, (_, k) => `installed batch32 item ${k} about pools`));
+    if (batch.length !== 32 || batch.some((v) => v.length !== 384 || !v.every(Number.isFinite))) {
+      throw new Error("installed batch32 output count/dimension/values are invalid");
+    }
+    out.batch32_dim = batch.map((v) => v.length);
   } else if (component === "rerank") {
     // The reranker reports no GPU allocation witness. CUDA is shown only by
     // the open-time device resolution plus finite cross-encoder scores.
@@ -104,6 +109,11 @@ try {
   }
   if (engine) {
     out.step = "close";
+    const closeDeadline = setTimeout(() => {
+      console.error("Tegra installed close-to-exit exceeded 5s");
+      process.exit(124);
+    }, 5_000);
+    closeDeadline.unref();
     await engine.close();
     engine = null;
   }

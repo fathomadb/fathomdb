@@ -370,10 +370,12 @@ class Worker:
     replies; stderr streams directly to a file. Stop/timeout never implies exit0.
     """
 
-    def __init__(self, command, cwd, env, stderr, stop, timeout_s=120, check=lambda: None):
+    def __init__(self, command, cwd, env, stderr, stop, timeout_s=120, check=lambda: None, stdout_sink=None):
         self.process = subprocess.Popen(command, cwd=cwd, env=env, stdin=subprocess.PIPE,
                                         stdout=subprocess.PIPE, stderr=stderr, start_new_session=True)
         self.stop = stop
+        self.stdout_sink = stdout_sink
+        self.group_cleanup_needed = False
         self.timeout_s = timeout_s
         self.check = check
         self.buffer = b""
@@ -395,6 +397,8 @@ class Worker:
                 chunk = os.read(self.process.stdout.fileno(), 65536)
                 if not chunk:
                     raise RuntimeError(f"worker exited before {operation} reply (exit={self.process.poll()})")
+                if self.stdout_sink is not None:
+                    self.stdout_sink.write(chunk)
                 self.buffer += chunk
                 if len(self.buffer) > 4 * MIB:
                     raise ValueError("worker reply exceeded 4MiB")
@@ -420,13 +424,25 @@ class Worker:
 
     def reap(self):
         """Terminate an unfinished owned group and return its actual exit status."""
-        if self.process.poll() is None:
+        # The group can outlive a cleanly exited leader; always stop owned
+        # descendants as well, rather than treating leader exit as containment.
+        leader_exited = self.process.poll() is not None
+        try:
             os.killpg(self.process.pid, signal.SIGTERM)
+            if leader_exited:
+                self.group_cleanup_needed = True
+        except ProcessLookupError:
+            pass
+        if self.process.poll() is None:
             try:
                 self.process.wait(timeout=5)
             except subprocess.TimeoutExpired:
                 os.killpg(self.process.pid, signal.SIGKILL)
                 self.process.wait(timeout=5)
+        try:
+            os.killpg(self.process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
         self.selector.close()
         self.process.stdin.close()
         self.process.stdout.close()
@@ -476,13 +492,14 @@ def run_concurrent_arm(commands, pool_mode, output, limits, *, collect=collect_a
                 raise ValueError("worker command must be an argv array with an absolute executable")
             err = (output / f"{sdk}.stderr").open("wb")
             events = (output / f"{sdk}.jsonl").open("w", buffering=1)
-            files.extend((err, events))
+            stdout = (output / f"{sdk}.stdout").open("wb", buffering=0)
+            files.extend((err, events, stdout))
             env = dict(os.environ, **config.get("environment", {}), FATHOMDB_POOL_MODE=pool_mode,
                        FATHOMDB_POOL_RELEASE_THRESHOLD="0", HF_HUB_OFFLINE="1", TRANSFORMERS_OFFLINE="1")
             dbs = output / f"{sdk}-dbs"
             dbs.mkdir()
             env["FATHOMDB_DB_SCRATCH"] = str(dbs.resolve())
-            worker = Worker(command, config["cwd"], env, err, stop, limits["request_timeout_s"], check)
+            worker = Worker(command, config["cwd"], env, err, stop, limits["request_timeout_s"], check, stdout)
             workers[sdk] = (worker, events)
 
         def one(sdk):
@@ -496,6 +513,7 @@ def run_concurrent_arm(commands, pool_mode, output, limits, *, collect=collect_a
                 nonlocal identity
                 reply = worker.request("snapshot")
                 raw = reply["raw_observation"]
+                emit({"event": "native_observation", "raw_observation": raw})
                 checked = adapt_observation(raw, pool_mode, pid=worker.process.pid, expected=identity)
                 identity = checked["identity"]
                 memory = parse_linux_memory(Path(f"/proc/{worker.process.pid}/status").read_text(),
@@ -523,6 +541,10 @@ def run_concurrent_arm(commands, pool_mode, output, limits, *, collect=collect_a
                 stop.set()
             finally:
                 result["exit_code"] = worker.reap()
+                if worker.group_cleanup_needed and result["aborted"] is None:
+                    result.update(aborted="worker left an owned process group alive", abort_kind="operation_error")
+                    stop.reason = "operation_error"
+                    stop.set()
                 emit({"event": "exit", "exit_code": result["exit_code"], "aborted": result["aborted"]})
                 (output / f"{sdk}.json").write_text(json.dumps(result, allow_nan=False))
             return sdk, result
@@ -577,8 +599,8 @@ def run_lifecycle(command, cwd, environment, case, output):
         if time.monotonic() - started > 120:
             raise TimeoutError("lifecycle child exceeded 120s")
 
-    with (output / "stderr").open("wb") as stderr, (output / "events.jsonl").open("w", buffering=1) as events:
-        worker = Worker(command, cwd, env, stderr, stop, 120, deadline)
+    with (output / "stderr").open("wb") as stderr, (output / "stdout").open("wb", buffering=0) as stdout, (output / "events.jsonl").open("w", buffering=1) as events:
+        worker = Worker(command, cwd, env, stderr, stop, 120, deadline, stdout)
 
         def emit(event):
             events.write(json.dumps(event, allow_nan=False) + "\n")
@@ -635,6 +657,8 @@ def run_lifecycle(command, cwd, environment, case, output):
             return {"case": case, "exit_code": code, "status": "PASS"}
         finally:
             emit({"event": "exit_status", "exit_code": worker.reap()})
+            if worker.group_cleanup_needed:
+                raise RuntimeError("lifecycle child left an owned process group alive")
 
 
 def main() -> int:

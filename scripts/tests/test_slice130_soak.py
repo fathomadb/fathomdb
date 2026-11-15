@@ -105,6 +105,26 @@ class NumericalProtocolTests(unittest.TestCase):
         self.assertEqual(soak.evaluate_pair(arm(), off)["status"], "UNMEASURED")
 
 
+class LinuxMemoryTests(unittest.TestCase):
+    STATUS = "VmRSS: 10 kB\nRssAnon: 6 kB\nRssFile: 3 kB\nRssShmem: 1 kB\nVmSwap: 0 kB\n"
+    MEMINFO = "MemTotal: 100 kB\nMemAvailable: 40 kB\n"
+    VMSTAT = "pswpin 7\npswpout 9\n"
+
+    def test_procfs_kibibytes_convert_to_bytes_and_swap_counts_stay_counts(self):
+        result = soak.parse_linux_memory(self.STATUS, self.MEMINFO, self.VMSTAT)
+        self.assertEqual(result.get("rss_bytes"), 10240)
+        self.assertEqual(result.get("rss_anon_bytes"), 6144)
+        self.assertEqual(result.get("rss_file_bytes"), 3072)
+        self.assertEqual(result.get("rss_shmem_bytes"), 1024)
+        self.assertEqual(result.get("vm_swap_bytes"), 0)
+        self.assertEqual(result.get("mem_available_bytes"), 40960)
+        self.assertEqual((result.get("pswpin"), result.get("pswpout")), (7, 9))
+
+    def test_missing_required_counter_is_unavailable_not_zero(self):
+        with self.assertRaisesRegex(ValueError, "VmSwap"):
+            soak.parse_linux_memory(self.STATUS.replace("VmSwap: 0 kB\n", ""), self.MEMINFO, self.VMSTAT)
+
+
 class SamplerProtocolTests(unittest.TestCase):
     def test_sampler_warms_once_then_records_separate_baseline_and_exact_sixty_samples(self):
         now = [0.0]

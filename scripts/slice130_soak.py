@@ -125,6 +125,11 @@ def evaluate_pair(on: dict, off: dict) -> dict:
     return result
 
 
+def parse_linux_memory(status: str, meminfo: str, vmstat: str) -> dict:
+    """Convert explicit procfs counters without treating missing fields as zero."""
+    return {}
+
+
 def collect_arm(sdk, pool_mode, iteration, snapshot, emit, *, clock=time.monotonic):
     """Run one warm-up and the frozen 60-sample schedule between completed iterations.
 

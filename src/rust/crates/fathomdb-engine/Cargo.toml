@@ -955,3 +955,7 @@ required-features = ["slice30-observer", "test-hooks"]
 [[test]]
 name = "slice30_d_commit"
 required-features = ["slice30-observer", "test-hooks"]
+
+[[test]]
+name = "slice30_d_overlap"
+required-features = ["slice30-observer", "test-hooks"]

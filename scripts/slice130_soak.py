@@ -35,7 +35,7 @@ def _status(failures: list[str], invalid: list[str]) -> str:
     return "FAIL" if failures else "UNMEASURED" if invalid else "PASS"
 
 
-def _counter_failure(point: dict, pool_mode: str) -> str | None:
+def _counter_failure(point: dict, pool_mode: str | None) -> str | None:
     status = point.get("counter_status")
     if pool_mode == "on" and (status != "ok" or any(not _number(point.get(f)) or point[f] < 0 for f in ("private_reserved_bytes", "private_used_bytes"))):
         return f"private counter unavailable or read failed: {status}"
@@ -187,7 +187,9 @@ def collect_arm(sdk, pool_mode, iteration, snapshot, emit, *, clock=time.monoton
     emit must stream each event to retained JSONL (including every latency/output
     record); this loop retains only baseline plus 60 snapshots. Neither callable
     may manufacture completion through extra forward/trim/synchronize/GC work.
-    Exceptions, mismatches and late snapshots stop immediately with raw events.
+    Exceptions, mismatches, failed checked counters and late snapshots stop
+    immediately with raw events. A snapshot with no checked adapter is diagnostic
+    only and cannot pass evaluate_arm; this loop does not invent a D interface.
     The caller closes real SDK resources; a reaping supervisor must attach the
     actual exit_code afterward. This function never claims successful process exit.
     """
@@ -219,8 +221,21 @@ def collect_arm(sdk, pool_mode, iteration, snapshot, emit, *, clock=time.monoton
             emit({"event": "baseline" if k == 0 else "sample", "point": point})
             return point
 
+        def stop_for_counter_failure(point):
+            if "counter_status" not in point:
+                return False
+            failure = _counter_failure(point, pool_mode)
+            if failure is None:
+                return False
+            result["aborted"] = failure
+            result["abort_kind"] = "counter_error"
+            emit({"event": "error", "phase": phase, "type": "counter_error", "message": failure})
+            return True
+
         phase = "baseline"
         result["baseline"] = capture(0)
+        if stop_for_counter_failure(result["baseline"]):
+            return result
         if result["baseline"]["elapsed_s"] > DEADLINE_TOLERANCE_SECONDS:
             result["aborted"] = "baseline deadline exceeded"
             result["abort_kind"] = "deadline"
@@ -242,6 +257,8 @@ def collect_arm(sdk, pool_mode, iteration, snapshot, emit, *, clock=time.monoton
             phase = "sample"
             point = capture(k)
             result["samples"].append(point)
+            if stop_for_counter_failure(point):
+                break
             if point["elapsed_s"] > k * SAMPLE_SECONDS + DEADLINE_TOLERANCE_SECONDS:
                 result["aborted"] = f"sample {k} deadline exceeded"
                 result["abort_kind"] = "deadline"

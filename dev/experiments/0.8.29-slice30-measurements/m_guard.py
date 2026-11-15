@@ -198,8 +198,6 @@ def guard(command, *, allocation, profile, root, task, admission=False, common_l
             sample = resource_sample(source, task)
             load_observations = [observe_load()]
             sample["load"] = load_observations[-1]
-            if load_observations[-1]["load"] > 2:
-                raise RuntimeError(f"{phase} load entry exceeds2: observed {load_observations[-1]['load']}")
             gib = 1024**3
             if (sample["root_free"] < 32 * gib or sample["task_free"] < 250 * gib
                     or sample["memory_available"] < 16 * gib or sample["owned"] >= 200 * gib

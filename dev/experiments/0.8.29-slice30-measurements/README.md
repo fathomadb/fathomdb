@@ -115,7 +115,7 @@ hits. This is match/cost characterization, not relevance gold. Snapshot authorit
 is explicitly unavailable; write receipts do not prove search-snapshot reuse.
 OS cache is uncontrolled, so fresh-engine/process calls are not cold-disk claims.
 
-One lock, start load<=2, noisy flag>2.5,900s cells, cumulative4h and16GiB
+One lock, descriptive CPU load with noisy flag>2.5,900s cells, cumulative4h and16GiB
 measurement output cap apply with the reviewed outer owned resource guard.
 No compilation/concurrent owned campaign is allowed in the timing window.
 Source, failed attempts, skips and outliers remain explicit. Whole30, fidelity,
@@ -579,9 +579,14 @@ first/warmup/timed windows.
 
 Registered queries are JSONL strings, decoded before both loop and lifecycle
 submission; quotes, escapes, Unicode and original query indices are preserved.
-[m_load.py](m_load.py) observes actual one-minute host load. Guardian/cell entry
-requires load<=2; observed runtime load>2.5 marks noisy without discarding
-results, changing ceilings or correcting latency. Cell monitor observations,
-search-phase boundary observations and completed guardian-phase facts remain
-in their respective raw outcomes/reports. The live control executor also needs
-the inherited quiet-entry condition; missing observations are never zero load.
+[m_load.py](m_load.py) observes actual one-minute host load. Under the owner's
+November15 shared-environment ruling in the
+[protocol](../../plans/0.8.29/features/slice-30/preregistration.md#statistics-noise-and-attribution),
+CPU load is descriptive across P/G/D/M: busy entry proceeds without a CPU-load
+wait, refusal or disqualification. Observed load>2.5 still marks noisy without
+discarding results, changing ceilings or correcting latency. Cell monitor
+observations, calibration authorization observations, search-phase boundaries
+and completed guardian-phase facts remain in their raw outcomes/reports.
+Missing observations are never zero load. Resource floors, time/growth caps,
+owned containment, exclusive GPU locks and GPU noninterference remain enforced.
+

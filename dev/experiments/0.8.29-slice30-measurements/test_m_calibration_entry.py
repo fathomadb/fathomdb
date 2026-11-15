@@ -78,7 +78,7 @@ class CalibrationEntryTests(unittest.TestCase):
                     "status": "complete", "cleanup_uncertain": False, "live_owned_pids": []}
 
         with patch("m_runtime.prepare") as prepared, patch("m_calibration.run_attempt", attempt, create=True), \
-                patch("m_calibration.observe_load", return_value={"load": 0.0}, create=True):
+                patch("m_calibration.observe_load", return_value={"load": 99.0}, create=True):
             result = control(self.root, budget["m_guardian"], manifest)
         self.assertIsInstance(result, dict, "selected calibration controller did not execute")
         self.assertTrue(result["complete"])

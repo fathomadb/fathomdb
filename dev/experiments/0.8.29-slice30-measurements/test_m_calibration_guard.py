@@ -56,7 +56,9 @@ class CalibrationGuardianTests(unittest.TestCase):
             profile=self.profile, root=self.root / name, task=self.root, calibration=limits)
 
     def test_preflight_refusal_is_charged_to_shared_and_calibration_allowance(self):
-        with patch("m_guard.observe_load", return_value={"load": 3.0}):
+        with patch("m_guard.resource_sample", return_value={
+                "root_free": 0, "task_free": 1000 * 1024**3,
+                "memory_available": 100 * 1024**3, "owned": 0}):
             try:
                 self.run_child("raise AssertionError('must not start')", "refused")
             except RuntimeError:
@@ -66,6 +68,23 @@ class CalibrationGuardianTests(unittest.TestCase):
         self.assertEqual(value["calibration_usage"][CALIBRATION_ID]["wall_ns"], value["used_ns"]-123)
         self.assertGreater(value["calibration_usage"][CALIBRATION_ID]["new_retained_bytes"], 0)
         self.assertIsNone(value["m_guardian"])
+
+    def test_busy_host_admits_d_and_m_guarded_children_and_retains_observations(self):
+        for phase, calibration in (("M", LIMITS), ("M", None), ("D", None)):
+            with self.subTest(phase=phase, calibration=calibration):
+                profile = dict(self.profile, schema=f"slice30-{phase.lower()}-budget/v1")
+                root = self.root / f"busy-{phase}-{calibration is not None}"
+                marker = root / "started"
+                child = f"import pathlib;pathlib.Path({str(marker)!r}).write_text('yes')"
+                with patch("m_guard.observe_load", return_value={"load": 99.0}):
+                    result = guard([sys.executable, "-c", child], allocation=self.root,
+                        profile=profile, root=root, task=self.root, phase=phase, calibration=calibration)
+                self.assertTrue(marker.exists(), result)
+                self.assertEqual(result["exit"], 0)
+                self.assertEqual(result["load"]["max_load"], 99.0)
+                self.assertTrue(result["load"]["noisy"])
+                self.assertTrue(all(row["load"]["load"] == 99.0 for row in result["resources"]))
+                self.assertFalse(result["cleanup_uncertain"])
 
     def test_headroom_refusal_preserves_g_d_fields_and_charges_the_same_cumulative_allowance(self):
         value = json.loads(self.ledger.read_text())

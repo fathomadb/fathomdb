@@ -60,7 +60,8 @@ refusal are selected. Policy and precise feedback attribution are revisited
 in [.30](0.8.30/release-followups.md); actual child-context reset execution is
 held until then. New CUDA13 delivery/compiler resolution and quantitative tests
 belong in [.31](0.8.31/cuda-delivery-plan.md). Seq381 explicitly includes130A's
-CUDA13 Tegra qualification in that move; existing CUDA12.6 and130B–E stay in.29.
+CUDA13 Tegra qualification in that move; existing CUDA12.6 D/E stay in.29. Owner seq-387 excludes unqualified
+non-Tegra ARM+GPU B/C from known-working environments and all .29 gates.
 The bounded current usage review is
 accepted with its unknowns and importance ratings unchanged. No deferred runtime
 cell is described as passing or a new support claim. The source/consumer identity
@@ -156,7 +157,7 @@ new initial features receive mod10 numbers and explicit placement.
 | 100 | Reconcile and complete bounded interruption/reopen qualification of current erasure transaction/checkpoint seams | Current format37 cleanup/maintenance contract; existing coverage comparison | [Interruption](0.8.29/features/slice-100/plan.md) |
 | 110 | Selected quiescent context-loss lifetime remedy and source/seam qualification; actual reset tests deferred to .30 | Seq376 policy and seq377 execution disposition; qualified required fork fix before pins | [Reset safety](0.8.29/features/slice-110/plan.md) |
 | 120 | Bounded usage review accepted; new CUDA13 delivery/compiler work deferred to .31 | Seq378–379; no .29 new-artifact or compiler-clearance claim | [CUDA artifact disposition](0.8.29/features/slice-120/plan.md) |
-| 130 | Existing CUDA12.6 platform/SDK B–E qualification; CUDA13 Tegra A moves to .31 | Approved B–E venues, artifact/pins under test, reviewed observations/hypotheses; seq381 excludes A from .29 | [CUDA qualification](0.8.29/features/slice-130/plan.md) |
+| 130 | Existing CUDA12.6 local platform/SDK D/E qualification; CUDA13 Tegra A moves to .31 | Selected D/E local venues/artifacts/pins and reviewed lifecycle/soak; seq381 excludes A and seq387 excludes non-Tegra ARM+GPU B/C from .29 | [CUDA qualification](0.8.29/features/slice-130/plan.md) |
 | 140 | Required fork repairs only (A); versioning only when needed to release those repairs | Concrete approved110 or existing .29 artifact repair; fork-local qualification before pins; new CUDA13 work is .31 and B/C maintenance is .30 | [Required fork repairs](0.8.29/features/slice-140/plan.md) |
 | 150 | Conditional candidate selection, coalescing and SDK hints experiments | Explicit 9 experiment decisions, preregistration and current native-eligibility baseline; separate product promotion approval | [Experiments](0.8.29/features/slice-150/plan.md) |
 | 160 | Combined qualification, release notes/docs and publication readiness | All selected work complete/qualified or explicitly disposed; unresolved mandatory items block close | [Close](0.8.29/features/slice-160/plan.md) |
@@ -385,7 +386,7 @@ checklist, receipt or status authority; live results remain in release state.
 |40 conditional optimization | Finish the decision for both eligibility and batch opportunities, then only justified safe treatments. | Actual affected write baseline and exact snapshot/invalidation/paired benefit proof for adoption, or actual authorized rejection/defer. No speculative prototype or whole30 wait. |
 |50 search | Complete current paired identity/text/snippet performance qualification of implemented search. | Actual source-bound baseline/candidate and equivalent workload/native inputs; no private Memex snapshot gate. |
 |140 and110 CUDA repairs | Qualify the actual Candle private F32 helper, adopt the coherent qualified fork revisions, complete product tracked-admission/mapping integration. | Cudarc's selected312 CPU controls/Astra result is reused. Prepare110 API migration/design/tests now against the exact available interfaces; consumption/final product proof waits for required Candle qualification and reviewed exact-rev route, not a new repair-selection packet. |
-|130 B–E | Complete the reviewed characterization/lifecycle/soak tools and available-platform cells; resolve exact g5g access/caps for affected cells. | Independent source preparation now; actual final affected pins/artifacts and permitted exclusive venue at execution. No CUDA13/Tegra-A or real-reset gate in.29. |
+|130 D/E | Complete the reviewed local lifecycle/counter/soak qualification. Non-Tegra ARM+GPU B/C is excluded by seq387. | Independent source preparation now; actual final affected pins/artifacts and permitted exclusive venue at execution. No CUDA13/Tegra-A or real-reset gate in.29. |
 |90 Block2 | Prepare current conformance triage and exact accepted80 residual mapping, then run Block1 exit and implement residuals. | Actual selected20–70 exits/dispositions, Block1 checks/both-format conformance and approved LoCoMo smoke/item4 remeasure remain hard before90 source entry.80's owner-approved contract is retained. |
 |160 local close | Prepare required local consumer/package/long-test coverage using the existing qualification matrix, then fill only missing or invalidated rows on the assembled candidate. | Final affected source/artifacts for claims, not all predecessor closures for preparation. Every locally runnable mandatory row remains required; CI/publication-only rows remain named outstanding. |
 
@@ -394,7 +395,7 @@ Selected100/D28-09 is complete after independently accepted seq386 process-inter
 The delivery spine is remaining30/20/50 and the conditional40 decision → real
 Block1 exit →90 → affected combined160 qualification.140→110→130 runs
 alongside it and join160 at their actual exits. Resolve the Block1 model/prompt/
-budget/fixture input and130 venue/caps while independent source work proceeds;
+budget/fixture input and130 local D/E readiness while independent source work proceeds;
 no spend or execution is inferred.150 has no selected study, so it adds no work,
 review or completion dependency; preserve its unselected inventory without a new
 owner-deferral request.120, real resets and fork B/C keep their recorded future

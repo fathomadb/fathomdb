@@ -6,11 +6,11 @@ The bounded design has independent Astra-medium PASS in [review log](review-log.
 execution dependencies and meaningful oracles. Earlier Phase A/FIX1/10-pending
 narratives are superseded, not another preparation or documentary-validation gate.
 
-B–E remain .29 work. Source/harness preparation can proceed in parallel with
+Only D/E remain .29 work under owner seq-387. B/C are unqualified and outside
+.29; they are not known-working environments and have no assigned future release. Source/harness preparation can proceed in parallel with
 110/140; final affected artifact/pin identities still gate final campaign claims.
-B/C need actual approved g5g access/session/caps and compatible consumers. D/E
-need the reviewed protocol and permitted Orin reservation; they do not wait for
-CUDA13, g5g availability or whole140 closure merely to prepare source/tools.
+D/E need the reviewed protocol and permitted Orin reservation; they do not wait for
+CUDA13, non-Tegra ARM+GPU availability or whole140 closure merely to prepare source/tools.
 E keeps its exact instrumented-counterpart pair, shipping lifecycle/witness and
 build-equivalence requirements. A shipping numerical plateau is not inferred.
 

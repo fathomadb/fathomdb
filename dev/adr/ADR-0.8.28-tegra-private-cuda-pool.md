@@ -279,8 +279,10 @@ Q9, Q17, Q18, Q21).
     release may retire it (owner ruling Q37; Slice 31 design § 14.3). On an
     aarch64 Linux host that is not a Jetson, a source-built Python
     extension therefore runs `cuInit` at import, with hazard H-1, as Node
-    already does; this is documented as-is (owner ruling Q38, 0.8.29 todo
-    `TC-4755a9d9`).
+    already does; this is documented as-is (owner ruling Q38,
+    `TC-4755a9d9`). Its earlier 0.8.29 allocation is superseded by owner
+    seq-387: non-Tegra ARM+GPU remains unqualified and outside .29 gates.
+    The existing initialization behavior is unchanged.
 
 **Superseded statements in this ADR.**
 

@@ -108,6 +108,11 @@ for the SHA-256 check and the `package.json` form.
 Platforms outside these five native targets are unsupported for the generic
 Python and npm native packages in this release.
 
+Non-Tegra ARM hosts with NVIDIA GPUs are not in the known-working CUDA
+environment set. This configuration is unqualified and is excluded from the
+0.8.29 release qualification scope. Generic AArch64 CPU support and the separately
+qualified classic Jetson route keep their existing scope.
+
 ## SQLite + sqlite-vec
 
 - Engine uses SQLite **FTS5** + the

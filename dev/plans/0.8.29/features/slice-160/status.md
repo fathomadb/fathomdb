@@ -9,7 +9,7 @@ target_release: 0.8.29
 [Active owner dispositions](requirements.md#owner-dispositions) select .29
 identity/atomic-feedback/source-seam work, hold real resets to .30 and move new
 x86 CUDA13 delivery/quantitative evidence to .31. Seq-381 additionally moves Tegra CUDA13
-130A to .31;130B–E and existing CUDA12.6/platform/artifact obligations remain .29; deferral is not qualification.
+130A to .31;130D/E and existing CUDA12.6/platform/artifact obligations remain .29; deferral is not qualification. Owner seq-387 excludes non-Tegra ARM+GPU B/C from every .29 gate and known-working environment claim.
 
 **Proposal prepared; design review pending. No160 source or runtime qualification.**
 Own candidate root is `/tmp/fathomdb-0829-direct/slice-160/phase-a`.

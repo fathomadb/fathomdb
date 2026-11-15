@@ -21,8 +21,9 @@ unqualified. Seq-378 moves new x86 CUDA13 delivery/compiler work to
 [.31](../../../0.8.31/cuda-delivery-plan.md); seq-379 accepts bounded quantitative
 unknowns/current ratings, with tests/evidence in .31. These are explicit scope
 dispositions, not PASS or shipped behavior. Seq-381 additionally moves Tegra CUDA13
-130A to .31;130B–E and current CUDA12.6/platform/artifact/consumer obligations
-remain .29; no mandatory .29 live-reset or new
+130A to .31;130D/E and current CUDA12.6/platform/artifact/consumer obligations
+remain .29. Owner seq-387 excludes non-Tegra ARM+GPU B/C from every .29 gate
+and known-working environment claim; no mandatory .29 live-reset or new
 x86 CUDA13 artifact gate survives these dispositions.
 
 The [master release needs](../../../plan-0.8.29.md#draft-release-needs-requirements-and-acceptance-allocation),

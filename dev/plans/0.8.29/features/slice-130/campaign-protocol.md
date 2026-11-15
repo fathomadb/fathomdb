@@ -1,7 +1,9 @@
 # Slice 130 preregistration proposal
 
 [Active owner dispositions](plan.md#phase-a-scope): seq-381 moves Tegra CUDA13
-unit A to .31; B–E and existing CUDA12.6 obligations remain .29;
+unit A to .31; D/E and existing CUDA12.6 obligations remain .29. Owner seq-387
+excludes unavailable non-Tegra ARM+GPU B/C from known-working environments and
+every .29 release gate; they remain unqualified with no future release assigned;
 new x86 CUDA13 delivery/compiler work is .31 and real110 resets are HELD .30.
 References to120 artifacts below mean applicable independently selected artifacts,
 not a mandatory new x86 package or blanket120 dependency.
@@ -25,10 +27,9 @@ duplicated hardening service. Preserve raw stdout/stderr/exit and refusals.
 
 | Venue | Existing authority / exact remaining gate |
 | --- | --- |
-| Existing Orin12.6 for D/E and C regression | No reflash/install/global modification. Confirm access, existing stack/model/artifacts, approved reserved window and actual task resource/lock reservation before running. Current readiness unknown. |
+| Existing Orin12.6 for D/E | No reflash/install/global modification. Confirm access, existing stack/model/artifacts, approved reserved window and actual task resource/lock reservation before running. Current readiness unknown. |
 | CloudJetson Tegra13 for A — future .31 under seq-381 | Previously directed conditional venue; require vendor vetting for actual JetPack7.2/root/data handling, actual device/stack/loader route, accessible session, written numeric quote/cap/duration/data scope and owner session authorization. No marketing-to-support inference. |
-| AWS g5g for B/C | Previously assigned generic ARM qualification; require account/access/region/capacity, exact compatible target/artifact/toolchain and approved numeric session total including storage/transfer/setup. No advertised hourly value is current quote or spend authority. |
-| GCP13 ancillary120 cell | Existing per-session owner approval, maximum2h; SpotT4→on-demandT4→L4 preference retained. No automatic retry/provision/fallback spending or reset permission.130 does not reopen broad venue choice. |
+| GCP13 ancillary120 cell — future .31 | Existing per-session owner approval, maximum2h; SpotT4→on-demandT4→L4 preference retained. No automatic retry/provision/fallback spending or reset permission.130 does not reopen broad venue choice. |
 | windchill3 retained affected x86 controls | Before/after driver branch and primary CUDA symlink guard, approved3090 UUID and lock. R580 forever, primary12.6 unchanged; never K620, host-wide reset, driver install/removal or primary symlink change. |
 
 Parent creates the worktree and grants execution only after actual10 closure,
@@ -37,7 +38,7 @@ selected artifact/policy outcomes.110 owns fault runs; this protocol contains
 no reset operation. Final affected runs require actual selected140 qualified
 repair pins and110/120 integration. Broader .30 fork maintenance is excluded.
 
-## A (future .31) / B (active .29) actual consumer cells
+## A (future .31) / B (unqualified, outside .29 under seq-387) actual consumer cells
 
 One bounded invocation per selected consumer/policy row, not an open-ended matrix.
 Pin explicit device UUID/ordinal and verify actual code-target compatibility;
@@ -61,7 +62,7 @@ Archive inspection and source builds do not substitute for installed artifact
 proof. Unsupported integrated/private-witness or loader combinations stop the
 affected claim before a forced success experiment.
 
-## C preregistered hypothesis cells
+## C future hypothesis cells, outside .29 (seq-387)
 
 On B's actual generic ARM host compare early-init enabled versus exact `off`,
 one fresh process per case: Python import-only then explicit fork; fork with no

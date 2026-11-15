@@ -1,7 +1,9 @@
 # Slice 130 design and current-source census
 
 [Active owner dispositions](plan.md#phase-a-scope): seq-381 moves Tegra CUDA13
-unit A to .31; B–E and existing CUDA12.6 obligations remain .29;
+unit A to .31; D/E and existing CUDA12.6 obligations remain .29. Owner seq-387
+excludes unavailable non-Tegra ARM+GPU B/C from known-working environments and
+every .29 release gate; they remain unqualified with no future release assigned;
 new x86 CUDA13 delivery/compiler work is .31 and real110 resets are HELD .30.
 References to120 artifacts below mean applicable independently selected artifacts,
 not a mandatory new x86 package or blanket120 dependency.
@@ -45,7 +47,7 @@ Source paths in this table are beneath `src/rust/crates/fathomdb-` for named
 crates, `src/python/tests/` for Python tests and `scripts/` for release scripts;
 the [test map](test-map.md) provides direct links.
 
-## A (future .31) / B (active .29): platform and installed-consumer architecture
+## A (future .31) / B (unqualified, outside .29 under seq-387): platform and installed-consumer architecture
 
 Use existing install/lifecycle/witness primitives and actual selected applicable artifact
 identities; retain true driverless ARM control. Record source-built SDK binaries
@@ -63,7 +65,7 @@ no new vendor assertion, Thor support, private-pool admission or local reflash
 is inferred. Existing class gating applies; an integrated device without actual
 private allocator cannot satisfy v2 allocation proof by switching to shared UMA.
 
-## C: bounded non-Tegra initialization study
+## C: unqualified non-Tegra initialization study, outside .29 (seq-387)
 
 Hypothesis: generic discrete ARM can initialize at the first actual CUDA probe
 without the Orin/V8 address-space hazard; removing import-only initialization

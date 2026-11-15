@@ -318,6 +318,8 @@ this path. Results are correct either way.
 These measurements come from one Jetson AGX Orin 64 GB (L4T R36, CUDA 12.6).
 Other Jetson models are unmeasured. So are non-Tegra AArch64 Linux CUDA hosts
 such as Grace Hopper, GB10 and SBSA servers, which also build this behaviour.
+These non-Tegra ARM+GPU configurations are not known-working CUDA environments
+and are excluded from 0.8.29 qualification; no GPU support claim is implied.
 
 ### Jetson: private CUDA memory pool
 

@@ -173,13 +173,13 @@ retain their own gates. Deferred .30 maintenance cannot block .29 close.
 | --- | --- | --- |
 | `TC-a5afe8b8` CUDA 13.0 artifact | Library/build qualification exists; product delivery does not | Dedicated artifact slice: names, selection, Python/Node distribution, toolkit/library/driver contracts and installed consumers; retain 12.6 |
 | `TC-b267d940` Tegra CUDA 13 Q5 | Unmeasured | Approved venue/access and qualification before Orin CUDA 13 claims; no implicit reflash |
-| `TC-ff476f59` non-Tegra aarch64 | AWS g5g work outstanding; x86 GCP cells do not discharge it | Host qualification before architecture promises or non-Tegra initialization claims |
+| `TC-ff476f59` non-Tegra ARM+GPU | Excluded from .29 and known-working environments by owner seq-387 | Unqualified; no .29 gate or future release assigned |
 | `TC-509dc8a6` Candle rebase | Fork version 0.11.0 is not upstream base 0.11.x; .28 retained upstream 0.10.2 | Owner seq-367: .30; not a .29 prerequisite. Qualify the selected .30 base and pin migration there. |
 | `TC-323f15b0` multi-architecture kernels | x86 contract still compute 7.5 | Owner seq-367: .30; native/PTX selection, dtype/MoE coverage and measured build/size/startup tradeoffs. |
 | `TC-daa1985b` cudarc FT-1 versioning | Required before another code release | .29 only when needed to release an A repair; otherwise retain current pins. |
 | `TC-93d11583` cudarc FT-2 marker cleanup | Unused marker retained today | Owner seq-367: .30; no marker removal in .29. |
 | `TC-ad1f7d4f` UUID GPU selector | Feature-complete harness still selects ordinals | Bounded harness preparation before new CUDA campaigns; approved 3090s, never K620 |
-| `TC-4755a9d9` non-Tegra early init | Hypothesis needing design/testing | Host evidence and fork/V8 hazard review; preserve proven Orin behavior |
+| `TC-4755a9d9` non-Tegra early init | Outside .29 under owner seq-387 | Unqualified future hypothesis, not a .29 requirement; preserve proven Orin behavior |
 | `TC-8278f17d` SDK pool-release proof | Embedder proof exists, SDK proof separate | Rust/Python/Node test-only observations on Orin; reserved counters differ from allocation witness USED accounting |
 | `TC-84f7f62d` soak criterion | Old soak accepted as measured; revised criterion unbuilt | Specify plateau/control comparison and isolate sampler churn before new soak; preserve failures |
 | `TC-281155a1` reset survival | Detection mature, teardown safety unresolved | 110: reviewed lifetime/ownership design, permitted GPU subprocess fault, close/drop/exit proof |

@@ -79,6 +79,87 @@ unchanged. .30 reviews precise per-result feedback through richer occurrence
 labels. No new public field/ABI is selected. Parent coordinates the adapter seam
 with60/80 and reruns both-format parity on the integrated identity build.
 
+## Integrated implementation seams (November14 source entry)
+
+Reconciled against integrated source `e1cb1bd5311f68da8be98bbe133b9cecd5ab56d4`.
+The existing `fusion.rs` exports bare-SearchHit `fuse_rrf`/`fuse_three_arms`;
+`search.rs` still uses body-keyed explanations and graph exclusions, and
+`snippet_query.rs::FtsRows` is cursor-keyed. None supplies the selected ownership
+carrier. The current MCP feedback implementation remains at `tools.rs::feedback`:
+label resolution precedes acquisition, and response refs retain only one cursor.
+The integrated60/70 changes alter presentation/degradation, not these identity
+seams. No runtime population or performance result follows from this source read.
+
+The implementation proposal changes the two doc-hidden exported fusion helpers
+instead of inferring ownership from SearchHit or retaining a bare-hit adapter:
+
+- Add doc-hidden `FusionOwnership::{CanonicalNode, CanonicalEdge,
+  OwnerlessNodeFts { rowid: i64 }}` and `FusionHit { hit: SearchHit,
+  ownership: FusionOwnership }` in `fusion.rs`, exported by `lib.rs`.
+  Canonical record keys derive their cursor from the enclosed hit; ownerless
+  keys use the explicit FTS rowid. The carrier does not alter SearchHit or its
+  serialization, public IdSpace, provider identity or stable-reference ABI.
+- `fuse_rrf(Vec<FusionHit>, Vec<FusionHit>)` and `fuse_three_arms` with three
+  such arms return `Result<Vec<FusionHit>, EngineError>`. Callers must supply
+  ownership explicitly. Conflicting bodies for one key refuse through
+  existing `EngineError::InvalidArgument`; no new error kind or body salvage.
+  Kind/source are representative-owned arm fields: vector edges intentionally
+  use kind=edge_fact while text edges keep the stored kind, and graph-only
+  nodes retain winning-edge provenance. Do not reject those existing differences.
+  Stage the accepted record-identity successors of intentional body-dedup tests
+  before GREEN: same-record repeats reuse their cursor; distinct-body twins
+  retain separate cursors; the independent property reference credits records.
+  Preserve manual RRF/tie values and unrelated tokenizer/injection assertions.
+  Only helper construction/signatures migrate mechanically with GREEN, without
+  changing the staged selected-record oracles. API migration is not a RED. Update `dev/interfaces/rust.md` with this public signature
+  delta in the same implementation commit; no old-signature compatibility shim.
+- Production creates the carrier at canonical vector hydration, node-FTS
+  owner-presence LEFT JOIN, canonical edge-FTS join, and graph node resolution.
+  Preserve actual node/edge FTS rowids alongside keys. Ownerless is selected by
+  absent canonical-node owner, never by absent logical_id/source_id, Text branch
+  or matching body. Validate joined owner body/kind against the FTS row when
+  hydrated; conflicts propagate through the current SQLite/Engine failure path.
+  A canonical-owner presence flag is selected even on deferred-identity routes.
+- Keep the carrier through both actual graph fusion stages, recency, importance,
+  CE and final selection. Factor the existing reweight/rerank arithmetic over a
+  private hit-access trait implemented by SearchHit and FusionHit; unchanged
+  standalone public reweight/rerank entry points delegate that same arithmetic.
+  CE clones/sorts complete carriers so rank position remains attached to the key;
+  no body/cursor reconstruction map and no second ranking algorithm.
+- Explanations, graph exclusion and FTS locator maps use the selected key.
+  Canonical-only weight/graph-origin lookups are gated by explicit ownership;
+  an ownerless FTS cursor cannot borrow an edge/node weight or graph origin.
+  `SearchOriginCapture::finish` receives final carriers and passes explicit
+  ownership positionally into `evidence::build_search_result`; that builder no
+  longer derives artifact class from branch. Preserve existing ownerless
+  explanation failure (missing canonical lifecycle row) and evidence-unavailable
+  behavior rather than invent an Unknown lifecycle or lend a colliding edge's
+  EdgeValid state. Strip the carrier at the existing SearchResult boundary after
+  key-bound explanation/snippet/evidence selection. Preserve positional sidecars.
+
+The first staged fixture uses the unchanged Engine search API against a real
+SQLite store, so it can fail semantically on the baseline before these helper
+symbols exist. It pins equal-body governed, anonymous/governed, historical,
+node/edge and stored tagged twins with exact cursors/source/score/coordinates.
+It is staged preparation only until a leased runtime run observes its failure.
+The helper API migration is part of identity GREEN, with independent manual
+rank/repeat/tie controls staged before that change. Explanation and graph cases
+must also be staged before shared identity GREEN if the carrier fixes them
+atomically; already-fixed cases are controls, not later claimed REDs.
+
+Feedback is a separate behavior unit: bounded Unique(cursor)/Ambiguous insertion
+when constructing each response, then complete named-set ambiguity validation
+after successful acquisition and final epoch check, before cursor resolution or
+bridge/write. Test its real repeated-ref case independently of equal-body fusion
+using existing different-body node/edge refs. Existing hooks may pause the
+acquisition seam for precedence tests; no model or fusion change is needed.
+
+Lightweight hydration and snippet prefix specialization remain separate RED/GREEN
+units after identity/reference. Before either optimization, derive its allocation
+bound from actual candidate constants, pair the complete control on the same
+input, and witness allocation/work independently of latency. No admission widening,
+early-stop algorithm, measurements or source baseline clearance is inferred here.
+
 ## Context packing and role-tagged stored bodies
 
 Preserve context_item_from_hit's prefixed public ID and stored-body decoding,

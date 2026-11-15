@@ -1377,6 +1377,53 @@ fn two_concurrent_detections_write_one_snapshot_and_both_are_typed() {
 }
 
 #[test]
+fn concurrent_detections_return_the_published_loss_and_keep_each_operation() {
+    let driver = FakeDriver { current_id: Some(Ok(2000)), ..FakeDriver::default() };
+    let cell = private_cell(&driver);
+    let barrier = Barrier::new(2);
+    let candidates = [("candidate A", "forward"), ("candidate B", "batch forward")];
+    let results = std::thread::scope(|scope| {
+        let handles: Vec<_> = candidates
+            .iter()
+            .map(|&(error, operation)| {
+                let driver = &driver;
+                let cell = &cell;
+                let barrier = &barrier;
+                scope.spawn(move || {
+                    let fault = ForwardFault {
+                        ordinal: 0,
+                        cuda: true,
+                        code: Some(CUDA_ERROR_CONTEXT_IS_DESTROYED),
+                        error: error.to_owned(),
+                    };
+                    barrier.wait();
+                    lost(classify_forward_fault(cell.get(), driver, fault, operation))
+                })
+            })
+            .collect();
+        handles.into_iter().map(|handle| handle.join().expect("publisher")).collect::<Vec<_>>()
+    });
+
+    assert_eq!((results[0].0, results[0].1), (1000, Some(2000)));
+    assert_eq!((results[1].0, results[1].1), (results[0].0, results[0].1));
+    assert_eq!(results[0].2, results[1].2, "all callers observe the winning loss");
+    assert_eq!(results[0].3, "forward");
+    assert_eq!(results[1].3, "batch forward");
+
+    let winner_operation = candidates
+        .iter()
+        .find_map(|&(error, operation)| (results[0].2 == error).then_some(operation))
+        .expect("one of the supplied observations wins");
+    let snapshots = driver.snapshots.lock().expect("snapshots");
+    assert_eq!(snapshots.len(), 1);
+    let snapshot = &snapshots[0];
+    assert!(snapshot.contains(r#""recorded_context_id":1000"#), "{snapshot}");
+    assert!(snapshot.contains(r#""current_context_id":2000"#), "{snapshot}");
+    assert!(snapshot.contains(&format!(r#""driver_error":"{}""#, results[0].2)), "{snapshot}");
+    assert!(snapshot.contains(&format!(r#""operation":"{winner_operation}""#)), "{snapshot}");
+}
+
+#[test]
 fn cuda_libraries_are_read_from_proc_maps_once_each_in_order() {
     let maps = "\
 aaaa-bbbb r-xp 00000000 103:02 1 /usr/lib/aarch64-linux-gnu/nvidia/libcuda.so.1.1

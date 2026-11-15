@@ -13,7 +13,7 @@
     "guest-stage.ps1": "bde0e99882c39c29564ba3e31f0bcec6bfbe18c1ad20fffe5a0c14f5ddd68fdc",
     "launch-stage.ps1": "14e758c77975db28e51458abf1cfc419404765e1204a2d85c4dba139f56e561f",
     "launch-supervisor.ps1": "01640d203df5a5dfc0421502350832026b16c64945fdc9818ea49c82f049c76a",
-    "native-bootstrap.ps1": "66283069adf15bf32d5a3de707aab889a39348ade28d42b7aa9ed2b7304fa14b",
+    "native-bootstrap.ps1": "ea9e895b95d0b9542a0ccdf0d7c66e4cafd129bf7927ea5d538b292764d124e0",
     "parse-package.ps1": "3754f1437bcd0df6e114eb17447210f1a2b7fc5c923ea0ed79409c6f16a7b2a9",
     "probe.ps1": "15f5b19dfa6658b249c970bd94587924bfc54d734184329bc6e1a4c356e909f5",
     "receive.ps1": "06bd9d8004dd86351f10a90791797e2a1a81e4f0f5608753d67e82ab5b2e91a0",

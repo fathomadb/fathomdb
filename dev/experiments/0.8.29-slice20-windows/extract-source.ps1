@@ -9,7 +9,7 @@ foreach($entry in $config.packageFiles.PSObject.Properties){if($entry.Name -cnot
 Assert-A6Identity $config;Assert-A6Start $config|Out-Null
 $archive=Assert-A6Path $config.sourceArchive $config.root
 $destination=Assert-A6Path $config.workspace $config.root
-if($destination -cne ($config.root+'\source\'+$config.candidateSha) -or (Test-Path -LiteralPath $destination)){throw 'source destination occupied or unallocated'}
+if($destination -cne ($config.root+'\source\'+$config.candidateSha) -or ((Test-Path -LiteralPath $destination) -and $config.resumeSource -ne $true)){throw 'source destination occupied or unallocated'}
 . ([ScriptBlock]::Create([IO.File]::ReadAllText((Join-Path $package 'native-bootstrap.ps1'),[Text.Encoding]::UTF8)))
 $stageMonitor=New-A6StageMonitor $config $Control
 $state=$stageMonitor.State
@@ -34,6 +34,7 @@ $seen=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnore
     $expected=$config.sourceFiles.PSObject.Properties[$name];if(-not $expected){throw 'unexpected source entry'}
     $path=Assert-A6Path (Join-Path $destination $name.Replace('/','\')) $config.root
     [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($path))|Out-Null
+    if(Test-Path -LiteralPath $path){if($config.resumeSource -ne $true -or (Get-A6Hash $path) -cne $expected.Value){throw 'existing frozen source differs'};Assert-A6StageActivation $stageMonitor;$count++;continue}
     $inputEntry=$entry.Open();$output=[IO.File]::Open($path,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
     try{
         $buffer=[byte[]]::new(65536)
@@ -44,6 +45,7 @@ $seen=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnore
     Assert-A6StageActivation $stageMonitor;$count++
  }
  if($count -ne @($config.sourceFiles.PSObject.Properties).Count){throw 'missing source entries'}
+ if(@([IO.Directory]::EnumerateFiles($destination,'*',[IO.SearchOption]::AllDirectories)).Count -ne $count){throw 'unexpected frozen source file'}
  $completed=$true
 }catch{
  $failure=$_.Exception.ToString()

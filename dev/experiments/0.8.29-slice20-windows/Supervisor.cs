@@ -28,7 +28,7 @@ internal static class Supervisor {
     [DllImport("kernel32.dll")] static extern void ExitProcess(uint code);
     static string S(IDictionary<string,object> d,string key) {object v;if(!d.TryGetValue(key,out v)||!(v is string)||String.IsNullOrEmpty((string)v))throw new InvalidDataException("missing string "+key);return (string)v;}
     static string C(string key) {return S(cfg,key);}
-    static Dictionary<string,object> Read(string path) {return Serializer().Deserialize<Dictionary<string,object>>(File.ReadAllText(path,Encoding.UTF8));}
+    static Dictionary<string,object> Read(string path) {using(FileStream f=new FileStream(path,FileMode.Open,FileAccess.Read,FileShare.ReadWrite|FileShare.Delete))using(StreamReader r=new StreamReader(f,Encoding.UTF8)){return Serializer().Deserialize<Dictionary<string,object>>(r.ReadToEnd());}}
     static string Hash(string path) {using(SHA256 h=SHA256.Create())using(FileStream f=File.OpenRead(path)){return BitConverter.ToString(h.ComputeHash(f)).Replace("-","").ToLowerInvariant();}}
     static string Owned(string path) {string full=Path.GetFullPath(path),root=Path.GetFullPath(C("root")).TrimEnd('\\')+"\\";if(!full.StartsWith(root,StringComparison.OrdinalIgnoreCase))throw new InvalidDataException("path outside owned R root");return full;}
     static void Atomic(string path,object value) {

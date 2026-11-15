@@ -338,6 +338,16 @@ def verify_terminal(session,terminal):
 def source_archive(session):
     a=session.args;sha=a.candidate_sha
     if subprocess.check_output(['git','rev-parse','HEAD'],cwd=a.source,text=True).strip()!=sha or subprocess.check_output(['git','status','--porcelain','--untracked-files=all'],cwd=a.source,text=True):raise ValueError('exact clean source required')
+    if getattr(a,'reuse_source_run',None):
+        previous=Path(a.reuse_source_run)
+        if not previous.is_absolute() or not previous.is_relative_to(TASK/'a6-execution') or previous.name!='run.json':raise ValueError('owned source reuse record required')
+        old=read_json(previous);archive=previous.parent/'source.zip'
+        if old.get('candidateSha')!=sha or old.get('runId')!=previous.parent.name or digest(archive)!=old.get('archiveSha256'):raise ValueError('frozen source reuse identity differs')
+        observed=json.loads(command("$p="+quote(old['sourceArchive'])+";@{sha256=(Get-FileHash -LiteralPath $p -Algorithm SHA256).Hash.ToLowerInvariant();bytes=(Get-Item -LiteralPath $p).Length}|ConvertTo-Json -Compress",timeout=20))
+        if observed['sha256']!=old['archiveSha256'] or observed['bytes']!=archive.stat().st_size:raise ValueError('verified guest source archive differs')
+        session.cfg.update({k:old[k] for k in ['sourceArchive','archiveSha256','workspace','sourceFiles','sourceArchiveExcludedPaths']})
+        session.cfg.update(resumeSource=True,reusedSourceEvidence={'configPath':str(previous),'configSha256':digest(previous),'productSha':sha},controllerSha=subprocess.check_output(['git','rev-parse','HEAD'],cwd=PACKAGE,text=True).strip())
+        session.log('frozen-product-source-reused',{'productSha':sha,'controllerSha':session.cfg['controllerSha'],'archiveSha256':old['archiveSha256']});return
     excluded='dev/plans/0.8.27/features/slice-135/results/2026-10-07-e12-adapter-pilot/'
     raw=session.root/'git-source.zip';archive=session.root/'source.zip'
     subprocess.run(['git','archive','--format=zip','--output',str(raw),sha],cwd=a.source,check=True)
@@ -380,7 +390,7 @@ def verify_readiness(session,ready):
 
 def main():
     p=argparse.ArgumentParser();p.add_argument('stage',choices=['probe','parse','compile','controls','a6','transfer-negative','launch-negative'])
-    p.add_argument('--authority',type=Path,required=True);p.add_argument('--venue',type=Path,required=True);p.add_argument('--candidate-sha',required=True);p.add_argument('--source',type=Path,default=Path('/mnt/data/worktrees/fathomdb-0.8.29-s20-a6-current-20261115'));p.add_argument('--probe',type=Path);p.add_argument('--parse',type=Path);p.add_argument('--binaries',type=Path);p.add_argument('--readiness',type=Path);p.add_argument('--case',choices=CASES+['linger','nonzero-root']);p.add_argument('--stop-mode',choices=['expire','cancel','transport']);p.add_argument('--transfer-fault',choices=['digest','length'])
+    p.add_argument('--authority',type=Path,required=True);p.add_argument('--venue',type=Path,required=True);p.add_argument('--candidate-sha',required=True);p.add_argument('--source',type=Path,default=Path('/mnt/data/worktrees/fathomdb-0.8.29-s20-a6-current-20261115'));p.add_argument('--probe',type=Path);p.add_argument('--parse',type=Path);p.add_argument('--binaries',type=Path);p.add_argument('--readiness',type=Path);p.add_argument('--case',choices=CASES+['linger','nonzero-root']);p.add_argument('--reuse-source-run',type=Path);p.add_argument('--stop-mode',choices=['expire','cancel','transport']);p.add_argument('--transfer-fault',choices=['digest','length'])
     args=p.parse_args();s=Session(args,args.stage);s.identity();s.sample()
     if args.stage=='probe':s.probe();print(s.root);return 0
     s.stage_package()

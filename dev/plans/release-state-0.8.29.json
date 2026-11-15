@@ -1065,8 +1065,9 @@
       "local_exact_lock_proposal": {
         "source": "aff8ba27f9b5833794475dcbddc958993dba3132",
         "review": "Independent Astra-medium design ACCEPT",
-        "status": "PROPOSED_OWNER_ADOPTION_PENDING",
-        "scope": "Local executor replaces hostedCI only; exact product lock/root+dependency+feature comparison and native x86/OrinCPU tests+compile remain. No execution/gatewaiver yet; genuine oldCI preserved."
+        "status": "OWNER_ADOPTED_NATIVE_QUALIFICATION_PENDING",
+        "scope": "Local executor replaces hostedCI only; exact product lock/root+dependency+feature comparison and native x86/OrinCPU tests+compile remain. No execution/gatewaiver yet; genuine oldCI preserved.",
+        "owner_source": "dev/steward/steward-ledger.jsonl seq-389"
       }
     },
     {
@@ -1303,6 +1304,13 @@
         "owner_slice": 90,
         "source": "dev/steward/steward-ledger.jsonl seq-388",
         "scope": "One worker/8turns/180seconds/$0.02 per episode; no model fallback/unknown-outcome retry; final-call billing overshoot disclosed. Required predecessor qualification remains before execution; no inference result claimed."
+      },
+      {
+        "id": "TC-a29fb080-8524-41ec-96bf-bf396e7e2734",
+        "title": "Approve reviewed.29 local exact-lock executor protocol; native x86/Orin CPU qualification retained.",
+        "owner_slice": 140,
+        "source": "dev/steward/steward-ledger.jsonl seq-389",
+        "scope": "Executor replacement only;2GiB/CPU100/300seconds perphase/originalfloors, same tests/assertions and strict graph checks. No GPU/fault/CI. Parent readiness GO precedes native execution; qualification not yet passed."
       }
     ],
     "unruled": [

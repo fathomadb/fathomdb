@@ -74,9 +74,10 @@ separate obligations. It is not reset-survival proof.
 Seq-379 accepts bounded usage unknowns/current ratings, with quantitative evidence in .31; no repeated collection,
 new importance/toolkit choice or host modification is authorized by140.
 
-## Proposed local executor for exact-lock fork qualification
+## Local executor for exact-lock fork qualification
 
-**PROPOSED; not adopted and no native GO.** This replaces only the hosted
+**Adopted by owner seq-389 after Astra-medium design ACCEPT.** Actual
+native venue/resource GO remains separate. This replaces only the hosted
 executor in the [Q23 lock-drift contract](../../../0.8.28/features/slice-31/design.md#72-the-lock-drift-guard-q8-option-b)
 for the selected unpublished343/2ee local graph. The
 [pool ADR](../../../../adr/ADR-0.8.28-tegra-private-cuda-pool.md)'s requirement to
@@ -184,5 +185,5 @@ fork-local provenance. No invented CI identifier or carried-forward old success.
 The guard must still enforce exact sources/versions/checksums, coherent family,
 both target sets, root features, self-consistent digest and original exit meanings;
 only the evidence's executor/provenance branch changes after owner adoption.
-Until adoption and actual qualification, its present RED remains valid. Registry
+Until actual qualification, its present RED remains valid. Registry
 normalization/publication and other release gates retain their existing scope.

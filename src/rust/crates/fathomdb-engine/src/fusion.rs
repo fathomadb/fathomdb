@@ -46,131 +46,197 @@ pub const RRF_WEIGHT_GRAPH: f64 = 1.0;
 /// the test gap constraint (it exceeded 0.01). Lowered to 0.002.
 pub const RECENCY_WEIGHT: f64 = 0.002;
 
-/// G9 — fuse the vector and text branches with Reciprocal Rank Fusion.
+/// Snapshot-local ownership supplied explicitly to the fusion helpers.
 ///
-/// Delegates to [`fuse_three_arms`] with an empty graph arm. The two-arm
-/// contract is preserved: `fuse_rrf(v, t)` == `fuse_three_arms(v, t, vec![])`.
-/// All existing callers are unaffected.
-///
-/// See [`fuse_three_arms`] for the full RRF formula documentation.
+/// This classification is separate from public IdSpace and retrieval branch.
 #[doc(hidden)]
-#[must_use]
-pub fn fuse_rrf(vector_hits: Vec<SearchHit>, text_hits: Vec<SearchHit>) -> Vec<SearchHit> {
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum FusionOwnership {
+    /// A canonical node at the enclosed hit's write cursor.
+    CanonicalNode,
+    /// A canonical edge at the enclosed hit's write cursor.
+    CanonicalEdge,
+    /// An explicitly ownerless node-body FTS row at its actual SQLite rowid.
+    OwnerlessNodeFts { rowid: i64 },
+}
+
+/// A retrieval hit together with source-derived snapshot-local ownership.
+///
+/// Callers classify ownership at hydration; branch, body and IdSpace cannot
+/// establish it. The carrier is never serialized into a SearchResult.
+#[doc(hidden)]
+#[derive(Clone, Debug, PartialEq)]
+pub struct FusionHit {
+    /// The representative public hit fields, including the positional cursor.
+    pub hit: SearchHit,
+    /// The actual canonical owner or explicitly ownerless FTS locator.
+    pub ownership: FusionOwnership,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) enum RecordKey {
+    CanonicalNode(u64),
+    CanonicalEdge(u64),
+    OwnerlessNodeFts(i64),
+}
+
+impl FusionHit {
+    pub(crate) fn key(&self) -> RecordKey {
+        self.ownership.record_key(self.write_cursor)
+    }
+}
+
+impl FusionOwnership {
+    pub(crate) fn record_key(self, cursor: u64) -> RecordKey {
+        match self {
+            Self::CanonicalNode => RecordKey::CanonicalNode(cursor),
+            Self::CanonicalEdge => RecordKey::CanonicalEdge(cursor),
+            Self::OwnerlessNodeFts { rowid } => RecordKey::OwnerlessNodeFts(rowid),
+        }
+    }
+}
+
+impl std::ops::Deref for FusionHit {
+    type Target = SearchHit;
+
+    fn deref(&self) -> &Self::Target {
+        &self.hit
+    }
+}
+
+impl std::ops::DerefMut for FusionHit {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.hit
+    }
+}
+
+pub(crate) trait RankedHit: Clone {
+    fn hit(&self) -> &SearchHit;
+    fn hit_mut(&mut self) -> &mut SearchHit;
+}
+
+impl RankedHit for SearchHit {
+    fn hit(&self) -> &SearchHit {
+        self
+    }
+    fn hit_mut(&mut self) -> &mut SearchHit {
+        self
+    }
+}
+
+impl RankedHit for FusionHit {
+    fn hit(&self) -> &SearchHit {
+        &self.hit
+    }
+    fn hit_mut(&mut self) -> &mut SearchHit {
+        &mut self.hit
+    }
+}
+
+pub(crate) trait FusionRecord {
+    fn record_key(&self) -> RecordKey;
+    fn bodies_conflict(&self, other: &Self) -> bool;
+    fn set_fused_score(&mut self, score: f64);
+}
+
+impl FusionRecord for FusionHit {
+    fn record_key(&self) -> RecordKey {
+        self.key()
+    }
+    fn bodies_conflict(&self, other: &Self) -> bool {
+        self.body != other.body
+    }
+    fn set_fused_score(&mut self, score: f64) {
+        self.score = score;
+    }
+}
+
+/// Fuse explicitly owned vector and text hits with Reciprocal Rank Fusion.
+///
+/// Delegates to fuse_three_arms with an empty graph arm. Ownership and original
+/// rank positions are retained. Conflicting bodies for one record key return
+/// EngineError::InvalidArgument; no database access or identity inference occurs.
+#[doc(hidden)]
+pub fn fuse_rrf(
+    vector_hits: Vec<FusionHit>,
+    text_hits: Vec<FusionHit>,
+) -> Result<Vec<FusionHit>, EngineError> {
     fuse_three_arms(vector_hits, text_hits, vec![])
 }
 
-/// R3 (Slice 30) — fuse vector, text, and graph arms with Reciprocal Rank Fusion.
+/// Fuse explicitly owned vector, text and graph hits at their original ranks.
 ///
-/// Each branch contributes `weight / (RRF_K + rank)` (1-based rank within that
-/// branch; `weight` = [`RRF_WEIGHT_VECTOR`] / [`RRF_WEIGHT_TEXT`] /
-/// [`RRF_WEIGHT_GRAPH`], text-dominant per IR-C), accumulated **keyed on
-/// `SearchHit.body`**, so a body surfaced by multiple branches accumulates all
-/// terms (agreement boosts it). Each branch contributes **at most once** per
-/// body, at the positional rank of the body's first occurrence in that branch;
-/// a later hit with the same body in the same branch (another row sharing the
-/// body) adds nothing and does not shift the ranks of the hits after it. The
-/// fused value is written into `SearchHit.score`.
-/// A body in multiple branches surfaces **once** with the **vector** branch's
-/// identity (vector-first), then graph arm identity for non-vector hits, then
-/// text. Output is sorted by score descending, then vector-first, then insertion
-/// order — a pure, deterministic function of the three input lists.
-///
-/// With an empty `graph_hits` (`vec![]`), the output is byte-identical to the
-/// pre-Slice-30 two-arm `fuse_rrf`. This is the backward-compatibility contract.
-///
-/// This is the **unconditional** new ranking (HITL Q3 — no `fusion_mode` knob,
-/// no legacy path). Graph arm is opt-in via `use_graph_arm=true`.
+/// Each record receives one weight/(RRF_K+rank) term per arm at its first
+/// positional rank. Repeats do not renumber later hits. Accumulation order is
+/// vector, text, graph, which also selects the first representative. Sort by
+/// score descending, vector-input membership, then stable insertion order.
+/// Existing nested graph fusion remains the caller's choice of input lists.
+/// Conflicting bodies for one key return EngineError::InvalidArgument; kind
+/// and source remain representative-owned arm fields and may legitimately differ.
 #[doc(hidden)]
-#[must_use]
 pub fn fuse_three_arms(
-    vector_hits: Vec<SearchHit>,
-    text_hits: Vec<SearchHit>,
-    graph_hits: Vec<SearchHit>,
-) -> Vec<SearchHit> {
+    vector_hits: Vec<FusionHit>,
+    text_hits: Vec<FusionHit>,
+    graph_hits: Vec<FusionHit>,
+) -> Result<Vec<FusionHit>, EngineError> {
+    fuse_records(vector_hits, text_hits, graph_hits)
+}
+
+pub(crate) fn fuse_records<H: FusionRecord>(
+    vector_hits: Vec<H>,
+    text_hits: Vec<H>,
+    graph_hits: Vec<H>,
+) -> Result<Vec<H>, EngineError> {
     #[cfg(feature = "tc5-benchmark")]
     tc5_benchmark::record_fusion_route();
-    struct Entry {
-        hit: SearchHit,
+    struct Entry<H> {
+        hit: H,
         score: f64,
         in_vector: bool,
         order: usize,
     }
-    enum BodySlot {
-        One(usize),
-        Collisions(Vec<usize>),
-    }
-    let mut entries: Vec<Entry> = Vec::new();
-    let mut entry_by_hash: HashMap<u64, BodySlot> = HashMap::new();
-    // `credited` holds the entry indices this branch has already scored, so a
-    // body shared by several rows in one branch is counted once.
-    let mut accumulate = |hit: SearchHit,
-                          rank0: usize,
-                          in_vector: bool,
-                          weight: f64,
-                          credited: &mut HashSet<usize>| {
-        let contrib = weight / (RRF_K + (rank0 as f64 + 1.0));
-        let body_hash = entry_by_hash.hasher().hash_one(&hit.body);
-        let existing = entry_by_hash.get(&body_hash).and_then(|slot| match slot {
-            BodySlot::One(index) => (entries[*index].hit.body == hit.body).then_some(*index),
-            BodySlot::Collisions(indices) => {
-                indices.iter().copied().find(|index| entries[*index].hit.body == hit.body)
-            }
-        });
-        if let Some(existing) = existing {
-            if credited.insert(existing) {
-                entries[existing].score += contrib;
-            }
-            return;
-        }
-        let order = entries.len();
-        credited.insert(order);
-        match entry_by_hash.entry(body_hash) {
-            std::collections::hash_map::Entry::Vacant(slot) => {
-                slot.insert(BodySlot::One(order));
-            }
-            std::collections::hash_map::Entry::Occupied(mut slot) => {
-                let body_slot = slot.get_mut();
-                match body_slot {
-                    BodySlot::One(previous) => {
-                        *body_slot = BodySlot::Collisions(vec![*previous, order]);
-                    }
-                    BodySlot::Collisions(indices) => indices.push(order),
+    let mut entries: Vec<Entry<H>> = Vec::new();
+    let mut by_record: HashMap<RecordKey, usize> = HashMap::new();
+    for (arm, weight, in_vector) in [
+        (vector_hits, RRF_WEIGHT_VECTOR, true),
+        (text_hits, RRF_WEIGHT_TEXT, false),
+        (graph_hits, RRF_WEIGHT_GRAPH, false),
+    ] {
+        let mut credited = HashSet::new();
+        for (rank0, hit) in arm.into_iter().enumerate() {
+            let key = hit.record_key();
+            let contribution = weight / (RRF_K + (rank0 as f64 + 1.0));
+            if let Some(&index) = by_record.get(&key) {
+                if entries[index].hit.bodies_conflict(&hit) {
+                    return Err(EngineError::InvalidArgument {
+                        msg: "conflicting bodies for one retrieval record".into(),
+                    });
                 }
+                if credited.insert(key) {
+                    entries[index].score += contribution;
+                }
+            } else {
+                let order = entries.len();
+                by_record.insert(key, order);
+                credited.insert(key);
+                entries.push(Entry { hit, score: contribution, in_vector, order });
             }
         }
-        entries.push(Entry { hit, score: contrib, in_vector, order });
-    };
-    let mut credited = HashSet::new();
-    for (rank0, hit) in vector_hits.into_iter().enumerate() {
-        accumulate(hit, rank0, true, RRF_WEIGHT_VECTOR, &mut credited);
-    }
-    let mut credited = HashSet::new();
-    for (rank0, hit) in text_hits.into_iter().enumerate() {
-        accumulate(hit, rank0, false, RRF_WEIGHT_TEXT, &mut credited);
-    }
-    let mut credited = HashSet::new();
-    for (rank0, hit) in graph_hits.into_iter().enumerate() {
-        // Graph arm: vector-first=false (never overrides an existing vector hit's
-        // representative identity; only new bodies from the graph arm get GraphArm
-        // as their branch identity). The in_vector=false ensures graph arm hits
-        // never sort ahead of vector hits on exact score ties.
-        accumulate(hit, rank0, false, RRF_WEIGHT_GRAPH, &mut credited);
     }
     entries.sort_by(|a, b| {
         b.score
             .partial_cmp(&a.score)
             .unwrap_or(std::cmp::Ordering::Equal)
-            // vector-first on equal score (true sorts before false).
             .then_with(|| b.in_vector.cmp(&a.in_vector))
             .then_with(|| a.order.cmp(&b.order))
     });
-    entries
+    Ok(entries
         .into_iter()
-        .map(|mut e| {
-            e.hit.score = e.score;
-            e.hit
+        .map(|mut entry| {
+            entry.hit.set_fused_score(entry.score);
+            entry.hit
         })
-        .collect()
+        .collect())
 }
 
 /// G12-recency — reweight fused hits toward the more recent (higher
@@ -179,25 +245,31 @@ pub fn fuse_three_arms(
 #[doc(hidden)]
 #[must_use]
 pub fn apply_recency_reweight(hits: Vec<SearchHit>, enabled: bool) -> Vec<SearchHit> {
+    apply_recency_reweight_ranked(hits, enabled)
+}
+
+pub(crate) fn apply_recency_reweight_ranked<H: RankedHit>(hits: Vec<H>, enabled: bool) -> Vec<H> {
     if !enabled || hits.len() < 2 {
         return hits;
     }
-    let min_id = hits.iter().map(|h| h.write_cursor).min().unwrap_or(0);
-    let max_id = hits.iter().map(|h| h.write_cursor).max().unwrap_or(0);
+    let min_id = hits.iter().map(|h| h.hit().write_cursor).min().unwrap_or(0);
+    let max_id = hits.iter().map(|h| h.hit().write_cursor).max().unwrap_or(0);
     if max_id == min_id {
         return hits;
     }
     let span = (max_id - min_id) as f64;
-    let mut reweighted: Vec<SearchHit> = hits
+    let mut reweighted: Vec<H> = hits
         .into_iter()
         .map(|mut h| {
-            let norm = (h.write_cursor - min_id) as f64 / span;
-            h.score += RECENCY_WEIGHT * norm;
+            let norm = (h.hit().write_cursor - min_id) as f64 / span;
+            h.hit_mut().score += RECENCY_WEIGHT * norm;
             h
         })
         .collect();
     // Stable sort preserves the fused order on exact ties.
-    reweighted.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+    reweighted.sort_by(|a, b| {
+        b.hit().score.partial_cmp(&a.hit().score).unwrap_or(std::cmp::Ordering::Equal)
+    });
     reweighted
 }
 
@@ -223,30 +295,48 @@ pub fn apply_importance_reweight(
     confidence_by_id: &HashMap<u64, f64>,
     enabled: bool,
 ) -> Vec<SearchHit> {
-    if !enabled {
+    apply_importance_by_key(
+        hits,
+        importance_by_id,
+        confidence_by_id,
+        |hit| hit.write_cursor,
+        enabled,
+    )
+}
+
+pub(crate) fn apply_record_importance_reweight(
+    hits: Vec<FusionHit>,
+    importance: &HashMap<RecordKey, f64>,
+    confidence: &HashMap<RecordKey, f64>,
+    enabled: bool,
+) -> Vec<FusionHit> {
+    apply_importance_by_key(hits, importance, confidence, FusionHit::key, enabled)
+}
+
+fn apply_importance_by_key<H: RankedHit, K: Eq + std::hash::Hash>(
+    hits: Vec<H>,
+    importance: &HashMap<K, f64>,
+    confidence: &HashMap<K, f64>,
+    key: impl Fn(&H) -> K,
+    enabled: bool,
+) -> Vec<H> {
+    if !enabled
+        || !hits
+            .iter()
+            .any(|hit| importance.contains_key(&key(hit)) || confidence.contains_key(&key(hit)))
+    {
         return hits;
     }
-    // Graceful-neutral fast path (R-F9-4): if nothing is weighted, do not touch
-    // order or scores — identical to the reweight-OFF result.
-    let any_weighted = hits.iter().any(|h| {
-        importance_by_id.contains_key(&h.write_cursor)
-            || confidence_by_id.contains_key(&h.write_cursor)
+    let mut hits = hits;
+    for hit in &mut hits {
+        let key = key(hit);
+        hit.hit_mut().score *= importance.get(&key).copied().unwrap_or(1.0)
+            * confidence.get(&key).copied().unwrap_or(1.0);
+    }
+    hits.sort_by(|a, b| {
+        b.hit().score.partial_cmp(&a.hit().score).unwrap_or(std::cmp::Ordering::Equal)
     });
-    if !any_weighted {
-        return hits;
-    }
-    let mut reweighted: Vec<SearchHit> = hits
-        .into_iter()
-        .map(|mut h| {
-            let importance = importance_by_id.get(&h.write_cursor).copied().unwrap_or(1.0);
-            let confidence = confidence_by_id.get(&h.write_cursor).copied().unwrap_or(1.0);
-            h.score *= importance * confidence;
-            h
-        })
-        .collect();
-    // Stable sort preserves the fused order on exact ties.
-    reweighted.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
-    reweighted
+    hits
 }
 
 /// 0.8.16 Slice 5 / F9 — build the per-hit importance/confidence weight maps for
@@ -257,36 +347,86 @@ pub fn apply_importance_reweight(
 /// propagate so a failed lookup cannot masquerade as an absent value.
 pub(crate) fn build_importance_confidence_maps(
     tx: &rusqlite::Connection,
-    hits: &[SearchHit],
-) -> rusqlite::Result<(HashMap<u64, f64>, HashMap<u64, f64>)> {
-    let mut importance_by_id: HashMap<u64, f64> = HashMap::new();
-    let mut confidence_by_id: HashMap<u64, f64> = HashMap::new();
-    let mut importance_stmt =
-        tx.prepare("SELECT importance FROM canonical_nodes WHERE write_cursor = ?1 LIMIT 1")?;
-    for h in hits {
+    hits: &[FusionHit],
+) -> rusqlite::Result<(HashMap<RecordKey, f64>, HashMap<RecordKey, f64>)> {
+    let mut importance = HashMap::new();
+    let mut confidence = HashMap::new();
+    let mut node =
+        tx.prepare("SELECT importance FROM canonical_nodes WHERE write_cursor=?1 LIMIT 1")?;
+    let mut edge = tx.prepare("SELECT confidence FROM canonical_edges WHERE write_cursor=?1 AND superseded_at IS NULL LIMIT 1")?;
+    for hit in hits {
+        let (statement, map) = match hit.ownership {
+            FusionOwnership::CanonicalNode => (&mut node, &mut importance),
+            FusionOwnership::CanonicalEdge => (&mut edge, &mut confidence),
+            FusionOwnership::OwnerlessNodeFts { .. } => continue,
+        };
         let value: Option<Option<f64>> =
-            importance_stmt.query_row([h.write_cursor], |row| row.get(0)).optional()?;
+            statement.query_row([hit.write_cursor], |row| row.get(0)).optional()?;
         if let Some(Some(value)) = value {
-            importance_by_id.insert(h.write_cursor, value);
+            map.insert(hit.key(), value);
         }
     }
-    let mut confidence_stmt = tx.prepare(
-        "SELECT confidence FROM canonical_edges \
-         WHERE write_cursor = ?1 AND superseded_at IS NULL LIMIT 1",
-    )?;
-    for h in hits {
-        let value: Option<Option<f64>> =
-            confidence_stmt.query_row([h.write_cursor], |row| row.get(0)).optional()?;
-        if let Some(Some(value)) = value {
-            confidence_by_id.insert(h.write_cursor, value);
-        }
-    }
-    Ok((importance_by_id, confidence_by_id))
+    Ok((importance, confidence))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    fn owned(ownership: FusionOwnership, body: &str) -> FusionHit {
+        FusionHit {
+            ownership,
+            hit: SearchHit {
+                id: IdSpace::content("shared"),
+                write_cursor: 7,
+                kind: "doc".into(),
+                body: body.into(),
+                score: 0.0,
+                branch: SoftFallbackBranch::Text,
+                source_id: None,
+                ce_score: None,
+            },
+        }
+    }
+
+    #[test]
+    fn explicit_record_namespaces_do_not_merge_equal_cursors_or_bodies() {
+        let fused = fuse_rrf(
+            vec![
+                owned(FusionOwnership::CanonicalNode, "same"),
+                owned(FusionOwnership::CanonicalEdge, "same"),
+                owned(FusionOwnership::OwnerlessNodeFts { rowid: 7 }, "same"),
+            ],
+            vec![],
+        )
+        .unwrap();
+        assert_eq!(
+            fused.iter().map(FusionHit::key).collect::<Vec<_>>(),
+            [
+                RecordKey::CanonicalNode(7),
+                RecordKey::CanonicalEdge(7),
+                RecordKey::OwnerlessNodeFts(7),
+            ]
+        );
+        for (rank, hit) in fused.iter().enumerate() {
+            assert_eq!(hit.score.to_bits(), (1.0_f64 / (31.0 + rank as f64)).to_bits());
+        }
+    }
+
+    #[test]
+    fn same_key_conflicting_bodies_refuse_but_representative_kind_and_source_can_differ() {
+        let first = owned(FusionOwnership::CanonicalEdge, "same");
+        let mut second = first.clone();
+        second.kind = "link".into();
+        second.source_id = Some("representative-other-arm".into());
+        let fused = fuse_rrf(vec![first.clone()], vec![second]).unwrap();
+        assert_eq!(fused.len(), 1);
+        assert_eq!(fused[0].kind, first.kind);
+        assert_eq!(fused[0].source_id, first.source_id);
+        let conflict =
+            fuse_rrf(vec![first], vec![owned(FusionOwnership::CanonicalEdge, "different")]);
+        assert!(matches!(conflict, Err(EngineError::InvalidArgument { .. })));
+    }
+
     #[test]
     fn overflow_chunking_fusion_tripwire() {
         assert_eq!(RRF_K, 30.0, "Re-evaluate dev/design/overflow-chunking-reevaluation.md: RRF_K");

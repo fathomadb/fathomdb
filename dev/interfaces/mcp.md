@@ -262,15 +262,26 @@ accepted by [seq-359](../adr/ADR-0.8.28-vector-compatibility-open-policy.md).
 | `created_after` | integer | none | Inclusive lower bound on stored projection creation time, epoch seconds; both modes. |
 | `attributes` | object string→string | none | Declared filterable node-scoped exact projections; both modes; equalities are ANDed. |
 | `as_of` | integer | now | `ReadView.valid_as_of` (MR-023). |
+| `include_superseded` | bool | false | Include superseded record versions in text and hybrid search; retain distinct occurrences even when refs or bodies repeat. |
+| `include_inactive` | bool | false | Independently include non-active lifecycle records in either mode; composes with include_superseded and as_of. |
 | `limit` | integer 1..100 | 10 | Ranked cap is 100 (MR-041.2). |
 | `max_tokens` | integer ≥ 256 | config | MR-041. |
 | `explain` | bool | false | Include per-hit explanation. |
 | `highlights` | bool | false | Add per-hit `highlights`: `[start, end)` byte ranges into `snippet` of the matched words. Presentation only: not part of the canonical arguments, so references, `response_id` and continuations are unchanged. |
 | `continuation` | string | none | From a prior result. Only `store`, `max_tokens`, `hints` and `highlights` may accompany it; `store` selects the handle table, so a handle from another store is `stale_handle`. |
 
-`include_superseded` and `include_inactive` are not accepted search arguments
-in the current adapter. The engine and SDK support these view flags; Slice60
-owns their adapter support. Unknown adapter arguments remain
+Both search view flags compose with filters and the fixed validity instant.
+Each relaxes only its own existence predicate; neither bypasses node validity,
+mandatory edge expiry or source-closure eligibility.
+A supplied flag must be a boolean; null is invalid, including on continuation
+calls, and invalid values never dispatch an SDK search. Absent and explicit
+false have the same canonical request identity; true changes
+that identity even if the selected hits are unchanged. Continuations reuse the
+stored view and refuse an explicit flag override, including false. Repeated refs
+do not identify a unique historical occurrence for feedback or logical fetch;
+feedback retains its atomic ambiguity refusal and not_recorded precedence.
+Fetch still resolves the latest eligible revision under its own view.
+No include_out_of_window search argument is exposed. Unknown arguments remain
 `invalid_request/bad_argument`.
 
 Text forwards the complete closed filter to SDK `search_text_only`; it performs
@@ -414,6 +425,13 @@ reasons, every ref in `used` and `unused` must belong to it
 (`invalid_request/bad_argument` otherwise). A response from another store is `invalid_request/wrong_store`
 (MR-024.5). `used` may be empty. Recorded feedback reaches `record_feedback`
 with label source `agent` (MR-024.1). Feedback never alters later results.
+For otherwise recordable calls, a named ref shared by different result cursors
+returns `invalid_request/bad_argument` atomically with zero feedback labels.
+Repeated occurrences of the same cursor remain unique; ambiguity in an unmentioned
+ref has no effect. This check runs only after successful store acquisition and the
+final epoch recheck, preserving the existing `not_recorded` precedence even if a
+store closes or reopens during acquisition. Public refs and logical fetch are
+unchanged; no occurrence-label field or reference grammar is added.
 Feedback takes an admission permit but never queues for one: with no free
 permit it is refused at once as `busy/admission`, `busy.reason`
 `deadline`.

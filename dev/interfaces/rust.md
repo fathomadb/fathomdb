@@ -213,8 +213,15 @@ The reader records `vector_retrieval` with nested `vector_phase1_f32_sql` and
 `fusion_final_ranking` and optional `deferred_identity_hydration`. Binary KNN
 and f32 reranking occur in one existing SQL operation; no exclusive split is
 inferred. Candidate counts describe the respective existing output population.
-Deferred identity hydration is the current logical-ID/source lookup, not a new
-body-content deferral. Skipped vector/identity sections carry untimed `not_run`.
+On the qualified hybrid route with no edge FTS rows, node candidates retain
+complete lightweight ranks with snapshot body/kind consistency checks. Shared
+record-key fusion selects the final winners before `deferred_identity_hydration`
+performs their actual body/identity reads as a separate reader-transaction child.
+SQLite may still read bodies for consistency; Rust validates borrowed TEXT/UTF-8
+for every match without allocating owned losing bodies. Mixed edge corpora retain
+full candidate materialization and the legacy logical-ID/source-only scope of
+`deferred_identity_hydration`. Skipped vector/identity sections carry untimed
+`not_run`.
 Snapshot authority reads are feature+active gated, explicitly observer-added on
 the actual reader transaction; read failure records unavailable without authority
 values or changing the product outcome.
@@ -389,11 +396,28 @@ if the `Engine` object remains alive. A caller-held embedder reference remains
 caller-owned. A timed-out drain retains the provider until its worker exits and
 a later `close` completes.
 
+### Doc-hidden engine fusion helpers (0.8.29)
+
+`fathomdb_engine::FusionHit { hit: SearchHit, ownership: FusionOwnership }`
+retains source-derived snapshot-local ownership through ranking. Ownership is
+`CanonicalNode`, `CanonicalEdge` or `OwnerlessNodeFts { rowid: i64 }`; canonical
+keys use the enclosed hit's cursor. These are internal ranking carriers, absent
+from SDK/wire search results and unrelated to stable IdSpace.
+
+`fuse_rrf(Vec<FusionHit>, Vec<FusionHit>)` and `fuse_three_arms` with three such
+arms return `Result<Vec<FusionHit>, EngineError>`. Callers supply ownership
+explicitly. Conflicting bodies for one record return `InvalidArgument`; kind and
+source remain first-representative fields and may legitimately differ across
+arms. The helpers access no database and infer no ownership from body or branch.
+There is no bare-SearchHit compatibility overload. Public reweight/rerank helpers
+retain their existing SearchHit signatures and share the same arithmetic with
+internal keyed carriers.
+
 ### Direct text-only result-prefix contract (0.8.22 Slice 23)
 
 `search_text_only` and its explicit-limit/read-view forms do not embed, use
 vector retrieval, CE reranking, or graph expansion. Matching node- and
-edge-body FTS candidates enter one text arm, whose bodies are deterministically
+edge-body FTS candidates enter one text arm, whose stored records are deterministically
 deduplicated and ranked before the returned limit is applied. The node candidate
 collection is fixed at 100 for every accepted caller limit.
 
@@ -1413,6 +1437,17 @@ is `dev/interfaces/mcp.md` § 3; this section documents only the engine subset.
 
 ## Match-centred snippet selector (EP-17)
 
+The engine-only `test-hooks` feature exposes doc-hidden
+`snippet_for_full_reference_for_test` with the same arguments and result as
+`snippet_for`. It runs the retained full selector for exact differential tests;
+shipped feature lists do not expose this seam.
+
+For over-budget bodies with empty raw spans, `snippet_for` specializes only
+ASCII letter/digit/space prefixes through the content budget plus one lookahead
+byte (`max_bytes − len(" …") + 1`). It examines that bounded prefix and allocates by the output budget; unsupported
+prefix bytes retain the full Unicode selector. Exact text, anchors, windows,
+spans, highlights, clamping and UTF-8 byte coordinates are unchanged.
+
 `fathomdb_engine::snippet_for(body: &str, spans: &[(u32, u32)], options:
 &SnippetOptions) -> SnippetV1` is a pure function (no SQL, I/O, clock,
 floating point or locks). It picks the part of a record body to show for a
@@ -2001,12 +2036,18 @@ The signatures are unchanged. The following search behaviour changed or is clari
   is dropped. It now also holds the fragments an apostrophe leaves (`s`, `t`,
   `ll`, `re`, `ve`, `m`) and `my`, `me`, `us`, `am`, `so`, `up`. A query made
   only of stop words falls back to its raw whitespace tokens.
-- **Fusion** (`Engine::search_text_only`, `Engine::search`): each branch credits a body once, at
-  the rank of its first occurrence, so several rows sharing a byte-identical
-  body no longer outrank the best match. A body found by more than one branch
-  still accumulates one term per branch:
+- **Fusion** (`Engine::search_text_only`, `Engine::search`): each branch credits a stored record once, at
+  its first original positional rank; repeated occurrences do not renumber later
+  records. Canonical node/edge cursors occupy separate namespaces; explicitly
+  ownerless node FTS rows use their actual rowid. Distinct versions, sources or
+  records remain distinct even with equal body bytes or public IDs. The same
+  record found by several arms accumulates one term per arm:
   `score = Σ_branch w_branch / (30 + rank_branch)`, with `w` 3 for the text
   branch and 1 for the vector and graph branches.
+  Public IdSpace remains unchanged and can repeat. The SDK context-item helper
+  preserves that public ID, and context packing still rejects duplicate item IDs;
+  callers can supply unique packing labels with their own selected-record map.
+  See [the accepted identity decision](../adr/ADR-0.8.29-retrieval-record-identity.md).
 - **`Engine::search_projected_text`**: the projection's FTS5 index is read in rank order and
   reading stops once `limit` rows and any rows tied with the last one are
   read, instead of sorting every match. Results and their order are unchanged:
@@ -2187,7 +2228,7 @@ Existing query/view/limit methods delegate with no filter. Rust SDK
 `TextSearchOptions` adds `filter: Option<SearchFilter>` (default `None`).
 
 The existing closed filter applies to node and edge body candidates before
-candidate truncation, body deduplication, ranking and returned limit. Attribute
+candidate truncation, per-record credit suppression, ranking and returned limit. Attribute
 predicates are ANDed, require declared `filterable` projections, and are
 node-scoped (edge hits do not match them). Validation occurs in the same reader
 snapshot, with typed `InvalidFilter` even when the query has no matches.

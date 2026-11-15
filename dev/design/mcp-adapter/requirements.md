@@ -279,6 +279,13 @@ validity instant instead of now. Meets AN-006.
 - MR-023.1 A record valid from T1 to T2 is returned at an instant inside the
   window and not at one outside it, for both search and fetch.
 - MR-023.2 Responses state the validity instant they were answered at.
+- Search include_superseded and include_inactive default false and independently
+  relax current-version and active-state eligibility in both modes, preserving
+  validity/source-closure rules. Supplied flags must be nonnull booleans.
+  Canonical identity resolves absent/false
+  equally; continuations retain the effective flag and reject explicit overrides.
+  Repeated refs retain record occurrences; feedback ambiguity and logical-fetch
+  latest-eligible semantics remain authoritative.
 
 **MR-024 — "This hit was used" feedback.** An agent can report which results
 from a search it actually used. The adapter records the report and does
@@ -287,7 +294,13 @@ What FathomDB later does with the signal is undecided (owner, 2026-10-17).
 Meets AN-021.
 
 - MR-024.1 A feedback call that names a search response and some of its
-  references is accepted. When the operator has enabled telemetry and the
+  references is accepted when otherwise recordable and every named reference
+  identifies one distinct cursor. Repeated occurrences of the same cursor are
+  unique; different cursors sharing a named ref cause `invalid_request/bad_argument`
+  atomically, with zero feedback labels. Unmentioned ambiguous refs have no effect.
+  Membership checks and existing `not_recorded` reasons retain precedence;
+  ambiguity validation follows successful acquisition and the final epoch check,
+  before cursor-label resolution or `record_feedback`. When telemetry is enabled and the
   response came from a hybrid search, the report reaches the engine's existing
   feedback record (`record_feedback`) with label source `agent`. Text-only
   searches are never captured by engine telemetry, so feedback on them returns

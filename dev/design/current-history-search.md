@@ -33,7 +33,9 @@ a separate historical envelope are agreed directions, with numerical limits and
 release placement open. Atomic knowledge cuts/fragment evidence are a provisional
 preference; view-specific result/ranking units remain under evaluation. The minimal
 proposal reuses the writer/receipt boundary and stateless evidence where proven,
-and preserves existing body/property deduplication and graph target grouping.
+and preserves projection-specific property handling and graph target grouping.
+Body retrieval uses the selected snapshot-local record/version identity in
+[the 0.8.29 successor](../adr/ADR-0.8.29-retrieval-record-identity.md).
 No general commit service, snapshot service or claim-ranking rewrite is approved.
 Astra-medium contract review precedes temporal implementation. Existing source
 policy, flags, G11 and public evidence contracts require explicit successors where
@@ -85,7 +87,7 @@ phase design review before implementation.
 
 | Change | Evidence after follow-ups | Production direction | Outstanding evidence |
 | --- | --- | --- | --- |
-| Eliminate history scans from normal current search | Initial selector scaled with history; P2 native node collector now preserves exact score/order and VM work across H0/4/16 with sub-2-ms healthy-read p99 | Current-index-first routing with bounded metadata certification; no history selection, vocabulary scan or corpus copy on certified default reads; body dedup may hydrate more than K | Integrated node/edge/public-ranking/graph-seed qualification; P1 fragment composition |
+| Eliminate history scans from normal current search | Initial selector scaled with history; P2 native node collector now preserves exact score/order and VM work across H0/4/16 with sub-2-ms healthy-read p99 | Current-index-first routing with bounded metadata certification; no history selection, vocabulary scan or corpus copy on certified default reads; the complete body ranking reference may hydrate more than K | Integrated node/edge/public-ranking/graph-seed qualification; P1 fragment composition |
 | Define validity-boundary refresh and fallback | P2 snapshot/coalescing/admission witnesses pass, but secure-delete full boundary refresh takes about 4.6 s | Same-snapshot certificate validation and writer-owned publication; incremental ordinary-write maintenance plus a separate bounded secure bulk-refresh/repair strategy | Simultaneous-expiry/bulk-repair comparison preserving erasure, rollback, pinned snapshots and WAL; no hard bound on executing publication yet |
 | Reconsider historical backend | Initial private materialization beat a naive scorer; P3 full-corpus stress is costly and campaign PARTIAL | Private native materialization is a reference and explicitly bounded candidate, not the universal selected backend; first test certified native full-history routing, then term-scoped persistent statistics or finite partitions for arbitrary V/K | Exact scope/authority/all-name property certification; grammar parity and complete cost comparison; no validated production cap or historical SLO |
 | Implement temporal semantics explicitly | Isolated graph oracle passed; P1 real-schema node ledger and P3 receipt-cut fixture selectors pass within stated restrictions | Separate claim identity, assertion revision and temporal fragments; preserve source policy; additive ledger remains a candidate | Successor contracts for competing claims, head/fragment mapping, arbitrary atomic batches and evidence carrier; P1/P2 composition and real temporal graph remain unqualified |
@@ -319,7 +321,7 @@ native full-history fast path for exactly matching admitted statistical scopes;
 then compare term-scoped persistent statistics or finite partitions for arbitrary
 V/K against the private native reference. Authority, validity, all-name property
 statistics and exact projection membership must be certified, not just counts.
-Private MEMORY storage does not certify main-reader temp behavior; body dedup can
+Private MEMORY storage does not certify main-reader temp behavior; the complete body ranking reference can
 hydrate more than K; repetitive-payload RSS is not a general memory bound. There
 is no accepted historical SLO or validated production cap from campaign budgets.
 

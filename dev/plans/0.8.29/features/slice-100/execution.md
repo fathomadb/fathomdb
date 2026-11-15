@@ -206,3 +206,61 @@ G is still unintegrated and not a prerequisite; these results are bound to the
 recorded source/configuration. Q1's original interruption remains UNQUALIFIED,
 with no raw-snapshot/recovery proof. No additional fault scope,100/D28-09 closure,
 release-state/ledger ruling or publication follows from this qualified subset.
+
+## Seq-383 pair at integrated453 — terminal UNQUALIFIED interruption
+
+Own checkout fast-forwarded clean to453b640fb3ad599bc5df8b34615c83d9b4aaa64b,
+including qualified ordinary903. No100child/operator/erasure/checkpoint/lock
+change was needed. The owned scoped no-run build passed in17.76s under64GiB and
+an1800s TERM/5s KILL build timeout; its guardian took a real final sample and
+cleaned registered actors. Native build-id a89b8b684fa834ef40486db354264f43059ddfe1
+has Cargo-selected default/operator/test-hooks; SQLite remains pinned0.39.1,
+walCheckpoint69275. No prior coverage/full gate was replayed.
+
+q1-healthy-seq383/result.json is QUALIFIED_HEALTHY: PID3394865, normal0/DONE1.
+q1-interrupt-seq383/result.json is UNQUALIFIED: PID3398277, actor/phase deadline.
+Both have independent witnesses at relocated0x555556727a07 with rc0/pIter nonnull,
+nBackfill0<iFrame253<=mxSafeFrame443, iDbpage1<=mxPage146, szPage4096/eMode3
+and the required erasure callstack. The interruption issued its pidfd SIGKILL.
+Its MI trace then shows31^running/*running, cannot insert breakpoint2 at the
+unavailable address and internal breakpoint-6, followed by31^error,msg="Command aborted.".
+The stop waiter ignored that later error. Its exit deadline is the minimum of
+the case deadline and now+5s; the generic actor/phase error does not prove that
+the full120s case allowance was exhausted.
+No confirmed fault_exit, untouched snapshot, observer or retry result exists.
+The earlier original pair and every original result remain unchanged.
+
+Raw logs/result/witness stay in those two existing case directories under the
+own task; build logs/receipt are q1-seq383-build. No cleanup error was reported;
+exact registered/adopted actors were absent unconfined. Terminal resource facts:
+root112333529088B/task471280906240B/Mem32827817984B/owned46810037619B, within
+original limits. The lease returned immediately; no further debugger/fault ran.
+Seq-383's additional attempt is spent; no product defect, new fault authority
+or100closure is inferred. The following source-only repair does not alter it.
+
+## Reviewed source-only delivery repair
+
+Independent Astra accepted96b508814's design before implementation. Late-error
+RED317d69f01 failed both packet timings on generic deadline attribution;
+GREEN61757a6d7 preserves the exact MI error before any snapshot/observer/retry.
+Delivery REDf67e21a0b failed14 pure-policy assertions and both affected scripted
+signal subcases against the old pidfd delivery path. It freezes the reviewed
+successor oracle before the new delivery implementation; historical scripted
+external-kill/continue intent and original real failures remain unchanged.
+
+The minimal repair explicitly selects the all-stopped witness thread, verifies
+one owned process/PID/executable and thread membership, re-reads native frame/PC,
+erasure stack, all native predicates and READY/nonce/ticket, then rechecks actor
+identity. It retains delivery-witness.json and issues exactly one GDB signal
+command, with no qualifying pidfd duplicate, intervening resume or fallback.
+Confirmed exited-signalled/SIGKILL still precedes snapshot and recovery utilities.
+
+The unchanged seven pure methods and affected short scripted-MI method pass;
+the latter includes positive synthetic SIGKILL and negative SIGTERM outcomes.
+Raw logs are logs/gdb-delivery-policy-{RED,GREEN}.log and
+logs/gdb-delivery-scripted-{RED,GREEN}.log in the existing own task. No actual
+GDB, inferior, native database or qualifying fault was launched. No old20controls,
+G2 or full gate was replayed. Scoped Ruff/Markdown validation and final independent
+implementation review assess this bounded source change; actual GDB/kernel signal
+delivery remains unqualified and requires a newly scoped real pair. Seq-383 is
+spent and the native lease remains elsewhere.

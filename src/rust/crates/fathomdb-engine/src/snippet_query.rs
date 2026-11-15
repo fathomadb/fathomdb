@@ -10,7 +10,7 @@ use std::collections::HashMap;
 
 use rusqlite::{Connection, OptionalExtension};
 
-use crate::search_types::SearchHit;
+use crate::fusion::{FusionHit, RecordKey};
 use crate::snippet::{snippet_for, snippet_for_terms, SnippetOptions, SnippetV1};
 
 /// The FTS table a text hit came from.
@@ -35,8 +35,8 @@ impl FtsTable {
     }
 }
 
-/// The search-local map from a text hit's `write_cursor` to its FTS row.
-pub(crate) type FtsRows = HashMap<u64, (FtsTable, i64)>;
+/// The search-local map from a selected record key to its FTS row.
+pub(crate) type FtsRows = HashMap<RecordKey, (FtsTable, i64)>;
 
 /// Marker pairs in preference order (§ 6.1): private use, then the last
 /// private-use pair, then noncharacters. Private-use glyphs occur in real
@@ -47,7 +47,7 @@ const MARKERS: [(char, char); 3] =
 /// One snippet per hit, in order.
 pub(crate) fn snippets_for_hits(
     tx: &Connection,
-    hits: &[SearchHit],
+    hits: &[FusionHit],
     rows: &FtsRows,
     match_expression: &str,
     terms: &[String],
@@ -64,7 +64,7 @@ pub(crate) fn snippets_for_hits(
         .map(|hit| {
             // Rule 0: spans are needed only to cut the body or to highlight.
             let needs_spans = hit.body.len() > options.max_bytes as usize || options.highlights;
-            let row = rows.get(&hit.write_cursor).filter(|_| needs_spans && budget > 0);
+            let row = rows.get(&hit.key()).filter(|_| needs_spans && budget > 0);
             let Some(&(table, rowid)) = row else {
                 return Ok(snippet_for(&hit.body, &[], options));
             };

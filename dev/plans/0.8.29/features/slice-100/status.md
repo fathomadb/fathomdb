@@ -2,23 +2,31 @@
 title: Slice 100 — current f803 and70 evidence reconciliation
 status: IN_PROGRESS
 target_release: 0.8.29
-date: 2026-11-13
+date: 2026-11-15
 ---
 
 # Slice 100 current f803 and70 evidence reconciliation
 
-Current100 planning is reconciled in the dedicated sole-writer checkout at
-entry3c34cd19. The three prior packets have independent Astra-medium PASS.
-Seq-371 approves the100-only verification exception; seq-372 selects bounded Q1
-on the local unconfined ptrace-capable executor. [Exact decisions](owner-decisions.md),
-[Q1 protocol](q1-protocol.md), [composed oracles](composed-oracles.md) and
-[implementation map](implementation-map.md) are maintained here. The maintained-plan
-Astra recheck passed at c1226d1bf and parent implementation GO is5f8f12071. Independent source rechecks accepted the scoped implementation and G2 results.
-Own build, five G2 cells and actual qualified Q1 healthy execution are complete.
-[Execution](execution.md) preserves their source subjects and original failures.
-The first witnessed interruption stopped UNQUALIFIED in operator exit handling;
-its tool repairs passed independent review and assembled qualification is recorded below.
-Final assembled review and additional Q1 scope remain;100/D28-09 stay open.
+The qualified subset at85f7eb219 remains independently accepted. On integrated
+453b640fb3ad599bc5df8b34615c83d9b4aaa64b, the seq-383 additional pair is now
+terminal: healthy QUALIFIED_HEALTHY, interruption UNQUALIFIED. Each reached its
+own eligible native checkpoint witness; healthy completed normally, but the
+interruption's issued pidfd SIGKILL was not followed by confirmed fault exit.
+GDB resume failed on breakpoint reinsertion into unavailable target memory, then
+its late same-token error was missed until the operator deadline. No untouched
+snapshot, observer or retry result exists. This is not product recovery failure.
+
+Seq-372's original pair and seq-383's additional pair are historical and spent.
+No further fault run is selected. Actors are gone and the native lease returned.
+[Execution](execution.md) preserves actual results; [design](design.md) contains
+the independently accepted delivery design, now implemented with source-only
+controls pending final implementation review. Late-error RED317d69f01/GREEN61757a6d7
+and delivery REDf67e21a0b are preserved. Seven pure methods and the affected
+scripted-MI method (SIGKILL and SIGTERM subcases) pass unchanged after repair.
+These tests prove operator policy/transport behavior, not real GDB delivery.
+R100-5/A100-5 active-interruption recovery proof,100/D28-09 and release closure
+remain open. Prior20controls/five G2 cells and accepted ordinary qualification
+are retained; no passing coverage/full gate was replayed for this run.
 
 ## Source/evidence identity
 
@@ -77,7 +85,8 @@ no-resurrection assertions. The separately authorized interruption established
 its own witness and issued pidfd SIGKILL, but the operator timed out without an
 exit notification. It remains UNQUALIFIED: no observed fault exit, untouched
 snapshot or observer/retry result exists. This is not product recovery failure.
-Only registered actors were cleaned/reaped. No second real Q1 fault is authorized.
+Only registered actors were cleaned/reaped. Seq-383 now authorizes exactly one additional corrected matched pair; execution
+remains pending under the unchanged protocol and resource checks.
 
 G100-2: independent recheck accepted b59a2eb86's five passing G2 cells: healthy
 and four exact existing-hook exits73, untouched-before-observe copies, complete
@@ -128,8 +137,8 @@ embedding warning and all original failures remain explicit in execution.md.
 
 Exact registered native actors are gone in their original unconfined context;
 cleanup errors are empty. The native window returned to G. Final assembled Astra
-review remains; further work is docs/static only. No additional Q1 fault is
-selected, no qualified interruption/recovery proof exists, and100/D28-09 remain
+review remains; further work is docs/static only. Seq-383 selects one additional corrected Q1 pair, not yet executed. No qualified
+interruption/recovery proof exists, and100/D28-09 remain
 open. Historical records and immutable scratch packets are preserved.
 
 ## Historical Phase A checks

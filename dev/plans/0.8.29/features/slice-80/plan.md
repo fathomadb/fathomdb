@@ -1,102 +1,65 @@
 ---
 title: Slice 80 unified residual Block 2 design
-status: PROPOSED
+status: COMPLETE
 target_release: 0.8.29
 slice: 80
 ---
 
 # Slice 80 plan
 
-This documentary consolidation incorporates the independently bounded
-Astra-medium PASS for aggregate v2, exact source proposal SHA-256
-`a5e4851df2fedcbcce3e7d1b93138980c25e172d0ceb802792d218940bca0e53`.
-The consolidated packet's narrow nine-document consistency recheck is COMPLETE
-(PASS, recorded in [review log](review-log.md) and canonical
-[release state](../../../release-state-0.8.29.json)); it is not repeated. This is no
-new ABI/policy approval or full80/source-entry approval. All original packets
-remain frozen. Parent source stays clean2f6913 with no imports.
+The concrete [design](design.md), [requirements](requirements.md),
+[acceptance](acceptance.md), [needs](needs.md), [census](census.md) and
+[test map](test-map.md) are reconciled against integrated source
+`e1cb1bd5311f68da8be98bbe133b9cecd5ab56d4` and selected50 seq-374/375.
+Earlier aggregate-v2 and consolidation consistency PASS remain complete;
+unchanged packet reviews and hash inventories are not repeated.
 
-Source witness is frozen clean `2f6913c1d59ac8ff3a30de835b57290a8635998c`.
-The owner permits early80 design before predecessor implementation. This is
-own-scope documentary consolidation only: no product source/test/runtime work,
-new ABI approval, parent/state/ledger mutation or nested agent activity.
+## Concrete residual
 
-## Scope
+- Omit unavailable-only state/verdict in structured output and schema; preserve
+  integrated60 text omission, budgets and integrated70's three typed reasons.
+- Add bounded typed unknown-key and feedback membership diagnostics; compose
+  them with50's selected atomic ambiguous-ref refusal and not_recorded precedence.
+- Expose one sampled nullable default store and quoted text header/guide wording.
+- Add required StoredHeadCoverageV1 from committed already-required full writer
+  validation, exact counters/fractions and matching-token cache availability.
+  Orient adds fixed token work, no aggregate vector payload reads or scan.
+- Add opt-in SnippetV1.scored_bytes from exact selected canonical ownership and
+  original vector-arm participation. Reuse reviewed50's planned carrier; refuse
+  missing/multihead/misowned/malformed tuples, preserve known0/unknown distinction.
 
-Use [needs](needs.md)→[requirements](requirements.md)→[acceptance](acceptance.md)
-with [census](census.md), [design](design.md), [test map](test-map.md) and
-[review](review.md). Residual B2-1–8 retains state/verdict omission, typed bounded
-argument/ref correction, quoted default, actual built hints/admission/spans,
-compact text default and no weak threshold/calibrated verdict/chunking.
+Existing hints, queue/admission, span storage, format/filter forwarding and
+reason mappings are built controls, not new implementation tasks. No SearchHit
+growth, label ABI, migration, persisted counter, backfill, reprojection,
+calibrated verdict, weak-result threshold, chunking or provider qualification.
+Stage2 hints/default placement remains150.
 
-Aggregate R6/A6 now specify required StoredHeadCoverageV1 with population
-stored_mapped_spans, seven exact counters and nullable unreduced rational shares.
-Passing ownerless/bodyless/dual-owner mappings are excluded and explicitly
-counted. Preserve the existing invalid predicate/COALESCE and caller refusal
-scope, with no aggregate vector_default payload probes. Capture arithmetic
-inside already-required full writer validation; serve only a matching committed
-same-connection token via orient's projection-status path. Cold/changed caches
-have explicit availability, not fabricated zero or permanent capability absence.
-Attempted DML rollback conservatively invalidates through total_changes.
+## Remaining work
 
-Per-hit scored_bytes:Option<u32> stays inside existing opt-in SnippetV1, with no
-SearchHit growth. Actual50 selected-record and actual vector-participation
-settlement still gates that design; ref/body/arm are not sufficient keys.
-Feedback ambiguity/F11 stays held; no occurrence ABI or unilateral attribution
-choice. SDK hints Stage2/default placement stays conditional150.
+1. Fresh independent Astra-medium review passed on contract revision
+   `f2f4831554ae165420a31890cf102642ce28b21d`; the owner accepted the full
+   concrete contract in seq-384. These decisions do not close the source-fit
+   and Block1 exit requirements below.
+2. Actual50 source-fit is complete and independently accepted at
+   `2ed2d41a9191c3b003d57ecc87445aef5d3e1a7e`. Selected source is integrated at
+   `9036507bc98ef31c05ae334aa22ec5101323c7e7`, including atomic F11 refusal.
+   The source/consumer census and real SQLite fixtures supply correctness,
+   without a private-snapshot gate. The design dependency amendment is adopted;
+   canonical closure preserves the full Block1 and predecessor gates into90.
+3. Before90, record the separate actual Block1 follow-up exit after integrated
+   selected20–70 and applicable checks/conformance/smoke. Selected TC5 input pack
+   is statically qualified, not measured. The smoke model/prompt/budget fixture
+   remains unanswered.160 cannot substitute for that earlier exit.
+4.90 stages each baseline-callable semantic RED before behavior GREEN, preserves
+   authored oracles, completes owned native/source checks and gets fresh final
+   implementation review. This light design milestone executes none of them.
 
-## Work and remaining entrance
+## Traceability and amendments
 
-1. COMPLETE: documentary consolidation and its same-Astra narrow nine-document
-   consistency recheck (PASS; see [review log](review-log.md)). Nothing here is
-   rerun; no implementation or full80 verdict is inferred from either PASS.
-   Only items 2–5 remain pending.
-2. Reconcile actual selected50 identity/ref/packing/vector-membership consequence,
-   final60 fields/accounting and actual70 reasons after integration. Recheck
-   release requirements/AC mappings against that source. No stale contracts.
-3. Full80 owner approval remains held until those inputs and required independent
-   reviews settle. Numeric carrier naming/cache choices are now concrete design,
-   not routine drafting deferred to that future review.
-4. 90 additionally requires the actual unnumbered Block1 follow-up exit after
-   integrated selected20–70: applicable full/feature/performance checks,
-   both-format conformance and approved smoke/item4 remeasure.160 is downstream.
-5. Later90 stages/commits actual semantic REDs per behavior before GREEN,
-   preserves human oracles, completes owned-tooling source/native checks and
-   receives a fresh independent final implementation review.
-
-10 is completed preparation evidence;20 is not closed,30 has accepted P and11 G
-read results while its remaining cells and TC5 inputs are absent,50 has bounded
-design review without the actual identity/runtime-census/carrier proof, and70 is
-implemented and integrated; reconcile its actual reasons before full80 approval.
-
-Historical record only (consolidation-time snapshot; it reopens no completed
-qualification and is not a pending step; current60 inputs are reconciled solely
-under item 2). Parent-supplied60 checkpoint: clean candidate
-`307c92e3b4b8c674eec28fc940c879e9054fff90` has source TDD for formats,
-filters and budgets, and post-code real-GPU manual SDK plus both MCP formats
-14-case PASS. Native/full gate and fresh final review remain pending; F11
-feedback ruling remains held. This is not60 completion, final-contract
-settlement or integration into the clean2f6913 parent.80 did not run those
-checks or read mutable worker output as authority.
-
-## Canonical/release adaptation and validation
-
-Parent owns eventual import and generated release state. Preserve R29-REL-A/K/D
-and90's hard entrance. The same implementing90 PR must amend maintained
-interfaces/MCP/EP17/long-record guard per requirements/design, retaining existing
-storage, schema37 and exact new error precedence. No canonical AC or operation
-is invented. No migrations/counters/backfill/reprojection or extra experiments.
-
-Apply quality-roadmap boundary/Unicode/snapshot/anomaly/bounded-work methods;
-defer broad MC/DC/fuzz/allocation/chunking campaigns. Existing release CUDA
-review stays; this consolidation adds no venue/model/GPU/paid permission.
-
-Historical consolidation-time note (non-import narrative; requests no further
-document qualification): only document structure/internal links/hand arithmetic
-were checked here, with parent scoped Markdown/release checks at import. Still
-pending, as actual source/runtime gates: source qualification
-uses the required owned-tooling full gate, exact native identity and actual
-exits; this document validation is no workspace-green claim. Originals stay
-frozen, [status](status.md) retains all source-entry holds, and root manifest.json
-recorded the exact candidate files/digests used by the completed consistency
-recheck; they are not regenerated.
+N29-A/K/D and R29-REL-A/K/D still own truthful bounded agent output, consistent
+SDK semantics and prerequisite discipline. [Needs](needs.md) and
+[acceptance](acceptance.md) map existing canonical REQ/AC IDs; they are regression
+and qualification obligations, not proof of new S80 semantics. No canonical AC
+is created. The implementing PR updates affected interfaces, MCP requirements,
+EP17 and long-record guard wording/field census in the same source change.
+Parent alone owns generated release state, board/master plan and ledgers.

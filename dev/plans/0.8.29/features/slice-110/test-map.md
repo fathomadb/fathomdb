@@ -20,6 +20,28 @@ until actual qualified successor evidence exists.
 
 ## RED/GREEN order and actual oracles
 
+Before qualified140-A integration, these bounded product behaviors use the
+existing `PoolDriver` production dispatch and current pins. They are partial
+F6/F7 contributions, not substitute fork/token tests:
+
+1. `an_established_loss_precedes_later_oom_without_native_queries`: establish
+   loss through `classify_forward_fault`, then submit OOM; require typed loss,
+   original identity/error, the current operation name and no further native
+   state/id reads. Source preparation or compilation alone is not a RED result;
+   run the exact test under the available heavy lease before implementation.
+2. After its own actual RED, refuse `build_device` before creating or wrapping
+   another private context once that same decision has published loss. Repeated
+   attempts stay refused; ordinary healthy OOM retains existing retry behavior.
+3. After separate actual REDs, avoid lost-pool diagnostic reads and make
+   last-model release consult published loss before native queries/sync/trim.
+   Add an explicit null-counter successor to the existing snapshot assertion;
+   preserve the historical expected-signal characterization and its evidence.
+
+Each behavior is tested and fixed separately. The first fixture does not encode
+the still-blocked case where the fork token's first terminal status itself is
+OOM; that needs qualified cached-loss observation and actual token integration.
+Do not manufacture missing-API compilation failures or add unused test helpers.
+
 Fork tests live in each fork's `fathomdb/` plan and native Rust modules. Product
 tests live in existing pool-policy/model/engine/SDK suites. A semantic-preserving
 refactor may expose an existing cleanup call through a small per-module test seam;

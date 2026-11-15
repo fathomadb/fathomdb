@@ -1,4 +1,5 @@
 use super::*;
+use crate::fusion::RankedHit;
 
 /// 0.8.1 Slice 10 (R1) — CE rerank seam.
 ///
@@ -46,6 +47,16 @@ pub fn try_rerank_fused(
     alpha: f64,
     pool_n: usize,
 ) -> Result<Vec<SearchHit>, RerankerDevicePolicyError> {
+    try_rerank_ranked(_query, hits, rerank_depth, alpha, pool_n)
+}
+
+pub(crate) fn try_rerank_ranked<H: RankedHit>(
+    _query: &str,
+    hits: Vec<H>,
+    rerank_depth: usize,
+    alpha: f64,
+    pool_n: usize,
+) -> Result<Vec<H>, RerankerDevicePolicyError> {
     // Soft-fallback: depth=0 → identity (byte-identical to old stub). NOTE this
     // early gate is independent of `pool_n`: `rerank_depth == 0, pool_n = 10`
     // does NOT rerank (0.8.5 D4).
@@ -205,13 +216,13 @@ pub fn rerank_passages(
 /// - `final_score = 0.3 × ce_norm + 0.7 × rrf_norm`
 /// - Hits beyond `rerank_depth` keep their original RRF scores and order.
 #[cfg(feature = "default-reranker")]
-fn ce_rerank(
+fn ce_rerank<H: RankedHit>(
     _query: &str,
-    hits: &[SearchHit], // FIX-1: borrow, not move — caller retains ownership for soft-fallback
+    hits: &[H], // FIX-1: borrow, not move — caller retains ownership for soft-fallback
     _rerank_depth: usize, // 0.8.5: pool sizing moved to `pool_n`; depth gate stays in `rerank_fused`.
     alpha: f64,
     pool_n: usize,
-) -> Result<Option<Vec<SearchHit>>, RerankerDevicePolicyError> {
+) -> Result<Option<Vec<H>>, RerankerDevicePolicyError> {
     #[cfg(feature = "tc5-benchmark")]
     tc5_benchmark::record_cross_encoder_route();
     // 0.8.5 (D3) — clamp α to [0,1] silently here so EVERY path (engine search,
@@ -239,27 +250,39 @@ fn ce_rerank(
     // `unwrap_or(rerank_depth)` default at the binding), clamped to the hit count.
     let n = pool_n.min(hits.len());
     let top = &hits[..n]; // no split_at_mut needed; borrow slices directly
-    let rest = &hits[n..];
-
-    // --- RRF min-max normalization over the top-N pool ---
-    let rrf_min = top.iter().map(|h| h.score).fold(f64::INFINITY, f64::min);
-    let rrf_max = top.iter().map(|h| h.score).fold(f64::NEG_INFINITY, f64::max);
-    let rrf_span = rrf_max - rrf_min;
 
     // Batched CE scoring: ONE forward over the whole top-N pool instead of N
     // per-pair forwards. The ranking math below (RRF min-max norm, sigmoid,
     // ALPHA blend, sort) is byte-unchanged — only the scoring is batched.
-    let bodies: Vec<&str> = top.iter().map(|h| h.body.as_str()).collect();
+    let bodies: Vec<&str> = top.iter().map(|h| h.hit().body.as_str()).collect();
     #[cfg(feature = "slice72-test-hooks")]
     let raw_logits = slice72_test_hooks::with_ce_forward(|| model.score_batch(_query, &bodies))?;
     #[cfg(not(feature = "slice72-test-hooks"))]
     let raw_logits = model.score_batch(_query, &bodies)?;
 
-    let mut scored: Vec<(f64, SearchHit)> = top
+    Ok(Some(blend_ce_ranked(hits, raw_logits, alpha, pool_n)))
+}
+
+#[cfg(any(feature = "default-reranker", test))]
+fn blend_ce_ranked<H: RankedHit>(
+    hits: &[H],
+    raw_logits: Vec<f64>,
+    alpha: f64,
+    pool_n: usize,
+) -> Vec<H> {
+    let n = pool_n.min(hits.len());
+    let top = &hits[..n];
+    let rest = &hits[n..];
+    // --- RRF min-max normalization over the top-N pool ---
+    let rrf_min = top.iter().map(|h| h.hit().score).fold(f64::INFINITY, f64::min);
+    let rrf_max = top.iter().map(|h| h.hit().score).fold(f64::NEG_INFINITY, f64::max);
+    let rrf_span = rrf_max - rrf_min;
+
+    let mut scored: Vec<(f64, H)> = top
         .iter()
         .zip(raw_logits)
         .map(|(h, raw_logit)| {
-            let rrf_norm = if rrf_span > 0.0 { (h.score - rrf_min) / rrf_span } else { 1.0 };
+            let rrf_norm = if rrf_span > 0.0 { (h.hit().score - rrf_min) / rrf_span } else { 1.0 };
             // Sigmoid for CE normalization: 1/(1+exp(-x)).
             let ce_norm = 1.0 / (1.0 + (-raw_logit).exp());
             // 0.8.5 — α is the caller-supplied (clamped) blend weight; default 0.3
@@ -267,7 +290,7 @@ fn ce_rerank(
             let blended = alpha * ce_norm + (1.0 - alpha) * rrf_norm;
             // 0.8.5 (D1) — expose the per-candidate CE score on in-pool hits.
             let mut hit = h.clone();
-            hit.ce_score = Some(ce_norm);
+            hit.hit_mut().ce_score = Some(ce_norm);
             (blended, hit)
         })
         .collect();
@@ -275,17 +298,17 @@ fn ce_rerank(
     // Sort top-N by blended score descending (stable within ties by original order).
     scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
 
-    let mut result: Vec<SearchHit> = scored
+    let mut result: Vec<H> = scored
         .into_iter()
         .map(|(score, mut h)| {
-            h.score = score;
+            h.hit_mut().score = score;
             h
         })
         .collect();
 
     // Append hits beyond rerank_depth in their original RRF order.
     result.extend_from_slice(rest);
-    Ok(Some(result))
+    result
 }
 
 /// One cross-encoder scorer. `Err(Some(error))` is a CUDA pool kind that must

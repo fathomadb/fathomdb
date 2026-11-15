@@ -31,7 +31,7 @@ use crate::output::{
     Unavailable, UnavailableWord, UseStoreOutput,
 };
 use crate::registry::{Admission, Cancel, ProgressFn, Registry, StoreGuard};
-use crate::session::{Continuation, ResponseContext, ResponseLookup, Session};
+use crate::session::{fold_response_refs, Continuation, ResponseContext, ResponseLookup, Session};
 use crate::shape::{self, CanonicalSearch};
 
 /// The engine's ranked-result cap (`MAX_RANKED_LIMIT`).
@@ -138,6 +138,14 @@ pub struct SearchArgs {
     pub attributes: Option<BTreeMap<String, String>>,
     /// Validity instant, epoch seconds; defaults to now.
     pub as_of: Option<i64>,
+    /// Include superseded record versions; defaults to false. Null is invalid.
+    #[serde(default, deserialize_with = "deserialize_search_view_flag")]
+    #[schemars(with = "bool", default = "bool::default")]
+    pub include_superseded: Option<bool>,
+    /// Include records in a non-active lifecycle state; defaults to false. Null is invalid.
+    #[serde(default, deserialize_with = "deserialize_search_view_flag")]
+    #[schemars(with = "bool", default = "bool::default")]
+    pub include_inactive: Option<bool>,
     /// Results per page, 1..=100; default 10.
     #[schemars(range(min = 1, max = 100))]
     pub limit: Option<u64>,
@@ -237,6 +245,13 @@ pub struct FeedbackArgs {
     // Accepted so every tool takes the same argument; this tool emits no hints.
     #[allow(dead_code)]
     pub hints: Option<bool>,
+}
+
+fn deserialize_search_view_flag<'de, D>(deserializer: D) -> Result<Option<bool>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    bool::deserialize(deserializer).map(Some)
 }
 
 fn parse<T: DeserializeOwned>(arguments: Map<String, Value>) -> Result<T, ToolError> {
@@ -989,6 +1004,8 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
                 && args.created_after.is_none()
                 && args.attributes.is_none()
                 && args.as_of.is_none()
+                && args.include_superseded.is_none()
+                && args.include_inactive.is_none()
                 && args.limit.is_none()
                 && args.explain.is_none();
             if !only_paging {
@@ -1027,6 +1044,8 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
                 created_after: args.created_after,
                 attributes: args.attributes.clone().unwrap_or_default().into_iter().collect(),
                 as_of: args.as_of,
+                include_superseded: args.include_superseded.unwrap_or(false),
+                include_inactive: args.include_inactive.unwrap_or(false),
                 limit: limit as usize,
                 explain: args.explain.unwrap_or(false),
             };
@@ -1041,7 +1060,12 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
     }
     let telemetry = guard.info.telemetry;
     let (run_limit, page_limit) = shape::page_window(offset, canonical.limit, MAX_RANKED);
-    let view = ReadView { valid_as_of: Some(validity_instant), ..ReadView::default() };
+    let view = ReadView {
+        include_superseded: canonical.include_superseded,
+        include_inactive: canonical.include_inactive,
+        valid_as_of: Some(validity_instant),
+        ..ReadView::default()
+    };
     let request = canonical.clone();
     // While telemetry is on, hybrid searches run with explain so the query id
     // comes from this search's own correlation id, never the engine-wide
@@ -1166,10 +1190,9 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
             epoch: answered.epoch,
             mode,
             query_id,
-            refs: page[..kept]
-                .iter()
-                .map(|(hit, cursor, _)| (hit.reference.clone(), *cursor))
-                .collect(),
+            refs: fold_response_refs(
+                page[..kept].iter().map(|(hit, cursor, _)| (hit.reference.clone(), *cursor)),
+            ),
         },
     );
     Ok(rendered)
@@ -1631,8 +1654,6 @@ pub(crate) async fn feedback(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Ou
             max_tokens,
         ));
     };
-    let used: Vec<u64> = args.used.iter().map(|reference| entry.refs[reference]).collect();
-    let unused: Vec<u64> = unused.iter().map(|reference| entry.refs[reference]).collect();
     // No waiting: a store that is no longer ready can only come back under a
     // new epoch, whose sink never saw this response.
     let guard = match ctx
@@ -1655,6 +1676,21 @@ pub(crate) async fn feedback(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Ou
     if guard.epoch != entry.epoch {
         return Ok(not_recorded(&store, guard.epoch, NotRecordedReason::StoreReopened, max_tokens));
     }
+    // Complete validation follows both epoch checks and acquisition so existing
+    // not_recorded outcomes keep precedence, and no partial label can escape.
+    let ambiguous = || ToolError::bad_argument("a named reference is ambiguous in that response");
+    if named.iter().any(|reference| entry.refs[*reference].cursor().is_none()) {
+        return Err(ambiguous());
+    }
+    let resolve = |references: &[String]| {
+        references
+            .iter()
+            .map(|reference| entry.refs[reference].cursor())
+            .collect::<Option<Vec<u64>>>()
+            .ok_or_else(ambiguous)
+    };
+    let used = resolve(&args.used)?;
+    let unused = resolve(&unused)?;
     let (answered, ()) =
         bridge::call(guard, ctx.run_limit(), &ctx.cancel, None, &ctx.shared.hooks, move |engine| {
             engine.record_feedback(&query_id, &used, &unused, "agent")

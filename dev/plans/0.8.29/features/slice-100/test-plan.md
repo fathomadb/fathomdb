@@ -11,10 +11,11 @@ with no raw-snapshot/recovery result. [Execution](execution.md) retains precise
 subjects, real tool RED/GREEN and current20controls. Source review accepted the
 interrupt transition and bounded monitor repair. Assembled qualification covers
 all217registrations with explicit failed/remaining continuation and exact PyO3
-loader correction; final assembled review remains.
+loader correction; the qualified subset is independently accepted.
 
-Seq-371 approves specific verification additions; seq-372's one actual witnessed
-signal has been issued. No second Q1 fault is authorized. Original healthy proof
+Seq-371 approves specific verification additions. The original seq-372 pair and
+one additional seq-383 pair have executed; both interruptions remain UNQUALIFIED.
+No further pair is authorized. Original healthy proof
 is retained; strict matching still requires a new healthy at any newly scoped
 frozen subject. Own native/TS setup is complete, with no borrowed artifacts.
 The one full wrapper passed lint/typecheck/security, then stopped incompletely
@@ -111,3 +112,8 @@ record actual G100-1/G100-2 results and remaining limitations before full
 D28-09 closure. Approved scope alone supplies no qualification. A full gate passing cannot fill a missing reached
 fault or authorize a TDD exception. Later affected core changes invalidate the
 named receipts and160 reruns the affected combined seams.
+
+The seq-383 healthy/native witness passed on integrated453, but its interruption
+has no confirmed exit, raw snapshot or recovery result. Only the minimal held
+repair/RED intent in design.md is next; no implementation or new fault precedes
+independent design review. Existing positive coverage and original failures stay.

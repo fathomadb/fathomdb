@@ -48,7 +48,8 @@ and then disappear after ranking. Current and frozen paths share that rule.
 ## Current .28 selection and query compilation
 
 Direct node/edge body FTS applies optional SearchFilter eligibility in its
-snapshot-local SQL before candidate caps, deduplication, ranking and limit.
+snapshot-local SQL before candidate caps, per-record credit suppression, ranking and limit.
+Fusion identity follows [the accepted record-version decision](../adr/ADR-0.8.29-retrieval-record-identity.md); public IdSpace is unchanged.
 A same-selection/query/filter/effective-time comparison preserves the ordered
 prefix as the accepted limit grows. This does not promise hybrid prefix order.
 Node attributes use declared filterable projections; a nonempty attribute

@@ -149,6 +149,9 @@ pub use search_api::vector_phase1_sql_for_test;
 mod search_types;
 mod snippet;
 mod snippet_query;
+#[cfg(feature = "test-hooks")]
+#[doc(hidden)]
+pub use snippet::snippet_for_full_reference_for_test;
 pub use snippet::{snippet_for, SnippetAnchor, SnippetOptions, SnippetV1};
 mod structural_state;
 #[cfg(feature = "tc5-benchmark")]
@@ -250,8 +253,8 @@ pub use frozen_read::Slice45FrozenStageTiming;
 pub use frozen_read::Slice45MintStageTiming;
 pub use frozen_read::{FrozenReadContextV1, FrozenReadError, FrozenReadErrorReason, ReadContextV1};
 pub use fusion::{
-    apply_importance_reweight, apply_recency_reweight, fuse_rrf, fuse_three_arms, RECENCY_WEIGHT,
-    RRF_K, RRF_WEIGHT_GRAPH, RRF_WEIGHT_TEXT, RRF_WEIGHT_VECTOR,
+    apply_importance_reweight, apply_recency_reweight, fuse_rrf, fuse_three_arms, FusionHit,
+    FusionOwnership, RECENCY_WEIGHT, RRF_K, RRF_WEIGHT_GRAPH, RRF_WEIGHT_TEXT, RRF_WEIGHT_VECTOR,
 };
 pub use graph_expand::{
     decode_graph_expand_request_v1, decode_graph_expand_result_v1, encode_graph_expand_request_v1,
@@ -455,7 +458,6 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::fs::{File, OpenOptions};
-use std::hash::BuildHasher;
 use std::io::{BufRead, BufReader, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};

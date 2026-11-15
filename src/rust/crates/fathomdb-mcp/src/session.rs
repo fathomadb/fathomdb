@@ -21,6 +21,39 @@ pub(crate) struct Continuation {
     pub(crate) validity_instant: i64,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum ResponseCursor {
+    Unique(u64),
+    Ambiguous,
+}
+
+impl ResponseCursor {
+    fn include(&mut self, cursor: u64) {
+        if matches!(self, Self::Unique(existing) if *existing != cursor) {
+            *self = Self::Ambiguous;
+        }
+    }
+
+    pub(crate) fn cursor(self) -> Option<u64> {
+        match self {
+            Self::Unique(cursor) => Some(cursor),
+            Self::Ambiguous => None,
+        }
+    }
+}
+
+pub(crate) fn fold_response_refs(
+    entries: impl IntoIterator<Item = (String, u64)>,
+) -> BTreeMap<String, ResponseCursor> {
+    let mut refs = BTreeMap::new();
+    for (reference, cursor) in entries {
+        refs.entry(reference)
+            .and_modify(|value: &mut ResponseCursor| value.include(cursor))
+            .or_insert(ResponseCursor::Unique(cursor));
+    }
+    refs
+}
+
 /// What feedback needs to credit a response (MR-024).
 #[derive(Clone, Debug)]
 pub(crate) struct ResponseContext {
@@ -28,8 +61,8 @@ pub(crate) struct ResponseContext {
     pub(crate) mode: SearchMode,
     /// The telemetry query id of a captured hybrid search.
     pub(crate) query_id: Option<String>,
-    /// Reference to engine write cursor, for `record_feedback`.
-    pub(crate) refs: BTreeMap<String, u64>,
+    /// One cursor or absorbing ambiguity per returned reference, never last-wins.
+    pub(crate) refs: BTreeMap<String, ResponseCursor>,
 }
 
 struct Lru<V> {
@@ -133,5 +166,26 @@ impl Session {
         } else {
             ResponseLookup::Missing
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn repeated_same_cursor_stays_unique_and_distinct_cursors_stay_ambiguous() {
+        let unique = fold_response_refs([("same".into(), 7), ("same".into(), 7)]);
+        assert_eq!(unique["same"], ResponseCursor::Unique(7));
+        let mixed = fold_response_refs([
+            ("same".into(), 7),
+            ("other".into(), 9),
+            ("same".into(), 8),
+            ("same".into(), 7),
+        ]);
+        assert_eq!(mixed.len(), 2);
+        assert_eq!(mixed["same"], ResponseCursor::Ambiguous);
+        assert_eq!(mixed["same"].cursor(), None);
+        assert_eq!(mixed["other"].cursor(), Some(9));
     }
 }

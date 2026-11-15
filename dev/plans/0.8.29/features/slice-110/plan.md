@@ -40,6 +40,13 @@ actual Orin/3090 child reset execution for .30 review. No live fault is authoriz
 
 ## Execution sequence
 
+Current-pin preparation may implement the narrow already-detected-loss
+publication/dispatch behavior in the [source boundary](design.md#current-source-implementation-boundary),
+following independent design review and actual per-behavior RED/GREEN. It does
+not wait for140 qualification, change pins, or close110. Token/pool/model wiring
+continues to require qualified140-A source before implementation. Source-only
+test preparation is not an observed RED and does not consume a native gate.
+
 1. Independent Astra-medium design review is complete (PASS after partial-load
    reset was kept seam-only). Owner seq-376/377 is the selected policy and live-fault
    disposition; reconcile its active .29 source/seam scope before implementation.

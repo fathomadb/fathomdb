@@ -346,7 +346,7 @@ async fn invalid_arguments_are_typed_invalid_requests() {
         json!({"query": "river", "limit": 101}),
         json!({"query": "river", "max_tokens": 255}),
         json!({"query": "river", "mode": "vector"}),
-        json!({"query": "river", "include_superseded": true}),
+        json!({"query": "river", "include_superseded": "true"}),
         json!({"query": "river", "colour": "blue"}),
     ] {
         let error = harness.err("search", args.clone()).await;
@@ -791,4 +791,63 @@ async fn mcp_per_term_pool_scales_with_the_run_window() {
     }
     assert_eq!(offset, 30);
     harness.shutdown().await;
+}
+
+/// Marker exhaustion supplies no spans; both presentations retain the exact
+/// engine record start, including its UTF-8 budget and combining clusters.
+#[tokio::test(flavor = "multi_thread")]
+async fn record_start_prefix_is_exact_in_both_result_formats() {
+    let ascii = "alpha beta gamma delta epsilon zeta eta theta iota kappa lambda ".repeat(100);
+    let nfd = "e\u{301}".repeat(200);
+    let markers = " needle \u{E000}\u{E001}\u{F8FE}\u{F8FF}\u{FDD0}\u{FDD1}";
+    let expected = [
+        ("l:ascii", "alpha beta gamma delta epsilon zeta eta theta iota kappa …".to_string()),
+        ("l:nfd", format!("{} …", "e\u{301}".repeat(19))),
+    ];
+    for format in ["structured", "text"] {
+        let (_fixture, harness) = harness_with(
+            vec![
+                node("ascii", "note", &format!("{ascii}{markers}")),
+                node("nfd", "note", &format!("{nfd}{markers}")),
+            ],
+            json!({"snippet_bytes":62,"result_format":format}),
+        )
+        .await;
+        let result = harness
+            .call(
+                "search",
+                json!({"query":"needle","limit":2,"highlights":true,"max_tokens":20000}),
+            )
+            .await;
+        assert_ne!(result.is_error, Some(true));
+        if format == "structured" {
+            let value = result.structured_content.as_ref().unwrap();
+            assert_eq!(value["results"].as_array().unwrap().len(), 2);
+            for (reference, text) in &expected {
+                let hit = value["results"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .find(|hit| hit["ref"] == *reference)
+                    .unwrap();
+                assert_eq!(hit["snippet"], *text);
+                assert_eq!(hit["snippet_anchor"], "start");
+                assert_eq!(hit["snippet_cut"], true);
+                assert_eq!(hit["highlights"], json!([]));
+            }
+        } else {
+            assert!(result.structured_content.is_none());
+            let rendered = text_of(&result);
+            for (reference, text) in &expected {
+                let line = rendered
+                    .lines()
+                    .find(|line| line.starts_with(&format!("\"{reference}\" ")))
+                    .unwrap();
+                assert!(line.contains("anchor=start cut"), "{line}");
+                assert!(line.ends_with(&format!(" | {text}")), "{line}");
+                assert!(line.contains(" hl=[]"), "{line}");
+            }
+        }
+        harness.shutdown().await;
+    }
 }

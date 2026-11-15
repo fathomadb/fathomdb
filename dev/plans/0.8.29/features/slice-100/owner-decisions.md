@@ -18,13 +18,21 @@ are part of this plan. Seq-369 remains specific to20 A3/A5.
   allocation. Missing runtime checks stop UNQUALIFIED. Source review, actor/
   identity/runtime readiness and parent technical GO remain required.
 
+- **Seq-383:** approve one additional corrected matched healthy/witnessed-SIGKILL
+  pair after the original interruption remained UNQUALIFIED. The unchanged
+  120seconds/case,64GiB, registered-actor and runtime-readiness limits apply;
+  there is no automatic retry. This pair executed at453: healthy qualified,
+  interruption UNQUALIFIED after its signal/resume error; no recovery proof.
+  Its authority is spent, with original results retained. No further pair is selected.
+
 No host/disk/power/VM/GPU fault, external attachment, unrelated process/filesystem
 cleanup, timed-kill substitute, SQLite/VFS patch or production fault seam is
 included. Approval is not proof of viability and is not100/D28-09 closure.
 
 The maintained-plan Astra recheck passed at c1226d1bf and parent implementation
-GO was recorded at5f8f12071.100 now owns the transferred native window, while
-Q1 debugger/inferior/ptrace/SIGKILL remain technically held. The scoped approved
+GO was recorded at5f8f12071. Subsequent actual pair results and the returned
+native lease are recorded in execution.md. Any further Q1 run is held for a
+reviewed concrete proposal, actual owner scope and a scheduled technical GO. The scoped approved
 [protocol](q1-protocol.md), [oracles](composed-oracles.md) and
 [implementation map](implementation-map.md) preserve independent source review,
 actual runtime readiness and parent technical GO before Q1 execution. Do not ask

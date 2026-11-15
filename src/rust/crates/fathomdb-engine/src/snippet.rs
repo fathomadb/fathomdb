@@ -157,6 +157,31 @@ pub struct SnippetV1 {
 #[must_use]
 pub fn snippet_for(body: &str, spans: &[(u32, u32)], options: &SnippetOptions) -> SnippetV1 {
     let options = clamped(options);
+    if spans.is_empty() && body.len() > options.max_bytes as usize {
+        if let Some(snippet) = record_start_prefix(body, options.max_bytes as usize) {
+            return snippet;
+        }
+    }
+    full_snippet_for(body, spans, &options)
+}
+
+/// Runs the retained complete selector for exact differential tests.
+///
+/// Inputs, clamping, output coordinates and invariants match [`snippet_for`].
+/// This test-only seam performs no storage access and never specializes prefixes.
+#[cfg(feature = "test-hooks")]
+#[doc(hidden)]
+#[must_use]
+pub fn snippet_for_full_reference_for_test(
+    body: &str,
+    spans: &[(u32, u32)],
+    options: &SnippetOptions,
+) -> SnippetV1 {
+    full_snippet_for(body, spans, options)
+}
+
+fn full_snippet_for(body: &str, spans: &[(u32, u32)], options: &SnippetOptions) -> SnippetV1 {
+    let options = clamped(options);
     if spans.is_empty() && body.len() <= options.max_bytes as usize {
         // The common case needs no boundary tables.
         return whole(body, &[], &options);
@@ -234,6 +259,42 @@ const TRAILING: &str = " \u{2026}";
 /// How far an edge may move to reach a word boundary before it falls back to
 /// a grapheme boundary.
 const WORD_REACH: usize = 32;
+
+fn record_start_prefix(body: &str, max_bytes: usize) -> Option<SnippetV1> {
+    let target = max_bytes - TRAILING.len();
+    let prefix = body.as_bytes().get(..target + 1)?;
+    if !prefix.iter().all(|byte| byte.is_ascii_alphanumeric() || *byte == b' ') {
+        return None;
+    }
+    // In this alphabet UAX #29 joins letters/digits and joins spaces. Only
+    // transitions between those runs are word boundaries. One lookahead byte
+    // proves boundaries through target without inventing a sliced end boundary;
+    // a later Unicode suffix cannot change these earlier ASCII transitions.
+    let word = prefix
+        .windows(2)
+        .enumerate()
+        .filter(|(_, pair)| (pair[0] == b' ') != (pair[1] == b' '))
+        .map(|(index, _)| index + 1)
+        .next_back()
+        .unwrap_or(0);
+    let mut end = if word + WORD_REACH >= target { word } else { target };
+    // Every admitted byte is a cluster. Retain the first even if it is space,
+    // matching Text::prefix's floor while trimming the chosen trailing spaces.
+    while end > 1 && prefix[end - 1] == b' ' {
+        end -= 1;
+    }
+    let mut text = String::with_capacity(end + TRAILING.len());
+    text.push_str(&body[..end]);
+    text.push_str(TRAILING);
+    Some(SnippetV1 {
+        text,
+        anchor: SnippetAnchor::Start,
+        windows: vec![(0, to_u32(end))],
+        spans: Vec::new(),
+        highlights: Vec::new(),
+        cut: true,
+    })
+}
 
 /// A body with its boundary tables.
 struct Text<'a> {

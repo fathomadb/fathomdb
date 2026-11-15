@@ -5,6 +5,51 @@ option1 below; seq-377 holds actual Orin/3090 resets for .30 review. Source/seam
 repairs are selected for .29, not implemented or runtime-qualified. Source baseline is accepted `a00bf9b9228318e7c236148551bb188f63ff66ee`.
 No native or fault execution supports a new survival claim yet.
 
+## Current-source implementation boundary
+
+Source fit at Fathom `f7ad475fbf3ef273faa32dca6e0b82fccdc7efcb` and committed
+cudarc repair `4510667590ff729adfdb140e53d645ce00a8acbd` distinguishes two steps.
+The current product can preserve a loss it has already detected, without new
+dependencies: `context_loss` currently forgets its result, so a later OOM becomes
+exhaustion and `build_device` can create another private-context wrapper.
+Add a once-published first-loss record to `PrivateDecision`, shared by its
+existing policy calls. Publish identity/error metadata before snapshot output;
+map each subsequent operation to that record before OOM classification, native
+diagnosis or private-context construction. This is a product refusal/publication
+cache, not a replacement native-generation state machine or cleanup guarantee.
+Do not hold its publication synchronization across driver calls or output.
+Concurrent calls already inside native diagnosis are not made safe by this
+cache; shared native admission remains the qualified fork's responsibility.
+
+Use the same published record in last-model release to refuse synchronization
+and trim after a known loss. The first loss snapshot must not query the lost
+pool; retain measured identity/probe provenance and emit null for unavailable
+native counters. Preserve healthy and ordinary-OOM behavior. This narrow step
+does not add leases to model execution or discover every native loss.
+Current private decisions have no authentic cached counter sample: emit
+`pool: null`, adding no healthy native query solely to populate diagnostics.
+The explicit test successor changes only old non-null pool-counter assertions;
+identity, operation, winning observation, one-line/once output and historical
+expected-signal teardown assertions remain unchanged. Native reset execution
+and teardown qualification remain held.
+
+Actual shared-generation admission remains blocked on qualified140-A source.
+The inspected cudarc commit exposes `PrimaryContextLifetime::new`, `admit` and
+`CudaContext::new_tracked`, but no public cached-loss/recorded-identity accessor;
+its existing `new_with_mem_pool` remains untracked. Qualified cached observation,
+tracked pool attachment and complete descendant cleanup are required before
+product token/pool wiring or pin changes. In particular, a token that first
+becomes terminal with an OOM status cannot be integrated using enum-only mapping.
+The eventual token supplies native loss authority to the product publication
+path; there must be no independently recoverable product generation.
+
+Candle already exposes `Device::new_cuda_from_context`; its existing
+`CudaDevice::from_context_and_stream` creates BLAS then RNG. No new model/tensor
+API is needed. Enclosing construction admission and safe partial unwind still
+require qualified fork behavior. Default/synchronous tracking, device probes,
+BGE/reranker construction/forward leases and native teardown remain integration
+work after140, not claims completed by the product publication cache.
+
 ## Existing source and primary guarantees
 
 Product imports `cudarc-fathomdb =0.19.10` through Candle's re-export, and

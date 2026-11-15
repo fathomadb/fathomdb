@@ -291,6 +291,25 @@ observer feature added. No general test hooks, borrowed target/module, old-build
 retag or invented native equivalence is allowed. Natural execution still needs
 current source qualification, the parent's native window and a reserved3090.
 
+The executable chain is explicit. Build output carries `source_sha`,
+`compiler_inputs`, lock identity and each ordinary/diagnostic binary's path and
+features. Freeze consumes that actual output plus data-only donor references and
+produces private canonical member configs: `family`, origin cell, purpose,
+repeat, `slice50_pair_mode`, `observe`, admitted store/corpus/query paths, n,
+adapters/routes, warmup/samples and applicable write fields. It does not patch
+an old G config or accept caller-selected counts. The public controller binds
+that exact member/store/deadline to live owned admission before preparation.
+After validated copy, the existing `g_driver.run_program_step([binary], config,
+fresh_output, absolute_deadline, ...)` writes its native config and invokes
+`[binary, native_config_path, fresh_output]`; remaining allowance only declines.
+The existing dispatcher sets the private selector for the selected mode. Native
+paired P must consume its admitted copy/provider-none/observe fields; native G
+uses its actual existing G-R/G-W calls and operation observer. Report checks the
+native counts/open/close/device/work facts, exact member result fields and full
+pair comparison, plus actual charging/actor cleanup, before any member credit
+or selected copy retirement. Source review must trace this entire field/argv
+chain; accepted helper functions alone cannot establish executable completeness.
+
 `pair-freeze --options selected-pair.json --out OWNED/pair-frozen` binds a distinct
 paired scope, exact canonical members below, actual artifacts and qualified
 input identities. Original G CLOSED10k/100k stores are **data-only donors**:
@@ -401,7 +420,11 @@ fresh copies of the qualified10k donor and the current ordinary/diagnostic build
 This distinct calibration ID credits none of the68 primaries or24 diagnostics.
 It can measure current10k copy/open/read/record/observer/RSS/close costs only;
 P preparation,100k and write costs stay unknown until separately observed and
-selected. There is no automatic next stage, retry or caller-edited subset.
+selected. This first real full10k public calibration jointly qualifies the
+actual build→freeze/admission→native→report pipeline and measures current costs;
+there is no separate proxy-smoke or elapsed-only receipt phase. Harmless source
+controls cannot qualify that runtime. There is no automatic next stage, retry
+or caller-edited subset.
 
 Proposed bootstrap limits are900s whole phase,800s preparation/payload and2GiB
 new retained growth, with2× time/growth headroom against the original shared

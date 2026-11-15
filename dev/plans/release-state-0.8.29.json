@@ -234,7 +234,7 @@
       "phase": "MEASUREMENT_TOOLING_SOURCE_QUALIFIED_SCIENTIFIC_CAMPAIGNS_PENDING",
       "plan_sha": "bea7f05cd2497af0d73c6eb8da509e11a947ca08",
       "conditions": "P and11 original G cases qualified;73 primary G obligations remain unsatisfied. Four separate closed-copy calibration cells now qualified with independent Astra acceptance; original failure and no-dispatch attempt remain retained. R1-only forecast fits existing closed-copy limits but actual R1 is pending. Integrated M/D/F tooling and current-pin110 policy retain assembled b466 source qualification; exact.29 parser and reviewed controller-policy/successor repairs have affected qualification. All84G/46M/24D targets remain; expanded profiles inactive. Current paired50 performance, actualG/M/D/F, whole20/40/pre90 and100Q1 remain open.",
-      "evidence": "G source0fa retains assembled acceptance,11 qualified/73 required cap refusals and inactive expanded profiles. Current M source256375d4b6a9ce0a54a06876d2df1373615ab67c is integrated at e6cbc956954d29137059fb5df32bc78ba863eecd after independent Astra ACCEPT: merged current release, rebuilt providerfree CLI/helper, then passed Pages20/20,Tegra45/45,exact2 previously failed guardian controls and2 previously unrun dispatch controls. Dispatch exercises actual rebuilt search/fetch in both formats with literal hit/body/error oracles. Original223/220/3 interrupted-wrapper history is retained; this is assembled qualification, not a new uninterrupted full gate. Both guardians finalized samples and collected all owned actors. Historical Python/NAPI subjects were not loaded or retagged. D accepted5edb capture/report/transport and5cf6 main entry have actual RED/GREEN; process2068 passes3 frozen owned-child controls, pending final coherent review/integration. Fixed24 allocation connection/source qualification remains. No actual D/M/F scientific campaign or whole30 closure. TC5 pack is statically qualified; candidate runtime remains pending.",
+      "evidence": "G source0fa retains assembled acceptance,11 qualified/73 required cap refusals and inactive expanded profiles. Current M source256375d4b6a9ce0a54a06876d2df1373615ab67c is integrated at e6cbc956954d29137059fb5df32bc78ba863eecd after independent Astra ACCEPT: merged current release, rebuilt providerfree CLI/helper, then passed Pages20/20,Tegra45/45,exact2 previously failed guardian controls and2 previously unrun dispatch controls. Dispatch exercises actual rebuilt search/fetch in both formats with literal hit/body/error oracles. Original223/220/3 interrupted-wrapper history is retained; this is assembled qualification, not a new uninterrupted full gate. Both guardians finalized samples and collected all owned actors. Historical Python/NAPI subjects were not loaded or retagged. D accepted5edb capture/report/transport and5cf6 main entry have actual RED/GREEN; process2068 passes3 frozen owned-child controls, pending final coherent review/integration. Fixed24 allocation connection/source qualification remains. Actual F/Q8 current-candidate fidelity is now independently accepted; D/M scientific campaigns and whole30 remain pending.",
       "qualified_subset_sha": "2fd772558e46d0b1645dce2ffea730d0bdd3305c",
       "continuation_plan_sha": "0d8be5bb75516955ebf99b94913b9b54921bb3a4",
       "g_design_review": "Independent Astra-medium FIX1 PASS plus actual20 fit PASS; all G/D contracts unchanged,40 file pins/13 subtrees/44 Cargo manifests verified at f803a964. See continuation-gd.md and review-log.md.",
@@ -545,8 +545,8 @@
       },
       "f_source_binding": {
         "sha": "da9a145cf9c49c5b420d33c6055a8d47ca271f7a",
-        "status": "IMPLEMENTED_REVIEWED_INTEGRATED_SOURCE_ONLY",
-        "evidence": "Exact0.8.29 release/candidate/package admission after semanticREDf5929230f; all29 parser testsPASS, frozenoracles/Ruff/hooks. IndependentAstra design4de+implementationda9 ACCEPT. No nativeproduct/database/model/GPU execution or runtimeprotocol/capchange. CurrentF/Q8 native qualification remains pending."
+        "status": "IMPLEMENTED_REVIEWED_INTEGRATED_F_Q8_QUALIFIED",
+        "evidence": "Exact.29 parser/source controls remain accepted. Actualdc8f current CUDA candidate F/Q8 bridge qualified once; independent Astra result ACCEPT. Separate runtime result below; no performance/whole30 claim."
       },
       "combined_source_qualification": {
         "status": "ASSEMBLED_PASS_INDEPENDENT_ASTRA_ACCEPT",
@@ -642,6 +642,14 @@
         "integrated": "5feccf692a006b0ac536dd72081707d54e9baebc",
         "review": "Independent Astra-medium ACCEPT;12 new and9 preservation controls reported passing in commit bodies;raw logs unavailable to reviewer.",
         "scope": "One bounded natural M-R-1-1-warn1501call calibration; whole900/work800seconds/2GiB cumulative growth plus2x shared headroom and original ledger history. No actual runtime or primary46 qualification yet."
+      },
+      "f_runtime_qualification": {
+        "source": "dc8f97601f27f1b0ea4eefad70dfe860dd590cac",
+        "status": "PASS_INDEPENDENT_ASTRA_ACCEPT",
+        "aggregate": "/mnt/data/tmp2/fathomdb-0829-continuation/owned-cuda-build-20261115/tc5-bridge-dc8f97601/tc5-gpu-arm-result.v2.json",
+        "result": "7667real/0synthetic/100of100queries,K192/top10/exactf32; query excludes own source so7666eligiblevectors. Recall.958,95%CI[.938,.974],1000bootstrap; acceptedCI-high>=.90 passes.",
+        "execution": "One900s wholebridge invocation;158.835s supervisor/155.476s child,exit0,no resource stop/uncertaincleanup/survivors; exact privateCGremoved andFD9released.",
+        "limits": "Selected3090CUDAembedding; CPU candidate vector/exact rerank,CEdisabled. Fidelity/uncertainty only, no performance/ARM/reset/shipping/whole30 proof."
       }
     },
     {
@@ -1053,6 +1061,12 @@
         "source": "1ea7bf41c037e47b0c17d19a178411ff8101153b",
         "review": "Independent Astra accepts coherent actual local graph/admission/model/observer source with138 seam tests.",
         "remaining": "Final owned source gate and applicable real healthy GPU/OOM/installed-consumer controls; no publication or whole140 closure."
+      },
+      "local_exact_lock_proposal": {
+        "source": "aff8ba27f9b5833794475dcbddc958993dba3132",
+        "review": "Independent Astra-medium design ACCEPT",
+        "status": "PROPOSED_OWNER_ADOPTION_PENDING",
+        "scope": "Local executor replaces hostedCI only; exact product lock/root+dependency+feature comparison and native x86/OrinCPU tests+compile remain. No execution/gatewaiver yet; genuine oldCI preserved."
       }
     },
     {
@@ -1321,8 +1335,15 @@
   },
   "release_readiness": {
     "status": "NOT_READY",
-    "qualification": "0\u201310,60,70,80design and selected100 are complete locally.20 functional Linux/Windows acceptance is qualified; its formal closure awaits the batched final source gate. Selected cudarc/Candle repairs and tracked110 source/seam adoption are independently accepted, with138 affected tests, but final owned source and applicable healthy/installed qualification remain.30 scientific G72/M46/D24/FQ8, conditional40, current paired50 performance, Block1 smoke/conformance/90,selected130 D/E local artifacts/qualification and160 remain. Source qualification retains original failed/UNKNOWN/skipped attempts; no whole-release or published-package claim. Non-Tegra ARM+GPU B/C is excluded from.29 gates by owner seq387, not qualified or known-working.",
-    "publication": "HELD; no tag, dispatch, external ACL mutation or registry publication authorized by bootstrap."
+    "qualification": "0\u201310,60,70,80design and selected100 are complete locally.20 functional Linux/Windows acceptance is qualified; its formal closure awaits the batched final source gate. Selected cudarc/Candle repairs and tracked110 source/seam adoption are independently accepted, with138 affected tests, but final owned source and applicable healthy/installed qualification remain.30 scientific G72/M46/D24, conditional40, current paired50 performance, Block1 smoke/conformance/90,selected130 D/E local artifacts/qualification and160 remain. Source qualification retains original failed/UNKNOWN/skipped attempts; no whole-release or published-package claim. Current F/Q8 fidelity is independently qualified; no performance or whole30 closure follows. Non-Tegra ARM+GPU B/C is excluded from.29 gates by owner seq387, not qualified or known-working.",
+    "publication": "HELD; no tag, dispatch, external ACL mutation or registry publication authorized by bootstrap.",
+    "local_source_phase": {
+      "status": "PAUSED_EXACT_LOCK_QUALIFICATION",
+      "active_seconds_charged": 905.897,
+      "native_origin": "0e81e61b62b6e508946f4d598ba43cb73db4c0e7",
+      "evidence": "Owned CPU Python/NAPI/CLI refresh,preflight,shell/module-boundary/workspaceClippy-Werror/rustfmt/migrations/platform/release/publicdoc checks passed. Pin-rot stopped original suffix; accepted correction integrated845. Current fork lock-set authority/qualification remains before failed+unrun suffix. No later type/security/tests claimed; actors/cgroups clean.",
+      "limits": "Preserve original7200s cumulative activephase cap/idle separately. Passing suites/native evidence not rerun or retagged absent invalidating source inputs."
+    }
   },
   "generated_views": [
     {

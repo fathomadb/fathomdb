@@ -7,6 +7,8 @@ from pathlib import Path
 import sys
 import tempfile
 import subprocess
+import time
+from unittest.mock import Mock, patch
 
 from campaign import make_plan, run_campaign
 from control import freeze, read_jsonl_records, run_frozen, summarize
@@ -145,6 +147,23 @@ class FreezeTests(unittest.TestCase):
 
 
 class FrozenRunTests(unittest.TestCase):
+    def test_busy_host_starts_without_waiting_and_retains_entry_observation(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "manifest.json").write_text(json.dumps({"binary": {"path": "unused"},
+                "campaign_seconds": 14400, "active_bytes": 16 * 1024**3, "cell_seconds": 900}))
+            (root / "plan.json").write_text("[]")
+            clock = Mock(wraps=time)
+            clock.sleep.side_effect = AssertionError("CPU load must not cause an entry wait")
+            with patch("control.os.getloadavg", return_value=(99.0, 0.0, 0.0)), \
+                    patch("control.time", clock), patch("control.run_campaign") as campaign:
+                campaign.side_effect = lambda *args, **kwargs: kwargs["before"]()
+                result = run_frozen(root)
+            self.assertEqual(result["load"], 99.0)
+            self.assertTrue(all(json.loads(row)["load"] == 99.0
+                for row in (root / "resources.jsonl").read_text().splitlines()))
+            clock.sleep.assert_not_called()
+
     def test_frozen_run_executes_each_actual_recording_child(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -164,7 +183,7 @@ class FrozenRunTests(unittest.TestCase):
             recorder.chmod(0o755)
             frozen = root / "frozen"
             freeze(cells, corpus, queries, recorder, frozen)
-            results = run_frozen(frozen, max_load=None)
+            results = run_frozen(frozen)
             observed = [json.loads(line) for line in calls.read_text().splitlines()] if calls.exists() else []
             self.assertEqual(observed, [0, 1])
             self.assertEqual([row["status"] for row in results], ["complete", "complete"])

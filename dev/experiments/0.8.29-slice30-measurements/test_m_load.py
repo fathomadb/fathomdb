@@ -14,7 +14,7 @@ class CellLoadTests(unittest.TestCase):
     """A runtime observation above2.5 marks noise without dropping actual results."""
 
     def test_load_boundary_is_descriptive_for_completed_actual_children(self):
-        for peak, noisy in ((2.5, False), (2.5001, True)):
+        for peak, noisy in ((2.5, False), (2.5001, True), (99.0, True)):
             with self.subTest(peak=peak), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
                 ledger = root / "g-budget.json"
@@ -29,7 +29,7 @@ class CellLoadTests(unittest.TestCase):
                 child = ("import json,pathlib,sys,time;time.sleep(.03);"
                          "(pathlib.Path(sys.argv[2])/'result.json').write_text("
                          "json.dumps({'complete':True,'literal':'kept'}))")
-                observations = iter((2.0, peak))
+                observations = iter((peak, peak))
                 with patch("os.getloadavg", side_effect=lambda: (next(observations, peak), 0.0, 0.0)):
                     result = run_budgeted_table(root / "results", [sys.executable, "-c", child],
                         profile=profile, allocation=root, forecasts=forecasts, plan=plan)

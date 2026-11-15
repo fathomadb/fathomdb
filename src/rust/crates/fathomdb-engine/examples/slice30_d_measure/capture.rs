@@ -322,7 +322,12 @@ pub(crate) fn run_characterized(
         );
     }
     if !matches!(cell.mode, Mode::Held) {
-        return Err("C overlap capture is not implemented".into());
+        let mut report = schedule::run_ordinary(cell, bodies, provider)?;
+        report["cell"] = identity.clone();
+        report["complete"] = json!(false);
+        report["observation"] = Value::Null;
+        report["reason"] = "C overlap capture is not implemented".into();
+        return Ok(report);
     }
     let paths = Paths::create(output)?;
     let engine = Engine::open_with_test_choice_and_config_for_test(

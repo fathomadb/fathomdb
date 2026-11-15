@@ -4,6 +4,9 @@ use fathomdb_embedder_api::Embedder;
 #[path = "slice30_d_measure/capture.rs"]
 mod capture;
 #[cfg(test)]
+#[path = "slice30_d_measure/capture_overlap_tests.rs"]
+mod capture_overlap_tests;
+#[cfg(test)]
 #[path = "slice30_d_measure/capture_tests.rs"]
 mod capture_tests;
 #[path = "slice30_d_measure/provider.rs"]

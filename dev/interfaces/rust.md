@@ -237,7 +237,11 @@ CLI forwards this test hook. The caller supplies its whole-cell monotonic
 bounded observer contract. Begin/drop performs no SQL, wake or provider call.
 The D guard is Send+Sync, not Clone, and retains no engine/SQL/provider lifetime.
 `with_operation` preserves return/unwind behavior; `take` retains bounded loss
-accounting. `owner_identity()` reads the stored `(engine_id, session_id)` pair so
+accounting. D producers use a bounded nonblocking channel: full/disconnected
+sends count once as loss, retired sessions suppress appends, and each take
+receives at most the configured capacity. Only consumers share the receiver
+mutex; the G collector remains unchanged.
+`owner_identity()` reads the stored `(engine_id, session_id)` pair so
 pre-seed pollers can tag their own observations without SQL, wake or admission;
 a retired guard continues to name its original session.
 D worker admission is engine/session-owned, carried weakly from actual scans

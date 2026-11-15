@@ -321,14 +321,6 @@ pub(crate) fn run_characterized(
             "C cell requires a fresh store, fixed500 queries and characterization identity".into(),
         );
     }
-    if !matches!(cell.mode, Mode::Held) {
-        let mut report = schedule::run_ordinary(cell, bodies, provider)?;
-        report["cell"] = identity.clone();
-        report["complete"] = json!(false);
-        report["observation"] = Value::Null;
-        report["reason"] = "C overlap capture is not implemented".into();
-        return Ok(report);
-    }
     let paths = Paths::create(output)?;
     let engine = Engine::open_with_test_choice_and_config_for_test(
         cell.path,
@@ -353,11 +345,16 @@ pub(crate) fn run_characterized(
                 &[],
             )
             .map_err(|error| format!("{error:?}"))?;
-        let frozen = schedule::Frozen::new(&engine);
+        let frozen = matches!(cell.mode, Mode::Held).then(|| schedule::Frozen::new(&engine));
         engine
             .drain(u64::try_from(schedule::work_remaining(&cell)?.as_millis()).unwrap())
             .map_err(|error| format!("{error:?}"))?;
         let runtime = schedule::runtime_boundary(&engine)?;
+        if matches!(cell.mode, Mode::Overlap)
+            && (runtime["frozen"] != false || runtime["pending_scan"] != false)
+        {
+            return Err("C-O entry cannot establish an unfrozen empty runtime".into());
+        }
         let observer = Arc::new(
             engine
                 .begin_slice30_projection_observation_for_test(32768, cell.origin)
@@ -375,7 +372,24 @@ pub(crate) fn run_characterized(
                 ready_rx
                     .recv_timeout(schedule::work_remaining(&cell)?)
                     .map_err(|error| format!("C startup wait: {error:?}"))??;
-                held_work(&engine, &observer, &cell, bodies, frozen, runtime, identity)
+                let mut report = match cell.mode {
+                    Mode::Held => held_work(
+                        &engine,
+                        &observer,
+                        &cell,
+                        bodies,
+                        frozen.expect("held mode established scheduler custody"),
+                        runtime,
+                        identity,
+                    )?,
+                    Mode::Overlap => {
+                        schedule::overlap_work(&engine, &cell, bodies, runtime, Some(&observer))?
+                    }
+                };
+                report["cell"] = identity.clone();
+                report["collection_enabled"] = json!(true);
+                report["actual_overlap"] = Value::Null;
+                Ok(report)
             })();
             drop(stop);
             (result, helper.join())

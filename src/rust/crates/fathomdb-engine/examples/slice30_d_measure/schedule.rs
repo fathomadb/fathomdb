@@ -2,7 +2,7 @@
 use fathomdb_embedder_api::Embedder;
 use fathomdb_engine::{
     Engine, EngineConfig, InitialState, PreparedWrite, ProjectionRole, ProjectionSpec,
-    ProjectionVector, SourceId, TestEmbedderChoice,
+    ProjectionVector, Slice30ProjectionObservationGuard, SourceId, TestEmbedderChoice,
 };
 use rusqlite::{Connection, OpenFlags, OptionalExtension};
 use serde_json::{json, Value};
@@ -338,6 +338,7 @@ fn read_overlap(
     cell: &OrdinaryCell<'_>,
     receiver: mpsc::Receiver<Committed>,
     cancel: &AtomicBool,
+    observer: Option<&Slice30ProjectionObservationGuard>,
 ) -> Result<ReaderResult, String> {
     let started = elapsed(cell.origin);
     let first = receiver
@@ -352,7 +353,16 @@ fn read_overlap(
         while let Ok(notice) = receiver.try_recv() {
             probes.push(freshness(cell, notice.cursor, &notice.body)?);
         }
-        calls.push(natural_call(engine, cell, index, query)?);
+        let mut call = match observer {
+            Some(observer) => observer.with_operation(u64::try_from(index + 1).unwrap(), || {
+                natural_call(engine, cell, index, query)
+            })?,
+            None => natural_call(engine, cell, index, query)?,
+        };
+        if observer.is_some() {
+            call["operation_id"] = json!(index + 1);
+        }
+        calls.push(call);
     }
     loop {
         if cancel.load(Ordering::Acquire) {
@@ -385,6 +395,16 @@ fn overlap(
     if runtime["frozen"] != false || runtime["pending_scan"] != false {
         return Err("D overlap entry cannot establish an unfrozen empty runtime".into());
     }
+    overlap_work(engine, cell, bodies, runtime, None)
+}
+
+pub(super) fn overlap_work(
+    engine: &Engine,
+    cell: &OrdinaryCell<'_>,
+    bodies: impl Iterator<Item = String> + Send,
+    runtime: Value,
+    observer: Option<&Slice30ProjectionObservationGuard>,
+) -> Result<Value, String> {
     let cancel = AtomicBool::new(false);
     let (sender, receiver) = mpsc::sync_channel(1);
     let (writer, reader) = std::thread::scope(|scope| {
@@ -396,7 +416,7 @@ fn overlap(
         });
         let reader = scope.spawn(|| {
             let mut custody = CancelOnFailure { cancel: &cancel, succeeded: false };
-            let result = read_overlap(engine, cell, receiver, &cancel);
+            let result = read_overlap(engine, cell, receiver, &cancel, observer);
             custody.succeeded = result.is_ok();
             result
         });

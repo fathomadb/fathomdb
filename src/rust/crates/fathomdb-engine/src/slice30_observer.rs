@@ -7,6 +7,8 @@ use std::cell::{Cell, RefCell};
 use std::marker::PhantomData;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+#[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+use std::sync::mpsc::{self, Receiver, SyncSender};
 use std::sync::{Arc, Mutex, Weak};
 use std::time::Instant;
 
@@ -72,6 +74,8 @@ struct Collector {
     #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
     projection: bool,
     #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+    projection_sender: Option<SyncSender<Slice30ObservationRecord>>,
+    #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
     next_projection_operation: AtomicU64,
 }
 
@@ -82,6 +86,13 @@ impl Collector {
 
     fn append(&self, record: Slice30ObservationRecord) {
         if !self.active.load(Ordering::Acquire) {
+            return;
+        }
+        #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+        if let Some(sender) = &self.projection_sender {
+            if sender.try_send(record).is_err() {
+                self.dropped.fetch_add(1, Ordering::Relaxed);
+            }
             return;
         }
         if let Ok(mut records) = self.records.try_lock() {
@@ -385,6 +396,8 @@ impl Engine {
             #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
             projection: false,
             #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+            projection_sender: None,
+            #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
             next_projection_operation: AtomicU64::new(1_u64 << 63),
         });
         *active = Arc::downgrade(&collector);
@@ -401,6 +414,7 @@ impl Engine {
 pub struct Slice30ProjectionObservationGuard {
     owner: Weak<WalAttributionCollector>,
     collector: Arc<Collector>,
+    receiver: Mutex<Receiver<Slice30ObservationRecord>>,
 }
 
 #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
@@ -428,15 +442,18 @@ impl Slice30ProjectionObservationGuard {
     /// Drain bounded records outside product clocks, retaining loss/issue counts.
     pub fn take(&self) -> Slice30ObservationBatch {
         let mut issues = vec![];
-        let records = match self.collector.records.lock() {
-            Ok(mut records) => {
-                std::mem::replace(&mut *records, Vec::with_capacity(self.collector.capacity))
+        let mut records = Vec::with_capacity(self.collector.capacity);
+        match self.receiver.lock() {
+            Ok(receiver) => {
+                for _ in 0..self.collector.capacity {
+                    match receiver.try_recv() {
+                        Ok(record) => records.push(record),
+                        Err(_) => break,
+                    }
+                }
             }
-            Err(_) => {
-                issues.push("record_buffer_unavailable");
-                vec![]
-            }
-        };
+            Err(_) => issues.push("record_buffer_unavailable"),
+        }
         Slice30ObservationBatch {
             session_sequence: self.collector.take_sequence.fetch_add(1, Ordering::Relaxed) + 1,
             records,
@@ -491,6 +508,7 @@ impl Engine {
             .map_err(|_| EngineError::InvalidArgument {
                 msg: "observation session exhausted".into(),
             })?;
+        let (sender, receiver) = mpsc::sync_channel(max_records);
         let collector = Arc::new(Collector {
             engine_id: Arc::as_ptr(&self.wal_attribution) as usize,
             session_id,
@@ -500,14 +518,16 @@ impl Engine {
             next_span: AtomicU64::new(1),
             take_sequence: AtomicU64::new(0),
             dropped: AtomicU64::new(0),
-            records: Mutex::new(Vec::with_capacity(max_records)),
+            records: Mutex::new(Vec::new()),
             projection: true,
+            projection_sender: Some(sender),
             next_projection_operation: AtomicU64::new(1_u64 << 63),
         });
         *active = Arc::downgrade(&collector);
         Ok(Slice30ProjectionObservationGuard {
             owner: Arc::downgrade(&self.wal_attribution),
             collector,
+            receiver: Mutex::new(receiver),
         })
     }
 }
@@ -682,3 +702,7 @@ pub(crate) fn projection_commit_outcome(status: &'static str, facts: serde_json:
         facts,
     });
 }
+
+#[cfg(all(test, feature = "slice30-observer", feature = "test-hooks"))]
+#[path = "slice30_observer_transport_tests.rs"]
+mod transport_tests;

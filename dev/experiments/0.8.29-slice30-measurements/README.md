@@ -412,9 +412,12 @@ streams preserve unavailable results and raw prefixes; T opens no C stream.
 worker groups, durable commit coverage and natural-call overlap witnesses.
 `test_d_report.py` uses hand-computed two-group intervals; untimed facts stay
 outside duration means and T keeps worker attribution unavailable. The private
-C-H native entry now has a tiny real-store stream/closure control, including
-pre-seed acknowledgements and final take after close. C-O capture, main routing
-and supervised campaign entry remain unimplemented; no scientific D cell follows.
+C-H and C-O native entries have tiny real-store stream/closure controls,
+including pre-seed acknowledgements and final take after close. D capture uses
+bounded nonblocking multi-producer transport; full/closed loss still prevents
+completion. C-O capture alone does not establish an overlap witness. Main
+routing and supervised campaign entry remain unimplemented; no scientific D
+cell follows.
 
 `d_overlap.py CASE.json` reads one exact cell/attempt/size/repeat and owner/session
 frame, with natural operation identity, tagged observer records and bracketed

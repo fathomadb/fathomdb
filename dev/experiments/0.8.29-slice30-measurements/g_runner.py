@@ -264,7 +264,7 @@ def run_cell_job(manifest_path, deadline_ns, config_path, output):
 
 
 
-def run_frozen(root):
+def run_frozen(root, corrected_calibration_from=None):
     """Run only the frozen clean candidate, charging preflight to the same shared allocation."""
     from g_freeze import git, validate_frozen
     from g_gpu import inspect_gpu
@@ -273,7 +273,7 @@ def run_frozen(root):
     root = Path(root).resolve()
     if json.loads((root / "manifest.json").read_text()).get("preparation") == "closed-copy-v1":
         from g_closed_entry import run_entry
-        return run_entry(root)
+        return run_entry(root, corrected_calibration_from) if corrected_calibration_from is not None else run_entry(root)
     preliminary = json.loads((root / "manifest.json").read_text())
     if preliminary.get("schema") != "slice30-g-campaign/v1" or preliminary["source_sha"] != git("rev-parse", "HEAD") or git("status", "--porcelain"):
         raise ValueError("run requires the exact clean frozen G source")
@@ -389,6 +389,7 @@ def main():
     freeze_parser.add_argument("--gpu-ordinal", type=int, required=True)
     run = commands.add_parser("run")
     run.add_argument("root", type=Path)
+    run.add_argument("--corrected-calibration-from", type=Path)
     report = commands.add_parser("report")
     report.add_argument("root", type=Path)
     job = commands.add_parser("_cell")
@@ -416,7 +417,7 @@ def main():
         if os.environ.get("AGENT_LONG") != "1":
             parser.error("G production campaign requires AGENT_LONG=1")
         from g_campaign import completed_record
-        outcomes = run_frozen(args.root)
+        outcomes = run_frozen(args.root, args.corrected_calibration_from)
         print(json.dumps({"cells":len(outcomes),"complete":all(completed_record(row) for row in outcomes)}))
         if any(not completed_record(row) for row in outcomes) or not json.loads((args.root / "last-run.json").read_text()).get("environment_ok", False):
             raise SystemExit(1)

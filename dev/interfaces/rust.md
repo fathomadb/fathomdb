@@ -246,6 +246,16 @@ SQLite readiness/generation snapshot. Closed/unavailable state is Closing/
 Storage, never zero. The state lock is released before serialization or any
 separate readiness/SQL work. Numeric fields expose current rows and flags;
 they never infer physical closure, provider engagement or atomic SQL authority.
+D sessions additionally name actual `projection_commit_gate_wait`,
+`projection_commit_begin`, `projection_commit_prepare`,
+`projection_commit_publication`, `projection_commit_sqlite` and
+`projection_commit_completion` intervals under their processing operation.
+These are inclusive actual boundaries: gate acquisition, IMMEDIATE begin,
+existing preparation reads, publication SQL, SQLite commit and post-commit
+accumulator/event work. Required future outcome accounting is distinct from
+these intervals; a successful earlier phase does not prove durable publication.
+No additional SQL/descriptor reads, row ordering or mean-publication changes
+are introduced. A foreground G session never activates these D phase clocks.
 The foreground G guard and signed/default SDK surface remain unchanged.
 
 ### Explicit MCP admission observations

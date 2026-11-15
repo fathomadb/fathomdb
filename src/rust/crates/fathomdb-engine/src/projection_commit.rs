@@ -139,7 +139,27 @@ pub(crate) fn commit_projection_outcomes(
     let mc = identity_requires_mean_centering(embedder_identity);
     // EU-5f — serialize the whole commit across workers so the at-pin
     // re-quantize sees a totally-ordered history (see `commit_gate`).
+    #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+    let observation_cursors = if crate::slice30_observer::projection_is_recording() {
+        outcomes
+            .iter()
+            .filter_map(|outcome| match outcome {
+                ProjectionOutcome::Success { cursor, .. }
+                | ProjectionOutcome::Failure { cursor, .. } => Some(*cursor),
+                ProjectionOutcome::Deferred => None,
+            })
+            .collect::<Vec<_>>()
+    } else {
+        Vec::new()
+    };
+    #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+    let gate_observation = crate::slice30_observer::projection_span("projection_commit_gate_wait");
     let _gate = shared.commit_gate.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+    {
+        gate_observation.projection_result(&observation_cursors, true, Some(worker_idx));
+        drop(gate_observation);
+    }
     #[cfg(feature = "test-hooks")]
     if let Some((waiting, release)) = shared
         .projection_worker_before_write_lock_pause
@@ -154,7 +174,17 @@ pub(crate) fn commit_projection_outcomes(
     // would need a read-to-write promotion while a concurrent Engine::write
     // holds its own immediate transaction, which SQLite rejects without
     // invoking the busy handler and forces the worker to recompute the batch.
+    #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+    let begin_observation = crate::slice30_observer::projection_span("projection_commit_begin");
     let tx = connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+    #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+    {
+        begin_observation.projection_result(&observation_cursors, true, Some(worker_idx));
+        drop(begin_observation);
+    }
+    #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+    let preparation_observation =
+        crate::slice30_observer::projection_span("projection_commit_prepare");
     crate::frozen_read::require_clean_visibility(&tx).map_err(|_| rusqlite::Error::InvalidQuery)?;
     if dependency_closure::guard_no_pending_physical(&tx).is_err() {
         return Err(rusqlite::Error::SqliteFailure(
@@ -218,6 +248,14 @@ pub(crate) fn commit_projection_outcomes(
     let current_generation_id = projection_generation::current_generation_id(&tx)
         .map_err(|_| rusqlite::Error::InvalidQuery)?;
     let effective_at = current_epoch_seconds();
+    #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+    {
+        preparation_observation.projection_result(&observation_cursors, true, Some(worker_idx));
+        drop(preparation_observation);
+    }
+    #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+    let publication_observation =
+        crate::slice30_observer::projection_span("projection_commit_publication");
     for outcome in outcomes {
         match outcome {
             ProjectionOutcome::Success {
@@ -476,7 +514,22 @@ pub(crate) fn commit_projection_outcomes(
         trigger_guard.restore().map_err(|_| rusqlite::Error::InvalidQuery)?;
     }
     drop(trigger_guard);
+    #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+    {
+        publication_observation.projection_result(&observation_cursors, true, Some(worker_idx));
+        drop(publication_observation);
+    }
+    #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+    let sqlite_observation = crate::slice30_observer::projection_span("projection_commit_sqlite");
     tx.commit()?;
+    #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+    {
+        sqlite_observation.projection_result(&observation_cursors, true, Some(worker_idx));
+        drop(sqlite_observation);
+    }
+    #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+    let completion_observation =
+        crate::slice30_observer::projection_span("projection_commit_completion");
     // Commit and the accumulator transition become visible together. On every
     // earlier error the transaction and the local candidate drop, leaving the
     // runtime state exactly as it was before this attempt.
@@ -487,6 +540,11 @@ pub(crate) fn commit_projection_outcomes(
         if let Ok(mut events) = shared.pending_events.lock() {
             events.extend(staged_events);
         }
+    }
+    #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+    {
+        completion_observation.projection_result(&observation_cursors, true, Some(worker_idx));
+        drop(completion_observation);
     }
     Ok(())
 }

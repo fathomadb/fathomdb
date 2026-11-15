@@ -634,3 +634,19 @@ pub(crate) fn projection_dequeue(
         facts: serde_json::json!({"cursors":cursors,"worker_index":worker_idx,"scan_operation_id":ticket.map(|ticket| ticket.scan_operation_id)}),
     });
 }
+
+#[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+pub(crate) fn projection_is_recording() -> bool {
+    capture_token()
+        .and_then(|token| token.collector.upgrade())
+        .is_some_and(|collector| collector.projection && collector.active.load(Ordering::Acquire))
+}
+
+#[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+pub(crate) fn projection_span(phase: &'static str) -> Span {
+    if projection_is_recording() {
+        span(phase)
+    } else {
+        Span { data: None, marker: PhantomData }
+    }
+}

@@ -180,8 +180,11 @@ search event).
     from `result.explanation.correlation_id` when it starts with `q`. The
     explanation is removed from output unless the caller asked for it
     (MR-024.6).
-  - Search view-flag exposure remains held pending the repeated-ref feedback
-    ruling. The engine/SDK support the flags; the adapter currently rejects them.
+  - Search forwards include_superseded through the same ReadView in both modes;
+    continuations retain its canonical value and refuse explicit overrides.
+    Distinct historical revisions retain their ordered occurrences. The selected
+    atomic feedback ambiguity guard is implemented; fetch remains latest-eligible
+    logical lookup. include_inactive search exposure remains Slice60 work.
   - The shaper builds `results` from the engine's snippet sidecar (EP-17:
     `snippet`, `snippet_cut` and `snippet_anchor` from `snippets[i]`, requested
     with `max_bytes: snippet_bytes`), then `completeness`: `empty` or

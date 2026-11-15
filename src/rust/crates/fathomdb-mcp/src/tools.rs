@@ -138,6 +138,8 @@ pub struct SearchArgs {
     pub attributes: Option<BTreeMap<String, String>>,
     /// Validity instant, epoch seconds; defaults to now.
     pub as_of: Option<i64>,
+    /// Include superseded record versions; defaults to false.
+    pub include_superseded: Option<bool>,
     /// Results per page, 1..=100; default 10.
     #[schemars(range(min = 1, max = 100))]
     pub limit: Option<u64>,
@@ -989,6 +991,7 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
                 && args.created_after.is_none()
                 && args.attributes.is_none()
                 && args.as_of.is_none()
+                && args.include_superseded.is_none()
                 && args.limit.is_none()
                 && args.explain.is_none();
             if !only_paging {
@@ -1027,6 +1030,7 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
                 created_after: args.created_after,
                 attributes: args.attributes.clone().unwrap_or_default().into_iter().collect(),
                 as_of: args.as_of,
+                include_superseded: args.include_superseded.unwrap_or(false),
                 limit: limit as usize,
                 explain: args.explain.unwrap_or(false),
             };
@@ -1041,7 +1045,11 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
     }
     let telemetry = guard.info.telemetry;
     let (run_limit, page_limit) = shape::page_window(offset, canonical.limit, MAX_RANKED);
-    let view = ReadView { valid_as_of: Some(validity_instant), ..ReadView::default() };
+    let view = ReadView {
+        include_superseded: canonical.include_superseded,
+        valid_as_of: Some(validity_instant),
+        ..ReadView::default()
+    };
     let request = canonical.clone();
     // While telemetry is on, hybrid searches run with explain so the query id
     // comes from this search's own correlation id, never the engine-wide

@@ -650,3 +650,28 @@ pub(crate) fn projection_span(phase: &'static str) -> Span {
         Span { data: None, marker: PhantomData }
     }
 }
+
+#[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+pub(crate) fn projection_success_outcome(facts: serde_json::Value) {
+    let Some(token) = capture_token() else {
+        return;
+    };
+    let Some(collector) = token.collector.upgrade() else {
+        return;
+    };
+    if !collector.projection || !collector.active.load(Ordering::Acquire) {
+        return;
+    }
+    collector.append(Slice30ObservationRecord {
+        engine_id: collector.engine_id,
+        session_id: collector.session_id,
+        operation_id: token.operation_id,
+        span_id: collector.next_span.fetch_add(1, Ordering::Relaxed),
+        parent_span_id: token.parent_span_id,
+        phase: "projection_commit_outcome",
+        started_ns: None,
+        ended_ns: None,
+        status: "ok",
+        facts,
+    });
+}

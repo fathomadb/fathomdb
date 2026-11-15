@@ -252,8 +252,14 @@ D sessions additionally name actual `projection_commit_gate_wait`,
 `projection_commit_completion` intervals under their processing operation.
 These are inclusive actual boundaries: gate acquisition, IMMEDIATE begin,
 existing preparation reads, publication SQL, SQLite commit and post-commit
-accumulator/event work. Required future outcome accounting is distinct from
+accumulator/event work. Outcome accounting is distinct from
 these intervals; a successful earlier phase does not prove durable publication.
+The untimed `projection_commit_outcome` success fact is emitted only after
+SQLite commit and post-commit work. It distinguishes actual typed outcome
+inputs, generation/member/existing-terminal skips, staged terminal writes and
+committed success/failure counts, copying the already-hoisted generation ID.
+No early error currently emits a successful publication fact; explicit failure/
+rollback accounting remains a separate unit.
 No additional SQL/descriptor reads, row ordering or mean-publication changes
 are introduced. A foreground G session never activates these D phase clocks.
 The foreground G guard and signed/default SDK surface remain unchanged.

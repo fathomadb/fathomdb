@@ -2,6 +2,19 @@ use super::*;
 use crate::mean::MEAN_VEC_PIN_THRESHOLD;
 use crate::projection_runtime::PROJECTION_CURSOR_KEY;
 
+#[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+#[derive(Default)]
+struct ProjectionCommitObservation {
+    input_success: usize,
+    input_failure: usize,
+    input_deferred: usize,
+    generation_skips: usize,
+    member_skips: usize,
+    terminal_skips: usize,
+    staged_success: usize,
+    staged_failure: usize,
+}
+
 fn projection_batch_has_no_custom_triggers(connection: &Connection) -> rusqlite::Result<bool> {
     // Only the authenticated DELETE-only cleanup trigger is harmless while
     // insertion visibility is coalesced. TEMP/name-spoofed triggers stay custom.
@@ -140,7 +153,23 @@ pub(crate) fn commit_projection_outcomes(
     // EU-5f — serialize the whole commit across workers so the at-pin
     // re-quantize sees a totally-ordered history (see `commit_gate`).
     #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
-    let observation_cursors = if crate::slice30_observer::projection_is_recording() {
+    let observation_active = crate::slice30_observer::projection_is_recording();
+    #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+    let mut observation_counts = if observation_active {
+        let mut counts = ProjectionCommitObservation::default();
+        for outcome in outcomes {
+            match outcome {
+                ProjectionOutcome::Success { .. } => counts.input_success += 1,
+                ProjectionOutcome::Failure { .. } => counts.input_failure += 1,
+                ProjectionOutcome::Deferred => counts.input_deferred += 1,
+            }
+        }
+        Some(counts)
+    } else {
+        None
+    };
+    #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+    let observation_cursors = if observation_active {
         outcomes
             .iter()
             .filter_map(|outcome| match outcome {
@@ -268,6 +297,10 @@ pub(crate) fn commit_projection_outcomes(
                 generation_id,
             } => {
                 if current_generation_id != *generation_id {
+                    #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+                    if let Some(counts) = observation_counts.as_mut() {
+                        counts.generation_skips += 1;
+                    }
                     continue;
                 }
                 if projection_generation::dense_member_kind_at(&tx, *cursor, effective_at)
@@ -275,9 +308,17 @@ pub(crate) fn commit_projection_outcomes(
                     .as_deref()
                     != Some(kind.as_str())
                 {
+                    #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+                    if let Some(counts) = observation_counts.as_mut() {
+                        counts.member_skips += 1;
+                    }
                     continue;
                 }
                 if terminal_state_for_cursor(&tx, *cursor)?.is_some() {
+                    #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+                    if let Some(counts) = observation_counts.as_mut() {
+                        counts.terminal_skips += 1;
+                    }
                     continue;
                 }
                 if !projection_physical_tuple_is_empty(&tx, *cursor)? {
@@ -384,6 +425,10 @@ pub(crate) fn commit_projection_outcomes(
                     tx.execute(&sql, rusqlite::params_from_iter(pv.iter()))?;
                 }
                 record_projection_terminal(&tx, *cursor, "up_to_date")?;
+                #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+                if let Some(counts) = observation_counts.as_mut() {
+                    counts.staged_success += 1;
+                }
                 visibility_changed = true;
 
                 // EU-5f — this row crossed the threshold: pin the mean and
@@ -424,15 +469,27 @@ pub(crate) fn commit_projection_outcomes(
             }
             ProjectionOutcome::Failure { cursor, failure_code, generation_id } => {
                 if current_generation_id != *generation_id {
+                    #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+                    if let Some(counts) = observation_counts.as_mut() {
+                        counts.generation_skips += 1;
+                    }
                     continue;
                 }
                 if projection_generation::dense_member_kind_at(&tx, *cursor, effective_at)
                     .map_err(|_| rusqlite::Error::InvalidQuery)?
                     .is_none()
                 {
+                    #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+                    if let Some(counts) = observation_counts.as_mut() {
+                        counts.member_skips += 1;
+                    }
                     continue;
                 }
                 if terminal_state_for_cursor(&tx, *cursor)?.is_some() {
+                    #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+                    if let Some(counts) = observation_counts.as_mut() {
+                        counts.terminal_skips += 1;
+                    }
                     continue;
                 }
                 if !projection_physical_tuple_is_empty(&tx, *cursor)? {
@@ -457,6 +514,10 @@ pub(crate) fn commit_projection_outcomes(
                     )?;
                 }
                 record_projection_terminal(&tx, *cursor, "failed")?;
+                #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+                if let Some(counts) = observation_counts.as_mut() {
+                    counts.staged_failure += 1;
+                }
                 visibility_changed = true;
             }
             // 0.8.20 Slice 20c fix-4 (codex §9 round 3 [P1]) — record NOTHING.
@@ -545,6 +606,19 @@ pub(crate) fn commit_projection_outcomes(
     {
         completion_observation.projection_result(&observation_cursors, true, Some(worker_idx));
         drop(completion_observation);
+    }
+    #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+    if let Some(counts) = observation_counts {
+        // This point is reached only after SQLite commit and post-commit publication.
+        crate::slice30_observer::projection_success_outcome(serde_json::json!({
+            "cursors":observation_cursors, "generation_id":current_generation_id.as_str(),
+            "input_success":counts.input_success, "input_failure":counts.input_failure,
+            "input_deferred":counts.input_deferred, "generation_skips":counts.generation_skips,
+            "member_skips":counts.member_skips, "terminal_skips":counts.terminal_skips,
+            "staged_success":counts.staged_success, "staged_failure":counts.staged_failure,
+            "commit_attempted":true, "committed_success":counts.staged_success,
+            "committed_failure":counts.staged_failure, "publication_state":"committed"
+        }));
     }
     Ok(())
 }

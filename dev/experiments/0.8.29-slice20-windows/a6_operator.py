@@ -214,7 +214,7 @@ class Session:
         return r
     def publish(self,name,payload):
         raw=json.dumps(payload,separators=(',',':'));b64=base64.b64encode(raw.encode()).decode();path=self.control+'\\'+name
-        command("$ErrorActionPreference='Stop';$p="+quote(path)+";$t=$p+'.host-'+[Guid]::NewGuid().ToString('N');$b=[Convert]::FromBase64String('"+b64+"');$f=[IO.File]::Open($t,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None);try{$f.Write($b,0,$b.Length);$f.Flush($true)}finally{$f.Dispose()};if([IO.File]::Exists($p)){[IO.File]::Replace($t,$p,$null)}else{[IO.File]::Move($t,$p)}")
+        command("$ErrorActionPreference='Stop';$p="+quote(path)+";$t=$p+'.host-'+[Guid]::NewGuid().ToString('N');$b=[Convert]::FromBase64String('"+b64+"');$f=[IO.File]::Open($t,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None);try{$f.Write($b,0,$b.Length);$f.Flush($true)}finally{$f.Dispose()};if([IO.File]::Exists($p)){[IO.File]::Replace($t,$p,[NullString]::Value)}else{[IO.File]::Move($t,$p)}")
     def probe(self):
         self.identity();self.sample();b64=base64.b64encode(json.dumps(self.cfg).encode()).decode()
         value=json.loads(command(self.inline('probe.ps1','Invoke-A6Probe '+quote(b64)),timeout=20));(self.root/'probe.json').write_text(json.dumps(value,indent=2)+'\n');return value

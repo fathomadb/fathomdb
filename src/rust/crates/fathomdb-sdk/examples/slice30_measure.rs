@@ -1903,6 +1903,34 @@ mod tests {
 mod g_route_tests {
     use super::*;
 
+    #[cfg(feature = "slice50-measurement")]
+    #[test]
+    fn paired_output_retains_exact_record_fields_after_the_api_clock() {
+        for adapter in ["engine", "sdk"] {
+            let directory = tempfile::tempdir().unwrap();
+            let engine = Adapter::open(adapter, &directory.path().join("paired-output.sqlite"));
+            engine.write(&[node("alpha", "doc", "needle café")]);
+            let expected = json!([{
+                "id":"l:alpha", "write_cursor":1, "source_id":"test:slice30",
+                "kind":"doc", "body":"needle café", "branch":"Text",
+                "score_bits":(3.0_f64 / 31.0).to_bits(), "ce_score_bits":null
+            }]);
+            for row in
+                [observe(&engine, "needle", None), observe_g_route(&engine, "text", "needle")]
+            {
+                assert_eq!(
+                    row["hits"], expected,
+                    "{adapter}: record fields must not be inferred from public IDs"
+                );
+                assert!(row["elapsed_ns"].as_u64().unwrap() > 0);
+                assert_eq!(row["projection_cursor"], 1);
+                assert_eq!(row["soft_fallback"], "None");
+                assert_eq!(row["degradations"], "[]");
+            }
+            engine.close();
+        }
+    }
+
     #[test]
     fn g_routes_reach_the_actual_text_hybrid_and_embed_boundaries() {
         for adapter in ["engine", "sdk"] {

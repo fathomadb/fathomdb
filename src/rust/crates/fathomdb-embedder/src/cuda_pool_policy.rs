@@ -2883,3 +2883,7 @@ mod tracked_construction_tests;
 #[cfg(all(test, feature = "cuda-pool-observer"))]
 #[path = "cuda_tracked_observer_tests.rs"]
 mod tracked_observer_tests;
+
+#[cfg(test)]
+#[path = "cuda_tracked_release_tests.rs"]
+mod tracked_release_tests;

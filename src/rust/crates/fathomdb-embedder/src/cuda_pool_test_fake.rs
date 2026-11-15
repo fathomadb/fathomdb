@@ -42,6 +42,8 @@ pub(super) struct Fake {
     pub(super) admissions: AtomicUsize,
     pub(super) pool_reads: AtomicUsize,
     pub(super) lose_on_pool_read: AtomicBool,
+    pub(super) lose_on_admission: AtomicBool,
+    pub(super) published_cached_loss: AtomicBool,
 }
 
 impl Default for Fake {
@@ -68,6 +70,8 @@ impl Default for Fake {
             admissions: AtomicUsize::new(0),
             pool_reads: AtomicUsize::new(0),
             lose_on_pool_read: AtomicBool::new(false),
+            lose_on_admission: AtomicBool::new(false),
+            published_cached_loss: AtomicBool::new(false),
         }
     }
 }
@@ -115,11 +119,21 @@ impl PoolDriver for Fake {
         body: impl FnOnce() -> R,
     ) -> Result<R, DriverFailure> {
         self.admissions.fetch_add(1, Ordering::SeqCst);
+        if self.lose_on_admission.load(Ordering::SeqCst) {
+            *self.cached_loss.lock().unwrap() = Some(CudaPoolFailure::ContextLost {
+                recorded_context_id: FIRST_CONTEXT_ID,
+                current_context_id: None,
+                driver_error: "native driver status 709".into(),
+                operation: "model drop".into(),
+            });
+            return Err(driver_error(CUDA_ERROR_CONTEXT_IS_DESTROYED));
+        }
         Ok(body())
     }
 
     fn cached_context_loss(&self, _ordinal: usize, operation: &str) -> Option<CudaPoolFailure> {
         self.cached_loss.lock().unwrap().clone().map(|mut failure| {
+            self.published_cached_loss.store(true, Ordering::SeqCst);
             if let CudaPoolFailure::ContextLost { operation: at, .. } = &mut failure {
                 *at = operation.to_owned();
             }

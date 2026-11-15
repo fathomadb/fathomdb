@@ -43,6 +43,10 @@ mod types;
 pub use types::*;
 mod projection;
 pub use projection::*;
+#[cfg(feature = "cuda-pool-observer")]
+mod cuda_pool_observation;
+#[cfg(feature = "cuda-pool-observer")]
+pub use cuda_pool_observation::*;
 mod engine;
 pub use engine::*;
 mod maintenance;

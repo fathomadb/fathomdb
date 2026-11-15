@@ -29,6 +29,8 @@
 //!    panic is a contract bug, not a typed engine outcome, and callers
 //!    that catch `EngineError` must not silently swallow it.
 
+#[cfg(feature = "cuda-pool-observer")]
+mod cuda_pool_observation;
 mod logging_subscriber;
 
 use std::panic::{catch_unwind, AssertUnwindSafe};
@@ -321,6 +323,8 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(_encode_round_body_json, &m)?)?;
     m.add_function(wrap_pyfunction!(_decode_round_body_json, &m)?)?;
     m.add_function(wrap_pyfunction!(snippet_for, &m)?)?;
+    #[cfg(feature = "cuda-pool-observer")]
+    m.add_function(wrap_pyfunction!(cuda_pool_observation::observe_pool, &m)?)?;
 
     #[cfg(any(test, feature = "test-hooks"))]
     m.add_function(wrap_pyfunction!(force_panic_for_test, &m)?)?;

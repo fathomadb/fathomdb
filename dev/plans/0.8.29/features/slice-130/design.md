@@ -92,16 +92,17 @@ parent must still forward afterward. No active-CUDA fork or reset injection.
 
 ## D: observational seam proposal
 
-Material seam proposal for independent review; no observer source is implemented
-by this addendum. Use dedicated nondefault `cuda-pool-observer` throughout:
+The material seam has independent Astra acceptance. Current source adds passive
+transport and named unavailable/lost/untracked metadata; successful checked native
+counter reads still require110's actual qualified tracked adoption. Use dedicated nondefault `cuda-pool-observer` throughout:
 embedder `=[]`; engine `=["fathomdb-embedder/cuda-pool-observer"]`; SDK, Py and
 NAPI each `=["fathomdb-engine/cuda-pool-observer"]`. It implies no CUDA/model,
 `test-hooks` or `operator` feature, and no ordinary feature enables it. Native
 transport follows the existing separate-module/registration convention without
 activating broad mutable test hooks. Shipping feature lists must reject it.
-The [proposed ADR addendum](../../../../adr/ADR-0.8.29-sdk-qualification-observation.md#proposed-slice130-d-addendum)
+The [proposed ADR addendum](../../../../adr/ADR-0.8.29-sdk-qualification-observation.md#slice130-d-addendum)
 extends the currently closed diagnostic catalog before source implementation;
-the [binding-support contract](../../../../interfaces/rust.md#proposed-private-cuda-pool-observation)
+the [binding-support contract](../../../../interfaces/rust.md#private-cuda-pool-observation)
 fixes names and wire types without adding governed operations.
 
 ### Decided ownership and actual driver APIs
@@ -138,12 +139,16 @@ objects. It creates no model ownership, GPU allocation/forward, retain,
 synchronize, trim or counter reset. Bounded host serialization is diagnostic cost.
 
 Read live model count before and after the checked UUID/current-counter reads.
-If ownership changes, report `ownership_changed` with unavailable counters;
-the tuple is not an atomic GPU snapshot. Cached/published loss returns `lost`
+If the before/after live counts differ, report `ownership_changed` with
+unavailable counters. Equal counts do not exclude close/open ABA or intervening
+activity; no epoch or model-guard change is introduced. The tuple is not an
+atomic GPU snapshot. Cached/published loss returns `lost`
 without native enrichment; an actual read failure returns `read_error` with its
 cached code/message. Missing decision, unsupported build and untracked ownership
 remain distinct from these failures. Only an all-successful checked observation
-may contain numeric zero. Preserve optional observed identity/first-loss cause;
+may report zero CURRENT counters. Ordinal, configured size/threshold and live
+model count may truthfully be zero even when current counters are unavailable.
+Preserve optional observed identity/first-loss cause;
 do not query driver error names or manufacture a measured driver code.
 
 ### Source and test boundary after seam review

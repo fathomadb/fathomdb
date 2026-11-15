@@ -1766,3 +1766,38 @@ fn gpu_orin_64_context_reset_child() {
     drop(embedder);
     println!("context-reset-child: torn down");
 }
+
+#[test]
+fn qualification_observation_keeps_missing_fallback_untracked_and_lost_distinct() {
+    let missing = observation_from_decision::<(), ()>(None);
+    assert_eq!(missing.status, "not_decided");
+    assert_eq!(missing.used_current_bytes, None);
+    let fallback = Decision::<(), ()>::Fallback {
+        reason: CudaAllocatorReason::ModeOff,
+        module_load_init: ModuleLoadInit::Ran,
+    };
+    let off = observation_from_decision(Some(&fallback));
+    assert_eq!(off.status, "no_private_pool");
+    assert_eq!(off.reason.as_deref(), Some("mode_off"));
+    assert_eq!(off.reserved_current_bytes, None);
+    let driver = FakeDriver { current_id: Some(Ok(2000)), ..FakeDriver::default() };
+    let cell = private_cell(&driver);
+    let private = observation_from_decision(cell.get());
+    assert_eq!(private.status, "untracked");
+    assert_eq!(private.live_models_before, Some(0));
+    assert_eq!(private.used_current_bytes, None);
+    assert_eq!(driver.pool_counter_reads.load(Ordering::SeqCst), 0);
+    lost(classify_forward_fault(cell.get(), &driver, cuda_fault(Some(999)), "forward"));
+    let before =
+        (driver.state_reads.load(Ordering::SeqCst), driver.id_reads.load(Ordering::SeqCst));
+    let lost = observation_from_decision(cell.get());
+    assert_eq!(lost.status, "lost");
+    assert_eq!(lost.error.as_ref().unwrap().observed_context_id, Some(2000));
+    assert_eq!(lost.error.as_ref().unwrap().operation.as_deref(), Some("forward"));
+    assert_eq!(lost.reserved_current_bytes, None);
+    assert_eq!(driver.pool_counter_reads.load(Ordering::SeqCst), 0);
+    assert_eq!(
+        (driver.state_reads.load(Ordering::SeqCst), driver.id_reads.load(Ordering::SeqCst)),
+        before
+    );
+}

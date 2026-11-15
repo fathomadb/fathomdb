@@ -45,12 +45,14 @@ operations/signed mappings remain unchanged. Feature-positive/default-negative
 compiled consumers remain independent checks. This addendum does not authorize
 model/GPU execution, measurements, publication or whole-slice clearance.
 
-## Proposed Slice130 D addendum
+## Slice130 D addendum
 
-Status: proposed, not yet an extension of the accepted closed catalog above.
-Independent review covers this delta with the [D seam design](../plans/0.8.29/features/slice-130/design.md#d-observational-seam-proposal)
-and [exact binding-support contract](../interfaces/rust.md#proposed-private-cuda-pool-observation).
-The additional catalog entry would be static SDK
+Accepted after independent Astra review of the material seam at906667b72.
+This narrow extension adds one catalog entry; the original Slice30 contract
+above remains unchanged. The reviewed [D seam design](../plans/0.8.29/features/slice-130/design.md#d-observational-seam-proposal)
+and [exact binding-support contract](../interfaces/rust.md#private-cuda-pool-observation)
+define its passive scope.
+The additional catalog entry is static SDK
 `Engine::cuda_pool_observation_for_qualification() -> Result<String>`, with the
 exact forwarding/gates specified there, and dedicated `cuda-pool-observer`
 forwarding only `fathomdb-engine/cuda-pool-observer`. Existing Slice30 entry,

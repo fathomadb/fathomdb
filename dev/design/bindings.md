@@ -353,6 +353,40 @@ Binding-shipping protocol — the canonical build entry point per binding. (CI s
 
 CI build, per-binding smoke testing, and post-publish verification (memory `feedback_release_verification`; AC-056) are owned by `design/release.md`. Developer ergonomics (e.g. "do not manually `cargo build && cp`") are out of scope here and live in `src/python/README.md` / contributor docs.
 
+### Owned Python feature selection
+
+`scripts/setup-python-owned.sh` keeps the checkout-owned noneditable build,
+install, native probe and existing receipt as one path. No arguments still means
+`--build` with the Pyproject Maturin features and its normal compatibility policy.
+`--build` and `--provision` additionally accept `--features LIST` and
+`--compatibility linux`, each at most once. `LIST` is a nonempty comma-separated
+list of distinct exact feature names from the Python crate's Cargo `[features]`,
+plus the required `pyo3/extension-module`. An explicit list replaces the selected
+Pyproject list; Cargo remains responsible for implied features. No arbitrary
+dependency-feature paths, whitespace, empty elements or unknown names are accepted.
+The compatibility override deliberately supports only the host-local `linux`
+recipe; it does not introduce a release artifact or portability guarantee.
+
+Parse all arguments and validate feature names before package installation or
+wheel building. Reject missing/empty values, repeated options, unknown options,
+extra mode arguments and build options with `--check-ownership`. Pass selected
+features and optional compatibility as separate subprocess argv entries, never
+shell text. The existing receipt records the selected feature string and
+`compatibility` (`null` when omitted), matching the actual build argv. Preserve
+all current ownership, pinned-tool, wheel installation and native identity checks.
+
+For the Slice30 F embedding artifact, source the existing CUDA artifact contract
+and use `--build --features "$CUDA_PYTHON_FEATURES" --compatibility linux`.
+Installed healthy qualification that exercises both GPU components instead uses
+`--features pyo3/extension-module,embed-cuda,rerank-cuda`; its separate instrumented
+counterpart adds `cuda-pool-observer`. The observer stays absent from shipping
+artifacts. Host-local builds retain the existing CUDA12.6 `PATH`, `CUDA_PATH`,
+`LIBRARY_PATH` and owned `CARGO_TARGET_DIR` recipe; setup changes no toolkit,
+driver, runtime policy or qualification scope. Fixture tests in
+`scripts/tests/test_setup_python_owned.sh` prove defaults, explicit argv/receipt
+selection and refusal before build/install using fake tools; they need no native
+build, GPU or model execution.
+
 ## 10. Recovery surface unreachability
 
 The bindings collectively MUST NOT expose any recovery verb on the SDK surface. (REQ-037, REQ-054, REQ-031d; gated by AC-057a + AC-035d.) Recovery is invoked exclusively via the CLI binary `fathomdb recover` and `fathomdb doctor <verb>`. The application SDK contains no path that mutates a corruption-marked database.

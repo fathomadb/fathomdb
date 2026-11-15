@@ -2,7 +2,7 @@
   "schema": "fathomdb.a6.operator/v1",
   "files": {
     "Controls.cs": "e03e9d83b9cc5246fcf0bc736032e45b6264416544d000bbc0f5bebc8512ec7b",
-    "NativeJob.cs": "4f9ba2412a94ede6fef5849d6243874566d10603a27bf4de1c68c4bcfb24a8e8",
+    "NativeJob.cs": "70247adac685b3389d426e2f920a0db20ae4ef26839c6976af9081dd1bb1c3ed",
     "OwnedChild.cs": "b23fdc51a72e0332e13de26b6bb8968093ffdd8e056865cb4d78eb7e27d9b765",
     "README.md": "66ff2e809129bc25e5439d333264e234e458ce2e80e69b5fcb3fd14fc6298ba3",
     "Supervisor.cs": "389aa27ff8edc74dd33a9a64b94243832df3261ddd378e00724c01538e3c69bb",

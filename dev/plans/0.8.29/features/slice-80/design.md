@@ -7,27 +7,23 @@ slice: 80
 
 # Slice 80 design
 
-This is an early source-backed candidate, not production-ready approval.
-[Census](census.md) fixes source/authority limits; [requirements](requirements.md)
-and [acceptance](acceptance.md) own intended behavior. Actual selected50 identity
-and feedback consequences, final60 format/budget contract and accepted70 words
-must be reconciled before full80 approval. No repository change or execution
-receipt is represented by these documents.
+This is the concrete contract for owner acceptance, not an implemented API.
+[Census](census.md), [requirements](requirements.md), [acceptance](acceptance.md)
+and [test map](test-map.md) identify the source delta and observable oracles.
 
-This documentary consolidation incorporates the independently bounded
-Astra-medium PASS for aggregate v2, exact source proposal SHA-256
-`a5e4851df2fedcbcce3e7d1b93138980c25e172d0ceb802792d218940bca0e53`.
-The consolidated packet's narrow consistency recheck is pending; this is no
-new ABI/policy approval or full80/source-entry approval. All original packets
-remain frozen. Parent source stays clean2f6913 with no imports.
+This revision uses integrated source
+`e1cb1bd5311f68da8be98bbe133b9cecd5ab56d4`, selected identity/packing
+seq-374 and feedback seq-375, and Slice50's independently reviewed
+`10a72e5a9` carrier design. Selected design is distinguished from implemented API.
+The earlier aggregate-v2 and consolidation consistency reviews passed; they are
+not repeated. The updated contract needs its required Astra-medium review and
+full80 owner acceptance. No implementation or90 source entry follows.
 
-Parent-supplied60 checkpoint: clean candidate
-`307c92e3b4b8c674eec28fc940c879e9054fff90` has source TDD for formats,
-filters and budgets, and post-code real-GPU manual SDK plus both MCP formats
-14-case PASS. Native/full gate and fresh final review remain pending; F11
-feedback ruling remains held. This is not60 completion, final-contract
-settlement or integration into the clean2f6913 parent.80 did not run those
-checks or read mutable worker output as authority.
+Integrated60 supplies format-conditional discovery, text omission and final
+budget accounting; integrated70 supplies embedder_absent, embedder_timeout and
+embedder_overloaded across bindings/hints. Preserve these built behaviors.
+Selected50 identity and feedback policy are settled; its carrier and atomic
+refusal remain implementation work. No new public occurrence-label ABI follows.
 
 ## Informative responses, errors and default store
 
@@ -79,13 +75,17 @@ limit or successful duplicate/overlap-label policy is inferred. Malformed or
 unsupported-looking strings are membership failures here, not fetch parse_ref
 errors. No labels reach record_feedback on membership failure.
 
-50's distinct-cursor ambiguity decision is still pending. Its recommended
-atomic bad_argument only for otherwise-recordable named ambiguous refs is not
-an accepted ruling. It must not be confused with refs_not_in_response: a ref
-can belong to a page yet name several cursors. Preserve50's chosen precedence
-and do not mint feedback_ref, select first/last or label all occurrences here.
-Logical fetch remains latest-visible resolution, not exact selected-version
-fetch; h:/p: remain unsupported where existing fetch says so.
+Selected50 seq-375 uses Unique(cursor)/Ambiguous response membership.
+After acquisition and the final epoch recheck, but before resolving labels or
+calling record_feedback, reject any named ambiguous ref with existing
+invalid_request/bad_argument and zero writes. Preserve earlier membership
+correction and existing epoch/telemetry/text/query-ID/acquisition not_recorded
+precedence. Repeated same-cursor refs are unique; unmentioned ambiguity is inert.
+This is selected planned50 behavior, not a new80 error code. A ref can belong
+to the page while naming several records. No feedback_ref, first/last choice or
+all-occurrences attribution is introduced. Logical fetch remains latest-eligible
+resolution under its own view; h:/p: support and helper/pack contracts stay as
+selected in the identity ADR.
 
 Both new errors render structured fields verbatim as compact JSON and text
 argument=<JSON string> accepted=<JSON array> or refs_not_in_response=<JSON array>
@@ -308,7 +308,7 @@ query/statement work, not an indexed-plan label, to preserve that boundary.
 This proposal adds no physical-vector census or integrity policy.
 
 Open capture: in open_locked, enclose the existing vector_spans full validation
-at current open.rs:1254 and the immediately following frozen_read::validate_on_open
+and the immediately following frozen_read::validate_on_open
 in one Deferred read transaction, retaining their current order and error maps.
 Capture the coverage token/profile in that same pinned transaction after those
 checks, commit, and return an optional seed through the existing open-result
@@ -435,7 +435,7 @@ missing-helper failures. Use native Python conversion of a real engine status
 for deterministic partial/unknown fixtures, then installed TS/MCP boundaries
 with approved existing local-model fixtures as in PhaseA. Preserve source-bound
 TDD and goldens; bounded aggregate v2 PASS does not replace the current
-consolidated-packet consistency recheck or later source reviews.
+updated-design review, full80 owner acceptance or later source reviews.
 
 Proof controls: two corpus sizes confirm no full validation/owner traversal on
 warm or cold orient; actual capture SQL/trace contains no new vector_default
@@ -453,48 +453,87 @@ checks. The separately reported60 manual checks do not qualify80 behavior.
 
 ## Per-hit scored extent through the existing sidecar
 
-Candidate field: `SnippetV1.scored_bytes: Option<u32>`. This is the accepted
-guard's scalar end for head window0, not a new SearchHit/SearchResult field or
-range vector. Some(e) means body-relative half-open[0,e). None means **no known
-extent asserted**; it deliberately does not distinguish provider-unknown from
-no vector contribution. Do not let a client infer that distinction from arm.
-An additional discriminant would be a separately reviewed sidecar amendment,
-not implicit permission from this scalar. Known-empty Some(0) stays distinct.
+Proposed implementation field: `SnippetV1.scored_bytes: Option<u32>`.
+It extends the existing opt-in sidecar; SearchHit/SearchResult gain no fields,
+flags or public ownership/participation bit. Some(e) asserts that this exact
+returned canonical record participated in the original vector arm and has a
+validated stored head extent [0,e), relative to its original stored UTF-8 body.
+It does not assert that all those bytes affected a model score, a lexical/CE
+score, the displayed window or this query's semantic relevance. Some(0) is a
+known-empty stored extent. None asserts no known scored extent, encompassing
+validated provider-unknown and no vector contribution; consumers cannot infer
+which from arm. No additional discriminant is selected.
 
-Capture actual vector-participant record keys before fusion using50's selected
-internal ownership carrier; retain a search-local set only when snippets were
-requested and vector candidates exist. After fusion/rerank/final truncation,
-look up spans only for returned keys in that set, on the same tx before commit.
-Node and edge ownership stay distinct; public repeated refs and identical
-bodies are never lookup keys.50's current proposed representative-first record
-contract must be actually settled; current body-fusion/explanation maps cannot
-be treated as that proof. A nonparticipant returns None even if it has a vector
-stored; query scoring is the claim, not existence of any embedding.
+### Ownership and participation seam
 
-Each lookup is indexed by vector_rowid/record cursor under the accepted head
-invariant and validates mapping owner, window0/start0, physical vector presence,
-body_length==returned stored-body bytes, integer end and UTF-8 boundary. Known
-end converts with checked u32::try_from; overflow is an existing typed storage/
-invariant failure, never clamped/None. SQL and tuple validation failures retain
-existing typed storage/corruption errors. The full validator is not called
-once per hit; preserve its local invariant checks with a bounded point read.
-No fetching by logical ID or another connection. Text-only and graph-only
-participants/standalone snippet_for return None without coverage reads. Frozen
-validation remains before retrieval; mutation after mint retains existing
-state_drifted/state_unavailable behavior. Open provider health is not coverage.
+Use reviewed50's planned `FusionHit { hit, ownership }` and selected private
+RecordKey: Canonical(Node|Edge,cursor), or Ownerless(NodesFts,rowid).
+Before the **first** fusion, retain keys of actual original vector-arm
+candidates in a request-local HashSet only when snippets are requested. Membership
+survives both fusion stages, reweighting, CE and final truncation via these same
+keys. Entry.in_vector is merely current-input tie preference: nested graph
+fusion passes a two-arm result as its vector input, so that bit is not proof.
+A graph-only or text-only record with an existing stored vector remains None.
+Ownerless FTS makes no coverage read, even if its numeric rowid collides with a
+canonical cursor. Neither raw cursor alone, ref, body, display branch, CE nor
+explanation is a key or participation authority.
 
-At most one extra span query per final vector-participant record (limit≤100),
-separate from the existing2*max_point_queries lexical budget. Snippets off adds
-no coverage set/query/sidecar allocation. Coverage and query-provider outputs
-are never recomputed from tokenizer limits; only stored provider metadata is
-used. Start/Match/Whole selection, windows, match spans/highlights and rankings
-stay. Vector-only long hits retain Start; short whole hits retain Whole.
+50's `SearchOriginCapture::finish` is planned to receive final carriers for
+every request, independently of evidence=true. Compute snippets and attach
+coverage before NoEvidenceCapture strips those carriers into SearchResult;
+evidence-off and explain-off calls get the same metadata. Existing selected
+representative-first source/body/ownership stays attached. Do not add a second
+ownership carrier or reconstruct one from final bare hits. This is a reviewed
+integration seam, not a claim that50 has implemented it.
+
+### Point read and refusal contract
+
+For each final canonical participant, on the same pinned reader transaction
+before commit, perform at most one indexed metadata/physical-presence statement.
+Select the exact chosen canonical table/cursor and mapping/span tuple; use the
+existing OR identities (vector_rowid/write_cursor) or equivalent indexed probes
+to detect misplaced/extra heads rather than silently selecting LIMIT1.
+Validate exactly one canonical owner/body, mapping rowid=write_cursor=selected
+cursor, span vector_rowid=write_cursor=selected cursor, window_number=0,
+byte_start=0, nonnegative integer body_length equal to the returned stored-body
+byte length, and the existing physical vector identity/presence rules. Do not
+compare representative edge_fact kind to stored kind as if they were identical;
+preserve existing vector ownership semantics. The selected stored body must
+match the carrier; no borrowing a co-cursor edge/node, equal body or newer
+logical version. The full-store validator is never called per hit.
+
+| Read outcome | Result |
+| --- | --- |
+| Snippets off, nonparticipant or ownerless FTS | No coverage query; None if a snippet exists. |
+| Exactly one valid tuple, byte_end NULL | None, including an empty body; provider-unknown is not zero/full. Validate the rest of the tuple first. |
+| Exactly one valid tuple, integer end at UTF-8 boundary within [0,body_length] | Checked u32::try_from(end), Some(e), preserving0. |
+| Missing mapping/span/physical vector, extra/misplaced/nonzero head, ambiguous canonical owner, body mismatch, malformed end or invalid UTF-8 boundary | Existing typed Storage/projection_generation_corrupt refusal, never None or partial successful results. No repair, full scan or best-head selection. |
+| Known valid end exceeds u32::MAX | Typed invariant/corruption refusal; no clamp, wrap or unknown fallback. |
+| SQL/read/transaction commit failure | Existing typed error; no metadata downgrade or successful partial sidecar. |
+
+There is one stored head under accepted format37. Multihead is corruption in
+this release, not a range-selection policy or chunking implementation. Full-body
+length may exceed u32 when end is unknown or fits; only the exported known end
+has the checked u32 domain. Existing snippet coordinate limits still apply.
+Frozen authority validation remains before retrieval; later mutation keeps its
+existing state_drifted/state_unavailable refusal. A later writer's span cannot
+enter this pinned search snapshot. Runtime-provider availability is not span
+truth. Physical-presence reads may load one vec0 payload internally; unlike
+aggregate capture this is bounded by final participant count, not corpus size.
+
+At most one extra coverage statement per final canonical vector participant
+(limit≤100), separate from existing2*max_point_queries lexical work. Snippets
+off adds no participation set, coverage query or sidecar allocation. No tokenizer
+recomputation/provider call, whole-store scan or new model qualification.
+Start/Match/Whole selection, windows, matches/highlights and ranks remain under
+the existing selector contract; vector-only long hits use Start, short hits Whole.
+Standalone snippet_for is pure and sets None without storage.
 
 ## Binding and format mapping
 
 | Layer | Candidate mapping / absence |
 | --- | --- |
-| Rust engine/facade/SDK | Existing SnippetV1 plus scored_bytes:Option<u32>; SearchResult.snippets None when off, Some([]) for requested empty results.70 facade exports/reexports remain prerequisite. |
+| Rust engine/facade/SDK | Existing SnippetV1 plus scored_bytes:Option<u32>; SearchResult.snippets None when off, Some([]) for requested empty results.70 facade exports/reexports are integrated; extend their returned snippet type. |
 | PyO3 / Python | Native getter Option<u32>; dataclass scored_bytes:int\|None=None; `_sdk_search` maps exact integer/None. Never coerce missing0 via truthiness. All three existing search surfaces share it; standalone helper None. |
 | NAPI / TS | Native optional integer; public scoredBytes?:number, present only for Some including0. Declare native binding.ts field and mapNativeSnippet; validate any dynamic conversion as integer0..2^32−1, never wrap. Entire snippets property absent when off. |
 | MCP structured | Hit.scored_bytes?:u32, omitted for None; copy from the aligned snippet. No new input flag. It means exactly the same scalar, not snippet length. |

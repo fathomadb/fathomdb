@@ -642,7 +642,7 @@
         60,
         70
       ],
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "design_refs": [
         "dev/plans/0.8.29/features/slice-80/acceptance.md",
         "dev/plans/0.8.29/features/slice-80/census.md",
@@ -655,9 +655,14 @@
         "dev/plans/0.8.29/features/slice-80/status.md",
         "dev/plans/0.8.29/features/slice-80/test-map.md"
       ],
-      "conditions": "Settled identity/field/degradation contracts; design may start before predecessor implementations finish. Contract inputs:50 accepted identity ruling,60 integrated fields plus the F11 feedback ruling,70 integrated reasons. Full80 acceptance needs those contracts and the owner's contract acceptance. Reviewed hold on whole50/60/70 before80 closes is unchanged; closing80 on the contracts alone is PROPOSED pending Astra design review.",
-      "phase": "BOUNDED_DESIGN_REVIEWED_SOURCE_HELD",
-      "evidence": "Astra-medium bounded PhaseA and aggregate-v2 PASS, then nine-document consolidation consistency PASS. Exact carriers, numeric profile.dimension, stored-mapped-span population, unavailable semantics and writer-only cache authority agree. No aggregate physical-vector probes or strengthened validation/refusal policy are proposed. Actual50/60/70 reconciliation and full80/90 gates remain held; this is not accepted new ABI or implementation clearance."
+      "conditions": "Full concrete contract independently reviewed and owner accepted (seq384). Reconcile integrated50 ownership/feedback implementation before closure; actual selected20\u201370 Block1 follow-up exit and integrated source fit still precede90. No migration or private-snapshot gate.",
+      "phase": "UPDATED_CONTRACT_ASTRA_PASS_OWNER_ACCEPTED_SOURCE_FIT_PENDING",
+      "evidence": "Reviewed nine-document contract f2f4831554ae165420a31890cf102642ce28b21d integrated after fresh Astra-medium PASS and owner seq384. Exact selected-owner/original-vector scored_bytes contract and unchanged aggregate-v2 retained. Reviewed50 identity/feedback implementation units are not yet integrated or whole-slice qualified; no90 implementation or Block1 exit claimed.",
+      "contract_acceptance": {
+        "source": "dev/steward/steward-ledger.jsonl seq-384",
+        "reviewed_sha": "f2f4831554ae165420a31890cf102642ce28b21d",
+        "verdict": "Owner accepted full concrete contract after independent Astra-medium PASS; not90source/Block1/runtimequalification."
+      }
     },
     {
       "slice": 90,
@@ -701,8 +706,8 @@
         "dev/plans/0.8.29/features/slice-100/execution.md"
       ],
       "conditions": "Compare current eight reached commit-crash controls before new tests; actual fault model/venue reviewed per demonstrated gap.",
-      "phase": "QUALIFIED_COVERAGE_AND_NATIVE_SUBSET_Q1_HELD",
-      "evidence": "Qualified source, coverage and native subset integrated at 85f7eb219d96ff75c27cf24660218aa1a1c79780 after final independent Astra-medium ACCEPT, with no remaining concrete finding. All 20 operator controls and five composed G2 cells passed. The original qualified healthy Q1 run has its own active native checkpoint witness and normal completion/reopen. Assembled coverage of 217 registrations comprises 200 original passes, 16 continuation passes and the exact repaired Rust target. Rust: 2727 passed, 72 ignored. Python/native receipt, TS and hermetic executable NAPI passed; Python/TS body counts are unavailable and are not inferred. Original incomplete wrapper, measurement stop, stale-doc failures, Cargo101/target127 and exec_prefix warning remain recorded in features/slice-100/execution.md and review-log.md. Operator defects have committed runtime RED/GREEN. Original Q1 interruption remains UNQUALIFIED, without confirmed fault-exit, raw snapshot or recovery qualification. Corrected real-debugger behavior is unverified; the additional matched pair question is unanswered. Slice 100, D28-09 and release closure remain open.",
+      "phase": "QUALIFIED_SUBSET_ADDITIONAL_Q1_PAIR_APPROVED_RUNTIME_PENDING",
+      "evidence": "Qualified source, coverage and native subset integrated at 85f7eb219d96ff75c27cf24660218aa1a1c79780 after final independent Astra-medium ACCEPT, with no remaining concrete finding. All 20 operator controls and five composed G2 cells passed. The original qualified healthy Q1 run has its own active native checkpoint witness and normal completion/reopen. Assembled coverage of 217 registrations comprises 200 original passes, 16 continuation passes and the exact repaired Rust target. Rust: 2727 passed, 72 ignored. Python/native receipt, TS and hermetic executable NAPI passed; Python/TS body counts are unavailable and are not inferred. Original incomplete wrapper, measurement stop, stale-doc failures, Cargo101/target127 and exec_prefix warning remain recorded in features/slice-100/execution.md and review-log.md. Operator defects have committed runtime RED/GREEN. Original Q1 interruption remains UNQUALIFIED, without confirmed fault-exit, raw snapshot or recovery qualification. Corrected real-debugger behavior is unverified; seq383 approves exactly one additional corrected matched pair under unchanged limits; fresh runtime readiness/execution remains pending. Slice 100, D28-09 and release closure remain open.",
       "plan_sha": "c1226d1bf958e1aa4b69fc81f265c9bc3d217198",
       "qualified_subset_sha": "85f7eb219d96ff75c27cf24660218aa1a1c79780"
     },
@@ -984,6 +989,18 @@
         "title": "Owner supplied exact TC5 input-pack-v1 at /mnt/data/fathomdb-performance-benchmarking/scale-02/inputs/input-pack-v1; static identities, all17372 payload hashes and7667bridge identity verified. Missing-input hold cleared only; candidate runtime/model/native/F/Q8 measurement remain.",
         "owner_slice": 30,
         "source": "dev/steward/steward-ledger.jsonl seq-382"
+      },
+      {
+        "id": "slice100-additional-q1-pair",
+        "title": "Approve exactly one additional corrected matched healthy/witnessed-interruption Q1 pair under unchanged120s/case,64GiB/current checks/registered actors/no automatic retry; no VM/GPU/host fault.",
+        "owner_slice": 100,
+        "source": "dev/steward/steward-ledger.jsonl seq-383"
+      },
+      {
+        "id": "slice80-contract-acceptance",
+        "title": "Approve the reviewed full80 contract at f2f4831554ae165420a31890cf102642ce28b21d; actual Block1 exit and integrated source-fit still precede90.",
+        "owner_slice": 80,
+        "source": "dev/steward/steward-ledger.jsonl seq-384"
       }
     ],
     "unruled": [
@@ -1003,22 +1020,10 @@
         "owner_slice": 160
       },
       {
-        "id": "slice100-additional-q1-pair",
-        "title": "Owner answer on one additional corrected Q1 matched healthy/interrupted pair; seq-372 covered the original pair only and is not reused.",
-        "owner_slice": 100,
-        "source": "dev/plans/0.8.29/features/slice-100/status.md"
-      },
-      {
         "id": "block1-smoke-inputs",
         "title": "Owner input: model, prompt, budget and fixture for the Block1 LoCoMo smoke and item-4 remeasure before90 source entry. No spend inferred.",
         "owner_slice": 90,
         "source": "dev/plans/0.8.29/features/slice-160/qualification.md Q12"
-      },
-      {
-        "id": "slice80-contract-acceptance",
-        "title": "Owner acceptance of the exact full80 contract revision after its50/60/70 contract inputs settle; bounded design PASS is not that acceptance.",
-        "owner_slice": 80,
-        "source": "dev/plans/0.8.29/features/slice-80/plan.md; dev/plans/0.8.29/features/slice-90/requirements.md S90-R12"
       }
     ]
   },

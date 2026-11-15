@@ -5,121 +5,91 @@ target_release: 0.8.29
 slice: 80
 ---
 
-# Slice 80 census
+# Slice 80 source and authority census
 
-Read-only source witness: clean `2f6913c1d59ac8ff3a30de835b57290a8635998c`.
-10 implementation104dcbc and closure d7d928 are predecessor evidence;20's
-Linux repair657e is integrated, while policyA3/A5 and WindowsA6 remain open.
-30 has no supplied measured baseline/TC5 inputs. Reviewed contracts and the
-parent-supplied60 checkpoint below are distinct from integrated source. No mutable
-worker output was treated as source authority;80 ran no build/test/native/DB/GPU.
+Source inspected: `e1cb1bd5311f68da8be98bbe133b9cecd5ab56d4`, which integrates
+qualified60 format/filter/budget work and70 typed reasons/facade exports.
+Selected50 identity/packing seq-374 and feedback seq-375 are accepted policy;
+its `10a72e5a9` FusionHit/FusionOwnership design has independent Astra PASS,
+but production implementation is pending. Source and that planned seam are
+separate authorities. This revision ran no database/native/model/GPU work.
 
-This documentary consolidation incorporates the independently bounded
-Astra-medium PASS for aggregate v2, exact source proposal SHA-256
-`a5e4851df2fedcbcce3e7d1b93138980c25e172d0ceb802792d218940bca0e53`.
-The consolidated packet's narrow consistency recheck is pending; this is no
-new ABI/policy approval or full80/source-entry approval. All original packets
-remain frozen. Parent source stays clean2f6913 with no imports.
+## Built behavior and actual residual
 
-Parent-supplied60 checkpoint: clean candidate
-`307c92e3b4b8c674eec28fc940c879e9054fff90` has source TDD for formats,
-filters and budgets, and post-code real-GPU manual SDK plus both MCP formats
-14-case PASS. Native/full gate and fresh final review remain pending; F11
-feedback ruling remains held. This is not60 completion, final-contract
-settlement or integration into the clean2f6913 parent.80 did not run those
-checks or read mutable worker output as authority.
+Paths below are under `src/rust/crates/`. These are inspected source seams;
+historical test qualifications are not rerun or claimed as80 evidence.
 
-The built/residual census below describes frozen2f6913 source, not the later
-307c92e60 candidate. Paths start at `src/rust/crates/` unless stated otherwise. Named test
-files supporting gap claims were read in full, including any separately read
-remainder after output caps. Wider suites are not claimed qualified or absent.
-
-| B2 row | Source witness and existing controls | Genuine residual |
+| B2 row | Actual existing source / authority | Remaining80/90 delta |
 | --- | --- | --- |
-| 1 | mcp output.rs Envelope.state/SearchOutput.verdict required; tools.rs envelope/shape builds unavailable. Accepted hints ADR(f) already authorizes omission. | Structured optionality/absence and orient.not_in_this_release;60 already owns text omission, so do not rebuild it. |
-| 2/3 | engine hints.rs is pure; mcp hints.rs/tools.rs already build no_results/degraded/cut hints. tests/hints.rs covers empty, empty_not_ready, first canonical cause, hints precedence/bounds/budget/quoting. | Reconcile70's accepted absent/timeout causes and both60 formats. No new weak threshold. |
-| 4 | mcp tools.rs parse uses serde deny_unknown_fields and generic bad_argument. edge.rs builds typed input schemas. tests/schema.rs exercises unknown input but no typed accepted-list oracle. | Deterministic typed argument/accepted fields, bounded caller key, fixed remedies. |
-| 5 | tools.rs feedback checks membership before epoch/telemetry/text outcomes; session.rs stores BTreeMap<ref,cursor>. tests/feedback.rs covers unique cursor attribution/concurrency/ref/store/epoch/sink/no-result-effect. | Bounded offending occurrences, code/detail fields.50's separate duplicate-ref ambiguity consequence remains unruled; no new ref ABI chosen. |
-| 6 | tools.rs list_stores samples default once; row flags/default_store_set already exist. tests/stores.rs + hints.rs prove session isolation/default routing/hint on-off. | Top-level default_store and quoted first-line default; clearer guide sentence.60 owns general quoting and use_store renderer. |
-| 7 | registry.rs + bridge.rs have FIFO wait/permit ownership/abandonment. tests/admission.rs covers32 waiters, queue_full/deadline/overload schema, cancellation/shutdown/progress/stuck/no retry_after_ms. | Both-format regression qualification only; no demonstrated new queue defect.60 owns rendering busy details. |
-| 8 | schema lib.rs format35 span table survives37; engine vector_spans.rs validates tuple/body length/UTF-8; projection_commit.rs publishes mapping/span/vector/terminal transactionally. tests/slice60_store_format.rs proves unknown/known offsets, invalid offsets, corruption, rebuild/recenter, batch fallback, erasure and rollback. | Orient aggregate reporting and scored field are absent. Existing storage is preserved, not new work. |
+| 1 | mcp output.rs still requires Envelope.state and SearchOutput.verdict; tools.rs constructs unavailable placeholders.60 already omits their text rows and kinds/counts text rows. | Make only unavailable-only state/verdict absent in structured data/schema; retain actual readiness/degradation and kinds/counts placeholders. Fixed orient missing list state/verdict/kinds/counts. |
+| 2/3 | engine search_types.rs has exactly EmbedderAbsent/embedder_absent, EmbedderTimeout/embedder_timeout, EmbedderOverloaded/embedder_overloaded.70 maps them through native wrappers and MCP HintCause. Existing pure hint and queue policy is built. | Regression qualification, no new reason mapping, weak threshold, hints stage2 placement or queue implementation. |
+| 4 | mcp tools.rs serde parsing returns generic bad_argument; edge.rs owns the discovery input schemas. | Deterministic unknown_argument with bounded original key, sorted schema-derived accepted list and fixed remedy before deserialization. |
+| 5 | session.rs ResponseContext.refs is BTreeMap<ref,cursor>; tools.rs feedback retains current membership/not_recorded path. |80 adds bounded offending occurrence diagnostics.50 implements selected Unique/Ambiguous and atomic otherwise-recordable ambiguity refusal after acquisition/final epoch check, before writes. No policy pending or occurrence ABI. |
+| 6 | list_stores samples the session default once, builds row flags and default_store_set hint; routing/session isolation exists. | Required nullable top-level default_store, quoted first text header even hints=false, bounded guide sentence. |
+| 7 | registry.rs/bridge.rs own queue depth32, FIFO permits, wait deadline, run-to-completion and shutdown behavior. | Preserve and qualify both formats; no demonstrated queue defect to rebuild. |
+| 8 | schema format35 span storage survives37. vector_spans::validate enforces one head/tuple/body-length/UTF-8 predicates; projection_commit publishes mapping/span/vector/terminal transactionally. | StoredHeadCoverageV1 reporting/cache and opt-in SnippetV1.scored_bytes are absent. Preserve existing storage; no migration/reprojection/backfill. |
 
-## Aggregate authority and reviewed bounded delta
+## Aggregate seam
 
-Accepted long-record §7.1.2 requests record/byte shares cached with projection
-state so orient adds no scan; it does not mandate live E/P/K/U/M. That old
-unapproved field proposal is retired. Aggregate v2's bounded Astra PASS covers
-the concrete carrier and architecture now included in [design](design.md).
+`vector_spans.rs::validate(None)` runs at open_locked and
+`projection_generation.rs::physical_completion`. Its exact COALESCE invalid
+predicate and orphan-span check remain authoritative. It currently does not
+probe physical vectors or refuse passing NULL-body/ownerless/dual-owner rows.
+Only those passing rows' attribution classification is added during capture.
+Existing completion operations independently enforce their own physical/cross-owner
+checks; later failure cannot publish a staged summary.
 
-Source37 stores per-head mapping/span facts, not aggregate counters. The full
-vector_spans validator at open.rs:1254 and physical_completion already traverses
-mapping/span/canonical metadata and checks orphan spans. It does not inspect
-physical vectors or reject a NULL canonical body. Preserve its exact invalid
-predicate, including COALESCE body semantics. Existing physical_completion
-cross-owner refusal and eligible-member physical-vector checks stay in their
-original caller scope; reporting adds no blanket open-time integrity policy.
+`Engine::read_projection_status` currently locks the writer connection, reads
+registry/readiness and returns ProjectionRuntimeStatus without coverage.
+`cached_status_in_snapshot` and its committing callers are actual full-status
+capture seams; explained reader status calls must not seed a writer cache.
+[Design](design.md) specifies exact carrier, checked streaming arithmetic,
+transactional publication, writer-only token, rollback invalidation and bounded
+orient reuse. No new full scan or vector_default probe is added by orient.
+Pinned vec0 rowid reads can load vector payload; aggregate capture therefore
+must not add even indexed physical-presence probes.
 
-Pinned sqlite-vec0.1.9 vec0Filter_point at sqlite-vec.c:7363–7400 loads every
-vector column even for rowid/EXISTS point probes. Therefore aggregate capture
-has no vector_default join/probe/column/schema check. Only metadata arithmetic
-is folded into the existing full validation pass; all observed existing errors
-remain typed. Valid passing ownerless/bodyless/dual-owner mappings are counted
-as unattributed_heads outside canonical record/byte denominators.
+## Per-hit seam
 
-The concrete required StoredHeadCoverageV1 uses population stored_mapped_spans,
-seven exact counters and nullable unreduced rational shares. The Engine-owned
-cache is seeded only by committed full writer-side capture, and served only
-when DB/profile/schema/clean visibility generation+nonce/same-connection
-PRAGMA data_version/total_changes match. read_projection_status pins this check
-and its returned coverage in one read transaction. Existing orient does not
-force generation-status validation; cold and changed caches expose no numbers.
-Attempted DML rollback may advance total_changes and conservatively invalidate.
-Stable reopen or an already-required full-status miss can provide real numbers;
-there is no always-current-after-write or whole-orient-snapshot promise.
+`search.rs` currently builds positional snippets with snippets_for_hits before
+capture.finish and transaction commit. `snippet_query.rs` owns bounded lexical
+point queries. Current fusion/explanation keys still use bodies; no original
+vector-participation public bit or scored field exists. Existing vector edges
+can display TextEdge: branch is not vector-participation proof.
 
-This is stored metadata scope, including retained history/inactive/out-of-window
-records, independent of live time/view/provider health and50's per-hit identity.
-No missing-owner, no-vector, pending or failed population is silently treated
-as full/known-zero. Exact fields, domains, cache publication and lifecycle rules
-are part of design, requirements R6 and acceptance A6, not deferred drafting.
+Reviewed50 carries FusionHit/FusionOwnership through both fusion stages,
+reweighting/CE/explanation/snippets/evidence and final finish independently of
+evidence requested. Reuse its private RecordKey and retain original vector-arm
+keys before first fusion only when snippets are requested.50 confirms
+Entry.in_vector is current-input tie preference; nested graph fusion cannot
+supply participation authority. Canonical Node/Edge keys stay distinct;
+ownerless FTS rowid cannot lend a canonical head. This remains planned API.
 
-## Per-hit source carriers and read work
+Engine/facade/SDK snippet types, PyO3/NAPI conversions, Python types/_sdk_search,
+TS binding.ts/mapNativeSnippet and MCP search_page/shaping need explicit new-field
+mapping.70 facade exports are already integrated. MCP re-snippeting must retain
+trusted scored metadata while final60 accounting includes its bytes. Existing
+selector/byte-coordinate oracles and golden files are preserved.
 
-engine search_types.rs SearchResult.snippets already parallels final results;
-SnippetV1 is non_exhaustive and opt-in. search.rs:2943 builds snippets before
-the transaction commits. snippet_query.rs bounds lexical point queries to
-2*max_point_queries. Vector input membership is available before fusion, but
-the current fuse_three_arms body key and explanation body maps are50's subject.
-Vector edges can carry TextEdge: branch is not vector-participation proof.
-No existing scored field or public vector-participation bit is present.
+## Inputs and limits
 
-Rust SDK exports SnippetV1; accepted70 proposes facade exports. PyO3/NAPI
-snippet.rs and read_search.rs explicitly copy fields. Python types.py and
-_sdk_search.py construct dataclasses; TS search.ts mapNativeSnippet explicitly
-maps fields and native binding.ts declares them. MCP search_page copies
-snippet metadata, then60's shaping retains whole hits. Every one needs an
-explicit scored-field mapping; adding only the Rust field would be incomplete.
+The original source/consumer census plus real SQLite identity fixtures are the
+required50 proof route; a private Memex snapshot/runtime population census is
+not a source-entry gate. Existing helper/pack duplicate-ID refusal remains under
+selected seq-374. Rich occurrence labels are unselected .30 review work.
+F11's selected atomic source fix remains50 work; it is not an unanswered ruling.
 
-Full snippet_search.rs proves sidecar alignment/off-path identity/text/hybrid/
-frozen/read-only/Unicode/edge/vector behavior and exact38 lexical point queries.
-snippet_cost_receipt.rs distinguishes measured searches from its ignored sweep.
-Python test_ep17_snippets.py, TS ep17-snippets.test.ts and native snippet modules
-were read in full. Existing shared parity golden is a human oracle; never
-regenerate it to add this field. Existing selector expectations can be compared
-as their original field projection with explicit new None checks in new REDs.
+Owner seq-382 selects `/mnt/data/fathomdb-performance-benchmarking/scale-02/inputs/input-pack-v1`:
+static qualification covers17372 input files and selected7667 bridge rows.
+This is input availability, not30 measurements or Block1 follow-up exit.
+No new measurements, provider/model qualification or smoke configuration is
+invented here. Full80 owner acceptance and90's separate actual Block1 follow-up
+exit remain open, including the unanswered smoke model/prompt/budget fixture.
 
-Relevant verified memory: agent-access-block1-design-state.md,
-long-record-embedding-findings.md, verify-design-against-code-not-just-architecture.md,
-tdd-red-must-fail-per-finding.md, slice-prompt-verify-test-claims.md and
-0.8.25-slice50-compact-evidence-lessons.md in the canonical main-repo store.
-The older acceptance-md-locked-no-feature-acs.md index note is stale about the
-maximum AC: current source extends through082. Retain its no-invented-AC rule,
-use current source and the release's tracked083 allocation for actual IDs.
-
-Contract witnesses read as proposals:50 phase-a design/feedback-decision,
-60 actual20-reconciliation design and70 phase-a design under the parent's
-exclusive temporary packages. The pending50 feedback-decision witness supplied
-by parent has SHA-256
-`0242afd3a7e61ad5b53045b7b70c4cb6e75b75fd4d4b1933909fa881a9e6295a`.
-Neither its recommendation nor70 reason additions are silently promoted to
-accepted source behavior by this census.
+Canonical memory read from the actual main-repo store includes
+`dont-be-distracted-by-ceremony.md`,
+`verify-design-against-code-not-just-architecture.md`,
+`0.8.25-slice50-compact-evidence-lessons.md`,
+`long-record-embedding-findings.md` and `agent-access-block1-design-state.md`.
+They support source-grounded deltas, opt-in positional sidecars, truthful spans
+and minimal necessary canonical documentation, not supplemental audit packets.

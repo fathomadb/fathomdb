@@ -1155,7 +1155,8 @@ fn context_loss<D: PoolDriver>(
                 operation: &loss.operation,
                 primary_context: loss.primary_context,
                 cuda_libraries: &cuda_libraries,
-                pool: driver.pool_counters(&private.pool).ok(),
+                // No healthy counter sample is cached; loss forbids a native read.
+                pool: None,
                 live_private_contexts: driver.live_private_contexts(&private.pool),
             };
             driver.emit_snapshot(&snapshot_line(&snapshot));
@@ -1427,6 +1428,7 @@ pub(crate) trait PoolDriver {
     /// Retains the primary context, reads its `cuCtxGetId`, and releases it.
     /// Called only when the context is active.
     fn retained_primary_context_id(&self, ordinal: usize) -> Result<u64, DriverFailure>;
+    #[cfg(test)]
     fn pool_counters(&self, pool: &Self::Pool) -> Result<PoolCounters, DriverFailure>;
     /// The contexts built on `pool` that are still alive.
     fn live_private_contexts(&self, pool: &Self::Pool) -> usize;
@@ -2154,6 +2156,7 @@ mod driver {
             Ok(id)
         }
 
+        #[cfg(test)]
         fn pool_counters(&self, pool: &Self::Pool) -> Result<PoolCounters, DriverFailure> {
             Ok(PoolCounters {
                 reserved_current: pool.reserved_current().map_err(failure)?,

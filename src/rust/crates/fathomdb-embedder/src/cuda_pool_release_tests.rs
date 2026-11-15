@@ -55,6 +55,52 @@ fn the_pool_is_trimmed_only_when_the_last_model_closes() {
 }
 
 #[test]
+fn last_model_release_uses_published_loss_without_query_sync_or_trim() {
+    let driver = Fake::default();
+    let decision = driver.private_decision();
+    assert!(register_private_model(Some(&decision), 0, true));
+    assert!(register_private_model(Some(&decision), 0, true));
+    let fault = ForwardFault {
+        ordinal: 0,
+        cuda: true,
+        code: Some(CUDA_ERROR_CONTEXT_IS_DESTROYED),
+        error: "observed context loss".to_owned(),
+    };
+    assert!(matches!(
+        classify_forward_fault(Some(&decision), &driver, fault, "forward"),
+        Some(CudaPoolFailure::ContextLost { .. })
+    ));
+    let queries =
+        (driver.state_reads.load(Ordering::SeqCst), driver.id_reads.load(Ordering::SeqCst));
+
+    assert_eq!(release_private_model(Some(&decision), &driver), ReleaseOutcome::StillOpen);
+    assert_eq!(live(&decision), 1);
+    assert_eq!(driver.calls(), (0, 0));
+    let outcome = release_private_model(Some(&decision), &driver);
+    assert_eq!(
+        (driver.state_reads.load(Ordering::SeqCst), driver.id_reads.load(Ordering::SeqCst)),
+        queries,
+        "known loss must refuse last-model cleanup before primary-context queries"
+    );
+    assert_eq!(driver.calls(), (0, 0), "known loss must skip synchronization and trim");
+    assert_eq!(outcome, ReleaseOutcome::ContextLost);
+    assert_eq!(live(&decision), 0);
+
+    for _ in 0..2 {
+        assert_eq!(
+            release_unused_pool_memory(Some(&decision), &driver),
+            ReleaseOutcome::ContextLost
+        );
+        assert_eq!(
+            (driver.state_reads.load(Ordering::SeqCst), driver.id_reads.load(Ordering::SeqCst)),
+            queries
+        );
+        assert_eq!(driver.calls(), (0, 0));
+        assert_eq!(live(&decision), 0);
+    }
+}
+
+#[test]
 fn a_model_held_for_the_process_life_keeps_the_pool_reserved() {
     // A module-level singleton is registered and never dropped.
     let driver = Fake::default();

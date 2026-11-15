@@ -1,13 +1,13 @@
 ---
 title: Slice 60 — actual source status
-status: IN_PROGRESS
+status: COMPLETE_ON_RELEASE_BRANCH
 target_release: 0.8.29
 observed_on: 2026-11-15
 ---
 
 # Slice 60 — actual source status
 
-## Implemented and scoped passing
+## Implemented and locally qualified
 
 Accepted format/direct-filter/budget subset5271 is integrated; its independent
 Astra implementation PASS and original assembled qualification remain in
@@ -35,7 +35,7 @@ and the original superseded tests stayed unchanged. The sole failed selector
 then reached its real unknown-inactive RED before implementation. The staged
 inactive-null control passed before its fix and is not a new RED claim.
 
-## Remaining qualification and ownership
+## Qualification and separate ownership
 
 Before final inactive integration,75 affected existing MCP controls passed on
 superseded source; they were not redundantly replayed. Exact commit/phase subjects
@@ -55,8 +55,10 @@ A subsequent actual tools/list check found both nonnullable search flag schemas
 advertised default:null. Two new assertions observed RED before a schema-only
 false-default annotation repair. Runtime absentNone/explicitSome(false)
 presence semantics and the original10 oracles stay frozen. Successor17 focused
-tests and scoped MCP Clippy pass. Independent Astra review remains before
-closure; F7 full-gate results remain attributed to F7.
+tests and scoped MCP Clippy pass. Independent Astra accepted4005 and the assembled ordinary qualification.
+Slice60 local acceptance is complete; F7 full-gate results remain attributed
+to F7, with17 affected successor checks at4005. No uninterrupted full-wrapper
+pass at4005 is claimed.
 
 90's accepted residual fields/omissions and the actual Block1 qualification/
 conformance/smoke/item4 exit remain separate. Smoke model/prompt/budget/fixture

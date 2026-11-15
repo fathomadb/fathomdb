@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.29 Slice 60 — MCP surface
-status: PLAN_READY
+status: COMPLETE_ON_RELEASE_BRANCH
 target_release: 0.8.29
 slice: 60
 observed_on: 2026-11-15
@@ -23,7 +23,7 @@ source-grounded plan87c3134e: both search flags, strict nonnull booleans,
 canonical identity and continuation forwarding/refusal. [Status](status.md)
 records scoped results and the remaining qualification. Integrated50 supplies
 record-version identity and atomic feedback refusal; its former prerequisite
-hold is satisfied. No whole60 or release closure is claimed.
+hold is satisfied. Local60 acceptance is closed; no release closure is claimed.
 
 [Requirements](requirements.md), [design](design.md) and
 [test plan](test-plan.md) retain AC29-60-VIEW and affected FTS2/3/5/6 acceptance.
@@ -36,7 +36,7 @@ reference ABI or query clone scaffold removal belongs here.
    `/mnt/data/worktrees/fathomdb-0.8.29-s60-exit-20261115`, branch
    `llm/0.8.29-s60-exit-20261115`; parent reports pre/post strict closed10 and disk
    preflight PASS. The sequence below was executed through scoped GREEN;
-   final coherent review and integrated qualification remain.
+   final coherent review and integrated ordinary qualification are now accepted.
 2. Wait for the allocated native window before owned setup or execution. Run
    checkout ownership check before installers; provision only its own canonical
    venv/modules/artifacts. Never execute a sibling mutable environment/native.
@@ -71,8 +71,9 @@ reference ABI or query clone scaffold removal belongs here.
 ## Completion and separate gates
 
 F11 and affected local acceptance now pass in scoped tests on integrated50/70.
-Close60 only after fresh independent final review and required final source
-qualification. Use accepted5271 evidence; do not manufacture
+Fresh independent final review accepted local60 closure after the combined
+F7 full gate and the schema-only4005 successor qualification. Use accepted5271
+evidence; do not manufacture
 new REDs or repeat old passing checks merely for attribution. New code still
 needs its applicable qualification. Original wrapper/hints failures and bounded
 follow-ups remain in execution; no uninterrupted full-green follows.

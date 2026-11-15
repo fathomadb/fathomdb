@@ -1733,8 +1733,9 @@ fn context_alive<D: PoolDriver>(
 }
 
 /// Synchronizes the decision's context and trims the pool's unused memory,
-/// unless the decision is not private or its context is lost. Errors and
-/// panics are discarded: a model's drop must never fail or unwind.
+/// unless the decision is not private or its context is lost. Published loss
+/// refuses before any driver query. Errors and panics are discarded: a model's
+/// drop must never fail or unwind.
 pub(crate) fn release_unused_pool_memory<D: PoolRelease>(
     decision: Option<&Decision<D::Pool, D::Context>>,
     driver: &D,
@@ -1742,6 +1743,9 @@ pub(crate) fn release_unused_pool_memory<D: PoolRelease>(
     let Some(private) = decision.and_then(Decision::private) else {
         return ReleaseOutcome::NotPrivate;
     };
+    if private.loss.get().is_some() {
+        return ReleaseOutcome::ContextLost;
+    }
     catch_unwind(AssertUnwindSafe(|| {
         if !context_alive(driver, private) {
             return ReleaseOutcome::ContextLost;

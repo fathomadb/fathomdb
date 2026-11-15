@@ -180,8 +180,8 @@
         "dev/plans/0.8.29/features/slice-20/test-map.md",
         "dev/plans/0.8.29/features/slice-20/review-log.md"
       ],
-      "phase": "LINUX_QUALIFIED_WINDOWS_THREE_A6_PASS_OPENER_FIX_RUNNING",
-      "evidence": "Qualified Linux source at45167677bee0d00b59194897e63ad05be40d6e63 includes unchanged prior seq-369 A3/A5 proofs and seq-370 capacity-only preparation plus genuine startup/visibility alias RED/GREEN. Fresh independent Astra implementation and assembled-results ACCEPT; affected parallel engine lib175/175, Clippy/check pass. Original final wrapper ran220 suites:218 passed and2 metadata guards failed. Reviewed baseline merge and exact inventory refresh made unchanged failed guards pass11/11 and8/8, yielding assembled220/220 without wrapper replay. Source/scripts/Cargo/toolchain/test oracles are unchanged from accepteddff; actual owned Python3.12.3/native receipt staysdff. Original wrapper exit1/failures retained. Windows A6 currently has three actual passing cases; opener timed out under its original90s limit. The combined canonical installer-key and malformed-null fix is executing with frozen oracles and original safeguards; whole20/Block1 closure remains pending.",
+      "phase": "ALL_FUNCTIONAL_ACCEPTANCE_QUALIFIED_FINAL_CODE_PHASE_GATE_PENDING",
+      "evidence": "Qualified Linux source at45167677bee0d00b59194897e63ad05be40d6e63 includes unchanged prior seq-369 A3/A5 proofs and seq-370 capacity-only preparation plus genuine startup/visibility alias RED/GREEN. Fresh independent Astra implementation and assembled-results ACCEPT; affected parallel engine lib175/175, Clippy/check pass. Original final wrapper ran220 suites:218 passed and2 metadata guards failed. Reviewed baseline merge and exact inventory refresh made unchanged failed guards pass11/11 and8/8, yielding assembled220/220 without wrapper replay. Source/scripts/Cargo/toolchain/test oracles are unchanged from accepteddff; actual owned Python3.12.3/native receipt staysdff. Original wrapper exit1/failures retained. Windows A6 satisfies all four original cases onfd6a, independently accepted by Astra and integrated11c. The affected Linux opener exact selector also passes on11c, with4 portable controls and strict clean termination. Prior failed/UNKNOWN attempts remain. All functional criteria are qualified; the final clean source-phase gate is batched with current integration before formal20 closure. Block1 and release qualification remain open.",
       "qualified_subset_sha": "45167677bee0d00b59194897e63ad05be40d6e63",
       "continuation_plan_sha": "391ae66aa9d36fc0dbdfe5326ed028551a6774f5",
       "linux_repair_sha": "657edeb76caaf9c8d2aab433766bec9362e73217",
@@ -198,12 +198,13 @@
         "format_evidence": "/mnt/data/tmp2/fathomdb-0829-continuation/slice20/format-prep-20261113/evidence/format-only-d37fc79617f540919db07a90a7310f04"
       },
       "windows_batch_current": {
-        "source": "fd6a265a2",
-        "status": "THREE_A6_PASS_ACTUAL_OPENER_RED_FIX_BATCH_RUNNING",
+        "source": "fd6a265a2d7e1d654055313ab2caf3fdf0c44ec1",
+        "status": "ALL_FOUR_A6_PASS_INDEPENDENT_ASTRA_ACCEPTED_INTEGRATED",
         "controls": "Original19 containment controls plus nonzero-root preservation passed; actual concurrent lease control11741 reads/503 atomic replacements passed. Frozen product095b was built successfully; cached successor6da21161 build0.44s/root0/Job0.",
-        "results": "Actual startup, verification and visibility each passed exactone/root0/Job0. Original opener hit90s and stopped with authoritativeJob0; raw failures preserved. Single canonical installer-key fix and actual mutable-JSON-null refusal RED/GREEN are in the combined successor; four final cases remain pending.",
+        "results": "Final355c2edc cached build and all four original selectors pass with root0, exactlyone test per selector, authoritativeJob0, no stop/cleanup diagnostic. Independent Astra accepts S20-A6 source/results atfd6a. Opener fix changes only installer canonical key; original oracle and90s limit unchanged. Guest actors empty20:31:09.952Z. Prior cold-build cleanup UNKNOWN attempts and original opener timeout remain preserved.",
         "workflow": "No perhelper model checkpoint or unchanged proof replay. Original build/case/resource/actor limits and test oracles retained; one final meaningful independent review.",
-        "closure": "Whole20 and Block1 exit remain open."
+        "closure": "S20-A6 is independently accepted and integrated. The affected Linux opener selector passed on integrated11c in0.08s (exactone/0failed); all4 portable controls passed in an80.779s bounded light phase with no stop and no remaining actors. All functional criteria are qualified. The required final clean source-phase gate is batched with current integration before formal20 closure; no broad-workspace or release-green claim.",
+        "integrated_sha": "11c59f7fe4bd337495d23f1568ab2eae37cd1168"
       }
     },
     {
@@ -804,7 +805,14 @@
       ],
       "conditions": "Approved80 AND actual Block1 follow-up exit after integrated selected20–70;160 is not that exit. Block1 exit is not a slice: the Slice90 owner runs it as90's pre-source entry step on the integrated root baseline; complete when applicable full/feature/performance checks, both-format conformance with inherited failures resolved and the approved smoke/item-4 remeasure (Slice160 Q12 content) have real results there, recorded by the parent in this slice's evidence.20,50,60,70 enter it closed;40 closed or by authorized rejection/defer.",
       "phase": "BOUNDED_DESIGN_REVIEWED_SOURCE_HELD",
-      "evidence": "Astra-medium bounded early design PASS after FIX1: installed Python/TS semantic REDs precede corresponding shared converter GREEN; aggregate count/byte/fraction transport is distinct from numeric profile.dimension. Actual integrated predecessors, approved80 and the real Block1 follow-up exit precede source work. No90-to160 cycle, implementation authority or completion follows this review."
+      "evidence": "Astra-medium bounded early design PASS after FIX1: installed Python/TS semantic REDs precede corresponding shared converter GREEN; aggregate count/byte/fraction transport is distinct from numeric profile.dimension. Actual integrated predecessors, approved80 and the real Block1 follow-up exit precede source work. No90-to160 cycle, implementation authority or completion follows this review.",
+      "block1_smoke_runner": {
+        "source": "db2857c3012f8bdd245d1c6f80a419eff324030d",
+        "integrated": "73eb4cf7d45a3ceed3bdce20256f84d7d1c76d91",
+        "review": "Independent Astra final ACCEPT after real surviving-descendant and partial-audit-verdict corrections.",
+        "qualification": "22 registered pure tests plus prior9 historical measurement controls passed; source Ruff/shell/CLI/diff/hooks passed. Integration preserves all231 tier labels,213fast/18heavy. Full gate remains pending the final clean source phase. No inference was run.",
+        "execution": "Owner model/spend choice pending for proposed72 native-format episodes. Existing dataset/fixed IDs are resolved; candidate stores must be rebuilt. Actual selected Block1 predecessors and conformance remain hard before inference/90 source entry."
+      }
     },
     {
       "slice": 100,

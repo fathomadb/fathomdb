@@ -1,33 +1,30 @@
 ---
-title: "Slice 20 — remaining Windows qualification"
-status: ACTIVE
+title: "Slice 20 — final source qualification"
+status: FINAL_SOURCE_GATE_PENDING
 target_release: 0.8.29
 slice: 20
 ---
 
-# Slice 20 remaining Windows qualification
+# Slice 20 final source qualification
 
-Direct Sol-high owner in `/mnt/data/worktrees/fathomdb-0.8.29-s20-20261114`,
-branch `llm/0.8.29-s20-20261114`, entered clean at
-`a00bf9b9228318e7c236148551bb188f63ff66ee`. Strict closed10 landing preflight
-passed with zero warnings. Parent commissions independent Astra-medium design
-review before implementation and a fresh independent implementation/results
-review; parent owns state/integration and native-window coordination.
+Current results and exact source references are owned by the
+[release state](../../../release-state-0.8.29.json). Linux A3/A5 and prior suite
+proof remain accepted. Windows A6 now passes all four original selectors after
+independent Astra review, and the affected Linux opener regression passes on
+integrated source. Do not repeat unchanged runtime proofs or sensitivity controls.
 
-Accepted Linux hook repairs657edeb and A3/A5 proofs f803a964 remain qualified
-within [execution](execution.md) limits. Do not redo those proofs or passing
-sensitivity controls. Actual Windows A6 remains the completion work. Current
-source includes integrated10/60/70,30 source and100 coverage/native predecessors;
-whole20/30/100 and Block1 remain open;60/F11 is complete.
+The remaining action is the required stable final code-phase gate, batched with
+the current source integration before formal20 closure. This does not clear
+whole30 or the pre90 Block1 exit.100 is closed within its selected scope.
 
-## Scope and current integrated inputs
+## Accepted predecessor inputs
 
 Retain accepted20 Linux evidence-hook repairs657edeb76caaf9c8d2aab433766bec9362e73217;
 continuation docs391ae66aa9d36fc0dbdfe5326ed028551a6774f5;
 60 subset5271c1bf022f0ea22f95f7433e226feb2315043e;
 completed70 e875f36042f89c1d84756f78135db0e8926c1ed4; measured30 P integrated
-in2381. Their qualified subset evidence remains valid within recorded limits;
-whole20/30 and pre90 Block1 exit remain open;60/F11 is complete.
+in2381. Their qualified subset evidence remains valid within recorded limits.
+The release state owns current closure and remaining obligations.
 
 R29-3P-06/O3-06 queue preservation, Ready-to-pre-accounting proof and live
 tripwire guards are qualified at f803a964. Current60 format-bound schema helper
@@ -48,7 +45,7 @@ Keep schema37/no migration, query scaffold, accepted hints/spans/compact default
 W0.8.29/E0.8.0, R580/primary CUDA12.6/no K620. No unrelated cleanup, model/GPU
 fault/toolkit work, remote CI or publication. Resource floors below remain.
 
-## Ordered Windows completion
+## Windows qualification protocol
 
 1. Retain the current exclusive lease; refresh exact VM/endpoint/owned R: identity,
    host/guest readiness and unchanged floors before compiler/test entry. Scratch
@@ -74,7 +71,7 @@ fault/toolkit work, remote CI or publication. Resource floors below remain.
    checks. Parent closes20 only after actual A6 and all remaining criteria pass
    or receive a real authorized disposition; CI/publication remain excluded.
 
-## Current path-alias diagnosis and genuine RED route
+## Path-alias diagnosis and genuine RED route
 
 Startup and visibility caller/canonical path mismatch is now reproduced and
 repaired through actual real-engine alias failures. Startup RED2ccae97af precedes

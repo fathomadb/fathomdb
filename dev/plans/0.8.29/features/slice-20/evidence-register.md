@@ -1,10 +1,9 @@
 # Slice 20 evidence register
 
-Current approved Linux proof/capacity subset is qualified and integrated at
-f803a964ad8c8154a481e6f9385599bef5c0e054; see the
-[final execution record](execution.md#final-qualified-linux-proof-and-capacity-subset).
-A6 remains unqualified and whole20 remains IN_PROGRESS. Earlier baseline and
-proposal sections below preserve their historical subjects, not current currency.
+The [release state](../../../release-state-0.8.29.json) owns current qualification,
+source and remaining gate status. The [execution record](execution.md#final-qualified-linux-proof-and-capacity-subset)
+retains accepted Linux proof; baseline and proposal sections below preserve
+their dated subjects rather than current currency.
 
 ## Inspected baseline and limits
 

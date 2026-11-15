@@ -213,9 +213,9 @@
         "dev/plans/0.8.29/features/slice-30/continuation-gd.md",
         "dev/plans/0.8.29/features/slice-30/continuation-m.md"
       ],
-      "phase": "MEASUREMENT_SOURCE_SUBSETS_QUALIFIED_CAMPAIGNS_PENDING",
+      "phase": "MEASUREMENT_TOOLING_IMPLEMENTED_REVIEWED_COMBINED_SOURCE_GATE_PENDING",
       "plan_sha": "bea7f05cd2497af0d73c6eb8da509e11a947ca08",
-      "conditions": "P and11 actual G primary cases are qualified;73 required G primary obligations remain unsatisfied. Closed-copy G source0fa is independently accepted and assembled-qualified; calibration/R1/write stages need their separate fresh technical GO. Current-source M tooling256375d4 is independently accepted and integrated after affected native refresh and exact failed/unfinished completion. D main/process source has actual RED/GREEN; fixed24 accounting connection/final qualification remains. All84G/46M/24D cells and defaults remain; candidate caps are inactive, unknown costs remain held. TC5 static input is resolved; current F runtime, whole20/40/50/pre90/100Q1 remain open.",
+      "conditions": "P and11 actual G cases are qualified;73 required G obligations remain unsatisfied. G source0fa is frozen and assembled-qualified; runtime stages need fresh technical GO. M256 tooling is integrated and assembled-qualified. D41bae native schedules/capture/reporting, owned supervision, guarded CLI, one-reviewed-quartet continuation and inherited-setting refusal are implemented and independently accepted. One current combined owned source gate remains before new tooling qualification. All84G/46M/24D defaults/cells remain; expanded profiles are inactive and unknown costs refuse. TC5 static input and.29 parser binding are resolved; F runtime, whole20/40/50/pre90/100Q1 remain open.",
       "evidence": "G source0fa retains assembled acceptance,11 qualified/73 required cap refusals and inactive expanded profiles. Current M source256375d4b6a9ce0a54a06876d2df1373615ab67c is integrated at e6cbc956954d29137059fb5df32bc78ba863eecd after independent Astra ACCEPT: merged current release, rebuilt providerfree CLI/helper, then passed Pages20/20,Tegra45/45,exact2 previously failed guardian controls and2 previously unrun dispatch controls. Dispatch exercises actual rebuilt search/fetch in both formats with literal hit/body/error oracles. Original223/220/3 interrupted-wrapper history is retained; this is assembled qualification, not a new uninterrupted full gate. Both guardians finalized samples and collected all owned actors. Historical Python/NAPI subjects were not loaded or retagged. D accepted5edb capture/report/transport and5cf6 main entry have actual RED/GREEN; process2068 passes3 frozen owned-child controls, pending final coherent review/integration. Fixed24 allocation connection/source qualification remains. No actual D/M/F scientific campaign or whole30 closure. TC5 pack is statically qualified; candidate runtime remains pending.",
       "qualified_subset_sha": "2fd772558e46d0b1645dce2ffea730d0bdd3305c",
       "continuation_plan_sha": "0d8be5bb75516955ebf99b94913b9b54921bb3a4",
@@ -512,8 +512,9 @@
         "worktree": "/mnt/data/worktrees/fathomdb-0.8.29-s30-d-20261114",
         "branch": "llm/0.8.29-s30-d-20261114",
         "base": "6696f3a1dacb93749a1ea9580403e4d334230ea3",
-        "scope": "Main routing5cf6 has actual RED/GREEN and independent Astra acceptance. Owned-process2068 passes3 frozen harmless-child controls after REDd5ba; final process/accounting integration and coherent independent review remain. No scientific runtime GO.",
-        "source_checkpoint": "2068f1a655ca4384166a04fc640198a2c53dbc93"
+        "scope": "Code phase complete and independently Astra accepted, including final inherited-setting correction. Actual per-behavior RED/GREEN covers nativeT/C routes, bounded loss-aware capture, reports, owned-child supervision, durable fixed24 custody/accounting, D-phase guardian/refusal costs, executable CLI and one explicit reviewed continuation quartet. Active inherited treatments refuse before work; inert settings remain. Old failures, one syntax correction and affected reruns remain in raw history. Canonical D transport/native/live controls are registered. Combined current-source owned qualification pending; no scientific D execution or profile activation.",
+        "source_checkpoint": "41bae5529e7070352b9cc4b675089e8e93692039",
+        "integrated_sha": "e8929b7417b20d39bbe2c589a8ee40eaf7744c31"
       },
       "frozen_tc5_input": {
         "path": "/mnt/data/fathomdb-performance-benchmarking/scale-02/inputs/input-pack-v1",
@@ -527,6 +528,14 @@
         "sha": "da9a145cf9c49c5b420d33c6055a8d47ca271f7a",
         "status": "IMPLEMENTED_REVIEWED_INTEGRATED_SOURCE_ONLY",
         "evidence": "Exact0.8.29 release/candidate/package admission after semanticREDf5929230f; all29 parser testsPASS, frozenoracles/Ruff/hooks. IndependentAstra design4de+implementationda9 ACCEPT. No nativeproduct/database/model/GPU execution or runtimeprotocol/capchange. CurrentF/Q8 native qualification remains pending."
+      },
+      "combined_source_qualification": {
+        "status": "PENDING",
+        "execution_checkout": "/mnt/data/worktrees/fathomdb-0.8.29-s30-m-source-20261114",
+        "scope": "Current integrated M/D/F source and current-pin110 policy; owned Python/native/Node refresh followed by one full agent-verify with selected M/D live source controls. No scientific study, model/GPU, CI, publication or fault execution.",
+        "live_controls": "AGENT_SLICE30_LIVE_CONTROLS=1; AGENT_LONG unset",
+        "setup_child_seconds": 1800,
+        "gate_child_seconds": 5400
       }
     },
     {

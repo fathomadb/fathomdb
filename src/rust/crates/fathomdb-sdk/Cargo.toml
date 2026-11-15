@@ -22,6 +22,7 @@ cuda-pool-observer = ["fathomdb-engine/cuda-pool-observer"]
 # Python wheel and npm package behaviour.
 default = []
 slice30-observer = ["fathomdb-engine/slice30-observer"]
+slice50-measurement = ["fathomdb-engine/slice50-measurement"]
 default-embedder = ["fathomdb-engine/default-embedder", "fathomdb-embedder/default-embedder"]
 embed-cuda = ["default-embedder", "tegra-pool", "fathomdb-engine/embed-cuda"]
 # The Tegra private CUDA memory pool; implied by this crate's `embed-cuda` and `rerank-cuda` (slice-31 design.md § 14.3).

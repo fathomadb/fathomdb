@@ -715,6 +715,12 @@ run_tier_suite heavy test-slice130-pool-observation cargo test --locked --releas
 # unit assertions. Execute the bounded real-store adapter contracts explicitly.
 run_tier_suite heavy test-slice30-measurement-adapter cargo test --locked --release \
   --jobs 1 -p fathomdb-sdk --example slice30_measure -- --test-threads=1 --nocapture
+run_tier_suite heavy test-slice50-paired-measurement cargo test --locked --release --jobs 1 \
+  -p fathomdb-engine --no-default-features --features slice50-measurement,slice30-observer \
+  --lib search::paired50_tests:: -- --test-threads=1 --nocapture
+run_tier_suite heavy test-slice50-paired-adapter cargo test --locked --release --jobs 1 \
+  -p fathomdb-sdk --no-default-features --features slice50-measurement,slice30-observer \
+  --example slice30_measure -- --test-threads=1 --nocapture
 run_tier_suite heavy test-slice30-g-observer cargo test --locked --release --jobs 1 \
   -p fathomdb-engine --features slice30-observer,test-hooks --test slice30_g_observer \
   -- --test-threads=1 --nocapture

@@ -142,6 +142,25 @@ refusal for repeated IDs; no automatic relabeling or duplicate acceptance follow
   rounding/whole-hit budget/paging; do not recut snippets. Addressing policy is
   separately ruled; logical fetch still returns latest eligible per its view.
 
+## Remaining measurement-support TDD
+
+The accepted50 correctness/identity/prefix suites remain completed evidence.
+Only the genuine [paired support gaps](design.md#current-paired-measurement-support)
+need new RED/GREEN, with independent Astra design review before implementation:
+
+| Unit | Falsifying behavior and narrow GREEN |
+| --- | --- |
+| Pair selector and diagnostic work | On a tiny real store with independently specified lexical/vector bodies, the new private selector must choose retained eager-body/deferred-identity rather than winner hydration, preserving exact ordered hits/score bits and direct-text routing. Stage runtime assertions before implementation; use a callable scaffold if needed, never a missing symbol as RED. Separately assert literal actual lightweight/body counts and UTF-8 byte sums for both modes, including a multibyte body and repeated materialization, under the existing bounded engine/operation observer. Absent/lost facts cannot appear as zero. General test-hooks are excluded from ordinary pair builds. |
+| Existing runner pair binding/output | Existing tiny real-DB/harmless-child controls assert fixed cell populations and balanced mode order, distinct fresh write subjects, same binary/features/provider inputs, no collector in ordinary calls, separate diagnostics/RSS and retained failed/refused members. Extend existing runner tests rather than add a framework. Pin cursor/source/score-bit output with literal expected records and hand-computed metric math; do not regenerate snapshots or repeat previously passing50 tests as new REDs. |
+
+Pure source/harmless-child controls can proceed in the isolated checkout after
+design acceptance. Any Rust build/test, current-native/default/model/GPU run and
+natural measurement requires the parent's native window. Final independent
+review covers the coherent support change; actual candidate-bound paired results
+remain a separate qualification obligation. Run required scoped checks and the
+final source gate once when the native window permits, preserving genuine
+failures and affected resumes.
+
 Only after actual30 is available, repeat its fixed natural-text and write-
 interleaved cells with the qualified50 candidate/reference; untraced latency
 and separate work/RSS diagnostics identify50's contribution. No performance

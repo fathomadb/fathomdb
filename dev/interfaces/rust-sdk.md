@@ -187,6 +187,10 @@ from all53 governed operations and ordinary non-command members. See the
 [narrow addendum](../adr/ADR-0.8.29-sdk-qualification-observation.md) and
 [guard contract](rust.md#private-slice30-qualification-observations).
 
+Private `slice50-measurement` forwards only the engine's same-named comparison
+feature. It adds no SDK operation or options member and does not enable
+`slice30-observer` or `test-hooks`. See the [core measurement contract](rust.md#private-slice30-qualification-observations).
+
 ## Options structs
 
 Each struct derives `Clone`, `Debug`, `PartialEq`, and `Default`.

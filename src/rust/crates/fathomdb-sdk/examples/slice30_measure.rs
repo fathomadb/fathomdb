@@ -135,6 +135,31 @@ fn node(id: &str, kind: &str, body: &str) -> PreparedWrite {
     }
 }
 
+fn paired_search_fields(row: Value, result: &fathomdb_engine::SearchResult) -> Value {
+    #[cfg(feature = "slice50-measurement")]
+    {
+        let mut row = row;
+        row["hits"] = json!(result
+            .results
+            .iter()
+            .map(|hit| json!({
+                "id":hit.id.to_prefixed(), "write_cursor":hit.write_cursor,
+                "source_id":hit.source_id, "kind":hit.kind, "body":hit.body,
+                "branch":format!("{:?}",hit.branch), "score_bits":hit.score.to_bits(),
+                "ce_score_bits":hit.ce_score.map(f64::to_bits)
+            }))
+            .collect::<Vec<_>>());
+        row["snippets"] = json!(format!("{:?}", result.snippets));
+        row["explanation"] = json!(format!("{:?}", result.explanation));
+        row
+    }
+    #[cfg(not(feature = "slice50-measurement"))]
+    {
+        let _ = result;
+        row
+    }
+}
+
 fn observe(engine: &Adapter, query: &str, kind: Option<&str>) -> Value {
     let filter = kind.map(|kind| {
         let mut filter = SearchFilter::default();
@@ -154,12 +179,15 @@ fn observe(engine: &Adapter, query: &str, kind: Option<&str>) -> Value {
     };
     let elapsed_ns = u64::try_from(started.elapsed().as_nanos()).expect("bounded sample duration");
     match result {
-        Ok(result) => json!({"ok": true, "elapsed_ns": elapsed_ns,
+        Ok(result) => paired_search_fields(
+            json!({"ok": true, "elapsed_ns": elapsed_ns,
             "ids": result.results.iter().map(|hit| hit.id.to_prefixed()).collect::<Vec<_>>(),
             "bodies": result.results.iter().map(|hit| &hit.body).collect::<Vec<_>>(),
             "returned_hits": result.results.len(), "projection_cursor": result.projection_cursor,
             "soft_fallback": format!("{:?}", result.soft_fallback), "degradations": format!("{:?}", result.degradations),
             "search_snapshot": null, "snapshot_observation": "unavailable"}),
+            &result,
+        ),
         Err(error) => json!({"ok": false, "elapsed_ns": elapsed_ns, "ids": [], "error": error}),
     }
 }
@@ -193,12 +221,15 @@ fn observe_g_route(engine: &Adapter, route: &str, query: &str) -> Value {
     };
     let elapsed_ns = u64::try_from(started.elapsed().as_nanos()).unwrap();
     match result {
-        Ok(Output::Search(result)) => json!({"route":route,"ok":true,"elapsed_ns":elapsed_ns,
+        Ok(Output::Search(result)) => paired_search_fields(
+            json!({"route":route,"ok":true,"elapsed_ns":elapsed_ns,
             "ids":result.results.iter().map(|hit|hit.id.to_prefixed()).collect::<Vec<_>>(),
             "bodies":result.results.iter().map(|hit|&hit.body).collect::<Vec<_>>(),
             "returned_hits":result.results.len(),"projection_cursor":result.projection_cursor,
             "soft_fallback":format!("{:?}",result.soft_fallback),
             "degradations":format!("{:?}",result.degradations)}),
+            &result,
+        ),
         Ok(Output::Embed(vector)) => json!({"route":route,"ok":true,"elapsed_ns":elapsed_ns,
             "dimension":vector.len(),"finite":vector.iter().all(|x|x.is_finite())}),
         Err(error) => json!({"route":route,"ok":false,"elapsed_ns":elapsed_ns,
@@ -267,12 +298,15 @@ fn observe_g_diagnostic_route(
     };
     let elapsed_ns = u64::try_from(started.elapsed().as_nanos()).unwrap();
     match result {
-        Ok(result) => json!({"route":route,"ok":true,"elapsed_ns":elapsed_ns,
+        Ok(result) => paired_search_fields(
+            json!({"route":route,"ok":true,"elapsed_ns":elapsed_ns,
             "ids":result.results.iter().map(|hit|hit.id.to_prefixed()).collect::<Vec<_>>(),
             "bodies":result.results.iter().map(|hit|&hit.body).collect::<Vec<_>>(),
             "returned_hits":result.results.len(),"projection_cursor":result.projection_cursor,
             "soft_fallback":format!("{:?}",result.soft_fallback),
             "degradations":format!("{:?}",result.degradations)}),
+            &result,
+        ),
         Err(error) => json!({"route":route,"ok":false,"elapsed_ns":elapsed_ns,
             "error_kind":error.kind().name(),"error":format!("{error:?}")}),
     }
@@ -1902,6 +1936,34 @@ mod tests {
 #[cfg(test)]
 mod g_route_tests {
     use super::*;
+
+    #[cfg(feature = "slice50-measurement")]
+    #[test]
+    fn paired_output_retains_exact_record_fields_after_the_api_clock() {
+        for adapter in ["engine", "sdk"] {
+            let directory = tempfile::tempdir().unwrap();
+            let engine = Adapter::open(adapter, &directory.path().join("paired-output.sqlite"));
+            engine.write(&[node("alpha", "doc", "needle café")]);
+            let expected = json!([{
+                "id":"l:alpha", "write_cursor":1, "source_id":"test:slice30",
+                "kind":"doc", "body":"needle café", "branch":"Text",
+                "score_bits":(3.0_f64 / 31.0).to_bits(), "ce_score_bits":null
+            }]);
+            for row in
+                [observe(&engine, "needle", None), observe_g_route(&engine, "text", "needle")]
+            {
+                assert_eq!(
+                    row["hits"], expected,
+                    "{adapter}: record fields must not be inferred from public IDs"
+                );
+                assert!(row["elapsed_ns"].as_u64().unwrap() > 0);
+                assert_eq!(row["projection_cursor"], 1);
+                assert_eq!(row["soft_fallback"], "None");
+                assert_eq!(row["degradations"], "[]");
+            }
+            engine.close();
+        }
+    }
 
     #[test]
     fn g_routes_reach_the_actual_text_hybrid_and_embed_boundaries() {

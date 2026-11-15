@@ -275,6 +275,17 @@ Snapshot authority reads are feature+active gated, explicitly observer-added on
 the actual reader transaction; read failure records unavailable without authority
 values or changing the product outcome.
 
+The additional private `slice50-measurement` feature (also forwarded by the SDK)
+selects only the retained eager-body/deferred-identity comparison when
+`FATHOMDB_SLICE50_EAGER_TEXT_FOR_MEASUREMENT=1`; unset retains winner hydration.
+It enables no general test hooks, observer or extra SQL. With a separately active
+`slice30-observer` operation, one successful-reader `slice50_work` record reports
+route, actual lightweight rows, vector/FTS owned-body conversions and their UTF-8
+byte sums. Repeated conversions count repeatedly; borrowed text validation is
+excluded. Failure, missing records or collector loss makes these counts unavailable,
+not zero. These are Rust body materializations, not SQLite I/O or total allocation.
+Default/shipped builds do not enable this feature or selector.
+
 ### Private Slice30 projection test observations
 
 Only the conjunction of engine features `slice30-observer` and `test-hooks`

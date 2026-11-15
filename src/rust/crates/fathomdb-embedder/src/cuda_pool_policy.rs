@@ -1623,7 +1623,8 @@ fn private_build_failure<D: PoolDriver>(
 
 /// Builds a device on `ordinal` under the process's decision: on the private
 /// pool when the decision is private for this ordinal (the first build takes
-/// the decision's own context), otherwise on the 0.8.27 path.
+/// the decision's own context), otherwise on the 0.8.27 path. A published
+/// private-context loss refuses before creating or wrapping another device.
 pub(crate) fn build_device<D: PoolDriver>(
     cell: &OnceLock<Decision<D::Pool, D::Context>>,
     driver: &D,
@@ -1631,6 +1632,11 @@ pub(crate) fn build_device<D: PoolDriver>(
 ) -> Result<D::Device, DeviceBuildError<D::DefaultError>> {
     match decision(cell, driver, ordinal) {
         Decision::Private(private) if private.ordinal == ordinal => {
+            if let Some(loss) = private.loss.get() {
+                return Err(DeviceBuildError::Pool(
+                    loss.failure(private.context_id, DEVICE_BUILD_OPERATION),
+                ));
+            }
             let built = if private.first_context_handed_out.swap(true, Ordering::AcqRel) {
                 driver
                     .new_private_context(ordinal, &private.pool)

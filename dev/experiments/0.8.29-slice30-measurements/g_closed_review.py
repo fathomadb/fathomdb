@@ -23,6 +23,13 @@ def reviewed_costs_match(spec, plan, previous):
     limits = spec.get("_closed_limits") or spec["limits"]
     if review.get("limits") != {key: limits[key] for key in ("campaign_seconds", "active_bytes")}:
         return False
+    model = review.get("storage_model")
+    if model is not None:
+        from g_serial_storage import envelopes, validate_model
+        try:
+            validate_model(model, previous, spec["_calibration_origin"])
+        except (ValueError, KeyError, TypeError):
+            return False
     others = review.get("other_phases") or []
     if [item.get("phase") for item in others] != ["D", "M"]:
         return False
@@ -47,6 +54,10 @@ def reviewed_costs_match(spec, plan, previous):
         prediction = item.get("prediction") or {}
         if item.get("cell") != cell or type(prediction.get("allowed")) is not bool:
             return False
+        if model is not None:
+            storage = envelopes(cell, model)
+            if prediction.get("storage") != storage or prediction.get("new_bytes") != storage["live_bytes"]:
+                return False
         if prediction["allowed"] and (type(prediction.get("total_ns")) is not int or prediction["total_ns"] < 0
                                       or type(prediction.get("new_bytes")) is not int or prediction["new_bytes"] < 0):
             return False

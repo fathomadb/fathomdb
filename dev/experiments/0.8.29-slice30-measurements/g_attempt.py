@@ -69,7 +69,7 @@ def stop_owned_group(child):
         time.sleep(0.005)
 
 
-def run_g_attempt(cell, root, command, deadline_ns, context=None, monitor=None):
+def run_g_attempt(cell, root, command, deadline_ns, context=None, monitor=None, admit=None):
     """Retain one fresh G attempt; its config/startup share the parent's deadline."""
     started, started_at = time.monotonic_ns(), time.time()
     root = Path(root)
@@ -92,7 +92,12 @@ def run_g_attempt(cell, root, command, deadline_ns, context=None, monitor=None):
     remaining_at_dispatch = deadline_ns - time.monotonic_ns()
     with (attempt / "child.log").open("w") as log:
         remaining_at_dispatch = deadline_ns - time.monotonic_ns()
-        if remaining_at_dispatch <= 0:
+        refusal = admit() if admit is not None else None
+        remaining_at_dispatch = deadline_ns - time.monotonic_ns()
+        if refusal:
+            forecast_refusal = True
+            error = refusal
+        elif remaining_at_dispatch <= 0:
             error = "cell timeout before child start"
         elif prospective is not None and (type(prospective.get("total_ns")) is not int
                                           or prospective["total_ns"] < 0

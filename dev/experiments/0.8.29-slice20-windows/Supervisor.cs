@@ -33,7 +33,7 @@ internal static class Supervisor {
         FileStream f;
         try{f=new FileStream(path,FileMode.Open,FileAccess.Read,FileShare.ReadWrite|FileShare.Delete);}
         catch(IOException e){int code=e.HResult&0xffff;if(code==2||code==32||code==33)return null;throw;}
-        using(f)using(StreamReader r=new StreamReader(f,Encoding.UTF8)){return Serializer().Deserialize<Dictionary<string,object>>(r.ReadToEnd());}
+        using(f)using(StreamReader r=new StreamReader(f,Encoding.UTF8)){Dictionary<string,object> value=Serializer().Deserialize<Dictionary<string,object>>(r.ReadToEnd());if(value==null)throw new InvalidDataException("mutable JSON snapshot is null");return value;}
     }
     static string Hash(string path) {using(SHA256 h=SHA256.Create())using(FileStream f=File.OpenRead(path)){return BitConverter.ToString(h.ComputeHash(f)).Replace("-","").ToLowerInvariant();}}
     static string Owned(string path) {string full=Path.GetFullPath(path),root=Path.GetFullPath(C("root")).TrimEnd('\\')+"\\";if(!full.StartsWith(root,StringComparison.OrdinalIgnoreCase))throw new InvalidDataException("path outside owned R root");return full;}

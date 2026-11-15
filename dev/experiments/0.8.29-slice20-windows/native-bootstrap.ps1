@@ -75,7 +75,7 @@ function Read-A6LeaseJson([string]$Path){
  try{$f=[IO.FileStream]::new($Path,[IO.FileMode]::Open,[IO.FileAccess]::Read,([IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete))}
  catch{$e=$_.Exception;while($null -ne $e.InnerException){$e=$e.InnerException};if($e -is [IO.IOException] -and ($e.HResult -band 65535) -in @(2,32,33)){return $null};throw}
  $r=[IO.StreamReader]::new($f,[Text.Encoding]::UTF8)
- try{$r.ReadToEnd()|ConvertFrom-Json}finally{$r.Dispose()}
+ try{$value=$r.ReadToEnd()|ConvertFrom-Json;if($null -eq $value){throw [IO.InvalidDataException]::new('mutable JSON snapshot is null')};return $value}finally{$r.Dispose()}
 }
 $s.LeaseReady=$true
 try {

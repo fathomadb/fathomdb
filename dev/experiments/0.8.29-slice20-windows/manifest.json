@@ -11,7 +11,7 @@
     "exercise.py": "525e6bb10e36adb2efddeb94a894307cc2c59edcaf1c2d8f91d1125bc46daea0",
     "extract-source.ps1": "990f01462655b6f2a032cf1da42f3eba579f16e1ff7979b34631916d24c797fc",
     "guest-stage.ps1": "bde0e99882c39c29564ba3e31f0bcec6bfbe18c1ad20fffe5a0c14f5ddd68fdc",
-    "launch-stage.ps1": "2919500fa11328e346168d72f1e93ff39f50c90c5287141fca54c0b15712486c",
+    "launch-stage.ps1": "14e758c77975db28e51458abf1cfc419404765e1204a2d85c4dba139f56e561f",
     "launch-supervisor.ps1": "01640d203df5a5dfc0421502350832026b16c64945fdc9818ea49c82f049c76a",
     "native-bootstrap.ps1": "66283069adf15bf32d5a3de707aab889a39348ade28d42b7aa9ed2b7304fa14b",
     "parse-package.ps1": "3754f1437bcd0df6e114eb17447210f1a2b7fc5c923ea0ed79409c6f16a7b2a9",

@@ -13,7 +13,9 @@ $exe='C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe'
 if((Get-A6Hash $exe) -cne $c.powershellSha256){throw 'interpreter identity differs'}
 $script=Join-Path $package 'guest-stage.ps1'
 $stageHash=$c.packageFiles.PSObject.Properties['guest-stage.ps1'].Value
-$invoke='$ErrorActionPreference=''Stop'';$p=''+$script+'''';if((Get-FileHash -LiteralPath $p -Algorithm SHA256).Hash.ToLowerInvariant() -cne ''+$stageHash+''''){throw ''launch script digest differs''};& ([ScriptBlock]::Create((Get-Content -Raw -Encoding UTF8 -LiteralPath $p))) -ScriptPath $p -Control ''+$Control+'''' -ConfigSha256 '+$ConfigSha256
+$invoke=@"
+`$ErrorActionPreference='Stop';`$p='$script';if((Get-FileHash -LiteralPath `$p -Algorithm SHA256).Hash.ToLowerInvariant() -cne '$stageHash'){throw 'launch script digest differs'};& ([ScriptBlock]::Create((Get-Content -Raw -Encoding UTF8 -LiteralPath `$p))) -ScriptPath `$p -Control '$Control' -ConfigSha256 $ConfigSha256
+"@
 $command='"'+$exe+'" -NoLogo -NoProfile -NonInteractive -EncodedCommand '+[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($invoke))
 if(Test-Path -LiteralPath (Join-Path $Control 'launch.json')){throw 'occupied launch; no retry'}
 $r=Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{CommandLine=$command;CurrentDirectory=$Control}

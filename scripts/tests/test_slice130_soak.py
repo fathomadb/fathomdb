@@ -87,6 +87,16 @@ class NumericalProtocolTests(unittest.TestCase):
         data["exit_code"] = 1
         self.assertEqual(soak.evaluate_arm(data)["status"], "FAIL")
 
+    def test_missing_exit_and_deadline_are_unmeasured_while_actual_failure_stays_fail(self):
+        data = arm()
+        data["exit_code"] = None
+        self.assertEqual(soak.evaluate_arm(data)["status"], "UNMEASURED")
+        data = arm()
+        data.update(aborted="sample 1 deadline exceeded", abort_kind="deadline")
+        self.assertEqual(soak.evaluate_arm(data)["status"], "UNMEASURED")
+        data.update(aborted="actual forward failed", abort_kind="operation_error")
+        self.assertEqual(soak.evaluate_arm(data)["status"], "FAIL")
+
     def test_pair_signed_differences_and_inclusive_control_limits(self):
         result = soak.evaluate_pair(arm(rss=lambda k: 90), arm("off"))
         self.assertEqual(result["status"], "PASS")

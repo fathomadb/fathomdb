@@ -196,3 +196,96 @@ fn edge_presence_keeps_exact_mixed_text_reference_ranks() {
     assert_eq!(result.results[1].source_id.as_deref(), Some("src:edge"));
     opened.engine.close().unwrap();
 }
+
+fn malformed_losing_ownerless_refuses(body_sql: &str, kind_sql: &str) {
+    let _serial = ENV_LOCK.lock().unwrap_or_else(|error| error.into_inner());
+    let _restore = Restore(std::env::var_os("FATHOMDB_FTS_FORCE_FULL_SORT_FOR_TEST"));
+    unsafe { std::env::remove_var("FATHOMDB_FTS_FORCE_FULL_SORT_FOR_TEST") };
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join(format!("ownerless-malformed{SQLITE_SUFFIX}"));
+    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(Fixed)).unwrap();
+    opened.engine.configure_vector_kind_for_test("doc").unwrap();
+    let receipt = opened.engine.write(&[node(Some("winner"), "doc", "needle")]).unwrap();
+    opened.engine.drain(10_000).unwrap();
+    let raw = rusqlite::Connection::open(&path).unwrap();
+    raw.execute(
+        "INSERT INTO search_index(body,kind,write_cursor) VALUES('needle padding padding padding padding','note',999999)", [],
+    ).unwrap();
+    let rowid = raw.last_insert_rowid();
+    let search = || {
+        opened.engine.search_reranked_view_with_limit(
+            "needle",
+            None,
+            0,
+            false,
+            0.3,
+            0,
+            false,
+            &ReadView::default(),
+            1,
+        )
+    };
+    let valid = search().unwrap();
+    assert_eq!(valid.results.len(), 1);
+    assert_eq!(valid.results[0].write_cursor, receipt.row_cursors[0]);
+    unsafe { std::env::set_var("FATHOMDB_FTS_FORCE_FULL_SORT_FOR_TEST", "1") };
+    assert_eq!(search().unwrap(), valid, "the valid ownerless candidate loses on both routes");
+    raw.execute(
+        &format!("UPDATE search_index SET body={body_sql},kind={kind_sql} WHERE rowid=?1"),
+        [rowid],
+    )
+    .unwrap();
+    let matching: usize = raw
+        .query_row(
+            "SELECT COUNT(*) FROM search_index WHERE search_index MATCH 'needle'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(matching, 2, "the malformed ownerless row remains in the complete MATCH census");
+    raw.close().unwrap();
+    let reference = search();
+    assert!(
+        matches!(reference, Err(EngineError::Storage)),
+        "reference must refuse malformed ownerless body/kind: {reference:?}"
+    );
+    unsafe { std::env::remove_var("FATHOMDB_FTS_FORCE_FULL_SORT_FOR_TEST") };
+    let optimized = search();
+    assert!(matches!(optimized, Err(EngineError::Storage)),
+        "thin census must refuse malformed losing ownerless body/kind like the reference: {optimized:?}");
+    opened.engine.close().unwrap();
+}
+
+#[test]
+fn losing_ownerless_blob_kind_refuses_like_full_reference() {
+    malformed_losing_ownerless_refuses("'needle padding padding padding padding'", "x'6e6f7465'");
+}
+
+#[test]
+fn losing_ownerless_null_kind_refuses_like_full_reference() {
+    malformed_losing_ownerless_refuses("'needle padding padding padding padding'", "NULL");
+}
+
+#[test]
+fn losing_ownerless_invalid_utf8_kind_refuses_like_full_reference() {
+    malformed_losing_ownerless_refuses(
+        "'needle padding padding padding padding'",
+        "CAST(x'6e6f7465ff' AS TEXT)",
+    );
+}
+
+#[test]
+fn losing_ownerless_blob_body_refuses_like_full_reference() {
+    malformed_losing_ownerless_refuses(
+        "CAST('needle padding padding padding padding' AS BLOB)",
+        "'note'",
+    );
+}
+
+#[test]
+fn losing_ownerless_invalid_utf8_body_refuses_like_full_reference() {
+    malformed_losing_ownerless_refuses(
+        "CAST(x'6e6565646c652070616464696e6720ff' AS TEXT)",
+        "'note'",
+    );
+}

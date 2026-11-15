@@ -1,6 +1,6 @@
 ---
 title: Slice 80 unified residual Block 2 design
-status: PROPOSED
+status: DESIGN_REVIEWED
 target_release: 0.8.29
 slice: 80
 ---
@@ -40,10 +40,12 @@ Stage2 hints/default placement remains150.
    `f2f4831554ae165420a31890cf102642ce28b21d`; the owner accepted the full
    concrete contract in seq-384. These decisions do not close the source-fit
    and Block1 exit requirements below.
-2. Reconcile actual50 source with its reviewed ownership/finish seam when it
-   lands; do not treat planned FusionHit as current source. F11 source fix stays
-   with50; its policy is settled. Original source/consumer census and real SQLite
-   fixtures supply correctness, without a private-snapshot gate.
+2. Actual50 source-fit is complete and independently accepted at
+   `2ed2d41a9191c3b003d57ecc87445aef5d3e1a7e`. Selected source is integrated at
+   `9036507bc98ef31c05ae334aa22ec5101323c7e7`, including atomic F11 refusal.
+   The source/consumer census and real SQLite fixtures supply correctness,
+   without a private-snapshot gate. The design dependency amendment is reviewed;
+   canonical closure preserves the full Block1 and predecessor gates into90.
 3. Before90, record the separate actual Block1 follow-up exit after integrated
    selected20–70 and applicable checks/conformance/smoke. Selected TC5 input pack
    is statically qualified, not measured. The smoke model/prompt/budget fixture

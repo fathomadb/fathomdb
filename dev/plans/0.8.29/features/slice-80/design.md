@@ -1,29 +1,46 @@
 ---
 title: Slice 80 bounded residual design
-status: PROPOSED
+status: DESIGN_REVIEWED
 target_release: 0.8.29
 slice: 80
 ---
 
 # Slice 80 design
 
-This is the concrete contract for owner acceptance, not an implemented API.
-[Census](census.md), [requirements](requirements.md), [acceptance](acceptance.md)
-and [test map](test-map.md) identify the source delta and observable oracles.
+The full contract at `f2f4831554ae165420a31890cf102642ce28b21d` has fresh
+independent Astra-medium PASS and owner acceptance seq-384, recorded by parent
+`6e405921201d6e07867460b74f9cc1d39a9a027f`. The source-fit completion below
+checks actual50 `f74d1710645f91b4af442f29e188f296787a4c61` against that contract.
+[Requirements](requirements.md), [acceptance](acceptance.md) and [test map](test-map.md)
+retain their accepted behavior; this changes no public policy or runtime promise.
 
-This revision uses integrated source
-`e1cb1bd5311f68da8be98bbe133b9cecd5ab56d4`, selected identity/packing
-seq-374 and feedback seq-375, and Slice50's independently reviewed
-`10a72e5a9` carrier design. Selected design is distinguished from implemented API.
-The earlier aggregate-v2 and consolidation consistency reviews passed; they are
-not repeated. The updated contract needs its required Astra-medium review and
-full80 owner acceptance. No implementation or90 source entry follows.
+Integrated60/70 source at `e1cb1bd5311f68da8be98bbe133b9cecd5ab56d4` supplies
+format-conditional discovery, text omission, final budget accounting and the
+three embedder reason words. Actual50 now supplies record ownership, keyed
+fusion/ranking/FTS locators and atomic feedback refusal. The reporting fields,
+original-vector participant set and coverage reads below are still90 work.
+No90 source entry or runtime qualification follows from this source comparison.
 
-Integrated60 supplies format-conditional discovery, text omission and final
-budget accounting; integrated70 supplies embedder_absent, embedder_timeout and
-embedder_overloaded across bindings/hints. Preserve these built behaviors.
-Selected50 identity and feedback policy are settled; its carrier and atomic
-refusal remain implementation work. No new public occurrence-label ABI follows.
+## Actual50 source fit
+
+| Accepted seam | Actual f74 source | Remaining90 delta |
+| --- | --- | --- |
+| Exact selected record | fusion.rs exposes FusionHit/FusionOwnership; private RecordKey distinguishes CanonicalNode(cursor), CanonicalEdge(cursor), OwnerlessNodeFts(rowid). key() derives from explicit ownership. fuse_records credits first original rank once per arm; representative fields stay vector/text/graph-first. | Use these existing keys; no new ownership carrier or SearchHit field. |
+| Original vector contribution | search.rs builds vector_results as canonical FusionHits before any fusion. Nested graph mode still passes two_arm_fused into the vector-input slot. Entry.in_vector remains current-input tie preference; explanation vector-rank maps are explain-only. | When snippets requested, collect vector_results keys before the first consuming branch, including vector-stage-only, ordinary and deferred-hydration paths. Never reuse Entry.in_vector, branch or explain maps as authority. |
+| Final positional metadata | RankedHit reweight/CE code clones/sorts full carriers. snippets_for_hits receives final FusionHits and FtsRows keyed by RecordKey, before capture.finish and tx.commit; length guards reject misaligned snippets/explanation. NoEvidenceCapture strips ownership only inside finish. | Attach scored extents to the mutable positional snippet vector after lexical selection and before finish, on that same tx. The point-read routine can map EngineError through existing SearchReaderError::Evidence; no public error/API addition or pure-selector storage access is needed. |
+| Evidence independence | finish receives Vec<FusionHit> for both capture implementations; EvidenceCapture passes positional ownership into evidence::build_search_result. Existing evidence requests do not request EP17 snippets and their capture deliberately returns snippets=None. | Ordinary/frozen snippet-enabled calls work with evidence/explain off. Preserve the existing separate evidence API; do not introduce evidence-plus-snippet output to satisfy this contract. |
+| Ownerless and thin hydration | Explicit ownerless FTS rowid survives the deferred candidate and final hydration routes; selected FTS body/kind is validated against its canonical owner. Borrowed body/kind validation includes losing ownerless values. | Ownerless keys make no coverage query. Canonical reads still perform accepted body/span/physical/UTF-8/u32 validation;50's body consistency does not replace that new check. |
+| Ambiguous feedback | session.rs fold_response_refs keeps Unique(cursor)/absorbing Ambiguous. tools.rs folds only the final kept page. feedback checks membership, epoch, telemetry/text/query ID, acquisition and final epoch before complete named ambiguity validation, then resolves labels and enters bridge/record_feedback. | Add ordered bounded foreign-ref diagnostics at the existing membership check. Keep50's later atomic bad_argument and all not_recorded precedence; no new label ABI or ambiguity fix. |
+
+No source-fit contradiction was found. The original-vector participant set and
+all reporting remain intentionally absent; their absence is the accepted90
+delta, not unfinished50 work. The f74 thin-hydration and record-start selector
+optimizations preserve the same key/body/position seam; scored metadata is
+attached after the selector and restored after MCP re-snippeting as specified
+below. Static comparison found no50 changes to vector_spans.rs, open.rs,
+projection_generation.rs or MCP shape/output/error carriers relative to e1;
+the accepted aggregate capture/cache and60 accounting seams therefore remain.
+This is code inspection, not a new runtime, performance or native pass.
 
 ## Informative responses, errors and default store
 
@@ -81,7 +98,7 @@ calling record_feedback, reject any named ambiguous ref with existing
 invalid_request/bad_argument and zero writes. Preserve earlier membership
 correction and existing epoch/telemetry/text/query-ID/acquisition not_recorded
 precedence. Repeated same-cursor refs are unique; unmentioned ambiguity is inert.
-This is selected planned50 behavior, not a new80 error code. A ref can belong
+This is implemented50 behavior at f74, not a new80 error code. A ref can belong
 to the page while naming several records. No feedback_ref, first/last choice or
 all-occurrences attribution is introduced. Logical fetch remains latest-eligible
 resolution under its own view; h:/p: support and helper/pack contracts stay as
@@ -466,7 +483,7 @@ which from arm. No additional discriminant is selected.
 
 ### Ownership and participation seam
 
-Use reviewed50's planned `FusionHit { hit, ownership }` and selected private
+Use actual50's `FusionHit { hit, ownership }` and selected private
 RecordKey: Canonical(Node|Edge,cursor), or Ownerless(NodesFts,rowid).
 Before the **first** fusion, retain keys of actual original vector-arm
 candidates in a request-local HashSet only when snippets are requested. Membership
@@ -478,13 +495,13 @@ Ownerless FTS makes no coverage read, even if its numeric rowid collides with a
 canonical cursor. Neither raw cursor alone, ref, body, display branch, CE nor
 explanation is a key or participation authority.
 
-50's `SearchOriginCapture::finish` is planned to receive final carriers for
-every request, independently of evidence=true. Compute snippets and attach
+50's `SearchOriginCapture::finish` now receives final carriers for every
+request, independently of evidence=true. Compute snippets and attach
 coverage before NoEvidenceCapture strips those carriers into SearchResult;
 evidence-off and explain-off calls get the same metadata. Existing selected
 representative-first source/body/ownership stays attached. Do not add a second
 ownership carrier or reconstruct one from final bare hits. This is a reviewed
-integration seam, not a claim that50 has implemented it.
+integration seam verified against actual f74 source; the reporting itself is not implemented.
 
 ### Point read and refusal contract
 

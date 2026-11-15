@@ -1,28 +1,33 @@
 ---
 title: Slice 80 consolidated v2 documentary status
-status: PROPOSED
+status: DESIGN_REVIEWED
 target_release: 0.8.29
 slice: 80
 ---
 
 # Slice 80 status
 
-This contract revision reconciles integrated source
-`e1cb1bd5311f68da8be98bbe133b9cecd5ab56d4`, selected identity/packing seq-374,
-feedback seq-375, integrated60/70 and reviewed50 carrier design `10a72e5a9`.
-[Design](design.md) now fixes original-vector membership, final ownership,
-point-read refusal and all binding/format semantics for scored_bytes. The
-reviewed aggregate-v2 carrier/capture/cache/availability contract is retained.
-Prior bounded and consolidation consistency PASS are complete and not repeated.
+The full contract `f2f4831554ae165420a31890cf102642ce28b21d` has fresh
+independent Astra-medium PASS and owner acceptance seq-384, imported by parent
+`6e405921201d6e07867460b74f9cc1d39a9a027f`. This source-fit milestone uses
+actual50 `f74d1710645f91b4af442f29e188f296787a4c61` and the same integrated60/70
+contracts from e1. [Design](design.md#actual50-source-fit) records the concrete
+carrier, nested-fusion, CE, snippet/finish, evidence and feedback findings.
+No contract blocker was found. The original vector-key set, scored field,
+coverage reads/cache and typed membership diagnostics remain accepted90 work.
 
-Fresh independent Astra-medium review passed on revision
-`f2f4831554ae165420a31890cf102642ce28b21d`; owner acceptance is seq-384.
-Remaining holds: integrated50 carrier/atomic F11 implementation reconciliation; and
-separate Block1 follow-up exit before90, including the unanswered smoke fixture.
-No private Memex snapshot, runtime census or feedback-policy ruling is pending.
-Selected TC5 input pack is statically qualified, not a measurement/exit pass.
-Stage2 hints placement/default remains150.160 is later assembled qualification.
+Independent Astra-medium review accepted source-fit revision
+`2ed2d41a9191c3b003d57ecc87445aef5d3e1a7e` and the
+[dependency amendment](review.md#design-closure-dependency-amendment). The design
+artifact is ready for canonical state closure on preparation10, completed70 and
+the named contract/source artifacts. Actual50 source is now integrated at
+`9036507bc98ef31c05ae334aa22ec5101323c7e7` after independent source verification.
+Whole50/60 qualification and the actual Block1 exit remain implementation90 gates.
+The parent will preserve their direct closure edges as90 depends_on=[50,60,70,80].
 
-This is a light documentation milestone only. No production/test-source change,
-native/database/model/GPU qualification, RED/GREEN claim or full-workspace-green
-claim is made. Parent owns actual review results and release-state updates.
+The actual Block1 follow-up exit before90 remains hard: integrated selected20–70
+and required qualification/conformance/smoke must really complete. Smoke
+model/prompt/budget inputs remain unanswered; selected TC5 static qualification
+is not a measurement or exit pass. No90 code, runtime, native/GPU/model work or
+spend occurred here. Stage2 hints placement/default remains150;160 is later
+assembled qualification.

@@ -215,8 +215,8 @@
       ],
       "phase": "MEASUREMENT_SOURCE_SUBSETS_QUALIFIED_CAMPAIGNS_PENDING",
       "plan_sha": "bea7f05cd2497af0d73c6eb8da509e11a947ca08",
-      "conditions": "P and11 actual G primary cases are qualified;73 required G primary obligations remain unsatisfied. Closed-copy G source0fa is independently accepted and assembled-qualified; calibration/R1/write stages need their separate fresh technical GO. M sourced942 has implementation ACCEPT but needs actual integrated-base reconciliation and final qualification. D scoped design PASS/tests staged; no runtime RED or measurement GO. All84G/46M/24D cells and defaults remain; candidate caps are inactive, unknown costs remain held. F input, whole20/40/50/pre90/100Q1 remain open.",
-      "evidence": "G closed-copy source tooling0fa61810 has independent acceptance and assembled qualification; actual G remains11 qualified/73 required cap refusals and expanded profiles remain inactive. M current-source qualification must reconcile integrated903 before affected native refresh; original220/223 passes,3 failures and guardian observation gap remain historical. D numeric/phases/success/rollback66b199366 and exact-overlap classifiere848d9e0 have Astra acceptance; deterministic768d providerb0a4dd9c and real2/1001-row seedb9d681a0 have actual RED/GREEN and focused passes. Ordinary streams/schedules/reporting/fixed24 driver and final D qualification remain unfinished. No actual D/M/F campaign or whole30 closure. Owner TC5 input pack is statically qualified; candidate runtime remains pending.",
+      "conditions": "P and11 actual G primary cases are qualified;73 required G primary obligations remain unsatisfied. Closed-copy G source0fa is independently accepted and assembled-qualified; calibration/R1/write stages need their separate fresh technical GO. Current-source M tooling256375d4 is independently accepted and integrated after affected native refresh and exact failed/unfinished completion. D main/process source has actual RED/GREEN; fixed24 accounting connection/final qualification remains. All84G/46M/24D cells and defaults remain; candidate caps are inactive, unknown costs remain held. TC5 static input is resolved; current F runtime, whole20/40/50/pre90/100Q1 remain open.",
+      "evidence": "G source0fa retains assembled acceptance,11 qualified/73 required cap refusals and inactive expanded profiles. Current M source256375d4b6a9ce0a54a06876d2df1373615ab67c is integrated at e6cbc956954d29137059fb5df32bc78ba863eecd after independent Astra ACCEPT: merged current release, rebuilt providerfree CLI/helper, then passed Pages20/20,Tegra45/45,exact2 previously failed guardian controls and2 previously unrun dispatch controls. Dispatch exercises actual rebuilt search/fetch in both formats with literal hit/body/error oracles. Original223/220/3 interrupted-wrapper history is retained; this is assembled qualification, not a new uninterrupted full gate. Both guardians finalized samples and collected all owned actors. Historical Python/NAPI subjects were not loaded or retagged. D accepted5edb capture/report/transport and5cf6 main entry have actual RED/GREEN; process2068 passes3 frozen owned-child controls, pending final coherent review/integration. Fixed24 allocation connection/source qualification remains. No actual D/M/F scientific campaign or whole30 closure. TC5 pack is statically qualified; candidate runtime remains pending.",
       "qualified_subset_sha": "2fd772558e46d0b1645dce2ffea730d0bdd3305c",
       "continuation_plan_sha": "0d8be5bb75516955ebf99b94913b9b54921bb3a4",
       "g_design_review": "Independent Astra-medium FIX1 PASS plus actual20 fit PASS; all G/D contracts unchanged,40 file pins/13 subtrees/44 Cargo manifests verified at f803a964. See continuation-gd.md and review-log.md.",
@@ -459,7 +459,7 @@
         "continuation": "Normal six-reference reuse source qualified at bfe039 through accepted assembled verification; six completed measurements remain original. Separate normal fixed84 readiness/technical GO is next. Expected five runnable/73cap remains forecast until actual assessment. All required rows/caps/charges/consumed token preserved; no runtime yet."
       },
       "m_source_fit_pending": {
-        "status": "MERGED_IMPLEMENTATION_FIT_ACCEPTED_ORIGINAL_FULL_COLLECTOR_TERMINAL_FAILED_ONLY_PENDING",
+        "status": "CURRENT_SOURCE_ASSEMBLED_QUALIFICATION_ACCEPTED_INTEGRATED",
         "scope": "No production API/config/environment/observer/schema change needed; test-seams-only private stdio helper and new concurrent invocation/metrics tooling. Existing aggregate assumes responses and old RawClient discards unmatched IDs; actual code gaps identified.",
         "qualification_clarifications": "Astra accepted: hybrid compute requires same-PID GPU memory plus positive selected-GPU utilization; direct text retains CUDA/provider identity with query GPU use N/A, no extra pulses/queries; tiny M-E diagnostics are provider-free. No production API/config/environment/schema change.",
         "prospective_budget": {
@@ -478,10 +478,10 @@
           "note": "6h/64GiB TOTAL including all prior charges/bytes, not renewed/additional. Actual natural-loop proxy alone exceeds old remaining time;34copies exceed16GiB. Complete remaining copy/open/lifecycle/diagnostic/output/failure forecasts must fit before dispatch. Independent design review and parent disposition precede any amendment; oldG caps/freezes/refusals stay historical."
         },
         "plan_sha": "f90714a0e2132bab3b2a2b2d60425a598c157e34",
-        "source_sha": "6353f3a982d9c469044583b3f4ed428e6ddce570",
+        "source_sha": "256375d4b6a9ce0a54a06876d2df1373615ab67c",
         "accepted_implementation_sha": "d942aa91e74a9463e82b6a9384ca41ca28698c42",
-        "merged_fit_sha": "5c325e9f793f1a8a78cfeb35151d75ad04d219ef",
-        "final_source_verification": "Original collector223/220/3, exit1/4056s; Pages2 stale generatedhash and Mcontrol quiet-load admission. Guardian interrupted/missing original receipt; finalactors/boundarygone. One-line generateddoc correction6353; failed-only/unrun continuation after current-root fit pending. No actual M measurement/profile activation."
+        "merged_fit_sha": "3833cef4161133102f355ff34949481964b24ec4",
+        "final_source_verification": "Independent Astra ACCEPT256375d4 current-source fit and assembled qualification. Actual clean cbd87 subject: own CLI40.56s/helper42.28s refresh, then Pages20/20,Tegra45/45,guardian2/2,dispatch2/2PASS including actual both-format search/fetch. Strict final samples/empty boundaries/no survivors/no resource stop. Original223registered220pass3fail interruptedwrapper retained, not relabeled. No full/passing-suite replay. Old Python/NAPI remain historical/unloaded; scientific46 and proposed6h/64GiB inactive."
       },
       "g_closed_copy_plan": {
         "status": "SOURCE_QUALIFIED_RUNTIME_HELD",
@@ -512,8 +512,8 @@
         "worktree": "/mnt/data/worktrees/fathomdb-0.8.29-s30-d-20261114",
         "branch": "llm/0.8.29-s30-d-20261114",
         "base": "6696f3a1dacb93749a1ea9580403e4d334230ea3",
-        "scope": "Scoped Astra design PASS. Actual D-T1a real-store ef582b59a RED ->cd66521d GREEN and six Python behavior-specific RED/GREEN controls pass. Next T1b numeric test/typed-unavailable scaffold staged only; no numeric RED run or measurement GO. Further numeric/commit/overlap/native integration and source qualification remain; separate native lease required.",
-        "source_checkpoint": "df80c69f802eeab0d331fafd216f4f5a10ffa4fb"
+        "scope": "Main routing5cf6 has actual RED/GREEN and independent Astra acceptance. Owned-process2068 passes3 frozen harmless-child controls after REDd5ba; final process/accounting integration and coherent independent review remain. No scientific runtime GO.",
+        "source_checkpoint": "2068f1a655ca4384166a04fc640198a2c53dbc93"
       },
       "frozen_tc5_input": {
         "path": "/mnt/data/fathomdb-performance-benchmarking/scale-02/inputs/input-pack-v1",

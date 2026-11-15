@@ -18,12 +18,16 @@ and [measured results](results-p.md). Local qualification is assembled; fresh fi
 [G/D continuation](continuation-gd.md) passed independent FIX1 and actual20-fit
 review; parent authorized the isolated G source entry at03bdd0eb. Current G
 source/TDD evidence is in [execution](execution.md). G campaign and D source remain
-separately gated; whole20/30, M/F,40/50 source and pre90 Block1 remain open.
+separately gated. M source tooling is now integrated and assembled-qualified;
+scientific M/F and remaining G/D measurements, whole20/30, conditional40,
+50 performance qualification and pre90 Block1 remain open.
 
-The [M continuation](continuation-m.md) proposes exact stdio cells, attribution,
-lifecycle/TDD and remaining-allocation controls for independent Astra review.
-It authorizes design only; M runtime remains held pending a qualified closed G
-subject and reviewed candidate-owned MCP/cache/GPU proof.
+The [M continuation](continuation-m.md) implements the reviewed stdio tooling,
+attribution, lifecycle and remaining-allocation controls. Current-source CLI/helper
+refresh and the exact failed/unfinished checks passed, followed by Astra acceptance
+at256375d4. The scientific46-cell matrix still needs its qualified closed G
+subject and reviewed candidate-owned MCP/cache/GPU proof; no expanded allocation
+is active. TC5 static inputs are resolved; F runtime remains unqualified.
 
 Historical PhaseA inspected c0c94b4203ffeb9e573efcc14e8b10df653318c5 and proposed
 this cut before source execution. It already included qualified Linux20 repairs

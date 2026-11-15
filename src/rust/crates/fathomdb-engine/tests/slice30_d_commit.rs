@@ -86,14 +86,21 @@ fn successful_commit_observes_actual_ordered_gate_transaction_and_completion() {
     fixture.engine.drain(5_000).unwrap();
     let observer =
         fixture.engine.begin_slice30_projection_observation_for_test(512, Instant::now()).unwrap();
+    let mut scan = fixture.engine.pause_projection_scan_for_test();
     let cursors = fixture.write(&["alpha", "beta"]);
     drop(frozen);
+    let scan_ready = scan.wait_ready(Duration::from_secs(5));
+    // Hold only future scans; the captured real scan still admits both rows.
+    let captured_scan_hold = Frozen::new(&fixture.engine);
+    scan.release();
     let drained = fixture.engine.drain(5_000);
     let pending = fixture.engine.read_embedding_readiness();
     let batch = observer.take();
+    drop(captured_scan_hold);
     let closed = fixture.engine.close();
     drop(observer);
 
+    scan_ready.expect("bounded first scan must reach the real dispatcher rendezvous");
     drained.expect("actual two-row projection must drain");
     closed.expect("engine must close before observation assertions");
     assert_eq!(pending.unwrap().pending_count, 0);

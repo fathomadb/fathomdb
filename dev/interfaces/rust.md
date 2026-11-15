@@ -1440,6 +1440,12 @@ The engine-only `test-hooks` feature exposes doc-hidden
 `snippet_for`. It runs the retained full selector for exact differential tests;
 shipped feature lists do not expose this seam.
 
+For over-budget bodies with empty raw spans, `snippet_for` specializes only
+ASCII letter/digit/space prefixes through the content budget plus one lookahead
+byte (`max_bytes − len(" …") + 1`). It examines that bounded prefix and allocates by the output budget; unsupported
+prefix bytes retain the full Unicode selector. Exact text, anchors, windows,
+spans, highlights, clamping and UTF-8 byte coordinates are unchanged.
+
 `fathomdb_engine::snippet_for(body: &str, spans: &[(u32, u32)], options:
 &SnippetOptions) -> SnippetV1` is a pure function (no SQL, I/O, clock,
 floating point or locks). It picks the part of a record body to show for a

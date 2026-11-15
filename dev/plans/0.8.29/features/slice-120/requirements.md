@@ -1,11 +1,16 @@
 # Slice 120 requirements
 
-Proposed release-local criteria; no new canonical AC IDs. Existing REQ-068 and
-AC-082a–d remain authoritative. Approval of names or a design is not qualification.
+Owner seq-378 moves proposed R2–R12 new CUDA13 delivery/compiler work to
+[.31](../../../0.8.31/cuda-delivery-plan.md); the table preserves future criteria,
+not mandatory new-artifact .29 gates or selected package/API choices. Existing
+REQ-068/AC-082a–d, current delivery qualification and independent130 obligations
+remain. Seq-379 accepts R1's bounded-review disposition with current ratings
+unchanged and comparable quantitative shares UNKNOWN; tests/evidence move to .31.
+No quantitative measurement, compiler clearance or native qualification is claimed.
 
 | ID | Required behavior / acceptance |
 | --- | --- |
-| R1 | Use the existing November CUDA review and October baseline. Every adoption claim has a dated window, denominator and MEASURED/REPORTED/INFERRED label. Missing comparable shares remain UNKNOWN until measured or explicitly disposed of by owner. Every accepted policy row has a stated retain/change action; changed policy requires ratification. |
+| R1 | Use the existing November CUDA review and October baseline. Every adoption claim has a dated window, denominator and MEASURED/REPORTED/INFERRED label. Comparable missing shares remain UNKNOWN; seq-379 accepts this bounded limitation and unchanged ratings, with quantitative tests/evidence in .31. Every accepted policy row has a stated retain/change action; changed policy requires ratification. |
 | R2 | Python selects exactly one installed variant. For both packaged x86 variants, metadata/local version and package marker agree with native release version AND compiled CUDA identity. Duplicate provider metadata, missing packaged identity, displaced 12↔13 extension or stale same-major release refuses before CUDA initialization. Only the explicitly identified source/editable development route may omit packaged identity; it cannot qualify installed delivery. No startup driver/library probe chooses an artifact. |
 | R3 | Node unset selects the existing route; explicit 12/13 selects exactly its matching published package before native load. Invalid selector, missing selected package, unsupported host, selected package mismatch or load failure is typed and never falls through to another variant. Both packages may coexist because explicit selection resolves the ambiguity. Every installed x86 package route, including unset/default12 and explicit12, validates native release version AND compiled CUDA identity before provider work; missing identity, 12↔13 displacement and stale same-major members refuse. Only the existing local-development route may omit packaged identity. |
 | R4 | Runtime `auto\|cpu\|cuda:N` for embedding and reranking acts only within the selected artifact. Explicit CPU and x86 module import do no CUDA work. Auto's CPU fallback reports the existing reason; forced CUDA returns existing typed errors and never executes CPU. Existing private-pool failures remain errors under auto too. |

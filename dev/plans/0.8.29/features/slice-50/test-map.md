@@ -7,10 +7,9 @@ slice: 50
 
 # Slice 50 test map and runtime TDD proposal
 
-No test was executed in Phase A; this revision addresses the two bounded Astra
-design findings without changing the frozen feedback-decision note. Existing tests are inspection evidence, not
-new REDs or qualification. New expected outcomes below are conditional on the
-identity/provenance/feedback ruling; a passing-on-arrival invariant is retained
+No test was executed in this documentation phase. Existing tests are inspection
+evidence, not new REDs or qualification. Expected outcomes below now follow
+owner seq-374 identity/packing and seq-375 atomic-feedback decisions; a passing-on-arrival invariant is retained
 coverage, not a fabricated behavior change.
 
 ## Existing tests inspected in full
@@ -52,7 +51,7 @@ and must not be presented later as an independently observed RED.
 | I1 → R1 | Existing `fuse_rrf`: two vector hits with equal body, distinct cursors/logical IDs/sources must both survive under selected record identity. Baseline returns one. Hand-compute each score; assert exact ID/cursor/source/branch/order. | Core selected-key fusion only. Same-record repeated hits still get one arm credit at first original positional rank; pin original later rank, manual weighted arithmetic and exact-score tie. Pure fixture alone is not DB integration proof. |
 | I2 → R1/R2 | Real SQLite write anonymous/governed and distinct-governed equal-body twins, node/edge same body, two historical same-body revisions and byte-identical stored role-tagged twins from distinct sources. Stage these semantic assertions before the identity fix. Assert selected records/source and unchanged IdSpace. Baseline collapses eligible twins. | Carry source-derived ownership through node/edge/vector/historical fusion. Retain default visibility and at-rest identities. Ownerless rows use exact FTS locator; malformed ownership has explicit oracle after ADR choice. |
 | I3 → R2 | If selected-key fusion lands before consumers, equal-body records have different per-arm ranks and sources; explained output must attach each manual rank/score to its own cursor. Graph fixture has an unrelated equal-body node in fused results; exact reachable node/path must remain. Baseline consumer maps/exclusions produce wrong rank or suppress node. | Migrate key maps/exclusion and provenance carrier one seam at a time. Preserve logical BFS, first winning edge, nested fusion, recency/importance/CE and evidence authority. If earlier GREEN already fixes a case, keep it as coverage; do not label it a new RED. |
-| F1 → R2/R7 | After explicit option1 ruling, telemetry-enabled real hybrid response contains repeated ref with distinct cursors; named feedback must be typed bad_argument with no label. Current code records the last mapped cursor. | Bounded Unique(cursor)/Ambiguous response map; ambiguity check after existing not_recorded guards, before any feedback write. Unique/same-cursor, unknown, epoch, disabled telemetry/text, mixed named labels and both formats are controls. Option2 requires its own separately reviewed runtime RED. |
+| F1 → R2/R7 | Under selected option1, telemetry-enabled real hybrid response contains repeated ref with distinct cursors; named feedback must be typed bad_argument with no label. Current code records the last mapped cursor. | Bounded Unique(cursor)/Ambiguous response map; ambiguity check only after successful acquisition and final epoch recheck, before cursor-label resolution and bridge/feedback writes. Unique/same-cursor, unknown, epoch, disabled telemetry/text, mixed named labels and both formats are controls. Ambiguous named refs with concurrent unready/close or reopen after ready_epoch must retain acquisition-time/post-acquisition not_recorded and zero writes, not early bad_argument. Richer per-result labels require .30 contract review; the atomic fix remains .29. |
 | T1 → R3/R6 | Already-public hybrid query over many long matches, fixed deterministic embedder, no graph/filter/CE/explain/dependencies. Freeze setup, then a serial test allocator counts large Rust allocations during the real search. Assert a derived bound proportional to vector hydrated pool+final hits plus lightweight rows, not matched body bytes. Baseline hydrates all M bodies and fails the work bound; selected hits still match the complete control. | Complete lightweight rank census and final hydration. Do not claim old route-witness equality as new RED. Test allocator observes actual allocations across worker threads, not an implementation-populated boolean; validate measurement scope with a deliberate large allocation/control outside product code. |
 | T2 → R3/R4 | Only if widening admission changes behavior: construct the newly admitted combination with a real DB and assert route/work bound plus hand-selected filtered/frozen results. Current reference route violates that intentional work requirement. | Widen one combination only when reviewed. Otherwise these combinations remain reference controls, with no invented RED for unchanged fallback. |
 | P1 → R5/R6 | Existing `snippet_for` on a preallocated multi-MiB ASCII alnum/space body with empty spans; isolate allocator interval around invocation. Assert output against the full reference outside measured interval and bounded allocation independent of suffix length. Current whole-body boundary vectors violate the derived allocation bound. | Restricted-prefix specialization; count only actual call allocations. Repeat with suffix lengths spanning orders of magnitude; direct work counter/allocator bounds, not flaky timing. |
@@ -66,7 +65,7 @@ latency budget. Quiesce projection work and scope allocation accounting across
 reader workers in a dedicated serial integration process. The allocator counts
 are an allocation witness, not an exact SQLite body-read or I/O count. If that
 witness cannot separate body copies, design the minimal opt-in observer and its
-own genuine tests first;20's pending test-only policy is no waiver here.
+own genuine tests first;20's limited seq-369 exception is no waiver here.
 
 ## Concrete O3-09 tagged and context-pack fixtures
 
@@ -113,9 +112,8 @@ or fixture/golden regeneration is proposed.
 
 Run these through Rust SDK, then fresh installed Python/N-API equivalents on
 the integrated candidate. Preserve codecs and their current rejection/property
-fixtures. If HITL instead requests changed helper/pack behavior, return that
-bounded public contract for review and genuine runtime RED before implementing;
-this packet selects no such behavior.
+fixtures. Owner seq-374 selects unchanged helper/pack behavior, including typed
+refusal for repeated IDs; no automatic relabeling or duplicate acceptance follows.
 
 ## Required GREEN/regression coverage
 
@@ -148,3 +146,9 @@ Only after actual30 is available, repeat its fixed natural-text and write-
 interleaved cells with the qualified50 candidate/reference; untraced latency
 and separate work/RSS diagnostics identify50's contribution. No performance
 run, full gate, model, install, source change or native execution occurred here.
+
+No private Memex snapshot is needed for these correctness tests. Use synthetic
+real-SQLite populations covering the selected identity cases and properties;
+source/consumer census is reconciled at actual entry. Population frequency and
+benefit remain unknown; actual30 baseline prerequisites and same-input performance
+comparison remain required. No migration fixture is added: format37 is unchanged.

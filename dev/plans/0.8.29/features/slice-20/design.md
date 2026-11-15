@@ -97,12 +97,14 @@ create-once capacity tool correctly refuses an occupied image and is not reused.
 Existing format-only source at Git396a023e02580a1bb82ddcb7f16817874ad0046c has
 qualified26 in-memory guard/three transport-refusal controls. Reuse original
 results where inputs are equivalent; preparation is not live storage proof.
-Actual owner formatting answer remains required for exact64GiB/nonboot/nonsystem/
-RAW serialFDB29S20A6 only: GPT, new maximum R: partition, quick NTFS. Original
+Owner choice1A/seq-373 authorizes only the exact empty64GiB/nonboot/nonsystem/
+RAW serialFDB29S20A6: GPT, new maximum R: partition, quick NTFS. Actual execution
+requires the parent-coordinated lease and fresh guards/resource floors. Original
 disk identities are denied and exact target/partition correspondence rechecked
 before each mutation. Started synchronous storage may finish after transport
 loss; UNKNOWN stops later host requests pending read-only resolution, no retry/
-rollback. Seq-370 is capacity-only, never broader formatting authority.
+rollback. Seq-370 remains capacity-only; seq-373 adds only this guarded scratch
+format, with no C cleanup, other-disk mutation or C8/5GiB policy change.
 
 Retained frozen5122 operator sources supply parse/probe/compile/private Job
 Object containment, source transfer/extraction and four A6 selectors. Adapt

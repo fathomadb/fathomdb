@@ -6,6 +6,11 @@ target_release: 0.8.29
 
 # Slice 160 test and qualification mapping
 
+[Active owner dispositions](requirements.md#owner-dispositions) select .29
+identity/atomic-feedback/source-seam work, hold real resets to .30 and move new
+x86 CUDA13 delivery/quantitative evidence to .31. Seq-381 additionally moves Tegra CUDA13
+130A to .31;130B–E and existing CUDA12.6/platform/artifact obligations remain .29; deferral is not qualification.
+
 [Requirements](requirements.md) join to [qualification rows](qualification.md).
 Commands are future execution routes, not evidence that160 ran them. Read exact
 current test bodies/feature selection before execution; no fixed historical
@@ -26,8 +31,8 @@ Behavioral defects discovered during qualification get their own independently
 specified regression observed failing on baseline, staged/committed before repair,
 then separate GREEN and scoped verification; preserve raw assertion diagnostics.
 No new product test is required when existing evidence and docs close the scope.
-New passing coverage/manual acceptance is never called RED, and20's unanswered
-already-correct-test question grants160 no exception. Property tests apply if an
+New passing coverage/manual acceptance is never called RED;20's limited seq-369
+exception grants160 no exception. Property tests apply if an
 actual codec/projection/recovery/round-trip behavior changes. Review authored
 oracles and fixture pins before adapting an intentionally changed contract.
 

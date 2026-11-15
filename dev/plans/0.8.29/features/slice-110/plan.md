@@ -1,16 +1,19 @@
 ---
 title: Slice 110 — CUDA context-loss lifetime and safe teardown
-status: DESIGN_REVIEWED_OWNER_FAULT_POLICY_PENDING
+status: DESIGN_REVIEWED_SOURCE_REPAIRS_SELECTED_LIVE_FAULTS_HELD
 target_release: 0.8.29
 slice: 110
 ---
 
 # Slice 110 — CUDA context-loss lifetime and safe teardown
 
-Resolve TC-281155a1 through positive operation refusal, close, drop and normal
-exit in an explicitly selected loss envelope. Detection alone cannot close it.
+Implement the selected context-loss source/seam repairs. TC-281155a1 remains
+unqualified until real original-platform reset→close/drop/normal-exit evidence;
+detection or seam tests alone cannot close the defect.
 This replaces the proposal-only plan after inspecting accepted source
-`a00bf9b9228318e7c236148551bb188f63ff66ee` on November14. Independent Astra-medium design review passed; fault execution is not approved. [Requirements](requirements.md),
+`a00bf9b9228318e7c236148551bb188f63ff66ee` on November14. Independent Astra-medium design review passed. Owner seq-376 selects the
+quiescent completed-construction/frozen-native-live-set policy; seq-377 holds
+actual Orin/3090 child reset execution for .30 review. No live fault is authorized. [Requirements](requirements.md),
 [design](design.md) and [test map](test-map.md) are the complete slice packet.
 
 ## Scope and predecessors
@@ -31,16 +34,16 @@ This replaces the proposal-only plan after inspecting accepted source
 - Cudarc owns the unsafe nested destructor seams. Select only the concrete
   [140-A repair](../slice-140/design.md) below; .30 rebase, marker cleanup,
   multiarchitecture and unrelated performance work do not gate110.
-- 120 selects artifacts/policy;130 owns affected final platform and SDK pool/soak
+- New CUDA13 artifact/compiler work formerly in120 is .31 (seq-378);130 owns affected final platform and SDK pool/soak
   qualification. Reviewed110 obligation → initial140 proof → qualified pins
   →110 integration → affected130 qualification. Completed110 never gates140.
 
 ## Execution sequence
 
 1. Independent Astra-medium design review is complete (PASS after partial-load
-   reset was kept seam-only). Present the concrete question in design § Owner
-   decision; unchanged design is not reviewed again.
-2. After actual policy selection, place necessary low-level design/tests in each
+   reset was kept seam-only). Owner seq-376/377 is the selected policy and live-fault
+   disposition; reconcile its active .29 source/seam scope before implementation.
+2. Under the selected policy, place necessary low-level design/tests in each
    owning fork's existing `fathomdb/` area. Parent supplies isolated worktrees and
    independent fork design review. No nested agents or shared checkout writer.
 3. Follow the test map in per-behavior genuine RED commit → separate GREEN commit
@@ -55,12 +58,11 @@ This replaces the proposal-only plan after inspecting accepted source
    engine landings. Use owned tooling, scoped checks while working and one final
    clean full source gate per code phase; rerun affected failures only unless
    wider changes justify another gate.
-6. After actual venue/session authority and an available heavy window, run bounded
-   positive child cases after completed construction. Partial-load loss remains
-   seam-only, outside real reset support pending a separately reviewed handoff.
-   Orin private pool is the original defect; a3090 result
-   cannot close it. Run source-bound installed Rust/Python/Node consumers, then
-   fresh independent Astra implementation/results review and parent integration.
+6. Qualify source/seam changes and applicable healthy/OOM/installed lifecycle
+   controls in the available owned window. Actual Orin/3090 reset children,
+   reset-immediate-close, last-clone reset and reset consumers remain HELD under
+   seq-377; review them in [.30 follow-up](../../../0.8.30/release-followups.md).
+   No live reset-survival or original-defect closure follows from seam proof.
 7. Amend accepted ADR and affected Rust/SDK/Python/TS contracts in the same PR
    with only selected and proved support. Parent updates release JSON/views once
    with substantive results. Unknown/failed cells remain explicit.
@@ -75,9 +77,14 @@ windchill3 remains R580 and primary CUDA12.6. Owned work stays under `/mnt/data/
 never relocate or clean another session's resources. CI, tag/registry publication
 and published-release completion remain outside the current mandate.
 
-Exit requires S110-A1–A6, actual cleanup-policy ruling, positive teardown/normal
-exit on the original private-pool defect and declared support cells, and resolved
-reviews. The opaque native-residue byte question is not an implied waiver.
-Apply the quality roadmap's bounded lifetime anomalies, state properties and
-resource controls; defer broad GPU fuzzing/exhaustive architecture matrices.
-The master already records the dated CUDA usage review;120 owns policy changes.
+The .29 source exit requires S110-A1–A6 only within their selected source/seam
+and applicable healthy-control scope, genuine RED/GREEN, qualified consumed pins
+and independent final review. Seq-376 accepts frozen native live-set residue
+until restart, with no growth and opaque native host bytes without a hard bound;
+this explicit policy choice is not a universal-byte-bound proof. Seq-377 removes
+real reset execution from mandatory .29 exit, not from future support proof:
+reset-survival and TC-281155a1 original-defect closure remain unqualified. Review
+policy/live faults in .30. No further mandatory live-fault gate is inferred.
+Apply the quality roadmap's bounded lifetime/state properties and controls;
+broad GPU fuzzing remains deferred. New CUDA13 delivery/compiler and quantitative
+work moves to .31; unrelated platform and installed-artifact qualification stays.

@@ -6,6 +6,11 @@ target_release: 0.8.29
 
 # Slice 160 Phase A proposal status
 
+[Active owner dispositions](requirements.md#owner-dispositions) select .29
+identity/atomic-feedback/source-seam work, hold real resets to .30 and move new
+x86 CUDA13 delivery/quantitative evidence to .31. Seq-381 additionally moves Tegra CUDA13
+130A to .31;130B–E and existing CUDA12.6/platform/artifact obligations remain .29; deferral is not qualification.
+
 **Proposal prepared; design review pending. No160 source or runtime qualification.**
 Own candidate root is `/tmp/fathomdb-0829-direct/slice-160/phase-a`.
 Release parent is read-only, clean/frozen at
@@ -19,24 +24,25 @@ Run-state is an evidence locator, not source/runtime proof or current ladder aut
   64GiB RAW image (serial `FDB29S20A6`) and attached it live-only; that
   qualification is historical. Read-only observation now: the windows20 VM is
   off, the image exists, the attachment was lost on shutdown and must be
-  reattached, and the formatting question is unanswered. Guest C: has6.37GiB
+  reattached. Seq-373 approves guarded GPT and R: quick NTFS format of that owned
+  64GiB disk; actual reattachment, identity checks and fresh readiness still precede
+  execution. No format or Windows qualification is claimed. Guest C: has6.37GiB
   free, below the existing8GiB start/5GiB stop floors; a32GiB VM leaves the
   host13.63GiB, below its16GiB start floor. The24GiB live-balloon and
   C:-start-6GiB alternatives are not selected.
 - 30 exact TC5 frozen input pack remains inaccessible; drive UUID
   `C8D47C11D47C03CA` reconnect/existing-copy question is unanswered. No substitute,
   regeneration or fresh fidelity measurement is authorized by this proposal.
-- 50 identity/census/baseline gates remain. Historical repeated-ref feedback
-  ambiguity has its actual pending question; no new native ABI is selected.
+- 50 selected identity/source-consumer census/baseline prerequisites remain. Historical repeated-ref feedback
+  correction is selected by seq-375 but remains unimplemented/unqualified; no new native ABI is selected.
 - 60's format/filter/budget subset is integrated; its held historical-flag
   (F11) contract work is not complete.70 is complete on the release branch.
   80 bounded/aggregate proposal PASS is not whole80 approval.
 - 90 needs real Block1 follow-up exit after selected20–70 plus approved80;
   neither exit depends on160.100 existing eight-control execution reuse retains
   inference limits; active-checkpoint/richer-postcrash gaps stay open.
-- 110 coordinated-reset model/venue answer remains pending.120 explicit package
-  selection, naming/channel/RustCLI/ADR.25 reconciliation and compiler exposure
-  remain unresolved.130 broad venue direction is already ruled, but actual
+- 110 quiescent/frozen-live-set policy is selected; actual Orin/3090 reset execution is HELD .30. New120 x86 package selection/delivery and compiler work move to .31
+  under seq-378, with choices still proposed rather than accepted.130 broad venue direction is already ruled, but actual
   access/vetting/session caps/fixtures/final artifacts and selected proof remain.
 - 140 runs only concrete necessary110/120 fork A repairs. Fork B/C is already.30.
   No150 study or spend has been selected by inference; unselected experiments

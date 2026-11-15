@@ -4,6 +4,19 @@ Proposed implementation contract, inspected at source commit
 `a00bf9b9228318e7c236148551bb188f63ff66ee`. Paths below are
 repository-relative unless explicitly marked cache source. No execution claims.
 
+## Active disposition (owner 2026-11-14)
+
+Seq-378 moves this proposed new CUDA13 delivery/compiler-safety design to
+[.31](../../../0.8.31/cuda-delivery-plan.md). Sections below are preserved future/
+historical proposal inputs, including historical .29 coordinates; they select no
+package/channel/selector/API and impose no mandatory new-artifact gate on .29.
+Actual future release identities and compiler disposition require review before
+any13 build. No compiler safety, artifact build or runtime qualification is claimed.
+Seq-379 accepts bounded quantitative unknowns and unchanged current ratings;
+quantitative tests/evidence belong to .31. Existing .29 platform/artifact controls
+and130B–E remain, under their actual selected inputs. Owner seq-381 separately
+moves Tegra CUDA13 unit130A to .31.
+
 ## 1. Existing implementation and actual work
 
 | Seam | Existing behavior | Required delta |

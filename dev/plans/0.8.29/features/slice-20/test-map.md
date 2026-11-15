@@ -24,9 +24,10 @@ Linux evidence solely for later documentation changes.
 Build exact committed source with:
 `cargo test -p fathomdb-engine --features operator,test-hooks --lib --no-run`.
 Then use the same prefix without --no-run, each selector below, followed by
-`-- --exact --nocapture`. Actual execution remains HELD beyond capacity-only seq-370; guest format and
-current readiness, actual format ruling and qualified scripts/bootstrap/binary/
-supervisor remain prerequisites.
+`-- --exact --nocapture`. Actual A6 execution remains held: seq-373 authorizes
+only the guarded owned-scratch format beyond capacity-only seq-370. Actual format,
+current workload readiness and qualified scripts/bootstrap/binary/supervisor
+remain prerequisites.
 Build20min; each selector90s; zero selected tests/timeout is failure.
 
 1. `slice90_close_review_tests::failed_startup_after_accepted_probe_preserves_error_and_cleans_sqlite_profiles`:
@@ -67,8 +68,8 @@ integration. CI/external workflows/registry publication remain outside this task
 Clean own baseline a00bf9b9228318e7c236148551bb188f63ff66ee passed strict closed10
 preflight with zero warnings. VM is shut off; prior live-only scratch attachment
 is absent. Preserve accepted Linux/preparation outcomes. Current [plan](plan.md)
-orders bounded read-only refresh, exact existing-image reattachment, pending
-format ruling and actual native A6. Do not replay passing checks to relabel them.
+orders bounded read-only refresh, exact existing-image reattachment, seq-373
+guarded scratch format and actual native A6. Do not replay passing checks to relabel them.
 Fresh implementation review precedes one final clean source full gate if source/
 tests/executable tools change; docs-only use scoped Markdown validation.
 

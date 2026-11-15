@@ -113,7 +113,8 @@ proven cause. Preserve the actual integrated SDK/fusion selection, hints/span
 storage and schema37 without migration. [Requirements](requirements.md)
 R29-60-BUD/SIG and AC29-60-BUD/SIG, the accepted hints contract, both formats'
 final counts/fit, four-render convergence, whole-hit prefixes, hints-off fallback
-and current degradation vocabulary remain unchanged. F11 remains held.
+and current degradation vocabulary remain unchanged. F11 remains held pending implementation and qualification of the selected
+seq-375 atomic ambiguous named-ref refusal; the owner decision itself is settled.
 
 Independent Astra-medium design review passed069f9d0e. After the full collector
 was terminal, G's owner completed the sole unchanged-artifact failed-target
@@ -162,3 +163,10 @@ assumptions. Resolve contract findings through the direct review pipeline; do no
 reopen generic release authorization. Seq369 approved a narrow20-only
 verification exception; it transfers no exception or feature scope to60.
 Every changed60 behavior keeps its own observed RED/GREEN. See [status](status.md) for baseline and actual scoped checks.
+
+Owner 2026-11-14 seq-374/375 selects record/version identity with existing
+representative-first provenance and helper/pack contracts, plus atomic ambiguous
+named-ref feedback refusal for .29. These selected changes are not source PASS.
+Implement the feedback correction before repeated-reference historical views;
+qualify both formats on the actual integrated identity build. .30 reviews richer
+occurrence labels for precise per-result feedback without deferring the .29 fix.

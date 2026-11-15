@@ -7,6 +7,11 @@ slice: 160
 
 # Slice 160 — Combined qualification and publication readiness
 
+[Active owner dispositions](requirements.md#owner-dispositions) select .29
+identity/atomic-feedback/source-seam work, hold real resets to .30 and move new
+x86 CUDA13 delivery/quantitative evidence to .31. Seq-381 additionally moves Tegra CUDA13
+130A to .31;130B–E and existing CUDA12.6/platform/artifact obligations remain .29; deferral is not qualification.
+
 ## Goal and authority
 
 Establish attributable qualification of the selected integrated .29 release,
@@ -43,7 +48,7 @@ Slice20 Linux repairs through `657edeb76caaf9c8d2aab433766bec9362e73217`
 are included; that inspection predates later integration. Current release state
 governs: A3/A5 are ruled and integrated, Windows A6 remains open, the60
 format/filter/budget subset is integrated and70 is complete.60's historical-flag
-feedback ambiguity is unruled. No subset closes20/60 or the Block1 follow-up
+feedback correction is selected but not implemented/qualified. No subset closes20/60 or the Block1 follow-up
 exit;160 rereads the actual integrated baseline at entry.
 
 Format37 is the current substrate: **no database migration**, compatibility shim,

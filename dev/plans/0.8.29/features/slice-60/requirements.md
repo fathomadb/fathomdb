@@ -168,3 +168,15 @@ No implementation PASS follows. Parent GO, fresh parent-created60
 worktree, strict closed10 preflight and own setup remain before source work.
 20's unanswered test-only TDD-policy question supplies no exception here.
 No60 product tests or acceptance passes are claimed by this reconciliation.
+
+## Selected repeated-reference feedback boundary
+
+Owner 2026-11-14 seq-375 selects the smallest atomic .29 correction: an otherwise
+recordable call naming an ambiguous used/unused ref returns existing typed
+bad_argument with zero label writes. Preserve current membership validation and
+not_recorded precedence; repeated occurrences of the same cursor remain unique.
+This selected behavior is not implemented or qualified by this document. R29-60-VIEW
+exposure must compose with it, including both formats and mixed unique/ambiguous
+named labels; unmentioned ambiguity does not label arbitrary records. See the
+[selected decision](../slice-50/feedback-decision.md). .30 reviews richer occurrence
+labels for precise per-result feedback without postponing the .29 correction.

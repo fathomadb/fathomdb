@@ -6,6 +6,11 @@ target_release: 0.8.29
 
 # Slice 160 evidence composition design
 
+[Active owner dispositions](requirements.md#owner-dispositions) select .29
+identity/atomic-feedback/source-seam work, hold real resets to .30 and move new
+x86 CUDA13 delivery/quantitative evidence to .31. Seq-381 additionally moves Tegra CUDA13
+130A to .31;130B–E and existing CUDA12.6/platform/artifact obligations remain .29; deferral is not qualification.
+
 ## Boundary
 
 This is release qualification and bounded confirmed-defect repair. It introduces

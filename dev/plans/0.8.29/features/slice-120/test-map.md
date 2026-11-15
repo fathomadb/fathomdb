@@ -6,6 +6,13 @@ unchanged through GREEN; genuine failures, not missing tools/imports or hand-bui
 oracle snapshots. Existing regressions remain. Unit seams may inject loader or
 probe results; lifecycle tests use a real database and real providers.
 
+Owner seq-378 moves the new delivery/compiler tests below to
+[.31](../../../0.8.31/cuda-delivery-plan.md). They are future proposals, not .29
+mandatory gates or granted execution. R1's bounded quantitative disposition is
+accepted by seq-379; its quantitative tests/evidence are also .31. Current package,
+CPU/driverless, installed-consumer and independent130 obligations remain under
+their actual selected inputs. Historical coordinates need future reselection.
+
 | Requirement | RED assertion and implementation seam | Qualification / acceptance |
 | --- | --- | --- |
 | R1 | Pure query-result aggregation fixture with complete/missing windows, alias mapping and0.0.1 exclusion, only if collection code is added. Do not write a test of prose. | Saved existing review plus actual comparable response/share calculation or explicit owner bounded-review disposition. No invented share. |
@@ -42,7 +49,7 @@ patterns and boundary shapes. No regenerated goldens or new byte-equality policy
 Persistent format37 lifecycle and sane finite outputs are necessary but cannot
 alone clear silent compiler corruption.
 
-## Checks and exit
+## Future .31 checks and exit
 
 While implementing, run affected loader, CUDA policy, artifact/preflight and
 interface tests in latency order. Final executable/source change gets one

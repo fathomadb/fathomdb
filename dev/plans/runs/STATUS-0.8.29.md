@@ -22,7 +22,7 @@ selected platform/artifact and final acceptance remain pending.
 
 ## Next action
 
-<!-- BEGIN GENERATED release-state:0.8.29:status-next-action -->**Continue Slice 30 (MEASURE)** — Current source-bound baseline and tracked AC083 measurements. **Remaining ladder:** 30 → 20 → 40 → 50 → 60 → 80 → 90 → 100 → 110 → 120 → 130 → 140 → 150 → 160.<!-- END GENERATED release-state:0.8.29:status-next-action -->
+<!-- BEGIN GENERATED release-state:0.8.29:status-next-action -->**Continue Slice 30 (MEASURE)** — Current source-bound baseline and tracked AC083 measurements. **Remaining ladder:** 30 → 20 → 40 → 50 → 60 → 80 → 90 → 100 → 110 → 130 → 140 → 150 → 160.<!-- END GENERATED release-state:0.8.29:status-next-action -->
 
 Current source and measurement subjects are distinct; the JSON remains the
 ladder authority. Original failures, interrupted wrappers, inner skips and native
@@ -30,14 +30,14 @@ build attribution stay in the linked execution records.
 
 | Work | Qualified or reviewed | Still open |
 | --- | --- | --- |
-| 20 | Linux source45167677 has fresh Astra acceptance and assembled220/220 qualification. Two genuine hook-alias RED/GREEN repairs preserve all old oracles; original wrapper exit1 and both metadata corrections remain in [execution](../0.8.29/features/slice-20/execution.md). | Actual Windows A6: owned RAW disk reattachment/format answer, capacity/readiness and real selectors. Whole20 and Block1 are open. |
+| 20 | Linux source45167677 has fresh Astra acceptance and assembled220/220 qualification. Two genuine hook-alias RED/GREEN repairs preserve all old oracles; original wrapper exit1 and both metadata corrections remain in [execution](../0.8.29/features/slice-20/execution.md). Seq373 approves the guarded owned scratch format. | Actual Windows A6: owned RAW disk reattachment, fresh readiness, approved format and real selectors. Whole20 and Block1 are open. |
 | 30 G | Closed-copy tooling0fa61810 has implementation and assembled-source Astra ACCEPT: original completed prefix, unchanged Rust proof attributed tobfe03918 and current18/18 suffix. [Execution](../0.8.29/features/slice-30/execution.md) preserves the lost guardian/missing original terminal receipt. | Calibration/R1/write runtime needs separate technical GO. Actual G stays11qualified/73required cap refusals of84; no expanded profile is active. |
-| 30 M | Source candidated942 has implementation ACCEPT; qualified closed100k input exists. [Continuation](../0.8.29/features/slice-30/continuation-m.md). | Reconcile integrated predecessors, complete owned final source qualification, then actual46-cell work under a reviewed fitting allocation. |
-| 30 D | Scoped source-fit design has Astra PASS; a real-store D-T1a test and compilable seam are staged in an isolated checkout. | Actual semantic RED/GREEN, source qualification and all24 C/T cells. No runtime or cost-probe GO. F still needs the exact TC5 pack. |
+| 30 M | Merged candidate5c325e9f has Astra fit ACCEPT and owned source-bound native refresh. Original collector finished223/220/3; generated-doc correction6353f3a9 is clean. [Continuation](../0.8.29/features/slice-30/continuation-m.md). | Guardian interruption/missing original receipt are explicit; actors/boundary are gone. Failed Pages and M load-entry controls plus genuinely unrun dispatch checks need scoped completion after current-baseline fit. No final source qualification or actual46-cell campaign follows yet. |
+| 30 D/F | Real-store D-T1a and six Python controls have genuine RED/GREEN at checkpointdf80c69f. Next numeric-runtime test/scaffold staged. Seq382 supplies exact TC5 inputs: all payloads and selected bridge statically validated. | Remaining D numeric/state, commit/outcome, overlap and runtime integration work, source qualification and all24 C/T cells. Native execution waits for M. F/Q8 candidate-bound runtime/measurements remain; no missing-input hold. |
 | 40 | [Measurement table and artifact amendment](../0.8.29/features/slice-40/measurement-plan.md) have Astra PASS. Real hybrid direct-eligibility opportunity remains open; no treatment or owner deferral is selected. | Affected write evidence, exact safety/invariance, prospective tolerances and paired treatment qualification before adoption. |
-| 50/60/80/90 | Census access method is reviewed;60's format/filter/budget subset and completed70 are integrated. | Exact census input, identity/F11 rulings, settled full80 contracts and actual Block1 follow-up exit before90. |
+| 50/60/80/90 | Seq374 selects record-version identity and unchanged helper/pack contracts; seq375 selects atomic ambiguous-ref feedback refusal. Astra passed50's named-artifact entry amendment.60's format/filter/budget subset and completed70 are integrated. | Actual selected semantic implementation/review, settled full80 contracts and actual Block1 follow-up exit before90. Source/consumer census remains; a private Memex snapshot is not required and population frequency is UNKNOWN. |
 | 100 | Source/G2/native subset85f7 is accepted. The original healthy Q1 case is qualified. [Execution](../0.8.29/features/slice-100/execution.md). | Original interruption remains UNQUALIFIED; an additional corrected pair is unanswered. No extra fault authority. |
-| 110/120 | Canonical requirements/design/test maps have independent Astra PASS. | Reset/residue/venue policy and artifact/channel/scope choices; compiler6111901 safety is UNKNOWN and blocks CUDA13 builds/delivery. |
+| 110/120/130 | Astra-reviewed110 quiescent policy selected by seq376; actual reset execution deferred to.30 by seq377. Seq378 allocates new CUDA13 delivery/compiler work to.31; seq379 adds quantitative tests and seq381 includes CUDA13 Tegra130A there. | Required110 source/seam/fork repair and existing CUDA12.6 platform/SDK130B–E remain in.29. No actual reset-survival claim, CUDA13 qualification or compiler safety clearance. |
 
 G's shared allocation remains charged1845130877940ns with1903142018B retained,
 no inflight cell and the exploratory token consumed. All73 refusals and original
@@ -49,6 +49,7 @@ are preserved unless affected code changes invalidate specific evidence.
 
 Format37/no database migration; query scaffold retained; independent E0.8.0.
 Required fork repairs A only in.29; B/C stay.30. R580/primary12.6 fixed; no K620.
-Specific reset/venue, artifact/policy, session/spend, optional150 and publication
-choices remain explicit in state/actual9 records. Missing future choices do not
+Selected policy, deferrals and TC5 input are recorded in seq373–382 and receiving .30/.31
+plans. Session/spend, optional150 and publication choices remain explicit in
+state/actual9 records. Missing future choices do not
 block unrelated approved preparation. Readiness NOT_READY; publication HELD.

@@ -314,3 +314,242 @@ async fn feedback_with_no_used_refs_on_a_hybrid_response_is_recorded() {
     assert_eq!(labels[0]["irrelevant_ids"], json!([event["result_ids"][0]]));
     harness.shutdown().await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn named_repeated_reference_refuses_atomically_before_any_feedback_label() {
+    for (used, unused) in [
+        (json!(["l:shared"]), json!([])),
+        (json!([]), json!(["l:shared"])),
+        (json!(["l:unique", "l:shared"]), json!([])),
+        (json!(["l:unique"]), json!(["l:shared"])),
+    ] {
+        let fixture = Fixture::new();
+        let mut duplicate = common::body_edge("link", "shared", "missing", "river edge fact");
+        if let fathomdb_sdk::PreparedWrite::Edge { logical_id, .. } = &mut duplicate {
+            *logical_id = Some("shared".into());
+        }
+        fixture.store(
+            "a.sqlite",
+            vec![
+                node("shared", "note", "river node fact"),
+                duplicate,
+                node("unique", "note", "river unique fact"),
+            ],
+        );
+        let harness = Harness::start(fixture.config(json!({
+            "stores": {"a": {"path": "a.sqlite"}}, "default_store": "a",
+            "idle_timeout_secs": 0, "telemetry_dir": "telemetry"
+        })))
+        .await;
+        let found = harness.ok("search", json!({"query": "river", "mode": "hybrid"})).await;
+        assert_eq!(refs(&found).iter().filter(|reference| *reference == "l:shared").count(), 2);
+        let all = records(&sink(&fixture, "a", 1));
+        let event = of_type(&all, "event")[0];
+        let repeated_cursors: Vec<_> = event["result_stable_ids"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .zip(event["result_ids"].as_array().unwrap())
+            .filter_map(|(reference, cursor)| (reference == "l:shared").then_some(cursor))
+            .collect();
+        assert_eq!(repeated_cursors.len(), 2);
+        assert_ne!(repeated_cursors[0], repeated_cursors[1]);
+        let error = harness
+            .err(
+                "feedback",
+                json!({
+                    "response_id": found["response_id"], "used": used, "unused": unused
+                }),
+            )
+            .await;
+        assert_eq!(error["class"], "invalid_request");
+        assert_eq!(error["code"], "bad_argument");
+        assert!(
+            of_type(&records(&sink(&fixture, "a", 1)), "feedback").is_empty(),
+            "ambiguity must refuse the entire label set without a partial telemetry write"
+        );
+        harness.shutdown().await;
+    }
+}
+
+fn repeated_reference_notes() -> Vec<fathomdb_sdk::PreparedWrite> {
+    let mut duplicate = common::body_edge("link", "shared", "missing", "river edge fact");
+    if let fathomdb_sdk::PreparedWrite::Edge { logical_id, .. } = &mut duplicate {
+        *logical_id = Some("shared".into());
+    }
+    vec![
+        node("shared", "note", "river node fact"),
+        duplicate,
+        node("unique", "note", "river unique fact"),
+    ]
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn repeated_reference_feedback_keeps_existing_not_recorded_and_membership_precedence() {
+    for (telemetry, mode, reason) in
+        [(false, "hybrid", "telemetry_disabled"), (true, "text", "text_mode")]
+    {
+        let fixture = Fixture::new();
+        fixture.store("a.sqlite", repeated_reference_notes());
+        let mut config = json!({"stores":{"a":{"path":"a.sqlite"}}, "default_store":"a",
+            "idle_timeout_secs":0});
+        if telemetry {
+            config["telemetry_dir"] = json!("telemetry");
+        }
+        let harness = Harness::start(fixture.config(config)).await;
+        let found = harness.ok("search", json!({"query":"river", "mode":mode})).await;
+        assert_eq!(refs(&found).iter().filter(|reference| *reference == "l:shared").count(), 2);
+        let feedback = harness
+            .ok(
+                "feedback",
+                json!({"response_id":found["response_id"],
+            "used":["l:shared"]}),
+            )
+            .await;
+        assert_eq!(feedback["status"], "not_recorded");
+        assert_eq!(feedback["reason"], reason);
+        let error = harness
+            .err(
+                "feedback",
+                json!({"response_id":found["response_id"],
+            "used":["l:shared", "l:unknown"]}),
+            )
+            .await;
+        assert_eq!(error["code"], "bad_argument");
+        assert!(error["message"].as_str().unwrap().contains("only name references"));
+        assert!(of_type(&records(&sink(&fixture, "a", 1)), "feedback").is_empty());
+        harness.shutdown().await;
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn unmentioned_ambiguity_does_not_block_unique_feedback() {
+    let fixture = Fixture::new();
+    fixture.store("a.sqlite", repeated_reference_notes());
+    let harness = Harness::start(fixture.config(json!({
+        "stores":{"a":{"path":"a.sqlite"}}, "default_store":"a", "idle_timeout_secs":0,
+        "telemetry_dir":"telemetry"
+    })))
+    .await;
+    let found = harness.ok("search", json!({"query":"river", "mode":"hybrid"})).await;
+    assert_eq!(refs(&found).iter().filter(|reference| *reference == "l:shared").count(), 2);
+    let feedback = harness
+        .ok(
+            "feedback",
+            json!({"response_id":found["response_id"],
+        "used":["l:unique"]}),
+        )
+        .await;
+    assert_eq!(feedback["status"], "recorded");
+    let all = records(&sink(&fixture, "a", 1));
+    let labels = of_type(&all, "feedback");
+    assert_eq!(labels.len(), 1);
+    let event = of_type(&all, "event")[0];
+    let index = event["result_stable_ids"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .position(|reference| reference == "l:unique")
+        .unwrap();
+    assert_eq!(labels[0]["relevant_ids"], json!([event["result_ids"][index]]));
+    assert_eq!(labels[0]["irrelevant_ids"], json!([]));
+    harness.shutdown().await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn ambiguous_feedback_keeps_acquisition_and_final_epoch_refusal_without_labels() {
+    for reopen in [false, true] {
+        let fixture = Fixture::new();
+        fixture.store("a.sqlite", repeated_reference_notes());
+        let harness = Harness::start(fixture.config(json!({
+            "stores":{"a":{"path":"a.sqlite"}}, "default_store":"a", "idle_timeout_secs":1,
+            "telemetry_dir":"telemetry"
+        })))
+        .await;
+        let found = harness.ok("search", json!({"query":"river", "mode":"hybrid"})).await;
+        assert_eq!(refs(&found).iter().filter(|reference| *reference == "l:shared").count(), 2);
+        let observation = harness.adapter.seams().observe_pre_enqueue("a");
+        let peer = harness.client.peer().clone();
+        let args = json!({"response_id":found["response_id"], "used":["l:unique", "l:shared"]});
+        let feedback = tokio::spawn(async move {
+            let response = peer
+                .call_tool_once(
+                    rmcp::model::CallToolRequestParams::new("feedback")
+                        .with_arguments(args.as_object().unwrap().clone()),
+                )
+                .await
+                .unwrap();
+            let rmcp::model::CallToolResponse::Complete(result) = response else { unreachable!() };
+            result
+        });
+        tokio::time::timeout(Duration::from_secs(2), async {
+            while observation.snapshot().reached.is_none() {
+                tokio::time::sleep(Duration::from_millis(1)).await;
+            }
+        })
+        .await
+        .expect("feedback must reach acquisition before ambiguity validation");
+        let reached = observation.snapshot().reached.unwrap();
+        assert_eq!((reached.epoch, reached.queued, reached.in_flight), (1, 0, 0));
+        assert!(wait_for_readiness(&harness.client, "a", "closed", Duration::from_secs(5)).await);
+        if reopen {
+            let opened = harness.ok("orient", json!({})).await;
+            assert_eq!(opened["epoch"], 2);
+        } else {
+            harness.adapter.seams().block_open("a");
+        }
+        observation.release();
+        let result = tokio::time::timeout(Duration::from_secs(3), feedback).await.unwrap().unwrap();
+        assert_ne!(result.is_error, Some(true));
+        let value = result.structured_content.unwrap();
+        assert_eq!(value["status"], "not_recorded");
+        assert_eq!(value["reason"], "store_reopened");
+        assert!(observation.snapshot().bridge_epochs.is_empty(), "no feedback bridge/write");
+        for epoch in [1, 2] {
+            assert!(of_type(&records(&sink(&fixture, "a", epoch)), "feedback").is_empty());
+        }
+        harness.adapter.seams().release_all();
+        harness.shutdown().await;
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn compact_repeated_reference_feedback_refuses_atomically() {
+    let fixture = Fixture::new();
+    fixture.store("a.sqlite", repeated_reference_notes());
+    let harness = Harness::start(fixture.config(json!({
+        "stores":{"a":{"path":"a.sqlite"}}, "default_store":"a", "idle_timeout_secs":0,
+        "telemetry_dir":"telemetry", "result_format":"text"
+    })))
+    .await;
+    let call = |tool: &'static str, args: Value| {
+        harness.client.call_tool(
+            rmcp::model::CallToolRequestParams::new(tool)
+                .with_arguments(args.as_object().unwrap().clone()),
+        )
+    };
+    let found = call("search", json!({"query":"river", "mode":"hybrid"})).await.unwrap();
+    assert_ne!(found.is_error, Some(true));
+    assert!(found.structured_content.is_none());
+    let text = text_of(&found);
+    assert_eq!(text.lines().filter(|line| line.starts_with("\"l:shared\" ")).count(), 2);
+    let response_id = text
+        .lines()
+        .next()
+        .unwrap()
+        .split_whitespace()
+        .find_map(|word| word.strip_prefix("response_id="))
+        .unwrap();
+    let result = call(
+        "feedback",
+        json!({"response_id":response_id,
+        "used":["l:unique", "l:shared"]}),
+    )
+    .await
+    .unwrap();
+    assert_eq!(result.is_error, Some(true));
+    assert!(result.structured_content.is_none());
+    assert!(text_of(&result).starts_with("error invalid_request/bad_argument "));
+    assert!(of_type(&records(&sink(&fixture, "a", 1)), "feedback").is_empty());
+    harness.shutdown().await;
+}

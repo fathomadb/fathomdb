@@ -857,8 +857,21 @@ fn load_projection_cursor_for_search(connection: &Connection) -> rusqlite::Resul
         })
 }
 
+fn search_body_from_row(
+    row: &rusqlite::Row<'_>,
+    index: usize,
+    vector: bool,
+) -> rusqlite::Result<String> {
+    let body = row.get::<_, String>(index)?;
+    #[cfg(all(feature = "slice50-measurement", any(test, feature = "slice30-observer")))]
+    crate::slice30_observer::slice50_body(vector, body.len());
+    #[cfg(not(all(feature = "slice50-measurement", any(test, feature = "slice30-observer"))))]
+    let _ = vector;
+    Ok(body)
+}
+
 fn rank_search_hit_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<(SearchHit, i64)> {
-    let body = row.get::<_, String>(0)?;
+    let body = search_body_from_row(row, 0, false)?;
     let logical_id = row.get::<_, Option<String>>(4)?;
     let hit = SearchHit {
         id: derive_stable_id(logical_id.as_deref(), &body),
@@ -2323,7 +2336,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                 .query_row(rusqlite::params_from_iter(node_params(rowid)), |row| {
                     Ok((
                         row.get::<_, String>(0)?,
-                        row.get::<_, String>(1)?,
+                        search_body_from_row(row, 1, true)?,
                         row.get::<_, Option<String>>(2)?,
                         row.get::<_, Option<String>>(3)?,
                     ))
@@ -2349,7 +2362,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             } else if let Some((body, logical_id, source_id)) = edge_stmt
                 .query_row(rusqlite::params![rowid, view.edge_now()], |row| {
                     Ok((
-                        row.get::<_, String>(0)?,
+                        search_body_from_row(row, 0, true)?,
                         row.get::<_, Option<String>>(1)?,
                         row.get::<_, Option<String>>(2)?,
                     ))
@@ -2666,6 +2679,8 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                 |row| row.get::<_, bool>(0),
             )?;
         let deferred_candidates = if defer_full_hydration {
+            #[cfg(all(feature = "slice50-measurement", any(test, feature = "slice30-observer")))]
+            crate::slice30_observer::slice50_route("winner_hydration");
             let now_binding =
                 now_param.map(|_| " AND (?2 IS NULL OR ?2 IS NOT NULL)").unwrap_or("");
             let sql = format!(
@@ -2692,7 +2707,13 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                     } else {
                         FusionOwnership::OwnerlessNodeFts { rowid }
                     };
-                    Ok(ConsistentNodeFts { rowid, write_cursor, ownership, score: row.get(2)? })
+                    let score = row.get(2)?;
+                    #[cfg(all(
+                        feature = "slice50-measurement",
+                        any(test, feature = "slice30-observer")
+                    ))]
+                    crate::slice30_observer::slice50_lightweight_row();
+                    Ok(ConsistentNodeFts { rowid, write_cursor, ownership, score })
                 })?;
             let mut candidates = rows.collect::<rusqlite::Result<Vec<_>>>()?;
             candidates.sort_by(|left, right| {
@@ -2710,6 +2731,8 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             deferred_node_candidates = Some(candidates);
             Some(Vec::new())
         } else if defer_text_identity {
+            #[cfg(all(feature = "slice50-measurement", any(test, feature = "slice30-observer")))]
+            crate::slice30_observer::slice50_route("eager_text_identity");
             let now_binding =
                 now_param.map(|_| " AND (?2 IS NULL OR ?2 IS NOT NULL)").unwrap_or("");
             let sql = format!(
@@ -2721,7 +2744,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             let candidates = prepare_search_statement(&tx, &sql).and_then(|mut statement| {
                 let rows =
                     statement.query_map(rusqlite::params_from_iter(text_params.iter()), |row| {
-                        let body = row.get::<_, String>(0)?;
+                        let body = search_body_from_row(row, 0, false)?;
                         let hit = SearchHit {
                             id: IdSpace::content(String::new()),
                             body,
@@ -2803,7 +2826,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             );
             if let Ok(mut statement) = tx.prepare(&source_sql) {
                 let rows = statement.query_map([compiled.match_expression.as_str()], |row| {
-                    let body = row.get::<_, String>(0)?;
+                    let body = search_body_from_row(row, 0, false)?;
                     let hit = SearchHit {
                         // No logical_id column on this schema → content-hash id.
                         id: derive_stable_id(None, &body),
@@ -2833,7 +2856,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                 );
                 let mut statement = tx.prepare(&plain_sql)?;
                 let rows = statement.query_map([compiled.match_expression.as_str()], |row| {
-                    let body = row.get::<_, String>(0)?;
+                    let body = search_body_from_row(row, 0, false)?;
                     let hit = SearchHit {
                         // No logical_id column on this schema → content-hash id.
                         id: derive_stable_id(None, &body),
@@ -3337,6 +3360,8 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         snippets,
     )?;
     tx.commit()?;
+    #[cfg(all(feature = "slice50-measurement", any(test, feature = "slice30-observer")))]
+    crate::slice30_observer::finish_slice50_work();
     #[cfg(any(test, feature = "slice30-observer"))]
     observation.success();
     Ok(output)

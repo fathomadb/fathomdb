@@ -111,6 +111,67 @@ pub(crate) struct OperationToken {
     engine_id: usize,
     operation_id: u64,
     parent_span_id: Option<u64>,
+    #[cfg(feature = "slice50-measurement")]
+    body_work: Arc<Mutex<Slice50BodyWork>>,
+}
+
+#[cfg(feature = "slice50-measurement")]
+#[derive(Default, Serialize)]
+struct Slice50BodyWork {
+    route: &'static str,
+    lightweight_rows: usize,
+    vector_bodies: usize,
+    vector_body_bytes: usize,
+    fts_bodies: usize,
+    fts_body_bytes: usize,
+}
+
+#[cfg(feature = "slice50-measurement")]
+fn update_slice50_work(update: impl FnOnce(&mut Slice50BodyWork)) {
+    let Some(token) = capture_token() else {
+        return;
+    };
+    if let Ok(mut work) = token.body_work.lock() {
+        update(&mut work);
+    };
+}
+
+#[cfg(feature = "slice50-measurement")]
+pub(crate) fn slice50_body(vector: bool, bytes: usize) {
+    update_slice50_work(|work| {
+        if vector {
+            work.vector_bodies += 1;
+            work.vector_body_bytes += bytes;
+        } else {
+            work.fts_bodies += 1;
+            work.fts_body_bytes += bytes;
+        }
+    });
+}
+
+#[cfg(feature = "slice50-measurement")]
+pub(crate) fn slice50_lightweight_row() {
+    update_slice50_work(|work| work.lightweight_rows += 1);
+}
+
+#[cfg(feature = "slice50-measurement")]
+pub(crate) fn slice50_route(route: &'static str) {
+    update_slice50_work(|work| work.route = route);
+}
+
+#[cfg(feature = "slice50-measurement")]
+pub(crate) fn finish_slice50_work() {
+    let Some(token) = capture_token() else {
+        return;
+    };
+    let Ok(work) = token.body_work.lock() else {
+        return;
+    };
+    let record = span("slice50_work");
+    if let Some(data) = &record.data {
+        data.facts.replace(serde_json::json!(&*work));
+        data.status.set("ok");
+    }
 }
 
 thread_local! {
@@ -316,6 +377,11 @@ impl Slice30ObservationGuard {
             engine_id: self.collector.engine_id,
             operation_id,
             parent_span_id: None,
+            #[cfg(feature = "slice50-measurement")]
+            body_work: Arc::new(Mutex::new(Slice50BodyWork {
+                route: "reference",
+                ..Default::default()
+            })),
         };
         let _restore = OperationScope(CURRENT.with(|slot| slot.replace(Some(token))));
         work()
@@ -434,6 +500,11 @@ impl Slice30ProjectionObservationGuard {
             engine_id: self.collector.engine_id,
             operation_id,
             parent_span_id: None,
+            #[cfg(feature = "slice50-measurement")]
+            body_work: Arc::new(Mutex::new(Slice50BodyWork {
+                route: "reference",
+                ..Default::default()
+            })),
         };
         let _restore = OperationScope(CURRENT.with(|slot| slot.replace(Some(token))));
         work()
@@ -625,6 +696,11 @@ pub(crate) fn enter_projection(
             engine_id: collector.engine_id,
             operation_id: ticket.operation_id,
             parent_span_id: None,
+            #[cfg(feature = "slice50-measurement")]
+            body_work: Arc::new(Mutex::new(Slice50BodyWork {
+                route: "reference",
+                ..Default::default()
+            })),
         })
     });
     enter_token(owner, token)

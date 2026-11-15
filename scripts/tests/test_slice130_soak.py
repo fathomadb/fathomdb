@@ -277,3 +277,30 @@ class SamplerProtocolTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RawObservationBindingTests(unittest.TestCase):
+    def test_success_label_cannot_hide_changed_raw_pool_or_unavailable_counters(self):
+        point = arm()["baseline"]
+        point["raw_observation"] = {
+            "schema": "fathomdb.cuda-pool-observation/v1", "status": "read_error",
+            "pid": 123, "device_ordinal": 0, "uuid": "actual-device",
+            "context_id": "18446744073709551615", "pool_id": "actual-pool",
+            "live_models_before": "2", "live_models_after": "2",
+            "used_current_bytes": None, "reserved_current_bytes": None,
+        }
+        self.assertIsNotNone(soak._counter_failure(point, "on"),
+                             "raw read_error cannot be relabeled as successful checked counters")
+
+    def test_success_label_cannot_hide_changed_raw_ownership(self):
+        point = arm()["baseline"]
+        point["raw_observation"] = {
+            "schema": "fathomdb.cuda-pool-observation/v1", "status": "private",
+            "pid": 123, "device_ordinal": 0, "uuid": "actual-device",
+            "context_id": "18446744073709551615", "pool_id": "actual-pool",
+            "live_models_before": "2", "live_models_after": "1",
+            "used_current_bytes": str(point["private_used_bytes"]),
+            "reserved_current_bytes": str(point["private_reserved_bytes"]),
+        }
+        self.assertIsNotNone(soak._counter_failure(point, "on"),
+                             "a live-owner transition invalidates the supposedly checked snapshot")

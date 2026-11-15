@@ -1,0 +1,112 @@
+"""Native-free observer, lifecycle-oracle and owned-process controls."""
+
+import importlib.util
+import json
+import os
+from pathlib import Path
+import sys
+import tempfile
+import threading
+import unittest
+
+from hypothesis import given, strategies as st
+
+SPEC = importlib.util.spec_from_file_location("runtime_soak", Path(__file__).resolve().parents[1] / "slice130_soak.py")
+soak = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(soak)
+
+
+def observation(**updates):
+    return dict({"schema": "fathomdb.cuda-pool-observation/v1", "status": "private",
+                 "pid": os.getpid(), "uuid": "actual-device", "device_ordinal": 0,
+                 "context_id": "18446744073709551615", "pool_id": "actual-pool",
+                 "live_models_before": "2", "live_models_after": "2",
+                 "used_current_bytes": "1048576", "reserved_current_bytes": "67108864"}, **updates)
+
+
+class ObservationControls(unittest.TestCase):
+    @given(st.integers(min_value=0, max_value=2**64 - 1))
+    def test_exact_u64_wire_round_trip(self, value):
+        raw = json.loads(json.dumps(observation(context_id=str(value), used_current_bytes=str(value))))
+        result = soak.adapt_observation(raw, "on", pid=os.getpid())
+        self.assertEqual(result["identity"]["context_id"], str(value))
+        self.assertEqual(result["private_used_bytes"], value)
+        self.assertEqual(result["raw_observation"], raw)
+
+    def test_first_close_rejects_smaller_but_positive_reservation(self):
+        before = soak.adapt_observation(observation(), "on")
+        after = soak.adapt_observation(observation(live_models_before="1", live_models_after="1"), "on")
+        soak.require_first_close(before, after)
+        after["private_reserved_bytes"] -= 1
+        with self.assertRaisesRegex(ValueError, "first close"):
+            soak.require_first_close(before, after)
+
+    def test_identity_and_partial_numeric_changes_are_refused(self):
+        expected = soak.adapt_observation(observation(), "on")["identity"]
+        for updates in ({"context_id": "1"}, {"pool_id": "other"}, {"pid": os.getpid() + 1},
+                        {"used_current_bytes": None}, {"used_current_bytes": 9007199254740993},
+                        {"used_current_bytes": str(2**64)}, {"status": "lost"},
+                        {"live_models_after": "1"}):
+            with self.subTest(updates=updates), self.assertRaises(ValueError):
+                soak.adapt_observation(observation(**updates), "on", pid=os.getpid(), expected=expected)
+
+    def test_last_zero_wait_never_performs_extra_work_and_stops_at_five_seconds(self):
+        now = [0.0]
+        raw = observation(live_models_before="0", live_models_after="0")
+        expected = soak.adapt_observation(raw, "on")["identity"]
+        events = []
+        with self.assertRaises(TimeoutError):
+            soak.wait_for_zero(lambda: raw, events.append, expected=expected,
+                               clock=lambda: now[0], sleep=lambda seconds: now.__setitem__(0, now[0] + seconds))
+        self.assertEqual(now[0], 5)
+        self.assertEqual(events[-1]["elapsed_s"], 5)
+        self.assertTrue(all(event["raw_observation"] == raw for event in events))
+
+
+PEER = r'''
+import json, os, sys, time
+for line in sys.stdin:
+    operation = json.loads(line)["operation"]
+    if operation == "hang": time.sleep(20)
+    if operation == "early": sys.exit(7)
+    print(json.dumps({"ok": True, "operation": operation, "result": {"pid": os.getpid()}}), flush=True)
+    if operation == "close": sys.exit(int(sys.argv[1]))
+'''
+
+
+class ProcessControls(unittest.TestCase):
+    def worker(self, code=0, timeout=0.1):
+        err = tempfile.TemporaryFile()
+        worker = soak.Worker([sys.executable, "-u", "-c", PEER, str(code)], "/tmp", os.environ,
+                             err, threading.Event(), timeout)
+        self.addCleanup(err.close)
+        self.addCleanup(worker.reap)
+        return worker
+
+    def test_nonzero_exit_after_successful_close_reply_is_not_healthy(self):
+        worker = self.worker(9)
+        with self.assertRaisesRegex(RuntimeError, "exit after close: 9"):
+            worker.close()
+        self.assertEqual(worker.reap(), 9)
+
+    def test_timeout_and_early_exit_reap_owned_processes(self):
+        for operation, error in (("hang", TimeoutError), ("early", RuntimeError)):
+            worker = self.worker()
+            with self.subTest(operation=operation), self.assertRaises(error):
+                worker.request(operation)
+            self.assertIsNotNone(worker.reap())
+            self.assertIsNotNone(worker.process.poll())
+
+    def test_healthy_close_reaps_actual_zero_exit(self):
+        worker = self.worker()
+        self.assertEqual(worker.request("ready")["pid"], worker.process.pid)
+        self.assertEqual(worker.close(), 0)
+
+    def test_resource_stop_remains_unmeasured_with_real_cleanup_signal(self):
+        result = {"sdk": "node", "pool_mode": "on", "exit_code": -15,
+                  "aborted": "MemAvailable floor", "abort_kind": "resource", "samples": []}
+        self.assertEqual(soak.evaluate_arm(result)["status"], "UNMEASURED")
+
+
+if __name__ == "__main__":
+    unittest.main()

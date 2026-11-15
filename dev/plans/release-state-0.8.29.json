@@ -213,9 +213,9 @@
         "dev/plans/0.8.29/features/slice-30/continuation-gd.md",
         "dev/plans/0.8.29/features/slice-30/continuation-m.md"
       ],
-      "phase": "MEASUREMENT_TOOLING_IMPLEMENTED_REVIEWED_COMBINED_SOURCE_GATE_PENDING",
+      "phase": "MEASUREMENT_TOOLING_SOURCE_QUALIFIED_SCIENTIFIC_CAMPAIGNS_PENDING",
       "plan_sha": "bea7f05cd2497af0d73c6eb8da509e11a947ca08",
-      "conditions": "P and11 actual G cases are qualified;73 required G obligations remain unsatisfied. G source0fa is frozen and assembled-qualified; runtime stages need fresh technical GO. M256 tooling is integrated and assembled-qualified. D41bae native schedules/capture/reporting, owned supervision, guarded CLI, one-reviewed-quartet continuation and inherited-setting refusal are implemented and independently accepted. One current combined owned source gate remains before new tooling qualification. All84G/46M/24D defaults/cells remain; expanded profiles are inactive and unknown costs refuse. TC5 static input and.29 parser binding are resolved; F runtime, whole20/40/50/pre90/100Q1 remain open.",
+      "conditions": "P and11 original G cases are qualified;73 required G obligations remain unsatisfied. Integrated M/D/F tooling and current-pin110 policy have accepted assembled b466 source qualification; scientific G/M/D/F campaigns remain pending. First four-cell closed-copy calibration stopped after one unqualified cell: native completed but requestedauto violated manifestcuda:0; three cells held. All original results/charges remain. Reviewed RED/GREEN92f6f450 repairs validated device/offline policy propagation;14 distinct affected tests pass. Corrected baseline runtime requires separate source/budget/readiness GO; no qualifier or cap relaxation. All84G/46M/24D targets remain; expanded profiles inactive. TC5 static pack and.29 parser binding are resolved; whole20/40/50/pre90/100Q1 remain open.",
       "evidence": "G source0fa retains assembled acceptance,11 qualified/73 required cap refusals and inactive expanded profiles. Current M source256375d4b6a9ce0a54a06876d2df1373615ab67c is integrated at e6cbc956954d29137059fb5df32bc78ba863eecd after independent Astra ACCEPT: merged current release, rebuilt providerfree CLI/helper, then passed Pages20/20,Tegra45/45,exact2 previously failed guardian controls and2 previously unrun dispatch controls. Dispatch exercises actual rebuilt search/fetch in both formats with literal hit/body/error oracles. Original223/220/3 interrupted-wrapper history is retained; this is assembled qualification, not a new uninterrupted full gate. Both guardians finalized samples and collected all owned actors. Historical Python/NAPI subjects were not loaded or retagged. D accepted5edb capture/report/transport and5cf6 main entry have actual RED/GREEN; process2068 passes3 frozen owned-child controls, pending final coherent review/integration. Fixed24 allocation connection/source qualification remains. No actual D/M/F scientific campaign or whole30 closure. TC5 pack is statically qualified; candidate runtime remains pending.",
       "qualified_subset_sha": "2fd772558e46d0b1645dce2ffea730d0bdd3305c",
       "continuation_plan_sha": "0d8be5bb75516955ebf99b94913b9b54921bb3a4",
@@ -539,6 +539,21 @@
         "source_sha": "b466d556adea67834fc4a39399d9ff470f0e485e",
         "evidence": "Original a91 wrapper stopped at module-boundary lint. Mechanical1f2 correction preserved test bodies; canonical suffix passed lint/typecheck/strict security and ran226 suites:211 passed,15 failed. Reviewed b466 source fixes and actual owned Python/TS-NAPI refresh followed by exactly15 failed suites plus3 previously masked bodies:18/18 passed,0 skipped/excluded. Independent Astra ACCEPT; all guardians terminal with strict final samples and empty-boundary cleanup. Earlier failures retained. Assembled qualification, not uninterrupted full-wrapper green. AC036 real strace passed; AC037 retains standard unavailable-live-netns downgrade with passing offline enforcement. Scientific matrices, GPU/fork safety, Windows20 and Block1 smoke remain separate.",
         "raw_results": "/mnt/data/tmp2/fathomdb-0829-continuation/slice30-m-source-20261114/logs"
+      },
+      "g_policy_repair": {
+        "sha": "92f6f450725ea74f8ff368df7a4dc80b760d2e15",
+        "status": "IMPLEMENTED_REVIEWED_INTEGRATED_AFFECTED_QUALIFIED",
+        "evidence": "Independent Astra design and implementation ACCEPT. SemanticRED7f1eb8d1f proves absent/conflicting child environment; three validated-controller assignments restore forced device/offline contract.14 distinct affected unittest methods/Ruff pass; original4 S30_TASK operator setup errors retained with4/4 corrected resumptions. No GPU/runtime qualification follows."
+      },
+      "g_calibration_first_attempt": {
+        "source_sha": "0fa61810bcd5c348b23d0ae89206ae3b3033366e",
+        "root": "/mnt/data/tmp2/fathomdb-0829-continuation/slice30-g-20261113/gd-allocation/g-closed-calibration-v1",
+        "status": "FIRST_CELL_UNQUALIFIED_THREE_PREREQUISITE_HOLDS",
+        "evidence": "Native completed500warmups/1000samples with831 positive own-PID GPU observations, but requestedauto violates requiredcuda:0. Qualification correctly refused; no reinterpretation/retry. Report incomplete. All guardians/actors terminal, exact empty boundaries removed, FD9 released without resource/cleanup uncertainty.",
+        "shared_used_ns": 1990792564230,
+        "common_used_ns": 13517083314,
+        "retained_bytes": 2968786363,
+        "inflight": null
       }
     },
     {

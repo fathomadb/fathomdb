@@ -387,7 +387,7 @@
         "latest_custody": "Original seed subject d9b8/eb4da153 preserved. Subsequent29de/4fb7 read-only assessment is complete with verified closes, all actors absent and cooperative claim released. Future M must verify closed packaging and pin its selected input before making owned copies."
       },
       "g_remaining_plan_sha": "53c81a0155738b4477fcd931d119c976d5d50c66",
-      "g_remaining_design_review": "Astra-medium PASS: strict six-reference seed→branch→base reuse via existing normal full84 entry, unchanged ordering/caps/token/qualification. R1 remains fresh; no waiver. One callable semantic RED plus actual harmless schedule/resume controls before minimal GREEN. No new owner ruling required for this implementation scope.",
+      "g_remaining_design_review": "Astra-medium PASS: strict six-reference seed\u2192branch\u2192base reuse via existing normal full84 entry, unchanged ordering/caps/token/qualification. R1 remains fresh; no waiver. One callable semantic RED plus actual harmless schedule/resume controls before minimal GREEN. No new owner ruling required for this implementation scope.",
       "g_residual_source_verification": {
         "source_sha": "bfe03918dda8262891086a9ae532a8fd68950e19",
         "documentation_sha": "04c8306389067de45884c42a4e4c56d7ff10f633",
@@ -544,7 +544,7 @@
       ],
       "conditions": "Accepted bounded artifact amendment consumes qualified Linux20/A3/A5 and named accepted30P/G read artifacts, not whole20/30, WindowsA6, M/D/F or TC5. Adoption still requires affected write-interleaved baseline, exact snapshot/invalidation or batch-invariance proof, bounded ownership, prospective tolerances and paired treatment qualification. No treatment selected; the real hybrid opportunity stays open. Whole40 closure by rejection/defer requires an actual owner disposition; none is recorded.",
       "phase": "MEASUREMENT_DECISION_AND_ARTIFACT_DEPENDENCIES_REVIEWED_ADOPTION_HELD",
-      "evidence": "Independent Astra-medium PASS on current measurement table, plan and acceptance amendment. Raw matching first50 G-O observations across200hybrid calls confirm direct-eligibility SQL48.336–49.223ms/~31.994–32.439% of enclosing observed API spans, not canonical ordinary-run latency. Presence is already once/call and small; existing batch hoists get no invented saving. Residual/source-bearing/write costs and safety remain unmeasured/unproved. No cache source/runtime, owner deferral or whole40 closure."
+      "evidence": "Independent Astra-medium PASS on current measurement table, plan and acceptance amendment. Raw matching first50 G-O observations across200hybrid calls confirm direct-eligibility SQL48.336\u201349.223ms/~31.994\u201332.439% of enclosing observed API spans, not canonical ordinary-run latency. Presence is already once/call and small; existing batch hoists get no invented saving. Residual/source-bearing/write costs and safety remain unmeasured/unproved. No cache source/runtime, owner deferral or whole40 closure."
     },
     {
       "slice": 50,
@@ -689,7 +689,7 @@
         "dev/plans/0.8.29/features/slice-90/status.md",
         "dev/plans/0.8.29/features/slice-90/test-map.md"
       ],
-      "conditions": "Approved80 AND actual Block1 follow-up exit after integrated selected20–70;160 is not that exit. Block1 exit is not a slice: the Slice90 owner runs it as90's pre-source entry step on the integrated root baseline; complete when applicable full/feature/performance checks, both-format conformance with inherited failures resolved and the approved smoke/item-4 remeasure (Slice160 Q12 content) have real results there, recorded by the parent in this slice's evidence.20,50,60,70 enter it closed;40 closed or by authorized rejection/defer.",
+      "conditions": "Approved80 AND actual Block1 follow-up exit after integrated selected20\u201370;160 is not that exit. Block1 exit is not a slice: the Slice90 owner runs it as90's pre-source entry step on the integrated root baseline; complete when applicable full/feature/performance checks, both-format conformance with inherited failures resolved and the approved smoke/item-4 remeasure (Slice160 Q12 content) have real results there, recorded by the parent in this slice's evidence.20,50,60,70 enter it closed;40 closed or by authorized rejection/defer.",
       "phase": "BOUNDED_DESIGN_REVIEWED_SOURCE_HELD",
       "evidence": "Astra-medium bounded early design PASS after FIX1: installed Python/TS semantic REDs precede corresponding shared converter GREEN; aggregate count/byte/fraction transport is distinct from numeric profile.dimension. Actual integrated predecessors, approved80 and the real Block1 follow-up exit precede source work. No90-to160 cycle, implementation authority or completion follows this review."
     },
@@ -732,8 +732,9 @@
         "dev/plans/0.8.29/features/slice-110/test-map.md"
       ],
       "conditions": "Seq376 selects quiescent completed-construction policy with frozen residue/restart and unknown opaque-host-byte bound. Seq377 defers actual reset execution to.30: .29 source/seam repair qualification remains required, no live survival/Orin-defect closure claim. Required fork repair design ->140 fork-local qualification ->110 pin adoption; no closure cycle. The narrow existing-API PrivateDecision first-loss publication/refusal/diagnostic policy subset can proceed before new pins; actual tracked token/pool integration remains conditional on qualified140.",
-      "phase": "CURRENT_PIN_POLICY_PLAN_REVIEWED_TDD_STARTED_FORK_WIRING_HELD",
-      "evidence": "Astra design PASS retained. Owner seq376 selects policy and .30 reconsideration; seq377 holds actual Orin/3090 child reset execution for.30. No source implementation or safe-teardown proof yet. Unexecuted live reset cells are explicitly deferred, never PASS; original defect remains unqualified. Current-source fit and design87edb311eff58f3c9c65dfc312ecb12f36809c74 received independent Astra ACCEPT in an isolated policy checkout. Two current-production-seam REDs are observed: established typed loss was forgotten before later OOM, and concurrent callers returned different detection records. Publication/classification implementation is in progress on existing APIs; first-terminal-OOM token observation, tracked pools/default devices and native descendant integration remain blocked on qualified140. No whole110 or original Orin-defect closure is claimed."
+      "phase": "CURRENT_PIN_POLICY_IMPLEMENTED_REVIEWED_INTEGRATED_TRACKED_FORK_WIRING_PENDING",
+      "evidence": "Independent Astra-medium ACCEPT8247; integrated at12a3e64403d1e0345d2696ab9af3dd9a6dd90a2f. Five current-pin production-seam behaviors have actual RED/GREEN: preserve first typed loss before later OOM; publish one winning loss record across concurrent callers; refuse new private construction after known loss; report unavailable pool counters as null without native reads; and refuse known-lost last-model native cleanup while draining Rust counts. All98 CPU policy module tests pass, with affected controls and crate Clippy. This is partial source acceptance, not full-workspace or actual CUDA/Orin qualification. Qualified140 tracked token/pool/default-device/model wiring and affected installed healthy controls remain required. First terminal OOM needs the fork cached-token API. Seq376 policy/frozen residue remains; seq377 moves real reset execution to.30. No reset-survival or original-defect closure claim.",
+      "qualified_subset_sha": "8247f11056bc2deb3e0c6ec0472abbd4b217e857"
     },
     {
       "slice": 120,

@@ -3,6 +3,12 @@ use fathomdb_embedder_api::Embedder;
 #[path = "slice30_d_measure/provider.rs"]
 mod provider;
 #[cfg(test)]
+#[path = "slice30_d_measure/schedule.rs"]
+mod schedule;
+#[cfg(test)]
+#[path = "slice30_d_measure/schedule_tests.rs"]
+mod schedule_tests;
+#[cfg(test)]
 #[path = "slice30_d_measure/workload.rs"]
 mod workload;
 use provider::VaryingEmbedder;

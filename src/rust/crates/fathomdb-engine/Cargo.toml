@@ -951,3 +951,7 @@ required-features = ["slice30-observer", "test-hooks"]
 [[test]]
 name = "slice30_d_state"
 required-features = ["slice30-observer", "test-hooks"]
+
+[[test]]
+name = "slice30_d_commit"
+required-features = ["slice30-observer", "test-hooks"]

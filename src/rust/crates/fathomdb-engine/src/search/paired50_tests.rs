@@ -128,3 +128,76 @@ fn eager_selector_materializes_losing_bodies_without_changing_record_results() {
     );
     engine.close().unwrap();
 }
+
+#[cfg(feature = "slice30-observer")]
+#[test]
+fn work_diagnostics_count_actual_bodies_and_utf8_bytes_per_operation() {
+    let _serial = SERIAL.lock().unwrap();
+    let _restore = Restore(std::env::var_os(SELECTOR));
+    let directory = tempfile::tempdir().unwrap();
+    let engine =
+        Engine::open_with_embedder_for_test(directory.path().join("work.sqlite"), Arc::new(Fixed))
+            .unwrap()
+            .engine;
+    engine.configure_vector_kind_for_test("doc").unwrap();
+    engine
+        .write(&[
+            node(0, "note", "needle café".into()),
+            node(1, "note", "needle 梨".into()),
+            node(2, "doc", "needle vector".into()),
+        ])
+        .unwrap();
+    engine.drain(10_000).unwrap();
+    let guard = engine.begin_slice30_observation(128).unwrap();
+    let mut previous = None;
+    for (operation, mode, expected) in [
+        (
+            71,
+            "0",
+            serde_json::json!({"route":"winner_hydration", "lightweight_rows":3, "vector_bodies":1, "vector_body_bytes":13, "fts_bodies":1, "fts_body_bytes":12}),
+        ),
+        (
+            72,
+            "1",
+            serde_json::json!({"route":"eager_text_identity", "lightweight_rows":0, "vector_bodies":1, "vector_body_bytes":13, "fts_bodies":3, "fts_body_bytes":35}),
+        ),
+    ] {
+        unsafe { std::env::set_var(SELECTOR, mode) };
+        let result = guard
+            .with_operation(operation, || {
+                engine.search_reranked_view_with_limit(
+                    "needle",
+                    None,
+                    0,
+                    false,
+                    0.3,
+                    0,
+                    false,
+                    &ReadView::default(),
+                    2,
+                )
+            })
+            .unwrap();
+        assert_eq!(result.results.len(), 2);
+        if let Some(previous) = previous {
+            assert_eq!(result, previous);
+        }
+        previous = Some(result);
+        let batch = guard.take();
+        assert_eq!(batch.dropped_records, 0);
+        assert!(batch.issues.is_empty());
+        let work: Vec<_> =
+            batch.records.iter().filter(|record| record.phase == "slice50_work").collect();
+        assert_eq!(work.len(), 1, "actual materialization counts are unavailable");
+        assert_eq!(work[0].operation_id, operation);
+        assert_eq!(work[0].status, "ok");
+        assert_eq!(work[0].facts, expected);
+    }
+    engine.search_text_only("needle").unwrap();
+    assert!(
+        guard.take().records.is_empty(),
+        "unscoped work must not enter this operation's diagnostics"
+    );
+    drop(guard);
+    engine.close().unwrap();
+}

@@ -376,6 +376,8 @@ def main():
     """Build, freeze, run and report the exact bounded G campaign without implicit opt-in."""
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="action", required=True)
+    pair_report = commands.add_parser("pair-report")
+    pair_report.add_argument("root", type=Path)
     build = commands.add_parser("build")
     build.add_argument("--out", type=Path, required=True)
     freeze_parser = commands.add_parser("freeze")
@@ -404,7 +406,10 @@ def main():
     common.add_argument("config", type=Path)
     common.add_argument("output", type=Path)
     args = parser.parse_args()
-    if args.action == "build":
+    if args.action == "pair-report":
+        from g_pair import report as pair_summary
+        print(json.dumps(pair_summary(args.root)))
+    elif args.action == "build":
         from g_freeze import build_tools
         build_tools(args.out)
     elif args.action == "freeze":

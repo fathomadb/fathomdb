@@ -170,7 +170,7 @@ def load_config(path: str | Path) -> Tc5GpuConfig:
     if (
         document["schema_version"] != "tc5-gpu-execution.v2"
         or document["program_track"] != "SCALE-01"
-        or document["release"] not in {"0.8.23", "0.8.25", "0.8.26", "0.8.28"}
+        or document["release"] not in {"0.8.23", "0.8.25", "0.8.26", "0.8.28", "0.8.29"}
         or document["arms"] != {"bridge": 7667, "primary": 17272}
         or document["claim_boundary"] != "fidelity_and_uncertainty_only"
         or not isinstance(measurement, dict)
@@ -222,6 +222,7 @@ def load_config(path: str | Path) -> Tc5GpuConfig:
             "0.8.25": {"0.8.24"},
             "0.8.26": {"0.8.26"},
             "0.8.28": {"0.8.27", "0.8.28"},
+            "0.8.29": {"0.8.29"},
         }[document["release"]]
         if (
             not isinstance(candidate, dict)

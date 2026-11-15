@@ -182,8 +182,8 @@ new initial features receive mod10 numbers and explicit placement.
 | 50 | Fusion identity ADR/census, exact deferred-content text route and Unicode-safe record-start snippets | 30 baseline; accepted identity semantics before optimized production route | [Fusion/text](0.8.29/features/slice-50/plan.md) |
 | 60 | MCP compact text default and structured mode, flags, filtered direct text search, budgets/paging/errors | Existing .28 filter/flag support and reconciled accepted surface design; final parity on integrated fusion | [MCP surface](0.8.29/features/slice-60/plan.md) |
 | 70 | Remaining degradation labels, facade/SDK/native parity and UTF-8 contracts | Current failed-open contract and reviewed bounded reason scope | [Degradation/SDK](0.8.29/features/slice-70/plan.md) |
-| 80 | Unified residual Block 2 requirements/design, built-signal inventory, truthful coverage/scored spans | Built hints/queue/span storage; settle compact, identity and degradation field contracts before approval | [Block 2 design](0.8.29/features/slice-80/plan.md) |
-| 90 | Implement only accepted B2 residuals; preserve existing signals | Approved 80 AND Block 1 follow-up exit below | [Block 2 build](0.8.29/features/slice-90/plan.md) |
+| 80 | Unified residual Block 2 requirements/design, built-signal inventory, truthful coverage/scored spans | Closed10/70 and named settled60/50 contracts, owner acceptance and reviewed source fit; design-only closure | [Block 2 design](0.8.29/features/slice-80/plan.md) |
+| 90 | Implement only accepted B2 residuals; preserve existing signals | Closed50/60/70 and approved80 AND actual Block1 follow-up exit below | [Block 2 build](0.8.29/features/slice-90/plan.md) |
 | 100 | Reconcile and complete bounded interruption/reopen qualification of current erasure transaction/checkpoint seams | Current format37 cleanup/maintenance contract; existing coverage comparison | [Interruption](0.8.29/features/slice-100/plan.md) |
 | 110 | Selected quiescent context-loss lifetime remedy and source/seam qualification; actual reset tests deferred to .30 | Seq376 policy and seq377 execution disposition; qualified required fork fix before pins | [Reset safety](0.8.29/features/slice-110/plan.md) |
 | 120 | Bounded usage review accepted; new CUDA13 delivery/compiler work deferred to .31 | Seq378–379; no .29 new-artifact or compiler-clearance claim | [CUDA artifact disposition](0.8.29/features/slice-120/plan.md) |
@@ -424,4 +424,4 @@ separately authorized.
 <!-- BEGIN GENERATED release-state:0.8.29:plan-immediate-next -->
 **IMMEDIATE NEXT: Slice 30** (`MEASURE`) — Current source-bound baseline and tracked AC083 measurements
 
-**Remaining ladder:** 30 → 20 → 40 → 50 → 60 → 80 → 90 → 100 → 110 → 130 → 140 → 150 → 160.<!-- END GENERATED release-state:0.8.29:plan-immediate-next -->
+**Remaining ladder:** 30 → 20 → 40 → 50 → 60 → 90 → 100 → 110 → 130 → 140 → 150 → 160.<!-- END GENERATED release-state:0.8.29:plan-immediate-next -->

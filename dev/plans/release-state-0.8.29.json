@@ -213,10 +213,10 @@
         "dev/plans/0.8.29/features/slice-30/continuation-gd.md",
         "dev/plans/0.8.29/features/slice-30/continuation-m.md"
       ],
-      "phase": "G_SOURCE_QUALIFIED_M_PENDING_D_ACCOUNTING_TDD",
+      "phase": "MEASUREMENT_SOURCE_SUBSETS_QUALIFIED_CAMPAIGNS_PENDING",
       "plan_sha": "bea7f05cd2497af0d73c6eb8da509e11a947ca08",
       "conditions": "P and11 actual G primary cases are qualified;73 required G primary obligations remain unsatisfied. Closed-copy G source0fa is independently accepted and assembled-qualified; calibration/R1/write stages need their separate fresh technical GO. M sourced942 has implementation ACCEPT but needs actual integrated-base reconciliation and final qualification. D scoped design PASS/tests staged; no runtime RED or measurement GO. All84G/46M/24D cells and defaults remain; candidate caps are inactive, unknown costs remain held. F input, whole20/40/50/pre90/100Q1 remain open.",
-      "evidence": "P tools and measured Linux direct-text subset at2fd772558 passed fresh independent Astra-medium final P review on clean documentation0d8be5bb;16grouped genuine RED/GREEN units and invalid124 fixture history remain explicit.16/16 frozen first-attempt cells complete,20000successful timed natural calls,zero errors/noisy cells/retries/resource stops. Unfiltered100k P1 p50 27.184-27.509ms/p99 106.911-107.682ms is below tracked nongated80/300; filtered P2 is not AC083. Parent independently checked hashes/raw counts/percentiles/means; Astra checked batch/probe/match identities. Qualification is assembled from original1f214/216 plus actual affected reruns; original SC2312/Pages/MD012 failures and inner skips retain subjects. Production native receipt remains1f with unchanged relevant inputs; normal release measurement executable was built and run at2fd. See features/slice-30/results-p.md,execution.md and review-log.md. No model/GPU/MCP/frozen-fidelity or whole-slice/release completion follows. Child D numeric and six commit-phase controls have actual RED/GREEN, including b76273b3e phase GREEN. Actual success-accounting9b93fb11c RED\u21927af88ccdb GREEN passes; forced rollback72fd25183 RED preserves physical/pending state and retry before missing-observation failure. Rollback GREEN and coherent review are in progress; no D scientific campaign or whole30 exit follows.",
+      "evidence": "G closed-copy source tooling0fa61810 has independent acceptance and assembled qualification; actual G remains11 qualified/73 required cap refusals and expanded profiles remain inactive. M current-source qualification must reconcile integrated903 before affected native refresh; original220/223 passes,3 failures and guardian observation gap remain historical. D numeric/phases/success/rollback66b199366 and exact-overlap classifiere848d9e0 have Astra acceptance; deterministic768d providerb0a4dd9c and real2/1001-row seedb9d681a0 have actual RED/GREEN and focused passes. Ordinary streams/schedules/reporting/fixed24 driver and final D qualification remain unfinished. No actual D/M/F campaign or whole30 closure. Owner TC5 input pack is statically qualified; candidate runtime remains pending.",
       "qualified_subset_sha": "2fd772558e46d0b1645dce2ffea730d0bdd3305c",
       "continuation_plan_sha": "0d8be5bb75516955ebf99b94913b9b54921bb3a4",
       "g_design_review": "Independent Astra-medium FIX1 PASS plus actual20 fit PASS; all G/D contracts unchanged,40 file pins/13 subtrees/44 Cargo manifests verified at f803a964. See continuation-gd.md and review-log.md.",
@@ -563,9 +563,9 @@
         "dev/plans/0.8.29/features/slice-50/review-log.md",
         "dev/plans/0.8.29/features/slice-50/test-map.md"
       ],
-      "conditions": "Astra-medium PASS on named-artifact entry: closed10 plus qualifiedLinux451, acceptedP2fd results and G29de assessment(11qualified/73refused), selected374/375contracts and source/consumercensus. Whole30/M/D/F/Windows/privateMemexsnapshot are not source-entry prerequisites. Exact current-input fit, genuine TDD and implementation review remain; optimizations need exactness/work/paired evidence, no runtime/whole30 gate waived.",
-      "phase": "IDENTITY_FEEDBACK_AND_HYDRATION_CHILD_UNITS_REVIEWED_PREFIX_PENDING",
-      "evidence": "Owned llm/0.8.29-s50-20261114 has actual identity872dd2234\u21923632f9739, ambiguous feedback fac56bcb7\u219292e4a1c17 and bounded full-rank hydration eb464dd5c\u2192b845c08d6 RED/GREEN. Fresh Astra accepted identity and feedback. Hydration review found losing ownerless malformed-value error parity; actual13faa57d4 RED and borrowed validation63d9dd285 GREEN close it, same Astra ACCEPT. Five malformed cases and unchanged allocation ceiling pass. Prefix work, final source/ML/binding/performance qualification and root integration remain; whole50 is open.",
+      "conditions": "Astra-medium PASS on named-artifact entry: closed10 plus qualifiedLinux451, acceptedP2fd results and G29de assessment(11qualified/73refused), selected374/375contracts and source/consumercensus. Whole30/M/D/F/Windows/privateMemexsnapshot are not source-entry prerequisites. Ordinary source implementation, exactness/work controls and independent review are integrated at9036507bc. Current paired measurement and affected feature/performance acceptance remain; no runtime/whole30 gate is waived.",
+      "phase": "SOURCE_IMPLEMENTED_QUALIFIED_INTEGRATED_MEASUREMENT_PENDING",
+      "evidence": "Integrated9036507bc98ef31c05ae334aa22ec5101323c7e7 after genuine separate identity, atomic ambiguous-feedback, complete-rank winner-hydration and bounded-prefix RED/GREEN units and fresh Astra-medium acceptance. Original full verification stopped on strict du observation timeout before Rust tests; stale derived source inventory was repaired with the unchanged8-test guard. Canonical19-suite unfinished tail ran18:17 passed,1 observer failure,1 explicit G-live skip,0 exclusions. Rust workspace, Python/native and TS/hermetic NAPI passed. Frozen observer failure was corrected by attributing the existing real winner hydration outside fusion;24 affected functions, changed-engine lint/typecheck/Markdown and rebuilt current-source Python/NAPI parity passed. Final Astra accepted903 and assembled ordinary source verification. No uninterrupted full-wrapper pass, final Rust body-count reconstruction, actual-model/GPU/performance, live-G or whole50 completion is claimed. R6 current paired measurements and Block1 acceptance remain open.",
       "census_access_review": {
         "reviewed_sha": "1032a826d25440d24ea492e6bb3a8c1f2034359f",
         "verdict": "Independent Astra PASS on actual existing-census-doc correction.",
@@ -579,7 +579,8 @@
         "date": "2026-11-14",
         "reviewed_documents_sha": "9e3293342a9380e6236d8cfeeb4970d77007a3b8",
         "scope": "Entry-only dependency replacement with actual source comparison; not implementation/optimization/runtime/release qualification."
-      }
+      },
+      "qualified_subset_sha": "9036507bc98ef31c05ae334aa22ec5101323c7e7"
     },
     {
       "slice": 60,
@@ -597,8 +598,8 @@
         "dev/plans/0.8.29/features/slice-60/test-plan.md",
         "dev/plans/0.8.29/features/slice-60/review-log.md"
       ],
-      "phase": "QUALIFIED_MCP_SUBSET_INTEGRATED_F11_RULED_IMPLEMENTATION_PENDING",
-      "evidence": "Implemented format/direct-filter/budget subset integrated at5271c1bf022f0ea22f95f7433e226feb2315043e after genuine runtime RED/GREEN and fresh independent Astra-medium implementation PASS. Assembled qualification:214/214 canonical suites passed; native ignored/skipped cases and original307 wrapper failure remain explicit. Runtime inputs match tested7038; source-bound production lifecycle, nonce-bound child identity, retained logs and supplemental post-code GPU metadata proof are recorded in features/slice-60/execution.md and review-log.md. F11 boundary selected by seq375; actual historical-flags/feedback implementation and review remain pending: no whole60/20/Block1 or release closure. Child50 feedback correction92e4a1c17 now has15 focused passes and fresh Astra ACCEPT; root integration and whole60 closure remain pending.",
+      "phase": "QUALIFIED_MCP_AND_FEEDBACK_SUBSETS_INTEGRATED_EXIT_PENDING",
+      "evidence": "Implemented format/direct-filter/budget subset integrated at5271c1bf022f0ea22f95f7433e226feb2315043e after genuine runtime RED/GREEN and fresh independent Astra-medium implementation PASS. Assembled qualification:214/214 canonical suites passed; native ignored/skipped cases and original307 wrapper failure remain explicit. Runtime inputs match tested7038; source-bound production lifecycle, nonce-bound child identity, retained logs and supplemental post-code GPU metadata proof are recorded in features/slice-60/execution.md and review-log.md. The seq375 feedback boundary is now implemented; historical-flag residuals require fresh source/local-acceptance reconciliation: no whole60/20/Block1 or release closure. Atomic feedback correction92e4a1c17 is now integrated in qualified source9036507bc, with15 focused controls and independent acceptance plus assembled ordinary source verification. Whole60 exit must be reconciled against its local acceptance and remaining Block1-owned checks; no90 residual implementation is inferred.",
       "qualified_subset_sha": "5271c1bf022f0ea22f95f7433e226feb2315043e",
       "hints_gate_followup": {
         "plan_review_sha": "069f9d0e40421333de95145d51255e2786cf25f3",
@@ -638,11 +639,10 @@
       "short": "B2-DESIGN",
       "title": "Residual Block2 contract design",
       "depends_on": [
-        50,
-        60,
+        10,
         70
       ],
-      "status": "IN_PROGRESS",
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
       "design_refs": [
         "dev/plans/0.8.29/features/slice-80/acceptance.md",
         "dev/plans/0.8.29/features/slice-80/census.md",
@@ -655,20 +655,24 @@
         "dev/plans/0.8.29/features/slice-80/status.md",
         "dev/plans/0.8.29/features/slice-80/test-map.md"
       ],
-      "conditions": "Full concrete contract independently reviewed and owner accepted (seq384). Reconcile integrated50 ownership/feedback implementation before closure; actual selected20\u201370 Block1 follow-up exit and integrated source fit still precede90. No migration or private-snapshot gate.",
-      "phase": "UPDATED_CONTRACT_ASTRA_PASS_OWNER_ACCEPTED_SOURCE_FIT_PENDING",
-      "evidence": "Reviewed nine-document contract f2f4831554ae165420a31890cf102642ce28b21d integrated after fresh Astra-medium PASS and owner seq384. Exact selected-owner/original-vector scored_bytes contract and unchanged aggregate-v2 retained. Reviewed50 identity/feedback implementation units are not yet integrated or whole-slice qualified; no90 implementation or Block1 exit claimed.",
+      "conditions": "Design-only closure: owner-accepted full contract f2f4831/seq384; qualified60 format/accounting subset5271c1bf; reviewed50 source f74 with actual source fit2ed2d41 and integrated qualified source9036507bc; fresh Astra acceptance of source fit and artifact dependencies. Whole50/60 qualification, root integration and the actual Block1 follow-up exit remain hard implementation90 conditions; no migration/private-snapshot gate.",
+      "phase": "DESIGN_ACCEPTED_SOURCE_FIT_REVIEWED_COMPLETE",
+      "evidence": "Design artifact8432acd9db200422e4284d71169c527c439df67a contains accepted source-fit/dependency revision2ed2d41a9191c3b003d57ecc87445aef5d3e1a7e and the unchanged owner-approved full contract. Independent Astra found no blocker in actual record-key/fusion/CE/snippet/feedback seams. Metadata attaches after lexical snippet selection before finish; separate evidence API remains snippets=None. Original vector-key capture, scored field, coverage/cache and typed diagnostics remain90 implementation. Astra confirmed relocating predecessor closure edges directly to90=[50,60,70,80], preserving actual integrated Block1 qualification/conformance/smoke. This closes80 design only, with no runtime/ABI/90 implementation or release-readiness claim.",
       "contract_acceptance": {
         "source": "dev/steward/steward-ledger.jsonl seq-384",
         "reviewed_sha": "f2f4831554ae165420a31890cf102642ce28b21d",
         "verdict": "Owner accepted full concrete contract after independent Astra-medium PASS; not90source/Block1/runtimequalification."
-      }
+      },
+      "sha": "8432acd9db200422e4284d71169c527c439df67a"
     },
     {
       "slice": 90,
       "short": "B2-BUILD",
       "title": "Accepted residual Block2 implementation",
       "depends_on": [
+        50,
+        60,
+        70,
         80
       ],
       "status": "NOT_STARTED",
@@ -788,8 +792,8 @@
         "dev/plans/0.8.29/features/slice-140/test-map.md"
       ],
       "conditions": "Concrete required110 or independently required existing.29 artifact repair only, fork-local qualified before product pins; B/C maintenance belongs.30. New120 CUDA13 delivery/compiler/affected repair work belongs.31 by seq378 and cannot create a.29 repair gate. Consumes reviewed repair design, not110 closure; no-repair disposition requires actual evidence.",
-      "phase": "FORK_A_INCREMENTAL_TDD_SOURCE_IMPLEMENTATION",
-      "evidence": "Owned coreyt/cudarc worktree llm/0.8.29-cudarc-reset-20261114 has actual separate RED/GREEN commits for BLAS/RNG partial construction and nonpanicking cleanup, sticky shared loss, inactive/replaced primary probes, cached diagnostic formatting and failed-probe refusal. Astra accepted cleanup through aa421f59 and shared/probe bundle through b9f6bfa; later diagnostic/query bundle through9d34a16 remains for review. Anchor/admission/nested resource coverage, fork qualification, Candle consumption and Fathom pin adoption remain unfinished. No real reset, registry publication or whole140 qualification claimed."
+      "phase": "FORK_A_LIFETIME_ADMISSION_SOURCE_IMPLEMENTED_CLEANUP_PENDING",
+      "evidence": "Owned coreyt/cudarc branch has genuine RED/GREEN cleanup, sticky-loss, inactive/replaced/error-probe, cached-diagnostic, shared-anchor, constructor and admission units. Fresh Astra accepted cleanupaa421, shared probesb9f6, anchor/diagnosticd54b and factory/admission53302e8. Bound bind integrationba5d4cb follows actual extra-probe RED0740d7a; exact and affected controls pass. Tracked child constructors, reachable nested cleanup, pools, fork qualification, Candle/product adoption and pins remain unfinished. Native release is only the separately tested balanced-primary-anchor exception. No actual reset, new CUDA13, publication or whole140 qualification."
     },
     {
       "slice": 150,
@@ -849,7 +853,6 @@
     40,
     50,
     60,
-    80,
     90,
     100,
     110,

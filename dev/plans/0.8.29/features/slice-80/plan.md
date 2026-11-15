@@ -1,6 +1,6 @@
 ---
 title: Slice 80 unified residual Block 2 design
-status: DESIGN_REVIEWED
+status: COMPLETE
 target_release: 0.8.29
 slice: 80
 ---
@@ -44,7 +44,7 @@ Stage2 hints/default placement remains150.
    `2ed2d41a9191c3b003d57ecc87445aef5d3e1a7e`. Selected source is integrated at
    `9036507bc98ef31c05ae334aa22ec5101323c7e7`, including atomic F11 refusal.
    The source/consumer census and real SQLite fixtures supply correctness,
-   without a private-snapshot gate. The design dependency amendment is reviewed;
+   without a private-snapshot gate. The design dependency amendment is adopted;
    canonical closure preserves the full Block1 and predecessor gates into90.
 3. Before90, record the separate actual Block1 follow-up exit after integrated
    selected20–70 and applicable checks/conformance/smoke. Selected TC5 input pack

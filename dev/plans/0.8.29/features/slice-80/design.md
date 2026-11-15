@@ -1,6 +1,6 @@
 ---
 title: Slice 80 bounded residual design
-status: DESIGN_REVIEWED
+status: COMPLETE
 target_release: 0.8.29
 slice: 80
 ---

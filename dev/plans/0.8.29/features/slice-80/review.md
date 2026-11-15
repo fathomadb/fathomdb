@@ -1,6 +1,6 @@
 ---
 title: Slice 80 bounded review and consolidation record
-status: DESIGN_REVIEWED
+status: COMPLETE
 target_release: 0.8.29
 slice: 80
 ---
@@ -38,7 +38,7 @@ completed70 e875 already settle the format/budget and reason contracts. Nothing
 in R1–11/A1–10 requires a fresh performance result to choose these design fields;
 future behavior/work oracles and qualification remain with implementation.
 
-**Accepted by independent Astra-medium review at revision2ed2d41a; ready for parent adoption:** replace
+**Accepted by independent Astra-medium review at revision2ed2d41a; adopted by the parent in canonical release state:** replace
 80's broad whole-slice depends_on=[50,60,70] with depends_on=[10,70] and explicit
 named-artifact conditions: owner-accepted f2f contract/seq384; qualified60
 subset5271 format/accounting contract; actual50 f74 identity/feedback source fit;
@@ -55,4 +55,4 @@ full/feature/performance checks, both-format conformance and approved smoke/item
 remeasure have real integrated-root results.160 cannot substitute. The unanswered
 smoke fixture remains a genuine pre90 input. The same reviewer confirmed direct
 90 depends_on=[50,60,70,80] preserves the closure gates removed from80.
-Canonical state adoption remains parent-owned; this is design-only completion.
+Canonical state records this design-only completion; implementation90 remains gated.

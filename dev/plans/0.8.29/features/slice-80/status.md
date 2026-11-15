@@ -1,6 +1,6 @@
 ---
 title: Slice 80 consolidated v2 documentary status
-status: DESIGN_REVIEWED
+status: COMPLETE
 target_release: 0.8.29
 slice: 80
 ---
@@ -19,11 +19,11 @@ coverage reads/cache and typed membership diagnostics remain accepted90 work.
 Independent Astra-medium review accepted source-fit revision
 `2ed2d41a9191c3b003d57ecc87445aef5d3e1a7e` and the
 [dependency amendment](review.md#design-closure-dependency-amendment). The design
-artifact is ready for canonical state closure on preparation10, completed70 and
+artifact is complete in canonical release state on preparation10, completed70 and
 the named contract/source artifacts. Actual50 source is now integrated at
 `9036507bc98ef31c05ae334aa22ec5101323c7e7` after independent source verification.
 Whole50/60 qualification and the actual Block1 exit remain implementation90 gates.
-The parent will preserve their direct closure edges as90 depends_on=[50,60,70,80].
+Their direct closure edges are preserved as90 depends_on=[50,60,70,80].
 
 The actual Block1 follow-up exit before90 remains hard: integrated selected20–70
 and required qualification/conformance/smoke must really complete. Smoke

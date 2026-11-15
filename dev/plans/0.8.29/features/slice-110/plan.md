@@ -1,6 +1,6 @@
 ---
 title: Slice 110 — CUDA context-loss lifetime and safe teardown
-status: DESIGN_REVIEWED_SOURCE_REPAIRS_SELECTED_LIVE_FAULTS_HELD
+status: CURRENT_PIN_POLICY_IMPLEMENTED_TRACKED_INTEGRATION_PENDING
 target_release: 0.8.29
 slice: 110
 ---
@@ -20,9 +20,9 @@ actual Orin/3090 child reset execution for .30 review. No live fault is authoriz
 
 - [Master](../../../plan-0.8.29.md) and [release state](../../../release-state-0.8.29.json)
   allocate110 under R29-REL-R/G, R29-3P-17/D29-RESET and O3-17.10 is closed;
-  integrated Linux20/70 provide lifecycle/error behavior;60/100 are qualified
-  subsets, not whole-slice closure. Source stays pinned during G recovery;
-  queued20 then M precede110 in the shared heavy window.
+  integrated Linux20/70 provide lifecycle/error behavior;60 local acceptance is
+  complete and100 remains a qualified subset. G's retained source stays pinned;
+  current-pin110 CPU policy work is implemented without changing G's subject.
 - Preserve format37, no migration, provider identity, queue deadlines, allocator
   choice, healthy pool release and ordinary OOM retry. Physical erasure remains
   complete except concrete defects; no new erasure SLA.

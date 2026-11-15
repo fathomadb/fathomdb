@@ -2,7 +2,11 @@
 
 Status: independently reviewed design (Astra-medium PASS). Owner seq-376 selects
 option1 below; seq-377 holds actual Orin/3090 resets for .30 review. Source/seam
-repairs are selected for .29, not implemented or runtime-qualified. Source baseline is accepted `a00bf9b9228318e7c236148551bb188f63ff66ee`.
+repairs are selected for .29. The current-pin loss-policy subset is implemented
+at `8247f11056bc2deb3e0c6ec0472abbd4b217e857`, independently reviewed and
+integrated; all98 CPU policy tests pass. Shared native lifetime/pool/model wiring
+and final qualification remain pending. The original source baseline is accepted
+`a00bf9b9228318e7c236148551bb188f63ff66ee`.
 No native or fault execution supports a new survival claim yet.
 
 ## Current-source implementation boundary

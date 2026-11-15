@@ -2,6 +2,9 @@
 use fathomdb_embedder_api::Embedder;
 #[path = "slice30_d_measure/provider.rs"]
 mod provider;
+#[cfg(test)]
+#[path = "slice30_d_measure/workload.rs"]
+mod workload;
 use provider::VaryingEmbedder;
 use std::process::ExitCode;
 
@@ -29,6 +32,53 @@ fn main() -> ExitCode {
 mod tests {
     use super::*;
     use fathomdb_embedder_api::EmbedderIdentity;
+
+    #[test]
+    fn fixed_workload_has_held_out_500_queries_cycled_twice_without_warmups() {
+        let corpus = workload::corpus_bodies(1001).collect::<Vec<_>>();
+        assert_eq!(corpus.len(), 1001, "accepted corpus stream omitted generated rows");
+        assert_eq!(
+            corpus,
+            workload::corpus_bodies(1001).collect::<Vec<_>>(),
+            "fresh executions must reproduce the same ordered corpus"
+        );
+        assert_eq!(
+            workload::corpus_bodies(2).collect::<Vec<_>>(),
+            corpus[..2],
+            "corpus size must not change its deterministic prefix"
+        );
+
+        let queries = workload::query_bodies();
+        assert_eq!(queries.len(), 500, "accepted held-out query population differs");
+        assert_eq!(queries, workload::query_bodies(), "query stream must restart reproducibly");
+        assert_ne!(queries, corpus[..500], "queries must use the distinct held-out seed");
+        for body in corpus.iter().chain(queries.iter()) {
+            let tokens = body.split(' ').collect::<Vec<_>>();
+            assert!((55..=74).contains(&tokens.len()), "accepted body token count differs");
+            for token in tokens {
+                assert_eq!(token.len(), 7, "accepted vocabulary token width differs");
+                let bytes = token.as_bytes();
+                assert!(bytes[..3].iter().all(u8::is_ascii_lowercase));
+                assert!(bytes[3..].iter().all(u8::is_ascii_digit));
+                let index = token[3..].parse::<usize>().unwrap();
+                assert!(index < 1024, "token is outside the accepted vocabulary");
+                assert_eq!(
+                    &bytes[..3],
+                    &[
+                        b'a' + ((index / 26 / 26) % 26) as u8,
+                        b'a' + ((index / 26) % 26) as u8,
+                        b'a' + (index % 26) as u8,
+                    ],
+                    "token spelling does not match its vocabulary rank"
+                );
+            }
+        }
+        let calls = workload::natural_queries(&queries).collect::<Vec<_>>();
+        assert_eq!(calls.len(), 1000, "natural requests must have no extra warmup pass");
+        let expected = queries.iter().map(String::as_str).collect::<Vec<_>>();
+        assert_eq!(calls[..500], expected);
+        assert_eq!(calls[500..], expected, "second500 requests must retain the first order");
+    }
 
     #[test]
     fn fixed_provider_has_reproducible_signed_normalized_768d_vectors() {

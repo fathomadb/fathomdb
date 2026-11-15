@@ -175,7 +175,7 @@ class Session:
             if p.returncode or errors:raise RuntimeError({'transfer_exit':p.returncode,'writer':errors})
         finally:stop_ssh(p)
     def upload_sftp(self,path,relative):
-        if relative!='inputs/'+self.run_id+'/source.zip':raise ValueError('SFTP is only for allocated source archive')
+        if relative not in ('inputs/'+self.run_id+'/source.zip','control/'+self.run_id+'/run.json'):raise ValueError('SFTP is only for allocated source archive/config')
         destination=GUEST+'\\'+relative.replace('/', '\\');partial=destination+'.partial-'+uuid.uuid4().hex;done=partial+'.done'
         c={key:self.cfg[key] for key in ['root','runId','candidateSha','diskUniqueId','partitionGuid']}
         b64=base64.b64encode(json.dumps(c,separators=(',',':')).encode()).decode()
@@ -185,9 +185,9 @@ class Session:
         monitor=prelude+watch+"\nwhile(-not(Test-Path -LiteralPath "+quote(done)+")){[Threading.Thread]::Sleep(200)};$s.Done=$true"
         guard=None;p=None;start=time.monotonic();failure=None
         try:
-            with (self.root/'sftp-monitor.stdout').open('xb') as out,(self.root/'sftp-monitor.stderr').open('xb') as err:
+            with (self.root/'sftp-monitor.stdout').open('ab') as out,(self.root/'sftp-monitor.stderr').open('ab') as err:
                 guard=start_script(monitor,stdout=out,stderr=err);self.log('owned-sftp-monitor',{'pid':guard.pid,'pgid':os.getpgid(guard.pid),'partial':partial})
-                with (self.root/'sftp.stdout').open('xb') as transfer_out,(self.root/'sftp.stderr').open('xb') as transfer_err:
+                with (self.root/'sftp.stdout').open('ab') as transfer_out,(self.root/'sftp.stderr').open('ab') as transfer_err:
                     p=subprocess.Popen(['sftp',*SSH[1:-1],'-b','-',SSH[-1]],stdin=subprocess.PIPE,stdout=transfer_out,stderr=transfer_err)
                     self.log('owned-sftp',{'pid':p.pid,'pgid':os.getpgid(p.pid),'partial':partial})
                     if any(x in str(path)+partial for x in ['"','\n','\r']):raise ValueError('SFTP path syntax')

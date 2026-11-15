@@ -17,12 +17,12 @@ an eventual parent-assigned /mnt/data task root. A separate observer/retry test
 process starts only after the debugger/inferior are gone. No production database,
 VM, GPU, model, network, host fault or other session's process is involved.
 
-A future source-qualified test target `slice100_interruption` uses operator and
+The source-qualified test target `slice100_interruption` uses operator and
 test-hooks. Its exact build JSON identifies the executable in its own source100
 checkout/target; record source SHA/delta, relevant lock/config/features, binary
 SHA256/build-id, debugger/native-symbol and SQLite source identities. Symbol-file
-identity must match that binary. Reconcile then-integrated G/other source before
-implementation; G is currently unintegrated. No borrowed S20 artifacts/toolchain.
+identity must match that binary. The seq386 fresh build reconciles the current integrated inputs; future use
+requires its own exact input attribution. No borrowed S20 artifacts/toolchain.
 
 The retained S20 candidate9df345e2… proves metadata availability only. Its quiet
 canonical log does not bind the exact current file as the executed child. Its
@@ -120,7 +120,7 @@ The healthy case establishes the protocol's ordinary successful route only.
 Only if that healthy case passed on the identical source/binary/config/fixture
 subject may one matched interruption case start. It must obtain its OWN complete
 witness. The earlier healthy witness or an earlier stop in this case never grants
-a later timed kill. Original seq-372 and seq-383 executions are spent; any further
+a later timed kill. Original seq-372, seq-383 and the qualified seq-386 executions are spent; any further
 real pair requires actual new owner scope and technical GO. The reviewed source
 repair uses exactly one `-interpreter-exec console "signal SIGKILL"` qualifying
 request, replacing external pidfd kill followed by ordinary continue.
@@ -138,8 +138,8 @@ Require `exited-signalled` with `SIGKILL`, then reap GDB before any untouched
 snapshot/observer/retry. Merely issuing the command or observing actor cleanup
 cannot qualify recovery. No target method/destructor substitutes for abrupt exit.
 Missing/changed identity cancels qualification. GDB's current-thread signal
-semantics support this mechanism; avoiding the reinsertion race remains inference
-until a future authorized real execution. Source tests are not runtime fault proof.
+semantics support this mechanism; seq386 actual execution qualified delivery and recovery. Source tests alone
+remain distinct from runtime fault proof.
 
 ## Untouched crash evidence, observer and explicit retry
 

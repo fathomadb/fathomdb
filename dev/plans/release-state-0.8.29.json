@@ -180,7 +180,7 @@
         "dev/plans/0.8.29/features/slice-20/test-map.md",
         "dev/plans/0.8.29/features/slice-20/review-log.md"
       ],
-      "phase": "LINUX_QUALIFIED_WINDOWS_CAPACITY_REMEDIATION_AUTHORIZED",
+      "phase": "LINUX_QUALIFIED_WINDOWS_CAPACITY_AND_SCRATCH_READY_A6_PENDING",
       "evidence": "Qualified Linux source at45167677bee0d00b59194897e63ad05be40d6e63 includes unchanged prior seq-369 A3/A5 proofs and seq-370 capacity-only preparation plus genuine startup/visibility alias RED/GREEN. Fresh independent Astra implementation and assembled-results ACCEPT; affected parallel engine lib175/175, Clippy/check pass. Original final wrapper ran220 suites:218 passed and2 metadata guards failed. Reviewed baseline merge and exact inventory refresh made unchanged failed guards pass11/11 and8/8, yielding assembled220/220 without wrapper replay. Source/scripts/Cargo/toolchain/test oracles are unchanged from accepteddff; actual owned Python3.12.3/native receipt staysdff. Original wrapper exit1/failures retained. WindowsA6 remains unqualified: owned RAW image needs reattachment, seq-373 approved guarded format and refreshed guest/host readiness; no whole20/Block1/release closure.",
       "qualified_subset_sha": "45167677bee0d00b59194897e63ad05be40d6e63",
       "continuation_plan_sha": "391ae66aa9d36fc0dbdfe5326ed028551a6774f5",
@@ -190,10 +190,12 @@
       "linux_hook_alias_qualified_sha": "45167677bee0d00b59194897e63ad05be40d6e63",
       "windows_capacity_remediation": {
         "source": "dev/steward/steward-ledger.jsonl seq-385",
-        "status": "AUTHORIZED_READINESS_AND_REMEDIATION_PENDING",
+        "status": "CAPACITY_AND_OWNED_SCRATCH_READY",
         "target": "existing gh-runner-wonl-win11 only",
         "latest_readiness": "2026-11-15T16:09:31Z exact VM shut off, approved scratch not attached; current C: free unknown. Existing image under/mnt/data; older4.92GiB is historical.",
-        "bounds": "Existing8GiB C entry/5GiB stop and32GiBworkspace floor remain; selected cleanup or slight disk increase mustpreserve existing data and location under/mnt/data. Existing scratch/guardedformat approvals retained; tests still require readiness."
+        "bounds": "Existing8GiB C entry/5GiB stop and32GiBworkspace floor remain; selected cleanup or slight disk increase mustpreserve existing data and location under/mnt/data. Existing scratch/guardedformat approvals retained; tests still require readiness.",
+        "evidence": "Seq385 cache/compiler-intermediate-only cleanup raised measured Cfree from5416456192B to9599889408B; no source/installedenv/EXE/DLL/PDB/results/log deletion or partition change. Actual guard-qualified seq373 format ran once at exact396a; owned64GiB R: NTFS FDB29S20A6, original system partitions unchanged. Native A6 operator mapping and actual tests remain.",
+        "format_evidence": "/mnt/data/tmp2/fathomdb-0829-continuation/slice20/format-prep-20261113/evidence/format-only-d37fc79617f540919db07a90a7310f04"
       }
     },
     {
@@ -789,7 +791,7 @@
       "depends_on": [
         10
       ],
-      "status": "IN_PROGRESS",
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
       "design_refs": [
         "dev/plans/0.8.29/features/slice-100/coverage-matrix.md",
         "dev/plans/0.8.29/features/slice-100/design.md",
@@ -800,20 +802,32 @@
         "dev/plans/0.8.29/features/slice-100/test-plan.md",
         "dev/plans/0.8.29/features/slice-100/execution.md"
       ],
-      "conditions": "Preserve qualified85f source/coverage and unchanged recovery assertions. Seq383 one additional pair is spent. Another real pair requires a new owner decision after concrete reviewed source and fresh runtime readiness; no automatic retry or qualifying signal is authorized by source acceptance.",
-      "phase": "CORRECTED_Q1_PAIR_APPROVED_FRESH_READINESS_PENDING",
-      "evidence": "Qualified source, coverage and native subset integrated at 85f7eb219d96ff75c27cf24660218aa1a1c79780 after final independent Astra-medium ACCEPT, with no remaining concrete finding. All 20 operator controls and five composed G2 cells passed. The original qualified healthy Q1 run has its own active native checkpoint witness and normal completion/reopen. Assembled coverage of 217 registrations comprises 200 original passes, 16 continuation passes and the exact repaired Rust target. Rust: 2727 passed, 72 ignored. Python/native receipt, TS and hermetic executable NAPI passed; Python/TS body counts are unavailable and are not inferred. Original incomplete wrapper, measurement stop, stale-doc failures, Cargo101/target127 and exec_prefix warning remain recorded in features/slice-100/execution.md and review-log.md. Operator defects have committed runtime RED/GREEN. Original Q1 interruption remains UNQUALIFIED, without confirmed fault-exit, raw snapshot or recovery qualification. Corrected real-debugger behavior is unverified; seq383 approves exactly one additional corrected matched pair under unchanged limits; fresh runtime readiness/execution remains pending. Slice 100, D28-09 and release closure remain open. The seq383 additional pair ran on current453: healthy QUALIFIED_HEALTHY; interruption UNQUALIFIED after its own active checkpoint witness. A late same-token MI error followed running and breakpoint-reinsertion failure; the five-second exit-observation deadline is not evidence that the full120-second case cap elapsed. No confirmed fault-exit/raw snapshot/recovery proof exists. All registered/adopted actors were reaped. Source repair2565718867f6d31bcf27fa6faa349ecf5174217b is integrated after fresh Astra-medium ACCEPT: independent RED/GREEN units detect late MI errors and revalidate all-stop/thread/group/PID/executable/frame/stack/native/READY identity before one debugger-delivered SIGKILL, with no qualifying pidfd duplicate or fallback. Seven pure controls and the one affected Python fake-MI control pass; scoped Ruff/Markdown pass. No real debugger/fault tested the replacement; avoiding the reinsertion race remains an inference. A100-5/D28-09/whole100 remain open. Combined F7 ordinary full verification subsequently passed220 registrations with one explicit opt-in skip and no failures; this qualifies the reviewed operator source, not real replacement delivery. Source100 compiled inputs remain identical453-to-F7 outside unlinked MCP, so retained original453 Q1 binary/build attribution passes current source_subject without rebuild or retagging. New owner seq386 approves exactly one corrected pair, unconsumed; see q1_current_approval. No qualifying replacement fault is inferred.",
+      "conditions": "Selected100/D28-09 closed with qualified seq386 active-checkpoint process interruption/recovery plus inherited accepted G2/control/source proof. All prior failures and scope limits retained. All pair approvals spent; no further fault is authorized.",
+      "phase": "SELECTED_PROCESS_INTERRUPTION_QUALIFIED_INDEPENDENT_ASTRA_ACCEPTED",
+      "evidence": "Qualified source, coverage and native subset integrated at 85f7eb219d96ff75c27cf24660218aa1a1c79780 after final independent Astra-medium ACCEPT, with no remaining concrete finding. All 20 operator controls and five composed G2 cells passed. The original qualified healthy Q1 run has its own active native checkpoint witness and normal completion/reopen. Assembled coverage of 217 registrations comprises 200 original passes, 16 continuation passes and the exact repaired Rust target. Rust: 2727 passed, 72 ignored. Python/native receipt, TS and hermetic executable NAPI passed; Python/TS body counts are unavailable and are not inferred. Original incomplete wrapper, measurement stop, stale-doc failures, Cargo101/target127 and exec_prefix warning remain recorded in features/slice-100/execution.md and review-log.md. Operator defects have committed runtime RED/GREEN. Original Q1 interruption remains UNQUALIFIED, without confirmed fault-exit, raw snapshot or recovery qualification. Corrected real-debugger behavior is unverified; seq383 approves exactly one additional corrected matched pair under unchanged limits; fresh runtime readiness/execution remains pending. Slice 100, D28-09 and release closure remain open. The seq383 additional pair ran on current453: healthy QUALIFIED_HEALTHY; interruption UNQUALIFIED after its own active checkpoint witness. A late same-token MI error followed running and breakpoint-reinsertion failure; the five-second exit-observation deadline is not evidence that the full120-second case cap elapsed. No confirmed fault-exit/raw snapshot/recovery proof exists. All registered/adopted actors were reaped. Source repair2565718867f6d31bcf27fa6faa349ecf5174217b is integrated after fresh Astra-medium ACCEPT: independent RED/GREEN units detect late MI errors and revalidate all-stop/thread/group/PID/executable/frame/stack/native/READY identity before one debugger-delivered SIGKILL, with no qualifying pidfd duplicate or fallback. Seven pure controls and the one affected Python fake-MI control pass; scoped Ruff/Markdown pass. No real debugger/fault tested the replacement; avoiding the reinsertion race remains an inference. A100-5/D28-09/whole100 remain open. Combined F7 ordinary full verification subsequently passed220 registrations with one explicit opt-in skip and no failures; this qualifies the reviewed operator source, not real replacement delivery. Source100 compiled inputs remain identical453-to-F7 outside unlinked MCP, so retained original453 Q1 binary/build attribution passes current source_subject without rebuild or retagging. New owner seq386 approves exactly one corrected pair, unconsumed; see q1_current_approval. No qualifying replacement fault is inferred. Seq386 currentfb92 build and matched pair qualified with independent Astra acceptance, closing selected100/D28-09. Exact results/nonces and limits are in q1_current_approval and features/slice-100/execution.md; all earlier failed attempts remain historical.",
       "plan_sha": "c1226d1bf958e1aa4b69fc81f265c9bc3d217198",
       "qualified_subset_sha": "85f7eb219d96ff75c27cf24660218aa1a1c79780",
       "q1_current_approval": {
         "source": "dev/steward/steward-ledger.jsonl seq-386",
         "id": "TC-232252ae-2602-4d8d-8831-c07cf031258e",
-        "status": "APPROVED_NOT_CONSUMED",
+        "status": "CONSUMED_TERMINAL_QUALIFIED_ASTRA_ACCEPTED",
         "allowed_pairs": 1,
-        "consumed_pairs": 0,
+        "consumed_pairs": 1,
         "protocol": "dev/plans/0.8.29/features/slice-100/q1-protocol.md",
-        "scope": "One fresh matched healthy then own-witnessed SIGKILL pair only;120s/case/64GiB/registeredactors/noautomaticretry/nohostVMGPUfault. Source/native/runtime readiness and root serial GO precede execution. Prior approvals remain spent."
-      }
+        "scope": "One fresh matched healthy then own-witnessed SIGKILL pair only;120s/case/64GiB/registeredactors/noautomaticretry/nohostVMGPUfault. Source/native/runtime readiness and root serial GO precede execution. Prior approvals remain spent.",
+        "source_sha": "fb92d51ab92702c0cc7a5dc515aa8a69187008e2",
+        "binary_sha256": "f1c5feb7954d33cec8ec49d902686a8086b0c68f0a9a7c918e5a8b05fa45c732",
+        "healthy_case": "/mnt/data/tmp2/fathomdb-0829-continuation/slice100-20261113/q1-healthy-seq386",
+        "interrupt_case": "/mnt/data/tmp2/fathomdb-0829-continuation/slice100-20261113/q1-interrupt-seq386",
+        "started_at": "2026-11-15T17:38:38.727722+00:00",
+        "nonce_policy": "Reviewed operator generates one fresh nonce per case; retain actual values in READY/result, no preselected nonce CLI.",
+        "healthy_nonce": "ddf94cc401f663df1e6719b093f95c23",
+        "interrupt_nonce": "21e6d0fbdcbe3a1773f74af1c7535759",
+        "healthy_status": "QUALIFIED_HEALTHY",
+        "interrupt_status": "QUALIFIED_INTERRUPTION",
+        "review": "Independent Astra-medium ACCEPT; no remaining mandatory selected100 acceptance gap. No resource stop, cleanup error or owned survivor. Native lease returned."
+      },
+      "sha": "fb92d51ab92702c0cc7a5dc515aa8a69187008e2"
     },
     {
       "slice": 110,
@@ -893,7 +907,7 @@
         "dev/plans/0.8.29/features/slice-140/test-map.md"
       ],
       "conditions": "Concrete required110 or independently required existing.29 artifact repair only, fork-local qualified before product pins; B/C maintenance belongs.30. New120 CUDA13 delivery/compiler/affected repair work belongs.31 by seq378 and cannot create a.29 repair gate. Consumes reviewed repair design, not110 closure; no-repair disposition requires actual evidence.",
-      "phase": "SELECTED_MEMORY_MODULE_LAUNCH_LIBRARY_SOURCE_REVIEWED_PINNED_POOL_PENDING",
+      "phase": "SELECTED_CUDARC_CPU_QUALIFIED_CANDLE_AND_CONSUMER_ADOPTION_PENDING",
       "evidence": "Owned coreyt/cudarc branch has genuine RED/GREEN cleanup, sticky-loss, inactive/replaced/error-probe, cached-diagnostic, shared-anchor, constructor and admission units. Fresh Astra accepted cleanupaa421, shared probesb9f6, anchor/diagnosticd54b and factory/admission53302e8. Bound bind integrationba5d4cb follows actual extra-probe RED0740d7a; exact and affected controls pass. Tracked child constructors, reachable nested cleanup, pools, fork qualification, Candle/product adoption and pins remain unfinished. Native release is only the separately tested balanced-primary-anchor exception. No actual reset, new CUDA13, publication or whole140 qualification. Tracked construction e4e1ff31d2a5e241459e23f1dbad45006a2dcd04 and bound bind ba5 passed focused controls and independent Astra ACCEPT. Event f97b847 and stream a16b850cb0049f1ef572ea834a58079a3fbc13c0 each passed their actual native-destroy RED and six frozen CPU controls, with no real CUDA dispatch. Coherent Astra review requires one correction: native cleanup get-current/set-current failures must terminally latch shared refusal, while an already-recorded ordinary OOM from check_err remains nonterminal. That correction and separate new-stream construction-count rollback remain unfinished; no fork qualification or product pin adoption is claimed. The cleanup finding is now closed at4510667590ff729adfdb140e53d645ce00a8acbd after actual REDbcab299 and fresh same-Astra ACCEPT: native binding failures terminally latch shared loss, preexisting ordinary OOM remains nonterminal. Origin3/event6/stream6 controls pass. Separate stream count rollbackcf50f3aaccbeeb76ac42b192c59146b40993206e follows genuine count1-versus0 RED13ad4f8 and four frozen controls. Child constructor/use/Drop admission, public non-FFI cached-loss/retained-identity observation, tracked pool creation/attachment and full fork qualification remain pending; no product pins or actual reset are adopted.",
       "fork_source_checkpoint": {
         "cudarc_sha": "3c116e2eaddc4b61e950cfe36102de76a29c59cb",
@@ -974,11 +988,9 @@
     40,
     50,
     90,
-    100,
     110,
     130,
     140,
-    150,
     160
   ],
   "decisions": {
@@ -1181,7 +1193,7 @@
   },
   "release_readiness": {
     "status": "NOT_READY",
-    "qualification": "0\u201310 preparation,60 MCP,70 SDK and80 design are complete locally. Qualified subsets include20 Linux,30 tooling/P/12 primaryG plus four separate calibration controls,50 search source,100 coverage/native and selected140 fork CPU seams. Whole20,72 primaryG obligations, actualM/D/F,current paired50 performance,conditional40,Block1 exit/90,100Q1,110 tracked integration,130 venues/finalartifacts and160 remain pending. Source qualification is assembled with original failures/refusals/skips preserved. No whole-release or published-package claim.",
+    "qualification": "0\u201310 preparation,60 MCP,70 SDK,80 design and selected100 interruption qualification are complete locally. Qualified subsets include20 Linux,30 tooling/P/12 primaryG plus four separate calibration controls,50 search source,100 coverage/native and selected140 fork CPU seams. Whole20,72 primaryG obligations, actualM/D/F,current paired50 performance,conditional40,Block1 exit/90,110 tracked integration,130 venues/finalartifacts and160 remain pending. Source qualification is assembled with original failures/refusals/skips preserved. No whole-release or published-package claim.",
     "publication": "HELD; no tag, dispatch, external ACL mutation or registry publication authorized by bootstrap."
   },
   "generated_views": [

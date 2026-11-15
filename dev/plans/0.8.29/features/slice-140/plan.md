@@ -1,78 +1,66 @@
 ---
 title: Slice 140 — required fork repairs only
-status: WAITING_FOR_REQUIRED_REPAIR_SELECTION
+status: IN_PROGRESS
 target_release: 0.8.29
 slice: 140
 ---
 
 # Slice 140 — required fork repairs only
 
-Active .29 repair selection follows owner seq-376/377: necessary110 source/seam
-repairs and independently required existing .29 artifact repairs only. New x86
-CUDA13 delivery/compiler work formerly in120 is [.31](../../../0.8.31/cuda-delivery-plan.md)
-under seq-378 and cannot create a mandatory .29 repair. Real Orin/3090 reset
-children are HELD .30; no .29 live-fault gate, survival or original-defect closure
-is inferred. Fork B/C maintenance remains .30. No repair is selected by this note.
+## Selected repair and remaining delivery
 
-## Scope and present maturity
+Owner seq376/377 selects110's quiescent completed-construction/shared-terminal-
+lifetime remedy, frozen native live set with no growth, accepted opaque-host-byte
+unknowns and restart after loss. Required fork repair A is selected and underway;
+no new repair-selection packet or owner vote is needed. Fork B/C maintenance and
+actual resets remain .30; new CUDA13 delivery/compiler work and130A remain .31.
 
-Owner ruling seq-367 selects **A only** for .29: concrete required110 reset-
-lifetime or independently required existing .29 artifact fork repairs and versioning necessary to
-release those repairs. [B/C maintenance](../../../0.8.30/fork-maintenance-plan.md)
-belongs to .30 and never gates .29.130 qualification A–E is a different label
-set. No exact repair, new version, pin or artifact choice is selected here.
-Status is WAITING_FOR_REQUIRED_REPAIR_SELECTION, not PLAN_READY.
+[Requirements](requirements.md), [acceptance](acceptance.md), [design](design.md)
+and [test map](test-map.md) retain the existing obligations. Fork-local
+`fathomdb/` records own low-level design, real RED/GREEN and qualification.
+The old [source census](source-census.md) remains a dated baseline, not a demand
+to recensus already reviewed source or a current WAITING gate.
 
-This read-only Phase A reconciles actual source at
-`02e30d861beddc8061af0dc22f12106d5e09dd32`. Actual10 implementation
-`104dcbcbe92a1eca730d146b99ab17d444df6217` is integrated/closed via
-`d7d928f8e`; its assembled/resumed qualification preserves failures/skips.
-0–9 are proposal/decision outputs, not runtime qualification.20's active source
-checkout is not predecessor evidence. See [source census](source-census.md)
-and [status](status.md).
+Selected cudarc source `cb36642fad90c1796693c36ee59e3d3d162f4410` passed all312
+selected CPU controls, production-library Clippy-Werror and formatting, with
+fresh independent Astra-medium acceptance. This includes tracked pool/lifetime/
+admission/cached diagnostics and BLAS/RNG seams. Its452 listed tests include140
+excluded tests; no GPU/NVRTC runtime, whole-workspace, product pin or real-reset
+qualification is claimed. Reuse that exact accepted result rather than replaying
+fork suites or selecting the same repair again.
 
-## Review package and selection contract
+The next delivery is Candle's actual private F32 helper semantic RED/GREEN and
+independent qualification, followed by coherent qualified fork consumption in110.
+No new public model/tensor API is required merely for context injection. Preserve
+the raw GEMM numerical arguments; acquire borrowed BLAS admission before pointer
+guards and check its handle after pointer preparation immediately before dispatch.
+An outer product lease alone does not cover loss recorded by those temporaries.
 
-- [Requirements](requirements.md) and [acceptance](acceptance.md) retain the
-  original R140/A140-1–6 local identities and canonical joins.
-- [Design](design.md) distinguishes exact candidate repairs, evidence that
-  selects them, fork ownership and version/pin provenance.
-- [Test map](test-map.md) separates fork human-intent unit/negative/device
-  qualification from110/existing .29 artifact integration and final130 qualification.
+## Execution and true dependencies
 
-110's quiescent completed-construction/frozen-live-set policy is selected by
-seq-376, with opaque host bytes unbounded and restart required; seq-377 holds
-real reset execution to .30. Required source/seam changes still need exact
-fork-local design/TDD/review/qualification. New120 x86 delivery/compiler choices
-are proposed .31 work and select no .29 repair. Independently required current
-artifact failures retain their own concrete selectors.
+1. Continue Candle's reviewed helper implementation in its isolated fork checkout;
+   actual runtime assertion RED must precede its minimal GREEN. Prepared tests
+   or missing-method compilation are not behavioral proof. Batch the coherent
+   source/result review, without per-helper review or duplicate cudarc campaigns.
+2. In parallel,110 reconciles the exact accepted cudarc APIs and reviewed Candle
+   contract, updates affected product design/test mapping and obtains its
+   independent adversarial design review.110 design/API migration preparation
+   does not wait for Candle runtime qualification or whole140 closure.
+3. Adopt only a coherent independently qualified cudarc/Candle family through the
+   reviewed consumption route. Registry publication remains outside this mandate;
+   an exact-rev route needs review, not an invented registry version/checksum.
+   Keep chosen pins/lock/override registry and affected public contracts coherent.
+4. 110 runs product admission/mapping/healthy/OOM/installed controls on those exact
+   consumed artifacts.130 runs affected final platform/SDK cells afterward;
+   130 never gates initial fork source work. Source phases get scoped checks and
+   one stable final broad gate, with affected correction checks only.
+5. Parent integrates passing scope and updates the existing release state once.
+   Preserve the fork's actual failures, exclusions and tool/native identities;
+   product tests establish consumption, not a second copy of fork qualification.
 
-Every proposed U140-R repair must name an accepted110 or independently required existing .29 artifact obligation, exact
-source witness, observed failing behavior, smaller alternative comparison,
-affected fork files/APIs, finite cleanup/qualification contract and exact
-required pin/version change. Without that packet, independently useful designs
-remain unselected. A no-repair-needed exit requires explicit evidence against
-the selected110/existing .29 artifact obligations; lack of selection is not that exit.
-
-## Dependency and execution sequence
-
-| Edge | Kind and meaning |
-| --- | --- |
-| Actual10 closure and current accepted source → source entry | Hard; reconcile later predecessor changes, parent-created isolated worktree and strict preflight; owned tools/artifacts.10 is now closed, but its environment is not borrowed. |
-| Accepted110/existing .29 artifact requirement/design → a particular140 repair | Conditional prerequisite. Neither completed110 nor completed120 is required to identify a repair. |
-| Fresh independent Astra design PASS → implementation | Hard for the selected fork-local design/test packet. The parent dispatches reviewers and creates fork worktrees at explicit reviewed bases. |
-| Initial fork qualification → chosen exact pins → affected110/existing .29 artifact integration/artifacts → final130 | Conditional hard chain for an included repair. Final130 never gates initial140 or initial120 proof. |
-| Cudarc before dependent Candle; cheap checks before live cells | Preferred order where the selected repair actually affects both; no gratuitous Candle release or GPU campaign. |
-| .30 rebase/marker/multiarch/dtype/MoE maintenance → .29 | No edge. Preserve stable deferred TC identities in the receiving plan. |
-
-After selection/review, each behavior gets an observed failing RED commit
-before separate GREEN, with the oracle preserved. No missing-helper compile
-failure, intentional break or passing-on-arrival coverage substitutes. Fork
-requirements/design/tests/reviews/receipts live in each fork's `fathomdb/`;
-FathomDB records qualified consumption and product proof, not duplicate fork
-suite execution. Source phases use scoped checks while working and one final
-clean full applicable gate; fresh independent implementation/results review
-precedes parent integration. Serialize shared manifests, pins and interfaces.
+No final140, product-adoption, GPU/reset-survival or original-defect closure is
+inferred from selected CPU qualification. Required remaining healthy/device and
+consumer cells retain their actual artifact/venue/resource prerequisites.
 
 ## Fixed boundaries and exit
 
@@ -90,4 +78,5 @@ or tag publication. No fork PR/upstream write/force push is permitted here.
 Exit requires A140-1–6 for every selected repair or an explicit evidenced
 no-repair-needed disposition. U140-V/FT-1/TC-daa1985b applies only when a required
 cudarc code release needs a distinct version. TC-509dc8a6, TC-93d11583 and
-TC-323f15b0 stay .30. This proposal makes no repair/qualification/closure claim.
+TC-323f15b0 stay .30. Selected source qualification above is bounded; remaining fork-consumer
+and final composed qualification still control closure.

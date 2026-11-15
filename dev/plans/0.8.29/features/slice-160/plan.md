@@ -1,6 +1,6 @@
 ---
 title: Slice 160 — Combined qualification and publication readiness
-status: PROPOSED
+status: QUALIFICATION_PREPARATION
 target_release: 0.8.29
 slice: 160
 ---
@@ -16,8 +16,10 @@ x86 CUDA13 delivery/quantitative evidence to .31. Seq-381 additionally moves Teg
 
 Establish attributable qualification of the selected integrated .29 release,
 then distinguish READY_TO_PUBLISH from separately authorized publication and
-registry-consumer completion. This Phase A proposal performs no source work,
-native/full gate, model/database open, dispatch, environment change or publication.
+registry-consumer completion. Prepare existing local consumer/package/long-test
+routes while feature work runs. Final qualification claims require the actual
+affected candidate and permitted executor; preparation is not a new packet or
+an implied hardware/spend/CI/publication authorization.
 
 Follow [direct execution](../../direct-execution.md): same Sol-high owner,
 independent Astra-medium design PASS, real RED→GREEN for behavioral repairs,
@@ -41,15 +43,12 @@ no skipped publisher or CI body supplies a passing qualification claim.
 
 ## Actual predecessor baseline
 
-Read-only source inspection is bound to clean release parent
-`2f6913c1d59ac8ff3a30de835b57290a8635998c`. Slice10 implementation
-`104dcbcbe92a1eca730d146b99ab17d444df6217` and closure `d7d928f8` are included.
-Slice20 Linux repairs through `657edeb76caaf9c8d2aab433766bec9362e73217`
-are included; that inspection predates later integration. Current release state
-governs: A3/A5 are ruled and integrated, Windows A6 remains open, the60
-format/filter/budget subset is integrated and70 is complete.60's historical-flag
-feedback correction is selected but not implemented/qualified. No subset closes20/60 or the Block1 follow-up
-exit;160 rereads the actual integrated baseline at entry.
+Current accepted exits and assembled-source limits are in
+[release state](../../../release-state-0.8.29.json). Reconcile actual integrated
+source and each matrix row's inputs; do not rerun a proposal census or copy stale
+0–10/60/70 status into this plan.50 still owes paired performance,30 its actual
+remaining campaigns,20 Windows A6,100 Q1 and110/130/140 their selected composed
+qualification.80's contract is owner-approved;90 still needs the real Block1 exit.
 
 Format37 is the current substrate: **no database migration**, compatibility shim,
 span-storage rebuild, new calibrated verdict or weak-result threshold. Preserve
@@ -60,9 +59,10 @@ run-state narration an oracle.
 
 ## Hard prerequisites and preferred scheduling
 
-- Design preparation may run now against this immutable parent. Source entry or
-  final execution needs actual current predecessor integration, own environment,
-  strict applicable preflight and affected design reconciliation.
+- Local route/tool/consumer preparation runs now against named actual source.
+  Source entry/final execution needs its actual consumed inputs, own environment,
+  applicable strict preflight and affected design reconciliation. Full predecessor
+  closure gates final readiness, not independent160 preparation.
 - Readiness requires selected mandatory work's real reviewed exits, applicable
   matrix rows and disposition of mandatory gaps. It does not require source
   implementation of conditional40/140/150 when their inclusion conditions fail.
@@ -78,8 +78,10 @@ run-state narration an oracle.
 
 ## Execution after design review
 
-1. Reconcile actual selected exits, unresolved mandatory criteria and conditional
-   no-run cases using the matrix. Preserve concrete existing owner questions;
+1. Prepare current local consumer/package and missing long-test coverage using
+   the existing matrix while other lanes implement. Reconcile actual selected
+   exits, unresolved mandatory criteria and conditional no-run cases there.
+   Preserve concrete existing owner questions;
    do not request a blanket deferral/approval for every unused proposal.
 2. Freeze runtime/configuration and generated views before broad code-phase
    verification. Use checkout-owned tools/native artifacts. Run strict full
@@ -107,10 +109,10 @@ run-state narration an oracle.
 
 ## Verification and scope control
 
-For this documents-only proposal, explicit candidate Markdown structure, links,
-requirement/acceptance/test joins and frozen-parent checks suffice; no product test
-is invented. After parent import, run `scripts/agent-lint-md.sh` and applicable
-existing contract/state checks. Public docs also use their scoped lint/build.
+Plan/document-only changes use `scripts/agent-lint-md.sh` and applicable existing
+contract/state checks; no product test or frozen-parent receipt is invented.
+Actual tools/source use their required scoped and final source-phase checks.
+Public docs also use their scoped lint/build.
 Do not rerun full native verification solely for later records/documents.
 
 Apply the [quality roadmap](../../../../notes/fathomdb-quality-testing-roadmap.md)

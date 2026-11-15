@@ -1,6 +1,6 @@
 ---
 title: Slice 50 — Fusion identity, exact deferred content and record-start snippets
-status: DESIGN_REVIEWED_IMPLEMENTATION_PENDING
+status: SOURCE_QUALIFIED_MEASUREMENTS_PENDING
 target_release: 0.8.29
 slice: 50
 ---
@@ -9,11 +9,15 @@ slice: 50
 
 ## Actual checkpoint and scope
 
-Phase A source/design proposal at frozen parent
-`2f6913c1d59ac8ff3a30de835b57290a8635998c`; this is not PLAN_READY, source
-entry or performance evidence. Owner 2026-11-14 now selects identity/packing
-(seq-374) and atomic ambiguous-feedback refusal (seq-375); implementation remains pending. Only isolated proposal files
-were written. Parent imports reviewed documents and owns repository/state writes.
+Selected identity, atomic ambiguous-feedback refusal, exact lightweight ranking/
+winner hydration and bounded record-start prefix source are integrated at
+`9036507bc98ef31c05ae334aa22ec5101323c7e7` after genuine separate RED/GREEN units
+and independent Astra-medium acceptance. Qualification is assembled, with original
+full-wrapper failure, targeted correction/resumptions and live/model/GPU skips
+preserved in release state and review evidence. No uninterrupted full-wrapper or
+whole50 performance qualification is claimed. Remaining delivery is the actual
+current paired R6 measurements and affected Block1 acceptance, not another source
+implementation/design or receipt-reconstruction phase.
 
 Slice9 Batch3 approves identity census/ADR **before** exact text/snippet
 implementation. [Decision log](../../prework/slice-9/decision-log.md),
@@ -32,9 +36,9 @@ Windows remains unqualified. The named P/G read artifacts below are proposed50
 source inputs. Whole30 M/D/F/Windows work remains separately outstanding; no
 historical100k number or closed-copy tooling pass is a measured50 benefit.
 
-The60 formats/flags/direct-text-filter/budget subset and complete70 reasons are
-integrated; F11 implementation remains pending under seq375.50 must reconcile the actual integrated delta at
-its source entry.
+The60 format/filter/budget and seq375 feedback correction plus70 reasons are
+integrated. Preserve their accepted contracts; changed performance inputs need
+scoped attribution, not another generic source-entry approval.
 
 ## Accepted exact source-entry amendment
 
@@ -48,7 +52,8 @@ parent activation replaces the whole30 source dependency with: closed10; qualifi
 [execution](../slice-30/execution.md#accepted-normal-fixed84-assessment-at29de);
 selected seq-374/375 contracts; and reconciled source/consumer census.
 
-G supplies11 qualified read outcomes and73 refused outcomes, not wholeG/30
+That accepted G artifact supplied11 qualified read outcomes and73 refused
+outcomes at its own revision; later G results remain separate, not wholeG/30
 closure. Closed-copy tooling `0fa61810b` is source qualification, not later
 runtime measurement closure. This amendment excludes M/D/F and Windows from50's
 source entrance only; it does not waive their own obligations or claim their
@@ -57,8 +62,8 @@ entry; retain original failures, refusals, score/provenance/Unicode proofs and
 same-input untraced comparisons. No private Memex snapshot is required. Do not
 start a cache/optimization without meaningful applicable evidence, exact-route
 proof and genuine per-behavior RED/GREEN. This accepted narrowing opens source
-entry only. Actual current-input fit, owned setup, implementation and final
-qualification remain; no optimization or runtime result is claimed.
+entry only. The source result above now discharges its implemented scope;
+current paired performance and affected Block1 qualification remain.
 
 ## Intended outcome and fixed boundaries
 
@@ -82,36 +87,23 @@ qualification remain; no optimization or runtime result is claimed.
 - Embedder identity remains embedder-owned. Do not put identity strings in vector
   configs. Keep frozen snapshot/nonce authority and pre-cap eligibility.
 
-## Work sequence
+## Remaining work
 
-1. Reconcile the source/consumer census, requirements, design and genuine runtime
-   RED/GREEN decomposition against the actual integrated source. Private Memex
-   population census is optional frequency/benefit characterization, not a source
-   entry or correctness prerequisite; no snapshot is available or needed here.
-2. Independent Astra-medium review passed the selected seq374/375 design and
-   named-artifact entry amendment through327672507, after preserving acquisition-
-   time not_recorded precedence. Reconcile affected implementation design against
-   the actual source; review substantive new design deltas, not unchanged decisions.
-   This does not settle missing30 runtime evidence or qualify an optimization.
-3. After actual prerequisites and parent source entry: use a fresh isolated
-   checkout, strict preflight and owned setup. Reconcile all integrated40/60/70
-   changes; 40-before50 is preferred for attribution, not a semantic dependency.
-4. Implement selected identity/reference first, in independent per-behavior RED
-   and GREEN commits. Preserve historical ID/frozen fixtures; change intentional
-   body-dedup assertions only against the accepted successor, never to hide a
-   failure. Do not claim coverage that already passes as a new RED.
-5. Implement exact lightweight ranking/hydration separately from identity.
-   Start with a complete lightweight rank scan; any later early-stop bound needs
-   a proof including floating-point/tie behavior. Keep unsupported controls on
-   the complete reference. Implement bounded prefix specialization separately.
-6. Validate focused lint/typecheck/tests while working; one full final
-   `agent-verify` on a final clean owned checkout, then affected reruns only.
-   Run required feature/performance and installed Rust/Python/N-API/MCP parity
-   on the actual integrated identity build. Preserve all diagnostics/skips.
-7. Parent commissions fresh independent Astra-medium final code/verification
-   review. Close only after approved local acceptance and real evidence;
-   release-state integration is parent-owned. 90 still requires accepted80 and
-   the separate actual Block1 exit after integrated20–70;160 is not that exit.
+1. Bind the actual baseline/candidate, native/features/model inputs and workload
+   for current paired R6 measurements. Preserve selected identity/reference,
+   score/provenance, Unicode and exact-route/work invariants. No private Memex
+   population snapshot, new identity selection or whole30 closure is required.
+2. Execute the required same-input untraced comparisons in one reserved heavy
+   window; retain actual timings, work counts, uncertainty and failed/refused
+   rows. A source/tool correction gets a real RED/GREEN and affected checks;
+   unchanged qualified code does not repeat its full verification phase.
+3. Obtain independent Astra-medium results review at the coherent measurement
+   milestone. Reuse the accepted source verdict and valid passing suites; refresh
+   only input-invalidated consumer/conformance/performance seams. Integrate the
+   actual result, leaving missing proof open.
+4. 90 still needs accepted80 and the real Block1 exit after selected20–70;160 is
+   not that exit. Do not implement further optimizations to manufacture a benefit
+   or restart already accepted source work merely for a receipt.
 
 ## Dependencies, decisions and status
 
@@ -129,13 +121,8 @@ atomic .29 feedback correction; .30 reviews richer labels for precise per-result
 feedback, without postponing the .29 fix. B/C fork/rebase/multiarchitecture work
 remains .30 and is unrelated to50. No public occurrence-label ABI is selected.
 
-Current result: source/consumer census, selected design and independent entry
-review are complete. Actual source-entry fit/setup, implementation TDD,
-benchmarks and final implementation review remain outstanding. No product tests, models, GPU, private DB
-reads/copies or environment setup ran in this documentation update.
-
-Phase A validation:7 explicit Markdown candidates passed markdownlint0.41.1
-from installed cli2.23.3 with the repository rule config; intended-destination
-relative links and trailing whitespace checks passed. Repository HEAD stayed
-2f6913c1d59ac8ff3a30de835b57290a8635998c and Git status remained clean.
-These scoped document checks are not product/full-workspace qualification.
+The original census/design/entry review and selected source proof remain valid
+for their actual subjects. Current paired measurements and Block1 acceptance are
+still required; source qualification or a documents-only correction cannot pass
+them. Maintain the existing requirements/design/test map only where affected by
+real new findings; no duplicate validation packet or hash inventory is added.

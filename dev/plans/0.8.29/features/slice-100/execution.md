@@ -264,3 +264,21 @@ G2 or full gate was replayed. Scoped Ruff/Markdown validation and final independ
 implementation review assess this bounded source change; actual GDB/kernel signal
 delivery remains unqualified and requires a newly scoped real pair. Seq-383 is
 spent and the native lease remains elsewhere.
+
+## Current integrated Q1 closure, seq386
+
+The new owner-approved pair ran once on cleanfb92d51ab with a fresh current
+scoped build (24.60s; no test/full-gate replay). Binary SHA256 is
+`f1c5feb7954d33cec8ec49d902686a8086b0c68f0a9a7c918e5a8b05fa45c732`.
+Healthy nonce `ddf94cc401f663df1e6719b093f95c23` qualified normal release-through;
+interruption nonce `21e6d0fbdcbe3a1773f74af1c7535759` independently revalidated its
+active native witness and produced exited-signalled/SIGKILL. Untouched main/WAL/
+SHM, separate observer and same-ticket retry/reopen all passed. Both phases
+returned0 with no resource stop, cleanup error or adopted survivor; exact owned
+inferiors were absent unconfined. Existing task case directories are
+`q1-healthy-seq386` and `q1-interrupt-seq386`; raw phase logs/build JSON remain
+`logs/q1-seq386-*`. Approval was durably consumed before healthy dispatch and is
+spent. Independent Astra-medium accepted results and selected100 closure,
+including inherited five G2/control/source qualification. No further runtime,
+power/OS-crash guarantee or exhaustive fault campaign follows. Earlier failures
+remain above. Native window returned to Windows A6.

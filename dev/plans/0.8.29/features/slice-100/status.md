@@ -1,34 +1,23 @@
 ---
-title: Slice 100 — current f803 and70 evidence reconciliation
-status: IN_PROGRESS
+title: Slice 100 — selected process-interruption qualification complete
+status: COMPLETE
 target_release: 0.8.29
 date: 2026-11-15
 ---
 
-# Slice 100 current f803 and70 evidence reconciliation
+# Slice 100 selected process-interruption qualification complete
 
-The qualified subset at85f7eb219 remains independently accepted. On integrated
-453b640fb3ad599bc5df8b34615c83d9b4aaa64b, the seq-383 additional pair is now
-terminal: healthy QUALIFIED_HEALTHY, interruption UNQUALIFIED. Each reached its
-own eligible native checkpoint witness; healthy completed normally, but the
-interruption's issued pidfd SIGKILL was not followed by confirmed fault exit.
-GDB resume failed on breakpoint reinsertion into unavailable target memory, then
-its late same-token error was missed until the operator deadline. No untouched
-snapshot, observer or retry result exists. This is not product recovery failure.
+Selected100/D28-09 is complete locally. The seq386 pair on clean
+`fb92d51ab92702c0cc7a5dc515aa8a69187008e2` qualified healthy release-through,
+then its own witnessed active-checkpoint SIGKILL, untouched snapshot, independent
+observer and same-ticket retry/reopen. Independent Astra-medium accepted the
+results and found no remaining selected100 acceptance gap. Existing five G2
+cells,20 operator controls and accepted assembled source qualification remain
+valid within their recorded limits. All earlier unqualified attempts are retained.
+This is bounded process-interruption proof, not power/OS-crash or exhaustive
+fault qualification. Seq386 is spent; no further fault is authorized.
 
-Seq-372's original pair and seq-383's additional pair are historical and spent.
-No further fault run is selected. Actors are gone and the native lease returned.
-[Execution](execution.md) preserves actual results; [design](design.md) contains
-the independently accepted delivery design, now implemented with source-only
-controls pending final implementation review. Late-error RED317d69f01/GREEN61757a6d7
-and delivery REDf67e21a0b are preserved. Seven pure methods and the affected
-scripted-MI method (SIGKILL and SIGTERM subcases) pass unchanged after repair.
-These tests prove operator policy/transport behavior, not real GDB delivery.
-R100-5/A100-5 active-interruption recovery proof,100/D28-09 and release closure
-remain open. Prior20controls/five G2 cells and accepted ordinary qualification
-are retained; no passing coverage/full gate was replayed for this run.
-
-## Source/evidence identity
+## Historical source/evidence identity
 
 Own root is `/mnt/data/worktrees/fathomdb-0.8.29-s100-20261113`, branch
 `llm/0.8.29-s100-20261113`, entry3c34cd195e85daffa4f11303b66edc9ff6a2ecec.
@@ -76,7 +65,7 @@ active-transaction exit before commit and positive sanitation continuation.
 Format37 direct span/visibility controls already exist. None automatically
 establishes an exhaustive interrupted composition or a fresh100 artifact PASS.
 
-## Material findings and holds
+## Historical findings and holds
 
 G100-1 OPEN: own100 healthy execution at813054a70 reached relocated
 walCheckpoint69275 under erasure completion with readable eligible pending-frame

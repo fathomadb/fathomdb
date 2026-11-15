@@ -42,12 +42,15 @@ actual Orin/3090 child reset execution for .30 review. No live fault is authoriz
 
 The current-pin publication/build/snapshot/release subset is implemented and
 accepted at `8247f11056bc2deb3e0c6ec0472abbd4b217e857`; its98 CPU tests are
-preserved proof, not a claim of tracked/native integration. Remaining order is
-qualified cudarc tracked-pool/library source → qualified Candle checked F32
-raw-GEMM repair → independent remaining110 design review → approved exact
-consumption route/API migration → product per-behavior admission/mapping TDD →
-affected consumer and joint source qualification. The [source boundary](design.md#current-source-implementation-boundary)
-names the actual available interfaces and held work. No partial fork pin,
+preserved proof, not a claim of tracked/native integration. Selected cudarc
+tracked-pool/library source is CPU-qualified at
+`cb36642fad90c1796693c36ee59e3d3d162f4410` with312 selected passes and independent
+Astra acceptance. Prepare110's API/model wiring, requirements/design/test deltas
+and independent design review now, alongside Candle's actual checked F32 helper
+RED/GREEN. Actual adoption remains qualified Candle → reviewed coherent exact
+consumption route → product admission/mapping TDD → affected consumer and joint
+qualification. Do not repeat repair selection or accepted fork CPU suites.
+The [source boundary](design.md#current-source-implementation-boundary) names the actual available interfaces and held work. No partial fork pin,
 missing-API compilation RED or outer-lease-only Candle bypass is permitted.
 
 1. Independent Astra-medium design review is complete (PASS after partial-load
@@ -59,7 +62,8 @@ missing-API compilation RED or outer-lease-only Candle bypass is permitted.
 3. Follow the test map in per-behavior genuine RED commit → separate GREEN commit
    order. RED body records the actual semantic assertion failure; preserve the
    oracle during GREEN. Missing-helper compile failures are not behavioral RED.
-   Qualify cudarc before necessary Candle consumption changes.
+   Reuse accepted exact cudarc CPU qualification for necessary Candle consumption
+   changes; remaining actual-device/consumer proof retains its own scope.
 4. Consume independently reviewed qualified repair source. Registry versions must
    exist before registry pins; publication is outside this mandate. If necessary,
    propose a reviewed exact-rev integration route rather than inventing a registry

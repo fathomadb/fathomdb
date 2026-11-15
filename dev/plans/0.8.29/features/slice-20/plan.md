@@ -18,7 +18,7 @@ Accepted Linux hook repairs657edeb and A3/A5 proofs f803a964 remain qualified
 within [execution](execution.md) limits. Do not redo those proofs or passing
 sensitivity controls. Actual Windows A6 remains the completion work. Current
 source includes integrated10/60/70,30 source and100 coverage/native predecessors;
-whole20/30/60-F11/100 and Block1 remain open.
+whole20/30/100 and Block1 remain open;60/F11 is complete.
 
 ## Scope and current integrated inputs
 
@@ -27,7 +27,7 @@ continuation docs391ae66aa9d36fc0dbdfe5326ed028551a6774f5;
 60 subset5271c1bf022f0ea22f95f7433e226feb2315043e;
 completed70 e875f36042f89c1d84756f78135db0e8926c1ed4; measured30 P integrated
 in2381. Their qualified subset evidence remains valid within recorded limits;
-whole20/30/60-F11 and pre90 Block1 exit remain open.
+whole20/30 and pre90 Block1 exit remain open;60/F11 is complete.
 
 R29-3P-06/O3-06 queue preservation, Ready-to-pre-accounting proof and live
 tripwire guards are qualified at f803a964. Current60 format-bound schema helper
@@ -35,59 +35,43 @@ and70 bounded degradation/Closing propagation remain preserved; qualified race
 fixtures explicitly request structured output and text search.
 No new production queue policy or architecture successor is needed.
 
-Owner2026-11-13 seq-369 approves A3/A5 verification-only proofs and negative
-controls without manufactured RED. All actual defects keep genuine committed
-semantic RED before GREEN. Seq-370 approves only64GiB host image creation,
-necessary narrow ACLs and live attachment to existing Windows VM. Owner choice1A,
-recorded as seq-373, now authorizes the reviewed identity-guarded GPT/new R:/quick
-NTFS format of only the existing empty owned64GiB scratch disk. This grants no
-other-disk format, C cleanup or C8/5GiB floor change. Compiler/helper/test entry
-requires refreshed readiness and reviewed execution; no renewed format question.
+Owner seq369 permits A3/A5's already-correct verification-only proofs; actual
+defects retain committed semantic RED before GREEN. Seq370/373 selected only
+the guarded owned64GiB scratch preparation/format. Seq385 additionally authorizes
+necessary Windows capacity remediation. The authorized cleanup has restored
+C:8.94GiB and the exact396a guarded format ran once: R: is the owned64GiB NTFS
+scratch, with original system partitions preserved. These are completed inputs,
+not reasons to reformat, repeat capacity work or ask the same question. Actual
+A6 compiler/private-job readiness and native cases remain unqualified.
 
 Keep schema37/no migration, query scaffold, accepted hints/spans/compact default,
-W0.8.29/E0.8.0, R580/primary CUDA12.6/no K620. No model/GPU fault/toolkit work,
-cleanup, remote CI or publication.
+W0.8.29/E0.8.0, R580/primary CUDA12.6/no K620. No unrelated cleanup, model/GPU
+fault/toolkit work, remote CI or publication. Resource floors below remain.
 
 ## Ordered Windows completion
 
-1. Refresh exact standing VM identity, host resources and guest readiness read-only.
-   November14 initial state is shut off,32GiB/8vCPU; inactive topology has only
-   original sda and three CDROMs. Previous live-only attachment is gone; same
-   owned64GiB image remains at
-   `/mnt/data/tmp2/fathomdb-0829-continuation/slice20-windows-images-approved-20261113/windows-a6-64g.qcow2`.
-   Parent schedules a bounded start/read-only inventory/normal shutdown window.
-   Discover current lease; do not assume old endpoint, Disk1, RAW or C free space.
-2. Independent Astra design review covers this refreshed remaining scope before
-   source or qualified payload execution. Reattach only the existing image at
-   exact sdg/USB0:10/serialFDB29S20A6 after current UUID/QEMU UID/unused topology/
-   original disk checks; verify unchanged inactive XML and existing disks. No
-   recreate, persistent attachment or ACL broadening. The create-once capacity
-   script must not be rerun against the occupied image.
-3. The guarded format-only operator at Git
-   `396a023e02580a1bb82ddcb7f16817874ad0046c` already has qualified contained
-   controls and independent preparation review. Reuse equivalent reviewed bytes
-   and retained results, updating only affected runtime inputs. Seq-373 supplies
-   the owner ruling for GPT/new R:/quick NTFS of only the exact empty owned disk.
-   Execute after the coordinated lease, fresh identity/topology/guest guards
-   and unchanged resource floors pass. Seq-370 alone remains capacity-only.
-4. When owned volume and actual floors are ready, adapt retained frozen5122
-   operator into a tracked experiment using this task/source/image/current
-   endpoint. Review the concrete portability delta. Actual PowerShell parse,
-   existing compiler/reference hashes and Reflection.Emit null-handle ABI probe
-   precede supervised helper compilation. Independent binary/hash review and
-   private-job death/lease/transport/transfer controls precede A6. No alternate
-   compiler/install route or containment weakening.
-5. Transfer exact committed clean source under standing disposable-fixture
+1. Retain the current exclusive lease; refresh exact VM/endpoint/owned R: identity,
+   host/guest readiness and unchanged floors before compiler/test entry. Scratch
+   formatting is complete; never replay its create/format operator or assume an
+   old endpoint/drive number. Normal shutdown/owned-actor collection stays bounded.
+2. Finish the tracked A6 operator's actual PowerShell parse, existing compiler/
+   reference binding and Reflection.Emit null-handle ABI probe, then supervised
+   helper compilation. Review the coherent portability/source/binary binding and
+   private-job death/lease/transport/transfer controls once before A6. Reuse
+   accepted unchanged controls; no per-helper review rounds or hash inventory.
+   Retain exact transfer identity and actual private-job-empty proof.
+3. Transfer exact committed clean source under standing disposable-fixture
    authority, verify both ends/checked extraction on owned NTFS. One jobs2 engine
-   build1200s, then four exact90s selectors in test-map with nonzero counts,
-   original raw outputs/exits and authoritative private-job-empty outcomes.
-   Hypothesized path/rendezvous defects require actual deterministic semantic
-   RED commit before minimal GREEN with unchanged original assertions.
-6. Fresh independent implementation/results review then required source full
-   gate once on final clean tree if source/tests/executable tools change; only
-   affected failed suites rerun after narrow repairs. Docs-only scoped checks.
-   Parent integrates passing scope and closes20 only after all criteria have
-   actual dispositions. CI/publication remain outside current scope.
+   build1200s, then the four original exact90s selectors in test-map with nonzero
+   counts, raw outputs/exits and authoritative private-job-empty outcomes.
+   Actual defects require deterministic semantic RED before minimal GREEN;
+   preserve the four original test bodies and assertions.
+4. Fresh independent implementation/results review and applicable final source
+   verification establish only actual proved scope. Reuse accepted Linux source
+   and suite proof; changed executable tools/source get one stable final code-
+   phase gate, then affected failed suites only. Docs-only updates use scoped
+   checks. Parent closes20 only after actual A6 and all remaining criteria pass
+   or receive a real authorized disposition; CI/publication remain excluded.
 
 ## Current path-alias diagnosis and genuine RED route
 
@@ -127,26 +111,6 @@ Own task-local CARGO_HOME/target, jobs2, compile1200s/test90s, no model/GPU/Pyth
 binding. Parent schedules one native window; same host/cap limits below apply.
 No source/test or compiler execution before independent design PASS.
 
-## Capacity options for technical review
-
-A session-only `virsh setmem gh-runner-wonl-win11 25165824 --live` is a candidate
-for reclaiming8GiB after boot without changing persistent32GiB configuration.
-It is not executed or selected. Existing virtio balloon device is present, but
-actual guest driver/reclaim behavior remains unobserved. Require actual host16GiB
-and guest16GiB before workload; otherwise refuse. Normal shutdown returns the
-original persistent32GiB/off state. No --config/current, driver install or fallback.
-
-All reviewed owned compiler/cargo/TEMP/cache/log writes target R:, while existing
-C binaries/references are read. That does not raise actual C free6.37GiB to8GiB;
-OS/pagefile/background writes remain C. No permitted existing-data cleanup,
-relocation, boot-disk resize or safe owned-only C-space solution is established.
-A proposed temporary C-start6GiB/unchanged5GiB stop would be a real policy change,
-not accepted readiness:1s sampling/stale3s termination and all owned writes on R:.
-It requires explicit technical review and actual authority before adoption;
-seq-370/373 cannot supply it. Otherwise retain8/5GiB and use separately authorized
-adequate venue/capacity. The selected scratch format is authorized; any later
-necessary C-capacity policy ruling remains a separate concrete decision.
-
 ## Resource bounds
 
 All new mutable tools/cache/targets/temp/logs stay in this checkout or own task
@@ -158,47 +122,7 @@ heavy phase, jobs2; canonical final Rust gate jobs1. Sustained swap64MiB/s for
 three30s samples stops heavy work. Guest C8/5GiB, owned workspace32/20GiB and
 RAM16/8GiB remain workload floors. No cleanup or silent floor waiver.
 
-The actual November14 bounded read-only VM window completed in32.77s and normal
-shutdown restored verified SHUT OFF. Guest C free6,843,457,536B (6.37GiB),
-RAM32,048,726,016B, no native actors; only original Disk0/QM00001, no R:.
-Host post-start MemAvailable14,632,603,648B (13.63GiB), above stop8GiB but below
-heavy start16GiB; after shutdown49,886,126,080B. Compiler helper not executed.
-C: and heavy-phase host start floors currently hold A6. Initial wrapper's added
-48GiB pre-start combined-reservation assertion refused before mutation; that
-unreviewed stricter check was removed in favor of existing16/8GiB protocol.
-No reviewed floor was weakened. Refresh immediately before any new window.
-
-The second bounded metadata window stopped before its guest query: retained DHCP
-lease appeared before Windows networking and pinned SSH returned No route to
-host. Original diagnostics remain in own task; metadata is UNKNOWN, not absent.
-Normal ACPI request during boot did not finish shutdown; read-only guest-agent
-ping then succeeded and normal agent shutdown restored verified SHUT OFF within
-122.01s. No queried helper/compiler/storage/memory/config mutation occurred.
-A later authorized metadata window must establish live guest readiness before
-using a retained lease; no blind retry or missing-metadata inference.
-
-## Seq-373 execution readiness
-
-November14 23:57UTC read-only refresh confirms the exact VM is OFF with unchanged
-32GiB/8vCPU, original sda plus three CDROMs, and unused sdg/USB0:10/serial. The
-retained image remains inode8685915,197632B, owner64055:kvm; no image recreation,
-ACL change or inaccessible-image workaround. Current host MemAvailable
-53,372,776,448B/root free122,006,171,648B meet start floors, but taskfs
-268,152,438,784B is below the unchanged250GiB start floor. These are observations,
-not admission for a later window. M retains the exclusive heavy lease; no VM
-start/attach/format/compiler/test occurred.
-
-After lease return, refresh full resources, boot only the unchanged32GiB VM,
-wait for actual guest-agent/network readiness, and use pinned SSH inventory.
-Reattach the existing image only after current QEMU UID/unused topology/original
-disk checks. Reuse immutable396a023e format-only sources and retained controls;
-the private runtime mapping needs current endpoint, task-local capacity inputs
-and current reattachment XML, with unchanged image identity. Fresh guest guards
-must show exactly the original OS disk plus empty RAW/nonboot/nonsystem
-serialFDB29S20A6, unused R:, RAM16GiB and no native actor. The format-only
-operator records C without treating it as compiler admission. Bound the whole
-window to10min, boot/readiness300s, authenticated inventory120s, attach30s and
-format120s. Preserve UNKNOWN/no retry after ambiguous started storage, then
-resolve read-only; otherwise verify exact final GPT/R:/NTFS identity/free space
-and C/R/RAM workload readiness, then restore OFF through normal guest shutdown.
-No compiler/helper/test runs in this format/readiness window.
+Earlier capacity/readiness failures remain in [execution](execution.md) with
+their original subjects. Current authorized capacity/scratch inputs above
+supersede those old observations; neither a historical start-floor failure nor
+a completed format is a new task. Refresh readiness for the actual A6 window.

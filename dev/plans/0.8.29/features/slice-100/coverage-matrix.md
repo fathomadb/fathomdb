@@ -14,9 +14,10 @@ identity claim. Instead f803 and current03bdd share src tree
 No new test execution occurred in that initial reconciliation. Later additions
 are recorded separately in [execution](execution.md): five reviewed G2 cells
 passed, and own Q1 healthy reached the qualified native witness and normal0.
-The separately witnessed interruption issued its signal but timed out without
-observed exit/raw snapshot/recovery, so remains UNQUALIFIED. The inherited census
-below preserves its original assertion/source limits.
+The early interruption was unqualified. Seq386 subsequently qualified its own
+active-checkpoint SIGKILL, snapshot, observer and retry, closing selected G100-1;
+see [current status](status.md). The inherited census below is historical and
+preserves its original assertion/source limits.
 
 Tests below are in `src/rust/crates/fathomdb-engine/tests/`; production modules
 are in that crate's `src/`. Complete bodies were read for82 recovery/physical,
@@ -55,8 +56,8 @@ an executed crash proof. Seq-371 now approves the specific coverage-only asserti
 [composed oracles](composed-oracles.md); seq-372 selects the distinct Q1 scope.
 The approved bounded G2 additions have now executed and passed; healthy G2
 completes/closes but does not separately reopen. Active native healthy proof is
-also real. The incomplete interruption supplies no qualified crash recovery;
-additional Q1 scope remains held. Assembled217-registration qualification and
+also real. The earlier incomplete interruption supplies no crash proof; the later seq386
+result supplies the selected recovery proof, with independent acceptance. Assembled217-registration qualification and
 Rust2727pass/72ignored are recorded in execution.md with the original incomplete
 wrapper and failed-target closure; no uninterrupted PASS is claimed.
 

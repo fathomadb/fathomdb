@@ -1,6 +1,6 @@
 ---
 title: Slice 100 — bounded interrupted-erasure reconciliation
-status: PROPOSED
+status: COMPLETE
 target_release: 0.8.29
 slice: 100
 ---
@@ -15,6 +15,16 @@ metadata and child/operator packets have independent Astra-medium PASS. The main
 was recorded at5f8f12071. [Execution](execution.md) distinguishes the coverage
 source/G2/healthy results from incomplete interruption and remaining final qualification. Owner seq-371/372 select the narrow coverage exception and Q1 scope;
 [exact authority and holds](owner-decisions.md) distinguish approval from readiness.
+
+Selected100/D28-09 is complete locally. The seq386 pair on clean
+`fb92d51ab92702c0cc7a5dc515aa8a69187008e2` qualified healthy release-through,
+then its own witnessed active-checkpoint SIGKILL, untouched snapshot, independent
+observer and same-ticket retry/reopen. Independent Astra-medium accepted the
+results and found no remaining selected100 acceptance gap. Existing five G2
+cells,20 operator controls and accepted assembled source qualification remain
+valid within their recorded limits. All earlier unqualified attempts are retained.
+This is bounded process-interruption proof, not power/OS-crash or exhaustive
+fault qualification. Seq386 is spent; no further fault is authorized.
 
 ## Authority and exact scope
 
@@ -53,44 +63,30 @@ transaction-interior process-crash coverage is absent would be false. Conversely
 neither checkpoint BUSY nor pre/post-call observations prove an abrupt exit
 inside active checkpoint work. Additional own100 healthy execution now proves
 native reachability, and the reviewed five G2 cells supply bounded rich composition.
-The first witnessed interruption remains UNQUALIFIED in operator exit handling;
-G100-1 completed interruption/recovery qualification and100/D28-09 remain open. Integrated20 supplies usable command/source execution
+The first witnessed interruption remains historical and unqualified. Seq386
+closed selected G100-1/100/D28-09 through actual interruption/recovery and review. Integrated20 supplies usable command/source execution
 inference for the existing controls under G100-3; final independent review
 remains. These are evidence classes, not three established bugs.
 
-## Ordered work and selected scope
+## Completed execution scope
 
-1. Complete this plan-only reconciliation in the fresh sole-writer checkout
-   `/mnt/data/worktrees/fathomdb-0.8.29-s100-20261113`, branch
-   `llm/0.8.29-s100-20261113`, base3c34cd195e85daffa4f11303b66edc9ff6a2ecec.
-   Parent strict closed10/resource preflight passed; own nonmutating ownership
-   check passed. Independent maintained-plan Astra PASS at c1226d1bf and parent source GO at
-   5f8f12071 authorized the reviewed test/operator implementation. Recorded native
-   qualification is complete for the current subset; further Q1 work requires
-   actual additional scope and a newly scheduled native window.
-2. Accepted20 f803a964 and70 e875f360 are ancestors. Entry src tree and lock
-   match reviewed03bdd/f803 exactly; whole src/lock changed since older2f691.
-   Use reviewed bounded G100-3 command/source inference; retain quiet-output
-   limits. G remains unintegrated and is not a new hard prerequisite. Reconcile
-   later actual integrated changes only when they affect the selected inputs.
-3. Seq-371 permits honest passing-on-arrival coverage commits for the reviewed
-   child/operator and four G2 existing-hook cells. It does not excuse real
-   defects from committed runtime RED followed by separate minimal GREEN.
-   An absent hook/compiler/symbol or mutant of correct code is never product RED.
-4. Seq-372 selects one newly built disposable-child healthy release-through,
-   then one SIGKILL only after the interruption case has its OWN qualified native
-   witness, on the local unconfined ptrace-capable executor. Bounded reaping of
-   only registered owned actors is included; caps120s/case and64GiB allocation.
-   Source review, actual symbols/locals/PID/stack/readiness and parent technical
-   GO still precede Q1 execution. Missing checks stop UNQUALIFIED.
-5. Implement only the linked [Q1 protocol](q1-protocol.md),
-   [composed oracles](composed-oracles.md) and
-   [implementation/resource map](implementation-map.md) after those holds clear.
-   Existing85 tests stay byte-frozen. No production fault seam, SQLite/VFS patch,
-   timed-kill substitute, external attachment or broader fault venue is included.
-6. Fresh independent source/results review and actual proof precede closing any
-   discharged obligation. G100-1/G100-2 and100/D28-09 closure stay open. A passing
-   gate or approval is not a reached fault. Parent owns global state and ledgers.
+1. Preserve the accepted coverage/native/G2 subset and its reviewed seq371
+   verification-only exception. Do not replay its source reconciliation, native
+   coverage or full gate; actual defects still require runtime RED then GREEN.
+2. Use the accepted Q1 operator correction and bind its actual current-scoped
+   candidate build/symbols before runtime qualification. Earlier pair approvals are spent; seq386 approves exactly one
+   additional matched healthy then witnessed-interruption pair. The [Q1 protocol](q1-protocol.md)
+   owns nonce/PID/thread/symbol/witness and registered-actor controls,120s/case,
+   64GiB and no automatic retry. Source/native/runtime readiness and the parent
+   technical execution GO remain required.
+3. Run that pair in the exclusive native window. Require each interrupted child's
+   own active-checkpoint witness before SIGKILL, actual registered-actor reaping,
+   and [composed post-reopen oracles](composed-oracles.md). Missing checks stop
+   UNQUALIFIED; no timed-kill substitute, production fault seam or wider fault.
+4. Fresh independent implementation/results review closes only actually proved
+   obligations. Record actual source, results and original failed attempts in the
+   existing execution/review records once;100/D28-09 remain open until their real
+   exit. Parent owns release state/ledgers.30/90/CUDA closure is not a prerequisite.
 
 ## Integration and verification
 
@@ -101,26 +97,12 @@ landings with40/50/70/110; later affected engine/source changes explicitly
 invalidate the corresponding receipts and require affected rechecks. Slice160
 owns final combined affected qualification, not automatic all-.29 inheritance.
 
-The [completed10 execution](../slice-10/execution.md) and
-[terminal review](../slice-10/review-log.md#fresh-final-implementation-verdict-and-parent-integration)
-replace the old in-flight candidate assumption. The actual preparation includes
-early nonmutating ownership guards, noneditable own-wheel setup, exact pytest
-parent/child native identity,18 observed RED/GREEN pairs and214 registrations.
-Its original failed211-suite collector and qualified affected resumptions remain
-assembled10 evidence. Independently reviewed20 Linux subset657edeb is integrated.
-Its earlier6eee qualification remains historical. The accepted f803 continuation
-assembles216/216 suites after an original module-policy wrapper failure and
-bounded failed/remaining continuation. Rust2726pass/67ignored, Python1750pass/
-36skip and TS629pass/6skip plus15body-skip markers retain their limits. The
-matching quiet Rust eight-child block and exact f803→03bdd src/lock support
-existing-control execution inference, not active-checkpoint or rich post-crash
-proof.20 A3/A5 and RAW capacity preparation are accepted; A6/whole20 remain open.
-
-Planning-only import uses scoped Markdown checks. Any source, test or executable
-change requires the required final full source gate on its stable owned tree,
-with original failure evidence and scoped resumptions retained. Historical Phase A performed no product/native work. This current phase adds
-only reviewed planning text and owned pinned Markdown tooling; no source/test/
-operator implementation, native build, debugger, ptrace, fault or ledger write.
+Required source-phase verification applies to actual source/test/executable
+changes on the stable owned tree. Reuse accepted unchanged suite results;
+corrections rerun affected checks. Documentation-only changes use scoped Markdown
+checks and do not trigger another source/native qualification phase. Historical
+source/native inference retains its original limits and cannot substitute for
+actual active-checkpoint interruption/reopen proof.
 
 Quality-roadmap fit: adopt the bounded anomaly/reopen and independent positive
 survivor approach already present; defer general VFS/OOM/MC/DC/fuzz campaigns.

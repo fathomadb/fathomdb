@@ -56,23 +56,36 @@ proposes the corresponding maintained architecture clarification.
 
 ## Sequence and retained boundaries
 
-P steps1–5 are accepted within their recorded subset and assembled qualification
-limits; [execution](execution.md) preserves actual RED/GREEN and resumptions.
-The historical P sequence below is retained. Next G/D design/source/measurement
-review follows the [G/D continuation](continuation-gd.md); it does not repeat accepted P.
+Accepted P and measurement-tool source qualification remain valid within their
+recorded inputs; [execution](execution.md) preserves RED/GREEN and resumptions.
+Do not rerun their completed entry/design/full-gate sequence for a campaign.
 
-1. Parent reviews/integrates the per-cell dependency amendment after Astra PASS.
-2. Same owner provisions only its own /mnt/data tools/native environment after GO.
-3. Implement one measurement behavior at a time with committed observed runtime
-   RED, unchanged test, separate GREEN and scoped checks. Do not manufacture RED
-   for behavior already correct; retain the existing tool or propose an exact
-   policy question if genuinely necessary.
-4. Freeze tools/preregistration before timing. Run P cells first, G cells only
-   with an actual3090 reservation/engagement; M and F cells retain their holds.
-5. Run the required local full source gate once on the final clean stable tree,
-   retain actual failures/skips and affected reruns (qualification may be assembled),
-   and obtain fresh independent
-   final Astra review. Parent evaluates/integrates before another owner starts.
+1. Complete the reviewed prospective serial retained/live-budget model for G's
+   remaining72 write-interleaved primary cells, preserving the12 qualified
+   primary results and four separate calibration controls. Readiness/resource
+   refusals remain visible until actual measured replacement results exist.
+2. Advance independent D source and measurement-correctness controls in its
+   isolated checkout while G execution is held. M tooling is already integrated
+   and accepted; prepare its current candidate/source/native inputs without
+   reopening the old source phase. Actual D24/M46 runs retain their reviewed
+   G-subject, candidate and allocation requirements.
+3. Execute frozen-TC5 F/Q8 on the exact supplied input pack after actual native/
+   model/candidate readiness. Static input identity is resolved; it is neither a
+   reason to wait for another drive nor runtime qualification.
+4. Freeze relevant tools/protocol before each measurement, reserve one heavy
+   window and collect actual outcomes under existing caps. No new dataset/model,
+   cap increase, campaign or numerical gate is selected by this continuation.
+5. For source changes use genuine runtime RED, separate minimal GREEN and scoped
+   checks. Batch the coherent implementation/results review; run one required
+   broad gate on the final clean source phase, with only affected failed checks
+   resumed. A measurement run using unchanged qualified tools needs measurement/
+   attribution review, not another whole-source gate. Reviewed local resource
+   profile selection within approved scope is parent technical GO, not a new
+   owner question. Unknown future D/M costs remain honest unknowns; they do not
+   require whole-campaign forecasts before independent G work when the reviewed
+   shared-budget/refusal model permits it. Actual expansions of spend/venue/fault
+   authority still need their own ruling. Parent integration is serial;
+   independent owners do not wait for it to start unrelated source work.
 
 AC-083 is the owner-authorized **tracked, not gated**,100k LongMemEval **text**
 p50<=80ms/p99<=300ms target. Hybrid is a separate diagnostic cell. Existing

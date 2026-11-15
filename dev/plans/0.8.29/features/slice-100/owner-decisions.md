@@ -23,11 +23,16 @@ are part of this plan. Seq-369 remains specific to20 A3/A5.
   120seconds/case,64GiB, registered-actor and runtime-readiness limits apply;
   there is no automatic retry. This pair executed at453: healthy qualified,
   interruption UNQUALIFIED after its signal/resume error; no recovery proof.
-  Its authority is spent, with original results retained. No further pair is selected.
+  Its authority is spent, with original results retained.
+
+- **Seq-386:** approve exactly one further corrected pair under the same limits.
+  It executed once on currentfb92d51ab: healthy and witnessed interruption/recovery
+  qualified, independently accepted. Authority is spent; no automatic retry or
+  further pair is selected. [Current status](status.md) records bounded closure.
 
 No host/disk/power/VM/GPU fault, external attachment, unrelated process/filesystem
 cleanup, timed-kill substitute, SQLite/VFS patch or production fault seam is
-included. Approval is not proof of viability and is not100/D28-09 closure.
+included. Approval alone is not proof; actual seq386 results and independent review establish selected100/D28-09 closure.
 
 The maintained-plan Astra recheck passed at c1226d1bf and parent implementation
 GO was recorded at5f8f12071. Subsequent actual pair results and the returned

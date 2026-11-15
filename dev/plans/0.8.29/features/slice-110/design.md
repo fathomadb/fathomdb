@@ -26,18 +26,16 @@ identity, operation, winner, one-line/once output and historical expected-signal
 teardown assertions remain. No healthy counter query or whole-model quarantine
 was added.
 
-The inspected cudarc repair source is
-`72a3f905aad448b81bdc2aebe010fc18802c2b8e`. Selected lifetime/admission,
-factory, memory, module, ordinary-launch, pinned-memory and library source
-repairs have independent acceptance; this is not an adoptable whole artifact.
-`PrimaryContextLifetime::recorded_id()` and `loss()` now return cached identity
-and the first loss without native dispatch. `CudaContext::new_tracked` exists.
-Tracked pool creation/attachment, `new_with_mem_pool_tracked` and the associated
-pool lifetime observation still require fork-local source proof and
-qualification. Do not bypass them with an untracked constructor or adopt a
-partially qualified pin. The eventual token supplies native loss authority to
-the existing product publication path; no independently recoverable product
-generation is introduced.
+Selected cudarc source `cb36642fad90c1796693c36ee59e3d3d162f4410` has fresh
+independent Astra-medium acceptance of312 selected passing CPU controls,
+formatting and production-library Clippy-Werror. This includes tracked pool
+creation/attachment, `CudaContext::new_with_mem_pool_tracked`, lifetime/admission,
+cached diagnostics and BLAS/RNG. The available `recorded_id()` and `loss()`
+observations perform no native dispatch. Reuse this exact source/result boundary;
+do not regenerate fork proof or a source census merely for product adoption.
+It does not qualify GPU/NVRTC runtime, all452 listed tests, product pins or resets.
+The eventual token supplies native loss authority to the existing product
+publication path; no independently recoverable product generation is introduced.
 
 Candle's `Device::new_cuda_from_context` suffices for context injection, but does
 not finish the required repair. Exact consumed K9's private
@@ -51,8 +49,10 @@ compute type and algorithm; do not replace it with generic Gemm dispatch.
 Candle's accepted design at `434e8096dd0f30adb8fcf6094b4b27927b9a3ee0` has prepared
 private-helper tests, but production and actual CUDA RED/GREEN qualification
 remain pending. This necessary Candle qualification is a hard adoption edge,
-even though no new public model/tensor API is required. The reconciliation here
-requires independent design review before remaining product implementation.
+even though no new public model/tensor API is required. Reconcile the product API
+migration/test map against these exact interfaces now and obtain independent design review; it need not wait for Candle runtime
+qualification. Actual coherent pin adoption and affected native/consumer proof
+still require the selected Candle qualification.
 
 ## Existing source and primary guarantees
 
@@ -216,8 +216,10 @@ Remaining edits are confined to existing construction/admission seams:
 - Preserve engine close/drain/lock ordering and existing typed SDK propagation;
   the existing reranker singleton/retry rules below still apply.
 
-These edits wait for qualified cudarc pool/library and Candle source artifacts,
-then the parent-reviewed consumption route; current published pins stay fixed.
+Prepare this product wiring/design/test scope against the exact accepted cudarc
+interfaces and reviewed Candle helper contract now. Actual artifact consumption
+uses the parent-reviewed route after required Candle qualification; current
+published pins stay fixed until then. Unchanged fork CPU proof is reused.
 
 Projection/query/ordinary/frozen search preserve current typed-error propagation;
 rerank never converts loss to0.0 or unavailable. Existing singleton retry can

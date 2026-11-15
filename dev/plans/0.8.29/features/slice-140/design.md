@@ -1,16 +1,12 @@
-# Slice 140 minimal repair-selection design
+# Slice 140 required repair design
 
-Active .29 repair selection follows owner seq-376/377: necessary110 source/seam
-repairs and independently required existing .29 artifact repairs only. New x86
-CUDA13 delivery/compiler work formerly in120 is [.31](../../../0.8.31/cuda-delivery-plan.md)
-under seq-378 and cannot create a mandatory .29 repair. Real Orin/3090 reset
-children are HELD .30; no .29 live-fault gate, survival or original-defect closure
-is inferred. Fork B/C maintenance remains .30. No repair is selected by this note.
-
-Status: WAITING_FOR_REQUIRED_REPAIR_SELECTION. The table is a selection contract,
-not approval to implement any candidate. [Census](source-census.md) binds exact
-existing sources.110/120 scratch findings are immutable proposal input; their
-dated actual10-pending prose is superseded by actual10 closure at this baseline.
+The110 shared-terminal-lifetime repair is selected under seq376/377. Its
+completed selected cudarc CPU qualification and the remaining Candle/product
+handoff are described in the [active plan](plan.md#selected-repair-and-remaining-delivery).
+The table below retains the original scope selectors; it does not reopen a
+completed selection or authorize unrelated work. New CUDA13 delivery/compiler
+and130A are .31, real resets and fork B/C are .30. Existing dated source census
+and reviews remain evidence for their original subjects.
 
 ## Exact candidates and selectors
 
@@ -38,10 +34,11 @@ origin/main and import .30 work. Fork-local `fathomdb/` owns requirements,
 accepted model/design, tests, review verdicts and qualification receipts. Product
 owns SDK/error/admission integration. No nested agents or shared writers.
 
-For each included repair record full upstream base, exact fork code SHA and diff,
-Fork-Class/item/removal records, API/feature closure, lock hash and actual tool
-inputs. Keep one coherent cudarc family. Qualify C first where K depends on it,
-then affected K, then review FathomDB pin adoption. Preserve current pins until
+Keep the existing fork-local base, exact source/diff, API/feature/lock and actual
+tool identities with the substantive repair. Do not regenerate a duplicate
+packet, hash inventory or source census after unchanged reviewed inputs. Reuse
+qualified C where K depends on it, qualify affected K, then review coherent
+FathomDB consumption. Preserve current pins until
 that proof exists. If registry publication is needed, version preparation and
 dry-run/review precede separate publication authority; authenticate resulting
 archive digest, VCS identity and source/original manifests before registry-pin
@@ -71,7 +68,8 @@ failures/skips and do not relabel historical .28 qualification as .29 proof.
 Apply the quality roadmap's bounded state/lifetime anomalies, real resource
 postconditions and independently specified outputs. Defer exhaustive CUDA APIs,
 architecture/dtype expansion, general GPU fuzzing, broad upstream modernization
-and arbitrary fault-race survival. New source evidence strengthens the nested
-cleanup/partial-load concern; it does not demonstrate an accepted repair.
+and arbitrary fault-race survival. The selected cudarc CPU result covers the reviewed dispatch/lifetime seams;
+Candle and product consumption plus required actual-device controls remain
+separate obligations. It is not reset-survival proof.
 Seq-379 accepts bounded usage unknowns/current ratings, with quantitative evidence in .31; no repeated collection,
 new importance/toolkit choice or host modification is authorized by140.

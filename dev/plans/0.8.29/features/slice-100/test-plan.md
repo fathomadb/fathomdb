@@ -1,28 +1,17 @@
 # Slice 100 selectors, independent oracles and execution holds
 
-Existing selectors below remain available evidence references, not new100
-executions. Entry3c34cd19 includes accepted70 e875f360 and20 f803a964 with exact
-reviewed03bdd/f803 src/lock identity. The read-only current-evidence, Q1 metadata
-and protocol packets passed independent Astra review; the maintained-plan recheck passed at c1226d1bf and parent implementation GO
-was recorded at5f8f12071. Own ownership and closed10/resource preflight passed.
-Actual bounded G2 composition and own Q1 healthy execution passed; the first
-independently witnessed interruption remains UNQUALIFIED in operator exit handling,
-with no raw-snapshot/recovery result. [Execution](execution.md) retains precise
-subjects, real tool RED/GREEN and current20controls. Source review accepted the
-interrupt transition and bounded monitor repair. Assembled qualification covers
-all217registrations with explicit failed/remaining continuation and exact PyO3
-loader correction; the qualified subset is independently accepted.
+Selected100/D28-09 is complete locally. The seq386 pair on clean
+`fb92d51ab92702c0cc7a5dc515aa8a69187008e2` qualified healthy release-through,
+then its own witnessed active-checkpoint SIGKILL, untouched snapshot, independent
+observer and same-ticket retry/reopen. Independent Astra-medium accepted the
+results and found no remaining selected100 acceptance gap. Existing five G2
+cells,20 operator controls and accepted assembled source qualification remain
+valid within their recorded limits. All earlier unqualified attempts are retained.
+This is bounded process-interruption proof, not power/OS-crash or exhaustive
+fault qualification. Seq386 is spent; no further fault is authorized.
 
-Seq-371 approves specific verification additions. The original seq-372 pair and
-one additional seq-383 pair have executed; both interruptions remain UNQUALIFIED.
-No further pair is authorized. Original healthy proof
-is retained; strict matching still requires a new healthy at any newly scoped
-frozen subject. Own native/TS setup is complete, with no borrowed artifacts.
-The one full wrapper passed lint/typecheck/security, then stopped incompletely
-on du disappearance during Rust compilation, after two generated-doc site failures.
-Those failed/unfinished checks are now covered by the selected continuation and
-exact failed PyO3 artifact rerun. No whole-wrapper rerun or uninterrupted PASS is
-claimed. All original diagnostics/exits and missing body-count limits remain.
+Existing selectors and source-history references below retain their original
+limits. No passing coverage or full gate was replayed to close the Q1 gap.
 
 ## Existing proof to reuse before writing tests
 

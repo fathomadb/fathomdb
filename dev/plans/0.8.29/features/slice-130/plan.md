@@ -20,9 +20,11 @@ quantitative unknowns/current ratings; quantitative evidence is .31.
 
 ## Phase A scope
 
-Read-only reconciliation and review candidates, with no source implementation,
-installation, model download, hardware operation, provisioning, spending or
-campaign. [Requirements](requirements.md), [acceptance](acceptance.md),
+The bounded B–E design has independent Astra-medium PASS. Reconcile actual
+current source/artifact inputs and proceed with independent source/harness
+preparation after applicable preflight and affected design review. This is not
+campaign, provisioning or spend authority; missing venue/caps block only the
+affected execution. [Requirements](requirements.md), [acceptance](acceptance.md),
 [design](design.md), [test map](test-map.md) and
 [campaign protocol](campaign-protocol.md) define separate A–E exits: A is future .31 under seq-381; B–E remain .29.
 [Status](status.md) records actual evidence, pending decisions and validation.
@@ -49,7 +51,8 @@ B–E are included .29 qualification work; A is allocated to .31; exact missing 
 execution or claims, not unrelated release work. Design/harness preparation can
 precede110/120/140 closure. Source entry requires actual10 closure, final-baseline
 reread, parent-created isolated worktree/strict preflight and independent fresh
-Astra-medium design PASS. This Phase A claims none of those exits.
+Astra-medium design PASS. Reuse the existing accepted design unless the affected
+source/contract/protocol changes; do not recapture its proposal-validation packet.
 
 | Edge | Kind / meaning |
 | --- | --- |
@@ -70,7 +73,11 @@ comparison; unchanged evidence is reusable with recorded blast radius.
 
 ## Execution after readiness
 
-1. Parent resolves exact outstanding inputs and obtains independent design PASS.
+1. Advance current D/E and B/C source/fixture/protocol preparation in parallel
+   with110/140. Keep the accepted design and review coherent material deltas;
+   resolve actual g5g access/session/caps while unblocked work proceeds. Final
+   affected artifact/pin identity is hard for the campaign claim, not all tooling
+   preparation. D/E retain their own permitted Orin reservation.
 2. Same owner implements only approved seams with observed assertion-failing RED
    commits before separate GREEN commits. Existing passing coverage is preserved,
    never presented as new RED; no Slice20 exception applies here.

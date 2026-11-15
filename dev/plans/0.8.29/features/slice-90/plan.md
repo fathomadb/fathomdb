@@ -7,22 +7,25 @@ slice: 90
 
 # Slice 90 accepted-residual implementation proposal
 
-This is a bounded early proposal only. Its baseline is clean
-`2f6913c1d59ac8ff3a30de835b57290a8635998c`; [census](census.md) distinguishes
-built source, predecessor candidates and proposed80 contracts. No90 source
-change is authorized by this packet or by a bounded proposal review.
+The full80 contract is owner-approved at
+`f2f4831554ae165420a31890cf102642ce28b21d` (seq384); retain that decision.
+The existing [census](census.md) distinguishes built behavior from residual work.
+Refresh affected source fit and conformance triage now; actual90 source entry
+still waits for the real Block1 exit and the reviewed integrated-source design.
+No new80 approval or generic proposal packet is required.
 
 ## Goal and fixed boundaries
 
 Implement only residual behavior in the exact owner-approved80 revision, after
 actual integrated selected20–70 and the separate Block1 follow-up exit. Preserve
 built hints, default signals, queue and format37 spans. Accepted B2-8 storage,
-compact text default and unavailable-only omission remain settled; their exact
-new aggregate carrier still requires full80 approval. Do not invent approval,
+compact text default, unavailable-only omission and the exact owner-approved80
+aggregate contract remain settled. Preserve that accepted scope; do not invent
 calibrated verdicts, weak thresholds, overflow chunking, ANN, an SDK hint-default
 flip, new governed operations or storage migration/backcompat work. Keep query
-clone-equality scaffold. Runtime/native/model/GPU/database/network/cleanup work
-is outside this early assignment.
+clone-equality scaffold. Current preparation performs no runtime/model/spend or
+cleanup action; actual Block1/native execution retains its existing readiness
+and authorization requirements.
 
 [Needs](needs.md)→[requirements](requirements.md)→[acceptance](acceptance.md)
 →[test-map](test-map.md) trace release-local R29-3P-14/15. [Design](design.md)
@@ -31,18 +34,17 @@ numerical threshold is minted; locked requirements/acceptance retain authority.
 
 ## Actual prerequisites, without a90↔160 cycle
 
-1. Record exact integrated predecessor SHAs and full80 requirements/design/
-   acceptance revision plus actual owner approval.80's bounded Astra PASS is
-   insufficient. Its aggregate-v2 SHA256
-   `a5e4851df2fedcbcce3e7d1b93138980c25e172d0ceb802792d218940bca0e53`
-   supersedes old aggregate unavailability/carrier/rollback paragraphs only;
-   this does not settle actual50 identity or final60/70 contracts.
+1. Reconcile exact integrated predecessor source with the owner-approved80
+   contract and existing design/test map.80's earlier bounded PASS alone was
+   insufficient; seq384 now supplies full contract acceptance. Actual50 identity
+   and final60/70 contracts are integrated inputs, not unanswered policy questions.
 2. Require the **unnumbered Block1 follow-up exit**, after selected20–70:
-   applicable full/feature/performance checks, both-format current conformance
-   and approved smoke/item-4 remeasure. Missing exact30 TC5 inputs, partial20
-   policy/Windows cells and pending final60/70 source qualification are not
-   passing exits. Explicit parent dispositions, where authorized, are recorded
-   as dispositions, not invented passing measurements.
+   applicable full/feature/performance checks, both-format conformance and
+   approved smoke/item4 remeasure. Windows, remaining30 campaigns, conditional40
+   disposition and current50 performance remain actual selected obligations;
+   TC5 static input identity is resolved. Unmeasured runtime cells and missing
+   smoke model/prompt/budget/fixture are not passing exits. Parent dispositions
+   must use real authority; no passing measurement is invented.
 3. Reread actual integrated20/30/40/50/60/70 and80, affected full test files,
    accepted ADR/interface deltas and source/native identity. Revise this packet's
    delta against real integrated behavior before claiming full readiness or
@@ -93,12 +95,13 @@ fail if the behavior already exists.
 
 The early reviewer can challenge source fidelity, scope separation, concrete
 proposed routine choices, requirement/acceptance/test joins and retained hard
-gates. A PASS is bounded proposal quality only. Full80/90 readiness, source
-permission and product correctness remain unclaimed. Owner rulings stay owner
-rulings; reviewer design approval is not consent by inference.
+gates. A PASS is bounded proposal quality only. Actual Block1/source-fit readiness
+and product correctness remain unclaimed; full80 contract approval is retained.
+Owner rulings stay owner rulings; reviewer design approval is not consent by
+inference.
 
-Stop affected source entry for unapproved80, absent Block1 exit, unsettled50
-identity/feedback seam, mismatched60/70 contracts, unbounded orient work,
+Stop affected source entry for absent Block1 exit, a newly demonstrated50
+identity/feedback contradiction, mismatched60/70 contracts, unbounded orient work,
 physical probes leaking into aggregate, broadened open refusal, stale snapshot
 reuse, unknown→full/zero inference, unproved native limits or storage change.
 Present concrete contradictions to their existing owner; do not add a generic

@@ -97,14 +97,11 @@ plan below. Approved scope follows the direct review pipeline; each pending cond
   review rather than silently expanding the release.
 - MCP/queue/Block 1 are integrated. B2-2/3 hints and part of B2-6 already exist;
   B2-8 storage exists, but its reporting and other residual B2 work remain.
-- Canonical branch/worktree: `dev/0.8.29` at
-  `/home/coreyt/projects/fathomdb-worktrees/dev-0.8.29`.
-  This chat plans in its managed worktree on `llm/0.8.29-chat`; main is untouched.
-  Slice 0 proposes ownership/reuse/create/switch procedure; 10 executes only
-  approved workspace changes.
-- .28 is published and its historical state remains unchanged. Approved10
-  metadata bootstrap activates the tracked.29 state/board selected by
-  `scripts/release-current.py`; setup and product qualification remain unexecuted.
+- The parent checkout is `/mnt/data/worktrees/fathomdb-0.8.29` on
+  `llm/0.8.29-chat`; accepted work integrates through `release/0.8.29`.
+  Concurrent owners use their own parent-created sibling worktrees.
+- .28 is published; completed10 activated the tracked.29 state/board selected by
+  `scripts/release-current.py`. Runtime qualification remains row-specific.
   Generated control regions below are owned by release-state-0.8.29.json.
 - Runtime/manifest versions, available hosts and source-bound verification
   evidence must be distinguished from actual current environment readiness.
@@ -130,38 +127,10 @@ Current selection is the reviewed decision log and register, not the seed scores
 | 8 | Placeholder; remains empty until an explicit placement decision | [Reserved](0.8.29/prework/slice-8/plan.md) |
 | 9 | Consolidate 0–8; score understood/risk/effort/include-or-postpone; interactive HITL, decision-bound Slice 10, independent review and at most four FIX-n cycles, final HITL and plan update | [Review/decisions](0.8.29/prework/slice-9/plan.md) |
 
-Slices 0–2 can research independently. Slice 3 uses their inventories; 4 reviews
-the draft architecture and 5 traces draft requirements against actual tests.
-6/7 may proceed alongside those reviews, feeding corrections back into 3–5.
-These are drafting dependencies, not permission for concurrent edits to shared
-canonical documents. Slice 9 waits for each output or an explicit unavailable/
-reserved disposition, and records remaining uncertainties without pretending
-they were resolved.
-
-### Slice 9 scoring and HITL protocol
-
-Use [the initial proposal register](0.8.29/proposal-register.md) as a seed, then
-update it from actual prework. Score each item on:
-
-- Understood: high, medium or low, with missing evidence.
-- Risk: low, medium or high, naming correctness, compatibility or delivery risk.
-- Effort: S (bounded edit/verification), M (several seams), L (new design or
-  external qualification); these are comparative sizes, not time promises.
-- Recommendation: include, conditional include, postpone or close as already
-  satisfied. Record a rationale, slice and dependencies for each.
-- HITL: pending/approved/rejected/deferred, exact decision and conditions.
-
-Present small coherent decision batches interactively. Capture the user's
-actual decisions in the local decision log; use ledgerwrite for any resulting
-canonical ledger events, with stable TC identities and a fresh full-tail read.
-Do not preselect approval or infer it from time or silence.
-
-Slice9 now supplies the reviewed decision-to-task mapping.10 refines that scope,
-obtains independent Astra-medium plan PASS, implements with observed RED→GREEN
-and receives fresh independent implementation review. New material policy, venue,
-spend or publication choices return to the owner as concrete item decisions;
-approved preparation does not need another generic acceptance. State activation
-preserves real proposal closures and leaves10 open until verified integration.
+Prework and its scoring/decision cycle are complete. Their linked records retain
+actual decisions and review history; they are not another delivery gate. Reopen
+only a concrete changed scope/policy/venue/spend/publication question. Approved
+preparation and settled owner decisions need no renewed generic acceptance.
 
 ## Slice ladder — preparation and features
 
@@ -247,21 +216,21 @@ blanket40 prerequisites. No cache or owner rejection/defer is selected.
 **Slice50's named-artifact entry amendment passed independent Astra-medium review
 on November14.** Closed10 plus qualified Linux451, accepted P2fd/G29de read
 artifacts, selected seq374–375 identity/packing/feedback and the source/consumer
-census replace whole30 as source-entry dependencies. G still has11 qualified
-and73 refused cells. M/D/F and Windows keep their own release obligations.
+census replace whole30 as source-entry dependencies. Remaining G obligations are
+recorded in release state; read-only inputs do not supply missing write evidence.
+M/D/F and Windows keep their own release obligations.
 Original Batch3 requires no private Memex snapshot; runtime frequency/benefit
 remains UNKNOWN without one. Genuine TDD, exact-route/work proof, applicable
 paired comparisons and independent implementation review remain required.
 
-The reviewed [Slice30 prerequisite amendment](0.8.29/features/slice-30/prerequisite-change.md)
-permits initial provider-free Linux direct-text P work from closed10 and the
-qualified integrated Linux20/current70 baseline. Parent-owned state records10
-as30's entry dependency; actual ancestry, strict owned preflight and explicit
-source GO remain required. This advances eligible P work while20 is open; it
-neither closes20 nor clears whole30/40/50/Block1. G/D need concrete extension
-review, M retains20 proof/policy and F retains exact frozen TC5 inputs. Only
-unfiltered P1 supplies the tracked100k text result; marker/write-filter P2 is
-separate. Numerical order is not an execution prerequisite.
+[Slice30's prerequisite amendment](0.8.29/features/slice-30/prerequisite-change.md)
+and [G/D](0.8.29/features/slice-30/continuation-gd.md)/[M](0.8.29/features/slice-30/continuation-m.md)
+continuations own the cell-specific contracts. P and qualified G results stay
+valid for their recorded subjects. G write cells require the prospective serial
+retained/live-budget implementation and readiness; D, M and F keep their actual
+measurement/input/resource prerequisites. None requires replaying P, Linux20 or
+completed70. TC5 static input identity is resolved; candidate-bound F/Q8 runtime
+proof remains. Numerical order is not an execution prerequisite.
 
 40 before 50 is preferred landing order for attribution/shared engine files, not
 a semantic requirement. 60 can develop independently of their implementation;
@@ -271,9 +240,14 @@ parallel in their own worktrees; only their root integration is serialized, as
 are shared state/ledger/manifest/interface writes. Each rereads the engine
 changes integrated before it at source entry and at integration.
 
-The one local host serves every native build and full gate, the GPU campaign
-and the Windows VM. The parent grants that window to one owner at a time;
-design, review and non-native work proceed outside it.
+The one local host serves every native build/full gate, GPU campaign and Windows
+VM; one owner holds that heavy window at a time. The immediate execution order
+is Windows A6 → Candle F32 qualification →110 adoption, subject to current readiness. Source preparation
+and reviews in other isolated checkouts proceed throughout; a held or finished
+heavy job releases the window. Within authorized local measurement scope, actual
+reviewed resource/cost fit and guards permit parent technical profile selection,
+without inventing another HITL cap question. Actual one-use faults, new venue/
+spend and publication retain their explicit owner gates.
 
 Owner ruling, steward `seq-367`: .29 focuses on A, required fork repairs only.
 The [Candle rebase, marker cleanup and multiarchitecture work](0.8.30/fork-maintenance-plan.md)
@@ -331,12 +305,14 @@ imported serially. Never share checkout branch switching or another writer's ven
 
 ## Cross-cutting DoD — contract, design and verification discipline
 
-Every slice begins with prep: confirm goals/current maturity; write local draft
-needs, requirements, acceptance and architecture CRUD; read active architecture;
-draft design; identify challenges and primary-source research approaches; check
-fit/revise; record prerequisites for the next reviewer. Allocation is not design
-approval. Interface/public API changes need the accepted ADR/interface updates
-when implementation is authorized.
+Before source work, reconcile the existing scope, requirements/AC, design and
+test map with actual source and completed predecessor changes. Correct the
+parts that changed; retain already accepted work and tests. Do not recreate the
+prework CRUD, source census, review packet or architecture draft for each
+continuation. Independent Astra-medium design review still precedes a new or
+materially changed implementation scope; documentation-only corrections do not
+restart unchanged source qualification. Interface/public API changes carry the
+accepted ADR/interface updates in the same implementation change.
 
 Each implementation slice then reviews requirements/design, uses per-behavior
 failing tests and RED→GREEN, gets independent code review and appropriate native/
@@ -378,15 +354,6 @@ until an amendment is ratified: 12.6 shipping floor,13.0 next artifact, R580 hos
 constraint; no K620 execution or implicit Jetson reflash. CUDA13 library
 qualification is not a completed product artifact or Q5 Tegra qualification.
 
-## Prework execution context
-
-Owner authorized starting work in this chat on November 10. The archived planning
-checkout was recovered into this chat's attached replacement at
-`/home/coreyt/.codex/worktrees/fathomdb-0829-work/dev-0.8.29`, preserving
-`llm/0.8.29-chat` and baseline. [Current prework findings](0.8.29/prework-status.md)
-record actual bounded research, unavailable evidence and checkpoint intake.
-These outputs do not activate .29 or approve environment/product changes.
-
 ## Integration, decisions and next action
 
 Selected work integrates through the local `release/0.8.29` ref from
@@ -395,33 +362,54 @@ Selected work integrates through the local `release/0.8.29` ref from
 no wholesale old prototype merge. Before landing, fetch allowed refs, check
 ancestry/current branch and integrate/review changed boundaries before a
 fast-forward. Never force-push or move another session's checkout.
-The .28-only first-tag CUDA exception does not authorize .29 routing; resolve
-that bounded prerequisite through 7/9/10 before160 without weakening protections.
+Preserve the .29 routing already qualified in10; validate only affected current
+routing/authentication inputs during the required local rehearsal without
+repeating the repair or weakening protections.
 Use JSON as the single writer of generated release views after activation.
 Use ledgerwatch/ledgerwrite for ledgers and stable TC ids.
 
-[The proposal register and decision log](0.8.29/proposal-register.md) distinguish
-approved work from genuinely pending item decisions. Actual0–9 reviews are
-complete. Approved10 preparation and qualified product subsets are recorded in
-the live state; [30 P results](0.8.29/features/slice-30/results-p.md) now provide
-current direct-text evidence. P acceptance does not close whole30 or downstream
-source gates. Slice30 also has11 qualified G cases; its73 required cap-refused
-G cases, M, D and frozen-TC5 F are not measured, and the reviewed
-[G/D](0.8.29/features/slice-30/continuation-gd.md) and
-[M](0.8.29/features/slice-30/continuation-m.md) continuations govern them.
-Owner seq382 located the exact TC5 pack under
-`/mnt/data/fathomdb-performance-benchmarking/scale-02/inputs/input-pack-v1`;
-static index/manifest/payload and selected bridge identities pass. The missing
-input hold is cleared; actual candidate-bound F/Q8 measurements remain required.
-Slice70 is complete on the release branch.110's Astra-reviewed policy is now
-selected; its source/seam work remains and actual resets are deferred to.30.
-120's reviewed new-artifact/compiler proposal is allocated to.31. Product work continues through
-the selected ladder, actual prerequisites and genuine TDD. Publication remains
-separately authorized.
+## Remaining delivery path
+
+The parallel lanes below produce the remaining selected outcomes. Each owner
+continues its existing reviewed work in its own checkout; source edits and
+reviews proceed while another owner holds the heavy window. Only a named
+consumed input blocks source work. The table is an assignment, not another
+checklist, receipt or status authority; live results remain in release state.
+
+| Owner / lane | Next concrete delivery | Actual execution dependency |
+| --- | --- | --- |
+|20 Windows | Use the completed authorized capacity/NTFS scratch preparation to finish the contained operator and four original native A6 cases; fix only demonstrated defects. | Current VM/disk identity, existing C:8/5GiB and memory floors, contained reviewed operator and exclusive native window. Reuse Linux proofs. |
+|30 measurements | Complete the G serial retained/live-budget model and remaining72 primary write cells; deliver D24, M46 and frozen-TC5 F/Q8 measurements. | Reviewed per-cell resource model, candidate-bound native/input proof and one heavy lease. Develop independent D/tooling changes while G execution is held; reuse12 primary G results and four separate calibration controls. |
+|40 conditional optimization | Finish the decision for both eligibility and batch opportunities, then only justified safe treatments. | Actual affected write baseline and exact snapshot/invalidation/paired benefit proof for adoption, or actual authorized rejection/defer. No speculative prototype or whole30 wait. |
+|50 search | Complete current paired identity/text/snippet performance qualification of implemented search. | Actual source-bound baseline/candidate and equivalent workload/native inputs; no private Memex snapshot gate. |
+|140 and110 CUDA repairs | Qualify the actual Candle private F32 helper, adopt the coherent qualified fork revisions, complete product tracked-admission/mapping integration. | Cudarc's selected312 CPU controls/Astra result is reused. Prepare110 API migration/design/tests now against the exact available interfaces; consumption/final product proof waits for required Candle qualification and reviewed exact-rev route, not a new repair-selection packet. |
+|130 B–E | Complete the reviewed characterization/lifecycle/soak tools and available-platform cells; resolve exact g5g access/caps for affected cells. | Independent source preparation now; actual final affected pins/artifacts and permitted exclusive venue at execution. No CUDA13/Tegra-A or real-reset gate in.29. |
+|90 Block2 | Prepare current conformance triage and exact accepted80 residual mapping, then run Block1 exit and implement residuals. | Actual selected20–70 exits/dispositions, Block1 checks/both-format conformance and approved LoCoMo smoke/item4 remeasure remain hard before90 source entry.80's owner-approved contract is retained. |
+|160 local close | Prepare required local consumer/package/long-test coverage using the existing qualification matrix, then fill only missing or invalidated rows on the assembled candidate. | Final affected source/artifacts for claims, not all predecessor closures for preparation. Every locally runnable mandatory row remains required; CI/publication-only rows remain named outstanding. |
+
+Selected100/D28-09 is complete after independently accepted seq386 process-interruption/recovery qualification; its original scope limits remain.
+
+The delivery spine is remaining30/20/50 and the conditional40 decision → real
+Block1 exit →90 → affected combined160 qualification.140→110→130 runs
+alongside it and join160 at their actual exits. Resolve the Block1 model/prompt/
+budget/fixture input and130 venue/caps while independent source work proceeds;
+no spend or execution is inferred.150 has no selected study, so it adds no work,
+review or completion dependency; preserve its unselected inventory without a new
+owner-deferral request.120, real resets and fork B/C keep their recorded future
+release allocation. No mandatory .29 outcome is removed to shorten the spine.
+
+Use one coherent design review and one fresh implementation/results review for
+each substantive scope. Related helper work belongs in that scope, not in serial
+mini-projects with separate packets/full gates. Run scoped checks while editing,
+then required broad verification once on the stable final code phase. Reuse
+valid passing results for unchanged inputs; refresh only affected source/native/
+workload/platform cells. Later documents and release-state changes get scoped
+validators. Integrate accepted results serially and update existing records with
+the substantive work; do not create receipt-only follow-up phases.
 
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.29:plan-immediate-next -->
 **IMMEDIATE NEXT: Slice 30** (`MEASURE`) — Current source-bound baseline and tracked AC083 measurements
 
-**Remaining ladder:** 30 → 20 → 40 → 50 → 90 → 100 → 110 → 130 → 140 → 150 → 160.<!-- END GENERATED release-state:0.8.29:plan-immediate-next -->
+**Remaining ladder:** 30 → 20 → 40 → 50 → 90 → 110 → 130 → 140 → 160.<!-- END GENERATED release-state:0.8.29:plan-immediate-next -->

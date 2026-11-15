@@ -11,6 +11,9 @@ mod capture_tests;
 #[path = "slice30_d_measure/entry.rs"]
 mod entry;
 #[cfg(test)]
+#[path = "slice30_d_measure/entry_env_tests.rs"]
+mod entry_env_tests;
+#[cfg(test)]
 #[path = "slice30_d_measure/entry_tests.rs"]
 mod entry_tests;
 #[path = "slice30_d_measure/provider.rs"]

@@ -83,3 +83,9 @@ pub(super) fn run_file(config: &Path, output: &Path, origin: Instant) -> Result<
     let deadline = origin + Duration::from_millis(remaining_ms);
     run_cell(&identity, output, origin, deadline)
 }
+
+#[cfg(test)]
+/// Return inherited settings that change D default execution, when present.
+pub(super) fn inherited_settings() -> Option<Value> {
+    None
+}

@@ -394,3 +394,12 @@ Literal lower-cost fixtures and harmless child markers qualify admission math
 and ordering only. They do not measure D, supply GPU/overlap/fidelity evidence,
 or mutate the real shared allocation. Fresh supervised wall/retention/budget
 custody and native observation/report bindings remain required before runtime.
+
+`d_overlap.py CASE.json` reads one exact cell/attempt/size/repeat and owner/session
+frame, with natural operation identity, tagged observer records and bracketed
+pending observations. It qualifies only an entire positive pending bracket
+inside a nonempty actual query/worker intersection. Missing/loss/error data is
+INCOMPLETE; disjoint/straddling data is NO_OBSERVED_OVERLAP; T remains
+ACTUAL_OVERLAP_UNOBSERVED. Raw witness bounds are retained without exclusive
+cost or percentile subtraction. The tiny real-store rendezvous and literal
+scope controls prove this predicate, not any scaled scientific execution.

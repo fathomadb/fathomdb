@@ -151,6 +151,12 @@ if [ "$slice30_measurement_host_os" != "Linux" ]; then
 fi
 run_tier_maybe_suite fast test-slice30-measurement-tools "$slice30_measurement_platform_reason" \
   python3 -m unittest discover -s dev/experiments/0.8.29-slice30-measurements -v
+agent_remeasure_platform_reason=""
+if [ "$slice30_measurement_host_os" != "Linux" ]; then
+  agent_remeasure_platform_reason="Agent remeasure controller uses Linux process groups"
+fi
+run_tier_maybe_suite fast test-agent-remeasure "$agent_remeasure_platform_reason" \
+  python3 -m unittest discover -s dev/experiments/agent-remeasure/tests -p 'test_*.py'
 run_tier_suite fast test-test-targets python3 scripts/tests/test_test_targets.py
 run_tier_suite fast check-test-target-coverage python3 scripts/check-test-target-coverage.py
 run_tier_suite fast test-napi-build-hermetic python3 scripts/tests/test_napi_build_hermetic.py

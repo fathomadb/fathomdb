@@ -287,6 +287,7 @@ def with_backoff(
     base_seconds: float = 2.0,
     max_seconds: float = 120.0,
     sleep: Callable[[float], Any] = time.sleep,
+    retryable: Callable[[BaseException], bool] = _retryable,
 ) -> Any:
     """Run ``call``, retrying 408/409/429/5xx and connection faults with exponential backoff.
 
@@ -297,7 +298,7 @@ def with_backoff(
         try:
             return call()
         except Exception as exc:
-            if not _retryable(exc) or attempt == max_attempts - 1:
+            if not retryable(exc) or attempt == max_attempts - 1:
                 raise
             delay = min(max_seconds, base_seconds * (2 ** attempt))
             retry_after = _retry_after_seconds(exc)
@@ -761,12 +762,13 @@ def read_env_file(path: Path) -> dict[str, str]:
 class ChatClient:
     """OpenAI-compatible chat client on the Airlock route; every call is metered."""
 
-    def __init__(self, base_url: str, api_key: str, ledger: CostLedger, *, arm: str) -> None:
+    def __init__(self, base_url: str, api_key: str, ledger: CostLedger, *, arm: str, retry_unknown: bool = True) -> None:
         import openai
 
         self._client = openai.OpenAI(base_url=base_url, api_key=api_key, timeout=180.0, max_retries=0)
         self.ledger = ledger
         self.arm = arm
+        self.retry_unknown = retry_unknown
         self.served: dict[str, set[str]] = {}
 
     def complete(self, *, qid: str, role: str, model: str, messages: list[dict[str, Any]],
@@ -781,7 +783,12 @@ class ChatClient:
             kwargs["tool_choice"] = tool_choice or "auto"
         if json_object:
             kwargs["response_format"] = {"type": "json_object"}
-        raw = with_backoff(lambda: self._client.chat.completions.with_raw_response.create(**kwargs))
+        def request():
+            return self._client.chat.completions.with_raw_response.create(**kwargs)
+        if self.retry_unknown:
+            raw = with_backoff(request)
+        else:
+            raw = with_backoff(request, max_attempts=3, retryable=lambda exc: _status_code(exc) == 429)
         response = raw.parse()
         usage_obj = response.usage
         prompt_details = getattr(usage_obj, "prompt_tokens_details", None)
@@ -818,11 +825,14 @@ def _usage_dict(turn: ModelTurn, role: str, model: str) -> dict[str, Any]:
 class Grader:
     """The official answer prompt and evidence-aware judge, called as the official client calls them."""
 
-    def __init__(self, prompts: Any, conversation: dict[str, Any], client: ChatClient) -> None:
+    def __init__(self, prompts: Any, conversation: dict[str, Any], client: ChatClient, *,
+                 parse_attempts: int = 5, judge_model: str = JUDGE_MODEL) -> None:
         self.prompts = prompts
         self.reference_date = reference_date(conversation)
         self.lookup = evidence_lookup(conversation)
         self.client = client
+        self.parse_attempts = parse_attempts
+        self.judge_model = judge_model
 
     def answer(self, question: Question, bodies: list[str], calls: list[dict[str, Any]]) -> str:
         """Generate an answer from ranked bodies; the official FathomDB arm carries no ``created_at``."""
@@ -848,21 +858,23 @@ class Grader:
         else:
             prompt = self.prompts.get_judge_prompt(question.category, question.question, gold, generated)
         parsed: dict[str, Any] = {}
-        for attempt in range(5):
+        for attempt in range(self.parse_attempts):
             turn = self.client.complete(
-                qid=question.qid, role="judge", model=JUDGE_MODEL, json_object=True,
+                qid=question.qid, role="judge", model=self.judge_model, json_object=True,
                 messages=[{"role": "system", "content": self.prompts.JUDGE_SYSTEM_PROMPT},
                           {"role": "user", "content": prompt}],
             )
-            calls.append(_usage_dict(turn, "judge", JUDGE_MODEL))
+            calls.append(_usage_dict(turn, "judge", self.judge_model))
             if turn.content:
                 try:
                     parsed = unwrap_judge_json(turn.content)
                     break
                 except (json.JSONDecodeError, ValueError):
                     pass
-            if attempt < 4:
+            if attempt < self.parse_attempts - 1:
                 time.sleep(2 * (attempt + 1))
+        if self.parse_attempts == 1 and (not isinstance(parsed, dict) or str(parsed.get("label", "")).upper() not in {"CORRECT", "WRONG"}):
+            raise ValueError("malformed billed judge response; no automatic retry")
         reasoning = parsed.get("reasoning", "") if isinstance(parsed, dict) else ""
         return {"label": parsed.get("label") if isinstance(parsed, dict) else None,
                 "reasoning": reasoning, "score": judge_score(parsed), "evidence_aware": bool(evidence)}

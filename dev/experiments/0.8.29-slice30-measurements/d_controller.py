@@ -73,6 +73,8 @@ def _run_required(spec, records, budget, prepare, initial):
                 previous = records.get(cell["id"])
                 if previous and previous.get("status") == "complete":
                     outcomes.append({"id": cell["id"], "status": "complete", "record": previous})
+                elif previous and previous.get("status") in ("failed", "incomplete", "interrupted"):
+                    outcomes.append({"id": cell["id"], **previous})
                 elif assessment["status"] != "admit":
                     outcomes.append({"id": cell["id"], **assessment})
                 else:

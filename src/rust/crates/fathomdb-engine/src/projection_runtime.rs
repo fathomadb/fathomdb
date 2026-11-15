@@ -1218,12 +1218,12 @@ impl Engine {
     }
 }
 
-#[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
 impl Engine {
     /// Read a private numeric runtime instant, separate from durable SQL status.
     /// Closed engines return Closing; unavailable state returns Storage, never
     /// fabricated zero counters. Copy state under one short runtime lock and
     /// release it before the caller serializes or performs separate SQL reads.
+    #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn slice30_projection_snapshot_for_test(
         &self,

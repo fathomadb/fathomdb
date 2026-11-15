@@ -62,10 +62,18 @@ come, so a pin outlives its reason and silently holds the tree back.
   checker-owned coreyt/candle-fathomdb immutable revision (the fork's 0.11.0
   publication commit), replacing crates.io `candle-kernels` 0.10.2, with the
   exact `git+…?rev=…#…` `Cargo.lock` source; a missing entry, another
-  revision, or a lock-source disagreement fails. The embedder pins
-  FathomDB's fork crates from crates.io exactly (`cudarc-fathomdb`, reached
-  only through Candle, and the Candle fork crates), and `Cargo.lock` must
-  hold each once, from crates.io, with its published checksum. The
+  revision, or a lock-source disagreement fails. The embedder requires
+  `cudarc-fathomdb =0.20.0` and the coherent Candle fork trio `=0.12.0`.
+  Each lock entry must occur once with the exact local Git URL and full
+  qualified revision from Slice110's
+  [local consumption contract](../plans/0.8.29/features/slice-110/design.md#exact-revision-local-consumption):
+  cudarc at `343b04fa73f85ee78754d6ee2baa07b959cc9ccc` and Candle at
+  `2ee39305a78ed1463ff913f71dcd3d45ecbfd84f`, under the existing
+  `/home/coreyt/projects/fathomdb-forks/` repositories. No registry checksum
+  exists for these unpublished Git packages; a checksum, registry source,
+  different URL or revision, or mixed family fails. This gate establishes
+  local source qualification only. Registry publication and dependency
+  normalization retain their separately authorized route. The
   standalone SDK driver may repeat only the root patch. Any other Cargo
   `[patch]`, `[replace]`, or direct Git dependency fails as unsupported
   rather than being interpreted by a general package-ID parser; that
@@ -101,9 +109,12 @@ npm GitHub Advisory snapshot does not support a Rust vulnerability assertion.
 It is not a substitute for a Rust advisory scan and must never be phrased as
 "no known vulnerabilities"; changing the immutable revision requires a fresh
 human advisory review and a deliberate guard redesign.
-`cargo_fork_registry_pins` records the exact crates.io fork pins; no local
-vendor copy is admitted (the `cudarc` copy left in 0.8.28 Slice 31 and the
-`libsqlite3-sys` copy in Slice 42). `scripts/governed-
+`cargo_fork_pins` records only that exact local graph. Owned external Cargo
+configuration supplies the four local Git overrides and the Candle-file-source
+kernel override; repository Cargo config patches remain unsupported. The
+registry-only Tegra probe retains the published `0.19.10`/`0.11.0` floor and its
+published checksums; a local gate pass does not qualify those newer versions for
+that probe or for publication. `scripts/governed-
 surface-pin.json` pins repository contract content rather than an external
 dependency version, so its integrity remains owned by
 `scripts/check-governed-surface-pin.sh`.
@@ -119,8 +130,8 @@ dependency version, so its integrity remains owned by
   vulnerable and prove the guard fails on it. Re-pinning js-yaml back to 4.2.0
   in a fixture is the exact historical case and makes the regression concrete.
 - Cargo fixtures must prove the narrow exceptions: the approved
-  `candle-kernels` patch and fork registry pins pass, but a missing entry, a
-  revision or lock drift, or a fork pin with another version or checksum
+  `candle-kernels` patch and exact local fork pins pass, but a missing entry, a
+  revision or lock drift, or a fork pin with another version, source or a checksum
   fails; a `libsqlite3-sys` or `cudarc` patch, any `[replace]`, and any
   direct Git dependency are unsupported.
 - The guard runs where it can act — this is cheap and static, so it belongs in

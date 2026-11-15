@@ -9,7 +9,7 @@
   },
   "scope": {
     "npm": "All root package.json overrides are governed. Each must have a matching npm_overrides record with a rationale and a complete per-pin advisory_ids mapping. R2 deliberately fails closed for any live override: npm's lockfile records the override result, not a mechanically reproducible no-override resolution.",
-    "cargo": "This checker admits two Cargo mechanisms: the root candle-kernels Git patch at the Candle fork's 0.11.0 publication commit, and the exact crates.io registry pins of FathomDB's fork crates (cargo_fork_registry_pins: cudarc-fathomdb, reached only through Candle, and the Candle fork crates the embedder pins exactly). It authenticates the patch source and its Cargo.lock source, the manifest form of each fork pin, and that Cargo.lock holds each fork crate exactly once from crates.io with its published checksum. Any other [patch], [replace], or direct Git dependency hard-fails as unsupported, including a libsqlite3-sys patch: since 0.8.28 Slice 42 the workspace uses the crates.io libsqlite3-sys. Root .cargo/config.toml and .cargo/config reject patch tables and unparseable candidates. The root patch affects workspace builds; it does not propagate through a published Rust crate.",
+    "cargo": "The root candle-kernels patch remains HTTPS K9 at 182ceab0547348993b6dbec4b1aed610dcc8b23f (0.10.2). The embedder requires cudarc-fathomdb =0.20.0 and the coherent Candle fork trio =0.12.0. cargo_fork_pins binds each lock entry to the exact accepted local Git URL and revision, once per package and without a registry checksum. This is Slice110 local qualification only; no registry publication or registry-ready normalization is claimed. Owned external Cargo configuration supplies the four exact local overrides and the Candle file-source kernel override described in dev/plans/0.8.29/features/slice-110/design.md#exact-revision-local-consumption. Any other repository [patch], [replace], or direct Git dependency is unsupported, including libsqlite3-sys. Repository .cargo/config.toml and .cargo/config reject patch tables and unparseable candidates. The root K9 patch does not propagate through a published Rust crate.",
     "governed_commit_pins": "scripts/governed-surface-pin.json pins repository contract content, not an external dependency version. Its commit/hash integrity is enforced by scripts/check-governed-surface-pin.sh; it has no package-advisory semantics and is explicitly not reinterpreted here."
   },
   "npm_overrides": [],
@@ -24,83 +24,39 @@
     "versions": {
       "candle-kernels": "0.10.2"
     },
-    "rationale": "The candle-kernels patch exists only to carry the Candle fork's statically linked CUDA runtime (fork items K4 and K6) into FathomDB-built artifacts, so CPU-mode distributable artifacts can map without libcuda.so.1 or libcudart while CUDA driver discovery stays dynamic (REQ-068, REQ31-16, owner ruling Q2). crates.io publishes candle-kernels 0.10.2 with dynamic libcudart; this immutable revision is the commit the Candle fork crates 0.11.0 were published from (182ceab0), whose candle-kernels tree equals the qualified 853324fc. The Candle fork crates themselves come from crates.io (cargo_fork_registry_pins).",
+    "rationale": "The candle-kernels patch exists only to carry the Candle fork's statically linked CUDA runtime (fork items K4 and K6) into FathomDB-built artifacts, so CPU-mode distributable artifacts can map without libcuda.so.1 or libcudart while CUDA driver discovery stays dynamic (REQ-068, REQ31-16, owner ruling Q2). crates.io publishes candle-kernels 0.10.2 with dynamic libcudart; this immutable revision is the commit the Candle fork crates 0.11.0 were published from (182ceab0), whose candle-kernels tree equals the qualified 853324fc. The newer Candle fork trio uses the separate exact local Git source recorded in cargo_fork_pins; kernels retain this original HTTPS K9 source.",
     "advisory_posture": {
       "status": "external-source-unassessed",
       "scope": "outside the checked-in npm advisory snapshot",
       "rationale": "This is not a claim that the external Rust source has or lacks a vulnerability. The checked-in GitHub advisory snapshot covers only governed npm overrides; any revision change requires a fresh human advisory review."
     }
   },
-  "cargo_fork_registry_pins": {
+  "cargo_fork_pins": {
     "manifest": "src/rust/crates/fathomdb-embedder/Cargo.toml",
     "pins": [
       {
         "dependency": "cudarc-fathomdb",
         "package": "cudarc-fathomdb",
-        "version": "0.19.10",
-        "checksum": "8780d2fe3fbafc4660e6093abd7681cd9cec7b4d5549a20bc148308e6449caf2",
-        "vcs_sha1": "b777f8d94eedca8334e9331cf520d554b22544b7",
-        "repository": "https://github.com/coreyt/cudarc",
-        "items_record": "FATHOMDB.md (shipped in the crate)",
-        "items_relied_on": [
-          "1",
-          "2",
-          "3",
-          "5",
-          "9"
-        ],
-        "receipt": "fathomdb/qualification/2026-10-13-FC10-publish-b777f8d.md"
+        "version": "0.20.0",
+        "source": "git+file:///home/coreyt/projects/fathomdb-forks/cudarc?rev=343b04fa73f85ee78754d6ee2baa07b959cc9ccc#343b04fa73f85ee78754d6ee2baa07b959cc9ccc"
       },
       {
         "dependency": "candle-core",
         "package": "candle-core-fathomdb",
-        "version": "0.11.0",
-        "checksum": "b5feacc063f44c77a54cb8b43d03c5e32fa5421f4163f0524194783e21563341",
-        "vcs_sha1": "182ceab0547348993b6dbec4b1aed610dcc8b23f",
-        "repository": "https://github.com/coreyt/candle-fathomdb",
-        "items_record": "FATHOMDB.md (repository root)",
-        "items_relied_on": [
-          "K1",
-          "K2",
-          "K3",
-          "K5",
-          "K7"
-        ],
-        "receipt": "fathomdb/qualification/2026-10-13-FK5-publish-182ceab0.md"
+        "version": "0.12.0",
+        "source": "git+file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb?rev=2ee39305a78ed1463ff913f71dcd3d45ecbfd84f#2ee39305a78ed1463ff913f71dcd3d45ecbfd84f"
       },
       {
         "dependency": "candle-nn",
         "package": "candle-nn-fathomdb",
-        "version": "0.11.0",
-        "checksum": "69c7432aa63cb543065f49453fa2e258e4dc3bd458abbcb7c150d17e90026200",
-        "vcs_sha1": "182ceab0547348993b6dbec4b1aed610dcc8b23f",
-        "repository": "https://github.com/coreyt/candle-fathomdb",
-        "items_record": "FATHOMDB.md (repository root)",
-        "items_relied_on": [
-          "K1",
-          "K2",
-          "K3",
-          "K5",
-          "K7"
-        ],
-        "receipt": "fathomdb/qualification/2026-10-13-FK5-publish-182ceab0.md"
+        "version": "0.12.0",
+        "source": "git+file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb?rev=2ee39305a78ed1463ff913f71dcd3d45ecbfd84f#2ee39305a78ed1463ff913f71dcd3d45ecbfd84f"
       },
       {
         "dependency": "candle-transformers",
         "package": "candle-transformers-fathomdb",
-        "version": "0.11.0",
-        "checksum": "513008c79a9751ec5fdc08918dcdb1a8872c95e90f7697a9f8c5ef1951e3d222",
-        "vcs_sha1": "182ceab0547348993b6dbec4b1aed610dcc8b23f",
-        "repository": "https://github.com/coreyt/candle-fathomdb",
-        "items_record": "FATHOMDB.md (repository root)",
-        "items_relied_on": [
-          "K1",
-          "K2",
-          "K3",
-          "K5",
-          "K7"
-        ],
-        "receipt": "fathomdb/qualification/2026-10-13-FK5-publish-182ceab0.md"
+        "version": "0.12.0",
+        "source": "git+file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb?rev=2ee39305a78ed1463ff913f71dcd3d45ecbfd84f#2ee39305a78ed1463ff913f71dcd3d45ecbfd84f"
       }
     ]
   }

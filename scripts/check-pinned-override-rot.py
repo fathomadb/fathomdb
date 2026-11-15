@@ -59,63 +59,48 @@ EXTERNAL_SOURCE_ADVISORY_STATUS = "external-source-unassessed"
 EXTERNAL_SOURCE_ADVISORY_SCOPE = "outside the checked-in npm advisory snapshot"
 CANDLE_MANIFEST = "Cargo.toml"
 CANDLE_MECHANISM = "patch.crates-io"
-# 0.8.28 Slice 31: the Candle fork crates come from crates.io (exact registry
-# pins below). The only Candle git patch left is candle-kernels at the fork's
-# 0.11.0 publication commit: it carries the statically linked CUDA runtime
-# into FathomDB-built artifacts (REQ-068, REQ31-16). crates.io publishes
-# candle-kernels 0.10.2, the version the patch replaces.
+# K9 remains the driverless-linkage boundary even while the three newer
+# Candle crates are qualified through their separate exact local Git source.
 CANDLE_PACKAGES = ("candle-kernels",)
 CANDLE_GIT = "https://github.com/coreyt/candle-fathomdb.git"
 CANDLE_REV = "182ceab0547348993b6dbec4b1aed610dcc8b23f"
 CANDLE_VERSIONS = {"candle-kernels": "0.10.2"}
-CRATES_IO = "registry+https://github.com/rust-lang/crates.io-index"
 FORK_PINS_MANIFEST = "src/rust/crates/fathomdb-embedder/Cargo.toml"
-_CANDLE_FORK = {
-    "vcs_sha1": "182ceab0547348993b6dbec4b1aed610dcc8b23f",
-    "repository": "https://github.com/coreyt/candle-fathomdb",
-    "items_record": "FATHOMDB.md (repository root)",
-    "items_relied_on": ["K1", "K2", "K3", "K5", "K7"],
-    "receipt": "fathomdb/qualification/2026-10-13-FK5-publish-182ceab0.md",
-}
-# The exact registry versions of FathomDB's fork crates, with their published
-# .crate SHA-256 (the Cargo.lock checksum) and provenance. A pin whose
-# "dependency" is None is reached only through another pin and must not be
-# declared in the manifest at all; the others are declared once, in
-# [dependencies], as `<dependency> = { package = ..., version = "=<v>" }` (or
-# by the package's own name). cudarc-fathomdb is declared although Candle
-# reaches it, because Candle requires it only as a caret requirement.
+CUDARC_LOCAL_SOURCE = (
+    "git+file:///home/coreyt/projects/fathomdb-forks/cudarc"
+    "?rev=343b04fa73f85ee78754d6ee2baa07b959cc9ccc#343b04fa73f85ee78754d6ee2baa07b959cc9ccc"
+)
+CANDLE_LOCAL_SOURCE = (
+    "git+file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb"
+    "?rev=2ee39305a78ed1463ff913f71dcd3d45ecbfd84f#2ee39305a78ed1463ff913f71dcd3d45ecbfd84f"
+)
+# Slice110's accepted local integration route has no registry publication or
+# checksum. Replacing these sources with published crates needs a separately
+# authorized normalization; matching version numbers alone is insufficient.
 FORK_PINS = [
     {
         "dependency": "cudarc-fathomdb",
         "package": "cudarc-fathomdb",
-        "version": "0.19.10",
-        "checksum": "8780d2fe3fbafc4660e6093abd7681cd9cec7b4d5549a20bc148308e6449caf2",
-        "vcs_sha1": "b777f8d94eedca8334e9331cf520d554b22544b7",
-        "repository": "https://github.com/coreyt/cudarc",
-        "items_record": "FATHOMDB.md (shipped in the crate)",
-        "items_relied_on": ["1", "2", "3", "5", "9"],
-        "receipt": "fathomdb/qualification/2026-10-13-FC10-publish-b777f8d.md",
+        "version": "0.20.0",
+        "source": CUDARC_LOCAL_SOURCE,
     },
     {
         "dependency": "candle-core",
         "package": "candle-core-fathomdb",
-        "version": "0.11.0",
-        "checksum": "b5feacc063f44c77a54cb8b43d03c5e32fa5421f4163f0524194783e21563341",
-        **_CANDLE_FORK,
+        "version": "0.12.0",
+        "source": CANDLE_LOCAL_SOURCE,
     },
     {
         "dependency": "candle-nn",
         "package": "candle-nn-fathomdb",
-        "version": "0.11.0",
-        "checksum": "69c7432aa63cb543065f49453fa2e258e4dc3bd458abbcb7c150d17e90026200",
-        **_CANDLE_FORK,
+        "version": "0.12.0",
+        "source": CANDLE_LOCAL_SOURCE,
     },
     {
         "dependency": "candle-transformers",
         "package": "candle-transformers-fathomdb",
-        "version": "0.11.0",
-        "checksum": "513008c79a9751ec5fdc08918dcdb1a8872c95e90f7697a9f8c5ef1951e3d222",
-        **_CANDLE_FORK,
+        "version": "0.12.0",
+        "source": CANDLE_LOCAL_SOURCE,
     },
 ]
 
@@ -236,15 +221,15 @@ def validate_candle_exception(metadata: dict[str, Any]) -> None:
         raise Unverified("cargo_candle_exception.advisory_posture.rationale must be a non-empty string")
 
 
-def validate_fork_registry_pins(metadata: dict[str, Any]) -> None:
-    """Authenticate the exact registry fork pins and their provenance."""
-    pins = metadata.get("cargo_fork_registry_pins")
+def validate_fork_pins(metadata: dict[str, Any]) -> None:
+    """Authenticate the exact qualified local fork pins."""
+    pins = metadata.get("cargo_fork_pins")
     if not isinstance(pins, dict):
-        raise Unverified("metadata has no cargo_fork_registry_pins object")
+        raise Unverified("metadata has no cargo_fork_pins object")
     if pins.get("manifest") != FORK_PINS_MANIFEST:
-        raise Unverified("cargo_fork_registry_pins.manifest must equal the checker-owned embedder manifest")
+        raise Unverified("cargo_fork_pins.manifest must equal the checker-owned embedder manifest")
     if pins.get("pins") != FORK_PINS:
-        raise Unverified("cargo_fork_registry_pins.pins must equal the checker-owned fork registry pins")
+        raise Unverified("cargo_fork_pins.pins must equal the checker-owned fork pins")
 
 
 def advisory_snapshot_path(root: Path, metadata: dict[str, Any]) -> Path:
@@ -327,7 +312,7 @@ def validate_metadata(metadata: dict[str, Any], advisories: list[dict[str, Any]]
         raise Unverified("metadata schema_version must be 5")
     records = records_by_package(metadata)
     validate_candle_exception(metadata)
-    validate_fork_registry_pins(metadata)
+    validate_fork_pins(metadata)
     scope = metadata.get("scope")
     if not isinstance(scope, dict):
         raise Unverified("metadata has no scope object")
@@ -500,7 +485,7 @@ def sdk_driver_duplicate_patch(root: Path, pin: dict[str, str | None]) -> bool:
 
 
 def validate_cargo_pins(root: Path) -> list[str]:
-    """Allow only the candle-kernels git patch and the fork registry pins."""
+    """Allow only the candle-kernels git patch and the fork pins."""
     pins = cargo_governed_pins(root)
     failures = cargo_config_failures(root)
     expected = {(CANDLE_MANIFEST, CANDLE_MECHANISM, package) for package in CANDLE_PACKAGES}
@@ -542,7 +527,7 @@ def validate_cargo_pins(root: Path) -> list[str]:
         key = (CANDLE_MANIFEST, CANDLE_MECHANISM, package)
         if key in found and expected_source not in lock_sources.get((package, CANDLE_VERSIONS[package]), set()):
             failures.append(f"Candle patch {package} has no matching Cargo.lock source")
-    failures.extend(fork_registry_pin_failures(root))
+    failures.extend(fork_pin_failures(root))
     return failures
 
 
@@ -562,15 +547,15 @@ def manifest_declarations(manifest: dict[str, Any]) -> list[tuple[str, str, Any]
     return found
 
 
-def fork_registry_pin_failures(root: Path) -> list[str]:
-    """Each fork crate: the manifest form and exactly one crates.io lock entry."""
-    tomllib = _import_tomllib("inspect the fork registry pins")
+def fork_pin_failures(root: Path) -> list[str]:
+    """Each fork crate: the manifest form and exactly one qualified Git lock entry."""
+    tomllib = _import_tomllib("inspect the fork pins")
     failures: list[str] = []
     manifest_path = root / FORK_PINS_MANIFEST
     try:
         manifest = tomllib.loads(manifest_path.read_text(encoding="utf-8"))
     except (OSError, tomllib.TOMLDecodeError):
-        return [f"fork registry pin manifest {FORK_PINS_MANIFEST} is missing or unparseable"]
+        return [f"fork pin manifest {FORK_PINS_MANIFEST} is missing or unparseable"]
     declarations = manifest_declarations(manifest)
     for pin in FORK_PINS:
         package, version, dependency = pin["package"], pin["version"], pin["dependency"]
@@ -581,15 +566,15 @@ def fork_registry_pin_failures(root: Path) -> list[str]:
         if dependency is None:
             for table, key, _spec in declared:
                 failures.append(
-                    f"fork registry pin {package} is reached only through another pin and must not be "
+                    f"fork pin {package} is reached only through another pin and must not be "
                     f"declared ({FORK_PINS_MANIFEST} {table}.{key})"
                 )
         elif not declared:
-            failures.append(f"fork registry pin {package}: {FORK_PINS_MANIFEST} dependencies.{dependency} is not declared")
+            failures.append(f"fork pin {package}: {FORK_PINS_MANIFEST} dependencies.{dependency} is not declared")
         elif len(declared) != 1 or declared[0][0] != "dependencies" or declared[0][1] != dependency:
             places = ", ".join(f"{table}.{key}" for table, key, _spec in declared)
             failures.append(
-                f"fork registry pin {package}: {FORK_PINS_MANIFEST} must declare it once, as "
+                f"fork pin {package}: {FORK_PINS_MANIFEST} must declare it once, as "
                 f"dependencies.{dependency}; found {places}"
             )
         else:
@@ -598,7 +583,7 @@ def fork_registry_pin_failures(root: Path) -> list[str]:
                 key in spec for key in ("git", "path", "registry")
             ):
                 failures.append(
-                    f'fork registry pin {package}: {FORK_PINS_MANIFEST} dependencies.{dependency} must require '
+                    f'fork pin {package}: {FORK_PINS_MANIFEST} dependencies.{dependency} must require '
                     f'exactly "={version}"'
                 )
     lock_path = root / "Cargo.lock"
@@ -618,12 +603,16 @@ def fork_registry_pin_failures(root: Path) -> list[str]:
             failures.append(f"Cargo.lock must hold exactly one {package} package ({version}); found {found}")
         for entry in entries:
             source = entry.get("source", "<local>")
-            if source != CRATES_IO:
+            if source != pin["source"]:
                 failures.append(
-                    f"Cargo.lock {package} {entry.get('version')} has source {source}, not the crates.io registry"
+                    f"Cargo.lock {package} {entry.get('version')} has source {source}, "
+                    f"not the qualified Git source {pin['source']}"
                 )
-            elif entry.get("version") == version and entry.get("checksum") != pin["checksum"]:
-                failures.append(f"Cargo.lock {package} {version} checksum is not the published {pin['checksum']}")
+            if "checksum" in entry:
+                failures.append(
+                    f"Cargo.lock {package} {entry.get('version')} must not carry a registry checksum "
+                    "for its qualified Git source"
+                )
         if len(entries) == 1 and entries[0].get("version") != version:
             failures.append(f"Cargo.lock must hold exactly one {package} package ({version}); found {entries[0].get('version')}")
     return failures
@@ -697,7 +686,7 @@ def main() -> int:
             print(f"FAIL  pinned-override-rot: {failure}", file=sys.stderr)
         return 1
     print(
-        "ok pinned-override-rot: governed npm overrides, the candle-kernels patch and the fork registry pins have exact provenance"
+        "ok pinned-override-rot: governed npm overrides, K9 kernels and exact fork sources pass local qualification; registry publication remains unqualified"
     )
     return 0
 

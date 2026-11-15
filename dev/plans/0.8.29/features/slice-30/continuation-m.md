@@ -1,12 +1,16 @@
 # Slice 30 M continuation — proposed real stdio measurements
 
-Status: **INTEGRATED SOURCE FIT**, pending affected-seam Astra recheck and the
-final owned source gate. Design fit passed at
+Status: **CURRENT PREDECESSORS INTEGRATED**, pending affected-seam Astra recheck
+and owned qualification of the affected current-source controls. Design fit passed at
 f90714a0e2132bab3b2a2b2d60425a598c157e34; the M implementation passed independent
 review at d942aa91e74a9463e82b6a9384ca41ca28698c42. No M campaign is qualified.
 The original design passed at ca76af9f5c7c710b1aca7f8ee79f2c90549a4874;
 the current fit incorporates release baseline
 6696f3a1dacb93749a1ea9580403e4d334230ea3 without rewriting those source histories.
+The November15 successor merges release source
+7e36ef3c9ab0aa35b21d16ae287ceddb77ba8979 at
+3833cef4161133102f355ff34949481964b24ec4; it is not a new qualification subject
+for the earlier owned binaries or results.
 It refines held M only and grants no new setup, allocation or runtime GO.
 Accepted P and executed G preregistrations/freezes remain unchanged. G now has
 11qualified cases and73still-required refused obligations; wholeG is incomplete,
@@ -26,7 +30,8 @@ f803a964ad8c8154a481e6f9385599bef5c0e054, accepted60 subset
 e875f36042f89c1d84756f78135db0e8926c1ed4. The [G/D fit](continuation-gd.md)
 records their exact limits. A3/A5 satisfies that named M prerequisite;
 whole20/WindowsA6 is independent.60 supplies compact-default/structured formats,
-filters and budgets, but F11 remains open.70 supplies current provider absence,
+filters and budgets. At that original entry F11 remained open.70 supplies
+current provider absence,
 overload, timeout, Closing and CUDA-kind outcomes; M must preserve these words
 and remedies rather than collapse them to a generic error.
 
@@ -39,10 +44,40 @@ wrapper recognizes its named G commands only; source verification remains
 outside campaign allocation. Both G and M live-control routes are retained in
 the canonical runner under `AGENT_SLICE30_LIVE_CONTROLS=1`, with `AGENT_LONG`
 unset for the source gate. The original owned native setup receipt remains an
-actual e3ba665cff1227dfe83dfac5fd7f792814783191 subject; the new Rust inventory
-requires canonical owned setup on the integrated source before qualification,
+actual e3ba665cff1227dfe83dfac5fd7f792814783191 subject; the then-current Rust inventory
+required canonical owned setup on that integrated source before qualification,
 under a separately scheduled lease, without retagging the old receipt. Reviewed
 D source fit supplies no measured D cost: unknown costs remain held, not zero.
+
+The November15 source successor includes reviewed50 record/version fusion,
+winner-only hydration and record-start selection, complete60 F11 views and
+current-pin110 context-loss policy. The actual50 engine changes can change
+returned records, ranking and elapsed work; old G/P measurements keep their
+original subjects and cannot become current50 latency or benefit evidence.
+M retains every returned row in positional order, including repeated public
+references, and does not merge rows by reference or body. Its existing literal
+tiny fixtures/oracles are unchanged.60 preserves the seven tool names and
+compact/structured wire formats. M's registered default-current searches omit
+both view flags, retaining false defaults; adding historical/inactive workload
+cells would change the preregistered inventory.50's atomic feedback correction
+needs no M feedback route, and M makes no historical-fetch or feedback claim.
+The helper's existing Seams methods remain callable without a new observer.
+
+Both owned provider-free CLI and test-seams helper must rebuild from this merged
+source before affected real-stdio controls run. These selected controls do not
+load the Python wheel or N-API module, so their refresh is deferred until actual
+consumer qualification. Earlier artifacts retain their actual5c/e3 build
+subjects.110 does not
+turn provider-free controls into CUDA proof. Source qualification resumes only
+failed/unrun suites and materially affected seams under the separately scheduled
+native lease; it does not replay the previous full gate for bookkeeping. The
+original223-suite collector remains220pass/3fail with an interrupted guardian;
+there is no intact full-wrapper PASS. The Pages failures identified stale
+contributor documentation, now current under the canonical generator. The two
+failed guardian methods stopped at actual load3.123046875 before their intended
+child behavior, and the two following public-dispatch methods never ran. The
+later failed-only attempt refused entry at actual load4.41; no successful
+resumption is inferred. Scientific M entry<=2 remains unchanged.
 
 The released closed100k G subject is recorded under `g_selected_input_for_m` in
 [release state](../../../release-state-0.8.29.json), from source
@@ -58,11 +93,11 @@ source gate for M. This amendment opens neither campaign.
 
 | Existing obligation | M refinement and retained boundary |
 | --- | --- |
-| R30-1; A30-1 | Build against actual20/60/70/current schema37; replace obsolete example assumptions, not production algorithms. |
+| R30-1; A30-1 | Build against actual20/50/60/70/current schema37; replace obsolete example assumptions, not production algorithms. |
 | R30-2/3; A30-2/3 | Reuse qualified read-mostly100k input and query order. M is not a new write/overlap proof or AC083 result. |
 | R30-4/5; A30-4 | Attribute only client clocks, returned outcomes and actually logged waits; exclusive service/open/render costs remain unavailable. |
 | R30-6/7; A30-5/6 | Small real-process/real-DB tool TDD, committed/indexed commands, bounded streams/attempts/resources and honest incomplete cells. |
-| R30-8/9; A30-7 | P/G/D/M/F remain separate. No M timing closes frozen TC5 fidelity, F11, Windows, whole30, Block1 or downstream gates. |
+| R30-8/9; A30-7 | P/G/D/M/F remain separate. No M timing closes frozen TC5 fidelity, Windows, whole30, Block1 or downstream gates;60 owns its separately qualified F11 result. |
 
 [Release requirements](../../../../requirements.md#performance-req-009req-018)
 and [canonical acceptance](../../../../acceptance.md) retain REQ-010/AC012/076
@@ -151,8 +186,9 @@ incomplete rather than becoming successful samples or being retried away.
 
 Warn/debug cells are matched workload/logging perturbation controls. The
 restricted text/structured controls above are a review choice, not a full
-mode×format×concurrency matrix. They do not replace Slice60/F11 qualification
-or release MCP conformance under both formats. Review must accept this explicit
+mode×format×concurrency matrix. They do not replace Slice60
+qualification or release MCP conformance under both formats. Review must accept
+this explicit
 coverage or revise it before source/freeze; no dimension is silently waived.
 
 ## Calls, clocks, queue and response accounting

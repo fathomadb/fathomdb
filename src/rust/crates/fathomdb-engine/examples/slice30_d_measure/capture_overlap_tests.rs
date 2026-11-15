@@ -41,6 +41,18 @@ fn characterized_overlap_streams_current_cohorts_and_groups_without_claiming_a_w
         &output,
     )
     .expect("C-O must join/close before assertions");
+    let retained = directory.keep();
+    eprintln!("C-O diagnostic retained streams={}", retained.display());
+    if report["complete"] != true {
+        eprintln!(
+            "C-O incomplete: dropped_records={} issues={} take_count={} engine_id={} session_id={}",
+            report["observation"]["dropped_records"],
+            report["observation"]["issues"],
+            report["observation"]["take_count"],
+            report["observation"]["engine_id"],
+            report["observation"]["session_id"]
+        );
+    }
     let connection = Connection::open_with_flags(&store, OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap();
     let counts: (u64, u64, u64, u64) = connection.query_row(
         "SELECT (SELECT COUNT(*) FROM canonical_nodes WHERE kind='doc'), (SELECT COUNT(*) FROM vector_default), (SELECT COUNT(*) FROM _fathomdb_vector_spans), (SELECT COUNT(*) FROM _fathomdb_projection_terminal WHERE state='up_to_date')",

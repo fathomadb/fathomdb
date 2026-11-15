@@ -512,7 +512,7 @@
         "worktree": "/mnt/data/worktrees/fathomdb-0.8.29-s30-d-20261114",
         "branch": "llm/0.8.29-s30-d-20261114",
         "base": "6696f3a1dacb93749a1ea9580403e4d334230ea3",
-        "scope": "Code phase complete and independently Astra accepted, including final inherited-setting correction. Actual per-behavior RED/GREEN covers nativeT/C routes, bounded loss-aware capture, reports, owned-child supervision, durable fixed24 custody/accounting, D-phase guardian/refusal costs, executable CLI and one explicit reviewed continuation quartet. Active inherited treatments refuse before work; inert settings remain. Old failures, one syntax correction and affected reruns remain in raw history. Canonical D transport/native/live controls are registered. Combined current-source owned qualification pending; no scientific D execution or profile activation.",
+        "scope": "Code phase complete and independently Astra accepted, including final inherited-setting correction. Actual per-behavior RED/GREEN covers nativeT/C routes, bounded loss-aware capture, reports, owned-child supervision, durable fixed24 custody/accounting, D-phase guardian/refusal costs, executable CLI and one explicit reviewed continuation quartet. Active inherited treatments refuse before work; inert settings remain. Old failures, one syntax correction and affected reruns remain in raw history. Canonical D transport/native/live controls are registered. Combined current-source owned qualification accepted as assembled b466; no scientific D execution or profile activation.",
         "source_checkpoint": "41bae5529e7070352b9cc4b675089e8e93692039",
         "integrated_sha": "e8929b7417b20d39bbe2c589a8ee40eaf7744c31"
       },
@@ -530,12 +530,15 @@
         "evidence": "Exact0.8.29 release/candidate/package admission after semanticREDf5929230f; all29 parser testsPASS, frozenoracles/Ruff/hooks. IndependentAstra design4de+implementationda9 ACCEPT. No nativeproduct/database/model/GPU execution or runtimeprotocol/capchange. CurrentF/Q8 native qualification remains pending."
       },
       "combined_source_qualification": {
-        "status": "PENDING",
+        "status": "ASSEMBLED_PASS_INDEPENDENT_ASTRA_ACCEPT",
         "execution_checkout": "/mnt/data/worktrees/fathomdb-0.8.29-s30-m-source-20261114",
         "scope": "Current integrated M/D/F source and current-pin110 policy; owned Python/native/Node refresh followed by one full agent-verify with selected M/D live source controls. No scientific study, model/GPU, CI, publication or fault execution.",
         "live_controls": "AGENT_SLICE30_LIVE_CONTROLS=1; AGENT_LONG unset",
         "setup_child_seconds": 1800,
-        "gate_child_seconds": 5400
+        "gate_child_seconds": 5400,
+        "source_sha": "b466d556adea67834fc4a39399d9ff470f0e485e",
+        "evidence": "Original a91 wrapper stopped at module-boundary lint. Mechanical1f2 correction preserved test bodies; canonical suffix passed lint/typecheck/strict security and ran226 suites:211 passed,15 failed. Reviewed b466 source fixes and actual owned Python/TS-NAPI refresh followed by exactly15 failed suites plus3 previously masked bodies:18/18 passed,0 skipped/excluded. Independent Astra ACCEPT; all guardians terminal with strict final samples and empty-boundary cleanup. Earlier failures retained. Assembled qualification, not uninterrupted full-wrapper green. AC036 real strace passed; AC037 retains standard unavailable-live-netns downgrade with passing offline enforcement. Scientific matrices, GPU/fork safety, Windows20 and Block1 smoke remain separate.",
+        "raw_results": "/mnt/data/tmp2/fathomdb-0829-continuation/slice30-m-source-20261114/logs"
       }
     },
     {

@@ -2652,7 +2652,13 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         };
         // Mixed node/edge text ranks stay on the reference implementation until
         // that distinct route has its own exactness and work proof.
+        #[cfg(feature = "slice50-measurement")]
+        let eager_text = std::env::var("FATHOMDB_SLICE50_EAGER_TEXT_FOR_MEASUREMENT")
+            .is_ok_and(|value| value == "1");
+        #[cfg(not(feature = "slice50-measurement"))]
+        let eager_text = false;
         let defer_full_hydration = defer_text_identity
+            && !eager_text
             && !vector_stage_only
             && tx.query_row(
                 "SELECT NOT EXISTS(SELECT 1 FROM search_index_edges LIMIT 1)",

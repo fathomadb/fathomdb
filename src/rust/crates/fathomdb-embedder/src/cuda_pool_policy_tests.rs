@@ -1002,6 +1002,27 @@ fn an_active_primary_context_with_another_id_is_lost() {
 }
 
 #[test]
+fn an_established_loss_precedes_later_oom_without_native_queries() {
+    let driver = FakeDriver { current_id: Some(Ok(2000)), ..FakeDriver::default() };
+    let cell = private_cell(&driver);
+    let first = lost(classify_forward_fault(cell.get(), &driver, cuda_fault(Some(999)), "forward"));
+    let state_reads = driver.state_reads.load(Ordering::SeqCst);
+    let id_reads = driver.id_reads.load(Ordering::SeqCst);
+
+    let later = lost(classify_forward_fault(
+        cell.get(),
+        &driver,
+        cuda_fault(Some(CUDA_ERROR_OUT_OF_MEMORY)),
+        "batch forward",
+    ));
+
+    assert_eq!((later.0, later.1, later.2), (first.0, first.1, first.2));
+    assert_eq!(later.3, "batch forward");
+    assert_eq!(driver.state_reads.load(Ordering::SeqCst), state_reads);
+    assert_eq!(driver.id_reads.load(Ordering::SeqCst), id_reads);
+}
+
+#[test]
 fn a_failed_state_query_is_a_lost_context() {
     let driver = FakeDriver { primary_state: Some(Err(3)), ..FakeDriver::default() };
     let cell = private_cell(&driver);

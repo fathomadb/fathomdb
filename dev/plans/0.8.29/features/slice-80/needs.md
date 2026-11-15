@@ -7,18 +7,18 @@ slice: 80
 
 # Slice 80 needs
 
-This package designs residuals against frozen source
-`2f6913c1d59ac8ff3a30de835b57290a8635998c`; it grants no implementation
-approval. [Census](census.md), [requirements](requirements.md),
+This package specifies the residual contract against the integrated source
+below; full80 owner acceptance remains open. [Census](census.md), [requirements](requirements.md),
 [acceptance](acceptance.md), [design](design.md) and [test map](test-map.md)
 form one review unit.
 
-This documentary consolidation incorporates the independently bounded
-Astra-medium PASS for aggregate v2, exact source proposal SHA-256
-`a5e4851df2fedcbcce3e7d1b93138980c25e172d0ceb802792d218940bca0e53`.
-The consolidated packet's narrow consistency recheck is pending; this is no
-new ABI/policy approval or full80/source-entry approval. All original packets
-remain frozen. Parent source stays clean2f6913 with no imports.
+This revision uses integrated source
+`e1cb1bd5311f68da8be98bbe133b9cecd5ab56d4`, selected identity/packing
+seq-374 and feedback seq-375, and Slice50's independently reviewed
+`10a72e5a9` carrier design. Selected design is distinguished from implemented API.
+The earlier aggregate-v2 and consolidation consistency reviews passed; they are
+not repeated. The updated contract needs its required Astra-medium review and
+full80 owner acceptance. No implementation or90 source entry follows.
 
 | Local need | User outcome | Release allocation / existing authority |
 | --- | --- | --- |

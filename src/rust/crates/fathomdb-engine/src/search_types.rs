@@ -16,7 +16,7 @@ pub struct SoftFallback {
 ///
 /// `Vector` = ANN vector branch (node bodies); `Text` = node-body FTS branch;
 /// `TextEdge` = edge-body hit (FTS via `search_index_edges` OR vector-projected
-/// edge facts — both produce the same kind="edge_fact" row shape and share the
+/// edge facts; vector edges use kind="edge_fact", text edges retain stored kind. Both share the
 /// same downstream handling in `search_expand_in_tx`). `Vector`/`Text` also
 /// used as soft-fallback signal when the respective branch is empty.
 /// `GraphArm` = R3 (Slice 30) BFS-reachable node from the temporal fact-edge
@@ -26,7 +26,7 @@ pub enum SoftFallbackBranch {
     Vector,
     Text,
     /// G11 (Slice 15) — edge-body hit from `search_index_edges` FTS or from
-    /// `vector_default` edge-fact projection. `kind = "edge_fact"` in both cases.
+    /// `vector_default` edge-fact projection. Vector hits use `kind = "edge_fact"`; text hits retain their stored kind.
     TextEdge,
     /// R3 (Slice 30) — BFS-reachable node from the temporal fact-edge graph arm.
     /// Only present when `use_graph_arm = true`. Nodes in the graph arm were NOT
@@ -182,7 +182,7 @@ pub struct GraphFrontierStats {
 }
 
 /// Hybrid `search` result. `results` carries structured [`SearchHit`]s in
-/// vector-first, dedup-on-body order. Derives `Clone, Debug, PartialEq` but
+/// ranked per stored record, with vector-input tie preference. Public IDs may repeat. Derives `Clone, Debug, PartialEq` but
 /// **not `Eq`** — each hit carries a `score: f64`.
 #[derive(Clone, Debug, PartialEq)]
 // 0.8.8 EXP-OBS (field-set ratification): non_exhaustive so future additive fields
@@ -322,7 +322,7 @@ pub struct QueryTrace {
 }
 
 /// 0.8.8 EXP-OBS (Slice 5) — per-hit provenance + score breakdown. One entry per
-/// returned `SearchHit`, same order. `*_rank` is the 0-based rank the hit's body
+/// returned `SearchHit`, same order. `*_rank` is the 0-based rank the hit's stored record
 /// held in that arm's pre-fusion list (`None` = absent from that arm).
 ///
 /// Derives `Clone, Debug, PartialEq` but **not `Eq`** — scores are `f64`.

@@ -414,6 +414,13 @@ reasons, every ref in `used` and `unused` must belong to it
 (`invalid_request/bad_argument` otherwise). A response from another store is `invalid_request/wrong_store`
 (MR-024.5). `used` may be empty. Recorded feedback reaches `record_feedback`
 with label source `agent` (MR-024.1). Feedback never alters later results.
+For otherwise recordable calls, a named ref shared by different result cursors
+returns `invalid_request/bad_argument` atomically with zero feedback labels.
+Repeated occurrences of the same cursor remain unique; ambiguity in an unmentioned
+ref has no effect. This check runs only after successful store acquisition and the
+final epoch recheck, preserving the existing `not_recorded` precedence even if a
+store closes or reopens during acquisition. Public refs and logical fetch are
+unchanged; no occurrence-label field or reference grammar is added.
 Feedback takes an admission permit but never queues for one: with no free
 permit it is refused at once as `busy/admission`, `busy.reason`
 `deadline`.

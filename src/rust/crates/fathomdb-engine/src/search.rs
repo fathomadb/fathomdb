@@ -216,17 +216,16 @@ impl FrozenQueryRuntime {
 
 fn structural_lifecycle_state(
     tx: &Connection,
-    write_cursor: u64,
+    hit: &FusionHit,
 ) -> rusqlite::Result<StructuralLifecycleStateV1> {
-    let cursor = i64::try_from(write_cursor).map_err(|_| rusqlite::Error::InvalidQuery)?;
-    let edge_exists: bool = tx.query_row(
-        "SELECT EXISTS(SELECT 1 FROM canonical_edges WHERE write_cursor=?1)",
-        [cursor],
-        |row| row.get(0),
-    )?;
-    if edge_exists {
-        return Ok(StructuralLifecycleStateV1::EdgeValid);
+    match hit.ownership {
+        FusionOwnership::CanonicalEdge => return Ok(StructuralLifecycleStateV1::EdgeValid),
+        FusionOwnership::OwnerlessNodeFts { .. } => {
+            return Err(rusqlite::Error::QueryReturnedNoRows)
+        }
+        FusionOwnership::CanonicalNode => {}
     }
+    let cursor = i64::try_from(hit.write_cursor).map_err(|_| rusqlite::Error::InvalidQuery)?;
     let state: String =
         tx.query_row("SELECT state FROM canonical_nodes WHERE write_cursor=?1", [cursor], |row| {
             row.get(0)
@@ -725,7 +724,7 @@ pub(crate) trait SearchOriginCapture: Sized {
         connection: &Connection,
         cursor: u64,
         soft_fallback: Option<SoftFallback>,
-        results: Vec<SearchHit>,
+        results: Vec<FusionHit>,
         graph_stats: GraphFrontierStats,
         explanation: Option<Explanation>,
         expanded: Option<SearchExpandResult>,
@@ -877,16 +876,13 @@ fn rank_search_hit_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<(Search
 fn collect_complete_rank_boundary(
     rows: &mut rusqlite::Rows<'_>,
     limit: usize,
-    mut fts_rows: Option<&mut FtsRows>,
+    _fts_rows: Option<&mut FtsRows>,
 ) -> rusqlite::Result<(Vec<SearchHit>, bool)> {
     let mut candidates = Vec::with_capacity(limit.saturating_add(1));
     let mut boundary_score = None;
 
     while let Some(row) = rows.next()? {
-        let (candidate, rowid) = rank_search_hit_from_row(row)?;
-        if let Some(fts_rows) = fts_rows.as_deref_mut() {
-            fts_rows.insert(candidate.write_cursor, (FtsTable::Nodes, rowid));
-        }
+        let (candidate, _rowid) = rank_search_hit_from_row(row)?;
         if candidates.len() < limit {
             if candidates.len().saturating_add(1) == limit {
                 boundary_score = Some(candidate.score);
@@ -908,13 +904,148 @@ fn collect_complete_rank_boundary(
     Ok((candidates, crossed_boundary_tie))
 }
 
+fn node_fts_ownership(row: &rusqlite::Row<'_>) -> rusqlite::Result<FusionOwnership> {
+    let owner = row.get::<_, Option<i64>>(7)?;
+    if owner.is_some() {
+        if !row.get::<_, bool>(8)? || !row.get::<_, bool>(9)? {
+            return Err(rusqlite::Error::InvalidQuery);
+        }
+        Ok(FusionOwnership::CanonicalNode)
+    } else {
+        Ok(FusionOwnership::OwnerlessNodeFts { rowid: row.get(6)? })
+    }
+}
+
+// Constructed only after comparing FTS body/kind to its canonical owner in
+// this read transaction. Ownerless identity is its actual unique FTS rowid.
+struct ConsistentNodeFts {
+    rowid: i64,
+    write_cursor: u64,
+    ownership: FusionOwnership,
+    score: f64,
+}
+
+enum DeferredFusionHit {
+    Hydrated(FusionHit),
+    NodeFts(ConsistentNodeFts),
+}
+
+impl crate::fusion::FusionRecord for DeferredFusionHit {
+    fn record_key(&self) -> RecordKey {
+        match self {
+            Self::Hydrated(hit) => hit.key(),
+            Self::NodeFts(hit) => hit.ownership.record_key(hit.write_cursor),
+        }
+    }
+    fn bodies_conflict(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Hydrated(left), Self::Hydrated(right)) => left.body != right.body,
+            // A canonical thin row already proved equality to the same stored
+            // record that hydrated the vector. Ownerless keys cannot intersect
+            // vector keys, and repeated ownerless keys name the same FTS row.
+            _ => false,
+        }
+    }
+    fn set_fused_score(&mut self, score: f64) {
+        match self {
+            Self::Hydrated(hit) => hit.score = score,
+            Self::NodeFts(hit) => hit.score = score,
+        }
+    }
+}
+
+impl DeferredFusionHit {
+    fn hydrate(self, statement: &mut rusqlite::Statement<'_>) -> rusqlite::Result<FusionHit> {
+        match self {
+            Self::Hydrated(hit) => Ok(hit),
+            Self::NodeFts(thin) => {
+                let (mut hit, _) = statement.query_row([thin.rowid], node_fusion_hit_from_row)?;
+                if hit.key() != thin.ownership.record_key(thin.write_cursor) {
+                    return Err(rusqlite::Error::InvalidQuery);
+                }
+                hit.score = thin.score;
+                Ok(hit)
+            }
+        }
+    }
+}
+
+fn node_fusion_hit_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<(FusionHit, i64)> {
+    let (hit, rowid) = rank_search_hit_from_row(row)?;
+    Ok((FusionHit { hit, ownership: node_fts_ownership(row)? }, rowid))
+}
+
+fn edge_fusion_hit_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<(FusionHit, i64)> {
+    if !row.get::<_, bool>(7)? || !row.get::<_, bool>(8)? {
+        return Err(rusqlite::Error::InvalidQuery);
+    }
+    let (mut hit, rowid) = rank_search_hit_from_row(row)?;
+    hit.branch = SoftFallbackBranch::TextEdge;
+    Ok((FusionHit { hit, ownership: FusionOwnership::CanonicalEdge }, rowid))
+}
+
+fn collect_complete_fusion_rank_boundary(
+    rows: &mut rusqlite::Rows<'_>,
+    limit: usize,
+    mut fts_rows: Option<&mut FtsRows>,
+) -> rusqlite::Result<(Vec<FusionHit>, bool)> {
+    let mut candidates = Vec::with_capacity(limit.saturating_add(1));
+    let mut boundary_score = None;
+    while let Some(row) = rows.next()? {
+        let (candidate, rowid) = node_fusion_hit_from_row(row)?;
+        if let Some(fts_rows) = fts_rows.as_deref_mut() {
+            fts_rows.entry(candidate.key()).or_insert((FtsTable::Nodes, rowid));
+        }
+        if candidates.len() < limit {
+            if candidates.len().saturating_add(1) == limit {
+                boundary_score = Some(candidate.score);
+            }
+            candidates.push(candidate);
+        } else if boundary_score.is_some_and(|score: f64| score.total_cmp(&candidate.score).is_eq())
+        {
+            candidates.push(candidate);
+        } else {
+            break;
+        }
+    }
+    let crossed = candidates.len() > limit;
+    candidates.sort_by(|left, right| compare_text_rank(left, right));
+    candidates.truncate(limit);
+    Ok((candidates, crossed))
+}
+
+fn compare_text_rank(left: &SearchHit, right: &SearchHit) -> std::cmp::Ordering {
+    left.score.total_cmp(&right.score).then_with(|| left.write_cursor.cmp(&right.write_cursor))
+}
+
+fn classify_legacy_node_rows(
+    tx: &Connection,
+    rows: Vec<(SearchHit, i64)>,
+) -> rusqlite::Result<Vec<(FusionHit, i64)>> {
+    let mut owner = tx.prepare("SELECT body,kind FROM canonical_nodes WHERE write_cursor=?1")?;
+    rows.into_iter()
+        .map(|(hit, rowid)| {
+            let stored: Option<(String, String)> = owner
+                .query_row([hit.write_cursor], |row| Ok((row.get(0)?, row.get(1)?)))
+                .optional()?;
+            let ownership = if let Some((body, kind)) = stored {
+                if body != hit.body || kind != hit.kind {
+                    return Err(rusqlite::Error::InvalidQuery);
+                }
+                FusionOwnership::CanonicalNode
+            } else {
+                FusionOwnership::OwnerlessNodeFts { rowid }
+            };
+            Ok((FusionHit { hit, ownership }, rowid))
+        })
+        .collect()
+}
+
 pub(crate) fn retain_complete_rank_boundary_candidates(
     mut candidates: Vec<SearchHit>,
     limit: usize,
 ) -> Vec<SearchHit> {
-    candidates.sort_by(|left, right| {
-        left.score.total_cmp(&right.score).then_with(|| left.write_cursor.cmp(&right.write_cursor))
-    });
+    candidates.sort_by(compare_text_rank);
     candidates.truncate(limit);
     candidates
 }
@@ -1243,7 +1374,7 @@ impl SearchOriginCapture for NoEvidenceCapture {
         _connection: &Connection,
         cursor: u64,
         soft_fallback: Option<SoftFallback>,
-        results: Vec<SearchHit>,
+        results: Vec<FusionHit>,
         graph_stats: GraphFrontierStats,
         explanation: Option<Explanation>,
         expanded: Option<SearchExpandResult>,
@@ -1253,7 +1384,7 @@ impl SearchOriginCapture for NoEvidenceCapture {
         Ok((
             cursor,
             soft_fallback,
-            results,
+            results.into_iter().map(|hit| hit.hit).collect(),
             graph_stats,
             explanation,
             expanded,
@@ -1275,7 +1406,7 @@ impl SearchOriginCapture for EvidenceCapture {
         connection: &Connection,
         cursor: u64,
         soft_fallback: Option<SoftFallback>,
-        results: Vec<SearchHit>,
+        results: Vec<FusionHit>,
         _graph_stats: GraphFrontierStats,
         explanation: Option<Explanation>,
         _expanded: Option<SearchExpandResult>,
@@ -1284,10 +1415,11 @@ impl SearchOriginCapture for EvidenceCapture {
     ) -> Result<Self::Output, SearchReaderError> {
         #[cfg(any(test, feature = "test-hooks"))]
         self.before_sidecar.fire();
+        let ownership: Vec<_> = results.iter().map(|hit| hit.ownership).collect();
         let search_result = SearchResult {
             projection_cursor: cursor,
             soft_fallback,
-            results,
+            results: results.into_iter().map(|hit| hit.hit).collect(),
             explanation,
             degradations,
             snippets: None,
@@ -1298,6 +1430,7 @@ impl SearchOriginCapture for EvidenceCapture {
             search_result,
             self.include_explanation,
             &self.graph_origins,
+            &ownership,
         )
         .map_err(SearchReaderError::Evidence)
     }
@@ -1346,7 +1479,7 @@ impl std::ops::DerefMut for SearchStatement<'_> {
 /// carrying each traversed edge's `source_id` (G0 BLOCK-2) onto the emitted hit.
 /// Collects reachable node bodies (up to `cap`) as [`SearchHit`]s tagged
 /// `SoftFallbackBranch::GraphArm`. Score = `1.0 / (1.0 + hop_count)` with a
-/// synthesized-node penalty (`kind = 'unknown'` → score *= 0.3). Bodies already
+/// synthesized-node penalty (`kind = 'unknown'` → score *= 0.3). Records already
 /// present in `fused_hits` are excluded (already covered by the two-arm result).
 ///
 /// **F9 (0.8.16 Slice 5) confidence carry:** the third tuple element maps each
@@ -1364,14 +1497,14 @@ impl std::ops::DerefMut for SearchStatement<'_> {
 #[allow(clippy::too_many_arguments)] // Shared graph capture preserves the zero-cost default path.
 fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
     tx: &Connection,
-    fused_hits: &[SearchHit],
+    fused_hits: &[FusionHit],
     match_expression: &str,
     max_depth: u32,
     cap: usize,
     view: FrozenView,
     filter: Option<&SearchFilter>,
     capture: &mut C,
-) -> rusqlite::Result<(Vec<SearchHit>, GraphFrontierStats, HashMap<u64, f64>)> {
+) -> rusqlite::Result<(Vec<FusionHit>, GraphFrontierStats, HashMap<u64, f64>)> {
     // fix-2 (codex §9 [P2]): the opt-in graph arm hydrates NODES too, so it takes
     // the same validity conjunct as the vector and FTS branches — otherwise
     // `search_reranked(.., use_graph_arm = true)` would keep the exact leak the
@@ -1385,13 +1518,12 @@ fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
     const SEED_FTS_N: usize = 10;
     const SYNTHESIZED_PENALTY: f64 = 0.3;
 
-    // Bodies already in the fused result — exclude these from graph arm output.
-    let seed_bodies: std::collections::HashSet<&str> =
-        fused_hits.iter().map(|h| h.body.as_str()).collect();
+    let seed_records: std::collections::HashSet<RecordKey> =
+        fused_hits.iter().map(FusionHit::key).collect();
 
     let mut frontier: VecDeque<(String, u32)> = VecDeque::new(); // (logical_id, depth)
     let mut visited: std::collections::HashSet<String> = std::collections::HashSet::new();
-    let mut candidates: Vec<SearchHit> = Vec::new();
+    let mut candidates: Vec<FusionHit> = Vec::new();
     // F9 (0.8.16 Slice 5) — per-hit traversing-edge confidence, keyed by the
     // emitted hit's NODE `write_cursor`. First edge to reach a node wins (visited
     // dedup); NULL confidence is never inserted (⇒ neutral in the reweight).
@@ -1638,7 +1770,9 @@ fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
                     // stable id before `lid` is moved onto the frontier (zero extra query).
                     let id = derive_stable_id(Some(&lid), &body);
                     frontier.push_back((lid, 0));
-                    if !seed_bodies.contains(body.as_str()) && candidates.len() < cap {
+                    if !seed_records.contains(&RecordKey::CanonicalNode(write_cursor as u64))
+                        && candidates.len() < cap
+                    {
                         // depth-0 hop_score = 1.0/(1.0+0) = 1.0; synthesized penalty for
                         // 'unknown' kind (mirrors the Phase-2 neighbor scoring).
                         let score = if kind == "unknown" { SYNTHESIZED_PENALTY } else { 1.0 };
@@ -1648,15 +1782,18 @@ fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
                             edge_confidence_by_cursor.insert(write_cursor as u64, c);
                         }
                         capture.record_graph_origin(write_cursor as u64, graph_origin);
-                        candidates.push(SearchHit {
-                            id,
-                            write_cursor: write_cursor as u64,
-                            kind,
-                            body,
-                            score,
-                            branch: SoftFallbackBranch::GraphArm,
-                            source_id,
-                            ce_score: None,
+                        candidates.push(FusionHit {
+                            ownership: FusionOwnership::CanonicalNode,
+                            hit: SearchHit {
+                                id,
+                                write_cursor: write_cursor as u64,
+                                kind,
+                                body,
+                                score,
+                                branch: SoftFallbackBranch::GraphArm,
+                                source_id,
+                                ce_score: None,
+                            },
                         });
                     }
                 }
@@ -1787,8 +1924,8 @@ fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
                 .optional()?;
 
             if let Some((kind, body, write_cursor)) = row {
-                // Skip bodies already covered by the two-arm result.
-                if !seed_bodies.contains(body.as_str()) {
+                // Skip only the same canonical record already covered by the two-arm result.
+                if !seed_records.contains(&RecordKey::CanonicalNode(write_cursor as u64)) {
                     if candidates.len() >= cap {
                         stats.bound_reached = true;
                         break 'frontier;
@@ -1809,16 +1946,19 @@ fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
                         write_cursor as u64,
                         CapturedGraphOrigin::Traversal { edge_cursor, hop_count: depth + 1 },
                     );
-                    candidates.push(SearchHit {
-                        id,
-                        write_cursor: write_cursor as u64,
-                        kind,
-                        body,
-                        score,
-                        branch: SoftFallbackBranch::GraphArm,
-                        // BLOCK-2: the session this fact-edge was extracted from.
-                        source_id: edge_source_id.clone(),
-                        ce_score: None,
+                    candidates.push(FusionHit {
+                        ownership: FusionOwnership::CanonicalNode,
+                        hit: SearchHit {
+                            id,
+                            write_cursor: write_cursor as u64,
+                            kind,
+                            body,
+                            score,
+                            branch: SoftFallbackBranch::GraphArm,
+                            // BLOCK-2: the session this fact-edge was extracted from.
+                            source_id: edge_source_id.clone(),
+                            ce_score: None,
+                        },
                     });
                 }
                 // Always push neighbor to frontier for further BFS expansion.
@@ -2191,17 +2331,20 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                 .optional()?
             {
                 let id = derive_stable_id(logical_id.as_deref(), &body);
-                results.push(SearchHit {
-                    id,
-                    write_cursor: rowid as u64,
-                    kind,
-                    body,
-                    score,
-                    branch: SoftFallbackBranch::Vector,
-                    // TC-31: the NODE's own provenance (a node hit is erased by
-                    // the document it was written from).
-                    source_id,
-                    ce_score: None,
+                results.push(FusionHit {
+                    ownership: FusionOwnership::CanonicalNode,
+                    hit: SearchHit {
+                        id,
+                        write_cursor: rowid as u64,
+                        kind,
+                        body,
+                        score,
+                        branch: SoftFallbackBranch::Vector,
+                        // TC-31: the NODE's own provenance (a node hit is erased by
+                        // the document it was written from).
+                        source_id,
+                        ce_score: None,
+                    },
                 });
             } else if let Some((body, logical_id, source_id)) = edge_stmt
                 .query_row(rusqlite::params![rowid, view.edge_now()], |row| {
@@ -2214,17 +2357,20 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                 .optional()?
             {
                 let id = derive_stable_id(logical_id.as_deref(), &body);
-                results.push(SearchHit {
-                    id,
-                    write_cursor: rowid as u64,
-                    kind: "edge_fact".to_string(),
-                    body,
-                    score,
-                    branch: SoftFallbackBranch::TextEdge,
-                    // TC-31: the EDGE's own provenance — consistent with the
-                    // graph arm's existing edge-source semantics.
-                    source_id,
-                    ce_score: None,
+                results.push(FusionHit {
+                    ownership: FusionOwnership::CanonicalEdge,
+                    hit: SearchHit {
+                        id,
+                        write_cursor: rowid as u64,
+                        kind: "edge_fact".to_string(),
+                        body,
+                        score,
+                        branch: SoftFallbackBranch::TextEdge,
+                        // TC-31: the EDGE's own provenance — consistent with the
+                        // graph arm's existing edge-source semantics.
+                        source_id,
+                        ce_score: None,
+                    },
                 });
             }
         }
@@ -2278,10 +2424,11 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     // in SQL (the vector branch is filtered in phase 1; the text branch has no
     // metadata columns of its own).
     let mut deferred_text_identity = false;
+    let mut deferred_node_candidates: Option<Vec<ConsistentNodeFts>> = None;
     // EP-17: the search-local `write_cursor → (table, rowid)` map, filled only
     // when snippets are requested.
     let mut fts_rows = FtsRows::new();
-    let text_candidates: Vec<SearchHit> = {
+    let text_candidates: Vec<FusionHit> = {
         #[cfg(any(test, feature = "slice30-observer"))]
         let node_observation = crate::slice30_observer::span("node_fts_candidates");
         #[cfg(feature = "tc5-benchmark")]
@@ -2478,7 +2625,8 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             let rank_mapping = "bm25()";
             let rank_sql = format!(
                 "SELECT search_index.body, search_index.kind, search_index.write_cursor, \
-                 bm25(search_index), cn.logical_id, cn.source_id, search_index.rowid \
+                 bm25(search_index), cn.logical_id, cn.source_id, search_index.rowid, cn.write_cursor, \
+                 search_index.body IS cn.body, search_index.kind IS cn.kind \
                  FROM search_index \
                  LEFT JOIN canonical_nodes cn ON cn.write_cursor = search_index.write_cursor \
                  WHERE search_index MATCH ?1 \
@@ -2492,7 +2640,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                 .and_then(|mut statement| {
                     let mut rows =
                         statement.query(rusqlite::params_from_iter(text_params.iter()))?;
-                    collect_complete_rank_boundary(
+                    collect_complete_fusion_rank_boundary(
                         &mut rows,
                         rank_candidate_limit,
                         snippet.is_some().then_some(&mut fts_rows),
@@ -2502,11 +2650,66 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         } else {
             None
         };
-        let deferred_candidates = if defer_text_identity {
+        // Mixed node/edge text ranks stay on the reference implementation until
+        // that distinct route has its own exactness and work proof.
+        let defer_full_hydration = defer_text_identity
+            && !vector_stage_only
+            && tx.query_row(
+                "SELECT NOT EXISTS(SELECT 1 FROM search_index_edges LIMIT 1)",
+                [],
+                |row| row.get::<_, bool>(0),
+            )?;
+        let deferred_candidates = if defer_full_hydration {
             let now_binding =
                 now_param.map(|_| " AND (?2 IS NULL OR ?2 IS NOT NULL)").unwrap_or("");
             let sql = format!(
-                "SELECT body, kind, write_cursor, bm25(search_index), rowid FROM search_index \
+                "SELECT si.rowid, si.write_cursor, bm25(search_index), cn.write_cursor, \
+                 si.body IS cn.body, si.kind IS cn.kind, si.body, si.kind FROM search_index si \
+                 LEFT JOIN canonical_nodes cn ON cn.write_cursor=si.write_cursor \
+                 WHERE search_index MATCH ?1{now_binding}{limit_clause}"
+            );
+            let mut statement = prepare_search_statement(&tx, &sql)?;
+            let rows =
+                statement.query_map(rusqlite::params_from_iter(text_params.iter()), |row| {
+                    // The reference materializes both Strings for every match,
+                    // including losing ownerless rows. Preserve type/UTF-8
+                    // refusal with borrowed values before deferring allocation.
+                    row.get_ref(6)?.as_str().map_err(|_| rusqlite::Error::InvalidQuery)?;
+                    row.get_ref(7)?.as_str().map_err(|_| rusqlite::Error::InvalidQuery)?;
+                    let rowid = row.get::<_, i64>(0)?;
+                    let write_cursor = row.get::<_, i64>(1)? as u64;
+                    let ownership = if row.get::<_, Option<i64>>(3)?.is_some() {
+                        if !row.get::<_, bool>(4)? || !row.get::<_, bool>(5)? {
+                            return Err(rusqlite::Error::InvalidQuery);
+                        }
+                        FusionOwnership::CanonicalNode
+                    } else {
+                        FusionOwnership::OwnerlessNodeFts { rowid }
+                    };
+                    Ok(ConsistentNodeFts { rowid, write_cursor, ownership, score: row.get(2)? })
+                })?;
+            let mut candidates = rows.collect::<rusqlite::Result<Vec<_>>>()?;
+            candidates.sort_by(|left, right| {
+                left.score
+                    .total_cmp(&right.score)
+                    .then_with(|| left.write_cursor.cmp(&right.write_cursor))
+            });
+            if snippet.is_some() {
+                for hit in &candidates {
+                    fts_rows
+                        .entry(hit.ownership.record_key(hit.write_cursor))
+                        .or_insert((FtsTable::Nodes, hit.rowid));
+                }
+            }
+            deferred_node_candidates = Some(candidates);
+            Some(Vec::new())
+        } else if defer_text_identity {
+            let now_binding =
+                now_param.map(|_| " AND (?2 IS NULL OR ?2 IS NOT NULL)").unwrap_or("");
+            let sql = format!(
+                "SELECT si.body, si.kind, si.write_cursor, bm25(search_index), NULL, NULL, si.rowid, cn.write_cursor, \
+                 si.body IS cn.body, si.kind IS cn.kind FROM search_index si \
+                 LEFT JOIN canonical_nodes cn ON cn.write_cursor=si.write_cursor \
                  WHERE search_index MATCH ?1{now_binding}{limit_clause}"
             );
             let candidates = prepare_search_statement(&tx, &sql).and_then(|mut statement| {
@@ -2523,7 +2726,10 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                             source_id: None,
                             ce_score: None,
                         };
-                        Ok((hit, row.get::<_, i64>(4)?))
+                        Ok((
+                            FusionHit { hit, ownership: node_fts_ownership(row)? },
+                            row.get::<_, i64>(6)?,
+                        ))
                     })?;
                 rows.collect::<rusqlite::Result<Vec<_>>>()
             })?;
@@ -2539,7 +2745,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             None
         };
         let candidates = if let Some(candidates) = deferred_candidates {
-            deferred_text_identity = true;
+            deferred_text_identity = !defer_full_hydration;
             #[cfg(feature = "test-hooks")]
             record_fts_route_for_test("hybrid_deferred_identity");
             candidates
@@ -2560,25 +2766,10 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             } else if rank_stream_requested {
                 record_fts_route_for_test("full_sort_ineligible");
             }
-            let rows =
-                statement.query_map(rusqlite::params_from_iter(text_params.iter()), |row| {
-                    let body = row.get::<_, String>(0)?;
-                    let logical_id = row.get::<_, Option<String>>(4)?;
-                    let hit = SearchHit {
-                        id: derive_stable_id(logical_id.as_deref(), &body),
-                        body,
-                        kind: row.get::<_, String>(1)?,
-                        write_cursor: row.get::<_, i64>(2)? as u64,
-                        score: row.get::<_, f64>(3)?,
-                        branch: SoftFallbackBranch::Text,
-                        // TC-31: the NODE's own provenance. NULL for a legacy /
-                        // TC-11-spared governed row, and NULL for an ownerless
-                        // `search_index` row the LEFT JOIN keeps with no `cn`.
-                        source_id: row.get::<_, Option<String>>(5)?,
-                        ce_score: None,
-                    };
-                    Ok((hit, row.get::<_, i64>(6)?))
-                })?;
+            let rows = statement.query_map(
+                rusqlite::params_from_iter(text_params.iter()),
+                node_fusion_hit_from_row,
+            )?;
             let hits = rows.collect::<rusqlite::Result<Vec<_>>>()?;
             keep_rowids(hits, FtsTable::Nodes, snippet.is_some(), &mut fts_rows)
         } else {
@@ -2621,7 +2812,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                     Ok((hit, row.get::<_, i64>(5)?))
                 })?;
                 keep_rowids(
-                    rows.flatten().collect(),
+                    classify_legacy_node_rows(&tx, rows.collect::<rusqlite::Result<Vec<_>>>()?)?,
                     FtsTable::Nodes,
                     snippet.is_some(),
                     &mut fts_rows,
@@ -2651,7 +2842,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                     Ok((hit, row.get::<_, i64>(4)?))
                 })?;
                 keep_rowids(
-                    rows.flatten().collect(),
+                    classify_legacy_node_rows(&tx, rows.collect::<rusqlite::Result<Vec<_>>>()?)?,
                     FtsTable::Nodes,
                     snippet.is_some(),
                     &mut fts_rows,
@@ -2659,10 +2850,11 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             }
         };
         #[cfg(any(test, feature = "slice30-observer"))]
-        node_observation.counted_success(candidates.len());
+        node_observation
+            .counted_success(deferred_node_candidates.as_ref().map_or(candidates.len(), Vec::len));
         candidates
     };
-    let mut text_results: Vec<SearchHit> = text_candidates;
+    let mut text_results: Vec<FusionHit> = text_candidates;
 
     // G11 (Slice 15) — edge-body FTS branch from `search_index_edges`.
     // Appended to text_results; tagged with SoftFallbackBranch::TextEdge so
@@ -2679,7 +2871,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     // created_after/status (mirroring text_hit_passes_filter). Collect edge
     // candidates into a Vec first (drops stmt borrow on tx) so we can pass
     // &tx to edge_fts_hit_passes_filter without a borrow conflict.
-    let edge_candidates: Vec<SearchHit> = {
+    let edge_candidates: Vec<FusionHit> = {
         #[cfg(any(test, feature = "slice30-observer"))]
         let edge_observation = crate::slice30_observer::span("edge_fts_candidates");
         // Cause-A: the JOIN to canonical_edges already exists; additively select
@@ -2711,22 +2903,8 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         let edge_sql =
             crate::filter::edge_fts_rank_sql_view(&edge_validity, &edge_eligibility, &view.view);
         let mut stmt = prepare_search_statement(&tx, &edge_sql)?;
-        let rows = stmt.query_map(rusqlite::params_from_iter(edge_params.iter()), |row| {
-            let body = row.get::<_, String>(0)?;
-            let logical_id = row.get::<_, Option<String>>(4)?;
-            let hit = SearchHit {
-                id: derive_stable_id(logical_id.as_deref(), &body),
-                body,
-                kind: row.get::<_, String>(1)?,
-                write_cursor: row.get::<_, i64>(2)? as u64,
-                score: row.get::<_, f64>(3)?,
-                branch: SoftFallbackBranch::TextEdge,
-                // TC-31: the EDGE's own provenance.
-                source_id: row.get::<_, Option<String>>(5)?,
-                ce_score: None,
-            };
-            Ok((hit, row.get::<_, i64>(6)?))
-        })?;
+        let rows = stmt
+            .query_map(rusqlite::params_from_iter(edge_params.iter()), edge_fusion_hit_from_row)?;
         let hits = rows.collect::<rusqlite::Result<Vec<_>>>()?;
         let candidates = keep_rowids(hits, FtsTable::Edges, snippet.is_some(), &mut fts_rows);
         #[cfg(any(test, feature = "slice30-observer"))]
@@ -2795,44 +2973,77 @@ fn read_search_in_tx<C: SearchOriginCapture>(
 
     // 0.8.8 EXP-OBS (Slice 5) — capture per-arm rank maps + counts BEFORE the arms
     // are consumed by fusion. All reads; only when `explain` (else zero work).
-    // `body_rank_map` keeps the FIRST occurrence (== the rank `fuse_three_arms`
+    // `record_rank_map` keeps the FIRST occurrence (== the rank `fuse_three_arms`
     // uses, which dedups keeping the first). `*_fused_scores` is captured from the
     // post-recency / pre-CE intermediate so `fused_score` is faithful to what
     // `ce_rerank` normalizes.
-    let body_rank_map = |hits: &[SearchHit]| -> HashMap<String, u32> {
-        let mut m: HashMap<String, u32> = HashMap::new();
+    let record_rank_map = |hits: &[FusionHit]| -> HashMap<RecordKey, u32> {
+        let mut m: HashMap<RecordKey, u32> = HashMap::new();
         for (i, h) in hits.iter().enumerate() {
-            m.entry(h.body.clone()).or_insert(i as u32);
+            m.entry(h.key()).or_insert(i as u32);
         }
         m
     };
-    let body_score_map = |hits: &[SearchHit]| -> HashMap<String, f64> {
-        hits.iter().map(|h| (h.body.clone(), h.score)).collect()
+    let record_score_map = |hits: &[FusionHit]| -> HashMap<RecordKey, f64> {
+        hits.iter().map(|h| (h.key(), h.score)).collect()
     };
 
     let (exp_vector_ranks, exp_text_ranks, exp_vector_n, exp_text_n) = if explain {
         (
-            Some(body_rank_map(&vector_results)),
-            Some(body_rank_map(&text_results)),
+            Some(record_rank_map(&vector_results)),
+            Some(record_rank_map(&text_results)),
             vector_results.len() as u32,
             text_results.len() as u32,
         )
     } else {
         (None, None, 0, 0)
     };
-    let mut exp_graph_ranks: Option<HashMap<String, u32>> = None;
-    let mut exp_fused_scores: Option<HashMap<String, f64>> = None;
+    let mut exp_graph_ranks: Option<HashMap<RecordKey, u32>> = None;
+    let mut exp_fused_scores: Option<HashMap<RecordKey, f64>> = None;
     let mut exp_graph_n: u32 = 0;
     // F9 (0.8.16 Slice 5) — per-hit importance/confidence contribution maps
-    // (keyed by hit id == write_cursor), captured for the explain sidecar.
-    let mut exp_importance: Option<HashMap<u64, f64>> = None;
-    let mut exp_confidence: Option<HashMap<u64, f64>> = None;
+    // (keyed by selected record), captured for the explain sidecar.
+    let mut exp_importance: Option<HashMap<RecordKey, f64>> = None;
+    let mut exp_confidence: Option<HashMap<RecordKey, f64>> = None;
 
+    #[cfg(any(test, feature = "slice30-observer"))]
+    let mut thin_identity_observed = false;
     let mut results = {
         #[cfg(any(test, feature = "slice30-observer"))]
-        let fusion_observation = crate::slice30_observer::span("fusion_final_ranking");
+        let mut fusion_observation = Some(crate::slice30_observer::span("fusion_final_ranking"));
         let mut results = if vector_stage_only {
             vector_results
+        } else if let Some(text) = deferred_node_candidates {
+            let fused = crate::fusion::fuse_records(
+                vector_results.into_iter().map(DeferredFusionHit::Hydrated).collect(),
+                text.into_iter().map(DeferredFusionHit::NodeFts).collect(),
+                Vec::new(),
+            )
+            .map_err(SearchReaderError::Evidence)?;
+            #[cfg(any(test, feature = "slice30-observer"))]
+            let identity_observation = {
+                // Ranking ends before payload reads; both intervals belong
+                // directly to the same reader transaction.
+                if let Some(observation) = fusion_observation.take() {
+                    observation.counted_success(fused.len().min(final_limit));
+                }
+                thin_identity_observed = true;
+                crate::slice30_observer::span("deferred_identity_hydration")
+            };
+            let mut hydrate = tx.prepare_cached(
+                "SELECT si.body, si.kind, si.write_cursor, 0.0, cn.logical_id, cn.source_id, \
+                 si.rowid, cn.write_cursor, si.body IS cn.body, si.kind IS cn.kind \
+                 FROM search_index si LEFT JOIN canonical_nodes cn \
+                 ON cn.write_cursor=si.write_cursor WHERE si.rowid=?1",
+            )?;
+            let hydrated = fused
+                .into_iter()
+                .take(final_limit)
+                .map(|candidate| candidate.hydrate(&mut hydrate))
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            #[cfg(any(test, feature = "slice30-observer"))]
+            identity_observation.success();
+            hydrated
         } else if use_graph_arm {
             // R3 (Slice 30) — graph arm: BFS over temporal fact-edges seeded from
             // the top-10 two-arm fused candidates, depth ≤ 3, cap 50.
@@ -2843,10 +3054,11 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             // then fuse three arms: the two-arm result (as "vector" arm), an empty
             // text arm, and the graph candidates. The two-arm result preserves all
             // existing ranking semantics; the graph arm contributes new candidates.
-            let two_arm_fused = fuse_rrf(vector_results, text_results);
+            let two_arm_fused =
+                fuse_rrf(vector_results, text_results).map_err(SearchReaderError::Evidence)?;
             // C1: seed the graph arm from the query's FTS match expression (entities /
             // edge-facts), not the doc-node fused hits. `fused_hits` is still passed for
-            // the seed-body exclusion set.
+            // the selected-record exclusion set.
             let (graph_candidates, stats, graph_edge_confidence) = bfs_graph_arm_candidates(
                 &tx,
                 &two_arm_fused,
@@ -2859,13 +3071,14 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             )?;
             graph_stats = stats;
             if explain {
-                exp_graph_ranks = Some(body_rank_map(&graph_candidates));
+                exp_graph_ranks = Some(record_rank_map(&graph_candidates));
                 exp_graph_n = graph_candidates.len() as u32;
             }
             // Named intermediate (byte-identical to the prior nested call) so explain
             // can read the pre-CE fused scores without perturbing the ranking.
-            let fused = apply_recency_reweight(
-                fuse_three_arms(two_arm_fused, vec![], graph_candidates),
+            let fused = apply_recency_reweight_ranked(
+                fuse_three_arms(two_arm_fused, vec![], graph_candidates)
+                    .map_err(SearchReaderError::Evidence)?,
                 recency_enabled,
             );
             // F9 — importance (node) / confidence (edge) reweight, OFF by default.
@@ -2883,25 +3096,28 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             // with the edge-fact confidence above; `or_insert` documents that intent.
             if importance_enabled || explain {
                 for (cursor, conf) in &graph_edge_confidence {
-                    conf_map.entry(*cursor).or_insert(*conf);
+                    conf_map.entry(RecordKey::CanonicalNode(*cursor)).or_insert(*conf);
                 }
             }
-            let fused = apply_importance_reweight(fused, &imp_map, &conf_map, importance_enabled);
+            let fused =
+                apply_record_importance_reweight(fused, &imp_map, &conf_map, importance_enabled);
             if explain {
                 exp_importance = Some(imp_map);
                 exp_confidence = Some(conf_map);
-                exp_fused_scores = Some(body_score_map(&fused));
+                exp_fused_scores = Some(record_score_map(&fused));
             }
-            try_rerank_fused(raw_query, fused, rerank_depth, alpha, pool_n)
+            try_rerank_ranked(raw_query, fused, rerank_depth, alpha, pool_n)
                 .map_err(SearchReaderError::RerankerDevicePolicy)?
         } else {
-            // G9 + G12: RRF-fuse the two ranked branches (keyed on body, vector-first
+            // G9 + G12: RRF-fuse the two ranked branches (keyed on stored record, vector-first
             // tiebreak) into the unconditional new ranking, recency-reweight (gated,
             // off by default), then pass through the identity rerank seam. The
             // vector-empty `soft_fallback` signal was computed above, BEFORE this
             // branch-collapse.
-            let fused =
-                apply_recency_reweight(fuse_rrf(vector_results, text_results), recency_enabled);
+            let fused = apply_recency_reweight_ranked(
+                fuse_rrf(vector_results, text_results).map_err(SearchReaderError::Evidence)?,
+                recency_enabled,
+            );
             // F9 — importance (node) / confidence (edge) reweight, OFF by default.
             // Same placement as the graph-arm branch: after recency, before CE rerank.
             let (imp_map, conf_map) = if importance_enabled || explain {
@@ -2909,19 +3125,22 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             } else {
                 (HashMap::new(), HashMap::new())
             };
-            let fused = apply_importance_reweight(fused, &imp_map, &conf_map, importance_enabled);
+            let fused =
+                apply_record_importance_reweight(fused, &imp_map, &conf_map, importance_enabled);
             if explain {
                 exp_importance = Some(imp_map);
                 exp_confidence = Some(conf_map);
-                exp_fused_scores = Some(body_score_map(&fused));
+                exp_fused_scores = Some(record_score_map(&fused));
             }
-            try_rerank_fused(raw_query, fused, rerank_depth, alpha, pool_n)
+            try_rerank_ranked(raw_query, fused, rerank_depth, alpha, pool_n)
                 .map_err(SearchReaderError::RerankerDevicePolicy)?
         };
 
         results.truncate(final_limit);
         #[cfg(any(test, feature = "slice30-observer"))]
-        fusion_observation.counted_success(results.len());
+        if let Some(observation) = fusion_observation.as_ref() {
+            observation.counted_success(results.len());
+        }
         results
     };
 
@@ -2951,7 +3170,9 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         identity_observation.success();
     } else {
         #[cfg(any(test, feature = "slice30-observer"))]
-        crate::slice30_observer::not_run("deferred_identity_hydration", "not_deferred");
+        if !thin_identity_observed {
+            crate::slice30_observer::not_run("deferred_identity_hydration", "not_deferred");
+        }
     }
 
     let projection_status = explain
@@ -2981,18 +3202,14 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                     // `SearchHit.id` is the separate caller-facing identity.
                     id: h.write_cursor,
                     arm: h.branch,
-                    vector_rank: exp_vector_ranks.as_ref().and_then(|m| m.get(&h.body).copied()),
-                    text_rank: exp_text_ranks.as_ref().and_then(|m| m.get(&h.body).copied()),
-                    graph_rank: exp_graph_ranks.as_ref().and_then(|m| m.get(&h.body).copied()),
-                    fused_score: fused_scores.get(&h.body).copied().unwrap_or(h.score),
+                    vector_rank: exp_vector_ranks.as_ref().and_then(|m| m.get(&h.key()).copied()),
+                    text_rank: exp_text_ranks.as_ref().and_then(|m| m.get(&h.key()).copied()),
+                    graph_rank: exp_graph_ranks.as_ref().and_then(|m| m.get(&h.key()).copied()),
+                    fused_score: fused_scores.get(&h.key()).copied().unwrap_or(h.score),
                     ce_score: h.ce_score,
                     blended: h.score,
-                    importance: exp_importance
-                        .as_ref()
-                        .and_then(|m| m.get(&h.write_cursor).copied()),
-                    confidence: exp_confidence
-                        .as_ref()
-                        .and_then(|m| m.get(&h.write_cursor).copied()),
+                    importance: exp_importance.as_ref().and_then(|m| m.get(&h.key()).copied()),
+                    confidence: exp_confidence.as_ref().and_then(|m| m.get(&h.key()).copied()),
                     structural: {
                         let projection_origin = match h.branch {
                             SoftFallbackBranch::Vector => {
@@ -3005,7 +3222,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                                 StructuralProjectionOriginV1::SynchronousBodyFts
                             }
                         };
-                        let lifecycle_state = structural_lifecycle_state(&tx, h.write_cursor)?;
+                        let lifecycle_state = structural_lifecycle_state(&tx, h)?;
                         let mut degradation_codes = match (&soft_fallback, h.branch) {
                             (Some(_), SoftFallbackBranch::Text) => {
                                 vec![StructuralDegradationCodeV1::SoftFallbackText]
@@ -3097,6 +3314,11 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             )
         })
         .transpose()?;
+    if explanation.as_ref().is_some_and(|value| value.per_hit.len() != results.len())
+        || snippets.as_ref().is_some_and(|value| value.len() != results.len())
+    {
+        return Err(rusqlite::Error::InvalidQuery.into());
+    }
     let output = capture.finish(
         &tx,
         cursor,
@@ -3126,8 +3348,9 @@ use crate::filter::{
 };
 use crate::frozen_read::{self, FrozenReadContextV1, FrozenReadError, FrozenReadErrorReason};
 use crate::fusion::{
-    apply_importance_reweight, apply_recency_reweight, build_importance_confidence_maps, fuse_rrf,
-    fuse_three_arms,
+    apply_recency_reweight_ranked, apply_record_importance_reweight,
+    build_importance_confidence_maps, fuse_rrf, fuse_three_arms, FusionHit, FusionOwnership,
+    RecordKey,
 };
 use crate::graph_expand::{self, search_expand_on_snapshot, SearchExpandResult};
 use crate::identity::{derive_stable_id, IdSpace};
@@ -3139,7 +3362,7 @@ use crate::projection_generation::{
 use crate::projection_registry::load_projection_registry;
 use crate::projection_runtime::PROJECTION_CURSOR_KEY;
 use crate::reader_transaction::begin_attributed_reader_tx;
-use crate::rerank::try_rerank_fused;
+use crate::rerank::try_rerank_ranked;
 use crate::search_types::{
     validate_search_result_limit, ArmDegradation, Bm25fQueryPlan, Explanation, GraphFrontierStats,
     PerHitExplain, QueryTrace, SearchHit, SearchResult, SoftFallback, SoftFallbackBranch,
@@ -3172,15 +3395,15 @@ use std::{fs::OpenOptions, io::Write, sync::Mutex};
 /// Splits `(hit, rowid)` rows, recording each FTS rowid when snippets
 /// are requested.
 fn keep_rowids(
-    rows: Vec<(SearchHit, i64)>,
+    rows: Vec<(FusionHit, i64)>,
     table: FtsTable,
     keep: bool,
     fts_rows: &mut FtsRows,
-) -> Vec<SearchHit> {
+) -> Vec<FusionHit> {
     rows.into_iter()
         .map(|(hit, rowid)| {
             if keep {
-                fts_rows.insert(hit.write_cursor, (table, rowid));
+                fts_rows.entry(hit.key()).or_insert((table, rowid));
             }
             hit
         })

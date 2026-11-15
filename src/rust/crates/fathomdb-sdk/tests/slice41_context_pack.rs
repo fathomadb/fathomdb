@@ -251,3 +251,73 @@ fn context_item_from_hit_decodes_tagged_and_keeps_untagged() {
     assert_eq!(err.kind(), ErrorKind::InvalidArgument);
     engine.close().expect("close");
 }
+
+#[test]
+fn record_unique_tagged_twins_keep_public_helper_ids_and_duplicate_pack_refusal() {
+    let dir = tempfile::tempdir().unwrap();
+    let engine =
+        Engine::open(dir.path().join("record_twins.sqlite"), OpenOptions::default()).unwrap();
+    let body = "\u{001e}\u{0011}café pear";
+    let writes: Vec<_> = ["src:a", "src:b"]
+        .iter()
+        .map(|source| PreparedWrite::Node {
+            kind: "round".into(),
+            body: body.into(),
+            source_id: SourceId::new(*source).unwrap(),
+            logical_id: None,
+            state: InitialState::Active,
+            reason: None,
+            valid_from: None,
+            valid_until: None,
+        })
+        .collect();
+    engine.write(&writes).unwrap();
+    let found = engine.search_text_only("cafe", TextSearchOptions::default()).unwrap();
+    assert_eq!(found.results.len(), 2, "the two stored records remain two search hits");
+    assert_eq!(
+        found.results.iter().map(|hit| hit.source_id.as_deref()).collect::<Vec<_>>(),
+        [Some("src:a"), Some("src:b")]
+    );
+    let items: Vec<_> = found
+        .results
+        .iter()
+        .map(|hit| {
+            assert_eq!(hit.body.as_bytes(), body.as_bytes());
+            context_item_from_hit(hit, ContextHitOptions::default()).unwrap()
+        })
+        .collect();
+    assert_eq!(items[0].id, items[1].id);
+    assert!(items[0].id.starts_with("h:"));
+    for item in &items {
+        assert_eq!(
+            item.parts,
+            [ContextPart { role: Some("user".into()), text: "café pear".into() }]
+        );
+    }
+    let error = pack_context(&items, &ContextPolicy::default(), &[]).unwrap_err();
+    assert_eq!(error.kind(), ErrorKind::InvalidArgument);
+    assert!(error.to_string().contains("hits[1].id"));
+
+    let mut labeled = items;
+    let mut selected_source = std::collections::BTreeMap::new();
+    for (index, item) in labeled.iter_mut().enumerate() {
+        item.id = format!("pick:{index}");
+        selected_source.insert(item.id.clone(), found.results[index].source_id.clone());
+    }
+    let policy = ContextPolicy {
+        budget_chars: 1000,
+        full_items: 0,
+        full_ids: labeled.iter().map(|item| item.id.clone()).collect(),
+        ..ContextPolicy::default()
+    };
+    let pack = pack_context(&labeled, &policy, &[]).unwrap();
+    assert_eq!(
+        pack.items.iter().map(|item| item.id.as_str()).collect::<Vec<_>>(),
+        ["pick:0", "pick:1"]
+    );
+    assert!(pack.items.iter().all(|item| item.forced && item.tier == ContextTier::Full));
+    assert_eq!(pack.text.matches("café pear").count(), 2);
+    assert_eq!(selected_source["pick:0"].as_deref(), Some("src:a"));
+    assert_eq!(selected_source["pick:1"].as_deref(), Some("src:b"));
+    engine.close().unwrap();
+}

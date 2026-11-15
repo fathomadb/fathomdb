@@ -1,5 +1,11 @@
 # Slice 130 preregistration proposal
 
+[Active owner dispositions](plan.md#phase-a-scope): seq-381 moves Tegra CUDA13
+unit A to .31; B–E and existing CUDA12.6 obligations remain .29;
+new x86 CUDA13 delivery/compiler work is .31 and real110 resets are HELD .30.
+References to120 artifacts below mean applicable independently selected artifacts,
+not a mandatory new x86 package or blanket120 dependency.
+
 Status: DRAFT, no campaign authorized or executed. Independent technical review
 may accept implementation/protocol choices; it does not supply owner-reserved
 artifact/policy/venue/session/spend approvals. Freeze the selected unit's exact
@@ -20,7 +26,7 @@ duplicated hardening service. Preserve raw stdout/stderr/exit and refusals.
 | Venue | Existing authority / exact remaining gate |
 | --- | --- |
 | Existing Orin12.6 for D/E and C regression | No reflash/install/global modification. Confirm access, existing stack/model/artifacts, approved reserved window and actual task resource/lock reservation before running. Current readiness unknown. |
-| CloudJetson Tegra13 for A | Previously directed conditional venue; require vendor vetting for actual JetPack7.2/root/data handling, actual device/stack/loader route, accessible session, written numeric quote/cap/duration/data scope and owner session authorization. No marketing-to-support inference. |
+| CloudJetson Tegra13 for A — future .31 under seq-381 | Previously directed conditional venue; require vendor vetting for actual JetPack7.2/root/data handling, actual device/stack/loader route, accessible session, written numeric quote/cap/duration/data scope and owner session authorization. No marketing-to-support inference. |
 | AWS g5g for B/C | Previously assigned generic ARM qualification; require account/access/region/capacity, exact compatible target/artifact/toolchain and approved numeric session total including storage/transfer/setup. No advertised hourly value is current quote or spend authority. |
 | GCP13 ancillary120 cell | Existing per-session owner approval, maximum2h; SpotT4→on-demandT4→L4 preference retained. No automatic retry/provision/fallback spending or reset permission.130 does not reopen broad venue choice. |
 | windchill3 retained affected x86 controls | Before/after driver branch and primary CUDA symlink guard, approved3090 UUID and lock. R580 forever, primary12.6 unchanged; never K620, host-wide reset, driver install/removal or primary symlink change. |
@@ -31,11 +37,11 @@ selected artifact/policy outcomes.110 owns fault runs; this protocol contains
 no reset operation. Final affected runs require actual selected140 qualified
 repair pins and110/120 integration. Broader .30 fork maintenance is excluded.
 
-## A/B actual consumer cells
+## A (future .31) / B (active .29) actual consumer cells
 
 One bounded invocation per selected consumer/policy row, not an open-ended matrix.
 Pin explicit device UUID/ordinal and verify actual code-target compatibility;
-B T4G cannot inherit Orin sm87 proof.120 supplies exact artifact set and target
+B T4G cannot inherit Orin sm87 proof.The affected artifact owner supplies the exact artifact set and target
 contract before the row is runnable; unknown Rust/CLI13 scope stays unknown.
 
 Per selected SDK: fresh install/owned source consumer, import/open with actual
@@ -151,7 +157,7 @@ that could affect these paths block E until independently reconciled.
 | D/E qualification-hook counterpart, pool on/off primary pair | All E numerical RSS/control/sample/error/swap rules below. Pool-on private RESERVED rule is mandatory; a missing/error counter is failure, never omitted. Off allocator has named no-private status, so private RESERVED rule is inapplicable there, not zero-filled. USED is separately reported. Claim only this exact instrumented steady-state result plus reviewed build-pair equivalence. |
 | Exact selected shipping Node/Python artifacts | Actual installed lifecycle/forward/policy/close/exit and existing allocation-witness proof without hooks, using or reusing the affected120/130 selected-consumer runs under their exact input equivalence. These are short existing consumer obligations, not another E60-minute pair. Require actual PASS; hook-counter proof cannot substitute. Shipping RESERVED numerical plateau is not measured and must be labeled so. |
 
-If the selected120 artifact set or actual consumer results cannot supply that
+If the selected applicable artifact set or actual consumer results cannot supply that
 shipping evidence, E remains WAITING_FOR_SHIPPING_CONSUMER_EVIDENCE. If the
 reviewed build-pair equivalence cannot be established, E remains
 WAITING_FOR_BUILD_EQUIVALENCE; do not infer shipping plateau or add a shipping
@@ -227,7 +233,8 @@ scope and reason. Reuse historical evidence only after source/input/platform/
 feature comparison. Instrumented D/E results do not establish shipping identity
 or a shipping-binary numerical plateau. Exact shipping consumer lifecycle proof
 and build-pair equivalence are separate required E inputs under the build table;
-A/B selected shipping consumers and affected existing validators remain required.
+B selected shipping consumers and affected existing .29 validators remain required.
+A consumer protocol is preserved for .31 under seq-381; it is not a .29 gate.
 Record total attempts, raw logs/series, real exits, criteria calculations and
 failure disposition. Commit harness/README and measurement-correctness tests;
 leave only raw logs in scratch. Fresh independent implementation/results review

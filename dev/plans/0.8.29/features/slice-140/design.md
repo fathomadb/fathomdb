@@ -1,5 +1,12 @@
 # Slice 140 minimal repair-selection design
 
+Active .29 repair selection follows owner seq-376/377: necessary110 source/seam
+repairs and independently required existing .29 artifact repairs only. New x86
+CUDA13 delivery/compiler work formerly in120 is [.31](../../../0.8.31/cuda-delivery-plan.md)
+under seq-378 and cannot create a mandatory .29 repair. Real Orin/3090 reset
+children are HELD .30; no .29 live-fault gate, survival or original-defect closure
+is inferred. Fork B/C maintenance remains .30. No repair is selected by this note.
+
 Status: WAITING_FOR_REQUIRED_REPAIR_SELECTION. The table is a selection contract,
 not approval to implement any candidate. [Census](source-census.md) binds exact
 existing sources.110/120 scratch findings are immutable proposal input; their
@@ -9,13 +16,13 @@ dated actual10-pending prose is superseded by actual10 closure at this baseline.
 
 | Candidate | Existing witness / possible smallest A work | Evidence and decision selecting it |
 | --- | --- | --- |
-| C140-L generation and cleanup lifetime | C has clear-on-read error_state, distinct context wrappers and nested event/slice/stream/SyncOnDrop/module/BLAS/RNG/context/pool cleanup. BLAS/RNG destroy unwrap; construction can own raw handles before wrapper completion. A reviewed terminal-generation/cleanup seam could be required in cudarc, with only necessary Candle ownership/admission adaptation. |110 must choose an actual fault envelope, coordination/discovery contract and retained-resource bounds; demonstrate every reachable affected cleanup and partial-load path. A BLAS-only patch or top-model quarantine is insufficient evidence. No x86/all-API support inferred from private Orin classification. |
-| C140-A selected artifact delivery/correctness | C item9 selects built-major libraries; K static cudart and locked cudaforge0.1.5 compile both PTX/JIT and native MoE archive paths. Possible fork repair only if selected120 proof establishes a concrete failure of these paths or a required, reviewed mitigation. |120 selects artifact contract and assesses exact compiler6111901 exposure/mitigation, actual generated targets/modules and model-reached paths. Exposure UNKNOWN does not select a patch or toolkit13.2. Broad multiarch/native/PTX/dtype/MoE maintenance remains .30. |
+| C140-L generation and cleanup lifetime | C has clear-on-read error_state, distinct context wrappers and nested event/slice/stream/SyncOnDrop/module/BLAS/RNG/context/pool cleanup. BLAS/RNG destroy unwrap; construction can own raw handles before wrapper completion. A reviewed terminal-generation/cleanup seam could be required in cudarc, with only necessary Candle ownership/admission adaptation. |Seq-376 selects quiescent completed-construction/frozen-live-set/no-growth residue with opaque host bytes unbounded; demonstrate every reachable affected cleanup and partial-load path. A BLAS-only patch or top-model quarantine is insufficient evidence. No x86/all-API support inferred from private Orin classification. |
+| C140-A selected artifact delivery/correctness | C item9 selects built-major libraries; K static cudart and locked cudaforge0.1.5 compile both PTX/JIT and native MoE archive paths. Possible fork repair only if an independently required existing .29 artifact proof establishes a concrete failure of these paths or a required, reviewed mitigation. |New120 artifact/compiler6111901 work is historical future input for .31 and does not select a .29 repair. Exposure UNKNOWN does not select a patch or toolkit13.2. Broad multiarch/native/PTX/dtype/MoE maintenance remains .30. |
 | C140-V necessary repair release | New required C code may need distinct cudarc version; dependent K manifests may need a new qualified release to consume it. | Only a selected required code diff activates FT-1. Determine API/semver impact, publication source/closure and smallest release set; no version guessed now. A pure K kernel patch does not automatically require all Candle packages to change. |
 | Outside140: product remedy/selector | Product cuda_libraries.rs always prescribes CUDA12 remedy; TS loader has no selected-major contract. |120 owns these definite product gaps and Q120 decisions. Their presence alone cannot select a fork change. Distinct Node13 identity must reconcile ADR-0.8.25's rejected package alternative. |
 
 Shared terminal state, complete quarantine and process isolation are independently
-useful110 alternatives, explicitly **unselected**. No mutex/health query promises
+useful110 alternatives; seq-376 selects shared terminal generation/frozen-live-set policy, while quarantine/isolation remain unselected. No mutex/health query promises
 survival of arbitrary uncooperative resets during FFI/kernels/destruction. No
 manual Lost injection alone proves real no-forward-close discovery. A retained
 whole model does not capture partial loads, per-call temporaries or external
@@ -50,7 +57,7 @@ separate proof, never a false REQ-068 promise for all source builds.
 
 Fresh independent Astra design review covers selected fork-local packet before
 code. Fork human-intent tests and negative controls get real behavior RED before
-GREEN; initial fork qualification then selects exact pins.110/120 integrate/build
+GREEN; initial fork qualification then selects exact pins.110/existing .29 artifact owners integrate/build
 affected retained artifacts next;130 reruns affected final composed cells with
 its accepted bounded protocol.130's A–E do not expand140's A-only scope. Final
 implementation/results review is fresh and independent of the design reviewer.
@@ -66,5 +73,5 @@ postconditions and independently specified outputs. Defer exhaustive CUDA APIs,
 architecture/dtype expansion, general GPU fuzzing, broad upstream modernization
 and arbitrary fault-race survival. New source evidence strengthens the nested
 cleanup/partial-load concern; it does not demonstrate an accepted repair.
-The dated .29 usage review remains120's policy input; no repeated collection,
+Seq-379 accepts bounded usage unknowns/current ratings, with quantitative evidence in .31; no repeated collection,
 new importance/toolkit choice or host modification is authorized by140.

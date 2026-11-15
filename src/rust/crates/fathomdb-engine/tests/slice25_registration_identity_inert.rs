@@ -20,8 +20,8 @@
 //!   treats every NULL as distinct, so a NULL `logical_id` never collides.
 //!   `anonymous_and_governed_twins_both_stay_active_and_both_surface` pins that
 //!   corollary, and
-//!   `identical_body_twins_collapse_under_fusion_body_dedup_but_both_persist`
-//!   records its one wrinkle.
+//!   `identical_body_twins_remain_distinct_records_and_both_persist`
+//!   pins the selected record-identity successor for equal stored bytes.
 //!
 //! It also carries **D4**: the write-time admission audit found NO gap, and the
 //! two paths that audit turns on — the internal structural-row writer (the only
@@ -424,15 +424,10 @@ fn anonymous_and_governed_twins_both_stay_active_and_both_surface() {
     );
 }
 
-/// The one wrinkle in the corollary, recorded rather than "fixed": when the twins
-/// have BYTE-IDENTICAL bodies, fusion's documented **dedup-on-body** ordering
-/// (see `SearchResult`) collapses them to a single hit and the first-wins rule
-/// keeps the ANONYMOUS one (lower `write_cursor`). Both rows are still ACTIVE at
-/// rest and neither id-space moved — the collapse is a retrieval-presentation
-/// property of body-dedup, NOT a re-derivation. Pinned here so the corollary
-/// above is not read as a promise that identical-body twins each get a hit.
+/// The accepted record-identity successor preserves both equal-body records.
+/// Their permanent public ID spaces and at-rest admission remain unchanged.
 #[test]
-fn identical_body_twins_collapse_under_fusion_body_dedup_but_both_persist() {
+fn identical_body_twins_remain_distinct_records_and_both_persist() {
     let dir = TempDir::new().unwrap();
     let path = db_path(&dir, "identical_twins");
     let opened = Engine::open(&path).expect("open");
@@ -447,7 +442,13 @@ fn identical_body_twins_collapse_under_fusion_body_dedup_but_both_persist() {
 
     let hits = engine.search("wombat").expect("search").results;
     let bodies: HashSet<&str> = hits.iter().map(|h| h.body.as_str()).collect();
-    assert_eq!(bodies.len(), hits.len(), "fusion dedups on body — one hit per distinct body");
+    assert_eq!(hits.len(), 2, "distinct anonymous and governed records both surface");
+    assert_eq!(bodies.len(), 1, "both hits retain the identical stored body");
+    assert_eq!(hits[1].id, IdSpace::logical("ent-wombat"));
+    assert_eq!(
+        hits.iter().map(|hit| hit.source_id.as_deref()).collect::<Vec<_>>(),
+        [Some("src:doc-a"), Some("src:doc-b")]
+    );
     assert_eq!(
         hits.first().map(|h| h.id.space),
         Some(IdSpaceKind::Content),

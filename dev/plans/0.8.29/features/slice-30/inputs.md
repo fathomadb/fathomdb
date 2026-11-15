@@ -71,7 +71,44 @@ recheck/claim one3090 and prove actual memory+utilization engagement. Never use
 K620 or change driver/toolkit. Quiet CPU/disk and GPU lock ownership are not yet
 reserved; no other campaign is stopped or modified.
 
-## Frozen TC5 absent
+## Frozen TC5 located and statically qualified
+
+Owner seq382 supplies the actual existing directory
+`/mnt/data/fathomdb-performance-benchmarking/scale-02/inputs/input-pack-v1`.
+November14 read-only validation matched the registered index and qualified
+manifest hashes below, plus full `input-manifest.v1.json` SHA256
+`1d1aee57b20f38ed39dc780c44d12be6ec1a18f64f02dbf8ae5fcf79d5f72795`.
+All17372 referenced payloads are readable contained regular files with matching
+content hashes (29184099B total). Canonical static qualification confirms17272
+documents/100queries and deterministic7667-document bridge identity
+`9e92d236e44fc7443c1940f6870877a6e6eb07e92136ca2da331f88221e622ed`.
+Missing/mismatching references: zero. No further static input qualification is
+required. Source-extracted static helpers performed no native/module import,
+database open, mutation, regeneration, model or GPU execution. The initial helper
+extraction omitted a dataclass decorator; correction made both complete static
+validations pass. No benchmark runtime or current candidate proof is claimed.
+
+The missing-input hold is cleared. F/Q8 still need current candidate-bound
+native/model/runtime qualification and actual measurements under their selected
+protocol. The absent-path observations below are historical, not live requests
+to reconnect a drive or search for another copy.
+
+November14 filename/path lookup found the registered durable directory:
+`/home/coreyt/projects/fathomdb/data/performance-benchmarking/scale-02/inputs/input-pack-v1/`.
+The performance-benchmarking symlink targets
+`/media/coreyt/C8D47C11D47C03CA/data/linux-cold/fathomdb-performance-benchmarking`.
+Search for `tc5/tc5-corpus-input.v1.json` with sibling
+`tc5-qualified-manifest.json`; the older manifest name is
+`tc5-manifest.all-real.v2.json`. Preserve the entire referenced `tc5/` payload,
+not just its JSON index. The full frozen input pack has17272 documents and100
+queries; the benchmark selects its7667-document bridge deterministically.
+Registered input-index SHA256 is
+`624b6b42e7e1d40866fea48d37a34b0ef8d786f46f4aa2ed9a3dd245d22a0a0a`;
+qualified-manifest SHA256 is
+`f6180a00d1551a143a7445aa6ed28ed589533400ee702835663729694e393df5`.
+These are source input identities, distinct from derived bridge/ground-truth and
+benchmark-database digests. This lookup did not search mounted volumes, open a
+database, locate the missing payload or regenerate any benchmark data.
 
 Parent's scoped search of/mnt/data/tmp2 and~/.cache/fathomdb-comp found no exact
 frozen index624b6b42… or qualified manifestf6180a00… and referenced pack from the

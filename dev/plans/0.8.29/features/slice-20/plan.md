@@ -38,9 +38,11 @@ No new production queue policy or architecture successor is needed.
 Owner2026-11-13 seq-369 approves A3/A5 verification-only proofs and negative
 controls without manufactured RED. All actual defects keep genuine committed
 semantic RED before GREEN. Seq-370 approves only64GiB host image creation,
-necessary narrow ACLs and live attachment to existing Windows VM. Formatting
-remains an unanswered specific decision; compiler/helper/test entry
-requires refreshed readiness and review. No generic renewed approval question.
+necessary narrow ACLs and live attachment to existing Windows VM. Owner choice1A,
+recorded as seq-373, now authorizes the reviewed identity-guarded GPT/new R:/quick
+NTFS format of only the existing empty owned64GiB scratch disk. This grants no
+other-disk format, C cleanup or C8/5GiB floor change. Compiler/helper/test entry
+requires refreshed readiness and reviewed execution; no renewed format question.
 
 Keep schema37/no migration, query scaffold, accepted hints/spans/compact default,
 W0.8.29/E0.8.0, R580/primary CUDA12.6/no K620. No model/GPU fault/toolkit work,
@@ -64,10 +66,10 @@ cleanup, remote CI or publication.
 3. The guarded format-only operator at Git
    `396a023e02580a1bb82ddcb7f16817874ad0046c` already has qualified contained
    controls and independent preparation review. Reuse equivalent reviewed bytes
-   and retained results, updating only affected runtime inputs. Actual owner
-   ruling for GPT/new R:/quick NTFS remains unanswered; no live format before it.
-   Seq-370 capacity-only is not formatting authority. No generic renewed
-   acceptance question is needed for ordinary source/testing completion.
+   and retained results, updating only affected runtime inputs. Seq-373 supplies
+   the owner ruling for GPT/new R:/quick NTFS of only the exact empty owned disk.
+   Execute after the coordinated lease, fresh identity/topology/guest guards
+   and unchanged resource floors pass. Seq-370 alone remains capacity-only.
 4. When owned volume and actual floors are ready, adapt retained frozen5122
    operator into a tracked experiment using this task/source/image/current
    endpoint. Review the concrete portability delta. Actual PowerShell parse,
@@ -141,9 +143,9 @@ relocation, boot-disk resize or safe owned-only C-space solution is established.
 A proposed temporary C-start6GiB/unchanged5GiB stop would be a real policy change,
 not accepted readiness:1s sampling/stale3s termination and all owned writes on R:.
 It requires explicit technical review and actual authority before adoption;
-seq-370 cannot supply it. Otherwise retain8/5GiB and use separately authorized
-adequate venue/capacity. Bundle only the selected necessary extension with the
-actual owned-disk format decision after review; do not ask generic acceptance.
+seq-370/373 cannot supply it. Otherwise retain8/5GiB and use separately authorized
+adequate venue/capacity. The selected scratch format is authorized; any later
+necessary C-capacity policy ruling remains a separate concrete decision.
 
 ## Resource bounds
 
@@ -174,3 +176,29 @@ ping then succeeded and normal agent shutdown restored verified SHUT OFF within
 122.01s. No queried helper/compiler/storage/memory/config mutation occurred.
 A later authorized metadata window must establish live guest readiness before
 using a retained lease; no blind retry or missing-metadata inference.
+
+## Seq-373 execution readiness
+
+November14 23:57UTC read-only refresh confirms the exact VM is OFF with unchanged
+32GiB/8vCPU, original sda plus three CDROMs, and unused sdg/USB0:10/serial. The
+retained image remains inode8685915,197632B, owner64055:kvm; no image recreation,
+ACL change or inaccessible-image workaround. Current host MemAvailable
+53,372,776,448B/root free122,006,171,648B meet start floors, but taskfs
+268,152,438,784B is below the unchanged250GiB start floor. These are observations,
+not admission for a later window. M retains the exclusive heavy lease; no VM
+start/attach/format/compiler/test occurred.
+
+After lease return, refresh full resources, boot only the unchanged32GiB VM,
+wait for actual guest-agent/network readiness, and use pinned SSH inventory.
+Reattach the existing image only after current QEMU UID/unused topology/original
+disk checks. Reuse immutable396a023e format-only sources and retained controls;
+the private runtime mapping needs current endpoint, task-local capacity inputs
+and current reattachment XML, with unchanged image identity. Fresh guest guards
+must show exactly the original OS disk plus empty RAW/nonboot/nonsystem
+serialFDB29S20A6, unused R:, RAM16GiB and no native actor. The format-only
+operator records C without treating it as compiler admission. Bound the whole
+window to10min, boot/readiness300s, authenticated inventory120s, attach30s and
+format120s. Preserve UNKNOWN/no retry after ambiguous started storage, then
+resolve read-only; otherwise verify exact final GPT/R:/NTFS identity/free space
+and C/R/RAM workload readiness, then restore OFF through normal guest shutdown.
+No compiler/helper/test runs in this format/readiness window.

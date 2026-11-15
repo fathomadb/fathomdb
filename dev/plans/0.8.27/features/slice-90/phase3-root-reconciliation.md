@@ -1,7 +1,7 @@
 ---
 title: Slice 90 Phase 3 root reconciliation
 target_release: 0.8.27
-lib_rs_blob: 7d495ef619a3842539b0b92bb7f618adc8873e44
+lib_rs_blob: 22d89a82abc26aa14d7875c1aebcfc740afeabd9
 ---
 
 # Slice 90 Phase 3 root reconciliation
@@ -163,3 +163,8 @@ root item closure and production ownership assertions remain unchanged.
 and its doc-hidden record/batch/guard re-exports. The current blob reflects only
 this reviewed composition change; all48 root fields, root declarations and
 method ownership remain unchanged. Observation state remains owned below root.
+
+2026-11-14: 0.8.29 Slice50 re-exports the explicit fusion ownership carriers
+and the `test-hooks` full snippet-selector reference, and removes the unused
+`BuildHasher` import. All48 root fields and root method ownership remain
+unchanged; the source blob above tracks these composition changes.

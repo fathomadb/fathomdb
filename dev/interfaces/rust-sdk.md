@@ -514,12 +514,18 @@ The signatures are unchanged. The following search behaviour changed or is clari
   is dropped. It now also holds the fragments an apostrophe leaves (`s`, `t`,
   `ll`, `re`, `ve`, `m`) and `my`, `me`, `us`, `am`, `so`, `up`. A query made
   only of stop words falls back to its raw whitespace tokens.
-- **Fusion** (`Engine::search_text_only`, `Engine::search`): each branch credits a body once, at
-  the rank of its first occurrence, so several rows sharing a byte-identical
-  body no longer outrank the best match. A body found by more than one branch
-  still accumulates one term per branch:
+- **Fusion** (`Engine::search_text_only`, `Engine::search`): each branch credits a stored record once, at
+  its first original positional rank; repeated occurrences do not renumber later
+  records. Canonical node/edge cursors occupy separate namespaces; explicitly
+  ownerless node FTS rows use their actual rowid. Distinct versions, sources or
+  records remain distinct even with equal body bytes or public IDs. The same
+  record found by several arms accumulates one term per arm:
   `score = Σ_branch w_branch / (30 + rank_branch)`, with `w` 3 for the text
   branch and 1 for the vector and graph branches.
+  Public IdSpace remains unchanged and can repeat. The SDK context-item helper
+  preserves that public ID, and context packing still rejects duplicate item IDs;
+  callers can supply unique packing labels with their own selected-record map.
+  See [the accepted identity decision](../adr/ADR-0.8.29-retrieval-record-identity.md).
 - **`Engine::search_projected_text`**: the projection's FTS5 index is read in rank order and
   reading stops once `limit` rows and any rows tied with the last one are
   read, instead of sorting every match. Results and their order are unchanged:

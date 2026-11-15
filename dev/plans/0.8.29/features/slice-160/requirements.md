@@ -6,6 +6,25 @@ target_release: 0.8.29
 
 # Slice 160 requirements and acceptance
 
+## Owner dispositions
+
+Owner 2026-11-14 dispositions govern active .29 qualification: seq-374 selects
+record/version identity, representative-first provenance and preserved helper/
+pack contracts; seq-375 selects atomic ambiguous named-ref refusal for .29 with
+precise per-result label review in [.30](../../../0.8.30/release-followups.md).
+Source/consumer census remains required; private Memex population snapshots are
+not a source-entry/correctness gate. Actual source-baseline prerequisites remain.
+Seq-376 selects110's quiescent completed-construction/frozen-native-live-set policy
+with opaque host bytes unbounded and restart required; seq-377 holds actual
+Orin/3090 child resets to .30, leaving reset survival/original-defect closure
+unqualified. Seq-378 moves new x86 CUDA13 delivery/compiler work to
+[.31](../../../0.8.31/cuda-delivery-plan.md); seq-379 accepts bounded quantitative
+unknowns/current ratings, with tests/evidence in .31. These are explicit scope
+dispositions, not PASS or shipped behavior. Seq-381 additionally moves Tegra CUDA13
+130A to .31;130B–E and current CUDA12.6/platform/artifact/consumer obligations
+remain .29; no mandatory .29 live-reset or new
+x86 CUDA13 artifact gate survives these dispositions.
+
 The [master release needs](../../../plan-0.8.29.md#draft-release-needs-requirements-and-acceptance-allocation),
 [canonical requirements](../../../../requirements.md), [acceptance](../../../../acceptance.md)
 and accepted ADR successors own contracts. These six local joins add no ACs.

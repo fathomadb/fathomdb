@@ -1,7 +1,8 @@
 # Slice 110 lifetime design
 
-Status: independently reviewed design proposal (Astra-medium PASS). Fault policy, residue exception
-and venues are unselected. Source baseline is accepted `a00bf9b9228318e7c236148551bb188f63ff66ee`.
+Status: independently reviewed design (Astra-medium PASS). Owner seq-376 selects
+option1 below; seq-377 holds actual Orin/3090 resets for .30 review. Source/seam
+repairs are selected for .29, not implemented or runtime-qualified. Source baseline is accepted `a00bf9b9228318e7c236148551bb188f63ff66ee`.
 No native or fault execution supports a new survival claim yet.
 
 ## Existing source and primary guarantees
@@ -98,8 +99,8 @@ platform cannot execute that documented operation safely, record the discrepancy
 and return the exact release-retention policy to the owner. Non-primary contexts
 are outside the selected fault contract; no speculative cuCtxDestroy repair.
 
-A cleanup lease/check does not close the race with external reset. The owner
-must choose the quiescent envelope below. Reset after probe but before native
+A cleanup lease/check does not close the race with external reset. Owner seq-376
+selects the quiescent envelope below. Reset after probe but before native
 cleanup/launch, or during a lease, remains unsupported. Adding an internal lock
 or extra synchronize does not control an uncooperative external reset.
 
@@ -154,11 +155,12 @@ reduce Rust live ownership, never create more abandoned objects. Pool maxSize
 is not an opaque-host-memory bound; Orin usable pool memory is not its cap.
 
 Opaque cuBLAS/cuRAND host state has no measured or documented hard byte cap here.
-Therefore this policy does NOT currently satisfy a literal universal byte bound
-in original S110-A5. It needs an actual explicit owner exception. Neither test
+This does not satisfy a literal universal byte bound. Owner seq-376 explicitly
+accepts the frozen-live-set policy with opaque host bytes unbounded, and .30
+reviews that choice. Neither test
 RSS ceilings nor a count alone establishes that product guarantee. No automatic
 process kill or restart is added to a library; the caller must restart before
-GPU reuse. Normal process exit must be tested, including runtime unload hooks;
+GPU reuse. A future reset-survival claim requires normal process exit tests, including runtime unload hooks;
 OS reclaim after forced kill is not teardown-survival evidence.
 
 | Alternative | Decision rationale |
@@ -169,33 +171,28 @@ OS reclaim after forced kill is not teardown-survival evidence.
 | GPU worker process isolation | Choose if arbitrary asynchronous-reset survival or a hard opaque-byte ceiling is required. New IPC/provider/lifecycle architecture and OS-enforced worker resource bounds need separate scope/design review. A killed worker is process containment, not in-process successful teardown. |
 | Same-process context reconstruction | Reject for110: mixes stale handles/identities and the immutable allocator decision; no valid recovery proof. |
 
-## Owner decision to present after independent review
+## Owner selection and future live-fault boundary
 
-Select one policy, with venues separately explicit:
+Owner 2026-11-14 seq-376 selects quiescent loss after completed construction:
+all participants finish/synchronize GPU work; none constructs, operates or drops
+CUDA ownership during reset. Partial-load loss remains production-seam-only.
+After loss, reclaim Rust ownership, abandon at most the frozen native live set,
+admit no further GPU allocation/use, and require process restart. Known counts/
+bytes do not grow; opaque native host bytes have no hard numerical cap. .30
+reviews this policy. Worker isolation/arbitrary-timing support is not selected.
 
-1. **Recommended: quiescent loss, frozen residue until restart.** Support one
-   co-resident primary-context reset between operations, with live handles but
-   all GPU work synchronized and no participant constructing/using/dropping CUDA
-   ownership during reset. Constructors/model loads must already have completed
-   or unwound; partial-load reset remains seam-only pending separate handoff
-   design. Accept abandoning at most the native live set at loss,
-   known allocation-byte accounting and no subsequent growth, while opaque native
-   host bytes remain without a hard numerical cap. Require process restart before
-   further use of that device. This explicitly amends S110-A5's original byte bound.
-2. **Require arbitrary timing or a hard native-host-byte ceiling.** Keep reset
-   unsupported while a separately scoped worker-isolation design is prepared;
-   do not silently treat recommendation1 as satisfying that requirement.
-3. **Defer reset support.** Preserve .28 unsupported/unsafe-close claims and keep
-   TC-281155a1/110 unresolved; do not relabel detection as completion.
+Owner seq-377 holds actual Orin AGX64/CUDA12.6 private-pool and selected3090
+CUDA12.6 child reset execution until .30 review. .29 implements and verifies the
+source/seam repairs with healthy/OOM/lifecycle controls; there is no mandatory
+.29 live-fault gate after this explicit deferral. Source/seam success cannot
+qualify reset survival or close original TC-281155a1. Keep .28 unsupported-reset
+claims and historical signal11 evidence until a qualified successor exists.
 
-For option1, request actual permission for bounded child-only faults first on
-Orin AGX64/CUDA12.6 private pool and one selected3090/CUDA12.6 default control,
-exclusive per-device reservation,3 cases per cell plus healthy/OOM controls,
-120 seconds per case after cached-model readiness,30 minutes total per venue,
-8GiB GPU allocation ceiling and16GiB owned host-memory ceiling. These are proposed
-execution caps, not authority or opaque product byte guarantees. Partial-load
-loss/unwind is seam-only; a paused load alone does not permit real reset. The
-third real case is last-clone drop after completed construction. Missing Orin
-blocks original-defect closure. Additional synchronous,
-CUDA13 or SDK cells need an explicit selected session/cap within130 planning.
-No host-wide reset, driver/toolkit mutation, K620 or unowned process attachment.
+The future proposed cells are three completed-construction cases per selected
+Orin/3090 cell: reset then typed refusals, reset→no-forward close, and last-clone
+drop. Proposed limits remain120 seconds per ready child,30 minutes per venue,
+8GiB GPU and16GiB owned host memory, subject to actual later venue/session
+permission. These limits do not bound opaque product bytes. Missing Orin leaves
+original-defect closure unqualified. No host-wide reset, driver/toolkit mutation,
+K620, unowned process attachment or partial-load live reset is permitted.
+See [.30 receiving allocation](../../../0.8.30/release-followups.md).

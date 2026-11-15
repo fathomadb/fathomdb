@@ -320,12 +320,10 @@ Then derive byte spans in Rust by parsing out the markers (§ 6.1).
 - **Gaps:**
   - A hit missing from the map has no lexical anchor and gets the prefix
     (§ 3.4).
-  - The residual dedup gap: two records with identical bodies and different
-    `write_cursor`s collapse in fusion (`fusion.rs:101-105`). If the surviving
-    struct is the vector arm's, its `write_cursor` may not be in the map even
-    though its body matched, so it gets `Start`. A second map keyed by body
-    hash, mirroring fusion's own keying, would close this. The case is rare,
-    and the identical text makes the prefix no worse than today.
+  - The 0.8.29 record-identity successor retains the exact selected-record key
+    and actual FTS rowid through fusion and snippet lookup. Equal-body records
+    cannot lend each other an anchor or source; no body-hash lookup substitutes
+    for a missing selected-record locator.
   - Distinct-term identity is approximate (§ 6.3, rule 3).
 
 Variant (a′): register a FathomDB FTS5 auxiliary function that returns

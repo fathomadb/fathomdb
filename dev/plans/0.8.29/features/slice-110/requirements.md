@@ -1,7 +1,8 @@
 # Slice 110 requirements and local acceptance
 
-Status: independently reviewed design; fault envelope/native-residue policy require actual owner
-selection. S110 IDs retain original110 identities and join R29-REL-R/G,
+Status: owner seq-376 selects quiescent completed-construction/frozen-live-set
+residue policy; seq-377 holds actual Orin/3090 child resets for .30 review.
+Selected source/seam behavior remains unimplemented and unqualified. S110 IDs retain original110 identities and join R29-REL-R/G,
 R29-3P-17/D29-RESET and O3-17. They are local, not new global ACs. Preserve
 REQ-068/AC-082a–d; do not edit locked canonical acceptance to add these IDs.
 
@@ -9,12 +10,12 @@ REQ-068/AC-082a–d; do not edit locked canonical acceptance to add these IDs.
 | --- | --- |
 | S110-N1/R1: refuse lost-generation use | S110-A1: in the selected envelope embed, batch, rerank, model load/open and standalone calls return existing typed context-loss payloads. Repeated/concurrent detections emit one process snapshot. No invented vectors, neutral scores, CPU substitution or allocator switching. |
 | S110-N2/R2: complete ownership | S110-A2: tracked contexts/clones, tensor/slice/view/event/stream, temporary synchronization guards, modules, BLAS/RNG handles and attached private pools observe one irreversible generation loss before unsafe cleanup. Last-owner drop discovers loss without another forward. Healthy cleanup remains effective. |
-| S110-N2/R3: positive teardown/exit | S110-A3: supported reset→immediate close, loss→repeated/concurrent close, standalone last-owner drop finish with explicit post-drop/close markers, normal exit0 and no signal, panic or timeout. Partial-load loss/unwind requires production-seam proof only; real reset during partial load is excluded pending separate design. Workers/locks and real-database reopen obey existing contracts. |
-| S110-N3/R4: truthful recovery | S110-A4: no new GPU allocation/device/model admission or reconstruction on the lost device until process restart. Cached reranker/retained first context cannot bypass refusal. Known-lost wrappers make no unsafe native calls. A fresh process computes on the same device after the old process is reaped. |
-| S110-N3/R5: explicit cleanup | S110-A5: healthy/OOM controls retain release/retry. After loss there is no per-request ownership quarantine/growth, GPU allocation or repeated native destruction. Abandoned count/known bytes cannot exceed the finite live set at loss; Rust wrappers are reclaimed. Opaque native host bytes have no established hard bound. Owner must accept this exact frozen-residue-until-restart exception to the original count/byte requirement or select separately reviewed isolation. Count alone does not establish a hard byte cap. |
-| S110-N4/R6: actual consumers | S110-A6: fork unit/negative/device proof precedes exact qualified pins; positive original Orin private-pool proof and selected installed Rust/Python/Node cases identify actual loaded code/device. Default/synchronous and12/13 support require their own actual cells; missing cells stay unclaimed. |
+| S110-N2/R3: positive teardown/exit | S110-A3: source/seam loss→immediate close, repeated/concurrent close and standalone last-owner drop finish with explicit post-drop/close markers, normal exit0 and no signal, panic or timeout. Partial-load loss/unwind requires production-seam proof only. Real reset survival requires future separately authorized cells; it is not mandatory .29 exit after seq-377. Workers/locks and real-database reopen obey existing contracts. |
+| S110-N3/R4: truthful recovery | S110-A4: no new GPU allocation/device/model admission or reconstruction on the lost device until process restart. Cached reranker/retained first context cannot bypass refusal. Known-lost wrappers make no unsafe native calls. Fresh-process recovery claims require their actual future cell; source/seam tests cannot prove post-reset device reuse. |
+| S110-N3/R5: explicit cleanup | S110-A5: healthy/OOM controls retain release/retry. After loss there is no per-request ownership quarantine/growth, GPU allocation or repeated native destruction. Abandoned count/known bytes cannot exceed the finite live set at loss; Rust wrappers are reclaimed. Opaque native host bytes have no established hard bound. Owner seq-376 accepts this exact frozen-residue-until-restart policy; revisit it in .30. Count alone does not establish a hard byte cap. |
+| S110-N4/R6: actual consumers | S110-A6: fork unit/negative/device proof precedes exact qualified pins; applicable healthy installed Rust/Python/Node cases identify actual loaded code/device. Original Orin private-pool and3090 reset proof is HELD to .30 under seq-377; no original-defect closure or reset-survival claim follows. Default/synchronous and12/13 support require their own actual cells; missing cells stay unclaimed. |
 
-## Proposed fault envelope
+## Selected policy envelope; live execution held
 
 One deliberate in-process `cuDevicePrimaryCtxReset_v2` of the selected primary
 context after all participants finish GPU work and no constructor, operation or
@@ -45,8 +46,7 @@ asynchronous-reset survival. Extending support needs owner decision/design.
   terminal loss; established loss wins over subsequent OOM/errors.
 - Explicit CPU/non-CUDA/driverless CPU paths initialize no CUDA; forced CUDA
   remains typed without fallback. Do not substitute another healthy device.
-- Close success releases Rust ownership, workers and locks. If residue is
-  accepted, it does not assert native GPU/library residue was reclaimed; record
+- Close success releases Rust ownership, workers and locks. Under seq-376, it does not assert native GPU/library residue was reclaimed; record
   that distinction in ADR/SDK contracts.
 - Preserve existing30-second provider-drain contract. Child deadlines are test
   limits, not a new public close SLA or interruptible-native-call promise.
@@ -54,3 +54,9 @@ asynchronous-reset survival. Extending support needs owner decision/design.
   counters, never stale pool inspection.
 - No public reset/recover operation, new environment switch, storage change,
   backwards-compatibility shim or unrelated maintenance is introduced.
+
+Real Orin/3090 reset execution, reset consumers and positive original-defect
+closure are not mandatory .29 acceptance after explicit seq-377 deferral. Preserve
+.28 unsupported-reset claims until actual qualified evidence supports a successor.
+The .30 [receiving allocation](../../../0.8.30/release-followups.md) owns policy
+review and proposed live tests, not an automatic execution grant.

@@ -17,8 +17,12 @@ Owner2026-11-13 seq-369 approves the narrow A3/A5 verification-only exception.
 Proofs may pass on arrival; record that honestly. Negative controls establish
 sensitivity and are never product RED/GREEN. Genuine defects retain committed
 semantic RED before separate GREEN with unchanged tests. Owner seq-370 approves
-only64GiB host image, necessary narrow ACL and live attachment; guest format,
-compiler/helper/test entry requires current readiness and reviewed scope. Specific format ruling remains unanswered. No whole20/30/Block1 clearance follows.
+only64GiB host image, necessary narrow ACL and live attachment. Owner choice1A,
+seq-373, additionally authorizes reviewed identity-guarded GPT/new R:/quick NTFS
+of only the existing empty owned64GiB scratch disk. Actual format execution and
+compiler/helper/test entry require their coordinated window, fresh readiness and
+reviewed scope. C8/5GiB floors remain unchanged; no C cleanup or other-disk format
+is authorized. No whole20/30/Block1 clearance follows.
 Fresh independent implementation review and assembled final source checks passed
 for A3/A5 and capacity preparation at f803a964; see the final execution record.
 Those outcomes do not satisfy A6, whose actual Windows qualification remains required. CI/publication are separately outstanding under the

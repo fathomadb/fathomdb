@@ -287,7 +287,13 @@ What FathomDB later does with the signal is undecided (owner, 2026-10-17).
 Meets AN-021.
 
 - MR-024.1 A feedback call that names a search response and some of its
-  references is accepted. When the operator has enabled telemetry and the
+  references is accepted when otherwise recordable and every named reference
+  identifies one distinct cursor. Repeated occurrences of the same cursor are
+  unique; different cursors sharing a named ref cause `invalid_request/bad_argument`
+  atomically, with zero feedback labels. Unmentioned ambiguous refs have no effect.
+  Membership checks and existing `not_recorded` reasons retain precedence;
+  ambiguity validation follows successful acquisition and the final epoch check,
+  before cursor-label resolution or `record_feedback`. When telemetry is enabled and the
   response came from a hybrid search, the report reaches the engine's existing
   feedback record (`record_feedback`) with label source `agent`. Text-only
   searches are never captured by engine telemetry, so feedback on them returns

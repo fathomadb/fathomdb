@@ -459,7 +459,7 @@ export class Engine {
    * `VectorEquivalenceMismatchError`. Deliberate provider-free opens retain this
    * path. It does not invoke vector
    * recall, CE reranking, or the graph arm. Matching node- and edge-body FTS
-   * candidates are deterministically body-deduplicated and ranked before
+   * candidates are deterministically deduplicated by stored record and ranked before
    * `limit` is applied. `view.filter` is evaluated before candidate caps,
    * deduplication and ranking. Attributes are node-scoped; status/time require
    * existing vector metadata, with missing metadata failing to match.

@@ -1,7 +1,7 @@
 # Slice 30 M continuation — proposed real stdio measurements
 
-Status: **CURRENT PREDECESSORS INTEGRATED**, pending affected-seam Astra recheck
-and owned qualification of the affected current-source controls. Design fit passed at
+Status: **AFFECTED SOURCE CONTROLS QUALIFIED**, pending fresh independent review.
+Design fit passed at
 f90714a0e2132bab3b2a2b2d60425a598c157e34; the M implementation passed independent
 review at d942aa91e74a9463e82b6a9384ca41ca28698c42. No M campaign is qualified.
 The original design passed at ca76af9f5c7c710b1aca7f8ee79f2c90549a4874;
@@ -78,6 +78,18 @@ failed guardian methods stopped at actual load3.123046875 before their intended
 child behavior, and the two following public-dispatch methods never ran. The
 later failed-only attempt refused entry at actual load4.41; no successful
 resumption is inferred. Scientific M entry<=2 remains unchanged.
+
+The authorized current-source resumption at clean
+cbd87f6b0ad5bb8b90a62dc7c4879d6415bfcb4e rebuilt only the actually used owned
+provider-free CLI and test-seams helper (40.56s/42.28s). The subsequent exact
+failed/unrun selection passed: Pages20/20, Tegra retention45/45, the two failed
+guardian methods2/2 and both previously unrun public-dispatch methods2/2. Raw
+results remain in the owned task's existing `m-current-mcp-refresh` and
+`m-current-failed-unfinished` phase logs. Both delegated-service guardians
+finished exit0 with strict final samples, no resource stop/cleanup uncertainty
+or surviving owned work, and removed their exact empty boundaries. This is an
+assembled affected-source result, not a new uninterrupted full-gate PASS. No
+passing suite was replayed, Python/N-API rebuilt or scientific M cell qualified.
 
 The released closed100k G subject is recorded under `g_selected_input_for_m` in
 [release state](../../../release-state-0.8.29.json), from source

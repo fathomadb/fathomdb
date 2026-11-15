@@ -402,6 +402,12 @@ next deadline by remaining allowance and retain unresolved owned cleanup. This
 has no CLI or live allocation/supervisor binding and authorizes no campaign;
 the initial held quartet remains the default stop boundary.
 
+`d_report.py` binds current receipts/physical closure to exact-engine/session
+worker groups, durable commit coverage and natural-call overlap witnesses.
+`test_d_report.py` uses hand-computed two-group intervals; untimed facts stay
+outside duration means and T keeps worker attribution unavailable. Native C
+capture and the supervised campaign entry remain separate unimplemented work.
+
 `d_overlap.py CASE.json` reads one exact cell/attempt/size/repeat and owner/session
 frame, with natural operation identity, tagged observer records and bracketed
 pending observations. It qualifies only an entire positive pending bracket

@@ -6,7 +6,8 @@ GPU campaign.
 [Design](../../plans/0.8.29/features/slice-30/design.md) and
 [preregistration](../../plans/0.8.29/features/slice-30/preregistration.md) own scope.
 G design/actual20 fit passed independent Astra and source entry is authorized.
-D source, M/F, whole30,40/50 source and pre90 remain held.
+Scientific D/M/F execution and whole30 acceptance remain held; source checks do
+not activate their campaigns.
 No old prototype timing is a current baseline or fidelity result.
 
 ## Committed tools and origins
@@ -393,14 +394,15 @@ stdlib controls run with the checkout-owned minimal Python:
 Literal lower-cost fixtures and harmless child markers qualify admission math
 and ordering only. They do not measure D, supply GPU/overlap/fidelity evidence,
 or mutate the real shared allocation. Fresh supervised wall/retention/budget
-custody and native observation/report bindings remain required before runtime.
+custody and native observation/report bindings are implemented; final source
+qualification and separately selected runtime admission remain required.
 
 `d_driver.py` adds the callable accounting adapter for that controller. Its
 `test_d_driver_accounting.py` controls use only hand-specified clocks and in-memory
 budgets: charge the outer wall once across common/failed-cell portions, bound the
 next deadline by remaining allowance and retain unresolved owned cleanup. This
-has no CLI or live allocation/supervisor binding and authorizes no campaign;
-the initial held quartet remains the default stop boundary. Successful selected
+has a guarded CLI and durable allocation/supervisor binding; the initial held
+quartet remains the default stop boundary and no campaign is activated. Successful selected
 executor results are bound to their current native report inside the accounted
 cell interval before publishing lower evidence. `test_d_execution_routing.py`
 checks this connection; missing native/C capture or observed storage cost stays
@@ -417,8 +419,38 @@ including pre-seed acknowledgements and final take after close. D capture uses
 bounded nonblocking multi-producer transport; full/closed loss still prevents
 completion. C-O capture alone does not establish an overlap witness. The fixed
 native entry routes the same canonical workload to T/C helpers; `d_attempt.py`
-has real harmless-child success/deadline/descendant controls. Persistent live
-allocation/campaign entry remains unfinished; no scientific D cell follows.
+has real harmless-child success/deadline/descendant controls. `d_runner.py`
+uses the shared named-phase guardian with separate D custody/common charges,
+explicit reservations and actual outer-wall reconciliation. Owned refusals add
+only their actual D common charge; foreign custody remains unreconciled/held
+without changing its ledger. All24 outcomes and original attempted records
+remain visible; no scientific D cell follows from source qualification.
+
+The maintained heavy runner selects the D native example, transport and private
+engine contracts. `test_d_*.py` discovery selects portable math/process controls.
+Linux private-boundary/actual CLI controls are explicitly selected by
+`AGENT_SLICE30_LIVE_CONTROLS=1`, using this checkout's own `.venv` and delegated
+`S30_TASK`; missing prerequisites fail the dedicated command:
+
+```sh
+bash scripts/test-slice30-d-control.sh
+```
+
+`d_runner.py source-control --root "$S30_TASK/d-source-control"` runs only an
+isolated harmless controller/payload protocol and reports `qualifies_natural`
+false. Future scientific entry is `AGENT_LONG=1 d_runner.py run --options FILE`
+under the same executor. Options name owned `root`, original `allocation`, native
+`binary`, selected `profile` file and a funded `common_limit_ns` inside the
+unchanged shared total. The profile must explicitly bound other-work reserves;
+unknown is never zero. No selected profile or runtime GO is supplied here.
+
+Initial entry runs only C-H-r0,T-H-r0,T-H-r1,C-H-r1. Continuation sets `initial`
+false and names a `review` file: explicit ACCEPT/reviewer/subject, next `n`/`mode`,
+nonfuture used/retained checkpoint, qualified prefix attempt identities and
+positive C/T time/retained bounds. The existing same-mode conservative minima
+still apply to larger sizes. Exactly that next quartet is eligible; later
+obligations stay held, and actual failed/incomplete attempts are never retried
+automatically. `test_d_continuation.py` states independent manual examples.
 
 `d_overlap.py CASE.json` reads one exact cell/attempt/size/repeat and owner/session
 frame, with natural operation identity, tagged observer records and bracketed

@@ -585,3 +585,67 @@ results, changing ceilings or correcting latency. Cell monitor observations,
 search-phase boundary observations and completed guardian-phase facts remain
 in their respective raw outcomes/reports. The live control executor also needs
 the inherited quiet-entry condition; missing observations are never zero load.
+
+## Slice50 attributable comparison support
+
+The private `slice50-measurement` engine/SDK feature selects the retained eager-
+body/deferred-identity route with
+`FATHOMDB_SLICE50_EAGER_TEXT_FOR_MEASUREMENT=1`. Unset retains winner hydration;
+identity, providers, defaults and direct-text streaming stay the same. General
+`test-hooks` is excluded from both measurement builds. Existing G manifests and
+ordinary/diagnostic feature contracts remain unchanged; their original native
+artifacts cannot be retagged as this pair.
+
+Build current owned tools only in the parent's reserved native window:
+
+```bash
+cargo build --offline --locked --release --jobs 2 -p fathomdb-sdk \
+  --features embed-cuda,slice50-measurement --example slice30_measure
+cargo build --offline --locked --release --jobs 2 -p fathomdb-sdk \
+  --features embed-cuda,slice50-measurement,slice30-observer --example slice30_measure
+```
+
+Retain each actual binary before the next build under separate owned names.
+The existing `g_driver.run_program_step` accepts `slice50_pair_mode` in the
+unchanged native cell config: `winner` clears the private selector in that child,
+`eager` sets1, and other values refuse before starting the child. Both members
+must name the same current ordinary executable. `observe:false` collects neither
+engine work nor child RSS; separate diagnostic calls use the diagnostic executable
+with `observe:true`. Existing GPU/device qualification and resource/cell/shared
+allocation controls remain required; this support provides no new runtime entry,
+allocation or permission to bypass those controls.
+
+Before actual runtime, bind the exact applicable existing30 cell IDs/configs and
+all remaining obligations, paired mode/repeat order, qualified immutable inputs,
+current native/features/pins/model and conservative complete-table feasibility.
+Use fresh matching CLOSED subjects for each write member and reverse mode order
+on repeat1. Preserve original sizes,500 warmups/1000 timed calls,500 question
+order, adapters/routes, write cohorts/probes and error dispositions. No selected
+subset, old artifact or refused prefix qualifies missing cells. Current30 natural
+cells have snippets off: natural prefix benefit is N/A, with completed prefix
+work/allocation proof retained separately.
+
+Pair-feature search rows add ordered `hits` containing cursor/source/stored body/
+kind/branch and exact score/CE bits after the existing API timer, alongside existing
+cursor/fallback/degradation metadata and same-build snippet/explanation Debug
+sidecars. The latter are None in fixed natural cells; no cross-build serialization
+contract is implied. No public Engine or SDK result changes.
+
+With an active existing operation observer, successful readers emit one bounded
+`slice50_work` record: route, lightweight rows, vector/FTS owned-body conversion
+counts and UTF-8 byte sums. Vector and FTS conversions of the same record count
+separately; borrowed text validation is excluded. Missing/error/lost attribution
+is unavailable, never zero or SQLite-I/O/total-allocation evidence. Relevant
+request limits remain the fixed current30 limit10/direct-text node window100 and
+current vector fanout, with actual returned/candidate counts retained separately.
+Diagnostic step output includes sampled child `rss_bytes`/`peak_rss_bytes` from
+VmRSS/VmHWM with timestamps/availability; the existing poll wait and observer
+latency apply. Unsampled peaks are unavailable. Ordinary latency and loop
+throughput retain all errors/outliers and are never corrected by subtracting
+these diagnostics.
+
+Maintained source controls are `search::paired50_tests::` (real fixed-embedder
+stores, no general test hooks), the existing example's paired record-output test,
+and `Paired50DispatchTests` in `test_g_dispatch.py` (harmless children only).
+The agent runner explicitly selects both native private-feature suites; these
+controls do not start a natural/model/GPU campaign or discharge R6/whole30.

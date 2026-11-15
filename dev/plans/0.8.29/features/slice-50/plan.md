@@ -90,7 +90,10 @@ current paired performance and affected Block1 qualification remain.
 ## Remaining work
 
 1. Bind the actual baseline/candidate, native/features/model inputs and workload
-   for current paired R6 measurements. Preserve selected identity/reference,
+   for current paired R6 measurements. The identified selector/diagnostic gaps require
+   only the [minimal support change](design.md#current-paired-measurement-support),
+   independently design-reviewed before genuine RED/GREEN; no algorithm expansion.
+   Preserve selected identity/reference,
    score/provenance, Unicode and exact-route/work invariants. No private Memex
    population snapshot, new identity selection or whole30 closure is required.
 2. Execute the required same-input untraced comparisons in one reserved heavy

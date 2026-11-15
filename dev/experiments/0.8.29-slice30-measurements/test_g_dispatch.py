@@ -218,3 +218,41 @@ class GBranchDispatchTests(unittest.TestCase):
                                 and row["negative_control"] is False for row in actual))
             self.assertTrue(result["complete"])
             self.assertEqual(len(result["steps"]), 15)
+
+
+class Paired50DispatchTests(unittest.TestCase):
+    def test_existing_program_step_selects_each_mode_on_same_command_and_keeps_rss_separate(self):
+        from g_driver import run_program_step
+        code = "\n".join([
+            "import json,os,pathlib,sys,time",
+            "config=json.loads(pathlib.Path(sys.argv[1]).read_text())",
+            "out=pathlib.Path(sys.argv[2]);out.mkdir()",
+            "time.sleep(0.05)",
+            "(out/'result.json').write_text(json.dumps({'complete':True,'runner_only':True,'selector':os.environ.get('FATHOMDB_SLICE50_EAGER_TEXT_FOR_MEASUREMENT'),'config':config}))",
+        ])
+        command = [sys.executable, "-c", code]
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            results = []
+            for number, (mode, observed) in enumerate([("winner", False), ("eager", False), ("winner", True)]):
+                config = {"family":"G-R", "n":100000, "provider":"default", "adapters":["sdk"], "routes":["hybrid"], "samples":1000, "warmup":500, "slice50_pair_mode":mode, "observe":observed}
+                result = run_program_step(command, config, root / f"member{number}", time.monotonic_ns() + 5 * 10**9)
+                self.assertTrue(result["complete"])
+                self.assertTrue(result["result"]["runner_only"])
+                self.assertEqual(result["result"]["selector"], "1" if mode == "eager" else None)
+                actual = result["result"]["config"]
+                self.assertEqual((actual["n"], actual["samples"], actual["warmup"], actual["provider"]), (100000,1000,500,"default"))
+                self.assertEqual(result["executable"], str(Path(command[0]).resolve()))
+                self.assertEqual(len(result.get("rss_samples", [])) > 0, observed)
+                if observed:
+                    self.assertTrue(all(row["scope"] == "sampled child process; unsampled peaks unavailable" for row in result["rss_samples"]))
+                results.append(result)
+            self.assertEqual(len({row["output"] for row in results}), 3)
+
+    def test_unknown_pair_mode_refuses_before_child_or_output(self):
+        from g_driver import run_program_step
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary) / "unknown" / "out"
+            with self.assertRaisesRegex(ValueError, "pair mode"):
+                run_program_step([sys.executable, "-c", "raise AssertionError('must not launch')"], {"family":"G-R", "slice50_pair_mode":"guess"}, output, time.monotonic_ns() + 5 * 10**9)
+            self.assertFalse(output.parent.exists())

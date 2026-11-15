@@ -245,6 +245,76 @@ explanations, weights, rerank and source dependencies can keep the complete
 reference; tests prove correct routing/result parity. Text mode stays provider-
 free; no query embedding is used to make that route eligible.
 
+## Current paired measurement support
+
+The remaining R6 work needs a small measurement-support change, not another
+ranking optimization. Current `slice30_measure` already runs real P1/P2/G-R/G-W
+schedules. Its G ordinary build uses `embed-cuda`; diagnostics add
+`slice30-observer`. Neither build enables the existing full-sort test selector.
+Enabling general `test-hooks` is unsuitable for untraced latency: the SQL profile
+callback records test statements even without a witness path, and rank-stream
+queries execute test EXPLAIN plans. Full-sort also disables the older deferred
+identity/streaming routes, confounding attribution to50.
+
+Add one private nondefault engine feature, `slice50-measurement`, forwarded by
+the SDK. Under that feature alone,
+`FATHOMDB_SLICE50_EAGER_TEXT_FOR_MEASUREMENT=1` suppresses only
+`defer_full_hydration`. The retained `else if defer_text_identity` branch then
+materializes every lexical body and resolves final identity as before50, while
+retaining current accepted record fusion. Unset means the current winner-only
+route. Both modes use the exact same binary/source/lock/provider/model and all
+other admission guards; direct-text rank streaming is untouched. No general
+`test-hooks`, extra SQL, observer collection or witness output enters ordinary
+timing. Default builds contain no new selector or collector. Preserve general
+full-sort correctness controls unchanged.
+
+Extend the existing measurement program/runner rather than create another
+harness. Bind the pair to a current owned `slice30_measure` release build with
+`embed-cuda,slice50-measurement`; its separate diagnostic build adds
+`slice30-observer`. Existing G freezes/FEATURES and their original binaries stay
+attributed to their original candidates. New pair scope records the current
+candidate and exact selected existing cell IDs/configs before dispatch; it
+cannot relabel old G native artifacts or claim original G completions. Reuse
+existing scheduling, bounded process/resource controls, CLOSED-copy preparation,
+raw streams and metric math. Pair ordinary modes in reversed order on repeat1;
+each write member gets a fresh identical CLOSED copy, never the other member's
+mutated store. Preserve actual30 population, query order,500 warmups/1000 timed
+calls, adapters, routes, write cohorts/probes and repetition semantics. Keep
+all applicable natural/read-write obligations explicit; a smaller selected
+prefix or diagnostic cannot silently discharge unstarted cells. Exact table
+feasibility and remaining shared allocation must be established before runtime;
+no new allowance or cheaper workload follows from this support change.
+
+Qualified inputs already exist: the registered100k LME corpus/500 queries and
+accepted G CLOSED format37 store with100000 physical vectors/spans and pending0.
+Reuse its exact immutable package as data custody, with fresh owned copies and
+current-candidate open/readiness/device qualification; it is not borrowed native
+code. Copy the existing pinned BGE snapshot into the pair's owned cache. Keep
+current fork pins/driver/CUDA12.6 and reserve a3090 for hybrid/default work. No
+model download, regenerated vectors or old-source/provider comparison supplies
+a50 delta. Native/tool builds and natural measurement wait for the parent's
+exclusive native/heavy window; no concurrent compilation or campaign is allowed.
+
+Separately collected diagnostics count actual lightweight lexical rows and
+actual body materialization events/UTF-8 bytes at the row-to-owned-body seams,
+including vector candidates, eager lexical candidates and selected text winners.
+Count repeated materializations as repeated events; do not deduplicate by ID or
+infer bodies from a final hit limit. Distinguish borrowed SQLite text validation
+from owned Rust body materialization; these counters make no SQLite I/O or total
+allocation claim. Record actual selected route and relevant limits, and sample
+child RSS/peak RSS separately with cadence/unsampled-peak limits explicit.
+Diagnostics must be opt-in and engine/operation owned, using the existing bounded
+observer; missing/lost counters remain unavailable. Emit selected hit cursor,
+source, score bits and existing result metadata outside API timers so pairs can
+check ordered equality without reconstructing identity from bodies/public IDs.
+
+The unchanged actual30 natural cells have snippets off. Prefix work/latency is
+therefore not applicable in those cells; retain completed prefix correctness and
+allocation proof without inventing a snippet workload or claimed natural prefix
+benefit. Preserve each repeat's p50/p99, all errors/refusals/outliers and paired
+query uncertainty. No target, significance, speedup or whole30/Block1 completion
+claim follows from successful tooling or a partial pair.
+
 ## Bounded record-start specialization
 
 Retain the complete selector as reference. Specialize only a body over the

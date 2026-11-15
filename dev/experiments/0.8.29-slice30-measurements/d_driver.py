@@ -135,6 +135,8 @@ def run_accounted_stage(spec, records, budget, execute, *, initial=True, clock=t
     def prepare(cell):
         started = clock()
         charge(started)
+        if publish:
+            publish()
         if budget.get("inflight"):
             return {"status": "not_run_ownership", "reason": "owned attempt cleanup is unresolved"}
         spent = budget.get("cell_used_ns", {}).get(cell["id"], 0)

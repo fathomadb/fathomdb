@@ -175,7 +175,8 @@ def guard(command, *, allocation, profile, root, task, admission=False, common_l
             try:
                 boundary.create()
                 reader, writer = os.pipe()
-                argv = [*command, "--admission-fd", str(reader)] if admission else command
+                selected = command() if callable(command) else command
+                argv = [*selected, "--admission-fd", str(reader)] if admission else selected
                 child = subprocess.Popen(argv, stdout=log, stderr=subprocess.STDOUT,
                     start_new_session=True, pass_fds=(reader, boundary.procs_fd), preexec_fn=boundary.attach)
                 os.close(reader)

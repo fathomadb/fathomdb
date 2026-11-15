@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # The single-cudarc guard (0.8.28 Slice 31, design § 3.5, AC31-07).
 #
-# FathomDB reaches cudarc only as the published fork crate `cudarc-fathomdb`,
+# FathomDB reaches cudarc only as the qualified fork crate `cudarc-fathomdb`,
 # through Candle. This guard fails when:
-#   A. the lock has an upstream `cudarc` 0.19.x package (the ug-cuda chain's
+#   A. the lock has an upstream `cudarc` 0.19.x or 0.20.x package (the ug-cuda chain's
 #      cudarc 0.17.8 is excluded by version);
 #   C. for each Linux target and each embedder feature set, the resolved
-#      normal tree has a `cudarc v0.19` node, a `cudarc-fathomdb` node that is
-#      not exactly the pinned registry version (a git or path source prints a
+#      normal tree has a `cudarc v0.19` or `cudarc v0.20` node, a `cudarc-fathomdb` node that is
+#      not exactly the pinned version and source (a git or path source prints a
 #      parenthesised source), or no `cudarc-fathomdb` node at all for a set
 #      that enables embed-cuda or rerank-cuda;
 #   D. a concrete `cuda-NNNNN` feature is enabled on `cudarc-fathomdb` (the
@@ -55,18 +55,26 @@ CONCRETE_FEATURE = re.compile(r'^cudarc-fathomdb feature "cuda-\d{5}"$')
 failures: list[str] = []
 
 
-def pinned_version() -> str:
+def pinned_tree_line() -> str:
     try:
         record = json.loads((root / "scripts/pinned-override-rot.json").read_text(encoding="utf-8"))
-        pins = record["cargo_fork_registry_pins"]["pins"]
+        pins = record["cargo_fork_pins"]["pins"]
     except (OSError, ValueError, KeyError, TypeError) as exc:
         raise SystemExit(
-            f"check-single-cudarc: {root}/scripts/pinned-override-rot.json has no cargo_fork_registry_pins: {exc!r}"
+            f"check-single-cudarc: {root}/scripts/pinned-override-rot.json has no cargo_fork_pins: {exc!r}"
         )
-    versions = [pin.get("version") for pin in pins if pin.get("package") == "cudarc-fathomdb"]
-    if len(versions) != 1:
+    selected = [pin for pin in pins if pin.get("package") == "cudarc-fathomdb"]
+    if len(selected) != 1:
         raise SystemExit("check-single-cudarc: scripts/pinned-override-rot.json must pin cudarc-fathomdb once")
-    return versions[0]
+    pin = selected[0]
+    line = f"cudarc-fathomdb v{pin['version']}"
+    source = pin["source"]
+    if source == "registry+https://github.com/rust-lang/crates.io-index":
+        return line
+    match = re.fullmatch(r"git\+(.+\?rev=([0-9a-f]{40}))#\2", source)
+    if match is None:
+        raise SystemExit("check-single-cudarc: pin source must be the exact registry or immutable Git source")
+    return f"{line} ({match[1]}#{match[2][:8]})"
 
 
 def cargo_tree(*args: str) -> list[str]:
@@ -86,29 +94,27 @@ def cargo_tree(*args: str) -> list[str]:
     return lines
 
 
-# A. Upstream cudarc 0.19 in the lock.
+# A. Neither the previous nor the selected fork line may come from upstream cudarc.
+expected_line = pinned_tree_line()
 try:
     lock = tomllib.loads(lock_path.read_text(encoding="utf-8"))
 except (OSError, ValueError) as exc:
     raise SystemExit(f"check-single-cudarc: cannot read lock {lock_path}: {exc}")
 for package in lock.get("package", []):
-    if package.get("name") == "cudarc" and str(package.get("version", "")).startswith("0.19."):
+    if package.get("name") == "cudarc" and str(package.get("version", "")).startswith(("0.19.", "0.20.")):
         failures.append(
             f"A: {lock_path.name} has upstream cudarc {package['version']}; "
-            "only cudarc-fathomdb may provide cudarc 0.19"
+            "only cudarc-fathomdb may provide cudarc 0.19/0.20"
         )
 
-version = pinned_version()
-expected_line = f"cudarc-fathomdb v{version}"
-
-# C. One cudarc-fathomdb node, from the registry, per target and feature set.
+# C. One cudarc-fathomdb node, from the selected exact source, per target and feature set.
 for target in TARGETS:
     for features in FEATURE_SETS:
         lines = cargo_tree("-e", "normal", "--target", target, "-p", "fathomdb-embedder", "--features", features)
         where = f"{target} --features {features}"
         found = False
         for line in lines:
-            if line.startswith("cudarc v0.19"):
+            if line.startswith(("cudarc v0.19", "cudarc v0.20")):
                 failures.append(f"C: {where}: the tree has {line}")
             elif line.startswith("cudarc-fathomdb "):
                 found = True
@@ -128,5 +134,5 @@ if failures:
     for failure in failures:
         print(f"FAIL  single-cudarc: {failure}", file=sys.stderr)
     sys.exit(1)
-print(f"ok single-cudarc: one cudarc 0.19 in the graph, {expected_line} from the registry, no concrete CUDA feature")
+print(f"ok single-cudarc: one selected cudarc-fathomdb in the graph, {expected_line}, no concrete CUDA feature")
 PY

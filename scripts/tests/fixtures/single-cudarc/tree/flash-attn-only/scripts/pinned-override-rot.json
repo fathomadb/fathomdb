@@ -1,7 +1,7 @@
 {
-  "cargo_fork_registry_pins": {
+  "cargo_fork_pins": {
     "pins": [
-      {"dependency": null, "package": "cudarc-fathomdb", "version": "0.19.10"}
+      {"dependency": null, "package": "cudarc-fathomdb", "version": "0.19.10", "source": "registry+https://github.com/rust-lang/crates.io-index"}
     ]
   }
 }

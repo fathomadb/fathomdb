@@ -276,7 +276,7 @@ def score_run(run_dir: Path, judges: Judges | None) -> list[dict]:
     return out
 
 
-def summarize(rows: list[dict]) -> dict:
+def summarize(rows: list[dict], expected_by_run: dict | None = None) -> dict:
     by_run: dict[str, list[dict]] = collections.defaultdict(list)
     for row in rows:
         by_run[row["run"]].append(row)

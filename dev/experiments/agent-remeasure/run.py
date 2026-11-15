@@ -74,7 +74,7 @@ def parse_final(text: str) -> dict:
     return {"instructions_seen": seen, "answer_json": answer}
 
 
-def server_config(store_dir: Path, default_store: str) -> dict:
+def server_config(store_dir: Path, default_store: str, result_format: str = "text") -> dict:
     return {"roots": [{"path": str(store_dir), "suffix": ".sqlite"}], "default_store": default_store,
             "use_default_embedder": True, "search_mode": "hybrid", "idle_timeout_secs": 0}
 
@@ -91,7 +91,7 @@ def mcp_config(binary: Path, server_cfg: Path, stderr_path: Path, arm: str) -> d
         "env": {"CUDA_VISIBLE_DEVICES": "0", "FATHOMDB_EMBED_DEVICE": "cuda:0"}}}}
 
 
-def claude_command(prompt: str, model: str, cfg: Path) -> list[str]:
+def claude_command(prompt: str, model: str, cfg: Path, *, max_turns: int = 8, cap_usd: str = "0.02") -> list[str]:
     return ["claude", "-p", prompt, "--model", model, "--tools", "", "--strict-mcp-config",
             "--mcp-config", str(cfg), "--allowedTools", ALLOWED, "--output-format", "stream-json",
             "--verbose", "--no-session-persistence"]
@@ -133,6 +133,20 @@ def run_question(question, *, worker: Path, run_dir: Path, args, default_store: 
             "total_cost_usd": result.get("total_cost_usd"), "usage": result.get("usage"),
             "num_turns": result.get("num_turns"), "is_error": result.get("is_error"),
             "subtype": result.get("subtype")}
+
+
+def execute_questions(questions, process, checkpoint: Path, *, cap_usd, episode_cap_usd, resume: bool):
+    """Run unfinished questions using the historical checkpoint behavior."""
+    done = set()
+    if checkpoint.exists():
+        done = {json.loads(line)["qid"] for line in checkpoint.read_text().splitlines() if line.strip()}
+    for question in questions:
+        qid = question.qid.split("_", 1)[-1]
+        if qid in done:
+            continue
+        row = process(question)
+        with checkpoint.open("a") as handle:
+            handle.write(json.dumps(row) + "\n")
 
 
 def main() -> int:

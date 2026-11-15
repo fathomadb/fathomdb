@@ -874,14 +874,21 @@
         "dev/plans/0.8.29/features/slice-110/test-map.md"
       ],
       "conditions": "Seq376 selects quiescent completed-construction policy with frozen residue/restart and unknown opaque-host-byte bound. Seq377 defers actual reset execution to.30: .29 source/seam repair qualification remains required, no live survival/Orin-defect closure claim. Required fork repair design ->140 fork-local qualification ->110 pin adoption; no closure cycle. The narrow existing-API PrivateDecision first-loss publication/refusal/diagnostic policy subset can proceed before new pins; actual tracked token/pool integration remains conditional on qualified140.",
-      "phase": "TRACKED_INTEGRATION_DESIGN_ACCEPTED_IMPLEMENTATION_RUNNING",
-      "evidence": "Independent Astra-medium ACCEPT8247; integrated at12a3e64403d1e0345d2696ab9af3dd9a6dd90a2f. Five current-pin production-seam behaviors have actual RED/GREEN: preserve first typed loss before later OOM; publish one winning loss record across concurrent callers; refuse new private construction after known loss; report unavailable pool counters as null without native reads; and refuse known-lost last-model native cleanup while draining Rust counts. All98 CPU policy module tests pass, with affected controls and crate Clippy. This is partial source acceptance, not full-workspace or actual CUDA/Orin qualification. Qualified140 tracked token/pool/default-device/model wiring and affected installed healthy controls remain required. First terminal OOM needs the fork cached-token API. Seq376 policy/frozen residue remains; seq377 moves real reset execution to.30. No reset-survival or original-defect closure claim.",
-      "qualified_subset_sha": "8247f11056bc2deb3e0c6ec0472abbd4b217e857",
+      "phase": "TRACKED_SOURCE_138_SEAM_TESTS_ACCEPTED_INTEGRATED_FINAL_QUALIFICATION_PENDING",
+      "evidence": "Accepted tracked source1ea7 is integrated after actual138/138 tests, both production Clippy profiles and independent Astra source/results acceptance. Native token is the sole authority across default/private construction, models and cleanup; cached first causes map before current OOM, and checked observer discards counters on loss. Final clean owned source gate and applicable healthy GPU/OOM/installed-consumer qualification remain. Seq376 frozen-residue policy and seq377.30 reset hold remain; no native-reset survival or original-defect closure claim.",
+      "qualified_subset_sha": "1ea7bf41c037e47b0c17d19a178411ff8101153b",
       "adoption_design": {
         "source": "bf8be52eb6005de27b904175edcc3e1ac179c685",
         "integrated": "ecec9de46ba63e1201be2ac26bbb214ff1270b21",
         "review": "Independent Astra-medium ACCEPT against actual constructors/fork APIs/ownership/contracts; no material findings.",
         "implementation": "Isolated tracked implementation has begun after independently accepted Candle GREEN2ee39305. Actual coherent product metadata and genuine admission/mapping/observer RED/GREEN remain required."
+      },
+      "tracked_integration": {
+        "source": "1ea7bf41c037e47b0c17d19a178411ff8101153b",
+        "integrated": "e2a3fbe0d2513e9e05fce735f9ddbda948e88743",
+        "review": "Independent Astra-medium ACCEPT; no material findings.",
+        "evidence": "Actual semantic RED/GREEN covers token-first loss/OOM/provenance, default/private construction, model operation/prepared-success/unwind/final-drop ownership, cached diagnostics and checked observer. All138 final affected CUDA/native-seam tests pass; CUDA and CPU production Clippy-Werror pass. Actual enabled offline/locked graph is one Candle0.12 trio@2ee39305, cudarc0.20@343b04f, remoteK9 kernel0.10.2.",
+        "limits": "No product GPU/model/installed-consumer/reset/full-workspace qualification follows. Final owned source gate and applicable healthy/OOM/installed controls remain. Local Git graph is not registry-ready publication proof; actual resets remain.30."
       }
     },
     {
@@ -939,6 +946,20 @@
         "scope": "Dedicated nondefault feature through embedder/engine/SDK/Python/NAPI; static native lossless JSON and exact passive catalog. Published-loss refusal and truthful unavailable/lost/untracked states, no context/model ownership or native dispatch.",
         "tests": "2 observer +2 wire/property/u64MAX/nullable-zero controls pass; SDK/Python/Node no-default-feature checks, Rust parity53/53 and41 catalog controls pass. Original600s capped light lane ended584.145s and fully collected. Rustfmt passes on integration. No GPU/model/liveDB/shipping/full-source qualification claim.",
         "remaining": "Healthy tracked counter reads still require actual110 token adoption; native SDK runtime, shipping/build equivalence and live D/E qualification remain. Existing checker Pyright2 baseline/setup issues are retained for final relevant checks."
+      },
+      "gcp_venue_candidate": {
+        "status": "RESEARCHED_UNPRICED_NOT_RESERVED_NOT_SELECTED",
+        "owner_scope": "Owner requested a priced session proposal, then directed research toward a Google Cloud option. No provision/reservation/quote-contact/spend is authorized.",
+        "shape": "A4X a4x-highgpu-4g inus-central1-a/b: nativeARM64 Grace,4GB200,140vCPU,884GiB host RAM,12000GiB bundledLocalSSD. Live machine metadata verified; no existing reservation returned.",
+        "capacity_price": "A standalone4-GPU VM is documented, but procurement/account-team capacity-block size and duration need a written quote. No public A4X compute rate; no numeric session cap or usable capacity is established. GB200 entitlement was not explicitly returned in the quota listing; ordinaryT4/L4 quota does not qualify this ARM cell.",
+        "compatibility": "Potential ARM64-SBSA CUDA12.6 PTX plus supported12.8+ same-major libraries/R580 profile needs exact artifact/library/allocator/forward proof. NativeSM100 needs12.8; defaultCUDA13 image must not silently change.29 scope.",
+        "sources": [
+          "https://docs.cloud.google.com/compute/docs/accelerator-optimized-machines",
+          "https://docs.cloud.google.com/ai-hypercomputer/docs/create/create-vm-a4x",
+          "https://docs.cloud.google.com/ai-hypercomputer/docs/reserve-capacity",
+          "https://cloud.google.com/products/compute/pricing/accelerator-optimized",
+          "https://docs.nvidia.com/cuda/archive/12.8.0/blackwell-compatibility-guide/index.html"
+        ]
       }
     },
     {
@@ -960,7 +981,7 @@
         "dev/plans/0.8.29/features/slice-140/test-map.md"
       ],
       "conditions": "Concrete required110 or independently required existing.29 artifact repair only, fork-local qualified before product pins; B/C maintenance belongs.30. New120 CUDA13 delivery/compiler/affected repair work belongs.31 by seq378 and cannot create a.29 repair gate. Consumes reviewed repair design, not110 closure; no-repair disposition requires actual evidence.",
-      "phase": "CUDARC_CPU_AND_SELECTED_CANDLE_CUDA_HELPER_QUALIFIED_CONSUMER_ADOPTION_RUNNING",
+      "phase": "QUALIFIED_FORKS_CONSUMED_PRODUCT_SEAM_TESTS_ACCEPTED_FINAL_CONSUMER_QUALIFICATION_PENDING",
       "evidence": "Cudarc selected behaviorcb36642 has312 selected CPU passes plus production Clippy/format and independent Astra acceptance. Version-only343b04f prepares0.20.0 with identical production source/build script. Candle2ee39305 has actual private F32 helper semantic REDa4c2517d then frozen healthy/loss GREEN in separate selected3090 processes, independently accepted by Astra. Only borrowed admission and checked raw handle changed; numerical arguments are unchanged. Kernel0.10.2 bytes match K9. Actual product graph/admission/model/installed controls remain in110; whole140, native reset survival, new CUDA13, publication and whole-release qualification are not claimed.",
       "fork_source_checkpoint": {
         "cudarc_sha": "3c116e2eaddc4b61e950cfe36102de76a29c59cb",
@@ -997,6 +1018,11 @@
         "review": "Independent Astra-medium ACCEPT; no material actionable findings.",
         "result": "Healthy2x2 expected[19,43,22,50] passed before/after. Cached-loss RED returnedOk; frozen GREEN returns Driver709. Builds82.6s/6.86s and all four separate120s-bounded test processes completed; all six units empty/terminal, selected GPU processes absent.",
         "scope": "Selected private F32 helper/software-cached loss only, no real reset/full model/product integration/full workspace claim."
+      },
+      "consumer_adoption": {
+        "source": "1ea7bf41c037e47b0c17d19a178411ff8101153b",
+        "review": "Independent Astra accepts coherent actual local graph/admission/model/observer source with138 seam tests.",
+        "remaining": "Final owned source gate and applicable real healthy GPU/OOM/installed-consumer controls; no publication or whole140 closure."
       }
     },
     {
@@ -1262,7 +1288,7 @@
   },
   "release_readiness": {
     "status": "NOT_READY",
-    "qualification": "0–10 preparation,60 MCP,70 SDK,80 design and selected100 interruption qualification are complete locally. Qualified subsets include20 Linux,30 tooling/P/12 primaryG plus four separate calibration controls,50 search source,100 coverage/native and selected140 fork CPU seams. Whole20,72 primaryG obligations, actualM/D/F,current paired50 performance,conditional40,Block1 exit/90,110 tracked integration,130 venues/finalartifacts and160 remain pending. Source qualification is assembled with original failures/refusals/skips preserved. No whole-release or published-package claim.",
+    "qualification": "0–10,60,70,80design and selected100 are complete locally.20 functional Linux/Windows acceptance is qualified; its formal closure awaits the batched final source gate. Selected cudarc/Candle repairs and tracked110 source/seam adoption are independently accepted, with138 affected tests, but final owned source and applicable healthy/installed qualification remain.30 scientific G72/M46/D24/FQ8, conditional40, current paired50 performance, Block1 smoke/conformance/90,130 venues/artifacts and160 remain. Source qualification retains original failed/UNKNOWN/skipped attempts; no whole-release or published-package claim.",
     "publication": "HELD; no tag, dispatch, external ACL mutation or registry publication authorized by bootstrap."
   },
   "generated_views": [

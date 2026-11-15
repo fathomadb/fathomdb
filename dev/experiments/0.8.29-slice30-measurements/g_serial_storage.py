@@ -1,8 +1,10 @@
 """Comparable case envelopes and measured serial closure, never qualification authority."""
 
 import json
+import os
 from pathlib import Path
 import stat
+import time
 
 SCHEMA = "slice30-g-serial-retained-live/v1"
 IDS = ("g-r-n100000-r0", "g-r-n100000-r1", "g-cal-engine-b10-s1", "g-cal-sdk-b10-s1",
@@ -74,11 +76,18 @@ def envelopes(cell, model):
 
 
 def _files(directory):
-    files = {}
-    for path in Path(directory).rglob("*"):
-        observed = path.stat()
-        if stat.S_ISREG(observed.st_mode):
-            files[path.relative_to(directory).as_posix()] = observed.st_size
+    directory, files = Path(directory), {}
+    def scan(current):
+        with os.scandir(current) as entries:
+            for entry in entries:
+                path = Path(entry.path)
+                if entry.is_dir(follow_symlinks=False):
+                    scan(path)
+                else:
+                    observed = entry.stat()
+                    if stat.S_ISREG(observed.st_mode):
+                        files[path.relative_to(directory).as_posix()] = observed.st_size
+    scan(directory)
     return files
 
 
@@ -148,7 +157,7 @@ def closed_case(outcome, witness):
             and sizes["total"] == sum(sizes[key] for key in ("main", "wal", "shm", "output")))
 
 
-def frontier(spec, plan, previous, budget, retained):
+def frontier(spec, plan, previous, budget, retained, *, started_ns=None):
     """Recheck every unstarted required write using fresh whole-allocation retention."""
     review = spec["_reviewed_costs"]
     model = validate_model(review["storage_model"])
@@ -176,8 +185,6 @@ def frontier(spec, plan, previous, budget, retained):
             return {"allowed": False, "reason": "serial_cell_time_forecast"}
         remaining.append((storage, time_ns))
     common_ns = max(0, 600*10**9-budget.get("common_used_ns", {}).get("closed-copy-write-matrix", 0))
-    if sum(time_ns for _, time_ns in remaining)+common_ns > review["limits"]["campaign_seconds"]*10**9-budget["used_ns"]:
-        return {"allowed": False, "reason": "serial_shared_time_forecast"}
     peak = (retained+GiB+sum(s["closed_bytes"] for s, _ in remaining)
             +max((s["live_excess_bytes"] for s, _ in remaining), default=0))
     if peak > review["limits"]["active_bytes"]:
@@ -191,4 +198,7 @@ def frontier(spec, plan, previous, budget, retained):
         if (sampled["owned"]+growth >= 200*GiB or sampled["task_free"]-growth < 250*GiB
                 or sampled["root_free"]-root_growth < 32*GiB or sampled["memory_available"] < 16*GiB):
             return {"allowed": False, "reason": "serial_resource_headroom"}
+    elapsed_ns = max(0, time.monotonic_ns()-started_ns) if started_ns is not None else 0
+    if sum(time_ns for _, time_ns in remaining)+common_ns > review["limits"]["campaign_seconds"]*10**9-budget["used_ns"]-elapsed_ns:
+        return {"allowed": False, "reason": "serial_shared_time_forecast"}
     return {"allowed": True, "reason": None, "peak_bytes": peak, "remaining_rows": len(remaining)}

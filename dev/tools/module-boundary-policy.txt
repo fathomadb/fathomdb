@@ -248,3 +248,4 @@ unparsed-macro root::tests <module> proptest ea8d95990855291e
 unparsed-macro visibility_coalescing_tests <module> proptest::proptest e248e1679fc0f020
 
 reported slice30_observer
+reported slice30_observer::transport_tests

@@ -704,5 +704,4 @@ pub(crate) fn projection_commit_outcome(status: &'static str, facts: serde_json:
 }
 
 #[cfg(all(test, feature = "slice30-observer", feature = "test-hooks"))]
-#[path = "slice30_observer_transport_tests.rs"]
 mod transport_tests;

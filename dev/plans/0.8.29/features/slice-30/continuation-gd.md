@@ -1205,6 +1205,38 @@ window. Keep every existing H/O/C-H/C-O logical assertion frozen. Qualification
 still requires actual C-O zero loss and then only affected controls; this
 amendment grants neither implementation approval nor campaign GO.
 
+### D guarded entry on the integrated allocation guardian
+
+Root `e6cbc956954d29137059fb5df32bc78ba863eecd` supplies the reviewed M outer
+allocation guardian. Reuse its private boundary/resource/PID-pin/publication
+mechanics rather than duplicating a second guardian. Add a named phase argument
+with existing M as the default to `m_guard.Accounting` and `m_guard.guard`:
+D selects `d_guardian` and common-charge key `D`, while M retains its current
+schema, keys, limits and behavior. Reject unknown phase names. This shared-source
+refinement requires independent review before implementation.
+
+D entry validates a D-specific selected budget reference against the existing
+ledger and unchanged900s/14400s/16GiB maxima. No expanded study profile is
+selected or activated by source work. Both other-work reservation fields must
+be explicit nonnegative integers; absent/unknown cost refuses admission rather
+than becoming zero. Preserve every original charge and any retained G/M/D or
+closed-guardian ownership. Hold the existing `g-campaign.lock`; publish D custody
+before child entry and keep unknown cleanup blocked. The existing outer-residual
+algorithm reconciles committed cell/common portions once, including controller
+failure and cleanup, without adding the whole outer wall to nested cell walls.
+
+The D CLI owns fixed24 source entry and persistent attempted records, defaults
+to the first held quartet and stops for review. Continuation requires an explicit
+review of its next named size/mode quartet and current conservative feasibility;
+one invocation cannot automatically dispatch all remaining cells. Keep all24
+obligations visible, failed/incomplete attempts unretried and unstarted holds
+reassessable. Native and guarded source controls use tiny stores/harmless children
+only. Freeze a real guarded controller-start/death control with a nested child,
+known-quiescence/bounded recovery and exact outer=cell+common conservation;
+unknown/exhausting other-work reservations must prevent actual child start.
+Recheck only affected M default guardian controls for this shared refinement.
+No new guardian framework, cap reset, G schema alias or campaign GO follows.
+
 ## Requirements, acceptance and ordered runtime TDD
 
 Local refinements below map to existing Slice30 IDs. A design review is not a

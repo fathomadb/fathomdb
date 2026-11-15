@@ -1,6 +1,7 @@
 """Bind G-only table cells to current normal measurement-program commands."""
 
 import json
+import os
 from pathlib import Path
 import subprocess
 import sqlite3
@@ -11,6 +12,18 @@ from g_span_coverage import stored_coverage
 
 def run_program_step(command, config, output, deadline_ns, observe=None):
     """Retain one normal-program step under the same absolute parent cell deadline."""
+    mode = config.get("slice50_pair_mode")
+    environment = None
+    if mode is not None:
+        if mode not in ("winner", "eager"):
+            raise ValueError("unsupported Slice50 pair mode")
+        environment = dict(os.environ)
+        environment.pop("FATHOMDB_SLICE50_EAGER_TEXT_FOR_MEASUREMENT", None)
+        if mode == "eager":
+            environment["FATHOMDB_SLICE50_EAGER_TEXT_FOR_MEASUREMENT"] = "1"
+    sample_rss = mode is not None and config.get("observe") is True
+    rss_samples = []
+    poll_observation = observe is not None or sample_rss
     started = time.monotonic_ns()
     observation_wall_ns = observation_parent_cpu_ns = observation_max_wall_ns = 0
     output = Path(output)
@@ -32,13 +45,28 @@ def run_program_step(command, config, output, deadline_ns, observe=None):
         nonlocal observation_wall_ns, observation_parent_cpu_ns, observation_max_wall_ns
         wall, cpu = time.monotonic_ns(), time.process_time_ns()
         try:
-            step["gpu_samples"].append(observe(pid))
+            if sample_rss:
+                row = {"pid": pid, "monotonic_ns": time.monotonic_ns(),
+                       "scope": "sampled child process; unsampled peaks unavailable"}
+                try:
+                    fields = dict(line.split(":", 1) for line in Path(f"/proc/{pid}/status").read_text().splitlines() if ":" in line)
+                    for source, target in (("VmRSS", "rss_bytes"), ("VmHWM", "peak_rss_bytes")):
+                        if source in fields:
+                            row[target] = int(fields[source].split()[0]) * 1024
+                    row["available"] = "rss_bytes" in row and "peak_rss_bytes" in row
+                except OSError:
+                    row["available"] = False
+                rss_samples.append(row)
+            if observe is not None:
+                step["gpu_samples"].append(observe(pid))
         finally:
             elapsed = time.monotonic_ns() - wall
             observation_wall_ns += elapsed
             observation_max_wall_ns = max(observation_max_wall_ns, elapsed)
             observation_parent_cpu_ns += time.process_time_ns() - cpu
     def finish(value):
+        if mode is not None:
+            value = dict(value, slice50_pair_mode=mode, rss_samples=rss_samples)
         return dict(value, host_wall_ns=time.monotonic_ns() - started,
                     observation_wall_ns=observation_wall_ns,
                     observation_max_wall_ns=observation_max_wall_ns,
@@ -53,10 +81,10 @@ def run_program_step(command, config, output, deadline_ns, observe=None):
     with output.with_name(output.name + "-native.log").open("wb") as log:
         try:
             child = subprocess.Popen([*command, str(path), str(output)], stdout=log,
-                                     stderr=subprocess.STDOUT)
+                                     stderr=subprocess.STDOUT, env=environment)
             step["pid"] = child.pid
             step["executable"] = str(Path(command[0]).resolve())
-            if observe:
+            if poll_observation:
                 collect(child.pid)
             while True:
                 remaining = (deadline_ns - time.monotonic_ns()) / 10**9
@@ -66,7 +94,7 @@ def run_program_step(command, config, output, deadline_ns, observe=None):
                     child.wait(timeout=min(observation_wait, remaining))
                     break
                 except subprocess.TimeoutExpired:
-                    if observe:
+                    if poll_observation:
                         collect(child.pid)
         except subprocess.TimeoutExpired:
             child.kill()

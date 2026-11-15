@@ -270,7 +270,9 @@ accepted by [seq-359](../adr/ADR-0.8.28-vector-compatibility-open-policy.md).
 | `continuation` | string | none | From a prior result. Only `store`, `max_tokens`, `hints` and `highlights` may accompany it; `store` selects the handle table, so a handle from another store is `stale_handle`. |
 
 `include_superseded` composes with filters and the fixed validity instant.
-Absent and explicit false have the same canonical request identity; true changes
+A supplied flag must be a boolean; null is invalid, including on continuation
+calls, and invalid values never dispatch an SDK search. Absent and explicit
+false have the same canonical request identity; true changes
 that identity even if the selected hits are unchanged. Continuations reuse the
 stored view and refuse an explicit flag override, including false. Repeated refs
 do not identify a unique historical occurrence for feedback or logical fetch;

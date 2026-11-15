@@ -138,7 +138,9 @@ pub struct SearchArgs {
     pub attributes: Option<BTreeMap<String, String>>,
     /// Validity instant, epoch seconds; defaults to now.
     pub as_of: Option<i64>,
-    /// Include superseded record versions; defaults to false.
+    /// Include superseded record versions; defaults to false. Null is invalid.
+    #[serde(default, deserialize_with = "deserialize_search_view_flag")]
+    #[schemars(with = "bool")]
     pub include_superseded: Option<bool>,
     /// Results per page, 1..=100; default 10.
     #[schemars(range(min = 1, max = 100))]
@@ -239,6 +241,13 @@ pub struct FeedbackArgs {
     // Accepted so every tool takes the same argument; this tool emits no hints.
     #[allow(dead_code)]
     pub hints: Option<bool>,
+}
+
+fn deserialize_search_view_flag<'de, D>(deserializer: D) -> Result<Option<bool>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    bool::deserialize(deserializer).map(Some)
 }
 
 fn parse<T: DeserializeOwned>(arguments: Map<String, Value>) -> Result<T, ToolError> {

@@ -474,13 +474,21 @@ class Debugger:
                             self.inferior_pid = pid
                             self.actors.bind_inferior(pid, self.process.pid, self.args.binary.resolve())
 
+    def _reject_result_errors(self):
+        # Execution may report running before a later same-token failure.
+        for record in self.records:
+            if record.get("kind") == "^" and record.get("class") == "error":
+                raise Unqualified("debugger command failed: " + json.dumps(record))
+
     def command(self, text, seconds=10):
+        self._reject_result_errors()
         self.token += 1
         token = str(self.token)
         self.process.stdin.write((token + text + "\n").encode())
         self.process.stdin.flush()
         until = min(self.deadline, time.monotonic() + seconds)
         while True:
+            self._reject_result_errors()
             for i, record in enumerate(self.records):
                 if record.get("kind") == "^" and record.get("token") == token:
                     self.records.pop(i)
@@ -492,6 +500,7 @@ class Debugger:
     def stopped(self, seconds):
         until = min(self.deadline, time.monotonic() + seconds)
         while True:
+            self._reject_result_errors()
             for i, record in enumerate(self.events):
                 if record.get("kind") == "*" and record.get("class") == "stopped":
                     self.events.pop(i)

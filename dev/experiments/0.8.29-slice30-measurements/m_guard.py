@@ -107,7 +107,7 @@ def _limits(profile, phase):
 
 
 def guard(command, *, allocation, profile, root, task, admission=False, common_limit_ns=None,
-          started_ns=None, phase="M"):
+          started_ns=None, phase="M", calibration=None):
     """Own the whole controller phase, private boundary, resource floors and final charge."""
     if phase not in ("M", "D"):
         raise ValueError("unknown shared guardian phase")

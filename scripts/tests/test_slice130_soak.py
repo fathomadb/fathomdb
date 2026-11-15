@@ -212,6 +212,54 @@ class SamplerProtocolTests(unittest.TestCase):
         self.assertEqual(calls[0], 2)
         self.assertTrue(any(e["event"] == "error" for e in events))
 
+    def test_named_counter_failures_stop_immediately_and_retain_raw_observation(self):
+        for mode in ("on", "off"):
+            for status in ("read_error", "unavailable"):
+                for failed_k in (0, 1):
+                    now = [0.0]
+                    calls = [0]
+                    observations = [0]
+                    events = []
+                    def iteration():
+                        now[0] += 60
+                        calls[0] += 1
+                        return {"latency_ms": {"embed": 1}, "mismatches": 0}
+                    def snapshot():
+                        k = observations[0]
+                        observations[0] += 1
+                        point = arm(mode)["baseline"]
+                        if k == failed_k:
+                            point.update(counter_status=status, private_used_bytes=None, private_reserved_bytes=None,
+                                         raw_observation={"status": status, "context_id": "18446744073709551615"})
+                        return point
+                    data = soak.collect_arm("python", mode, iteration, snapshot, events.append, clock=lambda: now[0])
+                    with self.subTest(mode=mode, status=status, failed_k=failed_k):
+                        self.assertEqual(calls[0], failed_k + 1)  # warm-up, then at most one measured iteration
+                        self.assertEqual(len(data["samples"]), failed_k)
+                        self.assertEqual(data["abort_kind"], "counter_error")
+                        self.assertIn(status, data["aborted"])
+                        failed = data["baseline"] if failed_k == 0 else data["samples"][0]
+                        self.assertEqual(failed["raw_observation"], {"status": status, "context_id": "18446744073709551615"})
+                        self.assertTrue(any(e.get("point", {}).get("counter_status") == status for e in events))
+
+    def test_success_status_with_invalid_private_counter_stops_but_named_off_is_valid(self):
+        for mode in ("on", "off"):
+            now = [0.0]
+            def iteration():
+                now[0] += 60
+                return {"latency_ms": {"embed": 1}, "mismatches": 0}
+            point = arm(mode)["baseline"]
+            if mode == "on":
+                point["private_used_bytes"] = None
+            data = soak.collect_arm("python", mode, iteration, lambda: dict(point), lambda e: None, clock=lambda: now[0])
+            with self.subTest(mode=mode):
+                if mode == "on":
+                    self.assertEqual(data["abort_kind"], "counter_error")
+                    self.assertEqual(len(data["samples"]), 0)
+                else:
+                    self.assertIsNone(data["aborted"])
+                    self.assertEqual(len(data["samples"]), 60)
+
     def test_primary_sampler_has_bounded_allocation_without_deliberate_churn(self):
         now = [0.0]
         def iteration():

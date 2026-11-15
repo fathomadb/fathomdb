@@ -168,3 +168,14 @@ def run_accounted_stage(spec, records, budget, execute, *, initial=True, clock=t
         return run(spec, records, budget, prepare)
     finally:
         charge(clock())
+
+
+def run_supervised_stage(spec, records, budget, root, command, *, publish=None, initial=True):
+    """Connect fixed-table accounting to owned children under caller-owned custody.
+
+    The caller supplies the existing locked allocation and durable publisher;
+    this callable grants no live admission or expanded profile. Every required
+    row remains visible, with the initial held-quartet stop as the default.
+    """
+    return [{"id": cell["id"], "status": "not_run", "reason": "D supervised dispatch is not implemented"}
+            for cell in spec["cells"]]

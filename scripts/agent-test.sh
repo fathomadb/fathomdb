@@ -137,6 +137,7 @@ run_tier_suite fast test-sqlite-dependency-contract bash scripts/tests/test_sqli
 run_tier_suite fast test-public-doc-truth bash scripts/tests/test_public_doc_truth.sh
 run_tier_suite fast test-slice10-preparation python3 scripts/tests/test_slice10_preparation.py
 run_tier_suite fast test-slice30-surface-comparator python3 scripts/tests/test_slice30_surface_comparator.py
+run_tier_suite fast test-slice130-soak python3 scripts/tests/test_slice130_soak.py
 run_tier_suite fast test-slice100-checkpoint-operator python3 -m unittest discover \
   -s dev/experiments/0.8.29-slice100-checkpoint -p 'test_*.py'
 # P-only campaign control uses Linux /proc observations and flock; other

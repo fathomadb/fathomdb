@@ -656,7 +656,35 @@ At cell deadline/3GiB, common reserve exhaustion, shared cap or resource stop,
 retain partials and all unstarted calibration rows; stop, no next-mode chaining.
 Cleanup is never skipped to satisfy accounting: uncertain/over-bound cleanup
 is retained as failure with actual charges and durably blocks redispatch, not
-reported as a qualified bounded phase. No retry, deletion or reset.
+reported as a qualified bounded phase. Resource/cap/cleanup stops permit no
+retry, deletion or reset.
+
+For the observed controller policy defect only, a separately authorized runtime
+GO may select `run NEWROOT --corrected-calibration-from STOPPED_ROOT` once. Both
+roots must retain the same allocation, fixed calibration cells, compiled inputs,
+native/model/subject/device identities and limits; the new frozen root names the
+current repaired clean source. Eligibility requires the original first-cell
+native G-W workload complete with500 warmups/1000 samples, validated preparation,
+and only `positive_default_cuda_evidence_missing`: reported requested policy
+`auto` contradicts frozen `cuda:0`, while all other current qualification facts,
+including the selected device and actual same-PID GPU engagement, hold. Original
+cell and strict outer cleanup must be known complete; unrelated failure,
+incomplete native work, another requested policy, success, cap/resource refusal
+or uncertain cleanup cannot admit a successor. Under the allocation lock,
+successful supervised preflight binds the exact original stop and both source/
+root identities; consume one durable `closed_calibration_successor` slot before
+payload dispatch. Keep the original stop/results unchanged as archived failure.
+Only that invocation's permit matching the consumed slot AND exact original stop
+may proceed; any slot stop/new failure always takes precedence. Consumption
+survives refusal, crash and success; replay or another successor is forbidden.
+Retain all charges and fixed IDs: cumulative1500s/cell,600s common,14400s study,
+16GiB total and3GiB/cell remain unchanged. Reservation AND live growth monitoring
+count prior plus new same-cell directories; already retained bytes reduce the
+remaining cell allowance. Default entry/new roots still inherit the stop. Real
+harmless-child RED/GREEN tests must cover that default, explicit one-use dispatch,
+archived failure/charges, wrong failure reason, incomplete native/wrong policy,
+new slot stop, replay/success/uncertain cleanup, and cumulative storage refusal
+at reservation and during live growth. No qualification or resource waiver.
 
 Record separate actual copy/open/close, commit, per-row point/FTS probe,
 per-cohort readiness, natural calls, output/WAL/growth and total clocks. Retain

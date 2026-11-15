@@ -4,6 +4,16 @@ CELL_ID = "M-R-1-1-warn"
 CALIBRATION_ID = "M-CAL:" + CELL_ID
 
 
+def control(root, owner, manifest=None):
+    """Dispatch one admitted selected configuration through existing preparation/payload."""
+    return None
+
+
+def preparation_bound(manifest):
+    """Bound the selected closed package and existing bounded retained producers."""
+    return None
+
+
 def selected_cell(cell_id):
     """Return the unchanged selected workload under its separate calibration ID."""
     from m_controller import load_plan

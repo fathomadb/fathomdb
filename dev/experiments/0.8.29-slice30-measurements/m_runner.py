@@ -55,6 +55,9 @@ def main():
     freezing = commands.add_parser("freeze")
     freezing.add_argument("--options", required=True)
     freezing.add_argument("--root", required=True)
+    calibration = commands.add_parser("calibrate")
+    for name in ("options", "root", "cell"):
+        calibration.add_argument(f"--{name}", required=True)
     for action in ("run", "report"):
         commands.add_parser(action).add_argument("root")
     internal = commands.add_parser("_controller")
@@ -76,7 +79,9 @@ def main():
     cell.add_argument("config")
     cell.add_argument("attempt")
     options = parser.parse_args()
-    if options.action == "source-dispatch":
+    if options.action == "calibrate":
+        return 1
+    elif options.action == "source-dispatch":
         from g_freeze import identify
         from m_controller import COMPONENTS
         from m_guard import guard

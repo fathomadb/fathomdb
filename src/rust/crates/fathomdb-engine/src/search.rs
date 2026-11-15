@@ -3428,3 +3428,7 @@ mod historical_property_lifecycle_tests {
         assert_eq!(file, "");
     }
 }
+
+#[cfg(all(test, feature = "slice50-measurement"))]
+#[path = "search/paired50_tests.rs"]
+mod paired50_tests;

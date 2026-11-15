@@ -34,6 +34,8 @@ cuda-pool-observer = ["fathomdb-embedder/cuda-pool-observer"]
 default = []
 # Private bounded Slice30 diagnostics; never forwarded by shipped artifacts.
 slice30-observer = []
+# Private eager-body comparison only; never enables general test hooks.
+slice50-measurement = []
 # Private TC-5 reader-worker route. This is intentionally not forwarded by the
 # facade or any language binding.
 tc5-benchmark = []

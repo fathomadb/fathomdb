@@ -31,7 +31,7 @@ use crate::output::{
     Unavailable, UnavailableWord, UseStoreOutput,
 };
 use crate::registry::{Admission, Cancel, ProgressFn, Registry, StoreGuard};
-use crate::session::{Continuation, ResponseContext, ResponseLookup, Session};
+use crate::session::{fold_response_refs, Continuation, ResponseContext, ResponseLookup, Session};
 use crate::shape::{self, CanonicalSearch};
 
 /// The engine's ranked-result cap (`MAX_RANKED_LIMIT`).
@@ -1166,10 +1166,9 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
             epoch: answered.epoch,
             mode,
             query_id,
-            refs: page[..kept]
-                .iter()
-                .map(|(hit, cursor, _)| (hit.reference.clone(), *cursor))
-                .collect(),
+            refs: fold_response_refs(
+                page[..kept].iter().map(|(hit, cursor, _)| (hit.reference.clone(), *cursor)),
+            ),
         },
     );
     Ok(rendered)
@@ -1631,8 +1630,6 @@ pub(crate) async fn feedback(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Ou
             max_tokens,
         ));
     };
-    let used: Vec<u64> = args.used.iter().map(|reference| entry.refs[reference]).collect();
-    let unused: Vec<u64> = unused.iter().map(|reference| entry.refs[reference]).collect();
     // No waiting: a store that is no longer ready can only come back under a
     // new epoch, whose sink never saw this response.
     let guard = match ctx
@@ -1655,6 +1652,21 @@ pub(crate) async fn feedback(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Ou
     if guard.epoch != entry.epoch {
         return Ok(not_recorded(&store, guard.epoch, NotRecordedReason::StoreReopened, max_tokens));
     }
+    // Complete validation follows both epoch checks and acquisition so existing
+    // not_recorded outcomes keep precedence, and no partial label can escape.
+    let ambiguous = || ToolError::bad_argument("a named reference is ambiguous in that response");
+    if named.iter().any(|reference| entry.refs[*reference].cursor().is_none()) {
+        return Err(ambiguous());
+    }
+    let resolve = |references: &[String]| {
+        references
+            .iter()
+            .map(|reference| entry.refs[reference].cursor())
+            .collect::<Option<Vec<u64>>>()
+            .ok_or_else(ambiguous)
+    };
+    let used = resolve(&args.used)?;
+    let unused = resolve(&unused)?;
     let (answered, ()) =
         bridge::call(guard, ctx.run_limit(), &ctx.cancel, None, &ctx.shared.hooks, move |engine| {
             engine.record_feedback(&query_id, &used, &unused, "agent")

@@ -2,8 +2,9 @@
 
 Source observations below use parent `2f6913c1d59ac8ff3a30de835b57290a8635998c`.
 Owner 2026-11-14 selects option1 (seq-375): the smallest
-atomic refusal of ambiguous named refs for otherwise-recordable calls. This is
-a planned .29 correction; implementation and runtime reproduction remain pending.
+atomic refusal of ambiguous named refs for otherwise-recordable calls. The .29
+correction is implemented and focused CPU tests pass; broader qualification is
+pending.
 
 ## Observed boundary and concrete examples
 
@@ -79,7 +80,7 @@ ambiguous label returns bad_argument with **zero** calls to `record_feedback`
 and no partial telemetry label. A repeated same-cursor entry retains existing
 behavior; overlap/duplicate input-label policy is not changed by this fix.
 
-Required runtime RED before implementation: real telemetry-enabled hybrid response containing two
+The runtime RED/GREEN oracle: real telemetry-enabled hybrid response containing two
 distinct cursor hits with one ref; feedback names that ref and currently records
 one cursor. Assert typed refusal and no label write, then GREEN the internal
 multiplicity handling. Independently test unique-ref success, repeated same
@@ -91,7 +92,9 @@ a new epoch must retain post-acquisition not_recorded. Both write zero labels
 and must not become an early ambiguity bad_argument.
 Existing `tests/feedback.rs` was read in full: it asserts unique-ref cursor
 attribution, concurrency/epoch/ref validation and no effect on search output;
-it does not supply this repeated-ref oracle. No failing run has occurred here.
+it did not supply this repeated-ref oracle. The new real repeated-ref fixture
+failed because feedback was recorded, then passed with the selected refusal;
+focused precedence, atomicity, same-cursor and both-format controls also pass.
 
 ## Implementation and follow-up boundary
 

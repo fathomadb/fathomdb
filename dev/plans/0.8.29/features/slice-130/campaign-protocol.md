@@ -1,5 +1,10 @@
 # Slice 130 preregistration proposal
 
+[Active owner dispositions](plan.md#phase-a-scope) retain independent130A/B–E;
+new x86 CUDA13 delivery/compiler work is .31 and real110 resets are HELD .30.
+References to120 artifacts below mean applicable independently selected artifacts,
+not a mandatory new x86 package or blanket120 dependency.
+
 Status: DRAFT, no campaign authorized or executed. Independent technical review
 may accept implementation/protocol choices; it does not supply owner-reserved
 artifact/policy/venue/session/spend approvals. Freeze the selected unit's exact
@@ -35,7 +40,7 @@ repair pins and110/120 integration. Broader .30 fork maintenance is excluded.
 
 One bounded invocation per selected consumer/policy row, not an open-ended matrix.
 Pin explicit device UUID/ordinal and verify actual code-target compatibility;
-B T4G cannot inherit Orin sm87 proof.120 supplies exact artifact set and target
+B T4G cannot inherit Orin sm87 proof.The affected artifact owner supplies the exact artifact set and target
 contract before the row is runnable; unknown Rust/CLI13 scope stays unknown.
 
 Per selected SDK: fresh install/owned source consumer, import/open with actual
@@ -151,7 +156,7 @@ that could affect these paths block E until independently reconciled.
 | D/E qualification-hook counterpart, pool on/off primary pair | All E numerical RSS/control/sample/error/swap rules below. Pool-on private RESERVED rule is mandatory; a missing/error counter is failure, never omitted. Off allocator has named no-private status, so private RESERVED rule is inapplicable there, not zero-filled. USED is separately reported. Claim only this exact instrumented steady-state result plus reviewed build-pair equivalence. |
 | Exact selected shipping Node/Python artifacts | Actual installed lifecycle/forward/policy/close/exit and existing allocation-witness proof without hooks, using or reusing the affected120/130 selected-consumer runs under their exact input equivalence. These are short existing consumer obligations, not another E60-minute pair. Require actual PASS; hook-counter proof cannot substitute. Shipping RESERVED numerical plateau is not measured and must be labeled so. |
 
-If the selected120 artifact set or actual consumer results cannot supply that
+If the selected applicable artifact set or actual consumer results cannot supply that
 shipping evidence, E remains WAITING_FOR_SHIPPING_CONSUMER_EVIDENCE. If the
 reviewed build-pair equivalence cannot be established, E remains
 WAITING_FOR_BUILD_EQUIVALENCE; do not infer shipping plateau or add a shipping

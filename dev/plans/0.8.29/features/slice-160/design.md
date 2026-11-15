@@ -6,6 +6,11 @@ target_release: 0.8.29
 
 # Slice 160 evidence composition design
 
+[Active owner dispositions](requirements.md#owner-dispositions) select .29
+identity/atomic-feedback/source-seam work, hold real resets to .30 and move new
+x86 CUDA13 delivery/quantitative evidence to .31. Independent130A/B–E and current
+platform/artifact obligations remain; deferral is not qualification.
+
 ## Boundary
 
 This is release qualification and bounded confirmed-defect repair. It introduces

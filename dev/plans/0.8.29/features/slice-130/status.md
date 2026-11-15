@@ -1,5 +1,10 @@
 # Slice 130 Phase A status
 
+[Active owner dispositions](plan.md#phase-a-scope) retain independent130A/B–E;
+new x86 CUDA13 delivery/compiler work is .31 and real110 resets are HELD .30.
+References to120 artifacts below mean applicable independently selected artifacts,
+not a mandatory new x86 package or blanket120 dependency.
+
 Status: WAITING_FOR_CAMPAIGN_INPUTS; independently reviewable D/E candidates,
 not whole PLAN_READY, implementation approval or qualification. Parent-dispatched
 independent Astra design review returned FIX; FIX1 same-reviewer recheck is
@@ -26,7 +31,7 @@ No predecessor proposal is promoted into a hardware/source qualification.
 Parent reports10 source candidate1cc5701697eb93ab91e80fe297484cccd482b596 with
 corrected component verification; final10 review/integration/actual closure is
 still pending at commissioning. This owner did not rerun or independently verify
-those executions.110 Phase A WAITING_FOR_FAULT_MODEL and120 Phase A
+those executions. Historical110 policy-pending and120 Phase A
 WAITING_FOR_ARTIFACT_SELECTION are findings, not completed predecessor exits.
 
 ## Concrete missing inputs and recommended disposition
@@ -34,11 +39,11 @@ WAITING_FOR_ARTIFACT_SELECTION are findings, not completed predecessor exits.
 | Item | Current hold / recommendation to parent |
 | --- | --- |
 | A actual venue | Do not reask broad venue. Obtain CloudJetson JetPack7.2/root/data-handling vetting, actual device/stack/artifact route, access, exact quote/cap/window and session approval; otherwise retain Q5 UNMEASURED pending explicit disposition. |
-| B/C actual venue/artifact | Obtain actual AWS g5g access/capacity/quote/session cap and compatible per-target artifact from120. Preserve source-build versus installed distribution scope; no Orin87 or ordinary CPU npm binary GPU claim. No .30 multiarch fork prerequisite. |
+| B/C actual venue/artifact | Obtain actual AWS g5g access/capacity/quote/session cap and compatible per-target artifact through the affected artifact owner. Preserve source-build versus installed distribution scope; no Orin87 or ordinary CPU npm binary GPU claim. No .30 multiarch fork prerequisite. |
 | C hazard design | Enabled/off observation first; exact bounded heap fixture inputs still to freeze after final-baseline read. Clean forkserver positive must exclude CUDA preloading; parent-CUDA fork remains hazardous. No hook removal until evidence/accepted successor/review. |
 | D technical choices | Recommend passive hidden nondefault qualification hook through existing test-hook gates, lossless identities/counters/live-count, no synchronize/trim; proposed5s/50ms settling. Review may accept technical choices; unit can advance independently once applicable actual10 closure/preflight/design PASS and Orin access/resource window exist. |
-| E technical choices | Recommend D's instrumented-counterpart Node/Python artifacts for the sole matched60-minute on/off primary pair, fixed terminal30-minute numeric rules, reviewed shipping/build equivalence and separately actual shipping lifecycle/v2 proof from selected120/130 runs or explicit reuse. Shipping numerical plateau remains unmeasured; missing equivalence/consumer evidence blocks E. Independent review freezes choices/numbers before results; no second shipping soak or discretionary churn campaign is silently added. D/E are not blocked solely by A/B capacity. |
-|120/110/140 final inputs | Artifact selection/identities/channels/Rust-CLI scope and compiler6111901 disposition remain120; fault envelope remains110; required140 repair pins need fork-local qualification. Final affected130 proof waits for actual composed pins/artifacts, not broader .30 maintenance. |
+| E technical choices | Recommend D's instrumented-counterpart Node/Python artifacts for the sole matched60-minute on/off primary pair, fixed terminal30-minute numeric rules, reviewed shipping/build equivalence and separately actual shipping lifecycle/v2 proof from selected applicable130 runs or explicit reuse. Shipping numerical plateau remains unmeasured; missing equivalence/consumer evidence blocks E. Independent review freezes choices/numbers before results; no second shipping soak or discretionary churn campaign is silently added. D/E are not blocked solely by A/B capacity. |
+|120/110/140 final inputs | New x86 artifact/channel/compiler choices are .31;110 policy is selected and live faults HELD .30; required140 repair pins need fork-local qualification. Final affected130 proof waits for actual composed pins/artifacts, not broader .30 maintenance. |
 
 These are item-specific gates, no renewed generic acknowledgment request. A
 technical reviewer cannot approve owner-reserved spend/policy/artifact choices.

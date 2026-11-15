@@ -1,5 +1,10 @@
 # Slice 130 requirements
 
+[Active owner dispositions](plan.md#phase-a-scope) retain independent130A/B–E;
+new x86 CUDA13 delivery/compiler work is .31 and real110 resets are HELD .30.
+References to120 artifacts below mean applicable independently selected artifacts,
+not a mandatory new x86 package or blanket120 dependency.
+
 Status: Phase A review candidate; no canonical AC amendment or new support claim.
 Authority: release N29-G/K/D, R29-REL-G, R29-3P-19/O3-19 and the accepted
 [pool](../../../../adr/ADR-0.8.28-tegra-private-cuda-pool.md),

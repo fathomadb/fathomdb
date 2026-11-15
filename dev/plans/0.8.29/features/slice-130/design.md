@@ -1,5 +1,10 @@
 # Slice 130 design and current-source census
 
+[Active owner dispositions](plan.md#phase-a-scope) retain independent130A/B–E;
+new x86 CUDA13 delivery/compiler work is .31 and real110 resets are HELD .30.
+References to120 artifacts below mean applicable independently selected artifacts,
+not a mandatory new x86 package or blanket120 dependency.
+
 ## Inspected baseline and boundaries
 
 November10,2026: repository HEAD ad102de7630141762aee28123fac57cbef9f61d5,
@@ -41,10 +46,10 @@ the [test map](test-map.md) provides direct links.
 
 ## A/B: platform and installed-consumer architecture
 
-Use existing install/lifecycle/witness primitives and actual selected120 artifact
+Use existing install/lifecycle/witness primitives and actual selected applicable artifact
 identities; retain true driverless ARM control. Record source-built SDK binaries
 separately from distributed Python/npm artifacts. No new generic ARM distribution
-is invented to make a cell pass. Each requested missing artifact goes back to120
+is invented to make a cell pass. Each requested missing artifact goes back to its artifact owner
 for an explicit selected build contract or remains unmeasured.
 
 AWS confirms [g5g uses Graviton2 and T4G](https://aws.amazon.com/ec2/instance-types/g5g/)
@@ -101,7 +106,7 @@ Context/pool IDs remain lossless across Node. Missing private decision, lost
 context or failed read is a named non-success, never fabricated zeros. Do not
 hold new model references or mutate ownership during observation.
 
-Qualification-hook artifacts have separate hashes/features from120 shipping
+Qualification-hook artifacts have separate hashes/features from the selected shipping
 artifacts. They establish internal lifecycle accounting through SDK paths;
 shipping-artifact lifecycle/witness controls remain necessary and cannot be
 replaced by the instrumented build. Derive source/code equivalence explicitly.
@@ -130,7 +135,7 @@ soak claim. Bind paired shipping/instrumented hashes and review source/features/
 dependencies/toolchain/model equivalence down to passive hook/transport changes;
 unexplained lifecycle/allocator/runtime differences block the unit. Mandatory
 shipping lifecycle/policy/forward/close/exit and v2 allocation proof come from
-actual selected120/130 consumer executions or explicit equivalent reuse. They
+actual selected applicable130 consumer executions or explicit equivalent reuse. They
 cannot be replaced by the instrumented pair. No additional shipping60-minute
 campaign is selected: its numerical plateau remains unmeasured. If direct
 shipping plateau is required or equivalence cannot be established, retain an

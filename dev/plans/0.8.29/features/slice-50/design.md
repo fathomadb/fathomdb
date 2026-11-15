@@ -8,18 +8,43 @@ slice: 50
 # Slice 50 proposed design
 
 [Source census](census.md) is the evidence boundary. This design is reviewable
-before30 runs, but production identity/exact-route work retains actual30 and
-HITL prerequisites. No accepted successor or optimization benefit is claimed.
+before remaining30 runs, but production identity/exact-route work retains
+actual baseline and reviewed source-entry prerequisites. Owner seq-374 accepts the identity/packing successor and seq-375 the feedback
+correction; implementation and optimization benefit are not claimed.
+
+## Proposed exact source-entry amendment (review pending)
+
+Replace the whole30 source dependency only after independent Astra review and
+parent activation with: closed10; qualified Linux20 source/gate metadata
+`45167677bee0d00b59194897e63ad05be40d6e63`; accepted P measured source
+`2fd772558e46d0b1645dce2ffea730d0bdd3305c` and its
+[accepted results](../slice-30/results-p.md); accepted G normal assessment
+`29de06806cc22ab6b8e67f970133f856f3c42f78`,
+`gd-allocation/g-frozen-g-assessment-v5`, as recorded in
+[execution](../slice-30/execution.md#accepted-normal-fixed84-assessment-at29de);
+selected seq-374/375 contracts; and reconciled source/consumer census.
+
+G supplies11 qualified read outcomes and73 refused outcomes, not wholeG/30
+closure. Closed-copy tooling `0fa61810b` is source qualification, not later
+runtime measurement closure. This amendment excludes M/D/F and Windows from50's
+source entrance only; it does not waive their own obligations or claim their
+measurements. Check exact integrated source/native/features/input equivalence at
+entry; retain original failures, refusals, score/provenance/Unicode proofs and
+same-input untraced comparisons. No private Memex snapshot is required. Do not
+start a cache/optimization without meaningful applicable evidence, exact-route
+proof and genuine per-behavior RED/GREEN. Until review/activation, the existing
+whole30 source hold remains; these documents claim neither source-ready nor
+accepted narrowing.
 
 ## Architecture delta and decisions
 
 Create an internal rank/ownership carrier, update fusion/explanation/graph
 exclusion uses, and preserve existing public IdSpace, eligibility, storage,
-provider and snippet APIs. The [ADR proposal](../../../../adr/ADR-0.8.29-retrieval-record-identity.md)
-presents entity/body/record-version alternatives. Recommend record-version
-retrieval, conditional on HITL; canonical logical identity remains unchanged.
+provider and snippet APIs. The [accepted ADR](../../../../adr/ADR-0.8.29-retrieval-record-identity.md)
+selects snapshot-local record-version retrieval and representative-first
+provenance; canonical logical identity remains unchanged.
 
-Proposed keys: Canonical(Node|Edge,cursor) for a resolved canonical row;
+Selected keys: Canonical(Node|Edge,cursor) for a resolved canonical row;
 Ownerless(NodesFts,rowid) for an explicitly ownerless node FTS row. Keep the
 actual FTS locator and public IdSpace separately. A graph-reached node uses the
 same canonical node key as its vector/text occurrence. Do not key by branch:
@@ -37,7 +62,7 @@ routing/error behavior rather than invent body-based salvage. If correct
 classification cannot be proved with existing37, stop that route for review;
 no schema fix or new corruption vocabulary is authorized.
 
-The identity ruling must also choose same-record graph provenance: recommend
+Owner seq-374 selects same-record graph provenance as
 existing representative-first ownership (vector input, then text, then graph),
 with the existing first-winning graph path retained separately for a graph-only
 representative/evidence. Never replace a node's own source with a body twin's
@@ -45,11 +70,14 @@ edge source. Preserve current nested graph fusion, graph logical visited set,
 confidence mapping, recency→importance→CE ordering and their candidate domains.
 This is an identity change, not a new graph-ranking experiment.
 
-Public refs can repeat even today in historical SDK results. Follow the
-[feedback decision](feedback-decision.md): recommend refusing labels ambiguous
-across distinct cursors without changing logical fetch. The alternative can be
-an MCP-only feedback_ref; no engine ABI is presumed. Parent obtains the actual
-ruling and coordinates its smallest affected adapter boundary with60/80.
+Public refs can repeat even today in historical SDK results. Owner seq-375
+selects the [feedback correction](feedback-decision.md): atomic refusal of named
+labels ambiguous across distinct cursors only for otherwise-recordable calls,
+with existing not_recorded precedence and zero partial label writes. Implement
+this in .29 before exposing repeated-reference MCP views; logical fetch stays
+unchanged. .30 reviews precise per-result feedback through richer occurrence
+labels. No new public field/ABI is selected. Parent coordinates the adapter seam
+with60/80 and reruns both-format parity on the integrated identity build.
 
 ## Context packing and role-tagged stored bodies
 
@@ -57,8 +85,8 @@ Preserve context_item_from_hit's prefixed public ID and stored-body decoding,
 and pack_context's upfront uniqueness check across hits/context. The code-backed
 consumer trace is in [census](census.md). Equal anonymous stored-body twins would
 now produce two helper items with one h: ID and typed packing refusal; historical
-same-l: revisions already demonstrate that ID is not an occurrence label. Include
-the newly exposed success→refusal in the identity ruling. Do not quietly weaken
+same-l: revisions already demonstrate that ID is not an occurrence label. Owner seq-374 explicitly accepts
+that newly exposed success→refusal. Do not quietly weaken
 pack validation, deduplicate/drop records or mint IDs to hide that consequence.
 
 A caller needing both occurrences can already construct ContextItems with unique
@@ -66,8 +94,8 @@ caller labels and keep its own label→selected-record map. Copy parts/metadata 
 use the same labels for full_ids; do not describe those packing labels as engine
 record identity. If automatic helper→pack acceptance of all records is required,
 propose that public helper/pack change separately for owner choice. No ID override,
-new field or ABI is selected by this design; preserved validation is the proposed
-default disposition pending the identity ruling's explicit consequence review.
+new field or ABI is selected by this design; preserved validation is the selected
+disposition under seq-374.
 
 O3-09 includes two fixture families: identical **stored tagged bytes** on distinct
 records/sources, and equal decoded plain text with different role tags. Compare
@@ -181,7 +209,13 @@ version claim is presented here.
 Use per-behavior runtime REDs and work/allocator witnesses in [test map](test-map.md).
 Latency claims require actual30 inputs and isolated untraced repeats; no timing
 assertion replaces exact work. Current performance targets, unchanged full-gate
-rules and no-migration constraints remain. Stop affected work on unruled identity,
-missing authorized census, unproved bound, divergent score/provenance/Unicode,
+rules and no-migration constraints remain. Stop affected work on missing actual baseline/source prerequisites,
+unproved bound, divergent score/provenance/Unicode,
 source-dependency bypass or required storage change. Continue unrelated approved
 work; do not create new release gates or infer policy waivers.
+
+Private Memex runtime census measures population frequency/benefit only. It is
+not required for the selected no-migration format37 change; existing source/
+consumer inspection plus real synthetic SQLite fixtures, independent oracles and
+properties provide correctness evidence. Reconcile those against actual source
+at entry; do not substitute population counts for baseline/performance evidence.

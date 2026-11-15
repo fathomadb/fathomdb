@@ -7,6 +7,15 @@ slice: 130
 
 # Slice 130 — CUDA platform, SDK release and soak qualification
 
+Owner 2026-11-14 seq-378 moves only proposed new x86 CUDA13 delivery/compiler
+work formerly in120 to [.31](../../../0.8.31/cuda-delivery-plan.md). Independently
+directed Tegra130A and130B–E remain in .29 with their own selected target/artifact/
+venue prerequisites. References below to120 artifacts mean applicable independently
+selected artifacts, not an assumed new x86 CUDA13 package or a blanket120 gate.
+Seq-376/377 selects110 source/seam repairs but holds Orin/3090 reset children for
+.30;130 adds no live-reset gate or reset-survival claim. Seq-379 accepts bounded
+quantitative unknowns/current ratings; quantitative evidence is .31.
+
 ## Phase A scope
 
 Read-only reconciliation and review candidates, with no source implementation,
@@ -49,10 +58,11 @@ Astra-medium design PASS. This Phase A claims none of those exits.
 | B characterization → C change decision | Evidence dependency; a successful forward alone does not justify removing an accepted hook. |
 | D before E; cheap controls before long/paid cells | Preferred order, avoiding wasted runs; no invented release-wide gate. |
 
-120 still awaits artifact selection/identities/channels/Rust-CLI scope and compiler
-6111901 disposition;110 awaits exact fault envelope. No automatic CUDA13.2 upgrade
-or new support follows. Final affected130 qualification needs actual final pins
-and artifacts. Pin movement invalidates only affected receipts after explicit
+New x86 CUDA13 package/channel/compiler choices formerly in120 belong to .31;
+110's policy is selected but live reset execution remains HELD .30. No automatic
+CUDA13.2 upgrade or new support follows. Final affected130 qualification needs
+actual independently selected final pins and artifacts for its own cells.
+Pin movement invalidates only affected receipts after explicit
 comparison; unchanged evidence is reusable with recorded blast radius.
 
 ## Execution after readiness

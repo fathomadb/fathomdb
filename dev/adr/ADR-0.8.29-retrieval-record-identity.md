@@ -1,20 +1,22 @@
 ---
 title: Retrieval record identity for fusion and provenance
-status: proposed; HITL decision required
+status: accepted; implementation pending
 target_release: 0.8.29
 ---
 
-# Proposed retrieval record identity
+# Retrieval record identity
 
 ## Context and authority
 
 Slice9 Batch3 approves identity census and an ADR **before** exact text/snippet
-implementation; it does not select a successor. Current source at frozen parent
+implementation. Owner 2026-11-14 selects the successor below (seq-374); source implementation and qualification remain pending. Current source at frozen parent
 `2f6913c1d59ac8ff3a30de835b57290a8635998c` deliberately merges equal bodies.
 [Source/consumer census](../plans/0.8.29/features/slice-50/census.md) and
 [requirements](../plans/0.8.29/features/slice-50/requirements.md) document the
-actual delta. Runtime authorized-snapshot census and actual30 baseline remain
-missing; no measured frequency/benefit or source entrance follows from this ADR.
+actual delta. The source/consumer census covers the approved census scope without a private
+Memex snapshot. Optional runtime population characterization supplies frequency/
+benefit evidence, not migration or correctness proof. Actual30 baseline/source
+prerequisites remain; no measured benefit or source entrance follows from this ADR.
 
 Accepted constraints retained:
 
@@ -28,15 +30,15 @@ Accepted constraints retained:
 - Existing format37/visibility/span substrate only; owner seq-368 allocates no
   database migration. No pre-1 compatibility shim or optional legacy-fusion knob.
 
-## Alternatives requiring owner selection
+## Alternatives considered and selected decision
 
 | Option | Result and consequence | Recommendation |
 | --- | --- | --- |
 | Keep body identity | Equal text across revisions, sources and node/edge rows merges; representative provenance can hide other records. Lightweight exact retrieval must still discover body equivalence. | Viable only if HITL explicitly wants text-unit presentation; current behavior, no successor inferred. |
 | Logical/public-ID identity | Versions of one l: merge; h: twins still merge; node/edge logical-string collisions need namespace policy. Changes remain necessary for mixed governed/anonymous cases. | Not recommended for historical record retrieval; entity-centric semantics would need explicit representative/version selection. |
-| Snapshot-local record-version identity | Canonical(Node/Edge,cursor); explicit ownerless node FTS uses (table,rowid). Same record across arms agrees; distinct records retain provenance even with equal body or public ID. | Recommended for review, conditional on HITL and census disposition. Does not redefine canonical lifecycle/public ID. |
+| Snapshot-local record-version identity | Canonical(Node/Edge,cursor); explicit ownerless node FTS uses (table,rowid). Same record across arms agrees; distinct records retain provenance even with equal body or public ID. | Selected by owner 2026-11-14. Does not redefine canonical lifecycle/public ID. |
 
-Under the recommended option: original arm positions are not renumbered after
+Under the selected snapshot-local record-version option: original arm positions are not renumbered after
 repeat-credit suppression; each record contributes once per arm at first rank.
 Preserve K30 and weights1/3/1, score accumulation order, vector-input tie preference
 and stable insertion ties. Keep direct-text candidate policy and node-then-edge
@@ -44,10 +46,10 @@ text concatenation. Existing nested graph fusion is unchanged; this ADR selects
 identity, not a ranking experiment.
 
 Graph traversal still visits logical entities/resolves the latest eligible node
-as designed. Recommended provenance is existing representative-first ownership
+as designed. Selected provenance is existing representative-first ownership
 (vector input, then text, then graph); graph-only representatives retain the first
 winning edge/entity seed and separate evidence origin. A body twin never lends
-source/span/coverage. This recommendation is part of the pending ruling.
+source/span/coverage. Owner selected this provenance policy with record-version identity.
 
 Ownerless FTS is an explicit case, not permission to infer canonical ownership
 from public IdSpace or branch. Keep ownerless content identity and absent source
@@ -59,14 +61,15 @@ storage to repair it. The source carrier must retain the real FTS locator.
 
 [Repeated-ref decision](../plans/0.8.29/features/slice-50/feedback-decision.md)
 separates existing historical SDK duplicates,60's newly reachable adapter flags,
-and additional50 equal-body exposure. Recommend bounded Unique/Ambiguous
-feedback state and typed refusal only for otherwise-recordable ambiguous labels,
-with existing not_recorded precedence. Alternative: MCP-only response-local
-feedback_ref beside unchanged logical ref. Neither alternative is selected here.
+and additional50 equal-body exposure. Owner selected bounded Unique/Ambiguous
+feedback state and atomic typed refusal for named ambiguous labels only on
+otherwise-recordable calls, preserving existing not_recorded precedence. The
+correction is planned for .29; richer per-result occurrence labels are a .30
+review follow-up, not a deferral of the .29 fix. No new public field is selected.
 Logical fetch remains latest-eligible under its requested view and does not
 promise exact searched revision retrieval. A feedback fix does not change it.
 
-## Context-packing consequence requiring explicit disposition
+## Selected context-packing disposition
 
 The existing SDK context_item_from_hit copies IdSpace's prefixed value and
 returns parts decoded from the stored body (`standalone.rs:304–317`). Existing
@@ -77,8 +80,8 @@ changes from one packable item to duplicate-ID refusal. Different-body historica
 versions already can share l: and refuse today. Do not promise packability from
 record-unique fusion when public IDs are not occurrence-unique.
 
-Propose preserving these helper/pack/codec contracts and explicitly acknowledging
-that composed consequence in the identity ruling. Existing caller-owned unique
+Owner explicitly preserves these helper/pack/codec contracts and acknowledges
+that composed consequence. Existing caller-owned unique
 ContextItem labels plus a label→selected-record map can represent both items;
 packing labels are not IdSpace, artifact revisions or stable engine IDs. If the
 owner requires automatic helper→pack acceptance of every hit list, a separate
@@ -90,7 +93,7 @@ and equal plain text with different tags. Assert chosen records, exact stored
 bytes and original-body snippet coordinates; preserve codecs. Stage identity
 assertions before the identity fix; unchanged codec/pack assertions are controls.
 
-## Consequences if accepted
+## Implementation consequences
 
 - Carry selected keys through fusion, explanation ranks/scores, graph exclusion,
   weighting/evidence/snippets and final same-build SDK/MCP parity. Preserve actual
@@ -100,7 +103,7 @@ assertions before the identity fix; unchanged codec/pack assertions are controls
   implementation design must reconcile that helper contract with the internal
   keyed carrier before code. Do not guess keys from branch/body or introduce a
   compatibility adapter. Any public signature/type delta requires its interface
-  update and review; this proposal does not silently select an added API.
+  update and review; this decision does not silently select an added API.
 - Amend maintained body-dedup language in `dev/interfaces/rust.md`,
   `dev/interfaces/rust-sdk.md`, `dev/interfaces/python.md`,
   `dev/interfaces/typescript.md`, affected historical-view/retrieval designs,
@@ -113,7 +116,10 @@ assertions before the identity fix; unchanged codec/pack assertions are controls
 
 ## Decision status
 
-PROPOSED. Identity, graph representative/provenance and ambiguous-label policy
-await HITL; missing authorized runtime census remains visible. Parent requests
-independent Astra-medium design review and records exact rulings. No acceptance,
-policy waiver, production code or30/Block1 clearance is claimed.
+ACCEPTED by owner 2026-11-14 (seq-374 identity/packing; seq-375 feedback): snapshot-local
+record/version identity, representative-first provenance, unchanged helper/pack
+contracts and atomic ambiguous named-ref feedback refusal. These are selected
+planned .29 changes, not shipped behavior. Source-entry baseline, independent
+design/code review, genuine RED/GREEN, exact-route proof and qualification remain
+required. No migration, private-snapshot dependency,30/Block1 clearance or
+runtime population/benefit claim follows.

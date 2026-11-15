@@ -196,9 +196,10 @@ Paths in this section are relative to `src/rust/crates/`.
 
 Current engine body identity may change under accepted Slice50 successor.
 Render the ordered typed result unchanged; do not deduplicate on ref/body or
-convert results into sets. Feedback's current ref→cursor behavior is unchanged;
-any distinct-version ref ambiguity belongs to50's identity contract, not this
-format implementation. Final parity reruns on the integrated selected identity.
+convert results into sets. Owner seq-375 selects atomic refusal of named feedback refs mapping to
+distinct cursors, after existing not_recorded guards and before all label writes.
+The selected .29 correction must precede repeated-reference view exposure; it
+adds no field or ref ABI. Current source is unchanged until implementation. Final parity reruns on the integrated selected identity.
 
 ## Protocol and pinned APIs
 

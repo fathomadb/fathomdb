@@ -1,5 +1,10 @@
 # Slice 130 test and evidence map
 
+[Active owner dispositions](plan.md#phase-a-scope) retain independent130A/B–E;
+new x86 CUDA13 delivery/compiler work is .31 and real110 resets are HELD .30.
+References to120 artifacts below mean applicable independently selected artifacts,
+not a mandatory new x86 package or blanket120 dependency.
+
 Existing source was inspected, not executed. Full files read for release tests,
 early-init/fork controls and documented contracts; related device/build/SDK paths
 were inspected by relevant symbols. Preserve existing assertions/gold. Test names

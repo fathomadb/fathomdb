@@ -204,6 +204,12 @@ Astra-medium implementation review gates landing; publication is not authorized.
 | - | -------- | ------------------ | ------------ | -------- |
 | 71 | interface | Method-selected v2 GPU allocation proof using live private-pool USED on integrated devices, unchanged64MiB floor and checked control release | Accepted technical design under Slice95 repair scope; Astra approval; implementation/qualification pending; no new HITL ruling declared | [ADR-0.8.28-attributable-cuda-allocation-witness.md](ADR-0.8.28-attributable-cuda-allocation-witness.md) |
 
+## Phase 0.8.29 retrieval record identity
+
+| # | Category | Candidate decision | HITL verdict | ADR file |
+| - | -------- | ------------------ | ------------ | -------- |
+| 72 | architecture | Fuse the same snapshot-local stored record/version across arms; retain equal-body distinct records, representative-first provenance and unchanged public helper/pack contracts; atomically refuse ambiguous named feedback refs for otherwise-recordable calls | accepted owner 2026-11-14 seq-374/375; implementation and qualification pending | [ADR-0.8.29-retrieval-record-identity.md](ADR-0.8.29-retrieval-record-identity.md) |
+
 ## Categories
 
 acceptance | architecture | design | interface.

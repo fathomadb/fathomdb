@@ -6,6 +6,18 @@ change the existing expected-signal test merely to make a code change green.
 After the selected contract is proved, retire that active characterization with
 an explicit source/ADR successor in the reviewed implementation.
 
+## Active .29 and deferred live tests
+
+Owner seq-376 selects quiescent completed-construction/frozen-live-set residue
+until restart, with opaque native host bytes unbounded. Seq-377 holds actual
+Orin/3090 reset execution for [.30 review](../../../0.8.30/release-followups.md).
+F1–F8 and F11's partial-load source seam remain .29 work with applicable healthy/
+OOM/installed lifecycle controls. F9/F10 and reset-dependent F11 consumer/fresh-
+process cells below are future held tests, not mandatory .29 gates or observed
+REDs. Their specification is retained for future proof; no real reset survival
+or original-defect closure is claimed. Do not retire the crash characterization
+until actual qualified successor evidence exists.
+
 ## RED/GREEN order and actual oracles
 
 Fork tests live in each fork's `fathomdb/` plan and native Rust modules. Product
@@ -36,9 +48,9 @@ do not invent a defect or claim a new RED. Preserve tests during fix-to-spec.
 | F6 product admission | `lost_generation_refuses_build_before_allocation`, `lost_embed_and_batch_are_typed`, `lost_rerank_is_never_neutral`: before native work require exact typed payload/codes and zero allocation calls. Retry twice after failed load, and cached successful singleton score. | Product policy/BGE/rerank admission and mapping, one behavior at a time. A1/A4. |
 | F7 close diagnostics | `loss_snapshot_does_not_query_lost_pool`, `concurrent_loss_emits_one_snapshot`, `last_model_loss_skips_sync_and_trim`: actual once-gate and native-call spy, not expected-text-only tests. Cached/current id provenance is checked. | Product snapshot, last guard integration; never hide cleanup faults under catch_unwind. A1/A2/A5. |
 | F8 state/property cases | `generation_loss_is_monotonic_across_clone_drop_sequences`: proptest bounded create/clone/admit/drop/transient-OOM/detect sequences against a small human-specified state machine. Require no post-loss native work, at-most-once cleanup, no live-set growth; reconcile wrappers released. | Owning fork recovery-layer properties. New behavior defects found get their own RED/GREEN; broad passing property coverage is not retroactive RED. A2/A4/A5. |
-| F9 original defect | `gpu_orin_private_reset_refuses_and_exits_normally`: real cached CUDA forward, coordinated sync/reset, two typed failures, one snapshot, explicit torn-down marker and exit0. Existing implementation fails with signal11; no missing-GPU skip counts as RED. | Qualified C→necessary K→product pins; real Orin child closes the original unsafe seam only after all above protections. A1–A3/A6. |
-| F10 no-forward/clone lifetime | `gpu_reset_immediate_close_exits_normally` and `gpu_reset_last_tensor_clone_drop_exits_normally`: reset with live objects then no forward; close/drop thread order varied, final clone deliberately outlives model/engine. Explicit completion markers/exit0 required. | Actual destructor discovery/whole-graph proof; independently expose paths earlier case cannot reach. A2/A3. |
-| F11 consumers/partial unwind | `installed_reset_lifecycle_{rust,python,node}`: completed native object load before coordinated reset, explicit readiness/reset/drop completion, exit0 and real DB reopen where engine attached. Separately, `partial_load_loss_unwinds_without_native_work` exercises production cleanup through a loss seam. | Product/native lifecycle parity; partial-load loss is seam-only and cannot count as a real reset case. A1–A3/A6. |
+| F9 original defect — HELD .30 | `gpu_orin_private_reset_refuses_and_exits_normally`: real cached CUDA forward, coordinated sync/reset, two typed failures, one snapshot, explicit torn-down marker and exit0. Existing implementation fails with signal11; no missing-GPU skip counts as RED. | Qualified C→necessary K→product pins; real Orin child closes the original unsafe seam only after all above protections. A1–A3/A6. |
+| F10 no-forward/clone lifetime — HELD .30 | `gpu_reset_immediate_close_exits_normally` and `gpu_reset_last_tensor_clone_drop_exits_normally`: reset with live objects then no forward; close/drop thread order varied, final clone deliberately outlives model/engine. Explicit completion markers/exit0 required. | Actual destructor discovery/whole-graph proof; independently expose paths earlier case cannot reach. A2/A3. |
+| F11 consumers HELD .30 / partial unwind active .29 | `installed_reset_lifecycle_{rust,python,node}`: completed native object load before coordinated reset, explicit readiness/reset/drop completion, exit0 and real DB reopen where engine attached. Separately, `partial_load_loss_unwinds_without_native_work` exercises production cleanup through a loss seam. | Product/native lifecycle parity; partial-load loss is seam-only and cannot count as a real reset case. A1–A3/A6. |
 
 ## Fault/control matrix and deadlines
 
@@ -50,7 +62,7 @@ GPU identity must precede injection; retain the actual status and minimal output
 
 | Cell | Case and observable result | Claim limit |
 | --- | --- | --- |
-| Orin AGX64/CUDA12.6 private pool |1: reset then typed single/batch/rerank refusals;2: reset→no-forward close;3: last-clone drop after completed construction. Post-drop/close markers and normal exit0. | Required original-defect cell. Cached weights and current source-built native consumers. Partial-load real reset excluded; missing venue blocks closure. |
+| Orin AGX64/CUDA12.6 private pool |1: reset then typed single/batch/rerank refusals;2: reset→no-forward close;3: last-clone drop after completed construction. Post-drop/close markers and normal exit0. | Future original-defect proof, HELD .30; not a .29 gate. Cached weights and current source-built native consumers. Partial-load real reset excluded; missing venue blocks closure. |
 | Selected3090/CUDA12.6 default pool | Same three cases only if explicitly permitted, selected UUID; default allocator identity checked. | Separate control; never substitutes for Orin private pool. |
 | Synchronous allocation | Native cleanup branch seams plus real cell only where this allocator can actually be selected without altering product policy. | No fake allocator report or forced product fallback to manufacture coverage. Unmeasured stays unclaimed. |
 | Healthy matching build/device | Actual load/forward/close/drop, exact live allocation/pool USED release and last-model sync/trim; clones delay release until last owner. | Preserve accepted healthy allocator/release behavior, including static first context. Do not use Tegra cuMemGetInfo alone as release proof. |
@@ -59,7 +71,7 @@ GPU identity must precede injection; retain the actual status and minimal output
 | Fresh process | Parent reaps lost child, new child builds same device/model and performs real forward then normal close/exit. | Process-restart recovery only; no inference of old-generation reconstruction. |
 | CPU/driverless/forced device | Existing REQ-068/AC-082 preservation tests with changed features/pins, actual CPU nonuse and forced typed failure. | No CUDA initialization through lifetime registry on CPU paths. |
 
-Proposed caps for owner decision are120 seconds per ready child,30 minutes per
+Future proposed caps, not granted execution, are120 seconds per ready child,30 minutes per
 venue,8GiB GPU and16GiB owned host memory; no new public deadline or product
 opaque-memory bound follows. Install/build only in a released heavy window with
 checkout-owned environments. SDK process-level residue must not be inferred
@@ -84,7 +96,10 @@ error parity, healthy/OOM preservation and any missing support cells. Canonical
 Markdown/view checks run on parent import; no build/full gate for this draft.
 No supplementary audit packets, receipt inventories or status appendices.
 
-A1 joins F1/F6/F7/F9/F11; A2 joins F2–F5/F8/F10; A3 joins F3/F4/F5/F9–F11;
-A4 joins F1/F2/F6/F8/fresh-process control; A5 joins F4/F7/F8/healthy/OOM controls
-and the explicit owner residue ruling; A6 joins qualified pins/F9–F11/actual cell
-identities. A count test cannot close the unresolved hard-byte-policy choice.
+For the selected .29 source exit, A1 joins F1/F6/F7; A2 joins F2–F5/F8 and
+source cleanup seams; A3 joins F3/F4/F5 and F11 partial unwind; A4 joins F1/F2/
+F6/F8; A5 joins F4/F7/F8 plus healthy/OOM controls and the explicit seq-376
+residue policy; A6 joins qualified consumed pins and applicable actual healthy
+consumer identities. The historical full-support join additionally needs F9–F11
+live/fresh-process cells, now HELD .30 under seq-377. A count test proves neither
+a universal hard byte bound nor real reset survival. No native test ran here.

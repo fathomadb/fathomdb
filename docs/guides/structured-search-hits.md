@@ -49,6 +49,28 @@ descending (vector-first tiebreak), deduplicated on body. See
 [Hybrid search & filtering](hybrid-search-filtering.md) for the full ranking +
 filter model.
 
+## Selected 0.8.29 changes (implementation pending)
+
+The selected 0.8.29 design will fuse occurrences of the same stored record/version
+across retrieval arms, while retaining distinct versions and sources even when
+their bodies match. Provenance will keep the existing representative preference:
+vector, then text, then graph. Public `IdSpace` values will remain unchanged;
+several returned records can therefore share one public ID. This is planned
+behavior, not a claim that record-based fusion has shipped.
+
+`context_item_from_hit` keeps deriving its item ID from the public ID, and
+`pack_context` keeps rejecting duplicate item IDs. Callers needing both records
+can supply unique packing labels and retain a label-to-selected-record map.
+Those labels do not change engine identity.
+
+The selected MCP correction will atomically reject otherwise-recordable feedback
+that names a ref shared by distinct returned records, without recording partial
+labels. Existing `not_recorded` outcomes keep their precedence. Logical fetch
+continues to select the latest eligible revision for its requested view; a
+search ref does not promise an exact historical-revision fetch. The feedback
+correction is planned for 0.8.29; richer per-result feedback labels require a
+later review. Store format37 and the no-migration decision remain unchanged.
+
 ## Python
 
 ```python

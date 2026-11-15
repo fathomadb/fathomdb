@@ -1,24 +1,15 @@
 //! Private deterministic D workload; no model, GPU or performance verdict.
-use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
+use fathomdb_embedder_api::Embedder;
+#[path = "slice30_d_measure/provider.rs"]
+mod provider;
+use provider::VaryingEmbedder;
 use std::process::ExitCode;
 
-const DIMENSION: u32 = 768;
 const CORPUS_SEED: u64 = 0x0AC0_13D0_13D0;
 const QUERY_SEED: u64 = 0x0AC0_130D_EC0D_E000;
 const SEED_BATCH: usize = 1000;
 const QUERY_COUNT: usize = 500;
 const NATURAL_CALLS: usize = 1000;
-
-struct VaryingEmbedder;
-impl Embedder for VaryingEmbedder {
-    fn identity(&self) -> EmbedderIdentity {
-        EmbedderIdentity::new("varying", "perf-gates-dense", DIMENSION)
-    }
-
-    fn embed(&self, _text: &str) -> Result<Vector, EmbedderError> {
-        Err(EmbedderError::Failed { message: "deterministic D generator is unavailable".into() })
-    }
-}
 
 fn main() -> ExitCode {
     let identity = VaryingEmbedder.identity();
@@ -37,6 +28,7 @@ fn main() -> ExitCode {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use fathomdb_embedder_api::EmbedderIdentity;
 
     #[test]
     fn fixed_provider_has_reproducible_signed_normalized_768d_vectors() {

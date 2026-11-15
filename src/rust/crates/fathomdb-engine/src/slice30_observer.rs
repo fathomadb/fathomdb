@@ -405,6 +405,13 @@ pub struct Slice30ProjectionObservationGuard {
 
 #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
 impl Slice30ProjectionObservationGuard {
+    /// Return this collector's process-local engine and engine-local session IDs.
+    /// This reads stored metadata without SQL, callbacks, wake or new admission;
+    /// a retired guard continues to name its original session.
+    pub fn owner_identity(&self) -> (usize, u64) {
+        (self.collector.engine_id, self.collector.session_id)
+    }
+
     /// Run work with this engine/session and caller-assigned operation identity.
     /// Nested calls and unwind restore the prior context; work returns unchanged.
     pub fn with_operation<R>(&self, operation_id: u64, work: impl FnOnce() -> R) -> R {

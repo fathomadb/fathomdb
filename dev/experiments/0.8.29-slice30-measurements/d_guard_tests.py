@@ -122,6 +122,9 @@ class DGuardianTests(unittest.TestCase):
             with self.subTest(refusal=refusal), tempfile.TemporaryDirectory(prefix="d-refusal-", dir=task/"tmp") as temporary:
                 allocation = Path(temporary)
                 ledger, budget, profile = self.fixture(allocation)
+                budget["common_used_ns"]["D"] = 19
+                budget["used_ns"] += 19
+                ledger.write_text(json.dumps(budget))
                 ready = allocation/"forbidden-start"
                 if refusal == "unknown-time":
                     profile["reserved_other_work_ns"] = None
@@ -139,7 +142,24 @@ class DGuardianTests(unittest.TestCase):
                     allocation=allocation, profile=profile, root=allocation/"results", task=task)
                 self.assertFalse(ready.exists())
                 self.assertNotEqual(result["exit"], 0)
-                self.assertEqual(json.loads(ledger.read_text()), budget)
+                self.assertEqual(result["state"], "held")
+                self.assertGreater(result["elapsed_ns"], 0)
+                final = json.loads(ledger.read_text())
+                if refusal in ("unknown-time", "unknown-bytes", "reserved-time", "reserved-bytes"):
+                    charge = final["used_ns"]-budget["used_ns"]
+                    self.assertGreater(charge, 0, "owned D refusal lost its actual entry charge")
+                    self.assertEqual(charge, final["common_used_ns"]["D"]-19)
+                    self.assertEqual(result["charged_ns"], charge)
+                    self.assertEqual(final["common_used_ns"], {"M": 17, "D": 19+charge})
+                    self.assertEqual(final["cell_used_ns"], {"g-prior": 101})
+                    self.assertIsNone(final["inflight"])
+                    self.assertIsNone(final["d_guardian"])
+                    for key, value in budget.items():
+                        if key not in ("used_ns", "common_used_ns"):
+                            self.assertEqual(final[key], value)
+                else:
+                    self.assertEqual(final, budget)
+                    self.assertIsNone(result["charged_ns"])
 
 
 if __name__ == "__main__":

@@ -2,31 +2,58 @@
 title: Slice 60 — test bodies, independent oracles and TDD sequence
 status: PLAN_READY
 target_release: 0.8.29
-observed_on: 2026-11-10
+observed_on: 2026-11-15
 ---
 
 # Slice 60 — test bodies, independent oracles and TDD sequence
 
-## Evidence and mapping
+## Current F11 test sequence
 
-Source-only at `ad102de7630141762aee28123fac57cbef9f61d5`; no product command
-has run. Complete selected test files read: MCP search.rs, schema.rs,
-fetch_expand.rs, config.rs, protocol.rs, determinism.rs, hints.rs,
-hints_properties.rs, hints_baseline.rs and common/mod.rs; engine
-slice90_filtered_body_fts.rs. Paths below use `src/rust/crates/` prefix.
-Existing admission/lifecycle/full feature suites are retained verification
-candidates, not newly claimed full-body audits. Actual10 source104dcbcbe92a1eca730d146b99ab17d444df6217
-is independently reviewed/integrated and closed at parentd7d928f8e49d7af6a792385534f4e991c13232b3.
-MCP/SDK product source/tests and direct-text selection logic are unchanged at
-integrated20 witness657edeb76caaf9c8d2aab433766bec9362e73217; engine evidence
-hooks now require their owning &Engine and preserve bounded parallel controls.
-Current canonical needs/requirements/ACs, master allocation, JSON and board were
-reread. Committed metadata-only37f9eba37d74904d8e67a9192f6c8ef8c4f2ec47
-was rechecked with clean HEAD/local release ref; repeat at actual source entry.
-10's18 RED/GREEN pairs,214 registrations and assembled qualification are its
-recorded evidence, not60 runs or uninterrupted full-green. Parent confirms60
-Astra design PASS after FIX1; all approved oracle/behavior clauses below remain.
-Reviewed3/4/5/9 actual allocation/alignment/E3/E4/S5-G4/G6 limits still govern.
+Entry453b640f includes qualified subset5271 and integrated50
+`9036507bc98ef31c05ae334aa22ec5101323c7e7`, completed70 and accepted80 design.
+The initial source reconciliation found both flags missing. After independent
+plan acceptance, actual per-unit assertion RED→GREEN covers superseded exposure,
+null/presence validation and inactive/combined exposure. All10 frozen tests now
+pass in search_views/null_view_flags. [Execution](execution.md) retains exact
+subjects and the original timed-edge fixture failure/correction. Existing50
+feedback guard/race tests remain controls; fetch's own four-view parity does not
+replace search-view proof. Final coherent review/source qualification remain.
+
+Approved pre-fix sequence (now executed through scoped GREEN):
+
+- F11a RED: baseline-callable real MCP JSON superseded selection, authored
+  old/current and equal-body revision occurrences plus same-build SDK positional
+  ID/body/order/score controls in both formats and both routes. Structured scores
+  equal SDK raw values; compact scores equal their accepted three-decimal display.
+  Stage false/absent identity equality, true identity difference, fixed validity
+  and stored-view continuation/explicit-false override checks before GREEN.
+- F11b RED: inactive and combined flags select authored current/pending/deleted/
+  superseded nodes and edges under their actual validity/source-closure rules.
+  Stage malformed bool types and filter conjunctions before inactive GREEN.
+  Replace the obsolete true-flag refusal with wrong-type validation before the
+  related GREEN; freeze those assertions while repairing implementation.
+- Stage both-format repeated-ref historical-search→feedback composition before
+  F11 GREEN. Recordable hybrid names of ambiguous revisions must write zero
+  labels; mixed unique/ambiguous calls are atomic. Text/telemetry-off retain
+  not_recorded. Existing50 same-cursor/acquisition/final-epoch tests remain
+  controls. Fetch remains latest eligible, not exact searched-revision lookup.
+- Stage both-format constrained budgets and flag/filter continuation traversal
+  before the corresponding fix. Require whole-hit progress for no-gap claims;
+  tiny budgets keep accepted zero-progress/refusal semantics. Preserve hosted
+  continuation_exact=false and reopen/cross-store/expired refusal controls.
+- Each actual behavior gets its observed assertion RED commit then separate
+  GREEN. Already passing assertions remain controls; no fabricated failure,
+  missing-helper compile RED or repeat test solely for attribution.
+
+## Original subset oracle mapping
+
+The table and F01–F14 register below retain the original preimplementation
+baseline and authored oracles. F01–F10 and the direct-filter/budget portions of
+F12–F14 are implemented/qualified in [execution](execution.md); their old source
+descriptions are dated evidence,
+not current gaps. F11 and its affected composition are now scoped passing as
+above; this is not final integrated qualification.
+Paths below use `src/rust/crates/` prefix.
 
 | Need / requirement → AC | Actual body and current oracle limit | Future failing assertion and independent expected result |
 | --- | --- | --- |
@@ -185,12 +212,12 @@ parent confirms terminal60 design PASS after tiny-budget FIX1. Preserve it durin
 source work; a material allowlist/oracle change requires renewed independent review. The EP03 healthy-byte PINNED golden is a separate engine/native oracle;
 leave it unchanged. Approved formatting is not a waiver for other byte contracts.
 
-## Future RED/GREEN order
+## Original RED/GREEN dependency order
 
 For every changed behavior: add tests against existing public APIs/JSON, run
 selected test until its contract assertion genuinely fails, commit that RED with
 raw assertion/command/exit evidence, then separate GREEN; tests are read-only
-while fixing. Audit each RED SHA in an isolated detached worktree later. No
+while fixing. No
 compile-error RED, new helper missing at compile time, “not RED” coverage commit
 or pass-on-arrival exception counts. New integration assertions must be staged
 before the final still-missing behavior they exercise, not counted as separate
@@ -285,26 +312,16 @@ existing control. This register adds no test-only policy exception.
 
 ## Verification after source work
 
-Actual10 closure and prior60 design PASS are satisfied. This actual20
-reconciliation passed fresh independent Astra-medium design recheck after the
-source-entry sequencing FIX (review-log.md), then requires parent
-GO. Parent first runs strict closed10/plan/disk preflight without --worktree,
-measures destination filesystems and creates the fresh60 worktree; then strict
-preflight with --worktree and target branch/HEAD/clean identity must pass before
-provisioning or implementation.20 holds do not block60 or supply a TDD exception.
-Reread any later integrated delta at that entry. Before installers/hooks/npm,
-use final helper --check-ownership; only --provision owns canonical venv creation,
-then --build/agent-build creates fresh source-bound noneditable artifacts.
-Verify exact source/delta/features/interpreter/ABI/native digest receipts, own
-root/TS modules and command-local exact Node/npm. No10 private tool/env/native
-path or receipt may be borrowed. Preserve sanctioned test-hook wheel/nonce/
-digest checks and TS hermetic build; use actual agent-test own-src/python
-PYTHONPATH only for pytest/children, and clear it for installed production smoke.
-Record both candidate and production identities separately.18 preparation pairs
-and214 current registrations are baseline evidence, not a fixed future count or
-60 test PASS.20's pending test-only TDD-policy question grants no exception to
-60's meaningful per-behavior observed RED/GREEN. Fresh heavy resource monitoring
-must preserve actual failures/interruption/skips and supervise only owned work.
+Strict closed10 preflight and fresh sole-writer checkout creation were completed
+by parent before this reconciliation. Fresh Astra-medium plan review precedes
+new tests/code. Wait for the parent-allocated native window before provisioning
+or execution. Run the canonical ownership check before installers; create own
+venv/modules and source-bound noneditable native through canonical helpers.
+Never execute sibling mutable environments or native artifacts. Canonical test
+children use this checkout's nonce-qualified candidate; installed production
+checks clear PYTHONPATH. Preserve real failures/interruptions/skips and strict
+ptrace requirements. Accepted earlier evidence is reusable without reexecution;
+new source still requires applicable qualification and independent final review.
 
 Focused commands use the owned checkout and selected features, for example
 `cargo test -p fathomdb-mcp --test config`, `--test schema`, `--test search`,
@@ -325,19 +342,12 @@ the old scratch report is not current evidence, nor is bridge HTTP behavior a
 stdio pass. Block1 exit owns composed feature/performance/smoke/remeasure after
 selected20–70; final combined160 and90's80+exit prerequisites stay distinct.
 
-## Selected feedback prerequisite for repeated-reference views
+## Integrated feedback prerequisite
 
-Owner seq-375 selects the .29 atomic ambiguous named-ref correction before F11
-exposes repeated-reference results. Stage a real telemetry-enabled hybrid
-response with distinct cursors sharing one ref; naming it must fail bad_argument
-with no labels written. Mixed unique/ambiguous named labels also write nothing.
-Retain unique and repeated-same-cursor success, unmentioned ambiguity, membership
-errors and existing not_recorded precedence as controls, in both formats. Pause
-a call naming an ambiguous ref after ready_epoch and before acquisition: concurrent
-unready/close and reopen under a new epoch must retain the existing acquisition-
-time/post-acquisition not_recorded outcomes with zero labels. Check ambiguity
-only after successful acquisition and final epoch validation, before cursor-label
-resolution and bridge/feedback writes. These are planned regression controls. Each
-changed behavior needs observed RED before GREEN; no execution is claimed here.
-Seq-374's identity/packing successor supplies final integrated parity. .30 richer
-occurrence-label review is separate from the required .29 refusal.
+Integrated50 implements seq-375's Unique/Ambiguous fold and atomic named-label
+refusal after acquisition/final epoch validation. Existing feedback tests cover
+mixed sets, unknown membership, unmentioned ambiguity, telemetry/text precedence,
+acquisition/reopen races and compact refusal. They are retained controls, not
+new60 REDs. F11 adds composition using newly reachable historical revisions;
+stage that composition before the flag fix, as above. .30 richer occurrence
+labels remain separate and add no .29 reference ABI.

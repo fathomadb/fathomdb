@@ -346,7 +346,7 @@ async fn invalid_arguments_are_typed_invalid_requests() {
         json!({"query": "river", "limit": 101}),
         json!({"query": "river", "max_tokens": 255}),
         json!({"query": "river", "mode": "vector"}),
-        json!({"query": "river", "include_superseded": true}),
+        json!({"query": "river", "include_superseded": "true"}),
         json!({"query": "river", "colour": "blue"}),
     ] {
         let error = harness.err("search", args.clone()).await;

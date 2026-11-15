@@ -138,6 +138,14 @@ pub struct SearchArgs {
     pub attributes: Option<BTreeMap<String, String>>,
     /// Validity instant, epoch seconds; defaults to now.
     pub as_of: Option<i64>,
+    /// Include superseded record versions; defaults to false. Null is invalid.
+    #[serde(default, deserialize_with = "deserialize_search_view_flag")]
+    #[schemars(with = "bool")]
+    pub include_superseded: Option<bool>,
+    /// Include records in a non-active lifecycle state; defaults to false. Null is invalid.
+    #[serde(default, deserialize_with = "deserialize_search_view_flag")]
+    #[schemars(with = "bool")]
+    pub include_inactive: Option<bool>,
     /// Results per page, 1..=100; default 10.
     #[schemars(range(min = 1, max = 100))]
     pub limit: Option<u64>,
@@ -237,6 +245,13 @@ pub struct FeedbackArgs {
     // Accepted so every tool takes the same argument; this tool emits no hints.
     #[allow(dead_code)]
     pub hints: Option<bool>,
+}
+
+fn deserialize_search_view_flag<'de, D>(deserializer: D) -> Result<Option<bool>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    bool::deserialize(deserializer).map(Some)
 }
 
 fn parse<T: DeserializeOwned>(arguments: Map<String, Value>) -> Result<T, ToolError> {
@@ -989,6 +1004,8 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
                 && args.created_after.is_none()
                 && args.attributes.is_none()
                 && args.as_of.is_none()
+                && args.include_superseded.is_none()
+                && args.include_inactive.is_none()
                 && args.limit.is_none()
                 && args.explain.is_none();
             if !only_paging {
@@ -1027,6 +1044,8 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
                 created_after: args.created_after,
                 attributes: args.attributes.clone().unwrap_or_default().into_iter().collect(),
                 as_of: args.as_of,
+                include_superseded: args.include_superseded.unwrap_or(false),
+                include_inactive: args.include_inactive.unwrap_or(false),
                 limit: limit as usize,
                 explain: args.explain.unwrap_or(false),
             };
@@ -1041,7 +1060,12 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
     }
     let telemetry = guard.info.telemetry;
     let (run_limit, page_limit) = shape::page_window(offset, canonical.limit, MAX_RANKED);
-    let view = ReadView { valid_as_of: Some(validity_instant), ..ReadView::default() };
+    let view = ReadView {
+        include_superseded: canonical.include_superseded,
+        include_inactive: canonical.include_inactive,
+        valid_as_of: Some(validity_instant),
+        ..ReadView::default()
+    };
     let request = canonical.clone();
     // While telemetry is on, hybrid searches run with explain so the query id
     // comes from this search's own correlation id, never the engine-wide

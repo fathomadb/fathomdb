@@ -235,5 +235,32 @@ own task; build logs/receipt are q1-seq383-build. No cleanup error was reported;
 exact registered/adopted actors were absent unconfined. Terminal resource facts:
 root112333529088B/task471280906240B/Mem32827817984B/owned46810037619B, within
 original limits. The lease returned immediately; no further debugger/fault ran.
-Seq-383's additional attempt is spent. The next source proposal in design.md is
-held for review; no product defect, new fault authority or100closure is inferred.
+Seq-383's additional attempt is spent; no product defect, new fault authority
+or100closure is inferred. The following source-only repair does not alter it.
+
+## Reviewed source-only delivery repair
+
+Independent Astra accepted96b508814's design before implementation. Late-error
+RED317d69f01 failed both packet timings on generic deadline attribution;
+GREEN61757a6d7 preserves the exact MI error before any snapshot/observer/retry.
+Delivery REDf67e21a0b failed14 pure-policy assertions and both affected scripted
+signal subcases against the old pidfd delivery path. It freezes the reviewed
+successor oracle before the new delivery implementation; historical scripted
+external-kill/continue intent and original real failures remain unchanged.
+
+The minimal repair explicitly selects the all-stopped witness thread, verifies
+one owned process/PID/executable and thread membership, re-reads native frame/PC,
+erasure stack, all native predicates and READY/nonce/ticket, then rechecks actor
+identity. It retains delivery-witness.json and issues exactly one GDB signal
+command, with no qualifying pidfd duplicate, intervening resume or fallback.
+Confirmed exited-signalled/SIGKILL still precedes snapshot and recovery utilities.
+
+The unchanged seven pure methods and affected short scripted-MI method pass;
+the latter includes positive synthetic SIGKILL and negative SIGTERM outcomes.
+Raw logs are logs/gdb-delivery-policy-{RED,GREEN}.log and
+logs/gdb-delivery-scripted-{RED,GREEN}.log in the existing own task. No actual
+GDB, inferior, native database or qualifying fault was launched. No old20controls,
+G2 or full gate was replayed. Scoped Ruff/Markdown validation and final independent
+implementation review assess this bounded source change; actual GDB/kernel signal
+delivery remains unqualified and requires a newly scoped real pair. Seq-383 is
+spent and the native lease remains elsewhere.

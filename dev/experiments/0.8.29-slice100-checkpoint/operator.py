@@ -515,6 +515,44 @@ class Debugger:
         os.close(self.slave)
 
 
+def revalidate_delivery(debugger, actors, witness):
+    """Bind GDB's current-thread signal to the still-stopped owned native witness."""
+    thread = witness.get("thread_id")
+    if witness.get("stopped_threads") != "all" or not isinstance(thread, str) or not re.fullmatch(r"[1-9][0-9]*", thread):
+        raise Unqualified("delivery requires an identified all-stop witness thread")
+    actors.check_inferior()
+    selected = debugger.command("-thread-select " + thread)
+    info = debugger.command("-thread-info")
+    threads = info.get("threads", [])
+    ids = [row.get("id") for row in threads]
+    if selected.get("new-thread-id") != thread or info.get("current-thread-id") != thread or thread not in ids or len(set(ids)) != len(ids) or any(row.get("state") != "stopped" for row in threads):
+        raise Unqualified("delivery thread selection/all-stop mismatch")
+    groups = debugger.command("-list-thread-groups --recurse 1").get("groups", [])
+    executable = str(debugger.args.binary.resolve())
+    if len(groups) != 1:
+        raise Unqualified("delivery requires exactly one owned process group")
+    group = groups[0]
+    members = [row.get("id") for row in group.get("threads", [])]
+    if group.get("type") != "process" or number(group.get("pid")) != actors.inferior or group.get("executable") != executable or sorted(members) != sorted(ids):
+        raise Unqualified("delivery process/thread ownership mismatch")
+    debugger.command("-stack-select-frame 0")
+    frame = debugger.command("-stack-info-frame")["frame"]
+    if any(frame.get(key) != witness["frame"].get(key) for key in ["addr", "func", "fullname", "line"]):
+        raise Unqualified("delivery native frame changed")
+    stack = [row["frame"] for row in debugger.command("-stack-list-frames")["stack"]]
+    values = {name: debugger.command("-data-evaluate-expression " + json.dumps(name))["value"] for name in witness["locals"]}
+    pc = number(frame["addr"])
+    instructions = debugger.command(f"-data-disassemble -s {pc} -e {pc + 16} -- 0")["asm_insns"]
+    if len(debugger.ready) != 1 or debugger.ready[0] != witness["ready"] or debugger.ready[0].get("nonce") != witness["nonce"] or debugger.ready[0].get("pid") != actors.inferior or debugger.ready[0].get("executable") != executable:
+        raise Unqualified("delivery READY identity changed")
+    fresh = dict(witness, frame=frame, stack=stack, locals=values, instructions=instructions,
+                 instruction_address=number(instructions[0]["address"]),
+                 ready_count=len(debugger.ready), done_count=len(debugger.done))
+    validate_witness(fresh, witness["subject"], actors.inferior, witness["nonce"])
+    actors.check_inferior()
+    return fresh
+
+
 def snapshot_database(case: Path) -> Path:
     """Preserve quiescent raw files before any SQLite/Engine observation or retry."""
     snapshot = case / "untouched"
@@ -619,7 +657,7 @@ def run_case(args) -> dict:
         addresses = [number(row["pc"]) for row in lines if number(row["line"]) == COPY_LINE]
         pc = number(stop["frame"]["addr"])
         instructions = debugger.command(f"-data-disassemble -s {pc} -e {pc + 16} -- 0")["asm_insns"]
-        witness = {"subject": subject, "pid": actors.inferior, "nonce": nonce, "ready_count": len(debugger.ready), "done_count": len(debugger.done), "frame": stop["frame"], "stack": stack, "locals": values, "relocated_line_addresses": addresses, "instruction_address": number(instructions[0]["address"]), "instructions": instructions, "ready": debugger.ready[0]}
+        witness = {"subject": subject, "pid": actors.inferior, "nonce": nonce, "ready_count": len(debugger.ready), "done_count": len(debugger.done), "frame": stop["frame"], "stack": stack, "locals": values, "relocated_line_addresses": addresses, "instruction_address": number(instructions[0]["address"]), "instructions": instructions, "ready": dict(debugger.ready[0]), "thread_id": stop.get("thread-id"), "stopped_threads": stop.get("stopped-threads")}
         validate_witness(witness, subject, actors.inferior, nonce)
         actors.check_inferior()
         (case / "witness.json").write_text(json.dumps(witness, indent=2) + "\n")
@@ -637,11 +675,12 @@ def run_case(args) -> dict:
                 raise Unqualified("normal healthy DONE missing")
             result.update(status="QUALIFIED_HEALTHY", exit=0, done_count=1)
         else:
-            # No timeout/earlier-run witness reaches this branch.
-            actors.kill_inferior()
-            # A stopped MI target needs an execution transition to report its pending exit.
+            delivery = revalidate_delivery(debugger, actors, witness)
+            (case / "delivery-witness.json").write_text(json.dumps(delivery, indent=2) + "\n")
+            result["delivery_witness"] = delivery
+            # GDB delivers once while resuming the selected stopped thread; no external kill.
             exit_until = min(debugger.deadline, time.monotonic() + 5)
-            debugger.command("-exec-continue", seconds=exit_until - time.monotonic())
+            debugger.command('-interpreter-exec console "signal SIGKILL"', seconds=exit_until - time.monotonic())
             stop = debugger.stopped(exit_until - time.monotonic())
             if stop.get("reason") != "exited-signalled" or stop.get("signal-name") != "SIGKILL":
                 raise Unqualified("exact owned SIGKILL not observed")

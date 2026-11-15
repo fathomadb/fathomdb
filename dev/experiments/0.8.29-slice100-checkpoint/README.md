@@ -3,13 +3,14 @@
 Scope is owner seq-371/372 and the maintained
 [protocol](../../plans/0.8.29/features/slice-100/q1-protocol.md) /
 [oracles](../../plans/0.8.29/features/slice-100/composed-oracles.md).
-This source checkpoint is coverage-only work, not a product-defect RED/GREEN pair.
+The Rust coverage is verification-only; operator defects have separate RED/GREEN
+regressions. No operator regression is a product-recovery RED.
 It changes no production erasure/API/SQLite/VFS/schema behavior or existing85 files.
 
 - `operator.py`: opt-in Linux MI/PTY operator. Source/binary/build-JSON/SQLite
   identity, exact registered actor, source/relocated PC/eligible frame and erasure
   callstack are required. One qualified healthy release-through precedes the
-  interruption case's own witness and pidfd SIGKILL. The operator never runs at
+  interruption case's own revalidated stopped thread and one GDB SIGKILL request. The operator never runs at
   import or through normal gates. `--technical-go` is required; approval alone
   is not runtime technical readiness. Missing facts stop UNQUALIFIED.
 - `test_operator.py`: stdlib-only synthetic grammar/identity/refusal controls.
@@ -23,9 +24,14 @@ It changes no production erasure/API/SQLite/VFS/schema behavior or existing85 fi
 - `test_cli_help.py`: actual documented CLI help regression, committed runtime
   RED then separate GREEN. The initial complete tool suite had16passing controls.
 - `test_interrupt_transition.py`: harmless real scripted-MI subprocess regression
-  for resume-before-exit notification and wrong-SIGTERM refusal. Committed runtime
-  RED/separate GREEN;17total controls pass. Proof/exit/utility subjects are
+  for the reviewed single debugger-signal transition and wrong-SIGTERM refusal.
+  Its successor oracle was committed RED before GREEN, replacing the historical
+  external-kill/continue oracle. Proof/exit/utility subjects are
   synthetic, with no debugger, ptrace, OS fault or product/recovery proof.
+- `test_q1_transport.py`: memory-only actual operator/MI dispatch controls for
+  co-arriving/delayed execution errors, selected-thread/actor/native revalidation,
+  exactly one GDB signal request and refusal without recovery/fallback. Separate
+  genuine RED/GREEN commits; no subprocess, native import, signal or database.
 - `test_resource_measurement.py`: controlled real-du metadata regression for
   owned vanished files, bounded retry exhaustion and strict outside/permission/
   mixed-error refusal. Positive fixture corrected without assertion changes,

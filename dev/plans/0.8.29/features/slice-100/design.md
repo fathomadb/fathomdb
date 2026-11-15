@@ -164,7 +164,7 @@ manifest, lock or caller changes require affected-input review; unintegrated G
 work is future work, not a current predecessor.160 owns final composed
 qualification. No unconditional all-release rerun rule.
 
-## Held next operator repair — review before implementation
+## Reviewed operator repair — source controls, real delivery still held
 
 The seq-383 trace establishes two separate failures. After external pidfd SIGKILL,
 resume produced31^running, then failed to insert user breakpoint2 and internal
@@ -179,13 +179,14 @@ feed running then the same-token error and require immediate UNQUALIFIED with
 that exact debugger error, instead of waiting for a generic deadline. Preserve
 normal exit/stop and wrong-signal refusal controls. No subprocess/native fault
 is needed for this test. Commit actual observed RED before its minimal GREEN,
-after this design is independently reviewed; no code/test is implemented yet.
+after independent design acceptance. Source RED317d69f01 then GREEN61757a6d7
+now cover both co-arriving and delayed same-token errors without subprocesses.
 
-A distinct delivery candidate replaces the external kill-then-resume sequence
+The separately tested delivery repair replaces the external kill-then-resume sequence
 with exactly one `-interpreter-exec console "signal SIGKILL"` after the new
 execution's validated own stopped witness. Explicitly select and revalidate the
 witness thread/frame as belonging to the registered PID/nonce; keep pidfd/starttime/
-executable identity checks and require all-stop state. The pidfd would remain an
+executable identity checks and require all-stop state. The pidfd remains an
 identity/cleanup fence, not an additional qualifying signal. Any error stops
 UNQUALIFIED without redelivery. Bounded same-actor cleanup remains separate.
 
@@ -197,4 +198,11 @@ No deletion-only fix, longer timeout or async switch is claimed. Confirmed SIGKI
 exit, untouched-before-observe files and unchanged observer/retry assertions stay
 mandatory. Delivery changes require reviewed protocol/code and a concrete new
 owner-scoped pair before any further real fault; seq-383 is spent. No standalone
-probe harness, extra packet, production seam or implementation is introduced here.
+probe harness, extra packet or production seam is introduced. Delivery REDf67e21a0b
+freezes the reviewed successor oracle before implementation: four in-memory
+policy methods failed14 assertions, and the affected scripted transport failed
+both signal cases at the retired external-kill tripwire. The unchanged oracles
+then pass: seven pure methods (including late-error controls) and one short
+scripted-MI method with SIGKILL/SIGTERM subcases. No actual debugger, database,
+ptrace or qualifying fault is executed by these controls. Final independent
+implementation review and actual new owner scope remain before real delivery.

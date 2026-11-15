@@ -21,7 +21,7 @@ SPEC.loader.exec_module(control)
 
 
 def mi_child(case, nonce, executable, sqlite, signal_name):
-    """Script an exit notification requiring a post-signal execution transition."""
+    """Model the reviewed debugger signal command; never deliver a real fault signal."""
     target, stage, killed, commands = None, 0, False, []
     frame = dict(addr="0x1234", func="walCheckpoint", line=str(control.COPY_LINE), fullname=sqlite)
     values = dict(rc="0", pIter="0x1", nBackfill="0", mxSafeFrame="4", iFrame="2", iDbpage="1", mxPage="3", szPage="4096", eMode="3")
@@ -143,7 +143,7 @@ def supervise(directory, expected_signal):
 
 @unittest.skipUnless(sys.platform == 'linux', 'Linux owned operator transport control')
 class InterruptTransition(unittest.TestCase):
-    """Resume is required; a non-SIGKILL exit notification must remain unqualified."""
+    """One scripted debugger signal is required; wrong-signal exit remains unqualified."""
 
     def test_stopped_transport_uses_single_debugger_signal_before_exit_notification(self):
         for expected_signal in ['SIGKILL', 'SIGTERM']:

@@ -19,7 +19,11 @@ snapshot, observer or retry result exists. This is not product recovery failure.
 Seq-372's original pair and seq-383's additional pair are historical and spent.
 No further fault run is selected. Actors are gone and the native lease returned.
 [Execution](execution.md) preserves actual results; [design](design.md) contains
-only a held delivery proposal and frozen RED intent pending independent review.
+the independently accepted delivery design, now implemented with source-only
+controls pending final implementation review. Late-error RED317d69f01/GREEN61757a6d7
+and delivery REDf67e21a0b are preserved. Seven pure methods and the affected
+scripted-MI method (SIGKILL and SIGTERM subcases) pass unchanged after repair.
+These tests prove operator policy/transport behavior, not real GDB delivery.
 R100-5/A100-5 active-interruption recovery proof,100/D28-09 and release closure
 remain open. Prior20controls/five G2 cells and accepted ordinary qualification
 are retained; no passing coverage/full gate was replayed for this run.

@@ -127,7 +127,40 @@ def evaluate_pair(on: dict, off: dict) -> dict:
 
 def parse_linux_memory(status: str, meminfo: str, vmstat: str) -> dict:
     """Convert explicit procfs counters without treating missing fields as zero."""
-    return {}
+    mappings = {"VmRSS": "rss_bytes", "RssAnon": "rss_anon_bytes", "RssFile": "rss_file_bytes",
+                "RssShmem": "rss_shmem_bytes", "VmSwap": "vm_swap_bytes", "MemAvailable": "mem_available_bytes"}
+    rows = {}
+    for text in (status, meminfo):
+        for line in text.splitlines():
+            name, separator, value = line.partition(":")
+            if separator and name in mappings:
+                fields = value.split()
+                if len(fields) != 2 or fields[1] != "kB" or not fields[0].isdigit():
+                    raise ValueError(f"invalid procfs counter {name}")
+                rows[mappings[name]] = int(fields[0]) * 1024
+    for name, field in mappings.items():
+        if field not in rows:
+            raise ValueError(f"missing procfs counter {name}")
+    for line in vmstat.splitlines():
+        fields = line.split()
+        if fields and fields[0] in ("pswpin", "pswpout"):
+            if len(fields) != 2 or not fields[1].isdigit():
+                raise ValueError(f"invalid procfs counter {fields[0]}")
+            rows[fields[0]] = int(fields[1])
+    for name in ("pswpin", "pswpout"):
+        if name not in rows:
+            raise ValueError(f"missing procfs counter {name}")
+    return rows
+
+
+def read_linux_memory(proc_root: Path = Path("/proc")) -> dict:
+    """Read the current process and host counters; missing/unreadable data raises.
+
+    No GPU calls or allocation churn are introduced. Procfs kB values are KiB;
+    pswpin/pswpout retain their native cumulative page counts, never bytes.
+    """
+    return parse_linux_memory((proc_root / "self/status").read_text(),
+                              (proc_root / "meminfo").read_text(), (proc_root / "vmstat").read_text())
 
 
 def collect_arm(sdk, pool_mode, iteration, snapshot, emit, *, clock=time.monotonic):

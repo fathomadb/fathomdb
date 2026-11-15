@@ -191,7 +191,7 @@ class Session:
                     p=subprocess.Popen(['sftp',*SSH[1:-1],'-b','-',SSH[-1]],stdin=subprocess.PIPE,stdout=transfer_out,stderr=transfer_err)
                     self.log('owned-sftp',{'pid':p.pid,'pgid':os.getpgid(p.pid),'partial':partial})
                     if any(x in str(path)+partial for x in ['"','\n','\r']):raise ValueError('SFTP path syntax')
-                    p.stdin.write(('put "'+str(path)+'" "'+partial.replace('\\','/')+'"\n').encode());p.stdin.close()
+                    p.stdin.write(('put "'+str(path)+'" "'+'/'+partial.replace('\\','/')+'"\n').encode());p.stdin.close()
                     while p.poll() is None:
                         self.sample()
                         if guard.poll() is not None:raise RuntimeError('independent guest transfer monitor stopped')

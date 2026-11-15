@@ -153,6 +153,7 @@ class Session:
             if current is not None:
                 if current.get('sha256')!=digest(path) or current.get('length')!=path.stat().st_size:raise RuntimeError('occupied remote destination differs')
                 self.log('read-only verified reuse',{'path':destination,'sha256':current['sha256']});return
+        if path.stat().st_size>1024**2 and not wrong_digest and not extra_length:return self.upload_sftp(path,relative)
         c={key:self.cfg[key] for key in ['root','runId','candidateSha','diskUniqueId','partitionGuid']};c.update({'relative':relative,'length':path.stat().st_size+extra_length,'expectedSha256':('0'*64 if wrong_digest else digest(path))})
         b64=base64.b64encode(json.dumps(c,separators=(',',':')).encode()).decode();script=self.inline('receive.ps1','Invoke-A6Receive '+quote(b64))
         p=subprocess.Popen(encoded(script),stdin=subprocess.PIPE,stdout=(self.root/'transfer.stdout').open('ab'),stderr=(self.root/'transfer.stderr').open('ab'))
@@ -173,6 +174,41 @@ class Session:
             thread.join(timeout=1)
             if p.returncode or errors:raise RuntimeError({'transfer_exit':p.returncode,'writer':errors})
         finally:stop_ssh(p)
+    def upload_sftp(self,path,relative):
+        if relative!='inputs/'+self.run_id+'/source.zip':raise ValueError('SFTP is only for allocated source archive')
+        destination=GUEST+'\\'+relative.replace('/', '\\');partial=destination+'.partial-'+uuid.uuid4().hex;done=partial+'.done'
+        c={key:self.cfg[key] for key in ['root','runId','candidateSha','diskUniqueId','partitionGuid']}
+        b64=base64.b64encode(json.dumps(c,separators=(',',':')).encode()).decode()
+        prelude=(PACKAGE/'common.ps1').read_text()+"\n$c=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('"+b64+"'))|ConvertFrom-Json;Assert-A6Start $c|Out-Null;$p=Assert-A6Path "+quote(partial)+" $c.root;"
+        command(prelude+"[IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($p))|Out-Null;$f=[IO.File]::Open($p,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None);$f.Dispose()",timeout=20)
+        receiver=(PACKAGE/'receive.ps1').read_text();watch=receiver[receiver.index('    $s=[hashtable]'):receiver.index('    $partial=$destination')]
+        monitor=prelude+watch+"\nwhile(-not(Test-Path -LiteralPath "+quote(done)+")){[Threading.Thread]::Sleep(200)};$s.Done=$true"
+        guard=None;p=None;start=time.monotonic();failure=None
+        try:
+            with (self.root/'sftp-monitor.stdout').open('xb') as out,(self.root/'sftp-monitor.stderr').open('xb') as err:
+                guard=start_script(monitor,stdout=out,stderr=err);self.log('owned-sftp-monitor',{'pid':guard.pid,'pgid':os.getpgid(guard.pid),'partial':partial})
+                with (self.root/'sftp.stdout').open('xb') as transfer_out,(self.root/'sftp.stderr').open('xb') as transfer_err:
+                    p=subprocess.Popen(['sftp',*SSH[1:-1],'-b','-',SSH[-1]],stdin=subprocess.PIPE,stdout=transfer_out,stderr=transfer_err)
+                    self.log('owned-sftp',{'pid':p.pid,'pgid':os.getpgid(p.pid),'partial':partial})
+                    if any(x in str(path)+partial for x in ['"','\n','\r']):raise ValueError('SFTP path syntax')
+                    p.stdin.write(('put "'+str(path)+'" "'+partial.replace('\\','/')+'"\n').encode());p.stdin.close()
+                    while p.poll() is None:
+                        self.sample()
+                        if guard.poll() is not None:raise RuntimeError('independent guest transfer monitor stopped')
+                        if time.monotonic()-start>=180:raise TimeoutError('SFTP180s bound')
+                        time.sleep(0.5)
+                    if p.returncode:raise RuntimeError('SFTP transfer failed')
+                command(prelude+"$d=Assert-A6Path "+quote(destination)+" $c.root;if((Get-Item -LiteralPath $p).Length -ne "+str(path.stat().st_size)+" -or (Get-A6Hash $p) -cne '"+digest(path)+"'){throw 'transfer truncated or digest differs'};if(Test-Path -LiteralPath $d){throw 'transfer destination raced'};[IO.File]::Move($p,$d)",timeout=20)
+                self.log('sftp-source-verified',{'path':destination,'bytes':path.stat().st_size,'sha256':digest(path)})
+        except BaseException as error:failure=repr(error);self.log('sftp-UNKNOWN',failure);raise
+        finally:
+            if p is not None:stop_ssh(p)
+            try:command("[IO.File]::WriteAllText("+quote(done)+",'done')",timeout=6)
+            finally:
+                if guard is not None:
+                    try:guard.wait(timeout=6)
+                    finally:stop_ssh(guard)
+
     def renew_lease(self):
         self.lease_generation+=1
         self.publish('lease.json',{'runId':self.run_id,'candidateSha':self.cfg['candidateSha'],'generation':self.lease_generation})

@@ -251,3 +251,96 @@ fn commit_outcome_distinguishes_actual_inputs_staging_and_durable_terminals() {
         .collect::<BTreeSet<_>>();
     assert_eq!(reported, cursors.into_iter().collect());
 }
+
+fn wait_for_projection_rows_idle(engine: &Engine) -> Result<(), String> {
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        let state =
+            engine.slice30_projection_snapshot_for_test().map_err(|error| format!("{error:?}"))?;
+        if state.active_jobs == 0
+            && state.active_scans == 0
+            && state.queued_jobs == 0
+            && state.in_flight_count == 0
+        {
+            return Ok(());
+        }
+        if Instant::now() >= deadline {
+            return Err("bounded projection cleanup did not become idle".into());
+        }
+        std::thread::sleep(Duration::from_millis(1));
+    }
+}
+
+#[test]
+fn forced_commit_error_keeps_actual_pending_and_reports_no_durable_publication() {
+    let fixture = Fixture::new();
+    let frozen = Frozen::new(&fixture.engine);
+    fixture.engine.drain(5_000).unwrap();
+    let observer =
+        fixture.engine.begin_slice30_projection_observation_for_test(512, Instant::now()).unwrap();
+    fixture.engine.force_next_projection_storage_failure_for_test();
+    let mut pause = fixture.engine.pause_projection_worker_after_wal_transaction_for_test();
+    let mut first_scan = fixture.engine.pause_projection_scan_for_test();
+    let cursors = fixture.write(&["rollback-alpha", "rollback-beta"]);
+    drop(frozen);
+    let first_scan_ready = first_scan.wait_ready(Duration::from_secs(5));
+    let after_error_freeze = Frozen::new(&fixture.engine);
+    first_scan.release();
+    let reached = pause.wait_ready(Duration::from_secs(5));
+    pause.release();
+    let cleaned = wait_for_projection_rows_idle(&fixture.engine);
+    let pending_before_retry = fixture.engine.read_embedding_readiness();
+    let rollback_counts = physical_counts(&fixture.path);
+    let failed = observer.take();
+    let mut retry_scan = fixture.engine.pause_projection_scan_for_test();
+    drop(after_error_freeze);
+    let retry_scan_ready = retry_scan.wait_ready(Duration::from_secs(5));
+    let retry_scan_hold = Frozen::new(&fixture.engine);
+    retry_scan.release();
+    let drained = fixture.engine.drain(5_000);
+    let pending_after_retry = fixture.engine.read_embedding_readiness();
+    let recovered = observer.take();
+    drop(retry_scan_hold);
+    let closed = fixture.engine.close();
+    drop(observer);
+
+    first_scan_ready.expect("bounded first scan must reach the real dispatcher rendezvous");
+    reached.expect("forced-error worker must reach bounded WAL rendezvous");
+    retry_scan_ready
+        .expect("bounded ordinary retry scan must reach the real dispatcher rendezvous");
+    cleaned.expect("actual failed worker rows/in-flight state must clear while scheduling is held");
+    drained.expect("same ordinary pending work must later drain without an observer repair");
+    closed.expect("engine must close before outcome assertions");
+    assert_eq!(pending_before_retry.unwrap().pending_count, 2);
+    assert_eq!(rollback_counts, (0, 0, 0, 0));
+    assert_eq!(pending_after_retry.unwrap().pending_count, 0);
+    assert_eq!(physical_counts(&fixture.path), (2, 2, 2, 0));
+    assert_eq!(failed.dropped_records, 0);
+    assert_eq!(recovered.dropped_records, 0);
+    assert!(failed.issues.is_empty() && recovered.issues.is_empty());
+    let outcomes = failed
+        .records
+        .iter()
+        .filter(|record| record.phase == "projection_commit_outcome")
+        .collect::<Vec<_>>();
+    assert_eq!(outcomes.len(), 1, "failed commit outcome observation is missing or duplicated");
+    let outcome = outcomes[0];
+    assert_eq!(outcome.status, "error");
+    assert_eq!(outcome.facts["input_success"], 2);
+    assert_eq!(outcome.facts["staged_success"], 2);
+    assert_eq!(outcome.facts["commit_attempted"], false);
+    assert_eq!(outcome.facts["committed_success"], 0);
+    assert_eq!(outcome.facts["committed_failure"], 0);
+    assert_eq!(outcome.facts["publication_state"], "not_committed");
+    assert!(failed
+        .records
+        .iter()
+        .all(|record| record.phase != "projection_commit_completion" || record.status != "ok"));
+    let reported = outcome.facts["cursors"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|cursor| cursor.as_u64().unwrap())
+        .collect::<BTreeSet<_>>();
+    assert_eq!(reported, cursors.into_iter().collect());
+}

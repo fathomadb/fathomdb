@@ -74,6 +74,25 @@ actual independently selected final pins and artifacts for its own cells.
 Pin movement invalidates only affected receipts after explicit
 comparison; unchanged evidence is reusable with recorded blast radius.
 
+## Remaining functional delivery
+
+Current source integrates110 tracked ownership/healthy observation and E's
+portable sampler/evaluator. Remaining work is real Rust/Python/Node two-engine
+lifecycle fixtures, installed-worker passive adapters and bounded concurrent
+supervision in the existing utility, observer-only build-wrapper options and a
+local-wheel binding in the existing Python installed smoke. The
+[design](design.md#remaining-de-runtime-binding) defines one coherent delta for
+independent Astra-medium review before TDD. No new framework, receipt pipeline
+or repeated seam implementation is needed.
+
+Existing Orin has Rust1.95/Node25.9/npm11.12.1 and known cached model paths. Its
+old checkout/artifacts are not current proof; owned Maturin1.14.1 and a current
+isolated343/2ee/K9 product subject remain build inputs. Source preparation does
+not authorize native/model/GPU execution. Exact qualified pins/artifacts and a
+reserved approved Orin resource window gate affected live runs; whole140/160
+closure does not gate this source unit. No CUDA13, non-Tegra ARM+GPU, reset,
+new mount or toolkit/driver change is implied.
+
 ## Execution after readiness
 
 1. Advance current D/E source/fixture/protocol preparation in parallel

@@ -105,6 +105,15 @@ class DReportTests(unittest.TestCase):
                 if defect == "unknown_commit":
                     self.assertIsNone(report["committed_success_rows"], "unavailable durable work became zero")
 
+    def test_later_natural_operation_can_supply_only_its_own_witness(self):
+        cell, actual, observation = literal_execution()
+        observation["pending"][0].update(started_ns=55, ended_ns=60)
+        report = bind_execution(cell, actual, observation)
+        self.assertTrue(report["complete"])
+        self.assertEqual(report["overlap"]["operation_id"], 18)
+        self.assertEqual(report["overlap"]["query_bounds_ns"], [50, 70])
+        self.assertEqual(report["overlap"]["worker_bounds_ns"], [42, 82])
+
     def test_no_qualifying_pending_keeps_overlap_obligation_unsatisfied(self):
         cell, actual, observation = literal_execution()
         observation["pending"][0]["pending_count"] = 0

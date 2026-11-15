@@ -51,6 +51,11 @@ name = "locomo_eval"
 path = "examples/locomo_eval/main.rs"
 test = true
 
+[[example]]
+name = "slice30_m_helper"
+path = "examples/slice30_m_helper.rs"
+required-features = ["test-seams"]
+
 [dev-dependencies]
 # Self dev-dependency so every integration test target links the seams.
 fathomdb-mcp = { path = ".", features = ["test-seams"] }

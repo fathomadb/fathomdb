@@ -715,6 +715,19 @@ if [ "${AGENT_SLICE30_LIVE_CONTROLS:-0}" != "1" ]; then
 fi
 run_tier_maybe_suite heavy test-slice30-g-control "$slice30_g_live_reason" \
   bash scripts/test-slice30-g-control.sh
+
+slice30_m_platform_reason=""
+if [ "$slice30_g_host_os" != "Linux" ]; then
+  slice30_m_platform_reason="Slice30 M private-helper source tests require Linux"
+fi
+run_tier_maybe_suite heavy test-slice30-m-cli "$slice30_m_platform_reason" \
+  bash scripts/test-slice30-m-cli.sh
+slice30_m_control_reason="$slice30_m_platform_reason"
+if [ "${AGENT_SLICE30_LIVE_CONTROLS:-0}" != "1" ]; then
+  slice30_m_control_reason="explicit live controls not selected (AGENT_SLICE30_LIVE_CONTROLS=1)"
+fi
+run_tier_maybe_suite heavy test-slice30-m-control "$slice30_m_control_reason" \
+  bash scripts/test-slice30-m-control.sh
 run_tier_suite heavy test-slice30-g-feature-boundary \
   python3 scripts/tests/test_slice30_g_feature_boundary.py
 

@@ -1143,6 +1143,68 @@ This completion refinement grants no campaign GO: D costs remain UNKNOWN and
 actual scientific execution still needs the registered bounded output/monitor
 plan, fresh floors and the separate exact runtime authorization above.
 
+### D concurrent record transport amendment
+
+Actual C-O collection remained incomplete in three bounded attempts,
+including the consumer-only preallocation correction. The two retained
+diagnostic runs each report dropped1 and contain20162 records with one missing
+span, no collection issues and
+batches far below32768; allocation outside the consumer lock did not qualify
+C-O. Shared-Vec `try_lock` contention is sufficient to explain loss, but the
+specific competing producer/consumer remains unknown. Preserve these failures
+and the frozen C-O zero-loss assertions; no further unchanged retry follows.
+
+Use `std::sync::mpsc::sync_channel(max_records)` only for the private D session.
+The pinned Rust1.95 API/source provides bounded multi-producer `try_send` and
+nonblocking `try_recv`; failures are Full/Disconnected or Empty/Disconnected,
+respectively. This is a nonblocking API contract, not a wait-free latency claim.
+Tokio1.52.3 bounded mpsc offers the same required operations and is already
+locked, but is not an engine dependency. Prefer std, already used by the engine,
+with no manifest/lock change. Retaining the shared Vec leaves contention loss;
+blocking sends, a larger/unbounded queue and a custom queue add unwanted policy
+or implementation work.
+
+- The D collector owns the bounded sender; the D guard owns its receiver behind
+  a mutex used only to serialize takes. Producers never acquire that mutex:
+  one `try_send` either enqueues the existing record or increments the existing
+  cumulative dropped counter once on Full/Disconnected. No retry, delay,
+  backpressure, blocking send, extra helper or producer-side buffering is added.
+- Keep the exact configured queue bound1..=32768. Allocate each output Vec
+  before the receiver lock, attempt at most `max_records` receives per take,
+  stop on Empty/Disconnected and release the receiver lock before serialization.
+  Concurrent refill cannot extend a take indefinitely. A take may retain at
+  most the configured bound alongside the separately bounded queue, as with the
+  previous swapped batch; no larger retained-history buffer is introduced.
+- Dispatch to this transport only for D projection sessions. Leave G begin,
+  append, take, legacy Vec allocation and record bytes unchanged. D identity,
+  operation/parent IDs, record schema, successful enqueue order, take sequence,
+  cumulative loss, poisoned-receiver issue and retired-session behavior remain
+  unchanged. Queue disconnection does not become a product error.
+- Preserve C startup acknowledgement,100ms/1s cadence, actual session clock,
+  cleanup/final take and whole-cell deadline. Enqueue work lies inside the
+  existing C diagnostic work/outer wall; drain/serialization remains observer
+  overhead outside product phase clocks and inside charged cell/common wall.
+  C/T comparison cannot subtract or transfer that overhead or claim T worker
+  phases. T never creates this queue; SQL, scheduling/wake, model/provider work,
+  ordinary defaults and scientific campaign admission are unchanged.
+
+Frozen transport test intent before implementation: four concurrent producers
+submit64 distinct literal IDs each while a receiver drains, with capacity512
+and total256; after joining, the union is exactly IDs1..256 once each, dropped0,
+issues empty, and every returned batch has at most512 records. Separately,
+capacity2 accepts IDs1/2, rejects ID3 with cumulative dropped1, drains exactly
+1/2, then accepts/drains ID4 without resetting dropped1. An internally closed
+receiver rejects one active-session append and increments dropped once; no new
+product close API is added for this control. A bounded-drain control keeps a
+producer active and requires one take to return at most its literal capacity,
+then joins before final draining and checks accepted-plus-dropped conservation.
+Use independent manual counts, not generated snapshots or transport internals
+as the oracle. Existing actual C-O loss is the semantic RED; add these focused
+controls before changing transport and observe them in the next owned native
+window. Keep every existing H/O/C-H/C-O logical assertion frozen. Qualification
+still requires actual C-O zero loss and then only affected controls; this
+amendment grants neither implementation approval nor campaign GO.
+
 ## Requirements, acceptance and ordered runtime TDD
 
 Local refinements below map to existing Slice30 IDs. A design review is not a

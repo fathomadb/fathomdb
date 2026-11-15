@@ -404,7 +404,9 @@ the initial held quartet remains the default stop boundary. Successful selected
 executor results are bound to their current native report inside the accounted
 cell interval before publishing lower evidence. `test_d_execution_routing.py`
 checks this connection; missing native/C capture or observed storage cost stays
-incomplete, without a live payload dispatch.
+incomplete, without a live payload dispatch. C's actual JSONL paths now feed
+that qualification through owned read-only file contexts. Missing/partial
+streams preserve unavailable results and raw prefixes; T opens no C stream.
 
 `d_report.py` binds current receipts/physical closure to exact-engine/session
 worker groups, durable commit coverage and natural-call overlap witnesses.

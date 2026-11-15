@@ -76,5 +76,30 @@ class DDriverAccountingTests(unittest.TestCase):
         self.assertEqual(len(rows), 24)
 
 
+    def test_unknown_owned_cleanup_keeps_inflight_and_child_cost_unavailable(self):
+        now = [100 * SECOND]
+        first = "d-c-held-n10000-r0"
+        budget = {"used_ns": 40 * SECOND, "shared_ns": 14400 * SECOND,
+                  "retained_bytes": 1903142018, "storage_limit": 16 * 1024**3,
+                  "cell_used_ns": {}, "inflight": None}
+        attempted, records = [], {}
+
+        def execute(cell, _deadline_ns):
+            attempted.append(cell["id"])
+            now[0] += 2 * SECOND
+            return {"status": "failed", "elapsed_ns": None, "cleanup_uncertain": True,
+                    "live_owned_pids": None, "unit_diagnostic": True}
+
+        rows = run_accounted_stage(SPEC, records, budget, execute, clock=lambda: now[0])
+        self.assertEqual(attempted, [first], "unknown owned cleanup allowed another execution")
+        self.assertEqual(budget["used_ns"], 42 * SECOND)
+        self.assertEqual(budget["inflight"]["cell"], first)
+        self.assertEqual(budget["inflight"]["status"], "cleanup_uncertain")
+        self.assertIsNone(records[first]["child_elapsed_ns"], "unavailable child wall became zero")
+        self.assertEqual(records[first]["elapsed_ns"], 2 * SECOND)
+        self.assertTrue(all(row["status"] == "not_run_ownership" for row in rows[1:4]))
+        self.assertEqual(len(rows), 24)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -29,23 +29,23 @@ excluded tests; no GPU/NVRTC runtime, whole-workspace, product pin or real-reset
 qualification is claimed. Reuse that exact accepted result rather than replaying
 fork suites or selecting the same repair again.
 
-The next delivery is Candle's actual private F32 helper semantic RED/GREEN and
-independent qualification, followed by coherent qualified fork consumption in110.
-No new public model/tensor API is required merely for context injection. Preserve
-the raw GEMM numerical arguments; acquire borrowed BLAS admission before pointer
-guards and check its handle after pointer preparation immediately before dispatch.
-An outer product lease alone does not cover loss recorded by those temporaries.
+Candle's selected private F32 helper is independently qualified at
+`2ee39305a78ed1463ff913f71dcd3d45ecbfd84f`: actual RED
+`a4c2517dedf82bed765773e06013ec824de83e8b` returned `Ok` after cached loss;
+frozen GREEN refuses with Driver709, while healthy numerical output remains
+`[19,43,22,50]`. Only borrowed admission before pointer guards and checked handle
+access before raw dispatch changed. This is software-cached loss on the selected
+CUDA profile, not native reset survival or whole-model qualification.
+The next delivery is coherent product consumption in110; its concrete private/
+default-token, model/drop, mapping and observer design has Astra acceptance.
 
 ## Execution and true dependencies
 
-1. Continue Candle's reviewed helper implementation in its isolated fork checkout;
-   actual runtime assertion RED must precede its minimal GREEN. Prepared tests
-   or missing-method compilation are not behavioral proof. Batch the coherent
-   source/result review, without per-helper review or duplicate cudarc campaigns.
-2. In parallel,110 reconciles the exact accepted cudarc APIs and reviewed Candle
-   contract, updates affected product design/test mapping and obtains its
-   independent adversarial design review.110 design/API migration preparation
-   does not wait for Candle runtime qualification or whole140 closure.
+1. Reuse the accepted cudarc CPU and selected Candle CUDA helper proof; do not
+   repeat unchanged suites or add per-helper review checkpoints.
+2. Implement110 against its accepted actual API/model design and qualified
+   revisions. Actual dependency resolution must preserve the original remote K9
+   source, even though the owning Candle workspace qualified matching K9 bytes.
 3. Adopt only a coherent independently qualified cudarc/Candle family through the
    reviewed consumption route. Registry publication remains outside this mandate;
    an exact-rev route needs review, not an invented registry version/checksum.

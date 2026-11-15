@@ -912,7 +912,7 @@
     {
       "slice": 130,
       "short": "CUDA-QUALIFICATION",
-      "title": "Affected existing CUDA12.6 platform and SDK qualification (B-E)",
+      "title": "Affected existing CUDA12.6 local platform and SDK qualification (D/E)",
       "depends_on": [
         110
       ],
@@ -927,16 +927,16 @@
         "dev/plans/0.8.29/features/slice-130/test-map.md",
         "dev/plans/0.8.29/features/slice-130/review-log.md"
       ],
-      "conditions": "Final selected existing.29 artifacts/pins and each permitted venue/session/cap remain for130B-E. Seq378 moves newCUDA13 delivery/compiler work.31 and seq381 explicitly moves130A CUDA13 Tegra there too, preserving stableTC-b267d940. Seq377 live child-reset execution excluded until.30. No deferred cell is passed.",
+      "conditions": "Selected130D/E final artifacts/pins, healthy/lifecycle/counter/soak evidence and actual local resource readiness remain. Owner seq387 excludes unavailable non-Tegra ARM+GPU unitsB/C from known-working environments and every.29 gate; no passing/support claim or future release assigned. Seq378/381 retain newCUDA13 delivery and130A in.31; seq377 keeps actual resets in.30.",
       "phase": "D_PASSIVE_TRANSPORT_QUALIFIED_TRACKED_COUNTERS_AND_CAMPAIGNS_PENDING",
-      "evidence": "GPT-6.1 Sol-high PhaseA scope/requirements/acceptance/design reconciled; independent Astra-medium design PASS recorded in features/slice-130/review-log.md. No implementation or source qualification follows this planning status. Bounded design after FIX1; exact selected artifacts/pins, venue/session inputs, C fixture and E equivalence/shipping evidence remain held. No campaign/spend authority. Owner seq381 explicitly reallocates130A to.31; remaining130B-E design/runtime/source qualification obligations are retained.",
+      "evidence": "SelectedD/E design, passive observer and portable soak utility have independent scoped acceptance; actual source-bound healthy GPU/installed/lifecycle/shipping-equivalence/soak qualification remains. Owner seq387 removes130B/C from.29 obligations rather than passing them. No non-Tegra ARM+GPU procurement, quote, reservation or run is needed to close.29.",
       "qualified_subset_sha": "3a90e2c0e55710252a58dcba96db9e1c90070426",
       "e_portable_utility": {
         "source": "fc6010a38b48cedbf56cfe0d8afb777beebb834c",
         "status": "SCOPED_QUALIFIED_INDEPENDENT_ASTRA_ACCEPTED",
         "tests": "20 controls, Ruff, Pyright and existing tier inventory pass; one fast row registers the utility in the ordinary gate. Four original RED/GREEN steps plus bounded review FIX preserved.",
         "scope": "Frozen schedule/plateau math, bounded churn-free collector, explicit procfs units and error retention/early stop. Numerical instrumented utility only, no E/shipping/native/whole130 qualification.",
-        "remaining": "Actual D passive observer/SDK wiring, shipping-equivalence/lifecycle and permitted venue/reservation/2x60min run; B/C approved session/artifact needs remain.",
+        "remaining": "Actual D/SDK counter and installed/shipping-equivalence/lifecycle/2x60min soak evidence on selected existing CUDA12.6 local platforms. No non-Tegra ARM+GPU B/C or cloud-session prerequisite under seq387.",
         "orin_readiness": "Read-only authorized SSH confirms existing aarch64 Orin/L4T R36.5.2/primary CUDA12.6/driver540.5.0 and capacity. No GPU work, idle/reservation or new tools inferred."
       },
       "d_passive_source": {
@@ -948,8 +948,8 @@
         "remaining": "Healthy tracked counter reads still require actual110 token adoption; native SDK runtime, shipping/build equivalence and live D/E qualification remain. Existing checker Pyright2 baseline/setup issues are retained for final relevant checks."
       },
       "gcp_venue_candidate": {
-        "status": "RESEARCHED_UNPRICED_NOT_RESERVED_NOT_SELECTED",
-        "owner_scope": "Owner requested a priced session proposal, then directed research toward a Google Cloud option. No provision/reservation/quote-contact/spend is authorized.",
+        "status": "EXCLUDED_FROM_029_GATES_UNQUALIFIED_FUTURE_CANDIDATE",
+        "owner_scope": "Owner seq387 removes this unavailable non-Tegra ARM+GPU configuration from known-working environments and every.29 gate. Prior research is retained as unqualified background only; no procurement/quote-contact/provision/reservation/spend is required or authorized for.29.",
         "shape": "A4X a4x-highgpu-4g inus-central1-a/b: nativeARM64 Grace,4GB200,140vCPU,884GiB host RAM,12000GiB bundledLocalSSD. Live machine metadata verified; no existing reservation returned.",
         "capacity_price": "A standalone4-GPU VM is documented, but procurement/account-team capacity-block size and duration need a written quote. No public A4X compute rate; no numeric session cap or usable capacity is established. GB200 entitlement was not explicitly returned in the quota listing; ordinaryT4/L4 quota does not qualify this ARM cell.",
         "compatibility": "Potential ARM64-SBSA CUDA12.6 PTX plus supported12.8+ same-major libraries/R580 profile needs exact artifact/library/allocator/forward proof. NativeSM100 needs12.8; defaultCUDA13 image must not silently change.29 scope.",
@@ -959,8 +959,26 @@
           "https://docs.cloud.google.com/ai-hypercomputer/docs/reserve-capacity",
           "https://cloud.google.com/products/compute/pricing/accelerator-optimized",
           "https://docs.nvidia.com/cuda/archive/12.8.0/blackwell-compatibility-guide/index.html"
-        ]
-      }
+        ],
+        "known_working": false
+      },
+      "excluded_configurations": [
+        {
+          "configuration": "non-Tegra ARM+CUDA GPU",
+          "units": [
+            "B",
+            "C"
+          ],
+          "status": "EXCLUDED_FROM_029_UNQUALIFIED",
+          "known_working": false,
+          "source": "dev/steward/steward-ledger.jsonl seq-387",
+          "work_items": [
+            "TC-ff476f59-727e-4e5b-abc8-5cf438c32143",
+            "TC-4755a9d9-b219-4b46-b45f-c8f94e2bec1b"
+          ],
+          "future_release": null
+        }
+      ]
     },
     {
       "slice": 140,
@@ -1245,14 +1263,16 @@
         "owner_slice": 100,
         "source": "dev/steward/steward-ledger.jsonl seq-386",
         "scope": "Approve exactly one additional corrected matched Q1 pair: fresh healthy control then one SIGKILL only of its own disposable child after revalidating its active-checkpoint witness, thread/PID and nonce. Same120s/case and64GiB, registered actors only, no automatic retry or host/VM/GPU fault. Source/native/runtime readiness remains required. Earlier approvals remain spent; this is a new explicit approval, not reuse."
+      },
+      {
+        "id": "qualified-session-caps",
+        "title": "Non-Tegra ARM+GPU configuration and its session procurement are excluded from known-working environments and every0.8.29 gate.",
+        "owner_slice": 130,
+        "source": "dev/steward/steward-ledger.jsonl seq-387",
+        "scope": "Removes130B/C as.29 requirements without declaring them passed or supported. Existing CPU ARM controls, selected Tegra CUDA12.6 D/E evidence, local resource readiness and separate publication limits remain."
       }
     ],
     "unruled": [
-      {
-        "id": "qualified-session-caps",
-        "title": "Exact permitted venue/current session quote and caps before affected130/priced campaigns.",
-        "owner_slice": 130
-      },
       {
         "id": "optional-experiments",
         "title": "Individual150 study inclusion or explicit defer remains pending.",
@@ -1265,9 +1285,9 @@
       },
       {
         "id": "block1-smoke-inputs",
-        "title": "Owner input: model, prompt, budget and fixture for the Block1 LoCoMo smoke and item-4 remeasure before90 source entry. No spend inferred.",
+        "title": "Select the reviewed72-episode native-format smoke/item4 scope and Haiku5.5/GPT4o-mini models, with proposed$2 reported-cost stop and disclosed final-call overshoot. Fixture/prompt are resolved; no inference authorized.",
         "owner_slice": 90,
-        "source": "dev/plans/0.8.29/features/slice-160/qualification.md Q12"
+        "source": "dev/experiments/agent-remeasure/README.md current-candidate-preparation and pending session question"
       }
     ]
   },
@@ -1288,7 +1308,7 @@
   },
   "release_readiness": {
     "status": "NOT_READY",
-    "qualification": "0–10,60,70,80design and selected100 are complete locally.20 functional Linux/Windows acceptance is qualified; its formal closure awaits the batched final source gate. Selected cudarc/Candle repairs and tracked110 source/seam adoption are independently accepted, with138 affected tests, but final owned source and applicable healthy/installed qualification remain.30 scientific G72/M46/D24/FQ8, conditional40, current paired50 performance, Block1 smoke/conformance/90,130 venues/artifacts and160 remain. Source qualification retains original failed/UNKNOWN/skipped attempts; no whole-release or published-package claim.",
+    "qualification": "0–10,60,70,80design and selected100 are complete locally.20 functional Linux/Windows acceptance is qualified; its formal closure awaits the batched final source gate. Selected cudarc/Candle repairs and tracked110 source/seam adoption are independently accepted, with138 affected tests, but final owned source and applicable healthy/installed qualification remain.30 scientific G72/M46/D24/FQ8, conditional40, current paired50 performance, Block1 smoke/conformance/90,selected130 D/E local artifacts/qualification and160 remain. Source qualification retains original failed/UNKNOWN/skipped attempts; no whole-release or published-package claim. Non-Tegra ARM+GPU B/C is excluded from.29 gates by owner seq387, not qualified or known-working.",
     "publication": "HELD; no tag, dispatch, external ACL mutation or registry publication authorized by bootstrap."
   },
   "generated_views": [

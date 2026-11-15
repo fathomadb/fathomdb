@@ -1918,11 +1918,77 @@ pub(crate) fn candle_driver_code(error: &candle_core::Error) -> Option<u32> {
     match error {
         Error::Cuda(source) => match source.downcast_ref::<CudaError>() {
             Some(CudaError::Cuda(DriverError(code))) => Some(*code as u32),
+            Some(CudaError::Cublas(
+                candle_core::cuda::cudarc::cublas::result::CublasError::Driver(DriverError(code)),
+            ))
+            | Some(CudaError::Curand(
+                candle_core::cuda::cudarc::curand::result::CurandError::Driver(DriverError(code)),
+            )) => Some(*code as u32),
             _ => None,
         },
         Error::Context { inner, .. }
         | Error::WithPath { inner, .. }
         | Error::WithBacktrace { inner, .. } => candle_driver_code(inner),
+        _ => None,
+    }
+}
+
+#[cfg(any(feature = "embed-cuda", feature = "rerank-cuda"))]
+pub(crate) fn native_loss_failure(
+    loss: candle_core::cuda::cudarc::driver::PrimaryContextLoss,
+    operation: &str,
+) -> CudaPoolFailure {
+    use candle_core::cuda::cudarc::driver::PrimaryContextLossCause;
+    let driver_error = match loss.cause {
+        PrimaryContextLossCause::DriverStatus(status) => {
+            format!("native driver status {}", status as u32)
+        }
+        PrimaryContextLossCause::PrimaryInactive => "synthetic 709: primary inactive".into(),
+        PrimaryContextLossCause::IdentityChanged => {
+            "synthetic 709: context identity changed".into()
+        }
+        PrimaryContextLossCause::NativeLibraryCleanup { library, status } => {
+            format!("{library:?} cleanup status {status}; synthetic 999")
+        }
+        PrimaryContextLossCause::SyntheticUnknown => "synthetic 999: unknown cause".into(),
+    };
+    CudaPoolFailure::ContextLost {
+        recorded_context_id: loss.recorded_id,
+        current_context_id: loss.observed_id,
+        driver_error,
+        operation: operation.to_owned(),
+    }
+}
+
+#[cfg(any(feature = "embed-cuda", feature = "rerank-cuda"))]
+fn candle_loss(error: &candle_core::Error) -> Option<CudaPoolFailure> {
+    use candle_core::{
+        cuda::{
+            cudarc::{cublas::result::CublasError, curand::result::CurandError},
+            CudaError,
+        },
+        Error,
+    };
+    match error {
+        Error::Cuda(source) => {
+            if let Some(failure) = source.downcast_ref::<CudaPoolFailure>() {
+                return Some(failure.clone());
+            }
+            match source.downcast_ref::<CudaError>() {
+                Some(CudaError::Cublas(CublasError::Lost(loss)))
+                | Some(CudaError::Curand(CurandError::Lost(loss))) => {
+                    Some(native_loss_failure(*loss, ""))
+                }
+                _ => None,
+            }
+        }
+        Error::Context { inner, .. }
+        | Error::WithPath { inner, .. }
+        | Error::WithBacktrace { inner, .. } => candle_loss(inner),
+        Error::WrappedContext { wrapped, .. } => wrapped
+            .downcast_ref::<Error>()
+            .and_then(candle_loss)
+            .or_else(|| wrapped.downcast_ref::<CudaPoolFailure>().cloned()),
         _ => None,
     }
 }
@@ -1951,6 +2017,14 @@ pub(crate) fn classify_candle_fault<D: PoolDriver>(
     ordinal: usize,
     operation: &str,
 ) -> Option<CudaPoolFailure> {
+    if let Some(mut failure) =
+        driver.cached_context_loss(ordinal, operation).or_else(|| candle_loss(error))
+    {
+        if let CudaPoolFailure::ContextLost { operation: at, .. } = &mut failure {
+            *at = operation.to_owned();
+        }
+        return Some(failure);
+    }
     let fault = ForwardFault {
         ordinal,
         cuda: is_candle_cuda_error(error),

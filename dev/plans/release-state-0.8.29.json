@@ -215,7 +215,7 @@
       ],
       "phase": "MEASUREMENT_TOOLING_SOURCE_QUALIFIED_SCIENTIFIC_CAMPAIGNS_PENDING",
       "plan_sha": "bea7f05cd2497af0d73c6eb8da509e11a947ca08",
-      "conditions": "P and11 original G cases are qualified;73 required G obligations remain unsatisfied. Integrated M/D/F tooling and current-pin110 policy have accepted assembled b466 source qualification; scientific G/M/D/F campaigns remain pending. First four-cell closed-copy calibration stopped after one unqualified cell: native completed but requestedauto violated manifestcuda:0; three cells held. All original results/charges remain. Reviewed RED/GREEN92f6f450 repairs validated device/offline policy propagation;14 distinct affected tests pass. Corrected baseline runtime requires separate source/budget/readiness GO; no qualifier or cap relaxation. All84G/46M/24D targets remain; expanded profiles inactive. TC5 static pack and.29 parser binding are resolved; whole20/40/50/pre90/100Q1 remain open.",
+      "conditions": "P and11 original G cases qualified;73 primary G obligations remain unsatisfied. Four separate closed-copy calibration cells now qualified with independent Astra acceptance; original failure and no-dispatch attempt remain retained. R1-only forecast fits existing closed-copy limits but actual R1 is pending. Integrated M/D/F tooling and current-pin110 policy retain assembled b466 source qualification; exact.29 parser and reviewed controller-policy/successor repairs have affected qualification. All84G/46M/24D targets remain; expanded profiles inactive. Current paired50 performance, actualG/M/D/F, whole20/40/pre90 and100Q1 remain open.",
       "evidence": "G source0fa retains assembled acceptance,11 qualified/73 required cap refusals and inactive expanded profiles. Current M source256375d4b6a9ce0a54a06876d2df1373615ab67c is integrated at e6cbc956954d29137059fb5df32bc78ba863eecd after independent Astra ACCEPT: merged current release, rebuilt providerfree CLI/helper, then passed Pages20/20,Tegra45/45,exact2 previously failed guardian controls and2 previously unrun dispatch controls. Dispatch exercises actual rebuilt search/fetch in both formats with literal hit/body/error oracles. Original223/220/3 interrupted-wrapper history is retained; this is assembled qualification, not a new uninterrupted full gate. Both guardians finalized samples and collected all owned actors. Historical Python/NAPI subjects were not loaded or retagged. D accepted5edb capture/report/transport and5cf6 main entry have actual RED/GREEN; process2068 passes3 frozen owned-child controls, pending final coherent review/integration. Fixed24 allocation connection/source qualification remains. No actual D/M/F scientific campaign or whole30 closure. TC5 pack is statically qualified; candidate runtime remains pending.",
       "qualified_subset_sha": "2fd772558e46d0b1645dce2ffea730d0bdd3305c",
       "continuation_plan_sha": "0d8be5bb75516955ebf99b94913b9b54921bb3a4",
@@ -484,7 +484,7 @@
         "final_source_verification": "Independent Astra ACCEPT256375d4 current-source fit and assembled qualification. Actual clean cbd87 subject: own CLI40.56s/helper42.28s refresh, then Pages20/20,Tegra45/45,guardian2/2,dispatch2/2PASS including actual both-format search/fetch. Strict final samples/empty boundaries/no survivors/no resource stop. Original223registered220pass3fail interruptedwrapper retained, not relabeled. No full/passing-suite replay. Old Python/NAPI remain historical/unloaded; scientific46 and proposed6h/64GiB inactive."
       },
       "g_closed_copy_plan": {
-        "status": "SOURCE_QUALIFIED_RUNTIME_HELD",
+        "status": "FOUR_CALIBRATION_CELLS_QUALIFIED_R1_READY_RUNTIME_PENDING_WRITES_HELD",
         "plan_sha": "90a883f8b9d2d7d292c4d2b99275a6c7e3bad242",
         "review": "Same independent Astra-medium PASS after fixes for common overhead, supervised copy/validation and enforced R1 cost-review stop.",
         "scope": "One coherent Python tooling phase for calibration, R1-only, write-matrix and reference/cost transitions; per-behavior RED/GREEN, fresh independent implementation review, final clean source gate. No Rust/native rebuild or qualified-case replay.",
@@ -493,12 +493,12 @@
           "cells": 4,
           "cell_seconds": 1500,
           "common_seconds": 600,
-          "new_bytes_per_cell": 3221225472,
           "common_bytes": 1073741824,
           "maximum_phase_seconds": 6600,
           "maximum_terminal_shared_ns": 8445130877940,
           "maximum_terminal_retained_bytes": 15861785730,
-          "status": "DESIGN_ONLY_NOT_ACTIVE; within original14400s/16GiB; no runtime GO"
+          "status": "ACTUAL_FOUR_CELLS_QUALIFIED_V3_OLD_SHARED_CAPS; historical initial forecasts retained; see g_calibration_latest",
+          "cumulative_bytes_per_cell": 3221225472
         },
         "successor_candidate": {
           "total_shared_seconds": 43200,
@@ -506,7 +506,8 @@
           "status": "INACTIVE_CONDITIONAL; actual costs and complete G/D/M forecasts required; includes prior charges, no reset or additive M ceiling"
         },
         "sequencing": "G Python source first preserves native fingerprints. Calibration, R1-only and write-matrix terminate separately; reviewed actual costs required before writes.",
-        "source_sha": "0fa61810bcd5c348b23d0ae89206ae3b3033366e"
+        "source_sha": "0fa61810bcd5c348b23d0ae89206ae3b3033366e",
+        "runtime_source_sha": "1a88937dcf6c00c22c5cd1ae48fc0bb320c3a46c"
       },
       "d_source_entry": {
         "worktree": "/mnt/data/worktrees/fathomdb-0.8.29-s30-d-20261114",
@@ -554,6 +555,43 @@
         "common_used_ns": 13517083314,
         "retained_bytes": 2968786363,
         "inflight": null
+      },
+      "g_calibration_successor": {
+        "sha": "8e6707343aa8307a952b9e9a12b70c449eba219e",
+        "status": "IMPLEMENTED_REVIEWED_USED_ONCE",
+        "evidence": "Actual public-child RED39a4bd604 then frozen10 new/31 existing controls pass. Independent Astra design FIX1 and implementation ACCEPT; root owned Markdown gate passes. Exact prior-policy defect only; durable one-use permit retains original stop/results/charges, new failure precedence and cumulative time/common/storage controls. Used v1-to-v3 once; no further successor authorized."
+      },
+      "g_calibration_latest": {
+        "source_sha": "1a88937dcf6c00c22c5cd1ae48fc0bb320c3a46c",
+        "root": "/mnt/data/tmp2/fathomdb-0829-continuation/slice30-g-20261113/gd-allocation/g-closed-calibration-v3",
+        "status": "FOUR_CALIBRATION_CELLS_QUALIFIED_INDEPENDENT_ASTRA_ACCEPT",
+        "cells": [
+          {
+            "id": "g-cal-engine-b10-s1",
+            "wall_ns": 131243608837,
+            "positive_gpu_samples": 842
+          },
+          {
+            "id": "g-cal-sdk-b10-s1",
+            "wall_ns": 132308461479,
+            "positive_gpu_samples": 842
+          },
+          {
+            "id": "g-cal-engine-b1-s100",
+            "wall_ns": 59562252403,
+            "positive_gpu_samples": 13
+          },
+          {
+            "id": "g-cal-sdk-b1-s100",
+            "wall_ns": 60270967762,
+            "positive_gpu_samples": 16
+          }
+        ],
+        "evidence": "All retain500 warmups/1000 natural calls, requestedcuda:0, same-PID positiveGPU proof and no qualification issue. Strict run/report guardians terminal, no stops/uncertainty/survivors, exact empty boundaries removed. Stage complete; primary11 reused/73 held and overall incomplete remain. This qualifies frozen-baseline copy/cost calibration, not currentb466 pairedperformance or whole30. All earlier failures/charges retained.",
+        "shared_used_ns": 2401262709005,
+        "calibration_common_used_ns": 40464370445,
+        "retained_bytes": 6690991597,
+        "next": "Astra accepted prospective R1-only readiness:1421.937516906s forecast within1499.988109292s remaining cell,40s cleanup reserve, projected8613312291B retention below16GiB. Actual R1 still requires serial native lease and fresh technical GO. No write matrix or expanded profile active."
       }
     },
     {
@@ -827,8 +865,14 @@
         "dev/plans/0.8.29/features/slice-140/test-map.md"
       ],
       "conditions": "Concrete required110 or independently required existing.29 artifact repair only, fork-local qualified before product pins; B/C maintenance belongs.30. New120 CUDA13 delivery/compiler/affected repair work belongs.31 by seq378 and cannot create a.29 repair gate. Consumes reviewed repair design, not110 closure; no-repair disposition requires actual evidence.",
-      "phase": "FORK_A_CLEANUP_REVIEW_FIX_ACCEPTED_CHILD_CONSTRUCTION_PENDING",
-      "evidence": "Owned coreyt/cudarc branch has genuine RED/GREEN cleanup, sticky-loss, inactive/replaced/error-probe, cached-diagnostic, shared-anchor, constructor and admission units. Fresh Astra accepted cleanupaa421, shared probesb9f6, anchor/diagnosticd54b and factory/admission53302e8. Bound bind integrationba5d4cb follows actual extra-probe RED0740d7a; exact and affected controls pass. Tracked child constructors, reachable nested cleanup, pools, fork qualification, Candle/product adoption and pins remain unfinished. Native release is only the separately tested balanced-primary-anchor exception. No actual reset, new CUDA13, publication or whole140 qualification. Tracked construction e4e1ff31d2a5e241459e23f1dbad45006a2dcd04 and bound bind ba5 passed focused controls and independent Astra ACCEPT. Event f97b847 and stream a16b850cb0049f1ef572ea834a58079a3fbc13c0 each passed their actual native-destroy RED and six frozen CPU controls, with no real CUDA dispatch. Coherent Astra review requires one correction: native cleanup get-current/set-current failures must terminally latch shared refusal, while an already-recorded ordinary OOM from check_err remains nonterminal. That correction and separate new-stream construction-count rollback remain unfinished; no fork qualification or product pin adoption is claimed. The cleanup finding is now closed at4510667590ff729adfdb140e53d645ce00a8acbd after actual REDbcab299 and fresh same-Astra ACCEPT: native binding failures terminally latch shared loss, preexisting ordinary OOM remains nonterminal. Origin3/event6/stream6 controls pass. Separate stream count rollbackcf50f3aaccbeeb76ac42b192c59146b40993206e follows genuine count1-versus0 RED13ad4f8 and four frozen controls. Child constructor/use/Drop admission, public non-FFI cached-loss/retained-identity observation, tracked pool creation/attachment and full fork qualification remain pending; no product pins or actual reset are adopted."
+      "phase": "SELECTED_MEMORY_MODULE_LAUNCH_LIBRARY_SOURCE_REVIEWED_PINNED_POOL_PENDING",
+      "evidence": "Owned coreyt/cudarc branch has genuine RED/GREEN cleanup, sticky-loss, inactive/replaced/error-probe, cached-diagnostic, shared-anchor, constructor and admission units. Fresh Astra accepted cleanupaa421, shared probesb9f6, anchor/diagnosticd54b and factory/admission53302e8. Bound bind integrationba5d4cb follows actual extra-probe RED0740d7a; exact and affected controls pass. Tracked child constructors, reachable nested cleanup, pools, fork qualification, Candle/product adoption and pins remain unfinished. Native release is only the separately tested balanced-primary-anchor exception. No actual reset, new CUDA13, publication or whole140 qualification. Tracked construction e4e1ff31d2a5e241459e23f1dbad45006a2dcd04 and bound bind ba5 passed focused controls and independent Astra ACCEPT. Event f97b847 and stream a16b850cb0049f1ef572ea834a58079a3fbc13c0 each passed their actual native-destroy RED and six frozen CPU controls, with no real CUDA dispatch. Coherent Astra review requires one correction: native cleanup get-current/set-current failures must terminally latch shared refusal, while an already-recorded ordinary OOM from check_err remains nonterminal. That correction and separate new-stream construction-count rollback remain unfinished; no fork qualification or product pin adoption is claimed. The cleanup finding is now closed at4510667590ff729adfdb140e53d645ce00a8acbd after actual REDbcab299 and fresh same-Astra ACCEPT: native binding failures terminally latch shared loss, preexisting ordinary OOM remains nonterminal. Origin3/event6/stream6 controls pass. Separate stream count rollbackcf50f3aaccbeeb76ac42b192c59146b40993206e follows genuine count1-versus0 RED13ad4f8 and four frozen controls. Child constructor/use/Drop admission, public non-FFI cached-loss/retained-identity observation, tracked pool creation/attachment and full fork qualification remain pending; no product pins or actual reset are adopted.",
+      "fork_source_checkpoint": {
+        "cudarc_sha": "3c116e2eaddc4b61e950cfe36102de76a29c59cb",
+        "library_sha": "0bd3d44b0799767d89950b69eb2a44aac4b60655",
+        "merge_sha": "8921b072ae00a61327346214d38bc604cf5489be",
+        "evidence": "Independent Astra accepts selected memory, module load/lookup/drop, ordinary launch admission/results and BLAS/RNG constructor/setter/drop/guard/safe-use source with genuine RED/GREEN CPU-seam controls. Exact library changes merged into newer driver source. No realGPU/reset, combined-feature qualification or pins claim. Pinned-host/pool source work and selected Candle helper integration remain."
+      }
     },
     {
       "slice": 150,
@@ -1081,7 +1125,7 @@
   },
   "release_readiness": {
     "status": "NOT_READY",
-    "qualification": "Slice10 preparation and Slice70 bounded SDK parity complete. Qualified subsets:20 Linux,30 P/source and11 actual G cases,60 MCP,100 coverage/native.73 required G cap refusals plus D/M/F, whole30/60-F11, Windows20 A6,100 Q1, other selected outcomes and final160 remain pending. Source normal-entry qualification is assembled with original124 preserved; all failures/refusals/inner skips and unavailable counts keep their subjects. No whole-release or published-package claim.",
+    "qualification": "0\u201310 preparation,60 MCP,70 SDK and80 design are complete locally. Qualified subsets include20 Linux,30 tooling/P/11 primaryG plus four separate calibration controls,50 search source,100 coverage/native and selected140 fork CPU seams. Whole20,73 primaryG obligations, actualM/D/F,current paired50 performance,conditional40,Block1 exit/90,100Q1,110 tracked integration,130 venues/finalartifacts and160 remain pending. Source qualification is assembled with original failures/refusals/skips preserved. No whole-release or published-package claim.",
     "publication": "HELD; no tag, dispatch, external ACL mutation or registry publication authorized by bootstrap."
   },
   "generated_views": [

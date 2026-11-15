@@ -181,6 +181,55 @@ already armed hook on the same engine panics; callbacks must provide their own
 bounded release/cleanup. An unfired callback is dropped with its engine. Ordinary
 search and shipped artifacts carry no hook state or new contract fields.
 
+### Private CUDA pool observation
+
+Slice130 D binding support follows the independently accepted
+[ADR addendum](../adr/ADR-0.8.29-sdk-qualification-observation.md#slice130-d-addendum)
+and exact passive feature boundary. The dedicated nondefault `cuda-pool-observer` feature
+forwards embedder → engine → SDK/Py/NAPI without enabling CUDA, model features,
+`test-hooks` or `operator`. No ordinary/shipping feature enables it.
+
+The exact hidden Rust SDK static method is
+`Engine::cuda_pool_observation_for_qualification() -> Result<String>`, forwarding
+only `Ok(fathomdb_engine::Engine::cuda_pool_observation_for_qualification()?)`
+under direct feature and doc-hidden attributes. It borrows no SDK engine and
+works before open/after close. Core returns one JSON object with
+`schema="fathomdb.cuda-pool-observation/v1"`. Fixed JSON fields serialize without
+numeric precision loss; existing binding error/panic translation is retained,
+while unavailable/read-failed observations remain named data.
+The same JSON string is returned by native-only Python
+`fathomdb._fathomdb._cuda_pool_observation_for_qualification()` and native-addon
+Node `cudaPoolObservationForQualification()`. No Python/TypeScript application
+wrapper or facade re-export is added; no engine/model reference is acquired.
+
+Fields are `status`, numeric u32 `pid`/optional `device_ordinal`, optional
+canonical device `uuid`, `context_id`, `pool_id`, `live_models_before`,
+`live_models_after`, `used_current_bytes`, `reserved_current_bytes`,
+`configured_max_size_bytes`, `release_threshold` and `reason`/`error`.
+All u64/usize fields use decimal strings, except opaque process-local `pool_id`
+uses hexadecimal pointer text without dereference; threshold is `"0"` or
+`"max"`. Unavailable current counters are null, never zero-filled; ordinal,
+configuration/threshold and live count may truthfully be zero in an unavailable
+observation. Raw error/first-loss
+details preserve domain, optional code and optional observed context ID;
+synthetic projections retain their label and never claim a measured driver code.
+
+Status is `private` only after successful checked identity/current-counter
+reads through110's real shared token. Current product construction has not
+adopted that token, so the implemented private-decision path reports `untracked`
+or a cached `lost`, with no native reads; healthy native observation remains
+pending actual110 adoption. Other named statuses are `not_built`,
+`not_decided`, `no_private_pool`, `untracked`, `lost`, `read_error`,
+`identity_mismatch` and `ownership_changed`; these have null current counters.
+`ownership_changed` means differing before/after live counts. Equal counts do
+not exclude close/open ABA or other intervening activity; no epoch is added.
+`no_private_pool` retains the fallback reason without discovering a default
+context or inventing private identity. Counter reads do not synchronize/trim,
+initialize CUDA, construct/retain ownership, allocate GPU memory or reset counters.
+The [D design](../plans/0.8.29/features/slice-130/design.md#d-observational-seam-proposal)
+owns checked-read order and the actual110 integration boundary. Instrumented
+bytes/results remain separate from shipping lifecycle/witness evidence.
+
 ### Private Slice30 qualification observations
 
 The nondefault `fathomdb-engine/slice30-observer` feature exposes doc-hidden

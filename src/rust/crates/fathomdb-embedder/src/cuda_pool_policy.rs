@@ -1524,6 +1524,63 @@ impl<P, C> Decision<P, C> {
     }
 }
 
+#[cfg(test)]
+fn read_private_pool_counters_unsynchronized<D: PoolDriver>(
+    decision: Option<&Decision<D::Pool, D::Context>>,
+    driver: &D,
+) -> Result<Option<PoolCounters>, DriverFailure> {
+    let Some(Decision::Private(private)) = decision else {
+        return Ok(None);
+    };
+    if private.loss.get().is_some() {
+        return Ok(None);
+    }
+    driver.pool_counters(&private.pool).map(Some)
+}
+
+#[cfg(any(test, feature = "cuda-pool-observer"))]
+fn observation_from_decision<P, C>(
+    decision: Option<&Decision<P, C>>,
+) -> crate::cuda_pool_observation::CudaPoolObservation {
+    use crate::cuda_pool_observation::{CudaPoolObservation, CudaPoolObservationError};
+    let Some(decision) = decision else {
+        return CudaPoolObservation::unavailable("not_decided");
+    };
+    let private = match decision {
+        Decision::Fallback { reason, .. } => {
+            let mut observation = CudaPoolObservation::unavailable("no_private_pool");
+            observation.reason = Some(reason.as_str().to_owned());
+            return observation;
+        }
+        Decision::Private(private) => private,
+    };
+    let mut observation = CudaPoolObservation::unavailable("untracked");
+    observation.device_ordinal = u32::try_from(private.ordinal).ok();
+    observation.context_id = Some(private.context_id);
+    observation.configured_max_size_bytes = Some(private.max_size_bytes);
+    observation.release_threshold = Some(private.release_threshold.as_str());
+    observation.live_models_before = Some(private.live_models.load(Ordering::Acquire));
+    observation.reason = Some("tracked_lifetime_not_adopted".to_owned());
+    if let Some(loss) = private.loss.get() {
+        observation.status = "lost";
+        observation.reason = None;
+        observation.error = Some(CudaPoolObservationError {
+            domain: "published_context_loss",
+            code: None,
+            message: loss.driver_error.clone(),
+            observed_context_id: loss.current_context_id,
+            operation: Some(loss.operation.clone()),
+        });
+    }
+    observation.live_models_after = Some(private.live_models.load(Ordering::Acquire));
+    if observation.status != "lost"
+        && observation.live_models_before != observation.live_models_after
+    {
+        observation.status = "ownership_changed";
+    }
+    observation
+}
+
 /// Reads the settings and the module-load record, runs the gates, and on a
 /// pass creates the pool, probes it and builds the first private context.
 /// Every failure is a fallback with its reason; a pool that is not kept is
@@ -2274,6 +2331,11 @@ mod driver {
         DECISION.get().map(|decision| decision.report(context.ordinal(), Some(path)))
     }
 
+    #[cfg(feature = "cuda-pool-observer")]
+    pub(super) fn observe_pool() -> crate::cuda_pool_observation::CudaPoolObservation {
+        super::observation_from_decision(DECISION.get())
+    }
+
     /// The private pool's counters and its decided max size, after
     /// synchronizing the decision's first context; `None` without a private
     /// decision.
@@ -2293,10 +2355,7 @@ mod driver {
     #[cfg(test)]
     pub(crate) fn private_pool_counters_unsynchronized(
     ) -> Result<Option<PoolCounters>, DriverFailure> {
-        let Some(Decision::Private(private)) = DECISION.get() else {
-            return Ok(None);
-        };
-        CudarcDriver.pool_counters(&private.pool).map(Some)
+        super::read_private_pool_counters_unsynchronized(DECISION.get(), &CudarcDriver)
     }
 
     /// The device default pool's `reserved_current` and `used_high` on
@@ -2394,3 +2453,25 @@ mod probe_read_tests;
 #[cfg(test)]
 #[path = "cuda_pool_mode_tests.rs"]
 mod mode_tests;
+
+#[cfg(feature = "cuda-pool-observer")]
+pub(crate) fn observe_pool() -> crate::cuda_pool_observation::CudaPoolObservation {
+    #[cfg(all(
+        feature = "tegra-pool",
+        target_os = "linux",
+        target_arch = "aarch64",
+        any(feature = "embed-cuda", feature = "rerank-cuda")
+    ))]
+    {
+        driver::observe_pool()
+    }
+    #[cfg(not(all(
+        feature = "tegra-pool",
+        target_os = "linux",
+        target_arch = "aarch64",
+        any(feature = "embed-cuda", feature = "rerank-cuda")
+    )))]
+    {
+        crate::cuda_pool_observation::CudaPoolObservation::unavailable("not_built")
+    }
+}

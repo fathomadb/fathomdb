@@ -696,6 +696,9 @@ run_tier_suite fast test-ci-rust-workspace-gate bash scripts/tests/test_ci_rust_
 run_tier_suite fast test-aarch64-candle-feature-closure bash scripts/tests/test_aarch64_candle_feature_closure.sh
 run_tier_suite fast test-aarch64-candle-cpu bash scripts/tests/test_aarch64_candle_cpu.sh
 run_tier_suite heavy test-rust bash scripts/test-rust-workspace.sh --serial
+run_tier_suite heavy test-slice130-pool-observation cargo test --locked --release --jobs 1 \
+  -p fathomdb-engine --no-default-features --features cuda-pool-observer --lib \
+  cuda_pool_observation::tests:: -- --test-threads=1
 # Cargo's default example handling compiles examples but does not select their
 # unit assertions. Execute the bounded real-store adapter contracts explicitly.
 run_tier_suite heavy test-slice30-measurement-adapter cargo test --locked --release \

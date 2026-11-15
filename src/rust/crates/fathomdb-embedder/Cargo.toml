@@ -134,6 +134,8 @@ onnx-embedder = [
 # sets it). The options and the reason for this one are recorded in
 # dev/plans/0.8.28/features/slice-31/design.md § 14.3 (owner ruling Q37).
 tegra-pool = []
+# Passive qualification transport; enables no model or CUDA backend.
+cuda-pool-observer = []
 # Exposes `LoaderConfig` constructors/setters and `load_with_config` so
 # integration tests (or downstream test harnesses) can substitute base URLs,
 # cache roots, and pinned shas. Production callers MUST NOT enable this

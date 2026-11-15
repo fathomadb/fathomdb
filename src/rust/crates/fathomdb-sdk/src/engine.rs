@@ -42,6 +42,14 @@ struct SubscriberSlot {
 }
 
 impl Engine {
+    /// Return passive process-pool JSON without borrowing an engine or model.
+    /// Unavailable/lost states remain named data; no CUDA work is initiated.
+    #[cfg(feature = "cuda-pool-observer")]
+    #[doc(hidden)]
+    pub fn cuda_pool_observation_for_qualification() -> Result<String> {
+        Ok(fathomdb_engine::Engine::cuda_pool_observation_for_qualification()?)
+    }
+
     /// Open (creating if absent) the database at `path`.
     ///
     /// # Errors

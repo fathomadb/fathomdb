@@ -113,8 +113,12 @@ tracked experiment tools. Actual PowerShell parser, existing compiler/reference
 hashes and Reflection.Emit null-handle ABI check precede supervised csc. Child
 creation enters private no-breakaway kill-on-close Job Object with restricted
 stdio inheritance, original absolute lease/deadline and authoritative active-zero.
-Independent actual binary/hash review precedes child/death/lease/transport
-controls, then exact source-bound A6. No alternate compiler or tool installation.
+Containment design has independent acceptance. Apply corrections, compile, run
+affected controls and exact source-bound A6 as one execution batch; verify actual
+source/binary identity mechanically. Owner direction2026-11-15 removes repeated
+model-review and unchanged parser/tool checkpoints between these steps. One
+independent final implementation/results review covers the meaningful batch.
+No alternate compiler, tool installation or runtime-safety waiver follows.
 
 Host start/stop root32/20GiB, taskfs250/50GiB, MemAvailable16/8GiB and200GiB
 owned cap include the existing64GiB image reservation. Guest C8/5GiB, owned

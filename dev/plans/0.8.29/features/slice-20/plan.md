@@ -56,9 +56,10 @@ fault/toolkit work, remote CI or publication. Resource floors below remain.
    old endpoint/drive number. Normal shutdown/owned-actor collection stays bounded.
 2. Finish the tracked A6 operator's actual PowerShell parse, existing compiler/
    reference binding and Reflection.Emit null-handle ABI probe, then supervised
-   helper compilation. Review the coherent portability/source/binary binding and
-   private-job death/lease/transport/transfer controls once before A6. Reuse
-   accepted unchanged controls; no per-helper review rounds or hash inventory.
+   helper compilation. The containment design is independently accepted; corrections,
+   affected controls and A6 proceed as one batch under parent execution GO.
+   Reuse unchanged parser/tool/reference checks and verify actual identities
+   mechanically. No intermediate model review, packet or hash inventory.
    Retain exact transfer identity and actual private-job-empty proof.
 3. Transfer exact committed clean source under standing disposable-fixture
    authority, verify both ends/checked extraction on owned NTFS. One jobs2 engine

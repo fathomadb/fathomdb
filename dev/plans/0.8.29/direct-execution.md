@@ -72,7 +72,11 @@ review verdicts. Update these once, with the substantive work.
   bookkeeping. A reviewer reads the diff and the recorded results; a rerun needs
   a concrete doubt about a specific result.
 - Do not add approval stops for settled scope or per-helper reviews. Batch
-  review at coherent implementation milestones.
+  review at coherent implementation milestones. Owner2026-11-15 explicitly
+  reinforces this: implement corrections and run the meaningful work batch,
+  then review the combined result; do not turn each helper compile or fixed
+  assertion into a fresh model-review checkpoint. Mechanical identity and
+  actual actor/deadline/resource/oracle checks remain part of execution.
 - Keep: raw scientific measurements with their inputs and caps, source/native
   binding checks, resource limits and owned cleanup, per-behavior RED/GREEN,
   both independent reviews and real platform proof. Existing append-only

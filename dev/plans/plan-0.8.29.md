@@ -241,7 +241,9 @@ are shared state/ledger/manifest/interface writes. Each rereads the engine
 changes integrated before it at source entry and at integration.
 
 The one local host serves every native build/full gate, GPU campaign and Windows
-VM; one owner holds that heavy window at a time. The immediate execution order
+VM; one owner holds that heavy window at a time. Bounded light CPU-only correctness
+work may run alongside it when explicit caps preserve the heavy owner's entry
+floors; no GPU or performance-measurement overlap follows. The immediate execution order
 is Windows A6 → Candle F32 qualification →110 adoption, subject to current readiness. Source preparation
 and reviews in other isolated checkouts proceed throughout; a held or finished
 heavy job releases the window. Within authorized local measurement scope, actual

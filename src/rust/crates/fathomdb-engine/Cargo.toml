@@ -30,6 +30,7 @@ unicode-segmentation = "1.13"
 dunce = "=1.0.5"
 
 [features]
+cuda-pool-observer = ["fathomdb-embedder/cuda-pool-observer"]
 default = []
 # Private bounded Slice30 diagnostics; never forwarded by shipped artifacts.
 slice30-observer = []

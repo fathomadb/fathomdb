@@ -16,6 +16,7 @@ fathomdb-engine.workspace = true
 fathomdb-schema.workspace = true
 
 [features]
+cuda-pool-observer = ["fathomdb-engine/cuda-pool-observer"]
 # Empty by default like the `fathomdb` facade: a default model feature would
 # unify into every workspace build. `default-embedder` reproduces the shipped
 # Python wheel and npm package behaviour.

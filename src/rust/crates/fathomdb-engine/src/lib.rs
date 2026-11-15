@@ -48,6 +48,8 @@ mod actuation;
 mod connection_runtime;
 mod consolidation;
 mod context_pack;
+#[cfg(feature = "cuda-pool-observer")]
+mod cuda_pool_observation;
 pub use context_pack::{
     decode_round_body, decode_round_body_json, encode_round_body, encode_round_body_json,
     pack_context, pack_context_json, ContextItem, ContextOrder, ContextPack, ContextPackEntry,

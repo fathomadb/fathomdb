@@ -180,7 +180,7 @@
         "dev/plans/0.8.29/features/slice-20/test-map.md",
         "dev/plans/0.8.29/features/slice-20/review-log.md"
       ],
-      "phase": "LINUX_QUALIFIED_WINDOWS_CAPACITY_AND_SCRATCH_READY_A6_PENDING",
+      "phase": "LINUX_QUALIFIED_WINDOWS_CONTROLS_PASSED_ACTUAL_A6_BATCH_RUNNING",
       "evidence": "Qualified Linux source at45167677bee0d00b59194897e63ad05be40d6e63 includes unchanged prior seq-369 A3/A5 proofs and seq-370 capacity-only preparation plus genuine startup/visibility alias RED/GREEN. Fresh independent Astra implementation and assembled-results ACCEPT; affected parallel engine lib175/175, Clippy/check pass. Original final wrapper ran220 suites:218 passed and2 metadata guards failed. Reviewed baseline merge and exact inventory refresh made unchanged failed guards pass11/11 and8/8, yielding assembled220/220 without wrapper replay. Source/scripts/Cargo/toolchain/test oracles are unchanged from accepteddff; actual owned Python3.12.3/native receipt staysdff. Original wrapper exit1/failures retained. WindowsA6 remains unqualified: owned RAW image needs reattachment, seq-373 approved guarded format and refreshed guest/host readiness; no whole20/Block1/release closure.",
       "qualified_subset_sha": "45167677bee0d00b59194897e63ad05be40d6e63",
       "continuation_plan_sha": "391ae66aa9d36fc0dbdfe5326ed028551a6774f5",
@@ -196,6 +196,14 @@
         "bounds": "Existing8GiB C entry/5GiB stop and32GiBworkspace floor remain; selected cleanup or slight disk increase mustpreserve existing data and location under/mnt/data. Existing scratch/guardedformat approvals retained; tests still require readiness.",
         "evidence": "Seq385 cache/compiler-intermediate-only cleanup raised measured Cfree from5416456192B to9599889408B; no source/installedenv/EXE/DLL/PDB/results/log deletion or partition change. Actual guard-qualified seq373 format ran once at exact396a; owned64GiB R: NTFS FDB29S20A6, original system partitions unchanged. Native A6 operator mapping and actual tests remain.",
         "format_evidence": "/mnt/data/tmp2/fathomdb-0829-continuation/slice20/format-prep-20261113/evidence/format-only-d37fc79617f540919db07a90a7310f04"
+      },
+      "windows_batch_current": {
+        "source": "d522f0597",
+        "status": "ACTUAL_A6_SOURCE_TRANSFER_AND_BUILD_ENTRY",
+        "controls": "All19 original controls + real nonzero-root preservation pass on694 after correct joint root-exit/job-zero observation. Prior immediate-recapture failures remain.",
+        "correction": "Actual archive refusal traced to21 symlinks solely in unrelated historical .27 result directory; focused source archive correction preserves build inputs/unsafe-path guards and reuses unchanged helper/control/tool proof by exact bytes.",
+        "workflow": "Owner2026-11-15 batch correction: no percompile model checkpoint or unchanged parser/tool replay. Continue automatic safeguards, build1200s/four90s selectors, one independent final meaningful review.",
+        "closure": "A6 cases/whole20 not yet qualified."
       }
     },
     {
@@ -899,9 +907,9 @@
         "dev/plans/0.8.29/features/slice-130/review-log.md"
       ],
       "conditions": "Final selected existing.29 artifacts/pins and each permitted venue/session/cap remain for130B-E. Seq378 moves newCUDA13 delivery/compiler work.31 and seq381 explicitly moves130A CUDA13 Tegra there too, preserving stableTC-b267d940. Seq377 live child-reset execution excluded until.30. No deferred cell is passed.",
-      "phase": "E_PORTABLE_UTILITY_QUALIFIED_D_NATIVE_AND_LIVE_CAMPAIGNS_PENDING",
+      "phase": "D_PASSIVE_TRANSPORT_QUALIFIED_TRACKED_COUNTERS_AND_CAMPAIGNS_PENDING",
       "evidence": "GPT-6.1 Sol-high PhaseA scope/requirements/acceptance/design reconciled; independent Astra-medium design PASS recorded in features/slice-130/review-log.md. No implementation or source qualification follows this planning status. Bounded design after FIX1; exact selected artifacts/pins, venue/session inputs, C fixture and E equivalence/shipping evidence remain held. No campaign/spend authority. Owner seq381 explicitly reallocates130A to.31; remaining130B-E design/runtime/source qualification obligations are retained.",
-      "qualified_subset_sha": "fc6010a38b48cedbf56cfe0d8afb777beebb834c",
+      "qualified_subset_sha": "3a90e2c0e55710252a58dcba96db9e1c90070426",
       "e_portable_utility": {
         "source": "fc6010a38b48cedbf56cfe0d8afb777beebb834c",
         "status": "SCOPED_QUALIFIED_INDEPENDENT_ASTRA_ACCEPTED",
@@ -909,6 +917,14 @@
         "scope": "Frozen schedule/plateau math, bounded churn-free collector, explicit procfs units and error retention/early stop. Numerical instrumented utility only, no E/shipping/native/whole130 qualification.",
         "remaining": "Actual D passive observer/SDK wiring, shipping-equivalence/lifecycle and permitted venue/reservation/2x60min run; B/C approved session/artifact needs remain.",
         "orin_readiness": "Read-only authorized SSH confirms existing aarch64 Orin/L4T R36.5.2/primary CUDA12.6/driver540.5.0 and capacity. No GPU work, idle/reservation or new tools inferred."
+      },
+      "d_passive_source": {
+        "source": "3a90e2c0e55710252a58dcba96db9e1c90070426",
+        "status": "IMPLEMENTED_SCOPED_QUALIFIED_INDEPENDENT_ASTRA_ACCEPTED",
+        "red": "40333308c",
+        "scope": "Dedicated nondefault feature through embedder/engine/SDK/Python/NAPI; static native lossless JSON and exact passive catalog. Published-loss refusal and truthful unavailable/lost/untracked states, no context/model ownership or native dispatch.",
+        "tests": "2 observer +2 wire/property/u64MAX/nullable-zero controls pass; SDK/Python/Node no-default-feature checks, Rust parity53/53 and41 catalog controls pass. Original600s capped light lane ended584.145s and fully collected. Rustfmt passes on integration. No GPU/model/liveDB/shipping/full-source qualification claim.",
+        "remaining": "Healthy tracked counter reads still require actual110 token adoption; native SDK runtime, shipping/build equivalence and live D/E qualification remain. Existing checker Pyright2 baseline/setup issues are retained for final relevant checks."
       }
     },
     {
@@ -951,6 +967,15 @@
         "evidence": "Fmtcheck and production library Clippy-Werror pass. Exact Candle feature closure compiled with CUDA12.6, runtime GPU hidden. All selected driver/lifetime/admission/cached-diagnostic/BLAS/RNG CPU controls passed in individually bounded processes; all owned actors collected. Test compile has five dead-field warnings. No GPU/NVRTC runtime, whole-workspace, consumer-pin or release qualification claim.",
         "next": "Candle actual private F32-helper RED/GREEN, independent review and qualified adoption.",
         "review": "Independent Astra-medium accepted exactcb source/result binding and all312 unique exact passes; no actionable findings. Two obsolete cleanupOOM oracles preserve ownership/no-panic/destroy-once and now require policy-correct sticky exactOOM/no-growth. Ordinary-operation OOM controls remain passing."
+      },
+      "version_candidates": {
+        "cudarc": "343b04fa73f85ee78754d6ee2baa07b959cc9ccc",
+        "cudarc_version": "0.20.0",
+        "cudarc_scope": "Mechanical version/notice changes only; src/build.rs identical qualifiedcb36642. Unpublished, no native replay.",
+        "candle": "0c1be99388db9c48440fb1ae854cf883f595cd30",
+        "candle_versions": "core/nn/transformers0.12.0 with cudarc0.20.0; kernels remain0.10.2/K9.",
+        "candle_scope": "Mechanical versions only; production F32 helper and prepared oracles unchanged. Actual RED/GREEN pending heavy slot; bounded owned cache/lock setup allowed in light lane.",
+        "publication": "HELD; no tags/push/CI/publication performed."
       }
     },
     {

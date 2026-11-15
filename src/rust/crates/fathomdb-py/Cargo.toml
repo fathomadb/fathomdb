@@ -12,6 +12,7 @@ name = "fathomdb_py"
 crate-type = ["cdylib", "rlib"]
 
 [features]
+cuda-pool-observer = ["fathomdb-engine/cuda-pool-observer"]
 default = []
 test-hooks = ["fathomdb-engine/test-hooks"]
 # EU-6: forward the engine's default-embedder feature so the

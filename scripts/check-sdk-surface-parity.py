@@ -45,6 +45,12 @@ RUST_NON_COMMAND = {
 # Closed passive qualification surface; ADR-0.8.29-sdk-qualification-observation.
 # Validation is required before classification; attribute/name patterns alone grant nothing.
 RUST_QUALIFICATION_DIAGNOSTICS = {
+    "engine_static:cuda_pool_observation_for_qualification": {
+        "feature": "cuda-pool-observer",
+        "signature": "()->Result<String>",
+        "forwarder": "Ok(fathomdb_engine::Engine::cuda_pool_observation_for_qualification()?)",
+        "engine_feature": "fathomdb-engine/cuda-pool-observer",
+    },
     "engine_instance:begin_slice30_observation": {
         "feature": "slice30-observer",
         "signature": "(&self,max_records:usize)->Result<fathomdb_engine::Slice30ObservationGuard>",

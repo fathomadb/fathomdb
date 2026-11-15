@@ -82,10 +82,16 @@ pub(crate) enum RecordKey {
 
 impl FusionHit {
     pub(crate) fn key(&self) -> RecordKey {
-        match self.ownership {
-            FusionOwnership::CanonicalNode => RecordKey::CanonicalNode(self.write_cursor),
-            FusionOwnership::CanonicalEdge => RecordKey::CanonicalEdge(self.write_cursor),
-            FusionOwnership::OwnerlessNodeFts { rowid } => RecordKey::OwnerlessNodeFts(rowid),
+        self.ownership.record_key(self.write_cursor)
+    }
+}
+
+impl FusionOwnership {
+    pub(crate) fn record_key(self, cursor: u64) -> RecordKey {
+        match self {
+            Self::CanonicalNode => RecordKey::CanonicalNode(cursor),
+            Self::CanonicalEdge => RecordKey::CanonicalEdge(cursor),
+            Self::OwnerlessNodeFts { rowid } => RecordKey::OwnerlessNodeFts(rowid),
         }
     }
 }
@@ -127,6 +133,24 @@ impl RankedHit for FusionHit {
     }
 }
 
+pub(crate) trait FusionRecord {
+    fn record_key(&self) -> RecordKey;
+    fn bodies_conflict(&self, other: &Self) -> bool;
+    fn set_fused_score(&mut self, score: f64);
+}
+
+impl FusionRecord for FusionHit {
+    fn record_key(&self) -> RecordKey {
+        self.key()
+    }
+    fn bodies_conflict(&self, other: &Self) -> bool {
+        self.body != other.body
+    }
+    fn set_fused_score(&mut self, score: f64) {
+        self.score = score;
+    }
+}
+
 /// Fuse explicitly owned vector and text hits with Reciprocal Rank Fusion.
 ///
 /// Delegates to fuse_three_arms with an empty graph arm. Ownership and original
@@ -155,15 +179,23 @@ pub fn fuse_three_arms(
     text_hits: Vec<FusionHit>,
     graph_hits: Vec<FusionHit>,
 ) -> Result<Vec<FusionHit>, EngineError> {
+    fuse_records(vector_hits, text_hits, graph_hits)
+}
+
+pub(crate) fn fuse_records<H: FusionRecord>(
+    vector_hits: Vec<H>,
+    text_hits: Vec<H>,
+    graph_hits: Vec<H>,
+) -> Result<Vec<H>, EngineError> {
     #[cfg(feature = "tc5-benchmark")]
     tc5_benchmark::record_fusion_route();
-    struct Entry {
-        hit: FusionHit,
+    struct Entry<H> {
+        hit: H,
         score: f64,
         in_vector: bool,
         order: usize,
     }
-    let mut entries: Vec<Entry> = Vec::new();
+    let mut entries: Vec<Entry<H>> = Vec::new();
     let mut by_record: HashMap<RecordKey, usize> = HashMap::new();
     for (arm, weight, in_vector) in [
         (vector_hits, RRF_WEIGHT_VECTOR, true),
@@ -172,10 +204,10 @@ pub fn fuse_three_arms(
     ] {
         let mut credited = HashSet::new();
         for (rank0, hit) in arm.into_iter().enumerate() {
-            let key = hit.key();
+            let key = hit.record_key();
             let contribution = weight / (RRF_K + (rank0 as f64 + 1.0));
             if let Some(&index) = by_record.get(&key) {
-                if entries[index].hit.body != hit.body {
+                if entries[index].hit.bodies_conflict(&hit) {
                     return Err(EngineError::InvalidArgument {
                         msg: "conflicting bodies for one retrieval record".into(),
                     });
@@ -201,7 +233,7 @@ pub fn fuse_three_arms(
     Ok(entries
         .into_iter()
         .map(|mut entry| {
-            entry.hit.score = entry.score;
+            entry.hit.set_fused_score(entry.score);
             entry.hit
         })
         .collect())

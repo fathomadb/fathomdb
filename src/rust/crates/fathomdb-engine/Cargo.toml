@@ -84,6 +84,10 @@ slice72-test-hooks = []
 slice72-gpu-tests = ["embed-cuda", "rerank-cuda", "slice72-test-hooks"]
 
 [[test]]
+name = "slice50_lightweight_controls"
+required-features = ["test-hooks"]
+
+[[test]]
 name = "slice50_lightweight_hydration"
 required-features = ["test-hooks"]
 

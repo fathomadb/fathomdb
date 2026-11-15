@@ -916,6 +916,60 @@ fn node_fts_ownership(row: &rusqlite::Row<'_>) -> rusqlite::Result<FusionOwnersh
     }
 }
 
+// Constructed only after comparing FTS body/kind to its canonical owner in
+// this read transaction. Ownerless identity is its actual unique FTS rowid.
+struct ConsistentNodeFts {
+    rowid: i64,
+    write_cursor: u64,
+    ownership: FusionOwnership,
+    score: f64,
+}
+
+enum DeferredFusionHit {
+    Hydrated(FusionHit),
+    NodeFts(ConsistentNodeFts),
+}
+
+impl crate::fusion::FusionRecord for DeferredFusionHit {
+    fn record_key(&self) -> RecordKey {
+        match self {
+            Self::Hydrated(hit) => hit.key(),
+            Self::NodeFts(hit) => hit.ownership.record_key(hit.write_cursor),
+        }
+    }
+    fn bodies_conflict(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Hydrated(left), Self::Hydrated(right)) => left.body != right.body,
+            // A canonical thin row already proved equality to the same stored
+            // record that hydrated the vector. Ownerless keys cannot intersect
+            // vector keys, and repeated ownerless keys name the same FTS row.
+            _ => false,
+        }
+    }
+    fn set_fused_score(&mut self, score: f64) {
+        match self {
+            Self::Hydrated(hit) => hit.score = score,
+            Self::NodeFts(hit) => hit.score = score,
+        }
+    }
+}
+
+impl DeferredFusionHit {
+    fn hydrate(self, statement: &mut rusqlite::Statement<'_>) -> rusqlite::Result<FusionHit> {
+        match self {
+            Self::Hydrated(hit) => Ok(hit),
+            Self::NodeFts(thin) => {
+                let (mut hit, _) = statement.query_row([thin.rowid], node_fusion_hit_from_row)?;
+                if hit.key() != thin.ownership.record_key(thin.write_cursor) {
+                    return Err(rusqlite::Error::InvalidQuery);
+                }
+                hit.score = thin.score;
+                Ok(hit)
+            }
+        }
+    }
+}
+
 fn node_fusion_hit_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<(FusionHit, i64)> {
     let (hit, rowid) = rank_search_hit_from_row(row)?;
     Ok((FusionHit { hit, ownership: node_fts_ownership(row)? }, rowid))
@@ -2370,6 +2424,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     // in SQL (the vector branch is filtered in phase 1; the text branch has no
     // metadata columns of its own).
     let mut deferred_text_identity = false;
+    let mut deferred_node_candidates: Option<Vec<ConsistentNodeFts>> = None;
     // EP-17: the search-local `write_cursor → (table, rowid)` map, filled only
     // when snippets are requested.
     let mut fts_rows = FtsRows::new();
@@ -2595,7 +2650,55 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         } else {
             None
         };
-        let deferred_candidates = if defer_text_identity {
+        // Mixed node/edge text ranks stay on the reference implementation until
+        // that distinct route has its own exactness and work proof.
+        let defer_full_hydration = defer_text_identity
+            && !vector_stage_only
+            && tx.query_row(
+                "SELECT NOT EXISTS(SELECT 1 FROM search_index_edges LIMIT 1)",
+                [],
+                |row| row.get::<_, bool>(0),
+            )?;
+        let deferred_candidates = if defer_full_hydration {
+            let now_binding =
+                now_param.map(|_| " AND (?2 IS NULL OR ?2 IS NOT NULL)").unwrap_or("");
+            let sql = format!(
+                "SELECT si.rowid, si.write_cursor, bm25(search_index), cn.write_cursor, \
+                 si.body IS cn.body, si.kind IS cn.kind FROM search_index si \
+                 LEFT JOIN canonical_nodes cn ON cn.write_cursor=si.write_cursor \
+                 WHERE search_index MATCH ?1{now_binding}{limit_clause}"
+            );
+            let mut statement = prepare_search_statement(&tx, &sql)?;
+            let rows =
+                statement.query_map(rusqlite::params_from_iter(text_params.iter()), |row| {
+                    let rowid = row.get::<_, i64>(0)?;
+                    let write_cursor = row.get::<_, i64>(1)? as u64;
+                    let ownership = if row.get::<_, Option<i64>>(3)?.is_some() {
+                        if !row.get::<_, bool>(4)? || !row.get::<_, bool>(5)? {
+                            return Err(rusqlite::Error::InvalidQuery);
+                        }
+                        FusionOwnership::CanonicalNode
+                    } else {
+                        FusionOwnership::OwnerlessNodeFts { rowid }
+                    };
+                    Ok(ConsistentNodeFts { rowid, write_cursor, ownership, score: row.get(2)? })
+                })?;
+            let mut candidates = rows.collect::<rusqlite::Result<Vec<_>>>()?;
+            candidates.sort_by(|left, right| {
+                left.score
+                    .total_cmp(&right.score)
+                    .then_with(|| left.write_cursor.cmp(&right.write_cursor))
+            });
+            if snippet.is_some() {
+                for hit in &candidates {
+                    fts_rows
+                        .entry(hit.ownership.record_key(hit.write_cursor))
+                        .or_insert((FtsTable::Nodes, hit.rowid));
+                }
+            }
+            deferred_node_candidates = Some(candidates);
+            Some(Vec::new())
+        } else if defer_text_identity {
             let now_binding =
                 now_param.map(|_| " AND (?2 IS NULL OR ?2 IS NOT NULL)").unwrap_or("");
             let sql = format!(
@@ -2637,7 +2740,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             None
         };
         let candidates = if let Some(candidates) = deferred_candidates {
-            deferred_text_identity = true;
+            deferred_text_identity = !defer_full_hydration;
             #[cfg(feature = "test-hooks")]
             record_fts_route_for_test("hybrid_deferred_identity");
             candidates
@@ -2742,7 +2845,8 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             }
         };
         #[cfg(any(test, feature = "slice30-observer"))]
-        node_observation.counted_success(candidates.len());
+        node_observation
+            .counted_success(deferred_node_candidates.as_ref().map_or(candidates.len(), Vec::len));
         candidates
     };
     let mut text_results: Vec<FusionHit> = text_candidates;
@@ -2902,6 +3006,24 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         let fusion_observation = crate::slice30_observer::span("fusion_final_ranking");
         let mut results = if vector_stage_only {
             vector_results
+        } else if let Some(text) = deferred_node_candidates {
+            let fused = crate::fusion::fuse_records(
+                vector_results.into_iter().map(DeferredFusionHit::Hydrated).collect(),
+                text.into_iter().map(DeferredFusionHit::NodeFts).collect(),
+                Vec::new(),
+            )
+            .map_err(SearchReaderError::Evidence)?;
+            let mut hydrate = tx.prepare_cached(
+                "SELECT si.body, si.kind, si.write_cursor, 0.0, cn.logical_id, cn.source_id, \
+                 si.rowid, cn.write_cursor, si.body IS cn.body, si.kind IS cn.kind \
+                 FROM search_index si LEFT JOIN canonical_nodes cn \
+                 ON cn.write_cursor=si.write_cursor WHERE si.rowid=?1",
+            )?;
+            fused
+                .into_iter()
+                .take(final_limit)
+                .map(|candidate| candidate.hydrate(&mut hydrate))
+                .collect::<rusqlite::Result<Vec<_>>>()?
         } else if use_graph_arm {
             // R3 (Slice 30) — graph arm: BFS over temporal fact-edges seeded from
             // the top-10 two-arm fused candidates, depth ≤ 3, cap 50.

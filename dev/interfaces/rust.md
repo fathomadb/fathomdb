@@ -213,8 +213,13 @@ The reader records `vector_retrieval` with nested `vector_phase1_f32_sql` and
 `fusion_final_ranking` and optional `deferred_identity_hydration`. Binary KNN
 and f32 reranking occur in one existing SQL operation; no exclusive split is
 inferred. Candidate counts describe the respective existing output population.
-Deferred identity hydration is the current logical-ID/source lookup, not a new
-body-content deferral. Skipped vector/identity sections carry untimed `not_run`.
+On the qualified hybrid route with no edge FTS rows, node candidates retain
+complete lightweight ranks with snapshot body/kind consistency checks. Shared
+record-key fusion selects the final winners before Rust body/identity hydration
+inside `fusion_final_ranking`; SQLite may still read bodies for consistency.
+Mixed edge corpora retain full candidate materialization and the separate
+`deferred_identity_hydration` logical-ID/source lookup. Skipped vector/identity
+sections carry untimed `not_run`.
 Snapshot authority reads are feature+active gated, explicitly observer-added on
 the actual reader transaction; read failure records unavailable without authority
 values or changing the product outcome.

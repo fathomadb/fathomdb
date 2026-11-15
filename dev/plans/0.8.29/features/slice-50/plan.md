@@ -1,6 +1,6 @@
 ---
 title: Slice 50 — Fusion identity, exact deferred content and record-start snippets
-status: PROPOSED
+status: DESIGN_REVIEWED_IMPLEMENTATION_PENDING
 target_release: 0.8.29
 slice: 50
 ---
@@ -33,13 +33,13 @@ source inputs. Whole30 M/D/F/Windows work remains separately outstanding; no
 historical100k number or closed-copy tooling pass is a measured50 benefit.
 
 The60 formats/flags/direct-text-filter/budget subset and complete70 reasons are
-integrated; F11 remains held.50 must reconcile the actual integrated delta at
+integrated; F11 implementation remains pending under seq375.50 must reconcile the actual integrated delta at
 its source entry.
 
-## Proposed exact source-entry amendment (review pending)
+## Accepted exact source-entry amendment
 
-Replace the whole30 source dependency only after independent Astra review and
-parent activation with: closed10; qualified Linux20 source/gate metadata
+Independent Astra-medium review passed November14 on documents through327672507;
+parent activation replaces the whole30 source dependency with: closed10; qualified Linux20 source/gate metadata
 `45167677bee0d00b59194897e63ad05be40d6e63`; accepted P measured source
 `2fd772558e46d0b1645dce2ffea730d0bdd3305c` and its
 [accepted results](../slice-30/results-p.md); accepted G normal assessment
@@ -56,9 +56,9 @@ measurements. Check exact integrated source/native/features/input equivalence at
 entry; retain original failures, refusals, score/provenance/Unicode proofs and
 same-input untraced comparisons. No private Memex snapshot is required. Do not
 start a cache/optimization without meaningful applicable evidence, exact-route
-proof and genuine per-behavior RED/GREEN. Until review/activation, the existing
-whole30 source hold remains; these documents claim neither source-ready nor
-accepted narrowing.
+proof and genuine per-behavior RED/GREEN. This accepted narrowing opens source
+entry only. Actual current-input fit, owned setup, implementation and final
+qualification remain; no optimization or runtime result is claimed.
 
 ## Intended outcome and fixed boundaries
 
@@ -88,10 +88,11 @@ accepted narrowing.
    RED/GREEN decomposition against the actual integrated source. Private Memex
    population census is optional frequency/benefit characterization, not a source
    entry or correctness prerequisite; no snapshot is available or needed here.
-2. Parent obtains independent Astra-medium design review of the selected seq-374/
-   seq-375 decisions, including context packing, representative-first provenance,
-   atomic feedback refusal and both O3-09 role-tagged fixture families. Reviewer
-   PASS does not settle missing30 evidence or grant source entry.
+2. Independent Astra-medium review passed the selected seq374/375 design and
+   named-artifact entry amendment through327672507, after preserving acquisition-
+   time not_recorded precedence. Reconcile affected implementation design against
+   the actual source; review substantive new design deltas, not unchanged decisions.
+   This does not settle missing30 runtime evidence or qualify an optimization.
 3. After actual prerequisites and parent source entry: use a fresh isolated
    checkout, strict preflight and owned setup. Reconcile all integrated40/60/70
    changes; 40-before50 is preferred for attribution, not a semantic dependency.
@@ -114,10 +115,9 @@ accepted narrowing.
 
 ## Dependencies, decisions and status
 
-The proposed named-artifact amendment above retains qualified20/current actual30
-read baseline inputs and reviewed selected identity semantics. It still requires
-its independent design review; no source-ready claim
-or baseline waiver is made here. Reconcile actual integrated source and exact
+The accepted named-artifact amendment retains qualified20/current actual30 read
+baseline inputs and reviewed selected identity semantics. Independent Astra PASS
+through327672507 is an entry/design verdict, not implemented behavior or a baseline waiver. Reconcile actual integrated source and exact
 qualified baseline artifacts at entry. Runtime private Memex population census
 is unavailable optional characterization, not an extra implementation gate.
 [Requirement provenance](census.md#census-requirement-and-consumer-limits) retains
@@ -129,9 +129,9 @@ atomic .29 feedback correction; .30 reviews richer labels for precise per-result
 feedback, without postponing the .29 fix. B/C fork/rebase/multiarchitecture work
 remains .30 and is unrelated to50. No public occurrence-label ABI is selected.
 
-Current result: source-only census/design and owner decisions recorded; independent
-design review, actual baseline prerequisites, source entry, TDD, benchmarks and
-final review remain outstanding. No product tests, models, GPU, private DB
+Current result: source/consumer census, selected design and independent entry
+review are complete. Actual source-entry fit/setup, implementation TDD,
+benchmarks and final implementation review remain outstanding. No product tests, models, GPU, private DB
 reads/copies or environment setup ran in this documentation update.
 
 Phase A validation:7 explicit Markdown candidates passed markdownlint0.41.1

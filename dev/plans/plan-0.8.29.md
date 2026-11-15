@@ -53,6 +53,20 @@ item gates. Resolve those concretely while progressing independent approved work
 
 ## Goal, scope and authority
 
+November14 owner dispositions are recorded in steward seq373–379: guarded
+owned Windows scratch formatting is approved; record-version retrieval identity,
+unchanged helper/packing contracts and atomic ambiguous-reference feedback
+refusal are selected. Policy and precise feedback attribution are revisited
+in [.30](0.8.30/release-followups.md); actual child-context reset execution is
+held until then. New CUDA13 delivery/compiler resolution and quantitative tests
+belong in [.31](0.8.31/cuda-delivery-plan.md). Seq381 explicitly includes130A's
+CUDA13 Tegra qualification in that move; existing CUDA12.6 and130B–E stay in.29.
+The bounded current usage review is
+accepted with its unknowns and importance ratings unchanged. No deferred runtime
+cell is described as passing or a new support claim. The source/consumer identity
+census remains required; unavailable private Memex snapshots are not an original
+scope prerequisite, a migration requirement or a basis for population claims.
+
 Finish agent access, improve exact search at scale, and reconcile the paused
 MCP/queue/Block 1, Block 2, scale and CUDA work into `dev/0.8.29`.
 The owner confirmed 0.8.29 on November 9. This proposal expands the prior
@@ -171,10 +185,10 @@ new initial features receive mod10 numbers and explicit placement.
 | 80 | Unified residual Block 2 requirements/design, built-signal inventory, truthful coverage/scored spans | Built hints/queue/span storage; settle compact, identity and degradation field contracts before approval | [Block 2 design](0.8.29/features/slice-80/plan.md) |
 | 90 | Implement only accepted B2 residuals; preserve existing signals | Approved 80 AND Block 1 follow-up exit below | [Block 2 build](0.8.29/features/slice-90/plan.md) |
 | 100 | Reconcile and complete bounded interruption/reopen qualification of current erasure transaction/checkpoint seams | Current format37 cleanup/maintenance contract; existing coverage comparison | [Interruption](0.8.29/features/slice-100/plan.md) |
-| 110 | CUDA context-reset lifetime/teardown remedy and bounded fault qualification | Reviewed reset design, permitted GPU venue; qualified fork fix if needed | [Reset safety](0.8.29/features/slice-110/plan.md) |
-| 120 | Required CUDA usage/policy review; second CUDA13 artifact design and delivery | Accepted policy/ratified changes, final chosen affected pins, explicit distribution/driver/library/PTX contracts | [CUDA artifact](0.8.29/features/slice-120/plan.md) |
-| 130 | Selected CUDA platform, SDK pool-release and revised soak qualification; non-Tegra initialization study | Approved venues, artifact/pins under test, test-only observations and reviewed hypotheses | [CUDA qualification](0.8.29/features/slice-130/plan.md) |
-| 140 | Required fork repairs only (A); versioning only when needed to release those repairs | Concrete approved110/120 repair need; fork-local qualification before pins; B/C maintenance moves to .30 under steward seq-367 | [Required fork repairs](0.8.29/features/slice-140/plan.md) |
+| 110 | Selected quiescent context-loss lifetime remedy and source/seam qualification; actual reset tests deferred to .30 | Seq376 policy and seq377 execution disposition; qualified required fork fix before pins | [Reset safety](0.8.29/features/slice-110/plan.md) |
+| 120 | Bounded usage review accepted; new CUDA13 delivery/compiler work deferred to .31 | Seq378–379; no .29 new-artifact or compiler-clearance claim | [CUDA artifact disposition](0.8.29/features/slice-120/plan.md) |
+| 130 | Existing CUDA12.6 platform/SDK B–E qualification; CUDA13 Tegra A moves to .31 | Approved B–E venues, artifact/pins under test, reviewed observations/hypotheses; seq381 excludes A from .29 | [CUDA qualification](0.8.29/features/slice-130/plan.md) |
+| 140 | Required fork repairs only (A); versioning only when needed to release those repairs | Concrete approved110 or existing .29 artifact repair; fork-local qualification before pins; new CUDA13 work is .31 and B/C maintenance is .30 | [Required fork repairs](0.8.29/features/slice-140/plan.md) |
 | 150 | Conditional candidate selection, coalescing and SDK hints experiments | Explicit 9 experiment decisions, preregistration and current native-eligibility baseline; separate product promotion approval | [Experiments](0.8.29/features/slice-150/plan.md) |
 | 160 | Combined qualification, release notes/docs and publication readiness | All selected work complete/qualified or explicitly disposed; unresolved mandatory items block close | [Close](0.8.29/features/slice-160/plan.md) |
 
@@ -230,10 +244,14 @@ tolerances and paired treatment qualification remain adoption conditions.
 Whole20/WindowsA6, whole30/M/D/F and TC5 are independent release gates, not
 blanket40 prerequisites. No cache or owner rejection/defer is selected.
 
-**Slice50 narrowing remains proposed, pending its specific design review.**
-The proposed inputs are named30 P/G read artifacts plus the identity ruling and
-census input, instead of whole30. Its existing JSON dependency and source hold
-remain unchanged until that amendment is accepted.
+**Slice50's named-artifact entry amendment passed independent Astra-medium review
+on November14.** Closed10 plus qualified Linux451, accepted P2fd/G29de read
+artifacts, selected seq374–375 identity/packing/feedback and the source/consumer
+census replace whole30 as source-entry dependencies. G still has11 qualified
+and73 refused cells. M/D/F and Windows keep their own release obligations.
+Original Batch3 requires no private Memex snapshot; runtime frequency/benefit
+remains UNKNOWN without one. Genuine TDD, exact-route/work proof, applicable
+paired comparisons and independent implementation review remain required.
 
 The reviewed [Slice30 prerequisite amendment](0.8.29/features/slice-30/prerequisite-change.md)
 permits initial provider-free Linux direct-text P work from closed10 and the
@@ -263,7 +281,8 @@ belong to .30 and are not .29 prerequisites. If a required repair needs that
 broader work, return to the owner rather than silently widening140.
 
 140's included required repairs have their own qualification before pin adoption.
-Then 110/120 integrate chosen pins, and 130 performs affected final qualification.
+Then110 integrates chosen repair pins, and130 performs affected final qualification
+of selected .29 artifacts. New120 delivery and its compiler work belong to.31.
 130's final campaign is not a prerequisite for 140's initial fork work. A reset
 design may discover a fork prerequisite without requiring completed 110 first.
 
@@ -289,7 +308,7 @@ flowchart LR
     B --> I[90 B2 build]
     E --> I
     H --> K[140 required fork repairs only]
-    S --> R[110 reset and 120 artifact]
+    S --> R[110 source and seam repair]
     K -. affected pin change .-> R
     R --> Q[130 affected qualification]
     S --> X[100 bounded interruption]
@@ -350,9 +369,10 @@ The [CUDA review procedure](../design/cuda-version-support-review.md) is require
 The [November10 CUDA review](0.8.29/research/cuda-version-adoption.md) refreshed
 primary package/vendor signals and recorded failed comparable-window collection;
 fresh adoption shares remain unknown. Accepted importance ratings stay unchanged.
-New compiler evidence adds a proposed Slice120 delivery gate: assess exact kernel/
-toolchain exposure and mitigation before a13.0-built artifact. FathomDB exposure
-is unproven; toolkit/artifact/policy changes still require owner ratification.
+Owner seq379 accepts this bounded review with its documented quantitative unknowns
+and unchanged importance ratings. Seq378 places new CUDA13 artifact delivery and
+exact compiler exposure/mitigation work in.31; seq379 places quantitative tests
+there too. FathomDB compiler exposure is unproven, not cleared by that deferral.
 Keep the accepted [support policy](../adr/ADR-0.8.28-cuda-version-support-policy.md)
 until an amendment is ratified: 12.6 shipping floor,13.0 next artifact, R580 host
 constraint; no K620 execution or implicit Jetson reflash. CUDA13 library
@@ -389,8 +409,13 @@ source gates. Slice30 also has11 qualified G cases; its73 required cap-refused
 G cases, M, D and frozen-TC5 F are not measured, and the reviewed
 [G/D](0.8.29/features/slice-30/continuation-gd.md) and
 [M](0.8.29/features/slice-30/continuation-m.md) continuations govern them.
-Slice70 is complete on the release branch. Slices110 and120 are in owner design
-drafting ahead of their Astra design reviews. Product work continues through
+Owner seq382 located the exact TC5 pack under
+`/mnt/data/fathomdb-performance-benchmarking/scale-02/inputs/input-pack-v1`;
+static index/manifest/payload and selected bridge identities pass. The missing
+input hold is cleared; actual candidate-bound F/Q8 measurements remain required.
+Slice70 is complete on the release branch.110's Astra-reviewed policy is now
+selected; its source/seam work remains and actual resets are deferred to.30.
+120's reviewed new-artifact/compiler proposal is allocated to.31. Product work continues through
 the selected ladder, actual prerequisites and genuine TDD. Publication remains
 separately authorized.
 
@@ -399,4 +424,4 @@ separately authorized.
 <!-- BEGIN GENERATED release-state:0.8.29:plan-immediate-next -->
 **IMMEDIATE NEXT: Slice 30** (`MEASURE`) — Current source-bound baseline and tracked AC083 measurements
 
-**Remaining ladder:** 30 → 20 → 40 → 50 → 60 → 80 → 90 → 100 → 110 → 120 → 130 → 140 → 150 → 160.<!-- END GENERATED release-state:0.8.29:plan-immediate-next -->
+**Remaining ladder:** 30 → 20 → 40 → 50 → 60 → 80 → 90 → 100 → 110 → 130 → 140 → 150 → 160.<!-- END GENERATED release-state:0.8.29:plan-immediate-next -->

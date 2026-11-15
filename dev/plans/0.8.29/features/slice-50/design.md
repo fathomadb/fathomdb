@@ -1,6 +1,6 @@
 ---
 title: Slice 50 proposed design
-status: PROPOSED
+status: DESIGN_REVIEWED_IMPLEMENTATION_PENDING
 target_release: 0.8.29
 slice: 50
 ---
@@ -12,10 +12,10 @@ before remaining30 runs, but production identity/exact-route work retains
 actual baseline and reviewed source-entry prerequisites. Owner seq-374 accepts the identity/packing successor and seq-375 the feedback
 correction; implementation and optimization benefit are not claimed.
 
-## Proposed exact source-entry amendment (review pending)
+## Accepted exact source-entry amendment
 
-Replace the whole30 source dependency only after independent Astra review and
-parent activation with: closed10; qualified Linux20 source/gate metadata
+Independent Astra-medium review passed November14 on documents through327672507;
+parent activation replaces the whole30 source dependency with: closed10; qualified Linux20 source/gate metadata
 `45167677bee0d00b59194897e63ad05be40d6e63`; accepted P measured source
 `2fd772558e46d0b1645dce2ffea730d0bdd3305c` and its
 [accepted results](../slice-30/results-p.md); accepted G normal assessment
@@ -32,9 +32,9 @@ measurements. Check exact integrated source/native/features/input equivalence at
 entry; retain original failures, refusals, score/provenance/Unicode proofs and
 same-input untraced comparisons. No private Memex snapshot is required. Do not
 start a cache/optimization without meaningful applicable evidence, exact-route
-proof and genuine per-behavior RED/GREEN. Until review/activation, the existing
-whole30 source hold remains; these documents claim neither source-ready nor
-accepted narrowing.
+proof and genuine per-behavior RED/GREEN. This accepted narrowing opens source
+entry only. Actual current-input fit, owned setup, implementation and final
+qualification remain; no optimization or runtime result is claimed.
 
 ## Architecture delta and decisions
 

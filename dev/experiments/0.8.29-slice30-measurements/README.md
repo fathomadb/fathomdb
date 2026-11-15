@@ -409,8 +409,10 @@ incomplete, without a live payload dispatch.
 `d_report.py` binds current receipts/physical closure to exact-engine/session
 worker groups, durable commit coverage and natural-call overlap witnesses.
 `test_d_report.py` uses hand-computed two-group intervals; untimed facts stay
-outside duration means and T keeps worker attribution unavailable. Native C
-capture and the supervised campaign entry remain separate unimplemented work.
+outside duration means and T keeps worker attribution unavailable. The private
+C-H native entry now has a tiny real-store stream/closure control, including
+pre-seed acknowledgements and final take after close. C-O capture, main routing
+and supervised campaign entry remain unimplemented; no scientific D cell follows.
 
 `d_overlap.py CASE.json` reads one exact cell/attempt/size/repeat and owner/session
 frame, with natural operation identity, tagged observer records and bracketed

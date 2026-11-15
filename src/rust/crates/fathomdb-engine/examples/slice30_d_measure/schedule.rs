@@ -27,11 +27,11 @@ pub(crate) struct OrdinaryCell<'a> {
     pub(crate) deadline: Instant,
 }
 
-fn elapsed(origin: Instant) -> u64 {
+pub(super) fn elapsed(origin: Instant) -> u64 {
     u64::try_from(origin.elapsed().as_nanos()).expect("D cell monotonic time fits u64")
 }
 
-fn work_remaining(cell: &OrdinaryCell<'_>) -> Result<Duration, String> {
+pub(super) fn work_remaining(cell: &OrdinaryCell<'_>) -> Result<Duration, String> {
     cell.deadline
         .checked_sub(CLOSE_RESERVE)
         .and_then(|deadline| deadline.checked_duration_since(Instant::now()))
@@ -39,9 +39,9 @@ fn work_remaining(cell: &OrdinaryCell<'_>) -> Result<Duration, String> {
         .ok_or_else(|| "D whole-cell allowance has no work time before its close reserve".into())
 }
 
-struct Frozen<'a>(&'a Engine);
+pub(super) struct Frozen<'a>(&'a Engine);
 impl<'a> Frozen<'a> {
-    fn new(engine: &'a Engine) -> Self {
+    pub(super) fn new(engine: &'a Engine) -> Self {
         engine.set_projection_scheduler_frozen_for_test(true);
         Self(engine)
     }
@@ -52,7 +52,7 @@ impl Drop for Frozen<'_> {
     }
 }
 
-fn runtime_boundary(engine: &Engine) -> Result<Value, String> {
+pub(super) fn runtime_boundary(engine: &Engine) -> Result<Value, String> {
     let state =
         engine.slice30_projection_snapshot_for_test().map_err(|error| format!("{error:?}"))?;
     if state.scheduler_runtime_threads != 2
@@ -73,7 +73,7 @@ fn runtime_boundary(engine: &Engine) -> Result<Value, String> {
         "frozen":state.frozen,"pending_scan":state.pending_scan}))
 }
 
-fn boundary(engine: &Engine, cell: &OrdinaryCell<'_>) -> Result<Value, String> {
+pub(super) fn boundary(engine: &Engine, cell: &OrdinaryCell<'_>) -> Result<Value, String> {
     work_remaining(cell)?;
     let ready_start = elapsed(cell.origin);
     let ready = engine.read_embedding_readiness().map_err(|error| format!("{error:?}"))?;
@@ -133,7 +133,7 @@ fn freshness(cell: &OrdinaryCell<'_>, cursor: u64, body: &str) -> Result<Value, 
         "scope":"separate cursor-restricted point and current-compiler FTS reads"}))
 }
 
-fn seed_held(
+pub(super) fn seed_held(
     engine: &Engine,
     cell: &OrdinaryCell<'_>,
     mut bodies: impl Iterator<Item = String>,
@@ -171,7 +171,7 @@ fn seed_held(
     }
 }
 
-fn natural_call(
+pub(super) fn natural_call(
     engine: &Engine,
     cell: &OrdinaryCell<'_>,
     index: usize,

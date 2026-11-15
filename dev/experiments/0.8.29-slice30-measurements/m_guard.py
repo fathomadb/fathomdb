@@ -1,4 +1,4 @@
-"""M-owned outer guardian; shared charges survive controller death and owned cleanup."""
+"""Named-phase outer guardian; shared charges survive controller death and owned cleanup."""
 
 import fcntl
 import json
@@ -31,7 +31,10 @@ def process_start(pid):
 class Accounting:
     """Track residual outer wall without charging an active/committed cell twice."""
 
-    def __init__(self, path, started_ns):
+    def __init__(self, path, started_ns, *, phase="M"):
+        if phase not in ("M", "D"):
+            raise ValueError("unknown shared guardian phase")
+        self.phase, self.guardian_key = phase, phase.lower()+"_guardian"
         self.path, self.started_ns = Path(path), started_ns
         prior = self.read()
         self.prior_used = prior["used_ns"]
@@ -51,7 +54,7 @@ class Accounting:
             return 0
         origin = active["started_monotonic_ns"]
         if type(origin) is not int or origin < self.started_ns:
-            raise ValueError("active M interval does not belong to this guardian")
+            raise ValueError(f"active {self.phase} interval does not belong to this guardian")
         committed = (value.get("cell_used_ns", {}).get(active["cell"], 0)
                      - self.prior_cells.get(active["cell"], 0))
         return max(0, now - origin - committed)
@@ -77,61 +80,98 @@ class Accounting:
         residual = max(0, now - self.started_ns - (value["used_ns"] - self.prior_used))
         value["used_ns"] += residual
         common = value.setdefault("common_used_ns", {})
-        common["M"] = common.get("M", 0) + residual
+        common[self.phase] = common.get(self.phase, 0) + residual
         if uncertain:
-            value["m_guardian"]["status"] = "cleanup_uncertain"
+            value[self.guardian_key]["status"] = "cleanup_uncertain"
         else:
-            value["m_guardian"] = None
+            value[self.guardian_key] = None
         write_budget(self.path, value)
         return {"common_ns": residual, "recovered_cell_ns": recovered,
                 "charged_ns": value["used_ns"] - self.prior_used}
 
 
-def guard(command, *, allocation, profile, root, task, admission=False, common_limit_ns=None,
-          started_ns=None):
-    """Own the whole controller phase, private boundary, resource floors and final charge."""
-    began = time.monotonic_ns() if started_ns is None else started_ns
-    allocation, root, task = map(lambda p: Path(p).resolve(), (allocation, root, task))
-    if (profile.get("schema") != "slice30-m-budget/v1" or profile.get("status") != "APPROVED"
-            or profile.get("whole_cell_ns") != 900 * 10**9
-            or Path(profile["ledger"]).resolve() != allocation / "g-budget.json"
-            or not root.is_relative_to(allocation)):
-        raise ValueError("approved pinned shared profile and owned M allocation required")
-    accounting = Accounting(allocation / "g-budget.json", began)
-    reserved = profile.get("reserved_other_work_ns", 0), profile.get("reserved_other_work_bytes", 0)
+def _limits(profile, phase):
+    if phase == "D" and any(type(profile.get(key)) is not int or not 0 < profile[key] <= bound
+            for key, bound in (("total_shared_ns", 14400*10**9),
+                               ("total_shared_retained_bytes", 16*1024**3))):
+        raise ValueError("D shared maxima remain14400s/16GiB")
+    default = 0 if phase == "M" else None
+    reserved = (profile.get("reserved_other_work_ns", default),
+                profile.get("reserved_other_work_bytes", default))
     if any(type(value) is not int or value < 0 for value in reserved):
         raise ValueError("bounded other-work reservation unavailable")
     limits = profile["total_shared_ns"]-reserved[0], profile["total_shared_retained_bytes"]-reserved[1]
     if any(type(value) is not int or value <= 0 for value in limits):
-        raise RuntimeError("shared reserve leaves no positive M allowance")
+        raise RuntimeError(f"shared reserve leaves no positive {phase} allowance")
+    return limits
+
+
+def guard(command, *, allocation, profile, root, task, admission=False, common_limit_ns=None,
+          started_ns=None, phase="M"):
+    """Own the whole controller phase, private boundary, resource floors and final charge."""
+    if phase not in ("M", "D"):
+        raise ValueError("unknown shared guardian phase")
+    guardian_key = phase.lower()+"_guardian"
+    began = time.monotonic_ns() if started_ns is None else started_ns
+    allocation, root, task = map(lambda p: Path(p).resolve(), (allocation, root, task))
+    if (profile.get("schema") != f"slice30-{phase.lower()}-budget/v1" or profile.get("status") != "APPROVED"
+            or profile.get("whole_cell_ns") != 900 * 10**9
+            or Path(profile["ledger"]).resolve() != allocation / "g-budget.json"
+            or not root.is_relative_to(allocation)):
+        raise ValueError(f"approved pinned shared profile and owned {phase} allocation required")
+    accounting = Accounting(allocation / "g-budget.json", began) if phase == "M" else None
+    limits = _limits(profile, phase) if phase == "M" else None
     root.mkdir(parents=True, exist_ok=True)
-    phase = root / "guardians" / str(uuid.uuid4())
-    phase.mkdir(parents=True)
+    phase_root = root / "guardians" / str(uuid.uuid4())
+    phase_root.mkdir(parents=True)
     receipt = {"started_monotonic_ns": began, "cleanup_uncertain": False, "exit": 125}
     with (allocation / "g-campaign.lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        if phase == "D":
+            accounting = Accounting(allocation / "g-budget.json", began, phase="D")
         budget = accounting.read()
-        if budget.get("inflight") or budget.get("m_guardian") or budget.get("closed_guardian"):
-            raise RuntimeError("retained shared ownership/inflight blocks M admission")
-        if accounting.total(time.monotonic_ns()) + 20 * 10**9 >= limits[0]:
-            raise RuntimeError("shared cleanup reserve unavailable")
-        source = Path(__file__).resolve().parents[3]
-        sample = resource_sample(source, task)
-        load_observations = [observe_load()]
-        sample["load"] = load_observations[-1]
-        if load_observations[-1]["load"] > 2:
-            raise RuntimeError(f"M load entry exceeds2: observed {load_observations[-1]['load']}")
-        gib = 1024**3
-        if (sample["root_free"] < 32 * gib or sample["task_free"] < 250 * gib
-                or sample["memory_available"] < 16 * gib or sample["owned"] >= 200 * gib
-                or active_bytes(allocation) >= limits[1]):
-            raise RuntimeError("M resource start floor fails")
-        budget["m_guardian"] = {"pid": os.getpid(), "start": process_start(os.getpid()),
-                                "started_monotonic_ns": began, "root": str(root)}
-        write_budget(accounting.path, budget)
+        if (budget.get("inflight") or budget.get("m_guardian") or budget.get("d_guardian")
+                or budget.get("closed_guardian")):
+            raise RuntimeError(f"retained shared ownership/inflight blocks {phase} admission")
+        if phase == "D":
+            budget[guardian_key] = {"pid": os.getpid(), "start": process_start(os.getpid()),
+                                   "started_monotonic_ns": began, "root": str(root)}
+            write_budget(accounting.path, budget)
+        try:
+            if phase == "D":
+                limits = _limits(profile, phase)
+            if accounting.total(time.monotonic_ns()) + 20 * 10**9 >= limits[0]:
+                raise RuntimeError("shared cleanup reserve unavailable")
+            source = Path(__file__).resolve().parents[3]
+            sample = resource_sample(source, task)
+            load_observations = [observe_load()]
+            sample["load"] = load_observations[-1]
+            if load_observations[-1]["load"] > 2:
+                raise RuntimeError(f"{phase} load entry exceeds2: observed {load_observations[-1]['load']}")
+            gib = 1024**3
+            if (sample["root_free"] < 32 * gib or sample["task_free"] < 250 * gib
+                    or sample["memory_available"] < 16 * gib or sample["owned"] >= 200 * gib
+                    or active_bytes(allocation) >= limits[1]):
+                raise RuntimeError(f"{phase} resource start floor fails")
+        except (OSError, ValueError, RuntimeError, KeyError, TypeError) as error:
+            if phase == "M":
+                raise
+            receipt.update(state="held", reason=f"{type(error).__name__}: {error}",
+                           stopped_monotonic_ns=time.monotonic_ns())
+            receipt["accounting"] = accounting.finish(uncertain=False,
+                stopped_ns=receipt["stopped_monotonic_ns"])
+            receipt["charged_ns"] = receipt["accounting"]["charged_ns"]
+            receipt["elapsed_ns"] = time.monotonic_ns()-began
+            receipt["unreconciled"] = False
+            (phase_root / "guardian.json").write_text(json.dumps(receipt, indent=2)+"\n")
+            return receipt
+        if phase == "M":
+            budget[guardian_key] = {"pid": os.getpid(), "start": process_start(os.getpid()),
+                                   "started_monotonic_ns": began, "root": str(root)}
+            write_budget(accounting.path, budget)
         boundary, child = TaskBoundary(task), None
         reader = writer = None
-        with (phase / "guardian.log").open("a") as log:
+        with (phase_root / "guardian.log").open("a") as log:
             try:
                 boundary.create()
                 reader, writer = os.pipe()
@@ -141,9 +181,9 @@ def guard(command, *, allocation, profile, root, task, admission=False, common_l
                 os.close(reader)
                 reader = None
                 owner = accounting.read()
-                owner["m_guardian"].update(controller_pid=child.pid, controller_start=process_start(child.pid))
+                owner[guardian_key].update(controller_pid=child.pid, controller_start=process_start(child.pid))
                 write_budget(accounting.path, owner)
-                os.write(writer, json.dumps(owner["m_guardian"]).encode())
+                os.write(writer, json.dumps(owner[guardian_key]).encode())
                 os.close(writer)
                 writer = None
                 receipt["controller_pid"] = child.pid
@@ -220,5 +260,5 @@ def guard(command, *, allocation, profile, root, task, admission=False, common_l
         receipt["load"] = summarize_load(load_observations)
         receipt["accounting"] = accounting.finish(uncertain=receipt["cleanup_uncertain"],
                                                   stopped_ns=receipt["stopped_monotonic_ns"])
-        (phase / "guardian.json").write_text(json.dumps(receipt, indent=2) + "\n")
+        (phase_root / "guardian.json").write_text(json.dumps(receipt, indent=2) + "\n")
     return receipt

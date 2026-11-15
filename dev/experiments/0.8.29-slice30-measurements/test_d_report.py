@@ -114,6 +114,27 @@ class DReportTests(unittest.TestCase):
         self.assertEqual(report["overlap"]["query_bounds_ns"], [50, 70])
         self.assertEqual(report["overlap"]["worker_bounds_ns"], [42, 82])
 
+    def test_held_characterization_requires_actual_phase_and_pending_observations(self):
+        for defect in ("not_run_commit", "missing_pending"):
+            with self.subTest(defect=defect):
+                cell, actual, observation = literal_execution()
+                cell.update(cell_id="tiny-c-held-n2-r0", mode="held")
+                for frame in observation["records"]:
+                    frame["cell"] = copy.deepcopy(cell)
+                for sample in observation["pending"]:
+                    sample["cell"] = copy.deepcopy(cell)
+                if defect == "not_run_commit":
+                    phase = next(frame["record"] for frame in observation["records"]
+                        if frame["record"]["phase"] == "projection_commit_sqlite"
+                        and frame["record"]["operation_id"] == (1 << 63)+2)
+                    phase.update(status="not_run", started_ns=None, ended_ns=None)
+                else:
+                    observation["pending"] = []
+                report = bind_execution(cell, actual, observation)
+                self.assertFalse(report["complete"], "missing required C-H observation qualified")
+                self.assertFalse(report["observations_complete"])
+                self.assertEqual(report["phases"]["projection_commit_sqlite"]["inclusive_mean_ns"], 1)
+
     def test_no_qualifying_pending_keeps_overlap_obligation_unsatisfied(self):
         cell, actual, observation = literal_execution()
         observation["pending"][0]["pending_count"] = 0

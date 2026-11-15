@@ -101,7 +101,7 @@ def is_busy(text: str) -> bool:
     try:
         data = json.loads(text)
     except (json.JSONDecodeError, TypeError):
-        return '"busy"' in text or "busy/" in text or "busy:" in text
+        return bool(re.match(r"^(?:error )?busy[/:]", text.lstrip()))
     error = data.get("error") if isinstance(data, dict) else None
     return isinstance(error, dict) and error.get("class") == "busy"
 
@@ -297,6 +297,11 @@ def score_run(run_dir: Path, judges: Judges | None) -> list[dict]:
     if any(r.get("status") != "complete" or r.get("valid") is not True for r in latest.values()):
         raise ValueError("incomplete/invalid checkpoint; no grading or retry")
     expected = [q.split("_", 1)[-1] for q in meta["questions"]]
+    if str(meta["item"]) == "4":
+        from run import CONV0_SAMPLE
+
+        if meta["conv"] != 0 or len(expected) != 30 or set(expected) != set(CONV0_SAMPLE):
+            raise ValueError("item4 requires the unchanged fixed30 conv0 sample")
     cache_path = run_dir / "judged.jsonl"
     cache = {}
     if cache_path.exists():
@@ -315,6 +320,8 @@ def score_run(run_dir: Path, judges: Judges | None) -> list[dict]:
         if verdict and (verdict.get("status") == "started" or verdict.get("lenient") not in (0.0, 1.0)
                         or verdict.get("strict") not in (0.0, 1.0)):
             raise ValueError("incomplete judge reservation; unknown spend cannot be retried")
+        if verdict and judges is not None and verdict.get("judge_model") != judges.model:
+            raise ValueError("cached judge model differs; do not reuse or rejudge this run automatically")
         answers[row["qid"]] = (answer, key)
         out.append({"run": run_dir.name, "item": meta["item"], "arm": meta["arm"], "model": meta["model"],
                     "qid": row["qid"], "wall_s": row["wall_s"], "exit": row["exit"],
@@ -330,7 +337,7 @@ def score_run(run_dir: Path, judges: Judges | None) -> list[dict]:
         if key not in cache and judges is not None:
             judges.client.ledger.check()
             _append_grade(cache_path, {"key": key, "qid": row["qid"], "status": "started"})
-            verdict = {"key": key, "qid": row["qid"], "status": "complete",
+            verdict = {"key": key, "qid": row["qid"], "status": "complete", "judge_model": judges.model,
                        **judges.judge(meta["conv"], row["qid"], answer)}
             _append_grade(cache_path, verdict)
             cache[key] = verdict

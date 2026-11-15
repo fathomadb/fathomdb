@@ -3,7 +3,8 @@
 Each worker owns a copy of the store (stores hold an exclusive lock) and an
 empty working directory, so no project instructions load. Per question the
 run directory keeps the stream-json transcript, the server stderr, and one
-checkpoint row; ``--resume`` skips questions already in the checkpoint.
+reservation and completion rows; ``--resume`` skips only completed questions
+and refuses unknown/invalid episodes.
 
 Usage (see README.md):
   run.py --run-dir DIR --store FILE.sqlite --conv N --model sonnet|haiku
@@ -190,7 +191,7 @@ def execute_questions(questions, process, checkpoint: Path, *, cap_usd, episode_
         cost = row.get("total_cost_usd")
         known = isinstance(cost, (int, float)) and not isinstance(cost, bool) and Decimal(str(cost)).is_finite() and cost >= 0
         valid = row.get("valid") is True and known
-        charge = Decimal(str(cost)) if known else reservation
+        charge = Decimal(str(cost)) if valid else max(reservation, Decimal(str(cost)) if known else Decimal(0))
         row = {**row, "qid": qid, "status": "complete" if valid else "invalid", "valid": valid,
                "reserved_usd": str(reservation), "charged_usd": str(charge)}
         _append(checkpoint, row)
@@ -229,6 +230,8 @@ def main() -> int:
     checkpoint = run_dir / "checkpoint.jsonl"
     if checkpoint.exists() and not args.resume:
         parser.error("checkpoint exists; pass --resume or use a new run dir")
+    if str(args.item) == "4" and (args.conv != 0 or args.sample != "conv0-30"):
+        parser.error("item4 requires --conv 0 --sample conv0-30")
     questions, _ = load_questions(Path(args.dataset), args.conv)
     if args.sample and args.conv != 0:
         parser.error("conv0-30 requires conv0")

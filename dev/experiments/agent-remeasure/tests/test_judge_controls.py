@@ -33,14 +33,14 @@ class JudgeControls(unittest.TestCase):
     def test_strict_client_still_recovers_a_known_429_rejection(self):
         calls=[]
         response=SimpleNamespace(usage=SimpleNamespace(prompt_tokens=1,completion_tokens=1),choices=[SimpleNamespace(message=SimpleNamespace(content="{}",tool_calls=[]),finish_reason="stop")])
-        raw=SimpleNamespace(parse=lambda:response,headers={})
+        raw=SimpleNamespace(parse=lambda:response,headers={"x-litellm-model-name":"openai/gpt-4o-mini"})
         def create(**kwargs):
             calls.append(kwargs)
             if len(calls)==1:
                 exc=RuntimeError("rate limited");exc.status_code=429;raise exc
             return raw
         client=object.__new__(mal.ChatClient)
-        client.retry_unknown=False;client.served={}
+        client.retry_unknown=False;client.served={};client.arm="judge"
         client.ledger=SimpleNamespace(check=lambda:None,record=lambda **kw:0)
         client._client=SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(with_raw_response=SimpleNamespace(create=create))))
         backoff=mal.with_backoff

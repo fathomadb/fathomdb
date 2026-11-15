@@ -42,6 +42,14 @@ asynchronous-reset survival. Extending support needs owner decision/design.
 
 ## Preservation and changed claims
 
+The first current-pin production step is limited to preserving an already
+detected private-context loss across subsequent classification/build/release
+dispatch, with cached loss diagnostics. It contributes to A1/A4/A5; it does not
+satisfy shared native ownership, default/synchronous admission, model leases or
+teardown acceptance. Those require qualified140-A APIs/cleanup and subsequent
+integration. A first terminal token observation whose raw status is OOM belongs
+to that integration; it cannot be inferred from the current error enum alone.
+
 - Ordinary OOM is not terminal loss. Clearing transient error_state cannot clear
   terminal loss; established loss wins over subsequent OOM/errors.
 - Explicit CPU/non-CUDA/driverless CPU paths initialize no CUDA; forced CUDA

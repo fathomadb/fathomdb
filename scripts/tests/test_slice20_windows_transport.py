@@ -38,5 +38,36 @@ class TransportTests(unittest.TestCase):
         self.assertEqual(observed["stdin"][len(prefix):], binary)
 
 
+class UploadFrameTests(unittest.TestCase):
+    def test_upload_writes_exact_body_then_terminal_frame(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            path = root / 'source.zip'
+            body = bytes(range(256)) * 1024
+            path.write_bytes(body)
+            wire = bytearray()
+            class Input:
+                def write(self, data):
+                    wire.extend(data)
+                def close(self):
+                    pass
+            class Process:
+                returncode = 0
+                stdin = Input()
+                def __init__(self, *args, **kwargs):
+                    pass
+                def poll(self):
+                    return 0
+            session = object.__new__(op.Session)
+            session.root = root
+            session.run_id = '1' * 32
+            session.sample = lambda: None
+            session.cfg = dict(root=op.GUEST, runId=session.run_id, candidateSha='2' * 40, diskUniqueId='owned', partitionGuid='3' * 32)
+            with patch.object(op, 'command', return_value='null'), patch.object(op.subprocess, 'Popen', Process):
+                session.upload(path, 'inputs/' + session.run_id + '/source.zip')
+            self.assertEqual(bytes(wire[-len(body)-32:]), body + bytes.fromhex('fb29' * 16))
+
+
 if __name__ == "__main__":
     unittest.main()

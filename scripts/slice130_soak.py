@@ -8,6 +8,7 @@ import json
 import math
 from pathlib import Path
 import statistics
+import time
 
 MIB = 1048576
 SAMPLE_SECONDS = 60
@@ -124,9 +125,76 @@ def evaluate_pair(on: dict, off: dict) -> dict:
     return result
 
 
-def collect_arm(sdk, pool_mode, iteration, snapshot, emit, *, clock):
-    """Collect through injected real workload/observer functions; no native API is assumed."""
-    return {"sdk": sdk, "pool_mode": pool_mode, "baseline": None, "samples": [], "aborted": None}
+def collect_arm(sdk, pool_mode, iteration, snapshot, emit, *, clock=time.monotonic):
+    """Run one warm-up and the frozen 60-sample schedule between completed iterations.
+
+    Caller preloads real models and supplies an iteration returning latency_ms,
+    outputs and a per-iteration mismatches count. snapshot returns memory metrics
+    plus an untouched raw passive observation and its checked counter adapter.
+    emit must stream each event to retained JSONL (including every latency/output
+    record); this loop retains only baseline plus 60 snapshots. Neither callable
+    may manufacture completion through extra forward/trim/synchronize/GC work.
+    Exceptions, mismatches and late snapshots stop immediately with raw events.
+    The caller closes real SDK resources; a reaping supervisor must attach the
+    actual exit_code afterward. This function never claims successful process exit.
+    """
+    if pool_mode not in ("on", "off"):
+        raise ValueError("pool mode must be on or off")
+    result = {"sdk": sdk, "pool_mode": pool_mode, "baseline": None,
+              "samples": [], "aborted": None, "exit_code": None}
+    iterations = 0
+    mismatches = 0
+    phase = "warmup"
+    try:
+        warmup_start = clock()
+        warmup = iteration()
+        result["warmup_duration_s"] = clock() - warmup_start
+        emit({"event": "warmup", "result": warmup, "duration_s": result["warmup_duration_s"]})
+        if warmup["mismatches"]:
+            result["aborted"] = "warmup output mismatch"
+            return result
+        started = clock()
+        result["started_monotonic_s"] = started
+
+        def capture(k):
+            sample_start = clock()
+            point = dict(snapshot())
+            observed = clock()
+            point.update(k=k, elapsed_s=observed - started, sampler_duration_s=observed - sample_start,
+                         iterations=iterations, errors=0, mismatches=mismatches)
+            emit({"event": "baseline" if k == 0 else "sample", "point": point})
+            return point
+
+        phase = "baseline"
+        result["baseline"] = capture(0)
+        if result["baseline"]["elapsed_s"] > DEADLINE_TOLERANCE_SECONDS:
+            result["aborted"] = "baseline deadline exceeded"
+            return result
+        k = 1
+        while k <= SAMPLE_COUNT:
+            phase = "iteration"
+            details = iteration()
+            iterations += 1
+            mismatches += details["mismatches"]
+            emit({"event": "iteration", "iteration": iterations, "elapsed_s": clock() - started,
+                  "result": details})
+            if mismatches:
+                result["aborted"] = "operation output mismatch"
+                break
+            if clock() - started < k * SAMPLE_SECONDS:
+                continue
+            phase = "sample"
+            point = capture(k)
+            result["samples"].append(point)
+            if point["elapsed_s"] > k * SAMPLE_SECONDS + DEADLINE_TOLERANCE_SECONDS:
+                result["aborted"] = f"sample {k} deadline exceeded"
+                break
+            k += 1
+    except Exception as error:  # noqa: BLE001 - retain the actual workload/observer failure
+        result["aborted"] = f"{phase}: {type(error).__name__}: {error}"
+        emit({"event": "error", "phase": phase, "type": type(error).__name__, "message": str(error)})
+    result["iterations"] = iterations
+    return result
 
 
 def main() -> int:

@@ -11,48 +11,48 @@ No native or fault execution supports a new survival claim yet.
 
 ## Current-source implementation boundary
 
-Source fit at Fathom `f7ad475fbf3ef273faa32dca6e0b82fccdc7efcb` and committed
-cudarc repair `4510667590ff729adfdb140e53d645ce00a8acbd` distinguishes two steps.
-The current product can preserve a loss it has already detected, without new
-dependencies: `context_loss` currently forgets its result, so a later OOM becomes
-exhaustion and `build_device` can create another private-context wrapper.
-Add a once-published first-loss record to `PrivateDecision`, shared by its
-existing policy calls. Publish identity/error metadata before snapshot output;
-map each subsequent operation to that record before OOM classification, native
-diagnosis or private-context construction. This is a product refusal/publication
-cache, not a replacement native-generation state machine or cleanup guarantee.
-Do not hold its publication synchronization across driver calls or output.
-Concurrent calls already inside native diagnosis are not made safe by this
-cache; shared native admission remains the qualified fork's responsibility.
+The current-pin subset at `8247f11056bc2deb3e0c6ec0472abbd4b217e857` is
+integrated in the inspected release source `98a9787ea10786e4602ecf586b610c09c7a8bb4d`.
+Five observed RED/GREEN behaviors now preserve the first published loss over
+later OOM, return one winning concurrent observation with each request's current
+operation, refuse private-device construction before creating/wrapping ownership,
+emit unavailable pool counters without native reads, and skip known-loss
+last-model queries/sync/trim while draining model counts. Independent review and
+all98 CPU policy tests passed. This is product publication/refusal metadata,
+not a second native generation or proof of untracked/default-device safety.
+Concurrent calls already inside native diagnosis still need fork admission.
+The reviewed counter successor changes only old non-null pool assertions;
+identity, operation, winner, one-line/once output and historical expected-signal
+teardown assertions remain. No healthy counter query or whole-model quarantine
+was added.
 
-Use the same published record in last-model release to refuse synchronization
-and trim after a known loss. The first loss snapshot must not query the lost
-pool; retain measured identity/probe provenance and emit null for unavailable
-native counters. Preserve healthy and ordinary-OOM behavior. This narrow step
-does not add leases to model execution or discover every native loss.
-Current private decisions have no authentic cached counter sample: emit
-`pool: null`, adding no healthy native query solely to populate diagnostics.
-The explicit test successor changes only old non-null pool-counter assertions;
-identity, operation, winning observation, one-line/once output and historical
-expected-signal teardown assertions remain unchanged. Native reset execution
-and teardown qualification remain held.
+The inspected cudarc repair source is
+`72a3f905aad448b81bdc2aebe010fc18802c2b8e`. Selected lifetime/admission,
+factory, memory, module, ordinary-launch, pinned-memory and library source
+repairs have independent acceptance; this is not an adoptable whole artifact.
+`PrimaryContextLifetime::recorded_id()` and `loss()` now return cached identity
+and the first loss without native dispatch. `CudaContext::new_tracked` exists.
+Tracked pool creation/attachment, `new_with_mem_pool_tracked` and the associated
+pool lifetime observation still require fork-local source proof and
+qualification. Do not bypass them with an untracked constructor or adopt a
+partially qualified pin. The eventual token supplies native loss authority to
+the existing product publication path; no independently recoverable product
+generation is introduced.
 
-Actual shared-generation admission remains blocked on qualified140-A source.
-The inspected cudarc commit exposes `PrimaryContextLifetime::new`, `admit` and
-`CudaContext::new_tracked`, but no public cached-loss/recorded-identity accessor;
-its existing `new_with_mem_pool` remains untracked. Qualified cached observation,
-tracked pool attachment and complete descendant cleanup are required before
-product token/pool wiring or pin changes. In particular, a token that first
-becomes terminal with an OOM status cannot be integrated using enum-only mapping.
-The eventual token supplies native loss authority to the product publication
-path; there must be no independently recoverable product generation.
-
-Candle already exposes `Device::new_cuda_from_context`; its existing
-`CudaDevice::from_context_and_stream` creates BLAS then RNG. No new model/tensor
-API is needed. Enclosing construction admission and safe partial unwind still
-require qualified fork behavior. Default/synchronous tracking, device probes,
-BGE/reranker construction/forward leases and native teardown remain integration
-work after140, not claims completed by the product publication cache.
+Candle's `Device::new_cuda_from_context` suffices for context injection, but does
+not finish the required repair. Exact consumed K9's private
+`gemm_strided_batched_f32` prepares infallible device pointers and then calls raw
+GEMM with `*cublas.handle()`. Pointer preparation or an earlier temporary Drop
+can record driver loss inside the outer110 lease. The selected Candle repair
+must declare a borrowed `CudaBlas::admit()` guard before the pointer guards and
+use its checked `handle()` after pointer preparation, immediately before the
+unchanged raw GEMM. Preserve all dimensions, strides, datatypes, scalars,
+compute type and algorithm; do not replace it with generic Gemm dispatch.
+Candle's accepted design at `434e8096dd0f30adb8fcf6094b4b27927b9a3ee0` has prepared
+private-helper tests, but production and actual CUDA RED/GREEN qualification
+remain pending. This necessary Candle qualification is a hard adoption edge,
+even though no new public model/tensor API is required. The reconciliation here
+requires independent design review before remaining product implementation.
 
 ## Existing source and primary guarantees
 
@@ -103,14 +103,13 @@ ownership review before claiming it is covered.
 
 ## Recommended architecture: shared terminal generation
 
-Cudarc owns a narrow tracked-primary-context facility. Proposed API shape is
-`PrimaryContextLifetime` plus tracked variants of `CudaContext::new` and
-`new_with_mem_pool`; existing untracked fork users retain their contract. The
-tracked constructor returns both context and shared lifetime; subsequent Fathom
-contexts on that device receive the same lifetime. Fathom holds one strong token
-per used device for process lifetime, including default/synchronous decisions;
-no token can be replaced after loss. Token creation records actual context id
-before exposing native descendants. Constructor/model-load leases remain active
+Cudarc owns the tracked-primary-context facility. The actual
+`PrimaryContextLifetime::new(ordinal)` retains one primary anchor and records its
+identity; `CudaContext::new_tracked(Arc<PrimaryContextLifetime>)` borrows that
+anchor without another retain. Fathom keeps one strong token per used ordinal
+for process lifetime, including default/synchronous decisions. Every later
+wrapper receives that token; none replaces it after loss. Tracked pool support
+remains a qualification prerequisite. Constructor/model-load leases remain active
 through completion or unwind; pausing a thread does not release a lease or make
 its partial ownership a supported real-reset boundary.
 Pool attachment is mandatory before any tracked context allocates through it;
@@ -142,8 +141,8 @@ separate. CudaBlas/CudaRng healthy destructor failures are recorded/discarded,
 never unwrapped. Loss must not first be discovered after trying stale destroy.
 
 On Lost, balanced `cuDevicePrimaryCtxRelease` without stale bind is permitted
-by the cited12.6 contract, once per successful retain. Keep it a distinct,
-testable disposition; it must not implicitly retry, retain or query. If a chosen
+by the cited12.6 contract, once for the shared tracked anchor's successful
+retain, not once per borrowing wrapper. Keep it a distinct, testable disposition; it must not implicitly retry, retain or query. If a chosen
 platform cannot execute that documented operation safely, record the discrepancy
 and return the exact release-retention policy to the owner. Non-primary contexts
 are outside the selected fault contract; no speculative cuCtxDestroy repair.
@@ -153,7 +152,7 @@ selects the quiescent envelope below. Reset after probe but before native
 cleanup/launch, or during a lease, remains unsupported. Adding an internal lock
 or extra synchronize does not control an uncooperative external reset.
 
-## Fathom integration and errors
+## Remaining Fathom integration and errors
 
 `cuda_pool_policy.rs` retains immutable allocator choice, but stores the shared
 lifetime for each constructed CUDA device. Both private and fallback-only
@@ -177,6 +176,48 @@ record, without performing another native operation. Preserve operation names,
 recorded/current id semantics and stable SDK codes. Generalize typed mapping
 beyond the private-only classifier only for tracked CUDA devices, not CPU.
 No successful result may escape if that call establishes terminal loss.
+
+At qualified pin adoption, migrate the old library-status tuple matches in
+`candle_bge.rs` and `candle_reranker.rs`, and the three BGE test constructors,
+to the actual `CublasError`/`CurandError` variants: `Native(status)`,
+`Driver(DriverError)`, `Lost(PrimaryContextLoss)` and `ContextMismatch`.
+Only `Native` library statuses use library compatibility classification; `Driver`
+uses driver policy. The native `DriverError` tuple itself is unchanged. A cached
+token loss wins before either projected status or OOM classification, including when its first native status is OOM. An ordinary
+OOM without a loss record stays nonterminal. Context mismatch is an association
+refusal, not proof of reset. This API migration is mechanical preparation after
+the qualified interfaces exist, not a missing-API compilation RED.
+
+Preserve `PrimaryContextLoss`'s first `recorded_id`, optional `observed_id` and
+`cause` when publishing existing typed payloads. An actual
+`PrimaryContextRefusal::DriverStatus` is distinct from successful-probe
+`PrimaryInactive`/`IdentityChanged` projecting synthetic709, or
+`NativeLibraryCleanup { library, status }`/`SyntheticUnknown` projecting
+synthetic UNKNOWN. Keep the library domain/status and label synthetic projections
+in existing diagnostic text; do not report them as measured driver errors.
+Never call native error-name/string queries, primary retains or pool reads to
+enrich a cached loss. The selected fork's driver/library formatting is cached.
+
+Remaining edits are confined to existing construction/admission seams:
+
+- `cuda_pool_policy.rs`: retain one strong token per used ordinal for process
+  life, independent of immutable allocator choice; use tracked default and
+  qualified tracked-private construction. Feed its cached first loss into the
+  accepted `classify_candle_fault`/`forward_failure`/build publication path,
+  replacing diagnostic re-retain/id reconstruction. Extend `candle_driver_code`
+  to typed BLAS/RNG Driver cases without treating library statuses as CUresult.
+  Protect device probes and last-model healthy release with the same admission;
+  CPU paths must never initialize the registry or CUDA.
+- `candle_bge.rs`: cover `probe_cuda`, device construction/attestation,
+  `new_from_weights_on_device`, `embed`, `embed_batch` and `embed_dual_for_test`.
+  `candle_reranker.rs`: cover its probe/device construction, `from_weights`,
+  `score`, `score_batch` and `score_chunk`. Hold leases through completion and
+  partial unwind; before returning success, observe cached terminal loss again.
+- Preserve engine close/drain/lock ordering and existing typed SDK propagation;
+  the existing reranker singleton/retry rules below still apply.
+
+These edits wait for qualified cudarc pool/library and Candle source artifacts,
+then the parent-reviewed consumption route; current published pins stay fixed.
 
 Projection/query/ordinary/frozen search preserve current typed-error propagation;
 rerank never converts loss to0.0 or unavailable. Existing singleton retry can

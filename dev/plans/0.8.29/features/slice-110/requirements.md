@@ -2,7 +2,10 @@
 
 Status: owner seq-376 selects quiescent completed-construction/frozen-live-set
 residue policy; seq-377 holds actual Orin/3090 child resets for .30 review.
-Selected source/seam behavior remains unimplemented and unqualified. S110 IDs retain original110 identities and join R29-REL-R/G,
+The five current-pin policy behaviors are implemented, independently reviewed
+and covered by the accepted98-test CPU module sweep; shared native
+context/pool/model integration and final qualification remain pending.
+S110 IDs retain original110 identities and join R29-REL-R/G,
 R29-3P-17/D29-RESET and O3-17. They are local, not new global ACs. Preserve
 REQ-068/AC-082a–d; do not edit locked canonical acceptance to add these IDs.
 
@@ -49,6 +52,16 @@ satisfy shared native ownership, default/synchronous admission, model leases or
 teardown acceptance. Those require qualified140-A APIs/cleanup and subsequent
 integration. A first terminal token observation whose raw status is OOM belongs
 to that integration; it cannot be inferred from the current error enum alone.
+
+Remaining A1/A4 proof must preserve the token's first native or explicitly
+synthetic cause before projected-status/OOM mapping, without native diagnostic
+reads. A2/A3 also require Candle's checked F32 raw-GEMM boundary after pointer
+preparation; a product outer lease alone is insufficient. A6 requires both the
+tracked-pool fork artifact and the necessary Candle repair qualified before
+adoption. Source-accepted getters/library guards alone do not satisfy that edge.
+R29-3P-17/D29-RESET and O3-17 retain their .30 live-proof limit under seq-377;
+current CPU policy proof does not qualify GPU teardown. Format37/no migration,
+existing public error payloads/codes and the A1–A6 identities remain fixed.
 
 - Ordinary OOM is not terminal loss. Clearing transient error_state cannot clear
   terminal loss; established loss wins over subsequent OOM/errors.

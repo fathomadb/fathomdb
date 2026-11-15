@@ -40,12 +40,15 @@ actual Orin/3090 child reset execution for .30 review. No live fault is authoriz
 
 ## Execution sequence
 
-Current-pin preparation may implement the narrow already-detected-loss
-publication/dispatch behavior in the [source boundary](design.md#current-source-implementation-boundary),
-following independent design review and actual per-behavior RED/GREEN. It does
-not wait for140 qualification, change pins, or close110. Token/pool/model wiring
-continues to require qualified140-A source before implementation. Source-only
-test preparation is not an observed RED and does not consume a native gate.
+The current-pin publication/build/snapshot/release subset is implemented and
+accepted at `8247f11056bc2deb3e0c6ec0472abbd4b217e857`; its98 CPU tests are
+preserved proof, not a claim of tracked/native integration. Remaining order is
+qualified cudarc tracked-pool/library source → qualified Candle checked F32
+raw-GEMM repair → independent remaining110 design review → approved exact
+consumption route/API migration → product per-behavior admission/mapping TDD →
+affected consumer and joint source qualification. The [source boundary](design.md#current-source-implementation-boundary)
+names the actual available interfaces and held work. No partial fork pin,
+missing-API compilation RED or outer-lease-only Candle bypass is permitted.
 
 1. Independent Astra-medium design review is complete (PASS after partial-load
    reset was kept seam-only). Owner seq-376/377 is the selected policy and live-fault
@@ -76,8 +79,9 @@ test preparation is not an observed RED and does not consume a native gate.
 
 ## Resources and exit
 
-No faults, builds, native installs, fork mutations or product edits were performed
-for this design. Later faults use disposable child-owned primary contexts and
+The current-pin subset has actual CPU source/seam proof; remaining tracked
+integration is held at its qualified fork/Candle artifact dependencies. Future
+faults use disposable child-owned primary contexts and
 selected GPU UUIDs at explicitly permitted exclusive venues. Never K620,
 host-wide GPU reset, driver changes, primary CUDA symlink changes or reflash.
 windchill3 remains R580 and primary CUDA12.6. Owned work stays under `/mnt/data/`;

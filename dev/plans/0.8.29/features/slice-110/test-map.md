@@ -1,6 +1,7 @@
 # Slice 110 test-first implementation map
 
-Proposed test names below are specifications, not claims that tests exist or ran.
+The current-pin subset below has accepted observed RED/GREEN and CPU proof.
+Remaining proposed test names are specifications, not execution claims.
 Keep current .28 crash evidence historical. Add positive successor tests; do not
 change the existing expected-signal test merely to make a code change green.
 After the selected contract is proved, retire that active characterization with
@@ -20,27 +21,43 @@ until actual qualified successor evidence exists.
 
 ## RED/GREEN order and actual oracles
 
-Before qualified140-A integration, these bounded product behaviors use the
-existing `PoolDriver` production dispatch and current pins. They are partial
-F6/F7 contributions, not substitute fork/token tests:
+The five current-pin publication/classification/build/snapshot/release oracles
+are implemented and independently accepted; all98 CPU policy tests passed.
+Their assertions remain preservation controls for affected integration changes.
+The reviewed snapshot successor changes only native pool counters to unavailable;
+it retains identity, operation, winner, one-line/once and historical signal11
+assertions. These tests do not cover a first terminal token OOM, tracked default
+admission, model leases or native descendants.
 
-1. `an_established_loss_precedes_later_oom_without_native_queries`: establish
-   loss through `classify_forward_fault`, then submit OOM; require typed loss,
-   original identity/error, the current operation name and no further native
-   state/id reads. Source preparation or compilation alone is not a RED result;
-   run the exact test under the available heavy lease before implementation.
-2. After its own actual RED, refuse `build_device` before creating or wrapping
-   another private context once that same decision has published loss. Repeated
-   attempts stay refused; ordinary healthy OOM retains existing retry behavior.
-3. After separate actual REDs, avoid lost-pool diagnostic reads and make
-   last-model release consult published loss before native queries/sync/trim.
-   Add an explicit null-counter successor to the existing snapshot assertion;
-   preserve the historical expected-signal characterization and its evidence.
+Remaining product TDD starts only with the qualified cudarc pool/library and
+Candle checked-F32 artifacts available through an approved consumption route:
 
-Each behavior is tested and fixed separately. The first fixture does not encode
-the still-blocked case where the fork token's first terminal status itself is
-OOM; that needs qualified cached-loss observation and actual token integration.
-Do not manufacture missing-API compilation failures or add unused test helpers.
+1. Mechanically migrate old Cublas tuple matches and three BGE test constructors
+   to qualified `Native`/`Driver`/`Lost`/`ContextMismatch` interfaces. Preserve
+   Native compatibility handling and Driver status identity. Compilation against
+   an absent proposed API is never behavioral RED.
+2. Exercise the actual product mapping with cached first causes: native driver
+   OOM is terminal only when the token has a loss record; ordinary OOM remains
+   retryable. Inactive/changed-id successful probes must retain synthetic709
+   provenance, and library cleanup must retain its domain/status despite UNKNOWN
+   projection. Concurrent callers/snapshot must share the same winning cause;
+   repeat formatting/admission makes zero native diagnostic calls.
+3. Exercise tracked default/private constructors, probes, BGE single/batch/dual
+   pooling, reranker single/chunk/batch, failed-load retry and cached singleton.
+   Before allocation require shared per-device admission and exact existing typed
+   errors; terminal state refuses new initialization until process restart.
+   Different-device and CPU/driverless controls remain healthy and isolated.
+4. Exercise partial-load/forward unwind and last-model release through production
+   seams with the outer lease still held. Require no post-loss native cleanup,
+   normal Rust ownership release and healthy/OOM preservation. No live partial
+   reset or whole-model quarantine is introduced. A successful result cannot
+   escape after the call establishes terminal loss.
+
+Candle separately proves its actual private F32 helper refuses before raw BLAS
+and preserves numerical dispatch with `CudaBlas::admit()` declared before pointer
+guards and checked `handle()` after preparation. Its current prepared tests are
+not observed RED/GREEN or artifact qualification. Product tests do not substitute
+for that necessary fork test, and Fathom does not rerun cudarc's owning suites.
 
 Fork tests live in each fork's `fathomdb/` plan and native Rust modules. Product
 tests live in existing pool-policy/model/engine/SDK suites. A semantic-preserving
@@ -59,7 +76,7 @@ do not invent a defect or claim a new RED. Preserve tests during fix-to-spec.
 | Order / behavior | RED oracle against actual behavior | GREEN scope / acceptance |
 | --- | --- | --- |
 | F1 terminal error | `destroyed_context_error_stays_terminal_after_check_err`: record a context-destroyed driver failure, check twice, require both refusals. Current clear-on-read state lets the second check succeed. Separate OOM control requires nonterminal behavior. | C: separate irreversible generation loss from ordinary error_state. A1/A4. |
-| F2 shared wrappers | `loss_on_one_primary_wrapper_refuses_its_sibling`: independently retained wrappers for same primary id, report loss on one, require sibling admission refusal before native call. Drop/reopen a wrapper and require same refusal while product token lives. | C: shared lifetime and tracked constructor, no replacement. Different-device control stays healthy. A2/A4. |
+| F2 shared wrappers | `loss_on_one_primary_wrapper_refuses_its_sibling`: separately constructed wrappers sharing one retained lifetime anchor, report loss on one, require sibling admission refusal before native call. Drop/reopen a wrapper and require same refusal while product token lives. | C: shared lifetime and tracked constructor, no replacement. Different-device control stays healthy. A2/A4. |
 | F3 discover before cleanup | `last_owner_drop_discovers_reset_without_forward`: production probe reports inactive/changed id on final drop, require zero stale bind/destroy calls and normal Rust owner release; unknown query conservatively refuses without replacement retain. Native private-pool child is separate F9. | C: cleanup admission probes before first native cleanup; no diagnostic re-retain. A2/A3. |
 | F4a BLAS cleanup | `lost_blas_drop_never_calls_destroy`, plus healthy destroy-error nonpanic: actual Drop dispatch counts0 versus1 as appropriate. Baseline invokes destroy/unwraps. | C: BLAS raw-handle disarm and nonunwinding healthy error disposition. A2/A3. |
 | F4b RNG cleanup | `lost_rng_drop_never_calls_destroy`: independently proves RNG branch, not only device drop stopped at BLAS. Healthy destroy remains once/nonpanicking. | C: RNG counterpart. A2/A3. |

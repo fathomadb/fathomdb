@@ -2,6 +2,19 @@ use super::*;
 use crate::mean::MEAN_VEC_PIN_THRESHOLD;
 use crate::projection_runtime::PROJECTION_CURSOR_KEY;
 
+#[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+#[derive(Default)]
+struct ProjectionCommitObservation {
+    input_success: usize,
+    input_failure: usize,
+    input_deferred: usize,
+    generation_skips: usize,
+    member_skips: usize,
+    terminal_skips: usize,
+    staged_success: usize,
+    staged_failure: usize,
+}
+
 fn projection_batch_has_no_custom_triggers(connection: &Connection) -> rusqlite::Result<bool> {
     // Only the authenticated DELETE-only cleanup trigger is harmless while
     // insertion visibility is coalesced. TEMP/name-spoofed triggers stay custom.
@@ -139,356 +152,533 @@ pub(crate) fn commit_projection_outcomes(
     let mc = identity_requires_mean_centering(embedder_identity);
     // EU-5f — serialize the whole commit across workers so the at-pin
     // re-quantize sees a totally-ordered history (see `commit_gate`).
-    let _gate = shared.commit_gate.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
-    #[cfg(feature = "test-hooks")]
-    if let Some((waiting, release)) = shared
-        .projection_worker_before_write_lock_pause
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner())
-        .take()
-    {
-        waiting.wait();
-        release.wait();
-    }
-    // Take the WAL write lock before the reads below. A deferred transaction
-    // would need a read-to-write promotion while a concurrent Engine::write
-    // holds its own immediate transaction, which SQLite rejects without
-    // invoking the busy handler and forces the worker to recompute the batch.
-    let tx = connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
-    crate::frozen_read::require_clean_visibility(&tx).map_err(|_| rusqlite::Error::InvalidQuery)?;
-    if dependency_closure::guard_no_pending_physical(&tx).is_err() {
-        return Err(rusqlite::Error::SqliteFailure(
-            rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_BUSY),
-            Some("dependency closure fences projection publication".to_string()),
-        ));
-    }
-    let coalesce_visibility = projection_batch_has_no_custom_triggers(&tx)?;
-    let mut visibility_changed = false;
-    let _activity = shared.wal_attribution.enabled.then(|| {
-        WalAttributionActivity::begin(
-            Arc::clone(&shared.wal_attribution),
-            WalAttributionRole::ProjectionWorker,
-            worker_idx,
-            "transaction_opened",
-        )
-    });
-    #[cfg(any(test, feature = "test-hooks"))]
-    if let Some((transaction_ready, release)) = shared
-        .projection_worker_transaction_pause
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner())
-        .take()
-    {
-        // `transaction_with_behavior(Immediate)` above has already acquired the
-        // WAL write lock. The rendezvous must therefore report that SQLite fact
-        // directly; WAL attribution is optional in integration builds and is
-        // neither necessary nor sufficient to establish transaction ownership.
-        if transaction_ready.send(()).is_ok() {
-            let _ = release.recv_timeout(PROJECTION_TRANSACTION_TEST_PAUSE_RELEASE_TIMEOUT);
+    #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+    let observation_active = crate::slice30_observer::projection_is_recording();
+    #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+    let mut observation_counts = if observation_active {
+        let mut counts = ProjectionCommitObservation::default();
+        for outcome in outcomes {
+            match outcome {
+                ProjectionOutcome::Success { .. } => counts.input_success += 1,
+                ProjectionOutcome::Failure { .. } => counts.input_failure += 1,
+                ProjectionOutcome::Deferred => counts.input_deferred += 1,
+            }
         }
-    }
-    // The accumulator is mutable process state coupled to this transaction.
-    // Keep the shared value untouched while building a candidate so rollback
-    // cannot count a vector or consume the pin threshold prematurely.
-    let mut shared_accumulator =
-        shared.mean_accumulator.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
-    let mut candidate_accumulator = shared_accumulator.clone();
-    // EU-5a2/EU-5f — the live pinned mean. Read once at the top; may pin
-    // mid-batch (set to `Some` after a threshold-crossing row below).
-    let mut current_mean: Option<Vec<f32>> = if mc {
-        tx.query_row(
-            "SELECT mean_vec FROM _fathomdb_embedder_profiles WHERE profile = 'default'",
-            [],
-            |row| row.get::<_, Option<Vec<u8>>>(0),
-        )
-        .ok()
-        .flatten()
-        .map(|bytes| decode_vector_blob(&bytes))
+        Some(counts)
     } else {
         None
     };
-    let mut staged_events: Vec<EmbedderEvent> = Vec::new();
-    let mut trigger_guard = if coalesce_visibility {
-        Some(VisibilityCoalescingGuard::arm(&tx).map_err(|_| rusqlite::Error::InvalidQuery)?)
+    #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+    let observation_cursors = if observation_active {
+        outcomes
+            .iter()
+            .filter_map(|outcome| match outcome {
+                ProjectionOutcome::Success { cursor, .. }
+                | ProjectionOutcome::Failure { cursor, .. } => Some(*cursor),
+                ProjectionOutcome::Deferred => None,
+            })
+            .collect::<Vec<_>>()
     } else {
-        None
+        Vec::new()
     };
-    // Generation and eligibility time cannot change while this IMMEDIATE
-    // transaction owns the writer lock. Read them once for the whole batch.
-    let current_generation_id = projection_generation::current_generation_id(&tx)
-        .map_err(|_| rusqlite::Error::InvalidQuery)?;
-    let effective_at = current_epoch_seconds();
-    for outcome in outcomes {
-        match outcome {
-            ProjectionOutcome::Success {
-                cursor,
-                kind,
-                blob,
-                bin_blob,
-                body_length,
-                byte_end,
-                generation_id,
-            } => {
-                if current_generation_id != *generation_id {
-                    continue;
-                }
-                if projection_generation::dense_member_kind_at(&tx, *cursor, effective_at)
-                    .map_err(|_| rusqlite::Error::InvalidQuery)?
-                    .as_deref()
-                    != Some(kind.as_str())
-                {
-                    continue;
-                }
-                if terminal_state_for_cursor(&tx, *cursor)?.is_some() {
-                    continue;
-                }
-                if !projection_physical_tuple_is_empty(&tx, *cursor)? {
-                    return Err(projection_tuple_corruption());
-                }
-                // Build the threshold decision in the transaction-local
-                // candidate. The shared accumulator changes only after commit.
-                let pin_mean: Option<Vec<f32>> = if mc && current_mean.is_none() {
-                    match candidate_accumulator.as_mut() {
-                        Some(a) => {
-                            a.add(&decode_vector_blob(bin_blob));
-                            if a.count() >= MEAN_VEC_PIN_THRESHOLD {
-                                let mean = a.materialize();
-                                candidate_accumulator = None;
-                                Some(mean)
-                            } else {
-                                None
-                            }
-                        }
-                        None => None,
-                    }
-                } else {
-                    None
-                };
-
-                let source_type = resolve_source_type(kind).map_err(|_| {
-                    rusqlite::Error::SqliteFailure(
-                        rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_CONSTRAINT),
-                        Some(format!("unknown kind for source_type mapping: {kind}")),
-                    )
-                })?;
-                let now_unix =
-                    SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()
-                        as i64;
-                tx.execute(
-                    "INSERT INTO _fathomdb_vector_rows(rowid, kind, write_cursor) \
-                     VALUES(?1, ?2, ?3)",
-                    params![cursor, kind, cursor],
-                )?;
-                tx.execute(
-                    "INSERT INTO _fathomdb_vector_spans(vector_rowid,write_cursor,window_number,byte_start,byte_end,body_length) VALUES(?1,?1,0,0,?2,?3)",
-                    params![cursor, byte_end, body_length],
-                )?;
-                // EU-5a2/EU-5f — sign-quant input is the mean-subtracted
-                // vector iff a mean is live (`current_mean`); otherwise the
-                // un-centered `bin_blob`. A row inserted just before the
-                // crossing is centered retroactively by the re-quantize
-                // pass below.
-                let centered_blob: Vec<u8> = match &current_mean {
-                    Some(mean) if mean.len() * 4 == bin_blob.len() => {
-                        encode_vector_blob(&subtract_mean(&decode_vector_blob(bin_blob), mean))
-                    }
-                    _ => bin_blob.clone(),
-                };
-                // Slice 10 / G10 — `status` ships the empty-string sentinel (vec0
-                // TEXT metadata is NOT NULL-able); no real population source yet
-                // (reserved-gap candidate 13).
-                //
-                // 0.8.20 Slice 15e — when the live `vector_default` carries
-                // `filterable` `attr_<hex>` columns, EVERY column must be bound
-                // (vec0 rejects a partial-column INSERT). Bind each from the node
-                // body's scalar extraction (or the `''` sentinel). The body is not
-                // carried on the embed job, so it is read from `canonical_nodes` by
-                // `write_cursor` (== rowid) — but ONLY when attr columns exist, so
-                // the common no-filterable hot path stays byte-identical and does
-                // NO extra lookup.
-                let (lifecycle, valid_from, valid_until) =
-                    vector_storage::vector_eligibility_for_cursor(&tx, *cursor as i64)?;
-                if actual_vector_attr_columns(&tx)?.is_empty() {
-                    tx.execute(
-                        "INSERT INTO vector_default(
-                            rowid, embedding, embedding_bin, source_type, kind, created_at, status,lifecycle,valid_from,valid_until
-                         ) VALUES(?1, ?2, vec_quantize_binary(?3), ?4, ?5, ?6, '',?7,?8,?9)",
-                        params![cursor, blob, centered_blob, source_type, kind, now_unix,lifecycle,valid_from,valid_until],
-                    )?;
-                } else {
-                    let body: String = tx
-                        .query_row(
-                            "SELECT body FROM canonical_nodes WHERE write_cursor = ?1 LIMIT 1",
-                            [*cursor as i64],
-                            |row| row.get(0),
-                        )
-                        .optional()?
-                        .unwrap_or_default();
-                    let (cols_sql, ph_sql, attr_vals) =
-                        vector_attr_insert_fragments(&tx, &body, 10)?;
-                    let sql = format!(
-                        "INSERT INTO vector_default(
-                            rowid, embedding, embedding_bin, source_type, kind, created_at, status,lifecycle,valid_from,valid_until{cols_sql}
-                         ) VALUES(?1, ?2, vec_quantize_binary(?3), ?4, ?5, ?6, '',?7,?8,?9{ph_sql})"
-                    );
-                    let mut pv: Vec<rusqlite::types::Value> = vec![
-                        rusqlite::types::Value::Integer(*cursor as i64),
-                        rusqlite::types::Value::Blob(blob.clone()),
-                        rusqlite::types::Value::Blob(centered_blob.clone()),
-                        rusqlite::types::Value::Text(source_type.to_string()),
-                        rusqlite::types::Value::Text(kind.to_string()),
-                        rusqlite::types::Value::Integer(now_unix),
-                        rusqlite::types::Value::Integer(lifecycle),
-                        rusqlite::types::Value::Integer(valid_from),
-                        rusqlite::types::Value::Integer(valid_until),
-                    ];
-                    pv.extend(attr_vals);
-                    tx.execute(&sql, rusqlite::params_from_iter(pv.iter()))?;
-                }
-                record_projection_terminal(&tx, *cursor, "up_to_date")?;
-                visibility_changed = true;
-
-                // EU-5f — this row crossed the threshold: pin the mean and
-                // re-quantize every row written so far (incl. earlier rows
-                // in this same tx, which are visible to the SELECT) within
-                // the same transaction so the pin is atomic.
-                if let Some(mean) = pin_mean {
-                    tx.execute(
-                        "UPDATE _fathomdb_embedder_profiles SET mean_vec = ?1 WHERE profile = 'default'",
-                        params![encode_vector_blob(&mean)],
-                    )?;
-                    let rows: Vec<(i64, Vec<u8>)> = {
-                        let mut statement = tx.prepare(
-                            "SELECT rowid, embedding FROM vector_default ORDER BY rowid",
-                        )?;
-                        let mapped = statement.query_map([], |row| {
-                            Ok((row.get::<_, i64>(0)?, row.get::<_, Vec<u8>>(1)?))
-                        })?;
-                        let mut out = Vec::new();
-                        for r in mapped {
-                            out.push(r?);
-                        }
-                        out
-                    };
-                    let (doc_count, _) =
-                        run_pin_and_requantize_pass(&tx, &rows, &mean).map_err(|_| {
-                            rusqlite::Error::SqliteFailure(
-                                rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_ERROR),
-                                Some("mean-centering re-quantize pass failed".to_string()),
-                            )
-                        })?;
-                    staged_events.push(EmbedderEvent::MeanVecPinned {
-                        dim: u32::try_from(mean.len()).unwrap_or(u32::MAX),
-                        doc_count,
-                    });
-                    current_mean = Some(mean);
-                }
-            }
-            ProjectionOutcome::Failure { cursor, failure_code, generation_id } => {
-                if current_generation_id != *generation_id {
-                    continue;
-                }
-                if projection_generation::dense_member_kind_at(&tx, *cursor, effective_at)
-                    .map_err(|_| rusqlite::Error::InvalidQuery)?
-                    .is_none()
-                {
-                    continue;
-                }
-                if terminal_state_for_cursor(&tx, *cursor)?.is_some() {
-                    continue;
-                }
-                if !projection_physical_tuple_is_empty(&tx, *cursor)? {
-                    return Err(projection_tuple_corruption());
-                }
-                let existing: u64 = tx.query_row(
-                    "SELECT COUNT(*) FROM operational_mutations
-                     WHERE collection_name = 'projection_failures'
-                       AND json_extract(payload_json, '$.write_cursor') = ?1",
-                    [cursor],
-                    |row| row.get(0),
-                )?;
-                if existing == 0 {
-                    let payload = format!(
-                        r#"{{"write_cursor":{cursor},"failure_code":"{failure_code}","recorded_at":0}}"#
-                    );
-                    tx.execute(
-                        "INSERT INTO operational_mutations(
-                            collection_name, record_key, op_kind, payload_json, schema_id, write_cursor
-                         ) VALUES('projection_failures', ?1, 'append', ?2, NULL, ?3)",
-                        params![cursor.to_string(), payload, cursor],
-                    )?;
-                }
-                record_projection_terminal(&tx, *cursor, "failed")?;
-                visibility_changed = true;
-            }
-            // 0.8.20 Slice 20c fix-4 (codex §9 round 3 [P1]) — record NOTHING.
-            //
-            // No `projection_failures` audit row (an ABSENT embedder is an
-            // environment fact, not an embed failure) and, decisively, no
-            // terminal: the row keeps `terminal IS NULL`, so
-            // `advance_projection_cursor` below cannot step over it, the shared
-            // `connection_has_pending_projection_work` predicate still reports it
-            // outstanding, and `derive_dense_readiness` therefore reads
-            // `embedding`. That is the ONLY torn state
-            // `dev/design/record-lifecycle-protocol/projection-registry-and-async-embed.md`
-            // §4.1 invariant 1 tolerates; the alternative — the enqueue-side gate
-            // — puts an `'up_to_date'` terminal on an ENROLLED row with no
-            // vector, which is the torn `ready` that invariant calls FORBIDDEN.
-            //
-            // Q6a graceful-absent governs ROLE DECLARATION ("you declared a
-            // projection I cannot build yet" -> defer + graft), i.e. the
-            // NOT-yet-enrolled case fix-1/fix-2 handle. Once a kind IS enrolled,
-            // §4.1 invariant 1 governs. (HITL ruling, 0.8.20 Slice 20c fix-4.)
-            //
-            // Consumer-visible consequence, accepted deliberately and pinned by
-            // `slice20c_flush_barrier`: for the REST of that no-embedder session
-            // `dense_readiness` stays `embedding` and `drain` burns its timeout
-            // into `EngineError::Scheduler`. Loud and recoverable, rather than
-            // silent and lost.
-            ProjectionOutcome::Deferred => {}
+    #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+    let mut observation_generation = None;
+    #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+    let mut observation_commit_attempted = false;
+    #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+    let mut observation_commit_succeeded = false;
+    let result: rusqlite::Result<()> = (|| {
+        #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+        let gate_observation =
+            crate::slice30_observer::projection_span("projection_commit_gate_wait");
+        let _gate = shared.commit_gate.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+        {
+            gate_observation.projection_result(&observation_cursors, true, Some(worker_idx));
+            drop(gate_observation);
         }
-    }
-    // 0.7.2 PR-2bc S2 — the AUTOMATIC in-ingest drift detector (EWMA recent
-    // mean + cos-threshold + debounce + 200k cap + `MeanRecomputeDeferred`)
-    // was CARVED OUT and DEFERRED to 0.8.x; its recall premise was refuted
-    // (the mean is a non-lever) and the benefit is unmeasured. The mean is
-    // refreshed only on demand via `Engine::recompute_mean` (the
-    // `doctor recompute-mean` verb). See `dev/design/embedder.md` §0.3 and
-    // `dev/plans/prompts/0.8.x-auto-mean-drift-DEFERRED.md`. Nothing here
-    // mutates `mean_vec` after the initial pin.
-
-    advance_projection_cursor(&tx)?;
-    #[cfg(any(test, feature = "test-hooks"))]
-    match shared.force_projection_commit_failure.swap(0, Ordering::SeqCst) {
-        1 => {
+        #[cfg(feature = "test-hooks")]
+        if let Some((waiting, release)) = shared
+            .projection_worker_before_write_lock_pause
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .take()
+        {
+            waiting.wait();
+            release.wait();
+        }
+        // Take the WAL write lock before the reads below. A deferred transaction
+        // would need a read-to-write promotion while a concurrent Engine::write
+        // holds its own immediate transaction, which SQLite rejects without
+        // invoking the busy handler and forces the worker to recompute the batch.
+        #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+        let begin_observation = crate::slice30_observer::projection_span("projection_commit_begin");
+        let tx = connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+        #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+        {
+            begin_observation.projection_result(&observation_cursors, true, Some(worker_idx));
+            drop(begin_observation);
+        }
+        #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+        let preparation_observation =
+            crate::slice30_observer::projection_span("projection_commit_prepare");
+        crate::frozen_read::require_clean_visibility(&tx)
+            .map_err(|_| rusqlite::Error::InvalidQuery)?;
+        if dependency_closure::guard_no_pending_physical(&tx).is_err() {
             return Err(rusqlite::Error::SqliteFailure(
                 rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_BUSY),
-                Some("forced projection commit failure".to_string()),
+                Some("dependency closure fences projection publication".to_string()),
             ));
         }
-        2 => return Err(rusqlite::Error::InvalidQuery),
-        _ => {}
-    }
-    if coalesce_visibility && visibility_changed {
-        advance_read_visibility(&tx)?;
-    }
-    if let Some(trigger_guard) = trigger_guard.as_mut() {
-        trigger_guard.restore().map_err(|_| rusqlite::Error::InvalidQuery)?;
-    }
-    drop(trigger_guard);
-    tx.commit()?;
-    // Commit and the accumulator transition become visible together. On every
-    // earlier error the transaction and the local candidate drop, leaving the
-    // runtime state exactly as it was before this attempt.
-    *shared_accumulator = candidate_accumulator;
-    // EU-5f — publish MeanVecPinned only after the pin tx is durable, so a
-    // rolled-back pin never emits a spurious event.
-    if !staged_events.is_empty() {
-        if let Ok(mut events) = shared.pending_events.lock() {
-            events.extend(staged_events);
+        let coalesce_visibility = projection_batch_has_no_custom_triggers(&tx)?;
+        let mut visibility_changed = false;
+        let _activity = shared.wal_attribution.enabled.then(|| {
+            WalAttributionActivity::begin(
+                Arc::clone(&shared.wal_attribution),
+                WalAttributionRole::ProjectionWorker,
+                worker_idx,
+                "transaction_opened",
+            )
+        });
+        #[cfg(any(test, feature = "test-hooks"))]
+        if let Some((transaction_ready, release)) = shared
+            .projection_worker_transaction_pause
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .take()
+        {
+            // `transaction_with_behavior(Immediate)` above has already acquired the
+            // WAL write lock. The rendezvous must therefore report that SQLite fact
+            // directly; WAL attribution is optional in integration builds and is
+            // neither necessary nor sufficient to establish transaction ownership.
+            if transaction_ready.send(()).is_ok() {
+                let _ = release.recv_timeout(PROJECTION_TRANSACTION_TEST_PAUSE_RELEASE_TIMEOUT);
+            }
         }
+        // The accumulator is mutable process state coupled to this transaction.
+        // Keep the shared value untouched while building a candidate so rollback
+        // cannot count a vector or consume the pin threshold prematurely.
+        let mut shared_accumulator =
+            shared.mean_accumulator.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let mut candidate_accumulator = shared_accumulator.clone();
+        // EU-5a2/EU-5f — the live pinned mean. Read once at the top; may pin
+        // mid-batch (set to `Some` after a threshold-crossing row below).
+        let mut current_mean: Option<Vec<f32>> = if mc {
+            tx.query_row(
+                "SELECT mean_vec FROM _fathomdb_embedder_profiles WHERE profile = 'default'",
+                [],
+                |row| row.get::<_, Option<Vec<u8>>>(0),
+            )
+            .ok()
+            .flatten()
+            .map(|bytes| decode_vector_blob(&bytes))
+        } else {
+            None
+        };
+        let mut staged_events: Vec<EmbedderEvent> = Vec::new();
+        let mut trigger_guard = if coalesce_visibility {
+            Some(VisibilityCoalescingGuard::arm(&tx).map_err(|_| rusqlite::Error::InvalidQuery)?)
+        } else {
+            None
+        };
+        // Generation and eligibility time cannot change while this IMMEDIATE
+        // transaction owns the writer lock. Read them once for the whole batch.
+        let current_generation_id = projection_generation::current_generation_id(&tx)
+            .map_err(|_| rusqlite::Error::InvalidQuery)?;
+        #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+        if observation_active {
+            observation_generation = Some(current_generation_id.clone());
+        }
+        let effective_at = current_epoch_seconds();
+        #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+        {
+            preparation_observation.projection_result(&observation_cursors, true, Some(worker_idx));
+            drop(preparation_observation);
+        }
+        #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+        let publication_observation =
+            crate::slice30_observer::projection_span("projection_commit_publication");
+        for outcome in outcomes {
+            match outcome {
+                ProjectionOutcome::Success {
+                    cursor,
+                    kind,
+                    blob,
+                    bin_blob,
+                    body_length,
+                    byte_end,
+                    generation_id,
+                } => {
+                    if current_generation_id != *generation_id {
+                        #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+                        if let Some(counts) = observation_counts.as_mut() {
+                            counts.generation_skips += 1;
+                        }
+                        continue;
+                    }
+                    if projection_generation::dense_member_kind_at(&tx, *cursor, effective_at)
+                        .map_err(|_| rusqlite::Error::InvalidQuery)?
+                        .as_deref()
+                        != Some(kind.as_str())
+                    {
+                        #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+                        if let Some(counts) = observation_counts.as_mut() {
+                            counts.member_skips += 1;
+                        }
+                        continue;
+                    }
+                    if terminal_state_for_cursor(&tx, *cursor)?.is_some() {
+                        #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+                        if let Some(counts) = observation_counts.as_mut() {
+                            counts.terminal_skips += 1;
+                        }
+                        continue;
+                    }
+                    if !projection_physical_tuple_is_empty(&tx, *cursor)? {
+                        return Err(projection_tuple_corruption());
+                    }
+                    // Build the threshold decision in the transaction-local
+                    // candidate. The shared accumulator changes only after commit.
+                    let pin_mean: Option<Vec<f32>> = if mc && current_mean.is_none() {
+                        match candidate_accumulator.as_mut() {
+                            Some(a) => {
+                                a.add(&decode_vector_blob(bin_blob));
+                                if a.count() >= MEAN_VEC_PIN_THRESHOLD {
+                                    let mean = a.materialize();
+                                    candidate_accumulator = None;
+                                    Some(mean)
+                                } else {
+                                    None
+                                }
+                            }
+                            None => None,
+                        }
+                    } else {
+                        None
+                    };
+
+                    let source_type = resolve_source_type(kind).map_err(|_| {
+                        rusqlite::Error::SqliteFailure(
+                            rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_CONSTRAINT),
+                            Some(format!("unknown kind for source_type mapping: {kind}")),
+                        )
+                    })?;
+                    let now_unix =
+                        SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()
+                            as i64;
+                    tx.execute(
+                        "INSERT INTO _fathomdb_vector_rows(rowid, kind, write_cursor) \
+                         VALUES(?1, ?2, ?3)",
+                        params![cursor, kind, cursor],
+                    )?;
+                    tx.execute(
+                        "INSERT INTO _fathomdb_vector_spans(vector_rowid,write_cursor,window_number,byte_start,byte_end,body_length) VALUES(?1,?1,0,0,?2,?3)",
+                        params![cursor, byte_end, body_length],
+                    )?;
+                    // EU-5a2/EU-5f — sign-quant input is the mean-subtracted
+                    // vector iff a mean is live (`current_mean`); otherwise the
+                    // un-centered `bin_blob`. A row inserted just before the
+                    // crossing is centered retroactively by the re-quantize
+                    // pass below.
+                    let centered_blob: Vec<u8> = match &current_mean {
+                        Some(mean) if mean.len() * 4 == bin_blob.len() => {
+                            encode_vector_blob(&subtract_mean(&decode_vector_blob(bin_blob), mean))
+                        }
+                        _ => bin_blob.clone(),
+                    };
+                    // Slice 10 / G10 — `status` ships the empty-string sentinel (vec0
+                    // TEXT metadata is NOT NULL-able); no real population source yet
+                    // (reserved-gap candidate 13).
+                    //
+                    // 0.8.20 Slice 15e — when the live `vector_default` carries
+                    // `filterable` `attr_<hex>` columns, EVERY column must be bound
+                    // (vec0 rejects a partial-column INSERT). Bind each from the node
+                    // body's scalar extraction (or the `''` sentinel). The body is not
+                    // carried on the embed job, so it is read from `canonical_nodes` by
+                    // `write_cursor` (== rowid) — but ONLY when attr columns exist, so
+                    // the common no-filterable hot path stays byte-identical and does
+                    // NO extra lookup.
+                    let (lifecycle, valid_from, valid_until) =
+                        vector_storage::vector_eligibility_for_cursor(&tx, *cursor as i64)?;
+                    if actual_vector_attr_columns(&tx)?.is_empty() {
+                        tx.execute(
+                            "INSERT INTO vector_default(
+                                rowid, embedding, embedding_bin, source_type, kind, created_at, status,lifecycle,valid_from,valid_until
+                             ) VALUES(?1, ?2, vec_quantize_binary(?3), ?4, ?5, ?6, '',?7,?8,?9)",
+                            params![cursor, blob, centered_blob, source_type, kind, now_unix,lifecycle,valid_from,valid_until],
+                        )?;
+                    } else {
+                        let body: String = tx
+                            .query_row(
+                                "SELECT body FROM canonical_nodes WHERE write_cursor = ?1 LIMIT 1",
+                                [*cursor as i64],
+                                |row| row.get(0),
+                            )
+                            .optional()?
+                            .unwrap_or_default();
+                        let (cols_sql, ph_sql, attr_vals) =
+                            vector_attr_insert_fragments(&tx, &body, 10)?;
+                        let sql = format!(
+                            "INSERT INTO vector_default(
+                                rowid, embedding, embedding_bin, source_type, kind, created_at, status,lifecycle,valid_from,valid_until{cols_sql}
+                             ) VALUES(?1, ?2, vec_quantize_binary(?3), ?4, ?5, ?6, '',?7,?8,?9{ph_sql})"
+                        );
+                        let mut pv: Vec<rusqlite::types::Value> = vec![
+                            rusqlite::types::Value::Integer(*cursor as i64),
+                            rusqlite::types::Value::Blob(blob.clone()),
+                            rusqlite::types::Value::Blob(centered_blob.clone()),
+                            rusqlite::types::Value::Text(source_type.to_string()),
+                            rusqlite::types::Value::Text(kind.to_string()),
+                            rusqlite::types::Value::Integer(now_unix),
+                            rusqlite::types::Value::Integer(lifecycle),
+                            rusqlite::types::Value::Integer(valid_from),
+                            rusqlite::types::Value::Integer(valid_until),
+                        ];
+                        pv.extend(attr_vals);
+                        tx.execute(&sql, rusqlite::params_from_iter(pv.iter()))?;
+                    }
+                    record_projection_terminal(&tx, *cursor, "up_to_date")?;
+                    #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+                    if let Some(counts) = observation_counts.as_mut() {
+                        counts.staged_success += 1;
+                    }
+                    visibility_changed = true;
+
+                    // EU-5f — this row crossed the threshold: pin the mean and
+                    // re-quantize every row written so far (incl. earlier rows
+                    // in this same tx, which are visible to the SELECT) within
+                    // the same transaction so the pin is atomic.
+                    if let Some(mean) = pin_mean {
+                        tx.execute(
+                            "UPDATE _fathomdb_embedder_profiles SET mean_vec = ?1 WHERE profile = 'default'",
+                            params![encode_vector_blob(&mean)],
+                        )?;
+                        let rows: Vec<(i64, Vec<u8>)> = {
+                            let mut statement = tx.prepare(
+                                "SELECT rowid, embedding FROM vector_default ORDER BY rowid",
+                            )?;
+                            let mapped = statement.query_map([], |row| {
+                                Ok((row.get::<_, i64>(0)?, row.get::<_, Vec<u8>>(1)?))
+                            })?;
+                            let mut out = Vec::new();
+                            for r in mapped {
+                                out.push(r?);
+                            }
+                            out
+                        };
+                        let (doc_count, _) = run_pin_and_requantize_pass(&tx, &rows, &mean)
+                            .map_err(|_| {
+                                rusqlite::Error::SqliteFailure(
+                                    rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_ERROR),
+                                    Some("mean-centering re-quantize pass failed".to_string()),
+                                )
+                            })?;
+                        staged_events.push(EmbedderEvent::MeanVecPinned {
+                            dim: u32::try_from(mean.len()).unwrap_or(u32::MAX),
+                            doc_count,
+                        });
+                        current_mean = Some(mean);
+                    }
+                }
+                ProjectionOutcome::Failure { cursor, failure_code, generation_id } => {
+                    if current_generation_id != *generation_id {
+                        #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+                        if let Some(counts) = observation_counts.as_mut() {
+                            counts.generation_skips += 1;
+                        }
+                        continue;
+                    }
+                    if projection_generation::dense_member_kind_at(&tx, *cursor, effective_at)
+                        .map_err(|_| rusqlite::Error::InvalidQuery)?
+                        .is_none()
+                    {
+                        #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+                        if let Some(counts) = observation_counts.as_mut() {
+                            counts.member_skips += 1;
+                        }
+                        continue;
+                    }
+                    if terminal_state_for_cursor(&tx, *cursor)?.is_some() {
+                        #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+                        if let Some(counts) = observation_counts.as_mut() {
+                            counts.terminal_skips += 1;
+                        }
+                        continue;
+                    }
+                    if !projection_physical_tuple_is_empty(&tx, *cursor)? {
+                        return Err(projection_tuple_corruption());
+                    }
+                    let existing: u64 = tx.query_row(
+                        "SELECT COUNT(*) FROM operational_mutations
+                         WHERE collection_name = 'projection_failures'
+                           AND json_extract(payload_json, '$.write_cursor') = ?1",
+                        [cursor],
+                        |row| row.get(0),
+                    )?;
+                    if existing == 0 {
+                        let payload = format!(
+                            r#"{{"write_cursor":{cursor},"failure_code":"{failure_code}","recorded_at":0}}"#
+                        );
+                        tx.execute(
+                            "INSERT INTO operational_mutations(
+                                collection_name, record_key, op_kind, payload_json, schema_id, write_cursor
+                             ) VALUES('projection_failures', ?1, 'append', ?2, NULL, ?3)",
+                            params![cursor.to_string(), payload, cursor],
+                        )?;
+                    }
+                    record_projection_terminal(&tx, *cursor, "failed")?;
+                    #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+                    if let Some(counts) = observation_counts.as_mut() {
+                        counts.staged_failure += 1;
+                    }
+                    visibility_changed = true;
+                }
+                // 0.8.20 Slice 20c fix-4 (codex §9 round 3 [P1]) — record NOTHING.
+                //
+                // No `projection_failures` audit row (an ABSENT embedder is an
+                // environment fact, not an embed failure) and, decisively, no
+                // terminal: the row keeps `terminal IS NULL`, so
+                // `advance_projection_cursor` below cannot step over it, the shared
+                // `connection_has_pending_projection_work` predicate still reports it
+                // outstanding, and `derive_dense_readiness` therefore reads
+                // `embedding`. That is the ONLY torn state
+                // `dev/design/record-lifecycle-protocol/projection-registry-and-async-embed.md`
+                // §4.1 invariant 1 tolerates; the alternative — the enqueue-side gate
+                // — puts an `'up_to_date'` terminal on an ENROLLED row with no
+                // vector, which is the torn `ready` that invariant calls FORBIDDEN.
+                //
+                // Q6a graceful-absent governs ROLE DECLARATION ("you declared a
+                // projection I cannot build yet" -> defer + graft), i.e. the
+                // NOT-yet-enrolled case fix-1/fix-2 handle. Once a kind IS enrolled,
+                // §4.1 invariant 1 governs. (HITL ruling, 0.8.20 Slice 20c fix-4.)
+                //
+                // Consumer-visible consequence, accepted deliberately and pinned by
+                // `slice20c_flush_barrier`: for the REST of that no-embedder session
+                // `dense_readiness` stays `embedding` and `drain` burns its timeout
+                // into `EngineError::Scheduler`. Loud and recoverable, rather than
+                // silent and lost.
+                ProjectionOutcome::Deferred => {}
+            }
+        }
+        // 0.7.2 PR-2bc S2 — the AUTOMATIC in-ingest drift detector (EWMA recent
+        // mean + cos-threshold + debounce + 200k cap + `MeanRecomputeDeferred`)
+        // was CARVED OUT and DEFERRED to 0.8.x; its recall premise was refuted
+        // (the mean is a non-lever) and the benefit is unmeasured. The mean is
+        // refreshed only on demand via `Engine::recompute_mean` (the
+        // `doctor recompute-mean` verb). See `dev/design/embedder.md` §0.3 and
+        // `dev/plans/prompts/0.8.x-auto-mean-drift-DEFERRED.md`. Nothing here
+        // mutates `mean_vec` after the initial pin.
+
+        advance_projection_cursor(&tx)?;
+        #[cfg(any(test, feature = "test-hooks"))]
+        match shared.force_projection_commit_failure.swap(0, Ordering::SeqCst) {
+            1 => {
+                return Err(rusqlite::Error::SqliteFailure(
+                    rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_BUSY),
+                    Some("forced projection commit failure".to_string()),
+                ));
+            }
+            2 => return Err(rusqlite::Error::InvalidQuery),
+            _ => {}
+        }
+        if coalesce_visibility && visibility_changed {
+            advance_read_visibility(&tx)?;
+        }
+        if let Some(trigger_guard) = trigger_guard.as_mut() {
+            trigger_guard.restore().map_err(|_| rusqlite::Error::InvalidQuery)?;
+        }
+        drop(trigger_guard);
+        #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+        {
+            publication_observation.projection_result(&observation_cursors, true, Some(worker_idx));
+            drop(publication_observation);
+        }
+        #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+        let sqlite_observation =
+            crate::slice30_observer::projection_span("projection_commit_sqlite");
+        #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+        {
+            observation_commit_attempted = true;
+        }
+        tx.commit()?;
+        #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+        {
+            observation_commit_succeeded = true;
+        }
+        #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+        {
+            sqlite_observation.projection_result(&observation_cursors, true, Some(worker_idx));
+            drop(sqlite_observation);
+        }
+        #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+        let completion_observation =
+            crate::slice30_observer::projection_span("projection_commit_completion");
+        // Commit and the accumulator transition become visible together. On every
+        // earlier error the transaction and the local candidate drop, leaving the
+        // runtime state exactly as it was before this attempt.
+        *shared_accumulator = candidate_accumulator;
+        // EU-5f — publish MeanVecPinned only after the pin tx is durable, so a
+        // rolled-back pin never emits a spurious event.
+        if !staged_events.is_empty() {
+            if let Ok(mut events) = shared.pending_events.lock() {
+                events.extend(staged_events);
+            }
+        }
+        #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+        {
+            completion_observation.projection_result(&observation_cursors, true, Some(worker_idx));
+            drop(completion_observation);
+        }
+        Ok(())
+    })();
+    #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+    if let Some(counts) = observation_counts {
+        // The closure has released transaction, gate and accumulator ownership.
+        // A failed COMMIT is unavailable; it must not masquerade as zero publication.
+        let committed_success = if observation_commit_succeeded {
+            Some(counts.staged_success)
+        } else if !observation_commit_attempted {
+            Some(0)
+        } else {
+            None
+        };
+        let committed_failure = if observation_commit_succeeded {
+            Some(counts.staged_failure)
+        } else if !observation_commit_attempted {
+            Some(0)
+        } else {
+            None
+        };
+        let publication_state = if observation_commit_succeeded {
+            "committed"
+        } else if observation_commit_attempted {
+            "unavailable"
+        } else {
+            "not_committed"
+        };
+        let status = if result.is_ok() {
+            "ok"
+        } else if observation_commit_attempted && !observation_commit_succeeded {
+            "unavailable"
+        } else {
+            "error"
+        };
+        crate::slice30_observer::projection_commit_outcome(
+            status,
+            serde_json::json!({
+                "cursors":observation_cursors,
+                "generation_id":observation_generation.as_ref().map(|generation| generation.as_str()),
+                "input_success":counts.input_success, "input_failure":counts.input_failure,
+                "input_deferred":counts.input_deferred, "generation_skips":counts.generation_skips,
+                "member_skips":counts.member_skips, "terminal_skips":counts.terminal_skips,
+                "staged_success":counts.staged_success, "staged_failure":counts.staged_failure,
+                "commit_attempted":observation_commit_attempted,
+                "committed_success":committed_success, "committed_failure":committed_failure,
+                "publication_state":publication_state
+            }),
+        );
     }
-    Ok(())
+    result
 }
 
 impl Engine {

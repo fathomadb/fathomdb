@@ -493,6 +493,31 @@ pub(crate) fn projection_worker_loop(
             }
         };
 
+        #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+        let observation_ticket = crate::slice30_observer::projection_group_admission(
+            &shared.wal_attribution,
+            jobs.iter().map(|job| &job.observation),
+        );
+        #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+        let observation_scope = crate::slice30_observer::enter_projection(
+            &shared.wal_attribution,
+            observation_ticket.as_ref(),
+        );
+        #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+        let observed_cursors = if observation_ticket.is_some() {
+            jobs.iter().map(|job| job.cursor).collect::<Vec<_>>()
+        } else {
+            Vec::new()
+        };
+        #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+        crate::slice30_observer::projection_dequeue(
+            &observed_cursors,
+            worker_idx,
+            observation_ticket.as_ref(),
+        );
+        #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+        let observation = crate::slice30_observer::span("projection_processing");
+
         // EU-5f — isolate worker faults. A panic inside `embed()` (or the
         // commit) must not skip the state cleanup below, or `active_jobs`
         // would stay elevated forever and `wait_for_idle` / `drain` would
@@ -512,6 +537,16 @@ pub(crate) fn projection_worker_loop(
             }
             Err(_) => Err(rusqlite::Error::InvalidQuery),
         };
+        #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+        {
+            observation.projection_result(
+                &observed_cursors,
+                commit_result.is_ok(),
+                Some(worker_idx),
+            );
+            drop(observation);
+            drop(observation_scope);
+        }
         if let Err(err) = commit_result {
             // Host subscribers are arbitrary application code. Their panic must
             // not bypass the mandatory state cleanup below, or the durable
@@ -793,6 +828,8 @@ fn run_projection_job(shared: &ProjectionRuntimeShared, job: &ProjectionJob) -> 
         if shared.state.lock().map(|state| state.stopping).unwrap_or(true) {
             return ProjectionOutcome::Deferred;
         }
+        #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+        let observation = crate::slice30_observer::span("projection_embed_dispatch_wall");
         #[cfg(feature = "test-hooks")]
         let result = crate::embed_dispatch::d27_observation::with_owner(
             Some(crate::embed_dispatch::d27_observation::Owner::Projection {
@@ -803,6 +840,11 @@ fn run_projection_job(shared: &ProjectionRuntimeShared, job: &ProjectionJob) -> 
         #[cfg(not(feature = "test-hooks"))]
         let result =
             shared.embed_dispatch.submit_projection(job.body.clone()).and_then(EmbedReply::wait);
+        #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+        {
+            observation.projection_result(&[job.cursor], result.is_ok(), None);
+            drop(observation);
+        }
         let mut byte_end = None;
         let vector = match result {
             Ok(EmbedOutput::Projection(mut rows)) => {
@@ -1111,86 +1153,113 @@ fn next_pending_projection_jobs(
     if max_jobs == 0 || !dense_arm_live {
         return Ok(Vec::new());
     }
-    let effective_at = current_epoch_seconds();
-    let persisted_cursor = load_projection_cursor(connection)?;
-    // G11 (Slice 15) — UNION extends the projection queue to include edge bodies.
-    // Edge bodies use kind `'edge_fact'` so `resolve_source_type` maps them to
-    // `source_type = 'edge_fact'` in `vector_default` (partition correctness).
-    // The UNION is ordered by write_cursor so projection proceeds in
-    // insertion order across nodes and edges.
-    //
-    let sql = scheduler_scan_sql();
-    let mut statement = connection.prepare_cached(&sql)?;
-    // SQLite starts the implicit read transaction at statement execution; do
-    // not call this a transaction before `query_map` succeeds.
-    let _activity = attribution.enabled.then(|| {
-        WalAttributionActivity::begin(
-            Arc::clone(attribution),
-            WalAttributionRole::ProjectionDispatcher,
-            dispatcher_idx,
-            "snapshot_acquired",
-        )
-    });
-    let mut scan_cursor = persisted_cursor;
-    let mut checked_below_watermark = false;
-    loop {
-        let mut jobs = Vec::with_capacity(max_jobs);
-        let mut after_cursor = scan_cursor;
+    #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+    let ticket = crate::slice30_observer::projection_admission(attribution);
+    #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+    let _observation_scope =
+        crate::slice30_observer::enter_projection(attribution, ticket.as_ref());
+    #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+    let observation = crate::slice30_observer::span("projection_scan");
+    let result = (|| {
+        let effective_at = current_epoch_seconds();
+        let persisted_cursor = load_projection_cursor(connection)?;
+        // G11 (Slice 15) — UNION extends the projection queue to include edge bodies.
+        // Edge bodies use kind `'edge_fact'` so `resolve_source_type` maps them to
+        // `source_type = 'edge_fact'` in `vector_default` (partition correctness).
+        // The UNION is ordered by write_cursor so projection proceeds in
+        // insertion order across nodes and edges.
+        //
+        let sql = scheduler_scan_sql();
+        let mut statement = connection.prepare_cached(&sql)?;
+        // SQLite starts the implicit read transaction at statement execution; do
+        // not call this a transaction before `query_map` succeeds.
+        let _activity = attribution.enabled.then(|| {
+            WalAttributionActivity::begin(
+                Arc::clone(attribution),
+                WalAttributionRole::ProjectionDispatcher,
+                dispatcher_idx,
+                "snapshot_acquired",
+            )
+        });
+        let mut scan_cursor = persisted_cursor;
+        let mut checked_below_watermark = false;
         loop {
-            let page = statement
-                .query_map(params![after_cursor, effective_at], |row| {
-                    let generation_id =
-                        projection_generation::parse_persisted_generation_id(row.get(3)?)
-                            .map_err(|_| rusqlite::Error::InvalidQuery)?;
-                    Ok(ProjectionJob {
-                        cursor: row.get(0)?,
-                        kind: row.get(1)?,
-                        body: row.get(2)?,
-                        generation_id,
-                    })
-                })?
-                .collect::<rusqlite::Result<Vec<_>>>()?;
-            let page_len = page.len();
-            for job in page {
-                after_cursor = job.cursor;
-                if in_flight.contains(&job.cursor) {
-                    continue;
-                }
-                if projection_generation::dense_member_kind_at(connection, job.cursor, effective_at)
+            let mut jobs = Vec::with_capacity(max_jobs);
+            let mut after_cursor = scan_cursor;
+            loop {
+                let page = statement
+                    .query_map(params![after_cursor, effective_at], |row| {
+                        let generation_id =
+                            projection_generation::parse_persisted_generation_id(row.get(3)?)
+                                .map_err(|_| rusqlite::Error::InvalidQuery)?;
+                        Ok(ProjectionJob {
+                            cursor: row.get(0)?,
+                            kind: row.get(1)?,
+                            body: row.get(2)?,
+                            generation_id,
+                            #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+                            observation: ticket.clone(),
+                        })
+                    })?
+                    .collect::<rusqlite::Result<Vec<_>>>()?;
+                let page_len = page.len();
+                for job in page {
+                    after_cursor = job.cursor;
+                    if in_flight.contains(&job.cursor) {
+                        continue;
+                    }
+                    if projection_generation::dense_member_kind_at(
+                        connection,
+                        job.cursor,
+                        effective_at,
+                    )
                     .map_err(|_| rusqlite::Error::InvalidQuery)?
                     .as_deref()
-                    != Some(job.kind.as_str())
-                {
-                    continue;
+                        != Some(job.kind.as_str())
+                    {
+                        continue;
+                    }
+                    jobs.push(job);
+                    if jobs.len() >= max_jobs {
+                        return Ok(jobs);
+                    }
                 }
-                jobs.push(job);
-                if jobs.len() >= max_jobs {
-                    return Ok(jobs);
+                if page_len < PROJECTION_CANDIDATE_PAGE {
+                    break;
                 }
             }
-            if page_len < PROJECTION_CANDIDATE_PAGE {
-                break;
+            if !jobs.is_empty() || checked_below_watermark {
+                return Ok(jobs);
+            }
+            checked_below_watermark = true;
+            let Some(cursor) = lowest_pending_projection_member_at_or_below(
+                connection,
+                persisted_cursor,
+                effective_at,
+            )?
+            else {
+                return Ok(Vec::new());
+            };
+            scan_cursor = cursor.saturating_sub(1);
+            if scan_cursor < persisted_cursor {
+                let tx = crate::frozen_read::begin_visibility_writer(connection)?;
+                store_projection_cursor(&tx, scan_cursor)?;
+                tx.commit()?;
             }
         }
-        if !jobs.is_empty() || checked_below_watermark {
-            return Ok(jobs);
-        }
-        checked_below_watermark = true;
-        let Some(cursor) = lowest_pending_projection_member_at_or_below(
-            connection,
-            persisted_cursor,
-            effective_at,
-        )?
-        else {
-            return Ok(Vec::new());
-        };
-        scan_cursor = cursor.saturating_sub(1);
-        if scan_cursor < persisted_cursor {
-            let tx = crate::frozen_read::begin_visibility_writer(connection)?;
-            store_projection_cursor(&tx, scan_cursor)?;
-            tx.commit()?;
-        }
+    })();
+    #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+    if ticket.is_some() {
+        observation.projection_result(
+            &result
+                .as_ref()
+                .map(|jobs| jobs.iter().map(|job| job.cursor).collect::<Vec<_>>())
+                .unwrap_or_default(),
+            result.is_ok(),
+            Some(dispatcher_idx),
+        );
     }
+    result
 }
 
 pub(crate) fn database_has_pending_projection_work(

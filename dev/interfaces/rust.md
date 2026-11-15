@@ -226,6 +226,61 @@ Snapshot authority reads are feature+active gated, explicitly observer-added on
 the actual reader transaction; read failure records unavailable without authority
 values or changing the product outcome.
 
+### Private Slice30 projection test observations
+
+Only the conjunction of engine features `slice30-observer` and `test-hooks`
+exposes doc-hidden
+`Engine::begin_slice30_projection_observation_for_test(max_records, origin)`
+and `Slice30ProjectionObservationGuard`. No SDK, facade, binding or shipped
+CLI forwards this test hook. The caller supplies its whole-cell monotonic
+`Instant`; capacity/errors and the single G-or-D engine slot follow the existing
+bounded observer contract. Begin/drop performs no SQL, wake or provider call.
+The D guard is Send+Sync, not Clone, and retains no engine/SQL/provider lifetime.
+`with_operation` preserves return/unwind behavior; `take` retains bounded loss
+accounting. D producers use a bounded nonblocking channel: full/disconnected
+sends count once as loss, retired sessions suppress appends, and each take
+receives at most the configured capacity. Only consumers share the receiver
+mutex; the G collector remains unchanged.
+`owner_identity()` reads the stored `(engine_id, session_id)` pair so
+pre-seed pollers can tag their own observations without SQL, wake or admission;
+a retired guard continues to name its original session.
+D worker admission is engine/session-owned, carried weakly from actual scans
+through bounded queued jobs. Untimed dequeue and actual processing/submit-wait
+intervals retain actual cursors; stale/mixed admission cannot relabel work.
+Further numeric/outcome/overlap contracts follow ordered runtime RED/GREEN in
+[the D contract](../plans/0.8.29/features/slice-30/continuation-gd.md#d-source-fit-and-exact-private-observer-contract).
+The same conjunction alone exposes doc-hidden
+`Engine::slice30_projection_snapshot_for_test()` and
+`Slice30ProjectionSnapshotForTest`. Field names match the resolved
+`scheduler_runtime_threads`, `embedder_pool_size` and `admission_capacity`,
+plus actual `active_jobs`, `active_scans`, `queued_jobs`, `in_flight_count`,
+`frozen`, `pending_scan` and `stopping`. Active/queued counts name rows, not
+worker threads. This is one runtime-state-lock instant; it never composes a
+SQLite readiness/generation snapshot. Closed/unavailable state is Closing/
+Storage, never zero. The state lock is released before serialization or any
+separate readiness/SQL work. Numeric fields expose current rows and flags;
+they never infer physical closure, provider engagement or atomic SQL authority.
+D sessions additionally name actual `projection_commit_gate_wait`,
+`projection_commit_begin`, `projection_commit_prepare`,
+`projection_commit_publication`, `projection_commit_sqlite` and
+`projection_commit_completion` intervals under their processing operation.
+These are inclusive actual boundaries: gate acquisition, IMMEDIATE begin,
+existing preparation reads, publication SQL, SQLite commit and post-commit
+accumulator/event work. Outcome accounting is distinct from
+these intervals; a successful earlier phase does not prove durable publication.
+The untimed `projection_commit_outcome` success fact is emitted only after
+SQLite commit and post-commit work. It distinguishes actual typed outcome
+inputs, generation/member/existing-terminal skips, staged terminal writes and
+committed success/failure counts, copying the already-hoisted generation ID.
+Failed attempts retain actual staged work and copied generation after transaction/
+lock cleanup. A pre-COMMIT error reports no attempted/durable publication;
+a failed COMMIT leaves durable counts null/unavailable, not zero. The original
+error is returned unchanged. Panic unwinding leaves the receipt unavailable,
+never a fabricated zero-cost or successful outcome.
+No additional SQL/descriptor reads, row ordering or mean-publication changes
+are introduced. A foreground G session never activates these D phase clocks.
+The foreground G guard and signed/default SDK surface remain unchanged.
+
 ### Explicit MCP admission observations
 
 `fathomdb-mcp/test-seams` alone exposes `Seams::observe_pre_enqueue` and its

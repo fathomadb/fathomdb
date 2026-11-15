@@ -146,12 +146,41 @@ pub(crate) const PROJECTION_TEMPORAL_WAKE_POLL: Duration = Duration::from_secs(1
 pub(crate) const PROJECTION_CURSOR_KEY: &str = "projection_cursor";
 pub(crate) const PROJECTION_COMMIT_BATCH: usize = 64;
 
+/// One private numeric runtime instant; row counts are not active thread counts.
+#[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+#[derive(Clone, Debug, serde::Serialize)]
+#[doc(hidden)]
+pub struct Slice30ProjectionSnapshotForTest {
+    /// Resolved number of projection scheduler worker threads.
+    pub scheduler_runtime_threads: usize,
+    /// Resolved provider dispatch worker count.
+    pub embedder_pool_size: usize,
+    /// Resolved row admission limit shared by queued and active jobs.
+    pub admission_capacity: usize,
+    /// Rows currently assigned to projection workers.
+    pub active_jobs: usize,
+    /// Currently executing dispatcher scans.
+    pub active_scans: usize,
+    /// Rows in the projection worker queue.
+    pub queued_jobs: usize,
+    /// Number of actual admitted write cursors retained in-flight.
+    pub in_flight_count: usize,
+    /// Whether dispatcher scheduling is held.
+    pub frozen: bool,
+    /// Whether a dispatcher scan is pending.
+    pub pending_scan: bool,
+    /// Whether runtime shutdown has been requested.
+    pub stopping: bool,
+}
+
 #[derive(Clone, Debug)]
 pub(crate) struct ProjectionJob {
     pub(crate) cursor: u64,
     pub(crate) kind: String,
     pub(crate) body: String,
     pub(crate) generation_id: ProjectionGenerationId,
+    #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+    pub(crate) observation: Option<crate::slice30_observer::ProjectionTicket>,
 }
 
 #[derive(Debug, Default)]
@@ -1186,5 +1215,36 @@ impl Engine {
                 |row| row.get::<_, u64>(0),
             )
             .map_err(|_| EngineError::Storage)
+    }
+}
+
+#[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+impl Engine {
+    /// Read a private numeric runtime instant, separate from durable SQL status.
+    /// Closed engines return Closing; unavailable state returns Storage, never
+    /// fabricated zero counters. Copy state under one short runtime lock and
+    /// release it before the caller serializes or performs separate SQL reads.
+    #[doc(hidden)]
+    pub fn slice30_projection_snapshot_for_test(
+        &self,
+    ) -> Result<Slice30ProjectionSnapshotForTest, EngineError> {
+        let _operation = self.ensure_open()?;
+        let snapshot = {
+            let state =
+                self.projection_runtime.shared.state.lock().map_err(|_| EngineError::Storage)?;
+            Slice30ProjectionSnapshotForTest {
+                scheduler_runtime_threads: self.resolved_config.scheduler_runtime_threads,
+                embedder_pool_size: self.resolved_config.embedder_pool_size,
+                admission_capacity: self.resolved_config.projection_admission_capacity,
+                active_jobs: state.active_jobs,
+                active_scans: state.active_scans,
+                queued_jobs: state.queued_jobs,
+                in_flight_count: state.in_flight.len(),
+                frozen: state.frozen,
+                pending_scan: state.pending_scan,
+                stopping: state.stopping,
+            }
+        };
+        Ok(snapshot)
     }
 }

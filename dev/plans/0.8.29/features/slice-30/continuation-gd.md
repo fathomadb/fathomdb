@@ -840,6 +840,15 @@ The accepted G11/73 result, original sources/UUIDs, caps and compiler pins remai
 unchanged. D adds a separately built artifact/source identity; no fingerprint
 relaxation or retagging makes a future G binary equivalent to it.
 
+Independent Astra D design PASS approved the amendment. The exclusive D source
+checkout now enters integrated `6696f3a1dacb93749a1ea9580403e4d334230ea3`:
+G closed tooling and qualified20 Linux451 are integrated. The only engine Rust
+delta from the fit base is20's cfg(test) open-hook module/aliases; projection
+production paths and the G observer are unchanged. M remains separate. Preserve
+both test modules; reconcile any later predecessor before the final source gate.
+The first bounded D-T1a native slot authorizes only compilation, actual semantic
+RED and minimal ownership-phase GREEN, not measurement or cap adoption.
+
 Existing G `Slice30ObservationGuard` is deliberately neither Send nor Clone;
 its TLS is not inherited by dispatcher/projection workers. Public projection
 status is categorical, not the private numeric runtime state. These are actual
@@ -1080,6 +1089,191 @@ cost, overlap, closure, required lower repeat or aggregate headroom refuses the
 next stage and retains every unsatisfied obligation. R30/A30 and release
 REQ-013/014, AC-072/073/075/076/083 dispositions are unchanged; synthetic D
 neither supplies BGE/fidelity/AC083 evidence nor a latency waiver.
+
+### Remaining D driver on the integrated source
+
+The D branch reconciles integrated root
+`453b640fb3ad599bc5df8b34615c83d9b4aaa64b`, preserving its earlier observer,
+commit, overlap, fixed768 provider and governed-seed RED/GREEN history. Actual
+Slice50 search/fusion changes are present; Slice80 is accepted design only.
+D calls the current `search_with_limit(query, 10)` hybrid route, so its future
+results describe this integrated source. Existing G source/artifacts remain
+immutable and their historical timings are not retagged as this candidate.
+
+Finish the already authorized source in four small behavior units:
+
+1. Private `fathomdb-engine/examples/slice30_d_measure/workload.rs` streams the
+   accepted corpus LCG/Zipf generator lazily, retains the fixed500 held-out
+   query bodies and cycles them exactly twice. Keep canonical `perf_gates.rs`
+   unchanged. The next frozen control requires exact1001 corpus/500 query/1000
+   request counts, reproducibility, distinct corpus/query seeds, the accepted
+   vocabulary/body shape and identical first/second500 request order. A callable
+   empty stream scaffold precedes its semantic RED; no runtime RED is claimed
+   until that compiling test actually fails in the owned native window.
+2. A private schedule helper owns fresh real stores, default configuration,
+   actual1000-row commit notifications and the H/O lifetime described above.
+   Tiny controls use literal2/1001 rows; primary CLI admission stays fixed-table.
+   Commit notifications retain the actual receipt cursor and unchanged natural
+   body for separate point/current-compiler FTS probes, not an added marker.
+   Bound the channel and release/join every owned helper before normal close;
+   keep one whole-cell deadline through errors and cleanup. Test H and O
+   ordering/real counts separately before adding C observations. No primary
+   pause, sleep, interbatch drain or automatic retry is introduced.
+3. Bind streamed C observations and bracketed pending reads to actual
+   cell/attempt/engine/session/natural-operation identities. Reuse the accepted
+   overlap classifier per actual natural call and retain its raw witness.
+   Require full committed-row coverage, terminal/physical-span closure and
+   loss/error availability for C completion. T runs the same binary/schedule
+   without collector or periodic numeric/readiness polling. Its report has no
+   worker attribution; unavailable measurements remain unavailable.
+4. Add the supervised fixed24 driver/report in the existing experiment
+   directory, retaining the current table and frozen D-T4 tests. Reuse only
+   integrated owned-attempt/resource/private-boundary primitives. Charge actual
+   whole outer wall, common preparation/report/cleanup and failed prefixes once
+   under the shared allocation lock; preserve other-phase reservations and
+   unknown costs. No new profile, cap reset or G/M sibling import follows.
+   Resume retains all24 obligations and never automatically retries a failed
+   attempt. Keep first-quartet stop/review and all later feasibility requirements.
+
+Each unit gets its own real semantic RED before GREEN, with frozen logical
+assertions. Batch provider/seed/driver implementation review at the coherent
+milestone. Final native/default-feature qualification and canonical test
+registration follow in the owned window, once on the final stable code tree.
+This completion refinement grants no campaign GO: D costs remain UNKNOWN and
+actual scientific execution still needs the registered bounded output/monitor
+plan, fresh floors and the separate exact runtime authorization above.
+
+### D concurrent record transport amendment
+
+Actual C-O collection remained incomplete in three bounded attempts,
+including the consumer-only preallocation correction. The two retained
+diagnostic runs each report dropped1 and contain20162 records with one missing
+span, no collection issues and
+batches far below32768; allocation outside the consumer lock did not qualify
+C-O. Shared-Vec `try_lock` contention is sufficient to explain loss, but the
+specific competing producer/consumer remains unknown. Preserve these failures
+and the frozen C-O zero-loss assertions; no further unchanged retry follows.
+
+Use `std::sync::mpsc::sync_channel(max_records)` only for the private D session.
+The pinned Rust1.95 API/source provides bounded multi-producer `try_send` and
+nonblocking `try_recv`; failures are Full/Disconnected or Empty/Disconnected,
+respectively. This is a nonblocking API contract, not a wait-free latency claim.
+Tokio1.52.3 bounded mpsc offers the same required operations and is already
+locked, but is not an engine dependency. Prefer std, already used by the engine,
+with no manifest/lock change. Retaining the shared Vec leaves contention loss;
+blocking sends, a larger/unbounded queue and a custom queue add unwanted policy
+or implementation work.
+
+- The D collector owns the bounded sender; the D guard owns its receiver behind
+  a mutex used only to serialize takes. Producers never acquire that mutex:
+  one `try_send` either enqueues the existing record or increments the existing
+  cumulative dropped counter once on Full/Disconnected. No retry, delay,
+  backpressure, blocking send, extra helper or producer-side buffering is added.
+- Keep the exact configured queue bound1..=32768. Allocate each output Vec
+  before the receiver lock, attempt at most `max_records` receives per take,
+  stop on Empty/Disconnected and release the receiver lock before serialization.
+  Concurrent refill cannot extend a take indefinitely. A take may retain at
+  most the configured bound alongside the separately bounded queue, as with the
+  previous swapped batch; no larger retained-history buffer is introduced.
+- Dispatch to this transport only for D projection sessions. Leave G begin,
+  append, take, legacy Vec allocation and record bytes unchanged. D identity,
+  operation/parent IDs, record schema, successful enqueue order, take sequence,
+  cumulative loss, poisoned-receiver issue and retired-session behavior remain
+  unchanged. Queue disconnection does not become a product error.
+- Preserve C startup acknowledgement,100ms/1s cadence, actual session clock,
+  cleanup/final take and whole-cell deadline. Enqueue work lies inside the
+  existing C diagnostic work/outer wall; drain/serialization remains observer
+  overhead outside product phase clocks and inside charged cell/common wall.
+  C/T comparison cannot subtract or transfer that overhead or claim T worker
+  phases. T never creates this queue; SQL, scheduling/wake, model/provider work,
+  ordinary defaults and scientific campaign admission are unchanged.
+
+Frozen transport test intent before implementation: four concurrent producers
+submit64 distinct literal IDs each while a receiver drains, with capacity512
+and total256; after joining, the union is exactly IDs1..256 once each, dropped0,
+issues empty, and every returned batch has at most512 records. Separately,
+capacity2 accepts IDs1/2, rejects ID3 with cumulative dropped1, drains exactly
+1/2, then accepts/drains ID4 without resetting dropped1. An internally closed
+receiver rejects one active-session append and increments dropped once; no new
+product close API is added for this control. A bounded-drain control keeps a
+producer active and requires one take to return at most its literal capacity,
+then joins before final draining and checks accepted-plus-dropped conservation.
+Use independent manual counts, not generated snapshots or transport internals
+as the oracle. Existing actual C-O loss is the semantic RED; add these focused
+controls before changing transport and observe them in the next owned native
+window. Keep every existing H/O/C-H/C-O logical assertion frozen. Qualification
+still requires actual C-O zero loss and then only affected controls; this
+amendment grants neither implementation approval nor campaign GO.
+
+### D guarded entry on the integrated allocation guardian
+
+Root `e6cbc956954d29137059fb5df32bc78ba863eecd` supplies the reviewed M outer
+allocation guardian. Reuse its private boundary/resource/PID-pin/publication
+mechanics rather than duplicating a second guardian. Add a named phase argument
+with existing M as the default to `m_guard.Accounting` and `m_guard.guard`:
+D selects `d_guardian` and common-charge key `D`, while M retains its current
+schema, keys, limits and behavior. Reject unknown phase names. This shared-source
+refinement requires independent review before implementation.
+
+D entry validates a D-specific selected budget reference against the existing
+ledger and unchanged900s/14400s/16GiB maxima. No expanded study profile is
+selected or activated by source work. Both other-work reservation fields must
+be explicit nonnegative integers; absent/unknown cost refuses admission rather
+than becoming zero. Preserve every original charge and any retained G/M/D or
+closed-guardian ownership. Hold the existing `g-campaign.lock`; publish D custody
+before child entry and keep unknown cleanup blocked. The existing outer-residual
+algorithm reconciles committed cell/common portions once, including controller
+failure and cleanup, without adding the whole outer wall to nested cell walls.
+
+The D CLI owns fixed24 source entry and persistent attempted records, defaults
+to the first held quartet and stops for review. Continuation requires an explicit
+review of its next named size/mode quartet and current conservative feasibility;
+one invocation cannot automatically dispatch all remaining cells. Keep all24
+obligations visible, failed/incomplete attempts unretried and unstarted holds
+reassessable. Native and guarded source controls use tiny stores/harmless children
+only. Freeze a real guarded controller-start/death control with a nested child,
+known-quiescence/bounded recovery and exact outer=cell+common conservation;
+unknown/exhausting other-work reservations must prevent actual child start.
+Recheck only affected M default guardian controls for this shared refinement.
+No new guardian framework, cap reset, G schema alias or campaign GO follows.
+
+#### D owned refusal cost clarification
+
+The new D negative fixture's whole-ledger equality was too broad for refusals
+under D's own acquired shared lock and known ledger custody. Those entry costs
+are actual common D work: add them once to `used_ns` and `common_used_ns.D`,
+then release D custody without starting a child. M defaults/oracles remain
+unchanged. If the lock is unavailable or any foreign/retained custody exists,
+D cannot write that ledger: report positive actual `elapsed_ns`,
+`charged_ns=None` and an unreconciled held result. No zero charge or qualified
+campaign follows; original failure records remain retained.
+
+Proposed correction only to the new D refusal oracle, before implementation:
+seed prior D common19ns and add19ns to its existing total123ns, preserving the
+existing M17ns/G101ns portions. Keep every no-child/profile/reservation/custody
+assertion. For unknown-time/unknown-bytes/reserved-time/reserved-bytes, require:
+
+```python
+assert not ready.exists()
+assert result["state"] == "held"
+assert result["elapsed_ns"] > 0
+charge = final["used_ns"] - before["used_ns"]
+assert charge > 0
+assert charge == final["common_used_ns"]["D"] - 19
+assert result["charged_ns"] == charge
+assert final["common_used_ns"] == {"M": 17, "D": 19 + charge}
+assert final["cell_used_ns"] == {"g-prior": 101}
+assert final["inflight"] is None and final["d_guardian"] is None
+assert all(final[key] == value for key, value in before.items()
+           if key not in ("used_ns", "common_used_ns"))
+```
+
+For retained inflight/M/closed/D guardian state or lock refusal, keep exact
+`final == before`, no actual child start, positive actual elapsed and
+`charged_ns is None`. Original positive D controller/common and reciprocal M
+custody oracles remain frozen. Observe the corrected D-owned refusal cost RED
+on the unchanged not-run/uncharged implementation before the stronger GREEN;
+a passing default refusal is not relabelled as old semantic RED.
 
 ## Requirements, acceptance and ordered runtime TDD
 

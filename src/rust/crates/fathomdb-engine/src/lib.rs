@@ -111,6 +111,9 @@ pub use projection_registry::{
     ProjectionVector,
 };
 mod projection_runtime;
+#[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+#[doc(hidden)]
+pub use projection_runtime::Slice30ProjectionSnapshotForTest;
 pub use projection_runtime::{
     ProjectionRuntimeStatus, ProjectionRuntimeStatusEntry, ProjectionRuntimeUnavailabilityReason,
     ProjectionStatusDenseReadiness,
@@ -131,6 +134,9 @@ mod runtime_lifecycle;
 mod search;
 #[cfg(any(test, feature = "slice30-observer"))]
 mod slice30_observer;
+#[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+#[doc(hidden)]
+pub use slice30_observer::Slice30ProjectionObservationGuard;
 #[cfg(any(test, feature = "slice30-observer"))]
 #[doc(hidden)]
 pub use slice30_observer::{

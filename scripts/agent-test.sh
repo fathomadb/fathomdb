@@ -702,6 +702,14 @@ run_tier_suite heavy test-slice30-measurement-adapter cargo test --locked --rele
 run_tier_suite heavy test-slice30-g-observer cargo test --locked --release --jobs 1 \
   -p fathomdb-engine --features slice30-observer,test-hooks --test slice30_g_observer \
   -- --test-threads=1 --nocapture
+run_tier_suite heavy test-slice30-d-transport cargo test --locked --release --jobs 1 \
+  -p fathomdb-engine --no-default-features --features slice30-observer,test-hooks --lib \
+  slice30_observer::transport_tests:: -- --test-threads=1
+run_tier_suite heavy test-slice30-d-native cargo test --locked --release --jobs 1 \
+  -p fathomdb-engine --no-default-features --features slice30-observer,test-hooks \
+  --test slice30_d_observer --test slice30_d_state --test slice30_d_commit \
+  --test slice30_d_overlap --test slice30_d_seed --example slice30_d_measure \
+  -- --test-threads=1
 slice30_g_platform_reason=""
 slice30_g_host_os="$(uname -s)"
 if [ "$slice30_g_host_os" != "Linux" ]; then
@@ -728,6 +736,14 @@ if [ "${AGENT_SLICE30_LIVE_CONTROLS:-0}" != "1" ]; then
 fi
 run_tier_maybe_suite heavy test-slice30-m-control "$slice30_m_control_reason" \
   bash scripts/test-slice30-m-control.sh
+slice30_d_control_reason=""
+if [ "$slice30_g_host_os" != "Linux" ]; then
+  slice30_d_control_reason="Slice30 D live guardian controls require Linux"
+elif [ "${AGENT_SLICE30_LIVE_CONTROLS:-0}" != "1" ]; then
+  slice30_d_control_reason="explicit live controls not selected (AGENT_SLICE30_LIVE_CONTROLS=1)"
+fi
+run_tier_maybe_suite heavy test-slice30-d-control "$slice30_d_control_reason" \
+  bash scripts/test-slice30-d-control.sh
 run_tier_suite heavy test-slice30-g-feature-boundary \
   python3 scripts/tests/test_slice30_g_feature_boundary.py
 

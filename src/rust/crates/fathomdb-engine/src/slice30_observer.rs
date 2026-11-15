@@ -7,6 +7,8 @@ use std::cell::{Cell, RefCell};
 use std::marker::PhantomData;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+#[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+use std::sync::mpsc::{self, Receiver, SyncSender};
 use std::sync::{Arc, Mutex, Weak};
 use std::time::Instant;
 
@@ -69,6 +71,12 @@ struct Collector {
     take_sequence: AtomicU64,
     dropped: AtomicU64,
     records: Mutex<Vec<Slice30ObservationRecord>>,
+    #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+    projection: bool,
+    #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+    projection_sender: Option<SyncSender<Slice30ObservationRecord>>,
+    #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+    next_projection_operation: AtomicU64,
 }
 
 impl Collector {
@@ -78,6 +86,13 @@ impl Collector {
 
     fn append(&self, record: Slice30ObservationRecord) {
         if !self.active.load(Ordering::Acquire) {
+            return;
+        }
+        #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+        if let Some(sender) = &self.projection_sender {
+            if sender.try_send(record).is_err() {
+                self.dropped.fetch_add(1, Ordering::Relaxed);
+            }
             return;
         }
         if let Ok(mut records) = self.records.try_lock() {
@@ -378,6 +393,12 @@ impl Engine {
             take_sequence: AtomicU64::new(0),
             dropped: AtomicU64::new(0),
             records: Mutex::new(Vec::with_capacity(max_records)),
+            #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+            projection: false,
+            #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+            projection_sender: None,
+            #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+            next_projection_operation: AtomicU64::new(1_u64 << 63),
         });
         *active = Arc::downgrade(&collector);
         Ok(Slice30ObservationGuard {
@@ -387,3 +408,301 @@ impl Engine {
         })
     }
 }
+
+/// Shareable private projection observation session; not an engine lifetime pin.
+#[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+pub struct Slice30ProjectionObservationGuard {
+    owner: Weak<WalAttributionCollector>,
+    collector: Arc<Collector>,
+    receiver: Mutex<Receiver<Slice30ObservationRecord>>,
+}
+
+#[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+impl Slice30ProjectionObservationGuard {
+    /// Return this collector's process-local engine and engine-local session IDs.
+    /// This reads stored metadata without SQL, callbacks, wake or new admission;
+    /// a retired guard continues to name its original session.
+    pub fn owner_identity(&self) -> (usize, u64) {
+        (self.collector.engine_id, self.collector.session_id)
+    }
+
+    /// Run work with this engine/session and caller-assigned operation identity.
+    /// Nested calls and unwind restore the prior context; work returns unchanged.
+    pub fn with_operation<R>(&self, operation_id: u64, work: impl FnOnce() -> R) -> R {
+        let token = OperationToken {
+            collector: Arc::downgrade(&self.collector),
+            engine_id: self.collector.engine_id,
+            operation_id,
+            parent_span_id: None,
+        };
+        let _restore = OperationScope(CURRENT.with(|slot| slot.replace(Some(token))));
+        work()
+    }
+
+    /// Drain bounded records outside product clocks, retaining loss/issue counts.
+    pub fn take(&self) -> Slice30ObservationBatch {
+        let mut issues = vec![];
+        let mut records = Vec::with_capacity(self.collector.capacity);
+        match self.receiver.lock() {
+            Ok(receiver) => {
+                for _ in 0..self.collector.capacity {
+                    match receiver.try_recv() {
+                        Ok(record) => records.push(record),
+                        Err(_) => break,
+                    }
+                }
+            }
+            Err(_) => issues.push("record_buffer_unavailable"),
+        }
+        Slice30ObservationBatch {
+            session_sequence: self.collector.take_sequence.fetch_add(1, Ordering::Relaxed) + 1,
+            records,
+            dropped_records: self.collector.dropped.load(Ordering::Relaxed),
+            issues,
+        }
+    }
+}
+
+#[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+impl Drop for Slice30ProjectionObservationGuard {
+    fn drop(&mut self) {
+        self.collector.active.store(false, Ordering::Release);
+        if let Some(owner) = self.owner.upgrade() {
+            if let Ok(mut active) = owner.slice30_observation.active.lock() {
+                if active.ptr_eq(&Arc::downgrade(&self.collector)) {
+                    *active = Weak::new();
+                }
+            }
+        }
+    }
+}
+
+#[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+impl Engine {
+    /// Begin a bounded, shareable projection diagnostic session for this engine.
+    /// The supplied monotonic origin belongs to the driver's whole-cell clock.
+    /// Bounds outside1..=32768 or duplicate sessions return InvalidArgument;
+    /// closed engines return Closing. No SQL/provider work occurs on begin/drop.
+    #[doc(hidden)]
+    pub fn begin_slice30_projection_observation_for_test(
+        &self,
+        max_records: usize,
+        origin: Instant,
+    ) -> Result<Slice30ProjectionObservationGuard, EngineError> {
+        let _operation = self.ensure_open()?;
+        if !(1..=32768).contains(&max_records) {
+            return Err(EngineError::InvalidArgument {
+                msg: "observer records must be in1..=32768".into(),
+            });
+        }
+        let slot = &self.wal_attribution.slice30_observation;
+        let mut active = slot.active.lock().map_err(|_| EngineError::Storage)?;
+        if active.upgrade().is_some_and(|collector| collector.active.load(Ordering::Acquire)) {
+            return Err(EngineError::InvalidArgument {
+                msg: "engine already has an observation".into(),
+            });
+        }
+        let session_id = slot
+            .next_session
+            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |n| n.checked_add(1))
+            .map_err(|_| EngineError::InvalidArgument {
+                msg: "observation session exhausted".into(),
+            })?;
+        let (sender, receiver) = mpsc::sync_channel(max_records);
+        let collector = Arc::new(Collector {
+            engine_id: Arc::as_ptr(&self.wal_attribution) as usize,
+            session_id,
+            origin,
+            capacity: max_records,
+            active: AtomicBool::new(true),
+            next_span: AtomicU64::new(1),
+            take_sequence: AtomicU64::new(0),
+            dropped: AtomicU64::new(0),
+            records: Mutex::new(Vec::new()),
+            projection: true,
+            projection_sender: Some(sender),
+            next_projection_operation: AtomicU64::new(1_u64 << 63),
+        });
+        *active = Arc::downgrade(&collector);
+        Ok(Slice30ProjectionObservationGuard {
+            owner: Arc::downgrade(&self.wal_attribution),
+            collector,
+            receiver: Mutex::new(receiver),
+        })
+    }
+}
+
+#[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+#[derive(Clone)]
+pub(crate) struct ProjectionTicket {
+    owner: Weak<WalAttributionCollector>,
+    collector: Weak<Collector>,
+    operation_id: u64,
+    scan_operation_id: u64,
+}
+
+#[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+impl std::fmt::Debug for ProjectionTicket {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ProjectionTicket")
+            .field("operation_id", &self.operation_id)
+            .field("scan_operation_id", &self.scan_operation_id)
+            .finish_non_exhaustive()
+    }
+}
+
+#[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+fn projection_operation(collector: &Collector) -> Option<u64> {
+    match collector.next_projection_operation.fetch_update(
+        Ordering::Relaxed,
+        Ordering::Relaxed,
+        |id| id.checked_add(1),
+    ) {
+        Ok(id) => Some(id),
+        Err(_) => {
+            collector.dropped.fetch_add(1, Ordering::Relaxed);
+            None
+        }
+    }
+}
+
+#[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+pub(crate) fn projection_admission(
+    owner: &Arc<WalAttributionCollector>,
+) -> Option<ProjectionTicket> {
+    // Never retain the slot lock across SQL, provider work or runtime locks.
+    let weak = owner.slice30_observation.active.lock().ok()?.clone();
+    let collector = weak.upgrade()?;
+    if !collector.projection || !collector.active.load(Ordering::Acquire) {
+        return None;
+    }
+    let operation_id = projection_operation(&collector)?;
+    Some(ProjectionTicket {
+        owner: Arc::downgrade(owner),
+        collector: weak,
+        operation_id,
+        scan_operation_id: operation_id,
+    })
+}
+
+#[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+pub(crate) fn projection_group_admission<'a>(
+    owner: &Arc<WalAttributionCollector>,
+    mut tickets: impl Iterator<Item = &'a Option<ProjectionTicket>>,
+) -> Option<ProjectionTicket> {
+    let first = tickets.next()?.as_ref()?;
+    let collector = first.collector.upgrade()?;
+    if !collector.active.load(Ordering::Acquire)
+        || !first.owner.upgrade().is_some_and(|actual| Arc::ptr_eq(&actual, owner))
+    {
+        return None;
+    }
+    if !tickets.all(|ticket| {
+        ticket.as_ref().is_some_and(|ticket| {
+            ticket.collector.ptr_eq(&first.collector)
+                && ticket.scan_operation_id == first.scan_operation_id
+        })
+    }) {
+        collector.dropped.fetch_add(1, Ordering::Relaxed);
+        return None;
+    }
+    Some(ProjectionTicket { operation_id: projection_operation(&collector)?, ..first.clone() })
+}
+
+#[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+pub(crate) fn enter_projection(
+    owner: &Arc<WalAttributionCollector>,
+    ticket: Option<&ProjectionTicket>,
+) -> OperationScope {
+    let token = ticket.and_then(|ticket| {
+        if !ticket.owner.upgrade().is_some_and(|actual| Arc::ptr_eq(&actual, owner)) {
+            return None;
+        }
+        let collector = ticket.collector.upgrade()?;
+        Some(OperationToken {
+            collector: ticket.collector.clone(),
+            engine_id: collector.engine_id,
+            operation_id: ticket.operation_id,
+            parent_span_id: None,
+        })
+    });
+    enter_token(owner, token)
+}
+
+#[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+impl Span {
+    pub(crate) fn projection_result(&self, cursors: &[u64], succeeded: bool, index: Option<usize>) {
+        if let Some(data) = &self.data {
+            data.facts.replace(serde_json::json!({"cursors":cursors,"runtime_index":index}));
+            if succeeded {
+                data.status.set("ok");
+            }
+        }
+    }
+}
+
+#[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+pub(crate) fn projection_dequeue(
+    cursors: &[u64],
+    worker_idx: usize,
+    ticket: Option<&ProjectionTicket>,
+) {
+    let Some(token) = capture_token() else {
+        return;
+    };
+    let Some(collector) = token.collector.upgrade() else {
+        return;
+    };
+    collector.append(Slice30ObservationRecord {
+        engine_id: collector.engine_id, session_id: collector.session_id,
+        operation_id: token.operation_id, span_id: collector.next_span.fetch_add(1, Ordering::Relaxed), parent_span_id: None,
+        phase: "projection_dequeue", started_ns: None, ended_ns: None, status: "ok",
+        facts: serde_json::json!({"cursors":cursors,"worker_index":worker_idx,"scan_operation_id":ticket.map(|ticket| ticket.scan_operation_id)}),
+    });
+}
+
+#[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+pub(crate) fn projection_is_recording() -> bool {
+    capture_token()
+        .and_then(|token| token.collector.upgrade())
+        .is_some_and(|collector| collector.projection && collector.active.load(Ordering::Acquire))
+}
+
+#[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+pub(crate) fn projection_span(phase: &'static str) -> Span {
+    if projection_is_recording() {
+        span(phase)
+    } else {
+        Span { data: None, marker: PhantomData }
+    }
+}
+
+#[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
+pub(crate) fn projection_commit_outcome(status: &'static str, facts: serde_json::Value) {
+    let Some(token) = capture_token() else {
+        return;
+    };
+    let Some(collector) = token.collector.upgrade() else {
+        return;
+    };
+    if !collector.projection || !collector.active.load(Ordering::Acquire) {
+        return;
+    }
+    collector.append(Slice30ObservationRecord {
+        engine_id: collector.engine_id,
+        session_id: collector.session_id,
+        operation_id: token.operation_id,
+        span_id: collector.next_span.fetch_add(1, Ordering::Relaxed),
+        parent_span_id: token.parent_span_id,
+        phase: "projection_commit_outcome",
+        started_ns: None,
+        ended_ns: None,
+        status,
+        facts,
+    });
+}
+
+#[cfg(all(test, feature = "slice30-observer", feature = "test-hooks"))]
+#[path = "slice30_observer_transport_tests.rs"]
+mod transport_tests;

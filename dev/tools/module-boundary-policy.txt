@@ -1,7 +1,7 @@
 # Engine architecture policy: reviewed owners, classifications and prohibitions.
 # The gate reads manifest feature closure for the three boundary axes and the
-# five actual helper cases below. Each feature set covers test/non-test,
-# Linux/non-Linux and debug/release (104 concrete points). New relevant cfg
+# six actual helper cases below. Each feature set covers test/non-test,
+# Linux/non-Linux and debug/release (112 concrete points). New relevant cfg
 # predicates or edges active at no point fail; ML cases are not a consumer matrix.
 # The governed-module graph follows import/type/explicit dependencies.
 # The item graph follows calls, callable references and Engine fields/methods,
@@ -18,6 +18,7 @@ configuration-case ml-cpu default-embedder,default-reranker
 configuration-case ml-cuda embed-cuda,rerank-cuda
 configuration-case migration migration-test-hooks
 configuration-case slice72 slice72-test-hooks
+configuration-case slice30-projection slice30-observer,test-hooks
 configuration-case helpers test-hooks,operator,default-embedder,default-reranker,migration-test-hooks,slice72-test-hooks
 reported actuation
 reported actuation::tests

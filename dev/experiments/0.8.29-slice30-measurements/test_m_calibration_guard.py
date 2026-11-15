@@ -67,6 +67,23 @@ class CalibrationGuardianTests(unittest.TestCase):
         self.assertGreater(value["calibration_usage"][CALIBRATION_ID]["new_retained_bytes"], 0)
         self.assertIsNone(value["m_guardian"])
 
+    def test_headroom_refusal_preserves_g_d_fields_and_charges_the_same_cumulative_allowance(self):
+        value = json.loads(self.ledger.read_text())
+        value.update(cell_used_ns={"g-prior": 101}, common_used_ns={"D": 17},
+                     closed_common_roots=["original-g-root"], closed_guardian=None, d_guardian=None)
+        self.ledger.write_text(json.dumps(value))
+        self.profile["total_shared_ns"] = 1800 * 10**9
+        with self.assertRaisesRegex(ValueError, "headroom"):
+            self.run_child("raise AssertionError('must not start')", "headroom-refused")
+        final = json.loads(self.ledger.read_text())
+        self.assertGreater(final["used_ns"], 123, "headroom refusal silently lost its actual entry charge")
+        self.assertEqual(final["calibration_usage"][CALIBRATION_ID]["wall_ns"], final["used_ns"]-123)
+        self.assertEqual(final["schema"], "slice30-gd-budget/v1")
+        self.assertEqual(final["cell_used_ns"], {"g-prior": 101})
+        self.assertEqual(final["common_used_ns"]["D"], 17)
+        self.assertEqual(final["closed_common_roots"], ["original-g-root"])
+        self.assertIsNone(final.get("m_guardian"))
+
     def test_whole_phase_deadline_stops_child_without_active_cell(self):
         marker = self.root / "deadline" / "started"
         real_clock = time.monotonic_ns

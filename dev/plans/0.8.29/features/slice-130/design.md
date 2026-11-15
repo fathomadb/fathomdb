@@ -1,6 +1,7 @@
 # Slice 130 design and current-source census
 
-[Active owner dispositions](plan.md#phase-a-scope) retain independent130A/B–E;
+[Active owner dispositions](plan.md#phase-a-scope): seq-381 moves Tegra CUDA13
+unit A to .31; B–E and existing CUDA12.6 obligations remain .29;
 new x86 CUDA13 delivery/compiler work is .31 and real110 resets are HELD .30.
 References to120 artifacts below mean applicable independently selected artifacts,
 not a mandatory new x86 package or blanket120 dependency.
@@ -44,7 +45,7 @@ Source paths in this table are beneath `src/rust/crates/fathomdb-` for named
 crates, `src/python/tests/` for Python tests and `scripts/` for release scripts;
 the [test map](test-map.md) provides direct links.
 
-## A/B: platform and installed-consumer architecture
+## A (future .31) / B (active .29): platform and installed-consumer architecture
 
 Use existing install/lifecycle/witness primitives and actual selected applicable artifact
 identities; retain true driverless ARM control. Record source-built SDK binaries
@@ -56,7 +57,8 @@ AWS confirms [g5g uses Graviton2 and T4G](https://aws.amazon.com/ec2/instance-ty
 (read November10). This supports venue class only, not present capacity, price,
 access or CUDA-stack compatibility. Freeze one compatible target from observed
 hardware and reviewed build inputs; do not add .30 multiarchitecture fatbins.
-CloudJetson vetting and actual JetPack7.2/root/data-handling answers are pending;
+For future .31 unit A, CloudJetson vetting and actual JetPack7.2/root/data-handling
+answers remain pending;
 no new vendor assertion, Thor support, private-pool admission or local reflash
 is inferred. Existing class gating applies; an integrated device without actual
 private allocator cannot satisfy v2 allocation proof by switching to shared UMA.

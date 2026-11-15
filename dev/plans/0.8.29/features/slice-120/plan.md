@@ -22,9 +22,8 @@ not measurement. Quantitative tests/evidence move to .31; no invented shares,
 new threshold or accepted delivery contract follows.
 
 Existing CUDA12.6 delivery, package/CPU/driverless/linkage/installed-consumer
-qualification and supported-platform obligations remain. Independently directed
-Tegra13 Slice130A and130B–E are not deferred by moving this new x86 delivery
-proposal. Their own target/artifact/venue prerequisites still govern; no artifact
+qualification and supported-platform obligations remain. Owner seq-381 separately moves Tegra13 Slice130A to .31.130B–E
+and existing CUDA12.6 obligations remain .29. Their own target/artifact/venue prerequisites still govern; no artifact
 or runtime qualification can be inferred from this scope disposition.
 
 Before .31 implementation, reconcile source/pins, current CUDA policy and compiler

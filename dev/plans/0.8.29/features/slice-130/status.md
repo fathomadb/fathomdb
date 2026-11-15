@@ -1,6 +1,7 @@
 # Slice 130 Phase A status
 
-[Active owner dispositions](plan.md#phase-a-scope) retain independent130A/B–E;
+[Active owner dispositions](plan.md#phase-a-scope): seq-381 moves Tegra CUDA13
+unit A to .31; B–E and existing CUDA12.6 obligations remain .29;
 new x86 CUDA13 delivery/compiler work is .31 and real110 resets are HELD .30.
 References to120 artifacts below mean applicable independently selected artifacts,
 not a mandatory new x86 package or blanket120 dependency.
@@ -38,7 +39,7 @@ WAITING_FOR_ARTIFACT_SELECTION are findings, not completed predecessor exits.
 
 | Item | Current hold / recommendation to parent |
 | --- | --- |
-| A actual venue | Do not reask broad venue. Obtain CloudJetson JetPack7.2/root/data-handling vetting, actual device/stack/artifact route, access, exact quote/cap/window and session approval; otherwise retain Q5 UNMEASURED pending explicit disposition. |
+| A actual venue — future .31, not a .29 hold (seq-381) | Do not reask broad venue. Obtain CloudJetson JetPack7.2/root/data-handling vetting, actual device/stack/artifact route, access, exact quote/cap/window and session approval; otherwise retain Q5 UNMEASURED pending explicit disposition. |
 | B/C actual venue/artifact | Obtain actual AWS g5g access/capacity/quote/session cap and compatible per-target artifact through the affected artifact owner. Preserve source-build versus installed distribution scope; no Orin87 or ordinary CPU npm binary GPU claim. No .30 multiarch fork prerequisite. |
 | C hazard design | Enabled/off observation first; exact bounded heap fixture inputs still to freeze after final-baseline read. Clean forkserver positive must exclude CUDA preloading; parent-CUDA fork remains hazardous. No hook removal until evidence/accepted successor/review. |
 | D technical choices | Recommend passive hidden nondefault qualification hook through existing test-hook gates, lossless identities/counters/live-count, no synchronize/trim; proposed5s/50ms settling. Review may accept technical choices; unit can advance independently once applicable actual10 closure/preflight/design PASS and Orin access/resource window exist. |

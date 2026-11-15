@@ -14,7 +14,8 @@ Actual future release identities and compiler disposition require review before
 any13 build. No compiler safety, artifact build or runtime qualification is claimed.
 Seq-379 accepts bounded quantitative unknowns and unchanged current ratings;
 quantitative tests/evidence belong to .31. Existing .29 platform/artifact controls
-and independently directed130A/B–E remain, under their actual selected inputs.
+and130B–E remain, under their actual selected inputs. Owner seq-381 separately
+moves Tegra CUDA13 unit130A to .31.
 
 ## 1. Existing implementation and actual work
 

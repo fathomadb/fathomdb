@@ -5,7 +5,7 @@ from contextlib import ExitStack
 from pathlib import Path
 import time
 
-from d_controller import run_initial_quartet, run_required
+from d_controller import _qualified_lower, assess_stage, run_initial_quartet, run_required
 from d_attempt import run_owned_cell
 from d_report import bind_execution
 from d_overlap import _interval
@@ -180,29 +180,95 @@ def run_accounted_stage(spec, records, budget, execute, *, initial=True, clock=t
 
 
 def run_supervised_stage(spec, records, budget, root, command, *, publish=None, initial=True, review=None):
-    """Connect fixed-table accounting to owned children under caller-owned custody.
+    """Connect exactly one reviewed quartet to owned children under caller custody.
 
-    The caller supplies the existing locked allocation and durable publisher;
-    this callable grants no live admission or expanded profile. Every required
-    row remains visible, with the initial held-quartet stop as the default.
+    Initial entry stops after the first held quartet. Continuation requires its
+    explicit next-quartet review; every other obligation and attempted prefix
+    remains visible. The caller owns the locked allocation/durable publisher.
     """
-    if not initial:
-        return [{"id": cell["id"], **records[cell["id"]]} if cell["id"] in records else
-                {"id": cell["id"], "status": "not_run_stage_review",
-                 "reason": reviewed_quartet(spec, records, budget, review)["reason"]}
-                for cell in spec["cells"]]
+    decision = None if initial else reviewed_quartet(spec, records, budget, review)
+
+    def preserved(cell):
+        previous = records.get(cell["id"])
+        if previous and previous.get("status") == "complete":
+            return {"id": cell["id"], "status": "complete", "record": previous}
+        if previous and previous.get("status") in ("failed", "incomplete", "interrupted"):
+            return {"id": cell["id"], **previous}
+        return {"id": cell["id"], "status": "not_run_stage_review",
+                "reason": decision.get("reason", "outside the one reviewed quartet")}
+
+    if not initial and decision["status"] != "admit":
+        return [preserved(cell) for cell in spec["cells"]]
 
     def execute(cell, deadline):
         return run_owned_cell(cell, root, command, deadline)
 
-    return run_accounted_stage(spec, records, budget, execute, initial=True, publish=publish)
+    selected = spec if initial else dict(spec, cells=[cell for cell in spec["cells"]
+                                                    if cell["id"] in decision["cells"]])
+    rows = run_accounted_stage(selected, records, budget, execute, initial=initial, publish=publish)
+    if initial:
+        return rows
+    dispatched = {row["id"]: row for row in rows}
+    return [dispatched[cell["id"]] if cell["id"] in dispatched else preserved(cell)
+            for cell in spec["cells"]]
 
 
 def reviewed_quartet(spec, records, budget, review):
-    """Assess an explicit review for exactly one next required D size/mode quartet.
+    """Assess one explicit next-quartet review against current qualified evidence.
 
-    Current qualified prefix identities, conservative layer bounds and shared
-    headroom must remain available. Unknown cost is held; this admits no runtime
-    by itself and never authorizes all remaining24 obligations automatically.
+    The review binds prior attempt identities and a nonfuture shared checkpoint.
+    Larger cells retain the existing same-mode lower-cost bound;10k overlap
+    needs explicit prospective C/T bounds. Unknown cost or insufficient current
+    headroom refuses. This mathematical decision grants no runtime permission.
     """
-    return {"status": "not_run_stage_review", "reason": "D continuation review binding is not implemented"}
+    def held(reason, status="not_run_stage_review"):
+        return {"status": status, "reason": reason}
+
+    stages = list(dict.fromkeys((cell["n"], cell["mode"]) for cell in spec["cells"]))
+    index = next((index for index, (n, mode) in enumerate(stages)
+                  if not _qualified_lower(n, mode, records)), None)
+    if index is None:
+        return {"status": "complete", "reason": "all required quartets already qualify", "cells": []}
+    if index == 0:
+        return held("initial held quartet remains unqualified")
+    n, mode = stages[index]
+    if (not isinstance(review, dict) or review.get("verdict") != "ACCEPT"
+            or any(not isinstance(review.get(key), str) or not review[key].strip()
+                   for key in ("reviewer", "subject"))
+            or (review.get("n"), review.get("mode")) != (n, mode)):
+        return held("explicit accepted review of the next required quartet is unavailable")
+    if any(type(budget.get(key)) is not int or budget[key] < 0
+           for key in ("used_ns", "shared_ns", "retained_bytes", "storage_limit")):
+        return held("current shared headroom is unavailable", "not_run_cost_unknown")
+    checkpoint = review.get("checkpoint") or {}
+    if any(type(checkpoint.get(key)) is not int or not 0 <= checkpoint[key] <= budget[key]
+           for key in ("used_ns", "retained_bytes")):
+        return held("review checkpoint is unavailable or shared usage moved backwards")
+    prefix = [cell for cell in spec["cells"] if (cell["n"], cell["mode"]) in stages[:index]]
+    attempts = {cell["id"]: records[cell["id"]].get("attempt_id") for cell in prefix}
+    if (any(not isinstance(attempt, str) or not attempt for attempt in attempts.values())
+            or review.get("prefix_attempts") != attempts):
+        return held("qualified prefix attempt identities differ from the reviewed evidence")
+    assessment = assess_stage(n, mode, records, budget)
+    if assessment["status"] != "admit":
+        return assessment
+    bounds = review.get("bounds")
+    if not isinstance(bounds, dict) or any(not isinstance(bounds.get(layer), dict) for layer in ("C", "T")):
+        return held("reviewed C/T cost bounds are unavailable", "not_run_cost_unknown")
+    for layer in ("C", "T"):
+        values = bounds[layer]
+        if any(type(values.get(key)) is not int or values[key] <= 0 for key in ("time_ns", "active_bytes")):
+            return held("reviewed C/T cost bounds are unavailable", "not_run_cost_unknown")
+        if values["time_ns"] >= 900*10**9 or values["active_bytes"] >= budget["storage_limit"]:
+            return held("reviewed cell bounds exceed strict cell/storage headroom", "not_run_cap_feasibility")
+        lower = assessment.get("predictions", {}).get(layer)
+        if lower and any(values[key] < lower[key] for key in ("time_ns", "active_bytes")):
+            return held("review is smaller than the current same-mode conservative bound")
+    quartet_time = 2*sum(bounds[layer]["time_ns"] for layer in ("C", "T"))
+    quartet_bytes = 2*sum(bounds[layer]["active_bytes"] for layer in ("C", "T"))
+    if (budget["used_ns"]+quartet_time > budget["shared_ns"]
+            or budget["retained_bytes"]+quartet_bytes >= budget["storage_limit"]):
+        return held("reviewed quartet exceeds current shared headroom", "not_run_cap_feasibility")
+    return {"status": "admit", "n": n, "mode": mode,
+            "cells": [cell["id"] for cell in spec["cells"] if (cell["n"], cell["mode"]) == (n, mode)],
+            "predictions": bounds, "quartet_time_ns": quartet_time, "quartet_bytes": quartet_bytes}

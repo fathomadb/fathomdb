@@ -7,7 +7,7 @@ from pathlib import Path
 import sys
 import time
 
-from d_driver import run_supervised_stage
+from d_driver import reviewed_quartet, run_supervised_stage
 from g_campaign import active_bytes
 from m_guard import guard, write_budget
 
@@ -44,7 +44,7 @@ def _control(root, fd):
     ledger = json.loads(ledger_path.read_text())
     if ledger.get("d_guardian") != owner:
         raise RuntimeError("D controller lacks its actual shared-ledger guardian")
-    budget = dict(ledger, shared_ns=profile["total_shared_ns"]-profile["reserved_other_work_ns"],
+    budget = dict(ledger, shared_ns=profile["total_shared_ns"]-profile["reserved_other_work_ns"]-config["common_limit_ns"],
                   storage_limit=profile["total_shared_retained_bytes"]-profile["reserved_other_work_bytes"],
                   retained_bytes=active_bytes(allocation))
     records = json.loads(state_path.read_text()) if state_path.exists() else {}
@@ -57,19 +57,22 @@ def _control(root, fd):
         write_budget(state_path, records)
         write_budget(ledger_path, durable)
 
+    decision = ({"status": "admit", "cells": [cell["id"] for cell in spec["cells"][:4]]}
+                if config["initial"] else reviewed_quartet(spec, records, budget, config.get("review")))
     rows = run_supervised_stage(spec, records, budget, root/"attempts", config["command"],
-                                publish=publish, initial=config["initial"])
+        publish=publish, initial=config["initial"], review=config.get("review"))
     source = config["scope"] == "isolated-harmless-source-control"
     source_complete = (source and all(row["status"] == "failed"
         and isinstance(row.get("native"), dict) and row["native"].get("unit_diagnostic") is True
         and row.get("cleanup_uncertain") is False for row in rows[:4])
         and all(row["status"] == "not_run_stage_review" for row in rows[4:]))
-    stage_complete = all(row["status"] == "complete" for row in rows[:4])
+    target = [row for row in rows if row["id"] in decision.get("cells", [])]
+    stage_complete = decision["status"] == "admit" and len(target) == 4 and all(row["status"] == "complete" for row in target)
     result = {"scope": config["scope"], "qualifies_natural": False, "controller_started_ns": entered,
-              "source_control_complete": source_complete, "stage_complete": stage_complete,
+              "source_control_complete": source_complete, "stage_complete": stage_complete, "stage_decision": decision,
               "campaign_complete": all(row["status"] == "complete" for row in rows), "rows": rows}
     write_budget(root/"d-report.json", result)
-    return 0 if source_complete or stage_complete else 1
+    return 0 if source_complete or stage_complete or result["campaign_complete"] else 1
 
 
 def _source_config(root):
@@ -153,8 +156,11 @@ def main():
             raise ValueError("D allocation and native executable must be owned by S30_TASK")
         config = {"scope": "fixed24-scientific", "allocation": str(allocation),
             "profile": json.loads(Path(selected["profile"]).read_text()), "command": [str(native)],
-            "initial": selected.get("initial", True), "common_limit_ns": selected["common_limit_ns"]}
+            "initial": selected.get("initial", True), "common_limit_ns": selected["common_limit_ns"],
+            "review": json.loads(Path(selected["review"]).read_text()) if selected.get("review") else None}
         root.mkdir(parents=True, exist_ok=True)
+    if type(config["initial"]) is not bool:
+        raise ValueError("D initial stage selector must be boolean")
     if type(config["common_limit_ns"]) is not int or config["common_limit_ns"] <= 20*10**9:
         raise ValueError("D common allowance must fund bounded guardian cleanup")
     def command():
@@ -176,7 +182,7 @@ def main():
     if result.get("charged_ns") is not None:
         write_budget(report_path, report)
     print(json.dumps(report))
-    qualified = report.get("source_control_complete") or report.get("stage_complete")
+    qualified = report.get("source_control_complete") or report.get("stage_complete") or report.get("campaign_complete")
     return 0 if qualified and result["exit"] == 0 and result["cleanup_uncertain"] is False else 1
 
 

@@ -9,6 +9,12 @@ mod capture_overlap_tests;
 #[cfg(test)]
 #[path = "slice30_d_measure/capture_tests.rs"]
 mod capture_tests;
+#[cfg(test)]
+#[path = "slice30_d_measure/entry.rs"]
+mod entry;
+#[cfg(test)]
+#[path = "slice30_d_measure/entry_tests.rs"]
+mod entry_tests;
 #[path = "slice30_d_measure/provider.rs"]
 mod provider;
 #[cfg(test)]

@@ -415,9 +415,10 @@ outside duration means and T keeps worker attribution unavailable. The private
 C-H and C-O native entries have tiny real-store stream/closure controls,
 including pre-seed acknowledgements and final take after close. D capture uses
 bounded nonblocking multi-producer transport; full/closed loss still prevents
-completion. C-O capture alone does not establish an overlap witness. Main
-routing and supervised campaign entry remain unimplemented; no scientific D
-cell follows.
+completion. C-O capture alone does not establish an overlap witness. The fixed
+native entry routes the same canonical workload to T/C helpers; `d_attempt.py`
+has real harmless-child success/deadline/descendant controls. Persistent live
+allocation/campaign entry remains unfinished; no scientific D cell follows.
 
 `d_overlap.py CASE.json` reads one exact cell/attempt/size/repeat and owner/session
 frame, with natural operation identity, tagged observer records and bracketed
@@ -427,3 +428,105 @@ INCOMPLETE; disjoint/straddling data is NO_OBSERVED_OVERLAP; T remains
 ACTUAL_OVERLAP_UNOBSERVED. Raw witness bounds are retained without exclusive
 cost or percentile subtraction. The tiny real-store rendezvous and literal
 scope controls prove this predicate, not any scaled scientific execution.
+
+## M tooling — campaign runtime held
+
+[m_runner.py](m_runner.py) is the committed M entry. The accepted inventory is
+[m-cells.json](m-cells.json):2 M0,20 M-R,4 M-C,8 M-L and12 M-E. All campaign
+commands retain the selected original shared ledger, prior charges/failures,
+900s whole cells and exact production defaults. No M-only candidate profile is
+active, and no calibrated latency or weak-result verdict is emitted.
+
+Portable source controls use new SDK-created tiny stores and actual stdio:
+
+```bash
+M_DIR=dev/experiments/0.8.29-slice30-measurements
+bash scripts/test-slice30-m-cli.sh
+```
+
+That maintained runner builds separate owned provider-free CLI and test-seams
+helper targets with locked release/jobs2, then explicitly executes
+[m_native_tests.py](m_native_tests.py). It requires checkout-owned `.venv`; no
+environment-absent skip can replace the tests. Bounded harmless child/hand-metric
+tests remain in ordinary `test_*.py` discovery. Actual guardian/controller-death
+and public prepared-dispatch controls run separately:
+
+```bash
+bash scripts/test-slice30-m-control.sh
+```
+
+The live control route requires owned `S30_TASK/tmp`, the preceding owned CLI/
+helper artifacts, delegated private cgroup controls and32/250/16GiB root/task/
+available-memory start floors. It fails actionably when unavailable. Both
+runners are registered explicitly in the Linux heavy test tier; live controls
+are selected only with `AGENT_SLICE30_LIVE_CONTROLS=1`, independently of
+`AGENT_LONG`. The owned final qualification selects and executes that route;
+ordinary developer verification keeps the private-executor control opt-in.
+The dedicated control script itself always hard-fails missing prerequisites.
+The direct `source-smoke --root ... --cli ... --helper ...` command is portable;
+`source-dispatch` additionally exercises actual preparation, inherited private
+admission, normal MCP processes, shared/common accounting and retained reports
+under the live guardian. Both explicitly remain tiny provider-free source
+controls, never natural/GPU qualification or renewed campaign allocation.
+
+Future reviewed runtime uses the same entry, after independent source review,
+owned tooling qualification, an explicitly approved common TOTAL allocation
+and complete bounded remaining-component forecasts:
+
+```bash
+# Each build requires the existing guarded owned CPU/CUDA lease as applicable.
+.venv/bin/python "$M_DIR/m_runner.py" build --variant providerfree --output "$S30_TASK/m-build-providerfree"
+.venv/bin/python "$M_DIR/m_runner.py" build --variant helper --output "$S30_TASK/m-build-helper"
+.venv/bin/python "$M_DIR/m_runner.py" build --variant ordinary --output "$S30_TASK/m-build-ordinary"
+AGENT_LONG=1 .venv/bin/python "$M_DIR/m_runner.py" freeze --options selected-runtime.json --root "$M_FROZEN"
+AGENT_LONG=1 .venv/bin/python "$M_DIR/m_runner.py" run "$M_FROZEN"
+AGENT_LONG=1 .venv/bin/python "$M_DIR/m_runner.py" report "$M_FROZEN"
+```
+
+`selected-runtime.json` is an explicit private input configuration, not generated
+authority. It names `allocation`, `profile`, `forecasts`, `closed_subject`, pinned
+`corpus`/`queries`/`license`, owned `model_cache`, separate `builds` receipts and
+the reserved `gpu` identity. [m_freeze.py](m_freeze.py) defines the checked fields.
+The profile must be `slice30-m-budget/v1`, `status:APPROVED`, pin the original
+`g-budget.json` and state TOTAL nanosecond/retained-byte caps plus900s cells.
+It also declares `reserved_other_work_ns`/`reserved_other_work_bytes`, an explicit
+reviewed `reservation_disposition`, and `other_work_cost_status` (`BOUNDED` or
+`HELD_UNAVAILABLE`). A zero reservation is an explicit bounded-M disposition,
+never an estimate of unknown G/D work; unknown combined feasibility stays
+`UNKNOWN`. Neither reservation nor common growth silently expands the original
+TOTAL allowance.
+Forecasts include every cell's `components_ns` and `new_retained_bytes`, plus
+`common_components_ns` and `common_new_retained_bytes`;
+[m_controller.py](m_controller.py) names all13 components. Complete remaining
+cell/common growth is reserved at2x before selected packaging inspection or
+preparation; external reservations are additionally protected by the guardian.
+No cap, profile approval, missing component, closed custody or companion file is
+inferred. No live-source copying, checkpoint, reset, projection edit or model
+fetch is implemented. Ordinary builds use only `embed-cuda`; the diagnostic
+helper is separately provider-free and uses only existing private Seams.
+
+The outer [m_guard.py](m_guard.py) owns the exact private boundary and original
+shared accounting even if the controller dies. Interrupted active wall is
+charged once to its cell; residual outer work goes to common usage, and retained
+`guardian_stopped`/uncertain inflight state blocks redispatch. Inner attempts
+reserve7s for existing bounded cleanup inside their absolute allowance; the
+outer guardian reserves20s for group/boundary cleanup and finalization. Public
+commands bind private cells to the live owning controller and active attempt.
+Reports retain all46 rows and every attempt/error/unresolved observation. Actual
+MCP-PID memory increase plus positive utilization qualifies hybrid compute;
+direct-text query compute and provider-free controls are N/A. No extra query,
+borrowed GPU witness, CPU fallback or service-time subtraction is introduced.
+Raw stdout/stderr retain the fixed per-line flush policy and report actual
+write/flush bytes and costs separately; decoded JSONL uses16-record/phase
+checkpoints. Queue summaries remain at whole-process scope, with phase counts
+as population context; uncorrelated admitted-wait events are never assigned to
+first/warmup/timed windows.
+
+Registered queries are JSONL strings, decoded before both loop and lifecycle
+submission; quotes, escapes, Unicode and original query indices are preserved.
+[m_load.py](m_load.py) observes actual one-minute host load. Guardian/cell entry
+requires load<=2; observed runtime load>2.5 marks noisy without discarding
+results, changing ceilings or correcting latency. Cell monitor observations,
+search-phase boundary observations and completed guardian-phase facts remain
+in their respective raw outcomes/reports. The live control executor also needs
+the inherited quiet-entry condition; missing observations are never zero load.

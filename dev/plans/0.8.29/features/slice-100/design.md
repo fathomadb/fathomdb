@@ -79,8 +79,9 @@ source hash matches the reviewed SQLite file; its current exact file is NOT
 bound as the executed canonical child by the quiet log. Never borrow that binary.
 Future100 needs its own source-qualified child and actual relocated breakpoint,
 readable locals/stack and owned actor identities. Metadata and the approved
-unconfined executor do not prove runtime ptrace/witness viability. No inferior,
-ptrace or fault has run for100. Missing preconditions stop UNQUALIFIED; no timed
+unconfined executor do not prove runtime ptrace/witness viability. The historical metadata alone established none of those runtime facts.
+Actual healthy witnesses now exist; both attempted interruptions remain
+UNQUALIFIED, as recorded in execution.md. Missing preconditions stop UNQUALIFIED; no timed
 kill, broader fault or artificial product RED replaces them.
 
 ## G100-2: richer assertions and strict TDD
@@ -162,3 +163,46 @@ observations absent from the unchanged assertions. Later integrated engine,
 manifest, lock or caller changes require affected-input review; unintegrated G
 work is future work, not a current predecessor.160 owns final composed
 qualification. No unconditional all-release rerun rule.
+
+## Reviewed operator repair — source controls, real delivery still held
+
+The seq-383 trace establishes two separate failures. After external pidfd SIGKILL,
+resume produced31^running, then failed to insert user breakpoint2 and internal
+breakpoint-6 into unavailable target memory, ending31^error,msg="Command aborted.".
+The operator accepted the first running response and its stop waiter missed the
+later same-token error until its min(case deadline, now+5s) exit subdeadline;
+this is not evidence of exhausting120s. Deleting only the user breakpoint cannot establish a fix
+for the internal breakpoint failure. No product recovery result follows.
+
+Frozen RED intent for error attribution: a pure-Python MI state-machine test must
+feed running then the same-token error and require immediate UNQUALIFIED with
+that exact debugger error, instead of waiting for a generic deadline. Preserve
+normal exit/stop and wrong-signal refusal controls. No subprocess/native fault
+is needed for this test. Commit actual observed RED before its minimal GREEN,
+after independent design acceptance. Source RED317d69f01 then GREEN61757a6d7
+now cover both co-arriving and delayed same-token errors without subprocesses.
+
+The separately tested delivery repair replaces the external kill-then-resume sequence
+with exactly one `-interpreter-exec console "signal SIGKILL"` after the new
+execution's validated own stopped witness. Explicitly select and revalidate the
+witness thread/frame as belonging to the registered PID/nonce; keep pidfd/starttime/
+executable identity checks and require all-stop state. The pidfd remains an
+identity/cleanup fence, not an additional qualifying signal. Any error stops
+UNQUALIFIED without redelivery. Bounded same-actor cleanup remains separate.
+
+[GDB's signal contract](https://sourceware.org/gdb/current/onlinedocs/gdb.html/Signaling.html)
+resumes with immediate signal delivery to the currently selected thread. Inference:
+this may let GDB prepare breakpoints while target memory still exists, rather
+than after an external kill. It is not proof of actual GDB/kernel exit behavior.
+No deletion-only fix, longer timeout or async switch is claimed. Confirmed SIGKILL
+exit, untouched-before-observe files and unchanged observer/retry assertions stay
+mandatory. Delivery changes require reviewed protocol/code and a concrete new
+owner-scoped pair before any further real fault; seq-383 is spent. No standalone
+probe harness, extra packet or production seam is introduced. Delivery REDf67e21a0b
+freezes the reviewed successor oracle before implementation: four in-memory
+policy methods failed14 assertions, and the affected scripted transport failed
+both signal cases at the retired external-kill tripwire. The unchanged oracles
+then pass: seven pure methods (including late-error controls) and one short
+scripted-MI method with SIGKILL/SIGTERM subcases. No actual debugger, database,
+ptrace or qualifying fault is executed by these controls. Final independent
+implementation review and actual new owner scope remain before real delivery.

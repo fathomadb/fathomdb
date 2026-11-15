@@ -1,9 +1,17 @@
 # Slice 30 M continuation — proposed real stdio measurements
 
-Status: **PROPOSED FIT AMENDMENT**, pending fresh independent Astra review.
+Status: **AFFECTED SOURCE CONTROLS QUALIFIED**, pending fresh independent review.
+Design fit passed at
+f90714a0e2132bab3b2a2b2d60425a598c157e34; the M implementation passed independent
+review at d942aa91e74a9463e82b6a9384ca41ca28698c42. No M campaign is qualified.
 The original design passed at ca76af9f5c7c710b1aca7f8ee79f2c90549a4874;
-this update reconciles accepted parent2a6ef143358ec178c41d9a8f4281c7e4ddcd68ef.
-It refines held M only and grants no source, native setup or runtime GO.
+the current fit incorporates release baseline
+6696f3a1dacb93749a1ea9580403e4d334230ea3 without rewriting those source histories.
+The November15 successor merges release source
+7e36ef3c9ab0aa35b21d16ae287ceddb77ba8979 at
+3833cef4161133102f355ff34949481964b24ec4; it is not a new qualification subject
+for the earlier owned binaries or results.
+It refines held M only and grants no new setup, allocation or runtime GO.
 Accepted P and executed G preregistrations/freezes remain unchanged. G now has
 11qualified cases and73still-required refused obligations; wholeG is incomplete,
 but is not an additional hard prerequisite for M source qualification.
@@ -14,17 +22,74 @@ but is not an additional hard prerequisite for M source qualification.
 remain unchanged. Inherited M dimensions are real stdio c1/4/8/16/32, honest
 queue/all-call denominators, errors/cancel/timeouts, first-process/open/idle/
 alternating-store costs and logging controls. The exact counts/modes/formats
-below are **new preregistration proposals**, not already accepted gates.
+below are **accepted preregistration choices**, not new numerical acceptance gates.
 
-Current parent includes accepted20 A3/A5
+The original fit parent includes accepted20 A3/A5
 f803a964ad8c8154a481e6f9385599bef5c0e054, accepted60 subset
 5271c1bf022f0ea22f95f7433e226feb2315043e and complete70
 e875f36042f89c1d84756f78135db0e8926c1ed4. The [G/D fit](continuation-gd.md)
 records their exact limits. A3/A5 satisfies that named M prerequisite;
 whole20/WindowsA6 is independent.60 supplies compact-default/structured formats,
-filters and budgets, but F11 remains open.70 supplies current provider absence,
+filters and budgets. At that original entry F11 remained open.70 supplies
+current provider absence,
 overload, timeout, Closing and CUDA-kind outcomes; M must preserve these words
 and remedies rather than collapse them to a generic error.
+
+The integrated baseline adds qualified20 Linux source45167677 and qualified
+G CLOSED-copy tooling0fa618. The20 changes canonicalize two `cfg(test)` hook
+paths and add a bounded test module; production MCP/SDK interfaces, format37,
+hints and span storage are unchanged. M's imported G process/containment,
+retained-byte and input-identity helpers retain their contracts. The G phase
+wrapper recognizes its named G commands only; source verification remains
+outside campaign allocation. Both G and M live-control routes are retained in
+the canonical runner under `AGENT_SLICE30_LIVE_CONTROLS=1`, with `AGENT_LONG`
+unset for the source gate. The original owned native setup receipt remains an
+actual e3ba665cff1227dfe83dfac5fd7f792814783191 subject; the then-current Rust inventory
+required canonical owned setup on that integrated source before qualification,
+under a separately scheduled lease, without retagging the old receipt. Reviewed
+D source fit supplies no measured D cost: unknown costs remain held, not zero.
+
+The November15 source successor includes reviewed50 record/version fusion,
+winner-only hydration and record-start selection, complete60 F11 views and
+current-pin110 context-loss policy. The actual50 engine changes can change
+returned records, ranking and elapsed work; old G/P measurements keep their
+original subjects and cannot become current50 latency or benefit evidence.
+M retains every returned row in positional order, including repeated public
+references, and does not merge rows by reference or body. Its existing literal
+tiny fixtures/oracles are unchanged.60 preserves the seven tool names and
+compact/structured wire formats. M's registered default-current searches omit
+both view flags, retaining false defaults; adding historical/inactive workload
+cells would change the preregistered inventory.50's atomic feedback correction
+needs no M feedback route, and M makes no historical-fetch or feedback claim.
+The helper's existing Seams methods remain callable without a new observer.
+
+Both owned provider-free CLI and test-seams helper must rebuild from this merged
+source before affected real-stdio controls run. These selected controls do not
+load the Python wheel or N-API module, so their refresh is deferred until actual
+consumer qualification. Earlier artifacts retain their actual5c/e3 build
+subjects.110 does not
+turn provider-free controls into CUDA proof. Source qualification resumes only
+failed/unrun suites and materially affected seams under the separately scheduled
+native lease; it does not replay the previous full gate for bookkeeping. The
+original223-suite collector remains220pass/3fail with an interrupted guardian;
+there is no intact full-wrapper PASS. The Pages failures identified stale
+contributor documentation, now current under the canonical generator. The two
+failed guardian methods stopped at actual load3.123046875 before their intended
+child behavior, and the two following public-dispatch methods never ran. The
+later failed-only attempt refused entry at actual load4.41; no successful
+resumption is inferred. Scientific M entry<=2 remains unchanged.
+
+The authorized current-source resumption at clean
+cbd87f6b0ad5bb8b90a62dc7c4879d6415bfcb4e rebuilt only the actually used owned
+provider-free CLI and test-seams helper (40.56s/42.28s). The subsequent exact
+failed/unrun selection passed: Pages20/20, Tegra retention45/45, the two failed
+guardian methods2/2 and both previously unrun public-dispatch methods2/2. Raw
+results remain in the owned task's existing `m-current-mcp-refresh` and
+`m-current-failed-unfinished` phase logs. Both delegated-service guardians
+finished exit0 with strict final samples, no resource stop/cleanup uncertainty
+or surviving owned work, and removed their exact empty boundaries. This is an
+assembled affected-source result, not a new uninterrupted full-gate PASS. No
+passing suite was replayed, Python/N-API rebuilt or scientific M cell qualified.
 
 The released closed100k G subject is recorded under `g_selected_input_for_m` in
 [release state](../../../release-state-0.8.29.json), from source
@@ -40,11 +105,11 @@ source gate for M. This amendment opens neither campaign.
 
 | Existing obligation | M refinement and retained boundary |
 | --- | --- |
-| R30-1; A30-1 | Build against actual20/60/70/current schema37; replace obsolete example assumptions, not production algorithms. |
+| R30-1; A30-1 | Build against actual20/50/60/70/current schema37; replace obsolete example assumptions, not production algorithms. |
 | R30-2/3; A30-2/3 | Reuse qualified read-mostly100k input and query order. M is not a new write/overlap proof or AC083 result. |
 | R30-4/5; A30-4 | Attribute only client clocks, returned outcomes and actually logged waits; exclusive service/open/render costs remain unavailable. |
 | R30-6/7; A30-5/6 | Small real-process/real-DB tool TDD, committed/indexed commands, bounded streams/attempts/resources and honest incomplete cells. |
-| R30-8/9; A30-7 | P/G/D/M/F remain separate. No M timing closes frozen TC5 fidelity, F11, Windows, whole30, Block1 or downstream gates. |
+| R30-8/9; A30-7 | P/G/D/M/F remain separate. No M timing closes frozen TC5 fidelity, Windows, whole30, Block1 or downstream gates;60 owns its separately qualified F11 result. |
 
 [Release requirements](../../../../requirements.md#performance-req-009req-018)
 and [canonical acceptance](../../../../acceptance.md) retain REQ-010/AC012/076
@@ -78,10 +143,10 @@ M must separately retain submitted/completed/success/error/unresolved counts.
 Compact fetch uses exact UTF8 byte frames, with literal preservation oracles in
 [formats.rs](../../../../../src/rust/crates/fathomdb-mcp/tests/formats.rs).
 
-Proposed future tools belong in that existing experiment directory: a separate
-M cell inventory and client/controller, with bounded tests and commands indexed
-in its README. They do not exist or execute by virtue of this proposal. Keep P/G
-entry points and freezes unchanged. Current production launch is exactly
+Implemented M tools live in that existing experiment directory: a separate M
+cell inventory and client/controller, with bounded tests and commands indexed
+in its README. Their source review does not qualify natural runtime. M remains
+separate from P/G entry points and historical freezes. Production launch is exactly
 `fathomdb-mcp --config <path.json>`; `--check-config` validates without opening.
 Normal M0 uses a locally built no-feature binary, explicit closed tiny stores,
 `use_default_embedder:false`, `search_mode:text`, and each result format in turn.
@@ -133,8 +198,9 @@ incomplete rather than becoming successful samples or being retried away.
 
 Warn/debug cells are matched workload/logging perturbation controls. The
 restricted text/structured controls above are a review choice, not a full
-mode×format×concurrency matrix. They do not replace Slice60/F11 qualification
-or release MCP conformance under both formats. Review must accept this explicit
+mode×format×concurrency matrix. They do not replace Slice60
+qualification or release MCP conformance under both formats. Review must accept
+this explicit
 coverage or revise it before source/freeze; no dimension is silently waived.
 
 ## Calls, clocks, queue and response accounting
@@ -208,9 +274,9 @@ do not claim fresh verification or remove its marker to manufacture open cost.
 
 ## Small implementation and genuine runtime TDD units
 
-No tests execute under this design-only authority. After reviewed source GO,
-select exact commands/names and register new bounded tests in the maintained
-runner. Each missing behavior gets a compiling scaffold, committed runtime
+Design approval alone did not authorize execution. Subsequent source GO produced
+the reviewed bounded tests and maintained commands; their oracles/history remain
+frozen across integration. Each missing behavior gets a compiling scaffold, committed runtime
 assertion failure, then separate GREEN with unchanged oracle. Existing passing
 product behavior is reuse, not manufactured RED; no new golden/tamper suite.
 Keep compact and structured decoding, invocation records, schedule, accounting,

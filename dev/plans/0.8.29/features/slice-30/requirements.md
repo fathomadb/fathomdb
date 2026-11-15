@@ -7,9 +7,11 @@ The accepted P subset is preserved. The [G/D continuation](continuation-gd.md) r
 TDD contracts and stages G first. Independent design/actual20-fit PASS and parent
 G source GO now authorize the owned source unit recorded in execution.md; G
 campaign/D source remain separate. All unqualified cells/downstream holds remain.
-The [proposed M continuation](continuation-m.md) maps these unchanged IDs to
+The [reviewed M continuation](continuation-m.md) maps these unchanged IDs to
 explicit stdio measurements, unavailable exclusive attribution and held resource/
-input prerequisites. Its new matrix choices still require independent review.
+runtime prerequisites. Its accepted source now incorporates current G/20;
+affected-seam recheck, owned final source qualification and campaign authority
+remain separate. The matrix and all requirement/acceptance IDs remain unchanged.
 
 | ID | Requirement and reason | Acceptance |
 | --- | --- | --- |

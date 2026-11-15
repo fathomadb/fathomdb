@@ -126,8 +126,18 @@ pub struct CanonicalSearch {
     pub created_after: Option<i64>,
     pub attributes: Vec<(String, String)>,
     pub as_of: Option<i64>,
+    /// Whether superseded record versions are eligible for this request.
+    #[serde(skip_serializing_if = "is_false")]
+    pub include_superseded: bool,
+    /// Whether non-active lifecycle records are eligible for this request.
+    #[serde(skip_serializing_if = "is_false")]
+    pub include_inactive: bool,
     pub limit: usize,
     pub explain: bool,
+}
+
+fn is_false(value: &bool) -> bool {
+    !*value
 }
 
 impl CanonicalSearch {

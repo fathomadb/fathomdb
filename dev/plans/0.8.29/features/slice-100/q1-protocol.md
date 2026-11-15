@@ -120,9 +120,26 @@ The healthy case establishes the protocol's ordinary successful route only.
 Only if that healthy case passed on the identical source/binary/config/fixture
 subject may one matched interruption case start. It must obtain its OWN complete
 witness. The earlier healthy witness or an earlier stop in this case never grants
-a later timed kill. At its qualified stopped frame, and only under seq-372 and parent technical GO, send SIGKILL through the retained pidfd to that exact inferior.
-Wait for GDB's child-exit report and reap GDB. No target method or destructor runs
-as a substitute for abrupt exit. Missing/changed identity cancels qualification.
+a later timed kill. Original seq-372 and seq-383 executions are spent; any further
+real pair requires actual new owner scope and technical GO. The reviewed source
+repair uses exactly one `-interpreter-exec console "signal SIGKILL"` qualifying
+request, replacing external pidfd kill followed by ordinary continue.
+
+Before that command, explicitly select the witness thread; verify current thread,
+one owned process group/PID/executable, thread membership and all-stop state.
+Re-read frame/PC, erasure stack and all native predicates at the same position;
+recheck READY PID/executable/nonce/ticket, no DONE, and pidfd/starttime identity.
+No intervening resume is allowed. Retain this delivery revalidation with the case.
+The pidfd remains an ownership/cleanup fence, not a second qualifying signal.
+No fallback redelivery is permitted. Late MI errors, whether accompanying or
+following running, immediately stop UNQUALIFIED with their exact error retained.
+
+Require `exited-signalled` with `SIGKILL`, then reap GDB before any untouched
+snapshot/observer/retry. Merely issuing the command or observing actor cleanup
+cannot qualify recovery. No target method/destructor substitutes for abrupt exit.
+Missing/changed identity cancels qualification. GDB's current-thread signal
+semantics support this mechanism; avoiding the reinsertion race remains inference
+until a future authorized real execution. Source tests are not runtime fault proof.
 
 ## Untouched crash evidence, observer and explicit retry
 

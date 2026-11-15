@@ -1,6 +1,6 @@
 ---
 title: Slice 110 — CUDA context-loss lifetime and safe teardown
-status: DESIGN_REVIEWED_SOURCE_REPAIRS_SELECTED_LIVE_FAULTS_HELD
+status: CURRENT_PIN_POLICY_IMPLEMENTED_TRACKED_INTEGRATION_PENDING
 target_release: 0.8.29
 slice: 110
 ---
@@ -20,9 +20,9 @@ actual Orin/3090 child reset execution for .30 review. No live fault is authoriz
 
 - [Master](../../../plan-0.8.29.md) and [release state](../../../release-state-0.8.29.json)
   allocate110 under R29-REL-R/G, R29-3P-17/D29-RESET and O3-17.10 is closed;
-  integrated Linux20/70 provide lifecycle/error behavior;60/100 are qualified
-  subsets, not whole-slice closure. Source stays pinned during G recovery;
-  queued20 then M precede110 in the shared heavy window.
+  integrated Linux20/70 provide lifecycle/error behavior;60 local acceptance is
+  complete and100 remains a qualified subset. G's retained source stays pinned;
+  current-pin110 CPU policy work is implemented without changing G's subject.
 - Preserve format37, no migration, provider identity, queue deadlines, allocator
   choice, healthy pool release and ordinary OOM retry. Physical erasure remains
   complete except concrete defects; no new erasure SLA.
@@ -39,6 +39,13 @@ actual Orin/3090 child reset execution for .30 review. No live fault is authoriz
   →110 integration → affected130 qualification. Completed110 never gates140.
 
 ## Execution sequence
+
+Current-pin preparation may implement the narrow already-detected-loss
+publication/dispatch behavior in the [source boundary](design.md#current-source-implementation-boundary),
+following independent design review and actual per-behavior RED/GREEN. It does
+not wait for140 qualification, change pins, or close110. Token/pool/model wiring
+continues to require qualified140-A source before implementation. Source-only
+test preparation is not an observed RED and does not consume a native gate.
 
 1. Independent Astra-medium design review is complete (PASS after partial-load
    reset was kept seam-only). Owner seq-376/377 is the selected policy and live-fault

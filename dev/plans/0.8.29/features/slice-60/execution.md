@@ -214,3 +214,82 @@ evidence without a material gap. Quiet capture hides numeric deltas; no replay
 occurred or is planned. No source repair is needed from this result, and no
 noise cause was established. Both outcomes remain; no uninterrupted full-green,
 GPU qualification, whole60/F11 closure or release qualification follows.
+
+## F11 continuation (2026-11-15)
+
+Independent Astra accepted source-grounded plan87c3134e before tests/code.
+Fresh sole-writer continuation starts at453b640f with integrated50 source9036507b,
+completed70 and accepted80 design. The existing5271 subset is not requalified by
+attribution. Native work uses own cache/target/tmp and copied small resource
+launcher:2GiB memory/swap0/pids128/CPU1/900s,20GiB total owned allocation,
+10GiB memory entry/8GiB stop and retained disk/sustained-swap floors. Each unit
+verified effective caps before Cargo, terminal service collection and final
+floors. No sibling environment/native artifact was executed; no resource stop.
+
+- Superseded exposure: RED986a6db066753d134e5113c7f5e5263ec8454e3b observed
+  0pass/4fail, all unknown-flag caller assertions. GREENd519424d892318ef4df0937d98b62d9409d8fa4b
+  passed all4 frozen tests, scoped Clippy/check and75 existing affected MCP tests.
+- Null/presence: REDcbaa8e2c88efb224c787cbee54af4575e662af2b observed
+  0pass/2fail because null search/continuation calls succeeded. GREEN
+  ee8018728bf46fed64b1f14c1212daec01c94589 passed2 frozen tests plus3
+  superseded controls and scoped Clippy. Only new search flags use strict bool
+  deserialization/nonnullable discovery; fetch/old filter null behavior is intact.
+- Inactive/combined: RED687630d75b916394d2c192a15801b6d8ce737375 retains
+  two initial genuine unknown-inactive failures and one fixture failure, which is
+  not RED. G11 invalidated fact edges sharing(from,to,kind). The only repair gave
+  timed edges distinct to:<id> endpoints with3 real nonmatching nodes; every
+  authored membership/temporal assertion and original F11a prefix stayed fixed.
+  Only that selector resumed and genuinely failed unknown include_inactive.
+  The staged inactive-null guard passed before implementation and is a control.
+  Final minimal inactive wiring passed all7 view+3 null tests and scoped Clippy.
+
+Raw commands/diagnostics remain under
+`/mnt/data/tmp2/fathomdb-0829-continuation/slice60-exit-20261115/logs/` in
+f11a-red/green/controls, superseded-null-red/green/controls, f11b-red,
+f11b-fixture-corrected-red and f11b-green logs, with scoped lint/check logs.
+The final10 tests exercise both formats/modes, authored membership and SDK
+ID/body/source/order/score parity, node bounds and actual edge expiry, canonical
+identity, filter/budget/paging and feedback/latest-eligible-fetch composition.
+The75 existing controls belong to the earlier superseded subject; no redundant
+replay is claimed. Final resource sample reports4042444800 owned bytes.
+Native lease is returned. No owned Python setup/full source gate, official
+conformance/smoke, coherent final Astra verdict, whole60 or Block1 closure is
+claimed. Parent resolves final integrated source fit before the required gate.
+
+## Combined source gate and discovery successor (2026-11-15)
+
+Coherent independent Astra accepted724e4801. Clean combined source
+f7ad475fbf3ef273faa32dca6e0b82fccdc7efcb retains that entire MCP Rust/test tree
+unchanged and integrates accepted100. Official owned Python3.13 setup built a
+noneditable production wheel; owned TS built production NAPI. Both actual loaded
+production modules passed real None-provider open/close/exit. The original JS
+preflight checker callback error is retained; only that checker and unfinished
+source checks resumed inside the original setup deadline.
+
+One canonical agent-verify passed on clean F7 in3405s:221 registered,220 ran/
+passed,0 failed,1 explicit ordinary live-G-control opt-in skip,0 excluded.
+Rust workspace, measurement adapter/observer/CLI, Python/native receipt and
+hermetic TS/NAPI passed. AC-036 used actual ptrace and passed; AC-037 recorded
+the existing environmental namespace downgrade, with offline/policy controls
+passing. No zero-downgrade or live-netns qualification is claimed.
+
+The unchanged heavy guardian enforced32/250/16GiB entry and20/50/8GiB stop
+floors,200GiB owned ceiling and sustained swap bound, jobs2/CMake2, with the
+original3600s child cap. Final root/task/memory/owned bytes were111198244864/
+421389324288/36344672256/49541792805. No resource stop or uncertain cleanup;
+no live owned PID, exact private boundary empty/removed, service collected.
+Original raw combined-setup/preflight/verify logs and receipts remain in the
+same continuation task; no passing gate was replayed.
+
+After terminal cleanup, two staged actual tools/list assertions failed on F7:
+both include_superseded and include_inactive advertised boolean type with
+explicit default:null. RED89f436e52 preserves those assertions separately from
+the original10 frozen runtime/view tests. Only schemars default annotations
+change to false; serde omission remains None and explicit false remains
+Some(false), preserving continuation override refusal. Successor GREEN passes
+17 focused tests:5 null/discovery,7 view/composition and5 existing schema
+controls,0 failed/ignored. Scoped all-target MCP Clippy passes. Both900s-capped
+heavy phases finished without resource stop or uncertain cleanup, with empty
+removed boundaries. Independent review determines final acceptance; the F7
+full result is retained without a whole-workspace replay. Block1 conformance/
+smoke/item4 and90 residuals remain separate holds.

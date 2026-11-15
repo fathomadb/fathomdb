@@ -31,6 +31,8 @@ pub(super) struct Fake {
     pub(super) panic_in_trim: AtomicBool,
     pub(super) synchronizes: AtomicUsize,
     pub(super) trims: AtomicUsize,
+    pub(super) state_reads: AtomicUsize,
+    pub(super) id_reads: AtomicUsize,
     pub(super) snapshot: Once,
 }
 
@@ -47,6 +49,8 @@ impl Default for Fake {
             panic_in_trim: AtomicBool::new(false),
             synchronizes: AtomicUsize::new(0),
             trims: AtomicUsize::new(0),
+            state_reads: AtomicUsize::new(0),
+            id_reads: AtomicUsize::new(0),
             snapshot: Once::new(),
         }
     }
@@ -143,10 +147,12 @@ impl PoolDriver for Fake {
     }
 
     fn primary_state(&self, _ordinal: usize) -> Result<CudaPrimaryContextState, DriverFailure> {
+        self.state_reads.fetch_add(1, Ordering::SeqCst);
         Ok(CudaPrimaryContextState { active: self.primary_active.load(Ordering::SeqCst), flags: 0 })
     }
 
     fn retained_primary_context_id(&self, _ordinal: usize) -> Result<u64, DriverFailure> {
+        self.id_reads.fetch_add(1, Ordering::SeqCst);
         (*self.current_id.lock().unwrap()).map_err(driver_error)
     }
 

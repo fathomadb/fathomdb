@@ -55,8 +55,15 @@ def evaluate_arm(arm: dict) -> dict:
         invalid.append("pool mode must be on or off")
     if not _number(arm.get("started_monotonic_s")):
         invalid.append("missing actual arm start")
-    if arm.get("exit_code") != 0 or arm.get("aborted") is not None:
+    if arm.get("exit_code") is None:
+        invalid.append("actual process exit has not been observed")
+    elif arm["exit_code"] != 0:
         failures.append("process did not complete with healthy exit")
+    if arm.get("aborted") is not None:
+        if arm.get("abort_kind") == "deadline":
+            invalid.append("sample deadline invalidated the experiment")
+        else:
+            failures.append(f"campaign aborted: {arm['aborted']}")
     if not isinstance(baseline, dict) or len(samples) != SAMPLE_COUNT or not all(isinstance(p, dict) for p in samples):
         invalid.append("separate baseline and exactly 60 scheduled samples required")
     else:
@@ -179,7 +186,7 @@ def collect_arm(sdk, pool_mode, iteration, snapshot, emit, *, clock=time.monoton
     if pool_mode not in ("on", "off"):
         raise ValueError("pool mode must be on or off")
     result = {"sdk": sdk, "pool_mode": pool_mode, "baseline": None,
-              "samples": [], "aborted": None, "exit_code": None}
+              "samples": [], "aborted": None, "abort_kind": None, "exit_code": None}
     iterations = 0
     mismatches = 0
     phase = "warmup"
@@ -190,6 +197,7 @@ def collect_arm(sdk, pool_mode, iteration, snapshot, emit, *, clock=time.monoton
         emit({"event": "warmup", "result": warmup, "duration_s": result["warmup_duration_s"]})
         if warmup["mismatches"]:
             result["aborted"] = "warmup output mismatch"
+            result["abort_kind"] = "output_mismatch"
             return result
         started = clock()
         result["started_monotonic_s"] = started
@@ -207,6 +215,7 @@ def collect_arm(sdk, pool_mode, iteration, snapshot, emit, *, clock=time.monoton
         result["baseline"] = capture(0)
         if result["baseline"]["elapsed_s"] > DEADLINE_TOLERANCE_SECONDS:
             result["aborted"] = "baseline deadline exceeded"
+            result["abort_kind"] = "deadline"
             return result
         k = 1
         while k <= SAMPLE_COUNT:
@@ -218,6 +227,7 @@ def collect_arm(sdk, pool_mode, iteration, snapshot, emit, *, clock=time.monoton
                   "result": details})
             if mismatches:
                 result["aborted"] = "operation output mismatch"
+                result["abort_kind"] = "output_mismatch"
                 break
             if clock() - started < k * SAMPLE_SECONDS:
                 continue
@@ -226,10 +236,12 @@ def collect_arm(sdk, pool_mode, iteration, snapshot, emit, *, clock=time.monoton
             result["samples"].append(point)
             if point["elapsed_s"] > k * SAMPLE_SECONDS + DEADLINE_TOLERANCE_SECONDS:
                 result["aborted"] = f"sample {k} deadline exceeded"
+                result["abort_kind"] = "deadline"
                 break
             k += 1
     except Exception as error:  # noqa: BLE001 - retain the actual workload/observer failure
         result["aborted"] = f"{phase}: {type(error).__name__}: {error}"
+        result["abort_kind"] = "counter_error" if phase in ("baseline", "sample") else "operation_error"
         emit({"event": "error", "phase": phase, "type": type(error).__name__, "message": str(error)})
     result["iterations"] = iterations
     return result

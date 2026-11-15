@@ -1090,6 +1090,59 @@ next stage and retains every unsatisfied obligation. R30/A30 and release
 REQ-013/014, AC-072/073/075/076/083 dispositions are unchanged; synthetic D
 neither supplies BGE/fidelity/AC083 evidence nor a latency waiver.
 
+### Remaining D driver on the integrated source
+
+The D branch reconciles integrated root
+`453b640fb3ad599bc5df8b34615c83d9b4aaa64b`, preserving its earlier observer,
+commit, overlap, fixed768 provider and governed-seed RED/GREEN history. Actual
+Slice50 search/fusion changes are present; Slice80 is accepted design only.
+D calls the current `search_with_limit(query, 10)` hybrid route, so its future
+results describe this integrated source. Existing G source/artifacts remain
+immutable and their historical timings are not retagged as this candidate.
+
+Finish the already authorized source in four small behavior units:
+
+1. Private `fathomdb-engine/examples/slice30_d_measure/workload.rs` streams the
+   accepted corpus LCG/Zipf generator lazily, retains the fixed500 held-out
+   query bodies and cycles them exactly twice. Keep canonical `perf_gates.rs`
+   unchanged. The next frozen control requires exact1001 corpus/500 query/1000
+   request counts, reproducibility, distinct corpus/query seeds, the accepted
+   vocabulary/body shape and identical first/second500 request order. A callable
+   empty stream scaffold precedes its semantic RED; no runtime RED is claimed
+   until that compiling test actually fails in the owned native window.
+2. A private schedule helper owns fresh real stores, default configuration,
+   actual1000-row commit notifications and the H/O lifetime described above.
+   Tiny controls use literal2/1001 rows; primary CLI admission stays fixed-table.
+   Commit notifications retain the actual receipt cursor and unchanged natural
+   body for separate point/current-compiler FTS probes, not an added marker.
+   Bound the channel and release/join every owned helper before normal close;
+   keep one whole-cell deadline through errors and cleanup. Test H and O
+   ordering/real counts separately before adding C observations. No primary
+   pause, sleep, interbatch drain or automatic retry is introduced.
+3. Bind streamed C observations and bracketed pending reads to actual
+   cell/attempt/engine/session/natural-operation identities. Reuse the accepted
+   overlap classifier per actual natural call and retain its raw witness.
+   Require full committed-row coverage, terminal/physical-span closure and
+   loss/error availability for C completion. T runs the same binary/schedule
+   without collector or periodic numeric/readiness polling. Its report has no
+   worker attribution; unavailable measurements remain unavailable.
+4. Add the supervised fixed24 driver/report in the existing experiment
+   directory, retaining the current table and frozen D-T4 tests. Reuse only
+   integrated owned-attempt/resource/private-boundary primitives. Charge actual
+   whole outer wall, common preparation/report/cleanup and failed prefixes once
+   under the shared allocation lock; preserve other-phase reservations and
+   unknown costs. No new profile, cap reset or G/M sibling import follows.
+   Resume retains all24 obligations and never automatically retries a failed
+   attempt. Keep first-quartet stop/review and all later feasibility requirements.
+
+Each unit gets its own real semantic RED before GREEN, with frozen logical
+assertions. Batch provider/seed/driver implementation review at the coherent
+milestone. Final native/default-feature qualification and canonical test
+registration follow in the owned window, once on the final stable code tree.
+This completion refinement grants no campaign GO: D costs remain UNKNOWN and
+actual scientific execution still needs the registered bounded output/monitor
+plan, fresh floors and the separate exact runtime authorization above.
+
 ## Requirements, acceptance and ordered runtime TDD
 
 Local refinements below map to existing Slice30 IDs. A design review is not a

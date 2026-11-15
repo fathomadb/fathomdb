@@ -43,18 +43,24 @@ class Accounting:
 
     def begin_calibration(self, limits, root, value):
         """Pin one cumulative allowance before qualification or resource preflight."""
-        from m_calibration import CALIBRATION_ID, admit
+        from m_calibration import CALIBRATION_ID, admit, validate_limits
+        validate_limits(limits)
         usage = value.setdefault("calibration_usage", {}).get(CALIBRATION_ID, {})
+        if usage and usage.get("limits") != limits:
+            raise ValueError("selected cumulative calibration allowance changed")
         roots = usage.get("roots", [])
         if usage:
             usage["new_retained_bytes"] = max(usage["new_retained_bytes"],
                                              sum(active_bytes(path) for path in roots))
-        remaining = admit(self.profile, value, active_bytes(self.path.parent), limits)
-        self.calibration = dict(remaining, limits=dict(limits), root=str(root),
+        prior_ns, prior_bytes = usage.get("wall_ns", 0), usage.get("new_retained_bytes", 0)
+        self.calibration = dict(prior_wall_ns=prior_ns, prior_retained_bytes=prior_bytes,
+                                limits=dict(limits), root=str(root),
                                 baseline_bytes=active_bytes(self.path.parent), peak_growth=0)
         value["calibration_usage"][CALIBRATION_ID] = dict(usage,
-            limits=dict(limits), wall_ns=remaining["prior_wall_ns"],
-            new_retained_bytes=remaining["prior_retained_bytes"], roots=list(dict.fromkeys([*roots, str(root)])))
+            limits=dict(limits), wall_ns=prior_ns,
+            new_retained_bytes=prior_bytes, roots=list(dict.fromkeys([*roots, str(root)])))
+        remaining = admit(self.profile, value, active_bytes(self.path.parent), limits)
+        self.calibration.update(remaining)
         return self.started_ns + remaining["remaining_phase_ns"]
 
     def growth(self):
@@ -170,7 +176,13 @@ def guard(command, *, allocation, profile, root, task, admission=False, common_l
             from m_freeze import approved
             approved(profile, allocation)
             accounting.profile = profile
-            phase_deadline = accounting.begin_calibration(calibration, root, budget)
+            try:
+                phase_deadline = accounting.begin_calibration(calibration, root, budget)
+            except ValueError:
+                if accounting.calibration is not None:
+                    write_budget(accounting.path, budget)
+                    accounting.finish(uncertain=False, stopped_ns=time.monotonic_ns())
+                raise
         if phase == "D" or calibration is not None:
             budget[guardian_key] = {"pid": os.getpid(), "start": process_start(os.getpid()),
                                    "started_monotonic_ns": began, "root": str(root)}

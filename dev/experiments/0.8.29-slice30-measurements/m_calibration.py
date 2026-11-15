@@ -112,13 +112,18 @@ def selected_cell(cell_id):
     return dict(cell, id=CALIBRATION_ID, origin_id=cell_id)
 
 
-def admit(profile, ledger, retained_bytes, limits):
-    """Reserve positive remaining calibration allowances on the original shared budget."""
+def validate_limits(limits):
+    """Require a positive selected allowance that includes bounded inner/outer cleanup."""
     keys = {"phase_ns", "payload_ns", "new_retained_bytes"}
     if (set(limits) != keys or any(type(limits[k]) is not int or limits[k] <= 0 for k in keys)
             or not 7 * 10**9 < limits["payload_ns"] <= limits["phase_ns"] - 20 * 10**9
             or limits["phase_ns"] > 900 * 10**9):
         raise ValueError("positive bounded calibration allowance required, including cleanup")
+
+
+def admit(profile, ledger, retained_bytes, limits):
+    """Reserve positive remaining calibration allowances on the original shared budget."""
+    validate_limits(limits)
     usage = ledger.get("calibration_usage", {}).get(CALIBRATION_ID, {})
     if usage and usage.get("limits") != limits:
         raise ValueError("selected cumulative calibration allowance changed")

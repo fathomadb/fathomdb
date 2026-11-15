@@ -612,7 +612,21 @@
         "primary_qualified": 12,
         "primary_held": 72,
         "evidence": "Six SDK/engine embed/hybrid/text passes,500 warmups and1000 timed calls each, requestedcuda:0 and own-PID GPU proof. No issues, close/cleanup passed, all actors collected. Frozen-baseline qualification, not current paired50 performance. Original failures/charges remain. No write attempt or expanded profile active.",
-        "next": "Implement reviewed conditional serial-retained/live storage model with actual closed-file accounting and complete remaining-table recheck; final implementation review and fresh budget admission precede writes. D/M combined bounds remain unknown."
+        "next": "Serial model and concrete G-only cost input independently accepted; see g_serial_storage. No write attempt/profile activation yet."
+      },
+      "g_serial_storage": {
+        "source": "48b46a7c7ae83565c11c636daabbf5c1b22b1640",
+        "status": "IMPLEMENTED_SCOPED_QUALIFIED_ASTRA_ACCEPTED",
+        "tests": "41 new/affected pure Python controls pass; Ruff/normal hooks pass. Genuine RED history and FIX retained. Final combined source gate separate.",
+        "scope": "Error-propagating measured quiescent closure, complete remaining-table C/L fit, final serialized bytes and uncommitted elapsed time before dispatch. Qualifier ASTs unchanged; no native/model/data rebuild or case replay.",
+        "actual_study_source": "b75144f1ba1b9942041b5398fbe4c898b2871e53",
+        "native_fingerprint": "d644d89f4590d60be701ad1b9cd2eecd66c9d390d8a45a0a370c774a69e83114",
+        "cost_input": "/mnt/data/tmp2/fathomdb-0829-continuation/slice30-g-20261113/g-serial-write-cost-review-v1.json",
+        "cost_review": "Independent Astra ACCEPT exact12 references/four calibration origins/ordered72 table/50ms cadence.",
+        "profile": "Parent-selected prospective G-only12h TOTAL/128GiB TOTAL, not activated; old budget/charges unchanged. D/M full costs HELD_COST_UNAVAILABLE/combinedUNKNOWN/nonadditive.",
+        "forecast_total_ns": 32181023255477,
+        "forecast_peak_bytes": 112926001274,
+        "next": "Fresh resource/owned-bytes/selectedGPU/FD9/exact-boundary readiness and serial native lease before normal freeze/run/report. No new fault/spend authority."
       }
     },
     {
@@ -885,8 +899,17 @@
         "dev/plans/0.8.29/features/slice-130/review-log.md"
       ],
       "conditions": "Final selected existing.29 artifacts/pins and each permitted venue/session/cap remain for130B-E. Seq378 moves newCUDA13 delivery/compiler work.31 and seq381 explicitly moves130A CUDA13 Tegra there too, preserving stableTC-b267d940. Seq377 live child-reset execution excluded until.30. No deferred cell is passed.",
-      "phase": "DESIGN_REVIEWED_WAITING_CAMPAIGN_INPUTS",
-      "evidence": "GPT-6.1 Sol-high PhaseA scope/requirements/acceptance/design reconciled; independent Astra-medium design PASS recorded in features/slice-130/review-log.md. No implementation or source qualification follows this planning status. Bounded design after FIX1; exact selected artifacts/pins, venue/session inputs, C fixture and E equivalence/shipping evidence remain held. No campaign/spend authority. Owner seq381 explicitly reallocates130A to.31; remaining130B-E design/runtime/source qualification obligations are retained."
+      "phase": "E_PORTABLE_UTILITY_QUALIFIED_D_NATIVE_AND_LIVE_CAMPAIGNS_PENDING",
+      "evidence": "GPT-6.1 Sol-high PhaseA scope/requirements/acceptance/design reconciled; independent Astra-medium design PASS recorded in features/slice-130/review-log.md. No implementation or source qualification follows this planning status. Bounded design after FIX1; exact selected artifacts/pins, venue/session inputs, C fixture and E equivalence/shipping evidence remain held. No campaign/spend authority. Owner seq381 explicitly reallocates130A to.31; remaining130B-E design/runtime/source qualification obligations are retained.",
+      "qualified_subset_sha": "fc6010a38b48cedbf56cfe0d8afb777beebb834c",
+      "e_portable_utility": {
+        "source": "fc6010a38b48cedbf56cfe0d8afb777beebb834c",
+        "status": "SCOPED_QUALIFIED_INDEPENDENT_ASTRA_ACCEPTED",
+        "tests": "20 controls, Ruff, Pyright and existing tier inventory pass; one fast row registers the utility in the ordinary gate. Four original RED/GREEN steps plus bounded review FIX preserved.",
+        "scope": "Frozen schedule/plateau math, bounded churn-free collector, explicit procfs units and error retention/early stop. Numerical instrumented utility only, no E/shipping/native/whole130 qualification.",
+        "remaining": "Actual D passive observer/SDK wiring, shipping-equivalence/lifecycle and permitted venue/reservation/2x60min run; B/C approved session/artifact needs remain.",
+        "orin_readiness": "Read-only authorized SSH confirms existing aarch64 Orin/L4T R36.5.2/primary CUDA12.6/driver540.5.0 and capacity. No GPU work, idle/reservation or new tools inferred."
+      }
     },
     {
       "slice": 140,

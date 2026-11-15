@@ -747,6 +747,55 @@ boundary. Each prospective cell's
 full2x forecast must fit its remaining1500s and shared/
 storage allowance; otherwise refuse it honestly, not increase its cap implicitly.
 
+### Prospective serial retained-plus-live admission
+
+The explicit `slice30-g-serial-retained-live/v1` storage model is a prospective
+resource-admission amendment, not a profile activation or qualification change.
+Bind it in the existing reviewed-cost record to the exact qualified R0/R1 and
+four calibration origins, source/native/model/input identities, unchanged fixed
+84-row order and populations, declared cadence, selected limits and allocation
+snapshot. Derive its coefficients from those records; do not accept replacement
+numbers or change `g_runner.qualify_step` / `execute_cell` ASTs.
+
+All bytes use the existing retained-file-length accounting. Count every JSONL,
+native stdout, native result and outer result serialization physically. The six
+actual record counts are9006/9006/12500/12500/1520/1520; their maximum ceiling of
+serialization bytes per record is52764B. Residual control files have maximum
+13146B. Exact baseline packaging is715223040B per fresh subject. Closed growth
+9831B/replacement is the observed maximum, not a universal physical guarantee or
+an inferred fixed intercept. Preserve238120B/replacement for combined live
+main/WAL/SHM growth and every existing2x time/growth/output factor.
+
+For `k=ceil(1000/searches_per_batch)`, `r=batch_size*k`, `n=1500+2*r+k`:
+`C_i=715223040+2*9831*r+2*52764*n+2*13146` is the comparable TOTAL closed-case
+envelope; `L_i` has the same terms with238120 replacing9831. Preserve the existing
+conservative record counts, including22500/1530 for the dense/sparse extremes.
+For the COMPLETE remaining write table, admit only when
+`H_actual+1GiB+SUM(C_i)+MAX(max(0,L_i-C_i))` fits the selected shared storage cap
+and owned/free headroom. Both operands of the difference are total-case envelopes;
+never subtract a whole closed footprint from a growth-only quantity. `H_actual`
+includes every earlier retained success, failure, partial and common file.
+
+Only existing known native/attempt termination and empty owned-writer facts can
+permit closed treatment. After final per-case output writes, measure a compact
+main/WAL/SHM/output/total byte tuple and retain it in existing controller/budget
+state, without a supplemental receipt. Missing observations or unresolved writers
+block the next dispatch; normal absence of WAL/SHM is distinct from unavailable
+metadata. Charge unexpected persistent companions, growth and output in full.
+Recompute the same complete-table bound from actual retained bytes before EVERY
+next dispatch; no subtraction, deletion or reset makes excess disappear. During
+execution retain the live envelope, global storage/resource guards, cumulative
+cell/study/common clocks and cleanup reserve. Physical closure does not promote a
+failed qualification, remove a required cell or authorize retry.
+
+At retained7775436266B, all72 writes give `SUM(C_i)=99511043184B` and maximum live
+excess4565780000B: peak112926001274B including1GiB common reserve. Unchanged total
+time is32181.023255477s including prior charges and600s common reserve. This G-only
+proposal fails the old14400s/16GiB and fits inactive43200s/128GiB arithmetically;
+D/M complete costs remain UNKNOWN, shared totals are nonadditive, and no profile
+or measurement runtime follows. Independent design/source review precedes any
+separately authorized execution.
+
 ### One coherent source phase, then separate runtime decisions
 
 The source candidate adds `--preparation closed-copy-v1` and three closed stage

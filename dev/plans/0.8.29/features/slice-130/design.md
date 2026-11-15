@@ -123,6 +123,14 @@ could hide an incorrect premature trim and is not sufficient.
 
 ## E: revised steady-state evidence
 
+Portable source delivery now provides the [bounded sampler/evaluator](../../../../../scripts/slice130_soak.py),
+[measurement controls](../../../../../scripts/tests/test_slice130_soak.py) and
+[usage/schema](../../../../experiments/slice130-soak/README.md). The sampler
+accepts injected real workload/passive-observer functions; actual D native
+transport and installed SDK wiring remain outstanding. Its verdict covers only
+instrumented numerical measurement, never whole-E or shipping qualification.
+The frozen protocol and all historical evidence remain unchanged.
+
 Fork/copy the retained measurement logic into a new committed .29 harness,
 leaving historical runner and logs intact. Primary Python sampler omits explicit
 host-allocator churn; keep a bounded sampler and record its cost. Test slope/

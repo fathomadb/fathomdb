@@ -270,9 +270,26 @@ def _run_plan(spec, plan, root, command, prepare, allocation_root, assess, reuse
     if write_mode:
         from g_closed_review import reviewed_costs_match
         write_reviewed = reviewed_costs_match(spec, plan, previous)
+    serial = bool(write_reviewed and spec["_reviewed_costs"].get("storage_model"))
+    def serial_admission(started_ns=None):
+        from g_serial_storage import frontier
+        try:
+            disposition = frontier(spec, plan, previous, budget, active_bytes(allocation), started_ns=started_ns)
+            return None if disposition["allowed"] else disposition["reason"]
+        except (OSError, ValueError, KeyError, TypeError, RuntimeError) as error:
+            budget["serial_storage_blocked"] = str(error)
+            save_budget()
+            return "serial_storage_observation_unavailable"
     outcomes = []
     for cell in plan:
         completed = previous.get(cell["id"])
+        if serial and cell["stage"] == "G-W" and completed and completed.get("attempt"):
+            from g_serial_storage import closed_case
+            witness = budget.get("serial_closed_cases", {}).get(cell["id"])
+            if completed.get("pid") is not None and closed_case(completed, witness):
+                outcomes.append(completed)
+                (root / "g-outcomes.json").write_text(json.dumps(outcomes, indent=2) + "\n")
+                continue
         if completed_record(completed) and completed.get("cell") == cell:
             outcomes.append(completed)
             (root / "g-outcomes.json").write_text(json.dumps(outcomes, indent=2) + "\n")
@@ -309,7 +326,9 @@ def _run_plan(spec, plan, root, command, prepare, allocation_root, assess, reuse
                              "complete": False, "reason": "reviewed_write_costs_required"})
             (root / "g-outcomes.json").write_text(json.dumps(outcomes, indent=2) + "\n")
             continue
+        serial_refusal = serial_admission() if serial and cell["stage"] == "G-W" else None
         reason = ("unfinished_shared_attempt" if budget.get("inflight") else
+                  serial_refusal if serial_refusal else
                   "calibration_cell_storage_exhausted" if cell.get("calibration")
                   and _calibration_bytes(spec, root, cell) >= CALIBRATION_CELL_BYTES else
                   "shared_time_exhausted" if budget["used_ns"] >= shared_limit_ns else
@@ -400,6 +419,9 @@ def _run_plan(spec, plan, root, command, prepare, allocation_root, assess, reuse
                             now_elapsed = time.monotonic_ns() - started
                             if cell.get("calibration") and _calibration_bytes(spec, root, cell) >= CALIBRATION_CELL_BYTES:
                                 return "calibration_cell_storage_exhausted"
+                            if (serial and active_bytes(root / cell["id"])
+                                    >= spec["_reviewed_costs"]["g_table"][cell["id"]]["prediction"]["storage"]["live_bytes"]):
+                                return "serial_live_storage_exhausted"
                             if active_bytes(allocation) >= storage_limit:
                                 return "active_storage_exhausted"
                             if now_elapsed >= shared_allowance:
@@ -408,7 +430,8 @@ def _run_plan(spec, plan, root, command, prepare, allocation_root, assess, reuse
                                 return "cell_time_exhausted"
                             return None
                         work_stopped = False
-                        outcome = run_g_attempt(cell, root, command, deadline, context=context, monitor=monitor)
+                        outcome = run_g_attempt(cell, root, command, deadline, context=context, monitor=monitor,
+                                                **({"admit": lambda: serial_admission(started)} if serial else {}))
                         if spec.get("preparation") == "closed-copy-v1":
                             observe_growth()
                             outcome.update(peak_retained_bytes=peak_retained, peak_store_bytes=peak_store,
@@ -423,6 +446,26 @@ def _run_plan(spec, plan, root, command, prepare, allocation_root, assess, reuse
                     state[cell["id"]] = outcome
                     state_path.write_text(json.dumps(list(state.values()), indent=2) + "\n")
                     Path(outcome["attempt"], "controller-outcome.json").write_text(json.dumps(outcome, indent=2) + "\n")
+                if serial and outcome.get("attempt"):
+                    from g_serial_storage import capture_closure
+                    controller = Path(outcome["attempt"], "controller-outcome.json")
+                    controller.write_text(json.dumps(outcome, indent=2) + "\n")
+                    try:
+                        witness = capture_closure(outcome)
+                        live = spec["_reviewed_costs"]["g_table"][cell["id"]]["prediction"]["storage"]["live_bytes"]
+                        if witness["bytes"]["total"] >= live:
+                            outcome.update(status="failed", complete=False, error="serial_live_storage_exhausted")
+                            controller.write_text(json.dumps(outcome, indent=2) + "\n")
+                            witness = capture_closure(outcome)
+                        budget.setdefault("serial_closed_cases", {})[cell["id"]] = witness
+                    except (OSError, ValueError) as error:
+                        budget["serial_storage_blocked"] = str(error)
+                        outcome.update(status="failed", complete=False, error="serial_closure_unavailable")
+                        controller.write_text(json.dumps(outcome, indent=2) + "\n")
+                    state = {row["id"]: row for row in json.loads(state_path.read_text())} if state_path.exists() else {}
+                    state[cell["id"]] = outcome
+                    state_path.write_text(json.dumps(list(state.values()), indent=2) + "\n")
+                    (root / "g-outcomes.json").write_text(json.dumps(outcomes, indent=2) + "\n")
             finally:
                 elapsed = time.monotonic_ns() - started
                 budget["used_ns"] += elapsed

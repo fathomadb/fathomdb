@@ -35,12 +35,18 @@ def forecast_closed_write(cell, observed, remaining_ns, retained_bytes, legacy):
     records = cell["samples"] + cell["warmup"] + 2 * rows + cohorts
     new_bytes = (cal["copy_bytes"] + 2 * cal["physical_growth_per_row"] * rows
                  + 2 * observed["raw_bytes_per_record"] * records + 2 * cal["fixed_bytes"])
+    storage = None
+    if observed.get("serial_storage") is not None:
+        from g_serial_storage import envelopes
+        storage = envelopes(cell, observed["serial_storage"])
+        new_bytes = storage["live_bytes"]
     reason = ("whole_cell_time_forecast" if total_ns > cell["cell_seconds"] * 10**9 else
               "shared_time_forecast" if total_ns > remaining_ns else
               "retained_storage_forecast" if new_bytes + retained_bytes > cell["active_bytes"] else None)
     return {"allowed": reason is None, "reason": reason, "components": components,
             "total_ns": total_ns, "new_bytes": new_bytes, "cohorts": cohorts,
             "replacement_rows": rows, "observed": observed, "legacy_forecast": legacy,
+            **({"storage": storage} if storage is not None else {}),
             "method": "closed-copy-v1: exact baseline bytes;2x matched100k copy/validation,route,write,probe,readiness,remainder,growth/raw bounds; observer tail may overlap remainder, conservatively counted again; not exclusive GPU attribution"}
 
 

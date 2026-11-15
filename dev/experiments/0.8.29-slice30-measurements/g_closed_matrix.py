@@ -1,6 +1,7 @@
 """Supervised binding of the actual R1/calibration costs to a reviewed complete G table."""
 
 import json
+import os
 from pathlib import Path
 
 from g_campaign import active_bytes, make_g_plan
@@ -47,6 +48,12 @@ def prepare_matrix(manifest, calibration):
         raise ValueError("reviewed complete G table/R1/calibration/profile binding is unavailable")
     if collect_reuse(manifest, manifest["reuse_completed_from"]) != manifest["reused"]:
         raise ValueError("actual qualified original12 references differ")
+    model = review.get("storage_model")
+    if model is not None:
+        from g_serial_storage import derive_model
+        if derive_model(manifest, calibration, manifest["reused"]) != model:
+            raise ValueError("reviewed serial storage observations differ")
+        spec["_serial_resource_roots"] = {"source": os.environ["S30_SOURCE"], "task": os.environ["S30_TASK"]}
     budget = json.loads(Path(manifest["allocation"], "g-budget.json").read_text())
     retained = active_bytes(manifest["allocation"])
     common_used = budget.get("common_used_ns", {}).get("closed-copy-write-matrix", 0)
@@ -69,17 +76,24 @@ def prepare_matrix(manifest, calibration):
             continue
         observed = read_costs(cell, manifest["reused"])
         observed["calibration"] = calibration["costs"][cell["adapters"][0]]
+        if model is not None:
+            observed["serial_storage"] = model
         recorded = review["g_table"][cell["id"]]["prediction"]
         prediction = forecast_closed_write(cell, observed, limits["campaign_seconds"]*10**9-budget["used_ns"],
                                            retained, legacy)
-        for key in ("total_ns", "new_bytes", "components", "observed", "legacy_forecast"):
+        for key in ("total_ns", "new_bytes", "components", "observed", "legacy_forecast", *(["storage"] if model is not None else [])):
             if prediction.get(key) != recorded.get(key):
                 raise ValueError("reviewed actual cost prerequisite changed: " + cell["id"])
         if recorded.get("allowed") is not True:
             prediction = dict(prediction, allowed=False, reason=recorded.get("reason") or "reviewed_cell_held")
         predictions[cell["id"]] = prediction
     admitted = [value for value in predictions.values() if value["allowed"]]
-    if (sum(value["total_ns"] for value in admitted)+max(0, 600*10**9-common_used)
+    if model is not None:
+        from g_serial_storage import frontier
+        disposition = frontier(spec, plan, manifest["reused"], budget, retained)
+        if not disposition["allowed"]:
+            raise ValueError("reviewed serial G table does not fit: " + disposition["reason"])
+    elif (sum(value["total_ns"] for value in admitted)+max(0, 600*10**9-common_used)
             > limits["campaign_seconds"]*10**9-budget["used_ns"]
             or sum(value["new_bytes"] for value in admitted)+retained+1024**3 > limits["active_bytes"]):
         raise ValueError("reviewed admitted G table/common reserve does not fit current shared totals")

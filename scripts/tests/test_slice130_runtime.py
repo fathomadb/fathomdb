@@ -110,3 +110,81 @@ class ProcessControls(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+CONCURRENT_PEER = r'''
+import json, os, pathlib, sys, time
+root, sdk = pathlib.Path(sys.argv[1]), sys.argv[2]
+for line in sys.stdin:
+    operation = json.loads(line)["operation"]
+    result = {}
+    if operation == "ready":
+        (root / sdk).touch()
+        deadline = time.monotonic() + 2
+        while not all((root / name).exists() for name in ("python", "node")):
+            if time.monotonic() > deadline: raise RuntimeError("SDK workers were serialized")
+            time.sleep(.01)
+        result = {"pid": os.getpid()}
+    if operation == "iteration": result = {"mismatches": 0, "latency_ms": {}, "outputs": {}}
+    if operation == "snapshot":
+        result = {"raw_observation": {"schema": "fathomdb.cuda-pool-observation/v1", "status": "private",
+            "pid": os.getpid(), "uuid": "device", "device_ordinal": 0, "context_id": "1", "pool_id": "pool",
+            "live_models_before": "1", "live_models_after": "1", "used_current_bytes": "1", "reserved_current_bytes": "1"}}
+    print(json.dumps({"operation": operation, "ok": True, "result": result}), flush=True)
+    if operation == "close": sys.exit(0)
+'''
+
+
+class ConcurrentControls(unittest.TestCase):
+    def test_both_workers_start_before_collection_and_stream_real_exits(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            commands = {sdk: {"command": [sys.executable, "-u", "-c", CONCURRENT_PEER, directory, sdk],
+                              "cwd": directory} for sdk in ("python", "node")}
+            limits = {"mem_floor_bytes": 1, "free_floor_bytes": 1, "storage_limit_bytes": 1048576,
+                      "arm_timeout_s": 4000, "request_timeout_s": 3}
+
+            def short_control(sdk, mode, iteration, snapshot, emit):
+                iteration()
+                point = snapshot()
+                emit({"event": "control_snapshot", "point": point})
+                return {"sdk": sdk, "pool_mode": mode, "aborted": None, "samples": [], "baseline": point}
+
+            result = soak.run_concurrent_arm(commands, "on", root / "out", limits, collect=short_control)
+            self.assertEqual(set(result), {"python", "node"})
+            for sdk in result:
+                self.assertEqual(result[sdk]["exit_code"], 0)
+                events = [json.loads(line) for line in (root / "out" / f"{sdk}.jsonl").read_text().splitlines()]
+                self.assertEqual(events[-1]["event"], "exit")
+                self.assertEqual(events[-1]["exit_code"], 0)
+                # This short process control is deliberately not a qualifying arm.
+                self.assertEqual(soak.evaluate_arm(result[sdk])["status"], "UNMEASURED")
+
+
+class DescendantControls(unittest.TestCase):
+    def test_reap_stops_descendant_after_group_leader_exits(self):
+        code = r'''
+import json, os, sys, time
+json.loads(sys.stdin.readline())
+pid = os.fork()
+if pid == 0:
+    time.sleep(20)
+    os._exit(0)
+print(json.dumps({"operation": "ready", "ok": True, "result": {"child": pid}}), flush=True)
+sys.exit(0)
+'''
+        with tempfile.TemporaryFile() as stderr:
+            worker = soak.Worker([sys.executable, "-u", "-c", code], "/tmp", os.environ,
+                                 stderr, threading.Event(), 2)
+            descendant = worker.request("ready")["child"]
+            self.addCleanup(lambda: os.kill(descendant, 9) if Path(f"/proc/{descendant}").exists() else None)
+            worker.process.wait(timeout=2)
+            worker.reap()
+            until = __import__("time").monotonic() + 1
+            while Path(f"/proc/{descendant}/stat").exists() and __import__("time").monotonic() < until:
+                if Path(f"/proc/{descendant}/stat").read_text().split()[2] == "Z":
+                    break
+                __import__("time").sleep(.01)
+            if Path(f"/proc/{descendant}/stat").exists():
+                self.assertEqual(Path(f"/proc/{descendant}/stat").read_text().split()[2], "Z",
+                                 "reaping must stop descendants even after their leader exits")

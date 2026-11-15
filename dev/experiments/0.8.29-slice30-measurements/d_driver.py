@@ -6,6 +6,7 @@ from pathlib import Path
 import time
 
 from d_controller import run_initial_quartet, run_required
+from d_attempt import run_owned_cell
 from d_report import bind_execution
 from d_overlap import _interval
 
@@ -104,7 +105,7 @@ def _qualify_native(cell, result):
     return row
 
 
-def run_accounted_stage(spec, records, budget, execute, *, initial=True, clock=time.monotonic_ns):
+def run_accounted_stage(spec, records, budget, execute, *, initial=True, clock=time.monotonic_ns, publish=None):
     """Return fixed-table outcomes and update caller-owned actual wall charges.
 
     The caller owns the allocation lock and supplies a supervised executor that
@@ -141,6 +142,8 @@ def run_accounted_stage(spec, records, budget, execute, *, initial=True, clock=t
         if remaining <= 0 or budget["retained_bytes"] >= budget["storage_limit"]:
             return {"status": "not_run_cap_feasibility", "reason": "remaining shared/cell allowance exhausted"}
         budget["inflight"] = {"cell": cell["id"], "started_monotonic_ns": started}
+        if publish:
+            publish()
         result = None
         try:
             result = _qualify_native(cell, execute(cell, started + remaining))
@@ -161,6 +164,8 @@ def run_accounted_stage(spec, records, budget, execute, *, initial=True, clock=t
             row.update(status="incomplete", deadline_exceeded=True,
                        error=row.get("error") or "whole-cell deadline reached including report qualification")
         records[cell["id"]] = row
+        if publish:
+            publish()
         return row
 
     run = run_initial_quartet if initial else run_required
@@ -168,6 +173,8 @@ def run_accounted_stage(spec, records, budget, execute, *, initial=True, clock=t
         return run(spec, records, budget, prepare)
     finally:
         charge(clock())
+        if publish:
+            publish()
 
 
 def run_supervised_stage(spec, records, budget, root, command, *, publish=None, initial=True):
@@ -177,5 +184,10 @@ def run_supervised_stage(spec, records, budget, root, command, *, publish=None, 
     this callable grants no live admission or expanded profile. Every required
     row remains visible, with the initial held-quartet stop as the default.
     """
-    return [{"id": cell["id"], "status": "not_run", "reason": "D supervised dispatch is not implemented"}
-            for cell in spec["cells"]]
+    if not initial:
+        raise ValueError("D supervised continuation requires the live entry's stage feasibility review")
+
+    def execute(cell, deadline):
+        return run_owned_cell(cell, root, command, deadline)
+
+    return run_accounted_stage(spec, records, budget, execute, initial=True, publish=publish)

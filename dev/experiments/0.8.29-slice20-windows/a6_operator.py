@@ -53,6 +53,9 @@ def start_script(script,**kwargs):
         if prefix:p.stdin.write(prefix);p.stdin.close()
     except BaseException:stop_ssh(p);raise
     return p
+def script_invocation(path,expected,arguments):
+    return "$ErrorActionPreference='Stop';$p="+quote(path)+";if((Get-FileHash -LiteralPath $p -Algorithm SHA256).Hash.ToLowerInvariant() -cne '"+expected+"'){throw 'launch script digest differs'};& $p "+arguments
+
 def stop_ssh(p):
     if p.poll() is None:
         p.terminate()
@@ -228,7 +231,7 @@ class Session:
             self.sample();self.renew_lease();last_renewal=time.monotonic()
             launcher='launch-supervisor.ps1' if self.stage=='a6' else 'launch-stage.ps1';remote=self.cfg['packagePath']+'\\'+launcher
             expected='0'*64 if bad_launcher else self.package['files'][launcher]
-            script="$ErrorActionPreference='Stop';$p="+quote(remote)+";if((Get-FileHash -LiteralPath $p -Algorithm SHA256).Hash.ToLowerInvariant() -cne '"+expected+"'){throw 'launch script digest differs'};& $p -Control "+quote(self.control)+' -ConfigSha256 '+self.config_hash
+            script=script_invocation(remote,expected,'-Control '+quote(self.control)+' -ConfigSha256 '+self.config_hash)
             if self.stage=='a6':script+=' -WrapperSha256 '+self.cfg['wrapperSha256']
             observer=(self.root/'observer.log').open('wb');p=start_script(script,stdout=observer,stderr=subprocess.STDOUT);self.log('owned_observer',{'pid':p.pid,'pgid':os.getpgid(p.pid)})
             (self.root/'controller-ready.json').write_text(json.dumps({'runId':self.run_id,'candidateSha':self.cfg['candidateSha'],'control':self.control,'pid':os.getpid(),'pgid':os.getpgrp(),'sid':os.getsid(0),'startTicks':Path('/proc/self/stat').read_text().split()[21]})+'\n')

@@ -567,8 +567,8 @@ impl CandleTinyBertReranker {
 
     /// The typed error for a failed [`score`](Self::score) or
     /// [`score_batch`](Self::score_batch) that must propagate whatever the
-    /// device policy: exhaustion of the private CUDA memory pool. `None`
-    /// means the error keeps its existing handling.
+    /// device policy: private-pool exhaustion or tracked CUDA context loss.
+    /// `None` means the error keeps its existing handling.
     #[must_use]
     pub fn cuda_pool_error(&self, error: &candle_core::Error) -> Option<RerankerDevicePolicyError> {
         crate::cuda_pool_policy::forward_failure(error, &self.device, "rerank forward")

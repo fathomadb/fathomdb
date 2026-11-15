@@ -406,10 +406,15 @@ rule is `dev/adr/ADR-0.8.28-tegra-private-cuda-pool.md`.
   An engine's own embedder returns its memory when the engine closes.
 - **Errors.** `CudaPoolExhaustedError`, `CudaContextLostError` and
   `CudaPrivateBuildRefusedError` (§ Errors).
-- **Context reset is unsupported.** Another library resetting the CUDA
-  primary context under FathomDB raises `CudaContextLostError` and writes one
-  `fathomdb-cuda-context-lost` line to stderr; closing afterwards can still
-  crash the process until the 0.8.29 fix.
+- **Context reset remains unsupported.** The 0.8.29 tracked CUDA lifetime
+  raises `CudaContextLostError` after detected terminal loss and refuses new
+  model construction, embedding and cached reranking on that device until
+  process restart. One `fathomdb-cuda-context-lost` line is written per process.
+  Close releases Rust ownership, workers and locks; lost native handles and
+  allocations may remain as the frozen live set until restart. Opaque native
+  host bytes have no established hard bound. Successful close does not assert
+  native residue reclamation. Live-reset survival and post-reset close/exit
+  remain unqualified and held for 0.8.30 review.
 
 ### `SearchHit.id` is `IdSpace` (C-2, 0.8.19 / TC-8)
 

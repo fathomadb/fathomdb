@@ -214,13 +214,13 @@ observation. Raw error/first-loss
 details preserve domain, optional code and optional observed context ID;
 synthetic projections retain their label and never claim a measured driver code.
 
-Status is `private` only after successful checked identity/current-counter
-reads through110's real shared token. Current product construction has not
-adopted that token, so the implemented private-decision path reports `untracked`
-or a cached `lost`, with no native reads; healthy native observation remains
-pending actual110 adoption. Other named statuses are `not_built`,
-`not_decided`, `no_private_pool`, `untracked`, `lost`, `read_error`,
-`identity_mismatch` and `ownership_changed`; these have null current counters.
+Status is `private` only after successful native-token admission and checked
+current-counter reads from an already-published private decision. UUID and
+context identity are cached during construction/probing; opaque pool identity
+comes from the existing pool owner. Loss before/during reads discards partial
+counters and retains the native or explicitly synthetic first cause. Other
+statuses are `not_built`, `not_decided`, `no_private_pool`, `untracked`, `lost`,
+`read_error` and `ownership_changed`; these have null current counters.
 `ownership_changed` means differing before/after live counts. Equal counts do
 not exclude close/open ABA or other intervening activity; no epoch is added.
 `no_private_pool` retains the fallback reason without discovering a default
@@ -1825,12 +1825,16 @@ The decision rule is
   reservation while one is open; an engine's own embedder returns its
   memory to the pool, and at threshold 0 to the driver, when the engine
   closes.
-- **Context reset is unsupported (C7).** If another library in the process
-  resets the device's primary context while FathomDB holds a private one,
-  the next CUDA operation returns `CudaContextLost` and one
-  `fathomdb-cuda-context-lost` JSON line is written to stderr per process.
-  Closing afterwards can still crash; the survival fix is planned for
-  0.8.29.
+- **Context reset remains unsupported (C7).** The 0.8.29 implementation shares
+  one terminal native lifetime per CUDA device across private/default/synchronous
+  contexts. Detected loss refuses subsequent construction, embed and cached
+  rerank with existing typed context-loss errors until process restart, with one
+  `fathomdb-cuda-context-lost` line per process. Rust owners, workers and locks
+  are released normally; lost native handles/allocations can remain as the
+  frozen live set until restart. Opaque native host bytes have no established
+  hard bound, and successful close does not assert native residue reclamation.
+  CPU seam proof does not qualify live-reset survival or post-reset close/exit;
+  those remain unqualified and held for 0.8.30 review.
 
 ### CUDA library check and GPU floor (0.8.28 Slice 31)
 

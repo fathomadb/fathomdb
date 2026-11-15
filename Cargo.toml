@@ -72,10 +72,9 @@ fathomdb-sdk          = { path = "src/rust/crates/fathomdb-sdk",          versio
 # (182ceab0, coreyt/candle-fathomdb). The kernel crate owns the CUDART link
 # boundary: the fork links the CUDA runtime statically so a CPU-mode binding
 # can map on a host without libcudart, while CUDA driver discovery stays
-# dynamic (REQ-068). The Candle fork crates themselves (candle-core-fathomdb,
-# candle-nn-fathomdb, candle-transformers-fathomdb 0.11.0) and cudarc-fathomdb
-# 0.19.10 come from crates.io; the embedder pins all four exactly, and its code
-# reaches cudarc only through Candle's re-export (0.8.28 Slice 31).
+# dynamic (REQ-068). The selected Slice110 Candle 0.12.0 trio and cudarc
+# 0.20.0 use exact qualified local Git overrides; kernels keep this K9 source.
+# The local integration route is not a registry publication claim.
 #
 # Root patches apply to workspace builds only; they do not propagate to
 # downstream users of the published Rust crates.

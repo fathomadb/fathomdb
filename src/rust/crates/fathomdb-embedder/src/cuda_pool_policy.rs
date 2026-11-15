@@ -1460,8 +1460,8 @@ pub(crate) trait PoolDriver {
     fn driver_initialized(&self) -> bool {
         false
     }
-    /// Runs `body` with the ordinal's tracked primary context admitted and current.
-    fn with_primary_retained<R>(
+    /// Runs `body` with the ordinal's retained native generation admitted.
+    fn with_generation_admitted<R>(
         &self,
         ordinal: usize,
         body: impl FnOnce() -> R,
@@ -1487,8 +1487,8 @@ pub(crate) trait PoolDriver {
     fn default_device(&self, ordinal: usize) -> Result<Self::Device, Self::DefaultError>;
     /// `cuDevicePrimaryCtxGetState`; never retains or creates the context.
     fn primary_state(&self, ordinal: usize) -> Result<CudaPrimaryContextState, DriverFailure>;
-    /// Retains the primary context, reads its `cuCtxGetId`, and releases it.
-    /// Called only when the context is active.
+    /// Legacy untracked diagnostic seam. Production tracked callers use the
+    /// native token and never dispatch this diagnostic route.
     fn retained_primary_context_id(&self, ordinal: usize) -> Result<u64, DriverFailure>;
     #[cfg(any(test, feature = "cuda-pool-observer"))]
     fn pool_counters(&self, pool: &Self::Pool) -> Result<PoolCounters, DriverFailure>;
@@ -1637,7 +1637,7 @@ fn observation_with_driver<D: PoolDriver>(
             observation.reserved_current_bytes = Some(counters.reserved_current);
         }
         Err(error) => {
-            observation.status = "read_failed";
+            observation.status = "read_error";
             observation.error = Some(CudaPoolObservationError {
                 domain: "driver",
                 code: error.code,
@@ -1716,7 +1716,7 @@ pub(crate) fn decide_and_build<D: PoolDriver>(
         Ok(settings) => settings,
         Err(reason) => return fallback(reason),
     };
-    let built = driver.with_primary_retained(ordinal, || {
+    let built = driver.with_generation_admitted(ordinal, || {
         let plan = device_plan(&settings, driver.device_facts(ordinal).ok());
         let (max_size_bytes, release_threshold) = match plan {
             Plan::Private { max_size_bytes, release_threshold } => {
@@ -1948,7 +1948,13 @@ pub(crate) fn release_unused_pool_memory<D: PoolRelease>(
                         ReleaseOutcome::Trimmed
                     }
                 })
-                .unwrap_or(ReleaseOutcome::ContextLost)
+                .unwrap_or_else(|_| {
+                    if driver.cached_context_loss(private.ordinal, "model drop").is_some() {
+                        ReleaseOutcome::ContextLost
+                    } else {
+                        ReleaseOutcome::DriverError
+                    }
+                })
         }))
         .unwrap_or(ReleaseOutcome::Panicked);
     }
@@ -2194,9 +2200,8 @@ mod fallback_only {
     use super::{CudaDeviceError, CudaPoolFailure, DeviceBuildError};
     use candle_core::Device;
 
-    /// `Device::new_cuda`: without the driver part there is no other path.
-    /// The first build still fixes the pool configuration, so the
-    /// one-configuration-per-process rule holds on every platform.
+    /// Builds a tracked default/synchronous CUDA device without a private pool.
+    /// The first build still fixes the process pool configuration.
     pub(crate) fn new_cuda_device(ordinal: usize) -> Result<Device, CudaDeviceError> {
         super::fix_pool_config_from_env();
         #[cfg(any(feature = "embed-cuda", feature = "rerank-cuda"))]
@@ -2397,6 +2402,7 @@ mod driver {
             _operation: &str,
         ) -> Option<crate::cuda_pool_observation::CudaPoolObservationError> {
             use candle_core::cuda::cudarc::driver::{NativeLibrary, PrimaryContextLossCause};
+            let _ = crate::cuda_lifetime::failure(ordinal, "pool observation");
             let loss = crate::cuda_lifetime::loss(ordinal)?;
             let (domain, code) = match loss.cause {
                 PrimaryContextLossCause::DriverStatus(status) => ("driver", Some(status as u32)),
@@ -2460,15 +2466,15 @@ mod driver {
             }
         }
 
-        fn with_primary_retained<R>(
+        fn with_generation_admitted<R>(
             &self,
             ordinal: usize,
             body: impl FnOnce() -> R,
         ) -> Result<R, DriverFailure> {
             let token = crate::cuda_lifetime::get(ordinal).map_err(failure)?;
             let _lease = token.admit().map_err(failure)?;
-            let context = CudaContext::new_tracked(token).map_err(failure)?;
-            context.bind_to_thread().map_err(failure)?;
+            // Device facts and pool creation need no current context. Selecting a
+            // default allocator here could change the private-pool decision.
             Ok(body())
         }
 

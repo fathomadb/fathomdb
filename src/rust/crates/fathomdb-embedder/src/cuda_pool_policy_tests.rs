@@ -623,7 +623,7 @@ impl PoolDriver for FakeDriver {
         self.init.unwrap_or(ModuleLoadInit::Ran)
     }
 
-    fn with_primary_retained<R>(
+    fn with_generation_admitted<R>(
         &self,
         _ordinal: usize,
         body: impl FnOnce() -> R,

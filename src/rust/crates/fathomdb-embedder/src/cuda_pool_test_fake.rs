@@ -153,7 +153,7 @@ impl PoolDriver for Fake {
         self.driver_initialized
     }
 
-    fn with_primary_retained<R>(
+    fn with_generation_admitted<R>(
         &self,
         _ordinal: usize,
         body: impl FnOnce() -> R,
@@ -284,7 +284,7 @@ impl PoolDriver for DefaultsOnly {
     fn module_load_init(&self) -> ModuleLoadInit {
         unreachable!()
     }
-    fn with_primary_retained<R>(
+    fn with_generation_admitted<R>(
         &self,
         _ordinal: usize,
         _body: impl FnOnce() -> R,

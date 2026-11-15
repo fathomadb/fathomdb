@@ -215,11 +215,13 @@ and f32 reranking occur in one existing SQL operation; no exclusive split is
 inferred. Candidate counts describe the respective existing output population.
 On the qualified hybrid route with no edge FTS rows, node candidates retain
 complete lightweight ranks with snapshot body/kind consistency checks. Shared
-record-key fusion selects the final winners before Rust body/identity hydration
-inside `fusion_final_ranking`; SQLite may still read bodies for consistency.
-Mixed edge corpora retain full candidate materialization and the separate
-`deferred_identity_hydration` logical-ID/source lookup. Skipped vector/identity
-sections carry untimed `not_run`.
+record-key fusion selects the final winners before `deferred_identity_hydration`
+performs their actual body/identity reads as a separate reader-transaction child.
+SQLite may still read bodies for consistency; Rust validates borrowed TEXT/UTF-8
+for every match without allocating owned losing bodies. Mixed edge corpora retain
+full candidate materialization and the legacy logical-ID/source-only scope of
+`deferred_identity_hydration`. Skipped vector/identity sections carry untimed
+`not_run`.
 Snapshot authority reads are feature+active gated, explicitly observer-added on
 the actual reader transaction; read failure records unavailable without authority
 values or changing the product outcome.

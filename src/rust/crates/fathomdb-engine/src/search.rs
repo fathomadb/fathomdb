@@ -3006,9 +3006,11 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     let mut exp_importance: Option<HashMap<RecordKey, f64>> = None;
     let mut exp_confidence: Option<HashMap<RecordKey, f64>> = None;
 
+    #[cfg(any(test, feature = "slice30-observer"))]
+    let mut thin_identity_observed = false;
     let mut results = {
         #[cfg(any(test, feature = "slice30-observer"))]
-        let fusion_observation = crate::slice30_observer::span("fusion_final_ranking");
+        let mut fusion_observation = Some(crate::slice30_observer::span("fusion_final_ranking"));
         let mut results = if vector_stage_only {
             vector_results
         } else if let Some(text) = deferred_node_candidates {
@@ -3018,17 +3020,30 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                 Vec::new(),
             )
             .map_err(SearchReaderError::Evidence)?;
+            #[cfg(any(test, feature = "slice30-observer"))]
+            let identity_observation = {
+                // Ranking ends before payload reads; both intervals belong
+                // directly to the same reader transaction.
+                if let Some(observation) = fusion_observation.take() {
+                    observation.counted_success(fused.len().min(final_limit));
+                }
+                thin_identity_observed = true;
+                crate::slice30_observer::span("deferred_identity_hydration")
+            };
             let mut hydrate = tx.prepare_cached(
                 "SELECT si.body, si.kind, si.write_cursor, 0.0, cn.logical_id, cn.source_id, \
                  si.rowid, cn.write_cursor, si.body IS cn.body, si.kind IS cn.kind \
                  FROM search_index si LEFT JOIN canonical_nodes cn \
                  ON cn.write_cursor=si.write_cursor WHERE si.rowid=?1",
             )?;
-            fused
+            let hydrated = fused
                 .into_iter()
                 .take(final_limit)
                 .map(|candidate| candidate.hydrate(&mut hydrate))
-                .collect::<rusqlite::Result<Vec<_>>>()?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            #[cfg(any(test, feature = "slice30-observer"))]
+            identity_observation.success();
+            hydrated
         } else if use_graph_arm {
             // R3 (Slice 30) — graph arm: BFS over temporal fact-edges seeded from
             // the top-10 two-arm fused candidates, depth ≤ 3, cap 50.
@@ -3123,7 +3138,9 @@ fn read_search_in_tx<C: SearchOriginCapture>(
 
         results.truncate(final_limit);
         #[cfg(any(test, feature = "slice30-observer"))]
-        fusion_observation.counted_success(results.len());
+        if let Some(observation) = fusion_observation.as_ref() {
+            observation.counted_success(results.len());
+        }
         results
     };
 
@@ -3153,7 +3170,9 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         identity_observation.success();
     } else {
         #[cfg(any(test, feature = "slice30-observer"))]
-        crate::slice30_observer::not_run("deferred_identity_hydration", "not_deferred");
+        if !thin_identity_observed {
+            crate::slice30_observer::not_run("deferred_identity_hydration", "not_deferred");
+        }
     }
 
     let projection_status = explain

@@ -138,6 +138,26 @@ def calibration_plan(spec):
     return calibration
 
 
+def _calibration_slot(spec, budget, root):
+    permit = spec.get("_calibration_successor")
+    if permit is None:
+        return None
+    slot = budget.get("closed_calibration_successor")
+    if (not isinstance(slot, dict) or {key: value for key, value in slot.items() if key != "stop"} != permit
+            or budget.get("closed_calibration_stop") != permit.get("original_stop")
+            or Path(permit["root"]) / "results/calibration" != Path(root)):
+        raise ValueError("corrected calibration permit does not match its consumed slot and original stop")
+    return slot
+
+
+def _calibration_bytes(spec, root, cell):
+    total = active_bytes(Path(root) / cell["id"])
+    permit = spec.get("_calibration_successor")
+    if permit is not None:
+        total += active_bytes(Path(permit["from_root"]) / "results/calibration" / cell["id"])
+    return total
+
+
 def run_g_plan(spec, root, command, prepare=None, allocation_root=None, assess=None, reused=None, stage=None, prior_outcome_path=None):
     """Run every fixed G obligation against one shared allocation and absolute cell clock."""
     plan = make_g_plan(spec)
@@ -155,7 +175,8 @@ def run_g_plan(spec, root, command, prepare=None, allocation_root=None, assess=N
                                      - budget.get("cell_used_ns", {}).get(item["id"], 0))
                                   for item in outstanding)
                               + max(0, 600*10**9-budget.get("common_used_ns", {}).get(spec["closed_mode"], 0)))
-            remaining_bytes = (len(outstanding)*CALIBRATION_CELL_BYTES
+            remaining_bytes = (sum(max(0, CALIBRATION_CELL_BYTES
+                                       - _calibration_bytes(spec, root / "calibration", item)) for item in outstanding)
                                + max(0, 1024**3-common_bytes(allocation)))
             reservation = {"remaining_time_ns": remaining_time,
                            "new_bytes": 4*CALIBRATION_CELL_BYTES+1024**3,
@@ -172,14 +193,18 @@ def run_g_plan(spec, root, command, prepare=None, allocation_root=None, assess=N
         budget = json.loads(budget_path.read_text()) if budget_path.exists() else {"used_ns": 0, "inflight": None}
         state_path = root / "calibration/campaign-state.json"
         previous = {row["id"]: row for row in json.loads(state_path.read_text())} if state_path.exists() else {}
+        slot = _calibration_slot(spec, budget, root / "calibration")
+        stopped = slot.get("stop") if slot is not None else budget.get("closed_calibration_stop")
         refusal = phase_reservation(previous, 14400*10**9-budget["used_ns"], active_bytes(allocation))
-        if refusal and not budget.get("inflight") and not budget.get("closed_calibration_stop"):
+        if refusal and not budget.get("inflight") and not stopped:
             from g_closed_guard import write_budget
             separate = [dict(refusal, id=cell["id"], cell=cell, complete=False) for cell in calibration]
             (root / "calibration").mkdir(exist_ok=True)
             (root / "calibration/g-outcomes.json").write_text(json.dumps(separate, indent=2)+"\n")
-            budget["closed_calibration_stop"] = {"cell": separate[0]["id"], "outcome": separate[0],
-                "path": str(root / "calibration/g-outcomes.json")}
+            target = slot if slot is not None else budget
+            target.setdefault("stop" if slot is not None else "closed_calibration_stop",
+                {"cell": separate[0]["id"], "outcome": separate[0],
+                 "path": str(root / "calibration/g-outcomes.json")})
             write_budget(budget_path, budget)
         else:
             separate = _run_plan(spec, calibration, root / "calibration", command, prepare,
@@ -257,7 +282,8 @@ def _run_plan(spec, plan, root, command, prepare, allocation_root, assess, reuse
                              "reason": "outside_closed_write_stage"})
             (root / "g-outcomes.json").write_text(json.dumps(outcomes, indent=2) + "\n")
             continue
-        stopped = budget.get("closed_calibration_stop") if cell.get("calibration") else None
+        slot = _calibration_slot(spec, budget, root) if cell.get("calibration") else None
+        stopped = (slot.get("stop") if slot is not None else budget.get("closed_calibration_stop")) if cell.get("calibration") else None
         if stopped and stopped["outcome"].get("reason") == "calibration_phase_reservation":
             outcomes.append(dict(stopped["outcome"], id=cell["id"], cell=cell))
             (root / "g-outcomes.json").write_text(json.dumps(outcomes, indent=2) + "\n")
@@ -284,6 +310,8 @@ def _run_plan(spec, plan, root, command, prepare, allocation_root, assess, reuse
             (root / "g-outcomes.json").write_text(json.dumps(outcomes, indent=2) + "\n")
             continue
         reason = ("unfinished_shared_attempt" if budget.get("inflight") else
+                  "calibration_cell_storage_exhausted" if cell.get("calibration")
+                  and _calibration_bytes(spec, root, cell) >= CALIBRATION_CELL_BYTES else
                   "shared_time_exhausted" if budget["used_ns"] >= shared_limit_ns else
                   "cell_time_exhausted" if cell_usage.get(cell["id"], 0) >= cell["cell_seconds"] * 10**9 else
                   "exploratory_admission_consumed" if stage == "first-100k-seed-exploratory"
@@ -370,7 +398,7 @@ def _run_plan(spec, plan, root, command, prepare, allocation_root, assess, reuse
                             if spec.get("preparation") == "closed-copy-v1":
                                 observe_growth()
                             now_elapsed = time.monotonic_ns() - started
-                            if cell.get("calibration") and active_bytes(root / cell["id"]) >= CALIBRATION_CELL_BYTES:
+                            if cell.get("calibration") and _calibration_bytes(spec, root, cell) >= CALIBRATION_CELL_BYTES:
                                 return "calibration_cell_storage_exhausted"
                             if active_bytes(allocation) >= storage_limit:
                                 return "active_storage_exhausted"
@@ -405,8 +433,9 @@ def _run_plan(spec, plan, root, command, prepare, allocation_root, assess, reuse
                     budget["inflight"]["status"] = "cleanup_uncertain"
                 save_budget()
         if cell.get("calibration") and not completed_record(outcomes[-1]):
-            budget.setdefault("closed_calibration_stop", {"cell": cell["id"], "outcome": outcomes[-1],
-                "path": str(root / "g-outcomes.json")})
+            target = slot if slot is not None else budget
+            target.setdefault("stop" if slot is not None else "closed_calibration_stop",
+                {"cell": cell["id"], "outcome": outcomes[-1], "path": str(root / "g-outcomes.json")})
             save_budget()
         previous[cell["id"]] = outcomes[-1]
         (root / "g-outcomes.json").write_text(json.dumps(outcomes, indent=2) + "\n")

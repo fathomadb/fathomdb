@@ -255,3 +255,41 @@ replay is claimed. Final resource sample reports4042444800 owned bytes.
 Native lease is returned. No owned Python setup/full source gate, official
 conformance/smoke, coherent final Astra verdict, whole60 or Block1 closure is
 claimed. Parent resolves final integrated source fit before the required gate.
+
+## Combined source gate and discovery successor (2026-11-15)
+
+Coherent independent Astra accepted724e4801. Clean combined source
+f7ad475fbf3ef273faa32dca6e0b82fccdc7efcb retains that entire MCP Rust/test tree
+unchanged and integrates accepted100. Official owned Python3.13 setup built a
+noneditable production wheel; owned TS built production NAPI. Both actual loaded
+production modules passed real None-provider open/close/exit. The original JS
+preflight checker callback error is retained; only that checker and unfinished
+source checks resumed inside the original setup deadline.
+
+One canonical agent-verify passed on clean F7 in3405s:221 registered,220 ran/
+passed,0 failed,1 explicit ordinary live-G-control opt-in skip,0 excluded.
+Rust workspace, measurement adapter/observer/CLI, Python/native receipt and
+hermetic TS/NAPI passed. AC-036 used actual ptrace and passed; AC-037 recorded
+the existing environmental namespace downgrade, with offline/policy controls
+passing. No zero-downgrade or live-netns qualification is claimed.
+
+The unchanged heavy guardian enforced32/250/16GiB entry and20/50/8GiB stop
+floors,200GiB owned ceiling and sustained swap bound, jobs2/CMake2, with the
+original3600s child cap. Final root/task/memory/owned bytes were111198244864/
+421389324288/36344672256/49541792805. No resource stop or uncertain cleanup;
+no live owned PID, exact private boundary empty/removed, service collected.
+Original raw combined-setup/preflight/verify logs and receipts remain in the
+same continuation task; no passing gate was replayed.
+
+After terminal cleanup, two staged actual tools/list assertions failed on F7:
+both include_superseded and include_inactive advertised boolean type with
+explicit default:null. RED89f436e52 preserves those assertions separately from
+the original10 frozen runtime/view tests. Only schemars default annotations
+change to false; serde omission remains None and explicit false remains
+Some(false), preserving continuation override refusal. Successor GREEN passes
+17 focused tests:5 null/discovery,7 view/composition and5 existing schema
+controls,0 failed/ignored. Scoped all-target MCP Clippy passes. Both900s-capped
+heavy phases finished without resource stop or uncertain cleanup, with empty
+removed boundaries. Independent review determines final acceptance; the F7
+full result is retained without a whole-workspace replay. Block1 conformance/
+smoke/item4 and90 residuals remain separate holds.

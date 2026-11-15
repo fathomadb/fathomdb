@@ -17,7 +17,12 @@ null/presence validation and inactive/combined exposure. All10 frozen tests now
 pass in search_views/null_view_flags. [Execution](execution.md) retains exact
 subjects and the original timed-edge fixture failure/correction. Existing50
 feedback guard/race tests remain controls; fetch's own four-view parity does not
-replace search-view proof. Final coherent review/source qualification remain.
+replace search-view proof. Coherent Astra accepted724e4801; the unchanged MCP
+source passed the combined F7 full gate. A later tools/list discovery assertion
+for each flag observed default:null rather than declared false. These2 separate
+RED assertions require nonnullable boolean metadata with literal default:false;
+the repair must retain runtime absentNone versus explicitSome(false). Frozen
+view/null tests and existing schema tests are affected successor controls.
 
 Approved pre-fix sequence (now executed through scoped GREEN):
 

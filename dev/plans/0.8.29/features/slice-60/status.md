@@ -43,11 +43,20 @@ and raw results are in execution. Own capped native units verified effective
 limits, terminal collection and final floors; the native lease is returned.
 Public F11 release wording and maintained MCP contracts are reconciled.
 
-Fresh coherent Astra implementation review, final integrated source fit and the
-required full source gate remain before closure. No owned Python setup, final
-full gate, official conformance or smoke ran in this continuation. Prior subset
-metadata manual acceptance and original failures/skips retain their subjects;
-scoped success is not full-workspace green.
+Fresh coherent Astra accepted724e4801. Combined clean F7 integrates that MCP
+source unchanged with accepted100; owned production Python/NAPI setup and the
+canonical full source gate passed:221 registered,220 passed,0 failed,1 explicit
+live-cgroup-control opt-in skip,0 excluded. AC-036 passed; AC-037 retained its
+actual environmental namespace downgrade. Official conformance/smoke remain
+unrun. Prior subset metadata manual acceptance and original failures/skips
+retain their subjects.
+
+A subsequent actual tools/list check found both nonnullable search flag schemas
+advertised default:null. Two new assertions observed RED before a schema-only
+false-default annotation repair. Runtime absentNone/explicitSome(false)
+presence semantics and the original10 oracles stay frozen. Successor17 focused
+tests and scoped MCP Clippy pass. Independent Astra review remains before
+closure; F7 full-gate results remain attributed to F7.
 
 90's accepted residual fields/omissions and the actual Block1 qualification/
 conformance/smoke/item4 exit remain separate. Smoke model/prompt/budget/fixture

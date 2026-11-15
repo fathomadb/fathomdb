@@ -140,11 +140,11 @@ pub struct SearchArgs {
     pub as_of: Option<i64>,
     /// Include superseded record versions; defaults to false. Null is invalid.
     #[serde(default, deserialize_with = "deserialize_search_view_flag")]
-    #[schemars(with = "bool")]
+    #[schemars(with = "bool", default = "bool::default")]
     pub include_superseded: Option<bool>,
     /// Include records in a non-active lifecycle state; defaults to false. Null is invalid.
     #[serde(default, deserialize_with = "deserialize_search_view_flag")]
-    #[schemars(with = "bool")]
+    #[schemars(with = "bool", default = "bool::default")]
     pub include_inactive: Option<bool>,
     /// Results per page, 1..=100; default 10.
     #[schemars(range(min = 1, max = 100))]

@@ -54,5 +54,42 @@ class PairInventoryTests(unittest.TestCase):
             self.assertTrue(all(row['status']=='not_run' for key in ['primary','diagnostics','calibration'] for row in data[key]))
 
 
+class PairBuildBindingTests(unittest.TestCase):
+    def test_harmless_builder_records_exact_private_features_and_stays_source_only(self):
+        from unittest.mock import patch
+        from g_pair import build_tools
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            built = root/'target/release/examples/slice30_measure'
+            built.parent.mkdir(parents=True)
+            calls = []
+            def harmless(command, **kwargs):
+                calls.append(command)
+                subprocess.run([sys.executable,'-c',"import pathlib,sys;pathlib.Path(sys.argv[1]).write_bytes(b'source-control')",str(built)],check=True)
+            with patch.dict('os.environ',{'CARGO_TARGET_DIR':str(root/'target')}):
+                result = build_tools(root/'tools',_run=harmless)
+            self.assertTrue(result['runner_only'])
+            self.assertEqual(result['scope'],'slice50-pair')
+            self.assertEqual(result['binaries']['ordinary']['features'],['embed-cuda','slice50-measurement'])
+            self.assertEqual(result['binaries']['diagnostic']['features'],['embed-cuda','slice50-measurement','slice30-observer'])
+            self.assertEqual(calls[0][calls[0].index('--features')+1],'embed-cuda,slice50-measurement')
+            self.assertEqual(calls[1][calls[1].index('--features')+1],'embed-cuda,slice50-measurement,slice30-observer')
+            self.assertTrue(all('test-hooks' not in row['features'] for row in result['binaries'].values()))
+
+    def test_manifest_binds_current_feature_lists_and_donors_as_data_only(self):
+        from g_pair import assemble_manifest
+        build={'source_sha':'current', 'compiler_inputs':'current-inputs','binaries':{
+            'ordinary':{'features':['embed-cuda','slice50-measurement'],'path':'owned/current'},
+            'diagnostic':{'features':['embed-cuda','slice50-measurement','slice30-observer'],'path':'owned/current-diag'}}}
+        donor={'G100000':{'origin':{'source_sha':'original'},'files':{'':{'path':'immutable-data'}}}}
+        actual=assemble_manifest({'allocation':'original-shared','profile':{'status':'HELD'}},build,{'corpus':'registered'},donor)
+        self.assertEqual(actual['features']['ordinary'],['embed-cuda','slice50-measurement'])
+        self.assertEqual(actual['features']['diagnostic'],['embed-cuda','slice50-measurement','slice30-observer'])
+        self.assertEqual(actual['source_sha'],'current')
+        self.assertEqual(actual['donors'],donor)
+        self.assertNotIn('reused',actual)
+        self.assertEqual(len(actual['plan']['primary']),136)
+
+
 if __name__ == '__main__':
     unittest.main()

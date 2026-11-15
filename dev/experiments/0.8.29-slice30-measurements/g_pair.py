@@ -1,6 +1,9 @@
 """Private Slice50 scope inside the existing P/G measurement entry."""
 
 import json
+import os
+import shutil
+import subprocess
 from pathlib import Path
 
 TOOLS = Path(__file__).resolve().parent
@@ -51,3 +54,37 @@ def report(root):
                              status=previous.get(cell["id"], {}).get("status", "not_run"))
                         for cell in cells]
     return result
+
+
+def build_tools(output, *, _run=None):
+    """Build both private artifacts; injected harmless builders remain source-only."""
+    from g_freeze import FEATURES, SOURCE, compiler_inputs, git, identify
+    if _run is None and git("status", "--porcelain"):
+        raise ValueError("pair build requires clean current source")
+    output = Path(output).resolve()
+    output.mkdir(parents=True, exist_ok=False)
+    receipt = {"schema":"slice50-pair-build/v1", "scope":"slice50-pair",
+               "source_sha":git("rev-parse","HEAD"), "compiler_inputs":compiler_inputs(),
+               "lock":identify(SOURCE / "Cargo.lock"), "runner_only":_run is not None,
+               "binaries":{}}
+    for variant, features in FEATURES.items():
+        command = ["cargo","build","--offline","--locked","--release","--jobs","2",
+                   "-p","fathomdb-sdk","--features",",".join(features),"--example","slice30_measure"]
+        (_run or subprocess.run)(command, cwd=SOURCE, check=True)
+        built = Path(os.environ.get("CARGO_TARGET_DIR",str(SOURCE/'target'))) / 'release/examples/slice30_measure'
+        target = output / ('slice30-measure-'+variant)
+        shutil.copy2(built,target)
+        target.chmod(0o555)
+        receipt['binaries'][variant] = dict(identify(target),features=list(features),command=command)
+    (output/'build-receipt.json').write_text(json.dumps(receipt,indent=2)+'\n')
+    return receipt
+
+
+def assemble_manifest(options, build, inputs, donors):
+    """Bind validated current build/data to private canonical obligations."""
+    from g_freeze import FEATURES
+    return {"schema":"slice50-paired-campaign/v1", "scope":options.get('scope','primary'),
+            "source_sha":build['source_sha'], "compiler_inputs":build['compiler_inputs'],
+            "build":build, "features":FEATURES, "inputs":inputs, "donors":donors,
+            "plan":plan(), "allocation":options['allocation'],
+            "profile":options['profile'], "retire_complete_copies":options.get('retire_complete_copies',False)}

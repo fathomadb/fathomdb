@@ -26,6 +26,12 @@ and trim after a known loss. The first loss snapshot must not query the lost
 pool; retain measured identity/probe provenance and emit null for unavailable
 native counters. Preserve healthy and ordinary-OOM behavior. This narrow step
 does not add leases to model execution or discover every native loss.
+Current private decisions have no authentic cached counter sample: emit
+`pool: null`, adding no healthy native query solely to populate diagnostics.
+The explicit test successor changes only old non-null pool-counter assertions;
+identity, operation, winning observation, one-line/once output and historical
+expected-signal teardown assertions remain unchanged. Native reset execution
+and teardown qualification remain held.
 
 Actual shared-generation admission remains blocked on qualified140-A source.
 The inspected cudarc commit exposes `PrimaryContextLifetime::new`, `admit` and

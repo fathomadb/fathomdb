@@ -573,6 +573,7 @@ struct FakeDriver {
     current_id: Option<Result<u64, u32>>,
     state_reads: AtomicUsize,
     id_reads: AtomicUsize,
+    pool_counter_reads: AtomicUsize,
     snapshot: TestOnce,
     snapshots: Mutex<Vec<String>>,
 }
@@ -711,6 +712,7 @@ impl PoolDriver for FakeDriver {
     }
 
     fn pool_counters(&self, _pool: &Self::Pool) -> Result<PoolCounters, DriverFailure> {
+        self.pool_counter_reads.fetch_add(1, Ordering::SeqCst);
         Ok(PoolCounters {
             reserved_current: 32 * MIB,
             reserved_high: 64 * MIB,
@@ -1355,6 +1357,31 @@ fn a_later_private_build_on_a_live_context_is_still_refused() {
 }
 
 #[test]
+fn loss_snapshots_never_query_pool_counters_after_loss_is_published() {
+    let driver = FakeDriver { current_id: Some(Ok(2000)), ..FakeDriver::default() };
+    let cell = private_cell(&driver);
+    assert_eq!(driver.pool_counter_reads.load(Ordering::SeqCst), 0);
+
+    lost(classify_forward_fault(cell.get(), &driver, cuda_fault(Some(999)), "forward"));
+
+    assert_eq!(
+        driver.pool_counter_reads.load(Ordering::SeqCst),
+        0,
+        "loss diagnostics must not query unavailable native counters or add a healthy cache query"
+    );
+    let state_reads = driver.state_reads.load(Ordering::SeqCst);
+    let id_reads = driver.id_reads.load(Ordering::SeqCst);
+    lost(classify_forward_fault(cell.get(), &driver, cuda_fault(Some(709)), "batch forward"));
+    assert_eq!(driver.pool_counter_reads.load(Ordering::SeqCst), 0);
+    assert_eq!(driver.state_reads.load(Ordering::SeqCst), state_reads);
+    assert_eq!(driver.id_reads.load(Ordering::SeqCst), id_reads);
+
+    let snapshots = driver.snapshots.lock().expect("snapshots");
+    assert_eq!(snapshots.len(), 1);
+    assert!(snapshots[0].contains(r#""pool":null"#), "{}", snapshots[0]);
+}
+
+#[test]
 fn the_first_loss_writes_one_snapshot_line_with_every_field() {
     let driver = FakeDriver {
         primary_state: Some(Ok(CudaPrimaryContextState { active: true, flags: 4 })),
@@ -1378,8 +1405,7 @@ fn the_first_loss_writes_one_snapshot_line_with_every_field() {
             r#""driver_error":"bad \"ctx\"\n","operation":"forward","#,
             r#""primary_context":{"active":true,"flags":4},"#,
             r#""cuda_libraries":["/usr/lib/aarch64-linux-gnu/nvidia/libcuda.so.1.1"],"#,
-            r#""pool":{"reserved_mem_current":33554432,"reserved_mem_high":67108864,"#,
-            r#""used_mem_current":4194304,"used_mem_high":50331648},"#,
+            r#""pool":null,"#,
             r#""live_private_contexts":2}"#
         )
     );
@@ -1655,7 +1681,7 @@ fn gpu_orin_64_a_primary_context_reset_is_context_lost_and_teardown_segfaults() 
     // kept by the decision) and the embedder's own context.
     assert!(snapshot.contains(r#""live_private_contexts":2"#), "{report}");
     assert!(snapshot.contains("libcuda.so"), "{report}");
-    assert!(snapshot.contains(r#""pool":{"reserved_mem_current":"#), "{report}");
+    assert!(snapshot.contains(r#""pool":null"#), "{report}");
     assert!(stdout.contains("context-reset-child: teardown"), "{report}");
     assert!(!stdout.contains("context-reset-child: torn down"), "{report}");
     assert_eq!(output.status.signal(), Some(11), "teardown dies with SIGSEGV\n{report}");

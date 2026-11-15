@@ -1988,12 +1988,14 @@ mod driver {
     };
     use candle_core::Device;
 
+    #[cfg(test)]
+    use super::PoolCounters;
     use super::{
         build_device, candle_driver_code, classify_candle_fault, cuda_libraries_in_maps,
         pool_config_in_force, register_private_model, release_private_model, render_raw_settings,
         tegra_identity, CudaAllocatorPath, CudaAllocatorReport, CudaDeviceError, CudaPoolFailure,
-        CudaPrimaryContextState, Decision, DeviceFacts, DriverFailure, ModuleLoadInit,
-        PoolCounters, PoolDriver, PoolRelease, RawPoolSettings, ReleaseThreshold, PROBE_BYTES,
+        CudaPrimaryContextState, Decision, DeviceFacts, DriverFailure, ModuleLoadInit, PoolDriver,
+        PoolRelease, RawPoolSettings, ReleaseThreshold, PROBE_BYTES,
     };
 
     static DECISION: OnceLock<Decision<Arc<CudaMemPool>, Arc<CudaContext>>> = OnceLock::new();

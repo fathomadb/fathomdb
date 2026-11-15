@@ -1118,6 +1118,9 @@ fn context_loss<D: PoolDriver>(
     driver_error: String,
     operation: &str,
 ) -> Option<CudaPoolFailure> {
+    if let Some(loss) = private.loss.get() {
+        return Some(loss.failure(private.context_id, operation));
+    }
     let mut is_lost =
         matches!(code, Some(CUDA_ERROR_CONTEXT_IS_DESTROYED | CUDA_ERROR_INVALID_CONTEXT));
     let primary_context = driver.primary_state(private.ordinal).ok();
@@ -1135,29 +1138,31 @@ fn context_loss<D: PoolDriver>(
     if !is_lost {
         return None;
     }
+    let loss = private.loss.get_or_init(|| PublishedContextLoss {
+        current_context_id,
+        driver_error,
+        operation: operation.to_owned(),
+        primary_context,
+    });
     driver.snapshot_once().call_once(|| {
         // A panic here must not poison the gate for later detections.
         let _ = catch_unwind(AssertUnwindSafe(|| {
             let cuda_libraries = driver.cuda_libraries();
             let snapshot = LossSnapshot {
                 recorded_context_id: private.context_id,
-                current_context_id,
-                driver_error: &driver_error,
-                operation,
-                primary_context,
+                current_context_id: loss.current_context_id,
+                driver_error: &loss.driver_error,
+                operation: &loss.operation,
+                primary_context: loss.primary_context,
                 cuda_libraries: &cuda_libraries,
-                pool: driver.pool_counters(&private.pool).ok(),
+                // No healthy counter sample is cached; loss forbids a native read.
+                pool: None,
                 live_private_contexts: driver.live_private_contexts(&private.pool),
             };
             driver.emit_snapshot(&snapshot_line(&snapshot));
         }));
     });
-    Some(CudaPoolFailure::ContextLost {
-        recorded_context_id: private.context_id,
-        current_context_id,
-        driver_error,
-        operation: operation.to_owned(),
-    })
+    Some(loss.failure(private.context_id, operation))
 }
 
 // ---- typed failures ---------------------------------------------------------
@@ -1423,6 +1428,7 @@ pub(crate) trait PoolDriver {
     /// Retains the primary context, reads its `cuCtxGetId`, and releases it.
     /// Called only when the context is active.
     fn retained_primary_context_id(&self, ordinal: usize) -> Result<u64, DriverFailure>;
+    #[cfg(test)]
     fn pool_counters(&self, pool: &Self::Pool) -> Result<PoolCounters, DriverFailure>;
     /// The contexts built on `pool` that are still alive.
     fn live_private_contexts(&self, pool: &Self::Pool) -> usize;
@@ -1433,11 +1439,30 @@ pub(crate) trait PoolDriver {
     fn emit_snapshot(&self, line: &str);
 }
 
+struct PublishedContextLoss {
+    current_context_id: Option<u64>,
+    driver_error: String,
+    operation: String,
+    primary_context: Option<CudaPrimaryContextState>,
+}
+
+impl PublishedContextLoss {
+    fn failure(&self, recorded_context_id: u64, operation: &str) -> CudaPoolFailure {
+        CudaPoolFailure::ContextLost {
+            recorded_context_id,
+            current_context_id: self.current_context_id,
+            driver_error: self.driver_error.clone(),
+            operation: operation.to_owned(),
+        }
+    }
+}
+
 pub(crate) struct PrivateDecision<P, C> {
     pub(crate) ordinal: usize,
     pub(crate) pool: P,
     pub(crate) first_context: C,
     first_context_handed_out: AtomicBool,
+    loss: OnceLock<PublishedContextLoss>,
     /// FathomDB models open on this pool (design § 14.1): the close release
     /// runs when the last one closes.
     pub(crate) live_models: AtomicUsize,
@@ -1540,6 +1565,7 @@ pub(crate) fn decide_and_build<D: PoolDriver>(
             pool,
             first_context,
             first_context_handed_out: AtomicBool::new(false),
+            loss: OnceLock::new(),
             live_models: AtomicUsize::new(0),
             context_id,
             max_size_bytes,
@@ -1599,7 +1625,8 @@ fn private_build_failure<D: PoolDriver>(
 
 /// Builds a device on `ordinal` under the process's decision: on the private
 /// pool when the decision is private for this ordinal (the first build takes
-/// the decision's own context), otherwise on the 0.8.27 path.
+/// the decision's own context), otherwise on the 0.8.27 path. A published
+/// private-context loss refuses before creating or wrapping another device.
 pub(crate) fn build_device<D: PoolDriver>(
     cell: &OnceLock<Decision<D::Pool, D::Context>>,
     driver: &D,
@@ -1607,6 +1634,11 @@ pub(crate) fn build_device<D: PoolDriver>(
 ) -> Result<D::Device, DeviceBuildError<D::DefaultError>> {
     match decision(cell, driver, ordinal) {
         Decision::Private(private) if private.ordinal == ordinal => {
+            if let Some(loss) = private.loss.get() {
+                return Err(DeviceBuildError::Pool(
+                    loss.failure(private.context_id, DEVICE_BUILD_OPERATION),
+                ));
+            }
             let built = if private.first_context_handed_out.swap(true, Ordering::AcqRel) {
                 driver
                     .new_private_context(ordinal, &private.pool)
@@ -1701,8 +1733,9 @@ fn context_alive<D: PoolDriver>(
 }
 
 /// Synchronizes the decision's context and trims the pool's unused memory,
-/// unless the decision is not private or its context is lost. Errors and
-/// panics are discarded: a model's drop must never fail or unwind.
+/// unless the decision is not private or its context is lost. Published loss
+/// refuses before any driver query. Errors and panics are discarded: a model's
+/// drop must never fail or unwind.
 pub(crate) fn release_unused_pool_memory<D: PoolRelease>(
     decision: Option<&Decision<D::Pool, D::Context>>,
     driver: &D,
@@ -1710,6 +1743,9 @@ pub(crate) fn release_unused_pool_memory<D: PoolRelease>(
     let Some(private) = decision.and_then(Decision::private) else {
         return ReleaseOutcome::NotPrivate;
     };
+    if private.loss.get().is_some() {
+        return ReleaseOutcome::ContextLost;
+    }
     catch_unwind(AssertUnwindSafe(|| {
         if !context_alive(driver, private) {
             return ReleaseOutcome::ContextLost;
@@ -1754,14 +1790,18 @@ pub(crate) fn classify_forward<P, C>(
 }
 
 /// The typed failure for a failed forward pass, or `None` when it keeps its
-/// untyped report: exhaustion first, then, for any other CUDA error on the
-/// private pool's device, context-loss detection.
+/// untyped report. A published loss takes precedence over later errors;
+/// otherwise exhaustion precedes context-loss detection on a CUDA error.
 pub(crate) fn classify_forward_fault<D: PoolDriver>(
     decision: Option<&Decision<D::Pool, D::Context>>,
     driver: &D,
     fault: ForwardFault,
     operation: &str,
 ) -> Option<CudaPoolFailure> {
+    let private = private_for(decision, fault.ordinal)?;
+    if let Some(loss) = private.loss.get() {
+        return Some(loss.failure(private.context_id, operation));
+    }
     let exhausted = classify_forward(
         decision,
         fault.ordinal,
@@ -1771,7 +1811,6 @@ pub(crate) fn classify_forward_fault<D: PoolDriver>(
     if exhausted.is_some() {
         return exhausted;
     }
-    let private = private_for(decision, fault.ordinal)?;
     if !fault.cuda {
         return None;
     }
@@ -1949,12 +1988,14 @@ mod driver {
     };
     use candle_core::Device;
 
+    #[cfg(test)]
+    use super::PoolCounters;
     use super::{
         build_device, candle_driver_code, classify_candle_fault, cuda_libraries_in_maps,
         pool_config_in_force, register_private_model, release_private_model, render_raw_settings,
         tegra_identity, CudaAllocatorPath, CudaAllocatorReport, CudaDeviceError, CudaPoolFailure,
-        CudaPrimaryContextState, Decision, DeviceFacts, DriverFailure, ModuleLoadInit,
-        PoolCounters, PoolDriver, PoolRelease, RawPoolSettings, ReleaseThreshold, PROBE_BYTES,
+        CudaPrimaryContextState, Decision, DeviceFacts, DriverFailure, ModuleLoadInit, PoolDriver,
+        PoolRelease, RawPoolSettings, ReleaseThreshold, PROBE_BYTES,
     };
 
     static DECISION: OnceLock<Decision<Arc<CudaMemPool>, Arc<CudaContext>>> = OnceLock::new();
@@ -2121,6 +2162,7 @@ mod driver {
             Ok(id)
         }
 
+        #[cfg(test)]
         fn pool_counters(&self, pool: &Self::Pool) -> Result<PoolCounters, DriverFailure> {
             Ok(PoolCounters {
                 reserved_current: pool.reserved_current().map_err(failure)?,

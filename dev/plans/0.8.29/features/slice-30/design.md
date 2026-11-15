@@ -81,7 +81,7 @@ do not introduce a production API just to fill the field.
 | G | P tools qualified; updated concrete G packet/review; own pinned BGE cache, available reserved engaged3090 | Same BGE384 store for engine/SDK hybrid/direct-text/embed-only; read/write schedules and guarded branch attribution. No TC5 dependency. NOT_RUN. |
 | D | P tools; reviewed current worker observer/fixture fit and cap feasibility | Synthetic deterministic768-d held/overlap10k/100k/300k drain follow-ups, pending counts, worker concurrency and WAL;300k requires lower-scale extrapolation under15min/16GiB. NOT_RUN. |
 | M | Accepted20 A3/A5; selected qualified closed G store and reviewed exact MCP tooling still required | [Proposed real stdio continuation](continuation-m.md): c1/4/8/16/32, queue denominator/errors, fresh-process/open/idle/alternating-store and logging controls. NOT_RUN/HELD; no queue proof from timing or implicit new budget. |
-| F | Exact accepted frozen pack, qualified manifest and candidate-bound CUDA/native/model identities | AC075 TC5 bridge, unchanged accepted CI-high>=0.90; missing exact pack. HELD. |
+| F | Exact accepted frozen pack, qualified manifest and candidate-bound CUDA/native/model identities | AC075 TC5 bridge, unchanged accepted CI-high>=0.90; exact pack statically qualified in [inputs](inputs.md), current candidate runtime held. |
 
 G diagnostics must separately observe has_source_dependencies,
 all_nodes_directly_eligible, vector_arm_requires_fallback and actual guarded
@@ -131,3 +131,24 @@ updates all prior outcomes by ID, retaining completed trailing attempt identity.
 These three reviewed corrections have separate genuine runtime RED/GREEN units.
 See [execution](execution.md) and [actual results](results-p.md). No public or
 production observer API, cache/ranking/default change or new numerical gate.
+
+## F/Q8 candidate configuration admission
+
+R30-7/9 and A30-6/7 require the accepted frozen TC5 bridge to measure the
+current candidate. Existing `experiments/tc5_gpu_v2.py` `load_config` admits
+releases only through 0.8.28, so an honest 0.8.29 configuration currently fails
+before native execution. Extend only that release allowlist and its package
+mapping: 0.8.29 requires candidate version 0.8.29 and package version 0.8.29,
+with the existing complete candidate SHA, wheel/CLI/private-executor artifact
+fields and validation unchanged. Preserve all admitted historical release and
+package combinations. No production API or vector-stage logic changes.
+
+Use the existing parser fixture and [F tests](test-map.md#fq8-configuration-admission)
+for genuine RED then GREEN. The accepted bridge remains 7667 real documents,
+100 queries, K192, top10, exact-f32 truth and CI-high>=0.90; no primary-arm run,
+pack requalification, model download or new measurement protocol follows.
+Source implementation awaits independent design review. Native imports,
+owned candidate builds, database/model/GPU execution and the exact-UUID 3090
+reservation require their later technical GO and exclusive native window.
+Slice30's 900s cell cap and the historical TC5 bridge's 7200s limit remain an
+unresolved runtime bound; this parser change extends neither limit.

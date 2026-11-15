@@ -67,3 +67,14 @@ RED/GREEN units for the new wire recorder, call ledger, schedule/accounting,
 lifecycle and private-helper outcomes. It separates normal CLI real-process
 controls from nondefault existing-Seams diagnostics. No M source/runtime or
 blanket passing-coverage exception follows; P/G tests and freezes stay unchanged.
+
+## F/Q8 configuration admission
+
+| Unit | Human-intent oracle and planned RED | Scoped GREEN verification |
+| --- | --- | --- |
+| T30-F1; R30-7/9, A30-6/7 | In `tests/experiments/test_tc5_gpu_v2.py`, use the existing `_candidate_config` literal fixture with release/candidate/package 0.8.29 and complete existing artifact fields. Assert `load_config` returns those exact versions and supplied candidate binding; current release allowlist raises instead. Reject missing binding, stale candidate version and wrong or malformed package versions. | Keep the RED assertions unchanged; run the affected parser tests and existing TC5 runner test file. Existing historical release/package cases remain unchanged. No native import, database open, model/GPU, frozen-pack validation or actual campaign runs in these controls. |
+
+Limit implementation to `experiments/tc5_gpu_v2.py` release/package admission.
+This unit changes no bridge inputs, metric math, resource caps or runtime
+permission. Native/model/GPU qualification and the 900s versus historical 7200s
+bound remain separate and held. No new hash-inventory or tamper tests.

@@ -196,3 +196,58 @@ fn retired_session_work_cannot_be_relabelled_into_the_next_collector() {
             .iter()
             .any(|cursor| cursor.as_u64() == Some(new_cursor)))));
 }
+
+#[test]
+fn commit_outcome_distinguishes_actual_inputs_staging_and_durable_terminals() {
+    let fixture = Fixture::new();
+    let frozen = Frozen::new(&fixture.engine);
+    fixture.engine.drain(5_000).unwrap();
+    let generation = fixture.engine.read_projection_generation_status().unwrap().generation_id;
+    let observer =
+        fixture.engine.begin_slice30_projection_observation_for_test(512, Instant::now()).unwrap();
+    let mut scan = fixture.engine.pause_projection_scan_for_test();
+    let cursors = fixture.write(&["outcome-alpha", "outcome-beta"]);
+    drop(frozen);
+    let scan_ready = scan.wait_ready(Duration::from_secs(5));
+    let captured_scan_hold = Frozen::new(&fixture.engine);
+    scan.release();
+    let drained = fixture.engine.drain(5_000);
+    let batch = observer.take();
+    drop(captured_scan_hold);
+    let closed = fixture.engine.close();
+    drop(observer);
+
+    scan_ready.expect("bounded first scan must reach the real dispatcher rendezvous");
+    drained.expect("actual successful outcomes must drain");
+    closed.expect("engine must close before outcome assertions");
+    assert_eq!(physical_counts(&fixture.path), (2, 2, 2, 0));
+    assert_eq!(batch.dropped_records, 0);
+    assert!(batch.issues.is_empty());
+    let outcomes = batch
+        .records
+        .iter()
+        .filter(|record| record.phase == "projection_commit_outcome")
+        .collect::<Vec<_>>();
+    assert_eq!(outcomes.len(), 1, "actual committed-outcome accounting is missing or duplicated");
+    let outcome = outcomes[0];
+    assert_eq!(outcome.status, "ok");
+    assert_eq!(outcome.facts["input_success"], 2);
+    assert_eq!(outcome.facts["input_failure"], 0);
+    assert_eq!(outcome.facts["input_deferred"], 0);
+    assert_eq!(outcome.facts["generation_skips"], 0);
+    assert_eq!(outcome.facts["member_skips"], 0);
+    assert_eq!(outcome.facts["staged_success"], 2);
+    assert_eq!(outcome.facts["staged_failure"], 0);
+    assert_eq!(outcome.facts["commit_attempted"], true);
+    assert_eq!(outcome.facts["committed_success"], 2);
+    assert_eq!(outcome.facts["committed_failure"], 0);
+    assert_eq!(outcome.facts["publication_state"], "committed");
+    assert_eq!(outcome.facts["generation_id"], generation.as_str());
+    let reported = outcome.facts["cursors"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|cursor| cursor.as_u64().unwrap())
+        .collect::<BTreeSet<_>>();
+    assert_eq!(reported, cursors.into_iter().collect());
+}

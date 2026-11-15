@@ -44,3 +44,19 @@ similarly gated ones) fail closed. Existing core-leak checks and all53 governed
 operations/signed mappings remain unchanged. Feature-positive/default-negative
 compiled consumers remain independent checks. This addendum does not authorize
 model/GPU execution, measurements, publication or whole-slice clearance.
+
+## Proposed Slice130 D addendum
+
+Status: proposed, not yet an extension of the accepted closed catalog above.
+Independent review covers this delta with the [D seam design](../plans/0.8.29/features/slice-130/design.md#d-observational-seam-proposal)
+and [exact binding-support contract](../interfaces/rust.md#proposed-private-cuda-pool-observation).
+The additional catalog entry would be static SDK
+`Engine::cuda_pool_observation_for_qualification() -> Result<String>`, with the
+exact forwarding/gates specified there, and dedicated `cuda-pool-observer`
+forwarding only `fathomdb-engine/cuda-pool-observer`. Existing Slice30 entry,
+no-other-feature reachability, no core-engine leak and no test-hooks/operator
+forwarding remain unchanged. Native-only Python/Node transport exposes the same
+passive JSON observation without changing governed operations or application
+wrappers. No native generation, allocator authority, default feature or shipped
+artifact support is introduced. Checked current counters require110's actual
+shared tracked token; absent adoption returns named unavailable/untracked data.

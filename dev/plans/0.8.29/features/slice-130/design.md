@@ -92,21 +92,85 @@ parent must still forward afterward. No active-CUDA fork or reset injection.
 
 ## D: observational seam proposal
 
-Add a narrowly gated, hidden qualification hook from embedder through existing
-engine/native test-hook mechanisms. The embedder needs an explicit nondefault
-qualification feature because cfg(test) readers are unavailable to downstream
-SDK builds. Use existing `test-hooks` transport conventions and rejection gate;
-exact feature spelling/propagation is part of independent design review before
-code. The hook must not become a supported SDK method or production artifact
-feature. Cross-crate hidden Rust items still need binding-support contract docs.
+Material seam proposal for independent review; no observer source is implemented
+by this addendum. Use dedicated nondefault `cuda-pool-observer` throughout:
+embedder `=[]`; engine `=["fathomdb-embedder/cuda-pool-observer"]`; SDK, Py and
+NAPI each `=["fathomdb-engine/cuda-pool-observer"]`. It implies no CUDA/model,
+`test-hooks` or `operator` feature, and no ordinary feature enables it. Native
+transport follows the existing separate-module/registration convention without
+activating broad mutable test hooks. Shipping feature lists must reject it.
+The [proposed ADR addendum](../../../../adr/ADR-0.8.29-sdk-qualification-observation.md#proposed-slice130-d-addendum)
+extends the currently closed diagnostic catalog before source implementation;
+the [binding-support contract](../../../../interfaces/rust.md#proposed-private-cuda-pool-observation)
+fixes names and wire types without adding governed operations.
 
-Return checked PID/device UUID/ordinal, context ID and opaque pool identity,
-USED/RESERVED current counters, configured threshold/max, live model count and
-decision status. Read the decided objects only: no init, model/pool/context
-construction, synchronize, trim, allocation, CUDA forward or counter reset.
-Context/pool IDs remain lossless across Node. Missing private decision, lost
-context or failed read is a named non-success, never fabricated zeros. Do not
-hold new model references or mutate ownership during observation.
+### Decided ownership and actual driver APIs
+
+Current `cuda_pool_policy.rs` owns driver `DECISION: OnceLock<Decision<Arc<CudaMemPool>,
+Arc<CudaContext>>>`. `PrivateDecision` already has `ordinal`, `pool`,
+`first_context`, `context_id`, atomic `live_models`, configured `max_size_bytes`,
+`release_threshold` and cached `loss`. Its cfg(test) synchronized reader explicitly
+synchronizes; its unsynchronized reader directly reads the pool but has no
+qualification transport or tracked-generation requirement. Neither is the new
+production observer. Published-loss handling from110's accepted98-test CPU
+subset remains authoritative and unchanged.
+
+At selected Cudarc `cb36642fad90c1796693c36ee59e3d3d162f4410`, borrowed
+`CudaContext::primary_lifetime()`, token `recorded_id()`/`loss()`,
+`CudaContext::mem_pool()` and `CudaMemPool::raw()` are available. The first two
+token observations do no native dispatch. `used_current()`/`reserved_current()`
+read attributes through the attached token's `admit()`; admission can perform
+the qualified liveness probe but never synchronizes or trims. Under that same
+outer admission, `CudaContext::uuid()` reads the decided device UUID. Borrow
+these existing objects; check pool association and recorded context identity,
+check cached loss before admission and again before returning success. Read no
+high-water/default-pool counters to substitute for private current counters.
+
+110 has not adopted this tracked construction/model wiring into the product.
+The observer must return `untracked` without native reads when the decided
+context has no actual shared token; it must not make a replacement token,
+context, pool or registry, nor query a default context. Its healthy driver
+branch is integrated only against actual qualified110 adoption, never a guessed
+API or an untracked path. Fallback decisions return named `no_private_pool`
+with their recorded reason and unavailable private identity/counters. The
+observer reads `DECISION.get()`, never `get_or_init`, and borrows only decision
+objects. It creates no model ownership, GPU allocation/forward, retain,
+synchronize, trim or counter reset. Bounded host serialization is diagnostic cost.
+
+Read live model count before and after the checked UUID/current-counter reads.
+If ownership changes, report `ownership_changed` with unavailable counters;
+the tuple is not an atomic GPU snapshot. Cached/published loss returns `lost`
+without native enrichment; an actual read failure returns `read_error` with its
+cached code/message. Missing decision, unsupported build and untracked ownership
+remain distinct from these failures. Only an all-successful checked observation
+may contain numeric zero. Preserve optional observed identity/first-loss cause;
+do not query driver error names or manufacture a measured driver code.
+
+### Source and test boundary after seam review
+
+Confine new read-only logic/types to `cuda_pool_observation.rs` in embedder, with
+feature-gated borrowed access inside `cuda_pool_policy.rs`; add engine and native
+`cuda_pool_observation.rs` transport modules, SDK's exact static forwarder and
+minimal manifest/lib registrations. Update the existing closed parity catalog
+and its existing positive/negative controls; no general name-pattern exemption.
+Keep production constructors, model guards/drop, allocator admission and pins
+unchanged. Actual110 remains the only tracked-generation authority.
+
+First extract the existing unsynchronized-reader decision/read path behind a
+CPU-testable borrowed seam without changing its behavior. A new semantic test
+must demonstrate that its actual current behavior attempts a counter read for a
+published-lost private decision, contrary to the new observer's zero-dispatch
+contract; record that observed assertion failure before adding the observer's
+refusal gate. This is a new qualification behavior, not a claim that the
+historical test-only reader is a shipped lifecycle defect. Subsequent focused
+RED/GREEN cases cover absent/fallback/untracked decisions, failed admission or
+counter read (including partial-read refusal), ownership change and exact
+successful counters. Use counting driver seams, never a mocked database.
+Property-based wire round trips preserve arbitrary u64 IDs/counters, including
+18446744073709551615, as decimal strings across JSON/Python/Node parsing. Actual
+installed SDK/last-close/native smoke remains separate real-database proof;
+missing API compilation or a nonexistent hook is not behavioral RED. No build,
+CUDA call or native qualification runs during this design step.
 
 Qualification-hook artifacts have separate hashes/features from the selected shipping
 artifacts. They establish internal lifecycle accounting through SDK paths;

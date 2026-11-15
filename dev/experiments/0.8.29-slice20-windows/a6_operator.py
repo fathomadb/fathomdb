@@ -26,6 +26,7 @@ GIB=1024**3
 KEY='/home/coreyt/local/gh-runner-wonl/data/windows11/memex-local-ci-ed25519'
 SSH=['ssh','-F','/dev/null','-i',KEY,'-o','IdentitiesOnly=yes','-o','BatchMode=yes','-o','StrictHostKeyChecking=yes','-o','ConnectTimeout=5','-o','ControlMaster=no','-o','ProxyCommand=none','-o','ServerAliveInterval=5','-o','ServerAliveCountMax=1','runner@192.168.122.51']
 CASES=['normal','orphan','output','breakaway','inherited-handle','cleanup-failure','diagnostic-overflow','diagnostic-truncation','death-before-create','death-after-create','death-after-resume']
+TRANSFER_END=bytes.fromhex('fb29'*16)
 FRAMEWORK='C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319'
 
 def digest(path):
@@ -161,7 +162,7 @@ class Session:
                 p.stdin.write(script_prefix(script))
                 with path.open('rb') as stream:
                     while data:=stream.read(65536):p.stdin.write(data)
-                p.stdin.close()
+                p.stdin.write(TRANSFER_END);p.stdin.close()
             except BaseException as error:errors.append(repr(error))
         thread=threading.Thread(target=writer,daemon=True);thread.start();start=time.monotonic()
         try:

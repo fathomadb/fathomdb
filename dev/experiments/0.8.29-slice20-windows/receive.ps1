@@ -28,8 +28,12 @@ while(-not $s.Done){$now=$s.Clock.ElapsedMilliseconds;if($s.Stop -or $now -ge 18
     $partial=$destination+'.partial-'+[Guid]::NewGuid().ToString('N')
     $stream=[IO.File]::Open($partial,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
     $inputStream=[Console]::OpenStandardInput();$buffer=[byte[]]::new(65536);$total=0L
-    try{while(($n=$inputStream.Read($buffer,0,$buffer.Length)) -gt 0){$total+=$n;if($total -gt $c.length){throw 'transfer longer than declared'};$stream.Write($buffer,0,$n)};$stream.Flush($true)}finally{$stream.Dispose()}
+    try{while($total -lt $c.length){$n=$inputStream.Read($buffer,0,[int][Math]::Min($buffer.Length,$c.length-$total));if($n -eq 0){throw 'transfer truncated or digest differs'};$total+=$n;$stream.Write($buffer,0,$n)};$stream.Flush($true)}finally{$stream.Dispose()}
     if($total -ne $c.length -or (Get-A6Hash $partial) -cne $c.expectedSha256){throw 'transfer truncated or digest differs'}
+    # Windows OpenSSH may retain stdin after channel EOF; consume an exact terminal frame.
+    $end=[Convert]::FromBase64String('+yn7Kfsp+yn7Kfsp+yn7Kfsp+yn7Kfsp+yn7Kfsp+yk=');$tail=[byte[]]::new($end.Length);$at=0
+    while($at -lt $tail.Length){$n=$inputStream.Read($tail,$at,$tail.Length-$at);if($n -eq 0){throw 'transfer truncated or digest differs'};$at+=$n}
+    if([Convert]::ToBase64String($tail) -cne [Convert]::ToBase64String($end)){throw 'transfer longer than declared'}
     if($s.Stop -or [IO.File]::Exists($destination)){throw 'transfer stop or destination raced'}
     [IO.File]::Move($partial,$destination)
     $s.Done=$true

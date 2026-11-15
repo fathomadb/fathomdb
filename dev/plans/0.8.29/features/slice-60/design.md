@@ -2,206 +2,47 @@
 title: Slice 60 — MCP surface design
 status: PLAN_READY
 target_release: 0.8.29
-observed_on: 2026-11-10
+observed_on: 2026-11-15
 ---
 
 # Slice 60 — MCP surface design
 
-## Authority and evidence boundary
+## Authority and current source
 
-This candidate implements [requirements](requirements.md), the accepted
+This design implements [requirements](requirements.md), the approved
 [compact direction](../../../../design/agent-access/compact-text-block.md) §7
-and Slice9 Batch4. Current committed entry base is
-`37f9eba37d74904d8e67a9192f6c8ef8c4f2ec47`; its metadata-only diff leaves
-current immutable product witness at integrated20 subset
-`657edeb76caaf9c8d2aab433766bec9362e73217`, with reviewed10 source
-`104dcbcbe92a1eca730d146b99ab17d444df6217` and closure
-`d7d928f8e49d7af6a792385534f4e991c13232b3` ancestral. Initial evidence atad102 and candidate
-98fc/8d20 is retained as dated history; actual completed10 now supersedes their
-pending status. Parent confirms independent60 Astra design PASS after tiny-budget
-FIX1. This checkpoint changes no approved behavioral contract and supplies no
-implementation PASS. No60 code, tests, builds or setup ran.
-The main-repo external memory index and real entries
-`tdd-red-must-fail-per-finding.md`, `mcp-adapter-proposal-owner-decisions.md`,
-`agent-access-block1-design-state.md`, `slice-prompt-verify-test-claims.md`,
-`verify-design-against-code-not-just-architecture.md`,
-`0.8.25-slice45-pagination-lessons.md`,
-`0.8.25-slice35-eligibility-frozen-read-lessons.md` and
-`full-gate-run-frequency.md` were read under
-`/home/coreyt/.claude/projects/-home-coreyt-projects-fathomdb/memory/`.
+and Slice9 Batch4. Entry453b640f contains accepted subset5271, integrated50
+`9036507bc98ef31c05ae334aa22ec5101323c7e7`, completed70 and accepted80 design.
+[Execution](execution.md) retains the prior source/qualification history;
+[plan](plan.md) governs the remaining F11 and its fresh independent review.
 
-## Completed10 reconciliation and later owned execution
+Format/filter/budget/grammar behavior below is implemented. Remaining work is
+search existence-flag exposure with canonical/continuation/composition proof.
+Integrated50 satisfies the selected feedback prerequisite; preserve its guard
+and record identity.70's actual reasons survive both renderers;80/90's accepted
+new fields remain later implementation. No native/build/database/model work ran
+in this source-grounded documentary reconciliation.
 
-Read actual10 plan/design/requirements/review-log/register/test-mapping/resources,
-complete execution/18-pair evidence, current helper/AGENTS/bootstrap/build/test
-callers,214 registration accounting and relevant source diff through104d/d7d9.
-Read current master release needs/requirements/AC allocation, relevant canonical
-NEED/REQ/AC bodies, JSON and board. At committed metadata37f9eba3, parent HEAD
-and local release/0.8.29 agree and tracked status is clean;104d/d7d9/657e are
-ancestral.37f9 changes only the six integration/status documents, not src/scripts.10 is complete/preparation PASS.
-20's Linux repair subset is integrated after fresh independent Astra PASS, but
-20 remains IN_PROGRESS with A3/A5 unanswered and A6 unqualified. Readiness stays
-NOT_READY/publication HELD. Verify the parent's later committed metadata base,
-JSON60 depends_on=[10] and actual closed10 preflight before source entry. No20
-closure,30 clearance,Block1 exit or60 TDD exception follows.
-
-Selected MCP/SDK source/tests, direct-text eligibility/filter logic,
-hints/compact design, accepted hints ADR and canonical needs/requirements/AC
-have no behavior delta from the earlier reviewed60 witness; rmcp/macros remain3.5.1.10's MCP interface/architecture
-wording accurately distinguishes built engine/SDK support from adapter residuals.
-No format/flags/filter/budget/framing/precision/schema-cache/identity contract
-change is needed; accepted60 tiny-budget/human-baseline comparator rules remain.
-The parent's fresh independent Astra-medium actual20 reconciliation recheck
-passed after the source-entry sequencing FIX (review-log.md). This is design
-acceptance, not source qualification or a policy waiver.
-
-10's final source104d has terminal independent Astra implementation PASS. Its
-assembled qualification retains initial98fc lint failure, an interrupted attempt
-and original211-suite collector207pass/4fail, with affected repairs/reruns and
-three later registrations separately qualified (214 total/207fast/7heavy).
-Canonical Rust workspace, TS/N-API passed; repaired canonical Python1746pass/
-36skip, TS625pass/6skip. AGENT_LONG unset, ignored/network/platform/ESLint skips
-remain. This is preparation evidence, not an uninterrupted full-green,60 rerun,
-release-matrix or registry-installed proof. No artifacts or mutable environments
-from10 were borrowed. Production W0.8.29 native inputs remained unchanged across
-later setup/validator fixes; E0.8.0/format37/public.28 docs remain as recorded.
-
-The final helper's --check-ownership is nonmutating and runs before installers,
-hooks/npm; --provision alone creates the venv through the canonical selector.
-Separate18-pair evidence includes caller venv/module ordering; fresh independent
-review reproduced those REDs and final fixes. --build always builds a locked
-noneditable wheel, installs exact output and records source/delta/lock/features/
-interpreter/ABI/module digests. Reject foreign VIRTUAL_ENV/sys.prefix, venv/module
-symlinks or escaping directories. No timestamp reuse/manual native copy/editable
-install. Keep production and test-hook artifacts distinct: canonical agent-test
-now scopes only its own src/python PYTHONPATH to pytest/children, so they import
-the same nonce/digest-qualified candidate. Installed production smoke clears
-PYTHONPATH and verifies site-packages; existing conftest/wheel/nonce gates remain.
-
-At parent GO, enter a fresh parent-created60 checkout only after strict closed10
-preflight. Reread any later integrated delta, refresh ownership/resources and
-provision own env/modules/native receipts there. Never reuse10's environment,
-private npm install, native path or receipt as60 qualification. Physical parent
-root is /mnt/data/worktrees/fathomdb-0.8.29; the old managed alias is a symlink,
-not a second checkout or a source worktree assigned to60.
-
-Use command-local Node25.9.0/npm11.12.1, Python>=3.11 (10 used3.12.3),
-Ruff0.15.17/Pyright1.1.410 and own root/TS modules/Markdown cli2.23.3. Matching
-immutable system binaries may be read-only; mutable installs cannot be shared.
-Fresh60 resources use a separate task namespace. Retain reviewed conservative
-operating envelope until new measurements: one heavy phase, Cargo/CMake jobs2;
-root32GiB/taskfs250GiB/MemAvailable16GiB start,root20GiB/taskfs50GiB/
-MemAvailable8GiB stop,200GiB total own-task ceiling,30s monitoring and sustained
-swap rule. Supervisor must tolerate transient temporary-directory races and
-attribute actual child exits; an interrupted monitor/workload never passes by
-inference. No cleanup follows a stop.10 sampled peaks are not a60 reservation.
-
-## Actual20 source impact
-
-Reviewed02e30d861beddc8061af0dc22f12106d5e09dd32..657edeb7 changes:
-engine-owned cfg(test/test-hooks) sidecar and resolver one-shot callbacks replace
-global slots. The sidecar Arc travels through the evidence reader request and
-capture; the resolver callback stays on its exact Engine. The public test-only
-arm functions now require &Engine; callbacks run without the hook mutex, reject
-same-engine re-arm and drop with owner lifetime. Evidence tests use bounded,
-cleanup-safe pauses; two private fields require exact module/root census rows
-(48 current fields). Preserve these signatures/rows and ordinary parallel proof.
-No60 test may restore global hook storage or loosen the root census.60's planned
-SDK direct-route witness is a separate narrow seam, not either evidence hook.
-No production schema, ordinary text/hybrid retrieval, ranking, metadata, snippet,
-provider, state/epoch or MCP contract changed in this subset.
-
-Qualification remains assembled: initial gate stopped at the missing field map;
-continuation ran214 suites/212pass/2fail, followed by reviewed root-inventory and
-exact PyO3 executable loader reruns. The original exits/skips and UV3.13 loader
-warning remain. Final source-bound Python/TS identities and lifecycle passed;
-this is not one uninterrupted full gate or60/native/Windows qualification.
-Source-entry tooling must account for selected Python shared-library identity,
-not assume20's loader environment applies to60. See status and test plan.
-
-## Concrete source-entry setup proposal
-
-Not executed at this planning checkpoint. Independent recheck now PASS; parent alone creates
-fresh `/mnt/data/worktrees/fathomdb-0.8.29-s60-mcp` on
-`llm/0.8.29-s60-mcp` from committed37f9 (or a specifically reconciled later tip).
-Use this order; --worktree requires an already existing worktree:
-
-1. From the verified committed parent checkout, run precreation
-   `STRICT=1 bash scripts/preflight.sh --expect-closed 10 --plan dev/plans/plan-0.8.29.md --min-disk-gb 32`
-   without --worktree. Separately measure free bytes on the destination parent
-   `/mnt/data/worktrees` and private task filesystem `/mnt/data/tmp2` against the
-   resource floors below; this no-worktree invocation measures /tmp disk only.
-2. Parent creates the fresh source worktree from the verified committed base.
-3. With that path now existing, run
-   `STRICT=1 bash scripts/preflight.sh --worktree /mnt/data/worktrees/fathomdb-0.8.29-s60-mcp --expect-closed 10 --plan dev/plans/plan-0.8.29.md --min-disk-gb 32`.
-   Then verify target top-level/branch/HEAD, clean tracked state, closed10 ancestry
-   and exact release ref before any provisioning or implementation.
-
-20 closure is not checked as a60 dependency. No automatic
-rebase/reset or owner-created audit worktree; parent arranges later RED replay.
-
-Fresh noncolliding task namespace is
-`/mnt/data/tmp2/fathomdb-0829-01a1c5a5-s60` (mode700). Keep distinct Cargo home/
-target, npm/pip/XDG/Puppeteer caches, TMPDIR/TMP/TEMP, logs and receipts there;
-checkout owns real .venv, root/TS/Mermaid modules and native output. Reuse only
-matching immutable system binaries. Run `bash scripts/setup-python-owned.sh
---check-ownership` in that checkout before installers/hooks/npm. Install only
-private npm11.12.1 using immutable Node25.9.0, then locked `npm ci` in root,
-src/ts and dev/tools/mermaid. Provision the checkout venv solely with
-`bash scripts/setup-python-owned.sh --provision`; the canonical selector chooses
-actual installed Python>=3.11 (20 chose immutable UV3.13.13). Record actual
-interpreter/base-runtime/SOABI and verify Ruff0.15.17/Pyright1.1.410. Do not force
-an older interpreter or borrow20's mutable setup to evade the selector.
-
-Before Cargo's PyO3 executable tests, inspect the selected own interpreter's
-sysconfig LIBDIR/LDLIBRARY and exact library path/hash/SONAME. If its shared
-library needs a loader path, use only a verified command-local LD_LIBRARY_PATH
-for those processes, retaining stderr. No global linker/config/symlink change.
-The20 error exit127 and warning are historical evidence, not inherited60 failure
-or proof that the same workaround is needed. Missing library/ownership stops.
-
-Use common `--build`/`scripts/agent-build.sh` for source-bound noneditable
-production Python/TS artifacts. Record source/delta/lock/features/interpreter/
-ABI/module digests. Installed lifecycle smoke clears PYTHONPATH and imports own
-site-packages from external cwd; compare documented IdSpace identity. Canonical
-agent-test separately owns fresh test-hooks wheel/nonce/digest and child imports
-via only its own src/python PYTHONPATH. Never manually copy a module or use
-editable/maturin-develop. Prepare other full-gate developer prerequisites using
-10's existing supported owned recipe; no exporter/model download is implied.
-
-Keep one heavy phase, Cargo/CMake jobs2 (canonical serial Rust gate stays jobs1).
-Refresh root32GiB/taskfs250GiB/MemAvailable16GiB start; stop only owned workload
-at root<20GiB/taskfs<50GiB/MemAvailable<8GiB, task+checkout200GiB or sustained
-swap-in/out>64MiB/s for three30s samples. Record actual child exits and tolerate
-transient du races; no cleanup on stop. No measurements/capacity reservation
-are claimed now. Scoped checks while implementing; one final strict full agent
-verify on clean stable source with ptrace capability. Preserve actual failed/
-unrun/skipped outcomes and fresh independent final implementation review.
-
-## Existing versus new
+## Existing versus remaining
 
 Paths in this section are relative to `src/rust/crates/`.
 
 | Source witness | Existing authority / Slice60 delta |
 | --- | --- |
-| `fathomdb-mcp/src/config.rs` Config/strict keys | Text search default and hints precedence already exist; result_format is absent. Add strict server-wide format setting, default text, without changing search_mode. |
-| `fathomdb-mcp/src/edge.rs` router/to_result | All seven tools declare schemas and attach structured content; text is old human rendering. Make output metadata and payload consistent with selected format. |
-| `fathomdb-mcp/src/tools.rs` SearchArgs/search/search_filter | Five flat fields are parsed/canonicalized, then refused for resolved text mode. Hybrid forwards them; direct text omits options.filter. Add flags and direct forwarding, remove refusal, retain snippets. |
-| `fathomdb-mcp/src/shape.rs` CanonicalSearch/with_budget | Filters already survive canonical request/handle storage; flags absent. Current used excludes structured budget; fit includes budget plus old text. Add flags and final-render accounting. |
-| `fathomdb-mcp/src/output.rs` typed outputs | Real readiness/explanation/error/hint carriers coexist with mandatory unavailable state/verdict/kinds/counts. Text omits only approved placeholders; no new typed B2 fields. |
-| `fathomdb-mcp/src/error.rs` ToolError/render | Tool errors retain candidates/detail/busy in JSON but old text loses them. Render these existing fields, with no new codes/details. |
-| `fathomdb-sdk/src/engine.rs` search_text_only; `src/options.rs` | TextSearchOptions already carries filter/view/limit/snippet. No SDK operation or production dependency is needed. |
-| `fathomdb-engine/src/search_api.rs` direct text; `search.rs` and `filter.rs` SQL | Snapshot validation and pre-cap node/edge predicates already exist; no adapter postfilter or engine ranking change. |
-| `fathomdb-mcp/src/session.rs` Continuation | Stores epoch, canonical args, offset, validity instant. Reruns at offset+limit≤100. No state-read/drift token is stored. |
+| `fathomdb-mcp/src/config.rs` Config/strict keys | Strict result_format selection and text default are qualified; no config delta remains. |
+| `fathomdb-mcp/src/edge.rs` router/to_result | Format-bound output schemas and exact structured JSON text are qualified. SearchArgs schema derivation must expose both new input properties. |
+| `fathomdb-mcp/src/tools.rs` SearchArgs/search/search_filter | Direct text already forwards all closed filters and snippets. Add missing search flags and ReadView forwarding for both routes; fetch flags already work. |
+| `fathomdb-mcp/src/shape.rs` CanonicalSearch | Filters and final accounting are implemented. Add effective bool flags with false omitted in serialization; reuse them on continuations and reject explicit overrides, including false. |
+| `fathomdb-mcp/src/output.rs` and `src/error.rs` | Qualified renderers retain real fields/errors. F11 needs no new output field;90 owns new fields and structured placeholder omission. |
+| `fathomdb-sdk/src/engine.rs` search_text_only/search; `src/options.rs` | Both accept ReadView. Integrated50 owns record-version identity; parity uses positional ID/body/order/raw-score controls without adapter deduplication. |
+| `fathomdb-mcp/src/session.rs` Continuation/ResponseContext | Canonical request, epoch, offset and validity instant are stored; Unique/Ambiguous feedback folding is implemented. No new state authority or occurrence token. |
 
-Current engine body identity may change under accepted Slice50 successor.
-Render the ordered typed result unchanged; do not deduplicate on ref/body or
-convert results into sets. Owner seq-375 selects atomic refusal of named feedback refs mapping to
-distinct cursors, only after successful acquisition and the final epoch recheck,
-before cursor-label resolution and bridge/feedback writes. Existing acquisition-
-time not_ready and post-acquisition epoch not_recorded outcomes keep precedence.
-The selected .29 correction must precede repeated-reference view exposure; it
-adds no field or ref ABI. Current source is unchanged until implementation. Final parity reruns on the integrated selected identity.
+Render ordered typed results unchanged, including distinct records/revisions
+with identical bodies or refs.50 validates all named feedback refs only after
+successful acquisition and final epoch validation, before label resolution or
+bridge/write. Existing not_recorded outcomes retain precedence. Compose F11
+with that guard without reimplementing it. Fetch resolves latest eligible logical
+revision under its own view and does not promise the searched occurrence.
 
 ## Protocol and pinned APIs
 
@@ -391,11 +232,9 @@ Update instructions within the existing1200-byte cap with concise names for
 cut/anchor/continuation/tokens/quoted values. Correct orient's stale dense-disabled
 claim to actual failed-open policy, not a fictitious dense_reason field.
 
-70 may change per-call reasons/remediation;60 only renders existing values.
-Its queued proposal for embedder_absent/embedder_timeout and minimal HintCause/
-MCP cause-enum translation is uncertified input, not approved or integrated
-behavior. Preserve existing open-epoch embedder_unavailable unless actual70
-reviewed integration changes it; infer no broader EP03 removal.
+Completed70 supplies embedder_absent/embedder_timeout and integrated HintCause/
+MCP translation.60 preserves these actual typed values and retained open-epoch
+embedder_unavailable; infer no broader EP03 removal.
 80/90 own new unknown-argument/offending-ref details, not_in_this_release,
 structured optionality, top-level default_store, span/coverage. Those later
 fields must extend this census and both renderers when implemented. No new

@@ -2,7 +2,7 @@
 title: FathomDB 0.8.29 Slice 60 — MCP surface requirements and acceptance
 status: PLAN_READY
 target_release: 0.8.29
-observed_on: 2026-11-10
+observed_on: 2026-11-15
 ---
 
 # Slice 60 — MCP surface requirements and acceptance
@@ -17,10 +17,11 @@ Identifiers below are release-local, not additions to `dev/acceptance.md`.
 
 Agents need exact metadata and declared-attribute constraints on lexical body
 search without opting into hybrid retrieval or enabling an embedder.
-0.8.28 Slice 90 (D28-14) now supplies that engine/SDK operation. The current MCP
-`search` already accepts all five filter fields, but rejects them in `text`
-mode and forwards them only on the hybrid route. Its schema descriptions,
-tool description and interface document still describe that restriction.
+0.8.28 Slice90 (D28-14) supplies that engine/SDK operation. At the original
+preimplementation baseline MCP accepted all five filter fields but rejected them
+in text mode. Qualified subset5271 removed that refusal and forwards the closed
+filter through the direct text SDK path. This requirement remains a control;
+search existence flags and affected filter/view composition remain F11 work.
 
 The completed0.8.28 Slice90 is already integrated at the actual10 successor
 baseline. Preserve its `TextSearchOptions.filter` together with Block1's existing
@@ -157,17 +158,12 @@ Slice80/90 own structured placeholder omission and not_in_this_release, new
 argument/ref detail, default_store and span/coverage reporting; Slice70 owns new
 reason vocabulary/remediation. Slice60 retains accepted text omission now and
 renders already-real signals/errors. These are coordination seams, not new hard
-runtime dependencies. Actual10 reviewed source104dcbcbe92a1eca730d146b99ab17d444df6217
-is integrated and closed atd7d928f8e49d7af6a792385534f4e991c13232b3. Actual20
-source657edeb76caaf9c8d2aab433766bec9362e73217 changes only engine-owned test
-hooks and associated census/oracles; approved60 contracts remain intact.20
-IN_PROGRESS/A3/A5 unanswered/A6 unqualified is not a new hard60 dependency.
-Prior independent60 design PASS after FIX1 remains historical; the fresh
-actual20 recheck passed after a source-entry sequencing FIX (review-log.md).
-No implementation PASS follows. Parent GO, fresh parent-created60
-worktree, strict closed10 preflight and own setup remain before source work.
-20's unanswered test-only TDD-policy question supplies no exception here.
-No60 product tests or acceptance passes are claimed by this reconciliation.
+runtime dependencies. At entry453b640f, qualified60 subset5271, integrated50
+`9036507bc98ef31c05ae334aa22ec5101323c7e7`, completed70 and accepted80 design
+are present. No new requirement/threshold is selected. F11 search existence
+flags and affected FTS/view/continuation composition remain unimplemented;
+[plan](plan.md) gives current sequencing. Accepted evidence retains its original
+subjects; this reconciliation claims no new product test pass.
 
 ## Selected repeated-reference feedback boundary
 
@@ -175,7 +171,9 @@ Owner 2026-11-14 seq-375 selects the smallest atomic .29 correction: an otherwis
 recordable call naming an ambiguous used/unused ref returns existing typed
 bad_argument with zero label writes. Preserve current membership validation and
 not_recorded precedence; repeated occurrences of the same cursor remain unique.
-This selected behavior is not implemented or qualified by this document. R29-60-VIEW
+Integrated50 now implements this selected behavior and its existing tests cover
+atomicity and precedence. This reconciliation does not independently rerun or
+qualify it. R29-60-VIEW
 exposure must compose with it, including both formats and mixed unique/ambiguous
 named labels; unmentioned ambiguity does not label arbitrary records. See the
 [selected decision](../slice-50/feedback-decision.md). .30 reviews richer occurrence

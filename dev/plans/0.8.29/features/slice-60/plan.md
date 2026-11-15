@@ -3,170 +3,86 @@ title: FathomDB 0.8.29 Slice 60 — MCP surface
 status: PLAN_READY
 target_release: 0.8.29
 slice: 60
-observed_on: 2026-11-10
+observed_on: 2026-11-15
 ---
 
 # Slice 60 — MCP surface
 
-## Scope and current evidence
+## Actual remaining scope
 
-Implement the remaining formats/flags/direct-text-filter scope approved in
-[Slice9 Batch4](../../prework/slice-9/decision-log.md), using the
-[direct execution mandate](../../direct-execution.md). The compact `text`
-default, explicit `structured` option, built hints and B2-8 storage are settled.
-Format37 remains; no database migration, ranking/default-mode change, new tool,
-calibration, weak-result threshold or production provider API is included.
+Reconciled against integrated50
+`9036507bc98ef31c05ae334aa22ec5101323c7e7` at entry
+`453b640fb3ad599bc5df8b34615c83d9b4aaa64b`. The independently accepted
+format/direct-filter/budget subset5271 remains implemented and qualified;
+[execution](execution.md) retains its actual RED/GREEN and assembled results.
+Completed70 supplies the current degradation vocabulary. Accepted80 is a design
+artifact; its new fields and omissions remain90 implementation work.
 
-Actual entry baseline is metadata commit
-`37f9eba37d74904d8e67a9192f6c8ef8c4f2ec47`, with unchanged product subset
-`657edeb76caaf9c8d2aab433766bec9362e73217`, descending from completed10 source
-`104dcbcbe92a1eca730d146b99ab17d444df6217` and closure
-`d7d928f8e49d7af6a792385534f4e991c13232b3`. Read-only reconciliation reviewed
-20's genuine hook repairs, execution/handoff and fresh independent subset PASS.
-20 remains IN_PROGRESS: A3/A5 policy unanswered, Windows A6 unqualified; no30
-clearance or Block1 exit follows.60 has only hard dependency10, already closed.
-Readiness is NOT_READY and publication HELD. Prior60 design PASS after FIX1 is
-historical; the fresh actual20 Astra-medium recheck now passed after the
-source-entry sequencing FIX, as recorded in review-log.md. No approved product
-contract changed and this is not implementation PASS.
-No60 source checkout/preflight/owned setup exists; parent GO and a fresh
-parent-created worktree with strict closed10 preflight still precede source work.
-[Design](design.md) records actual existing/new seams; [requirements](requirements.md)
-and [test plan](test-plan.md) give the complete needs→requirements→AC→oracle join.
-No product tests, source/environment/Git/ledger mutations or provisioning ran.
+F11 is still missing: SearchArgs and CanonicalSearch have no
+include_superseded/include_inactive fields, search constructs ReadView with only
+valid_as_of, and search::invalid_arguments_are_typed_invalid_requests still
+rejects include_superseded=true. Fetch already accepts both flags. Integrated50
+implements selected record-version identity and atomic ambiguous-feedback
+refusal, including acquisition/final-epoch precedence. The former feedback-ruling
+and guard-implementation hold is satisfied. Whole60 is not complete.
 
-## Prerequisites and ownership
+[Requirements](requirements.md), [design](design.md) and
+[test plan](test-plan.md) retain AC29-60-VIEW and affected FTS2/3/5/6 acceptance.
+No database migration, format37 change, provider API, ranking change, replacement
+reference ABI or query clone scaffold removal belongs here.
 
-- Completed:10 local preparation/independent final review and parent closure;
-  independent60 design PASS after FIX1. Remaining source entrance: parent GO,
-  current release state, fresh parent-created worktree and strict closed10
-  preflight, then60-owned setup/artifact receipts. No source work is begun here.
-- 20 holds are not hard60 prerequisites. No hard40/50 runtime prerequisite for independent60 work. Final affected MCP/
-  SDK parity must use the same integrated fusion/identity build; Slice50's
-  selected successor governs distinct-record/revision behavior.
-- Serialize canonical MCP/interface writes with70/80/90.70 owns new degradation
-  reasons/remedies;80 designs and90 implements remaining B2 fields/omissions.
-  Slice60 preserves current typed values, existing hints and accepted text-only
-  placeholder omission; it does not preimplement those residuals.
-- Actual unnumbered Block1 follow-up exit after integrated20–70 owns required
-  full/feature/performance, both-format conformance and approved smoke/item4
-  remeasure evidence.90 requires that exit AND approved80;160 remains final
-  combined qualification. An independent60 pass proves neither milestone.
+## Execution after independent plan review
 
-## Execution after design PASS
+1. Parent commissions independent Astra-medium review of this source-grounded
+   remainder before new tests/code. The parent-created sole-writer checkout is
+   `/mnt/data/worktrees/fathomdb-0.8.29-s60-exit-20261115`, branch
+   `llm/0.8.29-s60-exit-20261115`; parent reports pre/post strict closed10 and disk
+   preflight PASS. This reconciliation runs no native/build/database/model work.
+2. Wait for the allocated native window before owned setup or execution. Run
+   checkout ownership check before installers; provision only its own canonical
+   venv/modules/artifacts. Never execute a sibling mutable environment/native.
+   Read/reuse accepted raw evidence without borrowing its execution environment.
+3. F11a: stage baseline-callable JSON/MCP superseded-selection assertions and
+   same-build SDK ID/body/order/score controls in both formats (structured raw
+   value, compact accepted three-decimal display); include
+   default/explicit-false identity, true-flag identity, continuation preservation
+   and override refusal. Observe and commit actual caller-visible assertion RED,
+   then add only the superseded argument/canonical/view path in separate GREEN.
+4. F11b: before its fix, stage inactive and combined-flag assertions for authored
+   current/pending/deleted/superseded nodes and edges, fixed validity boundaries,
+   filters and paging. Observe its own RED, commit, then add inactive forwarding.
+   Stage wrong types and continuation-plus-false controls before each relevant
+   fix. Adapt obsolete true-flag refusal to wrong-type validation before GREEN;
+   freeze tests during repair. Existing working controls are not new RED claims.
+5. Stage repeated-reference history composition before F11 GREEN: equal-body
+   revisions remain ordered occurrences; telemetry-enabled hybrid ambiguity
+   refuses atomically, while text/telemetry-off retain not_recorded precedence.
+   Existing50 guard/race tests remain regression controls. Fetch remains latest-
+   eligible logical lookup, without exact searched-revision promises. Stage
+   both-format filter/flag, constrained-budget and progress-capable continuation
+   cases before the corresponding flag fix makes them pass; preserve60 tiny-
+   budget zero-progress/refusal behavior and hosted continuation_exact=false.
+6. Update maintained MCP interface/discovery/active view wording in the same
+   change. Run applicable lint/typecheck and focused MCP search/direct-filter/
+   formats/feedback/fetch/paging plus relevant SDK controls. Run the required
+   full agent gate once on final clean code with owned tools, preserving actual
+   failures/skips and resuming only affected failed stages. Parent commissions
+   fresh independent Astra-medium implementation/results review before integration.
 
-1. Reconciliation covers product657edeb7 and metadata37f9eba3; obtain independent
-   design recheck (now PASS), then verify this committed base or later delta at parent GO.
-   Parent runs closed10/plan/disk precreation preflight without --worktree and
-   measures destination filesystems, creates the fresh worktree, then runs strict
-   preflight with --worktree and verifies target branch/HEAD/clean identity before
-   provisioning or implementation. Enter that verified target,
-   then provision owned tools/native receipts. Commit reviewed documents there.
-   Run setup-python-owned.sh --check-ownership before any installer/hooks/npm;
-   only --provision creates the venv, then --build/agent-build creates source-bound
-   noneditable artifacts. Use own modules/receipts; never invoke10's env/native.
-   Canonical pytest scopes own src/python to its children for nonce-qualified
-   native tests; installed production smoke clears PYTHONPATH and uses site-packages.
-2. Make result_format config/discovery changes with caller-visible RED first;
-   pin legacy semantic tests explicitly to structured without masking default
-   text checks. Each behavior gets its own failing RED and separate GREEN.
-3. Build per-tool and error rendering incrementally, then quoted/framed values,
-   field completeness and final accounting/paging. Gap-free traversal requires
-   a whole leading hit fitting each nonterminal page; keep separately authored
-   arbitrary tiny-budget zero-progress/refusal coverage and the existing property
-   adaptation before GREEN. Never recut search snippets for progress.
-   No all-tools big-bang GREEN.
-4. Forward existing search flags and the complete closed SearchFilter into the
-   SDK direct text path, retaining snippets, ranked order and continuation
-   identity. Replace the obsolete refusal expectation with an actually failing
-   caller-visible acceptance assertion before the fix.
-5. Update maintained MCP interface/design/requirements, server instructions,
-   config examples and .29 default-change release notes in the same PR.
-   Preserve historical human-oracle fixture bytes; review the narrowly specified
-   format-aware test adaptation in the test plan, never regenerate snapshots.
-6. Run scoped checks while working, then one strict full agent gate on final
-   clean source. Audit RED SHAs from Git; parent dispatches a fresh independent
-   Astra-medium final review. Fix actionable findings within retry bounds.
-7. Deliver source/base/artifact identities, exact commands/exits/skips, mapped
-   AC evidence and limits in status. Parent integrates passing scope/state;
-   recheck affected seams on integrated50/70 before Block1 exit.
+## Completion and separate gates
 
-## Bounded hints-overhead remediation (2026-11-13)
+Close60 after F11 and affected local acceptance pass on integrated50/70 and
+fresh independent final review. Use accepted5271 evidence; do not manufacture
+new REDs or repeat old passing checks merely for attribution. New code still
+needs its applicable qualification. Original wrapper/hints failures and bounded
+follow-ups remain in execution; no uninterrupted full-green follows.
 
-The integrated source at `973b2e692f54b2944d809cec2367ff53b8c152d0`
-failed the unchanged `hints_overhead_devloop` gate in G's canonical workspace
-run: limit100 p50=209.8us, one budget-loop iteration, against the accepted
-**≤200us** ceiling. Limit10 p50=60.0us/p99=71.5us are notify-only warnings.
-Retain the failure; proximity to the ceiling does not establish noise.
-[Hints design](../../../../design/agent-access/hints-sidecar.md) §4.2–4.3 and
-[performance gates](../../../../design/perf-gates.md) govern the measurement.
-The immutable test times planning and shaping, including serialization/accounting,
-after synthetic page/snippet preparation; it does not measure retrieval latency.
-
-The accepted5271c1bf subset already contains production optimization1f28b1609.
-Current `fathomdb-mcp/src/tools.rs` shaping/`finish`, `shape.rs::with_budget`
-and the timing assertions are unchanged from that subset. Integrated70 adds
-absence/timeout cause translation, while this fixture has no degradation entries;
-integrated20's pre-enqueue observer is outside this shaping path. Repeated JSON
-serialization and hint ref/text allocations are profiling hypotheses, not a
-proven cause. Preserve the actual integrated SDK/fusion selection, hints/span
-storage and schema37 without migration. [Requirements](requirements.md)
-R29-60-BUD/SIG and AC29-60-BUD/SIG, the accepted hints contract, both formats'
-final counts/fit, four-render convergence, whole-hit prefixes, hints-off fallback
-and current degradation vocabulary remain unchanged. F11 remains held pending implementation and qualification of the selected
-seq-375 atomic ambiguous named-ref refusal; the owner decision itself is settled.
-
-Independent Astra-medium design review passed069f9d0e. After the full collector
-was terminal, G's owner completed the sole unchanged-artifact failed-target
-follow-up in its original checkout; [execution](execution.md) records the result
-and independent Astra acceptance. Its retained inputs were
-`TASK_G=/mnt/data/tmp2/fathomdb-0829-continuation/slice30-g-20261113` and its
-retained `artifacts/hints-overhead-first-failure-973b2e692/subject.json` and
-`cargo-fingerprint.json`: default test/dev profile, features default/test-seams,
-no rustflags or root profile override. The completed executable invocation was:
-
-```bash
-"$TASK_G/artifacts/hints-overhead-first-failure-973b2e692/hints_overhead-367415ad6c7c8ced" --test-threads=1 --quiet
-```
-
-Preserve that artifact, original source, recorded environment and arguments;
-retain stdout and real exit. Do not rebuild with standalone Cargo, switch to
-release, change the host settings, alter tests/thresholds or rerun the full gate.
-No sibling runtime was imported into this docs checkout. The follow-up passed;
-no source repair is needed from this result, and no noise cause was established.
-The original failure remains. The one-measurement allowance is exhausted: no
-replay to expose quiet-captured numbers. A future reproducible failure requires
-reviewed bounded profiling and isolated production optimization, not unchanged
-retries. Existing tests stay read-only; any newly changed semantic behavior needs
-its own observed RED before GREEN, preserving output/accounting, hints/baseline/
-property and allocation contracts. No numerical gate, further source/runtime GO,
-whole60 closure or release qualification follows.
-
-## Verification and stop conditions
-
-Use real SQLite and real MCP calls, independent hand-specified selections and
-same-store SDK differential controls. Boundary/property tests cover quote
-round-trip, UTF-8 framing/cuts, highlight coordinates, count convergence and
-paging. Follow existing lint→typecheck→tests ordering and retain diagnostics.
-Missing owned environment is a preflight failure; no borrowed venv/native build.
-
-Planning checks are explicit-file Markdown, intended-destination links/trace keys
-and whitespace only. Full repository Markdown/state validators run after parent
-import when owned tooling exists; no scoped document pass is product green.
-No GPU, model fetch, paid session or external conformance installation is needed
-in this phase. Future external conformance/remeasure needs the selected owned
-setup and its existing specific authorization; no run is claimed here.
-
-Stop the affected change for schema/result mismatch, nonconvergence, ambiguous
-framing, changed public semantics outside reviewed scope, or unsupported provider
-assumptions. Resolve contract findings through the direct review pipeline; do not
-reopen generic release authorization. Seq369 approved a narrow20-only
-verification exception; it transfers no exception or feature scope to60.
-Every changed60 behavior keeps its own observed RED/GREEN. See [status](status.md) for baseline and actual scoped checks.
-
-Owner 2026-11-14 seq-374/375 selects record/version identity with existing
-representative-first provenance and helper/pack contracts, plus atomic ambiguous
-named-ref feedback refusal for .29. These selected changes are not source PASS.
-Implement the feedback correction before repeated-reference historical views;
-qualify both formats on the actual integrated identity build. .30 reviews richer
-occurrence labels for precise per-result feedback without deferring the .29 fix.
+Slice90 retains structured placeholder omission/not_in_this_release,
+unknown-argument/offending-ref details, default_store, aggregate span coverage
+and scored extent. No calibrated verdict or weak_results threshold. The actual
+Block1 exit separately owns integrated qualification, both-format conformance
+and approved smoke/item4 remeasurement; model/prompt/budget inputs remain
+unanswered. These are not missing60 product implementation.90 keeps hard
+50/60/70/80 dependencies plus actual Block1 exit;160 is combined qualification.
+No CI execution, publication, spend, model/GPU/driver/toolkit work or private
+Memex snapshot gate is authorized by this reconciliation.

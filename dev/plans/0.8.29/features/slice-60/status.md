@@ -2,120 +2,58 @@
 title: Slice 60 — actual source status
 status: IN_PROGRESS
 target_release: 0.8.29
-observed_on: 2026-11-10
+observed_on: 2026-11-15
 ---
 
 # Slice 60 — actual source status
 
-## Implemented independent scope
+## Qualified subset and actual source
 
-Parent dispatched the reviewed design into the sole-writer checkout
-`/mnt/data/worktrees/fathomdb-0.8.29-s60-mcp`, branch
-`llm/0.8.29-s60-mcp`, from committed2f6913c1d59ac8ff3a30de835b57290a8635998c.
-That metadata-only import retains product witness657edeb76 and closed10.
-Parent/local release remain frozen at2f691; this file does not close a slice,
-change the release JSON/board or qualify20/30/Block1.
+Format/direct-filter/budget subset
+`5271c1bf022f0ea22f95f7433e226feb2315043e` has independent Astra-medium
+implementation PASS and is integrated. [Execution](execution.md) retains actual
+RED/GREEN, original failures, assembled canonical results and supplemental
+projected-metadata manual qualification. No new passing-on-arrival test is needed
+to rediscover that completed work.
 
-Actual code now implements strict result_format configuration, default compact
-text/format-bound schemas, exact structured JSON text, all seven compact tool
-renderers/full errors, UTF-8 fetch framing, score display precision, final
-format accounting/fit, whole-hit prefixes/hints fallback and direct closed
-text filters. Structured state/verdict/orient placeholders remain. No migration
-or schema change; schema37 and Block2 ownership remain unchanged.
+This reconciliation reads integrated50
+`9036507bc98ef31c05ae334aa22ec5101323c7e7` at entry
+`453b640fb3ad599bc5df8b34615c83d9b4aaa64b`, completed70
+`e875f36042f89c1d84756f78135db0e8926c1ed4` and accepted80 design/source-fit.
+50 supplies record-version identity, bounded winner hydration, Unicode-exact
+ASCII prefix specialization and atomic ambiguous-ref feedback refusal.70 supplies
+actual degradation vocabulary.80 is design-only.
 
-Every changed behavior has observed runtime RED committed before its separate
-GREEN. Shared error/accounting/filter fixes have their related assertions staged
-together. The [execution register](execution.md) records actual commits, commands,
-logs and late reviewed test adaptations. Supplemental digit-boundary/field-census
-controls are coverage, not additional passing-on-arrival RED claims.
+## Concrete remaining60 behavior
 
-## Explicit remaining requirements
+F11 is real: SearchArgs and CanonicalSearch lack both existence flags, search
+constructs ReadView with only valid_as_of, and its invalid-argument test still
+refuses include_superseded=true. Fetch already accepts both flags. The old
+feedback-ruling/implementation hold is stale: integrated50 implements
+Unique/Ambiguous folding and validation of the whole named set after acquisition
+and final epoch recheck, before writes, with retained not_recorded precedence.
 
-F11 historical search view exposure and related repeated-ref fetch/feedback
-integration remain held pending the actual feedback ruling and a reviewed
-addendum. Existing SDK fusion can return distinct cursors with one logical ref;
-no new guard, occurrence token or ref ABI is approved here. Search currently
-continues rejecting include_superseded/include_inactive. This is a concrete
-conditional integration hold, not a blanket50/30 dependency or an invented
-scope deferral. Do not declare all60 complete.
+Remaining work is search parsing/discovery, canonical default-false omission,
+stored continuation view/override refusal, SDK forwarding for text and hybrid,
+and actual F11 selection/filter/paging/feedback composition in both formats.
+[Plan](plan.md) and [test plan](test-plan.md) specify genuine RED/GREEN sequencing.
+Repeated refs remain separate ordered hits; fetch keeps latest-eligible logical
+resolution without an exact searched-revision promise.
 
-Positive MCP projected-status/created-time qualification uses the existing real
-Default-provider projector followed by close and a None-provider MCP reader.
-Exact-pin probes found all three BGE assets in the user cache. Standing GPU
-policy requires real encoding on an available3090, not CPU. A late authored/
-compile-only test candidate was archived externally and removed without ever
-running or landing; its assertions did not precede F12GREEN. The accepted path
-is honest supplemental post-code manual acceptance through public SDK and MCP calls,
-exactly2docs+1edge and the normal actual CPU MCP consumer in both formats.
-Independent Astra passed bounded v3 setup after cache/isolation/descriptor fixes.
-Actual supplemental qualification passed: selected3090 real Default producer
-then close, SDK None14 cases, structured MCP14 cases and compact MCP14 cases.
-The original manual compact-orient spelling failure is retained; its reviewed
-text-only correction passed without another model/structured run. Exact sources,
-post-code timing and reproducible operator copies are indexed in
-`dev/experiments/0.8.29-slice60-projected-metadata/README.md`. No new RED or
-regression coverage claim follows. Assembled canonical qualification is recorded below.
-Later accepted50/70 parity and Block1/90/combined160 gates remain separate.
+## Verification boundary
 
-## Actual setup and checks
+This pass performs source/evidence reconciliation and lightweight documentary
+checks only. No product tests, builds, database opens, owned setup, native/model/
+GPU work or release-state edits ran. Independent Astra-medium plan review
+precedes new tests; the native window and owned setup precede execution. Fresh
+independent implementation review remains required.
 
-Both parent precreation and target strict closed10/plan/disk preflights passed;
-owner repeated committed-base/branch/clean/metadata identity, resource and
-nonmutating ownership checks before setup. Own canonical noneditable Python
-venv/native, real root/TS/Mermaid modules, private npm11.12.1/Cargo/targets/caches
-and Node25.9.0 are in use. Immutable tool/interpreter binaries are read-only;
-no sibling mutable environment/artifact is borrowed. Jobs2/one native phase and
-the reviewed numeric start/stop floors remain enforced by the owned monitor.
+The accepted subset's214/214 assembled suites and production lifecycle/manual
+metadata controls remain attributed to their original subjects in execution.
+Original wrapper, spelling and hints-overhead failures/follow-ups and ordinary
+skips remain visible there. No full-green claim transfers to F11.
 
-Scoped lint/check and actual runtime tests pass for the new formats, all four
-direct-filter cases, immutable historical baseline+negative controls, independent
-tiny-budget/prefix properties, schema-field census and maintained Engine module/
-field inventory. The unchanged hints-overhead gate exposed a real production
-regression, then passed after serialization optimization; notify-only10-hit
-warnings remain visible. The parent independently reproduced clean Config
-RED0b77b4765d with its own detached checkout/resources during an explicitly
-released native window, then returned the window.
-
-The broad affected MCP run retains its original failures. Independently reviewed
-late test adaptations repair an invalid dual-opener fixture and preserve both
-formats' deterministic semantics. The shortest-field mandatory-overflow proof
-was insufficient at300; a stronger same-state SDK trace-control proposal passed
-independent Astra review and the full21-test search target. These are not new
-product REDs or threshold/oracle waivers. Human JSONL bytes and EP03 PINNED are
-unchanged; the historical comparator uses only its independently reviewed exact
-allowlist and rejects unjustified shorter fetch prefixes.
-
-Supplemental display digit-boundary and independently progress-capable compact
-filtered traversal controls pass, with no new RED claim. The single strict full
-wrapper at307c92e3 failed at the extra manual Cargo-patch inventory after earlier
-lint passes. Independently reviewed packaging-only7038b5b4 removed that tracked
-manifest and explicitly materializes the exact governed private inputs; no guard
-or product source changed. Failed/remaining canonical stages then passed on
-clean7038b5b47dc7dd02bc64e612d788fa334ff79b61, without another full wrapper.
-
-All214 registered suites ran/passed; zero failed, suite-skipped or excluded.
-Rust reported2694 passed/0 failed/67 ignored; Python1744 passed/38 skipped;
-TypeScript625 passed/0 failed/6 skipped. Strict security recorded zero violations,
-blockers or downgrades with actual ptrace/live netns. Existing canonical ignored/
-skipped cases remain explicit; no filtering or policy waiver was added.
-
-Fresh canonical production Python/TS builds and installed open/close/exit checks
-passed on307, with unchanged relevant runtime/source/manifest/lock inputs at7038.
-The separate canonical test-hook child receipt binds7038 and nonce
-agent-test-3483006 to actual loaded module digest2c681fa7cb5e35811f951283f2757e668b2f881d8601b61d9ec796d000bcaf7e.
-The collector retained285 logs with no missed opens; no resource stop occurred.
-Exact raw paths, hashes, counts, production equivalence and limits are in owned
-task receipts/final-qualified-subset.json. Fresh distinct independent Astra-medium
-implementation/results review passed at5271c1bf022f0ea22f95f7433e226feb2315043e.
-The parent integrated only that qualified format/direct-filter/budget subset.
-F11 remains held: no whole60 closure,20/30/Block1 exit or platform/release
-readiness follows.
-
-## Integrated hints-overhead follow-up (2026-11-13)
-
-The original G-source973b hints-overhead209.8us failure/full-wrapper exit1 remain.
-Astra passed plan069f9d0e, then independently accepted the sole same-artifact
-follow-up: child3826353 exited0,1passed/0failed/0ignored in9.67s on unchanged
-clean973b. [Execution](execution.md) records the bounded evidence and its limits.
-Quiet capture hides numbers; no replay or source repair follows, and no noise
-cause was established. F11 remains held; this is no whole60 or release qualification.
+90's accepted residual fields/omissions and the actual Block1 qualification/
+conformance/smoke/item4 exit remain separate. Whole60 closure is not recommended
+until F11 meets local acceptance and review. Readiness remains NOT_READY and
+publication HELD; parent alone updates state, generated views and ledgers.

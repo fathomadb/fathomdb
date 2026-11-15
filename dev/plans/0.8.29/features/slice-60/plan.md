@@ -82,8 +82,8 @@ Slice90 retains structured placeholder omission/not_in_this_release,
 unknown-argument/offending-ref details, default_store, aggregate span coverage
 and scored extent. No calibrated verdict or weak_results threshold. The actual
 Block1 exit separately owns integrated qualification, both-format conformance
-and approved smoke/item4 remeasurement; model/prompt/budget inputs remain
-unanswered. These are not missing60 product implementation.90 keeps hard
+and approved smoke/item4 remeasurement; owner model/scope/budget approval is
+recorded at seq-388. These are not missing60 product implementation.90 keeps hard
 50/60/70/80 dependencies plus actual Block1 exit;160 is combined qualification.
 No CI execution, publication, spend, model/GPU/driver/toolkit work or private
 Memex snapshot gate is authorized by this reconciliation.

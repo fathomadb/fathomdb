@@ -61,6 +61,6 @@ to F7, with17 affected successor checks at4005. No uninterrupted full-wrapper
 pass at4005 is claimed.
 
 90's accepted residual fields/omissions and the actual Block1 qualification/
-conformance/smoke/item4 exit remain separate. Smoke model/prompt/budget/fixture
-inputs remain unanswered. Readiness stays NOT_READY and publication HELD;
+conformance/smoke/item4 exit remain separate. Smoke model/scope/budget approval
+is recorded at seq-388; fixtures and prompts are resolved. Readiness stays NOT_READY and publication HELD;
 parent alone edits release state, generated views and ledgers.

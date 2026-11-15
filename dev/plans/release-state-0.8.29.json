@@ -636,6 +636,12 @@
         "forecast_total_ns": 32181023255477,
         "forecast_peak_bytes": 112926001274,
         "next": "Fresh resource/owned-bytes/selectedGPU/FD9/exact-boundary readiness and serial native lease before normal freeze/run/report. No new fault/spend authority."
+      },
+      "m_natural_calibration": {
+        "source": "64c8507f2bb3701e9a779f826b4eab4ec662a562",
+        "integrated": "5feccf692a006b0ac536dd72081707d54e9baebc",
+        "review": "Independent Astra-medium ACCEPT;12 new and9 preservation controls reported passing in commit bodies;raw logs unavailable to reviewer.",
+        "scope": "One bounded natural M-R-1-1-warn1501call calibration; whole900/work800seconds/2GiB cumulative growth plus2x shared headroom and original ledger history. No actual runtime or primary46 qualification yet."
       }
     },
     {
@@ -888,7 +894,13 @@
         "integrated": "e2a3fbe0d2513e9e05fce735f9ddbda948e88743",
         "review": "Independent Astra-medium ACCEPT; no material findings.",
         "evidence": "Actual semantic RED/GREEN covers token-first loss/OOM/provenance, default/private construction, model operation/prepared-success/unwind/final-drop ownership, cached diagnostics and checked observer. All138 final affected CUDA/native-seam tests pass; CUDA and CPU production Clippy-Werror pass. Actual enabled offline/locked graph is one Candle0.12 trio@2ee39305, cudarc0.20@343b04f, remoteK9 kernel0.10.2.",
-        "limits": "No product GPU/model/installed-consumer/reset/full-workspace qualification follows. Final owned source gate and applicable healthy/OOM/installed controls remain. Local Git graph is not registry-ready publication proof; actual resets remain.30."
+        "limits": "No product GPU/model/installed-consumer/reset/full-workspace qualification follows. Final owned source gate and applicable healthy/OOM/installed controls remain. Local Git graph is not registry-ready publication proof; actual resets remain.30.",
+        "owned_cuda_build": {
+          "source": "dc8f97601f27f1b0ea4eefad70dfe860dd590cac",
+          "result": "PASS: owned CUDA wheel build/install/import, CLI and TC5 executor;393.211s;0 failed attempts; original exact boundary removed/actors empty/resource_stop null. CUDA12.6/GCC13/PTX75, ownPython3.13.13; exact .12/.20/HTTPSK9 graph.",
+          "task": "/mnt/data/tmp2/fathomdb-0829-continuation/owned-cuda-build-20261115",
+          "limits": "Compile/import proof only. No GPU forward/model/fidelity/OOM/installed lifecycle/ARM execution or publication proof."
+        }
       }
     },
     {

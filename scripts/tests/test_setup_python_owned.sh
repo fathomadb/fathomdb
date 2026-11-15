@@ -5,8 +5,9 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 fixture="$work/repo with spaces"
-mkdir -p "$fixture/src/python" "$fixture/src/ts" "$work/bin" "$fixture/.venv/bin"
+mkdir -p "$fixture/src/python" "$fixture/src/ts" "$fixture/src/rust/crates/fathomdb-py" "$work/bin" "$fixture/.venv/bin"
 cp "$root/src/python/pyproject.toml" "$fixture/src/python/"
+cp "$root/src/rust/crates/fathomdb-py/Cargo.toml" "$fixture/src/rust/crates/fathomdb-py/"
 printf '{}\n' > "$fixture/src/ts/package.json"
 git -C "$fixture" init -q
 git -C "$fixture" -c user.name=Fixture -c user.email=fixture@example.invalid commit --allow-empty -qm fixture
@@ -62,7 +63,85 @@ printf '#!/usr/bin/env bash\nprintf "version: 0.11.0\\n"\n' > "$work/bin/shellch
 chmod +x "$work/bin/"*
 export S10_FAKE_PYTHON="$work/python"
 export PATH="$work/bin:$PATH"
+assert_build_selection() {
+  /usr/bin/python3 - "$1" "$2" <<'PY'
+import json,os,sys
+from pathlib import Path
+features,compatibility=sys.argv[1:]
+calls=Path(os.environ['S10_CALLS']).read_text().splitlines()
+builds=[line.split('|')[1:] for line in calls if line.startswith('python|-m|maturin|build|')]
+assert len(builds)==1, builds
+args=builds[0]
+assert args[:4]==['-m','maturin','build','--locked'], args
+assert '--release' in args, args
+assert args.count('--features')==1 and args[args.index('--features')+1]==features, args
+if compatibility:
+    assert args.count('--compatibility')==1 and args[args.index('--compatibility')+1]==compatibility, args
+else:
+    assert '--compatibility' not in args, args
+receipt=json.loads((Path(os.environ['S10_FIXTURE'])/'.cache/agent/python-native.json').read_text())
+assert receipt['features']==features, receipt
+assert receipt['compatibility']==(compatibility or None), receipt
+assert any(line.startswith('python|-m|pip|install|--force-reinstall|--no-deps|') for line in calls), calls
+assert any('S10_NATIVE_PROBE' in line for line in calls), calls
+PY
+}
 case "${1:-bootstrap}" in
+ default)
+  (cd "$fixture"; bash "$root/scripts/setup-python-owned.sh")
+  assert_build_selection 'pyo3/extension-module,default-embedder,default-reranker' ''
+  echo 'PASS default build preserves Pyproject features and compatibility policy'
+  ;;
+ cuda)
+  # shellcheck source=../release/cuda-artifact-contract.sh
+  . "$root/scripts/release/cuda-artifact-contract.sh"
+  (cd "$fixture"; bash "$root/scripts/setup-python-owned.sh" --build --features "$CUDA_PYTHON_FEATURES" --compatibility linux)
+  assert_build_selection 'pyo3/extension-module,embed-cuda' linux
+  echo 'PASS CUDA build selects contract features and host compatibility in argv and receipt'
+  ;;
+ observer)
+  (cd "$fixture"; bash "$root/scripts/setup-python-owned.sh" --provision --compatibility linux --features pyo3/extension-module,embed-cuda,rerank-cuda,cuda-pool-observer)
+  assert_build_selection 'pyo3/extension-module,embed-cuda,rerank-cuda,cuda-pool-observer' linux
+  grep -Fq 'python|-m|pip|install|pytest' "$S10_CALLS"
+  echo 'PASS provision supports a separately selected reranking observer counterpart'
+  ;;
+ refusal)
+  refuse() {
+    : > "$S10_CALLS"
+    if (cd "$fixture"; bash "$root/scripts/setup-python-owned.sh" "$@"); then
+      echo "FAIL invalid setup arguments accepted: $*" >&2; exit 1
+    fi
+    if grep -Eq 'python\|-m\|(maturin\|build|pip\|install)\|' "$S10_CALLS"; then
+      echo "FAIL invalid setup arguments reached build/install: $*" >&2; exit 1
+    fi
+  }
+  refuse --provision --features pyo3/extension-module,unknown-feature
+  refuse --provision --features pyo3/extension-module,fathomdb-engine/embed-cuda
+  refuse --provision --features embed-cuda
+  refuse --provision --features pyo3/extension-module,embed-cuda,embed-cuda
+  refuse --provision --features pyo3/extension-module,
+  refuse --provision --features ,pyo3/extension-module
+  refuse --provision --features pyo3/extension-module,,embed-cuda
+  refuse --provision --features 'pyo3/extension-module, embed-cuda'
+  # shellcheck disable=SC2016 # The unexpanded shell text is the invalid input.
+  refuse --provision --features 'pyo3/extension-module,$(touch injected)'
+  refuse --provision --features ''
+  refuse --provision --features
+  refuse --provision --features --compatibility linux
+  refuse --provision --features pyo3/extension-module --features pyo3/extension-module
+  refuse --provision --compatibility ''
+  refuse --provision --compatibility manylinux_2_28
+  refuse --provision --compatibility
+  refuse --provision --compatibility linux --compatibility linux
+  refuse --provision --unknown-option
+  refuse --build --provision
+  refuse --build extra
+  refuse --check-ownership --features pyo3/extension-module
+  refuse --check-ownership --compatibility linux
+  test ! -e "$fixture/.cache/agent/python-native.json"
+  test ! -e "$fixture/injected"
+  echo 'PASS malformed/unknown/repeated selections stop before build/install'
+  ;;
  bootstrap)
   (cd "$fixture"; bash "$root/scripts/bootstrap-heavy.sh")
   if grep -Fq '|install|-e|' "$S10_CALLS"; then echo 'FAIL setup caller still installs editable Python' >&2; exit 1; fi

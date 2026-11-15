@@ -4,8 +4,36 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root"
-mode="${1:---build}"
+mode=--build
+if [ "$#" -gt 0 ]; then mode="$1"; shift; fi
 case "$mode" in --check-ownership|--provision|--build) ;; *) echo 'setup-python-owned: use --check-ownership, --provision or --build' >&2; exit 2 ;; esac
+features=''
+compatibility=''
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --features|--compatibility)
+      if [ "$#" -lt 2 ] || [ -z "$2" ]; then
+        echo "setup-python-owned: $1 requires a nonempty value" >&2; exit 2
+      fi
+      case "$1" in
+        --features)
+          if [ -n "$features" ]; then echo 'setup-python-owned: repeated --features' >&2; exit 2; fi
+          features="$2"
+          ;;
+        --compatibility)
+          if [ -n "$compatibility" ]; then echo 'setup-python-owned: repeated --compatibility' >&2; exit 2; fi
+          if [ "$2" != linux ]; then echo 'setup-python-owned: only --compatibility linux is supported' >&2; exit 2; fi
+          compatibility="$2"
+          ;;
+      esac
+      shift 2
+      ;;
+    *) echo "setup-python-owned: unknown argument $1" >&2; exit 2 ;;
+  esac
+done
+if [ "$mode" = --check-ownership ] && { [ -n "$features" ] || [ -n "$compatibility" ]; }; then
+  echo 'setup-python-owned: --check-ownership accepts no build options' >&2; exit 2
+fi
 if [ -L .venv ]; then echo 'setup-python-owned: .venv must be owned by this checkout, not a symlink' >&2; exit 1; fi
 if [ -n "${VIRTUAL_ENV:-}" ] && [ "$VIRTUAL_ENV" != "$repo_root/.venv" ]; then
   echo 'setup-python-owned: foreign VIRTUAL_ENV; use this checkout environment' >&2; exit 1
@@ -32,7 +60,7 @@ fi
 if [ ! -x .venv/bin/python ]; then
   echo 'setup-python-owned: checkout-owned .venv/bin/python missing; provision this checkout first' >&2; exit 1
 fi
-.venv/bin/python - "$mode" "$repo_root" <<'PY'
+.venv/bin/python - "$mode" "$repo_root" "$features" "$compatibility" <<'PY'
 import hashlib,json,os,pathlib,subprocess,sys,tempfile,tomllib
 root=pathlib.Path(sys.argv[2]).resolve(); venv=root/'.venv'; python=venv/'bin/python'
 def run(args,**kwargs):
@@ -47,6 +75,15 @@ for path in (venv,root/'node_modules',root/'src/ts/node_modules'):
 if pathlib.Path(sys.prefix).resolve()!=venv:
     raise SystemExit('setup-python-owned: interpreter prefix is foreign; refusing package installation')
 config=tomllib.loads((root/'src/python/pyproject.toml').read_text())
+features=sys.argv[3] or ','.join(config['tool']['maturin']['features'])
+compatibility=sys.argv[4] or None
+manifest=root/'src/python'/config['tool']['maturin']['manifest-path']
+allowed=set(tomllib.loads(manifest.read_text())['features'])|{'pyo3/extension-module'}
+selected=features.split(',')
+if len(set(selected))!=len(selected) or any(feature not in allowed for feature in selected):
+    raise SystemExit('setup-python-owned: features must be distinct exact Python Cargo feature names')
+if 'pyo3/extension-module' not in selected:
+    raise SystemExit('setup-python-owned: features require pyo3/extension-module')
 run([python,'-m','pip','--version'])
 if sys.argv[1]=='--provision':
     run([python,'-m','pip','install',*config['project']['optional-dependencies']['dev']])
@@ -55,9 +92,11 @@ for name in ('ruff','pyright'):
     found=run([venv/'bin'/name,'--version'],capture_output=True,text=True).stdout.strip()
     if not found or found.splitlines()[0]!=f'{name} {pin}':
         raise SystemExit(f'setup-python-owned: {name} pin mismatch: {found!r}, want {pin}')
-features=','.join(config['tool']['maturin']['features'])
 output=pathlib.Path(tempfile.mkdtemp(prefix='fathomdb-owned-python-'))
-run([python,'-m','maturin','build','--locked','--release','--interpreter',python,'--features',features,'--out',output],cwd=root/'src/python')
+build=[python,'-m','maturin','build','--locked','--release','--interpreter',python,'--features',features,'--out',output]
+if compatibility is not None:
+    build.extend(['--compatibility',compatibility])
+run(build,cwd=root/'src/python')
 wheels=list(output.glob('*.whl'))
 if len(wheels)!=1:
     raise SystemExit(f'setup-python-owned: expected one wheel, got {wheels}')
@@ -76,7 +115,7 @@ if pathlib.Path(native['prefix']).resolve()!=venv or not module.is_relative_to(v
     raise SystemExit('setup-python-owned: installed native identity is foreign or changed')
 sha=run(['git','rev-parse','HEAD'],cwd=root,capture_output=True,text=True).stdout.strip()
 delta=run(['git','diff','HEAD','--binary'],cwd=root,capture_output=True).stdout
-receipt={'schema':'fathomdb.owned-python/v1','source_sha':sha,'source_delta_sha256':hashlib.sha256(delta).hexdigest(),'lock_sha256':digest(root/'Cargo.lock') if (root/'Cargo.lock').exists() else None,'features':features,'wheel':str(wheel),'wheel_sha256':digest(wheel),'interpreter':str(python),'native':native}
+receipt={'schema':'fathomdb.owned-python/v1','source_sha':sha,'source_delta_sha256':hashlib.sha256(delta).hexdigest(),'lock_sha256':digest(root/'Cargo.lock') if (root/'Cargo.lock').exists() else None,'features':features,'compatibility':compatibility,'wheel':str(wheel),'wheel_sha256':digest(wheel),'interpreter':str(python),'native':native}
 destination=root/'.cache/agent/python-native.json';destination.parent.mkdir(parents=True,exist_ok=True)
 with tempfile.NamedTemporaryFile(mode='w',dir=destination.parent,delete=False) as temporary:
     json.dump(receipt,temporary,indent=2);temporary.write('\n');temporary.flush();os.fsync(temporary.fileno());name=temporary.name

@@ -20,8 +20,8 @@ use std::sync::Arc;
 #[cfg(feature = "test-hooks")]
 use fathomdb_embedder::NoopEmbedder;
 use fathomdb_engine::{
-    fuse_rrf, fuse_three_arms, IdSpace, SearchHit, SoftFallbackBranch, RRF_K, RRF_WEIGHT_GRAPH,
-    RRF_WEIGHT_TEXT, RRF_WEIGHT_VECTOR,
+    fuse_rrf, fuse_three_arms, FusionHit, FusionOwnership, IdSpace, SearchHit, SoftFallbackBranch,
+    RRF_K, RRF_WEIGHT_GRAPH, RRF_WEIGHT_TEXT, RRF_WEIGHT_VECTOR,
 };
 #[cfg(feature = "test-hooks")]
 use fathomdb_engine::{Engine, InitialState, PreparedWrite, SourceId, TestEmbedderChoice};
@@ -31,20 +31,23 @@ use proptest::prelude::*;
 #[cfg(feature = "test-hooks")]
 use tempfile::TempDir;
 
-fn hit(cursor: u64, body: &str, branch: SoftFallbackBranch) -> SearchHit {
-    SearchHit {
-        id: IdSpace::content(cursor.to_string()),
-        write_cursor: cursor,
-        kind: "doc".to_string(),
-        body: body.to_string(),
-        score: 0.0,
-        branch,
-        source_id: None,
-        ce_score: None,
+fn hit(cursor: u64, body: &str, branch: SoftFallbackBranch) -> FusionHit {
+    FusionHit {
+        ownership: FusionOwnership::CanonicalNode,
+        hit: SearchHit {
+            id: IdSpace::content(cursor.to_string()),
+            write_cursor: cursor,
+            kind: "doc".to_string(),
+            body: body.to_string(),
+            score: 0.0,
+            branch,
+            source_id: None,
+            ce_score: None,
+        },
     }
 }
 
-fn text(cursor: u64, body: &str) -> SearchHit {
+fn text(cursor: u64, body: &str) -> FusionHit {
     hit(cursor, body, SoftFallbackBranch::Text)
 }
 
@@ -52,7 +55,7 @@ fn rrf(weight: f64, rank1: usize) -> f64 {
     weight / (RRF_K + rank1 as f64)
 }
 
-fn bodies(hits: &[SearchHit]) -> Vec<&str> {
+fn fusion_bodies(hits: &[FusionHit]) -> Vec<&str> {
     hits.iter().map(|h| h.body.as_str()).collect()
 }
 
@@ -64,19 +67,19 @@ fn bodies(hits: &[SearchHit]) -> Vec<&str> {
 /// 13 and 14 must not outrank the distinct rank-1 body.
 #[test]
 fn single_arm_equal_body_records_do_not_outrank_higher_ranked_record() {
-    let mut arm: Vec<SearchHit> =
+    let mut arm: Vec<FusionHit> =
         (0..12).map(|i| text(100 + i, &format!("distinct {i:02}"))).collect();
     arm.push(text(200, "duplicate body"));
     arm.push(text(201, "duplicate body"));
     arm.extend((12..20).map(|i| text(100 + i, &format!("distinct {i:02}"))));
 
-    let fused = fuse_three_arms(Vec::new(), arm, Vec::new());
+    let fused = fuse_three_arms(Vec::new(), arm, Vec::new()).unwrap();
 
     assert_eq!(
         fused[0].body,
         "distinct 00",
         "the rank-1 distinct body must stay first; fused order was {:?}",
-        bodies(&fused)
+        fusion_bodies(&fused)
     );
     let dup = fused.iter().position(|h| h.body == "duplicate body").expect("duplicate present");
     assert_eq!(dup, 12, "the duplicate keeps its first-occurrence place (13th)");
@@ -88,9 +91,9 @@ fn single_arm_equal_body_records_do_not_outrank_higher_ranked_record() {
 fn single_arm_repeated_record_scores_once_at_first_occurrence_rank() {
     let arm = vec![text(1, "a"), text(2, "dup"), text(3, "b"), text(2, "dup")];
 
-    let fused = fuse_three_arms(Vec::new(), arm, Vec::new());
+    let fused = fuse_three_arms(Vec::new(), arm, Vec::new()).unwrap();
 
-    assert_eq!(bodies(&fused), vec!["a", "dup", "b"]);
+    assert_eq!(fusion_bodies(&fused), vec!["a", "dup", "b"]);
     assert_eq!(fused[0].score, rrf(RRF_WEIGHT_TEXT, 1), "a = w_text/(K+1)");
     assert_eq!(
         fused[1].score,
@@ -105,7 +108,7 @@ fn single_arm_repeated_record_scores_once_at_first_occurrence_rank() {
 fn repeated_record_representative_is_first_occurrence() {
     let arm = vec![text(10, "x"), text(20, "dup"), text(20, "dup")];
 
-    let fused = fuse_three_arms(Vec::new(), arm, Vec::new());
+    let fused = fuse_three_arms(Vec::new(), arm, Vec::new()).unwrap();
 
     let dup = fused.iter().find(|h| h.body == "dup").expect("dup present");
     assert_eq!(dup.write_cursor, 20, "first occurrence's cursor is kept");
@@ -126,9 +129,9 @@ fn vector_arm_repeated_record_scores_once() {
         hit(1, "dup", SoftFallbackBranch::Vector),
     ];
 
-    let fused = fuse_three_arms(arm, Vec::new(), Vec::new());
+    let fused = fuse_three_arms(arm, Vec::new(), Vec::new()).unwrap();
 
-    assert_eq!(bodies(&fused), vec!["dup", "x"]);
+    assert_eq!(fusion_bodies(&fused), vec!["dup", "x"]);
     assert_eq!(fused[0].score, rrf(RRF_WEIGHT_VECTOR, 1), "dup = w_vec/(K+1) only");
 }
 
@@ -141,9 +144,9 @@ fn graph_arm_repeated_record_scores_once() {
         hit(2, "dup", SoftFallbackBranch::GraphArm),
     ];
 
-    let fused = fuse_three_arms(Vec::new(), Vec::new(), arm);
+    let fused = fuse_three_arms(Vec::new(), Vec::new(), arm).unwrap();
 
-    assert_eq!(bodies(&fused), vec!["g", "dup"]);
+    assert_eq!(fusion_bodies(&fused), vec!["g", "dup"]);
     assert_eq!(fused[1].score, rrf(RRF_WEIGHT_GRAPH, 2), "dup = w_graph/(K+2) only");
 }
 
@@ -155,7 +158,7 @@ fn duplicate_dedupe_is_per_arm_not_global() {
     let vector = vec![hit(1, "dup", SoftFallbackBranch::Vector)];
     let text_arm = vec![text(1, "dup"), text(1, "dup")];
 
-    let fused = fuse_rrf(vector, text_arm);
+    let fused = fuse_rrf(vector, text_arm).unwrap();
 
     assert_eq!(fused.len(), 1);
     assert_eq!(
@@ -173,7 +176,7 @@ fn cross_arm_agreement_still_accumulates_with_in_arm_duplicates() {
     let vector = vec![hit(9, "agree", SoftFallbackBranch::Vector)];
     let text_arm = vec![text(1, "t0"), text(9, "agree"), text(9, "agree")];
 
-    let fused = fuse_rrf(vector, text_arm);
+    let fused = fuse_rrf(vector, text_arm).unwrap();
 
     assert_eq!(fused[0].body, "agree");
     assert_eq!(
@@ -192,7 +195,7 @@ fn three_arm_agreement_sums_one_term_per_arm() {
     let text_arm = vec![text(6, "t0"), text(7, "t1"), text(1, "all")];
     let graph = vec![hit(1, "all", SoftFallbackBranch::GraphArm)];
 
-    let fused = fuse_three_arms(vector, text_arm, graph);
+    let fused = fuse_three_arms(vector, text_arm, graph).unwrap();
 
     let all = fused.iter().find(|h| h.body == "all").expect("all present");
     assert_eq!(
@@ -211,12 +214,12 @@ fn three_arm_agreement_sums_one_term_per_arm() {
 /// across arms in vector, text, graph order; sort by score descending, then
 /// vector-first, then first-insertion order.
 fn reference_fusion(
-    vector: &[SearchHit],
-    text_arm: &[SearchHit],
-    graph: &[SearchHit],
-) -> Vec<SearchHit> {
+    vector: &[FusionHit],
+    text_arm: &[FusionHit],
+    graph: &[FusionHit],
+) -> Vec<FusionHit> {
     struct Entry {
-        hit: SearchHit,
+        hit: FusionHit,
         score: f64,
         in_vector: bool,
         order: usize,
@@ -259,7 +262,7 @@ fn reference_fusion(
         .collect()
 }
 
-fn arm_from(symbols: &[u8], branch: SoftFallbackBranch) -> Vec<SearchHit> {
+fn arm_from(symbols: &[u8], branch: SoftFallbackBranch) -> Vec<FusionHit> {
     symbols.iter().map(|s| hit(1000 + u64::from(*s), &format!("body-{}", s % 3), branch)).collect()
 }
 
@@ -276,7 +279,7 @@ proptest! {
         symbols in prop::collection::vec(0u8..8, 0..40),
     ) {
         let arm = arm_from(&symbols, SoftFallbackBranch::Text);
-        let fused = fuse_three_arms(Vec::new(), arm.clone(), Vec::new());
+        let fused = fuse_three_arms(Vec::new(), arm.clone(), Vec::new()).unwrap();
 
         let mut first_rank: Vec<(u64, usize)> = Vec::new();
         let mut seen = HashSet::new();
@@ -308,7 +311,7 @@ proptest! {
         let graph = arm_from(&g, SoftFallbackBranch::GraphArm);
 
         let expected = reference_fusion(&vector, &text_arm, &graph);
-        let fused = fuse_three_arms(vector, text_arm, graph);
+        let fused = fuse_three_arms(vector, text_arm, graph).unwrap();
         prop_assert_eq!(fused, expected);
     }
 
@@ -325,7 +328,7 @@ proptest! {
         let graph = arm_from(&distinct_in_order(g), SoftFallbackBranch::GraphArm);
 
         let expected = reference_fusion(&vector, &text_arm, &graph);
-        let fused = fuse_three_arms(vector, text_arm, graph);
+        let fused = fuse_three_arms(vector, text_arm, graph).unwrap();
         prop_assert_eq!(fused, expected);
     }
 
@@ -340,8 +343,8 @@ proptest! {
         let text_arm = arm_from(&t, SoftFallbackBranch::Text);
 
         prop_assert_eq!(
-            fuse_rrf(vector.clone(), text_arm.clone()),
-            fuse_three_arms(vector, text_arm, Vec::new())
+            fuse_rrf(vector.clone(), text_arm.clone()).unwrap(),
+            fuse_three_arms(vector, text_arm, Vec::new()).unwrap()
         );
     }
 }
@@ -349,6 +352,10 @@ proptest! {
 // ---------------------------------------------------------------------------
 // End to end through `Engine::search_text_only*` (real database)
 // ---------------------------------------------------------------------------
+
+fn bodies(hits: &[SearchHit]) -> Vec<&str> {
+    hits.iter().map(|hit| hit.body.as_str()).collect()
+}
 
 #[cfg(feature = "test-hooks")]
 fn open(dir: &TempDir, name: &str) -> fathomdb_engine::OpenedEngine {

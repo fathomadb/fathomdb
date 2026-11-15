@@ -16,25 +16,28 @@ use std::sync::Arc;
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{
-    fuse_rrf, fuse_three_arms, rerank_fused, Engine, ExtractDocument, IdSpace, PreparedWrite,
-    SearchHit, SoftFallback, SoftFallbackBranch, RRF_K, RRF_WEIGHT_GRAPH, RRF_WEIGHT_TEXT,
-    RRF_WEIGHT_VECTOR,
+    fuse_rrf, fuse_three_arms, rerank_fused, Engine, ExtractDocument, FusionHit, FusionOwnership,
+    IdSpace, PreparedWrite, SearchHit, SoftFallback, SoftFallbackBranch, RRF_K, RRF_WEIGHT_GRAPH,
+    RRF_WEIGHT_TEXT, RRF_WEIGHT_VECTOR,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use tempfile::TempDir;
 
-fn hit(id: u64, body: &str, branch: SoftFallbackBranch) -> SearchHit {
-    SearchHit {
-        // C-2 (0.8.19): synthetic test id-space carrier; the reweight/fusion
-        // book-keeping keys on `write_cursor`, not `id`.
-        id: IdSpace::content(id.to_string()),
-        write_cursor: id,
-        kind: "doc".to_string(),
-        body: body.to_string(),
-        score: 0.0,
-        branch,
-        source_id: None,
-        ce_score: None,
+fn hit(id: u64, body: &str, branch: SoftFallbackBranch) -> FusionHit {
+    FusionHit {
+        ownership: FusionOwnership::CanonicalNode,
+        hit: SearchHit {
+            // C-2 (0.8.19): synthetic test id-space carrier; the reweight/fusion
+            // book-keeping keys on `write_cursor`, not `id`.
+            id: IdSpace::content(id.to_string()),
+            write_cursor: id,
+            kind: "doc".to_string(),
+            body: body.to_string(),
+            score: 0.0,
+            branch,
+            source_id: None,
+            ce_score: None,
+        },
     }
 }
 
@@ -45,7 +48,8 @@ fn rrf_formula_single_branch_ranks() {
     let fused = fuse_rrf(
         vec![hit(1, "a", SoftFallbackBranch::Vector), hit(2, "b", SoftFallbackBranch::Vector)],
         Vec::new(),
-    );
+    )
+    .unwrap();
     assert_eq!(fused.iter().map(|h| h.body.as_str()).collect::<Vec<_>>(), vec!["a", "b"]);
     assert!(
         (fused[0].score - RRF_WEIGHT_VECTOR / (RRF_K + 1.0)).abs() < 1e-12,
@@ -67,7 +71,7 @@ fn rrf_agreement_outranks_single_branch() {
     ];
     let text =
         vec![hit(1, "agree", SoftFallbackBranch::Text), hit(3, "tonly", SoftFallbackBranch::Text)];
-    let fused = fuse_rrf(vector, text);
+    let fused = fuse_rrf(vector, text).unwrap();
 
     assert_eq!(fused[0].body, "agree", "both-branch hit ranks first");
     assert!(
@@ -92,7 +96,7 @@ fn rrf_text_weighted_outranks_vector_at_equal_rank() {
     ];
     let text =
         vec![hit(1, "agree", SoftFallbackBranch::Text), hit(3, "tonly", SoftFallbackBranch::Text)];
-    let fused = fuse_rrf(vector, text);
+    let fused = fuse_rrf(vector, text).unwrap();
 
     assert_eq!(
         fused.iter().map(|h| h.body.as_str()).collect::<Vec<_>>(),
@@ -110,12 +114,12 @@ fn rrf_vector_first_on_exact_score_tie() {
     // that exact tie and assert the vector hit sorts first.
     let r = ((RRF_WEIGHT_TEXT / RRF_WEIGHT_VECTOR) * (RRF_K + 1.0) - RRF_K) as usize;
     assert!(r >= 1, "constructed tie rank must be valid");
-    let mut text: Vec<SearchHit> = (1..r)
+    let mut text: Vec<FusionHit> = (1..r)
         .map(|i| hit(1000 + i as u64, &format!("filler{i}"), SoftFallbackBranch::Text))
         .collect();
     text.push(hit(2, "tie", SoftFallbackBranch::Text)); // text rank r
     let vector = vec![hit(1, "vtie", SoftFallbackBranch::Vector)]; // vector rank 1
-    let fused = fuse_rrf(vector, text);
+    let fused = fuse_rrf(vector, text).unwrap();
 
     let vpos = fused.iter().position(|h| h.body == "vtie").expect("vtie present");
     let tpos = fused.iter().position(|h| h.body == "tie").expect("tie present");
@@ -128,7 +132,11 @@ fn rerank_fused_is_identity_stub() {
     // 0.8.1 Slice 10 (R1): the signature changed to `rerank_fused(query, hits, depth)`.
     // At depth=0 the soft-fallback path must return the input unchanged —
     // byte-identical to the old identity stub. Spirit of the original test preserved.
-    let hits = vec![hit(1, "a", SoftFallbackBranch::Vector), hit(2, "b", SoftFallbackBranch::Text)];
+    let hits: Vec<SearchHit> =
+        vec![hit(1, "a", SoftFallbackBranch::Vector), hit(2, "b", SoftFallbackBranch::Text)]
+            .into_iter()
+            .map(|hit| hit.hit)
+            .collect();
     assert_eq!(rerank_fused("", hits.clone(), 0, 0.3, 0), hits);
 }
 
@@ -252,8 +260,8 @@ fn rrf_three_arm_determinism() {
         hit(11, "graph_reach_b", SoftFallbackBranch::GraphArm),
     ];
 
-    let first = fuse_three_arms(vector.clone(), text.clone(), graph.clone());
-    let second = fuse_three_arms(vector.clone(), text.clone(), graph.clone());
+    let first = fuse_three_arms(vector.clone(), text.clone(), graph.clone()).unwrap();
+    let second = fuse_three_arms(vector.clone(), text.clone(), graph.clone()).unwrap();
     assert_eq!(first, second, "fuse_three_arms must be deterministic (same result on two calls)");
 
     // The graph arm's weight contribution must use RRF_WEIGHT_GRAPH.
@@ -286,7 +294,7 @@ fn rrf_two_arm_formula_matches_manual_accumulation() {
     let text =
         vec![hit(1, "agree", SoftFallbackBranch::Text), hit(3, "tonly", SoftFallbackBranch::Text)];
 
-    let fused = fuse_rrf(vector, text);
+    let fused = fuse_rrf(vector, text).unwrap();
 
     // Manual accumulation using the published constants.
     let agree_expected = RRF_WEIGHT_VECTOR / (RRF_K + 1.0) + RRF_WEIGHT_TEXT / (RRF_K + 1.0);

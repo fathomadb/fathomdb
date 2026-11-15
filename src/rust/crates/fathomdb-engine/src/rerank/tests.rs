@@ -221,3 +221,46 @@ fn a_pool_kind_device_policy_failure_is_retried_not_memoized() {
         LoadFailure::Retry(refused)
     );
 }
+
+#[test]
+fn ce_blend_retains_exact_key_and_representative_through_reordering() {
+    use crate::fusion::{FusionHit, FusionOwnership};
+    let make = |ownership, source: &str, score| FusionHit {
+        ownership,
+        hit: SearchHit {
+            id: IdSpace::content("shared"),
+            write_cursor: 7,
+            kind: "doc".into(),
+            body: "same".into(),
+            score,
+            branch: SoftFallbackBranch::Text,
+            source_id: Some(source.into()),
+            ce_score: None,
+        },
+    };
+    let hits = vec![
+        make(FusionOwnership::CanonicalNode, "node", 2.0),
+        make(FusionOwnership::CanonicalEdge, "edge", 1.0),
+        make(FusionOwnership::OwnerlessNodeFts { rowid: 999 }, "ownerless", 0.01),
+    ];
+    let ranked = blend_ce_ranked(&hits, vec![0.0, 1.0], 1.0, 2);
+    assert_eq!(ranked.len(), 3);
+    assert_eq!(
+        ranked.iter().map(|hit| hit.key()).collect::<Vec<_>>(),
+        [hits[1].key(), hits[0].key(), hits[2].key()]
+    );
+    for (output, input) in [(0, 1), (1, 0), (2, 2)] {
+        assert_eq!(ranked[output].id, hits[input].id);
+        assert_eq!(ranked[output].write_cursor, hits[input].write_cursor);
+        assert_eq!(ranked[output].kind, hits[input].kind);
+        assert_eq!(ranked[output].body, hits[input].body);
+        assert_eq!(ranked[output].source_id, hits[input].source_id);
+        assert_eq!(ranked[output].ownership, hits[input].ownership);
+    }
+    assert_eq!(ranked[0].score, 1.0 / (1.0 + (-1.0_f64).exp()));
+    assert_eq!(ranked[0].ce_score, Some(ranked[0].score));
+    assert_eq!(ranked[1].score, 0.5);
+    assert_eq!(ranked[1].ce_score, Some(0.5));
+    assert_eq!(ranked[2].score, 0.01);
+    assert_eq!(ranked[2].ce_score, None);
+}

@@ -1,3 +1,4 @@
+use crate::fusion::RankedHit;
 use std::sync::Arc;
 
 use crate::dependency_closure;
@@ -365,9 +366,9 @@ pub(crate) fn search_expand_in_tx(
 }
 
 /// Resolve and expand search hits on an already-pinned reader snapshot.
-pub(crate) fn search_expand_on_snapshot(
+pub(crate) fn search_expand_on_snapshot<H: RankedHit>(
     tx: &Connection,
-    search_hits: &[SearchHit],
+    search_hits: &[H],
     depth: u32,
     frozen: FrozenView,
     filter: Option<&SearchFilter>,
@@ -394,6 +395,7 @@ pub(crate) fn search_expand_on_snapshot(
              LIMIT 1"
         ))?;
         for hit in search_hits {
+            let hit = hit.hit();
             if hit.branch == SoftFallbackBranch::TextEdge {
                 // Edge-body hit: verify the edge row is still active in THIS snapshot.
                 // Stale edge hits (superseded between search and expansion) are dropped.
@@ -496,7 +498,7 @@ pub(crate) fn search_expand_on_snapshot(
     let resolved_hits: Vec<SearchHit> = search_hits
         .iter()
         .zip(hit_logical_ids.iter())
-        .filter_map(|(hit, lid)| lid.as_ref().map(|_| hit.clone()))
+        .filter_map(|(hit, lid)| lid.as_ref().map(|_| hit.hit().clone()))
         .collect();
 
     // Build `all_logical_ids` = resolved search-hit logical_ids + expanded node ids.

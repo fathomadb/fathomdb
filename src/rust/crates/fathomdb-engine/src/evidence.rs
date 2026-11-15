@@ -52,14 +52,6 @@ impl EvidenceArtifactClassV1 {
         }
     }
 
-    fn from_hit_branch(branch: SoftFallbackBranch) -> Self {
-        if branch == SoftFallbackBranch::TextEdge {
-            Self::Edge
-        } else {
-            Self::Node
-        }
-    }
-
     fn tag(self) -> u8 {
         match self {
             Self::Node => 0,
@@ -498,11 +490,14 @@ pub(crate) fn build_search_result(
     mut search_result: SearchResult,
     include_explanation: bool,
     graph_origins: &std::collections::HashMap<u64, crate::CapturedGraphOrigin>,
+    ownership: &[crate::fusion::FusionOwnership],
 ) -> Result<EvidenceSearchResultV1, EngineError> {
     let explanation = search_result.explanation.as_ref().ok_or_else(|| {
         EvidenceErrorV1::new(EvidenceErrorReasonV1::EvidenceCorrupt, "/explanation")
     })?;
-    if explanation.per_hit.len() != search_result.results.len() {
+    if explanation.per_hit.len() != search_result.results.len()
+        || ownership.len() != search_result.results.len()
+    {
         return Err(EvidenceErrorV1::new(
             EvidenceErrorReasonV1::EvidenceCorrupt,
             "/explanation/perHit",
@@ -525,7 +520,13 @@ pub(crate) fn build_search_result(
             )
             .into());
         }
-        let artifact_class = EvidenceArtifactClassV1::from_hit_branch(hit.branch);
+        let artifact_class = match ownership[index] {
+            crate::fusion::FusionOwnership::CanonicalNode => EvidenceArtifactClassV1::Node,
+            crate::fusion::FusionOwnership::CanonicalEdge => EvidenceArtifactClassV1::Edge,
+            crate::fusion::FusionOwnership::OwnerlessNodeFts { .. } => {
+                return Err(EvidenceErrorV1::unavailable().into())
+            }
+        };
         let graph_origin = if hit.branch == SoftFallbackBranch::GraphArm {
             Some(graph_origins.get(&hit.write_cursor).cloned().ok_or_else(|| {
                 EvidenceErrorV1::new(

@@ -306,6 +306,7 @@ fn record_unique_tagged_twins_keep_public_helper_ids_and_duplicate_pack_refusal(
     }
     let policy = ContextPolicy {
         budget_chars: 1000,
+        full_items: 0,
         full_ids: labeled.iter().map(|item| item.id.clone()).collect(),
         ..ContextPolicy::default()
     };

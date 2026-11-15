@@ -754,7 +754,8 @@ pub(crate) fn body_fts_rank_sql_view(
     let existence = view.ownerless_existence_sql("cn");
     format!(
         "SELECT search_index.body, search_index.kind, search_index.write_cursor, \
-         bm25(search_index), cn.logical_id, cn.source_id, search_index.rowid FROM search_index \
+         bm25(search_index), cn.logical_id, cn.source_id, search_index.rowid, cn.write_cursor, \
+         search_index.body IS cn.body, search_index.kind IS cn.kind FROM search_index \
          LEFT JOIN canonical_nodes cn ON cn.write_cursor = search_index.write_cursor \
          WHERE search_index MATCH ?1 {existence}{validity}{lifecycle}{eligibility} \
          ORDER BY bm25(search_index), search_index.write_cursor{limit_clause}"
@@ -770,7 +771,7 @@ pub(crate) fn edge_fts_rank_sql_view(validity: &str, eligibility: &str, view: &R
     let existence = view.edge_existence_sql("ce");
     format!(
         "SELECT sei.body, sei.kind, sei.write_cursor, bm25(search_index_edges), \
-         ce.logical_id, ce.source_id, sei.rowid \
+         ce.logical_id, ce.source_id, sei.rowid, sei.body IS ce.body, sei.kind IS ce.kind \
          FROM search_index_edges sei \
          JOIN canonical_edges ce ON ce.write_cursor = sei.write_cursor \
          WHERE search_index_edges MATCH ?1 {existence}{validity}{eligibility} \

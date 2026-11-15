@@ -35,6 +35,15 @@ def _status(failures: list[str], invalid: list[str]) -> str:
     return "FAIL" if failures else "UNMEASURED" if invalid else "PASS"
 
 
+def _counter_failure(point: dict, pool_mode: str) -> str | None:
+    status = point.get("counter_status")
+    if pool_mode == "on" and (status != "ok" or any(not _number(point.get(f)) or point[f] < 0 for f in ("private_reserved_bytes", "private_used_bytes"))):
+        return f"private counter unavailable or read failed: {status}"
+    if pool_mode == "off" and (status != "no_private_pool" or point.get("private_reserved_bytes") is not None or point.get("private_used_bytes") is not None):
+        return f"off counter observation invalid (requires no-private, not fabricated zeros): {status}"
+    return None
+
+
 def evaluate_arm(arm: dict) -> dict:
     """Check frozen E measurement criteria, preserving failures and invalid experiment reasons.
 
@@ -64,6 +73,11 @@ def evaluate_arm(arm: dict) -> dict:
             invalid.append("sample deadline invalidated the experiment")
         else:
             failures.append(f"campaign aborted: {arm['aborted']}")
+    available_points = ([baseline] if isinstance(baseline, dict) else []) + [p for p in samples if isinstance(p, dict)]
+    if any(_number(p.get(f)) and p[f] > 0 for p in available_points for f in ("errors", "mismatches")):
+        failures.append("operation errors or output mismatches")
+    counter_failures = list(dict.fromkeys(reason for p in available_points if (reason := _counter_failure(p, arm.get("pool_mode")))))
+    failures.extend(counter_failures)
     if not isinstance(baseline, dict) or len(samples) != SAMPLE_COUNT or not all(isinstance(p, dict) for p in samples):
         invalid.append("separate baseline and exactly 60 scheduled samples required")
     else:
@@ -80,8 +94,6 @@ def evaluate_arm(arm: dict) -> dict:
                 invalid.append("samples require advancing monotonic time and completed work")
             if any(p["vm_swap_bytes"] != 0 or p["pswpin"] != baseline["pswpin"] or p["pswpout"] != baseline["pswpout"] for p in points):
                 invalid.append("process or host swap invalidates the experiment")
-            if any(p["errors"] != 0 or p["mismatches"] != 0 for p in points):
-                failures.append("operation errors or output mismatches")
             if not invalid:
                 terminal = samples[30:]
                 result.update(terminal_count=len(terminal), rss_slope_mib_per_min=_slope(terminal, "rss_bytes"),
@@ -91,16 +103,12 @@ def evaluate_arm(arm: dict) -> dict:
                 if result["rss_slope_mib_per_min"] > 0.5 or result["rss_median_growth_mib"] > 16:
                     failures.append("terminal RSS slope or median growth exceeds frozen bound")
         if arm.get("pool_mode") == "on":
-            if any(p.get("counter_status") != "ok" or any(not _number(p.get(f)) or p[f] < 0 for f in ("private_reserved_bytes", "private_used_bytes")) for p in points):
-                failures.append("private counter unavailable or read failed")
-            elif not invalid:
+            if not invalid and not counter_failures:
                 terminal = samples[30:]
                 result["reserved_range_mib"] = (max(p["private_reserved_bytes"] for p in terminal) - min(p["private_reserved_bytes"] for p in terminal)) / MIB
                 result["reserved_median_growth_mib"] = _median(terminal[-5:], "private_reserved_bytes") - _median(terminal[:5], "private_reserved_bytes")
                 if result["reserved_range_mib"] > 32 or result["reserved_median_growth_mib"] > 16:
                     failures.append("terminal private reservation range or growth exceeds frozen bound")
-        elif arm.get("pool_mode") == "off" and any(p.get("counter_status") != "no_private_pool" or p.get("private_reserved_bytes") is not None or p.get("private_used_bytes") is not None for p in points):
-            failures.append("off arm must report named no-private counters, not fabricated zeros")
     result.update(status=_status(failures, invalid), reasons=failures + invalid)
     return result
 

@@ -620,75 +620,82 @@ impl CandleBgeEmbedder {
         weights: LoadedWeights,
         device: Device,
     ) -> Result<Self, EmbedderLoadError> {
-        // Design §8: safetensors are little-endian; we never run on BE.
-        // Tightened in EU-5d follow-up from a debug_assert into a
-        // compile-time error so BE builds fail at `cargo build` rather
-        // than panicking at runtime in debug mode.
+        let scope = crate::cuda_operation::CudaOperation::on(
+            &device,
+            crate::cuda_pool_policy::MODEL_LOAD_OPERATION,
+        );
+        scope.run(crate::cuda_pool_policy::CudaPoolFailure::into_embedder_load_error, move || {
+            // Design §8: safetensors are little-endian; we never run on BE.
+            // Tightened in EU-5d follow-up from a debug_assert into a
+            // compile-time error so BE builds fail at `cargo build` rather
+            // than panicking at runtime in debug mode.
 
-        // 1. Parse config.json.
-        let config_bytes = std::fs::read(&weights.config_json_path).map_err(|source| {
-            EmbedderLoadError::CacheIoError { path: weights.config_json_path.clone(), source }
-        })?;
-        let config: BertConfig =
-            serde_json::from_slice(&config_bytes).map_err(|e| EmbedderLoadError::CacheIoError {
-                path: weights.config_json_path.clone(),
-                source: std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string()),
+            // 1. Parse config.json.
+            let config_bytes = std::fs::read(&weights.config_json_path).map_err(|source| {
+                EmbedderLoadError::CacheIoError { path: weights.config_json_path.clone(), source }
+            })?;
+            let config: BertConfig = serde_json::from_slice(&config_bytes).map_err(|e| {
+                EmbedderLoadError::CacheIoError {
+                    path: weights.config_json_path.clone(),
+                    source: std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string()),
+                }
             })?;
 
-        // Runtime dim sanity (codex-checklist item): the pinned shape must
-        // match our public dim constant. If a future revision bump changes
-        // hidden_size, fail loudly here.
-        if config.hidden_size != DEFAULT_EMBEDDER_DIM as usize {
-            // Distinct from `ModelDeserialize`: the bytes parsed cleanly
-            // but the pinned model's `hidden_size` disagrees with our
-            // compile-time `DEFAULT_EMBEDDER_DIM`. This always points at
-            // a deliberate model/version drift — see design §9 row
-            // "DimensionMismatch".
-            return Err(EmbedderLoadError::DimensionMismatch {
-                expected: DEFAULT_EMBEDDER_DIM,
-                actual: config.hidden_size as u32,
-            });
-        }
+            // Runtime dim sanity (codex-checklist item): the pinned shape must
+            // match our public dim constant. If a future revision bump changes
+            // hidden_size, fail loudly here.
+            if config.hidden_size != DEFAULT_EMBEDDER_DIM as usize {
+                // Distinct from `ModelDeserialize`: the bytes parsed cleanly
+                // but the pinned model's `hidden_size` disagrees with our
+                // compile-time `DEFAULT_EMBEDDER_DIM`. This always points at
+                // a deliberate model/version drift — see design §9 row
+                // "DimensionMismatch".
+                return Err(EmbedderLoadError::DimensionMismatch {
+                    expected: DEFAULT_EMBEDDER_DIM,
+                    actual: config.hidden_size as u32,
+                });
+            }
 
-        // 2. Load tokenizer.json and pin truncation to the model's 512-slot
-        // position-embedding window (design §2.1). `tokenizer.json` does not
-        // always carry a truncation policy, so set it programmatically; the
-        // tokenizer truncates AND re-applies `[SEP]` correctly (a raw token
-        // truncate would drop the trailing special token). Without this a
-        // >512-token document errors with "index-select invalid index 512".
-        let mut tokenizer = Tokenizer::from_file(&weights.tokenizer_json_path)
-            .map_err(|e| EmbedderLoadError::TokenizerLoad { source: e })?;
-        tokenizer
-            .with_truncation(Some(TruncationParams {
-                max_length: MAX_SEQUENCE_TOKENS,
-                ..Default::default()
-            }))
-            .map_err(|e| EmbedderLoadError::TokenizerLoad { source: e })?;
+            // 2. Load tokenizer.json and pin truncation to the model's 512-slot
+            // position-embedding window (design §2.1). `tokenizer.json` does not
+            // always carry a truncation policy, so set it programmatically; the
+            // tokenizer truncates AND re-applies `[SEP]` correctly (a raw token
+            // truncate would drop the trailing special token). Without this a
+            // >512-token document errors with "index-select invalid index 512".
+            let mut tokenizer = Tokenizer::from_file(&weights.tokenizer_json_path)
+                .map_err(|e| EmbedderLoadError::TokenizerLoad { source: e })?;
+            tokenizer
+                .with_truncation(Some(TruncationParams {
+                    max_length: MAX_SEQUENCE_TOKENS,
+                    ..Default::default()
+                }))
+                .map_err(|e| EmbedderLoadError::TokenizerLoad { source: e })?;
 
-        // 3. mmap safetensors on the explicitly resolved device.
-        let vb = unsafe {
-            VarBuilder::from_mmaped_safetensors(
-                &[weights.model_safetensors_path.as_path() as &Path],
-                DType::F32,
-                &device,
-            )
-        }
-        .map_err(|source| model_load_error(source, |error| load_failure(error, &device)))?;
-
-        let model = BertModel::load(vb, &config)
+            // 3. mmap safetensors on the explicitly resolved device.
+            let vb = unsafe {
+                VarBuilder::from_mmaped_safetensors(
+                    &[weights.model_safetensors_path.as_path() as &Path],
+                    DType::F32,
+                    &device,
+                )
+            }
             .map_err(|source| model_load_error(source, |error| load_failure(error, &device)))?;
 
-        let identity =
-            EmbedderIdentity::new(DEFAULT_EMBEDDER_NAME, HF_REVISION, DEFAULT_EMBEDDER_DIM);
+            let model = BertModel::load(vb, &config)
+                .map_err(|source| model_load_error(source, |error| load_failure(error, &device)))?;
 
-        let pool_guard = crate::cuda_pool_policy::PrivatePoolModelGuard::new(&device);
-        Ok(Self {
-            identity,
-            tokenizer,
-            model,
-            device,
-            pooling: Pooling::Mean,
-            _pool_guard: pool_guard,
+            let identity =
+                EmbedderIdentity::new(DEFAULT_EMBEDDER_NAME, HF_REVISION, DEFAULT_EMBEDDER_DIM);
+
+            let pool_guard = crate::cuda_pool_policy::PrivatePoolModelGuard::new(&device);
+            Ok(Self {
+                identity,
+                tokenizer,
+                model,
+                device,
+                pooling: Pooling::Mean,
+                _pool_guard: pool_guard,
+            })
         })
     }
 
@@ -747,95 +754,105 @@ impl Embedder for CandleBgeEmbedder {
     }
 
     fn embed(&self, input: &str) -> Result<Vector, EmbedderError> {
-        // Invariant 3 (ADR-0.6.0-embedder-protocol.md): no log/tracing/
-        // println/eprintln/dbg in this function. Errors travel up via
-        // the return value only.
+        let scope = crate::cuda_operation::CudaOperation::on(&self.device, "forward");
+        scope.run(crate::cuda_pool_policy::CudaPoolFailure::into_embedder_error, || {
+            // Invariant 3 (ADR-0.6.0-embedder-protocol.md): no log/tracing/
+            // println/eprintln/dbg in this function. Errors travel up via
+            // the return value only.
 
-        let encoding = self
-            .tokenizer
-            .encode(input, true)
-            .map_err(|e| EmbedderError::Failed { message: format!("tokenize: {e}") })?;
+            let encoding = self
+                .tokenizer
+                .encode(input, true)
+                .map_err(|e| EmbedderError::Failed { message: format!("tokenize: {e}") })?;
 
-        let ids: Vec<u32> = encoding.get_ids().to_vec();
-        let attn: Vec<u32> = encoding.get_attention_mask().to_vec();
-        let len = ids.len();
+            let ids: Vec<u32> = encoding.get_ids().to_vec();
+            let attn: Vec<u32> = encoding.get_attention_mask().to_vec();
+            let len = ids.len();
 
-        let embed_impl = || -> candle_core::Result<Vec<f32>> {
-            let input_ids = Tensor::from_vec(ids, (1, len), &self.device)?;
-            let attn_mask_u32 = Tensor::from_vec(attn, (1, len), &self.device)?;
-            let token_type_ids = input_ids.zeros_like()?;
+            let embed_impl = || -> candle_core::Result<Vec<f32>> {
+                let input_ids = Tensor::from_vec(ids, (1, len), &self.device)?;
+                let attn_mask_u32 = Tensor::from_vec(attn, (1, len), &self.device)?;
+                let token_type_ids = input_ids.zeros_like()?;
 
-            // BertModel::forward takes the raw (B, L) attention mask and
-            // internally builds the additive mask. (B, L, D) f32 out.
-            let hidden = self.model.forward(&input_ids, &token_type_ids, Some(&attn_mask_u32))?;
+                // BertModel::forward takes the raw (B, L) attention mask and
+                // internally builds the additive mask. (B, L, D) f32 out.
+                let hidden =
+                    self.model.forward(&input_ids, &token_type_ids, Some(&attn_mask_u32))?;
 
-            // Pool (design §0.4 = Mean; Cls is the model-native mode, gated) then
-            // L2-normalize.
-            let pooled = match self.pooling {
-                Pooling::Mean => mean_pool(&hidden, &attn_mask_u32)?,
-                Pooling::Cls => cls_pool(&hidden)?,
+                // Pool (design §0.4 = Mean; Cls is the model-native mode, gated) then
+                // L2-normalize.
+                let pooled = match self.pooling {
+                    Pooling::Mean => mean_pool(&hidden, &attn_mask_u32)?,
+                    Pooling::Cls => cls_pool(&hidden)?,
+                };
+                let normed = l2_normalize(&pooled)?; // (1, D)
+
+                let v: Vec<f32> = normed.squeeze(0)?.to_vec1::<f32>()?;
+                Ok(v)
             };
-            let normed = l2_normalize(&pooled)?; // (1, D)
 
-            let v: Vec<f32> = normed.squeeze(0)?.to_vec1::<f32>()?;
-            Ok(v)
-        };
-
-        embed_impl().map_err(|e| crate::cuda_pool_policy::forward_error(e, &self.device, "forward"))
+            embed_impl()
+                .map_err(|e| crate::cuda_pool_policy::forward_error(e, &self.device, "forward"))
+        })
     }
 
     fn embed_batch(&self, inputs: &[&str]) -> Result<Vec<Vector>, EmbedderError> {
-        // Invariant 3 (ADR-0.6.0-embedder-protocol.md): no log/tracing in this fn.
-        // One padded (B, L) forward instead of B single-row forwards. The attention
-        // mask zeros padded positions, so the mean/cls pooling + L2-norm produce the
-        // SAME per-row vectors as `embed()` (parity-locked in tests). On GPU this
-        // turns minutes into seconds; on CPU it is a modest win.
         if inputs.is_empty() {
             return Ok(Vec::new());
         }
+        let scope = crate::cuda_operation::CudaOperation::on(&self.device, "batch forward");
+        scope.run(crate::cuda_pool_policy::CudaPoolFailure::into_embedder_error, || {
+            // Invariant 3 (ADR-0.6.0-embedder-protocol.md): no log/tracing in this fn.
+            // One padded (B, L) forward instead of B single-row forwards. The attention
+            // mask zeros padded positions, so the mean/cls pooling + L2-norm produce the
+            // SAME per-row vectors as `embed()` (parity-locked in tests). On GPU this
+            // turns minutes into seconds; on CPU it is a modest win.
 
-        let mut encodings = Vec::with_capacity(inputs.len());
-        for input in inputs {
-            let enc = self
-                .tokenizer
-                .encode(*input, true)
-                .map_err(|e| EmbedderError::Failed { message: format!("tokenize: {e}") })?;
-            encodings.push(enc);
-        }
-        let batch = inputs.len();
-        // tokenizer truncation pins each row <= MAX_SEQUENCE_TOKENS, so max_len <= 512.
-        let max_len = encodings.iter().map(|e| e.get_ids().len()).max().unwrap_or(0).max(1);
-
-        // Right-pad ids+mask to a common length; pad ids=0, mask=0 (mean/cls pooling
-        // ignore masked positions, so padding cannot affect a row's vector).
-        let mut ids = vec![0u32; batch * max_len];
-        let mut attn = vec![0u32; batch * max_len];
-        for (row, enc) in encodings.iter().enumerate() {
-            let base = row * max_len;
-            for (col, (&id, &mask)) in
-                enc.get_ids().iter().zip(enc.get_attention_mask()).enumerate()
-            {
-                ids[base + col] = id;
-                attn[base + col] = mask;
+            let mut encodings = Vec::with_capacity(inputs.len());
+            for input in inputs {
+                let enc = self
+                    .tokenizer
+                    .encode(*input, true)
+                    .map_err(|e| EmbedderError::Failed { message: format!("tokenize: {e}") })?;
+                encodings.push(enc);
             }
-        }
+            let batch = inputs.len();
+            // tokenizer truncation pins each row <= MAX_SEQUENCE_TOKENS, so max_len <= 512.
+            let max_len = encodings.iter().map(|e| e.get_ids().len()).max().unwrap_or(0).max(1);
 
-        let embed_impl = || -> candle_core::Result<Vec<Vec<f32>>> {
-            let input_ids = Tensor::from_vec(ids, (batch, max_len), &self.device)?;
-            let attn_mask_u32 = Tensor::from_vec(attn, (batch, max_len), &self.device)?;
-            let token_type_ids = input_ids.zeros_like()?;
+            // Right-pad ids+mask to a common length; pad ids=0, mask=0 (mean/cls pooling
+            // ignore masked positions, so padding cannot affect a row's vector).
+            let mut ids = vec![0u32; batch * max_len];
+            let mut attn = vec![0u32; batch * max_len];
+            for (row, enc) in encodings.iter().enumerate() {
+                let base = row * max_len;
+                for (col, (&id, &mask)) in
+                    enc.get_ids().iter().zip(enc.get_attention_mask()).enumerate()
+                {
+                    ids[base + col] = id;
+                    attn[base + col] = mask;
+                }
+            }
 
-            let hidden = self.model.forward(&input_ids, &token_type_ids, Some(&attn_mask_u32))?;
-            let pooled = match self.pooling {
-                Pooling::Mean => mean_pool(&hidden, &attn_mask_u32)?,
-                Pooling::Cls => cls_pool(&hidden)?,
+            let embed_impl = || -> candle_core::Result<Vec<Vec<f32>>> {
+                let input_ids = Tensor::from_vec(ids, (batch, max_len), &self.device)?;
+                let attn_mask_u32 = Tensor::from_vec(attn, (batch, max_len), &self.device)?;
+                let token_type_ids = input_ids.zeros_like()?;
+
+                let hidden =
+                    self.model.forward(&input_ids, &token_type_ids, Some(&attn_mask_u32))?;
+                let pooled = match self.pooling {
+                    Pooling::Mean => mean_pool(&hidden, &attn_mask_u32)?,
+                    Pooling::Cls => cls_pool(&hidden)?,
+                };
+                let normed = l2_normalize(&pooled)?; // (B, D)
+                normed.to_vec2::<f32>() // Vec<Vec<f32>>, one row per input
             };
-            let normed = l2_normalize(&pooled)?; // (B, D)
-            normed.to_vec2::<f32>() // Vec<Vec<f32>>, one row per input
-        };
 
-        embed_impl()
-            .map_err(|e| crate::cuda_pool_policy::forward_error(e, &self.device, "batch forward"))
+            embed_impl().map_err(|e| {
+                crate::cuda_pool_policy::forward_error(e, &self.device, "batch forward")
+            })
+        })
     }
 }
 
@@ -845,24 +862,29 @@ impl CandleBgeEmbedder {
     /// without paying the (dominant) embedding cost twice. Returns
     /// `(mean_pooled, cls_pooled)`. Not part of the `Embedder` trait.
     pub fn embed_dual_for_test(&self, input: &str) -> Result<(Vector, Vector), EmbedderError> {
-        let encoding = self
-            .tokenizer
-            .encode(input, true)
-            .map_err(|e| EmbedderError::Failed { message: format!("tokenize: {e}") })?;
-        let ids: Vec<u32> = encoding.get_ids().to_vec();
-        let attn: Vec<u32> = encoding.get_attention_mask().to_vec();
-        let len = ids.len();
+        let scope = crate::cuda_operation::CudaOperation::on(&self.device, "forward");
+        scope.run(crate::cuda_pool_policy::CudaPoolFailure::into_embedder_error, || {
+            let encoding = self
+                .tokenizer
+                .encode(input, true)
+                .map_err(|e| EmbedderError::Failed { message: format!("tokenize: {e}") })?;
+            let ids: Vec<u32> = encoding.get_ids().to_vec();
+            let attn: Vec<u32> = encoding.get_attention_mask().to_vec();
+            let len = ids.len();
 
-        let dual = || -> candle_core::Result<(Vec<f32>, Vec<f32>)> {
-            let input_ids = Tensor::from_vec(ids, (1, len), &self.device)?;
-            let attn_mask_u32 = Tensor::from_vec(attn, (1, len), &self.device)?;
-            let token_type_ids = input_ids.zeros_like()?;
-            let hidden = self.model.forward(&input_ids, &token_type_ids, Some(&attn_mask_u32))?;
-            let mean = l2_normalize(&mean_pool(&hidden, &attn_mask_u32)?)?.squeeze(0)?.to_vec1()?;
-            let cls = l2_normalize(&cls_pool(&hidden)?)?.squeeze(0)?.to_vec1()?;
-            Ok((mean, cls))
-        };
-        dual().map_err(|e| crate::cuda_pool_policy::forward_error(e, &self.device, "forward"))
+            let dual = || -> candle_core::Result<(Vec<f32>, Vec<f32>)> {
+                let input_ids = Tensor::from_vec(ids, (1, len), &self.device)?;
+                let attn_mask_u32 = Tensor::from_vec(attn, (1, len), &self.device)?;
+                let token_type_ids = input_ids.zeros_like()?;
+                let hidden =
+                    self.model.forward(&input_ids, &token_type_ids, Some(&attn_mask_u32))?;
+                let mean =
+                    l2_normalize(&mean_pool(&hidden, &attn_mask_u32)?)?.squeeze(0)?.to_vec1()?;
+                let cls = l2_normalize(&cls_pool(&hidden)?)?.squeeze(0)?.to_vec1()?;
+                Ok((mean, cls))
+            };
+            dual().map_err(|e| crate::cuda_pool_policy::forward_error(e, &self.device, "forward"))
+        })
     }
 }
 

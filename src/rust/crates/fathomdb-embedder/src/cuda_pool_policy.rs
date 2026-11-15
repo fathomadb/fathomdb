@@ -1389,6 +1389,24 @@ pub(crate) trait PoolDriver {
     type Device;
     type DefaultError;
 
+    #[cfg(any(test, feature = "cuda-pool-observer"))]
+    fn context_is_tracked(&self, _context: &Self::Context) -> bool {
+        false
+    }
+
+    #[cfg(any(test, feature = "cuda-pool-observer"))]
+    fn with_context_admission<R>(
+        &self,
+        _context: &Self::Context,
+        body: impl FnOnce() -> R,
+    ) -> Result<R, DriverFailure> {
+        Ok(body())
+    }
+
+    fn cached_context_loss(&self, _ordinal: usize, _operation: &str) -> Option<CudaPoolFailure> {
+        None
+    }
+
     fn raw_settings(&self) -> RawPoolSettings;
     fn module_load_init(&self) -> ModuleLoadInit;
     /// Whether the process's most recent `cuInit` attempt, by any FathomDB
@@ -1536,6 +1554,14 @@ fn read_private_pool_counters_unsynchronized<D: PoolDriver>(
         return Ok(None);
     }
     driver.pool_counters(&private.pool).map(Some)
+}
+
+#[cfg(any(test, feature = "cuda-pool-observer"))]
+fn observation_with_driver<D: PoolDriver>(
+    decision: Option<&Decision<D::Pool, D::Context>>,
+    _driver: &D,
+) -> crate::cuda_pool_observation::CudaPoolObservation {
+    observation_from_decision(decision)
 }
 
 #[cfg(any(test, feature = "cuda-pool-observer"))]
@@ -2333,7 +2359,7 @@ mod driver {
 
     #[cfg(feature = "cuda-pool-observer")]
     pub(super) fn observe_pool() -> crate::cuda_pool_observation::CudaPoolObservation {
-        super::observation_from_decision(DECISION.get())
+        super::observation_with_driver(DECISION.get(), &CudarcDriver)
     }
 
     /// The private pool's counters and its decided max size, after
@@ -2475,3 +2501,15 @@ pub(crate) fn observe_pool() -> crate::cuda_pool_observation::CudaPoolObservatio
         crate::cuda_pool_observation::CudaPoolObservation::unavailable("not_built")
     }
 }
+
+#[cfg(all(test, any(feature = "embed-cuda", feature = "rerank-cuda")))]
+#[path = "cuda_tracked_mapping_tests.rs"]
+mod tracked_mapping_tests;
+
+#[cfg(test)]
+#[path = "cuda_tracked_construction_tests.rs"]
+mod tracked_construction_tests;
+
+#[cfg(all(test, feature = "cuda-pool-observer"))]
+#[path = "cuda_tracked_observer_tests.rs"]
+mod tracked_observer_tests;

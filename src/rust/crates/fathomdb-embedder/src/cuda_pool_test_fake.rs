@@ -34,6 +34,14 @@ pub(super) struct Fake {
     pub(super) state_reads: AtomicUsize,
     pub(super) id_reads: AtomicUsize,
     pub(super) snapshot: Once,
+    pub(super) cached_loss: Mutex<Option<CudaPoolFailure>>,
+    pub(super) default_builds: AtomicUsize,
+    pub(super) context_wraps: AtomicUsize,
+    pub(super) lose_on_pool_create: AtomicBool,
+    pub(super) tracked_context: AtomicBool,
+    pub(super) admissions: AtomicUsize,
+    pub(super) pool_reads: AtomicUsize,
+    pub(super) lose_on_pool_read: AtomicBool,
 }
 
 impl Default for Fake {
@@ -52,6 +60,14 @@ impl Default for Fake {
             state_reads: AtomicUsize::new(0),
             id_reads: AtomicUsize::new(0),
             snapshot: Once::new(),
+            cached_loss: Mutex::new(None),
+            default_builds: AtomicUsize::new(0),
+            context_wraps: AtomicUsize::new(0),
+            lose_on_pool_create: AtomicBool::new(false),
+            tracked_context: AtomicBool::new(false),
+            admissions: AtomicUsize::new(0),
+            pool_reads: AtomicUsize::new(0),
+            lose_on_pool_read: AtomicBool::new(false),
         }
     }
 }
@@ -89,6 +105,28 @@ impl PoolDriver for Fake {
     type Device = FakeContext;
     type DefaultError = String;
 
+    fn context_is_tracked(&self, _context: &Self::Context) -> bool {
+        self.tracked_context.load(Ordering::SeqCst)
+    }
+
+    fn with_context_admission<R>(
+        &self,
+        _context: &Self::Context,
+        body: impl FnOnce() -> R,
+    ) -> Result<R, DriverFailure> {
+        self.admissions.fetch_add(1, Ordering::SeqCst);
+        Ok(body())
+    }
+
+    fn cached_context_loss(&self, _ordinal: usize, operation: &str) -> Option<CudaPoolFailure> {
+        self.cached_loss.lock().unwrap().clone().map(|mut failure| {
+            if let CudaPoolFailure::ContextLost { operation: at, .. } = &mut failure {
+                *at = operation.to_owned();
+            }
+            failure
+        })
+    }
+
     fn raw_settings(&self) -> RawPoolSettings {
         self.settings.clone()
     }
@@ -119,6 +157,14 @@ impl PoolDriver for Fake {
         _max_size_bytes: u64,
         _threshold: ReleaseThreshold,
     ) -> Result<Self::Pool, DriverFailure> {
+        if self.lose_on_pool_create.load(Ordering::SeqCst) {
+            *self.cached_loss.lock().unwrap() = Some(CudaPoolFailure::ContextLost {
+                recorded_context_id: FIRST_CONTEXT_ID,
+                current_context_id: None,
+                driver_error: "native driver status 709".into(),
+                operation: DEVICE_BUILD_OPERATION.into(),
+            });
+        }
         Ok(FakePool)
     }
 
@@ -139,10 +185,12 @@ impl PoolDriver for Fake {
     }
 
     fn wrap_context(&self, context: Self::Context) -> Result<Self::Device, DriverFailure> {
+        self.context_wraps.fetch_add(1, Ordering::SeqCst);
         Ok(context)
     }
 
     fn default_device(&self, ordinal: usize) -> Result<Self::Device, Self::DefaultError> {
+        self.default_builds.fetch_add(1, Ordering::SeqCst);
         Ok(FakeContext(ordinal as u64))
     }
 
@@ -157,7 +205,17 @@ impl PoolDriver for Fake {
     }
 
     fn pool_counters(&self, _pool: &Self::Pool) -> Result<PoolCounters, DriverFailure> {
-        Ok(PoolCounters::default())
+        self.pool_reads.fetch_add(1, Ordering::SeqCst);
+        if self.lose_on_pool_read.load(Ordering::SeqCst) {
+            *self.cached_loss.lock().unwrap() = Some(CudaPoolFailure::ContextLost {
+                recorded_context_id: FIRST_CONTEXT_ID,
+                current_context_id: None,
+                driver_error: "native driver status 709".into(),
+                operation: "pool observation".into(),
+            });
+            return Err(driver_error(CUDA_ERROR_CONTEXT_IS_DESTROYED));
+        }
+        Ok(PoolCounters { used_current: 11, reserved_current: 29, ..PoolCounters::default() })
     }
 
     fn live_private_contexts(&self, _pool: &Self::Pool) -> usize {

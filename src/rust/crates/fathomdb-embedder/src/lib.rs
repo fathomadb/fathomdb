@@ -28,6 +28,8 @@ mod cuda_pool_observation;
 pub use cuda_pool_observation::{
     observe_cuda_pool_for_qualification, CudaPoolObservation, CudaPoolObservationError,
 };
+#[cfg(any(feature = "default-embedder", feature = "default-reranker"))]
+mod cuda_operation;
 mod cuda_pool_policy;
 pub use cuda_pool_policy::{
     CudaAllocatorPath, CudaAllocatorReason, CudaAllocatorReport, CudaPoolFailure, CudaPoolRequest,

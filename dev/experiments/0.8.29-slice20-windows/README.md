@@ -1,7 +1,10 @@
 # Slice20 Windows A6 operator
 
-The C#, PowerShell and control bodies come unchanged from the reviewed Windows
+The operator derives from the reviewed Windows
 operator retained under `slice20/windows-operation-proposal-v2-frozen/operator`.
+Runtime corrections retain the original containment limits,19 required control
+keys and four A6 selectors. The additional nonzero-root preservation control
+uses the real helper inside the existing outer Job boundary.
 Host paths select the existing approved64GiB image, current sole-writer checkout
 and `/mnt/data` task; accounting reserves128GiB Linux plus64GiB scratch within
 the200GiB cap. Actual source, tool hashes, disk UniqueId/partition GUID, phase

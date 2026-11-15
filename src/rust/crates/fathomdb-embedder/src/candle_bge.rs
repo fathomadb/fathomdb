@@ -357,7 +357,10 @@ pub(crate) fn probe_allocation_error(
 #[cfg(feature = "embed-cuda")]
 fn classify_candle_cuda_error(error: candle_core::Error) -> CudaProbeError {
     use candle_core::{
-        cuda::{cudarc::cublas::sys::cublasStatus_t, CudaError},
+        cuda::{
+            cudarc::cublas::{result::CublasError, sys::cublasStatus_t},
+            CudaError,
+        },
         Error,
     };
 
@@ -365,9 +368,9 @@ fn classify_candle_cuda_error(error: candle_core::Error) -> CudaProbeError {
     match error {
         Error::Cuda(source) => match source.downcast_ref::<CudaError>() {
             Some(CudaError::Cuda(error)) => classify_cuda_driver_error(*error),
-            Some(CudaError::Cublas(error))
+            Some(CudaError::Cublas(CublasError::Native(status)))
                 if matches!(
-                    error.0,
+                    status,
                     cublasStatus_t::CUBLAS_STATUS_ARCH_MISMATCH
                         | cublasStatus_t::CUBLAS_STATUS_NOT_SUPPORTED
                 ) =>
@@ -918,17 +921,17 @@ mod cuda_probe_error_tests {
 
     #[test]
     fn candle_provider_compatibility_is_not_an_unknown_probe_failure() {
-        let error = Error::Cuda(Box::new(CudaError::Cublas(CublasError(
+        let error = Error::Cuda(Box::new(CudaError::Cublas(CublasError::Native(
             cublasStatus_t::CUBLAS_STATUS_ARCH_MISMATCH,
         ))));
         assert!(matches!(classify_candle_cuda_error(error), CudaProbeError::Incompatible { .. }));
 
-        let error = Error::Cuda(Box::new(CudaError::Cublas(CublasError(
+        let error = Error::Cuda(Box::new(CudaError::Cublas(CublasError::Native(
             cublasStatus_t::CUBLAS_STATUS_NOT_SUPPORTED,
         ))));
         assert!(matches!(classify_candle_cuda_error(error), CudaProbeError::Incompatible { .. }));
 
-        let error = Error::Cuda(Box::new(CudaError::Cublas(CublasError(
+        let error = Error::Cuda(Box::new(CudaError::Cublas(CublasError::Native(
             cublasStatus_t::CUBLAS_STATUS_ALLOC_FAILED,
         ))));
         assert!(matches!(classify_candle_cuda_error(error), CudaProbeError::ProbeFailed { .. }));

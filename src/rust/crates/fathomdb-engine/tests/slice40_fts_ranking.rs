@@ -1,10 +1,10 @@
 //! Slice 40 (0.8.28) — FTS ranking defects.
 //!
-//! Defect A: RRF fusion credited one arm more than once for a body that
-//! several rows share byte-for-byte, so a duplicate pair at ranks 13/14 beat
-//! the true rank-1 hit. The contract pinned here: each arm contributes at most
-//! once per body, at the positional rank of the body's first occurrence in that
-//! arm; different arms still accumulate (agreement boosts a body).
+//! The original Slice 40 defect credited equal bodies repeatedly within one
+//! arm. ADR-0.8.29-retrieval-record-identity supersedes body identity: each
+//! stored record gets one credit per arm at its first original positional rank.
+//! Distinct equal-body records remain distinct; same-record repeats still cannot
+//! gain repeated credit or renumber later records. Arithmetic and tie rules stay.
 //!
 //! Defect B: the query compiler dropped 1–2 character tokens ("C", "D3",
 //! "II", "1"), so the engine ranked as if they were absent.
@@ -63,7 +63,7 @@ fn bodies(hits: &[SearchHit]) -> Vec<&str> {
 /// AC40-01: the measured NFCorpus shape. A byte-identical pair at text ranks
 /// 13 and 14 must not outrank the distinct rank-1 body.
 #[test]
-fn single_arm_duplicate_body_does_not_outrank_higher_ranked_distinct_body() {
+fn single_arm_equal_body_records_do_not_outrank_higher_ranked_record() {
     let mut arm: Vec<SearchHit> =
         (0..12).map(|i| text(100 + i, &format!("distinct {i:02}"))).collect();
     arm.push(text(200, "duplicate body"));
@@ -82,11 +82,11 @@ fn single_arm_duplicate_body_does_not_outrank_higher_ranked_distinct_body() {
     assert_eq!(dup, 12, "the duplicate keeps its first-occurrence place (13th)");
 }
 
-/// AC40-02: a duplicated body scores once, at its first occurrence's
-/// positional rank; bodies below it keep their positional ranks.
+/// A repeated record scores once at its first original positional rank;
+/// subsequent records retain their original positions.
 #[test]
-fn single_arm_duplicate_body_scores_once_at_first_occurrence_rank() {
-    let arm = vec![text(1, "a"), text(2, "dup"), text(3, "b"), text(4, "dup")];
+fn single_arm_repeated_record_scores_once_at_first_occurrence_rank() {
+    let arm = vec![text(1, "a"), text(2, "dup"), text(3, "b"), text(2, "dup")];
 
     let fused = fuse_three_arms(Vec::new(), arm, Vec::new());
 
@@ -100,26 +100,30 @@ fn single_arm_duplicate_body_scores_once_at_first_occurrence_rank() {
     assert_eq!(fused[2].score, rrf(RRF_WEIGHT_TEXT, 3), "b keeps its positional rank 3");
 }
 
-/// AC40-03: the representative of a duplicated body is its first occurrence.
+/// The representative of a repeated record is its first occurrence.
 #[test]
-fn duplicate_body_representative_is_first_occurrence() {
-    let arm = vec![text(10, "x"), text(20, "dup"), text(21, "dup")];
+fn repeated_record_representative_is_first_occurrence() {
+    let arm = vec![text(10, "x"), text(20, "dup"), text(20, "dup")];
 
     let fused = fuse_three_arms(Vec::new(), arm, Vec::new());
 
     let dup = fused.iter().find(|h| h.body == "dup").expect("dup present");
     assert_eq!(dup.write_cursor, 20, "first occurrence's cursor is kept");
     assert_eq!(dup.id, IdSpace::content("20"));
-    assert_eq!(fused.iter().filter(|h| h.body == "dup").count(), 1, "dedup on body");
+    assert_eq!(
+        fused.iter().filter(|h| h.body == "dup").count(),
+        1,
+        "one representative per record"
+    );
 }
 
 /// AC40-04: the once-per-arm rule holds on the vector arm.
 #[test]
-fn vector_arm_duplicate_body_scores_once() {
+fn vector_arm_repeated_record_scores_once() {
     let arm = vec![
         hit(1, "dup", SoftFallbackBranch::Vector),
         hit(2, "x", SoftFallbackBranch::Vector),
-        hit(3, "dup", SoftFallbackBranch::Vector),
+        hit(1, "dup", SoftFallbackBranch::Vector),
     ];
 
     let fused = fuse_three_arms(arm, Vec::new(), Vec::new());
@@ -130,11 +134,11 @@ fn vector_arm_duplicate_body_scores_once() {
 
 /// AC40-04: the once-per-arm rule holds on the graph arm.
 #[test]
-fn graph_arm_duplicate_body_scores_once() {
+fn graph_arm_repeated_record_scores_once() {
     let arm = vec![
         hit(1, "g", SoftFallbackBranch::GraphArm),
         hit(2, "dup", SoftFallbackBranch::GraphArm),
-        hit(3, "dup", SoftFallbackBranch::GraphArm),
+        hit(2, "dup", SoftFallbackBranch::GraphArm),
     ];
 
     let fused = fuse_three_arms(Vec::new(), Vec::new(), arm);
@@ -143,13 +147,13 @@ fn graph_arm_duplicate_body_scores_once() {
     assert_eq!(fused[1].score, rrf(RRF_WEIGHT_GRAPH, 2), "dup = w_graph/(K+2) only");
 }
 
-/// AC40-05: the dedupe is per arm, not global. A body duplicated inside the
-/// text arm and also present in the vector arm gets exactly one vector term
+/// Credit suppression is per arm. A record repeated inside the text arm and
+/// also present in the vector arm gets exactly one vector term
 /// and one text term.
 #[test]
 fn duplicate_dedupe_is_per_arm_not_global() {
     let vector = vec![hit(1, "dup", SoftFallbackBranch::Vector)];
-    let text_arm = vec![text(1, "dup"), text(2, "dup")];
+    let text_arm = vec![text(1, "dup"), text(1, "dup")];
 
     let fused = fuse_rrf(vector, text_arm);
 
@@ -163,11 +167,11 @@ fn duplicate_dedupe_is_per_arm_not_global() {
 }
 
 /// AC40-06: cross-arm agreement still accumulates when one arm also holds
-/// the body twice.
+/// the same record twice.
 #[test]
 fn cross_arm_agreement_still_accumulates_with_in_arm_duplicates() {
     let vector = vec![hit(9, "agree", SoftFallbackBranch::Vector)];
-    let text_arm = vec![text(1, "t0"), text(9, "agree"), text(10, "agree")];
+    let text_arm = vec![text(1, "t0"), text(9, "agree"), text(9, "agree")];
 
     let fused = fuse_rrf(vector, text_arm);
 
@@ -202,7 +206,7 @@ fn three_arm_agreement_sums_one_term_per_arm() {
 // Defect A — properties
 // ---------------------------------------------------------------------------
 
-/// The intended fusion, written from the contract: per arm, skip a body the
+/// The intended fusion, written from the contract: per arm, skip a record the
 /// arm already credited; credit `weight / (K + positional rank)`; accumulate
 /// across arms in vector, text, graph order; sort by score descending, then
 /// vector-first, then first-insertion order.
@@ -218,22 +222,22 @@ fn reference_fusion(
         order: usize,
     }
     let mut entries: Vec<Entry> = Vec::new();
-    let mut by_body: HashMap<String, usize> = HashMap::new();
+    let mut by_record: HashMap<u64, usize> = HashMap::new();
     for (arm, weight, in_vector) in [
         (vector, RRF_WEIGHT_VECTOR, true),
         (text_arm, RRF_WEIGHT_TEXT, false),
         (graph, RRF_WEIGHT_GRAPH, false),
     ] {
-        let mut credited: HashSet<&str> = HashSet::new();
+        let mut credited: HashSet<u64> = HashSet::new();
         for (rank0, h) in arm.iter().enumerate() {
-            if !credited.insert(h.body.as_str()) {
+            if !credited.insert(h.write_cursor) {
                 continue;
             }
             let contrib = weight / (RRF_K + (rank0 as f64 + 1.0));
-            if let Some(&index) = by_body.get(&h.body) {
+            if let Some(&index) = by_record.get(&h.write_cursor) {
                 entries[index].score += contrib;
             } else {
-                by_body.insert(h.body.clone(), entries.len());
+                by_record.insert(h.write_cursor, entries.len());
                 let order = entries.len();
                 entries.push(Entry { hit: h.clone(), score: contrib, in_vector, order });
             }
@@ -255,12 +259,8 @@ fn reference_fusion(
         .collect()
 }
 
-fn arm_from(symbols: &[u8], branch: SoftFallbackBranch, cursor_base: u64) -> Vec<SearchHit> {
-    symbols
-        .iter()
-        .enumerate()
-        .map(|(i, s)| hit(cursor_base + i as u64, &format!("body-{s}"), branch))
-        .collect()
+fn arm_from(symbols: &[u8], branch: SoftFallbackBranch) -> Vec<SearchHit> {
+    symbols.iter().map(|s| hit(1000 + u64::from(*s), &format!("body-{}", s % 3), branch)).collect()
 }
 
 fn distinct_in_order(symbols: Vec<u8>) -> Vec<u8> {
@@ -269,24 +269,24 @@ fn distinct_in_order(symbols: Vec<u8>) -> Vec<u8> {
 }
 
 proptest! {
-    /// AC40-07: with only the text arm, fused order of distinct bodies equals
-    /// the arm's first-occurrence order, and scores are strictly decreasing.
+    /// With only the text arm, record order follows first original occurrences,
+    /// including different records with equal bodies; scores strictly decrease.
     #[test]
     fn prop_text_only_fusion_is_monotone_in_first_occurrence_rank(
         symbols in prop::collection::vec(0u8..8, 0..40),
     ) {
-        let arm = arm_from(&symbols, SoftFallbackBranch::Text, 1000);
+        let arm = arm_from(&symbols, SoftFallbackBranch::Text);
         let fused = fuse_three_arms(Vec::new(), arm.clone(), Vec::new());
 
-        let mut first_rank: Vec<(String, usize)> = Vec::new();
+        let mut first_rank: Vec<(u64, usize)> = Vec::new();
         let mut seen = HashSet::new();
         for (rank0, h) in arm.iter().enumerate() {
-            if seen.insert(h.body.clone()) {
-                first_rank.push((h.body.clone(), rank0 + 1));
+            if seen.insert(h.write_cursor) {
+                first_rank.push((h.write_cursor, rank0 + 1));
             }
         }
-        let expected: Vec<&str> = first_rank.iter().map(|(b, _)| b.as_str()).collect();
-        prop_assert_eq!(bodies(&fused), expected);
+        let expected: Vec<u64> = first_rank.iter().map(|(cursor, _)| *cursor).collect();
+        prop_assert_eq!(fused.iter().map(|hit| hit.write_cursor).collect::<Vec<_>>(), expected);
         for (h, (_, rank1)) in fused.iter().zip(&first_rank) {
             prop_assert_eq!(h.score, rrf(RRF_WEIGHT_TEXT, *rank1));
         }
@@ -303,27 +303,26 @@ proptest! {
         t in prop::collection::vec(0u8..10, 0..25),
         g in prop::collection::vec(0u8..10, 0..10),
     ) {
-        let vector = arm_from(&v, SoftFallbackBranch::Vector, 1000);
-        let text_arm = arm_from(&t, SoftFallbackBranch::Text, 2000);
-        let graph = arm_from(&g, SoftFallbackBranch::GraphArm, 3000);
+        let vector = arm_from(&v, SoftFallbackBranch::Vector);
+        let text_arm = arm_from(&t, SoftFallbackBranch::Text);
+        let graph = arm_from(&g, SoftFallbackBranch::GraphArm);
 
         let expected = reference_fusion(&vector, &text_arm, &graph);
         let fused = fuse_three_arms(vector, text_arm, graph);
         prop_assert_eq!(fused, expected);
     }
 
-    /// AC40-09: when no arm holds a body twice, the fused output is unchanged
-    /// by this slice: it equals the reference, which for such inputs is the
-    /// pre-slice algorithm (regression guard for order, scores, tiebreak).
+    /// Distinct records within an arm follow the manual record-key reference,
+    /// including body twins, cross-arm agreement and stable score ties.
     #[test]
-    fn prop_distinct_within_arm_inputs_are_unchanged(
+    fn prop_distinct_within_arm_records_match_reference(
         v in prop::collection::vec(0u8..12, 0..25),
         t in prop::collection::vec(0u8..12, 0..25),
         g in prop::collection::vec(0u8..12, 0..10),
     ) {
-        let vector = arm_from(&distinct_in_order(v), SoftFallbackBranch::Vector, 1000);
-        let text_arm = arm_from(&distinct_in_order(t), SoftFallbackBranch::Text, 2000);
-        let graph = arm_from(&distinct_in_order(g), SoftFallbackBranch::GraphArm, 3000);
+        let vector = arm_from(&distinct_in_order(v), SoftFallbackBranch::Vector);
+        let text_arm = arm_from(&distinct_in_order(t), SoftFallbackBranch::Text);
+        let graph = arm_from(&distinct_in_order(g), SoftFallbackBranch::GraphArm);
 
         let expected = reference_fusion(&vector, &text_arm, &graph);
         let fused = fuse_three_arms(vector, text_arm, graph);
@@ -337,8 +336,8 @@ proptest! {
         v in prop::collection::vec(0u8..10, 0..25),
         t in prop::collection::vec(0u8..10, 0..25),
     ) {
-        let vector = arm_from(&v, SoftFallbackBranch::Vector, 1000);
-        let text_arm = arm_from(&t, SoftFallbackBranch::Text, 2000);
+        let vector = arm_from(&v, SoftFallbackBranch::Vector);
+        let text_arm = arm_from(&t, SoftFallbackBranch::Text);
 
         prop_assert_eq!(
             fuse_rrf(vector.clone(), text_arm.clone()),
@@ -421,11 +420,11 @@ fn text_only_duplicate_bodies_do_not_win_rank_one() {
     opened.engine.close().expect("close");
 }
 
-/// AC40-12: the duplicate pair surfaces once, at its first-occurrence place,
-/// and every result body is distinct.
+/// The selected record-identity successor keeps both physical twins at their
+/// original text ranks, with separate IDs and no duplicate credit.
 #[test]
 #[cfg(feature = "test-hooks")]
-fn text_only_duplicate_body_surfaces_once_at_first_occurrence() {
+fn text_only_equal_body_records_keep_both_original_positions() {
     let dir = TempDir::new().expect("tempdir");
     let opened = open(&dir, "slice40_dup_place");
     write_duplicate_corpus(&opened.engine);
@@ -436,8 +435,11 @@ fn text_only_duplicate_body_surfaces_once_at_first_occurrence() {
     let got = bodies(&result.results);
     let position = got.iter().position(|b| *b == DUP_BODY).expect("duplicate body present");
     assert_eq!(position, 12, "the pair sits at its first FTS rank (13th); got {got:?}");
-    let unique: HashSet<&str> = got.iter().copied().collect();
-    assert_eq!(unique.len(), got.len(), "result bodies are distinct");
+    assert_eq!(got.iter().filter(|body| **body == DUP_BODY).count(), 2);
+    assert_eq!(result.results[12].id, IdSpace::logical("DUP-A"));
+    assert_eq!(result.results[13].id, IdSpace::logical("DUP-B"));
+    assert_eq!(result.results[12].score, rrf(RRF_WEIGHT_TEXT, 13));
+    assert_eq!(result.results[13].score, rrf(RRF_WEIGHT_TEXT, 14));
     opened.engine.close().expect("close");
 }
 

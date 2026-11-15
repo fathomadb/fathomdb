@@ -271,10 +271,10 @@ def _run_plan(spec, plan, root, command, prepare, allocation_root, assess, reuse
         from g_closed_review import reviewed_costs_match
         write_reviewed = reviewed_costs_match(spec, plan, previous)
     serial = bool(write_reviewed and spec["_reviewed_costs"].get("storage_model"))
-    def serial_admission():
+    def serial_admission(started_ns=None):
         from g_serial_storage import frontier
         try:
-            disposition = frontier(spec, plan, previous, budget, active_bytes(allocation))
+            disposition = frontier(spec, plan, previous, budget, active_bytes(allocation), started_ns=started_ns)
             return None if disposition["allowed"] else disposition["reason"]
         except (OSError, ValueError, KeyError, TypeError, RuntimeError) as error:
             budget["serial_storage_blocked"] = str(error)
@@ -431,7 +431,7 @@ def _run_plan(spec, plan, root, command, prepare, allocation_root, assess, reuse
                             return None
                         work_stopped = False
                         outcome = run_g_attempt(cell, root, command, deadline, context=context, monitor=monitor,
-                                                **({"admit": serial_admission} if serial else {}))
+                                                **({"admit": lambda: serial_admission(started)} if serial else {}))
                         if spec.get("preparation") == "closed-copy-v1":
                             observe_growth()
                             outcome.update(peak_retained_bytes=peak_retained, peak_store_bytes=peak_store,

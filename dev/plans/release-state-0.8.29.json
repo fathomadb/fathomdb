@@ -180,14 +180,21 @@
         "dev/plans/0.8.29/features/slice-20/test-map.md",
         "dev/plans/0.8.29/features/slice-20/review-log.md"
       ],
-      "phase": "LINUX_SOURCE_QUALIFIED_WINDOWS_FORMAT_APPROVED_READINESS_PENDING",
+      "phase": "LINUX_QUALIFIED_WINDOWS_CAPACITY_REMEDIATION_AUTHORIZED",
       "evidence": "Qualified Linux source at45167677bee0d00b59194897e63ad05be40d6e63 includes unchanged prior seq-369 A3/A5 proofs and seq-370 capacity-only preparation plus genuine startup/visibility alias RED/GREEN. Fresh independent Astra implementation and assembled-results ACCEPT; affected parallel engine lib175/175, Clippy/check pass. Original final wrapper ran220 suites:218 passed and2 metadata guards failed. Reviewed baseline merge and exact inventory refresh made unchanged failed guards pass11/11 and8/8, yielding assembled220/220 without wrapper replay. Source/scripts/Cargo/toolchain/test oracles are unchanged from accepteddff; actual owned Python3.12.3/native receipt staysdff. Original wrapper exit1/failures retained. WindowsA6 remains unqualified: owned RAW image needs reattachment, seq-373 approved guarded format and refreshed guest/host readiness; no whole20/Block1/release closure.",
       "qualified_subset_sha": "45167677bee0d00b59194897e63ad05be40d6e63",
       "continuation_plan_sha": "391ae66aa9d36fc0dbdfe5326ed028551a6774f5",
       "linux_repair_sha": "657edeb76caaf9c8d2aab433766bec9362e73217",
       "linux_proof_sha": "f803a964ad8c8154a481e6f9385599bef5c0e054",
       "capacity_preparation": "OWNED_RAW_REATTACH_REQUIRED_FORMAT_APPROVED_SEQ373",
-      "linux_hook_alias_qualified_sha": "45167677bee0d00b59194897e63ad05be40d6e63"
+      "linux_hook_alias_qualified_sha": "45167677bee0d00b59194897e63ad05be40d6e63",
+      "windows_capacity_remediation": {
+        "source": "dev/steward/steward-ledger.jsonl seq-385",
+        "status": "AUTHORIZED_READINESS_AND_REMEDIATION_PENDING",
+        "target": "existing gh-runner-wonl-win11 only",
+        "latest_readiness": "2026-11-15T16:09:31Z exact VM shut off, approved scratch not attached; current C: free unknown. Existing image under/mnt/data; older4.92GiB is historical.",
+        "bounds": "Existing8GiB C entry/5GiB stop and32GiBworkspace floor remain; selected cleanup or slight disk increase mustpreserve existing data and location under/mnt/data. Existing scratch/guardedformat approvals retained; tests still require readiness."
+      }
     },
     {
       "slice": 30,
@@ -591,7 +598,19 @@
         "shared_used_ns": 2401262709005,
         "calibration_common_used_ns": 40464370445,
         "retained_bytes": 6690991597,
-        "next": "Astra accepted prospective R1-only readiness:1421.937516906s forecast within1499.988109292s remaining cell,40s cleanup reserve, projected8613312291B retention below16GiB. Actual R1 still requires serial native lease and fresh technical GO. No write matrix or expanded profile active."
+        "next": "R1 completed and independently accepted; see g_closed_read_r1_latest. Earlier readiness forecast retained historically. No expanded profile or write matrix active."
+      },
+      "g_closed_read_r1_latest": {
+        "status": "QUALIFIED_TERMINAL_ASTRA_ACCEPTED",
+        "source": "1a88937dcf6c00c22c5cd1ae48fc0bb320c3a46c",
+        "root": "/mnt/data/tmp2/fathomdb-0829-continuation/slice30-g-20261113/gd-allocation/g-closed-read-r1-v1",
+        "whole_cell_ns": 707515277527,
+        "shared_used_ns": 3122362041569,
+        "retained_bytes": 7775436266,
+        "primary_qualified": 12,
+        "primary_held": 72,
+        "evidence": "Six SDK/engine embed/hybrid/text passes,500 warmups and1000 timed calls each, requestedcuda:0 and own-PID GPU proof. No issues, close/cleanup passed, all actors collected. Frozen-baseline qualification, not current paired50 performance. Original failures/charges remain. No write attempt or expanded profile active.",
+        "next": "Implement reviewed conditional serial-retained/live storage model with actual closed-file accounting and complete remaining-table recheck; final implementation review and fresh budget admission precede writes. D/M combined bounds remain unknown."
       }
     },
     {
@@ -782,10 +801,19 @@
         "dev/plans/0.8.29/features/slice-100/execution.md"
       ],
       "conditions": "Preserve qualified85f source/coverage and unchanged recovery assertions. Seq383 one additional pair is spent. Another real pair requires a new owner decision after concrete reviewed source and fresh runtime readiness; no automatic retry or qualifying signal is authorized by source acceptance.",
-      "phase": "SEQ383_PAIR_SPENT_DELIVERY_FIX_REVIEWED_INTEGRATED_NEW_FAULT_SCOPE_HELD",
-      "evidence": "Qualified source, coverage and native subset integrated at 85f7eb219d96ff75c27cf24660218aa1a1c79780 after final independent Astra-medium ACCEPT, with no remaining concrete finding. All 20 operator controls and five composed G2 cells passed. The original qualified healthy Q1 run has its own active native checkpoint witness and normal completion/reopen. Assembled coverage of 217 registrations comprises 200 original passes, 16 continuation passes and the exact repaired Rust target. Rust: 2727 passed, 72 ignored. Python/native receipt, TS and hermetic executable NAPI passed; Python/TS body counts are unavailable and are not inferred. Original incomplete wrapper, measurement stop, stale-doc failures, Cargo101/target127 and exec_prefix warning remain recorded in features/slice-100/execution.md and review-log.md. Operator defects have committed runtime RED/GREEN. Original Q1 interruption remains UNQUALIFIED, without confirmed fault-exit, raw snapshot or recovery qualification. Corrected real-debugger behavior is unverified; seq383 approves exactly one additional corrected matched pair under unchanged limits; fresh runtime readiness/execution remains pending. Slice 100, D28-09 and release closure remain open. The seq383 additional pair ran on current453: healthy QUALIFIED_HEALTHY; interruption UNQUALIFIED after its own active checkpoint witness. A late same-token MI error followed running and breakpoint-reinsertion failure; the five-second exit-observation deadline is not evidence that the full120-second case cap elapsed. No confirmed fault-exit/raw snapshot/recovery proof exists. All registered/adopted actors were reaped. Source repair2565718867f6d31bcf27fa6faa349ecf5174217b is integrated after fresh Astra-medium ACCEPT: independent RED/GREEN units detect late MI errors and revalidate all-stop/thread/group/PID/executable/frame/stack/native/READY identity before one debugger-delivered SIGKILL, with no qualifying pidfd duplicate or fallback. Seven pure controls and the one affected Python fake-MI control pass; scoped Ruff/Markdown pass. No real debugger/fault tested the replacement; avoiding the reinsertion race remains an inference. A100-5/D28-09/whole100 remain open. Combined F7 ordinary full verification subsequently passed220 registrations with one explicit opt-in skip and no failures; this qualifies the reviewed operator source, not real replacement delivery. Source100 compiled inputs remain identical453-to-F7 outside unlinked MCP, so retained original453 Q1 binary/build attribution passes current source_subject without rebuild or retagging. A new bounded-pair scope question is pending; no new owner approval or qualifying fault is inferred.",
+      "phase": "CORRECTED_Q1_PAIR_APPROVED_FRESH_READINESS_PENDING",
+      "evidence": "Qualified source, coverage and native subset integrated at 85f7eb219d96ff75c27cf24660218aa1a1c79780 after final independent Astra-medium ACCEPT, with no remaining concrete finding. All 20 operator controls and five composed G2 cells passed. The original qualified healthy Q1 run has its own active native checkpoint witness and normal completion/reopen. Assembled coverage of 217 registrations comprises 200 original passes, 16 continuation passes and the exact repaired Rust target. Rust: 2727 passed, 72 ignored. Python/native receipt, TS and hermetic executable NAPI passed; Python/TS body counts are unavailable and are not inferred. Original incomplete wrapper, measurement stop, stale-doc failures, Cargo101/target127 and exec_prefix warning remain recorded in features/slice-100/execution.md and review-log.md. Operator defects have committed runtime RED/GREEN. Original Q1 interruption remains UNQUALIFIED, without confirmed fault-exit, raw snapshot or recovery qualification. Corrected real-debugger behavior is unverified; seq383 approves exactly one additional corrected matched pair under unchanged limits; fresh runtime readiness/execution remains pending. Slice 100, D28-09 and release closure remain open. The seq383 additional pair ran on current453: healthy QUALIFIED_HEALTHY; interruption UNQUALIFIED after its own active checkpoint witness. A late same-token MI error followed running and breakpoint-reinsertion failure; the five-second exit-observation deadline is not evidence that the full120-second case cap elapsed. No confirmed fault-exit/raw snapshot/recovery proof exists. All registered/adopted actors were reaped. Source repair2565718867f6d31bcf27fa6faa349ecf5174217b is integrated after fresh Astra-medium ACCEPT: independent RED/GREEN units detect late MI errors and revalidate all-stop/thread/group/PID/executable/frame/stack/native/READY identity before one debugger-delivered SIGKILL, with no qualifying pidfd duplicate or fallback. Seven pure controls and the one affected Python fake-MI control pass; scoped Ruff/Markdown pass. No real debugger/fault tested the replacement; avoiding the reinsertion race remains an inference. A100-5/D28-09/whole100 remain open. Combined F7 ordinary full verification subsequently passed220 registrations with one explicit opt-in skip and no failures; this qualifies the reviewed operator source, not real replacement delivery. Source100 compiled inputs remain identical453-to-F7 outside unlinked MCP, so retained original453 Q1 binary/build attribution passes current source_subject without rebuild or retagging. New owner seq386 approves exactly one corrected pair, unconsumed; see q1_current_approval. No qualifying replacement fault is inferred.",
       "plan_sha": "c1226d1bf958e1aa4b69fc81f265c9bc3d217198",
-      "qualified_subset_sha": "85f7eb219d96ff75c27cf24660218aa1a1c79780"
+      "qualified_subset_sha": "85f7eb219d96ff75c27cf24660218aa1a1c79780",
+      "q1_current_approval": {
+        "source": "dev/steward/steward-ledger.jsonl seq-386",
+        "id": "TC-232252ae-2602-4d8d-8831-c07cf031258e",
+        "status": "APPROVED_NOT_CONSUMED",
+        "allowed_pairs": 1,
+        "consumed_pairs": 0,
+        "protocol": "dev/plans/0.8.29/features/slice-100/q1-protocol.md",
+        "scope": "One fresh matched healthy then own-witnessed SIGKILL pair only;120s/case/64GiB/registeredactors/noautomaticretry/nohostVMGPUfault. Source/native/runtime readiness and root serial GO precede execution. Prior approvals remain spent."
+      }
     },
     {
       "slice": 110,
@@ -872,6 +900,20 @@
         "library_sha": "0bd3d44b0799767d89950b69eb2a44aac4b60655",
         "merge_sha": "8921b072ae00a61327346214d38bc604cf5489be",
         "evidence": "Independent Astra accepts selected memory, module load/lookup/drop, ordinary launch admission/results and BLAS/RNG constructor/setter/drop/guard/safe-use source with genuine RED/GREEN CPU-seam controls. Exact library changes merged into newer driver source. No realGPU/reset, combined-feature qualification or pins claim. Pinned-host/pool source work and selected Candle helper integration remain."
+      },
+      "fork_cpu_qualification": {
+        "source": "cb36642fad90c1796693c36ee59e3d3d162f4410",
+        "worktree": "/mnt/data/worktrees/fathomdb-0.8.29-cudarc-qual-20261115",
+        "status": "SELECTED_CPU_PASS_ASTRA_ACCEPTED",
+        "selected": 312,
+        "passed": 312,
+        "failed": 0,
+        "ignored": 0,
+        "listed": 452,
+        "excluded": 140,
+        "evidence": "Fmtcheck and production library Clippy-Werror pass. Exact Candle feature closure compiled with CUDA12.6, runtime GPU hidden. All selected driver/lifetime/admission/cached-diagnostic/BLAS/RNG CPU controls passed in individually bounded processes; all owned actors collected. Test compile has five dead-field warnings. No GPU/NVRTC runtime, whole-workspace, consumer-pin or release qualification claim.",
+        "next": "Candle actual private F32-helper RED/GREEN, independent review and qualified adoption.",
+        "review": "Independent Astra-medium accepted exactcb source/result binding and all312 unique exact passes; no actionable findings. Two obsolete cleanupOOM oracles preserve ownership/no-panic/destroy-once and now require policy-correct sticky exactOOM/no-growth. Ordinary-operation OOM controls remain passing."
       }
     },
     {
@@ -1082,6 +1124,20 @@
         "title": "Approve the reviewed full80 contract at f2f4831554ae165420a31890cf102642ce28b21d; actual Block1 exit and integrated source-fit still precede90.",
         "owner_slice": 80,
         "source": "dev/steward/steward-ledger.jsonl seq-384"
+      },
+      {
+        "id": "TC-4799685f-854b-4f96-b739-3e61a650bd6d",
+        "title": "You free the needed space on the windows VM, or slightly increase it's disk space ensuring it is in /mnt/data/",
+        "owner_slice": 20,
+        "source": "dev/steward/steward-ledger.jsonl seq-385",
+        "scope": "Owner authorizes freeing needed space on the existing Windows VM or a slight disk-size increase, with disk space located under /mnt/data. Existing 8GiB entry and 5GiB stop floors remain. This records capacity remediation, not a test-readiness waiver; no unrelated user data or disks are selected."
+      },
+      {
+        "id": "TC-232252ae-2602-4d8d-8831-c07cf031258e",
+        "title": "Approve one corrected pair (Recommended)",
+        "owner_slice": 100,
+        "source": "dev/steward/steward-ledger.jsonl seq-386",
+        "scope": "Approve exactly one additional corrected matched Q1 pair: fresh healthy control then one SIGKILL only of its own disposable child after revalidating its active-checkpoint witness, thread/PID and nonce. Same120s/case and64GiB, registered actors only, no automatic retry or host/VM/GPU fault. Source/native/runtime readiness remains required. Earlier approvals remain spent; this is a new explicit approval, not reuse."
       }
     ],
     "unruled": [
@@ -1125,7 +1181,7 @@
   },
   "release_readiness": {
     "status": "NOT_READY",
-    "qualification": "0\u201310 preparation,60 MCP,70 SDK and80 design are complete locally. Qualified subsets include20 Linux,30 tooling/P/11 primaryG plus four separate calibration controls,50 search source,100 coverage/native and selected140 fork CPU seams. Whole20,73 primaryG obligations, actualM/D/F,current paired50 performance,conditional40,Block1 exit/90,100Q1,110 tracked integration,130 venues/finalartifacts and160 remain pending. Source qualification is assembled with original failures/refusals/skips preserved. No whole-release or published-package claim.",
+    "qualification": "0\u201310 preparation,60 MCP,70 SDK and80 design are complete locally. Qualified subsets include20 Linux,30 tooling/P/12 primaryG plus four separate calibration controls,50 search source,100 coverage/native and selected140 fork CPU seams. Whole20,72 primaryG obligations, actualM/D/F,current paired50 performance,conditional40,Block1 exit/90,100Q1,110 tracked integration,130 venues/finalartifacts and160 remain pending. Source qualification is assembled with original failures/refusals/skips preserved. No whole-release or published-package claim.",
     "publication": "HELD; no tag, dispatch, external ACL mutation or registry publication authorized by bootstrap."
   },
   "generated_views": [

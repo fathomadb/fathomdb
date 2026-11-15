@@ -213,6 +213,11 @@ class Session:
         self.lease_generation+=1
         self.publish('lease.json',{'runId':self.run_id,'candidateSha':self.cfg['candidateSha'],'generation':self.lease_generation})
     def extract(self):
+        if self.cfg.get('reuseExtractedFrom'):
+            old=json.loads(command("$p="+quote(self.cfg['reuseExtractedFrom'])+";if([IO.File]::Exists($p)){[IO.File]::ReadAllText($p)}else{'null'}",timeout=20))
+            if old is not None:
+                if old.get('candidateSha')!=self.cfg['candidateSha'] or old.get('runId')!=self.cfg['reusedSourceEvidence']['runId'] or old.get('status')!='EXACT_SOURCE_VERIFIED' or old.get('archiveSha256')!=self.cfg['archiveSha256'] or old.get('workspace')!=self.cfg['workspace'] or old.get('files')!=len(self.cfg['sourceFiles']):raise ValueError('prior exact extraction receipt differs')
+                self.log('verified-extraction-reused',old);return
         self.sample();self.renew_lease();last_renewal=time.monotonic()
         script=self.cfg['packagePath']+'\\extract-source.ps1'
         invocation=script_invocation(script,self.package['files']['extract-source.ps1'],'-Control '+quote(self.control)+' -ConfigSha256 '+self.config_hash)
@@ -342,11 +347,17 @@ def source_archive(session):
         previous=Path(a.reuse_source_run)
         if not previous.is_absolute() or not previous.is_relative_to(TASK/'a6-execution') or previous.name!='run.json':raise ValueError('owned source reuse record required')
         old=read_json(previous);archive=previous.parent/'source.zip'
+        if not archive.exists():
+            origin=Path(old.get('reusedSourceEvidence',{}).get('configPath',''))
+            if not origin.is_absolute() or not origin.is_relative_to(TASK/'a6-execution') or origin.name!='run.json':raise ValueError('owned archive origin required')
+            original=read_json(origin)
+            if any(original.get(k)!=old.get(k) for k in ['candidateSha','archiveSha256','sourceArchive','workspace','sourceFiles']):raise ValueError('frozen archive origin differs')
+            archive=origin.parent/'source.zip'
         if old.get('candidateSha')!=sha or old.get('runId')!=previous.parent.name or digest(archive)!=old.get('archiveSha256'):raise ValueError('frozen source reuse identity differs')
         observed=json.loads(command("$p="+quote(old['sourceArchive'])+";@{sha256=(Get-FileHash -LiteralPath $p -Algorithm SHA256).Hash.ToLowerInvariant();bytes=(Get-Item -LiteralPath $p).Length}|ConvertTo-Json -Compress",timeout=20))
         if observed['sha256']!=old['archiveSha256'] or observed['bytes']!=archive.stat().st_size:raise ValueError('verified guest source archive differs')
         session.cfg.update({k:old[k] for k in ['sourceArchive','archiveSha256','workspace','sourceFiles','sourceArchiveExcludedPaths']})
-        session.cfg.update(resumeSource=True,reusedSourceEvidence={'configPath':str(previous),'configSha256':digest(previous),'productSha':sha},controllerSha=subprocess.check_output(['git','rev-parse','HEAD'],cwd=PACKAGE,text=True).strip())
+        session.cfg.update(resumeSource=True,reusedSourceEvidence={'configPath':str(previous),'configSha256':digest(previous),'productSha':sha,'runId':old['runId']},reuseExtractedFrom=GUEST+'\\control\\'+old['runId']+'\\source-extracted.json',controllerSha=subprocess.check_output(['git','rev-parse','HEAD'],cwd=PACKAGE,text=True).strip())
         session.log('frozen-product-source-reused',{'productSha':sha,'controllerSha':session.cfg['controllerSha'],'archiveSha256':old['archiveSha256']});return
     excluded='dev/plans/0.8.27/features/slice-135/results/2026-10-07-e12-adapter-pilot/'
     raw=session.root/'git-source.zip';archive=session.root/'source.zip'

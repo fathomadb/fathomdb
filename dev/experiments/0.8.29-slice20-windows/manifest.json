@@ -1,0 +1,22 @@
+{
+  "schema": "fathomdb.a6.operator/v1",
+  "files": {
+    "Controls.cs": "d7050c5337b892f3c1731b219538d68deaff4e5a150102ae599420f0ed86b743",
+    "NativeJob.cs": "0de78ef32ff0af32a243aaaf3a87936045f0770a7c73d18d1fae15739429a980",
+    "OwnedChild.cs": "b23fdc51a72e0332e13de26b6bb8968093ffdd8e056865cb4d78eb7e27d9b765",
+    "README.md": "edf47768b74b24d165f3005fe032ac2102025a827e71dae6ec5a26559f38a964",
+    "Supervisor.cs": "5d785488e0dca5d4ea0213bbe19961d8e6dd14c466ec156a353ae2678dfbeb64",
+    "a6_operator.py": "ada82bb8e4b2b3be3a35c9bf0faf3fe5ff577479907898a0f03c183e56f0cb7d",
+    "common.ps1": "1733043c4dbfd4c67168386b705b84fe9efbb321a8e15b92addd919a1de5f5ba",
+    "exercise.py": "525e6bb10e36adb2efddeb94a894307cc2c59edcaf1c2d8f91d1125bc46daea0",
+    "extract-source.ps1": "997c887f42c60f066db885faa121e5708d285085dcaae20ed922516110986d57",
+    "guest-stage.ps1": "ea7693be0d8a7d6568b4a0d0a29d7bb9d2e5c228fa8c57ad2b15874fd0d6289a",
+    "launch-stage.ps1": "14e758c77975db28e51458abf1cfc419404765e1204a2d85c4dba139f56e561f",
+    "launch-supervisor.ps1": "01640d203df5a5dfc0421502350832026b16c64945fdc9818ea49c82f049c76a",
+    "native-bootstrap.ps1": "b176e5279a03d120bb2dcf7e2e114bd433a30749a565a5a5b8e96f1618b670d3",
+    "parse-package.ps1": "3754f1437bcd0df6e114eb17447210f1a2b7fc5c923ea0ed79409c6f16a7b2a9",
+    "probe.ps1": "15f5b19dfa6658b249c970bd94587924bfc54d734184329bc6e1a4c356e909f5",
+    "receive.ps1": "18e98bc08fd9f1960e9d89e0987a28e1fc11a77fe834083dff7b88cdb5481d29",
+    "stdin-prefix.ps1": "34dce794b4f928069366164915f05d4a7cc700a82fa6365527c3b8b777c65d6d"
+  }
+}

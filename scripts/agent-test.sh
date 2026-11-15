@@ -136,6 +136,8 @@ run_tier_suite fast test-gcp-lab-remote-driver bash scripts/tests/test_gcp_lab_r
 run_tier_suite fast test-sqlite-dependency-contract bash scripts/tests/test_sqlite_dependency_contract.sh
 run_tier_suite fast test-public-doc-truth bash scripts/tests/test_public_doc_truth.sh
 run_tier_suite fast test-slice10-preparation python3 scripts/tests/test_slice10_preparation.py
+run_tier_suite fast test-slice20-windows-transport python3 scripts/tests/test_slice20_windows_transport.py
+run_tier_suite fast test-slice20-windows-archive python3 scripts/tests/test_slice20_windows_archive.py
 run_tier_suite fast test-slice30-surface-comparator python3 scripts/tests/test_slice30_surface_comparator.py
 run_tier_suite fast test-slice130-soak python3 scripts/tests/test_slice130_soak.py
 run_tier_suite fast test-slice100-checkpoint-operator python3 -m unittest discover \

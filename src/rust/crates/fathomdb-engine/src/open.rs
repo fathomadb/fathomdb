@@ -242,6 +242,7 @@ fn take_post_probe_startup_fault_for_test(path: &Path) -> Option<PostProbeStartu
 
 #[cfg(test)]
 pub(crate) fn install_admission_locked_hook_for_test(path: PathBuf, rendezvous: Arc<Barrier>) {
+    let path = canonical_database_path(&path).expect("canonical admission hook database path");
     *ADMISSION_LOCKED_HOOK_FOR_TEST.lock().expect("admission hook lock") =
         Some(AdmissionLockedHookForTest { path, rendezvous });
 }

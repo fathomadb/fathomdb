@@ -71,9 +71,10 @@ locomo_load <locomo10.json> --single "$S/stores/conv0/conv0.sqlite" --convs 0
 This is the required pre-90 Block1 smoke/item4 remeasure, not a retrieval-only
 substitute or the final 160 qualification. Actual selected20–70 exits and the
 applicable integrated checks/performance/both-format conformance remain hard
-predecessors. No model/spend approval or execution is implied by this proposal.
+predecessors. Owner model/scope/budget approval is recorded at seq-388;
+execution still waits for those predecessor exits.
 
-**Proposed selection for owner approval:** exact historical answerer
+**Owner-approved selection (seq-388):** exact historical answerer
 `claude-haiku-5-5`; judge `gpt-4o-mini` with the existing lenient and strict
 rubrics. Smoke: conv1 `q0,q1,q2,q3,q4,q5`, two questions each from categories
 1/2/4, all ten conversations in one store, separately under native `text` and
@@ -94,7 +95,8 @@ existing `locomo_load` commands above; this is an execution step, not a missing
 owner-provided fixture. Use the integrated candidate MCP/loader, owned tools
 and selected GPU only after the heavy window is available.
 
-**Implemented after Astra-medium design acceptance; final review pending.**
+**Implemented and independently accepted by Astra-medium; integrated at
+`73eb4cf7d45a3ceed3bdce20256f84d7d1c76d91`.**
 The existing runners/tests now provide these controls, without a second harness
 or proxy-based current arm:
 
@@ -174,11 +176,11 @@ rejudged automatically. `--no-judge` is a zero-egress transcript audit; absent
 grades stay unknown and it cannot pass accuracy. No actual candidate run has
 been performed by this implementation work.
 
-**Exact owner question:** approve the above Haiku 5.5 answerer/GPT-4o-mini judges,
+**Approved scope (seq-388):** the above Haiku 5.5 answerer/GPT-4o-mini judges,
 identical single-sentence prompt correction, 6-question conv1 both-format smoke
 and fixed 30 paired item4, with one worker / 8 turns / 180 seconds / $0.02 per episode and
 $2 reported-cost stop including judges, accepting possible final-call billing
-overshoot? The October 19 answerer costs extrapolate to roughly $0.10 for this
+overshoot. The October 19 answerer costs extrapolate to roughly $0.10 for this
 selection; this is historical sizing, not a current price quote. Source review,
 fixture preparation and all hard predecessor checks remain required before any
 priced run.

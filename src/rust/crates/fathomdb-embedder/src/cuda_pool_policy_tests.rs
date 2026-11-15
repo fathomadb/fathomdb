@@ -563,6 +563,7 @@ struct FakeDriver {
     pools_created: AtomicUsize,
     pools_dropped: Arc<AtomicUsize>,
     contexts_built: AtomicUsize,
+    contexts_wrapped: AtomicUsize,
     retained: AtomicUsize,
     /// `cuDevicePrimaryCtxGetState`: `Err(code)` fails the query; `None` is
     /// an active context with flags 0.
@@ -683,6 +684,7 @@ impl PoolDriver for FakeDriver {
     }
 
     fn wrap_context(&self, context: Self::Context) -> Result<Self::Device, DriverFailure> {
+        self.contexts_wrapped.fetch_add(1, Ordering::SeqCst);
         Ok(FakeDevice::Private(context))
     }
 
@@ -1099,6 +1101,46 @@ fn detection_runs_only_for_cuda_errors_in_a_private_process() {
     assert_eq!(classify_forward_fault(None, &fallback_driver, cuda_fault(Some(709)), "f"), None);
     assert_eq!(driver.state_reads.load(Ordering::SeqCst), 0);
     assert_eq!(fallback_driver.state_reads.load(Ordering::SeqCst), 0);
+}
+
+#[test]
+fn a_published_loss_refuses_private_build_before_creating_or_wrapping_contexts() {
+    for first_context_handed_out in [false, true] {
+        let driver = FakeDriver { current_id: Some(Ok(2000)), ..FakeDriver::default() };
+        let cell: OnceLock<FakeDecision> = OnceLock::new();
+        decision(&cell, &driver, 0);
+        if first_context_handed_out {
+            build_device(&cell, &driver, 0).expect("healthy first device");
+        }
+        let first =
+            lost(classify_forward_fault(cell.get(), &driver, cuda_fault(Some(999)), "forward"));
+        let owners = (
+            driver.contexts_built.load(Ordering::SeqCst),
+            driver.contexts_wrapped.load(Ordering::SeqCst),
+        );
+        let state_reads = driver.state_reads.load(Ordering::SeqCst);
+        let id_reads = driver.id_reads.load(Ordering::SeqCst);
+
+        for _ in 0..2 {
+            let result = build_device(&cell, &driver, 0);
+            assert_eq!(
+                (
+                    driver.contexts_built.load(Ordering::SeqCst),
+                    driver.contexts_wrapped.load(Ordering::SeqCst),
+                ),
+                owners,
+                "known loss must refuse before creating or wrapping a private context"
+            );
+            let failure = match result {
+                Err(DeviceBuildError::Pool(failure)) => lost(Some(failure)),
+                other => panic!("expected cached context loss, got {other:?}"),
+            };
+            assert_eq!((failure.0, failure.1, &failure.2), (first.0, first.1, &first.2));
+            assert_eq!(failure.3, DEVICE_BUILD_OPERATION);
+            assert_eq!(driver.state_reads.load(Ordering::SeqCst), state_reads);
+            assert_eq!(driver.id_reads.load(Ordering::SeqCst), id_reads);
+        }
+    }
 }
 
 #[test]

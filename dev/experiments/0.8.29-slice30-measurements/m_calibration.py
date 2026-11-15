@@ -1,17 +1,106 @@
 """One explicitly selected bounded M calibration, separate from primary admission."""
 
+import json
+from pathlib import Path
+import sys
+import time
+
+from g_campaign import active_bytes
+from m_attempt import run_attempt
+from m_load import observe_load
+
 CELL_ID = "M-R-1-1-warn"
 CALIBRATION_ID = "M-CAL:" + CELL_ID
 
 
 def control(root, owner, manifest=None):
     """Dispatch one admitted selected configuration through existing preparation/payload."""
-    return None
+    from m_freeze import validate_calibration
+    from m_guard import write_budget
+    from m_runtime import prepare
+    manifest = validate_calibration(root) if manifest is None else manifest
+    root = Path(root)
+    ledger_path = Path(manifest["allocation"]) / "g-budget.json"
+    budget = json.loads(ledger_path.read_text())
+    if budget.get("m_guardian") != owner:
+        raise RuntimeError("calibration lacks its current owning M guardian")
+    cell = selected_cell(CELL_ID)
+    if manifest["plan"] != [cell]:
+        raise ValueError("only the selected calibration configuration can dispatch")
+    limits = manifest["calibration"]
+    usage = budget["calibration_usage"][CALIBRATION_ID]
+    prior = budget.get("cell_used_ns", {}).get(CALIBRATION_ID, 0)
+    began = time.monotonic_ns()
+    phase_end = owner["started_monotonic_ns"] + limits["phase_ns"] - usage["wall_ns"]
+    deadline = min(began + limits["payload_ns"] - prior,
+                   began + 900 * 10**9 - prior, phase_end - 20 * 10**9,
+                   began + manifest["profile"]["total_shared_ns"]
+                   - manifest["profile"]["reserved_other_work_ns"] - budget["used_ns"] - 20 * 10**9)
+    baseline = active_bytes(manifest["allocation"])
+    remaining_bytes = limits["new_retained_bytes"] - usage["new_retained_bytes"]
+    bound = preparation_bound(manifest)
+
+    def authorize(prepared):
+        if observe_load()["load"] > 2:
+            return "quiet load<=2 calibration entry unavailable"
+        if time.monotonic_ns() + 7 * 10**9 >= deadline:
+            return "remaining calibration work/cleanup allowance unavailable"
+        if not prepared and bound > remaining_bytes:
+            return "closed packaging plus bounded output exceeds remaining calibration growth"
+        return monitor()
+
+    def monitor():
+        current = active_bytes(manifest["allocation"])
+        if current - baseline >= remaining_bytes:
+            return "calibration retained growth exhausted"
+        if current >= (manifest["profile"]["total_shared_retained_bytes"]
+                       - manifest["profile"].get("reserved_other_work_bytes", 0)):
+            return "shared retained storage exhausted"
+        return None
+
+    def register(selected, attempt):
+        value = json.loads(ledger_path.read_text())
+        value["inflight"] = {"cell": selected["id"], "started_monotonic_ns": began,
+            "started_at_ns": time.time_ns(), "attempt": str(Path(attempt).resolve()),
+            "freeze_uuid": manifest["uuid"]}
+        write_budget(ledger_path, value)
+
+    def command(selected, attempt, work_deadline):
+        return [sys.executable, str(Path(__file__).with_name("m_runner.py")), "_cell",
+                "--root", str(root), "--deadline-ns", str(work_deadline)]
+
+    outcome = run_attempt(cell, root / "results", command, deadline_ns=deadline,
+        prepare=lambda selected, attempt, end: prepare(manifest, selected, attempt, end),
+        authorize=authorize, monitor=monitor, register=register)
+    elapsed = time.monotonic_ns() - began
+    budget = json.loads(ledger_path.read_text())
+    budget["used_ns"] += elapsed
+    budget.setdefault("cell_used_ns", {})[CALIBRATION_ID] = prior + elapsed
+    clean = not outcome["cleanup_uncertain"] and outcome["live_owned_pids"] == []
+    if clean:
+        budget["inflight"] = None
+    else:
+        budget["inflight"]["status"] = "cleanup_uncertain"
+    write_budget(ledger_path, budget)
+    outcome.update(charged_ns=elapsed, scope="bounded-natural-calibration", qualifies_primary=False)
+    (root / "results").mkdir(exist_ok=True)
+    (root / "results/campaign-state.json").write_text(json.dumps([outcome], indent=2) + "\n")
+    return outcome
 
 
 def preparation_bound(manifest):
     """Bound the selected closed package and existing bounded retained producers."""
-    return None
+    from m_runtime import read_queries
+    queries = read_queries(manifest["inputs"]["queries"]["path"])
+    if len(queries) != 500:
+        raise ValueError("exact500 registered calibration queries required")
+    maximum = max(len(json.dumps({"jsonrpc": "2.0", "id": 10000, "method": "tools/call",
+        "params": {"name": "search", "arguments": {"store": "a", "query": query,
+                  "mode": "hybrid", "limit": 10}}}, ensure_ascii=False,
+        separators=(",", ":")).encode("utf-8")) + 1 for query in queries)
+    # Existing64MiB raw streams and their escaped/decoded snapshots fit below1GiB;
+    # request copies are additionally bounded by the actual selected query sizes.
+    return sum(item["bytes"] for item in manifest["package"]) + 1024**3 + 12 * 1504 * maximum
 
 
 def selected_cell(cell_id):

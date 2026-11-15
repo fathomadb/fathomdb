@@ -95,6 +95,25 @@ def freeze(options, output):
         total_shared_ns=profile["total_shared_ns"]-profile["reserved_other_work_ns"]-2*sum(common.values()),
         total_shared_retained_bytes=profile["total_shared_retained_bytes"]-profile["reserved_other_work_bytes"]-2*common_bytes)
     _assessment(load_plan(), effective, ledger, forecasts["cells"], allocation)
+    return _bind_inputs(options, output, profile, forecasts)
+
+
+def freeze_calibration(options, output, cell_id):
+    """Bind only the selected calibration; primary46 admission remains unchanged."""
+    from m_calibration import selected_cell
+    allocation = Path(options["allocation"]).resolve()
+    profile = json.loads(Path(options["profile"]).read_text())
+    approved(profile, allocation)
+    if git("status", "--porcelain"):
+        raise ValueError("M calibration requires clean reviewed source")
+    if not Path(output).resolve().is_relative_to(allocation):
+        raise ValueError("M calibration belongs to the original retained allocation")
+    return _bind_inputs(options, Path(output).resolve(), profile, None,
+                        calibration=selected_cell(cell_id))
+
+
+def _bind_inputs(options, output, profile, forecasts, *, calibration=None):
+    allocation = Path(options["allocation"]).resolve()
     selected = json.loads((SOURCE / "dev/plans/release-state-0.8.29.json").read_text())
     # The release state owns this metadata's location; recursive lookup avoids another state view.
     def find(value):
@@ -143,7 +162,7 @@ def freeze(options, output):
     if any((model[name]["bytes"], model[name]["sha256"]) != value for name, value in MODEL_FILES.items()):
         raise ValueError("registered model cache bytes required")
     binaries = {}
-    for variant in VARIANTS:
+    for variant in (VARIANTS if calibration is None else ("ordinary",)):
         receipt = json.loads(Path(options["builds"][variant]).read_text())
         binary = identify(receipt["binary"]["path"])
         if (receipt.get("schema") != "slice30-m-build/v1" or receipt["variant"] != variant
@@ -163,6 +182,10 @@ def freeze(options, output):
         "gpu": gpu, "builds": binaries, "plan": load_plan(), "runtime_status": "HELD_UNTIL_SELECTED_RUN"}
     manifest["combined_feasibility"] = ("UNKNOWN" if profile["other_work_cost_status"] == "HELD_UNAVAILABLE"
                                          else "BOUNDED_BY_SELECTED_PROFILE")
+    if calibration is not None:
+        manifest.update(schema="slice30-m-calibration/v1", scope="bounded-natural-calibration",
+                        plan=[calibration], calibration=options["calibration"],
+                        qualifies_primary=False, runtime_status="BOUNDED_CALIBRATION_ONLY")
     output.mkdir(parents=True, exist_ok=True)
     path = output / "manifest.json"
     with path.open("x") as stream:
@@ -184,4 +207,22 @@ def validate(root):
                      *(receipt["binary"] for receipt in value["builds"].values())]:
         if identify(original["path"]) != original:
             raise ValueError("frozen local input/artifact identity differs")
+    return value
+
+
+def validate_calibration(root):
+    """Require exact selected source/input/build identities without admitting primary rows."""
+    from m_calibration import CELL_ID, selected_cell
+    root = Path(root).resolve()
+    value = json.loads((root / "manifest.json").read_text())
+    approved(value["profile"], value["allocation"])
+    if (value["schema"] != "slice30-m-calibration/v1" or value["scope"] != "bounded-natural-calibration"
+            or value["root"] != str(root) or git("status", "--porcelain")
+            or value["source_sha"] != git("rev-parse", "HEAD")
+            or value["compiler_inputs"] != compiler_inputs() or value["plan"] != [selected_cell(CELL_ID)]):
+        raise ValueError("exact frozen clean selected calibration required")
+    for original in [*value["package"], *value["inputs"].values(), *value["model"].values(),
+                     *(receipt["binary"] for receipt in value["builds"].values())]:
+        if identify(original["path"]) != original:
+            raise ValueError("frozen local calibration input/artifact identity differs")
     return value

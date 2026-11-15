@@ -96,6 +96,25 @@ class DGuardianTests(unittest.TestCase):
             self.assertEqual(final["common_used_ns"]["M"], 17)
             self.assertIsNone(final["d_guardian"])
 
+    def test_m_default_entry_refuses_retained_d_custody_before_start(self):
+        from m_guard import guard
+        task = Path(os.environ["S30_TASK"])
+        with tempfile.TemporaryDirectory(prefix="d-cross-custody-", dir=task/"tmp") as temporary:
+            allocation = Path(temporary)
+            ledger, budget, profile = self.fixture(allocation)
+            budget["d_guardian"] = {"status": "cleanup_uncertain-source-control"}
+            ledger.write_text(json.dumps(budget))
+            profile["schema"] = "slice30-m-budget/v1"
+            ready = allocation/"forbidden-m-start"
+            try:
+                guard([sys.executable, "-c",
+                    f"import pathlib;pathlib.Path({str(ready)!r}).write_text('started')"],
+                    allocation=allocation, profile=profile, root=allocation/"results", task=task)
+            except RuntimeError:
+                pass
+            self.assertFalse(ready.exists(), "M ignored retained D shared custody")
+            self.assertEqual(json.loads(ledger.read_text()), budget)
+
     def test_unknown_or_exhausting_other_work_and_retained_custody_refuse_start(self):
         task = Path(os.environ["S30_TASK"])
         for refusal in ("unknown-time", "unknown-bytes", "reserved-time", "reserved-bytes",

@@ -301,7 +301,12 @@ def verify_terminal(session,terminal):
 def source_archive(session):
     a=session.args;sha=a.candidate_sha
     if subprocess.check_output(['git','rev-parse','HEAD'],cwd=a.source,text=True).strip()!=sha or subprocess.check_output(['git','status','--porcelain','--untracked-files=all'],cwd=a.source,text=True):raise ValueError('exact clean source required')
-    archive=session.root/'source.zip';subprocess.run(['git','archive','--format=zip','--output',str(archive),sha],cwd=a.source,check=True)
+    excluded='dev/plans/0.8.27/features/slice-135/results/2026-10-07-e12-adapter-pilot/'
+    raw=session.root/'git-source.zip';archive=session.root/'source.zip'
+    subprocess.run(['git','archive','--format=zip','--output',str(raw),sha],cwd=a.source,check=True)
+    with zipfile.ZipFile(raw) as source,zipfile.ZipFile(archive,'w') as delivery:
+        for info in source.infolist():
+            if not info.filename.startswith(excluded):delivery.writestr(info,source.read(info))
     entries={};seen=set()
     with zipfile.ZipFile(archive) as z:
         for info in z.infolist():
@@ -310,7 +315,7 @@ def source_archive(session):
             if n.startswith('/') or '\\' in n or ':' in n or '..' in n.split('/') or n.casefold() in seen or stat.S_ISLNK(info.external_attr>>16):raise ValueError('unsafe source archive')
             if any(x.endswith(('.',' ')) or re.fullmatch(r'(?i:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\..*)?',x) for x in n.split('/')):raise ValueError('Windows-ambiguous source path')
             seen.add(n.casefold());entries[n]=hashlib.sha256(z.read(info)).hexdigest()
-    session.cfg.update({'sourceArchive':GUEST+'\\inputs\\'+session.run_id+'\\source.zip','archiveSha256':digest(archive),'workspace':GUEST+'\\source\\'+sha,'sourceFiles':entries})
+    session.cfg.update({'sourceArchive':GUEST+'\\inputs\\'+session.run_id+'\\source.zip','archiveSha256':digest(archive),'workspace':GUEST+'\\source\\'+sha,'sourceFiles':entries,'sourceArchiveExcludedPaths':[excluded]})
     session.upload(archive,'inputs/'+session.run_id+'/source.zip')
 
 def load_observed(session,args):

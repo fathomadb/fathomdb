@@ -186,7 +186,7 @@ def run_prepared(manifest, root):
     spec = json.loads(Path(__file__).with_name("g-cells.json").read_text())
     if manifest.get("preparation") == "closed-copy-v1":
         spec = dict(manifest["spec"], closed_mode=manifest["stage"])
-        for key in ("_reviewed_costs", "_calibration_origin", "_closed_limits"):
+        for key in ("_reviewed_costs", "_calibration_origin", "_closed_limits", "_calibration_successor"):
             if key in manifest:
                 spec[key] = manifest[key]
     def command(_cell, deadline):
@@ -274,6 +274,8 @@ def run_frozen(root, corrected_calibration_from=None):
     if json.loads((root / "manifest.json").read_text()).get("preparation") == "closed-copy-v1":
         from g_closed_entry import run_entry
         return run_entry(root, corrected_calibration_from) if corrected_calibration_from is not None else run_entry(root)
+    if corrected_calibration_from is not None:
+        raise ValueError("corrected calibration requires the closed-copy calibration mode")
     preliminary = json.loads((root / "manifest.json").read_text())
     if preliminary.get("schema") != "slice30-g-campaign/v1" or preliminary["source_sha"] != git("rev-parse", "HEAD") or git("status", "--porcelain"):
         raise ValueError("run requires the exact clean frozen G source")

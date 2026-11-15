@@ -61,6 +61,9 @@ def run_entry(root, corrected_calibration_from=None):
         if corrected_calibration_from is not None:
             options["corrected_calibration_from"] = str(Path(corrected_calibration_from).resolve())
         prepared = _call(allocation, mode, "preflight", options)
+        if corrected_calibration_from is not None:
+            from g_calibration_successor import consume_successor
+            prepared["_calibration_successor"] = consume_successor(prepared, root)
         os.environ["FATHOMDB_EMBED_DEVICE"] = prepared["device_policy"]
         os.environ["HF_HUB_OFFLINE"] = "1"
         os.environ["TRANSFORMERS_OFFLINE"] = "1"
@@ -87,6 +90,9 @@ def _preflight(root, corrected_calibration_from=None):
     manifest = validate_frozen(root)
     if inspect_gpu(manifest["gpu"]["uuid"])["applications"]:
         raise RuntimeError("selected3090 has foreign/current compute work")
+    if corrected_calibration_from is not None:
+        from g_calibration_successor import prepare_successor
+        manifest["_calibration_successor_candidate"] = prepare_successor(root, manifest, corrected_calibration_from)
     if manifest["stage"] != "closed-copy-calibration":
         from g_campaign import active_bytes
         from g_closed_costs import load_calibration

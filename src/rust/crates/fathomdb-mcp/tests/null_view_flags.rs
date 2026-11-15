@@ -106,3 +106,38 @@ async fn superseded_null_cannot_bypass_continuation_override_validation() {
         harness.shutdown().await;
     }
 }
+
+#[tokio::test]
+async fn inactive_null_is_rejected_on_initial_and_continuation_requests() {
+    for format in ["structured", "text"] {
+        let (_fixture, harness) = start(format).await;
+        let first = harness
+            .call(
+                "search",
+                json!({"query":"nullriver","limit":1,"as_of":1900000000,"max_tokens":100_000}),
+            )
+            .await;
+        assert_ne!(first.is_error, Some(true));
+        let handle = field(&first, format, "continuation").unwrap();
+        for request in [
+            json!({"query":"nullriver","include_inactive":null}),
+            json!({"continuation":handle,"include_inactive":null}),
+        ] {
+            let routes = harness.adapter.seams().search_route_calls();
+            let error = harness.call("search", request).await;
+            assert_eq!(error.is_error, Some(true));
+            assert!(text_of(&error).contains("bad_argument"));
+            assert_eq!(harness.adapter.seams().search_route_calls(), routes);
+        }
+        let tools = serde_json::to_value(harness.tools().await).unwrap();
+        let schema =
+            &tools.as_array().unwrap().iter().find(|tool| tool["name"] == "search").unwrap()
+                ["inputSchema"];
+        let schema = jsonschema::JSONSchema::options()
+            .with_draft(jsonschema::Draft::Draft202012)
+            .compile(schema)
+            .unwrap();
+        assert!(!schema.is_valid(&json!({"query":"nullriver","include_inactive":null})));
+        harness.shutdown().await;
+    }
+}

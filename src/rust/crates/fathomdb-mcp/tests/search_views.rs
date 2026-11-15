@@ -535,3 +535,346 @@ async fn historical_revisions_compose_with_atomic_feedback_and_not_recorded_prec
         }
     }
 }
+
+fn pending(id: &str, label: &str) -> PreparedWrite {
+    let mut write = node(id, "note", &body(label, "wanted"));
+    if let PreparedWrite::Node { state, .. } = &mut write {
+        *state = fathomdb_sdk::InitialState::Pending;
+    }
+    write
+}
+
+fn timed_edge(id: &str, label: &str, from: Option<i64>, until: Option<i64>) -> PreparedWrite {
+    let mut write = edge(&body(label, "wanted"));
+    if let PreparedWrite::Edge { logical_id, to, t_valid, t_invalid, .. } = &mut write {
+        *logical_id = Some(id.into());
+        *to = format!("to:{id}");
+        *t_valid = from;
+        *t_invalid = until;
+    }
+    write
+}
+
+fn inactive_history() -> (Fixture, Arc<Engine>) {
+    let (fixture, engine) = history();
+    let mut window = node("window", "note", &body("window", "wanted"));
+    if let PreparedWrite::Node { valid_from, valid_until, .. } = &mut window {
+        *valid_from = Some(PINNED);
+        *valid_until = Some(PINNED + 10);
+    }
+    engine
+        .write(&[
+            pending("version", "pending edition"),
+            pending("pending", "pending record"),
+            node("deleted", "note", &body("deleted record", "wanted")),
+            window,
+            node("to:expired", "note", "timed endpoint"),
+            node("to:expiring", "note", "timed endpoint"),
+            node("to:future-valid", "note", "timed endpoint"),
+            timed_edge("expired", "expired edge", None, Some(PINNED)),
+            timed_edge("expiring", "expiring edge", None, Some(PINNED + 10)),
+            timed_edge("future-valid", "future-valid edge", Some(PINNED + 20), None),
+        ])
+        .unwrap();
+    engine.transition("deleted", fathomdb_sdk::LifecycleState::Deleted, Some("retracted")).unwrap();
+    (fixture, engine)
+}
+
+fn view_rows(
+    engine: &Engine,
+    mode: &str,
+    view: ReadView,
+    query: &str,
+    filter: Option<SearchFilter>,
+) -> Vec<Row> {
+    let mut snippet = SnippetOptions::default();
+    snippet.max_bytes = 300;
+    snippet.max_windows = 1;
+    snippet.head_bytes = 48;
+    snippet.max_point_queries = 100;
+    let result = if mode == "text" {
+        let mut options = TextSearchOptions::default();
+        options.view = view;
+        options.filter = filter;
+        options.limit = 100;
+        options.snippet = Some(snippet);
+        engine.search_text_only(query, options).unwrap()
+    } else {
+        let mut options = SearchOptions::default();
+        options.view = view;
+        options.filter = filter.map(SearchFilterArg::Search);
+        options.limit = 100;
+        options.snippet = Some(snippet);
+        engine.search(query, options).unwrap()
+    };
+    let snippets = result.snippets.unwrap();
+    assert_eq!(result.results.len(), snippets.len());
+    result
+        .results
+        .into_iter()
+        .zip(snippets)
+        .map(|(hit, snippet)| {
+            assert_eq!(snippet.text, hit.body);
+            Row {
+                reference: hit.id.to_prefixed(),
+                snippet: snippet.text,
+                score: hit.score,
+                source: hit.source_id,
+            }
+        })
+        .collect()
+}
+
+fn authored_view(superseded: bool, inactive: bool, instant: i64) -> Vec<(String, String)> {
+    let mut expected = vec![
+        ("l:twins".into(), body("identical edition", "wanted")),
+        ("l:solo".into(), body("identityriver standalone", "wanted")),
+        ("l:version-edge".into(), body("current edge", "other")),
+        ("l:future-valid".into(), body("future-valid edge", "wanted")),
+    ];
+    if superseded {
+        expected.extend([
+            ("l:version".into(), body("retired edition", "wanted")),
+            ("l:version".into(), body("current edition", "other")),
+            ("l:twins".into(), body("identical edition", "wanted")),
+            ("l:version-edge".into(), body("retired edge", "wanted")),
+        ]);
+    }
+    if inactive {
+        expected.extend([
+            ("l:version".into(), body("pending edition", "wanted")),
+            ("l:pending".into(), body("pending record", "wanted")),
+            ("l:deleted".into(), body("deleted record", "wanted")),
+        ]);
+    }
+    if (PINNED..PINNED + 10).contains(&instant) {
+        expected.push(("l:window".into(), body("window", "wanted")));
+    }
+    if instant < PINNED {
+        expected.push(("l:expired".into(), body("expired edge", "wanted")));
+    }
+    if instant < PINNED + 10 {
+        expected.push(("l:expiring".into(), body("expiring edge", "wanted")));
+    }
+    expected.sort();
+    expected
+}
+
+fn view(superseded: bool, inactive: bool, instant: i64) -> ReadView {
+    ReadView {
+        include_superseded: superseded,
+        include_inactive: inactive,
+        valid_as_of: Some(instant),
+        ..ReadView::default()
+    }
+}
+
+async fn search_at(harness: &Harness, request: Value, format: &str, instant: i64) -> Page {
+    let budget = request["max_tokens"].as_u64().unwrap();
+    let result = harness.call("search", request.clone()).await;
+    assert_ne!(
+        result.is_error,
+        Some(true),
+        "F11 inactive search view must be accepted: {request}: {}",
+        text_of(&result)
+    );
+    let found = page(&result, format, budget);
+    assert_eq!(found.validity_instant, instant);
+    found
+}
+
+#[tokio::test]
+async fn inactive_and_combined_views_obey_authored_node_lifecycle_and_edge_expiry() {
+    let (_fixture, engine) = inactive_history();
+    for format in ["structured", "text"] {
+        let harness = hosted(engine.clone(), format).await;
+        for mode in ["text", "hybrid"] {
+            for (superseded, inactive) in
+                [(false, true), (true, true), (false, false), (true, false)]
+            {
+                for instant in [PINNED - 1, PINNED, PINNED + 9, PINNED + 10] {
+                    let control =
+                        view_rows(&engine, mode, view(superseded, inactive, instant), QUERY, None);
+                    let mut membership = control
+                        .iter()
+                        .map(|row| (row.reference.clone(), row.snippet.clone()))
+                        .collect::<Vec<_>>();
+                    membership.sort();
+                    assert_eq!(membership,authored_view(superseded,inactive,instant),"SDK fixture independently follows node windows and t_invalid-only edge expiry");
+                    let mut request = args(mode, 100);
+                    request["include_superseded"] = json!(superseded);
+                    request["include_inactive"] = json!(inactive);
+                    request["as_of"] = json!(instant);
+                    let found = search_at(&harness, request, format, instant).await;
+                    assert_rows(&found.rows, &control, format);
+                }
+            }
+            let tools = serde_json::to_value(harness.tools().await).unwrap();
+            let schema =
+                &tools.as_array().unwrap().iter().find(|tool| tool["name"] == "search").unwrap()
+                    ["inputSchema"];
+            assert!(schema["properties"].get("include_inactive").is_some());
+            assert!(schema["properties"].get("include_out_of_window").is_none());
+            let schema = jsonschema::JSONSchema::options()
+                .with_draft(jsonschema::Draft::Draft202012)
+                .compile(schema)
+                .unwrap();
+            assert!(schema.is_valid(
+                &json!({"query":QUERY,"include_superseded":true,"include_inactive":true})
+            ));
+            assert!(!schema.is_valid(&json!({"query":QUERY,"include_inactive":"true"})));
+        }
+        harness.shutdown().await;
+    }
+    engine.close().unwrap();
+}
+
+#[tokio::test]
+async fn inactive_identity_filters_and_budgeted_continuations_keep_both_flags() {
+    let (_fixture, engine) = inactive_history();
+    for format in ["structured", "text"] {
+        let harness = hosted(engine.clone(), format).await;
+        for mode in ["text", "hybrid"] {
+            for superseded in [false, true] {
+                let mut request = args(mode, 100);
+                request["query"] = json!("identityriver");
+                request["include_superseded"] = json!(superseded);
+                let absent = search(&harness, request.clone(), format).await;
+                request["include_inactive"] = json!(false);
+                let explicit = search(&harness, request.clone(), format).await;
+                assert_eq!(absent.rows, explicit.rows);
+                assert_eq!(absent.response_id, explicit.response_id);
+                request["include_inactive"] = json!(true);
+                let relaxed = search(&harness, request, format).await;
+                assert_eq!(
+                    absent.rows, relaxed.rows,
+                    "isolate the canonical flag from record selection"
+                );
+                assert_ne!(absent.response_id, relaxed.response_id);
+            }
+            let mut filter = SearchFilter::default();
+            filter.attributes = vec![("group".into(), "wanted".into())];
+            let control = view_rows(&engine, mode, view(true, true, PINNED), QUERY, Some(filter));
+            let mut ids = control.iter().map(|row| row.reference.as_str()).collect::<Vec<_>>();
+            ids.sort();
+            assert_eq!(
+                ids,
+                vec![
+                    "l:deleted",
+                    "l:pending",
+                    "l:solo",
+                    "l:twins",
+                    "l:twins",
+                    "l:version",
+                    "l:version",
+                    "l:window"
+                ]
+            );
+            let mut request = args(mode, 100);
+            request["include_superseded"] = json!(true);
+            request["include_inactive"] = json!(true);
+            request["attributes"] = json!({"group":"wanted"});
+            assert_rows(&search(&harness, request, format).await.rows, &control, format);
+            for wrong_type in [json!("true"), json!(1), json!([]), json!({})] {
+                let mut request = args(mode, 2);
+                request["include_inactive"] = wrong_type;
+                let error = harness.call("search", request).await;
+                assert_eq!(error.is_error, Some(true));
+                assert!(text_of(&error).contains("bad_argument"));
+            }
+            let error =
+                harness.call("search", json!({"query":QUERY,"include_out_of_window":true})).await;
+            assert_eq!(error.is_error, Some(true));
+            assert!(text_of(&error).contains("bad_argument"));
+            let expected = view_rows(&engine, mode, view(true, true, PINNED), QUERY, None);
+            for budget in [100_000, if format == "text" { 256 } else { 1000 }] {
+                let mut request = args(mode, 2);
+                if budget != 100_000 {
+                    request["limit"] = json!(100);
+                }
+                request["include_superseded"] = json!(true);
+                request["include_inactive"] = json!(true);
+                request["max_tokens"] = json!(budget);
+                let mut found = search(&harness, request, format).await;
+                if budget != 100_000 {
+                    assert!(found.cut);
+                }
+                let mut rows = Vec::new();
+                for _ in 0..20 {
+                    assert_eq!(found.continuation_exact, Some(false));
+                    assert!(!found.rows.is_empty(), "authored budget admits a whole leading hit");
+                    rows.extend(found.rows);
+                    let Some(handle) = found.continuation else { break };
+                    for name in ["include_superseded", "include_inactive"] {
+                        for flag in [false, true] {
+                            let mut request = json!({"continuation":handle});
+                            request[name] = json!(flag);
+                            let error = harness.call("search", request).await;
+                            assert_eq!(error.is_error, Some(true));
+                            assert!(text_of(&error).contains("bad_argument"));
+                        }
+                    }
+                    found = search(
+                        &harness,
+                        json!({"continuation":handle,"max_tokens":budget}),
+                        format,
+                    )
+                    .await;
+                }
+                assert_rows(&rows, &expected, format);
+            }
+        }
+        harness.shutdown().await;
+    }
+    engine.close().unwrap();
+}
+
+#[tokio::test]
+async fn inactive_historical_search_keeps_fetch_latest_eligible_resolution() {
+    let (_fixture, engine) = inactive_history();
+    for format in ["structured", "text"] {
+        let harness = hosted(engine.clone(), format).await;
+        let mut request = args("text", 100);
+        request["include_superseded"] = json!(true);
+        request["include_inactive"] = json!(true);
+        let found = search(&harness, request, format).await;
+        assert_eq!(found.rows.iter().filter(|row| row.reference == "l:version").count(), 3);
+        for (superseded, inactive, expected) in [
+            (false, false, None),
+            (true, false, Some(body("current edition", "other"))),
+            (false, true, Some(body("pending edition", "wanted"))),
+            (true, true, Some(body("pending edition", "wanted"))),
+        ] {
+            let result=harness.call("fetch",json!({"refs":["l:version"],"include_superseded":superseded,"include_inactive":inactive,"as_of":PINNED,"max_tokens":100_000})).await;
+            assert_ne!(result.is_error, Some(true));
+            let text = text_of(&result);
+            if format == "structured" {
+                let output = result.structured_content.unwrap();
+                if let Some(expected) = expected {
+                    assert_eq!(output["items"][0]["record"]["body"], expected);
+                } else {
+                    assert_eq!(output["items"][0]["error"]["code"], "not_found");
+                }
+            } else {
+                assert!(result.structured_content.is_none());
+                if let Some(expected) = expected {
+                    let (_, record) = text.split_once("\nrecord ").unwrap();
+                    let (header, framed) = record.split_once('\n').unwrap();
+                    let bytes = header
+                        .split_whitespace()
+                        .find_map(|word| word.strip_prefix("bytes="))
+                        .unwrap()
+                        .parse::<usize>()
+                        .unwrap();
+                    assert_eq!(bytes, expected.len());
+                    assert_eq!(&framed.as_bytes()[..bytes], expected.as_bytes());
+                    assert_eq!(&framed.as_bytes()[bytes..], b"\n");
+                } else {
+                    assert!(text.contains("error \"l:version\" not_found/not_found"));
+                }
+            }
+        }
+        harness.shutdown().await;
+    }
+    engine.close().unwrap();
+}

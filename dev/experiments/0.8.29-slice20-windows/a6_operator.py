@@ -54,7 +54,7 @@ def start_script(script,**kwargs):
     except BaseException:stop_ssh(p);raise
     return p
 def script_invocation(path,expected,arguments):
-    return "$ErrorActionPreference='Stop';$p="+quote(path)+";if((Get-FileHash -LiteralPath $p -Algorithm SHA256).Hash.ToLowerInvariant() -cne '"+expected+"'){throw 'launch script digest differs'};& $p "+arguments
+    return "$ErrorActionPreference='Stop';$p="+quote(path)+";if((Get-FileHash -LiteralPath $p -Algorithm SHA256).Hash.ToLowerInvariant() -cne '"+expected+"'){throw 'launch script digest differs'};& ([ScriptBlock]::Create((Get-Content -Raw -Encoding UTF8 -LiteralPath $p))) -ScriptPath $p "+arguments
 
 def stop_ssh(p):
     if p.poll() is None:
@@ -178,7 +178,7 @@ class Session:
     def extract(self):
         self.sample();self.renew_lease();last_renewal=time.monotonic()
         script=self.cfg['packagePath']+'\\extract-source.ps1'
-        invocation='& '+quote(script)+' -Control '+quote(self.control)+' -ConfigSha256 '+self.config_hash
+        invocation=script_invocation(script,self.package['files']['extract-source.ps1'],'-Control '+quote(self.control)+' -ConfigSha256 '+self.config_hash)
         start=time.monotonic();p=None;failure=None
         try:
             with (self.root/'extract.stdout').open('xb') as out,(self.root/'extract.stderr').open('xb') as err:

@@ -1,9 +1,9 @@
 param(
+  [Parameter(Mandatory=$true)][string]$ScriptPath,
   [Parameter(Mandatory=$true)][string]$Control,
   [Parameter(Mandatory=$true)][ValidatePattern('^[0-9a-f]{64}$')][string]$ConfigSha256,
   [Parameter(Mandatory=$true)][ValidatePattern('^[0-9a-f]{64}$')][string]$WrapperSha256
 )
-# EXTERNAL REVIEW ARTIFACT. NOT_RUN. Requires actual approval and binary review.
 $ErrorActionPreference = 'Stop'
 if ($Control -cnotmatch '^R:\\fathomdb-s20-a6\\control\\[0-9a-f]{32}$') {
   throw 'control directory differs'

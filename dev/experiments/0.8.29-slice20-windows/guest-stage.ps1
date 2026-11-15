@@ -1,16 +1,16 @@
-param([Parameter(Mandatory=$true)][string]$Control,[Parameter(Mandatory=$true)][string]$ConfigSha256)
+param([Parameter(Mandatory=$true)][string]$ScriptPath,[Parameter(Mandatory=$true)][string]$Control,[Parameter(Mandatory=$true)][string]$ConfigSha256)
 $ErrorActionPreference='Stop'
-$package=Split-Path -Parent $MyInvocation.MyCommand.Path
+$package=Split-Path -Parent $ScriptPath
 $manifestPath=Join-Path $Control 'run.json'
 if($Control -cnotmatch '^R:\\fathomdb-s20-a6\\control\\[0-9a-f]{32}$' -or $ConfigSha256 -cnotmatch '^[0-9a-f]{64}$' -or (Get-FileHash -LiteralPath $manifestPath -Algorithm SHA256).Hash.ToLowerInvariant() -cne $ConfigSha256){throw 'control/config integrity'}
 $initial=Get-Content -Raw -Encoding UTF8 -LiteralPath $manifestPath|ConvertFrom-Json
 foreach($entry in $initial.packageFiles.PSObject.Properties){if($entry.Name -cnotmatch '^[A-Za-z0-9._-]+$' -or (Get-FileHash -LiteralPath (Join-Path $package $entry.Name) -Algorithm SHA256).Hash.ToLowerInvariant() -cne $entry.Value){throw 'package integrity'}}
-. (Join-Path $package 'common.ps1')
+. ([ScriptBlock]::Create([IO.File]::ReadAllText((Join-Path $package 'common.ps1'),[Text.Encoding]::UTF8)))
 $config=Read-A6Config $Control $ConfigSha256
 if ($config.packagePath -cne $package) { throw 'package path differs' }
 Assert-A6Files $config
 Assert-A6Start $config | Out-Null
-. (Join-Path $package 'native-bootstrap.ps1')
+. ([ScriptBlock]::Create([IO.File]::ReadAllText((Join-Path $package 'native-bootstrap.ps1'),[Text.Encoding]::UTF8)))
 $results=@();$phase='UNKNOWN';$errorText=$null;$controlResult=$null;$stageMonitor=$null
 try {
     $stageMonitor=New-A6StageMonitor $config $Control

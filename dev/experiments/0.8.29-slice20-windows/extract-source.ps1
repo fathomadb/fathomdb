@@ -1,16 +1,16 @@
-param([Parameter(Mandatory=$true)][string]$Control,[Parameter(Mandatory=$true)][string]$ConfigSha256)
+param([Parameter(Mandatory=$true)][string]$ScriptPath,[Parameter(Mandatory=$true)][string]$Control,[Parameter(Mandatory=$true)][string]$ConfigSha256)
 $ErrorActionPreference='Stop'
-$package=Split-Path -Parent $MyInvocation.MyCommand.Path
+$package=Split-Path -Parent $ScriptPath
 $configPath=Join-Path $Control 'run.json'
 if($Control -cnotmatch '^R:\\fathomdb-s20-a6\\control\\[0-9a-f]{32}$' -or $ConfigSha256 -cnotmatch '^[0-9a-f]{64}$' -or (Get-FileHash -LiteralPath $configPath -Algorithm SHA256).Hash.ToLowerInvariant() -cne $ConfigSha256){throw 'control/config integrity'}
 $config=Get-Content -Raw -Encoding UTF8 -LiteralPath $configPath|ConvertFrom-Json
 foreach($entry in $config.packageFiles.PSObject.Properties){if($entry.Name -cnotmatch '^[A-Za-z0-9._-]+$' -or (Get-FileHash -LiteralPath (Join-Path $package $entry.Name) -Algorithm SHA256).Hash.ToLowerInvariant() -cne $entry.Value){throw 'package integrity'}}
-. (Join-Path $package 'common.ps1')
+. ([ScriptBlock]::Create([IO.File]::ReadAllText((Join-Path $package 'common.ps1'),[Text.Encoding]::UTF8)))
 Assert-A6Identity $config;Assert-A6Start $config|Out-Null
 $archive=Assert-A6Path $config.sourceArchive $config.root
 $destination=Assert-A6Path $config.workspace $config.root
 if($destination -cne ($config.root+'\source\'+$config.candidateSha) -or (Test-Path -LiteralPath $destination)){throw 'source destination occupied or unallocated'}
-. (Join-Path $package 'native-bootstrap.ps1')
+. ([ScriptBlock]::Create([IO.File]::ReadAllText((Join-Path $package 'native-bootstrap.ps1'),[Text.Encoding]::UTF8)))
 $stageMonitor=New-A6StageMonitor $config $Control
 $state=$stageMonitor.State
 $source=$null;$zip=$null;$failure=$null;$count=0;$completed=$false

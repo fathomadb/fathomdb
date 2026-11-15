@@ -641,7 +641,13 @@
         "source": "64c8507f2bb3701e9a779f826b4eab4ec662a562",
         "integrated": "5feccf692a006b0ac536dd72081707d54e9baebc",
         "review": "Independent Astra-medium ACCEPT;12 new and9 preservation controls reported passing in commit bodies;raw logs unavailable to reviewer.",
-        "scope": "One bounded natural M-R-1-1-warn1501call calibration; whole900/work800seconds/2GiB cumulative growth plus2x shared headroom and original ledger history. No actual runtime or primary46 qualification yet."
+        "scope": "One bounded natural M-R-1-1-warn1501call calibration; whole900/work800seconds/2GiB cumulative growth plus2x shared headroom and original ledger history. No actual runtime or primary46 qualification yet.",
+        "ordinary_build": {
+          "source": "4ffc117c20ff1e6d4c1f68a0b9c2a84f7e649c66",
+          "result": "PASS: one ordinary CUDA MCP build,330.509s,exit0/resource_stop null,strict empty/removed privateCG and actors. OwnPython3.13.13/primaryCUDA12.6/GCC13/actualPTX86 (existing M build recipe,notshipping proof).",
+          "receipt": "/mnt/data/tmp2/fathomdb-0829-continuation/slice30-g-20261113/m-calibration-runtime-options-20261115-agent-m-runtime-ready/ordinary-current-mcp-4ffc117c2-cap86-NOT_BUILT/build.json",
+          "remaining": "First bounded1501call natural calibration has fitting2GiBgrowth/2xheadroom but remains unrun; D/M freshquietload<=2/exclusiveactors/GPU required. Actual source provenance remains4ffc; no retag."
+        }
       },
       "f_runtime_qualification": {
         "source": "dc8f97601f27f1b0ea4eefad70dfe860dd590cac",
@@ -708,7 +714,14 @@
         "reviewed_documents_sha": "9e3293342a9380e6236d8cfeeb4970d77007a3b8",
         "scope": "Entry-only dependency replacement with actual source comparison; not implementation/optimization/runtime/release qualification."
       },
-      "qualified_subset_sha": "9036507bc98ef31c05ae334aa22ec5101323c7e7"
+      "qualified_subset_sha": "9036507bc98ef31c05ae334aa22ec5101323c7e7",
+      "paired_measurement_support": {
+        "source": "83edcf2c7fa2452515af9c3048ce8c4cdef54724",
+        "integrated": "e887e3fa6a1648c4916b1bf322f42901d78cb9c8",
+        "review": "Independent Astra-medium final ACCEPT",
+        "evidence": "Actual four semantic RED/GREEN behaviors; privateengine2/2,adapter11/11,combined11/11,dispatcher7/7,broaderG121/121,affectedClippy-Werror/fmt/Ruff/shell/MD/module128configs/classification/featureconsumer pass. Phase1491.642/1800s exit0 strict actors/CG clean.",
+        "limits": "Low-level support only; public P/G build/freeze/run admission still needs coherent paired-mode support. Exact applicable68searchcells/136ordinary members bound; current costs/complete workRSSdiagnostic binding and feasible campaign profile remain pending. OriginalG12hselection isG-only, not50 authority. No actual paired performance/whole50 claim."
+      }
     },
     {
       "slice": 60,
@@ -998,7 +1011,13 @@
           ],
           "future_release": null
         }
-      ]
+      ],
+      "runtime_support_design": {
+        "source": "3cbdc5c5e62919691b629e8808a51ee1af8197e2",
+        "integrated": "6d9f33671193ee838ee8ee16c4b9a6c1b1c4e2fe",
+        "review": "Independent Astra-medium design ACCEPT",
+        "scope": "Real Rust/Python/Node lifecycle consumers, passive adapters and concurrent binding to existing E sampler, observer-only build option/local-wheel smoke. Source implementation with TDD active in isolated WT, not yet final reviewed/native qualified. Earlier callback-only source never counted actualsoak."
+      }
     },
     {
       "slice": 140,
@@ -1065,9 +1084,11 @@
       "local_exact_lock_proposal": {
         "source": "aff8ba27f9b5833794475dcbddc958993dba3132",
         "review": "Independent Astra-medium design ACCEPT",
-        "status": "OWNER_ADOPTED_NATIVE_QUALIFICATION_PENDING",
+        "status": "X86_NATIVE_PASS_ARM_AUTHORIZATION_PENDING",
         "scope": "Local executor replaces hostedCI only; exact product lock/root+dependency+feature comparison and native x86/OrinCPU tests+compile remain. No execution/gatewaiver yet; genuine oldCI preserved.",
-        "owner_source": "dev/steward/steward-ledger.jsonl seq-389"
+        "owner_source": "dev/steward/steward-ledger.jsonl seq-389",
+        "x86": "Actual fresh exact-lock compile/list/323of323 CPUtests (312seam+11catalogue),zeroignored. Compile30.056s; every phase positive2GiB/swap0/CPU100/Tasks128 caps and strict unit/CG cleanup. Six nonroot feature sets differ from wholeproduct unification, explicit; Q23 requires22identities+10ROOTfeatures. Final independent paired results/record remains pending.",
+        "arm": "Actual58ms pre-Cargo failure: user cgroup lacksCPUdelegation. No compiler/test ran. Same-cap system-manager adapter prepared, not launched; sudo/polkit requireauthentication. Existingadminroute/narrowlaunch+stop authorization requested fromowner. No globalcontroller/cap/schema/oldCIrecord change."
       }
     },
     {

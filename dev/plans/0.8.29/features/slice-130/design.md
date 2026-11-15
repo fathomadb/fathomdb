@@ -94,16 +94,17 @@ parent must still forward afterward. No active-CUDA fork or reset injection.
 
 ## D: observational seam proposal
 
-The material seam has independent Astra acceptance. Current source adds passive
-transport and named unavailable/lost/untracked metadata; successful checked native
-counter reads still require110's actual qualified tracked adoption. Use dedicated nondefault `cuda-pool-observer` throughout:
+The material seam has independent Astra acceptance. Current source at25b365a35
+contains110's integrated tracked construction/model wiring and checked healthy
+observer, with138 accepted source/seam tests. These are source results, not
+Orin/installed-consumer proof. Use dedicated nondefault `cuda-pool-observer` throughout:
 embedder `=[]`; engine `=["fathomdb-embedder/cuda-pool-observer"]`; SDK, Py and
 NAPI each `=["fathomdb-engine/cuda-pool-observer"]`. It implies no CUDA/model,
 `test-hooks` or `operator` feature, and no ordinary feature enables it. Native
 transport follows the existing separate-module/registration convention without
 activating broad mutable test hooks. Shipping feature lists must reject it.
-The [proposed ADR addendum](../../../../adr/ADR-0.8.29-sdk-qualification-observation.md#slice130-d-addendum)
-extends the currently closed diagnostic catalog before source implementation;
+The [ADR addendum](../../../../adr/ADR-0.8.29-sdk-qualification-observation.md#slice130-d-addendum)
+defines the implemented closed diagnostic catalog;
 the [binding-support contract](../../../../interfaces/rust.md#private-cuda-pool-observation)
 fixes names and wire types without adding governed operations.
 
@@ -114,27 +115,30 @@ Arc<CudaContext>>>`. `PrivateDecision` already has `ordinal`, `pool`,
 `first_context`, `context_id`, atomic `live_models`, configured `max_size_bytes`,
 `release_threshold` and cached `loss`. Its cfg(test) synchronized reader explicitly
 synchronizes; its unsynchronized reader directly reads the pool but has no
-qualification transport or tracked-generation requirement. Neither is the new
-production observer. Published-loss handling from110's accepted98-test CPU
+qualification transport or tracked-generation requirement. The separate integrated
+observer uses the shared tracked token. Published-loss handling from110's accepted98-test CPU
 subset remains authoritative and unchanged.
 
-At selected Cudarc `cb36642fad90c1796693c36ee59e3d3d162f4410`, borrowed
+The selected product graph is cudarc0.20.0 at
+`343b04fa73f85ee78754d6ee2baa07b959cc9ccc` (accepted cb36642 production
+source), Candle0.12.0 trio at`2ee39305a78ed1463ff913f71dcd3d45ecbfd84f`, and
+HTTPS K9 kernels0.10.2. Exact-lock qualification is owned by140; reuse accepted
+fork results here. At these APIs, borrowed
 `CudaContext::primary_lifetime()`, token `recorded_id()`/`loss()`,
 `CudaContext::mem_pool()` and `CudaMemPool::raw()` are available. The first two
 token observations do no native dispatch. `used_current()`/`reserved_current()`
 read attributes through the attached token's `admit()`; admission can perform
-the qualified liveness probe but never synchronizes or trims. Under that same
-outer admission, `CudaContext::uuid()` reads the decided device UUID. Borrow
-these existing objects; check pool association and recorded context identity,
+the qualified liveness probe but never synchronizes or trims. The observer uses
+110's cached checked UUID and the decided context/pool identities. Borrow
+these existing objects; preserve pool association and recorded context identity,
 check cached loss before admission and again before returning success. Read no
 high-water/default-pool counters to substitute for private current counters.
 
-110 has not adopted this tracked construction/model wiring into the product.
-The observer must return `untracked` without native reads when the decided
+The integrated observer must still return `untracked` without native reads when the decided
 context has no actual shared token; it must not make a replacement token,
 context, pool or registry, nor query a default context. Its healthy driver
-branch is integrated only against actual qualified110 adoption, never a guessed
-API or an untracked path. Fallback decisions return named `no_private_pool`
+branch uses actual110 shared ownership, never a replacement token or an
+untracked path. Fallback decisions return named `no_private_pool`
 with their recorded reason and unavailable private identity/counters. The
 observer reads `DECISION.get()`, never `get_or_init`, and borrows only decision
 objects. It creates no model ownership, GPU allocation/forward, retain,
@@ -153,31 +157,64 @@ model count may truthfully be zero even when current counters are unavailable.
 Preserve optional observed identity/first-loss cause;
 do not query driver error names or manufacture a measured driver code.
 
-### Source and test boundary after seam review
+### Remaining D/E runtime binding
 
-Confine new read-only logic/types to `cuda_pool_observation.rs` in embedder, with
-feature-gated borrowed access inside `cuda_pool_policy.rs`; add engine and native
-`cuda_pool_observation.rs` transport modules, SDK's exact static forwarder and
-minimal manifest/lib registrations. Update the existing closed parity catalog
-and its existing positive/negative controls; no general name-pattern exemption.
-Keep production constructors, model guards/drop, allocator admission and pins
-unchanged. Actual110 remains the only tracked-generation authority.
+Seam/transport source coverage is integrated; do not repeat that implementation
+or manufacture RED for passing observer tests. The missing work is real SDK
+fixtures and sampler/supervisor binding. Review this coherent delta once before
+implementation; retain the accepted seam and production lifecycle policy.
 
-First extract the existing unsynchronized-reader decision/read path behind a
-CPU-testable borrowed seam without changing its behavior. A new semantic test
-must demonstrate that its actual current behavior attempts a counter read for a
-published-lost private decision, contrary to the new observer's zero-dispatch
-contract; record that observed assertion failure before adding the observer's
-refusal gate. This is a new qualification behavior, not a claim that the
-historical test-only reader is a shipped lifecycle defect. Subsequent focused
-RED/GREEN cases cover absent/fallback/untracked decisions, failed admission or
-counter read (including partial-read refusal), ownership change and exact
-successful counters. Use counting driver seams, never a mocked database.
-Property-based wire round trips preserve arbitrary u64 IDs/counters, including
-18446744073709551615, as decimal strings across JSON/Python/Node parsing. Actual
-installed SDK/last-close/native smoke remains separate real-database proof;
-missing API compilation or a nonexistent hook is not behavioral RED. No build,
-CUDA call or native qualification runs during this design step.
+- Add a Rust SDK integration fixture and Python/Node consumers beneath the
+  existing `dev/experiments/slice130-soak/` tooling. Every D case uses a fresh
+  bounded child and real database; Python/Node consume installed counterpart
+  packages outside the source tree, Rust consumes the selected source SDK.
+  Two engines default-embed and drain accepted work with reranker/module
+  singletons disabled in ordinary cases. Bind threshold0/max, exact first-close
+  equality before survivor forward, awaited last close, Rust drop, selected
+  Python ownership release, unclosed exit and intentional singleton retention
+  to the unchanged protocol. Never request GC.
+- Bind the actual Rust static observer, Python `_native` qualification function
+  and loaded installed Node addon's `cudaPoolObservationForQualification`.
+  Preserve raw observations and stable PID/UUID/ordinal/context/pool/counts;
+  parse decimal-string u64 identities/counters exactly. Map checked `private`
+  to sampler `counter_status="ok"`; actual `no_private_pool` has null counters
+  in the off arm. Wrong identities, changed counts, partial/missing/lost/read
+  errors cannot become zero or successful samples.
+- Extend `scripts/slice130_soak.py` collection/supervision, preserving its pair
+  evaluation CLI and `collect_arm` schedule/math. Drive installed Python/Node
+  workers with bounded line-delimited iteration/snapshot/close requests. Workers
+  perform the retained single embed,32-item batch and rerank inputs and return
+  actual per-operation latency/output data. Snapshot between completed iterations;
+  include Node heap, worker `/proc` memory and system swap counters. Stream raw
+  output/stderr; do not retain an hour of iteration objects in memory.
+- Run Node/Python concurrently in each sequential on-then-off arm. Each worker
+  preloads and warms up before its own recorded t0. Preserve actual exits and
+  close real engines; request timeout, child failure, close failure or resource
+  stop stops the affected campaign and reaps siblings using owned process groups.
+  Cleanup kills never count as healthy exit. Short children retain120s deadlines
+  and normal close-to-exit retains5s. Long-arm watchdog/resource limits must be
+  selected before execution, including warm-up plus3600s sampling; original5s
+  target tolerance and all numerical/resource gates remain unchanged.
+- Extend existing Tegra build wrappers with an explicit qualification observer
+  option that appends only `cuda-pool-observer` in separate output/target dirs.
+  Default shipping tuples, exact offline/locked graph and existing toolchain,
+  linkage, floor, staging and import checks remain. No broad `test-hooks` or
+  artifact-contract change makes an instrumented build shipping evidence.
+- Add a local-wheel input to the existing Tegra Python installed smoke, retaining
+  its Pages route and honest provenance. Reuse lifecycle/v2-witness checks on
+  the exact locally installed shipping wheel; bind required real single/batch/
+  rerank/policy/close/exit checks alongside existing Node local-tarball controls.
+  Local wheels have no invented Pages deployment; reuse the existing verifier.
+
+Meaningful assertion-failing RED precedes each implementation batch: reject a
+smaller-positive first-close reservation; wrong/partial/unavailable counter data;
+real SDK lifecycle cases; process timeout/nonzero/early exit and sibling cleanup;
+concurrent SDK start/sequential arms; local-wheel consumption and hook/default
+feature separation. Controlled child processes may test supervision, never mock
+a database or fabricate a qualifying native result. Preserve sampler math tests;
+add property-based exact wire round trips for new adapters. Missing-file/API
+compilation errors are not behavioral RED. Actual native/model/GPU runs require
+a separately released resource window, not this source-design approval.
 
 Qualification-hook artifacts have separate hashes/features from the selected shipping
 artifacts. They establish internal lifecycle accounting through SDK paths;
@@ -197,13 +234,14 @@ could hide an incorrect premature trim and is not sufficient.
 Portable source delivery now provides the [bounded sampler/evaluator](../../../../../scripts/slice130_soak.py),
 [measurement controls](../../../../../scripts/tests/test_slice130_soak.py) and
 [usage/schema](../../../../experiments/slice130-soak/README.md). The sampler
-accepts injected real workload/passive-observer functions; actual D native
-transport and installed SDK wiring remain outstanding. Its verdict covers only
+accepts injected real workload/passive-observer functions; D transport is
+integrated, while installed SDK workload/adapters and concurrent supervision
+remain outstanding as specified above. Its verdict covers only
 instrumented numerical measurement, never whole-E or shipping qualification.
 The frozen protocol and all historical evidence remain unchanged.
 
-Fork/copy the retained measurement logic into a new committed .29 harness,
-leaving historical runner and logs intact. Primary Python sampler omits explicit
+Extend the current .29 utility/consumers with retained workload and bounded
+supervision logic, leaving historical runner and logs intact. Primary Python sampler omits explicit
 host-allocator churn; keep a bounded sampler and record its cost. Test slope/
 window/count math against hand-computed data, session order, fresh DB and real
 SDK smoke. No tamper/digest-drift test suite. Exact proposed numerical rule,

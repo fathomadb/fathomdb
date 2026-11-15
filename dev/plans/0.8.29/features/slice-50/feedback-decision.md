@@ -67,15 +67,17 @@ was opened; no snapshot access authorization was discovered.
 ## Selected validation precedence and atomicity for option1
 
 Preserve current shape/store/response lookup and reference-membership validation,
-then epoch, telemetry-disabled, text-mode and missing-query-ID handling
-(`tools.rs:1383–1435`). Perform the new ambiguity check for the complete named
-used/unused set before acquiring/recording labels. Thus an unknown ref retains
-bad_argument precedence; expired/reopened, telemetry-off and text-only cases
-retain their existing not_recorded outcomes. An otherwise recordable ambiguous
-label returns bad_argument with **zero** calls to `record_feedback` and no partial
-telemetry label. Acquisition-time epoch recheck remains intact. A repeated
-same-cursor entry retains existing behavior; overlap/duplicate input-label
-policy is not silently changed by this fix.
+then epoch, telemetry-disabled, text-mode and missing-query-ID handling in
+`tools.rs::feedback`. Preserve acquisition-time not_ready→not_recorded handling
+and the post-acquisition epoch recheck. Only after successful acquisition and
+that final epoch check, validate ambiguity across the complete named used/unused
+set, before resolving cursor labels or entering `bridge::call`/`record_feedback`.
+Thus an unknown ref retains bad_argument precedence; expired/reopened,
+telemetry-off and text-only cases retain existing not_recorded outcomes, including
+close/reopen between ready_epoch and acquisition. An otherwise recordable
+ambiguous label returns bad_argument with **zero** calls to `record_feedback`
+and no partial telemetry label. A repeated same-cursor entry retains existing
+behavior; overlap/duplicate input-label policy is not changed by this fix.
 
 Required runtime RED before implementation: real telemetry-enabled hybrid response containing two
 distinct cursor hits with one ref; feedback names that ref and currently records
@@ -83,6 +85,10 @@ one cursor. Assert typed refusal and no label write, then GREEN the internal
 multiplicity handling. Independently test unique-ref success, repeated same
 cursor, mixed unique/ambiguous named refs (no partial record), unmentioned
 ambiguity, stale epoch, telemetry-off, text mode, unknown ref and both formats.
+With an ambiguous named ref, pause after ready_epoch and before acquisition:
+concurrent unready/close must retain acquisition-time not_recorded; reopen under
+a new epoch must retain post-acquisition not_recorded. Both write zero labels
+and must not become an early ambiguity bad_argument.
 Existing `tests/feedback.rs` was read in full: it asserts unique-ref cursor
 attribution, concurrency/epoch/ref validation and no effect on search output;
 it does not supply this repeated-ref oracle. No failing run has occurred here.

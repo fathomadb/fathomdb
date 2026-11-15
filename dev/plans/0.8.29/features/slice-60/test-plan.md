@@ -332,7 +332,12 @@ exposes repeated-reference results. Stage a real telemetry-enabled hybrid
 response with distinct cursors sharing one ref; naming it must fail bad_argument
 with no labels written. Mixed unique/ambiguous named labels also write nothing.
 Retain unique and repeated-same-cursor success, unmentioned ambiguity, membership
-errors and existing not_recorded precedence as controls, in both formats. Each
+errors and existing not_recorded precedence as controls, in both formats. Pause
+a call naming an ambiguous ref after ready_epoch and before acquisition: concurrent
+unready/close and reopen under a new epoch must retain the existing acquisition-
+time/post-acquisition not_recorded outcomes with zero labels. Check ambiguity
+only after successful acquisition and final epoch validation, before cursor-label
+resolution and bridge/feedback writes. These are planned regression controls. Each
 changed behavior needs observed RED before GREEN; no execution is claimed here.
 Seq-374's identity/packing successor supplies final integrated parity. .30 richer
 occurrence-label review is separate from the required .29 refusal.

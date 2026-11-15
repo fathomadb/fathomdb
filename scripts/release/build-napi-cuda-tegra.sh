@@ -85,11 +85,13 @@ fail() {
 
 # Qualification counterparts add only the passive observer; shipping defaults
 # remain the contract tuple. Separate output/target directories are caller-owned.
+BUILD_CARGO_FLAGS=(--locked)
 if [ "$QUALIFICATION_OBSERVER" -eq 1 ]; then
+  export CARGO_NET_OFFLINE=true
+  BUILD_CARGO_FLAGS+=(--offline)
   CUDA_TEGRA_NAPI_FEATURES="$CUDA_TEGRA_NAPI_FEATURES,cuda-pool-observer"
 fi
 printf 'build-napi-cuda-tegra: features=%s\n' "$CUDA_TEGRA_NAPI_FEATURES"
-export CARGO_NET_OFFLINE=true
 
 # --- Host and toolchain identity, asserted before anything is built ---------
 
@@ -227,7 +229,7 @@ NATIVE_DEST="$(realpath --relative-to="$TS_DIR" "$NATIVE_DIR")"
 cd "$TS_DIR"
 npm exec --offline -- napi build --platform --release \
   --cargo-cwd ../rust/crates/fathomdb-napi \
-  --cargo-flags "--offline --locked" \
+  --cargo-flags "${BUILD_CARGO_FLAGS[*]}" \
   --features "$CUDA_TEGRA_NAPI_FEATURES" \
   --js false \
   "$NATIVE_DEST"

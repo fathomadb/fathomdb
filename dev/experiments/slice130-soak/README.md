@@ -116,8 +116,8 @@ be a healthy exit or evidence of product teardown.
 
 Shipping wrappers accept `--qualification-observer` only for the separate D/E
 counterparts, appending `cuda-pool-observer` to their unchanged shipping tuple.
-Use separate owned target/output directories. Both use the selected offline
-locked graph; source/toolchain/model equivalence and actual shipping installed
+Use separate owned target/output directories. Both preserve locked resolution; counterparts additionally force the selected
+offline cache. Select `CARGO_NET_OFFLINE=true` for local shipping qualification; source/toolchain/model equivalence and actual shipping installed
 controls remain mandatory. The existing Python installed smoke accepts
 `--local-wheel FILE VERSION+tegra SHA256 CANDIDATE_SHA NEW_OUTPUT`; its existing
 Pages route remains available. Local input never invents Pages deployment

@@ -78,11 +78,13 @@ fail() {
 
 # Qualification counterparts add only the passive observer; shipping defaults
 # remain the contract tuple. Separate output/target directories are caller-owned.
+BUILD_CARGO_FLAGS=(--locked)
 if [ "$QUALIFICATION_OBSERVER" -eq 1 ]; then
+  export CARGO_NET_OFFLINE=true
+  BUILD_CARGO_FLAGS+=(--offline)
   CUDA_PYTHON_FEATURES_TEGRA="$CUDA_PYTHON_FEATURES_TEGRA,cuda-pool-observer"
 fi
 printf 'build-python-cuda-tegra: features=%s\n' "$CUDA_PYTHON_FEATURES_TEGRA"
-export CARGO_NET_OFFLINE=true
 
 # --- Toolchain identity, asserted before anything is built ------------------
 # Same discipline as build-napi-cuda.sh: the contract states what this host
@@ -214,7 +216,7 @@ cd "$STAGED_PYTHON"
 # host-bound artifact: it is NOT manylinux, and claiming otherwise would be the
 # exact drift AC80-9's doc-truth gate exists to stop. D-80.6-1 keeps this wheel
 # out of every registry, which is what makes an unauditable tag acceptable.
-maturin build --offline --locked --release --out "$OUT_DIR" \
+maturin build "${BUILD_CARGO_FLAGS[@]}" --release --out "$OUT_DIR" \
   --features "$CUDA_PYTHON_FEATURES_TEGRA" \
   --compatibility "$CUDA_TEGRA_WHEEL_COMPATIBILITY" \
   --auditwheel skip \

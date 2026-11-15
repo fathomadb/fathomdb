@@ -108,10 +108,6 @@ class ProcessControls(unittest.TestCase):
         self.assertEqual(soak.evaluate_arm(result)["status"], "UNMEASURED")
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 CONCURRENT_PEER = r'''
 import json, os, pathlib, sys, time
 root, sdk = pathlib.Path(sys.argv[1]), sys.argv[2]
@@ -188,3 +184,7 @@ sys.exit(0)
             if Path(f"/proc/{descendant}/stat").exists():
                 self.assertEqual(Path(f"/proc/{descendant}/stat").read_text().split()[2], "Z",
                                  "reaping must stop descendants even after their leader exits")
+
+
+if __name__ == "__main__":
+    unittest.main()

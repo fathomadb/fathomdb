@@ -11,7 +11,7 @@ PROBE
 for wrapper in build-python-cuda-tegra.sh build-napi-cuda-tegra.sh; do
   for mode in shipping qualification; do
     args=(--assert-only)
-    expected=unset
+    expected="unset"
     if [ "$mode" = qualification ]; then
       args+=(--qualification-observer)
       expected=true

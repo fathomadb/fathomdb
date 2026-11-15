@@ -139,7 +139,7 @@ run_tier_suite fast test-slice10-preparation python3 scripts/tests/test_slice10_
 run_tier_suite fast test-slice20-windows-transport python3 scripts/tests/test_slice20_windows_transport.py
 run_tier_suite fast test-slice20-windows-archive python3 scripts/tests/test_slice20_windows_archive.py
 run_tier_suite fast test-slice30-surface-comparator python3 scripts/tests/test_slice30_surface_comparator.py
-run_tier_suite fast test-slice130-soak python3 scripts/tests/test_slice130_soak.py
+run_tier_suite fast test-slice130-soak python3 -m unittest discover -s scripts/tests -p "test_slice130*.py"
 run_tier_suite fast test-slice100-checkpoint-operator python3 -m unittest discover \
   -s dev/experiments/0.8.29-slice100-checkpoint -p 'test_*.py'
 # P-only campaign control uses Linux /proc observations and flock; other
@@ -470,6 +470,7 @@ run_tier_suite fast test-tegra-wheel-linkage bash scripts/tests/test_tegra_wheel
 # publishes; its separately named platform package is never injected as an
 # optional dependency (ADR-0.8.27-jetson-tegra-node-addon-distribution).
 run_tier_suite fast test-tegra-napi-build-contract bash scripts/tests/test_tegra_napi_build_contract.sh
+run_tier_suite fast test-slice130-build-modes bash scripts/tests/test_slice130_build_modes.sh
 # The installed Tegra Node package smoke never reports a skipped, missing or
 # CPU-fallback row as a pass; its verdict runs here against evidence fixtures.
 run_tier_suite fast test-tegra-node-package-smoke bash scripts/tests/test_tegra_node_package_smoke.sh

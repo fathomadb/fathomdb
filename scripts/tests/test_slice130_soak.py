@@ -275,10 +275,6 @@ class SamplerProtocolTests(unittest.TestCase):
         self.assertLess(peak, 2 * MIB)  # the historical 200000-dict sampling churn exceeds this
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class RawObservationBindingTests(unittest.TestCase):
     def test_success_label_cannot_hide_changed_raw_pool_or_unavailable_counters(self):
         point = arm()["baseline"]
@@ -304,3 +300,7 @@ class RawObservationBindingTests(unittest.TestCase):
         }
         self.assertIsNotNone(soak._counter_failure(point, "on"),
                              "a live-owner transition invalidates the supposedly checked snapshot")
+
+
+if __name__ == "__main__":
+    unittest.main()

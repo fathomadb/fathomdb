@@ -5,49 +5,26 @@ target_release: 0.8.29
 slice: 80
 ---
 
-# Slice 80 review record
+# Slice 80 review scope
 
-Parent reports independent Astra-medium bounded PhaseA PASS and aggregate v2
-PASS for exact proposal SHA-256
-`a5e4851df2fedcbcce3e7d1b93138980c25e172d0ceb802792d218940bca0e53`.
-Those are bounded design verdicts, not full80 completion, product/ABI approval
-or source entry. This direct owner did not self-approve or spawn reviewers.
+Earlier Astra-medium PhaseA/aggregate-v2 PASS and consolidation consistency PASS
+are complete. Fresh independent Astra-medium review passed on the updated
+contract revision `f2f4831554ae165420a31890cf102642ce28b21d`, with no remaining
+finding. The owner accepted the full contract in seq-384.
 
-The current nine-file consolidation's same-Astra narrow consistency recheck is
-pending. Root manifest.json freezes its exact files/digests and the following
-changed assertions. Parent owns the actual reviewer record and later import.
+Review the concrete deltas in [design](design.md): selected seq-374/375 replaces
+stale policy holds; integrated60/70 replaces proposed format/reason work; planned50
+FusionHit ownership and original-vector key membership feeds evidence-independent
+finish/snippet work; missing/multihead/misowned/physical/UTF-8/u32 failures refuse
+rather than returning unknown. Aggregate-v2 behavior remains unchanged.
+[Requirements](requirements.md), [acceptance](acceptance.md), [test map](test-map.md)
+and [census](census.md) carry these same bounds and source-versus-design limits.
 
-## Changed assertions from the frozen PhaseA packet
+The accepted full concrete contract includes
+stored-mapped-span population, cache_cold/state_changed availability and nullable
+per-hit known-extent semantics. Routine field/cache/lookup details are specified,
+not a request for a new framework, label ABI or policy workshop.
 
-- R6/A6 and all mappings now contain concrete StoredHeadCoverageV1, population
-  stored_mapped_spans, available/unavailable variants, seven exact counters,
-  decimal transport for counts/bytes/fraction components and nullable unreduced
-  rational shares; profile.dimension stays numeric8. No unresolved
-  numeric carrier or permanently missing aggregate direction remains active.
-- Orient.not_in_this_release is exactly state/verdict/kinds/counts; coverage is
-  a supported availability result. Cold/changed summaries contain no numbers.
-- Aggregate capture performs only mapping/span arithmetic during already-required
-  full validation. No aggregate vector_default join/probe/payload/schema check;
-  pinned vec0Filter_point loads payloads even for indexed rowid queries.
-- Original invalid predicate/COALESCE/refusal behavior stays. Passing ownerless,
-  bodyless and dual-owner mappings increment unattributed_heads outside the
-  record/byte denominators; completion's existing checks retain caller scope.
-- Cache owner/capture/publication/token are concrete and writer-connection-only;
-  orient does O(1) added matching-token work independent of corpus size, not a
-  full validation. Attempted DML rollback conservatively invalidates using
-  total_changes; no optimistic rollback reuse oracle remains.
-- O80-10–12 and canonical/release traceability now test these exact semantics,
-  numerical domains, no-payload work and typed-error boundaries via existing
-  callable APIs. No new passing-only exception or compile-helper RED.
-- Slice60 checkpoint is updated only to the parent's clean307c92e partial source/
-  manual14-case evidence; native/full/fresh-final and F11 remain held. No60
-  completion or parent integration is asserted.
-
-Per-hit SnippetV1.scored_bytes, actual50 selected record/vector-participation
-contract, UTF-8 coordinates, per-hit work bounds, feedback ambiguity and final
-60/70 requirements remain subject to their original genuine gates. No new
-identity/ABI/ranking/default/Stage2/migration/experiment policy is selected.
-
-Full80 approval, actual release requirements/AC recheck and90's separate
-Block1 follow-up exit remain held. Fresh independent final implementation review
-still follows future real TDD and required source/native verification.
+Fresh independent final source review follows actual runtime semantic RED/GREEN
+and required verification. Integrated50 source reconciliation and the actual
+Block1 follow-up exit before90 remain required.

@@ -77,7 +77,8 @@ no-resurrection assertions. The separately authorized interruption established
 its own witness and issued pidfd SIGKILL, but the operator timed out without an
 exit notification. It remains UNQUALIFIED: no observed fault exit, untouched
 snapshot or observer/retry result exists. This is not product recovery failure.
-Only registered actors were cleaned/reaped. No second real Q1 fault is authorized.
+Only registered actors were cleaned/reaped. Seq-383 now authorizes exactly one additional corrected matched pair; execution
+remains pending under the unchanged protocol and resource checks.
 
 G100-2: independent recheck accepted b59a2eb86's five passing G2 cells: healthy
 and four exact existing-hook exits73, untouched-before-observe copies, complete
@@ -128,8 +129,8 @@ embedding warning and all original failures remain explicit in execution.md.
 
 Exact registered native actors are gone in their original unconfined context;
 cleanup errors are empty. The native window returned to G. Final assembled Astra
-review remains; further work is docs/static only. No additional Q1 fault is
-selected, no qualified interruption/recovery proof exists, and100/D28-09 remain
+review remains; further work is docs/static only. Seq-383 selects one additional corrected Q1 pair, not yet executed. No qualified
+interruption/recovery proof exists, and100/D28-09 remain
 open. Historical records and immutable scratch packets are preserved.
 
 ## Historical Phase A checks

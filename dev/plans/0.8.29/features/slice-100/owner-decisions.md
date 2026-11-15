@@ -18,6 +18,11 @@ are part of this plan. Seq-369 remains specific to20 A3/A5.
   allocation. Missing runtime checks stop UNQUALIFIED. Source review, actor/
   identity/runtime readiness and parent technical GO remain required.
 
+- **Seq-383:** approve one additional corrected matched healthy/witnessed-SIGKILL
+  pair after the original interruption remained UNQUALIFIED. The unchanged
+  120seconds/case,64GiB, registered-actor and runtime-readiness limits apply;
+  there is no automatic retry. Approval is recorded; execution remains pending.
+
 No host/disk/power/VM/GPU fault, external attachment, unrelated process/filesystem
 cleanup, timed-kill substitute, SQLite/VFS patch or production fault seam is
 included. Approval is not proof of viability and is not100/D28-09 closure.

@@ -7,36 +7,22 @@ slice: 80
 
 # Slice 80 status
 
-This documentary consolidation incorporates the independently bounded
-Astra-medium PASS for aggregate v2, exact source proposal SHA-256
-`a5e4851df2fedcbcce3e7d1b93138980c25e172d0ceb802792d218940bca0e53`.
-The consolidated packet's narrow consistency recheck is pending; this is no
-new ABI/policy approval or full80/source-entry approval. All original packets
-remain frozen. Parent source stays clean2f6913 with no imports.
+This contract revision reconciles integrated source
+`e1cb1bd5311f68da8be98bbe133b9cecd5ab56d4`, selected identity/packing seq-374,
+feedback seq-375, integrated60/70 and reviewed50 carrier design `10a72e5a9`.
+[Design](design.md) now fixes original-vector membership, final ownership,
+point-read refusal and all binding/format semantics for scored_bytes. The
+reviewed aggregate-v2 carrier/capture/cache/availability contract is retained.
+Prior bounded and consolidation consistency PASS are complete and not repeated.
 
-Consolidation completed in this exclusive temporary tree. The nine documents
-are coherent intended repo-relative candidates; originals phase-a/proposal v1/
-proposal v2 remain frozen. Aggregate v2's exact bounded carrier/cache/refusal
-scope is incorporated, not left as future routine work. Root manifest.json
-freezes the exact files/digests/changed assertions for same-Astra consistency
-review. This is a documentary result; no80 implementation/qualification exists.
+Fresh independent Astra-medium review passed on revision
+`f2f4831554ae165420a31890cf102642ce28b21d`; owner acceptance is seq-384.
+Remaining holds: integrated50 carrier/atomic F11 implementation reconciliation; and
+separate Block1 follow-up exit before90, including the unanswered smoke fixture.
+No private Memex snapshot, runtime census or feedback-policy ruling is pending.
+Selected TC5 input pack is statically qualified, not a measurement/exit pass.
+Stage2 hints placement/default remains150.160 is later assembled qualification.
 
-Actual selected50 identity/feedback/vector-membership and actual60/70 final
-contracts are not settled by this packet. Release requirements/AC recheck and
-full80 approval stay held;90 additionally requires actual integrated20–70
-Block1 follow-up exit.160 remains later final qualification. SDK Stage2/default
-placement stays conditional150, and F11 feedback ruling remains held.
-
-Parent-supplied60 checkpoint: clean candidate
-`307c92e3b4b8c674eec28fc940c879e9054fff90` has source TDD for formats,
-filters and budgets, and post-code real-GPU manual SDK plus both MCP formats
-14-case PASS. Native/full gate and fresh final review remain pending; F11
-feedback ruling remains held. This is not60 completion, final-contract
-settlement or integration into the clean2f6913 parent.80 did not run those
-checks or read mutable worker output as authority.
-
-Parent remains clean frozen2f6913 with no imports. No parent/state/ledger/source/
-Git/worktree writes or product build/install/native/database/GPU/model/paid
-execution occurred in this80 consolidation. Structural document checks are
-not product tests or a full-workspace green. Parent obtains narrow consistency
-review and eventually performs scoped import checks; source entry stays held.
+This is a light documentation milestone only. No production/test-source change,
+native/database/model/GPU qualification, RED/GREEN claim or full-workspace-green
+claim is made. Parent owns actual review results and release-state updates.

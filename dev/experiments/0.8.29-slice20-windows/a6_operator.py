@@ -292,8 +292,11 @@ def verify_terminal(session,terminal):
         if row.get('authoritativeEmpty') is not True or row.get('rootExit')!=0 or row.get('counts',{}).get('ActiveProcesses')!=0 or d.get('lostOrOverflowed') is not False or d.get('cleanupFailure') is not False or not isinstance(d.get('entries'),list):raise ValueError('missing/failed cleanup evidence')
     if session.stage=='controls':
         c=terminal.get('controlResult',{});mode=session.cfg['controlCase']
-        expected_verdict='EXPECTED_OWNED_TERMINATION' if mode.startswith('death-') else 'EXPECTED_REFUSAL_UNKNOWN' if mode in ['inherited-handle','cleanup-failure','diagnostic-overflow','diagnostic-truncation'] else 'EXPECTED_OBSERVATION'
+        expected_verdict='EXPECTED_REFUSAL_NONZERO_ROOT' if mode=='nonzero-root' else 'EXPECTED_OWNED_TERMINATION' if mode.startswith('death-') else 'EXPECTED_REFUSAL_UNKNOWN' if mode in ['inherited-handle','cleanup-failure','diagnostic-overflow','diagnostic-truncation'] else 'EXPECTED_OBSERVATION'
         if c.get('mode')!=mode or c.get('exit')!=0 or c.get('verdict')!=expected_verdict:raise ValueError('missing/wrong real control observation')
+        if mode=='nonzero-root':
+            observed=c.get('nonzeroRoot') or {}
+            if observed.get('actualRootExit')!=2 or observed.get('authoritativeEmpty') is not True or observed.get('activeProcesses')!=0 or observed.get('classification')!='STOPPED':raise ValueError('nonzero root/empty/refusal evidence missing')
 
 def source_archive(session):
     a=session.args;sha=a.candidate_sha
@@ -335,7 +338,7 @@ def verify_readiness(session,ready):
 
 def main():
     p=argparse.ArgumentParser();p.add_argument('stage',choices=['probe','parse','compile','controls','a6','transfer-negative','launch-negative'])
-    p.add_argument('--authority',type=Path,required=True);p.add_argument('--venue',type=Path,required=True);p.add_argument('--candidate-sha',required=True);p.add_argument('--source',type=Path,default=Path('/mnt/data/worktrees/fathomdb-0.8.29-s20-a6-current-20261115'));p.add_argument('--probe',type=Path);p.add_argument('--parse',type=Path);p.add_argument('--binaries',type=Path);p.add_argument('--readiness',type=Path);p.add_argument('--case',choices=CASES+['linger']);p.add_argument('--stop-mode',choices=['expire','cancel','transport']);p.add_argument('--transfer-fault',choices=['digest','length'])
+    p.add_argument('--authority',type=Path,required=True);p.add_argument('--venue',type=Path,required=True);p.add_argument('--candidate-sha',required=True);p.add_argument('--source',type=Path,default=Path('/mnt/data/worktrees/fathomdb-0.8.29-s20-a6-current-20261115'));p.add_argument('--probe',type=Path);p.add_argument('--parse',type=Path);p.add_argument('--binaries',type=Path);p.add_argument('--readiness',type=Path);p.add_argument('--case',choices=CASES+['linger','nonzero-root']);p.add_argument('--stop-mode',choices=['expire','cancel','transport']);p.add_argument('--transfer-fault',choices=['digest','length'])
     args=p.parse_args();s=Session(args,args.stage);s.identity();s.sample()
     if args.stage=='probe':s.probe();print(s.root);return 0
     s.stage_package()

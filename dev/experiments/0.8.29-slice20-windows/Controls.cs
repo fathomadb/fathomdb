@@ -6,7 +6,7 @@ using System.Reflection;
 using System.Threading;
 using System.Web.Script.Serialization;
 internal static class Controls {
-    static NativeJob active; static bool zero,expectedRefusal;
+    static NativeJob active; static bool zero,expectedRefusal; static object nonzeroRoot;
     static void Save(string path,object value){string t=path+".tmp-"+Guid.NewGuid().ToString("N");File.WriteAllText(t,new JavaScriptSerializer().Serialize(value));File.Move(t,path);}
     static bool Empty(NativeJob j,int ms){Stopwatch s=Stopwatch.StartNew();while(s.ElapsedMilliseconds<ms){if(j.ConfirmEmpty().ActiveProcesses==0)return true;Thread.Sleep(100);}return false;}
     static void Require(bool condition,string message){if(!condition)throw new InvalidOperationException(message);}
@@ -29,10 +29,30 @@ internal static class Controls {
             }
         }
         if(UnexpectedDiagnostics(mode)){code=125;verdict="CONTROL_FAILED_UNEXPECTED_DIAGNOSTIC";}
-        Save(Path.Combine(directory,"control-result.json"),new{mode=mode,verdict=verdict,exit=code,authoritativeEmpty=zero,expectedRefusal=expectedRefusal,error=error,diagnostics=CleanupDiagnostics.Snapshot(),runtimeQualification=false});return code;
+        Save(Path.Combine(directory,"control-result.json"),new{mode=mode,verdict=verdict,exit=code,authoritativeEmpty=zero,expectedRefusal=expectedRefusal,error=error,diagnostics=CleanupDiagnostics.Snapshot(),nonzeroRoot=nonzeroRoot,runtimeQualification=false});return code;
     }
     static string Run(string mode,string child,string directory){
         string marker=Path.Combine(directory,"child.entered");
+        if(mode=="nonzero-root"){
+            Type type=Assembly.LoadFrom(Path.Combine(Path.GetDirectoryName(child),"Supervisor.exe")).GetType("Supervisor",true);
+            BindingFlags flags=BindingFlags.Static|BindingFlags.NonPublic;
+            var fixture=new JavaScriptSerializer().Deserialize<Dictionary<string,object>>(File.ReadAllText(Path.Combine(Path.GetDirectoryName(directory),"run.json")));
+            fixture["cargoExe"]=child;fixture["workspace"]=directory;
+            type.GetField("cfg",flags).SetValue(null,fixture);type.GetField("control",flags).SetValue(null,directory);
+            type.GetField("run",flags).SetValue(null,(string)fixture["runId"]);type.GetField("sha",flags).SetValue(null,(string)fixture["candidateSha"]);
+            bool refused=false;
+            try{type.GetMethod("Invoke",flags).Invoke(null,new object[]{"nonzero-root",null,30});}
+            catch(TargetInvocationException e){refused=e.InnerException is InvalidOperationException;}
+            var commands=(List<object>)type.GetField("commands",flags).GetValue(null);
+            Require(commands.Count==1,"nonzero root command observation missing");
+            var row=(Dictionary<string,object>)commands[0];object counts=row["counts"];
+            int exit=Convert.ToInt32(row["rootExit"]);uint count=Convert.ToUInt32(counts.GetType().GetField("ActiveProcesses").GetValue(counts));
+            string reason=(string)type.GetField("stop",flags).GetValue(null);
+            zero=(bool)row["authoritativeEmpty"]&&count==0;expectedRefusal=refused;
+            Require(exit==2&&zero&&refused&&reason!=null&&reason.StartsWith("cargo-exit: nonzero-root=2"),"nonzero root was not refused before empty completion");
+            nonzeroRoot=new{actualRootExit=exit,authoritativeEmpty=zero,activeProcesses=count,classification="STOPPED",stopReason=reason,backend=child};
+            return "EXPECTED_REFUSAL_NONZERO_ROOT";
+        }
         if(mode.StartsWith("owner-")){
             string stage=mode.Substring(6);NativeFaults.Stage=delegate(string s,uint pid,long created){if(s==stage){Save(Path.Combine(directory,"owner-stage.json"),new{stage=s,pid=pid,creation=created,owner=Process.GetCurrentProcess().Id});while(true)Thread.Sleep(100);}};
             active=new NativeJob(child,new[]{"linger",marker},directory,EnvironmentMap(),Path.Combine(directory,"owner.stdout"),Path.Combine(directory,"owner.stderr"));active.Resume();throw new InvalidOperationException("owner stage not reached");

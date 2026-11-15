@@ -39,7 +39,7 @@ try {
     } elseif ($config.stage -eq 'controls') {
         foreach($entry in $config.reviewedBinaries.PSObject.Properties){if((Get-A6Hash $entry.Name) -cne $entry.Value){throw 'reviewed binary differs'}}
         $case=$config.controlCase
-        $allowed=@('normal','orphan','output','breakaway','inherited-handle','cleanup-failure','diagnostic-overflow','diagnostic-truncation','death-before-create','death-after-create','death-after-resume','linger')
+        $allowed=@('normal','orphan','output','breakaway','inherited-handle','cleanup-failure','diagnostic-overflow','diagnostic-truncation','death-before-create','death-after-create','death-after-resume','linger','nonzero-root')
         if($case -cnotin $allowed){throw 'unsupported control case'}
         foreach($path in @($config.controlsExe,$config.ownedChildExe)){Assert-A6Path $path $config.root | Out-Null;if(-not $config.reviewedBinaries.PSObject.Properties[$path]){throw 'control binary review missing'}}
         $caseRoot=Join-Path $Control 'case';if(Test-Path -LiteralPath $caseRoot){throw 'control destination occupied'};[IO.Directory]::CreateDirectory($caseRoot)|Out-Null

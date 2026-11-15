@@ -47,7 +47,7 @@ def freeze_entry(options):
         return _call(allocation, options["stage"], "freeze", options)
 
 
-def run_entry(root):
+def run_entry(root, corrected_calibration_from=None):
     """Supervise preflight/cost preparation and finish around the fixed controller mode."""
     from g_boundary import require_known_containment
     from g_runner import run_prepared
@@ -57,7 +57,10 @@ def run_entry(root):
     allocation, mode = Path(bootstrap["allocation"]), bootstrap["stage"]
     with (allocation / "g-campaign.lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        prepared = _call(allocation, mode, "preflight", {"root": str(root)})
+        options = {"root": str(root)}
+        if corrected_calibration_from is not None:
+            options["corrected_calibration_from"] = str(Path(corrected_calibration_from).resolve())
+        prepared = _call(allocation, mode, "preflight", options)
         os.environ["FATHOMDB_EMBED_DEVICE"] = prepared["device_policy"]
         os.environ["HF_HUB_OFFLINE"] = "1"
         os.environ["TRANSFORMERS_OFFLINE"] = "1"
@@ -78,7 +81,7 @@ def report_entry(root):
         return _call(allocation, manifest["stage"], "report", {"root": str(root)})
 
 
-def _preflight(root):
+def _preflight(root, corrected_calibration_from=None):
     from g_freeze import validate_frozen
     from g_gpu import inspect_gpu
     manifest = validate_frozen(root)
@@ -153,7 +156,7 @@ def common_worker(job, output):
         from g_freeze import freeze
         value = freeze(options)
     elif action == "preflight":
-        value = _preflight(Path(options["root"]).resolve())
+        value = _preflight(Path(options["root"]).resolve(), options.get("corrected_calibration_from"))
     elif action == "finish":
         value = _finish(Path(options["root"]).resolve())
     elif action == "report":

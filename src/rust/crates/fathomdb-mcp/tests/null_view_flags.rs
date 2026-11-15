@@ -141,3 +141,32 @@ async fn inactive_null_is_rejected_on_initial_and_continuation_requests() {
         harness.shutdown().await;
     }
 }
+
+async fn assert_discovery_false_default(flag: &str) {
+    for format in ["structured", "text"] {
+        let mut config = common::structured_config();
+        config.result_format = format.into();
+        let harness = Harness::start(config).await;
+        let tools = serde_json::to_value(harness.tools().await).unwrap();
+        let search =
+            tools.as_array().unwrap().iter().find(|tool| tool["name"] == "search").unwrap();
+        let property = &search["inputSchema"]["properties"][flag];
+        assert_eq!(property["type"], json!("boolean"), "{format} {flag}: {property}");
+        assert_eq!(
+            property.get("default"),
+            Some(&json!(false)),
+            "tools/list must advertise the effective false default for {format} {flag}: {property}"
+        );
+        harness.shutdown().await;
+    }
+}
+
+#[tokio::test]
+async fn discovery_superseded_default_is_false() {
+    assert_discovery_false_default("include_superseded").await;
+}
+
+#[tokio::test]
+async fn discovery_inactive_default_is_false() {
+    assert_discovery_false_default("include_inactive").await;
+}

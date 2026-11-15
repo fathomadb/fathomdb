@@ -235,6 +235,17 @@ through bounded queued jobs. Untimed dequeue and actual processing/submit-wait
 intervals retain actual cursors; stale/mixed admission cannot relabel work.
 Further numeric/outcome/overlap contracts follow ordered runtime RED/GREEN in
 [the D contract](../plans/0.8.29/features/slice-30/continuation-gd.md#d-source-fit-and-exact-private-observer-contract).
+The same conjunction alone exposes doc-hidden
+`Engine::slice30_projection_snapshot_for_test()` and
+`Slice30ProjectionSnapshotForTest`. Field names match the resolved
+`scheduler_runtime_threads`, `embedder_pool_size` and `admission_capacity`,
+plus actual `active_jobs`, `active_scans`, `queued_jobs`, `in_flight_count`,
+`frozen`, `pending_scan` and `stopping`. Active/queued counts name rows, not
+worker threads. This is one runtime-state-lock instant; it never composes a
+SQLite readiness/generation snapshot. Closed/unavailable state is Closing/
+Storage, never zero. The staged numeric API scaffold currently returns Storage
+for open engines until its real-store semantic RED has run; no observation is
+claimed from it.
 The foreground G guard and signed/default SDK surface remain unchanged.
 
 ### Explicit MCP admission observations

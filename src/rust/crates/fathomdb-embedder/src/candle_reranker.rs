@@ -124,30 +124,47 @@ impl CudaProvider for RerankerCudaProvider {
                 .map_err(CudaProbeError::LibraryUnavailable)?;
             let device = crate::cuda_pool_policy::new_cuda_device(ordinal)
                 .map_err(classify_device_build_error)?;
-            Tensor::zeros(1, DType::F32, &device).map_err(|error| {
-                probe_allocation_error(error, |error| {
-                    crate::cuda_pool_policy::forward_failure(
-                        error,
-                        &device,
-                        crate::cuda_pool_policy::PROBE_OPERATION,
+            let scope = crate::cuda_operation::CudaOperation::on(
+                &device,
+                crate::cuda_pool_policy::PROBE_OPERATION,
+            );
+            scope.run(
+                |error| match error {
+                    crate::cuda_operation::CudaOperationError::Loss(failure) => {
+                        CudaProbeError::Pool(failure)
+                    }
+                    crate::cuda_operation::CudaOperationError::Driver(error) => {
+                        classify_candle_cuda_error(error)
+                    }
+                },
+                || {
+                    Tensor::zeros(1, DType::F32, &device).map_err(|error| {
+                        probe_allocation_error(error, |error| {
+                            crate::cuda_pool_policy::forward_failure(
+                                error,
+                                &device,
+                                crate::cuda_pool_policy::PROBE_OPERATION,
+                            )
+                        })
+                    })?;
+                    let visible = self
+                        .enumerate_visible_cuda_devices()?
+                        .into_iter()
+                        .find(|visible| visible.visible_ordinal == ordinal)
+                        .ok_or(CudaProbeError::NoVisibleDevice)?;
+                    crate::cuda_lifetime::record_uuid(ordinal, visible.uuid.clone());
+                    Ok(CudaDeviceInfo::new(
+                        ordinal,
+                        Some(visible.uuid),
+                        Some(visible.name),
+                        None,
+                        visible.compute_capability,
+                        None,
                     )
-                })
-            })?;
-            let visible = self
-                .enumerate_visible_cuda_devices()?
-                .into_iter()
-                .find(|visible| visible.visible_ordinal == ordinal)
-                .ok_or(CudaProbeError::NoVisibleDevice)?;
-            Ok(CudaDeviceInfo::new(
-                ordinal,
-                Some(visible.uuid),
-                Some(visible.name),
-                None,
-                visible.compute_capability,
-                None,
+                    .with_cuda_allocator(crate::cuda_pool_policy::allocator_report(&device))
+                    .with_cuda_libraries(crate::cuda_libraries::cuda_library_reports()))
+                },
             )
-            .with_cuda_allocator(crate::cuda_pool_policy::allocator_report(&device))
-            .with_cuda_libraries(crate::cuda_libraries::cuda_library_reports()))
         }
         #[cfg(not(feature = "rerank-cuda"))]
         {
@@ -295,15 +312,13 @@ fn classify_candle_cuda_error(error: candle_core::Error) -> CudaProbeError {
     match error {
         Error::Cuda(source) => match source.downcast_ref::<CudaError>() {
             Some(CudaError::Cuda(error)) => classify_cuda_driver_error(*error),
-            Some(CudaError::Cublas(CublasError::Native(status)))
-                if matches!(
-                    status,
-                    cublasStatus_t::CUBLAS_STATUS_ARCH_MISMATCH
-                        | cublasStatus_t::CUBLAS_STATUS_NOT_SUPPORTED
-                ) =>
-            {
-                CudaProbeError::Incompatible { message }
+            Some(CudaError::Cublas(CublasError::Driver(error))) => {
+                classify_cuda_driver_error(*error)
             }
+            Some(CudaError::Cublas(CublasError::Native(
+                cublasStatus_t::CUBLAS_STATUS_ARCH_MISMATCH
+                | cublasStatus_t::CUBLAS_STATUS_NOT_SUPPORTED,
+            ))) => CudaProbeError::Incompatible { message },
             _ => CudaProbeError::ProbeFailed { message },
         },
         _ => CudaProbeError::ProbeFailed { message },
@@ -507,7 +522,7 @@ impl CandleTinyBertReranker {
             &device,
             crate::cuda_pool_policy::MODEL_LOAD_OPERATION,
         );
-        scope.run(crate::cuda_pool_policy::CudaPoolFailure::into_reranker_load_error, move || {
+        scope.run(crate::cuda_operation::CudaOperationError::into_reranker_load_error, move || {
             let vb = unsafe {
                 VarBuilder::from_mmaped_safetensors(
                     &[w.model_safetensors_path.as_path() as &Path],
@@ -571,35 +586,32 @@ impl CandleTinyBertReranker {
     /// failed pair as a neutral score rather than panic in the reader thread.
     pub fn score(&self, query: &str, passage: &str) -> Result<f32, candle_core::Error> {
         let scope = crate::cuda_operation::CudaOperation::on(&self.device, "rerank forward");
-        scope.run(
-            |failure| candle_core::Error::Cuda(Box::new(failure)),
-            || {
-                let enc = self
-                    .tokenizer
-                    .encode((query, passage), true)
-                    .map_err(|e| candle_core::Error::Msg(format!("tokenize pair: {e}")))?;
-                let ids: Vec<u32> = enc.get_ids().to_vec();
-                let type_ids: Vec<u32> = enc.get_type_ids().to_vec();
-                let attn: Vec<u32> = enc.get_attention_mask().to_vec();
-                let len = ids.len();
+        scope.run(crate::cuda_operation::CudaOperationError::into_candle_error, || {
+            let enc = self
+                .tokenizer
+                .encode((query, passage), true)
+                .map_err(|e| candle_core::Error::Msg(format!("tokenize pair: {e}")))?;
+            let ids: Vec<u32> = enc.get_ids().to_vec();
+            let type_ids: Vec<u32> = enc.get_type_ids().to_vec();
+            let attn: Vec<u32> = enc.get_attention_mask().to_vec();
+            let len = ids.len();
 
-                let input_ids = Tensor::from_vec(ids, (1, len), &self.device)?;
-                let token_type_ids = Tensor::from_vec(type_ids, (1, len), &self.device)?;
-                let attn_mask = Tensor::from_vec(attn, (1, len), &self.device)?;
+            let input_ids = Tensor::from_vec(ids, (1, len), &self.device)?;
+            let token_type_ids = Tensor::from_vec(type_ids, (1, len), &self.device)?;
+            let attn_mask = Tensor::from_vec(attn, (1, len), &self.device)?;
 
-                // (1, L, H) sequence output.
-                let hidden = self.model.forward(&input_ids, &token_type_ids, Some(&attn_mask))?;
-                // [CLS] at position 0 → (1, H). `.contiguous()` because `narrow` yields a
-                // strided view and the CUDA matmul backend (the pooler's `dense`) rejects
-                // non-contiguous operands; a no-op on CPU / when already contiguous.
-                let cls = hidden.narrow(1, 0, 1)?.squeeze(1)?.contiguous()?;
-                // Pooler: tanh(dense(cls)).
-                let pooled = self.pooler.forward(&cls)?.tanh()?;
-                // Classifier: (1, 1) logit.
-                let logit = self.classifier.forward(&pooled)?;
-                logit.squeeze(1)?.squeeze(0)?.to_scalar::<f32>()
-            },
-        )
+            // (1, L, H) sequence output.
+            let hidden = self.model.forward(&input_ids, &token_type_ids, Some(&attn_mask))?;
+            // [CLS] at position 0 → (1, H). `.contiguous()` because `narrow` yields a
+            // strided view and the CUDA matmul backend (the pooler's `dense`) rejects
+            // non-contiguous operands; a no-op on CPU / when already contiguous.
+            let cls = hidden.narrow(1, 0, 1)?.squeeze(1)?.contiguous()?;
+            // Pooler: tanh(dense(cls)).
+            let pooled = self.pooler.forward(&cls)?.tanh()?;
+            // Classifier: (1, 1) logit.
+            let logit = self.classifier.forward(&pooled)?;
+            logit.squeeze(1)?.squeeze(0)?.to_scalar::<f32>()
+        })
     }
 
     /// Batched variant of [`score`](Self::score): score every `(query, passage_i)`
@@ -639,22 +651,16 @@ impl CandleTinyBertReranker {
             return Ok(Vec::new());
         }
         let scope = crate::cuda_operation::CudaOperation::on(&self.device, "rerank forward");
-        scope.run(
-            |failure| candle_core::Error::Cuda(Box::new(failure)),
-            || {
-                if passages.is_empty() {
-                    return Ok(vec![]);
-                }
-                // Bound peak attention memory: at most MAX_CE_BATCH pairs per forward.
-                // `chunks` of a non-empty slice yields only non-empty chunks; results are
-                // concatenated in input order so the output index matches `passages`.
-                let mut out: Vec<f32> = Vec::with_capacity(passages.len());
-                for chunk in passages.chunks(MAX_CE_BATCH) {
-                    out.extend(self.score_chunk(query, chunk)?);
-                }
-                Ok(out)
-            },
-        )
+        scope.run(crate::cuda_operation::CudaOperationError::into_candle_error, || {
+            // Bound peak attention memory: at most MAX_CE_BATCH pairs per forward.
+            // `chunks` of a non-empty slice yields only non-empty chunks; results are
+            // concatenated in input order so the output index matches `passages`.
+            let mut out: Vec<f32> = Vec::with_capacity(passages.len());
+            for chunk in passages.chunks(MAX_CE_BATCH) {
+                out.extend(self.score_chunk(query, chunk)?);
+            }
+            Ok(out)
+        })
     }
 
     /// Score one bounded chunk (`1..=MAX_CE_BATCH` pairs) in a single forward.
@@ -662,68 +668,65 @@ impl CandleTinyBertReranker {
     /// the masking/correctness contract.
     fn score_chunk(&self, query: &str, passages: &[&str]) -> Result<Vec<f32>, candle_core::Error> {
         let scope = crate::cuda_operation::CudaOperation::on(&self.device, "rerank forward");
-        scope.run(
-            |failure| candle_core::Error::Cuda(Box::new(failure)),
-            || {
-                // Tokenize each pair exactly as `score` does, retaining per-pair ids,
-                // segment ids, and attention masks.
-                let mut all_ids: Vec<Vec<u32>> = Vec::with_capacity(passages.len());
-                let mut all_types: Vec<Vec<u32>> = Vec::with_capacity(passages.len());
-                let mut all_attn: Vec<Vec<u32>> = Vec::with_capacity(passages.len());
-                let mut l_max = 0usize;
-                for passage in passages {
-                    let enc = self
-                        .tokenizer
-                        .encode((query, *passage), true)
-                        .map_err(|e| candle_core::Error::Msg(format!("tokenize pair: {e}")))?;
-                    let ids = enc.get_ids().to_vec();
-                    l_max = l_max.max(ids.len());
-                    all_types.push(enc.get_type_ids().to_vec());
-                    all_attn.push(enc.get_attention_mask().to_vec());
-                    all_ids.push(ids);
+        scope.run(crate::cuda_operation::CudaOperationError::into_candle_error, || {
+            // Tokenize each pair exactly as `score` does, retaining per-pair ids,
+            // segment ids, and attention masks.
+            let mut all_ids: Vec<Vec<u32>> = Vec::with_capacity(passages.len());
+            let mut all_types: Vec<Vec<u32>> = Vec::with_capacity(passages.len());
+            let mut all_attn: Vec<Vec<u32>> = Vec::with_capacity(passages.len());
+            let mut l_max = 0usize;
+            for passage in passages {
+                let enc = self
+                    .tokenizer
+                    .encode((query, *passage), true)
+                    .map_err(|e| candle_core::Error::Msg(format!("tokenize pair: {e}")))?;
+                let ids = enc.get_ids().to_vec();
+                l_max = l_max.max(ids.len());
+                all_types.push(enc.get_type_ids().to_vec());
+                all_attn.push(enc.get_attention_mask().to_vec());
+                all_ids.push(ids);
+            }
+
+            // BERT `[PAD]` token id (config `pad_token_id = 0`); the value is inert
+            // because the attention mask removes pad positions, but use the real id
+            // so embeddings stay in-vocab.
+            let pad_id = self.tokenizer.token_to_id("[PAD]").unwrap_or(0);
+            let n = passages.len();
+
+            // Right-pad each row to L_max into flat (N * L_max) buffers.
+            let mut ids_buf: Vec<u32> = Vec::with_capacity(n * l_max);
+            let mut type_buf: Vec<u32> = Vec::with_capacity(n * l_max);
+            let mut attn_buf: Vec<u32> = Vec::with_capacity(n * l_max);
+            for i in 0..n {
+                let ids = &all_ids[i];
+                let types = &all_types[i];
+                let attn = &all_attn[i];
+                let len = ids.len();
+                ids_buf.extend_from_slice(ids);
+                type_buf.extend_from_slice(types);
+                attn_buf.extend_from_slice(attn);
+                for _ in len..l_max {
+                    ids_buf.push(pad_id);
+                    type_buf.push(0);
+                    attn_buf.push(0);
                 }
+            }
 
-                // BERT `[PAD]` token id (config `pad_token_id = 0`); the value is inert
-                // because the attention mask removes pad positions, but use the real id
-                // so embeddings stay in-vocab.
-                let pad_id = self.tokenizer.token_to_id("[PAD]").unwrap_or(0);
-                let n = passages.len();
+            let input_ids = Tensor::from_vec(ids_buf, (n, l_max), &self.device)?;
+            let token_type_ids = Tensor::from_vec(type_buf, (n, l_max), &self.device)?;
+            let attn_mask = Tensor::from_vec(attn_buf, (n, l_max), &self.device)?;
 
-                // Right-pad each row to L_max into flat (N * L_max) buffers.
-                let mut ids_buf: Vec<u32> = Vec::with_capacity(n * l_max);
-                let mut type_buf: Vec<u32> = Vec::with_capacity(n * l_max);
-                let mut attn_buf: Vec<u32> = Vec::with_capacity(n * l_max);
-                for i in 0..n {
-                    let ids = &all_ids[i];
-                    let types = &all_types[i];
-                    let attn = &all_attn[i];
-                    let len = ids.len();
-                    ids_buf.extend_from_slice(ids);
-                    type_buf.extend_from_slice(types);
-                    attn_buf.extend_from_slice(attn);
-                    for _ in len..l_max {
-                        ids_buf.push(pad_id);
-                        type_buf.push(0);
-                        attn_buf.push(0);
-                    }
-                }
-
-                let input_ids = Tensor::from_vec(ids_buf, (n, l_max), &self.device)?;
-                let token_type_ids = Tensor::from_vec(type_buf, (n, l_max), &self.device)?;
-                let attn_mask = Tensor::from_vec(attn_buf, (n, l_max), &self.device)?;
-
-                // (N, L_max, H) sequence output → [CLS] at position 0 → (N, H).
-                let hidden = self.model.forward(&input_ids, &token_type_ids, Some(&attn_mask))?;
-                // `.contiguous()`: for N>1 the narrowed CLS slice is strided (rows L_max*H
-                // apart) and the CUDA matmul backend (the pooler's `dense`) rejects
-                // non-contiguous operands; a no-op on CPU / when already contiguous.
-                let cls = hidden.narrow(1, 0, 1)?.squeeze(1)?.contiguous()?;
-                // Pooler: tanh(dense(cls)) → classifier → (N, 1) → (N,).
-                let pooled = self.pooler.forward(&cls)?.tanh()?;
-                let logits = self.classifier.forward(&pooled)?.squeeze(1)?;
-                logits.to_vec1::<f32>()
-            },
-        )
+            // (N, L_max, H) sequence output → [CLS] at position 0 → (N, H).
+            let hidden = self.model.forward(&input_ids, &token_type_ids, Some(&attn_mask))?;
+            // `.contiguous()`: for N>1 the narrowed CLS slice is strided (rows L_max*H
+            // apart) and the CUDA matmul backend (the pooler's `dense`) rejects
+            // non-contiguous operands; a no-op on CPU / when already contiguous.
+            let cls = hidden.narrow(1, 0, 1)?.squeeze(1)?.contiguous()?;
+            // Pooler: tanh(dense(cls)) → classifier → (N, 1) → (N,).
+            let pooled = self.pooler.forward(&cls)?.tanh()?;
+            let logits = self.classifier.forward(&pooled)?.squeeze(1)?;
+            logits.to_vec1::<f32>()
+        })
     }
 }
 

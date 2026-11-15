@@ -168,7 +168,7 @@ impl PoolDriver for Fake {
         Ok(FakePool)
     }
 
-    fn probe_pool(&self, _pool: &Self::Pool) -> Result<(), DriverFailure> {
+    fn probe_pool(&self, _ordinal: usize, _pool: &Self::Pool) -> Result<(), DriverFailure> {
         Ok(())
     }
 
@@ -288,7 +288,7 @@ impl PoolDriver for DefaultsOnly {
     ) -> Result<(), DriverFailure> {
         unreachable!()
     }
-    fn probe_pool(&self, _pool: &()) -> Result<(), DriverFailure> {
+    fn probe_pool(&self, _ordinal: usize, _pool: &()) -> Result<(), DriverFailure> {
         unreachable!()
     }
     fn new_private_context(&self, _ordinal: usize, _pool: &()) -> Result<(), DriverFailure> {

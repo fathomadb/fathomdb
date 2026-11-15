@@ -653,7 +653,7 @@ impl PoolDriver for FakeDriver {
         Ok(FakePool { dropped: Arc::clone(&self.pools_dropped) })
     }
 
-    fn probe_pool(&self, _pool: &Self::Pool) -> Result<(), DriverFailure> {
+    fn probe_pool(&self, _ordinal: usize, _pool: &Self::Pool) -> Result<(), DriverFailure> {
         if self.fail_probe {
             return Err(failure(CUDA_ERROR_OUT_OF_MEMORY));
         }

@@ -266,30 +266,47 @@ impl CudaProvider for CandleCudaProvider {
                 .map_err(CudaProbeError::LibraryUnavailable)?;
             let device = crate::cuda_pool_policy::new_cuda_device(ordinal)
                 .map_err(classify_device_build_error)?;
-            Tensor::zeros(1, DType::F32, &device).map_err(|error| {
-                probe_allocation_error(error, |error| {
-                    crate::cuda_pool_policy::forward_failure(
-                        error,
-                        &device,
-                        crate::cuda_pool_policy::PROBE_OPERATION,
+            let scope = crate::cuda_operation::CudaOperation::on(
+                &device,
+                crate::cuda_pool_policy::PROBE_OPERATION,
+            );
+            scope.run(
+                |error| match error {
+                    crate::cuda_operation::CudaOperationError::Loss(failure) => {
+                        CudaProbeError::Pool(failure)
+                    }
+                    crate::cuda_operation::CudaOperationError::Driver(error) => {
+                        classify_candle_cuda_error(error)
+                    }
+                },
+                || {
+                    Tensor::zeros(1, DType::F32, &device).map_err(|error| {
+                        probe_allocation_error(error, |error| {
+                            crate::cuda_pool_policy::forward_failure(
+                                error,
+                                &device,
+                                crate::cuda_pool_policy::PROBE_OPERATION,
+                            )
+                        })
+                    })?;
+                    let visible = self
+                        .enumerate_visible_cuda_devices()?
+                        .into_iter()
+                        .find(|visible| visible.visible_ordinal == ordinal)
+                        .ok_or(CudaProbeError::NoVisibleDevice)?;
+                    crate::cuda_lifetime::record_uuid(ordinal, visible.uuid.clone());
+                    Ok(CudaDeviceInfo::new(
+                        ordinal,
+                        Some(visible.uuid),
+                        Some(visible.name),
+                        None,
+                        visible.compute_capability,
+                        None,
                     )
-                })
-            })?;
-            let visible = self
-                .enumerate_visible_cuda_devices()?
-                .into_iter()
-                .find(|visible| visible.visible_ordinal == ordinal)
-                .ok_or(CudaProbeError::NoVisibleDevice)?;
-            Ok(CudaDeviceInfo::new(
-                ordinal,
-                Some(visible.uuid),
-                Some(visible.name),
-                None,
-                visible.compute_capability,
-                None,
+                    .with_cuda_allocator(crate::cuda_pool_policy::allocator_report(&device))
+                    .with_cuda_libraries(crate::cuda_libraries::cuda_library_reports()))
+                },
             )
-            .with_cuda_allocator(crate::cuda_pool_policy::allocator_report(&device))
-            .with_cuda_libraries(crate::cuda_libraries::cuda_library_reports()))
         }
 
         #[cfg(not(feature = "embed-cuda"))]
@@ -368,15 +385,13 @@ fn classify_candle_cuda_error(error: candle_core::Error) -> CudaProbeError {
     match error {
         Error::Cuda(source) => match source.downcast_ref::<CudaError>() {
             Some(CudaError::Cuda(error)) => classify_cuda_driver_error(*error),
-            Some(CudaError::Cublas(CublasError::Native(status)))
-                if matches!(
-                    status,
-                    cublasStatus_t::CUBLAS_STATUS_ARCH_MISMATCH
-                        | cublasStatus_t::CUBLAS_STATUS_NOT_SUPPORTED
-                ) =>
-            {
-                CudaProbeError::Incompatible { message }
+            Some(CudaError::Cublas(CublasError::Driver(error))) => {
+                classify_cuda_driver_error(*error)
             }
+            Some(CudaError::Cublas(CublasError::Native(
+                cublasStatus_t::CUBLAS_STATUS_ARCH_MISMATCH
+                | cublasStatus_t::CUBLAS_STATUS_NOT_SUPPORTED,
+            ))) => CudaProbeError::Incompatible { message },
             _ => CudaProbeError::ProbeFailed { message },
         },
         _ => CudaProbeError::ProbeFailed { message },
@@ -437,21 +452,28 @@ pub(crate) fn attest_retained_cuda_device(
                 unavailable(error.to_string())
             }
         })?;
-    let actual_ordinal = match device.location() {
-        candle_core::DeviceLocation::Cuda { gpu_id } => gpu_id,
-        _ => {
-            return Err(unavailable("Candle did not retain the requested CUDA device".to_owned()));
+    let scope =
+        crate::cuda_operation::CudaOperation::on(&device, crate::cuda_pool_policy::PROBE_OPERATION);
+    scope.run(crate::cuda_operation::CudaOperationError::into_embedder_load_error, move || {
+        let actual_ordinal = match device.location() {
+            candle_core::DeviceLocation::Cuda { gpu_id } => gpu_id,
+            _ => {
+                return Err(unavailable(
+                    "Candle did not retain the requested CUDA device".to_owned(),
+                ));
+            }
+        };
+        if actual_ordinal != ordinal {
+            return Err(unavailable(format!("Candle initialized cuda:{actual_ordinal} instead")));
         }
-    };
-    if actual_ordinal != ordinal {
-        return Err(unavailable(format!("Candle initialized cuda:{actual_ordinal} instead")));
-    }
-    Tensor::zeros(1, DType::F32, &device).map_err(|error| unavailable(error.to_string()))?;
-    // `CudaProbeError` is a typed classification without a `Display` impl, so
-    // its debug rendering is what carries the classification into the reason.
-    let uuid = tc5_cuda_uuid_for_initialized_ordinal(actual_ordinal)
-        .map_err(|error| unavailable(format!("{error:?}")))?;
-    Ok((device, actual_ordinal, uuid))
+        Tensor::zeros(1, DType::F32, &device).map_err(|error| unavailable(error.to_string()))?;
+        // `CudaProbeError` is a typed classification without a `Display` impl, so
+        // its debug rendering is what carries the classification into the reason.
+        let uuid = tc5_cuda_uuid_for_initialized_ordinal(actual_ordinal)
+            .map_err(|error| unavailable(format!("{error:?}")))?;
+        crate::cuda_lifetime::record_uuid(actual_ordinal, uuid.clone());
+        Ok((device, actual_ordinal, uuid))
+    })
 }
 
 /// Resolve the product `FATHOMDB_EMBED_DEVICE` policy for one default
@@ -624,7 +646,7 @@ impl CandleBgeEmbedder {
             &device,
             crate::cuda_pool_policy::MODEL_LOAD_OPERATION,
         );
-        scope.run(crate::cuda_pool_policy::CudaPoolFailure::into_embedder_load_error, move || {
+        scope.run(crate::cuda_operation::CudaOperationError::into_embedder_load_error, move || {
             // Design §8: safetensors are little-endian; we never run on BE.
             // Tightened in EU-5d follow-up from a debug_assert into a
             // compile-time error so BE builds fail at `cargo build` rather
@@ -755,7 +777,7 @@ impl Embedder for CandleBgeEmbedder {
 
     fn embed(&self, input: &str) -> Result<Vector, EmbedderError> {
         let scope = crate::cuda_operation::CudaOperation::on(&self.device, "forward");
-        scope.run(crate::cuda_pool_policy::CudaPoolFailure::into_embedder_error, || {
+        scope.run(crate::cuda_operation::CudaOperationError::into_embedder_error, || {
             // Invariant 3 (ADR-0.6.0-embedder-protocol.md): no log/tracing/
             // println/eprintln/dbg in this function. Errors travel up via
             // the return value only.
@@ -801,7 +823,7 @@ impl Embedder for CandleBgeEmbedder {
             return Ok(Vec::new());
         }
         let scope = crate::cuda_operation::CudaOperation::on(&self.device, "batch forward");
-        scope.run(crate::cuda_pool_policy::CudaPoolFailure::into_embedder_error, || {
+        scope.run(crate::cuda_operation::CudaOperationError::into_embedder_error, || {
             // Invariant 3 (ADR-0.6.0-embedder-protocol.md): no log/tracing in this fn.
             // One padded (B, L) forward instead of B single-row forwards. The attention
             // mask zeros padded positions, so the mean/cls pooling + L2-norm produce the
@@ -863,7 +885,7 @@ impl CandleBgeEmbedder {
     /// `(mean_pooled, cls_pooled)`. Not part of the `Embedder` trait.
     pub fn embed_dual_for_test(&self, input: &str) -> Result<(Vector, Vector), EmbedderError> {
         let scope = crate::cuda_operation::CudaOperation::on(&self.device, "forward");
-        scope.run(crate::cuda_pool_policy::CudaPoolFailure::into_embedder_error, || {
+        scope.run(crate::cuda_operation::CudaOperationError::into_embedder_error, || {
             let encoding = self
                 .tokenizer
                 .encode(input, true)

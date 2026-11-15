@@ -194,6 +194,6 @@ internal sealed class NativeJob : IDisposable {
         uint code;Check(GetExitCodeProcess(process,out code),"Get root exit");RootExit=unchecked((int)code);Close(ref process);return true;
     }
     public void Terminate(uint code) {Check(TerminateJobObject(job,code),"Terminate private job");}
-    public Counts ConfirmEmpty() {CaptureRootExit();Counts c=ReadCounts();if(c.ActiveProcesses==0){if(!RootExit.HasValue)CaptureRootExit();if(!RootExit.HasValue)throw new InvalidOperationException("empty job without captured root exit");EmptyConfirmed=true;}return c;}
+    public Counts ConfirmEmpty() {Counts c=ReadCounts();bool exited=CaptureRootExit();if(c.ActiveProcesses==0&&exited)EmptyConfirmed=true;return c;}
     public void Dispose() {CloseBestEffort(ref thread,"CloseHandle(thread cleanup)");CloseBestEffort(ref process,"CloseHandle(process cleanup)");CloseBestEffort(ref job,"CloseHandle(job cleanup)");foreach(IntPtr h in files)CloseFileBestEffort(h);files.Clear();}
 }

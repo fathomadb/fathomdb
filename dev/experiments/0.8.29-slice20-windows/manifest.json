@@ -1,11 +1,11 @@
 {
   "schema": "fathomdb.a6.operator/v1",
   "files": {
-    "Controls.cs": "4899e56499e89f55d83301c4971f5c3d88e75ef8cbc427b3e89ad16d74d1fae6",
-    "NativeJob.cs": "70247adac685b3389d426e2f920a0db20ae4ef26839c6976af9081dd1bb1c3ed",
+    "Controls.cs": "d7050c5337b892f3c1731b219538d68deaff4e5a150102ae599420f0ed86b743",
+    "NativeJob.cs": "0de78ef32ff0af32a243aaaf3a87936045f0770a7c73d18d1fae15739429a980",
     "OwnedChild.cs": "b23fdc51a72e0332e13de26b6bb8968093ffdd8e056865cb4d78eb7e27d9b765",
     "README.md": "edf47768b74b24d165f3005fe032ac2102025a827e71dae6ec5a26559f38a964",
-    "Supervisor.cs": "47598935290553d7f88a726fbe20dbdc325ae66ac4e20c8793dff8a6ca58efdd",
+    "Supervisor.cs": "7a69da7fb99e4994345c7c3779d1db4eb368f80b91af7696e4d169825acd610d",
     "a6_operator.py": "ac8f4d33bc630980cafb9b5facd1a797eaf8e3eaa5f173cfac3e4fb5c7497f8f",
     "common.ps1": "1733043c4dbfd4c67168386b705b84fe9efbb321a8e15b92addd919a1de5f5ba",
     "exercise.py": "525e6bb10e36adb2efddeb94a894307cc2c59edcaf1c2d8f91d1125bc46daea0",

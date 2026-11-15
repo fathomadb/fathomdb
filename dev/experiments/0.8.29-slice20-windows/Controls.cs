@@ -8,7 +8,7 @@ using System.Web.Script.Serialization;
 internal static class Controls {
     static NativeJob active; static bool zero,expectedRefusal; static object nonzeroRoot;
     static void Save(string path,object value){string t=path+".tmp-"+Guid.NewGuid().ToString("N");File.WriteAllText(t,new JavaScriptSerializer().Serialize(value));File.Move(t,path);}
-    static bool Empty(NativeJob j,int ms){Stopwatch s=Stopwatch.StartNew();while(s.ElapsedMilliseconds<ms){if(j.ConfirmEmpty().ActiveProcesses==0)return true;Thread.Sleep(100);}return false;}
+    static bool Empty(NativeJob j,int ms){Stopwatch s=Stopwatch.StartNew();while(s.ElapsedMilliseconds<ms){if(j.ConfirmEmpty().ActiveProcesses==0&&j.EmptyConfirmed)return true;Thread.Sleep(100);}return false;}
     static void Require(bool condition,string message){if(!condition)throw new InvalidOperationException(message);}
     static bool UnexpectedDiagnostics(string mode){
         var snapshot=(Dictionary<string,object>)CleanupDiagnostics.Snapshot();
@@ -24,7 +24,7 @@ internal static class Controls {
         catch(Exception e){error=e.ToString();CleanupDiagnostics.Record("control primary",e,false);}
         finally{
             if(active!=null){
-                if(!zero){try{active.Terminate(125);zero=Empty(active,10000);}catch(Exception e){CleanupDiagnostics.Record("control cleanup terminate/accounting",e,true);}}
+                if(!zero){try{active.Terminate(125);zero=Empty(active,10000);Require(zero,"job empty not confirmed within cleanup bound");}catch(Exception e){CleanupDiagnostics.Record("control cleanup terminate/accounting",e,true);}}
                 active.Dispose();
             }
         }

@@ -134,7 +134,7 @@ internal static class Supervisor {
                 lock(Sync){if(commandClock.Elapsed.TotalSeconds>=timeoutSeconds)Stop("command-timeout: "+label,false);if(stop!=null&&!terminated){j.Terminate(125);terminated=true;cleanupAt=commandClock.ElapsedMilliseconds;}}
                 counts=j.ConfirmEmpty();bool exited=j.RootExit.HasValue;
                 if(exited&&rootExitAt<0){rootExitAt=commandClock.ElapsedMilliseconds;if(j.RootExit.Value!=0)Stop("cargo-exit: "+label+"="+j.RootExit.Value,false);}
-                if(counts.ActiveProcesses==0){zero=true;break;}
+                if(counts.ActiveProcesses==0&&j.EmptyConfirmed){zero=true;break;}
                 long now=commandClock.ElapsedMilliseconds;
                 if(exited&&!terminated&&now-rootExitAt>=10000){Stop("descendant-not-quiescent: "+label,false);}
                 if(terminated&&now-cleanupAt>=10000){unknown=true;throw new TimeoutException("job did not confirm empty within cleanup bound");}

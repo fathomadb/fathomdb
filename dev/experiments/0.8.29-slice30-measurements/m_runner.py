@@ -55,6 +55,13 @@ def main():
     freezing = commands.add_parser("freeze")
     freezing.add_argument("--options", required=True)
     freezing.add_argument("--root", required=True)
+    calibration = commands.add_parser("calibrate")
+    for name in ("options", "root", "cell"):
+        calibration.add_argument(f"--{name}", required=True)
+    calibration_internal = commands.add_parser("_calibrate")
+    for name in ("options", "root", "cell"):
+        calibration_internal.add_argument(f"--{name}", required=True)
+    calibration_internal.add_argument("--admission-fd", type=int, required=True)
     for action in ("run", "report"):
         commands.add_parser(action).add_argument("root")
     internal = commands.add_parser("_controller")
@@ -76,7 +83,28 @@ def main():
     cell.add_argument("config")
     cell.add_argument("attempt")
     options = parser.parse_args()
-    if options.action == "source-dispatch":
+    if options.action == "calibrate":
+        from m_calibration import selected_cell
+        from m_freeze import approved
+        from m_guard import guard
+        if os.environ.get("AGENT_LONG") != "1":
+            raise RuntimeError("calibration requires explicit AGENT_LONG=1 and selected approved allocation")
+        selected_cell(options.cell)
+        selected = json.loads(Path(options.options).read_text())
+        profile = json.loads(Path(selected["profile"]).read_text())
+        approved(profile, selected["allocation"])
+        limits = selected["calibration"]
+        root = Path(options.root).resolve()
+        if root.exists():
+            raise ValueError("calibration requires a new retained root; cumulative allowance never renews")
+        result = guard([sys.executable, str(Path(__file__).resolve()), "_calibrate",
+            "--options", str(Path(options.options).resolve()), "--root", str(root), "--cell", options.cell],
+            allocation=selected["allocation"], profile=profile, root=root, task=os.environ["S30_TASK"],
+            admission=True, calibration=limits, common_limit_ns=limits["phase_ns"]-limits["payload_ns"],
+            started_ns=began)
+        print(json.dumps(result))
+        return 0 if result["exit"] == 0 and not result["cleanup_uncertain"] else 1
+    elif options.action == "source-dispatch":
         from g_freeze import identify
         from m_controller import COMPONENTS
         from m_guard import guard
@@ -141,6 +169,8 @@ def main():
                        str(Path(options.options).resolve()), "--root", str(Path(options.root).resolve())]
         else:
             selected = json.loads((Path(options.root) / "manifest.json").read_text())
+            if selected.get("scope") == "bounded-natural-calibration":
+                raise ValueError("calibration cannot enter primary run/report admission; its guarded stage retains reports")
             profile, allocation, forecast = selected["profile"], selected["allocation"], selected["forecasts"]
             command = [sys.executable, str(Path(__file__).resolve()),
                        "_controller" if options.action == "run" else "_report",
@@ -162,7 +192,13 @@ def main():
             result = payload(manifest, cell, options.attempt, options.deadline_ns)
         else:
             owner = controller_admission(options.admission_fd, options.root)
-            if options.action == "_freeze":
+            if options.action == "_calibrate":
+                from m_calibration import control as calibrate
+                from m_freeze import freeze_calibration
+                manifest = freeze_calibration(json.loads(Path(options.options).read_text()), options.root, options.cell)
+                result = calibrate(options.root, owner, manifest)
+                report(options.root)
+            elif options.action == "_freeze":
                 from m_freeze import freeze
                 result = freeze(json.loads(Path(options.options).read_text()), options.root)
             elif options.action == "_report":
@@ -185,7 +221,9 @@ def report(root):
     state = root / "results/campaign-state.json"
     current = {row["id"]: row for row in json.loads(state.read_text())} if state.exists() else {}
     rows = []
-    for cell in manifest["plan"]:
+    calibration = manifest.get("scope") == "bounded-natural-calibration"
+    plan = load_plan() if calibration else manifest["plan"]
+    for cell in [*plan, *(manifest["plan"] if calibration else [])]:
         row = dict(current.get(cell["id"], {"id": cell["id"], "cell": cell,
                    "status": "held", "complete": False, "reason": "no completed registered attempt"}))
         history = []
@@ -203,6 +241,10 @@ def report(root):
     value = {"schema": "slice30-m-report/v1", "freeze_uuid": manifest["uuid"],
              "source_sha": manifest["source_sha"], "complete": all(row["complete"] for row in rows),
              "rows": rows, "verdict": None, "calibrated_threshold": None}
+    if calibration:
+        value.update(scope=manifest["scope"], qualifies_primary=False,
+                     rows=rows[:46], calibrations=rows[46:], complete=False,
+                     calibration_complete=all(row["complete"] for row in rows[46:]))
     value["phase_load"] = [{"receipt": str(path), "load": json.loads(path.read_text()).get("load")}
                            for path in sorted((root / "guardians").glob("*/guardian.json"))]
     value["phase_load_scope"] = "completed guardian phases before this report"

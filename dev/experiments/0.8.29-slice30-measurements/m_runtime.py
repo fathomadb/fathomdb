@@ -171,8 +171,10 @@ def payload(manifest, cell, attempt, deadline_ns):
     result["gpu"]["failures"] = failures
     result["gpu"]["samples"] = len(samples)
     result["complete"] &= result["gpu"]["complete"] and not failures
-    result.update(scope="registered-M-cell", cell=cell, freeze_uuid=manifest["uuid"],
+    result.update(scope=manifest.get("scope", "registered-M-cell"), cell=cell, freeze_uuid=manifest["uuid"],
                   selected_build=manifest["builds"][variant], prepared=prepared)
+    if manifest.get("scope") == "bounded-natural-calibration":
+        result["qualifies_primary"] = False
     (attempt / "result.json").write_text(json.dumps(result, indent=2, allow_nan=False) + "\n")
     return result
 

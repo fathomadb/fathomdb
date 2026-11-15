@@ -506,7 +506,25 @@ admission, normal MCP processes, shared/common accounting and retained reports
 under the live guardian. Both explicitly remain tiny provider-free source
 controls, never natural/GPU qualification or renewed campaign allocation.
 
-Future reviewed runtime uses the same entry, after independent source review,
+The separate [bounded calibration](m_calibration.py) command is implemented;
+runtime remains held for parent selection and candidate/input/device readiness:
+
+```bash
+AGENT_LONG=1 .venv/bin/python "$M_DIR/m_runner.py" calibrate --options selected-calibration.json --root "$M_CAL" --cell M-R-1-1-warn
+```
+
+Options reuse the selected original allocation/profile and natural input fields,
+with only the ordinary build and no primary forecasts. Explicit `calibration`
+limits are `phase_ns`, `payload_ns` and `new_retained_bytes`; the reviewed first
+proposal is900s/800s/2GiB. Entry reserves2x remaining time/growth headroom and
+charges failures to the same cumulative ID across roots. Existing raw/attempt/
+report files retain calibration separately from all46 held primary rows. Only
+this unchanged1501-call compact hybrid c1/warn configuration is selectable;
+there is no automatic sweep or promotion. The three `test_m_calibration*.py`
+modules use literal arithmetic, fake dispatch/boundaries and harmless children;
+they establish no natural/native/GPU/cgroup qualification.
+
+Future reviewed primary runtime uses the same entry, after independent source review,
 owned tooling qualification, an explicitly approved common TOTAL allocation
 and complete bounded remaining-component forecasts:
 

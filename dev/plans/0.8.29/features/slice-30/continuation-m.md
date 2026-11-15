@@ -317,8 +317,9 @@ Seams. Canonical existing A3/admission tests remain preservation evidence.
 
 Fresh design PASS and explicit source GO permit isolated tool implementation/
 scoped TDD/source qualification while campaign allocation remains unresolved.
-All M campaign runtime, including M0, stays held for exact tooling qualification/
+Primary M campaign runtime, including M0, stays held for exact tooling qualification/
 review, a selected approved shared allocation and complete-table feasibility.
+The separately bounded calibration proposal below supplies no runtime GO.
 The qualified released G input now satisfies that input prerequisite only.
 No source GO or natural runtime follows from this amendment itself.
 
@@ -332,6 +333,131 @@ does no query embedding/vector work. Do not add queries, warmups or GPU pulses,
 borrow a witness or fall back to CPU to satisfy a nonexistent text-compute test.
 M0 and M-E are provider-free and establish no GPU proof. No concurrent
 compilation/owned heavy campaign; AGENT_LONG/manual selection gates natural runs.
+
+### Bounded natural calibration admission — design for review
+
+The November15 admission gap is executable, not a missing source-smoke result:
+`m_freeze.freeze` requires all46 component forecasts before inspecting the
+natural subject, and `m_controller._assessment` reserves the whole remaining
+table before its first copy. Neither public source control measures natural
+MCP logging, lifecycle, parse/persistence or polling costs. At the latest
+observed3122362041569ns shared usage, original14400s leaves11277.637958431s,
+already below the13146.542536s serialized SDK proxy below. That proxy cannot
+populate missing MCP forecasts. The6h/64GiB M proposal remains inactive;
+the separately reviewed12h/128GiB G-only profile is not M authority.
+
+Add one public stage to the existing `m_runner.py`, after independent design
+review and genuine source TDD:
+
+```bash
+AGENT_LONG=1 .venv/bin/python "$M_DIR/m_runner.py" calibrate \
+  --options selected-calibration.json --root "$M_CAL" --cell M-R-1-1-warn
+```
+
+`selected-calibration.json` reuses the runtime input/profile fields, without a
+primary `forecasts` file, and selects explicit positive calibration limits.
+The first proposed selection is900s total phase wall,800s preparation/payload
+wall and2GiB new retained growth. These are enforced bootstrap allowances,
+not measured cost estimates. The100s difference funds guarded qualification,
+reporting and cleanup. Parent may select a smaller feasible local allowance;
+this document selects no allocation or execution. Entry reserves2x the entire
+phase allowance and2x its growth allowance, in addition to existing external
+reservations, against the original ledger's actual usage/retained bytes.
+The2x phase reserve is shared headroom, not permission for an1800s cell.
+Insufficient headroom refuses before package inspection/copy or MCP start.
+
+The command selects exactly one existing repeat1 configuration, never a
+caller-edited workload or a list of rows. For the first stage it copies the
+released original100k packaging once and runs actual ordinary compact hybrid
+c1/warn: first query0,500 warmups in original order,1000 timed submissions
+0..499 twice, then normal stdin-close/exit. It preserves current default view,
+snippets, limits and queue/deadline settings. Its distinct accounting ID is
+`M-CAL:M-R-1-1-warn`; its origin configuration remains explicit. It does not
+produce a primary completion, performance verdict or reusable result oracle.
+All46 primary obligations, their repeats and Slice50 paired qualification stay
+unchanged and held. Calibration is additional charged work, never one of the46.
+
+Reuse `m_freeze` source/input/custody/build binding, `m_runtime.prepare` and
+`payload`, `m_attempt.run_attempt`, and the existing M guardian. Extract the
+existing identity binding from primary forecast admission; do not weaken
+`freeze`, `validate` or `_assessment` for primary runs. A calibration manifest
+uses an explicit calibration scope and one selected configuration; ordinary
+`run` rejects it. Private worker admission still requires the actual guardian,
+controller, active attempt and exact selected configuration. Register every
+actor in the same private cgroup, including preparation and GPU polling.
+Natural stages require current candidate-owned ordinary `embed-cuda` MCP,
+local pinned model/cache and source/compiler/input/format/device identities.
+They cannot borrow the old M artifacts, G's GPU witness or new-source labels
+for old binaries. Hybrid retains actual own-PID GPU qualification; direct text
+remains query-compute N/A. M0/M-E retain their separate provider-free variants.
+
+The only new resource mechanism is an optional bounded calibration allowance
+on the existing guardian/controller. Today the guardian has no whole-phase or
+phase-growth cutoff: `common_limit_ns` excludes active-cell wall, and900s
+alone bounds only the active cell. Add an absolute phase deadline and growth
+stop limit, checked during qualification/preparation/payload/finalization,
+without raising any constant or rewriting the selected TOTAL profile.
+Attempt deadline is the minimum of remaining800s selected work, remaining900s
+whole-cell limit, phase deadline and remaining shared allowance. Keep the7s
+inner and20s outer cleanup reserves inside these limits. Raw stream/frame/
+request/checkpoint bounds remain unchanged. Before copying, reserve the exact
+one/two-package size plus bounded output/finalization growth; refuse if that
+cannot fit the selected growth allowance. Poll retained growth during work as
+well as at finalization, retaining2x storage headroom for bounded in-flight
+writes/cleanup. The selected retained ceiling is never an instantaneous quota
+claim; the existing shared resource stop and bounded producers remain active.
+
+Add only cumulative per-calibration-ID wall and peak new-retained usage to the
+existing shared budget state. The guardian updates these from actual whole
+phase accounting, including common work and failures; the counters annotate
+the existing `used_ns` charge and never charge it twice. Debit these counters
+before another attempt, even under a new root/source/build. Neither a new
+attempt/root nor another command renews the selected calibration allowance.
+Shared prior charges, retained bytes and external reservations always carry.
+Controller death follows existing recovery/strict cleanup; retained inflight,
+guardian-stop or uncertain cleanup blocks redispatch. No reset, deletion,
+automatic retry, successor stage or activation follows a completion/refusal.
+
+Only measured coverage can inform later primary forecasts:
+
+| Selected configuration | Costs it can inform; remaining unknowns |
+| --- | --- |
+| First compact hybrid c1/warn stage | Actual copy/preparation, process/handshake/first,500-query warmup,1000-call loop, decode/parse, raw/JSONL persistence, own-PID polling and normal close under that configuration. It says nothing measured about debug, other concurrency, formats or lifecycle. |
+| Other loop configurations, selected separately only when needed | Each of c4/8/16/32 at warn/debug and c1/debug; compact direct text and structured hybrid c1. One observed configuration can bound its identical repeat under the existing2x rule; no ideal concurrency scaling or endpoint interpolation supplies the other configurations. |
+| Lifecycle configurations, selected separately | Lazy/eager/idle/A-B-A each need their actual path before forecasting it. Idle retains60s/default sweeper and250ms polling; A-B-A needs two closed copies. Loop first-call observations alone do not bound eager/eviction/reopen/switch costs. |
+| M0/M-E source observations | Reuse actual current-candidate, same-configuration bounded observations if available; otherwise each format/diagnostic remains unknown until separately observed on its real tiny DB/helper route. Never infer diagnostics from natural loop timings. |
+
+This is a coverage map, not an automatically admitted30-configuration campaign.
+No later selection is required to finish the first bounded stage. Missing
+costs stay unavailable; later stages compete with all previous charges for the
+same selected TOTAL. Existing13-component primary forecasts remain mandatory.
+Use enclosing measured walls as conservative bounds for work not separably
+observable, explicitly identifying overlap; never invent exclusive open/
+server-logging/service costs or zero-fill an unknown. Applicable costs must be
+covered; a genuine not-applicable component is distinct from unavailable.
+If conservative additive bounds exceed900s or remaining TOTAL, primary stays
+held rather than silently dropping components or changing thresholds.
+
+Calibration results use existing attempt/raw/report files, labelled with scope,
+selected configuration, actual costs/bytes and unknown coverage. Warn queue data
+stays unavailable; debug events stay whole-process uncorrelated observations.
+Preserve original errors, degradation, outliers and partial prefixes. A cap stop,
+missing GPU engagement, parse/transport failure or unobserved lifecycle state
+is incomplete, not a successful bound or permission to extrapolate its prefix.
+Reports keep all46 primary rows held and calibration observations separate.
+
+Source TDD is three coherent RED→GREEN units, with frozen assertions and actual
+failure evidence in each RED commit: (1) positive stage admission and cumulative
+allowance/refusal across roots, with46 primary rows untouched; (2) actual
+harmless-child phase deadline/growth stop, controller interruption and retained
+failed-attempt charges using the existing guardian test seam; (3) public
+selection/delegation and scope/report isolation. Use literal counts/budgets and
+existing tiny real-DB adapter tests; no database mock, natural fixture, native
+build, model/GPU run or fault campaign is needed for the source-control tests.
+Reuse passing controls without replaying them as new evidence. A later leased
+candidate-bound calibration is runtime qualification, outside this design task.
+Final independent Astra review covers the coherent source/test change before
+runtime selection. No executable code precedes the requested design review.
 
 ### Prospective M envelope from actual G costs
 

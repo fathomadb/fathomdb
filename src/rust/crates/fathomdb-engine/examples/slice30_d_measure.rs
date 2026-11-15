@@ -1,6 +1,5 @@
 //! Private deterministic D workload; no model, GPU or performance verdict.
 use fathomdb_embedder_api::Embedder;
-#[cfg(test)]
 #[path = "slice30_d_measure/capture.rs"]
 mod capture;
 #[cfg(test)]
@@ -9,7 +8,6 @@ mod capture_overlap_tests;
 #[cfg(test)]
 #[path = "slice30_d_measure/capture_tests.rs"]
 mod capture_tests;
-#[cfg(test)]
 #[path = "slice30_d_measure/entry.rs"]
 mod entry;
 #[cfg(test)]
@@ -17,13 +15,11 @@ mod entry;
 mod entry_tests;
 #[path = "slice30_d_measure/provider.rs"]
 mod provider;
-#[cfg(test)]
 #[path = "slice30_d_measure/schedule.rs"]
 mod schedule;
 #[cfg(test)]
 #[path = "slice30_d_measure/schedule_tests.rs"]
 mod schedule_tests;
-#[cfg(test)]
 #[path = "slice30_d_measure/workload.rs"]
 mod workload;
 use provider::VaryingEmbedder;
@@ -36,11 +32,30 @@ const QUERY_COUNT: usize = 500;
 const NATURAL_CALLS: usize = 1000;
 
 fn main() -> ExitCode {
+    let origin = std::time::Instant::now();
+    let args = std::env::args_os().skip(1).collect::<Vec<_>>();
+    if args.len() == 2 {
+        if std::env::var("AGENT_LONG").as_deref() != Ok("1") {
+            eprintln!("D fixed-table execution requires the selected long-run entry");
+            return ExitCode::FAILURE;
+        }
+        let output = std::path::Path::new(&args[1]);
+        let report = entry::run_file(std::path::Path::new(&args[0]), output, origin)
+            .unwrap_or_else(
+                |error| serde_json::json!({"complete":false,"state":"failed","error":error}),
+            );
+        let encoded = serde_json::to_vec_pretty(&report).expect("D result JSON");
+        if let Err(error) = std::fs::write(output.join("result.json"), encoded) {
+            eprintln!("write D result: {error:?}");
+            return ExitCode::FAILURE;
+        }
+        return if report["complete"] == true { ExitCode::SUCCESS } else { ExitCode::FAILURE };
+    }
     let identity = VaryingEmbedder.identity();
     println!(
         "{}",
         serde_json::json!({
-            "complete":false, "state":"not_run", "reason":"D driver is not implemented",
+            "complete":false, "state":"not_run", "reason":"D fixed-table native entry is not selected",
             "provider":{"name":identity.name,"revision":identity.revision,"dimension":identity.dimension},
             "corpus_seed":CORPUS_SEED,"query_seed":QUERY_SEED,"seed_batch":SEED_BATCH,
             "query_count":QUERY_COUNT,"natural_calls":NATURAL_CALLS,"warmup_calls":0

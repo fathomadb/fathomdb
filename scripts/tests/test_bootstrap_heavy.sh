@@ -38,6 +38,8 @@ else
   CALLS="$WORK/calls"
   mkdir -p "$FIXTURE/src/python" "$FIXTURE/src/ts" "$FAKE_BIN"
   cp "$REPO_ROOT/src/python/pyproject.toml" "$FIXTURE/src/python/pyproject.toml"
+  mkdir -p "$FIXTURE/src/rust/crates/fathomdb-py"
+  cp "$REPO_ROOT/src/rust/crates/fathomdb-py/Cargo.toml" "$FIXTURE/src/rust/crates/fathomdb-py/"
   mkdir -p "$FIXTURE/scripts/tests" "$FIXTURE/scripts/lib"
   cp "$REPO_ROOT/scripts/tests/test_dev_environment_tools.sh" "$FIXTURE/scripts/tests/"
   cp "$REPO_ROOT/scripts/lib/"{shellcheck,gitleaks,actionlint}-version.sh "$FIXTURE/scripts/lib/"

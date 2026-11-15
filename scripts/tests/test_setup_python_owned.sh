@@ -123,6 +123,7 @@ case "${1:-bootstrap}" in
   refuse --provision --features ,pyo3/extension-module
   refuse --provision --features pyo3/extension-module,,embed-cuda
   refuse --provision --features 'pyo3/extension-module, embed-cuda'
+  # shellcheck disable=SC2016 # The unexpanded shell text is the invalid input.
   refuse --provision --features 'pyo3/extension-module,$(touch injected)'
   refuse --provision --features ''
   refuse --provision --features

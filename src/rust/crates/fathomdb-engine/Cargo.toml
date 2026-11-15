@@ -963,3 +963,7 @@ required-features = ["slice30-observer", "test-hooks"]
 [[example]]
 name = "slice30_d_measure"
 required-features = ["slice30-observer", "test-hooks"]
+
+[[test]]
+name = "slice30_d_seed"
+required-features = ["slice30-observer", "test-hooks"]

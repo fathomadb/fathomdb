@@ -1937,6 +1937,64 @@ mod tests {
 mod g_route_tests {
     use super::*;
 
+    #[cfg(all(feature = "slice50-measurement", feature = "slice30-observer"))]
+    #[test]
+    fn paired_p_consumes_closed_copy_and_observes_provider_none_reads() {
+        let directory = tempfile::tempdir().unwrap();
+        let donor = directory.path().join("p-donor.sqlite");
+        let engine = Adapter::open("sdk", &donor);
+        engine.write(&[node("donor", "doc", "needle café")]);
+        engine.close();
+        drop(engine);
+        let before = std::fs::read(&donor).unwrap();
+        let working = directory.path().join("p-working.sqlite");
+        std::fs::copy(&donor, &working).unwrap();
+        let corpus = directory.path().join("corpus.jsonl");
+        let queries = directory.path().join("queries.jsonl");
+        std::fs::write(&corpus, "\"must not reseed\"\n").unwrap();
+        std::fs::write(&queries, "\"needle\"\n").unwrap();
+        let config = json!({"family":"P1", "n":1, "corpus":corpus, "queries":queries,
+            "adapters":["engine","sdk"], "routes":["text"], "warmup":0, "samples":1,
+            "repeat":0, "store":working, "slice50_pair_mode":"winner", "observe":true});
+        let out = directory.path().join("p-pair");
+        let result = run_cell(&config, &out);
+        assert_eq!(result["complete"], true);
+        assert_eq!(result["vector_rows"], 0);
+        let rows: Vec<Value> = std::fs::read_to_string(out.join("samples.jsonl"))
+            .unwrap()
+            .lines()
+            .map(|line| serde_json::from_str(line).unwrap())
+            .collect();
+        assert_eq!(rows.len(), 2);
+        for row in &rows {
+            assert_eq!(
+                row["ids"],
+                json!(["l:donor"]),
+                "paired P ignored its closed data and reseeded"
+            );
+            assert_eq!(row["hits"][0]["body"], "needle café");
+            assert_eq!(row["hits"][0]["source_id"], "test:slice30");
+        }
+        let batches =
+            result["observation_batches"].as_array().expect("paired P observe was ignored");
+        assert_eq!(batches.len(), 2);
+        for batch in batches {
+            assert_eq!(batch["dropped_records"], 0);
+            let work: Vec<_> = batch["records"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter(|record| record["phase"] == "slice50_work")
+                .collect();
+            assert_eq!(work.len(), 1);
+            assert_eq!(work[0]["facts"]["vector_bodies"], 0);
+            assert_eq!(work[0]["facts"]["fts_bodies"], 1);
+            assert_eq!(work[0]["facts"]["fts_body_bytes"], 12);
+        }
+        assert_eq!(std::fs::read(&donor).unwrap(), before);
+        assert_eq!(result["preparation"]["reseeded"], false);
+    }
+
     #[cfg(feature = "slice50-measurement")]
     #[test]
     fn paired_output_retains_exact_record_fields_after_the_api_clock() {

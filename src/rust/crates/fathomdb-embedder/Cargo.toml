@@ -25,25 +25,16 @@ serde_json = { version = "1", optional = true }
 thiserror = { version = "1", optional = true }
 
 # Candle stack + tokenizer for the default `CandleBgeEmbedder` (EU-4).
-# FathomDB's Candle fork crates 0.11.0 from crates.io (coreyt/candle-fathomdb,
-# published from 182ceab0) keep Candle's Rust crate names, treat CPU F16
-# matmul as unsupported only on Linux AArch64 (Gemm's F16 backend needs
-# unavailable instructions there), add `Device::new_cuda_from_context` for the
-# Tegra private memory pool, and depend on `cudarc-fathomdb` 0.19.10, which
-# they re-export as `candle_core::cuda::cudarc`. Exact pins: a later fork
-# version enters only through a reviewed manifest change. Gated under
-# `default-embedder` so the no-feature build closure remains thin (EMB-3
-# wheel-size gate). `safetensors` is reached transitively via candle-core's
-# re-export per ADR-0.6.0-default-embedder consequences; no direct dep here.
-candle-core         = { package = "candle-core-fathomdb", version = "=0.11.0", optional = true }
-candle-nn           = { package = "candle-nn-fathomdb", version = "=0.11.0", optional = true }
-candle-transformers = { package = "candle-transformers-fathomdb", version = "=0.11.0", optional = true, default-features = false }
-# The Candle fork crates require cudarc-fathomdb as `0.19.10`, a caret
-# requirement, so a crates.io consumer without a lock file would take any
-# later 0.19.x. This exact pin, enabled by `embed-cuda` and `rerank-cuda`,
-# holds the version qualified with the forks. The embedder never names
-# cudarc itself and the pin enables no features: Candle selects them.
-cudarc-fathomdb     = { version = "=0.19.10", optional = true, default-features = false }
+# Qualified local Slice110 stack: Candle 0.12.0 and cudarc 0.20.0.
+# Exact Git revisions are supplied by the reviewed local integration config;
+# these versions are unpublished and are not registry-release claims.
+# Candle keeps its Rust crate names and re-exports cudarc. The no-feature
+# closure remains thin; safetensors is reached through candle-core.
+candle-core         = { package = "candle-core-fathomdb", version = "=0.12.0", optional = true }
+candle-nn           = { package = "candle-nn-fathomdb", version = "=0.12.0", optional = true }
+candle-transformers = { package = "candle-transformers-fathomdb", version = "=0.12.0", optional = true, default-features = false }
+# Match Candle's cudarc version exactly without enabling extra features.
+cudarc-fathomdb     = { version = "=0.20.0", optional = true, default-features = false }
 tokenizers          = { version = "0.20", optional = true, default-features = false, features = ["onig"] }
 
 # Standalone/evaluation ONNX backend. Production engines accept only the pinned

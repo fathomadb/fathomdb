@@ -81,8 +81,8 @@ success never qualifies a missing device or installed consumer.
 
 Candle separately proves its actual private F32 helper refuses before raw BLAS
 and preserves numerical dispatch with `CudaBlas::admit()` declared before pointer
-guards and checked `handle()` after preparation. Its current prepared tests are
-not observed RED/GREEN or artifact qualification. Product tests do not substitute
+guards and checked `handle()` after preparation. Its private-helper tests now have actual RED/GREEN and independent
+acceptance at `2ee39305a78ed1463ff913f71dcd3d45ecbfd84f`. Product tests do not substitute
 for that necessary fork test, and Fathom does not rerun cudarc's owning suites.
 
 Fork tests live in each fork's `fathomdb/` plan and native Rust modules. Product
@@ -167,4 +167,5 @@ F6/F8; A5 joins F4/F7/F8 plus healthy/OOM controls and the explicit seq-376
 residue policy; A6 joins qualified consumed pins and applicable actual healthy
 consumer identities. The historical full-support join additionally needs F9–F11
 live/fresh-process cells, now HELD .30 under seq-377. A count test proves neither
-a universal hard byte bound nor real reset survival. No native test ran here.
+a universal hard byte bound nor real reset survival. Product CPU native seams have actual semantic RED/GREEN; product GPU/reset
+and installed-consumer cells remain unqualified.

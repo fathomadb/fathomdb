@@ -1,23 +1,8 @@
-//! The CUDA allocator decision for the Tegra private memory pool.
+//! CUDA allocator policy and the shared tracked-device admission boundary.
 //!
-//! A process built with `tegra-pool` on aarch64 Linux makes one decision at
-//! its first CUDA device build. If every gate passes, it creates one private
-//! memory pool, probes it with a 4-byte allocation, and builds its first
-//! context on it; every later device for that ordinal is built on the same
-//! pool. Any gate that is off, and any failure or panic while deciding, keeps
-//! the process on cudarc's own default-pool-or-synchronous path with a
-//! recorded reason. Once the decision is private, a failed device build is a
-//! typed error, never a context on another allocator, because a buffer must
-//! be freed by the allocator that made it.
-//!
-//! The settings, gates, sizing, report types and the decision itself are
-//! pure and compile on every host, so their tests run without a GPU through
-//! an injected [`PoolDriver`]. The cudarc driver and the process-wide
-//! decision compile only with `tegra-pool` on aarch64 Linux with
-//! `embed-cuda` or `rerank-cuda`. Without them, devices are built with
-//! `Device::new_cuda` exactly as before. `embed-cuda` and `rerank-cuda` imply
-//! `tegra-pool` (slice-31 design.md § 14.3), so the gate reduces to aarch64
-//! Linux with CUDA.
+//! The Tegra private-pool decision remains architecture-gated and immutable.
+//! Every CUDA construction uses the same per-device native lifetime, including
+//! default-pool and synchronous allocation. CPU and Metal never enter that registry.
 
 // Without the driver part only the report types, `not_built` and the
 // candle-facing wrappers are live; the decision stays compiled so its tests
@@ -36,6 +21,42 @@ use std::fmt;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Once, OnceLock};
+
+#[cfg(any(feature = "embed-cuda", feature = "rerank-cuda"))]
+static NATIVE_LOSS_SNAPSHOT: Once = Once::new();
+
+#[cfg(any(feature = "embed-cuda", feature = "rerank-cuda"))]
+pub(crate) fn publish_native_snapshot(
+    ordinal: usize,
+    loss: candle_core::cuda::cudarc::driver::PrimaryContextLoss,
+    operation: &str,
+) {
+    crate::cuda_lifetime::record_operation(ordinal, operation);
+    NATIVE_LOSS_SNAPSHOT.call_once(|| {
+        let _ = catch_unwind(AssertUnwindSafe(|| {
+            let CudaPoolFailure::ContextLost { driver_error, .. } =
+                native_loss_failure(loss, operation)
+            else {
+                unreachable!()
+            };
+            let libraries = crate::cuda_lifetime::libraries(ordinal);
+            let primary_context = None;
+            eprintln!(
+                "{}",
+                snapshot_line(&LossSnapshot {
+                    recorded_context_id: loss.recorded_id,
+                    current_context_id: loss.observed_id,
+                    driver_error: &driver_error,
+                    operation,
+                    primary_context,
+                    cuda_libraries: &libraries,
+                    pool: None,
+                    live_private_contexts: driver::private_live_count(ordinal),
+                })
+            );
+        }));
+    });
+}
 
 const MIB: u64 = 1 << 20;
 const GIB: u64 = 1 << 30;
@@ -1102,15 +1123,8 @@ fn snapshot_line(snapshot: &LossSnapshot<'_>) -> String {
     out
 }
 
-/// Decides whether the private context of `private` is gone after a
-/// non-out-of-memory CUDA error, and on the process's first loss writes one
-/// snapshot line.
-///
-/// The state query never retains, so an inactive primary context (a reset
-/// destroyed it) is never re-created. The id query retains only an active
-/// context; if a reset lands between the two queries, that retain creates a
-/// new context with a new id, which reads as lost, and the release that
-/// follows drops it again.
+/// Reads native token loss for tracked contexts. Legacy untracked fixtures retain
+/// the original detection path; production tracked diagnosis never re-retains.
 fn context_loss<D: PoolDriver>(
     driver: &D,
     private: &PrivateDecision<D::Pool, D::Context>,
@@ -1118,6 +1132,12 @@ fn context_loss<D: PoolDriver>(
     driver_error: String,
     operation: &str,
 ) -> Option<CudaPoolFailure> {
+    if let Some(loss) = driver.cached_context_loss(private.ordinal, operation) {
+        return Some(loss);
+    }
+    if driver.context_is_tracked(&private.first_context) {
+        return None;
+    }
     if let Some(loss) = private.loss.get() {
         return Some(loss.failure(private.context_id, operation));
     }
@@ -1167,7 +1187,7 @@ fn context_loss<D: PoolDriver>(
 
 // ---- typed failures ---------------------------------------------------------
 
-/// A failure of a process that allocates from the private CUDA memory pool,
+/// A private-pool allocation failure or a tracked CUDA context loss,
 /// carried by [`crate::CudaProbeError::Pool`] and the resolution errors when
 /// it happens while a device is probed. Each variant is one of the three
 /// CUDA pool kinds; [`CudaPoolFailure::kind`] gives its stable name.
@@ -1183,14 +1203,14 @@ pub enum CudaPoolFailure {
         /// The operation and the driver error.
         message: String,
     },
-    /// `cuda_context_lost`: the recorded private context is gone;
+    /// `cuda_context_lost`: the recorded tracked CUDA context is gone;
     /// `current_context_id` is `None` when the primary context is inactive.
     ContextLost {
-        /// `cuCtxGetId` of the context the pool was built with.
+        /// Identity cached by the tracked primary-context lifetime.
         recorded_context_id: u64,
-        /// `cuCtxGetId` of the current primary context, when active.
+        /// A changed identity actually observed by the native admission probe.
         current_context_id: Option<u64>,
-        /// The driver error that exposed the loss.
+        /// Cached native driver/library cause or explicitly synthetic refusal.
         driver_error: String,
         /// What was running when the loss was found.
         operation: String,
@@ -1389,6 +1409,49 @@ pub(crate) trait PoolDriver {
     type Device;
     type DefaultError;
 
+    fn context_is_tracked(&self, _context: &Self::Context) -> bool {
+        false
+    }
+
+    fn with_context_admission<R>(
+        &self,
+        _context: &Self::Context,
+        body: impl FnOnce() -> R,
+    ) -> Result<R, DriverFailure> {
+        Ok(body())
+    }
+
+    #[cfg(any(test, feature = "cuda-pool-observer"))]
+    fn pool_identity(&self, _pool: &Self::Pool) -> Option<String> {
+        None
+    }
+    #[cfg(any(test, feature = "cuda-pool-observer"))]
+    fn context_uuid(&self, _ordinal: usize) -> Option<String> {
+        None
+    }
+    #[cfg(any(test, feature = "cuda-pool-observer"))]
+    fn cached_observation_error(
+        &self,
+        ordinal: usize,
+        operation: &str,
+    ) -> Option<crate::cuda_pool_observation::CudaPoolObservationError> {
+        let CudaPoolFailure::ContextLost { current_context_id, driver_error, .. } =
+            self.cached_context_loss(ordinal, operation)?
+        else {
+            return None;
+        };
+        Some(crate::cuda_pool_observation::CudaPoolObservationError {
+            domain: "cached_context_loss",
+            code: None,
+            message: driver_error,
+            observed_context_id: current_context_id,
+            operation: Some(operation.to_owned()),
+        })
+    }
+    fn cached_context_loss(&self, _ordinal: usize, _operation: &str) -> Option<CudaPoolFailure> {
+        None
+    }
+
     fn raw_settings(&self) -> RawPoolSettings;
     fn module_load_init(&self) -> ModuleLoadInit;
     /// Whether the process's most recent `cuInit` attempt, by any FathomDB
@@ -1397,9 +1460,8 @@ pub(crate) trait PoolDriver {
     fn driver_initialized(&self) -> bool {
         false
     }
-    /// Runs `body` with device `ordinal`'s primary context retained and
-    /// current, and releases it afterwards.
-    fn with_primary_retained<R>(
+    /// Runs `body` with the ordinal's retained native generation admitted.
+    fn with_generation_admitted<R>(
         &self,
         ordinal: usize,
         body: impl FnOnce() -> R,
@@ -1412,7 +1474,7 @@ pub(crate) trait PoolDriver {
         threshold: ReleaseThreshold,
     ) -> Result<Self::Pool, DriverFailure>;
     /// Allocates and frees [`PROBE_BYTES`] on `pool`.
-    fn probe_pool(&self, pool: &Self::Pool) -> Result<(), DriverFailure>;
+    fn probe_pool(&self, ordinal: usize, pool: &Self::Pool) -> Result<(), DriverFailure>;
     fn new_private_context(
         &self,
         ordinal: usize,
@@ -1425,10 +1487,10 @@ pub(crate) trait PoolDriver {
     fn default_device(&self, ordinal: usize) -> Result<Self::Device, Self::DefaultError>;
     /// `cuDevicePrimaryCtxGetState`; never retains or creates the context.
     fn primary_state(&self, ordinal: usize) -> Result<CudaPrimaryContextState, DriverFailure>;
-    /// Retains the primary context, reads its `cuCtxGetId`, and releases it.
-    /// Called only when the context is active.
+    /// Legacy untracked diagnostic seam. Production tracked callers use the
+    /// native token and never dispatch this diagnostic route.
     fn retained_primary_context_id(&self, ordinal: usize) -> Result<u64, DriverFailure>;
-    #[cfg(test)]
+    #[cfg(any(test, feature = "cuda-pool-observer"))]
     fn pool_counters(&self, pool: &Self::Pool) -> Result<PoolCounters, DriverFailure>;
     /// The contexts built on `pool` that are still alive.
     fn live_private_contexts(&self, pool: &Self::Pool) -> usize;
@@ -1539,6 +1601,61 @@ fn read_private_pool_counters_unsynchronized<D: PoolDriver>(
 }
 
 #[cfg(any(test, feature = "cuda-pool-observer"))]
+fn observation_with_driver<D: PoolDriver>(
+    decision: Option<&Decision<D::Pool, D::Context>>,
+    driver: &D,
+) -> crate::cuda_pool_observation::CudaPoolObservation {
+    use crate::cuda_pool_observation::CudaPoolObservationError;
+    let mut observation = observation_from_decision(decision);
+    let Some(Decision::Private(private)) = decision else {
+        return observation;
+    };
+    if !driver.context_is_tracked(&private.first_context) {
+        return observation;
+    }
+    observation.reason = None;
+    observation.uuid = driver.context_uuid(private.ordinal);
+    observation.pool_id = driver.pool_identity(&private.pool);
+    if let Some(error) = driver.cached_observation_error(private.ordinal, "pool observation") {
+        observation.status = "lost";
+        observation.error = Some(error);
+        return observation;
+    }
+    let counters = driver
+        .with_context_admission(&private.first_context, || driver.pool_counters(&private.pool))
+        .and_then(|result| result);
+    observation.live_models_after = Some(private.live_models.load(Ordering::Acquire));
+    if let Some(error) = driver.cached_observation_error(private.ordinal, "pool observation") {
+        observation.status = "lost";
+        observation.error = Some(error);
+        return observation;
+    }
+    match counters {
+        Ok(counters) => {
+            observation.status = "private";
+            observation.used_current_bytes = Some(counters.used_current);
+            observation.reserved_current_bytes = Some(counters.reserved_current);
+        }
+        Err(error) => {
+            observation.status = "read_error";
+            observation.error = Some(CudaPoolObservationError {
+                domain: "driver",
+                code: error.code,
+                message: error.message,
+                observed_context_id: None,
+                operation: Some("pool observation".into()),
+            });
+        }
+    }
+    if observation.live_models_before != observation.live_models_after {
+        observation.status = "ownership_changed";
+        observation.used_current_bytes = None;
+        observation.reserved_current_bytes = None;
+    }
+    observation
+}
+
+#[cfg(any(test, feature = "cuda-pool-observer"))]
 fn observation_from_decision<P, C>(
     decision: Option<&Decision<P, C>>,
 ) -> crate::cuda_pool_observation::CudaPoolObservation {
@@ -1599,7 +1716,7 @@ pub(crate) fn decide_and_build<D: PoolDriver>(
         Ok(settings) => settings,
         Err(reason) => return fallback(reason),
     };
-    let built = driver.with_primary_retained(ordinal, || {
+    let built = driver.with_generation_admitted(ordinal, || {
         let plan = device_plan(&settings, driver.device_facts(ordinal).ok());
         let (max_size_bytes, release_threshold) = match plan {
             Plan::Private { max_size_bytes, release_threshold } => {
@@ -1610,7 +1727,7 @@ pub(crate) fn decide_and_build<D: PoolDriver>(
         let pool = driver
             .create_pool(ordinal, max_size_bytes, release_threshold)
             .map_err(|_| CudaAllocatorReason::PoolCreateFailed)?;
-        driver.probe_pool(&pool).map_err(|_| CudaAllocatorReason::ProbeFailed)?;
+        driver.probe_pool(ordinal, &pool).map_err(|_| CudaAllocatorReason::ProbeFailed)?;
         let first_context = driver
             .new_private_context(ordinal, &pool)
             .map_err(|_| CudaAllocatorReason::PrivateBuildFailed)?;
@@ -1666,6 +1783,9 @@ fn private_build_failure<D: PoolDriver>(
     private: &PrivateDecision<D::Pool, D::Context>,
     failure: DriverFailure,
 ) -> CudaPoolFailure {
+    if let Some(loss) = driver.cached_context_loss(private.ordinal, DEVICE_BUILD_OPERATION) {
+        return loss;
+    }
     if is_pool_exhaustion(true, failure.code) {
         return CudaPoolFailure::Exhausted {
             ordinal: private.ordinal,
@@ -1689,7 +1809,14 @@ pub(crate) fn build_device<D: PoolDriver>(
     driver: &D,
     ordinal: usize,
 ) -> Result<D::Device, DeviceBuildError<D::DefaultError>> {
-    match decision(cell, driver, ordinal) {
+    if let Some(loss) = driver.cached_context_loss(ordinal, DEVICE_BUILD_OPERATION) {
+        return Err(DeviceBuildError::Pool(loss));
+    }
+    let selected = decision(cell, driver, ordinal);
+    if let Some(loss) = driver.cached_context_loss(ordinal, DEVICE_BUILD_OPERATION) {
+        return Err(DeviceBuildError::Pool(loss));
+    }
+    match selected {
         Decision::Private(private) if private.ordinal == ordinal => {
             if let Some(loss) = private.loss.get() {
                 return Err(DeviceBuildError::Pool(
@@ -1800,8 +1927,36 @@ pub(crate) fn release_unused_pool_memory<D: PoolRelease>(
     let Some(private) = decision.and_then(Decision::private) else {
         return ReleaseOutcome::NotPrivate;
     };
-    if private.loss.get().is_some() {
+    if private.loss.get().is_some()
+        || driver.cached_context_loss(private.ordinal, "model drop").is_some()
+    {
         return ReleaseOutcome::ContextLost;
+    }
+    if driver.context_is_tracked(&private.first_context) {
+        return catch_unwind(AssertUnwindSafe(|| {
+            driver
+                .with_context_admission(&private.first_context, || {
+                    if driver.synchronize(&private.first_context).is_err()
+                        || driver.trim(&private.pool).is_err()
+                    {
+                        if driver.cached_context_loss(private.ordinal, "model drop").is_some() {
+                            ReleaseOutcome::ContextLost
+                        } else {
+                            ReleaseOutcome::DriverError
+                        }
+                    } else {
+                        ReleaseOutcome::Trimmed
+                    }
+                })
+                .unwrap_or_else(|_| {
+                    if driver.cached_context_loss(private.ordinal, "model drop").is_some() {
+                        ReleaseOutcome::ContextLost
+                    } else {
+                        ReleaseOutcome::DriverError
+                    }
+                })
+        }))
+        .unwrap_or(ReleaseOutcome::Panicked);
     }
     catch_unwind(AssertUnwindSafe(|| {
         if !context_alive(driver, private) {
@@ -1892,11 +2047,77 @@ pub(crate) fn candle_driver_code(error: &candle_core::Error) -> Option<u32> {
     match error {
         Error::Cuda(source) => match source.downcast_ref::<CudaError>() {
             Some(CudaError::Cuda(DriverError(code))) => Some(*code as u32),
+            Some(CudaError::Cublas(
+                candle_core::cuda::cudarc::cublas::result::CublasError::Driver(DriverError(code)),
+            ))
+            | Some(CudaError::Curand(
+                candle_core::cuda::cudarc::curand::result::CurandError::Driver(DriverError(code)),
+            )) => Some(*code as u32),
             _ => None,
         },
         Error::Context { inner, .. }
         | Error::WithPath { inner, .. }
         | Error::WithBacktrace { inner, .. } => candle_driver_code(inner),
+        _ => None,
+    }
+}
+
+#[cfg(any(feature = "embed-cuda", feature = "rerank-cuda"))]
+pub(crate) fn native_loss_failure(
+    loss: candle_core::cuda::cudarc::driver::PrimaryContextLoss,
+    operation: &str,
+) -> CudaPoolFailure {
+    use candle_core::cuda::cudarc::driver::PrimaryContextLossCause;
+    let driver_error = match loss.cause {
+        PrimaryContextLossCause::DriverStatus(status) => {
+            format!("native driver status {}", status as u32)
+        }
+        PrimaryContextLossCause::PrimaryInactive => "synthetic 709: primary inactive".into(),
+        PrimaryContextLossCause::IdentityChanged => {
+            "synthetic 709: context identity changed".into()
+        }
+        PrimaryContextLossCause::NativeLibraryCleanup { library, status } => {
+            format!("{library:?} cleanup status {status}; synthetic 999")
+        }
+        PrimaryContextLossCause::SyntheticUnknown => "synthetic 999: unknown cause".into(),
+    };
+    CudaPoolFailure::ContextLost {
+        recorded_context_id: loss.recorded_id,
+        current_context_id: loss.observed_id,
+        driver_error,
+        operation: operation.to_owned(),
+    }
+}
+
+#[cfg(any(feature = "embed-cuda", feature = "rerank-cuda"))]
+fn candle_loss(error: &candle_core::Error) -> Option<CudaPoolFailure> {
+    use candle_core::{
+        cuda::{
+            cudarc::{cublas::result::CublasError, curand::result::CurandError},
+            CudaError,
+        },
+        Error,
+    };
+    match error {
+        Error::Cuda(source) => {
+            if let Some(failure) = source.downcast_ref::<CudaPoolFailure>() {
+                return Some(failure.clone());
+            }
+            match source.downcast_ref::<CudaError>() {
+                Some(CudaError::Cublas(CublasError::Lost(loss)))
+                | Some(CudaError::Curand(CurandError::Lost(loss))) => {
+                    Some(native_loss_failure(*loss, ""))
+                }
+                _ => None,
+            }
+        }
+        Error::Context { inner, .. }
+        | Error::WithPath { inner, .. }
+        | Error::WithBacktrace { inner, .. } => candle_loss(inner),
+        Error::WrappedContext { wrapped, .. } => wrapped
+            .downcast_ref::<Error>()
+            .and_then(candle_loss)
+            .or_else(|| wrapped.downcast_ref::<CudaPoolFailure>().cloned()),
         _ => None,
     }
 }
@@ -1925,6 +2146,14 @@ pub(crate) fn classify_candle_fault<D: PoolDriver>(
     ordinal: usize,
     operation: &str,
 ) -> Option<CudaPoolFailure> {
+    if let Some(mut failure) =
+        driver.cached_context_loss(ordinal, operation).or_else(|| candle_loss(error))
+    {
+        if let CudaPoolFailure::ContextLost { operation: at, .. } = &mut failure {
+            *at = operation.to_owned();
+        }
+        return Some(failure);
+    }
     let fault = ForwardFault {
         ordinal,
         cuda: is_candle_cuda_error(error),
@@ -1971,28 +2200,99 @@ mod fallback_only {
     use super::{CudaDeviceError, CudaPoolFailure, DeviceBuildError};
     use candle_core::Device;
 
-    /// `Device::new_cuda`: without the driver part there is no other path.
-    /// The first build still fixes the pool configuration, so the
-    /// one-configuration-per-process rule holds on every platform.
+    /// Builds a tracked default/synchronous CUDA device without a private pool.
+    /// The first build still fixes the process pool configuration.
     pub(crate) fn new_cuda_device(ordinal: usize) -> Result<Device, CudaDeviceError> {
         super::fix_pool_config_from_env();
-        Device::new_cuda(ordinal).map_err(DeviceBuildError::Default)
+        #[cfg(any(feature = "embed-cuda", feature = "rerank-cuda"))]
+        {
+            if let Some(loss) =
+                crate::cuda_lifetime::failure(ordinal, super::DEVICE_BUILD_OPERATION)
+            {
+                return Err(DeviceBuildError::Pool(loss));
+            }
+            let token = crate::cuda_lifetime::get(ordinal).map_err(|error| {
+                DeviceBuildError::Default(candle_core::Error::Cuda(Box::new(
+                    candle_core::cuda::CudaError::Cuda(error),
+                )))
+            })?;
+            let scope = crate::cuda_operation::CudaOperation::tracked(
+                token.clone(),
+                ordinal,
+                super::DEVICE_BUILD_OPERATION,
+            );
+            scope.run(
+                |error| match error {
+                    crate::cuda_operation::CudaOperationError::Loss(failure) => {
+                        DeviceBuildError::Pool(failure)
+                    }
+                    crate::cuda_operation::CudaOperationError::Driver(error) => {
+                        DeviceBuildError::Default(error)
+                    }
+                },
+                || {
+                    let context =
+                        candle_core::cuda::cudarc::driver::CudaContext::new_tracked(token)
+                            .map_err(|error| {
+                                DeviceBuildError::Default(candle_core::Error::Cuda(Box::new(
+                                    candle_core::cuda::CudaError::Cuda(error),
+                                )))
+                            })?;
+                    Device::new_cuda_from_context(context).map_err(DeviceBuildError::Default)
+                },
+            )
+        }
+        #[cfg(not(any(feature = "embed-cuda", feature = "rerank-cuda")))]
+        {
+            Device::new_cuda(ordinal).map_err(DeviceBuildError::Default)
+        }
     }
 
-    /// Without the driver part no model allocates from a private pool.
-    pub(crate) struct PrivatePoolModelGuard;
-
+    pub(crate) struct PrivatePoolModelGuard {
+        ordinal: Option<usize>,
+    }
     impl PrivatePoolModelGuard {
-        pub(crate) const fn new(_device: &Device) -> Self {
-            Self
+        pub(crate) fn new(device: &Device) -> Self {
+            Self {
+                ordinal: match device.location() {
+                    candle_core::DeviceLocation::Cuda { gpu_id } => Some(gpu_id),
+                    _ => None,
+                },
+            }
+        }
+    }
+    impl Drop for PrivatePoolModelGuard {
+        fn drop(&mut self) {
+            #[cfg(not(any(feature = "embed-cuda", feature = "rerank-cuda")))]
+            let _ = self.ordinal;
+            #[cfg(any(feature = "embed-cuda", feature = "rerank-cuda"))]
+            if let Some(ordinal) = self.ordinal {
+                if let Some(token) = crate::cuda_lifetime::existing(ordinal) {
+                    let _ =
+                        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| token.admit()));
+                }
+                let _ = crate::cuda_lifetime::failure(ordinal, "model drop");
+            }
         }
     }
 
     pub(crate) fn forward_failure(
-        _error: &candle_core::Error,
-        _device: &Device,
-        _what: &str,
+        error: &candle_core::Error,
+        device: &Device,
+        what: &str,
     ) -> Option<CudaPoolFailure> {
+        #[cfg(any(feature = "embed-cuda", feature = "rerank-cuda"))]
+        if let candle_core::DeviceLocation::Cuda { gpu_id } = device.location() {
+            let failure =
+                crate::cuda_lifetime::failure(gpu_id, what).or_else(|| super::candle_loss(error));
+            return failure.map(|mut failure| {
+                if let CudaPoolFailure::ContextLost { operation, .. } = &mut failure {
+                    *operation = what.to_owned();
+                }
+                failure
+            });
+        }
+        let _ = (error, device, what);
         None
     }
 
@@ -2031,12 +2331,7 @@ pub(crate) use fallback_only::allocator_report;
 ))]
 pub(crate) use fallback_only::{forward_failure, new_cuda_device, PrivatePoolModelGuard};
 
-#[cfg(all(
-    feature = "tegra-pool",
-    target_os = "linux",
-    target_arch = "aarch64",
-    any(feature = "embed-cuda", feature = "rerank-cuda")
-))]
+#[cfg(any(feature = "embed-cuda", feature = "rerank-cuda"))]
 mod driver {
     use std::sync::{Arc, Once, OnceLock};
 
@@ -2045,7 +2340,7 @@ mod driver {
     };
     use candle_core::Device;
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "cuda-pool-observer"))]
     use super::PoolCounters;
     use super::{
         build_device, candle_driver_code, classify_candle_fault, cuda_libraries_in_maps,
@@ -2056,7 +2351,15 @@ mod driver {
     };
 
     static DECISION: OnceLock<Decision<Arc<CudaMemPool>, Arc<CudaContext>>> = OnceLock::new();
-    static SNAPSHOT: Once = Once::new();
+
+    pub(super) fn private_live_count(ordinal: usize) -> usize {
+        match DECISION.get() {
+            Some(Decision::Private(private)) if private.ordinal == ordinal => {
+                Arc::strong_count(&private.pool).saturating_sub(1)
+            }
+            _ => 0,
+        }
+    }
 
     struct CudarcDriver;
 
@@ -2066,17 +2369,6 @@ mod driver {
 
     fn candle_failure(error: candle_core::Error) -> DriverFailure {
         DriverFailure { code: candle_driver_code(&error), message: error.to_string() }
-    }
-
-    /// Releases a retained primary context when dropped, so a panic in the
-    /// decision does not leak the reference.
-    struct RetainedPrimary(sys::CUdevice);
-
-    impl Drop for RetainedPrimary {
-        fn drop(&mut self) {
-            // SAFETY: the reference was retained by `with_primary_retained`.
-            let _ = unsafe { result::primary_ctx::release(self.0) };
-        }
     }
 
     fn attribute(
@@ -2095,6 +2387,65 @@ mod driver {
 
         /// The configuration in force, fixed here from the environment when
         /// no open fixed it (design § 15.2).
+        #[cfg(any(test, feature = "cuda-pool-observer"))]
+        fn pool_identity(&self, pool: &Self::Pool) -> Option<String> {
+            Some(format!("{:p}", pool.raw()))
+        }
+        #[cfg(any(test, feature = "cuda-pool-observer"))]
+        fn context_uuid(&self, ordinal: usize) -> Option<String> {
+            crate::cuda_lifetime::uuid(ordinal)
+        }
+        #[cfg(any(test, feature = "cuda-pool-observer"))]
+        fn cached_observation_error(
+            &self,
+            ordinal: usize,
+            _operation: &str,
+        ) -> Option<crate::cuda_pool_observation::CudaPoolObservationError> {
+            use candle_core::cuda::cudarc::driver::{NativeLibrary, PrimaryContextLossCause};
+            let _ = crate::cuda_lifetime::failure(ordinal, "pool observation");
+            let loss = crate::cuda_lifetime::loss(ordinal)?;
+            let (domain, code) = match loss.cause {
+                PrimaryContextLossCause::DriverStatus(status) => ("driver", Some(status as u32)),
+                PrimaryContextLossCause::NativeLibraryCleanup { library, status } => (
+                    match library {
+                        NativeLibrary::Cublas => "cublas",
+                        NativeLibrary::Curand => "curand",
+                    },
+                    Some(status),
+                ),
+                _ => ("synthetic", None),
+            };
+            let super::CudaPoolFailure::ContextLost { driver_error, .. } =
+                super::native_loss_failure(loss, "")
+            else {
+                unreachable!()
+            };
+            Some(crate::cuda_pool_observation::CudaPoolObservationError {
+                domain,
+                code,
+                message: driver_error,
+                observed_context_id: loss.observed_id,
+                operation: crate::cuda_lifetime::first_operation(ordinal),
+            })
+        }
+        fn cached_context_loss(&self, ordinal: usize, operation: &str) -> Option<CudaPoolFailure> {
+            crate::cuda_lifetime::failure(ordinal, operation)
+        }
+        fn context_is_tracked(&self, context: &Self::Context) -> bool {
+            context.primary_lifetime().is_some()
+        }
+        fn with_context_admission<R>(
+            &self,
+            context: &Self::Context,
+            body: impl FnOnce() -> R,
+        ) -> Result<R, DriverFailure> {
+            let token = context.primary_lifetime().ok_or_else(|| DriverFailure {
+                code: None,
+                message: "untracked CUDA context refused".into(),
+            })?;
+            let _lease = token.admit().map_err(failure)?;
+            Ok(body())
+        }
         fn raw_settings(&self) -> RawPoolSettings {
             render_raw_settings(pool_config_in_force())
         }
@@ -2104,21 +2455,26 @@ mod driver {
         }
 
         fn driver_initialized(&self) -> bool {
-            crate::cuda_driver_init::last_cuda_driver_init()
-                == Some(crate::cuda_driver_init::CudaDriverInit::Initialized)
+            #[cfg(all(feature = "tegra-pool", target_os = "linux", target_arch = "aarch64"))]
+            {
+                crate::cuda_driver_init::last_cuda_driver_init()
+                    == Some(crate::cuda_driver_init::CudaDriverInit::Initialized)
+            }
+            #[cfg(not(all(feature = "tegra-pool", target_os = "linux", target_arch = "aarch64")))]
+            {
+                false
+            }
         }
 
-        fn with_primary_retained<R>(
+        fn with_generation_admitted<R>(
             &self,
             ordinal: usize,
             body: impl FnOnce() -> R,
         ) -> Result<R, DriverFailure> {
-            let device = result::device::get(ordinal as i32).map_err(failure)?;
-            // SAFETY: device comes from cuDeviceGet; the guard releases it.
-            let context = unsafe { result::primary_ctx::retain(device) }.map_err(failure)?;
-            let _retained = RetainedPrimary(device);
-            // SAFETY: context was just retained.
-            unsafe { result::ctx::set_current(context) }.map_err(failure)?;
+            let token = crate::cuda_lifetime::get(ordinal).map_err(failure)?;
+            let _lease = token.admit().map_err(failure)?;
+            // Device facts and pool creation need no current context. Selecting a
+            // default allocator here could change the private-pool decision.
             Ok(body())
         }
 
@@ -2158,20 +2514,22 @@ mod driver {
                 message: format!("pool size {max_size_bytes} does not fit in usize"),
             })?;
             let props = MemPoolProps { max_size, release_threshold: threshold.bytes() };
-            CudaMemPool::create(ordinal, &props).map(Arc::new).map_err(failure)
+            CudaMemPool::create_tracked(
+                crate::cuda_lifetime::get(ordinal).map_err(failure)?,
+                &props,
+            )
+            .map(Arc::new)
+            .map_err(failure)
         }
 
-        fn probe_pool(&self, pool: &Self::Pool) -> Result<(), DriverFailure> {
-            // SAFETY: the pool is live and the primary context is current
-            // (`with_primary_retained`); the pointer is freed on the stream
-            // that allocated it before synchronizing.
-            unsafe {
-                let pointer =
-                    result::mem_pool::alloc_async(pool.raw(), PROBE_BYTES, std::ptr::null_mut())
-                        .map_err(failure)?;
-                result::free_async(pointer, std::ptr::null_mut()).map_err(failure)?;
-            }
-            result::ctx::synchronize().map_err(failure)
+        fn probe_pool(&self, ordinal: usize, pool: &Self::Pool) -> Result<(), DriverFailure> {
+            let token = crate::cuda_lifetime::get(ordinal).map_err(failure)?;
+            let _lease = token.admit().map_err(failure)?;
+            let context =
+                CudaContext::new_with_mem_pool_tracked(token, pool.clone()).map_err(failure)?;
+            let probe = context.default_stream().alloc_zeros::<u8>(PROBE_BYTES).map_err(failure)?;
+            drop(probe);
+            context.synchronize().map_err(failure)
         }
 
         fn new_private_context(
@@ -2179,14 +2537,17 @@ mod driver {
             ordinal: usize,
             pool: &Self::Pool,
         ) -> Result<Self::Context, DriverFailure> {
-            CudaContext::new_with_mem_pool(ordinal, Arc::clone(pool)).map_err(failure)
+            CudaContext::new_with_mem_pool_tracked(
+                crate::cuda_lifetime::get(ordinal).map_err(failure)?,
+                Arc::clone(pool),
+            )
+            .map_err(failure)
         }
 
         fn context_id(&self, context: &Self::Context) -> Result<u64, DriverFailure> {
-            let mut id: std::ffi::c_ulonglong = 0;
-            // SAFETY: the context is live; `id` is a valid out-pointer.
-            unsafe { sys::cuCtxGetId(context.cu_ctx(), &mut id) }.result().map_err(failure)?;
-            Ok(id)
+            context.primary_lifetime().map(|token| token.recorded_id()).ok_or_else(|| {
+                DriverFailure { code: None, message: "untracked CUDA context refused".into() }
+            })
         }
 
         fn wrap_context(&self, context: Self::Context) -> Result<Self::Device, DriverFailure> {
@@ -2194,7 +2555,20 @@ mod driver {
         }
 
         fn default_device(&self, ordinal: usize) -> Result<Self::Device, Self::DefaultError> {
-            Device::new_cuda(ordinal)
+            let token = crate::cuda_lifetime::get(ordinal).map_err(|error| {
+                candle_core::Error::Cuda(Box::new(candle_core::cuda::CudaError::Cuda(error)))
+            })?;
+            let scope = crate::cuda_operation::CudaOperation::tracked(
+                token.clone(),
+                ordinal,
+                super::DEVICE_BUILD_OPERATION,
+            );
+            scope.run(crate::cuda_operation::CudaOperationError::into_candle_error, || {
+                let context = CudaContext::new_tracked(token).map_err(|error| {
+                    candle_core::Error::Cuda(Box::new(candle_core::cuda::CudaError::Cuda(error)))
+                })?;
+                Device::new_cuda_from_context(context)
+            })
         }
 
         fn primary_state(&self, ordinal: usize) -> Result<CudaPrimaryContextState, DriverFailure> {
@@ -2209,17 +2583,12 @@ mod driver {
         }
 
         fn retained_primary_context_id(&self, ordinal: usize) -> Result<u64, DriverFailure> {
-            let device = result::device::get(ordinal as i32).map_err(failure)?;
-            // SAFETY: device comes from cuDeviceGet; the guard releases it.
-            let context = unsafe { result::primary_ctx::retain(device) }.map_err(failure)?;
-            let _retained = RetainedPrimary(device);
-            let mut id: std::ffi::c_ulonglong = 0;
-            // SAFETY: the context is retained; `id` is a valid out-pointer.
-            unsafe { sys::cuCtxGetId(context, &mut id) }.result().map_err(failure)?;
-            Ok(id)
+            crate::cuda_lifetime::existing(ordinal)
+                .map(|token| token.recorded_id())
+                .ok_or_else(|| DriverFailure { code: None, message: "no tracked context".into() })
         }
 
-        #[cfg(test)]
+        #[cfg(any(test, feature = "cuda-pool-observer"))]
         fn pool_counters(&self, pool: &Self::Pool) -> Result<PoolCounters, DriverFailure> {
             Ok(PoolCounters {
                 reserved_current: pool.reserved_current().map_err(failure)?,
@@ -2244,7 +2613,7 @@ mod driver {
         }
 
         fn snapshot_once(&self) -> &Once {
-            &SNAPSHOT
+            &super::NATIVE_LOSS_SNAPSHOT
         }
 
         fn emit_snapshot(&self, line: &str) {
@@ -2269,6 +2638,7 @@ mod driver {
     /// holds an inert guard.
     pub(crate) struct PrivatePoolModelGuard {
         counted: bool,
+        ordinal: Option<usize>,
     }
 
     impl PrivatePoolModelGuard {
@@ -2281,7 +2651,13 @@ mod driver {
                     context.alloc_mode() == AllocMode::Private,
                 )
             });
-            Self { counted }
+            Self {
+                counted,
+                ordinal: match device.location() {
+                    candle_core::DeviceLocation::Cuda { gpu_id } => Some(gpu_id),
+                    _ => None,
+                },
+            }
         }
     }
 
@@ -2289,6 +2665,12 @@ mod driver {
         fn drop(&mut self) {
             if self.counted {
                 let _ = release_private_model(DECISION.get(), &CudarcDriver);
+            } else if let Some(ordinal) = self.ordinal {
+                if let Some(token) = crate::cuda_lifetime::existing(ordinal) {
+                    let _ =
+                        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| token.admit()));
+                }
+                let _ = crate::cuda_lifetime::failure(ordinal, "model drop");
             }
         }
     }
@@ -2296,7 +2678,27 @@ mod driver {
     /// A Candle CUDA device on `ordinal` under the process's allocator
     /// decision, made here on first use.
     pub(crate) fn new_cuda_device(ordinal: usize) -> Result<Device, CudaDeviceError> {
-        build_device(&DECISION, &CudarcDriver, ordinal)
+        let token = crate::cuda_lifetime::get(ordinal).map_err(|error| {
+            super::DeviceBuildError::Default(candle_core::Error::Cuda(Box::new(
+                candle_core::cuda::CudaError::Cuda(error),
+            )))
+        })?;
+        let scope = crate::cuda_operation::CudaOperation::tracked(
+            token,
+            ordinal,
+            super::DEVICE_BUILD_OPERATION,
+        );
+        scope.run(
+            |error| match error {
+                crate::cuda_operation::CudaOperationError::Loss(failure) => {
+                    super::DeviceBuildError::Pool(failure)
+                }
+                crate::cuda_operation::CudaOperationError::Driver(error) => {
+                    super::DeviceBuildError::Default(error)
+                }
+            },
+            || build_device(&DECISION, &CudarcDriver, ordinal),
+        )
     }
 
     /// The typed failure for `error` on `device`; `None` for a device that
@@ -2333,7 +2735,7 @@ mod driver {
 
     #[cfg(feature = "cuda-pool-observer")]
     pub(super) fn observe_pool() -> crate::cuda_pool_observation::CudaPoolObservation {
-        super::observation_from_decision(DECISION.get())
+        super::observation_with_driver(DECISION.get(), &CudarcDriver)
     }
 
     /// The private pool's counters and its decided max size, after
@@ -2475,3 +2877,19 @@ pub(crate) fn observe_pool() -> crate::cuda_pool_observation::CudaPoolObservatio
         crate::cuda_pool_observation::CudaPoolObservation::unavailable("not_built")
     }
 }
+
+#[cfg(all(test, any(feature = "embed-cuda", feature = "rerank-cuda")))]
+#[path = "cuda_tracked_mapping_tests.rs"]
+mod tracked_mapping_tests;
+
+#[cfg(test)]
+#[path = "cuda_tracked_construction_tests.rs"]
+mod tracked_construction_tests;
+
+#[cfg(all(test, feature = "cuda-pool-observer"))]
+#[path = "cuda_tracked_observer_tests.rs"]
+mod tracked_observer_tests;
+
+#[cfg(test)]
+#[path = "cuda_tracked_release_tests.rs"]
+mod tracked_release_tests;

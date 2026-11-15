@@ -1,4 +1,4 @@
-//! Passive pool metadata. Current product construction has no adopted tracked token.
+//! Optional checked pool observations from already-published tracked ownership.
 
 /// Cached first-loss details; collecting these fields never queries the driver.
 #[doc(hidden)]
@@ -71,12 +71,15 @@ impl CudaPoolObservation {
     }
 }
 
-/// Inspect already-decided ownership without constructing or querying CUDA.
+/// Inspect already-decided ownership with checked native-token admission.
 ///
-/// Current product contexts lack110's adopted shared token, so private decisions
-/// report `untracked` (or cached `lost`) with unavailable current counters. This
-/// function never invents a native token, initializes CUDA, retains ownership,
-/// allocates GPU memory, synchronizes, trims or resets a counter.
+/// A tracked private decision reads current counters only while admitted. Loss
+/// or a failed read returns unavailable counters with cached/actual error details.
+/// UUID and context identity are cached; pool identity is opaque and never
+/// dereferenced. This function never creates a token/context, initializes CUDA,
+/// retains native ownership, allocates GPU memory, synchronizes, trims or resets
+/// counters. Differing live-model counts invalidate a sample; equality does not
+/// exclude intervening close/open activity.
 #[cfg(feature = "cuda-pool-observer")]
 #[doc(hidden)]
 pub fn observe_cuda_pool_for_qualification() -> CudaPoolObservation {

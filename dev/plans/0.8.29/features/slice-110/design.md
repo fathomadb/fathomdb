@@ -4,8 +4,9 @@ Status: independently reviewed design (Astra-medium PASS). Owner seq-376 selects
 option1 below; seq-377 holds actual Orin/3090 resets for .30 review. Source/seam
 repairs are selected for .29. The current-pin loss-policy subset is implemented
 at `8247f11056bc2deb3e0c6ec0472abbd4b217e857`, independently reviewed and
-integrated; all98 CPU policy tests pass. Shared native lifetime/pool/model wiring
-and final qualification remain pending. The original source baseline is accepted
+integrated; all98 CPU policy tests pass. Shared native lifetime/pool/model wiring is implemented in the reviewed-design
+worktree; final independent implementation review and consumer qualification
+remain pending. The original source baseline is accepted
 `a00bf9b9228318e7c236148551bb188f63ff66ee`.
 No native or fault execution supports a new survival claim yet.
 
@@ -47,8 +48,10 @@ use its checked `handle()` after pointer preparation, immediately before the
 unchanged raw GEMM. Preserve all dimensions, strides, datatypes, scalars,
 compute type and algorithm; do not replace it with generic Gemm dispatch.
 Candle's accepted design at `434e8096dd0f30adb8fcf6094b4b27927b9a3ee0` has prepared
-private-helper tests, but production and actual CUDA RED/GREEN qualification
-remain pending. This necessary Candle qualification is a hard adoption edge,
+private-helper tests, but actual private-helper RED/GREEN is qualified at
+`2ee39305a78ed1463ff913f71dcd3d45ecbfd84f`, with independent Astra acceptance.
+The loss test failed semantically before the two-line production repair, and both
+healthy/loss cases passed in separate actual3090 processes. This necessary Candle qualification is a hard adoption edge,
 even though no new public model/tensor API is required. Reconcile the product API
 migration/test map against these exact interfaces now and obtain independent design review; it need not wait for Candle runtime
 qualification. Actual coherent pin adoption and affected native/consumer proof
@@ -56,8 +59,8 @@ still require the selected Candle qualification.
 
 ## Existing source and primary guarantees
 
-Product imports `cudarc-fathomdb =0.19.10` through Candle's re-export, and
-`candle-{core,nn,transformers}-fathomdb =0.11.0` from the registry. Kernel patch
+The pre-adoption baseline imported `cudarc-fathomdb =0.19.10` through Candle's
+re-export and the three `candle-*-fathomdb =0.11.0` crates from the registry. Kernel patch
 is K=`182ceab0547348993b6dbec4b1aed610dcc8b23f`; cudarc publication source is
 C=`b777f8d94eedca8334e9331cf520d554b22544b7`. Registry VCS metadata and lock
 identities agree with [.28 provenance](../../../0.8.28/features/slice-95/status.md).
@@ -200,11 +203,14 @@ enrich a cached loss. The selected fork's driver/library formatting is cached.
 
 ### Concrete product delta against `c900a9a21`
 
-Today `fallback_only::new_cuda_device` calls `Device::new_cuda` and its
-`forward_failure` returns `None`. Only the aarch64 private driver owns the
-accepted publication policy. Neither model has an outer admission lease.
-The following is net-new product wiring, using the inspected fork APIs; it does
-not repeat the accepted cudarc cleanup implementation.
+At `c900a9a21`, fallback construction used `Device::new_cuda`, forward mapping
+returned `None` and models lacked outer admission. The following tracked wiring
+is now implemented against the qualified APIs. Frozen semantic REDs cover
+mapping, constructor refusal, model admission/unwind and observer behavior;
+qualified fork cleanup proof is reused. A later cleanup-admission publication
+regression also has an actual RED/GREEN. The actual token-slot initialization
+algorithm has CPU concurrency, failed/panicking creation and retained-owner
+preservation controls, using inert owners without a second CUDA state model.
 
 1. Compile common tracked construction/admission whenever `embed-cuda` or
    `rerank-cuda` is enabled, independently of architecture and `tegra-pool`.
@@ -290,9 +296,9 @@ The prepared unpublished versions are `cudarc-fathomdb 0.20.0` and the three
 `candle-{core,nn,transformers}-fathomdb 0.12.0`; kernels stay `0.10.2` at K9.
 Cudarc's version/notices successor is
 `343b04fa73f85ee78754d6ee2baa07b959cc9ccc`, with production source identical to
-accepted `cb36642fad90c1796693c36ee59e3d3d162f4410`. Candle's current preparation
-base `0c1be99388db9c48440fb1ae854cf883f595cd30` is not the qualified helper repair:
-use the eventual independently accepted GREEN revision, never this placeholder.
+accepted `cb36642fad90c1796693c36ee59e3d3d162f4410`. Candle's qualified helper GREEN is
+`2ee39305a78ed1463ff913f71dcd3d45ecbfd84f`; its three0.12.0 packages resolve
+at that exact revision.
 
 After Candle qualification, update all four exact version requirements together
 and supply a local Cargo configuration with `[patch.crates-io]` entries for
@@ -324,7 +330,10 @@ at the original remote K9 source. Preserve feature and static-CUDART boundaries.
 If Cargo cannot resolve this exact graph from existing local objects/cache, stop
 at that dependency error; do not publish, fetch unrelated source, downgrade or
 silently change kernel source. The first affected checks/builds require the
-parent's released resource window. No native build ran during this design pass.
+parent's released resource window. Actual CUDA-enabled product metadata/lock now verifies this exact graph with
+`--offline --locked`. Bounded CPU-only native compile, semantic RED/GREEN and
+scoped CUDA/CPU Clippy ran with GPUs hidden; no product GPU/model/reset or
+installed-consumer qualification is inferred.
 
 Projection/query/ordinary/frozen search preserve current typed-error propagation;
 rerank never converts loss to0.0 or unavailable. Existing singleton retry can

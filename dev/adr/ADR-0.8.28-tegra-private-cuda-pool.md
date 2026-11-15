@@ -321,3 +321,31 @@ R-PIN. A fork item that FathomDB relies on cannot change without a
 reviewed change to the pinned-override checker. The new public surface
 of the library check is listed in the CUDA version support policy ADR's
 amendment.
+
+## 0.8.29 Slice110 detected-loss admission amendment
+
+Owner seq-376 selects completed-construction/quiescent loss with frozen native
+residue until restart; seq-377 holds actual Orin/3090 resets for .30 review.
+The tracked native token is the sole terminal authority for default, synchronous
+and private contexts; allocator choice remains immutable. Construction/probes,
+model load/partial unwind, BGE forward/batch/dual pooling and cached reranker
+execution share admission. Cached native or explicitly synthetic first loss wins
+before OOM mapping; ordinary OOM without token loss keeps retry/healthy cleanup.
+Loss prevents further GPU admission on that device until process restart.
+
+Rust owners, workers and locks still release. Native cleanup is skipped after
+terminal loss, leaving at most the frozen native live set; opaque library host
+bytes have no established hard bound. A successful close does not assert native
+GPU/library residue reclamation. Source/seam proof does not qualify real-reset
+survival, post-reset process exit or original TC-281155a1 closure. The historical
+unsupported-reset characterization remains evidence of .28; no .29 live-reset
+success follows from this amendment. CUDA13 work belongs to .31.
+
+Local integration consumes the coherent Candle0.12.0 trio at
+`2ee39305a78ed1463ff913f71dcd3d45ecbfd84f` and cudarc0.20.0 at
+`343b04fa73f85ee78754d6ee2baa07b959cc9ccc` through exact local Git overrides;
+kernels0.10.2 retain remote K9
+`182ceab0547348993b6dbec4b1aed610dcc8b23f`. These unpublished Git dependencies
+have no registry checksum or publication claim. The owning Candle F32 helper's
+actual RED/GREEN and independent acceptance precede adoption; product healthy
+GPU/installed-consumer qualification retains its separate scope.

@@ -4,7 +4,9 @@ Status: owner seq-376 selects quiescent completed-construction/frozen-live-set
 residue policy; seq-377 holds actual Orin/3090 child resets for .30 review.
 The five current-pin policy behaviors are implemented, independently reviewed
 and covered by the accepted98-test CPU module sweep; shared native
-context/pool/model integration and final qualification remain pending.
+context/pool/model wiring is implemented with actual CPU semantic RED/GREEN.
+Final independent implementation review and affected consumer qualification
+remain pending.
 S110 IDs retain original110 identities and join R29-REL-R/G,
 R29-3P-17/D29-RESET and O3-17. They are local, not new global ACs. Preserve
 REQ-068/AC-082a–d; do not edit locked canonical acceptance to add these IDs.

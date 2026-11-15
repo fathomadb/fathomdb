@@ -1,6 +1,6 @@
 ---
 title: Slice 110 — CUDA context-loss lifetime and safe teardown
-status: CURRENT_PIN_POLICY_IMPLEMENTED_TRACKED_INTEGRATION_PENDING
+status: TRACKED_INTEGRATION_IMPLEMENTED_REVIEW_QUALIFICATION_PENDING
 target_release: 0.8.29
 slice: 110
 ---

@@ -395,6 +395,13 @@ and ordering only. They do not measure D, supply GPU/overlap/fidelity evidence,
 or mutate the real shared allocation. Fresh supervised wall/retention/budget
 custody and native observation/report bindings remain required before runtime.
 
+`d_driver.py` adds the callable accounting adapter for that controller. Its
+`test_d_driver_accounting.py` controls use only hand-specified clocks and in-memory
+budgets: charge the outer wall once across common/failed-cell portions, bound the
+next deadline by remaining allowance and retain unresolved owned cleanup. This
+has no CLI or live allocation/supervisor binding and authorizes no campaign;
+the initial held quartet remains the default stop boundary.
+
 `d_overlap.py CASE.json` reads one exact cell/attempt/size/repeat and owner/session
 frame, with natural operation identity, tagged observer records and bracketed
 pending observations. It qualifies only an entire positive pending bracket

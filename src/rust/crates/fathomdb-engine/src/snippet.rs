@@ -156,6 +156,25 @@ pub struct SnippetV1 {
 /// tables; ties break toward the earlier byte offset.
 #[must_use]
 pub fn snippet_for(body: &str, spans: &[(u32, u32)], options: &SnippetOptions) -> SnippetV1 {
+    full_snippet_for(body, spans, options)
+}
+
+/// Runs the retained complete selector for exact differential tests.
+///
+/// Inputs, clamping, output coordinates and invariants match [`snippet_for`].
+/// This test-only seam performs no storage access and never specializes prefixes.
+#[cfg(feature = "test-hooks")]
+#[doc(hidden)]
+#[must_use]
+pub fn snippet_for_full_reference_for_test(
+    body: &str,
+    spans: &[(u32, u32)],
+    options: &SnippetOptions,
+) -> SnippetV1 {
+    full_snippet_for(body, spans, options)
+}
+
+fn full_snippet_for(body: &str, spans: &[(u32, u32)], options: &SnippetOptions) -> SnippetV1 {
     let options = clamped(options);
     if spans.is_empty() && body.len() <= options.max_bytes as usize {
         // The common case needs no boundary tables.

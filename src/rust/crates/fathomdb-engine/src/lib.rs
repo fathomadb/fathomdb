@@ -149,6 +149,9 @@ pub use search_api::vector_phase1_sql_for_test;
 mod search_types;
 mod snippet;
 mod snippet_query;
+#[cfg(feature = "test-hooks")]
+#[doc(hidden)]
+pub use snippet::snippet_for_full_reference_for_test;
 pub use snippet::{snippet_for, SnippetAnchor, SnippetOptions, SnippetV1};
 mod structural_state;
 #[cfg(feature = "tc5-benchmark")]

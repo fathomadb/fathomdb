@@ -1435,6 +1435,11 @@ is `dev/interfaces/mcp.md` § 3; this section documents only the engine subset.
 
 ## Match-centred snippet selector (EP-17)
 
+The engine-only `test-hooks` feature exposes doc-hidden
+`snippet_for_full_reference_for_test` with the same arguments and result as
+`snippet_for`. It runs the retained full selector for exact differential tests;
+shipped feature lists do not expose this seam.
+
 `fathomdb_engine::snippet_for(body: &str, spans: &[(u32, u32)], options:
 &SnippetOptions) -> SnippetV1` is a pure function (no SQL, I/O, clock,
 floating point or locks). It picks the part of a record body to show for a

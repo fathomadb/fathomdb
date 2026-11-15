@@ -1382,6 +1382,30 @@ fn loss_snapshots_never_query_pool_counters_after_loss_is_published() {
 }
 
 #[test]
+fn qualification_observation_of_published_loss_never_dispatches_pool_counter_reads() {
+    let driver = FakeDriver { current_id: Some(Ok(2000)), ..FakeDriver::default() };
+    let cell = private_cell(&driver);
+    lost(classify_forward_fault(cell.get(), &driver, cuda_fault(Some(999)), "forward"));
+    let queries = (
+        driver.state_reads.load(Ordering::SeqCst),
+        driver.id_reads.load(Ordering::SeqCst),
+        driver.pool_counter_reads.load(Ordering::SeqCst),
+    );
+
+    let _ = read_private_pool_counters_unsynchronized(cell.get(), &driver);
+
+    assert_eq!(
+        (
+            driver.state_reads.load(Ordering::SeqCst),
+            driver.id_reads.load(Ordering::SeqCst),
+            driver.pool_counter_reads.load(Ordering::SeqCst),
+        ),
+        queries,
+        "qualification observation must refuse a published loss before any native query"
+    );
+}
+
+#[test]
 fn the_first_loss_writes_one_snapshot_line_with_every_field() {
     let driver = FakeDriver {
         primary_state: Some(Ok(CudaPrimaryContextState { active: true, flags: 4 })),

@@ -1524,6 +1524,17 @@ impl<P, C> Decision<P, C> {
     }
 }
 
+#[cfg(test)]
+fn read_private_pool_counters_unsynchronized<D: PoolDriver>(
+    decision: Option<&Decision<D::Pool, D::Context>>,
+    driver: &D,
+) -> Result<Option<PoolCounters>, DriverFailure> {
+    let Some(Decision::Private(private)) = decision else {
+        return Ok(None);
+    };
+    driver.pool_counters(&private.pool).map(Some)
+}
+
 /// Reads the settings and the module-load record, runs the gates, and on a
 /// pass creates the pool, probes it and builds the first private context.
 /// Every failure is a fallback with its reason; a pool that is not kept is
@@ -2293,10 +2304,7 @@ mod driver {
     #[cfg(test)]
     pub(crate) fn private_pool_counters_unsynchronized(
     ) -> Result<Option<PoolCounters>, DriverFailure> {
-        let Some(Decision::Private(private)) = DECISION.get() else {
-            return Ok(None);
-        };
-        CudarcDriver.pool_counters(&private.pool).map(Some)
+        super::read_private_pool_counters_unsynchronized(DECISION.get(), &CudarcDriver)
     }
 
     /// The device default pool's `reserved_current` and `used_high` on

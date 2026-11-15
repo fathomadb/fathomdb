@@ -258,8 +258,11 @@ The untimed `projection_commit_outcome` success fact is emitted only after
 SQLite commit and post-commit work. It distinguishes actual typed outcome
 inputs, generation/member/existing-terminal skips, staged terminal writes and
 committed success/failure counts, copying the already-hoisted generation ID.
-No early error currently emits a successful publication fact; explicit failure/
-rollback accounting remains a separate unit.
+Failed attempts retain actual staged work and copied generation after transaction/
+lock cleanup. A pre-COMMIT error reports no attempted/durable publication;
+a failed COMMIT leaves durable counts null/unavailable, not zero. The original
+error is returned unchanged. Panic unwinding leaves the receipt unavailable,
+never a fabricated zero-cost or successful outcome.
 No additional SQL/descriptor reads, row ordering or mean-publication changes
 are introduced. A foreground G session never activates these D phase clocks.
 The foreground G guard and signed/default SDK surface remain unchanged.

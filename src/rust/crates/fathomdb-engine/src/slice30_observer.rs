@@ -652,7 +652,7 @@ pub(crate) fn projection_span(phase: &'static str) -> Span {
 }
 
 #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
-pub(crate) fn projection_success_outcome(facts: serde_json::Value) {
+pub(crate) fn projection_commit_outcome(status: &'static str, facts: serde_json::Value) {
     let Some(token) = capture_token() else {
         return;
     };
@@ -671,7 +671,7 @@ pub(crate) fn projection_success_outcome(facts: serde_json::Value) {
         phase: "projection_commit_outcome",
         started_ns: None,
         ended_ns: None,
-        status: "ok",
+        status,
         facts,
     });
 }

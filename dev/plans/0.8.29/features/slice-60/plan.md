@@ -8,7 +8,7 @@ observed_on: 2026-11-15
 
 # Slice 60 — MCP surface
 
-## Actual remaining scope
+## Actual scope and remaining qualification
 
 Reconciled against integrated50
 `9036507bc98ef31c05ae334aa22ec5101323c7e7` at entry
@@ -18,26 +18,25 @@ format/direct-filter/budget subset5271 remains implemented and qualified;
 Completed70 supplies the current degradation vocabulary. Accepted80 is a design
 artifact; its new fields and omissions remain90 implementation work.
 
-F11 is still missing: SearchArgs and CanonicalSearch have no
-include_superseded/include_inactive fields, search constructs ReadView with only
-valid_as_of, and search::invalid_arguments_are_typed_invalid_requests still
-rejects include_superseded=true. Fetch already accepts both flags. Integrated50
-implements selected record-version identity and atomic ambiguous-feedback
-refusal, including acquisition/final-epoch precedence. The former feedback-ruling
-and guard-implementation hold is satisfied. Whole60 is not complete.
+F11 is implemented in this branch after independent Astra acceptance of the
+source-grounded plan87c3134e: both search flags, strict nonnull booleans,
+canonical identity and continuation forwarding/refusal. [Status](status.md)
+records scoped results and the remaining qualification. Integrated50 supplies
+record-version identity and atomic feedback refusal; its former prerequisite
+hold is satisfied. No whole60 or release closure is claimed.
 
 [Requirements](requirements.md), [design](design.md) and
 [test plan](test-plan.md) retain AC29-60-VIEW and affected FTS2/3/5/6 acceptance.
 No database migration, format37 change, provider API, ranking change, replacement
 reference ABI or query clone scaffold removal belongs here.
 
-## Execution after independent plan review
+## Approved execution sequence and remaining qualification
 
-1. Parent commissions independent Astra-medium review of this source-grounded
-   remainder before new tests/code. The parent-created sole-writer checkout is
+1. Independent Astra-medium accepted plan87c3134e before new tests/code. The parent-created sole-writer checkout is
    `/mnt/data/worktrees/fathomdb-0.8.29-s60-exit-20261115`, branch
    `llm/0.8.29-s60-exit-20261115`; parent reports pre/post strict closed10 and disk
-   preflight PASS. This reconciliation runs no native/build/database/model work.
+   preflight PASS. The sequence below was executed through scoped GREEN;
+   final coherent review and integrated qualification remain.
 2. Wait for the allocated native window before owned setup or execution. Run
    checkout ownership check before installers; provision only its own canonical
    venv/modules/artifacts. Never execute a sibling mutable environment/native.
@@ -71,8 +70,9 @@ reference ABI or query clone scaffold removal belongs here.
 
 ## Completion and separate gates
 
-Close60 after F11 and affected local acceptance pass on integrated50/70 and
-fresh independent final review. Use accepted5271 evidence; do not manufacture
+F11 and affected local acceptance now pass in scoped tests on integrated50/70.
+Close60 only after fresh independent final review and required final source
+qualification. Use accepted5271 evidence; do not manufacture
 new REDs or repeat old passing checks merely for attribution. New code still
 needs its applicable qualification. Original wrapper/hints failures and bounded
 follow-ups remain in execution; no uninterrupted full-green follows.

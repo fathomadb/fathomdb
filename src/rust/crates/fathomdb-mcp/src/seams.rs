@@ -540,6 +540,7 @@ pub fn prepare_search_page(input: &SearchPageInput) -> PreparedSearchPage {
         attributes: Vec::new(),
         as_of: Some(0),
         include_superseded: false,
+        include_inactive: false,
         limit: input.limit,
         explain: false,
     };

@@ -129,6 +129,9 @@ pub struct CanonicalSearch {
     /// Whether superseded record versions are eligible for this request.
     #[serde(skip_serializing_if = "is_false")]
     pub include_superseded: bool,
+    /// Whether non-active lifecycle records are eligible for this request.
+    #[serde(skip_serializing_if = "is_false")]
+    pub include_inactive: bool,
     pub limit: usize,
     pub explain: bool,
 }

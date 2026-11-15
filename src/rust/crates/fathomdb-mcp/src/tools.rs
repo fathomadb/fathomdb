@@ -142,6 +142,10 @@ pub struct SearchArgs {
     #[serde(default, deserialize_with = "deserialize_search_view_flag")]
     #[schemars(with = "bool")]
     pub include_superseded: Option<bool>,
+    /// Include records in a non-active lifecycle state; defaults to false. Null is invalid.
+    #[serde(default, deserialize_with = "deserialize_search_view_flag")]
+    #[schemars(with = "bool")]
+    pub include_inactive: Option<bool>,
     /// Results per page, 1..=100; default 10.
     #[schemars(range(min = 1, max = 100))]
     pub limit: Option<u64>,
@@ -1001,6 +1005,7 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
                 && args.attributes.is_none()
                 && args.as_of.is_none()
                 && args.include_superseded.is_none()
+                && args.include_inactive.is_none()
                 && args.limit.is_none()
                 && args.explain.is_none();
             if !only_paging {
@@ -1040,6 +1045,7 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
                 attributes: args.attributes.clone().unwrap_or_default().into_iter().collect(),
                 as_of: args.as_of,
                 include_superseded: args.include_superseded.unwrap_or(false),
+                include_inactive: args.include_inactive.unwrap_or(false),
                 limit: limit as usize,
                 explain: args.explain.unwrap_or(false),
             };
@@ -1056,6 +1062,7 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
     let (run_limit, page_limit) = shape::page_window(offset, canonical.limit, MAX_RANKED);
     let view = ReadView {
         include_superseded: canonical.include_superseded,
+        include_inactive: canonical.include_inactive,
         valid_as_of: Some(validity_instant),
         ..ReadView::default()
     };

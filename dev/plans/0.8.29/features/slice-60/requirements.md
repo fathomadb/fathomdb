@@ -161,9 +161,10 @@ renders already-real signals/errors. These are coordination seams, not new hard
 runtime dependencies. At entry453b640f, qualified60 subset5271, integrated50
 `9036507bc98ef31c05ae334aa22ec5101323c7e7`, completed70 and accepted80 design
 are present. No new requirement/threshold is selected. F11 search existence
-flags and affected FTS/view/continuation composition remain unimplemented;
-[plan](plan.md) gives current sequencing. Accepted evidence retains its original
-subjects; this reconciliation claims no new product test pass.
+flags and affected FTS/view/continuation composition are implemented and scoped
+passing in this branch; [status](status.md) distinguishes that evidence from
+remaining coherent review/final source qualification. Accepted earlier evidence
+retains its original subjects.
 
 ## Selected repeated-reference feedback boundary
 

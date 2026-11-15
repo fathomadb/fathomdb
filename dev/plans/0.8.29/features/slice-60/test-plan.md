@@ -11,14 +11,15 @@ observed_on: 2026-11-15
 
 Entry453b640f includes qualified subset5271 and integrated50
 `9036507bc98ef31c05ae334aa22ec5101323c7e7`, completed70 and accepted80 design.
-No new tests ran here. SearchArgs/CanonicalSearch still lack both flags;
-search::invalid_arguments_are_typed_invalid_requests rejects superseded=true.
-Existing direct_filters tests cover closed filters/canonical paging, not the
-missing flag path. fetch_expand::fetch_and_search_return_exactly_what_the_sdk_returns_under_the_same_view
-checks four fetch views but only default search. The feedback guard and its
-race/atomicity tests now exist in50; they are controls, not future new behavior.
+The initial source reconciliation found both flags missing. After independent
+plan acceptance, actual per-unit assertion RED→GREEN covers superseded exposure,
+null/presence validation and inactive/combined exposure. All10 frozen tests now
+pass in search_views/null_view_flags. [Execution](execution.md) retains exact
+subjects and the original timed-edge fixture failure/correction. Existing50
+feedback guard/race tests remain controls; fetch's own four-view parity does not
+replace search-view proof. Final coherent review/source qualification remain.
 
-After independent plan review and owned execution allocation:
+Approved pre-fix sequence (now executed through scoped GREEN):
 
 - F11a RED: baseline-callable real MCP JSON superseded selection, authored
   old/current and equal-body revision occurrences plus same-build SDK positional
@@ -50,7 +51,8 @@ The table and F01–F14 register below retain the original preimplementation
 baseline and authored oracles. F01–F10 and the direct-filter/budget portions of
 F12–F14 are implemented/qualified in [execution](execution.md); their old source
 descriptions are dated evidence,
-not current gaps. F11 and its affected composition remain planned as above.
+not current gaps. F11 and its affected composition are now scoped passing as
+above; this is not final integrated qualification.
 Paths below use `src/rust/crates/` prefix.
 
 | Need / requirement → AC | Actual body and current oracle limit | Future failing assertion and independent expected result |

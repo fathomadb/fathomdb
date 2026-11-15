@@ -263,13 +263,16 @@ accepted by [seq-359](../adr/ADR-0.8.28-vector-compatibility-open-policy.md).
 | `attributes` | object string→string | none | Declared filterable node-scoped exact projections; both modes; equalities are ANDed. |
 | `as_of` | integer | now | `ReadView.valid_as_of` (MR-023). |
 | `include_superseded` | bool | false | Include superseded record versions in text and hybrid search; retain distinct occurrences even when refs or bodies repeat. |
+| `include_inactive` | bool | false | Independently include non-active lifecycle records in either mode; composes with include_superseded and as_of. |
 | `limit` | integer 1..100 | 10 | Ranked cap is 100 (MR-041.2). |
 | `max_tokens` | integer ≥ 256 | config | MR-041. |
 | `explain` | bool | false | Include per-hit explanation. |
 | `highlights` | bool | false | Add per-hit `highlights`: `[start, end)` byte ranges into `snippet` of the matched words. Presentation only: not part of the canonical arguments, so references, `response_id` and continuations are unchanged. |
 | `continuation` | string | none | From a prior result. Only `store`, `max_tokens`, `hints` and `highlights` may accompany it; `store` selects the handle table, so a handle from another store is `stale_handle`. |
 
-`include_superseded` composes with filters and the fixed validity instant.
+Both search view flags compose with filters and the fixed validity instant.
+Each relaxes only its own existence predicate; neither bypasses node validity,
+mandatory edge expiry or source-closure eligibility.
 A supplied flag must be a boolean; null is invalid, including on continuation
 calls, and invalid values never dispatch an SDK search. Absent and explicit
 false have the same canonical request identity; true changes
@@ -278,8 +281,8 @@ stored view and refuse an explicit flag override, including false. Repeated refs
 do not identify a unique historical occurrence for feedback or logical fetch;
 feedback retains its atomic ambiguity refusal and not_recorded precedence.
 Fetch still resolves the latest eligible revision under its own view.
-`include_inactive` is not yet accepted by search; Slice60 owns that remaining
-adapter support. Unknown arguments remain `invalid_request/bad_argument`.
+No include_out_of_window search argument is exposed. Unknown arguments remain
+`invalid_request/bad_argument`.
 
 Text forwards the complete closed filter to SDK `search_text_only`; it performs
 no query embedding, vector, CE or graph work. Empty attributes are a no-op.

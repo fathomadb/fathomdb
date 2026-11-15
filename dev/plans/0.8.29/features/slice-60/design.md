@@ -16,8 +16,10 @@ and Slice9 Batch4. Entry453b640f contains accepted subset5271, integrated50
 [Execution](execution.md) retains the prior source/qualification history;
 [plan](plan.md) governs the remaining F11 and its fresh independent review.
 
-Format/filter/budget/grammar behavior below is implemented. Remaining work is
-search existence-flag exposure with canonical/continuation/composition proof.
+Format/filter/budget/grammar behavior below is implemented. The F11 continuation
+adds search existence-flag exposure with canonical/continuation/composition
+proof and is now implemented and scoped passing in this branch.
+Fresh coherent review and final source qualification remain.
 Integrated50 satisfies the selected feedback prerequisite; preserve its guard
 and record identity.70's actual reasons survive both renderers;80/90's accepted
 new fields remain later implementation. No native/build/database/model work ran
@@ -30,9 +32,9 @@ Paths in this section are relative to `src/rust/crates/`.
 | Source witness | Existing authority / Slice60 delta |
 | --- | --- |
 | `fathomdb-mcp/src/config.rs` Config/strict keys | Strict result_format selection and text default are qualified; no config delta remains. |
-| `fathomdb-mcp/src/edge.rs` router/to_result | Format-bound output schemas and exact structured JSON text are qualified. SearchArgs schema derivation must expose both new input properties. |
-| `fathomdb-mcp/src/tools.rs` SearchArgs/search/search_filter | Direct text already forwards all closed filters and snippets. Add missing search flags and ReadView forwarding for both routes; fetch flags already work. |
-| `fathomdb-mcp/src/shape.rs` CanonicalSearch | Filters and final accounting are implemented. Add effective bool flags with false omitted in serialization; reuse them on continuations and reject explicit overrides, including false. |
+| `fathomdb-mcp/src/edge.rs` router/to_result | Format-bound output schemas and exact structured JSON text are qualified. SearchArgs schema exposes both new nonnull boolean input properties. |
+| `fathomdb-mcp/src/tools.rs` SearchArgs/search/search_filter | Direct text already forwards all closed filters and snippets. Both search flags now forward through ReadView for both routes; fetch keeps its own existing view semantics. |
+| `fathomdb-mcp/src/shape.rs` CanonicalSearch | Filters and final accounting are implemented. Effective bool flags omit false in serialization, survive continuations and reject explicit overrides, including false/null. |
 | `fathomdb-mcp/src/output.rs` and `src/error.rs` | Qualified renderers retain real fields/errors. F11 needs no new output field;90 owns new fields and structured placeholder omission. |
 | `fathomdb-sdk/src/engine.rs` search_text_only/search; `src/options.rs` | Both accept ReadView. Integrated50 owns record-version identity; parity uses positional ID/body/order/raw-score controls without adapter deduplication. |
 | `fathomdb-mcp/src/session.rs` Continuation/ResponseContext | Canonical request, epoch, offset and validity instant are stored; Unique/Ambiguous feedback folding is implemented. No new state authority or occurrence token. |
@@ -186,7 +188,9 @@ saving factor; executing it must return those refs uncut on unchanged state.
 
 ## Filters, views and continuations
 
-Add optional bool search fields include_superseded/include_inactive. Resolve
+Optional search fields include_superseded/include_inactive require a boolean
+when present; null is invalid. Their strict deserializer preserves absent None
+and explicit Some(false), with a nonnull input schema. Resolve
 both to false, canonicalize effective values and pass to the same ReadView as
 valid_as_of. Omit false fields in CanonicalSearch serialization to preserve
 existing default-request handle hashes; explicit false and absence are identical.

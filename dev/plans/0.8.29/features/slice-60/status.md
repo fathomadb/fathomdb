@@ -7,53 +7,49 @@ observed_on: 2026-11-15
 
 # Slice 60 — actual source status
 
-## Qualified subset and actual source
+## Implemented and scoped passing
 
-Format/direct-filter/budget subset
-`5271c1bf022f0ea22f95f7433e226feb2315043e` has independent Astra-medium
-implementation PASS and is integrated. [Execution](execution.md) retains actual
-RED/GREEN, original failures, assembled canonical results and supplemental
-projected-metadata manual qualification. No new passing-on-arrival test is needed
-to rediscover that completed work.
+Accepted format/direct-filter/budget subset5271 is integrated; its independent
+Astra implementation PASS and original assembled qualification remain in
+[execution](execution.md). This continuation uses integrated50 source9036507b,
+completed70 and accepted80 design at entry453b640f. No identity, ranking,
+provider, format37 or database-migration change is introduced.
 
-This reconciliation reads integrated50
-`9036507bc98ef31c05ae334aa22ec5101323c7e7` at entry
-`453b640fb3ad599bc5df8b34615c83d9b4aaa64b`, completed70
-`e875f36042f89c1d84756f78135db0e8926c1ed4` and accepted80 design/source-fit.
-50 supplies record-version identity, bounded winner hydration, Unicode-exact
-ASCII prefix specialization and atomic ambiguous-ref feedback refusal.70 supplies
-actual degradation vocabulary.80 is design-only.
+F11 is now implemented in this branch: independent superseded/inactive search
+flags, nonnull boolean validation/discovery, default-false canonical identity,
+stored continuation view and explicit-override refusal. Both text and hybrid
+forward the same ReadView. Record occurrences,50's atomic feedback guard and
+latest-eligible logical fetch semantics remain intact.
 
-## Concrete remaining60 behavior
+Three genuine RED→GREEN units cover superseded exposure, null/presence refusal,
+and inactive/combined exposure. All10 frozen view/null tests pass; final scoped
+Clippy passes. Both formats/modes, authored node/edge/history membership,
+node window boundaries, actual t_invalid-only edge expiry, SDK positional
+ID/body/source/order/score controls, filters, constrained budgets, paging and
+feedback/fetch composition are exercised. Compact scores use accepted rounding.
 
-F11 is real: SearchArgs and CanonicalSearch lack both existence flags, search
-constructs ReadView with only valid_as_of, and its invalid-argument test still
-refuses include_superseded=true. Fetch already accepts both flags. The old
-feedback-ruling/implementation hold is stale: integrated50 implements
-Unique/Ambiguous folding and validation of the whole named set after acquisition
-and final epoch recheck, before writes, with retained not_recorded precedence.
+The initial inactive run retained one pre-MCP fixture failure: G11 invalidates
+fact edges sharing an endpoint/type triple. Only fixture endpoints were made
+distinct, with real nonmatching endpoint nodes; membership/temporal assertions
+and the original superseded tests stayed unchanged. The sole failed selector
+then reached its real unknown-inactive RED before implementation. The staged
+inactive-null control passed before its fix and is not a new RED claim.
 
-Remaining work is search parsing/discovery, canonical default-false omission,
-stored continuation view/override refusal, SDK forwarding for text and hybrid,
-and actual F11 selection/filter/paging/feedback composition in both formats.
-[Plan](plan.md) and [test plan](test-plan.md) specify genuine RED/GREEN sequencing.
-Repeated refs remain separate ordered hits; fetch keeps latest-eligible logical
-resolution without an exact searched-revision promise.
+## Remaining qualification and ownership
 
-## Verification boundary
+Before final inactive integration,75 affected existing MCP controls passed on
+superseded source; they were not redundantly replayed. Exact commit/phase subjects
+and raw results are in execution. Own capped native units verified effective
+limits, terminal collection and final floors; the native lease is returned.
+Public F11 release wording and maintained MCP contracts are reconciled.
 
-This pass performs source/evidence reconciliation and lightweight documentary
-checks only. No product tests, builds, database opens, owned setup, native/model/
-GPU work or release-state edits ran. Independent Astra-medium plan review
-precedes new tests; the native window and owned setup precede execution. Fresh
-independent implementation review remains required.
-
-The accepted subset's214/214 assembled suites and production lifecycle/manual
-metadata controls remain attributed to their original subjects in execution.
-Original wrapper, spelling and hints-overhead failures/follow-ups and ordinary
-skips remain visible there. No full-green claim transfers to F11.
+Fresh coherent Astra implementation review, final integrated source fit and the
+required full source gate remain before closure. No owned Python setup, final
+full gate, official conformance or smoke ran in this continuation. Prior subset
+metadata manual acceptance and original failures/skips retain their subjects;
+scoped success is not full-workspace green.
 
 90's accepted residual fields/omissions and the actual Block1 qualification/
-conformance/smoke/item4 exit remain separate. Whole60 closure is not recommended
-until F11 meets local acceptance and review. Readiness remains NOT_READY and
-publication HELD; parent alone updates state, generated views and ledgers.
+conformance/smoke/item4 exit remain separate. Smoke model/prompt/budget/fixture
+inputs remain unanswered. Readiness stays NOT_READY and publication HELD;
+parent alone edits release state, generated views and ledgers.

@@ -279,8 +279,10 @@ validity instant instead of now. Meets AN-006.
 - MR-023.1 A record valid from T1 to T2 is returned at an instant inside the
   window and not at one outside it, for both search and fetch.
 - MR-023.2 Responses state the validity instant they were answered at.
-- Search include_superseded defaults false and independently relaxes current-
-  version eligibility in both modes. Canonical identity resolves absent/false
+- Search include_superseded and include_inactive default false and independently
+  relax current-version and active-state eligibility in both modes, preserving
+  validity/source-closure rules. Supplied flags must be nonnull booleans.
+  Canonical identity resolves absent/false
   equally; continuations retain the effective flag and reject explicit overrides.
   Repeated refs retain record occurrences; feedback ambiguity and logical-fetch
   latest-eligible semantics remain authoritative.

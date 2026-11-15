@@ -90,15 +90,20 @@ current paired performance and affected Block1 qualification remain.
 ## Remaining work
 
 1. Bind the actual baseline/candidate, native/features/model inputs and workload
-   for current paired R6 measurements. The identified selector/diagnostic gaps require
-   only the [minimal support change](design.md#current-paired-measurement-support),
-   independently design-reviewed before genuine RED/GREEN; no algorithm expansion.
-   Preserve selected identity/reference,
+   for current paired R6 measurements. Accepted `83edcf2c7`/`e887e3fa6` supplies low-level support;
+   the [public paired entry](design.md#current-paired-measurement-support) still
+   needs truthful P preparation/observation and private build/freeze/run/report
+   admission. Complete that coherent source unit after independent design review
+   and genuine RED/GREEN; no algorithm expansion. Preserve selected identity/reference,
    score/provenance, Unicode and exact-route/work invariants. No private Memex
    population snapshot, new identity selection or whole30 closure is required.
-2. Execute the required same-input untraced comparisons in one reserved heavy
-   window; retain actual timings, work counts, uncertainty and failed/refused
-   rows. A source/tool correction gets a real RED/GREEN and affected checks;
+2. Qualify the bounded full10k ordinary/diagnostic calibration pair first, under
+   selected original-ledger stop allowances and an exclusive window. Keep larger
+   costs unknown until observed; no G-only allocation or old native/proxy is50 GO.
+   Then bind/admit all68 search cells/136 ordinary members and12 independently
+   justified diagnostic configurations/24 members. Execute same-input comparisons
+   in reserved windows; retain actual timings, work counts, uncertainty and
+   failed/refused rows. A source/tool correction gets a real RED/GREEN and affected checks;
    unchanged qualified code does not repeat its full verification phase.
 3. Obtain independent Astra-medium results review at the coherent measurement
    milestone. Reuse the accepted source verdict and valid passing suites; refresh

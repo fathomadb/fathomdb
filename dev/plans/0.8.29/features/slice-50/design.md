@@ -247,73 +247,186 @@ free; no query embedding is used to make that route eligible.
 
 ## Current paired measurement support
 
-The remaining R6 work needs a small measurement-support change, not another
-ranking optimization. Current `slice30_measure` already runs real P1/P2/G-R/G-W
-schedules. Its G ordinary build uses `embed-cuda`; diagnostics add
-`slice30-observer`. Neither build enables the existing full-sort test selector.
-Enabling general `test-hooks` is unsuitable for untraced latency: the SQL profile
-callback records test statements even without a witness path, and rank-stream
-queries execute test EXPLAIN plans. Full-sort also disables the older deferred
-identity/streaming routes, confounding attribution to50.
+Accepted `83edcf2c7`, integrated at `e887e3fa6`, supplies the private
+`slice50-measurement` selector, exact operation-owned body counts/UTF-8 bytes,
+post-timer record fields and low-level dispatcher mode/RSS handling. The selector
+suppresses only `defer_full_hydration`, selecting the retained eager-body/
+deferred-identity branch with current record fusion. Both modes use the same
+binary; direct-text streaming and all other controls stay unchanged. General
+`test-hooks` is excluded: its test profiling/EXPLAIN work is unsuitable for
+untraced latency, and full-sort would disable older optimizations as well.
 
-Add one private nondefault engine feature, `slice50-measurement`, forwarded by
-the SDK. Under that feature alone,
-`FATHOMDB_SLICE50_EAGER_TEXT_FOR_MEASUREMENT=1` suppresses only
-`defer_full_hydration`. The retained `else if defer_text_identity` branch then
-materializes every lexical body and resolves final identity as before50, while
-retaining current accepted record fusion. Unset means the current winner-only
-route. Both modes use the exact same binary/source/lock/provider/model and all
-other admission guards; direct-text rank streaming is untouched. No general
-`test-hooks`, extra SQL, observer collection or witness output enters ordinary
-timing. Default builds contain no new selector or collector. Preserve general
-full-sort correctness controls unchanged.
+A real public-path gap remains. Default `g_runner` build/freeze supports only its
+original ordinary/diagnostic feature lists and canonical84-cell admission;
+old-source native equivalence cannot qualify current pairtools. P `control.py`
+freeze declares features=[], while native P always seeds and ignores observe.
+Low-level `g_driver` support alone does not provide an admitted paired campaign.
+The next source unit extends these existing entries and P preparation/observation;
+no bare `_cell` call, old ordinary executable or second harness substitutes.
 
-Extend the existing measurement program/runner rather than create another
-harness. Bind the pair to a current owned `slice30_measure` release build with
-`embed-cuda,slice50-measurement`; its separate diagnostic build adds
-`slice30-observer`. Existing G freezes/FEATURES and their original binaries stay
-attributed to their original candidates. New pair scope records the current
-candidate and exact selected existing cell IDs/configs before dispatch; it
-cannot relabel old G native artifacts or claim original G completions. Reuse
-existing scheduling, bounded process/resource controls, CLOSED-copy preparation,
-raw streams and metric math. Pair ordinary modes in reversed order on repeat1;
-each write member gets a fresh identical CLOSED copy, never the other member's
-mutated store. Preserve actual30 population, query order,500 warmups/1000 timed
-calls, adapters, routes, write cohorts/probes and repetition semantics. Keep
-all applicable natural/read-write obligations explicit; a smaller selected
-prefix or diagnostic cannot silently discharge unstarted cells. Exact table
-feasibility and remaining shared allocation must be established before runtime;
-no new allowance or cheaper workload follows from this support change.
+### Public paired entry and current input binding
 
-Qualified inputs already exist: the registered100k LME corpus/500 queries and
-accepted G CLOSED format37 store with100000 physical vectors/spans and pending0.
-Reuse its exact immutable package as data custody, with fresh owned copies and
-current-candidate open/readiness/device qualification; it is not borrowed native
-code. Copy the existing pinned BGE snapshot into the pair's owned cache. Keep
-current fork pins/driver/CUDA12.6 and reserve a3090 for hybrid/default work. No
-model download, regenerated vectors or old-source/provider comparison supplies
-a50 delta. Native/tool builds and natural measurement wait for the parent's
-exclusive native/heavy window; no concurrent compilation or campaign is allowed.
+Add explicit private `pair-build`, `pair-freeze`, `pair-run`, `pair-calibrate`
+and `pair-report` commands to the existing `g_runner.py`. They handle both P/G
+families through existing drivers/schedulers/controllers; normal P/G commands,
+FEATURES, specs, original freezes and admission remain unchanged. A P entry may
+delegate this explicit scope to that same owner, never duplicate scheduling.
 
-Separately collected diagnostics count actual lightweight lexical rows and
-actual body materialization events/UTF-8 bytes at the row-to-owned-body seams,
-including vector candidates, eager lexical candidates and selected text winners.
-Count repeated materializations as repeated events; do not deduplicate by ID or
-infer bodies from a final hit limit. Distinguish borrowed SQLite text validation
-from owned Rust body materialization; these counters make no SQLite I/O or total
-allocation claim. Record actual selected route and relevant limits, and sample
-child RSS/peak RSS separately with cadence/unsampled-peak limits explicit.
-Diagnostics must be opt-in and engine/operation owned, using the existing bounded
-observer; missing/lost counters remain unavailable. Emit selected hit cursor,
-source, score bits and existing result metadata outside API timers so pairs can
-check ordered equality without reconstructing identity from bodies/public IDs.
+Proposed public invocations (not implemented or executed at this design step):
 
-The unchanged actual30 natural cells have snippets off. Prefix work/latency is
-therefore not applicable in those cells; retain completed prefix correctness and
-allocation proof without inventing a snippet workload or claimed natural prefix
-benefit. Preserve each repeat's p50/p99, all errors/refusals/outliers and paired
-query uncertainty. No target, significance, speedup or whole30/Block1 completion
-claim follows from successful tooling or a partial pair.
+```bash
+.venv/bin/python "$G_DIR/g_runner.py" pair-build --out "$OWNED/artifacts"
+.venv/bin/python "$G_DIR/g_runner.py" pair-freeze \
+  --options selected-pair.json --out "$OWNED/pair-frozen"
+AGENT_LONG=1 .venv/bin/python "$G_DIR/g_runner.py" pair-run "$OWNED/pair-frozen"
+.venv/bin/python "$G_DIR/g_runner.py" pair-report "$OWNED/pair-frozen"
+```
+
+`pair-build` builds current owned release `slice30_measure` artifacts with
+`embed-cuda,slice50-measurement` and, separately, those features plus
+`slice30-observer`. It records actual current source/compiler/lock/features and
+binary paths before use; winner/eager select the same ordinary executable.
+The diagnostic artifact has the same compiler inputs/provider, with only the
+observer feature added. No general test hooks, borrowed target/module, old-build
+retag or invented native equivalence is allowed. Natural execution still needs
+current source qualification, the parent's native window and a reserved3090.
+
+`pair-freeze --options selected-pair.json --out OWNED/pair-frozen` binds a distinct
+paired scope, exact canonical members below, actual artifacts and qualified
+input identities. Original G CLOSED10k/100k stores are **data-only donors**:
+10000/100000 vectors/spans, pending0, format37. Their old timings/native/provider
+proof never qualify a current member. Copy existing registered LME/500 questions
+and pinned BGE bytes into owned paths; no download, input regeneration or extra
+fixture. Reuse existing input IDs and normal copy validation, not a hash campaign.
+
+P needs current-provider-none templates for P1(10k/100k) and P2(100k plus its ten
+initial note markers). Reuse the original1024-write seed loop and marker writes
+once in charged preparation, then close/validate. Both members copy the same
+immutable template; never donate an already-mutated P2 output. Paired native P
+accepts its admitted fresh copy, skips reseeding truthfully, and reports actual
+preparation/open/close separately. It starts the existing engine/SDK operation
+observer only for diagnostics. Actual P provider-none/open facts and zero vector
+rows are qualified as such, never labelled G negative controls or GPU work.
+Default P seeding and its ordinary outputs/features remain unchanged.
+
+Every read/write member gets a fresh owned matching copy. P1/G-R still close/
+reopen between their original adapter passes. Current G opens must qualify the
+actual model/device/readiness; hybrid requires own-PID memory plus selected3090
+utilization. Direct-text query compute is N/A; do not add a GPU pulse. Current
+limits remain10 returned hits,100 direct-text node candidates,192 binary KNN
+candidates and the actual compiled vector fusion pool (currently10). Record
+resolved limits and actual selected routes with work diagnostics.
+
+### Exact primary and diagnostic coverage
+
+The primary table contains68 original search cells and136 ordinary members:
+
+| Original IDs/configurations | Cells | Preserved workload |
+| --- | ---: | --- |
+| `p1-n{10000,100000}-r{0,1}` |4| P1 direct text/provider none; engine→SDK on r0, reversed on r1. |
+| `p2-b{1,10}-s{1,10,100}-r{0,1}` |12| P2 SDK/provider none, natural doc filter and ten separate note markers. |
+| `g-r-n{10000,100000}-r{0,1}` |4| Default provider, both adapters; text→hybrid on r0, reversed adapter/route order on r1. Embed-only passes stay outside50. |
+| `g-w-b{1,10}-s{1,10,100}-{engine,sdk}-{text,hybrid}-r{0,1}` |48| Default provider, one adapter/route per fresh copy, original natural-row replacement/probe/readiness schedule. |
+
+Each ordinary member keeps500 warmups/1000 timed calls, all500 questions twice
+in original order, original first-call policy and write cohorts/probes. Preserve
+original within-repeat cell order; winner→eager on r0, eager→winner on r1. Private
+IDs retain origin cell, purpose, repeat and mode. The24 G-W embed-only cells,
+G0/G1/G-O correctness/embedding observations, M/D/F/Windows and whole30 closure
+remain independent. No primary member is credited from another scope or prefix.
+Only unfiltered P1/100k/provider-none reports tracked AC08380/300ms distances;
+these remain descriptive, not new pass gates. G hybrid never supplies that target.
+
+R6 separately needs work/RSS for provider-none/default reads and writes, both
+implemented adapters, text/hybrid routing and both write cohort shapes. Select
+these12 diagnostic configurations, each in both modes (24 members), on100k:
+
+| Diagnostic origins, repeat0 only | Configurations | Reason and limit |
+| --- | ---: | --- |
+| P1 `p1-n100000-r0`, both original adapters |1| Provider-none unfiltered read;10k data/control are also observed in the separate calibration below. |
+| P2 `p2-b10-s1-r0`, `p2-b1-s100-r0`, SDK |2| Original dense10-row and sparse1-row marker schedules, including filtered natural calls and probes. |
+| G-R `g-r-n100000-r0`, both adapters and text/hybrid |1| Default-provider read, vector/FTS materialization, exact eager/winner route and adapter transport. |
+| G-W b10/s1 and b1/s100 × engine/SDK × text/hybrid, r0 |8| Both governed cohort shapes, dense/sparse schedules, current natural replacements, probes/readiness and both route/adapter paths. |
+
+These diagnostics keep the entire selected origin's500 warmups/1000 calls and
+write schedule, not a50-call prefix presented as a full write/RSS witness. They
+measure named cases only; no numeric RSS/work estimate is invented for s10,
+other repeat/order or unobserved input/state. Those primary latency obligations
+still run. This selects actual mechanism/cost extremes without repeating all68
+cells under the observer. Existing50-query G-O observations remain their own
+limited evidence and cannot replace these P/write facts. Report diagnostic
+counts/RSS by exact origin; never merge their timing into untraced percentiles.
+
+Keep exact ordered hit fields/score bits, projection cursor, fallback/degradation/
+errors and sidecars in pair comparison. Validate each ordinary pair completely
+before credit; a mismatched/error/partial member leaves that pair incomplete.
+Use existing nearest-rank p50/p99 and paired query-cluster intervals, preserving
+repeats, errors and outliers. Work counts are actual owned conversions, with
+repeated vector/FTS materialization counted repeatedly; borrowed validation is
+excluded. Missing/error/lost diagnostics remain unavailable, never zero or
+SQLite-I/O/total-allocation evidence. Child RSS/HWM is sampled separately with
+cadence/unsampled-peak limits. Snippets stay off in all natural cells: prefix
+performance is N/A; completed prefix source/allocation proof stays valid.
+
+### Admission, bounded calibration and retained copies
+
+Private paired manifests use their own exact canonical table/admission/report
+scope inside the existing entries. Validate current source/build/features,
+input custody, purpose/mode/populations and live owned controller/deadline before
+copy/start. Default G84/P16 admission is not weakened. A schema/ID/feature change
+cannot slip into an old primary or qualify a reused original outcome. Public
+report keeps every ordinary/diagnostic member complete/failed/refused/not-run and
+the actual coverage; lower-stage completion never clears primary holds.
+
+`pair-run` needs a selected explicit shared profile and conservative complete-
+remaining-table time/storage forecasts from applicable current observations.
+Carry the existing allocation's actual G/M/D/common/calibration history and all
+retained bytes/reservations; do not reset, double-charge or create an empty
+successor ledger. Preserve independent original P history too. Unknown costs/
+reservations or cleanup keep entry held. The reviewed12h/128GiB profile is
+G-only and grants no50 allocation. Old G/P costs are labelled old proxies, not
+current forecasts; no10× extrapolation makes100k costs known.
+
+Before selecting that larger profile, provide one explicit lower-stage command:
+
+```bash
+AGENT_LONG=1 .venv/bin/python "$G_DIR/g_runner.py" pair-calibrate \
+  --options selected-pair-calibration.json --out "$OWNED/calibration-10k"
+```
+
+It selects only `g-r-n10000-r0`, both adapters/text+hybrid, with a FULL winner/
+eager ordinary pair and a separate FULL diagnostic pair: each of four members
+keeps500 warmups/1000 calls per route/adapter and original first calls. Use four
+fresh copies of the qualified10k donor and the current ordinary/diagnostic builds.
+This distinct calibration ID credits none of the68 primaries or24 diagnostics.
+It can measure current10k copy/open/read/record/observer/RSS/close costs only;
+P preparation,100k and write costs stay unknown until separately observed and
+selected. There is no automatic next stage, retry or caller-edited subset.
+
+Proposed bootstrap limits are900s whole phase,800s preparation/payload and2GiB
+new retained growth, with2× time/growth headroom against the original shared
+allocation and explicit existing reservations. They are positive stop allowances,
+not cost estimates or runtime GO. Charge common work, failures and prior attempts
+cumulatively by this calibration ID across roots/builds; a new path cannot renew
+it. Enforce the absolute phase deadline and growth stop during qualification,
+preparation, payload and final reporting; a per-member timeout is insufficient.
+Keep cleanup reserves inside the limits and reuse the existing resource guardian,
+private containment, raw/checkpoint bounds and strict actor cleanup. A cap stop,
+missing GPU engagement or incomplete pair yields unknown costs, not a valid bound
+or permission to extrapolate a successful prefix.
+
+Original P/G attempts retain their stores under their existing contracts. This
+proposal explicitly amends **only new paired scope**, with a selected
+`retire_complete_copies` option: after complete pair comparison, required
+case-diagnostic completion, actual closes and strict native actor/cell-boundary
+quiescence, retire only that pair's disposable working DB/WAL/SHM copies. Retain
+raw calls/warmups/probes/writes/results, actual input/build/provider identity,
+pre/post counts/close facts and the immutable template/donor. Failed/incomplete/
+refused/uncertain pairs retain their copies. Never retire original G/P data,
+immutable donors/templates or another task's files. Reuse actual current retained
+bytes for admission after retirement; do not discount raw output or assume this
+makes the unknown full table fit. This is an explicit prospective retention
+amendment for review, not a silent relaxation or authorization to delete now.
 
 ## Bounded record-start specialization
 

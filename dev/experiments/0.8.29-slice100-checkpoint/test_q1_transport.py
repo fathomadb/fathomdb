@@ -18,12 +18,15 @@ class MemoryActors:
 
     def __init__(self):
         self.inferior, self.adopted_cleanup, self.pidfd_requests = 123, [], []
+        self.checks, self.reject_after_checks = 0, None
 
     def begin_launch_scope(self):
         pass
 
     def check_inferior(self):
-        pass
+        self.checks += 1
+        if self.reject_after_checks and self.checks >= self.reject_after_checks:
+            raise control.Unqualified('synthetic actor identity changed')
 
     def kill_inferior(self):
         self.pidfd_requests.append(self.inferior)
@@ -49,7 +52,8 @@ class MemoryDebugger(control.Debugger):
         self.native.update(pid=actors.inferior, nonce=nonce)
         self.group_pid, self.group_threads, self.other_running = '123', ['1', '2'], False
         self.fresh_frame, self.fresh_locals, self.ready_mutation = {}, {}, {}
-        self.stop_all, self.exit_signal = 'all', 'SIGKILL'
+        self.stop_all, self.stop_thread, self.exit_signal = 'all', '2', 'SIGKILL'
+        self.group_binary = str(args.binary)
         configure(self)
         (case/'preimage.json').write_text(json.dumps(dict(nonce=nonce, ticket='ticket')))
 
@@ -79,7 +83,7 @@ class MemoryDebugger(control.Debugger):
                 event, self.stage = dict(bkptno='1', reason='breakpoint-hit'), 1
             elif self.stage == 1:
                 event = dict(bkptno='2', reason='breakpoint-hit', frame=self.native['frame'],
-                             **{'thread-id': '2', 'stopped-threads': self.stop_all})
+                             **{'thread-id': self.stop_thread, 'stopped-threads': self.stop_all})
                 self.stage = 2
             elif self.arrival:
                 self.error_record = control.parse_mi(token+'^error,msg="Command aborted."')
@@ -110,7 +114,7 @@ class MemoryDebugger(control.Debugger):
                 dict(id='2', state='stopped')]}
         elif command == '-list-thread-groups --recurse 1':
             values = dict(groups=[dict(id='i1', type='process', pid=self.group_pid,
-                                      executable=str(self.args.binary), threads=[dict(id=i) for i in self.group_threads])])
+                                      executable=self.group_binary, threads=[dict(id=i) for i in self.group_threads])])
         elif command == '-stack-info-frame':
             values = dict(frame=dict(self.native['frame'], **self.fresh_frame))
         elif command == '-gdb-exit':
@@ -177,6 +181,66 @@ class LateExecutionError(unittest.TestCase):
         debugger.records = []
         debugger.events = [control.parse_mi('*stopped,reason="exited-normally"')]
         self.assertEqual(debugger.stopped(1), dict(reason='exited-normally'))
+
+
+class StoppedDelivery(unittest.TestCase):
+    """Reviewed delivery policy only; synthetic MI is never real signal/exit proof."""
+
+    signal_command = '-interpreter-exec console "signal SIGKILL"'
+
+    def test_one_debugger_signal_after_revalidation_without_pidfd_duplicate(self):
+        result, debugger, actors, snapshots, utilities = memory_case()
+        self.assertEqual(result['status'], 'QUALIFIED_INTERRUPTION', result)
+        self.assertEqual(actors.pidfd_requests, [])
+        self.assertEqual(debugger.commands.count(self.signal_command), 1)
+        selected = debugger.commands.index('-thread-select 2')
+        delivered = debugger.commands.index(self.signal_command)
+        for command in ['-thread-info', '-list-thread-groups --recurse 1', '-stack-info-frame',
+                        '-stack-list-frames', '-data-evaluate-expression "iFrame"']:
+            self.assertIn(command, debugger.commands[selected:delivered])
+        self.assertFalse(any(command.startswith('-exec-') for command in debugger.commands[selected:delivered]))
+        self.assertGreaterEqual(actors.checks, 4)
+        self.assertEqual((snapshots, utilities), (1, 2))
+        self.assertEqual(result['fault_exit'], dict(reason='exited-signalled', **{'signal-name': 'SIGKILL'}))
+
+    def test_changed_delivery_preconditions_refuse_before_any_signal_or_recovery(self):
+        cases = {
+            'not-all-stopped': lambda d: setattr(d, 'stop_all', '2'),
+            'missing-witness-thread': lambda d: setattr(d, 'stop_thread', None),
+            'wrong-selected-thread': lambda d: setattr(d, 'selected', '1'),
+            'wrong-group-pid': lambda d: setattr(d, 'group_pid', '124'),
+            'wrong-group-executable': lambda d: setattr(d, 'group_binary', '/other/q1'),
+            'thread-not-in-group': lambda d: setattr(d, 'group_threads', ['1']),
+            'another-thread-running': lambda d: setattr(d, 'other_running', True),
+            'changed-frame': lambda d: setattr(d, 'fresh_frame', dict(addr='0x9999')),
+            'empty-native-work': lambda d: setattr(d, 'fresh_locals', dict(iFrame='1')),
+            'changed-ready-nonce': lambda d: setattr(d, 'ready_mutation', dict(nonce='foreign')),
+            'changed-actor': lambda d: setattr(d.actors, 'reject_after_checks', 3),
+        }
+        for name, configure in cases.items():
+            with self.subTest(name=name):
+                result, debugger, actors, snapshots, utilities = memory_case(configure=configure)
+                self.assertEqual(result['status'], 'UNQUALIFIED', result)
+                self.assertEqual(actors.pidfd_requests, [])
+                self.assertNotIn(self.signal_command, debugger.commands)
+                self.assertNotIn('fault_exit', result)
+                self.assertEqual((snapshots, utilities), (0, 0))
+
+    def test_wrong_exit_signal_refuses_without_fallback_or_recovery(self):
+        result, debugger, actors, snapshots, utilities = memory_case(configure=lambda d: setattr(d, 'exit_signal', 'SIGTERM'))
+        self.assertEqual(result['status'], 'UNQUALIFIED')
+        self.assertIn('exact owned SIGKILL not observed', result['error'])
+        self.assertEqual(debugger.commands.count(self.signal_command), 1)
+        self.assertEqual(actors.pidfd_requests, [])
+        self.assertEqual((snapshots, utilities), (0, 0))
+
+    def test_delivery_error_never_redelivers_or_qualifies_recovery(self):
+        result, debugger, actors, snapshots, utilities = memory_case('separate')
+        self.assertEqual(result['status'], 'UNQUALIFIED')
+        self.assertIn('Command aborted.', result['error'])
+        self.assertEqual(debugger.commands.count(self.signal_command), 1)
+        self.assertEqual(actors.pidfd_requests, [])
+        self.assertEqual((snapshots, utilities), (0, 0))
 
 
 if __name__ == '__main__':

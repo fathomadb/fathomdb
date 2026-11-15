@@ -30,29 +30,29 @@ def mi_child(case, nonce, executable, sqlite, signal_name):
         commands.append(text)
         (case / 'script-commands.json').write_text(json.dumps(commands))
         if text == 'SCRIPTED_EXTERNAL_SIGKILL':
-            killed = True
-            continue
+            raise RuntimeError('retired qualifying pidfd delivery path')
         token = text[:len(text) - len(text.lstrip('0123456789'))]
         command = text[len(token):]
         response, event = 'done', None
         if command.startswith('-inferior-tty-set '):
             target = json.loads(command.split(' ', 1)[1])
+        elif command == '-interpreter-exec console "signal SIGKILL"':
+            response = 'running'
+            event = 'reason="exited-signalled",signal-name=' + json.dumps(signal_name)
         elif command.startswith('-interpreter-exec '):
             event = 'reason="signal-received"'
         elif command.startswith('-break-insert '):
             response += ',bkpt={number="' + ('1' if stage == 0 else '2') + '"}'
         elif command == '-exec-continue':
             response = 'running'
-            if killed:
-                event = 'reason="exited-signalled",signal-name=' + json.dumps(signal_name)
-            elif stage == 0:
+            if stage == 0:
                 ready = dict(nonce=nonce, fixture=control.FIXTURE, pid=os.getpid(), executable=executable, ticket='scripted-ticket')
                 with open(target, 'w') as stream:
                     stream.write('Q1_READY ' + json.dumps(ready) + '\n')
                 event = 'reason="breakpoint-hit",bkptno="1"'
                 stage = 1
             else:
-                event = 'reason="breakpoint-hit",bkptno="2",frame={' + ','.join(k + '=' + json.dumps(v) for k, v in frame.items()) + '}'
+                event = 'reason="breakpoint-hit",bkptno="2",thread-id="2",stopped-threads="all",frame={' + ','.join(k + '=' + json.dumps(v) for k, v in frame.items()) + '}'
                 stage = 2
         elif command == '-stack-list-frames':
             names = ['sqlite3WalCheckpoint', 'wal_checkpoint_truncate_once', 'checkpoint_erasure_at_rest', 'complete_physical_erasure']
@@ -63,6 +63,14 @@ def mi_child(case, nonce, executable, sqlite, signal_name):
             response += ',lines=[{pc="0x1234",line="' + str(control.COPY_LINE) + '"}]'
         elif command.startswith('-data-disassemble '):
             response += ',asm_insns=[{address="0x1234",inst="scripted"}]'
+        elif command == '-thread-select 2':
+            response += ',new-thread-id="2",frame={' + ','.join(k + '=' + json.dumps(v) for k, v in frame.items()) + '}'
+        elif command == '-thread-info':
+            response += ',current-thread-id="2",threads=[{id="1",state="stopped"},{id="2",state="stopped"}]'
+        elif command == '-list-thread-groups --recurse 1':
+            response += ',groups=[{id="i1",type="process",pid="' + str(os.getpid()) + '",executable=' + json.dumps(executable) + ',threads=[{id="1"},{id="2"}]}]'
+        elif command == '-stack-info-frame':
+            response += ',frame={' + ','.join(k + '=' + json.dumps(v) for k, v in frame.items()) + '}'
         elif command == '-gdb-exit':
             print(token + '^exit', flush=True)
             return
@@ -137,7 +145,7 @@ def supervise(directory, expected_signal):
 class InterruptTransition(unittest.TestCase):
     """Resume is required; a non-SIGKILL exit notification must remain unqualified."""
 
-    def test_stopped_transport_resumes_after_signal_before_exit_notification(self):
+    def test_stopped_transport_uses_single_debugger_signal_before_exit_notification(self):
         for expected_signal in ['SIGKILL', 'SIGTERM']:
             with self.subTest(expected_signal=expected_signal), tempfile.TemporaryDirectory(prefix='s100-transition-') as tmp:
                 child = subprocess.Popen([sys.executable, '-I', str(Path(__file__).resolve()), '--supervise', tmp, expected_signal],
@@ -154,8 +162,11 @@ class InterruptTransition(unittest.TestCase):
                     if expected_signal == 'SIGKILL':
                         self.assertEqual(result['status'], 'QUALIFIED_INTERRUPTION', result)
                         self.assertEqual(result['utility_calls'], 2)
-                        index = result['commands'].index('SCRIPTED_EXTERNAL_SIGKILL')
-                        self.assertTrue(result['commands'][index + 1].endswith('-exec-continue'), result)
+                        self.assertFalse(any('SCRIPTED_EXTERNAL_SIGKILL' in command for command in result['commands']))
+                        self.assertEqual(sum(command.endswith('-interpreter-exec console "signal SIGKILL"') for command in result['commands']), 1)
+                        selected = next(i for i, command in enumerate(result['commands']) if command.endswith('-thread-select 2'))
+                        delivered = next(i for i, command in enumerate(result['commands']) if command.endswith('-interpreter-exec console "signal SIGKILL"'))
+                        self.assertFalse(any('-exec-continue' in command for command in result['commands'][selected:delivered]))
                     else:
                         self.assertEqual(result['status'], 'UNQUALIFIED')
                         self.assertIn('exact owned SIGKILL not observed', result['error'])

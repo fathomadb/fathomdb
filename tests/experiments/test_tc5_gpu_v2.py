@@ -430,3 +430,43 @@ def test_0828_candidate_rejects_unadmitted_or_malformed_package_versions(
         match="0.8.28 TC-5 requires an exact candidate binding",
     ):
         tc5_gpu_v2.load_config(path)
+
+
+
+def test_0829_candidate_accepts_exact_current_binding(tmp_path):
+    path = _candidate_config(tmp_path, release="0.8.29", package_version="0.8.29")
+    config = tc5_gpu_v2.load_config(path)
+
+    assert config.release == config.candidate_version == "0.8.29"
+    assert config.package_version == "0.8.29"
+    assert config.candidate_sha == "1" * 40
+    assert config.python_wheel_sha256 == _sha(config.python_wheel)
+    assert config.fathomdb_bin_sha256 == _sha(config.fathomdb_bin)
+    assert config.benchmark_binary_sha256 == _sha(config.benchmark_binary)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ["missing", "stale-release", "previous-package", "future-package", "list-package", "dict-package"],
+)
+def test_0829_candidate_rejects_missing_or_mismatched_binding(tmp_path, mutation):
+    path = _candidate_config(tmp_path, release="0.8.29", package_version="0.8.29")
+    value = json.loads(path.read_text(encoding="utf-8"))
+    if mutation == "missing":
+        del value["candidate"]
+    elif mutation == "stale-release":
+        value["candidate"]["version"] = "0.8.28"
+    else:
+        value["candidate"]["package_version"] = {
+            "previous-package": "0.8.28",
+            "future-package": "0.8.30",
+            "list-package": [],
+            "dict-package": {},
+        }[mutation]
+    path.write_text(json.dumps(value), encoding="utf-8")
+
+    with pytest.raises(
+        tc5_gpu_v2.Tc5GpuV2Error,
+        match="0.8.29 TC-5 requires an exact candidate binding",
+    ):
+        tc5_gpu_v2.load_config(path)

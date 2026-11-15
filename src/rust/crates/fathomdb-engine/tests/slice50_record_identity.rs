@@ -113,8 +113,7 @@ fn same_body_historical_versions_keep_their_record_and_source() {
     let body = "peculiar wombat telemetry";
     let first = opened.engine.write(&[node(Some("note:a"), "src:old", body)]).unwrap();
     let second = opened.engine.write(&[node(Some("note:a"), "src:new", body)]).unwrap();
-    let mut view = ReadView::default();
-    view.include_superseded = true;
+    let view = ReadView { include_superseded: true, ..ReadView::default() };
     let result = search(&opened.engine, "wombat", &view);
     assert_records(
         &result,

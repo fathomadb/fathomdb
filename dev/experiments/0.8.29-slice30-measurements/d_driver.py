@@ -157,6 +157,9 @@ def run_accounted_stage(spec, records, budget, execute, *, initial=True, clock=t
         row = dict(result, elapsed_ns=ended - started, child_elapsed_ns=result.get("elapsed_ns"))
         if not quiescent:
             row["status"] = "failed"
+        elif row.get("status") == "complete" and ended >= started + remaining:
+            row.update(status="incomplete", deadline_exceeded=True,
+                       error=row.get("error") or "whole-cell deadline reached including report qualification")
         records[cell["id"]] = row
         return row
 

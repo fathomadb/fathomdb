@@ -6,7 +6,7 @@
     "OwnedChild.cs": "b23fdc51a72e0332e13de26b6bb8968093ffdd8e056865cb4d78eb7e27d9b765",
     "README.md": "66ff2e809129bc25e5439d333264e234e458ce2e80e69b5fcb3fd14fc6298ba3",
     "Supervisor.cs": "389aa27ff8edc74dd33a9a64b94243832df3261ddd378e00724c01538e3c69bb",
-    "a6_operator.py": "06d6ad52caf9fa11f14520bed76e0c4862d3ae7bae1b7ed128065fc12accf8d5",
+    "a6_operator.py": "4cf3f16ceafa1257120b66175c6894f2847bb1899130760b2aa3dfd8ab95fe69",
     "common.ps1": "43ae26f3e65662482611b98db52b3e4bd4dc2bc19c3fb735dd2a222c848c18f6",
     "exercise.py": "525e6bb10e36adb2efddeb94a894307cc2c59edcaf1c2d8f91d1125bc46daea0",
     "extract-source.ps1": "d44fb0b9a2608e2b1e7019df6acef0e3fb6d0eb77e38afe78581823181d67137",
@@ -16,6 +16,7 @@
     "native-bootstrap.ps1": "66283069adf15bf32d5a3de707aab889a39348ade28d42b7aa9ed2b7304fa14b",
     "parse-package.ps1": "3754f1437bcd0df6e114eb17447210f1a2b7fc5c923ea0ed79409c6f16a7b2a9",
     "probe.ps1": "15f5b19dfa6658b249c970bd94587924bfc54d734184329bc6e1a4c356e909f5",
-    "receive.ps1": "06bd9d8004dd86351f10a90791797e2a1a81e4f0f5608753d67e82ab5b2e91a0"
+    "receive.ps1": "06bd9d8004dd86351f10a90791797e2a1a81e4f0f5608753d67e82ab5b2e91a0",
+    "stdin-prefix.ps1": "34dce794b4f928069366164915f05d4a7cc700a82fa6365527c3b8b777c65d6d"
   }
 }

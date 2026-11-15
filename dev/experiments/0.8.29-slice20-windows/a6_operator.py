@@ -32,10 +32,27 @@ def digest(path):
     with Path(path).open('rb') as stream:return hashlib.file_digest(stream,'sha256').hexdigest()
 def read_json(path):return json.loads(Path(path).read_text())
 def quote(value):return "'"+value.replace("'","''")+"'"
+def script_prefix(script):
+    if len(base64.b64encode(script.encode('utf-16le')))+200<4096:return b''
+    payload=base64.b64encode(script.encode('utf-8'))
+    if not 0<len(payload)<=32768:raise ValueError('stdin script length bound')
+    return payload
+
 def encoded(script):
+    prefix=script_prefix(script)
+    if prefix:
+        script=(PACKAGE/'stdin-prefix.ps1').read_text().replace('__A6_STDIN_BYTES__',str(len(prefix))).replace('__A6_STDIN_SHA256__',hashlib.sha256(prefix).hexdigest())
     code=base64.b64encode(script.encode('utf-16le')).decode()
-    if len(code)+200>=30000:raise ValueError('remote command length bound')
+    if len(code)+200>=4096:raise ValueError('remote command length bound')
     return SSH+['C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe','-NoLogo','-NoProfile','-NonInteractive','-EncodedCommand',code]
+
+def start_script(script,**kwargs):
+    prefix=script_prefix(script)
+    p=subprocess.Popen(encoded(script),stdin=subprocess.PIPE if prefix else subprocess.DEVNULL,**kwargs)
+    try:
+        if prefix:p.stdin.write(prefix);p.stdin.close()
+    except BaseException:stop_ssh(p);raise
+    return p
 def stop_ssh(p):
     if p.poll() is None:
         p.terminate()
@@ -45,7 +62,7 @@ def command(script,timeout=6,input_bytes=None):
     # SSH has no ProxyCommand/LocalCommand and inherits the controller's private
     # process group. Timeout kills this exact Popen child, never a shared group.
     p=subprocess.Popen(encoded(script),stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-    try:out,err=p.communicate(input_bytes,timeout=timeout)
+    try:out,err=p.communicate(script_prefix(script)+(input_bytes or b''),timeout=timeout)
     except BaseException:stop_ssh(p);raise
     if p.returncode:raise RuntimeError({'ssh_exit':p.returncode,'stdout':out.decode(errors='replace'),'stderr':err.decode(errors='replace')})
     return out.decode('utf-8-sig').strip()
@@ -138,6 +155,7 @@ class Session:
         errors=[]
         def writer():
             try:
+                p.stdin.write(script_prefix(script))
                 with path.open('rb') as stream:
                     while data:=stream.read(65536):p.stdin.write(data)
                 p.stdin.close()
@@ -161,7 +179,7 @@ class Session:
         start=time.monotonic();p=None;failure=None
         try:
             with (self.root/'extract.stdout').open('xb') as out,(self.root/'extract.stderr').open('xb') as err:
-                p=subprocess.Popen(encoded(invocation),stdout=out,stderr=err)
+                p=start_script(invocation,stdout=out,stderr=err)
                 self.log('owned-extract-observer',{'pid':p.pid,'pgid':os.getpgid(p.pid)})
                 while p.poll() is None:
                     self.sample()
@@ -212,7 +230,7 @@ class Session:
             expected='0'*64 if bad_launcher else self.package['files'][launcher]
             script="$ErrorActionPreference='Stop';$p="+quote(remote)+";if((Get-FileHash -LiteralPath $p -Algorithm SHA256).Hash.ToLowerInvariant() -cne '"+expected+"'){throw 'launch script digest differs'};& $p -Control "+quote(self.control)+' -ConfigSha256 '+self.config_hash
             if self.stage=='a6':script+=' -WrapperSha256 '+self.cfg['wrapperSha256']
-            observer=(self.root/'observer.log').open('wb');p=subprocess.Popen(encoded(script),stdout=observer,stderr=subprocess.STDOUT);self.log('owned_observer',{'pid':p.pid,'pgid':os.getpgid(p.pid)})
+            observer=(self.root/'observer.log').open('wb');p=start_script(script,stdout=observer,stderr=subprocess.STDOUT);self.log('owned_observer',{'pid':p.pid,'pgid':os.getpgid(p.pid)})
             (self.root/'controller-ready.json').write_text(json.dumps({'runId':self.run_id,'candidateSha':self.cfg['candidateSha'],'control':self.control,'pid':os.getpid(),'pgid':os.getpgrp(),'sid':os.getsid(0),'startTicks':Path('/proc/self/stat').read_text().split()[21]})+'\n')
             start=time.monotonic();limit=1800 if self.stage=='a6' else 600
             while time.monotonic()-start<limit:

@@ -15,6 +15,7 @@ Usage (see README.md):
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import os
 import shutil
@@ -119,12 +120,17 @@ def run_question(question, *, worker: Path, run_dir: Path, args, default_store: 
             _, err = proc.communicate(timeout=args.timeout)
             code, err = proc.returncode, err[-2000:]
         except subprocess.TimeoutExpired:
-            os.killpg(proc.pid, signal.SIGTERM)
+            with contextlib.suppress(ProcessLookupError):
+                os.killpg(proc.pid, signal.SIGTERM)
             try:
                 proc.communicate(timeout=2)
             except subprocess.TimeoutExpired:
-                os.killpg(proc.pid, signal.SIGKILL)
-                proc.communicate()
+                pass
+            finally:
+                # Descendants can outlive the parent without holding its pipes.
+                with contextlib.suppress(ProcessLookupError):
+                    os.killpg(proc.pid, signal.SIGKILL)
+            proc.communicate()
             code, err = "timeout", ""
     wall = time.time() - started
     result = {}

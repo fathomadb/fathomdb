@@ -352,10 +352,11 @@ def summarize(rows: list[dict], expected_by_run: dict | None = None, *, require_
     by_run: dict[str, list[dict]] = collections.defaultdict(list)
     for row in rows:
         by_run[row["run"]].append(row)
+    grades_complete = bool(rows) and all(r.get("lenient") in (0.0, 1.0) and r.get("strict") in (0.0, 1.0) for r in rows)
     runs = {}
     for name, items in by_run.items():
         validate_rows(items, expected_by_run[name] if expected_by_run else None, require_grades=require_grades)
-        valid = [r for r in items if not r["invalid"] and r["lenient"] is not None]
+        valid = items if grades_complete else []
 
         def mean(key, rows=items):
             values = [r[key] for r in rows if r.get(key) is not None]
@@ -381,7 +382,7 @@ def summarize(rows: list[dict], expected_by_run: dict | None = None, *, require_
             "mean_api_calls": mean("api_calls"),
             "cost_usd_total": sum(r["cost_usd"] or 0 for r in items), "wall_s_total": sum(r["wall_s"] for r in items),
             "tool_errors": sum(r["tool_errors"] for r in items), "busy_results": sum(r["busy_results"] for r in items),
-            "gold_ref_used_rate": mean("gold_ref_used"),
+            "gold_ref_used_rate": mean("gold_ref_used") if grades_complete else None,
         }
     pairs = []
     names = sorted(by_run)
@@ -391,6 +392,8 @@ def summarize(rows: list[dict], expected_by_run: dict | None = None, *, require_
                 continue
             if {r["qid"] for r in by_run[a]} != {r["qid"] for r in by_run[b]}:
                 raise ValueError("paired runs have different question sets; no intersection verdict")
+            if not grades_complete:
+                continue
             sa = {r["qid"]: r for r in by_run[a] if not r["invalid"] and r["lenient"] is not None}
             sb = {r["qid"]: r for r in by_run[b] if not r["invalid"] and r["lenient"] is not None}
             common = sorted(set(sa) & set(sb))
@@ -401,7 +404,7 @@ def summarize(rows: list[dict], expected_by_run: dict | None = None, *, require_
                 diffs = [sa[q][key] - sb[q][key] for q in common]
                 pair[key] = {**bootstrap(diffs), "a_wins": sum(d > 0 for d in diffs), "b_wins": sum(d < 0 for d in diffs)}
             pairs.append(pair)
-    return {"runs": runs, "paired": pairs}
+    return {"runs": runs, "paired": pairs, "accuracy_complete": grades_complete}
 
 
 def main() -> int:

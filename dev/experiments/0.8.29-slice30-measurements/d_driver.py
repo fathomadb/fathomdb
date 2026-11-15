@@ -179,7 +179,7 @@ def run_accounted_stage(spec, records, budget, execute, *, initial=True, clock=t
             publish()
 
 
-def run_supervised_stage(spec, records, budget, root, command, *, publish=None, initial=True):
+def run_supervised_stage(spec, records, budget, root, command, *, publish=None, initial=True, review=None):
     """Connect fixed-table accounting to owned children under caller-owned custody.
 
     The caller supplies the existing locked allocation and durable publisher;
@@ -187,9 +187,22 @@ def run_supervised_stage(spec, records, budget, root, command, *, publish=None, 
     row remains visible, with the initial held-quartet stop as the default.
     """
     if not initial:
-        raise ValueError("D supervised continuation requires the live entry's stage feasibility review")
+        return [{"id": cell["id"], **records[cell["id"]]} if cell["id"] in records else
+                {"id": cell["id"], "status": "not_run_stage_review",
+                 "reason": reviewed_quartet(spec, records, budget, review)["reason"]}
+                for cell in spec["cells"]]
 
     def execute(cell, deadline):
         return run_owned_cell(cell, root, command, deadline)
 
     return run_accounted_stage(spec, records, budget, execute, initial=True, publish=publish)
+
+
+def reviewed_quartet(spec, records, budget, review):
+    """Assess an explicit review for exactly one next required D size/mode quartet.
+
+    Current qualified prefix identities, conservative layer bounds and shared
+    headroom must remain available. Unknown cost is held; this admits no runtime
+    by itself and never authorizes all remaining24 obligations automatically.
+    """
+    return {"status": "not_run_stage_review", "reason": "D continuation review binding is not implemented"}

@@ -88,6 +88,8 @@ def _add_phases(phases, records, issues, dropped):
 
 def _group(records, scans, generation, phases, issues, dropped):
     by_phase = defaultdict(list)
+    if any(record.get("status") != "ok" for record in records):
+        issues.append("required_group_phase_unobserved")
     for record in records:
         by_phase[record.get("phase")].append(record)
     roots = by_phase["projection_processing"]
@@ -211,6 +213,8 @@ def bind_execution(cell, actual, observation=None):
         if type(operation) is not int or operation < _UPPER:
             issues.append("projection_operation_unavailable")
         if phase == "projection_scan":
+            if record.get("status") != "ok":
+                issues.append("required_scan_unobserved")
             selected = _cursors(record)
             if selected is None or len(selected) > 128 or operation in scans:
                 issues.append("scan_cursor_coverage_unavailable")
@@ -242,6 +246,8 @@ def bind_execution(cell, actual, observation=None):
             issues.append("pending_observation_unavailable")
         else:
             pending.append(sample)
+    if not pending:
+        issues.append("durable_pending_observations_unavailable")
     witness = _overlap(cell, owner, queries, workers, pending) if cell.get("mode") == "overlap" else None
     observed = witness is not None and witness["verdict"] == "OBSERVED_OVERLAP"
     result.update(observations_complete=not issues, committed_success_rows=len(committed) if durable_known else None,

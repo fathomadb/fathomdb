@@ -1118,6 +1118,9 @@ fn context_loss<D: PoolDriver>(
     driver_error: String,
     operation: &str,
 ) -> Option<CudaPoolFailure> {
+    if let Some(loss) = private.loss.get() {
+        return Some(loss.failure(private.context_id, operation));
+    }
     let mut is_lost =
         matches!(code, Some(CUDA_ERROR_CONTEXT_IS_DESTROYED | CUDA_ERROR_INVALID_CONTEXT));
     let primary_context = driver.primary_state(private.ordinal).ok();
@@ -1135,16 +1138,22 @@ fn context_loss<D: PoolDriver>(
     if !is_lost {
         return None;
     }
+    let loss = private.loss.get_or_init(|| PublishedContextLoss {
+        current_context_id,
+        driver_error,
+        operation: operation.to_owned(),
+        primary_context,
+    });
     driver.snapshot_once().call_once(|| {
         // A panic here must not poison the gate for later detections.
         let _ = catch_unwind(AssertUnwindSafe(|| {
             let cuda_libraries = driver.cuda_libraries();
             let snapshot = LossSnapshot {
                 recorded_context_id: private.context_id,
-                current_context_id,
-                driver_error: &driver_error,
-                operation,
-                primary_context,
+                current_context_id: loss.current_context_id,
+                driver_error: &loss.driver_error,
+                operation: &loss.operation,
+                primary_context: loss.primary_context,
                 cuda_libraries: &cuda_libraries,
                 pool: driver.pool_counters(&private.pool).ok(),
                 live_private_contexts: driver.live_private_contexts(&private.pool),
@@ -1152,12 +1161,7 @@ fn context_loss<D: PoolDriver>(
             driver.emit_snapshot(&snapshot_line(&snapshot));
         }));
     });
-    Some(CudaPoolFailure::ContextLost {
-        recorded_context_id: private.context_id,
-        current_context_id,
-        driver_error,
-        operation: operation.to_owned(),
-    })
+    Some(loss.failure(private.context_id, operation))
 }
 
 // ---- typed failures ---------------------------------------------------------
@@ -1433,11 +1437,30 @@ pub(crate) trait PoolDriver {
     fn emit_snapshot(&self, line: &str);
 }
 
+struct PublishedContextLoss {
+    current_context_id: Option<u64>,
+    driver_error: String,
+    operation: String,
+    primary_context: Option<CudaPrimaryContextState>,
+}
+
+impl PublishedContextLoss {
+    fn failure(&self, recorded_context_id: u64, operation: &str) -> CudaPoolFailure {
+        CudaPoolFailure::ContextLost {
+            recorded_context_id,
+            current_context_id: self.current_context_id,
+            driver_error: self.driver_error.clone(),
+            operation: operation.to_owned(),
+        }
+    }
+}
+
 pub(crate) struct PrivateDecision<P, C> {
     pub(crate) ordinal: usize,
     pub(crate) pool: P,
     pub(crate) first_context: C,
     first_context_handed_out: AtomicBool,
+    loss: OnceLock<PublishedContextLoss>,
     /// FathomDB models open on this pool (design § 14.1): the close release
     /// runs when the last one closes.
     pub(crate) live_models: AtomicUsize,
@@ -1540,6 +1563,7 @@ pub(crate) fn decide_and_build<D: PoolDriver>(
             pool,
             first_context,
             first_context_handed_out: AtomicBool::new(false),
+            loss: OnceLock::new(),
             live_models: AtomicUsize::new(0),
             context_id,
             max_size_bytes,
@@ -1754,14 +1778,18 @@ pub(crate) fn classify_forward<P, C>(
 }
 
 /// The typed failure for a failed forward pass, or `None` when it keeps its
-/// untyped report: exhaustion first, then, for any other CUDA error on the
-/// private pool's device, context-loss detection.
+/// untyped report. A published loss takes precedence over later errors;
+/// otherwise exhaustion precedes context-loss detection on a CUDA error.
 pub(crate) fn classify_forward_fault<D: PoolDriver>(
     decision: Option<&Decision<D::Pool, D::Context>>,
     driver: &D,
     fault: ForwardFault,
     operation: &str,
 ) -> Option<CudaPoolFailure> {
+    let private = private_for(decision, fault.ordinal)?;
+    if let Some(loss) = private.loss.get() {
+        return Some(loss.failure(private.context_id, operation));
+    }
     let exhausted = classify_forward(
         decision,
         fault.ordinal,
@@ -1771,7 +1799,6 @@ pub(crate) fn classify_forward_fault<D: PoolDriver>(
     if exhausted.is_some() {
         return exhausted;
     }
-    let private = private_for(decision, fault.ordinal)?;
     if !fault.cuda {
         return None;
     }

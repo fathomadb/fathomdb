@@ -72,7 +72,8 @@ function New-A6StageMonitor($Config,[string]$Control) {
     $leaseScript="param(`$s)`n"+$diag+@'
 # Readers must allow atomic lease replacement while retaining their old complete snapshot.
 function Read-A6LeaseJson([string]$Path){
- $f=[IO.FileStream]::new($Path,[IO.FileMode]::Open,[IO.FileAccess]::Read,([IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete))
+ try{$f=[IO.FileStream]::new($Path,[IO.FileMode]::Open,[IO.FileAccess]::Read,([IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete))}
+ catch{$e=$_.Exception;while($null -ne $e.InnerException){$e=$e.InnerException};if($e -is [IO.IOException] -and ($e.HResult -band 65535) -in @(2,32,33)){return $null};throw}
  $r=[IO.StreamReader]::new($f,[Text.Encoding]::UTF8)
  try{$r.ReadToEnd()|ConvertFrom-Json}finally{$r.Dispose()}
 }
@@ -80,8 +81,9 @@ $s.LeaseReady=$true
 try {
  while(-not $s.Done) {
   $cancel=Join-Path $s.Control 'cancel.json'
-  if([IO.File]::Exists($cancel)){$c=Read-A6LeaseJson $cancel;if($c.runId -cne $s.Config.runId -or $c.candidateSha -cne $s.Config.candidateSha){throw 'cancel identity'};throw 'explicit cancellation'}
+  if([IO.File]::Exists($cancel)){$c=Read-A6LeaseJson $cancel;if($null -eq $c){[Threading.Thread]::Sleep(250);continue};if($c.runId -cne $s.Config.runId -or $c.candidateSha -cne $s.Config.candidateSha){throw 'cancel identity'};throw 'explicit cancellation'}
   $l=Read-A6LeaseJson (Join-Path $s.Control 'lease.json')
+  if($null -eq $l){[Threading.Thread]::Sleep(250);continue}
   if($l.runId -cne $s.Config.runId -or $l.candidateSha -cne $s.Config.candidateSha -or ($l.generation -isnot [long] -and $l.generation -isnot [int])){throw 'lease identity/type'}
   [Threading.Monitor]::Enter($s.Gate)
   try{if($s.Generation -ge 0 -and $s.Clock.ElapsedMilliseconds-$s.LeaseAt -ge 60000){throw 'lease expired'};if($l.generation -lt $s.Generation){throw 'lease regressed'};if($l.generation -gt $s.Generation){$s.Generation=[long]$l.generation;$s.LeaseAt=$s.Clock.ElapsedMilliseconds}}finally{[Threading.Monitor]::Exit($s.Gate)}

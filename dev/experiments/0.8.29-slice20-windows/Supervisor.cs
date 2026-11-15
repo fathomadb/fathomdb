@@ -29,6 +29,12 @@ internal static class Supervisor {
     static string S(IDictionary<string,object> d,string key) {object v;if(!d.TryGetValue(key,out v)||!(v is string)||String.IsNullOrEmpty((string)v))throw new InvalidDataException("missing string "+key);return (string)v;}
     static string C(string key) {return S(cfg,key);}
     static Dictionary<string,object> Read(string path) {using(FileStream f=new FileStream(path,FileMode.Open,FileAccess.Read,FileShare.ReadWrite|FileShare.Delete))using(StreamReader r=new StreamReader(f,Encoding.UTF8)){return Serializer().Deserialize<Dictionary<string,object>>(r.ReadToEnd());}}
+    static Dictionary<string,object> ReadMutable(string path) {
+        FileStream f;
+        try{f=new FileStream(path,FileMode.Open,FileAccess.Read,FileShare.ReadWrite|FileShare.Delete);}
+        catch(IOException e){int code=e.HResult&0xffff;if(code==2||code==32||code==33)return null;throw;}
+        using(f)using(StreamReader r=new StreamReader(f,Encoding.UTF8)){return Serializer().Deserialize<Dictionary<string,object>>(r.ReadToEnd());}
+    }
     static string Hash(string path) {using(SHA256 h=SHA256.Create())using(FileStream f=File.OpenRead(path)){return BitConverter.ToString(h.ComputeHash(f)).Replace("-","").ToLowerInvariant();}}
     static string Owned(string path) {string full=Path.GetFullPath(path),root=Path.GetFullPath(C("root")).TrimEnd('\\')+"\\";if(!full.StartsWith(root,StringComparison.OrdinalIgnoreCase))throw new InvalidDataException("path outside owned R root");return full;}
     static void Atomic(string path,object value) {
@@ -46,8 +52,8 @@ internal static class Supervisor {
         try {
             while(!done) {
                 string cancel=Path.Combine(control,"cancel.json");
-                if(File.Exists(cancel)){CheckIdentity(Read(cancel));Stop("explicit-host-cancel",false);return;}
-                Dictionary<string,object> l=Read(Path.Combine(control,"lease.json"));CheckIdentity(l);
+                if(File.Exists(cancel)){Dictionary<string,object> value=ReadMutable(cancel);if(value==null){Thread.Sleep(250);continue;}CheckIdentity(value);Stop("explicit-host-cancel",false);return;}
+                Dictionary<string,object> l=ReadMutable(Path.Combine(control,"lease.json"));if(l==null){Thread.Sleep(250);continue;}CheckIdentity(l);
                 object raw;if(!l.TryGetValue("generation",out raw)||(raw is bool)||!(raw is int||raw is long))throw new InvalidDataException("invalid lease generation");
                 long next=Convert.ToInt64(raw);
                 lock(Sync){if(next<generation)throw new InvalidDataException("regressed lease");if(next>generation){generation=next;leaseAt=Clock.ElapsedMilliseconds;}}

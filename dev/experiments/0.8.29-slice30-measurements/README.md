@@ -444,6 +444,11 @@ under the same executor. Options name owned `root`, original `allocation`, nativ
 unchanged shared total. The profile must explicitly bound other-work reserves;
 unknown is never zero. No selected profile or runtime GO is supplied here.
 
+Python admission and the native pre-store entry record/refuse inherited active
+projection batching or presence-gated reader/writer PRAGMA/search-limit
+experiments. They retain inert values unchanged and never silently clear the
+environment to label an experimental execution as default.
+
 Initial entry runs only C-H-r0,T-H-r0,T-H-r1,C-H-r1. Continuation sets `initial`
 false and names a `review` file: explicit ACCEPT/reviewer/subject, next `n`/`mode`,
 nonfuture used/retained checkpoint, qualified prefix attempt identities and

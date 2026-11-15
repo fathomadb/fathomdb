@@ -13,4 +13,5 @@ if [ -L .venv ] || [ ! -x .venv/bin/python ]; then
   exit 1
 fi
 .venv/bin/python dev/experiments/0.8.29-slice30-measurements/d_guard_tests.py -v
-exec .venv/bin/python dev/experiments/0.8.29-slice30-measurements/d_entry_tests.py -v
+.venv/bin/python dev/experiments/0.8.29-slice30-measurements/d_entry_tests.py -v
+exec .venv/bin/python dev/experiments/0.8.29-slice30-measurements/d_environment_tests.py -v

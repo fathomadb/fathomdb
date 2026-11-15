@@ -1,6 +1,8 @@
 """D-owned subprocess binding; no campaign admission or allocation reset."""
 
 import json
+import os
+import struct
 from pathlib import Path
 import subprocess
 import time
@@ -10,6 +12,29 @@ from g_attempt import live_owned_pids, stop_owned_group, unreaped_exit
 
 
 CLEANUP_RESERVE_NS = 6*10**9
+
+
+def inherited_settings():
+    """Return inherited settings when they enable a nondefault engine treatment.
+
+    Match the engine's exact batch values, presence-gated PRAGMA assignments and
+    usize search-limit parsing. Inert values remain inherited unchanged.
+    """
+    keys = ("FATHOMDB_PROJECTION_BATCH", "FATHOMDB_PERF_EXPERIMENTS",
+            "FATHOMDB_PERF_READER_PRAGMAS", "FATHOMDB_PERF_WRITER_PRAGMAS", "FATHOMDB_PERF_SEARCH_LIMIT")
+    values = {key: os.environ[key] for key in keys if key in os.environ}
+    batch = values.get("FATHOMDB_PROJECTION_BATCH") in ("1", "true", "on")
+    limit = values.get("FATHOMDB_PERF_SEARCH_LIMIT", "")
+    digits = limit[1:] if limit.startswith("+") else limit
+    try:
+        search = limit.isascii() and digits.isdecimal() and int(limit) < 1 << (struct.calcsize("P")*8)
+    except ValueError:
+        search = False
+    pragmas = any("=" in entry and entry.split("=", 1)[0].strip()
+        for key in ("FATHOMDB_PERF_READER_PRAGMAS", "FATHOMDB_PERF_WRITER_PRAGMAS")
+        for entry in values.get(key, "").split(","))
+    active = batch or "FATHOMDB_PERF_EXPERIMENTS" in values and (search or pragmas)
+    return values if active else {}
 
 
 def _sample(attempt, stream):
@@ -38,6 +63,7 @@ def run_owned_cell(cell, root, command, deadline_ns, *, monitor=None):
     the existing three2s process-group cleanup bounds inside the outer deadline.
     """
     started = time.monotonic_ns()
+    inherited = inherited_settings()
     cell_root = Path(root)/cell["id"]
     cell_root.mkdir(parents=True, exist_ok=True)
     prior = [int(path.name.split("-")[1]) for path in cell_root.glob("attempt-*") if path.is_dir()]
@@ -52,7 +78,9 @@ def run_owned_cell(cell, root, command, deadline_ns, *, monitor=None):
     live, uncertain = [], False
     with (attempt/"child.log").open("w") as log, (attempt/"io.jsonl").open("w") as samples:
         try:
-            if time.monotonic_ns() >= child_deadline:
+            if inherited:
+                error = "inherited settings would change D default execution"
+            elif time.monotonic_ns() >= child_deadline:
                 error = "cell timeout before child start or cleanup allowance unavailable"
             else:
                 child = subprocess.Popen(argv, stdout=log, stderr=subprocess.STDOUT,
@@ -110,7 +138,8 @@ def run_owned_cell(cell, root, command, deadline_ns, *, monitor=None):
     if not complete and error is None:
         error = "native result incomplete or outer cell deadline exhausted"
     outcome = {"id": cell["id"], "cell": cell, "attempt_id": attempt.name, "attempt": str(attempt),
-               "status": "complete" if complete else "failed", "error": error, "native": native,
+               "status": "not_run_inherited_settings" if inherited else "complete" if complete else "failed",
+               "error": error, "native": native, "inherited_settings": inherited,
                "exit": code, "child_exit": child.returncode if child is not None else None,
                "pid": child.pid if child is not None else None,
                "pgid": child.pid if child is not None else None,

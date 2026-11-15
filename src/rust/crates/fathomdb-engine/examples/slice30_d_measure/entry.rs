@@ -13,6 +13,10 @@ pub(super) fn run_cell(
     origin: Instant,
     deadline: Instant,
 ) -> Result<Value, String> {
+    if let Some(settings) = inherited_settings() {
+        return Ok(json!({"cell":identity,"complete":false,"state":"held",
+            "reason":"inherited settings would change D default execution","inherited_settings":settings}));
+    }
     let n = usize::try_from(identity["n"].as_u64().ok_or("D cell n is unavailable")?)
         .map_err(|error| format!("D cell n: {error:?}"))?;
     let mode = match identity["mode"].as_str() {
@@ -84,8 +88,40 @@ pub(super) fn run_file(config: &Path, output: &Path, origin: Instant) -> Result<
     run_cell(&identity, output, origin, deadline)
 }
 
-#[cfg(test)]
 /// Return inherited settings that change D default execution, when present.
 pub(super) fn inherited_settings() -> Option<Value> {
-    None
+    let batch = matches!(
+        std::env::var("FATHOMDB_PROJECTION_BATCH").ok().as_deref(),
+        Some("1") | Some("true") | Some("on")
+    );
+    let pragma = |key| {
+        std::env::var(key).ok().is_some_and(|raw| {
+            raw.split(',')
+                .any(|entry| entry.split_once('=').is_some_and(|(name, _)| !name.trim().is_empty()))
+        })
+    };
+    let search = std::env::var("FATHOMDB_PERF_SEARCH_LIMIT")
+        .ok()
+        .is_some_and(|value| value.parse::<usize>().is_ok());
+    let perf = std::env::var_os("FATHOMDB_PERF_EXPERIMENTS").is_some()
+        && (pragma("FATHOMDB_PERF_READER_PRAGMAS")
+            || pragma("FATHOMDB_PERF_WRITER_PRAGMAS")
+            || search);
+    if !batch && !perf {
+        return None;
+    }
+    Some(Value::Object(
+        [
+            "FATHOMDB_PROJECTION_BATCH",
+            "FATHOMDB_PERF_EXPERIMENTS",
+            "FATHOMDB_PERF_READER_PRAGMAS",
+            "FATHOMDB_PERF_WRITER_PRAGMAS",
+            "FATHOMDB_PERF_SEARCH_LIMIT",
+        ]
+        .into_iter()
+        .filter_map(|key| {
+            std::env::var_os(key).map(|value| (key.to_owned(), json!(value.to_string_lossy())))
+        })
+        .collect(),
+    ))
 }

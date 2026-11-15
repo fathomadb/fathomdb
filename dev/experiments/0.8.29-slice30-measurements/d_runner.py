@@ -8,6 +8,7 @@ import sys
 import time
 
 from d_driver import reviewed_quartet, run_supervised_stage
+from d_attempt import inherited_settings
 from g_campaign import active_bytes
 from m_guard import guard, write_budget
 
@@ -163,7 +164,11 @@ def main():
         raise ValueError("D initial stage selector must be boolean")
     if type(config["common_limit_ns"]) is not int or config["common_limit_ns"] <= 20*10**9:
         raise ValueError("D common allowance must fund bounded guardian cleanup")
+    inherited = inherited_settings()
+
     def command():
+        if inherited:
+            raise ValueError("inherited settings would change D default execution: "+json.dumps(inherited))
         write_budget(root/"d-config.json", config)
         return [sys.executable, str(Path(__file__).resolve()), "_controller", "--root", str(root)]
 
@@ -174,7 +179,22 @@ def main():
         report = json.loads(report_path.read_text())
     except (OSError, ValueError):
         report = {}
-    if (not isinstance(report.get("controller_started_ns"), int)
+    if inherited:
+        spec = json.loads(Path(__file__).with_name("d-cells.json").read_text())
+        review = config.get("review") or {}
+        selected = {cell["id"] for cell in spec["cells"][:4]} if config["initial"] else {
+            cell["id"] for cell in spec["cells"] if (cell["n"], cell["mode"]) == (review.get("n"), review.get("mode"))}
+        rows = _interrupted_rows(root, config["allocation"], result)
+        for row in rows:
+            if row["status"].startswith("not_run"):
+                row.update(status="not_run_stage_review", reason="outside the requested quartet")
+                if row["id"] in selected:
+                    row.update(status="not_run_inherited_settings", inherited_settings=inherited,
+                               reason="inherited settings would change D default execution")
+        report = {"scope": config["scope"], "qualifies_natural": False, "state": "held",
+                  "source_control_complete": False, "stage_complete": False,
+                  "inherited_settings": inherited, "rows": rows}
+    elif (not isinstance(report.get("controller_started_ns"), int)
             or report["controller_started_ns"] < began):
         report = {"scope": config["scope"], "qualifies_natural": False, "source_control_complete": False,
             "stage_complete": False, "rows": _interrupted_rows(root, config["allocation"], result)}

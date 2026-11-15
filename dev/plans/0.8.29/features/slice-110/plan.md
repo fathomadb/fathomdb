@@ -66,8 +66,10 @@ missing-API compilation RED or outer-lease-only Candle bypass is permitted.
    changes; remaining actual-device/consumer proof retains its own scope.
 4. Consume independently reviewed qualified repair source. Registry versions must
    exist before registry pins; publication is outside this mandate. If necessary,
-   propose a reviewed exact-rev integration route rather than inventing a registry
-   checksum or silently publishing. Coordinate manifests/lock/interfaces with120/140.
+   use the concrete [local Git route](design.md#exact-revision-local-consumption)
+   after independent review, rather than inventing a registry checksum or
+   silently publishing. Resolve the actual coherent graph and K9 source before
+   a native product build. Coordinate manifests/lock/interfaces with120/140.
 5. Implement Fathom admission, typed mapping and safe diagnostics; serialize
    engine landings. Use owned tooling, scoped checks while working and one final
    clean full source gate per code phase; rerun affected failures only unless

@@ -198,28 +198,133 @@ in existing diagnostic text; do not report them as measured driver errors.
 Never call native error-name/string queries, primary retains or pool reads to
 enrich a cached loss. The selected fork's driver/library formatting is cached.
 
-Remaining edits are confined to existing construction/admission seams:
+### Concrete product delta against `c900a9a21`
 
-- `cuda_pool_policy.rs`: retain one strong token per used ordinal for process
-  life, independent of immutable allocator choice; use tracked default and
-  qualified tracked-private construction. Feed its cached first loss into the
-  accepted `classify_candle_fault`/`forward_failure`/build publication path,
-  replacing diagnostic re-retain/id reconstruction. Extend `candle_driver_code`
-  to typed BLAS/RNG Driver cases without treating library statuses as CUresult.
-  Protect device probes and last-model healthy release with the same admission;
-  CPU paths must never initialize the registry or CUDA.
-- `candle_bge.rs`: cover `probe_cuda`, device construction/attestation,
-  `new_from_weights_on_device`, `embed`, `embed_batch` and `embed_dual_for_test`.
-  `candle_reranker.rs`: cover its probe/device construction, `from_weights`,
-  `score`, `score_batch` and `score_chunk`. Hold leases through completion and
-  partial unwind; before returning success, observe cached terminal loss again.
-- Preserve engine close/drain/lock ordering and existing typed SDK propagation;
-  the existing reranker singleton/retry rules below still apply.
+Today `fallback_only::new_cuda_device` calls `Device::new_cuda` and its
+`forward_failure` returns `None`. Only the aarch64 private driver owns the
+accepted publication policy. Neither model has an outer admission lease.
+The following is net-new product wiring, using the inspected fork APIs; it does
+not repeat the accepted cudarc cleanup implementation.
 
-Prepare this product wiring/design/test scope against the exact accepted cudarc
-interfaces and reviewed Candle helper contract now. Actual artifact consumption
-uses the parent-reviewed route after required Candle qualification; current
-published pins stay fixed until then. Unchanged fork CPU proof is reused.
+1. Compile common tracked construction/admission whenever `embed-cuda` or
+   `rerank-cuda` is enabled, independently of architecture and `tegra-pool`.
+   Keep pool selection, configuration, reasons and reports architecture-gated.
+   CPU/Metal construction and metadata access never enter the CUDA registry.
+2. Keep a strong `Arc<PrimaryContextLifetime>` per used ordinal for process life.
+   A small per-ordinal initialization slot serializes `PrimaryContextLifetime::new`
+   without holding registry/slot locks across native work. Publish the token
+   before any context/pool wrapper can escape. Failed anchor creation before a
+   token exists permits retry; it must not permanently memoize ordinary OOM.
+   Once published, including after wrapper/load failure, never replace the token.
+   Constructor unwind releases its initialization slot; waiters cannot deadlock.
+3. Default/synchronous construction uses `CudaContext::new_tracked(token.clone())`
+   followed by `Device::new_cuda_from_context(context)`. Private construction uses
+   `CudaMemPool::create_tracked(token.clone(), &props)` and
+   `CudaContext::new_with_mem_pool_tracked(token.clone(), pool.clone())`.
+   Obtain `recorded_id()` from the token, not a new `cuCtxGetId`/retain.
+   Replace the current `with_primary_retained` decision/probe with this tracked
+   ownership. Probe the four-byte allocation through the tracked context's
+   stream/slice APIs, drop the temporary and synchronize while admitted; avoid
+   raw pool allocation/free that bypasses terminal-status recording. Preserve
+   normal create/probe-failure fallback reasons, but check token loss before
+   deciding fallback or wrapping another device. Terminal loss always returns
+   typed refusal, including during the first allocator decision.
+4. Read the attached token through
+   `device.as_cuda_device()?.cuda_stream().context().primary_lifetime()`;
+   cloning its Arc makes an owned `PrimaryContextLease` possible without borrowing
+   the model/device across the operation. Product constructors must never accept
+   an untracked CUDA device as a silently supported substitute. This remains an
+   internal construction invariant, not a new public device-injection API.
+5. Use one small admission/result wrapper in `cuda_pool_policy.rs`, with an inert
+   CPU/Metal case. Acquire `token.admit()` before the operation, invoke the real
+   production closure, then inspect cached `token.loss()` before returning either
+   success or error. If loss exists, drop any candidate successful value while
+   the lease is still alive and return the existing typed loss instead. Map a
+   native admission error without loss through the existing initialization/error
+   policy; never manufacture terminal OOM from its numeric status alone.
+6. Scope model construction inside that closure. In BGE
+   `new_from_weights_on_device`, clone the token first and move the owned device
+   into the admitted closure: a local lease declared inside the existing function
+   would otherwise drop before its device parameter on early return. Keep mmap
+   builders, BERT, reranker pooler/head and partial ownership inside the closure;
+   they unwind before admission is released. Completed-model rejection also
+   drops all fields inside the admitted scope. Keep `_pool_guard` last and retain
+   existing provider/model ownership; do not leak or quarantine the model.
+7. BGE `embed`, `embed_batch`, `embed_dual_for_test`; reranker `score`,
+   `score_batch` and `score_chunk`; both `probe_cuda` implementations and the
+   explicit local-asset attestation path run their CUDA work in that wrapper.
+   A batch keeps its outer lease across chunks; chunks can acquire nested leases.
+   Preserve the current empty-batch fast return because it submits no CUDA work.
+   For a nonempty call, loss refuses before tensor creation and a later cached
+   loss defeats even a host result already computed. Move transient tensors into
+   the inner scope so their Drop completes before the final cached-loss check.
+8. Reranker public methods retain `Result<_, candle_core::Error>`. Carry an
+   existing `CudaPoolFailure` in `Error::Cuda(Box::new(failure))`, with
+   wrapper-aware downcast extraction
+   in `cuda_pool_error`; do not convert it to a message-only error. The engine's
+   existing `CeScorer`/`score_pool` typed propagation and singleton stay intact.
+   Preserve `forward`, `batch forward`, `rerank forward`, `model load`,
+   `device probe` and `device build` operation labels. Extend recursive Candle
+   error extraction for BLAS/RNG `Driver` and `Lost` variants; only `Native`
+   BLAS statuses enter architecture/library compatibility handling.
+9. Replace `context_loss`/`context_alive` diagnostic re-retains with token
+   admission and cached first loss. The product publication record only caches
+   rendering/first operation and is never a health authority. Loss can originate
+   in descendant Drop without prior product publication. Map the token before
+   private OOM classification, including first terminal driver OOM. Last-model
+   decrement always runs; final healthy sync/trim shares token admission after
+   model buffers drop. Lost release does no primary/pool/native diagnostic read.
+10. Complete the existing nondefault `cuda-pool-observer` branch only after this
+    token is adopted. Observe an already-published private decision; never create
+    a token/context or synchronize/trim to obtain a sample. Healthy reads take
+    the same admission and use checked pool counters. Cache UUID/pool identity
+    during admitted construction. Recheck cached loss after reads: loss/error
+    returns unavailable counters and its actual cause, never partial/zero-filled
+    success. Keep model-count samples before/after and their existing ABA limit.
+    Without a decision, token, or feature, retain the existing unavailable states.
+    Update the observer's interface wording with this actual checked-read contract.
+
+### Exact-revision local consumption
+
+The prepared unpublished versions are `cudarc-fathomdb 0.20.0` and the three
+`candle-{core,nn,transformers}-fathomdb 0.12.0`; kernels stay `0.10.2` at K9.
+Cudarc's version/notices successor is
+`343b04fa73f85ee78754d6ee2baa07b959cc9ccc`, with production source identical to
+accepted `cb36642fad90c1796693c36ee59e3d3d162f4410`. Candle's current preparation
+base `0c1be99388db9c48440fb1ae854cf883f595cd30` is not the qualified helper repair:
+use the eventual independently accepted GREEN revision, never this placeholder.
+
+After Candle qualification, update all four exact version requirements together
+and supply a local Cargo configuration with `[patch.crates-io]` entries for
+cudarc and all three Candle packages. Each entry uses `git = "file:///..."`
+pointing to its existing local fork repository and the full qualified `rev`.
+Use Git revisions, not mutable worktree `path` overrides. Resolve/lock through
+that configuration in owned storage; no registry checksum exists for these Git
+packages and none may be fabricated. This is a local integration route, not a
+registry-ready publish claim; final release dependency publication/normalization
+still needs its separately authorized route.
+
+Candle's workspace `path` dependency on kernels would otherwise resolve kernels
+from the new Candle Git source. Keep the existing root crates.io K9 patch and
+add a second local-configuration patch table keyed by the exact Candle file Git
+URL, for example `[patch."file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb"]`
+(matching the exact Git URL used for the three local Candle patches). In that table
+set `candle-kernels` to the existing
+`https://github.com/coreyt/candle-fathomdb.git` revision
+`182ceab0547348993b6dbec4b1aed610dcc8b23f`.
+A tiny file-only Cargo fixture verified that a Git-source patch redirects a
+workspace path dependency to a distinct Git source; its cached
+`metadata --offline --locked` passed without compilation. No fork manifest change
+is needed. The owning Candle workspace qualifies its unchanged K9 kernel bytes;
+its path-source lock is not product K9 source proof.
+
+Before a product build, actual resolved metadata/lock must show one coherent
+0.12.0 Candle trio, cudarc0.20.0 at the full qualified revision, and kernel0.10.2
+at the original remote K9 source. Preserve feature and static-CUDART boundaries.
+If Cargo cannot resolve this exact graph from existing local objects/cache, stop
+at that dependency error; do not publish, fetch unrelated source, downgrade or
+silently change kernel source. The first affected checks/builds require the
+parent's released resource window. No native build ran during this design pass.
 
 Projection/query/ordinary/frozen search preserve current typed-error propagation;
 rerank never converts loss to0.0 or unavailable. Existing singleton retry can

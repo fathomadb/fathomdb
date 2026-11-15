@@ -53,6 +53,32 @@ Candle checked-F32 artifacts available through an approved consumption route:
    reset or whole-model quarantine is introduced. A successful result cannot
    escape after the call establishes terminal loss.
 
+### Product behavior batches after the qualified API migration
+
+Use the existing `PoolDriver`/per-module call seams for production dispatch.
+The common admission wrapper may expose only its admission/loss-read callbacks
+for CPU seam tests; the production callbacks call the actual fork token. Do not
+reimplement the fork generation state machine or publish a test-only public API.
+Construct `PrimaryContextLoss` values with its real public fields to exercise
+mapping. These names are proposed tests, not observed failures:
+
+| Batch | Concrete failing assertion and preservation controls |
+| --- | --- |
+| Mapping | `first_token_oom_is_context_loss_before_pool_exhaustion`: a first cached token cause of actual OOM yields ContextLost on the same call. No cached loss retains ordinary private Exhausted/default error. `cached_loss_keeps_native_or_synthetic_provenance` covers native UNKNOWN versus synthetic UNKNOWN, inactive/changed-id synthetic709 and library domain/status through Candle wrappers; no error-name/string or pool query. Retain the accepted concurrent winner/current-operation and once-snapshot controls. |
+| Construction | `lost_default_device_refuses_before_wrap` and `loss_during_initial_pool_decision_never_falls_back`: actual constructor-dispatch seam counts zero default/private wrap/allocation after loss. `same_ordinal_reuses_token_after_failed_model_load` preserves the strong token; ordinary pre-anchor OOM can retry. Check first-use concurrency/unwind releases waiters and different-ordinal independence without a second generation model. CPU/Metal never invoke registry callbacks. |
+| Models | `lost_bge_single_batch_and_dual_refuse_before_tensor_creation`, `lost_cached_reranker_refuses_all_chunks`, and `terminal_loss_defeats_prepared_success`: drive actual model entry/return scopes, reject vectors/logits after a cleanup seam establishes loss and require engine typed propagation rather than neutral scores. Preserve normal empty-input fast return and numerical/dispatch controls. A passing existing behavior is preservation, never a new RED claim. |
+| Unwind/release | `partial_load_device_drops_before_admission_release`: record production-scope Drop order for owned device, partial BERT/head and lease, including constructor parameter ownership. `completed_model_rejected_after_loss_drops_under_lease` rejects an otherwise successful load without whole-model retention. `last_model_drop_uses_token_without_diagnostic_retain` decrements counts, performs healthy sync/trim once and performs no native work when cached loss exists. Fork native descendants remain qualified by their owning tests. |
+| Observer | `tracked_observer_reads_only_under_admission` turns the current deliberately unavailable branch into actual checked healthy counter reads from the adopted private decision. `observer_loss_during_reads_discards_partial_counters` requires unavailable counters and actual cached cause; no token construction, synchronization, trim or allocation. Preserve no-decision/CPU/untracked unavailable states and before/after model-count semantics. |
+
+For each presently failing behavior, stage/commit the real assertion first and
+capture semantic RED before changing production behavior; preserve that assertion
+during GREEN. Group independent preservation assertions with the affected batch.
+Run the existing98-test policy sweep after the common-policy migration, targeted
+CUDA-feature product tests for new mapping/admission seams, and existing BGE/
+reranker plus engine typed-propagation controls. Native/installed healthy/OOM
+checks use the released resource window and actual qualified graph; seam-only
+success never qualifies a missing device or installed consumer.
+
 Candle separately proves its actual private F32 helper refuses before raw BLAS
 and preserves numerical dispatch with `CudaBlas::admit()` declared before pointer
 guards and checked `handle()` after preparation. Its current prepared tests are

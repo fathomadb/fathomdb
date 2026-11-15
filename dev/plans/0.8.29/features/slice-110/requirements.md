@@ -58,7 +58,15 @@ synthetic cause before projected-status/OOM mapping, without native diagnostic
 reads. A2/A3 also require Candle's checked F32 raw-GEMM boundary after pointer
 preparation; a product outer lease alone is insufficient. A6 requires both the
 tracked-pool fork artifact and the necessary Candle repair qualified before
-adoption. Source-accepted getters/library guards alone do not satisfy that edge.
+adoption. The same shared admission covers default/synchronous CUDA builds,
+first allocator decision, probes, partial model unwind and cached reranker calls.
+Token loss defeats a prepared success; ordinary OOM without token loss stays
+retryable. The existing optional pool observer may expose current counters only
+through adopted healthy admission and checked reads; loss discards partial data.
+Local unpublished integration must resolve the coherent0.12.0 Candle trio and
+cudarc0.20.0 at qualified Git revisions while retaining kernels0.10.2 at K9;
+local Git packages have no registry checksum or publication claim. Source-accepted
+getters/library guards alone do not satisfy that edge.
 R29-3P-17/D29-RESET and O3-17 retain their .30 live-proof limit under seq-377;
 current CPU policy proof does not qualify GPU teardown. Format37/no migration,
 existing public error payloads/codes and the A1–A6 identities remain fixed.

@@ -7,21 +7,21 @@ checkpoint row; ``--resume`` skips questions already in the checkpoint.
 
 Usage (see README.md):
   run.py --run-dir DIR --store FILE.sqlite --conv N --model sonnet|haiku
-         [--arm json|compact] [--qids q1,q2 | --sample conv0-30] [--limit N]
-         [--workers 4] [--resume]
+         --result-format text|structured --cap-usd USD [--qids q1,q2 | --sample conv0-30] [--limit N]
+         [--workers 1] [--resume]
 """
 
 from __future__ import annotations
 
 import argparse
-import concurrent.futures
 import json
 import os
-import queue
 import shutil
+import shlex
+import signal
+from decimal import Decimal
 import subprocess
 import sys
-import threading
 import time
 from pathlib import Path
 
@@ -37,8 +37,8 @@ ALLOWED = " ".join(f"mcp__fathomdb__{name}" for name in TOOLS)
 CONV0_SAMPLE = ("q35 q72 q96 q74 q6 q98 q22 q28 q110 q16 q70 q138 q33 q12 q112 q147 q32 q130 "
                 "q39 q95 q88 q114 q37 q69 q134 q91 q7 q120 q117 q61").split()
 
-# Verbatim from the first Claude run, with the question list cut to one question.
-PROMPT = """You answer questions from a memory store reached through the FathomDB tools. Always search before answering, even if you think the memory will not have it. Use the key names, objects and events from the question as the query, and keep the default limit of 10. Snippets show only the start of each record; when a result looks relevant but its snippet is cut off or does not show the answer, fetch it. If the first search misses, rephrase (synonyms, the other person's name, a related event) and search again. Records may begin with a timestamp: use it to resolve relative times like "last week" into absolute dates. Answer concisely from what you retrieved. Say you do not know only after at least two searches found nothing relevant.
+# The first Claude prompt with only the required snippet-sentence correction.
+PROMPT = """You answer questions from a memory store reached through the FathomDB tools. Always search before answering, even if you think the memory will not have it. Use the key names, objects and events from the question as the query, and keep the default limit of 10. Snippets are centred on the match; when a result looks relevant but its snippet is cut off or does not show the answer, fetch it. If the first search misses, rephrase (synonyms, the other person's name, a related event) and search again. Records may begin with a timestamp: use it to resolve relative times like "last week" into absolute dates. Answer concisely from what you retrieved. Say you do not know only after at least two searches found nothing relevant.
 
 Rules for this task:
 - Use ONLY the `mcp__fathomdb__*` tools (search, fetch, expand, orient, list_stores, use_store, feedback). Load their schemas with ToolSearch if needed. Do NOT use Read, Grep, Glob, Bash, WebSearch, WebFetch or any other tool, and do not look for the dataset or answers on disk. This is an evaluation; any other tool use invalidates it.
@@ -75,26 +75,26 @@ def parse_final(text: str) -> dict:
 
 
 def server_config(store_dir: Path, default_store: str, result_format: str = "text") -> dict:
+    if result_format not in ("text", "structured"):
+        raise ValueError("result_format must be text or structured")
     return {"roots": [{"path": str(store_dir), "suffix": ".sqlite"}], "default_store": default_store,
-            "use_default_embedder": True, "search_mode": "hybrid", "idle_timeout_secs": 0}
+            "use_default_embedder": True, "search_mode": "hybrid", "idle_timeout_secs": 0,
+            "result_format": result_format}
 
 
-def mcp_config(binary: Path, server_cfg: Path, stderr_path: Path, arm: str) -> dict:
-    """Claude Code MCP config; the server's stderr is appended to ``stderr_path``."""
-    if arm == "compact":
-        proxy = Path(__file__).resolve().parent / "compact_proxy.py"
-        inner = f'exec "{sys.executable}" "{proxy}" "{binary}" --config "{server_cfg}"'
-    else:
-        inner = f'exec "{binary}" --config "{server_cfg}"'
+def mcp_config(binary: Path, server_cfg: Path, stderr_path: Path, result_format: str) -> dict:
+    """Direct candidate server; its config controls the native result format."""
+    inner = shlex.join([str(binary), "--config", str(server_cfg)])
     return {"mcpServers": {"fathomdb": {
-        "type": "stdio", "command": "/bin/sh", "args": ["-c", f'{inner} 2>>"{stderr_path}"'],
+        "type": "stdio", "command": "/bin/sh", "args": ["-c", f"exec {inner} 2>>{shlex.quote(str(stderr_path))}"],
         "env": {"CUDA_VISIBLE_DEVICES": "0", "FATHOMDB_EMBED_DEVICE": "cuda:0"}}}}
 
 
 def claude_command(prompt: str, model: str, cfg: Path, *, max_turns: int = 8, cap_usd: str = "0.02") -> list[str]:
     return ["claude", "-p", prompt, "--model", model, "--tools", "", "--strict-mcp-config",
             "--mcp-config", str(cfg), "--allowedTools", ALLOWED, "--output-format", "stream-json",
-            "--verbose", "--no-session-persistence"]
+            "--verbose", "--no-session-persistence", "--max-turns", str(max_turns),
+            "--max-budget-usd", str(cap_usd)]
 
 
 def run_question(question, *, worker: Path, run_dir: Path, args, default_store: str) -> dict:
@@ -106,16 +106,24 @@ def run_question(question, *, worker: Path, run_dir: Path, args, default_store: 
         path.unlink(missing_ok=True)
     server_cfg = worker / "server.json"
     cfg = worker / "mcp.json"
-    cfg.write_text(json.dumps(mcp_config(Path(args.binary).resolve(), server_cfg, stderr_path, args.arm)))
+    cfg.write_text(json.dumps(mcp_config(Path(args.binary).resolve(), server_cfg, stderr_path, args.result_format)))
     cwd = worker / "cwd"
     started = time.time()
     with transcript.open("w") as out:
         try:
-            proc = subprocess.run(claude_command(build_prompt(qid, question.question), MODELS[args.model], cfg),
-                                  cwd=cwd, stdout=out, stderr=subprocess.PIPE, stdin=subprocess.DEVNULL,
-                                  timeout=args.timeout, text=True)
-            code, err = proc.returncode, proc.stderr[-2000:]
+            proc = subprocess.Popen(claude_command(build_prompt(qid, question.question), args.model, cfg,
+                                                  max_turns=args.max_turns, cap_usd=args.episode_cap_usd),
+                                    cwd=cwd, stdout=out, stderr=subprocess.PIPE, stdin=subprocess.DEVNULL,
+                                    start_new_session=True, text=True)
+            _, err = proc.communicate(timeout=args.timeout)
+            code, err = proc.returncode, err[-2000:]
         except subprocess.TimeoutExpired:
+            os.killpg(proc.pid, signal.SIGTERM)
+            try:
+                proc.communicate(timeout=2)
+            except subprocess.TimeoutExpired:
+                os.killpg(proc.pid, signal.SIGKILL)
+                proc.communicate()
             code, err = "timeout", ""
     wall = time.time() - started
     result = {}
@@ -128,99 +136,135 @@ def run_question(question, *, worker: Path, run_dir: Path, args, default_store: 
             result = rec
     final = parse_final(result.get("result", ""))
     answer = (final["answer_json"] or {}).get("answer") or ""
-    return {"qid": qid, "item": args.item, "arm": args.arm, "model": MODELS[args.model], "exit": code,
+    from score import audit_transcript
+
+    audit = audit_transcript(transcript.read_text().splitlines())
+    valid = (code == 0 and result.get("subtype") == "success" and not result.get("is_error")
+             and final["answer_json"] is not None and final["answer_json"].get("qid") == qid and bool(answer.strip())
+             and not audit["invalid"] and not audit["tool_errors"] and not audit["busy_results"]
+             and 1 <= audit["searches"] <= 3 and sum(audit["tool_calls"].values()) <= 4
+             and isinstance(result.get("num_turns"), int) and result["num_turns"] <= args.max_turns)
+    return {"qid": qid, "item": args.item, "arm": args.result_format, "model": args.model, "exit": code,
+            "valid": valid,
             "stderr_tail": err, "wall_s": round(wall, 2), "answer": answer, **final,
             "total_cost_usd": result.get("total_cost_usd"), "usage": result.get("usage"),
             "num_turns": result.get("num_turns"), "is_error": result.get("is_error"),
             "subtype": result.get("subtype")}
 
 
+def _append(path: Path, row: dict) -> None:
+    with path.open("a") as handle:
+        handle.write(json.dumps(row) + "\n")
+        handle.flush()
+        os.fsync(handle.fileno())
+
+
+def _money(value) -> Decimal:
+    amount = Decimal(str(value))
+    if not amount.is_finite() or amount <= 0:
+        raise ValueError("USD limits must be finite and positive")
+    return amount
+
+
 def execute_questions(questions, process, checkpoint: Path, *, cap_usd, episode_cap_usd, resume: bool):
-    """Run unfinished questions using the historical checkpoint behavior."""
-    done = set()
+    """Reserve before each serial episode; never retry an unknown charged episode."""
+    cap, reservation = _money(cap_usd), _money(episode_cap_usd)
+    latest = {}
     if checkpoint.exists():
-        done = {json.loads(line)["qid"] for line in checkpoint.read_text().splitlines() if line.strip()}
+        if not resume:
+            raise ValueError("checkpoint exists; pass --resume")
+        for line in checkpoint.read_text().splitlines():
+            row = json.loads(line)
+            latest[row["qid"]] = row
+    if any(row.get("status") != "complete" or not row.get("valid") for row in latest.values()):
+        raise ValueError("incomplete/invalid episode: unknown spend cannot be retried automatically")
+    spent = sum((Decimal(str(row["charged_usd"])) for row in latest.values()), Decimal(0))
     for question in questions:
         qid = question.qid.split("_", 1)[-1]
-        if qid in done:
+        if qid in latest:
             continue
+        if spent + reservation > cap:
+            raise ValueError("phase allowance cannot reserve another episode")
+        _append(checkpoint, {"qid": qid, "status": "started", "reserved_usd": str(reservation)})
         row = process(question)
-        with checkpoint.open("a") as handle:
-            handle.write(json.dumps(row) + "\n")
+        cost = row.get("total_cost_usd")
+        known = isinstance(cost, (int, float)) and not isinstance(cost, bool) and Decimal(str(cost)).is_finite() and cost >= 0
+        valid = row.get("valid") is True and known
+        charge = Decimal(str(cost)) if known else reservation
+        row = {**row, "qid": qid, "status": "complete" if valid else "invalid", "valid": valid,
+               "reserved_usd": str(reservation), "charged_usd": str(charge)}
+        _append(checkpoint, row)
+        spent += charge
+        print(json.dumps({k: row.get(k) for k in ("qid", "exit", "wall_s", "total_cost_usd", "valid")}), flush=True)
+        if not valid or spent > cap:
+            raise ValueError("invalid episode or reported phase budget exceeded; execution stopped")
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--run-dir", required=True)
-    parser.add_argument("--store", required=True, help="source .sqlite store (copied per worker)")
+    parser.add_argument("--store", required=True, help="current candidate .sqlite store (copied per worker)")
     parser.add_argument("--conv", type=int, required=True)
-    parser.add_argument("--model", choices=sorted(MODELS), required=True)
-    parser.add_argument("--arm", choices=("json", "compact"), default="json")
+    parser.add_argument("--model", required=True, help="exact owner-selected model ID, or historical sonnet/haiku alias")
+    parser.add_argument("--result-format", choices=("text", "structured"), required=True)
     parser.add_argument("--item", default="5")
     parser.add_argument("--qids", help="comma-separated qN list")
     parser.add_argument("--sample", choices=("conv0-30",))
     parser.add_argument("--limit", type=int)
-    parser.add_argument("--workers", type=int, default=4)
-    parser.add_argument("--timeout", type=int, default=900)
+    parser.add_argument("--workers", type=int, choices=(1,), default=1)
+    parser.add_argument("--timeout", type=int, default=180)
+    parser.add_argument("--max-turns", type=int, default=8)
+    parser.add_argument("--cap-usd", required=True, help="reported-cost phase stop; not a provider-enforced billed ceiling")
+    parser.add_argument("--episode-cap-usd", default="0.02")
     parser.add_argument("--binary", required=True)
     parser.add_argument("--dataset", default=str(DATASET))
     parser.add_argument("--resume", action="store_true")
     args = parser.parse_args()
-
+    if args.timeout <= 0 or args.max_turns <= 0 or (args.limit is not None and args.limit <= 0):
+        parser.error("timeout, max-turns and limit must be positive")
+    _money(args.cap_usd)
+    _money(args.episode_cap_usd)
+    args.model = MODELS.get(args.model, args.model)
     run_dir = Path(args.run_dir)
     checkpoint = run_dir / "checkpoint.jsonl"
-    if run_dir.exists() and checkpoint.exists() and not args.resume:
-        sys.exit(f"{checkpoint} exists; pass --resume or use a new run dir")
-    run_dir.mkdir(parents=True, exist_ok=True)
+    if checkpoint.exists() and not args.resume:
+        parser.error("checkpoint exists; pass --resume or use a new run dir")
     questions, _ = load_questions(Path(args.dataset), args.conv)
+    if args.sample and args.conv != 0:
+        parser.error("conv0-30 requires conv0")
+    if args.sample and (args.qids or args.limit):
+        parser.error("fixed30 sample cannot be combined with qids or limit")
     wanted = args.qids.split(",") if args.qids else CONV0_SAMPLE if args.sample else None
     if wanted:
         by_qid = {q.qid.split("_", 1)[1]: q for q in questions}
-        missing = [q for q in wanted if q not in by_qid]
-        if missing:
-            sys.exit(f"unknown qids: {missing}")
+        if len(set(wanted)) != len(wanted) or any(q not in by_qid for q in wanted):
+            parser.error("duplicate or unknown qids")
         questions = [by_qid[q] for q in wanted]
     if args.limit is not None:
-        questions = questions[: args.limit]
-    done = set()
-    if checkpoint.exists():
-        done = {json.loads(line)["qid"] for line in checkpoint.read_text().splitlines() if line.strip()}
-    todo = [q for q in questions if q.qid.split("_", 1)[1] not in done]
+        questions = questions[:args.limit]
+    if not questions:
+        parser.error("empty question selection")
     store = Path(args.store).resolve()
     default_store = store.name.removesuffix(".sqlite")
-    meta = {"item": args.item, "arm": args.arm, "model": MODELS[args.model], "conv": args.conv,
-            "store": str(store), "binary": str(Path(args.binary).resolve()),
-            "questions": [q.qid for q in questions], "workers": args.workers}
-    (run_dir / "run.json").write_text(json.dumps(meta, indent=1))
-
-    pool: queue.Queue[Path] = queue.Queue()
-    for index in range(min(args.workers, max(1, len(todo)))):
-        worker = run_dir / "workers" / f"w{index}"
-        (worker / "store").mkdir(parents=True, exist_ok=True)
-        (worker / "cwd").mkdir(exist_ok=True)
-        copy = worker / "store" / store.name
-        if not copy.exists():
-            shutil.copy2(store, copy)
-        (worker / "server.json").write_text(json.dumps(server_config(worker / "store", default_store)))
-        pool.put(worker)
-    lock = threading.Lock()
-    started = time.time()
-
-    def task(question):
-        worker = pool.get()
-        try:
-            row = run_question(question, worker=worker, run_dir=run_dir, args=args, default_store=default_store)
-        finally:
-            pool.put(worker)
-        with lock, checkpoint.open("a") as handle:
-            handle.write(json.dumps(row) + "\n")
-        print(json.dumps({k: row[k] for k in ("qid", "exit", "wall_s", "total_cost_usd", "answer")}), flush=True)
-        return row
-
-    with concurrent.futures.ThreadPoolExecutor(max_workers=args.workers) as executor:
-        list(executor.map(task, todo))
-    print(json.dumps({"run_dir": str(run_dir), "ran": len(todo), "skipped": len(done),
-                      "wall_s": round(time.time() - started, 1)}))
+    meta = {"item": args.item, "arm": args.result_format, "model": args.model, "conv": args.conv,
+            "store": str(store), "binary": str(Path(args.binary).resolve()), "dataset": str(Path(args.dataset).resolve()),
+            "questions": [q.qid for q in questions], "workers": 1, "max_turns": args.max_turns,
+            "timeout": args.timeout, "episode_cap_usd": args.episode_cap_usd, "prompt": PROMPT}
+    run_dir.mkdir(parents=True, exist_ok=True)
+    meta_path = run_dir / "run.json"
+    if meta_path.exists() and json.loads(meta_path.read_text()) != meta:
+        parser.error("resume configuration differs; use a new run directory")
+    meta_path.write_text(json.dumps(meta, indent=1))
+    worker = run_dir / "workers" / "w0"
+    (worker / "store").mkdir(parents=True, exist_ok=True)
+    (worker / "cwd").mkdir(exist_ok=True)
+    copy = worker / "store" / store.name
+    if not copy.exists():
+        shutil.copy2(store, copy)
+    (worker / "server.json").write_text(json.dumps(server_config(worker / "store", default_store, args.result_format)))
+    execute_questions(questions, lambda q: run_question(q, worker=worker, run_dir=run_dir, args=args,
+                                                       default_store=default_store), checkpoint,
+                      cap_usd=args.cap_usd, episode_cap_usd=args.episode_cap_usd, resume=args.resume)
     return 0
 
 

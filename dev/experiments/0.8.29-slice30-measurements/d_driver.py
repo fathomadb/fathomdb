@@ -3,6 +3,45 @@
 import time
 
 from d_controller import run_initial_quartet, run_required
+from d_report import bind_execution
+
+
+def _qualify_native(cell, result):
+    """Bind a successful selected executor result before publishing lower evidence.
+
+    The executor retains native JSON and supplies any streamed C observations
+    separately. Missing C streams/native result/cost stays incomplete; failed
+    prefixes return unchanged. This does not launch or authorize an executor.
+    """
+    row = dict(result)
+    if row.get("status") != "complete":
+        return row
+    native, attempt = row.get("native"), row.get("attempt_id")
+    if not isinstance(native, dict) or not isinstance(attempt, str) or not attempt:
+        row.update(status="incomplete", error=row.get("error") or "current native execution report unavailable",
+                   execution_report=None, physical_count=None, closed=None, error_count=None,
+                   observations_complete=None, actual_overlap=None)
+        return row
+    identity = {"cell_id": cell["id"], "attempt_id": attempt, "n": cell["n"],
+                "mode": cell["mode"], "layer": cell["layer"], "repeat": cell["repeat"]}
+    observation = row.pop("observation", native.get("observation"))
+    report = bind_execution(identity, native, observation)
+    calls = native.get("calls")
+    errors = (sum(call["ok"] is False for call in calls) if isinstance(calls, list)
+              and all(type(call.get("ok")) is bool for call in calls) else None)
+    physical = (native.get("final") or {}).get("physical_rows")
+    peak = row.get("peak_bytes")
+    cost_available = type(peak) is int and peak > 0
+    row.update(execution_report=report, physical_count=physical if type(physical) is int else None,
+               closed=native.get("close_succeeded"), error_count=errors,
+               observations_complete=report["observations_complete"], actual_overlap=report["actual_overlap"],
+               dropped_records=observation.get("dropped_records") if isinstance(observation, dict) else None)
+    if not report["complete"] or not cost_available:
+        row["status"] = "incomplete"
+        row["error"] = row.get("error") or (
+            "observed owned storage cost unavailable" if not cost_available
+            else "native execution report is incomplete: " + ", ".join(report["issues"]))
+    return row
 
 
 def run_accounted_stage(spec, records, budget, execute, *, initial=True, clock=time.monotonic_ns):
@@ -44,7 +83,7 @@ def run_accounted_stage(spec, records, budget, execute, *, initial=True, clock=t
         budget["inflight"] = {"cell": cell["id"], "started_monotonic_ns": started}
         result = None
         try:
-            result = execute(cell, started + remaining)
+            result = _qualify_native(cell, execute(cell, started + remaining))
         finally:
             ended = clock()
             charge(ended, cell["id"])

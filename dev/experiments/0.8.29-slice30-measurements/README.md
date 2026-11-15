@@ -400,7 +400,11 @@ custody and native observation/report bindings remain required before runtime.
 budgets: charge the outer wall once across common/failed-cell portions, bound the
 next deadline by remaining allowance and retain unresolved owned cleanup. This
 has no CLI or live allocation/supervisor binding and authorizes no campaign;
-the initial held quartet remains the default stop boundary.
+the initial held quartet remains the default stop boundary. Successful selected
+executor results are bound to their current native report inside the accounted
+cell interval before publishing lower evidence. `test_d_execution_routing.py`
+checks this connection; missing native/C capture or observed storage cost stays
+incomplete, without a live payload dispatch.
 
 `d_report.py` binds current receipts/physical closure to exact-engine/session
 worker groups, durable commit coverage and natural-call overlap witnesses.

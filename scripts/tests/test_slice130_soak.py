@@ -97,6 +97,33 @@ class NumericalProtocolTests(unittest.TestCase):
         data.update(aborted="actual forward failed", abort_kind="operation_error")
         self.assertEqual(soak.evaluate_arm(data)["status"], "FAIL")
 
+    def test_observed_operation_failures_survive_incomplete_or_invalid_measurements(self):
+        for field in ("errors", "mismatches"):
+            for short in (False, True):
+                data = arm()
+                data["samples"][0][field] = 1
+                if short:
+                    data["samples"] = data["samples"][:1]
+                else:
+                    del data["samples"][0]["rss_bytes"]
+                with self.subTest(field=field, short=short):
+                    result = soak.evaluate_arm(data)
+                    self.assertEqual(result["status"], "FAIL")
+                    self.assertIn("operation errors or output mismatches", result["reasons"])
+                    self.assertTrue(any("missing" in reason or "60 scheduled" in reason for reason in result["reasons"]))
+
+    def test_named_counter_failure_survives_a_short_series_and_retains_gap_reason(self):
+        for mode in ("on", "off"):
+            data = arm(mode)
+            data["samples"] = data["samples"][:1]
+            data["samples"][0].update(counter_status="read_error", private_reserved_bytes=None,
+                                      raw_observation={"status": "read_error", "context_id": "18446744073709551615"})
+            with self.subTest(mode=mode):
+                result = soak.evaluate_arm(data)
+                self.assertEqual(result["status"], "FAIL")
+                self.assertTrue(any("counter" in reason for reason in result["reasons"]))
+                self.assertIn("separate baseline and exactly 60 scheduled samples required", result["reasons"])
+
     def test_pair_signed_differences_and_inclusive_control_limits(self):
         result = soak.evaluate_pair(arm(rss=lambda k: 90), arm("off"))
         self.assertEqual(result["status"], "PASS")

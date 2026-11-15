@@ -2664,13 +2664,18 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                 now_param.map(|_| " AND (?2 IS NULL OR ?2 IS NOT NULL)").unwrap_or("");
             let sql = format!(
                 "SELECT si.rowid, si.write_cursor, bm25(search_index), cn.write_cursor, \
-                 si.body IS cn.body, si.kind IS cn.kind FROM search_index si \
+                 si.body IS cn.body, si.kind IS cn.kind, si.body, si.kind FROM search_index si \
                  LEFT JOIN canonical_nodes cn ON cn.write_cursor=si.write_cursor \
                  WHERE search_index MATCH ?1{now_binding}{limit_clause}"
             );
             let mut statement = prepare_search_statement(&tx, &sql)?;
             let rows =
                 statement.query_map(rusqlite::params_from_iter(text_params.iter()), |row| {
+                    // The reference materializes both Strings for every match,
+                    // including losing ownerless rows. Preserve type/UTF-8
+                    // refusal with borrowed values before deferring allocation.
+                    row.get_ref(6)?.as_str().map_err(|_| rusqlite::Error::InvalidQuery)?;
+                    row.get_ref(7)?.as_str().map_err(|_| rusqlite::Error::InvalidQuery)?;
                     let rowid = row.get::<_, i64>(0)?;
                     let write_cursor = row.get::<_, i64>(1)? as u64;
                     let ownership = if row.get::<_, Option<i64>>(3)?.is_some() {

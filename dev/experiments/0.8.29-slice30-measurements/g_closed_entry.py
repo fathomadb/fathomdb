@@ -58,6 +58,9 @@ def run_entry(root):
     with (allocation / "g-campaign.lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         prepared = _call(allocation, mode, "preflight", {"root": str(root)})
+        os.environ["FATHOMDB_EMBED_DEVICE"] = prepared["device_policy"]
+        os.environ["HF_HUB_OFFLINE"] = "1"
+        os.environ["TRANSFORMERS_OFFLINE"] = "1"
         rows = run_prepared(prepared, root)
         _call(allocation, mode, "finish", {"root": str(root)})
     return rows

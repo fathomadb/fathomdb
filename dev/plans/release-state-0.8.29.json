@@ -522,6 +522,11 @@
         "index_sha256": "624b6b42e7e1d40866fea48d37a34b0ef8d786f46f4aa2ed9a3dd245d22a0a0a",
         "qualified_manifest_sha256": "f6180a00d1551a143a7445aa6ed28ed589533400ee702835663729694e393df5",
         "bridge_fixture_sha256": "9e92d236e44fc7443c1940f6870877a6e6eb07e92136ca2da331f88221e622ed"
+      },
+      "f_source_binding": {
+        "sha": "da9a145cf9c49c5b420d33c6055a8d47ca271f7a",
+        "status": "IMPLEMENTED_REVIEWED_INTEGRATED_SOURCE_ONLY",
+        "evidence": "Exact0.8.29 release/candidate/package admission after semanticREDf5929230f; all29 parser testsPASS, frozenoracles/Ruff/hooks. IndependentAstra design4de+implementationda9 ACCEPT. No nativeproduct/database/model/GPU execution or runtimeprotocol/capchange. CurrentF/Q8 native qualification remains pending."
       }
     },
     {

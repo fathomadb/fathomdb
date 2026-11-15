@@ -8,6 +8,8 @@ from pathlib import Path
 
 TOOLS = Path(__file__).resolve().parent
 CALIBRATION_ID = "S50-CAL:g-r-n10000-r0"
+FEATURES = {"ordinary":["embed-cuda","slice50-measurement"],
+            "diagnostic":["embed-cuda","slice50-measurement","slice30-observer"]}
 
 
 def plan():
@@ -58,7 +60,7 @@ def report(root):
 
 def build_tools(output, *, _run=None):
     """Build both private artifacts; injected harmless builders remain source-only."""
-    from g_freeze import FEATURES, SOURCE, compiler_inputs, git, identify
+    from g_freeze import SOURCE, compiler_inputs, git, identify
     if _run is None and git("status", "--porcelain"):
         raise ValueError("pair build requires clean current source")
     output = Path(output).resolve()
@@ -82,9 +84,11 @@ def build_tools(output, *, _run=None):
 
 def assemble_manifest(options, build, inputs, donors):
     """Bind validated current build/data to private canonical obligations."""
-    from g_freeze import FEATURES
+    actual_features = {name:list(build['binaries'][name]['features']) for name in FEATURES}
+    if actual_features != FEATURES:
+        raise ValueError("current private pair build/features required")
     return {"schema":"slice50-paired-campaign/v1", "scope":options.get('scope','primary'),
             "source_sha":build['source_sha'], "compiler_inputs":build['compiler_inputs'],
-            "build":build, "features":FEATURES, "inputs":inputs, "donors":donors,
+            "build":build, "features":actual_features, "inputs":inputs, "donors":donors,
             "plan":plan(), "allocation":options['allocation'],
             "profile":options['profile'], "retire_complete_copies":options.get('retire_complete_copies',False)}

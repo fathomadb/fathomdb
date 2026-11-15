@@ -124,6 +124,11 @@ def evaluate_pair(on: dict, off: dict) -> dict:
     return result
 
 
+def collect_arm(sdk, pool_mode, iteration, snapshot, emit, *, clock):
+    """Collect through injected real workload/observer functions; no native API is assumed."""
+    return {"sdk": sdk, "pool_mode": pool_mode, "baseline": None, "samples": [], "aborted": None}
+
+
 def main() -> int:
     """Evaluate an existing JSON SDK pair; never start a campaign or import native SDKs."""
     parser = argparse.ArgumentParser(description=__doc__)

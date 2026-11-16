@@ -225,8 +225,9 @@ All numerical bytes use MiB=1048576. Proposed per-SDK criteria:
 - Exactly60scheduled samples per process plus the separate t0 baseline,
   timestamps within5s of target; zero
   operation errors/output mismatches/abort and zero VmSwap. No new system swap-in
-  or swap-out over the window; unrelated host interference invalidates the
-  affected campaign rather than proving a product leak.
+  or swap-out over the window; interference that defeats these retained resource,
+  ownership or sampling requirements invalidates the affected campaign rather
+  than proving a product leak.
 
 Rationale: terminal growth bound≤15MiB over30minutes and16MiB median difference
 separate warm-up from persistent growth. The64MiB on/off footprint envelope is
@@ -239,8 +240,15 @@ optimize a passing threshold. Latency series/first-last summaries are reported;
 existing accepted performance contracts apply in their own workload, with no
 new arbitrary latency percentage gate here.
 
-Missing samples, active competing work, wrong pool/identity/artifact, swap or
-deadline invalidate the declared complete experiment; raw records survive.
+Owner seq390 predates the current campaign and makes host CPU load descriptive,
+not a quiet-host prerequisite. Record known concurrent CPU activity, retain all
+outliers/errors and keep every numerical target. CPU activity alone does not
+invalidate a measurement. Exclusive GPU protections and memory/disk/swap/time/
+growth/owned-actor cleanup requirements remain unchanged.
+
+Missing samples, competing CUDA work or other interference that defeats those
+requirements, wrong pool/identity/artifact, swap or deadline invalidate the
+declared complete experiment; raw records survive.
 Actual errors/mismatches/counter failures or numerical failure produce FAIL.
 No selective deletion/replacement arm. Stop affected campaign on genuine failure;
 diagnose and rereview a changed protocol/source before any separately authorized

@@ -34,9 +34,9 @@ entry gates; final90 artifact/default-output applicability must be checked for
 changed consumer/schema/budget/model-smoke scopes, without blanket replay or
 spend permission by inference.
 
-The earlier bounded Astra design PASS remains historical. Independent
-Astra-medium review of this updated actual-source design is pending parent
-commission. Source implementation still waits for actual Block1 exit and a fresh
+Independent Astra-medium review ACCEPTED this updated actual-source design at
+`72d9e2b1346dafc179f93f82d835bba20f682954`. The earlier bounded review remains
+historical. Source implementation still waits for actual Block1 exit and a fresh
 source-fit check. Tests/capture/converters/scored fields are planned, not built.
 This refresh performed source and full affected-test inspection only; no
 product build/test, database/native/model/GPU execution or scientific-ledger

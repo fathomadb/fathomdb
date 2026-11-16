@@ -882,7 +882,7 @@
         "dev/plans/0.8.29/features/slice-90/test-map.md"
       ],
       "conditions": "Approved80 AND actual Block1 follow-up exit after integrated selected20–70;160 is not that exit. Block1 exit is not a slice: the Slice90 owner runs it as90's pre-source entry step on the integrated root baseline; complete when applicable full/feature/performance checks, both-format conformance with inherited failures resolved and the approved smoke/item-4 remeasure (Slice160 Q12 content) have real results there, recorded by the parent in this slice's evidence.20,50,60,70 enter it closed;40 closed or by authorized rejection/defer.",
-      "phase": "BOUNDED_DESIGN_REVIEWED_SOURCE_HELD",
+      "phase": "CURRENT_DESIGN_ASTRA_ACCEPTED_IMPLEMENTATION_HELD_ON_BLOCK1",
       "evidence": "Astra-medium bounded early design PASS after FIX1: installed Python/TS semantic REDs precede corresponding shared converter GREEN; aggregate count/byte/fraction transport is distinct from numeric profile.dimension. Actual integrated predecessors, approved80 and the real Block1 follow-up exit precede source work. No90-to160 cycle, implementation authority or completion follows this review.",
       "block1_smoke_runner": {
         "source": "db2857c3012f8bdd245d1c6f80a419eff324030d",
@@ -899,7 +899,9 @@
         "native_origin": "ef544124d155bdca08f338bee4644379f8af56a5; actualproductionRust/Cargoequivalenceagainst e81b,notretagged",
         "result": "All32officialscenariosperformatran;3applicablePASS/0applicableFAIL,raw9passedchecks/24failedchecksretained. Inspectorall7tools;referenceSDK27checksperformat;18rawlifecyclecharacterizationsperformat. IndependentAstraacceptedcurrentcapability/fixture/HTTPclassification anddirectflags/paging/errorcoverage.",
         "limits": "Malformedtools/callenvelope-32601vs-32602 remainsrealvisibleupstreamdiscrepancy;notafailureofscopedMR001.3,notwaived/fullJSONRPCcompliance. NoBlock1exit:30/40/50andapproved72LLMepisodesremain."
-      }
+      },
+      "current_design_sha": "72d9e2b1346dafc179f93f82d835bba20f682954",
+      "current_design_review": "IndependentAstra-medium ACCEPT actual50/60/70 and fullowner-approved80 reconciliation,strictcoverage/identity/nativecontracts andsemanticREDsequence. No product code/runtime or newownerdecision; actual30/40/50/approved72episodes/Block1exit still gate source."
     },
     {
       "slice": 100,
@@ -1015,7 +1017,7 @@
       "depends_on": [
         110
       ],
-      "status": "IN_PROGRESS",
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
       "design_refs": [
         "dev/plans/0.8.29/features/slice-130/acceptance.md",
         "dev/plans/0.8.29/features/slice-130/campaign-protocol.md",
@@ -1027,15 +1029,15 @@
         "dev/plans/0.8.29/features/slice-130/review-log.md"
       ],
       "conditions": "Selected130D/E final artifacts/pins, healthy/lifecycle/counter/soak evidence and actual local resource readiness remain. Owner seq387 excludes unavailable non-Tegra ARM+GPU unitsB/C from known-working environments and every.29 gate; no passing/support claim or future release assigned. Seq378/381 retain newCUDA13 delivery and130A in.31; seq377 keeps actual resets in.30.",
-      "phase": "D_AND_SHIPPING_QUALIFIED_ORIGINAL_E_FAIL_REVISED_DECLARED_PROFILE_ACTIVE",
-      "evidence": "SelectedD/E design, passive observer and portable soak utility have independent scoped acceptance; actual source-bound healthy GPU/installed/lifecycle/shipping-equivalence/soak qualification remains. Owner seq387 removes130B/C from.29 obligations rather than passing them. No non-Tegra ARM+GPU procurement, quote, reservation or run is needed to close.29.",
+      "phase": "SELECTED_D_E_AND_SHIPPING_SCOPE_INDEPENDENT_ASTRA_ACCEPTED",
+      "evidence": "Selected .29 D/E formally accepted by independentAstra:actualD17/17,shippingPython/NodeCPU-auto-CUDA/lifecycle/witnessandbuild-equivalence pluscompleteddeclaredinstrumentedNode-semispace4/PythonON-OFFpair. Everyarm60samples/30terminal,zeroerrors/mismatches/swap,normalexit0,native/source/specidentityandstrictactor/lockcleanup verified. OriginaldefaultNodeFAIL/OFF_NOT_RUN remains; no shippingnumericalplateau/defaultNodepromise. Pre-runseq390CPUloadcontext and7implied/6confirmednamequeries/unknownutilityinternalsdisclosed. No mandatoryselectedD/Erow remains;A.31,B/Cexcluded,publication/final90applicability separate.",
       "qualified_subset_sha": "3a90e2c0e55710252a58dcba96db9e1c90070426",
       "e_portable_utility": {
         "source": "fc6010a38b48cedbf56cfe0d8afb777beebb834c",
         "status": "SCOPED_QUALIFIED_INDEPENDENT_ASTRA_ACCEPTED",
         "tests": "20 controls, Ruff, Pyright and existing tier inventory pass; one fast row registers the utility in the ordinary gate. Four original RED/GREEN steps plus bounded review FIX preserved.",
         "scope": "Frozen schedule/plateau math, bounded churn-free collector, explicit procfs units and error retention/early stop. Numerical instrumented utility only, no E/shipping/native/whole130 qualification.",
-        "remaining": "Actual D/SDK counter and installed/shipping-equivalence/lifecycle/2x60min soak evidence on selected existing CUDA12.6 local platforms. No non-Tegra ARM+GPU B/C or cloud-session prerequisite under seq387.",
+        "remaining": "No selected mandatory .29 D/E row remains; applicable final90/distributed-byte assessment belongs to160. Source utility alone was not campaign proof; actual independent final qualification is recorded separately.",
         "orin_readiness": "Read-only authorized SSH confirms existing aarch64 Orin/L4T R36.5.2/primary CUDA12.6/driver540.5.0 and capacity. No GPU work, idle/reservation or new tools inferred."
       },
       "d_passive_source": {
@@ -1044,7 +1046,7 @@
         "red": "40333308c",
         "scope": "Dedicated nondefault feature through embedder/engine/SDK/Python/NAPI; static native lossless JSON and exact passive catalog. Published-loss refusal and truthful unavailable/lost/untracked states, no context/model ownership or native dispatch.",
         "tests": "2 observer +2 wire/property/u64MAX/nullable-zero controls pass; SDK/Python/Node no-default-feature checks, Rust parity53/53 and41 catalog controls pass. Original600s capped light lane ended584.145s and fully collected. Rustfmt passes on integration. No GPU/model/liveDB/shipping/full-source qualification claim.",
-        "remaining": "Healthy tracked counter reads still require actual110 token adoption; native SDK runtime, shipping/build equivalence and live D/E qualification remain. Existing checker Pyright2 baseline/setup issues are retained for final relevant checks."
+        "remaining": "No selected mandatory .29 D/E row remains; applicable final90/distributed-byte assessment belongs to160. Source utility alone was not campaign proof; actual independent final qualification is recorded separately."
       },
       "gcp_venue_candidate": {
         "status": "EXCLUDED_FROM_029_GATES_UNQUALIFIED_FUTURE_CANDIDATE",
@@ -1090,20 +1092,21 @@
         "task": "/home/coreyt/fathomdb-0829-tegra-20261115",
         "status": "ALL_FOUR_ARTIFACTS_AND_D_SHIPPING_QUALIFIED_ASTRA_ACCEPTED",
         "tools": "Fresh task-owned physical venvPython3.13.12/Maturin1.14.1,Node25.9.0/npm11.12.1; own exact offlineGit/registry cache and local unpublished343/2ee/remoteK9 product graph. Cargo metadata --offline --locked passed.",
-        "next": "No passingartifact/D/shippingsmokereplay. PrimaryE2x60minuteon/offpairactiveonexistingOrin,samenumerical/resourceoracles;awaitactualcompletion.",
+        "next": "Selected shipping/D/E scope complete and independently accepted. No new native build/replay follows metadata edits; final90 artifact applicability remains in160.",
         "result": "Allshipping/observerPython/Nodeartifactsbuild/linkage/glibc/installedimportPASS. ActualD17cases(Py6,Node5,Rust6)PASS; shippingPyCPU/auto/CUDA single/batch/rerank/close/exit/v2witnessPASS;shippingNode loader/coinstall/CPU-auto-CUDA embed/rerank/witness/heap3of3PASS. ThreehelperdefectsgenuineRED/GREEN,finala9d35254498c3dad7bbaf0db24c0bd8613359dac independentlyAstraacceptedandintegratede1120198d182cbab4ad0379634fd297932841503. Originalfailuresretained.",
         "shipping_python_origin": "882fc9f5b8a6871bbe80f259db0d9d717e0ba44d;actualemptyproductioninputdiffagainst d5,artifactnotretaggedorrebuilt"
       },
       "e_runtime": {
-        "status": "ON_BOTH_PASS_OFF_ARM_ACTIVE_NOT_WHOLE_E_QUALIFIED",
+        "status": "COMPLETE_PAIR_PASS_INDEPENDENT_ASTRA_ACCEPTED",
         "source": "a9d35254498c3dad7bbaf0db24c0bd8613359dac",
         "task": "/home/coreyt/fathomdb-0829-tegra-20261115",
         "output": "runtime/soak-semispace4-a9d352544",
         "launcher_pid": 1632220,
         "collector_pid": 1632252,
         "gpu_lock": "Orin/tmp/fathomdb-gpu.lock inode32899085 heldFD9;actualUUIDbbbe9f37-7028-556a-930b-54e5f3b67a82",
-        "observed": "Existingunchangedevaluator confirmsbothONarmsPASS:60scheduled/30terminal,normalexit0,noaborts/errors/mismatches. NodeRSSslope.037564441693MiB/min,growth.9375MiB;Python0/0. PrivateUSED283241476/RESERVED301989888constant. Collector1632252 continuesOFF;originaldefaultNodeFAILpreserved. DeclaredNode--max-semi-space-size=4 inbothnewarms; notwholeE ordefaultprofilequalification.",
-        "limits": "Sequentialon/off60minutes,concurrentNode+Pythonperarm,originalstrictRSS/RESERVED/sample/output/swapcriteria;3900sarm/120srequest,8GiBMemAvailable/50GiBfree/64GiBoutput;foreignGPUusersstopownedworkonly. ShippingPynative882/otherartifactd5originsretained;observer-onlybuildpairequivalenceaccepted."
+        "observed": "BothSDKpairPASS. NodeONslope.037564441693MiB/min,growth.9375MiB;OFF.052269531880/1.68359375;pairdiffs-.014705090187/-4.75390625MiB. Pythonallslopes/growth0,pairmedianRSS-2.65234375MiB. ONprivateUSED283241476/RSV301989888constant;OFFnull,notzero. Fourworkers1632254/55/1682048/49andlauncher1632220/collector1632252gone;exit0,exactlockinode32899085noclaim,sourcea9clean/specacf0124unchanged.",
+        "limits": "Sequentialon/off60minutes,concurrentNode+Pythonperarm,originalstrictRSS/RESERVED/sample/output/swapcriteria;3900sarm/120srequest,8GiBMemAvailable/50GiBfree/64GiBoutput;foreignGPUusersstopownedworkonly. ShippingPynative882/otherartifactd5originsretained;observer-onlybuildpairequivalenceaccepted.",
+        "review": "IndependentAstrafinal ACCEPT selected130closure;previousdefaultprofileFAILretained. BoundedNVMLnamequerydeviationdisclosed,nozero-probe/continuous-exclusivityclaim;seq390predatescampaign. No retry, thresholdchange orcalibration."
       },
       "original_e_profile": {
         "status": "NODE_RSS_FAIL_PYTHON_PASS_OFF_NOT_RUN",
@@ -1115,7 +1118,8 @@
         "gpu_lock": "Orin/tmp/fathomdb-gpu.lock inode32899085 heldFD9;actualUUIDbbbe9f37-7028-556a-930b-54e5f3b67a82",
         "observed": "BothSDK60scheduled+30terminalsamples,0errors/normalexit. PythonRSSslope-.00180755MiB/min/growth-.078125MiB PASS. NodeRSSslope.72447199454>.5,growth30.7265625>16MiB FAIL;reservedconstant/swap0. OFFnotrun bystoprule. Nativeorigins unchanged; originaldefaultNodeprofileunqualified.",
         "limits": "Sequentialon/off60minutes,concurrentNode+Pythonperarm,originalstrictRSS/RESERVED/sample/output/swapcriteria;3900sarm/120srequest,8GiBMemAvailable/50GiBfree/64GiBoutput;foreignGPUusersstopownedworkonly. ShippingPynative882/otherartifactd5originsretained;observer-onlybuildpairequivalenceaccepted."
-      }
+      },
+      "sha": "a9d35254498c3dad7bbaf0db24c0bd8613359dac"
     },
     {
       "slice": 140,
@@ -1236,8 +1240,8 @@
         "dev/plans/0.8.29/features/slice-160/test-map.md"
       ],
       "conditions": "Every selected mandatory outcome qualified or explicitly disposed; actual installed/publication proof separate.20 closes only with actual Windows A6;40 may close by authorized rejection/defer;30/50/60/70/80 reach160 through90. Optional140/150 only if selected. Finished bounded local tasks are not local completion: every selected mandatory installed/platform (Q14) row and release dry-run (Q18) part that a permitted local or owned venue can qualify stays open until qualified there. The local mandate completes only when the remaining rows need CI after local passes and CI correctness review, or excluded registry publication; each is named outstanding, neither waived nor passed. Publication held. Owner seq377 explicitly defers live reset qualification to.30; seq378 defers new CUDA13 delivery/compiler/new-artifact proof to.31; seq379 accepts usage limits. These exclusions are owner dispositions, not passing tests. Existing platform/artifact rows remain. Seq381 also reallocates130A CUDA13 Tegra qualification to.31 while130D/E remain mandatory in.29;seq387 excludes unavailable non-Tegra ARM+GPU B/C.",
-      "phase": "LONG_SECURITY_LINUX_WINDOWS_PACKAGE_AND_ARCHIVE_SCOPES_ACCEPTED_REMAINING_MATRIX_PENDING",
-      "evidence": "IndependentAstraaccepted actualQ10longvariants,threeverifiedleafpackages,missingAC037livechecks,currentLinuxnohookproductionPython/Node+strictTS;canonicalCUDA12.6wheel2.28/NAPI2.39floors/linkage/driverlessandfourtypedrefusals;source-archiveRustSDKpersist/reopenandCLIimmutableintegrity;currentWindowsproduction186tests/wheelsize/tenWAL+external+installedcontrols. Source/runtime/target limits and rawfailedtaskcaptures retainedin160status. ARM/Mac/final90artifactapplicability,GPUforward/UUID/allocation,remainingfeature/performance andcomplete rehearsalstayopen. AfterlocalpassesreviewCIthenrunCI;registrypublicationexcluded.",
+      "phase": "LOCAL_LINUX_ARM_WINDOWS_AND_ARCHIVE_SCOPES_ACCEPTED_REMAINING_MATRIX_PENDING",
+      "evidence": "IndependentAstraaccepted actualQ10longvariants,threeverifiedleafpackages,missingAC037livechecks,currentLinuxnohookproductionPython/Node+strictTS;canonicalCUDA12.6wheel2.28/NAPI2.39floors/linkage/driverlessandfourtypedrefusals;source-archiveRustSDKpersist/reopenandCLIimmutableintegrity;currentWindowsproduction186tests/wheelsize/tenWAL+external+installedcontrols. Source/runtime/target limits and rawfailedtaskcaptures retainedin160status. ARM/Mac/final90artifactapplicability,GPUforward/UUID/allocation,remainingfeature/performance andcomplete rehearsalstayopen. AfterlocalpassesreviewCIthenrunCI;registrypublicationexcluded. ActualLinuxARM64genericCPU2.28wheel/addon/strictTS/runtime/modelCPUcontrolsindependentlyaccepted at84d8f451;hostqueryexceptionretained,notTegraGPU/universalARM/final90proof. Missinggenericx64CPU2.28wheelbuildongoing;Mac/remainingGPU/feature/rehearsal/sourceapplicability open.",
       "qualified_subset_sha": "b07a161317ff753b86b5eb706e7c5e761adecb9a"
     }
   ],
@@ -1248,7 +1252,6 @@
     40,
     50,
     90,
-    130,
     160
   ],
   "decisions": {
@@ -1475,7 +1478,7 @@
   },
   "release_readiness": {
     "status": "NOT_READY",
-    "qualification": "0–20,60,70,80design,100 andselected110/140 complete locally with independentreview. CurrentMCPconformancecomponent accepted;Block1stillopen. G14/84,M4/46,D12/24;S50ordinary6/136,diag0/24. Remaining40ownerdisposition,measurements,72approvedLLMepisodes/Block1,90implementation,130E and160. OriginalNodeEprofileFAIL;newdeclaredsemispace4profileactive,notpassed. No.29 live-reset/CUDA13/nonTegraARMGPU gate; registrypublicationexcluded. Actual160Q10longvariants/threeleafpackageverification andmissingAC037livechecks independentlyaccepted; no whole160/releasegreen claim. Current160Linuxproduction/floor/driverless/archiveSDK-CLI andWindowsproduction/WALscopes independentlyaccepted. Revised130EbothONarmsPASS/OFFactive; finalsource/platform/GPU/rehearsal obligationsremain.",
+    "qualification": "0–20,60,70,80design,100,selected110/130D-E/140 complete locally withindependentreviews. CurrentMCPconformance accepted;Block1stillopen. Gstrict14plusactivebatch/M4of46/D12of24;S50ordinary6of136/diag0of24 remain. 40ownerdisposition,approved72episodes and90implementationstillpending;90currentdesign72d9independentlyaccepted. 160long/security/Linuxcurrentproduction/CUDAfloor-driverless/archiveSDK-CLI/Windowsproduction-WAL/ARMCPU2.28componentsaccepted;genericx64CPU2.28build,Mac/final90/GPU/feature/rehearsal/CIreview-then-CI remain. OriginalNodeEdefaultprofileFAIL anddeclaredsemispace4scope/monitoringdeviation retained. Registrypublicationexcluded.",
     "publication": "HELD; no tag, dispatch, external ACL mutation or registry publication authorized by bootstrap.",
     "local_source_phase": {
       "status": "ASSEMBLED_FULL_SOURCE_PASS_INDEPENDENT_ASTRA_ACCEPTED",

@@ -415,4 +415,4 @@ the substantive work; do not create receipt-only follow-up phases.
 <!-- BEGIN GENERATED release-state:0.8.29:plan-immediate-next -->
 **IMMEDIATE NEXT: Slice 30** (`MEASURE`) — Current source-bound baseline and tracked AC083 measurements
 
-**Remaining ladder:** 30 → 40 → 50 → 90 → 130 → 160.<!-- END GENERATED release-state:0.8.29:plan-immediate-next -->
+**Remaining ladder:** 30 → 40 → 50 → 90 → 160.<!-- END GENERATED release-state:0.8.29:plan-immediate-next -->

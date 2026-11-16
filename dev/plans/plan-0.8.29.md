@@ -381,7 +381,7 @@ checklist, receipt or status authority; live results remain in release state.
 
 | Owner / lane | Next concrete delivery | Actual execution dependency |
 | --- | --- | --- |
-|30 measurements | Finish remaining12 D and42 M cells; G84 and frozen TC5 F/Q8 are independently qualified. | Existing reviewed native/input subjects and cumulative resource fit. D100k overlap is running;300k overlap consumes actual100k overlap. No new calibration or completed replay. |
+|30 measurements | Resolve demonstrated D storage/cancellation defects and remaining10 outcomes; finish42 M cells. G84 and frozen TC5 F/Q8 are independently qualified. | Existing reviewed native/input subjects and cumulative resource fit. D100k overlap has2new qualified rows,1Storagefailure and1interruption; repair original custody/accounting before further shared execution.300k overlap consumes actual100k overlap. No new calibration or completed replay. |
 |40 conditional optimization | Resolve the pending recommended no-new-optimization/defer decision. | Actual owner disposition; adoption would still require affected write evidence, exact snapshot safety and paired benefit proof. |
 |50 search | Complete paired performance of the implemented identity/text/snippet route. | Existing source-bound baseline/candidate/native subjects and available shared allocation; no private Memex snapshot. Six ordinary members qualified; next five-P window prepared. |
 |90 Block2 | Finish actual Block1 exit, then implement the approved80 stored-head coverage residuals. | Selected20–70 exits/dispositions, applicable checks/performance, both-format conformance and approved72-episode LoCoMo smoke/item4 run remain hard before source entry. Current90 design is independently accepted. |

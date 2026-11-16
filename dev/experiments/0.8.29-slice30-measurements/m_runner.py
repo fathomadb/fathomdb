@@ -288,7 +288,7 @@ def publish_selected(root):
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         ledger_path = allocation / "g-budget.json"
         ledger = json.loads(ledger_path.read_text())
-        if any(ledger.get(key) for key in ("inflight", "m_guardian", "d_guardian", "closed_guardian")):
+        if any(ledger.get(key) for key in ("inflight", "g_guardian", "m_guardian", "d_guardian", "closed_guardian", "s50_guardian")):
             raise ValueError("live shared ownership blocks selected final publication")
         usage = ledger["selected_cell_usage"][identity]
         remaining = min(manifest["cell_allowance"]["phase_ns"] - usage["wall_ns"],
@@ -435,7 +435,7 @@ def supervise_selected(cell_id, options_path, cell_root, *, source, task, entry)
 
 
 def finalize_invocation(root, started_ns, prior_wall_ns, options_path=None, cell_id=None):
-    """Charge uncommitted outer work after cleanup, including failure before input binding."""
+    """Charge outer work after cleanup; foreign custody returns unqualified, unreconciled credit."""
     import fcntl
     from g_campaign import active_bytes
     from m_guard import write_budget
@@ -460,8 +460,10 @@ def finalize_invocation(root, started_ns, prior_wall_ns, options_path=None, cell
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         ledger_path = allocation / "g-budget.json"
         ledger = json.loads(ledger_path.read_text())
-        if any(ledger.get(key) for key in ("inflight", "g_guardian", "m_guardian", "d_guardian", "closed_guardian")):
-            raise ValueError("live shared ownership blocks M invocation finalization")
+        if any(ledger.get(key) for key in ("inflight", "g_guardian", "m_guardian", "d_guardian", "closed_guardian", "s50_guardian")):
+            return {"exit": 125, "state": "held", "complete": False, "phase_qualified": False,
+                    "charged_ns": None, "cleanup_uncertain": None, "unreconciled": True,
+                    "reason": "live shared ownership blocks M invocation finalization"}
         usage = ledger.setdefault("selected_cell_usage", {}).setdefault(identity, {
             "limits": manifest["cell_allowance"], "wall_ns": 0, "new_retained_bytes": 0, "roots": []})
         if usage["limits"] != manifest["cell_allowance"]:
@@ -493,7 +495,7 @@ def finalize_invocation(root, started_ns, prior_wall_ns, options_path=None, cell
 
 
 def invalidate_selected(root, reason):
-    """Revoke this invocation's credit after strict cleanup and bounded outer capture failure."""
+    """Revoke credit after cleanup; foreign custody leaves receipts untouched and charge unknown."""
     import fcntl
     began = time.monotonic_ns()
     root = Path(root).resolve()
@@ -504,8 +506,10 @@ def invalidate_selected(root, reason):
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         ledger_path = allocation / "g-budget.json"
         ledger = json.loads(ledger_path.read_text())
-        if any(ledger.get(key) for key in ("inflight", "g_guardian", "m_guardian", "d_guardian", "closed_guardian")):
-            raise ValueError("live shared ownership blocks M invocation finalization")
+        if any(ledger.get(key) for key in ("inflight", "g_guardian", "m_guardian", "d_guardian", "closed_guardian", "s50_guardian")):
+            return {"exit": 125, "state": "held", "complete": False, "phase_qualified": False,
+                    "charged_ns": None, "cleanup_uncertain": None, "unreconciled": True,
+                    "reason": "live shared ownership blocks M invocation finalization"}
         path = next((root / "guardians").glob("*/guardian.json"))
         receipt = json.loads(path.read_text())
         boundary = receipt.get("boundary") or {}
@@ -558,7 +562,7 @@ def retire_working_copies(root):
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         ledger_path = allocation / "g-budget.json"
         ledger = json.loads(ledger_path.read_text())
-        if any(ledger.get(key) for key in ("inflight", "m_guardian", "d_guardian", "closed_guardian")):
+        if any(ledger.get(key) for key in ("inflight", "g_guardian", "m_guardian", "d_guardian", "closed_guardian", "s50_guardian")):
             raise ValueError("live shared ownership blocks working-copy retirement")
         usage = ledger[usage_key][outcome["id"]]
         retired = list(outcome.get("retired_working_copies", []))

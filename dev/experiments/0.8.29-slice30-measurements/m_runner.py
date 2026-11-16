@@ -10,6 +10,7 @@ import time
 
 from m_cell import execute
 from m_controller import load_plan
+from m_record import CONTROL_MAX_BYTES, OutputLimitError, write_json
 
 
 def source_smoke(root, cli, helper):
@@ -296,7 +297,7 @@ def publish_selected(root):
                     if row["id"] == identity and row.get("complete"):
                         row.update(execution_complete=True, complete=False, status="incomplete",
                                    reason="selected final report write exhausted its allowance")
-                report_path.write_text(json.dumps(value, indent=2) + "\n")
+                write_json(report_path, value)
                 correction_ns = time.monotonic_ns() - began - elapsed
                 _charge_final_work(root, ledger_path, ledger, usage, correction_ns,
                                    manifest["cell_allowance"], profile, failed=True)
@@ -543,7 +544,15 @@ def report(root, *, deadline_ns=None, output_path=None):
     destination = root / "reports"
     destination.mkdir(exist_ok=True)
     path = destination / f"report-{time.time_ns()}.json" if output_path is None else Path(output_path)
-    path.write_text(json.dumps(value, indent=2) + "\n")
+    try:
+        write_json(path, value)
+    except OutputLimitError as error:
+        value.update(complete=False, phase_qualified=False, output_overflow=str(error))
+        value["rows"] = [{"id": row["id"], "complete": False, "status": "incomplete",
+                          "reason": "report capture limit", "attempts": [
+                              {"attempt": item.get("attempt"), "complete": False}
+                              for item in row.get("attempts", [])]} for row in rows]
+        write_json(path, value, limit=CONTROL_MAX_BYTES)
     return value
 
 

@@ -9,6 +9,7 @@ from m_lifecycle import alternating, first_calls, idle_cycle
 from m_load import observe_load, summarize_load
 from m_schedule import closed_loop
 from m_session import McpSession
+from m_record import OutputLimitError
 
 
 def _loops(session, cell, queries, deadline_ns):
@@ -37,43 +38,46 @@ def _loops(session, cell, queries, deadline_ns):
 def execute(cell, command, root, *, queries, deadline_ns, files=None, control_path=None, on_spawn=None):
     """Run a cell against its actual stdio process and retain decoded outcomes."""
     cell_load = [observe_load()]
-    with McpSession(command, root, result_format=cell["result_format"]) as session:
-        if on_spawn:
-            on_spawn(session.child.pid)
-        session.initialize()
-        if cell["family"] in ("M-R", "M-C"):
-            result = _loops(session, cell, queries, deadline_ns)
-        elif cell["family"] == "M-L":
-            if cell["case"] in ("lazy", "eager"):
-                value = first_calls(session, queries[0], mode=cell["search_mode"])
-            elif cell["case"] == "idle":
-                value = idle_cycle(session, queries[0], mode=cell["search_mode"],
-                                   deadline_ns=deadline_ns)
-            elif cell["case"] == "alternating":
-                value = alternating(session, queries[0], mode=cell["search_mode"], files=files)
+    try:
+        with McpSession(command, root, result_format=cell["result_format"]) as session:
+            if on_spawn:
+                on_spawn(session.child.pid)
+            session.initialize()
+            if cell["family"] in ("M-R", "M-C"):
+                result = _loops(session, cell, queries, deadline_ns)
+            elif cell["family"] == "M-L":
+                if cell["case"] in ("lazy", "eager"):
+                    value = first_calls(session, queries[0], mode=cell["search_mode"])
+                elif cell["case"] == "idle":
+                    value = idle_cycle(session, queries[0], mode=cell["search_mode"],
+                                       deadline_ns=deadline_ns)
+                elif cell["case"] == "alternating":
+                    value = alternating(session, queries[0], mode=cell["search_mode"], files=files)
+                else:
+                    raise ValueError("unregistered lifecycle case")
+                result = {"lifecycle": value, "complete": value["complete"]}
+            elif cell["family"] == "M-E":
+                if control_path is None:
+                    raise ValueError("private diagnostic control socket required")
+                with PrivateControl(control_path, root) as control:
+                    value = run_case(cell["case"], session, control)
+                result = {"diagnostic": value["diagnostic"], "outcome": value,
+                          "control_failures": control.failures,
+                          "complete": value["diagnostic"]["complete"] and not control.failures}
             else:
-                raise ValueError("unregistered lifecycle case")
-            result = {"lifecycle": value, "complete": value["complete"]}
-        elif cell["family"] == "M-E":
-            if control_path is None:
-                raise ValueError("private diagnostic control socket required")
-            with PrivateControl(control_path, root) as control:
-                value = run_case(cell["case"], session, control)
-            result = {"diagnostic": value["diagnostic"], "outcome": value,
-                      "control_failures": control.failures,
-                      "complete": value["diagnostic"]["complete"] and not control.failures}
-        else:
-            search = session.tool("search", {"query": queries[0], "mode": cell["search_mode"], "limit": 10})
-            fetched = session.tool("fetch", {"refs": ["l:alpha"]})
-            orient = session.tool("orient", {})
-            error = session.tool("search", {"store": "missing", "query": queries[0]})
-            refs = [row["ref"] for row in search.get("payload", {}).get("results", [])]
-            body = fetched.get("payload", {}).get("items", [{}])[0].get("record", {}).get("body")
-            result = {"events": ["search", "fetch", "orient", "typed_error"],
-                      "literal_refs": refs, "fetch_body": body, "typed_error": error.get("error")}
-            result["complete"] = (refs == ["l:alpha"] and body == "alpha river crossing\né😀"
-                and all(row["ok"] for row in (search, fetched, orient))
-                and error.get("error") == "invalid_request/unknown_store")
+                search = session.tool("search", {"query": queries[0], "mode": cell["search_mode"], "limit": 10})
+                fetched = session.tool("fetch", {"refs": ["l:alpha"]})
+                orient = session.tool("orient", {})
+                error = session.tool("search", {"store": "missing", "query": queries[0]})
+                refs = [row["ref"] for row in search.get("payload", {}).get("results", [])]
+                body = fetched.get("payload", {}).get("items", [{}])[0].get("record", {}).get("body")
+                result = {"events": ["search", "fetch", "orient", "typed_error"],
+                          "literal_refs": refs, "fetch_body": body, "typed_error": error.get("error")}
+                result["complete"] = (refs == ["l:alpha"] and body == "alpha river crossing\né😀"
+                    and all(row["ok"] for row in (search, fetched, orient))
+                    and error.get("error") == "invalid_request/unknown_store")
+    except OutputLimitError as error:
+        result = {"complete": False, "output_overflow": str(error)}
     result["exit"] = session.exit
     cell_load.append(observe_load())
     result["load"] = summarize_load(cell_load)

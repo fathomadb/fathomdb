@@ -3,7 +3,7 @@
 import time
 
 from m_client import RpcChild
-from m_record import CheckpointLog
+from m_record import CheckpointLog, OutputLimitError
 from m_wire import decode_tool
 
 
@@ -74,9 +74,13 @@ class McpSession(RpcChild):
         """Observe normal child exit/EOF and close the decoded checkpoint stream."""
         result = super().close()
         if not self._outcomes.stream.closed:
-            for request_id, row in self.records.items():
-                if row["status"] != "completed":
-                    self._outcomes.write(row)
-            self._outcomes.close()
+            try:
+                for request_id, row in self.records.items():
+                    if row["status"] != "completed":
+                        self._outcomes.write(row)
+            except OutputLimitError as error:
+                self.failures.append(str(error))
+            finally:
+                self._outcomes.close()
         result["persistence"]["outcomes"] = self._outcomes.summary()
         return result

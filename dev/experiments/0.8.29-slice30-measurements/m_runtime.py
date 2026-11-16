@@ -17,7 +17,7 @@ from m_controller import load_plan, run_budgeted_table
 from m_freeze import validate
 from m_gpu import qualification
 from m_guard import process_start, write_budget
-from m_record import CheckpointLog
+from m_record import CheckpointLog, CONTROL_MAX_BYTES, OutputLimitError, write_json
 
 
 def read_queries(path):
@@ -138,7 +138,7 @@ def payload(manifest, cell, attempt, deadline_ns):
     if natural and cell["search_mode"] == "hybrid":
         from g_gpu import GpuObserver
         observer = GpuObserver(manifest["gpu"])
-        stream = CheckpointLog(attempt / "gpu.jsonl")
+        stream = CheckpointLog(attempt / "gpu.jsonl", max_bytes=CONTROL_MAX_BYTES)
 
     def started(pid):
         nonlocal thread
@@ -184,7 +184,13 @@ def payload(manifest, cell, attempt, deadline_ns):
                   selected_build=manifest["builds"][variant], prepared=prepared)
     if manifest.get("scope") == "bounded-natural-calibration":
         result["qualifies_primary"] = False
-    (attempt / "result.json").write_text(json.dumps(result, indent=2, allow_nan=False) + "\n")
+    try:
+        write_json(attempt / "result.json", result)
+    except OutputLimitError as error:
+        result = {"complete": False, "output_overflow": str(error), "pid": result["pid"],
+                  "cell": cell, "freeze_uuid": manifest["uuid"],
+                  "selected_build": manifest["builds"][variant]}
+        write_json(attempt / "result.json", result, limit=CONTROL_MAX_BYTES)
     return result
 
 

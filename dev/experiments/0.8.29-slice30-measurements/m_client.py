@@ -7,7 +7,7 @@ import subprocess
 import threading
 import time
 
-from m_record import CheckpointLog
+from m_record import CheckpointLog, OutputLimitError
 
 
 class RpcChild:
@@ -54,6 +54,8 @@ class RpcChild:
                     arrived = time.monotonic_ns()
                     if not line:
                         break
+                    if total + len(line) > max_stream:
+                        raise ValueError(f"{name}: bounded stream incomplete")
                     total += len(line)
                     began = time.monotonic_ns()
                     saved.write(line)
@@ -195,13 +197,20 @@ class RpcChild:
         if any(thread.is_alive() for thread in self._threads):
             self.failures.append("stream reader did not reach EOF")
         self._stop.set()
-        while self._consume(0):
-            pass
+        try:
+            while self._consume(0):
+                pass
+        except OutputLimitError as error:
+            self.failures.append(str(error))
         for request_id, row in self.records.items():
             if request_id not in self._persisted:
                 row["status"] = "unresolved"
-                self._invocations.write(row)
-                self._persisted.add(request_id)
+                try:
+                    self._invocations.write(row)
+                    self._persisted.add(request_id)
+                except OutputLimitError as error:
+                    self.failures.append(str(error))
+                    break
         self._submissions.close()
         self._invocations.close()
         self._protocol.close()

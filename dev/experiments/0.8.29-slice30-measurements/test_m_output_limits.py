@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import sys
 import tempfile
+import time
 import subprocess
 import unittest
 from unittest.mock import patch
@@ -91,6 +92,39 @@ class OutputLimitTests(unittest.TestCase):
         self.assertFalse(next(row for row in value["rows"] if row["id"] == fixture.cell["id"])["complete"])
         self.assertNotEqual(json.loads(fixture.guardian_path.read_text())["exit"], 0)
         self.assertGreater(json.loads(fixture.ledger_path.read_text())["used_ns"], 1000)
+
+    def test_shared_budget_writer_keeps_a_valid_24MiB_non_m_history(self):
+        from m_guard import write_budget
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "d-state.json"
+            write_budget(path, {"history": "x" * (24 * 1024**2)})
+            self.assertEqual(len(json.loads(path.read_text())["history"]), 24 * 1024**2)
+
+    def test_non_m_attempt_retains_its_original_uncapped_control_log(self):
+        from m_attempt import run_attempt
+        with tempfile.TemporaryDirectory() as temporary:
+            command = [sys.executable, "-c",
+                "import pathlib,sys;print('x'*100);"
+                "(pathlib.Path(sys.argv[2])/'result.json').write_text('{\"complete\":true}')"]
+            with patch("m_record.LOG_MAX_BYTES", 16):
+                outcome = run_attempt({"id": "D-independent", "family": "D-R"}, temporary,
+                                      command, deadline_ns=time.monotonic_ns()+15*10**9)
+            self.assertTrue(outcome["complete"])
+            self.assertGreater((Path(outcome["attempt"]) / "child.log").stat().st_size, 16)
+
+    def test_invocation_finalization_charges_outer_work_without_renewing_the_phase(self):
+        from test_m_publication_write_cap import PublicationWriteCapTests
+        fixture = PublicationWriteCapTests()
+        fixture.setUp()
+        self.addCleanup(fixture.doCleanups)
+        report(fixture.root)
+        finalize = getattr(m_runner, "finalize_invocation", None)
+        self.assertTrue(callable(finalize), "outer capture work is outside cumulative phase accounting")
+        with patch("m_runner.time.monotonic_ns", return_value=fixture.clock):
+            value = finalize(fixture.root, fixture.clock-3*10**9, 897*10**9)
+        self.assertFalse(value["phase_qualified"])
+        usage = json.loads(fixture.ledger_path.read_text())["selected_cell_usage"][fixture.cell["id"]]
+        self.assertEqual(usage["wall_ns"], 900*10**9)
 
     def test_publication_overflow_retains_all46_rows_but_cannot_qualify_the_cell(self):
         fixture = test_m_selected_report.SelectedReportTests()

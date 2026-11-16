@@ -174,5 +174,28 @@ class PairSelectionTests(unittest.TestCase):
             self.assertFalse(before['primary'][2]['credited'])
 
 
+    def test_selected_retirement_uses_final_credit_without_rewriting_frozen_option(self):
+        from test_pair_public import PairIncrementalRetirementTests
+        from g_pair_runtime import finish, retire_qualified
+        helper=PairIncrementalRetirementTests()
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary);manifest,rows,report=helper.fixture(root)
+            frozen=dict(manifest,retire_complete_copies=False)
+            (root/'manifest.json').write_text(json.dumps(frozen));original=(root/'manifest.json').read_bytes()
+            helper.final_guardian(root,rows[0]['guardian_owner'])
+            with patch('g_pair.report',return_value=report):finish(manifest,rows[2:])
+            budget=json.loads((root/'g-budget.json').read_text());budget['s50_guardian']=None
+            (root/'g-budget.json').write_text(json.dumps(budget))
+            retire_qualified(root,manifest=manifest)
+            self.assertTrue(all(Path(row['store']).exists() for row in rows))
+            helper.final_guardian(root,{'started_monotonic_ns':3,'controller_pid':4})
+            retire_qualified(root,manifest=manifest)
+            self.assertTrue(all(not Path(row['store']).exists() for row in rows))
+            self.assertEqual((root/'manifest.json').read_bytes(),original)
+            actual=json.loads((root/'g-budget.json').read_text())
+            self.assertGreater(actual['used_ns'],0)
+            self.assertEqual(actual['used_ns'],actual['common_used_ns']['S50'])
+
+
 if __name__=='__main__':
     unittest.main()

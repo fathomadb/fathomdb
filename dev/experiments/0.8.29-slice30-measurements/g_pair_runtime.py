@@ -33,7 +33,9 @@ def deadline(manifest, budget, owner, cell, now):
         index = next(index for index, item in enumerate(pairs) if item['id'] == cell['id'])
         members = pairs[index-index%2:index-index%2+2]
         prior_pair = sum(budget.get('cell_used_ns', {}).get(item['id'], 0) for item in members)
-        ends += [now + limits['pair_ns'] - prior_pair,
+        from g_pair_selection import pair_allowance
+        _, pair_ns = pair_allowance(manifest, budget, cell)
+        ends += [now + pair_ns - prior_pair,
                  owner['started_monotonic_ns'] + limits['phase_ns'] - 20*10**9]
     end = min(ends)
     if end <= now + 7*10**9:
@@ -56,12 +58,15 @@ def execute_native(manifest, cell, attempt, deadline_ns, *, observe=None):
     return {'complete': step['complete'], 'steps': [step], 'preparation': preparation, 'store': store}
 
 
-def payload(root, config, attempt, deadline_ns):
+def payload(root, config, attempt, deadline_ns, *, selection=None):
     """Execute only the exact currently registered private member and validate real facts."""
     from g_pair import canonical_members, qualify_step, worker_admission
     root = Path(root)
     from g_pair_freeze import prepared_inputs
     manifest = prepared_inputs(json.loads((root / 'manifest.json').read_text()))
+    if selection is not None:
+        from g_pair_selection import apply
+        manifest = apply(manifest, selection)
     cell = json.loads(Path(config).read_text())
     worker_admission(manifest, cell, attempt)
     if cell not in canonical_members(manifest) or time.monotonic_ns() >= deadline_ns:
@@ -139,6 +144,10 @@ def control(manifest, owner):
             return {'id': cell['id'], 'cell': cell, 'status': 'held', 'complete': False, 'reason': blocked}
         def register(selected, attempt):
             current = json.loads(path.read_text())
+            if manifest['scope'] == 'primary':
+                from g_pair_selection import pair_allowance
+                key, cap = pair_allowance(manifest, current, selected)
+                current.setdefault('s50_pair_limits', {})[key] = cap
             current['inflight'] = {'cell': selected['id'], 'started_monotonic_ns': started,
                 'started_at_ns': time.time_ns(), 'attempt': str(Path(attempt).resolve()), 'freeze_uuid': manifest['uuid']}
             write_budget(path, current)
@@ -151,8 +160,11 @@ def control(manifest, owner):
                 return 'paired shared retained storage exhausted'
             return None
         def command(selected, attempt, end):
-            return [sys.executable, str(Path(__file__).with_name('g_runner.py')), '_pair_cell',
-                    '--root', str(root), '--deadline-ns', str(end)]
+            command = [sys.executable, str(Path(__file__).with_name('g_runner.py')), '_pair_cell',
+                       '--root', str(root), '--deadline-ns', str(end)]
+            if manifest.get('_selection_path'):
+                command += ['--selection', manifest['_selection_path']]
+            return command
         outcome = run_attempt(cell, root / 'results', command, deadline_ns=end, register=register, monitor=monitor)
         elapsed = time.monotonic_ns() - started
         current = json.loads(path.read_text())
@@ -167,7 +179,7 @@ def control(manifest, owner):
             blocked = 'prior paired actor cleanup uncertain'
         write_budget(path, current)
         outcome.update(charged_ns=elapsed, load=summarize_load(load), qualifies_primary=manifest['scope'] == 'primary',
-                       guardian_owner=owner,
+                       guardian_owner=owner, selection=manifest.get('_selection_path'),
                        retained_growth_bytes=max(0, active_bytes(manifest['allocation']) - retained_before))
         if (Path(outcome['attempt']) / 'result.json').exists():
             actual = json.loads((Path(outcome['attempt']) / 'result.json').read_text())
@@ -187,7 +199,8 @@ def finish(manifest, rows):
     window = bool(active) and all(pair['complete'] for name in ('primary', 'diagnostics')
         for pair in result['comparisons'][name] if set(pair['members']).issubset(active))
     complete = result['calibration_complete'] if manifest['scope'] == 'calibration' else window or result['complete']
-    result.update(active_members=active, native_window_complete=window)
+    result.update(active_members=active, native_window_complete=window,
+                  selection=manifest.get('_selection_record'), controller_source_sha=manifest.get('controller_source_sha'))
     budget = json.loads((Path(manifest['allocation']) / 'g-budget.json').read_text())
     result.update(native_primary_complete=result['complete'], native_calibration_complete=result['calibration_complete'],
                   complete=False, calibration_complete=False, guardian_owner=budget['s50_guardian'])
@@ -195,13 +208,13 @@ def finish(manifest, rows):
     return complete
 
 
-def retire_qualified(root, outcome=None):
+def retire_qualified(root, outcome=None, *, manifest=None):
     """Retire disposable copies only after final report and original guardian qualification."""
     from g_pair import CALIBRATION_ID, retire_pair
     from g_pair_report import published_report
     from m_guard import Accounting
     root = Path(root)
-    manifest = json.loads((root / 'manifest.json').read_text())
+    manifest = manifest if manifest is not None else json.loads((root / 'manifest.json').read_text())
     cached = root / 'results/report.json'
     if not manifest['retire_complete_copies'] or not cached.exists():
         return
@@ -253,7 +266,7 @@ def retire_qualified(root, outcome=None):
                 write_budget(accounting.path, budget)
 
 
-def control_entry(operation, root, options, admission_fd):
+def control_entry(operation, root, options, admission_fd, *, selection=None):
     """Own freeze/run/report under the existing inherited guardian admission."""
     from g_pair import freeze
     from g_pair_freeze import validate
@@ -263,10 +276,14 @@ def control_entry(operation, root, options, admission_fd):
         selected = json.loads(Path(options).read_text())
         manifest = freeze(selected, root, scope='calibration' if operation == 'calibration' else 'primary')
     else:
-        manifest = validate(root)
+        manifest = validate(root, selection=selection)
     path = Path(manifest['allocation']) / 'g-budget.json'
     if json.loads(path.read_text()).get('s50_guardian') != owner:
         raise RuntimeError('paired operation lacks actual selected original guardian')
+    if selection is not None:
+        original = manifest['_selection_record']['guardian_owner']
+        if any(original.get(key) != owner.get(key) for key in ('pid', 'started_monotonic_ns', 'root')):
+            raise RuntimeError('selection is outside its actual admitting guardian')
     if operation == 'freeze':
         return True
     if operation == 'report':

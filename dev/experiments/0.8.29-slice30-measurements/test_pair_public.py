@@ -257,3 +257,48 @@ class PairFreezeTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'current paired forecasts unavailable'):
                 freeze({},out,scope='primary')
             self.assertFalse(out.exists())
+
+
+class PairNativePipelineTests(unittest.TestCase):
+    def test_native_p_streams_are_loaded_for_exact_record_comparison(self):
+        from g_pair import native_result
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary)
+            hit={'ok':True,'adapter':'sdk','query_index':0,'hits':[{'write_cursor':71,'score_bits':9}]}
+            (root/'samples.jsonl').write_text(json.dumps(hit)+'\n')
+            (root/'warmups.jsonl').write_text(json.dumps(hit)+'\n')
+            (root/'marker-probes.jsonl').write_text(json.dumps({'marker_current':True,'write_cursor':72})+'\n')
+            actual=native_result({'output':str(root),'result':{'sample_count':1,'open_report':{'pid':123}}})
+            self.assertEqual(actual['samples'],[hit])
+            self.assertEqual(actual['warmups'],[hit])
+            self.assertEqual(actual['probes'][0]['write_cursor'],72)
+            self.assertEqual(actual['open_reports'],[{'pid':123}])
+
+    def test_pair_qualification_requires_closed_native_and_exact_call_records(self):
+        from g_pair import qualify_step
+        cell=plan()['primary'][0]
+        incomplete={'complete':True,'result':{'complete':True,'sample_count':2000,'warmup_count':1000,
+            'natural_records':10000,'vector_rows':0,'marker_records':0,'format':37}}
+        issues=qualify_step(incomplete,cell,{})
+        self.assertIn('native_close_facts_missing',issues)
+        self.assertIn('exact_native_call_records_missing',issues)
+
+    def test_public_report_refuses_equal_ids_with_different_actual_record_cursors(self):
+        from g_pair import report
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary);rows=[]
+            for cell,cursor in zip(plan()['calibration'][:2],[71,72]):
+                attempt=root/'results'/cell['id']/'attempt-0001';native=attempt/'native';native.mkdir(parents=True)
+                call={'ok':True,'adapter':'sdk','route':'text','query_index':0,'sample_index':0,
+                      'elapsed_ns':100,'ids':['h:same'],'hits':[{'write_cursor':cursor,'score_bits':9}]}
+                (native/'samples.jsonl').write_text(json.dumps(call)+'\n')
+                (attempt/'result.json').write_text(json.dumps({'complete':True,'steps':[{'output':str(native),'result':{}}]}))
+                rows.append({'id':cell['id'],'cell':cell,'attempt':str(attempt),'status':'complete','complete':True,
+                    'cleanup_uncertain':False,'live_owned_pids':[]})
+            (root/'results/campaign-state.json').write_text(json.dumps(rows))
+            actual=report(root)
+            self.assertFalse(actual['calibration_complete'])
+            pair=actual['comparisons']['calibration'][0]
+            self.assertFalse(pair['equal'])
+            self.assertEqual(pair['status'],'mismatch')
+            self.assertTrue(all(row['status']=='not_run' for row in actual['primary']))

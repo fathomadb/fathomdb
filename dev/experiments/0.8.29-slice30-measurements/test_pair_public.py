@@ -250,11 +250,11 @@ class PairFreezeTests(unittest.TestCase):
                 freeze({'build_receipt':str(receipt)},out,scope='calibration')
             self.assertFalse(out.exists())
 
-    def test_primary_unknown_forecast_is_held_before_build_or_input_access(self):
+    def test_primary_missing_stop_allowance_is_held_before_build_or_input_access(self):
         from g_pair import freeze
         with tempfile.TemporaryDirectory() as temporary:
             out=Path(temporary)/'frozen'
-            with self.assertRaisesRegex(ValueError,'current paired forecasts unavailable'):
+            with self.assertRaisesRegex(ValueError,'positive finite primary'):
                 freeze({},out,scope='primary')
             self.assertFalse(out.exists())
 
@@ -363,13 +363,48 @@ class PairCompletionTests(unittest.TestCase):
             self.assertFalse(pair['complete'])
             self.assertTrue(all(not row['credited'] for row in actual['calibration']))
 
-    def test_unevidenced_primary_forecasts_are_unavailable(self):
-        from g_pair_freeze import require_forecasts
-        cells=plan()['primary']+plan()['diagnostics']
-        options={'forecasts':{'status':'CURRENT_PAIRED_BOUNDED','common_ns':100*10**9,'common_bytes':100,
-            'cells':{cell['id']:{'whole_ns':10**9,'new_retained_bytes':100,'observed_from':'/missing/current/paired'} for cell in cells}}}
-        with self.assertRaisesRegex(ValueError,'current paired observation'):
-            require_forecasts(options,cells)
+    def test_primary_stops_need_no_future_cost_observations(self):
+        from g_pair_freeze import primary_limits
+        limits={'pairs':1,'phase_ns':900*10**9,'pair_ns':800*10**9,
+                'new_retained_bytes':2*1024**3,'common_ns':100*10**9,'common_bytes':100}
+        self.assertEqual(primary_limits({'primary_limits':limits}),limits)
+        with self.assertRaisesRegex(ValueError,'positive finite primary'):
+            primary_limits({'primary_limits':dict(limits,pairs=0)})
+
+    def test_primary_selects_only_next_canonical_pair_without_a_calibration_gate(self):
+        from g_pair import required_prefix
+        from unittest.mock import patch
+        manifest={'scope':'primary','plan':plan(),'primary_limits':{'pairs':1}}
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary)
+            self.assertEqual(required_prefix(manifest,root),plan()['primary'][:2])
+            (root/'results').mkdir();(root/'results/report.json').write_text('{}')
+            prior={'primary':[{'id':row['id'],'credited':index<2} for index,row in enumerate(plan()['primary'])],
+                   'diagnostics':[]}
+            with patch('g_pair_report.published_report',return_value=prior):
+                self.assertEqual(required_prefix(manifest,root),plan()['primary'][2:4])
+        self.assertEqual(len(plan()['primary'])+len(plan()['diagnostics']),160)
+
+    def test_primary_admission_funds_only_selected_stops_with_actual_history(self):
+        from g_pair_runtime import assess_primary
+        limits={'pairs':1,'phase_ns':900*10**9,'pair_ns':800*10**9,
+                'new_retained_bytes':2*1024**3,'common_ns':100*10**9,'common_bytes':100}
+        manifest={'primary_limits':limits,'profile':{'total_shared_ns':5000*10**9,
+            'total_shared_retained_bytes':10*1024**3,'reserved_other_work_ns':100*10**9,
+            'reserved_other_work_bytes':1024**3}}
+        assess_primary(manifest,{'used_ns':3000*10**9},5*1024**3)
+        with self.assertRaisesRegex(ValueError,'selected primary'):
+            assess_primary(manifest,{'used_ns':4100*10**9},5*1024**3)
+
+    def test_primary_pair_deadline_includes_previous_member_failures(self):
+        from g_pair_runtime import deadline
+        cells=plan()['primary'][:2]
+        limits={'pairs':1,'phase_ns':900*10**9,'pair_ns':800*10**9,
+                'new_retained_bytes':2*1024**3,'common_ns':100*10**9,'common_bytes':100}
+        manifest={'scope':'primary','plan':plan(),'primary_limits':limits,
+            'profile':{'whole_cell_ns':900*10**9,'total_shared_ns':5000*10**9,'reserved_other_work_ns':0}}
+        budget={'used_ns':500*10**9,'cell_used_ns':{cells[0]['id']:600*10**9}}
+        self.assertEqual(deadline(manifest,budget,{'started_monotonic_ns':1000*10**9},cells[1],1100*10**9),1300*10**9)
 
 
 class PairCommandTests(unittest.TestCase):

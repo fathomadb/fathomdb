@@ -57,10 +57,18 @@ adopt a treatment from those intervals. AC083 distance uses unfiltered P1
 100k direct text only, tracked80/300ms targets; no target assertion is added.
 
 One owned campaign lock, serialized measurements, no concurrent compilation or
-owned heavy campaign. Start at1minute load<=2 and record load/CPU/disk/memory
-before/during/after. Load>2.5 flags a noisy cell; preserve it and permit one
-additional balanced repeat only if needed to interpret an apparent target miss
-or adapter difference, within existing caps. This is not retry-until-green.
+owned heavy campaign. The owner's November15 ruling (steward seq390),
+“You’re not going to get a quiet machine. Go with the current environment”,
+supersedes CPU quiet-entry requirements throughout the P/G/D/M execution paths,
+including inherited continuation text. Record actual load/CPU/disk/memory
+before/during/after. CPU load is descriptive: it cannot cause entry refusal,
+waiting, a failed assessment or result disqualification. Load>2.5 still flags a
+noisy cell; preserve every observation and result. Permit one additional balanced
+repeat only if needed to interpret an apparent target miss or adapter difference,
+within existing caps. This is not retry-until-green. Memory/disk/swap floors,
+time/growth/shared-budget caps, cgroup/owned-actor containment, exclusive GPU-ID
+locks and actual GPU noninterference checks remain unchanged. Numerical targets
+and acceptance populations remain unchanged.
 No filtering out slow calls/errors/outliers. Error latencies/counts are separate
 from successful-call percentiles; all requests remain in throughput denominators.
 

@@ -7,7 +7,7 @@ import time
 
 from g_campaign import active_bytes
 from m_attempt import run_attempt
-from m_load import observe_load
+from m_load import observe_load, summarize_load
 
 CELL_ID = "M-R-1-1-warn"
 CALIBRATION_ID = "M-CAL:" + CELL_ID
@@ -40,9 +40,10 @@ def control(root, owner, manifest=None):
     remaining_bytes = limits["new_retained_bytes"] - usage["new_retained_bytes"]
     bound = preparation_bound(manifest)
 
+    load_observations = []
+
     def authorize(prepared):
-        if observe_load()["load"] > 2:
-            return "quiet load<=2 calibration entry unavailable"
+        load_observations.append(observe_load())
         if time.monotonic_ns() + 7 * 10**9 >= deadline:
             return "remaining calibration work/cleanup allowance unavailable"
         if not prepared and bound > remaining_bytes:
@@ -82,7 +83,9 @@ def control(root, owner, manifest=None):
     else:
         budget["inflight"]["status"] = "cleanup_uncertain"
     write_budget(ledger_path, budget)
-    outcome.update(charged_ns=elapsed, scope="bounded-natural-calibration", qualifies_primary=False)
+    load_observations.append(observe_load())
+    outcome.update(charged_ns=elapsed, scope="bounded-natural-calibration", qualifies_primary=False,
+                   load=summarize_load(load_observations))
     (root / "results").mkdir(exist_ok=True)
     (root / "results/campaign-state.json").write_text(json.dumps([outcome], indent=2) + "\n")
     return outcome

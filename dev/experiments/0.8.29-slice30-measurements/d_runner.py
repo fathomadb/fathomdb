@@ -125,9 +125,11 @@ def _source_config(root):
 def _interrupted_rows(root, allocation, guardian):
     state = root/"d-state.json"
     try:
-        records = json.loads(state.read_text()) if state.exists() else {}
-    except (OSError, ValueError):
+        records = json.loads(state.read_text())
+    except FileNotFoundError:
         records = {}
+    if not isinstance(records, dict):
+        raise ValueError("existing D attempted state must remain a readable mapping")
     try:
         budget = json.loads((Path(allocation)/"g-budget.json").read_text())
     except (OSError, ValueError):

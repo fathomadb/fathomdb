@@ -5,7 +5,7 @@ from contextlib import ExitStack
 from pathlib import Path
 import time
 
-from d_controller import _qualified_lower, assess_stage, run_initial_quartet, run_required
+from d_controller import _qualified_lower, assess_stage, cell_limit_ns, run_initial_quartet, run_required
 from d_attempt import run_owned_cell
 from d_report import bind_execution
 from d_overlap import _interval
@@ -259,7 +259,7 @@ def reviewed_quartet(spec, records, budget, review):
         values = bounds[layer]
         if any(type(values.get(key)) is not int or values[key] <= 0 for key in ("time_ns", "active_bytes")):
             return held("reviewed C/T cost bounds are unavailable", "not_run_cost_unknown")
-        if values["time_ns"] >= 900*10**9 or values["active_bytes"] >= budget["storage_limit"]:
+        if values["time_ns"] >= cell_limit_ns(n) or values["active_bytes"] >= budget["storage_limit"]:
             return held("reviewed cell bounds exceed strict cell/storage headroom", "not_run_cap_feasibility")
         lower = assessment.get("predictions", {}).get(layer)
         if lower and any(values[key] < lower[key] for key in ("time_ns", "active_bytes")):

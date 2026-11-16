@@ -138,3 +138,13 @@ def validate_limits(limits):
     shared_limits(limits)
     if limits['payload_ns'] > 800*10**9 or limits['new_retained_bytes'] > 2*1024**3:
         raise ValueError('paired calibration exceeds selected work/growth maxima')
+
+
+def drive_members(manifest, root, execute):
+    """Drive exactly the active scope through existing admitted member execution."""
+    return []
+
+
+def qualify_step(step, cell, manifest):
+    """Require actual current native facts; source-only helpers cannot qualify."""
+    return []

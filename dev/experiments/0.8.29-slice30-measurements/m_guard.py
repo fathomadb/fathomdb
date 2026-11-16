@@ -32,7 +32,7 @@ class Accounting:
     """Track residual outer wall without charging an active/committed cell twice."""
 
     def __init__(self, path, started_ns, *, phase="M"):
-        if phase not in ("M", "D"):
+        if phase not in ("M", "D", "S50"):
             raise ValueError("unknown shared guardian phase")
         self.phase, self.guardian_key = phase, phase.lower()+"_guardian"
         self.path, self.started_ns = Path(path), started_ns

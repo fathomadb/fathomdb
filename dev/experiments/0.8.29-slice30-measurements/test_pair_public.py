@@ -133,5 +133,55 @@ class PairAdmissionTests(unittest.TestCase):
             self.assertEqual(donor.read_bytes(),before)
 
 
+class PairPublicPipelineTests(unittest.TestCase):
+    def test_full_calibration_dispatch_keeps_all_four_actual_child_invocations(self):
+        from g_pair import drive_members, plan
+        from g_driver import run_program_step
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary); calls=[]
+            code="import json,os,pathlib,sys; c=json.loads(pathlib.Path(sys.argv[1]).read_text()); o=pathlib.Path(sys.argv[2]);o.mkdir();(o/'result.json').write_text(json.dumps({'complete':False,'runner_only':True,'mode':os.environ.get('FATHOMDB_SLICE50_EAGER_TEXT_FOR_MEASUREMENT'),'cell':c}))"
+            manifest={'scope':'calibration','plan':plan()}
+            def actual_child(cell, index):
+                import time
+                output=root/f'actual{index}'
+                step=run_program_step([sys.executable,'-c',code],cell,output,time.monotonic_ns()+5*10**9)
+                calls.append(step)
+                return {'id':cell['id'],'status':'failed','complete':False,'runner_only':True,'attempt':str(output)}
+            rows=drive_members(manifest,root,actual_child)
+            self.assertEqual(len(rows),4)
+            self.assertEqual(len(calls),4)
+            self.assertEqual([row['result']['mode'] for row in calls],[None,'1',None,'1'])
+            self.assertEqual([row['result']['cell']['observe'] for row in calls],[False,False,True,True])
+            self.assertEqual(len({row['output'] for row in calls}),4)
+            self.assertTrue(all(not row['complete'] for row in rows))
+            stored=json.loads((root/'results/campaign-state.json').read_text())
+            self.assertEqual(len(stored),4)
+            self.assertTrue(all(row['status']=='failed' for row in stored))
+
+    def test_existing_guard_accounting_uses_the_pair_calibration_identity(self):
+        import time
+        from g_pair import CALIBRATION_ID
+        from m_guard import Accounting
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary)
+            limits={'phase_ns':100*10**9,'payload_ns':70*10**9,'new_retained_bytes':1000}
+            budget={'schema':'slice30-gd-budget/v1','used_ns':50*10**9,'inflight':None,
+                'calibration_usage':{CALIBRATION_ID:{'limits':limits,'wall_ns':20*10**9,'new_retained_bytes':100}}}
+            path=root/'g-budget.json';path.write_text(json.dumps(budget))
+            began=time.monotonic_ns();accounting=Accounting(path,began,phase='S50')
+            accounting.profile={'total_shared_ns':1000*10**9,'total_shared_retained_bytes':10000,'reserved_other_work_ns':0,'reserved_other_work_bytes':0}
+            deadline=accounting.begin_calibration(limits,root/'stage',budget)
+            self.assertEqual(deadline,began+80*10**9)
+            self.assertEqual(budget['calibration_usage'][CALIBRATION_ID]['wall_ns'],20*10**9)
+
+    def test_runner_only_and_missing_native_work_are_never_qualified(self):
+        from g_pair import qualify_step, plan
+        cell=plan()['calibration'][2]
+        issues=qualify_step({'complete':True,'result':{'complete':True,'runner_only':True}},cell,{'gpu':{}})
+        self.assertIn('runner_only_source_control',issues)
+        self.assertIn('actual_native_reports_missing',issues)
+        self.assertIn('diagnostic_work_unavailable',issues)
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -184,16 +184,24 @@ def recover(options, *, task, observe=None, clock=None, after_publish=None):
                     raise RuntimeError('foreign containment boundary changed during recovery')
                 marker.unlink()
             publish('marker')
-            entry['state'] = 'complete'
-            budget['d_guardian'] = budget['inflight'] = None
-            write_budget(allocation/'g-budget.json', budget)
-            publish('complete')
-        finally:
             elapsed = clock()-began
             if elapsed < 0:
                 raise RuntimeError('D recovery monotonic clock moved backwards')
             budget['used_ns'] += elapsed
             budget['common_used_ns']['D'] += elapsed
             entry['recovery_common_ns'] += elapsed
+            entry['state'] = 'complete'
+            budget['d_guardian'] = budget['inflight'] = None
             write_budget(allocation/'g-budget.json', budget)
+            publish('complete')
+        except BaseException:
+            if entry['state'] != 'complete':
+                elapsed = clock()-began
+                if elapsed < 0:
+                    raise RuntimeError('D recovery monotonic clock moved backwards')
+                budget['used_ns'] += elapsed
+                budget['common_used_ns']['D'] += elapsed
+                entry['recovery_common_ns'] += elapsed
+                write_budget(allocation/'g-budget.json', budget)
+            raise
         return {'complete': True, 'recovery': entry, 'already_complete': False}

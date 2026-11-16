@@ -149,6 +149,8 @@ class BoundedLog:
 
     def close(self):
         """Drain after owned cleanup; an unavailable EOF remains a capture failure."""
+        if self.saved.closed:
+            return
         os.close(self.writer)
         if self.thread is not None:
             self.thread.join(timeout=2)

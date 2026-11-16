@@ -352,72 +352,109 @@ def supervise_selected(cell_id, options_path, cell_root, *, source, task, entry)
 
     with ExitStack() as logs:
         capture = logs.enter_context(open_invocation_log(root, "supervisor"))
-        logs.enter_context(redirect_stdout(capture))
-        logs.enter_context(redirect_stderr(capture))
-        print("entry "+json.dumps(check(True)), flush=True)
-        sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=source, text=True).strip()
-        if (sha != options["_controller_source_sha"] or subprocess.check_output(
-                ["git", "status", "--porcelain"], cwd=source, text=True)):
-            raise RuntimeError("exact clean integrated source required")
-        remaining = (900*10**9-(time.monotonic_ns()-started_ns))//10**9
-        if remaining <= 0:
-            raise RuntimeError("whole-lane deadline already expired")
-        subprocess.run(["systemctl", "--user", "reset-failed", unit], check=False, timeout=10)
-        command = ["systemd-run", "--user", "--service-type=exec", "--wait", "--pipe", "--quiet", "--unit="+unit,
-            "--property=MemoryMax=4294967296", "--property=MemorySwapMax=0", "--property=Delegate=yes",
-            "--property=CPUQuota=200%", "--property=TasksMax=256", "--property=RuntimeMaxSec="+str(remaining),
-            "--property=TimeoutStopSec=5", "--property=KillMode=control-group", "--working-directory="+str(source),
-            "/bin/bash", str(entry), str(options_path), str(root), cell_id]
         service = logs.enter_context(open_invocation_log(root, "service"))
-        child = subprocess.Popen(command, stdout=service, stderr=subprocess.STDOUT)
-        service.start()
-        try:
-            while child.poll() is None:
-                check()
-                if cgroup is None:
-                    observed = subprocess.run(["systemctl", "--user", "show", unit,
-                        "--property=ControlGroup", "--value"], capture_output=True, text=True, timeout=5).stdout.strip()
-                    if observed:
-                        cgroup = observed
-                if time.monotonic_ns()-started_ns >= 900*10**9:
-                    raise RuntimeError("900-second whole required-cell deadline")
-                time.sleep(1)
-        except BaseException:
-            subprocess.run(["systemctl", "--user", "stop", unit], check=False, timeout=10)
-            child.wait(timeout=10)
-            raise
-        finally:
-            if child.poll() is None:
-                subprocess.run(["systemctl", "--user", "stop", unit], check=False, timeout=10)
-                child.wait(timeout=10)
-        properties = subprocess.check_output(["systemctl", "--user", "show", unit,
-            "--property=ActiveState", "--property=SubState", "--property=MainPID", "--property=Result",
-            "--property=ExecMainStatus", "--property=MemoryPeak", "--property=ControlGroup"], text=True, timeout=10)
-        final = dict(line.split("=", 1) for line in properties.splitlines())
-        procs = Path("/sys/fs/cgroup"+cgroup+"/cgroup.procs") if cgroup else None
-        if (final.get("ActiveState") not in ("inactive", "failed") or final.get("MainPID") != "0"
-                or (procs and procs.exists() and procs.read_text().strip())):
-            raise RuntimeError("strict owned unit/cgroup cleanup failed")
-        check()
         sample_log = logs.enter_context(open_invocation_log(root, "samples"))
-        for sample in samples:
-            sample_log.write(json.dumps(sample)+"\n")
-        if service.error or sample_log.error or capture.error:
-            invalidate_selected(root, service.error or sample_log.error or capture.error)
-            return 1
-        if (root / "manifest.json").exists():
-            final_report = finalize_invocation(root, started_ns, prior_wall)
-            if not final_report["phase_qualified"]:
-                return 1
+        child, failure = None, None
+        try:
+            with redirect_stdout(capture), redirect_stderr(capture):
+                print("entry "+json.dumps(check(True)), flush=True)
+                sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=source, text=True).strip()
+                if (sha != options["_controller_source_sha"] or subprocess.check_output(
+                        ["git", "status", "--porcelain"], cwd=source, text=True)):
+                    raise RuntimeError("exact clean integrated source required")
+                remaining = (900*10**9-(time.monotonic_ns()-started_ns))//10**9
+                if remaining <= 0:
+                    raise RuntimeError("whole-lane deadline already expired")
+                print("unit "+unit+" source "+sha, flush=True)
+                subprocess.run(["systemctl", "--user", "reset-failed", unit], check=False, timeout=10)
+                command = ["systemd-run", "--user", "--service-type=exec", "--wait", "--pipe", "--quiet", "--unit="+unit,
+                    "--property=MemoryMax=4294967296", "--property=MemorySwapMax=0", "--property=Delegate=yes",
+                    "--property=CPUQuota=200%", "--property=TasksMax=256", "--property=RuntimeMaxSec="+str(remaining),
+                    "--property=TimeoutStopSec=5", "--property=KillMode=control-group", "--working-directory="+str(source),
+                    "/bin/bash", str(entry), str(options_path), str(root), cell_id]
+                child = subprocess.Popen(command, stdout=service, stderr=subprocess.STDOUT)
+                service.start()
+                while child.poll() is None:
+                    check()
+                    if cgroup is None:
+                        observed = subprocess.run(["systemctl", "--user", "show", unit,
+                            "--property=ControlGroup", "--value"], capture_output=True, text=True, timeout=5).stdout.strip()
+                        if observed:
+                            cgroup = observed
+                    if time.monotonic_ns()-started_ns >= 900*10**9:
+                        raise RuntimeError("900-second whole required-cell deadline")
+                    time.sleep(1)
+        except BaseException as error:
+            failure = error
+        finally:
+            if child is not None:
+                if child.poll() is None:
+                    subprocess.run(["systemctl", "--user", "stop", unit], check=False, timeout=10)
+                    child.wait(timeout=10)
+                properties = subprocess.check_output(["systemctl", "--user", "show", unit,
+                    "--property=ActiveState", "--property=SubState", "--property=MainPID", "--property=Result",
+                    "--property=ExecMainStatus", "--property=MemoryPeak", "--property=ControlGroup"], text=True, timeout=10)
+                capture.write(properties+"\n")
+                final = dict(line.split("=", 1) for line in properties.splitlines())
+                cgroup = cgroup or final.get("ControlGroup")
+                procs = Path("/sys/fs/cgroup"+cgroup+"/cgroup.procs") if cgroup else None
+                if (final.get("ActiveState") not in ("inactive", "failed") or final.get("MainPID") != "0"
+                        or (procs and procs.exists() and procs.read_text().strip())):
+                    raise RuntimeError("strict owned unit/cgroup cleanup failed; finalization blocked")
+                try:
+                    check()
+                except BaseException as error:
+                    failure = failure or error
+                try:
+                    for sample in samples:
+                        sample_log.write(json.dumps(sample)+"\n")
+                except BaseException as error:
+                    failure = failure or error
+                if failure:
+                    capture.write("operator failure: "+str(failure)+"\n")
+                for log in (service, sample_log, capture):
+                    try:
+                        log.close()
+                    except BaseException as error:
+                        failure = failure or error
+                reason = failure or service.error or sample_log.error or capture.error
+                if child.returncode:
+                    reason = reason or f"owned M service exit {child.returncode}"
+                try:
+                    if reason and (root / "manifest.json").exists():
+                        invalidate_selected(root, str(reason))
+                finally:
+                    final_report = finalize_invocation(root, started_ns, prior_wall, options_path, cell_id)
+                if not final_report["phase_qualified"]:
+                    return 1
+                if reason:
+                    return 1
+        if failure:
+            raise failure
         return child.returncode
 
 
-def finalize_invocation(root, started_ns, prior_wall_ns):
-    """Charge only outer work not already committed, after original unit cleanup."""
+def finalize_invocation(root, started_ns, prior_wall_ns, options_path=None, cell_id=None):
+    """Charge uncommitted outer work after cleanup, including failure before input binding."""
     import fcntl
+    from g_campaign import active_bytes
+    from m_guard import write_budget
     root = Path(root).resolve()
-    manifest = json.loads((root / "manifest.json").read_text())
-    allocation = Path(manifest["allocation"])
+    bound = (root / "manifest.json").exists()
+    if bound:
+        manifest = json.loads((root / "manifest.json").read_text())
+    else:
+        from m_calibration import registered_cell, validate_limits
+        from m_freeze import approved
+        options = json.loads(Path(options_path).read_text())
+        profile = json.loads(Path(options["profile"]).read_text())
+        approved(profile, options["allocation"])
+        validate_limits(options["cell_allowance"])
+        manifest = {"allocation": options["allocation"], "profile": profile,
+                    "cell_allowance": options["cell_allowance"], "plan": [registered_cell(cell_id)]}
+    allocation = Path(manifest["allocation"]).resolve()
+    if not root.is_relative_to(allocation):
+        raise ValueError("original M invocation allocation required")
     identity = manifest["plan"][0]["id"]
     with (allocation / "g-campaign.lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -425,11 +462,27 @@ def finalize_invocation(root, started_ns, prior_wall_ns):
         ledger = json.loads(ledger_path.read_text())
         if any(ledger.get(key) for key in ("inflight", "g_guardian", "m_guardian", "d_guardian", "closed_guardian")):
             raise ValueError("live shared ownership blocks M invocation finalization")
-        usage = ledger["selected_cell_usage"][identity]
+        usage = ledger.setdefault("selected_cell_usage", {}).setdefault(identity, {
+            "limits": manifest["cell_allowance"], "wall_ns": 0, "new_retained_bytes": 0, "roots": []})
+        if usage["limits"] != manifest["cell_allowance"]:
+            raise ValueError("original M invocation allowance changed")
+        usage["roots"] = list(dict.fromkeys([*usage.get("roots", []), str(root)]))
+        usage["invocation_logs"] = list(dict.fromkeys([*usage.get("invocation_logs", []), *[
+            str(root.parent / (root.name+suffix)) for suffix in ("-service.log", "-supervisor.log", "-samples.jsonl")]]))
         charged_at = time.monotonic_ns()
         uncharged = max(0, charged_at-started_ns-(usage["wall_ns"]-prior_wall_ns))
+        if not bound and not list((root / "guardians").glob("*/guardian.json")):
+            ledger["used_ns"] += uncharged
+            ledger.setdefault("common_used_ns", {})["M"] = ledger.get("common_used_ns", {}).get("M", 0)+uncharged
+            usage["wall_ns"] += uncharged
+            usage["new_retained_bytes"] = max(usage["new_retained_bytes"], sum(active_bytes(path)
+                for path in [*usage["roots"], *usage["invocation_logs"]]))
+            write_budget(ledger_path, ledger)
+            return {"complete": False, "phase_qualified": False, "reason": "M body did not bind its inputs"}
         qualified = _charge_final_work(root, ledger_path, ledger, usage, uncharged,
-                                       manifest["cell_allowance"], manifest["profile"])
+                                       manifest["cell_allowance"], manifest["profile"], failed=not bound)
+        if not bound:
+            return {"complete": False, "phase_qualified": False, "reason": "M body did not bind its inputs"}
         reports = sorted((root / "reports").glob("report-*.json"))
         if not qualified:
             value = report(root, output_path=reports[-1] if reports else None)

@@ -3,6 +3,7 @@
 import fcntl
 import json
 import os
+import signal
 from pathlib import Path
 import subprocess
 import time
@@ -148,9 +149,10 @@ def _limits(profile, phase):
     return limits
 
 
-def guard(command, *, allocation, profile, root, task, admission=False, common_limit_ns=None,
-          started_ns=None, phase="M", calibration=None, primary_limits=None, cell_allowance=None):
+def _guard(command, *, allocation, profile, root, task, admission=False, common_limit_ns=None,
+          started_ns=None, phase="M", calibration=None, primary_limits=None, cell_allowance=None, cancelled=None):
     """Own the whole controller phase, private boundary, resource floors and final charge."""
+    cancelled = cancelled if cancelled is not None else [False]
     if phase not in ("M", "D", "S50"):
         raise ValueError("unknown shared guardian phase")
     guardian_key = phase.lower()+"_guardian"
@@ -262,6 +264,8 @@ def guard(command, *, allocation, profile, root, task, admission=False, common_l
         reader = writer = None
         with (phase_root / "guardian.log").open("a") as log:
             try:
+                if cancelled[0]:
+                    raise InterruptedError("D guardian cancelled before controller entry")
                 boundary.create()
                 reader, writer = os.pipe()
                 selected = command() if callable(command) else command
@@ -283,6 +287,9 @@ def guard(command, *, allocation, profile, root, task, admission=False, common_l
                 receipt["resources"] = [sample]
                 while True:
                     now = time.monotonic_ns()
+                    if cancelled[0]:
+                        receipt.update(exit=143, cancelled=True, stop="ordinary D SIGTERM cancellation")
+                        break
                     code = unreaped_exit(child)
                     if phase_deadline is not None:
                         if now + 20 * 10**9 >= phase_deadline:
@@ -332,6 +339,8 @@ def guard(command, *, allocation, profile, root, task, admission=False, common_l
                     time.sleep(0.05)
             except BaseException as error:
                 receipt["error"] = f"{type(error).__name__}: {error}"
+                if cancelled[0]:
+                    receipt.update(exit=143, cancelled=True, stop="ordinary D SIGTERM cancellation")
             finally:
                 for fd in (reader, writer):
                     if fd is not None:
@@ -364,3 +373,22 @@ def guard(command, *, allocation, profile, root, task, admission=False, common_l
                                                   stopped_ns=receipt["stopped_monotonic_ns"])
         (phase_root / "guardian.json").write_text(json.dumps(receipt, indent=2) + "\n")
     return receipt
+
+
+def guard(*args, **options):
+    """Run the existing guardian, allowing only D ordinary TERM to finish cleanup.
+
+    M/S50 retain their previous signal behavior. A repeated D TERM records the
+    same cancellation while cleanup runs; the caller's prior handler is restored.
+    """
+    if options.get("phase", "M") != "D":
+        return _guard(*args, **options)
+    cancelled = [False]
+    previous = signal.getsignal(signal.SIGTERM)
+    def cancel(_number, _frame):
+        cancelled[0] = True
+    signal.signal(signal.SIGTERM, cancel)
+    try:
+        return _guard(*args, **options, cancelled=cancelled)
+    finally:
+        signal.signal(signal.SIGTERM, previous)

@@ -1402,6 +1402,77 @@ the outer wrappers' small margins. This technical selection follows the
 [direct-execution mandate](../../direct-execution.md); it introduces no new
 owner-cap question, percell review or supplementary evidence packet.
 
+#### Terminated D recovery and bounded Storage investigation
+
+Actual November16 G84 primary cells completed with strict original guardian
+quiescence. D now has14 qualified cells: the original12 plus100k overlap C-r0
+and T-r0. T-r1 failed with writer-side `Storage` at54000 committed rows;
+its retained store passes read-only integrity checking. C-r1 then started
+incorrectly and the operator stopped the whole owned unit. Physical actors and
+cgroup are gone, but the killed D guardian left original ledger/containment
+custody and no final receipt. No SQLite cause, D16/D24 completion or later-size
+permission is inferred. Current160 results remain their independent subjects;
+these repairs do not reopen accepted P/G/160 or qualify F/M/whole30.
+
+This correction implements R30-3..8/A30-3..7, especially interrupted-prefix
+preservation, observed errors and bounded cleanup/accounting. Release REQ-013/014
+freshness, REQ-015 projection freshness and AC-075/076 remain unchanged; synthetic
+D is not their new numerical oracle. Preserve format37/default workload, frozen
+579 controller/d109 native, all original attempts/charges and48h/192GiB TOTAL.
+Independent design review precedes the following coherent source correction.
+
+- Add a narrow explicit `d_runner.py recover --options FILE` operator using the
+  original allocation lock, atomic budget publication and exact original D
+  guardian/controller PID+start, private boundary identity, root and cell. Refuse
+  any live or reused PID, foreign custody, changed/live boundary, changed original
+  identities, missing/ambiguous stop proof or clock/charge inconsistency. Never
+  dispatch work, reuse an original guardian receipt or silently clear ownership.
+- Obtain bounded original start/stop proof from the same-boot systemd journal's
+  exact unit/invocation start and successful stopped messages; verify current
+  unit terminal/MainPID0 and exact outer/private paths absent. The transient unit
+  has already unloaded its timestamps, so zero-valued `systemctl show` fields
+  cannot replace the retained journal proof. Stop wall at that actual historical
+  terminal timestamp, never recovery-time idle. Freeze the expected original
+  identity and journal invocation in operator options before application.
+- Reuse original qualified prefix attempt IDs and completed original D guardian
+  accounting to recover pre-run D common: sum original guardian charged walls
+  minus qualified prefix cell walls. Subtract already committed new cell/common
+  charges from historical outer wall. Charge the uncommitted C-r1 interval only
+  through proven stop, and the remaining positive outer residual once to common
+  D. Reject negative/inconsistent arithmetic. Preserve every unrelated charge.
+  Charge only the recovery operator's own measured wall separately as common D.
+- Mark C-r1 `interrupted`, retaining its existing attempt/raw files and all failed
+  T-r1 data. Use a small durable recovery entry in the existing atomic budget
+  for charge-once/re-entry across interrupted publication of budget, state and
+  marker cleanup; retained recovery custody blocks other actors until all
+  publications finish. Compare exact original marker before removal. Re-entry
+  finishes the same recovery without duplicate historical charge or new run.
+- Stop the D scientific scheduling path after its first failed/incomplete/
+  interrupted attempted result, preserving all24 rows and leaving later members
+  unstarted. Keep portable source controls that deliberately collect harmless
+  incomplete outcomes explicit; they are not scientific continuation authority.
+- Handle ordinary SIGTERM cancellation around D's existing guardian lifetime:
+  convert cancellation to the existing owned-child/boundary `finally` cleanup,
+  final charge and nonzero cancelled outcome; restore the prior handler. Keep M
+  and S50 handler behavior unchanged. A normal external stop must allow this
+  guardian cleanup before the service's final group kill. No new caps/controller.
+- Investigate Storage only in an explicitly separate private diagnostic mode on
+  a new owned DB: subscribe through existing Engine lifecycle events and retain
+  bounded actual SQLITE_* codes plus writer/reader stage/cursor. It never counts
+  as ordinary T/C evidence. Ordinary T remains subscriber/observer-off and its
+  fixed natural schedule unchanged. Do not change busy timeouts, add retries or
+  repair production until the actual cause is established with a real RED.
+
+Freeze genuine RED controls before each GREEN: harmless real first-child failure
+must prevent a later marker child; actual guardian TERM must finalize child and
+private-boundary cleanup with outer=cell+common; recovery must conserve literal
+historical cell/common arithmetic, retain failed/interrupted prefixes, exclude
+idle and refuse live/reused actors or foreign boundaries. Exercise crash/re-entry
+at each publication boundary with no double charge. Use existing affected M
+preservation controls if shared guardian code changes. One meaningful independent
+implementation review precedes actual original-allocation recovery; source fixes
+alone authorize no failed-cell retry or300k run.
+
 #### D owned refusal cost clarification
 
 The new D negative fixture's whole-ledger equality was too broad for refusals

@@ -1,6 +1,7 @@
 """Guarded D fixed-table entry; runtime selection remains separate from source controls."""
 
 import argparse
+import fcntl
 import json
 import os
 from pathlib import Path
@@ -27,6 +28,8 @@ def run_guarded(command, *, allocation, profile, root, task, **options):
     try:
         result = guard(command, allocation=allocation, profile=profile, root=root, task=task,
                        phase="D", **dict(options, started_ns=began))
+        if result.get("cancelled") and result.get("cleanup_uncertain") is False:
+            _finalize_cancelled(Path(root), Path(allocation), result)
         result.setdefault("elapsed_ns", time.monotonic_ns()-began)
         result.setdefault("charged_ns", result.get("accounting", {}).get("charged_ns"))
         return result
@@ -34,6 +37,26 @@ def run_guarded(command, *, allocation, profile, root, task, **options):
         return {"exit": 125, "state": "held", "reason": f"{type(error).__name__}: {error}",
                 "elapsed_ns": time.monotonic_ns()-began, "charged_ns": None,
                 "cleanup_uncertain": None, "unreconciled": True}
+
+
+
+def _finalize_cancelled(root, allocation, guardian):
+    boundary = guardian.get("boundary") or {}
+    if boundary.get("removed_exact_empty_boundary") is not True:
+        raise RuntimeError("cancelled D boundary cleanup is unavailable")
+    with (allocation/"g-campaign.lock").open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        budget = json.loads((allocation/"g-budget.json").read_text())
+        active = budget.get("inflight")
+        if any(budget.get(key) for key in ("d_guardian", "m_guardian", "closed_guardian", "s50_guardian")):
+            raise RuntimeError("foreign custody after D cancellation")
+        if active:
+            if (active.get("status") != "guardian_stopped" or active.get("quiescence_known") is not True
+                    or active.get("accounted_through_monotonic_ns") != guardian.get("stopped_monotonic_ns")):
+                raise RuntimeError("cancelled D active interval is unreconciled")
+            _interrupted_rows(root, allocation, guardian)
+            budget["inflight"] = None
+            write_budget(allocation/"g-budget.json", budget)
 
 
 def _control(root, fd):
@@ -62,7 +85,8 @@ def _control(root, fd):
     decision = ({"status": "admit", "cells": [cell["id"] for cell in spec["cells"][:4]]}
                 if config["initial"] else reviewed_quartet(spec, records, budget, config.get("review")))
     rows = run_supervised_stage(spec, records, budget, root/"attempts", config["command"],
-        publish=publish, initial=config["initial"], review=config.get("review"))
+        publish=publish, initial=config["initial"], review=config.get("review"),
+        scientific=config["scope"] == "fixed24-scientific")
     source = config["scope"] == "isolated-harmless-source-control"
     source_complete = (source and all(row["status"] == "failed"
         and isinstance(row.get("native"), dict) and row["native"].get("unit_diagnostic") is True
@@ -101,9 +125,11 @@ def _source_config(root):
 def _interrupted_rows(root, allocation, guardian):
     state = root/"d-state.json"
     try:
-        records = json.loads(state.read_text()) if state.exists() else {}
-    except (OSError, ValueError):
+        records = json.loads(state.read_text())
+    except FileNotFoundError:
         records = {}
+    if not isinstance(records, dict):
+        raise ValueError("existing D attempted state must remain a readable mapping")
     try:
         budget = json.loads((Path(allocation)/"g-budget.json").read_text())
     except (OSError, ValueError):
@@ -135,6 +161,7 @@ def main():
     actions.add_parser("source-control").add_argument("--root", required=True)
     run = actions.add_parser("run")
     run.add_argument("--options", required=True)
+    actions.add_parser("recover").add_argument("--options", required=True)
     internal = actions.add_parser("_controller")
     internal.add_argument("--root", required=True)
     internal.add_argument("--admission-fd", type=int, required=True)
@@ -142,6 +169,11 @@ def main():
     if options.action == "_controller":
         return _control(Path(options.root).resolve(), options.admission_fd)
     task = Path(os.environ["S30_TASK"]).resolve()
+    if options.action == "recover":
+        from d_recovery import recover
+        result = recover(json.loads(Path(options.options).read_text()), task=task)
+        print(json.dumps(result))
+        return 0 if result["complete"] else 1
     if options.action == "source-control":
         root = Path(options.root).resolve()
         if not root.is_relative_to(task):

@@ -434,6 +434,18 @@ only their actual D common charge; foreign custody remains unreconciled/held
 without changing its ledger. All24 outcomes and original attempted records
 remain visible; no scientific D cell follows from source qualification.
 
+`d_runner.py recover --options FILE` is an explicit, non-dispatching operator for
+one already stopped D service. Options pin original guardian/controller identities,
+private marker, same-boot journal start/stop, original qualified prefix attempts,
+completed guardian accounting and interrupted attempt. It conserves historical
+cell/common wall only through actual stop, charges its own recovery work and
+retains failed/interrupted raw history. The existing atomic budget carries its
+small charge-once publication state; it never fabricates an original receipt.
+`test_d_recovery.py` covers literal conservation/re-entry and real live/reused
+actor refusal. `test_d_fail_fast.py` covers scientific first-failure scheduling;
+`d_cancel_tests.py` exercises actual guardian TERM with a nested harmless child
+through the existing delegated control command. Ordinary M/S50 handlers are unchanged.
+
 The maintained heavy runner selects the D native example, transport and private
 engine contracts. `test_d_*.py` discovery selects portable math/process controls.
 Linux private-boundary/actual CLI controls are explicitly selected by

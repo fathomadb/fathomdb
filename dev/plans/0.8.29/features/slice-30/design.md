@@ -8,6 +8,11 @@ All prerequisites in [parent proposal](prerequisite-change.md) remain in force.
 The [proposed M continuation](continuation-m.md) refines the held stdio cells
 without changing executed P/G freezes, production defaults or resource allocation.
 
+The [terminated D correction](continuation-gd.md#terminated-d-recovery-and-bounded-storage-investigation)
+adds bounded original-custody recovery, scientific fail-fast, ordinary cancellation
+and separate Storage diagnostics after the actual14-cell prefix. It changes no
+measurement oracle or accepted predecessor; failed attempts stay retained.
+
 ## Current source and original tool fit
 
 The [architecture reconciliation](product-architecture.md) identifies the actual

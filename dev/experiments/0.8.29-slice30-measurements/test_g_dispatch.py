@@ -236,6 +236,7 @@ class Paired50DispatchTests(unittest.TestCase):
             results = []
             for number, (mode, observed) in enumerate([("winner", False), ("eager", False), ("winner", True)]):
                 config = {"family":"G-R", "n":100000, "provider":"default", "adapters":["sdk"], "routes":["hybrid"], "samples":1000, "warmup":500, "slice50_pair_mode":mode, "observe":observed}
+                config["slice50_gpu"]={"uuid":"GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b","ordinal":0,"hf_home":str(root/"cache")}
                 result = run_program_step(command, config, root / f"member{number}", time.monotonic_ns() + 5 * 10**9)
                 self.assertTrue(result["complete"])
                 self.assertTrue(result["result"]["runner_only"])

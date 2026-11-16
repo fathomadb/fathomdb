@@ -153,8 +153,12 @@ def guard(command, *, allocation, profile, root, task, admission=False, common_l
     began = time.monotonic_ns() if started_ns is None else started_ns
     allocation, root, task = map(lambda p: Path(p).resolve(), (allocation, root, task))
     schema = "slice50-pair-budget/v1" if phase == "S50" else f"slice30-{phase.lower()}-budget/v1"
+    whole_cells = {900 * 10**9}
+    if phase == "D":
+        from d_controller import cell_limit_ns
+        whole_cells = {cell_limit_ns(n) for n in (10000, 100000, 300000)}
     if (profile.get("schema") != schema or profile.get("status") != "APPROVED"
-            or profile.get("whole_cell_ns") != 900 * 10**9
+            or profile.get("whole_cell_ns") not in whole_cells
             or Path(profile["ledger"]).resolve() != allocation / "g-budget.json"
             or not root.is_relative_to(allocation)):
         raise ValueError(f"approved pinned shared profile and owned {phase} allocation required")

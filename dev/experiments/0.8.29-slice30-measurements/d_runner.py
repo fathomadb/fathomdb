@@ -8,6 +8,7 @@ import sys
 import time
 
 from d_driver import reviewed_quartet, run_supervised_stage
+from d_controller import cell_limit_ns
 from d_attempt import inherited_settings
 from g_campaign import active_bytes
 from m_guard import guard, write_budget
@@ -164,6 +165,10 @@ def main():
         raise ValueError("D initial stage selector must be boolean")
     if type(config["common_limit_ns"]) is not int or config["common_limit_ns"] <= 20*10**9:
         raise ValueError("D common allowance must fund bounded guardian cleanup")
+    if config["scope"] == "fixed24-scientific":
+        size = 10000 if config["initial"] else (config.get("review") or {}).get("n")
+        if config["profile"].get("whole_cell_ns") != cell_limit_ns(size):
+            raise ValueError("selected D profile must match the declared whole-cell allowance for its size")
     inherited = inherited_settings()
 
     def command():

@@ -415,7 +415,7 @@ async fn repeated_reference_feedback_keeps_existing_not_recorded_and_membership_
             "used":["l:shared", "l:unknown"]}),
             )
             .await;
-        assert_eq!(error["code"], "bad_argument");
+        assert_eq!(error["code"], "refs_not_in_response");
         assert!(error["message"].as_str().unwrap().contains("only name references"));
         assert!(of_type(&records(&sink(&fixture, "a", 1)), "feedback").is_empty());
         harness.shutdown().await;

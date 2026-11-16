@@ -1628,8 +1628,12 @@ pub(crate) async fn feedback(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Ou
     let unused = args.unused.clone().unwrap_or_default();
     let named: BTreeSet<&String> = args.used.iter().chain(unused.iter()).collect();
     if named.iter().any(|reference| !entry.refs.contains_key(*reference)) {
-        return Err(ToolError::bad_argument(
-            "used and unused may only name references from that response",
+        return Err(ToolError::foreign_references(
+            args.used
+                .iter()
+                .chain(unused.iter())
+                .filter(|reference| !entry.refs.contains_key(*reference))
+                .map(String::as_str),
         ));
     }
     if current_epoch != Some(entry.epoch) {

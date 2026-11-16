@@ -153,6 +153,32 @@ impl ToolError {
         error
     }
 
+    pub(crate) fn foreign_references<'a>(references: impl Iterator<Item = &'a str>) -> Self {
+        let mut included = Vec::new();
+        let mut omitted = 0_u64;
+        for reference in references {
+            if reference.len() <= 128 && included.len() < 50 {
+                included.push(reference.to_string());
+            } else if let Some(count) = omitted.checked_add(1) {
+                omitted = count;
+            } else {
+                return Self::internal();
+            }
+        }
+        let mut error = Self::new(
+            ErrorClass::InvalidRequest,
+            "refs_not_in_response",
+            "used and unused may only name references from that response".into(),
+            "pass only refs from the named response in used and unused",
+        );
+        error.correction = Some(Box::new(Correction {
+            refs_not_in_response: Some(included),
+            refs_omitted: (omitted != 0).then_some(omitted),
+            ..Correction::default()
+        }));
+        error
+    }
+
     pub(crate) fn no_store() -> Self {
         Self::bad_argument(
             "no store named: pass `store`, call use_store, or configure default_store",

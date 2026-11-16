@@ -1081,7 +1081,10 @@ instrumentation, samples and polling; T supplies ordinary uninstrumented cost.
 No10k instrumentation assumption substitutes for100k characterization.
 
 For each next C or T cell, its own predicted time/active bytes must be strictly
-below900s/16GiB. Before advancing a size/mode, sum predictions for all four
+below its declared whole-cell allowance and16GiB:10k retains900s and100k
+selects1500s under the amendment below.300k remains held until actual100k
+same-mode evidence and a current feasible selection. Before advancing a
+size/mode, sum predictions for all four
 required C/T repeats and require that remaining cumulative14400s G/D budget and
 owned storage floors can support them. Count all G stages, earlier D cells,
 preparation, diagnostics, output retained from earlier cells and partial/failed
@@ -1094,7 +1097,7 @@ controls, not a claim of linear scaling or a budget expansion.
 Every100k/300k layer/mode/repeat remains required after refusal; a completed lower
 size or T timing never closes missing C overlap characterization. Each D cell
 includes seed/hold/release/read/drain/close and observer/probe costs where enabled;
-no hidden900s per phase or uncharged extra execution. No settledCS64/armlimit/
+no renewed allowance per phase or uncharged extra execution. No settledCS64/armlimit/
 cache/default implementation is repeated.
 
 ### D source work, runtime proposal and stop boundary
@@ -1138,7 +1141,7 @@ Use existing bounded after-WAL/scan handles for tiny controls, never the raw
 unbounded Barrier pair for new custody. A scope guard unfreezes the scheduler,
 releases every pause, stops/joins writer/reader/poller/drainer before assertions
 and close, and retains timeout/errors. Releasing handles is mandatory on unwind;
-a diagnostic wait never parks a scale transaction. One absolute900s cell clock
+a diagnostic wait never parks a scale transaction. One absolute selected whole-cell clock
 starts before entry/prep and includes data generation, seed, probes, collection,
 drain, close, output and known owned cleanup. Reserve existing cleanup bounds
 INSIDE that allowance, not after it; charge actual entry/refusal/failed prefixes
@@ -1293,7 +1296,8 @@ schema, keys, limits and behavior. Reject unknown phase names. This shared-sourc
 refinement requires independent review before implementation.
 
 D entry validates a D-specific selected budget reference against the existing
-ledger and unchanged900s/14400s/16GiB maxima. No expanded study profile is
+ledger, declared per-size cell allowance and unchanged14400s/16GiB shared
+maxima. No expanded shared study profile is
 selected or activated by source work. Both other-work reservation fields must
 be explicit nonnegative integers; absent/unknown cost refuses admission rather
 than becoming zero. Preserve every original charge and any retained G/M/D or
@@ -1313,6 +1317,39 @@ known-quiescence/bounded recovery and exact outer=cell+common conservation;
 unknown/exhausting other-work reservations must prevent actual child start.
 Recheck only affected M default guardian controls for this shared refinement.
 No new guardian framework, cap reset, G schema alias or campaign GO follows.
+
+#### Selected100k allowance from actual10k execution
+
+The original8 completed10k C/T held/overlap cells remain their actual original
+DC8 native executions and attempt paths. Preserve their records, native command
+paths, source/build identities, raw observations, physical closure and all
+original shared/cell/common charges. The next native entry changes only its
+technical allowance validation; no lower-cell replay or new-source label is
+attached to existing evidence. Slice50 hooks present in the integrated source
+are inactive without `slice50-measurement`, which the D build does not select.
+
+Actual held10k maxima predict100k C1440.161360800s and T1437.127657820s under
+the unchanged2x same-layer rule. Their quartet needs5754.578037240s and
+5807130120B prospective retained headroom. The selected100k whole-cell allowance
+is1500s, including preparation, native work, observation/reporting and cleanup;
+10k remains900s. Equality at the selected limit still refuses.300k remains
+unqualified and held for actual100k same-mode evidence and its later current fit.
+No count, corpus/provider/query schedule, overlap/closure oracle or numerical
+assessment changes. This is an evidence-based technical selection under the
+[direct-execution mandate](../../direct-execution.md), not a new owner budget
+ruling. Original14400s/16GiB shared totals and carried usage remain unchanged.
+
+The Python assessment/review, public selected profile, fixed24 per-size
+`cell_ns`, native embedded-cell validation and native remaining milliseconds
+must agree. A900s profile cannot enter a1500s100k cell. The existing executable
+embeds its old900s table/limit, so only the required D artifact is rebuilt from
+the reviewed successor source with its truthful new origin; old DC8 and ordinary
+M artifacts remain intact. Continue the same D root with the exact original8
+attempt bindings. One next100k held quartet may use1500s cells,60s common and
+6080s outer wrapper, conditional on fresh shared time/storage reservations,
+resource floors and strict cleanup. Stop before the next quartet. Unknown
+future costs remain unknown; they do not create an all-future calibration gate
+or permit a total-cap reset/automatic expansion.
 
 #### D owned refusal cost clarification
 
@@ -1414,7 +1451,8 @@ phase/other owned heavy campaign; reserve the physical3090 before G dispatch.
 Retain start floors root32GiB/task250GiB/MemAvailable16GiB; stop only own child
 process groups at root<20GiB/task<50GiB/MemAvailable<8GiB/owned>=200GiB or sustained
 swap>=64MiB/s for3 consecutive30s samples. Active DB+WAL+raw total16GiB,
-900s whole cell,14400s cumulative campaign incl preparation; count completed
+default900s whole cell (selected D100k1500s as above),14400s cumulative campaign
+incl preparation; count completed
 prior stages against remaining budget. One build/native phase/jobs2 with
 canonical verification settings. Outer resources30s, ordinary raw16-record
 checkpoints and pass boundaries, no fsync. Start1m load<=2, noisy>2.5; preserve

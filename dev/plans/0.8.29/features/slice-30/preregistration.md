@@ -98,7 +98,9 @@ Reuse reviewed10 start floors: root>=32GiB, taskfs>=250GiB,
 MemAvailable>=16GiB; stop owned child phase at root<20GiB/taskfs<50GiB/
 MemAvailable<8GiB/owned total>=200GiB or sustained swap>=64MiB/s for three30s
 samples. Cap active DB+WAL+raw measurement outputs16GiB, each measurement cell
-15minutes, total timing campaign4hours. Setup/full gate outside timing but
+15minutes by default, with the evidence-based D100k1500s technical selection in
+[the D continuation](continuation-gd.md#selected100k-allowance-from-actual10k-execution).
+Total timing campaign remains4hours. Setup/full gate outside timing but
 inside storage/memory monitoring. One native phase, build jobs2 and canonical
 verification job settings. Poll resources at30s; record PID/process group,
 command,cwd,SHA/delta and actual exit. Stop only owned child groups; preserve

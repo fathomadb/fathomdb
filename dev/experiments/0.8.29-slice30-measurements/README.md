@@ -444,6 +444,16 @@ under the same executor. Options name owned `root`, original `allocation`, nativ
 unchanged shared total. The profile must explicitly bound other-work reserves;
 unknown is never zero. No selected profile or runtime GO is supplied here.
 
+The fixed D inventory now declares900s at10k and1500s at100k;300k stays held
+until actual100k lower evidence and current fit. The selected profile must match
+the requested size, and both Python forecasting and the native pre-store parser
+use that declaration. Existing DC8 artifacts embed the earlier900s limit, so the
+next100k execution needs only the reviewed successor D executable, retaining its
+actual source/build identity. Old8 completed10k attempts/native paths and all
+charges are preserved; they are neither retagged nor repeated. Source controls
+include `test_d_selected_allowance.py`, `test_d_selected_guard.py` and the native
+example parser assertion; these are not100k runtime qualification.
+
 Python admission and the native pre-store entry record/refuse inherited active
 projection batching or presence-gated reader/writer PRAGMA/search-limit
 experiments. They retain inert values unchanged and never silently clear the

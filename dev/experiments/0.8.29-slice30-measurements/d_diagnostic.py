@@ -25,3 +25,9 @@ def memory_snapshot():
         result['issues'].append(f'owning cgroup unavailable: {type(error).__name__}: {error}')
     result['complete'] = not result['issues']
     return result
+
+
+def run(options, *, task, started_ns=None):
+    """Run one explicitly selected private case through existing D custody."""
+    return {'complete': False, 'qualifies_natural': False,
+            'guardian': {'exit': 125, 'state': 'held', 'reason': 'private diagnostic routing unavailable'}}

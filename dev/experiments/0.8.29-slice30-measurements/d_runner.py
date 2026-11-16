@@ -162,6 +162,7 @@ def main():
     run = actions.add_parser("run")
     run.add_argument("--options", required=True)
     actions.add_parser("recover").add_argument("--options", required=True)
+    actions.add_parser("diagnostic").add_argument("--options", required=True)
     internal = actions.add_parser("_controller")
     internal.add_argument("--root", required=True)
     internal.add_argument("--admission-fd", type=int, required=True)
@@ -169,6 +170,13 @@ def main():
     if options.action == "_controller":
         return _control(Path(options.root).resolve(), options.admission_fd)
     task = Path(os.environ["S30_TASK"]).resolve()
+    if options.action == "diagnostic":
+        from d_diagnostic import run as run_diagnostic
+        result = run_diagnostic(json.loads(Path(options.options).read_text()), task=task, started_ns=began)
+        print(json.dumps(result))
+        guardian = result["guardian"]
+        return 0 if (guardian["exit"] == 0 and guardian.get("cleanup_uncertain") is False
+                     and guardian.get("diagnostic_memory_complete") is True) else 1
     if options.action == "recover":
         from d_recovery import recover
         result = recover(json.loads(Path(options.options).read_text()), task=task)

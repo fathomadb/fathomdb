@@ -152,10 +152,10 @@ pub(crate) fn token(connection: &Connection) -> Result<Option<CoverageToken>, En
     Ok(Some(token))
 }
 
-pub(crate) fn capture(
+pub(crate) fn capture_with_counts(
     connection: &Connection,
+    counts: StoredHeadCoverageCounts,
 ) -> Result<Option<CachedStoredHeadCoverage>, EngineError> {
-    let counts = crate::vector_spans::capture(connection)?;
     Ok(token(connection)?.map(|token| CachedStoredHeadCoverage { token, counts }))
 }
 

@@ -1274,11 +1274,13 @@ impl Engine {
                 .transaction_with_behavior(rusqlite::TransactionBehavior::Deferred)
                 .map_err(|err| map_open_sqlite_error(err, OpenStage::WalReplay))?;
             let seed = if migration.schema_version_after >= 35 {
-                crate::stored_coverage::capture(&tx).map_err(|_| EngineOpenError::Io {
-                    message: "vector span tuple is partial or mismatched".to_string(),
-                })?
+                let counts =
+                    crate::vector_spans::capture(&tx).map_err(|_| EngineOpenError::Io {
+                        message: "vector span tuple is partial or mismatched".to_string(),
+                    })?;
+                crate::stored_coverage::capture_with_counts(&tx, counts)
             } else {
-                None
+                Ok(None)
             };
             frozen_read::validate_on_open(&tx, migration.schema_version_after)
                 .map_err(|message| EngineOpenError::Io { message })?;
@@ -1361,20 +1363,25 @@ impl Engine {
                 })?
         };
         let embedder_identity = stored_identity.as_ref().unwrap_or(embedder_identity);
-        let mut embedder_mean_vec_pinned = {
+        let (mut embedder_mean_vec_pinned, coverage_seed) = {
             let tx = frozen_read::begin_visibility_writer(&connection).map_err(|_| {
                 EngineOpenError::Io {
                     message: "could not admit vector storage initialization".into(),
                 }
             })?;
             let pinned = check_embedder_profile(&tx, embedder_identity)?;
+            // Preserve typed profile/admission errors before coverage-token errors;
+            // both token and counts still belong to the earlier validation snapshot.
+            let coverage_seed = coverage_seed.map_err(|_| EngineOpenError::Io {
+                message: "could not capture stored-head coverage token".into(),
+            })?;
             ensure_vector_partition(&tx, embedder_identity.dimension).map_err(|_| {
                 EngineOpenError::Io { message: "could not initialize vector partition".to_string() }
             })?;
             tx.commit().map_err(|_| EngineOpenError::Io {
                 message: "could not commit vector storage initialization".into(),
             })?;
-            pinned
+            (pinned, coverage_seed)
         };
         projection_generation::bootstrap(
             &mut connection,

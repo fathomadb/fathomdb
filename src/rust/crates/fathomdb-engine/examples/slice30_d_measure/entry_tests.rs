@@ -78,3 +78,18 @@ fn native_entry_accepts_selected_100k_allowance_and_keeps_other_size_limits() {
     unchanged10k["remaining_cell_ms"] = json!(899000);
     assert!(super::entry::select_config(&unchanged10k).is_ok());
 }
+
+#[test]
+fn later_explicit_300k_clock_is_bounded_without_changing_workload_identity() {
+    let mut config = json!({"id":"d-c-held-n300000-r0","n":300000,"mode":"held",
+        "repeat":0,"layer":"C","cell_ns":4500000000000u64,
+        "attempt_id":"literal-later-selected","remaining_cell_ms":4494000u64});
+    let selected = super::entry::select_config(&config);
+    assert!(selected.is_ok(), "later selected bound requires another native rebuild: {selected:?}");
+    assert_eq!(selected.unwrap().0["n"], 300000);
+    config["cell_ns"] = json!(4500000000001u64);
+    assert!(super::entry::select_config(&config).is_err());
+    config["cell_ns"] = json!(4500000000000u64);
+    config["remaining_cell_ms"] = json!(4500001);
+    assert!(super::entry::select_config(&config).is_err());
+}

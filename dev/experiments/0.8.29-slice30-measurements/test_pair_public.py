@@ -500,3 +500,47 @@ class PairFiniteGuardTests(unittest.TestCase):
             self.assertTrue(result['window_complete'])
             self.assertFalse(result['complete'])
             self.assertFalse(result['calibration_complete'])
+
+
+class PairExistingOrdinaryReferenceTests(unittest.TestCase):
+    def test_reference_matches_only_identical_required_workload_ignoring_origin_labels(self):
+        from g_pair_freeze import matching_reference
+        original=plan()['calibration'][0]
+        target=next(row for row in plan()['primary'] if row['origin_id']=='g-r-n10000-r0'
+                    and row['slice50_pair_mode']=='winner')
+        self.assertTrue(matching_reference(original,target))
+        self.assertFalse(matching_reference(dict(original,n=100000),target))
+        self.assertFalse(matching_reference(dict(original,adapters=['sdk','engine']),target))
+        self.assertFalse(matching_reference(dict(original,observe=True),target))
+
+    def test_reference_never_creates_or_resets_another_shared_allocation(self):
+        from g_pair_freeze import reference_rows
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary);original=root/'original';original.mkdir()
+            (original/'manifest.json').write_text(json.dumps({'allocation':str(root/'other-allocation')}))
+            with self.assertRaisesRegex(ValueError,'same allocation'):
+                reference_rows({'ordinary_calibration_from':str(original),'allocation':str(root/'actual')})
+            self.assertFalse((root/'actual').exists())
+
+    def test_reference_uses_original_final_guardian_without_retagging_events(self):
+        from g_pair_report import published_report
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary);original=root/'original';current=root/'current'
+            for path in (original/'guardians'/'old',current/'guardians'/'new',current/'results'):
+                path.mkdir(parents=True)
+            base={'exit':0,'cleanup_uncertain':False,'boundary':{'status':'quiescent',
+                  'populated_after':False,'removed_exact_empty_boundary':True}}
+            (original/'guardians/old/guardian.json').write_text(json.dumps(dict(base,started_monotonic_ns=1,controller_pid=2)))
+            (current/'guardians/new/guardian.json').write_text(json.dumps(dict(base,started_monotonic_ns=3,controller_pid=4)))
+            identifier=plan()['primary'][0]['id']
+            cached={'native_primary_complete':False,'native_calibration_complete':False,
+                'native_window_complete':True,'active_members':[identifier],
+                'guardian_owner':{'started_monotonic_ns':3,'controller_pid':4},
+                'primary':[{'id':identifier,'credited':True,'guardian_root':str(original),
+                    'guardian_owner':{'started_monotonic_ns':1,'controller_pid':2},
+                    'reference':{'member':'original-ordinary'}}], 'diagnostics':[],'calibration':[]}
+            (current/'results/report.json').write_text(json.dumps(cached))
+            result=published_report(current)
+            self.assertTrue(result['primary'][0]['credited'])
+            self.assertEqual(result['primary'][0]['reference']['member'],'original-ordinary')
+            self.assertFalse(result['complete'])

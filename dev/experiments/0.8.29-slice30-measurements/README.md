@@ -446,6 +446,30 @@ actor refusal. `test_d_fail_fast.py` covers scientific first-failure scheduling;
 `d_cancel_tests.py` exercises actual guardian TERM with a nested harmless child
 through the existing delegated control command. Ordinary M/S50 handlers are unchanged.
 
+The separately named `slice30_d_storage_diagnostic` example uses the existing
+private `slice30-observer,test-hooks` features and unchanged D workload modules.
+Its standalone main installs SQLite's process-wide error callback before any
+SQLite initialization. It retains raw integer codes, messages, actual thread IDs
+and elapsed time in64 bounded entries with1024-byte UTF-8 message bounds;
+loss/truncation prevents complete callback capture. SQLite can also shorten a
+message before delivery to the callback; absent logs never exclude Storage/OOM.
+Every output remains diagnostic/unqualified, including a successful workload.
+
+The existing `test-slice30-d-control.sh` command builds this private example and
+runs `d_storage_diagnostic_tests.py`: a fresh-process real SQLite error, literal
+bound/drop/truncation and pre-store fixed-case controls. It also selects the
+harmless `d_diagnostic_*_tests.py` public-entry/memory controls inside their
+required4GiB/zero-swap delegated source-control unit. These are not100k runs.
+
+Selected actual entry is `AGENT_LONG=1 d_runner.py diagnostic --options FILE`.
+Options name a new `root` inside the original `allocation`, a private `binary`
+inside its owned S30_TASK and the approved existing `profile`. The one fixed
+100k/T/overlap case retains its1500s whole-case/common allowance and strict
+cleanup; existing cumulative shared totals/charges remain authoritative. The
+existing guardian retains raw before/after owning-unit memory counters through
+native death. A real case requires the separately selected allocation handoff;
+no source control, failed run or missing capture supplies ordinary D credit.
+
 The maintained heavy runner selects the D native example, transport and private
 engine contracts. `test_d_*.py` discovery selects portable math/process controls.
 Linux private-boundary/actual CLI controls are explicitly selected by

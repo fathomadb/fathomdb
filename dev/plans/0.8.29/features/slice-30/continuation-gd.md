@@ -1473,6 +1473,60 @@ preservation controls if shared guardian code changes. One meaningful independen
 implementation review precedes actual original-allocation recovery; source fixes
 alone authorize no failed-cell retry or300k run.
 
+#### One private SQLite-log Storage diagnostic
+
+The accepted recovery completed once and preserved failed T-r1/interrupted C-r1;
+G84's existing charged public report completed with strict quiescence. D remains
+14/24. Product Rust/lock inputs at the recovery base equal original d109; the
+4GiB peak covers the whole original quartet unit and does not identify the
+failed T-r1 instant. Both foreground/projection commits already use IMMEDIATE;
+no retry, timeout/cache adjustment or production repair is justified yet.
+
+Use one separately named private example under the existing
+`slice30-observer,test-hooks` opt-in classification, with only its necessary
+Cargo example entry. Reuse unchanged D entry/schedule/provider/workload/capture
+modules and their fixed deterministic100k overlap workload. Its new main must
+register pinned rusqlite `trace::config_log` before any SQLite initialization or
+worker starts. This existing unsafe API requires no concurrent SQLite calls
+during registration, a thread-safe callback and no SQLite calls from the
+callback. Keep registration and safety explanation confined to this standalone
+private process; do not modify/rebuild/retag ordinary D109 or its T observer-off
+path. Engine lifecycle events alone do not retain errors erased by all helpers.
+
+Retain at most64 error-log entries, each at most1024 message bytes with valid
+UTF-8 boundaries, full integer SQLite extended code, actual thread identity and
+monotonic elapsed time, bound to the exact diagnostic cell/attempt. Retain
+truncation/drop counters explicitly; loss prevents complete diagnostic capture.
+Use bounded synchronized storage; no SQLite call, file I/O, profiling, retry,
+provider delay or periodic polling in the callback. Serialize retained records
+only outside product work, after normal close or error propagation. Native
+output always declares diagnostic/unqualified scope and never supplies ordinary
+C/T lower evidence, even when the workload succeeds. Unknown errors remain unknown.
+
+One explicitly selected new owned DB/output under the existing allocation may
+run only after design/source review and strict S50/M/allocation handoff. Reuse
+existing D `run_guarded` custody, finite deadlines and shared accounting; add only
+its narrow single-diagnostic routing if required, not a new campaign/report
+controller. Keep the original1500s whole-case/4GiB memory/zero cgroup-swap envelope
+and48h/192GiB cumulative totals/history, with explicit funded diagnostic/common
+allowance and unchanged floors/strict cleanup. The owning guardian must capture
+raw outer-unit `memory.events`, `memory.peak`, `memory.current` and actual
+`memory.max` once before work and after child termination while the unit still
+exists; retain them with existing guardian evidence inside its charged wall.
+Unavailable counters are not evidence against OOM. This capture must survive
+native death and correlate any NOMEM/BUSY/other code with actual counters, rather
+than inferring a cause from host free memory or a whole-unit peak. No GPU query,
+lease/model or concurrent S50 measurement use of the shared allocation follows.
+
+Before GREEN, a fresh standalone process with a tiny real owned SQLite DB must
+fail the frozen assertion that an actual SQLite statement error reaches the
+retained integer-code/message callback. Separate literal bound/drop tests must
+fail closed on incomplete capture. Existing ordinary D tests/native remain
+unchanged; no passing native matrix replay. One coherent independent source
+review precedes the single selected100k diagnostic execution; no automatic
+rerun or scientific credit follows it. Only a proven actual cause permits a
+separate genuine product RED/GREEN or an evidenced technical-envelope repair.
+
 #### D owned refusal cost clarification
 
 The new D negative fixture's whole-ledger equality was too broad for refusals

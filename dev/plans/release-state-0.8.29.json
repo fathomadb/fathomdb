@@ -232,9 +232,9 @@
         "dev/plans/0.8.29/features/slice-30/continuation-gd.md",
         "dev/plans/0.8.29/features/slice-30/continuation-m.md"
       ],
-      "phase": "G84_F_QUALIFIED_M_SEQUENCE_ACTIVE_D_FINITE_CONTINUATION_AMENDMENT_PENDING",
+      "phase": "G84_F_QUALIFIED_M_GPU_CONFLICT_STOPPED_D_IMPLEMENTATION_IN_REVIEW",
       "plan_sha": "bea7f05cd2497af0d73c6eb8da509e11a947ca08",
-      "conditions": "G84/84 andF/Q8 independentlyaccepted. M at least8/46 qualified atreviewcheckpoint; remainingsequenceactiveunderexistingguard. D14/24ordinaryqualified; singleprivate100kdiagnosticcompletedbutdidnotreproduceStorageandearnsnocredit. FiniteordinaryreplacementproposalforfailedT/interruptedC istechnicalreviewworkwithinunchangedcounts/caps,notautomaticretry. CurrentS50ordinary16/136anddiag0/24; allrequirements/numericaltargets/historyremain.",
+      "conditions": "G84/84 andF/Q8 independently accepted. M11/46 qualified; M-R-2-32-warn unqualified after foreign-GPU observation despite1503 successful requests; strict cleanup and all old charges retained. D14/24 ordinary qualified; finite continuation implementation bbb5ff8 is in independent review, no replacement dispatch. S50ordinary16/136 anddiag0/24; next5P repeat1 actually running. All selected outcomes/numerical targets/history remain.",
       "evidence": "AcceptedP/G84/F-Q8 baselines andsource/toolingpreserveoriginalnativeidentities,errors,outliersandcharges. Gfinal84reporthas144populations/97318success0errorsinselectedqualifiedoutcomes;notallhistoricalattempts. Dcriticalfailfast/TERM/accounting2c54isacceptedandactualrecoverycompletedonce. Private914SQLite-logdiagnosticcompleted100k/1000calls0errorsbutoriginalStoragecauseUNKNOWN;noordinarycreditorproductfixclaim. M sourcec738/native4ffc plusacceptedf29variants executesoriginal46sequence; source/row-levelresultsremaininexistingtaskroots. Whole30stillopenonM/DandcurrentS50performance.",
       "qualified_subset_sha": "2fd772558e46d0b1645dce2ffea730d0bdd3305c",
       "continuation_plan_sha": "0d8be5bb75516955ebf99b94913b9b54921bb3a4",
@@ -692,12 +692,12 @@
       "m_selected_runtime": {
         "source": "f29b75db3d0272e2105ff4e06c65df9853ca9b91",
         "review": "Independent Astra-medium final source ACCEPT",
-        "status": "PRIMARY_SEQUENCE_ACTIVE_AT_LEAST_EIGHT_OF_46_QUALIFIED",
+        "status": "ELEVEN_OF_46_QUALIFIED_FOREIGN_GPU_CONFLICT_STOPPED",
         "root": "/mnt/data/tmp2/fathomdb-0829-continuation/slice30-g-20261113/gd-allocation/m-required-M-R-1-1-debug-f29b75db3",
         "result": "Required1-1-debug,1-4-warn and1-4-debug each completed1+500+1000 calls with zeroerrors/unresolved; plus exactpriorwarnreference. Originalfinalguardians/phasequalification and strictoutercleanup passed; disposablecopiesretired afterqualification. Whole46 remains incomplete.",
         "reuse": "M-R-1-1-warn satisfied_by exact original full calibration reference; no replay,relabel,doublecharge or raw mutation. Debug is the new required primary run. Successful disposable copy retired only after qualified final cleanup; original/raw/failed evidence preserved.",
         "shared_checkpoint": "After1-4-debug:used4868099798617ns,retained9271842748B,noactiveguardians/inflight. Laterpaired50 uses sameledgerandcarriesallcharges.",
-        "next": "Bothconcurrency8and16warn/debugpairsqualifiedthroughoriginalstrictguard/outerexit0; nextconcurrency32sequenceactive. Atleast8/46qualifiedatcheckpoint. ContinueexistingindividualAPI/freshfit/custody/noretry/newframework/percellmodelreview. Originalfourreferencesandallhistoryretained.",
+        "next": "No retry. M-R-2-32-warn failed original attempt:1503 successful requests, MCPexit0, GPUobserver foreigncompute refusal; offendingrecordnotretained soPIDunknown. Guardianexit1/strictcleanup/terminalunit/MainPID0/all5ownersNULL/markerabsent/FD9released. Shared26599341664363ns includingfailed272193177669ns. S50providerfreeP handedallocation. Existing fresh-root API preserves cumulative cellcaps; continuation correction under analysis, not executed.",
         "integrated": "62b465b8b989dc0ac1e755c4934d3a5fe000368c; acceptedf29 M changes reconciled with S50 and D, finalAstraACCEPTd109",
         "continuation_source": "c738f39bdcd1c6d8550fbd84d8cc4599946f77cf;independentAstra design/finalACCEPT,genuineRED969154e5->GREEN;22focusedtestsand6mergedselected-admissiontestsPASS;native81791194 unchanged.",
         "current_variant_builds": "BothpreviousgapsnowactualPASS:providerfree-f29b75db3-20261116/features[] andhelper-f29b75db3-20261116/test-seams underindependentruntime-env outsideallocation. Exactf29producer/compiler81791194/hash-boundreceipts;sourceclean/exit0/noresourcestop/strictquiescentcleanup;Astraaccepted. Ordinary4ffcunchanged,norebuildorreplay;all42remainingMrowsnowhavequalifiedcurrentvariantinputs."
@@ -788,7 +788,7 @@
         "root": "/mnt/data/tmp2/fathomdb-0829-continuation/slice30-g-20261113/gd-allocation/s50-required-p1-10k-r0-09c53495b",
         "result": "P1-10k-r0,P1-100k-r0 andP2-b1-s1-r0 ordinarywinner/eager complete/equal;zeroerrors. P2each1000timed/500warm,100000natural/10markers/0vectors,issuesempty,192.391/192.235s native. Strictfinalguardian/outerclean; wholematrixfalse. Originalnativeproducer09c retained, selectioncontroller9fcee separate.",
         "measurement": "Eager-minus-winner mean:engine.493027263ms/bootstrap95[.394336489,.595246726];SDK.36890688ms/[.26585262,.481659482]. Samequerypairedcomparison; noG/performancefullmatrixclaim.",
-        "next": "FivePwindowstrictPASSandindependentAstraACCEPT:10newmembers/10000timed+5000warmcalls/0errors,exactsemanticpairs. Wholematrixfalse;120ordinary+24diagnosticmembersremain. Original3pairsretained;noGornewwindowautostart. Mnowownsallocation.",
+        "next": "Next5P repeat1 window actually running under unitfathomdb-s50-five-p-r1-a345d335d-20261116, adoption46677688028238-2630509.json, same original48h/192GiB cumulative allocation. Prior16ordinary qualified; no new credit until terminal qualification/review. Final3P thenG remain; no auto-dispatch.",
         "selection": "Immutableadoptionselections/21055230956019-1147832.json;172800000000000ns/206158430208B TOTAL. P1old800scap preserved;newpair1800s/member900s. Acceptedretirementfreed1182400512Bonlyfrom4qualifieddisposablecopies;raw/failed/P1100kpendingdiagretained.",
         "visibility_correction": "Sourcea345d335dc7e08757497a0260764382705fa6986 independentlyAstraSOURCEACCEPT andintegrated57bda21f; genuinechildenvironmentRED/GREEN,66focusedcontrols plus48rootaffectedintegrationcontrolsPASS. SelectedUUID/cuda0/offlinecache onlyforGnativechild, no globalenvironmentmutation; Rust/Cargo/native09c/compiler8465unchanged. Five-Pwindow prepared,notadoptedorexecuted.",
         "window_selection": "Newimmutable40606222694724-2142373.json;max5/phase9200s/pair1800/member900/common100/growth8GiB/common256MiB/retiretrue;48h/192GiBTOTAL includesallpriorcharges/attemptcaps. Original210552adoption remainsretained.",
@@ -885,12 +885,12 @@
       "short": "B2-BUILD",
       "title": "Accepted residual Block2 implementation",
       "depends_on": [
-        50,
+        20,
         60,
         70,
         80
       ],
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "design_refs": [
         "dev/plans/0.8.29/features/slice-90/acceptance.md",
         "dev/plans/0.8.29/features/slice-90/census.md",
@@ -902,9 +902,9 @@
         "dev/plans/0.8.29/features/slice-90/status.md",
         "dev/plans/0.8.29/features/slice-90/test-map.md"
       ],
-      "conditions": "Approved80 AND actual Block1 follow-up exit after integrated selected20\u201370;160 is not that exit. Block1 exit is not a slice: the Slice90 owner runs it as90's pre-source entry step on the integrated root baseline; complete when applicable full/feature/performance checks, both-format conformance with inherited failures resolved and the approved smoke/item-4 remeasure (Slice160 Q12 content) have real results there, recorded by the parent in this slice's evidence.20,50,60,70 enter it closed;40 closed or by authorized rejection/defer.",
-      "phase": "CURRENT_DESIGN_ASTRA_ACCEPTED_IMPLEMENTATION_HELD_ON_BLOCK1",
-      "evidence": "Astra-medium bounded early design PASS after FIX1: installed Python/TS semantic REDs precede corresponding shared converter GREEN; aggregate count/byte/fraction transport is distinct from numeric profile.dimension. Actual integrated predecessors, approved80 and the real Block1 follow-up exit precede source work. No90-to160 cycle, implementation authority or completion follows this review.",
+      "conditions": "Owner seq392 supersedes the whole-Block1 pre-source hold: accepted80 plus fresh actual integrated qualified20/50/60/70 source-contract fit and accepted independent design permit90 implementation while measurements continue. Whole50 closure is an integrated qualification exit, not a source dependency. All selected30/50 measurements,40 disposition, applicable correctness/performance/conformance/artifact gates remain required before local close. Run the exact seq38872 episodes once on the final integrated90 candidate with unchanged models, fixtures, scoring, budget and stops. Final local passes then CI review then CI; publication excluded.",
+      "phase": "OWNER_APPROVED_PARALLEL_IMPLEMENTATION_SOURCE_FIT_REQUIRED",
+      "evidence": "Current90 design independently Astra accepted at72d9e2b1346dafc179f93f82d835bba20f682954; parallel-source amendment independently Astra accepted in8e79b0e6 and explicitly owner-approved seq392. Genuine semantic RED/GREEN, fresh final Astra implementation review and integrated source/artifact qualification remain required; no90 implementation or model-episode pass is claimed by this ruling.",
       "block1_smoke_runner": {
         "source": "db2857c3012f8bdd245d1c6f80a419eff324030d",
         "integrated": "73eb4cf7d45a3ceed3bdce20256f84d7d1c76d91",
@@ -1467,6 +1467,13 @@
         "owner_slice": 140,
         "source": "dev/steward/steward-ledger.jsonl seq-391",
         "scope": "Owner explicitly directs ordinary ARM exact-lock CPU testing over existing SSH without managed cgroup/CPU-cap setup or administrator-route ceremony. Preserve original tests/counts, exact locked dependencies and source identity; no GPU/model/fault/CI. Regular user process with ordinary timeout is authorized; do not claim cgroup caps were enforced. Supersedes seq389 executor-cap requirement for this ARM ordinary test run."
+      },
+      {
+        "id": "TC-66bf27ed-a719-41e7-b119-7ab48d4f303a",
+        "title": "Approve parallel Slice90 implementation and one final integrated72-episode comparison",
+        "owner_slice": 90,
+        "source": "dev/steward/steward-ledger.jsonl seq-392",
+        "scope": "Source entry uses accepted80 and fresh integrated qualified20/50/60/70 source contracts. Required30/50 measurements and40 disposition remain integrated qualification exits. Same seq38872 episodes once on final integrated90 candidate, unchanged models/budget/oracles. No publication or extra calls."
       }
     ],
     "unruled": [

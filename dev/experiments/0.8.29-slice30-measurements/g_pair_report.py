@@ -130,7 +130,7 @@ def report(root):
     result['complete'] = all(pair['complete'] for name in ('primary', 'diagnostics')
                              for pair in result['comparisons'][name])
     result['future_costs'] = {'P_preparation': None, '100k': None, 'writes': None,
-                              'scope': 'calibration10k read costs do not bound these cases'}
+                              'scope': 'unobserved future cases remain unavailable; a finite required prefix does not establish full-table fit'}
     return result
 
 

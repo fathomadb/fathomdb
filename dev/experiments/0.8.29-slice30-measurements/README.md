@@ -648,10 +648,14 @@ guardian matching, original provenance and no new execution/charge. The source
 records are never retagged. `pair-run` does not convert a calibration root into a
 primary root.
 
-Freeze copies the registered inputs/model bytes to owned paths and binds current
-artifacts/features plus data-only closed G donors. Primary preparation creates
-provider-none P templates once with the original1024-write seed loop and closes
-them; every member consumes a fresh validated closed copy. The public guardian
+Freeze copies the registered corpus/query/license inputs and binds current
+artifacts/features. Charged preparation binds data-only closed G donors and
+copies pinned model bytes only when a selected G pair needs them; provider-none
+P pairs need no G/model/GPU preparation. Primary preparation creates only needed
+P templates once with the original1024-write seed loop and closes them; every
+member consumes a fresh validated closed copy. The common byte allowance is
+reserved inside the phase retained-growth stop, rather than priced as a measured
+cost. The public guardian
 owns qualification, preparation, dispatch, reporting and strict cleanup.
 `pair-report` reads the retained supervised report; if none exists for a frozen
 root, explicit`AGENT_LONG=1` generates it through the same bounded guardian.

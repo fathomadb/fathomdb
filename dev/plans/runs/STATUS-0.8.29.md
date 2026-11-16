@@ -13,7 +13,7 @@ records assembled qualification; release readiness remains NOT_READY.
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.29:status-current-state -->**Next is Slice 30 (MEASURE), IN_PROGRESS.** Completed on local `release/0.8.29` per release state: 0 (`850f2c15df1ebf3262f0346e340721f9ff2422ad`) · 1 (`39289560125367aea0c80fb335c6d51260376ba0`) · 2 (`39289560125367aea0c80fb335c6d51260376ba0`) · 3 (`2d5041795f0cbbe49d55d81a2710f09e2043b8a9`) · 4 (`52a85c38cb50af220b418a4d05bc4c6e31f23fe2`) · 5 (`52a85c38cb50af220b418a4d05bc4c6e31f23fe2`) · 6 (`de85cbf40c85cd89dd8785453346b5eb0367f01c`) · 7 (`a0274cee6722c415e90b0bdda7a5578a43d41fda`) · 8 (`a0274cee6722c415e90b0bdda7a5578a43d41fda`) · 9 (`e76031ae422e56b9aead73042dedc6190a96d0ae`) · 10 (`104dcbcbe92a1eca730d146b99ab17d444df6217`) · 20 (`29669b6e239e093e77de0dfac17c055ac4e997eb`) · 60 (`4005fc07cc5f1f5560910c2603dac88a9e08df21`) · 70 (`e875f36042f89c1d84756f78135db0e8926c1ed4`) · 80 (`8432acd9db200422e4284d71169c527c439df67a`) · 100 (`fb92d51ab92702c0cc7a5dc515aa8a69187008e2`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.29:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.29:status-current-state -->**Next is Slice 30 (MEASURE), IN_PROGRESS.** Completed on local `release/0.8.29` per release state: 0 (`850f2c15df1ebf3262f0346e340721f9ff2422ad`) · 1 (`39289560125367aea0c80fb335c6d51260376ba0`) · 2 (`39289560125367aea0c80fb335c6d51260376ba0`) · 3 (`2d5041795f0cbbe49d55d81a2710f09e2043b8a9`) · 4 (`52a85c38cb50af220b418a4d05bc4c6e31f23fe2`) · 5 (`52a85c38cb50af220b418a4d05bc4c6e31f23fe2`) · 6 (`de85cbf40c85cd89dd8785453346b5eb0367f01c`) · 7 (`a0274cee6722c415e90b0bdda7a5578a43d41fda`) · 8 (`a0274cee6722c415e90b0bdda7a5578a43d41fda`) · 9 (`e76031ae422e56b9aead73042dedc6190a96d0ae`) · 10 (`104dcbcbe92a1eca730d146b99ab17d444df6217`) · 20 (`29669b6e239e093e77de0dfac17c055ac4e997eb`) · 60 (`4005fc07cc5f1f5560910c2603dac88a9e08df21`) · 70 (`e875f36042f89c1d84756f78135db0e8926c1ed4`) · 80 (`8432acd9db200422e4284d71169c527c439df67a`) · 100 (`fb92d51ab92702c0cc7a5dc515aa8a69187008e2`) · 110 (`434afa89241d0c47a39a6d49eaafde41de114af8`) · 140 (`6863ffb4b2d47bc5c42a4c2ee29bf67b2850c4da`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.29:status-current-state -->
 
 Proposal/reserved outputs0–9 and approved preparation10 are complete on the
 local release branch, with actual independent review and reachable witnesses.
@@ -22,7 +22,7 @@ selected platform/artifact and final acceptance remain pending.
 
 ## Next action
 
-<!-- BEGIN GENERATED release-state:0.8.29:status-next-action -->**Continue Slice 30 (MEASURE)** — Current source-bound baseline and tracked AC083 measurements. **Remaining ladder:** 30 → 40 → 50 → 90 → 110 → 130 → 140 → 160.<!-- END GENERATED release-state:0.8.29:status-next-action -->
+<!-- BEGIN GENERATED release-state:0.8.29:status-next-action -->**Continue Slice 30 (MEASURE)** — Current source-bound baseline and tracked AC083 measurements. **Remaining ladder:** 30 → 40 → 50 → 90 → 130 → 160.<!-- END GENERATED release-state:0.8.29:status-next-action -->
 
 Current source and measurement subjects are distinct; the JSON remains the
 ladder authority. Original failures, interrupted wrappers, inner skips and native

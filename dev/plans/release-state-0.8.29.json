@@ -672,9 +672,10 @@
         "overlap": "Four additional1000-call cells completed; actual times61.262/63.141/62.831/61.371s,250.437s charge; both C report actual_overlap=true. Original guardians collected/removed.",
         "remaining": "Required100k overlap and300k held/overlap12cells remain; original sizes/counts/oracles preserved. Select feasible prospective bounds from actual100k costs before300k.",
         "selected_source": "d109ec2ba9fd95d350da6f20d168848078082ba2",
-        "next": "Next100k overlap quartet after currentGsharedlease. Accepted1500s100k wholecell;300k still requires explicit feasible technical selection, not another calibration.",
+        "next": "Accepted Python-only guardian57912dab permits prospectivecommon48h/192GiB TOTAL withallpriorcharges. Native d109/Rust/Cargo unchanged; actualGterminalcleanup and freshfit precede remaining12 dispatch. 100k1500s/4GiBouter/16GiBentry;300k4500s/12GiBouter/24GiBentry. Final300k overlap conditional actual100k overlap and freshfit. No native rebuild/calibration/completed replay.",
         "allocation_checkpoint": "100kheld quartet completed atsharedused7572488420035ns/retained13272711972B; originalguardians/outer terminal clean. LaterS50/G charges retain sameledger.",
-        "held_100k": "Actuald109 C/T/T/C:601.202/587.059/610.264/611.776s,4000successfulcalls/0errors;closed100000rows each,observedCcomplete/dropped0,Tunobservednull. Original8DC8results untouched; stagecomplete notwholecampaign."
+        "held_100k": "Actuald109 C/T/T/C:601.202/587.059/610.264/611.776s,4000successfulcalls/0errors;closed100000rows each,observedCcomplete/dropped0,Tunobservednull. Original8DC8results untouched; stagecomplete notwholecampaign.",
+        "continuation_source": "57912dab7be249ef4651762e2385b60793d016d8; independentAstra design/finalACCEPT; genuineREDfe0e9a90,21affectedcontrolsPASS and5mergedpurelimitcontrolsPASS. No Gledger mutation."
       },
       "m_selected_runtime": {
         "source": "f29b75db3d0272e2105ff4e06c65df9853ca9b91",
@@ -1094,14 +1095,14 @@
         "shipping_python_origin": "882fc9f5b8a6871bbe80f259db0d9d717e0ba44d;actualemptyproductioninputdiffagainst d5,artifactnotretaggedorrebuilt"
       },
       "e_runtime": {
-        "status": "REVISED_DECLARED_NODE_PROFILE_ON_ARM_ACTIVE_NOT_QUALIFIED",
+        "status": "ON_BOTH_PASS_OFF_ARM_ACTIVE_NOT_WHOLE_E_QUALIFIED",
         "source": "a9d35254498c3dad7bbaf0db24c0bd8613359dac",
         "task": "/home/coreyt/fathomdb-0829-tegra-20261115",
         "output": "runtime/soak-semispace4-a9d352544",
         "launcher_pid": 1632220,
         "collector_pid": 1632252,
         "gpu_lock": "Orin/tmp/fathomdb-gpu.lock inode32899085 heldFD9;actualUUIDbbbe9f37-7028-556a-930b-54e5f3b67a82",
-        "observed": "Actualcollector/Node1632255 confirmedlive; Node--max-semi-space-size=4. Reviewedprotocol24985e9 andspecacf0124d2ec2675cd4350ca032429c6faa2c81f13c3d86ae29001e512738a531; matchedflagbothON/OFF,workload/oraclesunchanged. OriginalFAILretained; no newprofile passyet.",
+        "observed": "Existingunchangedevaluator confirmsbothONarmsPASS:60scheduled/30terminal,normalexit0,noaborts/errors/mismatches. NodeRSSslope.037564441693MiB/min,growth.9375MiB;Python0/0. PrivateUSED283241476/RESERVED301989888constant. Collector1632252 continuesOFF;originaldefaultNodeFAILpreserved. DeclaredNode--max-semi-space-size=4 inbothnewarms; notwholeE ordefaultprofilequalification.",
         "limits": "Sequentialon/off60minutes,concurrentNode+Pythonperarm,originalstrictRSS/RESERVED/sample/output/swapcriteria;3900sarm/120srequest,8GiBMemAvailable/50GiBfree/64GiBoutput;foreignGPUusersstopownedworkonly. ShippingPynative882/otherartifactd5originsretained;observer-onlybuildpairequivalenceaccepted."
       },
       "original_e_profile": {
@@ -1235,8 +1236,8 @@
         "dev/plans/0.8.29/features/slice-160/test-map.md"
       ],
       "conditions": "Every selected mandatory outcome qualified or explicitly disposed; actual installed/publication proof separate.20 closes only with actual Windows A6;40 may close by authorized rejection/defer;30/50/60/70/80 reach160 through90. Optional140/150 only if selected. Finished bounded local tasks are not local completion: every selected mandatory installed/platform (Q14) row and release dry-run (Q18) part that a permitted local or owned venue can qualify stays open until qualified there. The local mandate completes only when the remaining rows need CI after local passes and CI correctness review, or excluded registry publication; each is named outstanding, neither waived nor passed. Publication held. Owner seq377 explicitly defers live reset qualification to.30; seq378 defers new CUDA13 delivery/compiler/new-artifact proof to.31; seq379 accepts usage limits. These exclusions are owner dispositions, not passing tests. Existing platform/artifact rows remain. Seq381 also reallocates130A CUDA13 Tegra qualification to.31 while130D/E remain mandatory in.29;seq387 excludes unavailable non-Tegra ARM+GPU B/C.",
-      "phase": "LONG_TESTS_LEAF_PACKAGES_AND_MISSING_LIVE_SECURITY_ACCEPTED_REMAINING_MATRIX_PENDING",
-      "evidence": "Independent Astra-medium design/final ACCEPT actual firstlocalbatch:AC021one60.30stest59projectionDDLcycles/rebuilds/0SQLITE_SCHEMA;cursorone1000searchtest401commits400duringreads/999advancinghits/0violations. Threeofflineleafcargo packages verify-compiled. Exacttwo missingAC037live-netns tests pass incldeliberateegressdetection,nodowngrade. No source/test changes, passing-scaffoldexception or fullgate replay. Finalfeature/performance/installedplatform/artifact/dryrun rows remain; afterlocalpasses reviewCI thenrunCI; registrypublicationexcluded.",
+      "phase": "LONG_SECURITY_LINUX_WINDOWS_PACKAGE_AND_ARCHIVE_SCOPES_ACCEPTED_REMAINING_MATRIX_PENDING",
+      "evidence": "IndependentAstraaccepted actualQ10longvariants,threeverifiedleafpackages,missingAC037livechecks,currentLinuxnohookproductionPython/Node+strictTS;canonicalCUDA12.6wheel2.28/NAPI2.39floors/linkage/driverlessandfourtypedrefusals;source-archiveRustSDKpersist/reopenandCLIimmutableintegrity;currentWindowsproduction186tests/wheelsize/tenWAL+external+installedcontrols. Source/runtime/target limits and rawfailedtaskcaptures retainedin160status. ARM/Mac/final90artifactapplicability,GPUforward/UUID/allocation,remainingfeature/performance andcomplete rehearsalstayopen. AfterlocalpassesreviewCIthenrunCI;registrypublicationexcluded.",
       "qualified_subset_sha": "b07a161317ff753b86b5eb706e7c5e761adecb9a"
     }
   ],
@@ -1474,7 +1475,7 @@
   },
   "release_readiness": {
     "status": "NOT_READY",
-    "qualification": "0–20,60,70,80design,100 andselected110/140 complete locally with independentreview. CurrentMCPconformancecomponent accepted;Block1stillopen. G14/84,M4/46,D12/24;S50ordinary6/136,diag0/24. Remaining40ownerdisposition,measurements,72approvedLLMepisodes/Block1,90implementation,130E and160. OriginalNodeEprofileFAIL;newdeclaredsemispace4profileactive,notpassed. No.29 live-reset/CUDA13/nonTegraARMGPU gate; registrypublicationexcluded. Actual160Q10longvariants/threeleafpackageverification andmissingAC037livechecks independentlyaccepted; no whole160/releasegreen claim.",
+    "qualification": "0–20,60,70,80design,100 andselected110/140 complete locally with independentreview. CurrentMCPconformancecomponent accepted;Block1stillopen. G14/84,M4/46,D12/24;S50ordinary6/136,diag0/24. Remaining40ownerdisposition,measurements,72approvedLLMepisodes/Block1,90implementation,130E and160. OriginalNodeEprofileFAIL;newdeclaredsemispace4profileactive,notpassed. No.29 live-reset/CUDA13/nonTegraARMGPU gate; registrypublicationexcluded. Actual160Q10longvariants/threeleafpackageverification andmissingAC037livechecks independentlyaccepted; no whole160/releasegreen claim. Current160Linuxproduction/floor/driverless/archiveSDK-CLI andWindowsproduction/WALscopes independentlyaccepted. Revised130EbothONarmsPASS/OFFactive; finalsource/platform/GPU/rehearsal obligationsremain.",
     "publication": "HELD; no tag, dispatch, external ACL mutation or registry publication authorized by bootstrap.",
     "local_source_phase": {
       "status": "ASSEMBLED_FULL_SOURCE_PASS_INDEPENDENT_ASTRA_ACCEPTED",

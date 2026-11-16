@@ -6,8 +6,8 @@ target_release: 0.8.29
 
 # Slice 160 local qualification status
 
-Current source is `d259d84c59e38861de11192cb8764979458fb127` on the isolated
-`llm/0.8.29-s160-local-20261116` worktree. The [design](design.md) selects the
+The first local batch used `d259d84c59e38861de11192cb8764979458fb127` on
+`llm/0.8.29-s160-local-20261116`; later rows retain their actual producer revisions. The [design](design.md) selects the
 existing two required CPU long-test variants and offline verified leaf packages.
 Independent Astra-medium design review accepted this batch before execution.
 No source behavior or test oracle changed.
@@ -25,6 +25,7 @@ Cargo cache/target and ordinary CPU execution. Raw logs and archives remain unde
 | Offline leaf packages, `cargo package --offline --locked --allow-dirty` |All3 archives verify-compiled: embedder-api0.8.0, schema/query0.8.29. Cargo's unused optional fork-patch warnings are retained in `logs/package-*.log`; no verification bypass. |
 | Q4 missing AC037 live components |Current locked `security_cycle` rebuilt; both canonical netns engine and demonstrate-the-catch scripts exited0, including the live deliberate-egress catch. `logs/security-build.log`, `logs/check-netns-deny-egress.log`, `logs/check-netns-deny-egress-catch.log`. No host settings changed or optional downgrade selected. |
 | Q14 current Linux x64 production consumers |At `b07a161317ff753b86b5eb706e7c5e761adecb9a` (unchanged runtime source), the existing owned Python setup built an abi3 .29 wheel with `pyo3/extension-module,default-embedder`; the existing production N-API route and TS build passed. No test-hooks. The existing local native smoke passed isolated offline Python and matched Node installs, strict installed graph types with TS6.0.3, write/search/dependency/frozen-read and Node graph-evidence controls; Python3/Node3 runtime-configuration cases passed, zero skipped. `logs/production-{python-build,napi-build,typescript-build,installed-consumers}.log`. |
+| Q14 current Windows x64 production consumers and WAL |Exact source `50780514e6ba37fff147351eeea077ba65933431` passed production Python/Node installs, strict TS6.0.3 and all13 retained N-API modules:186/186, zero skips. The cp310-abi3 Windows wheel is6876529 bytes and passes the size gate. All10 unique WAL engine controls, real held-reader parent/child and installed baseline/current serial/binding/retained controls pass. Both existing receipts validate actual bytes. Independent Astra-medium final ACCEPT; raw logs/artifacts/WAL results remain under `/mnt/data/tmp2/fathomdb-0829-continuation/slice160-windows-20261116/`. |
 | Q15 current Linux CUDA12.6 distribution floor and driverless controls |At `abcc528944e58b5ef20cb03c27a741bf29bc13b1` (unchanged runtime source), the existing attested manylinux image built the canonical no-hook Python `embed-cuda,rerank-cuda` tuple; matching host N-API tuple built with the pinned GCC13/CUDA12.6 route. Actual `auditwheel show` confirms manylinux2.28; N-API's declared2.39 floor passes. The existing archive inspector checked every packaged ELF member without forbidden CUDA/NVIDIA payload or linkage. Canonical driverless Python/Node stages pass auto/explicit CPU384-vector forwards, real write/search/close and reranker CPU forwards. All4 forced embedder/reranker captures have actual exit1 and pass the existing exact typed-JSON/stderr validators. `logs/{manylinux-cuda-python-build,production-cuda-napi-build,production-cuda-auditwheel,production-cuda-napi-floor,production-cuda-driverless,production-cuda-forced-validation}.log`. |
 | Q14 external Rust source-archive SDK and CLI |The archive from `abcc528944e58b5ef20cb03c27a741bf29bc13b1` retains manifests, original lock, Rust sources and active local override configuration. The unchanged existing persistent SDK consumer passes actual `cargo run --locked --offline` write and separate-process reopen, including body/missing-record/close/exit assertions. Locked metadata resolves every consumed product crate inside the archive at W.29/E.8.0. CLI `cargo install --path` with `--locked --offline` passes; unchanged existing version0.8.29, legacy integrity JSON and immutable data-plane/status/file-set checks pass. Subjects/consumer lock/metadata remain in `rust-archive/`; `logs/archive-sdk-minimal-{write,reopen}.log`, `logs/archive-sdk-source-paths.log`, `logs/archive-cli-{install,smoke}.log`. |
 
@@ -61,6 +62,17 @@ archive's original producer lock and active override configuration are preserved
 This source-archive SDK/CLI proof is separate from registry-resolved `.crate`
 consumption and still needs final90 source applicability assessment.
 
+Windows used actual Python3.12.10, Rust1.95 and Node25.9/npm11.12.1.
+The verified archive retained all14478 source files and its original lock;
+qualified fork Git objects/configuration supplied the unpublished selected pins.
+The initial PowerShell5 native-stderr capture failure remains in
+`windows-wal-console.log`; the scoped fourth-control and remaining resumption
+is in `windows-wal-resume-console.log`. Selectors and marker assertions were
+unchanged, with no replay of the first three accepted controls. Existing scratch
+was reattached without formatting; selected inactive compiler-cache cleanup
+restored the approved C: floor. No A6 replay, product repair, GPU or CI occurred.
+This qualifies the named current Windows scope, not final90 or other targets.
+
 ## Remaining qualification
 
 - 20's four Windows rows and the assembled238-suite source gate are complete;
@@ -69,8 +81,8 @@ consumption and still needs final90 source applicability assessment.
   source/healthy/OOM/consumer scope is independently accepted.30's remaining
   G/M/D campaigns and50's paired observations remain incomplete; the
   [release state](../../../release-state-0.8.29.json) owns their current progress.
-- 40 awaits the actual owner choice,72's approved model episodes have not run,
-  and130E's Node soak is active.90 remains behind the actual Block1 exit.
+- 40 awaits the actual owner choice; the approved72 model episodes have not run.
+  Both revised130E pool-on SDK arms pass; the pool-off arms remain active.90 remains behind the actual Block1 exit.
 - Final integrated qualification, five-target installed packages, selected
   CUDA12.6 consumers and the complete local rehearsal still require applicable
   actual inputs. Earlier accepted observations retain their scope; no automatic

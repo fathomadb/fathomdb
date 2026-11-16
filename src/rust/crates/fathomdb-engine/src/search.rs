@@ -1100,7 +1100,7 @@ pub(crate) fn record_slice71_profile_statement_for_test(sql: &str) {
         && sql.contains("WHERE r.write_cursor=")
     {
         Some("post_filter_source_lookup")
-    } else if sql == crate::vector_spans::SCORED_EXTENT_SQL {
+    } else if sql.trim() == crate::vector_spans::SCORED_EXTENT_SQL.trim() {
         Some("snippet_scored_extent")
     } else if sql.contains("highlight(") {
         Some("snippet_highlight")

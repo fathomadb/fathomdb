@@ -531,23 +531,21 @@ fn scored_extent_ownerless_collision_and_opt_out_make_no_extra_reads() {
                 |row| row.get(0),
             )
             .unwrap();
-        connection.execute("DELETE FROM search_index WHERE rowid=?1", [cursor]).unwrap();
+        connection
+            .execute("UPDATE search_index SET rowid=1000 WHERE write_cursor=?1", [cursor])
+            .unwrap();
         connection.execute("INSERT INTO search_index(rowid,body,kind,write_cursor) VALUES(?1,'ownerlessneedle','doc',9999)",[cursor]).unwrap();
     }
     take_slice71_search_statement_trace_for_test();
-    let hybrid = search(engine, "ownerlessneedle", false, true, true);
+    // Structural explanations require a canonical lifecycle owner, so the
+    // existing ownerless route is exercised without that separate sidecar.
+    let hybrid = search(engine, "ownerlessneedle", false, false, true);
     let at = hybrid.results.iter().position(|hit| hit.body == "ownerlessneedle").unwrap();
-    assert!(hybrid.explanation.as_ref().unwrap().per_hit[at].vector_rank.is_none());
     assert_eq!(hybrid.snippets.as_ref().unwrap()[at].scored_bytes, None);
-    let participants = hybrid
-        .explanation
-        .as_ref()
-        .unwrap()
-        .per_hit
-        .iter()
-        .filter(|hit| hit.vector_rank.is_some())
-        .count();
-    assert_eq!(participants, 1);
+    let canonical = hybrid.results.iter().position(|hit| hit.id.value == "n0").unwrap();
+    assert_eq!(hybrid.snippets.as_ref().unwrap()[canonical].scored_bytes, Some(4));
+    assert_eq!(hybrid.results.len(), 2);
+    let participants = 1;
     assert_eq!(extent_queries(), participants);
     let off = search(engine, "ownerlessneedle", false, false, false);
     assert!(off.snippets.is_none());

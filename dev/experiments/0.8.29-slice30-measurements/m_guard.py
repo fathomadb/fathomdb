@@ -150,7 +150,7 @@ def _limits(profile, phase):
 
 
 def _guard(command, *, allocation, profile, root, task, admission=False, common_limit_ns=None,
-          started_ns=None, phase="M", calibration=None, primary_limits=None, cell_allowance=None, cancelled=None):
+          started_ns=None, phase="M", calibration=None, primary_limits=None, cell_allowance=None, cancelled=None, diagnostic_memory=False):
     """Own the whole controller phase, private boundary, resource floors and final charge."""
     cancelled = cancelled if cancelled is not None else [False]
     if phase not in ("M", "D", "S50"):

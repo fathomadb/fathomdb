@@ -355,9 +355,31 @@ variants actually needed by the selected cell.
 Before qualification, copy or process start, admit against current actual usage
 and retained bytes in the original shared ledger, including all prior failures
 and explicit other-work reservations. Reserve2x the selected remaining phase
-and growth allowances. Original14400s/16GiB TOTAL bounds remain selected; this
-amendment neither renews nor enlarges them. Every whole cell stays<=900s,
-including qualification, preparation, payload, reporting and cleanup. Keep7s
+and growth allowances. The accepted f29 controller's pure `admit_selected()`
+still refuses totals above14400s/16GiB, although the selected common profile is
+now48h TOTAL/192GiB TOTAL. Repair only that internal selected-M ceiling to the
+finite positive common maxima; smaller original profiles keep their exact
+limits. Carry every prior G/D/M/S50 charge, failure, retained output and percell
+allowance on the same ledger. This prospective common selection never resets
+usage or grants a fresh allowance per study, root, source or attempt.
+
+Actual primary credit remains4/46: the exact original calibration reference for
+M-R-1-1-warn, plus M-R-1-1-debug and M-R-1-4-warn/debug. Preserve their original
+manifests, native/source identities, raw results, flags and accounting. The next
+M-R-1-8-warn retains900s phase/800s payload/2GiB growth; its715223040B input
+package and1797934720B preparation bound fit that growth. Keep existing other
+cell allowances, workloads, returns/errors, numerical targets and defaults.
+Original f29 Rust/Cargo/compiler inputs remain unchanged at81791194...; reuse
+ordinary native4ffc with its truthful producer, never the root/D controller's
+different broad native fingerprint. No new calibration, ordinary rebuild or
+completed replay follows. Before scientific entry, require all five original
+ownership/inflight fields clear and current shared2x time/storage fit; G's active
+profile remains G-only. Other study costs stay held unavailable. Advance through
+the existing committed selected-cell CLI and strict final guardian boundaries,
+without a new sweep driver or percell model approval.
+
+Every whole cell stays<=900s, including qualification, preparation, payload,
+reporting and cleanup. Keep7s
 inner and20s outer cleanup reserves inside its deadline. Cumulative per-cell
 allowances and charges survive a new root/source/attempt; a failure does not
 renew them. Unknown ownership, active inflight work or cleanup uncertainty

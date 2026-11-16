@@ -525,8 +525,50 @@ Before preparation/payload, require the complete proven bound to fit the actual
 remaining cumulative growth and existing shared headroom. If it still exceeds
 1382159668B at this boundary, or a term cannot be bounded, retain the refused
 cell and its reason. This proposal supplies no fitting-bound claim, cap increase,
-weaker qualifier, new truncation/stream-limit rule or permission to start work.
-Existing growth/deadline monitors remain necessary during an admitted attempt.
+weaker qualifier or permission to start work. The prospective M-only capture
+limits below need review before implementation. Existing growth/deadline
+monitors remain necessary during an admitted attempt.
+
+### Prospective M-only capture limits — review before implementation
+
+Distinguish this fixed workload on its pinned ordinary native from arbitrary
+child-output hardening. The selected workload still sends the same registered
+requests and preserves good-run clocks, returned data and qualification oracles.
+For a complete retained-producer bound, use the existing M writers only:
+
+- Enforce the existing64MiB stdout/stderr stream limits **before** writing the
+  next line. Do not lose an overflow disposition or label the retained prefix
+  complete. Keep the existing1MiB line limit and normal per-line flush policy.
+- Bound each of the four existing `CheckpointLog` streams (submissions,
+  invocations, protocol, outcomes) at64MiB before persistence. Encode the actual
+  record first, then check its exact encoded size, including escaping and LF;
+  an oversized record is refused, not partially written. Existing observed
+  good-run outcomes are about27MiB, within this prospective ceiling.
+- Give existing result/report publication, metadata, GPU/resource capture,
+  guardian/control logs and any SQLite companion growth explicit finite terms.
+  Count every retained file/publication and serialization copy, including
+  failed predecessor history, final cleanup and overflow reporting. Do not
+  assume those terms vanish or grant each producer the entire residual budget.
+- Propagate every raw/JSONL/publication/log overflow through the existing
+  attempt and guardian outcome: retain the bounded prefix and a bounded failure
+  disposition, set completion false and grant no primary credit. Cover writer
+  threads, close/final flush, controller reporting and final publication;
+  never catch an overflow as a successful shortened result. No new capture
+  framework, polling campaign or production/native observer is needed.
+
+Two raw streams plus four JSONL streams then total at most402653184B (384MiB),
+with no final-line overshoot. Together with the715223040B package they consume
+1117876224B, leaving264283444B of the exact1382159668B growth remainder for all
+other proved terms. This is arithmetic, not a complete fitting bound: enumerate
+and enforce those remaining terms before admission. If the complete sum still
+cannot fit, refuse the retry with that precise reason. Preserve900s/800s/2GiB
+cell allowances,48h/192GiB shared totals, all prior charges and twofold headroom.
+
+Observation retention has genuine RED at2608ce37f and focused GREEN at8fa0bb76e;
+these controls supplied literal observations without a GPU query. The original
+foreign PID remains unknown. The prospective capture/history/log corrections
+remain unimplemented pending one bounded Astra-medium design review, followed
+by one coherent affected-controls/final-code review; no per-helper review loop.
 
 ### Small implementation and review boundary
 

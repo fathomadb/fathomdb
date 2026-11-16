@@ -135,7 +135,33 @@ def _interrupted_rows(root, allocation, guardian):
     except (OSError, ValueError):
         budget = {}
     active = budget.get("inflight") or {}
-    if (guardian.get("controller_pid") and active.get("cell")
+    if guardian.get("controller_pid") and active.get("cell") and active.get("replacement"):
+        from d_replacements import reference, with_history
+        key = active["cell"]
+        token = budget.get("d_replacements",{}).get(key)
+        if (not token or active.get("attempt_id") != token["attempt_id"]
+                or active.get("attempt") != token["attempt"]):
+            raise RuntimeError("interrupted replacement lacks its durable consumed identity")
+        previous = records.get(key)
+        original = token["selection"]["record"]
+        already_published = (previous is not None and previous.get("attempt_id") == token["attempt_id"]
+            and previous.get("attempt") == token["attempt"]
+            and previous.get("replacement_of") == reference(token["selection"])
+            and previous.get("prior_attempts") == [original])
+        if previous != original and not already_published:
+            raise RuntimeError("interrupted replacement history differs from its consumed selection")
+        if not already_published or previous.get("status") not in ("complete","failed","incomplete","interrupted"):
+            spent = budget.get("cell_used_ns",{}).get(key)
+            prior = token["selection"]["charged_ns"]
+            if type(spent) is not int or spent < prior:
+                raise RuntimeError("interrupted replacement cumulative charge is unavailable")
+            row = {"id":key,"attempt_id":token["attempt_id"],"attempt":token["attempt"],
+                "status":"interrupted","error":"owned controller stopped before publishing its replacement result",
+                "elapsed_ns":spent-prior,"cumulative_cell_used_ns":spent,
+                "peak_bytes":None,"native":None,"cleanup_uncertain":guardian.get("cleanup_uncertain")}
+            records[key] = with_history(row,token)
+            write_budget(state,records)
+    elif (guardian.get("controller_pid") and active.get("cell")
             and records.get(active["cell"], {}).get("status") not in ("complete", "failed", "incomplete", "interrupted")):
         records[active["cell"]] = {"id": active["cell"], "status": "interrupted",
             "error": "owned controller stopped before publishing its attempted record",

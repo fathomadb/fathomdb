@@ -187,7 +187,7 @@ def run_accounted_stage(spec, records, budget, execute, *, initial=True, clock=t
                        error=row.get("error") or "whole-cell deadline reached including report qualification")
         if token:
             from d_replacements import with_history
-            row = with_history(row,token)
+            row = with_history(dict(row,cumulative_cell_used_ns=budget["cell_used_ns"][cell["id"]]),token)
         if fail_fast and row.get("status") in ("failed", "incomplete", "interrupted"):
             failed = cell["id"]
         records[cell["id"]] = row

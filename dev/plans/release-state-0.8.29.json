@@ -232,9 +232,9 @@
         "dev/plans/0.8.29/features/slice-30/continuation-gd.md",
         "dev/plans/0.8.29/features/slice-30/continuation-m.md"
       ],
-      "phase": "G84_F_QUALIFIED_M_CONTINUATION_DESIGN_D_REPLACEMENT_SOURCE_ACCEPTED",
+      "phase": "G84_F_QUALIFIED_D_NAMED_PAIR_RUNNING_M_CORRECTION_ACTIVE",
       "plan_sha": "bea7f05cd2497af0d73c6eb8da509e11a947ca08",
-      "conditions": "G84/84 andF/Q8 independently accepted. M11/46 qualified; M-R-2-32-warn unqualified after foreign-GPU observation despite1503 successful requests; strict cleanup and all old charges retained. D14/24 ordinary qualified; finite continuation implementation7a92144 independently Astra accepted and integratedee28ca30c, no replacement dispatch. S50ordinary16/136 anddiag0/24; next5P repeat1 actually running. All selected outcomes/numerical targets/history remain.",
+      "conditions": "G84/84 andF/Q8 accepted. M11/46 qualified; originalM-R-2-32-warn foreignGPU refusal retained, coherent observation/history/output-bound correction active. D14/24 credited; reviewed exactT-r1 thenC-r1 replacements actually running after S50handoff, no newordinary credityet. S50now26/136ordinary and0/24diagnostic independently accepted; final3P thenG remain. All selected outcomes, targets and cumulative history remain.",
       "evidence": "AcceptedP/G84/F-Q8 baselines andsource/toolingpreserveoriginalnativeidentities,errors,outliersandcharges. Gfinal84reporthas144populations/97318success0errorsinselectedqualifiedoutcomes;notallhistoricalattempts. Dcriticalfailfast/TERM/accounting2c54isacceptedandactualrecoverycompletedonce. Private914SQLite-logdiagnosticcompleted100k/1000calls0errorsbutoriginalStoragecauseUNKNOWN;noordinarycreditorproductfixclaim. M sourcec738/native4ffc plusacceptedf29variants executesoriginal46sequence; source/row-levelresultsremaininexistingtaskroots. Whole30stillopenonM/DandcurrentS50performance.",
       "qualified_subset_sha": "2fd772558e46d0b1645dce2ffea730d0bdd3305c",
       "continuation_plan_sha": "0d8be5bb75516955ebf99b94913b9b54921bb3a4",
@@ -691,11 +691,23 @@
         "finite_continuation": {
           "source": "7a92144cd855b673d2e2d0077b3b9be0d425b99b",
           "integrated": "ee28ca30c884abb0882c537d4345454f32878582",
-          "status": "IMPLEMENTATION_ASTRA_ACCEPTED_WAITING_SHARED_ALLOCATION",
+          "status": "ORDINARY_NAMED_PAIR_ACTUALLY_RUNNING",
           "design": "bb81b90bdd7b6cc70a5f65d478a7ea6fa20f6311",
           "review": "Independent Astra FIX1 ACCEPT; live T refusal now stops C before consumption/preparation. No remaining actionable findings.",
           "verification": "Three actual semantic RED/GREEN units;57portable D controls+5affected delegated controls and focused interruption rerun;root4affected replacement controlsPASS. Combined full gate remains root-owned.",
-          "runtime": "No replacement dispatch/native change. Exact T-r1 thenC-r1 attempt0002 only; preserve old raw/errors/history/charges, cumulative1500s remainingT1480608204946ns/C1457528171766ns, stopfirstrefusal/failure/noattempt3. OriginalD109nativeunchanged;StoragecauseUNKNOWN;14/24ordinaryqualified. S50next5P currently owns sharedallocation."
+          "runtime": "ExactT-r1 attempt0002 native actually launched under reviewed7a afterfresh all5clear/strictS50boundary removal/resourcefloors/twofoldsharedfit. Unitfathomdb-s30-d-100k-replacements-7a92144-20261116, execsession68209. MainPID3041249/native3041526 atlaunch; do notrestart on observation timeout. TthenConly, stopfirstfailure/refusal/noattempt3. Dstill14/24 untilactualqualification; olderrors/raws/charges preserved.",
+          "execution": {
+            "unit": "fathomdb-s30-d-100k-replacements-7a92144-20261116.service",
+            "session_id": 68209,
+            "options": "/mnt/data/tmp2/fathomdb-0829-continuation/root-release-20261116/d-named-replacement/options.json",
+            "log": "/mnt/data/tmp2/fathomdb-0829-continuation/root-release-20261116/d-named-replacement/logs/run-7a92144-20261116.log",
+            "starting_shared_used_ns": 28666917623320,
+            "starting_retained_bytes": 80721586775,
+            "outer_seconds": 3079,
+            "memory_bytes": 4294967296,
+            "swap_bytes": 0,
+            "native": "OriginalD109/a512561a1c6ede38fa5233a897507d3d89883ba561a5043f52b37158c9a67a13 unchanged; CPUvaryingprovider, noGPU."
+          }
         }
       },
       "m_selected_runtime": {
@@ -793,15 +805,15 @@
       },
       "paired_runtime": {
         "source": "9fcee370363ece22edc8dff967b6d03975025de3",
-        "status": "SIXTEEN_OF_136_ORDINARY_QUALIFIED_FIVE_P_WINDOW_ASTRA_ACCEPTED",
+        "status": "TWENTYSIX_OF_136_ORDINARY_QUALIFIED_REPEAT1_FIVE_P_ASTRA_ACCEPTED",
         "root": "/mnt/data/tmp2/fathomdb-0829-continuation/slice30-g-20261113/gd-allocation/s50-required-p1-10k-r0-09c53495b",
         "result": "P1-10k-r0,P1-100k-r0 andP2-b1-s1-r0 ordinarywinner/eager complete/equal;zeroerrors. P2each1000timed/500warm,100000natural/10markers/0vectors,issuesempty,192.391/192.235s native. Strictfinalguardian/outerclean; wholematrixfalse. Originalnativeproducer09c retained, selectioncontroller9fcee separate.",
         "measurement": "Eager-minus-winner mean:engine.493027263ms/bootstrap95[.394336489,.595246726];SDK.36890688ms/[.26585262,.481659482]. Samequerypairedcomparison; noG/performancefullmatrixclaim.",
-        "next": "Next5P repeat1 window actually running under unitfathomdb-s50-five-p-r1-a345d335d-20261116, adoption46677688028238-2630509.json, same original48h/192GiB cumulative allocation. Prior16ordinary qualified; no new credit until terminal qualification/review. Final3P thenG remain; no auto-dispatch.",
+        "next": "Next5P repeat1 window independently Astra ACCEPT:10newmembers/10000timed+5000warm/0errors/exactpairedsemantics. Total26/136ordinary,0/24diag,13/16Ppairsdone;3Ppairs remain beforeG. Strict S50cleanup/handoffcompleted; Dnamed100kpairnowownsallocation. No final3P/G autodispatch.",
         "selection": "Immutableadoptionselections/21055230956019-1147832.json;172800000000000ns/206158430208B TOTAL. P1old800scap preserved;newpair1800s/member900s. Acceptedretirementfreed1182400512Bonlyfrom4qualifieddisposablecopies;raw/failed/P1100kpendingdiagretained.",
         "visibility_correction": "Sourcea345d335dc7e08757497a0260764382705fa6986 independentlyAstraSOURCEACCEPT andintegrated57bda21f; genuinechildenvironmentRED/GREEN,66focusedcontrols plus48rootaffectedintegrationcontrolsPASS. SelectedUUID/cuda0/offlinecache onlyforGnativechild, no globalenvironmentmutation; Rust/Cargo/native09c/compiler8465unchanged. Five-Pwindow prepared,notadoptedorexecuted.",
         "window_selection": "Newimmutable40606222694724-2142373.json;max5/phase9200s/pair1800/member900/common100/growth8GiB/common256MiB/retiretrue;48h/192GiBTOTAL includesallpriorcharges/attemptcaps. Original210552adoption remainsretained.",
-        "latest_window": "Adoption40606222694724-2142373.json/native09c/controllera345/compiler8465. Strictguardian39589198-7cbc-4169-8435-67de575e2c1fexit0/noresourcestop/uncertainty/survivors/exactremovedboundary,all5ownersclearatrelease. Charged2008.325620801s includingreport;shared23938.259381141satrelease. Actualpairedstatisticsmixed(includingnegativeeager-minus-winnerb10/s10),nouniversalspeedupclaim;30qualifiedretiredfilesabsent,pendingdiagnostictemplatesretained."
+        "latest_window": "Adoption46677688028238-2630509.json/native09c/controllera345/compiler8465. Guardiana5e6d5cc-a724-4beb-a0f0-cfab618402fa exit0/noresourcestop/error/uncertainty/survivors/exactboundaryremovedabsent; unitinactive/dead/MainPID0/Exec0/success. IndependentAstra verified10memberscounts/equality/providerfree/statistics and60retiredpathsabsent whilependingdiagstores/templatesretained. SDKtext eager-minuswinner mixed: b10s100+.64355msCIcrosses0,b10s10+6.74496,b10s1+3.04594,b1s100-1.21642,b1s10+4.49462; no universalspeedup. Guardiancharge2067260482107ns; actualparentpreDledgerobserved28666917623320ns,retained80721586775B, giving315476850ns postguardianreport/retirementincrement beyondprior26599341664363ns. Separateperoperationreceiptforthatincrementunavailable/Astraacceptedguardianscopeonly; parentactualreadwitness execsession68209 retained. Alloriginalhistoryremains."
       }
     },
     {

@@ -72,12 +72,31 @@ fn release(provider: &HeldEmbedder) {
     ready.notify_all();
 }
 
+fn task_disappeared(error: &std::io::Error) -> bool {
+    error.kind() == std::io::ErrorKind::NotFound
+}
+
+#[test]
+fn thread_name_error_classifier_accepts_enoent() {
+    assert!(task_disappeared(&std::io::Error::from_raw_os_error(libc::ENOENT)));
+}
+
+#[test]
+fn thread_name_error_classifier_accepts_esrch() {
+    assert!(task_disappeared(&std::io::Error::from_raw_os_error(libc::ESRCH)));
+}
+
+#[test]
+fn thread_name_error_classifier_refuses_permission_denied() {
+    assert!(!task_disappeared(&std::io::Error::from(std::io::ErrorKind::PermissionDenied)));
+}
+
 fn engine_threads() -> BTreeMap<&'static str, usize> {
     let mut counts = BTreeMap::from([("embed", 0), ("projection", 0), ("reader", 0)]);
     for task in std::fs::read_dir("/proc/self/task").expect("task inventory") {
         let name = match std::fs::read_to_string(task.expect("task").path().join("comm")) {
             Ok(name) => name,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(error) if task_disappeared(&error) => continue,
             Err(error) => panic!("thread name: {error}"),
         };
         let role = if name.starts_with("fathomdb-embed") {

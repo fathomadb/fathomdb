@@ -17,7 +17,7 @@ from m_controller import load_plan, run_budgeted_table
 from m_freeze import validate
 from m_gpu import qualification
 from m_guard import process_start, write_budget
-from m_record import CheckpointLog, CONTROL_MAX_BYTES, OutputLimitError, write_json
+from m_record import CheckpointLog, CONTROL_MAX_BYTES, OutputLimitError, write_bytes, write_json
 
 
 def read_queries(path):
@@ -81,8 +81,8 @@ def prepare(manifest, cell, attempt, deadline_ns):
         fixture = stores / "tiny"
         seeded = subprocess.run([helper, "--seed-fixture", str(fixture)], capture_output=True,
                                 timeout=min(15, max(.001, (deadline_ns-time.monotonic_ns())/10**9)))
-        (attempt / "seed.stdout").write_bytes(seeded.stdout)
-        (attempt / "seed.stderr").write_bytes(seeded.stderr)
+        write_bytes(attempt / "seed.stdout", seeded.stdout)
+        write_bytes(attempt / "seed.stderr", seeded.stderr)
         if seeded.returncode:
             raise RuntimeError("tiny SDK fixture failed")
         files = {name: str(fixture / f"{name}.sqlite") for name in ("a", "b")}
@@ -109,9 +109,9 @@ def prepare(manifest, cell, attempt, deadline_ns):
     config = dict(cell["config"], stores={name: {"path": path,
                   "eager": cell.get("case") == "eager" and name == "a"}
                   for name, path in files.items()}, default_store="a")
-    (attempt / "mcp.json").write_text(json.dumps(config, indent=2) + "\n")
-    (attempt / "prepared.json").write_text(json.dumps({"files": files, "copies": copies,
-        "preparation_ns": time.monotonic_ns() - began}, indent=2) + "\n")
+    write_json(attempt / "mcp.json", config, limit=CONTROL_MAX_BYTES)
+    write_json(attempt / "prepared.json", {"files": files, "copies": copies,
+        "preparation_ns": time.monotonic_ns() - began}, limit=CONTROL_MAX_BYTES)
 
 
 def payload(manifest, cell, attempt, deadline_ns):

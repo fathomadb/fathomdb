@@ -5,7 +5,7 @@ from pathlib import Path
 import socket
 import time
 
-from m_record import CheckpointLog
+from m_record import CheckpointLog, CONTROL_MAX_BYTES
 
 
 class PrivateControl:
@@ -18,7 +18,7 @@ class PrivateControl:
         self.next_id = 1
         self.events = []
         self.failures = []
-        self.log = CheckpointLog(Path(root) / "control.jsonl")
+        self.log = CheckpointLog(Path(root) / "control.jsonl", max_bytes=CONTROL_MAX_BYTES)
         until = time.monotonic() + timeout
         while True:
             try:

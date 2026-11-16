@@ -9,6 +9,7 @@ import uuid
 
 from g_freeze import MODEL_FILES, PINS, SOURCE, compiler_inputs, git, identify
 from m_controller import COMPONENTS, _assessment, load_plan
+from m_record import CONTROL_MAX_BYTES, write_json
 
 VARIANTS = {"providerfree": [], "helper": ["test-seams"], "ordinary": ["embed-cuda"]}
 
@@ -200,8 +201,7 @@ def _bind_inputs(options, output, profile, forecasts, *, calibration=None, selec
             retry_history(manifest)
     output.mkdir(parents=True, exist_ok=True)
     path = output / "manifest.json"
-    with path.open("x") as stream:
-        stream.write(json.dumps(manifest, indent=2) + "\n")
+    write_json(path, manifest, limit=CONTROL_MAX_BYTES, exclusive=True)
     path.chmod(0o444)
     return manifest
 

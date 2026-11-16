@@ -10,7 +10,7 @@ import time
 
 from m_cell import execute
 from m_controller import load_plan
-from m_record import BoundedLog, CONTROL_MAX_BYTES, OutputLimitError, write_json
+from m_record import BoundedLog, CONTROL_MAX_BYTES, OutputLimitError, write_guardian, write_json
 
 
 def source_smoke(root, cli, helper):
@@ -226,7 +226,10 @@ def main():
                 rows = control(options.root, owner, source_manifest=source)
                 result = {"complete": all(row["complete"] for row in rows), "rows": rows}
                 report(options.root)
-        print(json.dumps(result, allow_nan=False))
+        if options.action == "_selected":
+            print(json.dumps({key: result.get(key) for key in ("id", "complete", "status", "exit")}))
+        else:
+            print(json.dumps(result, allow_nan=False))
         return 0 if result.get("complete", options.action == "_freeze") else 1
     print(json.dumps(result, allow_nan=False))
     return 0 if result["complete"] else 1
@@ -259,7 +262,7 @@ def run_selected(options, root, cell_id, began):
         result["final_report"] = publish_selected(root)
         if not result["final_report"]["phase_qualified"]:
             result.update(exit=124, stop="selected final publication allowance")
-    print(json.dumps(result))
+    print(json.dumps({key: result.get(key) for key in ("exit", "cleanup_uncertain", "stop")}))
     return result
 
 
@@ -354,8 +357,8 @@ def retire_working_copies(root):
                     path.unlink()
                     retired.append(str(path))
                     outcome["retired_working_copies"] = retired
-                    write_budget(attempt / "attempt.json", outcome)
-                    write_budget(state_path, outcomes)
+                    write_json(attempt / "attempt.json", outcome, limit=CONTROL_MAX_BYTES)
+                    write_json(state_path, outcomes, limit=CONTROL_MAX_BYTES)
         finally:
             elapsed = time.monotonic_ns() - began
             if calibration:
@@ -383,7 +386,7 @@ def _charge_final_work(root, ledger_path, ledger, usage, elapsed, limits, profil
     if (failed or usage["wall_ns"] >= limits["phase_ns"]
             or ledger["used_ns"] + profile["reserved_other_work_ns"] >= profile["total_shared_ns"]):
         receipt.update(exit=124, stop="selected final publication allowance")
-    write_budget(path, receipt)
+    write_guardian(path, receipt)
     write_budget(ledger_path, ledger)
     return receipt.get("exit") == 0
 

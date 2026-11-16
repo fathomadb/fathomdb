@@ -10,7 +10,7 @@ import time
 import traceback
 
 from g_attempt import live_owned_pids, stop_owned_group, unreaped_exit
-from m_record import BoundedLog
+from m_record import BoundedLog, CONTROL_MAX_BYTES, OutputLimitError, write_json
 
 CLEANUP_RESERVE_NS = 7 * 10**9
 
@@ -98,15 +98,20 @@ def run_attempt(cell, root, command, *, deadline_ns, prepare=None, authorize=Non
     prior = [int(path.name.split("-")[1]) for path in cell_root.glob("attempt-*") if path.is_dir()]
     attempt = cell_root / f"attempt-{max(prior, default=0) + 1:04}"
     attempt.mkdir()
+    bounded = cell.get("family") in ("M0", "M-R", "M-C", "M-L", "M-E")
     config = attempt / "cell.json"
-    config.write_text(json.dumps(cell, indent=2) + "\n")
+    if bounded:
+        write_json(config, cell, limit=CONTROL_MAX_BYTES)
+    else:
+        config.write_text(json.dumps(cell, indent=2) + "\n")
     outcome = {"id": cell["id"], "cell": cell, "attempt": str(attempt), "status": "failed",
                "complete": False, "exit": None, "cleanup_uncertain": False,
                "live_owned_pids": [], "deadline_ns": deadline_ns,
                "work_deadline_ns": work_deadline_ns, "cleanup_reserve_ns": CLEANUP_RESERVE_NS,
                "sessions": []}
     error = None
-    with BoundedLog(attempt / "child.log") as log:
+    context = BoundedLog(attempt / "child.log") if bounded else (attempt / "child.log").open("a", encoding="utf-8", buffering=1)
+    with context as log:
         try:
             if register:
                 register(cell, attempt)
@@ -115,9 +120,10 @@ def run_attempt(cell, root, command, *, deadline_ns, prepare=None, authorize=Non
                 error = "insufficient work allowance after bounded cleanup reserve"
             if not error and prepare:
                 child = _Preparation(prepare, cell, attempt, work_deadline_ns, log)
-                log.start()
+                if bounded:
+                    log.start()
                 code, error, uncertain, live = _wait_owned(child, work_deadline_ns,
-                    lambda: log.error or (monitor() if monitor else None))
+                    lambda: getattr(log, "error", None) or (monitor() if monitor else None))
                 outcome["sessions"].append({"kind": "preparation", "pid": child.pid,
                                              "exit": child.returncode})
                 outcome.update(exit=code, cleanup_uncertain=uncertain, live_owned_pids=live)
@@ -130,9 +136,10 @@ def run_attempt(cell, root, command, *, deadline_ns, prepare=None, authorize=Non
                 argv = [*argv, str(config), str(attempt)]
                 child = subprocess.Popen(argv, stdout=log, stderr=subprocess.STDOUT,
                                          start_new_session=True)
-                log.start()
+                if bounded:
+                    log.start()
                 code, error, uncertain, live = _wait_owned(child, work_deadline_ns,
-                    lambda: log.error or (monitor() if monitor else None))
+                    lambda: getattr(log, "error", None) or (monitor() if monitor else None))
                 outcome["sessions"].append({"kind": "payload", "pid": child.pid,
                                              "exit": child.returncode})
                 outcome.update(exit=code, child_exit=child.returncode, pid=child.pid, pgid=child.pid,
@@ -146,9 +153,17 @@ def run_attempt(cell, root, command, *, deadline_ns, prepare=None, authorize=Non
         except BaseException as failure:
             error = f"{type(failure).__name__}: {failure}"
             traceback.print_exc(file=log)
-    error = error or log.error
+    error = error or getattr(log, "error", None)
     outcome.update(error=error, elapsed_ns=time.monotonic_ns() - started)
     if error:
         outcome.update(complete=False, status="failed")
-    (attempt / "attempt.json").write_text(json.dumps(outcome, indent=2) + "\n")
+    try:
+        if bounded:
+            write_json(attempt / "attempt.json", outcome, limit=CONTROL_MAX_BYTES)
+        else:
+            (attempt / "attempt.json").write_text(json.dumps(outcome, indent=2) + "\n")
+    except OutputLimitError as error:
+        outcome.update(complete=False, status="failed", exit=125, error=str(error))
+        outcome.pop("command", None)
+        write_json(attempt / "attempt.json", outcome, limit=CONTROL_MAX_BYTES)
     return outcome

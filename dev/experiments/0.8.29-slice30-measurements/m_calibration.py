@@ -8,6 +8,7 @@ import time
 from g_campaign import active_bytes
 from m_attempt import run_attempt
 from m_load import observe_load, summarize_load
+from m_record import CONTROL_MAX_BYTES, JSONL_MAX_BYTES, JSON_MAX_BYTES, write_json
 
 CELL_ID = "M-R-1-1-warn"
 CALIBRATION_ID = "M-CAL:" + CELL_ID
@@ -90,7 +91,7 @@ def control(root, owner, manifest=None):
     outcome.update(charged_ns=elapsed, scope=manifest["scope"], qualifies_primary=primary,
                    load=summarize_load(load_observations))
     (root / "results").mkdir(exist_ok=True)
-    (root / "results/campaign-state.json").write_text(json.dumps([outcome], indent=2) + "\n")
+    write_json(root / "results/campaign-state.json", [outcome], limit=CONTROL_MAX_BYTES)
     return outcome
 
 
@@ -100,15 +101,33 @@ def preparation_bound(manifest):
     queries = read_queries(manifest["inputs"]["queries"]["path"])
     if len(queries) != 500:
         raise ValueError("exact500 registered calibration queries required")
+    cell = manifest.get("plan", [{}])[0]
+    copies = cell.get("copies", 1) if cell.get("family") not in ("M0", "M-E") else 0
+    package = copies * sum(item["bytes"] for item in manifest["package"])
+    if manifest.get("scope") == "registered-M-selected-cell":
+        # Six wire files; one result plus provisional/final reports;24 bounded
+        # metadata/GPU/control/log/seed files, directories and atomic copies.
+        capture = 6 * JSONL_MAX_BYTES + 3 * JSON_MAX_BYTES + 24 * CONTROL_MAX_BYTES
+        # The pinned healthy G subject needs no migration/backfill. Read-only M
+        # calls can change only the small equivalence verdict on open. At most
+        #15 idle evictions plus3 explicit opens fit900s/default60s;20 is an upper
+        # bound. An8MiB envelope per open covers b-tree path/split/WAL/SHM pages
+        # for this single small marker, including main-file allocation.
+        native = (900 // 60 + 3 + 2) * 8 * 1024**2
+        ledger = Path(manifest["allocation"]) / "g-budget.json"
+        old = json.loads(ledger.read_text())
+        encoded = len((json.dumps(old, indent=2) + "\n").encode("utf-8"))
+        # Existing history is finite input, never capped/deleted. New M owner,
+        # attempt and root fields add fewer than128KiB even with JSON escaping.
+        shared_atomic = 2 * (encoded + 128 * 1024)
+        return package + capture + native + shared_atomic
     maximum = max(len(json.dumps({"jsonrpc": "2.0", "id": 10000, "method": "tools/call",
         "params": {"name": "search", "arguments": {"store": "a", "query": query,
                   "mode": "hybrid", "limit": 10}}}, ensure_ascii=False,
         separators=(",", ":")).encode("utf-8")) + 1 for query in queries)
     # Existing64MiB raw streams and their escaped/decoded snapshots fit below1GiB;
     # request copies are additionally bounded by the actual selected query sizes.
-    cell = manifest.get("plan", [{}])[0]
-    copies = cell.get("copies", 1) if cell.get("family") not in ("M0", "M-E") else 0
-    return copies * sum(item["bytes"] for item in manifest["package"]) + 1024**3 + 12 * 1504 * maximum
+    return package + 1024**3 + 12 * 1504 * maximum
 
 
 def selected_cell(cell_id):

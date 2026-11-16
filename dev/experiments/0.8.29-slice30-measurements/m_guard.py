@@ -14,7 +14,7 @@ from g_boundary import TaskBoundary
 from g_campaign import active_bytes
 from g_resource import resource_sample
 from m_load import observe_load, summarize_load
-from m_record import BoundedLog
+from m_record import BoundedLog, write_guardian
 
 
 def write_budget(path, value):
@@ -257,7 +257,10 @@ def _guard(command, *, allocation, profile, root, task, admission=False, common_
             receipt["charged_ns"] = receipt["accounting"]["charged_ns"]
             receipt["elapsed_ns"] = time.monotonic_ns()-began
             receipt["unreconciled"] = False
-            (phase_root / "guardian.json").write_text(json.dumps(receipt, indent=2)+"\n")
+            if phase == "M":
+                write_guardian(phase_root / "guardian.json", receipt)
+            else:
+                (phase_root / "guardian.json").write_text(json.dumps(receipt, indent=2)+"\n")
             return receipt
         if phase == "M" and bounded is None:
             budget[guardian_key] = {"pid": os.getpid(), "start": process_start(os.getpid()),
@@ -393,7 +396,10 @@ def _guard(command, *, allocation, profile, root, task, admission=False, common_
                 receipt.update(exit=124, stop=f"{phase_name} retained growth")
         receipt["accounting"] = accounting.finish(uncertain=receipt["cleanup_uncertain"],
                                                   stopped_ns=receipt["stopped_monotonic_ns"])
-        (phase_root / "guardian.json").write_text(json.dumps(receipt, indent=2) + "\n")
+        if phase == "M":
+            write_guardian(phase_root / "guardian.json", receipt)
+        else:
+            (phase_root / "guardian.json").write_text(json.dumps(receipt, indent=2) + "\n")
     return receipt
 
 

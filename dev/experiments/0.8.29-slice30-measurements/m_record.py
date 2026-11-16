@@ -16,14 +16,36 @@ class OutputLimitError(RuntimeError):
     """A complete next record would exceed its retained capture limit."""
 
 
-def write_json(path, value, *, limit=None):
+def write_json(path, value, *, limit=None, exclusive=False):
     """Write one complete JSON publication, refusing before opening on overflow."""
     limit = JSON_MAX_BYTES if limit is None else limit
     text = json.dumps(value, indent=2, allow_nan=False) + "\n"
     size = len(text.encode("utf-8"))
     if size > limit:
         raise OutputLimitError(f"{path.name}: capture limit {limit} bytes; next publication {size} bytes")
+    if exclusive:
+        with path.open("x", encoding="utf-8") as stream:
+            return stream.write(text)
     return path.write_text(text, encoding="utf-8")
+
+
+def write_bytes(path, value):
+    """Retain one bounded control prefix without opening on an oversized value."""
+    if len(value) > CONTROL_MAX_BYTES:
+        raise OutputLimitError(f"{path.name}: capture limit {CONTROL_MAX_BYTES} bytes")
+    return path.write_bytes(value)
+
+
+def write_guardian(path, receipt):
+    """Preserve cleanup/accounting when an oversized diagnostic receipt is refused."""
+    try:
+        write_json(path, receipt, limit=CONTROL_MAX_BYTES)
+    except OutputLimitError as error:
+        receipt.update(exit=125, error=str(error), output_overflow=str(error))
+        receipt.pop("resources", None)
+        receipt.pop("load", None)
+        write_json(path, receipt, limit=CONTROL_MAX_BYTES)
+
 
 
 class CheckpointLog:

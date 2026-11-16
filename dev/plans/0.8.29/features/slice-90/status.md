@@ -46,7 +46,10 @@ the final stable integrated broad gate and applicable correctness, performance,
 conformance, artifact and release exits. Slice40 conditional disposition is
 complete with no new treatment; no additional owner approval is needed.
 Remaining30/50 measurements are final integrated obligations, not source-entry
-holds. The same
-seq388-approved72 model-smoke episodes run once on the final integrated90
-candidate under seq392; this implementation has made no paid/model smoke calls,
-GPU runs, CI dispatches, tags or registry publication.
+holds. The same seq388-approved72 episodes subsequently completed once on the
+final222/b3c6 integrated candidate under seq392, with all144 grades and independent
+Astra final ACCEPT. Exact models, complete qIDs, costs and paired intervals are
+in the [existing comparison report](../../../../experiments/agent-remeasure/README.md#current-candidate-results-2026-11-16).
+No additional episode, quality threshold or noninferiority claim follows.
+Remaining measurements/combined qualification and CI stay open; no tag or
+registry publication occurred.

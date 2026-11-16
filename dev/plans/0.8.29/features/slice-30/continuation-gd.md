@@ -1671,6 +1671,71 @@ cap/floor stop. C-only outer4580s and overlap outer18080s retain4500s fresh cell
 and60s common/20s reserve. This is an explicit future operator-profile selection,
 not an implicit change to prior invocation evidence or shared guardian floors.
 
+#### Actual fixed24 D cohort completion
+
+The original fixed24 C/T matrix now has24 complete/closed/error-free outcomes:
+24000 ordinary calls and3280000 physical rows across fresh stores. All12 C rows
+have complete observations and zero dropped records; all six C-overlap rows
+prove actual positive overlap. T keeps its ordinary observer/subscriber-off
+population and does not acquire C attribution. The final controller report has
+`stage_complete=true` and `campaign_complete=true`; independent Astra-medium
+final cohort review ACCEPTS these actual results. `qualifies_natural=false`
+remains correct for drain characterization, not canonical natural-search latency.
+Whole30/downstream completion remains separate.
+
+Qualified fresh-attempt whole-cell seconds follow; these include preparation,
+execution and qualification, and are not API-latency or C-minus-T overhead claims.
+Original unqualified attempts remain charged separately below.
+
+| Size/mode | C-r0 seconds | C-r1 seconds | T-r0 seconds | T-r1 seconds |
+| --- | --- | --- | --- | --- |
+|10k held |72.008068040 |71.298033017 |71.856382891 |70.297508140 |
+|10k overlap |61.262408187 |61.370780530 |63.140758493 |62.830695754 |
+|100k held |601.201964811 |611.775711919 |587.058615175 |610.264184701 |
+|100k overlap |476.108360986 |483.835995083 |478.139648124 |497.712694519 |
+|300k held |2920.600162684 |2159.578131727 |2688.795259290 |3035.803849347 |
+|300k overlap |1388.658847984 |1343.002340606 |1384.534421133 |1367.748835484 |
+
+Retain the failed100k overlap T-r1 Storage attempt19391795054ns and interrupted
+100k overlap C-r1 attempt42471828234ns in full. Their qualified second attempts
+leave cumulative517104489573ns and526307823317ns, within original1500s cells.
+The300k held C-r1 host-memory-floor interruption remains2552606408977ns; its one
+qualified fresh continuation2159578131727ns leaves4712184540704ns cumulative,
+within the explicitly selected7500s C-only ceiling and4500s fresh limit. The
+three originals remain `prior_attempts` with explicit raw references; no third
+attempt, passing-row replay or removal of failed history occurred. Original
+Storage cause remains unknown: the separate private diagnostic never supplies
+ordinary D credit or a product-repair/failure-free-campaign claim.
+
+Original accepted10k subjects remain bound to their original identities. The
+remaining ordinary measurements retain frozen nativeD109 (`a512561a1c6e`), with
+its original compiler-input identity; no current-global-hash equivalence or
+native rebuild/retag is inferred. Final control source was clean
+`ed96005c1dedfb09f75702f8e4a4d8fa1512fc4e` at entry and exit. The selected final
+four used8GiB outer/zero swap/16GiB entry/8GiB memory stop,4500s per cell,
+18080s outer and60s common. Earlier invocation envelopes and raw refusals remain
+unchanged, including the pre-native entry-memory refusal with no consumed C2.
+
+At the exact final D boundary the shared ledger was49193375442735ns and
+99492829364B, including all earlier G/D/M/S50 work, failures and retained output;
+this is a boundary observation, not a renewed study budget. The final overlap
+invocation charged5487461149430ns. Its original guardian exited0/child0 with no
+stop/error/cleanup uncertainty, no boundary population at controller exit and
+exact empty-boundary removal. The outer unit was inactive/dead/MainPID0/Exec0/
+Resultsuccess/empty cgroup; original actors were absent, all five ownership fields
+were clear and the task marker absent. Subsequent authorized M ownership and
+charges are distinct from this completed D boundary.
+
+Raw evidence stays under the original G task
+`/mnt/data/tmp2/fathomdb-0829-continuation/slice30-g-20261113`:
+`gd-allocation/d-initial-10k-held-dc8f97601/{d-report.json,d-state.json,d-config.json}`,
+its `attempts/<cell>/attempt-*` trees and final original
+`guardians/e9c19b3d-bf21-40c2-85d9-4c4ebd740a99/guardian.json`.
+The final options/profile/review, supervisor/service logs and resource samples
+remain in the existing `slice30-d-runtime-limits-20261116/remaining/d-300000-overlap`
+task directory. All original failed/interrupted/diagnostic raw evidence remains
+in place; no new receipt or substitute scientific population is created.
+
 #### D owned refusal cost clarification
 
 The new D negative fixture's whole-ledger equality was too broad for refusals

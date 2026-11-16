@@ -93,9 +93,11 @@ See `logs/ac011a-resume.log`, `logs/{ac011b,ac021,cursor}-first-current.log` and
 Owner-approved temporary24GiB live ballooning of the shared Windows VM left
 persistent32GiB configuration/services/disks unchanged; settled guest free was
 20606368KB with no active workers/builds. Actual host memory was reported without
-an inferred8GiB gain. **32GiB live restoration remains due** in
-`openfix-20261116/runtime-state.json`; parent holds restoration until remaining
-native work ends. Mac/hosted/registry and combined readiness remain separate;
+an inferred8GiB gain. A later check found the VM already shut off with no
+managed save; its persistent32GiB target remains intact. The temporary live-only
+reduction has therefore ended. No setmem, VM start/stop or persistent change was
+performed by that check; `openfix-20261116/runtime-state.json` records the
+resolved hold. Mac/hosted/registry and combined readiness remain separate;
 the ordinary current throughput pass retains earlier failures. Any subsequent production remedy needs affected new bytes;
 these d226 observations retain their actual input scope.
 

@@ -83,7 +83,9 @@ Execution held the selected RTX 3090's physical lease, verified driver
 900-second overall limits with 20-second termination grace. The stage exited 0
 without a resource stop. The guarded actor and all owned MCP actors were absent;
 cleanup and a fresh postcheck found no GPU compute processes, 2 MiB used, and the
-same-inode physical lease available and released. No paid episode ran.
+same-inode physical lease available and released. These conformance probes used
+no paid model; the subsequently completed approved 72-episode sequence is
+reported separately in the [agent results](../../experiments/agent-remeasure/README.md#current-candidate-results-2026-11-16).
 
 ## Official-suite applicability
 

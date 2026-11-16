@@ -1730,3 +1730,25 @@ the original guardian remain under `gd-allocation/g-closed-write-matrix-v2` and
 in the owned G task. After all five ownership fields cleared, the remaining D
 100k-overlap quartet started using accepted57912dab and nativeD109. M42 and
 current paired50 measurements still prevent whole30/Block1 closure.
+
+## Fixed D cohort completed — November16
+
+The [actual fixed24 result](continuation-gd.md#actual-fixed24-d-cohort-completion)
+now retains24 qualified fresh outcomes,24000 ordinary calls and3280000 physical
+rows; all12 C observation streams are complete/loss-free and all six C-overlap
+rows prove overlap. The final source was clean ed96005; frozen ordinaryD109 and
+original accepted10k identities remain unchanged. Failed100k T-r1 Storage and
+interrupted100k/300k C-r1 attempts remain in raw history and cumulative charges;
+the private diagnostic gives no ordinary credit or established original cause.
+
+The last quartet completed in C-r0/T-r0/T-r1/C-r1 order with no new failure,
+retry or resource stop. Original final guardian e9c19b3d-bf21-40c2-85d9-4c4ebd740a99
+has exit0/child0/known cleanup and an exactly removed empty boundary; outer unit
+`fathomdb-s30-d-300000-overlap-ed96005c1-20261116.service` is inactive/dead,
+MainPID0/Exec0/Resultsuccess/empty cgroup. At that boundary all five owners were
+clear and the task marker absent; shared49193375442735ns/99492829364B includes
+all prior work. Independent Astra-medium final review ACCEPTS the actual D24
+cohort; later M/S50 continuation and whole30 completion remain separate. Original results,
+configuration and attempts are in `gd-allocation/d-initial-10k-held-dc8f97601`
+under the G task named in the linked result; later M activity does not relabel
+this completed D handoff or its shared boundary snapshot.

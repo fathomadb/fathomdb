@@ -10,7 +10,8 @@
 Raw transcripts, answers and verdicts stay in an external run directory, never
 in this repository. The setup below describes the October 19 experiment. The
 [current candidate preparation](#current-candidate-preparation) has an implemented
-runner and ready fixtures; candidate answerer and judge episodes have not run.
+runner and ready fixtures. The approved candidate sequence and judging are
+complete; see the [current results](#current-candidate-results-2026-11-16).
 
 ## Pieces
 
@@ -117,7 +118,7 @@ or proxy-based current arm:
   accepts these options in metadata-only help. Keep tool isolation and empty
   cwd; audit actual 4-tool/3-search limits. Terminate the full child process group
   on timeout, preserve partial transcripts, and stop the phase on invalidity.
-- Proposed reported-cost allocation: each 6-question smoke phase $0.12, each
+- Approved reported-cost allocation: each 6-question smoke phase $0.12, each
   30-question item4 phase $0.60, judges $0.56; total $2.00. Reserve $0.02 before
   each answerer episode, persist it with existing run data, and check remaining
   phase allowance before scheduling. Unknown/timeout charges retain their full
@@ -181,8 +182,8 @@ arguments. `--resume` skips completed episodes only and refuses unknown/invalid
 reservations. Scoring refuses incomplete phases before constructing a client.
 Unknown judge outcomes remain pending in the existing cache and cannot be
 rejudged automatically. `--no-judge` is a zero-egress transcript audit; absent
-grades stay unknown and it cannot pass accuracy. No actual candidate run has
-been performed by this implementation work.
+grades stay unknown and it cannot pass accuracy. The approved sequence completed
+once; its actual results are recorded below.
 
 **Approved scope (seq-388):** the above Haiku 5.5 answerer/GPT-4o-mini judges,
 identical single-sentence prompt correction, 6-question conv1 both-format smoke
@@ -203,3 +204,68 @@ zero-inference command is:
 ```bash
 python3 -m unittest discover -s dev/experiments/agent-remeasure/tests -p 'test_*.py'
 ```
+
+
+## Current candidate results (2026-11-16)
+
+The approved 6+6+30+30 sequence completed once: 72 valid episodes, 144 completed
+judge responses, no pending/unknown grades, tool errors, busy results, off-policy
+calls or unparsed answers. Existing completeness and reported-budget checks
+passed. No extra episode, availability canary or fallback was run.
+
+Requested answerer `claude-haiku-5-5` matches every transcript's initialization,
+assistant response and `modelUsage` identifier. Requested judge `gpt-4o-mini`
+was served as `openai/gpt-4o-mini` for all 144 recorded responses. The owned
+runtime used OpenAI 3.51.0 with SDK `max_retries=0` and wrapper
+`retry_unknown=False`.
+
+The pinned owned Claude CLI was 2.1.325, SHA-256
+`0dc4f4a9a165fc60746d7ae8489712e5fc352f1e7ad4eb22e7141bd0812eb0cf`,
+at `<raw root>/claude-2.1.325/claude`. Production MCP source
+`222fa39542662f73be943c02d0c8ab14b59e84bb`, SHA-256
+`b3c6f256fe88f37b8287dbef29b0610ef4cd7ad029e78661eebfb344914f3eed`,
+was preserved at `refresh-open-222fa3954/fathomdb-mcp-cuda` under the raw root.
+The unchanged format-37 fixtures were `stores/all/locomo_all.sqlite` (all ten
+conversations, 5882 turns) and `stores/conv0/conv0.sqlite` (419 turns), prepared
+with the preserved `locomo_load-cuda` SHA-256
+`a632e4e102f0514d2c60eb8072d8bb94eb7933e3d98c7d1985cbf051ae9925de`.
+Each phase used the existing runner's private copy; originals stayed untouched.
+The dataset remains the `locomo10.json` path documented above.
+
+| Phase | Questions | Lenient correct | Strict correct | Answerer reported USD | Mean search bytes/call |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Smoke text | 6 | 6/6 | 4/6 | 0.01031050 | 2823.92 |
+| Smoke structured | 6 | 6/6 | 4/6 | 0.01028600 | 3840.22 |
+| Item4 text | 30 | 29/30 | 17/30 | 0.04562938 | 3224.49 |
+| Item4 structured | 30 | 28/30 | 18/30 | 0.05035855 | 4075.08 |
+
+Paired differences below are structured minus text, in percentage points, with
+95% paired bootstrap intervals from the existing scorer and complete qID sets.
+
+| Pair | Lenient difference [95% interval] | Strict difference [95% interval] |
+| --- | ---: | ---: |
+| Smoke, n=6 | 0.00 [0.00, 0.00] | 0.00 [0.00, 0.00] |
+| Item4, n=30 | -3.33 [-10.00, 0.00] | +3.33 [-6.67, +16.67] |
+
+Answerers reported $0.11658443; judges charged $0.01786230 under the existing
+higher-of-table/route ledger rule: $0.13444673 total against the $2 allocation.
+All four answerer phase caps and the $0.56 judge cap were respected. API-reported
+answerer usage across72 episodes (178 recorded API messages;179 reported turns) was 356 uncached input, 366299 cache-creation,
+1563203 cache-read and 55314 output tokens. Judges reported 95266 input tokens
+(including 2048 cached), 6210 output and zero reasoning tokens. Search payload
+bytes divided by four remain estimates, separate from these API counters.
+
+Separately, the retained current-native CUDA14 single-hit `Caroline` comparison
+matched ref, snippet, arm and source_id: rendered text blocks were 339 UTF-8
+bytes in text mode and 517 in structured mode. This renderer sample is separate
+from the natural agent search populations in the table. Instruction-presence
+self-reports were yes for 15/36 text and 14/36 structured episodes; the remaining
+self-reports were no.
+
+Raw root:
+`/mnt/data/tmp2/fathomdb-0829-continuation/final-mcp-20261116`.
+The four phase directories retain metadata, checkpoints, transcripts and grades;
+`score/summary.json`, `score/questions.jsonl` and `score/judge-ledger/judge.jsonl`
+retain the comparison and spend. The existing answerer entry log retains strict
+zero-owned-actor cleanup and the same-inode physical lease acquire/release
+postcheck with the selected GPU empty. The GPU was released before judging.

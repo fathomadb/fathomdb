@@ -3,8 +3,13 @@
 Status: P subset accepted after fresh final independent Astra-medium PASS on
 clean0d8be5bb and parent integration2381de882. Qualification remains assembled
 within the exact subjects/limits below. Whole30/downstream gates stay open.
-All measurements below come from the same clean2fd772558e46d0b1645dce2ffea730d0bdd3305c,
+All P measurements below come from the same clean2fd772558e46d0b1645dce2ffea730d0bdd3305c,
 not a historical prototype or a different installed artifact.
+
+The separate [fixed24 D cohort](continuation-gd.md#actual-fixed24-d-cohort-completion)
+now has24 qualified outcomes with original failed/interrupted history retained.
+Its raw results, distinct source identities and final shared-accounting boundary
+are recorded there; P measurements and their qualification stay unchanged.
 
 ## Subject and raw evidence
 

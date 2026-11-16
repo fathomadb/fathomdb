@@ -46,7 +46,9 @@ class GpuObserver:
     def sample(self, pid):
         """Retain actual app memory/utilization; foreign compute work refuses this cell."""
         record = inspect_gpu(self.gpu["uuid"], pid)
-        if any(row["pid"] != pid for row in record["applications"]):
-            raise RuntimeError("selected GPU has foreign compute work")
         record["baseline_gpu_memory_mib"] = self.baseline["gpu_memory_mib"]
+        if any(row["pid"] != pid for row in record["applications"]):
+            failure = RuntimeError("selected GPU has foreign compute work")
+            failure.observation = record
+            raise failure
         return record

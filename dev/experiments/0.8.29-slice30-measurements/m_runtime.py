@@ -131,7 +131,8 @@ def payload(manifest, cell, attempt, deadline_ns):
         os.environ.update(HF_HOME=manifest["hf_home"], HF_HUB_OFFLINE="1",
                           FATHOMDB_EMBED_DEVICE=f"cuda:{manifest['gpu']['ordinal']}")
     queries = read_queries(manifest["inputs"]["queries"]["path"]) if natural else ["alpha"]
-    samples, failures, stop, thread = [], [], threading.Event(), None
+    samples, failures, failure_observations = [], [], []
+    stop, thread = threading.Event(), None
     stream = None
     observer = None
     if natural and cell["search_mode"] == "hybrid":
@@ -150,6 +151,13 @@ def payload(manifest, cell, attempt, deadline_ns):
                         stream.write(row)
                     except Exception as error:
                         failures.append(f"{type(error).__name__}: {error}")
+                        observation = getattr(error, "observation", None)
+                        if observation is not None:
+                            failure_observations.append(observation)
+                            try:
+                                stream.write(observation)
+                            except Exception as persistence_error:
+                                failures.append(f"{type(persistence_error).__name__}: {persistence_error}")
                         return
                     stop.wait(1)
             thread = threading.Thread(target=sample, daemon=True)
@@ -169,7 +177,8 @@ def payload(manifest, cell, attempt, deadline_ns):
             stream.close()
     result["gpu"] = qualification(cell, samples, result["pid"])
     result["gpu"]["failures"] = failures
-    result["gpu"]["samples"] = len(samples)
+    result["gpu"]["failure_observations"] = failure_observations
+    result["gpu"]["samples"] = len(samples) + len(failure_observations)
     result["complete"] &= result["gpu"]["complete"] and not failures
     result.update(scope=manifest.get("scope", "registered-M-cell"), cell=cell, freeze_uuid=manifest["uuid"],
                   selected_build=manifest["builds"][variant], prepared=prepared)

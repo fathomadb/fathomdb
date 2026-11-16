@@ -139,12 +139,16 @@ export HF_HOME="$CACHE_ROOT"
 export HF_HUB_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 export FATHOMDB_EMBED_DEVICE=cuda:0
-export FATHOMDB_GPU_ALLOCATION_WITNESS=1
 GPU_INFO="$(timeout 2s "$NVIDIA_SMI" --query-gpu=uuid,name,driver_version --format=csv,noheader)"
 export EVIDENCE_DIR VERSION INDEX_URL EXPECTED_SHA256 ACTUAL_SHA256 CANDIDATE_SHA PAGES_DEPLOYMENT_RUN GPU_INFO LOCAL_WHEEL
 unset PYTHONPATH
 for policy in cpu auto cuda:0; do
-timeout --kill-after=5s 120s env FATHOMDB_EMBED_DEVICE="$policy" FATHOMDB_RERANK_DEVICE="$policy" \
+witness_env=()
+if [ "$policy" != cpu ]; then
+  witness_env=(FATHOMDB_GPU_ALLOCATION_WITNESS=1)
+fi
+timeout --kill-after=5s 120s env -u FATHOMDB_GPU_ALLOCATION_WITNESS "${witness_env[@]}" \
+  FATHOMDB_EMBED_DEVICE="$policy" FATHOMDB_RERANK_DEVICE="$policy" \
   python3 - "$WORK/smoke-$policy.sqlite" <<'PY'
 import json
 import os

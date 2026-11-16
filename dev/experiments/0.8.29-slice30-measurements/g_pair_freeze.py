@@ -85,7 +85,10 @@ def require_forecasts(options, cells):
         try:
             root = Path(row['observed_from'])
             original = json.loads((root / 'manifest.json').read_text())
-            report = json.loads((root / 'results/report.json').read_text())
+            from g_pair_report import published_report
+            report = published_report(root)
+            if original.get('scope') == 'calibration' and not report['calibration_complete']:
+                raise ValueError('full paired calibration did not qualify')
             observed = next(item for name in ('primary', 'diagnostics', 'calibration') for item in report[name]
                             if item['id'] == row['observed_member'])
             if (original['source_sha'] != git('rev-parse', 'HEAD')

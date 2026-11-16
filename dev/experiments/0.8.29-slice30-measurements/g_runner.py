@@ -443,12 +443,14 @@ def main():
         from g_pair import report as pair_summary
         cached = args.root / "results/report.json"
         if cached.exists():
-            print(cached.read_text())
+            from g_pair_report import published_report
+            print(json.dumps(published_report(args.root)))
         elif (args.root / "manifest.json").exists():
             from g_pair import public_entry
             if not public_entry("report", args.root):
                 raise SystemExit(1)
-            print(cached.read_text())
+            from g_pair_report import published_report
+            print(json.dumps(published_report(args.root)))
         else:
             print(json.dumps(pair_summary(args.root)))
     elif args.action == "build":

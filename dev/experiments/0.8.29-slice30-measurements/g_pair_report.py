@@ -157,3 +157,34 @@ def calls_complete(cell, result):
         if any(values != [index % 500 for index in range(count)] for values in indices.values()):
             return False
     return True
+
+
+def published_report(root):
+    """Bind retained native comparisons to actual final execution/report guardian cleanup."""
+    root = Path(root)
+    result = json.loads((root / 'results/report.json').read_text())
+    receipts = [json.loads(path.read_text()) for path in (root / 'guardians').glob('*/guardian.json')]
+    def final(owner):
+        return next((row for row in receipts
+                     if row.get('started_monotonic_ns') == owner.get('started_monotonic_ns')
+                     and row.get('controller_pid') == owner.get('controller_pid')), None)
+    def healthy(receipt):
+        boundary = (receipt or {}).get('boundary') or {}
+        return (receipt is not None and receipt.get('exit') in (0, 1)
+                and receipt.get('cleanup_uncertain') is False and not receipt.get('stop')
+                and not receipt.get('error') and boundary.get('status') == 'quiescent'
+                and boundary.get('populated_after') is False
+                and boundary.get('removed_exact_empty_boundary') is True)
+    receipt = final(result.get('guardian_owner') or {})
+    good = healthy(receipt)
+    result['guardian'] = receipt
+    result['phase_qualified'] = good
+    for name in ('primary', 'diagnostics', 'calibration'):
+        for row in result[name]:
+            row['credited'] = bool(row.get('credited') and good
+                and healthy(final(row.get('guardian_owner') or result.get('guardian_owner') or {})))
+    result['complete'] = bool(result.get('native_primary_complete') and good
+        and all(row['credited'] for name in ('primary', 'diagnostics') for row in result[name]))
+    result['calibration_complete'] = bool(result.get('native_calibration_complete') and good
+        and all(row['credited'] for row in result['calibration']))
+    return result

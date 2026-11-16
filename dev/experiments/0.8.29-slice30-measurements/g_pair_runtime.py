@@ -152,6 +152,7 @@ def control(manifest, owner):
             blocked = 'prior paired actor cleanup uncertain'
         write_budget(path, current)
         outcome.update(charged_ns=elapsed, load=summarize_load(load), qualifies_primary=manifest['scope'] == 'primary',
+                       guardian_owner=owner,
                        retained_growth_bytes=max(0, active_bytes(manifest['allocation']) - retained_before))
         if (Path(outcome['attempt']) / 'result.json').exists():
             actual = json.loads((Path(outcome['attempt']) / 'result.json').read_text())
@@ -178,8 +179,12 @@ def finish(manifest, rows):
                 enabled=manifest['retire_complete_copies'], comparison=pair['complete'],
                 diagnostics_complete=all(item['complete'] for item in required))
     result['retired_copies'] = retired
+    complete = result['calibration_complete'] if manifest['scope'] == 'calibration' else result['complete']
+    budget = json.loads((Path(manifest['allocation']) / 'g-budget.json').read_text())
+    result.update(native_primary_complete=result['complete'], native_calibration_complete=result['calibration_complete'],
+                  complete=False, calibration_complete=False, guardian_owner=budget['s50_guardian'])
     (root / 'results/report.json').write_text(json.dumps(result, indent=2, allow_nan=False) + '\n')
-    return result['calibration_complete'] if manifest['scope'] == 'calibration' else result['complete']
+    return complete
 
 
 def control_entry(operation, root, options, admission_fd):
@@ -200,5 +205,6 @@ def control_entry(operation, root, options, admission_fd):
         return True
     if operation == 'report':
         state = Path(root) / 'results/campaign-state.json'
-        return finish(manifest, json.loads(state.read_text()) if state.exists() else [])
+        finish(manifest, json.loads(state.read_text()) if state.exists() else [])
+        return True
     return finish(manifest, control(manifest, owner))

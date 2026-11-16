@@ -234,7 +234,7 @@
       ],
       "phase": "MEASUREMENT_TOOLING_SOURCE_QUALIFIED_SCIENTIFIC_CAMPAIGNS_PENDING",
       "plan_sha": "bea7f05cd2497af0d73c6eb8da509e11a947ca08",
-      "conditions": "Current scientific obligations retain G84/M46/D24 and all numerical targets. G13/84, M4/46 andD12/24 are qualified; remainingG71/M42/D12 pluscurrentpaired50performance. Actual source-derived F/Q8 passes. CPU load descriptive underseq390; no quiet-host entrygate.",
+      "conditions": "Current scientific obligations retain G84/M46/D24 and all numerical targets. G14/84, M4/46 andD12/24 are qualified; remainingG70/M42/D12 pluscurrentpaired50performance. Actual source-derived F/Q8 passes. CPU load descriptive underseq390; no quiet-host entrygate.",
       "evidence": "G source0fa retains assembled acceptance,11 qualified/73 required cap refusals and inactive expanded profiles. Current M source256375d4b6a9ce0a54a06876d2df1373615ab67c is integrated at e6cbc956954d29137059fb5df32bc78ba863eecd after independent Astra ACCEPT: merged current release, rebuilt providerfree CLI/helper, then passed Pages20/20,Tegra45/45,exact2 previously failed guardian controls and2 previously unrun dispatch controls. Dispatch exercises actual rebuilt search/fetch in both formats with literal hit/body/error oracles. Original223/220/3 interrupted-wrapper history is retained; this is assembled qualification, not a new uninterrupted full gate. Both guardians finalized samples and collected all owned actors. Historical Python/NAPI subjects were not loaded or retagged. D accepted5edb capture/report/transport and5cf6 main entry have actual RED/GREEN; process2068 passes3 frozen owned-child controls, pending final coherent review/integration. Fixed24 allocation connection/source qualification remains. Actual F/Q8 current-candidate fidelity is now independently accepted; D/M scientific campaigns and whole30 remain pending.",
       "qualified_subset_sha": "2fd772558e46d0b1645dce2ffea730d0bdd3305c",
       "continuation_plan_sha": "0d8be5bb75516955ebf99b94913b9b54921bb3a4",
@@ -689,11 +689,12 @@
       },
       "g_write_runtime": {
         "source": "2d6e6291f58f177b549727a82e5d00810fd66a3e",
-        "status": "THIRTEEN_OF_84_QUALIFIED_NEXT_HYBRID_ACTIVE",
+        "status": "FOURTEEN_OF_84_QUALIFIED_REMAINING_70_BATCH_ACTIVE",
         "root": "/mnt/data/tmp2/fathomdb-0829-continuation/slice30-g-20261113/gd-allocation/g-closed-write-matrix-v2",
         "completed_write": "g-w-b1-s1-engine-text-r0 actual37e30d0:1000timed/500warm,1000cohorts/currentmarkers,0errors,117.302146742s;qualifiestrue. Original12references/firstwriteorigins unchanged.",
         "resume": "Pre-native serial_case_already_attempted stopped and21.516s retained; genuineRED/GREEN2d6 accepted to reuse truthfulpriorpartialclosedwrites. Newv2 freezeSTRICTPASS inherits13 references, nativecompiler d644 unchanged; no oldtext replay.",
-        "active": "unitfathomdb-s30-g-first-hybrid-v2-2d6-20261116 invocationf2cf3cf7f14c48fe876490c1806cc5d3;guardian1223463. Freshremaining71tablefits118589537687B;allpriorchargescarried."
+        "active": "Remaining70batch unitfathomdb-s30-g-remaining-writes-v2-2d6-20261116 invocation47d375328eef4660af2fab1475d2facb;confirmedMainPID1276334/guardian1276368 active. Originalorder/14credits preserved,no percellreview/approval stop; G-only12h128GiB TOTAL/allhistoricalcharges retained.",
+        "hybrid": "g-w-b1-s1-engine-hybrid-r0 actual2d6/UUID0b3189c6-d3fc-456f-9dc3-54c24633768e:449.225236548s,1000timed/500warm/1000cohorts/currentmarkers,0errors/issuesempty/qualifiedtrue. p50/p99/mean275.108346/571.331346/286.452991786ms. Adjacentreadiness notsearchsnapshot/exclusiveeligibilitycost. Originalguardianstrictterminal;sharedused8642479545036ns/retained15505847818B beforebatch."
       }
     },
     {
@@ -1223,7 +1224,7 @@
         110,
         130
       ],
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "design_refs": [
         "dev/plans/0.8.29/features/slice-160/design.md",
         "dev/plans/0.8.29/features/slice-160/plan.md",
@@ -1234,8 +1235,9 @@
         "dev/plans/0.8.29/features/slice-160/test-map.md"
       ],
       "conditions": "Every selected mandatory outcome qualified or explicitly disposed; actual installed/publication proof separate.20 closes only with actual Windows A6;40 may close by authorized rejection/defer;30/50/60/70/80 reach160 through90. Optional140/150 only if selected. Finished bounded local tasks are not local completion: every selected mandatory installed/platform (Q14) row and release dry-run (Q18) part that a permitted local or owned venue can qualify stays open until qualified there. The local mandate completes only when the remaining rows need CI after local passes and CI correctness review, or excluded registry publication; each is named outstanding, neither waived nor passed. Publication held. Owner seq377 explicitly defers live reset qualification to.30; seq378 defers new CUDA13 delivery/compiler/new-artifact proof to.31; seq379 accepts usage limits. These exclusions are owner dispositions, not passing tests. Existing platform/artifact rows remain. Seq381 also reallocates130A CUDA13 Tegra qualification to.31 while130D/E remain mandatory in.29;seq387 excludes unavailable non-Tegra ARM+GPU B/C.",
-      "phase": "BOUNDED_DESIGN_REVIEWED_SOURCE_HELD",
-      "evidence": "Astra-medium bounded PhaseA design PASS. The matrix preserves mandatory versus conditional coverage, release-specific measurement freshness, justified unchanged-input reuse, assembled-evidence limits, native identity, Block1-before90 sequencing and separate publication authorization. No runtime qualification, final implementation approval or publish readiness follows."
+      "phase": "LONG_TESTS_LEAF_PACKAGES_AND_MISSING_LIVE_SECURITY_ACCEPTED_REMAINING_MATRIX_PENDING",
+      "evidence": "Independent Astra-medium design/final ACCEPT actual firstlocalbatch:AC021one60.30stest59projectionDDLcycles/rebuilds/0SQLITE_SCHEMA;cursorone1000searchtest401commits400duringreads/999advancinghits/0violations. Threeofflineleafcargo packages verify-compiled. Exacttwo missingAC037live-netns tests pass incldeliberateegressdetection,nodowngrade. No source/test changes, passing-scaffoldexception or fullgate replay. Finalfeature/performance/installedplatform/artifact/dryrun rows remain; afterlocalpasses reviewCI thenrunCI; registrypublicationexcluded.",
+      "qualified_subset_sha": "b07a161317ff753b86b5eb706e7c5e761adecb9a"
     }
   ],
   "landed": [],
@@ -1472,7 +1474,7 @@
   },
   "release_readiness": {
     "status": "NOT_READY",
-    "qualification": "0–20,60,70,80design,100 andselected110/140 complete locally with independentreview. CurrentMCPconformancecomponent accepted;Block1stillopen. G13/84,M4/46,D12/24;S50ordinary6/136,diag0/24. Remaining40ownerdisposition,measurements,72approvedLLMepisodes/Block1,90implementation,130E and160. OriginalNodeEprofileFAIL;newdeclaredsemispace4profileactive,notpassed. No.29 live-reset/CUDA13/nonTegraARMGPU gate; registrypublicationexcluded.",
+    "qualification": "0–20,60,70,80design,100 andselected110/140 complete locally with independentreview. CurrentMCPconformancecomponent accepted;Block1stillopen. G14/84,M4/46,D12/24;S50ordinary6/136,diag0/24. Remaining40ownerdisposition,measurements,72approvedLLMepisodes/Block1,90implementation,130E and160. OriginalNodeEprofileFAIL;newdeclaredsemispace4profileactive,notpassed. No.29 live-reset/CUDA13/nonTegraARMGPU gate; registrypublicationexcluded. Actual160Q10longvariants/threeleafpackageverification andmissingAC037livechecks independentlyaccepted; no whole160/releasegreen claim.",
     "publication": "HELD; no tag, dispatch, external ACL mutation or registry publication authorized by bootstrap.",
     "local_source_phase": {
       "status": "ASSEMBLED_FULL_SOURCE_PASS_INDEPENDENT_ASTRA_ACCEPTED",

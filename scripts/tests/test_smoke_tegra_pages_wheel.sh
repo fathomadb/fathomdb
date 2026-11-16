@@ -66,3 +66,16 @@ if [ "$FAILED" -ne 0 ]; then
   printf '%s Tegra Pages smoke structural test(s) failed\n' "$FAILED" >&2
   exit 1
 fi
+
+# A selected absent local wheel must fail as a missing artifact, before any
+# platform/GPU probe; it must not be reinterpreted as a Pages version or URL.
+set +e
+local_output="$(bash "$SMOKE" --local-wheel /tmp/slice130-absent.whl 0.8.29+tegra \
+  0123456789012345678901234567890123456789012345678901234567890123 \
+  0123456789012345678901234567890123456789 /tmp/slice130-unused 2>&1)"
+local_status=$?
+set -e
+if [ "$local_status" -ne 1 ] || ! grep -Fq 'local wheel is absent' <<<"$local_output"; then
+  printf 'FAIL local wheel source was not handled before platform probes: exit=%s\n%s\n' "$local_status" "$local_output" >&2
+  exit 1
+fi

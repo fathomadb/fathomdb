@@ -17,7 +17,7 @@
 # the existing package names out of scope, and § 11 item 8 holds registry
 # publication behind the staged gate.
 #
-# Usage: build-python-cuda-tegra.sh [--out <dir>] [--interpreter <python>] [--base-version <version>] [--assert-only]
+# Usage: build-python-cuda-tegra.sh [--out <dir>] [--interpreter <python>] [--base-version <version>] [--assert-only] [--qualification-observer]
 #
 #   --assert-only  Run every toolchain-identity and link-environment assertion,
 #                  print the resolved build environment, and exit 0 without
@@ -36,6 +36,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 OUT_DIR="$REPO_ROOT/target/tegra-python-dist"
 INTERPRETER='python3'
 ASSERT_ONLY=0
+QUALIFICATION_OBSERVER=0
 BASE_VERSION=''
 
 while [ "$#" -gt 0 ]; do
@@ -55,12 +56,16 @@ while [ "$#" -gt 0 ]; do
       BASE_VERSION="$2"
       shift 2
       ;;
+    --qualification-observer)
+      QUALIFICATION_OBSERVER=1
+      shift
+      ;;
     --assert-only)
       ASSERT_ONLY=1
       shift
       ;;
     *)
-      printf 'usage: %s [--out <dir>] [--interpreter <python>] [--base-version <version>] [--assert-only]\n' "$(basename "$0")" >&2
+      printf 'usage: %s [--out <dir>] [--interpreter <python>] [--base-version <version>] [--assert-only] [--qualification-observer]\n' "$(basename "$0")" >&2
       exit 2
       ;;
   esac
@@ -70,6 +75,16 @@ fail() {
   printf 'build-python-cuda-tegra: %s\n' "$1" >&2
   exit 1
 }
+
+# Qualification counterparts add only the passive observer; shipping defaults
+# remain the contract tuple. Separate output/target directories are caller-owned.
+BUILD_CARGO_FLAGS=(--locked)
+if [ "$QUALIFICATION_OBSERVER" -eq 1 ]; then
+  export CARGO_NET_OFFLINE=true
+  BUILD_CARGO_FLAGS+=(--offline)
+  CUDA_PYTHON_FEATURES_TEGRA="$CUDA_PYTHON_FEATURES_TEGRA,cuda-pool-observer"
+fi
+printf 'build-python-cuda-tegra: features=%s\n' "$CUDA_PYTHON_FEATURES_TEGRA"
 
 # --- Toolchain identity, asserted before anything is built ------------------
 # Same discipline as build-napi-cuda.sh: the contract states what this host
@@ -201,7 +216,7 @@ cd "$STAGED_PYTHON"
 # host-bound artifact: it is NOT manylinux, and claiming otherwise would be the
 # exact drift AC80-9's doc-truth gate exists to stop. D-80.6-1 keeps this wheel
 # out of every registry, which is what makes an unauditable tag acceptable.
-maturin build --release --out "$OUT_DIR" \
+maturin build "${BUILD_CARGO_FLAGS[@]}" --release --out "$OUT_DIR" \
   --features "$CUDA_PYTHON_FEATURES_TEGRA" \
   --compatibility "$CUDA_TEGRA_WHEEL_COMPATIBILITY" \
   --auditwheel skip \

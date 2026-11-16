@@ -179,3 +179,14 @@ if [ "$FAILED" -gt 0 ]; then
   exit 1
 fi
 printf '\nTegra N-API build contract tests passed\n'
+
+# An explicit instrumented request still performs host assertions; it never
+# silently falls back to a shipping feature tuple or bypasses the host gate.
+set +e
+observer_output="$(bash "$WRAPPER" --qualification-observer --assert-only 2>&1)"
+observer_status=$?
+set -e
+if [ "$observer_status" -ne 1 ] || ! grep -Fq 'features=embed-cuda,rerank-cuda,tegra-pool,cuda-pool-observer' <<<"$observer_output"; then
+  printf 'FAIL explicit qualification features were not selected before host refusal: exit=%s\n%s\n' "$observer_status" "$observer_output" >&2
+  exit 1
+fi

@@ -56,3 +56,69 @@ reviewed build equivalence, shipping lifecycle/witness proof, D's real passive
 observer, and the authorized Orin reservation remain prerequisites for E. No
 live soak, native SDK smoke or shipping numerical plateau has been measured by
 these portable controls.
+
+## Real SDK workers and lifecycle cases
+
+The installed-worker bindings are [Python](python_consumer.py) and
+[Node](node_consumer.mjs); Rust has the ignored
+[source-SDK fixture](../../../src/rust/crates/fathomdb-sdk/tests/slice130_lifecycle.rs).
+They use real databases/models. Source controls do not qualify native hardware.
+Both device policies must be fixed to `cuda:0` before worker import; caches are
+offline. No worker requests GC, synchronization or trim.
+
+Prepare a worker JSON with `command` (absolute executable plus argument array),
+`cwd` (fresh installed consumer) and `environment` containing the selected
+`FATHOMDB_EMBED_DEVICE`, `FATHOMDB_RERANK_DEVICE`, model cache and owned tool
+settings. Python must run its owned installed venv's interpreter; Node must use
+its installed consumer via `--consumer-root /absolute/consumer`. Append
+`--lifecycle` to either worker command for D; leave it absent for E.
+
+```sh
+python3 scripts/slice130_soak.py --lifecycle /absolute/python-worker.json \
+  --case max --output /absolute/new-python-max
+```
+
+Run `max`, `zero`, `exit-alive`, `cls` and `reranker` separately for Python/Node;
+Python also selects `drop`. Node explicitly refuses deterministic implicit drop.
+Each invocation creates fresh engine DBs and reaps a fresh child within120s.
+After close/drop, passive samples retain the actual release transition and
+5s bound; no later forward is used to manufacture final zero. Unclosed and
+singleton children require bounded normal exit, not final zero.
+
+For Rust, compile the fixture with
+`embed-cuda,rerank-cuda,cuda-pool-observer`, then explicitly select one ignored
+`lifecycle_max`, `lifecycle_zero`, `lifecycle_drop`, `lifecycle_exit_alive`,
+`lifecycle_cls_retains` or `lifecycle_reranker_retains` under the approved Orin
+reservation. The parent fixture bounds and reaps its actual fresh child.
+
+## Collect the existing two-arm protocol
+
+The `--collect` spec contains `workers` keyed by `python` and `node`, each using
+the worker shape above, plus mandatory positive caller-selected `limits`:
+`mem_floor_bytes`, `free_floor_bytes`, `storage_limit_bytes`, `arm_timeout_s`
+and `request_timeout_s`. Requests are bounded by120s; the arm watchdog must
+include warm-up plus the full3600s schedule. These values and the reserved
+host/GPU window require actual execution authorization; there are no automatic
+resource defaults or new run authority from this README.
+
+```sh
+python3 scripts/slice130_soak.py --collect /absolute/selected-workers.json \
+  --output /absolute/new-campaign
+```
+
+The supervisor launches both SDKs concurrently in pool-on, then pool-off after
+both on measurements pass. It streams worker stdout/stderr and JSONL events,
+keeps only baseline/60 snapshots in memory, stops on errors/deadlines/resource
+floors and reaps owned process groups. Failed on prevents off. The resulting
+`python-pair.json` and `node-pair.json` use the existing evaluator; incomplete
+controlled-process tests are never accepted as real arms. A cleanup kill cannot
+be a healthy exit or evidence of product teardown.
+
+Shipping wrappers accept `--qualification-observer` only for the separate D/E
+counterparts, appending `cuda-pool-observer` to their unchanged shipping tuple.
+Use separate owned target/output directories. Both preserve locked resolution; counterparts additionally force the selected
+offline cache. Select `CARGO_NET_OFFLINE=true` for local shipping qualification; source/toolchain/model equivalence and actual shipping installed
+controls remain mandatory. The existing Python installed smoke accepts
+`--local-wheel FILE VERSION+tegra SHA256 CANDIDATE_SHA NEW_OUTPUT`; its existing
+Pages route remains available. Local input never invents Pages deployment
+provenance. Neither route publishes an artifact.

@@ -433,6 +433,65 @@ def _loop_population(result, attempt, cell, deadline_ns=None):
             raise ValueError("complete ordered raw population unavailable")
 
 
+def open_invocation_log(root, kind):
+    """Create a distinct original invocation log beside its selected fresh root."""
+    root = Path(root).resolve()
+    if kind not in ("service", "supervisor", "samples"):
+        raise ValueError("registered M invocation log kind required")
+    suffix = ".jsonl" if kind == "samples" else ".log"
+    return (root.parent / (root.name + "-" + kind + suffix)).open("x", encoding="utf-8")
+
+
+def retry_history(manifest):
+    """Retain strictly cleaned failed predecessors without supplying completion credit."""
+    history, seen = [], {Path(manifest["root"]).resolve()}
+    current = manifest
+    while current.get("retry_from"):
+        previous = Path(current["retry_from"]).resolve()
+        allocation = Path(manifest["allocation"]).resolve()
+        if previous in seen or not previous.is_relative_to(allocation):
+            raise ValueError("M predecessor must be a distinct root in the original allocation")
+        seen.add(previous)
+        original = json.loads((previous / "manifest.json").read_text())
+        for key in ("allocation", "compiler_inputs", "closed_subject", "package", "inputs", "model",
+                    "gpu", "builds", "plan", "cell_allowance"):
+            if original.get(key) != manifest.get(key):
+                raise ValueError("M predecessor input/native/configuration/allowance identity differs")
+        if (original.get("scope") != "registered-M-selected-cell"
+                or Path(original["root"]).resolve() != previous):
+            raise ValueError("original selected M predecessor root required")
+        paths = list((previous / "guardians").glob("*/guardian.json"))
+        if len(paths) != 1:
+            raise ValueError("one original M predecessor guardian required")
+        guardian = json.loads(paths[0].read_text())
+        boundary = guardian.get("boundary") or {}
+        if (guardian.get("cleanup_uncertain") is not False
+                or guardian.get("boundary_populated_at_controller_exit") is not False
+                or boundary.get("status") != "quiescent" or boundary.get("populated_after") is not False
+                or boundary.get("removed_exact_empty_boundary") is not True
+                or (boundary.get("path") and Path(boundary["path"]).exists())):
+            raise ValueError("M predecessor lacks strict terminal cleanup")
+        cell_id = manifest["plan"][0]["id"]
+        outcomes = json.loads((previous / "results/campaign-state.json").read_text())
+        usage = json.loads((allocation / "g-budget.json").read_text()).get("selected_cell_usage", {}).get(cell_id, {})
+        if (len(outcomes) != 1 or outcomes[0].get("id") != cell_id
+                or outcomes[0].get("cleanup_uncertain") is not False
+                or outcomes[0].get("live_owned_pids") != []
+                or usage.get("limits") != manifest["cell_allowance"]
+                or str(previous) not in usage.get("roots", [])):
+            raise ValueError("M predecessor outcome and original cumulative allowance required")
+        outcome = outcomes[0]
+        if outcome.get("complete") is True and guardian.get("exit") == 0:
+            raise ValueError("a qualified M predecessor cannot be replayed")
+        attempt = Path(outcome["attempt"]).resolve()
+        if not attempt.is_relative_to(previous / "results" / cell_id):
+            raise ValueError("M predecessor attempt identity differs")
+        history.append(dict(outcome, complete=False, source_sha=original["source_sha"],
+                            predecessor_root=str(previous), result_path=str(attempt / "result.json")))
+        current = original
+    return list(reversed(history))
+
+
 def reused_rows(manifest, *, deadline_ns=None):
     """Reference complete matched original evidence without changing its scope or charges."""
     from m_calibration import CALIBRATION_ID, CELL_ID, registered_cell
@@ -487,7 +546,7 @@ def reused_rows(manifest, *, deadline_ns=None):
             "satisfied_by": {"root": str(root), "result": str(result_path), "attempt": str(attempt),
                 "accounting_id": identity, "scope": original["scope"], "source_sha": original["source_sha"],
                 "build_source_sha": result["selected_build"]["source_sha"], "freeze_uuid": original["uuid"]},
-            "attempts": [dict(outcome, result=result)]}
+            "attempts": [*retry_history(original), dict(outcome, result=result)]}
     return rows
 
 
@@ -498,6 +557,7 @@ def report(root, *, deadline_ns=None, output_path=None):
     state = root / "results/campaign-state.json"
     current = {row["id"]: row for row in json.loads(state.read_text())} if state.exists() else {}
     current = dict(reused_rows(manifest, deadline_ns=deadline_ns), **current)
+    prior_attempts = retry_history(manifest) if manifest.get("retry_from") else []
     rows = []
     calibration = manifest.get("scope") == "bounded-natural-calibration"
     plan = load_plan() if calibration or manifest.get("scope") == "registered-M-selected-cell" else manifest["plan"]
@@ -505,6 +565,8 @@ def report(root, *, deadline_ns=None, output_path=None):
         row = dict(current.get(cell["id"], {"id": cell["id"], "cell": cell,
                    "status": "held", "complete": False, "reason": "no completed registered attempt"}))
         history = list(row.get("attempts", []))
+        if prior_attempts and cell["id"] == manifest["plan"][0]["id"]:
+            history.extend(prior_attempts)
         for path in sorted((root / "results" / cell["id"]).glob("attempt-*/attempt.json")):
             attempt = json.loads(path.read_text())
             result = path.with_name("result.json")

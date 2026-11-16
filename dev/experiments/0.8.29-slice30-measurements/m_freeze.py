@@ -194,6 +194,10 @@ def _bind_inputs(options, output, profile, forecasts, *, calibration=None, selec
     if selected_cell is not None:
         manifest.update(scope="registered-M-selected-cell", plan=[selected_cell],
                         cell_allowance=options["cell_allowance"], reuse_from=options.get("reuse_from", []))
+        if options.get("retry_from"):
+            from m_runner import retry_history
+            manifest["retry_from"] = str(Path(options["retry_from"]).resolve())
+            retry_history(manifest)
     output.mkdir(parents=True, exist_ok=True)
     path = output / "manifest.json"
     with path.open("x") as stream:

@@ -89,7 +89,7 @@ while not marker.exists() and time.monotonic()<until: time.sleep(.005)
             self.assertFalse(result["cleanup_uncertain"])
             self.assertTrue(result["boundary"]["removed_exact_empty_boundary"])
 
-    def test_entry_refuses_observed_load_above_two_before_controller_start(self):
+    def test_busy_entry_runs_controller_and_preserves_observed_load(self):
         task = Path(os.environ["S30_TASK"])
         with tempfile.TemporaryDirectory(prefix="m-load-entry-", dir=task / "tmp") as temporary:
             allocation = Path(temporary)
@@ -101,11 +101,13 @@ while not marker.exists() and time.monotonic()<until: time.sleep(.005)
                 "ledger": str(ledger), "whole_cell_ns": 900 * 10**9,
                 "total_shared_ns": 60 * 10**9, "total_shared_retained_bytes": 1024**3}
             child = f"import pathlib;pathlib.Path({str(marker)!r}).write_text('started')"
-            with patch("os.getloadavg", return_value=(2.0001, 0.0, 0.0)):
-                with self.assertRaisesRegex(RuntimeError, "load"):
-                    guard([sys.executable, "-c", child], allocation=allocation,
-                          profile=profile, root=allocation / "results", task=task)
-            self.assertFalse(marker.exists())
+            with patch("os.getloadavg", return_value=(99.0, 0.0, 0.0)):
+                result = guard([sys.executable, "-c", child], allocation=allocation,
+                               profile=profile, root=allocation / "results", task=task)
+            self.assertTrue(marker.exists())
+            self.assertEqual(result["exit"], 0)
+            self.assertEqual(result["load"]["max_load"], 99.0)
+            self.assertTrue(result["load"]["noisy"])
 
     def test_completed_phase_reports_observed_noise_without_discarding_success(self):
         task = Path(os.environ["S30_TASK"])

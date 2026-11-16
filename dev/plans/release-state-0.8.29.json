@@ -656,6 +656,12 @@
         "result": "7667real/0synthetic/100of100queries,K192/top10/exactf32; query excludes own source so7666eligiblevectors. Recall.958,95%CI[.938,.974],1000bootstrap; acceptedCI-high>=.90 passes.",
         "execution": "One900s wholebridge invocation;158.835s supervisor/155.476s child,exit0,no resource stop/uncertaincleanup/survivors; exact privateCGremoved andFD9released.",
         "limits": "Selected3090CUDAembedding; CPU candidate vector/exact rerank,CEdisabled. Fidelity/uncertainty only, no performance/ARM/reset/shipping/whole30 proof."
+      },
+      "shared_host_environment": {
+        "owner_source": "dev/steward/steward-ledger.jsonl seq-390",
+        "scope": "Proceed in current shared host load; retain all load/noise observations and unchanged numerical/resource/cleanup/GPU protections.",
+        "source_candidate": "84d3b8c49",
+        "phase": "53affectedpuretestsPASS, finalAstrareviewrunning; removeP/D/MCPUquietentry gates beforeactualdispatch."
       }
     },
     {
@@ -1084,11 +1090,11 @@
       "local_exact_lock_proposal": {
         "source": "aff8ba27f9b5833794475dcbddc958993dba3132",
         "review": "Independent Astra-medium design ACCEPT",
-        "status": "X86_NATIVE_PASS_ARM_AUTHORIZATION_PENDING",
+        "status": "X86_PASS_ARM_REGULAR_RUN_ACTIVE",
         "scope": "Local executor replaces hostedCI only; exact product lock/root+dependency+feature comparison and native x86/OrinCPU tests+compile remain. No execution/gatewaiver yet; genuine oldCI preserved.",
         "owner_source": "dev/steward/steward-ledger.jsonl seq-389",
         "x86": "Actual fresh exact-lock compile/list/323of323 CPUtests (312seam+11catalogue),zeroignored. Compile30.056s; every phase positive2GiB/swap0/CPU100/Tasks128 caps and strict unit/CG cleanup. Six nonroot feature sets differ from wholeproduct unification, explicit; Q23 requires22identities+10ROOTfeatures. Final independent paired results/record remains pending.",
-        "arm": "Actual58ms pre-Cargo failure: user cgroup lacksCPUdelegation. No compiler/test ran. Same-cap system-manager adapter prepared, not launched; sudo/polkit requireauthentication. Existingadminroute/narrowlaunch+stop authorization requested fromowner. No globalcontroller/cap/schema/oldCIrecord change."
+        "arm": "Owner seq391 directs regular test run without CPU-cap/cgroup/admin setup. Parent ordinary SSH compile/list/322selected original CPUtests active; exactsource/lock preserved, GPUs hidden. Earlier58mscapfailure retained. No cgroup-cap or finalpassing claim yet."
       }
     },
     {
@@ -1332,6 +1338,20 @@
         "owner_slice": 140,
         "source": "dev/steward/steward-ledger.jsonl seq-389",
         "scope": "Executor replacement only;2GiB/CPU100/300seconds perphase/originalfloors, same tests/assertions and strict graph checks. No GPU/fault/CI. Parent readiness GO precedes native execution; qualification not yet passed."
+      },
+      {
+        "id": "shared-host-measurements",
+        "title": "You\u2019re not going to get a quiet machine. Go with the current environment",
+        "owner_slice": 30,
+        "source": "dev/steward/steward-ledger.jsonl seq-390",
+        "scope": "Host CPU load is descriptive, not a prerequisite or reason to wait/refuse measurements. Retain observed loads/noisy annotations, all outliers/errors and original numerical targets. Other memory/disk/swap/time/growth/owned-actor cleanup and exclusive GPU protections remain. Explicit owner instruction in this chat."
+      },
+      {
+        "id": "arm-regular-test-run",
+        "title": "all of that effort like a CPU cap is only ceremony. just do a regular test run.",
+        "owner_slice": 140,
+        "source": "dev/steward/steward-ledger.jsonl seq-391",
+        "scope": "Owner explicitly directs ordinary ARM exact-lock CPU testing over existing SSH without managed cgroup/CPU-cap setup or administrator-route ceremony. Preserve original tests/counts, exact locked dependencies and source identity; no GPU/model/fault/CI. Regular user process with ordinary timeout is authorized; do not claim cgroup caps were enforced. Supersedes seq389 executor-cap requirement for this ARM ordinary test run."
       }
     ],
     "unruled": [

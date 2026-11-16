@@ -127,11 +127,6 @@ def run_budgeted_table(root, command, *, profile, allocation, forecasts, plan=No
                 results[held["id"]] = _held(held, reason)
             break
         load_observations = [observe_load()]
-        if load_observations[-1]["load"] > 2:
-            for held in pending:
-                results[held["id"]] = _held(held, "quiet load<=2 cell entry unavailable")
-            results[cell["id"]]["load"] = summarize_load(load_observations)
-            break
         prior = ledger.setdefault("cell_used_ns", {}).get(cell["id"], 0)
         deadline = min(started + profile["whole_cell_ns"] - prior,
                        started + total_ns - ledger["used_ns"])

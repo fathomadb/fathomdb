@@ -1,4 +1,4 @@
-"""Inherited host-load admission and descriptive noise observations, without sample filtering."""
+"""Descriptive host-load and noise observations, without sample filtering."""
 
 import math
 import os

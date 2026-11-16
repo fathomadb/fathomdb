@@ -49,8 +49,8 @@ def freeze(cells, corpus, queries, binary, out):
     return manifest
 
 
-def run_frozen(root, max_load: float | None = 2):
-    """Execute the frozen native plan under its resource/time/quiet limits."""
+def run_frozen(root):
+    """Execute the frozen native plan under its resource/time limits, recording host load."""
     root = Path(root).resolve()
     manifest = json.loads((root / "manifest.json").read_text())
     plan = json.loads((root / "plan.json").read_text())
@@ -92,17 +92,10 @@ def run_frozen(root, max_load: float | None = 2):
                 return "measurement output cap"
             return None
         def before():
-            waiting = time.monotonic()
-            while True:
-                error = monitor()
-                if error:
-                    raise RuntimeError(error)
-                record = observe()
-                if max_load is None or record["load"] <= max_load:
-                    return record
-                if time.monotonic() - waiting >= manifest["cell_seconds"]:
-                    raise RuntimeError("quiet CPU start not available within cell wait cap")
-                time.sleep(5)
+            error = monitor()
+            if error:
+                raise RuntimeError(error)
+            return observe()
         return run_campaign(plan, results, [manifest["binary"]["path"]],
                             timeout=manifest["cell_seconds"], before=before, monitor=monitor)
 

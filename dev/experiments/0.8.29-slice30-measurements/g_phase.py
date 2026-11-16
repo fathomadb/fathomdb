@@ -28,7 +28,7 @@ def git(*args):
 def sample():
     observed = resource_sample(root, task)
     vm = dict(line.split() for line in pathlib.Path("/proc/vmstat").read_text().splitlines())
-    return dict(time=time.time(), root_free=observed["root_free"], task_free=observed["task_free"],
+    return dict(time=time.time(), load_1m=os.getloadavg()[0], root_free=observed["root_free"], task_free=observed["task_free"],
                 memory_available=observed["memory_available"], owned_bytes=observed["owned"],
                 measurement_retries=observed["measurement_retries"],
                 swap_pages=int(vm["pswpin"]) + int(vm["pswpout"]))

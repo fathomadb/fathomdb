@@ -796,6 +796,36 @@ D/M complete costs remain UNKNOWN, shared totals are nonadditive, and no profile
 or measurement runtime follows. Independent design/source review precedes any
 separately authorized execution.
 
+### Bounded required-write dispatch
+
+The public closed write-matrix `run` command may select `--max-new-writes 1`
+to return after one previously incomplete required write row reaches its
+controller outcome. The default remains the full remaining matrix. This is an
+invocation boundary on the existing reviewed mode, not a new cell, calibration,
+profile or qualification rule. Preserve the complete84-row plan, twelve original
+qualified references, all72 write obligations, order, populations and unchanged
+native artifacts. Never rebuild or retag native inputs for this Python control.
+
+Count a selected incomplete write row once even when admission refuses it or
+execution fails; never search for a successful substitute. Retain completed rows
+without charging them to the invocation limit. Later rows remain `not_run_stage`
+with an explicit bounded-dispatch reason; no whole-G success follows. Resume may
+continue at the next still-required row under the same existing admission and
+retry authority, with cumulative cell/common/shared clocks and retained bytes
+unchanged. The first canonical write is `g-w-b1-s1-engine-text-r0`.
+
+The invocation option is valid only for the closed write-matrix mode, with a
+positive integer no greater than72. It does not alter the frozen plan or bypass
+qualified calibration/R1, the full-table reviewed-cost prerequisite, complete
+remaining-table fit, exact GPU exclusion/lease or normal closure/cleanup checks.
+The first bounded runtime remains held for D's strict terminal lease handoff,
+fresh actual resource fit and parent selection of the accepted G-only12h/128GiB
+total profile, carrying all actual G/D/M/S50 history without renewal or reset.
+Source TDD uses real harmless children to assert exactly the first required ID,
+all84 outcomes, twelve unchanged references,71 held writes, preserved prior
+charges and ordered continuation; a refusal/failure must not dispatch a second
+row. One independent Astra source review follows the coherent Python change.
+
 ### One coherent source phase, then separate runtime decisions
 
 The source candidate adds `--preparation closed-copy-v1` and three closed stage

@@ -264,15 +264,21 @@ def run_cell_job(manifest_path, deadline_ns, config_path, output):
 
 
 
-def run_frozen(root, corrected_calibration_from=None):
+def run_frozen(root, corrected_calibration_from=None, max_new_writes=None):
     """Run only the frozen clean candidate, charging preflight to the same shared allocation."""
     from g_freeze import git, validate_frozen
     from g_gpu import inspect_gpu
     from g_boundary import require_known_containment
-    require_known_containment(os.environ["S30_TASK"])
     root = Path(root).resolve()
-    if json.loads((root / "manifest.json").read_text()).get("preparation") == "closed-copy-v1":
+    preliminary = json.loads((root / "manifest.json").read_text())
+    from g_campaign import validate_write_limit
+    validate_write_limit(max_new_writes, preliminary.get("stage")
+                         if preliminary.get("preparation") == "closed-copy-v1" else None)
+    require_known_containment(os.environ["S30_TASK"])
+    if preliminary.get("preparation") == "closed-copy-v1":
         from g_closed_entry import run_entry
+        if max_new_writes is not None:
+            return run_entry(root, corrected_calibration_from, max_new_writes=max_new_writes)
         return run_entry(root, corrected_calibration_from) if corrected_calibration_from is not None else run_entry(root)
     if corrected_calibration_from is not None:
         raise ValueError("corrected calibration requires the closed-copy calibration mode")
@@ -415,6 +421,7 @@ def main():
     run = commands.add_parser("run")
     run.add_argument("root", type=Path)
     run.add_argument("--corrected-calibration-from", type=Path)
+    run.add_argument("--max-new-writes", type=int)
     report = commands.add_parser("report")
     report.add_argument("root", type=Path)
     job = commands.add_parser("_cell")
@@ -472,7 +479,8 @@ def main():
         if os.environ.get("AGENT_LONG") != "1":
             parser.error("G production campaign requires AGENT_LONG=1")
         from g_campaign import completed_record
-        outcomes = run_frozen(args.root, args.corrected_calibration_from)
+        outcomes = (run_frozen(args.root, args.corrected_calibration_from, max_new_writes=args.max_new_writes)
+                    if args.max_new_writes is not None else run_frozen(args.root, args.corrected_calibration_from))
         print(json.dumps({"cells":len(outcomes),"complete":all(completed_record(row) for row in outcomes)}))
         if any(not completed_record(row) for row in outcomes) or not json.loads((args.root / "last-run.json").read_text()).get("environment_ok", False):
             raise SystemExit(1)

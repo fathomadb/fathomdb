@@ -256,13 +256,18 @@ binary; direct-text streaming and all other controls stay unchanged. General
 `test-hooks` is excluded: its test profiling/EXPLAIN work is unsuitable for
 untraced latency, and full-sort would disable older optimizations as well.
 
-A real public-path gap remains. Default `g_runner` build/freeze supports only its
+The explicit private public path is implemented by `g_pair.py`,
+`g_pair_freeze.py`, `g_pair_runtime.py` and `g_pair_report.py` under the existing
+`g_runner.py` entry. Source controls cover canonical admission, current-build
+refusal, actual retained P/G streams, exact pair credit and cumulative limits;
+this does not claim the natural calibration or primary measurement complete.
+The original default `g_runner` build/freeze supports only its
 original ordinary/diagnostic feature lists and canonical84-cell admission;
 old-source native equivalence cannot qualify current pairtools. P `control.py`
-freeze declares features=[], while native P always seeds and ignores observe.
-Low-level `g_driver` support alone does not provide an admitted paired campaign.
-The next source unit extends these existing entries and P preparation/observation;
-no bare `_cell` call, old ordinary executable or second harness substitutes.
+freeze still declares features=[] for its original scope; private paired P uses
+its admitted immutable template copy and actual operation observer. The private
+controller retains the existing guardian/attempt/native driver chain; no bare
+`_cell` call, old ordinary executable or second harness substitutes.
 
 ### Public paired entry and current input binding
 
@@ -272,7 +277,8 @@ families through existing drivers/schedulers/controllers; normal P/G commands,
 FEATURES, specs, original freezes and admission remain unchanged. A P entry may
 delegate this explicit scope to that same owner, never duplicate scheduling.
 
-Proposed public invocations (not implemented or executed at this design step):
+Public invocations (implemented; natural execution still needs the parent's
+selected profile and reserved runtime window):
 
 ```bash
 .venv/bin/python "$G_DIR/g_runner.py" pair-build --out "$OWNED/artifacts"

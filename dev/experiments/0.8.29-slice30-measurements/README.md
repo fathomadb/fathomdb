@@ -600,24 +600,71 @@ identity, providers, defaults and direct-text streaming stay the same. General
 ordinary/diagnostic feature contracts remain unchanged; their original native
 artifacts cannot be retagged as this pair.
 
-Build current owned tools only in the parent's reserved native window:
+The public entry is the existing `g_runner.py`, with a separate private canonical
+scope:136 ordinary members from68 original search cells,24 diagnostic members
+from12 named origins, and a distinct four-member10k calibration. Default G84/P16
+inventories and artifact admission remain unchanged.
+
+Build current owned tools only in the parent's reserved native window, then
+select the full lower-stage calibration explicitly:
 
 ```bash
-cargo build --offline --locked --release --jobs 2 -p fathomdb-sdk \
-  --features embed-cuda,slice50-measurement --example slice30_measure
-cargo build --offline --locked --release --jobs 2 -p fathomdb-sdk \
-  --features embed-cuda,slice50-measurement,slice30-observer --example slice30_measure
+.venv/bin/python dev/experiments/0.8.29-slice30-measurements/g_runner.py \
+  pair-build --out "$OWNED/pair-tools"
+AGENT_LONG=1 .venv/bin/python dev/experiments/0.8.29-slice30-measurements/g_runner.py \
+  pair-calibrate --options "$OWNED/pair-options.json" --out "$OWNED/calibration-10k"
+.venv/bin/python dev/experiments/0.8.29-slice30-measurements/g_runner.py \
+  pair-report "$OWNED/calibration-10k"
 ```
 
-Retain each actual binary before the next build under separate owned names.
-The existing `g_driver.run_program_step` accepts `slice50_pair_mode` in the
-unchanged native cell config: `winner` clears the private selector in that child,
-`eager` sets1, and other values refuse before starting the child. Both members
-must name the same current ordinary executable. `observe:false` collects neither
-engine work nor child RSS; separate diagnostic calls use the diagnostic executable
-with `observe:true`. Existing GPU/device qualification and resource/cell/shared
-allocation controls remain required; this support provides no new runtime entry,
-allocation or permission to bypass those controls.
+The options name `build_receipt`, `allocation`, `profile`, `corpus`, `queries`,
+`license`, `model_cache`, `gpu_uuid`, `gpu_ordinal`, and `g_donors` (mapping
+`"10000"` to the original qualified G root; primary also needs`"100000"`).
+Calibration additionally selects `calibration` with integer nanoseconds/bytes:
+`phase_ns:900000000000`, `payload_ns:800000000000`,
+`new_retained_bytes:2147483648`. It runs four fresh full500-warmup/1000-sample
+members through both adapters and text/hybrid, ordinary then diagnostic.
+`pair-run` cannot resume this calibration as primary work.
+
+The explicit owner-selected profile has schema`slice50-pair-budget/v1`,
+status`APPROVED`, `whole_cell_ns:900000000000`, the original allocation's
+`ledger` path, positive `total_shared_ns`/`total_shared_retained_bytes`, explicit
+`reserved_other_work_ns`/`reserved_other_work_bytes`, `other_work_cost_status`
+(`BOUNDED` or explicitly `HELD_UNAVAILABLE`) and a nonempty
+`reservation_disposition`. The existing G-only profile grants no50 allocation.
+The original ledger, prior failures/common/calibration charges, retained data and
+reservations carry forward. Calibration needs twofold remaining time/growth
+headroom and cannot renew its cumulative allowance through another output path.
+
+`pair-freeze --options ... --out ...` and `pair-run ROOT` handle primary scope
+only after complete current paired forecasts exist. Options must include a
+positive bounded `common_limit_ns` and `forecasts` with
+status`CURRENT_PAIRED_BOUNDED`, positive `common_ns`/`common_bytes`, and all160
+member IDs in `cells`. Each member declares positive `whole_ns` and
+`new_retained_bytes` at least as large as its applicable actual current
+`observed_from` root/`observed_member` cost. Provider, size, route/adapters,
+mode, observer and write schedule must match. Old timings and10k proxies cannot
+price P preparation,100k or writes; those remain unavailable after calibration.
+No automatic next stage, caller subset or inferred full-table fit is admitted.
+
+Freeze copies the registered inputs/model bytes to owned paths and binds current
+artifacts/features plus data-only closed G donors. Primary preparation creates
+provider-none P templates once with the original1024-write seed loop and closes
+them; every member consumes a fresh validated closed copy. The public guardian
+owns qualification, preparation, dispatch, reporting and strict cleanup.
+`pair-report` reads the retained supervised report; if none exists for a frozen
+root, explicit`AGENT_LONG=1` generates it through the same bounded guardian.
+A source-only report without a freeze lists every member as unrun.
+
+The existing `g_driver.run_program_step` sets `slice50_pair_mode`: `winner`
+clears the private selector and `eager` sets1 in that child. Both modes use the
+same actual current artifact. Diagnostic work/RSS uses the separate observer
+artifact and never enters ordinary percentiles. Exact ordered native calls,
+record cursors/score bits/sidecars, full populations and actual closes are checked
+before pair credit. `retire_complete_copies` defaults false; when explicitly
+selected it retires only compared complete disposable copies after required
+case diagnostics and known actor quiescence. Immutable donors/templates, original
+P/G histories, failed copies and raw calls/results remain retained.
 
 Before actual runtime, bind the exact applicable existing30 cell IDs/configs and
 all remaining obligations, paired mode/repeat order, qualified immutable inputs,
@@ -650,6 +697,8 @@ these diagnostics.
 
 Maintained source controls are `search::paired50_tests::` (real fixed-embedder
 stores, no general test hooks), the existing example's paired record-output test,
-and `Paired50DispatchTests` in `test_g_dispatch.py` (harmless children only).
+`Paired50DispatchTests` in `test_g_dispatch.py` (harmless children only), and
+`test_pair_public.py` (public inventory/admission, actual stream comparison,
+existing driver/copy binding and cumulative calibration limits).
 The agent runner explicitly selects both native private-feature suites; these
 controls do not start a natural/model/GPU campaign or discharge R6/whole30.

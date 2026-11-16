@@ -11,9 +11,9 @@ status: proposed
 
 Contract for the first, adapter-only release of the FathomDB MCP server. It
 records the original `fathomdb-sdk` 0.8.27 evaluation baseline. Current integration
-includes queue/hints, compact formats and direct text filters. Historical search
-view exposure remains held pending the repeated-ref feedback ruling; structured
-state/verdict additions remain with0.8.29 Slices80/90. Semantics
+includes queue/hints, compact formats and direct text filters. Selected historical-view flags and atomic repeated-ref refusal are integrated.
+0.8.29 adds omission/disclosure, bounded corrective details, explicit session
+default and stored-head reporting. Semantics
 are owned by `dev/design/mcp-adapter/requirements.md` (MR-###); this file owns
 names, shapes, defaults and codes. The server is read-only and unscoped in this
 release.
@@ -93,22 +93,24 @@ are preserved. Fetch bodies retain every byte.
 
 | Output | Compact representation |
 | --- | --- |
-| list_stores | `stores: N`, followed by `q open=<bool> readiness=<word>[ default]` rows and optional hint lines. |
+| list_stores | `stores: N default=<JSON string or null>`, followed by `q open=<bool> readiness=<word>[ default]` rows and optional hint lines. |
 | use_store | `default store: q`. |
-| orient | Header `orient store=q epoch=N validity_instant=N tokens=U/M[ cut]`; projection rows name/roles/fts/vector/dense readiness, embedding state/usable/pending/affected, runtime availability/reason and vector-unsupported kinds. |
+| orient | Header `orient store=q epoch=N validity_instant=N tokens=U/M[ cut]`; projection rows name/roles/fts/vector/dense readiness, embedding state/usable/pending/affected, runtime availability/reason and vector-unsupported kinds; `not_in_this_release=j` and one `coverage: j` line. |
 | search | Header `search store=q epoch=N validity_instant=N mode=<word> hits=N completeness=<word> [kind=q] [continuation=c] [continuation_exact=false] response_id=r tokens=U/M[ cut]`. Common kind may appear once in the header. |
-| search hit | `q arm=<word> score=<x.xxx> [ce=<x.xxx>] [anchor=<word>] [cut] [kind=q] [src=q] [hl=a-b,…] \| <snippet>`. Whole anchor is omitted; requested empty highlights are `hl=[]`, distinct from absence. |
+| search hit | `q arm=<word> score=<x.xxx> [ce=<x.xxx>] [anchor=<word>] [cut] [kind=q] [src=q] [hl=a-b,…] [scored_bytes=N] \| <snippet>`. Whole anchor is omitted; requested empty highlights are `hl=[]`, distinct from absence. |
 | explanations | `explain: j` (two leading spaces) after its hit contains the full per-hit object; `explanation: j` contains trace or unavailable status/reason once. No per-hit trace duplication. |
 | fetch | Header names store/epoch/validity/items/tokens. `record q kind=q bytes=N[ cut]`, LF, exactly N raw UTF-8 body bytes, then one framing LF. Empty bodies have N=0. |
 | fetch item error | `error q <class>/<code> message=q remedy=q [candidates=j] [detail=q] [busy=j]`. Input order, duplicates and all item outcomes remain intact. |
 | expand | Header names store/epoch/validity/targets/complete/optional bound/tokens; ordered rows `q kind=q hop=N edge=q[ cut] \| <body>`, with degradation and hints. |
 | feedback | Header names store/epoch/validity/status/optional reason/tokens and retains degradation. |
-| top-level error | `error <class>/<code> message=q remedy=q [candidates=j] [detail=q] [busy=j]`. Empty candidates remain explicit; busy retains reason/in_flight/queued/abandoned/stuck. |
+| top-level error | `error <class>/<code> message=q remedy=q [candidates=j] [detail=q] [busy=j] [argument=q accepted=j] [refs_not_in_response=j] [refs_omitted=N]`. Empty candidates remain explicit; busy retains reason/in_flight/queued/abandoned/stuck. |
 
 Displayed score/CE values use three decimals only in compact text; raw scores,
-rankings and explanation JSON retain exact typed values. Placeholder state and
-verdict, and orient's unavailable kinds/counts, are omitted only in compact
-text; structured retains them. This is presentation, not a new semantic ruling.
+rankings and explanation JSON retain exact typed values. Unavailable-only state
+and verdict are omitted in both formats; their declared schema fields are
+optional. Orient discloses exactly `["state","verdict","kinds","counts"]` in
+`not_in_this_release`. Structured kinds/counts placeholders remain; compact text
+omits their placeholder rows. Real readiness/degradation facts remain explicit.
 
 For compact text T(u), `used_tokens = ceil(len_utf8(T(u))/4)` includes its own
 count, framing, quotes, flags and hints. For structured S(u) and P=S without
@@ -142,13 +144,14 @@ meaning. Every listed field is retained in structured mode.
 | Group | Exact fields | Compact classification |
 | --- | --- | --- |
 | Envelope | store, epoch, validity_instant; degradation[].arm/reason; budget.max_tokens/used_tokens/cut | Header, degradation lines, converged tokens/flag. |
-| Unavailable envelope | state.status; search verdict; orient kinds.status/counts.status | Only approved text omissions. No semantic state/verdict replacement. |
-| list_stores | stores[].name/open/readiness/default | Quoted name and words/flags; length supplies header count. |
+| Unavailable capabilities | optional state.status; optional search verdict; orient kinds.status/counts.status; not_in_this_release[] | State/verdict are absent in both formats. Orient names all four capabilities; kinds/counts placeholders remain only in structured data. |
+| list_stores | default_store; stores[].name/open/readiness/default | Quoted name and words/flags; length supplies header count. |
 | use_store | store | Quoted selected store. |
 | orient projections | projections[].name/roles[]/fts/vector; projection_status.projections[].name/dense_readiness | Joined by exact name in projection rows; unmatched status rows remain visible. |
 | orient readiness | embedding_readiness.state/usable_embedder/pending_count/affected_kinds[]; projection_status.runtime_embedder_available/runtime_unavailability_reason/vector_unsupported_kinds[] | Explicit embedding/runtime/unsupported lines; array values are JSON. |
+| orient coverage | vector_coverage.status/population/profile.key/name/revision/dimension/records/known_records/unknown_records/truncated_known_records/known_body_bytes/unrepresented_known_bytes/unattributed_heads/reason; vector_coverage.truncated_known_share.numerator/denominator; vector_coverage.unrepresented_known_byte_share.numerator/denominator | One exact compact JSON coverage line, with required nullable shares only for available. |
 | search | mode, response_id, completeness, continuation, continuation_exact | Header; null/absent continuation has no advancing handle. Hosted false caveat remains explicit. |
-| search hits | results[].ref/kind/snippet/snippet_cut/snippet_anchor/highlights[][]/source_id/score/arm/ce_score | Quoted metadata, raw line body, optional anchor/cut/highlights, three-decimal score/CE display. Missing optional values are absent; whole anchor is implicit. |
+| search hits | results[].ref/kind/snippet/snippet_cut/snippet_anchor/scored_bytes/highlights[][]/source_id/score/arm/ce_score | Quoted metadata, raw line body, optional anchor/cut/highlights, three-decimal score/CE display. Missing optional values are absent; whole anchor is implicit. |
 | explanation trace | explanation.trace.query_chars/k/rerank_depth/pool_n/alpha/use_graph_arm/recency/embedder_id/ce_active/vector_hits/text_hits/graph_hits/dropped_edge_hits | Complete compact JSON in explanation line. |
 | per-hit explanation | explanation.per_hit[].ref/arm/vector_rank/text_rank/graph_rank/fused_score/ce_score/blended | Complete compact JSON after corresponding hit, retaining nulls/raw f64. |
 | unavailable explanation | explanation.status/reason | Complete compact JSON. |
@@ -157,7 +160,7 @@ meaning. Every listed field is retained in structured mode.
 | expand | complete, bound; targets[].ref/kind/hop_count/terminal_edge_kind/body/body_cut | Header bound/complete; ordered quoted metadata/flattened body/cut rows. |
 | feedback | status, reason | Header words, with envelope above. |
 | Hint | hints[].action/reason/refs[]/refs_omitted/mode/arm/cause/continuation/max_tokens/store | One fixed-template line per hint; all optional fields remain represented. Internal cut_anchors is serde/schema skipped and only selects the snippet hint sentence. |
-| Error | error.class/code/message/remedy/candidates[]/detail; error.busy.reason/in_flight/queued/abandoned/stuck | Class/code plus JSON-quoted strings and complete JSON candidates/busy; same mapping under items[].error. |
+| Error | error.class/code/message/remedy/candidates[]/detail/argument/accepted[]/refs_not_in_response[]/refs_omitted; error.busy.reason/in_flight/queued/abandoned/stuck | Class/code plus JSON-quoted strings and complete JSON candidates/busy; same mapping under items[].error. |
 
 Common envelope fields (present on every store-bound result):
 
@@ -166,7 +169,7 @@ Common envelope fields (present on every store-bound result):
 | `store` | string | The store answered. |
 | `epoch` | integer | Open epoch of that store; increments on each open. |
 | `validity_instant` | integer | Epoch seconds the read was answered at. The adapter resolves now itself when the caller gives no `as_of` and always passes it as `ReadView.valid_as_of`, so this is never null (MR-023.2). It is the only time-derived field (MR-043.2). `orient` and `feedback` take no `as_of`; theirs is the call time. A continuation page reuses the instant of its first page. |
-| `state` | `{ "status": "unavailable" }` | MR-050; the state read is an engine follow-up. |
+| `state` | optional | Omitted until a supported state identity exists (MR-050); never a manufactured freshness value. |
 | `degradation` | array of `{arm, reason}` | MR-032. Empty when nothing degraded. |
 | `budget` | `{max_tokens, used_tokens, cut}` | Final format-specific count and fit as above (MR-041). Compact text presents these as `tokens=U/M[ cut]`. |
 
@@ -229,7 +232,8 @@ This is the one vocabulary table (MR-072):
 
 ### `list_stores`
 
-Args: `hints`. Result: `stores` — array of `{name, open, readiness, default}`
+Args: `hints`. Result requires nullable `default_store` from the same session
+sample as row flags/hint, even with hints disabled, plus `stores` — array of `{name, open, readiness, default}`
 in name order, where `readiness` is one of `closed`, `opening`, `reopening`,
 `ready`, `draining`, `failed`. Never includes paths (MR-005.2). `hints`:
 `default_store_set` (§ 3).
@@ -246,6 +250,9 @@ Args: `store`. Result adds:
 - `projections`: from `read.projections` — `{name, roles, fts, vector}` (whether
   each is configured) in name order.
 - `projection_status`, `embedding_readiness`: summarized from the SDK.
+- Required top-level `vector_coverage`, exactly once outside projection_status,
+  follows the exact stored mapped-head contract below.
+- `not_in_this_release`: exactly `["state","verdict","kinds","counts"]`.
 An actual provider verification refusal returns `unavailable/open_failed` with
 its typed detail; no Engine or `dense_disabled` orient field is returned.
 Text access requires a separate deliberate None-provider configuration, as
@@ -348,7 +355,7 @@ Result adds:
   and invalid vectors remain unlabeled. `{arm: "vector", reason: "embedder_overloaded"}` is reported when this
   search's query embedding was refused because the embed queue was full or it
   expired in that queue. The search still returns its text-arm hits (EP-03).
-- `verdict`: `unavailable` in this release (MR-031).
+- `verdict`: optional and omitted until calibrated verdicts are supported (MR-031).
 - `continuation`: string `c<epoch>-<hash>` or null, `<hash>` over the store,
   canonical arguments and offset. Present when the page was cut by the budget or
   reached its limit, kept at least one hit, and the next offset is below the
@@ -422,7 +429,8 @@ Args: `response_id` (required), `used` (array of refs from that response),
 
 Checks run in that order. Once the response is found, and before the other
 reasons, every ref in `used` and `unused` must belong to it
-(`invalid_request/bad_argument` otherwise). A response from another store is `invalid_request/wrong_store`
+(`invalid_request/refs_not_in_response` otherwise, with bounded occurrence
+details below). A response from another store is `invalid_request/wrong_store`
 (MR-024.5). `used` may be empty. Recorded feedback reaches `record_feedback`
 with label source `agent` (MR-024.1). Feedback never alters later results.
 For otherwise recordable calls, a named ref shared by different result cursors
@@ -441,6 +449,49 @@ permit it is refused at once as `busy/admission`, `busy.reason`
 Change queries (MR-055), remember/replace/retract (MR-060–062) and scope
 (MR-014) have no tools. Their absence is the contract, so `tools/list` is
 fixed and identical for every configuration (MR-012.1, MR-006.7).
+
+### Corrective details and stored-head reporting (0.8.29)
+
+Unknown top-level keys are checked before typed parsing/store work. The error is
+`invalid_request/unknown_argument`, fixed message `unknown tool argument`,
+least original key by UTF-8 lexical order in `argument` (at most 64 raw UTF-8
+bytes including ellipsis), complete sorted schema-derived `accepted` names and
+a fixed per-tool remedy. Known-key-only malformed inputs remain bad_argument;
+nested user-map keys retain their meaning. Compact errors append
+`argument=<JSON string> accepted=<JSON array>` after existing error fields.
+
+Foreign feedback refs return `refs_not_in_response` in used-then-unused request
+order, preserving duplicates. Include the first 50 eligible occurrences of at
+most 128 raw bytes; omit overlong identifiers whole. `refs_omitted` counts every
+excluded occurrence and is absent at zero. Compact errors append
+`refs_not_in_response=<JSON array> [refs_omitted=N]`. Store/lookup/membership/
+epoch/telemetry/text/acquisition/atomic-ambiguity precedence remains unchanged;
+failures write no labels. These finitely bounded diagnostic errors have no
+success budget or hints and make no 256-token-fit promise.
+
+`vector_coverage` has status `available` / `unavailable`, fixed
+population `stored_mapped_spans` and profile `{key:"default",name,revision,dimension}`.
+Dimension remains numeric. Available adds canonical decimal-string `records`,
+`known_records`, `unknown_records`, `truncated_known_records`, `known_body_bytes`,
+`unrepresented_known_bytes`, `unattributed_heads`, plus required nullable
+`truncated_known_share` / `unrepresented_known_byte_share`, each exact unreduced
+`{numerator:<decimal string>,denominator:<decimal string>}`. Unavailable instead
+contains reason `cache_cold` or `state_changed` and no numeric fields/shares.
+Counts are at most i64::MAX; bytes/fractions are u128. The population includes
+retained mapped heads, not current-view eligibility or physical health; NULL
+endpoints remain unknown. The [Rust contract](rust.md#stored-mapped-head-coverage-0829)
+defines exact arithmetic, exclusions and commit-only conservative cache reuse.
+Orient's compact `coverage: <JSON>` uses this same exact wire object. All its
+bytes count toward the final success budget; mandatory overflow still refuses.
+No automatic refresh/advice, calibrated threshold or new tool follows.
+
+Search hits optionally carry numeric `scored_bytes`, copied positionally from
+the trusted opt-in snippet sidecar. It is this exact original vector
+participant's `[0,end)` stored extent, including role-marker bytes. Known zero is
+retained; unknown/nonparticipant is absent. Compact text prints
+`scored_bytes=N` before the pipe. Whole-hit cuts retain the endpoint unchanged
+and recompute handles/continuations; standalone selection or text-only results
+cannot acquire a scored extent. Search adds no freshness or weak-result verdict.
 
 ## 5. Continuations and response ids
 

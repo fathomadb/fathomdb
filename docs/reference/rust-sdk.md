@@ -95,3 +95,16 @@ program reaches the pool with no init call of its own, and turns it off with
 `OpenOptions::config`. The three GPU pool settings, and the rule that one pool
 configuration holds per process, are in
 [configuration](config.md#engine-configuration).
+
+## Stored-head reporting
+
+`read::projection_status` includes `StoredHeadCoverageV1`, with exact u64/u128
+mapped-head counts/bytes and unreduced known-only fractions, or explicit
+cache_cold/state_changed availability without numeric facts. The stored profile
+and numeric dimension describe retained mapped heads, not current eligibility
+or physical-vector health. Status reads reuse only committed matching captures.
+Opt-in `SnippetV1.scored_bytes: Option<u32>` describes this exact returned
+record's original contributing stored head extent. Some(0)is known zero;
+None makes no extent claim. Pure `snippet_for` and text-only selection return
+None without extent reads. No governed operation, ranking change or refresh API
+is added.

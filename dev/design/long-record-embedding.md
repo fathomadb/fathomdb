@@ -23,8 +23,8 @@ inputs:
 **Owner decision, 2026-10-19: accepted.** Ship the guard of § 7.1 (vector
 coverage per record reported in `orient`, and the scored extent in the
 EP-17 snippet). Park overflow chunking (option C, § 7.2) until one of its
-triggers fires. The guard is not built yet; where it lands is open (§ 9,
-question 2).
+triggers fires. Format35 storage is retained in format37; 0.8.29 implements reporting under
+the accepted Block2 contract (local qualification remains release-owned).
 
 **Owner decisions, 2026-10-31.** B2-8 (the guard) is approved: its storage,
 a per-vector span table shaped for chunking, ships in 0.8.28's format 35,
@@ -407,31 +407,28 @@ brief (a packed exact-scan kernel) targets.
 
 ### 7.1 Now: a guard, no new vectors
 
-1. **Record the embedded extent.**
-   - At projection time, store `embedded_bytes` (the byte offset of the cut)
-     and the body length, in a new sidecar table keyed by `write_cursor`.
-   - Adding it is an additive `CREATE TABLE`.
-   - New rows get the values when they are projected. Existing rows need a
-     projection-generation bump, so that the projector recomputes them: a
-     derived-data rebuild, not an `INSERT … SELECT` data migration. The
-     tokenizer already knows the offset.
-2. **Report it per store in `orient`.** Report the share of records over the
-   cut and the share of body bytes the vectors do not see, cached with the
-   projection state so that `orient` adds no scan.
-   - This is the fact an agent can act on: in a store where much text is
-     unembedded, prefer `mode: text` for passages deep inside long records.
-   - A per-hit hint is not proposed. A vector-only hit on a partly embedded
-     record was found by its head, so "search again as text" is not
-     actionable on it, and the real failure is records not returned. A
-     hint from store-level facts on every search call would also need a
-     value the call does not hold (hints-sidecar.md H3).
-3. **Report it per hit in the EP-17 sidecar.** `SnippetV1` gains
-   `scored_bytes: Option<u32>`, the extent the hit's vector scored. It lives
-   in the opt-in snippet sidecar, so there is no per-hit struct growth
-   (R-OBS-2). A `Start` snippet can then say whether it covers the whole
-   scored region. This changes the `SnippetV1` struct that EP-17 proposes
-   (`match-centred-snippets.md` § 7.2), so EP-17 and the snippet design must
-   be amended in the same PR that builds it.
+1. **Retain existing stored head extents.** Format35 introduced the atomic
+   `_fathomdb_vector_spans` mapping/head/body-length/nullable UTF-8 endpoint
+   tuple, retained in format37. 0.8.29 reads this metadata without a new table,
+   migration, projection-generation bump, rebuild, backfill or tokenizer call.
+2. **Report exact stored mapped-head coverage in `orient`.** The required
+   available/unavailable carrier reports attributable committed heads including
+   retained history, known/unknown/truncated counts, known bytes/unrepresented
+   bytes, unattributed heads and exact unreduced known-only fractions.
+   NULL stays unknown even for empty input. Missing committed cache or token
+   mismatch returns cache_cold/state_changed without stale numeric facts.
+   Capture shares existing full writer validation; orient adds fixed token work,
+   no aggregate physical-vector probe or full traversal. This is neither live
+   membership nor physical-health certification; no threshold or automatic
+   advice follows. See [the Rust contract](../interfaces/rust.md#stored-mapped-head-coverage-0829).
+3. **Report exact per-hit extent in the opt-in EP-17 sidecar.**
+   `SnippetV1.scored_bytes: Option<u32>` is the original `[0,end)` stored head
+   extent of this exact selected record when it contributed to the original
+   vector arm. `Some(0)` is known zero; None makes no known extent claim.
+   Preserve same-reader snapshot, original vector keys through fusion, and
+   refusal of missing/misplaced/extra/ambiguous/malformed tuples. No endpoint is
+   borrowed by body/ref/display arm. SearchHit is unchanged; pure selectors and
+   text-only/nonparticipant paths return None with no extent lookup.
 4. **No EP-17 anchor change.** `anchor = Start` stays honest for vector-only
    hits (`match-centred-snippets.md` § 3.4).
 5. **Consumer guidance.** Document the cut and the § 3 table in the public

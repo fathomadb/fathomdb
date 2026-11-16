@@ -580,6 +580,7 @@ ProjectionRuntimeStatus(
     ),
     projections: tuple[ProjectionRuntimeStatusEntry, ...],
     vector_unsupported_kinds: tuple[str, ...],
+    vector_coverage: StoredHeadCoverageV1,
 )
 ProjectionRuntimeStatusEntry(
     name: str,
@@ -871,3 +872,21 @@ for typed outcomes, original-sink reattachment and retry rules.
 - [Errors](errors.md)
 - [Erasure](../operations/erasure.md)
 - Locked spec: [`dev/interfaces/python.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.28/dev/interfaces/python.md)
+
+## Stored-head reporting
+
+Projection status includes required stored mapped-head coverage. Available
+values report exact known/unknown/truncated heads, known/unrepresented bytes,
+unattributed heads and exact unreduced known-only shares; unavailable values
+name cache_cold or state_changed without numeric facts. The population includes
+retained mapped history, independently of current eligibility or physical health.
+Only already-required committed full validation seeds the cache; ordinary status
+reads do not force a scan or refresh. Counts are exact Python ints in Python and
+canonical decimal strings in TypeScript; profile dimension remains numeric.
+
+An opt-in search snippet's scored_bytes (Python) / scoredBytes (TypeScript)
+is the exact stored head endpoint of that returned record's actual original
+vector participation. Known zero stays zero; unknown/nonparticipant makes no
+extent claim. Standalone snippet selection and text-only search have no extent
+lookup. This does not change ranking, snippet anchors, frozen eligibility or
+body-byte coordinates, including role tags.

@@ -138,6 +138,8 @@ reported test_hooks::property_corpus_hook
 reported test_hooks::slice15_erasure_lock_hook
 reported test_hooks::slice72_test_hooks
 reported vector_equivalence
+reported stored_coverage
+reported stored_coverage_tests
 reported vector_spans
 reported vector_storage
 reported vector_storage::tests
@@ -193,6 +195,7 @@ field resolved_config runtime_configuration
 field runtime_embedder root
 field runtime_embedder_identity root
 field slow_threshold_ms root
+field stored_head_coverage root
 field subscribers root
 field telemetry telemetry
 field telemetry_enabled telemetry

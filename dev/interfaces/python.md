@@ -681,7 +681,7 @@ when a committed receipt has pending projection cursors in the current schema.
 
 `ProjectionRuntimeStatus` is a frozen record with
 `runtime_embedder_available`, `runtime_unavailability_reason`, `projections`,
-and `vector_unsupported_kinds`. The reason Literal is exactly
+`vector_unsupported_kinds`, and required `vector_coverage: StoredHeadCoverageV1`. The reason Literal is exactly
 `"none" | "no_runtime"`; `"none"` occurs
 exactly when the runtime is available. Each sorted
 `ProjectionRuntimeStatusEntry` has `name` and `dense_readiness`, whose Literal
@@ -1232,7 +1232,11 @@ fathomdb.snippet_for(body, spans, options=None) -> SnippetV1
   hit in `results` order. Otherwise it is `None`, and every other field is
   unchanged. Snippet options are presentation: they are not part of a frozen
   context. `search_projected_text` takes no `snippet`.
-- `SnippetV1(text, anchor, windows, spans, highlights, cut)`. `anchor` is the
+- `SnippetV1(text, anchor, windows, spans, highlights, cut, scored_bytes=None)`.
+  `scored_bytes: int | None` is the exact original stored head endpoint of this
+  actual vector participant; zero is known, and None makes no extent claim.
+  Text-only and standalone selection return None. All coordinates include
+  original role-marker bytes; matching body text never lends an endpoint. `anchor` is the
   `SnippetAnchor` literal `"whole"`, `"match"` or `"start"`. `windows`,
   `spans` and `highlights` are `list[tuple[int, int]]` of **UTF-8 byte**
   offsets, not `str` indices. `windows` and `spans` index the record body;
@@ -1625,3 +1629,25 @@ ReadView existence and validity axes compose with the filter. No embedding,
 dense search, CE rerank, graph expansion or property FTS is invoked. At fixed
 corpus, effective validity time and filter, smaller result limits are ordered
 prefixes of larger ones. None and empty filters retain unfiltered behavior.
+
+## Exact stored-head coverage (0.8.29)
+
+`StoredHeadCoverageV1` is the frozen snake_case union of
+`StoredHeadCoverageAvailable` and `StoredHeadCoverageUnavailable`. Both expose
+`status`, `population="stored_mapped_spans"` and a frozen
+`StoredHeadCoverageProfile(key="default", name, revision, dimension: int)`.
+Available contains exact Python-int `records`, `known_records`, `unknown_records`,
+`truncated_known_records`, `known_body_bytes`, `unrepresented_known_bytes`,
+`unattributed_heads`, and nullable `truncated_known_share` /
+`unrepresented_known_byte_share`. A share is a frozen
+`StoredHeadCoverageFraction(numerator: int, denominator: int)`, unreduced.
+Unavailable instead exposes only reason `cache_cold` or `state_changed`, with
+no numeric facts. Counts are bounded by i64::MAX; bytes/fractions by u128::MAX.
+Dimension remains a positive numeric u32-domain int. Malformed native payloads
+raise `ProjectionGenerationError(reason="projection_generation_corrupt")` at
+an exact RFC6901 path under `/vector_coverage`.
+
+The [Rust contract](rust.md#stored-mapped-head-coverage-0829) defines population,
+unknowns, commit-only capture, conservative invalidation and same-reader per-hit
+validation. No automatic refresh, model call, threshold, new operation or
+physical-vector-health claim follows from this value.

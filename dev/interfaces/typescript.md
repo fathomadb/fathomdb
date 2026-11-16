@@ -595,7 +595,7 @@ when a committed receipt has pending projection cursors in the current schema.
 
 `ProjectionRuntimeStatus` is
 `{ runtimeEmbedderAvailable, runtimeUnavailabilityReason, projections,
-vectorUnsupportedKinds }`. `ProjectionRuntimeUnavailabilityReason` is exactly
+vectorUnsupportedKinds, vectorCoverage: StoredHeadCoverageV1 }`. `ProjectionRuntimeUnavailabilityReason` is exactly
 `"none" | "no_runtime"`; `"none"` occurs
 exactly when the runtime is available. Each sorted
 `ProjectionRuntimeStatusEntry` is `{ name, denseReadiness }`, with
@@ -1287,7 +1287,11 @@ snippetFor(body, spans, options?): SnippetV1
   `degradations`, and every other field is unchanged. Snippet options are
   presentation, so they are not part of a frozen context.
   `searchProjectedText` refuses `snippet` with `InvalidArgumentError`.
-- `SnippetV1 { text, anchor, windows, spans, highlights, cut }`. `anchor` is the
+- `SnippetV1 { text, anchor, windows, spans, highlights, cut, scoredBytes?: number }`.
+  `scoredBytes` is the exact original stored head endpoint of this actual
+  vector participant, an integer 0..u32::MAX. Zero is retained; absence makes
+  no extent claim. Text-only and standalone selection omit it. Original
+  role-marker bytes remain part of these coordinates. `anchor` is the
   `SnippetAnchor` `"whole" | "match" | "start"`. The three range lists are
   `[number, number][]` of **UTF-8 byte** offsets, not UTF-16 string indices.
   `windows` and `spans` index the record body, and `highlights` index `text`.
@@ -1573,3 +1577,26 @@ ReadView existence and validity axes compose with the filter. No embedding,
 dense search, CE rerank, graph expansion or property FTS is invoked. At fixed
 corpus, effective validity time and filter, smaller result limits are ordered
 prefixes of larger ones. None and empty filters retain unfiltered behavior.
+
+## Exact stored-head coverage (0.8.29)
+
+`StoredHeadCoverageV1` discriminates `StoredHeadCoverageAvailable` and
+`StoredHeadCoverageUnavailable` by status `available` / `unavailable`. Both
+carry `population: "stored_mapped_spans"` and
+`StoredHeadCoverageProfile { key: "default", name, revision, dimension: number }`.
+Dimension remains a positive numeric u32-domain value. Available contains
+canonical decimal **strings** `records`, `knownRecords`, `unknownRecords`,
+`truncatedKnownRecords`, `knownBodyBytes`, `unrepresentedKnownBytes`,
+`unattributedHeads`, and required nullable `truncatedKnownShare` /
+`unrepresentedKnownByteShare`. Each exact unreduced
+`StoredHeadCoverageFraction` has decimal-string numerator/denominator.
+Unavailable instead has only reason `cache_cold` or `state_changed`, no numeric
+facts. Counts are bounded by i64::MAX; byte totals/fractions by u128::MAX;
+none passes through Number. Native decoding validates canonical decimal syntax,
+tags, limits and exact count/fraction relationships, refusing malformed data
+with `ProjectionGenerationError` / `projection_generation_corrupt` at the exact
+RFC6901 path under `/vectorCoverage`.
+
+The [Rust contract](rust.md#stored-mapped-head-coverage-0829) defines population,
+commit-only capture, conservative invalidation and same-reader per-hit validation.
+No automatic refresh, threshold, new operation or physical-health claim is added.

@@ -63,7 +63,7 @@ agents answer from the wrong text.
     zero-cost rule R-OBS-2
     (`dev/design/0.8.8-explain-and-telemetry-adr.md:46`).
 - `SnippetV1 { text, anchor: Whole | Match | Start, windows: Vec<(u32,u32)>,
-  spans: Vec<(u32,u32)>, highlights: Vec<(u32,u32)>, cut: bool }`.
+  spans: Vec<(u32,u32)>, highlights: Vec<(u32,u32)>, cut: bool, scored_bytes: Option<u32> }`.
   - `windows` and `spans` are byte ranges into the body.
   - `highlights` are byte ranges into `text`, filled only on request.
   - `text` never contains inserted markup. Its only additions are the
@@ -221,12 +221,12 @@ They include:
 - the rule-0 skip and the point-query cap;
 - binding parity.
 
-## Adapter change once it lands
+## Adapter integration
 
 - The adapter passes `SnippetOptions` from config and uses `snippets[i]`.
 - It adds `snippet_anchor` and takes `snippet_cut` from `snippets[i].cut`.
-- In `cut_bodies`, it re-runs `snippet_for` with a smaller `max_bytes` instead
-  of cutting a prefix.
+- Final response accounting cuts whole hits, retaining paired snippet metadata
+  and recomputing handles and continuation after each cut.
 - It rewrites the instruction at `fathomdb-mcp/src/edge.rs:38-39`, and the
   hints design gets the matching edits (match-centred-snippets.md § 7.3).
 
@@ -241,3 +241,20 @@ They include:
      the auxiliary function later.
 3. Default `max_windows`?
    - *Reviewer's view:* ship 1. Raise it to 2 only if M2 shows a gain.
+
+## Stored scored extent (0.8.29)
+
+After pure lexical selection, search attaches the exact stored `[0,end)` head
+extent only for this selected canonical record's original vector participation,
+on the same pinned reader transaction. `scored_bytes: Option<u32>` preserves
+`Some(0)` and validated NULL unknown; pure snippet_for always returns None. Body,
+public ref, display branch, explanation and nested graph fusion are not proof
+of participation. One indexed tuple validation per final vector participant
+refuses missing/misplaced/extra/ambiguous/malformed ownership, body, physical
+vector or UTF-8/u32 endpoint. Snippets-off adds no participant set/extent work;
+text-only/ownerless paths perform no extent lookup. The existing lexical point
+query cap is separate and unchanged. Role tags remain part of stored-byte
+coordinates. Whole-hit MCP cuts preserve metadata and count every final byte;
+if a caller deliberately re-selects a pure snippet, trusted paired scored
+metadata must be restored separately without recomputation or storage reads.
+See [the accepted implementation contract](../../../interfaces/rust.md#stored-mapped-head-coverage-0829).

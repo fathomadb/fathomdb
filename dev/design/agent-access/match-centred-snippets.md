@@ -643,7 +643,7 @@ a thin consumer.** The reasons:
   - With the option off, every existing field of `SearchResult` is equal to
     today's, and no per-hit allocation happens (R-OBS-2).
 - `SnippetV1 { text: String, anchor: SnippetAnchor, windows: Vec<(u32, u32)>,
-  spans: Vec<(u32, u32)>, highlights: Vec<(u32, u32)>, cut: bool }`.
+  spans: Vec<(u32, u32)>, highlights: Vec<(u32, u32)>, cut: bool, scored_bytes: Option<u32> }`.
   - `SnippetAnchor` is `Whole`, `Match` or `Start`.
   - `spans` are the body-relative match spans the engine fetched. They are
     empty when rule 0 skipped the point query.
@@ -853,3 +853,18 @@ The questions as originally put, with the Fable-medium reviewer's view:
    gain a natural anchor, the matched chunk, and M3 becomes moot.
    - *Reviewer's view:* none recorded. The review only reworded § 3.4: the
      prefix lies inside the scored region but is not the scored text.
+
+## Stored scored extent (0.8.29)
+
+Search attaches `scored_bytes: Option<u32>` only after pure lexical selection,
+from this selected canonical record's actual original vector participation,
+on the same pinned reader transaction. `Some(0)` is known; validated NULL or
+nonparticipant is None. Pure snippet_for stays storage-free and returns None.
+Equal bodies/refs/display arms, explanations and nested graph fusion cannot
+lend endpoints. A final participant gets at most one indexed tuple validation;
+missing/misplaced/extra/ambiguous owner/body/physical-vector/UTF-8/u32 facts
+refuse. Snippets-off has no participation-set/extent work; text-only/ownerless
+paths perform no extent lookup. The lexical 2*max_point_queries cap is unchanged
+and separate. Role tags remain part of original stored-byte coordinates.
+Whole-hit MCP cuts preserve trusted paired metadata and account for every byte.
+See [the Rust contract](../../interfaces/rust.md#stored-mapped-head-coverage-0829).

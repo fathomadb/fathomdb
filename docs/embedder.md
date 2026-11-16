@@ -24,6 +24,22 @@ Caller-supplied engine providers are unsupported before 1.x in all SDKs.
 
 Documents longer than 512 tokens are truncated to the model's context window.
 
+Projection status exposes stored mapped-head coverage: exact known/unknown and
+truncated counts, known/unrepresented byte totals and unreduced known-only
+fractions, or explicit cache_cold/state_changed without stale numbers. This
+includes retained mapped history; it is not current-view coverage or physical
+vector health. Unknown endpoints remain unknown. The stored profile dimension
+is numeric; aggregate counters use exact Python ints and TypeScript decimal
+strings. Existing full validation seeds the committed cache; status reads do
+not force a corpus scan or model call.
+
+Requested search snippets can expose scored_bytes (Python/Rust) or scoredBytes
+(TypeScript), the exact original stored head endpoint for that returned record's
+actual vector participation. Zero is known; absence/None makes no extent claim.
+Offsets include original stored role-marker bytes. Text-only, nonparticipant
+and standalone snippet paths do not acquire an endpoint. Chunking, calibrated
+verdicts and automatic advice are separate decisions.
+
 ## Enabling it
 
 The default embedder is gated behind a build feature so users who never use it

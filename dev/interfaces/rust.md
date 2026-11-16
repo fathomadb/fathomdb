@@ -414,7 +414,7 @@ which binds AC-074 — not a new AC id):
   search degradation report types `ArmDegradation` and `DegradationReason`
   — **HITL-SIGNED 2026-10-19**. 0.8.29 Slice70 adds exactly the six retrieval
   carriers `SearchHit`, `IdSpace`, `IdSpaceKind`, `SnippetOptions`, `SnippetAnchor`
-  and `SnippetV1`. Each of those 45 resolves through the facade
+  and `SnippetV1`. Each listed type resolves through the facade
   at compile time (`type_name::<…>()`). The facade also `pub use`s additional
   explicitly documented additive groups that are **not members of this
   historical const**; do not infer the full re-export surface from its count.
@@ -1173,7 +1173,8 @@ surface:
 
 `ProjectionRuntimeStatus` has `runtime_embedder_available`, its closed
 `ProjectionRuntimeUnavailabilityReason` (`"none" | "no_runtime"`), sorted `ProjectionRuntimeStatusEntry` values,
-and sorted/deduplicated `vector_unsupported_kinds`. Each entry has its name and
+sorted/deduplicated `vector_unsupported_kinds`, and required
+`vector_coverage: StoredHeadCoverageV1`. Each entry has its name and
 closed `ProjectionStatusDenseReadiness` (`"not_declared" | "unavailable" |
 "embedding" | "ready"`). `not_declared` means the stored declaration has no
 effective vector arm — exactly `StoredProjection::wants_vector`, so a legacy
@@ -1599,6 +1600,10 @@ and 7.2.
   - `highlights`: ranges into `text` of the spans shown in full; empty unless
     `highlights` is set.
   - `cut`: true when any of the body is left out.
+  - `scored_bytes: Option<u32>`: exact original stored head endpoint of this
+    selected record when it actually contributed to the original vector arm.
+    `Some(0)` is known zero; `None` makes no extent claim. The pure selector
+    always returns `None`. See the stored mapped-head coverage contract below.
 - `text` is the windows joined in body order. `"… "` comes before a first
   window that starts after byte 0, `" … "` goes between windows, and `" …"`
   follows a last window that ends before the body. `windows` says where an
@@ -2365,3 +2370,53 @@ ReadView existence and validity axes compose with the filter. No embedding,
 dense search, CE rerank, graph expansion or property FTS is invoked. At fixed
 corpus, effective validity time and filter, smaller result limits are ordered
 prefixes of larger ones. None and empty filters retain unfiltered behavior.
+
+## Stored mapped-head coverage (0.8.29)
+
+`ProjectionRuntimeStatus.vector_coverage: StoredHeadCoverageV1` is required.
+Both variants name `population="stored_mapped_spans"` and a
+`StoredHeadCoverageProfile { key="default", name, revision, dimension: u32 }`
+from the stored profile, independent of current runtime availability.
+`Available { counts: StoredHeadCoverageCounts, .. }` contains `records`,
+`known_records`, `unknown_records`, `truncated_known_records`,
+`unattributed_heads` (u64, at most i64::MAX), `known_body_bytes`,
+`unrepresented_known_bytes` (u128), and two nullable
+`StoredHeadCoverageFraction { numerator: u128, denominator: u128 }` values:
+`truncated_known_share=T/K`, `unrepresented_known_byte_share=V/B`.
+Fractions are exact and unreduced, absent iff the denominator is zero.
+`Unavailable` instead carries `StoredHeadCoverageUnavailableReason::CacheCold`
+or `StateChanged`, with no numeric facts. Metadata, SQL, lock, token and commit
+failures remain typed errors.
+
+The population includes attributable committed mapped heads, including retained
+history and inactive/out-of-window records, regardless of current declarations.
+It excludes canonical records without a mapped head. Passing ownerless,
+NULL-body or dual-owner mappings increment only `unattributed_heads`;
+original bad-span/orphan predicates and caller-specific completion refusals
+remain authoritative. This reports stored representation, not physical-vector
+health or current-view coverage. NULL endpoint is unknown even for empty input;
+known zero on an empty body is known-empty. R=K+U; T counts known end<length,
+B sums known body lengths and V sums their length-end.
+
+Capture adds checked streaming arithmetic to an already-required full writer
+validation, with no second corpus pass, physical-vector probe, migration,
+reprojection or persisted counter. Only committed captures seed the Engine-local
+cache. A pinned writer token compares DB/profile/schema/visibility generation
+and nonce plus that same connection's data_version/total_changes. Warm and cold
+status reads add fixed token work, with no aggregate owner/span traversal.
+Local rollback may conservatively invalidate; an open that initializes existing
+provider/repair metadata may stay cold. Availability can remain unavailable
+until an existing full status refresh or a stable reopen. The whole MCP orient
+operation is not one shared snapshot.
+
+Search retains original vector `RecordKey`s before consuming fusion only when
+snippets are requested. After final ranking/snippet selection, each final actual
+canonical participant gets at most one indexed tuple read on the same reader
+transaction. It validates exact mapping/head/owner/body/physical-row identity,
+UTF-8 boundary and checked u32 endpoint; missing, misplaced, extra, ambiguous or
+malformed tuples refuse. NULL becomes unknown only after full validation.
+Equal bodies, public refs, display arms, explanations and nested graph fusion
+cannot lend participation or extents. Text-only/ownerless/standalone paths make
+no extent read; snippets-off builds no participation set or coverage sidecar.
+Original body bytes include role markers; snippet windows/highlights retain
+existing coordinates. SearchHit, ranking, frozen refusals and selectors are unchanged.

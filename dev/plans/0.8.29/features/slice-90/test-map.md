@@ -133,3 +133,30 @@ scopes under actual permission/readiness. Under seq392, the same approved
 72episodes run once on final integrated90 before local close; no pre90 smoke
 is required for source entry. No automatic full160/model replay,
 new paid-call grant or90↔160 source-entry cycle follows.
+
+## Implemented qualification controls
+
+The accepted semantic RED/GREEN groups are implemented. The completed engine
+unit target `stored_coverage_tests` exercises cache tokens after local rollback,
+external/schema/profile changes, failed commit publication, reopen/cold/poison,
+rebuild/erasure, attribution exclusions and retained mapped history. Actual
+SQLite statement/row/VM traces compare fixed-work cold/warm status against
+streaming capture; the indexed command remains in the existing experiment README.
+The same target checks selected node/edge identity with equal bodies and repeated
+public refs, known-head lexical/graph nonparticipants through nested fusion,
+ownerless numeric collisions, snippets-off/text-only/standalone zero extent
+reads, exact participant point-query counts, pinned-reader endpoint drift,
+malformed tuples and original UTF-8 endpoint boundaries. Ownerless search uses
+the existing route without canonical lifecycle explanations.
+
+Installed `test_slice90_reporting.py` and `slice90-reporting.test.ts` directly
+exercise strict coverage decoders, exact i64/u128 domains, canonical decimals,
+malformed tags/missing fields/fractions and exact RFC6901 paths. The Python
+corrupt-null object controls exposed and then verified the bounded decoder-path
+fix. Both native `projection.rs` modules' `exact_coverage_transport_tests` check
+actual conversion at the i64/u128 boundaries and unavailable variants. The
+SDK-only `slice90_reporting` consumer reads the public closed coverage carrier
+from a real provider-free database. Existing MCP `field_census` now registers
+corrective details, disclosure/default/coverage leaves and scored hit fields.
+The final scoped run results are summarized in `status.md`; the release
+coordinator owns final integrated qualification and the one coherent review.

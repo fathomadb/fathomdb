@@ -624,3 +624,14 @@ completion and original-sink reattachment. The shared selector/status/outcome en
 are re-exported explicitly. `ErrorKind::Maintenance` preserves the typed
 `EngineError::Maintenance(MaintenanceError)` payload. Acquisition wait is not an
 active SQLite deadline, and handle drop never clears owed physical obligations.
+
+## Stored-head reporting (0.8.29)
+
+`read::projection_status` returns required `vector_coverage: StoredHeadCoverageV1`.
+The SDK re-exports `StoredHeadCoverageProfile`, `StoredHeadCoverageCounts`,
+`StoredHeadCoverageFraction` and `StoredHeadCoverageUnavailableReason` unchanged,
+with Rust u64/u128 counters and exact unreduced fractions. Opt-in `SnippetV1`
+adds `scored_bytes: Option<u32>` from the exact original vector participant;
+standalone `snippet_for` returns None. No governed operation is added. Population,
+cache, same-snapshot validation and refusal semantics are specified in
+[Rust stored-head reporting](rust.md#stored-mapped-head-coverage-0829).

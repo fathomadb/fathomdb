@@ -311,8 +311,12 @@ Meets AN-021.
   byte-identical before and after any amount of feedback (MR-043).
 - MR-024.4 Feedback is available in read-only mode, because it writes only to
   the telemetry sink and not to the database (MR-060.1 still holds).
-- MR-024.5 Feedback naming a response from another store, or references not in
-  that response, fails as invalid request.
+- MR-024.5 A response from another store is invalid_request/wrong_store.
+  Foreign refs are invalid_request/refs_not_in_response with ordered bounded
+  occurrence details (used then unused; duplicates retained; first 50 eligible
+  refs <=128 raw bytes; overlong refs omitted whole; omitted count absent at zero).
+  This membership branch precedes existing not_recorded/ambiguity checks and
+  records zero labels on failure.
 - MR-024.6 Under concurrent hybrid searches, feedback is credited to the search
   that produced the named response. While telemetry is enabled, the adapter runs
   hybrid searches with `explain=true` and takes the query id from that search's own
@@ -340,14 +344,16 @@ AN-007. **[engine]** (bounded match count and saturation).
 - MR-030.3 An empty result while a needed index is not ready reports `empty`
   with a not-ready reason naming the index, never a bare empty result.
 
-**MR-031 — Confidence verdict.** Every search response carries a verdict of
+**MR-031 — Confidence verdict.** Once calibrated verdicts are supported, search responses carry a verdict of
 `strong`, `weak`, `no_good_match` or `unavailable`, computed only from
 similarity-calibrated scores. Rank-fusion scores are rank-only and never feed
 the verdict. Meets AN-008. **[engine]** for raw per-arm scores; the rule and
 rates are **[ADR]**.
 
 - MR-031.1 Without a calibrated score (no cross-encoder rerank and no raw
-  per-arm scores), the verdict is `unavailable`.
+  per-arm scores), unavailable-only verdict is omitted in both formats and
+  optional in structured schema. Orient discloses verdict as unsupported; no
+  weak-result threshold is inferred.
 - MR-031.2 On the calibration corpus, the false-`strong` rate for absent
   answers and the false-`no_good_match` rate for present answers are each at or
   below the ADR rate.
@@ -456,7 +462,9 @@ store, including what was searchable. Meets AN-013. **[engine]**: a
 content-free read, on a reader connection, of the visibility generation, the
 canonical write boundary and the projection cursor. `freeze_read_context` cannot
 serve: it takes the writer-connection lock and counts every canonical row.
-Until the read exists, responses report the identifier as `unavailable`.
+Until that supported read exists, state is optional in schema and omitted in
+both formats. Orient discloses state among exactly state/verdict/kinds/counts.
+Epoch and validity instant remain separate facts, not substitute freshness IDs.
 
 - MR-050.1 Two reads with no intervening commit of any kind, with different
   filters and an unpinned validity instant, report the same identifier.
@@ -575,6 +583,12 @@ outputSchema and structuredContent; input contracts are identical.
 - MR-071.1 Every `structuredContent` in the test suite validates against its
   tool's declared `outputSchema`.
 - MR-071.2 All schemas are JSON Schema draft 2020-12.
+- MR-071.3 Unknown top-level keys precede typed parsing/store work and return
+  unknown_argument with least original UTF-8 key bounded to 64 raw bytes including
+  ellipsis, complete sorted accepted names derived from discovery schema, and a
+  fixed tool-specific remedy. Known-only malformed values remain bad_argument;
+  nested user map keys retain semantics. Bounded correction errors are
+  unbudgeted and carry no hints.
 
 **MR-072 — Hints sidecar.** Results carry a `hints` array of suggested next
 calls authored by FathomDB, so an agent can act on a cut, an empty or degraded

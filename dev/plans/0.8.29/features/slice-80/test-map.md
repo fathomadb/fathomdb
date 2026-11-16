@@ -7,8 +7,10 @@ slice: 80
 
 # Slice 80 test map
 
-This documentation milestone executes no tests. Later90 starts only after approved80 AND actual Block1
-follow-up exit. Fresh final implementation review is mandatory. Every changed
+This documentation milestone executes no tests. Seq392 permits later90 after
+approved80, accepted90 design and fresh integrated source-contract fit while
+measurements continue. Required Block1 measurement/disposition and qualification
+exits remain final integrated obligations. Fresh final implementation review is mandatory. Every changed
 behavior gets its own staged/committed real assertion RED with exact failure
 evidence, then GREEN; no compile-failure/helper-absence RED, regenerated golden
 or new passing-coverage exception. Existing regressions remain regressions.
@@ -18,8 +20,9 @@ This revision uses integrated source
 seq-374 and feedback seq-375, and Slice50's independently reviewed
 `10a72e5a9` carrier design. Selected design is distinguished from implemented API.
 The earlier aggregate-v2 and consolidation consistency reviews passed; they are
-not repeated. The updated contract needs its required Astra-medium review and
-full80 owner acceptance. No implementation or90 source entry follows.
+not repeated. The updated contract has independent Astra-medium review and full80 owner
+acceptance seq384. Seq392 source-entry authority does not claim runtime
+completion.
 
 | Unit / requirement | Callable runtime RED on current API | Human oracle and work/error controls |
 | --- | --- | --- |
@@ -125,9 +128,11 @@ planning≤1+refs, rendering notify-only; existing limit100 overhead block is
 pass now or change those gates to absorb reporting work.
 
 After authorized implementation: use owned10/actual20 setup, scoped latency-
-ordered checks and one final strict full agent verify for source/native changes.
+ordered checks and the parent-owned final integrated strict full agent verify
+for source/native changes.
 Preserve preflight/ptrace/platform failures as failures; missing model/native
 fixtures are unrun cells. Reconcile final integrated50/60/70, both-format
 conformance and original human oracles before independent final review.
-160 remains final assembled-release qualification; it cannot serve as the
-earlier Block1 exit required before90.
+160 remains final assembled-release qualification. Required Block1 measurement/
+disposition and conformance exits remain; seq392 places the same approved
+72episodes once on final integrated90 before local close.

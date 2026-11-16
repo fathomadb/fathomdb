@@ -24,12 +24,13 @@ provide the reverse joins.
 | S90-A9 | Exact vector-participant selected row end9 yields9, provider-unknown yieldsNone, known0 yieldsSome(0), no vector contribution yieldsNone. Equal bodies/different owners or repeated refs cannot lend endpoints. Frozen mutation retains current typed refusal; older pinned snapshots never pick newer spans. Node/edge/role-tagged and multibyte bytes obey hand-authored coordinates. Missing/misplaced/multiple heads, ambiguous owners, mismatched body, missing physical vector, malformed/non-UTF-8 end and u32 overflow refuse; only a validated NULL end gives provider-unknown None. Nested graph fusion cannot manufacture original vector participation; ownerless FTS performs no span lookup. |
 | S90-A10 | Actual installed Python/TS and Rust/native conversions preserve aggregate integer limits, exact fractions, absent/null/0 and scored endpoints. In available and unavailable variants profile.dimension8 is numeric8 in JSON/TS and exact int8 in Python; counts/bytes/fraction components alone take the MCP/NAPI/TS decimal-string transport. Malformed aggregate native payloads give projection_generation_corrupt at exact RFC6901 field path. Snippets off adds0 coverage queries/sets/sidecars; text-only/standalone helper adds0 span lookups. Hybrid adds≤1 indexed per-hit lookup per final vector participant. |
 | S90-A11 | Both-format final output counts every coverage/scored byte and quoted escape; kept results, response handle and continuation agree after cuts. Mandatory metadata overflow refuses under60. Errors carry full bounded correction data without hints/budget. Existing queue/hints/lifecycle/filter/paging/frozen controls stay valid. |
-| S90-A12 | Actual predecessor and Block1 exit results exist; per-behavior RED commits fail for named semantic assertion reasons and GREEN passes without oracle changes. Source/native identity, strict final gate and fresh independent final PASS bind to exact reviewed code. A design PASS alone never satisfies this. |
+| S90-A12 | Fresh accepted integrated predecessor source fit permits entry under seq392; required Block1 measurement/disposition and final integrated qualification results exist before local close, including the same approved72episodes once on final90; per-behavior RED commits fail for named semantic assertion reasons and GREEN passes without oracle changes. Source/native identity, strict final gate and fresh independent final PASS bind to exact reviewed code. A design PASS alone never satisfies this. |
 
 Existing AC-031, AC-060a, AC-068a/b, AC-069, AC-074 and affected
 AC-072/075/076/081 controls remain canonical. Tracked AC-083 is not a new gate.
 None alone proves these new local behaviors.20 Windows/common-source,60/70,
 100 and selected110/140 closure are retained; full80 approval is settled. The
 remaining Block1 measurements, conditional40 choice and72 approved episodes
-remain unpassed as listed in [status](status.md). Scoped Markdown validation
+remain final integrated exits as listed in [status](status.md), without blocking
+seq392-authorized source entry. Scoped Markdown validation
 cannot discharge them.

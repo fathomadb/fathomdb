@@ -83,8 +83,10 @@ Owner seq-382 selects `/mnt/data/fathomdb-performance-benchmarking/scale-02/inpu
 static qualification covers17372 input files and selected7667 bridge rows.
 This is input availability, not30 measurements or Block1 follow-up exit.
 No new measurements, provider/model qualification or smoke configuration is
-invented here. Full80 owner acceptance and90's separate actual Block1 follow-up
-exit remain open, including the unanswered smoke model/prompt/budget fixture.
+invented here. Full80 owner acceptance seq384 is complete. Seq388 resolves smoke models/
+dataset/IDs/budget; seq392 permits90 after fresh integrated source fit while
+measurements continue, with the same approved72episodes once on final90 before
+local close. Required measurement/disposition and qualification exits remain.
 
 Canonical memory read from the actual main-repo store includes
 `dont-be-distracted-by-ceremony.md`,

@@ -22,12 +22,13 @@ Independent Astra-medium review accepted source-fit revision
 artifact is complete in canonical release state on preparation10, completed70 and
 the named contract/source artifacts. Actual50 source is now integrated at
 `9036507bc98ef31c05ae334aa22ec5101323c7e7` after independent source verification.
-Whole50/60 qualification and the actual Block1 exit remain implementation90 gates.
-Their direct closure edges are preserved as90 depends_on=[50,60,70,80].
+Seq392 permits90 source after fresh integrated20/50/60/70 source-contract fit
+while measurements continue. Canonical dependency records retain final
+qualification closure obligations without withholding authorized90 source.
 
-The actual Block1 follow-up exit before90 remains hard: integrated selected20–70
-and required qualification/conformance/smoke must really complete. Smoke
-model/prompt/budget inputs remain unanswered; selected TC5 static qualification
-is not a measurement or exit pass. No90 code, runtime, native/GPU/model work or
+Required Block1 measurements/dispositions and qualification/conformance remain
+final integrated exits. Seq388 resolved smoke models/dataset/IDs/budget; seq392
+places the same approved72episodes once on final integrated90 before local
+close. Selected TC5 static qualification is not a measurement or exit pass. No90 code, runtime, native/GPU/model work or
 spend occurred here. Stage2 hints placement/default remains150;160 is later
 assembled qualification.

@@ -17,7 +17,8 @@ seq-374 and feedback seq-375, and Slice50's independently reviewed
 The earlier aggregate-v2 and consolidation consistency reviews passed; they are
 not repeated. Fresh Astra-medium review passed on revision
 `f2f4831554ae165420a31890cf102642ce28b21d`, and the owner accepted it in seq-384.
-No implementation or90 source entry follows.
+Seq392 permits90 after fresh integrated source fit while measurements continue;
+no runtime completion follows this design acceptance.
 
 | Local acceptance | Falsifiable observation / design completion |
 | --- | --- |
@@ -30,7 +31,7 @@ No implementation or90 source entry follows.
 | S80-A7 | Same-snapshot actual vector participant with provider end9 returns scored_bytes9 for the exact selected row; unknown provider returns None; known0 returns Some(0); no vector contribution and standalone selection return None. Identical bodies/different records cannot lend extents. Only a validated NULL byte_end returns provider-unknown None; missing/multihead/misowned/malformed/physical-missing tuples refuse, including checked u32 overflow. Nested graph fusion cannot turn its synthetic vector input into participation. |
 | S80-A8 | Ordinary/frozen/text-only, node/edge, mixed-arm and selected50 duplicate-ref/version cases retain positional sidecar binding. A concurrent later span commit cannot contaminate an older reader; post-mint mutation retains frozen refusal. UTF-8 boundaries and role-tagged bytes use explicit hand-authored byte oracles. All native/public conversions preserve zero and absence. |
 | S80-A9 | Snippets off adds zero coverage lookups/sidecar allocations; text-only adds zero coverage lookups/provider calls. Hybrid snippets add at most one indexed span query per final actual vector-participant record, independent of snippet max_point_queries, never a store scan. Both-format final budget tests include every new byte and retain60 zero-progress/refusal rules. |
-| S80-A10 | Concrete source-bound design revision has an actual independent Astra-medium verdict; findings are resolved or explicitly held open. This revision reconciles selected50 design, integrated60/70 and release requirements/AC mappings. Actual50 implementation reconciliation, explicit full80 owner acceptance and the separate Block1 follow-up exit remain required before90. Aggregate-v2 and prior consolidation PASS remain historical; updated-design review is distinct. Each later behavior has real assertion RED→GREEN evidence and a fresh independent final review. |
+| S80-A10 | Concrete source-bound design revision has an actual independent Astra-medium verdict; findings are resolved or explicitly held open. This revision reconciles selected50 design, integrated60/70 and release requirements/AC mappings. Actual50 implementation reconciliation and explicit full80 owner acceptance are retained. Seq392 permits90 after fresh integrated source fit while measurements continue; Block1 measurement/disposition and qualification exits remain final, with the same approved72episodes once on final90. Aggregate-v2 and prior consolidation PASS remain historical; updated-design review is distinct. Each later behavior has real assertion RED→GREEN evidence and a fresh independent final review. |
 
 Canonical qualification remains existing AC-031 (fallback), AC-060a (typed
 errors), AC-068a/b (FFI strings), AC-069 (sanitized diagnostics), AC-074 (governed

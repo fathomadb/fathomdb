@@ -8,7 +8,7 @@ slice: 90
 # Slice 90 source and authority census
 
 Refreshed2026-11-16 against clean integrated source
-`3b9e02c151dd7308def6cf199c71902106edd837` in the exclusive90 worktree.
+`c76d8d5ad79d13e3c8af729057fc97221a6fda75` in the exclusive90 worktree.
 This is source/test inspection and design work; no product build, native import,
 database, GPU, model or scientific campaign was run.
 
@@ -38,17 +38,31 @@ database, GPU, model or scientific campaign was run.
 - Actual Block1 remains open:30 G strict14 with active-window cases still running,
   M4/46 and D12/24;50 paired ordinary6/136 and diagnostic0/24; conditional40
   actual owner choice; and72 approved native-format model episodes, NOT RUN.
-  These are the root snapshot's progress counts, not completed90 evidence or
-  a reason to reapprove source contracts. Recheck actual exits at source entry.
+  These are the earlier root snapshot's progress counts, not completed90 evidence
+  or a reason to reapprove source contracts. Seq392 permits source entry while
+  these measurements/dispositions continue; final integrated exits remain.
 - Owner seq388 already approves the72episode smoke/item4 models and bounded
   spend: Haiku5.5 answerer/GPT-4o-mini judges. Fixed dataset/IDs are resolved;
-  candidate stores must be rebuilt and technical predecessors must complete.
+  candidate stores must be rebuilt and technical prerequisites must complete
+  before the one final integrated90 run selected by seq392.
   Model/prompt/budget availability is not an unanswered policy question.
 
 The [master](../../../plan-0.8.29.md), current release JSON and accepted ADRs
 retain authority where historical prose lags. Parent alone updates release
 JSON/generated views/ledgers.130E and160 qualification proceed independently;
 only their affected final assembled-source rows join after90.
+
+## Fresh integrated source fit
+
+Production source contracts are unchanged from the accepted90 design baseline
+`3b9e02c151dd7308def6cf199c71902106edd837`. The only source-tree delta through
+c76 is the separate30 private storage-diagnostic example and its Cargo feature/
+example declaration; it changes none of the seams below. Fresh inspection
+confirms original vector keys remain available before consuming fusion, final
+snippets precede finish/commit, feedback membership precedes the retained atomic
+ambiguity branch, and full span/status validation retains the approved capture
+seams. No semantic design revision, extra production dependency or new gate is
+needed. The actual delta is seq392's source-entry/final-smoke sequencing.
 
 ## Code-grounded residual
 

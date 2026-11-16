@@ -12,7 +12,7 @@ new test cases, not existing tests or executed results. Every Rn maps to An;
 units below map those acceptances to concrete paths/controls. Real databases
 and current existing entry points come first. No mock database/golden rewrite.
 
-## Runtime RED units after prerequisites
+## Runtime RED units after approved source fit
 
 | Unit / acceptance | Planned test and actual path | Required baseline RED and bounded GREEN |
 | --- | --- | --- |
@@ -102,8 +102,9 @@ change. Preserve applicable accepted predecessor results. Historical source
 passes cannot prove the unimplemented90 fields.
 
 After actual source GO: focused lint→typecheck→unit tests per unit, then real
-owned Py/TS native/SDK/MCP seams. On stable final code run required full
-scripts/agent-verify.sh with checkout-owned .venv/native artifacts; respect
+owned Py/TS native/SDK/MCP seams. The parent owns one required full
+scripts/agent-verify.sh on stable final integrated code with checkout-owned
+.venv/native artifacts; respect
 strict ptrace executor requirement. Run appropriate feature/performance gates
 and scoped interface/Markdown validators. One scoped pass is not full workspace
 green. Get one fresh independent Astra-medium implementation/final review, integrate
@@ -127,6 +128,8 @@ Final source qualification assesses changed90 consumers of160 Q2–4/Q10–12/
 Q14–17. New Rust/native fields and converters can invalidate earlier installed
 package/strict-TS observations; new default MCP metadata/schema/budget can
 invalidate specific conformance and smoke/item4 output/paired results. Keep
-pre90 Block1 results as their baseline's evidence, then rerun affected final
-scopes under actual permission/readiness. No automatic full160/model replay,
+earlier Block1 results as their baseline's evidence, then rerun affected final
+scopes under actual permission/readiness. Under seq392, the same approved
+72episodes run once on final integrated90 before local close; no pre90 smoke
+is required for source entry. No automatic full160/model replay,
 new paid-call grant or90↔160 source-entry cycle follows.

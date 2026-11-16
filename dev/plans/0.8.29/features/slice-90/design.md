@@ -11,11 +11,13 @@ The [requirements](requirements.md) implement the
 [full owner-approved80 contract](../slice-80/design.md), accepted at
 `f2f4831554ae165420a31890cf102642ce28b21d` (seq384).
 [Census](census.md) reconciles integrated source
-`3b9e02c151dd7308def6cf199c71902106edd837`:50 identity/feedback and60/70
+`c76d8d5ad79d13e3c8af729057fc97221a6fda75`:50 identity/feedback and60/70
 contracts are implemented inputs. The original vector-participant set, aggregate
-coverage/cache, converters and new MCP fields remain90 work. Actual Block1 exit
-and independent updated-design PASS still precede source implementation; no
-reapproval of80 is requested.
+coverage/cache, converters and new MCP fields remain90 work. Owner seq392
+permits implementation after retained design acceptance and fresh integrated
+source-contract fit while measurements continue. This bounded fit confirms no
+production-contract delta since the accepted design; no reapproval of80 is
+requested. Required measurement/disposition and qualification exits remain.
 
 ## Omission, diagnostics and default store
 
@@ -270,19 +272,23 @@ any concrete implementation uncertainty before dependency/network research.
 ## Final-source qualification dependencies
 
 130E and independent160 platform/consumer qualification can proceed in parallel
-with the actual Block1 prerequisites.90 consumes neither whole160 nor130E as
+with90 and the remaining Block1 measurements/dispositions.90 consumes neither whole160 nor130E as
 a source-entry gate. Final90 must join the assembled-source qualification: its
 Rust/native fields/converters affect distributed binaries and installed Python/
 Node/strict-TS consumers (160 Q14/Q15), and its default MCP success/error/schema/
-budget output affects Q11 and Q12 smoke/item4 observations. Pre90 Block1 results
-remain real prerequisite evidence for their baseline, not automatically proof
-of the changed final output. After implementation, assess exact source/artifact/
+budget output affects Q11 and Q12 smoke/item4 observations. Earlier Block1
+results remain evidence for their baseline, not automatically proof of the
+changed final output. Seq392 places the exact seq388-approved72episodes once
+on final integrated90 before local close; there is no pre90 model replay. After implementation, assess exact source/artifact/
 format/workload applicability and rerun only invalidated scopes, including
 new-field/budget/paired-smoke assertions where affected. Retain applicable
 unchanged prior results; neither a blanket full replay nor paid-call permission
 is inferred. Parent controls any required model run under its actual approved
 models, episode/budget limits and current technical readiness.
 
-The current completion route is local qualification, review CI, then run CI.
+The parent owns the single final integrated broad gate on stable source; scoped
+latency-ordered checks and installed-language RED/GREEN run during implementation.
+No per-helper or per-correction full-gate restart is required. The current
+completion route is local qualification, review CI, then run CI.
 Registry publication, publishing tags and post-publication smoke remain outside
 this assignment.

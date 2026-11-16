@@ -8,9 +8,10 @@ slice: 90
 # Slice 90 needs
 
 This implementation design is refreshed against integrated source
-`3b9e02c151dd7308def6cf199c71902106edd837` and the
+`c76d8d5ad79d13e3c8af729057fc97221a6fda75` and the
 [owner-approved full80 contract](../slice-80/design.md). Source implementation
-remains held on the actual Block1 exit and independent updated-design review.
+requires the retained independent design acceptance and fresh source-fit review;
+owner seq392 permits measurements to continue alongside implementation.
 The [release needs](../../../plan-0.8.29.md#draft-release-needs-requirements-and-acceptance-allocation)
 and [prework allocation](../../prework/slice-3/needs.md) retain canonical IDs.
 Local S90 IDs create no new canonical acceptance gate.
@@ -33,6 +34,8 @@ migration and no backcompat shims remain. SDK hints placement/default belongs
 to conditional150. Full80 owner approval is retained (seq384); accepted50
 source, closed60/70,
 Windows20 and common-source qualification are existing inputs. Remaining30/50
-measurements, conditional40 disposition and approved72episode smoke/item4 form
-real Block1 exit work before90 source.130E/160 can qualify independent scopes
-in parallel; only their affected assembled-source results depend on final90.
+measurements, conditional40 disposition and applicable correctness/performance/
+conformance remain final integrated qualification exits. The same seq388-approved
+72episode smoke/item4 runs once on final integrated90 before local close, per
+seq392.130E/160 can qualify independent scopes in parallel; only their affected
+assembled-source results depend on final90.

@@ -24,25 +24,30 @@ migration, private Memex snapshot gate, backcompat shim, calibrated verdict,
 weak-result threshold, chunking, ANN, new governed operation or SDK hint-default
 flip. Stage2 SDK hints placement/default stays conditional150.
 
-The actual **unnumbered Block1 follow-up exit** remains hard before90 source.
+Owner seq392 permits90 source after retained full80 approval, accepted90 design
+and fresh integrated20/50/60/70 source-contract fit while measurements continue.
 20 Windows/common-source,60/70,80 design,100 and selected110/140 are closed.
 Current both-format conformance is accepted in its actual scope; TC5 inputs and
 seq388 smoke models/dataset/IDs/budget are resolved. Remaining30/50 measurements,
-conditional40 owner disposition, applicable feature/performance checks and72
-approved native-format episodes must actually finish on the integrated baseline.
+conditional40 owner disposition and applicable feature/performance/conformance
+checks remain final integrated exits. The same72approved native-format episodes
+run once on final integrated90 before local close.
 Counts and technical limits are in [status](status.md); no model run or scientific
 ledger acquisition occurs during this documentation refresh. Parent records
-actual Block1 completion, not a design reviewer or a stale status sentence.
+actual final integrated completion, not a design reviewer or a stale status sentence.
 
-At that exit, reread integrated predecessor deltas and affected full test files;
+At source entry, reread integrated predecessor deltas and affected full test files;
 remove any residual newly implemented elsewhere. Check source fit against the
 retained80 contract and this review. A material contradiction returns to the
 independent reviewer/existing contract owner; settled policy is not reapproved.
 Parent supplies strict preflight and an exclusive fresh source worktree with
-checkout-owned tools/native artifacts and the technical heavy-window grant.
-No source entry from design PASS alone and no borrowed checkout venv/artifact.
+checkout-owned tools/native artifacts. Ordinary CPU source/build/tests may
+overlap independent measurements within actual memory/disk floors; GPU/scientific
+windows remain separately controlled by the parent.
+Fresh source fit plus retained approvals satisfy seq392 source entry; no borrowed
+checkout venv/artifact is allowed.
 
-## Concrete RED/GREEN sequence after actual Block1
+## Concrete RED/GREEN sequence on the integrated source
 
 1. U1–U4: omission/disclosure, unknown-argument details, foreign-reference details
    and explicit default store. Stage/commit each semantic failing runtime test
@@ -73,8 +78,9 @@ No source entry from design PASS alone and no borrowed checkout venv/artifact.
    for new bytes and trusted metadata after MCP re-snippeting. Preserve final
    kept page/feedback/continuation positional identity.
 6. Run focused latency-ordered checks during implementation. On final stable
-   source run the required full agent gate once using owned tools/native
-   artifacts, plus applicable feature/performance and installed-language seams.
+   source the parent runs the required integrated full agent gate once using
+   owned tools/native artifacts. Complete applicable feature/performance and
+   installed-language seams; do not restart the full gate for each helper/fix.
    Missing owned setup fails its preflight; strict ptrace gate needs the supported
    executor. Preserve actual failures and rerun affected failed scopes only.
    Update maintained MR/interface/EP17/long-record contracts in that same change.
@@ -97,8 +103,8 @@ where it consumes unchanged inputs, and90 does not wait for whole160. Final90
 changes engine/native artifacts and default MCP output, so assess affected
 160 Q2–4/Q10–12/Q14–17 and model-smoke applicability by actual source/artifact/
 format/workload. Reuse unchanged qualified scopes; rerun invalidated scopes and
-new metadata assertions. Pre90 Block1 smoke is prerequisite evidence for its
-baseline, not automatic proof of changed final90 output. No blanket replay or
+new metadata assertions. The approved72episode smoke/item4 runs once on final
+integrated90 under seq392; it has no pre90 execution prerequisite. No blanket replay or
 paid-call approval is inferred; actual model calls stay within existing owner
 models/episodes/budget and technical readiness. See [design](design.md#final-source-qualification-dependencies).
 

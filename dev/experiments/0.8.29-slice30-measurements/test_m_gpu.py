@@ -51,6 +51,30 @@ class GpuRefusalRetentionTests(unittest.TestCase):
         expected = dict(self.offending, baseline_gpu_memory_mib=2)
         self.assertEqual(getattr(refusal.exception, "observation", None), expected)
 
+    def test_busy_initial_observation_is_retained_without_starting_an_mcp(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            query = root / "queries.jsonl"
+            query.write_text('"alpha"\n' * 500)
+            (root / "prepared.json").write_text('{"files":{}}')
+            cell = {"family": "M-R", "search_mode": "hybrid", "log": "warn"}
+            manifest = {"task": str(root), "builds": {"ordinary": {"binary": {"path": "unused"}}},
+                "gpu": {"uuid": "selected-gpu", "ordinal": 0}, "hf_home": str(root),
+                "inputs": {"queries": {"path": str(query)}}, "uuid": "literal-freeze"}
+            with patch("m_runtime.worker_admission"), patch.dict("os.environ"), \
+                    patch("m_runtime.execute") as execute, \
+                    patch("g_gpu.inspect_gpu", return_value=copy.deepcopy(self.offending)) as query_gpu:
+                try:
+                    result = payload(manifest, cell, root, 1000)
+                except RuntimeError:
+                    result = {}
+            self.assertEqual(query_gpu.call_count, 1)
+            self.assertFalse(execute.called)
+            self.assertIs(result.get("complete"), False, "startup refusal lost the existing result")
+            self.assertEqual(result["gpu"]["failure_observations"], [self.offending])
+            self.assertEqual([json.loads(line) for line in (root / "gpu.jsonl").read_text().splitlines()],
+                             [self.offending])
+
     def test_payload_retains_foreign_record_and_failure_without_qualifying_it(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

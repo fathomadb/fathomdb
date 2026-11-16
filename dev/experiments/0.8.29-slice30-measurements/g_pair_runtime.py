@@ -26,6 +26,14 @@ def deadline(manifest, budget, owner, cell, now):
             raise ValueError('cumulative calibration work allowance exhausted')
         ends += [now + limits['payload_ns'] - spent,
                  owner['started_monotonic_ns'] + limits['phase_ns'] - usage['wall_ns'] - 20*10**9]
+    else:
+        limits = manifest['primary_limits']
+        pairs = manifest['plan']['primary'] + manifest['plan']['diagnostics']
+        index = next(index for index, item in enumerate(pairs) if item['id'] == cell['id'])
+        members = pairs[index-index%2:index-index%2+2]
+        prior_pair = sum(budget.get('cell_used_ns', {}).get(item['id'], 0) for item in members)
+        ends += [now + limits['pair_ns'] - prior_pair,
+                 owner['started_monotonic_ns'] + limits['phase_ns'] - 20*10**9]
     end = min(ends)
     if end <= now + 7*10**9:
         raise ValueError('remaining shared/member work allowance cannot fund cleanup')
@@ -51,13 +59,15 @@ def payload(root, config, attempt, deadline_ns):
     """Execute only the exact currently registered private member and validate real facts."""
     from g_pair import canonical_members, qualify_step, worker_admission
     root = Path(root)
-    manifest = json.loads((root / 'manifest.json').read_text())
+    from g_pair_freeze import prepared_inputs
+    manifest = prepared_inputs(json.loads((root / 'manifest.json').read_text()))
     cell = json.loads(Path(config).read_text())
     worker_admission(manifest, cell, attempt)
     if cell not in canonical_members(manifest) or time.monotonic_ns() >= deadline_ns:
         raise RuntimeError('canonical paired member/deadline unavailable')
-    os.environ.update(HF_HOME=manifest['hf_home'], HF_HUB_OFFLINE='1', TRANSFORMERS_OFFLINE='1',
-                      FATHOMDB_EMBED_DEVICE=f"cuda:{manifest['gpu']['ordinal']}")
+    if cell['family'].startswith('G'):
+        os.environ.update(HF_HOME=manifest['hf_home'], HF_HUB_OFFLINE='1', TRANSFORMERS_OFFLINE='1',
+                          FATHOMDB_EMBED_DEVICE=f"cuda:{manifest['gpu']['ordinal']}")
     observer = None
     if 'hybrid' in cell['routes']:
         from g_gpu import GpuObserver
@@ -78,16 +88,15 @@ def payload(root, config, attempt, deadline_ns):
     return result
 
 
-def _assessment(manifest, budget, remaining):
-    from g_pair_freeze import require_forecasts
-    forecasts = require_forecasts(manifest, manifest['plan']['primary'] + manifest['plan']['diagnostics'])
+def assess_primary(manifest, budget, retained_bytes):
+    """Fund only explicit selected stops against actual shared charges and reservations."""
+    from g_pair_freeze import primary_limits
+    limits = primary_limits(manifest)
     profile = manifest['profile']
-    required_ns = 2 * (forecasts['common_ns'] + sum(forecasts['cells'][cell['id']]['whole_ns'] for cell in remaining))
-    required_bytes = 2 * (forecasts['common_bytes'] + sum(forecasts['cells'][cell['id']]['new_retained_bytes'] for cell in remaining))
-    if budget['used_ns'] + required_ns + profile['reserved_other_work_ns'] > profile['total_shared_ns']:
-        raise ValueError('complete remaining paired table exceeds shared time/headroom')
-    if active_bytes(manifest['allocation']) + required_bytes + profile['reserved_other_work_bytes'] > profile['total_shared_retained_bytes']:
-        raise ValueError('complete remaining paired table exceeds retained storage/headroom')
+    if budget['used_ns'] + limits['phase_ns'] + profile['reserved_other_work_ns'] >= profile['total_shared_ns']:
+        raise ValueError('selected primary phase allowance exceeds actual shared time/headroom')
+    if retained_bytes + limits['new_retained_bytes'] + profile['reserved_other_work_bytes'] >= profile['total_shared_retained_bytes']:
+        raise ValueError('selected primary growth allowance exceeds actual shared storage/headroom')
 
 
 def control(manifest, owner):
@@ -104,9 +113,16 @@ def control(manifest, owner):
         baseline = active_bytes(manifest['allocation'])
         remaining_bytes = manifest['calibration']['new_retained_bytes'] - budget['calibration_usage'][CALIBRATION_ID]['new_retained_bytes']
     else:
-        baseline, remaining_bytes = 0, None
+        from g_pair import required_prefix
+        from g_pair_freeze import prepare_inputs
+        baseline = active_bytes(manifest['allocation'])
+        remaining_bytes = manifest['primary_limits']['new_retained_bytes']
+        assess_primary(manifest, budget, baseline)
+        cells = required_prefix(manifest, root)
+        manifest.update(prepare_inputs(manifest, cells, owner['started_monotonic_ns'] + manifest['common_limit_ns'] - 20*10**9))
+        manifest['_active_members'] = cells
     blocked = None
-    cells = canonical_members(manifest)
+    cells = manifest.get('_active_members', canonical_members(manifest))
     def execute(cell, index):
         nonlocal blocked
         value = json.loads(path.read_text())
@@ -116,8 +132,6 @@ def control(manifest, owner):
         try:
             if blocked:
                 raise ValueError(blocked)
-            if manifest['scope'] == 'primary':
-                _assessment(manifest, value, cells[index:])
             end = deadline(manifest, value, owner, cell, started)
         except ValueError as error:
             blocked = str(error)
@@ -131,7 +145,7 @@ def control(manifest, owner):
             load.append(observe_load())
             current_bytes = active_bytes(manifest['allocation'])
             if remaining_bytes is not None and current_bytes - baseline >= remaining_bytes:
-                return 'calibration retained growth exhausted'
+                return 'selected phase retained growth exhausted'
             if current_bytes >= manifest['profile']['total_shared_retained_bytes'] - manifest['profile']['reserved_other_work_bytes']:
                 return 'paired shared retained storage exhausted'
             return None
@@ -179,7 +193,11 @@ def finish(manifest, rows):
                 enabled=manifest['retire_complete_copies'], comparison=pair['complete'],
                 diagnostics_complete=all(item['complete'] for item in required))
     result['retired_copies'] = retired
-    complete = result['calibration_complete'] if manifest['scope'] == 'calibration' else result['complete']
+    active = [cell['id'] for cell in manifest.get('_active_members', [])]
+    window = bool(active) and all(pair['complete'] for name in ('primary', 'diagnostics')
+        for pair in result['comparisons'][name] if set(pair['members']).issubset(active))
+    complete = result['calibration_complete'] if manifest['scope'] == 'calibration' else window or result['complete']
+    result.update(active_members=active, native_window_complete=window)
     budget = json.loads((Path(manifest['allocation']) / 'g-budget.json').read_text())
     result.update(native_primary_complete=result['complete'], native_calibration_complete=result['calibration_complete'],
                   complete=False, calibration_complete=False, guardian_owner=budget['s50_guardian'])

@@ -146,7 +146,9 @@ def drive_members(manifest, root, execute):
     state = root / 'results/campaign-state.json'
     state.parent.mkdir(parents=True, exist_ok=True)
     previous = {row['id']:row for row in json.loads(state.read_text())} if state.exists() else {}
-    cells = manifest['plan']['calibration'] if manifest['scope'] == 'calibration' else manifest['plan']['primary'] + manifest['plan']['diagnostics']
+    cells = manifest.get('_active_members')
+    if cells is None:
+        cells = manifest['plan']['calibration'] if manifest['scope'] == 'calibration' else manifest['plan']['primary'] + manifest['plan']['diagnostics']
     rows = []
     for index, cell in enumerate(cells):
         old = previous.get(cell['id'])
@@ -272,7 +274,7 @@ def public_entry(operation, root, options=None):
         validate_limits(calibration)
         common=calibration['phase_ns']-calibration['payload_ns']
     else:
-        common=selected.get('common_limit_ns')
+        common=(selected.get('primary_limits') or {}).get('common_ns', selected.get('common_limit_ns'))
         if type(common) is not int or common <= 20*10**9:
             raise ValueError('positive bounded common freeze/report/cleanup forecast required')
     command=[sys.executable,str(TOOLS/'g_runner.py'),'_pair_control','--operation',operation,
@@ -281,7 +283,8 @@ def public_entry(operation, root, options=None):
         command+=['--options',str(Path(options).resolve())]
     outcome=guard(command,allocation=selected['allocation'],profile=profile,root=root,
         task=os.environ['S30_TASK'],admission=True,phase='S50',calibration=calibration,
-        common_limit_ns=common,started_ns=began)
+        common_limit_ns=common,started_ns=began,
+        primary_limits=(selected.get('primary_limits') if not calibration else None))
     if operation != 'report':
         print(json.dumps(outcome))
     return outcome['exit']==0 and not outcome['cleanup_uncertain']
@@ -309,3 +312,15 @@ def control_entry(operation, root, options, admission_fd):
     """Consume owning guardian admission and execute the explicit private operation."""
     from g_pair_runtime import control_entry as run_control
     return run_control(operation, root, options, admission_fd)
+
+
+def required_prefix(manifest, root):
+    """Select the next finite canonical pairs using actual qualified required-member credit."""
+    from g_pair_report import published_report
+    cells = manifest['plan']['primary'] + manifest['plan']['diagnostics']
+    path = Path(root) / 'results/report.json'
+    report = published_report(root) if path.exists() else {'primary': [], 'diagnostics': []}
+    credited = {row['id'] for name in ('primary', 'diagnostics') for row in report[name] if row.get('credited')}
+    start = next((index for index in range(0, len(cells), 2)
+                  if not all(cell['id'] in credited for cell in cells[index:index+2])), len(cells))
+    return cells[start:start+2*manifest['primary_limits']['pairs']]

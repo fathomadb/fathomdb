@@ -145,7 +145,7 @@ def _limits(profile, phase):
 
 
 def guard(command, *, allocation, profile, root, task, admission=False, common_limit_ns=None,
-          started_ns=None, phase="M", calibration=None):
+          started_ns=None, phase="M", calibration=None, primary_limits=None):
     """Own the whole controller phase, private boundary, resource floors and final charge."""
     if phase not in ("M", "D", "S50"):
         raise ValueError("unknown shared guardian phase")
@@ -162,6 +162,19 @@ def guard(command, *, allocation, profile, root, task, admission=False, common_l
     limits = _limits(profile, phase) if phase in ("M", "S50") else None
     if calibration is not None and phase not in ("M", "S50"):
         raise ValueError("calibration is an M-only stage")
+    if primary_limits is not None:
+        if phase != "S50" or calibration is not None:
+            raise ValueError("finite primary stops belong only to the private S50 primary scope")
+        from g_pair_freeze import primary_limits as require_primary_limits
+        primary_limits = require_primary_limits({"primary_limits": primary_limits})
+    primary_baseline = active_bytes(allocation) if primary_limits is not None else None
+    peak_primary_growth = 0
+    def phase_growth():
+        nonlocal peak_primary_growth
+        if primary_limits is not None:
+            peak_primary_growth = max(peak_primary_growth, active_bytes(allocation) - primary_baseline)
+            return peak_primary_growth
+        return accounting.growth()
     root.mkdir(parents=True, exist_ok=True)
     phase_root = root / "guardians" / str(uuid.uuid4())
     phase_root.mkdir(parents=True)
@@ -174,7 +187,8 @@ def guard(command, *, allocation, profile, root, task, admission=False, common_l
         if (budget.get("inflight") or budget.get("m_guardian") or budget.get("d_guardian")
                 or budget.get("closed_guardian") or budget.get("s50_guardian")):
             raise RuntimeError(f"retained shared ownership/inflight blocks {phase} admission")
-        phase_deadline = None
+        phase_deadline = began + primary_limits["phase_ns"] if primary_limits is not None else None
+        phase_name = "primary" if primary_limits is not None else "calibration"
         if calibration is not None:
             if phase == "S50":
                 from g_pair import approved
@@ -193,13 +207,18 @@ def guard(command, *, allocation, profile, root, task, admission=False, common_l
             budget[guardian_key] = {"pid": os.getpid(), "start": process_start(os.getpid()),
                                    "started_monotonic_ns": began, "root": str(root)}
             write_budget(accounting.path, budget)
+        remaining_growth = (primary_limits["new_retained_bytes"] if primary_limits is not None
+                            else accounting.calibration["remaining_retained_bytes"] if accounting.calibration else None)
         try:
+            if primary_limits is not None:
+                from g_pair_runtime import assess_primary
+                assess_primary({"primary_limits": primary_limits, "profile": profile}, budget, active_bytes(allocation))
             if phase == "D":
                 limits = _limits(profile, phase)
             if accounting.total(time.monotonic_ns()) + 20 * 10**9 >= limits[0]:
                 raise RuntimeError("shared cleanup reserve unavailable")
             if phase_deadline is not None and time.monotonic_ns() + 20 * 10**9 >= phase_deadline:
-                raise RuntimeError("calibration phase cleanup reserve unavailable")
+                raise RuntimeError(f"{phase_name} phase cleanup reserve unavailable")
             source = Path(__file__).resolve().parents[3]
             sample = resource_sample(source, task)
             load_observations = [observe_load()]
@@ -253,10 +272,10 @@ def guard(command, *, allocation, profile, root, task, admission=False, common_l
                     code = unreaped_exit(child)
                     if phase_deadline is not None:
                         if now + 20 * 10**9 >= phase_deadline:
-                            receipt.update(exit=124, stop="calibration phase cleanup reserve")
+                            receipt.update(exit=124, stop=f"{phase_name} phase cleanup reserve")
                             break
-                        if accounting.growth() >= accounting.calibration["remaining_retained_bytes"]:
-                            receipt.update(exit=124, stop="calibration retained growth")
+                        if phase_growth() >= remaining_growth:
+                            receipt.update(exit=124, stop=f"{phase_name} retained growth")
                             break
                     if code is not None:
                         receipt["exit"] = code
@@ -324,9 +343,9 @@ def guard(command, *, allocation, profile, root, task, admission=False, common_l
         receipt["load"] = summarize_load(load_observations)
         if phase_deadline is not None:
             if time.monotonic_ns() >= phase_deadline:
-                receipt.update(exit=124, stop="calibration phase deadline")
-            if accounting.growth() >= accounting.calibration["remaining_retained_bytes"]:
-                receipt.update(exit=124, stop="calibration retained growth")
+                receipt.update(exit=124, stop=f"{phase_name} phase deadline")
+            if phase_growth() >= remaining_growth:
+                receipt.update(exit=124, stop=f"{phase_name} retained growth")
         receipt["accounting"] = accounting.finish(uncertain=receipt["cleanup_uncertain"],
                                                   stopped_ns=receipt["stopped_monotonic_ns"])
         (phase_root / "guardian.json").write_text(json.dumps(receipt, indent=2) + "\n")

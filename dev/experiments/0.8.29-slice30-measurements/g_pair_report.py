@@ -185,6 +185,10 @@ def published_report(root):
                 and healthy(final(row.get('guardian_owner') or result.get('guardian_owner') or {})))
     result['complete'] = bool(result.get('native_primary_complete') and good
         and all(row['credited'] for name in ('primary', 'diagnostics') for row in result[name]))
+    credited = {row['id'] for name in ('primary', 'diagnostics') for row in result[name] if row.get('credited')}
+    active = result.get('active_members', [])
+    result['window_complete'] = bool(result.get('native_window_complete') and good and active
+                                     and all(identifier in credited for identifier in active))
     result['calibration_complete'] = bool(result.get('native_calibration_complete') and good
         and all(row['credited'] for row in result['calibration']))
     return result

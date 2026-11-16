@@ -69,43 +69,78 @@ def donor(root, n):
     return value
 
 
-def require_forecasts(options, cells):
-    """Refuse primary work until every current cell and common cost is observed/bounded."""
-    forecasts = options.get('forecasts') or {}
-    records = forecasts.get('cells') or {}
-    if (forecasts.get('status') != 'CURRENT_PAIRED_BOUNDED' or set(records) != {cell['id'] for cell in cells}
-            or type(forecasts.get('common_ns')) is not int or forecasts['common_ns'] <= 20 * 10**9
-            or type(forecasts.get('common_bytes')) is not int or forecasts['common_bytes'] <= 0):
-        raise ValueError('current paired forecasts unavailable for complete remaining table')
-    for cell in cells:
-        row = records[cell['id']]
-        if (not row.get('observed_from') or any(type(row.get(key)) is not int or row[key] <= 0
-                for key in ('whole_ns', 'new_retained_bytes'))):
-            raise ValueError('current paired forecasts unavailable for complete remaining table')
-        try:
-            root = Path(row['observed_from'])
-            original = json.loads((root / 'manifest.json').read_text())
-            from g_pair_report import published_report
-            report = published_report(root)
-            if original.get('scope') == 'calibration' and not report['calibration_complete']:
-                raise ValueError('full paired calibration did not qualify')
-            observed = next(item for name in ('primary', 'diagnostics', 'calibration') for item in report[name]
-                            if item['id'] == row['observed_member'])
-            if (original['source_sha'] != git('rev-parse', 'HEAD')
-                    or original['compiler_inputs'] != compiler_inputs() or not observed.get('credited')
-                    or observed['status'] != 'complete' or not observed['complete']
-                    or any(observed['cell'].get(key) != cell.get(key) for key in
-                           ('family', 'n', 'warmup', 'samples', 'batch_size', 'searches_per_batch',
-                            'slice50_pair_mode', 'observe', 'provider'))
-                    or set(observed['cell']['adapters']) != set(cell['adapters'])
-                    or set(observed['cell']['routes']) != set(cell['routes'])
-                    or not observed.get('charged_ns') or row['whole_ns'] < observed['charged_ns']
-                    or not observed.get('retained_growth_bytes')
-                    or row['new_retained_bytes'] < observed['retained_growth_bytes']):
-                raise ValueError('inapplicable observation')
-        except (OSError, KeyError, StopIteration, TypeError, ValueError) as error:
-            raise ValueError('current paired observation unavailable or inapplicable; old/10k proxies cannot price P/100k/writes') from error
-    return forecasts
+def primary_limits(options):
+    """Require explicit finite stop allowances, without inventing future cost estimates."""
+    value = options.get('primary_limits') or {}
+    keys = {'pairs', 'phase_ns', 'pair_ns', 'new_retained_bytes', 'common_ns', 'common_bytes'}
+    if (set(value) != keys or any(type(value[key]) is not int or value[key] <= 0 for key in keys)
+            or value['pairs'] > 80 or not 14*10**9 < value['pair_ns'] <= 1800*10**9
+            or value['common_ns'] <= 20*10**9 or value['phase_ns'] <= value['common_ns'] + 14*10**9
+            or value['common_bytes'] >= value['new_retained_bytes']):
+        raise ValueError('positive finite primary pair/phase/growth/common stop allowances required')
+    return dict(value)
+
+
+def prepared_inputs(manifest):
+    """Load the actual charged preparation shared by later required canonical pairs."""
+    path = Path(manifest['root']) / 'results/prepared.json'
+    if path.exists():
+        manifest = dict(manifest, **json.loads(path.read_text()))
+    return manifest
+
+
+def prepare_inputs(manifest, cells, deadline_ns):
+    """Prepare only selected P templates or G data/model custody, once and under charge."""
+    from g_driver import run_program_step
+    manifest = prepared_inputs(manifest)
+    output = Path(manifest['root'])
+    for family, n in dict.fromkeys((cell['family'], cell['n']) for cell in cells):
+        if family.startswith('P'):
+            key = f'{family}-{n}'
+            if key in manifest['templates']:
+                continue
+            directory = output / 'templates' / key
+            attempts = list(directory.glob('attempt-*')) if directory.exists() else []
+            destination = directory / f'attempt-{len(attempts)+1:04}'
+            config = dict(family='P-seed', seed_family=family, n=n, corpus=manifest['inputs']['corpus']['path'])
+            step = run_program_step([manifest['build']['binaries']['ordinary']['path']], config, destination, deadline_ns)
+            if not step['complete'] or step['result'].get('runner_only'):
+                raise RuntimeError('current provider-none template preparation failed')
+            store = destination / 'store.sqlite'
+            value = package(store)
+            value.update(fixture=fixture(store, n, dense=False, markers=10 if family == 'P2' else 0), preparation=step)
+            for record in value['files'].values():
+                Path(record['path']).chmod(0o444)
+            manifest['templates'][key] = value
+        else:
+            key = f'G{n}'
+            if key not in manifest['donors']:
+                manifest['donors'][key] = donor(manifest['g_donors'][str(n)], n)
+    if any(cell['family'].startswith('G') for cell in cells):
+        from g_gpu import inspect_gpu
+        gpu = inspect_gpu(manifest['requested_gpu']['uuid'])
+        ordinal = manifest['requested_gpu']['ordinal']
+        if gpu['applications'] or type(ordinal) is not int or ordinal < 0:
+            raise ValueError('reserved selected CUDA GPU required')
+        manifest['gpu'] = dict(gpu, ordinal=ordinal)
+        if not manifest['model_files']:
+            revision = json.loads(Path(__file__).with_name('g-cells.json').read_text())['model']['revision']
+            snapshot = Path(manifest['hf_home']) / 'hub/models--BAAI--bge-small-en-v1.5/snapshots' / revision
+            snapshot.mkdir(parents=True, exist_ok=True)
+            for name, (size, digest) in MODEL_FILES.items():
+                record = identify(Path(manifest['model_cache']) / name)
+                if (record['bytes'], record['sha256']) != (size, digest):
+                    raise ValueError('registered BGE cache differs')
+                destination = snapshot / name
+                shutil.copy2(record['path'], destination)
+                destination.chmod(0o444)
+                manifest['model_files'][name] = identify(destination)
+    if time.monotonic_ns() >= deadline_ns:
+        raise TimeoutError('selected required input preparation exhausted common allowance')
+    path = output / 'results/prepared.json'
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({key: manifest[key] for key in ('templates', 'donors', 'gpu', 'model_files')}, indent=2) + '\n')
+    return manifest
 
 
 def freeze(options, output, *, scope):
@@ -114,7 +149,7 @@ def freeze(options, output, *, scope):
     if scope not in ('primary', 'calibration'):
         raise ValueError('unknown private paired scope')
     inventory = plan()
-    forecasts = require_forecasts(options, inventory['primary'] + inventory['diagnostics']) if scope == 'primary' else None
+    limits = primary_limits(options) if scope == 'primary' else None
     build = json.loads(Path(options['build_receipt']).read_text())
     if build.get('runner_only') is not False:
         raise ValueError('source-only build cannot qualify public paired work')
@@ -144,19 +179,6 @@ def freeze(options, output, *, scope):
         with Path(inputs[name]['path']).open() as stream:
             if sum(1 for _ in stream) != expected:
                 raise ValueError('registered corpus/query counts differ')
-    models = {}
-    for name, (size, digest) in MODEL_FILES.items():
-        record = identify(Path(options['model_cache']) / name)
-        if (record['bytes'], record['sha256']) != (size, digest):
-            raise ValueError('registered BGE cache differs')
-        models[name] = record
-    donors = {f'G{n}': donor(options['g_donors'][str(n)], n)
-              for n in ([10000] if scope == 'calibration' else [10000, 100000])}
-    from g_gpu import inspect_gpu
-    gpu = inspect_gpu(options['gpu_uuid'])
-    if gpu['applications'] or type(options['gpu_ordinal']) is not int or options['gpu_ordinal'] < 0:
-        raise ValueError('reserved selected CUDA GPU required')
-    gpu['ordinal'] = options['gpu_ordinal']
     output.mkdir(parents=True, exist_ok=True)
     owned_inputs = output / 'inputs'
     owned_inputs.mkdir()
@@ -165,39 +187,19 @@ def freeze(options, output, *, scope):
         shutil.copy2(record['path'], destination)
         destination.chmod(0o444)
         inputs[name] = identify(destination)
-    revision = json.loads(Path(__file__).with_name('g-cells.json').read_text())['model']['revision']
-    cache = output / 'cache/huggingface'
-    snapshot = cache / 'hub/models--BAAI--bge-small-en-v1.5/snapshots' / revision
-    snapshot.mkdir(parents=True)
-    for name, record in models.items():
-        destination = snapshot / name
-        shutil.copy2(record['path'], destination)
-        destination.chmod(0o444)
-        models[name] = identify(destination)
-    manifest = assemble_manifest(dict(options, scope=scope, profile=profile), build, inputs, donors)
+    manifest = assemble_manifest(dict(options, scope=scope, profile=profile), build, inputs, {})
     manifest.update(uuid=str(uuid.uuid4()), root=str(output), allocation=str(allocation),
         source_sha=git('rev-parse', 'HEAD'), build_receipt=identify(options['build_receipt']),
-        lock=identify(SOURCE / 'Cargo.lock'), model_files=models, hf_home=str(cache), gpu=gpu,
+        lock=identify(SOURCE / 'Cargo.lock'), model_files={}, hf_home=str(output / 'cache/huggingface'), gpu=None,
         task=str(Path(os.environ['S30_TASK']).resolve()),
+        requested_gpu={'uuid': options.get('gpu_uuid'), 'ordinal': options.get('gpu_ordinal')},
+        model_cache=options.get('model_cache'), g_donors=options.get('g_donors', {}),
         environment={key: os.environ.get(key) for key in ('CUDA_VISIBLE_DEVICES',)},
-        calibration=options.get('calibration'), forecasts=forecasts, templates={},
-        common_limit_ns=(forecasts['common_ns'] if forecasts else
+        calibration=options.get('calibration'), primary_limits=limits, templates={},
+        common_limit_ns=(limits['common_ns'] if limits else
                          options['calibration']['phase_ns'] - options['calibration']['payload_ns']))
-    if scope == 'primary':
-        from g_driver import run_program_step
-        deadline = time.monotonic_ns() + forecasts['common_ns'] - 20 * 10**9
-        for family, n in (('P1', 10000), ('P1', 100000), ('P2', 100000)):
-            destination = output / 'templates' / f'{family}-{n}'
-            config = dict(family='P-seed', seed_family=family, n=n, corpus=inputs['corpus']['path'])
-            step = run_program_step([build['binaries']['ordinary']['path']], config, destination, deadline)
-            if not step['complete'] or step['result'].get('runner_only'):
-                raise RuntimeError('current provider-none template preparation failed')
-            store = destination / 'store.sqlite'
-            value = package(store)
-            value.update(fixture=fixture(store, n, dense=False, markers=10 if family == 'P2' else 0), preparation=step)
-            for record in value['files'].values():
-                Path(record['path']).chmod(0o444)
-            manifest['templates'][f'{family}-{n}'] = value
+    selected = inventory['calibration'] if scope == 'calibration' else inventory['primary'][:2*limits['pairs']]
+    manifest = prepare_inputs(manifest, selected, time.monotonic_ns() + manifest['common_limit_ns'] - 20*10**9)
     path = output / 'manifest.json'
     path.write_text(json.dumps(manifest, indent=2) + '\n')
     path.chmod(0o444)
@@ -208,7 +210,7 @@ def validate(root):
     """Recheck exact canonical scope and current frozen artifact/data custody before dispatch."""
     from g_pair import approved, canonical_members
     root = Path(root).resolve()
-    manifest = json.loads((root / 'manifest.json').read_text())
+    manifest = prepared_inputs(json.loads((root / 'manifest.json').read_text()))
     canonical_members(manifest)
     approved(manifest['profile'], manifest['allocation'])
     if (manifest['root'] != str(root) or manifest['source_sha'] != git('rev-parse', 'HEAD')
@@ -224,5 +226,5 @@ def validate(root):
     if any(identify(record['path']) != record for record in records):
         raise ValueError('frozen current paired artifact/input/template bytes differ')
     if manifest['scope'] == 'primary':
-        require_forecasts(manifest, canonical_members(manifest))
+        primary_limits(manifest)
     return manifest

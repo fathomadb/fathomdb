@@ -8,6 +8,73 @@ released section MUST list every removed public symbol under a `### Removed` hea
 the removal-detect linter (`scripts/security/check-removal-changelog.sh`,
 AC-050c) gates merges against this invariant.
 
+## 0.8.29 — publication pending
+
+**Publication status: pending.** Integrated qualification and the release
+rehearsals are in progress. This version has not been published.
+
+### Added
+
+- Stored mapped-head coverage in projection status and MCP `orient`: exact
+  known/unknown and truncated record counts, known/unrepresented byte totals,
+  and unreduced known-only fractions. The population includes retained mapped
+  history. Cache-cold and changed-state results expose their reason without
+  stale counts; unknown coverage remains distinct from known zero. Python
+  retains exact integers; TypeScript and MCP aggregate values use decimal
+  strings, while the stored profile dimension remains numeric.
+- Opt-in snippet `scored_bytes` / `scoredBytes` reports the original contributing
+  stored head extent for that exact vector participant. Zero is a known empty
+  extent; absence makes no extent claim. Stored role-marker bytes remain part
+  of the coordinates. Text-only and standalone snippet selection do not acquire
+  a scored extent. No calibrated retrieval verdict or automatic advice is added.
+- MCP corrective details for `unknown_argument` and `refs_not_in_response`:
+  bounded original argument/ref details, schema-derived accepted argument names,
+  and remedies. Foreign-ref details preserve request order and duplicate
+  occurrences; rejected feedback writes no labels. `list_stores` now exposes
+  an explicit nullable `default_store` from the same session sample as its flags.
+
+### Changed
+
+- Hybrid fusion uses snapshot-local stored record/version identity. Equal
+  bodies or public references no longer merge distinct records; the same record
+  contributes once per arm at its original rank. Exact text ranking, snippets,
+  explanation and evidence preserve the selected record's ownership and UTF-8
+  byte coordinates. Existing helper-to-context-pack duplicate-ID refusal remains.
+- MCP defaults to compact text; structured output requires explicit selection.
+  Final serialized output, including metadata and hints, counts toward the
+  response budget, and continuation cuts keep whole hits. Text and hybrid search
+  accept the closed filters and independent inactive/superseded view flags.
+  Ambiguous named feedback references are refused atomically.
+- SDK search and expansion report bounded query-embedding absence, started
+  timeout and overload reasons consistently. An empty degradation report does
+  not certify that every arm ran. Readiness remedies name supported operations;
+  existing typed CUDA failures remain errors. Rust projection-status and snippet
+  result structs gain fields, so exhaustive literals/patterns must be updated.
+- The selected CUDA dependency updates add lifetime tracking and private F32
+  upload fixes. Detected terminal context loss refuses further CUDA construction,
+  embedding and cached reranking until process restart. Native residue may remain
+  until restart, and opaque native host memory has no established hard bound.
+  Live-reset survival and post-reset close/exit remain unqualified.
+- Recovery verification covers additional process interruption, active-checkpoint
+  retry/reopen and Windows WAL scenarios. It does not establish power-loss or
+  exhaustive fault coverage.
+- Store format remains 37. This release adds no database migration.
+
+### Removed
+
+- Unavailable-only MCP envelope `state` and search `verdict` fields from successful
+  responses. `orient.not_in_this_release` names unavailable state, verdict, kinds
+  and counts; structured kinds/counts placeholders retain their existing contract.
+
+### Compatibility and qualification
+
+- Current CUDA qualification uses CUDA 12.6. CUDA 13 artifact delivery, including
+  Tegra, is planned for 0.8.31. Non-Tegra ARM+GPU configurations are not
+  known-working CUDA environments and are excluded from 0.8.29 qualification.
+- CPU platform/package qualification and the distinct hosted release rehearsal
+  remain pending completion. Local candidate installs do not establish registry
+  publication or registry-installed consumer success.
+
 ## 0.8.28 — 2026-11-09
 
 **Publication status: published.** Packages are available from crates.io, PyPI, npm and Tegra Pages; npm `latest` is 0.8.28.

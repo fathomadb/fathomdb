@@ -12,7 +12,127 @@ existing two required CPU long-test variants and offline verified leaf packages.
 Independent Astra-medium design review accepted this batch before execution.
 No source behavior or test oracle changed.
 
-## Completed independent local batch
+## Typed open-admission fix and current artifacts
+
+Astra-medium source FINAL ACCEPT at `e3762147295cb0e3db3331cedbe04c0c714a7e2c`
+preceded this refresh. All four reviewed RED→GREEN commits remain in order;
+actual native/source-archive producer is `d2267d1e7bbccf55c543ecb10359df0cf578d817`.
+Raws, exact subjects, existing collectors and full digests are under the existing
+raw root's `openfix-20261116/`; no prior1349/f668 proof is retagged.
+
+Each payload below passes3 installed Python cases (11 deselected) and3 selected
+N-API cases (zero skips): real stored name/revision BLOB and negative-dimension
+corruption must preserve CorruptionError kind/stage/hint/anchor, release the
+lock on repeated refusal, then reopen/read the persisted body after exact profile
+restoration. Maintained selectors are in `test_typed_errors.py` and
+`typed-errors.test.ts`; source REDs remain the actual defect evidence.
+
+| New d226 payload | Wheel SHA prefix / addon SHA prefix | Actual artifact boundary |
+| --- | --- | --- |
+| Linux x64 CPU | `f5b2c7e0b660` / `ff836c4d4ba2` | ABI3 wheel2.28/addon2.39 floors, strict installed TS/package/native digest and existing collector pass. |
+| Linux ARM64 CPU | `459e5b2d3d4f` / `4d9d0685e560` | ABI3 wheel/addon2.28 floors, existing isolated lifecycle/strict TS/package checks and collector pass in guarded runc; GPU/Tegra devices, files and query tools excluded before imports. |
+| Windows x64 CPU | `81e273ac6a4d` / `178ef3a690d0` | Exact archive/source-hash guards, ABI3/strict installed TS/package/digest/collector pass. Wheel6894398B; delta−505602B versus7400000B, within20971520B budget. |
+| Linux x64 CUDA12.6 | `0ad140afdc97` / `3d4478c1089e` | Canonical embed/rerank wheel2.28/addon2.39, ABI3/all-member forbidden-linkage/floors/strict installed TS/digest pass. Driverless auto/CPU BGE lifecycle passes both bindings;2 forced embedder captures actually exit1 and pass exact typed validators. |
+
+Valid counts/token capture still uses the same earlier snapshot; only token-error
+observation is deferred behind existing typed profile admission. Writer/ranking/
+vector math and shipped Python/TS fronts are unchanged. Accepted focused engine
+controls and this successful-path equivalence retain original1349 healthy62/210
+and unchanged reranker/provider applicability; those bodies were not replayed.
+Historical WAL and earlier rehearsal proofs retain their source/scope. Current
+GPU2 allocation/PIDUUID+4 AC082d rows are **UNSTARTED/HELD**: fresh parent probe
+still found foreignPID4065257/6012MiB. No sharing/reset/foreign action or old GPU
+proof substitution; the parent also holds this batch pending candidate choice.
+
+The new source archive retains its producer lock; the locked downstream SDK
+resolves all6 product crates inside it at W.29/E.8.0. Actual write/separate-process
+reopen/body/missing/close/exit and locked offline CLI install/version/integrity/
+immutable file-set controls pass0. `rust-archive/`, `logs/archive-*` and retained
+new executables supply actual identities. Windows' initial uninvoked extraction
+attempt remains ineligible; wrong-name tar failures were recovered by copying
+the actual platform tarball and validating required bytes, without test replay.
+
+The retained7d release binary SHA `d854615cc2235410bcb361ee80445a92bf2cfe32a3aa608cc2007f26152a1fc1`
+first failed760.621/s and its single initially authorized resumption failed
+993.996/s<1000 (59640 commits/60.000239089s, exit101). Both remain recorded.
+Following the owner's busy-host question, one fixed OLD686d→NEW7d comparison
+used unchanged SHA-verified executables, one common environment/TMPDIR/serial
+arguments, no debugger/code/rebuild/affinity change, and contemporary1s host/
+process context. OLD `d34f6487dbe1d8f4b4aa7d84febcf551493e7a802491e77e4d3082101a2077b4`
+passes1495.233/s; current NEW passes1482.090/s>=1000. Complete process CPU/wall
+is OLD39.20user+19.15system/65.13s and NEW39.49+18.96/65.13s. The observed pair
+is within1%; one pair does not establish statistical causality or explain the
+historical993 result. Historical per-run load/IO/cgroup snapshots were absent;
+later10-minute system-SAR context must not be presented as exact run context.
+The instrumented765 diagnostic remains attribution-only. No statement-cache
+production optimization is selected; d226 shipping bytes remain the candidate.
+Raw unchanged invocations/time-v/1s CPU, queue, IO, pressure, frequency/temperature,
+TID placement/scheduler observations and actual UTC/local bounds remain in
+`ac011-fixed-host-pair/`; all recorder/native actors terminated.
+
+Separate independent still-unrun rows ran once: b429.322/s>=100 PASS; registered
+AC081 seven-process PASS with sequential324.699516–345.138117ms<=500 and concurrent
+47.880991–50.739633ms<=100, retaining all7 sequential200ms warnings and no retired
+ratio verdict. Retained operator/AGENT_LONG subjects pass AC02160s/60 cycles/
+60 rebuilds/zero schema warnings and cursor1000 searches/212 writes/211 during
+reads/999 advancing hits/zero both violations. Actual7d test-binary inputs remain
+explicit; valid-profile paths do not execute the admission-error correction.
+See `logs/ac011a-resume.log`, `logs/{ac011b,ac021,cursor}-first-current.log` and
+`ac081-seven/`. Original1538.787/760.621/993.996 observations are not replaced.
+
+Owner-approved temporary24GiB live ballooning of the shared Windows VM left
+persistent32GiB configuration/services/disks unchanged; settled guest free was
+20606368KB with no active workers/builds. Actual host memory was reported without
+an inferred8GiB gain. **32GiB live restoration remains due** in
+`openfix-20261116/runtime-state.json`; parent holds restoration until remaining
+native work ends. Current GPU hold, Mac/hosted/registry and combined readiness
+remain separate; the ordinary current throughput pass retains earlier failures. Any subsequent production remedy needs affected new bytes;
+these d226 observations retain their actual input scope.
+
+## Earlier full90 artifacts and original throughput failure
+
+Independent Astra-medium design ACCEPT at `e1323ba0c` preceded this batch.
+Actual no-hook native producers are
+`1349e675c4f82a7589a05ca2043577c6bf92e1a2`, including accepted full90 source.
+The reviewed operator-only test cfg correction was cherry-picked at
+`f6686e783c0f37ea23e0892cd8593b7d4b9392b5`; it changes no production native input.
+The archive SDK/CLI source includes that correction. Pending-publication notes
+and the subsequent local rehearsal use `7d03502255d2ea50ee43cc845a85ba47354a706e`.
+Native subjects retain their actual producer identity; none is retagged.
+
+Raw commands, original failures and subjects remain under
+`/mnt/data/tmp2/fathomdb-0829-continuation/final-artifacts-20261116/`.
+
+| Existing obligation | Actual earlier1349/f668/7d observation |
+| --- | --- |
+| Q14 Linux x64 CPU | Fresh production/no-hook manylinux2.28 Python wheel and declared2.39 addon pass auditwheel/symbol floors, isolated installed Python/Node/strict-TS6.0.3/runtime/dependency/frozen/graph controls. Unchanged reporting/snippet oracles pass62 installed Python tests and15 N-API modules/210 tests, zero skips, including real pinned BGE UTF-8 aggregate/scored properties. Guarded networkless CPU auto/explicit forward/write/search/close controls pass both bindings. |
+| Q14 Linux ARM64 CPU | Fresh production/no-hook wheel/addon both meet actual manylinux2.28 floors; the same isolated consumers,62 Python and210 N-API tests and pinned BGE CPU forwards pass. The guarded runc image excludes GPU/nvhost/nvmap devices, CUDA mounts, Tegra detection files and GPU-query executables before imports. No repeat of the historical ARM host-query exception occurred. Actual image a35fc98e uses Python3.11.15/Rust1.95/Node25.9/npm11.12.1. Own remote source is clean; raws/subjects are retained in arm-results. |
+| Q14 Windows x64 CPU | Exact transferred source passes production wheel/addon builds, isolated installed Python/Node and strict TS6.0.3. Original13 retained modules pass187 tests;2 reporting/snippet modules add23, all210 pass with zero skips. Installed Python62 tests, including pinned offline BGE properties, pass. Wheel6893894B is506106B below the7400000B baseline and passes the20971520B delta budget; the existing collector passes. Python3.12.10/Rust1.95/Node25.9/npm11.12.1. Raws/subjects are in windows-results. Historical WAL mechanism proof retains its original scope/source; it was not replayed or relabeled. |
+| Q14 archive SDK/CLI | Fresh exact-source archive includes the reviewed test cfg correction and original producer lock. A separate downstream SDK lock resolves all consumed product crates inside the archive at W.29/E.8.0; real write, separate-process reopen/missing-record/close/exit and the unchanged public SDK coverage test pass. Actual installed process exits are0. CLI locked offline installation and unchanged version/legacy-integrity/immutable data-plane/file-set assertions pass. Qualified override configuration is retained separately in cargo-home. No registry-consumer claim. |
+| Q15 CUDA12.6 | Fresh canonical embed/rerank wheel2.28/addon2.39 pass actual floors and every packaged-member forbidden-linkage check. Driverless auto/explicit CPU BGE/write/search/close and TinyBERT forwards pass; all4 forced embedder/reranker captures have actual exit1 and pass exact typed-JSON/stderr validators. Current subjects are in cuda-manylinux-out and driverless. |
+| Q15 allocation and AC082d | Fresh exclusive FD9 batch exits0. Python/N-API allocation witnesses each bind actual host PID→namespacePID1 to the selected3090 UUID and measure134217728B above67108864B floor. Both separate CUDA-positive/explicit-CPU-negative pairs pass full trace/loader/lifecycle checks; CPU42 Python/73 Node traces prove no CUDA access or GPU PID, compiledtrue/effectiveCPU/selectedUUIDnull. Positive PIDs are observed on the selected UUID. All4 consumers close/exit0 with certain cleanup; owned containers are gone, final compute PIDs empty and independent physical-inode8532374 flock/release succeeds. No reset or shared measurement allocation change. |
+| Q17/Q18 notes and local rehearsal | Substantive .29 notes explicitly retain pending qualification/publication, format37/no migration and actual support limits. The first missing-heading failure is preserved. At7d035022 steps1–4 pass; step5 originally exits101 because Cargo was offline. Only its3 canonical leaf publish dry-runs resume with registry reads enabled and exit0, each explicitly aborting upload due to dry run. This is assembled local validatable-subset completion, not an uninterrupted wrapper pass, hosted rehearsal, dependent-crate publication or registry consumption. |
+| Q5 original AC011a failure | Current release binary/7d035022 canonical5s warmup/60s measurement fails at760.621 commits/s<1000,45638 commits/60000ms, actual exit101. Strict stop leaves AC011b/AC081/current long controls unrun. Original raw final-ac011.log and binary identity remain. No product cause or waiver is established; see below. |
+
+The failed AC011a wall interval is11:28:38–11:29:44 CST. This lane's last needed
+compile ended11:21:39; the parent's owned workspace SQLite tests were still
+active. Static call-site inspection finds new capture only in open (before the
+warmup) and explicit generation/mutation-status reads, neither called by the
+timed unconfigured-kind write loop. Direct writer/worker/commit files are
+unchanged from686d. This does not attribute the failure or qualify the current
+throughput gate. The initially authorized resumption failed993.996/s; the later owner-directed
+fixed comparison and current unchanged1482.090 pass are recorded above. No
+altered threshold or production remedy is selected.
+
+The initial ARM shallow-history bundle prerequisite mismatch and interrupted
+oversized Windows pre-build cache copy remain operational failures, not product
+REDs. Only inactive owned Windows static cache was removed to restore the
+existing8GiB C: entry floor; subsequent caches/builds use private R: paths.
+No runtime test oracle, product behavior, database format or model input changed
+in this qualification batch. Additional Q3 feature joins and the final broad
+source gate retain their parent-owned actual outcomes.
+
+## Historical independent local batch
 
 All commands used Rust1.95, the unchanged locked source above, an owned offline
 Cargo cache/target and ordinary CPU execution. Raw logs and archives remain under
@@ -116,18 +236,24 @@ they are distinct from the successful later container execution.
 
 ## Remaining qualification
 
-- 20's four Windows rows and the assembled238-suite source gate are complete;
-  ordinary smoke/skip behavior remains distinct from the actual long runs above.
+- Earlier20 Windows rows and the assembled238-suite source gate retain their
+  actual source scope. Current integrated Q2/Q3 outcomes remain parent-owned;
+  ordinary smoke/skip behavior stays distinct from the actual long runs above.
 - 60/70/80 and100 have accepted selected exits;110/140's selected .29
   source/healthy/OOM/consumer scope is independently accepted.30's remaining
   G/M/D campaigns and50's paired observations remain incomplete; the
   [release state](../../../release-state-0.8.29.json) owns their current progress.
-- 40 awaits the actual owner choice; the approved72 model episodes have not run.
-  Selected130 D/E is now independently accepted;90 remains behind actual Block1 exit.
-- Final integrated qualification, five-target installed packages, selected
-  CUDA12.6 consumers and the complete local rehearsal still require applicable
-  actual inputs. Earlier accepted observations retain their scope; no automatic
-  full replay follows document edits.
+- 40 disposition and the exact approved72 model episodes remain parent-owned
+  integrated exits. Selected130 D/E is independently accepted; full90 source is
+  independently accepted under seq392 and is integrated.
+- Current affected d226 three-target CPU, CUDA12.6 driverless and source-archive
+  proofs are recorded above; exact new CUDA GPU witnesses remain unstarted. Mac
+  targets remain open; current Q2/Q3/model status is parent-owned. Original
+  throughput failures remain alongside the current ordinary pass. Combined
+  local readiness is not claimed. The local
+  rehearsal is assembled-qualified; its distinct hosted counterpart remains.
+  Earlier observations retain original scope; no automatic full replay follows
+  document edits.
 - After local passes, review CI scripts and execute CI. The earlier blanket CI
   exclusion is superseded. No publishing tags, registry uploads or published
   registry-consumer proof is authorized; readiness and publication remain distinct.

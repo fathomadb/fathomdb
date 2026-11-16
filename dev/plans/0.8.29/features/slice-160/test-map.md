@@ -50,3 +50,16 @@ processes on the retained artifact pair after exclusive GPU entry. Reject CUDA
 access, incomplete/failed captures, GPU PID presence and failed positives; retain
 actual process exits and artifact applicability. No runtime pass is claimed by
 source/unit checks.
+
+## Installed profile-admission refresh
+
+The maintained Python `test_installed_profile_corruption_preserves_typed_admission_and_reopen`
+and TypeScript `installed … profile corruption preserves typed admission and reopen`
+cases in the existing typed-error modules reuse the accepted Rust profile-admission
+oracles: malformed name/revision blobs and negative dimension must preserve
+Corruption/EmbedderIdentityDrift, EmbedderIdentity stage and the existing recovery
+code/anchor. Two refused opens establish lock release; restoring the original
+profile then reopens the persisted record and closes/exits normally. Run these
+against fresh noneditable production packages, without test hooks or models.
+They are affected installed-boundary qualification, not a replacement for the
+parent's observed production RED/GREEN or a new fault campaign.

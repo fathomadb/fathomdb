@@ -8,6 +8,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
+import { DatabaseSync } from "node:sqlite";
 
 import { Engine } from "../src/index.js";
 import {
@@ -287,3 +288,50 @@ test("the CUDA pool classes are distinct leaves", () => {
     !(Object.create(CudaPrivateBuildRefusedError.prototype) instanceof CudaPoolExhaustedError),
   );
 });
+
+
+for (const [field, update] of [
+  ["name", "UPDATE _fathomdb_embedder_profiles SET name=X'00' WHERE profile='default'"],
+  ["revision", "UPDATE _fathomdb_embedder_profiles SET revision=X'00' WHERE profile='default'"],
+  ["dimension", "UPDATE _fathomdb_embedder_profiles SET dimension=-1 WHERE profile='default'"],
+] as const) {
+  test(`installed ${field} profile corruption preserves typed admission and reopen`, async () => {
+    const path = freshDbPath();
+    const engine = await Engine.open(path, { useDefaultEmbedder: false });
+    try {
+      await engine.write([{ kind: "note", logicalId: "persisted", body: "typedopen persisted", sourceId: "qualification:profile" }]);
+    } finally {
+      await engine.close();
+    }
+    const connection = new DatabaseSync(path);
+    const original = connection.prepare("SELECT name,revision,dimension FROM _fathomdb_embedder_profiles WHERE profile='default'").get();
+    assert.ok(original);
+    try {
+      connection.exec(update);
+    } finally {
+      connection.close();
+    }
+    for (let attempt = 0; attempt < 2; attempt++) {
+      await assert.rejects(() => Engine.open(path, { useDefaultEmbedder: false }), (error: unknown) => {
+        assert.ok(error instanceof CorruptionError);
+        assert.equal(error.kind, "EmbedderIdentityDrift");
+        assert.equal(error.stage, "EmbedderIdentity");
+        assert.equal(error.recoveryHintCode, "E_CORRUPT_EMBEDDER_IDENTITY");
+        assert.equal(error.docAnchor, "design/recovery.md#embedder-identity-drift");
+        return true;
+      });
+    }
+    const restored = new DatabaseSync(path);
+    try {
+      restored.prepare("UPDATE _fathomdb_embedder_profiles SET name=?,revision=?,dimension=? WHERE profile='default'").run(original["name"]!, original["revision"]!, original["dimension"]!);
+    } finally {
+      restored.close();
+    }
+    const reopened = await Engine.open(path, { useDefaultEmbedder: false });
+    try {
+      assert.equal((await reopened.searchTextOnly("typedopen")).results[0]!.body, "typedopen persisted");
+    } finally {
+      await reopened.close();
+    }
+  });
+}

@@ -141,3 +141,39 @@ def test_the_cuda_pool_classes_are_distinct_leaves() -> None:
         assert cls is not EmbedderError
     assert not issubclass(CudaPoolExhaustedError, CudaContextLostError)
     assert not issubclass(CudaPrivateBuildRefusedError, CudaPoolExhaustedError)
+
+
+@pytest.mark.parametrize("update", [
+    "UPDATE _fathomdb_embedder_profiles SET name=X'00' WHERE profile='default'",
+    "UPDATE _fathomdb_embedder_profiles SET revision=X'00' WHERE profile='default'",
+    "UPDATE _fathomdb_embedder_profiles SET dimension=-1 WHERE profile='default'",
+], ids=["name", "revision", "dimension"])
+def test_installed_profile_corruption_preserves_typed_admission_and_reopen(tmp_path, update):
+    """Installed packages retain the established profile-corruption payload and release the lock."""
+    import sqlite3
+
+    path = str(tmp_path / "profile.sqlite")
+    engine = Engine.open(path, use_default_embedder=False)
+    try:
+        engine.write([{"kind": "note", "logical_id": "persisted", "body": "typedopen persisted", "source_id": "qualification:profile"}])
+    finally:
+        engine.close()
+    with sqlite3.connect(path) as connection:
+        original = connection.execute("SELECT name,revision,dimension FROM _fathomdb_embedder_profiles WHERE profile='default'").fetchone()
+        assert original is not None
+        connection.execute(update)
+    for _ in range(2):
+        with pytest.raises(CorruptionError) as caught:
+            Engine.open(path, use_default_embedder=False)
+        error = caught.value
+        assert error.kind == "EmbedderIdentityDrift"
+        assert error.stage == "EmbedderIdentity"
+        assert error.recovery_hint_code == "E_CORRUPT_EMBEDDER_IDENTITY"
+        assert error.doc_anchor == "design/recovery.md#embedder-identity-drift"
+    with sqlite3.connect(path) as connection:
+        connection.execute("UPDATE _fathomdb_embedder_profiles SET name=?,revision=?,dimension=? WHERE profile='default'", original)
+    engine = Engine.open(path, use_default_embedder=False)
+    try:
+        assert engine.search_text_only("typedopen").results[0].body == "typedopen persisted"
+    finally:
+        engine.close()

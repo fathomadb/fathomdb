@@ -288,7 +288,8 @@ stored view and refuse an explicit flag override, including false. Repeated refs
 do not identify a unique historical occurrence for feedback or logical fetch;
 feedback retains its atomic ambiguity refusal and not_recorded precedence.
 Fetch still resolves the latest eligible revision under its own view.
-No include_out_of_window search argument is exposed. Unknown arguments remain
+No include_out_of_window search argument is exposed. Unknown top-level arguments
+return `invalid_request/unknown_argument`; malformed known-key-only inputs retain
 `invalid_request/bad_argument`.
 
 Text forwards the complete closed filter to SDK `search_text_only`; it performs
@@ -525,7 +526,7 @@ tool handler is a JSON-RPC internal error for that request (MR-002.2).
 
 | `class` | Typical `code`s | Source |
 | --- | --- | --- |
-| `invalid_request` | `unknown_store`, `bad_store_name`, `bad_argument`, `unsupported_ref`, `stale_handle`, `wrong_store`, `bound_exceeded` | Adapter validation; SDK `InvalidArgument`, `WriteValidation`, `SchemaValidation`, filter errors; `bound_exceeded` is an expansion past 10,000 edges |
+| `invalid_request` | `unknown_store`, `bad_store_name`, `unknown_argument`, `refs_not_in_response`, `bad_argument`, `unsupported_ref`, `stale_handle`, `wrong_store`, `bound_exceeded` | Adapter validation; SDK `InvalidArgument`, `WriteValidation`, `SchemaValidation`, filter errors; `bound_exceeded` is an expansion past 10,000 edges |
 | `not_found` | `not_found` | Absent record (per item in `fetch`) |
 | `not_ready` | `opening`, `reopening`, `draining`, `embedder_not_ready`, `vector_disabled` | Readiness gate: the code is the phase word. Every call waits for an open or reopen in progress up to its deadline before returning it; calls with a progress token also get progress notifications (MR-003.2, MR-006.4). SDK `EmbedderNotConfigured`, `KindNotVectorIndexed` (`embedder_not_ready`); SDK `VectorEquivalenceMismatch` (`vector_disabled`): a hybrid search on a store whose dense side the open-time equivalence check disabled; remedy: use mode `"text"` |
 | `unavailable` | `open_failed`, `database_locked`, `corrupt`, `migration_refused`, `missing_file` | Store open failure (MR-003.3) |

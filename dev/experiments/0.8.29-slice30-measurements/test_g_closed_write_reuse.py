@@ -6,6 +6,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
+import g_freeze
 from g_campaign import run_g_plan
 from g_reuse import collect_reuse
 from g_runner import qualify_step
@@ -21,7 +22,8 @@ def write_protocol(root, current, normal):
     r1, _, _ = r1_protocol(root, current, normal)
     current["stage"] = "closed-copy-write-matrix"
     original = root / "write-original"
-    manifest = dict(current, root=str(original), campaign_uuid="original-write-uuid",
+    manifest = dict(current, root=str(original), source_sha=g_freeze.git("rev-parse", "HEAD"),
+                    campaign_uuid="original-write-uuid",
                     reuse_completed_from=str(r1))
     manifest["reused"] = collect_reuse(current, r1)
     cell = next(row for row in current["plan"] if row["id"] == "g-w-b1-s1-engine-text-r0")

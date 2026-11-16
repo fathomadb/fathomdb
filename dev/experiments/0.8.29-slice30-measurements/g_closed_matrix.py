@@ -90,7 +90,11 @@ def prepare_matrix(manifest, calibration):
     admitted = [value for value in predictions.values() if value["allowed"]]
     if model is not None:
         from g_serial_storage import frontier
-        disposition = frontier(spec, plan, manifest["reused"], budget, retained)
+        previous = dict(manifest["reused"])
+        state_path = Path(manifest["root"], "results/campaign-state.json")
+        if state_path.exists():
+            previous.update({row["id"]: row for row in json.loads(state_path.read_text())})
+        disposition = frontier(spec, plan, previous, budget, retained)
         if not disposition["allowed"]:
             raise ValueError("reviewed serial G table does not fit: " + disposition["reason"])
     elif (sum(value["total_ns"] for value in admitted)+max(0, 600*10**9-common_used)

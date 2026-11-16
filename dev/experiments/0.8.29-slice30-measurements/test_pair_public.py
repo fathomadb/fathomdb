@@ -547,31 +547,115 @@ class PairExistingOrdinaryReferenceTests(unittest.TestCase):
 
 
 class PairIncrementalRetirementTests(unittest.TestCase):
-    def test_later_required_diagnostics_release_prior_successful_pair_copies(self):
+    def fixture(self, root):
         import sqlite3
+        results=root/'results';results.mkdir()
+        ordinary=[cell for cell in plan()['primary'] if cell['origin_id']=='p1-n100000-r0']
+        diagnostic=[cell for cell in plan()['diagnostics'] if cell['origin_id']=='p1-n100000-r0']
+        rows=[]
+        for cell in ordinary+diagnostic:
+            store=results/cell['id']/'subject/store.sqlite';store.parent.mkdir(parents=True)
+            connection=sqlite3.connect(store);connection.execute('CREATE TABLE data(value)');connection.close()
+            rows.append({'id':cell['id'],'cell':cell,'status':'complete','complete':True,
+                         'cleanup_uncertain':False,'live_owned_pids':[],'store':str(store),
+                         'credited':True,'guardian_owner':{'started_monotonic_ns':1,'controller_pid':2}})
+        (results/'campaign-state.json').write_text(json.dumps(rows))
+        (results/'report.json').write_text(json.dumps({'retired_copies':[{'path':'prior-retirement','bytes':1}]}))
+        (root/'g-budget.json').write_text(json.dumps({'schema':'slice30-gd-budget/v1',
+            'used_ns':0,'s50_guardian':{'started_monotonic_ns':3,'controller_pid':4}}))
+        def pair(cells):
+            return {'origin_id':'p1-n100000-r0','complete':True,'members':[cell['id'] for cell in cells]}
+        report={'complete':False,'calibration_complete':False,'primary':rows[:2],
+                'diagnostics':rows[2:],'calibration':[],
+                'comparisons':{'primary':[pair(ordinary)],'diagnostics':[pair(diagnostic)],'calibration':[]}}
+        manifest={'root':str(root),'allocation':str(root),'scope':'primary',
+                  'retire_complete_copies':True,'_active_members':diagnostic,
+                  'profile':{'total_shared_ns':1000*10**9,'reserved_other_work_ns':0},
+                  'primary_limits':{'phase_ns':1000*10**9,'common_ns':100*10**9}}
+        (root/'manifest.json').write_text(json.dumps(manifest))
+        return manifest, rows, report
+
+    def final_guardian(self, root, owner, **changes):
+        directory=root/'guardians'/str(owner['controller_pid']);directory.mkdir(parents=True,exist_ok=True)
+        receipt=dict(owner,exit=0,cleanup_uncertain=False,boundary={'status':'quiescent',
+                     'populated_after':False,'removed_exact_empty_boundary':True})
+        receipt.update(changes)
+        (directory/'guardian.json').write_text(json.dumps(receipt))
+        return receipt
+
+    def test_finish_preserves_copies_until_current_report_guardian_finalizes(self):
         from unittest.mock import patch
         from g_pair_runtime import finish
         with tempfile.TemporaryDirectory() as temporary:
-            root=Path(temporary);results=root/'results';results.mkdir()
-            ordinary=[cell for cell in plan()['primary'] if cell['origin_id']=='p1-n100000-r0']
-            diagnostic=[cell for cell in plan()['diagnostics'] if cell['origin_id']=='p1-n100000-r0']
-            rows=[]
-            for cell in ordinary+diagnostic:
-                store=results/cell['id']/'subject/store.sqlite';store.parent.mkdir(parents=True)
-                connection=sqlite3.connect(store);connection.execute('CREATE TABLE data(value)');connection.close()
-                rows.append({'id':cell['id'],'cell':cell,'status':'complete','complete':True,
-                             'cleanup_uncertain':False,'live_owned_pids':[],'store':str(store)})
-            (results/'campaign-state.json').write_text(json.dumps(rows))
-            (results/'report.json').write_text(json.dumps({'retired_copies':[{'path':'prior-retirement','bytes':1}]}))
-            (root/'g-budget.json').write_text(json.dumps({'s50_guardian':{'controller_pid':1}}))
-            def pair(cells):
-                return {'origin_id':'p1-n100000-r0','complete':True,'members':[cell['id'] for cell in cells]}
-            report={'complete':False,'calibration_complete':False,
-                    'comparisons':{'primary':[pair(ordinary)],'diagnostics':[pair(diagnostic)],'calibration':[]}}
-            manifest={'root':str(root),'allocation':str(root),'scope':'primary',
-                      'retire_complete_copies':True,'_active_members':diagnostic}
+            root=Path(temporary);manifest,rows,report=self.fixture(root)
+            self.final_guardian(root,rows[0]['guardian_owner'])
             with patch('g_pair.report',return_value=report):
                 finish(manifest,rows[2:])
+            self.assertTrue(all(Path(row['store']).exists() for row in rows),
+                            'finish must retain copies before current guardian cleanup completes')
+
+    def test_original_guardian_failures_preserve_native_complete_copies(self):
+        from unittest.mock import patch
+        from g_pair_runtime import finish
+        for failure in (None,{'stop':'phase deadline'},{'cleanup_uncertain':True},{'error':'cleanup failed'}):
+            with self.subTest(failure=failure),tempfile.TemporaryDirectory() as temporary:
+                root=Path(temporary);manifest,rows,report=self.fixture(root)
+                if failure is not None:
+                    self.final_guardian(root,rows[0]['guardian_owner'],**failure)
+                current={'started_monotonic_ns':3,'controller_pid':4}
+                self.final_guardian(root,current)
+                with patch('g_pair.report',return_value=report):
+                    finish(manifest,rows[2:])
+                self.assertTrue(all(Path(row['store']).exists() for row in rows),
+                                'native equality cannot override missing or failed original guardians')
+                from g_pair_runtime import retire_qualified
+                retire_qualified(root)
+                self.assertTrue(all(Path(row['store']).exists() for row in rows))
+
+    def test_failed_current_cleanup_or_diagnostics_preserve_copies(self):
+        from unittest.mock import patch
+        from g_pair_runtime import finish
+        for failure in ({'stop':'phase deadline'},{'cleanup_uncertain':True},{'error':'report failed'}):
+            with self.subTest(failure=failure),tempfile.TemporaryDirectory() as temporary:
+                root=Path(temporary);manifest,rows,report=self.fixture(root)
+                self.final_guardian(root,rows[0]['guardian_owner'])
+                current={'started_monotonic_ns':3,'controller_pid':4}
+                self.final_guardian(root,current,**failure)
+                with patch('g_pair.report',return_value=report):
+                    finish(manifest,rows[2:])
+                self.assertTrue(all(Path(row['store']).exists() for row in rows),
+                                'current report/cleanup failure must preserve every copy')
+                from g_pair_runtime import retire_qualified
+                retire_qualified(root)
+                self.assertTrue(all(Path(row['store']).exists() for row in rows))
+
+    def test_later_qualified_diagnostics_release_prior_successful_pair_copies(self):
+        from unittest.mock import patch
+        from g_pair_runtime import finish
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary);manifest,rows,report=self.fixture(root)
+            self.final_guardian(root,rows[0]['guardian_owner'])
+            with patch('g_pair.report',return_value=report):
+                finish(manifest,rows[2:])
+            self.assertTrue(all(Path(row['store']).exists() for row in rows))
+            from g_pair_runtime import retire_qualified
+            self.final_guardian(root,{'started_monotonic_ns':3,'controller_pid':4})
+            (root/'g-budget.json').write_text(json.dumps({'schema':'slice30-gd-budget/v1',
+                'used_ns':0,'s50_guardian':{'started_monotonic_ns':3,'controller_pid':4}}))
+            rows[2]['guardian_owner']={'started_monotonic_ns':5,'controller_pid':6}
+            report['diagnostics'][0]['guardian_owner']=rows[2]['guardian_owner']
+            with patch('g_pair.report',return_value=report):
+                finish(manifest,rows[2:])
+            retire_qualified(root)
+            self.assertTrue(all(Path(row['store']).exists() for row in rows),
+                            'required diagnostic execution guardian must also qualify')
+            self.final_guardian(root,rows[2]['guardian_owner'])
+            budget=json.loads((root/'g-budget.json').read_text());budget['s50_guardian']=None
+            (root/'g-budget.json').write_text(json.dumps(budget))
+            retire_qualified(root)
             self.assertTrue(all(not Path(row['store']).exists() for row in rows))
-            actual=json.loads((results/'report.json').read_text())
+            actual=json.loads((root/'results/report.json').read_text())
             self.assertEqual(len(actual['retired_copies']),5)
+            budget=json.loads((root/'g-budget.json').read_text())
+            self.assertGreater(budget['common_used_ns']['S50'],0)
+            self.assertEqual(budget['used_ns'],budget['common_used_ns']['S50'])

@@ -33,12 +33,12 @@ not new canonical ACs, support targets, thresholds or test oracles.
 ## Owner-directed local completion boundary
 
 The current continuation completes selected local implementation/qualification
-and maintained documentation, excluding CI work/execution and registry publication.
+and maintained documentation, then reviews the CI scripts before executing CI.
 Reconcile this plan, requirements, architecture and qualification matrix against
 actual integrated predecessors before design review. Retain local checks and
-permitted hardware/package-consumer evidence. Leave remote CI, workflow changes,
-publishing tags, registry uploads and post-publication registry smoke deferred and
-unexecuted. Report local completion separately from release readiness/publication;
+permitted hardware/package-consumer evidence. CI execution follows local passes
+and the CI-script review. Publishing tags, registry uploads and post-publication
+registry smoke remain unauthorized and unexecuted. Report local completion separately from release readiness/publication;
 no skipped publisher or CI body supplies a passing qualification claim.
 
 ## Actual predecessor baseline
@@ -46,9 +46,10 @@ no skipped publisher or CI body supplies a passing qualification claim.
 Current accepted exits and assembled-source limits are in
 [release state](../../../release-state-0.8.29.json). Reconcile actual integrated
 source and each matrix row's inputs; do not rerun a proposal census or copy stale
-0–10/60/70 status into this plan.50 still owes paired performance,30 its actual
-remaining campaigns,20 Windows A6,100 Q1 and110/130/140 their selected composed
-qualification.80's contract is owner-approved;90 still needs the real Block1 exit.
+status into this plan.20,60/70/80 and100 have accepted selected exits;110/140's
+selected source/healthy/OOM/consumer scope has independent acceptance.30 and50
+still owe their remaining measurements;40's owner choice,72's model episodes
+and130E's Node soak remain open.90 still needs the real Block1 exit.
 
 Format37 is the current substrate: **no database migration**, compatibility shim,
 span-storage rebuild, new calibrated verdict or weak-result threshold. Preserve
@@ -83,6 +84,12 @@ run-state narration an oracle.
    exits, unresolved mandatory criteria and conditional no-run cases there.
    Preserve concrete existing owner questions;
    do not request a blanket deferral/approval for every unused proposal.
+   The current independent batch runs the unchanged60-second AC021 selector
+   with `operator` and the1000-search cursor selector with `AGENT_LONG=1`, using
+   real SQLite and an owned target/cache. It also packages and verify-compiles
+   the three existing leaf crates offline. These observations qualify their
+   actual current inputs; reassess affected inputs after90 rather than calling
+   them final distributed-artifact qualification.
 2. Freeze runtime/configuration and generated views before broad code-phase
    verification. Use checkout-owned tools/native artifacts. Run strict full
    `scripts/agent-verify.sh` once per final source phase; keep workspace clippy/check

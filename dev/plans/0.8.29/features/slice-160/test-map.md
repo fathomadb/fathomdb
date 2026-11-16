@@ -36,8 +36,10 @@ exception grants160 no exception. Property tests apply if an
 actual codec/projection/recovery/round-trip behavior changes. Review authored
 oracles and fixture pins before adapting an intentionally changed contract.
 
-No native/full/long/GPU campaign runs during Phase A. Candidate structural/link/
-join checks are document validation only. After parent import use the existing
+The independent local batch in [design](design.md#independent-local-execution-batch)
+executes the two unchanged required long-test selectors and offline verified leaf
+packages after design review. It does not replay the full or GPU campaigns.
+Candidate structural/link/join checks are document validation only. Use the existing
 Markdown/contract validators; do not represent a scratch check as full repository
 or product qualification. New AC-measurement tools belong in the repo with a
 rerunnable command/env description and experiment README index; no such tool is

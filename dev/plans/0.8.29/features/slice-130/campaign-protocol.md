@@ -179,6 +179,26 @@ fixtures from the historical harness. Model preload and one complete warm-up
 loop precede t0; record their duration separately. The instrumented feature and
 observation cadence are identical in on/off builds and declared in the record.
 
+Prospective runtime selection, 2026-11-16: use Node 25.9.0 with
+`--max-semi-space-size=4` in the worker command for BOTH new on/off arms.
+The [pinned Node documentation](https://nodejs.org/download/release/v25.9.0/docs/api/cli.html#--max-semi-space-sizesize-in-mib)
+defines this as a 4 MiB maximum per V8 semi-space, not a process-RSS cap.
+It constrains capacity growth during normal automatic V8 collection; it neither
+requests collection nor hides a growing live heap. The retained default-profile
+failure showed a 25.5 MiB heap-capacity step while live-heap medians declined;
+about 5 MiB of residual terminal anonymous growth remains unattributed. That default Node result remains FAIL
+and its off arm NOT_RUN; this selection does not establish a product leak or
+retroactive qualification. Any new result applies only to this explicit
+instrumented runtime profile, not unrestricted default Node or shipping plateau.
+No old-space cap, forced GC, `--expose-gc`, heap churn or extra prewarming is
+selected. Keep the original single warm-up, Node 50-document writes per iteration,
+all model/artifact/source identities, passive counters, workload/output checks,
+resource/deadline/swap bounds and numerical criteria unchanged. Preserve the
+original worker specification and use a new owned specification with only this
+Node argv flag added. Independent runtime-selection review precedes another
+pair; existing native artifacts and passed D/shipping controls need no rebuild
+or replay for this command-only change.
+
 Record t0 as a separate baseline, excluded from scheduled sample counts and
 verdict windows. Scheduled samples are exactly t0+60k seconds for integer
 k=1…60:60,120,…,3600s. At baseline and every scheduled sample, record process

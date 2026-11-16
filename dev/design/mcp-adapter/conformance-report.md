@@ -13,6 +13,10 @@ inputs:
 
 # MCP conformance report for `fathomdb-mcp`
 
+This is the historical October 17 evaluation. Fresh both-format 0.8.29 results
+and unresolved protocol discrepancies are in the
+[current report](conformance-0.8.29.md); this historical pass is not current evidence.
+
 ## 1. Summary
 
 - Date: 2026-10-17.

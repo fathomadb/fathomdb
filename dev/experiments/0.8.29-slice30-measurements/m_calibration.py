@@ -151,14 +151,14 @@ def admit(profile, ledger, retained_bytes, limits):
 
 
 def admit_selected(profile, ledger, retained_bytes, limits, cell_id):
-    """Admit one canonical required cell under the original cumulative shared caps."""
+    """Admit one canonical required cell under selected cumulative shared TOTAL caps."""
     from m_controller import load_plan
     if cell_id not in {cell["id"] for cell in load_plan()}:
         raise ValueError("canonical required M cell selection required")
     if any(type(profile.get(key)) is not int or not 0 < profile[key] <= bound
-           for key, bound in (("total_shared_ns", 14400 * 10**9),
-                              ("total_shared_retained_bytes", 16 * 1024**3))):
-        raise ValueError("selected M original shared maxima remain14400s/16GiB")
+           for key, bound in (("total_shared_ns", 48 * 3600 * 10**9),
+                              ("total_shared_retained_bytes", 192 * 1024**3))):
+        raise ValueError("selected M shared maxima are48h/192GiB")
     usage = ledger.get("selected_cell_usage", {}).get(cell_id, {})
     selected = dict(ledger, calibration_usage={CALIBRATION_ID: usage})
     return admit(profile, selected, retained_bytes, limits)

@@ -160,3 +160,82 @@ mod parity_fixture_tests {
         assert!(mismatches.is_empty(), "fixture mismatches:\n{}", mismatches.join("\n"));
     }
 }
+
+#[cfg(test)]
+mod scored_extent_tests {
+    use super::*;
+    use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
+    use fathomdb_engine::{Engine, InitialState, PreparedWrite, ReadView, SourceId};
+    use std::sync::Arc;
+
+    struct Provider;
+    impl Embedder for Provider {
+        fn identity(&self) -> EmbedderIdentity {
+            EmbedderIdentity::new("s90-scored", "test", 8)
+        }
+        fn embed(&self, _: &str) -> Result<Vector, EmbedderError> {
+            Ok(vec![1.0; 8])
+        }
+        fn truncation_offset(&self, input: &str) -> Result<Option<usize>, EmbedderError> {
+            Ok(match input {
+                "unknown!" => None,
+                "zero" => Some(0),
+                _ => Some(11),
+            })
+        }
+    }
+
+    #[test]
+    fn s90_scored_bytes_follows_exact_vector_participant() {
+        Python::initialize();
+        for (body, expected) in
+            [("\x1e\x11é\n\x1e\x12🦀 zed", Some(11_u32)), ("zero", Some(0)), ("unknown!", None)]
+        {
+            let directory = tempfile::tempdir().unwrap();
+            let opened = Engine::open_with_embedder_for_test(
+                directory.path().join("scored.sqlite"),
+                Arc::new(Provider),
+            )
+            .unwrap();
+            opened.engine.configure_vector_kind_for_test("doc").unwrap();
+            opened
+                .engine
+                .write(&[PreparedWrite::Node {
+                    kind: "doc".into(),
+                    body: body.into(),
+                    logical_id: Some("covered".into()),
+                    source_id: SourceId::new("test:s90").unwrap(),
+                    state: InitialState::Active,
+                    reason: None,
+                    valid_from: None,
+                    valid_until: None,
+                }])
+                .unwrap();
+            opened.engine.drain(10_000).unwrap();
+            let result = opened
+                .engine
+                .search_reranked_view_with_snippets(
+                    "zed",
+                    None,
+                    0,
+                    false,
+                    0.3,
+                    0,
+                    true,
+                    &ReadView::default(),
+                    10,
+                    Some(&RustSnippetOptions::default()),
+                )
+                .unwrap();
+            assert_eq!(result.results.len(), 1);
+            assert!(result.explanation.as_ref().unwrap().per_hit[0].vector_rank.is_some());
+            let snippet = &result.snippets.as_ref().unwrap()[0];
+            Python::attach(|py| {
+                let native = Py::new(py, PySnippetV1::from_rust(snippet)).unwrap();
+                let extent = native.bind(py).getattr("scored_bytes").ok();
+                assert!(extent.is_some(), "real native vector snippet drops scored extent");
+                assert_eq!(extent.unwrap().extract::<Option<u32>>().unwrap(), expected);
+            });
+        }
+    }
+}

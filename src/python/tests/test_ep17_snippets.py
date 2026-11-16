@@ -314,3 +314,30 @@ def test_s90_installed_scored_bytes_belongs_to_real_vector_hit(db_path: str) -> 
         assert getattr(text.snippets[0], "scored_bytes", None) is None
     finally:
         engine.close()
+
+
+def test_s90_scored_extent_property_tracks_original_utf8_body() -> None:
+    """Each short participating head reports its original stored byte extent."""
+    import tempfile
+
+    from hypothesis import given, settings, strategies as st
+
+    @settings(max_examples=8, deadline=None)
+    @given(st.text(alphabet="abcé🦀\u0301", min_size=1, max_size=16))
+    def check(body: str) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            engine = Engine.open(f"{directory}/property.sqlite", use_default_embedder=True)
+            try:
+                engine.configure_projections([fathomdb.ProjectionSpec(
+                    name="body", roles=frozenset({fathomdb.ProjectionRole.SEARCHABLE}), vector=True,
+                )])
+                engine.write([{"kind": "doc", "body": body, "logical_id": "head", "source_id": SOURCE}])
+                engine.drain(timeout_s=30)
+                result = engine.search("zed", snippet=SnippetOptions(), explain=True)
+                assert len(result.results) == 1 and result.snippets is not None
+                assert result.explanation is not None and result.explanation.per_hit[0].vector_rank is not None
+                assert getattr(result.snippets[0], "scored_bytes", None) == len(body.encode()), "scored property loses original byte extent"
+            finally:
+                engine.close()
+
+    check()

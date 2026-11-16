@@ -232,10 +232,10 @@
         "dev/plans/0.8.29/features/slice-30/continuation-gd.md",
         "dev/plans/0.8.29/features/slice-30/continuation-m.md"
       ],
-      "phase": "G84_F_QUALIFIED_D16_ACCEPTED_S50_FINAL_P_ACTIVE_M_CORRECTION_ACTIVE",
+      "phase": "G84_F_QUALIFIED_D300K_ACTIVE_M_CORRECTION_ACCEPTED_S50_P32_QUALIFIED",
       "plan_sha": "bea7f05cd2497af0d73c6eb8da509e11a947ca08",
-      "conditions": "G84/84 andF/Q8 accepted. M11/46 qualified; foreignGPU refusal retained, coherent correction active. D16/24 independently Astra accepted after exactnamed100kpair; originalfailed/interrupted history retained and StoragecauseUNKNOWN. Conditional300k8remain underactualfreshfit. S50qualified26/136ordinary0/24diag; final3P actuallyrunning. Everyselectedoutcome,target,andcumulativecharge remains.",
-      "evidence": "AcceptedP/G84/F-Q8 baselines andsource/toolingpreserveoriginalnativeidentities,errors,outliersandcharges. Gfinal84reporthas144populations/97318success0errorsinselectedqualifiedoutcomes;notallhistoricalattempts. Dcriticalfailfast/TERM/accounting2c54isacceptedandactualrecoverycompletedonce. Private914SQLite-logdiagnosticcompleted100k/1000calls0errorsbutoriginalStoragecauseUNKNOWN;noordinarycreditorproductfixclaim. M sourcec738/native4ffc plusacceptedf29variants executesoriginal46sequence; source/row-levelresultsremaininexistingtaskroots. Whole30stillopenonM/DandcurrentS50performance.",
+      "conditions": "G84/84 and F/Q8 accepted. M11/46 qualified; failed foreign-GPU attempt retained and bounded correction accepted/integrated. D16/24 accepted; actual300k held quartet running under original4500s/cell caps. S50 all16P pairs/32ordinary members qualified,104G ordinary+24diagnostic remain. Every original target, failure, outlier and cumulative charge remains.",
+      "evidence": "Accepted P/G84/F-Q8 baselines retain original native identities. D100k replacements accepted; original Storage cause UNKNOWN, private diagnostic gives no ordinary credit. M43776233 correction accepted and merged533dd83e7; focused integration Astra ACCEPT with82M/57D/56S50 controls PASS. Whole30 remains open on D/M and current S50 performance.",
       "qualified_subset_sha": "2fd772558e46d0b1645dce2ffea730d0bdd3305c",
       "continuation_plan_sha": "0d8be5bb75516955ebf99b94913b9b54921bb3a4",
       "g_design_review": "Independent Astra-medium FIX1 PASS plus actual20 fit PASS; all G/D contracts unchanged,40 file pins/13 subtrees/44 Cargo manifests verified at f803a964. See continuation-gd.md and review-log.md.",
@@ -670,9 +670,9 @@
         "root": "/mnt/data/tmp2/fathomdb-0829-continuation/slice30-g-20261113/gd-allocation/d-initial-10k-held-dc8f97601",
         "held": "Four1000-call cells,zero errors;292.785s outer/287.203s charge. C observations complete/no dropped; unobserved T counters remain null. Independent Astra accepted held result.",
         "overlap": "Four additional1000-call cells completed; actual times61.262/63.141/62.831/61.371s,250.437s charge; both C report actual_overlap=true. Original guardians collected/removed.",
-        "remaining": "Only300kheld/overlap eightordinarycells remain. OriginalT100kfailed/Cinterrupted records/raws remain withqualifyingattempt0002 histories; noattempt3or300kdispatch. CurrentS50final3Pownsallocation; prepareexisting300kprofilesfromactual16lowerrows and recheckfreshadmission.",
+        "remaining": "Eight300k cells remain. Held quartet actually running; overlap quartet waits for its actual completed prefix and fresh admission. Original failed/interrupted100k attempts remain; no third attempt.",
         "selected_source": "d109ec2ba9fd95d350da6f20d168848078082ba2",
-        "next": "IndependentAstra actual100kpairACCEPT. Conditional300k percell conservative heldC4320.4840824s/T4311.38297346s,overlapC3682.2468318s/T3788.44550958s allbelow4500s, butactualquartet/resource/sharedadmissionremain. No newordinaryretry,diagnosticcredit orproductfixclaim.",
+        "next": "Finish current held quartet without interruption, review actual results, then run remaining overlap quartet if original admission fits. No diagnostic credit or product-fix claim.",
         "allocation_checkpoint": "100kheld quartet completed atsharedused7572488420035ns/retained13272711972B; originalguardians/outer terminal clean. LaterS50/G charges retain sameledger.",
         "held_100k": "Actuald109 C/T/T/C:601.202/587.059/610.264/611.776s,4000successfulcalls/0errors;closed100000rows each,observedCcomplete/dropped0,Tunobservednull. Original8DC8results untouched; stagecomplete notwholecampaign.",
         "continuation_source": "57912dab7be249ef4651762e2385b60793d016d8; independentAstra design/finalACCEPT; genuineREDfe0e9a90,21affectedcontrolsPASS and5mergedpurelimitcontrolsPASS. No Gledger mutation.",
@@ -720,20 +720,37 @@
             "retained_bytes_at_handoff": 81981660479,
             "exec_session_terminal": 68209
           }
+        },
+        "active_300k": {
+          "source": "7a92144cd855b673d2e2d0077b3b9be0d425b99b",
+          "unit": "fathomdb-s30-d-300000-held-7a92144cd-v2-20261116.service",
+          "session_id": 56542,
+          "state": "ACTUALLY_RUNNING_HELD_QUARTET",
+          "log_root": "/mnt/data/tmp2/fathomdb-0829-continuation/slice30-d-runtime-limits-20261116/remaining/d-300000-held-continuation-v2-20261116",
+          "native": "Original D109/a512561a1c6ede38fa5233a897507d3d89883ba561a5043f52b37158c9a67a13; CPU varying provider; no GPU.",
+          "caps": "Original4500s/cell;18080souter/12GiB RAM/zero swap; same48h/192GiB cumulative allocation.",
+          "prior_refusal": "First pre-native admission refused after d-config replacement reduced retained bytes2621B; no native attempt consumed. Receipt05e68990-74d9-4b98-b9ba-ab7f1e409a72 and1678076495ns charge retained. Existing nonfuture D16 retained checkpoint used for v2; fresh actual fit remains enforced."
         }
       },
       "m_selected_runtime": {
         "source": "f29b75db3d0272e2105ff4e06c65df9853ca9b91",
         "review": "Independent Astra-medium final source ACCEPT",
-        "status": "ELEVEN_OF_46_QUALIFIED_FOREIGN_GPU_CONFLICT_STOPPED",
+        "status": "ELEVEN_OF_46_QUALIFIED_CORRECTED_CONTINUATION_ACCEPTED",
         "root": "/mnt/data/tmp2/fathomdb-0829-continuation/slice30-g-20261113/gd-allocation/m-required-M-R-1-1-debug-f29b75db3",
         "result": "Required1-1-debug,1-4-warn and1-4-debug each completed1+500+1000 calls with zeroerrors/unresolved; plus exactpriorwarnreference. Originalfinalguardians/phasequalification and strictoutercleanup passed; disposablecopiesretired afterqualification. Whole46 remains incomplete.",
         "reuse": "M-R-1-1-warn satisfied_by exact original full calibration reference; no replay,relabel,doublecharge or raw mutation. Debug is the new required primary run. Successful disposable copy retired only after qualified final cleanup; original/raw/failed evidence preserved.",
         "shared_checkpoint": "After1-4-debug:used4868099798617ns,retained9271842748B,noactiveguardians/inflight. Laterpaired50 uses sameledgerandcarriesallcharges.",
-        "next": "No retry. M-R-2-32-warn failed original attempt:1503 successful requests, MCPexit0, GPUobserver foreigncompute refusal; offendingrecordnotretained soPIDunknown. Guardianexit1/strictcleanup/terminalunit/MainPID0/all5ownersNULL/markerabsent/FD9released. Shared26599341664363ns includingfailed272193177669ns. S50providerfreeP handedallocation. Existing fresh-root API preserves cumulative cellcaps; continuation correction under analysis, not executed.",
+        "next": "Prepare explicit fresh-root continuation of failed M-R-2-32-warn with failed history and unchanged cumulative remaining phase627806822331ns/payload532110591408ns/growth1382159668B. No runtime retry yet; wait for current D ownership handoff and fresh GPU readiness. Original1503successful RPCs/foreign-GPU refusal remain unqualified; old offending PID UNKNOWN.",
         "integrated": "62b465b8b989dc0ac1e755c4934d3a5fe000368c; acceptedf29 M changes reconciled with S50 and D, finalAstraACCEPTd109",
         "continuation_source": "c738f39bdcd1c6d8550fbd84d8cc4599946f77cf;independentAstra design/finalACCEPT,genuineRED969154e5->GREEN;22focusedtestsand6mergedselected-admissiontestsPASS;native81791194 unchanged.",
-        "current_variant_builds": "BothpreviousgapsnowactualPASS:providerfree-f29b75db3-20261116/features[] andhelper-f29b75db3-20261116/test-seams underindependentruntime-env outsideallocation. Exactf29producer/compiler81791194/hash-boundreceipts;sourceclean/exit0/noresourcestop/strictquiescentcleanup;Astraaccepted. Ordinary4ffcunchanged,norebuildorreplay;all42remainingMrowsnowhavequalifiedcurrentvariantinputs."
+        "current_variant_builds": "BothpreviousgapsnowactualPASS:providerfree-f29b75db3-20261116/features[] andhelper-f29b75db3-20261116/test-seams underindependentruntime-env outsideallocation. Exactf29producer/compiler81791194/hash-boundreceipts;sourceclean/exit0/noresourcestop/strictquiescentcleanup;Astraaccepted. Ordinary4ffcunchanged,norebuildorreplay;all42remainingMrowsnowhavequalifiedcurrentvariantinputs.",
+        "bounded_correction": {
+          "source": "43776233d8b12c8a22e16bbbcadb3a9954eeb000",
+          "integrated": "533dd83e7",
+          "review": "Independent Astra final source ACCEPT and focused canonical integration ACCEPT.",
+          "scope": "Retain actual offending GPU record; bounded raw/control/publication streams; explicit failed-predecessor history; M-only limits; committed public operator and unconditional terminal accounting respecting S50 custody. Original native/compiler identities and caps unchanged.",
+          "verification": "Genuine separate RED/GREEN units;82portable M controls PASS on integrated source;57D/56S50 controls PASS. No live allocation or GPU actions."
+        }
       },
       "g_write_runtime": {
         "source": "2d6e6291f58f177b549727a82e5d00810fd66a3e",
@@ -817,11 +834,11 @@
       },
       "paired_runtime": {
         "source": "9fcee370363ece22edc8dff967b6d03975025de3",
-        "status": "TWENTYSIX_OF_136_ORDINARY_QUALIFIED_REPEAT1_FIVE_P_ASTRA_ACCEPTED",
+        "status": "THIRTYTWO_OF_136_ORDINARY_QUALIFIED_ALL_P_ASTRA_ACCEPTED_FIRST_G_PRE_NATIVE_FAILED",
         "root": "/mnt/data/tmp2/fathomdb-0829-continuation/slice30-g-20261113/gd-allocation/s50-required-p1-10k-r0-09c53495b",
-        "result": "P1-10k-r0,P1-100k-r0 andP2-b1-s1-r0 ordinarywinner/eager complete/equal;zeroerrors. P2each1000timed/500warm,100000natural/10markers/0vectors,issuesempty,192.391/192.235s native. Strictfinalguardian/outerclean; wholematrixfalse. Originalnativeproducer09c retained, selectioncontroller9fcee separate.",
+        "result": "All16P pairs/32ordinary members qualified with equality and zero errors;0/24diagnostic. Final three P pairs independently Astra accepted.104ordinary G members and24diagnostics remain; no universal speedup claim.",
         "measurement": "Eager-minus-winner mean:engine.493027263ms/bootstrap95[.394336489,.595246726];SDK.36890688ms/[.26585262,.481659482]. Samequerypairedcomparison; noG/performancefullmatrixclaim.",
-        "next": "Final3providerfreeP nowactuallyrunning afteracceptedD16strictrelease, unitfathomdb-s50-final-three-p-r1-a345d335d-20261116, rootsession94125/MainPID3141493 atlaunch. Freshall5clear/bothmarkersabsent/strictD13d boundaryremoved/source/resources/2xfitPASS. Same48h/192GiB totals, finite3pairs/5600s/4GiBgrowth/common100s/256MiB, member900s/pair1800s, retirementtrue. Qualifiedcountremains26/136ordinary0/24diag untilterminalreview; noGautodispatch.",
+        "next": "Use corrected sourcea0b7b233 with a fresh explicit adoption for first G10k retry after current D handoff. Original attempt0001 failed before native due to an omitted zero-byte WAL created by read-only fixture inspection; old failures/charges retained. No attempt0002 yet.",
         "selection": "Immutableadoptionselections/21055230956019-1147832.json;172800000000000ns/206158430208B TOTAL. P1old800scap preserved;newpair1800s/member900s. Acceptedretirementfreed1182400512Bonlyfrom4qualifieddisposablecopies;raw/failed/P1100kpendingdiagretained.",
         "visibility_correction": "Sourcea345d335dc7e08757497a0260764382705fa6986 independentlyAstraSOURCEACCEPT andintegrated57bda21f; genuinechildenvironmentRED/GREEN,66focusedcontrols plus48rootaffectedintegrationcontrolsPASS. SelectedUUID/cuda0/offlinecache onlyforGnativechild, no globalenvironmentmutation; Rust/Cargo/native09c/compiler8465unchanged. Five-Pwindow prepared,notadoptedorexecuted.",
         "window_selection": "Newimmutable40606222694724-2142373.json;max5/phase9200s/pair1800/member900/common100/growth8GiB/common256MiB/retiretrue;48h/192GiBTOTAL includesallpriorcharges/attemptcaps. Original210552adoption remainsretained.",
@@ -836,7 +853,26 @@
           "starting_retained_bytes": 81981660479,
           "source": "a345d335dc7e08757497a0260764382705fa6986",
           "native": "09c53495bbc47b3361f1d770e04efb573e889d08",
-          "state": "ACTUALLY_RUNNING_PROVIDERFREE_CPU_NO_GPU"
+          "state": "TERMINAL_PASS_SESSION0_ASTRA_ACCEPTED"
+        },
+        "final_p_window": {
+          "guardian": "279dd41c-8fca-4fc9-a622-809d31fbed8d",
+          "charge_ns": 656780988478,
+          "post_guardian_charge_ns": 144179302,
+          "shared_used_ns_at_handoff": 30307584390817,
+          "retained_bytes_at_handoff": 82399774045,
+          "result": "Six members complete/equal/zeroerrors; strict cleanup, exact boundary removed, all5custody fields NULL/both markers absent at handoff. Independent Astra ACCEPT."
+        },
+        "first_g_failure": {
+          "unit": "fathomdb-s50-first-g-r10k-a345d335d-20261116",
+          "guardian": "12a8bdf3-e468-471e-b71d-d9f199bdfa22",
+          "result": "Both attempt0001 members refused before native: closed subject has an unaccounted WAL companion. Existing driver incorrectly dispatched eager after winner failure. No native/GPU measurement credit.",
+          "charge_ns": 34210937059,
+          "shared_used_ns_at_handoff": 30341795327876,
+          "cleanup": "Strict quiescent cleanup, exact boundary removed, all5custody fields NULL/both markers absent.",
+          "correction_source": "a0b7b233adf4331c91f98ec67d175dce3d6c51d2",
+          "correction_integrated": "9f31eae26",
+          "correction_review": "Independent Astra ACCEPT;63focused controls PASS after separate genuine REDs. Fixture inspection precedes package identity; narrowly repairs cached omitted empty WAL, preserves nonempty WAL commits; failfast and explicit-adoption retry preserve history and cumulative caps."
         }
       }
     },
@@ -948,14 +984,14 @@
         "dev/plans/0.8.29/features/slice-90/test-map.md"
       ],
       "conditions": "Owner seq392 supersedes the whole-Block1 pre-source hold: accepted80 plus fresh actual integrated qualified20/50/60/70 source-contract fit and accepted independent design permit90 implementation while measurements continue. Whole50 closure is an integrated qualification exit, not a source dependency. All selected30/50 measurements,40 disposition, applicable correctness/performance/conformance/artifact gates remain required before local close. Run the exact seq38872 episodes once on the final integrated90 candidate with unchanged models, fixtures, scoring, budget and stops. Final local passes then CI review then CI; publication excluded.",
-      "phase": "SOURCE_FIT_ASTRA_ACCEPTED_IMPLEMENTATION_ACTIVE",
-      "evidence": "Owner seq392 parallel-entry amendment adoptedc76. Updatedsourcefit87bc independentlyAstraACCEPT andintegratedbcc8e9ae0; actual20/50/60/70productionseams unchanged fromacceptedbaseline, interveningRustchangesonlyprivateS30diagnosticexample/Cargodeclaration. Implementeractive; finalAstraimplementationreview, actualsemanticRED/GREEN andintegratedqualification remainopen.",
+      "phase": "FULL_SOURCE_ASTRA_ACCEPTED_INTEGRATED_FINAL_QUALIFICATION_PENDING",
+      "evidence": "Full80 implementation independently Astra accepted at261c5698f10170fe826e05cac160f15ac9f264a2 and integratede57e0874fabc893888b01362b4cfc6bb0701b31a. Actual semantic RED/GREEN includes installed Python/TS before shared converters; actual malformed-null decoder path bug separately repaired.13realengine cache/identity/snapshot/SQL-work controls,29installedPython,3installedTS,4nativeconverter andSDK consumer controls PASS; field census/module132/static409targets/lint/typechecks PASS. Root final broad gate, affected artifacts, remaining measurements/40 disposition and exact72episodes once remain pending.",
       "block1_smoke_runner": {
         "source": "db2857c3012f8bdd245d1c6f80a419eff324030d",
         "integrated": "73eb4cf7d45a3ceed3bdce20256f84d7d1c76d91",
         "review": "Independent Astra final ACCEPT after real surviving-descendant and partial-audit-verdict corrections.",
         "qualification": "22 registered pure tests plus prior9 historical measurement controls passed; source Ruff/shell/CLI/diff/hooks passed. Integration preserves all231 tier labels,213fast/18heavy. Full gate remains pending the final clean source phase. No inference was run.",
-        "execution": "Owner seq388 approves72 native-format episodes with Haiku5.5 answerer/GPT-4o-mini judges and disclosed bounds. Dataset/fixed IDs resolved; candidate stores must be rebuilt. Actual selected Block1 predecessors and conformance remain hard before inference/90 source entry; no inference run claimed."
+        "execution": "Seq388/392 approve the same72episodes once on final integrated90 candidate. Final candidate stores and applicable qualification precede calls; measurements do not block90source implementation. No inference run yet."
       },
       "block1_conformance": {
         "source": "48c6cd0714e6b67645870bdb06d20d374e9627eb",
@@ -967,7 +1003,7 @@
         "limits": "Malformedtools/callenvelope-32601vs-32602 remainsrealvisibleupstreamdiscrepancy;notafailureofscopedMR001.3,notwaived/fullJSONRPCcompliance. NoBlock1exit:30/40/50andapproved72LLMepisodesremain."
       },
       "current_design_sha": "72d9e2b1346dafc179f93f82d835bba20f682954",
-      "current_design_review": "IndependentAstra-medium ACCEPT actual50/60/70 and fullowner-approved80 reconciliation,strictcoverage/identity/nativecontracts andsemanticREDsequence. No product code/runtime or newownerdecision; actual30/40/50/approved72episodes/Block1exit still gate source.",
+      "current_design_review": "Independent Astra-medium ACCEPT full owner-approved80 reconciliation and actual source fit87bc. Seq392 permits implementation before whole Block1 exit; remaining measurements/40 disposition/model episodes stay final integrated exits.",
       "source_entry": {
         "worktree": "/mnt/data/worktrees/fathomdb-0.8.29-s90-implementation-20261116",
         "branch": "llm/0.8.29-s90-implementation-20261116",
@@ -976,7 +1012,10 @@
         "integrated": "bcc8e9ae0",
         "review": "Independent Astra-medium ACCEPT updated14documents and actualsourcefit; no semantic conflict or blocking finding. Full80scope and installedPyTSsemanticREDorder preserved.",
         "preflight": "Actual strict release-state/baseline/dependency80/disk preflightPASS.",
-        "execution": "Sol-high implementer resumed forfull90RED/GREENsourcework. No production/native/modelqualification claimedyet. Sameapproved72episodes once onfinalintegratedcandidate perseq392."
+        "execution": "Complete full80 source accepted and integrated. This is source/scoped qualification, not whole90 or release closure. Same approved72episodes run once against final integrated candidate.",
+        "implementation_source": "261c5698f10170fe826e05cac160f15ac9f264a2",
+        "implementation_integrated": "e57e0874fabc893888b01362b4cfc6bb0701b31a",
+        "implementation_review": "Independent Astra-medium final ACCEPT, no remaining findings."
       }
     },
     {
@@ -1533,6 +1572,11 @@
     ],
     "unruled": [
       {
+        "id": "slice40-treatment-disposition",
+        "title": "Existing owner question pending: proposed no new cache/batch treatment in.29; retain opportunity for later measured treatment. No disposition inferred.",
+        "owner_slice": 40
+      },
+      {
         "id": "optional-experiments",
         "title": "Individual150 study inclusion or explicit defer remains pending.",
         "owner_slice": 150
@@ -1561,7 +1605,7 @@
   },
   "release_readiness": {
     "status": "NOT_READY",
-    "qualification": "0\u201320,60,70,80design,100,selected110/130D-E/140 complete withindependentreviews;G84/F-Q8andnormalQ3assembledscopeaccepted. Msequenceactive(atleast8/46qualifiedcheckpoint);S50ordinary16/136/diag0/24;D14/24withStorageunreproducedandboundedtechnicalcontinuationproposalpending.40actualdispositionand90implementationremain;90sourceentrygateAMENDMENTisproposedonly,oldgateholds.72approvedepisodesnotrun. AcceptedlocalCPU/CUDAconsumers,WindowsWAL,ARMfloors,long/security,SDKCLI,allocation/nonuseandperformancecomponentsretainactualproducer/scopelimits. EU7legacyoverallrecallFAILandNodeEdefaultprofileFAILremainseparatefromacceptedreplacement/declaredprofiles. Finalaffectedsource/artifacts,rehearsal,MacCIvenuesandlocalpass->CIreview->CIremain;registrypublishexcluded.",
+    "qualification": "Selected0\u201320/60/70/80design/100/110/130D-E/140 exits accepted. Full90source implemented/Astra accepted/integrated; root broad and affected final-artifact qualification pending. G84/F-Q8 accepted; M11/46, D16/24 with actual300kheld running; S50P32/136ordinary qualified,104G+24diagnostic remain. Original failures and unknown Storage cause retained.40 owner disposition pending;72approved model episodes not run. Reuse accepted unchanged local/platform evidence within actual inputs; final rehearsal/MacCI and localpass\u2192CIreview\u2192CI remain. Registry publication excluded.",
     "publication": "HELD; no tag, dispatch, external ACL mutation or registry publication authorized by bootstrap.",
     "local_source_phase": {
       "status": "ASSEMBLED_FULL_SOURCE_PASS_INDEPENDENT_ASTRA_ACCEPTED",

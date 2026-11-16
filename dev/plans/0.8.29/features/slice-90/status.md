@@ -39,8 +39,9 @@ binding, MCP, typing, lint and snippet/storage regression results remain in the
 owned raw task logs. The experiment README indexes the bounded status/capture
 work comparison; shared-host timings are descriptive, not performance claims.
 
-One coherent independent final implementation review is in progress and will
-bind the completed clean source and scoped results. The release coordinator owns
+Independent Astra-medium final review ACCEPTS clean source
+`261c5698f10170fe826e05cac160f15ac9f264a2` and the scoped results. Canonical
+integration is `e57e0874fabc893888b01362b4cfc6bb0701b31a`. The main chat owns
 the final stable integrated broad gate and applicable correctness, performance,
 conformance, artifact and release exits. Remaining30/50 measurements and40 owner
 disposition are final integrated obligations, not source-entry holds. The same

@@ -48,8 +48,10 @@ Current accepted exits and assembled-source limits are in
 source and each matrix row's inputs; do not rerun a proposal census or copy stale
 status into this plan.20,60/70/80 and100 have accepted selected exits;110/140's
 selected source/healthy/OOM/consumer scope has independent acceptance.30 and50
-still owe their remaining measurements;40's owner choice,72's model episodes
-and130E's Node soak remain open.90 still needs the real Block1 exit.
+still owe their remaining measurements;40's owner choice and72's model episodes
+remain open.130D/E are accepted. Under owner seq392,90 source implementation
+proceeds before whole Block1 closure; its accepted full80 source is integrated.
+The remaining Block1 obligations gate final integrated qualification.
 
 Format37 is the current substrate: **no database migration**, compatibility shim,
 span-storage rebuild, new calibrated verdict or weak-result threshold. Preserve
@@ -67,9 +69,11 @@ run-state narration an oracle.
 - Readiness requires selected mandatory work's real reviewed exits, applicable
   matrix rows and disposition of mandatory gaps. It does not require source
   implementation of conditional40/140/150 when their inclusion conditions fail.
-- Block1 follow-up exit belongs after actual selected20–70 integration, before90;
-  required full/feature/performance, both-format conformance, approved LoCoMo
-  smoke and corrected item4 remeasure cannot wait for160.90 also needs approved80.
+- Owner seq392 permits90 source implementation after accepted80 and actual
+  qualified20/50/60/70 source fit while measurements continue. Whole Block1
+  closure is a final integrated qualification exit. Run the same approved
+  72-episode LoCoMo smoke/item4 comparison once on the final integrated candidate;
+  retain applicable full/feature/performance and both-format conformance gates.
   Slice70 does not acquire full60 closure as a new hard prerequisite.
 - Prefer final integration before expensive timings/packages. Earlier valid .29
   evidence can discharge unchanged rows; rerun invalidated scopes. Do not add

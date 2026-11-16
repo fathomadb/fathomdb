@@ -41,5 +41,36 @@ class DStorageDiagnosticTests(unittest.TestCase):
         self.assertFalse(report['qualifies_natural'])
 
 
+    def native_case(self, config):
+        with tempfile.TemporaryDirectory(dir=Path(os.environ['S30_TASK'])/'tmp') as directory:
+            root = Path(directory)
+            selected, output = root/'cell.json', root/'output'
+            output.mkdir()
+            selected.write_text(json.dumps(config))
+            child = subprocess.run([os.environ['S30_D_DIAGNOSTIC_BINARY'], str(selected), str(output)],
+                env=dict(os.environ, AGENT_LONG='1'), capture_output=True, text=True, timeout=10)
+            self.assertEqual(child.returncode, 1)
+            self.assertTrue((output/'result.json').exists(), 'private fixed-case entry did not retain diagnostic result')
+            self.assertFalse((output/'store.sqlite').exists(), 'source admission control created a measurement store')
+            return json.loads((output/'result.json').read_text())
+
+    def test_fixed100k_entry_retains_close_reserve_without_store_preparation(self):
+        report = self.native_case({'id':'d-t-overlap-n100000-r1','n':100000,'mode':'overlap',
+            'repeat':1,'layer':'T','cell_ns':1500*10**9,'remaining_cell_ms':1,'attempt_id':'source-control-only'})
+        self.assertIn('close reserve', report['workload_error'])
+        self.assertFalse(report['complete'])
+        self.assertFalse(report['qualifies_natural'])
+        self.assertTrue(report['sqlite_log']['capture_complete'])
+
+    def test_other_fixed_cell_size_or_mode_refuses_before_sqlite_open(self):
+        for n, mode, cell_ns in ((10000,'held',900*10**9),(100000,'held',1500*10**9)):
+            with self.subTest(n=n,mode=mode):
+                report = self.native_case({'id':f'd-t-{mode}-n{n}-r0','n':n,'mode':mode,
+                    'repeat':0,'layer':'T','cell_ns':cell_ns,'remaining_cell_ms':1,'attempt_id':'source-control-only'})
+                self.assertIn('only fixed100k T overlap', report['workload_error'])
+                self.assertFalse(report['complete'])
+                self.assertFalse(report['qualifies_natural'])
+
+
 if __name__ == '__main__':
     unittest.main()

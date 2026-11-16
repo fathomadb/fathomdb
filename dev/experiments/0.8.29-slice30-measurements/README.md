@@ -367,6 +367,14 @@ reviewed write table/profile. Freeze records the prerequisite; supervised run
 recomputes actual costs and refuses unavailable/changed admission. These source
 interfaces grant no measurement or prospective-cap authority.
 
+For a bounded required-write invocation use `g_runner.py run FROZEN_ROOT
+--max-new-writes 1` under the same owned `g_phase.py` supervisor. The optional
+1..72 limit applies only to the closed write matrix and counts a refusal or
+failure as its selected row. All84 rows remain visible; later writes stay
+`not_run_stage`, partial campaigns exit1, and the default continues the remaining
+matrix. Frozen native inputs, full-table forecasts and cumulative resource
+allowances remain unchanged.
+
 | Tools | Contract |
 | --- | --- |
 | [g_closed_entry.py](g_closed_entry.py), [g_closed_common.py](g_closed_common.py), [g_closed_guard.py](g_closed_guard.py), [g_common_storage.py](g_common_storage.py) | Supervise and charge common freeze/preflight/report/guardian work, including retained metadata and interrupted active cells; unknown cleanup blocks entry. |

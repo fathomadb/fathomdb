@@ -47,7 +47,7 @@ def freeze_entry(options):
         return _call(allocation, options["stage"], "freeze", options)
 
 
-def run_entry(root, corrected_calibration_from=None):
+def run_entry(root, corrected_calibration_from=None, max_new_writes=None):
     """Supervise preflight/cost preparation and finish around the fixed controller mode."""
     from g_boundary import require_known_containment
     from g_runner import run_prepared
@@ -55,12 +55,16 @@ def run_entry(root, corrected_calibration_from=None):
     root = Path(root).resolve()
     bootstrap = json.loads((root / "manifest.json").read_text())
     allocation, mode = Path(bootstrap["allocation"]), bootstrap["stage"]
+    from g_campaign import validate_write_limit
+    validate_write_limit(max_new_writes, mode)
     with (allocation / "g-campaign.lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         options = {"root": str(root)}
         if corrected_calibration_from is not None:
             options["corrected_calibration_from"] = str(Path(corrected_calibration_from).resolve())
         prepared = _call(allocation, mode, "preflight", options)
+        if max_new_writes is not None:
+            prepared["spec"] = dict(prepared["spec"], _max_new_writes=max_new_writes)
         if corrected_calibration_from is not None:
             from g_calibration_successor import consume_successor
             prepared["_calibration_successor"] = consume_successor(prepared, root)

@@ -92,6 +92,27 @@ class GBoundedWriteTests(unittest.TestCase):
                             g_runner.run_frozen(root, max_new_writes=1)
                     run.assert_not_called()
 
+    def test_public_run_passes_bound_through_supervised_entry_without_refreezing(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            bootstrap = {"stage": "closed-copy-write-matrix", "preparation": "closed-copy-v1",
+                         "allocation": str(root)}
+            original = json.dumps(bootstrap)
+            (root / "manifest.json").write_text(original)
+            prepared = {"spec": setup()[0], "device_policy": "cuda:0"}
+            def common(_allocation, _mode, action, _options):
+                return prepared if action == "preflight" else None
+            def controller(manifest, _root):
+                self.assertEqual(manifest["spec"]["_max_new_writes"], 1)
+                return ["bounded-protocol"]
+            with patch.dict(os.environ, S30_TASK=str(root)), \
+                    patch("g_boundary.require_known_containment"), \
+                    patch.object(g_closed_entry, "_call", side_effect=common) as calls, \
+                    patch.object(g_runner, "run_prepared", side_effect=controller):
+                self.assertEqual(g_runner.run_frozen(root, max_new_writes=1), ["bounded-protocol"])
+            self.assertEqual([call.args[2] for call in calls.call_args_list], ["preflight", "finish"])
+            self.assertEqual((root / "manifest.json").read_text(), original)
+
     def test_invalid_bounds_refuse_before_any_child(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

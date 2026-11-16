@@ -26,6 +26,16 @@ measurement. No canonical AC entry is authored here.
 | S50-N2 attributable cost; S50-R6 | S50-A6: exact lightweight rows/hydrated bodies/bytes and prefix work are measured separately from untraced latency. Repeat actual30 cells on the same qualified inputs/native candidate; report p50/p99, RSS, counts and limits without claiming old CS64/native eligibility gains. No unmeasured speedup or new threshold. Current paired support uses the retained eager-body/deferred-identity baseline, with default tracing absent and exact body materialization counts/UTF-8 bytes in separate diagnostics. The public private-scope path binds68 search cells/136 ordinary members plus12 mechanism/cost diagnostic configurations/24 members; its full10k calibration credits none. Natural snippets remain off. | Bounded work witness and30 protocol; [paired support](design.md#current-paired-measurement-support) binds the remaining executable work. |
 | S50-N1/S50-N3 coherent consumer surface; S50-R7 | S50-A7: actual same-build Rust/Python/N-API and both MCP formats retain selected order/IDs/source/explanation and snippet coordinates; compact presentation uses accepted rounding and whole-hit budgeting. Stored hints/spans stay intact. O3-09 tagged fixtures assert exact stored bytes and body-relative snippet coordinates. Unchanged context_item_from_hit derives public IDs; pack_context retains duplicate-ID refusal, including newly exposed h: twins and existing historical l: duplicates. Owner seq-374 explicitly accepts that composed success→typed-refusal consequence. Caller-owned unique ContextItem labels remain distinct from record identity. Interface changes accompany the accepted ADR in the product change. | Fresh installed artifacts, ample-budget typed comparison and separate constrained-page tests. |
 
+Owner's release-completion amendment: R6 executes finite next canonical pairs
+under explicit positive phase/pair/growth/common stop allowances and the actual
+shared ledger, reservations and strict cleanup. No observation of every future
+cell or extra10k diagnostic calibration is an entry prerequisite. Unknown future
+costs remain unavailable and cannot establish full-table fit. Preserve all136
+ordinary/24 diagnostic members, original order/repeats/populations and numeric
+checks; completion requires all160. Eligible already-executed ordinary10k G
+members may count only through explicit strictly matched references, preserving
+original events/charges; no retagging or duplicate execution/charge.
+
 A1/A2 follow owner seq-374 record/version identity and representative-first
 provenance; seq-375 selects atomic ambiguous named-ref feedback refusal. These
 are planned .29 changes; implementation/qualification remain pending.

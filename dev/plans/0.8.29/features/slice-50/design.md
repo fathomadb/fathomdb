@@ -403,46 +403,32 @@ cannot slip into an old primary or qualify a reused original outcome. Public
 report keeps every ordinary/diagnostic member complete/failed/refused/not-run and
 the actual coverage; lower-stage completion never clears primary holds.
 
-`pair-run` needs a selected explicit shared profile and conservative complete-
-remaining-table time/storage forecasts from applicable current observations.
-Carry the existing allocation's actual G/M/D/common/calibration history and all
-retained bytes/reservations; do not reset, double-charge or create an empty
-successor ledger. Preserve independent original P history too. Unknown costs/
-reservations or cleanup keep entry held. The reviewed12h/128GiB profile is
-G-only and grants no50 allocation. Old G/P costs are labelled old proxies, not
-current forecasts; no10× extrapolation makes100k costs known.
+`pair-run` uses a selected explicit shared profile and finite next canonical
+pairs under positive phase, pair, retained-growth and common-work stop allowances.
+These are stop budgets, not measured costs or a forecast that all remaining cells
+fit. Admit against the actual original G/M/D/common/calibration charges, all
+retained data and explicit other-work reservations; do not reset or double-charge
+history. Per-member cumulative900s limits, owned containment/resource floors,
+input/native/source eligibility and strict cleanup remain. Unknown future costs
+stay unavailable. No complete-future-table observation prerequisite is retained:
+it was circular before first primary execution.
 
-Before selecting that larger profile, provide one explicit lower-stage command:
+Each invocation selects only the next required canonical pair(s), preserving
+original member/adapter/route/order/repeat/populations and all136 ordinary plus24
+diagnostic obligations. Freeze/prepare only the selected required P templates;
+later templates are created once under charged common preparation when first
+needed. A finite prefix never claims full-matrix fit or completion. Stop/growth
+failure retains raw partials, failed copies and charges. Later explicit invocations
+continue from actual qualified pair credit; failures do not renew member budgets.
 
-```bash
-AGENT_LONG=1 .venv/bin/python "$G_DIR/g_runner.py" pair-calibrate \
-  --options selected-pair-calibration.json --out "$OWNED/calibration-10k"
-```
-
-It selects only `g-r-n10000-r0`, both adapters/text+hybrid, with a FULL winner/
-eager ordinary pair and a separate FULL diagnostic pair: each of four members
-keeps500 warmups/1000 calls per route/adapter and original first calls. Use four
-fresh copies of the qualified10k donor and the current ordinary/diagnostic builds.
-This distinct calibration ID credits none of the68 primaries or24 diagnostics.
-It can measure current10k copy/open/read/record/observer/RSS/close costs only;
-P preparation,100k and write costs stay unknown until separately observed and
-selected. This first real full10k public calibration jointly qualifies the
-actual build→freeze/admission→native→report pipeline and measures current costs;
-there is no separate proxy-smoke or elapsed-only receipt phase. Harmless source
-controls cannot qualify that runtime. There is no automatic next stage, retry
-or caller-edited subset.
-
-Proposed bootstrap limits are900s whole phase,800s preparation/payload and2GiB
-new retained growth, with2× time/growth headroom against the original shared
-allocation and explicit existing reservations. They are positive stop allowances,
-not cost estimates or runtime GO. Charge common work, failures and prior attempts
-cumulatively by this calibration ID across roots/builds; a new path cannot renew
-it. Enforce the absolute phase deadline and growth stop during qualification,
-preparation, payload and final reporting; a per-member timeout is insufficient.
-Keep cleanup reserves inside the limits and reuse the existing resource guardian,
-private containment, raw/checkpoint bounds and strict actor cleanup. A cap stop,
-missing GPU engagement or incomplete pair yields unknown costs, not a valid bound
-or permission to extrapolate a successful prefix.
+The first real P1-10k-r0 ordinary pair is required measurement, without a separate
+calibration replay. The former four-member10k calibration entry remains optional
+historical support, not a bootstrap prerequisite. Its extra10k diagnostic pair is
+outside the required24 and is never required to unlock primary work. If eligible
+full ordinary10k G members already exist, explicit references may credit the
+identical required members after strict input/source/build/config/result/final-
+guardian matching on the same allocation. Keep their actual origin, raw events and
+existing charges; never retag old results or charge/run those members twice.
 
 Original P/G attempts retain their stores under their existing contracts. This
 proposal explicitly amends **only new paired scope**, with a selected

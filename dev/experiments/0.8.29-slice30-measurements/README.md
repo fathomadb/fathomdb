@@ -605,26 +605,27 @@ scope:136 ordinary members from68 original search cells,24 diagnostic members
 from12 named origins, and a distinct four-member10k calibration. Default G84/P16
 inventories and artifact admission remain unchanged.
 
-Build current owned tools only in the parent's reserved native window, then
-select the full lower-stage calibration explicitly:
+Build current owned tools in the parent's reserved native window, then run a
+finite required prefix:
 
 ```bash
-.venv/bin/python dev/experiments/0.8.29-slice30-measurements/g_runner.py \
-  pair-build --out "$OWNED/pair-tools"
-AGENT_LONG=1 .venv/bin/python dev/experiments/0.8.29-slice30-measurements/g_runner.py \
-  pair-calibrate --options "$OWNED/pair-options.json" --out "$OWNED/calibration-10k"
-.venv/bin/python dev/experiments/0.8.29-slice30-measurements/g_runner.py \
-  pair-report "$OWNED/calibration-10k"
+.venv/bin/python "$G_DIR/g_runner.py" pair-build --out "$OWNED/pair-tools"
+AGENT_LONG=1 .venv/bin/python "$G_DIR/g_runner.py" pair-freeze \
+  --options "$OWNED/pair-options.json" --out "$OWNED/required-pairs"
+AGENT_LONG=1 .venv/bin/python "$G_DIR/g_runner.py" pair-run "$OWNED/required-pairs"
+.venv/bin/python "$G_DIR/g_runner.py" pair-report "$OWNED/required-pairs"
 ```
 
-The options name `build_receipt`, `allocation`, `profile`, `corpus`, `queries`,
-`license`, `model_cache`, `gpu_uuid`, `gpu_ordinal`, and `g_donors` (mapping
-`"10000"` to the original qualified G root; primary also needs`"100000"`).
-Calibration additionally selects `calibration` with integer nanoseconds/bytes:
-`phase_ns:900000000000`, `payload_ns:800000000000`,
-`new_retained_bytes:2147483648`. It runs four fresh full500-warmup/1000-sample
-members through both adapters and text/hybrid, ordinary then diagnostic.
-`pair-run` cannot resume this calibration as primary work.
+Options bind `build_receipt`, `allocation`, `profile`, registered `corpus`,
+`queries`, `license`, `model_cache`, `gpu_uuid`, `gpu_ordinal` and `g_donors`
+(mapping`"10000"`/`"100000"` to the original qualified G roots). Primary
+`primary_limits` contains positive integers `pairs`, `phase_ns`, `pair_ns`,
+`new_retained_bytes`, `common_ns` and `common_bytes`. `pairs` selects a finite
+next canonical prefix, not caller-chosen IDs/counts. `pair_ns` cannot exceed two
+original900s member caps; cleanup reserves remain inside all time allowances.
+Each explicit run continues from actual qualified required-pair credit. Initial
+P1-10k-r0 is required measurement, without a calibration replay. P templates are
+prepared once only when the selected prefix needs them.
 
 The explicit owner-selected profile has schema`slice50-pair-budget/v1`,
 status`APPROVED`, `whole_cell_ns:900000000000`, the original allocation's
@@ -633,19 +634,19 @@ status`APPROVED`, `whole_cell_ns:900000000000`, the original allocation's
 (`BOUNDED` or explicitly `HELD_UNAVAILABLE`) and a nonempty
 `reservation_disposition`. The existing G-only profile grants no50 allocation.
 The original ledger, prior failures/common/calibration charges, retained data and
-reservations carry forward. Calibration needs twofold remaining time/growth
-headroom and cannot renew its cumulative allowance through another output path.
+reservations carry forward. Admission funds only the selected finite stop/growth
+allowances and common work against actual history. No all-future-cell observation
+or full-table-fit claim is required; unobserved future costs stay unavailable.
+Full completion still needs all136 ordinary/24 diagnostic members with original
+populations/order/repeats and exact/numeric checks.
 
-`pair-freeze --options ... --out ...` and `pair-run ROOT` handle primary scope
-only after complete current paired forecasts exist. Options must include a
-positive bounded `common_limit_ns` and `forecasts` with
-status`CURRENT_PAIRED_BOUNDED`, positive `common_ns`/`common_bytes`, and all160
-member IDs in `cells`. Each member declares positive `whole_ns` and
-`new_retained_bytes` at least as large as its applicable actual current
-`observed_from` root/`observed_member` cost. Provider, size, route/adapters,
-mode, observer and write schedule must match. Old timings and10k proxies cannot
-price P preparation,100k or writes; those remain unavailable after calibration.
-No automatic next stage, caller subset or inferred full-table fit is admitted.
+The optional legacy `pair-calibrate` four-member10k entry is not a prerequisite.
+Its extra10k diagnostic pair is outside the required24. `ordinary_calibration_from`
+may explicitly reference eligible full ordinary10k G members already executed on
+the same allocation, with strict current input/source/build/config/result/final-
+guardian matching, original provenance and no new execution/charge. The source
+records are never retagged. `pair-run` does not convert a calibration root into a
+primary root.
 
 Freeze copies the registered inputs/model bytes to owned paths and binds current
 artifacts/features plus data-only closed G donors. Primary preparation creates
@@ -668,7 +669,7 @@ P/G histories, failed copies and raw calls/results remain retained.
 
 Before actual runtime, bind the exact applicable existing30 cell IDs/configs and
 all remaining obligations, paired mode/repeat order, qualified immutable inputs,
-current native/features/pins/model and conservative complete-table feasibility.
+current native/features/pins/model and finite selected-pair stop allowances.
 Use fresh matching CLOSED subjects for each write member and reverse mode order
 on repeat1. Preserve original sizes,500 warmups/1000 timed calls,500 question
 order, adapters/routes, write cohorts/probes and error dispositions. No selected

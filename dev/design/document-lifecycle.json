@@ -1298,6 +1298,15 @@
       "successor": null
     },
     {
+      "path": "dev/design/mcp-adapter/conformance-0.8.29.md",
+      "class": "reference",
+      "topic": "mcp-adapter-conformance-0-8-29",
+      "role": "evidence",
+      "owner": "dev/design/mcp-adapter/conformance-0.8.29.md",
+      "release": "current:0.8.29",
+      "successor": null
+    },
+    {
       "path": "dev/design/mcp-adapter/conformance-report.md",
       "class": "proposal",
       "topic": "mcp-adapter-conformance-report",

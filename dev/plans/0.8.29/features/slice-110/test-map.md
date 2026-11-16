@@ -169,3 +169,69 @@ consumer identities. The historical full-support join additionally needs F9–F1
 live/fresh-process cells, now HELD .30 under seq-377. A count test proves neither
 a universal hard byte bound nor real reset survival. Product CPU native seams have actual semantic RED/GREEN; product GPU/reset
 and installed-consumer cells remain unqualified.
+
+## Current ordinary-OOM preservation control
+
+The proposed ignored test is
+`cuda_pool_policy::ordinary_oom_tests::gpu_ordinary_oom_preserves_generation_allocator_cleanup_and_retry`.
+It closes the missing actual OOM→healthy cleanup→retry control; it is not a
+reset, model-quality measurement or new product behavior. Existing 138 source
+seams, current 3090 healthy forwards and actual Orin D17/installed lifecycle
+proof retain their original subjects and are reused where their production
+closure matches. No new RED is claimed for this preservation test.
+
+The test constructs the actual product device and uses native Candle CUDA
+allocation, the product error classifier and its adopted generation token.
+It never changes pool policy. On Orin it requires the actually selected private
+3 GiB cap; on 3090 it requires the actual default allocator. Unknown venues or
+unexpected allocator decisions fail instead of being relabeled.
+
+- Private Orin: retain 4 MiB live and 4 MiB temporary tensors; attempt 32 MiB U8 CUDA
+  chunks in a finite loop of at most 97 requests. Stop at the first native OOM,
+  require driver status 2 and exact `Exhausted { ordinal: 0, max_size_bytes: 3 GiB }`,
+  and reject successful bytes beyond the cap. Even a broken cap can allocate at
+  most 3 GiB + 8 MiB before the assertion stops. The usable amount can be below maxSize;
+  record actual held bytes rather than rewriting the configured cap.
+- Default 3090: retain the same 8 MiB healthy buffers and issue exactly one U8 device
+  allocation of `total_device_memory + 32 MiB`. Exact qualified Candle
+  `CudaDevice::zeros_impl` dispatches U8 directly to stream `alloc_zeros`; it
+  allocates no proportional host array and uses no managed/unified allocation.
+  Require native status 2 and no fabricated private-pool exhaustion payload.
+  This is a native-OOM control; it cannot substitute for actual Orin cap proof.
+- After OOM:require no cached generation loss, free every held/live/temporary
+  tensor, and release the actual last-model guard. Both allocators require actual
+  pool USED to return to its baseline; private Orin also requires reservation 0
+  after healthy sync/trim. All native counter reads hold healthy tracked
+  generation admission. Admit the
+  same tracked generation, retry a 4 MiB tensor, verify numerical contents, and
+  require identical allocator report, actual allocation mode and generation
+  token/identity. Normal drop completion and process exit0 are mandatory.
+
+Before pressure, independent Astra reviews this concrete source/protocol once.
+Scoped compilation/lint uses an owned CargoHome/target, GPUs hidden, exact
+cudarc 343b04f/0.20.0, coherent Candle 2ee3930/0.12.0 and remote HTTPS K9/0.10.2.
+No whole-workspace gate replay or fork-suite replay is required for this
+preservation-test addition. GPU execution remains pending at this draft.
+
+Each actual venue gets one exclusive child with an outer 120-second timeout,
+TERM/KILL cleanup of its owned process group and the actual raw exit/output.
+For windchill use only selected UUID `GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b`
+and the existing reservation inode 8532374 at
+`/mnt/data/tmp2/fathomdb-0829-continuation/slice30-gd/locks/GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b.lock`.
+Open without create; never unlink/recreate. Refuse another GPU actor rather than
+waiting for a quiet machine. Start floors: 12 GiB MemAvailable, 2 GiB SwapFree,
+32 GiB task disk free and 8 GiB selected GPU free; stop floors: 8 GiB/1 GiB/16 GiB.
+The 3090 child has a 2 GiB owned RSS and 1 GiB actual device-memory ceiling; its
+oversize rejected request is not counted as an allocated buffer. Check floors
+while the child runs. Driver remains 580.178.04 and primary CUDA 12.6.
+
+The concrete inner command is the newly built exact native test binary followed
+by `--ignored --exact` and the fully qualified test name above, plus
+`--nocapture --test-threads=1`; set `FATHOMDB_REQUIRE_LIVE=1`,
+`FATHOMDB_EMBED_DEVICE=cuda:0` and selected `CUDA_VISIBLE_DEVICES`, with all three
+pool override variables absent. Keep the windchill reservation at FD9.
+Actual Orin uses its existing `/tmp/fathomdb-gpu.lock` only after its current
+qualification/soak owner releases the venue and agrees the finite 3 GiB path's
+actual host/swap/disk floors. No Orin GPU operation runs concurrently with E.
+No reset, synthetic loss, driver/toolkit change, allocator forcing or K620 work
+is authorized. Missing Orin cap execution remains an explicit missing cell.

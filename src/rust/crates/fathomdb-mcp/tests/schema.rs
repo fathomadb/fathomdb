@@ -43,7 +43,8 @@ async fn output_schemas_are_not_vacuous() {
         compile(&tool["outputSchema"])
     };
     let list = schema_of("list_stores");
-    assert!(list.is_valid(&json!({"stores": []})));
+    assert!(list.is_valid(&json!({"stores": [], "default_store": null})));
+    assert!(!list.is_valid(&json!({"stores": []})));
     assert!(!list.is_valid(&json!({"stores": "none"})));
     assert!(!list.is_valid(&json!({})));
     let search = schema_of("search");

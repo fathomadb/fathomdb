@@ -87,7 +87,10 @@ async fn list_stores_text_has_one_block_and_quoted_names() {
     let harness = Harness::start(wire_config(&fixture, json!({}))).await;
     let listed = wire(&harness, "list_stores", json!({})).await;
     assert!(listed.structured_content.is_none(), "default results must carry only text");
-    assert_eq!(text_of(&listed), "stores: 1\n\"a\" open=false readiness=closed default");
+    assert_eq!(
+        text_of(&listed),
+        "stores: 1 default=\"a\"\n\"a\" open=false readiness=closed default"
+    );
     for (tool, args) in [
         ("use_store", json!({"store":"a"})),
         ("orient", json!({})),

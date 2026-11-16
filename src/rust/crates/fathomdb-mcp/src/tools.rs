@@ -473,7 +473,11 @@ pub(crate) async fn list_stores(ctx: &Ctx<'_>, arguments: Map<String, Value>) ->
     } else {
         Vec::new()
     };
-    let mut text = format!("stores: {}", stores.len());
+    let mut text = format!(
+        "stores: {} default={}",
+        stores.len(),
+        serde_json::to_string(&default).expect("default serializes")
+    );
     hints::render(&hints, &mut text);
     for row in &stores {
         let readiness = serde_json::to_value(row.readiness).expect("serializes");
@@ -485,7 +489,7 @@ pub(crate) async fn list_stores(ctx: &Ctx<'_>, arguments: Map<String, Value>) ->
             if row.default { " default" } else { "" }
         ));
     }
-    Ok(plain(&ListStoresOutput { stores, hints }, text))
+    Ok(plain(&ListStoresOutput { default_store: default.into(), stores, hints }, text))
 }
 
 pub(crate) async fn use_store(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outcome {

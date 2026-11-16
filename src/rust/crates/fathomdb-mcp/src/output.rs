@@ -85,9 +85,27 @@ pub struct StoreRow {
     pub default: bool,
 }
 
+/// Required nullable default store: a name or JSON null.
+#[derive(Clone, Debug, Serialize, JsonSchema)]
+#[serde(untagged)]
+pub enum DefaultStoreName {
+    /// One configured session store name.
+    Name(String),
+    /// This session has no default.
+    Unset(()),
+}
+
+impl From<Option<String>> for DefaultStoreName {
+    fn from(value: Option<String>) -> Self {
+        value.map_or(Self::Unset(()), Self::Name)
+    }
+}
+
 /// `list_stores` result. Never includes paths (MR-005.2).
 #[derive(Clone, Debug, Serialize, JsonSchema)]
 pub struct ListStoresOutput {
+    /// Session default used when a store-bound call omits store, including null.
+    pub default_store: DefaultStoreName,
     pub stores: Vec<StoreRow>,
     /// Suggested next calls; absent when there are none or hints are off.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]

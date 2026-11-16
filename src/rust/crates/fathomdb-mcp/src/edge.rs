@@ -30,7 +30,7 @@ use crate::tools::{
 };
 
 const INSTRUCTIONS: &str = r#"FathomDB read-only memory stores.
-- Choose a store with list_stores/use_store, or pass store; skip when a default is set.
+- Calls without store use the session default; list_stores/use_store choose or switch it.
 - orient optionally reports projections and readiness.
 - Always search first, keeping the default limit of 10. On misses, rephrase with synonyms, names or related events. Text is lexical; both modes accept closed filters.
 - Snippets are centred on the matched words when snippet_anchor is match, the record start when it is start. Compact text names this anchor and omits whole. fetch relevant or cut snippets to read full records.

@@ -185,3 +185,56 @@ class PairPublicPipelineTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class PairPublicAdmissionTests(unittest.TestCase):
+    def test_private_canonical_admission_refuses_missing_or_changed_members(self):
+        from g_pair import canonical_members
+        manifest={'schema':'slice50-paired-campaign/v1','scope':'calibration','features':{
+            'ordinary':['embed-cuda','slice50-measurement'],
+            'diagnostic':['embed-cuda','slice50-measurement','slice30-observer']},'plan':plan()}
+        self.assertEqual(len(canonical_members(manifest)),4)
+        changed=json.loads(json.dumps(manifest));changed['plan']['calibration'].pop()
+        with self.assertRaisesRegex(ValueError,'canonical'):
+            canonical_members(changed)
+        changed=json.loads(json.dumps(manifest));changed['plan']['primary'][0]['samples']=1
+        with self.assertRaisesRegex(ValueError,'canonical'):
+            canonical_members(changed)
+
+    def test_private_worker_requires_actual_parent_and_registered_exact_attempt(self):
+        import os
+        from unittest.mock import patch
+        from g_pair import worker_admission
+        from m_guard import process_start
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary);attempt=root/'attempt';attempt.mkdir()
+            manifest={'schema':'slice50-paired-campaign/v1','scope':'calibration','features':{
+                'ordinary':['embed-cuda','slice50-measurement'],
+                'diagnostic':['embed-cuda','slice50-measurement','slice30-observer']},
+                'plan':plan(),'root':str(root),'allocation':str(root),'task':str(root),'uuid':'literal-freeze'}
+            cell=manifest['plan']['calibration'][0]
+            owner={'controller_pid':os.getppid(),'controller_start':process_start(os.getppid()),'root':str(root)}
+            budget={'s50_guardian':owner,'inflight':{'cell':cell['id'],'attempt':str(attempt),'freeze_uuid':'literal-freeze'}}
+            (root/'g-budget.json').write_text(json.dumps(budget))
+            with patch('g_boundary.require_known_containment'):
+                self.assertEqual(worker_admission(manifest,cell,attempt),owner)
+                changed=dict(cell,samples=1)
+                with self.assertRaisesRegex(RuntimeError,'canonical'):
+                    worker_admission(manifest,changed,attempt)
+                budget['inflight']['attempt']=str(root/'other');(root/'g-budget.json').write_text(json.dumps(budget))
+                with self.assertRaisesRegex(RuntimeError,'canonical'):
+                    worker_admission(manifest,cell,attempt)
+
+    def test_public_calibration_rejects_old_g_profile_before_creating_any_root(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary);profile=root/'profile.json';options=root/'options.json';out=root/'not-created'
+            profile.write_text(json.dumps({'schema':'slice30-g-budget/v1','status':'APPROVED'}))
+            options.write_text(json.dumps({'profile':str(profile),'allocation':str(root),
+                'calibration':{'phase_ns':900*10**9,'payload_ns':800*10**9,'new_retained_bytes':2*1024**3}}))
+            import os
+            result=subprocess.run([sys.executable,str(Path(__file__).with_name('g_runner.py')),
+                'pair-calibrate','--options',str(options),'--root',str(out)],
+                env=dict(os.environ,AGENT_LONG='1'),capture_output=True,text=True)
+            self.assertNotEqual(result.returncode,0)
+            self.assertIn('approved private Slice50 profile',result.stderr)
+            self.assertFalse(out.exists())

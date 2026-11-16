@@ -41,14 +41,16 @@ class Accounting:
         self.prior_cells = dict(prior.get("cell_used_ns", {}))
         self.calibration = None
 
-    def begin_calibration(self, limits, root, value):
+    def begin_calibration(self, limits, root, value, *, cell_id=None):
         """Pin one cumulative allowance before qualification or resource preflight."""
         if self.phase == "S50":
             from g_pair import CALIBRATION_ID, admit, validate_limits
         else:
-            from m_calibration import CALIBRATION_ID, admit, validate_limits
+            from m_calibration import CALIBRATION_ID, admit, admit_selected, validate_limits
         validate_limits(limits)
-        usage = value.setdefault("calibration_usage", {}).get(CALIBRATION_ID, {})
+        usage_key = "calibration_usage" if cell_id is None else "selected_cell_usage"
+        identity = CALIBRATION_ID if cell_id is None else cell_id
+        usage = value.setdefault(usage_key, {}).get(identity, {})
         if usage and usage.get("limits") != limits:
             raise ValueError("selected cumulative calibration allowance changed")
         roots = usage.get("roots", [])
@@ -58,11 +60,13 @@ class Accounting:
         prior_ns, prior_bytes = usage.get("wall_ns", 0), usage.get("new_retained_bytes", 0)
         self.calibration = dict(id=CALIBRATION_ID, prior_wall_ns=prior_ns, prior_retained_bytes=prior_bytes,
                                 limits=dict(limits), root=str(root),
-                                baseline_bytes=active_bytes(self.path.parent), peak_growth=0)
-        value["calibration_usage"][CALIBRATION_ID] = dict(usage,
+                                baseline_bytes=active_bytes(self.path.parent), peak_growth=0,
+                                usage_key=usage_key, cell_id=identity)
+        value[usage_key][identity] = dict(usage,
             limits=dict(limits), wall_ns=prior_ns,
             new_retained_bytes=prior_bytes, roots=list(dict.fromkeys([*roots, str(root)])))
-        remaining = admit(self.profile, value, active_bytes(self.path.parent), limits)
+        remaining = (admit(self.profile, value, active_bytes(self.path.parent), limits) if cell_id is None
+                     else admit_selected(self.profile, value, active_bytes(self.path.parent), limits, cell_id))
         self.calibration.update(remaining)
         return self.started_ns + remaining["remaining_phase_ns"]
 
@@ -120,7 +124,7 @@ class Accounting:
             value[self.guardian_key] = None
         if self.calibration:
             stage = self.calibration
-            usage = value["calibration_usage"][stage["id"]]
+            usage = value[stage["usage_key"]][stage["cell_id"]]
             usage["wall_ns"] = stage["prior_wall_ns"] + value["used_ns"] - self.prior_used
             usage["new_retained_bytes"] = stage["prior_retained_bytes"] + self.growth()
         write_budget(self.path, value)
@@ -145,7 +149,7 @@ def _limits(profile, phase):
 
 
 def guard(command, *, allocation, profile, root, task, admission=False, common_limit_ns=None,
-          started_ns=None, phase="M", calibration=None, primary_limits=None):
+          started_ns=None, phase="M", calibration=None, primary_limits=None, cell_allowance=None):
     """Own the whole controller phase, private boundary, resource floors and final charge."""
     if phase not in ("M", "D", "S50"):
         raise ValueError("unknown shared guardian phase")
@@ -162,9 +166,12 @@ def guard(command, *, allocation, profile, root, task, admission=False, common_l
             or Path(profile["ledger"]).resolve() != allocation / "g-budget.json"
             or not root.is_relative_to(allocation)):
         raise ValueError(f"approved pinned shared profile and owned {phase} allocation required")
+    if cell_allowance is not None and (phase != "M" or calibration is not None or primary_limits is not None):
+        raise ValueError("select calibration or one required M cell")
+    bounded = calibration if cell_allowance is None else cell_allowance["limits"]
     accounting = Accounting(allocation / "g-budget.json", began, phase=phase) if phase in ("M", "S50") else None
     limits = _limits(profile, phase) if phase in ("M", "S50") else None
-    if calibration is not None and phase not in ("M", "S50"):
+    if bounded is not None and phase not in ("M", "S50"):
         raise ValueError("calibration is an M-only stage")
     if primary_limits is not None:
         if phase != "S50" or calibration is not None:
@@ -193,7 +200,7 @@ def guard(command, *, allocation, profile, root, task, admission=False, common_l
             raise RuntimeError(f"retained shared ownership/inflight blocks {phase} admission")
         phase_deadline = began + primary_limits["phase_ns"] if primary_limits is not None else None
         phase_name = "primary" if primary_limits is not None else "calibration"
-        if calibration is not None:
+        if bounded is not None:
             if phase == "S50":
                 from g_pair import approved
             else:
@@ -201,13 +208,14 @@ def guard(command, *, allocation, profile, root, task, admission=False, common_l
             approved(profile, allocation)
             accounting.profile = profile
             try:
-                phase_deadline = accounting.begin_calibration(calibration, root, budget)
+                phase_deadline = accounting.begin_calibration(bounded, root, budget,
+                    cell_id=None if cell_allowance is None else cell_allowance["cell_id"])
             except ValueError:
                 if accounting.calibration is not None:
                     write_budget(accounting.path, budget)
                     accounting.finish(uncertain=False, stopped_ns=time.monotonic_ns())
                 raise
-        if phase in ("D", "S50") or calibration is not None:
+        if phase in ("D", "S50") or bounded is not None:
             budget[guardian_key] = {"pid": os.getpid(), "start": process_start(os.getpid()),
                                    "started_monotonic_ns": began, "root": str(root)}
             write_budget(accounting.path, budget)
@@ -233,7 +241,7 @@ def guard(command, *, allocation, profile, root, task, admission=False, common_l
                     or active_bytes(allocation) >= limits[1]):
                 raise RuntimeError(f"{phase} resource start floor fails")
         except (OSError, ValueError, RuntimeError, KeyError, TypeError) as error:
-            if phase == "M" and calibration is None:
+            if phase == "M" and bounded is None:
                 raise
             receipt.update(state="held", reason=f"{type(error).__name__}: {error}",
                            stopped_monotonic_ns=time.monotonic_ns())
@@ -244,7 +252,7 @@ def guard(command, *, allocation, profile, root, task, admission=False, common_l
             receipt["unreconciled"] = False
             (phase_root / "guardian.json").write_text(json.dumps(receipt, indent=2)+"\n")
             return receipt
-        if phase == "M" and calibration is None:
+        if phase == "M" and bounded is None:
             budget[guardian_key] = {"pid": os.getpid(), "start": process_start(os.getpid()),
                                    "started_monotonic_ns": began, "root": str(root)}
             write_budget(accounting.path, budget)

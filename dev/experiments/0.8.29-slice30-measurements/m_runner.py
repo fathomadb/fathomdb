@@ -58,12 +58,20 @@ def main():
     calibration = commands.add_parser("calibrate")
     for name in ("options", "root", "cell"):
         calibration.add_argument(f"--{name}", required=True)
+    selected_internal = commands.add_parser("_selected")
+    for name in ("options", "root", "cell"):
+        selected_internal.add_argument(f"--{name}", required=True)
+    selected_internal.add_argument("--admission-fd", type=int, required=True)
     calibration_internal = commands.add_parser("_calibrate")
     for name in ("options", "root", "cell"):
         calibration_internal.add_argument(f"--{name}", required=True)
     calibration_internal.add_argument("--admission-fd", type=int, required=True)
     for action in ("run", "report"):
-        commands.add_parser(action).add_argument("root")
+        selected = commands.add_parser(action)
+        selected.add_argument("root")
+        if action == "run":
+            selected.add_argument("--options")
+            selected.add_argument("--cell")
     internal = commands.add_parser("_controller")
     internal.add_argument("--root", required=True)
     internal.add_argument("--admission-fd", type=int, required=True)
@@ -83,6 +91,9 @@ def main():
     cell.add_argument("config")
     cell.add_argument("attempt")
     options = parser.parse_args()
+    if options.action == "run" and options.options:
+        result = run_selected(options.options, options.root, options.cell, began)
+        return 0 if isinstance(result, dict) and result["exit"] == 0 and not result["cleanup_uncertain"] else 1
     if options.action == "calibrate":
         from m_calibration import selected_cell
         from m_freeze import approved
@@ -192,7 +203,13 @@ def main():
             result = payload(manifest, cell, options.attempt, options.deadline_ns)
         else:
             owner = controller_admission(options.admission_fd, options.root)
-            if options.action == "_calibrate":
+            if options.action == "_selected":
+                from m_calibration import control as selected_control
+                from m_freeze import freeze_selected
+                manifest = freeze_selected(json.loads(Path(options.options).read_text()), options.root, options.cell)
+                result = selected_control(options.root, owner, manifest)
+                report(options.root)
+            elif options.action == "_calibrate":
                 from m_calibration import control as calibrate
                 from m_freeze import freeze_calibration
                 manifest = freeze_calibration(json.loads(Path(options.options).read_text()), options.root, options.cell)
@@ -214,19 +231,279 @@ def main():
     return 0 if result["complete"] else 1
 
 
-def report(root):
+def run_selected(options, root, cell_id, began):
+    """Run one canonical required M cell through its finite original-budget guardian."""
+    from m_calibration import registered_cell, validate_limits
+    from m_freeze import approved
+    from m_guard import guard
+    if os.environ.get("AGENT_LONG") != "1":
+        raise RuntimeError("selected M cell requires explicit AGENT_LONG=1")
+    registered_cell(cell_id)
+    selected = json.loads(Path(options).read_text())
+    profile = json.loads(Path(selected["profile"]).read_text())
+    approved(profile, selected["allocation"])
+    limits = selected["cell_allowance"]
+    validate_limits(limits)
+    root = Path(root).resolve()
+    if root.exists():
+        raise ValueError("selected M cell requires a fresh root; cumulative allowance never renews")
+    command = [sys.executable, str(Path(__file__).resolve()), "_selected", "--options", str(Path(options).resolve()),
+               "--root", str(root), "--cell", cell_id]
+    result = guard(command, allocation=selected["allocation"], profile=profile, root=root,
+        task=os.environ["S30_TASK"], admission=True, started_ns=began,
+        cell_allowance={"cell_id": cell_id, "limits": limits},
+        common_limit_ns=limits["phase_ns"]-limits["payload_ns"])
+    if result["exit"] == 0 and result["cleanup_uncertain"] is False and (root / "manifest.json").is_file():
+        result["retired_working_copies"] = retire_working_copies(root)
+        result["final_report"] = publish_selected(root)
+        if not result["final_report"]["phase_qualified"]:
+            result.update(exit=124, stop="selected final publication allowance")
+    print(json.dumps(result))
+    return result
+
+
+def publish_selected(root):
+    """Publish selected-cell credit only after original final cleanup, charging final report work."""
+    import fcntl
+    from m_guard import write_budget
+    began = time.monotonic_ns()
+    root = Path(root).resolve()
+    final_guardian(root)
+    manifest = json.loads((root / "manifest.json").read_text())
+    allocation, profile = Path(manifest["allocation"]), manifest["profile"]
+    identity = manifest["plan"][0]["id"]
+    with (allocation / "g-campaign.lock").open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        ledger_path = allocation / "g-budget.json"
+        ledger = json.loads(ledger_path.read_text())
+        if any(ledger.get(key) for key in ("inflight", "m_guardian", "d_guardian", "closed_guardian")):
+            raise ValueError("live shared ownership blocks selected final publication")
+        usage = ledger["selected_cell_usage"][identity]
+        remaining = min(manifest["cell_allowance"]["phase_ns"] - usage["wall_ns"],
+                        profile["total_shared_ns"] - profile["reserved_other_work_ns"] - ledger["used_ns"])
+        value = None
+        report_path = root / "reports" / f"report-{time.time_ns()}.json"
+        try:
+            value = report(root, deadline_ns=began + remaining - 10**9, output_path=report_path)
+        finally:
+            elapsed = time.monotonic_ns() - began
+            qualified = _charge_final_work(root, ledger_path, ledger, usage, elapsed,
+                                          manifest["cell_allowance"], profile,
+                                          failed=value is None or not value["phase_qualified"])
+            if value is not None and value["phase_qualified"] and not qualified:
+                value.update(complete=False, phase_qualified=False)
+                for row in value["rows"]:
+                    if row["id"] == identity and row.get("complete"):
+                        row.update(execution_complete=True, complete=False, status="incomplete",
+                                   reason="selected final report write exhausted its allowance")
+                report_path.write_text(json.dumps(value, indent=2) + "\n")
+                correction_ns = time.monotonic_ns() - began - elapsed
+                _charge_final_work(root, ledger_path, ledger, usage, correction_ns,
+                                   manifest["cell_allowance"], profile, failed=True)
+    return value
+
+
+def retire_working_copies(root):
+    """Retire successful disposable copies after strict cleanup, preserving science and charges."""
+    import fcntl
+    from m_guard import write_budget
+    began = time.monotonic_ns()
+    root = Path(root).resolve()
+    final_guardian(root)
+    manifest = json.loads((root / "manifest.json").read_text())
+    allocation = Path(manifest["allocation"]).resolve()
+    state_path = root / "results/campaign-state.json"
+    outcomes = json.loads(state_path.read_text())
+    if len(outcomes) != 1:
+        raise ValueError("one original selected M outcome required for retirement")
+    outcome = outcomes[0]
+    if (not outcome.get("complete") or outcome.get("status") != "complete" or outcome.get("exit") != 0
+            or outcome.get("cleanup_uncertain") is not False or outcome.get("live_owned_pids") != []
+            or outcome["cell"]["family"] not in ("M-R", "M-C", "M-L")):
+        return []
+    attempt = Path(outcome["attempt"]).resolve()
+    if not root.is_relative_to(allocation) or not attempt.is_relative_to(root / "results" / outcome["id"]):
+        raise ValueError("owned selected M retirement identity required")
+    if json.loads((attempt / "result.json").read_text()).get("complete") is not True:
+        return []
+    prepared = json.loads((attempt / "prepared.json").read_text())
+    paths = [Path(copy["destination"]).resolve() for copy in prepared["copies"]]
+    if any(path.parent != attempt / "stores" for path in paths):
+        raise ValueError("retirement is limited to prepared disposable store copies")
+    calibration = manifest.get("scope") == "bounded-natural-calibration"
+    usage_key = "calibration_usage" if calibration else "selected_cell_usage"
+    limits = manifest["calibration" if calibration else "cell_allowance"]
+    profile = manifest["profile"]
+    with (allocation / "g-campaign.lock").open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        ledger_path = allocation / "g-budget.json"
+        ledger = json.loads(ledger_path.read_text())
+        if any(ledger.get(key) for key in ("inflight", "m_guardian", "d_guardian", "closed_guardian")):
+            raise ValueError("live shared ownership blocks working-copy retirement")
+        usage = ledger[usage_key][outcome["id"]]
+        retired = list(outcome.get("retired_working_copies", []))
+        try:
+            for path in paths:
+                elapsed = time.monotonic_ns() - began
+                if (usage["wall_ns"] + elapsed + 20 * 10**9 >= limits["phase_ns"]
+                        or ledger["used_ns"] + elapsed + profile["reserved_other_work_ns"] + 20 * 10**9
+                        >= profile["total_shared_ns"]):
+                    break
+                if path.exists():
+                    path.unlink()
+                    retired.append(str(path))
+                    outcome["retired_working_copies"] = retired
+                    write_budget(attempt / "attempt.json", outcome)
+                    write_budget(state_path, outcomes)
+        finally:
+            elapsed = time.monotonic_ns() - began
+            if calibration:
+                ledger["used_ns"] += elapsed
+                usage["wall_ns"] += elapsed
+                common = ledger.setdefault("common_used_ns", {})
+                common["M"] = common.get("M", 0) + elapsed
+                write_budget(ledger_path, ledger)
+            else:
+                _charge_final_work(root, ledger_path, ledger, usage, elapsed, limits, profile)
+    return retired
+
+
+def _charge_final_work(root, ledger_path, ledger, usage, elapsed, limits, profile, *, failed=False):
+    from m_guard import write_budget
+    ledger["used_ns"] += elapsed
+    usage["wall_ns"] += elapsed
+    common = ledger.setdefault("common_used_ns", {})
+    common["M"] = common.get("M", 0) + elapsed
+    path = next((root / "guardians").glob("*/guardian.json"))
+    receipt = json.loads(path.read_text())
+    receipt["post_guardian_finalization_ns"] = receipt.get("post_guardian_finalization_ns", 0) + elapsed
+    accounting = receipt.setdefault("accounting", {})
+    accounting["charged_ns"] = accounting.get("charged_ns", 0) + elapsed
+    if (failed or usage["wall_ns"] >= limits["phase_ns"]
+            or ledger["used_ns"] + profile["reserved_other_work_ns"] >= profile["total_shared_ns"]):
+        receipt.update(exit=124, stop="selected final publication allowance")
+    write_budget(path, receipt)
+    write_budget(ledger_path, ledger)
+    return receipt.get("exit") == 0
+
+
+def final_guardian(root):
+    """Require the fresh root's sole original phase to have strict successful final cleanup."""
+    paths = list((Path(root) / "guardians").glob("*/guardian.json"))
+    if len(paths) != 1:
+        raise ValueError("one original final guardian required")
+    receipt = json.loads(paths[0].read_text())
+    boundary = receipt.get("boundary") or {}
+    if (receipt.get("exit") != 0 or receipt.get("child_exit") != 0
+            or receipt.get("cleanup_uncertain") is not False
+            or receipt.get("boundary_populated_at_controller_exit") is not False
+            or boundary.get("status") != "quiescent" or boundary.get("populated_after") is not False
+            or boundary.get("removed_exact_empty_boundary") is not True):
+        raise ValueError("original guardian did not qualify final cleanup")
+    return receipt
+
+
+def _loop_population(result, attempt, cell, deadline_ns=None):
+    phases = (("first", cell["first"]), ("warmup", cell["warmups"]), ("timed", cell["timed"]))
+    streams = {}
+    for name in ("submissions", "invocations"):
+        with (attempt / "wire" / (name + ".jsonl")).open() as stream:
+            streams[name] = []
+            for line in stream:
+                if deadline_ns is not None and time.monotonic_ns() >= deadline_ns:
+                    raise TimeoutError("selected final report allowance exhausted")
+                streams[name].append(json.loads(line))
+    for phase, count in phases:
+        value = result.get("phases", {}).get(phase, {})
+        summary = value.get("summary", {})
+        submitted, completed = value.get("submitted", []), value.get("completed", [])
+        if (any(summary.get(key) != count for key in ("submitted", "completed", "success"))
+                or summary.get("unresolved") != 0 or summary.get("errors") != {}
+                or len(submitted) != count or len(set(submitted)) != count
+                or len(completed) != count or set(submitted) != set(completed)):
+            raise ValueError("complete registered population unavailable")
+        sent = [row for row in streams["submissions"] if row.get("phase") == phase]
+        received = [row for row in streams["invocations"] if row.get("phase") == phase]
+        if ([row.get("rpc_id") for row in sent] != submitted
+                or [row.get("query_index") for row in sent] != [i % 500 for i in range(count)]
+                or len(received) != count or {row.get("rpc_id") for row in received} != set(completed)
+                or any(row.get("status") != "completed" or row.get("pid") != result["pid"]
+                       for row in received)):
+            raise ValueError("complete ordered raw population unavailable")
+
+
+def reused_rows(manifest, *, deadline_ns=None):
+    """Reference complete matched original evidence without changing its scope or charges."""
+    from m_calibration import CALIBRATION_ID, CELL_ID, registered_cell
+    rows = {}
+    for reference in manifest.get("reuse_from", []):
+        if deadline_ns is not None and time.monotonic_ns() >= deadline_ns:
+            raise TimeoutError("selected final report allowance exhausted")
+        root = Path(reference["root"]).resolve()
+        if not root.is_relative_to(Path(manifest["allocation"]).resolve()):
+            raise ValueError("reused M evidence must stay in its original allocation")
+        original = json.loads((root / "manifest.json").read_text())
+        if original.get("scope") not in ("bounded-natural-calibration", "registered-M-selected-cell"):
+            raise ValueError("explicit completed selected M evidence required")
+        cell = registered_cell(reference["cell_id"])
+        calibration = original["scope"] == "bounded-natural-calibration"
+        identity = CALIBRATION_ID if calibration else cell["id"]
+        if calibration and cell["id"] != CELL_ID:
+            raise ValueError("calibration supplies only its identical first primary row")
+        for key in ("allocation", "compiler_inputs", "closed_subject", "package", "inputs", "model", "gpu"):
+            if original[key] != manifest[key]:
+                raise ValueError("reused M input/compiler/device identity differs")
+        final_guardian(root)
+        outcomes = json.loads((root / "results/campaign-state.json").read_text())
+        if len(outcomes) != 1 or outcomes[0]["id"] != identity:
+            raise ValueError("one explicit completed M evidence row required")
+        outcome = outcomes[0]
+        attempt = Path(outcome["attempt"]).resolve()
+        if not attempt.is_relative_to(root / "results" / identity):
+            raise ValueError("original M attempt identity unavailable")
+        result_path = attempt / "result.json"
+        result = json.loads(result_path.read_text())
+        actual_cell = dict(result["cell"])
+        if calibration:
+            if actual_cell.pop("origin_id", None) != cell["id"]:
+                raise ValueError("original calibration configuration unavailable")
+            actual_cell["id"] = cell["id"]
+        variant = ("ordinary" if cell["family"] in ("M-R", "M-C", "M-L") else
+                   "helper" if cell["family"] == "M-E" else "providerfree")
+        if (actual_cell != cell or result.get("freeze_uuid") != original["uuid"]
+                or result.get("selected_build") != original["builds"][variant]
+                or original["builds"][variant].get("compiler_inputs") != manifest["compiler_inputs"]
+                or original["builds"][variant] != manifest["builds"].get(variant, original["builds"][variant])):
+            raise ValueError("original M workload/build identity differs")
+        if (outcome.get("complete") is not True or outcome.get("status") != "complete"
+                or outcome.get("exit") != 0 or outcome.get("cleanup_uncertain") is not False
+                or outcome.get("live_owned_pids") != [] or result.get("complete") is not True
+                or result.get("gpu", {}).get("complete") is not True or result["gpu"].get("failures")):
+            raise ValueError("original complete M result and GPU qualification required")
+        if cell["family"] in ("M-R", "M-C"):
+            _loop_population(result, attempt, cell, deadline_ns)
+        rows[cell["id"]] = {"id": cell["id"], "cell": cell, "status": "complete", "complete": True,
+            "satisfied_by": {"root": str(root), "result": str(result_path), "attempt": str(attempt),
+                "accounting_id": identity, "scope": original["scope"], "source_sha": original["source_sha"],
+                "build_source_sha": result["selected_build"]["source_sha"], "freeze_uuid": original["uuid"]},
+            "attempts": [dict(outcome, result=result)]}
+    return rows
+
+
+def report(root, *, deadline_ns=None, output_path=None):
     """Retain all46 required cells and every attempt; incomplete outcomes never disappear."""
     root = Path(root)
     manifest = json.loads((root / "manifest.json").read_text())
     state = root / "results/campaign-state.json"
     current = {row["id"]: row for row in json.loads(state.read_text())} if state.exists() else {}
+    current = dict(reused_rows(manifest, deadline_ns=deadline_ns), **current)
     rows = []
     calibration = manifest.get("scope") == "bounded-natural-calibration"
-    plan = load_plan() if calibration else manifest["plan"]
+    plan = load_plan() if calibration or manifest.get("scope") == "registered-M-selected-cell" else manifest["plan"]
     for cell in [*plan, *(manifest["plan"] if calibration else [])]:
         row = dict(current.get(cell["id"], {"id": cell["id"], "cell": cell,
                    "status": "held", "complete": False, "reason": "no completed registered attempt"}))
-        history = []
+        history = list(row.get("attempts", []))
         for path in sorted((root / "results" / cell["id"]).glob("attempt-*/attempt.json")):
             attempt = json.loads(path.read_text())
             result = path.with_name("result.json")
@@ -238,9 +515,24 @@ def report(root):
             history.append(attempt)
         row["attempts"] = history
         rows.append(row)
+    phase_qualified = True
+    if manifest.get("scope") == "registered-M-selected-cell":
+        try:
+            final_guardian(root)
+        except ValueError:
+            phase_qualified = False
+        if deadline_ns is not None and time.monotonic_ns() >= deadline_ns:
+            phase_qualified = False
+        if not phase_qualified:
+            for row in rows:
+                if row["id"] == manifest["plan"][0]["id"] and row.get("complete"):
+                    row.update(execution_complete=True, complete=False, status="incomplete",
+                               reason="original final guardian/publication allowance is unqualified")
     value = {"schema": "slice30-m-report/v1", "freeze_uuid": manifest["uuid"],
              "source_sha": manifest["source_sha"], "complete": all(row["complete"] for row in rows),
-             "rows": rows, "verdict": None, "calibrated_threshold": None}
+             "rows": rows, "verdict": None, "calibrated_threshold": None,
+             "phase_qualified": phase_qualified}
+    value["complete"] &= phase_qualified
     if calibration:
         value.update(scope=manifest["scope"], qualifies_primary=False,
                      rows=rows[:46], calibrations=rows[46:], complete=False,
@@ -250,7 +542,8 @@ def report(root):
     value["phase_load_scope"] = "completed guardian phases before this report"
     destination = root / "reports"
     destination.mkdir(exist_ok=True)
-    (destination / f"report-{time.time_ns()}.json").write_text(json.dumps(value, indent=2) + "\n")
+    path = destination / f"report-{time.time_ns()}.json" if output_path is None else Path(output_path)
+    path.write_text(json.dumps(value, indent=2) + "\n")
     return value
 
 

@@ -24,5 +24,6 @@ systemd-run --user --wait --pipe --quiet --service-type=exec \
   -s dev/experiments/0.8.29-slice30-measurements -p 'd_diagnostic_*_tests.py' -v
 .venv/bin/python dev/experiments/0.8.29-slice30-measurements/d_guard_tests.py -v
 .venv/bin/python dev/experiments/0.8.29-slice30-measurements/d_cancel_tests.py -v
+.venv/bin/python dev/experiments/0.8.29-slice30-measurements/d_replacement_interrupt_tests.py -v
 .venv/bin/python dev/experiments/0.8.29-slice30-measurements/d_entry_tests.py -v
 exec .venv/bin/python dev/experiments/0.8.29-slice30-measurements/d_environment_tests.py -v

@@ -516,6 +516,25 @@ still apply to larger sizes. Exactly that next quartet is eligible; later
 obligations stay held, and actual failed/incomplete attempts are never retried
 automatically. `test_d_continuation.py` states independent manual examples.
 
+The named ordinary replacement amendment uses the same `run --options` entry
+and next-quartet review. Only its `replacements` map may select the original
+failed T100k overlap-r1 then interrupted C100k overlap-r1. Each entry contains
+`record` (the exact original state row), `charged_ns` (the live cumulative cell
+charge) and `next_attempt_id: "attempt-0002"`. `qualified_current_attempts` pins
+the existing C-r0/T-r0 `attempt_id` and `attempt` paths in addition to the original
+12-member prefix. Fresh admission funds only pending members and subtracts old
+charges from the unchanged1500s limit. A consumed replacement remains consumed
+through controller death; no default retry or third attempt is admitted.
+
+[d_replacements.py](d_replacements.py) retains the two explicit consumption
+entries in the original atomic budget and exposes old records as `prior_attempts`
+plus `replacement_of` on each new result. Reports preserve original errors and
+raw paths alongside current qualification. `test_d_replacements.py` supplies
+literal admission and real failed-child preservation controls; the existing
+opt-in D control command also runs `d_replacement_interrupt_tests.py` for actual
+owned controller death and once-only accounting. These controls supply no
+scientific D credit; unchanged D109 execution and shared handoff stay separate.
+
 `d_overlap.py CASE.json` reads one exact cell/attempt/size/repeat and owner/session
 frame, with natural operation identity, tagged observer records and bracketed
 pending observations. It qualifies only an entire positive pending bracket

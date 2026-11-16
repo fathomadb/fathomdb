@@ -54,11 +54,11 @@ expect_pass unrelated-lock-change 'unrelated_lock_change_passes'
 
 # A drift failure tells the operator how to refresh the record.
 run_fixture changed-libloading
-grep -Fq 'raw.githubusercontent.com' <<<"$OUT" || fail "a drift failure must give the refresh instruction: $OUT"
+grep -Fq 'both native Linux targets' <<<"$OUT" || fail "a drift failure must give the refresh instruction: $OUT"
 pass 'a drift failure gives the fork refresh instruction'
 
 # The real tree: `cargo metadata --offline --locked` per Linux target against
-# the record copied from the fork's hosted-test run with this Cargo.lock.
+# the canonical fork qualification record for this Cargo.lock.
 (cd "$REPO_ROOT" && cargo fetch --locked >/dev/null 2>&1) || fail "cargo fetch --locked failed on the real tree"
 set +e
 OUT="$(python3 "$GUARD" --root "$REPO_ROOT" --record "$REPO_ROOT/scripts/cudarc-fathomdb-lock-set.json" 2>&1)"

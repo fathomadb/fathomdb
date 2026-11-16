@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """The cudarc-fathomdb lock-set guard (0.8.28 Slice 31, design § 7.2, AC31-14).
 
-The cudarc fork runs its hosted tests against FathomDB's Cargo.lock and
+The cudarc fork runs its qualification tests against FathomDB's Cargo.lock and
 records the set of packages it compiled for FathomDB: per Linux target, the
 normal-dependency closure of the one `cudarc-fathomdb` node (root included)
 with the root's resolved features. This guard recomputes that set from
@@ -40,9 +40,11 @@ TARGETS = ("x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu")
 FEATURES = "fathomdb-embedder/embed-cuda,fathomdb-embedder/rerank-cuda,fathomdb-embedder/tegra-pool"
 ROOT_PACKAGE = "cudarc-fathomdb"
 REFRESH = (
-    "push the commit that carries this Cargo.lock to origin so raw.githubusercontent.com serves it; "
-    "the cudarc fork must set FATHOMDB_LOCK_SHA to it, run its hosted test job and record the set "
-    "(cudarc fork plan § 8, last row); then copy the record to scripts/cudarc-fathomdb-lock-set.json"
+    "qualify the exact current lock with CPU tests and lock-consumer compilation on both native Linux targets "
+    "(x86_64 and aarch64) using the owner-adopted local protocol in "
+    "dev/plans/0.8.29/features/slice-140/design.md; record the actual results and exact closure in "
+    "scripts/cudarc-fathomdb-lock-set.json, retaining historical hosted evidence unchanged "
+    "(seq-391 permits regular ARM SSH tests without cgroup caps)"
 )
 
 

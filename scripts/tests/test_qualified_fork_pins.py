@@ -92,6 +92,18 @@ class QualifiedForkPins(unittest.TestCase):
                      f"git+{CANDLE_GIT}?rev={CANDLE_REV}#{CANDLE_REV}")
         self.refused()
 
+    def test_lock_drift_refresh_names_the_adopted_native_local_protocol(self):
+        fixture = ROOT / "scripts/tests/fixtures/cudarc-lock-set/changed-libloading"
+        result = subprocess.run(
+            ["python3", str(ROOT / "scripts/check-cudarc-fathomdb-lock-set.py"),
+             "--metadata", str(fixture / "metadata.json"), "--lock", str(fixture / "Cargo.lock"),
+             "--record", str(fixture / "record.json")],
+            capture_output=True, text=True, check=False,
+        )
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("both native Linux targets", result.stderr)
+        self.assertIn("local protocol", result.stderr)
+
     def test_single_cudarc_accepts_only_the_selected_tree_source(self):
         bin_dir = self.root / "bin"
         bin_dir.mkdir()

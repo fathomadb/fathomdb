@@ -56,3 +56,25 @@ fn entry_routes_ordinary_and_characterized_cells_through_same_canonical_workload
         assert_eq!(counts, (2, 2, 2, 2));
     }
 }
+
+#[test]
+fn native_entry_accepts_selected_100k_allowance_and_keeps_other_size_limits() {
+    let config = json!({"id":"d-c-held-n100000-r0","n":100000,"mode":"held",
+        "repeat":0,"layer":"C","cell_ns":1500000000000u64,
+        "attempt_id":"literal-new-native","remaining_cell_ms":1494000u64});
+    let selected = super::entry::select_config(&config);
+    assert!(selected.is_ok(), "selected100k allowance never reached native entry: {selected:?}");
+    let (identity, remaining) = selected.unwrap();
+    assert_eq!(identity["n"], 100000);
+    assert_eq!(identity["attempt_id"], "literal-new-native");
+    assert_eq!(remaining, 1494000);
+    let mut too_large = config.clone();
+    too_large["remaining_cell_ms"] = json!(1500001);
+    assert!(super::entry::select_config(&too_large).is_err());
+    let mut unchanged10k = json!({"id":"d-c-held-n10000-r0","n":10000,"mode":"held",
+        "repeat":0,"layer":"C","cell_ns":900000000000u64,
+        "attempt_id":"literal-original-limit","remaining_cell_ms":900001u64});
+    assert!(super::entry::select_config(&unchanged10k).is_err());
+    unchanged10k["remaining_cell_ms"] = json!(899000);
+    assert!(super::entry::select_config(&unchanged10k).is_ok());
+}

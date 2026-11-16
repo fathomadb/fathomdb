@@ -54,6 +54,10 @@ pub(super) fn run_cell(
     Ok(report)
 }
 
+pub(super) fn select_config(_config: &Value) -> Result<(Value, u64), String> {
+    Err("selected D allowance parser is unavailable".into())
+}
+
 pub(super) fn run_file(config: &Path, output: &Path, origin: Instant) -> Result<Value, String> {
     let config: Value = serde_json::from_slice(
         &fs::read(config).map_err(|error| format!("read D cell: {error:?}"))?,

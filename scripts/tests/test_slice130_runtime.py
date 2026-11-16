@@ -245,5 +245,31 @@ class EnvironmentControls(unittest.TestCase):
                 self.assertEqual(soak.evaluate_arm(result[sdk])["status"], "UNMEASURED")
 
 
+class NodeWorkerControls(unittest.TestCase):
+    def test_loaded_addon_paths_resolve_without_array_callback_options(self):
+        source = (Path(__file__).resolve().parents[2]
+                  / "dev/experiments/slice130-soak/node_consumer.mjs").read_text()
+        expression = source.split("const loaded = ", 1)[1].split(";\n", 1)[0]
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            addon = root / "installed.node"
+            addon.touch()
+            alias = root / "alias.node"
+            alias.symlink_to(addon)
+            # Evaluate the worker's actual cache-path expression against real
+            # filesystem paths, without loading an addon or claiming native work.
+            code = '''
+import { realpathSync } from "node:fs";
+const require = { cache: { [process.argv[1]]: {}, "ignored.js": {} } };
+console.log(JSON.stringify(''' + expression + '''));
+'''
+            completed = __import__("subprocess").run(
+                ["node", "--input-type=module", "-e", code, str(alias)],
+                capture_output=True, text=True, timeout=10,
+            )
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertEqual(json.loads(completed.stdout), [str(addon.resolve())])
+
+
 if __name__ == "__main__":
     unittest.main()

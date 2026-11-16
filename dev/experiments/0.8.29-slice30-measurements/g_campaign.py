@@ -25,6 +25,16 @@ def stage_target(stage):
     return STAGES.get(stage)
 
 
+def validate_write_limit(limit, mode):
+    """Validate an invocation bound without changing the frozen cell inventory."""
+    if limit is None:
+        return
+    if type(limit) is not int or not 1 <= limit <= 72:
+        raise ValueError("max-new-writes must be an integer in 1..72")
+    if mode != "closed-copy-write-matrix":
+        raise ValueError("max-new-writes requires the closed write-matrix mode")
+
+
 def make_g_plan(spec):
     """Expand the reviewed fixed G stages and paired orders without executing models."""
     if (spec["schema"] != "slice30-g/v1" or spec["format"] != 37
@@ -160,6 +170,8 @@ def _calibration_bytes(spec, root, cell):
 
 def run_g_plan(spec, root, command, prepare=None, allocation_root=None, assess=None, reused=None, stage=None, prior_outcome_path=None):
     """Run every fixed G obligation against one shared allocation and absolute cell clock."""
+    validate_write_limit(spec.get("_max_new_writes"), spec.get("closed_mode")
+                         if spec.get("preparation") == "closed-copy-v1" else None)
     plan = make_g_plan(spec)
     if spec.get("preparation") == "closed-copy-v1" and spec.get("closed_mode") == "closed-copy-calibration":
         root = Path(root)
@@ -281,6 +293,8 @@ def _run_plan(spec, plan, root, command, prepare, allocation_root, assess, reuse
             save_budget()
             return "serial_storage_observation_unavailable"
     outcomes = []
+    selected_writes = 0
+    write_limit = spec.get("_max_new_writes")
     for cell in plan:
         completed = previous.get(cell["id"])
         if serial and cell["stage"] == "G-W" and completed and completed.get("attempt"):
@@ -299,6 +313,13 @@ def _run_plan(spec, plan, root, command, prepare, allocation_root, assess, reuse
                              "reason": "outside_closed_write_stage"})
             (root / "g-outcomes.json").write_text(json.dumps(outcomes, indent=2) + "\n")
             continue
+        if write_limit is not None and cell["stage"] == "G-W":
+            if selected_writes >= write_limit:
+                outcomes.append({"id": cell["id"], "cell": cell, "status": "not_run_stage",
+                                 "complete": False, "reason": "bounded_write_dispatch"})
+                (root / "g-outcomes.json").write_text(json.dumps(outcomes, indent=2) + "\n")
+                continue
+            selected_writes += 1
         slot = _calibration_slot(spec, budget, root) if cell.get("calibration") else None
         stopped = (slot.get("stop") if slot is not None else budget.get("closed_calibration_stop")) if cell.get("calibration") else None
         if stopped and stopped["outcome"].get("reason") == "calibration_phase_reservation":

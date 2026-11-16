@@ -50,7 +50,7 @@ fn add(out: &mut BTreeSet<String>, prefix: &str, fields: &str) {
 }
 
 fn error(out: &mut BTreeSet<String>, prefix: &str) {
-    add(out,prefix,"class code message remedy candidates[] detail busy.reason busy.in_flight busy.queued busy.abandoned busy.stuck");
+    add(out,prefix,"class code message remedy candidates[] detail argument accepted[] refs_not_in_response[] refs_omitted busy.reason busy.in_flight busy.queued busy.abandoned busy.stuck");
 }
 
 fn hints(out: &mut BTreeSet<String>) {
@@ -69,6 +69,7 @@ fn expected(tool: &str) -> BTreeSet<String> {
     }
     match tool {
         "list_stores" => {
+            add(&mut out, "", "default_store");
             add(&mut out, "stores[].", "name open readiness default");
             hints(&mut out);
         }
@@ -81,11 +82,12 @@ fn expected(tool: &str) -> BTreeSet<String> {
                 "embedding_readiness.",
                 "state usable_embedder pending_count affected_kinds[]",
             );
-            add(&mut out, "", "kinds.status counts.status");
+            add(&mut out, "", "kinds.status counts.status not_in_this_release[]");
+            add(&mut out, "vector_coverage.", "status population reason profile.key profile.name profile.revision profile.dimension records known_records unknown_records truncated_known_records known_body_bytes unrepresented_known_bytes unattributed_heads truncated_known_share.numerator truncated_known_share.denominator unrepresented_known_byte_share.numerator unrepresented_known_byte_share.denominator");
         }
         "search" => {
             add(&mut out,"","mode response_id completeness verdict continuation continuation_exact explanation.status explanation.reason");
-            add(&mut out,"results[].","ref kind snippet snippet_cut snippet_anchor highlights[][] source_id score arm ce_score");
+            add(&mut out,"results[].","ref kind snippet snippet_cut snippet_anchor scored_bytes highlights[][] source_id score arm ce_score");
             add(&mut out,"explanation.trace.","query_chars k rerank_depth pool_n alpha use_graph_arm recency embedder_id ce_active vector_hits text_hits graph_hits dropped_edge_hits");
             add(
                 &mut out,

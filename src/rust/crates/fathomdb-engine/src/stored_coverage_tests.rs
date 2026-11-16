@@ -111,8 +111,8 @@ fn stored_coverage_failed_commit_cannot_publish_a_staged_capture() {
     engine.read_projection_generation_status().unwrap();
     let original = engine.stored_head_coverage.lock().unwrap().clone().unwrap();
     {
-        let guard = engine.connection.lock().unwrap();
-        let connection = guard.as_ref().unwrap();
+        let mut guard = engine.connection.lock().unwrap();
+        let connection = guard.as_mut().unwrap();
         connection
             .execute("UPDATE canonical_nodes SET reason='new snapshot' WHERE logical_id='n0'", [])
             .unwrap();
@@ -125,8 +125,8 @@ fn stored_coverage_failed_commit_cannot_publish_a_staged_capture() {
     }
     assert!(engine.read_projection_generation_status().is_err());
     {
-        let guard = engine.connection.lock().unwrap();
-        guard.as_ref().unwrap().authorizer(None::<fn(AuthContext<'_>) -> Authorization>);
+        let mut guard = engine.connection.lock().unwrap();
+        guard.as_mut().unwrap().authorizer(None::<fn(AuthContext<'_>) -> Authorization>);
     }
     assert_eq!(engine.stored_head_coverage.lock().unwrap().as_ref().unwrap().token, original.token);
     unavailable(engine, Reason::StateChanged);
@@ -139,15 +139,27 @@ fn stored_coverage_reopen_refresh_and_cache_poison_remain_distinct() {
     unavailable(engine, Reason::CacheCold);
     engine.read_projection_generation_status().unwrap();
     available(engine, 0);
+    let fingerprint = |engine: &Engine| -> Option<String> {
+        let guard = engine.connection.lock().unwrap();
+        guard.as_ref().unwrap().query_row("SELECT value FROM _fathomdb_open_state WHERE key='vector_equivalence_verified_fingerprint'", [], |row| row.get(0)).optional().unwrap()
+    };
+    assert!(fingerprint(engine).is_none());
     let path = engine.path.clone();
     engine.close().unwrap();
-    let reopened = Engine::open_with_embedder_for_test(path, Arc::new(Provider(Some(4)))).unwrap();
+    let reopened = Engine::open_with_embedder_for_test(&path, Arc::new(Provider(Some(4)))).unwrap();
+    // The first registered open initializes the existing provider probe cache.
+    assert!(fingerprint(&reopened.engine).is_some());
+    unavailable(&reopened.engine, Reason::CacheCold);
+    reopened.engine.read_projection_generation_status().unwrap();
     available(&reopened.engine, 0);
+    reopened.engine.close().unwrap();
+    let stable = Engine::open_with_embedder_for_test(&path, Arc::new(Provider(Some(4)))).unwrap();
+    available(&stable.engine, 0);
     let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        let _guard = reopened.engine.stored_head_coverage.lock().unwrap();
+        let _guard = stable.engine.stored_head_coverage.lock().unwrap();
         panic!("poison only this fixture's coverage cache");
     }));
-    assert!(reopened.engine.read_projection_status().is_err());
+    assert!(stable.engine.read_projection_status().is_err());
 }
 
 #[test]
@@ -201,6 +213,7 @@ fn stored_coverage_attribution_exclusions_never_hide_original_corruption() {
 
 #[test]
 fn scored_extent_refuses_missing_misplaced_extra_and_malformed_tuples() {
+    let _serial = SEARCH_TRACE_LOCK.lock().unwrap();
     let (_directory, opened) = fixture(1);
     let engine = &opened.engine;
     let cursor = engine.read_projection_generation_status().unwrap().observed_boundary;
@@ -271,7 +284,7 @@ fn start_trace(engine: &Engine) -> Arc<Mutex<Trace>> {
             TraceEventCodes::SQLITE_TRACE_STMT
                 | TraceEventCodes::SQLITE_TRACE_PROFILE
                 | TraceEventCodes::SQLITE_TRACE_ROW,
-            Some(move |event| {
+            Some(move |event: TraceEvent<'_>| {
                 let mut trace = recorded.lock().unwrap();
                 match event {
                     TraceEvent::Stmt(statement, _) => {
@@ -352,4 +365,326 @@ fn stored_coverage_work_is_fixed_on_status_and_streamed_in_existing_validation()
         status_cells.windows(2).all(|cells| cells[0] == cells[1]),
         "fixed-work status cells: {status_cells:?}"
     );
+}
+
+static SEARCH_TRACE_LOCK: Mutex<()> = Mutex::new(());
+
+fn search(engine: &Engine, query: &str, graph: bool, explain: bool, snippet: bool) -> SearchResult {
+    engine
+        .search_reranked_view_with_snippets(
+            query,
+            None,
+            0,
+            graph,
+            0.3,
+            0,
+            explain,
+            &ReadView::default(),
+            10,
+            snippet.then_some(&SnippetOptions::default()),
+        )
+        .unwrap()
+}
+
+fn extent_queries() -> usize {
+    take_slice71_search_statement_trace_for_test()
+        .iter()
+        .filter(|event| event.as_str() == "snippet_scored_extent")
+        .count()
+}
+
+#[test]
+fn scored_extent_equal_bodies_and_repeated_public_refs_keep_exact_record_endpoints() {
+    let _serial = SEARCH_TRACE_LOCK.lock().unwrap();
+    let (_directory, opened) = fixture(1);
+    let engine = &opened.engine;
+    let receipt = engine
+        .write(&[
+            node("shared", "abcdefghij"),
+            PreparedWrite::Edge {
+                kind: "link".into(),
+                from: "shared".into(),
+                to: "n0".into(),
+                body: Some("abcdefghij".into()),
+                logical_id: Some("shared".into()),
+                source_id: SourceId::new("test:stored-coverage").unwrap(),
+                t_valid: None,
+                t_invalid: None,
+                confidence: None,
+                extractor_model_id: None,
+                temporal_fallback: None,
+            },
+        ])
+        .unwrap();
+    engine.drain(10_000).unwrap();
+    {
+        let guard = engine.connection.lock().unwrap();
+        guard
+            .as_ref()
+            .unwrap()
+            .execute(
+                "UPDATE _fathomdb_vector_spans SET byte_end=9 WHERE write_cursor=?1",
+                [receipt.row_cursors[1]],
+            )
+            .unwrap();
+    }
+    take_slice71_search_statement_trace_for_test();
+    let result = search(engine, "abcdefghij", false, true, true);
+    assert_eq!(result.results.iter().filter(|hit| hit.id.value == "shared").count(), 2);
+    for ((hit, snippet), detail) in result
+        .results
+        .iter()
+        .zip(result.snippets.as_ref().unwrap())
+        .zip(&result.explanation.as_ref().unwrap().per_hit)
+    {
+        assert!(detail.vector_rank.is_some());
+        assert_eq!(
+            snippet.scored_bytes,
+            Some(if hit.write_cursor == receipt.row_cursors[1] { 9 } else { 4 })
+        );
+    }
+    assert_eq!(extent_queries(), result.results.len());
+    let result = search(engine, "abcdefghij", false, false, true);
+    for (hit, snippet) in result.results.iter().zip(result.snippets.as_ref().unwrap()) {
+        assert_eq!(
+            snippet.scored_bytes,
+            Some(if hit.write_cursor == receipt.row_cursors[1] { 9 } else { 4 })
+        );
+    }
+}
+
+#[test]
+fn scored_extent_pinned_reader_cannot_take_a_later_endpoint() {
+    let _serial = SEARCH_TRACE_LOCK.lock().unwrap();
+    let (_directory, opened) = fixture(1);
+    let engine = Arc::new(opened.engine);
+    let context = ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap();
+    let frozen = engine.freeze_read_context(&context).unwrap();
+    let (ready_tx, ready_rx) = mpsc::channel();
+    let (release_tx, release_rx) = mpsc::channel();
+    arm_frozen_after_validation_hook_for_test(
+        &engine,
+        Box::new(move || {
+            ready_tx.send(()).unwrap();
+            release_rx.recv_timeout(Duration::from_secs(10)).unwrap();
+        }),
+    );
+    let candidate = Arc::clone(&engine);
+    let pinned = frozen.clone();
+    let worker = std::thread::spawn(move || {
+        candidate.search_frozen_with_snippets(
+            "query",
+            &pinned,
+            0,
+            false,
+            0.3,
+            0,
+            false,
+            10,
+            Some(&SnippetOptions::default()),
+        )
+    });
+    ready_rx.recv_timeout(Duration::from_secs(10)).unwrap();
+    let external = Connection::open(&engine.path).unwrap();
+    let changed = external.execute("UPDATE _fathomdb_vector_spans SET byte_end=9", []);
+    release_tx.send(()).unwrap();
+    changed.unwrap();
+    match worker.join().unwrap() {
+        Ok(result) => {
+            assert_eq!(result.results.len(), 1);
+            assert_eq!(result.snippets.unwrap()[0].scored_bytes, Some(4));
+        }
+        Err(error) => assert!(matches!(error, EngineError::FrozenRead(_)), "{error:?}"),
+    }
+    assert!(matches!(
+        engine.search_frozen_with_snippets(
+            "query",
+            &frozen,
+            0,
+            false,
+            0.3,
+            0,
+            false,
+            10,
+            Some(&SnippetOptions::default())
+        ),
+        Err(EngineError::FrozenRead(_))
+    ));
+    assert_eq!(
+        search(&engine, "query", false, false, true).snippets.unwrap()[0].scored_bytes,
+        Some(9)
+    );
+}
+
+#[test]
+fn scored_extent_ownerless_collision_and_opt_out_make_no_extra_reads() {
+    let _serial = SEARCH_TRACE_LOCK.lock().unwrap();
+    let (_directory, opened) = fixture(1);
+    let engine = &opened.engine;
+    {
+        let guard = engine.connection.lock().unwrap();
+        let connection = guard.as_ref().unwrap();
+        let cursor: u64 = connection
+            .query_row(
+                "SELECT write_cursor FROM canonical_nodes WHERE logical_id='n0'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        connection.execute("DELETE FROM search_index WHERE rowid=?1", [cursor]).unwrap();
+        connection.execute("INSERT INTO search_index(rowid,body,kind,write_cursor) VALUES(?1,'ownerlessneedle','doc',9999)",[cursor]).unwrap();
+    }
+    take_slice71_search_statement_trace_for_test();
+    let hybrid = search(engine, "ownerlessneedle", false, true, true);
+    let at = hybrid.results.iter().position(|hit| hit.body == "ownerlessneedle").unwrap();
+    assert!(hybrid.explanation.as_ref().unwrap().per_hit[at].vector_rank.is_none());
+    assert_eq!(hybrid.snippets.as_ref().unwrap()[at].scored_bytes, None);
+    let participants = hybrid
+        .explanation
+        .as_ref()
+        .unwrap()
+        .per_hit
+        .iter()
+        .filter(|hit| hit.vector_rank.is_some())
+        .count();
+    assert_eq!(participants, 1);
+    assert_eq!(extent_queries(), participants);
+    let off = search(engine, "ownerlessneedle", false, false, false);
+    assert!(off.snippets.is_none());
+    assert_eq!(extent_queries(), 0);
+    let text = engine
+        .search_text_only_view_with_snippets(
+            "ownerlessneedle",
+            &ReadView::default(),
+            10,
+            Some(&SnippetOptions::default()),
+        )
+        .unwrap();
+    assert_eq!(text.results.len(), 1);
+    assert_eq!(text.snippets.unwrap()[0].scored_bytes, None);
+    assert_eq!(extent_queries(), 0);
+    assert_eq!(snippet_for("ownerlessneedle", &[], &SnippetOptions::default()).scored_bytes, None);
+    assert_eq!(extent_queries(), 0);
+}
+
+struct DirectionalProvider;
+impl Embedder for DirectionalProvider {
+    fn identity(&self) -> EmbedderIdentity {
+        EmbedderIdentity::new("scored-graph", "test", 8)
+    }
+    fn embed(&self, input: &str) -> Result<Vector, EmbedderError> {
+        let mut value = vec![-1.0; 8];
+        value[usize::from(!(input == "zanzibar" || input.contains("vectorhit")))] = 1.0;
+        Ok(value)
+    }
+    fn truncation_offset(&self, _: &str) -> Result<Option<usize>, EmbedderError> {
+        Ok(Some(4))
+    }
+}
+
+#[test]
+fn scored_extent_nested_graph_cannot_manufacture_vector_participation() {
+    let _serial = SEARCH_TRACE_LOCK.lock().unwrap();
+    let directory = tempfile::tempdir().unwrap();
+    let opened = Engine::open_with_embedder_for_test(
+        directory.path().join("graph.sqlite"),
+        Arc::new(DirectionalProvider),
+    )
+    .unwrap();
+    let engine = &opened.engine;
+    engine.configure_vector_kind_for_test("doc").unwrap();
+    let mut writes: Vec<_> = (0..256)
+        .map(|i| {
+            node(
+                &if i == 0 { "seed".into() } else { format!("near{i}") },
+                &format!("vectorhit near {i}"),
+            )
+        })
+        .collect();
+    writes.push(node("lexical", "zanzibar lexical only"));
+    writes.push(node("graph", "distant graph node"));
+    for target in ["lexical", "graph"] {
+        writes.push(PreparedWrite::Edge {
+            kind: "link".into(),
+            from: "seed".into(),
+            to: target.into(),
+            body: Some(format!("zanzibar bridge {target}")),
+            logical_id: Some(format!("edge-{target}")),
+            source_id: SourceId::new("test:stored-coverage").unwrap(),
+            t_valid: None,
+            t_invalid: None,
+            confidence: None,
+            extractor_model_id: None,
+            temporal_fallback: None,
+        });
+    }
+    engine.write(&writes).unwrap();
+    engine.drain(10_000).unwrap();
+    take_slice71_search_statement_trace_for_test();
+    let result = search(engine, "zanzibar", true, true, true);
+    for name in ["lexical", "graph"] {
+        let at = result
+            .results
+            .iter()
+            .position(|hit| hit.id.value == name)
+            .unwrap_or_else(|| panic!("{name} not reached: {:?}", result.results));
+        let detail = &result.explanation.as_ref().unwrap().per_hit[at];
+        assert_eq!(
+            detail.vector_rank, None,
+            "fixture must exclude {name} from original vector arm"
+        );
+        if name == "graph" {
+            assert!(detail.graph_rank.is_some());
+        } else {
+            assert!(detail.text_rank.is_some());
+        }
+        assert_eq!(
+            result.snippets.as_ref().unwrap()[at].scored_bytes,
+            None,
+            "nested fusion cannot lend participation"
+        );
+        let guard = engine.connection.lock().unwrap();
+        assert_eq!(
+            crate::vector_spans::scored_extent(
+                guard.as_ref().unwrap(),
+                RecordKey::CanonicalNode(result.results[at].write_cursor),
+                &result.results[at].body
+            )
+            .unwrap(),
+            Some(4),
+            "negative control actually has a known stored vector head"
+        );
+    }
+    let actual = extent_queries();
+    let participants = result
+        .explanation
+        .as_ref()
+        .unwrap()
+        .per_hit
+        .iter()
+        .filter(|hit| hit.vector_rank.is_some())
+        .count();
+    assert_eq!(
+        actual,
+        participants + 2,
+        "two explicit fixture checks are separate from the search's participant reads"
+    );
+    assert!(participants <= result.results.len());
+}
+
+#[test]
+fn stored_coverage_rebuild_and_erasure_invalidate_committed_facts() {
+    let (_directory, opened) = fixture(1);
+    let engine = &opened.engine;
+    engine.read_projection_generation_status().unwrap();
+    available(engine, 1);
+    engine.rebuild_vec0().unwrap();
+    unavailable(engine, Reason::StateChanged);
+    engine.read_projection_generation_status().unwrap();
+    // The temporary test-only kind is absent from the persistent replay schema.
+    available(engine, 0);
+    engine.erase_source("test:stored-coverage").unwrap();
+    unavailable(engine, Reason::StateChanged);
+    engine.read_projection_generation_status().unwrap();
+    available(engine, 0);
 }

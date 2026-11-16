@@ -563,3 +563,99 @@ impl EmbeddingReadiness {
         }
     }
 }
+
+#[cfg(test)]
+mod exact_coverage_transport_tests {
+    use super::*;
+    use fathomdb_engine::{
+        StoredHeadCoverageCounts as Counts, StoredHeadCoverageFraction as Fraction,
+        StoredHeadCoverageProfile as Profile, StoredHeadCoverageUnavailableReason as Reason,
+        StoredHeadCoverageV1 as Coverage,
+    };
+
+    fn value() -> Coverage {
+        Coverage::Available {
+            population: "stored_mapped_spans",
+            profile: Profile {
+                key: "default".into(),
+                name: "fixture".into(),
+                revision: "v1".into(),
+                dimension: 8,
+            },
+            counts: Counts {
+                records: i64::MAX as u64,
+                known_records: i64::MAX as u64 - 1,
+                unknown_records: 1,
+                truncated_known_records: i64::MAX as u64 - 2,
+                known_body_bytes: u128::MAX,
+                unrepresented_known_bytes: u128::MAX - 1,
+                unattributed_heads: i64::MAX as u64,
+                truncated_known_share: Some(Fraction {
+                    numerator: i64::MAX as u128 - 2,
+                    denominator: i64::MAX as u128 - 1,
+                }),
+                unrepresented_known_byte_share: Some(Fraction {
+                    numerator: u128::MAX - 1,
+                    denominator: u128::MAX,
+                }),
+            },
+        }
+    }
+
+    #[test]
+    fn s90_native_coverage_preserves_exact_integer_transport_domains() {
+        let native = StoredHeadCoverage::from_rust(&value());
+        assert_eq!(native.profile.dimension, 8);
+        for (actual, expected) in [
+            (native.records.as_deref(), "9223372036854775807"),
+            (native.known_records.as_deref(), "9223372036854775806"),
+            (native.unknown_records.as_deref(), "1"),
+            (native.truncated_known_records.as_deref(), "9223372036854775805"),
+            (native.known_body_bytes.as_deref(), "340282366920938463463374607431768211455"),
+            (
+                native.unrepresented_known_bytes.as_deref(),
+                "340282366920938463463374607431768211454",
+            ),
+            (native.unattributed_heads.as_deref(), "9223372036854775807"),
+        ] {
+            assert_eq!(actual, Some(expected));
+        }
+        let share = native.unrepresented_known_byte_share.unwrap();
+        assert_eq!(share.numerator, "340282366920938463463374607431768211454");
+        assert_eq!(share.denominator, "340282366920938463463374607431768211455");
+    }
+
+    #[test]
+    fn s90_native_unavailable_has_no_numeric_payload() {
+        for reason in [Reason::CacheCold, Reason::StateChanged] {
+            let value = Coverage::Unavailable {
+                population: "stored_mapped_spans",
+                profile: Profile {
+                    key: "default".into(),
+                    name: "fixture".into(),
+                    revision: "v1".into(),
+                    dimension: 8,
+                },
+                reason,
+            };
+            let native = StoredHeadCoverage::from_rust(&value);
+            assert_eq!(native.profile.dimension, 8);
+            assert!(
+                native.records.is_none()
+                    && native.known_records.is_none()
+                    && native.unknown_records.is_none()
+            );
+            assert!(
+                native.truncated_known_records.is_none() && native.unattributed_heads.is_none()
+            );
+            assert!(
+                native.known_body_bytes.is_none() && native.unrepresented_known_bytes.is_none()
+            );
+            assert!(
+                native.truncated_known_share.is_none()
+                    && native.unrepresented_known_byte_share.is_none()
+            );
+            assert_eq!(native.status, "unavailable");
+        }
+    }
+}

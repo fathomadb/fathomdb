@@ -78,3 +78,12 @@ Limit implementation to `experiments/tc5_gpu_v2.py` release/package admission.
 This unit changes no bridge inputs, metric math, resource caps or runtime
 permission. Native/model/GPU qualification and the 900s versus historical 7200s
 bound remain separate and held. No new hash-inventory or tamper tests.
+
+## Private Storage diagnostic control
+
+The [one-case diagnostic](continuation-gd.md#one-private-sqlite-log-storage-diagnostic)
+adds a fresh-process real SQLite-error callback RED/GREEN and literal bounded
+capture/loss controls under R30-4..7/A30-4..6. The source-qualified helper remains
+outside ordinary D populations. Its single100k runtime must retain raw extended
+codes and pre/post outer cgroup memory counters through the existing charged
+guardian; missing capture never becomes a Storage diagnosis or D completion.

@@ -307,6 +307,33 @@ def publish_selected(root):
     return value
 
 
+def finalize_invocation(root, started_ns, prior_wall_ns):
+    """Charge only outer work not already committed, after original unit cleanup."""
+    import fcntl
+    root = Path(root).resolve()
+    manifest = json.loads((root / "manifest.json").read_text())
+    allocation = Path(manifest["allocation"])
+    identity = manifest["plan"][0]["id"]
+    with (allocation / "g-campaign.lock").open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        ledger_path = allocation / "g-budget.json"
+        ledger = json.loads(ledger_path.read_text())
+        if any(ledger.get(key) for key in ("inflight", "g_guardian", "m_guardian", "d_guardian", "closed_guardian")):
+            raise ValueError("live shared ownership blocks M invocation finalization")
+        usage = ledger["selected_cell_usage"][identity]
+        charged_at = time.monotonic_ns()
+        uncharged = max(0, charged_at-started_ns-(usage["wall_ns"]-prior_wall_ns))
+        qualified = _charge_final_work(root, ledger_path, ledger, usage, uncharged,
+                                       manifest["cell_allowance"], manifest["profile"])
+        reports = sorted((root / "reports").glob("report-*.json"))
+        if not qualified:
+            value = report(root, output_path=reports[-1] if reports else None)
+            _charge_final_work(root, ledger_path, ledger, usage, time.monotonic_ns()-charged_at,
+                              manifest["cell_allowance"], manifest["profile"], failed=True)
+            return value
+        return json.loads(reports[-1].read_text())
+
+
 def invalidate_selected(root, reason):
     """Revoke this invocation's credit after strict cleanup and bounded outer capture failure."""
     import fcntl
@@ -405,8 +432,15 @@ def retire_working_copies(root):
 
 def _charge_final_work(root, ledger_path, ledger, usage, elapsed, limits, profile, *, failed=False):
     from m_guard import write_budget
+    from g_campaign import active_bytes
     ledger["used_ns"] += elapsed
     usage["wall_ns"] += elapsed
+    if "invocation_logs" in usage:
+        usage["new_retained_bytes"] = max(usage["new_retained_bytes"], sum(active_bytes(path)
+            for path in [*usage.get("roots", [str(root)]), *usage["invocation_logs"]]))
+        failed |= usage["new_retained_bytes"] >= limits["new_retained_bytes"]
+    failed |= active_bytes(root.parent) >= (profile["total_shared_retained_bytes"]
+                                           - profile.get("reserved_other_work_bytes", 0))
     common = ledger.setdefault("common_used_ns", {})
     common["M"] = common.get("M", 0) + elapsed
     path = next((root / "guardians").glob("*/guardian.json"))

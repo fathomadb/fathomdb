@@ -118,8 +118,8 @@ def preparation_bound(manifest):
         old = json.loads(ledger.read_text())
         encoded = len((json.dumps(old, indent=2) + "\n").encode("utf-8"))
         # Existing history is finite input, never capped/deleted. New M owner,
-        # attempt and root fields add fewer than128KiB even with JSON escaping.
-        shared_atomic = 2 * (encoded + 128 * 1024)
+        # attempt and root fields add fewer than256KiB even with JSON escaping.
+        shared_atomic = 2 * (encoded + 256 * 1024)
         return package + capture + native + shared_atomic
     maximum = max(len(json.dumps({"jsonrpc": "2.0", "id": 10000, "method": "tools/call",
         "params": {"name": "search", "arguments": {"store": "a", "query": query,

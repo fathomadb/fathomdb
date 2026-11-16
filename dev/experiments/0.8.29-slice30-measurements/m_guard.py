@@ -56,17 +56,22 @@ class Accounting:
         if usage and usage.get("limits") != limits:
             raise ValueError("selected cumulative calibration allowance changed")
         roots = usage.get("roots", [])
+        prior_logs = usage.get("invocation_logs", [])
+        current_logs = ([str(root.parent / (root.name + suffix)) for suffix in
+            ("-service.log", "-supervisor.log", "-samples.jsonl")] if cell_id is not None else [])
         if usage:
             usage["new_retained_bytes"] = max(usage["new_retained_bytes"],
-                                             sum(active_bytes(path) for path in roots))
+                                             sum(active_bytes(path) for path in [*roots, *prior_logs]))
         prior_ns, prior_bytes = usage.get("wall_ns", 0), usage.get("new_retained_bytes", 0)
         self.calibration = dict(id=CALIBRATION_ID, prior_wall_ns=prior_ns, prior_retained_bytes=prior_bytes,
                                 limits=dict(limits), root=str(root),
-                                baseline_bytes=active_bytes(self.path.parent), peak_growth=0,
+                                baseline_bytes=active_bytes(self.path.parent)-sum(active_bytes(path) for path in current_logs), peak_growth=0,
                                 usage_key=usage_key, cell_id=identity)
         value[usage_key][identity] = dict(usage,
             limits=dict(limits), wall_ns=prior_ns,
             new_retained_bytes=prior_bytes, roots=list(dict.fromkeys([*roots, str(root)])))
+        if cell_id is not None:
+            value[usage_key][identity]["invocation_logs"] = list(dict.fromkeys([*prior_logs, *current_logs]))
         remaining = (admit(self.profile, value, active_bytes(self.path.parent), limits) if cell_id is None
                      else admit_selected(self.profile, value, active_bytes(self.path.parent), limits, cell_id))
         self.calibration.update(remaining)

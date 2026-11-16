@@ -23,28 +23,23 @@ def cell_limit_ns(n, selected=None, *, maximum=False):
     return limit
 
 
+def _qualified_record(record, n, layer, mode):
+    qualified = (record is not None and record.get("status") == "complete"
+                 and record.get("closed") is True and record.get("error_count") == 0
+                 and record.get("physical_count") == n)
+    if qualified and layer == "C":
+        qualified = (record.get("observations_complete") is True
+                     and record.get("dropped_records") == 0
+                     and (mode != "overlap" or record.get("actual_overlap") is True))
+    return qualified
+
+
 def _qualified_lower(n, mode, records):
-    for layer in ("C", "T"):
-        for repeat in (0, 1):
-            record = records.get(f"d-{layer.lower()}-{mode}-n{n}-r{repeat}")
-            qualified = (record is not None and record.get("status") == "complete"
-                         and record.get("closed") is True and record.get("error_count") == 0
-                         and record.get("physical_count") == n)
-            if qualified and layer == "C":
-                qualified = (record.get("observations_complete") is True
-                             and record.get("dropped_records") == 0
-                             and (mode != "overlap" or record.get("actual_overlap") is True))
-            if not qualified:
-                return False
-    return True
+    return all(_qualified_record(records.get(f"d-{layer.lower()}-{mode}-n{n}-r{repeat}"),n,layer,mode)
+               for layer in ("C","T") for repeat in (0,1))
 
 
-def assess_stage(n, mode, records, budget):
-    """Return prospective admission for one required size/mode quartet."""
-    if budget["used_ns"] >= budget["shared_ns"] or budget["retained_bytes"] >= budget["storage_limit"]:
-        return {"status": "not_run_cap_feasibility", "reason": "shared time or retained storage exhausted"}
-    if n == 10000:
-        return {"status": "admit"}
+def _lower_predictions(n,mode,records):
     lower = 10000 if n == 100000 else 100000
     if not _qualified_lower(lower, mode, records):
         return {"status": "not_run_lower_evidence", "lower_n": lower,
@@ -63,6 +58,19 @@ def assess_stage(n, mode, records, budget):
             times.append((2 * max(row["elapsed_ns"] for row in rows) * n + lower_n - 1) // lower_n)
             sizes.append((2 * max(row["peak_bytes"] for row in rows) * n + lower_n - 1) // lower_n)
         predictions[layer] = {"time_ns": max(times), "active_bytes": max(sizes)}
+    return {"status":"admit", "predictions":predictions}
+
+
+def assess_stage(n, mode, records, budget):
+    """Return prospective admission for one required size/mode quartet."""
+    if budget["used_ns"] >= budget["shared_ns"] or budget["retained_bytes"] >= budget["storage_limit"]:
+        return {"status": "not_run_cap_feasibility", "reason": "shared time or retained storage exhausted"}
+    if n == 10000:
+        return {"status": "admit"}
+    lower = _lower_predictions(n,mode,records)
+    if lower["status"] != "admit":
+        return lower
+    predictions = lower["predictions"]
     quartet_bytes = 2 * sum(value["active_bytes"] for value in predictions.values())
     quartet_time_ns = 2 * sum(value["time_ns"] for value in predictions.values())
     assessment = {"status": "admit", "predictions": predictions, "quartet_bytes": quartet_bytes,

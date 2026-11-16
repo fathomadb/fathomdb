@@ -5,7 +5,7 @@ from contextlib import ExitStack
 from pathlib import Path
 import time
 
-from d_controller import _qualified_lower, assess_stage, cell_limit_ns, run_initial_quartet, run_required
+from d_controller import _lower_predictions, _qualified_lower, assess_stage, cell_limit_ns, run_initial_quartet, run_required
 from d_attempt import run_owned_cell
 from d_report import bind_execution
 from d_overlap import _interval
@@ -105,7 +105,7 @@ def _qualify_native(cell, result):
     return row
 
 
-def run_accounted_stage(spec, records, budget, execute, *, initial=True, clock=time.monotonic_ns, publish=None, fail_fast=False):
+def run_accounted_stage(spec, records, budget, execute, *, initial=True, clock=time.monotonic_ns, publish=None, fail_fast=False, replacements=None, replacement_bounds=None, attempt_root=None):
     """Return fixed-table outcomes and update caller-owned actual wall charges.
 
     The caller owns the allocation lock and supplies a supervised executor that
@@ -116,8 +116,9 @@ def run_accounted_stage(spec, records, budget, execute, *, initial=True, clock=t
     grants runtime admission; the initial-quartet stop remains the default.
     """
     through = clock()
+    replacements = replacements or {}
     failed = next((cell["id"] for cell in spec["cells"]
-        if records.get(cell["id"], {}).get("status") in ("failed", "incomplete", "interrupted")), None) if fail_fast else None
+        if cell["id"] not in replacements and records.get(cell["id"], {}).get("status") in ("failed", "incomplete", "interrupted")), None) if fail_fast else None
 
     def charge(now, cell_id=None):
         nonlocal through
@@ -143,12 +144,26 @@ def run_accounted_stage(spec, records, budget, execute, *, initial=True, clock=t
         if budget.get("inflight"):
             return {"status": "not_run_ownership", "reason": "owned attempt cleanup is unresolved"}
         if failed:
-            return {"status": "not_run_failed_prefix", "reason": "prior scientific D cell failed: "+failed}
+            row = {"status": "not_run_failed_prefix", "reason": "prior scientific D cell failed: "+failed}
+            if replacements and cell["id"] in records:
+                row["record"] = records[cell["id"]]
+            return row
         spent = budget.get("cell_used_ns", {}).get(cell["id"], 0)
         remaining = min(cell["cell_ns"] - spent, budget["shared_ns"] - budget["used_ns"])
         if remaining <= 0 or budget["retained_bytes"] >= budget["storage_limit"]:
             return {"status": "not_run_cap_feasibility", "reason": "remaining shared/cell allowance exhausted"}
+        token = None
+        if cell["id"] in replacements:
+            bound = replacement_bounds[cell["layer"]]
+            if (bound["time_ns"] >= remaining
+                    or budget["retained_bytes"]+bound["active_bytes"] >= budget["storage_limit"]):
+                return {"status":"not_run_cap_feasibility", "reason":"replacement bound exceeds current remaining allowance",
+                        "record":records[cell["id"]]}
+            from d_replacements import consume
+            token = consume(cell["id"],records,budget,replacements[cell["id"]],attempt_root,started)
         budget["inflight"] = {"cell": cell["id"], "started_monotonic_ns": started}
+        if token:
+            budget["inflight"].update(attempt_id=token["attempt_id"],attempt=token["attempt"],replacement=True)
         if publish:
             publish()
         result = None
@@ -170,6 +185,9 @@ def run_accounted_stage(spec, records, budget, execute, *, initial=True, clock=t
         elif row.get("status") == "complete" and ended >= started + remaining:
             row.update(status="incomplete", deadline_exceeded=True,
                        error=row.get("error") or "whole-cell deadline reached including report qualification")
+        if token:
+            from d_replacements import with_history
+            row = with_history(row,token)
         if fail_fast and row.get("status") in ("failed", "incomplete", "interrupted"):
             failed = cell["id"]
         records[cell["id"]] = row
@@ -179,6 +197,10 @@ def run_accounted_stage(spec, records, budget, execute, *, initial=True, clock=t
 
     run = run_initial_quartet if initial else run_required
     try:
+        if replacements:
+            return [{"id":cell["id"],"status":"complete","record":records[cell["id"]]}
+                    if records.get(cell["id"],{}).get("status") == "complete"
+                    else {"id":cell["id"],**prepare(cell)} for cell in spec["cells"]]
         return run(spec, records, budget, prepare)
     finally:
         charge(clock())
@@ -214,8 +236,10 @@ def run_supervised_stage(spec, records, budget, root, command, *, publish=None, 
                                                     if cell["id"] in decision["cells"]])
     selected = dict(selected, cells=[dict(cell, cell_ns=cell_limit_ns(cell["n"], budget.get("cell_limits_ns")))
                                      for cell in selected["cells"]])
+    replacements = None if initial else decision.get("replacement_selection")
     rows = run_accounted_stage(selected, records, budget, execute, initial=initial, publish=publish,
-                               fail_fast=scientific)
+        fail_fast=scientific or bool(replacements), replacements=replacements,
+        replacement_bounds=None if initial else decision.get("predictions"), attempt_root=root)
     if initial:
         return rows
     dispatched = {row["id"]: row for row in rows}
@@ -259,7 +283,13 @@ def reviewed_quartet(spec, records, budget, review):
     if (any(not isinstance(attempt, str) or not attempt for attempt in attempts.values())
             or review.get("prefix_attempts") != attempts):
         return held("qualified prefix attempt identities differ from the reviewed evidence")
-    assessment = assess_stage(n, mode, records, budget)
+    replacement = None
+    if "replacements" in review:
+        from d_replacements import plan
+        replacement = plan(records,budget,review)
+        if replacement["status"] != "admit":
+            return replacement
+    assessment = (_lower_predictions(n,mode,records) if replacement else assess_stage(n, mode, records, budget))
     if assessment["status"] != "admit":
         return assessment
     bounds = review.get("bounds")
@@ -274,6 +304,19 @@ def reviewed_quartet(spec, records, budget, review):
         lower = assessment.get("predictions", {}).get(layer)
         if lower and any(values[key] < lower[key] for key in ("time_ns", "active_bytes")):
             return held("review is smaller than the current same-mode conservative bound")
+    if replacement:
+        pending = replacement["pending_cells"]
+        for cell_id in pending:
+            layer = "T" if cell_id.startswith("d-t-") else "C"
+            if bounds[layer]["time_ns"] >= replacement["remaining_ns"][cell_id]:
+                return held("replacement bound is not strictly below cumulative cell remainder", "not_run_cap_feasibility")
+        time_ns = sum(bounds["T" if key.startswith("d-t-") else "C"]["time_ns"] for key in pending)
+        retained = sum(bounds["T" if key.startswith("d-t-") else "C"]["active_bytes"] for key in pending)
+        if budget["used_ns"]+time_ns > budget["shared_ns"] or budget["retained_bytes"]+retained >= budget["storage_limit"]:
+            return held("replacement pair exceeds current shared headroom", "not_run_cap_feasibility")
+        return dict(replacement,n=n,mode=mode,predictions=bounds,
+            cells=[cell["id"] for cell in spec["cells"] if (cell["n"],cell["mode"]) == (n,mode)],
+            planned_new_time_ns=time_ns,planned_new_bytes=retained)
     quartet_time = 2*sum(bounds[layer]["time_ns"] for layer in ("C", "T"))
     quartet_bytes = 2*sum(bounds[layer]["active_bytes"] for layer in ("C", "T"))
     if (budget["used_ns"]+quartet_time > budget["shared_ns"]

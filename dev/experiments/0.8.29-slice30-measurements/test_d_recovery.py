@@ -1,11 +1,14 @@
 """Historical D stop conservation and interrupted publication; literal nanoseconds."""
 
 import json
+import os
+import subprocess
+import sys
 from pathlib import Path
 import tempfile
 import unittest
 
-from d_recovery import recover
+from d_recovery import observe_terminated, recover
 
 
 class DRecoveryTests(unittest.TestCase):
@@ -93,6 +96,39 @@ class DRecoveryTests(unittest.TestCase):
                 self.assertEqual(final['cell_used_ns']['d-c-overlap-n100000-r1'], 20)
                 self.assertEqual(final['common_used_ns']['D'], 30)
                 self.assertEqual(json.loads((root / 'd-state.json').read_text())['d-t-overlap-n100000-r1']['status'], 'failed')
+
+
+    def test_live_or_reused_original_actor_refuses_before_unit_or_budget_access(self):
+        child = subprocess.Popen([sys.executable, '-c', 'import time;time.sleep(60)'])
+        try:
+            fields = Path(f'/proc/{child.pid}/stat').read_text().rsplit(') ', 1)[1].split()
+            start = int(fields[19])
+            for expected in (start, start + 1):
+                with self.subTest(expected=expected), self.assertRaisesRegex(RuntimeError, 'live|reused'):
+                    observe_terminated({'guardian': {'pid': child.pid, 'start': expected}})
+        finally:
+            child.terminate()
+            child.wait(timeout=3)
+
+    def test_foreign_custody_or_boundary_does_not_publish_recovery(self):
+        for change in ('m_guardian', 'closed_guardian', 's50_guardian', 'foreign-boundary'):
+            with self.subTest(change=change), tempfile.TemporaryDirectory() as directory:
+                task = Path(directory)
+                allocation, _, options, _ = self.fixture(task)
+                path = allocation / 'g-budget.json'
+                budget = json.loads(path.read_text())
+                if change == 'foreign-boundary':
+                    marker = task / 'g-containment-state.json'
+                    boundary = json.loads(marker.read_text())
+                    boundary['guardian_pid'] = os.getpid()
+                    marker.write_text(json.dumps(boundary))
+                else:
+                    budget[change] = {'pid': os.getpid(), 'status': 'owned elsewhere'}
+                    path.write_text(json.dumps(budget))
+                before = path.read_text()
+                with self.assertRaisesRegex(RuntimeError, 'foreign|boundary'):
+                    recover(options, task=task, observe=lambda _: None, clock=lambda: 1000000)
+                self.assertEqual(path.read_text(), before)
 
 
 if __name__ == '__main__':

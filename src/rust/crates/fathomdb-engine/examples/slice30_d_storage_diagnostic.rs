@@ -3,14 +3,69 @@ use serde_json::{json, Value};
 use std::os::raw::c_int;
 use std::path::Path;
 use std::process::ExitCode;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Mutex, OnceLock};
+use std::time::Instant;
 
-fn record_sqlite_log(_code: c_int, _message: &str) {}
+const MAX_RECORDS: usize = 64;
+const MAX_MESSAGE_BYTES: usize = 1024;
+
+struct Capture {
+    origin: Instant,
+    records: Vec<Value>,
+    dropped: u64,
+    truncated: u64,
+}
+
+static CAPTURE: OnceLock<Mutex<Capture>> = OnceLock::new();
+static CAPTURE_ERRORS: AtomicU64 = AtomicU64::new(0);
+
+fn record_sqlite_log(code: c_int, message: &str) {
+    let Some(capture) = CAPTURE.get() else {
+        CAPTURE_ERRORS.fetch_add(1, Ordering::Relaxed);
+        return;
+    };
+    let Ok(mut capture) = capture.lock() else {
+        CAPTURE_ERRORS.fetch_add(1, Ordering::Relaxed);
+        return;
+    };
+    if capture.records.len() == MAX_RECORDS {
+        capture.dropped = capture.dropped.saturating_add(1);
+        return;
+    }
+    let mut end = message.len().min(MAX_MESSAGE_BYTES);
+    while !message.is_char_boundary(end) {
+        end -= 1;
+    }
+    if end < message.len() {
+        capture.truncated = capture.truncated.saturating_add(1);
+    }
+    let elapsed = u64::try_from(capture.origin.elapsed().as_nanos())
+        .expect("bounded diagnostic elapsed time fits u64");
+    capture.records.push(json!({"code":code,"message":&message[..end],
+        "thread":format!("{:?}",std::thread::current().id()),"elapsed_ns":elapsed}));
+}
 
 fn capture() -> Value {
-    json!({"records":[],"dropped":0,"truncated":0,"capture_complete":true})
+    match CAPTURE.get().and_then(|capture| capture.lock().ok()) {
+        Some(capture) => json!({"records":capture.records,"dropped":capture.dropped,
+            "truncated":capture.truncated,"callback_errors":CAPTURE_ERRORS.load(Ordering::Relaxed),
+            "capture_complete":capture.dropped == 0 && capture.truncated == 0
+                && CAPTURE_ERRORS.load(Ordering::Relaxed) == 0}),
+        None => json!({"records":[],"dropped":null,"truncated":null,
+            "capture_complete":false,"issues":["diagnostic capture unavailable"]}),
+    }
 }
 
 fn run(args: &[std::ffi::OsString]) -> Result<Value, String> {
+    CAPTURE
+        .set(Mutex::new(Capture {
+            origin: Instant::now(),
+            records: Vec::with_capacity(MAX_RECORDS),
+            dropped: 0,
+            truncated: 0,
+        }))
+        .map_err(|_| "one private diagnostic per process is required")?;
     // SAFETY: this standalone process registers once before opening SQLite or
     // starting workers. The callback is thread-safe and never calls SQLite.
     unsafe { rusqlite::trace::config_log(Some(record_sqlite_log)) }

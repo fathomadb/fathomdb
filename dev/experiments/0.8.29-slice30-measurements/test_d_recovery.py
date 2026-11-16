@@ -98,6 +98,30 @@ class DRecoveryTests(unittest.TestCase):
                 self.assertEqual(json.loads((root / 'd-state.json').read_text())['d-t-overlap-n100000-r1']['status'], 'failed')
 
 
+    def test_real_process_death_after_terminal_publication_preserves_recovery_wall(self):
+        with tempfile.TemporaryDirectory() as directory:
+            task = Path(directory)
+            allocation, _, options, _ = self.fixture(task)
+            source = str(Path(__file__).parent.resolve())
+            code = '\n'.join([
+                'import os,sys', f'sys.path.insert(0,{source!r})',
+                'from d_recovery import recover',
+                'ticks=iter([1000,1010])',
+                'def exit_after_publish(stage):',
+                '    if stage == "complete": os._exit(17)',
+                f'recover({options!r},task={str(task)!r},observe=lambda _:None,clock=lambda:next(ticks),after_publish=exit_after_publish)',
+            ])
+            child = subprocess.run([sys.executable, '-c', code], timeout=3)
+            self.assertEqual(child.returncode, 17)
+            budget = json.loads((allocation/'g-budget.json').read_text())
+            self.assertEqual(budget['used_ns'], 1110,
+                             'terminal custody cleared before recovery wall was durably charged')
+            self.assertEqual(budget['common_used_ns']['D'], 40)
+            self.assertIsNone(budget['d_guardian'])
+            result = recover(options, task=task, observe=lambda _:None, clock=lambda:9000000)
+            self.assertTrue(result['already_complete'])
+            self.assertEqual(json.loads((allocation/'g-budget.json').read_text())['used_ns'], 1110)
+
     def test_live_or_reused_original_actor_refuses_before_unit_or_budget_access(self):
         child = subprocess.Popen([sys.executable, '-c', 'import time;time.sleep(60)'])
         try:

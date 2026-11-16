@@ -373,3 +373,47 @@ proptest! {
     }
 
 }
+
+#[test]
+fn authored_reference_omits_only_unavailable_envelope_signals() {
+    let input = SearchPageInput {
+        ranked: ranked(&[300]),
+        limit: 10,
+        snippet_bytes: 120,
+        max_tokens: 4000,
+        hints: Some(true),
+        ..Default::default()
+    };
+    let (payload, text, _, kept) = reference_shape(&input).unwrap();
+    assert_eq!(kept, 1);
+    assert!(payload.get("state").is_none(), "unavailable envelope state must be omitted");
+    assert!(payload.get("verdict").is_none(), "unavailable verdict must be omitted");
+    assert_eq!(serde_json::from_str::<Value>(&text).unwrap(), payload);
+    assert_eq!(payload["results"][0]["ref"], "l:note:000");
+    assert_eq!(payload["results"][0]["score"], 1.0);
+    assert_eq!(payload["results"][0]["source_id"], "fixture");
+}
+
+#[test]
+fn reviewed_envelope_capacity_keeps_the_original_small_hit() {
+    let input = SearchPageInput {
+        ranked: ranked(&[120]),
+        limit: 10,
+        snippet_bytes: 120,
+        max_tokens: 256,
+        hints: Some(true),
+        ..Default::default()
+    };
+    let (expected, text, next, kept) = reference_shape(&input).unwrap();
+    assert_eq!(kept, 1, "omitting unavailable envelope signals admits this authored hit");
+    assert_eq!(next, None);
+    assert_eq!(expected["budget"]["cut"], false);
+    assert_eq!(expected["completeness"], "complete");
+    assert!(expected.get("hints").is_none());
+    assert!((2 * text.len()).div_ceil(4) <= 256);
+    let shaped = shape_search_page(&prepare_search_page(&input));
+    assert_eq!(shaped.kept, kept);
+    assert_eq!(shaped.structured, expected);
+    assert_eq!(shaped.text, text);
+    assert_eq!(shaped.next_offset, next);
+}

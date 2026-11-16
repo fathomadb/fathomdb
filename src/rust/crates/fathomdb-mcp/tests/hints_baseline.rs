@@ -447,3 +447,129 @@ fn historical_hybrid_absence_has_only_the_authored_successor_delta() {
     changed["id"] = json!(99);
     assert!(compare_baseline(&changed, &rows[4], 4).is_err());
 }
+
+fn authored_omission(mut payload: Value) -> Value {
+    assert_eq!(payload["state"], json!({"status":"unavailable"}));
+    payload.as_object_mut().unwrap().remove("state");
+    if payload.get("verdict").is_some() {
+        assert_eq!(payload["verdict"], "unavailable");
+        payload.as_object_mut().unwrap().remove("verdict");
+    }
+    payload
+}
+
+#[test]
+fn historical_default_store_successor_is_exact_and_required() {
+    let rows = BASELINE
+        .lines()
+        .map(|line| serde_json::from_str::<Value>(line).unwrap())
+        .collect::<Vec<_>>();
+    let mut payload = rows[1]["result"]["structuredContent"].clone();
+    payload["default_store"] = json!("a");
+    assert!(compare_baseline(&current_wire(&rows[1], payload.clone()), &rows[1], 1).is_ok());
+    for wrong in [Value::Null, json!("b"), json!(1), json!({})] {
+        let mut changed = payload.clone();
+        changed["default_store"] = wrong;
+        assert!(compare_baseline(&current_wire(&rows[1], changed), &rows[1], 1).is_err());
+    }
+    let mut changed = payload.clone();
+    changed.as_object_mut().unwrap().remove("default_store");
+    assert!(compare_baseline(&current_wire(&rows[1], changed), &rows[1], 1).is_err());
+    for (key, value) in [
+        ("default", json!(false)),
+        ("name", json!("b")),
+        ("open", json!(true)),
+        ("readiness", json!("ready")),
+    ] {
+        let mut changed = payload.clone();
+        changed["stores"][0][key] = value;
+        assert!(compare_baseline(&current_wire(&rows[1], changed), &rows[1], 1).is_err(), "{key}");
+    }
+    let mut wrong_baseline = rows[1].clone();
+    wrong_baseline["result"]["structuredContent"]["stores"][0]["default"] = json!(false);
+    assert!(compare_baseline(&current_wire(&rows[1], payload), &wrong_baseline, 1).is_err());
+}
+
+#[test]
+fn historical_omission_successor_preserves_every_real_value_and_envelope() {
+    let rows = BASELINE
+        .lines()
+        .map(|line| serde_json::from_str::<Value>(line).unwrap())
+        .collect::<Vec<_>>();
+    for index in [2, 3, 6, 7, 9] {
+        let payload = authored_omission(rows[index]["result"]["structuredContent"].clone());
+        let valid = current_wire(&rows[index], payload.clone());
+        assert!(compare_baseline(&valid, &rows[index], index).is_ok(), "row {index}");
+        for (key, value) in [
+            ("state", json!({"status":"unavailable"})),
+            ("state", json!({"status":"active"})),
+            ("verdict", json!("unavailable")),
+            ("epoch", json!("1")),
+            ("store", json!("b")),
+            ("unexpected", json!(true)),
+        ] {
+            let mut changed = payload.clone();
+            changed[key] = value;
+            assert!(
+                compare_baseline(&current_wire(&rows[index], changed), &rows[index], index)
+                    .is_err(),
+                "{index}/{key}"
+            );
+        }
+        let mut wrong_baseline = rows[index].clone();
+        wrong_baseline["result"]["structuredContent"]["state"] = json!({"status":"active"});
+        assert!(
+            compare_baseline(&valid, &wrong_baseline, index).is_err(),
+            "only unavailable may be omitted"
+        );
+        let mut wrong_envelope = valid.clone();
+        wrong_envelope["id"] = json!(99);
+        assert!(compare_baseline(&wrong_envelope, &rows[index], index).is_err());
+        wrong_envelope = valid;
+        wrong_envelope["result"]["isError"] = json!(true);
+        assert!(compare_baseline(&wrong_envelope, &rows[index], index).is_err());
+    }
+    let mut original = rows[7].clone();
+    original["result"]["structuredContent"]["items"][0]["record"]["state"] = json!("active");
+    let payload = authored_omission(original["result"]["structuredContent"].clone());
+    assert!(compare_baseline(&current_wire(&original, payload.clone()), &original, 7).is_ok());
+    let mut missing_record_state = payload;
+    missing_record_state["items"][0]["record"].as_object_mut().unwrap().remove("state");
+    assert!(compare_baseline(&current_wire(&original, missing_record_state), &original, 7).is_err());
+}
+
+#[test]
+fn historical_omission_successor_rederives_only_the_exact_fitting_prefixes() {
+    let rows = BASELINE
+        .lines()
+        .map(|line| serde_json::from_str::<Value>(line).unwrap())
+        .collect::<Vec<_>>();
+    let search = authored_omission(rows[5]["result"]["structuredContent"].clone());
+    let prefix = (0..=search["results"].as_array().unwrap().len())
+        .rev()
+        .map(|kept| historical_search_prefix(&search, kept))
+        .find(|candidate| (2 * serde_json::to_string(candidate).unwrap().len()).div_ceil(4) <= 600)
+        .unwrap();
+    assert!(compare_baseline(&current_wire(&rows[5], prefix.clone()), &rows[5], 5).is_ok());
+    for key in ["response_id", "continuation"] {
+        let mut wrong = prefix.clone();
+        wrong[key] = json!("wrong");
+        assert!(compare_baseline(&current_wire(&rows[5], wrong), &rows[5], 5).is_err());
+    }
+    let mut wrong_order = prefix.clone();
+    wrong_order["results"].as_array_mut().unwrap().swap(0, 1);
+    assert!(compare_baseline(&current_wire(&rows[5], wrong_order), &rows[5], 5).is_err());
+    let fetch =
+        historical_fetch_prefix(&authored_omission(rows[8]["result"]["structuredContent"].clone()))
+            .unwrap();
+    assert!(compare_baseline(&current_wire(&rows[8], fetch.clone()), &rows[8], 8).is_ok());
+    let mut overcut = fetch.clone();
+    let body = overcut["items"][0]["record"]["body"].as_str().unwrap().to_owned();
+    overcut["items"][0]["record"]["body"] = json!(&body[..body.len() - 1]);
+    assert!(compare_baseline(&current_wire(&rows[8], overcut), &rows[8], 8).is_err());
+    let mut false_count = current_wire(&rows[8], fetch);
+    false_count["result"]["structuredContent"]["budget"]["used_tokens"] = json!(1);
+    false_count["result"]["content"][0]["text"] =
+        json!(serde_json::to_string(&false_count["result"]["structuredContent"]).unwrap());
+    assert!(compare_baseline(&false_count, &rows[8], 8).is_err());
+}

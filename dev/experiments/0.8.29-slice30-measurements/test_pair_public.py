@@ -370,3 +370,22 @@ class PairCompletionTests(unittest.TestCase):
             'cells':{cell['id']:{'whole_ns':10**9,'new_retained_bytes':100,'observed_from':'/missing/current/paired'} for cell in cells}}}
         with self.assertRaisesRegex(ValueError,'current paired observation'):
             require_forecasts(options,cells)
+
+
+class PairCommandTests(unittest.TestCase):
+    def test_calibration_supports_the_selected_public_out_spelling(self):
+        result=subprocess.run([sys.executable,str(Path(__file__).with_name('g_runner.py')),
+            'pair-calibrate','--help'],capture_output=True,text=True)
+        self.assertEqual(result.returncode,0,result.stderr)
+        self.assertIn('--out',result.stdout)
+
+    def test_calibration_cannot_be_resumed_as_an_unbounded_primary_run(self):
+        from g_pair import public_entry
+        import os
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary)
+            (root/'manifest.json').write_text(json.dumps({'scope':'calibration'}))
+            with patch.dict(os.environ,{'AGENT_LONG':'1'}):
+                with self.assertRaisesRegex(ValueError,'calibration executes only'):
+                    public_entry('run',root)

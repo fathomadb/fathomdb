@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 import sqlite3
@@ -21,6 +22,22 @@ def run_program_step(command, config, output, deadline_ns, observe=None):
         environment.pop("FATHOMDB_SLICE50_EAGER_TEXT_FOR_MEASUREMENT", None)
         if mode == "eager":
             environment["FATHOMDB_SLICE50_EAGER_TEXT_FOR_MEASUREMENT"] = "1"
+    child_environment = None
+    binding = config.get("slice50_gpu")
+    if mode is not None and config["family"].startswith("G"):
+        if (not isinstance(binding, dict) or set(binding) != {"uuid", "ordinal", "hf_home"}
+                or not isinstance(binding.get("uuid"), str)
+                or not re.fullmatch(r"GPU-[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}", binding["uuid"])
+                or type(binding.get("ordinal")) is not int or binding["ordinal"] != 0
+                or not isinstance(binding.get("hf_home"), str) or not Path(binding["hf_home"]).is_absolute()):
+            raise ValueError("paired G GPU binding requires selected UUID, ordinal0 and owned HF cache")
+        # A single UUID mask exposes that selected physical device as logical cuda:0.
+        child_environment = {"CUDA_VISIBLE_DEVICES": binding["uuid"],
+            "FATHOMDB_EMBED_DEVICE": "cuda:0", "HF_HOME": binding["hf_home"],
+            "HF_HUB_OFFLINE": "1", "TRANSFORMERS_OFFLINE": "1"}
+        environment.update(child_environment)
+    elif binding is not None:
+        raise ValueError("paired G GPU binding is unsupported outside a paired G member")
     sample_rss = mode is not None and config.get("observe") is True
     rss_samples = []
     poll_observation = observe is not None or sample_rss
@@ -33,6 +50,8 @@ def run_program_step(command, config, output, deadline_ns, observe=None):
     path.write_text(json.dumps(config, indent=2) + "\n")
     step = {"family": config["family"], "config": str(path), "output": str(output),
             "complete": False, "exit": None, "result": None, "gpu_samples": []}
+    if child_environment is not None:
+        step["child_environment"] = child_environment
     # Short controls may exit before one observation; observer latency adds to the wait.
     short_control = (config.get("stage") == "G0" or config.get("calibration") is True
                      or (config.get("stage") == "G-O" and config.get("kind") == "branches"))

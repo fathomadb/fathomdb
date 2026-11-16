@@ -144,7 +144,8 @@ class PairPublicPipelineTests(unittest.TestCase):
             def actual_child(cell, index):
                 import time
                 output=root/f'actual{index}'
-                step=run_program_step([sys.executable,'-c',code],cell,output,time.monotonic_ns()+5*10**9)
+                bound=dict(cell,slice50_gpu={'uuid':'GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b','ordinal':0,'hf_home':str(root/'cache')})
+                step=run_program_step([sys.executable,'-c',code],bound,output,time.monotonic_ns()+5*10**9)
                 calls.append(step)
                 return {'id':cell['id'],'status':'failed','complete':False,'runner_only':True,'attempt':str(output)}
             rows=drive_members(manifest,root,actual_child)
@@ -331,8 +332,10 @@ class PairRuntimeTests(unittest.TestCase):
                 self.assertTrue(Path(config['store']).is_file())
                 self.assertNotEqual(config['store'],subject['files']['']['path'])
                 self.assertEqual(config['slice50_pair_mode'],'winner')
+                self.assertEqual(config['slice50_gpu'],dict(manifest['gpu'],hf_home=manifest['hf_home']))
                 return {'complete':False,'result':{'runner_only':True}}
-            manifest={'donors':{'G10000':subject},'inputs':{'corpus':{'path':'corpus'},'queries':{'path':'queries'}},
+            manifest={'donors':{'G10000':subject},'gpu':{'uuid':'GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b','ordinal':0},
+                      'hf_home':str(root/'cache'),'inputs':{'corpus':{'path':'corpus'},'queries':{'path':'queries'}},
                       'build':{'binaries':{'ordinary':{'path':'current-private'}}}}
             import time
             end=time.monotonic_ns()+5*10**9

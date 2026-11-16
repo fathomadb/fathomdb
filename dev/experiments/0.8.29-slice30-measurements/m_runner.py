@@ -38,11 +38,16 @@ def source_smoke(root, cli, helper):
     return result
 
 
-def main():
+def main(argv=None):
     """Dispatch explicit owned M source or future selected campaign commands."""
     began = time.monotonic_ns()
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="action", required=True)
+    operator = commands.add_parser("supervise")
+    for name in ("cell", "options_path", "root"):
+        operator.add_argument(name)
+    for name in ("source", "task", "entry"):
+        operator.add_argument("--"+name, required=True)
     smoke = commands.add_parser("source-smoke")
     for name in ("root", "cli", "helper"):
         smoke.add_argument(f"--{name}", required=True)
@@ -91,7 +96,10 @@ def main():
     cell.add_argument("--deadline-ns", type=int, required=True)
     cell.add_argument("config")
     cell.add_argument("attempt")
-    options = parser.parse_args()
+    options = parser.parse_args(argv)
+    if options.action == "supervise":
+        return supervise_selected(options.cell, options.options_path, options.root,
+                                  source=options.source, task=options.task, entry=options.entry)
     if options.action == "run" and options.options:
         result = run_selected(options.options, options.root, options.cell, began)
         return 0 if isinstance(result, dict) and result["exit"] == 0 and not result["cleanup_uncertain"] else 1
@@ -305,6 +313,103 @@ def publish_selected(root):
                 _charge_final_work(root, ledger_path, ledger, usage, correction_ns,
                                    manifest["cell_allowance"], profile, failed=True)
     return value
+
+
+def supervise_selected(cell_id, options_path, cell_root, *, source, task, entry):
+    """Run the existing finite selected-cell operator flow with owned bounded logs."""
+    from contextlib import ExitStack, redirect_stderr, redirect_stdout
+    import hashlib
+    from g_resource import resource_sample
+    source, task, root = Path(source), Path(task), Path(cell_root).resolve()
+    started_ns = time.monotonic_ns()
+    options = json.loads(Path(options_path).read_text())
+    initial = json.loads((Path(options["allocation"]) / "g-budget.json").read_text())
+    prior_wall = initial.get("selected_cell_usage", {}).get(cell_id, {}).get("wall_ns", 0)
+    unit = "fathomdb-"+cell_id.lower()+"-"+hashlib.sha256(str(root).encode()).hexdigest()[:12]
+    samples, cgroup = [], None
+    last_swap, streak = None, 0
+    gib = 1024**3
+
+    def check(start=False):
+        nonlocal last_swap, streak
+        sample = resource_sample(source, task)
+        vm = dict(line.split() for line in Path("/proc/vmstat").read_text().splitlines())
+        sample.update(monotonic_ns=time.monotonic_ns(), swap_pages=int(vm["pswpin"])+int(vm["pswpout"]))
+        if last_swap is None:
+            last_swap = sample
+        elif sample["monotonic_ns"]-last_swap["monotonic_ns"] >= 30*10**9:
+            rate = ((sample["swap_pages"]-last_swap["swap_pages"])*os.sysconf("SC_PAGE_SIZE")
+                    / ((sample["monotonic_ns"]-last_swap["monotonic_ns"])/10**9))
+            streak = streak+1 if rate > 64*1024**2 else 0
+            last_swap = sample
+        samples.append(sample)
+        if (sample["memory_available"] < (16 if start else 8)*gib
+                or sample["root_free"] < (32 if start else 20)*gib
+                or sample["task_free"] < (250 if start else 50)*gib
+                or sample["owned"] >= 200*gib or streak >= 3):
+            raise RuntimeError("heavy-lane resource floor: "+json.dumps(sample))
+        return sample
+
+    with ExitStack() as logs:
+        capture = logs.enter_context(open_invocation_log(root, "supervisor"))
+        logs.enter_context(redirect_stdout(capture))
+        logs.enter_context(redirect_stderr(capture))
+        print("entry "+json.dumps(check(True)), flush=True)
+        sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=source, text=True).strip()
+        if (sha != options["_controller_source_sha"] or subprocess.check_output(
+                ["git", "status", "--porcelain"], cwd=source, text=True)):
+            raise RuntimeError("exact clean integrated source required")
+        remaining = (900*10**9-(time.monotonic_ns()-started_ns))//10**9
+        if remaining <= 0:
+            raise RuntimeError("whole-lane deadline already expired")
+        subprocess.run(["systemctl", "--user", "reset-failed", unit], check=False, timeout=10)
+        command = ["systemd-run", "--user", "--service-type=exec", "--wait", "--pipe", "--quiet", "--unit="+unit,
+            "--property=MemoryMax=4294967296", "--property=MemorySwapMax=0", "--property=Delegate=yes",
+            "--property=CPUQuota=200%", "--property=TasksMax=256", "--property=RuntimeMaxSec="+str(remaining),
+            "--property=TimeoutStopSec=5", "--property=KillMode=control-group", "--working-directory="+str(source),
+            "/bin/bash", str(entry), str(options_path), str(root), cell_id]
+        service = logs.enter_context(open_invocation_log(root, "service"))
+        child = subprocess.Popen(command, stdout=service, stderr=subprocess.STDOUT)
+        service.start()
+        try:
+            while child.poll() is None:
+                check()
+                if cgroup is None:
+                    observed = subprocess.run(["systemctl", "--user", "show", unit,
+                        "--property=ControlGroup", "--value"], capture_output=True, text=True, timeout=5).stdout.strip()
+                    if observed:
+                        cgroup = observed
+                if time.monotonic_ns()-started_ns >= 900*10**9:
+                    raise RuntimeError("900-second whole required-cell deadline")
+                time.sleep(1)
+        except BaseException:
+            subprocess.run(["systemctl", "--user", "stop", unit], check=False, timeout=10)
+            child.wait(timeout=10)
+            raise
+        finally:
+            if child.poll() is None:
+                subprocess.run(["systemctl", "--user", "stop", unit], check=False, timeout=10)
+                child.wait(timeout=10)
+        properties = subprocess.check_output(["systemctl", "--user", "show", unit,
+            "--property=ActiveState", "--property=SubState", "--property=MainPID", "--property=Result",
+            "--property=ExecMainStatus", "--property=MemoryPeak", "--property=ControlGroup"], text=True, timeout=10)
+        final = dict(line.split("=", 1) for line in properties.splitlines())
+        procs = Path("/sys/fs/cgroup"+cgroup+"/cgroup.procs") if cgroup else None
+        if (final.get("ActiveState") not in ("inactive", "failed") or final.get("MainPID") != "0"
+                or (procs and procs.exists() and procs.read_text().strip())):
+            raise RuntimeError("strict owned unit/cgroup cleanup failed")
+        check()
+        sample_log = logs.enter_context(open_invocation_log(root, "samples"))
+        for sample in samples:
+            sample_log.write(json.dumps(sample)+"\n")
+        if service.error or sample_log.error or capture.error:
+            invalidate_selected(root, service.error or sample_log.error or capture.error)
+            return 1
+        if (root / "manifest.json").exists():
+            final_report = finalize_invocation(root, started_ns, prior_wall)
+            if not final_report["phase_qualified"]:
+                return 1
+        return child.returncode
 
 
 def finalize_invocation(root, started_ns, prior_wall_ns):

@@ -164,20 +164,35 @@ from the previously captured ARM metadata.
 
 ### Bounded execution and record promotion
 
-Reuse the existing fork qualification supervisor/selected-test operator under
-`/mnt/data/worktrees/fathomdb-0.8.29-cudarc-reset-20261114-data/operators/`, rebinding
-only owned source/data/native-tool paths, selected343 identity and the explicit
-architecture counts above. No new execution framework. Sequential Cargo jobs1;
-private cgroup2GiB, swap0, tasks128, CPU100%, runtime300s per phase and outer320s.
-Keep its entry floors: MemAvailable10GiB, root free32GiB, task free250GiB; stop
-at MemAvailable8GiB, root20GiB, task50GiB, owned storage4GiB or sustained actual
-swap64MiB/s for three30s windows. Apply on both native venues before reservation
-and during growth; a failing Orin floor remains OPEN, never relaxed silently.
-Own caches/target/tmp/logs; retain ordinary raw commands/exits/counts and cleanup
-outcome. No borrowed venv/native artifacts, other-session cleanup or retry after
-a resource stop. Preparation does not claim execution authorization.
+The x86 run reused the fork supervisor/selected-test operator under
+`/mnt/data/worktrees/fathomdb-0.8.29-cudarc-reset-20261114-data/operators/`, with
+owned source/data/tool paths and the reviewed counts rebound. Actual x86 caps
+were2GiB, swap0, tasks128, CPU100%, runtime300s/outer320s, jobs1; entry/stop
+floors and owned4GiB remained enforced. Its compile/list/selected phases passed,
+323 original tests passed with zero ignored, and all three exact private cgroups
+were removed. These are actual x86 claims only.
 
-After both native cells pass and independent results review accepts them, keep
+Owner seq-391 explicitly permits ordinary ARM CPU tests over the approved SSH
+route. The first user-cgroup attempt stopped before Cargo because CPU delegation
+was absent; no system-manager retry, sudo authorization or host/controller change
+occurred. The actual regular ARM compile/list/selected phases then passed with
+322 original tests, zero ignored, using the same native343 scratch bridge and
+frozen exact lock. No systemd/cgroup/CPU/memory cap is claimed for that run.
+This owner exception changes execution control, not either native architecture,
+test oracle, selected count, exact lock/source or root-feature obligation.
+
+The two native metadata projections each match22 package identities/checksums
+and ten cudarc root features. Six non-root feature sets (`bytemuck`, `libc`,
+`num-traits`, `rand`, `rand_distr`, `syn`) differ from whole-product unification;
+Q23's existing projection does not assert their equality. The earlier dc8 x86
+product compile remains separate evidence for actual whole-product features.
+The canonical [local record](../../../../../scripts/cudarc-fathomdb-lock-set.json)
+names both actual native subjects, counts and raw logs. The genuine
+[hosted record](../../../../../scripts/cudarc-fathomdb-lock-set-hosted-20261014.json)
+is preserved byte-for-byte as history. No new receipt framework or registry
+publication claim follows from this local qualification.
+
+Promotion requires independent results review of both actual native cells. Keep
 the authentic old CI record and its CI run/head/conclusion unchanged as history.
 A small separately identified local successor names the exact fork/product lock,
 both native commands/results, both target closures/root features and authentic
@@ -185,5 +200,6 @@ fork-local provenance. No invented CI identifier or carried-forward old success.
 The guard must still enforce exact sources/versions/checksums, coherent family,
 both target sets, root features, self-consistent digest and original exit meanings;
 only the evidence's executor/provenance branch changes after owner adoption.
-Until actual qualification, its present RED remains valid. Registry
+The old record actually failed against this graph; the qualified successor must
+pass the unchanged projection/digest checks before promotion. Registry
 normalization/publication and other release gates retain their existing scope.

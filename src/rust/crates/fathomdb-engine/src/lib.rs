@@ -113,6 +113,8 @@ pub use projection_registry::{
     ProjectionVector,
 };
 mod stored_coverage;
+#[cfg(test)]
+mod stored_coverage_tests;
 pub use stored_coverage::{
     StoredHeadCoverageCounts, StoredHeadCoverageFraction, StoredHeadCoverageProfile,
     StoredHeadCoverageUnavailableReason, StoredHeadCoverageV1,

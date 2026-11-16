@@ -53,3 +53,15 @@ cargo test --release -p fathomdb-engine --features test-hooks \
 The runs were taken on windchill3, an AMD Ryzen Threadripper PRO 5945WX, on
 the CPU only. The latencies are single-machine and single-caller numbers. They
 show how cost scales with k and record size; they are not a perf gate.
+
+## Stored-head coverage work
+
+The real-store CPU control also reports executed statement/row/VM work for cold
+and warm status reads and the added streaming aggregate pass. Run
+`cargo test --locked -p fathomdb-engine --features operator,test-hooks --lib stored_coverage_tests::stored_coverage_work_is_fixed_on_status_and_streamed_in_existing_validation -- --nocapture`.
+`FATHOMDB_COVERAGE_WORK_SIZES=8,64` selects ascending positive corpus sizes.
+The printed timings include tracing and are descriptive on the shared host;
+no latency threshold or performance benefit is inferred. The test asserts fixed
+status work, one full capture statement, no aggregate physical-vector access,
+and one transferred row per mapped head. Source:
+[stored_coverage_tests.rs](../../../src/rust/crates/fathomdb-engine/src/stored_coverage_tests.rs).

@@ -7,85 +7,94 @@ slice: 90
 
 # Slice 90 source and authority census
 
-Read-only frozen source witness: clean parent
-`2f6913c1d59ac8ff3a30de835b57290a8635998c` on `llm/0.8.29-chat`, at
-`/mnt/data/worktrees/fathomdb-0.8.29`. The app-managed path resolves here.
-Only the exclusive phase-a temporary tree is writable in this assignment.
-No source/Git/release JSON/generated region/ledger edits, builds, native loads,
-database opens, GPU/model/network/paid runs or cleanup were performed.
+Refreshed2026-11-16 against clean integrated source
+`3b9e02c151dd7308def6cf199c71902106edd837` in the exclusive90 worktree.
+This is source/test inspection and design work; no product build, native import,
+database, GPU, model or scientific campaign was run.
 
-## Authority and predecessor distinctions
+## Accepted inputs and actual holds
 
-- [Actual90 plan](plan.md), [master](../../../plan-0.8.29.md),
-  [direct method](../../direct-execution.md), [checkpoint rulings](../../prework/slice-9/decision-log.md)
-  and prework3 needs/CRUD/requirements/acceptance allocate only residual B2 work.
-- Accepted [hints ADR](../../../../adr/ADR-0.8.29-agent-hints-sidecar.md)(f)
-  authorizes omission; [guard §7.1](../../../../design/long-record-embedding.md#71-now-a-guard-no-new-vectors)
-  accepts B2-8 and snippet scored_bytes, preserving Start. It does not approve
-  the proposed exact aggregate fields/population/availability.
-- [Format35 ADR](../../../../adr/ADR-0.8.28-store-format-35.md) establishes stored
-  head spans/unknown offsets; [format37 coalescing](../../../../adr/ADR-0.8.28-transactional-visibility-coalescing.md)
-  governs present visibility state. No .29 migration or backcompat shim.
-- Slice10 completed104dcbc;20's integrated657edeb Linux repairs do not close20 policy/
-  Windows cells or Block1.30 exact frozen TC5 inputs remain absent.40 has no
-  selected optimization.50 identity/census is proposal, with actual baseline/
-  snapshot/identity ruling still required.70 actual20-reconciled proposal is
-  independently reviewed design, not source implementation.
-- Slice60 candidate `2d8278c7290799afec4f9d15f06c5010017a9fd7` is read-only predecessor
-  evidence for real formats/filter/budget RED/GREEN. git-show confirms state/
-  verdict remain required there; it is not integrated/fully qualified by this
-  packet. Latest parent source307c92e3 adds operator/provenance records and is
-  still awaiting qualification. Its actual final gate/fresh review remain pending; retain F11's
-  unresolved feedback ambiguity consequences and historical-view behavior.
-- Slice80 PhaseA's nine files and its aggregate-v2 are proposal inputs. V2 SHA256 is
-  `a5e4851df2fedcbcce3e7d1b93138980c25e172d0ceb802792d218940bca0e53`, at
-  `/tmp/fathomdb-0829-direct/slice-80/aggregate-design/proposal-v2.md`.
-  Its recorded Astra PASS is bounded design review, not full80 owner approval.
-  V2 supersedes earlier permanently-missing aggregate presentation, undefined
-  carrier, fifth missing-capability entry and optimistic rollback-cache hit.
-  No earlier contradictory text is applied by90.
+- [Full80](../slice-80/design.md) has independent Astra-medium PASS and explicit
+  owner approval seq384 at `f2f4831554ae165420a31890cf102642ce28b21d`.
+  Its actual50 source-fit completion and artifact dependency amendment are
+  accepted. Earlier aggregate-v2 drafts do not compete with that full contract.
+- Actual50 source is integrated at `9036507bc98ef31c05ae334aa22ec5101323c7e7`:
+  record-keyed fusion/FTS/snippets/explanation/evidence, complete-rank winner
+  hydration, bounded record-start selector and atomic feedback ambiguity refusal
+  are implemented. Current paired50 qualification remains separate.
+- 60 local source/acceptance closes at `4005fc07cc5f1f5560910c2603dac88a9e08df21`;
+  compact default, direct filters, flags, both-format final accounting and
+  discovery defaults are built.70 closes at
+  `e875f36042f89c1d84756f78135db0e8926c1ed4` with three reason words,
+  Rust facade exports and native parity. These are controls, not90 deltas.
+- 20, including all four Windows A6 criteria and assembled238-suite common-source
+  qualification, is closed. TC5 selected static input identity is resolved;
+  applicable110/140 selected source/healthy/OOM/consumer and100 are closed.
+  No missing Windows, TC5-input or private Memex snapshot gate remains for90.
+- Current both-format MCP conformance is independently accepted within its
+  documented capability/fixture scope; the raw malformed tools/call protocol
+  discrepancy remains visible in [conformance](../../../../design/mcp-adapter/conformance-0.8.29.md).
+  This component does not close Block1 or claim full JSON-RPC compliance.
+- Actual Block1 remains open:30 G strict14 with active-window cases still running,
+  M4/46 and D12/24;50 paired ordinary6/136 and diagnostic0/24; conditional40
+  actual owner choice; and72 approved native-format model episodes, NOT RUN.
+  These are the root snapshot's progress counts, not completed90 evidence or
+  a reason to reapprove source contracts. Recheck actual exits at source entry.
+- Owner seq388 already approves the72episode smoke/item4 models and bounded
+  spend: Haiku5.5 answerer/GPT-4o-mini judges. Fixed dataset/IDs are resolved;
+  candidate stores must be rebuilt and technical predecessors must complete.
+  Model/prompt/budget availability is not an unanswered policy question.
 
-Current50 design/feedback proposal lives under `/tmp/fathomdb-0829-direct/slice-50/phase-a/`;
-70 current input under `/tmp/fathomdb-0829-direct/slice-70/actual20-reconciliation/`;
-60 reconciled contracts under `/tmp/fathomdb-0829-direct/slice-60/actual20-reconciliation/`.
-These are real inspected inputs, not accepted new contracts. Actual successor
-reread is mandatory before full-ready/code; this snapshot does not waive it.
+The [master](../../../plan-0.8.29.md), current release JSON and accepted ADRs
+retain authority where historical prose lags. Parent alone updates release
+JSON/generated views/ledgers.130E and160 qualification proceed independently;
+only their affected final assembled-source rows join after90.
 
-## Code-grounded delta
+## Code-grounded residual
 
-Paths below are repository-relative with frozen-source line witnesses. Only
-relevant large source bodies were read; no exhaustive workspace audit is claimed.
+Rust paths below start `src/rust/crates/fathomdb-`; Python paths start
+`src/python/`; TS paths start `src/ts/`. Symbols were inspected on the source
+above, not inferred from earlier design or passing test counts.
 
-| Area | Existing source witness | Remaining proposed work / ownership |
+| Area | Existing implementation | Actual90 work |
 | --- | --- | --- |
-| Omission | mcp/src/output.rs:48 Envelope.state, :455 SearchOutput.verdict; tools.rs:323 constructors; orient output:132. | Optional absent state/verdict plus exact disclosure;60 already owns text omission. |
-| Arguments | mcp/src/tools.rs:242 generic serde parse; edge.rs typed schemas/discovery. | Shared schema-derived key precheck and typed bounded detail. No nested-map policy change. |
-| Feedback | tools.rs:1384 actual membership before epoch/telemetry/text; session.rs ref→cursor BTreeMap. | Ordered bounded offender detail only, after actual50 ambiguity disposition. No new ref identity choice. |
-| Default | tools.rs:375 samples session once and builds flags/hint; edge.rs:31 instructions. | Required top-level nullable default, explicit header and guide. Existing routing preserved. |
-| Storage | engine/src/vector_spans.rs:3 original EXISTS invalid/orphan predicate; projection_commit.rs transactional tuple publication. | Preserve storage/validation. Aggregate stream adds counters within existing pass; per-hit reads new reporting only. |
-| Cache/status | engine/src/open.rs:1254 full validation; projection_generation.rs:1318 full completion, :1462 cache, :1796 runtime status; projection_runtime.rs:96 carrier. | New writer-local summary/token and status field; no universal existing coverage authority. No orient full-status scan. |
-| Scored hit | engine/src/snippet.rs:127 lacks scalar; search.rs:2944 builds sidecar on tx; :2684 explanation ranks body-keyed. | Exact accepted50 selected key and actual vector participation; explanations/branch/body cannot supply proof. |
-| Rust exposure | engine/src/lib.rs and sdk/src/lib.rs:137 re-export SnippetV1; facade src/lib.rs runtime types. | New aggregate returned types and scalar exposed through existing carriers;70 separately owns six missing facade types. |
-| Native snippets | py/src/snippet.rs:46/:56 and napi/src/snippet.rs:48/:59 explicit fields; both read_search.rs convert sidecar. | Add Option scalar converter; do not assume auto propagation. |
-| Native status | py/src/projection.rs:453/:461 and napi/src/projection.rs:420/:429 explicit runtime fields. | Required tagged coverage conversion plus exact numeric limits. |
-| Python | fathomdb/types.py:351/:440; _sdk_search.py:163; read.py:514. | Frozen aggregate types/decoder + dataclass scalar and explicit maps; exact ints/None/0. |
-| TS | src/projection.ts:160; binding.ts:257/:367; read.ts:216; search.ts:73/:344. | Public/native aggregate union/decoder decimal strings for counts/bytes/fractions only, numeric profile.dimension and optional scoredBytes checked u32. |
-| MCP formatting | tools.rs orient/search_page and output.rs Hit/ProjectionStatusOut.60 candidate supplies selected formats. | Lift coverage once, scalar from paired snippet; exact compact JSON coverage line and optional scored_bytes pre-pipe; extend both schema/accounting. |
+| MCP omission | mcp/src/output.rs Envelope.state and SearchOutput.verdict are required placeholders; tools.rs constructors fill them. render_orient/search already omit unavailable text rows. | Optional absent unavailable-only fields/schema plus exact orient.not_in_this_release; preserve real readiness/degradation and structured kinds/counts. |
+| Arguments | tools.rs parse uses serde deny_unknown_fields; edge.rs discovery owns the schemars input schemas. | Prebuilt schema-derived accepted names and deterministic bounded unknown_argument details before typed parsing/store work. |
+| Feedback | session.rs ResponseCursor folds Unique/Ambiguous; tools.rs feedback checks membership before not_recorded branches and ambiguity after acquisition/final epoch. Tests cover atomic mixed labels and compact mode. | Ordered bounded foreign occurrence details at membership only. Preserve all existing later ambiguity/not_recorded behavior. |
+| Default | list_stores samples session.default_store once for row flags/hint; routing/use_store/session isolation work. | Required nullable top-level value, quoted first-line default even hints=false and guide sentence. |
+| Stored spans | engine/src/vector_spans.rs validate preserves COALESCE invalid predicate/orphan check. projection_commit publishes physical tuple transactionally; format37 retains head storage. | No storage/schema work. Add aggregate arithmetic to the existing full-validation pass, preserving caller-specific errors. |
+| Capture/cache | open_locked invokes full span validation before frozen validation. projection_generation.rs physical_completion/cached_status_in_snapshot and its committing generation/mutation callers are real refresh seams. read_projection_status currently has no coverage. | Private staged summary, commit-only writer seed, conservative token invalidation and fixed-work status reuse. Never seed from explained reader connections; no aggregate vector_default access. |
+| Record selection | fusion.rs FusionHit/FusionOwnership/key/RecordKey exist. search.rs vector_results precedes vector-only/deferred/ordinary/nested graph branches; explanation maps use RecordKey but are explain-only. | Retain original vector keys only for requested snippets before first consumption; no new ownership carrier, ranking or identity change. |
+| Sidecar | snippets_for_hits takes final FusionHits/FtsRows keyed by RecordKey; search.rs attaches snippets before capture.finish/tx.commit. NoEvidenceCapture strips carriers; evidence API stays snippets=None. | Validate/read exact participant extent on that tx and attach scored_bytes after lexical selection. Never infer participation from nested fusion, branch/body/ref or explanation. |
+| Rust/native | engine SnippetV1 and ProjectionRuntimeStatus lack new members. py/napi projection.rs and snippet.rs explicitly copy fields.70 facade roots are present. | New aggregate types/reexports and explicit Rust/PyO3/NAPI converters plus scored scalar. No automatic propagation assumption. |
+| Python | fathomdb/types.py, _sdk_search._map_native_snippet and read.projection_status explicitly map current fields. | Exact-int frozen aggregate types/decoder and scored_bytes mapping preserving None/0. |
+| TypeScript | projection.ts/binding.ts/read.ts and search.ts mapNativeSnippet explicitly map current fields. | Discriminated coverage union/decoder; canonical decimal strings for counts/bytes/fractions only, numeric dimension/scoredBytes with checked bounds. |
+| MCP final output | tools.rs search_page/re-snippeting and output.rs Hit/ProjectionStatusOut own positional rendering;60 finish/shaping measures final output. | Lift aggregate once to orient, compact coverage JSON line, optional scored_bytes before pipe; restore trusted metadata after pure re-snippeting and extend schema/census/accounting. |
 
-Rust paths start `src/rust/crates/fathomdb-`; Python paths start `src/python/`;
-TS paths start `src/ts/`. [Design](design.md) specifies proposed deltas without
-changing that existing ownership. Scope preservation: built B2-2/3 hints,
-partial6 default signals,7 queue and8 spans are controls, not missing features.
-Existing physical completion's cross-owner/vector refusals are distinct from
-aggregate/open span predicate; reporting never broadens the latter.
+No source-fit contradiction was found. Per-hit missing/misplaced/extra heads,
+ambiguous owner, body mismatch, physical absence, malformed/UTF-8 end and u32
+overflow must refuse under approved80; aggregate attribution exclusions must
+not introduce those broader physical/open checks. See [design](design.md).
 
-Fully read test-file claims are limited to schema.rs/stores.rs/feedback.rs,
-and native PyO3/NAPI snippet modules. Other tests were located by names and
-relevant sections; [test-map](test-map.md) explicitly schedules full reread
-before any load-bearing assertion/change. Runtime qualification was not run.
+## Affected tests inspected
 
-Verified memory files in canonical main-repo store: agent-access-block1-design-state.md,
-mcp-adapter-proposal-owner-decisions.md, tdd-red-must-fail-per-finding.md,
-keep-measurement-tools-in-repo.md, verify-design-against-code-not-just-architecture.md
-and slice-prompt-verify-test-claims.md. Their actual files were read. Apply current
-release/checkpoint authority where historical memory predates settled scope.
+Full-file reads: MCP schema.rs, stores.rs, feedback.rs and formats.rs; engine
+snippet_search.rs, slice60_store_format.rs and snippet_cost_receipt.rs; Python
+test_ep17_snippets.py and test_slice22_projection_status.py; TS
+ep17-snippets.test.ts and slice22-projection-status.test.ts; PyO3/NAPI snippet modules.
+These verify existing selector/UTF-8/point-query/sidecar/routing/schema/ambiguity/
+format/budget controls. They lack the new aggregate/scored/diagnostic/default
+fields; preserved controls are not claimed as new REDs. The shared pure-selector
+parity fixture is a maintained human oracle, not a golden to regenerate.
+
+Other suites (hints/admission, generation/frozen/status and binding error/parity)
+remain affected controls located for implementation. Reread any complete file
+before prescribing changes to its assertions. [Test map](test-map.md) sequences
+semantic failing assertions before production/converter changes. No runtime
+pass is claimed from inspection.
+
+Memory read in the real main-repo store includes dont-be-distracted-by-ceremony.md,
+agent-access-block1-design-state.md, tdd-red-must-fail-per-finding.md,
+slice-prompt-verify-test-claims.md, verify-design-against-code-not-just-architecture.md
+and acceptance-md-locked-no-feature-acs.md. Current accepted release/owner
+rulings take precedence over those memories' historical status summaries.

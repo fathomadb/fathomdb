@@ -88,3 +88,39 @@ def test_s90_installed_projection_status_exposes_stored_mapped_coverage(tmp_path
             assert coverage.reason == "cache_cold"
     finally:
         engine.close()
+
+
+def test_s90_aggregate_property_matches_exact_utf8_body_totals() -> None:
+    """Legal short stored heads retain exact integer totals and unreduced shares."""
+    import tempfile
+
+    from hypothesis import given, settings, strategies as st
+
+    @settings(max_examples=8, deadline=None)
+    @given(st.lists(st.text(alphabet="abcé🦀\u0301", min_size=1, max_size=16), min_size=1, max_size=4))
+    def check(bodies: list[str]) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            engine = Engine.open(f"{directory}/property.sqlite", use_default_embedder=True)
+            try:
+                engine.configure_projections([ProjectionSpec(
+                    name="body", roles=frozenset({ProjectionRole.SEARCHABLE}), vector=True,
+                )])
+                engine.write([{
+                    "kind": "doc", "body": body, "logical_id": f"n{i}",
+                    "source_id": "py-test:s90-property",
+                } for i, body in enumerate(bodies)])
+                engine.drain(timeout_s=30)
+                read.projection_generation_status(engine)
+                coverage = getattr(read.projection_status(engine), "vector_coverage", None)
+                assert coverage is not None, "installed aggregate property drops vector_coverage"
+                assert coverage.status == "available"
+                assert coverage.records == coverage.known_records == len(bodies)
+                assert coverage.unknown_records == coverage.truncated_known_records == 0
+                assert coverage.known_body_bytes == sum(len(body.encode()) for body in bodies)
+                assert coverage.unrepresented_known_bytes == coverage.unattributed_heads == 0
+                assert (coverage.truncated_known_share.numerator, coverage.truncated_known_share.denominator) == (0, len(bodies))
+                assert (coverage.unrepresented_known_byte_share.numerator, coverage.unrepresented_known_byte_share.denominator) == (0, coverage.known_body_bytes)
+            finally:
+                engine.close()
+
+    check()

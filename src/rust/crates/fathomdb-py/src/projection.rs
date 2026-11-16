@@ -593,3 +593,118 @@ impl From<RustMutationProjectionStatusV1> for PyMutationProjectionStatusV1 {
         }
     }
 }
+
+#[cfg(test)]
+mod stored_coverage_tests {
+    use super::*;
+    use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
+    use fathomdb_engine::{Engine, InitialState, PreparedWrite, SourceId};
+    use std::sync::Arc;
+
+    pub(super) struct Provider;
+    impl Embedder for Provider {
+        fn identity(&self) -> EmbedderIdentity {
+            EmbedderIdentity::new("s90", "test", 8)
+        }
+        fn embed(&self, _: &str) -> Result<Vector, EmbedderError> {
+            Ok(vec![1.0; 8])
+        }
+        fn truncation_offset(&self, input: &str) -> Result<Option<usize>, EmbedderError> {
+            Ok(match input.len() {
+                10 => Some(4),
+                6 => Some(6),
+                0 => Some(0),
+                15 => Some(11),
+                _ => None,
+            })
+        }
+    }
+
+    #[test]
+    fn s90_real_projection_status_reports_exact_mapped_spans() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("coverage.sqlite");
+        let opened = Engine::open_with_embedder_for_test(&path, Arc::new(Provider)).unwrap();
+        opened.engine.configure_vector_kind_for_test("doc").unwrap();
+        let mut writes: Vec<_> = ["abcdefghij", "uvwxyz", "unknown!"]
+            .into_iter()
+            .enumerate()
+            .map(|(i, body)| PreparedWrite::Node {
+                kind: "doc".into(),
+                body: body.into(),
+                logical_id: Some(format!("n{i}")),
+                source_id: SourceId::new("test:s90").unwrap(),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            })
+            .collect();
+        writes.push(PreparedWrite::Edge {
+            kind: "link".into(),
+            from: "n0".into(),
+            to: "n1".into(),
+            source_id: SourceId::new("test:s90").unwrap(),
+            logical_id: Some("empty-edge".into()),
+            body: Some(String::new()),
+            t_valid: None,
+            t_invalid: None,
+            confidence: None,
+            extractor_model_id: None,
+            temporal_fallback: None,
+        });
+        opened.engine.write(&writes).unwrap();
+        opened.engine.drain(10_000).unwrap();
+        opened.engine.read_projection_generation_status().unwrap();
+        let status = opened.engine.read_projection_status().unwrap();
+        Python::initialize();
+        Python::attach(|py| {
+            let status = Py::new(py, PyProjectionRuntimeStatus::from_rust(&status)).unwrap();
+            let coverage = status.bind(py).getattr("vector_coverage").ok();
+            assert!(coverage.is_some(), "real native status drops mapped-span aggregate");
+            let coverage = coverage.unwrap();
+            assert_eq!(
+                coverage.getattr("status").unwrap().extract::<String>().unwrap(),
+                "available"
+            );
+            for (name, expected) in [
+                ("records", 4),
+                ("known_records", 3),
+                ("unknown_records", 1),
+                ("truncated_known_records", 1),
+                ("known_body_bytes", 16),
+                ("unrepresented_known_bytes", 6),
+                ("unattributed_heads", 0),
+            ] {
+                assert_eq!(
+                    coverage.getattr(name).unwrap().extract::<u128>().unwrap(),
+                    expected,
+                    "{name}"
+                );
+            }
+            assert_eq!(
+                coverage
+                    .getattr("profile")
+                    .unwrap()
+                    .getattr("dimension")
+                    .unwrap()
+                    .extract::<u32>()
+                    .unwrap(),
+                8
+            );
+            for (name, numerator, denominator) in
+                [("truncated_known_share", 1, 3), ("unrepresented_known_byte_share", 6, 16)]
+            {
+                let share = coverage.getattr(name).unwrap();
+                assert_eq!(
+                    share.getattr("numerator").unwrap().extract::<u128>().unwrap(),
+                    numerator
+                );
+                assert_eq!(
+                    share.getattr("denominator").unwrap().extract::<u128>().unwrap(),
+                    denominator
+                );
+            }
+        });
+    }
+}

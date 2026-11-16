@@ -289,3 +289,15 @@ def native_result(step):
     """Read the existing native raw streams for exact paired call qualification."""
     from g_pair_report import native_result as load_native
     return load_native(step)
+
+
+def payload(root, config, attempt, deadline_ns):
+    """Run the admitted current paired native member through existing bounded drivers."""
+    from g_pair_runtime import payload as run_payload
+    return run_payload(root, config, attempt, deadline_ns)
+
+
+def control_entry(operation, root, options, admission_fd):
+    """Consume owning guardian admission and execute the explicit private operation."""
+    from g_pair_runtime import control_entry as run_control
+    return run_control(operation, root, options, admission_fd)

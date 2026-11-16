@@ -4,10 +4,12 @@ import json
 from pathlib import Path
 import sys
 import tempfile
+import subprocess
 import unittest
 from unittest.mock import patch
 
 from m_client import RpcChild
+import m_record
 from m_record import CheckpointLog
 from m_runner import report
 import test_m_selected_report
@@ -47,6 +49,32 @@ class OutputLimitTests(unittest.TestCase):
             self.assertEqual(client.exit["code"], 0)
             self.assertTrue(client.exit["readers_joined"])
             self.assertTrue(any("capture limit" in failure for failure in client.failures))
+
+    def test_control_log_overflow_keeps_a_prefix_and_exposes_failure(self):
+        log_type = getattr(m_record, "BoundedLog", None)
+        self.assertTrue(callable(log_type), "existing control logs are not bounded before writes")
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "child.log"
+            with patch("m_record.LOG_MAX_BYTES", 16, create=True):
+                with log_type(path) as log:
+                    child = subprocess.Popen([sys.executable, "-c", "print('x'*100)"], stdout=log)
+                    log.start()
+                    self.assertEqual(child.wait(timeout=5), 0)
+            self.assertLessEqual(path.stat().st_size, 16)
+            self.assertIn("capture limit", log.error)
+
+    def test_guardian_log_overflow_prevents_success_after_owned_child_exit_zero(self):
+        from test_m_calibration_guard import CalibrationGuardianTests
+        fixture = CalibrationGuardianTests()
+        fixture.setUp()
+        self.addCleanup(fixture.doCleanups)
+        with patch("m_record.LOG_MAX_BYTES", 16, create=True):
+            result = fixture.run_child("print('x'*100)", "overflow")
+        self.assertNotEqual(result["exit"], 0)
+        self.assertFalse(result["cleanup_uncertain"])
+        value = json.loads(fixture.ledger.read_text())
+        self.assertIsNone(value["m_guardian"])
+        self.assertIn("capture limit", result.get("error", ""))
 
     def test_publication_overflow_retains_all46_rows_but_cannot_qualify_the_cell(self):
         fixture = test_m_selected_report.SelectedReportTests()

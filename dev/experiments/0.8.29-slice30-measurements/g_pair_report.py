@@ -164,8 +164,10 @@ def published_report(root):
     root = Path(root)
     result = json.loads((root / 'results/report.json').read_text())
     receipts = [json.loads(path.read_text()) for path in (root / 'guardians').glob('*/guardian.json')]
-    def final(owner):
-        return next((row for row in receipts
+    def final(owner, guardian_root=None):
+        selected = receipts if guardian_root is None or Path(guardian_root).resolve() == root.resolve() else [
+            json.loads(path.read_text()) for path in (Path(guardian_root) / 'guardians').glob('*/guardian.json')]
+        return next((row for row in selected
                      if row.get('started_monotonic_ns') == owner.get('started_monotonic_ns')
                      and row.get('controller_pid') == owner.get('controller_pid')), None)
     def healthy(receipt):
@@ -182,7 +184,7 @@ def published_report(root):
     for name in ('primary', 'diagnostics', 'calibration'):
         for row in result[name]:
             row['credited'] = bool(row.get('credited') and good
-                and healthy(final(row.get('guardian_owner') or result.get('guardian_owner') or {})))
+                and healthy(final(row.get('guardian_owner') or result.get('guardian_owner') or {}, row.get('guardian_root'))))
     result['complete'] = bool(result.get('native_primary_complete') and good
         and all(row['credited'] for name in ('primary', 'diagnostics') for row in result[name]))
     credited = {row['id'] for name in ('primary', 'diagnostics') for row in result[name] if row.get('credited')}

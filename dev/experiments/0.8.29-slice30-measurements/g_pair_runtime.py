@@ -188,7 +188,8 @@ def finish(manifest, rows):
             required = [item for item in result['comparisons']['diagnostics'] if item['origin_id'] == origin]
             if name == 'calibration':
                 required = result['comparisons']['calibration']
-            outcomes = [previous[identifier] for identifier in pair['members'] if identifier in previous]
+            outcomes = [previous[identifier] for identifier in pair['members']
+                        if identifier in previous and not previous[identifier].get('reference')]
             retired += retire_pair(root / 'results', outcomes,
                 enabled=manifest['retire_complete_copies'], comparison=pair['complete'],
                 diagnostics_complete=all(item['complete'] for item in required))

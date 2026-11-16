@@ -194,12 +194,16 @@ def freeze(options, output, *, scope):
         task=str(Path(os.environ['S30_TASK']).resolve()),
         requested_gpu={'uuid': options.get('gpu_uuid'), 'ordinal': options.get('gpu_ordinal')},
         model_cache=options.get('model_cache'), g_donors=options.get('g_donors', {}),
+        ordinary_calibration_from=options.get('ordinary_calibration_from'),
         environment={key: os.environ.get(key) for key in ('CUDA_VISIBLE_DEVICES',)},
         calibration=options.get('calibration'), primary_limits=limits, templates={},
         common_limit_ns=(limits['common_ns'] if limits else
                          options['calibration']['phase_ns'] - options['calibration']['payload_ns']))
     selected = inventory['calibration'] if scope == 'calibration' else inventory['primary'][:2*limits['pairs']]
     manifest = prepare_inputs(manifest, selected, time.monotonic_ns() + manifest['common_limit_ns'] - 20*10**9)
+    if scope == 'primary' and manifest.get('ordinary_calibration_from'):
+        rows = reference_rows(manifest)
+        (output / 'results/campaign-state.json').write_text(json.dumps(rows, indent=2) + '\n')
     path = output / 'manifest.json'
     path.write_text(json.dumps(manifest, indent=2) + '\n')
     path.chmod(0o444)
@@ -228,3 +232,49 @@ def validate(root):
     if manifest['scope'] == 'primary':
         primary_limits(manifest)
     return manifest
+
+
+def matching_reference(original, required):
+    """Match the identical ordinary workload while preserving its distinct origin labels."""
+    return ({key: value for key, value in original.items() if key not in ('id', 'purpose')}
+            == {key: value for key, value in required.items() if key not in ('id', 'purpose')})
+
+
+def reference_rows(manifest):
+    """Reference eligible existing ordinary G10k events without executing or charging again."""
+    from g_pair import compare_results, native_result, plan, qualify_step
+    from g_pair_report import clean, published_report
+    root = Path(manifest['ordinary_calibration_from']).resolve()
+    original = json.loads((root / 'manifest.json').read_text())
+    if Path(original['allocation']).resolve() != Path(manifest['allocation']).resolve():
+        raise ValueError('ordinary references require the same allocation and existing shared charges')
+    original = validate(root)
+    if (original['scope'] != 'calibration' or original['source_sha'] != manifest['source_sha']
+            or original['compiler_inputs'] != manifest['compiler_inputs'] or original['features'] != manifest['features']
+            or any(original['inputs'][name][key] != manifest['inputs'][name][key]
+                   for name in PINS for key in ('sha256', 'bytes'))
+            or any(original['build']['binaries']['ordinary'][key] != manifest['build']['binaries']['ordinary'][key]
+                   for key in ('sha256', 'bytes', 'features'))
+            or any(original['gpu'][key] != manifest['requested_gpu'][key] for key in ('uuid', 'ordinal'))):
+        raise ValueError('strict current ordinary reference source/build/input/device mismatch')
+    report = published_report(root)
+    rows, values = [], []
+    for source_cell in plan()['calibration'][:2]:
+        target = next(cell for cell in plan()['primary'] if matching_reference(source_cell, cell))
+        row = next(row for row in report['calibration'] if row['id'] == source_cell['id'])
+        actual = json.loads((Path(row['attempt']) / 'result.json').read_text())
+        if (not clean(row) or not row.get('credited') or row.get('cell') != source_cell
+                or actual.get('cell') != source_cell or actual.get('freeze_uuid') != original['uuid']
+                or actual.get('complete') is not True or actual.get('qualification_issues') != []
+                or len(actual.get('steps', [])) != 1
+                or qualify_step(actual['steps'][0], source_cell, original)):
+            raise ValueError('existing ordinary reference lacks full qualified original calls/cleanup')
+        values.append(native_result(actual['steps'][0]))
+        rows.append(dict(row, id=target['id'], cell=target, qualifies_primary=True,
+            guardian_root=str(root),
+            reference={'root': str(root), 'member': source_cell['id'], 'purpose': source_cell['purpose'],
+                       'freeze_uuid': original['uuid'], 'required_member': target['id']},
+            charge_disposition='already charged on original shared ledger; reference only, no new execution or charge'))
+    if not compare_results(*values):
+        raise ValueError('existing ordinary reference pair differs in actual record results')
+    return rows

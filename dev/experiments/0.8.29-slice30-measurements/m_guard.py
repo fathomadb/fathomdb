@@ -153,6 +153,8 @@ def _guard(command, *, allocation, profile, root, task, admission=False, common_
           started_ns=None, phase="M", calibration=None, primary_limits=None, cell_allowance=None, cancelled=None, diagnostic_memory=False):
     """Own the whole controller phase, private boundary, resource floors and final charge."""
     cancelled = cancelled if cancelled is not None else [False]
+    if diagnostic_memory and phase != "D":
+        raise ValueError("private diagnostic memory capture belongs only to D")
     if phase not in ("M", "D", "S50"):
         raise ValueError("unknown shared guardian phase")
     guardian_key = phase.lower()+"_guardian"
@@ -264,6 +266,13 @@ def _guard(command, *, allocation, profile, root, task, admission=False, common_
         reader = writer = None
         with (phase_root / "guardian.log").open("a") as log:
             try:
+                if diagnostic_memory:
+                    from d_diagnostic import memory_snapshot
+                    receipt["diagnostic_memory_before"] = memory_snapshot()
+                    observed = receipt["diagnostic_memory_before"]
+                    if (not observed["complete"] or observed["raw"].get("memory.max") != "4294967296"
+                            or observed["raw"].get("memory.swap.max") != "0"):
+                        raise RuntimeError("D diagnostic requires observed4GiB/zero-swap memory counters")
                 if cancelled[0]:
                     raise InterruptedError("D guardian cancelled before controller entry")
                 boundary.create()
@@ -356,6 +365,10 @@ def _guard(command, *, allocation, profile, root, task, admission=False, common_
                     receipt.update(cleanup_uncertain=True, boundary_cleanup_error=str(error), exit=125)
                 receipt["stopped_monotonic_ns"] = time.monotonic_ns()
                 receipt["boundary"] = boundary.evidence
+        if diagnostic_memory:
+            receipt["diagnostic_memory_after"] = memory_snapshot()
+            receipt["diagnostic_memory_complete"] = (receipt["diagnostic_memory_before"]["complete"]
+                                                     and receipt["diagnostic_memory_after"]["complete"])
         try:
             final = resource_sample(source, task)
             load_observations.append(observe_load())

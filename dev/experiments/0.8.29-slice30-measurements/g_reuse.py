@@ -24,6 +24,8 @@ def collect_reuse(current, original_root):
     if original.get("root") != str(root):
         raise ValueError("reuse root does not name its original manifest")
     successor = current.get("spec", {}).get("preparation") == "closed-copy-v1"
+    closed_write = (successor and current.get("stage") == "closed-copy-write-matrix"
+                    and original.get("stage") == "closed-copy-write-matrix")
     if successor:
         from g_campaign import make_g_plan
         canonical = json.loads(Path(__file__).with_name("g-cells.json").read_text())
@@ -33,11 +35,16 @@ def collect_reuse(current, original_root):
             prospective |= {"_closed_limits", "_closed_observation_wait_ms", "_reviewed_costs", "_calibration_origin"}
         normalized = {key: value for key, value in current["spec"].items() if key not in prospective}
         r1_source = original.get("stage") == "closed-copy-read-r1" and current.get("stage") == "closed-copy-write-matrix"
-        original_spec = {key: value for key, value in original["spec"].items() if key != "closed_mode"}
-        expected_original = expected if r1_source else canonical
-        if (original_spec != expected_original or original["plan"] != make_g_plan(expected_original)
+        original_spec = {key: value for key, value in original["spec"].items()
+                         if key not in (prospective if closed_write else {"closed_mode"})}
+        expected_original = expected if r1_source or closed_write else canonical
+        original_plan = make_g_plan(original["spec"] if closed_write else expected_original)
+        if (original_spec != expected_original or original["plan"] != original_plan
                 or normalized != expected or current["plan"] != make_g_plan(current["spec"])):
             raise ValueError("reuse differs beyond the named unmeasured closed-copy successor")
+        if closed_write and any(current.get(key) != original.get(key)
+                                for key in ("plan", "cost_review", "calibration_from", "closed_limits")):
+            raise ValueError("write reuse requires its unchanged reviewed plan/profile/calibration")
     elif original.get("spec") != current.get("spec") or original.get("plan") != current.get("plan"):
         raise ValueError("reuse measurement equivalence mismatch: spec/plan")
     for key in ("schema", "compiler_inputs", "lock", "inputs", "model_files",
@@ -62,7 +69,8 @@ def collect_reuse(current, original_root):
         stage = original.get("stage")
         normal = (original.get("source_sha"), original.get("campaign_uuid")) == (NORMAL_SOURCE, NORMAL_UUID)
         closed_r1 = successor and stage == "closed-copy-read-r1" and current.get("stage") == "closed-copy-write-matrix"
-        if ((not normal or not successor) and not closed_r1 and stage not in ("branch-controls", "first-100k-seed-exploratory")) or not original.get("reuse_completed_from"):
+        if ((not normal or not successor) and not closed_r1 and not closed_write
+                and stage not in ("branch-controls", "first-100k-seed-exploratory")) or not original.get("reuse_completed_from"):
             raise ValueError("reuse source is not an accepted original measurement chain")
         inherited = collect_reuse(current, original["reuse_completed_from"])
         if stage == "first-100k-seed-exploratory" and set(inherited) != BASE_CELLS | {"g-o-branches"}:
@@ -74,6 +82,9 @@ def collect_reuse(current, original_root):
                     or original.get("calibration_from") != current["calibration_from"]):
                 raise ValueError("R1 reuse requires its exact original11/calibration chain")
             selected = {"g-r-n100000-r1"}
+        elif closed_write:
+            if original.get("reused") != inherited:
+                raise ValueError("write reuse requires its exact inherited original chain")
         elif normal:
             if set(inherited) != BASE_CELLS | {"g-o-branches", "g1-n100000"}:
                 raise ValueError("normal assessment reuse requires its original six-record chain")
@@ -81,11 +92,14 @@ def collect_reuse(current, original_root):
         else:
             selected = {"g1-n100000"} if stage == "first-100k-seed-exploratory" else {"g-o-branches"}
     rows = {row["id"]: row for row in json.loads((root / "results/g-outcomes.json").read_text())}
+    if closed_write:
+        selected = {identifier for identifier, row in rows.items()
+                    if row.get("status") == "complete" and row.get("cell", {}).get("stage") == "G-W"}
     invocation = json.loads((root / "last-run.json").read_text())
     if invocation.get("environment_ok") is not True:
         raise ValueError("reuse original actor/environment cleanup is not qualified")
-    if original.get("stage") == "closed-copy-read-r1":
-        if invocation.get("stage_complete") is not True:
+    if original.get("stage") == "closed-copy-read-r1" or closed_write:
+        if not closed_write and invocation.get("stage_complete") is not True:
             raise ValueError("R1 stage qualification is incomplete")
         receipt = json.loads(Path(invocation["guardian_receipt"]).read_text())
         boundary = receipt.get("boundary") or {}
@@ -96,7 +110,7 @@ def collect_reuse(current, original_root):
                 or receipt.get("delta_start") != "" or receipt.get("delta_end") != ""
                 or boundary.get("status") != "quiescent" or boundary.get("populated_after") is not False
                 or boundary.get("removed_exact_empty_boundary") is not True):
-            raise ValueError("R1 final guardian/source evidence is unavailable")
+            raise ValueError("original closed-stage guardian/source evidence is unavailable")
     references = dict(inherited)
     for identifier in selected:
         row = rows.get(identifier) or {}
@@ -106,6 +120,11 @@ def collect_reuse(current, original_root):
                 or row.get("cleanup_uncertain") is not False or row.get("live_owned_pids") != []
                 or not attempt.is_relative_to(root / "results")):
             raise ValueError(f"reuse original outcome is incomplete: {identifier}")
+        if closed_write:
+            from g_serial_storage import closed_case
+            budget = json.loads(Path(current["allocation"], "g-budget.json").read_text())
+            if not closed_case(row, budget.get("serial_closed_cases", {}).get(identifier)):
+                raise ValueError(f"reuse original write closure is unavailable: {identifier}")
         result = json.loads((attempt / "result.json").read_text())
         if (result.get("complete") is not True or result.get("qualification_issues") != []
                 or not result.get("steps")):

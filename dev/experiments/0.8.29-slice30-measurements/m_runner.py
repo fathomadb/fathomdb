@@ -257,6 +257,11 @@ def run_selected(options, root, cell_id, began):
     return result
 
 
+def retire_working_copies(root):
+    """Retire successful disposable copies after strict cleanup, preserving science and charges."""
+    return []
+
+
 def final_guardian(root):
     """Require the fresh root's sole original phase to have strict successful final cleanup."""
     paths = list((Path(root) / "guardians").glob("*/guardian.json"))

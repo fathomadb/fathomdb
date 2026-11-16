@@ -24,6 +24,7 @@ Cargo cache/target and ordinary CPU execution. Raw logs and archives remain unde
 | Q10 cursor race, `AGENT_LONG=1`, exact selector |1test passed;1000 searches,401 committed writes including400 during reads,999 advancing hits; zero row-count/cursor and hit-cursor violations. `logs/cursor.log`. |
 | Offline leaf packages, `cargo package --offline --locked --allow-dirty` |All3 archives verify-compiled: embedder-api0.8.0, schema/query0.8.29. Cargo's unused optional fork-patch warnings are retained in `logs/package-*.log`; no verification bypass. |
 | Q4 missing AC037 live components |Current locked `security_cycle` rebuilt; both canonical netns engine and demonstrate-the-catch scripts exited0, including the live deliberate-egress catch. `logs/security-build.log`, `logs/check-netns-deny-egress.log`, `logs/check-netns-deny-egress-catch.log`. No host settings changed or optional downgrade selected. |
+| Q14 current Linux x64 production consumers |At `b07a161317ff753b86b5eb706e7c5e761adecb9a` (unchanged runtime source), the existing owned Python setup built an abi3 .29 wheel with `pyo3/extension-module,default-embedder`; the existing production N-API route and TS build passed. No test-hooks. The existing local native smoke passed isolated offline Python and matched Node installs, strict installed graph types with TS6.0.3, write/search/dependency/frozen-read and Node graph-evidence controls; Python3/Node3 runtime-configuration cases passed, zero skipped. `logs/production-{python-build,napi-build,typescript-build,installed-consumers}.log`. |
 
 The long variants close the missing Q10 observations on these inputs. AC037 closes
 the missing live component alongside applicable accepted unchanged security
@@ -31,6 +32,13 @@ controls; no aggregate battery or full-workspace green run is claimed. The three
 leaf archives are local package preparation, not all shipping artifacts,
 Python/Node/platform consumers, complete rehearsal or registry readiness. Reassess
 affected runtime/package inputs after90; unchanged observations need no replay.
+
+The Linux wheel is host-native `cp310-abi3-manylinux_2_39_x86_64`, built with
+Python3.13.13/Rust1.95; Node25.9 consumed its matched production package. This
+runtime observation does not qualify the required manylinux2.28 distribution
+floor, CUDA artifacts, all five targets, final90 bytes or registry consumers.
+The wheel remains in `tmp/fathomdb-owned-python-3d8ud5k0/` under the raw-log root;
+the built addon/declarations remain in this worktree's `src/ts/`.
 
 ## Remaining qualification
 

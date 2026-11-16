@@ -25,6 +25,7 @@ Cargo cache/target and ordinary CPU execution. Raw logs and archives remain unde
 | Offline leaf packages, `cargo package --offline --locked --allow-dirty` |All3 archives verify-compiled: embedder-api0.8.0, schema/query0.8.29. Cargo's unused optional fork-patch warnings are retained in `logs/package-*.log`; no verification bypass. |
 | Q4 missing AC037 live components |Current locked `security_cycle` rebuilt; both canonical netns engine and demonstrate-the-catch scripts exited0, including the live deliberate-egress catch. `logs/security-build.log`, `logs/check-netns-deny-egress.log`, `logs/check-netns-deny-egress-catch.log`. No host settings changed or optional downgrade selected. |
 | Q14 current Linux x64 production consumers |At `b07a161317ff753b86b5eb706e7c5e761adecb9a` (unchanged runtime source), the existing owned Python setup built an abi3 .29 wheel with `pyo3/extension-module,default-embedder`; the existing production N-API route and TS build passed. No test-hooks. The existing local native smoke passed isolated offline Python and matched Node installs, strict installed graph types with TS6.0.3, write/search/dependency/frozen-read and Node graph-evidence controls; Python3/Node3 runtime-configuration cases passed, zero skipped. `logs/production-{python-build,napi-build,typescript-build,installed-consumers}.log`. |
+| Q14 generic Linux x64 CPU wheel2.28 |At `84d8f4514a8fdef034a3cf31a1353f65a7dbdaa4` (unchanged runtime source), the existing attested manylinux image built a separate CPU-only/no-hook wheel with `pyo3/extension-module,default-embedder`. Actual auditwheel and extracted-module2.28 symbol-floor checks pass. Paired with the preserved CPU addon bytes, unchanged isolated Python/Node/strict-TS6.0.3/runtime/dependency/frozen/graph consumers pass, Python3/Node3 runtime cases with zero skips. Existing pinned BGE auto/explicit-CPU384-vector/write/search/close controls pass in clean networkless/runc images without GPU devices or CUDA-library mounts. `logs/cpu-x64-manylinux-{build,floor,installed,forwards}.log`. |
 | Q14 current Windows x64 production consumers and WAL |Exact source `50780514e6ba37fff147351eeea077ba65933431` passed production Python/Node installs, strict TS6.0.3 and all13 retained N-API modules:186/186, zero skips. The cp310-abi3 Windows wheel is6876529 bytes and passes the size gate. All10 unique WAL engine controls, real held-reader parent/child and installed baseline/current serial/binding/retained controls pass. Both existing receipts validate actual bytes. Independent Astra-medium final ACCEPT; raw logs/artifacts/WAL results remain under `/mnt/data/tmp2/fathomdb-0829-continuation/slice160-windows-20261116/`. |
 | Q14 current Linux ARM64 CPU consumers and floors |Exact clean `fd47561ad7ad778eb8a5125d239d1c438cd19483` source in an owned Orin checkout produced fresh CPU/no-hook Python and N-API artifacts. The existing native ARM manylinux image built the actual2.28 wheel/addon; auditwheel and both symbol-floor checks pass. Unchanged isolated installed Python/Node/strict-TS6.0.3/runtime/dependency/frozen/graph consumers pass, Python3/Node3 runtime cases with zero skips. Existing pinned BGE auto/explicit-CPU384-vector/write/search/close controls also pass inside the guarded networkless container. Raw logs/operators/current package subjects are retained in `arm-results/` under the evidence root above. |
 | Q15 current Linux CUDA12.6 distribution floor and driverless controls |At `abcc528944e58b5ef20cb03c27a741bf29bc13b1` (unchanged runtime source), the existing attested manylinux image built the canonical no-hook Python `embed-cuda,rerank-cuda` tuple; matching host N-API tuple built with the pinned GCC13/CUDA12.6 route. Actual `auditwheel show` confirms manylinux2.28; N-API's declared2.39 floor passes. The existing archive inspector checked every packaged ELF member without forbidden CUDA/NVIDIA payload or linkage. Canonical driverless Python/Node stages pass auto/explicit CPU384-vector forwards, real write/search/close and reranker CPU forwards. All4 forced embedder/reranker captures have actual exit1 and pass the existing exact typed-JSON/stderr validators. `logs/{manylinux-cuda-python-build,production-cuda-napi-build,production-cuda-auditwheel,production-cuda-napi-floor,production-cuda-driverless,production-cuda-forced-validation}.log`. |
@@ -37,12 +38,24 @@ leaf archives are local package preparation, not all shipping artifacts,
 Python/Node/platform consumers, complete rehearsal or registry readiness. Reassess
 affected runtime/package inputs after90; unchanged observations need no replay.
 
-The Linux wheel is host-native `cp310-abi3-manylinux_2_39_x86_64`, built with
-Python3.13.13/Rust1.95; Node25.9 consumed its matched production package. This
-runtime observation does not qualify the required manylinux2.28 distribution
-floor, CUDA artifacts, all five targets, final90 bytes or registry consumers.
-The wheel remains in `tmp/fathomdb-owned-python-3d8ud5k0/` under the raw-log root;
+The initial Linux wheel is host-native `cp310-abi3-manylinux_2_39_x86_64`, built
+with Python3.13.13/Rust1.95; its runtime observation retains that scope. The later
+CPU-only wheel above supplies the missing2.28 qualification without substituting
+the separately qualified CUDA wheel. The original wheel remains in
+`tmp/fathomdb-owned-python-3d8ud5k0/` under the raw-log root;
 the CPU addon/declarations are preserved in `subjects/cpu-ts/` under that root.
+
+The generic x64 CPU validation wheel remains in `cpu-x64-manylinux-out/`, built
+with Rust1.95/maturin1.14.1/Python3.11; the preserved addon/declarations were reused
+unchanged through `cpu-x64-ts/`. The combined clean-container consumer used
+Node25.9/npm11.12.1 and the existing immutable Python3.13.13 base. Model-control
+packages/caches remain in `cpu-x64-forwards/`. The contract in
+`scripts/release/glibc-floor-contract.sh` and public compatibility docs requires
+Python2.28 on both architectures and ARM npm2.28; x64 npm delivery remains the
+CUDA host family at2.39. No generic x64 addon2.28 gate or new publication route is
+invented. These current CPU proofs do not establish all five targets, final90
+bytes or registry consumption; ARM `fd475` subjects and CUDA artifacts remain
+separate and unchanged.
 
 The CUDA wheel remains in `manylinux-out/`; matched main/platform tarballs,
 installed forced-refusal subjects and archive-linkage output remain in

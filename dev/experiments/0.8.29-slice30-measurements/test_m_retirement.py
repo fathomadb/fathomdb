@@ -67,6 +67,17 @@ class RetirementTests(unittest.TestCase):
         metadata = json.loads((self.attempt / "attempt.json").read_text())
         self.assertEqual(set(metadata["retired_working_copies"]), set(retired))
 
+    def test_foreign_s50_custody_blocks_retirement_without_mutation(self):
+        budget = json.loads(self.ledger.read_text())
+        budget['s50_guardian'] = {'controller_pid': 123, 'started_monotonic_ns': 456}
+        self.ledger.write_text(json.dumps(budget))
+        before = self.ledger.read_bytes()
+        stores = [path.read_bytes() for path in self.files]
+        with self.assertRaisesRegex(ValueError, 'ownership'):
+            retire_working_copies(self.root)
+        self.assertEqual(self.ledger.read_bytes(), before)
+        self.assertEqual([path.read_bytes() for path in self.files], stores)
+
     def test_uncertain_original_cleanup_keeps_all_working_copies(self):
         self.guardian["cleanup_uncertain"] = True
         self.guard_path.write_text(json.dumps(self.guardian))

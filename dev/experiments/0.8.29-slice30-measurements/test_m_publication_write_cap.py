@@ -44,6 +44,18 @@ class PublicationWriteCapTests(unittest.TestCase):
             self.clock += 3 * 10**9
         return result
 
+    def test_foreign_s50_custody_blocks_final_publication_without_mutation(self):
+        ledger = json.loads(self.ledger_path.read_text())
+        ledger['s50_guardian'] = {'controller_pid': 123, 'started_monotonic_ns': 456}
+        self.ledger_path.write_text(json.dumps(ledger))
+        before = self.ledger_path.read_bytes()
+        guardian = self.guardian_path.read_bytes()
+        with self.assertRaisesRegex(ValueError, 'ownership'):
+            publish_selected(self.root)
+        self.assertEqual(self.ledger_path.read_bytes(), before)
+        self.assertEqual(self.guardian_path.read_bytes(), guardian)
+        self.assertFalse((self.root/'reports').exists())
+
     def test_write_overrun_revokes_returned_and_persisted_report_credit(self):
         with patch("m_runner.time.monotonic_ns", side_effect=lambda: self.clock), \
                 patch.object(Path, "write_text", lambda path, data, *args, **kwargs: self.delayed_report_write(path, data, *args, **kwargs)):

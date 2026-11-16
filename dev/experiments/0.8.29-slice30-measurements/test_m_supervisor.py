@@ -36,7 +36,7 @@ class SupervisorFlowTests(unittest.TestCase):
         self.real_invalidate = m_runner.invalidate_selected
         self.real_finalize = m_runner.finalize_invocation
 
-    def invoke(self, *, fail_poll=False, overflow=False, exit_code=0, revocation_error=False, before_binding=False):
+    def invoke(self, *, fail_poll=False, overflow=False, exit_code=0, revocation_error=False, before_binding=False, s50_takeover=False):
         samples = 0
 
         def resource(*_):
@@ -54,6 +54,11 @@ class SupervisorFlowTests(unittest.TestCase):
                 (self.root/'manifest.json').unlink()
                 for publication_path in (self.root/'reports').glob('report-*.json'):
                     publication_path.unlink()
+            if s50_takeover:
+                budget = json.loads(self.fixture.ledger_path.read_text())
+                budget['s50_guardian'] = {'controller_pid': 123, 'started_monotonic_ns': 456}
+                self.fixture.ledger_path.write_text(json.dumps(budget))
+                self.foreign_budget = self.fixture.ledger_path.read_bytes()
             script = (f"import pathlib,sys,time;pathlib.Path({str(self.native_started)!r}).write_text('started');"
                       f"print('x'*100,flush=True);time.sleep(.05);sys.exit({exit_code})")
             self.child = self.real_popen([sys.executable, '-c', script], **kwargs)
@@ -89,7 +94,8 @@ class SupervisorFlowTests(unittest.TestCase):
 
         def finalize(*args):
             self.events.append('finalize')
-            return self.real_finalize(*args)
+            self.finalization = self.real_finalize(*args)
+            return self.finalization
 
         with ExitStack() as stack:
             stack.enter_context(patch('sys.argv', ['m_runner.py', 'supervise', self.cell_id, str(self.options), str(self.root),
@@ -159,6 +165,36 @@ class SupervisorFlowTests(unittest.TestCase):
         usage = json.loads(self.fixture.ledger_path.read_text())['selected_cell_usage'][self.cell_id]
         self.assertEqual(usage['wall_ns'], self.prior+self.clock-self.started)
         self.assertEqual(usage['limits'], LIMITS)
+
+    def test_prebinding_failure_under_foreign_s50_custody_stays_unreconciled_without_ledger_mutation(self):
+        from test_m_calibration import LIMITS
+        profile = json.loads((self.root/'manifest.json').read_text())['profile']
+        profile.update(schema='slice30-m-budget/v1', status='APPROVED',
+            ledger=str(self.fixture.ledger_path), whole_cell_ns=900*10**9,
+            reserved_other_work_ns=0, reserved_other_work_bytes=0,
+            other_work_cost_status='HELD_UNAVAILABLE', reservation_disposition='one unchanged M cell')
+        profile_path = self.base/'profile.json'
+        profile_path.write_text(json.dumps(profile))
+        options = json.loads(self.options.read_text())
+        options.update(profile=str(profile_path), cell_allowance=LIMITS)
+        self.options.write_text(json.dumps(options))
+        self.assertNotEqual(self.invoke(exit_code=7, before_binding=True, s50_takeover=True), 0)
+        self.assertEqual(self.fixture.ledger_path.read_bytes(), self.foreign_budget)
+        self.assertFalse(self.finalization['phase_qualified'])
+        self.assertIsNone(self.finalization['charged_ns'])
+        self.assertTrue(self.finalization['unreconciled'])
+
+    def test_bound_failure_cannot_revoke_or_finalize_through_foreign_s50_custody(self):
+        guardian = self.fixture.guardian_path.read_bytes()
+        reports = {path: path.read_bytes() for path in (self.root/'reports').glob('report-*.json')}
+        self.assertNotEqual(self.invoke(overflow=True, s50_takeover=True), 0)
+        self.assertIn('invalidate', self.events)
+        self.assertEqual(self.fixture.ledger_path.read_bytes(), self.foreign_budget)
+        self.assertEqual(self.fixture.guardian_path.read_bytes(), guardian)
+        self.assertEqual({path: path.read_bytes() for path in (self.root/'reports').glob('report-*.json')}, reports)
+        self.assertFalse(self.finalization['phase_qualified'])
+        self.assertIsNone(self.finalization['charged_ns'])
+        self.assertTrue(self.finalization['unreconciled'])
 
     def test_samples_collision_is_detected_before_any_service_or_science_launch(self):
         collision = self.root.parent/(self.root.name+'-samples.jsonl')

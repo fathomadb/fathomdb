@@ -63,7 +63,11 @@ def main():
         calibration_internal.add_argument(f"--{name}", required=True)
     calibration_internal.add_argument("--admission-fd", type=int, required=True)
     for action in ("run", "report"):
-        commands.add_parser(action).add_argument("root")
+        selected = commands.add_parser(action)
+        selected.add_argument("root")
+        if action == "run":
+            selected.add_argument("--options")
+            selected.add_argument("--cell")
     internal = commands.add_parser("_controller")
     internal.add_argument("--root", required=True)
     internal.add_argument("--admission-fd", type=int, required=True)
@@ -83,6 +87,9 @@ def main():
     cell.add_argument("config")
     cell.add_argument("attempt")
     options = parser.parse_args()
+    if options.action == "run" and options.options:
+        result = run_selected(options.options, options.root, options.cell, began)
+        return 0 if isinstance(result, dict) and result["exit"] == 0 and not result["cleanup_uncertain"] else 1
     if options.action == "calibrate":
         from m_calibration import selected_cell
         from m_freeze import approved
@@ -212,6 +219,11 @@ def main():
         return 0 if result.get("complete", options.action == "_freeze") else 1
     print(json.dumps(result, allow_nan=False))
     return 0 if result["complete"] else 1
+
+
+def run_selected(options, root, cell_id, began):
+    """Run one canonical required M cell through its finite original-budget guardian."""
+    return None
 
 
 def report(root):

@@ -26,6 +26,7 @@ Cargo cache/target and ordinary CPU execution. Raw logs and archives remain unde
 | Q4 missing AC037 live components |Current locked `security_cycle` rebuilt; both canonical netns engine and demonstrate-the-catch scripts exited0, including the live deliberate-egress catch. `logs/security-build.log`, `logs/check-netns-deny-egress.log`, `logs/check-netns-deny-egress-catch.log`. No host settings changed or optional downgrade selected. |
 | Q14 current Linux x64 production consumers |At `b07a161317ff753b86b5eb706e7c5e761adecb9a` (unchanged runtime source), the existing owned Python setup built an abi3 .29 wheel with `pyo3/extension-module,default-embedder`; the existing production N-API route and TS build passed. No test-hooks. The existing local native smoke passed isolated offline Python and matched Node installs, strict installed graph types with TS6.0.3, write/search/dependency/frozen-read and Node graph-evidence controls; Python3/Node3 runtime-configuration cases passed, zero skipped. `logs/production-{python-build,napi-build,typescript-build,installed-consumers}.log`. |
 | Q15 current Linux CUDA12.6 distribution floor and driverless controls |At `abcc528944e58b5ef20cb03c27a741bf29bc13b1` (unchanged runtime source), the existing attested manylinux image built the canonical no-hook Python `embed-cuda,rerank-cuda` tuple; matching host N-API tuple built with the pinned GCC13/CUDA12.6 route. Actual `auditwheel show` confirms manylinux2.28; N-API's declared2.39 floor passes. The existing archive inspector checked every packaged ELF member without forbidden CUDA/NVIDIA payload or linkage. Canonical driverless Python/Node stages pass auto/explicit CPU384-vector forwards, real write/search/close and reranker CPU forwards. All4 forced embedder/reranker captures have actual exit1 and pass the existing exact typed-JSON/stderr validators. `logs/{manylinux-cuda-python-build,production-cuda-napi-build,production-cuda-auditwheel,production-cuda-napi-floor,production-cuda-driverless,production-cuda-forced-validation}.log`. |
+| Q14 external Rust source-archive SDK and CLI |The archive from `abcc528944e58b5ef20cb03c27a741bf29bc13b1` retains manifests, original lock, Rust sources and active local override configuration. The unchanged existing persistent SDK consumer passes actual `cargo run --locked --offline` write and separate-process reopen, including body/missing-record/close/exit assertions. Locked metadata resolves every consumed product crate inside the archive at W.29/E.8.0. CLI `cargo install --path` with `--locked --offline` passes; unchanged existing version0.8.29, legacy integrity JSON and immutable data-plane/status/file-set checks pass. Subjects/consumer lock/metadata remain in `rust-archive/`; `logs/archive-sdk-minimal-{write,reopen}.log`, `logs/archive-sdk-source-paths.log`, `logs/archive-cli-{install,smoke}.log`. |
 
 The long variants close the missing Q10 observations on these inputs. AC037 closes
 the missing live component alongside applicable accepted unchanged security
@@ -50,6 +51,15 @@ mounts were supplied, and pinned BGE/TinyBERT cache guards passed. This closes
 these actual floor/linkage/driverless components; GPU-forward/UUID/allocation,
 final90 applicability and complete rehearsal remain separate. No full v3 GPU
 witness or aggregate release pass was fabricated.
+
+The external SDK owns its downstream lock rather than inheriting the producer's
+whole workspace resolution. Initial full-config locked attempts stopped before
+execution; raw failures are retained. Isolating its actual bare CPU closure from
+unused product-wide Git overrides removed only5 `patch.unused` entries, with no
+consumed package identity/version change; real runs retained `--locked`. The
+archive's original producer lock and active override configuration are preserved.
+This source-archive SDK/CLI proof is separate from registry-resolved `.crate`
+consumption and still needs final90 source applicability assessment.
 
 ## Remaining qualification
 

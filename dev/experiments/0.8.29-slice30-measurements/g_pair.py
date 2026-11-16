@@ -59,6 +59,10 @@ def build_tools(output, *, _run=None):
     from g_freeze import SOURCE, compiler_inputs, git, identify
     if _run is None and git("status", "--porcelain"):
         raise ValueError("pair build requires clean current source")
+    if _run is None and str(Path('/usr/local/cuda').resolve()) != '/usr/local/cuda-12.6':
+        raise ValueError('private pair build requires unchanged primary CUDA12.6')
+    environment = dict(os.environ, CUDA_COMPUTE_CAP='86', CUDA_HOME='/usr/local/cuda-12.6',
+                       CUDA_PATH='/usr/local/cuda-12.6')
     output = Path(output).resolve()
     output.mkdir(parents=True, exist_ok=False)
     receipt = {"schema":"slice50-pair-build/v1", "scope":"slice50-pair",
@@ -68,7 +72,7 @@ def build_tools(output, *, _run=None):
     for variant, features in FEATURES.items():
         command = ["cargo","build","--offline","--locked","--release","--jobs","2",
                    "-p","fathomdb-sdk","--features",",".join(features),"--example","slice30_measure"]
-        (_run or subprocess.run)(command, cwd=SOURCE, check=True)
+        (_run or subprocess.run)(command, cwd=SOURCE, env=environment, check=True)
         built = Path(os.environ.get("CARGO_TARGET_DIR",str(SOURCE/'target'))) / 'release/examples/slice30_measure'
         target = output / ('slice30-measure-'+variant)
         shutil.copy2(built,target)
@@ -254,11 +258,14 @@ def public_entry(operation, root, options=None):
     root=Path(root).resolve()
     selected=(json.loads(Path(options).read_text()) if options else
               json.loads((root/'manifest.json').read_text()))
+    if operation == 'run' and selected.get('scope') == 'calibration':
+        raise ValueError('calibration executes only through the explicit cumulative pair-calibrate command')
     profile=selected['profile']
     if not isinstance(profile,dict):
         profile=json.loads(Path(profile).read_text())
     approved(profile,selected['allocation'])
-    calibration=selected['calibration'] if operation=='calibration' else None
+    calibration=(selected['calibration'] if operation=='calibration'
+                 or operation=='report' and selected.get('scope')=='calibration' else None)
     if operation in ('freeze','calibration') and root.exists():
         raise ValueError('fresh pair root required; cumulative allowance never renews')
     if calibration:
@@ -275,7 +282,8 @@ def public_entry(operation, root, options=None):
     outcome=guard(command,allocation=selected['allocation'],profile=profile,root=root,
         task=os.environ['S30_TASK'],admission=True,phase='S50',calibration=calibration,
         common_limit_ns=common,started_ns=began)
-    print(json.dumps(outcome))
+    if operation != 'report':
+        print(json.dumps(outcome))
     return outcome['exit']==0 and not outcome['cleanup_uncertain']
 
 

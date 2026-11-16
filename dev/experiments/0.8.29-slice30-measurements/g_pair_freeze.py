@@ -177,7 +177,9 @@ def freeze(options, output, *, scope):
         lock=identify(SOURCE / 'Cargo.lock'), model_files=models, hf_home=str(cache), gpu=gpu,
         task=str(Path(os.environ['S30_TASK']).resolve()),
         environment={key: os.environ.get(key) for key in ('CUDA_VISIBLE_DEVICES',)},
-        calibration=options.get('calibration'), forecasts=forecasts, templates={})
+        calibration=options.get('calibration'), forecasts=forecasts, templates={},
+        common_limit_ns=(forecasts['common_ns'] if forecasts else
+                         options['calibration']['phase_ns'] - options['calibration']['payload_ns']))
     if scope == 'primary':
         from g_driver import run_program_step
         deadline = time.monotonic_ns() + forecasts['common_ns'] - 20 * 10**9

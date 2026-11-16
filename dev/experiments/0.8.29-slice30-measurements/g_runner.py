@@ -383,7 +383,7 @@ def main():
     for action in ("pair-freeze", "pair-calibrate"):
         entry = commands.add_parser(action)
         entry.add_argument("--options", type=Path, required=True)
-        entry.add_argument("--root", type=Path, required=True)
+        entry.add_argument("--root", "--out", dest="root", type=Path, required=True)
     commands.add_parser("pair-run").add_argument("root", type=Path)
     pair_control = commands.add_parser("_pair_control")
     pair_control.add_argument("--operation", choices=("freeze", "calibration", "run", "report"), required=True)
@@ -441,7 +441,16 @@ def main():
             raise SystemExit(1)
     elif args.action == "pair-report":
         from g_pair import report as pair_summary
-        print(json.dumps(pair_summary(args.root)))
+        cached = args.root / "results/report.json"
+        if cached.exists():
+            print(cached.read_text())
+        elif (args.root / "manifest.json").exists():
+            from g_pair import public_entry
+            if not public_entry("report", args.root):
+                raise SystemExit(1)
+            print(cached.read_text())
+        else:
+            print(json.dumps(pair_summary(args.root)))
     elif args.action == "build":
         from g_freeze import build_tools
         build_tools(args.out)

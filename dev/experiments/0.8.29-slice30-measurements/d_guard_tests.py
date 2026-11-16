@@ -8,6 +8,54 @@ import tempfile
 import unittest
 
 from d_runner import run_guarded
+from m_guard import _limits
+
+
+class DSharedLimitsTests(unittest.TestCase):
+    def profile(self, **overrides):
+        return {"total_shared_ns": 48*3600*10**9,
+                "total_shared_retained_bytes": 192*1024**3,
+                "reserved_other_work_ns": 0, "reserved_other_work_bytes": 0,
+                **overrides}
+
+    def test_selected_common_totals_allow_only_unreserved_remainder(self):
+        self.assertEqual(_limits(self.profile(), "D"), (48*3600*10**9, 192*1024**3))
+        self.assertEqual(_limits(self.profile(reserved_other_work_ns=12*3600*10**9,
+            reserved_other_work_bytes=64*1024**3), "D"), (36*3600*10**9, 128*1024**3))
+
+    def test_original_smaller_profile_keeps_its_exact_limits(self):
+        profile = self.profile(total_shared_ns=14400*10**9,
+            total_shared_retained_bytes=16*1024**3,
+            reserved_other_work_ns=60*10**9, reserved_other_work_bytes=1024**3)
+        self.assertEqual(_limits(profile, "D"), (14340*10**9, 15*1024**3))
+
+    def test_selected_d_totals_must_be_positive_integer_and_within_ceiling(self):
+        for key, ceiling in (("total_shared_ns", 48*3600*10**9),
+                             ("total_shared_retained_bytes", 192*1024**3)):
+            for value in (None, False, 0, -1, 1.0, ceiling+1):
+                with self.subTest(key=key, value=value), self.assertRaises(ValueError):
+                    _limits(self.profile(**{key: value}), "D")
+
+    def test_unknown_or_exhausting_reservations_never_become_capacity(self):
+        for key, ceiling in (("reserved_other_work_ns", 48*3600*10**9),
+                             ("reserved_other_work_bytes", 192*1024**3)):
+            for value in (None, False, -1, 1.0):
+                with self.subTest(key=key, value=value), self.assertRaises(ValueError):
+                    _limits(self.profile(**{key: value}), "D")
+            with self.subTest(key=key, missing=True), self.assertRaises(ValueError):
+                profile = self.profile()
+                del profile[key]
+                _limits(profile, "D")
+            for value in (ceiling, ceiling+1):
+                with self.subTest(key=key, value=value), self.assertRaises(RuntimeError):
+                    _limits(self.profile(**{key: value}), "D")
+
+    def test_d_ceiling_does_not_change_m_or_s50_profile_selection(self):
+        profile = self.profile(total_shared_ns=49*3600*10**9,
+            total_shared_retained_bytes=193*1024**3)
+        for phase in ("M", "S50"):
+            with self.subTest(phase=phase):
+                self.assertEqual(_limits(profile, phase), (49*3600*10**9, 193*1024**3))
 
 
 class DGuardianTests(unittest.TestCase):

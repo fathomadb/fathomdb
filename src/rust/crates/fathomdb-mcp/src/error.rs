@@ -39,6 +39,26 @@ pub struct ToolError {
     /// `busy/admission`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub busy: Option<Box<Busy>>,
+    /// Bounded caller correction data, absent on unrelated errors.
+    #[serde(flatten)]
+    pub correction: Option<Box<Correction>>,
+}
+
+/// Bounded corrective fields for invalid tool arguments and feedback references.
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, JsonSchema)]
+pub struct Correction {
+    /// Original unknown key, bounded to 64 UTF-8 bytes including ellipsis.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub argument: Option<String>,
+    /// Complete sorted top-level schema property names.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub accepted: Option<Vec<String>>,
+    /// Offending feedback occurrences, preserving request order and duplicates.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub refs_not_in_response: Option<Vec<String>>,
+    /// Number of omitted offending occurrences; absent at zero.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub refs_omitted: Option<u64>,
 }
 
 /// Why an admission was refused (`busy.reason`).
@@ -83,7 +103,16 @@ pub struct Busy {
 
 impl ToolError {
     fn new(class: ErrorClass, code: &'static str, message: String, remedy: &'static str) -> Self {
-        Self { class, code, message, remedy, candidates: None, detail: None, busy: None }
+        Self {
+            class,
+            code,
+            message,
+            remedy,
+            candidates: None,
+            detail: None,
+            busy: None,
+            correction: None,
+        }
     }
 
     fn with_detail(mut self, kind: ErrorKind) -> Self {
@@ -98,6 +127,30 @@ impl ToolError {
             message.into(),
             "fix the argument and retry; see the tool's input schema",
         )
+    }
+
+    pub(crate) fn unknown_argument(key: &str, accepted: &[String], remedy: &'static str) -> Self {
+        let argument = if key.len() <= 64 {
+            key.to_string()
+        } else {
+            let mut end = 61;
+            while !key.is_char_boundary(end) {
+                end -= 1;
+            }
+            format!("{}…", &key[..end])
+        };
+        let mut error = Self::new(
+            ErrorClass::InvalidRequest,
+            "unknown_argument",
+            "unknown tool argument".into(),
+            remedy,
+        );
+        error.correction = Some(Box::new(Correction {
+            argument: Some(argument),
+            accepted: Some(accepted.to_vec()),
+            ..Correction::default()
+        }));
+        error
     }
 
     pub(crate) fn no_store() -> Self {
@@ -372,6 +425,29 @@ impl ToolError {
                 " busy={}",
                 serde_json::to_string(busy).expect("busy serializes")
             ));
+        }
+        if let Some(correction) = &self.correction {
+            if let Some(argument) = &correction.argument {
+                text.push_str(&format!(
+                    " argument={}",
+                    serde_json::to_string(argument).expect("key serializes")
+                ));
+            }
+            if let Some(accepted) = &correction.accepted {
+                text.push_str(&format!(
+                    " accepted={}",
+                    serde_json::to_string(accepted).expect("names serialize")
+                ));
+            }
+            if let Some(references) = &correction.refs_not_in_response {
+                text.push_str(&format!(
+                    " refs_not_in_response={}",
+                    serde_json::to_string(references).expect("refs serialize")
+                ));
+            }
+            if let Some(omitted) = correction.refs_omitted {
+                text.push_str(&format!(" refs_omitted={omitted}"));
+            }
         }
         text
     }

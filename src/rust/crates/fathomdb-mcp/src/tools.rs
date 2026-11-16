@@ -1971,6 +1971,7 @@ mod compact_render_tests {
             code: "unknown_store",
             message: "store \"a\" is unknown".into(),
             remedy: "choose a store",
+            correction: None,
             candidates: Some(Vec::new()),
             detail: None,
             busy: None,
@@ -1981,6 +1982,7 @@ mod compact_render_tests {
             message: "store \"a\" is busy".into(),
             remedy: "retry later",
             candidates: None,
+            correction: None,
             detail: Some("OverloadedError"),
             busy: Some(Box::new(Busy {
                 reason: BusyReason::QueueFull,

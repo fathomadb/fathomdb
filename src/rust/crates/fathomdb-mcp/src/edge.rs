@@ -4,7 +4,8 @@
 //! progress notifications for calls that wait on an opening store or for an
 //! admission permit.
 
-use std::sync::Arc;
+use std::collections::BTreeMap;
+use std::sync::{Arc, LazyLock};
 
 use rmcp::handler::server::common::{schema_for_input, schema_for_output};
 use rmcp::handler::server::router::tool::ToolRouter;
@@ -49,6 +50,37 @@ fn output<T: JsonSchema + 'static>() -> Arc<JsonObject> {
     Arc::new(schema)
 }
 
+static ACCEPTED_KEYS: LazyLock<BTreeMap<String, Vec<String>>> = LazyLock::new(|| {
+    FathomServer::tool_router()
+        .map
+        .iter()
+        .map(|(name, route)| {
+            let properties = route
+                .attr
+                .input_schema
+                .get("properties")
+                .and_then(serde_json::Value::as_object)
+                .expect("every tool input schema declares object properties");
+            let mut keys: Vec<_> = properties.keys().cloned().collect();
+            keys.sort();
+            (name.to_string(), keys)
+        })
+        .collect()
+});
+
+fn unknown_argument_remedy(tool: &str) -> &'static str {
+    match tool {
+        "list_stores" => "use hints to control suggestions; list_stores takes no other arguments",
+        "use_store" => "pass store and optionally hints; use a listed store name",
+        "orient" => "pass store and optionally hints",
+        "search" => "use only the accepted search arguments; continuation calls take only store, continuation, max_tokens, hints and highlights",
+        "fetch" => "fetch takes no limit; pass fewer refs, or max_tokens to bound the size",
+        "expand" => "use only the accepted expand arguments; lower limit or max_depth to bound work",
+        "feedback" => "pass response_id, used and optionally unused, store and hints",
+        _ => unreachable!("only declared tools dispatch"),
+    }
+}
+
 /// One MCP connection's server handler. Connections of one
 /// [`Adapter`](crate::Adapter) share its store registry; each has its own
 /// session (default store, continuations and response ids).
@@ -61,6 +93,7 @@ pub struct FathomServer {
 
 impl FathomServer {
     pub(crate) fn new(shared: Arc<Shared>) -> Self {
+        LazyLock::force(&ACCEPTED_KEYS);
         let session = Arc::new(Session::new(shared.config.default_store.clone()));
         let mut tool_router = Self::tool_router();
         if shared.config.result_format == "text" {
@@ -79,6 +112,19 @@ impl FathomServer {
     ) -> CallToolResult {
         if self.shared.hooks.tool_panics(tool) {
             panic!("test seam: forced panic in tool {tool}");
+        }
+        let accepted = &ACCEPTED_KEYS[tool];
+        if let Some(argument) =
+            arguments.keys().filter(|key| accepted.binary_search(key).is_err()).min()
+        {
+            return to_result(
+                Err(crate::error::ToolError::unknown_argument(
+                    argument,
+                    accepted,
+                    unknown_argument_remedy(tool),
+                )),
+                self.shared.config.result_format == "structured",
+            );
         }
         let ctx = Ctx {
             shared: &self.shared,

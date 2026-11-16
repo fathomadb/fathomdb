@@ -672,6 +672,7 @@ fn scored_extent_nested_graph_cannot_manufacture_vector_participation() {
     assert!(participants <= result.results.len());
 }
 
+#[cfg(feature = "operator")]
 #[test]
 fn stored_coverage_rebuild_and_erasure_invalidate_committed_facts() {
     let (_directory, opened) = fixture(1);

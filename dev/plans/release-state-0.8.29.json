@@ -232,9 +232,9 @@
         "dev/plans/0.8.29/features/slice-30/continuation-gd.md",
         "dev/plans/0.8.29/features/slice-30/continuation-m.md"
       ],
-      "phase": "G84_F_QUALIFIED_M_GPU_CONFLICT_STOPPED_D_IMPLEMENTATION_IN_REVIEW",
+      "phase": "G84_F_QUALIFIED_M_CONTINUATION_DESIGN_D_REPLACEMENT_SOURCE_ACCEPTED",
       "plan_sha": "bea7f05cd2497af0d73c6eb8da509e11a947ca08",
-      "conditions": "G84/84 andF/Q8 independently accepted. M11/46 qualified; M-R-2-32-warn unqualified after foreign-GPU observation despite1503 successful requests; strict cleanup and all old charges retained. D14/24 ordinary qualified; finite continuation implementation bbb5ff8 is in independent review, no replacement dispatch. S50ordinary16/136 anddiag0/24; next5P repeat1 actually running. All selected outcomes/numerical targets/history remain.",
+      "conditions": "G84/84 andF/Q8 independently accepted. M11/46 qualified; M-R-2-32-warn unqualified after foreign-GPU observation despite1503 successful requests; strict cleanup and all old charges retained. D14/24 ordinary qualified; finite continuation implementation7a92144 independently Astra accepted and integratedee28ca30c, no replacement dispatch. S50ordinary16/136 anddiag0/24; next5P repeat1 actually running. All selected outcomes/numerical targets/history remain.",
       "evidence": "AcceptedP/G84/F-Q8 baselines andsource/toolingpreserveoriginalnativeidentities,errors,outliersandcharges. Gfinal84reporthas144populations/97318success0errorsinselectedqualifiedoutcomes;notallhistoricalattempts. Dcriticalfailfast/TERM/accounting2c54isacceptedandactualrecoverycompletedonce. Private914SQLite-logdiagnosticcompleted100k/1000calls0errorsbutoriginalStoragecauseUNKNOWN;noordinarycreditorproductfixclaim. M sourcec738/native4ffc plusacceptedf29variants executesoriginal46sequence; source/row-levelresultsremaininexistingtaskroots. Whole30stillopenonM/DandcurrentS50performance.",
       "qualified_subset_sha": "2fd772558e46d0b1645dce2ffea730d0bdd3305c",
       "continuation_plan_sha": "0d8be5bb75516955ebf99b94913b9b54921bb3a4",
@@ -687,6 +687,15 @@
           "cleanup": "Guardianexit0child0/noresourcestop/uncertainty/survivors;exactboundaryremoved;all5ownersclearatthehandoff.",
           "charge_ns": 509487517759,
           "shared_used_ns_at_handoff": 24447746898900
+        },
+        "finite_continuation": {
+          "source": "7a92144cd855b673d2e2d0077b3b9be0d425b99b",
+          "integrated": "ee28ca30c884abb0882c537d4345454f32878582",
+          "status": "IMPLEMENTATION_ASTRA_ACCEPTED_WAITING_SHARED_ALLOCATION",
+          "design": "bb81b90bdd7b6cc70a5f65d478a7ea6fa20f6311",
+          "review": "Independent Astra FIX1 ACCEPT; live T refusal now stops C before consumption/preparation. No remaining actionable findings.",
+          "verification": "Three actual semantic RED/GREEN units;57portable D controls+5affected delegated controls and focused interruption rerun;root4affected replacement controlsPASS. Combined full gate remains root-owned.",
+          "runtime": "No replacement dispatch/native change. Exact T-r1 thenC-r1 attempt0002 only; preserve old raw/errors/history/charges, cumulative1500s remainingT1480608204946ns/C1457528171766ns, stopfirstrefusal/failure/noattempt3. OriginalD109nativeunchanged;StoragecauseUNKNOWN;14/24ordinaryqualified. S50next5P currently owns sharedallocation."
         }
       },
       "m_selected_runtime": {
@@ -903,8 +912,8 @@
         "dev/plans/0.8.29/features/slice-90/test-map.md"
       ],
       "conditions": "Owner seq392 supersedes the whole-Block1 pre-source hold: accepted80 plus fresh actual integrated qualified20/50/60/70 source-contract fit and accepted independent design permit90 implementation while measurements continue. Whole50 closure is an integrated qualification exit, not a source dependency. All selected30/50 measurements,40 disposition, applicable correctness/performance/conformance/artifact gates remain required before local close. Run the exact seq38872 episodes once on the final integrated90 candidate with unchanged models, fixtures, scoring, budget and stops. Final local passes then CI review then CI; publication excluded.",
-      "phase": "OWNER_APPROVED_PARALLEL_IMPLEMENTATION_SOURCE_FIT_REQUIRED",
-      "evidence": "Current90 design independently Astra accepted at72d9e2b1346dafc179f93f82d835bba20f682954; parallel-source amendment independently Astra accepted in8e79b0e6 and explicitly owner-approved seq392. Genuine semantic RED/GREEN, fresh final Astra implementation review and integrated source/artifact qualification remain required; no90 implementation or model-episode pass is claimed by this ruling.",
+      "phase": "SOURCE_FIT_ASTRA_ACCEPTED_IMPLEMENTATION_ACTIVE",
+      "evidence": "Owner seq392 parallel-entry amendment adoptedc76. Updatedsourcefit87bc independentlyAstraACCEPT andintegratedbcc8e9ae0; actual20/50/60/70productionseams unchanged fromacceptedbaseline, interveningRustchangesonlyprivateS30diagnosticexample/Cargodeclaration. Implementeractive; finalAstraimplementationreview, actualsemanticRED/GREEN andintegratedqualification remainopen.",
       "block1_smoke_runner": {
         "source": "db2857c3012f8bdd245d1c6f80a419eff324030d",
         "integrated": "73eb4cf7d45a3ceed3bdce20256f84d7d1c76d91",
@@ -922,7 +931,17 @@
         "limits": "Malformedtools/callenvelope-32601vs-32602 remainsrealvisibleupstreamdiscrepancy;notafailureofscopedMR001.3,notwaived/fullJSONRPCcompliance. NoBlock1exit:30/40/50andapproved72LLMepisodesremain."
       },
       "current_design_sha": "72d9e2b1346dafc179f93f82d835bba20f682954",
-      "current_design_review": "IndependentAstra-medium ACCEPT actual50/60/70 and fullowner-approved80 reconciliation,strictcoverage/identity/nativecontracts andsemanticREDsequence. No product code/runtime or newownerdecision; actual30/40/50/approved72episodes/Block1exit still gate source."
+      "current_design_review": "IndependentAstra-medium ACCEPT actual50/60/70 and fullowner-approved80 reconciliation,strictcoverage/identity/nativecontracts andsemanticREDsequence. No product code/runtime or newownerdecision; actual30/40/50/approved72episodes/Block1exit still gate source.",
+      "source_entry": {
+        "worktree": "/mnt/data/worktrees/fathomdb-0.8.29-s90-implementation-20261116",
+        "branch": "llm/0.8.29-s90-implementation-20261116",
+        "base": "c76d8d5ad79d13e3c8af729057fc97221a6fda75",
+        "design_source_fit": "87bc6eda57f8b19f5895eacab96a94c6d880038c",
+        "integrated": "bcc8e9ae0",
+        "review": "Independent Astra-medium ACCEPT updated14documents and actualsourcefit; no semantic conflict or blocking finding. Full80scope and installedPyTSsemanticREDorder preserved.",
+        "preflight": "Actual strict release-state/baseline/dependency80/disk preflightPASS.",
+        "execution": "Sol-high implementer resumed forfull90RED/GREENsourcework. No production/native/modelqualification claimedyet. Sameapproved72episodes once onfinalintegratedcandidate perseq392."
+      }
     },
     {
       "slice": 100,

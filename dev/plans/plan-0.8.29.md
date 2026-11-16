@@ -381,9 +381,9 @@ checklist, receipt or status authority; live results remain in release state.
 
 | Owner / lane | Next concrete delivery | Actual execution dependency |
 | --- | --- | --- |
-|30 measurements | Resolve demonstrated D storage/cancellation defects and remaining10 outcomes; finish42 M cells. G84 and frozen TC5 F/Q8 are independently qualified. | Existing reviewed native/input subjects and cumulative resource fit. D100k overlap has2new qualified rows,1Storagefailure and1interruption; original custody/accounting is recovered through accepted2c54, with failed/interrupted history retained; diagnose Storage before more D execution.300k overlap consumes actual100k overlap. No new calibration or completed replay. |
+|30 measurements | Resolve demonstrated D storage/cancellation defects and remaining10 outcomes; finish the remaining M sequence (at least8/46 qualified at this review checkpoint). G84 and frozen TC5 F/Q8 are independently qualified. | Existing reviewed native/input subjects and cumulative resource fit. D100k overlap has2new qualified rows,1Storagefailure and1interruption; original custody/accounting is recovered through accepted2c54, with failed/interrupted history retained; diagnose Storage before more D execution.300k overlap consumes actual100k overlap. No new calibration or completed replay. |
 |40 conditional optimization | Resolve the pending recommended no-new-optimization/defer decision. | Actual owner disposition; adoption would still require affected write evidence, exact snapshot safety and paired benefit proof. |
-|50 search | Complete paired performance of the implemented identity/text/snippet route. | Existing source-bound baseline/candidate/native subjects and available shared allocation; no private Memex snapshot. Six ordinary members qualified; next five-P CPUwindow is running alongside Q3. |
+|50 search | Complete paired performance of the implemented identity/text/snippet route. | Existing source-bound baseline/candidate/native subjects and available shared allocation; no private Memex snapshot. Sixteen ordinary members qualified;120 ordinary+24 diagnostics remain. Required normal Q3 bodies are already assembled-qualified. |
 |90 Block2 | Finish actual Block1 exit, then implement the approved80 stored-head coverage residuals. | Selected20–70 exits/dispositions, applicable checks/performance, both-format conformance and approved72-episode LoCoMo smoke/item4 run remain hard before source entry. Current90 design is independently accepted. |
 |160 local close | Run missing feature/performance checks and final affected-artifact qualification/rehearsal. | Final affected source/artifacts for claims; reuse accepted unchanged results. Mac-only/CI rows stay named outstanding. Review CI correctness after local passes, then run CI; registry publication excluded. |
 
@@ -400,6 +400,27 @@ already approved at seq388; do not reopen them.150 has no selected study and add
 no execution or completion dependency.120/CUDA13, real resets and fork B/C retain
 the owner's future release allocations. Non-Tegra ARM+GPU remains excluded by
 seq387. No mandatory .29 outcome is removed to shorten the spine.
+
+### Proposed source-entry amendment — owner decision still required
+
+Current S80-R11/S90-R12 and the owner's approved Block1-before90 contract remain
+in force. The following concrete amendment is proposed to remove serialization,
+not to waive qualification:
+
+- Allow90 semantic implementation after accepted80 and the integrated, already-qualified20/50/60/70 **source contracts** are rechecked. Continue isolated Sol-high implementation, genuine RED/GREEN and independent Astra reviews.
+- Keep every required30/M46/D24,50/136ordinary+24diagnostic and40 disposition outcome as an integrated qualification exit. No measurement is removed, credited by a diagnostic, or retagged to a later native build.
+- Execute the already-approved72-episode text/structured comparison once against the integrated final90 candidate before local release qualification closes. Preserve models, fixtures, scoring, budget and stop conditions. Earlier deterministic parity tests remain source controls; an old baseline does not silently qualify new final output.
+- Assess actual final source/artifact/format/workload invalidation once; refresh affected checks and installed consumers, reuse unchanged passing scopes, then review CI and run CI. Registry publication remains excluded.
+
+This would change source-entry dependencies only. Do not start90 code until the
+owner accepts the amendment. Independent Astra-medium design-delta review has
+accepted this proposal; the current source-entry hold remains until that owner
+decision and its integrated contract update.
+The finite D ordinary-replacement proposal is a separate technical amendment
+within the existing ordinary-test authority/cumulative caps, not a new human
+permission request by inference; it must preserve failed attempts and pass review
+before execution. Slice40 still needs its actual conditional-scope disposition
+after the completed-G84 evidence refresh.
 
 Use one coherent design review and one fresh implementation/results review for
 each substantive scope. Related helper work belongs in that scope, not in serial

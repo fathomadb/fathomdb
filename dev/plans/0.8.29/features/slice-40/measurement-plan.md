@@ -15,13 +15,13 @@ Current source was read at frozen parent
 model or GPU was opened; the numbers below reuse completed raw results.
 
 - **P:** [accepted results](../slice-30/results-p.md), measured source `2fd772558e46d0b1645dce2ffea730d0bdd3305c`, default SDK, provider none, format37, no vector rows. The 16 cells contain 20,000 timed natural calls. Four unfiltered100k passes have p50 27.184–27.509 ms/p99 106.911–107.682 ms against tracked, nongated AC083 targets 80/300 ms. This establishes direct-text baseline behavior, not hybrid performance or cache benefit. P2's kind-filtered write/probe/search route differs from P1.
-- **G:** accepted normal84 assessment at `29de06806cc22ab6b8e67f970133f856f3c42f78`, UUID `4fb7a91f-2d41-445d-a132-258334a8f3fe`: 11 qualified cases, 73 required cap refusals. The 100k R0 ordinary SDK text/hybrid means are 32.967/195.889 ms, p50 27.195/186.793 ms and p99 105.894/350.030 ms. R1 at 100k remains unmeasured; the first required G-W text cell is now qualified as recorded below. Affected hybrid write measurements remain open. Hybrid has no AC083 target. M/D/F remain independent unfinished 30 work.
+- **G:** all84 fixed outcomes are now independently accepted, including both100k read repeats and all72 G-W configurations. The retained full report is `summary-g-fb46a7d0197a43939b67238c49d5494c.json` under `/mnt/data/tmp2/fathomdb-0829-continuation/slice30-g-20261113/gd-allocation/g-closed-write-matrix-v2`:144 populations/97318 successful samples/0 errors in the selected qualified outcomes. Read-mostly engine/SDK text p50 is27.195–28.422ms/p99105.894–108.628ms; hybrid p50184.123–187.191ms/p99348.599–351.946ms. Across24 write-interleaved hybrid populations, p50 is263.954–282.966ms/p99544.601–586.823ms. These are reference workloads, not cache-treatment comparisons or component-cost attribution. Original failed/refused attempts and native producer identities remain retained; current Slice50 performance is separate.
 - **G attribution:** `g-o-natural-r0-on` and `g-o-natural-r1-on` each contain 300 observations: 50 queries per route/adapter, no warmup. They are descriptive instrumented first-50 subsets, not canonical latency percentiles. Component means/shares below are per adapter/repeat; share is summed component duration divided by summed enclosing API duration on the same records. No percentile subtraction or ordinary-minus-instrumented speedup is used.
 - **Raw provenance:** P retains `p-campaign-v1/summary.json` and per-cell raw under `/mnt/data/tmp2/fathomdb-0829-continuation/slice30`. G retains `manifest.json`, `results/g-outcomes.json` and each named `results/<cell>/attempt-0001/read/observations.jsonl` under `/mnt/data/tmp2/fathomdb-0829-continuation/slice30-g-20261113/gd-allocation/g-frozen-g-assessment-v5`. The manifest owns actual artifact/model/input identities; ordinary/diagnostic native builds remain their original `5c7b1988d342488288ae83e022b358254c60edc8` subjects, not new builds at 29de. Six reused cases retain original provenance.
 
 ## Current source and write-evidence recheck (2026-11-16)
 
-Status: current recheck pending fresh independent Astra-medium review.
+Status: completed-G84 reconciliation accepted by independent Astra-medium review; actual owner treatment/deferral selection remains pending.
 
 Rechecked `040b66b8ad21b3599e2a9d259f9ef9dce11afef3` against the earlier
 `2a6401da02123ddc0016023a4bd8e747ef3717da` inventory. Eligibility, ReadView,
@@ -33,16 +33,15 @@ Projection commit has additional measurement attribution around unchanged per-ro
 shape/registry/fragment work. Generation, effective time and initial mean remain
 batch-scoped; mean may still pin mid-batch.
 
-The first required G-W cell `g-w-b1-s1-engine-text-r0` is qualified independently
-of whole-G partial completion: 1,000 timed calls, 500 warmups, 1,000 one-row
-write cohorts, current marker probes, zero query errors, natural text p50/p99
-28.569/110.012 ms, guardian window 117.302 s. Its ordinary executable remains
-`5c7b1988d342488288ae83e022b358254c60edc8`. The manifest retains execution
-source `37e30d0e1aab739f1c935ab8eb6eab37e7847b78` and compiler inputs
-`d644d89f4590d60be701ad1b9cd2eecd66c9d390d8a45a0a370c774a69e83114`,
-with original corpus/model provenance.
-Raw result is `/mnt/data/tmp2/fathomdb-0829-continuation/slice30-g-20261113/gd-allocation/g-closed-write-matrix-v1/results/g-w-b1-s1-engine-text-r0/attempt-0001/result.json`.
-It is actual write/read evidence, not exclusive eligibility cost or a hybrid result.
+The complete G-W baseline now supplies every registered write/search schedule.
+Before timed sample0, batch1 replaces `s30doc-0`; batch10 replaces all of
+`s30doc-0..9`. Registered schedules
+create10/100/1000/10000 replacement versions; physical rows grow from100000 to
+100010/100100/101000/110000 while current natural records remain100000. Ordinary
+native provenance stays5c7b1988d342488288ae83e022b358254c60edc8; the completed
+controller/report is2d6. The original G-O component observations remain attributed
+to their original subject, not the current Slice50 route. No paired cache
+candidate, key validation cost, hit rate or descriptor treatment was measured.
 
 G-W updates existing logical records, retaining superseded canonical versions.
 On strict hybrid searches any such row makes `all_nodes_directly_eligible` false;
@@ -98,9 +97,9 @@ P2 has governed-write means 1.316–1.834 ms for 1-row calls and 3.360–3.459 m
 for 10-row calls, outside natural API timing. These are filtered provider-free
 writes with marker probes, not projection-outcome batch cost or candidate
 invalidation overhead. Search snapshot authority is unavailable in P; write
-receipt cursors cannot prove cache reuse. The qualified G-W text cell above supplies actual write-interleaved text
-behavior; the earlier cap refusals supplied none. It supplies no exclusive
-eligibility or descriptor cost. Candidate hit rates, key/miss cost, retained bytes
+receipt cursors cannot prove cache reuse. The completed G84 write matrix supplies the missing reference write/interleaved
+hybrid baseline. It does not supply exclusive eligibility/descriptor cost or a
+cache-treatment comparison. Missing baseline cells are no longer a deferral reason. Candidate hit rates, key/miss cost, retained bytes
 and invalidation cost are unknown.
 
 ## Decision and exact remaining conditions

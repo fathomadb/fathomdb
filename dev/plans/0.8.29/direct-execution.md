@@ -19,10 +19,13 @@ the requested slice owners and reviewers directly.
 ## Current continuation scope
 
 The owner requests remaining-slice completion by parallel isolated owners, one
-dedicated owner per slice, each in its own task tree or worktree. Three things
-stay serial: root release-plan/state/ledger integration by the parent; the single
-local heavy window (native builds, full gates, GPU, Windows VM), held by one owner
-at a time; and each slice's own design review → RED/GREEN → implementation review.
+dedicated owner per slice, each in its own task tree or worktree. Root
+release-plan/state integration stays single-writer. D/M/S50 scientific
+execution stays serial under its existing shared-ledger custody; physical GPU
+work takes the specific device lease it consumes. Independent CPU source/build/
+test, metadata and Windows work may overlap where actual memory/disk/actor
+limits permit. CPU-only metadata must not retain a GPU lease. Each substantive
+slice still follows design review → RED/GREEN → implementation review.
 Each owner reconciles actual integrated predecessor work and updates its scope,
 plan, requirements/AC, design and product architecture as needed before the
 independent Astra-medium adversarial design review. After PASS, use real RED/GREEN
@@ -41,21 +44,18 @@ targets, caches, temp files and qualification output. Set `TMPDIR` and
 `AGENT_LOG_DIR` to the assigned task root; installed immutable tools are read-only
 inputs. No cleanup or relocation of unrelated resources is implied.
 
-This continuation excludes CI work/execution and registry publication, including
-remote workflow dispatch and publishing tag pushes. Required local verification
-and selected permitted hardware/installed-consumer proof remain in scope. Keep
-CI/publication and post-publication smoke explicitly outstanding at160; local
-completion is distinct from published-release completion. Specific unresolved
-policy/artifact/fault/venue/spend choices are not answered by this mandate.
+The current owner objective is complete release preparation except registry
+publication: finish required local qualification, **review CI scripts for
+correctness**, then run the appropriate CI. CI review/execution does not precede
+local passes. Publishing tags, registry uploads and post-publication smoke stay
+excluded. Earlier local-only/CI-excluded wording is superseded by that objective.
+Specific unresolved policy/artifact/fault/venue/spend choices remain explicit.
 
-Excluding CI discharges no evidence. A selected mandatory160
-installed-consumer or platform row (Q14) that a permitted local or owned venue
-can qualify must be qualified there, and stays open until it is; the same
-holds for any locally runnable part of the Q18 release dry-run. Finished
-bounded local tasks are recorded as such and are not local completion. The
-local mandate is complete only when the sole unmet rows are those that need
-excluded CI execution or publication; each such row is named outstanding,
-neither waived nor passed.
+Every selected locally runnable Q14 installed-consumer/platform row and Q18
+rehearsal part remains required. Local-phase completion does not imply CI or
+publication success; finish the subsequent reviewed CI phase before declaring
+the owner's complete-except-publication objective achieved. Retain actual skipped,
+failed and venue-only results without calling them passed.
 
 ## Work before records
 

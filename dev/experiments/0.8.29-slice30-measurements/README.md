@@ -600,8 +600,8 @@ is required.
 
 Explicit `cell_allowance` fields are `phase_ns`, `payload_ns` and
 `new_retained_bytes`: positive enforced stop allowances, not measured future
-costs. The selected path pins original14400s/16GiB shared maxima and900s whole
-cells, carries all prior usage/failures and external reservations, and reserves
+costs. The selected path pins the approved original shared profile (up to48h TOTAL/
+192GiB TOTAL) and900s whole cells, carries all prior usage/failures and external reservations, and reserves
 2x remaining phase/growth before input qualification/copy/start. Configuration
 preparation bounds include both A/B/A packages. Qualification, preparation,
 payload, reporting and cleanup remain charged. `selected_cell_usage` preserves
@@ -825,3 +825,37 @@ stores, no general test hooks), the existing example's paired record-output test
 existing driver/copy binding and cumulative calibration limits).
 The agent runner explicitly selects both native private-feature suites; these
 controls do not start a natural/model/GPU campaign or discharge R6/whole30.
+
+### M capture limits and explicit continuation
+
+The November16 [continuation amendment](../../plans/0.8.29/features/slice-30/continuation-m.md#implemented-producer-accounting-and-caller-boundary)
+keeps the original workload/native identities and cumulative allowances.
+`m_client.py` refuses a raw line before it exceeds its64MiB stream budget;
+`m_record.CheckpointLog` checks exact encoded/escaped bytes before each of the
+four64MiB wire JSONL writes. GPU/private-control capture, metadata and owned
+control/invocation logs use1MiB limits; result and provisional/final report
+publications use8MiB limits. Overflow retains a bounded prefix and an incomplete
+outcome, including close/finalization, without shortening successful populations.
+
+A new selected options object may name `retry_from` as its explicitly failed,
+strictly cleaned predecessor root. The freezer checks original input/native/
+configuration/allowance custody; reports preserve failed attempt paths and
+source identities without granting credit. New roots do not renew allowances.
+Keep later `reuse_from` references unchanged until the new root actually
+qualifies with its original guardian and whole invocation cleanup.
+
+Existing callers use `m_runner.open_invocation_log(root, kind)` for exclusive,
+root-specific service/supervisor/samples logs beside that root. Start a pipe
+log's drain after spawning its owned child, then check `log.error` after cleanup.
+`invalidate_selected()` revokes this invocation's credit on outer capture
+failure; `finalize_invocation()` charges only outer wall not already committed,
+retains full log-byte history and rechecks existing caps. The current inactive
+supervisor requires an explicit reviewed `_controller_source_sha` in new
+execution options; it does not retag the original ordinary/control binaries.
+
+`write_budget` keeps its original uncapped shared behavior for D/S50 histories;
+new `m_attempt` metadata/log limits apply only to canonical M families.
+`test_m_output_limits.py`, `test_m_retry.py`, existing selected-entry/accounting,
+GPU/refusal and publication controls cover this correction. These controls use
+literal records, harmless children and temporary real stores; they make no
+natural/GPU qualification claim. No M cell was replayed during implementation.

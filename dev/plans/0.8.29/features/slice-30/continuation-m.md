@@ -529,7 +529,7 @@ weaker qualifier or permission to start work. The prospective M-only capture
 limits below need review before implementation. Existing growth/deadline
 monitors remain necessary during an admitted attempt.
 
-### Prospective M-only capture limits — review before implementation
+### M-only capture limits — implementation candidate
 
 Distinguish this fixed workload on its pinned ordinary native from arbitrary
 child-output hardening. The selected workload still sends the same registered
@@ -566,9 +566,10 @@ cell allowances,48h/192GiB shared totals, all prior charges and twofold headroom
 
 Observation retention has genuine RED at2608ce37f and focused GREEN at8fa0bb76e;
 these controls supplied literal observations without a GPU query. The original
-foreign PID remains unknown. The prospective capture/history/log corrections
-remain unimplemented pending one bounded Astra-medium design review, followed
-by one coherent affected-controls/final-code review; no per-helper review loop.
+foreign PID remains unknown. The prospective cap design passed Astra-medium review at
+e5946d2c60f23baf8b27441b774154a10d4cd54b. The combined implementation below
+needs one affected-controls/final-code review before any natural continuation;
+no per-helper review loop.
 
 ### Small implementation and review boundary
 
@@ -584,3 +585,58 @@ oracles. Batch one coherent Astra-medium code review; no natural replay, new
 framework, receipt packet, unrelated passing gate or native rebuild is required
 for this design-only amendment. The broad final gate belongs to the stable
 integrated source phase.
+
+### Implemented producer accounting and caller boundary
+
+For a selected root, `preparation_bound()` now sums the following retained
+producers; no measured average replaces a limit. All pre-write checks include
+actual encoding/escaping. Overflow/finalization controls preserve incomplete
+outcomes and original cleanup/accounting, including all46 report rows.
+
+| Term | Bound |
+| --- | --- |
+| Fresh closed packages |715223040B per required copy; two for A/B/A|
+| Two raw and four wire JSONL files |6×64MiB =402653184B|
+| One result and two report publications |3×8MiB =25165824B|
+| Metadata/GPU/private-control/seed/control/invocation logs, directory and atomic-copy room |24×1MiB =25165824B|
+| Pinned healthy-subject native open writes/companions |20×8MiB =167772160B|
+| Shared historical ledger and its atomic copy |2×(current canonical JSON bytes +256KiB)|
+
+The24 auxiliary slots cover manifest/cell/config/preparation/attempt/state/load/
+guardian/containment metadata, GPU/private control, two seed prefixes, five
+child/guardian/service/supervisor/sample logs, atomic metadata copies and
+remaining directory entries. The original shared writer is not capped: its
+current complete serialized history is finite input to the bound. New M owner,
+root/log-path and attempt fields fit the additional256KiB, including escaping;
+no prior G/D/M/S50 field is dropped or silently treated as zero.
+
+The native term is specific to the immutable qualified G subject and pinned
+compiler81791194/native4ffc, not an arbitrary schema37/Ready database.
+The G seed declares only the doc searchable vector projection; its already
+completed migrations, projection/probe state and normal close/reopen are inherited.
+The healthy registry cache comparison in `projection_registry.rs` does no
+backfill, and `open.rs` reader connections enforce `query_only`. Fixed M
+search/list/read calls do no canonical writes. The remaining open-side verdict
+cache operation in `vector_equivalence.rs` changes one small open-state row;
+its bounded b-tree/WAL/main-file/SHM path fits8MiB on this subject. At most15
+idle evictions fit900s/default60s; adding three explicit lifecycle opens and two
+spare opens bounds this path at20opens. The tiny fixed helper fixture is also
+covered by that native envelope. This source/subject premise is part of final
+review; if it cannot be established, retain the hold rather than applying the
+envelope to another subject or manufacturing a fit from observed WAL sizes.
+
+For the one-copy failed cell the fixed terms total1335980032B, plus the actual
+shared-ledger term. Against historical remaining1382159668B, the arithmetic
+fits only if current canonical ledger bytes are at most22827674B; current
+actual usage/growth and twofold shared fit must still be recomputed at entry.
+No live fit was inspected or adopted while S50 owned the allocation.
+
+The existing supervisor now uses the existing bounded root-specific log helper
+and requires the reviewed controller SHA explicitly. Its three log paths carry
+in cumulative selected-cell usage. Original unit cleanup precedes any outer
+failure revocation/finalization; outer wall already charged by the guardian is
+not charged twice. Invocation failures cannot leave a shortened publication
+qualified. Preserve the11 old qualified identities and failed original root;
+only an actual newly qualified retry may replace an unstarted successor's
+completion reference. No retry, new calibration, GPU query, allocation adoption,
+native rebuild or artifact retag occurred during this implementation.

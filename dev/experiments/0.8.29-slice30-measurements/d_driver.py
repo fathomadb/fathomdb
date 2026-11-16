@@ -135,6 +135,15 @@ def run_accounted_stage(spec, records, budget, execute, *, initial=True, clock=t
                 cells[cell_id] = cells.get(cell_id, 0) + elapsed
         through = now
 
+    def refuse(cell,status,reason):
+        nonlocal failed
+        if replacements:
+            failed = failed or cell["id"]
+        row = {"status":status,"reason":reason}
+        if replacements and cell["id"] in records:
+            row["record"] = records[cell["id"]]
+        return row
+
     def prepare(cell):
         nonlocal failed
         started = clock()
@@ -142,23 +151,19 @@ def run_accounted_stage(spec, records, budget, execute, *, initial=True, clock=t
         if publish:
             publish()
         if budget.get("inflight"):
-            return {"status": "not_run_ownership", "reason": "owned attempt cleanup is unresolved"}
+            return refuse(cell,"not_run_ownership","owned attempt cleanup is unresolved")
         if failed:
-            row = {"status": "not_run_failed_prefix", "reason": "prior scientific D cell failed: "+failed}
-            if replacements and cell["id"] in records:
-                row["record"] = records[cell["id"]]
-            return row
+            return refuse(cell,"not_run_failed_prefix","prior scientific D cell failed or refused: "+failed)
         spent = budget.get("cell_used_ns", {}).get(cell["id"], 0)
         remaining = min(cell["cell_ns"] - spent, budget["shared_ns"] - budget["used_ns"])
         if remaining <= 0 or budget["retained_bytes"] >= budget["storage_limit"]:
-            return {"status": "not_run_cap_feasibility", "reason": "remaining shared/cell allowance exhausted"}
+            return refuse(cell,"not_run_cap_feasibility","remaining shared/cell allowance exhausted")
         token = None
         if cell["id"] in replacements:
             bound = replacement_bounds[cell["layer"]]
             if (bound["time_ns"] >= remaining
                     or budget["retained_bytes"]+bound["active_bytes"] >= budget["storage_limit"]):
-                return {"status":"not_run_cap_feasibility", "reason":"replacement bound exceeds current remaining allowance",
-                        "record":records[cell["id"]]}
+                return refuse(cell,"not_run_cap_feasibility","replacement bound exceeds current remaining allowance")
             from d_replacements import consume
             token = consume(cell["id"],records,budget,replacements[cell["id"]],attempt_root,started)
         budget["inflight"] = {"cell": cell["id"], "started_monotonic_ns": started}
@@ -188,7 +193,8 @@ def run_accounted_stage(spec, records, budget, execute, *, initial=True, clock=t
         if token:
             from d_replacements import with_history
             row = with_history(dict(row,cumulative_cell_used_ns=budget["cell_used_ns"][cell["id"]]),token)
-        if fail_fast and row.get("status") in ("failed", "incomplete", "interrupted"):
+        if fail_fast and (row.get("status") in ("failed", "incomplete", "interrupted")
+                          or replacements and row.get("status") != "complete"):
             failed = cell["id"]
         records[cell["id"]] = row
         if publish:

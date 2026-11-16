@@ -335,7 +335,7 @@ fn envelope(
         store: answered_store.to_string(),
         epoch,
         validity_instant,
-        state: Unavailable::new(),
+        state: None,
         degradation,
         budget: Budget { max_tokens, used_tokens: 0, cut: false },
     }
@@ -512,6 +512,10 @@ fn render_orient(output: &OrientOutput) -> String {
         output.envelope.budget.max_tokens,
         if output.envelope.budget.cut { " cut" } else { "" }
     );
+    text.push_str(&format!(
+        "\nnot_in_this_release={}",
+        serde_json::to_string(&output.not_in_this_release).expect("closed words serialize")
+    ));
     for entry in &output.envelope.degradation {
         text.push_str(&format!("\ndegraded: {} {}", entry.arm, entry.reason));
     }
@@ -610,6 +614,7 @@ pub(crate) async fn orient(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
         embedding_readiness: read.readiness,
         kinds: Unavailable::new(),
         counts: Unavailable::new(),
+        not_in_this_release: ["state", "verdict", "kinds", "counts"],
     };
     Ok(finish(&output, render_orient(&output), max_tokens, false).0)
 }
@@ -913,7 +918,7 @@ pub(crate) fn shape_search_page(input: &SearchShape<'_>) -> Shaped {
                 cut,
                 !degradation.is_empty(),
             ),
-            verdict: UnavailableWord::Unavailable,
+            verdict: None,
             continuation: continuation.clone(),
             continuation_exact: hosted.then_some(false),
             explanation,
@@ -1804,7 +1809,7 @@ mod compact_render_tests {
                 ce_score: Some(0.987654),
             }],
             completeness: crate::output::Completeness::Complete,
-            verdict: UnavailableWord::Unavailable,
+            verdict: None,
             continuation: None,
             continuation_exact: None,
             explanation: None,
@@ -1921,6 +1926,7 @@ mod compact_render_tests {
             },
             kinds: Unavailable::new(),
             counts: Unavailable::new(),
+            not_in_this_release: ["state", "verdict", "kinds", "counts"],
         };
         let text = render_orient(&output);
         for expected in [

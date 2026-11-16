@@ -52,7 +52,8 @@ pub struct Envelope {
     pub epoch: u64,
     /// Epoch seconds the read was answered at; the only time-derived field.
     pub validity_instant: i64,
-    pub state: Unavailable,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub state: Option<Unavailable>,
     pub degradation: Vec<Degradation>,
     pub budget: Budget,
 }
@@ -140,6 +141,8 @@ pub struct OrientOutput {
     /// Kind enumeration needs an engine addition (MR-022).
     pub kinds: Unavailable,
     pub counts: Unavailable,
+    /// Capabilities omitted until they have meaningful supported values.
+    pub not_in_this_release: [&'static str; 4],
 }
 
 /// Search completeness (MR-030). `partial`: fewer results than the limit
@@ -469,7 +472,8 @@ pub struct SearchOutput {
     pub results: Vec<Hit>,
     pub completeness: Completeness,
     /// Needs calibrated scores (MR-031).
-    pub verdict: UnavailableWord,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub verdict: Option<UnavailableWord>,
     /// `c<epoch>-<hash>` or null.
     pub continuation: Option<String>,
     /// Present (false) in embedded mode, where the host may write between

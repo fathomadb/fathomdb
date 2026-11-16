@@ -1342,8 +1342,9 @@ review of its next named size/mode quartet and current conservative feasibility;
 one invocation dispatches one quartet. One reviewed conditional continuation may
 cover successive quartets, refreshing actual prefix bindings and admission after
 each strict terminal without another review or replay. Keep all24
-obligations visible, failed/incomplete attempts unretried and unstarted holds
-reassessable. Native and guarded source controls use tiny stores/harmless children
+obligations visible, failed/incomplete attempts never retried implicitly and
+unstarted holds reassessable. The named ordinary replacement amendment below
+is the sole current exception for its two exact old attempts. Native and guarded source controls use tiny stores/harmless children
 only. Freeze a real guarded controller-start/death control with a nested child,
 known-quiescence/bounded recovery and exact outer=cell+common conservation;
 unknown/exhausting other-work reservations must prevent actual child start.
@@ -1526,6 +1527,79 @@ unchanged; no passing native matrix replay. One coherent independent source
 review precedes the single selected100k diagnostic execution; no automatic
 rerun or scientific credit follows it. Only a proven actual cause permits a
 separate genuine product RED/GREEN or an evidenced technical-envelope repair.
+
+#### Bounded ordinary completion after unreproduced Storage
+
+The one private914 diagnostic completed the unchanged100k overlap workload in
+507.990s with1000 successful calls, zero errors, exact100000-row closure and
+normal close. Its callback retained no records/loss/truncation; its4GiB unit
+peaked at2591096832bytes (2.413GiB), with zero observed max/oom/oom_kill events.
+It did not reproduce Storage or establish the original cause. It supplies no
+ordinary D timing/overlap/lower-evidence credit. D remains14/24; original failed
+T-r1 and interrupted C-r1 remain visible and charged.
+
+This observational continuation implements the existing ordinary measurement
+scope under R30-3..8/A30-3..7. Keep all14 qualified rows/raws, original d109 native
+and workload, native T observer/subscriber-off behavior, C overlap/loss oracle,
+1500s cumulative allowance per100k cell,48h/192GiB cumulative shared totals,
+4GiB outer/zero-swap, global floors and strict cleanup unchanged. No production
+repair, envelope expansion, cap renewal, new numerical target or owner ruling
+is introduced. This amendment supersedes only the technical no-retry hold for
+the following exact pair; it does not permit an automatic retry policy.
+
+- Select at most one explicit ordinary replacement, in canonical order:
+  `d-t-overlap-n100000-r1` failed `attempt-0001`, then
+  `d-c-overlap-n100000-r1` interrupted `attempt-0001`. Bind their immutable old
+  row/path/attempt/status/charged-wall references and the already qualified C-r0/
+  T-r0 `attempt-0001` identities, alongside the original12 qualified prefix.
+  No other completed or failed cell becomes replacement-eligible.
+- Retain old attempt directories, records, errors and charges in full. Publish
+  each selected new `attempt-0002` with the exact old row in `prior_attempts` and
+  an explicit `replacement_of` reference. Reports expose both generations;
+  selecting a qualifying new result never turns the old failure/interruption
+  into PASS or removes an outlier. No live-store reuse or copied seed is allowed.
+- Extend only existing `d_runner.py run --options FILE` review selection and
+  `d_driver.py` admission/accounting. The existing next-quartet review gains an
+  explicit two-entry replacement selection and current qualified-member pins.
+  Default failed-attempt preservation stays unchanged. Before child entry,
+  durably publish the new attempt identity/history under existing D custody;
+  interruption handling must retain that history and consume the selected
+  attempt even if its controller dies before publishing a terminal result.
+  Existing raw/new-attempt consumption prevents `attempt-0003`; re-entry reuses
+  an already qualified replacement and never retries a failed/incomplete one.
+- Fund only the still-unstarted selected members. Compare the unchanged
+  conservative same-mode lower bounds against both shared headroom and each
+  cell's remaining cumulative allowance before fresh preparation. Existing T
+  spend19391795054ns leaves1480608204946ns; C spend42471828234ns leaves
+  1457528171766ns. These are remainders of1500s, not new1500s allowances. Preserve
+  all previous retained bytes/common charges and existing deadline/cleanup
+  reserves. Use60s funded common and a finite3080s outer pair bound, within the
+  previously selected100k outer bound; no original charge is reset.
+- On Storage, any failed/incomplete new member, cleanup uncertainty, bound or
+  resource stop, end this named continuation with all24 obligations/history
+  visible. Do not dispatch another replacement, diagnostic or300k member without
+  reassessment. Fresh shared custody requires all five owner fields clear,
+  original task marker absent and the preceding actor/boundary strictly closed.
+  M currently owns the allocation; this amendment authorizes source preparation
+  only until the actual shared handoff and fresh cost/resource admission.
+- After both new rows qualify, review the actual100k result pair as one coherent
+  boundary. Refresh the existing conservative lower-size fit from ordinary
+  qualified C/T results, retaining all historical charges in shared headroom.
+  The previously reviewed conditional300k held/overlap eight-cell continuation
+  may then resume at its real quartet boundaries; no per-cell review or replay
+  of the14 passing rows follows. Diagnostic observations remain out-of-population.
+
+The current CLI preserves failed/interrupted rows and has no explicit replacement
+path, so a narrow source change is required after design acceptance. Freeze
+actual harmless-process REDs first: an explicitly selected replacement must get
+one fresh attempt while preserving original bytes/history/charges; a new failure
+must prevent the second marker child and any third attempt on re-entry. Literal
+admission controls bind the exact two old/current identities, canonical order and
+remaining1500s arithmetic, refusing insufficient allowance before preparation.
+A bounded controller-interruption control must preserve pending replacement
+identity/history and once-only cumulative accounting. Keep existing no-selection
+resume oracles frozen. One coherent implementation review follows these affected
+controls before ordinary execution; source acceptance alone does not claim D16.
 
 #### D owned refusal cost clarification
 

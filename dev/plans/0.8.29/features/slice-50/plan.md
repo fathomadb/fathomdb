@@ -89,6 +89,36 @@ current paired performance and affected Block1 qualification remain.
 
 ## Remaining work
 
+The next readiness proposal keeps the frozen/controller/P environment intact.
+For paired G only, `execute_native` supplies private `slice50_gpu` configuration
+from the already-selected UUID, ordinal0 and owned HF cache. The existing native
+`run_program_step` derives a child-only environment with
+`CUDA_VISIBLE_DEVICES=<selected UUID>`, `FATHOMDB_EMBED_DEVICE=cuda:0` and the
+selected offline HF cache; unsupported ordinals refuse before child start.
+Record that effective environment in the existing step result, with the private
+binding in its retained configuration. No generic environment override API,
+manifest rewrite, provider change or native rebuild is proposed. Stage a genuine
+RED using an actual harmless stdlib child that observes the wrong inherited empty
+visibility; preserve P/controller environment and mode-selector controls. Source
+controls establish environment propagation only; actual FD9 exclusion and current
+GPU identity/engagement qualification remain mandatory at G entry.
+
+Using the existing selection API, propose five next P pairs, from the currently
+next `p2-b1-s10-r0` through `p2-b10-s100-r0`, under `pairs:5`, `phase_ns:9200000000000`,
+`pair_ns:1800000000000`, `common_ns:100000000000`, `new_retained_bytes:8589934592`
+and `common_bytes:268435456`, with qualified-copy retirement enabled. The9200s
+phase contains five hard1800s pair stops plus100s common work and cleanup;
+cumulative900s member and original attempted-pair limits remain unchanged. Ten
+fresh copies of the recorded537415680-byte P2 template require5374156800bytes;
+the remaining growth allowance bounds raw/write/common growth rather than
+predicting it. Retirement follows the whole window, retaining copies whose
+required diagnostics are pending. Adopt only after strict lease handoff and fresh
+actual fit against the same48h TOTAL/192GiB TOTAL original ledger, prior charges,
+reservations and unchanged resource floors; no combined-study/future-cost fit or
+new measurement is claimed. Preserve canonical order, all old credit/failures,
+raw output and09c native/846533 compiler origin; no per-pair model review or new
+driver is needed.
+
 1. Bind the actual baseline/candidate, native/features/model inputs and workload
    for current paired R6 measurements. Accepted `83edcf2c7`/`e887e3fa6` supplies low-level support;
    the [public paired entry](design.md#current-paired-measurement-support) implements

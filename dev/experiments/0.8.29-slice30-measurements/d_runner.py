@@ -1,6 +1,7 @@
 """Guarded D fixed-table entry; runtime selection remains separate from source controls."""
 
 import argparse
+import fcntl
 import json
 import os
 from pathlib import Path
@@ -27,6 +28,8 @@ def run_guarded(command, *, allocation, profile, root, task, **options):
     try:
         result = guard(command, allocation=allocation, profile=profile, root=root, task=task,
                        phase="D", **dict(options, started_ns=began))
+        if result.get("cancelled") and result.get("cleanup_uncertain") is False:
+            _finalize_cancelled(Path(root), Path(allocation), result)
         result.setdefault("elapsed_ns", time.monotonic_ns()-began)
         result.setdefault("charged_ns", result.get("accounting", {}).get("charged_ns"))
         return result
@@ -34,6 +37,26 @@ def run_guarded(command, *, allocation, profile, root, task, **options):
         return {"exit": 125, "state": "held", "reason": f"{type(error).__name__}: {error}",
                 "elapsed_ns": time.monotonic_ns()-began, "charged_ns": None,
                 "cleanup_uncertain": None, "unreconciled": True}
+
+
+
+def _finalize_cancelled(root, allocation, guardian):
+    boundary = guardian.get("boundary") or {}
+    if boundary.get("removed_exact_empty_boundary") is not True:
+        raise RuntimeError("cancelled D boundary cleanup is unavailable")
+    with (allocation/"g-campaign.lock").open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        budget = json.loads((allocation/"g-budget.json").read_text())
+        active = budget.get("inflight")
+        if any(budget.get(key) for key in ("d_guardian", "m_guardian", "closed_guardian", "s50_guardian")):
+            raise RuntimeError("foreign custody after D cancellation")
+        if active:
+            if (active.get("status") != "guardian_stopped" or active.get("quiescence_known") is not True
+                    or active.get("accounted_through_monotonic_ns") != guardian.get("stopped_monotonic_ns")):
+                raise RuntimeError("cancelled D active interval is unreconciled")
+            _interrupted_rows(root, allocation, guardian)
+            budget["inflight"] = None
+            write_budget(allocation/"g-budget.json", budget)
 
 
 def _control(root, fd):

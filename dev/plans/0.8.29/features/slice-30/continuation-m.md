@@ -1,6 +1,8 @@
 # Slice 30 M continuation — proposed real stdio measurements
 
-Status: **AFFECTED SOURCE CONTROLS QUALIFIED**, pending fresh independent review.
+Status: **M RUNTIME INCOMPLETE; NOVEMBER16 CONTINUATION DESIGN PROPOSED**.
+The amendment below needs independent design review before implementation;
+earlier source qualifications and actual artifact identities remain intact.
 Design fit passed at
 f90714a0e2132bab3b2a2b2d60425a598c157e34; the M implementation passed independent
 review at d942aa91e74a9463e82b6a9384ca41ca28698c42. No M campaign is qualified.
@@ -363,7 +365,7 @@ limits. Carry every prior G/D/M/S50 charge, failure, retained output and percell
 allowance on the same ledger. This prospective common selection never resets
 usage or grants a fresh allowance per study, root, source or attempt.
 
-Actual primary credit remains4/46: the exact original calibration reference for
+At entry to the November15 amendment, primary credit was4/46: the exact original calibration reference for
 M-R-1-1-warn, plus M-R-1-1-debug and M-R-1-4-warn/debug. Preserve their original
 manifests, native/source identities, raw results, flags and accounting. The next
 M-R-1-8-warn retains900s phase/800s payload/2GiB growth; its715223040B input
@@ -431,3 +433,112 @@ receipt packet or bookkeeping native rebuild. Complete relevant scoped checks
 and one coherent independent final code review before natural dispatch. Local
 qualification precedes CI correctness review and CI execution; registry publish
 and v-tag push remain forbidden in this continuation.
+
+## November16 foreign-compute refusal and bounded continuation — proposed
+
+This amendment refines R30-4..7/A30-4..6 only. All46 obligations, workloads,
+returned-row/error oracles, GPU refusal/engagement predicates and release ACs
+remain unchanged. Eleven required rows have qualified runtime results; wholeM
+is incomplete. The original `M-R-2-32-warn` attempt from clean
+c738f39bdcd1c6d8550fbd84d8cc4599946f77cf remains unqualified: all1503 calls
+succeeded, but its observer reported foreign compute work. The157 retained
+GPU observations contain only its own MCP PID2580290. The offending record was
+raised away before persistence; the foreign PID/workload is unknown and must
+not be reconstructed from inference or new probes.
+
+Preserve that original root unchanged:
+`/mnt/data/tmp2/fathomdb-0829-continuation/slice30-g-20261113/gd-allocation/m-required-M-R-2-32-warn-c738f39bd`.
+Its failed result/raws, prepared copies, source/native receipts and charges remain
+history. Strict terminal unit/private-boundary cleanup and clear shared ownership
+were confirmed before handing allocation to independent S50 CPU work. This
+design neither acquires that allocation nor authorizes execution. Exact-cell
+continuation is ordinary measurement work, not new fault-injection authority.
+
+### Preserve the actual refusal observation
+
+The existing `g_gpu.GpuObserver.sample()` already obtains the selected GPU UUID,
+actual application PIDs/memory and observation clocks before detecting foreign
+work. Carry that same record in the refusal exception and persist it in the
+existing M GPU stream and failure result before marking the cell incomplete.
+Keep the existing failure string and all applications in the offending record;
+identify the owned MCP PID separately. Query failures with no observation remain
+explicitly unavailable. Add no GPU query, process signal, substitute witness,
+new observer or acceptance rule. Foreign compute still refuses qualification
+regardless of successful requests or earlier positive owned-PID witnesses.
+
+### Fresh retry root and unchanged cumulative allowances
+
+The existing public `m_runner.py run NEW_ROOT --options OPTIONS --cell ID`
+already permits a fresh root for the same canonical ID; it refuses an existing
+root. Reuse this route and its sole original guardian per root. Do not relax
+`final_guardian()` to accept the failed predecessor as a successful phase.
+Bind an explicit predecessor-root reference in the selected manifest/attempt
+metadata. Check the same allocation, canonical configuration, compiler/native,
+input/package/model/device and allowance identities, plus strict terminal
+cleanup of the predecessor. Its nonzero exit remains a failed historical
+attempt in subsequent reports; it supplies no completion credit. Existing
+`selected_cell_usage` roots and all prior shared/cell/peak-growth charges carry.
+No root/source/attempt change renews an allowance or remints the old artifact.
+
+At the failure boundary,900s phase/800s payload/2GiB cumulative growth leave:
+
+| Remaining allowance | Exact value |
+| --- | --- |
+| Phase |627806822331ns|
+| Payload |532110591408ns|
+| Retained growth |1382159668B|
+
+These are historical remainders, not reservations; fresh actual admission is
+required after S50 releases shared ownership. Preserve48h TOTAL/192GiB TOTAL,
+every G/D/M/S50 charge, twofold remaining headroom, whole-cell and cleanup limits.
+Keep the actual ordinary4ffc native and accepted f29 control variants under
+compiler identity81791194aa7265b584d329e680648828ab98ab228daa75bffc52a68e78d42de1.
+A reviewed Python-only controller commit changes its own source pin only.
+
+The existing supervisor currently hardcodes a per-cell log stem. Derive a unique
+stem from the selected fresh root and create logs exclusively; refuse collisions
+before launch. Preserve old unit/log/root identities and bounded ownership.
+Prepared later options currently reference the failed root: change only
+unstarted successor references after the replacement root actually qualifies.
+`reuse_from` stays successful-evidence-only; never edit frozen prior manifests,
+accept a failed reference, rerun a qualified cell or retry until green.
+
+### Derive the preparation bound; retain refusal if it cannot fit
+
+The old bound is1797934720B: the715223040B closed package, a blanket1GiB output
+allowance and request-copy terms. It exceeds remaining growth by415775052B.
+Observed average/actual bytes do not establish a hard future bound. Do not
+reduce the constant to manufacture fit or discard failed copies/charges.
+
+Replace the blanket term with an explicit conservative derivation from the
+existing retained producers: required fresh closed packages, registered request
+counts and encoded query sizes, both raw streams, invocation/protocol/decoded
+JSONL, result/report serialization, GPU/resource observations and existing
+control/guardian logs. Account for repeated representations, JSON escaping,
+record metadata/counts, terminal failure paths and finalization. In particular,
+`m_client._read()` writes the line before checking its64MiB stream/1MiB line
+limits: include the possible final-line overshoot. `CheckpointLog` has no
+independent byte cap, so raw-stream limits alone do not prove the derived-log
+or whole-output bound. A missing finite producer bound is unavailable, not zero.
+
+Before preparation/payload, require the complete proven bound to fit the actual
+remaining cumulative growth and existing shared headroom. If it still exceeds
+1382159668B at this boundary, or a term cannot be bounded, retain the refused
+cell and its reason. This proposal supplies no fitting-bound claim, cap increase,
+weaker qualifier, new truncation/stream-limit rule or permission to start work.
+Existing growth/deadline monitors remain necessary during an admitted attempt.
+
+### Small implementation and review boundary
+
+Review this design before source changes. Then use separate genuine RED/GREEN
+for the new offending-record retention and explicit predecessor-history linkage:
+foreign-work refusal still fails qualification; old failed raw/history/charges
+survive; cumulative limits and log collisions refuse; incomplete predecessor
+references cannot supply credit. Independently specified producer-size/count/
+escaping and final-line cases must falsify an underestimated preparation bound,
+and insufficient/unavailable growth must refuse before copy or child start.
+Reuse the existing harmless-child/real-store controls and unchanged natural
+oracles. Batch one coherent Astra-medium code review; no natural replay, new
+framework, receipt packet, unrelated passing gate or native rebuild is required
+for this design-only amendment. The broad final gate belongs to the stable
+integrated source phase.

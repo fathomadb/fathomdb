@@ -77,10 +77,31 @@ def require_forecasts(options, cells):
             or type(forecasts.get('common_ns')) is not int or forecasts['common_ns'] <= 20 * 10**9
             or type(forecasts.get('common_bytes')) is not int or forecasts['common_bytes'] <= 0):
         raise ValueError('current paired forecasts unavailable for complete remaining table')
-    for row in records.values():
+    for cell in cells:
+        row = records[cell['id']]
         if (not row.get('observed_from') or any(type(row.get(key)) is not int or row[key] <= 0
                 for key in ('whole_ns', 'new_retained_bytes'))):
             raise ValueError('current paired forecasts unavailable for complete remaining table')
+        try:
+            root = Path(row['observed_from'])
+            original = json.loads((root / 'manifest.json').read_text())
+            report = json.loads((root / 'results/report.json').read_text())
+            observed = next(item for name in ('primary', 'diagnostics', 'calibration') for item in report[name]
+                            if item['id'] == row['observed_member'])
+            if (original['source_sha'] != git('rev-parse', 'HEAD')
+                    or original['compiler_inputs'] != compiler_inputs() or not observed.get('credited')
+                    or observed['status'] != 'complete' or not observed['complete']
+                    or any(observed['cell'].get(key) != cell.get(key) for key in
+                           ('family', 'n', 'warmup', 'samples', 'batch_size', 'searches_per_batch',
+                            'slice50_pair_mode', 'observe', 'provider'))
+                    or set(observed['cell']['adapters']) != set(cell['adapters'])
+                    or set(observed['cell']['routes']) != set(cell['routes'])
+                    or not observed.get('charged_ns') or row['whole_ns'] < observed['charged_ns']
+                    or not observed.get('retained_growth_bytes')
+                    or row['new_retained_bytes'] < observed['retained_growth_bytes']):
+                raise ValueError('inapplicable observation')
+        except (OSError, KeyError, StopIteration, TypeError, ValueError) as error:
+            raise ValueError('current paired observation unavailable or inapplicable; old/10k proxies cannot price P/100k/writes') from error
     return forecasts
 
 

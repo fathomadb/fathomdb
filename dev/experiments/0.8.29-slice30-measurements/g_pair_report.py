@@ -29,7 +29,13 @@ def _native(row):
     try:
         result = json.loads((Path(row['attempt']) / 'result.json').read_text())
         steps = result.get('steps') or []
-        return native_result(steps[0]) if len(steps) == 1 else None
+        if len(steps) != 1:
+            return None
+        value = native_result(steps[0])
+        value['native_member_qualified'] = (result.get('complete') is True
+            and result.get('qualification_issues') == [] and steps[0].get('complete') is True
+            and not value.get('runner_only'))
+        return value
     except (OSError, ValueError, KeyError):
         return None
 
@@ -51,7 +57,9 @@ def comparisons(cells, rows):
         outcomes = [rows.get(cell['id'], {}) for cell in members]
         values = [_native(row) for row in outcomes]
         equal = compare_results(*values) if all(value is not None for value in values) else None
-        complete = all(clean(row) for row in outcomes) and equal is True
+        complete = (all(clean(row) for row in outcomes) and equal is True
+                    and all(value.get('native_member_qualified') and calls_complete(cell, value)
+                            for cell, value in zip(members, values, strict=True)))
         pairs.append({'origin_id': origin, 'purpose': purpose, 'members': [cell['id'] for cell in members],
             'equal': equal, 'complete': complete,
             'status': 'complete' if complete else 'mismatch' if equal is False else 'incomplete',
@@ -124,3 +132,28 @@ def report(root):
     result['future_costs'] = {'P_preparation': None, '100k': None, 'writes': None,
                               'scope': 'calibration10k read costs do not bound these cases'}
     return result
+
+
+def calls_complete(cell, result):
+    """Require every ordered raw call, its exact returned record fields and finite clock."""
+    from collections import Counter
+    scale = len(cell['adapters']) * len(cell['routes'])
+    for stream, count in (('samples', cell['samples']), ('warmups', cell['warmup']),
+                          ('first_calls', int(cell.get('record_first_call', True) and cell['kind'] != 'write'))):
+        rows = result.get(stream, [])
+        if len(rows) != count * scale:
+            return False
+        groups = Counter()
+        indices = defaultdict(list)
+        for row in rows:
+            key = (row.get('adapter', cell['adapters'][0]), row.get('route', 'text'))
+            if (row.get('ok') is not True or not isinstance(row.get('hits'), list)
+                    or type(row.get('elapsed_ns')) is not int or row['elapsed_ns'] < 0):
+                return False
+            groups[key] += 1
+            indices[key].append(row.get('query_index'))
+        if groups != Counter({(adapter, route): count for adapter in cell['adapters'] for route in cell['routes']}):
+            return False
+        if any(values != [index % 500 for index in range(count)] for values in indices.values()):
+            return False
+    return True

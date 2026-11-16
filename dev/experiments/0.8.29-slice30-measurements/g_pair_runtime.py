@@ -32,7 +32,7 @@ def deadline(manifest, budget, owner, cell, now):
     return end
 
 
-def execute_native(manifest, cell, attempt, deadline_ns):
+def execute_native(manifest, cell, attempt, deadline_ns, *, observe=None):
     """Copy admitted data and invoke the current native binary under the same deadline."""
     from g_closed_copy import copy_subject
     from g_driver import run_program_step
@@ -42,12 +42,8 @@ def execute_native(manifest, cell, attempt, deadline_ns):
     store, preparation = copy_subject(subject, attempt / 'subject/store.sqlite', deadline_ns)
     config = dict(cell, store=store, corpus=manifest['inputs']['corpus']['path'],
                   queries=manifest['inputs']['queries']['path'])
-    observer = None
-    if 'hybrid' in cell['routes']:
-        from g_gpu import GpuObserver
-        observer = GpuObserver(manifest['gpu'])
     step = run_program_step([manifest['build']['binaries'][cell['artifact']]['path']],
-        config, attempt / 'native', deadline_ns, observe=observer.sample if observer else None)
+        config, attempt / 'native', deadline_ns, observe=observe)
     return {'complete': step['complete'], 'steps': [step], 'preparation': preparation, 'store': store}
 
 
@@ -62,7 +58,12 @@ def payload(root, config, attempt, deadline_ns):
         raise RuntimeError('canonical paired member/deadline unavailable')
     os.environ.update(HF_HOME=manifest['hf_home'], HF_HUB_OFFLINE='1', TRANSFORMERS_OFFLINE='1',
                       FATHOMDB_EMBED_DEVICE=f"cuda:{manifest['gpu']['ordinal']}")
-    result = execute_native(manifest, cell, attempt, deadline_ns)
+    observer = None
+    if 'hybrid' in cell['routes']:
+        from g_gpu import GpuObserver
+        observer = GpuObserver(manifest['gpu'])
+    result = execute_native(manifest, cell, attempt, deadline_ns,
+                            observe=observer.sample if observer else None)
     issues = [issue for step in result['steps'] for issue in qualify_step(step, cell, manifest)]
     if 'hybrid' in cell['routes'] and not any(
             sample.get('pid') == step.get('pid') and sample.get('pid_memory_mib', 0) > 0
@@ -110,6 +111,7 @@ def control(manifest, owner):
         nonlocal blocked
         value = json.loads(path.read_text())
         started = time.monotonic_ns()
+        retained_before = active_bytes(manifest['allocation'])
         load = [observe_load()]
         try:
             if blocked:
@@ -149,7 +151,8 @@ def control(manifest, owner):
             current['inflight']['status'] = 'cleanup_uncertain'
             blocked = 'prior paired actor cleanup uncertain'
         write_budget(path, current)
-        outcome.update(charged_ns=elapsed, load=summarize_load(load), qualifies_primary=manifest['scope'] == 'primary')
+        outcome.update(charged_ns=elapsed, load=summarize_load(load), qualifies_primary=manifest['scope'] == 'primary',
+                       retained_growth_bytes=max(0, active_bytes(manifest['allocation']) - retained_before))
         if (Path(outcome['attempt']) / 'result.json').exists():
             actual = json.loads((Path(outcome['attempt']) / 'result.json').read_text())
             outcome['store'] = actual.get('store')

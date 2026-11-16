@@ -304,6 +304,48 @@ def feature_complete_output() -> str:
     )
 
 
+def test_library_test_allowlist(tt: ModuleType) -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = copy_fixture(Path(directory))
+        crates = tt.read_workspace(root)
+        matrix = tt.derive_matrix(crates)
+        entry = {
+            "id": "hs_fixture::lib::manual_cuda_child",
+            "class": "ignored-by-design",
+            "reason": "A separately selected manual CUDA child.",
+        }
+
+        def failures(candidate: dict[str, str]) -> list[str]:
+            return tt.check_coverage(
+                crates, {"hs_fixture": frozenset()}, matrix, [candidate], HOST
+            )[0]
+
+        assert failures(entry) == []
+        assert failures(dict(entry, id="hs_fixture::lib"))
+        assert failures(dict(entry, id="absent::lib::manual_cuda_child"))
+        manifest = root / "Cargo.toml"
+        manifest.write_text(manifest.read_text() + "\n[lib]\ntest = false\n")
+        assert failures(entry)
+
+
+def test_library_allowlist_target_boundary(tt: ModuleType) -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = copy_fixture(Path(directory))
+        crates = tt.read_workspace(root)
+        matrix = tt.derive_matrix(crates)
+        entry = {
+            "id": "hs_fixture::lib::manual_cuda_child",
+            "class": "platform-excluded",
+            "excluded_on": "unix",
+            "reason": "A library test cannot exclude a platform target.",
+        }
+        assert tt.check_coverage(crates, {}, matrix, [entry], HOST)[0]
+        entry["class"] = "ignored-by-design"
+        manifest = root / "Cargo.toml"
+        manifest.write_text(manifest.read_text() + '\n[lib]\npath = "absent.rs"\n')
+        assert tt.check_coverage(crates, {}, matrix, [entry], HOST)[0]
+
+
 def test_skip_contract(fc: ModuleType, tt: ModuleType) -> None:
     (crate,) = tt.read_workspace(FIXTURE_CRATE)
     result = fc.scan_output(feature_complete_output(), crate)
@@ -1502,6 +1544,8 @@ def main() -> None:
         test_read_fixture_workspace,
         test_matrix_round_trip,
         test_coverage_check,
+        test_library_test_allowlist,
+        test_library_allowlist_target_boundary,
         test_extra_sets,
         test_write_matrix_preserves_extras,
         test_repository_wiring,

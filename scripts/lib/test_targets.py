@@ -787,6 +787,27 @@ def check_coverage(
             failures.append(f"allowlist entry {entry_id!r} has no reason")
             continue
         target_id = _entry_target(entry_id, targets)
+        parts = entry_id.split("::")
+        if (
+            target_id is None
+            and entry_class != "platform-excluded"
+            and len(parts) >= 3
+            and parts[1] == "lib"
+            and all(parts[2:])
+            and parts[0] in by_name
+        ):
+            crate = by_name[parts[0]]
+            manifest = _load_toml(crate.directory / "Cargo.toml")
+            library = manifest.get("lib") or {}
+            source = crate.directory / library.get("path", "src/lib.rs")
+            if (
+                ("lib" in manifest or manifest["package"].get("autolib", True))
+                and library.get("test", True)
+                and source.is_file()
+            ):
+                # Exact library tests are checked for staleness by the runtime
+                # skip contract; integration-target coverage is unchanged.
+                target_id = "::".join(parts[:2])
         if target_id is None:
             failures.append(f"stale allowlist entry {entry_id!r}: no such test target")
             continue

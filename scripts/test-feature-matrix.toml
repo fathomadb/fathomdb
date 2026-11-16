@@ -142,7 +142,11 @@ features = ["default-reranker"]
 
 [[extra]]
 crate = "fathomdb-embedder"
-features = ["default-embedder", "default-reranker", "embed-cuda", "loader-test-hooks", "onnx-embedder", "rerank-cuda", "tc5-benchmark", "tegra-pool"]
+features = ["cuda-pool-observer"]
+
+[[extra]]
+crate = "fathomdb-embedder"
+features = ["cuda-pool-observer", "default-embedder", "default-reranker", "embed-cuda", "loader-test-hooks", "onnx-embedder", "rerank-cuda", "tc5-benchmark", "tegra-pool"]
 
 [[extra]]
 crate = "fathomdb-embedder"
@@ -151,6 +155,18 @@ features = ["default-reranker"]
 [[extra]]
 crate = "fathomdb-embedder"
 features = ["rerank-cuda"]
+
+[[extra]]
+crate = "fathomdb-engine"
+features = ["cuda-pool-observer"]
+
+[[extra]]
+crate = "fathomdb-engine"
+features = ["cuda-pool-observer", "default-embedder", "default-reranker", "embed-cuda", "migration-test-hooks", "operator", "rerank-cuda", "slice30-observer", "slice50-measurement", "slice72-gpu-tests", "slice72-test-hooks", "tc5-benchmark", "tegra-pool", "test-hooks"]
+
+[[extra]]
+crate = "fathomdb-engine"
+features = ["slice50-measurement"]
 
 [[extra]]
 crate = "fathomdb-napi"

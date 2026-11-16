@@ -63,6 +63,17 @@ class SelectedEntryTests(unittest.TestCase):
         self.assertEqual(kwargs["cell_allowance"], {"cell_id": "M-R-1-1-debug", "limits": LIMITS})
         self.assertEqual(kwargs["profile"], self.profile)
 
+    def test_selected_bound_uses_enforced_capture_and_complete_remaining_terms(self):
+        queries = self.root / "queries.jsonl"
+        queries.write_text('"alpha"\n' * 500)
+        manifest = {"scope": "registered-M-selected-cell", "allocation": str(self.root),
+            "inputs": {"queries": {"path": str(queries)}}, "package": [{"bytes": 715223040}],
+            "plan": [{"family": "M-R", "copies": 1, "config": {"idle_timeout_secs": 60}}]}
+        bound = preparation_bound(manifest)
+        self.assertGreaterEqual(bound, 715223040 + 6 * 67108864 + 3 * 8388608)
+        self.assertLessEqual(bound, 1382159668,
+                             "the complete enforced producer bound still cannot fund this continuation")
+
     def test_alternating_preparation_reserves_two_complete_packages(self):
         queries = self.root / "queries.jsonl"
         queries.write_text('"alpha"\n' * 500)

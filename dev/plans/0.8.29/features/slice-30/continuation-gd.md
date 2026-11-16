@@ -1296,10 +1296,10 @@ schema, keys, limits and behavior. Reject unknown phase names. This shared-sourc
 refinement requires independent review before implementation.
 
 D entry validates a D-specific selected budget reference against the existing
-ledger, declared per-size cell allowance and unchanged14400s/16GiB shared
-maxima. No expanded shared study profile is
-selected or activated by source work. Both other-work reservation fields must
-be explicit nonnegative integers; absent/unknown cost refuses admission rather
+ledger and declared per-size cell allowance. Original14400s/16GiB totals remain
+the historical selection; the prospective remaining-D selection below uses the
+same cumulative ledger. Source work alone activates no expanded profile. Both
+other-work reservation fields must be explicit nonnegative integers; absent/unknown cost refuses admission rather
 than becoming zero. Preserve every original charge and any retained G/M/D or
 closed-guardian ownership. Hold the existing `g-campaign.lock`; publish D custody
 before child entry and keep unknown cleanup blocked. The existing outer-residual
@@ -1309,7 +1309,9 @@ failure and cleanup, without adding the whole outer wall to nested cell walls.
 The D CLI owns fixed24 source entry and persistent attempted records, defaults
 to the first held quartet and stops for review. Continuation requires an explicit
 review of its next named size/mode quartet and current conservative feasibility;
-one invocation cannot automatically dispatch all remaining cells. Keep all24
+one invocation dispatches one quartet. One reviewed conditional continuation may
+cover successive quartets, refreshing actual prefix bindings and admission after
+each strict terminal without another review or replay. Keep all24
 obligations visible, failed/incomplete attempts unretried and unstarted holds
 reassessable. Native and guarded source controls use tiny stores/harmless children
 only. Freeze a real guarded controller-start/death control with a nested child,
@@ -1318,42 +1320,57 @@ unknown/exhausting other-work reservations must prevent actual child start.
 Recheck only affected M default guardian controls for this shared refinement.
 No new guardian framework, cap reset, G schema alias or campaign GO follows.
 
-#### Selected100k allowance from actual10k execution
+#### Selected remaining D allowances from actual10k/100k execution
 
-The original8 completed10k C/T held/overlap cells remain their actual original
-DC8 native executions and attempt paths. Preserve their records, native command
-paths, source/build identities, raw observations, physical closure and all
-original shared/cell/common charges. The next native entry changes only its
-technical allowance validation; no lower-cell replay or new-source label is
-attached to existing evidence. Slice50 hooks present in the integrated source
-are inactive without `slice50-measurement`, which the D build does not select.
+The original8 completed10k C/T held/overlap cells retain their actual DC8 native
+source, command paths, attempt-0001 identities, raw results and all charges.
+The actual d109 native then completed100k held C/T/T/C in601.202/587.059/
+610.264/611.776s:4000 successful calls,0 errors,100000 physical rows and strict
+closure/cleanup in every cell. These12 completed cells are not replayed or
+retagged. Reuse the existing d109 artifact with its original build provenance;
+the new Python controller records its own truthful source identity. Ordinary M
+source f29/native4ffc remains separate and immutable.
 
-Actual held10k maxima predict100k C1440.161360800s and T1437.127657820s under
-the unchanged2x same-layer rule. Their quartet needs5754.578037240s and
-5807130120B prospective retained headroom. The selected100k whole-cell allowance
-is1500s, including preparation, native work, observation/reporting and cleanup;
-10k remains900s. Equality at the selected limit still refuses.300k remains
-unqualified and held for actual100k same-mode evidence and its later current fit.
-Native per-size maxima900/1500/4500s bound explicit later `cell_limits_ns`
-profile selections. The300k default remains900s until a later explicit selection;
-its bounded4500s ceiling avoids another native rebuild, without replacing actual
-100k lower evidence, accepted next-quartet review or shared-budget feasibility.
-No count, corpus/provider/query schedule, overlap/closure oracle or numerical
-assessment changes. This is an evidence-based technical selection under the
-[direct-execution mandate](../../direct-execution.md), not a new owner budget
-ruling. Original14400s/16GiB shared totals and carried usage remain unchanged.
+One conditional continuation covers the remaining100k overlap quartet, then
+300k held and300k overlap quartets. Keep10k900s/100k1500s; explicitly select
+300k4500s within the native's existing reviewed maximum, including preparation,
+execution, observation/reporting and cleanup. No native rebuild, workload,
+count, provider, order, oracle or numerical-target change follows. Under the
+unchanged2x same-layer/mode lower-size rule,100k overlap bounds are
+C1227.415610600s/3685438520B and T1262.815169860s/3319326380B: quartet
+4980.461560920s/14009529800B.300k held bounds are C4320.484082400s/4745905920B
+and T4311.382973460s/3964789260B: quartet17263.734111720s/17421390360B.
+The next8 conservative bounds total22244.195672640s/31430920160B. Final300k
+overlap has no measured100k lower evidence yet: hold it until actual qualified
+100k overlap C/T repeats, then recompute the worse eligible lower10k/100k bound.
+Equality at4500s, missing evidence or insufficient current shared fit refuses;
+unknown future costs do not become zero or create another calibration gate.
 
-The Python assessment/review, public selected profile, fixed24 per-size
-`cell_ns`, native embedded-cell validation and native remaining milliseconds
-must agree. A900s profile cannot enter a1500s100k cell. The existing executable
-embeds its old900s table/limit, so only the required D artifact is rebuilt from
-the reviewed successor source with its truthful new origin; old DC8 and ordinary
-M artifacts remain intact. Continue the same D root with the exact original8
-attempt bindings. One next100k held quartet may use1500s cells,60s common and
-6080s outer wrapper, conditional on fresh shared time/storage reservations,
-resource floors and strict cleanup. Stop before the next quartet. Unknown
-future costs remain unknown; they do not create an all-future calibration gate
-or permit a total-cap reset/automatic expansion.
+Select the already adopted common prospective48h TOTAL/192GiB TOTAL on the
+original allocation, carrying every prior G/D/M/S50 wall, cell/common charge,
+failed attempt and retained output. This is one common ceiling, never a perstudy
+renewal. Minimal internal Python repair replaces only D's hardcoded4h/16GiB
+ceiling with finite positive maxima48h/192GiB; smaller original profiles retain
+their exact limits, and M/S50 defaults and all case clocks remain unchanged.
+G's active12h/128GiB selection is G-only: do not acquire or mutate its ledger or
+activate D until actual strict G terminal and lease handoff. Each quartet then
+requires empty ownership, current cumulative charges/retention, exact actual
+prefix attempts and fresh admission against the same common selected totals.
+Other study costs stay held unavailable; no all-future fit claim follows.
+
+Use60s common and6080s outer at100k,18080s outer at300k. Keep100k's4GiB outer
+memory cap/16GiB entry floor. Actual100k outer memory reached about3.11GB;
+select12GiB outer/24GiB MemAvailable entry for300k. Preserve8GiB memory stop,
+root32/20GiB and task250/50GiB start/stop,200GiB owned stop, zero cgroup swap,
+64MiB/s swap stop for3 consecutive30s samples, descriptive CPU load and strict
+owned actor/cgroup cleanup. No GPU/model, quiet wait or administrative setup.
+After each actual quartet, retain raw data, reconcile final guardian charges
+and require strict cleanup before the next finite admission. Stop on a failed
+cell, uncertain custody, exhausted bound or resource guard; do not retry or
+silently expand. All12 selected cell/common clocks total at most42180s before
+the outer wrappers' small margins. This technical selection follows the
+[direct-execution mandate](../../direct-execution.md); it introduces no new
+owner-cap question, percell review or supplementary evidence packet.
 
 #### D owned refusal cost clarification
 

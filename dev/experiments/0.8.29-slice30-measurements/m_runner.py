@@ -58,6 +58,10 @@ def main():
     calibration = commands.add_parser("calibrate")
     for name in ("options", "root", "cell"):
         calibration.add_argument(f"--{name}", required=True)
+    selected_internal = commands.add_parser("_selected")
+    for name in ("options", "root", "cell"):
+        selected_internal.add_argument(f"--{name}", required=True)
+    selected_internal.add_argument("--admission-fd", type=int, required=True)
     calibration_internal = commands.add_parser("_calibrate")
     for name in ("options", "root", "cell"):
         calibration_internal.add_argument(f"--{name}", required=True)
@@ -199,7 +203,13 @@ def main():
             result = payload(manifest, cell, options.attempt, options.deadline_ns)
         else:
             owner = controller_admission(options.admission_fd, options.root)
-            if options.action == "_calibrate":
+            if options.action == "_selected":
+                from m_calibration import control as selected_control
+                from m_freeze import freeze_selected
+                manifest = freeze_selected(json.loads(Path(options.options).read_text()), options.root, options.cell)
+                result = selected_control(options.root, owner, manifest)
+                report(options.root)
+            elif options.action == "_calibrate":
                 from m_calibration import control as calibrate
                 from m_freeze import freeze_calibration
                 manifest = freeze_calibration(json.loads(Path(options.options).read_text()), options.root, options.cell)
@@ -223,7 +233,28 @@ def main():
 
 def run_selected(options, root, cell_id, began):
     """Run one canonical required M cell through its finite original-budget guardian."""
-    return None
+    from m_calibration import registered_cell, validate_limits
+    from m_freeze import approved
+    from m_guard import guard
+    if os.environ.get("AGENT_LONG") != "1":
+        raise RuntimeError("selected M cell requires explicit AGENT_LONG=1")
+    registered_cell(cell_id)
+    selected = json.loads(Path(options).read_text())
+    profile = json.loads(Path(selected["profile"]).read_text())
+    approved(profile, selected["allocation"])
+    limits = selected["cell_allowance"]
+    validate_limits(limits)
+    root = Path(root).resolve()
+    if root.exists():
+        raise ValueError("selected M cell requires a fresh root; cumulative allowance never renews")
+    command = [sys.executable, str(Path(__file__).resolve()), "_selected", "--options", str(Path(options).resolve()),
+               "--root", str(root), "--cell", cell_id]
+    result = guard(command, allocation=selected["allocation"], profile=profile, root=root,
+        task=os.environ["S30_TASK"], admission=True, started_ns=began,
+        cell_allowance={"cell_id": cell_id, "limits": limits},
+        common_limit_ns=limits["phase_ns"]-limits["payload_ns"])
+    print(json.dumps(result))
+    return result
 
 
 def report(root):
@@ -234,7 +265,7 @@ def report(root):
     current = {row["id"]: row for row in json.loads(state.read_text())} if state.exists() else {}
     rows = []
     calibration = manifest.get("scope") == "bounded-natural-calibration"
-    plan = load_plan() if calibration else manifest["plan"]
+    plan = load_plan() if calibration or manifest.get("scope") == "registered-M-selected-cell" else manifest["plan"]
     for cell in [*plan, *(manifest["plan"] if calibration else [])]:
         row = dict(current.get(cell["id"], {"id": cell["id"], "cell": cell,
                    "status": "held", "complete": False, "reason": "no completed registered attempt"}))

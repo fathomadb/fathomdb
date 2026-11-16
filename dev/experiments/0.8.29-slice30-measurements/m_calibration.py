@@ -24,12 +24,15 @@ def control(root, owner, manifest=None):
     budget = json.loads(ledger_path.read_text())
     if budget.get("m_guardian") != owner:
         raise RuntimeError("calibration lacks its current owning M guardian")
-    cell = selected_cell(CELL_ID)
+    primary = manifest.get("scope") == "registered-M-selected-cell"
+    cell = registered_cell(manifest["plan"][0]["id"]) if primary else selected_cell(CELL_ID)
+    identity = cell["id"]
+    usage_key = "selected_cell_usage" if primary else "calibration_usage"
     if manifest["plan"] != [cell]:
         raise ValueError("only the selected calibration configuration can dispatch")
-    limits = manifest["calibration"]
-    usage = budget["calibration_usage"][CALIBRATION_ID]
-    prior = budget.get("cell_used_ns", {}).get(CALIBRATION_ID, 0)
+    limits = manifest["cell_allowance" if primary else "calibration"]
+    usage = budget[usage_key][identity]
+    prior = budget.get("cell_used_ns", {}).get(identity, 0)
     began = time.monotonic_ns()
     phase_end = owner["started_monotonic_ns"] + limits["phase_ns"] - usage["wall_ns"]
     deadline = min(began + limits["payload_ns"] - prior,
@@ -76,7 +79,7 @@ def control(root, owner, manifest=None):
     elapsed = time.monotonic_ns() - began
     budget = json.loads(ledger_path.read_text())
     budget["used_ns"] += elapsed
-    budget.setdefault("cell_used_ns", {})[CALIBRATION_ID] = prior + elapsed
+    budget.setdefault("cell_used_ns", {})[identity] = prior + elapsed
     clean = not outcome["cleanup_uncertain"] and outcome["live_owned_pids"] == []
     if clean:
         budget["inflight"] = None
@@ -84,7 +87,7 @@ def control(root, owner, manifest=None):
         budget["inflight"]["status"] = "cleanup_uncertain"
     write_budget(ledger_path, budget)
     load_observations.append(observe_load())
-    outcome.update(charged_ns=elapsed, scope="bounded-natural-calibration", qualifies_primary=False,
+    outcome.update(charged_ns=elapsed, scope=manifest["scope"], qualifies_primary=primary,
                    load=summarize_load(load_observations))
     (root / "results").mkdir(exist_ok=True)
     (root / "results/campaign-state.json").write_text(json.dumps([outcome], indent=2) + "\n")
@@ -103,7 +106,9 @@ def preparation_bound(manifest):
         separators=(",", ":")).encode("utf-8")) + 1 for query in queries)
     # Existing64MiB raw streams and their escaped/decoded snapshots fit below1GiB;
     # request copies are additionally bounded by the actual selected query sizes.
-    return sum(item["bytes"] for item in manifest["package"]) + 1024**3 + 12 * 1504 * maximum
+    cell = manifest.get("plan", [{}])[0]
+    copies = cell.get("copies", 1) if cell.get("family") not in ("M0", "M-E") else 0
+    return copies * sum(item["bytes"] for item in manifest["package"]) + 1024**3 + 12 * 1504 * maximum
 
 
 def selected_cell(cell_id):
@@ -157,3 +162,13 @@ def admit_selected(profile, ledger, retained_bytes, limits, cell_id):
     usage = ledger.get("selected_cell_usage", {}).get(cell_id, {})
     selected = dict(ledger, calibration_usage={CALIBRATION_ID: usage})
     return admit(profile, selected, retained_bytes, limits)
+
+
+def registered_cell(cell_id):
+    """Return one exact canonical required M configuration; caller cannot edit its workload."""
+    from m_controller import load_plan
+    return next((cell for cell in load_plan() if cell["id"] == cell_id), None) or _unknown_cell()
+
+
+def _unknown_cell():
+    raise ValueError("canonical required M cell selection required")

@@ -54,11 +54,7 @@ pub(super) fn run_cell(
     Ok(report)
 }
 
-pub(super) fn run_file(config: &Path, output: &Path, origin: Instant) -> Result<Value, String> {
-    let config: Value = serde_json::from_slice(
-        &fs::read(config).map_err(|error| format!("read D cell: {error:?}"))?,
-    )
-    .map_err(|error| format!("decode D cell: {error:?}"))?;
+pub(super) fn select_config(config: &Value) -> Result<(Value, u64), String> {
     let spec: Value = serde_json::from_str(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/../../../../dev/experiments/0.8.29-slice30-measurements/d-cells.json"
@@ -69,7 +65,7 @@ pub(super) fn run_file(config: &Path, output: &Path, origin: Instant) -> Result<
         .expect("fixed D cells")
         .iter()
         .find(|cell| {
-            ["id", "n", "mode", "repeat", "layer", "cell_ns"]
+            ["id", "n", "mode", "repeat", "layer"]
                 .iter()
                 .all(|field| cell[*field] == config[*field])
         })
@@ -78,12 +74,30 @@ pub(super) fn run_file(config: &Path, output: &Path, origin: Instant) -> Result<
         .as_str()
         .filter(|id| !id.is_empty())
         .ok_or("D attempt identity is unavailable")?;
+    let size = selected["n"].as_u64().expect("fixed D cell size").to_string();
+    let maximum = spec["cell_max_ns"][size.as_str()].as_u64().expect("fixed D size maximum");
+    let whole_ms = config["cell_ns"]
+        .as_u64()
+        .filter(|limit| *limit > 0 && *limit <= maximum)
+        .ok_or("D selected whole-cell allowance exceeds its declared size maximum")?
+        / 1_000_000;
     let remaining_ms = config["remaining_cell_ms"]
         .as_u64()
-        .filter(|remaining| *remaining > 0 && *remaining <= 900_000)
-        .ok_or("D remaining whole-cell allowance must be within1..=900000ms")?;
+        .filter(|remaining| *remaining > 0 && *remaining <= whole_ms)
+        .ok_or_else(|| {
+            format!("D remaining whole-cell allowance must be within1..={whole_ms}ms")
+        })?;
     let identity = json!({"cell_id":selected["id"],"n":selected["n"],"mode":selected["mode"],
         "layer":selected["layer"],"repeat":selected["repeat"],"attempt_id":attempt});
+    Ok((identity, remaining_ms))
+}
+
+pub(super) fn run_file(config: &Path, output: &Path, origin: Instant) -> Result<Value, String> {
+    let config: Value = serde_json::from_slice(
+        &fs::read(config).map_err(|error| format!("read D cell: {error:?}"))?,
+    )
+    .map_err(|error| format!("decode D cell: {error:?}"))?;
+    let (identity, remaining_ms) = select_config(&config)?;
     let deadline = origin + Duration::from_millis(remaining_ms);
     run_cell(&identity, output, origin, deadline)
 }

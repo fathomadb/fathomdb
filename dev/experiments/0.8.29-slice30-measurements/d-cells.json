@@ -73,7 +73,7 @@
       "mode": "held",
       "repeat": 0,
       "layer": "C",
-      "cell_ns": 900000000000
+      "cell_ns": 1500000000000
     },
     {
       "id": "d-t-held-n100000-r0",
@@ -81,7 +81,7 @@
       "mode": "held",
       "repeat": 0,
       "layer": "T",
-      "cell_ns": 900000000000
+      "cell_ns": 1500000000000
     },
     {
       "id": "d-t-held-n100000-r1",
@@ -89,7 +89,7 @@
       "mode": "held",
       "repeat": 1,
       "layer": "T",
-      "cell_ns": 900000000000
+      "cell_ns": 1500000000000
     },
     {
       "id": "d-c-held-n100000-r1",
@@ -97,7 +97,7 @@
       "mode": "held",
       "repeat": 1,
       "layer": "C",
-      "cell_ns": 900000000000
+      "cell_ns": 1500000000000
     },
     {
       "id": "d-c-overlap-n100000-r0",
@@ -105,7 +105,7 @@
       "mode": "overlap",
       "repeat": 0,
       "layer": "C",
-      "cell_ns": 900000000000
+      "cell_ns": 1500000000000
     },
     {
       "id": "d-t-overlap-n100000-r0",
@@ -113,7 +113,7 @@
       "mode": "overlap",
       "repeat": 0,
       "layer": "T",
-      "cell_ns": 900000000000
+      "cell_ns": 1500000000000
     },
     {
       "id": "d-t-overlap-n100000-r1",
@@ -121,7 +121,7 @@
       "mode": "overlap",
       "repeat": 1,
       "layer": "T",
-      "cell_ns": 900000000000
+      "cell_ns": 1500000000000
     },
     {
       "id": "d-c-overlap-n100000-r1",
@@ -129,7 +129,7 @@
       "mode": "overlap",
       "repeat": 1,
       "layer": "C",
-      "cell_ns": 900000000000
+      "cell_ns": 1500000000000
     },
     {
       "id": "d-c-held-n300000-r0",
@@ -195,5 +195,10 @@
       "layer": "C",
       "cell_ns": 900000000000
     }
-  ]
+  ],
+  "cell_max_ns": {
+    "10000": 900000000000,
+    "100000": 1500000000000,
+    "300000": 4500000000000
+  }
 }

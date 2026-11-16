@@ -8,6 +8,7 @@ import sys
 import time
 
 from d_driver import reviewed_quartet, run_supervised_stage
+from d_controller import cell_limit_ns
 from d_attempt import inherited_settings
 from g_campaign import active_bytes
 from m_guard import guard, write_budget
@@ -47,14 +48,14 @@ def _control(root, fd):
         raise RuntimeError("D controller lacks its actual shared-ledger guardian")
     budget = dict(ledger, shared_ns=profile["total_shared_ns"]-profile["reserved_other_work_ns"]-config["common_limit_ns"],
                   storage_limit=profile["total_shared_retained_bytes"]-profile["reserved_other_work_bytes"],
-                  retained_bytes=active_bytes(allocation))
+                  retained_bytes=active_bytes(allocation), cell_limits_ns=profile.get("cell_limits_ns", {}))
     records = json.loads(state_path.read_text()) if state_path.exists() else {}
     spec = json.loads(Path(__file__).with_name("d-cells.json").read_text())
 
     def publish():
         budget["retained_bytes"] = active_bytes(allocation)
         durable = dict(ledger, **{key: value for key, value in budget.items()
-            if key not in ("shared_ns", "storage_limit", "retained_bytes")})
+            if key not in ("shared_ns", "storage_limit", "retained_bytes", "cell_limits_ns")})
         write_budget(state_path, records)
         write_budget(ledger_path, durable)
 
@@ -164,6 +165,10 @@ def main():
         raise ValueError("D initial stage selector must be boolean")
     if type(config["common_limit_ns"]) is not int or config["common_limit_ns"] <= 20*10**9:
         raise ValueError("D common allowance must fund bounded guardian cleanup")
+    if config["scope"] == "fixed24-scientific":
+        size = 10000 if config["initial"] else (config.get("review") or {}).get("n")
+        if config["profile"].get("whole_cell_ns") != cell_limit_ns(size, config["profile"].get("cell_limits_ns")):
+            raise ValueError("selected D profile must match the declared whole-cell allowance for its size")
     inherited = inherited_settings()
 
     def command():

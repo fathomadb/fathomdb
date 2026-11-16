@@ -112,9 +112,10 @@ def freeze_calibration(options, output, cell_id):
                         calibration=selected_cell(cell_id))
 
 
-def _bind_inputs(options, output, profile, forecasts, *, calibration=None):
+def _bind_inputs(options, output, profile, forecasts, *, calibration=None, selected=None):
+    selected_cell = selected
     allocation = Path(options["allocation"]).resolve()
-    selected = json.loads((SOURCE / "dev/plans/release-state-0.8.29.json").read_text())
+    release_state = json.loads((SOURCE / "dev/plans/release-state-0.8.29.json").read_text())
     # The release state owns this metadata's location; recursive lookup avoids another state view.
     def find(value):
         if isinstance(value, dict):
@@ -128,12 +129,12 @@ def _bind_inputs(options, output, profile, forecasts, *, calibration=None):
                 if found := find(nested):
                     return found
         return None
-    selected = find(selected)
+    g_provenance = find(release_state)
     custody = options["closed_subject"]
-    if (not selected or custody["owner_released_closed"] is not True
-            or custody["source_sha"] != selected["source_sha"]
-            or custody["campaign_uuid"] != selected["campaign_uuid"]
-            or Path(custody["main"]).resolve() != Path(selected["store"]).resolve()
+    if (not g_provenance or custody["owner_released_closed"] is not True
+            or custody["source_sha"] != g_provenance["source_sha"]
+            or custody["campaign_uuid"] != g_provenance["campaign_uuid"]
+            or Path(custody["main"]).resolve() != Path(g_provenance["store"]).resolve()
             or custody["schema_version"] != 37 or custody["readiness"] != "Ready"
             or custody["pending"] != 0
             or custody["counts"] != {"natural": 100000, "vectors": 100000,
@@ -162,7 +163,11 @@ def _bind_inputs(options, output, profile, forecasts, *, calibration=None):
     if any((model[name]["bytes"], model[name]["sha256"]) != value for name, value in MODEL_FILES.items()):
         raise ValueError("registered model cache bytes required")
     binaries = {}
-    for variant in (VARIANTS if calibration is None else ("ordinary",)):
+    variants = VARIANTS if calibration is None else ("ordinary",)
+    if selected_cell is not None:
+        variants = (("ordinary",) if selected_cell["family"] in ("M-R", "M-C", "M-L") else
+                    ("helper",) if selected_cell["family"] == "M-E" else ("providerfree", "helper"))
+    for variant in variants:
         receipt = json.loads(Path(options["builds"][variant]).read_text())
         binary = identify(receipt["binary"]["path"])
         if (receipt.get("schema") != "slice30-m-build/v1" or receipt["variant"] != variant
@@ -186,6 +191,9 @@ def _bind_inputs(options, output, profile, forecasts, *, calibration=None):
         manifest.update(schema="slice30-m-calibration/v1", scope="bounded-natural-calibration",
                         plan=[calibration], calibration=options["calibration"],
                         qualifies_primary=False, runtime_status="BOUNDED_CALIBRATION_ONLY")
+    if selected_cell is not None:
+        manifest.update(scope="registered-M-selected-cell", plan=[selected_cell],
+                        cell_allowance=options["cell_allowance"], reuse_from=options.get("reuse_from", []))
     output.mkdir(parents=True, exist_ok=True)
     path = output / "manifest.json"
     with path.open("x") as stream:
@@ -199,9 +207,14 @@ def validate(root):
     root = Path(root).resolve()
     value = json.loads((root / "manifest.json").read_text())
     approved(value["profile"], value["allocation"])
+    from m_calibration import registered_cell, validate_limits
+    expected_plan = load_plan()
+    if value.get("scope") == "registered-M-selected-cell":
+        expected_plan = [registered_cell(value["plan"][0]["id"])]
+        validate_limits(value["cell_allowance"])
     if (value["schema"] != "slice30-m-freeze/v1" or value["root"] != str(root)
             or git("status", "--porcelain") or value["source_sha"] != git("rev-parse", "HEAD")
-            or value["compiler_inputs"] != compiler_inputs() or value["plan"] != load_plan()):
+            or value["compiler_inputs"] != compiler_inputs() or value["plan"] != expected_plan):
         raise ValueError("frozen clean reviewed M source/inventory required")
     for original in [*value["package"], *value["inputs"].values(), *value["model"].values(),
                      *(receipt["binary"] for receipt in value["builds"].values())]:
@@ -226,3 +239,15 @@ def validate_calibration(root):
         if identify(original["path"]) != original:
             raise ValueError("frozen local calibration input/artifact identity differs")
     return value
+
+
+def freeze_selected(options, output, cell_id):
+    """Bind a canonical required cell after finite guardian admission, without future forecasts."""
+    from m_calibration import registered_cell, validate_limits
+    allocation = Path(options["allocation"]).resolve()
+    profile = json.loads(Path(options["profile"]).read_text())
+    approved(profile, allocation)
+    validate_limits(options["cell_allowance"])
+    if git("status", "--porcelain") or not Path(output).resolve().is_relative_to(allocation):
+        raise ValueError("selected M cell requires clean reviewed owned source/root")
+    return _bind_inputs(options, Path(output).resolve(), profile, None, selected=registered_cell(cell_id))

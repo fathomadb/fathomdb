@@ -449,3 +449,54 @@ class PairGuardianReportTests(unittest.TestCase):
             self.assertTrue(actual['calibration_complete'])
             self.assertFalse(actual['complete'])
             self.assertEqual(actual['guardian']['accounting']['charged_ns'],73)
+
+
+class PairFiniteGuardTests(unittest.TestCase):
+    def test_primary_outer_guard_stops_growth_without_any_cell_or_forecast(self):
+        from contextlib import ExitStack
+        from unittest.mock import patch
+        from m_guard import guard
+        from test_m_calibration_guard import FakeBoundary
+        with ExitStack() as stack:
+            root=Path(stack.enter_context(tempfile.TemporaryDirectory()));ledger=root/'g-budget.json'
+            ledger.write_text(json.dumps({'schema':'slice30-gd-budget/v1','used_ns':123,'inflight':None,
+                                         'cell_used_ns':{'failed-prior':7},'common_used_ns':{'D':11}}))
+            profile={'schema':'slice50-pair-budget/v1','status':'APPROVED','ledger':str(ledger),
+                'whole_cell_ns':900*10**9,'total_shared_ns':5000*10**9,'total_shared_retained_bytes':10*1024**3,
+                'reserved_other_work_ns':100*10**9,'reserved_other_work_bytes':1024**3}
+            limits={'pairs':1,'phase_ns':900*10**9,'pair_ns':800*10**9,
+                    'new_retained_bytes':16384,'common_ns':100*10**9,'common_bytes':100}
+            stack.enter_context(patch('m_guard.TaskBoundary',FakeBoundary))
+            stack.enter_context(patch('m_guard.resource_sample',return_value={'root_free':1000*1024**3,
+                'task_free':1000*1024**3,'memory_available':100*1024**3,'owned':0}))
+            stack.enter_context(patch('m_guard.observe_load',return_value={'load':99.0}))
+            output=root/'required';raw=output/'failed.raw'
+            child=f"import pathlib,time;pathlib.Path({str(raw)!r}).write_bytes(b'x'*32768);time.sleep(.3)"
+            result=guard([sys.executable,'-c',child],allocation=root,profile=profile,root=output,task=root,
+                         phase='S50',primary_limits=limits)
+            self.assertNotEqual(result['exit'],0)
+            self.assertEqual(result['stop'],'primary retained growth')
+            self.assertFalse(result['cleanup_uncertain'])
+            self.assertTrue(raw.exists())
+            final=json.loads(ledger.read_text())
+            self.assertGreater(final['used_ns'],123)
+            self.assertEqual(final['cell_used_ns']['failed-prior'],7)
+            self.assertEqual(final['common_used_ns']['D'],11)
+
+    def test_required_prefix_success_never_claims_all160_complete(self):
+        from g_pair_report import published_report
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary);(root/'results').mkdir();guard=root/'guardians'/'actual';guard.mkdir(parents=True)
+            ids=[row['id'] for row in plan()['primary'][:2]]
+            cached={'native_primary_complete':False,'native_calibration_complete':False,
+                'native_window_complete':True,'active_members':ids,
+                'guardian_owner':{'started_monotonic_ns':71,'controller_pid':72},
+                'primary':[{'id':identifier,'credited':True} for identifier in ids], 'diagnostics':[],'calibration':[]}
+            (root/'results/report.json').write_text(json.dumps(cached))
+            (guard/'guardian.json').write_text(json.dumps({'started_monotonic_ns':71,'controller_pid':72,
+                'exit':0,'cleanup_uncertain':False,'boundary':{'status':'quiescent','populated_after':False,
+                'removed_exact_empty_boundary':True}}))
+            result=published_report(root)
+            self.assertTrue(result['window_complete'])
+            self.assertFalse(result['complete'])
+            self.assertFalse(result['calibration_complete'])

@@ -2,7 +2,6 @@
 
 import fcntl
 import json
-import os
 from pathlib import Path
 import sys
 import time
@@ -53,6 +52,9 @@ def execute_native(manifest, cell, attempt, deadline_ns, *, observe=None):
     store, preparation = copy_subject(subject, attempt / 'subject/store.sqlite', deadline_ns)
     config = dict(cell, store=store, corpus=manifest['inputs']['corpus']['path'],
                   queries=manifest['inputs']['queries']['path'])
+    if cell['family'].startswith('G'):
+        config['slice50_gpu'] = {'uuid': manifest['gpu']['uuid'], 'ordinal': manifest['gpu']['ordinal'],
+                                 'hf_home': manifest['hf_home']}
     step = run_program_step([manifest['build']['binaries'][cell['artifact']]['path']],
         config, attempt / 'native', deadline_ns, observe=observe)
     return {'complete': step['complete'], 'steps': [step], 'preparation': preparation, 'store': store}
@@ -71,9 +73,6 @@ def payload(root, config, attempt, deadline_ns, *, selection=None):
     worker_admission(manifest, cell, attempt)
     if cell not in canonical_members(manifest) or time.monotonic_ns() >= deadline_ns:
         raise RuntimeError('canonical paired member/deadline unavailable')
-    if cell['family'].startswith('G'):
-        os.environ.update(HF_HOME=manifest['hf_home'], HF_HUB_OFFLINE='1', TRANSFORMERS_OFFLINE='1',
-                          FATHOMDB_EMBED_DEVICE=f"cuda:{manifest['gpu']['ordinal']}")
     observer = None
     if 'hybrid' in cell['routes']:
         from g_gpu import GpuObserver

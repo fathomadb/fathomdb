@@ -89,18 +89,18 @@ current paired performance and affected Block1 qualification remain.
 
 ## Remaining work
 
-The next readiness proposal keeps the frozen/controller/P environment intact.
+Paired G visibility keeps the frozen/controller/P environment intact.
 For paired G only, `execute_native` supplies private `slice50_gpu` configuration
 from the already-selected UUID, ordinal0 and owned HF cache. The existing native
 `run_program_step` derives a child-only environment with
 `CUDA_VISIBLE_DEVICES=<selected UUID>`, `FATHOMDB_EMBED_DEVICE=cuda:0` and the
-selected offline HF cache; unsupported ordinals refuse before child start.
+selected offline HF cache; unsupported bindings refuse before child start.
 Record that effective environment in the existing step result, with the private
 binding in its retained configuration. No generic environment override API,
-manifest rewrite, provider change or native rebuild is proposed. Stage a genuine
-RED using an actual harmless stdlib child that observes the wrong inherited empty
-visibility; preserve P/controller environment and mode-selector controls. Source
-controls establish environment propagation only; actual FD9 exclusion and current
+manifest rewrite, provider change or native rebuild is needed. Actual harmless
+stdlib-child controls cover visibility, unsupported binding refusal, P/controller
+environment and mode selectors. Source controls establish propagation only;
+actual FD9 exclusion and current
 GPU identity/engagement qualification remain mandatory at G entry.
 
 Using the existing selection API, propose five next P pairs, from the currently

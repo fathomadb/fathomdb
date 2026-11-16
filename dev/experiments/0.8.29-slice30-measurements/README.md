@@ -654,12 +654,12 @@ ceiling is48h TOTAL/192GiB TOTAL, never renewed per study or selection; current
 capacity, reservations and the selected finite stops still govern admission.
 No selection is automatically adopted from a newer source revision.
 
-Proposed next readiness change: private `slice50_gpu` configuration carries the
+Private `slice50_gpu` configuration carries the
 selected G UUID/ordinal0/cache to the existing native driver, which derives only
 that G child's UUID visibility, logical `cuda:0` device and offline HF environment,
 recording effective overrides in the existing step result. Frozen/controller/P
 environments stay unchanged; no generic environment selection or native rebuild
-is required. A harmless actual-child RED precedes implementation; GPU identity,
+is required. Harmless actual-child controls verify propagation; GPU identity,
 FD9 exclusion and engagement are still checked only at actual G entry. A separate
 prospective selection can group the next five P pairs in one existing public
 window: `pairs:5`, `phase_ns:9200000000000`, `pair_ns:1800000000000`,
@@ -668,7 +668,7 @@ window: `pairs:5`, `phase_ns:9200000000000`, `pair_ns:1800000000000`,
 is5374156800bytes; remaining growth is a stop allowance for raw/write/common work,
 not observed future cost. Fresh fit uses the unchanged48h/192GiB TOTAL ledger and
 resource floors; per-member900s and original attempted-pair caps, final-qualified
-retirement and pending-diagnostic retention remain. This proposal adopts nothing.
+retirement and pending-diagnostic retention remain. No window is automatically adopted.
 
 The optional legacy `pair-calibrate` four-member10k entry is not a prerequisite.
 Its extra10k diagnostic pair is outside the required24. `ordinary_calibration_from`

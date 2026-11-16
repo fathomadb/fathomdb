@@ -253,13 +253,72 @@ def run_selected(options, root, cell_id, began):
         task=os.environ["S30_TASK"], admission=True, started_ns=began,
         cell_allowance={"cell_id": cell_id, "limits": limits},
         common_limit_ns=limits["phase_ns"]-limits["payload_ns"])
+    if result["exit"] == 0 and result["cleanup_uncertain"] is False and (root / "manifest.json").is_file():
+        result["retired_working_copies"] = retire_working_copies(root)
     print(json.dumps(result))
     return result
 
 
 def retire_working_copies(root):
     """Retire successful disposable copies after strict cleanup, preserving science and charges."""
-    return []
+    import fcntl
+    from m_guard import write_budget
+    root = Path(root).resolve()
+    final_guardian(root)
+    manifest = json.loads((root / "manifest.json").read_text())
+    allocation = Path(manifest["allocation"]).resolve()
+    state_path = root / "results/campaign-state.json"
+    outcomes = json.loads(state_path.read_text())
+    if len(outcomes) != 1:
+        raise ValueError("one original selected M outcome required for retirement")
+    outcome = outcomes[0]
+    if (not outcome.get("complete") or outcome.get("status") != "complete" or outcome.get("exit") != 0
+            or outcome.get("cleanup_uncertain") is not False or outcome.get("live_owned_pids") != []
+            or outcome["cell"]["family"] not in ("M-R", "M-C", "M-L")):
+        return []
+    attempt = Path(outcome["attempt"]).resolve()
+    if not root.is_relative_to(allocation) or not attempt.is_relative_to(root / "results" / outcome["id"]):
+        raise ValueError("owned selected M retirement identity required")
+    if json.loads((attempt / "result.json").read_text()).get("complete") is not True:
+        return []
+    prepared = json.loads((attempt / "prepared.json").read_text())
+    paths = [Path(copy["destination"]).resolve() for copy in prepared["copies"]]
+    if any(path.parent != attempt / "stores" for path in paths):
+        raise ValueError("retirement is limited to prepared disposable store copies")
+    calibration = manifest.get("scope") == "bounded-natural-calibration"
+    usage_key = "calibration_usage" if calibration else "selected_cell_usage"
+    limits = manifest["calibration" if calibration else "cell_allowance"]
+    profile = manifest["profile"]
+    with (allocation / "g-campaign.lock").open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        ledger_path = allocation / "g-budget.json"
+        ledger = json.loads(ledger_path.read_text())
+        if any(ledger.get(key) for key in ("inflight", "m_guardian", "d_guardian", "closed_guardian")):
+            raise ValueError("live shared ownership blocks working-copy retirement")
+        usage = ledger[usage_key][outcome["id"]]
+        began = time.monotonic_ns()
+        retired = list(outcome.get("retired_working_copies", []))
+        try:
+            for path in paths:
+                elapsed = time.monotonic_ns() - began
+                if (usage["wall_ns"] + elapsed + 20 * 10**9 >= limits["phase_ns"]
+                        or ledger["used_ns"] + elapsed + profile["reserved_other_work_ns"] + 20 * 10**9
+                        >= profile["total_shared_ns"]):
+                    break
+                if path.exists():
+                    path.unlink()
+                    retired.append(str(path))
+                    outcome["retired_working_copies"] = retired
+                    write_budget(attempt / "attempt.json", outcome)
+                    write_budget(state_path, outcomes)
+        finally:
+            elapsed = time.monotonic_ns() - began
+            ledger["used_ns"] += elapsed
+            usage["wall_ns"] += elapsed
+            common = ledger.setdefault("common_used_ns", {})
+            common["M"] = common.get("M", 0) + elapsed
+            write_budget(ledger_path, ledger)
+    return retired
 
 
 def final_guardian(root):

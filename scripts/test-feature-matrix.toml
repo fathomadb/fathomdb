@@ -126,6 +126,10 @@ features = []
 
 [[entry]]
 crate = "fathomdb-sdk"
+features = ["cuda-pool-observer", "embed-cuda", "rerank-cuda"]
+
+[[entry]]
+crate = "fathomdb-sdk"
 features = ["embed-cuda"]
 
 [[extra]]

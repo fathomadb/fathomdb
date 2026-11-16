@@ -26,6 +26,8 @@ Cargo cache/target and ordinary CPU execution. Raw logs and archives remain unde
 | Q4 missing AC037 live components |Current locked `security_cycle` rebuilt; both canonical netns engine and demonstrate-the-catch scripts exited0, including the live deliberate-egress catch. `logs/security-build.log`, `logs/check-netns-deny-egress.log`, `logs/check-netns-deny-egress-catch.log`. No host settings changed or optional downgrade selected. |
 | Q14 current Linux x64 production consumers |At `b07a161317ff753b86b5eb706e7c5e761adecb9a` (unchanged runtime source), the existing owned Python setup built an abi3 .29 wheel with `pyo3/extension-module,default-embedder`; the existing production N-API route and TS build passed. No test-hooks. The existing local native smoke passed isolated offline Python and matched Node installs, strict installed graph types with TS6.0.3, write/search/dependency/frozen-read and Node graph-evidence controls; Python3/Node3 runtime-configuration cases passed, zero skipped. `logs/production-{python-build,napi-build,typescript-build,installed-consumers}.log`. |
 | Q14 current Windows x64 production consumers and WAL |Exact source `50780514e6ba37fff147351eeea077ba65933431` passed production Python/Node installs, strict TS6.0.3 and all13 retained N-API modules:186/186, zero skips. The cp310-abi3 Windows wheel is6876529 bytes and passes the size gate. All10 unique WAL engine controls, real held-reader parent/child and installed baseline/current serial/binding/retained controls pass. Both existing receipts validate actual bytes. Independent Astra-medium final ACCEPT; raw logs/artifacts/WAL results remain under `/mnt/data/tmp2/fathomdb-0829-continuation/slice160-windows-20261116/`. |
+
+| Q14 current Linux ARM64 CPU consumers and floors |Exact clean `fd47561ad7ad778eb8a5125d239d1c438cd19483` source in an owned Orin checkout produced fresh CPU/no-hook Python and N-API artifacts. The existing native ARM manylinux image built the actual2.28 wheel/addon; auditwheel and both symbol-floor checks pass. Unchanged isolated installed Python/Node/strict-TS6.0.3/runtime/dependency/frozen/graph consumers pass, Python3/Node3 runtime cases with zero skips. Existing pinned BGE auto/explicit-CPU384-vector/write/search/close controls also pass inside the guarded networkless container. Raw logs/operators/current package subjects are retained in `arm-results/` under the evidence root above. |
 | Q15 current Linux CUDA12.6 distribution floor and driverless controls |At `abcc528944e58b5ef20cb03c27a741bf29bc13b1` (unchanged runtime source), the existing attested manylinux image built the canonical no-hook Python `embed-cuda,rerank-cuda` tuple; matching host N-API tuple built with the pinned GCC13/CUDA12.6 route. Actual `auditwheel show` confirms manylinux2.28; N-API's declared2.39 floor passes. The existing archive inspector checked every packaged ELF member without forbidden CUDA/NVIDIA payload or linkage. Canonical driverless Python/Node stages pass auto/explicit CPU384-vector forwards, real write/search/close and reranker CPU forwards. All4 forced embedder/reranker captures have actual exit1 and pass the existing exact typed-JSON/stderr validators. `logs/{manylinux-cuda-python-build,production-cuda-napi-build,production-cuda-auditwheel,production-cuda-napi-floor,production-cuda-driverless,production-cuda-forced-validation}.log`. |
 | Q14 external Rust source-archive SDK and CLI |The archive from `abcc528944e58b5ef20cb03c27a741bf29bc13b1` retains manifests, original lock, Rust sources and active local override configuration. The unchanged existing persistent SDK consumer passes actual `cargo run --locked --offline` write and separate-process reopen, including body/missing-record/close/exit assertions. Locked metadata resolves every consumed product crate inside the archive at W.29/E.8.0. CLI `cargo install --path` with `--locked --offline` passes; unchanged existing version0.8.29, legacy integrity JSON and immutable data-plane/status/file-set checks pass. Subjects/consumer lock/metadata remain in `rust-archive/`; `logs/archive-sdk-minimal-{write,reopen}.log`, `logs/archive-sdk-source-paths.log`, `logs/archive-cli-{install,smoke}.log`. |
 
@@ -72,6 +74,28 @@ unchanged, with no replay of the first three accepted controls. Existing scratch
 was reattached without formatting; selected inactive compiler-cache cleanup
 restored the approved C: floor. No A6 replay, product repair, GPU or CI occurred.
 This qualifies the named current Windows scope, not final90 or other targets.
+
+ARM execution owns `/home/coreyt/fathomdb-0829-cpu-s160-20261116/` on the existing
+Orin. Rust1.95/Node25.9/npm11.12.1 and a new Python3.13.12 venv first produced a
+host-native2.34 wheel and passing consumers. The later CPU image
+`sha256:a35fc98ecd505e7dde58e3fe6c82f9f77ac6b2bd7e0e95142161ba5e390c73bc`
+used Python3.11.15/own maturin1.16, two build jobs and its declared2.28 base;
+the successful container supervisor ends with exit0 and no owned actors.
+It excludes GPU/nvhost/nvmap devices, host CUDA mounts, Tegra detection files and
+all approved GPU-query executables before imports. This is generic ARM CPU
+qualification, not a Tegra GPU artifact, non-Tegra ARM+GPU claim or final90 proof.
+
+The earlier host imports have a real execution-constraint exception:
+`_coinstall.detect_platform()` automatically launched
+`nvidia-smi --query-gpu=name --format=csv,noheader`. Six installed-helper warnings
+confirm six classifications between02:32:55.818 and02:33:15.281-0600; the setup
+native probe invoked the same hook before02:31:27.623, with stderr captured
+internally. Exact successful-query count/timestamps and driver-internal behavior
+were not traced. No product CUDA computation/reset was requested; zero GPU probes
+is not claimed. E source/environment/native/lease were not modified; final ARM/E
+applicability review owns the exception, with no automatic soak retry. The
+pre-build supervisor startup KeyError and all host warnings remain in raw logs;
+they are distinct from the successful later container execution.
 
 ## Remaining qualification
 

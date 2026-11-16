@@ -96,14 +96,45 @@ def assemble_manifest(options, build, inputs, donors):
 
 def admit(profile, ledger, retained_bytes, limits):
     """Reserve the one explicitly selected cumulative lower-stage allowance."""
-    return {"remaining_phase_ns":limits['phase_ns'], "remaining_retained_bytes":limits['new_retained_bytes']}
+    from m_calibration import admit as shared_admit
+    validate_limits(limits)
+    return shared_admit(profile, ledger, retained_bytes, limits, calibration_id=CALIBRATION_ID)
 
 
 def retire_pair(root, outcomes, *, enabled, comparison, diagnostics_complete):
     """Retire only complete, compared and quiescent private working copies."""
-    return []
+    if (not enabled or not comparison or not diagnostics_complete or len(outcomes) < 2
+            or any(row.get('status') != 'complete' or row.get('complete') is not True
+                   or row.get('cleanup_uncertain') or row.get('live_owned_pids') != [] for row in outcomes)):
+        return []
+    root = Path(root).resolve()
+    stores = [Path(row['store']).resolve() for row in outcomes]
+    if any(not path.is_relative_to(root) for path in stores):
+        raise ValueError('working copy is outside the private pair root')
+    retired = []
+    for store in stores:
+        for suffix in ('', '-wal', '-shm'):
+            path = store.with_name(store.name+suffix)
+            if path.exists():
+                retired.append({'path':str(path),'bytes':path.stat().st_size})
+                path.unlink()
+    return retired
 
 
 def compare_results(left, right):
     """Compare exact per-call search results without comparing runtime clocks."""
-    return True
+    def stable(value):
+        if isinstance(value, dict):
+            return {key:stable(item) for key,item in value.items()
+                    if key not in {'elapsed_ns','write_ns','started_ns','ended_ns','wall_ns'}}
+        return [stable(item) for item in value] if isinstance(value,list) else value
+    return all(stable(left.get(stream,[])) == stable(right.get(stream,[]))
+               for stream in ('samples','warmups','first_calls','batches','probes'))
+
+
+def validate_limits(limits):
+    """Bound this cumulative full-pair calibration without changing M limits."""
+    from m_calibration import validate_limits as shared_limits
+    shared_limits(limits)
+    if limits['payload_ns'] > 800*10**9 or limits['new_retained_bytes'] > 2*1024**3:
+        raise ValueError('paired calibration exceeds selected work/growth maxima')

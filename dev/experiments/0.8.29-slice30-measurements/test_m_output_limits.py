@@ -10,6 +10,7 @@ from unittest.mock import patch
 
 from m_client import RpcChild
 import m_record
+import m_runner
 from m_record import CheckpointLog
 from m_runner import report
 import test_m_selected_report
@@ -75,6 +76,21 @@ class OutputLimitTests(unittest.TestCase):
         value = json.loads(fixture.ledger.read_text())
         self.assertIsNone(value["m_guardian"])
         self.assertIn("capture limit", result.get("error", ""))
+
+    def test_outer_capture_failure_revokes_the_existing_publication_after_cleanup(self):
+        from test_m_publication_write_cap import PublicationWriteCapTests
+        fixture = PublicationWriteCapTests()
+        fixture.setUp()
+        self.addCleanup(fixture.doCleanups)
+        first = report(fixture.root)
+        self.assertTrue(first["phase_qualified"])
+        invalidate = getattr(m_runner, "invalidate_selected", None)
+        self.assertTrue(callable(invalidate), "outer capture failure cannot revoke published credit")
+        value = invalidate(fixture.root, "service capture limit")
+        self.assertFalse(value["phase_qualified"])
+        self.assertFalse(next(row for row in value["rows"] if row["id"] == fixture.cell["id"])["complete"])
+        self.assertNotEqual(json.loads(fixture.guardian_path.read_text())["exit"], 0)
+        self.assertGreater(json.loads(fixture.ledger_path.read_text())["used_ns"], 1000)
 
     def test_publication_overflow_retains_all46_rows_but_cannot_qualify_the_cell(self):
         fixture = test_m_selected_report.SelectedReportTests()

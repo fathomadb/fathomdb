@@ -22,7 +22,7 @@ for (const policy of ["FATHOMDB_EMBED_DEVICE", "FATHOMDB_RERANK_DEVICE"]) {
 const sdk = await import(pathToFileURL(main).href);
 const { native } = await import(pathToFileURL(join(dirname(main), "binding.js")).href);
 const addon = realpathSync(require.resolve("fathomdb-linux-arm64-gnu-tegra"));
-const loaded = Object.keys(require.cache).filter((name) => name.endsWith(".node")).map(realpathSync);
+const loaded = Object.keys(require.cache).filter((name) => name.endsWith(".node")).map((name) => realpathSync(name));
 if (!addon.startsWith(`${root}/node_modules/`) || loaded.length !== 1 || loaded[0] !== addon) {
   throw new Error("actual loaded addon differs from installed Tegra counterpart");
 }

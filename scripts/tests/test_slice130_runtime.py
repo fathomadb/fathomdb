@@ -186,5 +186,90 @@ sys.exit(0)
                                  "reaping must stop descendants even after their leader exits")
 
 
+ENVIRONMENT_PEER = r'''
+import json, os, pathlib, sys
+keys = ("HF_HUB_OFFLINE", "TRANSFORMERS_OFFLINE", "FATHOMDB_POOL_MODE",
+        "FATHOMDB_POOL_RELEASE_THRESHOLD", "SLICE130_ENV_CONTROL")
+for line in sys.stdin:
+    operation = json.loads(line)["operation"]
+    if operation == "ready":
+        pathlib.Path(sys.argv[1]).write_text(json.dumps({key: os.environ.get(key) for key in keys}))
+    if operation not in ("ready", "close"):
+        print(json.dumps({"operation": operation, "ok": False, "error": "environment-control-stop"}), flush=True)
+        sys.exit(1)
+    print(json.dumps({"operation": operation, "ok": True, "result": {"pid": os.getpid()}}), flush=True)
+    if operation == "close": sys.exit(0)
+'''
+
+
+class EnvironmentControls(unittest.TestCase):
+    def config(self, root, sdk):
+        return {"command": [sys.executable, "-u", "-c", ENVIRONMENT_PEER, str(root / sdk)],
+                "cwd": str(root), "environment": {
+                    "HF_HUB_OFFLINE": "0", "TRANSFORMERS_OFFLINE": "0",
+                    "FATHOMDB_POOL_MODE": "off", "FATHOMDB_POOL_RELEASE_THRESHOLD": "9",
+                    "SLICE130_ENV_CONTROL": "preserve-worker-setting"}}
+
+    def assert_environment(self, path, threshold):
+        self.assertEqual(json.loads(path.read_text()), {
+            "HF_HUB_OFFLINE": "1", "TRANSFORMERS_OFFLINE": "1", "FATHOMDB_POOL_MODE": "on",
+            "FATHOMDB_POOL_RELEASE_THRESHOLD": threshold,
+            "SLICE130_ENV_CONTROL": "preserve-worker-setting"})
+
+    def test_lifecycle_overlapping_worker_environment_reaches_child(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            config = self.config(root, "python")
+            # The peer stops before observations: this checks process environment,
+            # never a fabricated lifecycle or native qualification result.
+            with self.assertRaisesRegex(RuntimeError, "environment-control-stop"):
+                soak.run_lifecycle(config["command"], config["cwd"], config["environment"],
+                                   "max", root / "out")
+            self.assert_environment(root / "python", "max")
+
+    def test_soak_overlapping_worker_environment_reaches_both_children(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            commands = {sdk: self.config(root, sdk) for sdk in ("python", "node")}
+            limits = {"mem_floor_bytes": 1, "free_floor_bytes": 1, "storage_limit_bytes": 1048576,
+                      "arm_timeout_s": 3900, "request_timeout_s": 3}
+
+            def environment_control(sdk, mode, iteration, snapshot, emit):
+                return {"sdk": sdk, "pool_mode": mode, "aborted": None, "samples": []}
+
+            result = soak.run_concurrent_arm(commands, "on", root / "out", limits,
+                                             collect=environment_control)
+            for sdk in ("python", "node"):
+                self.assertEqual(result[sdk]["exit_code"], 0)
+                self.assert_environment(root / sdk, "0")
+                self.assertEqual(soak.evaluate_arm(result[sdk])["status"], "UNMEASURED")
+
+
+class NodeWorkerControls(unittest.TestCase):
+    def test_loaded_addon_paths_resolve_without_array_callback_options(self):
+        source = (Path(__file__).resolve().parents[2]
+                  / "dev/experiments/slice130-soak/node_consumer.mjs").read_text()
+        expression = source.split("const loaded = ", 1)[1].split(";\n", 1)[0]
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            addon = root / "installed.node"
+            addon.touch()
+            alias = root / "alias.node"
+            alias.symlink_to(addon)
+            # Evaluate the worker's actual cache-path expression against real
+            # filesystem paths, without loading an addon or claiming native work.
+            code = '''
+import { realpathSync } from "node:fs";
+const require = { cache: { [process.argv[1]]: {}, "ignored.js": {} } };
+console.log(JSON.stringify(''' + expression + '''));
+'''
+            completed = __import__("subprocess").run(
+                ["node", "--input-type=module", "-e", code, str(alias)],
+                capture_output=True, text=True, timeout=10,
+            )
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertEqual(json.loads(completed.stdout), [str(addon.resolve())])
+
+
 if __name__ == "__main__":
     unittest.main()

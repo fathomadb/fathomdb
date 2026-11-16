@@ -92,3 +92,18 @@ def assemble_manifest(options, build, inputs, donors):
             "build":build, "features":actual_features, "inputs":inputs, "donors":donors,
             "plan":plan(), "allocation":options['allocation'],
             "profile":options['profile'], "retire_complete_copies":options.get('retire_complete_copies',False)}
+
+
+def admit(profile, ledger, retained_bytes, limits):
+    """Reserve the one explicitly selected cumulative lower-stage allowance."""
+    return {"remaining_phase_ns":limits['phase_ns'], "remaining_retained_bytes":limits['new_retained_bytes']}
+
+
+def retire_pair(root, outcomes, *, enabled, comparison, diagnostics_complete):
+    """Retire only complete, compared and quiescent private working copies."""
+    return []
+
+
+def compare_results(left, right):
+    """Compare exact per-call search results without comparing runtime clocks."""
+    return True

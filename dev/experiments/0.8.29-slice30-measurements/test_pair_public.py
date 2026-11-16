@@ -91,5 +91,47 @@ class PairBuildBindingTests(unittest.TestCase):
         self.assertEqual(len(actual['plan']['primary']),136)
 
 
+class PairAdmissionTests(unittest.TestCase):
+    def test_calibration_carries_actual_shared_and_per_id_usage(self):
+        from g_pair import admit, CALIBRATION_ID
+        limits={'phase_ns':100*10**9,'payload_ns':70*10**9,'new_retained_bytes':1000}
+        profile={'total_shared_ns':1000*10**9,'total_shared_retained_bytes':10000,'reserved_other_work_ns':10*10**9,'reserved_other_work_bytes':100}
+        budget={'used_ns':50*10**9,'calibration_usage':{CALIBRATION_ID:{'limits':limits,'wall_ns':20*10**9,'new_retained_bytes':100}}}
+        result=admit(profile,budget,2000,limits)
+        self.assertEqual(result['remaining_phase_ns'],80*10**9)
+        self.assertEqual(result['remaining_retained_bytes'],900)
+        budget['used_ns']=900*10**9
+        with self.assertRaisesRegex(ValueError,'headroom'):
+            admit(profile,budget,2000,limits)
+
+    def test_exact_score_record_comparison_cannot_be_replaced_by_equal_public_ids(self):
+        from g_pair import compare_results
+        left={'samples':[{'ok':True,'ids':['h:equal'],'hits':[{'write_cursor':1,'score_bits':7,'source_id':'a'}]}], 'warmups':[], 'first_calls':[]}
+        right=json.loads(json.dumps(left));right['samples'][0]['hits'][0]['write_cursor']=2
+        self.assertFalse(compare_results(left,right))
+        right=json.loads(json.dumps(left));right['samples'][0]['elapsed_ns']=999
+        self.assertTrue(compare_results(left,right))
+
+    def test_only_validated_quiescent_pair_retires_its_real_working_stores(self):
+        import sqlite3
+        from g_pair import retire_pair
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary)
+            donor=root/'immutable.sqlite'
+            with sqlite3.connect(donor) as db: db.execute('CREATE TABLE data(value)');db.execute('INSERT INTO data VALUES(42)')
+            before=donor.read_bytes()
+            copies=[];outcomes=[]
+            for mode in ['winner','eager']:
+                working=root/'members'/mode/'subject/store.sqlite';working.parent.mkdir(parents=True)
+                working.write_bytes(before);copies.append(working)
+                outcomes.append({'status':'complete','complete':True,'cleanup_uncertain':False,'live_owned_pids':[],'store':str(working)})
+            self.assertEqual(retire_pair(root/'members',outcomes,enabled=True,comparison=False,diagnostics_complete=True),[])
+            self.assertTrue(all(path.exists() for path in copies))
+            retired=retire_pair(root/'members',outcomes,enabled=True,comparison=True,diagnostics_complete=True)
+            self.assertEqual(len(retired),2)
+            self.assertTrue(all(not path.exists() for path in copies))
+            self.assertEqual(donor.read_bytes(),before)
+
+
 if __name__ == '__main__':
     unittest.main()

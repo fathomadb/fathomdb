@@ -73,7 +73,7 @@ fn release(provider: &HeldEmbedder) {
 }
 
 fn task_disappeared(error: &std::io::Error) -> bool {
-    error.kind() == std::io::ErrorKind::NotFound
+    error.kind() == std::io::ErrorKind::NotFound || error.raw_os_error() == Some(libc::ESRCH)
 }
 
 #[test]

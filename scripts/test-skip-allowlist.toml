@@ -18,6 +18,46 @@
 # half on every fast-tier run).
 
 [[entry]]
+id = "fathomdb-embedder::lib::cuda_pool_policy::ordinary_oom_tests::gpu_ordinary_oom_preserves_generation_allocator_cleanup_and_retry"
+class = "ignored-by-design"
+reason = "Explicit ordinary-OOM qualification requires one separately reviewed exclusive CUDA child, a 120s outer deadline and resource floors; normal feature coverage must not activate this manual hardware-pressure control."
+
+[[entry]]
+id = "fathomdb-sdk::slice130_lifecycle::lifecycle_max"
+class = "ignored-by-design"
+reason = "Slice 130D manual Orin CUDA12.6 private-pool window: max-threshold first/last close and surviving forward require the reserved real-model venue; normal x86 feature coverage does not qualify this control."
+
+[[entry]]
+id = "fathomdb-sdk::slice130_lifecycle::lifecycle_zero"
+class = "ignored-by-design"
+reason = "Slice 130D manual Orin CUDA12.6 private-pool window: threshold-zero lifecycle requires the reserved real-model venue and its finite settling bound."
+
+[[entry]]
+id = "fathomdb-sdk::slice130_lifecycle::lifecycle_drop"
+class = "ignored-by-design"
+reason = "Slice 130D manual Orin CUDA12.6 private-pool window: implicit drop and last-model release require the reserved real-model venue and bounded cleanup."
+
+[[entry]]
+id = "fathomdb-sdk::slice130_lifecycle::lifecycle_exit_alive"
+class = "ignored-by-design"
+reason = "Slice 130D manual Orin CUDA12.6 private-pool window: normal process exit with a live model is a separately selected fresh-child lifecycle control."
+
+[[entry]]
+id = "fathomdb-sdk::slice130_lifecycle::lifecycle_cls_retains"
+class = "ignored-by-design"
+reason = "Slice 130D manual Orin CUDA12.6 private-pool window: the process-lifetime CLS singleton intentionally retains allocations after engine close; this is not a normal x86 feature-gate fixture."
+
+[[entry]]
+id = "fathomdb-sdk::slice130_lifecycle::lifecycle_reranker_retains"
+class = "ignored-by-design"
+reason = "Slice 130D manual Orin CUDA12.6 private-pool window: the process-lifetime reranker singleton intentionally retains allocations after engine close; this requires the reserved real-model venue."
+
+[[entry]]
+id = "fathomdb-sdk::slice130_lifecycle::slice130_child"
+class = "ignored-by-design"
+reason = "Private Slice 130D fresh-process entry point; only a selected bounded Orin lifecycle parent may supply FATHOMDB_SLICE130_CASE and invoke it with --ignored --exact."
+
+[[entry]]
 id = "fathomdb-embedder::aarch64_candle_cpu"
 class = "platform-excluded"
 excluded_on = 'not(all(target_arch = "aarch64", target_os = "linux"))'

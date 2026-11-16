@@ -7,7 +7,11 @@ import pytest
 
 from fathomdb._sdk_search import _map_native_snippet
 from fathomdb.errors import ProjectionGenerationError
-from fathomdb.read import _map_stored_head_coverage
+from fathomdb.read import (
+    StoredHeadCoverageAvailable,
+    StoredHeadCoverageUnavailable,
+    _map_stored_head_coverage,
+)
 
 
 def native():
@@ -30,16 +34,19 @@ def test_exact_integer_domains_and_frozen_variants():
     value.truncated_known_share = NS(numerator=value.truncated_known_records, denominator=value.known_records)
     value.unrepresented_known_byte_share = NS(numerator=value.unrepresented_known_bytes, denominator=value.known_body_bytes)
     got = _map_stored_head_coverage(value)
+    assert isinstance(got, StoredHeadCoverageAvailable)
     assert got.records == 9223372036854775807
     assert got.known_body_bytes == 340282366920938463463374607431768211455
     assert type(got.known_body_bytes) is int
     assert got.profile.dimension == 8 and type(got.profile.dimension) is int
+    assert got.unrepresented_known_byte_share is not None
     assert got.unrepresented_known_byte_share.numerator == 340282366920938463463374607431768211454
     with pytest.raises(FrozenInstanceError):
-        got.records = 0
+        setattr(got, "records", 0)
     for reason in ("cache_cold", "state_changed"):
         unavailable = NS(status="unavailable", population="stored_mapped_spans", profile=value.profile, reason=reason)
         got = _map_stored_head_coverage(unavailable)
+        assert isinstance(got, StoredHeadCoverageUnavailable)
         assert got.reason == reason and got.profile.dimension == 8
         assert not hasattr(got, "records") and not hasattr(got, "truncated_known_share")
 

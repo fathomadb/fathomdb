@@ -116,17 +116,19 @@ fn stored_coverage_failed_commit_cannot_publish_a_staged_capture() {
         connection
             .execute("UPDATE canonical_nodes SET reason='new snapshot' WHERE logical_id='n0'", [])
             .unwrap();
-        connection.authorizer(Some(|context: AuthContext<'_>| match context.action {
-            AuthAction::Transaction { operation: TransactionOperation::Unknown } => {
-                Authorization::Deny
-            }
-            _ => Authorization::Allow,
-        }));
+        connection
+            .authorizer(Some(|context: AuthContext<'_>| match context.action {
+                AuthAction::Transaction { operation: TransactionOperation::Unknown } => {
+                    Authorization::Deny
+                }
+                _ => Authorization::Allow,
+            }))
+            .unwrap();
     }
     assert!(engine.read_projection_generation_status().is_err());
     {
         let mut guard = engine.connection.lock().unwrap();
-        guard.as_mut().unwrap().authorizer(None::<fn(AuthContext<'_>) -> Authorization>);
+        guard.as_mut().unwrap().authorizer(None::<fn(AuthContext<'_>) -> Authorization>).unwrap();
     }
     assert_eq!(engine.stored_head_coverage.lock().unwrap().as_ref().unwrap().token, original.token);
     unavailable(engine, Reason::StateChanged);
@@ -685,4 +687,56 @@ fn stored_coverage_rebuild_and_erasure_invalidate_committed_facts() {
     unavailable(engine, Reason::StateChanged);
     engine.read_projection_generation_status().unwrap();
     available(engine, 0);
+}
+
+#[test]
+fn scored_extent_uses_original_utf8_byte_boundaries() {
+    let _serial = SEARCH_TRACE_LOCK.lock().unwrap();
+    let (_directory, opened) = fixture(1);
+    let guard = opened.engine.connection.lock().unwrap();
+    let connection = guard.as_ref().unwrap();
+    let cursor: u64 = connection
+        .query_row("SELECT write_cursor FROM canonical_nodes", [], |row| row.get(0))
+        .unwrap();
+    let body = "é猫";
+    connection.execute("UPDATE canonical_nodes SET body=?1", [body]).unwrap();
+    connection.execute("UPDATE _fathomdb_vector_spans SET body_length=5", []).unwrap();
+    for (end, expected) in [(0, Some(0)), (2, Some(2)), (5, Some(5))] {
+        connection.execute("UPDATE _fathomdb_vector_spans SET byte_end=?1", [end]).unwrap();
+        assert_eq!(
+            crate::vector_spans::scored_extent(connection, RecordKey::CanonicalNode(cursor), body)
+                .unwrap(),
+            expected
+        );
+    }
+    for end in [1, 3, 4] {
+        connection.execute("UPDATE _fathomdb_vector_spans SET byte_end=?1", [end]).unwrap();
+        assert!(crate::vector_spans::scored_extent(
+            connection,
+            RecordKey::CanonicalNode(cursor),
+            body
+        )
+        .is_err());
+    }
+}
+
+#[test]
+fn stored_coverage_includes_retained_history_but_excludes_unmapped_canonical_records() {
+    let (_directory, opened) = fixture(2);
+    let guard = opened.engine.connection.lock().unwrap();
+    let connection = guard.as_ref().unwrap();
+    connection
+        .execute("UPDATE canonical_nodes SET superseded_at=1 WHERE logical_id='n0'", [])
+        .unwrap();
+    connection
+        .execute("UPDATE canonical_nodes SET valid_from=4102444800 WHERE logical_id='n1'", [])
+        .unwrap();
+    let counts = crate::vector_spans::capture(connection).unwrap();
+    assert_eq!(counts.records, 2);
+    assert_eq!(counts.known_body_bytes, 20);
+    connection.execute("DELETE FROM _fathomdb_vector_spans WHERE write_cursor=(SELECT write_cursor FROM canonical_nodes WHERE logical_id='n0')", []).unwrap();
+    connection.execute("DELETE FROM _fathomdb_vector_rows WHERE write_cursor=(SELECT write_cursor FROM canonical_nodes WHERE logical_id='n0')", []).unwrap();
+    let counts = crate::vector_spans::capture(connection).unwrap();
+    assert_eq!(counts.records, 1);
+    assert_eq!(counts.known_body_bytes, 10);
 }

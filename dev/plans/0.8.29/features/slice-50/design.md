@@ -434,8 +434,11 @@ Original P/G attempts retain their stores under their existing contracts. This
 proposal explicitly amends **only new paired scope**, with a selected
 `retire_complete_copies` option: after complete pair comparison, required
 case-diagnostic completion, actual closes and strict native actor/cell-boundary
-quiescence, retire only that pair's disposable working DB/WAL/SHM copies. Retain
-raw calls/warmups/probes/writes/results, actual input/build/provider identity,
+quiescence, require finalized healthy report and original execution guardians
+for every required member before retiring only that pair's disposable working
+DB/WAL/SHM copies. Local retirement follows final guardian publication, reuses the shared ledger
+lock and charges its actual common work within the selected remaining limits.
+Retain raw calls/warmups/probes/writes/results, actual input/build/provider identity,
 pre/post counts/close facts and the immutable template/donor. Failed/incomplete/
 refused/uncertain pairs retain their copies. Never retire original G/P data,
 immutable donors/templates or another task's files. Reuse actual current retained

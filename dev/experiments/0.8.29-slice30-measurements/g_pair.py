@@ -285,6 +285,9 @@ def public_entry(operation, root, options=None):
         task=os.environ['S30_TASK'],admission=True,phase='S50',calibration=calibration,
         common_limit_ns=common,started_ns=began,
         primary_limits=(selected.get('primary_limits') if not calibration else None))
+    if (root / 'manifest.json').exists():
+        from g_pair_runtime import retire_qualified
+        retire_qualified(root, outcome)
     if operation != 'report':
         print(json.dumps(outcome))
     return outcome['exit']==0 and not outcome['cleanup_uncertain']

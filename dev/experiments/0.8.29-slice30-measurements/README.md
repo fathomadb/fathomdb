@@ -668,7 +668,10 @@ artifact and never enters ordinary percentiles. Exact ordered native calls,
 record cursors/score bits/sidecars, full populations and actual closes are checked
 before pair credit. `retire_complete_copies` defaults false; when explicitly
 selected it retires only compared complete disposable copies after required
-case diagnostics and known actor quiescence. Immutable donors/templates, original
+case diagnostics and known actor quiescence. Final report and each original
+execution guardian must qualify through the published report before deletion;
+local retirement holds the original ledger lock and charges actual common work
+within the selected remaining stops. Immutable donors/templates, original
 P/G histories, failed copies and raw calls/results remain retained.
 
 Before actual runtime, bind the exact applicable existing30 cell IDs/configs and

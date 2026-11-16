@@ -1,5 +1,6 @@
 """Private paired scope through the existing guardian, attempts, copies and native driver."""
 
+import fcntl
 import json
 import os
 from pathlib import Path
@@ -176,27 +177,12 @@ def control(manifest, owner):
 
 
 def finish(manifest, rows):
-    """Compare and report before optional strict quiescent disposable-copy retirement."""
-    from g_pair import report, retire_pair
+    """Record native comparison facts; the outer guardian must finalize before retirement."""
+    from g_pair import report
     root = Path(manifest['root'])
     result = report(root)
-    state = root / 'results/campaign-state.json'
-    history = json.loads(state.read_text()) if state.exists() else rows
-    previous = {row['id']: row for row in history}
     cached = root / 'results/report.json'
-    retired = json.loads(cached.read_text()).get('retired_copies', []) if cached.exists() else []
-    for name in (['calibration'] if manifest['scope'] == 'calibration' else ['primary', 'diagnostics']):
-        for pair in result['comparisons'][name]:
-            origin = pair['origin_id']
-            required = [item for item in result['comparisons']['diagnostics'] if item['origin_id'] == origin]
-            if name == 'calibration':
-                required = result['comparisons']['calibration']
-            outcomes = [previous[identifier] for identifier in pair['members']
-                        if identifier in previous and not previous[identifier].get('reference')]
-            retired += retire_pair(root / 'results', outcomes,
-                enabled=manifest['retire_complete_copies'], comparison=pair['complete'],
-                diagnostics_complete=all(item['complete'] for item in required))
-    result['retired_copies'] = retired
+    result['retired_copies'] = json.loads(cached.read_text()).get('retired_copies', []) if cached.exists() else []
     active = [cell['id'] for cell in manifest.get('_active_members', [])]
     window = bool(active) and all(pair['complete'] for name in ('primary', 'diagnostics')
         for pair in result['comparisons'][name] if set(pair['members']).issubset(active))
@@ -207,6 +193,64 @@ def finish(manifest, rows):
                   complete=False, calibration_complete=False, guardian_owner=budget['s50_guardian'])
     (root / 'results/report.json').write_text(json.dumps(result, indent=2, allow_nan=False) + '\n')
     return complete
+
+
+def retire_qualified(root, outcome=None):
+    """Retire disposable copies only after final report and original guardian qualification."""
+    from g_pair import CALIBRATION_ID, retire_pair
+    from g_pair_report import published_report
+    from m_guard import Accounting
+    root = Path(root)
+    manifest = json.loads((root / 'manifest.json').read_text())
+    cached = root / 'results/report.json'
+    if not manifest['retire_complete_copies'] or not cached.exists():
+        return
+    allocation = Path(manifest['allocation'])
+    with (allocation / 'g-campaign.lock').open('a') as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        budget = json.loads((allocation / 'g-budget.json').read_text())
+        if any(budget.get(key) for key in ('inflight', 'm_guardian', 'd_guardian', 'closed_guardian', 's50_guardian')):
+            return
+        began = time.monotonic_ns()
+        accounting = Accounting(allocation / 'g-budget.json', began, phase='S50')
+        try:
+            result = published_report(root)
+            if not result['phase_qualified'] or outcome and any(
+                    result['guardian'].get(key) != outcome.get(key)
+                    for key in ('started_monotonic_ns', 'controller_pid')):
+                return
+            limits = manifest['calibration'] if manifest['scope'] == 'calibration' else manifest['primary_limits']
+            common = (limits['phase_ns'] - limits['payload_ns'] if manifest['scope'] == 'calibration' else limits['common_ns'])
+            end = began + min(common - (outcome or {}).get('accounting', {}).get('common_ns', 0),
+                manifest['profile']['total_shared_ns'] - manifest['profile']['reserved_other_work_ns'] - budget['used_ns'])
+            if outcome:
+                end = min(end, outcome['started_monotonic_ns'] + limits['phase_ns'])
+            credited = {row['id'] for name in ('primary', 'diagnostics', 'calibration')
+                        for row in result[name] if row.get('credited')}
+            previous = {row['id']: row for name in ('primary', 'diagnostics', 'calibration') for row in result[name]}
+            retired = result.get('retired_copies', [])
+            for name in (['calibration'] if manifest['scope'] == 'calibration' else ['primary', 'diagnostics']):
+                for pair in result['comparisons'][name]:
+                    required = (result['comparisons']['calibration'] if name == 'calibration' else
+                        [item for item in result['comparisons']['diagnostics'] if item['origin_id'] == pair['origin_id']])
+                    diagnostics_complete = all(set(item['members']).issubset(credited) for item in required)
+                    if time.monotonic_ns() >= end:
+                        break
+                    outcomes = [previous[identifier] for identifier in pair['members']
+                                if identifier in previous and not previous[identifier].get('reference')]
+                    retired += retire_pair(root / 'results', outcomes, enabled=True,
+                        comparison=pair['complete'] and set(pair['members']).issubset(credited),
+                        diagnostics_complete=diagnostics_complete)
+            # Preserve native credit facts: published_report derives final credit on each read.
+            pending = json.loads(cached.read_text())
+            pending['retired_copies'] = retired
+            write_budget(cached, pending)
+        finally:
+            charged = accounting.finish(uncertain=False, stopped_ns=time.monotonic_ns())['charged_ns']
+            if manifest['scope'] == 'calibration':
+                budget = accounting.read()
+                budget['calibration_usage'][CALIBRATION_ID]['wall_ns'] += charged
+                write_budget(accounting.path, budget)
 
 
 def control_entry(operation, root, options, admission_fd):

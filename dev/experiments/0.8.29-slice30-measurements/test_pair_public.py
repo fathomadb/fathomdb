@@ -608,6 +608,8 @@ class PairIncrementalRetirementTests(unittest.TestCase):
                     finish(manifest,rows[2:])
                 self.assertTrue(all(Path(row['store']).exists() for row in rows),
                                 'native equality cannot override missing or failed original guardians')
+                budget=json.loads((root/'g-budget.json').read_text());budget['s50_guardian']=None
+                (root/'g-budget.json').write_text(json.dumps(budget))
                 from g_pair_runtime import retire_qualified
                 retire_qualified(root)
                 self.assertTrue(all(Path(row['store']).exists() for row in rows))
@@ -625,6 +627,8 @@ class PairIncrementalRetirementTests(unittest.TestCase):
                     finish(manifest,rows[2:])
                 self.assertTrue(all(Path(row['store']).exists() for row in rows),
                                 'current report/cleanup failure must preserve every copy')
+                budget=json.loads((root/'g-budget.json').read_text());budget['s50_guardian']=None
+                (root/'g-budget.json').write_text(json.dumps(budget))
                 from g_pair_runtime import retire_qualified
                 retire_qualified(root)
                 self.assertTrue(all(Path(row['store']).exists() for row in rows))
@@ -646,6 +650,8 @@ class PairIncrementalRetirementTests(unittest.TestCase):
             report['diagnostics'][0]['guardian_owner']=rows[2]['guardian_owner']
             with patch('g_pair.report',return_value=report):
                 finish(manifest,rows[2:])
+            budget=json.loads((root/'g-budget.json').read_text());budget['s50_guardian']=None
+            (root/'g-budget.json').write_text(json.dumps(budget))
             retire_qualified(root)
             self.assertTrue(all(Path(row['store']).exists() for row in rows),
                             'required diagnostic execution guardian must also qualify')

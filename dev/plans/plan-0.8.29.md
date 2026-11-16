@@ -148,7 +148,7 @@ new initial features receive mod10 numbers and explicit placement.
 | 10 | Approved workspace/environment/tool/dependency/doc/CI preparation; coordinated version decisions; state/board/views and selected rerunnable tools | Actual reviewed9 decisions and independent10 plan PASS; own implementation/final gate | [Preparation](0.8.29/features/slice-10/plan.md) |
 | 20 | Residual test hygiene, queue enqueue/drain race, warning/parallel failures and chunking tripwire constant test | Needed 10 preparation; current residuals verified rather than assumed | [Test/queue hygiene](0.8.29/features/slice-20/plan.md) |
 | 30 | Current 100k tracked AC-083 and baseline, write-interleaved/cache suitability, MCP/SDK/open/embedding, drain/300k follow-ups | Closed10 plus qualified Linux20/current70 for reviewed P only; G/D extension review, M20 proof and F frozen-input holds remain | [Measurement](0.8.29/features/slice-30/plan.md) |
-| 40 | Remaining eligibility cache and selected per-batch metadata work | 30 evidence; reviewed format37 snapshot/invalidation design; no automatic counter/schema fallback | [Eligibility/batch](0.8.29/features/slice-40/plan.md) |
+| 40 | Conditional disposition complete: no new eligibility or batch treatment selected | Existing Batch3 condition; benefit/safety prerequisites unestablished, reference paths retained; no measured-negative or extra owner approval | [Eligibility/batch](0.8.29/features/slice-40/plan.md) |
 | 50 | Fusion identity ADR/census, exact deferred-content text route and Unicode-safe record-start snippets | 30 baseline; accepted identity semantics before optimized production route | [Fusion/text](0.8.29/features/slice-50/plan.md) |
 | 60 | MCP compact text default and structured mode, flags, filtered direct text search, budgets/paging/errors | Existing .28 filter/flag support and reconciled accepted surface design; final parity on integrated fusion | [MCP surface](0.8.29/features/slice-60/plan.md) |
 | 70 | Remaining degradation labels, facade/SDK/native parity and UTF-8 contracts | Current failed-open contract and reviewed bounded reason scope | [Degradation/SDK](0.8.29/features/slice-70/plan.md) |
@@ -194,25 +194,23 @@ implements its accepted contract changes in the same reviewed scope.
 
 The unnumbered **Block 1 follow-up exit** requires integrated selected work in
 20–70, applicable full/feature/performance checks, MCP conformance in both
-formats and approved smoke/item-4 remeasure. It precedes 90 and is not 160,
-avoiding a 90↔close dependency cycle. Resolve inherited conformance failures
-against supported capabilities; no silent baseline waiver.
+formats and the approved smoke/item-4 comparison. Under owner seq392 it is a
+final integrated exit before local close, not a pre-source or pre90 smoke hold.
+The same72 episodes run once on the final integrated90 candidate after applicable
+source/performance/conformance/artifact qualification; independent remaining
+measurements remain final exits, rather than an invented paid-run sequence.
+Models, prompt, budget and fixtures are already approved. Parent records actual
+results; inherited conformance failures stay visible within their supported
+capability scope, without a silent baseline waiver.
 
-It is not a numbered slice. The Slice90 owner runs it as the pre-source entry
-step of90 (S90-R12), on the integrated root baseline, in the heavy window. It
-is complete when the Slice160 Q12 content has real results on that baseline:
-the checks and both-format conformance above with inherited failures resolved,
-plus the approved smoke and item-4 remeasure. The parent records that result in
-Slice90's state evidence. Each of20–70 enters it closed or, for conditional40,
-by its authorized rejection/defer. Its smoke model, prompt, budget and fixture
-are an open owner input; preparation and conformance triage do not wait for it.
-
-The [Slice40 evidence and artifact amendment](0.8.29/features/slice-40/measurement-plan.md)
-has independent Astra-medium PASS. It consumes qualified Linux20/A3/A5 and
-accepted P/G read artifacts; affected write-interleaved evidence and exact safety,
-tolerances and paired treatment qualification remain adoption conditions.
-Whole20/WindowsA6, whole30/M/D/F and TC5 are independent release gates, not
-blanket40 prerequisites. No cache or owner rejection/defer is selected.
+[Slice40 conditional disposition](0.8.29/features/slice-40/plan.md) is complete:
+no new treatment selected because benefit and snapshot-safety prerequisites were
+not established. Reference paths are retained under Batch3's existing conditional
+approval. Independent Astra-medium review accepted removing the extra local
+owner-choice stop; no owner rejection, future release allocation, optimization
+pass or measured negative is inferred. The table preserves every unqualified
+eligibility/batch opportunity and its adoption-only proof obligations. Whole30/M/D
+and current50 measurements remain their independent release gates.
 
 **Slice50's named-artifact entry amendment passed independent Astra-medium review
 on November14.** Closed10 plus qualified Linux451, accepted P2fd/G29de read
@@ -272,7 +270,7 @@ flowchart LR
     T -. MCP proof cells .-> M
     T --> E[Block 1 follow-up exit]
     M -->|accepted artifacts; writes for adoption| C[40 eligibility]
-    M --> F[50 identity and text]
+    M -->|accepted baseline artifacts| F[50 identity and text]
     S --> A[60 MCP]
     S --> D[70 SDK and degradation]
     C --> E
@@ -283,7 +281,7 @@ flowchart LR
     F -->|identity contract| B
     D -->|reason contract| B
     B --> I[90 B2 build]
-    E --> I
+    E --> Z
     H --> K[140 required fork repairs only]
     S --> R[110 source and seam repair]
     K -. affected pin change .-> R
@@ -296,7 +294,7 @@ flowchart LR
     Q --> Z
     U -. only if selected .-> Z
     T --> Z
-    C -. or authorized reject/defer .-> Z
+    C -. conditional no-adoption disposition .-> Z
 ```
 
 Edges into 80 denote settled contracts, not completion of the source feature
@@ -382,8 +380,8 @@ checklist, receipt or status authority; live results remain in release state.
 | Owner / lane | Next concrete delivery | Actual execution dependency |
 | --- | --- | --- |
 |30 measurements | Complete the conditional300k eight outcomes after independently accepted D16; finish M (11/46 qualified, foreign-GPU refusal retained and continuation correction active). G84 and frozen TC5 F/Q8 are independently qualified. | Existing reviewed native/input subjects and cumulative resource fit. D16 is independently accepted after both named100k replacements qualified. Original Storage/interruption history remains; cause UNKNOWN.300k consumes qualified lower evidence and fresh resource fit. No new calibration or completed replay. |
-|40 conditional optimization | Resolve the pending recommended no-new-optimization/defer decision. | Actual owner disposition; adoption would still require affected write evidence, exact snapshot safety and paired benefit proof. |
-|50 search | Complete paired performance of the implemented identity/text/snippet route. | Existing source-bound baseline/candidate/native subjects and available shared allocation; no private Memex snapshot. Twenty-six ordinary members qualified;110 ordinary+24 diagnostics remain. Final3providerfreeP pairs are running; G follows their actual exit. Required normal Q3 bodies are already assembled-qualified. |
+|40 conditional optimization | COMPLETE: reference paths retained; no new treatment selected for.29. | Existing conditional approval, reviewed evidence and unestablished adoption prerequisites; no extra owner approval or optimization pass. Future selection retains all safety/benefit proofs. |
+|50 search | Complete paired performance of the implemented identity/text/snippet route. | Existing source-bound baseline/candidate/native subjects and available shared allocation; no private Memex snapshot. All16providerfreeP pairs/32ordinary members are qualified;104G ordinary+24diagnostic members remain. G follows strict shared-allocation handoff and fresh fit. Required normal Q3 bodies are already assembled-qualified. |
 |90 Block2 | Implement the approved80 residuals alongside measurements under owner seq392; finish integrated qualification before local close. | Accepted80 and fresh qualified20/50/60/70 source-contract fit permit source entry. Required measurements/dispositions and applicable checks remain final exits; approved72episodes run once on final integrated90 candidate. |
 |160 local close | Run missing feature/performance checks and final affected-artifact qualification/rehearsal. | Final affected source/artifacts for claims; reuse accepted unchanged results. Mac-only/CI rows stay named outstanding. Review CI correctness after local passes, then run CI; registry publication excluded. |
 
@@ -394,8 +392,9 @@ distinct. Current160 installed CPU/CUDA consumers, Windows/WAL, ARM floors,
 long/security, archive SDK/CLI and actual GPU allocation/CPU-nonuse components
 are accepted within their source/artifact scope.
 
-The delivery spine is parallel30/50 measurements and90 implementation, plus the40
-disposition → integrated qualification including72episodes → affected160 close. Smoke models/dataset/IDs/budget are
+The delivery spine is remaining30/50 measurements alongside final90 qualification
+including the same72episodes once → affected160 close.40 conditional disposition
+is complete with no new optimization; it introduces no extra owner-choice stop. Smoke models/dataset/IDs/budget are
 already approved at seq388; do not reopen them.150 has no selected study and adds
 no execution or completion dependency.120/CUDA13, real resets and fork B/C retain
 the owner's future release allocations. Non-Tegra ARM+GPU remains excluded by
@@ -417,8 +416,9 @@ actual integrated source-contract fit check. No measurement or final gate is wai
 The finite D ordinary-replacement proposal is a separate technical amendment
 within the existing ordinary-test authority/cumulative caps, not a new human
 permission request by inference; it must preserve failed attempts and pass review
-before execution. Slice40 still needs its actual conditional-scope disposition
-after the completed-G84 evidence refresh.
+before execution. Slice40 now retains reference paths under its existing
+conditional authorization after the completed-G84 evidence refresh; no new
+treatment or additional owner decision is required.
 
 Use one coherent design review and one fresh implementation/results review for
 each substantive scope. Related helper work belongs in that scope, not in serial
@@ -434,4 +434,4 @@ the substantive work; do not create receipt-only follow-up phases.
 <!-- BEGIN GENERATED release-state:0.8.29:plan-immediate-next -->
 **IMMEDIATE NEXT: Slice 30** (`MEASURE`) — Current source-bound baseline and tracked AC083 measurements
 
-**Remaining ladder:** 30 → 40 → 50 → 90 → 160.<!-- END GENERATED release-state:0.8.29:plan-immediate-next -->
+**Remaining ladder:** 30 → 50 → 90 → 160.<!-- END GENERATED release-state:0.8.29:plan-immediate-next -->

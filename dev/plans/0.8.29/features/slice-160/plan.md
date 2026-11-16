@@ -48,7 +48,8 @@ Current accepted exits and assembled-source limits are in
 source and each matrix row's inputs; do not rerun a proposal census or copy stale
 status into this plan.20,60/70/80 and100 have accepted selected exits;110/140's
 selected source/healthy/OOM/consumer scope has independent acceptance.30 and50
-still owe their remaining measurements;40's owner choice and72's model episodes
+still owe their remaining measurements;40 retains reference paths under its
+completed conditional disposition, and72's model episodes
 remain open.130D/E are accepted. Under owner seq392,90 source implementation
 proceeds before whole Block1 closure; its accepted full80 source is integrated.
 The remaining Block1 obligations gate final integrated qualification.

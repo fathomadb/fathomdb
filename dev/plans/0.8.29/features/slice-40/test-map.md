@@ -1,6 +1,7 @@
 # Slice 40 conditional test strategy
 
-Status: proposed test obligations, no tests written or executed. Exact tests
+Status: adoption-only test obligations; inapplicable to the unchanged .29
+implementation. No new treatment tests were written or executed. Exact tests
 are selected only after actual30 benefit evidence and concrete safety review.
 Existing coverage must be read before claiming a gap; no passing-on-arrival test
 can satisfy the required runtime RED. Use owned real WAL databases, existing

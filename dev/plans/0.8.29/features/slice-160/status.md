@@ -253,7 +253,7 @@ they are distinct from the successful later container execution.
   source/healthy/OOM/consumer scope is independently accepted.30's remaining
   G/M/D campaigns and50's paired observations remain incomplete; the
   [release state](../../../release-state-0.8.29.json) owns their current progress.
-- 40 disposition and the exact approved72 model episodes remain parent-owned
+- 40 conditional disposition is complete with no new treatment; the exact approved72 model episodes remain parent-owned
   integrated exits. Selected130 D/E is independently accepted; full90 source is
   independently accepted under seq392 and is integrated.
 - Current affected d226 three-target CPU, CUDA12.6 driverless and source-archive

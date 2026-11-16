@@ -232,9 +232,9 @@
         "dev/plans/0.8.29/features/slice-30/continuation-gd.md",
         "dev/plans/0.8.29/features/slice-30/continuation-m.md"
       ],
-      "phase": "G84_F_QUALIFIED_D21_FINAL_OVERLAP_RUNNING_M11_S50P32",
+      "phase": "G84_F_QUALIFIED_D22_FINAL_OVERLAP_RUNNING_M11_S50P32",
       "plan_sha": "bea7f05cd2497af0d73c6eb8da509e11a947ca08",
-      "conditions": "G84/84 and F/Q8 accepted. D21/24 actual qualified rows, including the bounded C-r1 replacement with original interruption retained; final overlap4 actually running. Final D cohort review follows all required outcomes. M11/46 qualified; S50 all16P pairs/32ordinary qualified,104G ordinary+24diagnostic remain. Original failures/outliers/charges retained.",
+      "conditions": "G84/84 and F/Q8 accepted. D22/24 actual qualified rows, including the bounded C-r1 replacement with original interruption retained; final overlap4 actually running. Final D cohort review follows all required outcomes. M11/46 qualified; S50 all16P pairs/32ordinary qualified,104G ordinary+24diagnostic remain. Original failures/outliers/charges retained.",
       "evidence": "Accepted P/G84/F-Q8 baselines retain original native identities. D100k replacements accepted; original Storage cause UNKNOWN, private diagnostic gives no ordinary credit. M43776233 correction accepted and merged533dd83e7; focused integration Astra ACCEPT with82M/57D/56S50 controls PASS. Whole30 remains open on D/M and current S50 performance.",
       "qualified_subset_sha": "2fd772558e46d0b1645dce2ffea730d0bdd3305c",
       "continuation_plan_sha": "0d8be5bb75516955ebf99b94913b9b54921bb3a4",
@@ -788,7 +788,7 @@
         "start_retained_bytes": 92028249119,
         "bounds": "C3682246831800ns/12130916976B;T3788445509580ns/11964028572B;total14941384682760ns/48189891096B. Original D109/nativea512,8GiB/zero swap/16GiB entry/8GiB stop/4500s each/18080s outer/common60. Stop first failure; no auto retry or other-study dispatch.",
         "logs": "/mnt/data/tmp2/fathomdb-0829-continuation/slice30-d-runtime-limits-20261116/remaining/d-300000-overlap",
-        "progress": "C-overlap-r0 qualified1388.658847984s,300000physical/0errors/completeobservations/actual_overlaptrue/dropped0;T-r0 running. Same invocation, no retry or other-study dispatch; final cohort review follows all24."
+        "progress": "C-r0 qualified1388.658847984s/physical300000/error0/actual_overlaptrue/dropped0;T-r0 qualified1384.534421133s/physical300000/error0. Same unit T-r1 running, then C-r1. No failure/retry/other-study dispatch; final actual cohort review follows all24."
       }
     },
     {
@@ -798,7 +798,7 @@
       "depends_on": [
         10
       ],
-      "status": "IN_PROGRESS",
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
       "design_refs": [
         "dev/plans/0.8.29/features/slice-40/acceptance.md",
         "dev/plans/0.8.29/features/slice-40/design.md",
@@ -809,9 +809,10 @@
         "dev/plans/0.8.29/features/slice-40/review-log.md",
         "dev/plans/0.8.29/features/slice-40/test-map.md"
       ],
-      "conditions": "Accepted bounded artifact amendment consumes qualified Linux20/A3/A5 and named accepted30P/G read artifacts, not whole20/30, WindowsA6, M/D/F or TC5. Adoption still requires affected write-interleaved baseline, exact snapshot/invalidation or batch-invariance proof, bounded ownership, prospective tolerances and paired treatment qualification. No treatment selected; the real hybrid opportunity stays open. Whole40 closure by rejection/defer requires an actual owner disposition; none is recorded.",
-      "phase": "CURRENT_G84_DISPOSITION_PACKAGE_ASTRA_ACCEPTED_OWNER_CHOICE_PENDING",
-      "evidence": "CompletedG84suppliesbothreadrepeats/all72writes. Historicalall-true48-49ms/~32%G-Odirectscanremainsmaterialbutnotcurrentuniversalshare. G-Wsupersededrowsmakeguardedcheckfalse/earlyexit(sourceinference,nottimedcomponentproof). Noactualcachetreatment/hitrate/keycost/snapshotinvalidationorbatchdescriptorbenefitproof. IndependentAstraacceptedrefreshedexistingtableproposingnonewtreatment.29;actualownerselectionstillrequired. G-incomplete/missinghybridwritesareNOTdeferralreasons."
+      "conditions": "Batch3 authorizes caching only if measured benefit and snapshot safety justify adoption. No new treatment selected for.29 because adoption prerequisites were not established; reference paths retained. Additional local owner-choice stop removed after independent Astra-medium review found no owner instruction or accepted ADR requiring it. Adoption-only A40-2/3/4 proofs inapplicable to unchanged implementation, retained for future selection. No owner rejection/deferral, future-release allocation, measured negative, optimization pass or mandatory-gate waiver.",
+      "phase": "CONDITIONAL_DISPOSITION_COMPLETE_NO_NEW_TREATMENT",
+      "evidence": "AcceptedP/G84reference schedules and reviewed opportunity table distinguish existing reuse from material/unproved opportunities. Historicalall-true48-49ms/~32%G-Odirectscan remains material in its original population, not current universal share; G-W early-exit inference is not timed component proof. No paired candidate benefit/hit/miss/key/invalidation, snapshot/ownership or batch-descriptor invariance establishes adoption. Independent Astra-medium ACCEPT existing-authorization interpretation and non-adoption scope; source unchanged. Fresh final independent Astra-medium ACCEPT of the coherent17-file correction; no source, test or numerical target changed.",
+      "sha": "c72cfd8109ce27a551120a739443815e0eaeab15"
     },
     {
       "slice": 50,
@@ -1008,9 +1009,9 @@
         "dev/plans/0.8.29/features/slice-90/status.md",
         "dev/plans/0.8.29/features/slice-90/test-map.md"
       ],
-      "conditions": "Owner seq392 supersedes the whole-Block1 pre-source hold: accepted80 plus fresh actual integrated qualified20/50/60/70 source-contract fit and accepted independent design permit90 implementation while measurements continue. Whole50 closure is an integrated qualification exit, not a source dependency. All selected30/50 measurements,40 disposition, applicable correctness/performance/conformance/artifact gates remain required before local close. Run the exact seq38872 episodes once on the final integrated90 candidate with unchanged models, fixtures, scoring, budget and stops. Final local passes then CI review then CI; publication excluded.",
+      "conditions": "Owner seq392 supersedes the whole-Block1 pre-source hold: accepted80 plus fresh actual integrated qualified20/50/60/70 source-contract fit and accepted independent design permit90 implementation while measurements continue. Whole50 closure is an integrated qualification exit, not a source dependency. All selected30/50 measurements,completed40 conditional disposition, applicable correctness/performance/conformance/artifact gates remain required before local close. Run the exact seq38872 episodes once on the final integrated90 candidate with unchanged models, fixtures, scoring, budget and stops. Final local passes then CI review then CI; publication excluded.",
       "phase": "FULL_SOURCE_ASTRA_ACCEPTED_INTEGRATED_FINAL_QUALIFICATION_PENDING",
-      "evidence": "Full80 implementation independently Astra accepted at261c5698f10170fe826e05cac160f15ac9f264a2 and integratede57e0874fabc893888b01362b4cfc6bb0701b31a. Actual semantic RED/GREEN includes installed Python/TS before shared converters; actual malformed-null decoder path bug separately repaired.13realengine cache/identity/snapshot/SQL-work controls,29installedPython,3installedTS,4nativeconverter andSDK consumer controls PASS; field census/module132/static409targets/lint/typechecks PASS. Root final broad gate, affected artifacts, remaining measurements/40 disposition and exact72episodes once remain pending.",
+      "evidence": "Full80 implementation independently Astra accepted at261c5698f10170fe826e05cac160f15ac9f264a2 and integratede57e0874fabc893888b01362b4cfc6bb0701b31a. Actual semantic RED/GREEN includes installed Python/TS before shared converters; actual malformed-null decoder path bug separately repaired.13realengine cache/identity/snapshot/SQL-work controls,29installedPython,3installedTS,4nativeconverter andSDK consumer controls PASS; field census/module132/static409targets/lint/typechecks PASS. Parent combined qualification, remaining measurements and exact72episodes once remain pending. Slice40 conditional disposition is complete; source/artifact qualification retains the scoped results in160.",
       "block1_smoke_runner": {
         "source": "db2857c3012f8bdd245d1c6f80a419eff324030d",
         "integrated": "73eb4cf7d45a3ceed3bdce20256f84d7d1c76d91",
@@ -1035,7 +1036,7 @@
         }
       },
       "current_design_sha": "72d9e2b1346dafc179f93f82d835bba20f682954",
-      "current_design_review": "Independent Astra-medium ACCEPT full owner-approved80 reconciliation and actual source fit87bc. Seq392 permits implementation before whole Block1 exit; remaining measurements/40 disposition/model episodes stay final integrated exits.",
+      "current_design_review": "Independent Astra-medium ACCEPT full owner-approved80 reconciliation and actual source fit87bc. Seq392 permits implementation before whole Block1 exit; remaining measurements/40 disposition/model episodes stay final integrated exits. Slice40 conditional disposition is now complete with no new treatment under existing Batch3 authorization.",
       "source_entry": {
         "worktree": "/mnt/data/worktrees/fathomdb-0.8.29-s90-implementation-20261116",
         "branch": "llm/0.8.29-s90-implementation-20261116",
@@ -1393,7 +1394,7 @@
         "dev/plans/0.8.29/features/slice-160/status.md",
         "dev/plans/0.8.29/features/slice-160/test-map.md"
       ],
-      "conditions": "Every selected mandatory outcome qualified or explicitly disposed; actual installed/publication proof separate.20 closes only with actual Windows A6;40 may close by authorized rejection/defer;30/50/60/70/80 reach160 through90. Optional140/150 only if selected. Finished bounded local tasks are not local completion: every selected mandatory installed/platform (Q14) row and release dry-run (Q18) part that a permitted local or owned venue can qualify stays open until qualified there. The local mandate completes only when the remaining rows need CI after local passes and CI correctness review, or excluded registry publication; each is named outstanding, neither waived nor passed. Publication held. Owner seq377 explicitly defers live reset qualification to.30; seq378 defers new CUDA13 delivery/compiler/new-artifact proof to.31; seq379 accepts usage limits. These exclusions are owner dispositions, not passing tests. Existing platform/artifact rows remain. Seq381 also reallocates130A CUDA13 Tegra qualification to.31 while130D/E remain mandatory in.29;seq387 excludes unavailable non-Tegra ARM+GPU B/C.",
+      "conditions": "Every selected mandatory outcome qualified or explicitly disposed; actual installed/publication proof separate.20 closes only with actual Windows A6;40 conditional scope is complete by independently reviewed non-adoption under existing Batch3 authorization;30/50/60/70/80 reach160 through90. Optional140/150 only if selected. Finished bounded local tasks are not local completion: every selected mandatory installed/platform (Q14) row and release dry-run (Q18) part that a permitted local or owned venue can qualify stays open until qualified there. The local mandate completes only when the remaining rows need CI after local passes and CI correctness review, or excluded registry publication; each is named outstanding, neither waived nor passed. Publication held. Owner seq377 explicitly defers live reset qualification to.30; seq378 defers new CUDA13 delivery/compiler/new-artifact proof to.31; seq379 accepts usage limits. These exclusions are owner dispositions, not passing tests. Existing platform/artifact rows remain. Seq381 also reallocates130A CUDA13 Tegra qualification to.31 while130D/E remain mandatory in.29;seq387 excludes unavailable non-Tegra ARM+GPU B/C.",
       "phase": "FINAL90_SOURCE_AND_CURRENT_GPU_ACCEPTED_D_OVERLAP_RUNNING_MEASUREMENTS_PENDING",
       "evidence": "IndependentAstraaccepted actualQ10longvariants,threeverifiedleafpackages,missingAC037live;Linuxx64/ARM64CPU2.28wheelsanddeclaredaddonfloors/strictTS/runtime/graph/frozen/modelCPUcontrols;Windowsproduction186tests/wheelsize/tenWAL+external+installedcontrols;canonicalCUDA12.6wheel2.28/NAPI2.39linkage/driverless/fourtypedrefusals;source-archiveRustSDKpersist/reopenandCLIimmutableintegrity. Source/target/nativeorigins,originaltaskfailures andARMmonitoringdeviation retained. No inventedx64CPUaddon2.28promise. ActualabccCUDApairGPUallocation/PIDUUIDandbothAC082dCPUnegative/CUDApositivepairsnowindependentlyAstraACCEPTattool686d:128MiBmodeldelta>=64MiBfloor,completeCPUtraces/loaders,noCUDAaccess,alllifecycleexit0/strictcleanup/FD9released. Mac/final90artifactapplicability,remainingfeature/performance/complete rehearsalstayopen;localpasses->CIreview->CI,registrypublishheld. IndependentAstraaccepted clean686d releaseperformance:AC011a1538.787/s>=1000,b268.069/s>=100;AC012n10000p50/p991/3ms,AC013n10000dim768p50/p9963/73ms;7freshAC081hard500/100mspasses,seq337.851121\u2013344.381150mswarnings/concurrent46.958327\u201352.513726ms. RealAC073stressN1000p9943ms<=150,N7667p9946ms<=316pass. OriginalEU7overallexit101/legacyrecallci_hi.897/.801remainfailed/unqualified;separateTC5F/Q8qualificationunchanged. Nohelperdefect/fakeRED/fix;originalplannedREDwrapperexit1wasexpectationonly. DCPUnoiseobserved/noquietclaim,noconcurrentbuildtimings. Q3/final90/rehearsalstillopen. Q3normalfeaturecampaignnowSOURCE+ASSEMBLEDQ3AstraACCEPTat5176860192cb3b2d82618f76251af44779ed6c37:30actualruns/230planned/207passed0runtimefailed23ignored. Exactrecordedmatrixextras+8manualignoredentriesandlibrary-IDresolverRED/GREENrevalidatedSAMEimmutablelogs;no passingreplay. OriginalEXIT1/10metadatafailuresandinterruptedwriterEXIT143retained.12unchangedoptin-exclusionlistingfreshnesschecksretainoriginalno-staleresultonly;nonewlistedIDclaim.403target/44gateonlystaticcoveragePASSafterrootintegration. Ignoredarenotpasses/manualfaultqualification;final90applicabilityremains.",
       "qualified_subset_sha": "b07a161317ff753b86b5eb706e7c5e761adecb9a",
@@ -1405,7 +1406,7 @@
         "accepted_corrections": "Integrated through ec54f833c981d9b0f878a407b7df0d15aa4d6842: current MCP fixture/field census, strict approved compact-contract oracle reconciliation, typed embedder-profile admission before deferred coverage-token failure, and narrowly handled enumerated /proc ESRCH race. Genuine RED/GREEN plus independent Astra ACCEPT; original failing tests retained.",
         "module_gate": "Unchanged standalone gate PASS29+5 tests and132 modules/128 configurations under owned config-free Cargo home; exact --locked preserved. First sandbox read-only fixture refusal retained.",
         "q3_affected": "35 distinct affected normal-feature test IDs assembled PASS with independent Astra ACCEPT; original observer missing-Python failures retained. Unchanged prior Q3 scope reused explicitly, not retagged or rerun.",
-        "remaining": "Current ordinary unchanged AC011a passed1482.090/s in fixed host comparison; no production cache change. Fresh GPU artifact2+4/MCP14 probes passed and independent Astra-medium accepted their actual runtime cohort. Scientific D/M/S50,40 disposition, same72 once and CI review/execution remain. Earlier failures retained.",
+        "remaining": "Current ordinary unchanged AC011a passed1482.090/s in fixed host comparison; no production cache change. Fresh GPU artifact2+4/MCP14 probes passed and independent Astra-medium accepted their actual runtime cohort. Scientific D/M/S50, same72 once and CI review/execution remain. Earlier failures retained. Slice40 existing conditional disposition complete with no new optimization and no additional owner approval.",
         "episodes": "The same approved72 episodes have not run. Run once against the final integrated candidate after applicable qualification; no additional calibration/rehearsal episodes.",
         "delivery": "Local passes, then review CI scripts before running appropriate CI; registry publication excluded.",
         "hints_failed_only": "One exact original unoptimized executable resumption PASS1/1 in7.37s; SHA2563f94cd2e7e9eb39ecd83456d5679ba6c4d18f435a1d56039ca52a6fe6b7b7860, original serial argument/environment/cwd. Original290.4us>200 failure and warnings retained; new numerical statistics captured/unavailable. No profile substitution or additional resumption.",
@@ -1429,7 +1430,6 @@
   "next_slice": 30,
   "remaining_ladder": [
     30,
-    40,
     50,
     90,
     160
@@ -1637,11 +1637,6 @@
     ],
     "unruled": [
       {
-        "id": "slice40-treatment-disposition",
-        "title": "Existing owner question pending: proposed no new cache/batch treatment in.29; retain opportunity for later measured treatment. No disposition inferred.",
-        "owner_slice": 40
-      },
-      {
         "id": "optional-experiments",
         "title": "Individual150 study inclusion or explicit defer remains pending.",
         "owner_slice": 150
@@ -1670,7 +1665,7 @@
   },
   "release_readiness": {
     "status": "NOT_READY",
-    "qualification": "Full90/corrective source independently accepted/integrated; original239 collector228PASS/8FAIL/3explicit skips plus accepted scoped resumptions retained. Refreshed CPU/driverless/archive components and current GPU2+4/MCP14 runtime cohorts independently Astra ACCEPT. Matched unchanged OLD1495/current1482 writes/s both pass1000; prior760/993 failures retained, no material code regression reproduced, no production cache change. Other current throughput/reader/long and original unoptimized hints resumptions passed. G84/F-Q8 accepted; D21actual/final overlap running, M11/46, S50P32/136ordinary with104G+24diagnostic remain.40 disposition and same72 once pending. Local passes then CI review/execution; registry publication excluded; VM32 restoration due.",
+    "qualification": "Full90/corrective source independently accepted/integrated; original239 collector228PASS/8FAIL/3explicit skips plus accepted scoped resumptions retained. Refreshed CPU/driverless/archive components and current GPU2+4/MCP14 runtime cohorts independently Astra ACCEPT. Matched unchanged OLD1495/current1482 writes/s both pass1000; prior760/993 failures retained, no material code regression reproduced, no production cache change. Other current throughput/reader/long and original unoptimized hints resumptions passed. G84/F-Q8 accepted; D22actual/final overlap running, M11/46, S50P32/136ordinary with104G+24diagnostic remain. Slice40 conditional disposition complete with no new optimization; same72 once pending. Local passes then CI review/execution; registry publication excluded; VM32 restoration due.",
     "publication": "HELD; no tag, dispatch, external ACL mutation or registry publication authorized by bootstrap.",
     "local_source_phase": {
       "status": "ASSEMBLED_FULL_SOURCE_PASS_INDEPENDENT_ASTRA_ACCEPTED",

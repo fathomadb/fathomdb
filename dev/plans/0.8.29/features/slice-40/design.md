@@ -1,6 +1,8 @@
 # Slice 40 conditional design and source inventory
 
-Status: proposed; no concrete treatment selected. Source is frozen
+Status: .29 retains reference paths with no treatment selected; the design below
+is conditional guidance for any future adoption, not a qualified optimization.
+The source inventory is frozen
 `2f6913c1d59ac8ff3a30de835b57290a8635998c`. Symbols below are checked against
 that tree. [Measurement](measurement-plan.md) must precede selection.
 

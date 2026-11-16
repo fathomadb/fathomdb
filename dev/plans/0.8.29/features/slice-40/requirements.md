@@ -1,6 +1,8 @@
 # Slice 40 local needs and requirements
 
-Status: proposed conditional requirements, not a canonical acceptance amendment.
+Status: conditional disposition complete with no new treatment selected for .29;
+the requirements below remain mandatory for any future selected treatment. This
+is not a canonical acceptance amendment.
 The [plan](plan.md) owns the current predecessor/input holds. These requirements
 refine master N29-S/R29-REL-S; existing release targets remain unchanged.
 

@@ -1,45 +1,25 @@
-# Proposed Slice 40 release requirement and plan mapping
+# Slice 40 release mapping
 
-Status: bounded proposal for main-session integration; no release master,
-canonical requirements/acceptance, release JSON, generated region or ledger is
-edited. Main session owns any eventual durable state update.
+The .29 conditional disposition is complete: no new treatment selected; adoption
+prerequisites were not established; reference paths retained. This applies the
+existing Batch 3 approval rather than recording a new owner rejection/deferral.
+Independent Astra-medium review accepted removing the extra owner-choice stop.
 
-## Existing release requirement
+Master **N29-S / R29-REL-S** remains exact retrieval at scale. Accepted P and all84
+G reference outcomes support the [opportunity table](measurement-plan.md#concrete-opportunity-and-disposition-table),
+not a cache-treatment speedup or current universal component share. Eligibility
+and batch opportunities retain separate dispositions and unresolved adoption
+obligations. [R40-1–10](requirements.md) and [A40-1–5](acceptance.md) remain local
+refinements; locked canonical requirements/acceptance are unchanged.
 
-Retain master **N29-S / R29-REL-S**: exact retrieval holds up at scale. Slice40
-contributes only measured eligibility/batch cost reduction that preserves exact
-snapshot/pre-cap behavior. [R40-1–10](requirements.md) and [A40-1–5](acceptance.md)
-are local refinements. Slice30 supplies current baseline; Slice50 retains its
-independent identity census/ADR and exact-search decision. 40 is preferred
-before50, not its semantic gate.
+- A40-2/3/4 treatment proofs are inapplicable to the unchanged .29 implementation and remain required for any later selection. No fake RED, cache prototype or adoption-only campaign is created to close conditional scope.
+- Slice20 is closed; G84 and TC5 F/Q8 are independently accepted. Required30/M/D and current50 measurements remain separate release obligations.40 before50 is preferred sequencing, not its semantic gate. No private Memex snapshot is required.
+- Preserve accepted AC-072/076 binding10k latency tiers and original statistics, AC-075 TC5 reconciliation/frozen bridge and recall0.90/accepted CI rule. Larger tracked tiers become no new gate.
+- AC-083 remains tracked, not gated:100k LongMemEval text p50≤80ms/p99≤300ms. This disposition is not its measurement or pass.
+- No format37/database migration, new public API, schema/counter fallback, ranking/candidate change or performance-gate waiver follows.
+- The same approved72 final90 episodes, remaining measurements, combined160 qualification and CI retain their requirements. Registry publication is excluded; no release-ready or published claim follows.
 
-Suggested non-generated master prose: “Slice40 remains conditional on actual30
-read-mostly and write-interleaved evidence and a reviewed concrete snapshot or
-batch-invariance design. Existing caching/hoists are baseline. Each opportunity
-may be selected, not selected or deferred with evidence; accepted30 P and11 G
-read results exist, write-interleaved results do not. Missing inputs cannot be replaced by an invented prototype or schema.”
-
-## Unchanged acceptance and targets
-
-- Preserve accepted AC-072/076 binding 10k latency tiers and their existing sample/statistic rules; larger tracked tiers do not become new gates. Do not reinstate superseded unconditional 100k legacy budgets.
-- Preserve current accepted AC-075 TC5 reconciliation and exact frozen bridge inputs, including recall floor 0.90/accepted CI rule and unchanged candidate/rerank configuration. Canonical historical EU7 prose is not authority to substitute a different pack; accepted.28 qualification/reconciliation governs current receipt selection.
-- Preserve all other applicable accepted release gates, including read-performance/projection correctness contracts; Slice40 invents no gate waiver, page-cache confirming run or new performance target.
-- AC-083 remains owner-authorized **tracked, not gated**: 100k LongMemEval text p50≤80 ms and p99≤300 ms. This package neither mints its canonical entry nor claims it measured/passed.
-- No new canonical AC numbers or changes to locked `dev/acceptance.md`/`dev/requirements.md` are proposed. Concrete public API/interface/ADR changes, if unexpectedly required, return for review rather than enter through local optimization requirements.
-
-## Present readiness
-
-Slice10 complete; integrated20 Linux subset is not whole20 exit. A3/A5 proofs
-are integrated under seq-369; WindowsA6 remains pending. 30 has accepted P
-direct-text results and11 qualified G cases; it still lacks the exact TC5 bridge
-pack on disconnected UUID `C8D47C11D47C03CA`, its73 cap-refused G cases
-(including write-interleaved cells), M and D. No new live Memex database
-access/copy/write is part of40. The60 format/filter/budget subset and complete70
-reasons are integrated; reread them at source entry. The80 stored-span aggregate
-proposal is not a settled source contract for40 to absorb.
-
-This package can receive a **bounded design review**. It cannot justify source
-entry, treatment selection, runtime acceptance, release readiness or publication.
-After actual30, rebase the source inventory/proofs on integrated predecessors,
-review the exact proposed treatment and prospective tolerances, or record a
-supported not-selected/deferred disposition. Do not mark40 complete today.
+The release-state JSON records completed scope disposition separately from an
+unqualified optimization. Existing authority/safety/test obligations must be
+rechecked against actual source before any future adoption; no future release
+is assigned this work here.

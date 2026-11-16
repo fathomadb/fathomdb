@@ -28,8 +28,9 @@ Owner seq392 permits90 source after retained full80 approval, accepted90 design
 and fresh integrated20/50/60/70 source-contract fit while measurements continue.
 20 Windows/common-source,60/70,80 design,100 and selected110/140 are closed.
 Current both-format conformance is accepted in its actual scope; TC5 inputs and
-seq388 smoke models/dataset/IDs/budget are resolved. Remaining30/50 measurements,
-conditional40 owner disposition and applicable feature/performance/conformance
+seq388 smoke models/dataset/IDs/budget are resolved. Slice40's existing conditional
+scope is complete with no new optimization; it adds no further approval stop.
+Remaining30/50 measurements and applicable feature/performance/conformance
 checks remain final integrated exits. The same72approved native-format episodes
 run once on final integrated90 before local close.
 Counts and technical limits are in [status](status.md); no model run or scientific

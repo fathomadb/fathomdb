@@ -30,7 +30,7 @@ Existing AC-031, AC-060a, AC-068a/b, AC-069, AC-074 and affected
 AC-072/075/076/081 controls remain canonical. Tracked AC-083 is not a new gate.
 None alone proves these new local behaviors.20 Windows/common-source,60/70,
 100 and selected110/140 closure are retained; full80 approval is settled. The
-remaining Block1 measurements, conditional40 choice and72 approved episodes
-remain final integrated exits as listed in [status](status.md), without blocking
+Slice40 conditional disposition is complete with no new treatment. Remaining
+Block1 measurements and72 approved episodes remain final integrated exits as listed in [status](status.md), without blocking
 seq392-authorized source entry. Scoped Markdown validation
 cannot discharge them.

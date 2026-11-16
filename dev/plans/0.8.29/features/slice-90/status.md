@@ -43,8 +43,10 @@ Independent Astra-medium final review ACCEPTS clean source
 `261c5698f10170fe826e05cac160f15ac9f264a2` and the scoped results. Canonical
 integration is `e57e0874fabc893888b01362b4cfc6bb0701b31a`. The main chat owns
 the final stable integrated broad gate and applicable correctness, performance,
-conformance, artifact and release exits. Remaining30/50 measurements and40 owner
-disposition are final integrated obligations, not source-entry holds. The same
+conformance, artifact and release exits. Slice40 conditional disposition is
+complete with no new treatment; no additional owner approval is needed.
+Remaining30/50 measurements are final integrated obligations, not source-entry
+holds. The same
 seq388-approved72 model-smoke episodes run once on the final integrated90
 candidate under seq392; this implementation has made no paid/model smoke calls,
 GPU runs, CI dispatches, tags or registry publication.

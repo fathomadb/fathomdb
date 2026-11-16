@@ -1,10 +1,10 @@
 # Slice 40 conditional selection method
 
-Status: evidence table and bounded dependency amendment passed independent
-Astra-medium review. The recommended dispositions remain unselected. No treatment, source entry, runtime or closure
-is authorized here. The owner approved caching only if current measurements and
-snapshot safety justify it ([Batch 3](../../prework/slice-9/decision-log.md#batch-3-tests-measurements-and-exact-search)).
-The recommendation leaves the existing reference paths in place.
+Status: .29 conditional disposition complete with no new treatment selected.
+Independent Astra-medium review accepted the evidence table and confirmed that
+existing [Batch 3 conditional approval](../../prework/slice-9/decision-log.md#batch-3-tests-measurements-and-exact-search)
+permits retaining reference paths when benefit and snapshot safety have not been
+established. No new optimization is qualified; no new owner ruling is inferred.
 
 ## Accepted inputs and what they establish
 
@@ -21,7 +21,7 @@ model or GPU was opened; the numbers below reuse completed raw results.
 
 ## Current source and write-evidence recheck (2026-11-16)
 
-Status: completed-G84 reconciliation accepted by independent Astra-medium review; actual owner treatment/deferral selection remains pending.
+Status: completed-G84 reconciliation and evidence-backed .29 non-adoption disposition accepted by independent Astra-medium review. No additional owner-choice stop applies.
 
 Rechecked `040b66b8ad21b3599e2a9d259f9ef9dce11afef3` against the earlier
 `2a6401da02123ddc0016023a4bd8e747ef3717da` inventory. Eligibility, ReadView,
@@ -63,7 +63,7 @@ and fixed byte bound require review before selection. Never reuse primary-connec
 status or a latest atomic as reader authority. Exact time remains necessary: the
 accepted source-window control changes fallback with identical generation/nonce.
 
-Recommendation remains no new Slice 40 treatment for .29: NOT_SELECTED local
+The .29 disposition selects no new Slice 40 treatment: NOT_SELECTED local
 eligibility memos, cross-read presence, dependency-free fallback memo and duplicate
 batch generation/time/mean hoists; DEFER material cross-read direct eligibility,
 source-bearing fallback and shape/registry/fragment batch descriptors. Presence is
@@ -71,8 +71,9 @@ already once/query and tiny. Direct eligibility has material original read cost 
 no current paired benefit/hit/miss evidence. Source-bearing scale and batch residual
 cost are unmeasured. Descriptor invariance additionally needs trigger-sensitive
 admission; IMMEDIATE excludes external writers, not same-transaction triggers.
-This is a release-scoped conditional choice, not measured-negative or impossible-
-safety claims. The actual owner choice is still required and has not been recorded.
+This is non-adoption under the existing conditional approval, not a measured
+negative, impossible-safety claim or new owner decision. No future release is
+assigned these opportunities.
 No whole30/Windows/M/D/F closure or new calibration campaign is needed to accept
 that exclusion. Current Slice20 functional + 238 common-source tests and S60/70
 are closed; stale Windows-preparation prose is not a Slice40 hold. No source entry,
@@ -80,10 +81,12 @@ prototype, new cache tests or adoption-only campaigns are authorized by this mem
 
 ## Concrete opportunity and disposition table
 
-All dispositions are recommendations for review/owner choice. Unknown costs are
-unmeasured, not zero. Existing statement/page caches receive no new saving.
+These reviewed dispositions retain reference paths for .29. DEFER denotes an
+unqualified opportunity for possible future selection, without a release promise
+or new owner deferral. Unknown costs are unmeasured, not zero. Existing
+statement/page caches receive no new saving.
 
-| Opportunity and current consumers | Accepted cost, actual change and reuse opportunity | Proposed disposition and adoption-only gap |
+| Opportunity and current consumers | Accepted cost, actual change and reuse opportunity | .29 disposition and adoption-only gap |
 | --- | --- | --- |
 | Dependency presence: `has_source_dependencies`; one call in `read_search_in_tx`, captured by arm predicates | Already one prepared `EXISTS` per search transaction, not per arm. G diagnostic text means 0.00494–0.00657 ms (0.0312–0.0408% of observed API totals); hybrid 0.00996–0.01452 ms (0.00652–0.00951%). A local memo has no second consumer; cross-read caching adds authority/lookup/invalidation to avoid this one small query. | **NOT_SELECTED** another local/per-arm memo and cross-read presence cache for .29 on this evidence. Source-bearing scale and cache overhead are unmeasured; no universal no-benefit claim. Preserve existing reuse. |
 | Whole-node direct eligibility: `all_nodes_directly_eligible`; one guarded deferred-text decision per eligible hybrid search | Direct text never calls it in G. Each of 200 observed hybrid calls executes SQL once and returns true. Per adapter/repeat means 48.336–49.223 ms, 31.994–32.439% of observed API totals. A local memo avoids no duplicate. A cross-read boolean could avoid the scan on a proven hit; native pre-cap KNN eligibility and all deferred-route guards must remain. | **NOT_SELECTED** local memo; **DEFER** cross-read treatment. This is a material read opportunity, not a measured negative. Component cost is only a gross per-hit upper bound, not promised latency saving. Missing: affected hybrid hit/miss/authority costs, safe reader key/time/invalidation proof, bounded ownership and current paired treatment evidence. The actual G-W update schedule also introduces superseded rows, so its direct check need not execute the all-true full scan. |
@@ -104,15 +107,13 @@ and invalidation cost are unknown.
 
 ## Decision and exact remaining conditions
 
-**Recommended owner disposition:** retain .29 reference paths, adopt none of the
-new Slice 40 treatments, accept the table's NOT_SELECTED redundant/small-work
-opportunities, and explicitly DEFER the material cross-read direct check,
-source-bearing fallback and unmeasured residual batch descriptors. This avoids
-a measured-negative claim for a real hybrid opportunity. Conditional-scope
-closure requires independent review and the owner's actual choice; this draft
-neither selects nor closes Slice 40. The alternative is to keep those opportunities
-open for adoption after their exact missing evidence arrives. There is no
-supported adopt-now option, prototype or new measurement campaign here.
+**Completed .29 disposition:** reference paths retained; no new eligibility or
+batch treatment selected because adoption prerequisites were not established.
+The table preserves the material cross-read and descriptor opportunities and
+their unproved obligations. Independent review found no owner instruction or
+accepted ADR requiring a second approval for this existing conditional outcome.
+The added owner-choice stop is removed; no owner rejection, new release allocation,
+optimization pass, measured negative or mandatory-gate waiver is recorded.
 
 | Outcome | Required evidence or action |
 | --- | --- |
@@ -120,7 +121,7 @@ supported adopt-now option, prototype or new measurement campaign here.
 | Prove cross-read correctness before source selection | Establish/read authority in the consuming reader transaction's own SQLite snapshot. Bind database/branch nonce, complete relevant invalidation state, effective time and view. Prove external writes/custom triggers, old/new WAL readers, reopen/diverged copies, fresh clean-state refusal and frozen reproduce-or-fail. Primary-connection status caching/shared latest generation is no reader-pool proof. G's source-window control has identical generation/nonce at consecutive times and different fallback answers: generation alone fails. Numeric entry/byte limits, eviction and unsupported-proof fallback remain unset. |
 | Adopt batch descriptors | Attribute repeated shape/registry/fragment costs in current multi-outcome projection batches and establish material saving after admission/miss cost, including read/write regressions and memory. Prove invariance across reachable main/TEMP custom-trigger and mean-pin paths, or fresh reviewed bypass preserving effects/errors. Existing coalescing admission is not automatically that proof. No per-row body/scalar/mean/eligibility hoist. |
 | Select and qualify code | Concrete scope/safety/test review, prospective absolute/relative benefit and regression/memory rule, genuine per-behavior runtime RED then GREEN, paired reference correctness and affected schedules, required final code-phase gate and fresh Astra implementation review. No new global ACs. |
-| Close by negative/defer disposition | Independent review verifies source/result distinctions and every opportunity disposition; owner explicitly accepts no new Slice 40 treatment for .29 and named deferrals under Batch 3 conditional approval. Parent records actual choice in existing release state. No cache, new test, paired treatment run or adoption-only proof is required to claim an authorized exclusion; unavailable evidence is not PASS. |
+| Retain reference paths under existing condition | COMPLETE: independent review verifies source/result distinctions and every eligibility/batch disposition. Benefit and snapshot-safety prerequisites were not established, so no treatment is selected for .29 under Batch 3. No additional owner approval, cache, artificial test or treatment run is required merely to retain reference paths; unavailable evidence is not an optimization PASS. |
 
 Hard adoption dependencies are relevant qualified Linux 20/P/G inputs, affected
 write-interleaved baseline, selected safety/invariance proof and reviewed

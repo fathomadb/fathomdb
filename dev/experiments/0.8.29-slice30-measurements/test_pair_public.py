@@ -389,3 +389,28 @@ class PairCommandTests(unittest.TestCase):
             with patch.dict(os.environ,{'AGENT_LONG':'1'}):
                 with self.assertRaisesRegex(ValueError,'calibration executes only'):
                     public_entry('run',root)
+
+
+class PairGuardianReportTests(unittest.TestCase):
+    def test_final_outer_cap_or_missing_cleanup_keeps_native_success_uncredited(self):
+        from g_pair_report import published_report
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary);(root/'results').mkdir();guard=root/'guardians'/'actual';guard.mkdir(parents=True)
+            cached={'complete':True,'calibration_complete':True,'native_primary_complete':False,
+                'native_calibration_complete':True,'guardian_owner':{'started_monotonic_ns':71,'controller_pid':72},
+                'primary':[],'diagnostics':[],'calibration':[{'credited':True}]}
+            (root/'results/report.json').write_text(json.dumps(cached))
+            self.assertFalse(published_report(root)['calibration_complete'])
+            receipt={'started_monotonic_ns':71,'controller_pid':72,'exit':124,'cleanup_uncertain':False,
+                'stop':'calibration retained growth','boundary':{'status':'quiescent','populated_after':False,
+                'removed_exact_empty_boundary':True},'accounting':{'charged_ns':73}}
+            (guard/'guardian.json').write_text(json.dumps(receipt))
+            actual=published_report(root)
+            self.assertFalse(actual['calibration_complete'])
+            self.assertFalse(actual['calibration'][0]['credited'])
+            receipt.pop('stop');receipt['exit']=0
+            (guard/'guardian.json').write_text(json.dumps(receipt))
+            actual=published_report(root)
+            self.assertTrue(actual['calibration_complete'])
+            self.assertFalse(actual['complete'])
+            self.assertEqual(actual['guardian']['accounting']['charged_ns'],73)

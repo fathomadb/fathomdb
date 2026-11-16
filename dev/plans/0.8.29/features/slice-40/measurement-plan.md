@@ -15,9 +15,69 @@ Current source was read at frozen parent
 model or GPU was opened; the numbers below reuse completed raw results.
 
 - **P:** [accepted results](../slice-30/results-p.md), measured source `2fd772558e46d0b1645dce2ffea730d0bdd3305c`, default SDK, provider none, format37, no vector rows. The 16 cells contain 20,000 timed natural calls. Four unfiltered100k passes have p50 27.184–27.509 ms/p99 106.911–107.682 ms against tracked, nongated AC083 targets 80/300 ms. This establishes direct-text baseline behavior, not hybrid performance or cache benefit. P2's kind-filtered write/probe/search route differs from P1.
-- **G:** accepted normal84 assessment at `29de06806cc22ab6b8e67f970133f856f3c42f78`, UUID `4fb7a91f-2d41-445d-a132-258334a8f3fe`: 11 qualified cases, 73 required cap refusals. The 100k R0 ordinary SDK text/hybrid means are 32.967/195.889 ms, p50 27.195/186.793 ms and p99 105.894/350.030 ms. R1 at 100k and G-W write-interleaved cells are unmeasured. Hybrid has no AC083 target. M/D/F remain independent unfinished 30 work.
+- **G:** accepted normal84 assessment at `29de06806cc22ab6b8e67f970133f856f3c42f78`, UUID `4fb7a91f-2d41-445d-a132-258334a8f3fe`: 11 qualified cases, 73 required cap refusals. The 100k R0 ordinary SDK text/hybrid means are 32.967/195.889 ms, p50 27.195/186.793 ms and p99 105.894/350.030 ms. R1 at 100k remains unmeasured; the first required G-W text cell is now qualified as recorded below. Affected hybrid write measurements remain open. Hybrid has no AC083 target. M/D/F remain independent unfinished 30 work.
 - **G attribution:** `g-o-natural-r0-on` and `g-o-natural-r1-on` each contain 300 observations: 50 queries per route/adapter, no warmup. They are descriptive instrumented first-50 subsets, not canonical latency percentiles. Component means/shares below are per adapter/repeat; share is summed component duration divided by summed enclosing API duration on the same records. No percentile subtraction or ordinary-minus-instrumented speedup is used.
 - **Raw provenance:** P retains `p-campaign-v1/summary.json` and per-cell raw under `/mnt/data/tmp2/fathomdb-0829-continuation/slice30`. G retains `manifest.json`, `results/g-outcomes.json` and each named `results/<cell>/attempt-0001/read/observations.jsonl` under `/mnt/data/tmp2/fathomdb-0829-continuation/slice30-g-20261113/gd-allocation/g-frozen-g-assessment-v5`. The manifest owns actual artifact/model/input identities; ordinary/diagnostic native builds remain their original `5c7b1988d342488288ae83e022b358254c60edc8` subjects, not new builds at 29de. Six reused cases retain original provenance.
+
+## Current source and write-evidence recheck (2026-11-16)
+
+Status: current recheck pending fresh independent Astra-medium review.
+
+Rechecked `040b66b8ad21b3599e2a9d259f9ef9dce11afef3` against the earlier
+`2a6401da02123ddc0016023a4bd8e747ef3717da` inventory. Eligibility, ReadView,
+reader ownership and attribute descriptor helpers are unchanged. Search now
+includes Slice 50 record identity/winner hydration; the direct-check guards and
+three eligibility functions are unchanged. Old G-O exclusive SQL duration remains
+attributed to its original executable; its API share is not a current hybrid share.
+Projection commit has additional measurement attribution around unchanged per-row
+shape/registry/fragment work. Generation, effective time and initial mean remain
+batch-scoped; mean may still pin mid-batch.
+
+The first required G-W cell `g-w-b1-s1-engine-text-r0` is qualified independently
+of whole-G partial completion: 1,000 timed calls, 500 warmups, 1,000 one-row
+write cohorts, current marker probes, zero query errors, natural text p50/p99
+28.569/110.012 ms, guardian window 117.302 s. Its ordinary executable remains
+`5c7b1988d342488288ae83e022b358254c60edc8`. The manifest retains execution
+source `37e30d0e1aab739f1c935ab8eb6eab37e7847b78` and compiler inputs
+`d644d89f4590d60be701ad1b9cd2eecd66c9d390d8a45a0a370c774a69e83114`,
+with original corpus/model provenance.
+Raw result is `/mnt/data/tmp2/fathomdb-0829-continuation/slice30-g-20261113/gd-allocation/g-closed-write-matrix-v1/results/g-w-b1-s1-engine-text-r0/attempt-0001/result.json`.
+It is actual write/read evidence, not exclusive eligibility cost or a hybrid result.
+
+G-W updates existing logical records, retaining superseded canonical versions.
+On strict hybrid searches any such row makes `all_nodes_directly_eligible` false;
+its EXISTS can stop at the first unsafe row and keeps reference FTS. This is a
+source inference, not a quantified G-W SQL measurement. The 48–49 ms all-true
+G-O scan cannot be charged to every G-W query. Relevant commits also invalidate
+cross-read authority. No constant-time claim or measured cache saving follows.
+
+A plausible bounded candidate for later study is **only** the strict whole-node
+direct answer: one entry per reader worker/connection, key read in the consuming
+transaction's pinned snapshot from clean visibility generation/branch nonce plus
+exact resolved epoch second. Preserve every route guard; misses execute reference
+SQL. Old/new WAL readers may replace the entry and lose hits. Drop with worker;
+reopen/copy cannot share it. Source fallback, dependency presence and frozen
+validation remain separate and fresh. No persistent metadata or retained snapshot.
+This is not a completed proof/approved key: schema/trigger identity or conservative
+DDL refusal, main/TEMP/external-write invalidation, malformed/armed-state precedence
+and fixed byte bound require review before selection. Never reuse primary-connection
+status or a latest atomic as reader authority. Exact time remains necessary: the
+accepted source-window control changes fallback with identical generation/nonce.
+
+Recommendation remains no new Slice 40 treatment for .29: NOT_SELECTED local
+eligibility memos, cross-read presence, dependency-free fallback memo and duplicate
+batch generation/time/mean hoists; DEFER material cross-read direct eligibility,
+source-bearing fallback and shape/registry/fragment batch descriptors. Presence is
+already once/query and tiny. Direct eligibility has material original read cost but
+no current paired benefit/hit/miss evidence. Source-bearing scale and batch residual
+cost are unmeasured. Descriptor invariance additionally needs trigger-sensitive
+admission; IMMEDIATE excludes external writers, not same-transaction triggers.
+This is a release-scoped conditional choice, not measured-negative or impossible-
+safety claims. The actual owner choice is still required and has not been recorded.
+No whole30/Windows/M/D/F closure or new calibration campaign is needed to accept
+that exclusion. Current Slice20 functional + 238 common-source tests and S60/70
+are closed; stale Windows-preparation prose is not a Slice40 hold. No source entry,
+prototype, new cache tests or adoption-only campaigns are authorized by this memo.
 
 ## Concrete opportunity and disposition table
 
@@ -27,7 +87,7 @@ unmeasured, not zero. Existing statement/page caches receive no new saving.
 | Opportunity and current consumers | Accepted cost, actual change and reuse opportunity | Proposed disposition and adoption-only gap |
 | --- | --- | --- |
 | Dependency presence: `has_source_dependencies`; one call in `read_search_in_tx`, captured by arm predicates | Already one prepared `EXISTS` per search transaction, not per arm. G diagnostic text means 0.00494–0.00657 ms (0.0312–0.0408% of observed API totals); hybrid 0.00996–0.01452 ms (0.00652–0.00951%). A local memo has no second consumer; cross-read caching adds authority/lookup/invalidation to avoid this one small query. | **NOT_SELECTED** another local/per-arm memo and cross-read presence cache for .29 on this evidence. Source-bearing scale and cache overhead are unmeasured; no universal no-benefit claim. Preserve existing reuse. |
-| Whole-node direct eligibility: `all_nodes_directly_eligible`; one guarded deferred-text decision per eligible hybrid search | Direct text never calls it in G. Each of 200 observed hybrid calls executes SQL once and returns true. Per adapter/repeat means 48.336–49.223 ms, 31.994–32.439% of observed API totals. A local memo avoids no duplicate. A cross-read boolean could avoid the scan on a proven hit; native pre-cap KNN eligibility and all deferred-route guards must remain. | **NOT_SELECTED** local memo; **DEFER** cross-read treatment. This is a material read opportunity, not a measured negative. Component cost is only a gross per-hit upper bound, not promised latency saving. Missing: write-interleaved hit/miss/authority costs, safe reader key/time/invalidation proof, bounded ownership and paired treatment evidence. |
+| Whole-node direct eligibility: `all_nodes_directly_eligible`; one guarded deferred-text decision per eligible hybrid search | Direct text never calls it in G. Each of 200 observed hybrid calls executes SQL once and returns true. Per adapter/repeat means 48.336–49.223 ms, 31.994–32.439% of observed API totals. A local memo avoids no duplicate. A cross-read boolean could avoid the scan on a proven hit; native pre-cap KNN eligibility and all deferred-route guards must remain. | **NOT_SELECTED** local memo; **DEFER** cross-read treatment. This is a material read opportunity, not a measured negative. Component cost is only a gross per-hit upper bound, not promised latency saving. Missing: affected hybrid hit/miss/authority costs, safe reader key/time/invalidation proof, bounded ownership and current paired treatment evidence. The actual G-W update schedule also introduces superseded rows, so its direct check need not execute the all-true full scan. |
 | Source fallback: `vector_arm_requires_fallback`; one conditional call per vector route | Dependency-free G hybrid returns false without SQL; descriptive means 0.01048–0.01655 ms (0.00686–0.01111%). Direct text skips it. Cached false cannot replace direct-node proof. Source-bearing branch controls execute SQL and flip false→true across a validity boundary with unchanged generation/nonce. | **NOT_SELECTED** memo of the existing dependency-free return; **DEFER** source-bearing cross-read reuse. Large source-dependent cost/reuse is unmeasured. Time/view and unconditional closure-barrier proof are hard adoption needs; no general fallback-cache rejection. |
 | Generation, effective time and initial mean in `commit_projection_outcomes` | Already once per admitted IMMEDIATE batch. `current_mean` changes at threshold pin; accumulator/events publish only after commit. Re-hoisting supplies no incremental saving. | **NOT_SELECTED** duplicated hoists. Preserve mutable mean and row-specific eligibility/terminal/physical checks. |
 | Live attribute-column shape: `actual_vector_attr_columns` | Every successful projected row checks shape; attribute-bearing rows read it again inside `vector_attr_insert_fragments`. Batch reuse could remove repeated shape reads. No-attribute path already avoids body lookup. | **DEFER**. No isolated shape cost, multi-outcome saving or write regression/memory evidence. Need fresh trigger-sensitive invariance/admission proof and material residual before selection. |
@@ -38,8 +98,9 @@ P2 has governed-write means 1.316–1.834 ms for 1-row calls and 3.360–3.459 m
 for 10-row calls, outside natural API timing. These are filtered provider-free
 writes with marker probes, not projection-outcome batch cost or candidate
 invalidation overhead. Search snapshot authority is unavailable in P; write
-receipt cursors cannot prove cache reuse. G-W cap refusals supply no
-write-interleaved measurement. Candidate hit rates, key/miss cost, retained bytes
+receipt cursors cannot prove cache reuse. The qualified G-W text cell above supplies actual write-interleaved text
+behavior; the earlier cap refusals supplied none. It supplies no exclusive
+eligibility or descriptor cost. Candidate hit rates, key/miss cost, retained bytes
 and invalidation cost are unknown.
 
 ## Decision and exact remaining conditions

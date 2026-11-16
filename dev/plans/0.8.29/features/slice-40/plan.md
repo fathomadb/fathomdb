@@ -7,10 +7,12 @@ slice: 40
 
 # Slice 40 — conditional eligibility reuse and batch metadata
 
-The concrete [measurement/disposition amendment](measurement-plan.md) passed
-independent Astra-medium review. Its named artifact dependencies are accepted;
-no treatment, source entry, runtime or closure is authorized. Source inspection
-remains attributed to `2a6401da02123ddc0016023a4bd8e747ef3717da`. Adoption stays
+The earlier [measurement/disposition amendment](measurement-plan.md) passed
+independent Astra-medium review; this current recheck awaits fresh review.
+Its named artifact dependencies are accepted;
+no treatment, source entry, runtime or closure is authorized. Current source and the first qualified G-W text cell were rechecked at
+`040b66b8ad21b3599e2a9d259f9ef9dce11afef3`; the existing measurement
+amendment records the source delta and narrow reader-cache candidate boundary. Adoption stays
 open under the existing conditional scope; no owner deferral has been recorded.
 
 ## Mandate and current inputs
@@ -24,10 +26,10 @@ reader prepared-statement capacity is 10, a different quantity. No capacity,
 layout, candidate-cap, ranking, embedder or SQLite build change is proposed.
 
 - Slice 10 preparation is complete at implementation `104dcbcbe92a1eca730d146b99ab17d444df6217`, closure `d7d928f8e49d7af6a792385534f4e991c13232b3`.
-- Slice 20's qualified Linux repair subset `657edeb76caaf9c8d2aab433766bec9362e73217` is integrated, and so are the A3/A5 existing-correct ruling (seq 369) and its proofs `f803a964ad8c8154a481e6f9385599bef5c0e054`. Windows A6 qualification remains open; its authorized capacity/scratch preparation is complete. This is not full 20 exit.
-- Slice30's accepted [P results](../slice-30/results-p.md) and qualified G read evidence supply the baseline inputs. Remaining G write evidence still gates adoption; M/D/F and Windows remain independent release obligations. Owner seq382 resolved the exact frozen TC5 input pack; candidate-bound F/Q8 measurements remain. Neither TC5 nor whole30 closure gates this decision. Do not regenerate or substitute scientific inputs.
+- Slice 20's qualified Linux repair subset `657edeb76caaf9c8d2aab433766bec9362e73217` is integrated, and so are the A3/A5 existing-correct ruling (seq 369) and its proofs `f803a964ad8c8154a481e6f9385599bef5c0e054`. The later current-source Slice 20 functional qualification and 238-test common-source suite passed; Slice 20 is closed. Windows preparation is historical context, not a Slice 40 hold.
+- Slice30's accepted [P results](../slice-30/results-p.md) and qualified G read evidence supply the baseline inputs. The first required G-W text cell is qualified; affected hybrid write evidence and treatment-specific costs still gate adoption; M/D/F and Windows remain independent release obligations. Owner seq382 resolved the exact frozen TC5 input pack; candidate-bound F/Q8 measurements remain. Neither TC5 nor whole30 closure gates this decision. Do not regenerate or substitute scientific inputs.
 - Slice 30's `/tmp/fathomdb-0829-direct/slice-30/phase-a` input inventory is documentary evidence, not current performance proof; its older predecessor narrative must be rereconciled before use.
-- Slice 60's format/filter/budget subset is integrated at `5271c1bf` and Slice 70 is complete at `e875f360`; neither is a current source writer. This package makes no writes to the parent, release JSON, generated regions, ledgers or another slice.
+- Slices 60 and 70 are closed. Slice 50 record identity and winner hydration changed downstream hybrid work, while the three eligibility predicates remain unchanged. This package makes no writes to the parent, release JSON, generated regions, ledgers or another slice.
 
 ## Scope and outputs
 
@@ -49,7 +51,7 @@ mean reads are already batch scoped; credit them as baseline behavior.
 
 | Kind | Dependency and consequence |
 | --- | --- |
-| Accepted artifact prerequisites | Qualified Linux20 subset `657edeb76caaf9c8d2aab433766bec9362e73217`, A3/A5 proof/ruling `f803a964ad8c8154a481e6f9385599bef5c0e054`, accepted P measured source `2fd772558e46d0b1645dce2ffea730d0bdd3305c` and G normal84 assessment `29de06806cc22ab6b8e67f970133f856f3c42f78` with original artifact provenance. Affected G-W write-interleaved baseline is hard for adoption, not owner-approved rejection/defer; current remaining cells are recorded in release state. Whole 20/Windows A6, whole 30/M/D/F and exact TC5 pack are independent gates. The bounded amendment passed Astra review; source stays HELD on the treatment-specific conditions below. |
+| Accepted artifact prerequisites | Qualified Linux20 subset `657edeb76caaf9c8d2aab433766bec9362e73217`, A3/A5 proof/ruling `f803a964ad8c8154a481e6f9385599bef5c0e054`, accepted P measured source `2fd772558e46d0b1645dce2ffea730d0bdd3305c` and G normal84 assessment `29de06806cc22ab6b8e67f970133f856f3c42f78` with original artifact provenance. Affected G-W write-interleaved baseline is hard for adoption, not owner-approved rejection/defer; current remaining cells are recorded in release state. Whole 30/M/D/F and exact TC5 pack retain their independent release scope; closed Slice 20/60/70 work adds no Slice 40 hold. The bounded amendment passed Astra review; source stays HELD on the treatment-specific conditions below. |
 | Hard for each selected treatment | Reviewed exact scope, snapshot/invalidation or batch-invariance proof, fixed cost/benefit rule and per-behavior test design. This generic design review does not approve an unspecified cache. |
 | Conditional | Changed source/artifact/provider or relevant 50/60/70 contract after measurement requires scoped reattribution. An unexpected public contract/authority change requires its ADR/interface review; persisted format changes return for owner scope review. |
 | Preferred only | 40 before 50 improves attribution and reduces search-file conflict. 40 is not a semantic prerequisite of 50's identity census or 60's MCP work. |
@@ -79,8 +81,7 @@ batch hoisting. These narrow the old two-scan premise.
 This package uses scoped Markdown, local link and source-symbol checks only.
 No native build, product test, model load, database open or network operation is
 part of this amendment. Affected write-interleaved evidence, treatment selection/
-tolerances and exact reviewed safety remain adoption holds. Windows A6, M/D/F
-and exact TC5 inputs retain their own release scope. The dependency amendment is accepted. Any early rejection/defer closure needs
+tolerances and exact reviewed safety remain adoption holds. M/D/F and exact TC5 inputs retain their own release scope. The dependency amendment is accepted. Any early rejection/defer closure needs
 an actual owner disposition; none is recorded. Future code uses
 focused checks while working and the required full gate once on the final owned
 code phase; scoped passes never imply full-workspace green.

@@ -114,6 +114,16 @@ def prepare(manifest, cell, attempt, deadline_ns):
         "preparation_ns": time.monotonic_ns() - began}, limit=CONTROL_MAX_BYTES)
 
 
+def _retain_result(attempt, result):
+    try:
+        write_json(attempt / "result.json", result)
+    except OutputLimitError as error:
+        result = {key: result.get(key) for key in ("pid", "cell", "scope", "freeze_uuid", "selected_build")}
+        result.update(complete=False, output_overflow=str(error))
+        write_json(attempt / "result.json", result, limit=CONTROL_MAX_BYTES)
+    return result
+
+
 def payload(manifest, cell, attempt, deadline_ns):
     """Execute one admitted actual MCP cell; GPU observers run only for hybrid natural cells."""
     worker_admission(manifest, cell, attempt)
@@ -137,8 +147,25 @@ def payload(manifest, cell, attempt, deadline_ns):
     observer = None
     if natural and cell["search_mode"] == "hybrid":
         from g_gpu import GpuObserver
-        observer = GpuObserver(manifest["gpu"])
         stream = CheckpointLog(attempt / "gpu.jsonl", max_bytes=CONTROL_MAX_BYTES)
+        try:
+            observer = GpuObserver(manifest["gpu"])
+        except Exception as error:
+            failures.append(f"{type(error).__name__}: {error}")
+            observation = getattr(error, "observation", None)
+            try:
+                if observation is not None:
+                    failure_observations.append(observation)
+                    stream.write(observation)
+            except OutputLimitError as persistence_error:
+                failures.append(str(persistence_error))
+            finally:
+                stream.close()
+            return _retain_result(attempt, {"complete": False, "pid": None, "cell": cell,
+                "freeze_uuid": manifest["uuid"], "selected_build": manifest["builds"][variant],
+                "scope": manifest.get("scope", "registered-M-cell"), "prepared": prepared,
+                "gpu": dict(qualification(cell, [], None), failures=failures,
+                            failure_observations=failure_observations, samples=len(failure_observations))})
 
     def started(pid):
         nonlocal thread
@@ -184,14 +211,7 @@ def payload(manifest, cell, attempt, deadline_ns):
                   selected_build=manifest["builds"][variant], prepared=prepared)
     if manifest.get("scope") == "bounded-natural-calibration":
         result["qualifies_primary"] = False
-    try:
-        write_json(attempt / "result.json", result)
-    except OutputLimitError as error:
-        result = {"complete": False, "output_overflow": str(error), "pid": result["pid"],
-                  "cell": cell, "freeze_uuid": manifest["uuid"],
-                  "selected_build": manifest["builds"][variant]}
-        write_json(attempt / "result.json", result, limit=CONTROL_MAX_BYTES)
-    return result
+    return _retain_result(attempt, result)
 
 
 def control(root, owner, *, source_manifest=None):

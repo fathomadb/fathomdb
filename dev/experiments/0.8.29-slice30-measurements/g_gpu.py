@@ -41,7 +41,9 @@ class GpuObserver:
         self.gpu = gpu
         self.baseline = inspect_gpu(gpu["uuid"])
         if self.baseline["applications"]:
-            raise RuntimeError("selected GPU already has compute work; reservation unavailable")
+            failure = RuntimeError("selected GPU already has compute work; reservation unavailable")
+            failure.observation = self.baseline
+            raise failure
 
     def sample(self, pid):
         """Retain actual app memory/utilization; foreign compute work refuses this cell."""

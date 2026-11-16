@@ -1,0 +1,126 @@
+"""Exact paired record comparison and descriptive statistics from retained native calls."""
+
+from collections import defaultdict
+import json
+from pathlib import Path
+
+
+def native_result(step):
+    """Load actual checkpointed streams, including P's nonembedded call populations."""
+    result = dict(step.get('result') or {})
+    output = Path(step['output'])
+    for name, files in {'samples': ['samples'], 'warmups': ['warmups'],
+                        'first_calls': ['first-calls'], 'batches': ['batches'],
+                        'probes': ['marker-probes', 'g-marker-probes'],
+                        'observation_batches': ['observations']}.items():
+        found = [output / (item + '.jsonl') for item in files if (output / (item + '.jsonl')).exists()]
+        if found:
+            result[name] = [json.loads(line) for path in found for line in path.read_text().splitlines()]
+        else:
+            result.setdefault(name, [])
+    if 'open_report' in result:
+        result['open_reports'] = [result['open_report']]
+    return result
+
+
+def _native(row):
+    if not row.get('attempt'):
+        return None
+    try:
+        result = json.loads((Path(row['attempt']) / 'result.json').read_text())
+        steps = result.get('steps') or []
+        return native_result(steps[0]) if len(steps) == 1 else None
+    except (OSError, ValueError, KeyError):
+        return None
+
+
+def clean(row):
+    """Require successful comparison candidates with known strict attempt cleanup."""
+    return (row.get('status') == 'complete' and row.get('complete') is True
+            and row.get('cleanup_uncertain') is False and row.get('live_owned_pids') == [])
+
+
+def comparisons(cells, rows):
+    """Compare every declared pair; partial/failed data remains visible and uncredited."""
+    from g_pair import compare_results
+    grouped = defaultdict(list)
+    for cell in cells:
+        grouped[(cell['origin_id'], cell['purpose'])].append(cell)
+    pairs = []
+    for (origin, purpose), members in grouped.items():
+        outcomes = [rows.get(cell['id'], {}) for cell in members]
+        values = [_native(row) for row in outcomes]
+        equal = compare_results(*values) if all(value is not None for value in values) else None
+        complete = all(clean(row) for row in outcomes) and equal is True
+        pairs.append({'origin_id': origin, 'purpose': purpose, 'members': [cell['id'] for cell in members],
+            'equal': equal, 'complete': complete,
+            'status': 'complete' if complete else 'mismatch' if equal is False else 'incomplete',
+            'statistics': _statistics(members, values) if complete else None})
+    return pairs
+
+
+def _statistics(cells, values):
+    from metrics import aggregate, paired_difference
+    groups = defaultdict(list)
+    for cell, result in zip(cells, values, strict=True):
+        for row in result['samples']:
+            adapter = row.get('adapter', cell['adapters'][0])
+            route = row.get('route', 'text')
+            groups[(adapter, route)].append((cell, row))
+    data = []
+    for (adapter, route), records in groups.items():
+        modes = {}
+        paired = []
+        for mode in ('winner', 'eager'):
+            samples = [row for cell, row in records if cell['slice50_pair_mode'] == mode]
+            modes[mode] = aggregate(samples, 0)
+            paired.extend(dict(row, adapter='engine' if mode == 'winner' else 'sdk',
+                               repeat=cells[0]['repeat']) for row in samples)
+        interval = paired_difference(paired)
+        interval['eager_minus_winner_mean_ms'] = interval.pop('sdk_minus_engine_mean_ms')
+        data.append({'adapter': adapter, 'route': route, 'modes': modes, 'paired': interval})
+    return data
+
+
+def diagnostics(row):
+    """Expose owned body work and sampled child RSS with missing facts unavailable."""
+    value = _native(row)
+    work = [record for batch in (value or {}).get('observation_batches', [])
+            for record in batch.get('records', []) if record.get('phase') == 'slice50_work']
+    rss = []
+    if row.get('attempt'):
+        try:
+            actual = json.loads((Path(row['attempt']) / 'result.json').read_text())
+            rss = [sample for step in actual.get('steps', []) for sample in step.get('rss_samples', [])]
+        except (OSError, ValueError):
+            pass
+    known = [sample for sample in rss if sample.get('available')]
+    return {'work_records': work or None, 'rss_samples': rss or None,
+            'sampled_max_rss_bytes': max(sample['rss_bytes'] for sample in known) if known else None,
+            'sampled_peak_rss_bytes': max(sample['peak_rss_bytes'] for sample in known) if known else None,
+            'scope': 'named diagnostic only; process RSS/HWM sampled at retained cadence; unsampled peaks and total allocation/SQLite I/O unavailable'}
+
+
+def report(root):
+    """Retain every scope and require independently completed exact pairs for credit."""
+    from g_pair import plan
+    root = Path(root)
+    path = root / 'results/campaign-state.json'
+    previous = {row['id']: row for row in json.loads(path.read_text())} if path.exists() else {}
+    result = {'scope': 'slice50-pair', 'complete': False, 'comparisons': {}}
+    inventory = plan()
+    for name, cells in inventory.items():
+        pairs = comparisons(cells, previous)
+        credited = {identifier for pair in pairs if pair['complete'] for identifier in pair['members']}
+        result['comparisons'][name] = pairs
+        result[name] = [dict(previous.get(cell['id'], {}), id=cell['id'], cell=cell,
+            status=previous.get(cell['id'], {}).get('status', 'not_run'),
+            credited=cell['id'] in credited,
+            diagnostic=diagnostics(previous.get(cell['id'], {})) if cell['observe'] else None)
+            for cell in cells]
+    result['calibration_complete'] = all(pair['complete'] for pair in result['comparisons']['calibration'])
+    result['complete'] = all(pair['complete'] for name in ('primary', 'diagnostics')
+                             for pair in result['comparisons'][name])
+    result['future_costs'] = {'P_preparation': None, '100k': None, 'writes': None,
+                              'scope': 'calibration10k read costs do not bound these cases'}
+    return result

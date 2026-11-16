@@ -50,15 +50,8 @@ def plan():
 
 def report(root):
     """Report every missing/failed/refused member without cross-crediting scopes."""
-    root = Path(root)
-    state_path = root / "results/campaign-state.json"
-    previous = {row["id"]: row for row in json.loads(state_path.read_text())} if state_path.exists() else {}
-    result = {"scope": "slice50-pair", "complete": False}
-    for name, cells in plan().items():
-        result[name] = [dict(previous.get(cell["id"], {}), id=cell["id"], cell=cell,
-                             status=previous.get(cell["id"], {}).get("status", "not_run"))
-                        for cell in cells]
-    return result
+    from g_pair_report import report as summarize
+    return summarize(root)
 
 
 def build_tools(output, *, _run=None):
@@ -163,11 +156,22 @@ def drive_members(manifest, root, execute):
 def qualify_step(step, cell, manifest):
     """Require actual current native facts; source-only helpers cannot qualify."""
     issues = []
-    result = step.get('result') or {}
+    result = native_result(step) if step.get('output') else step.get('result') or {}
     if result.get('runner_only'):
         issues.append('runner_only_source_control')
     if not step.get('complete') or result.get('complete') is not True:
         issues.append('native_member_incomplete')
+    rows = result.get('samples', []) + result.get('warmups', []) + result.get('first_calls', [])
+    if (len(result.get('samples', [])) != cell['samples']*len(cell['adapters'])*len(cell['routes'])
+            or len(result.get('warmups', [])) != cell['warmup']*len(cell['adapters'])*len(cell['routes'])
+            or any(row.get('ok') is not True or not isinstance(row.get('hits'), list) for row in rows)):
+        issues.append('exact_native_call_records_missing')
+    closed = result.get('close_outcomes') or result.get('passes') or []
+    if (len(closed) != len(cell['adapters'])
+            or any((row.get('status') != 'ok' if 'status' in row else
+                    type(row.get('close_ns')) is not int or row['close_ns'] < 0) for row in closed)):
+        if not (len(cell['adapters']) == 1 and type(result.get('close_ns')) is int and result['close_ns'] >= 0):
+            issues.append('native_close_facts_missing')
     reports = result.get('open_reports') or []
     if len(reports) != len(cell['adapters']):
         issues.append('actual_native_reports_missing')
@@ -279,3 +283,9 @@ def freeze(options, output, *, scope):
     """Bind current public paired inputs/artifacts to exact private obligations."""
     from g_pair_freeze import freeze as freeze_pair
     return freeze_pair(options, output, scope=scope)
+
+
+def native_result(step):
+    """Read the existing native raw streams for exact paired call qualification."""
+    from g_pair_report import native_result as load_native
+    return load_native(step)

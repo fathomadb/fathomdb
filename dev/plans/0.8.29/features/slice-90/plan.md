@@ -1,109 +1,107 @@
 ---
-title: "Slice 90: accepted-residual implementation proposal"
+title: "Slice 90: accepted residual implementation plan"
 status: PROPOSED
 target_release: 0.8.29
 slice: 90
 ---
 
-# Slice 90 accepted-residual implementation proposal
+# Slice 90 implementation plan
 
-The full80 contract is owner-approved at
-`f2f4831554ae165420a31890cf102642ce28b21d` (seq384); retain that decision.
-The existing [census](census.md) distinguishes built behavior from residual work.
-Refresh affected source fit and conformance triage now; actual90 source entry
-still waits for the real Block1 exit and the reviewed integrated-source design.
-No new80 approval or generic proposal packet is required.
+Implement the remaining [full80 contract](../slice-80/design.md), approved by the
+owner in seq384 at `f2f4831554ae165420a31890cf102642ce28b21d`.
+The2026-11-16 [census](census.md) reconciles actual integrated50/60/70 source;
+[needs](needs.md)→[requirements](requirements.md)→[acceptance](acceptance.md)
+→[test map](test-map.md) retain release-local traceability without new ACs.
+Independent Astra-medium review of this refreshed design precedes source work.
+No new80 approval, generic proposal phase or supplemental packet is required.
 
-## Goal and fixed boundaries
+## Fixed boundaries and source entry
 
-Implement only residual behavior in the exact owner-approved80 revision, after
-actual integrated selected20–70 and the separate Block1 follow-up exit. Preserve
-built hints, default signals, queue and format37 spans. Accepted B2-8 storage,
-compact text default, unavailable-only omission and the exact owner-approved80
-aggregate contract remain settled. Preserve that accepted scope; do not invent
-calibrated verdicts, weak thresholds, overflow chunking, ANN, an SDK hint-default
-flip, new governed operations or storage migration/backcompat work. Keep query
-clone-equality scaffold. Current preparation performs no runtime/model/spend or
-cleanup action; actual Block1/native execution retains its existing readiness
-and authorization requirements.
+Preserve existing50 record-key fusion/hydration/snippet/evidence/feedback,
+60 formats/filter/flags/budget and70 reasons/native parity, hints, default signals,
+queue and format37 spans. Keep query clone-equality scaffold. No database
+migration, private Memex snapshot gate, backcompat shim, calibrated verdict,
+weak-result threshold, chunking, ANN, new governed operation or SDK hint-default
+flip. Stage2 SDK hints placement/default stays conditional150.
 
-[Needs](needs.md)→[requirements](requirements.md)→[acceptance](acceptance.md)
-→[test-map](test-map.md) trace release-local R29-3P-14/15. [Design](design.md)
-and [census](census.md) expose existing versus net-new work. No canonical AC or
-numerical threshold is minted; locked requirements/acceptance retain authority.
+The actual **unnumbered Block1 follow-up exit** remains hard before90 source.
+20 Windows/common-source,60/70,80 design,100 and selected110/140 are closed.
+Current both-format conformance is accepted in its actual scope; TC5 inputs and
+seq388 smoke models/dataset/IDs/budget are resolved. Remaining30/50 measurements,
+conditional40 owner disposition, applicable feature/performance checks and72
+approved native-format episodes must actually finish on the integrated baseline.
+Counts and technical limits are in [status](status.md); no model run or scientific
+ledger acquisition occurs during this documentation refresh. Parent records
+actual Block1 completion, not a design reviewer or a stale status sentence.
 
-## Actual prerequisites, without a90↔160 cycle
+At that exit, reread integrated predecessor deltas and affected full test files;
+remove any residual newly implemented elsewhere. Check source fit against the
+retained80 contract and this review. A material contradiction returns to the
+independent reviewer/existing contract owner; settled policy is not reapproved.
+Parent supplies strict preflight and an exclusive fresh source worktree with
+checkout-owned tools/native artifacts and the technical heavy-window grant.
+No source entry from design PASS alone and no borrowed checkout venv/artifact.
 
-1. Reconcile exact integrated predecessor source with the owner-approved80
-   contract and existing design/test map.80's earlier bounded PASS alone was
-   insufficient; seq384 now supplies full contract acceptance. Actual50 identity
-   and final60/70 contracts are integrated inputs, not unanswered policy questions.
-2. Require the **unnumbered Block1 follow-up exit**, after selected20–70:
-   applicable full/feature/performance checks, both-format conformance and
-   approved smoke/item4 remeasure. Windows, remaining30 campaigns, conditional40
-   disposition and current50 performance remain actual selected obligations;
-   TC5 static input identity is resolved. Unmeasured runtime cells and missing
-   smoke model/prompt/budget/fixture are not passing exits. Parent dispositions
-   must use real authority; no passing measurement is invented.
-3. Reread actual integrated20/30/40/50/60/70 and80, affected full test files,
-   accepted ADR/interface deltas and source/native identity. Revise this packet's
-   delta against real integrated behavior before claiming full readiness or
-   coding. Get any materially changed seam rechecked by independent Astra-medium.
-   No generic reapproval of settled compact/B2-8 decisions is requested.
-4. Parent performs strict dependency/clean-base/disk preflight and creates a
-   fresh90 worktree with one writer and checkout-owned tools/native artifacts.
-   Never source-code in parent or borrow another checkout's venv. Serialize
-   engine/interface/native shared landings with other source owners.
+## Concrete RED/GREEN sequence after actual Block1
 
-160 is downstream combined qualification/close; it is never substituted for
-this pre90 exit. Later CUDA/fault/experiment/publication holds remain their
-owners' scope and do not become invented90 design questions.
+1. U1–U4: omission/disclosure, unknown-argument details, foreign-reference details
+   and explicit default store. Stage/commit each semantic failing runtime test
+   before its production change; use real MCP calls in both formats. Preserve
+   the implemented ambiguity/not_recorded order. Update intended existing
+   contract assertions only where approved80 expressly changes that contract;
+   never change a new failing oracle to pass a fix.
+2. U8 aggregate REDs first: owned installed Python and TS existing projection
+   status calls plus dynamic field assertions must fail semantically on the
+   actual baseline. Include actual native conversion, no compile-only missing
+   symbol failure. U5 then implements aggregate carrier, exact arithmetic,
+   streaming full validation, open seed, writer refresh publication and fixed-work
+   status read with those staged tests retained. Introduce no extra scan/physical
+   probe. Public/native shapes must be implemented explicitly at every layer.
+3. U6: exercise invalidation/publication errors, cold/changed/available and scope
+   exclusions. Put each genuine discovered behavior defect through its own RED
+   then GREEN; classify already-passing invariants as regression controls.
+4. U8 scored-field REDs first in both installed languages. U7 then retains the
+   original vector key set before first fusion and validates exact bounded
+   same-snapshot extents after lexical snippet selection, before finish/commit.
+   Add refused missing/ambiguous/malformed/overflow cases, ownerless/nested-graph
+   negatives, UTF-8/role-tagged/0/unknown and native width/parity checks. Reuse50
+   keys; do not implement identity/ranking again.
+5. U9 and maintained interfaces: both-format success/error/schema/field census,
+   quoted default, coverage line and per-hit metadata accounting. Some60 generic
+   fit controls already cover arbitrary serialized fields: retain them without
+   redundant budget implementation or false RED claims. Extend runtime oracles
+   for new bytes and trusted metadata after MCP re-snippeting. Preserve final
+   kept page/feedback/continuation positional identity.
+6. Run focused latency-ordered checks during implementation. On final stable
+   source run the required full agent gate once using owned tools/native
+   artifacts, plus applicable feature/performance and installed-language seams.
+   Missing owned setup fails its preflight; strict ptrace gate needs the supported
+   executor. Preserve actual failures and rerun affected failed scopes only.
+   Update maintained MR/interface/EP17/long-record contracts in that same change.
+7. Obtain one fresh independent Astra-medium implementation/final review of the
+   coherent completed scope, actual semantic RED/GREEN results and final gates.
+   Reviewers assess commit-body results/diff; no detached audit campaign or
+   per-helper checkpoint is added. Integrate the exact reviewed revision after
+   affected integration checks; parent updates release state serially.
 
-## Bounded execution after source entry
+RED commit bodies record the command, exit and actual failing semantic assertion
+with source/native/feature identity. Existing hooks first; any genuinely needed
+measurement helper is committed/rerunnable/indexed before use. Do not regenerate
+human goldens, mock databases or manufacture a failing control. Installed-native
+setup failure does not count as RED and holds only the dependent converter work.
 
-- Freeze residual census and accepted contracts; remove any residual already
-  implemented by actual predecessors. An existing pass is regression evidence,
-  not permission to create a duplicate feature or manufacture a failure.
-- Implement omission, unknown-argument detail, feedback-offender detail and
-  default-store disclosure as separate staged/committed semantic RED/GREEN units.
-- Build approved aggregate carrier/capture/read path with real existing
-  projection_status/orient runtime RED before new types/helpers. Separate
-  subsequent invalidation/publication behavior fixes only where real assertions
-  fail. Capture adds explicit O(N) stream work inside existing validation;
-  orient adds no scan/vector probes. Preserve old validation/refusal boundary.
-- Carry exact selected50 vector participation and stored endpoints through the
-  existing snippet sidecar. Use same-snapshot lookup/checked UTF-8/u32 semantics,
-  actual installed/native parity and frozen error controls. No body/ref borrowing.
-- Extend maintained interfaces/MR/EP17/long-record prose and both formats/schema/
-  field census/accounting in the same implementation PR. Keep request surface,
-  error precedence, query/ranking/filter behavior and current spans unchanged.
-- Run focused latency-ordered lint/typecheck/tests per unit. On stable final
-  source run required full agent verification, owned native/installed boundary
-  checks and applicable feature/performance seams. Preserve raw failed diagnostics,
-  exits, feature/env/artifact identities and unresolved cells.
-- Obtain fresh independent Astra-medium implementation/final review; audit actual
-  RED SHAs without oracle changes. Integrate exact reviewed revision, rerun affected
-  seams and let parent update release JSON/generated views/ledgers serially.
+## Parallel and final qualification
 
-Any measurement/operator code is committed, parameterized, rerunnable and indexed
-in its experiment README before using its output. No ephemeral harness-only proof,
-bench/test tampering or golden regeneration. No passing-on-arrival coverage is
-mislabelled RED. Keep old controls without claiming every new assertion must
-fail if the behavior already exists.
+130E and independent160 work are parallel qualifications; neither waits for90
+where it consumes unchanged inputs, and90 does not wait for whole160. Final90
+changes engine/native artifacts and default MCP output, so assess affected
+160 Q2–4/Q10–12/Q14–17 and model-smoke applicability by actual source/artifact/
+format/workload. Reuse unchanged qualified scopes; rerun invalidated scopes and
+new metadata assertions. Pre90 Block1 smoke is prerequisite evidence for its
+baseline, not automatic proof of changed final90 output. No blanket replay or
+paid-call approval is inferred; actual model calls stay within existing owner
+models/episodes/budget and technical readiness. See [design](design.md#final-source-qualification-dependencies).
 
-## Review scope and stop points
-
-The early reviewer can challenge source fidelity, scope separation, concrete
-proposed routine choices, requirement/acceptance/test joins and retained hard
-gates. A PASS is bounded proposal quality only. Actual Block1/source-fit readiness
-and product correctness remain unclaimed; full80 contract approval is retained.
-Owner rulings stay owner rulings; reviewer design approval is not consent by
-inference.
-
-Stop affected source entry for absent Block1 exit, a newly demonstrated50
-identity/feedback contradiction, mismatched60/70 contracts, unbounded orient work,
-physical probes leaking into aggregate, broadened open refusal, stale snapshot
-reuse, unknown→full/zero inference, unproved native limits or storage change.
-Present concrete contradictions to their existing owner; do not add a generic
-unresolved-policy loop or silently waive a gate. [Status](status.md) records
-what this proposal actually checked.
+Current completion route: finish local qualification, review CI, then run CI.
+Registry publication, publishing tags and post-publication smoke are excluded.
+No whole90/product/release readiness is claimed by this design refresh.

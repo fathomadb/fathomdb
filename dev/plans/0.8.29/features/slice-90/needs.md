@@ -7,8 +7,10 @@ slice: 90
 
 # Slice 90 needs
 
-This is a bounded early proposal against clean source
-`2f6913c1d59ac8ff3a30de835b57290a8635998c`, not approval to build.
+This implementation design is refreshed against integrated source
+`3b9e02c151dd7308def6cf199c71902106edd837` and the
+[owner-approved full80 contract](../slice-80/design.md). Source implementation
+remains held on the actual Block1 exit and independent updated-design review.
 The [release needs](../../../plan-0.8.29.md#draft-release-needs-requirements-and-acceptance-allocation)
 and [prework allocation](../../prework/slice-3/needs.md) retain canonical IDs.
 Local S90 IDs create no new canonical acceptance gate.
@@ -23,10 +25,14 @@ Local S90 IDs create no new canonical acceptance gate.
 | S90-N6 | Existing hints, bounded output, ranking, queues, storage and frozen semantics keep working when residual fields arrive. | N29-A/S/K/D; R29-3P-14/15; R11/R12/A11/A12 |
 
 [Requirements](requirements.md), [acceptance](acceptance.md), [design](design.md),
-[source census](census.md) and [test mapping](test-map.md) form the review packet.
+[source census](census.md) and [test mapping](test-map.md) define the residual work.
 B2-2/3 hints, partial B2-6 default signals, B2-7 admission and B2-8 span storage
 are built controls; no duplicate implementation is allocated. Existing calibrated
 verdict/weak-result restrictions, query clone-equality scaffold, schema37/no
 migration and no backcompat shims remain. SDK hints placement/default belongs
-to conditional150. Actual approved80 and the separate Block1 follow-up exit
-are both required before90 source;160 follows90.
+to conditional150. Full80 owner approval is retained (seq384); accepted50
+source, closed60/70,
+Windows20 and common-source qualification are existing inputs. Remaining30/50
+measurements, conditional40 disposition and approved72episode smoke/item4 form
+real Block1 exit work before90 source.130E/160 can qualify independent scopes
+in parallel; only their affected assembled-source results depend on final90.

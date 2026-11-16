@@ -7,11 +7,15 @@ slice: 90
 
 # Slice 90 bounded residual design
 
-The [requirements](requirements.md) describe a proposed implementation target,
-not accepted new ABI. [Census](census.md) names frozen source and proposal
-revisions. Actual50 identity/feedback ruling, final60/70 contracts, full80 owner
-approval and the unnumbered Block1 exit are still required before source entry.
-Do not import earlier80 aggregate paragraphs over the explicitly superseding v2.
+The [requirements](requirements.md) implement the
+[full owner-approved80 contract](../slice-80/design.md), accepted at
+`f2f4831554ae165420a31890cf102642ce28b21d` (seq384).
+[Census](census.md) reconciles integrated source
+`3b9e02c151dd7308def6cf199c71902106edd837`:50 identity/feedback and60/70
+contracts are implemented inputs. The original vector-participant set, aggregate
+coverage/cache, converters and new MCP fields remain90 work. Actual Block1 exit
+and independent updated-design PASS still precede source implementation; no
+reapproval of80 is requested.
 
 ## Omission, diagnostics and default store
 
@@ -37,6 +41,7 @@ refs_omitted; omit on unrelated errors. Fixed messages are “unknown tool
 argument” and “used and unused may only name references from that response”.
 Never interpolate request strings into message/remedy or include record body,
 SDK message, host path or SQL. Diagnostic copies are only caller keys/refs.
+This governs the new diagnostic branches; broader generic serde-error sanitization is not added to90 scope.
 
 | Tool | Fixed unknown_argument remedy |
 | --- | --- |
@@ -56,9 +61,12 @@ the BTreeSet. Include first50 offenders with raw length≤128; omit overlong ref
 whole, increment checked u64 refs_omitted for them and every remaining offender.
 No new successful duplicate/overlap policy or total input-size cap is inferred.
 Foreign unsupported-looking refs remain membership failures, not fetch parse errors.
-No partial feedback labels are recorded. A member ref ambiguous across cursors
-is a different50 decision; neither first/last selection nor fanout nor new ref ABI
-is selected here. Its final ruling must be reread before implementing this seam.
+No partial feedback labels are recorded. Preserve implemented50
+Unique(cursor)/absorbing Ambiguous membership: named ambiguity refuses atomically
+with existing invalid_request/bad_argument only after acquisition/final epoch
+check on an otherwise-recordable call. Earlier membership/epoch/telemetry/text/
+query-ID outcomes retain precedence; unmentioned ambiguity is inert. Do not
+introduce first/last selection, fanout, a feedback-ref ABI or another identity fix.
 
 Structured errors serialize typed fields. Text appends argument=<JSON string>
 accepted=<JSON array> or refs_not_in_response=<JSON array> [refs_omitted=<n>]
@@ -76,7 +84,7 @@ Keep current1200-byte guide cap. No provider/session default changes follow.
 
 ## Aggregate public value and exact arithmetic
 
-Follow aggregate-v2's concrete proposed carrier: required
+Implement the full80 accepted carrier: required
 ProjectionRuntimeStatus.vector_coverage:StoredHeadCoverageV1, re-exported through
 engine/facade/SDK and converted by PyO3/NAPI/wrappers. MCP orient moves this
 member to top-level vector_coverage exactly once, outside projection_status.
@@ -191,19 +199,37 @@ status validation or reopen; no always-current availability guarantee is inferre
 
 ## Per-hit scored extent and conversions
 
-Candidate field stays SnippetV1.scored_bytes:Option<u32>, never SearchHit growth.
-Capture actual vector-participant keys with accepted50 exact internal ownership
-before fusion, only when snippets requested. After final ranking/cuts, attach
-extent only when that same selected Node|Edge,cursor key contributed a vector.
+The accepted field is SnippetV1.scored_bytes:Option<u32>, never SearchHit growth.
+Reuse existing50 FusionHit/FusionOwnership and private RecordKey, distinguishing
+CanonicalNode(cursor), CanonicalEdge(cursor) and OwnerlessNodeFts(rowid). Collect
+original vector_results keys only when snippets are requested, before the first
+consuming branch (vector-stage-only, ordinary, deferred hydration or nested graph
+fusion). After final ranking/cuts, attach extent only when that same canonical
+selected key belonged to the original vector arm. Entry.in_vector is only
+current-input tie preference; nested graph fusion cannot supply this proof.
 Body/ref, TextEdge branch, explanation ranks or CE do not prove participation.
 No query-provider/tokenizer recomputation or later logical fetch is allowed.
 
-On the same reader transaction before commit, at most one indexed tuple/span
-lookup per final vector participant validates exact mapping/cursor/head0/start0,
-physical vector presence, stored body length, integer end/UTF-8 boundary and
-checked u32 endpoint. Storage/corruption/width failures propagate, never become
-None/clamped/full. This bounded physical check must not leak into aggregate
-capture. Provider NULL or nonparticipant givesNone; known0 staysSome(0).
+Attach metadata after snippets_for_hits has selected the positional snippets,
+before capture.finish strips ownership in NoEvidenceCapture and before tx.commit.
+Existing evidence requests intentionally return snippets=None; preserve that
+separate API. Use existing SearchReaderError::Evidence for EngineError mapping.
+
+On that same reader transaction, perform at most one indexed statement per
+final canonical vector participant. Use both mapping/span cursor and rowid
+identities to expose misplaced/extra heads, without LIMIT1/best-head selection.
+Validate exactly one canonical owner/non-NULL body matching the selected
+carrier, exact mapping rowid=write_cursor=selected cursor, exact span identities,
+head0/start0, integer nonnegative body_length matching original stored bytes,
+physical vector identity/presence and nullable integer end at a UTF-8 boundary.
+Do not compare representative edge_fact kind with stored kind. Missing mapping/
+span/physical vector, ambiguous owner, extra/misplaced/nonzero head, mismatched
+body, malformed end, invalid boundary or known end exceeding u32::MAX returns
+the existing typed Storage/projection_generation_corrupt error. Validate the
+whole tuple before treating NULL end as unknown. No partial successful sidecar,
+repair, full-store validation, clamp, wrap or unknown fallback is allowed.
+This bounded physical check must not leak into aggregate capture. Validated provider NULL or nonparticipant givesNone; known0 staysSome(0).
+Ownerless FTS makes no span read, even for a numeric rowid/cursor collision.
 Standalone snippet_for and text-only path giveNone without storage work.
 Snippets-off adds no participation set/coverage query/sidecar allocation.
 Frozen validation/refusals remain before retrieval; reader snapshot owns facts.
@@ -237,6 +263,26 @@ Use quality-roadmap boundary/property/anomaly/reference methods at token,
 UTF-8, serialization and commit seams. Defer global MC/DC, generic SQLite fuzz,
 allocation campaigns and chunking studies. All new measurement/operator helpers
 must be committed, rerunnable with args/env and indexed before their evidence
-is used; only logs belong in scratch. No such helper or runtime proof is created
-by this proposal. Local pinned serde/schemars/sqlite-vec source should answer
+is used; only logs belong in scratch. This design refresh creates no helper or
+runtime proof. Local pinned serde/schemars/sqlite-vec source should answer
 any concrete implementation uncertainty before dependency/network research.
+
+## Final-source qualification dependencies
+
+130E and independent160 platform/consumer qualification can proceed in parallel
+with the actual Block1 prerequisites.90 consumes neither whole160 nor130E as
+a source-entry gate. Final90 must join the assembled-source qualification: its
+Rust/native fields/converters affect distributed binaries and installed Python/
+Node/strict-TS consumers (160 Q14/Q15), and its default MCP success/error/schema/
+budget output affects Q11 and Q12 smoke/item4 observations. Pre90 Block1 results
+remain real prerequisite evidence for their baseline, not automatically proof
+of the changed final output. After implementation, assess exact source/artifact/
+format/workload applicability and rerun only invalidated scopes, including
+new-field/budget/paired-smoke assertions where affected. Retain applicable
+unchanged prior results; neither a blanket full replay nor paid-call permission
+is inferred. Parent controls any required model run under its actual approved
+models, episode/budget limits and current technical readiness.
+
+The current completion route is local qualification, review CI, then run CI.
+Registry publication, publishing tags and post-publication smoke remain outside
+this assignment.

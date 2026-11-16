@@ -46,8 +46,8 @@ async fn text_mode_returns_lexical_hits_with_references_and_provenance() {
     let found = result.structured_content.clone().unwrap();
     assert_eq!(found["mode"], "text");
     assert_eq!(found["store"], "a");
-    assert_eq!(found["verdict"], "unavailable");
-    assert_eq!(found["state"], json!({"status": "unavailable"}));
+    assert!(found.get("verdict").is_none(), "unavailable verdict is omitted");
+    assert!(found.get("state").is_none(), "unavailable envelope state is omitted");
     assert_eq!(found["degradation"], json!([]));
     let hit = &found["results"][0];
     assert_eq!(hit["ref"], "l:note:1", "MR-042.1: the logical id verbatim");
@@ -249,7 +249,7 @@ fn assert_fits(result: &rmcp::model::CallToolResult, max_tokens: u64) {
 // and exact trace fields from a same-state SDK control read before adapter open.
 // No production shaper or rendered MCP payload supplies this oracle.
 fn mandatory_search_size(mode: &str, explain: bool, max_tokens: u64, sdk_trace: &Value) -> u64 {
-    let mut p = json!({"store":"a","epoch":1,"validity_instant":1900000000,"state":{"status":"unavailable"},"degradation":[],"budget":{"max_tokens":max_tokens,"used_tokens":0,"cut":true},"mode":mode,"response_id":"r1-0000000000000000","results":[],"completeness":"cut_by_budget","verdict":"unavailable","continuation":null});
+    let mut p = json!({"store":"a","epoch":1,"validity_instant":1900000000,"degradation":[],"budget":{"max_tokens":max_tokens,"used_tokens":0,"cut":true},"mode":mode,"response_id":"r1-0000000000000000","results":[],"completeness":"cut_by_budget","continuation":null});
     if mode == "hybrid" {
         p["degradation"] = json!([{"arm":"vector","reason":"embedder_absent"},{"arm":"vector","reason":"embedder_unavailable"}]);
     }
@@ -347,12 +347,15 @@ async fn invalid_arguments_are_typed_invalid_requests() {
         json!({"query": "river", "max_tokens": 255}),
         json!({"query": "river", "mode": "vector"}),
         json!({"query": "river", "include_superseded": "true"}),
-        json!({"query": "river", "colour": "blue"}),
     ] {
         let error = harness.err("search", args.clone()).await;
         assert_eq!(error["class"], "invalid_request", "{args}: {error}");
         assert_eq!(error["code"], "bad_argument", "{args}: {error}");
     }
+    let unknown = harness.err("search", json!({"query":"river","colour":"blue"})).await;
+    assert_eq!(unknown["class"], "invalid_request");
+    assert_eq!(unknown["code"], "unknown_argument");
+    assert_eq!(unknown["argument"], "colour");
     harness.shutdown().await;
 }
 

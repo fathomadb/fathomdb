@@ -187,6 +187,33 @@ fn compare_baseline(current: &Value, expected: &Value, index: usize) -> Result<(
     }
     let original = &expected["result"]["structuredContent"];
     let mut desired = original.clone();
+    if index == 1 {
+        if expected["id"] != 4
+            || original
+                != &json!({"stores":[{"default":true,"name":"a","open":false,"readiness":"closed"}]})
+        {
+            return Err("historical session-default successor guard mismatch".into());
+        }
+        desired["default_store"] = json!("a");
+    }
+    if (2..=9).contains(&index) {
+        if expected["id"] != (index + 3) as u64
+            || original["store"] != "a"
+            || original["epoch"] != 1
+            || original["validity_instant"] != PINNED
+            || original["state"] != json!({"status":"unavailable"})
+        {
+            return Err("historical unavailable-state successor guard mismatch".into());
+        }
+        desired.as_object_mut().unwrap().remove("state");
+        if index <= 6 {
+            let mode = if index == 4 { "hybrid" } else { "text" };
+            if original["mode"] != mode || original["verdict"] != "unavailable" {
+                return Err("historical unavailable-verdict successor guard mismatch".into());
+            }
+            desired.as_object_mut().unwrap().remove("verdict");
+        }
+    }
     if index == 4 {
         let refs = original["results"]
             .as_array()
@@ -237,7 +264,7 @@ fn compare_baseline(current: &Value, expected: &Value, index: usize) -> Result<(
         let covered = original["results"].as_array().unwrap().len();
         let fitting = (0..=covered)
             .rev()
-            .map(|n| historical_search_prefix(original, n))
+            .map(|n| historical_search_prefix(&desired, n))
             .find(|candidate| {
                 (2 * serde_json::to_string(candidate).unwrap().len()).div_ceil(4) as u64 <= max
             })
@@ -251,7 +278,7 @@ fn compare_baseline(current: &Value, expected: &Value, index: usize) -> Result<(
         desired["budget"]["cut"] = fitting["budget"]["cut"].clone();
     }
     if index == 8 {
-        let fitting = historical_fetch_prefix(original)?;
+        let fitting = historical_fetch_prefix(&desired)?;
         if payload["items"][0]["record"]["body"] != fitting["items"][0]["record"]["body"] {
             return Err(
                 "fetch body differs from the independently derived retained cutting policy".into(),
@@ -315,23 +342,20 @@ fn historical_comparator_rejects_unapproved_semantic_and_accounting_changes() {
         .lines()
         .map(|line| serde_json::from_str::<Value>(line).unwrap())
         .collect::<Vec<_>>();
-    let valid = current_wire(&rows[2], rows[2]["result"]["structuredContent"].clone());
+    let valid =
+        current_wire(&rows[2], authored_omission(rows[2]["result"]["structuredContent"].clone()));
     assert!(compare_baseline(&valid, &rows[2], 2).is_ok());
     for change in ["score", "source", "ref_order", "unknown", "type", "state", "verdict", "handle"]
     {
-        let mut payload = rows[2]["result"]["structuredContent"].clone();
+        let mut payload = authored_omission(rows[2]["result"]["structuredContent"].clone());
         match change {
             "score" => payload["results"][0]["score"] = json!(9),
             "source" => payload["results"][0]["source_id"] = json!("wrong"),
             "ref_order" => payload["results"].as_array_mut().unwrap().swap(0, 1),
             "unknown" => payload["unknown"] = json!(true),
             "type" => payload["epoch"] = json!("1"),
-            "state" => {
-                payload.as_object_mut().unwrap().remove("state");
-            }
-            "verdict" => {
-                payload.as_object_mut().unwrap().remove("verdict");
-            }
+            "state" => payload["state"] = json!({"status":"unavailable"}),
+            "verdict" => payload["verdict"] = json!("unavailable"),
             "handle" => payload["continuation"] = json!("c1-0000000000000000"),
             _ => unreachable!(),
         }
@@ -345,17 +369,18 @@ fn historical_comparator_rejects_unapproved_semantic_and_accounting_changes() {
     bad["result"]["content"][0]["text"] =
         json!(serde_json::to_string(&bad["result"]["structuredContent"]).unwrap());
     assert!(compare_baseline(&bad, &rows[2], 2).is_err(), "false count");
-    let mut payload = rows[7]["result"]["structuredContent"].clone();
+    let mut payload = authored_omission(rows[7]["result"]["structuredContent"].clone());
     payload["items"][1]["error"]["code"] = json!("wrong");
     assert!(
         compare_baseline(&current_wire(&rows[7], payload), &rows[7], 7).is_err(),
         "wrong per-item error"
     );
     let original = &rows[5]["result"]["structuredContent"];
+    let successor = authored_omission(original.clone());
     let max = original["budget"]["max_tokens"].as_u64().unwrap();
     let prefix = (0..=original["results"].as_array().unwrap().len())
         .rev()
-        .map(|n| historical_search_prefix(original, n))
+        .map(|n| historical_search_prefix(&successor, n))
         .find(|candidate| {
             (2 * serde_json::to_string(candidate).unwrap().len()).div_ceil(4) as u64 <= max
         })
@@ -374,7 +399,7 @@ fn historical_comparator_rejects_unapproved_semantic_and_accounting_changes() {
         "false derived handle"
     );
     let original = &rows[8]["result"]["structuredContent"];
-    let fitting = historical_fetch_prefix(original).unwrap();
+    let fitting = historical_fetch_prefix(&authored_omission(original.clone())).unwrap();
     assert!(compare_baseline(&current_wire(&rows[8], fitting.clone()), &rows[8], 8).is_ok());
     let body = fitting["items"][0]["record"]["body"].as_str().unwrap();
     assert!(!body.is_empty(), "authored fixture must exercise unjustified empty and shorter cuts");
@@ -400,7 +425,7 @@ fn historical_hybrid_absence_has_only_the_authored_successor_delta() {
         {"arm":"vector","reason":"embedder_absent"},
         {"arm":"vector","reason":"embedder_unavailable"}
     ]);
-    let mut payload = rows[4]["result"]["structuredContent"].clone();
+    let mut payload = authored_omission(rows[4]["result"]["structuredContent"].clone());
     payload["degradation"] = pair.clone();
     let valid = current_wire(&rows[4], payload.clone());
     assert!(compare_baseline(&valid, &rows[4], 4).is_ok(), "approved exact absence successor");
@@ -431,7 +456,7 @@ fn historical_hybrid_absence_has_only_the_authored_successor_delta() {
     changed["results"][0]["score"] = json!(9);
     assert!(compare_baseline(&current_wire(&rows[4], changed), &rows[4], 4).is_err());
     for index in [2, 3, 5, 6] {
-        let mut text = rows[index]["result"]["structuredContent"].clone();
+        let mut text = authored_omission(rows[index]["result"]["structuredContent"].clone());
         text["degradation"] = pair.clone();
         assert!(compare_baseline(&current_wire(&rows[index], text), &rows[index], index).is_err());
     }

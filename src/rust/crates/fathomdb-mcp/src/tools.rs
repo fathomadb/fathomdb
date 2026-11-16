@@ -1959,8 +1959,11 @@ mod compact_render_tests {
             not_in_this_release: ["state", "verdict", "kinds", "counts"],
         };
         let text = render_orient(&output);
+        let disclosure = r#"not_in_this_release=["state","verdict","kinds","counts"]"#;
+        assert_eq!(text.lines().filter(|line| *line == disclosure).count(), 1);
         for expected in [
             "orient store=\"s\" epoch=1 validity_instant=0 tokens=0/4000",
+            disclosure,
             "projection \"text\" roles=searchable fts=true vector=false dense=not_declared",
             "embedding: state=blocked usable_embedder=false pending=2 affected_kinds=[\"note\"]",
             "runtime_embedder: available=false reason=no_runtime",
@@ -1968,8 +1971,15 @@ mod compact_render_tests {
         ] {
             assert!(text.contains(expected), "missing {expected}: {text}");
         }
+        let coverage = text.lines().find_map(|line| line.strip_prefix("coverage: ")).unwrap();
+        assert_eq!(
+            serde_json::from_str::<Value>(coverage).unwrap(),
+            serde_json::json!({"status":"unavailable","population":"stored_mapped_spans","profile":{"key":"default","name":"test","revision":"1","dimension":8},"reason":"cache_cold"})
+        );
+        let outside_disclosure =
+            text.lines().filter(|line| *line != disclosure).collect::<Vec<_>>().join("\n");
         for omitted in ["state=unavailable", "kinds:", "counts:", "verdict"] {
-            assert!(!text.contains(omitted), "{text}");
+            assert!(!outside_disclosure.contains(omitted), "{text}");
         }
     }
 

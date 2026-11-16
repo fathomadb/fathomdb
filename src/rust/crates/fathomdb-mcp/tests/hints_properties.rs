@@ -117,7 +117,7 @@ fn reference_page(
     } else {
         "complete"
     };
-    let mut out = json!({"store":"s","epoch":1,"validity_instant":0,"state":{"status":"unavailable"},"degradation":[],"budget":{"max_tokens":input.max_tokens,"used_tokens":0,"cut":cut},"mode":"text","response_id":response,"results":hits,"completeness":completeness,"verdict":"unavailable","continuation":continuation});
+    let mut out = json!({"store":"s","epoch":1,"validity_instant":0,"degradation":[],"budget":{"max_tokens":input.max_tokens,"used_tokens":0,"cut":cut},"mode":"text","response_id":response,"results":hits,"completeness":completeness,"continuation":continuation});
     if !hints.is_empty() {
         out["hints"] = json!(hints);
     }
@@ -155,9 +155,9 @@ fn reference_shape(input: &SearchPageInput) -> Option<(Value, String, Option<usi
 #[test]
 fn structured_tiny_budget_has_an_independently_sized_zero_progress_page() {
     let input = SearchPageInput {
-        ranked: ranked(&[120]),
+        ranked: ranked(&[300]),
         limit: 10,
-        snippet_bytes: 120,
+        snippet_bytes: 300,
         max_tokens: 256,
         hints: Some(true),
         ..Default::default()
@@ -170,7 +170,7 @@ fn structured_tiny_budget_has_an_independently_sized_zero_progress_page() {
     assert!(expected.get("hints").is_none());
     assert!((2 * text.len()).div_ceil(4) <= 256);
     let shaped = shape_search_page(&prepare_search_page(&input));
-    assert_eq!(shaped.kept, kept, "old-format fit must not keep an oversized whole hit");
+    assert_eq!(shaped.kept, kept, "the authored whole hit exceeds the current-format budget");
     assert_eq!(shaped.structured, expected);
     assert_eq!(shaped.text, text);
     assert_eq!(shaped.next_offset, next);

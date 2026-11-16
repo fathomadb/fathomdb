@@ -785,7 +785,8 @@ async fn inactive_identity_filters_and_budgeted_continuations_keep_both_flags() 
             let error =
                 harness.call("search", json!({"query":QUERY,"include_out_of_window":true})).await;
             assert_eq!(error.is_error, Some(true));
-            assert!(text_of(&error).contains("bad_argument"));
+            assert!(text_of(&error).contains("unknown_argument"));
+            assert!(text_of(&error).contains("include_out_of_window"));
             let expected = view_rows(&engine, mode, view(true, true, PINNED), QUERY, None);
             for budget in [100_000, if format == "text" { 256 } else { 1000 }] {
                 let mut request = args(mode, 2);

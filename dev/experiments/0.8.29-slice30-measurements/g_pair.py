@@ -251,7 +251,7 @@ def worker_admission(manifest, cell, attempt):
     return owner
 
 
-def public_entry(operation, root, options=None):
+def public_entry(operation, root, options=None, *, selection=None):
     """Dispatch public pair operations through the existing original-ledger guardian."""
     from m_guard import guard
     if os.environ.get('AGENT_LONG') != '1':
@@ -262,6 +262,11 @@ def public_entry(operation, root, options=None):
               json.loads((root/'manifest.json').read_text()))
     if operation == 'run' and selected.get('scope') == 'calibration':
         raise ValueError('calibration executes only through the explicit cumulative pair-calibrate command')
+    if selection is not None:
+        if operation != 'run':
+            raise ValueError('prospective selection belongs only to primary pair-run')
+        from g_pair_freeze import validate
+        selected = validate(root, selection=selection)
     profile=selected['profile']
     if not isinstance(profile,dict):
         profile=json.loads(Path(profile).read_text())
@@ -281,13 +286,25 @@ def public_entry(operation, root, options=None):
              '--root',str(root)]
     if options:
         command+=['--options',str(Path(options).resolve())]
+    adopted = []
+    if selection is not None:
+        from g_pair_selection import adopt
+        argv = command
+        def command():
+            current = validate(root, selection=selected['_selection'])
+            path = adopt(current)
+            adopted.append(path)
+            return [*argv, '--selection', str(path)]
     outcome=guard(command,allocation=selected['allocation'],profile=profile,root=root,
         task=os.environ['S30_TASK'],admission=True,phase='S50',calibration=calibration,
         common_limit_ns=common,started_ns=began,
         primary_limits=(selected.get('primary_limits') if not calibration else None))
-    if (root / 'manifest.json').exists():
+    if (root / 'manifest.json').exists() and (selection is None or adopted):
         from g_pair_runtime import retire_qualified
-        retire_qualified(root, outcome)
+        if adopted:
+            retire_qualified(root, outcome, manifest=selected)
+        else:
+            retire_qualified(root, outcome)
     if operation != 'report':
         print(json.dumps(outcome))
     return outcome['exit']==0 and not outcome['cleanup_uncertain']
@@ -305,16 +322,16 @@ def native_result(step):
     return load_native(step)
 
 
-def payload(root, config, attempt, deadline_ns):
+def payload(root, config, attempt, deadline_ns, *, selection=None):
     """Run the admitted current paired native member through existing bounded drivers."""
     from g_pair_runtime import payload as run_payload
-    return run_payload(root, config, attempt, deadline_ns)
+    return run_payload(root, config, attempt, deadline_ns, selection=selection)
 
 
-def control_entry(operation, root, options, admission_fd):
+def control_entry(operation, root, options, admission_fd, *, selection=None):
     """Consume owning guardian admission and execute the explicit private operation."""
     from g_pair_runtime import control_entry as run_control
-    return run_control(operation, root, options, admission_fd)
+    return run_control(operation, root, options, admission_fd, selection=selection)
 
 
 def required_prefix(manifest, root):

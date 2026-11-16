@@ -384,14 +384,18 @@ def main():
         entry = commands.add_parser(action)
         entry.add_argument("--options", type=Path, required=True)
         entry.add_argument("--root", "--out", dest="root", type=Path, required=True)
-    commands.add_parser("pair-run").add_argument("root", type=Path)
+    pair_run = commands.add_parser("pair-run")
+    pair_run.add_argument("root", type=Path)
+    pair_run.add_argument("--selection", type=Path)
     pair_control = commands.add_parser("_pair_control")
     pair_control.add_argument("--operation", choices=("freeze", "calibration", "run", "report"), required=True)
     pair_control.add_argument("--root", type=Path, required=True)
     pair_control.add_argument("--options", type=Path)
+    pair_control.add_argument("--selection", type=Path)
     pair_control.add_argument("--admission-fd", type=int, required=True)
     pair_cell = commands.add_parser("_pair_cell")
     pair_cell.add_argument("--root", type=Path, required=True)
+    pair_cell.add_argument("--selection", type=Path)
     pair_cell.add_argument("--deadline-ns", type=int, required=True)
     pair_cell.add_argument("config", type=Path)
     pair_cell.add_argument("attempt", type=Path)
@@ -429,15 +433,15 @@ def main():
     elif args.action in ("pair-freeze", "pair-calibrate", "pair-run"):
         from g_pair import public_entry
         operation = {"pair-freeze":"freeze", "pair-calibrate":"calibration", "pair-run":"run"}[args.action]
-        if not public_entry(operation, args.root, getattr(args,"options",None)):
+        if not public_entry(operation, args.root, getattr(args,"options",None), selection=getattr(args,"selection",None)):
             raise SystemExit(1)
     elif args.action == "_pair_control":
         from g_pair import control_entry
-        if not control_entry(args.operation,args.root,args.options,args.admission_fd):
+        if not control_entry(args.operation,args.root,args.options,args.admission_fd,selection=args.selection):
             raise SystemExit(1)
     elif args.action == "_pair_cell":
         from g_pair import payload
-        if not payload(args.root,args.config,args.attempt,args.deadline_ns)["complete"]:
+        if not payload(args.root,args.config,args.attempt,args.deadline_ns,selection=args.selection)["complete"]:
             raise SystemExit(1)
     elif args.action == "pair-report":
         from g_pair import report as pair_summary

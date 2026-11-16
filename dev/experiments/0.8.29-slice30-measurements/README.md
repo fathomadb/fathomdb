@@ -653,6 +653,20 @@ or full-table-fit claim is required; unobserved future costs stay unavailable.
 Full completion still needs all136 ordinary/24 diagnostic members with original
 populations/order/repeats and exact/numeric checks.
 
+Existing primary campaigns accept explicit `pair-run ROOT --selection FILE`.
+The `slice50-pair-selection/v1` object binds `root`, `manifest_uuid`, approved
+`profile`, finite `primary_limits` and boolean `retire_complete_copies`;
+optional `g_donors`, `model_cache`, `gpu_uuid`/`gpu_ordinal` bind later selected G
+preparation without being P prerequisites. Adoption is guarded on the original
+ledger and preserves the immutable freeze, prior results/charges and original
+attempted-pair caps. Accepted selections remain in `selections/` with their
+actual guardian and controller revision; the report and new outcomes identify
+the selected invocation. Python controller changes can continue identical frozen
+native/compiler inputs without rebuilding or retagging. The explicit prospective
+ceiling is48h TOTAL/192GiB TOTAL, never renewed per study or selection; current
+capacity, reservations and the selected finite stops still govern admission.
+No selection is automatically adopted from a newer source revision.
+
 The optional legacy `pair-calibrate` four-member10k entry is not a prerequisite.
 Its extra10k diagnostic pair is outside the required24. `ordinary_calibration_from`
 may explicitly reference eligible full ordinary10k G members already executed on

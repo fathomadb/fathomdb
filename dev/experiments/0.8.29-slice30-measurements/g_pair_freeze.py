@@ -210,14 +210,17 @@ def freeze(options, output, *, scope):
     return manifest
 
 
-def validate(root):
+def validate(root, *, selection=None):
     """Recheck exact canonical scope and current frozen artifact/data custody before dispatch."""
     from g_pair import approved, canonical_members
     root = Path(root).resolve()
     manifest = prepared_inputs(json.loads((root / 'manifest.json').read_text()))
+    if selection is not None:
+        from g_pair_selection import apply
+        manifest = apply(manifest, selection)
     canonical_members(manifest)
     approved(manifest['profile'], manifest['allocation'])
-    if (manifest['root'] != str(root) or manifest['source_sha'] != git('rev-parse', 'HEAD')
+    if (manifest['root'] != str(root) or (selection is None and manifest['source_sha'] != git('rev-parse', 'HEAD'))
             or manifest['compiler_inputs'] != compiler_inputs() or git('status', '--porcelain')
             or any(os.environ.get(key) != value for key, value in manifest['environment'].items())):
         raise ValueError('current clean paired source/environment differs')

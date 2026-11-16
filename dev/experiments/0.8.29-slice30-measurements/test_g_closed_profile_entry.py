@@ -1,6 +1,7 @@
 """Prospective reviewed totals propagate to public common work and the outer guardian."""
 
 import json
+import os
 from pathlib import Path
 import sys
 import tempfile
@@ -26,7 +27,8 @@ class GClosedProfileEntryTests(unittest.TestCase):
             options = dict(allocation=str(allocation), out=str(allocation / "frozen"),
                 preparation="closed-copy-v1", stage="closed-copy-write-matrix", cost_review_from=str(review))
             try:
-                with patch("g_boundary.require_known_containment"), \
+                with patch.dict(os.environ, {"S30_TASK": str(allocation)}), \
+                    patch("g_boundary.require_known_containment"), \
                         patch.object(g_closed_entry, "worker_command", return_value=controlled_worker(marker)):
                     g_closed_entry.freeze_entry(options)
             except RuntimeError as error:

@@ -14,6 +14,13 @@ fail() { printf 'FAIL  %s\n' "$1" >&2; exit 1; }
 
 [ -f "$GUARD" ] || fail "guard script scripts/check-single-cudarc.sh is absent"
 
+# Standalone vendored fixtures must not inherit the product's Cargo patches.
+incoming_cargo_home_set="${CARGO_HOME+x}"
+incoming_cargo_home="${CARGO_HOME-}"
+fixture_cargo_home="$(mktemp -d)"
+trap 'rm -rf -- "$fixture_cargo_home"' EXIT
+export CARGO_HOME="$fixture_cargo_home"
+
 # A tree fixture that cargo rejects would make an arm fail for the wrong
 # reason, so every tree fixture must be a consistent, locked workspace first.
 for tree in "$FIXTURES"/tree/*/; do
@@ -76,6 +83,12 @@ expect_pass 'C exclusion: cudarc reachable only through flash-attn passes' \
 # Condition D (a concrete cuda-NNNNN feature on cudarc-fathomdb, D-8W).
 expect_fail_with 'cudarc-fathomdb feature "cuda-12060"' 'concrete_cuda_feature_on_cudarc_fathomdb_is_rejected' \
   --root "$FIXTURES/tree/concrete-feature"
+
+if [ "$incoming_cargo_home_set" = x ]; then
+  export CARGO_HOME="$incoming_cargo_home"
+else
+  unset CARGO_HOME
+fi
 
 # The real tree. --offline needs the registry cache; crates.io is a permitted
 # package registry, and --locked never rewrites the lock.

@@ -3,6 +3,7 @@
 from contextlib import redirect_stdout
 import io
 import json
+import os
 from pathlib import Path
 import sys
 import tempfile
@@ -43,7 +44,8 @@ class GClosedPublicFreezeTests(unittest.TestCase):
                 "used_ns": 1845130877940, "inflight": None, "cell_used_ns": {}, "common_used_ns": {}}))
             marker = root / "worker-ran"
             # Typed entry controls only; actual worker ownership/deadline is exercised.
-            with patch("g_boundary.require_known_containment"), patch.object(sys, "argv", argv(root)), \
+            with patch.dict(os.environ, {"S30_TASK": str(root)}), \
+                    patch("g_boundary.require_known_containment"), patch.object(sys, "argv", argv(root)), \
                     patch.object(g_closed_entry, "worker_command", return_value=controlled_worker(marker)), \
                     redirect_stdout(io.StringIO()):
                 g_runner.main()
@@ -62,7 +64,8 @@ class GClosedPublicFreezeTests(unittest.TestCase):
                 "common_used_ns": {MODE: 600 * 10**9}}))
             marker = root / "forbidden"
             failure = None
-            with patch("g_boundary.require_known_containment"), patch.object(sys, "argv", argv(root)), \
+            with patch.dict(os.environ, {"S30_TASK": str(root)}), \
+                    patch("g_boundary.require_known_containment"), patch.object(sys, "argv", argv(root)), \
                     patch.object(g_closed_entry, "worker_command", return_value=controlled_worker(marker)), \
                     redirect_stdout(io.StringIO()):
                 try:

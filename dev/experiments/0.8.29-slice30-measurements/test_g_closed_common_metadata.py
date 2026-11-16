@@ -1,6 +1,7 @@
 """Frozen/prepared/report metadata shares the common storage reserve outside results."""
 
 import json
+import os
 from pathlib import Path
 import sys
 import tempfile
@@ -27,7 +28,8 @@ class GClosedCommonMetadataTests(unittest.TestCase):
                 "(pathlib.Path(sys.argv[2])/'result.json').write_text(json.dumps(dict(complete=True,value={})))",
             ])]
             failure = None
-            with patch("g_boundary.require_known_containment"), \
+            with patch.dict(os.environ, {"S30_TASK": str(allocation)}), \
+                    patch("g_boundary.require_known_containment"), \
                     patch.object(g_closed_entry, "worker_command", return_value=worker), \
                     patch.object(g_closed_common, "COMMON_BYTES", 65536):
                 try:

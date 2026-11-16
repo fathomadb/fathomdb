@@ -1,6 +1,6 @@
 ---
 title: Current MCP conformance qualification for 0.8.29
-date: 2026-11-15
+date: 2026-11-16
 status: PROPOSED
 desc: Fresh both-format official-suite and direct-stdio results, with supported-capability applicability and unresolved upstream protocol discrepancies distinguished.
 inputs:
@@ -12,33 +12,35 @@ inputs:
 
 # Current MCP conformance qualification for 0.8.29
 
-Fresh execution on November 15 local time (November 16 UTC) qualifies the three
+Fresh execution on November 16 qualifies the three
 applicable official server scenarios in **both formats**. Each full run retained
 all 32 scenarios and raw failures:  9 successful checks, 24 failed checks, 2 warnings
 and 4 informational observations. This is not a blanket JSON-RPC compliance or
 Block 1 exit claim. The upstream discrepancies below remain visible and unresolved.
 Selected 30/40/50 measurements and approved LLM episodes remain separate gates;
-this work neither closes those gates nor authorizes Slice 90 implementation.
+this qualification does not close those gates.
 
 ## Subject and tools
 
-- Checkout subject:`e81b3a0d73b1dc0815d5b873096b7066fbd597e8`.
-- Actual binary origin:`ef544124d155bdca08f338bee4644379f8af56a5`, release
-  `fathomdb-mcp` with no optional features or test seams, rmcp 3.5.1. Its native
-  path is `/mnt/data/tmp2/fathomdb-0829-continuation/source-phase-20261115/source-ef544-task/target-providerfree/release/fathomdb-mcp`.
-  The artifact retains that origin; it was not rebuilt or relabeled as e81b.
-  `git diff ef544124d155bdca08f338bee4644379f8af56a5 e81b3a0d73b1dc0815d5b873096b7066fbd597e8 -- Cargo.toml Cargo.lock src/rust`
-  changes only `fathomdb-sdk/examples/slice30_measure.rs`. Production Rust,
-  manifests, lock and provider-free feature closure are identical. Cargo's
-  binary fingerprint records `features: []` and no rustflags.
+- Production source:`999acc37826efa3808afc0d1a899e08bd6478f3a`, including the
+  accepted Slice 90 implementation. Tracked tree:
+  `3603aabdfaa7e7ae9059f93c2b541fe1c82ef18a`.
+- Fresh release `fathomdb-mcp`, no optional features or test seams, rmcp 3.5.1,
+  Rust 1.95.0. Its native path is
+  `/mnt/data/tmp2/fathomdb-0829-continuation/final-mcp-20261116/fathomdb-mcp-providerfree`;
+  SHA-256 `d3214304f5c28447143aec86d70f07098a957d3e0686bc4fab0316c25edd5650`.
+  Cargo records only the empty `default` feature and no rustflags. The fixture
+  was compiled against this build's production SDK closure. The earlier ef544
+  executable and November 15 results remain historical evidence.
 - Task-owned npm environment:Node 25.9.0, npm 11.12.1, conformance 0.1.16,
-  Inspector 2.11.0, supergateway 4.2.0 and reference SDK 1.32.1. The initial
-  installation used the host Node 25 npm 11.19; the final pinned installation
-  ran under owned npm 11.12.1. Both logs and the package lock remain external.
-- Raw root:`/mnt/data/tmp2/fathomdb-0829-continuation/block1-conformance-20261115`.
+  Inspector 2.11.0, supergateway 4.2.0 and reference SDK 1.32.1. The final locked
+  installation used the owned npm 11.12.1; lock and installation logs remain
+  external.
+- Raw root:`/mnt/data/tmp2/fathomdb-0829-continuation/final-mcp-20261116/conformance`.
   All suite `checks.json` files, bridge logs, Inspector stdout/stderr/exits,
-  SDK transcripts and raw lifecycle transcripts remain there. No expected-
-  failure baseline or result rewrite was supplied.
+  SDK transcripts and raw lifecycle transcripts remain there; command/build
+  logs are in the task's sibling `logs` directory. No expected-failure baseline
+  or result rewrite was supplied.
 
 ## Official-suite applicability
 
@@ -100,7 +102,7 @@ No embedder, paid model, GPU, fault injection or mocked database was used.
 
 - Inspector:initialize, strict discovery and all seven tools succeeded in each
   format. Unknown store, wrong query type and absent tool each exited 5 as
-  expected. Strict discovery reported 0 errors, 35 text warnings and 79 structured
+  expected. Strict discovery reported 0 errors, 35 text warnings and 108 structured
   warnings; nullable single-type portability warnings remain raw, not failures.
 - Reference SDK: 27 checks per format passed. Discovery keeps inputs identical
   and emits output schemas only in structured mode. Every observed success and
@@ -120,12 +122,6 @@ No embedder, paid model, GPU, fault injection or mocked database was used.
   omitted arguments, cancellation/unknown-notification survival, batch rejection,
   undeclared methods and no socket in the stdio child's file descriptors.
   These 18 are characterization results, not 18 normative compliance passes.
-
-The first SDK probe incorrectly equated `source_type` with the fixture's
-`source_id`; it returned zero hits in both formats. Source inspection showed the
-contract uses projected source-type metadata. The corrected positive test uses
-kind plus declared attributes; a separate absent-source negative control remains.
-Initial failed transcripts/log/summary are preserved as `initial-sdk-*`.
 
 ## Unresolved protocol discrepancies and limits
 
@@ -149,6 +145,7 @@ Initial failed transcripts/log/summary are preserved as `initial-sdk-*`.
   every protocol fault conforms to JSON-RPC, or requalify queue timing, provider
   inference, full budgets, source tests, scientific measurements or LLM smoke.
   Independent review must assess the distinction above before this evidence is
-  used at the later Block 1 entry gate. No Slice 90 source or release state changed.
+  used for the final Block 1 qualification. This work changes no production
+  source or release state.
 
 Reproduction uses [the actual probes](../../experiments/mcp-conformance/README.md).

@@ -3,6 +3,7 @@
 from contextlib import redirect_stdout
 import io
 import json
+import os
 from pathlib import Path
 import sys
 import tempfile
@@ -36,7 +37,8 @@ class GClosedPublicReportTests(unittest.TestCase):
                     "(pathlib.Path(sys.argv[2])/'result.json').write_text(json.dumps(dict(complete=True,value=dict(cells=[],complete=False))))",
                 ])]
                 failure = None
-                with patch("g_boundary.require_known_containment"), \
+                with patch.dict(os.environ, {"S30_TASK": str(root)}), \
+                    patch("g_boundary.require_known_containment"), \
                         patch.object(g_closed_entry, "worker_command", return_value=program), \
                         patch.object(sys, "argv", [str(Path(g_runner.__file__)), "report", str(frozen)]), \
                         redirect_stdout(io.StringIO()):

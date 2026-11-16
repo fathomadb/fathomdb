@@ -60,6 +60,13 @@ candidate loader, owned tools and allocated RTX3090. The historical build
 recipe is in `../mcp-hybrid-vs-keyword/README.md`; it does not qualify a current
 candidate binary. `$S` is this task's external scratch directory.
 
+Build the production server separately with
+`cargo build --locked --release -p fathomdb-mcp --features embed-cuda --bin fathomdb-mcp`
+and preserve that executable before building `--example locomo_load`. The
+example's self dev-dependency enables `test-seams`; requesting the server and
+example together also enables those seams in the server. Use the separately
+built production server for the agent episodes.
+
 ```bash
 locomo_load <locomo10.json> --single "$S/stores/all/locomo_all.sqlite"
 locomo_load <locomo10.json> --single "$S/stores/conv0/conv0.sqlite" --convs 0

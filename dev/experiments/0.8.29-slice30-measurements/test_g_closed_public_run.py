@@ -1,6 +1,7 @@
 """Public run common-entry wiring with real workers and synthetic readiness observations."""
 
 import json
+import os
 from pathlib import Path
 import sys
 import tempfile
@@ -44,7 +45,8 @@ class GClosedPublicRunTests(unittest.TestCase):
                         "if j['action']=='finish':(root/'last-run.json').write_text(json.dumps(value))",
                         "(pathlib.Path(sys.argv[2])/'result.json').write_text(json.dumps(dict(complete=True,value=value)))",
                     ])]
-                with patch("g_boundary.require_known_containment"), patch.object(g_runner, "run_prepared", controller), \
+                with patch.dict(os.environ, {"S30_TASK": str(root)}), \
+                    patch("g_boundary.require_known_containment"), patch.object(g_runner, "run_prepared", controller), \
                         patch.object(g_closed_entry, "worker_command", worker):
                     rows = g_runner.run_frozen(frozen)
                 self.assertEqual(len(rows), 84)

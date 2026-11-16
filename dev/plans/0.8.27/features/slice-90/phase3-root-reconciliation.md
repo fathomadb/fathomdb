@@ -1,7 +1,7 @@
 ---
 title: Slice 90 Phase 3 root reconciliation
 target_release: 0.8.27
-lib_rs_blob: 8783928475aae69e6671c25c8a477ab5d24f8120
+lib_rs_blob: 1e77eb68da245c82b3e52b56ce755cd2a5e25276
 ---
 
 # Slice 90 Phase 3 root reconciliation
@@ -83,7 +83,7 @@ method ownership or production behavior.
 
 | Declaration | Disposition |
 | --- | --- |
-| `Engine` and its 48 fields | Physical engine storage and lifetime identity remain at root. Field bodies and state consumers are owned by the modules in the design map. |
+| `Engine` and its 49 fields | Physical engine storage and lifetime identity remain at root. Field bodies and state consumers are owned by the modules in the design map. |
 | `impl Debug for Engine` | Facade rendering of path, close state, and embedder identity. |
 | `Engine::path`, `Engine::ensure_open` | The two approved root facade controls. |
 | `Engine::execute_for_test` | Approved Slice 140 arbitrary writer-SQL/lifecycle fixture; `any(test, test-hooks)`, public and doc-hidden. |
@@ -92,7 +92,7 @@ method ownership or production behavior.
 | `Engine::query_i64_col_for_test`, `Engine::query_text_col_for_test` | Approved public, doc-hidden arbitrary writer-SQL column fixtures under `any(test, test-hooks)`. `DML ... RETURNING` may mutate; neither method enforces a statement kind. |
 | `PROJECTION_WORKERS` | `#[cfg(test)]` root unit-test fixture with value 2, consumed only by the root `tests` module. It is not a runtime worker-count default or an unallocated production constant. |
 
-The exact 48 storage fields are grouped here to prevent a generic
+The exact 49 storage fields are grouped here to prevent a generic
 "remaining state" exemption:
 
 | Storage role | Root field names |
@@ -100,7 +100,7 @@ The exact 48 storage fields are grouped here to prevent a generic
 | Identity and admission state | `path`, `requested_config`, `query_stop_words`, `resolved_config`, `runtime_embedder_identity`, `explanation_open_nonce`, `explanation_sequence` |
 | Connections and lifecycle | `closed`, `close_lock`, `lock`, `connection`, `reader_pool`, `profile_contexts`, `reader_lookaside_rcs`, `managed_connections`, `writer_connection_registration`, `actual_checkpoint_observations`, `binding_native_state_observations`, `wal_attribution` |
 | Physical cleanup | `physical_maintenance`, `physical_service_gate`, `physical_policy`, `explicit_debt`, `maintenance_admission` |
-| Projection and write state | `next_cursor`, `read_visibility_generation`, `projection_generation_status_cache`, `mutation_projection_status_cache`, `projection_generation_status_full_owner_scan_count`, `projection_runtime`, `provenance_row_cap` |
+| Projection and write state | `next_cursor`, `read_visibility_generation`, `stored_head_coverage`, `projection_generation_status_cache`, `mutation_projection_status_cache`, `projection_generation_status_full_owner_scan_count`, `projection_runtime`, `provenance_row_cap` |
 | Embed dispatch state | `runtime_embedder`, `embed_dispatch` |
 | Events and telemetry | `counters`, `subscribers`, `profiling_enabled`, `slow_threshold_ms`, `telemetry`, `telemetry_enabled` |
 | Test controls | `evidence_before_sidecar_hook`, `evidence_before_resolve_return_hook`, `graph_expand_rss_baseline_bytes`, `graph_expand_rss_delta_bytes`, `graph_evidence_before_resolve_return_hook`, `erasure_before_primary_lock_hook`, `force_next_commit_failure`, `actuation_after_initial_lookup_delay_ms`, `actuation_failure_after_operation` |
@@ -168,3 +168,9 @@ method ownership remain unchanged. Observation state remains owned below root.
 and the `test-hooks` full snippet-selector reference, and removes the unused
 `BuildHasher` import. All48 root fields and root method ownership remain
 unchanged; the source blob above tracks these composition changes.
+
+2026-11-16: 0.8.29 Slice90 adds the private `stored_coverage` module and the
+engine-owned `stored_head_coverage` cache. The current exact inventory therefore
+has 49 fields. The cache's snapshot-key validation and consumers remain below
+root; root method ownership is unchanged. The source blob above tracks this
+accepted addition.

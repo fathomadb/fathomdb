@@ -205,6 +205,8 @@ def run_supervised_stage(spec, records, budget, root, command, *, publish=None, 
 
     selected = spec if initial else dict(spec, cells=[cell for cell in spec["cells"]
                                                     if cell["id"] in decision["cells"]])
+    selected = dict(selected, cells=[dict(cell, cell_ns=cell_limit_ns(cell["n"], budget.get("cell_limits_ns")))
+                                     for cell in selected["cells"]])
     rows = run_accounted_stage(selected, records, budget, execute, initial=initial, publish=publish)
     if initial:
         return rows
@@ -259,7 +261,7 @@ def reviewed_quartet(spec, records, budget, review):
         values = bounds[layer]
         if any(type(values.get(key)) is not int or values[key] <= 0 for key in ("time_ns", "active_bytes")):
             return held("reviewed C/T cost bounds are unavailable", "not_run_cost_unknown")
-        if values["time_ns"] >= cell_limit_ns(n) or values["active_bytes"] >= budget["storage_limit"]:
+        if values["time_ns"] >= cell_limit_ns(n, budget.get("cell_limits_ns")) or values["active_bytes"] >= budget["storage_limit"]:
             return held("reviewed cell bounds exceed strict cell/storage headroom", "not_run_cap_feasibility")
         lower = assessment.get("predictions", {}).get(layer)
         if lower and any(values[key] < lower[key] for key in ("time_ns", "active_bytes")):

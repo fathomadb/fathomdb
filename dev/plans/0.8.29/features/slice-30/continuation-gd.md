@@ -1334,6 +1334,10 @@ the unchanged2x same-layer rule. Their quartet needs5754.578037240s and
 is1500s, including preparation, native work, observation/reporting and cleanup;
 10k remains900s. Equality at the selected limit still refuses.300k remains
 unqualified and held for actual100k same-mode evidence and its later current fit.
+Native per-size maxima900/1500/4500s bound explicit later `cell_limits_ns`
+profile selections. The300k default remains900s until a later explicit selection;
+its bounded4500s ceiling avoids another native rebuild, without replacing actual
+100k lower evidence, accepted next-quartet review or shared-budget feasibility.
 No count, corpus/provider/query schedule, overlap/closure oracle or numerical
 assessment changes. This is an evidence-based technical selection under the
 [direct-execution mandate](../../direct-execution.md), not a new owner budget
@@ -1455,7 +1459,7 @@ default900s whole cell (selected D100k1500s as above),14400s cumulative campaign
 incl preparation; count completed
 prior stages against remaining budget. One build/native phase/jobs2 with
 canonical verification settings. Outer resources30s, ordinary raw16-record
-checkpoints and pass boundaries, no fsync. Start1m load<=2, noisy>2.5; preserve
+checkpoints and pass boundaries, no fsync. Load is descriptive, noisy>2.5; preserve
 all noisy cells. At most one additional balanced repeat **only** under existing
 noise rule and remaining cap; never retry until success or automatically expand.
 Keep errors, exact source/native/model/features/ordinal+UUID, counts and partial

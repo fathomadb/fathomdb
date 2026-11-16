@@ -453,6 +453,11 @@ actual source/build identity. Old8 completed10k attempts/native paths and all
 charges are preserved; they are neither retagged nor repeated. Source controls
 include `test_d_selected_allowance.py`, `test_d_selected_guard.py` and the native
 example parser assertion; these are not100k runtime qualification.
+The native ceiling table is bounded at900/1500/4500s for10k/100k/300k.
+A later explicit profile `cell_limits_ns` selection, such as
+`{"300000":4500000000000}`, reaches the same binary without changing workload
+identity or allowing unbounded remaining time.300k defaults/lower-evidence and
+shared-budget holds remain; the ceiling does not authorize its execution.
 
 Python admission and the native pre-store entry record/refuse inherited active
 projection batching or presence-gated reader/writer PRAGMA/search-limit

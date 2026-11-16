@@ -5,16 +5,22 @@ import json
 from pathlib import Path
 
 
-def cell_limit_ns(n):
-    """Read the fixed inventory's single positive whole-cell allowance for a size.
+def cell_limit_ns(n, selected=None, *, maximum=False):
+    """Read a default or explicit positive size allowance within its declared maximum.
 
-    Raise ValueError if the size is absent or its declared cell limits disagree.
+    Raise ValueError for absent sizes, inconsistent defaults or invalid selection.
     """
-    cells = json.loads(Path(__file__).with_name("d-cells.json").read_text())["cells"]
-    limits = {cell["cell_ns"] for cell in cells if cell["n"] == n}
+    spec = json.loads(Path(__file__).with_name("d-cells.json").read_text())
+    limits = {cell["cell_ns"] for cell in spec["cells"] if cell["n"] == n}
     if len(limits) != 1 or any(type(value) is not int or value <= 0 for value in limits):
         raise ValueError("one positive declared D whole-cell allowance required per size")
-    return limits.pop()
+    ceiling = spec["cell_max_ns"][str(n)]
+    if selected is not None and not isinstance(selected, dict):
+        raise ValueError("explicit D size allowance mapping required")
+    limit = ceiling if maximum else (selected or {}).get(str(n), limits.pop())
+    if type(limit) is not int or not 0 < limit <= ceiling:
+        raise ValueError("positive selected D allowance must fit its declared size maximum")
+    return limit
 
 
 def _qualified_lower(n, mode, records):
@@ -65,7 +71,7 @@ def assess_stage(n, mode, records, budget):
         assessment.update(status="not_run_cap_feasibility", reason="predicted quartet exceeds remaining shared time")
     if any(value["active_bytes"] >= budget["storage_limit"] for value in predictions.values()) or budget["retained_bytes"] + quartet_bytes >= budget["storage_limit"]:
         assessment.update(status="not_run_cap_feasibility", reason="predicted quartet exceeds retained storage headroom")
-    limit = cell_limit_ns(n)
+    limit = cell_limit_ns(n, budget.get("cell_limits_ns"))
     if any(value["time_ns"] >= limit for value in predictions.values()):
         assessment.update(status="not_run_cap_feasibility",
                           reason=f"predicted cell time is not strictly below{limit // 10**9}s")

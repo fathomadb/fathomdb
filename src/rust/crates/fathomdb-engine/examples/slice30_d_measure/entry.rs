@@ -65,7 +65,7 @@ pub(super) fn select_config(config: &Value) -> Result<(Value, u64), String> {
         .expect("fixed D cells")
         .iter()
         .find(|cell| {
-            ["id", "n", "mode", "repeat", "layer", "cell_ns"]
+            ["id", "n", "mode", "repeat", "layer"]
                 .iter()
                 .all(|field| cell[*field] == config[*field])
         })
@@ -74,7 +74,13 @@ pub(super) fn select_config(config: &Value) -> Result<(Value, u64), String> {
         .as_str()
         .filter(|id| !id.is_empty())
         .ok_or("D attempt identity is unavailable")?;
-    let whole_ms = selected["cell_ns"].as_u64().expect("fixed D whole-cell allowance") / 1_000_000;
+    let size = selected["n"].as_u64().expect("fixed D cell size").to_string();
+    let maximum = spec["cell_max_ns"][size.as_str()].as_u64().expect("fixed D size maximum");
+    let whole_ms = config["cell_ns"]
+        .as_u64()
+        .filter(|limit| *limit > 0 && *limit <= maximum)
+        .ok_or("D selected whole-cell allowance exceeds its declared size maximum")?
+        / 1_000_000;
     let remaining_ms = config["remaining_cell_ms"]
         .as_u64()
         .filter(|remaining| *remaining > 0 && *remaining <= whole_ms)

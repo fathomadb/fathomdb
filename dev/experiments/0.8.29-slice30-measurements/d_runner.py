@@ -135,6 +135,7 @@ def main():
     actions.add_parser("source-control").add_argument("--root", required=True)
     run = actions.add_parser("run")
     run.add_argument("--options", required=True)
+    actions.add_parser("recover").add_argument("--options", required=True)
     internal = actions.add_parser("_controller")
     internal.add_argument("--root", required=True)
     internal.add_argument("--admission-fd", type=int, required=True)
@@ -142,6 +143,11 @@ def main():
     if options.action == "_controller":
         return _control(Path(options.root).resolve(), options.admission_fd)
     task = Path(os.environ["S30_TASK"]).resolve()
+    if options.action == "recover":
+        from d_recovery import recover
+        result = recover(json.loads(Path(options.options).read_text()), task=task)
+        print(json.dumps(result))
+        return 0 if result["complete"] else 1
     if options.action == "source-control":
         root = Path(options.root).resolve()
         if not root.is_relative_to(task):

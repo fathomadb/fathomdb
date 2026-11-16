@@ -2893,3 +2893,7 @@ mod tracked_observer_tests;
 #[cfg(test)]
 #[path = "cuda_tracked_release_tests.rs"]
 mod tracked_release_tests;
+
+#[cfg(all(test, target_os = "linux", any(feature = "embed-cuda", feature = "rerank-cuda")))]
+#[path = "cuda_ordinary_oom_tests.rs"]
+mod ordinary_oom_tests;

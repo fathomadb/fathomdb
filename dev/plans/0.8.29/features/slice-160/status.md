@@ -25,6 +25,7 @@ Cargo cache/target and ordinary CPU execution. Raw logs and archives remain unde
 | Offline leaf packages, `cargo package --offline --locked --allow-dirty` |All3 archives verify-compiled: embedder-api0.8.0, schema/query0.8.29. Cargo's unused optional fork-patch warnings are retained in `logs/package-*.log`; no verification bypass. |
 | Q4 missing AC037 live components |Current locked `security_cycle` rebuilt; both canonical netns engine and demonstrate-the-catch scripts exited0, including the live deliberate-egress catch. `logs/security-build.log`, `logs/check-netns-deny-egress.log`, `logs/check-netns-deny-egress-catch.log`. No host settings changed or optional downgrade selected. |
 | Q14 current Linux x64 production consumers |At `b07a161317ff753b86b5eb706e7c5e761adecb9a` (unchanged runtime source), the existing owned Python setup built an abi3 .29 wheel with `pyo3/extension-module,default-embedder`; the existing production N-API route and TS build passed. No test-hooks. The existing local native smoke passed isolated offline Python and matched Node installs, strict installed graph types with TS6.0.3, write/search/dependency/frozen-read and Node graph-evidence controls; Python3/Node3 runtime-configuration cases passed, zero skipped. `logs/production-{python-build,napi-build,typescript-build,installed-consumers}.log`. |
+| Q15 current Linux CUDA12.6 distribution floor and driverless controls |At `abcc528944e58b5ef20cb03c27a741bf29bc13b1` (unchanged runtime source), the existing attested manylinux image built the canonical no-hook Python `embed-cuda,rerank-cuda` tuple; matching host N-API tuple built with the pinned GCC13/CUDA12.6 route. Actual `auditwheel show` confirms manylinux2.28; N-API's declared2.39 floor passes. The existing archive inspector checked every packaged ELF member without forbidden CUDA/NVIDIA payload or linkage. Canonical driverless Python/Node stages pass auto/explicit CPU384-vector forwards, real write/search/close and reranker CPU forwards. All4 forced embedder/reranker captures have actual exit1 and pass the existing exact typed-JSON/stderr validators. `logs/{manylinux-cuda-python-build,production-cuda-napi-build,production-cuda-auditwheel,production-cuda-napi-floor,production-cuda-driverless,production-cuda-forced-validation}.log`. |
 
 The long variants close the missing Q10 observations on these inputs. AC037 closes
 the missing live component alongside applicable accepted unchanged security
@@ -38,7 +39,17 @@ Python3.13.13/Rust1.95; Node25.9 consumed its matched production package. This
 runtime observation does not qualify the required manylinux2.28 distribution
 floor, CUDA artifacts, all five targets, final90 bytes or registry consumers.
 The wheel remains in `tmp/fathomdb-owned-python-3d8ud5k0/` under the raw-log root;
-the built addon/declarations remain in this worktree's `src/ts/`.
+the CPU addon/declarations are preserved in `subjects/cpu-ts/` under that root.
+
+The CUDA wheel remains in `manylinux-out/`; matched main/platform tarballs,
+installed forced-refusal subjects and archive-linkage output remain in
+`driverless/`. The bounded adapter `driverless-existing-stages.sh` copies only
+the existing canonical staging/driverless/refusal stages, preserving their
+oracles. Container networking was disabled, no GPU devices or host CUDA-library
+mounts were supplied, and pinned BGE/TinyBERT cache guards passed. This closes
+these actual floor/linkage/driverless components; GPU-forward/UUID/allocation,
+final90 applicability and complete rehearsal remain separate. No full v3 GPU
+witness or aggregate release pass was fabricated.
 
 ## Remaining qualification
 
@@ -46,8 +57,8 @@ the built addon/declarations remain in this worktree's `src/ts/`.
   ordinary smoke/skip behavior remains distinct from the actual long runs above.
 - 60/70/80 and100 have accepted selected exits;110/140's selected .29
   source/healthy/OOM/consumer scope is independently accepted.30's remaining
-  G13/84, M4/46 and D12/24 campaigns and50's ordinary6/136, diagnostic0/24 paired
-  observations remain incomplete. These are execution progress, not outcomes.
+  G/M/D campaigns and50's paired observations remain incomplete; the
+  [release state](../../../release-state-0.8.29.json) owns their current progress.
 - 40 awaits the actual owner choice,72's approved model episodes have not run,
   and130E's Node soak is active.90 remains behind the actual Block1 exit.
 - Final integrated qualification, five-target installed packages, selected

@@ -383,6 +383,14 @@ def test_python_declarations_match_pre_move_baseline_with_approved_deltas() -> N
     assert observed == expected
 
     stub = (package / "_fathomdb.pyi").read_text()
+    # Reverse only the two approved native carrier fields before the frozen hash.
+    for current, historical in (
+        ("class SnippetV1:\n    scored_bytes: int | None\n", "class SnippetV1:\n"),
+        ("class ProjectionRuntimeStatus:\n    vector_coverage: Any\n",
+         "class ProjectionRuntimeStatus:\n"),
+    ):
+        assert stub.count(current) == 1
+        stub = stub.replace(current, historical, 1)
     for current, historical in EP03_EP17_STUB_EDITS:
         assert stub.count(current) == 1, current
         stub = stub.replace(current, historical)

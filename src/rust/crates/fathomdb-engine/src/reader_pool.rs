@@ -56,6 +56,48 @@ mod diagnostic_admission_tests {
                 .all(|fact| matches!(fact.reply, NativeStateReply::Received)));
         }
     }
+
+    #[test]
+    fn delayed_real_reader_handoff_keeps_complete_autocommit_inventory() {
+        let directory = tempfile::tempdir().unwrap();
+        let engine = Arc::new(
+            crate::Engine::open(directory.path().join("delayed-inventory.sqlite")).unwrap().engine,
+        );
+        let (snapshot_ready, snapshot_received) = mpsc::sync_channel(1);
+        let (release, released) = mpsc::channel();
+        engine.reader_pool.hold_worker_zero_wal_snapshot_bounded(snapshot_ready, released);
+        let acquired = snapshot_received.recv_timeout(Duration::from_secs(1));
+        let (respond, _) = mpsc::sync_channel(1);
+        let actual_rendezvous_was_full = matches!(
+            engine.reader_pool.senders[0]
+                .try_send(ReaderRequest::WalConnectionInventory { respond }),
+            Err(mpsc::TrySendError::Full(_))
+        );
+        let observer = Arc::clone(&engine);
+        let (started, observing) = mpsc::sync_channel(0);
+        let (done, received) = mpsc::sync_channel(1);
+        let worker = thread::spawn(move || {
+            started.send(()).unwrap();
+            done.send(observer.reader_pool.wal_connection_inventory_for_test()).unwrap();
+        });
+        observing.recv_timeout(Duration::from_secs(1)).unwrap();
+        let early = received.recv_timeout(Duration::from_millis(50));
+        let completed_while_held = early.is_ok();
+        // Release the real SQLite snapshot and join before checking the RED witness.
+        drop(release);
+        let connections = early.or_else(|_| received.recv_timeout(Duration::from_secs(3)));
+        worker.join().unwrap();
+        let binding_inventory = engine.binding_connection_inventory_for_test();
+        engine.close().unwrap();
+        assert_eq!(acquired.unwrap(), 0);
+        assert!(actual_rendezvous_was_full, "the real reader must be busy at diagnostic entry");
+        assert!(!completed_while_held, "a busy reader must not be dropped from the inventory");
+        assert_eq!(connections.unwrap(), vec![true; READER_POOL_SIZE]);
+        let inventory = binding_inventory.unwrap();
+        assert!(inventory.contains(";readers=8-autocommit;"), "{inventory}");
+        assert!(inventory.contains("creation=writer:1,readers:8,dispatcher:1,"), "{inventory}");
+        assert!(inventory.ends_with(",probes:0"), "{inventory}");
+    }
 }
 
 /// Reader pool size. Per `dev/design/engine.md` § Writer / reader split,
@@ -1294,14 +1336,27 @@ impl ReaderWorkerPool {
 
     #[cfg(any(test, feature = "test-hooks"))]
     pub(crate) fn wal_connection_inventory_for_test(&self) -> Vec<bool> {
+        const REPLY_TIMEOUT: Duration = Duration::from_millis(250);
         self.senders
             .iter()
             .filter_map(|sender| {
+                let deadline = Instant::now() + REPLY_TIMEOUT;
                 let (respond, received) = mpsc::sync_channel(1);
-                // A gated data request can precede this diagnostic. Missing replies
-                // reduce cardinality; every consumer requires the complete pool.
-                sender.try_send(ReaderRequest::WalConnectionInventory { respond }).ok()?;
-                received.recv_timeout(Duration::from_millis(250)).ok()
+                let mut request = ReaderRequest::WalConnectionInventory { respond };
+                loop {
+                    match sender.try_send(request) {
+                        Ok(()) => break,
+                        // A rendezvous can be briefly full while a live reader is busy.
+                        Err(mpsc::TrySendError::Full(pending)) if Instant::now() < deadline => {
+                            request = pending;
+                            thread::sleep(Duration::from_millis(1));
+                        }
+                        // Missing replies still reduce cardinality; every consumer
+                        // requires complete facts rather than synthesized idle state.
+                        Err(_) => return None,
+                    }
+                }
+                received.recv_timeout(deadline.saturating_duration_since(Instant::now())).ok()
             })
             .collect()
     }

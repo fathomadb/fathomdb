@@ -8,9 +8,9 @@
   shows one line per hit. The store holds conversation 0 only.
 
 Raw transcripts, answers and verdicts stay in an external run directory, never
-in this repository. The setup below describes the October 19 experiment; the
-[current candidate preparation](#current-candidate-preparation) is proposed and
-has not run.
+in this repository. The setup below describes the October 19 experiment. The
+[current candidate preparation](#current-candidate-preparation) has an implemented
+runner and ready fixtures; candidate answerer and judge episodes have not run.
 
 ## Pieces
 
@@ -75,11 +75,12 @@ locomo_load <locomo10.json> --single "$S/stores/conv0/conv0.sqlite" --convs 0
 
 ## Current candidate preparation
 
-This is the required pre-90 Block1 smoke/item4 remeasure, not a retrieval-only
-substitute or the final 160 qualification. Actual selected20–70 exits and the
-applicable integrated checks/performance/both-format conformance remain hard
-predecessors. Owner model/scope/budget approval is recorded at seq-388;
-execution still waits for those predecessor exits.
+Under owner seq-392, the same approved 72 episodes run once on the final
+integrated Slice90 candidate before local close. Slice90 source work may proceed
+while measurements continue. Calls wait for applicable integrated correctness,
+performance, both-format conformance and artifact qualification, plus the
+approved models and budget. Model/scope/budget approval remains seq-388; no
+separate pre-90 run, model canary or rehearsal is required.
 
 **Owner-approved selection (seq-388):** exact historical answerer
 `claude-haiku-5-5`; judge `gpt-4o-mini` with the existing lenient and strict
@@ -88,19 +89,18 @@ rubrics. Smoke: conv1 `q0,q1,q2,q3,q4,q5`, two questions each from categories
 `structured`. Item4: existing `CONV0_SAMPLE` fixed 30, conv0-only store, both
 native formats. This is 12 smoke + 60 item4 = 72 fresh agent episodes; it does not
 claim the historical full 81 item5 or two-model 282 campaign was repeated.
-Model IDs describe the historical selection; current pricing and availability
-remain unverified until an explicitly approved canary. Unavailable models stop
-without automatic fallback or retuning.
+Use the exact approved model IDs and existing reported-cost stop. The first
+selected episode establishes model availability; if unavailable, stop without
+automatic fallback, retuning, retry or a separate canary.
 
 The dataset exists at
 `/home/coreyt/projects/fathomdb/data/corpus-data/raw/locomo10.json`; the existing
 loader's identity check and evidence filtering accept 150 conv0 / 81 conv1
 questions, including all fixed 30. The judge harness exists at the `HARNESS`
-path in `score.py`. Historical block1 scratch stores were not located in the
-known locations checked. Build fresh candidate-format stores later with the
-existing `locomo_load` commands above; this is an execution step, not a missing
-owner-provided fixture. Use the integrated candidate MCP/loader, owned tools
-and selected GPU only after the heavy window is available.
+path in `score.py`. The approved all-conversation and conv0-only fixtures are
+prepared and closed, ready with complete vector coverage and no pending work. Reuse them
+with the final candidate MCP while format37, model and data remain unchanged;
+rebuilding the server does not require reingestion.
 
 **Implemented and independently accepted by Astra-medium; integrated at
 `73eb4cf7d45a3ceed3bdce20256f84d7d1c76d91`.**
@@ -149,13 +149,14 @@ or proxy-based current arm:
   implementation. Fake child/API boundaries are appropriate for runner tests;
   real candidate LLM/MCP/store execution is still required for the exit.
 
-Only after final implementation acceptance, explicit owner model/spend approval,
-actual hard predecessor exits and the available heavy window, execute these
-commands from this checkout. `$P` is its owned Python, `$B` the integrated
-candidate MCP binary, `$D` the dataset above, `$H` the existing judge harness,
+After final integrated Slice90 acceptance and the applicable correctness,
+performance, conformance and artifact qualification, execute the approved
+seq-392 sequence once from this checkout. The owner model/spend approval is
+already recorded; no additional canary or rehearsal approval precedes it. `$P`
+is its owned Python, `$B` the integrated candidate MCP binary, `$D` the dataset above, `$H` the existing judge harness,
 `$S` this task's external run directory and `$MODEL`/`$JUDGE` the exact approved
-model IDs. Provision current stores first with the existing `locomo_load`
-commands above. Run these four phases in order, stopping on any failure:
+model IDs. Reuse the prepared stores above. Run these four phases in order,
+stopping on any failure:
 
 ```bash
 "$P" dev/experiments/agent-remeasure/run.py --run-dir "$S/smoke-text" \
@@ -189,8 +190,10 @@ and fixed 30 paired item4, with one worker / 8 turns / 180 seconds / $0.02 per e
 $2 reported-cost stop including judges, accepting possible final-call billing
 overshoot. The October 19 answerer costs extrapolate to roughly $0.10 for this
 selection; this is historical sizing, not a current price quote. Source review,
-fixture preparation and all hard predecessor checks remain required before any
-priced run.
+fixture preparation and the applicable integrated qualification remain required
+before calls. Seq-392 places the single 72-episode sequence on the final integrated
+Slice90 candidate before local close, without blocking source work on unfinished
+measurements.
 
 
 Pure runner/scorer tests are registered as the fast `test-agent-remeasure`

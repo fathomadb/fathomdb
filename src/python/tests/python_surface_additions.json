@@ -1872,6 +1872,276 @@
         "path": "fathomdb.types.GpuAllocationWitness.measurement",
         "signature": "measurement: GpuAllocationMeasurement"
       }
+    },
+    {
+      "release": "0.8.29",
+      "slice": 90,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.ProjectionRuntimeStatus.vector_coverage",
+        "signature": "vector_coverage: StoredHeadCoverageV1"
+      }
+    },
+    {
+      "release": "0.8.29",
+      "slice": 90,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.SnippetV1.scored_bytes",
+        "signature": "scored_bytes: int | None = None"
+      }
+    },
+    {
+      "release": "0.8.29",
+      "slice": 90,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.SnippetV1.scored_bytes",
+        "signature": "scored_bytes: int | None = None"
+      }
+    },
+    {
+      "release": "0.8.29",
+      "slice": 90,
+      "declaration": {
+        "kind": "python-value",
+        "path": "fathomdb.StoredHeadCoverageV1",
+        "signature": "StoredHeadCoverageV1 = Union[StoredHeadCoverageAvailable, StoredHeadCoverageUnavailable]"
+      }
+    },
+    {
+      "release": "0.8.29",
+      "slice": 90,
+      "declaration": {
+        "kind": "python-class",
+        "path": "fathomdb.StoredHeadCoverageProfile",
+        "signature": "@dataclass(frozen=True) class StoredHeadCoverageProfile"
+      }
+    },
+    {
+      "release": "0.8.29",
+      "slice": 90,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.StoredHeadCoverageProfile.key",
+        "signature": "key: Literal['default']"
+      }
+    },
+    {
+      "release": "0.8.29",
+      "slice": 90,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.StoredHeadCoverageProfile.name",
+        "signature": "name: str"
+      }
+    },
+    {
+      "release": "0.8.29",
+      "slice": 90,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.StoredHeadCoverageProfile.revision",
+        "signature": "revision: str"
+      }
+    },
+    {
+      "release": "0.8.29",
+      "slice": 90,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.StoredHeadCoverageProfile.dimension",
+        "signature": "dimension: int"
+      }
+    },
+    {
+      "release": "0.8.29",
+      "slice": 90,
+      "declaration": {
+        "kind": "python-class",
+        "path": "fathomdb.StoredHeadCoverageFraction",
+        "signature": "@dataclass(frozen=True) class StoredHeadCoverageFraction"
+      }
+    },
+    {
+      "release": "0.8.29",
+      "slice": 90,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.StoredHeadCoverageFraction.numerator",
+        "signature": "numerator: int"
+      }
+    },
+    {
+      "release": "0.8.29",
+      "slice": 90,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.StoredHeadCoverageFraction.denominator",
+        "signature": "denominator: int"
+      }
+    },
+    {
+      "release": "0.8.29",
+      "slice": 90,
+      "declaration": {
+        "kind": "python-class",
+        "path": "fathomdb.StoredHeadCoverageAvailable",
+        "signature": "@dataclass(frozen=True) class StoredHeadCoverageAvailable"
+      }
+    },
+    {
+      "release": "0.8.29",
+      "slice": 90,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.StoredHeadCoverageAvailable.profile",
+        "signature": "profile: StoredHeadCoverageProfile"
+      }
+    },
+    {
+      "release": "0.8.29",
+      "slice": 90,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.StoredHeadCoverageAvailable.records",
+        "signature": "records: int"
+      }
+    },
+    {
+      "release": "0.8.29",
+      "slice": 90,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.StoredHeadCoverageAvailable.known_records",
+        "signature": "known_records: int"
+      }
+    },
+    {
+      "release": "0.8.29",
+      "slice": 90,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.StoredHeadCoverageAvailable.unknown_records",
+        "signature": "unknown_records: int"
+      }
+    },
+    {
+      "release": "0.8.29",
+      "slice": 90,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.StoredHeadCoverageAvailable.truncated_known_records",
+        "signature": "truncated_known_records: int"
+      }
+    },
+    {
+      "release": "0.8.29",
+      "slice": 90,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.StoredHeadCoverageAvailable.known_body_bytes",
+        "signature": "known_body_bytes: int"
+      }
+    },
+    {
+      "release": "0.8.29",
+      "slice": 90,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.StoredHeadCoverageAvailable.unrepresented_known_bytes",
+        "signature": "unrepresented_known_bytes: int"
+      }
+    },
+    {
+      "release": "0.8.29",
+      "slice": 90,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.StoredHeadCoverageAvailable.unattributed_heads",
+        "signature": "unattributed_heads: int"
+      }
+    },
+    {
+      "release": "0.8.29",
+      "slice": 90,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.StoredHeadCoverageAvailable.truncated_known_share",
+        "signature": "truncated_known_share: StoredHeadCoverageFraction | None"
+      }
+    },
+    {
+      "release": "0.8.29",
+      "slice": 90,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.StoredHeadCoverageAvailable.unrepresented_known_byte_share",
+        "signature": "unrepresented_known_byte_share: StoredHeadCoverageFraction | None"
+      }
+    },
+    {
+      "release": "0.8.29",
+      "slice": 90,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.StoredHeadCoverageAvailable.population",
+        "signature": "population: Literal['stored_mapped_spans'] = 'stored_mapped_spans'"
+      }
+    },
+    {
+      "release": "0.8.29",
+      "slice": 90,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.StoredHeadCoverageAvailable.status",
+        "signature": "status: Literal['available'] = 'available'"
+      }
+    },
+    {
+      "release": "0.8.29",
+      "slice": 90,
+      "declaration": {
+        "kind": "python-class",
+        "path": "fathomdb.StoredHeadCoverageUnavailable",
+        "signature": "@dataclass(frozen=True) class StoredHeadCoverageUnavailable"
+      }
+    },
+    {
+      "release": "0.8.29",
+      "slice": 90,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.StoredHeadCoverageUnavailable.profile",
+        "signature": "profile: StoredHeadCoverageProfile"
+      }
+    },
+    {
+      "release": "0.8.29",
+      "slice": 90,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.StoredHeadCoverageUnavailable.reason",
+        "signature": "reason: Literal['cache_cold', 'state_changed']"
+      }
+    },
+    {
+      "release": "0.8.29",
+      "slice": 90,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.StoredHeadCoverageUnavailable.population",
+        "signature": "population: Literal['stored_mapped_spans'] = 'stored_mapped_spans'"
+      }
+    },
+    {
+      "release": "0.8.29",
+      "slice": 90,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.StoredHeadCoverageUnavailable.status",
+        "signature": "status: Literal['unavailable'] = 'unavailable'"
+      }
     }
   ],
   "native_stub_sha256": "8207f193cd1781c4c866188f29ac6854f6f34e29c183ca842d4a7273f9f442b7",

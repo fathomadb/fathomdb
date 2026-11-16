@@ -20,7 +20,7 @@ Block 1 exit claim. The upstream discrepancies below remain visible and unresolv
 Selected 30/40/50 measurements and approved LLM episodes remain separate gates;
 this qualification does not close those gates.
 
-## Subject and tools
+## Original suite subject and tools
 
 - Production source:`999acc37826efa3808afc0d1a899e08bd6478f3a`, including the
   accepted Slice 90 implementation. Tracked tree:
@@ -41,6 +41,37 @@ this qualification does not close those gates.
   SDK transcripts and raw lifecycle transcripts remain there; command/build
   logs are in the task's sibling `logs` directory. No expected-failure baseline
   or result rewrite was supplied.
+
+## Affected native refresh
+
+The accepted typed-open admission correction was compiled separately at source
+`222fa39542662f73be943c02d0c8ab14b59e84bb`, tree
+`f11dea5af95a93f93586f47526da608eb3e7cf72`. Bin-only release builds retain no
+`test-seams` feature or rustflags. Under the task's
+`refresh-open-222fa3954` directory, the preserved subjects are:
+
+- `fathomdb-mcp-providerfree`, SHA-256
+  `11728963082068f29ff49d13731d90fdb139a515bfeb46b82b3af2f3864bc65a`.
+- `fathomdb-mcp-cuda`, SHA-256
+  `b3c6f256fe88f37b8287dbef29b0610ef4cd7ad029e78661eebfb344914f3eed`;
+  features `default-embedder,embed-cuda` plus the empty default.
+
+Pinned Inspector direct-stdio checks on the fresh provider-free subject passed
+initialize, strict seven-tool discovery and healthy text search in both formats.
+Each format also returned the exact typed `unavailable/corrupt` error with
+`detail=CorruptionError` for independently corrupted default-profile name,
+revision and dimension. The retained old-999 name control instead reports
+`unavailable/open_failed` with `detail=StorageError`. These probes use isolated
+format-37 fixture copies and retain stdout, stderr and actual exits under that
+refresh directory. The unchanged 24 native source tests also pass with the fresh
+provider-free server and the compatible producer-999 fixture helper.
+
+The error-only admission correction leaves healthy protocol paths unchanged;
+the original full official/SDK/lifecycle results remain scoped to their
+actual producer 999 and were not retagged or replayed. The fresh CUDA executable
+has been built; its prepared bounded healthy-forward/typed-open wire stage is
+**unrun**, awaiting the main lane's fresh GPU lease and resource GO. The approved
+5882-turn and 419-turn ready fixtures remain unchanged. No paid episode ran.
 
 ## Official-suite applicability
 

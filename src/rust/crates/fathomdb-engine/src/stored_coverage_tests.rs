@@ -214,6 +214,73 @@ fn stored_coverage_attribution_exclusions_never_hide_original_corruption() {
 }
 
 #[test]
+fn stored_coverage_open_preserves_span_failure_before_malformed_profile() {
+    let (_directory, opened) = fixture(1);
+    let path = opened.engine.path.clone();
+    opened.engine.close().unwrap();
+    let connection = Connection::open(&path).unwrap();
+    connection
+        .execute_batch(
+            "UPDATE _fathomdb_vector_spans SET body_length='bad';
+             UPDATE _fathomdb_embedder_profiles SET name=X'00' WHERE profile='default';",
+        )
+        .unwrap();
+    drop(connection);
+    let error = Engine::open_with_choice(&path, EmbedderChoice::None).unwrap_err();
+    assert!(
+        matches!(error, EngineOpenError::Io { ref message }
+            if message == "vector span tuple is partial or mismatched"),
+        "span validation must precede profile admission: {error:?}"
+    );
+}
+
+#[test]
+fn stored_coverage_open_preserves_provider_mismatch_before_token_failure() {
+    let (_directory, opened) = fixture(0);
+    let path = opened.engine.path.clone();
+    opened.engine.close().unwrap();
+    Connection::open(&path)
+        .unwrap()
+        .execute("UPDATE _fathomdb_embedder_profiles SET revision='' WHERE profile='default'", [])
+        .unwrap();
+    let error =
+        Engine::open_with_embedder_for_test(&path, Arc::new(Provider(Some(4)))).unwrap_err();
+    assert!(
+        matches!(error, EngineOpenError::EmbedderIdentityMismatch { .. }),
+        "provider admission must precede token refusal: {error:?}"
+    );
+}
+
+#[test]
+fn stored_coverage_open_refuses_invalid_token_after_profile_admission() {
+    let (_directory, opened) = fixture(0);
+    let path = opened.engine.path.clone();
+    opened.engine.close().unwrap();
+    Connection::open(&path)
+        .unwrap()
+        .execute("UPDATE _fathomdb_embedder_profiles SET revision='' WHERE profile='default'", [])
+        .unwrap();
+    // An empty stored revision is well-typed and matches no-provider admission,
+    // but cannot identify a valid coverage token. Refusal must survive deferral.
+    for _ in 0..2 {
+        let error = Engine::open_with_choice(&path, EmbedderChoice::None).unwrap_err();
+        assert!(
+            matches!(error, EngineOpenError::Io { ref message }
+                if message == "could not capture stored-head coverage token"),
+            "invalid token must be refused after profile admission: {error:?}"
+        );
+    }
+    Connection::open(&path)
+        .unwrap()
+        .execute(
+            "UPDATE _fathomdb_embedder_profiles SET revision='test' WHERE profile='default'",
+            [],
+        )
+        .unwrap();
+    Engine::open_with_choice(&path, EmbedderChoice::None).unwrap().engine.close().unwrap();
+}
+
+#[test]
 fn scored_extent_refuses_missing_misplaced_extra_and_malformed_tuples() {
     let _serial = SEARCH_TRACE_LOCK.lock().unwrap();
     let (_directory, opened) = fixture(1);

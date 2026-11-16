@@ -87,3 +87,19 @@ capture/loss controls under R30-4..7/A30-4..6. The source-qualified helper remai
 outside ordinary D populations. Its single100k runtime must retain raw extended
 codes and pre/post outer cgroup memory counters through the existing charged
 guardian; missing capture never becomes a Storage diagnosis or D completion.
+
+## One interrupted300k C continuation
+
+The [single-cell amendment](continuation-gd.md#one-interrupted300k-held-c-r1-continuation)
+implements R30-3..8/A30-3..7 through the existing explicit replacement path only.
+Freeze real harmless-child REDs for this exact C-r1 selection: old2552606408977ns
+plus conservative4320484082400ns fits the selected7500000000000ns cumulative
+ceiling while the fresh whole attempt remains capped at4500000000000ns. The
+unchanged old TERM row has no attempt identity fields; verify its exact bytes,
+unique actual raw path/config and all existing qualified pins/charges survive.
+Observe durable attempt0002 consumption and owned interruption/re-entry without
+attempt0003; refuse mismatched history/raw identity, other cells, inadequate
+headroom and any continuation after refusal/failure. Keep the frozen100k pair
+and default-resume controls; run only affected source checks before one coherent
+implementation review. Scientific execution and final cohort result review stay
+separate; no passing native replay or partial-cohort PASS is implied.

@@ -1601,6 +1601,76 @@ identity/history and once-only cumulative accounting. Keep existing no-selection
 resume oracles frozen. One coherent implementation review follows these affected
 controls before ordinary execution; source acceptance alone does not claim D16.
 
+#### One interrupted300k held C-r1 continuation
+
+Actual D16 remains accepted. The next held quartet produced three complete
+ordinary first attempts: C-r0=2920.600162684s, T-r0=2688.795259290s and
+T-r1=3035.803849347s, each300000 physical rows/1000 calls/300 batches/error0
+and normal close. Final `d-c-held-n300000-r1` was interrupted by the unchanged
+host8GiB MemAvailable stop:8575000576B, below8589934592B. Its owned TERM cleanup
+removed the exact empty boundary and cleared all five owners; its2552606408977ns
+cell charge and all raw data remain. D is16 accepted plus3 actual complete,
+not a completed20-row prefix; neither Storage nor a product failure is inferred.
+
+The parent selects this narrow technical profile under the
+[direct-execution mandate](../../direct-execution.md#per-slice-sequence), pending
+independent design and implementation acceptance. Select only this cell's fresh
+`attempt-0002`: keep4500000000000ns maximum for the whole fresh attempt and
+select7500000000000ns cumulative for this cell alone. The original charge leaves
+4947393591023ns cumulative headroom; the unchanged same-mode conservative fresh
+bound4320484082400ns fits, totaling6873090491377ns. Actual entry still requires
+fresh shared fit, all five owners clear, marker absent and strict prior cleanup.
+The fresh deadline is the minimum of4500s, this7500s cumulative remainder and
+actual shared headroom. All other cell ceilings stay unchanged;48h/192GiB TOTAL
+includes every old charge/refusal/output. Retain12GiB outer RAM/zero swap,
+24GiB memory entry,8GiB stop and all disk/swap floors. A single-cell invocation
+uses60s funded common plus20s cleanup reserve within4580s outer; no quiet-CPU
+condition, model/GPU work, new workload or numerical-oracle change follows.
+
+Extend only the existing explicit replacement review/driver: bind the unchanged
+16-row prefix, the three actual qualified held attempt identities, the exact
+old interrupted canonical row, its2552606408977ns live-ledger charge and its
+unique existing `attempt-0001` raw path/config. That TERM row lacks canonical
+`attempt_id`/`attempt` fields: retain its bytes unchanged and carry the observed
+raw identity separately in this cell's explicit old-attempt reference; refuse
+missing/foreign/ambiguous raw paths or mismatching cell configuration. Do not
+synthesize an original result or guardian receipt. Bind the7500s cumulative
+selection explicitly to this cell and old charge; a profile-wide300k increase,
+other selected cell, altered prefix or missing history must refuse.
+
+Durably consume `attempt-0002` before payload entry with existing atomic budget/
+ownership primitives. Preserve the full old row in `prior_attempts` and explicit
+`replacement_of`, all prior100k replacement tokens, raw stores and cumulative
+charges. Use a fresh store; no interrupted-store resume or seed reuse. A failure,
+interruption, bound/resource refusal or uncertain cleanup ends this continuation;
+no `attempt-0003`, automatic retry or automatic overlap dispatch is allowed.
+After the single new row qualifies and strict cleanup completes, bind the actual
+20-row prefix and fresh fit for the original overlap four as one batch. One
+coherent final D result review follows the required remaining results; the three
+already complete held members and earlier baselines are not replayed.
+
+Freeze genuine harmless-process REDs before the narrow source extension: admit
+only this selected fresh attempt with its literal4500s/7500s limits; preserve the
+identity-less old TERM row/raws and ledger history; consume exactly once across
+ordinary interruption/re-entry; stop on refusal/failure without another child.
+Refuse a changed old charge/prefix/qualified pin, excess fresh/cumulative bound,
+foreign/missing original raw identity, another cell and a third attempt. Keep
+existing100k replacement and default failed-history controls unchanged. No live
+scientific retry follows design acceptance alone.
+
+For the five still-pending ordinary300k members, prospectively select8GiB outer
+RAM/16GiB MemAvailable entry instead of the earlier12GiB/24GiB selection, after
+independent final review and parent GO. The actual held quartet's outer peak was
+4815491072B (4.485GiB), leaving3774443520B below8GiB; that observed peak is evidence,
+not an upper bound for a fresh C or overlap cell. Preserve the original8GiB host
+memory stop, zero swap and every other floor/oracle. A16GiB entry provides8GiB
+nominal host headroom above that stop before an8GiB native allocation; unrelated
+host growth can still trigger an ordinary stop. Do not admit at today's11–12GiB
+MemAvailable, lower the stop, wait for quiet CPU or retry automatically after a
+cap/floor stop. C-only outer4580s and overlap outer18080s retain4500s fresh cells
+and60s common/20s reserve. This is an explicit future operator-profile selection,
+not an implicit change to prior invocation evidence or shared guardian floors.
+
 #### D owned refusal cost clarification
 
 The new D negative fixture's whole-ledger equality was too broad for refusals

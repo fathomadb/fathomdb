@@ -105,7 +105,7 @@ def _qualify_native(cell, result):
     return row
 
 
-def run_accounted_stage(spec, records, budget, execute, *, initial=True, clock=time.monotonic_ns, publish=None, fail_fast=False, replacements=None, replacement_bounds=None, attempt_root=None):
+def run_accounted_stage(spec, records, budget, execute, *, initial=True, clock=time.monotonic_ns, publish=None, fail_fast=False, replacements=None, replacement_bounds=None, replacement_cumulative_limits=None, attempt_root=None):
     """Return fixed-table outcomes and update caller-owned actual wall charges.
 
     The caller owns the allocation lock and supplies a supervised executor that
@@ -117,6 +117,7 @@ def run_accounted_stage(spec, records, budget, execute, *, initial=True, clock=t
     """
     through = clock()
     replacements = replacements or {}
+    replacement_cumulative_limits = replacement_cumulative_limits or {}
     failed = next((cell["id"] for cell in spec["cells"]
         if cell["id"] not in replacements and records.get(cell["id"], {}).get("status") in ("failed", "incomplete", "interrupted")), None) if fail_fast else None
 
@@ -155,7 +156,8 @@ def run_accounted_stage(spec, records, budget, execute, *, initial=True, clock=t
         if failed:
             return refuse(cell,"not_run_failed_prefix","prior scientific D cell failed or refused: "+failed)
         spent = budget.get("cell_used_ns", {}).get(cell["id"], 0)
-        remaining = min(cell["cell_ns"] - spent, budget["shared_ns"] - budget["used_ns"])
+        cumulative_limit = replacement_cumulative_limits.get(cell["id"],cell["cell_ns"])
+        remaining = min(cell["cell_ns"],cumulative_limit-spent,budget["shared_ns"]-budget["used_ns"])
         if remaining <= 0 or budget["retained_bytes"] >= budget["storage_limit"]:
             return refuse(cell,"not_run_cap_feasibility","remaining shared/cell allowance exhausted")
         token = None
@@ -245,7 +247,8 @@ def run_supervised_stage(spec, records, budget, root, command, *, publish=None, 
     replacements = None if initial else decision.get("replacement_selection")
     rows = run_accounted_stage(selected, records, budget, execute, initial=initial, publish=publish,
         fail_fast=scientific or bool(replacements), replacements=replacements,
-        replacement_bounds=None if initial else decision.get("predictions"), attempt_root=root)
+        replacement_bounds=None if initial else decision.get("predictions"),
+        replacement_cumulative_limits=None if initial else (decision or {}).get("cumulative_limits_ns"), attempt_root=root)
     if initial:
         return rows
     dispatched = {row["id"]: row for row in rows}

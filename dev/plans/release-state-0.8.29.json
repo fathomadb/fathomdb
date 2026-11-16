@@ -232,9 +232,9 @@
         "dev/plans/0.8.29/features/slice-30/continuation-gd.md",
         "dev/plans/0.8.29/features/slice-30/continuation-m.md"
       ],
-      "phase": "G84_F_QUALIFIED_D300K_ACTIVE_M_CORRECTION_ACCEPTED_S50_P32_QUALIFIED",
+      "phase": "G84_F_QUALIFIED_D16_ACCEPTED_3_COMPLETE_C300K_SOURCE_ACCEPTED_LIVE_CONTROL_PENDING",
       "plan_sha": "bea7f05cd2497af0d73c6eb8da509e11a947ca08",
-      "conditions": "G84/84 and F/Q8 accepted. M11/46 qualified; failed foreign-GPU attempt retained and bounded correction accepted/integrated. D16/24 accepted; actual300k held quartet running under original4500s/cell caps. S50 all16P pairs/32ordinary members qualified,104G ordinary+24diagnostic remain. Every original target, failure, outlier and cumulative charge remains.",
+      "conditions": "G84/84 and F/Q8 accepted. M11/46 qualified; failed foreign-GPU attempt retained and bounded correction accepted/integrated. D16/24 accepted plus3actual300kheld results complete pending final cohort review; lastheldC-r1 interrupted by unchanged8GiB host-memory floor, strict cleanup. FiveDcells remain. S50 all16P pairs/32ordinary members qualified,104G ordinary+24diagnostic remain. Original targets/failures/outliers/charges retained.",
       "evidence": "Accepted P/G84/F-Q8 baselines retain original native identities. D100k replacements accepted; original Storage cause UNKNOWN, private diagnostic gives no ordinary credit. M43776233 correction accepted and merged533dd83e7; focused integration Astra ACCEPT with82M/57D/56S50 controls PASS. Whole30 remains open on D/M and current S50 performance.",
       "qualified_subset_sha": "2fd772558e46d0b1645dce2ffea730d0bdd3305c",
       "continuation_plan_sha": "0d8be5bb75516955ebf99b94913b9b54921bb3a4",
@@ -725,11 +725,13 @@
           "source": "7a92144cd855b673d2e2d0077b3b9be0d425b99b",
           "unit": "fathomdb-s30-d-300000-held-7a92144cd-v2-20261116.service",
           "session_id": 56542,
-          "state": "ACTUALLY_RUNNING_HELD_QUARTET",
+          "state": "TERMINAL_HOST_MEMORY_FLOOR_THREE_COMPLETE_ONE_INTERRUPTED",
           "log_root": "/mnt/data/tmp2/fathomdb-0829-continuation/slice30-d-runtime-limits-20261116/remaining/d-300000-held-continuation-v2-20261116",
           "native": "Original D109/a512561a1c6ede38fa5233a897507d3d89883ba561a5043f52b37158c9a67a13; CPU varying provider; no GPU.",
           "caps": "Original4500s/cell;18080souter/12GiB RAM/zero swap; same48h/192GiB cumulative allocation.",
-          "prior_refusal": "First pre-native admission refused after d-config replacement reduced retained bytes2621B; no native attempt consumed. Receipt05e68990-74d9-4b98-b9ba-ab7f1e409a72 and1678076495ns charge retained. Existing nonfuture D16 retained checkpoint used for v2; fresh actual fit remains enforced."
+          "prior_refusal": "First pre-native admission refused after d-config replacement reduced retained bytes2621B; no native attempt consumed. Receipt05e68990-74d9-4b98-b9ba-ab7f1e409a72 and1678076495ns charge retained. Existing nonfuture D16 retained checkpoint used for v2; fresh actual fit remains enforced.",
+          "actual_terminal": "MemAvailable8575000576B<8589934592B;finalC-r1 consumed2552606408977ns. First3complete;originalfloorstopnotStorage. UnitMainPID0/exactboundaryemptyremoved/all5ownersclear/markerabsent. Shared41543944405554ns/90060746884B.",
+          "next": "ExactC-r1 attempt2 source ed96005 independently Astra accepted and integrated; registered delegated interruption control and fresh resource/shared admission remain before live GO. No native retry started; overlap4 pending."
         }
       },
       "m_selected_runtime": {
@@ -764,6 +766,15 @@
         "cleanup": "Original g-required-writes-remaining-v2 guardian:resource_stopnull,cleanup_uncertainfalse,noownedpids/survivors,sourceclean2d6start/end,privateboundarypopulatedfalse/exactremovedandabsent. Originalsupervisor/guardian/controller absent; allfiveownershipfieldsclearbefore Dhandoff.",
         "next": "No Gmeasurementreplay. RemainingD100koverlap hasstarted at57912dab/nativeD109; M42 andcurrentS50ordinary130/diagnostic24 remain. Preservealloriginalfailed/refusedoutcomes and cumulativecharges.",
         "final_report": "ExistingpublicCPU-onlyG2d6reportexit0/strictguardianquiescence,complete=true84/144populations/97318success0errors; gd-allocation/g-closed-write-matrix-v2/summary-g-fb46a7d0197a43939b67238c49d5494c.json. Originalg-final84-metrics-20261116receiptexit0/child0/sourceclean/noresourcestop/uncertainty/survivors/exactremovedboundary. Shared21929.933760340s/Gcommon167.374358358s/600safterreport; no physicalGPUclaim/query."
+      },
+      "bounded_c300k_continuation": {
+        "source": "ed96005c1dedfb09f75702f8e4a4d8fa1512fc4e",
+        "design_review": "Independent Astra-medium ACCEPT38cab01da797c2dd87780b66e910a0d10064cfcd.",
+        "source_review": "Fresh independent Astra-medium ACCEPT ed96005. No blocking source findings; actual delegated interruption control remains required before live GO.",
+        "tdd": "Observed selector RED43e0448195d377ae5fb472871a69ec03ba111333 and guardian RED215e7dab0546c4ee5e1811b85908db3d1f5513cb; frozen failing tests unchanged.34 affected tests PASS on owner and canonical combined source, including current M defaults.",
+        "selection": "Exact interrupted C300k-r1 attempt2 only;4500s fresh/7500s C-only cumulative. Original TERM row and2552606408977ns charge retained. Same48h/192GiB TOTAL; no attempt3 or automatic retry.",
+        "runtime_profile": "Prospective8GiB outer/16GiB entry, unchanged8GiB host-memory stop/zero swap/other floors; actual held peak4,815,491,072B does not prove overlap maximum.",
+        "execution": "NOT_STARTED. Run registered d_held_replacement_interrupt_tests.py under actual delegated boundary when resources permit; require strict cleanup/history/accounting. Fresh shared fit and parent technical GO still required. Ad hoc experiment Pyright failed and is not claimed green."
       }
     },
     {
@@ -1617,7 +1628,7 @@
   },
   "release_readiness": {
     "status": "NOT_READY",
-    "qualification": "Full90 source and corrective engine/MCP cohorts are independently Astra accepted/integrated through ec54f833. Final broad collector terminal:228 passed/8 failed/3 explicit live-control skips of239; accepted repairs and failed-only resumptions continue. Affected Linux/ARM/Windows shipping artifacts and MCP binaries rebuilding. G84/F-Q8 accepted; D16/24 plus actual300k held quartet running, M11/46; S50P32/136ordinary,104G+24diagnostic remain.40 owner disposition pending; same72episodes once on final candidate, not run. Original failures retained. Local passes precede CI correctness review then CI; registry publication excluded.",
+    "qualification": "Full90 source and corrective engine/MCP cohorts are independently Astra accepted/integrated through ec54f833. Final broad collector terminal:228 passed/8 failed/3 explicit live-control skips of239; accepted repairs and failed-only resumptions continue. Affected Linux/ARM/Windows shipping artifacts and MCP binaries rebuilding. G84/F-Q8 accepted; D16/24 accepted plus3actual300kheld completions; finalC-r1 interrupted at unchangedmemoryfloor with strictcleanup; boundedcontinuation source accepted; live interruption control and fresh fit pending, M11/46; S50P32/136ordinary,104G+24diagnostic remain.40 owner disposition pending; same72episodes once on final candidate, not run. Original failures retained. Local passes precede CI correctness review then CI; registry publication excluded.",
     "publication": "HELD; no tag, dispatch, external ACL mutation or registry publication authorized by bootstrap.",
     "local_source_phase": {
       "status": "ASSEMBLED_FULL_SOURCE_PASS_INDEPENDENT_ASTRA_ACCEPTED",

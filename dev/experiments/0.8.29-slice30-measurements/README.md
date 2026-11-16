@@ -535,6 +535,20 @@ opt-in D control command also runs `d_replacement_interrupt_tests.py` for actual
 owned controller death and once-only accounting. These controls supply no
 scientific D credit; unchanged D109 execution and shared handoff stay separate.
 
+The separate exact `d-c-held-n300000-r1` continuation selects only its interrupted
+first attempt. Keep `record` verbatim (including absent attempt identity fields),
+`charged_ns`, `next_attempt_id`, and an explicit `old_attempt` mapping of
+`attempt_id`/`attempt` to the unique original raw directory/config. Select
+`cumulative_limit_ns: 7500000000000` only here, retaining the4500000000000ns fresh
+profile limit; pin all three already qualified held members and the16-row prefix.
+Admission funds only this pending C member. Driver and guardian independently
+retain the fresh4500s bound plus the C-only7500s cumulative ceiling; the guardian
+recognizes the expanded ceiling only for its matching consumed token/raw binding.
+No third attempt or overlap dispatch follows. `test_d_held_replacement.py`,
+`test_d_held_guard.py` and `d_held_replacement_interrupt_tests.py` cover the literal
+limits, actual harmless-child failure/refusal, preserved identity-less history
+and owned interruption/accounting. These controls supply no scientific credit.
+
 `d_overlap.py CASE.json` reads one exact cell/attempt/size/repeat and owner/session
 frame, with natural operation identity, tagged observer records and bracketed
 pending observations. It qualifies only an entire positive pending bracket

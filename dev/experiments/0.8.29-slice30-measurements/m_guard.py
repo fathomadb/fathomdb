@@ -339,8 +339,16 @@ def _guard(command, *, allocation, profile, root, task, admission=False, common_
                     active = current.get("inflight") or {}
                     cell_wall = (now-active["started_monotonic_ns"]
                                  + accounting.prior_cells.get(active["cell"], 0)) if active else 0
+                    cumulative_limit, fresh_limit = profile["whole_cell_ns"], None
+                    if phase == "D":
+                        assert accounting is not None
+                        from d_replacements import guardian_limits
+                        cumulative_limit, fresh_limit = guardian_limits(
+                            root,current,active,accounting.prior_cells,profile["whole_cell_ns"])
                     if (accounting.total(now) + 20 * 10**9 >= limits[0]
-                            or cell_wall + 20 * 10**9 >= profile["whole_cell_ns"]
+                            or cell_wall + 20 * 10**9 >= cumulative_limit
+                            or (fresh_limit is not None
+                                and now-active["started_monotonic_ns"]+20*10**9 >= fresh_limit)
                             or (common_limit_ns is not None and common_wall + 20 * 10**9 >= common_limit_ns)):
                         receipt.update(exit=124, stop="shared cleanup reserve")
                         break

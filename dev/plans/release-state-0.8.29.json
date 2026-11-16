@@ -170,7 +170,7 @@
       "depends_on": [
         10
       ],
-      "status": "IN_PROGRESS",
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
       "design_refs": [
         "dev/plans/0.8.29/features/slice-20/acceptance.md",
         "dev/plans/0.8.29/features/slice-20/design.md",
@@ -180,8 +180,8 @@
         "dev/plans/0.8.29/features/slice-20/test-map.md",
         "dev/plans/0.8.29/features/slice-20/review-log.md"
       ],
-      "phase": "ALL_FUNCTIONAL_ACCEPTANCE_QUALIFIED_FINAL_CODE_PHASE_GATE_PENDING",
-      "evidence": "Qualified Linux source at45167677bee0d00b59194897e63ad05be40d6e63 includes unchanged prior seq-369 A3/A5 proofs and seq-370 capacity-only preparation plus genuine startup/visibility alias RED/GREEN. Fresh independent Astra implementation and assembled-results ACCEPT; affected parallel engine lib175/175, Clippy/check pass. Original final wrapper ran220 suites:218 passed and2 metadata guards failed. Reviewed baseline merge and exact inventory refresh made unchanged failed guards pass11/11 and8/8, yielding assembled220/220 without wrapper replay. Source/scripts/Cargo/toolchain/test oracles are unchanged from accepteddff; actual owned Python3.12.3/native receipt staysdff. Original wrapper exit1/failures retained. Windows A6 satisfies all four original cases onfd6a, independently accepted by Astra and integrated11c. The affected Linux opener exact selector also passes on11c, with4 portable controls and strict clean termination. Prior failed/UNKNOWN attempts remain. All functional criteria are qualified; the final clean source-phase gate is batched with current integration before formal20 closure. Block1 and release qualification remain open.",
+      "phase": "ALL_FUNCTIONAL_CRITERIA_AND_COMMON_SOURCE_QUALIFICATION_ACCEPTED",
+      "evidence": "All previously independently accepted Linux and four actual Windows A6 criteria are qualified. Final common source/nativeef544 with metadata-only29669 qualification checkout resolves238/238 registered suites:223 initial passes plus15 exact failed/interrupted/unrun outcomes in128.35s. Independent Astra-medium final ACCEPT explicitly confirms formal20 closure. Totalactive5574.407of7200s; original4400s timeout and failures retained. Assembled qualification, not uninterruptedwrappergreen; AC036 stracePASS, AC037 canonical live-netns environmentdowngrade retained. Later private paired source770 is outside this common qualification; no scientific/Block1/release/publication clearance.",
       "qualified_subset_sha": "45167677bee0d00b59194897e63ad05be40d6e63",
       "continuation_plan_sha": "391ae66aa9d36fc0dbdfe5326ed028551a6774f5",
       "linux_repair_sha": "657edeb76caaf9c8d2aab433766bec9362e73217",
@@ -203,9 +203,10 @@
         "controls": "Original19 containment controls plus nonzero-root preservation passed; actual concurrent lease control11741 reads/503 atomic replacements passed. Frozen product095b was built successfully; cached successor6da21161 build0.44s/root0/Job0.",
         "results": "Final355c2edc cached build and all four original selectors pass with root0, exactlyone test per selector, authoritativeJob0, no stop/cleanup diagnostic. Independent Astra accepts S20-A6 source/results atfd6a. Opener fix changes only installer canonical key; original oracle and90s limit unchanged. Guest actors empty20:31:09.952Z. Prior cold-build cleanup UNKNOWN attempts and original opener timeout remain preserved.",
         "workflow": "No perhelper model checkpoint or unchanged proof replay. Original build/case/resource/actor limits and test oracles retained; one final meaningful independent review.",
-        "closure": "S20-A6 is independently accepted and integrated. The affected Linux opener selector passed on integrated11c in0.08s (exactone/0failed); all4 portable controls passed in an80.779s bounded light phase with no stop and no remaining actors. All functional criteria are qualified. The required final clean source-phase gate is batched with current integration before formal20 closure; no broad-workspace or release-green claim.",
+        "closure": "All four original Windows A6 criteria and affected Linux criteria are independently accepted. Final238-suite assembled common source qualification is independently accepted; formal20 is closed. Original failed/UNKNOWN attempts remain preserved; no broader release-green claim.",
         "integrated_sha": "11c59f7fe4bd337495d23f1568ab2eae37cd1168"
-      }
+      },
+      "sha": "29669b6e239e093e77de0dfac17c055ac4e997eb"
     },
     {
       "slice": 30,
@@ -233,7 +234,7 @@
       ],
       "phase": "MEASUREMENT_TOOLING_SOURCE_QUALIFIED_SCIENTIFIC_CAMPAIGNS_PENDING",
       "plan_sha": "bea7f05cd2497af0d73c6eb8da509e11a947ca08",
-      "conditions": "Current scientific obligations retain G84/M46/D24 and all numerical targets. G12/84 and D8/24 are qualified; M has two qualified primary IDs through one exact prior-reference reuse and the required debug run. Remaining G72, D16, M44 and current paired50 performance remain. Actual source-derived fidelity F/Q8 passes. CPU host load is descriptive under seq390, not an entry gate.",
+      "conditions": "Current scientific obligations retain G84/M46/D24 and all numerical targets. G12/84 and D8/24 are qualified; M has four qualified primary IDs through one exact prior-reference reuse and three required runs. Remaining G72, D16, M42 and current paired50 performance remain. Actual source-derived fidelity F/Q8 passes. CPU host load is descriptive under seq390, not an entry gate.",
       "evidence": "G source0fa retains assembled acceptance,11 qualified/73 required cap refusals and inactive expanded profiles. Current M source256375d4b6a9ce0a54a06876d2df1373615ab67c is integrated at e6cbc956954d29137059fb5df32bc78ba863eecd after independent Astra ACCEPT: merged current release, rebuilt providerfree CLI/helper, then passed Pages20/20,Tegra45/45,exact2 previously failed guardian controls and2 previously unrun dispatch controls. Dispatch exercises actual rebuilt search/fetch in both formats with literal hit/body/error oracles. Original223/220/3 interrupted-wrapper history is retained; this is assembled qualification, not a new uninterrupted full gate. Both guardians finalized samples and collected all owned actors. Historical Python/NAPI subjects were not loaded or retagged. D accepted5edb capture/report/transport and5cf6 main entry have actual RED/GREEN; process2068 passes3 frozen owned-child controls, pending final coherent review/integration. Fixed24 allocation connection/source qualification remains. Actual F/Q8 current-candidate fidelity is now independently accepted; D/M scientific campaigns and whole30 remain pending.",
       "qualified_subset_sha": "2fd772558e46d0b1645dce2ffea730d0bdd3305c",
       "continuation_plan_sha": "0d8be5bb75516955ebf99b94913b9b54921bb3a4",
@@ -674,12 +675,12 @@
       "m_selected_runtime": {
         "source": "f29b75db3d0272e2105ff4e06c65df9853ca9b91",
         "review": "Independent Astra-medium final source ACCEPT",
-        "status": "TWO_OF_46_PRIMARY_IDS_QUALIFIED_REMAINING_44",
+        "status": "FOUR_OF_46_PRIMARY_IDS_QUALIFIED_REMAINING_42",
         "root": "/mnt/data/tmp2/fathomdb-0829-continuation/slice30-g-20261113/gd-allocation/m-required-M-R-1-1-debug-f29b75db3",
-        "result": "Required debug1+500+1000 calls all successful,zeroerrors/unresolved; timedp50/p99=210.426/385.579ms,134 own-PID positive GPU witnesses. Final guardianexit0,phase_qualified=true,whole46complete=false,strict original boundary quiescent/removed.",
+        "result": "Required1-1-debug,1-4-warn and1-4-debug each completed1+500+1000 calls with zeroerrors/unresolved; plus exactpriorwarnreference. Originalfinalguardians/phasequalification and strictoutercleanup passed; disposablecopiesretired afterqualification. Whole46 remains incomplete.",
         "reuse": "M-R-1-1-warn satisfied_by exact original full calibration reference; no replay,relabel,doublecharge or raw mutation. Debug is the new required primary run. Successful disposable copy retired only after qualified final cleanup; original/raw/failed evidence preserved.",
-        "shared_checkpoint": "After debug: used4378107678995ns,retained9165094705B,noinflight/activeguardians. All historical charges retained within unchanged4h/16GiB profile.",
-        "next": "Continue next eligible required ordinary cell M-R-1-4-warn under sufficient selected finite allowance; no CPU-quiet/calibration prerequisite or per-cell review."
+        "shared_checkpoint": "After1-4-debug:used4868099798617ns,retained9271842748B,noactiveguardians/inflight. Laterpaired50 uses sameledgerandcarriesallcharges.",
+        "next": "MpausedforcoherentlargerDsourceamendment; actualsharedslot handed to paired50. Existingf29Msource/native4ffc remainimmutable; no ordinaryM rebuild."
       }
     },
     {
@@ -744,7 +745,17 @@
         "integrated": "e887e3fa6a1648c4916b1bf322f42901d78cb9c8",
         "review": "Independent Astra-medium final ACCEPT",
         "evidence": "Actual four semantic RED/GREEN behaviors; privateengine2/2,adapter11/11,combined11/11,dispatcher7/7,broaderG121/121,affectedClippy-Werror/fmt/Ruff/shell/MD/module128configs/classification/featureconsumer pass. Phase1491.642/1800s exit0 strict actors/CG clean.",
-        "limits": "Low-level support only; public P/G build/freeze/run admission still needs coherent paired-mode support. Exact applicable68searchcells/136ordinary members bound; current costs/complete workRSSdiagnostic binding and feasible campaign profile remain pending. OriginalG12hselection isG-only, not50 authority. No actual paired performance/whole50 claim."
+        "limits": "Final finite-prefix design/source independently Astra accepted. Required136ordinary+24diagnostic members unchanged, no allfuture-cost/calibration prerequisite. Actualordinary/diagnostic artifacts built from09c with correctcurrentcompilerinputs, originalbuildguardianexit0/quiescent/removed; no model/GPU inference duringbuild.",
+        "public_source": "09c53495bbc47b3361f1d770e04efb573e889d08",
+        "public_integrated": "77053bd2a415685e09ddc00bb2f4549c05b43e93"
+      },
+      "paired_runtime": {
+        "source": "09c53495bbc47b3361f1d770e04efb573e889d08",
+        "status": "FIRST_REQUIRED_PAIR_QUALIFIED_NEXT_REQUIRED_PAIR_ACTIVE",
+        "root": "/mnt/data/tmp2/fathomdb-0829-continuation/slice30-g-20261113/gd-allocation/s50-required-p1-10k-r0-09c53495b",
+        "result": "P1-10k-r0 ordinarywinner/eager complete andequal onrealprovider-none closedcopies;1000timedrequests pervariant perengine/SDKroute,zeroerrors. Qualifiedphase/windowtrue; wholematrixfalse. Supervisor47.315s,exit0,strictoutercleanup/sourceunchanged.",
+        "measurement": "Eager-minus-winner mean:engine.493027263ms/bootstrap95[.394336489,.595246726];SDK.36890688ms/[.26585262,.481659482]. Samequerypairedcomparison; noG/performancefullmatrixclaim.",
+        "next": "NextrequiredP1-100k-r0 running fromsamefrozenmanifest and actualsharedledger; nofirstpairreplay/calibration."
       }
     },
     {
@@ -1043,12 +1054,14 @@
         "scope": "Implementation685a716c55e9e23d1f09075025e8569e922f2c0e independently Astra accepted and integrateddc966631. Real lifecycle fixtures/passive workers/concurrent supervisor and local-wheel shipping route source-qualified; no live D/E claim."
       },
       "runtime_builds": {
-        "source": "882fc9f5b8a6871bbe80f259db0d9d717e0ba44d",
+        "source": "d5f7ca0eb29f8c8cd9623477369e6a7ab1b18145",
         "host": "Existing approved Orin coreyt@10.83.10.13,CUDA12.6/GCC11/SM87; no host/driver/primary-toolkit change",
         "task": "/home/coreyt/fathomdb-0829-tegra-20261115",
-        "status": "ACTUAL_SHIPPING_PYTHON_BUILD_ACTIVE",
+        "status": "SHIPPING_PYTHON_PASS_CORRECTED_NODE_AND_OBSERVER_BUILDS_ACTIVE",
         "tools": "Fresh task-owned physical venvPython3.13.12/Maturin1.14.1,Node25.9.0/npm11.12.1; own exact offlineGit/registry cache and local unpublished343/2ee/remoteK9 product graph. Cargo metadata --offline --locked passed.",
-        "next": "Sequential shipping Python/Node and separate observer-only counterpart outputs/targets; then actual installed/source lifecycle, shipping witness and matched2x60minute instrumented soak. No publish operation."
+        "next": "Sequential shipping Python/Node and separate observer-only counterpart outputs/targets; then actual installed/source lifecycle, shipping witness and matched2x60minute instrumented soak. No publish operation.",
+        "result": "ShippingPython source882 built0.8.29+tegra wheel,linkage/glibcfloor/install/importchecksPASS. NodeoriginalCLIparsefailurepreserved. RealparserRED/GREENfixd5f7ca0eb29f8c8cd9623477369e6a7ab1b18145 independentlyAstraaccepted and appliedtoOrin; actualresumeNode/observerbuildprocessactive.",
+        "shipping_python_origin": "882fc9f5b8a6871bbe80f259db0d9d717e0ba44d;actualemptyproductioninputdiffagainst d5,artifactnotretaggedorrebuilt"
       }
     },
     {
@@ -1177,7 +1190,6 @@
   "next_slice": 30,
   "remaining_ladder": [
     30,
-    20,
     40,
     50,
     90,
@@ -1410,16 +1422,17 @@
   },
   "release_readiness": {
     "status": "NOT_READY",
-    "qualification": "0–10,60,70,80design and selected100 complete locally.20 functional Linux/Windows acceptance qualified; formal closure awaits active combined source gate. Selected110/140 repairs/source accepted; native exact-lock CPU qualification passes x86/ARM and current fidelityF/Q8 passes. Remaining scientific G72/D16/M44, conditional40,current paired50 performance,Block1 conformance/approved72episodes/90 implementation,selected130D/E installed/lifecycle/shipping/soak and160. Real CUDA resets.30,newCUDA13.31,non-TegraARM+GPU excluded. No release-green claim.",
+    "qualification": "0–20,60,70,80design and selected100 complete locally; final238-suite common source assembled qualification independently accepted. Selected110/140 repairs/source accepted; native exact-lock CPU qualification passes x86/ARM and current fidelityF/Q8 passes. Remaining scientific G72/D16/M42, conditional40,current paired50 performance,Block1 conformance/approved72episodes/90 implementation,selected130D/E installed/lifecycle/shipping/soak and160. Real CUDA resets.30,newCUDA13.31,non-TegraARM+GPU excluded. No release-green claim.",
     "publication": "HELD; no tag, dispatch, external ACL mutation or registry publication authorized by bootstrap.",
     "local_source_phase": {
-      "status": "ACTUAL_FULL_GATE_RUNNING",
+      "status": "ASSEMBLED_FULL_SOURCE_PASS_INDEPENDENT_ASTRA_ACCEPTED",
       "subject": "ef544124d155bdca08f338bee4644379f8af56a5",
+      "qualification_checkout": "29669b6e2",
       "worktree": "/mnt/data/worktrees/fathomdb-0.8.29-source-phase-20261115",
-      "unit": "fathomdb-source-ef544-20261115.service",
-      "log": "/mnt/data/tmp2/fathomdb-0829-continuation/source-phase-20261115/logs/verify-ef544.log",
-      "evidence": "Owned current CPU/native refresh passed. Actual full Rustworkspace and pool/measurement/paired/native/GCLI/liveG suites pass. Later M/D/Python/TS suffix still running. Derived3file metadata repairs882 will be applied only after current gate terminal; rerun only failing suites under corrected task-owned Cargo environment.",
-      "limits": "Retain original failures/charges,passing body reuse and actualef544 native origin; no broad final green before complete suffix/failed-only corrections."
+      "evidence": "238registered outcomesresolved:223initialpasses+15exactfailed/interrupted/unrunoutcomesPASS128.35s. Actual workspace lint/typecheck/tests,Python/native,TS/hermetic and selectedliveG/M/D controls pass. AC036stracePASS;AC037canonicalenvironmentdowngrade retained.",
+      "active_seconds_charged": 5574.407,
+      "active_seconds_ceiling": 7200,
+      "limits": "Original4400s timeout/failures retained; assembledqualification,nouninterruptedgreenclaim. Actualnativeorigin remainsef544;later770privatepairedexample/toolchanges separatelyaffected-qualified,notincludedhere. No scientific/CI/Block1/release/publicationclearance."
     },
     "ci": "After all required local qualification passes, review CI scripts for correctness before running appropriate CI. Registry publication remains excluded; never push a v* tag that auto-publishes."
   },

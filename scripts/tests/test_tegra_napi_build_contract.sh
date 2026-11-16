@@ -190,3 +190,82 @@ if [ "$observer_status" -ne 1 ] || ! grep -Fq 'features=embed-cuda,rerank-cuda,t
   printf 'FAIL explicit qualification features were not selected before host refusal: exit=%s\n%s\n' "$observer_status" "$observer_output" >&2
   exit 1
 fi
+
+# Exercise the installed CLI parser and its downstream Cargo invocation. Host
+# assertions are covered above; this stops at Cargo build before native work.
+python3 - "$REPO_ROOT" "$WORK" <<'PY'
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+
+root, work = map(Path, sys.argv[1:])
+ts = root / "src/ts"
+cli_package = ts / "node_modules/@napi-rs/cli/package.json"
+assert cli_package.is_file(), "run npm ci in src/ts to test the pinned NAPI CLI"
+locked = json.loads((ts / "package-lock.json").read_text())["packages"]
+version = json.loads(cli_package.read_text())["version"]
+assert version == locked["node_modules/@napi-rs/cli"]["version"]
+source = (root / "scripts/release/build-napi-cuda-tegra.sh").read_text()
+selection = source[source.index("BUILD_CARGO_FLAGS=("):source.index("# --- Host and toolchain")]
+command_start = source.index('npm exec --offline -- napi build')
+command = source[command_start:source.index('\nNATIVE_BINARY=', command_start)]
+
+cargo = work / "cargo-bin/cargo"
+cargo.parent.mkdir()
+cargo.write_text('''#!/usr/bin/env python3
+import json
+import os
+from pathlib import Path
+import sys
+
+if sys.argv[1] == "metadata":
+    print(json.dumps({
+        "resolve": {"root": "fathomdb-napi"},
+        "packages": [{"id": "fathomdb-napi", "name": "fathomdb-napi",
+                      "targets": [{"kind": ["cdylib"], "crate_types": ["cdylib"]}]}],
+    }))
+    sys.exit(0)
+if sys.argv[1] == "build":
+    Path(os.environ["CARGO_CAPTURE"]).write_text(json.dumps({
+        "args": sys.argv[1:], "offline": os.environ.get("CARGO_NET_OFFLINE"),
+    }))
+    print("test: reached Cargo build; native compilation intentionally stopped", file=sys.stderr)
+    sys.exit(73)
+sys.exit("unexpected Cargo invocation")
+''')
+cargo.chmod(0o755)
+
+for observer in (False, True):
+    capture = work / f"cargo-{observer}.json"
+    environment = dict(os.environ)
+    environment.pop("CARGO", None)
+    environment.pop("CARGO_NET_OFFLINE", None)
+    environment.update({
+        "PATH": f"{cargo.parent}:{environment['PATH']}",
+        "CARGO_CAPTURE": str(capture),
+        "TS_DIR": str(ts),
+        "NATIVE_DEST": str(work / "native"),
+        "QUALIFICATION_OBSERVER": str(int(observer)),
+    })
+    result = subprocess.run(
+        ["bash", "-ec", '. "$1"\n' + selection + '\ncd "$TS_DIR"\n' + command,
+         "test-napi-cli", str(root / "scripts/release/cuda-artifact-contract.sh")],
+        cwd=ts, env=environment, capture_output=True, text=True, timeout=30,
+    )
+    assert capture.is_file(), (
+        f"NAPI CLI {version} must pass {'observer' if observer else 'shipping'} flags "
+        f"to Cargo build (exit {result.returncode}):\n{result.stdout}{result.stderr}"
+    )
+    observed = json.loads(capture.read_text())
+    features = "embed-cuda,rerank-cuda,tegra-pool"
+    expected = ["build", "--release", "--features",
+                features + (",cuda-pool-observer" if observer else ""), "--locked"]
+    if observer:
+        expected.append("--offline")
+    assert observed["args"] == expected, observed
+    assert observed["offline"] == ("true" if observer else None), observed
+    assert result.returncode != 0, "the Cargo sentinel must stop native compilation"
+    print(f"PASS  pinned NAPI CLI {version}: {observed['args']}")
+PY

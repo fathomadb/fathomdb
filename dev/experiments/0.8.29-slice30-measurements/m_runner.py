@@ -255,19 +255,47 @@ def run_selected(options, root, cell_id, began):
         common_limit_ns=limits["phase_ns"]-limits["payload_ns"])
     if result["exit"] == 0 and result["cleanup_uncertain"] is False and (root / "manifest.json").is_file():
         result["retired_working_copies"] = retire_working_copies(root)
+        result["final_report"] = publish_selected(root)
     print(json.dumps(result))
     return result
 
 
 def publish_selected(root):
     """Publish selected-cell credit only after original final cleanup, charging final report work."""
-    return None
+    import fcntl
+    from m_guard import write_budget
+    began = time.monotonic_ns()
+    root = Path(root).resolve()
+    final_guardian(root)
+    manifest = json.loads((root / "manifest.json").read_text())
+    allocation, profile = Path(manifest["allocation"]), manifest["profile"]
+    identity = manifest["plan"][0]["id"]
+    with (allocation / "g-campaign.lock").open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        ledger_path = allocation / "g-budget.json"
+        ledger = json.loads(ledger_path.read_text())
+        if any(ledger.get(key) for key in ("inflight", "m_guardian", "d_guardian", "closed_guardian")):
+            raise ValueError("live shared ownership blocks selected final publication")
+        usage = ledger["selected_cell_usage"][identity]
+        remaining = min(manifest["cell_allowance"]["phase_ns"] - usage["wall_ns"],
+                        profile["total_shared_ns"] - profile["reserved_other_work_ns"] - ledger["used_ns"])
+        try:
+            value = report(root, deadline_ns=began + remaining - 10**9)
+        finally:
+            elapsed = time.monotonic_ns() - began
+            ledger["used_ns"] += elapsed
+            usage["wall_ns"] += elapsed
+            common = ledger.setdefault("common_used_ns", {})
+            common["M"] = common.get("M", 0) + elapsed
+            write_budget(ledger_path, ledger)
+    return value
 
 
 def retire_working_copies(root):
     """Retire successful disposable copies after strict cleanup, preserving science and charges."""
     import fcntl
     from m_guard import write_budget
+    began = time.monotonic_ns()
     root = Path(root).resolve()
     final_guardian(root)
     manifest = json.loads((root / "manifest.json").read_text())
@@ -301,7 +329,6 @@ def retire_working_copies(root):
         if any(ledger.get(key) for key in ("inflight", "m_guardian", "d_guardian", "closed_guardian")):
             raise ValueError("live shared ownership blocks working-copy retirement")
         usage = ledger[usage_key][outcome["id"]]
-        began = time.monotonic_ns()
         retired = list(outcome.get("retired_working_copies", []))
         try:
             for path in paths:
@@ -342,12 +369,16 @@ def final_guardian(root):
     return receipt
 
 
-def _loop_population(result, attempt, cell):
+def _loop_population(result, attempt, cell, deadline_ns=None):
     phases = (("first", cell["first"]), ("warmup", cell["warmups"]), ("timed", cell["timed"]))
     streams = {}
     for name in ("submissions", "invocations"):
         with (attempt / "wire" / (name + ".jsonl")).open() as stream:
-            streams[name] = [json.loads(line) for line in stream]
+            streams[name] = []
+            for line in stream:
+                if deadline_ns is not None and time.monotonic_ns() >= deadline_ns:
+                    raise TimeoutError("selected final report allowance exhausted")
+                streams[name].append(json.loads(line))
     for phase, count in phases:
         value = result.get("phases", {}).get(phase, {})
         summary = value.get("summary", {})
@@ -367,11 +398,13 @@ def _loop_population(result, attempt, cell):
             raise ValueError("complete ordered raw population unavailable")
 
 
-def reused_rows(manifest):
+def reused_rows(manifest, *, deadline_ns=None):
     """Reference complete matched original evidence without changing its scope or charges."""
     from m_calibration import CALIBRATION_ID, CELL_ID, registered_cell
     rows = {}
     for reference in manifest.get("reuse_from", []):
+        if deadline_ns is not None and time.monotonic_ns() >= deadline_ns:
+            raise TimeoutError("selected final report allowance exhausted")
         root = Path(reference["root"]).resolve()
         if not root.is_relative_to(Path(manifest["allocation"]).resolve()):
             raise ValueError("reused M evidence must stay in its original allocation")
@@ -405,7 +438,8 @@ def reused_rows(manifest):
                    "helper" if cell["family"] == "M-E" else "providerfree")
         if (actual_cell != cell or result.get("freeze_uuid") != original["uuid"]
                 or result.get("selected_build") != original["builds"][variant]
-                or original["builds"][variant] != manifest["builds"][variant]):
+                or original["builds"][variant].get("compiler_inputs") != manifest["compiler_inputs"]
+                or original["builds"][variant] != manifest["builds"].get(variant, original["builds"][variant])):
             raise ValueError("original M workload/build identity differs")
         if (outcome.get("complete") is not True or outcome.get("status") != "complete"
                 or outcome.get("exit") != 0 or outcome.get("cleanup_uncertain") is not False
@@ -413,7 +447,7 @@ def reused_rows(manifest):
                 or result.get("gpu", {}).get("complete") is not True or result["gpu"].get("failures")):
             raise ValueError("original complete M result and GPU qualification required")
         if cell["family"] in ("M-R", "M-C"):
-            _loop_population(result, attempt, cell)
+            _loop_population(result, attempt, cell, deadline_ns)
         rows[cell["id"]] = {"id": cell["id"], "cell": cell, "status": "complete", "complete": True,
             "satisfied_by": {"root": str(root), "result": str(result_path), "attempt": str(attempt),
                 "accounting_id": identity, "scope": original["scope"], "source_sha": original["source_sha"],
@@ -422,13 +456,13 @@ def reused_rows(manifest):
     return rows
 
 
-def report(root):
+def report(root, *, deadline_ns=None):
     """Retain all46 required cells and every attempt; incomplete outcomes never disappear."""
     root = Path(root)
     manifest = json.loads((root / "manifest.json").read_text())
     state = root / "results/campaign-state.json"
     current = {row["id"]: row for row in json.loads(state.read_text())} if state.exists() else {}
-    current = dict(reused_rows(manifest), **current)
+    current = dict(reused_rows(manifest, deadline_ns=deadline_ns), **current)
     rows = []
     calibration = manifest.get("scope") == "bounded-natural-calibration"
     plan = load_plan() if calibration or manifest.get("scope") == "registered-M-selected-cell" else manifest["plan"]
@@ -447,9 +481,24 @@ def report(root):
             history.append(attempt)
         row["attempts"] = history
         rows.append(row)
+    phase_qualified = True
+    if manifest.get("scope") == "registered-M-selected-cell":
+        try:
+            final_guardian(root)
+        except ValueError:
+            phase_qualified = False
+        if deadline_ns is not None and time.monotonic_ns() >= deadline_ns:
+            phase_qualified = False
+        if not phase_qualified:
+            for row in rows:
+                if row["id"] == manifest["plan"][0]["id"] and row.get("complete"):
+                    row.update(execution_complete=True, complete=False, status="incomplete",
+                               reason="original final guardian/publication allowance is unqualified")
     value = {"schema": "slice30-m-report/v1", "freeze_uuid": manifest["uuid"],
              "source_sha": manifest["source_sha"], "complete": all(row["complete"] for row in rows),
-             "rows": rows, "verdict": None, "calibrated_threshold": None}
+             "rows": rows, "verdict": None, "calibrated_threshold": None,
+             "phase_qualified": phase_qualified}
+    value["complete"] &= phase_qualified
     if calibration:
         value.update(scope=manifest["scope"], qualifies_primary=False,
                      rows=rows[:46], calibrations=rows[46:], complete=False,

@@ -45,6 +45,10 @@ normal exit, plus external live PID/UUID observations. It refuses missing or
 incomplete captures, CUDA access in CPU processes, or failed positive controls.
 The consumers exercise the existing BGE/write/search/TinyBERT/close lifecycle;
 CPU consumers read their open report and never query CUDA availability.
+Cleanup retains the unreaped tracer's private-session identity and stops owned
+survivors even after tracer death. If bounded cleanup cannot prove quiescence,
+the tool retains FD9 custody and refuses qualification until owned work ends;
+failed or uncertain cleanup records cannot qualify offline either.
 
 Run only after exclusive GPU handoff, with the selected lease inherited on FD9.
 The Windchill lock is

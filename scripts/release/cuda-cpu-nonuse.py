@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import fcntl
 import hashlib
+import importlib.util
 import json
 import math
 import os
@@ -13,6 +14,7 @@ import re
 import shutil
 import signal
 import subprocess
+import sys
 import time
 from pathlib import Path
 from typing import Any
@@ -24,6 +26,14 @@ CUDA_ACCESS = re.compile(
 )
 EXIT_ZERO = re.compile(r"\+\+\+ exited with 0 \+\+\+\s*$")
 HERE = Path(__file__).resolve().parent
+STOP_REQUESTED = False
+GROUP_SPEC = importlib.util.spec_from_file_location(
+    "cpu_nonuse_owned_group",
+    HERE.parents[1] / "dev/experiments/0.8.29-slice30-measurements/g_attempt.py",
+)
+assert GROUP_SPEC is not None and GROUP_SPEC.loader is not None
+GROUP = importlib.util.module_from_spec(GROUP_SPEC)
+GROUP_SPEC.loader.exec_module(GROUP)
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -113,6 +123,8 @@ def validate_capture(root: Path, policy: str, uuid: str) -> None:
         or ready.get("policy") != policy
         or ready.get("cuda_compiled") is not True
         or record.get("returncode") != 0
+        or record.get("cleanup_error") is not None
+        or record.get("cleanup_uncertain", False) is not False
         or ready.get("vector_dim") != 384
         or ready.get("result_count") != 2
         or ready.get("reranked") is not True
@@ -234,6 +246,8 @@ def capture(
 ) -> None:
     """Capture a bounded installed lifecycle, observing GPU PIDs until all traced tasks exit."""
     root.mkdir()
+    if STOP_REQUESTED:
+        raise KeyboardInterrupt("capture stop requested before dispatch")
     if query_compute(uuid):
         raise ValueError("selected GPU must have no pre-existing compute consumers")
     process = start_trace(command, root, env | {"FATHOMDB_CAPTURE_DIR": str(root)})
@@ -244,6 +258,8 @@ def capture(
     try:
         while True:
             now = time.monotonic()
+            if STOP_REQUESTED:
+                raise KeyboardInterrupt("capture stop requested")
             if now > deadline:
                 raise TimeoutError(
                     f"{binding}/{policy} capture exceeded {timeout} seconds"
@@ -269,7 +285,9 @@ def capture(
                 and (policy == "cpu" or ready["pid"] in pids)
             ):
                 (root / "release").touch()
-            if process.poll() is not None:
+            if GROUP.unreaped_exit(process) is not None:
+                if GROUP.live_owned_pids(process):
+                    raise ValueError("owned consumer survived tracer exit")
                 break
             time.sleep(0.2)
         if ready is None:
@@ -284,13 +302,47 @@ def capture(
             }
         )
     finally:
-        if process.poll() is None:
-            os.killpg(process.pid, signal.SIGTERM)
-            try:
-                process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                os.killpg(process.pid, signal.SIGKILL)
+        cleanup_error = None
+        try:
+            # WNOWAIT pins the private session leader even when strace has died.
+            if GROUP.live_owned_pids(process):
+                GROUP.stop_owned_group(process)
+            else:
                 process.wait()
+        except BaseException as error:
+            cleanup_error = f"{type(error).__name__}: {error}"
+            try:
+                (root / "observations.json").write_text(
+                    json.dumps(
+                        {
+                            "binding": binding,
+                            "policy": policy,
+                            "returncode": process.returncode,
+                            "selected_uuid": uuid,
+                            "samples": samples,
+                            "cleanup_error": cleanup_error,
+                            "cleanup_uncertain": True,
+                        },
+                        indent=2,
+                    )
+                    + "\n"
+                )
+                print(
+                    f"owned cleanup uncertain; retaining FD9 custody until quiescence: {cleanup_error}",
+                    file=sys.stderr,
+                    flush=True,
+                )
+            finally:
+                # Bounded TERM/KILL has failed. Keep the leader pin and GPU lease;
+                # do not signal a recycled numeric PID or release a known survivor.
+                while True:
+                    try:
+                        if not GROUP.live_owned_pids(process):
+                            process.wait()
+                            break
+                        time.sleep(0.2)
+                    except BaseException:
+                        time.sleep(0.2)
         (root / "observations.json").write_text(
             json.dumps(
                 {
@@ -299,11 +351,17 @@ def capture(
                     "returncode": process.returncode,
                     "selected_uuid": uuid,
                     "samples": samples,
+                    "cleanup_error": cleanup_error,
+                    "cleanup_uncertain": False,
                 },
                 indent=2,
             )
             + "\n"
         )
+        if cleanup_error is not None:
+            raise RuntimeError(
+                f"owned cleanup failed before quiescence: {cleanup_error}"
+            )
     validate_capture(root, policy, uuid)
 
 
@@ -356,6 +414,14 @@ def main() -> None:
     if os.fstat(9).st_ino != args.lock_inode:
         raise ValueError("wrong inherited GPU lock inode")
     fcntl.flock(9, fcntl.LOCK_EX | fcntl.LOCK_NB)
+
+    def interrupted(_signum: int, _frame: Any) -> None:
+        global STOP_REQUESTED
+        # Register the Popen before entering cleanup, including signals at launch.
+        STOP_REQUESTED = True
+
+    signal.signal(signal.SIGTERM, interrupted)
+    signal.signal(signal.SIGINT, interrupted)
     if args.output_dir.exists():
         raise ValueError("output directory must be new")
     args.output_dir.mkdir(parents=True)

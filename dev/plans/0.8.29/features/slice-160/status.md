@@ -1,69 +1,56 @@
 ---
-title: Slice 160 Phase A proposal status
-status: PROPOSED
+title: Slice 160 local qualification status
+status: IN_PROGRESS
 target_release: 0.8.29
 ---
 
-# Slice 160 Phase A proposal status
+# Slice 160 local qualification status
 
-[Active owner dispositions](requirements.md#owner-dispositions) select .29
-identity/atomic-feedback/source-seam work, hold real resets to .30 and move new
-x86 CUDA13 delivery/quantitative evidence to .31. Seq-381 additionally moves Tegra CUDA13
-130A to .31;130D/E and existing CUDA12.6/platform/artifact obligations remain .29; deferral is not qualification. Owner seq-387 excludes non-Tegra ARM+GPU B/C from every .29 gate and known-working environment claim.
+Current source is `d259d84c59e38861de11192cb8764979458fb127` on the isolated
+`llm/0.8.29-s160-local-20261116` worktree. The [design](design.md) selects the
+existing two required CPU long-test variants and offline verified leaf packages.
+Independent Astra-medium design review accepted this batch before execution.
+No source behavior or test oracle changed.
 
-**Proposal prepared; design review pending. No160 source or runtime qualification.**
-Own candidate root is `/tmp/fathomdb-0829-direct/slice-160/phase-a`.
-Release parent is read-only, clean/frozen at
-`2f6913c1d59ac8ff3a30de835b57290a8635998c`. Parent imports only after review.
-Run-state is an evidence locator, not source/runtime proof or current ladder authority.
+## Completed independent local batch
 
-## Current concrete holds
+All commands used Rust1.95, the unchanged locked source above, an owned offline
+Cargo cache/target and ordinary CPU execution. Raw logs and archives remain under
+`/mnt/data/tmp2/fathomdb-0829-continuation/slice160-local-20261116/`.
 
-- 20 qualified Linux repairs and the seq-369 A3/A5 proofs are integrated, not
-  whole20 completion. Windows A6 needs real execution. Seq-370 created the owned
-  64GiB RAW image (serial `FDB29S20A6`) and attached it live-only; that
-  qualification is historical. Read-only observation now: the windows20 VM is
-  off, the image exists, the attachment was lost on shutdown and must be
-  reattached. Seq-373 approves guarded GPT and R: quick NTFS format of that owned
-  64GiB disk; actual reattachment, identity checks and fresh readiness still precede
-  execution. No format or Windows qualification is claimed. Guest C: has6.37GiB
-  free, below the existing8GiB start/5GiB stop floors; a32GiB VM leaves the
-  host13.63GiB, below its16GiB start floor. The24GiB live-balloon and
-  C:-start-6GiB alternatives are not selected.
-- 30 exact TC5 frozen input pack remains inaccessible; drive UUID
-  `C8D47C11D47C03CA` reconnect/existing-copy question is unanswered. No substitute,
-  regeneration or fresh fidelity measurement is authorized by this proposal.
-- 50 selected identity/source-consumer census/baseline prerequisites remain. Historical repeated-ref feedback
-  correction is selected by seq-375 but remains unimplemented/unqualified; no new native ABI is selected.
-- 60's format/filter/budget subset is integrated; its held historical-flag
-  (F11) contract work is not complete.70 is complete on the release branch.
-  80 bounded/aggregate proposal PASS is not whole80 approval.
-- 90 needs real Block1 follow-up exit after selected20–70 plus approved80;
-  neither exit depends on160.100 existing eight-control execution reuse retains
-  inference limits; active-checkpoint/richer-postcrash gaps stay open.
-- 110 quiescent/frozen-live-set policy is selected; actual Orin/3090 reset execution is HELD .30. New120 x86 package selection/delivery and compiler work move to .31
-  under seq-378, with choices still proposed rather than accepted.130 broad venue direction is already ruled, but actual
-  access/vetting/session caps/fixtures/final artifacts and selected proof remain.
-- 140 runs only concrete necessary110/120 fork A repairs. Fork B/C is already.30.
-  No150 study or spend has been selected by inference; unselected experiments
-  are not mandatory product execution.
-- Final integrated matrix/native/rehearsal evidence does not exist yet.
-  Publication stays HELD; separate authorization precedes tags/publish and
-  fresh registry consumer proof. No READY_TO_PUBLISH or release-complete claim.
-- Under the current CI/publication exclusion,160 may record bounded local
-  tasks as done, but that is not local completion. Every selected mandatory
-  Q14 installed/platform row that a permitted local or owned venue can qualify
-  stays open until it is actually qualified there, and so does any Q18 dry-run
-  part runnable locally. Local-mandate completion is reached only when the
-  sole unmet rows are those needing excluded CI execution or publication; each
-  is then named outstanding, not waived and not passed.
+| Existing check | Actual result |
+| --- | --- |
+| Q10 AC021, `--features operator`, `AGENT_LONG=1`, exact selector |1test passed;60-second window,59 projection add/drop cycles,59 rebuilds, zero `SQLITE_SCHEMA` events. `logs/ac021.log`. |
+| Q10 cursor race, `AGENT_LONG=1`, exact selector |1test passed;1000 searches,401 committed writes including400 during reads,999 advancing hits; zero row-count/cursor and hit-cursor violations. `logs/cursor.log`. |
+| Offline leaf packages, `cargo package --offline --locked --allow-dirty` |All3 archives verify-compiled: embedder-api0.8.0, schema/query0.8.29. Cargo's unused optional fork-patch warnings are retained in `logs/package-*.log`; no verification bypass. |
+| Q4 missing AC037 live components |Current locked `security_cycle` rebuilt; both canonical netns engine and demonstrate-the-catch scripts exited0, including the live deliberate-egress catch. `logs/security-build.log`, `logs/check-netns-deny-egress.log`, `logs/check-netns-deny-egress-catch.log`. No host settings changed or optional downgrade selected. |
 
-## Proposal validation boundary
+The long variants close the missing Q10 observations on these inputs. AC037 closes
+the missing live component alongside applicable accepted unchanged security
+controls; no aggregate battery or full-workspace green run is claimed. The three
+leaf archives are local package preparation, not all shipping artifacts,
+Python/Node/platform consumers, complete rehearsal or registry readiness. Reassess
+affected runtime/package inputs after90; unchanged observations need no replay.
 
-Candidate checks and exact file digests are in `phase-a-validation.json` at the
-candidate root. These checks cover authored Markdown structure, resolved link
-files/anchors, local requirement/acceptance/test joins and unchanged parent.
-They do not claim repository-wide Markdown, setup, full native, hardware,
-conformance, dry-run or package validation. After import the parent runs the
-applicable existing scoped validators;160 needs independent Astra design review
-before execution and a fresh final review after actual accepted work.
+## Remaining qualification
+
+- 20's four Windows rows and the assembled238-suite source gate are complete;
+  ordinary smoke/skip behavior remains distinct from the actual long runs above.
+- 60/70/80 and100 have accepted selected exits;110/140's selected .29
+  source/healthy/OOM/consumer scope is independently accepted.30's remaining
+  G13/84, M4/46 and D12/24 campaigns and50's ordinary6/136, diagnostic0/24 paired
+  observations remain incomplete. These are execution progress, not outcomes.
+- 40 awaits the actual owner choice,72's approved model episodes have not run,
+  and130E's Node soak is active.90 remains behind the actual Block1 exit.
+- Final integrated qualification, five-target installed packages, selected
+  CUDA12.6 consumers and the complete local rehearsal still require applicable
+  actual inputs. Earlier accepted observations retain their scope; no automatic
+  full replay follows document edits.
+- After local passes, review CI scripts and execute CI. The earlier blanket CI
+  exclusion is superseded. No publishing tags, registry uploads or published
+  registry-consumer proof is authorized; readiness and publication remain distinct.
+
+Owner dispositions in [requirements](requirements.md#owner-dispositions) retain
+format37 with no migration, reset work in .30, CUDA13 including Tegra in .31,
+and non-Tegra ARM+GPU excluded from .29 gates/known-working claims. No private
+Memex population census or new capacity/admin ritual blocks this local batch.

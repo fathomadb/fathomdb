@@ -92,6 +92,32 @@ unchanged. Orin12.6 is not reflashed.13.1+ PTX runtime behavior is not measured
 on R580. Broad venue direction is already ruled; specific access/vetting/session
 caps and compiler exposure remain real row prerequisites, not a new broad vote.
 
+## Independent local execution batch
+
+Run the existing `lifecycle_reliability` test
+`ac_021_zero_sqlite_schema_warnings_under_concurrent_reads_and_ddl` with
+`--features operator` and `AGENT_LONG=1`; its actual60-second window must execute
+projection add/drop and rebuild work with zero `SQLITE_SCHEMA` events. Run the
+existing `cursor_read_after_write::projection_cursor_bounds_observed_row_count`
+with `AGENT_LONG=1`; retain its1000-search, positive overlapping-write and advancing
+revision assertions. Use ordinary CPU execution, real SQLite, an owned build
+directory and raw command logs. No full-gate replay or GPU campaign is needed.
+
+Use `cargo package --offline` for `fathomdb-embedder-api`, `fathomdb-schema` and
+`fathomdb-query`, retaining Cargo's archive verification. These are independent
+leaf packages without unpublished sibling dependencies. This is local package
+preparation, not the complete local rehearsal, installed Python/Node proof or
+registry publication. Reassess the relevant source/lock/toolchain changes after90;
+unchanged leaf inputs need no automatic repeated package build.
+
+Close the missing Q4 live component with the existing
+`scripts/security/check-netns-deny-egress.sh` and
+`scripts/security/check-netns-deny-egress-catch.sh`, using a freshly rebuilt locked
+`security_cycle` example. Both live layers must actually pass on a capable
+executor, without `AC037_LIVE_OPTIONAL` or host security-setting changes. Reuse
+accepted unchanged other security controls only within their actual applicability;
+these scoped executions are not a new aggregate battery run.
+
 ## Delivery and review
 
 Slice10 already repaired .29 bootstrap routing. Revalidate exact remote tag,
@@ -102,7 +128,9 @@ registry consumers are four distinct observations. Skipped publisher bodies neve
 count as executed, and source-bound SDK OIDC proof never substitutes for packages.
 Maintain AxisW .29 notes/source breaks and independent AxisE truth.
 
-Fresh Astra design review must PASS before implementation/execution entry. Any
+After local qualification passes, review the CI scripts and then execute CI;
+the former blanket CI exclusion is superseded. Publishing tags and registry
+publication remain unauthorized. Fresh Astra design review must PASS before implementation/execution entry. Any
 confirmed behavioral repair gets its own meaningful staged/committed observed
 RED and separate GREEN with authored oracles unchanged, then scoped verification
 and fresh independent final review. Documentation/evidence closure needs no

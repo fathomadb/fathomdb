@@ -494,8 +494,8 @@ def run_concurrent_arm(commands, pool_mode, output, limits, *, collect=collect_a
             events = (output / f"{sdk}.jsonl").open("w", buffering=1)
             stdout = (output / f"{sdk}.stdout").open("wb", buffering=0)
             files.extend((err, events, stdout))
-            env = dict(os.environ, **config.get("environment", {}), FATHOMDB_POOL_MODE=pool_mode,
-                       FATHOMDB_POOL_RELEASE_THRESHOLD="0", HF_HUB_OFFLINE="1", TRANSFORMERS_OFFLINE="1")
+            env = {**os.environ, **config.get("environment", {}), "FATHOMDB_POOL_MODE": pool_mode,
+                   "FATHOMDB_POOL_RELEASE_THRESHOLD": "0", "HF_HUB_OFFLINE": "1", "TRANSFORMERS_OFFLINE": "1"}
             dbs = output / f"{sdk}-dbs"
             dbs.mkdir()
             env["FATHOMDB_DB_SCRATCH"] = str(dbs.resolve())
@@ -589,9 +589,9 @@ def run_lifecycle(command, cwd, environment, case, output):
     if case not in ("max", "zero", "drop", "exit-alive", "cls", "reranker"):
         raise ValueError("unknown lifecycle case")
     output.mkdir()
-    env = dict(os.environ, **environment, FATHOMDB_POOL_MODE="on",
-               FATHOMDB_POOL_RELEASE_THRESHOLD="0" if case == "zero" else "max",
-               HF_HUB_OFFLINE="1", TRANSFORMERS_OFFLINE="1", FATHOMDB_DB_SCRATCH=str(output.resolve()))
+    env = {**os.environ, **environment, "FATHOMDB_POOL_MODE": "on",
+           "FATHOMDB_POOL_RELEASE_THRESHOLD": "0" if case == "zero" else "max",
+           "HF_HUB_OFFLINE": "1", "TRANSFORMERS_OFFLINE": "1", "FATHOMDB_DB_SCRATCH": str(output.resolve())}
     stop = threading.Event()
     started = time.monotonic()
 

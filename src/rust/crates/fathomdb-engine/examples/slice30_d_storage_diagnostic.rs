@@ -85,7 +85,9 @@ fn run(args: &[std::ffi::OsString]) -> Result<Value, String> {
             connection.close().map_err(|(_, error)| format!("control close: {error:?}"))?;
         }
         [mode] if mode == "--bounds-control" => {
-            rusqlite::trace::log(1, &"雪".repeat(342));
+            // SQLite's own formatter truncates long log messages before the
+            // callback; exercise this callback's separate bound with the literal.
+            record_sqlite_log(1, &"雪".repeat(342));
             for _ in 0..64 {
                 rusqlite::trace::log(1, "literal bounded diagnostic control");
             }

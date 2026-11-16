@@ -179,7 +179,7 @@ def run_accounted_stage(spec, records, budget, execute, *, initial=True, clock=t
             publish()
 
 
-def run_supervised_stage(spec, records, budget, root, command, *, publish=None, initial=True, review=None):
+def run_supervised_stage(spec, records, budget, root, command, *, publish=None, initial=True, review=None, scientific=False):
     """Connect exactly one reviewed quartet to owned children under caller custody.
 
     Initial entry stops after the first held quartet. Continuation requires its

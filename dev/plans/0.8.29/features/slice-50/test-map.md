@@ -144,22 +144,25 @@ refusal for repeated IDs; no automatic relabeling or duplicate acceptance follow
 
 ## Remaining measurement-support TDD
 
-The accepted50 correctness/identity/prefix suites remain completed evidence.
-Only the genuine [paired support gaps](design.md#current-paired-measurement-support)
-need new RED/GREEN, with independent Astra design review before implementation:
+Accepted `83edcf2c7`/`e887e3fa6` already passed genuine separate selector, UTF-8 body
+counts, post-timer record-output and low-level mode/RSS RED/GREEN units plus
+independent final review. Preserve those oracles and accepted identity/prefix
+proof; do not replay them as new REDs. The remaining
+[public path](design.md#current-paired-measurement-support) needs one coherent
+design review before implementation and one final source review:
 
-| Unit | Falsifying behavior and narrow GREEN |
+| New unit | Genuine runtime RED before narrow GREEN |
 | --- | --- |
-| Pair selector and diagnostic work | On a tiny real store with independently specified lexical/vector bodies, the new private selector must choose retained eager-body/deferred-identity rather than winner hydration, preserving exact ordered hits/score bits and direct-text routing. Stage runtime assertions before implementation; use a callable scaffold if needed, never a missing symbol as RED. Separately assert literal actual lightweight/body counts and UTF-8 byte sums for both modes, including a multibyte body and repeated materialization, under the existing bounded engine/operation observer. Absent/lost facts cannot appear as zero. General test-hooks are excluded from ordinary pair builds. |
-| Existing runner pair binding/output | Existing tiny real-DB/harmless-child controls assert fixed cell populations and balanced mode order, distinct fresh write subjects, same binary/features/provider inputs, no collector in ordinary calls, separate diagnostics/RSS and retained failed/refused members. Extend existing runner tests rather than add a framework. Pin cursor/source/score-bit output with literal expected records and hand-computed metric math; do not regenerate snapshots or repeat previously passing50 tests as new REDs. |
+| Public build/freeze binding | Existing public P/G entries cannot truthfully freeze the new features/current donor-only inputs. Callable scaffolds plus harmless build/command children must fail explicit current-source/feature/purpose assertions, not missing symbols. Preserve default P/G feature lists/canonical admission and original manifests. No fixture child may qualify natural/native/GPU work. |
+| Paired P copy/observation | Tiny real provider-none P templates with literal IDs/marker bodies must remain byte-identical donors while both fresh members use the admitted copies, retain zero vectors and emit exact engine/SDK operation counts/RSS only when selected. Existing P reseeds/ignores observe, a real state/work failure. Keep500/1000 production populations separate from tiny source controls; no database mock. |
+| Canonical paired dispatch/report | Public CLI through existing controller must demonstrate exact68/136 primary and12/24 diagnostic inventories, mode/repeat order, distinct working copies and exact field/score equality. Unknown/failed/refused members stay visible; primary/diagnostic/calibration results never cross-credit. Use literal small tables and actual harmless children for source control; reuse qualified metric math unchanged. |
+| Full10k calibration and copy retirement | Tiny child/real-SQLite controls falsify whole-phase/growth/headroom admission, cumulative allowance across paths, interruption/strict cleanup and missing-cost holds. Retirement occurs only after complete comparison/required diagnostics and verified native quiescence; failures retain copies, immutable/original donors survive, and accounting uses actual retained bytes. No synthetic prefix supplies a natural calibration pass. |
 
-Pure source/harmless-child controls can proceed in the isolated checkout after
-design acceptance. Any Rust build/test, current-native/default/model/GPU run and
-natural measurement requires the parent's native window. Final independent
-review covers the coherent support change; actual candidate-bound paired results
-remain a separate qualification obligation. Run required scoped checks and the
-final source gate once when the native window permits, preserving genuine
-failures and affected resumes.
+The fixed natural calibration is separate current-candidate qualification after
+source acceptance and the parent's native/GPU window, not a source-test fixture
+or a primary completion. Scoped affected checks and required source qualification
+retain genuine failures/resumes; unchanged accepted50 correctness is not restarted.
+No source/native/calibration/scientific execution is authorized by this design.
 
 Only after actual30 is available, repeat its fixed natural-text and write-
 interleaved cells with the qualified50 candidate/reference; untraced latency

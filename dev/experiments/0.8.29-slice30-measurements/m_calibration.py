@@ -124,10 +124,10 @@ def validate_limits(limits):
         raise ValueError("positive bounded calibration allowance required, including cleanup")
 
 
-def admit(profile, ledger, retained_bytes, limits):
+def admit(profile, ledger, retained_bytes, limits, *, calibration_id=CALIBRATION_ID):
     """Reserve positive remaining calibration allowances on the original shared budget."""
     validate_limits(limits)
-    usage = ledger.get("calibration_usage", {}).get(CALIBRATION_ID, {})
+    usage = ledger.get("calibration_usage", {}).get(calibration_id, {})
     if usage and usage.get("limits") != limits:
         raise ValueError("selected cumulative calibration allowance changed")
     prior_ns, prior_bytes = usage.get("wall_ns", 0), usage.get("new_retained_bytes", 0)

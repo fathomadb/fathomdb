@@ -511,6 +511,7 @@ fn run_schedule(
     run_schedule_observed(engine, queries, samples, batch_size, searches_per_batch, &mut |_, _| {})
 }
 
+#[cfg(test)]
 fn run_schedule_observed(
     engine: &Adapter,
     queries: &[String],
@@ -518,6 +519,26 @@ fn run_schedule_observed(
     batch_size: usize,
     searches_per_batch: usize,
     observer: &mut dyn FnMut(&str, &Value),
+) -> Schedule {
+    run_schedule_calls(
+        engine,
+        queries,
+        samples,
+        batch_size,
+        searches_per_batch,
+        observer,
+        &mut |query, kind| (observe(engine, query, kind), None),
+    )
+}
+
+fn run_schedule_calls(
+    engine: &Adapter,
+    queries: &[String],
+    samples: usize,
+    batch_size: usize,
+    searches_per_batch: usize,
+    observer: &mut dyn FnMut(&str, &Value),
+    call: &mut impl FnMut(&str, Option<&str>) -> (Value, Option<Value>),
 ) -> Schedule {
     assert!(!queries.is_empty() && searches_per_batch > 0);
     assert!(batch_size == 1 || batch_size == 10);
@@ -545,7 +566,10 @@ fn run_schedule_observed(
                 "authority_observation": "write receipt only; search snapshot unavailable"}));
             observer("batches", output.batches.last().unwrap());
             for slot in slots {
-                let mut probe = observe(engine, &format!("s30markercurrent{slot}"), Some("note"));
+                let (mut probe, trace) = call(&format!("s30markercurrent{slot}"), Some("note"));
+                if let Some(trace) = trace {
+                    observer("observations", &trace);
+                }
                 probe["marker_current"] = json!(
                     probe["ids"] == json!([format!("l:s30marker-{slot}")])
                         && probe["bodies"]
@@ -556,7 +580,10 @@ fn run_schedule_observed(
                 output.probes.push(probe);
             }
         }
-        let mut result = observe(engine, &queries[sample % queries.len()], Some("doc"));
+        let (mut result, trace) = call(&queries[sample % queries.len()], Some("doc"));
+        if let Some(trace) = trace {
+            observer("observations", &trace);
+        }
         result["sample_index"] = json!(sample);
         result["query_index"] = json!(sample % queries.len());
         observer("samples", &result);
@@ -712,6 +739,89 @@ impl Recorder {
     }
 }
 
+fn seed_p_store(n: usize, corpus: &[String], store: &Path, filtered: bool) -> Value {
+    assert!(n > 0 && corpus.len() >= n && !store.exists(), "fresh P seed required");
+    let open_started = std::time::Instant::now();
+    let seed = Adapter::open("sdk", store);
+    let open_ns = u64::try_from(open_started.elapsed().as_nanos()).unwrap();
+    let started = std::time::Instant::now();
+    for start in (0..n).step_by(1024) {
+        let batch: Vec<_> = corpus[start..n.min(start + 1024)]
+            .iter()
+            .enumerate()
+            .map(|(offset, body)| node(&format!("s30doc-{}", start + offset), "doc", body))
+            .collect();
+        seed.write(&batch);
+    }
+    if filtered {
+        seed.write(
+            &(0..10)
+                .map(|slot| node(&format!("s30marker-{slot}"), "note", "initial marker"))
+                .collect::<Vec<_>>(),
+        );
+    }
+    let write_ns = u64::try_from(started.elapsed().as_nanos()).unwrap();
+    seed.close();
+    drop(seed);
+    json!({"open_ns":open_ns,"write_ns":write_ns,"reseeded":true})
+}
+
+#[cfg(feature = "slice50-measurement")]
+fn run_p_seed(config: &Value, out: &Path) -> Value {
+    assert_eq!(std::env::var("AGENT_LONG").as_deref(), Ok("1"));
+    assert!(!out.exists());
+    std::fs::create_dir_all(out).unwrap();
+    let corpus = read_jsonl(config["corpus"].as_str().unwrap());
+    let n = config["n"].as_u64().unwrap() as usize;
+    let filtered = config["seed_family"] == "P2";
+    let store = out.join("store.sqlite");
+    let preparation = seed_p_store(n, &corpus, &store, filtered);
+    let connection =
+        rusqlite::Connection::open_with_flags(&store, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+            .unwrap();
+    let count = |sql| connection.query_row(sql, [], |row| row.get::<_, u64>(0)).unwrap();
+    let natural =
+        count("SELECT COUNT(*) FROM canonical_nodes WHERE kind='doc' AND superseded_at IS NULL");
+    let markers =
+        count("SELECT COUNT(*) FROM canonical_nodes WHERE kind='note' AND superseded_at IS NULL");
+    let vectors = count("SELECT COUNT(*) FROM _fathomdb_vector_rows");
+    let result = json!({"complete":natural == n as u64 && vectors == 0 && markers == if filtered {10} else {0},
+        "natural_records":natural,"marker_records":markers,"vector_rows":vectors,
+        "format":connection.pragma_query_value(None,"user_version",|row|row.get::<_,u32>(0)).unwrap(),
+        "preparation":preparation,"store":store});
+    std::fs::write(out.join("result.json"), serde_json::to_vec_pretty(&result).unwrap()).unwrap();
+    result
+}
+
+fn observe_p_operation(
+    engine: &Adapter,
+    query: &str,
+    kind: Option<&str>,
+    operation: u64,
+    guard: &GObservation,
+) -> (Value, Option<Value>) {
+    #[cfg(feature = "slice30-observer")]
+    let row = if let Some(guard) = guard {
+        guard.with_operation(operation, || observe(engine, query, kind))
+    } else {
+        observe(engine, query, kind)
+    };
+    #[cfg(not(feature = "slice30-observer"))]
+    let row = {
+        let _ = (operation, guard);
+        observe(engine, query, kind)
+    };
+    #[cfg(feature = "slice30-observer")]
+    let trace = guard.as_ref().map(|guard| {
+        let mut value = serde_json::to_value(guard.take()).unwrap();
+        value["operation_id"] = json!(operation);
+        value
+    });
+    #[cfg(not(feature = "slice30-observer"))]
+    let trace = None;
+    (row, trace)
+}
+
 fn run_cell(config: &Value, out: &Path) -> Value {
     run_cell_observed(config, out, &mut |_, _| {})
 }
@@ -728,44 +838,57 @@ fn run_cell_observed(config: &Value, out: &Path, observer: &mut dyn FnMut(&str, 
     let filtered = config["family"] == "P2";
     assert!(filtered || config["family"] == "P1");
     std::fs::create_dir_all(out).expect("create owned cell output");
-    let store = out.join("store.sqlite");
-    assert!(!store.exists(), "measurement store must be fresh");
-    let open_started = std::time::Instant::now();
-    let seed = Adapter::open("sdk", &store);
-    let seed_open_ns = u64::try_from(open_started.elapsed().as_nanos()).unwrap();
-    let write_started = std::time::Instant::now();
-    for start in (0..n).step_by(1024) {
-        let batch: Vec<_> = corpus[start..n.min(start + 1024)]
-            .iter()
-            .enumerate()
-            .map(|(offset, body)| node(&format!("s30doc-{}", start + offset), "doc", body))
-            .collect();
-        seed.write(&batch);
-    }
-    if filtered {
-        let markers: Vec<_> = (0..10)
-            .map(|slot| node(&format!("s30marker-{slot}"), "note", "initial marker"))
-            .collect();
-        seed.write(&markers);
-    }
-    let seed_write_ns = u64::try_from(write_started.elapsed().as_nanos()).unwrap();
-    seed.close();
-    drop(seed);
+    let paired = config.get("slice50_pair_mode").is_some();
+    assert!(!paired || cfg!(feature = "slice50-measurement"), "private pair feature required");
+    let store = if paired {
+        Path::new(config["store"].as_str().expect("admitted P copy")).to_path_buf()
+    } else {
+        out.join("store.sqlite")
+    };
+    let seed = if paired {
+        assert!(store.is_file());
+        None
+    } else {
+        assert!(!store.exists(), "measurement store must be fresh");
+        Some(seed_p_store(n, &corpus, &store, filtered))
+    };
     let mut rows = Vec::new();
     let mut warmups = Vec::new();
     let mut batches = Vec::new();
     let mut probes = Vec::new();
     let mut passes = Vec::new();
-    let mut recorder = Recorder::new(out);
+    let mut recorder = if paired { Recorder::new_g(out) } else { Recorder::new(out) };
+    let mut traces = Vec::new();
+    let mut open_reports = Vec::new();
+    let mut operation = 1_u64;
     for adapter in config["adapters"].as_array().expect("adapter list") {
         let name = adapter.as_str().expect("adapter name");
         let opening = std::time::Instant::now();
-        let engine = Adapter::open(name, &store);
+        let engine = if paired {
+            let (engine, mut report) = Adapter::open_g_reported(name, &store, "none");
+            report["adapter"] = json!(name);
+            open_reports.push(report);
+            engine
+        } else {
+            Adapter::open(name, &store)
+        };
+        let observation = begin_g_observation(&engine, paired && config["observe"] == true);
+        let mut call = |query: &str, kind: Option<&str>| {
+            let value = observe_p_operation(&engine, query, kind, operation, &observation);
+            operation += 1;
+            value
+        };
         let open_ns = u64::try_from(opening.elapsed().as_nanos()).unwrap();
         let persistence_before = recorder.totals();
         for sample in 0..warmup {
-            let mut row =
-                observe(&engine, &queries[sample % queries.len()], filtered.then_some("doc"));
+            let (mut row, trace) =
+                call(&queries[sample % queries.len()], filtered.then_some("doc"));
+            if let Some(mut trace) = trace {
+                trace["adapter"] = json!(name);
+                trace["phase"] = json!("warmup");
+                recorder.emit("observations", &trace);
+                traces.push(trace);
+            }
             row["adapter"] = json!(name);
             row["query_index"] = json!(sample % queries.len());
             recorder.emit("warmups", &row);
@@ -781,15 +904,19 @@ fn run_cell_observed(config: &Value, out: &Path, observer: &mut dyn FnMut(&str, 
                 record["repeat"] = config["repeat"].clone();
                 recorder.emit(stream, &record);
                 observer(stream, &record);
+                if stream == "observations" {
+                    traces.push(record);
+                }
             };
             if filtered {
-                let schedule = run_schedule_observed(
+                let schedule = run_schedule_calls(
                     &engine,
                     &queries,
                     samples,
                     number("batch_size"),
                     number("searches_per_batch"),
                     &mut publish,
+                    &mut call,
                 );
                 batches.extend(schedule.batches);
                 probes.extend(schedule.probes);
@@ -797,7 +924,10 @@ fn run_cell_observed(config: &Value, out: &Path, observer: &mut dyn FnMut(&str, 
             } else {
                 (0..samples)
                     .map(|sample| {
-                        let mut row = observe(&engine, &queries[sample % queries.len()], None);
+                        let (mut row, trace) = call(&queries[sample % queries.len()], None);
+                        if let Some(trace) = trace {
+                            publish("observations", &trace);
+                        }
                         row["sample_index"] = json!(sample);
                         row["query_index"] = json!(sample % queries.len());
                         publish("samples", &row);
@@ -815,6 +945,8 @@ fn run_cell_observed(config: &Value, out: &Path, observer: &mut dyn FnMut(&str, 
             row["query_index"] = json!(sample % queries.len());
         }
         rows.extend(measured);
+        #[cfg(feature = "slice30-observer")]
+        drop(observation);
         let closing = std::time::Instant::now();
         engine.close();
         drop(engine);
@@ -841,19 +973,33 @@ fn run_cell_observed(config: &Value, out: &Path, observer: &mut dyn FnMut(&str, 
     let vectors = count("SELECT COUNT(*) FROM _fathomdb_vector_rows");
     let format: u32 =
         connection.pragma_query_value(None, "user_version", |row| row.get(0)).unwrap();
-    let complete = natural == n as u64
+    let attribution_ok = !paired
+        || config["observe"] != true
+        || (traces.len() == rows.len() + warmups.len() + probes.len()
+            && traces.iter().all(|trace| {
+                trace["dropped_records"] == 0
+                    && trace["issues"] == json!([])
+                    && trace["records"].as_array().is_some_and(|records| !records.is_empty())
+            }));
+    let complete = attribution_ok
+        && natural == n as u64
         && vectors == 0
         && format == 37
         && markers == if filtered { 10 } else { 0 }
         && rows.iter().chain(&warmups).all(|row| row["ok"] == true)
         && probes.iter().all(|row| row["marker_current"] == true);
-    let result = json!({"complete":complete,"sample_count":rows.len(),"warmup_count":warmups.len(),
+    let mut result = json!({"complete":complete,"sample_count":rows.len(),"warmup_count":warmups.len(),
         "filtered":filtered,"natural_records":natural,"marker_records":markers,"vector_rows":vectors,
         "format":format,"query_count":queries.len(),"batch_count":batches.len(),"marker_probe_count":probes.len(),
-        "seed_open_ns":seed_open_ns,"seed_write_ns":seed_write_ns,"passes":passes,
+        "seed_open_ns":seed.as_ref().map(|value| &value["open_ns"]),"seed_write_ns":seed.as_ref().map(|value| &value["write_ns"]),"passes":passes,
         "raw_persistence":recorder.statistics_since([0; 5]),
         "snapshot_observation":"unavailable; write receipts are not search snapshot authority",
         "cache_note":"P2 marker proof calls intervene between each write and natural searches; OS caches uncontrolled"});
+    if paired {
+        result["preparation"] = json!({"reseeded":false,"store":store});
+        result["open_reports"] = json!(open_reports);
+        result["observation_batches"] = json!(traces);
+    }
     std::fs::write(out.join("result.json"), serde_json::to_vec_pretty(&result).unwrap()).unwrap();
     result
 }
@@ -1651,6 +1797,15 @@ fn main() {
     assert_eq!(args.len(), 3, "usage: slice30_measure cell.json owned-output-directory");
     let config: Value = serde_json::from_slice(&std::fs::read(&args[1]).expect("read frozen cell"))
         .expect("cell JSON");
+    #[cfg(feature = "slice50-measurement")]
+    if config["family"] == "P-seed" {
+        let result = run_p_seed(&config, Path::new(&args[2]));
+        println!("{result}");
+        if result["complete"] != true {
+            std::process::exit(1);
+        }
+        return;
+    }
     let result = if config["family"] == "G-control" {
         run_g_control(&config, Path::new(&args[2]))
     } else if config["family"] == "G-seed" {
@@ -1936,6 +2091,64 @@ mod tests {
 #[cfg(test)]
 mod g_route_tests {
     use super::*;
+
+    #[cfg(all(feature = "slice50-measurement", feature = "slice30-observer"))]
+    #[test]
+    fn paired_p_consumes_closed_copy_and_observes_provider_none_reads() {
+        let directory = tempfile::tempdir().unwrap();
+        let donor = directory.path().join("p-donor.sqlite");
+        let engine = Adapter::open("sdk", &donor);
+        engine.write(&[node("donor", "doc", "needle café")]);
+        engine.close();
+        drop(engine);
+        let before = std::fs::read(&donor).unwrap();
+        let working = directory.path().join("p-working.sqlite");
+        std::fs::copy(&donor, &working).unwrap();
+        let corpus = directory.path().join("corpus.jsonl");
+        let queries = directory.path().join("queries.jsonl");
+        std::fs::write(&corpus, "\"must not reseed\"\n").unwrap();
+        std::fs::write(&queries, "\"needle\"\n").unwrap();
+        let config = json!({"family":"P1", "n":1, "corpus":corpus, "queries":queries,
+            "adapters":["engine","sdk"], "routes":["text"], "warmup":0, "samples":1,
+            "repeat":0, "store":working, "slice50_pair_mode":"winner", "observe":true});
+        let out = directory.path().join("p-pair");
+        let result = run_cell(&config, &out);
+        assert_eq!(result["complete"], true);
+        assert_eq!(result["vector_rows"], 0);
+        let rows: Vec<Value> = std::fs::read_to_string(out.join("samples.jsonl"))
+            .unwrap()
+            .lines()
+            .map(|line| serde_json::from_str(line).unwrap())
+            .collect();
+        assert_eq!(rows.len(), 2);
+        for row in &rows {
+            assert_eq!(
+                row["ids"],
+                json!(["l:donor"]),
+                "paired P ignored its closed data and reseeded"
+            );
+            assert_eq!(row["hits"][0]["body"], "needle café");
+            assert_eq!(row["hits"][0]["source_id"], "test:slice30");
+        }
+        let batches =
+            result["observation_batches"].as_array().expect("paired P observe was ignored");
+        assert_eq!(batches.len(), 2);
+        for batch in batches {
+            assert_eq!(batch["dropped_records"], 0);
+            let work: Vec<_> = batch["records"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter(|record| record["phase"] == "slice50_work")
+                .collect();
+            assert_eq!(work.len(), 1);
+            assert_eq!(work[0]["facts"]["vector_bodies"], 0);
+            assert_eq!(work[0]["facts"]["fts_bodies"], 1);
+            assert_eq!(work[0]["facts"]["fts_body_bytes"], 12);
+        }
+        assert_eq!(std::fs::read(&donor).unwrap(), before);
+        assert_eq!(result["preparation"]["reseeded"], false);
+    }
 
     #[cfg(feature = "slice50-measurement")]
     #[test]

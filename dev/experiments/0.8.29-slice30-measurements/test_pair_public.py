@@ -544,3 +544,34 @@ class PairExistingOrdinaryReferenceTests(unittest.TestCase):
             self.assertTrue(result['primary'][0]['credited'])
             self.assertEqual(result['primary'][0]['reference']['member'],'original-ordinary')
             self.assertFalse(result['complete'])
+
+
+class PairIncrementalRetirementTests(unittest.TestCase):
+    def test_later_required_diagnostics_release_prior_successful_pair_copies(self):
+        import sqlite3
+        from unittest.mock import patch
+        from g_pair_runtime import finish
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary);results=root/'results';results.mkdir()
+            ordinary=[cell for cell in plan()['primary'] if cell['origin_id']=='p1-n100000-r0']
+            diagnostic=[cell for cell in plan()['diagnostics'] if cell['origin_id']=='p1-n100000-r0']
+            rows=[]
+            for cell in ordinary+diagnostic:
+                store=results/cell['id']/'subject/store.sqlite';store.parent.mkdir(parents=True)
+                connection=sqlite3.connect(store);connection.execute('CREATE TABLE data(value)');connection.close()
+                rows.append({'id':cell['id'],'cell':cell,'status':'complete','complete':True,
+                             'cleanup_uncertain':False,'live_owned_pids':[],'store':str(store)})
+            (results/'campaign-state.json').write_text(json.dumps(rows))
+            (results/'report.json').write_text(json.dumps({'retired_copies':[{'path':'prior-retirement','bytes':1}]}))
+            (root/'g-budget.json').write_text(json.dumps({'s50_guardian':{'controller_pid':1}}))
+            def pair(cells):
+                return {'origin_id':'p1-n100000-r0','complete':True,'members':[cell['id'] for cell in cells]}
+            report={'complete':False,'calibration_complete':False,
+                    'comparisons':{'primary':[pair(ordinary)],'diagnostics':[pair(diagnostic)],'calibration':[]}}
+            manifest={'root':str(root),'allocation':str(root),'scope':'primary',
+                      'retire_complete_copies':True,'_active_members':diagnostic}
+            with patch('g_pair.report',return_value=report):
+                finish(manifest,rows[2:])
+            self.assertTrue(all(not Path(row['store']).exists() for row in rows))
+            actual=json.loads((results/'report.json').read_text())
+            self.assertEqual(len(actual['retired_copies']),5)

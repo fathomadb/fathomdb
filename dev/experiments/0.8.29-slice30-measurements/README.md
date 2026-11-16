@@ -746,6 +746,15 @@ not observed future cost. Fresh fit uses the unchanged48h/192GiB TOTAL ledger an
 resource floors; per-member900s and original attempted-pair caps, final-qualified
 retirement and pending-diagnostic retention remain. No window is automatically adopted.
 
+Primary windows stop after the first incomplete member; retry requires a fresh
+explicit adopted selection, preserves the old outcome in `prior_attempts` and
+uses the next fresh attempt directory with cumulative limits unchanged. Closed
+package file capture follows read-only fixture/coverage inspection. A cached
+package may account for an omitted empty WAL only when every previously bound
+file and coverage remain unchanged, retaining `prior_packages`; an omitted
+nonempty WAL refuses correction. Fresh packages copy legitimate nonempty WALs
+without deleting, checkpointing or ignoring their committed data.
+
 The optional legacy `pair-calibrate` four-member10k entry is not a prerequisite.
 Its extra10k diagnostic pair is outside the required24. `ordinary_calibration_from`
 may explicitly reference eligible full ordinary10k G members already executed on

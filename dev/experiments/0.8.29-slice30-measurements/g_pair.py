@@ -152,10 +152,23 @@ def drive_members(manifest, root, execute):
     rows = []
     for index, cell in enumerate(cells):
         old = previous.get(cell['id'])
-        outcome = old if old and old.get('complete') is True else execute(cell, index)
+        if old and old.get('complete') is True:
+            outcome = old
+        else:
+            if old and manifest['scope'] == 'primary':
+                if (not manifest.get('_selection_record') or not manifest.get('_selection_path')
+                        or manifest['_selection_path'] == old.get('selection')):
+                    raise ValueError('failed primary member requires a fresh explicit selection')
+            outcome = execute(cell, index)
+            if old and manifest['scope'] == 'primary':
+                outcome['prior_attempts'] = [*old.get('prior_attempts', []),
+                    {key: value for key, value in old.items() if key != 'prior_attempts'}]
         rows.append(outcome)
         previous[cell['id']] = outcome
         state.write_text(json.dumps(list(previous.values()),indent=2)+'\n')
+        if manifest['scope'] == 'primary' and (outcome.get('complete') is not True
+                or outcome.get('cleanup_uncertain') or outcome.get('live_owned_pids')):
+            break
     return rows
 
 

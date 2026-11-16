@@ -450,6 +450,16 @@ needed. A finite prefix never claims full-matrix fit or completion. Stop/growth
 failure retains raw partials, failed copies and charges. Later explicit invocations
 continue from actual qualified pair credit; failures do not renew member budgets.
 
+Closed-package capture follows all read-only fixture/coverage inspection, which
+can create SQLite WAL/SHM sidecars. Existing cached custody may add an omitted WAL
+only under a fresh guarded selection, only if it is empty and the original main,
+all bound files and committed coverage are unchanged; retain the prior package
+inline. Fresh packages preserve any legitimate nonempty WAL. Primary dispatch
+stops at the first incomplete member. A failed member needs a fresh adopted
+selection for its next numbered attempt; retain its full earlier outcome in
+`prior_attempts`, original raw directory and cumulative charges. Completed members
+remain unchanged; no retry, deletion or checkpoint is automatic.
+
 The first real P1-10k-r0 ordinary pair is required measurement, without a separate
 calibration replay. The former four-member10k calibration entry remains optional
 historical support, not a bootstrap prerequisite. Its extra10k diagnostic pair is

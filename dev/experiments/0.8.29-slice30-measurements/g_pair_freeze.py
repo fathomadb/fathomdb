@@ -16,11 +16,12 @@ from g_span_coverage import stored_coverage
 def package(store):
     """Identify a closed main/WAL package and its actual stored-span coverage."""
     store = Path(store).resolve(strict=True)
+    coverage = stored_coverage(store)
     files = {'': identify(store)}
     wal = store.with_name(store.name + '-wal')
     if wal.exists():
         files['-wal'] = identify(wal)
-    return {'files': files, 'coverage': stored_coverage(store)}
+    return {'files': files, 'coverage': coverage}
 
 
 def fixture(store, n, *, dense, markers=0):
@@ -39,8 +40,8 @@ def fixture(store, n, *, dense, markers=0):
     return actual
 
 
-def donor(root, n):
-    """Bind a qualified original seed's closed data without reusing native/timing proof."""
+def donor(root, n, *, previous=None):
+    """Bind closed data; correct a cached package only by adding an unchanged empty WAL."""
     root = Path(root).resolve()
     original = json.loads((root / 'manifest.json').read_text())
     if original.get('root') != str(root):
@@ -61,9 +62,19 @@ def donor(root, n):
             or facts.get('pending_count') != 0 or facts.get('generation_failed') != 0
             or facts.get('format') != 37):
         raise ValueError('original G donor dense readiness unavailable')
-    store = Path(seed.get('closed_store', str(Path(seed['output']) / 'store.sqlite')))
+    store = Path(seed['closed_store']) if 'closed_store' in seed else Path(seed['output']) / 'store.sqlite'
+    actual_fixture = fixture(store, n, dense=True)
     value = package(store)
-    value.update(fixture=fixture(store, n, dense=True),
+    if previous is not None:
+        if (value['coverage'] != previous['coverage']
+                or any(value['files'].get(suffix) != record for suffix, record in previous['files'].items())):
+            raise ValueError('cached donor files or committed coverage changed')
+        added = set(value['files']) - set(previous['files'])
+        if added != {'-wal'} or value['files']['-wal']['bytes'] != 0:
+            raise ValueError('cached donor correction may add only an omitted empty WAL')
+        value['prior_packages'] = [*previous.get('prior_packages', []),
+            {key: item for key, item in previous.items() if key != 'prior_packages'}]
+    value.update(fixture=actual_fixture,
                  origin={'root': str(root), 'attempt': row['attempt'], 'source_sha': original['source_sha']},
                  custody='data only; original native/timings do not qualify current paired work')
     return value
@@ -107,8 +118,9 @@ def prepare_inputs(manifest, cells, deadline_ns):
             if not step['complete'] or step['result'].get('runner_only'):
                 raise RuntimeError('current provider-none template preparation failed')
             store = destination / 'store.sqlite'
+            actual_fixture = fixture(store, n, dense=False, markers=10 if family == 'P2' else 0)
             value = package(store)
-            value.update(fixture=fixture(store, n, dense=False, markers=10 if family == 'P2' else 0), preparation=step)
+            value.update(fixture=actual_fixture, preparation=step)
             for record in value['files'].values():
                 Path(record['path']).chmod(0o444)
             manifest['templates'][key] = value
@@ -116,6 +128,13 @@ def prepare_inputs(manifest, cells, deadline_ns):
             key = f'G{n}'
             if key not in manifest['donors']:
                 manifest['donors'][key] = donor(manifest['g_donors'][str(n)], n)
+            else:
+                previous = manifest['donors'][key]
+                wal = Path(previous['files']['']['path'] + '-wal')
+                if '-wal' not in previous['files'] and wal.exists():
+                    if not manifest.get('_selection_record'):
+                        raise ValueError('cached donor correction requires a fresh explicit selection')
+                    manifest['donors'][key] = donor(manifest['g_donors'][str(n)], n, previous=previous)
     if any(cell['family'].startswith('G') for cell in cells):
         from g_gpu import inspect_gpu
         gpu = inspect_gpu(manifest['requested_gpu']['uuid'])

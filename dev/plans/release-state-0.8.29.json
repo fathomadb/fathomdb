@@ -1,6 +1,6 @@
 {
   "release": "0.8.29",
-  "release_kind": "Direct local completion by parallel isolated slice owners with serial root integration; CI and registry publication excluded; remaining product qualification pending",
+  "release_kind": "Complete .29 implementation and local qualification; review CI correctness after local passes, then run appropriate CI; registry publication excluded",
   "board": "dev/plans/runs/STATUS-0.8.29.md",
   "plan": "dev/plans/plan-0.8.29.md",
   "master": "dev/plans/0.8.20-0.9.0-PROGRAM-SEQUENCING.md",
@@ -233,7 +233,7 @@
       ],
       "phase": "MEASUREMENT_TOOLING_SOURCE_QUALIFIED_SCIENTIFIC_CAMPAIGNS_PENDING",
       "plan_sha": "bea7f05cd2497af0d73c6eb8da509e11a947ca08",
-      "conditions": "P and11 original G cases qualified;73 primary G obligations remain unsatisfied. Four separate closed-copy calibration cells now qualified with independent Astra acceptance; original failure and no-dispatch attempt remain retained. R1-only forecast fits existing closed-copy limits but actual R1 is pending. Integrated M/D/F tooling and current-pin110 policy retain assembled b466 source qualification; exact.29 parser and reviewed controller-policy/successor repairs have affected qualification. All84G/46M/24D targets remain; expanded profiles inactive. Current paired50 performance, actualG/M/D/F, whole20/40/pre90 and100Q1 remain open.",
+      "conditions": "Current scientific obligations retain G84/M46/D24 and all numerical targets. G12/84 and D8/24 are qualified; M has two qualified primary IDs through one exact prior-reference reuse and the required debug run. Remaining G72, D16, M44 and current paired50 performance remain. Actual source-derived fidelity F/Q8 passes. CPU host load is descriptive under seq390, not an entry gate.",
       "evidence": "G source0fa retains assembled acceptance,11 qualified/73 required cap refusals and inactive expanded profiles. Current M source256375d4b6a9ce0a54a06876d2df1373615ab67c is integrated at e6cbc956954d29137059fb5df32bc78ba863eecd after independent Astra ACCEPT: merged current release, rebuilt providerfree CLI/helper, then passed Pages20/20,Tegra45/45,exact2 previously failed guardian controls and2 previously unrun dispatch controls. Dispatch exercises actual rebuilt search/fetch in both formats with literal hit/body/error oracles. Original223/220/3 interrupted-wrapper history is retained; this is assembled qualification, not a new uninterrupted full gate. Both guardians finalized samples and collected all owned actors. Historical Python/NAPI subjects were not loaded or retagged. D accepted5edb capture/report/transport and5cf6 main entry have actual RED/GREEN; process2068 passes3 frozen owned-child controls, pending final coherent review/integration. Fixed24 allocation connection/source qualification remains. Actual F/Q8 current-candidate fidelity is now independently accepted; D/M scientific campaigns and whole30 remain pending.",
       "qualified_subset_sha": "2fd772558e46d0b1645dce2ffea730d0bdd3305c",
       "continuation_plan_sha": "0d8be5bb75516955ebf99b94913b9b54921bb3a4",
@@ -405,7 +405,7 @@
         "latest_custody": "Original seed subject d9b8/eb4da153 preserved. Subsequent29de/4fb7 read-only assessment is complete with verified closes, all actors absent and cooperative claim released. Future M must verify closed packaging and pin its selected input before making owned copies."
       },
       "g_remaining_plan_sha": "53c81a0155738b4477fcd931d119c976d5d50c66",
-      "g_remaining_design_review": "Astra-medium PASS: strict six-reference seed\u2192branch\u2192base reuse via existing normal full84 entry, unchanged ordering/caps/token/qualification. R1 remains fresh; no waiver. One callable semantic RED plus actual harmless schedule/resume controls before minimal GREEN. No new owner ruling required for this implementation scope.",
+      "g_remaining_design_review": "Astra-medium PASS: strict six-reference seed→branch→base reuse via existing normal full84 entry, unchanged ordering/caps/token/qualification. R1 remains fresh; no waiver. One callable semantic RED plus actual harmless schedule/resume controls before minimal GREEN. No new owner ruling required for this implementation scope.",
       "g_residual_source_verification": {
         "source_sha": "bfe03918dda8262891086a9ae532a8fd68950e19",
         "documentation_sha": "04c8306389067de45884c42a4e4c56d7ff10f633",
@@ -531,7 +531,7 @@
         "worktree": "/mnt/data/worktrees/fathomdb-0.8.29-s30-d-20261114",
         "branch": "llm/0.8.29-s30-d-20261114",
         "base": "6696f3a1dacb93749a1ea9580403e4d334230ea3",
-        "scope": "Code phase complete and independently Astra accepted, including final inherited-setting correction. Actual per-behavior RED/GREEN covers nativeT/C routes, bounded loss-aware capture, reports, owned-child supervision, durable fixed24 custody/accounting, D-phase guardian/refusal costs, executable CLI and one explicit reviewed continuation quartet. Active inherited treatments refuse before work; inert settings remain. Old failures, one syntax correction and affected reruns remain in raw history. Canonical D transport/native/live controls are registered. Combined current-source owned qualification accepted as assembled b466; no scientific D execution or profile activation.",
+        "scope": "Accepted D source/tool qualification is integrated. Actual first eight 10k held/overlap C/T/T/C cells each completed1000 calls with zero errors; both overlap controls observed actual overlap. Larger16 cells remain. Prior failures and shared allocation charges are retained.",
         "source_checkpoint": "41bae5529e7070352b9cc4b675089e8e93692039",
         "integrated_sha": "e8929b7417b20d39bbe2c589a8ee40eaf7744c31"
       },
@@ -641,12 +641,12 @@
         "source": "64c8507f2bb3701e9a779f826b4eab4ec662a562",
         "integrated": "5feccf692a006b0ac536dd72081707d54e9baebc",
         "review": "Independent Astra-medium ACCEPT;12 new and9 preservation controls reported passing in commit bodies;raw logs unavailable to reviewer.",
-        "scope": "One bounded natural M-R-1-1-warn1501call calibration; whole900/work800seconds/2GiB cumulative growth plus2x shared headroom and original ledger history. No actual runtime or primary46 qualification yet.",
+        "scope": "Original full1501-call calibration completed and independently accepted at3ef3bc326; immutable ID/raw qualifies_primary=false preserved. It is reused only by explicit exact required-primary reference under accepted selected execution.",
         "ordinary_build": {
           "source": "4ffc117c20ff1e6d4c1f68a0b9c2a84f7e649c66",
           "result": "PASS: one ordinary CUDA MCP build,330.509s,exit0/resource_stop null,strict empty/removed privateCG and actors. OwnPython3.13.13/primaryCUDA12.6/GCC13/actualPTX86 (existing M build recipe,notshipping proof).",
           "receipt": "/mnt/data/tmp2/fathomdb-0829-continuation/slice30-g-20261113/m-calibration-runtime-options-20261115-agent-m-runtime-ready/ordinary-current-mcp-4ffc117c2-cap86-NOT_BUILT/build.json",
-          "remaining": "First bounded1501call natural calibration has fitting2GiBgrowth/2xheadroom but remains unrun; D/M freshquietload<=2/exclusiveactors/GPU required. Actual source provenance remains4ffc; no retag."
+          "remaining": "Ordinary4ffc native/compiler inputs are valid unchanged reuse for accepted Python-only runtimef29. Provider-free/helper variants need their own actual current build when selected; no automatic all-variant rebuild."
         }
       },
       "f_runtime_qualification": {
@@ -661,7 +661,25 @@
         "owner_source": "dev/steward/steward-ledger.jsonl seq-390",
         "scope": "Proceed in current shared host load; retain all load/noise observations and unchanged numerical/resource/cleanup/GPU protections.",
         "source_candidate": "84d3b8c49",
-        "phase": "53affectedpuretestsPASS, finalAstrareviewrunning; removeP/D/MCPUquietentry gates beforeactualdispatch."
+        "phase": "Accepted shared-host source integrateddc966631; CPU quiet entry gates removed. Preserve actual load/noise and unchanged numeric/GPU/cleanup protections."
+      },
+      "d_runtime_qualification": {
+        "source": "dc8f97601f27f1b0ea4eefad70dfe860dd590cac",
+        "status": "EIGHT_OF_24_COMPLETE_LARGER_16_PENDING",
+        "root": "/mnt/data/tmp2/fathomdb-0829-continuation/slice30-g-20261113/gd-allocation/d-initial-10k-held-dc8f97601",
+        "held": "Four1000-call cells,zero errors;292.785s outer/287.203s charge. C observations complete/no dropped; unobserved T counters remain null. Independent Astra accepted held result.",
+        "overlap": "Four additional1000-call cells completed; actual times61.262/63.141/62.831/61.371s,250.437s charge; both C report actual_overlap=true. Original guardians collected/removed.",
+        "remaining": "Required larger16 cells retain sizes/counts/oracles. Right-size applicable selected execution allowance from actual10k costs before larger work; do not repeat calibration."
+      },
+      "m_selected_runtime": {
+        "source": "f29b75db3d0272e2105ff4e06c65df9853ca9b91",
+        "review": "Independent Astra-medium final source ACCEPT",
+        "status": "TWO_OF_46_PRIMARY_IDS_QUALIFIED_REMAINING_44",
+        "root": "/mnt/data/tmp2/fathomdb-0829-continuation/slice30-g-20261113/gd-allocation/m-required-M-R-1-1-debug-f29b75db3",
+        "result": "Required debug1+500+1000 calls all successful,zeroerrors/unresolved; timedp50/p99=210.426/385.579ms,134 own-PID positive GPU witnesses. Final guardianexit0,phase_qualified=true,whole46complete=false,strict original boundary quiescent/removed.",
+        "reuse": "M-R-1-1-warn satisfied_by exact original full calibration reference; no replay,relabel,doublecharge or raw mutation. Debug is the new required primary run. Successful disposable copy retired only after qualified final cleanup; original/raw/failed evidence preserved.",
+        "shared_checkpoint": "After debug: used4378107678995ns,retained9165094705B,noinflight/activeguardians. All historical charges retained within unchanged4h/16GiB profile.",
+        "next": "Continue next eligible required ordinary cell M-R-1-4-warn under sufficient selected finite allowance; no CPU-quiet/calibration prerequisite or per-cell review."
       }
     },
     {
@@ -684,7 +702,7 @@
       ],
       "conditions": "Accepted bounded artifact amendment consumes qualified Linux20/A3/A5 and named accepted30P/G read artifacts, not whole20/30, WindowsA6, M/D/F or TC5. Adoption still requires affected write-interleaved baseline, exact snapshot/invalidation or batch-invariance proof, bounded ownership, prospective tolerances and paired treatment qualification. No treatment selected; the real hybrid opportunity stays open. Whole40 closure by rejection/defer requires an actual owner disposition; none is recorded.",
       "phase": "MEASUREMENT_DECISION_AND_ARTIFACT_DEPENDENCIES_REVIEWED_ADOPTION_HELD",
-      "evidence": "Independent Astra-medium PASS on current measurement table, plan and acceptance amendment. Raw matching first50 G-O observations across200hybrid calls confirm direct-eligibility SQL48.336\u201349.223ms/~31.994\u201332.439% of enclosing observed API spans, not canonical ordinary-run latency. Presence is already once/call and small; existing batch hoists get no invented saving. Residual/source-bearing/write costs and safety remain unmeasured/unproved. No cache source/runtime, owner deferral or whole40 closure."
+      "evidence": "Independent Astra-medium PASS on current measurement table, plan and acceptance amendment. Raw matching first50 G-O observations across200hybrid calls confirm direct-eligibility SQL48.336–49.223ms/~31.994–32.439% of enclosing observed API spans, not canonical ordinary-run latency. Presence is already once/call and small; existing batch hoists get no invented saving. Residual/source-bearing/write costs and safety remain unmeasured/unproved. No cache source/runtime, owner deferral or whole40 closure."
     },
     {
       "slice": 50,
@@ -836,7 +854,7 @@
         "dev/plans/0.8.29/features/slice-90/status.md",
         "dev/plans/0.8.29/features/slice-90/test-map.md"
       ],
-      "conditions": "Approved80 AND actual Block1 follow-up exit after integrated selected20\u201370;160 is not that exit. Block1 exit is not a slice: the Slice90 owner runs it as90's pre-source entry step on the integrated root baseline; complete when applicable full/feature/performance checks, both-format conformance with inherited failures resolved and the approved smoke/item-4 remeasure (Slice160 Q12 content) have real results there, recorded by the parent in this slice's evidence.20,50,60,70 enter it closed;40 closed or by authorized rejection/defer.",
+      "conditions": "Approved80 AND actual Block1 follow-up exit after integrated selected20–70;160 is not that exit. Block1 exit is not a slice: the Slice90 owner runs it as90's pre-source entry step on the integrated root baseline; complete when applicable full/feature/performance checks, both-format conformance with inherited failures resolved and the approved smoke/item-4 remeasure (Slice160 Q12 content) have real results there, recorded by the parent in this slice's evidence.20,50,60,70 enter it closed;40 closed or by authorized rejection/defer.",
       "phase": "BOUNDED_DESIGN_REVIEWED_SOURCE_HELD",
       "evidence": "Astra-medium bounded early design PASS after FIX1: installed Python/TS semantic REDs precede corresponding shared converter GREEN; aggregate count/byte/fraction transport is distinct from numeric profile.dimension. Actual integrated predecessors, approved80 and the real Block1 follow-up exit precede source work. No90-to160 cycle, implementation authority or completion follows this review.",
       "block1_smoke_runner": {
@@ -967,7 +985,7 @@
         "dev/plans/0.8.29/features/slice-130/review-log.md"
       ],
       "conditions": "Selected130D/E final artifacts/pins, healthy/lifecycle/counter/soak evidence and actual local resource readiness remain. Owner seq387 excludes unavailable non-Tegra ARM+GPU unitsB/C from known-working environments and every.29 gate; no passing/support claim or future release assigned. Seq378/381 retain newCUDA13 delivery and130A in.31; seq377 keeps actual resets in.30.",
-      "phase": "D_PASSIVE_TRANSPORT_QUALIFIED_TRACKED_COUNTERS_AND_CAMPAIGNS_PENDING",
+      "phase": "RUNTIME_SUPPORT_ACCEPTED_ORIN_ARTIFACT_BUILDS_ACTIVE_D_E_EXECUTION_PENDING",
       "evidence": "SelectedD/E design, passive observer and portable soak utility have independent scoped acceptance; actual source-bound healthy GPU/installed/lifecycle/shipping-equivalence/soak qualification remains. Owner seq387 removes130B/C from.29 obligations rather than passing them. No non-Tegra ARM+GPU procurement, quote, reservation or run is needed to close.29.",
       "qualified_subset_sha": "3a90e2c0e55710252a58dcba96db9e1c90070426",
       "e_portable_utility": {
@@ -1022,7 +1040,15 @@
         "source": "3cbdc5c5e62919691b629e8808a51ee1af8197e2",
         "integrated": "6d9f33671193ee838ee8ee16c4b9a6c1b1c4e2fe",
         "review": "Independent Astra-medium design ACCEPT",
-        "scope": "Real Rust/Python/Node lifecycle consumers, passive adapters and concurrent binding to existing E sampler, observer-only build option/local-wheel smoke. Source implementation with TDD active in isolated WT, not yet final reviewed/native qualified. Earlier callback-only source never counted actualsoak."
+        "scope": "Implementation685a716c55e9e23d1f09075025e8569e922f2c0e independently Astra accepted and integrateddc966631. Real lifecycle fixtures/passive workers/concurrent supervisor and local-wheel shipping route source-qualified; no live D/E claim."
+      },
+      "runtime_builds": {
+        "source": "882fc9f5b8a6871bbe80f259db0d9d717e0ba44d",
+        "host": "Existing approved Orin coreyt@10.83.10.13,CUDA12.6/GCC11/SM87; no host/driver/primary-toolkit change",
+        "task": "/home/coreyt/fathomdb-0829-tegra-20261115",
+        "status": "ACTUAL_SHIPPING_PYTHON_BUILD_ACTIVE",
+        "tools": "Fresh task-owned physical venvPython3.13.12/Maturin1.14.1,Node25.9.0/npm11.12.1; own exact offlineGit/registry cache and local unpublished343/2ee/remoteK9 product graph. Cargo metadata --offline --locked passed.",
+        "next": "Sequential shipping Python/Node and separate observer-only counterpart outputs/targets; then actual installed/source lifecycle, shipping witness and matched2x60minute instrumented soak. No publish operation."
       }
     },
     {
@@ -1090,11 +1116,11 @@
       "local_exact_lock_proposal": {
         "source": "aff8ba27f9b5833794475dcbddc958993dba3132",
         "review": "Independent Astra-medium design ACCEPT",
-        "status": "X86_PASS_ARM_REGULAR_RUN_ACTIVE",
-        "scope": "Local executor replaces hostedCI only; exact product lock/root+dependency+feature comparison and native x86/OrinCPU tests+compile remain. No execution/gatewaiver yet; genuine oldCI preserved.",
+        "status": "X86_AND_ARM_PASS_FINAL_ASTRA_ACCEPTED_INTEGRATED",
+        "scope": "Ownerseq389 permits local exact-lock replacement;seq391 permits ordinary ARM run without admin/CPUcap setup. Authentic native v2 record6863ffb4b2d47bc5c42a4c2ee29bf67b2850c4da independently accepted and integratedef544. OriginalCI evidence remains byteexact.",
         "owner_source": "dev/steward/steward-ledger.jsonl seq-389",
-        "x86": "Actual fresh exact-lock compile/list/323of323 CPUtests (312seam+11catalogue),zeroignored. Compile30.056s; every phase positive2GiB/swap0/CPU100/Tasks128 caps and strict unit/CG cleanup. Six nonroot feature sets differ from wholeproduct unification, explicit; Q23 requires22identities+10ROOTfeatures. Final independent paired results/record remains pending.",
-        "arm": "Owner seq391 directs regular test run without CPU-cap/cgroup/admin setup. Parent ordinary SSH compile/list/322selected original CPUtests active; exactsource/lock preserved, GPUs hidden. Earlier58mscapfailure retained. No cgroup-cap or finalpassing claim yet."
+        "x86": "Actual fresh x86 exact-lock compile/list/323of323CPUtests,zeroignored; selected boundary caps and cleanup confirmed. Both targets match22 package identities/checksums and10 rootfeatures. Six nonroot feature-unification differences from wholeproduct graph remain explicit; original312 proof is historical, not exact-current-lock proof.",
+        "arm": "Actual fresh ARM compile62.244s/list.009s/322of322 original selectedCPUtests1.368s,zeroignored; ordinarySSH with GPUhidden. Real selected343 source unchanged except reviewed scratch workspace manifests. No admin/cgroup/cap claim or blocker remains."
       }
     },
     {
@@ -1142,7 +1168,7 @@
         "dev/plans/0.8.29/features/slice-160/status.md",
         "dev/plans/0.8.29/features/slice-160/test-map.md"
       ],
-      "conditions": "Every selected mandatory outcome qualified or explicitly disposed; actual installed/publication proof separate.20 closes only with actual Windows A6;40 may close by authorized rejection/defer;30/50/60/70/80 reach160 through90. Optional140/150 only if selected. Finished bounded local tasks are not local completion: every selected mandatory installed/platform (Q14) row and release dry-run (Q18) part that a permitted local or owned venue can qualify stays open until qualified there. The local mandate completes only when the sole unmet rows need excluded CI execution or publication; each is named outstanding, neither waived nor passed. Publication held. Owner seq377 explicitly defers live reset qualification to.30; seq378 defers new CUDA13 delivery/compiler/new-artifact proof to.31; seq379 accepts usage limits. These exclusions are owner dispositions, not passing tests. Existing platform/artifact rows remain. Seq381 also reallocates130A CUDA13 Tegra qualification to.31 while130B-E remain mandatory in.29.",
+      "conditions": "Every selected mandatory outcome qualified or explicitly disposed; actual installed/publication proof separate.20 closes only with actual Windows A6;40 may close by authorized rejection/defer;30/50/60/70/80 reach160 through90. Optional140/150 only if selected. Finished bounded local tasks are not local completion: every selected mandatory installed/platform (Q14) row and release dry-run (Q18) part that a permitted local or owned venue can qualify stays open until qualified there. The local mandate completes only when the remaining rows need CI after local passes and CI correctness review, or excluded registry publication; each is named outstanding, neither waived nor passed. Publication held. Owner seq377 explicitly defers live reset qualification to.30; seq378 defers new CUDA13 delivery/compiler/new-artifact proof to.31; seq379 accepts usage limits. These exclusions are owner dispositions, not passing tests. Existing platform/artifact rows remain. Seq381 also reallocates130A CUDA13 Tegra qualification to.31 while130D/E remain mandatory in.29;seq387 excludes unavailable non-Tegra ARM+GPU B/C.",
       "phase": "BOUNDED_DESIGN_REVIEWED_SOURCE_HELD",
       "evidence": "Astra-medium bounded PhaseA design PASS. The matrix preserves mandatory versus conditional coverage, release-specific measurement freshness, justified unchanged-input reuse, assembled-evidence limits, native identity, Block1-before90 sequencing and separate publication authorization. No runtime qualification, final implementation approval or publish readiness follows."
     }
@@ -1341,7 +1367,7 @@
       },
       {
         "id": "shared-host-measurements",
-        "title": "You\u2019re not going to get a quiet machine. Go with the current environment",
+        "title": "You’re not going to get a quiet machine. Go with the current environment",
         "owner_slice": 30,
         "source": "dev/steward/steward-ledger.jsonl seq-390",
         "scope": "Host CPU load is descriptive, not a prerequisite or reason to wait/refuse measurements. Retain observed loads/noisy annotations, all outliers/errors and original numerical targets. Other memory/disk/swap/time/growth/owned-actor cleanup and exclusive GPU protections remain. Explicit owner instruction in this chat."
@@ -1384,15 +1410,18 @@
   },
   "release_readiness": {
     "status": "NOT_READY",
-    "qualification": "0\u201310,60,70,80design and selected100 are complete locally.20 functional Linux/Windows acceptance is qualified; its formal closure awaits the batched final source gate. Selected cudarc/Candle repairs and tracked110 source/seam adoption are independently accepted, with138 affected tests, but final owned source and applicable healthy/installed qualification remain.30 scientific G72/M46/D24, conditional40, current paired50 performance, Block1 smoke/conformance/90,selected130 D/E local artifacts/qualification and160 remain. Source qualification retains original failed/UNKNOWN/skipped attempts; no whole-release or published-package claim. Current F/Q8 fidelity is independently qualified; no performance or whole30 closure follows. Non-Tegra ARM+GPU B/C is excluded from.29 gates by owner seq387, not qualified or known-working.",
+    "qualification": "0–10,60,70,80design and selected100 complete locally.20 functional Linux/Windows acceptance qualified; formal closure awaits active combined source gate. Selected110/140 repairs/source accepted; native exact-lock CPU qualification passes x86/ARM and current fidelityF/Q8 passes. Remaining scientific G72/D16/M44, conditional40,current paired50 performance,Block1 conformance/approved72episodes/90 implementation,selected130D/E installed/lifecycle/shipping/soak and160. Real CUDA resets.30,newCUDA13.31,non-TegraARM+GPU excluded. No release-green claim.",
     "publication": "HELD; no tag, dispatch, external ACL mutation or registry publication authorized by bootstrap.",
     "local_source_phase": {
-      "status": "PAUSED_EXACT_LOCK_QUALIFICATION",
-      "active_seconds_charged": 905.897,
-      "native_origin": "0e81e61b62b6e508946f4d598ba43cb73db4c0e7",
-      "evidence": "Owned CPU Python/NAPI/CLI refresh,preflight,shell/module-boundary/workspaceClippy-Werror/rustfmt/migrations/platform/release/publicdoc checks passed. Pin-rot stopped original suffix; accepted correction integrated845. Current fork lock-set authority/qualification remains before failed+unrun suffix. No later type/security/tests claimed; actors/cgroups clean.",
-      "limits": "Preserve original7200s cumulative activephase cap/idle separately. Passing suites/native evidence not rerun or retagged absent invalidating source inputs."
-    }
+      "status": "ACTUAL_FULL_GATE_RUNNING",
+      "subject": "ef544124d155bdca08f338bee4644379f8af56a5",
+      "worktree": "/mnt/data/worktrees/fathomdb-0.8.29-source-phase-20261115",
+      "unit": "fathomdb-source-ef544-20261115.service",
+      "log": "/mnt/data/tmp2/fathomdb-0829-continuation/source-phase-20261115/logs/verify-ef544.log",
+      "evidence": "Owned current CPU/native refresh passed. Actual full Rustworkspace and pool/measurement/paired/native/GCLI/liveG suites pass. Later M/D/Python/TS suffix still running. Derived3file metadata repairs882 will be applied only after current gate terminal; rerun only failing suites under corrected task-owned Cargo environment.",
+      "limits": "Retain original failures/charges,passing body reuse and actualef544 native origin; no broad final green before complete suffix/failed-only corrections."
+    },
+    "ci": "After all required local qualification passes, review CI scripts for correctness before running appropriate CI. Registry publication remains excluded; never push a v* tag that auto-publishes."
   },
   "generated_views": [
     {

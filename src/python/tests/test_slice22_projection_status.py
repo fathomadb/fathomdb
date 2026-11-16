@@ -64,3 +64,27 @@ def test_projection_status_is_a_frozen_typed_current_read(tmp_path) -> None:
             status.runtime_embedder_available = True  # type: ignore[misc]
     finally:
         engine.close()
+
+
+def test_s90_installed_projection_status_exposes_stored_mapped_coverage(tmp_path) -> None:
+    """The real installed native/wrapper boundary retains the new aggregate."""
+    engine = _open(str(tmp_path / "coverage.sqlite"))
+    try:
+        status = read.projection_status(engine)
+        coverage = getattr(status, "vector_coverage", None)
+        assert coverage is not None, "installed projection status drops vector_coverage"
+        assert coverage.population == "stored_mapped_spans"
+        assert coverage.profile.key == "default"
+        assert type(coverage.profile.dimension) is int
+        assert coverage.profile.dimension > 0
+        assert coverage.status in ("available", "unavailable")
+        if coverage.status == "available":
+            assert coverage.records == 0
+            assert coverage.known_records == 0
+            assert coverage.unknown_records == 0
+            assert coverage.truncated_known_share is None
+            assert coverage.unrepresented_known_byte_share is None
+        else:
+            assert coverage.reason == "cache_cold"
+    finally:
+        engine.close()

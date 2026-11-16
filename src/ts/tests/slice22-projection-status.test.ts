@@ -42,3 +42,29 @@ test("read.projectionStatus exposes exact current status wires", async () => {
     await engine.close();
   }
 });
+
+test("s90 installed projection status exposes stored mapped coverage", async () => {
+  const engine = await Engine.open(freshDbPath(), { useDefaultEmbedder: false });
+  try {
+    const status = await read.projectionStatus(engine);
+    const coverage = (status as unknown as Record<string, unknown>)["vectorCoverage"] as Record<string, unknown> | undefined;
+    assert.ok(coverage, "installed projection status drops vectorCoverage");
+    assert.equal(coverage["population"], "stored_mapped_spans");
+    const profile = coverage["profile"] as Record<string, unknown>;
+    assert.equal(profile["key"], "default");
+    assert.equal(typeof profile["dimension"], "number");
+    assert.ok(Number(profile["dimension"]) > 0);
+    assert.ok(["available", "unavailable"].includes(String(coverage["status"])));
+    if (coverage["status"] === "available") {
+      assert.equal(coverage["records"], "0");
+      assert.equal(coverage["knownRecords"], "0");
+      assert.equal(coverage["unknownRecords"], "0");
+      assert.equal(coverage["truncatedKnownShare"], null);
+      assert.equal(coverage["unrepresentedKnownByteShare"], null);
+    } else {
+      assert.equal(coverage["reason"], "cache_cold");
+    }
+  } finally {
+    await engine.close();
+  }
+});

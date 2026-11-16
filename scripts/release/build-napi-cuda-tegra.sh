@@ -229,7 +229,7 @@ NATIVE_DEST="$(realpath --relative-to="$TS_DIR" "$NATIVE_DIR")"
 cd "$TS_DIR"
 npm exec --offline -- napi build --platform --release \
   --cargo-cwd ../rust/crates/fathomdb-napi \
-  --cargo-flags "${BUILD_CARGO_FLAGS[*]}" \
+  --cargo-flags="${BUILD_CARGO_FLAGS[*]}" \
   --features "$CUDA_TEGRA_NAPI_FEATURES" \
   --js false \
   "$NATIVE_DEST"

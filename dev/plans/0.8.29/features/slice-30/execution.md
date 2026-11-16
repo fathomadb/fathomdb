@@ -1713,3 +1713,20 @@ fresh budget/clock custody, resource floors, per-cell charges and worker/report
 qualification remain integration work. G1845130877940ns/1903142018B and all
 original measurement identities remain untouched. Rust D-T1b/D-T2/D-T3 await
 the next native lease; these Python units do not qualify them.
+
+## Fixed G campaign completed — November16
+
+The current2d6 closed-write matrix has all84 required outcomes qualified:
+13 original references and71 new outcomes. Independent Astra-medium final
+ACCEPT covers G only. All72 write cells retain1000 measured/500 warmup calls,
+correct cohorts and146520 current marker/point probes, with no text-probe errors.
+Original identities, failures/refusals, charges and diagnostic quantile/nonadditive
+timing limits remain. The original guardian has exit0, no resource stop or cleanup
+uncertainty, no survivors and an exactly removed empty private boundary; source
+was clean2d6 at entry and exit. The terminal outer unit reports status1, retained
+as unresolved wrapper evidence; this is not a unit-green claim. Raw outcomes and
+the original guardian remain under `gd-allocation/g-closed-write-matrix-v2` and
+`common/guardian/closed-copy-write-matrix/receipts/g-required-writes-remaining-v2.json`
+in the owned G task. After all five ownership fields cleared, the remaining D
+100k-overlap quartet started using accepted57912dab and nativeD109. M42 and
+current paired50 measurements still prevent whole30/Block1 closure.

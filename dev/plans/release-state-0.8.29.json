@@ -232,9 +232,9 @@
         "dev/plans/0.8.29/features/slice-30/continuation-gd.md",
         "dev/plans/0.8.29/features/slice-30/continuation-m.md"
       ],
-      "phase": "MEASUREMENT_TOOLING_SOURCE_QUALIFIED_SCIENTIFIC_CAMPAIGNS_PENDING",
+      "phase": "G_FIXED_84_QUALIFIED_D_AND_M_REMAINING_CAMPAIGNS_ACTIVE_OR_READY",
       "plan_sha": "bea7f05cd2497af0d73c6eb8da509e11a947ca08",
-      "conditions": "Current scientific obligations retain G84/M46/D24 and all numerical targets. G14/84, M4/46 andD12/24 are qualified; remainingG70/M42/D12 pluscurrentpaired50performance. Actual source-derived F/Q8 passes. CPU load descriptive underseq390; no quiet-host entrygate.",
+      "conditions": "G84/84 is independently Astra-qualified; M4/46 andD12/24 are qualified, with remainingD100k overlap running and300k held/overlap pending. RemainingM42 pluscurrentpaired50performance stay required. Actual source-derivedF/Q8 passes. Originalnumericaltargets unchanged; CPUload descriptive underseq390.",
       "evidence": "G source0fa retains assembled acceptance,11 qualified/73 required cap refusals and inactive expanded profiles. Current M source256375d4b6a9ce0a54a06876d2df1373615ab67c is integrated at e6cbc956954d29137059fb5df32bc78ba863eecd after independent Astra ACCEPT: merged current release, rebuilt providerfree CLI/helper, then passed Pages20/20,Tegra45/45,exact2 previously failed guardian controls and2 previously unrun dispatch controls. Dispatch exercises actual rebuilt search/fetch in both formats with literal hit/body/error oracles. Original223/220/3 interrupted-wrapper history is retained; this is assembled qualification, not a new uninterrupted full gate. Both guardians finalized samples and collected all owned actors. Historical Python/NAPI subjects were not loaded or retagged. D accepted5edb capture/report/transport and5cf6 main entry have actual RED/GREEN; process2068 passes3 frozen owned-child controls, pending final coherent review/integration. Fixed24 allocation connection/source qualification remains. Actual F/Q8 current-candidate fidelity is now independently accepted; D/M scientific campaigns and whole30 remain pending.",
       "qualified_subset_sha": "2fd772558e46d0b1645dce2ffea730d0bdd3305c",
       "continuation_plan_sha": "0d8be5bb75516955ebf99b94913b9b54921bb3a4",
@@ -406,7 +406,7 @@
         "latest_custody": "Original seed subject d9b8/eb4da153 preserved. Subsequent29de/4fb7 read-only assessment is complete with verified closes, all actors absent and cooperative claim released. Future M must verify closed packaging and pin its selected input before making owned copies."
       },
       "g_remaining_plan_sha": "53c81a0155738b4477fcd931d119c976d5d50c66",
-      "g_remaining_design_review": "Astra-medium PASS: strict six-reference seed→branch→base reuse via existing normal full84 entry, unchanged ordering/caps/token/qualification. R1 remains fresh; no waiver. One callable semantic RED plus actual harmless schedule/resume controls before minimal GREEN. No new owner ruling required for this implementation scope.",
+      "g_remaining_design_review": "Astra-medium PASS: strict six-reference seed\u2192branch\u2192base reuse via existing normal full84 entry, unchanged ordering/caps/token/qualification. R1 remains fresh; no waiver. One callable semantic RED plus actual harmless schedule/resume controls before minimal GREEN. No new owner ruling required for this implementation scope.",
       "g_residual_source_verification": {
         "source_sha": "bfe03918dda8262891086a9ae532a8fd68950e19",
         "documentation_sha": "04c8306389067de45884c42a4e4c56d7ff10f633",
@@ -672,7 +672,7 @@
         "overlap": "Four additional1000-call cells completed; actual times61.262/63.141/62.831/61.371s,250.437s charge; both C report actual_overlap=true. Original guardians collected/removed.",
         "remaining": "Required100k overlap and300k held/overlap12cells remain; original sizes/counts/oracles preserved. Select feasible prospective bounds from actual100k costs before300k.",
         "selected_source": "d109ec2ba9fd95d350da6f20d168848078082ba2",
-        "next": "Accepted Python-only guardian57912dab permits prospectivecommon48h/192GiB TOTAL withallpriorcharges. Native d109/Rust/Cargo unchanged; actualGterminalcleanup and freshfit precede remaining12 dispatch. 100k1500s/4GiBouter/16GiBentry;300k4500s/12GiBouter/24GiBentry. Final300k overlap conditional actual100k overlap and freshfit. No native rebuild/calibration/completed replay.",
+        "next": "D100koverlap nowrunning inexistingunitfathomdb-s30-d-100000-overlap-57912dab7-20261116 after actualstrictGterminalhandoff andfreshfit. Then300kheld andconditional300koverlap withactualquartetprefix/freshfit. Accepted57912dab/nativeD109;48h/192GiBTOTAL allhistory,100k1500s/cell,300k4500s/cell; no native rebuild or completedreplay.",
         "allocation_checkpoint": "100kheld quartet completed atsharedused7572488420035ns/retained13272711972B; originalguardians/outer terminal clean. LaterS50/G charges retain sameledger.",
         "held_100k": "Actuald109 C/T/T/C:601.202/587.059/610.264/611.776s,4000successfulcalls/0errors;closed100000rows each,observedCcomplete/dropped0,Tunobservednull. Original8DC8results untouched; stagecomplete notwholecampaign.",
         "continuation_source": "57912dab7be249ef4651762e2385b60793d016d8; independentAstra design/finalACCEPT; genuineREDfe0e9a90,21affectedcontrolsPASS and5mergedpurelimitcontrolsPASS. No Gledger mutation."
@@ -692,12 +692,15 @@
       },
       "g_write_runtime": {
         "source": "2d6e6291f58f177b549727a82e5d00810fd66a3e",
-        "status": "FOURTEEN_OF_84_QUALIFIED_REMAINING_70_BATCH_ACTIVE",
+        "status": "ALL_84_QUALIFIED_INDEPENDENT_ASTRA_ACCEPT",
         "root": "/mnt/data/tmp2/fathomdb-0829-continuation/slice30-g-20261113/gd-allocation/g-closed-write-matrix-v2",
         "completed_write": "g-w-b1-s1-engine-text-r0 actual37e30d0:1000timed/500warm,1000cohorts/currentmarkers,0errors,117.302146742s;qualifiestrue. Original12references/firstwriteorigins unchanged.",
         "resume": "Pre-native serial_case_already_attempted stopped and21.516s retained; genuineRED/GREEN2d6 accepted to reuse truthfulpriorpartialclosedwrites. Newv2 freezeSTRICTPASS inherits13 references, nativecompiler d644 unchanged; no oldtext replay.",
-        "active": "Remaining70batch unitfathomdb-s30-g-remaining-writes-v2-2d6-20261116 invocation47d375328eef4660af2fab1475d2facb;confirmedMainPID1276334/guardian1276368 active. Originalorder/14credits preserved,no percellreview/approval stop; G-only12h128GiB TOTAL/allhistoricalcharges retained.",
-        "hybrid": "g-w-b1-s1-engine-hybrid-r0 actual2d6/UUID0b3189c6-d3fc-456f-9dc3-54c24633768e:449.225236548s,1000timed/500warm/1000cohorts/currentmarkers,0errors/issuesempty/qualifiedtrue. p50/p99/mean275.108346/571.331346/286.452991786ms. Adjacentreadiness notsearchsnapshot/exclusiveeligibilitycost. Originalguardianstrictterminal;sharedused8642479545036ns/retained15505847818B beforebatch."
+        "active": "Terminal unitfathomdb-s30-g-remaining-writes-v2-2d6-20261116 invocation47d375328eef4660af2fab1475d2facb;MainPID0,ExecMainStatus1 retained as unresolved outer-wrapper evidence. Actual measurement/controller and originalguardian exit0; no replay or unit-green claim.",
+        "hybrid": "g-w-b1-s1-engine-hybrid-r0 actual2d6/UUID0b3189c6-d3fc-456f-9dc3-54c24633768e:449.225236548s,1000timed/500warm/1000cohorts/currentmarkers,0errors/issuesempty/qualifiedtrue. p50/p99/mean275.108346/571.331346/286.452991786ms. Adjacentreadiness notsearchsnapshot/exclusiveeligibilitycost. Originalguardianstrictterminal;sharedused8642479545036ns/retained15505847818B beforebatch.",
+        "final_result": "Exact84plan:13reused+71new;all72writecells retain1000timed/500warmcalls,correctcohorts and146520 currentmarker/pointprobes,no text-probeerrors. Rawqualification/provider/GPUengagement/binaryorigins independently AstraACCEPT. Diagnosticquantile and nonadditivetiming limits remain; Gonly,notwhole30/Block1.",
+        "cleanup": "Original g-required-writes-remaining-v2 guardian:resource_stopnull,cleanup_uncertainfalse,noownedpids/survivors,sourceclean2d6start/end,privateboundarypopulatedfalse/exactremovedandabsent. Originalsupervisor/guardian/controller absent; allfiveownershipfieldsclearbefore Dhandoff.",
+        "next": "No Gmeasurementreplay. RemainingD100koverlap hasstarted at57912dab/nativeD109; M42 andcurrentS50ordinary130/diagnostic24 remain. Preservealloriginalfailed/refusedoutcomes and cumulativecharges."
       }
     },
     {
@@ -773,7 +776,8 @@
         "result": "P1-10k-r0,P1-100k-r0 andP2-b1-s1-r0 ordinarywinner/eager complete/equal;zeroerrors. P2each1000timed/500warm,100000natural/10markers/0vectors,issuesempty,192.391/192.235s native. Strictfinalguardian/outerclean; wholematrixfalse. Originalnativeproducer09c retained, selectioncontroller9fcee separate.",
         "measurement": "Eager-minus-winner mean:engine.493027263ms/bootstrap95[.394336489,.595246726];SDK.36890688ms/[.26585262,.481659482]. Samequerypairedcomparison; noG/performancefullmatrixclaim.",
         "next": "Nextp2-b1-s10-r0 afterGsharedlease;130ordinary/24diagnostic membersremain. Reviewedprospective48h TOTAL/192GiB TOTAL selection adopted withallpriorcharges/attemptcaps, notrenewedperstudy. No completedpairreplay.",
-        "selection": "Immutableadoptionselections/21055230956019-1147832.json;172800000000000ns/206158430208B TOTAL. P1old800scap preserved;newpair1800s/member900s. Acceptedretirementfreed1182400512Bonlyfrom4qualifieddisposablecopies;raw/failed/P1100kpendingdiagretained."
+        "selection": "Immutableadoptionselections/21055230956019-1147832.json;172800000000000ns/206158430208B TOTAL. P1old800scap preserved;newpair1800s/member900s. Acceptedretirementfreed1182400512Bonlyfrom4qualifieddisposablecopies;raw/failed/P1100kpendingdiagretained.",
+        "visibility_correction": "Sourcea345d335dc7e08757497a0260764382705fa6986 independentlyAstraSOURCEACCEPT andintegrated57bda21f; genuinechildenvironmentRED/GREEN,66focusedcontrols plus48rootaffectedintegrationcontrolsPASS. SelectedUUID/cuda0/offlinecache onlyforGnativechild, no globalenvironmentmutation; Rust/Cargo/native09c/compiler8465unchanged. Five-Pwindow prepared,notadoptedorexecuted."
       }
     },
     {
@@ -883,7 +887,7 @@
         "dev/plans/0.8.29/features/slice-90/status.md",
         "dev/plans/0.8.29/features/slice-90/test-map.md"
       ],
-      "conditions": "Approved80 AND actual Block1 follow-up exit after integrated selected20–70;160 is not that exit. Block1 exit is not a slice: the Slice90 owner runs it as90's pre-source entry step on the integrated root baseline; complete when applicable full/feature/performance checks, both-format conformance with inherited failures resolved and the approved smoke/item-4 remeasure (Slice160 Q12 content) have real results there, recorded by the parent in this slice's evidence.20,50,60,70 enter it closed;40 closed or by authorized rejection/defer.",
+      "conditions": "Approved80 AND actual Block1 follow-up exit after integrated selected20\u201370;160 is not that exit. Block1 exit is not a slice: the Slice90 owner runs it as90's pre-source entry step on the integrated root baseline; complete when applicable full/feature/performance checks, both-format conformance with inherited failures resolved and the approved smoke/item-4 remeasure (Slice160 Q12 content) have real results there, recorded by the parent in this slice's evidence.20,50,60,70 enter it closed;40 closed or by authorized rejection/defer.",
       "phase": "CURRENT_DESIGN_ASTRA_ACCEPTED_IMPLEMENTATION_HELD_ON_BLOCK1",
       "evidence": "Astra-medium bounded early design PASS after FIX1: installed Python/TS semantic REDs precede corresponding shared converter GREEN; aggregate count/byte/fraction transport is distinct from numeric profile.dimension. Actual integrated predecessors, approved80 and the real Block1 follow-up exit precede source work. No90-to160 cycle, implementation authority or completion follows this review.",
       "block1_smoke_runner": {
@@ -1242,8 +1246,8 @@
         "dev/plans/0.8.29/features/slice-160/test-map.md"
       ],
       "conditions": "Every selected mandatory outcome qualified or explicitly disposed; actual installed/publication proof separate.20 closes only with actual Windows A6;40 may close by authorized rejection/defer;30/50/60/70/80 reach160 through90. Optional140/150 only if selected. Finished bounded local tasks are not local completion: every selected mandatory installed/platform (Q14) row and release dry-run (Q18) part that a permitted local or owned venue can qualify stays open until qualified there. The local mandate completes only when the remaining rows need CI after local passes and CI correctness review, or excluded registry publication; each is named outstanding, neither waived nor passed. Publication held. Owner seq377 explicitly defers live reset qualification to.30; seq378 defers new CUDA13 delivery/compiler/new-artifact proof to.31; seq379 accepts usage limits. These exclusions are owner dispositions, not passing tests. Existing platform/artifact rows remain. Seq381 also reallocates130A CUDA13 Tegra qualification to.31 while130D/E remain mandatory in.29;seq387 excludes unavailable non-Tegra ARM+GPU B/C.",
-      "phase": "LOCAL_CPU_DISTRIBUTIONS_CONSUMERS_AND_OTHER_SCOPES_ACCEPTED_REMAINING_MATRIX_PENDING",
-      "evidence": "IndependentAstraaccepted actualQ10longvariants,threeverifiedleafpackages,missingAC037live;Linuxx64/ARM64CPU2.28wheelsanddeclaredaddonfloors/strictTS/runtime/graph/frozen/modelCPUcontrols;Windowsproduction186tests/wheelsize/tenWAL+external+installedcontrols;canonicalCUDA12.6wheel2.28/NAPI2.39linkage/driverless/fourtypedrefusals;source-archiveRustSDKpersist/reopenandCLIimmutableintegrity. Source/target/nativeorigins,originaltaskfailures andARMmonitoringdeviation retained. No inventedx64CPUaddon2.28promise. Mac/final90artifactapplicability,selectedGPUforward/UUID/allocation,remainingfeature/performance/complete rehearsalstayopen;localpasses->CIreview->CI,registrypublishheld.",
+      "phase": "CURRENT_ARTIFACT_GPU_CPU_NONUSE_AND_LOCAL_DISTRIBUTIONS_ACCEPTED_REMAINING_MATRIX_PENDING",
+      "evidence": "IndependentAstraaccepted actualQ10longvariants,threeverifiedleafpackages,missingAC037live;Linuxx64/ARM64CPU2.28wheelsanddeclaredaddonfloors/strictTS/runtime/graph/frozen/modelCPUcontrols;Windowsproduction186tests/wheelsize/tenWAL+external+installedcontrols;canonicalCUDA12.6wheel2.28/NAPI2.39linkage/driverless/fourtypedrefusals;source-archiveRustSDKpersist/reopenandCLIimmutableintegrity. Source/target/nativeorigins,originaltaskfailures andARMmonitoringdeviation retained. No inventedx64CPUaddon2.28promise. ActualabccCUDApairGPUallocation/PIDUUIDandbothAC082dCPUnegative/CUDApositivepairsnowindependentlyAstraACCEPTattool686d:128MiBmodeldelta>=64MiBfloor,completeCPUtraces/loaders,noCUDAaccess,alllifecycleexit0/strictcleanup/FD9released. Mac/final90artifactapplicability,remainingfeature/performance/complete rehearsalstayopen;localpasses->CIreview->CI,registrypublishheld.",
       "qualified_subset_sha": "b07a161317ff753b86b5eb706e7c5e761adecb9a"
     }
   ],
@@ -1437,7 +1441,7 @@
       },
       {
         "id": "shared-host-measurements",
-        "title": "You’re not going to get a quiet machine. Go with the current environment",
+        "title": "You\u2019re not going to get a quiet machine. Go with the current environment",
         "owner_slice": 30,
         "source": "dev/steward/steward-ledger.jsonl seq-390",
         "scope": "Host CPU load is descriptive, not a prerequisite or reason to wait/refuse measurements. Retain observed loads/noisy annotations, all outliers/errors and original numerical targets. Other memory/disk/swap/time/growth/owned-actor cleanup and exclusive GPU protections remain. Explicit owner instruction in this chat."
@@ -1480,7 +1484,7 @@
   },
   "release_readiness": {
     "status": "NOT_READY",
-    "qualification": "0–20,60,70,80design,100,selected110/130D-E/140 complete locally withindependentreviews. CurrentMCPconformance accepted;Block1stillopen. Gstrict14plusactivebatch/M4of46/D12of24;S50ordinary6of136/diag0of24 remain. 40ownerdisposition,approved72episodes and90implementationstillpending;90currentdesign72d9independentlyaccepted. 160long/security/Linuxcurrentproduction/CUDAfloor-driverless/archiveSDK-CLI/Windowsproduction-WAL/ARMCPU2.28componentsaccepted;genericx64CPU2.28isnowaccepted;Mac/final90/GPU/feature/rehearsal/CIreview-then-CI remain. OriginalNodeEdefaultprofileFAIL anddeclaredsemispace4scope/monitoringdeviation retained. Registrypublicationexcluded.",
+    "qualification": "0\u201320,60,70,80design,100,selected110/130D-E/140 complete locally withindependentreviews. G84/84 independentlyaccepted; M4/46,D12/24 and S50ordinary6/136,diag0/24 remain; nextDquartetisrunning. 40ownerdisposition,approved72episodes and90implementationstillpending;90designaccepted. 160long/security/LinuxCPU-CUDAfloor-driverless/archiveSDK-CLI/Windowsproduction-WAL/ARMCPUcomponentsaccepted. ActualcurrentartifactGPUallocation/CPU-nonusecapturespassandareindependentlyAstraaccepted. Mac/final90/feature-performance/rehearsal/CIreview-then-CI remain. OriginalNodeEdefaultprofileFAIL anddeclaredsemispace4scope/monitoringdeviation retained. Registrypublicationexcluded.",
     "publication": "HELD; no tag, dispatch, external ACL mutation or registry publication authorized by bootstrap.",
     "local_source_phase": {
       "status": "ASSEMBLED_FULL_SOURCE_PASS_INDEPENDENT_ASTRA_ACCEPTED",

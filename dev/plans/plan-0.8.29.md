@@ -381,25 +381,25 @@ checklist, receipt or status authority; live results remain in release state.
 
 | Owner / lane | Next concrete delivery | Actual execution dependency |
 | --- | --- | --- |
-|20 Windows | Use the completed authorized capacity/NTFS scratch preparation to finish the contained operator and four original native A6 cases; fix only demonstrated defects. | Current VM/disk identity, existing C:8/5GiB and memory floors, contained reviewed operator and exclusive native window. Reuse Linux proofs. |
-|30 measurements | Complete the G serial retained/live-budget model and remaining72 primary write cells; deliver D24, M46 and frozen-TC5 F/Q8 measurements. | Reviewed per-cell resource model, candidate-bound native/input proof and one heavy lease. Develop independent D/tooling changes while G execution is held; reuse12 primary G results and four separate calibration controls. |
-|40 conditional optimization | Finish the decision for both eligibility and batch opportunities, then only justified safe treatments. | Actual affected write baseline and exact snapshot/invalidation/paired benefit proof for adoption, or actual authorized rejection/defer. No speculative prototype or whole30 wait. |
-|50 search | Complete current paired identity/text/snippet performance qualification of implemented search. | Actual source-bound baseline/candidate and equivalent workload/native inputs; no private Memex snapshot gate. |
-|140 and110 CUDA repairs | Qualify the actual Candle private F32 helper, adopt the coherent qualified fork revisions, complete product tracked-admission/mapping integration. | Cudarc's selected312 CPU controls/Astra result is reused. Prepare110 API migration/design/tests now against the exact available interfaces; consumption/final product proof waits for required Candle qualification and reviewed exact-rev route, not a new repair-selection packet. |
-|130 D/E | Complete the reviewed local lifecycle/counter/soak qualification. Non-Tegra ARM+GPU B/C is excluded by seq387. | Independent source preparation now; actual final affected pins/artifacts and permitted exclusive venue at execution. No CUDA13/Tegra-A or real-reset gate in.29. |
-|90 Block2 | Prepare current conformance triage and exact accepted80 residual mapping, then run Block1 exit and implement residuals. | Actual selected20–70 exits/dispositions, Block1 checks/both-format conformance and approved LoCoMo smoke/item4 remeasure remain hard before90 source entry.80's owner-approved contract is retained. |
-|160 local close | Prepare required local consumer/package/long-test coverage using the existing qualification matrix, then fill only missing or invalidated rows on the assembled candidate. | Final affected source/artifacts for claims, not all predecessor closures for preparation. Every locally runnable mandatory row remains required; CI/publication-only rows remain named outstanding. |
+|30 measurements | Finish remaining12 D and42 M cells; G84 and frozen TC5 F/Q8 are independently qualified. | Existing reviewed native/input subjects and cumulative resource fit. D100k overlap is running;300k overlap consumes actual100k overlap. No new calibration or completed replay. |
+|40 conditional optimization | Resolve the pending recommended no-new-optimization/defer decision. | Actual owner disposition; adoption would still require affected write evidence, exact snapshot safety and paired benefit proof. |
+|50 search | Complete paired performance of the implemented identity/text/snippet route. | Existing source-bound baseline/candidate/native subjects and available shared allocation; no private Memex snapshot. Six ordinary members qualified; next five-P window prepared. |
+|90 Block2 | Finish actual Block1 exit, then implement the approved80 stored-head coverage residuals. | Selected20–70 exits/dispositions, applicable checks/performance, both-format conformance and approved72-episode LoCoMo smoke/item4 run remain hard before source entry. Current90 design is independently accepted. |
+|160 local close | Run missing feature/performance checks and final affected-artifact qualification/rehearsal. | Final affected source/artifacts for claims; reuse accepted unchanged results. Mac-only/CI rows stay named outstanding. Review CI correctness after local passes, then run CI; registry publication excluded. |
 
-Selected100/D28-09 is complete after independently accepted seq386 process-interruption/recovery qualification; its original scope limits remain.
+Selected20/60/70/80design/100/110/130D-E/140 are independently accepted; they
+are completed inputs rather than active implementation lanes.130's original
+default-Node E failure and declared instrumented semi-space4 qualification remain
+distinct. Current160 installed CPU/CUDA consumers, Windows/WAL, ARM floors,
+long/security, archive SDK/CLI and actual GPU allocation/CPU-nonuse components
+are accepted within their source/artifact scope.
 
-The delivery spine is remaining30/20/50 and the conditional40 decision → real
-Block1 exit →90 → affected combined160 qualification.140→110→130 runs
-alongside it and join160 at their actual exits. Resolve the Block1 model/prompt/
-budget/fixture input and130 local D/E readiness while independent source work proceeds;
-no spend or execution is inferred.150 has no selected study, so it adds no work,
-review or completion dependency; preserve its unselected inventory without a new
-owner-deferral request.120, real resets and fork B/C keep their recorded future
-release allocation. No mandatory .29 outcome is removed to shorten the spine.
+The delivery spine is remaining30/50 and the40 disposition → actual Block1 exit
+→90 → affected combined160 qualification. Smoke models/dataset/IDs/budget are
+already approved at seq388; do not reopen them.150 has no selected study and adds
+no execution or completion dependency.120/CUDA13, real resets and fork B/C retain
+the owner's future release allocations. Non-Tegra ARM+GPU remains excluded by
+seq387. No mandatory .29 outcome is removed to shorten the spine.
 
 Use one coherent design review and one fresh implementation/results review for
 each substantive scope. Related helper work belongs in that scope, not in serial

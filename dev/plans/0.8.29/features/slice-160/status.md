@@ -39,10 +39,20 @@ observation is deferred behind existing typed profile admission. Writer/ranking/
 vector math and shipped Python/TS fronts are unchanged. Accepted focused engine
 controls and this successful-path equivalence retain original1349 healthy62/210
 and unchanged reranker/provider applicability; those bodies were not replayed.
-Historical WAL and earlier rehearsal proofs retain their source/scope. Current
-GPU2 allocation/PIDUUID+4 AC082d rows are **UNSTARTED/HELD**: fresh parent probe
-still found foreignPID4065257/6012MiB. No sharing/reset/foreign action or old GPU
-proof substitution; the parent also holds this batch pending candidate choice.
+Historical WAL and earlier rehearsal proofs retain their source/scope. After the
+foreign-consumer hold cleared, one fresh exclusive900s+20s GPU batch exits0 on
+these exact new digests. Self16GiB/250GiB, physicalFD9/inode8532374/flock,
+UUID `GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b`, driver580.178.04/24576MiB and
+compute-empty entry checks pass. Allocation Python628408→namespacePID1 and
+N-API637651→PID1 each witness134217728B>=67108864B. AC082d Python positive645195/
+CPU646763 and N-API positive647172/CPU648806 all close/exit0 with certain cleanup;
+positive PIDs bind the selected UUID, CPU negatives report compiledtrue/effective
+CPU/selectednull with no GPU PID/CUDA access across full42/73 trace files. Positive
+traces21/52 retain their separate controls. All owned actors/containers are gone,
+final compute is empty and independent same-inode flock/release passes. Actual
+proof is in `gpu-allocation-openfix/`, `ac082d-openfix/` and corresponding logs;
+prior foreign observations and old1349 GPU inputs remain separate. No sharing,
+reset, foreign-actor action or shared D allocation/ledger change occurred.
 
 The new source archive retains its producer lock; the locked downstream SDK
 resolves all6 product crates inside it at W.29/E.8.0. Actual write/separate-process
@@ -85,8 +95,8 @@ persistent32GiB configuration/services/disks unchanged; settled guest free was
 20606368KB with no active workers/builds. Actual host memory was reported without
 an inferred8GiB gain. **32GiB live restoration remains due** in
 `openfix-20261116/runtime-state.json`; parent holds restoration until remaining
-native work ends. Current GPU hold, Mac/hosted/registry and combined readiness
-remain separate; the ordinary current throughput pass retains earlier failures. Any subsequent production remedy needs affected new bytes;
+native work ends. Mac/hosted/registry and combined readiness remain separate;
+the ordinary current throughput pass retains earlier failures. Any subsequent production remedy needs affected new bytes;
 these d226 observations retain their actual input scope.
 
 ## Earlier full90 artifacts and original throughput failure
@@ -247,8 +257,8 @@ they are distinct from the successful later container execution.
   integrated exits. Selected130 D/E is independently accepted; full90 source is
   independently accepted under seq392 and is integrated.
 - Current affected d226 three-target CPU, CUDA12.6 driverless and source-archive
-  proofs are recorded above; exact new CUDA GPU witnesses remain unstarted. Mac
-  targets remain open; current Q2/Q3/model status is parent-owned. Original
+  proofs and exact new CUDA GPU witnesses are recorded above. Mac targets
+  remain open; current Q2/Q3/model status is parent-owned. Original
   throughput failures remain alongside the current ordinary pass. Combined
   local readiness is not claimed. The local
   rehearsal is assembled-qualified; its distinct hosted counterpart remains.

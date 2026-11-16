@@ -68,10 +68,22 @@ provider-free server and the compatible producer-999 fixture helper.
 
 The error-only admission correction leaves healthy protocol paths unchanged;
 the original full official/SDK/lifecycle results remain scoped to their
-actual producer 999 and were not retagged or replayed. The fresh CUDA executable
-has been built; its prepared bounded healthy-forward/typed-open wire stage is
-**unrun**, awaiting the main lane's fresh GPU lease and resource GO. The approved
-5882-turn and 419-turn ready fixtures remain unchanged. No paid episode ran.
+actual producer 999 and were not retagged or replayed.
+
+The fresh CUDA executable subsequently completed the approved 14-call stage
+once, using the pinned Inspector and isolated fixture copies. In each format,
+initialize, strict seven-tool discovery, store listing and a real hybrid search
+succeeded; search returned one hit with no degradation. All six malformed-profile
+calls returned `unavailable/corrupt`, `detail=CorruptionError`, with expected
+Inspector exit 5. Raw `cuda-{format}-{case}` stdout/stderr/exits remain in the
+refresh directory. The original 5882-turn and 419-turn ready stores were untouched.
+
+Execution held the selected RTX 3090's physical lease, verified driver
+580.178.04, and retained the existing resource guard, 120-second per-call and
+900-second overall limits with 20-second termination grace. The stage exited 0
+without a resource stop. The guarded actor and all owned MCP actors were absent;
+cleanup and a fresh postcheck found no GPU compute processes, 2 MiB used, and the
+same-inode physical lease available and released. No paid episode ran.
 
 ## Official-suite applicability
 

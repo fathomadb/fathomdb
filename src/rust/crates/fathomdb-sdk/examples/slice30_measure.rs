@@ -511,6 +511,7 @@ fn run_schedule(
     run_schedule_observed(engine, queries, samples, batch_size, searches_per_batch, &mut |_, _| {})
 }
 
+#[cfg(test)]
 fn run_schedule_observed(
     engine: &Adapter,
     queries: &[String],
@@ -537,7 +538,7 @@ fn run_schedule_calls(
     batch_size: usize,
     searches_per_batch: usize,
     observer: &mut dyn FnMut(&str, &Value),
-    call: &mut dyn FnMut(&str, Option<&str>) -> (Value, Option<Value>),
+    call: &mut impl FnMut(&str, Option<&str>) -> (Value, Option<Value>),
 ) -> Schedule {
     assert!(!queries.is_empty() && searches_per_batch > 0);
     assert!(batch_size == 1 || batch_size == 10);

@@ -134,9 +134,9 @@ class Accounting:
 
 def _limits(profile, phase):
     if phase == "D" and any(type(profile.get(key)) is not int or not 0 < profile[key] <= bound
-            for key, bound in (("total_shared_ns", 14400*10**9),
-                               ("total_shared_retained_bytes", 16*1024**3))):
-        raise ValueError("D shared maxima remain14400s/16GiB")
+            for key, bound in (("total_shared_ns", 48*3600*10**9),
+                               ("total_shared_retained_bytes", 192*1024**3))):
+        raise ValueError("D shared maxima are48h/192GiB")
     default = 0 if phase == "M" else None
     reserved = (profile.get("reserved_other_work_ns", default),
                 profile.get("reserved_other_work_bytes", default))

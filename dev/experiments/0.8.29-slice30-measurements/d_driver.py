@@ -105,7 +105,7 @@ def _qualify_native(cell, result):
     return row
 
 
-def run_accounted_stage(spec, records, budget, execute, *, initial=True, clock=time.monotonic_ns, publish=None):
+def run_accounted_stage(spec, records, budget, execute, *, initial=True, clock=time.monotonic_ns, publish=None, fail_fast=False):
     """Return fixed-table outcomes and update caller-owned actual wall charges.
 
     The caller owns the allocation lock and supplies a supervised executor that
@@ -116,6 +116,8 @@ def run_accounted_stage(spec, records, budget, execute, *, initial=True, clock=t
     grants runtime admission; the initial-quartet stop remains the default.
     """
     through = clock()
+    failed = next((cell["id"] for cell in spec["cells"]
+        if records.get(cell["id"], {}).get("status") in ("failed", "incomplete", "interrupted")), None) if fail_fast else None
 
     def charge(now, cell_id=None):
         nonlocal through
@@ -133,12 +135,15 @@ def run_accounted_stage(spec, records, budget, execute, *, initial=True, clock=t
         through = now
 
     def prepare(cell):
+        nonlocal failed
         started = clock()
         charge(started)
         if publish:
             publish()
         if budget.get("inflight"):
             return {"status": "not_run_ownership", "reason": "owned attempt cleanup is unresolved"}
+        if failed:
+            return {"status": "not_run_failed_prefix", "reason": "prior scientific D cell failed: "+failed}
         spent = budget.get("cell_used_ns", {}).get(cell["id"], 0)
         remaining = min(cell["cell_ns"] - spent, budget["shared_ns"] - budget["used_ns"])
         if remaining <= 0 or budget["retained_bytes"] >= budget["storage_limit"]:
@@ -165,6 +170,8 @@ def run_accounted_stage(spec, records, budget, execute, *, initial=True, clock=t
         elif row.get("status") == "complete" and ended >= started + remaining:
             row.update(status="incomplete", deadline_exceeded=True,
                        error=row.get("error") or "whole-cell deadline reached including report qualification")
+        if fail_fast and row.get("status") in ("failed", "incomplete", "interrupted"):
+            failed = cell["id"]
         records[cell["id"]] = row
         if publish:
             publish()
@@ -207,7 +214,8 @@ def run_supervised_stage(spec, records, budget, root, command, *, publish=None, 
                                                     if cell["id"] in decision["cells"]])
     selected = dict(selected, cells=[dict(cell, cell_ns=cell_limit_ns(cell["n"], budget.get("cell_limits_ns")))
                                      for cell in selected["cells"]])
-    rows = run_accounted_stage(selected, records, budget, execute, initial=initial, publish=publish)
+    rows = run_accounted_stage(selected, records, budget, execute, initial=initial, publish=publish,
+                               fail_fast=scientific)
     if initial:
         return rows
     dispatched = {row["id"]: row for row in rows}

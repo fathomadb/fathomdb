@@ -62,7 +62,8 @@ def _control(root, fd):
     decision = ({"status": "admit", "cells": [cell["id"] for cell in spec["cells"][:4]]}
                 if config["initial"] else reviewed_quartet(spec, records, budget, config.get("review")))
     rows = run_supervised_stage(spec, records, budget, root/"attempts", config["command"],
-        publish=publish, initial=config["initial"], review=config.get("review"))
+        publish=publish, initial=config["initial"], review=config.get("review"),
+        scientific=config["scope"] == "fixed24-scientific")
     source = config["scope"] == "isolated-harmless-source-control"
     source_complete = (source and all(row["status"] == "failed"
         and isinstance(row.get("native"), dict) and row["native"].get("unit_diagnostic") is True

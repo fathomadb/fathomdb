@@ -343,3 +343,30 @@ class PairRuntimeTests(unittest.TestCase):
             self.assertEqual(calls[0][3],end)
             self.assertTrue(result['preparation']['validated'])
             self.assertFalse(result['complete'])
+
+
+class PairCompletionTests(unittest.TestCase):
+    def test_equal_partial_streams_cannot_credit_a_completed_pair(self):
+        from g_pair import report
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary);rows=[]
+            for cell in plan()['calibration'][:2]:
+                attempt=root/'results'/cell['id']/'attempt-0001';native=attempt/'native';native.mkdir(parents=True)
+                (native/'samples.jsonl').write_text(json.dumps({'ok':True,'hits':[]})+'\n')
+                (attempt/'result.json').write_text(json.dumps({'complete':False,'steps':[{'output':str(native),'result':{}}]}))
+                rows.append({'id':cell['id'],'cell':cell,'attempt':str(attempt),'status':'complete','complete':True,
+                    'cleanup_uncertain':False,'live_owned_pids':[]})
+            (root/'results/campaign-state.json').write_text(json.dumps(rows))
+            actual=report(root)
+            pair=actual['comparisons']['calibration'][0]
+            self.assertTrue(pair['equal'])
+            self.assertFalse(pair['complete'])
+            self.assertTrue(all(not row['credited'] for row in actual['calibration']))
+
+    def test_unevidenced_primary_forecasts_are_unavailable(self):
+        from g_pair_freeze import require_forecasts
+        cells=plan()['primary']+plan()['diagnostics']
+        options={'forecasts':{'status':'CURRENT_PAIRED_BOUNDED','common_ns':100*10**9,'common_bytes':100,
+            'cells':{cell['id']:{'whole_ns':10**9,'new_retained_bytes':100,'observed_from':'/missing/current/paired'} for cell in cells}}}
+        with self.assertRaisesRegex(ValueError,'current paired observation'):
+            require_forecasts(options,cells)

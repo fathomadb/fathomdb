@@ -273,3 +273,9 @@ def public_entry(operation, root, options=None):
         common_limit_ns=common,started_ns=began)
     print(json.dumps(outcome))
     return outcome['exit']==0 and not outcome['cleanup_uncertain']
+
+
+def freeze(options, output, *, scope):
+    """Bind current public paired inputs/artifacts to exact private obligations."""
+    from g_pair_freeze import freeze as freeze_pair
+    return freeze_pair(options, output, scope=scope)

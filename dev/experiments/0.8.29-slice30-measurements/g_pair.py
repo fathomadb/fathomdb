@@ -4,6 +4,9 @@ import json
 import os
 import shutil
 import subprocess
+import sys
+import time
+import uuid
 from pathlib import Path
 
 TOOLS = Path(__file__).resolve().parent
@@ -142,9 +145,53 @@ def validate_limits(limits):
 
 def drive_members(manifest, root, execute):
     """Drive exactly the active scope through existing admitted member execution."""
-    return []
+    root = Path(root)
+    state = root / 'results/campaign-state.json'
+    state.parent.mkdir(parents=True, exist_ok=True)
+    previous = {row['id']:row for row in json.loads(state.read_text())} if state.exists() else {}
+    cells = manifest['plan']['calibration'] if manifest['scope'] == 'calibration' else manifest['plan']['primary'] + manifest['plan']['diagnostics']
+    rows = []
+    for index, cell in enumerate(cells):
+        old = previous.get(cell['id'])
+        outcome = old if old and old.get('complete') is True else execute(cell, index)
+        rows.append(outcome)
+        previous[cell['id']] = outcome
+        state.write_text(json.dumps(list(previous.values()),indent=2)+'\n')
+    return rows
 
 
 def qualify_step(step, cell, manifest):
     """Require actual current native facts; source-only helpers cannot qualify."""
-    return []
+    issues = []
+    result = step.get('result') or {}
+    if result.get('runner_only'):
+        issues.append('runner_only_source_control')
+    if not step.get('complete') or result.get('complete') is not True:
+        issues.append('native_member_incomplete')
+    reports = result.get('open_reports') or []
+    if len(reports) != len(cell['adapters']):
+        issues.append('actual_native_reports_missing')
+    for opened in reports:
+        if (opened.get('pid') != step.get('pid') or opened.get('executable') != step.get('executable')
+                or opened.get('requested_provider') != cell['provider'] or opened.get('schema_version_after') != 37):
+            issues.append('current_native_identity_or_provider_mismatch')
+    scale = len(cell['adapters'])*len(cell['routes'])
+    if result.get('sample_count') != cell['samples']*scale or result.get('warmup_count') != cell['warmup']*scale:
+        issues.append('actual_native_population_mismatch')
+    if cell['family'].startswith('G') and step.get('config'):
+        from g_runner import qualify_step as qualify_g
+        issues.extend(qualify_g(step,manifest))
+    elif cell['family'].startswith('G'):
+        issues.append('actual_native_config_missing')
+    elif (result.get('natural_records') != cell['n'] or result.get('vector_rows') != 0
+          or result.get('marker_records') != (10 if cell['family']=='P2' else 0)):
+        issues.append('provider_none_fixture_mismatch')
+    if cell['observe']:
+        batches = result.get('observation_batches') or []
+        if (not batches or any(batch.get('dropped_records') != 0 or batch.get('issues') != []
+                or not any(row.get('phase')=='slice50_work' and row.get('status')=='ok'
+                           for row in batch.get('records',[])) for batch in batches)):
+            issues.append('diagnostic_work_unavailable')
+        if not any(row.get('available') for row in step.get('rss_samples',[])):
+            issues.append('diagnostic_rss_unavailable')
+    return sorted(set(issues))

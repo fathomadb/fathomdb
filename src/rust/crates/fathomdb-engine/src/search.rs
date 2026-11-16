@@ -1100,6 +1100,8 @@ pub(crate) fn record_slice71_profile_statement_for_test(sql: &str) {
         && sql.contains("WHERE r.write_cursor=")
     {
         Some("post_filter_source_lookup")
+    } else if sql == crate::vector_spans::SCORED_EXTENT_SQL {
+        Some("snippet_scored_extent")
     } else if sql.contains("highlight(") {
         Some("snippet_highlight")
     } else if is_write_statement(sql) {
@@ -2398,6 +2400,9 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         crate::slice30_observer::not_run("vector_retrieval", "vector_unavailable_or_ineligible");
         Vec::new()
     };
+    let original_vector_keys = snippet.map(|_| {
+        vector_results.iter().map(FusionHit::key).collect::<std::collections::HashSet<RecordKey>>()
+    });
     let vector_rows_visible = !vector_results.is_empty();
     let soft_fallback = {
         #[cfg(any(test, feature = "slice30-observer"))]
@@ -3333,14 +3338,24 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         .transpose()?;
     let snippets = snippet
         .map(|options| {
-            snippets_for_hits(
+            let mut snippets = snippets_for_hits(
                 &tx,
                 &results,
                 &fts_rows,
                 &compiled.match_expression,
                 &compiled.terms,
                 options,
-            )
+            )?;
+            if let Some(keys) = &original_vector_keys {
+                for (hit, snippet) in results.iter().zip(&mut snippets) {
+                    if keys.contains(&hit.key()) {
+                        snippet.scored_bytes =
+                            crate::vector_spans::scored_extent(&tx, hit.key(), &hit.body)
+                                .map_err(SearchReaderError::Evidence)?;
+                    }
+                }
+            }
+            Ok::<_, SearchReaderError>(snippets)
         })
         .transpose()?;
     if explanation.as_ref().is_some_and(|value| value.per_hit.len() != results.len())

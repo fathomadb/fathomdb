@@ -44,6 +44,8 @@ fn checked<T: TryFrom<i64>>(name: &str, value: i64) -> PyResult<T> {
 #[pyclass(module = "fathomdb._fathomdb", name = "SnippetV1", frozen, get_all, skip_from_py_object)]
 #[derive(Clone)]
 pub(super) struct PySnippetV1 {
+    /// Exact selected-vector extent; zero remains known.
+    scored_bytes: Option<u32>,
     text: String,
     anchor: String,
     windows: Vec<(u32, u32)>,
@@ -55,6 +57,7 @@ pub(super) struct PySnippetV1 {
 impl PySnippetV1 {
     pub(super) fn from_rust(s: &RustSnippetV1) -> Self {
         Self {
+            scored_bytes: s.scored_bytes,
             text: s.text.clone(),
             anchor: s.anchor.as_str().to_string(),
             windows: s.windows.clone(),

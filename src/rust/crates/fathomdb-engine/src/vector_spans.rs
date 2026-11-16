@@ -124,3 +124,98 @@ pub(crate) fn capture(connection: &Connection) -> Result<StoredHeadCoverageCount
         });
     Ok(counts)
 }
+
+pub(crate) const SCORED_EXTENT_SQL: &str = "
+    SELECT 0,r.rowid,r.write_cursor,NULL,NULL,NULL,NULL
+      FROM _fathomdb_vector_rows r WHERE r.rowid=?1 OR r.write_cursor=?1
+    UNION ALL
+    SELECT 1,s.vector_rowid,s.write_cursor,s.window_number,s.byte_start,s.body_length,s.byte_end
+      FROM _fathomdb_vector_spans s WHERE s.vector_rowid=?1 OR s.write_cursor=?1
+    UNION ALL
+    SELECT 2,n.write_cursor,n.body IS NOT NULL,COALESCE(CAST(n.body AS BLOB)=CAST(?2 AS BLOB),0),NULL,NULL,NULL
+      FROM canonical_nodes n WHERE n.write_cursor=?1
+    UNION ALL
+    SELECT 3,e.write_cursor,e.body IS NOT NULL,COALESCE(CAST(e.body AS BLOB)=CAST(?2 AS BLOB),0),NULL,NULL,NULL
+      FROM canonical_edges e WHERE e.write_cursor=?1
+    UNION ALL
+    SELECT 4,rowid,NULL,NULL,NULL,NULL,NULL FROM vector_default WHERE rowid=?1";
+
+pub(crate) fn scored_extent(
+    connection: &Connection,
+    key: crate::fusion::RecordKey,
+    body: &str,
+) -> Result<Option<u32>, EngineError> {
+    use crate::fusion::RecordKey;
+    let (cursor, expected_owner) = match key {
+        RecordKey::CanonicalNode(cursor) => (cursor, 2_u8),
+        RecordKey::CanonicalEdge(cursor) => (cursor, 3_u8),
+        RecordKey::OwnerlessNodeFts(_) => return Ok(None),
+    };
+    let corrupt = projection_generation::corruption_error;
+    let mut statement = crate::search::prepare_search_statement(connection, SCORED_EXTENT_SQL)
+        .map_err(|_| EngineError::Storage)?;
+    let mut rows =
+        statement.query(rusqlite::params![cursor, body]).map_err(|_| EngineError::Storage)?;
+    let mut mapping = false;
+    let mut span = None;
+    let mut owner = false;
+    let mut physical = false;
+    while let Some(row) = rows.next().map_err(|_| EngineError::Storage)? {
+        let tag: u8 = row.get(0).map_err(|_| corrupt())?;
+        let rowid: u64 = row.get(1).map_err(|_| corrupt())?;
+        if rowid != cursor {
+            return Err(corrupt());
+        }
+        match tag {
+            0 => {
+                if mapping || row.get::<_, u64>(2).map_err(|_| corrupt())? != cursor {
+                    return Err(corrupt());
+                }
+                mapping = true;
+            }
+            1 => {
+                if span.is_some()
+                    || row.get::<_, u64>(2).map_err(|_| corrupt())? != cursor
+                    || row.get::<_, u64>(3).map_err(|_| corrupt())? != 0
+                    || row.get::<_, u64>(4).map_err(|_| corrupt())? != 0
+                {
+                    return Err(corrupt());
+                }
+                let length: u64 = row.get(5).map_err(|_| corrupt())?;
+                let end: Option<u64> = row.get(6).map_err(|_| corrupt())?;
+                if length != body.len() as u64 {
+                    return Err(corrupt());
+                }
+                if let Some(end) = end {
+                    if end > length
+                        || !body.is_char_boundary(usize::try_from(end).map_err(|_| corrupt())?)
+                    {
+                        return Err(corrupt());
+                    }
+                }
+                span = Some(end.map(u32::try_from).transpose().map_err(|_| corrupt())?);
+            }
+            2 | 3 => {
+                if owner
+                    || tag != expected_owner
+                    || !row.get::<_, bool>(2).map_err(|_| corrupt())?
+                    || !row.get::<_, bool>(3).map_err(|_| corrupt())?
+                {
+                    return Err(corrupt());
+                }
+                owner = true;
+            }
+            4 => {
+                if physical {
+                    return Err(corrupt());
+                }
+                physical = true;
+            }
+            _ => return Err(corrupt()),
+        }
+    }
+    if !mapping || !owner || !physical {
+        return Err(corrupt());
+    }
+    span.ok_or_else(corrupt)
+}

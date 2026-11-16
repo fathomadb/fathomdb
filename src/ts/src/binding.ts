@@ -366,6 +366,7 @@ export interface NativeSnippetOptions {
 
 /** EP-17 snippet; ranges are `[start, end]` UTF-8 byte offsets. */
 export interface NativeSnippetV1 {
+  scoredBytes?: number | null;
   text: string;
   anchor: string;
   windows: number[][];

@@ -46,6 +46,8 @@ fn checked<T: TryFrom<i64>>(name: &str, value: Option<i64>, default: T) -> Resul
 /// `windows` and `spans` into the record body, `highlights` into `text`.
 #[napi(object)]
 pub struct SnippetV1 {
+    /// Exact selected-vector extent; zero remains known.
+    pub scored_bytes: Option<u32>,
     pub text: String,
     /// `whole`, `match` or `start`.
     pub anchor: String,
@@ -59,6 +61,7 @@ impl SnippetV1 {
     pub(crate) fn from_rust(s: &RustSnippetV1) -> Self {
         let ranges = |ranges: &[(u32, u32)]| ranges.iter().map(|&(a, b)| vec![a, b]).collect();
         Self {
+            scored_bytes: s.scored_bytes,
             text: s.text.clone(),
             anchor: s.anchor.as_str().to_string(),
             windows: ranges(&s.windows),

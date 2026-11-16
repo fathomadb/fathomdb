@@ -328,6 +328,9 @@ impl Completeness {
 /// One search hit.
 #[derive(Clone, Debug, Serialize, JsonSchema)]
 pub struct Hit {
+    /// Known original stored head extent of this actual vector participant.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scored_bytes: Option<u32>,
     /// `IdSpace` prefixed form: `l:<logical_id>`, `h:<hash>` or `p:<n>`.
     #[serde(rename = "ref")]
     pub reference: String,

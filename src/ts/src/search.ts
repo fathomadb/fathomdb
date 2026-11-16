@@ -8,7 +8,7 @@ import {
   type NativeSearchResult,
   type NativeSnippetV1,
 } from "./binding.js";
-import { FathomDbError, FrozenReadError, InvalidArgumentError, InvalidFilterError } from "./errors.js";
+import { FathomDbError, ProjectionGenerationError, FrozenReadError, InvalidArgumentError, InvalidFilterError } from "./errors.js";
 import { native } from "./binding.js";
 import { intercept, interceptSync } from "./native-call.js";
 import { validateFfiString, validateFfiTree } from "./validation.js";
@@ -74,6 +74,8 @@ export type SnippetAnchor = "whole" | "match" | "start";
  * window or span, and the same over `text` for a highlight.
  */
 export interface SnippetV1 {
+  /** Exact contributing stored-head extent; absent makes no extent claim. */
+  scoredBytes?: number;
   text: string;
   anchor: SnippetAnchor;
   windows: [number, number][];
@@ -345,9 +347,14 @@ export function mapNativeSnippets(
 }
 
 function mapNativeSnippet(native: NativeSnippetV1): SnippetV1 {
+  const extent = native.scoredBytes;
+  if (extent != null && (typeof extent !== "number" || !Number.isInteger(extent) || extent < 0 || extent > 0xffffffff)) {
+    throw new ProjectionGenerationError("projection generation projection_generation_corrupt at /scoredBytes", "projection_generation_corrupt", "/scoredBytes");
+  }
   const pairs = (ranges: number[][]): [number, number][] =>
     ranges.map((range) => [range[0]!, range[1]!]);
   return {
+    ...(extent == null ? {} : {scoredBytes: extent}),
     text: native.text,
     anchor: native.anchor as SnippetAnchor,
     windows: pairs(native.windows),

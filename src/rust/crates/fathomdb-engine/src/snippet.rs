@@ -125,6 +125,9 @@ impl SnippetAnchor {
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 #[non_exhaustive]
 pub struct SnippetV1 {
+    /// Known [0,end) extent of this selected record's actual contributing stored head vector.
+    /// None makes no extent claim; Some(0) is known-empty representation.
+    pub scored_bytes: Option<u32>,
     /// The windows joined in body order with ellipses: `"… "` before a window
     /// that starts after byte 0, `" … "` between windows, `" …"` after a
     /// window that ends before the body does. At most `max_bytes` bytes.
@@ -243,6 +246,7 @@ fn select(
     let (text_out, highlights) = assemble(body, &windows, spans, options.highlights);
     debug_assert!(text_out.len() <= max_bytes);
     SnippetV1 {
+        scored_bytes: None,
         text: text_out,
         anchor,
         cut: windows != [(0, body.len())],
@@ -287,6 +291,7 @@ fn record_start_prefix(body: &str, max_bytes: usize) -> Option<SnippetV1> {
     text.push_str(&body[..end]);
     text.push_str(TRAILING);
     Some(SnippetV1 {
+        scored_bytes: None,
         text,
         anchor: SnippetAnchor::Start,
         windows: vec![(0, to_u32(end))],
@@ -776,6 +781,7 @@ fn to_ranges(spans: &[Span]) -> Vec<(u32, u32)> {
 fn whole(body: &str, spans: &[Span], options: &SnippetOptions) -> SnippetV1 {
     let ranges = to_ranges(spans);
     SnippetV1 {
+        scored_bytes: None,
         text: body.to_owned(),
         anchor: SnippetAnchor::Whole,
         windows: if body.is_empty() { Vec::new() } else { vec![(0, to_u32(body.len()))] },

@@ -14,6 +14,7 @@ from fathomdb._fathomdb import snippet_for as _native_snippet_for
 from fathomdb.errors import (
     FrozenReadError,
     InvalidArgumentError,
+    ProjectionGenerationError,
 )
 from fathomdb.filter import Filter
 
@@ -161,7 +162,12 @@ def _map_native_snippets(result: Any) -> list[SnippetV1] | None:
 
 
 def _map_native_snippet(entry: Any) -> SnippetV1:
+    extent = entry.scored_bytes
+    if extent is not None and (type(extent) is not int or not 0 <= extent <= 2**32 - 1):
+        raise ProjectionGenerationError("projection generation projection_generation_corrupt at /scored_bytes",
+                                        reason="projection_generation_corrupt", field_path="/scored_bytes")
     return SnippetV1(
+        scored_bytes=extent,
         text=entry.text,
         anchor=entry.anchor,
         windows=[(int(a), int(b)) for a, b in entry.windows],

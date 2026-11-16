@@ -806,6 +806,9 @@ fn render_search(output: &SearchOutput) -> String {
             };
             text.push_str(&format!(" hl={ranges}"));
         }
+        if let Some(extent) = hit.scored_bytes {
+            text.push_str(&format!(" scored_bytes={extent}"));
+        }
         text.push_str(" | ");
         text.push_str(&hit.snippet.replace(['\r', '\n'], " "));
         if let Some(explain) = per_hit.and_then(|per_hit| per_hit.get(index)) {
@@ -988,6 +991,7 @@ fn search_page(
             let per_hit = explain.map(|explain| per_hit_out(&reference, explain));
             (
                 Hit {
+                    scored_bytes: snippet.scored_bytes,
                     reference,
                     kind: hit.kind.clone(),
                     snippet: snippet.text.clone(),
@@ -1812,6 +1816,7 @@ mod compact_render_tests {
             mode: ModeWord::Hybrid,
             response_id: "r1-0000000000000000".into(),
             results: vec![Hit {
+                scored_bytes: None,
                 reference: "l:a".into(),
                 kind: "note".into(),
                 snippet: "river".into(),

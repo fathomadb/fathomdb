@@ -514,6 +514,7 @@ pub fn prepare_search_page(input: &SearchPageInput) -> PreparedSearchPage {
             let snippet = fathomdb_sdk::snippet_for(&hit.body, &[], &options);
             (
                 crate::output::Hit {
+                    scored_bytes: None,
                     reference: hit.reference.clone(),
                     kind: hit.kind.clone(),
                     snippet: snippet.text,

@@ -187,6 +187,7 @@ class SearchResult:
     snippets: list[SnippetV1] | None
 
 class SnippetV1:
+    scored_bytes: int | None
     # UTF-8 byte offsets: windows/spans into the body, highlights into text.
     text: str
     # "whole" | "match" | "start"

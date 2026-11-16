@@ -508,6 +508,7 @@ class SnippetV1:
     spans: list[tuple[int, int]] = field(default_factory=list)
     highlights: list[tuple[int, int]] = field(default_factory=list)
     cut: bool = False
+    scored_bytes: int | None = None
 
 
 @dataclass(frozen=True)

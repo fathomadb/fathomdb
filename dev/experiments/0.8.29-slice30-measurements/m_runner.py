@@ -256,6 +256,8 @@ def run_selected(options, root, cell_id, began):
     if result["exit"] == 0 and result["cleanup_uncertain"] is False and (root / "manifest.json").is_file():
         result["retired_working_copies"] = retire_working_copies(root)
         result["final_report"] = publish_selected(root)
+        if not result["final_report"]["phase_qualified"]:
+            result.update(exit=124, stop="selected final publication allowance")
     print(json.dumps(result))
     return result
 
@@ -279,15 +281,14 @@ def publish_selected(root):
         usage = ledger["selected_cell_usage"][identity]
         remaining = min(manifest["cell_allowance"]["phase_ns"] - usage["wall_ns"],
                         profile["total_shared_ns"] - profile["reserved_other_work_ns"] - ledger["used_ns"])
+        value = None
         try:
             value = report(root, deadline_ns=began + remaining - 10**9)
         finally:
             elapsed = time.monotonic_ns() - began
-            ledger["used_ns"] += elapsed
-            usage["wall_ns"] += elapsed
-            common = ledger.setdefault("common_used_ns", {})
-            common["M"] = common.get("M", 0) + elapsed
-            write_budget(ledger_path, ledger)
+            _charge_final_work(root, ledger_path, ledger, usage, elapsed,
+                               manifest["cell_allowance"], profile,
+                               failed=value is None or not value["phase_qualified"])
     return value
 
 
@@ -345,12 +346,33 @@ def retire_working_copies(root):
                     write_budget(state_path, outcomes)
         finally:
             elapsed = time.monotonic_ns() - began
-            ledger["used_ns"] += elapsed
-            usage["wall_ns"] += elapsed
-            common = ledger.setdefault("common_used_ns", {})
-            common["M"] = common.get("M", 0) + elapsed
-            write_budget(ledger_path, ledger)
+            if calibration:
+                ledger["used_ns"] += elapsed
+                usage["wall_ns"] += elapsed
+                common = ledger.setdefault("common_used_ns", {})
+                common["M"] = common.get("M", 0) + elapsed
+                write_budget(ledger_path, ledger)
+            else:
+                _charge_final_work(root, ledger_path, ledger, usage, elapsed, limits, profile)
     return retired
+
+
+def _charge_final_work(root, ledger_path, ledger, usage, elapsed, limits, profile, *, failed=False):
+    from m_guard import write_budget
+    ledger["used_ns"] += elapsed
+    usage["wall_ns"] += elapsed
+    common = ledger.setdefault("common_used_ns", {})
+    common["M"] = common.get("M", 0) + elapsed
+    path = next((root / "guardians").glob("*/guardian.json"))
+    receipt = json.loads(path.read_text())
+    receipt["post_guardian_finalization_ns"] = receipt.get("post_guardian_finalization_ns", 0) + elapsed
+    accounting = receipt.setdefault("accounting", {})
+    accounting["charged_ns"] = accounting.get("charged_ns", 0) + elapsed
+    if (failed or usage["wall_ns"] >= limits["phase_ns"]
+            or ledger["used_ns"] + profile["reserved_other_work_ns"] >= profile["total_shared_ns"]):
+        receipt.update(exit=124, stop="selected final publication allowance")
+    write_budget(path, receipt)
+    write_budget(ledger_path, ledger)
 
 
 def final_guardian(root):

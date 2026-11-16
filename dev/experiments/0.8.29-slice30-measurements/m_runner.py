@@ -257,9 +257,100 @@ def run_selected(options, root, cell_id, began):
     return result
 
 
+def final_guardian(root):
+    """Require the fresh root's sole original phase to have strict successful final cleanup."""
+    paths = list((Path(root) / "guardians").glob("*/guardian.json"))
+    if len(paths) != 1:
+        raise ValueError("one original final guardian required")
+    receipt = json.loads(paths[0].read_text())
+    boundary = receipt.get("boundary") or {}
+    if (receipt.get("exit") != 0 or receipt.get("child_exit") != 0
+            or receipt.get("cleanup_uncertain") is not False
+            or receipt.get("boundary_populated_at_controller_exit") is not False
+            or boundary.get("status") != "quiescent" or boundary.get("populated_after") is not False
+            or boundary.get("removed_exact_empty_boundary") is not True):
+        raise ValueError("original guardian did not qualify final cleanup")
+    return receipt
+
+
+def _loop_population(result, attempt, cell):
+    phases = (("first", cell["first"]), ("warmup", cell["warmups"]), ("timed", cell["timed"]))
+    streams = {}
+    for name in ("submissions", "invocations"):
+        with (attempt / "wire" / (name + ".jsonl")).open() as stream:
+            streams[name] = [json.loads(line) for line in stream]
+    for phase, count in phases:
+        value = result.get("phases", {}).get(phase, {})
+        summary = value.get("summary", {})
+        submitted, completed = value.get("submitted", []), value.get("completed", [])
+        if (any(summary.get(key) != count for key in ("submitted", "completed", "success"))
+                or summary.get("unresolved") != 0 or summary.get("errors") != {}
+                or len(submitted) != count or len(set(submitted)) != count
+                or len(completed) != count or set(submitted) != set(completed)):
+            raise ValueError("complete registered population unavailable")
+        sent = [row for row in streams["submissions"] if row.get("phase") == phase]
+        received = [row for row in streams["invocations"] if row.get("phase") == phase]
+        if ([row.get("rpc_id") for row in sent] != submitted
+                or [row.get("query_index") for row in sent] != [i % 500 for i in range(count)]
+                or len(received) != count or {row.get("rpc_id") for row in received} != set(completed)
+                or any(row.get("status") != "completed" or row.get("pid") != result["pid"]
+                       for row in received)):
+            raise ValueError("complete ordered raw population unavailable")
+
+
 def reused_rows(manifest):
     """Reference complete matched original evidence without changing its scope or charges."""
-    return {}
+    from m_calibration import CALIBRATION_ID, CELL_ID, registered_cell
+    rows = {}
+    for reference in manifest.get("reuse_from", []):
+        root = Path(reference["root"]).resolve()
+        if not root.is_relative_to(Path(manifest["allocation"]).resolve()):
+            raise ValueError("reused M evidence must stay in its original allocation")
+        original = json.loads((root / "manifest.json").read_text())
+        if original.get("scope") not in ("bounded-natural-calibration", "registered-M-selected-cell"):
+            raise ValueError("explicit completed selected M evidence required")
+        cell = registered_cell(reference["cell_id"])
+        calibration = original["scope"] == "bounded-natural-calibration"
+        identity = CALIBRATION_ID if calibration else cell["id"]
+        if calibration and cell["id"] != CELL_ID:
+            raise ValueError("calibration supplies only its identical first primary row")
+        for key in ("allocation", "compiler_inputs", "closed_subject", "package", "inputs", "model", "gpu"):
+            if original[key] != manifest[key]:
+                raise ValueError("reused M input/compiler/device identity differs")
+        final_guardian(root)
+        outcomes = json.loads((root / "results/campaign-state.json").read_text())
+        if len(outcomes) != 1 or outcomes[0]["id"] != identity:
+            raise ValueError("one explicit completed M evidence row required")
+        outcome = outcomes[0]
+        attempt = Path(outcome["attempt"]).resolve()
+        if not attempt.is_relative_to(root / "results" / identity):
+            raise ValueError("original M attempt identity unavailable")
+        result_path = attempt / "result.json"
+        result = json.loads(result_path.read_text())
+        actual_cell = dict(result["cell"])
+        if calibration:
+            if actual_cell.pop("origin_id", None) != cell["id"]:
+                raise ValueError("original calibration configuration unavailable")
+            actual_cell["id"] = cell["id"]
+        variant = ("ordinary" if cell["family"] in ("M-R", "M-C", "M-L") else
+                   "helper" if cell["family"] == "M-E" else "providerfree")
+        if (actual_cell != cell or result.get("freeze_uuid") != original["uuid"]
+                or result.get("selected_build") != original["builds"][variant]
+                or original["builds"][variant] != manifest["builds"][variant]):
+            raise ValueError("original M workload/build identity differs")
+        if (outcome.get("complete") is not True or outcome.get("status") != "complete"
+                or outcome.get("exit") != 0 or outcome.get("cleanup_uncertain") is not False
+                or outcome.get("live_owned_pids") != [] or result.get("complete") is not True
+                or result.get("gpu", {}).get("complete") is not True or result["gpu"].get("failures")):
+            raise ValueError("original complete M result and GPU qualification required")
+        if cell["family"] in ("M-R", "M-C"):
+            _loop_population(result, attempt, cell)
+        rows[cell["id"]] = {"id": cell["id"], "cell": cell, "status": "complete", "complete": True,
+            "satisfied_by": {"root": str(root), "result": str(result_path), "attempt": str(attempt),
+                "accounting_id": identity, "scope": original["scope"], "source_sha": original["source_sha"],
+                "build_source_sha": result["selected_build"]["source_sha"], "freeze_uuid": original["uuid"]},
+            "attempts": [dict(outcome, result=result)]}
+    return rows
 
 
 def report(root):
@@ -268,13 +359,14 @@ def report(root):
     manifest = json.loads((root / "manifest.json").read_text())
     state = root / "results/campaign-state.json"
     current = {row["id"]: row for row in json.loads(state.read_text())} if state.exists() else {}
+    current = dict(reused_rows(manifest), **current)
     rows = []
     calibration = manifest.get("scope") == "bounded-natural-calibration"
     plan = load_plan() if calibration or manifest.get("scope") == "registered-M-selected-cell" else manifest["plan"]
     for cell in [*plan, *(manifest["plan"] if calibration else [])]:
         row = dict(current.get(cell["id"], {"id": cell["id"], "cell": cell,
                    "status": "held", "complete": False, "reason": "no completed registered attempt"}))
-        history = []
+        history = list(row.get("attempts", []))
         for path in sorted((root / "results" / cell["id"]).glob("attempt-*/attempt.json")):
             attempt = json.loads(path.read_text())
             result = path.with_name("result.json")

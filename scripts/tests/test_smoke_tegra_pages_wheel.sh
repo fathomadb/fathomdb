@@ -79,3 +79,34 @@ if [ "$local_status" -ne 1 ] || ! grep -Fq 'local wheel is absent' <<<"$local_ou
   printf 'FAIL local wheel source was not handled before platform probes: exit=%s\n%s\n' "$local_status" "$local_output" >&2
   exit 1
 fi
+
+# Run the actual per-policy shell command with a native-free child. A CPU
+# control cannot request a GPU allocation witness, including via inherited env.
+python3 - "$SMOKE" <<'PY_POLICY_CONTROL'
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+import tempfile
+
+source = Path(sys.argv[1]).read_text()
+preamble = source[source.index("export FATHOMDB_EMBED_DEVICE=cuda:0"):source.index('GPU_INFO=')]
+start = source.index("for policy in cpu auto cuda:0; do")
+body = source.index("<<'PY'\n", start) + len("<<'PY'\n")
+command = source[start:body] + '''import json
+import os
+print(json.dumps([os.environ.get(key) for key in (
+    "FATHOMDB_EMBED_DEVICE", "FATHOMDB_RERANK_DEVICE", "FATHOMDB_GPU_ALLOCATION_WITNESS")]))
+PY
+done
+'''
+with tempfile.TemporaryDirectory() as directory:
+    result = subprocess.run(["bash", "-ec", preamble + command],
+                            env=dict(os.environ, WORK=directory, FATHOMDB_GPU_ALLOCATION_WITNESS="1"),
+                            capture_output=True, text=True, timeout=10)
+assert result.returncode == 0, result.stderr
+rows = [json.loads(line) for line in result.stdout.splitlines()]
+assert rows == [["cpu", "cpu", None], ["auto", "auto", "1"], ["cuda:0", "cuda:0", "1"]], rows
+print("PASS  shipping CPU clears inherited witness request; auto/CUDA require witnesses")
+PY_POLICY_CONTROL

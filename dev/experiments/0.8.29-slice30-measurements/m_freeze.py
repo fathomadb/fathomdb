@@ -113,8 +113,9 @@ def freeze_calibration(options, output, cell_id):
 
 
 def _bind_inputs(options, output, profile, forecasts, *, calibration=None, selected=None):
+    selected_cell = selected
     allocation = Path(options["allocation"]).resolve()
-    selected = json.loads((SOURCE / "dev/plans/release-state-0.8.29.json").read_text())
+    release_state = json.loads((SOURCE / "dev/plans/release-state-0.8.29.json").read_text())
     # The release state owns this metadata's location; recursive lookup avoids another state view.
     def find(value):
         if isinstance(value, dict):
@@ -128,12 +129,12 @@ def _bind_inputs(options, output, profile, forecasts, *, calibration=None, selec
                 if found := find(nested):
                     return found
         return None
-    selected = find(selected)
+    g_provenance = find(release_state)
     custody = options["closed_subject"]
-    if (not selected or custody["owner_released_closed"] is not True
-            or custody["source_sha"] != selected["source_sha"]
-            or custody["campaign_uuid"] != selected["campaign_uuid"]
-            or Path(custody["main"]).resolve() != Path(selected["store"]).resolve()
+    if (not g_provenance or custody["owner_released_closed"] is not True
+            or custody["source_sha"] != g_provenance["source_sha"]
+            or custody["campaign_uuid"] != g_provenance["campaign_uuid"]
+            or Path(custody["main"]).resolve() != Path(g_provenance["store"]).resolve()
             or custody["schema_version"] != 37 or custody["readiness"] != "Ready"
             or custody["pending"] != 0
             or custody["counts"] != {"natural": 100000, "vectors": 100000,
@@ -163,9 +164,9 @@ def _bind_inputs(options, output, profile, forecasts, *, calibration=None, selec
         raise ValueError("registered model cache bytes required")
     binaries = {}
     variants = VARIANTS if calibration is None else ("ordinary",)
-    if selected is not None:
-        variants = (("ordinary",) if selected["family"] in ("M-R", "M-C", "M-L") else
-                    ("helper",) if selected["family"] == "M-E" else ("providerfree", "helper"))
+    if selected_cell is not None:
+        variants = (("ordinary",) if selected_cell["family"] in ("M-R", "M-C", "M-L") else
+                    ("helper",) if selected_cell["family"] == "M-E" else ("providerfree", "helper"))
     for variant in variants:
         receipt = json.loads(Path(options["builds"][variant]).read_text())
         binary = identify(receipt["binary"]["path"])
@@ -190,8 +191,8 @@ def _bind_inputs(options, output, profile, forecasts, *, calibration=None, selec
         manifest.update(schema="slice30-m-calibration/v1", scope="bounded-natural-calibration",
                         plan=[calibration], calibration=options["calibration"],
                         qualifies_primary=False, runtime_status="BOUNDED_CALIBRATION_ONLY")
-    if selected is not None:
-        manifest.update(scope="registered-M-selected-cell", plan=[selected],
+    if selected_cell is not None:
+        manifest.update(scope="registered-M-selected-cell", plan=[selected_cell],
                         cell_allowance=options["cell_allowance"], reuse_from=options.get("reuse_from", []))
     output.mkdir(parents=True, exist_ok=True)
     path = output / "manifest.json"

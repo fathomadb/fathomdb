@@ -315,7 +315,8 @@ Seams. Canonical existing A3/admission tests remain preservation evidence.
 
 ## Required-cell execution — November15 efficiency amendment
 
-Status: design review pending. This section supersedes the earlier whole-table
+Status: independent Astra-medium design ACCEPT; implementation source controls
+pass, with final code review pending. This section supersedes the earlier whole-table
 forecast, repeated-calibration and prospective6h/64GiB admission proposals.
 The46 registered obligations, schedules, populations, returned rows, errors,
 logging/lifecycle controls and numerical assessment above remain unchanged.
@@ -399,7 +400,7 @@ satisfies A30-6 without retaining34duplicate715223040B databases or proposing a
 larger storage allowance solely for disposable successful copies. A/B/A still
 uses two fresh stores during its actual cell.
 
-Before implementation, obtain one independent Astra-medium design review.
+Independent Astra-medium design review accepted this amendment before implementation.
 Use genuine RED then GREEN commits with frozen literal oracles for finite
 selected-cell admission/accounting, public selection and reference reuse, and
 success-only copy retirement. Reuse existing harmless-child phase/deadline/

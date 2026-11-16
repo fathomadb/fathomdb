@@ -506,59 +506,57 @@ admission, normal MCP processes, shared/common accounting and retained reports
 under the live guardian. Both explicitly remain tiny provider-free source
 controls, never natural/GPU qualification or renewed campaign allocation.
 
-The separate [bounded calibration](m_calibration.py) command is implemented;
-runtime remains held for parent selection and candidate/input/device readiness:
+The required-cell route selects one unchanged canonical configuration at a time:
 
 ```bash
-AGENT_LONG=1 .venv/bin/python "$M_DIR/m_runner.py" calibrate --options selected-calibration.json --root "$M_CAL" --cell M-R-1-1-warn
+AGENT_LONG=1 .venv/bin/python "$M_DIR/m_runner.py" run "$M_CELL" --options selected-runtime.json --cell M-R-1-1-debug
 ```
 
-Options reuse the selected original allocation/profile and natural input fields,
-with only the ordinary build and no primary forecasts. Explicit `calibration`
-limits are `phase_ns`, `payload_ns` and `new_retained_bytes`; the reviewed first
-proposal is900s/800s/2GiB. Entry reserves2x remaining time/growth headroom and
-charges failures to the same cumulative ID across roots. Existing raw/attempt/
-report files retain calibration separately from all46 held primary rows. Only
-this unchanged1501-call compact hybrid c1/warn configuration is selectable;
-there is no automatic sweep or promotion. The three `test_m_calibration*.py`
-modules use literal arithmetic, fake dispatch/boundaries and harmless children;
-they establish no natural/native/GPU/cgroup qualification.
+`selected-runtime.json` names the original `allocation`/`profile`, qualified
+`closed_subject`, pinned `corpus`/`queries`/`license`, local `model_cache`, needed
+owned `builds` receipts and reserved `gpu`. Build only a missing required
+variant with the existing `build --variant ... --output ...` command under the
+owned native lease. Unchanged compiler inputs allow the original native build
+receipt to retain its actual source identity. No bookkeeping rebuild or retag
+is required.
 
-Future reviewed primary runtime uses the same entry, after independent source review,
-owned tooling qualification, an explicitly approved common TOTAL allocation
-and complete bounded remaining-component forecasts:
+Explicit `cell_allowance` fields are `phase_ns`, `payload_ns` and
+`new_retained_bytes`: positive enforced stop allowances, not measured future
+costs. The selected path pins original14400s/16GiB shared maxima and900s whole
+cells, carries all prior usage/failures and external reservations, and reserves
+2x remaining phase/growth before input qualification/copy/start. Configuration
+preparation bounds include both A/B/A packages. Qualification, preparation,
+payload, reporting and cleanup remain charged. `selected_cell_usage` preserves
+cumulative wall and peak growth for each canonical ID across roots; new attempts
+never renew allowances. Unknown future costs stay unknown without blocking this
+finite required cell. The earlier explicit `freeze`/`run` whole-forecast route
+remains available; it is not a prerequisite for selected execution.
 
-```bash
-# Each build requires the existing guarded owned CPU/CUDA lease as applicable.
-.venv/bin/python "$M_DIR/m_runner.py" build --variant providerfree --output "$S30_TASK/m-build-providerfree"
-.venv/bin/python "$M_DIR/m_runner.py" build --variant helper --output "$S30_TASK/m-build-helper"
-.venv/bin/python "$M_DIR/m_runner.py" build --variant ordinary --output "$S30_TASK/m-build-ordinary"
-AGENT_LONG=1 .venv/bin/python "$M_DIR/m_runner.py" freeze --options selected-runtime.json --root "$M_FROZEN"
-AGENT_LONG=1 .venv/bin/python "$M_DIR/m_runner.py" run "$M_FROZEN"
-AGENT_LONG=1 .venv/bin/python "$M_DIR/m_runner.py" report "$M_FROZEN"
-```
+The profile is `slice30-m-budget/v1`, `status:APPROVED`, pins original
+`g-budget.json` and declares `reserved_other_work_ns`/`reserved_other_work_bytes`,
+`reservation_disposition` and `other_work_cost_status` (`BOUNDED` or
+`HELD_UNAVAILABLE`). Zero reservation is an explicit selected-work disposition,
+not an estimate of unknown G/D work; combined feasibility may remain `UNKNOWN`.
+No cap expansion, live-source copying, checkpoint, reset, projection edit or
+model fetch follows from a selected cell.
 
-`selected-runtime.json` is an explicit private input configuration, not generated
-authority. It names `allocation`, `profile`, `forecasts`, `closed_subject`, pinned
-`corpus`/`queries`/`license`, owned `model_cache`, separate `builds` receipts and
-the reserved `gpu` identity. [m_freeze.py](m_freeze.py) defines the checked fields.
-The profile must be `slice30-m-budget/v1`, `status:APPROVED`, pin the original
-`g-budget.json` and state TOTAL nanosecond/retained-byte caps plus900s cells.
-It also declares `reserved_other_work_ns`/`reserved_other_work_bytes`, an explicit
-reviewed `reservation_disposition`, and `other_work_cost_status` (`BOUNDED` or
-`HELD_UNAVAILABLE`). A zero reservation is an explicit bounded-M disposition,
-never an estimate of unknown G/D work; unknown combined feasibility stays
-`UNKNOWN`. Neither reservation nor common growth silently expands the original
-TOTAL allowance.
-Forecasts include every cell's `components_ns` and `new_retained_bytes`, plus
-`common_components_ns` and `common_new_retained_bytes`;
-[m_controller.py](m_controller.py) names all13 components. Complete remaining
-cell/common growth is reserved at2x before selected packaging inspection or
-preparation; external reservations are additionally protected by the guardian.
-No cap, profile approval, missing component, closed custody or companion file is
-inferred. No live-source copying, checkpoint, reset, projection edit or model
-fetch is implemented. Ordinary builds use only `embed-cuda`; the diagnostic
-helper is separately provider-free and uses only existing private Seams.
+Optional `reuse_from` entries name `root` and canonical `cell_id`. The loader
+matches original input/compiler/model/device/build/configuration, full ordered
+loop populations and the original sole final successful guardian. An accepted
+full calibration may satisfy only its identical M-R-1-1-warn row by explicit
+`satisfied_by` reference; original calibration IDs, flags, source and raw files
+remain intact, with no second charge. Other complete selected cells can retain
+their original references across the complete46-row report. Missing/partial/
+failed-cleanup evidence cannot supply credit. The earlier `calibrate` command
+is retained, but repeating an identical complete required workload is optional.
+
+Successful disposable natural working copies retire only after validated
+completion and strict final cleanup. Immutable G packaging, raw/result files,
+prepared-copy/source/native identities and failed/uncertain copies persist.
+Retirement is recorded in existing attempt metadata; actual retirement wall is
+charged and cumulative peak growth is not reset. The literal
+`test_m_selected*.py`, `test_m_reuse.py` and real-SQLite `test_m_retirement.py`
+controls cover the added behavior; they establish no natural/GPU qualification.
 
 The outer [m_guard.py](m_guard.py) owns the exact private boundary and original
 shared accounting even if the controller dies. Interrupted active wall is

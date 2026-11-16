@@ -252,6 +252,7 @@ run_tier_suite fast test-runtime-release-alignment bash scripts/tests/test_runti
 run_tier_suite fast test-cuda-package-rehearsal bash scripts/tests/test_cuda_package_rehearsal.sh
 run_tier_suite fast test-cuda-reranker-producer-contract bash scripts/tests/test_cuda_reranker_producer_contract.sh
 run_tier_suite fast test-cuda-reranker-forced-harness python3 scripts/tests/test_cuda_reranker_forced_harness.py
+run_tier_suite fast test-cuda-cpu-nonuse python3 -m unittest discover -s scripts/tests -p "test_cuda_cpu_nonuse*.py"
 
 # Scripts (bash): offline fake-Cargo coverage for every release Rust tier. The
 # helper executes Cargo dry-runs for the three leaf crates and explicitly skips

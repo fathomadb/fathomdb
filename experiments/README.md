@@ -35,6 +35,39 @@ envelope.
 `config_sha8` is the first 8 hex of the sha256 of the canonical-JSON of the
 resolved config. Given a fixed timestamp + config, the `run_id` is deterministic.
 
+## Installed explicit-CPU release control
+
+[AC-082d capture](../scripts/release/cuda-cpu-nonuse.py) uses fresh owned host
+Python/npm installs of CUDA-compiled archives. Both CPU and separate CUDA-positive
+children retain selected-GPU visibility and CUDA library availability. It captures
+all-child file/process/ioctl syscalls and ELF-loader diagnostics from import to
+normal exit, plus external live PID/UUID observations. It refuses missing or
+incomplete captures, CUDA access in CPU processes, or failed positive controls.
+The consumers exercise the existing BGE/write/search/TinyBERT/close lifecycle;
+CPU consumers read their open report and never query CUDA availability.
+Cleanup retains the unreaped tracer's private-session identity and stops owned
+survivors even after tracer death. If bounded cleanup cannot prove quiescence,
+the tool retains FD9 custody and refuses qualification until owned work ends;
+failed or uncertain cleanup records cannot qualify offline either.
+
+Run only after exclusive GPU handoff, with the selected lease inherited on FD9.
+The Windchill lock is
+`/mnt/data/tmp2/fathomdb-0829-continuation/slice30-gd/locks/GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b.lock`,
+inode8532374. `--help` lists required archive, interpreter, Node, model-cache,
+CUDA-library and new output paths. No image provisioning or publication occurs.
+
+```bash
+python3 scripts/release/cuda-cpu-nonuse.py --help
+python3 -m unittest discover -s scripts/tests -p 'test_cuda_cpu_nonuse*.py'
+```
+
+The unit command uses harmless CPU trace controls and authored trace/PID cases;
+it never queries GPU hardware or qualifies actual CUDA artifacts. Actual capture
+results retain the three installed archive identities and raw per-binding CPU/
+positive traces, loader diagnostics, lifecycle reports, observations and exits
+under the supplied owned output directory. These are release acceptance controls;
+the eval-run index below keeps its existing scope.
+
 ## The standing rules
 
 1. **An experiment is a typed CONFIG + an index line + a durable record — never

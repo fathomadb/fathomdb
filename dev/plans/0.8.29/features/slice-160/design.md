@@ -118,6 +118,47 @@ executor, without `AC037_LIVE_OPTIONAL` or host security-setting changes. Reuse
 accepted unchanged other security controls only within their actual applicability;
 these scoped executions are not a new aggregate battery run.
 
+## AC-082d installed explicit-CPU capture
+
+Add one maintained parameterized release capture/validator for the missing
+AC-082d route. It consumes the retained CUDA-compiled wheel and npm main/platform
+archives, creates its own noneditable Python environment and npm consumer, and
+uses the existing BGE open/embed/write/search/close lifecycle with explicit
+`FATHOMDB_EMBED_DEVICE=cpu` and `FATHOMDB_RERANK_DEVICE=cpu`. The consumer reads
+only its open report's compiled-capability/effective-CPU fields; it calls no
+CUDA availability/device API. No source checkout is imported.
+
+Launch each installed binding under bounded `strace -ff` file/process/ioctl
+capture and `LD_DEBUG=libs,files`, covering import through process exit and all
+children. Retain raw captures, real exits, artifact identities and the open
+report. A handshake holds the live consumer after its forwards until the
+external observer records its actual host PID, liveness and selected-UUID compute
+process samples, then releases it to close. The observer samples from startup
+through exit. CUDA driver/library/device access, a selected device/GPU PID, a
+failed/missing trace or loader capture, incomplete lifecycle or nonzero exit
+refuses CPU qualification; a negative GPU sample alone is insufficient.
+
+For each binding, a separate fresh explicit-CUDA child uses the same capture
+path and model pins. Its actual forward, selected-UUID/PID observation and
+positive CUDA library/device trace establish the CUDA venue and capture power;
+positive-control failure invalidates the corresponding CPU negative. Preserve
+these observations separately from the existing allocation/PID-namespace oracle.
+The Windchill lease is
+`/mnt/data/tmp2/fathomdb-0829-continuation/slice30-gd/locks/GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b.lock`,
+inode8532374, inherited on FD9. No GPU query or runtime capture runs until G is
+strictly terminal and root provides fresh exclusive custody. CPU-only D work
+can overlap if it neither uses the selected GPU nor mutates these fixtures.
+
+TDD covers the new measurement behavior: observed RED for the absent route,
+then GREEN for valid CPU/positive captures and refusal of actual CUDA access,
+missing/failed capture, a GPU PID in a live CPU interval or a failed positive
+control. Use authored small trace/observation examples and real CPU subprocess
+capture controls; no database mocking, snapshot generation or unrelated tamper
+suite. A discovered product CUDA initialization on explicit CPU gets its own
+separate product RED/fix; the measurement must not hide it. Index the command in
+the existing experiment README and perform one substantive final review after
+the actual batch. This adds no product API or new release acceptance condition.
+
 ## Delivery and review
 
 Slice10 already repaired .29 bootstrap routing. Revalidate exact remote tag,

@@ -42,5 +42,11 @@ packages after design review. It does not replay the full or GPU campaigns.
 Candidate structural/link/join checks are document validation only. Use the existing
 Markdown/contract validators; do not represent a scratch check as full repository
 or product qualification. New AC-measurement tools belong in the repo with a
-rerunnable command/env description and experiment README index; no such tool is
-introduced by these documents.
+rerunnable command/env description and experiment README index. The AC-082d
+addition in [design](design.md#ac-082d-installed-explicit-cpu-capture) introduces
+that missing maintained route: authored trace/loader/PID measurement controls
+RED before implementation, then real installed CUDA-positive and explicit-CPU
+processes on the retained artifact pair after exclusive GPU entry. Reject CUDA
+access, incomplete/failed captures, GPU PID presence and failed positives; retain
+actual process exits and artifact applicability. No runtime pass is claimed by
+source/unit checks.

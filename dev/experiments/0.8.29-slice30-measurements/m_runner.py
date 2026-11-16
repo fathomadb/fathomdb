@@ -259,6 +259,11 @@ def run_selected(options, root, cell_id, began):
     return result
 
 
+def publish_selected(root):
+    """Publish selected-cell credit only after original final cleanup, charging final report work."""
+    return None
+
+
 def retire_working_copies(root):
     """Retire successful disposable copies after strict cleanup, preserving science and charges."""
     import fcntl

@@ -553,3 +553,46 @@ async fn compact_repeated_reference_feedback_refuses_atomically() {
     assert!(of_type(&records(&sink(&fixture, "a", 1)), "feedback").is_empty());
     harness.shutdown().await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn s90_foreign_reference_occurrences_are_bounded_and_ordered() {
+    let fixture = Fixture::new();
+    let harness = start(&fixture, true, json!({})).await;
+    let found = harness.ok("search", json!({"query": "river", "mode": "hybrid"})).await;
+    for (used, unused, expected, omitted) in [
+        (
+            vec!["foreign-b".to_string(), "foreign-a".into(), "foreign-b".into()],
+            vec!["foreign-c".to_string()],
+            vec![
+                "foreign-b".to_string(),
+                "foreign-a".into(),
+                "foreign-b".into(),
+                "foreign-c".into(),
+            ],
+            0,
+        ),
+        (
+            (0..51).map(|i| format!("foreign-{i}")).collect(),
+            vec![],
+            (0..50).map(|i| format!("foreign-{i}")).collect(),
+            1,
+        ),
+        (vec!["é".repeat(65), "a".repeat(128), "é".repeat(65)], vec![], vec!["a".repeat(128)], 2),
+    ] {
+        let error = harness
+            .err(
+                "feedback",
+                json!({"response_id": found["response_id"], "used": used, "unused": unused}),
+            )
+            .await;
+        assert_eq!(error["code"], "refs_not_in_response", "{error}");
+        assert_eq!(error["refs_not_in_response"], json!(expected));
+        if omitted == 0 {
+            assert!(error.get("refs_omitted").is_none());
+        } else {
+            assert_eq!(error["refs_omitted"], omitted);
+        }
+        assert!(of_type(&records(&sink(&fixture, "a", 1)), "feedback").is_empty());
+    }
+    harness.shutdown().await;
+}

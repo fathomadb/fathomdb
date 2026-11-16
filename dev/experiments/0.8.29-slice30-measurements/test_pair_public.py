@@ -302,3 +302,44 @@ class PairNativePipelineTests(unittest.TestCase):
             self.assertFalse(pair['equal'])
             self.assertEqual(pair['status'],'mismatch')
             self.assertTrue(all(row['status']=='not_run' for row in actual['primary']))
+
+
+class PairRuntimeTests(unittest.TestCase):
+    def test_calibration_deadline_keeps_prior_all_member_work_and_phase_freeze_time(self):
+        from g_pair_runtime import deadline
+        from g_pair import CALIBRATION_ID
+        cell=plan()['calibration'][1]
+        manifest={'scope':'calibration','plan':plan(),'profile':{'whole_cell_ns':900*10**9,
+            'total_shared_ns':5000*10**9,'reserved_other_work_ns':0},
+            'calibration':{'phase_ns':900*10**9,'payload_ns':800*10**9,'new_retained_bytes':2*1024**3}}
+        budget={'used_ns':500*10**9,'calibration_usage':{CALIBRATION_ID:{'wall_ns':100*10**9}},
+                'cell_used_ns':{plan()['calibration'][0]['id']:300*10**9,cell['id']:50*10**9}}
+        self.assertEqual(deadline(manifest,budget,{'started_monotonic_ns':1000*10**9},cell,1100*10**9),1550*10**9)
+        budget['cell_used_ns'][plan()['calibration'][0]['id']]=750*10**9
+        with self.assertRaisesRegex(ValueError,'work allowance'):
+            deadline(manifest,budget,{'started_monotonic_ns':1000*10**9},cell,1100*10**9)
+
+    def test_existing_native_dispatch_consumes_validated_closed_copy_and_keeps_mode(self):
+        from unittest.mock import patch
+        from g_pair_runtime import execute_native
+        from test_g_closed_copy import tiny_source
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary);subject=tiny_source(root);cell=plan()['calibration'][0]
+            calls=[]
+            def current(command,config,output,end,observe=None):
+                calls.append((command,config,output,end))
+                self.assertTrue(Path(config['store']).is_file())
+                self.assertNotEqual(config['store'],subject['files']['']['path'])
+                self.assertEqual(config['slice50_pair_mode'],'winner')
+                return {'complete':False,'result':{'runner_only':True}}
+            manifest={'donors':{'G10000':subject},'inputs':{'corpus':{'path':'corpus'},'queries':{'path':'queries'}},
+                      'build':{'binaries':{'ordinary':{'path':'current-private'}}}}
+            import time
+            end=time.monotonic_ns()+5*10**9
+            with patch('g_driver.run_program_step',current):
+                result=execute_native(manifest,cell,root/'member',end)
+            self.assertEqual(len(calls),1)
+            self.assertEqual(calls[0][0],['current-private'])
+            self.assertEqual(calls[0][3],end)
+            self.assertTrue(result['preparation']['validated'])
+            self.assertFalse(result['complete'])

@@ -307,6 +307,37 @@ def publish_selected(root):
     return value
 
 
+def invalidate_selected(root, reason):
+    """Revoke this invocation's credit after strict cleanup and bounded outer capture failure."""
+    import fcntl
+    began = time.monotonic_ns()
+    root = Path(root).resolve()
+    manifest = json.loads((root / "manifest.json").read_text())
+    allocation, profile = Path(manifest["allocation"]), manifest["profile"]
+    identity = manifest["plan"][0]["id"]
+    with (allocation / "g-campaign.lock").open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        ledger_path = allocation / "g-budget.json"
+        ledger = json.loads(ledger_path.read_text())
+        if any(ledger.get(key) for key in ("inflight", "g_guardian", "m_guardian", "d_guardian", "closed_guardian")):
+            raise ValueError("live shared ownership blocks M invocation finalization")
+        path = next((root / "guardians").glob("*/guardian.json"))
+        receipt = json.loads(path.read_text())
+        boundary = receipt.get("boundary") or {}
+        if receipt.get("cleanup_uncertain") or boundary.get("removed_exact_empty_boundary") is not True:
+            raise ValueError("strict cleanup required before M invocation finalization")
+        receipt.update(exit=125, output_overflow=reason)
+        write_guardian(path, receipt)
+        value = None
+        try:
+            reports = sorted((root / "reports").glob("report-*.json"))
+            value = report(root, output_path=reports[-1] if reports else None)
+        finally:
+            _charge_final_work(root, ledger_path, ledger, ledger["selected_cell_usage"][identity],
+                              time.monotonic_ns()-began, manifest["cell_allowance"], profile, failed=True)
+    return value
+
+
 def retire_working_copies(root):
     """Retire successful disposable copies after strict cleanup, preserving science and charges."""
     import fcntl

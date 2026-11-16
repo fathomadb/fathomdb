@@ -282,13 +282,24 @@ def publish_selected(root):
         remaining = min(manifest["cell_allowance"]["phase_ns"] - usage["wall_ns"],
                         profile["total_shared_ns"] - profile["reserved_other_work_ns"] - ledger["used_ns"])
         value = None
+        report_path = root / "reports" / f"report-{time.time_ns()}.json"
         try:
-            value = report(root, deadline_ns=began + remaining - 10**9)
+            value = report(root, deadline_ns=began + remaining - 10**9, output_path=report_path)
         finally:
             elapsed = time.monotonic_ns() - began
-            _charge_final_work(root, ledger_path, ledger, usage, elapsed,
-                               manifest["cell_allowance"], profile,
-                               failed=value is None or not value["phase_qualified"])
+            qualified = _charge_final_work(root, ledger_path, ledger, usage, elapsed,
+                                          manifest["cell_allowance"], profile,
+                                          failed=value is None or not value["phase_qualified"])
+            if value is not None and value["phase_qualified"] and not qualified:
+                value.update(complete=False, phase_qualified=False)
+                for row in value["rows"]:
+                    if row["id"] == identity and row.get("complete"):
+                        row.update(execution_complete=True, complete=False, status="incomplete",
+                                   reason="selected final report write exhausted its allowance")
+                report_path.write_text(json.dumps(value, indent=2) + "\n")
+                correction_ns = time.monotonic_ns() - began - elapsed
+                _charge_final_work(root, ledger_path, ledger, usage, correction_ns,
+                                   manifest["cell_allowance"], profile, failed=True)
     return value
 
 
@@ -373,6 +384,7 @@ def _charge_final_work(root, ledger_path, ledger, usage, elapsed, limits, profil
         receipt.update(exit=124, stop="selected final publication allowance")
     write_budget(path, receipt)
     write_budget(ledger_path, ledger)
+    return receipt.get("exit") == 0
 
 
 def final_guardian(root):
@@ -478,7 +490,7 @@ def reused_rows(manifest, *, deadline_ns=None):
     return rows
 
 
-def report(root, *, deadline_ns=None):
+def report(root, *, deadline_ns=None, output_path=None):
     """Retain all46 required cells and every attempt; incomplete outcomes never disappear."""
     root = Path(root)
     manifest = json.loads((root / "manifest.json").read_text())
@@ -530,7 +542,8 @@ def report(root, *, deadline_ns=None):
     value["phase_load_scope"] = "completed guardian phases before this report"
     destination = root / "reports"
     destination.mkdir(exist_ok=True)
-    (destination / f"report-{time.time_ns()}.json").write_text(json.dumps(value, indent=2) + "\n")
+    path = destination / f"report-{time.time_ns()}.json" if output_path is None else Path(output_path)
+    path.write_text(json.dumps(value, indent=2) + "\n")
     return value
 
 

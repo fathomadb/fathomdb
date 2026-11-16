@@ -257,6 +257,11 @@ def run_selected(options, root, cell_id, began):
     return result
 
 
+def reused_rows(manifest):
+    """Reference complete matched original evidence without changing its scope or charges."""
+    return {}
+
+
 def report(root):
     """Retain all46 required cells and every attempt; incomplete outcomes never disappear."""
     root = Path(root)

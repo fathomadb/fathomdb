@@ -180,8 +180,11 @@ def finish(manifest, rows):
     from g_pair import report, retire_pair
     root = Path(manifest['root'])
     result = report(root)
-    previous = {row['id']: row for row in rows}
-    retired = []
+    state = root / 'results/campaign-state.json'
+    history = json.loads(state.read_text()) if state.exists() else rows
+    previous = {row['id']: row for row in history}
+    cached = root / 'results/report.json'
+    retired = json.loads(cached.read_text()).get('retired_copies', []) if cached.exists() else []
     for name in (['calibration'] if manifest['scope'] == 'calibration' else ['primary', 'diagnostics']):
         for pair in result['comparisons'][name]:
             origin = pair['origin_id']

@@ -14,6 +14,7 @@ from g_boundary import TaskBoundary
 from g_campaign import active_bytes
 from g_resource import resource_sample
 from m_load import observe_load, summarize_load
+from m_record import BoundedLog
 
 
 def write_budget(path, value):
@@ -264,7 +265,8 @@ def _guard(command, *, allocation, profile, root, task, admission=False, common_
             write_budget(accounting.path, budget)
         boundary, child = TaskBoundary(task), None
         reader = writer = None
-        with (phase_root / "guardian.log").open("a") as log:
+        log_context = BoundedLog(phase_root / "guardian.log") if phase == "M" else (phase_root / "guardian.log").open("a")
+        with log_context as log:
             try:
                 if diagnostic_memory:
                     from d_diagnostic import memory_snapshot
@@ -281,6 +283,8 @@ def _guard(command, *, allocation, profile, root, task, admission=False, common_
                 argv = [*selected, "--admission-fd", str(reader)] if admission else selected
                 child = subprocess.Popen(argv, stdout=log, stderr=subprocess.STDOUT,
                     start_new_session=True, pass_fds=(reader, boundary.procs_fd), preexec_fn=boundary.attach)
+                if phase == "M":
+                    log.start()
                 os.close(reader)
                 reader = None
                 owner = accounting.read()
@@ -298,6 +302,9 @@ def _guard(command, *, allocation, profile, root, task, admission=False, common_
                     now = time.monotonic_ns()
                     if cancelled[0]:
                         receipt.update(exit=143, cancelled=True, stop="ordinary D SIGTERM cancellation")
+                        break
+                    if phase == "M" and log.error:
+                        receipt.update(exit=125, error=log.error)
                         break
                     code = unreaped_exit(child)
                     if phase_deadline is not None:
@@ -369,6 +376,8 @@ def _guard(command, *, allocation, profile, root, task, admission=False, common_
             receipt["diagnostic_memory_after"] = memory_snapshot()
             receipt["diagnostic_memory_complete"] = (receipt["diagnostic_memory_before"]["complete"]
                                                      and receipt["diagnostic_memory_after"]["complete"])
+        if phase == "M" and log.error:
+            receipt.update(exit=125, error=log.error)
         try:
             final = resource_sample(source, task)
             load_observations.append(observe_load())

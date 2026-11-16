@@ -10,7 +10,7 @@ import time
 
 from m_cell import execute
 from m_controller import load_plan
-from m_record import CONTROL_MAX_BYTES, OutputLimitError, write_json
+from m_record import BoundedLog, CONTROL_MAX_BYTES, OutputLimitError, write_json
 
 
 def source_smoke(root, cli, helper):
@@ -439,7 +439,7 @@ def open_invocation_log(root, kind):
     if kind not in ("service", "supervisor", "samples"):
         raise ValueError("registered M invocation log kind required")
     suffix = ".jsonl" if kind == "samples" else ".log"
-    return (root.parent / (root.name + "-" + kind + suffix)).open("x", encoding="utf-8")
+    return BoundedLog(root.parent / (root.name + "-" + kind + suffix), exclusive=True)
 
 
 def retry_history(manifest):

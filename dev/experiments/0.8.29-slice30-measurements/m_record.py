@@ -1,12 +1,15 @@
 """Bounded sixteen-record JSONL checkpoints, without fsync durability claims."""
 
 import json
+import os
+import threading
 import time
 
 
 JSONL_MAX_BYTES = 64 * 1024**2
 JSON_MAX_BYTES = 8 * 1024**2
 CONTROL_MAX_BYTES = 1024**2
+LOG_MAX_BYTES = 1024**2
 
 
 class OutputLimitError(RuntimeError):
@@ -67,3 +70,73 @@ class CheckpointLog:
         """Return persistence costs separately; checkpoint time is a nested subset."""
         return {key: getattr(self, key) for key in
                 ("records", "encoded_bytes", "checkpoints", "persistence_ns", "checkpoint_ns")}
+
+
+class BoundedLog:
+    """Capture an owned child's pipe with a pre-write byte limit and failure flag."""
+
+    def __init__(self, path, *, exclusive=False):
+        self.saved = path.open("xb" if exclusive else "ab")
+        self.limit = LOG_MAX_BYTES
+        self.retained_bytes = self.saved.tell()
+        self.reader, self.writer = os.pipe()
+        self.thread = None
+        self.lock = threading.Lock()
+        self.error = None
+
+    def fileno(self):
+        """Supply only the pipe writer to the owned subprocess."""
+        return self.writer
+
+    def start(self):
+        """Start draining after the single-threaded fork or private attachment."""
+        if self.thread is None:
+            self.thread = threading.Thread(target=self._read, daemon=True)
+            self.thread.start()
+
+    def _read(self):
+        try:
+            while raw := os.read(self.reader, 65536):
+                self._save(raw)
+        except OSError as error:
+            self.error = self.error or f"control log read: {error}"
+
+    def _save(self, raw):
+        with self.lock:
+            if self.error:
+                return
+            if self.retained_bytes + len(raw) > self.limit:
+                self.error = f"{self.saved.name}: capture limit {self.limit} bytes"
+                return
+            try:
+                self.saved.write(raw)
+                self.saved.flush()
+                self.retained_bytes += len(raw)
+            except OSError as error:
+                self.error = f"control log write: {error}"
+
+    def write(self, text):
+        """Retain parent-side diagnostics under the same log bound."""
+        self._save(text.encode("utf-8"))
+        return len(text)
+
+    def flush(self):
+        """Flush the bounded saved prefix."""
+        with self.lock:
+            self.saved.flush()
+
+    def close(self):
+        """Drain after owned cleanup; an unavailable EOF remains a capture failure."""
+        os.close(self.writer)
+        if self.thread is not None:
+            self.thread.join(timeout=2)
+            if self.thread.is_alive():
+                self.error = self.error or "control log reader did not reach EOF"
+        os.close(self.reader)
+        self.saved.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        self.close()

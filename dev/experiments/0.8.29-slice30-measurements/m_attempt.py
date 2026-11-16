@@ -10,6 +10,7 @@ import time
 import traceback
 
 from g_attempt import live_owned_pids, stop_owned_group, unreaped_exit
+from m_record import BoundedLog
 
 CLEANUP_RESERVE_NS = 7 * 10**9
 
@@ -105,7 +106,7 @@ def run_attempt(cell, root, command, *, deadline_ns, prepare=None, authorize=Non
                "work_deadline_ns": work_deadline_ns, "cleanup_reserve_ns": CLEANUP_RESERVE_NS,
                "sessions": []}
     error = None
-    with (attempt / "child.log").open("a", encoding="utf-8", buffering=1) as log:
+    with BoundedLog(attempt / "child.log") as log:
         try:
             if register:
                 register(cell, attempt)
@@ -114,7 +115,9 @@ def run_attempt(cell, root, command, *, deadline_ns, prepare=None, authorize=Non
                 error = "insufficient work allowance after bounded cleanup reserve"
             if not error and prepare:
                 child = _Preparation(prepare, cell, attempt, work_deadline_ns, log)
-                code, error, uncertain, live = _wait_owned(child, work_deadline_ns, monitor)
+                log.start()
+                code, error, uncertain, live = _wait_owned(child, work_deadline_ns,
+                    lambda: log.error or (monitor() if monitor else None))
                 outcome["sessions"].append({"kind": "preparation", "pid": child.pid,
                                              "exit": child.returncode})
                 outcome.update(exit=code, cleanup_uncertain=uncertain, live_owned_pids=live)
@@ -127,7 +130,9 @@ def run_attempt(cell, root, command, *, deadline_ns, prepare=None, authorize=Non
                 argv = [*argv, str(config), str(attempt)]
                 child = subprocess.Popen(argv, stdout=log, stderr=subprocess.STDOUT,
                                          start_new_session=True)
-                code, error, uncertain, live = _wait_owned(child, work_deadline_ns, monitor)
+                log.start()
+                code, error, uncertain, live = _wait_owned(child, work_deadline_ns,
+                    lambda: log.error or (monitor() if monitor else None))
                 outcome["sessions"].append({"kind": "payload", "pid": child.pid,
                                              "exit": child.returncode})
                 outcome.update(exit=code, child_exit=child.returncode, pid=child.pid, pgid=child.pid,
@@ -141,6 +146,7 @@ def run_attempt(cell, root, command, *, deadline_ns, prepare=None, authorize=Non
         except BaseException as failure:
             error = f"{type(failure).__name__}: {failure}"
             traceback.print_exc(file=log)
+    error = error or log.error
     outcome.update(error=error, elapsed_ns=time.monotonic_ns() - started)
     if error:
         outcome.update(complete=False, status="failed")

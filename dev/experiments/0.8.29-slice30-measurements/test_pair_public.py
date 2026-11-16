@@ -238,3 +238,22 @@ class PairPublicAdmissionTests(unittest.TestCase):
             self.assertNotEqual(result.returncode,0)
             self.assertIn('approved private Slice50 profile',result.stderr)
             self.assertFalse(out.exists())
+
+
+class PairFreezeTests(unittest.TestCase):
+    def test_source_only_builder_receipt_is_refused_before_input_access_or_publication(self):
+        from g_pair import freeze
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary);receipt=root/'build.json';out=root/'frozen'
+            receipt.write_text(json.dumps({'schema':'slice50-pair-build/v1','runner_only':True}))
+            with self.assertRaisesRegex(ValueError,'source-only build'):
+                freeze({'build_receipt':str(receipt)},out,scope='calibration')
+            self.assertFalse(out.exists())
+
+    def test_primary_unknown_forecast_is_held_before_build_or_input_access(self):
+        from g_pair import freeze
+        with tempfile.TemporaryDirectory() as temporary:
+            out=Path(temporary)/'frozen'
+            with self.assertRaisesRegex(ValueError,'current paired forecasts unavailable'):
+                freeze({},out,scope='primary')
+            self.assertFalse(out.exists())

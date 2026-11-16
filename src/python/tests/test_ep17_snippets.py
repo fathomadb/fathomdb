@@ -290,3 +290,27 @@ def test_filtered_text_keeps_requested_match_centred_sidecar(db_path: str) -> No
         assert absent.results == [] and absent.snippets == []
     finally:
         engine.close()
+
+
+def test_s90_installed_scored_bytes_belongs_to_real_vector_hit(db_path: str) -> None:
+    """Pinned offline BGE fully represents this hand-authored 15-byte body."""
+    body = "\x1e\x11é\n\x1e\x12🦀 zed"
+    assert len(body.encode()) == 15
+    engine = Engine.open(db_path, use_default_embedder=True)
+    try:
+        engine.configure_projections([fathomdb.ProjectionSpec(
+            name="body", roles=frozenset({fathomdb.ProjectionRole.SEARCHABLE}), vector=True,
+        )])
+        engine.write([{"kind": "doc", "body": body, "logical_id": "covered", "source_id": SOURCE}])
+        engine.drain(timeout_s=30)
+        result = engine.search("zed", snippet=SnippetOptions(), explain=True)
+        assert len(result.results) == 1 and result.snippets is not None
+        assert result.results[0].id.value == "covered"
+        assert result.explanation is not None
+        assert result.explanation.per_hit[0].vector_rank is not None, "real original vector participation"
+        assert getattr(result.snippets[0], "scored_bytes", None) == 15, "installed snippet drops exact scored extent"
+        text = engine.search_text_only("zed", snippet=SnippetOptions())
+        assert text.snippets is not None
+        assert getattr(text.snippets[0], "scored_bytes", None) is None
+    finally:
+        engine.close()

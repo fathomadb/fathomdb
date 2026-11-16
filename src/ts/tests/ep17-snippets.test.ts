@@ -289,3 +289,24 @@ test("filtered text keeps the requested match-centred sidecar", async () => {
     await engine.close();
   }
 });
+
+test("s90 installed scoredBytes belongs to the real vector hit", async () => {
+  const body = "\x1e\x11é\n\x1e\x12🦀 zed";
+  assert.equal(Buffer.byteLength(body), 15);
+  const engine = await Engine.open(freshDbPath(), { useDefaultEmbedder: true });
+  try {
+    await engine.configureProjections([{name: "body", roles: ["searchable"], fts: false, vector: true}]);
+    await engine.write([{kind: "doc", body, logicalId: "covered", sourceId: SOURCE}]);
+    await engine.drain(30000);
+    const result = await engine.search("zed", undefined, 0, false, undefined, undefined, true, {snippet: {}});
+    assert.equal(result.results.length, 1);
+    assert.equal(result.results[0]!.id.value, "covered");
+    assert.ok(result.explanation?.perHit[0]?.vectorRank != null, "real original vector participation");
+    const snippet = result.snippets?.[0] as unknown as Record<string, unknown> | undefined;
+    assert.equal(snippet?.["scoredBytes"], 15, "installed snippet drops exact scored extent");
+    const text = await engine.searchTextOnly("zed", {snippet: {}});
+    assert.equal((text.snippets?.[0] as unknown as Record<string, unknown> | undefined)?.["scoredBytes"], undefined);
+  } finally {
+    await engine.close();
+  }
+});

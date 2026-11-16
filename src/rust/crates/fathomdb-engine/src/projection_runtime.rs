@@ -94,6 +94,8 @@ pub struct ProjectionRuntimeStatusEntry {
 /// effective (`searchable` + vector) arm.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ProjectionRuntimeStatus {
+    /// Committed stored-head extent facts or truthful cache availability.
+    pub vector_coverage: StoredHeadCoverageV1,
     /// Whether an attached embedder passed the identity/equivalence safeguards.
     pub runtime_embedder_available: bool,
     /// `None` exactly when `runtime_embedder_available` is true.

@@ -198,3 +198,5 @@ export {
 export { ErasureMaintenance, type PhysicalErasurePolicy, type ErasureServiceState } from "./maintenance.js";
 export type { PhysicalErasureSelector, ErasureLogicalState, ErasurePhase, ErasureBlocker,
   ErasureStatus, QueueResult, WithdrawResult, CleanupResult } from "./maintenance.js";
+
+export type { StoredHeadCoverageV1, StoredHeadCoverageProfile, StoredHeadCoverageFraction, StoredHeadCoverageAvailable, StoredHeadCoverageUnavailable } from "./coverage.js";

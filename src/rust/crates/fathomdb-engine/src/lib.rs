@@ -112,6 +112,11 @@ pub use projection_registry::{
     DenseReadiness, ProjectionDelta, ProjectionFts, ProjectionRole, ProjectionSpec,
     ProjectionVector,
 };
+mod stored_coverage;
+pub use stored_coverage::{
+    StoredHeadCoverageCounts, StoredHeadCoverageFraction, StoredHeadCoverageProfile,
+    StoredHeadCoverageUnavailableReason, StoredHeadCoverageV1,
+};
 mod projection_runtime;
 #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
 #[doc(hidden)]
@@ -520,6 +525,7 @@ pub struct Engine {
     resolved_config: ResolvedRuntimeConfiguration,
     next_cursor: AtomicU64,
     read_visibility_generation: Arc<AtomicU64>,
+    stored_head_coverage: Mutex<Option<stored_coverage::CachedStoredHeadCoverage>>,
     projection_generation_status_cache:
         Mutex<Option<projection_generation::CachedProjectionGenerationStatus>>,
     mutation_projection_status_cache:

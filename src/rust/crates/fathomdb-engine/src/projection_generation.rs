@@ -1314,8 +1314,14 @@ fn physical_completion(
     effective_at: i64,
     runtime_state: ProjectionRuntimeStateV1,
     observed_boundary: u64,
-) -> Result<CompletionSummary, EngineError> {
-    crate::vector_spans::validate(connection, None)?;
+    capture_coverage: bool,
+) -> Result<(CompletionSummary, Option<crate::StoredHeadCoverageCounts>), EngineError> {
+    let coverage = if capture_coverage {
+        Some(crate::vector_spans::capture(connection)?)
+    } else {
+        crate::vector_spans::validate(connection, None)?;
+        None
+    };
     validate_registered_provenance_integrity(connection)?;
     let cross_owner_cursor: bool = connection
         .query_row(
@@ -1374,12 +1380,15 @@ fn physical_completion(
 
     let ready_through =
         accumulator.first_incomplete.map_or(observed_boundary, |cursor| cursor.saturating_sub(1));
-    Ok(CompletionSummary {
-        observed_boundary,
-        ready_through,
-        pending_count: accumulator.pending_count,
-        failed_count: accumulator.failed_count,
-    })
+    Ok((
+        CompletionSummary {
+            observed_boundary,
+            ready_through,
+            pending_count: accumulator.pending_count,
+            failed_count: accumulator.failed_count,
+        },
+        coverage,
+    ))
 }
 
 pub(crate) fn status_in_snapshot(
@@ -1388,9 +1397,31 @@ pub(crate) fn status_in_snapshot(
     effective_at_epoch_s: i64,
     observed_boundary: u64,
 ) -> Result<ProjectionGenerationStatusV1, EngineError> {
+    status_with_capture_in_snapshot(
+        connection,
+        runtime_state,
+        effective_at_epoch_s,
+        observed_boundary,
+        false,
+    )
+    .map(|(status, _)| status)
+}
+
+fn status_with_capture_in_snapshot(
+    connection: &Connection,
+    runtime_state: ProjectionRuntimeStateV1,
+    effective_at_epoch_s: i64,
+    observed_boundary: u64,
+    capture_coverage: bool,
+) -> Result<(ProjectionGenerationStatusV1, Option<crate::StoredHeadCoverageCounts>), EngineError> {
     let generation = current_generation(connection)?;
-    let completion =
-        physical_completion(connection, effective_at_epoch_s, runtime_state, observed_boundary)?;
+    let (completion, coverage) = physical_completion(
+        connection,
+        effective_at_epoch_s,
+        runtime_state,
+        observed_boundary,
+        capture_coverage,
+    )?;
     let readiness = if generation.origin == ProjectionGenerationOriginV1::LegacyUnverified
         || completion.failed_count != 0
     {
@@ -1404,20 +1435,23 @@ pub(crate) fn status_in_snapshot(
             ProjectionRuntimeStateV1::Usable => ProjectionReadinessV1::Processing,
         }
     };
-    Ok(ProjectionGenerationStatusV1 {
-        schema_version: 1,
-        generation_id: generation.id,
-        declaration_sha256: generation.digest,
-        origin: generation.origin,
-        transition_boundary: generation.boundary,
-        effective_at_epoch_s,
-        observed_boundary: completion.observed_boundary,
-        ready_through: completion.ready_through,
-        readiness,
-        runtime_state,
-        pending_count: completion.pending_count,
-        failed_count: completion.failed_count,
-    })
+    Ok((
+        ProjectionGenerationStatusV1 {
+            schema_version: 1,
+            generation_id: generation.id,
+            declaration_sha256: generation.digest,
+            origin: generation.origin,
+            transition_boundary: generation.boundary,
+            effective_at_epoch_s,
+            observed_boundary: completion.observed_boundary,
+            ready_through: completion.ready_through,
+            readiness,
+            runtime_state,
+            pending_count: completion.pending_count,
+            failed_count: completion.failed_count,
+        },
+        coverage,
+    ))
 }
 
 pub(crate) fn next_status_membership_boundary(
@@ -1465,7 +1499,10 @@ impl Engine {
         runtime_state: ProjectionRuntimeStateV1,
         effective_at_epoch_s: i64,
         boundary: u64,
-    ) -> Result<ProjectionGenerationStatusV1, EngineError> {
+    ) -> Result<
+        (ProjectionGenerationStatusV1, Option<crate::stored_coverage::CachedStoredHeadCoverage>),
+        EngineError,
+    > {
         let visibility_generation = super::frozen_read::load_visibility_generation(connection)
             .map_err(|_| EngineError::Storage)?;
         let data_version: u64 = connection
@@ -1485,13 +1522,24 @@ impl Engine {
             {
                 let mut status = cached.status.clone();
                 status.effective_at_epoch_s = effective_at_epoch_s;
-                return Ok(status);
+                return Ok((status, None));
             }
         }
         #[cfg(feature = "test-hooks")]
         self.projection_generation_status_full_owner_scan_count
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        let status = status_in_snapshot(connection, runtime_state, effective_at_epoch_s, boundary)?;
+        let (status, counts) = status_with_capture_in_snapshot(
+            connection,
+            runtime_state,
+            effective_at_epoch_s,
+            boundary,
+            true,
+        )?;
+        let coverage = match counts {
+            Some(counts) => crate::stored_coverage::token(connection)?
+                .map(|token| crate::stored_coverage::CachedStoredHeadCoverage { token, counts }),
+            None => None,
+        };
         let valid_before_epoch_s =
             next_status_membership_boundary(connection, effective_at_epoch_s)?;
         *cache = Some(CachedProjectionGenerationStatus {
@@ -1503,7 +1551,7 @@ impl Engine {
             runtime_state,
             status: status.clone(),
         });
-        Ok(status)
+        Ok((status, coverage))
     }
 
     fn read_projection_generation_status_at(
@@ -1522,9 +1570,10 @@ impl Engine {
             ProjectionRuntimeStateV1::Usable
         };
         let boundary = authoritative_boundary(&tx)?;
-        let status =
+        let (status, coverage) =
             self.cached_status_in_snapshot(&tx, runtime_state, effective_at_epoch_s, boundary)?;
         tx.commit().map_err(|_| EngineError::Storage)?;
+        self.publish_stored_head_coverage(coverage)?;
         Ok(status)
     }
 
@@ -1671,7 +1720,7 @@ impl Engine {
             effective_at_epoch_s,
             runtime_state,
         )?;
-        let status =
+        let (status, coverage) =
             self.cached_status_in_snapshot(&tx, runtime_state, effective_at_epoch_s, boundary)?;
         let (owner_readiness, owner_pending, owner_failed) = match owner_completion {
             Completion::Complete => (ProjectionReadinessV1::Ready, false, false),
@@ -1699,6 +1748,7 @@ impl Engine {
             failed_count: u64::from(owner_failed),
         };
         tx.commit().map_err(|_| EngineError::Storage)?;
+        self.publish_stored_head_coverage(coverage)?;
         *self.mutation_projection_status_cache.lock().map_err(|_| EngineError::Storage)? =
             Some(CachedMutationProjectionStatus {
                 visibility_generation,
@@ -1802,8 +1852,12 @@ impl Engine {
             ProjectionRuntimeUnavailabilityReason::NoRuntime
         };
 
-        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
-        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+        let mut guard = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = guard.as_mut().ok_or(EngineError::Closing)?;
+        let tx = connection
+            .transaction_with_behavior(TransactionBehavior::Deferred)
+            .map_err(|_| EngineError::Storage)?;
+        let connection = &tx;
         let registry = load_projection_registry(connection).map_err(|_| EngineError::Storage)?;
         let has_effective_vector_arm = registry.values().any(StoredProjection::wants_vector);
         let effective_dense_readiness = if has_effective_vector_arm {
@@ -1832,12 +1886,15 @@ impl Engine {
             Vec::new()
         };
 
-        Ok(ProjectionRuntimeStatus {
+        let status = ProjectionRuntimeStatus {
+            vector_coverage: self.stored_head_coverage_in_snapshot(connection)?,
             runtime_embedder_available,
             runtime_unavailability_reason,
             projections,
             vector_unsupported_kinds,
-        })
+        };
+        tx.commit().map_err(|_| EngineError::Storage)?;
+        Ok(status)
     }
 
     /// Report whether this session can complete outstanding embedding work.

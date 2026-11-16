@@ -28,7 +28,7 @@ public dataclasses in ``fathomdb.types``.
 from __future__ import annotations
 
 import builtins
-from typing import TYPE_CHECKING, Any, Literal, cast
+from typing import NoReturn, TYPE_CHECKING, Any, Literal, cast
 
 from fathomdb._fathomdb import NodeRecord as _NativeNodeRecord
 from fathomdb._fathomdb import OpStoreRow as _NativeOpStoreRow
@@ -68,6 +68,8 @@ from fathomdb.types import (
     PageRequestV1,
     PageV1,
     ProjectionRuntimeStatus,
+    StoredHeadCoverageV1, StoredHeadCoverageAvailable, StoredHeadCoverageUnavailable,
+    StoredHeadCoverageProfile, StoredHeadCoverageFraction,
     EmbeddingReadiness,
     EmbeddingReadinessState,
     ProjectionRuntimeStatusEntry,
@@ -511,6 +513,98 @@ def projections(engine: "Engine") -> builtins.list[ProjectionSpec]:
     ]
 
 
+def _map_stored_head_coverage(value: Any) -> StoredHeadCoverageV1:
+    prefix = "/vector_coverage"
+
+    def invalid(path: str) -> NoReturn:
+        raise ProjectionGenerationError(
+            f"projection generation projection_generation_corrupt at {path}",
+            reason="projection_generation_corrupt", field_path=path,
+        )
+
+    missing = object()
+
+    def field(owner: Any, name: str, path: str) -> Any:
+        result = getattr(owner, name, missing)
+        if result is missing:
+            invalid(path)
+        return result
+
+    def integer(raw: Any, path: str, maximum: int) -> int:
+        if type(raw) is not int or not 0 <= raw <= maximum:
+            invalid(path)
+        return raw
+
+    if field(value, "population", prefix + "/population") != "stored_mapped_spans":
+        invalid(prefix + "/population")
+    native_profile = field(value, "profile", prefix + "/profile")
+    profile_values = {name: field(native_profile, name, prefix + "/profile/" + name)
+                      for name in ("key", "name", "revision", "dimension")}
+    if profile_values["key"] != "default":
+        invalid(prefix + "/profile/key")
+    for name in ("name", "revision"):
+        if not isinstance(profile_values[name], str) or not profile_values[name]:
+            invalid(prefix + "/profile/" + name)
+    dimension = integer(profile_values["dimension"], prefix + "/profile/dimension", 2**32 - 1)
+    if dimension == 0:
+        invalid(prefix + "/profile/dimension")
+    profile = StoredHeadCoverageProfile("default", profile_values["name"], profile_values["revision"], dimension)
+    status = field(value, "status", prefix + "/status")
+    counts = ("records", "known_records", "unknown_records", "truncated_known_records",
+              "known_body_bytes", "unrepresented_known_bytes", "unattributed_heads")
+    shares = ("truncated_known_share", "unrepresented_known_byte_share")
+    if status == "unavailable":
+        reason = field(value, "reason", prefix + "/reason")
+        if reason not in ("cache_cold", "state_changed"):
+            invalid(prefix + "/reason")
+        for name in counts + shares:
+            if getattr(value, name, None) is not None:
+                invalid(prefix + "/" + name)
+        return StoredHeadCoverageUnavailable(profile, reason)
+    if status != "available":
+        invalid(prefix + "/status")
+    if getattr(value, "reason", None) is not None:
+        invalid(prefix + "/reason")
+    numbers = {name: integer(field(value, name, prefix + "/" + name), prefix + "/" + name,
+                             2**128 - 1 if name in ("known_body_bytes", "unrepresented_known_bytes") else 2**63 - 1)
+               for name in counts}
+    if numbers["records"] != numbers["known_records"] + numbers["unknown_records"]:
+        invalid(prefix + "/records")
+    if numbers["truncated_known_records"] > numbers["known_records"]:
+        invalid(prefix + "/truncated_known_records")
+    if numbers["unrepresented_known_bytes"] > numbers["known_body_bytes"]:
+        invalid(prefix + "/unrepresented_known_bytes")
+
+    def fraction(name: str, numerator: int, denominator: int) -> StoredHeadCoverageFraction | None:
+        raw = field(value, name, prefix + "/" + name)
+        path = prefix + "/" + name
+        if denominator == 0:
+            if raw is not None:
+                invalid(path)
+            return None
+        a = integer(field(raw, "numerator", path + "/numerator"), path + "/numerator", 2**128 - 1)
+        b = integer(field(raw, "denominator", path + "/denominator"), path + "/denominator", 2**128 - 1)
+        if a != numerator:
+            invalid(path + "/numerator")
+        if b != denominator:
+            invalid(path + "/denominator")
+        return StoredHeadCoverageFraction(a, b)
+
+    return StoredHeadCoverageAvailable(
+        profile=profile,
+        records=numbers["records"],
+        known_records=numbers["known_records"],
+        unknown_records=numbers["unknown_records"],
+        truncated_known_records=numbers["truncated_known_records"],
+        known_body_bytes=numbers["known_body_bytes"],
+        unrepresented_known_bytes=numbers["unrepresented_known_bytes"],
+        unattributed_heads=numbers["unattributed_heads"],
+
+        truncated_known_share=fraction("truncated_known_share", numbers["truncated_known_records"], numbers["known_records"]),
+        unrepresented_known_byte_share=fraction("unrepresented_known_byte_share", numbers["unrepresented_known_bytes"], numbers["known_body_bytes"]),
+    )
+
+
 def projection_status(engine: "Engine") -> ProjectionRuntimeStatus:
     """Return current dense-runtime facts for declared projections.
 
@@ -534,6 +628,7 @@ def projection_status(engine: "Engine") -> ProjectionRuntimeStatus:
             for entry in status.projections
         ),
         vector_unsupported_kinds=tuple(status.vector_unsupported_kinds),
+        vector_coverage=_map_stored_head_coverage(status.vector_coverage),
     )
 
 

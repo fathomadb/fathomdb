@@ -148,9 +148,145 @@ pub struct EmbeddingReadinessOut {
     pub affected_kinds: Vec<String>,
 }
 
+/// The only reported mapped-span population.
+#[derive(Clone, Copy, Debug, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum CoveragePopulationOut {
+    /// Attributable stored mapped heads, independent of live eligibility.
+    StoredMappedSpans,
+}
+
+/// Availability reasons are distinct from typed metadata failures.
+#[derive(Clone, Copy, Debug, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum CoverageUnavailableReasonOut {
+    /// No committed seed exists in this engine.
+    CacheCold,
+    /// Current writer token differs from the committed seed.
+    StateChanged,
+}
+
+/// Stored default profile identity; its dimension is numeric.
+#[derive(Clone, Debug, Serialize, JsonSchema)]
+pub struct CoverageProfileOut {
+    pub key: String,
+    pub name: String,
+    pub revision: String,
+    pub dimension: u32,
+}
+
+/// Exact unreduced fraction carried as canonical decimal strings.
+#[derive(Clone, Debug, Serialize, JsonSchema)]
+pub struct CoverageFractionOut {
+    #[schemars(regex(pattern = "^(0|[1-9][0-9]*)$"))]
+    pub numerator: String,
+    #[schemars(regex(pattern = "^[1-9][0-9]*$"))]
+    pub denominator: String,
+}
+
+/// Required nullable exact share.
+#[derive(Clone, Debug, Serialize, JsonSchema)]
+#[serde(untagged)]
+pub enum NullableCoverageFraction {
+    /// Exact share with positive denominator.
+    Value(CoverageFractionOut),
+    /// No known denominator.
+    Null(()),
+}
+
+impl From<&Option<fathomdb_sdk::StoredHeadCoverageFraction>> for NullableCoverageFraction {
+    fn from(value: &Option<fathomdb_sdk::StoredHeadCoverageFraction>) -> Self {
+        value.as_ref().map_or(Self::Null(()), |value| {
+            Self::Value(CoverageFractionOut {
+                numerator: value.numerator.to_string(),
+                denominator: value.denominator.to_string(),
+            })
+        })
+    }
+}
+
+/// Exact committed counts; decimal transport avoids JSON integer rounding.
+#[derive(Clone, Debug, Serialize, JsonSchema)]
+pub struct CoverageCountsOut {
+    #[schemars(regex(pattern = "^(0|[1-9][0-9]*)$"))]
+    pub records: String,
+    #[schemars(regex(pattern = "^(0|[1-9][0-9]*)$"))]
+    pub known_records: String,
+    #[schemars(regex(pattern = "^(0|[1-9][0-9]*)$"))]
+    pub unknown_records: String,
+    #[schemars(regex(pattern = "^(0|[1-9][0-9]*)$"))]
+    pub truncated_known_records: String,
+    #[schemars(regex(pattern = "^(0|[1-9][0-9]*)$"))]
+    pub known_body_bytes: String,
+    #[schemars(regex(pattern = "^(0|[1-9][0-9]*)$"))]
+    pub unrepresented_known_bytes: String,
+    #[schemars(regex(pattern = "^(0|[1-9][0-9]*)$"))]
+    pub unattributed_heads: String,
+    pub truncated_known_share: NullableCoverageFraction,
+    pub unrepresented_known_byte_share: NullableCoverageFraction,
+}
+
+/// Truthful stored mapped-span population and committed-cache availability.
+#[derive(Clone, Debug, Serialize, JsonSchema)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum CoverageOut {
+    /// Matching committed writer capture.
+    Available {
+        population: CoveragePopulationOut,
+        profile: CoverageProfileOut,
+        #[serde(flatten)]
+        counts: Box<CoverageCountsOut>,
+    },
+    /// No matching committed counts.
+    Unavailable {
+        population: CoveragePopulationOut,
+        profile: CoverageProfileOut,
+        reason: CoverageUnavailableReasonOut,
+    },
+}
+
+impl From<&fathomdb_sdk::StoredHeadCoverageV1> for CoverageOut {
+    fn from(value: &fathomdb_sdk::StoredHeadCoverageV1) -> Self {
+        use fathomdb_sdk::{StoredHeadCoverageUnavailableReason as R, StoredHeadCoverageV1 as C};
+        let profile = |p: &fathomdb_sdk::StoredHeadCoverageProfile| CoverageProfileOut {
+            key: p.key.clone(),
+            name: p.name.clone(),
+            revision: p.revision.clone(),
+            dimension: p.dimension,
+        };
+        match value {
+            C::Available { profile: p, counts: c, .. } => Self::Available {
+                population: CoveragePopulationOut::StoredMappedSpans,
+                profile: profile(p),
+                counts: Box::new(CoverageCountsOut {
+                    records: c.records.to_string(),
+                    known_records: c.known_records.to_string(),
+                    unknown_records: c.unknown_records.to_string(),
+                    truncated_known_records: c.truncated_known_records.to_string(),
+                    known_body_bytes: c.known_body_bytes.to_string(),
+                    unrepresented_known_bytes: c.unrepresented_known_bytes.to_string(),
+                    unattributed_heads: c.unattributed_heads.to_string(),
+                    truncated_known_share: (&c.truncated_known_share).into(),
+                    unrepresented_known_byte_share: (&c.unrepresented_known_byte_share).into(),
+                }),
+            },
+            C::Unavailable { profile: p, reason, .. } => Self::Unavailable {
+                population: CoveragePopulationOut::StoredMappedSpans,
+                profile: profile(p),
+                reason: match reason {
+                    R::CacheCold => CoverageUnavailableReasonOut::CacheCold,
+                    R::StateChanged => CoverageUnavailableReasonOut::StateChanged,
+                },
+            },
+        }
+    }
+}
+
 /// `orient` result.
 #[derive(Clone, Debug, Serialize, JsonSchema)]
 pub struct OrientOutput {
+    /// Stored mapped-head coverage, exactly once outside projection_status.
+    pub vector_coverage: CoverageOut,
     #[serde(flatten)]
     pub envelope: Envelope,
     pub projections: Vec<ProjectionRow>,

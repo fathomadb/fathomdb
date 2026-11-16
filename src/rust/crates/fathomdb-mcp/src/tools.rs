@@ -24,9 +24,9 @@ use crate::error::ToolError;
 use crate::hints::{self, SearchPageFacts, SearchPlan};
 use crate::hooks::Hooks;
 use crate::output::{
-    Budget, Degradation, EmbeddingReadinessOut, Envelope, ExpandOutput, ExplanationOut,
-    FeedbackOutput, FeedbackStatus, FetchItem, FetchOutput, Hit, ListStoresOutput, ModeWord,
-    NotRecordedReason, OrientOutput, PerHitOut, ProjectionDenseRow, ProjectionRow,
+    Budget, CoverageOut, Degradation, EmbeddingReadinessOut, Envelope, ExpandOutput,
+    ExplanationOut, FeedbackOutput, FeedbackStatus, FetchItem, FetchOutput, Hit, ListStoresOutput,
+    ModeWord, NotRecordedReason, OrientOutput, PerHitOut, ProjectionDenseRow, ProjectionRow,
     ProjectionStatusOut, Readiness, RecordOut, SearchOutput, StoreRow, Target, TraceOut,
     Unavailable, UnavailableWord, UseStoreOutput,
 };
@@ -501,6 +501,7 @@ pub(crate) async fn use_store(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> O
 }
 
 struct OrientRead {
+    vector_coverage: CoverageOut,
     projections: Vec<ProjectionRow>,
     status: ProjectionStatusOut,
     readiness: EmbeddingReadinessOut,
@@ -562,6 +563,10 @@ fn render_orient(output: &OrientOutput) -> String {
         serde_json::to_string(&output.projection_status.vector_unsupported_kinds)
             .expect("strings serialize")
     ));
+    text.push_str(&format!(
+        "\ncoverage: {}",
+        serde_json::to_string(&output.vector_coverage).expect("coverage serializes")
+    ));
     text
 }
 
@@ -584,6 +589,7 @@ pub(crate) async fn orient(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
             let status = read::projection_status(engine)?;
             let readiness = read::embedding_readiness(engine)?;
             Ok(OrientRead {
+                vector_coverage: CoverageOut::from(&status.vector_coverage),
                 projections,
                 status: ProjectionStatusOut {
                     runtime_embedder_available: status.runtime_embedder_available,
@@ -612,6 +618,7 @@ pub(crate) async fn orient(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
         .await?;
     let max_tokens = ctx.shared.config.default_max_tokens;
     let output = OrientOutput {
+        vector_coverage: read.vector_coverage,
         envelope: envelope(&answered.store, answered.epoch, validity_instant, vec![], max_tokens),
         projections: read.projections,
         projection_status: read.status,
@@ -1910,6 +1917,16 @@ mod compact_render_tests {
     #[test]
     fn compact_orient_keeps_all_real_fields_and_only_approved_omissions() {
         let output = OrientOutput {
+            vector_coverage: CoverageOut::from(&fathomdb_sdk::StoredHeadCoverageV1::Unavailable {
+                population: "stored_mapped_spans",
+                profile: fathomdb_sdk::StoredHeadCoverageProfile {
+                    key: "default".into(),
+                    name: "test".into(),
+                    revision: "1".into(),
+                    dimension: 8,
+                },
+                reason: fathomdb_sdk::StoredHeadCoverageUnavailableReason::CacheCold,
+            }),
             envelope: envelope("s", 1, 0, Vec::new(), 4000),
             projections: vec![ProjectionRow {
                 name: "text".into(),

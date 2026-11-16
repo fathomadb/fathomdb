@@ -125,11 +125,12 @@ pub use fathomdb_engine::{
     RuntimeConfiguration, RuntimeConfigurationError, RuntimeSqliteMode, ScalarValue,
     SearchExpandResult, SearchFacts, SearchFilter, SearchHit, SearchResult, SoftFallback,
     SoftFallbackBranch, SourceDependencyRegistrationV1, SourceDependencyV1, SourceId,
-    SourceLocator, SourceRevisionId, SourceVersionId, StructuralDegradationCodeV1,
-    StructuralDependencyStateV1, StructuralInclusionStateV1, StructuralInclusionV1,
-    StructuralLifecycleStateV1, StructuralProjectionOriginV1, TraceArtifactClassV1,
-    TraceArtifactRoleV1, TraceNodeLifecycleV1, TraceReadBoundaryV1, TraversalDirection,
-    WriteProvenanceV1, WriteReceipt,
+    SourceLocator, SourceRevisionId, SourceVersionId, StoredHeadCoverageCounts,
+    StoredHeadCoverageFraction, StoredHeadCoverageProfile, StoredHeadCoverageUnavailableReason,
+    StoredHeadCoverageV1, StructuralDegradationCodeV1, StructuralDependencyStateV1,
+    StructuralInclusionStateV1, StructuralInclusionV1, StructuralLifecycleStateV1,
+    StructuralProjectionOriginV1, TraceArtifactClassV1, TraceArtifactRoleV1, TraceNodeLifecycleV1,
+    TraceReadBoundaryV1, TraversalDirection, WriteProvenanceV1, WriteReceipt,
 };
 pub use fathomdb_engine::{
     QueryStopWords, StopWordBase, StopWordRejection, DEFAULT_STOP_WORDS_SHA256,

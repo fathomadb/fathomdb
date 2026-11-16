@@ -11,6 +11,14 @@ use crate::temporal::EDGE_TEMPORAL_EPOCH_SCHEMA_VERSION;
 use crate::vector_storage::DEFAULT_VECTOR_PROFILE;
 use crate::write_commit::load_next_cursor;
 
+type OpenLockedResult = (
+    Connection,
+    Vec<Connection>,
+    OpenReport,
+    Vec<i32>,
+    Option<crate::stored_coverage::CachedStoredHeadCoverage>,
+);
+
 struct OpenEmbedDispatchGuard(Option<Arc<EmbedDispatcher>>);
 
 impl OpenEmbedDispatchGuard {
@@ -879,7 +887,7 @@ impl Engine {
         );
 
         match open_result {
-            Ok((connection, readers, mut report, reader_lookaside_rcs)) => {
+            Ok((connection, readers, mut report, reader_lookaside_rcs, coverage_seed)) => {
                 let embedder_identity = report.default_embedder.clone();
                 // EU-5b — splice the loader's measurements + structured
                 // events into the report. The loader path is the only
@@ -1005,6 +1013,13 @@ impl Engine {
                 }
                 let scheduler_embedder =
                     if dense_runtime_usable { runtime_embedder.clone() } else { None };
+                let coverage_seed = crate::stored_coverage::retain_matching_open_seed(
+                    startup.connection(),
+                    coverage_seed,
+                )
+                .map_err(|_| EngineOpenError::Io {
+                    message: "could not validate stored-head coverage token".into(),
+                })?;
                 let projection_runtime = ProjectionRuntime::new(
                     canonical_path.clone(),
                     scheduler_embedder,
@@ -1062,6 +1077,7 @@ impl Engine {
                         read_visibility_generation: Arc::new(AtomicU64::new(
                             read_visibility_generation,
                         )),
+                        stored_head_coverage: Mutex::new(coverage_seed),
                         projection_generation_status_cache: Mutex::new(None),
                         mutation_projection_status_cache: Mutex::new(None),
                         #[cfg(feature = "test-hooks")]
@@ -1175,7 +1191,7 @@ impl Engine {
         #[cfg(any(test, feature = "test-hooks"))] managed_connections: Arc<
             ManagedConnectionRegistry,
         >,
-    ) -> Result<(Connection, Vec<Connection>, OpenReport, Vec<i32>), EngineOpenError> {
+    ) -> Result<OpenLockedResult, EngineOpenError> {
         // The product lock is already held. Never infer clean history merely
         // from empty canonical tables or a header whose old state lives in WAL.
         let fresh_database = ["", "-wal", "-journal"].iter().all(|suffix| {
@@ -1253,13 +1269,22 @@ impl Engine {
                 .map_err(|_| erasure_maintenance::policy_open_error())?;
         }
         validate_dependency_generation_on_open(&connection, migration.schema_version_after)?;
-        if migration.schema_version_after >= 35 {
-            crate::vector_spans::validate(&connection, None).map_err(|_| EngineOpenError::Io {
-                message: "vector span tuple is partial or mismatched".to_string(),
-            })?;
-        }
-        frozen_read::validate_on_open(&connection, migration.schema_version_after)
-            .map_err(|message| EngineOpenError::Io { message })?;
+        let coverage_seed = {
+            let tx = connection
+                .transaction_with_behavior(rusqlite::TransactionBehavior::Deferred)
+                .map_err(|err| map_open_sqlite_error(err, OpenStage::WalReplay))?;
+            let seed = if migration.schema_version_after >= 35 {
+                crate::stored_coverage::capture(&tx).map_err(|_| EngineOpenError::Io {
+                    message: "vector span tuple is partial or mismatched".to_string(),
+                })?
+            } else {
+                None
+            };
+            frozen_read::validate_on_open(&tx, migration.schema_version_after)
+                .map_err(|message| EngineOpenError::Io { message })?;
+            tx.commit().map_err(|err| map_open_sqlite_error(err, OpenStage::WalReplay))?;
+            seed
+        };
         dependency_closure::validate_closure_state_on_open(
             &connection,
             migration.schema_version_after,
@@ -1573,7 +1598,7 @@ impl Engine {
             readers.push(reader);
         }
 
-        Ok((connection, readers, report, lookaside_rcs))
+        Ok((connection, readers, report, lookaside_rcs, coverage_seed))
     }
 }
 

@@ -1,3 +1,4 @@
+import type { StoredHeadCoverageV1 } from "./coverage.js";
 import type { NativeEngine } from "./binding.js";
 import { intercept } from "./native-call.js";
 import { validateFfiTree } from "./validation.js";
@@ -158,6 +159,7 @@ export interface ProjectionRuntimeStatusEntry {
  * declaration has an effective `searchable→vector` arm.
  */
 export interface ProjectionRuntimeStatus {
+  vectorCoverage: StoredHeadCoverageV1;
   runtimeEmbedderAvailable: boolean;
   runtimeUnavailabilityReason: ProjectionRuntimeUnavailabilityReason;
   projections: ProjectionRuntimeStatusEntry[];

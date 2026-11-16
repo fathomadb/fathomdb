@@ -756,6 +756,7 @@ class ProjectionRuntimeStatusEntry:
     dense_readiness: ProjectionStatusDenseReadiness
 
 class ProjectionRuntimeStatus:
+    vector_coverage: Any
     runtime_embedder_available: bool
     runtime_unavailability_reason: ProjectionRuntimeUnavailabilityReason
     projections: list[ProjectionRuntimeStatusEntry]

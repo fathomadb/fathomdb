@@ -415,9 +415,99 @@ impl ProjectionRuntimeStatusEntry {
     }
 }
 
+/// Native stored default profile; dimension remains numeric.
+#[napi(object)]
+#[derive(Clone)]
+pub struct StoredHeadCoverageProfile {
+    pub key: String,
+    pub name: String,
+    pub revision: String,
+    pub dimension: u32,
+}
+
+/// Exact native unreduced share.
+#[napi(object)]
+#[derive(Clone)]
+pub struct StoredHeadCoverageFraction {
+    pub numerator: String,
+    pub denominator: String,
+}
+
+impl StoredHeadCoverageFraction {
+    fn from_rust(value: &fathomdb_engine::StoredHeadCoverageFraction) -> Self {
+        Self { numerator: value.numerator.to_string(), denominator: value.denominator.to_string() }
+    }
+}
+
+/// Native aggregate carrier; wrappers validate and select the tagged variant.
+#[napi(object)]
+#[derive(Clone)]
+pub struct StoredHeadCoverage {
+    pub status: String,
+    pub population: String,
+    pub profile: StoredHeadCoverageProfile,
+    pub reason: Option<String>,
+    pub records: Option<String>,
+    pub known_records: Option<String>,
+    pub unknown_records: Option<String>,
+    pub truncated_known_records: Option<String>,
+    pub known_body_bytes: Option<String>,
+    pub unrepresented_known_bytes: Option<String>,
+    pub unattributed_heads: Option<String>,
+    pub truncated_known_share: Option<StoredHeadCoverageFraction>,
+    pub unrepresented_known_byte_share: Option<StoredHeadCoverageFraction>,
+}
+
+impl StoredHeadCoverage {
+    fn from_rust(value: &fathomdb_engine::StoredHeadCoverageV1) -> Self {
+        use fathomdb_engine::{
+            StoredHeadCoverageUnavailableReason as R, StoredHeadCoverageV1 as C,
+        };
+        let (profile, counts, reason) = match value {
+            C::Available { profile, counts, .. } => (profile, Some(counts), None),
+            C::Unavailable { profile, reason, .. } => (
+                profile,
+                None,
+                Some(
+                    match reason {
+                        R::CacheCold => "cache_cold",
+                        R::StateChanged => "state_changed",
+                    }
+                    .to_string(),
+                ),
+            ),
+        };
+        Self {
+            status: if counts.is_some() { "available" } else { "unavailable" }.into(),
+            population: "stored_mapped_spans".into(),
+            profile: StoredHeadCoverageProfile {
+                key: profile.key.clone(),
+                name: profile.name.clone(),
+                revision: profile.revision.clone(),
+                dimension: profile.dimension,
+            },
+            reason,
+            records: counts.map(|c| c.records.to_string()),
+            known_records: counts.map(|c| c.known_records.to_string()),
+            unknown_records: counts.map(|c| c.unknown_records.to_string()),
+            truncated_known_records: counts.map(|c| c.truncated_known_records.to_string()),
+            known_body_bytes: counts.map(|c| c.known_body_bytes.to_string()),
+            unrepresented_known_bytes: counts.map(|c| c.unrepresented_known_bytes.to_string()),
+            unattributed_heads: counts.map(|c| c.unattributed_heads.to_string()),
+            truncated_known_share: counts.and_then(|c| {
+                c.truncated_known_share.as_ref().map(StoredHeadCoverageFraction::from_rust)
+            }),
+            unrepresented_known_byte_share: counts.and_then(|c| {
+                c.unrepresented_known_byte_share.as_ref().map(StoredHeadCoverageFraction::from_rust)
+            }),
+        }
+    }
+}
+
 /// A pure current view of projection runtime facts for one open engine session.
 #[napi(object)]
 pub struct ProjectionRuntimeStatus {
+    pub vector_coverage: StoredHeadCoverage,
     pub runtime_embedder_available: bool,
     /// `none` / `no_runtime` / `vector_equivalence_disabled`.
     pub runtime_unavailability_reason: String,
@@ -428,6 +518,7 @@ pub struct ProjectionRuntimeStatus {
 impl ProjectionRuntimeStatus {
     pub(crate) fn from_rust(status: &RustProjectionRuntimeStatus) -> Self {
         Self {
+            vector_coverage: StoredHeadCoverage::from_rust(&status.vector_coverage),
             runtime_embedder_available: status.runtime_embedder_available,
             runtime_unavailability_reason: status
                 .runtime_unavailability_reason

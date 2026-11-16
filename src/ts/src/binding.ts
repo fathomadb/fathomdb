@@ -255,6 +255,7 @@ export interface NativeProjectionRuntimeStatusEntry {
 
 /** Native shape before the TypeScript wrapper narrows the closed wire unions. */
 export interface NativeProjectionRuntimeStatus {
+  vectorCoverage: unknown;
   runtimeEmbedderAvailable: boolean;
   runtimeUnavailabilityReason: string;
   projections: NativeProjectionRuntimeStatusEntry[];

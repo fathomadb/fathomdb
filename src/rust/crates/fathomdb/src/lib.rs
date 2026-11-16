@@ -197,10 +197,12 @@ pub use fathomdb_engine::{
     SearchExpandResult, SearchFilter, SearchHit, SearchResult, SnippetAnchor, SnippetOptions,
     SnippetV1, SoftFallback, SoftFallbackBranch, SourceDependencyRegistrationV1,
     SourceDependencyV1, SourceId, SourceLocator, SourceRevisionId, SourceVersionId,
-    StructuralDegradationCodeV1, StructuralDependencyStateV1, StructuralInclusionStateV1,
-    StructuralInclusionV1, StructuralLifecycleStateV1, StructuralProjectionOriginV1, Subscription,
-    TraceArtifactClassV1, TraceArtifactRoleV1, TraceNodeLifecycleV1, TraceReadBoundaryV1,
-    TraversalDirection, WriteProvenanceV1, WriteReceipt,
+    StoredHeadCoverageCounts, StoredHeadCoverageFraction, StoredHeadCoverageProfile,
+    StoredHeadCoverageUnavailableReason, StoredHeadCoverageV1, StructuralDegradationCodeV1,
+    StructuralDependencyStateV1, StructuralInclusionStateV1, StructuralInclusionV1,
+    StructuralLifecycleStateV1, StructuralProjectionOriginV1, Subscription, TraceArtifactClassV1,
+    TraceArtifactRoleV1, TraceNodeLifecycleV1, TraceReadBoundaryV1, TraversalDirection,
+    WriteProvenanceV1, WriteReceipt,
 };
 pub use fathomdb_engine::{
     CudaPoolMode, CudaPoolSettingConflict, CudaPoolSettingValue, PoolSettingSource,

@@ -348,6 +348,55 @@ class ProjectionRuntimeStatusEntry:
 
 
 @dataclass(frozen=True)
+class StoredHeadCoverageProfile:
+    """Stored default embedder identity; dimension retains its numeric contract."""
+
+    key: Literal["default"]
+    name: str
+    revision: str
+    dimension: int
+
+
+@dataclass(frozen=True)
+class StoredHeadCoverageFraction:
+    """Exact unreduced share with a positive denominator."""
+
+    numerator: int
+    denominator: int
+
+
+@dataclass(frozen=True)
+class StoredHeadCoverageAvailable:
+    """Committed attributable mapped-head facts, including retained history."""
+
+    profile: StoredHeadCoverageProfile
+    records: int
+    known_records: int
+    unknown_records: int
+    truncated_known_records: int
+    known_body_bytes: int
+    unrepresented_known_bytes: int
+    unattributed_heads: int
+    truncated_known_share: StoredHeadCoverageFraction | None
+    unrepresented_known_byte_share: StoredHeadCoverageFraction | None
+    population: Literal["stored_mapped_spans"] = "stored_mapped_spans"
+    status: Literal["available"] = "available"
+
+
+@dataclass(frozen=True)
+class StoredHeadCoverageUnavailable:
+    """No matching committed capture; contains no numeric coverage facts."""
+
+    profile: StoredHeadCoverageProfile
+    reason: Literal["cache_cold", "state_changed"]
+    population: Literal["stored_mapped_spans"] = "stored_mapped_spans"
+    status: Literal["unavailable"] = "unavailable"
+
+
+StoredHeadCoverageV1 = Union[StoredHeadCoverageAvailable, StoredHeadCoverageUnavailable]
+
+
+@dataclass(frozen=True)
 class ProjectionRuntimeStatus:
     """Pure current projection-runtime facts for one open :class:`Engine`.
 
@@ -360,6 +409,7 @@ class ProjectionRuntimeStatus:
     runtime_unavailability_reason: ProjectionRuntimeUnavailabilityReason
     projections: tuple[ProjectionRuntimeStatusEntry, ...]
     vector_unsupported_kinds: tuple[str, ...]
+    vector_coverage: StoredHeadCoverageV1
 
 
 @dataclass(frozen=True)

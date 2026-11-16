@@ -441,6 +441,97 @@ impl PyProjectionRuntimeStatusEntry {
     }
 }
 
+/// Native stored default profile; dimension remains numeric.
+#[pyclass(module = "fathomdb._fathomdb", frozen, get_all, skip_from_py_object)]
+#[derive(Clone)]
+pub(super) struct PyStoredHeadCoverageProfile {
+    key: String,
+    name: String,
+    revision: String,
+    dimension: u32,
+}
+
+/// Exact native unreduced share.
+#[pyclass(module = "fathomdb._fathomdb", frozen, get_all, skip_from_py_object)]
+#[derive(Clone)]
+pub(super) struct PyStoredHeadCoverageFraction {
+    numerator: u128,
+    denominator: u128,
+}
+
+impl PyStoredHeadCoverageFraction {
+    fn from_rust(value: &fathomdb_engine::StoredHeadCoverageFraction) -> Self {
+        Self { numerator: value.numerator, denominator: value.denominator }
+    }
+}
+
+/// Native aggregate carrier; wrappers validate and select the tagged variant.
+#[pyclass(module = "fathomdb._fathomdb", frozen, get_all, skip_from_py_object)]
+#[derive(Clone)]
+pub(super) struct PyStoredHeadCoverage {
+    status: String,
+    population: String,
+    profile: PyStoredHeadCoverageProfile,
+    reason: Option<String>,
+    records: Option<u64>,
+    known_records: Option<u64>,
+    unknown_records: Option<u64>,
+    truncated_known_records: Option<u64>,
+    known_body_bytes: Option<u128>,
+    unrepresented_known_bytes: Option<u128>,
+    unattributed_heads: Option<u64>,
+    truncated_known_share: Option<PyStoredHeadCoverageFraction>,
+    unrepresented_known_byte_share: Option<PyStoredHeadCoverageFraction>,
+}
+
+impl PyStoredHeadCoverage {
+    fn from_rust(value: &fathomdb_engine::StoredHeadCoverageV1) -> Self {
+        use fathomdb_engine::{
+            StoredHeadCoverageUnavailableReason as R, StoredHeadCoverageV1 as C,
+        };
+        let (profile, counts, reason) = match value {
+            C::Available { profile, counts, .. } => (profile, Some(counts), None),
+            C::Unavailable { profile, reason, .. } => (
+                profile,
+                None,
+                Some(
+                    match reason {
+                        R::CacheCold => "cache_cold",
+                        R::StateChanged => "state_changed",
+                    }
+                    .to_string(),
+                ),
+            ),
+        };
+        Self {
+            status: if counts.is_some() { "available" } else { "unavailable" }.into(),
+            population: "stored_mapped_spans".into(),
+            profile: PyStoredHeadCoverageProfile {
+                key: profile.key.clone(),
+                name: profile.name.clone(),
+                revision: profile.revision.clone(),
+                dimension: profile.dimension,
+            },
+            reason,
+            records: counts.map(|c| c.records),
+            known_records: counts.map(|c| c.known_records),
+            unknown_records: counts.map(|c| c.unknown_records),
+            truncated_known_records: counts.map(|c| c.truncated_known_records),
+            known_body_bytes: counts.map(|c| c.known_body_bytes),
+            unrepresented_known_bytes: counts.map(|c| c.unrepresented_known_bytes),
+            unattributed_heads: counts.map(|c| c.unattributed_heads),
+            truncated_known_share: counts.and_then(|c| {
+                c.truncated_known_share.as_ref().map(PyStoredHeadCoverageFraction::from_rust)
+            }),
+            unrepresented_known_byte_share: counts.and_then(|c| {
+                c.unrepresented_known_byte_share
+                    .as_ref()
+                    .map(PyStoredHeadCoverageFraction::from_rust)
+            }),
+        }
+    }
+}
+
 /// The Python-native form of the pure projection-runtime status facade.
 #[pyclass(
     module = "fathomdb._fathomdb",
@@ -451,6 +542,7 @@ impl PyProjectionRuntimeStatusEntry {
 )]
 #[derive(Clone)]
 pub(super) struct PyProjectionRuntimeStatus {
+    vector_coverage: PyStoredHeadCoverage,
     runtime_embedder_available: bool,
     runtime_unavailability_reason: String,
     projections: Vec<PyProjectionRuntimeStatusEntry>,
@@ -460,6 +552,7 @@ pub(super) struct PyProjectionRuntimeStatus {
 impl PyProjectionRuntimeStatus {
     pub(super) fn from_rust(status: &RustProjectionRuntimeStatus) -> Self {
         Self {
+            vector_coverage: PyStoredHeadCoverage::from_rust(&status.vector_coverage),
             runtime_embedder_available: status.runtime_embedder_available,
             runtime_unavailability_reason: status
                 .runtime_unavailability_reason

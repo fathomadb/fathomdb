@@ -1,3 +1,4 @@
+import { decodeStoredHeadCoverage } from "./coverage.js";
 // The governed `read.*` namespace (Slice 30 — G2 / G3; Slice 35 — G4).
 //
 // Per `dev/adr/ADR-0.8.0-supersede-five-verb-surface-cap.md` (B1 `read.*`), this
@@ -215,6 +216,7 @@ function toOpStoreRow(n: NativeOpStoreRow): OpStoreRow {
 
 function toProjectionRuntimeStatus(n: NativeProjectionRuntimeStatus): ProjectionRuntimeStatus {
   return {
+    vectorCoverage: decodeStoredHeadCoverage(n.vectorCoverage),
     runtimeEmbedderAvailable: n.runtimeEmbedderAvailable,
     runtimeUnavailabilityReason: n.runtimeUnavailabilityReason as ProjectionRuntimeStatus["runtimeUnavailabilityReason"],
     projections: n.projections.map((entry) => ({

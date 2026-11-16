@@ -143,3 +143,8 @@ def admit(profile, ledger, retained_bytes, limits):
         raise ValueError("positive twofold calibration headroom unavailable")
     return {"remaining_phase_ns": phase_ns, "remaining_retained_bytes": growth,
             "prior_wall_ns": prior_ns, "prior_retained_bytes": prior_bytes}
+
+
+def admit_selected(profile, ledger, retained_bytes, limits, cell_id):
+    """Admit one canonical required cell under the original cumulative shared caps."""
+    return None

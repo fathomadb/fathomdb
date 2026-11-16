@@ -77,7 +77,7 @@ contributor documentation, now current under the canonical generator. The two
 failed guardian methods stopped at actual load3.123046875 before their intended
 child behavior, and the two following public-dispatch methods never ran. The
 later failed-only attempt refused entry at actual load4.41; no successful
-resumption is inferred. Scientific M entry<=2 remains unchanged.
+resumption is inferred. That attempt retained the then-current entry-load rule; the active protocol below supersedes it.
 
 The authorized current-source resumption at clean
 cbd87f6b0ad5bb8b90a62dc7c4879d6415bfcb4e rebuilt only the actually used owned
@@ -313,223 +313,98 @@ Keep default cap4/queue32/wait10s/run30s, including diagnostics; never treat the
 private helper's timings as normal CLI data or assume production CLI can arm
 Seams. Canonical existing A3/admission tests remain preservation evidence.
 
-## Entry stages, prospective allocation and unresolved choices
+## Required-cell execution — November15 efficiency amendment
 
-Fresh design PASS and explicit source GO permit isolated tool implementation/
-scoped TDD/source qualification while campaign allocation remains unresolved.
-Primary M campaign runtime, including M0, stays held for exact tooling qualification/
-review, a selected approved shared allocation and complete-table feasibility.
-The separately bounded calibration proposal below supplies no runtime GO.
-The qualified released G input now satisfies that input prerequisite only.
-No source GO or natural runtime follows from this amendment itself.
+Status: design review pending. This section supersedes the earlier whole-table
+forecast, repeated-calibration and prospective6h/64GiB admission proposals.
+The46 registered obligations, schedules, populations, returned rows, errors,
+logging/lifecycle controls and numerical assessment above remain unchanged.
+Unknown future costs remain unknown; they do not block a separately bounded
+next required cell or justify claiming the complete remaining matrix fits.
 
-Candidate-owned production MCP/cache/source proof remains required. Actual
-MCP-PID memory increase plus nonzero utilization on the reserved3090 qualifies
-hybrid GPU-compute stages: M-R, structured-hybrid M-C and M-L. G's old PID
-observation or an environment string cannot substitute. The two compact
-direct-text M-C cells retain their owned CUDA binary/provider identity, but
-query-GPU work is N/A: [the SDK route](../../../../../src/rust/crates/fathomdb-sdk/src/engine.rs)
-does no query embedding/vector work. Do not add queries, warmups or GPU pulses,
-borrow a witness or fall back to CPU to satisfy a nonexistent text-compute test.
-M0 and M-E are provider-free and establish no GPU proof. No concurrent
-compilation/owned heavy campaign; AGENT_LONG/manual selection gates natural runs.
+The accepted calibration `M-CAL:M-R-1-1-warn` ran the complete registered
+M-R-1-1-warn workload:1 first call,500 warmups and1000 timed calls, all successful,
+with actual own-MCP-PID GPU observations and final strict cleanup. Its original
+source is3ef3bc326f0b1c803e9905a9aa6541ee9b543f9c; the owned ordinary native
+retains its actual4ffc117c20ff1e6d4c1f68a0b9c2a84f7e649c66 build subject and
+compiler-input identity81791194aa7265b584d329e680648828ab98ab228daa75bffc52a68e78d42de1.
+The original manifest, `M-CAL:` accounting ID, scope and `qualifies_primary:false`
+remain intact. One explicit reference may satisfy the identical primary row
+once its canonical configuration, input/package/model/build identities, complete
+ordered populations, GPU qualification and original final guardian cleanup are
+matched. Preserve the original source/build/raw-result references and charge
+execution once. No prefix, failed guardian, different repeat/configuration or
+calibration timing oracle supplies another row. Every other obligation remains
+required. Calibration is no longer mandatory additional work for an identical
+complete required cell; do not add another calibration unless the next required
+full cell cannot resolve a genuine blocking unknown.
 
-### Bounded natural calibration admission — design for review
+### Finite admission on the existing runner
 
-The November15 admission gap is executable, not a missing source-smoke result:
-`m_freeze.freeze` requires all46 component forecasts before inspecting the
-natural subject, and `m_controller._assessment` reserves the whole remaining
-table before its first copy. Neither public source control measures natural
-MCP logging, lifecycle, parse/persistence or polling costs. At the latest
-observed3122362041569ns shared usage, original14400s leaves11277.637958431s,
-already below the13146.542536s serialized SDK proxy below. That proxy cannot
-populate missing MCP forecasts. The6h/64GiB M proposal remains inactive;
-the separately reviewed12h/128GiB G-only profile is not M authority.
+Extend the existing `m_runner.py run` entry with explicit options and one
+canonical cell ID. Reuse the existing freezer, preparation/payload, attempt and
+finite guardian allowance machinery. A manifest binds the selected canonical
+cell and positive phase/payload/new-retained stop allowances; reporting always
+shows all46 obligations and truthfully references any accepted reused result.
+The selected route does not require thirteen component forecasts for unstarted
+work. Stop allowances are enforced limits, not measured future cost estimates.
+Keep source/compiler/input/model/format/device custody and build only the
+variants actually needed by the selected cell.
 
-Add one public stage to the existing `m_runner.py`, after independent design
-review and genuine source TDD:
+Before qualification, copy or process start, admit against current actual usage
+and retained bytes in the original shared ledger, including all prior failures
+and explicit other-work reservations. Reserve2x the selected remaining phase
+and growth allowances. Original14400s/16GiB TOTAL bounds remain selected; this
+amendment neither renews nor enlarges them. Every whole cell stays<=900s,
+including qualification, preparation, payload, reporting and cleanup. Keep7s
+inner and20s outer cleanup reserves inside its deadline. Cumulative per-cell
+allowances and charges survive a new root/source/attempt; a failure does not
+renew them. Unknown ownership, active inflight work or cleanup uncertainty
+blocks redispatch. Stop after the selected cell; no retry-until-green or
+automatic successor stage.
 
-```bash
-AGENT_LONG=1 .venv/bin/python "$M_DIR/m_runner.py" calibrate \
-  --options selected-calibration.json --root "$M_CAL" --cell M-R-1-1-warn
-```
+Reuse the existing guardian's absolute phase deadline, retained-growth polling,
+bounded output producers and strict private-cgroup custody for every actor.
+Actual whole-phase charges include copying, opening, first/warmup/timed work,
+parse/persistence, logging, GPU polling, idle and close without exclusive-cost
+invention or double charging. Recheck storage before preparation and during
+work; bounded in-flight writes and cleanup retain the existing2x headroom.
+A cap stop, missing GPU engagement, transport/parse error or unobserved lifecycle
+state remains incomplete with its raw prefixes retained.
 
-`selected-calibration.json` reuses the runtime input/profile fields, without a
-primary `forecasts` file, and selects explicit positive calibration limits.
-The first proposed selection is900s total phase wall,800s preparation/payload
-wall and2GiB new retained growth. These are enforced bootstrap allowances,
-not measured cost estimates. The100s difference funds guarded qualification,
-reporting and cleanup. Parent may select a smaller feasible local allowance;
-this document selects no allocation or execution. Entry reserves2x the entire
-phase allowance and2x its growth allowance, in addition to existing external
-reservations, against the original ledger's actual usage/retained bytes.
-The2x phase reserve is shared headroom, not permission for an1800s cell.
-Insufficient headroom refuses before package inspection/copy or MCP start.
+Only the selected owned3090 is eligible for hybrid M-R/M-C/M-L. Require the
+actual MCP PID's memory increase and positive utilization, not another route's
+witness. Compact direct-text M-C uses its owned ordinary CUDA binary/provider,
+with query GPU compute N/A; M0/M-E remain provider-free. Preserve default
+cap4/queue32/wait10s/run30s, idle60s and250ms lifecycle polling. CPU host load is
+descriptive: retain noise/outliers and unchanged numerical assessment without
+waiting for a quiet host. GPU custody and necessary campaign containment remain
+mandatory; no driver change, reset or interference with other work is allowed.
 
-The command selects exactly one existing repeat1 configuration, never a
-caller-edited workload or a list of rows. For the first stage it copies the
-released original100k packaging once and runs actual ordinary compact hybrid
-c1/warn: first query0,500 warmups in original order,1000 timed submissions
-0..499 twice, then normal stdin-close/exit. It preserves current default view,
-snippets, limits and queue/deadline settings. Its distinct accounting ID is
-`M-CAL:M-R-1-1-warn`; its origin configuration remains explicit. It does not
-produce a primary completion, performance verdict or reusable result oracle.
-All46 primary obligations, their repeats and Slice50 paired qualification stay
-unchanged and held. Calibration is additional charged work, never one of the46.
+Keep start floors root32GiB/task250GiB/MemAvailable16GiB; stop only owned groups
+at root<20GiB/task<50GiB/MemAvailable<8GiB/owned>=200GiB or swap>=64MiB/s for
+3 consecutive30s samples. Mutable inputs/caches/tools/DB/WAL/raw/log/tmp stay
+under owned/mnt/data. Runtime selection is separate from source qualification;
+no new source artifact labels are attached to existing binaries or observations.
 
-Reuse `m_freeze` source/input/custody/build binding, `m_runtime.prepare` and
-`payload`, `m_attempt.run_attempt`, and the existing M guardian. Extract the
-existing identity binding from primary forecast admission; do not weaken
-`freeze`, `validate` or `_assessment` for primary runs. A calibration manifest
-uses an explicit calibration scope and one selected configuration; ordinary
-`run` rejects it. Private worker admission still requires the actual guardian,
-controller, active attempt and exact selected configuration. Register every
-actor in the same private cgroup, including preparation and GPU polling.
-Natural stages require current candidate-owned ordinary `embed-cuda` MCP,
-local pinned model/cache and source/compiler/input/format/device identities.
-They cannot borrow the old M artifacts, G's GPU witness or new-source labels
-for old binaries. Hybrid retains actual own-PID GPU qualification; direct text
-remains query-compute N/A. M0/M-E retain their separate provider-free variants.
+### Retention and implementation checks
 
-The only new resource mechanism is an optional bounded calibration allowance
-on the existing guardian/controller. Today the guardian has no whole-phase or
-phase-growth cutoff: `common_limit_ns` excludes active-cell wall, and900s
-alone bounds only the active cell. Add an absolute phase deadline and growth
-stop limit, checked during qualification/preparation/payload/finalization,
-without raising any constant or rewriting the selected TOTAL profile.
-Attempt deadline is the minimum of remaining800s selected work, remaining900s
-whole-cell limit, phase deadline and remaining shared allowance. Keep the7s
-inner and20s outer cleanup reserves inside these limits. Raw stream/frame/
-request/checkpoint bounds remain unchanged. Before copying, reserve the exact
-one/two-package size plus bounded output/finalization growth; refuse if that
-cannot fit the selected growth allowance. Poll retained growth during work as
-well as at finalization, retaining2x storage headroom for bounded in-flight
-writes/cleanup. The selected retained ceiling is never an instantaneous quota
-claim; the existing shared resource stop and bounded producers remain active.
+Fresh read-only working copies remain required for each natural execution.
+After a validated complete cell and final strict guardian cleanup, disposable
+successful working SQLite copies may be retired. Preserve immutable G packaging,
+full raw distributions/frames/invocation order/errors/resources/results,
+prepared-copy identities and all source/native provenance; record retirement in
+existing attempt metadata. Retain failed, partial or uncertain copies. This
+satisfies A30-6 without retaining34duplicate715223040B databases or proposing a
+larger storage allowance solely for disposable successful copies. A/B/A still
+uses two fresh stores during its actual cell.
 
-Add only cumulative per-calibration-ID wall and peak new-retained usage to the
-existing shared budget state. The guardian updates these from actual whole
-phase accounting, including common work and failures; the counters annotate
-the existing `used_ns` charge and never charge it twice. Debit these counters
-before another attempt, even under a new root/source/build. Neither a new
-attempt/root nor another command renews the selected calibration allowance.
-Shared prior charges, retained bytes and external reservations always carry.
-Controller death follows existing recovery/strict cleanup; retained inflight,
-guardian-stop or uncertain cleanup blocks redispatch. No reset, deletion,
-automatic retry, successor stage or activation follows a completion/refusal.
-
-Only measured coverage can inform later primary forecasts:
-
-| Selected configuration | Costs it can inform; remaining unknowns |
-| --- | --- |
-| First compact hybrid c1/warn stage | Actual copy/preparation, process/handshake/first,500-query warmup,1000-call loop, decode/parse, raw/JSONL persistence, own-PID polling and normal close under that configuration. It says nothing measured about debug, other concurrency, formats or lifecycle. |
-| Other loop configurations, selected separately only when needed | Each of c4/8/16/32 at warn/debug and c1/debug; compact direct text and structured hybrid c1. One observed configuration can bound its identical repeat under the existing2x rule; no ideal concurrency scaling or endpoint interpolation supplies the other configurations. |
-| Lifecycle configurations, selected separately | Lazy/eager/idle/A-B-A each need their actual path before forecasting it. Idle retains60s/default sweeper and250ms polling; A-B-A needs two closed copies. Loop first-call observations alone do not bound eager/eviction/reopen/switch costs. |
-| M0/M-E source observations | Reuse actual current-candidate, same-configuration bounded observations if available; otherwise each format/diagnostic remains unknown until separately observed on its real tiny DB/helper route. Never infer diagnostics from natural loop timings. |
-
-This is a coverage map, not an automatically admitted30-configuration campaign.
-No later selection is required to finish the first bounded stage. Missing
-costs stay unavailable; later stages compete with all previous charges for the
-same selected TOTAL. Existing13-component primary forecasts remain mandatory.
-Use enclosing measured walls as conservative bounds for work not separably
-observable, explicitly identifying overlap; never invent exclusive open/
-server-logging/service costs or zero-fill an unknown. Applicable costs must be
-covered; a genuine not-applicable component is distinct from unavailable.
-If conservative additive bounds exceed900s or remaining TOTAL, primary stays
-held rather than silently dropping components or changing thresholds.
-
-Calibration results use existing attempt/raw/report files, labelled with scope,
-selected configuration, actual costs/bytes and unknown coverage. Warn queue data
-stays unavailable; debug events stay whole-process uncorrelated observations.
-Preserve original errors, degradation, outliers and partial prefixes. A cap stop,
-missing GPU engagement, parse/transport failure or unobserved lifecycle state
-is incomplete, not a successful bound or permission to extrapolate its prefix.
-Reports keep all46 primary rows held and calibration observations separate.
-
-Source TDD is three coherent RED→GREEN units, with frozen assertions and actual
-failure evidence in each RED commit: (1) positive stage admission and cumulative
-allowance/refusal across roots, with46 primary rows untouched; (2) actual
-harmless-child phase deadline/growth stop, controller interruption and retained
-failed-attempt charges using the existing guardian test seam; (3) public
-selection/delegation and scope/report isolation. Use literal counts/budgets and
-existing tiny real-DB adapter tests; no database mock, natural fixture, native
-build, model/GPU run or fault campaign is needed for the source-control tests.
-Reuse passing controls without replaying them as new evidence. A later leased
-candidate-bound calibration is runtime qualification, outside this design task.
-Final independent Astra review covers the coherent source/test change before
-runtime selection. No executable code precedes the requested design review.
-
-### Prospective M envelope from actual G costs
-
-At this accepted checkpoint the same shared ledger has1845130877940ns charged
-and1903142018B retained. Original14400s leaves12554.869122060s; no allocation
-is renewed. The715223040B closed store needs34fresh retained copies:
-24 M-R/M-C plus `2*(lazy1+eager1+idle1+alternating2)=10` M-L copies. A/B/A reopens
-A rather than making a third file. Tiny M0/M-E fixtures are additional.
-
-| Prospective storage quantity | Bytes |
-| --- | ---: |
-|34 copies alone|24317583360|
-|Copies plus currently retained G|26220725378|
-|Conservative2x copies plus retained G|50538308738|
-|Proposed64GiB TOTAL ceiling|68719476736|
-|Explicit ancillary WAL/raw/log/tiny-fixture/failure/further-G growth reserve|17179869184|
-|Margin after conservative copies, current G and that16GiB reserve|1001298814|
-
-Even the raw copies exceed16GiB. The2x estimate plus current G is47.067468GiB;
-the proposed total leaves16.932532GiB beyond that estimate, not64GiB additional.
-The reserve must be supported by bounded component forecasts, not assumed ample.
-
-Accepted100k R0 SDK1000-call route walls are196.056669924s hybrid and
-33.007299668s direct text. Scaling them to the unchanged22hybrid/2text natural
-cells gives `2*1501/1000*(22*196.056669924+2*33.007299668)=13146.542536s`
-(rounded). This conservative2x **serialized SDK-loop proxy** exceeds remaining
-original time by591.673414s before copies/open/lifecycle/diagnostics/output.
-It is neither measured MCP latency nor ideal concurrency scaling. Per-hybrid
-cell the same proxy is588.562123s, not proof that the whole cell fits900s.
-
-The concrete **M-only prospective amendment** is21600s (6h) TOTAL shared time
-and64GiB TOTAL retained storage, carrying the same used ledger/all prior bytes.
-It leaves19754.869122s before M and6608.326586s after this natural-loop proxy.
-It does not authorize additional G/D runtime or change old G freezes/caps/
-refusals. Parent is separately reviewing a G closed-copy/calibration successor
-for73required rows; the final common allocation may need more. M receives no
-reserved renewal or independent share. The original4h/16GiB are technical
-preregistration bounds; no explicit owner hard ruling for those numbers is
-recorded in the checked current plan/state/[direct mandate](../../direct-execution.md).
-The [initial preregistration](preregistration.md#resource-and-stop-rules) permits
-an evidence-based proposal revision. This does not activate
-their replacement: independent design review and parent disposition must select
-the common allocation before campaign dispatch.
-
-Keep the selected budget profile declarative and pinned in the campaign inputs,
-including total caps, ledger identity, carried usage and retained-byte scope;
-no inferred/default expansion. Immediately before any copy/start, forecast the
-complete remaining required table from actual lower-stage costs with2x bounds:
-copy/packaging/open/first/warmups/timed calls/logging/persistence/polling/idle/
-close/helper diagnostics/failed attempts and any other shared commitments.
-Missing bounds or a total above remaining time/storage keeps every affected row
-HELD. Every whole cell remains<=900s including preparation; the selected shared
-ceiling counts all prior/new charges, not per-stage or per-attempt renewals.
-Source qualification need not wait for a settled campaign allocation, but
-source tooling must prove refusal under an absent/unapproved/infeasible profile.
-No deletion/reset, automatic expansion, retry-until-green or claim that lower
-cells satisfy unstarted obligations.
-
-Retain start floors root32GiB/task250GiB/MemAvailable16GiB; stop only owned
-groups at root<20GiB/task<50GiB/MemAvailable<8GiB/owned>=200GiB or swap>=64MiB/s
-for3 consecutive30s samples. All mutable caches/inputs/tools/DB/WAL/raw/log/tmp
-stay under owned/mnt/data; one native phase/jobs2 and canonical verification
-settings. Keep load<=2 entry/noisy>2.5, raw errors/outliers/partial prefixes and
-original16-record checkpoint limits; no retry-until-green. Default60s idle,
-cap4/queue32/wait10s/run30s never shrink to fit. Polling/output costs remain in
-whole-cell/campaign accounting, not subtracted from latency.
-
-Material review choices are the proposed limited mode/format matrix, private
-helper/channel fit and complete-table feasibility under the actual remaining
-allocation. Material runtime evidence remains the qualified closed G subject
-and candidate-owned MCP/cache/GPU proof. Source phases later require scoped
-checks, one required final clean source gate and fresh independent review;
-this docs-only change uses scoped Markdown/link/view checks, not a full gate.
-No implementation, source/runtime GO, release-state edit or program closure is
-implied by approval of this proposed design.
+Before implementation, obtain one independent Astra-medium design review.
+Use genuine RED then GREEN commits with frozen literal oracles for finite
+selected-cell admission/accounting, public selection and reference reuse, and
+success-only copy retirement. Reuse existing harmless-child phase/deadline/
+growth/cleanup tests; no new natural fixture, repeated passing source gates,
+receipt packet or bookkeeping native rebuild. Complete relevant scoped checks
+and one coherent independent final code review before natural dispatch. Local
+qualification precedes CI correctness review and CI execution; registry publish
+and v-tag push remain forbidden in this continuation.

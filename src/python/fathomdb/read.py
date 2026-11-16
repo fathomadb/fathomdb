@@ -538,6 +538,8 @@ def _map_stored_head_coverage(value: Any) -> StoredHeadCoverageV1:
     if field(value, "population", prefix + "/population") != "stored_mapped_spans":
         invalid(prefix + "/population")
     native_profile = field(value, "profile", prefix + "/profile")
+    if native_profile is None:
+        invalid(prefix + "/profile")
     profile_values = {name: field(native_profile, name, prefix + "/profile/" + name)
                       for name in ("key", "name", "revision", "dimension")}
     if profile_values["key"] != "default":
@@ -582,6 +584,8 @@ def _map_stored_head_coverage(value: Any) -> StoredHeadCoverageV1:
             if raw is not None:
                 invalid(path)
             return None
+        if raw is None:
+            invalid(path)
         a = integer(field(raw, "numerator", path + "/numerator"), path + "/numerator", 2**128 - 1)
         b = integer(field(raw, "denominator", path + "/denominator"), path + "/denominator", 2**128 - 1)
         if a != numerator:

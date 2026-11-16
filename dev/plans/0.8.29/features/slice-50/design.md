@@ -413,6 +413,35 @@ input/native/source eligibility and strict cleanup remain. Unknown future costs
 stay unavailable. No complete-future-table observation prerequisite is retained:
 it was circular before first primary execution.
 
+Prospective continuation adds `pair-run ROOT --selection FILE` for an existing
+primary campaign. The explicit `slice50-pair-selection/v1` document binds `root`
+and `manifest_uuid`, an approved `profile` on the same original ledger, positive
+`primary_limits` (`pairs`, `phase_ns`, `pair_ns`, `new_retained_bytes`, `common_ns`,
+`common_bytes`) and boolean `retire_complete_copies`; selected G work may additionally
+bind qualified `g_donors`, `model_cache`, `gpu_uuid` and `gpu_ordinal` without
+requiring those inputs for P. Under the existing exclusive ledger lock and outer
+guardian, validate exact campaign/native/input eligibility, fresh actual cumulative
+charges/retained bytes/reservations and finite selected fit; any active or uncertain
+G/M/D/S50 owner refuses adoption. Retain the immutable original manifest/profile,
+append each accepted selection to the existing invocation history, and report the
+actual selection/controller revision with its guardian; never rewrite old outcomes,
+renew cumulative member usage, replay credited successes or turn an old cap/failure
+into qualification. Python-only controller revisions may continue the original
+native source/build/features/lock binding only with identical compiler inputs and
+artifacts, retaining both source identities rather than retagging the binary. The
+prospective common technical ceiling is48h TOTAL/192GiB TOTAL across the unchanged
+original shared ledger, including all prior study/common/failure charges; actual
+adoption values require explicit selection after current work is strictly terminal
+and capacity is checked, not automatic expansion. Keep the900s cumulative member/
+1800s pair maxima,200GiB owned-data ceiling, disk/memory/swap floors, GPU exclusion
+and study/lower-dependency qualification; M/D contracts remain independently bounded.
+Unknown future cost stays unavailable, without an all-future-fit or calibration
+prerequisite; all68 ordinary/12 diagnostic pairs remain required. Selected retirement
+reuses final report/original-guardian credit plus required diagnostics and charged
+local cleanup; retain immutable inputs/templates/donors, raw results, failures and
+copies still needed for qualification. This amendment proposes the public adoption
+path only; it does not adopt a profile or modify the active allocation.
+
 Each invocation selects only the next required canonical pair(s), preserving
 original member/adapter/route/order/repeat/populations and all136 ordinary plus24
 diagnostic obligations. Freeze/prepare only the selected required P templates;

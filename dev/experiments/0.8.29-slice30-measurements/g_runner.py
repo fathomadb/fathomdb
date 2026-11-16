@@ -378,6 +378,23 @@ def main():
     commands = parser.add_subparsers(dest="action", required=True)
     pair_report = commands.add_parser("pair-report")
     pair_report.add_argument("root", type=Path)
+    pair_build = commands.add_parser("pair-build")
+    pair_build.add_argument("--out", type=Path, required=True)
+    for action in ("pair-freeze", "pair-calibrate"):
+        entry = commands.add_parser(action)
+        entry.add_argument("--options", type=Path, required=True)
+        entry.add_argument("--root", type=Path, required=True)
+    commands.add_parser("pair-run").add_argument("root", type=Path)
+    pair_control = commands.add_parser("_pair_control")
+    pair_control.add_argument("--operation", choices=("freeze", "calibration", "run", "report"), required=True)
+    pair_control.add_argument("--root", type=Path, required=True)
+    pair_control.add_argument("--options", type=Path)
+    pair_control.add_argument("--admission-fd", type=int, required=True)
+    pair_cell = commands.add_parser("_pair_cell")
+    pair_cell.add_argument("--root", type=Path, required=True)
+    pair_cell.add_argument("--deadline-ns", type=int, required=True)
+    pair_cell.add_argument("config", type=Path)
+    pair_cell.add_argument("attempt", type=Path)
     build = commands.add_parser("build")
     build.add_argument("--out", type=Path, required=True)
     freeze_parser = commands.add_parser("freeze")
@@ -406,7 +423,23 @@ def main():
     common.add_argument("config", type=Path)
     common.add_argument("output", type=Path)
     args = parser.parse_args()
-    if args.action == "pair-report":
+    if args.action == "pair-build":
+        from g_pair import build_tools as build_pair
+        build_pair(args.out)
+    elif args.action in ("pair-freeze", "pair-calibrate", "pair-run"):
+        from g_pair import public_entry
+        operation = {"pair-freeze":"freeze", "pair-calibrate":"calibration", "pair-run":"run"}[args.action]
+        if not public_entry(operation, args.root, getattr(args,"options",None)):
+            raise SystemExit(1)
+    elif args.action == "_pair_control":
+        from g_pair import control_entry
+        if not control_entry(args.operation,args.root,args.options,args.admission_fd):
+            raise SystemExit(1)
+    elif args.action == "_pair_cell":
+        from g_pair import payload
+        if not payload(args.root,args.config,args.attempt,args.deadline_ns)["complete"]:
+            raise SystemExit(1)
+    elif args.action == "pair-report":
         from g_pair import report as pair_summary
         print(json.dumps(pair_summary(args.root)))
     elif args.action == "build":

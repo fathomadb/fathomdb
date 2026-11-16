@@ -195,3 +195,81 @@ def qualify_step(step, cell, manifest):
         if not any(row.get('available') for row in step.get('rss_samples',[])):
             issues.append('diagnostic_rss_unavailable')
     return sorted(set(issues))
+
+
+def approved(profile, allocation):
+    """Require explicit Slice50 authority on the unchanged shared ledger and history."""
+    if (profile.get('schema') != 'slice50-pair-budget/v1' or profile.get('status') != 'APPROVED'
+            or profile.get('whole_cell_ns') != 900*10**9
+            or Path(profile.get('ledger','')).resolve() != Path(allocation).resolve()/'g-budget.json'
+            or any(type(profile.get(key)) is not int or profile[key] <= 0
+                   for key in ('total_shared_ns','total_shared_retained_bytes'))):
+        raise ValueError('approved private Slice50 profile on original shared ledger required')
+    if (any(type(profile.get(key)) is not int or profile[key] < 0
+            for key in ('reserved_other_work_ns','reserved_other_work_bytes'))
+            or profile.get('other_work_cost_status') not in ('BOUNDED','HELD_UNAVAILABLE')
+            or not isinstance(profile.get('reservation_disposition'),str)
+            or not profile['reservation_disposition'].strip()):
+        raise ValueError('explicit reviewed other-work reservations required; unknown cost is unavailable')
+
+
+def canonical_members(manifest):
+    """Admit only the exact private inventory, feature bindings and selected scope."""
+    if (manifest.get('schema') != 'slice50-paired-campaign/v1'
+            or manifest.get('scope') not in ('primary','calibration')
+            or manifest.get('plan') != plan() or manifest.get('features') != FEATURES):
+        raise ValueError('exact canonical Slice50 paired inventory and features required')
+    return (manifest['plan']['calibration'] if manifest['scope']=='calibration'
+            else manifest['plan']['primary']+manifest['plan']['diagnostics'])
+
+
+def worker_admission(manifest, cell, attempt):
+    """Require the actual owning parent and its canonical registered live attempt."""
+    from g_boundary import require_known_containment
+    from m_guard import process_start
+    require_known_containment(manifest['task'])
+    value=json.loads((Path(manifest['allocation'])/'g-budget.json').read_text())
+    owner=value.get('s50_guardian') or {}
+    active=value.get('inflight') or {}
+    if (owner.get('controller_pid') != os.getppid()
+            or owner.get('controller_start') != process_start(os.getppid())
+            or owner.get('root') != manifest['root']
+            or active.get('cell') != cell['id'] or active.get('status') is not None
+            or active.get('attempt') != str(Path(attempt).resolve())
+            or active.get('freeze_uuid') != manifest['uuid'] or cell not in canonical_members(manifest)):
+        raise RuntimeError('private pair worker lacks canonical active controller admission')
+    return owner
+
+
+def public_entry(operation, root, options=None):
+    """Dispatch public pair operations through the existing original-ledger guardian."""
+    from m_guard import guard
+    if os.environ.get('AGENT_LONG') != '1':
+        raise RuntimeError('paired campaign requires explicit AGENT_LONG=1')
+    began=time.monotonic_ns()
+    root=Path(root).resolve()
+    selected=(json.loads(Path(options).read_text()) if options else
+              json.loads((root/'manifest.json').read_text()))
+    profile=selected['profile']
+    if not isinstance(profile,dict):
+        profile=json.loads(Path(profile).read_text())
+    approved(profile,selected['allocation'])
+    calibration=selected['calibration'] if operation=='calibration' else None
+    if operation in ('freeze','calibration') and root.exists():
+        raise ValueError('fresh pair root required; cumulative allowance never renews')
+    if calibration:
+        validate_limits(calibration)
+        common=calibration['phase_ns']-calibration['payload_ns']
+    else:
+        common=selected.get('common_limit_ns')
+        if type(common) is not int or common <= 20*10**9:
+            raise ValueError('positive bounded common freeze/report/cleanup forecast required')
+    command=[sys.executable,str(TOOLS/'g_runner.py'),'_pair_control','--operation',operation,
+             '--root',str(root)]
+    if options:
+        command+=['--options',str(Path(options).resolve())]
+    outcome=guard(command,allocation=selected['allocation'],profile=profile,root=root,
+        task=os.environ['S30_TASK'],admission=True,phase='S50',calibration=calibration,
+        common_limit_ns=common,started_ns=began)
+    print(json.dumps(outcome))
+    return outcome['exit']==0 and not outcome['cleanup_uncertain']

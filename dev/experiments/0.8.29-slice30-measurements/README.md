@@ -844,6 +844,15 @@ source identities without granting credit. New roots do not renew allowances.
 Keep later `reuse_from` references unchanged until the new root actually
 qualifies with its original guardian and whole invocation cleanup.
 
+The machine-specific launcher supplies paths to the committed `m_runner.py
+supervise CELL OPTIONS ROOT --source SOURCE --task TASK --entry ENTRY` route.
+It reserves all three exclusive invocation logs before launching any service.
+Known terminal paths verify unit/cgroup cleanup, revoke credit when needed,
+and finalize cumulative accounting even when revocation raises or input binding
+never completed; an unbound failure receives no fabricated manifest or credit.
+`test_m_supervisor.py` exercises this operator route with a real harmless child
+and controlled systemd/resource boundaries, including collision-before-launch.
+
 Existing callers use `m_runner.open_invocation_log(root, kind)` for exclusive,
 root-specific service/supervisor/samples logs beside that root. Start a pipe
 log's drain after spawning its owned child, then check `log.error` after cleanup.

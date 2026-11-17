@@ -150,6 +150,7 @@ def drive_members(manifest, root, execute):
     if cells is None:
         cells = manifest['plan']['calibration'] if manifest['scope'] == 'calibration' else manifest['plan']['primary'] + manifest['plan']['diagnostics']
     rows = []
+    executed = set()
     for index, cell in enumerate(cells):
         old = previous.get(cell['id'])
         if old and old.get('complete') is True:
@@ -160,6 +161,7 @@ def drive_members(manifest, root, execute):
                         or manifest['_selection_path'] == old.get('selection')):
                     raise ValueError('failed primary member requires a fresh explicit selection')
             outcome = execute(cell, index)
+            executed.add(cell['id'])
             if old and manifest['scope'] == 'primary':
                 outcome['prior_attempts'] = [*old.get('prior_attempts', []),
                     {key: value for key, value in old.items() if key != 'prior_attempts'}]
@@ -169,6 +171,12 @@ def drive_members(manifest, root, execute):
         if manifest['scope'] == 'primary' and (outcome.get('complete') is not True
                 or outcome.get('cleanup_uncertain') or outcome.get('live_owned_pids')):
             break
+        if (manifest['scope'] == 'primary' and manifest.get('_active_members') and index % 2 == 1
+                and (manifest.get('uuid') or any(item['id'] in executed for item in cells[index-1:index+1]))):
+            from g_pair_report import comparisons
+            pair = comparisons(cells[index-1:index+1], previous)
+            if not pair or pair[0]['complete'] is not True:
+                break
     return rows
 
 
@@ -276,8 +284,8 @@ def public_entry(operation, root, options=None, *, selection=None):
     if operation == 'run' and selected.get('scope') == 'calibration':
         raise ValueError('calibration executes only through the explicit cumulative pair-calibrate command')
     if selection is not None:
-        if operation != 'run':
-            raise ValueError('prospective selection belongs only to primary pair-run')
+        if operation not in ('run', 'report'):
+            raise ValueError('prospective selection belongs only to primary pair-run or pair-report')
         from g_pair_freeze import validate
         selected = validate(root, selection=selection)
     profile=selected['profile']
@@ -312,7 +320,7 @@ def public_entry(operation, root, options=None, *, selection=None):
         task=os.environ['S30_TASK'],admission=True,phase='S50',calibration=calibration,
         common_limit_ns=common,started_ns=began,
         primary_limits=(selected.get('primary_limits') if not calibration else None))
-    if (root / 'manifest.json').exists() and (selection is None or adopted):
+    if operation != 'report' and (root / 'manifest.json').exists() and (selection is None or adopted):
         from g_pair_runtime import retire_qualified
         if adopted:
             retire_qualified(root, outcome, manifest=selected)

@@ -46,6 +46,156 @@ def clean(row):
             and row.get('cleanup_uncertain') is False and row.get('live_owned_pids') == [])
 
 
+def _natural_gw(members):
+    return bool(members) and all(cell.get('family') == 'G-W' and cell.get('kind') == 'write'
+        and cell.get('provider') == 'default' and cell.get('purpose') in ('ordinary', 'diagnostic')
+        and len(cell.get('adapters', [])) == 1 and cell.get('routes') in (['text'], ['hybrid'])
+        for cell in members)
+
+
+def _u64(value):
+    return type(value) is int and 0 <= value < 2**64
+
+
+def _natural_issues(cell, value):
+    issues = []
+    def bad(path):
+        issues.append(path)
+    def readiness(record, path, state_key='state'):
+        if not isinstance(record, dict):
+            bad(path); return
+        pending = record.get('pending_count')
+        if (not _u64(pending) or record.get('usable_embedder') is not True
+                or record.get(state_key) != ('ready' if pending == 0 else 'processing')):
+            bad(path)
+    before, after = value.get('before_workload'), value.get('after_workload')
+    for name, facts in (('before_workload', before), ('after_workload', after)):
+        if not isinstance(facts, dict):
+            bad('/'+name); continue
+        readiness(facts, '/'+name, 'readiness')
+        if (facts.get('format') != 37 or facts.get('natural_records') != cell['n']
+                or not isinstance(facts.get('generation_id'), str) or not facts['generation_id']
+                or not _u64(facts.get('generation_failed')) or facts['generation_failed'] != 0
+                or not _u64(facts.get('generation_pending'))):
+            bad('/'+name)
+    if isinstance(before, dict) and isinstance(after, dict) and before.get('generation_id') != after.get('generation_id'):
+        bad('/after_workload/generation_id')
+    samples, warmups, batches, probes = (value.get(key) for key in ('samples', 'warmups', 'batches', 'probes'))
+    if any(not isinstance(rows, list) or any(not isinstance(row, dict) for row in rows)
+           for rows in (samples, warmups, batches, probes)):
+        return sorted(set(issues+['/natural_streams']))
+    ratio, size = cell.get('searches_per_batch'), cell.get('batch_size')
+    if type(ratio) is not int or ratio <= 0 or type(size) is not int or size not in (1, 10):
+        return sorted(set(issues+['/natural_schedule']))
+    expected = (cell['samples']+ratio-1)//ratio
+    if len(batches) != expected or len(probes) != expected*size:
+        bad('/natural_cohort_population')
+    floor = 0
+    for index, row in enumerate(warmups):
+        cursor = row.get('projection_cursor')
+        if not _u64(cursor) or cursor < floor:
+            bad(f'/warmups/{index}/projection_cursor')
+        else:
+            floor = cursor
+    by_sample = {}
+    probes_by_sample = defaultdict(list)
+    for index, probe in enumerate(probes):
+        before_sample = probe.get('before_sample')
+        if type(before_sample) is not int or before_sample < 0:
+            bad(f'/probes/{index}/before_sample')
+        else:
+            probes_by_sample[before_sample].append((index, probe))
+    previous_receipt = floor
+    for index, batch in enumerate(batches):
+        path = f'/batches/{index}'
+        readiness(batch.get('adjacent_readiness'), path+'/adjacent_readiness')
+        ready = batch.get('adjacent_readiness')
+        ready = ready if isinstance(ready, dict) else {}
+        if (ready.get('available') is not True or ready.get('observation_scope')
+                != 'adjacent public readiness; not query snapshot'):
+            bad(path+'/adjacent_readiness')
+        receipt = batch.get('after_write_cursor')
+        if (not _u64(receipt) or receipt <= previous_receipt or batch.get('rows') != size
+                or batch.get('before_sample') != index*ratio or batch.get('cohort_index') != index):
+            bad(path+'/write_receipt')
+        if _u64(receipt):
+            previous_receipt = receipt
+        by_sample[index*ratio] = (index, receipt)
+    upper = None
+    for index, row in enumerate(samples):
+        if index in by_sample:
+            cohort, upper = by_sample[index]
+            group = probes_by_sample.get(index, [])
+            if len(group) != size:
+                bad(f'/probes/cohort/{cohort}')
+            for probe_index, probe in group:
+                path = f'/probes/{probe_index}'
+                if (probe.get('cohort_index') != cohort or probe.get('marker_current') is not True
+                        or not isinstance(probe.get('point_probe'), dict)
+                        or probe['point_probe'].get('current') is not True):
+                    bad(path+'/current_marker')
+                text = probe.get('text_probe')
+                cursor = text.get('projection_cursor') if isinstance(text, dict) else None
+                if not _u64(cursor) or not _u64(upper) or not floor <= cursor <= upper:
+                    bad(path+'/text_probe/projection_cursor')
+                else:
+                    floor = cursor
+        cursor = row.get('projection_cursor')
+        if not _u64(cursor) or not _u64(upper) or not floor <= cursor <= upper:
+            bad(f'/samples/{index}/projection_cursor')
+        else:
+            floor = cursor
+    return sorted(set(issues))
+
+
+def _natural_comparison(members, values):
+    """Compare results while retaining four explicitly scoped, validated observations."""
+    from g_pair import compare_results
+    paths = (('samples', ('projection_cursor',)), ('probes', ('text_probe', 'projection_cursor')),
+             ('batches', ('adjacent_readiness', 'pending_count')),
+             ('batches', ('adjacent_readiness', 'state')))
+    differences = []
+    counts = defaultdict(int)
+    for stream, fields in paths:
+        left_rows, right_rows = values[0].get(stream), values[1].get(stream)
+        if not isinstance(left_rows, list) or not isinstance(right_rows, list):
+            continue
+        for index, (left, right) in enumerate(zip(left_rows, right_rows)):
+            try:
+                for field in fields:
+                    left, right = left[field], right[field]
+            except (KeyError, TypeError):
+                continue
+            if left != right:
+                path = '/'+stream+'/'+str(index)+'/'+'/'.join(fields)
+                differences.append({'path': path, members[0]['slice50_pair_mode']: left,
+                                    members[1]['slice50_pair_mode']: right})
+                counts['/'+stream+'/*/'+'/'.join(fields)] += 1
+    projected = []
+    for value in values:
+        current = dict(value)
+        for stream, fields in paths:
+            if not isinstance(current.get(stream), list):
+                continue
+            rows = []
+            for original in current[stream]:
+                if not isinstance(original, dict):
+                    rows.append(original); continue
+                row = dict(original)
+                if len(fields) == 1:
+                    row.pop(fields[0], None)
+                elif isinstance(row.get(fields[0]), dict):
+                    row[fields[0]] = dict(row[fields[0]])
+                    row[fields[0]].pop(fields[1], None)
+                rows.append(row)
+            current[stream] = rows
+        projected.append(current)
+    issues = {cell['slice50_pair_mode']: _natural_issues(cell, value)
+              for cell, value in zip(members, values)}
+    return {'result_equal': compare_results(*projected), 'observation_differences': differences,
+            'observation_difference_counts': dict(counts), 'observation_issues': issues}
+
+
 def comparisons(cells, rows):
     """Compare every declared pair; partial/failed data remains visible and uncredited."""
     from g_pair import compare_results
@@ -57,12 +207,19 @@ def comparisons(cells, rows):
         outcomes = [rows.get(cell['id'], {}) for cell in members]
         values = [_native(row) for row in outcomes]
         equal = compare_results(*values) if all(value is not None for value in values) else None
-        complete = (all(clean(row) for row in outcomes) and equal is True
+        natural = (_natural_comparison(members, values) if _natural_gw(members)
+                   and all(value is not None for value in values) else None)
+        parity = (natural['result_equal'] and not any(natural['observation_issues'].values())
+                  if natural is not None else equal is True)
+        complete = (all(clean(row) for row in outcomes) and parity
                     and all(value.get('native_member_qualified') and calls_complete(cell, value)
                             for cell, value in zip(members, values, strict=True)))
         pairs.append({'origin_id': origin, 'purpose': purpose, 'members': [cell['id'] for cell in members],
             'equal': equal, 'complete': complete,
-            'status': 'complete' if complete else 'mismatch' if equal is False else 'incomplete',
+            'comparison_scope': 'natural_gw_results' if natural is not None else 'full_streams',
+            **(natural or {}),
+            'status': ('natural_results_complete' if natural is not None else 'complete') if complete
+                      else 'mismatch' if equal is False else 'incomplete',
             'statistics': _statistics(members, values) if complete else None})
     return pairs
 

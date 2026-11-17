@@ -788,6 +788,14 @@ cost. The public guardian
 owns qualification, preparation, dispatch, reporting and strict cleanup.
 `pair-report` reads the retained supervised report; if none exists for a frozen
 root, explicit`AGENT_LONG=1` generates it through the same bounded guardian.
+Explicit `pair-report ROOT --selection FILE` with `AGENT_LONG=1` recomputes retained
+native data through the existing bounded guardian and current-source adoption.
+It preserves the previous cached report under `results/report-history`, its final
+guardian attribution and the assessed window, and records current controller,
+original native/compiler identities and the new common/shared charge. This CPU-only
+operation writes report/history/accounting; it dispatches no native work or GPU
+probe and performs no copy retirement. Future selected `pair-run` retirement keeps
+its existing qualification and bounds. Default cached reads remain unchanged.
 A source-only report without a freeze lists every member as unrun.
 
 The existing `g_driver.run_program_step` sets `slice50_pair_mode`: `winner`
@@ -795,7 +803,20 @@ clears the private selector and `eager` sets1 in that child. Both modes use the
 same actual current artifact. Diagnostic work/RSS uses the separate observer
 artifact and never enters ordinary percentiles. Exact ordered native calls,
 record cursors/score bits/sidecars, full populations and actual closes are checked
-before pair credit. `retire_complete_copies` defaults false; when explicitly
+before pair credit. Fixed-state S50-A3 and P/read-only/unrelated diagnostic
+comparisons keep full-stream equality. Declared natural G-W ordinary and named
+cohort diagnostics instead report `comparison_scope=natural_gw_results` and
+`result_equal` separately: full-stream `equal` remains false when query projection
+cursors or adjacent readiness pending/state differ. The four exact paths retain
+both values and counts under `observation_differences` and
+`observation_difference_counts`; per-run `observation_issues` must be empty.
+Cursor bounds use each run's recorded warmups/write receipts, not adjacent
+pending. All other records remain exact; this is not fixed-state equality.
+Credit, window/next-head, stop-first and retirement use that same qualified role.
+Original failed invocation metadata and charges remain retained; no native
+reassessment follows until source acceptance. `test_pair_natural_observations.py`
+contains captured-metadata controls and independent negative semantic/validity
+cases, not native evidence. `retire_complete_copies` defaults false; when explicitly
 selected it retires only compared complete disposable copies after required
 case diagnostics and known actor quiescence. Final report and each original
 execution guardian must qualify through the published report before deletion;

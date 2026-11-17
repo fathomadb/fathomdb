@@ -194,6 +194,8 @@ def finish(manifest, rows):
     result = report(root)
     cached = root / 'results/report.json'
     result['retired_copies'] = json.loads(cached.read_text()).get('retired_copies', []) if cached.exists() else []
+    if '_reassessment' in manifest:
+        result['reassessment'] = manifest['_reassessment']
     active = [cell['id'] for cell in manifest.get('_active_members', [])]
     window = bool(active) and all(pair['complete'] for name in ('primary', 'diagnostics')
         for pair in result['comparisons'][name] if set(pair['members']).issubset(active))
@@ -286,6 +288,30 @@ def control_entry(operation, root, options, admission_fd, *, selection=None):
     if operation == 'freeze':
         return True
     if operation == 'report':
+        cached = Path(root) / 'results/report.json'
+        if selection is not None and cached.exists():
+            from g_freeze import identify
+            from g_pair_report import published_report
+            previous = json.loads(cached.read_text())
+            active = previous.get('active_members', [])
+            cells = {cell['id']: cell for name in ('primary', 'diagnostics') for cell in manifest['plan'][name]}
+            pairs = [[cell['id'] for cell in manifest['plan'][name][index:index+2]]
+                     for name in ('primary', 'diagnostics') for index in range(0, len(manifest['plan'][name]), 2)]
+            if (not isinstance(active, list) or any(not isinstance(identifier, str) for identifier in active)
+                    or len(active) != len(set(active)) or any(identifier not in cells for identifier in active)
+                    or any(active[index:index+2] not in pairs for index in range(0, len(active), 2))):
+                raise ValueError('retained report has invalid active members')
+            manifest['_active_members'] = [cells[identifier] for identifier in active]
+            previous_guardian = published_report(root).get('guardian')
+            history = cached.parent / 'report-history'
+            history.mkdir(exist_ok=True)
+            snapshot = history / f"{owner['started_monotonic_ns']}-{owner['pid']}.json"
+            with snapshot.open('xb') as stream:
+                stream.write(cached.read_bytes())
+            snapshot.chmod(0o444)
+            manifest['_reassessment'] = {'previous_report': identify(snapshot),
+                'previous_guardian': previous_guardian, 'controller_source_sha': manifest['controller_source_sha'],
+                'native_source_sha': manifest['source_sha'], 'compiler_inputs': manifest['compiler_inputs']}
         state = Path(root) / 'results/campaign-state.json'
         finish(manifest, json.loads(state.read_text()) if state.exists() else [])
         return True

@@ -382,9 +382,32 @@ cells under the observer. Existing50-query G-O observations remain their own
 limited evidence and cannot replace these P/write facts. Report diagnostic
 counts/RSS by exact origin; never merge their timing into untraced percentiles.
 
-Keep exact ordered hit fields/score bits, projection cursor, fallback/degradation/
-errors and sidecars in pair comparison. Validate each ordinary pair completely
-before credit; a mismatched/error/partial member leaves that pair incomplete.
+S50-A3 retains exact ordered hit fields/score bits, projection cursor,
+fallback/degradation/errors and sidecars at a fixed state/view/run window. Its
+same-state controls and full-stream equality oracle remain unchanged.
+
+The declared natural G-W cohort schedule above has no interbatch drain. Its
+ordinary and named governed-cohort diagnostic pairs can observe different worker
+progress in independent runs. R6 therefore reports natural result/effect parity
+separately from full equality: only sample `projection_cursor`, marker text-probe
+`projection_cursor`, and batch-adjacent readiness `pending_count`/`state` have this
+observation role. Preserve full `equal=false` and both values/counts when they
+differ; keep every other retained query, hit, receipt, marker and sidecar field
+exact. Validate each run's cursor types, monotonic authority bounded by recorded
+warmups/write receipts, generation/count boundaries and available typed readiness.
+Adjacent pending does not determine a query cursor, and an observed pending
+maximum is not a universal limit. Missing/invalid observations fail qualification.
+This natural result parity does not establish fixed-state S50-A3 equality. P,
+read-only G and unrelated diagnostics retain strict full-stream comparison.
+
+Use the same qualified comparison role for credit, window completion, next-head,
+stop-first and the existing optional retirement path. Check a completed admitted
+pair before dispatching the next; a mismatched/error/partial pair remains
+incomplete. Retire only otherwise eligible, strictly quiescent disposable copies;
+retain failed/uncredited copies, original invocation results/charges and all raw
+observations. Reassessment of retained native data requires accepted source and
+preserves its original controller/native lineage; no passing native replay is
+introduced by this reference correction.
 Use existing nearest-rank p50/p99 and paired query-cluster intervals, preserving
 repeats, errors and outliers. Work counts are actual owned conversions, with
 repeated vector/FTS materialization counted repeatedly; borrowed validation is

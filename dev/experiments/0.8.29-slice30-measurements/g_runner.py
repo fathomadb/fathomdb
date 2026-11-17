@@ -384,6 +384,7 @@ def main():
     commands = parser.add_subparsers(dest="action", required=True)
     pair_report = commands.add_parser("pair-report")
     pair_report.add_argument("root", type=Path)
+    pair_report.add_argument("--selection", type=Path)
     pair_build = commands.add_parser("pair-build")
     pair_build.add_argument("--out", type=Path, required=True)
     for action in ("pair-freeze", "pair-calibrate"):
@@ -453,7 +454,13 @@ def main():
     elif args.action == "pair-report":
         from g_pair import report as pair_summary
         cached = args.root / "results/report.json"
-        if cached.exists():
+        if args.selection is not None:
+            from g_pair import public_entry
+            if not public_entry("report", args.root, selection=args.selection):
+                raise SystemExit(1)
+            from g_pair_report import published_report
+            print(json.dumps(published_report(args.root)))
+        elif cached.exists():
             from g_pair_report import published_report
             print(json.dumps(published_report(args.root)))
         elif (args.root / "manifest.json").exists():

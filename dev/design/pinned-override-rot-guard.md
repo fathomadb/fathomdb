@@ -57,8 +57,9 @@ come, so a pin outlives its reason and silently holds the tree back.
   convention is the shape; the guard should require *a* rationale, not a
   particular prose style.
 - **R4 — the Cargo exceptions are reproducible and explicitly bounded.** The
-  only supported Cargo exceptions are two mechanisms. The root
-  `[patch.crates-io]` table holds one entry, `candle-kernels`, at the one
+  supported Cargo exceptions are the exact root/standalone-driver patch
+  cohort and same-commit source mirrors from Slice110. The root
+  `[patch.crates-io]` table retains `candle-kernels` at the one
   checker-owned coreyt/candle-fathomdb immutable revision (the fork's 0.11.0
   publication commit), replacing crates.io `candle-kernels` 0.10.2, with the
   exact `git+…?rev=…#…` `Cargo.lock` source; a missing entry, another
@@ -74,14 +75,20 @@ come, so a pin outlives its reason and silently holds the tree back.
   different URL or revision, or mixed family fails. This gate establishes
   local source qualification only. Registry publication and dependency
   normalization retain their separately authorized route. The
-  standalone SDK driver may repeat only the root patch. Any other Cargo
+  root and standalone SDK driver repeat the four exact fork registry
+  overrides and the Candle-file-source K9 override. The standalone driver
+  may repeat only that full root cohort. Any other Cargo
   `[patch]`, `[replace]`, or direct Git dependency fails as unsupported
   rather than being interpreted by a general package-ID parser; that
   includes a `libsqlite3-sys` patch, since 0.8.28 Slice 42 moved the
   workspace to the crates.io `libsqlite3-sys`. Repository
   `.cargo/config.toml` and `.cargo/config` are also fail-closed: any
-  `[patch]` table or an unparseable candidate fails, while ordinary
-  non-patch configuration remains valid.
+  `[patch]` table or an unparseable candidate fails. The exact four
+  `[source]` tables map the two logical file URLs to the owner HTTPS URLs at
+  the same full revisions; changed URLs, revisions, routing, extra keys or
+  other source replacements fail. Ordinary non-source configuration remains
+  valid. The root lock remains byte-identical; the driver lock is separately
+  reconciled by Cargo to the qualified shared closure under its own features.
 
 ## Design constraints
 
@@ -109,9 +116,11 @@ npm GitHub Advisory snapshot does not support a Rust vulnerability assertion.
 It is not a substitute for a Rust advisory scan and must never be phrased as
 "no known vulnerabilities"; changing the immutable revision requires a fresh
 human advisory review and a deliberate guard redesign.
-`cargo_fork_pins` records only that exact local graph. Owned external Cargo
-configuration supplies the four local Git overrides and the Candle-file-source
-kernel override; repository Cargo config patches remain unsupported. The
+`cargo_fork_pins` records that exact logical graph, the two governed workspace
+manifest paths and the exact source-mirror tables. Workspace manifest patches
+supply the fork/kernel overrides; repository Cargo config is source-only and
+config patches remain unsupported. HTTPS fetch availability is separate from
+offline source qualification; unpublished registry versions remain unpublished. The
 registry-only Tegra probe retains the published `0.19.10`/`0.11.0` floor and its
 published checksums; a local gate pass does not qualify those newer versions for
 that probe or for publication. `scripts/governed-

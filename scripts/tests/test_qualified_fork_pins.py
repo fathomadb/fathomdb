@@ -165,6 +165,7 @@ class PortableForkConsumption(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
         spec = importlib.util.spec_from_file_location("pin_checker", ROOT / "scripts/check-pinned-override-rot.py")
+        assert spec is not None and spec.loader is not None
         self.checker = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(self.checker)
 

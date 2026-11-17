@@ -104,6 +104,25 @@ FORK_PINS = [
     },
 ]
 
+SDK_DRIVER_MANIFEST = "experiments/sdk_drivers/rust/Cargo.toml"
+CUDARC_GIT = "file:///home/coreyt/projects/fathomdb-forks/cudarc"
+CANDLE_LOCAL_GIT = "file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb"
+CUDARC_REV = "343b04fa73f85ee78754d6ee2baa07b959cc9ccc"
+CANDLE_FORK_REV = "2ee39305a78ed1463ff913f71dcd3d45ecbfd84f"
+SOURCE_MIRRORS = {
+    "qualified-cudarc": {"git": CUDARC_GIT, "rev": CUDARC_REV, "replace-with": "cudarc-https"},
+    "cudarc-https": {"git": "https://github.com/coreyt/cudarc.git", "rev": CUDARC_REV},
+    "qualified-candle": {"git": CANDLE_LOCAL_GIT, "rev": CANDLE_FORK_REV, "replace-with": "candle-https"},
+    "candle-https": {"git": CANDLE_GIT, "rev": CANDLE_FORK_REV},
+}
+APPROVED_PATCHES = {
+    (CANDLE_MECHANISM, "candle-kernels"): (CANDLE_GIT, CANDLE_REV),
+    (f"patch.{CANDLE_LOCAL_GIT}", "candle-kernels"): (CANDLE_GIT, CANDLE_REV),
+    (CANDLE_MECHANISM, "cudarc-fathomdb"): (CUDARC_GIT, CUDARC_REV),
+    **{(CANDLE_MECHANISM, name): (CANDLE_LOCAL_GIT, CANDLE_FORK_REV)
+       for name in ("candle-core-fathomdb", "candle-nn-fathomdb", "candle-transformers-fathomdb")},
+}
+
 
 def read_json(path: Path, label: str) -> dict[str, Any]:
     try:
@@ -230,6 +249,10 @@ def validate_fork_pins(metadata: dict[str, Any]) -> None:
         raise Unverified("cargo_fork_pins.manifest must equal the checker-owned embedder manifest")
     if pins.get("pins") != FORK_PINS:
         raise Unverified("cargo_fork_pins.pins must equal the checker-owned fork pins")
+    if pins.get("source_mirrors") != SOURCE_MIRRORS:
+        raise Unverified("cargo_fork_pins.source_mirrors must equal the checker-owned same-commit mirrors")
+    if pins.get("patch_manifests") != [CANDLE_MANIFEST, SDK_DRIVER_MANIFEST]:
+        raise Unverified("cargo_fork_pins.patch_manifests must equal the checker-owned workspaces")
 
 
 def advisory_snapshot_path(root: Path, metadata: dict[str, Any]) -> Path:
@@ -343,9 +366,10 @@ def advisory_index(advisories: list[dict[str, Any]]) -> dict[str, list[dict[str,
 
 
 def cargo_config_failures(root: Path) -> list[str]:
-    """Reject repository Cargo config patches without claiming to model their keys."""
+    """Allow only the exact same-commit source mirrors and ordinary non-source config."""
     tomllib = _import_tomllib("inspect Cargo config")
     failures: list[str] = []
+    mirrors_found = False
     for relative in (Path(".cargo/config.toml"), Path(".cargo/config")):
         path = root / relative
         if not path.is_file():
@@ -357,6 +381,13 @@ def cargo_config_failures(root: Path) -> list[str]:
             continue
         if parsed.get("patch") is not None:
             failures.append(f"ungoverned Cargo config patch {relative}")
+        if "source" in parsed:
+            if relative != Path(".cargo/config.toml") or parsed["source"] != SOURCE_MIRRORS:
+                failures.append(f"unsupported Cargo source mirrors {relative}")
+            else:
+                mirrors_found = True
+    if not mirrors_found:
+        failures.append("missing approved Cargo source mirrors .cargo/config.toml")
     return failures
 
 
@@ -395,8 +426,10 @@ def cargo_governed_pins(root: Path) -> list[dict[str, str | None]]:
                 "git": None,
                 "rev": None,
                 "path": None,
+                "keys": None,
             }
             if isinstance(spec, dict):
+                pin["keys"] = ",".join(sorted(spec))
                 git = spec.get("git")
                 rev = spec.get("rev")
                 if isinstance(git, str):
@@ -473,55 +506,41 @@ def cargo_lock_sources(lockfile_path: Path) -> dict[tuple[str, str], set[str]]:
     return sources
 
 
-def sdk_driver_duplicate_patch(root: Path, pin: dict[str, str | None]) -> bool:
-    """Allow the standalone driver to repeat only the approved root sources."""
-    manifest = "experiments/sdk_drivers/rust/Cargo.toml"
-    if pin["manifest"] != manifest or pin["mechanism"] != CANDLE_MECHANISM:
-        return False
-    package = pin["package"]
-    if package in CANDLE_PACKAGES:
-        return pin["path"] is None and pin["git"] == CANDLE_GIT and pin["rev"] == CANDLE_REV
-    return False
-
-
 def validate_cargo_pins(root: Path) -> list[str]:
-    """Allow only the candle-kernels git patch and the fork pins."""
+    """Authenticate the exact two-workspace patch cohort and logical lock sources."""
     pins = cargo_governed_pins(root)
     failures = cargo_config_failures(root)
-    expected = {(CANDLE_MANIFEST, CANDLE_MECHANISM, package) for package in CANDLE_PACKAGES}
+    manifests = [CANDLE_MANIFEST]
+    if (root / SDK_DRIVER_MANIFEST).is_file():
+        manifests.append(SDK_DRIVER_MANIFEST)
+    expected = {(manifest, mechanism, package): source
+                for manifest in manifests for (mechanism, package), source in APPROVED_PATCHES.items()}
     found: set[tuple[str, str, str]] = set()
-    driver_found: set[str] = set()
     for pin in pins:
-        label = cargo_pin_label(pin)
-        if pin["manifest"] == "experiments/sdk_drivers/rust/Cargo.toml":
-            if not sdk_driver_duplicate_patch(root, pin):
-                failures.append(f"unsupported Cargo override/git source {label}")
-            elif str(pin["package"]) in driver_found:
-                failures.append(f"duplicate SDK driver Cargo patch {pin['package']}")
-            else:
-                driver_found.add(str(pin["package"]))
-            continue
         key = (str(pin["manifest"]), str(pin["mechanism"]), str(pin["package"]))
-        if key not in expected:
+        label = cargo_pin_label(pin)
+        source = expected.get(key)
+        if source is None or pin["keys"] != "git,rev":
             failures.append(f"unsupported Cargo override/git source {label}")
             continue
         if key in found:
-            failures.append(f"duplicate approved Cargo patch {pin['package']}")
+            failures.append(f"duplicate approved Cargo patch {label}")
             continue
         found.add(key)
-        git = pin["git"]
-        rev = pin["rev"]
-        if git != CANDLE_GIT:
-            failures.append(f"Candle patch {pin['package']} Git source is not the approved source")
-        if rev != CANDLE_REV:
-            failures.append(f"Candle patch {pin['package']} revision is not the approved immutable revision")
-    if (root / "experiments/sdk_drivers/rust/Cargo.toml").is_file():
-        missing = set(CANDLE_PACKAGES) - driver_found
-        for package in sorted(missing):
-            failures.append(f"missing SDK driver duplicate Cargo patch {package}")
-    for manifest, mechanism, package in sorted(expected - found):
-        failures.append(f"missing approved Candle patch {package}")
-    lock_sources = cargo_lock_sources(root / "Cargo.lock") if found else {}
+        if (pin["git"], pin["rev"]) != source:
+            if key == (CANDLE_MANIFEST, CANDLE_MECHANISM, "candle-kernels"):
+                if pin["git"] != CANDLE_GIT:
+                    failures.append("Candle patch candle-kernels Git source is not the approved source")
+                if pin["rev"] != CANDLE_REV:
+                    failures.append("Candle patch candle-kernels revision is not the approved immutable revision")
+            else:
+                failures.append(f"unsupported Cargo override/git source {label}")
+    for manifest, mechanism, package in sorted(expected.keys() - found):
+        if manifest == SDK_DRIVER_MANIFEST:
+            failures.append(f"missing SDK driver duplicate Cargo patch {package} ({mechanism})")
+        else:
+            failures.append(f"missing approved Candle patch {package} ({mechanism})")
+    lock_sources = cargo_lock_sources(root / "Cargo.lock")
     expected_source = f"git+{CANDLE_GIT}?rev={CANDLE_REV}#{CANDLE_REV}"
     for package in CANDLE_PACKAGES:
         key = (CANDLE_MANIFEST, CANDLE_MECHANISM, package)

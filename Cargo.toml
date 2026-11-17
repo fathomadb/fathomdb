@@ -73,10 +73,18 @@ fathomdb-sdk          = { path = "src/rust/crates/fathomdb-sdk",          versio
 # boundary: the fork links the CUDA runtime statically so a CPU-mode binding
 # can map on a host without libcudart, while CUDA driver discovery stays
 # dynamic (REQ-068). The selected Slice110 Candle 0.12.0 trio and cudarc
-# 0.20.0 use exact qualified local Git overrides; kernels keep this K9 source.
-# The local integration route is not a registry publication claim.
+# 0.20.0 keep their qualified logical Git IDs below; .cargo/config.toml
+# fetches same-commit HTTPS mirrors. Kernels keep this separate K9 source.
+# This repository integration is not a registry publication claim.
 #
 # Root patches apply to workspace builds only; they do not propagate to
 # downstream users of the published Rust crates.
 [patch.crates-io]
+candle-kernels = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "182ceab0547348993b6dbec4b1aed610dcc8b23f" }
+cudarc-fathomdb = { git = "file:///home/coreyt/projects/fathomdb-forks/cudarc", rev = "343b04fa73f85ee78754d6ee2baa07b959cc9ccc" }
+candle-core-fathomdb = { git = "file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb", rev = "2ee39305a78ed1463ff913f71dcd3d45ecbfd84f" }
+candle-nn-fathomdb = { git = "file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb", rev = "2ee39305a78ed1463ff913f71dcd3d45ecbfd84f" }
+candle-transformers-fathomdb = { git = "file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb", rev = "2ee39305a78ed1463ff913f71dcd3d45ecbfd84f" }
+
+[patch."file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb"]
 candle-kernels = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "182ceab0547348993b6dbec4b1aed610dcc8b23f" }

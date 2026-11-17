@@ -9,7 +9,7 @@
   },
   "scope": {
     "npm": "All root package.json overrides are governed. Each must have a matching npm_overrides record with a rationale and a complete per-pin advisory_ids mapping. R2 deliberately fails closed for any live override: npm's lockfile records the override result, not a mechanically reproducible no-override resolution.",
-    "cargo": "The root candle-kernels patch remains HTTPS K9 at 182ceab0547348993b6dbec4b1aed610dcc8b23f (0.10.2). The embedder requires cudarc-fathomdb =0.20.0 and the coherent Candle fork trio =0.12.0. cargo_fork_pins binds each lock entry to the exact accepted local Git URL and revision, once per package and without a registry checksum. This is Slice110 local qualification only; no registry publication or registry-ready normalization is claimed. Owned external Cargo configuration supplies the four exact local overrides and the Candle file-source kernel override described in dev/plans/0.8.29/features/slice-110/design.md#exact-revision-local-consumption. Any other repository [patch], [replace], or direct Git dependency is unsupported, including libsqlite3-sys. Repository .cargo/config.toml and .cargo/config reject patch tables and unparseable candidates. The root K9 patch does not propagate through a published Rust crate.",
+    "cargo": "The root candle-kernels patch remains HTTPS K9 at 182ceab0547348993b6dbec4b1aed610dcc8b23f (0.10.2). The embedder requires cudarc-fathomdb =0.20.0 and the coherent Candle fork trio =0.12.0. cargo_fork_pins binds each lock entry to the exact accepted local Git URL and revision, once per package and without a registry checksum. This is Slice110 local qualification only; no registry publication or registry-ready normalization is claimed. The root and standalone SDK driver manifests repeat the exact six-entry patch cohort. Repository source-only Git mirrors retain the same logical source IDs and commits while fetching the owner HTTPS repositories; their exact URLs, revisions, and routing are governed. See dev/plans/0.8.29/features/slice-110/design.md#exact-revision-local-consumption. Any other repository [patch], [replace], or direct Git dependency is unsupported, including libsqlite3-sys. Repository .cargo/config.toml and .cargo/config reject patch tables and unparseable candidates. The root K9 patch does not propagate through a published Rust crate.",
     "governed_commit_pins": "scripts/governed-surface-pin.json pins repository contract content, not an external dependency version. Its commit/hash integrity is enforced by scripts/check-governed-surface-pin.sh; it has no package-advisory semantics and is explicitly not reinterpreted here."
   },
   "npm_overrides": [],
@@ -58,6 +58,30 @@
         "version": "0.12.0",
         "source": "git+file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb?rev=2ee39305a78ed1463ff913f71dcd3d45ecbfd84f#2ee39305a78ed1463ff913f71dcd3d45ecbfd84f"
       }
+    ],
+    "source_mirrors": {
+      "qualified-cudarc": {
+        "git": "file:///home/coreyt/projects/fathomdb-forks/cudarc",
+        "rev": "343b04fa73f85ee78754d6ee2baa07b959cc9ccc",
+        "replace-with": "cudarc-https"
+      },
+      "cudarc-https": {
+        "git": "https://github.com/coreyt/cudarc.git",
+        "rev": "343b04fa73f85ee78754d6ee2baa07b959cc9ccc"
+      },
+      "qualified-candle": {
+        "git": "file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb",
+        "rev": "2ee39305a78ed1463ff913f71dcd3d45ecbfd84f",
+        "replace-with": "candle-https"
+      },
+      "candle-https": {
+        "git": "https://github.com/coreyt/candle-fathomdb.git",
+        "rev": "2ee39305a78ed1463ff913f71dcd3d45ecbfd84f"
+      }
+    },
+    "patch_manifests": [
+      "Cargo.toml",
+      "experiments/sdk_drivers/rust/Cargo.toml"
     ]
   }
 }

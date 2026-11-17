@@ -170,9 +170,8 @@ checksum = "1fd0f2584146f6f2ef48085050886acf353beff7305ebd1ae69500e27c67f64b"
 
 [[package]]
 name = "candle-core-fathomdb"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b5feacc063f44c77a54cb8b43d03c5e32fa5421f4163f0524194783e21563341"
+version = "0.12.0"
+source = "git+file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb?rev=2ee39305a78ed1463ff913f71dcd3d45ecbfd84f#2ee39305a78ed1463ff913f71dcd3d45ecbfd84f"
 dependencies = [
  "byteorder",
  "candle-kernels",
@@ -223,9 +222,8 @@ dependencies = [
 
 [[package]]
 name = "candle-nn-fathomdb"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "69c7432aa63cb543065f49453fa2e258e4dc3bd458abbcb7c150d17e90026200"
+version = "0.12.0"
+source = "git+file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb?rev=2ee39305a78ed1463ff913f71dcd3d45ecbfd84f#2ee39305a78ed1463ff913f71dcd3d45ecbfd84f"
 dependencies = [
  "candle-core-fathomdb",
  "candle-metal-kernels",
@@ -241,9 +239,8 @@ dependencies = [
 
 [[package]]
 name = "candle-transformers-fathomdb"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "513008c79a9751ec5fdc08918dcdb1a8872c95e90f7697a9f8c5ef1951e3d222"
+version = "0.12.0"
+source = "git+file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb?rev=2ee39305a78ed1463ff913f71dcd3d45ecbfd84f#2ee39305a78ed1463ff913f71dcd3d45ecbfd84f"
 dependencies = [
  "byteorder",
  "candle-core-fathomdb",
@@ -450,9 +447,8 @@ dependencies = [
 
 [[package]]
 name = "cudarc-fathomdb"
-version = "0.19.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8780d2fe3fbafc4660e6093abd7681cd9cec7b4d5549a20bc148308e6449caf2"
+version = "0.20.0"
+source = "git+file:///home/coreyt/projects/fathomdb-forks/cudarc?rev=343b04fa73f85ee78754d6ee2baa07b959cc9ccc#343b04fa73f85ee78754d6ee2baa07b959cc9ccc"
 dependencies = [
  "float8",
  "half",
@@ -716,7 +712,7 @@ checksum = "9f1f227452a390804cdb637b74a86990f2a7d7ba4b7d5693aac9b4dd6defd8d6"
 
 [[package]]
 name = "fathomdb-embedder"
-version = "0.8.27"
+version = "0.8.29"
 dependencies = [
  "candle-core-fathomdb",
  "candle-nn-fathomdb",
@@ -734,11 +730,11 @@ dependencies = [
 
 [[package]]
 name = "fathomdb-embedder-api"
-version = "0.7.0"
+version = "0.8.0"
 
 [[package]]
 name = "fathomdb-engine"
-version = "0.8.27"
+version = "0.8.29"
 dependencies = [
  "dunce",
  "fathomdb-embedder",
@@ -757,21 +753,21 @@ dependencies = [
 
 [[package]]
 name = "fathomdb-query"
-version = "0.8.27"
+version = "0.8.29"
 dependencies = [
  "sha2 0.11.0",
 ]
 
 [[package]]
 name = "fathomdb-schema"
-version = "0.8.27"
+version = "0.8.29"
 dependencies = [
  "rusqlite",
 ]
 
 [[package]]
 name = "fathomdb-sdk"
-version = "0.8.27"
+version = "0.8.29"
 dependencies = [
  "fathomdb-embedder",
  "fathomdb-embedder-api",
@@ -2247,9 +2243,9 @@ dependencies = [
 
 [[package]]
 name = "rustls"
-version = "0.23.40"
+version = "0.23.46"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ef86cd5876211988985292b91c96a8f2d298df24e75989a43a3c73f2d4d8168b"
+checksum = "48e13bd8c0e9365c43cfa5c9e8f9ad49d3c8444926c9aac819e0e4dc503c8fdf"
 dependencies = [
  "log",
  "once_cell",
@@ -2271,9 +2267,9 @@ dependencies = [
 
 [[package]]
 name = "rustls-webpki"
-version = "0.103.13"
+version = "0.103.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61c429a8649f110dddef65e2a5ad240f747e85f7758a6bccc7e5777bd33f756e"
+checksum = "4443b1b6d39d7c663139942cc4558262562d2c84123bb6282ef177009ca8b281"
 dependencies = [
  "ring",
  "rustls-pki-types",

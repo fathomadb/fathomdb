@@ -1,19 +1,20 @@
 ---
 title: "Slice 90: accepted residual implementation plan"
-status: PROPOSED
+status: ACTIVE
 target_release: 0.8.29
 slice: 90
 ---
 
 # Slice 90 implementation plan
 
-Implement the remaining [full80 contract](../slice-80/design.md), approved by the
+The implemented [full80 contract](../slice-80/design.md) was approved by the
 owner in seq384 at `f2f4831554ae165420a31890cf102642ce28b21d`.
 The2026-11-16 [census](census.md) reconciles actual integrated50/60/70 source;
 [needs](needs.md)→[requirements](requirements.md)→[acceptance](acceptance.md)
 →[test map](test-map.md) retain release-local traceability without new ACs.
-Independent Astra-medium review of this refreshed design precedes source work.
-No new80 approval, generic proposal phase or supplemental packet is required.
+Independent design/source review and the accepted semantic RED/GREEN sequence
+are recorded in [status](status.md). The remaining integrated qualification is
+Slice50/Block1, not unimplemented90 fields or a repeated source-entry phase.
 
 ## Fixed boundaries and source entry
 
@@ -30,9 +31,10 @@ and fresh integrated20/50/60/70 source-contract fit while measurements continue.
 Current both-format conformance is accepted in its actual scope; TC5 inputs and
 seq388 smoke models/dataset/IDs/budget are resolved. Slice40's existing conditional
 scope is complete with no new optimization; it adds no further approval stop.
-Remaining30/50 measurements and applicable feature/performance/conformance
-checks remain final integrated exits. The same72approved native-format episodes
-run once on final integrated90 before local close.
+Slice30 is closed. Slice50's original136 ordinary plus24 diagnostic outcomes
+and the final Block1 exit remain integrated qualification holds. The same72
+approved native-format episodes completed once on222/b3c6 with all144 grades
+and independent final ACCEPT.
 Counts and technical limits are in [status](status.md); no model run or scientific
 ledger acquisition occurs during this documentation refresh. Parent records
 actual final integrated completion, not a design reviewer or a stale status sentence.
@@ -48,7 +50,11 @@ windows remain separately controlled by the parent.
 Fresh source fit plus retained approvals satisfy seq392 source entry; no borrowed
 checkout venv/artifact is allowed.
 
-## Concrete RED/GREEN sequence on the integrated source
+## Retained RED/GREEN implementation sequence
+
+The sequence below preserves the implemented staging discipline and original
+TDD requirements. Accepted results are in [status](status.md); it does not
+request repeat source gates, installed-native REDs or paid episodes.
 
 1. U1–U4: omission/disclosure, unknown-argument details, foreign-reference details
    and explicit default store. Stage/commit each semantic failing runtime test
@@ -104,11 +110,13 @@ where it consumes unchanged inputs, and90 does not wait for whole160. Final90
 changes engine/native artifacts and default MCP output, so assess affected
 160 Q2–4/Q10–12/Q14–17 and model-smoke applicability by actual source/artifact/
 format/workload. Reuse unchanged qualified scopes; rerun invalidated scopes and
-new metadata assertions. The approved72episode smoke/item4 runs once on final
-integrated90 under seq392; it has no pre90 execution prerequisite. No blanket replay or
+new metadata assertions. The approved72episode smoke/item4 completed once on final222/b3c6
+integrated90 under seq392, as recorded in [status](status.md). No blanket replay or
 paid-call approval is inferred; actual model calls stay within existing owner
 models/episodes/budget and technical readiness. See [design](design.md#final-source-qualification-dependencies).
 
 Current completion route: finish local qualification, review CI, then run CI.
 Registry publication, publishing tags and post-publication smoke are excluded.
-No whole90/product/release readiness is claimed by this design refresh.
+Slice90 remains open for the Slice50/Block1 exit. The accepted17af source/Q17,
+d226 consumer/artifact and222 MCP/paid72 evidence keep their actual subjects;
+160 Mac/platform and later CI/release obligations remain separate.

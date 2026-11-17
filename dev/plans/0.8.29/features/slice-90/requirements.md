@@ -1,6 +1,6 @@
 ---
 title: "Slice 90: requirements"
-status: PROPOSED
+status: ACTIVE
 target_release: 0.8.29
 slice: 90
 ---
@@ -11,7 +11,10 @@ These local requirements refine R29-3P-14/15, not locked canonical ACs.
 The [full80 design](../slice-80/design.md) is owner-approved at
 `f2f4831554ae165420a31890cf102642ce28b21d` (seq384). These are its
 implementation requirements, reconciled against the actual integrated50/60/70
-source in [census](census.md); the new fields are not implemented yet.
+source in [census](census.md). The fields are implemented and independently
+accepted; [status](status.md) records actual source/consumer qualification and
+the remaining Slice50/Block1 integrated exit. The requirements and oracles
+below are unchanged.
 
 | Requirement / need | Required behavior | Acceptance |
 | --- | --- | --- |

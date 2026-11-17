@@ -36,20 +36,28 @@ controls, 29 installed Python reporting-domain tests, three installed TypeScript
 reporting-domain tests, four direct PyO3/NAPI exact-domain converter controls,
 and the maintained MCP field census. Earlier feature-focused native, installed
 binding, MCP, typing, lint and snippet/storage regression results remain in the
-owned raw task logs. The experiment README indexes the bounded status/capture
-work comparison; shared-host timings are descriptive, not performance claims.
+owned raw task logs. The [existing work index](../../../../experiments/agent-access-snippet-cost/README.md#stored-head-coverage-work)
+retains the bounded status/capture comparison; shared-host timings are
+descriptive, not performance claims.
 
 Independent Astra-medium final review ACCEPTS clean source
 `261c5698f10170fe826e05cac160f15ac9f264a2` and the scoped results. Canonical
-integration is `e57e0874fabc893888b01362b4cfc6bb0701b31a`. The main chat owns
-the final stable integrated broad gate and applicable correctness, performance,
-conformance, artifact and release exits. Slice40 conditional disposition is
-complete with no new treatment; no additional owner approval is needed.
-Remaining30/50 measurements are final integrated obligations, not source-entry
-holds. The same seq388-approved72 episodes subsequently completed once on the
+integration is `e57e0874fabc893888b01362b4cfc6bb0701b31a`. The final stable
+integrated source/Q17 scope is now independently accepted at17af, with the
+original failed broad wrapper, unchanged failed-only module resumption and
+three explicitly unselected private live-control suites preserved. All236
+executed outcomes are resolved; strict owned MkDocs passes. See
+[final source qualification](../slice-160/status.md#final-integrated-source-and-documentation).
+The [artifact/MCP applicability record](../slice-160/status.md#typed-open-admission-fix-and-current-artifacts)
+retains d226/222 producer identities. Slice40 conditional disposition and
+Slice30 are closed. Slice90 remains open
+for completion/review of Slice50's original136 ordinary plus24 diagnostic
+outcomes and the final Block1 combined exit; these are qualification exits,
+not a restored source-entry hold.
+The same seq388-approved72 episodes subsequently completed once on the
 final222/b3c6 integrated candidate under seq392, with all144 grades and independent
 Astra final ACCEPT. Exact models, complete qIDs, costs and paired intervals are
 in the [existing comparison report](../../../../experiments/agent-remeasure/README.md#current-candidate-results-2026-11-16).
 No additional episode, quality threshold or noninferiority claim follows.
-Remaining measurements/combined qualification and CI stay open; no tag or
-registry publication occurred.
+Remaining Slice50/Block1 combined qualification and separate160 Mac/platform
+and CI/release obligations stay open; no tag or registry publication occurred.

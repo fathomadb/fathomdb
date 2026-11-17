@@ -1,15 +1,16 @@
 ---
 title: "Slice 90: acceptance targets"
-status: PROPOSED
+status: ACTIVE
 target_release: 0.8.29
 slice: 90
 ---
 
 # Slice 90 acceptance targets
 
-These are the accepted80 behavior translated into future runtime oracles,
-not executed tests or canonical AC additions. Rn→An and [test-map](test-map.md)
-provide the reverse joins.
+These unchanged runtime oracles implement the accepted80 behavior; they are
+not canonical AC additions. Rn→An and [test-map](test-map.md) provide the reverse
+joins. Actual accepted implementation, source/artifact and72-episode evidence
+is recorded in [status](status.md); the table does not request another run.
 
 | Local acceptance | Observation |
 | --- | --- |
@@ -30,7 +31,11 @@ Existing AC-031, AC-060a, AC-068a/b, AC-069, AC-074 and affected
 AC-072/075/076/081 controls remain canonical. Tracked AC-083 is not a new gate.
 None alone proves these new local behaviors.20 Windows/common-source,60/70,
 100 and selected110/140 closure are retained; full80 approval is settled. The
-Slice40 conditional disposition is complete with no new treatment. Remaining
-Block1 measurements and72 approved episodes remain final integrated exits as listed in [status](status.md), without blocking
-seq392-authorized source entry. Scoped Markdown validation
-cannot discharge them.
+Slice40 conditional disposition and Slice30 are closed. The same approved72
+episodes and144 grades, current MCP14 and final17af source/Q17 qualification
+are independently accepted; their actual native/artifact origins remain
+recorded in [status](status.md). A12 remains open for completion/review of
+Slice50's original136 ordinary plus24 diagnostic outcomes and the final Block1
+exit.160 Mac/platform and subsequent CI/release obligations stay separate.
+Scoped Markdown validation neither supplies those outcomes nor requires
+replay of the already accepted controls.

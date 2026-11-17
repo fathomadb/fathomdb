@@ -1,20 +1,22 @@
 ---
 title: "Slice 90: behavior and verification map"
-status: PROPOSED
+status: ACTIVE
 target_release: 0.8.29
 slice: 90
 ---
 
 # Slice 90 behavior and verification map
 
-[Acceptance](acceptance.md) is the human-intent oracle. Names below are planned
-new test cases, not existing tests or executed results. Every Rn maps to An;
-units below map those acceptances to concrete paths/controls. Real databases
-and current existing entry points come first. No mock database/golden rewrite.
+[Acceptance](acceptance.md) is the unchanged human-intent oracle. The U1–U9
+table retains the original implementation plan, baseline assertions and staging
+order; it is not a current unimplemented-work list. Actual implemented controls
+are indexed below and their accepted results are in [status](status.md). Every
+Rn maps to An. Real databases and current entry points remain required; no mock
+database/golden rewrite or passing-suite replay follows from this status update.
 
-## Runtime RED units after approved source fit
+## Retained runtime RED/GREEN implementation map
 
-| Unit / acceptance | Planned test and actual path | Required baseline RED and bounded GREEN |
+| Unit / acceptance | Original planned test/target | Baseline RED and bounded GREEN contract |
 | --- | --- | --- |
 | U1 / A1 | mcp tests/schema.rs + real calls: s90_unsupported_fields_are_absent_and_disclosed, parameterized text/structured; schema check on actual returned success. | Baseline runtime presence of state/verdict and absence of orient disclosure fail assertions. Stage before changing output types/constructors/schema/renderers.60 text omission is a pre-existing control, not a new RED. |
 | U2 / A2 | schema.rs: s90_unknown_argument_is_schema_derived_and_precedes_bad_type; all7 tools, reversed key order, nested attributes,64-byte/multibyte boundary. Call existing tools/list and call_tool. | Current actual error is bad_argument without accepted/argument; runtime code/detail equality fails. Implement only shared precheck/error fields/rendering; typed malformed known-only remains control. |
@@ -99,7 +101,8 @@ regenerating their expected fixture objects.
 Other affected hints/admission/generation/frozen/binding error/parity suites
 are located controls; reread complete files before prescribing any assertion
 change. Preserve applicable accepted predecessor results. Historical source
-passes cannot prove the unimplemented90 fields.
+passes alone do not prove the added90 fields; the accepted source-bound
+controls are indexed under implemented qualification below.
 
 After actual source GO: focused lint→typecheck→unit tests per unit, then real
 owned Py/TS native/SDK/MCP seams. The parent owns one required full
@@ -124,14 +127,15 @@ U5 keeps ownerless/bodyless/dual-owner passing mappings in unattributed_heads
 without new physical probes or refusal policy; existing invalid predicate and
 completion refusals remain separate regression controls.
 
-Final source qualification assesses changed90 consumers of160 Q2–4/Q10–12/
+Final source qualification assessed changed90 consumers of160 Q2–4/Q10–12/
 Q14–17. New Rust/native fields and converters can invalidate earlier installed
 package/strict-TS observations; new default MCP metadata/schema/budget can
 invalidate specific conformance and smoke/item4 output/paired results. Keep
 earlier Block1 results as their baseline's evidence, then rerun affected final
 scopes under actual permission/readiness. Under seq392, the same approved
-72episodes run once on final integrated90 before local close; no pre90 smoke
-is required for source entry. No automatic full160/model replay,
+72episodes completed once on final222/b3c6 integrated90 with all144 grades and
+independent final ACCEPT. No pre90 smoke is required for source entry. No
+automatic full160/model replay,
 new paid-call grant or90↔160 source-entry cycle follows.
 
 ## Implemented qualification controls
@@ -158,5 +162,9 @@ actual conversion at the i64/u128 boundaries and unavailable variants. The
 SDK-only `slice90_reporting` consumer reads the public closed coverage carrier
 from a real provider-free database. Existing MCP `field_census` now registers
 corrective details, disclosure/default/coverage leaves and scored hit fields.
-The final scoped run results are summarized in `status.md`; the release
-coordinator owns final integrated qualification and the one coherent review.
+The scoped results and accepted final17af source/Q17 qualification are
+summarized in [status](status.md), together with d226 installed-artifact and222
+MCP/paid72 applicability. Slice30 is closed. Slice50's original136 ordinary and
+24 diagnostic outcomes/final Block1 exit remain the integrated90 hold;160
+Mac/platform and later CI qualification remain separate. No additional local90
+behavior test or blanket source/model/artifact replay is prescribed.

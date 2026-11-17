@@ -272,7 +272,9 @@ class PortableForkConsumption(unittest.TestCase):
                   + f'core={{package="candle-core-fathomdb",git="{candle_source}",rev="{candle_rev}"}}\n'
                   + f'kernel={{package="candle-kernels",git="{candle_mirror}",rev="{k9}"}}\n'
                   + f'cudarc={{package="cudarc-fathomdb",git="{cudarc_source}",rev="{cudarc_rev}"}}\n')
-            run(["cargo", "metadata", "--format-version=1"], seed_dir, home)
+            # These fixture-only file Git URLs must be fetched into the fresh home;
+            # the consumer proofs below still require explicit --offline.
+            run(["cargo", "--config", "net.offline=false", "metadata", "--format-version=1"], seed_dir, home)
 
         baseline_home = self.root / "home-baseline"
         seed(baseline_home, candle_url, cudarc_url)

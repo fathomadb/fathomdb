@@ -113,6 +113,35 @@ resolved hold. Mac/hosted/registry and combined readiness remain separate;
 the ordinary current throughput pass retains earlier failures. Any subsequent production remedy needs affected new bytes;
 these d226 observations retain their actual input scope.
 
+## Final integrated source and documentation
+
+Independent Astra-medium accepts assembled source/Q17 qualification at clean
+`17af05fe5a969248ef82aa7a784f3cc7b83d1270`. The full default gate ran239 registered
+suites in4160s:235 passed, one failed and three private G/M/D live-control suites
+were explicitly unselected. The unchanged failed-only module-boundary wrapper
+then passes29+5 tests and132 modules/20 governed/128 configurations under its
+existing config-free Cargo home. The original global-fork-patch lock refusal and
+wrapper EXIT1 remain recorded; `--locked` and the lock file are unchanged. All236
+executed suite outcomes are resolved. Workspace lint/Clippy/types, strict security
+with zero violations/blockers/downgrades, Rust, selected A3/adapters/observers,
+Python/native receipts and TS/hermetic N-API pass. Earlier live-control evidence
+retains its actual subjects. Existing `root-release-20261116/logs/final-clean-17af05fe5{,-module-only}.log`
+contains the run and resumption.
+
+After that gate, owned MkDocs1.6.1 builds the unchanged public docs/config with
+`--strict` in0.27s. The site and `q17-mkdocs-strict.log` remain under the same task
+root. Remaining S50 outcomes and combined release/CI closure stay open.
+
+Frozen S50 core/SDK calls use `snippets=None`, so full90's vector-participant
+capture and scored-extent lookup do not execute in their measured queries.
+Their hydration/ranking comparisons remain applicable. Full90 changes open and
+full projection-status capture/cache; frozen setup/readiness/whole-process/RSS
+and M's snippet-enabled MCP timings describe their original binaries. Current
+stored-coverage statement/row/VM and indexed capture-overhead controls, Q5/6/7,
+A3/zero-work/participant bounds, installed artifacts, MCP14, paid72 and the final
+source gate qualify the affected current scopes. Final results preserve these
+separate subjects and limits; the original registered S50 matrix continues.
+
 ## Earlier full90 artifacts and original throughput failure
 
 Independent Astra-medium design ACCEPT at `e1323ba0c` preceded this batch.

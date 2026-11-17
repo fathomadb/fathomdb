@@ -579,10 +579,9 @@ path.write_text(text.replace(needle, "", 1))
 PY
 expect_fail "$FIXTURE" 'rejects an N-API CUDA build without a toolkit runtime link search path'
 
-# 0.8.28 Slice 31 (REQ31-16, OP-1): the only Candle source the release
-# contract governs is the candle-kernels git patch that carries the static
-# CUDA runtime, at the rev recorded in scripts/pinned-override-rot.json. The
-# registry Candle fork crates belong to the pinned-override checker.
+# K9 remains the static-runtime boundary. Slice110 also governs the exact
+# repository-only fork patch cohort; arbitrary source/revision/path changes
+# remain unsupported even when the kernel entry itself is unchanged.
 make_fixture "$FIXTURE"
 python3 - "$FIXTURE/Cargo.toml" <<'PY'
 from pathlib import Path
@@ -594,33 +593,47 @@ text, count = re.subn(
     r'^(candle-kernels = \{ git = "https://github\.com/coreyt/candle-fathomdb\.git", rev = ")[0-9a-f]{40}(" \})$',
     r"\g<1>89abcdef0123456789abcdef0123456789abcdef\g<2>",
     path.read_text(),
+    count=1,
     flags=re.MULTILINE,
 )
 if count != 1:
-    raise SystemExit("fixture no longer contains exactly one candle-kernels git patch")
+    raise SystemExit("fixture no longer contains the root candle-kernels git patch")
 path.write_text(text)
 PY
 expect_fail_with "$FIXTURE" "[patch.crates-io] candle-kernels must pin https://github.com/coreyt/candle-fathomdb.git@182ceab0547348993b6dbec4b1aed610dcc8b23f" \
   'rejects a candle-kernels patch at a rev other than K9'
 
-make_fixture "$FIXTURE"
-python3 - "$FIXTURE/Cargo.toml" <<'PY'
+for fork_patch_mutation in candle-source cudarc-revision path-override extra-patch missing-file-kernel; do
+  make_fixture "$FIXTURE"
+  python3 - "$FIXTURE/Cargo.toml" "$fork_patch_mutation" <<'PYFIXTURE'
 from pathlib import Path
 import sys
 
 path = Path(sys.argv[1])
+mutation = sys.argv[2]
 text = path.read_text()
-needle = "[patch.crates-io]\n"
-if text.count(needle) != 1:
-    raise SystemExit("fixture no longer contains exactly one [patch.crates-io] table")
-path.write_text(text.replace(
-    needle,
-    needle + 'candle-core-fathomdb = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "182ceab0547348993b6dbec4b1aed610dcc8b23f" }\n',
-    1,
-))
-PY
-expect_fail_with "$FIXTURE" "[patch.crates-io] must not patch 'candle-core-fathomdb'" \
-  'rejects a Candle fork crate reintroduced as a git patch'
+candle = 'candle-core-fathomdb = { git = "file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb", rev = "2ee39305a78ed1463ff913f71dcd3d45ecbfd84f" }'
+cudarc = 'cudarc-fathomdb = { git = "file:///home/coreyt/projects/fathomdb-forks/cudarc", rev = "343b04fa73f85ee78754d6ee2baa07b959cc9ccc" }'
+if mutation == "candle-source":
+    before, after = candle, 'candle-core-fathomdb = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "182ceab0547348993b6dbec4b1aed610dcc8b23f" }'
+elif mutation == "cudarc-revision":
+    before, after = cudarc, cudarc.replace("343b04fa73f85ee78754d6ee2baa07b959cc9ccc", "0" * 40)
+elif mutation == "path-override":
+    before, after = candle, 'candle-core-fathomdb = { path = "local/candle-core" }'
+elif mutation == "extra-patch":
+    before = "[patch.crates-io]\n"
+    after = before + 'libsqlite3-sys = { path = "local/sqlite" }\n'
+else:
+    before = ('[patch."file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb"]\n'
+              'candle-kernels = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "182ceab0547348993b6dbec4b1aed610dcc8b23f" }\n')
+    after = ""
+if text.count(before) != 1:
+    raise SystemExit(f"fixture no longer contains exactly one {mutation} target")
+path.write_text(text.replace(before, after, 1))
+PYFIXTURE
+  expect_fail_with "$FIXTURE" 'workspace Cargo patches must equal the governed fork/kernel cohort' \
+    "rejects an unqualified fork patch mutation: $fork_patch_mutation"
+done
 
 make_fixture "$FIXTURE"
 python3 - "$FIXTURE/Cargo.lock" <<'PY'

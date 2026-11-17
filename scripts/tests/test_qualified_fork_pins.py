@@ -5,7 +5,6 @@ from pathlib import Path
 import os
 import importlib.util
 import json
-import tomllib
 import shutil
 import subprocess
 import tempfile
@@ -195,7 +194,8 @@ class PortableForkConsumption(unittest.TestCase):
     def test_repository_contains_the_exact_source_only_mirrors(self):
         path = ROOT / ".cargo/config.toml"
         self.assertTrue(path.is_file(), "the portable repository must carry its source mirrors")
-        self.assertEqual(tomllib.loads(path.read_text()), {"source": MIRRORS})
+        self.assertEqual(self.checker._import_tomllib("inspect Cargo fixture").loads(path.read_text()),
+                         {"source": MIRRORS})
 
     def test_explicit_portable_patch_cohort_passes(self):
         fixture = QualifiedForkPins(methodName="test_exact_qualified_graph_passes")

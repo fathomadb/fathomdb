@@ -62,6 +62,18 @@ new executables supply actual identities. Windows' initial uninvoked extraction
 attempt remains ineligible; wrong-name tar failures were recovered by copying
 the actual platform tarball and validating required bytes, without test replay.
 
+Current canonical `e5ee7220a7bdc9ef0e40804fdf798939f92ceb15` retains these
+shipping inputs. Comparing `src/`, Cargo manifests/lock and package manifests
+against d226 finds only test files, MCP unit-test assertions and the reader-pool
+diagnostic under `cfg(any(test, feature = "test-hooks"))`. Comparing the paid72
+producer `222fa39542662f73be943c02d0c8ab14b59e84bb` against canonical similarly
+finds only test files and that private diagnostic. The later observer repair
+changes measurement Python, not shipping native inputs. The accepted d226
+production artifact and222 MCP results therefore retain their actual producer
+identities and applicability; no rebuild or passing replay follows from those
+test/tool changes. Remaining M/S50 outcomes, final broad source qualification
+and the combined release acceptance still require their own exits.
+
 The retained7d release binary SHA `d854615cc2235410bcb361ee80445a92bf2cfe32a3aa608cc2007f26152a1fc1`
 first failed760.621/s and its single initially authorized resumption failed
 993.996/s<1000 (59640 commits/60.000239089s, exit101). Both remain recorded.

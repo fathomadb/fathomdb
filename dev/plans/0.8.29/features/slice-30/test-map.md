@@ -103,3 +103,16 @@ headroom and any continuation after refusal/failure. Keep the frozen100k pair
 and default-resume controls; run only affected source checks before one coherent
 implementation review. Scientific execution and final cohort result review stay
 separate; no passing native replay or partial-cohort PASS is implied.
+
+## M-L short-process GPU observation correction
+
+The [M-L-only repair](continuation-m.md#short-lifecycle-gpu-observation-repair)
+adds source controls for R30-4..7/A30-4..6. Through existing payload/execute paths,
+make a controlled late same-PID memory/positive-utilization witness available
+only after the literal required RPC sequence and before recording-transport
+closure; old sequencing must fail a runtime qualification assertion. Freeze the
+exact RPC order/counts and first/immediate/lifecycle clock literals before GREEN.
+Test wrong PID, no witness, observer/query failure, deadline/probe-timeout bounds,
+close on exception, output/shutdown refusal and unchanged R/C defaults. GPU and
+transport boundaries may be controlled; no DB integration is mocked. These
+controls prove collector behavior only, not GPU work or scientific completion.

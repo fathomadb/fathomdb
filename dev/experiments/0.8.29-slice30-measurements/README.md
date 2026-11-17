@@ -882,3 +882,13 @@ new `m_attempt` metadata/log limits apply only to canonical M families.
 GPU/refusal and publication controls cover this correction. These controls use
 literal records, harmless children and temporary real stores; they make no
 natural/GPU qualification claim. No M cell was replayed during implementation.
+
+The [short-lifecycle observation correction](../../../dev/plans/0.8.29/features/slice-30/continuation-m.md#short-lifecycle-gpu-observation-repair)
+proposes an M-L-only100ms passive cadence and at most2s post-payload qualification
+before the SAME MCP session receives EOF. Required RPCs and their clocks remain
+unchanged; tail clocks are separate and included in whole-process/cell charges.
+Lifecycle probes share a500ms absolute budget across existing GPU commands;
+R/C retain1Hz and original command defaults. Same-PID memory plus positive
+utilization remains mandatory, and missing/error/deadline/closure evidence fails
+closed. Source/design review precedes implementation and any future single
+failed-cell continuation; no native rebuild or runtime authority follows here.

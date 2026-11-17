@@ -640,3 +640,96 @@ qualified. Preserve the11 old qualified identities and failed original root;
 only an actual newly qualified retry may replace an unstarted successor's
 completion reference. No retry, new calibration, GPU query, allocation adoption,
 native rebuild or artifact retag occurred during this implementation.
+
+## Short lifecycle GPU observation repair
+
+Actual20 M-R and four M-C outcomes qualified with their retained per-row source
+identities. The latest continuation used frozen43776233d and ordinary
+native4ffc/compiler81791194. The first `M-L-1-lazy` attempt is retained
+unqualified: its required five RPCs succeeded, lazy/first/immediate observations
+completed and its MCP PID845598 exited0 in about1.865s. The two1Hz GPU samples
+were at82725509965191ns (memory0/util0) and82726581447631ns (same-PID396MiB,
+device407MiB above baseline2MiB, util0). First search returned82726824461870ns;
+immediate search took84779048ns and process exit was82727124122651ns. No sample
+followed the first reply while that process still held its allocation. Allocation
+is not compute proof: actual GPU compute remains unproven, and this is not a
+product-failure or CPU-fallback diagnosis.
+
+The failed root is `gd-allocation/m-required-M-L-1-lazy-43776233d-20261116` under
+the existing G task. Preserve its original result/GPU/wire/raw files and
+14287352084ns/717694180B charge; failure-boundary shared totals were
+52505563110907ns/101024742768B, with strict unit/private-boundary/FD9 release.
+Later S50 charges are separate. This correction implements R30-4..7/A30-4..6;
+all46 obligations, original returned-row/error/lifecycle oracles and the same-PID
+memory-increase **and positive-utilization** predicate remain unchanged.
+
+### Lifecycle-only passive observation and terminal tail
+
+- Only M-L uses100ms waits between completed passive samples; actual timestamps
+  remain authoritative, not a guaranteed10Hz rate. M-R/M-C retain their existing
+ 1Hz sampling and defaults; M0/M-E and direct-text GPU N/A rules stay unchanged.
+- Add an optional absolute deadline to the existing GPU inspection path, used
+  only by M-L. Each complete metadata-plus-compute-apps probe gets at most500ms
+  total, shared by its existing commands, further clipped by the existing
+  absolute work deadline. Check remaining time before each subprocess and use
+  it as its timeout; a late/error/missing result fails closed. Existing callers
+  retain their original5s-per-command behavior. Add no GPU work, retry query,
+  new sampler service, profiler, native hook or public schema.
+- Add a private optional payload-complete callback to existing `m_cell.execute`.
+  Invoke it only for M-L, inside `with McpSession`, after the exact required RPCs
+  and final payload checkpoint, before EOF/close. Keep before/first/immediate,
+  idle ready→closed→reopen/immediate and A→B→A orders/counts unchanged. Freeze
+  their returned records and clock boundaries before invoking the callback;
+  add no wait inside these measured sequences and no extra request/warmup.
+- The callback permits at most2s of passive terminal qualification, ending early
+  on an existing/late qualifying witness or observer error. Its end is clipped
+  to the existing absolute payload-work deadline with the existing7s shutdown
+  window still funded by `m_attempt` before supplying that work deadline; do not
+  subtract it again or treat `McpSession.timeout` as the external reserve. If
+  the work deadline is exhausted, refuse without waiting.
+  Keep the SAME MCP child resident; no process restart, pulse or synthetic
+  utilization. Record payload-end/tail-start/end/wall/disposition and owned PID
+  separately from lifecycle/API intervals. Actual whole-process/whole-cell
+  walls and existing cumulative accounting include this tail; no subtraction
+  or corrected latency/throughput claim follows.
+- Qualification must be witnessed before EOF/close. Keep the observer active
+  through ordinary close, then stop/join and drain it using existing bounded
+  shutdown/capture primitives; lifecycle probe deadlines bound in-flight GPU
+  commands. A later foreign-actor/query/persistence/shutdown failure still
+  invalidates the result. No witness, PID mismatch, exhausted deadline or
+  uncertain observer closure remains unqualified; no post-exit sample rescues
+  a missing pre-close witness. Preserve bounded GPU output and raw refusals;
+  overflow or unjoined work cannot become absent/zero-cost evidence.
+
+Do not modify `m_wire`, Rust/Cargo/native inputs, Default-provider behavior or
+MCP payload settings. The isolated repair starts from43776233d deliberately;
+verify unchanged compiler817 closure and original4ffc receipt plus unchanged
+wire-decoder identity for eventual reuse, rather than rebasing onto a newer
+incompatible decoder or rebuilding/retagging native artifacts. All24 completed
+rows keep their actual controller/native/observer origins and are not replayed.
+
+### Source controls and future one-attempt continuation
+
+Stage/commit genuine runtime-assertion REDs through existing `payload`/`execute`
+behavior before GREEN. A recording transport and controlled GPU boundary can
+make a real late witness available only after the required RPCs while the SAME
+child is still open; old close sequencing must fail the qualification assertion,
+not a missing new symbol/parameter or setup/import failure. Freeze literal RPC
+order/counts and API/lifecycle clocks. Cover wrong PID, no witness, query/observer
+error, timeout/deadline clipping, close on callback failure, bounded output and
+observer shutdown; preserve R/C default cadence/behavior. These are collector/
+transport unit controls, not mocked-DB integration or actual GPU proof. Use an
+owned lightweight Python environment and affected tests/lint/typechecks only;
+no native build, GPU calibration, passing replay or full-heavy gate is needed.
+
+After independent design/source acceptance, the parent may select one fresh
+`M-L-1-lazy` retry through the existing public selected-cell API, carrying its
+exact failed-root/history reference and original cumulative900s/2GiB limits.
+At failure these left885712647916ns/1429789468B; future current shared48h/192GiB
+fit, resources, strict ownership and selected physical GPU must be re-admitted.
+No retry root or runtime is created by this design. Any genuine missing witness
+still stops unqualified. Remaining original cells may then use the new frozen
+observer controller with their actual24 qualified predecessor origins. Existing
+M/S50 execution authority is held; the parent coordinates the actual next shared
+boundary and technical GO. This is a runtime-reference repair, not a new release
+feature, source rebase, oracle relaxation or permission for extra attempts.

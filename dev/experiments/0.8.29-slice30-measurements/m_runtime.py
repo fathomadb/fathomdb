@@ -143,13 +143,23 @@ def payload(manifest, cell, attempt, deadline_ns):
     queries = read_queries(manifest["inputs"]["queries"]["path"]) if natural else ["alpha"]
     samples, failures, failure_observations = [], [], []
     stop, thread = threading.Event(), None
+    lifecycle = cell["family"] == "M-L" and cell["search_mode"] == "hybrid"
+    observed = threading.Event() if lifecycle else None
+    tail_end = None
+    pre_close = None
     stream = None
     observer = None
     if natural and cell["search_mode"] == "hybrid":
         from g_gpu import GpuObserver
         stream = CheckpointLog(attempt / "gpu.jsonl", max_bytes=CONTROL_MAX_BYTES)
         try:
-            observer = GpuObserver(manifest["gpu"])
+            if lifecycle:
+                probe_end = min(time.monotonic_ns()+500000000,deadline_ns)
+                observer = GpuObserver(manifest["gpu"],deadline_ns=probe_end)
+                if time.monotonic_ns() >= probe_end:
+                    raise TimeoutError("selected GPU observation deadline")
+            else:
+                observer = GpuObserver(manifest["gpu"])
         except Exception as error:
             failures.append(f"{type(error).__name__}: {error}")
             observation = getattr(error, "observation", None)
@@ -171,11 +181,21 @@ def payload(manifest, cell, attempt, deadline_ns):
         nonlocal thread
         if observer:
             def sample():
+                assert observer is not None and stream is not None
                 while not stop.is_set():
                     try:
-                        row = observer.sample(pid)
+                        if lifecycle:
+                            probe_end = min(time.monotonic_ns()+500000000,deadline_ns,
+                                            deadline_ns if tail_end is None else tail_end)
+                            row = observer.sample(pid,deadline_ns=probe_end)
+                            if time.monotonic_ns() >= probe_end:
+                                raise TimeoutError("selected GPU observation deadline")
+                        else:
+                            row = observer.sample(pid)
                         samples.append(row)
                         stream.write(row)
+                        if observed is not None:
+                            observed.set()
                     except Exception as error:
                         failures.append(f"{type(error).__name__}: {error}")
                         observation = getattr(error, "observation", None)
@@ -185,15 +205,48 @@ def payload(manifest, cell, attempt, deadline_ns):
                                 stream.write(observation)
                             except Exception as persistence_error:
                                 failures.append(f"{type(persistence_error).__name__}: {persistence_error}")
+                        if observed is not None:
+                            observed.set()
                         return
-                    stop.wait(1)
+                    stop.wait(.1 if lifecycle else 1)
             thread = threading.Thread(target=sample, daemon=True)
             thread.start()
 
+    def payload_complete(pid, complete):
+        nonlocal tail_end, pre_close
+        assert observed is not None
+        began = time.monotonic_ns()
+        # The supplied work deadline already excludes the external 7s reserve.
+        tail_end = min(began+2*10**9,deadline_ns)
+        disposition = "payload_incomplete"
+        while complete:
+            now = time.monotonic_ns()
+            if failures:
+                disposition = "observer_error"
+                break
+            if now >= tail_end:
+                disposition = "deadline" if tail_end == deadline_ns else "no_witness"
+                break
+            if qualification(cell,tuple(samples),pid)["complete"]:
+                disposition = "witness"
+                break
+            observed.wait(min(.1,(tail_end-now)/10**9))
+            observed.clear()
+        ended = time.monotonic_ns()
+        pre_close = tuple(samples)
+        valid = (complete and disposition == "witness" and ended < tail_end
+                 and not failures and qualification(cell,pre_close,pid)["complete"])
+        return {"pid":pid,"payload_end_ns":began,"tail_started_ns":began,
+                "tail_ended_ns":ended,"tail_ns":ended-began,"tail_deadline_ns":tail_end,
+                "tail_limit_ns":2*10**9,"sample_interval_ns":100000000,"probe_budget_ns":500000000,
+                "qualified_before_close":valid,"disposition":disposition,
+                "qualification_samples":len(pre_close)}
+
     try:
+        options = {"on_payload_complete":payload_complete} if lifecycle else {}
         result = execute(cell, command, attempt / "wire", queries=queries,
                          deadline_ns=deadline_ns, files=prepared["files"], control_path=socket,
-                         on_spawn=started)
+                         on_spawn=started,**options)
     finally:
         stop.set()
         if thread:
@@ -202,7 +255,10 @@ def payload(manifest, cell, attempt, deadline_ns):
                 failures.append("GPU polling did not stop within its bound")
         if stream and (not thread or not thread.is_alive()):
             stream.close()
-    result["gpu"] = qualification(cell, samples, result["pid"])
+    result["gpu"] = qualification(cell, samples if not lifecycle else pre_close or (), result["pid"])
+    if lifecycle:
+        result["gpu"]["qualification_scope"] = "before_EOF"
+        result["gpu"]["complete"] &= bool(result.get("gpu_observation",{}).get("qualified_before_close"))
     result["gpu"]["failures"] = failures
     result["gpu"]["failure_observations"] = failure_observations
     result["gpu"]["samples"] = len(samples) + len(failure_observations)

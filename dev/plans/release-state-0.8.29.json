@@ -232,9 +232,9 @@
         "dev/plans/0.8.29/features/slice-30/continuation-gd.md",
         "dev/plans/0.8.29/features/slice-30/continuation-m.md"
       ],
-      "phase": "G84_D24_F_QUALIFIED_M12_SERIAL_CONTINUATION_S50P32",
+      "phase": "G84_D24_F_QUALIFIED_M24_OBSERVER_SOURCE_ACCEPTED_WAIT_S50_BOUNDARY",
       "plan_sha": "bea7f05cd2497af0d73c6eb8da509e11a947ca08",
-      "conditions": "G84/84, fixedD24 and TC5F/Q8 independently accepted. D24 has24000 successful calls/3280000 physical rows, all12 C complete/loss0 and all6 C-overlap true; original failures/charges retained, unknown Storage cause not resolved. M12/46 qualified, remaining original matrix continues serially on frozen437 with actual predecessor roots and unchanged total caps. S50 all16P pairs/32ordinary qualified;104G ordinary+24diagnostic remain. No passing replay or silent source retag.",
+      "conditions": "G84/D24/TC5F-Q8 independently accepted. M24/46 qualified: all20concurrency/log/repeat and4format controls. First M-L-1-lazy stopped: all5RPCs/normalexit succeeded but2 GPU samples supplied no positive-utilization witness; samePID396MiB observed, compute remains unproven. No product/CPU-fallback diagnosis. Original failed attempt/charges retained; strict allocation/GPU cleanup passed. Narrow Python-only observer repair in isolated frozen-reference worktree is independently source-accepted; no M retry/nextcase until the S50 resource window releases and technical GO. S50P32+G2=34/136ordinary qualified; next5G pairs are running independently under the cleared shared allocation,102Gordinary+24diagnostic remain.",
       "evidence": "Accepted P/G84/F-Q8 baselines retain original native identities. D100k replacements accepted; original Storage cause UNKNOWN, private diagnostic gives no ordinary credit. M43776233 correction accepted and merged533dd83e7; focused integration Astra ACCEPT with82M/57D/56S50 controls PASS. Whole30 remains open on D/M and current S50 performance.",
       "qualified_subset_sha": "2fd772558e46d0b1645dce2ffea730d0bdd3305c",
       "continuation_plan_sha": "0d8be5bb75516955ebf99b94913b9b54921bb3a4",
@@ -737,12 +737,12 @@
       "m_selected_runtime": {
         "source": "f29b75db3d0272e2105ff4e06c65df9853ca9b91",
         "review": "Independent Astra-medium final source ACCEPT",
-        "status": "TWELVE_OF_46_QUALIFIED_ORIGINAL_SERIAL_CONTINUATION",
+        "status": "TWENTY_FOUR_OF_46_QUALIFIED_REVIEWED_LIFECYCLE_RETRY_RESOURCE_HELD",
         "root": "/mnt/data/tmp2/fathomdb-0829-continuation/slice30-g-20261113/gd-allocation/m-required-M-R-1-1-debug-f29b75db3",
         "result": "Required1-1-debug,1-4-warn and1-4-debug each completed1+500+1000 calls with zeroerrors/unresolved; plus exactpriorwarnreference. Originalfinalguardians/phasequalification and strictoutercleanup passed; disposablecopiesretired afterqualification. Whole46 remains incomplete.",
         "reuse": "M-R-1-1-warn satisfied_by exact original full calibration reference; no replay,relabel,doublecharge or raw mutation. Debug is the new required primary run. Successful disposable copy retired only after qualified final cleanup; original/raw/failed evidence preserved.",
         "shared_checkpoint": "After1-4-debug:used4868099798617ns,retained9271842748B,noactiveguardians/inflight. Laterpaired50 uses sameledgerandcarriesallcharges.",
-        "next": "Original M-R-2-32-warn retry1 qualified on frozen437; exact subsequent M-R-2-16-debug is now inflight under its existing public supervise API. Continue only remaining original M obligations serially with external parameter copies bound to437 and actual qualified predecessor roots. Fresh original floors/physical GPU/cumulative fit each entry; stop first failure/refusal/unqualified outcome. No per-cell review/approval or passing replay.",
+        "next": "Observer source f8d08c5 independently Astra design/final ACCEPT after genuine d9de35414 RED and 35 affected tests/Ruff PASS; canonical combined35/Ruff PASS. One corrected required lazy continuation is prepared, retaining failed history/original900s2GiB and same48h192GiB total. Wait for current S50 prefix strict release and parent technicalGO; no calibration/extra RPC/native rebuild/passing replay or automaticretry. Following originalM cases only after the corrected case qualifies.",
         "integrated": "62b465b8b989dc0ac1e755c4934d3a5fe000368c; acceptedf29 M changes reconciled with S50 and D, finalAstraACCEPTd109",
         "continuation_source": "c738f39bdcd1c6d8550fbd84d8cc4599946f77cf;independentAstra design/finalACCEPT,genuineRED969154e5->GREEN;22focusedtestsand6mergedselected-admissiontestsPASS;native81791194 unchanged.",
         "current_variant_builds": "BothpreviousgapsnowactualPASS:providerfree-f29b75db3-20261116/features[] andhelper-f29b75db3-20261116/test-seams underindependentruntime-env outsideallocation. Exactf29producer/compiler81791194/hash-boundreceipts;sourceclean/exit0/noresourcestop/strictquiescentcleanup;Astraaccepted. Ordinary4ffcunchanged,norebuildorreplay;all42remainingMrowsnowhavequalifiedcurrentvariantinputs.",
@@ -761,6 +761,30 @@
           "prior_used_ns_retained": 272193177669,
           "shared_after_retry_ns": 49445155525072,
           "limits": "Original900s/2GiB cumulative,4GiBzero-owned-swap envelope;no extra retry."
+        },
+        "lifecycle_observer_hold": {
+          "failed_root": "/mnt/data/tmp2/fathomdb-0829-continuation/slice30-g-20261113/gd-allocation/m-required-M-L-1-lazy-43776233d-20261116",
+          "result": "5/5RPCsOK/no degradation/normalexit;whole MCP1.865s. Two1Hz samples:0memory/util then samePID396MiB/device407>baseline2/util0; last sample~243ms before first query returned, no later sample before close. Missing proof, not absence of compute.",
+          "cell_charge_ns": 14287352084,
+          "cell_bytes": 717694180,
+          "shared_used_ns": 52505563110907,
+          "shared_retained_bytes": 101024742768,
+          "cleanup": "Guard4bcfedbc-f666-4ca2-be85-859fd076d81d strictquiescent/exactboundaryremoved;unitinactive/MainPID0/Exec1/CGempty/all5NULL/markerabsent;FD9sameinode8532374 available/released, selectedGPUempty/2MiB.",
+          "repair_worktree": "/mnt/data/worktrees/fathomdb-0.8.29-m-lifecycle-gpu-20261116",
+          "repair_base": "43776233d8b12c8a22e16bbbcadb3a9954eeb000",
+          "scope": "Python runtime-reference observer only; preserve old native4ffc/compiler817 and matched m_wire. General canonical preflight/landing PASS; no stale feature rebase or shipping-native change.",
+          "design_review": "Independent Astra-medium DESIGN ACCEPT18bb959b9 plus staged attribution paragraph; implement real RED/GREEN and final source review before M runtime. Pre-close witness frozen beforeEOF, later samples cannot rescue; observer errors still invalidate; external7s reserve and real total accounting retained."
+        },
+        "lifecycle_observer_repair": {
+          "source": "f8d08c5b41e17690534b3167a1f6c291c06fc0c5",
+          "design": "18bb959b9be39ce1c656ce5189706b0e030403ac plus source-attribution clarification; Astra DESIGN ACCEPT.",
+          "red": "d9de35414:9 controls,6 genuine runtime assertion failures/3preservationpasses; tests unchanged during fix.",
+          "qualification": "All35 affected tests including9regressions PASS11.740s on isolatedreference and11.737s canonical combined source; RuffPASS. ScopedPyright baseline15 to12 existing diagnostics/0new, notfulltypegreen.",
+          "review": "Independent Astra-medium final SOURCE ACCEPT, no actionable findings.",
+          "scope": "M-L-only100ms sampling; shared500msabsoluteprobe inclbaseline+samplecommands/late refusal; bounded2spreEOFpassivetail/workdeadlineclip with external7scleanupreserve preserved; preclose qualification frozen/no postclose rescue/later errorsinvalidate. RequiredRPCclocks/counts unchanged; actual wholeprocess/cell includes tail. G/R/Cdefaults and GPUoracle unchanged.",
+          "provenance": "3 collector source files match reviewed f8d08c5 exactly in canonical integration. Rust/Cargo/m_wire/native4ffc/compiler817 unchanged in runtime reference; accepted24 retain old source origins. Separate current canonical m_wire remains intact.",
+          "runtime": "HELD until S50 strict boundary/fresh original resource-budget-GPU fit/parentGO; one prepared retry only, no native attempt yet.",
+          "operator": "/mnt/data/tmp2/fathomdb-0829-continuation/m-lifecycle-gpu-20261116/operator/selected-M-L-1-lazy-retry1-f8d08c5b4.json"
         }
       },
       "g_write_runtime": {
@@ -852,7 +876,7 @@
         "dev/plans/0.8.29/features/slice-50/test-map.md"
       ],
       "conditions": "Astra-medium PASS on named-artifact entry: closed10 plus qualifiedLinux451, acceptedP2fd results and G29de assessment(11qualified/73refused), selected374/375contracts and source/consumercensus. Whole30/M/D/F/Windows/privateMemexsnapshot are not source-entry prerequisites. Ordinary source implementation, exactness/work controls and independent review are integrated at9036507bc. Current paired measurement and affected feature/performance acceptance remain; no runtime/whole30 gate is waived.",
-      "phase": "SOURCE_IMPLEMENTED_QUALIFIED_INTEGRATED_MEASUREMENT_PENDING",
+      "phase": "SOURCE_QUALIFIED_P32_G2_PREFIX5_ACTUALLY_RUNNING",
       "evidence": "Integrated9036507bc98ef31c05ae334aa22ec5101323c7e7 after genuine separate identity, atomic ambiguous-feedback, complete-rank winner-hydration and bounded-prefix RED/GREEN units and fresh Astra-medium acceptance. Original full verification stopped on strict du observation timeout before Rust tests; stale derived source inventory was repaired with the unchanged8-test guard. Canonical19-suite unfinished tail ran18:17 passed,1 observer failure,1 explicit G-live skip,0 exclusions. Rust workspace, Python/native and TS/hermetic NAPI passed. Frozen observer failure was corrected by attributing the existing real winner hydration outside fusion;24 affected functions, changed-engine lint/typecheck/Markdown and rebuilt current-source Python/NAPI parity passed. Final Astra accepted903 and assembled ordinary source verification. No uninterrupted full-wrapper pass, final Rust body-count reconstruction, actual-model/GPU/performance, live-G or whole50 completion is claimed. R6 current paired measurements and Block1 acceptance remain open.",
       "census_access_review": {
         "reviewed_sha": "1032a826d25440d24ea492e6bb3a8c1f2034359f",
@@ -920,6 +944,22 @@
           "correction_integrated": "9f31eae26",
           "correction_review": "Independent Astra ACCEPT;63focused controls PASS after separate genuine REDs. Fixture inspection precedes package identity; narrowly repairs cached omitted empty WAL, preserves nonempty WAL commits; failfast and explicit-adoption retry preserve history and cumulative caps."
         }
+      },
+      "current_paired_runtime": {
+        "source": "a0b7b233adf4331c91f98ec67d175dce3d6c51d2",
+        "native_subject": "09c534/compiler8465 unchanged",
+        "owner": "final_mcp_qualification",
+        "first_g_pair": "G10k r0 winner/eager attempt0002 both complete/qualification_issues[]; phase_qualified/window_completetrue, firststageexit0, strictquiescent/exactboundaryremoved/all5NULL. Originalattempt0001PRENATIVE failure preserved.",
+        "first_pair_charge_ns": 249385575728,
+        "first_pair_common_ns": 42094922897,
+        "qualified_ordinary": 34,
+        "remaining_g_ordinary": 102,
+        "remaining_diagnostic": 24,
+        "current": "Original next5 prefix session75535 running:100k-r0winner+eager complete/qualification_issues[], now100k-r1 eager-first. Stage public report/strictrelease follows selected5; no failure/refusal/retry.",
+        "limits": "Original9200s/24GiBstage,900s/member1800s/pair/common100s256MiB, same48h192GiBtotal+allpriorcharges; stopfirstfailure/refusal/noauto retry.",
+        "dependency": "M46 is not a semantic prerequisite. M stopped strictly; all5clear/markerabsent/FD9sameinode8532374+GPUempty/resourcefit verified before independent S50 launch. M fix is CPU-only/no sharedallocation or GPU action until S50 strictrelease.",
+        "scope": "FirstGpair/prefix only, not wholeS50 or ordinary treatment conclusion. No passingP replay, native rebuild, extra calibration or model call.",
+        "completed_g_native_pairs": 2
       }
     },
     {
@@ -1444,14 +1484,15 @@
         "accepted_corrections": "Integrated through ec54f833c981d9b0f878a407b7df0d15aa4d6842: current MCP fixture/field census, strict approved compact-contract oracle reconciliation, typed embedder-profile admission before deferred coverage-token failure, and narrowly handled enumerated /proc ESRCH race. Genuine RED/GREEN plus independent Astra ACCEPT; original failing tests retained.",
         "module_gate": "Unchanged standalone gate PASS29+5 tests and132 modules/128 configurations under owned config-free Cargo home; exact --locked preserved. First sandbox read-only fixture refusal retained.",
         "q3_affected": "35 distinct affected normal-feature test IDs assembled PASS with independent Astra ACCEPT; original observer missing-Python failures retained. Unchanged prior Q3 scope reused explicitly, not retagged or rerun.",
-        "remaining": "SelectedD24 and the approved72 comparison/judges now independently accepted; source/currentperfgates/CPU-CUDA-artifact/MCPcomponents retain their accepted actual scopes. Remaining originalM34, S50G104ordinary+24diagnostic, combined90/160 joins and CI review/execution remain. Slice40 conditional disposition is complete with no optimization. Earlier failures retained; no production statement-cache change.",
+        "remaining": "SelectedD24 and the approved72 comparison/judges independently accepted. M24/46 qualified; short lifecycleGPUproof observer source correction is independently accepted, controlled runtime still pending, M runtime held pending reviewed correction/technical GO. Independently S50G2ordinary qualified and originalnext5pairs running;102Gordinary+24diagnostic and combined90/160 joins remain; then CI review/execution after localpasses. Original failures/native identities and charges retained. No new optimization, episode or VM change.",
         "episodes": "Completed once:72valid episodes/all144grades, exact approved served models/qIDs/tool policy; independent Astra final ACCEPT. Reported total$0.13444673; no new quality threshold/noninferiority claim or further paid replay. See90 current_execution and existing comparison README.",
         "delivery": "Local passes, then review CI scripts before running appropriate CI; registry publication excluded.",
         "hints_failed_only": "One exact original unoptimized executable resumption PASS1/1 in7.37s; SHA2563f94cd2e7e9eb39ecd83456d5679ba6c4d18f435a1d56039ca52a6fe6b7b7860, original serial argument/environment/cwd. Original290.4us>200 failure and warnings retained; new numerical statistics captured/unavailable. No profile substitution or additional resumption.",
         "current_performance": "One exact retained AC011a resumption FAIL993.996/s (59640/60.000239089s), original760.621 retained. Independent first-current AC011b PASS429.322/s>=100;7 AC081 processes PASS sequential324.699516\u2013345.138117ms<=500/concurrent47.880991\u201350.739633ms<=100, all7 sequential200ms warnings retained. Exact operator/AGENT_LONG AC021 PASS60s/60 cycles/60 rebuilds/schema violations0; cursor PASS1000 searches/212 writes/211 during reads/999 advancing hits/0 violations. Actual retained subjects, not retagged.",
         "throughput_diagnostic": "One attribution-only GDB execution completed normally after65.09s; debugger133722/inferior133778 gone.9 stacks (not16), no end-counter snapshot.3 writer SQLite-prepare stacks,3 nonblocking WAL lock operations,1 each WAL write/allocation cleanup/trigger VM; workers parked. Instrumented765.406/s is not acceptance; no host-cause inference or second diagnostic. Narrow compiled-statement reuse proposal remains unimplemented.",
         "matched_host_check": "User requested busy-host check. Fixed ordinary OLD\u2192NEW pair, same env/TMPDIR/serialargs/no rebuild/debugger/affinity change: OLD d34f6487...1495.233/s (89715); NEW d854615c...1482.090/s (88927), both PASS>=1000. Both65.13s; CPU58.35/58.45s,0major faults/0swap, unlimited cgroup/no throttling. One pair establishes no material slowdown in this comparison, not statistical causality. Original1538/760/993 and instrumented765 remain retained. Raw openfix-20261116/ac011-fixed-host-pair. Contemporaneous1s host CPU means18.01/17.05%, runqueue4.25/4.12 and NVMe utilization12.62/12.28%; boundary samples may straddle markers.",
-        "historical_host_check": "System sar sa16 ten-minute windows: earlier1538 pass around05:08\u201309 had12.76% CPU busy/runq1;760 failure11:28\u201329 had96.49% busy/runq95 on24 logical CPUs;993 run13:36\u201337 window24.43% busy/runq7. These averages/queue snapshots support contention for first failure but do not establish exact per-run cause. Compiler/features/SQLite archive/timed source match; new test-hooks callback comparison is reachable but cost/cause unproven."
+        "historical_host_check": "System sar sa16 ten-minute windows: earlier1538 pass around05:08\u201309 had12.76% CPU busy/runq1;760 failure11:28\u201329 had96.49% busy/runq95 on24 logical CPUs;993 run13:36\u201337 window24.43% busy/runq7. These averages/queue snapshots support contention for first failure but do not establish exact per-run cause. Compiler/features/SQLite archive/timed source match; new test-hooks callback comparison is reachable but cost/cause unproven.",
+        "observer_correction_gate": "Observer source accepted and canonical focused35/Ruff passed. Required final broad clean code-phase gate remains due on canonical stable tree when the measurement heavy window permits; no new fullworkspacegreen claim from scoped checks."
       },
       "refreshed_artifact_components": {
         "source": "9e6d180bd6820fb32d865d2119c19308ff363d09",
@@ -1711,7 +1752,7 @@
   },
   "release_readiness": {
     "status": "NOT_READY",
-    "qualification": "Full90/corrective source, current performance/CPU-CUDA artifacts/MCP cohorts, fixedD24 and the single approved72 comparison/judges independently accepted within actual scopes. G84 and TC5F/Q8 accepted;40 conditional disposition complete with no new optimization. M12/46 qualified and original serial continuation active; S50P32/136ordinary qualified,104Gordinary+24diagnostic remain. Original failures/source identities/charges retained; no quiet-machine, universal accuracy, noninferiority or canonical natural-search pass inferred fromD. Remaining measurements and combined90/160 joins precede local completion; then CI correctness review and appropriateCI. Registry publication excluded. TemporaryVMlivehold ended with already-stopped domain/persistent32GiB intact.",
+    "qualification": "Source/currentperformance/CPU-CUDAartifacts/MCP/D24/singleapproved72comparison independently accepted in actual scopes;G84/TC5F-Q8 and40nonadoption complete. M24/46qualified, first short lifecycleGPUproof missing despite5successfulRPCs; strictcleanup passed and Python-only observation correction is source-accepted after actual RED/GREEN and focused canonical checks; runtime remains pending the S50 boundary. M runtime held until reviewed technicalGO; S50 firstGpair qualified/next5pairs running independently after strictresource handoff, remainingS50G102ordinary+24diagnostic and finaljoins remain. No code/CPUfallback/GPUcompute-absence diagnosis or automaticretry. Final broad clean code-phase gate is also due before localcompletion. After all localpasses reviewCI then run appropriateCI; registrypublish excluded. VMlivehold ended with already-stopped domain/persistent32GiB intact.",
     "publication": "HELD; no tag, dispatch, external ACL mutation or registry publication authorized by bootstrap.",
     "local_source_phase": {
       "status": "ASSEMBLED_FULL_SOURCE_PASS_INDEPENDENT_ASTRA_ACCEPTED",

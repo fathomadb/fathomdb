@@ -7,12 +7,24 @@ import subprocess
 import time
 
 
-def inspect_gpu(uuid, pid=None):
-    """Read selected physical GPU metadata and actual compute-process memory."""
+def inspect_gpu(uuid, pid=None, *, deadline_ns=None):
+    """Read selected metadata/process memory within an optional absolute deadline.
+
+    Without a deadline each existing command keeps its 5s timeout. A supplied
+    deadline covers both commands and rejects results completed at/after it.
+    """
     base = ["nvidia-smi", "--id", uuid]
+    def remaining():
+        if deadline_ns is None:
+            return 5
+        value = (deadline_ns-time.monotonic_ns())/10**9
+        if value <= 0:
+            raise TimeoutError("selected GPU observation deadline")
+        return min(5,value)
     def query(fields, kind):
         completed = subprocess.run([*base, f"--query-{kind}={fields}", "--format=csv,noheader,nounits"],
-                                   text=True, capture_output=True, timeout=5, check=True)
+                                   text=True, capture_output=True, timeout=remaining(), check=True)
+        remaining()
         return [[value.strip() for value in row] for row in csv.reader(io.StringIO(completed.stdout)) if row]
     rows = query("uuid,name,driver_version,memory.used,utilization.gpu", "gpu")
     if len(rows) != 1 or len(rows[0]) != 5:
@@ -28,6 +40,7 @@ def inspect_gpu(uuid, pid=None):
         if row[1] != uuid:
             continue
         applications.append({"pid": int(row[0]), "uuid": row[1], "memory_mib": int(row[2])})
+    remaining()
     return {"uuid": found, "name": name, "driver_version": driver, "primary_cuda": primary,
             "pid": pid, "gpu_memory_mib": int(memory), "utilization_percent": int(utilization),
             "pid_memory_mib": sum(row["memory_mib"] for row in applications if row["pid"] == pid),
@@ -35,19 +48,21 @@ def inspect_gpu(uuid, pid=None):
 
 
 class GpuObserver:
-    """Sample a reserved3090 for actual native child PID engagement once per second."""
+    """Observe actual child engagement; the caller owns cadence and deadlines."""
 
-    def __init__(self, gpu):
+    def __init__(self, gpu, *, deadline_ns=None):
         self.gpu = gpu
-        self.baseline = inspect_gpu(gpu["uuid"])
+        self.baseline = (inspect_gpu(gpu["uuid"]) if deadline_ns is None
+                         else inspect_gpu(gpu["uuid"],deadline_ns=deadline_ns))
         if self.baseline["applications"]:
             failure = RuntimeError("selected GPU already has compute work; reservation unavailable")
             failure.observation = self.baseline
             raise failure
 
-    def sample(self, pid):
-        """Retain actual app memory/utilization; foreign compute work refuses this cell."""
-        record = inspect_gpu(self.gpu["uuid"], pid)
+    def sample(self, pid, *, deadline_ns=None):
+        """Retain observed app facts; foreign work or a missed deadline refuses."""
+        record = (inspect_gpu(self.gpu["uuid"],pid) if deadline_ns is None
+                  else inspect_gpu(self.gpu["uuid"],pid,deadline_ns=deadline_ns))
         record["baseline_gpu_memory_mib"] = self.baseline["gpu_memory_mib"]
         if any(row["pid"] != pid for row in record["applications"]):
             failure = RuntimeError("selected GPU has foreign compute work")

@@ -35,7 +35,8 @@ def _loops(session, cell, queries, deadline_ns):
     return {"phases": phases, "complete": complete}
 
 
-def execute(cell, command, root, *, queries, deadline_ns, files=None, control_path=None, on_spawn=None):
+def execute(cell, command, root, *, queries, deadline_ns, files=None, control_path=None, on_spawn=None,
+            on_payload_complete=None):
     """Run a cell against its actual stdio process and retain decoded outcomes."""
     cell_load = [observe_load()]
     try:
@@ -76,6 +77,8 @@ def execute(cell, command, root, *, queries, deadline_ns, files=None, control_pa
                 result["complete"] = (refs == ["l:alpha"] and body == "alpha river crossing\né😀"
                     and all(row["ok"] for row in (search, fetched, orient))
                     and error.get("error") == "invalid_request/unknown_store")
+            if cell["family"] == "M-L" and on_payload_complete is not None:
+                result["gpu_observation"] = on_payload_complete(session.child.pid,result["complete"])
     except OutputLimitError as error:
         result = {"complete": False, "output_overflow": str(error)}
     result["exit"] = session.exit

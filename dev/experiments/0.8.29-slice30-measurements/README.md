@@ -796,6 +796,15 @@ original native/compiler identities and the new common/shared charge. This CPU-o
 operation writes report/history/accounting; it dispatches no native work or GPU
 probe and performs no copy retirement. Future selected `pair-run` retirement keeps
 its existing qualification and bounds. Default cached reads remain unchanged.
+A report-only selection may name `report_recovery` as the original adoption path
+for an exact completed window whose guardian stopped only on post-native common
+cleanup reserve. Recovery requires terminal clean native records, complete exact
+comparisons, unchanged assessed raw evidence, original caps and strict boundary
+cleanup. It preserves the original stop/rows/charges and records separate
+`report_recoveries` bound to a successful CPU assessment guardian. That scoped
+credit survives later reports and ordinary selected retirement; other failed or
+uncertain guardians remain ineligible. Recovery is rejected by run/payload.
+`test_pair_report_recovery.py` covers these provenance and continuation controls.
 A source-only report without a freeze lists every member as unrun.
 
 The existing `g_driver.run_program_step` sets `slice50_pair_mode`: `winner`

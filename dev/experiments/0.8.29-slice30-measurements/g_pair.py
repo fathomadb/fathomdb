@@ -288,6 +288,8 @@ def public_entry(operation, root, options=None, *, selection=None):
             raise ValueError('prospective selection belongs only to primary pair-run or pair-report')
         from g_pair_freeze import validate
         selected = validate(root, selection=selection)
+        if selected.get('_report_recovery_selection') and operation != 'report':
+            raise ValueError('recovery selection is report-only')
     profile=selected['profile']
     if not isinstance(profile,dict):
         profile=json.loads(Path(profile).read_text())

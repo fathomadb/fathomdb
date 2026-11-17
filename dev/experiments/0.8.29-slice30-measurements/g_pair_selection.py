@@ -13,7 +13,7 @@ def apply(manifest, request):
     record = json.loads(Path(request).read_text()) if not isinstance(request, dict) else request
     selected = record.get('selection', record)
     required = {'schema', 'root', 'manifest_uuid', 'profile', 'primary_limits', 'retire_complete_copies'}
-    optional = {'g_donors', 'model_cache', 'gpu_uuid', 'gpu_ordinal'}
+    optional = {'g_donors', 'model_cache', 'gpu_uuid', 'gpu_ordinal', 'report_recovery'}
     if (set(selected) - required - optional or not required.issubset(selected)
             or selected['schema'] != 'slice50-pair-selection/v1' or manifest['scope'] != 'primary'
             or Path(selected['root']).resolve() != Path(manifest['root']).resolve()
@@ -38,6 +38,10 @@ def apply(manifest, request):
         actual['_selection_path'] = str(Path(request).resolve())
     if 'selection' in record:
         actual['_selection_record'] = record
+    if 'report_recovery' in selected:
+        if not isinstance(selected['report_recovery'], str) or not selected['report_recovery']:
+            raise ValueError('report-only recovery requires original adoption')
+        actual['_report_recovery_selection'] = selected['report_recovery']
     if 'g_donors' in selected:
         donors = selected['g_donors']
         if (not isinstance(donors, dict) or not donors or set(donors) - {'10000', '100000'}

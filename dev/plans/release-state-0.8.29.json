@@ -984,20 +984,20 @@
         "first_g_pair": "G10k r0 winner/eager attempt0002 both complete/qualification_issues[]; phase_qualified/window_completetrue, firststageexit0, strictquiescent/exactboundaryremoved/all5NULL. Originalattempt0001PRENATIVE failure preserved.",
         "first_pair_charge_ns": 249385575728,
         "first_pair_common_ns": 42094922897,
-        "qualified_ordinary": 44,
-        "remaining_g_ordinary": 92,
+        "qualified_ordinary": 54,
+        "remaining_g_ordinary": 82,
         "remaining_diagnostic": 24,
-        "current": "44ordinary credited at accepted checkpoint; original nextprefix044-054 launched once/session56051 on frozen270/native09c/compiler8465. Fresh exactFD9inode8532374/selected5f9-R580.178.04-CUDA12.6/appsEMPTY/all5NULL/floors/source checks pass. All13 original finite prefixes authorized serialfreshadmission/stopfirst/noautoretry; remaining92ordinary+24diagnostic outcomes stay open.",
+        "current": "54ordinary credited/nativecomplete54 after one strict CPU-only assessment of original044-054. Originalall10native succeeded; finalreport common100s reached80.598s reserve/guardian124, preserved. Explicit identity-bound assessment exits0/child0 under prospectivecommon600 and qualifies onlyexact10. No native replay. Nextoriginal054-064 launched once/session50129; remaining12windows run serialfreshadmission/stopfirst.",
         "limits": "Original9200s/24GiBstage,900s/member1800s/pair/common100s256MiB, same48h192GiBtotal+allpriorcharges; stopfirstfailure/refusal/noauto retry.",
-        "dependency": "Assembled finalsource/Q17 qualification independentlyaccepted; M46 and CPUreportstrictreleased. No semantic source-entry hold. Continue originalfinite S50 windows under same48h192GiB ledger/originalcaps, actual GPUexclusivity/freshresources eachentry; foreignjobsuntouched/noquietCPUgate.",
+        "dependency": "Slice30CLOSED; assembledsource/Q17accepted and narrowfailed-report correction/source+actualCPUassessmentqualified. Continue remaining12originalS50windows under unchangedglobal/scientific/phasebounds, freshactualGPUexclusivity/resources; no quietCPUcondition or foreignactoraction.",
         "scope": "Current44ordinary only, not whole136+24/S50/treatment-conclusion. No passingP/native replay/build/calibration/modelcalls; same48h192GiBledger/allpriorcharges.",
-        "completed_g_native_pairs": 6,
-        "remaining_native_g_ordinary": 92,
+        "completed_g_native_pairs": 11,
+        "remaining_native_g_ordinary": 82,
         "held_reassessment_members": 0,
         "five_prefix_charge_ns": 4518022202401,
         "five_prefix_common_ns": 67792215433,
         "cleanup": "Guardian870284/unitf65f26573ea54559a928e3b3f66d2e8d strictquiescent/exactboundaryremoved;all5NULL/markerabsent/FD9sameinode8532374free/selectedGPUempty; handoff to M completed.",
-        "controller_source": "270aaf413adfadc006a8e4a333a8927a8db8e8b1",
+        "controller_source": "c2ed2e8550635ec17291e95c0008f7511e04639c",
         "correction_review": "IndependentAstra design/final SOURCE ACCEPT359f99116 and publicAPI delta270aaf413;genuineREDfd2935b/41618551b/c102cecd,70affectedcontrolsPASS1.934s/Ruff/scopedMD/hooksPASS. A3fixedstatefulloracle unchanged; no newthreshold/nativecontrol.",
         "reassessment": {
           "raw": "/mnt/data/tmp2/fathomdb-0829-continuation/s50-g-visibility-20261116/logs/pair-reassessment-270aaf413-20261116.log",
@@ -1008,6 +1008,29 @@
           "scope": "CPU-onlyguardedreport/cache/history/ledger work; no native/control/payload/GPUprobe/retirement. ForeignGPUuntouched/noemptyGPUclaim.",
           "cleanup": "Guardianboundaryquiescent/unpopulated/removed;1057056+1057145absent/all5NULL/markerabsent.",
           "text_comparison": "comparison_scope=natural_gw_results,status=natural_results_complete,complete=true,result_equal=true,equal=false;allfouractualobservationdifferences retained/validated, everyotherfield exact."
+        },
+        "common_profile": "Prospectively common600s only, independently permitted existing localprofile authority; original scientific900s/member1800s/pair,phase9200s(orlast2000/3800),48h192GiBTOTAL,256MiBcommonoutput/24GiBgrowth unchanged. Actualadmission/hardstops enforced; no allfuturefit claim or retroactiveold100change.",
+        "report_cutoff_recovery": {
+          "original_adoption": "97749647238134-1432346",
+          "window": "044-054",
+          "original_exit": 124,
+          "original_stop": "shared cleanup reserve",
+          "original_common_ns": 80598207074,
+          "original_phase_charge_ns": 2334115179540,
+          "source": "c2ed2e8550635ec17291e95c0008f7511e04639c",
+          "review": "Independent Astra DESIGN/final SOURCE ACCEPT; P2 newassessmentexit1 corrected by genuine b3eea53e RED;77affected controls PASS3.004s, canonical77PASS3.081s. Narrowfailed-report correction; unrelated broad/native checks retained.",
+          "red_refs": [
+            "4311220dd2a136710ee03b15d6028a8acdf0a0a6",
+            "b3eea53ea2f7975ea97fbb4d4c913154c12bfa5d"
+          ],
+          "assessment": "ONE actualCPUreport assessmentterminal0/child0; exact044-054 phasequalified/windowcomplete,54ordinary credited,wholetableincomplete. Alloldnative/source/row/raw/124/history/charges remain unchanged. Separatehealthyassessment bindsexactten; ordinaryhealthy policy unchanged; carryforward/nextfinish/retirement scopedcredit tested.",
+          "raw": "/mnt/data/tmp2/fathomdb-0829-continuation/s50-g-visibility-20261116/logs/report-recovery-044-054-c2ed2e8550-20261116-runtime.log",
+          "assessment_guardian": 1526067,
+          "assessment_controller": 1526228,
+          "common_charge_ns": 84254921675,
+          "shared_used_ns": 60292598619850,
+          "cleanup": "Original1432346/controller1432407 andnew1526067/controller1526228absent; originalandnewboundaryquiescent/unpopulated/removed;all5NULL/markerabsent;oldphysicalFD9releaseverified. CPUassessment hasno native/GPUprobe/FD9/retirement.",
+          "next": "Original054-064running onacceptedc2/native09c/compiler8465 afterfreshFD9/GPUempty/floors/sourceadmission; common600onlyprospective, no newownerdecision/calibration."
         }
       }
     },
@@ -1533,7 +1556,7 @@
         "accepted_corrections": "Integrated through ec54f833c981d9b0f878a407b7df0d15aa4d6842: current MCP fixture/field census, strict approved compact-contract oracle reconciliation, typed embedder-profile admission before deferred coverage-token failure, and narrowly handled enumerated /proc ESRCH race. Genuine RED/GREEN plus independent Astra ACCEPT; original failing tests retained.",
         "module_gate": "Unchanged standalone gate PASS29+5 tests and132 modules/128 configurations under owned config-free Cargo home; exact --locked preserved. First sandbox read-only fixture refusal retained.",
         "q3_affected": "35 distinct affected normal-feature test IDs assembled PASS with independent Astra ACCEPT; original observer missing-Python failures retained. Unchanged prior Q3 scope reused explicitly, not retagged or rerun.",
-        "remaining": "Slice30closed independently; source/Q17/M46/D24/approved72/currentartifact+MCP scopes accepted. RemainingS50 original92ordinary+24diagnostic outcomes and final50/90/160 requirement/applicability joins precede localcompletion, thenCIcorrectnessreview/appropriateCI. No newoptimization/episode/VMaction.",
+        "remaining": "RemainingS50 original82ordinary+24diagnostic native outcomes and final50/90/160 requirement/applicability joins precede localcompletion, thenCIcorrectnessreview/appropriateCI. Source/Q17 and30/M46/D24/approved72/currentartifact+MCP scopes accepted. Report-only common-cutoff recovery credited54 without native replay; original124/failures/charges preserved.",
         "episodes": "Completed once:72valid episodes/all144grades, exact approved served models/qIDs/tool policy; independent Astra final ACCEPT. Reported total$0.13444673; no new quality threshold/noninferiority claim or further paid replay. See90 current_execution and existing comparison README.",
         "delivery": "Local passes, then review CI scripts before running appropriate CI; registry publication excluded.",
         "hints_failed_only": "One exact original unoptimized executable resumption PASS1/1 in7.37s; SHA2563f94cd2e7e9eb39ecd83456d5679ba6c4d18f435a1d56039ca52a6fe6b7b7860, original serial argument/environment/cwd. Original290.4us>200 failure and warnings retained; new numerical statistics captured/unavailable. No profile substitution or additional resumption.",
@@ -1563,7 +1586,8 @@
           "mkdocs_log": "/mnt/data/tmp2/fathomdb-0829-continuation/root-release-20261116/logs/q17-mkdocs-strict.log",
           "limits": "Assembled qualification, no uninterrupted broad-green claim. Remaining S50/combinedjoins/CI stay open."
         },
-        "frozen_baseline_applicability": "Independent Astra code/contract review: S50 core and SDK use snippets=None, skipping full90 vector-participant/scored-extent work; frozen hydration/ranking comparisons remain applicable. Full90 changes open/fullprojection-status capture/cache: frozen setup/readiness/wholeprocess/RSS and M snippet-enabled MCP timings describe original binaries. Current storedcoverage statement/row/VM+indexedcapture-overhead, Q5/6/7,A3/zero-work/participant-bound,installedartifacts,MCP14,paid72 and finalbroad source controls cover changed scopes. Preserve original subjects; no whole-runtime equivalence, newthreshold or matrixreplay."
+        "frozen_baseline_applicability": "Independent Astra code/contract review: S50 core and SDK use snippets=None, skipping full90 vector-participant/scored-extent work; frozen hydration/ranking comparisons remain applicable. Full90 changes open/fullprojection-status capture/cache: frozen setup/readiness/wholeprocess/RSS and M snippet-enabled MCP timings describe original binaries. Current storedcoverage statement/row/VM+indexedcapture-overhead, Q5/6/7,A3/zero-work/participant-bound,installedartifacts,MCP14,paid72 and finalbroad source controls cover changed scopes. Preserve original subjects; no whole-runtime equivalence, newthreshold or matrixreplay.",
+        "narrow_report_correction": "Accepted c2 failed-report recovery tested77affected+actual84.255sCPUassessment; current54credited,next054-064running. Source-onlymeasurement qualification follows owner failed-onlyrule; no unrelated69min broad/native replay or shipping code change."
       },
       "refreshed_artifact_components": {
         "source": "9e6d180bd6820fb32d865d2119c19308ff363d09",
@@ -1822,7 +1846,7 @@
   },
   "release_readiness": {
     "status": "NOT_READY",
-    "qualification": "Slice30 measurementbaseline CLOSED independently after finalA30-1..7review; acceptedsource/Q17/currentartifact+MCP/performance/singlepaid72 scopes retained. S50checkpoint44ordinarycredited and originalremaining13windowsrunning serially;92ordinary+24diagnostic outcomes and final50/90/160joins remain, thenCIreview/appropriateCI. Preserve originalsubjects/failures/charges/naturalobservations; no newmatrixreplay/timingretag. Registrypublishingexcluded;VMholdended/persistent32GiBintact.",
+    "qualification": "Slice30CLOSED; acceptedsource/Q17/currentartifact+MCP/performance/singlepaid72 scopes retained. S50checkpoint54ordinary credited after explicitstrictCPUreport recovery preserving originalpost-native124 andallcharges. Nextoriginal054-064runs;82ordinary+24diagnostic native outcomes andfinal50/90/160joins remain, thenCIreview/appropriateCI. No data/native replay,currenttimingretag or registrypublication;VMholdended.",
     "publication": "HELD: registry publication and v* tag push excluded by owner scope. Appropriate CI is authorized after required local qualification and CI correctness review; bootstrap alone grants no external publication/ACL action.",
     "local_source_phase": {
       "status": "ASSEMBLED_FULL_SOURCE_PASS_INDEPENDENT_ASTRA_ACCEPTED",

@@ -336,12 +336,29 @@ def published_report(root):
                 and boundary.get('removed_exact_empty_boundary') is True)
     receipt = final(result.get('guardian_owner') or {})
     good = healthy(receipt)
+    recovered = set()
+    from g_freeze import identify
+    previous = {row['id']: row for name in ('primary', 'diagnostics') for row in result[name]}
+    for assessment in result.get('report_recoveries', []):
+        try:
+            bound = assessment['original_members']
+            assessment_receipt = final(assessment['guardian_owner'])
+            if (not healthy(assessment_receipt) or assessment_receipt['exit'] != 0
+                    or assessment_receipt.get('child_exit', 0) != 0
+                    or assessment['members'] != [row['id'] for row in bound]
+                    or any(any(previous.get(row['id'], {}).get(key) != value for key, value in row.items()) for row in bound)
+                    or any(identify(record['path']) != record for record in assessment['identities'])):
+                continue
+            recovered.update(assessment['members'])
+        except (OSError, ValueError, KeyError, TypeError):
+            continue
     result['guardian'] = receipt
     result['phase_qualified'] = good
     for name in ('primary', 'diagnostics', 'calibration'):
         for row in result[name]:
             row['credited'] = bool(row.get('credited') and good
-                and healthy(final(row.get('guardian_owner') or result.get('guardian_owner') or {}, row.get('guardian_root'))))
+                and (healthy(final(row.get('guardian_owner') or result.get('guardian_owner') or {}, row.get('guardian_root')))
+                     or row['id'] in recovered))
     result['complete'] = bool(result.get('native_primary_complete') and good
         and all(row['credited'] for name in ('primary', 'diagnostics') for row in result[name]))
     credited = {row['id'] for name in ('primary', 'diagnostics') for row in result[name] if row.get('credited')}

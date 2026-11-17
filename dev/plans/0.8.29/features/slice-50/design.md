@@ -465,6 +465,16 @@ local cleanup; retain immutable inputs/templates/donors, raw results, failures a
 copies still needed for qualification. This amendment proposes the public adoption
 path only; it does not adopt a profile or modify the active allocation.
 
+An explicit report-only `report_recovery` selection may reference the original
+adoption for a wholly completed canonical window stopped on post-native common
+cleanup reserve. Validate exact original member/native/raw identity, completed
+calls/comparisons, all original caps and strict cleanup; retain the original124,
+rows, history and charges. A separate identity-bound assessment under a healthy
+CPU report guardian may credit only those members, preserving their original
+execution attribution. It persists across later whole-table reports and existing
+qualified-copy retirement. The default unhealthy-guardian rule remains strict;
+run/payload reject this option and report performs no retirement or native work.
+
 Each invocation selects only the next required canonical pair(s), preserving
 original member/adapter/route/order/repeat/populations and all136 ordinary plus24
 diagnostic obligations. Freeze/prepare only the selected required P templates;
@@ -497,7 +507,8 @@ proposal explicitly amends **only new paired scope**, with a selected
 `retire_complete_copies` option: after complete pair comparison, required
 case-diagnostic completion, actual closes and strict native actor/cell-boundary
 quiescence, require finalized healthy report and original execution guardians
-for every required member before retiring only that pair's disposable working
+(or the narrow completed-native report-recovery assessment above) for every
+required member before retiring only that pair's disposable working
 DB/WAL/SHM copies. Local retirement follows final guardian publication, reuses the shared ledger
 lock and charges its actual common work within the selected remaining limits.
 Retain raw calls/warmups/probes/writes/results, actual input/build/provider identity,

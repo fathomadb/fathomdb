@@ -69,6 +69,8 @@ def payload(root, config, attempt, deadline_ns, *, selection=None):
     if selection is not None:
         from g_pair_selection import apply
         manifest = apply(manifest, selection)
+    if manifest.get('_report_recovery_selection'):
+        raise ValueError('recovery selection is report-only')
     cell = json.loads(Path(config).read_text())
     worker_admission(manifest, cell, attempt)
     if cell not in canonical_members(manifest) or time.monotonic_ns() >= deadline_ns:
@@ -193,7 +195,11 @@ def finish(manifest, rows):
     root = Path(manifest['root'])
     result = report(root)
     cached = root / 'results/report.json'
-    result['retired_copies'] = json.loads(cached.read_text()).get('retired_copies', []) if cached.exists() else []
+    previous = json.loads(cached.read_text()) if cached.exists() else {}
+    result['retired_copies'] = previous.get('retired_copies', [])
+    recoveries = previous.get('report_recoveries', []) + ([manifest['_report_recovery']] if '_report_recovery' in manifest else [])
+    if recoveries:
+        result['report_recoveries'] = recoveries
     if '_reassessment' in manifest:
         result['reassessment'] = manifest['_reassessment']
     active = [cell['id'] for cell in manifest.get('_active_members', [])]
@@ -267,6 +273,89 @@ def retire_qualified(root, outcome=None, *, manifest=None):
                 write_budget(accounting.path, budget)
 
 
+def _recover_report(manifest, owner):
+    from g_freeze import identify
+    from g_pair import qualify_step, required_prefix
+    from g_pair_report import comparisons, clean
+    from g_pair_selection import apply
+    root = Path(manifest['root'])
+    original_path = Path(manifest['_report_recovery_selection']).resolve()
+    original = json.loads(original_path.read_text())
+    if (original.get('schema') != 'slice50-pair-adoption/v1'
+            or original.get('native_source_sha') != manifest['source_sha']
+            or original.get('compiler_inputs') != manifest['compiler_inputs']
+            or 'report_recovery' in original.get('selection', {})):
+        raise ValueError('report recovery original adoption differs')
+    original_manifest = apply(manifest, original['selection'])
+    cells = required_prefix(original_manifest, root)
+    if len(cells) != 2 * original_manifest['primary_limits']['pairs']:
+        raise ValueError('report recovery requires exact original whole-pair window')
+    state = {row['id']: row for row in json.loads((root / 'results/campaign-state.json').read_text())}
+    rows = [state.get(cell['id'], {}) for cell in cells]
+    original_owner = original.get('guardian_owner') or {}
+    for row in rows:
+        bound = row.get('guardian_owner') or {}
+        if (not clean(row) or row.get('exit') != 0 or row.get('child_exit') != 0 or row.get('error')
+                or row.get('selection') != str(original_path)
+                or any(bound.get(key) != original_owner.get(key) for key in ('pid', 'start', 'root', 'started_monotonic_ns'))
+                or bound.get('controller_pid') != rows[0].get('guardian_owner', {}).get('controller_pid')
+                or type(row.get('charged_ns')) is not int or not 0 < row['charged_ns'] < 900 * 10**9):
+            raise ValueError('report recovery requires exact complete clean original members')
+    receipts = [(path, json.loads(path.read_text())) for path in (root / 'guardians').glob('*/guardian.json')]
+    matches = [(path, receipt) for path, receipt in receipts
+               if receipt.get('started_monotonic_ns') == original_owner.get('started_monotonic_ns')
+               and receipt.get('controller_pid') == rows[0]['guardian_owner'].get('controller_pid')]
+    if len(matches) != 1:
+        raise ValueError('report recovery original guardian unavailable')
+    receipt_path, receipt = matches[0]
+    accounting, boundary = receipt.get('accounting') or {}, receipt.get('boundary') or {}
+    limits = original_manifest['primary_limits']
+    budget = json.loads((Path(manifest['allocation']) / 'g-budget.json').read_text())
+    if (receipt.get('exit') != 124 or receipt.get('stop') != 'shared cleanup reserve'
+            or receipt.get('error') or receipt.get('cleanup_uncertain') is not False
+            or boundary.get('status') != 'quiescent' or boundary.get('populated_after') is not False
+            or boundary.get('removed_exact_empty_boundary') is not True
+            or boundary.get('guardian_pid') != original_owner.get('pid')
+            or boundary.get('guardian_start') != original_owner.get('start')
+            or accounting.get('recovered_cell_ns') != 0
+            or type(accounting.get('common_ns')) is not int
+            or accounting['common_ns'] < limits['common_ns'] - 20 * 10**9
+            or accounting.get('charged_ns') != accounting['common_ns'] + sum(row['charged_ns'] for row in rows)
+            or type(receipt.get('stopped_monotonic_ns')) is not int
+            or receipt['stopped_monotonic_ns'] + 20 * 10**9 >= original_owner['started_monotonic_ns'] + limits['phase_ns']
+            or budget.get('inflight') or budget['used_ns'] + 20 * 10**9 >= original_manifest['profile']['total_shared_ns']
+                - original_manifest['profile']['reserved_other_work_ns']):
+        raise ValueError('report recovery requires post-native common-only strict guardian stop')
+    for index in range(0, len(rows), 2):
+        pair = rows[index:index+2]
+        cap = budget.get('s50_pair_limits', {}).get(cells[index]['id'], limits['pair_ns'])
+        if sum(row['charged_ns'] for row in pair) > min(cap, limits['pair_ns']):
+            raise ValueError('report recovery original pair cap exceeded')
+    identities = [identify(original_path), identify(receipt_path)]
+    for cell, row in zip(cells, rows, strict=True):
+        attempt = Path(row['attempt'])
+        result = json.loads((attempt / 'result.json').read_text())
+        steps = result.get('steps') or []
+        if (result.get('complete') is not True or result.get('qualification_issues') != []
+                or result.get('cell') != cell or result.get('freeze_uuid') != manifest['uuid']
+                or result.get('scope') != 'primary' or result.get('selected_build') != manifest['build']['binaries'][cell['artifact']]
+                or len(steps) != 1 or steps[0].get('exit') != 0 or qualify_step(steps[0], cell, manifest)):
+            raise ValueError('report recovery native evidence incomplete')
+        paths = [attempt / 'attempt.json', attempt / 'result.json']
+        for step in steps:
+            paths.extend(sorted(Path(step['output']).glob('*.json*')))
+            if step.get('config'):
+                paths.append(Path(step['config']))
+        identities.extend(identify(path) for path in paths)
+    if not all(pair['complete'] for pair in comparisons(cells, state)):
+        raise ValueError('report recovery exact native comparison incomplete')
+    return cells, {'members': [cell['id'] for cell in cells], 'guardian_owner': owner,
+        'original_guardian': receipt, 'original_selection': str(original_path),
+        'original_members': [{key: row[key] for key in ('id', 'attempt', 'selection', 'guardian_owner')} for row in rows],
+        'native_source_sha': manifest['source_sha'], 'compiler_inputs': manifest['compiler_inputs'],
+        'controller_source_sha': manifest['controller_source_sha'], 'identities': identities}
+
+
 def control_entry(operation, root, options, admission_fd, *, selection=None):
     """Own freeze/run/report under the existing inherited guardian admission."""
     from g_pair import freeze
@@ -278,6 +367,8 @@ def control_entry(operation, root, options, admission_fd, *, selection=None):
         manifest = freeze(selected, root, scope='calibration' if operation == 'calibration' else 'primary')
     else:
         manifest = validate(root, selection=selection)
+    if manifest.get('_report_recovery_selection') and operation != 'report':
+        raise ValueError('recovery selection is report-only')
     path = Path(manifest['allocation']) / 'g-budget.json'
     if json.loads(path.read_text()).get('s50_guardian') != owner:
         raise RuntimeError('paired operation lacks actual selected original guardian')
@@ -288,6 +379,8 @@ def control_entry(operation, root, options, admission_fd, *, selection=None):
     if operation == 'freeze':
         return True
     if operation == 'report':
+        if manifest.get('_report_recovery_selection'):
+            manifest['_active_members'], manifest['_report_recovery'] = _recover_report(manifest, owner)
         cached = Path(root) / 'results/report.json'
         if selection is not None and cached.exists():
             from g_freeze import identify
@@ -301,7 +394,8 @@ def control_entry(operation, root, options, admission_fd, *, selection=None):
                     or len(active) != len(set(active)) or any(identifier not in cells for identifier in active)
                     or any(active[index:index+2] not in pairs for index in range(0, len(active), 2))):
                 raise ValueError('retained report has invalid active members')
-            manifest['_active_members'] = [cells[identifier] for identifier in active]
+            if not manifest.get('_report_recovery_selection'):
+                manifest['_active_members'] = [cells[identifier] for identifier in active]
             previous_guardian = published_report(root).get('guardian')
             history = cached.parent / 'report-history'
             history.mkdir(exist_ok=True)

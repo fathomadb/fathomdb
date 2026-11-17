@@ -984,19 +984,19 @@
         "first_g_pair": "G10k r0 winner/eager attempt0002 both complete/qualification_issues[]; phase_qualified/window_completetrue, firststageexit0, strictquiescent/exactboundaryremoved/all5NULL. Originalattempt0001PRENATIVE failure preserved.",
         "first_pair_charge_ns": 249385575728,
         "first_pair_common_ns": 42094922897,
-        "qualified_ordinary": 54,
-        "remaining_g_ordinary": 82,
+        "qualified_ordinary": 58,
+        "remaining_g_ordinary": 78,
         "remaining_diagnostic": 24,
-        "current": "54ordinary credited/nativecomplete54 after one strict CPU-only assessment of original044-054. Originalall10native succeeded; finalreport common100s reached80.598s reserve/guardian124, preserved. Explicit identity-bound assessment exits0/child0 under prospectivecommon600 and qualifies onlyexact10. No native replay. Nextoriginal054-064 launched once/session50129; remaining12windows run serialfreshadmission/stopfirst.",
-        "limits": "Original9200s/24GiBstage,900s/member1800s/pair/common100s256MiB, same48h192GiBtotal+allpriorcharges; stopfirstfailure/refusal/noauto retry.",
-        "dependency": "Slice30CLOSED; assembledsource/Q17accepted and narrowfailed-report correction/source+actualCPUassessmentqualified. Continue remaining12originalS50windows under unchangedglobal/scientific/phasebounds, freshactualGPUexclusivity/resources; no quietCPUcondition or foreignactoraction.",
-        "scope": "Current44ordinary only, not whole136+24/S50/treatment-conclusion. No passingP/native replay/build/calibration/modelcalls; same48h192GiBledger/allpriorcharges.",
-        "completed_g_native_pairs": 11,
-        "remaining_native_g_ordinary": 82,
+        "current": "Original054-064 terminalEXIT1 after four new qualified members;58ordinary credited/nativecomplete58,diag0. Thirdpair winner refused when foreignselectedGPU work appeared; owned native stopped/strictcleanupcertain. No sourcebug or passing-member replay. ConditionalparentGO permits one failedmember resumption in exact58-64 remainder only after actualGPUfree/freshadmission; original064onward remainsserial.",
+        "limits": "Original900s/member1800s/pair cumulative caps,48h192GiB TOTAL/allpriorcharges; common600s/256MiB and24GiBgrowth. Exact58-64 remainder prospective3pairs/5600sphase; failedwinnerremaining779402810517ns/pair1679402810517ns. Stopfirstfailure/refusal; no automatic thirdattempt.",
+        "dependency": "Slice30CLOSED; acceptedsource/Q17/currentartifacts/paid72 and narrowreportrecovery retained. Resume exact58-64 only when selectedGPUforeignworkgone; no quietCPUcondition or foreignactoraction, no new reviewstop.",
+        "scope": "Current58ordinary only, not whole136+24/S50/treatment-conclusion. Allpriorfailures/charges/native/sourceidentities retained; no passingnative/model replay, build or calibration.",
+        "completed_g_native_pairs": 13,
+        "remaining_native_g_ordinary": 78,
         "held_reassessment_members": 0,
         "five_prefix_charge_ns": 4518022202401,
         "five_prefix_common_ns": 67792215433,
-        "cleanup": "Guardian870284/unitf65f26573ea54559a928e3b3f66d2e8d strictquiescent/exactboundaryremoved;all5NULL/markerabsent/FD9sameinode8532374free/selectedGPUempty; handoff to M completed.",
+        "cleanup": "Original054-064 guardian1527199/controller1527264/failedpayload1552536 absent; boundaryquiescent/unpopulated/exactremoved; all5NULL/markerabsent/physicalFD9inode8532374acquired+released. ForeigncoralsmolPID1564859selected5f9/256MiBuntouched; noGPUemptyclaim.",
         "controller_source": "c2ed2e8550635ec17291e95c0008f7511e04639c",
         "correction_review": "IndependentAstra design/final SOURCE ACCEPT359f99116 and publicAPI delta270aaf413;genuineREDfd2935b/41618551b/c102cecd,70affectedcontrolsPASS1.934s/Ruff/scopedMD/hooksPASS. A3fixedstatefulloracle unchanged; no newthreshold/nativecontrol.",
         "reassessment": {
@@ -1030,7 +1030,19 @@
           "common_charge_ns": 84254921675,
           "shared_used_ns": 60292598619850,
           "cleanup": "Original1432346/controller1432407 andnew1526067/controller1526228absent; originalandnewboundaryquiescent/unpopulated/removed;all5NULL/markerabsent;oldphysicalFD9releaseverified. CPUassessment hasno native/GPUprobe/FD9/retirement.",
-          "next": "Original054-064running onacceptedc2/native09c/compiler8465 afterfreshFD9/GPUempty/floors/sourceadmission; common600onlyprospective, no newownerdecision/calibration."
+          "next": "Subsequentordinary054-064 reportpreserved scopedrecoverycredit without recoveryflag;58credited beforeforeignGPUstop. Originalassessment/124/history/chargesunchanged."
+        },
+        "foreign_interruption": {
+          "adoption": "101574822777130-1527199",
+          "raw": "/mnt/data/tmp2/fathomdb-0829-continuation/s50-g-visibility-20261116/logs/prepared-original-prefix-054-064-c2ed2e8550-20261116-runtime.log",
+          "terminal": "Session50129 EXIT1/child1; phasequalifiedtrue/windowfalse;58credited/58complete. Original44-54 scopedrecoverycreditcarriedforward without recoveryflag.",
+          "failed_member": "s50-g-w-b1-s100-engine-hybrid-r0-ordinary-winner/attempt-0001",
+          "cause": "Actualchild RuntimeError(selected GPU has foreign compute work); payloadexit1 left own native for existingcontainment. Attempt125/owned work survived leader; cleanupcertain/live_owned_pids[].",
+          "failed_member_charge_ns": 120597189483,
+          "window_charge_ns": 1150757811218,
+          "window_common_ns": 82422046226,
+          "shared_used_ns": 61444866903705,
+          "next": "Conditional one attempt0002, exact58-64 only after GPUfree/freshadmission; preserve passed54-58 and allcharges. Then original064onward, stopfirst/noauto thirdattempt."
         }
       }
     },
@@ -1545,7 +1557,7 @@
         "dev/plans/0.8.29/features/slice-160/test-map.md"
       ],
       "conditions": "Every selected mandatory outcome qualified or explicitly disposed; actual installed/publication proof separate.20 closes only with actual Windows A6;40 conditional scope is complete by independently reviewed non-adoption under existing Batch3 authorization;30/50/60/70/80 reach160 through90. Optional140/150 only if selected. Finished bounded local tasks are not local completion: every selected mandatory installed/platform (Q14) row and release dry-run (Q18) part that a permitted local or owned venue can qualify stays open until qualified there. The local mandate completes only when the remaining rows need CI after local passes and CI correctness review, or excluded registry publication; each is named outstanding, neither waived nor passed. Publication held. Owner seq377 explicitly defers live reset qualification to.30; seq378 defers new CUDA13 delivery/compiler/new-artifact proof to.31; seq379 accepts usage limits. These exclusions are owner dispositions, not passing tests. Existing platform/artifact rows remain. Seq381 also reallocates130A CUDA13 Tegra qualification to.31 while130D/E remain mandatory in.29;seq387 excludes unavailable non-Tegra ARM+GPU B/C.",
-      "phase": "FINAL_SOURCE_Q17_AND_ACCEPTED_COMPONENTS_QUALIFIED_REMAINING_S50_RUNNING",
+      "phase": "FINAL_SOURCE_Q17_ACCEPTED_REMAINING_S50_WAITING_SELECTED_GPU",
       "evidence": "IndependentAstraaccepted actualQ10longvariants,threeverifiedleafpackages,missingAC037live;Linuxx64/ARM64CPU2.28wheelsanddeclaredaddonfloors/strictTS/runtime/graph/frozen/modelCPUcontrols;Windowsproduction186tests/wheelsize/tenWAL+external+installedcontrols;canonicalCUDA12.6wheel2.28/NAPI2.39linkage/driverless/fourtypedrefusals;source-archiveRustSDKpersist/reopenandCLIimmutableintegrity. Source/target/nativeorigins,originaltaskfailures andARMmonitoringdeviation retained. No inventedx64CPUaddon2.28promise. ActualabccCUDApairGPUallocation/PIDUUIDandbothAC082dCPUnegative/CUDApositivepairsnowindependentlyAstraACCEPTattool686d:128MiBmodeldelta>=64MiBfloor,completeCPUtraces/loaders,noCUDAaccess,alllifecycleexit0/strictcleanup/FD9released. Mac/final90artifactapplicability,remainingfeature/performance/complete rehearsalstayopen;localpasses->CIreview->CI,registrypublishheld. IndependentAstraaccepted clean686d releaseperformance:AC011a1538.787/s>=1000,b268.069/s>=100;AC012n10000p50/p991/3ms,AC013n10000dim768p50/p9963/73ms;7freshAC081hard500/100mspasses,seq337.851121\u2013344.381150mswarnings/concurrent46.958327\u201352.513726ms. RealAC073stressN1000p9943ms<=150,N7667p9946ms<=316pass. OriginalEU7overallexit101/legacyrecallci_hi.897/.801remainfailed/unqualified;separateTC5F/Q8qualificationunchanged. Nohelperdefect/fakeRED/fix;originalplannedREDwrapperexit1wasexpectationonly. DCPUnoiseobserved/noquietclaim,noconcurrentbuildtimings. Q3/final90/rehearsalstillopen. Q3normalfeaturecampaignnowSOURCE+ASSEMBLEDQ3AstraACCEPTat5176860192cb3b2d82618f76251af44779ed6c37:30actualruns/230planned/207passed0runtimefailed23ignored. Exactrecordedmatrixextras+8manualignoredentriesandlibrary-IDresolverRED/GREENrevalidatedSAMEimmutablelogs;no passingreplay. OriginalEXIT1/10metadatafailuresandinterruptedwriterEXIT143retained.12unchangedoptin-exclusionlistingfreshnesschecksretainoriginalno-staleresultonly;nonewlistedIDclaim.403target/44gateonlystaticcoveragePASSafterrootintegration. Ignoredarenotpasses/manualfaultqualification;final90applicabilityremains.",
       "qualified_subset_sha": "b07a161317ff753b86b5eb706e7c5e761adecb9a",
       "final90_qualification": {
@@ -1556,7 +1568,7 @@
         "accepted_corrections": "Integrated through ec54f833c981d9b0f878a407b7df0d15aa4d6842: current MCP fixture/field census, strict approved compact-contract oracle reconciliation, typed embedder-profile admission before deferred coverage-token failure, and narrowly handled enumerated /proc ESRCH race. Genuine RED/GREEN plus independent Astra ACCEPT; original failing tests retained.",
         "module_gate": "Unchanged standalone gate PASS29+5 tests and132 modules/128 configurations under owned config-free Cargo home; exact --locked preserved. First sandbox read-only fixture refusal retained.",
         "q3_affected": "35 distinct affected normal-feature test IDs assembled PASS with independent Astra ACCEPT; original observer missing-Python failures retained. Unchanged prior Q3 scope reused explicitly, not retagged or rerun.",
-        "remaining": "RemainingS50 original82ordinary+24diagnostic native outcomes and final50/90/160 requirement/applicability joins precede localcompletion, thenCIcorrectnessreview/appropriateCI. Source/Q17 and30/M46/D24/approved72/currentartifact+MCP scopes accepted. Report-only common-cutoff recovery credited54 without native replay; original124/failures/charges preserved.",
+        "remaining": "RemainingS50 original78ordinary+24diagnostic native outcomes/final50-90-160joins. Actual054-064 stoppedforeignGPU afterfournewqualified;58credited. Exact58-64 conditionalresumption waitsactualGPUfree; no passingreplay/foreignactoraction. Localpasses thenCIreview/appropriateCI;publicationheld.",
         "episodes": "Completed once:72valid episodes/all144grades, exact approved served models/qIDs/tool policy; independent Astra final ACCEPT. Reported total$0.13444673; no new quality threshold/noninferiority claim or further paid replay. See90 current_execution and existing comparison README.",
         "delivery": "Local passes, then review CI scripts before running appropriate CI; registry publication excluded.",
         "hints_failed_only": "One exact original unoptimized executable resumption PASS1/1 in7.37s; SHA2563f94cd2e7e9eb39ecd83456d5679ba6c4d18f435a1d56039ca52a6fe6b7b7860, original serial argument/environment/cwd. Original290.4us>200 failure and warnings retained; new numerical statistics captured/unavailable. No profile substitution or additional resumption.",
@@ -1587,7 +1599,7 @@
           "limits": "Assembled qualification, no uninterrupted broad-green claim. Remaining S50/combinedjoins/CI stay open."
         },
         "frozen_baseline_applicability": "Independent Astra code/contract review: S50 core and SDK use snippets=None, skipping full90 vector-participant/scored-extent work; frozen hydration/ranking comparisons remain applicable. Full90 changes open/fullprojection-status capture/cache: frozen setup/readiness/wholeprocess/RSS and M snippet-enabled MCP timings describe original binaries. Current storedcoverage statement/row/VM+indexedcapture-overhead, Q5/6/7,A3/zero-work/participant-bound,installedartifacts,MCP14,paid72 and finalbroad source controls cover changed scopes. Preserve original subjects; no whole-runtime equivalence, newthreshold or matrixreplay.",
-        "narrow_report_correction": "Accepted c2 failed-report recovery tested77affected+actual84.255sCPUassessment; current54credited,next054-064running. Source-onlymeasurement qualification follows owner failed-onlyrule; no unrelated69min broad/native replay or shipping code change."
+        "narrow_report_correction": "Acceptedc2 reportrecovery77affected+strictCPUassessment; ordinary054-064 carried creditforwardwithoutrecoveryflag,58credited beforeforeignGPUstop. Original124/failures/chargesretained; no broad/nativepassingreplay."
       },
       "refreshed_artifact_components": {
         "source": "9e6d180bd6820fb32d865d2119c19308ff363d09",
@@ -1846,7 +1858,7 @@
   },
   "release_readiness": {
     "status": "NOT_READY",
-    "qualification": "Slice30CLOSED; acceptedsource/Q17/currentartifact+MCP/performance/singlepaid72 scopes retained. S50checkpoint54ordinary credited after explicitstrictCPUreport recovery preserving originalpost-native124 andallcharges. Nextoriginal054-064runs;82ordinary+24diagnostic native outcomes andfinal50/90/160joins remain, thenCIreview/appropriateCI. No data/native replay,currenttimingretag or registrypublication;VMholdended.",
+    "qualification": "Slice30CLOSED; acceptedsource/Q17/currentartifacts/MCP/performance/singlepaid72 retained. S50 has58ordinarycredited;78ordinary+24diagnostic/finaljoins remain. Original054-064 strictterminalforeignGPUstop; exact58-64 one resumption conditionallyauthorized whenactualGPUfree. No passingreplay/foreignactoraction; then localcompletion,CIreview/appropriateCI. Registrypublicationheld;VMholdended.",
     "publication": "HELD: registry publication and v* tag push excluded by owner scope. Appropriate CI is authorized after required local qualification and CI correctness review; bootstrap alone grants no external publication/ACL action.",
     "local_source_phase": {
       "status": "ASSEMBLED_FULL_SOURCE_PASS_INDEPENDENT_ASTRA_ACCEPTED",

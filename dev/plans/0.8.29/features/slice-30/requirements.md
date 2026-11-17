@@ -2,6 +2,13 @@
 
 These are release-local measurement requirements, not new canonical ACs.
 
+Provenance clarification: the source-entry and partial holds below describe
+their original phases. Accepted P16/G84/D24/M46/F-Q8, actual Windows20 and final
+source/Q17 now satisfy the unchanged A30-1..7 join in [acceptance](acceptance.md).
+R30-8 requires separate evidence scopes, not a permanent dependency on Slice50
+performance or a retag of old baselines to later90 natives. All IDs, oracles,
+original failures and native-specific limits remain unchanged.
+
 The accepted P subset is preserved. The [G/D continuation](continuation-gd.md) reviews actual
 20/60/70 predecessors and release requirements/AC, refines G/D input/observer/
 TDD contracts and stages G first. Independent design/actual20-fit PASS and parent

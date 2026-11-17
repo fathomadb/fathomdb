@@ -1,33 +1,33 @@
 ---
 title: 0.8.29 Slice 30 — current scale and access-path measurements
-status: IN_PROGRESS
+status: COMPLETE
 target_release: 0.8.29
 slice: 30
 ---
 
 # Slice 30 — current scale and access-path measurements
 
-## Current execution and entry boundary
+## Completed scope and acceptance boundary
 
-Parent integrated the independently reviewed exact P prerequisite split at
-144bde29b75b31f1ce7277edfb82b5c6d5735068. Same owner passed strict closed10
-preflight/ownership/resources and received explicit P-only source GO. Actual
-clean2fd772558e46d0b1645dce2ffea730d0bdd3305c now supplies the16executed P cells
-and [measured results](results-p.md). Local qualification is assembled; fresh final Astra results PASS at
-0d8be5bb and parent acceptance2381de882 qualify only P. The
-[G/D continuation](continuation-gd.md) passed independent FIX1 and actual20-fit
-review; parent authorized the isolated G source entry at03bdd0eb. Current G
-source/TDD evidence is in [execution](execution.md). G campaign and D source remain
-separately gated. M source tooling is now integrated and assembled-qualified;
-scientific M/F and remaining G/D measurements, whole20/30, conditional40,
-50 performance qualification and pre90 Block1 remain open.
+All selected Slice30 measurement outcomes are independently accepted: P16,
+G84, D24, M46 and the exact frozen TC5 F/Q8 bridge. Actual20/WindowsA6 and
+final integrated source/Q17 qualification are also accepted. The existing
+[acceptance join](acceptance.md) and [execution record](execution.md#completed-slice30-scope-and-retained-limits)
+connect those outcomes to A30-1..7 without changing their oracles. Parent owns
+the final slice-level closure review and release-state promotion.
 
-The [M continuation](continuation-m.md) implements the reviewed stdio tooling,
-attribution, lifecycle and remaining-allocation controls. Current-source CLI/helper
-refresh and the exact failed/unfinished checks passed, followed by Astra acceptance
-at256375d4. The scientific46-cell matrix still needs its qualified closed G
-subject and reviewed candidate-owned MCP/cache/GPU proof; no expanded allocation
-is active. TC5 static inputs are resolved; F runtime remains unqualified.
+P retains clean2fd772558e46d0b1645dce2ffea730d0bdd3305c and its
+[measured results](results-p.md), final Astra PASS0d8be5bb and parent
+acceptance2381de882. The [G/D continuation](continuation-gd.md) and
+[M continuation](continuation-m.md) retain their committed tools, actual
+native/input identities, original failures and cumulative charges. Historical
+source-entry and partial-qualification statements describe their own phases;
+they are not unresolved requirements after these completed cohorts.
+
+Slice50 consumes the qualified30 baseline; its remaining paired ordinary and
+diagnostic performance outcomes do not gate30 closure. Combined90/160
+applicability, CI and publication remain separate. No later90 timing replaces
+or relabels any measured30 native subject.
 
 Historical PhaseA inspected c0c94b4203ffeb9e573efcc14e8b10df653318c5 and proposed
 this cut before source execution. It already included qualified Linux20 repairs
@@ -54,38 +54,24 @@ The [requirements](requirements.md), [acceptance](acceptance.md),
 The [architecture addendum](product-architecture.md) is source-grounded and
 proposes the corresponding maintained architecture clarification.
 
-## Sequence and retained boundaries
+## Completed sequence and retained boundaries
 
-Accepted P and measurement-tool source qualification remain valid within their
-recorded inputs; [execution](execution.md) preserves RED/GREEN and resumptions.
-Do not rerun their completed entry/design/full-gate sequence for a campaign.
+1. P16 and G84 supply the registered direct-text and hybrid/read/write baselines.
+   G's72 write cells and all84 outcomes qualify; its original outer unit status1
+   remains unresolved wrapper evidence, not a unit-green claim.
+2. D24 supplies the actual held/overlap C/T cohort. M46 supplies the original
+   stdio, format, lifecycle and private-helper matrix. Original failed and
+   interrupted attempts remain retained rather than replaced by diagnostics.
+3. F/Q8 qualifies the exact supplied frozen TC5 bridge. Actual Windows20
+   qualification and the accepted assembled17af source/Q17 gate close their
+   distinct prerequisites; no Linux inference or future CI assumption is used.
 
-1. Complete the reviewed prospective serial retained/live-budget model for G's
-   remaining72 write-interleaved primary cells, preserving the12 qualified
-   primary results and four separate calibration controls. Readiness/resource
-   refusals remain visible until actual measured replacement results exist.
-2. Advance independent D source and measurement-correctness controls in its
-   isolated checkout while G execution is held. M tooling is already integrated
-   and accepted; prepare its current candidate/source/native inputs without
-   reopening the old source phase. Actual D24/M46 runs retain their reviewed
-   G-subject, candidate and allocation requirements.
-3. Execute frozen-TC5 F/Q8 on the exact supplied input pack after actual native/
-   model/candidate readiness. Static input identity is resolved; it is neither a
-   reason to wait for another drive nor runtime qualification.
-4. Freeze relevant tools/protocol before each measurement, reserve one heavy
-   window and collect actual outcomes under existing caps. No new dataset/model,
-   cap increase, campaign or numerical gate is selected by this continuation.
-5. For source changes use genuine runtime RED, separate minimal GREEN and scoped
-   checks. Batch the coherent implementation/results review; run one required
-   broad gate on the final clean source phase, with only affected failed checks
-   resumed. A measurement run using unchanged qualified tools needs measurement/
-   attribution review, not another whole-source gate. Reviewed local resource
-   profile selection within approved scope is parent technical GO, not a new
-   owner question. Unknown future D/M costs remain honest unknowns; they do not
-   require whole-campaign forecasts before independent G work when the reviewed
-   shared-budget/refusal model permits it. Actual expansions of spend/venue/fault
-   authority still need their own ruling. Parent integration is serial;
-   independent owners do not wait for it to start unrelated source work.
+[Execution](execution.md) preserves genuine RED/GREEN, frozen oracles, raw
+failures/refusals/skips, owned cleanup and assembled verification. Accepted
+measurements keep their actual source/native/input subjects and descriptive
+load/attribution limits. No passing baseline replay, new campaign or second
+broad source gate follows from this documentation join. Future scope changes
+still require their applicable resource and execution authority.
 
 AC-083 is the owner-authorized **tracked, not gated**,100k LongMemEval **text**
 p50<=80ms/p99<=300ms target. Hybrid is a separate diagnostic cell. Existing

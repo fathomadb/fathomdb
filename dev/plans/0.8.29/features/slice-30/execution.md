@@ -1728,8 +1728,9 @@ as unresolved wrapper evidence; this is not a unit-green claim. Raw outcomes and
 the original guardian remain under `gd-allocation/g-closed-write-matrix-v2` and
 `common/guardian/closed-copy-write-matrix/receipts/g-required-writes-remaining-v2.json`
 in the owned G task. After all five ownership fields cleared, the remaining D
-100k-overlap quartet started using accepted57912dab and nativeD109. M42 and
-current paired50 measurements still prevent whole30/Block1 closure.
+100k-overlap quartet started using accepted57912dab and nativeD109. Subsequent
+studies do not relabel that G handoff; their completed30 scopes are joined below.
+Paired50 performance remains an independent downstream obligation.
 
 ## Fixed D cohort completed — November16
 
@@ -1752,3 +1753,49 @@ cohort; later M/S50 continuation and whole30 completion remain separate. Origina
 configuration and attempts are in `gd-allocation/d-initial-10k-held-dc8f97601`
 under the G task named in the linked result; later M activity does not relabel
 this completed D handoff or its shared boundary snapshot.
+
+## Completed Slice30 scope and retained limits
+
+All selected30 cohorts now have independent Astra-medium outcome acceptance.
+Their original source/native identities remain authoritative; later source and
+release qualification is not replacement timing evidence.
+
+| Scope | Actual completed subject and proof |
+| --- | --- |
+| P16 | Clean2fd measured campaign and [P results](results-p.md); its production binding receipt remains1f where explicitly reused. Exact100k/500 inputs, direct-text distributions, committed-marker schedule and original assembled qualification remain. |
+| G84 | The completed2d6 continuation retains its recorded native/compiler closure and13 original references with their own origins. All84 outcomes qualify; all72 write cells retain their declared populations/probes. Original guardian exit0/strict cleanup and outer unit status1 are separate facts; no unit-green claim follows. |
+| D24 | Clean `ed96005` controller, ordinaryD109 and original accepted10k subjects retain24000 ordinary calls/3280000 physical rows, complete12 C streams and six actual C-overlap proofs. Earlier Storage cause remains UNKNOWN; the private diagnostic has no ordinary credit. |
+| M46 | Controller697d988d4 and original per-row origins retain ordinary4ffc and provider-free/helperf29 artifacts/compiler817/old wire contract. All 2 M0/20 R/4 C/8 L/12 E outcomes qualify, with36795 actual wire outcomes and all eight pre-EOF lifecycle GPU proofs. No earlier passing row was replayed. |
+| F/Q8 | Exactdc8f97601 candidate uses the supplied frozen bridge:7667 real/0 synthetic docs,100/100 queries,K192/top10/exact-f32; own-source exclusion leaves7666 eligible vectors. Recall .958,95% CI[.938,.974],1000 bootstrap satisfies the unchanged CI-high>=.90 oracle. Selected3090 CUDA embedding with CPU candidate/exact rerank and CE disabled qualifies fidelity/uncertainty only. |
+| Actual20/Windows | All four original WindowsA6 criteria, affected Linux criteria and formal20 assembled source closure are independently accepted. This is actual platform evidence, not Linux/static-inspection/future-CI inference. |
+| Final source/Q17 | Clean17af05fe5 final default gate ran239 suites:235 passed, one failed and three private G/M/D live controls were explicitly unselected. The unchanged failed-only module wrapper resolves the remaining executed outcome under its config-free Cargo home; all236 executed outcomes are resolved. Strict owned MkDocs1.6.1 passes on unchanged public docs/config. Original failures and prior live-control subjects remain explicit in [final qualification](../slice-160/status.md#final-integrated-source-and-documentation). |
+
+M's final report is
+`/mnt/data/tmp2/fathomdb-0829-continuation/slice30-g-20261113/gd-allocation/m-required-M-E-structured-open_deadline-697d988d4-20261116/reports/report-1794880987878049177.json`.
+Its guardian68e85f13-d356-4c2a-bc50-ac2d58a6fec2 exits0/child0 with certain
+cleanup and exact empty-boundary removal; unit
+`fathomdb-m-e-structured-open_deadline-a36d0ae8a166.service` is inactive/dead,
+Exec0/MainPID0/empty cgroup, owned actors absent, all five allocation owners clear
+and marker absent. Same-inode8532374 physical FD9 acquire/release succeeds.
+The actual shared boundary is57811294578717ns/110227906425B, including all prior
+work; later S50 charges are separate, not a renewed budget.
+
+Original R32 failure, lazy437 GPU-proof failure and manifestlessf8 preparation
+refusal remain retained/charged; lazy cumulative33049066860ns/1435400209B
+includes all three original roots. The final nine M-E cases use their reviewed
+CPU-only helper/GPU N/A applicability with foreign GPU observations preserved
+and untouched; cleanup proves owned release, not an empty foreign GPU. Earlier
+D failures/interruption and G refusals/outer-wrapper status remain unchanged.
+
+The accepted F aggregate is
+`/mnt/data/tmp2/fathomdb-0829-continuation/owned-cuda-build-20261115/tc5-bridge-dc8f97601/tc5-gpu-arm-result.v2.json`.
+Its single900s-bounded invocation exits0 without resource stop, uncertain cleanup
+or survivors; exact private boundary and FD9 are released. It does not replace
+the separately failed legacy EU7 recall or establish performance/ARM/reset/
+shipping proof. No final90 timing is borrowed for any30 baseline.
+
+The [A30-1..7 acceptance join](acceptance.md) has no remaining selected runtime
+or mandatory source item. Parent owns the final independent slice-level closure
+review/state promotion. Slice50's remaining paired ordinary/diagnostic matrix
+and combined90/160 applicability, CI and publication remain separate; those
+outcomes do not create a reverse dependency on completed30 measurements.

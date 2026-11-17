@@ -14,7 +14,7 @@ import uuid
 from g_boundary import require_known_containment
 from m_cell import execute
 from m_controller import load_plan, run_budgeted_table
-from m_freeze import validate
+from m_freeze import validate, validate_main_copy
 from m_gpu import qualification
 from m_guard import process_start, write_budget
 from m_record import CheckpointLog, CONTROL_MAX_BYTES, OutputLimitError, write_bytes, write_json
@@ -70,6 +70,7 @@ def worker_admission(manifest, cell, attempt):
 def prepare(manifest, cell, attempt, deadline_ns):
     """Create fresh retained closed packages/config; no checkpoint, reset or writable source."""
     worker_admission(manifest, cell, attempt)
+    validate_main_copy(manifest)
     attempt = Path(attempt)
     began = time.monotonic_ns()
     stores = attempt / "stores"
@@ -106,6 +107,7 @@ def prepare(manifest, cell, attempt, deadline_ns):
                 if total != identity["bytes"] or digest.hexdigest() != identity["sha256"]:
                     raise ValueError("closed package copy incomplete")
                 copies.append({"source": identity, "destination": str(selected), "bytes": total})
+    validate_main_copy(manifest)
     config = dict(cell["config"], stores={name: {"path": path,
                   "eager": cell.get("case") == "eager" and name == "a"}
                   for name, path in files.items()}, default_store="a")

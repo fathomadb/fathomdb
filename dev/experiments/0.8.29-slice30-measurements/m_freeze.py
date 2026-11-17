@@ -113,6 +113,64 @@ def freeze_calibration(options, output, cell_id):
                         calibration=selected_cell(cell_id))
 
 
+def _main_copy_companions(main):
+    companions = {}
+    for suffix in ("-wal", "-shm"):
+        path = Path(str(main) + suffix)
+        if not path.exists():
+            companions[suffix] = None
+            continue
+        if path.resolve() != path or not path.is_file():
+            raise ValueError("main-only copy requires owned regular adjacent files")
+        companions[suffix] = identify(path)
+    wal = companions["-wal"]
+    if wal is not None and wal["bytes"] != 0:
+        raise ValueError("main-only copy refuses committed or live WAL content")
+    return companions
+
+
+def _bind_main_copy(options, custody, package, allocation):
+    root = Path(options["closed_main_copy_from"]).resolve()
+    references = {Path(row["root"]).resolve() for row in options.get("reuse_from", [])}
+    if options.get("retry_from"):
+        references.add(Path(options["retry_from"]).resolve())
+    if not root.is_relative_to(allocation) or root not in references:
+        raise ValueError("main-only copy requires an explicit original retained reference")
+    path = root / "manifest.json"
+    record = identify(path)
+    original = json.loads(path.read_text())
+    main = Path(custody["main"])
+    if (original.get("root") != str(root)
+            or original.get("allocation") != str(allocation)
+            or original.get("scope") not in ("registered-M-selected-cell", "bounded-natural-calibration")
+            or original.get("compiler_inputs") != compiler_inputs()
+            or original.get("closed_subject") != custody or original.get("package") != package
+            or len(package) != 1 or package[0]["path"] != str(main)):
+        raise ValueError("main-only copy requires the unchanged original committed main identity")
+    companions = _main_copy_companions(main)
+    if identify(main) != package[0] or identify(path) != record:
+        raise ValueError("main-only copy reference changed during admission")
+    return {"reference_manifest": record, "companions": companions}
+
+
+def validate_main_copy(manifest):
+    """Recheck explicit unchanged-main admission before/after the existing private copy.
+
+    Original logical custody stays exact. Changed main/reference/auxiliary files
+    or newly committed WAL content refuse; no shared file is opened as SQLite.
+    """
+    snapshot = manifest.get("closed_main_copy")
+    if snapshot is None:
+        return
+    package = manifest["package"]
+    main = Path(manifest["closed_subject"]["main"])
+    if (len(package) != 1 or package[0]["path"] != str(main)
+            or identify(main) != package[0]
+            or identify(snapshot["reference_manifest"]["path"]) != snapshot["reference_manifest"]
+            or _main_copy_companions(main) != snapshot["companions"]):
+        raise ValueError("frozen main-only copy source or auxiliary identity changed")
+
+
 def _bind_inputs(options, output, profile, forecasts, *, calibration=None, selected=None):
     selected_cell = selected
     allocation = Path(options["allocation"]).resolve()
@@ -147,7 +205,12 @@ def _bind_inputs(options, output, profile, forecasts, *, calibration=None, selec
     expected = {main, *(Path(str(main) + suffix) for suffix in ("-wal", "-shm")
                         if Path(str(main) + suffix).exists())}
     package = [identify(path) for path in custody["package"]]
-    if {Path(value["path"]) for value in package} != expected:
+    main_copy = None
+    if options.get("closed_main_copy_from"):
+        if selected_cell is None:
+            raise ValueError("main-only copy is limited to explicit selected M obligations")
+        main_copy = _bind_main_copy(options, custody, package, allocation)
+    elif {Path(value["path"]) for value in package} != expected:
         raise ValueError("closed-file packaging must include exact existing main/WAL/SHM companions")
     inputs = {key: identify(options[key]) for key in PINS}
     if any(inputs[key]["sha256"] != digest for key, digest in PINS.items()):
@@ -186,6 +249,8 @@ def _bind_inputs(options, output, profile, forecasts, *, calibration=None, selec
         "profile": profile, "forecasts": forecasts, "closed_subject": custody, "package": package,
         "inputs": inputs, "model": model, "model_cache": str(cache), "hf_home": os.environ["HF_HOME"],
         "gpu": gpu, "builds": binaries, "plan": load_plan(), "runtime_status": "HELD_UNTIL_SELECTED_RUN"}
+    if main_copy is not None:
+        manifest["closed_main_copy"] = main_copy
     manifest["combined_feasibility"] = ("UNKNOWN" if profile["other_work_cost_status"] == "HELD_UNAVAILABLE"
                                          else "BOUNDED_BY_SELECTED_PROFILE")
     if calibration is not None:
@@ -220,6 +285,7 @@ def validate(root):
             or git("status", "--porcelain") or value["source_sha"] != git("rev-parse", "HEAD")
             or value["compiler_inputs"] != compiler_inputs() or value["plan"] != expected_plan):
         raise ValueError("frozen clean reviewed M source/inventory required")
+    validate_main_copy(value)
     for original in [*value["package"], *value["inputs"].values(), *value["model"].values(),
                      *(receipt["binary"] for receipt in value["builds"].values())]:
         if identify(original["path"]) != original:
@@ -238,6 +304,7 @@ def validate_calibration(root):
             or value["source_sha"] != git("rev-parse", "HEAD")
             or value["compiler_inputs"] != compiler_inputs() or value["plan"] != [selected_cell(CELL_ID)]):
         raise ValueError("exact frozen clean selected calibration required")
+    validate_main_copy(value)
     for original in [*value["package"], *value["inputs"].values(), *value["model"].values(),
                      *(receipt["binary"] for receipt in value["builds"].values())]:
         if identify(original["path"]) != original:

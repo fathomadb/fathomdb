@@ -248,6 +248,23 @@ and successful normal close. No placeholder path qualifies it. Copy only an
 owner-released closed SQLite subject with its valid closed-file packaging into
 M-owned storage; never copy a live DB or omit required WAL companions. Do not
 force checkpoints, invalidate equivalence markers or alter projection state.
+The explicit selected-cell option `closed_main_copy_from` may name an already
+retained original reference only to admit an unchanged committed main image
+when later read-only inspection left absent/zero-byte WAL and disposable SHM.
+The original released/quiescent provenance, main-only `closed_subject` and
+`package` remain exact; the original manifest and main bytes/hash must match.
+Bind current auxiliary identities separately as `closed_main_copy`, refuse
+nonempty WAL/changed main/foreign reference, and revalidate before and after
+the existing bounded private-copy preparation. Keep its copied-byte hash check.
+This admits no live writer, omitted committed WAL, shared-file mutation, DB
+reopen/checkpoint, new snapshot driver, native rebuild or observer change.
+The default complete-companion packaging check remains strict. Existing
+retry/reuse comparisons retain original logical identities and all24 source
+origins; original failed native and pre-native refusals/raws/charges remain.
+The pre-native package refusal consumed5.257711963s and3205B additionally,
+leaving lazy cumulative19.545064047s/717697385B under the original900s/2GiB;
+no scientific retry or new allowance follows without the parent's technical GO.
+
 Each natural cell receives a fresh owned copy; no sibling live engine/cache/
 venv/target/native artifact is borrowed. No live Memex, substitute corpus,
 model/dataset fetch, CPU fallback, K620 or driver/primary-CUDA change.

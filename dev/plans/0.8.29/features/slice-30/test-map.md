@@ -116,3 +116,12 @@ Test wrong PID, no witness, observer/query failure, deadline/probe-timeout bound
 close on exception, output/shutdown refusal and unchanged R/C defaults. GPU and
 transport boundaries may be controlled; no DB integration is mocked. These
 controls prove collector behavior only, not GPU work or scientific completion.
+
+### Explicit unchanged-main private-copy preparation
+
+`test_m_closed_snapshot.py` uses real SQLite RO-created empty WAL/SHM to
+exercise the existing binder and private-copy preparation. Frozen REDs require
+admission/copy of identical committed main bytes and refusal for changed main
+or pre-copy auxiliary mutation. Nonempty WAL, foreign reference and unchanged
+default strict packaging remain refusal controls. No native/GPU qualification
+or old-result rewrite follows; existing reuse/retry controls preserve history.

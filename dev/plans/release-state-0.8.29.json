@@ -1557,7 +1557,7 @@
         "dev/plans/0.8.29/features/slice-160/test-map.md"
       ],
       "conditions": "Every selected mandatory outcome qualified or explicitly disposed; actual installed/publication proof separate.20 closes only with actual Windows A6;40 conditional scope is complete by independently reviewed non-adoption under existing Batch3 authorization;30/50/60/70/80 reach160 through90. Optional140/150 only if selected. Finished bounded local tasks are not local completion: every selected mandatory installed/platform (Q14) row and release dry-run (Q18) part that a permitted local or owned venue can qualify stays open until qualified there. The local mandate completes only when the remaining rows need CI after local passes and CI correctness review, or excluded registry publication; each is named outstanding, neither waived nor passed. Publication held. Owner seq377 explicitly defers live reset qualification to.30; seq378 defers new CUDA13 delivery/compiler/new-artifact proof to.31; seq379 accepts usage limits. These exclusions are owner dispositions, not passing tests. Existing platform/artifact rows remain. Seq381 also reallocates130A CUDA13 Tegra qualification to.31 while130D/E remain mandatory in.29;seq387 excludes unavailable non-Tegra ARM+GPU B/C.",
-      "phase": "PORTABLE_DELIVERY_SOURCE_METADATA_ACCEPTED_FULL_PHASE_PENDING_S50_GPU_WAIT",
+      "phase": "PORTABLE_DELIVERY_ASSEMBLED_SOURCE_PASS_S50_GPU_WAIT",
       "evidence": "IndependentAstraaccepted actualQ10longvariants,threeverifiedleafpackages,missingAC037live;Linuxx64/ARM64CPU2.28wheelsanddeclaredaddonfloors/strictTS/runtime/graph/frozen/modelCPUcontrols;Windowsproduction186tests/wheelsize/tenWAL+external+installedcontrols;canonicalCUDA12.6wheel2.28/NAPI2.39linkage/driverless/fourtypedrefusals;source-archiveRustSDKpersist/reopenandCLIimmutableintegrity. Source/target/nativeorigins,originaltaskfailures andARMmonitoringdeviation retained. No inventedx64CPUaddon2.28promise. ActualabccCUDApairGPUallocation/PIDUUIDandbothAC082dCPUnegative/CUDApositivepairsnowindependentlyAstraACCEPTattool686d:128MiBmodeldelta>=64MiBfloor,completeCPUtraces/loaders,noCUDAaccess,alllifecycleexit0/strictcleanup/FD9released. Mac/final90artifactapplicability,remainingfeature/performance/complete rehearsalstayopen;localpasses->CIreview->CI,registrypublishheld. IndependentAstraaccepted clean686d releaseperformance:AC011a1538.787/s>=1000,b268.069/s>=100;AC012n10000p50/p991/3ms,AC013n10000dim768p50/p9963/73ms;7freshAC081hard500/100mspasses,seq337.851121\u2013344.381150mswarnings/concurrent46.958327\u201352.513726ms. RealAC073stressN1000p9943ms<=150,N7667p9946ms<=316pass. OriginalEU7overallexit101/legacyrecallci_hi.897/.801remainfailed/unqualified;separateTC5F/Q8qualificationunchanged. Nohelperdefect/fakeRED/fix;originalplannedREDwrapperexit1wasexpectationonly. DCPUnoiseobserved/noquietclaim,noconcurrentbuildtimings. Q3/final90/rehearsalstillopen. Q3normalfeaturecampaignnowSOURCE+ASSEMBLEDQ3AstraACCEPTat5176860192cb3b2d82618f76251af44779ed6c37:30actualruns/230planned/207passed0runtimefailed23ignored. Exactrecordedmatrixextras+8manualignoredentriesandlibrary-IDresolverRED/GREENrevalidatedSAMEimmutablelogs;no passingreplay. OriginalEXIT1/10metadatafailuresandinterruptedwriterEXIT143retained.12unchangedoptin-exclusionlistingfreshnesschecksretainoriginalno-staleresultonly;nonewlistedIDclaim.403target/44gateonlystaticcoveragePASSafterrootintegration. Ignoredarenotpasses/manualfaultqualification;final90applicabilityremains.",
       "qualified_subset_sha": "b07a161317ff753b86b5eb706e7c5e761adecb9a",
       "final90_qualification": {
@@ -1627,7 +1627,7 @@
         "proof_root": "/mnt/data/tmp2/fathomdb-0829-continuation/portable-fork-delivery-20261116",
         "canonical_logs": "/mnt/data/tmp2/fathomdb-0829-continuation/root-release-20261116/logs/portable-canonical-*",
         "remote": "Cudarc343 authorizedbranchpush/remotecommitconfirmed. Candle2ee publicfetch remains PENDING permittedCIreview/pushstage; no workflow/settings/tag/registryaction.",
-        "remaining": "One clean full verification for changedbuild-delivery scripts/config phase; no scientific/native measurement or paid replay. S50GPUwait/finaljoins and laterCI separate."
+        "remaining": "Local code-phase checks resolved through accepted a55 CUDAcontract correction and canonicalfailed-onlyPASS. PublicCandleHTTPSfetch/CI remain pending; S50measurements/finalreleasejoins separate."
       }
     }
   ],
@@ -1869,16 +1869,27 @@
   },
   "release_readiness": {
     "status": "NOT_READY",
-    "qualification": "Slice30CLOSED; previous17af assembledsource/Q17 and acceptedartifact/MCP/performance/singlepaid72 scopes retained. Portabledependencydelivery ef636 SOURCE+LOCALMETAaccepted/canonicalfocusedchecksPASS; currentbuild-deliveryfullsourcephase pending. S50has58credited/78ordinary+24diagnosticremain; exact58-64oneconditionalresumptionwaitsactualselectedGPUfree. Then finaljoins/localpasses,CIreview/appropriateCI. No registrypublication/passingmeasurementreplay/foreignactoraction;VMholdended.",
+    "qualification": "Currentportablebuild-deliverycodephaseassembledPASS:239registered/236ran/235initialPASS+soleCUDAcontractfailed-only121PASS,3explicitprivatecontrolskips;original2781sEXIT1 retained. Independentimplementationreviewsaccepted; no broad/scientific/paid replay. S50has58credited/78ordinary+24diagnosticremain; exact58-64oneconditionalresumptionwaitsforeigntrainingunitterminal+actualGPUfree. Final50/90/160joins,Candlepublicfetch/macOS/hostedCIreview+qualification remain;registrypublicationexcluded. ReleaseNOTcomplete.",
     "publication": "HELD: registry publication and v* tag push excluded by owner scope. Appropriate CI is authorized after required local qualification and CI correctness review; bootstrap alone grants no external publication/ACL action.",
     "local_source_phase": {
-      "status": "ASSEMBLED_FULL_SOURCE_PASS_INDEPENDENT_ASTRA_ACCEPTED",
-      "subject": "17af05fe5a969248ef82aa7a784f3cc7b83d1270",
-      "qualification_checkout": "17af05fe5a969248ef82aa7a784f3cc7b83d1270",
-      "worktree": "/mnt/data/worktrees/fathomdb-0.8.29",
-      "evidence": "239registered/236ran/235initialPASS/1modulelockFAIL/3explicitprivatecontrolSKIP/0excluded; unchangedfailed-onlymodulePASS29+5 with132modules/20governed/128cfg. Allselected executed source suites resolved; strictsecurity0/0/0 and ownedstrictMkDocsPASS.",
-      "full_wrapper_seconds": 4160,
-      "limits": "OriginalfullEXIT1/config-freeCargoHome resumption retained; assembled236/236 executed outcomes, no uninterruptedgreen or currentlive-controlskip-as-pass claim. Earlier live-control proof retains its actualsubject. RemainingS50/combinedrelease/CI/publication separate."
+      "status": "ASSEMBLED_FULL_SOURCE_PASS",
+      "subject": "b6749b4bcf33816e068c61c270ae531ef6968cf7",
+      "correction": "a55ec51330816e5c7fecabc55cb1d4371404b4fc",
+      "registered": 239,
+      "ran": 236,
+      "initial_passed": 235,
+      "initial_failed": 1,
+      "explicit_skipped": 3,
+      "excluded": 0,
+      "full_exit": 1,
+      "full_seconds": 2781,
+      "full_log": "/mnt/data/tmp2/fathomdb-0829-continuation/root-release-20261116/logs/portable-code-phase-b6749b4bc.log",
+      "failed_only": "CanonicalCUDAcontract121PASS exit0 after genuineREDd8c2/minimalGREENa55/freshindependentAstraSOURCE+FOCUSEDCONTRACT ACCEPT. No passing-suite replay.",
+      "failed_only_log": "/mnt/data/tmp2/fathomdb-0829-continuation/root-release-20261116/logs/portable-code-phase-cuda-only-final.log",
+      "scope": "Lint/workspacetypes/strictsecurity0violations0blockers0downgrades/Rustworkspace/selectedpool+measurementadapters+observers+CLI/Python+nativeReceipt/TS/hermeticNAPI passed. All236executedoutcomesresolved;3privateG/M/Dlivecontrols explicitlyunselected, earlierproofretainsoriginalsubjects.",
+      "limits": "Assembled qualification; originalfullEXIT1 retained, no uninterruptedgreenclaim. Originalscientific/native/artifact/paid72subjects unchanged. S50remaining78ordinary+24diagnostic and final50/90/160joins precedeCIreview/appropriateCI;registrypublicationheld.",
+      "qualification_checkout": "b6749b4bcf33816e068c61c270ae531ef6968cf7",
+      "worktree": "/mnt/data/worktrees/fathomdb-0.8.29"
     },
     "ci": "After all required local qualification passes, review CI scripts for correctness before running appropriate CI. Registry publication remains excluded; never push a v* tag that auto-publishes.",
     "initial_local_source_phase": {
@@ -1892,9 +1903,31 @@
       "limits": "Original4400s timeout/failures retained; assembledqualification,nouninterruptedgreenclaim. Actualnativeorigin remainsef544;later770privatepairedexample/toolchanges separatelyaffected-qualified,notincludedhere. No scientific/CI/Block1/release/publicationclearance."
     },
     "portable_delivery_phase": {
-      "status": "FULL_VERIFICATION_PENDING",
-      "source": "ef6364fa03657e89305b4b2cb64949923e762829",
-      "limits": "Newbuild-script/configphase; preserve prior17af actualsubject and assembledresults. One fullverify onstableclean finaltree, then onlyfailed corrections/resumptions. No passing scientific/paid/model replay."
+      "status": "ASSEMBLED_FULL_SOURCE_PASS",
+      "subject": "b6749b4bcf33816e068c61c270ae531ef6968cf7",
+      "correction": "a55ec51330816e5c7fecabc55cb1d4371404b4fc",
+      "registered": 239,
+      "ran": 236,
+      "initial_passed": 235,
+      "initial_failed": 1,
+      "explicit_skipped": 3,
+      "excluded": 0,
+      "full_exit": 1,
+      "full_seconds": 2781,
+      "full_log": "/mnt/data/tmp2/fathomdb-0829-continuation/root-release-20261116/logs/portable-code-phase-b6749b4bc.log",
+      "failed_only": "CanonicalCUDAcontract121PASS exit0 after genuineREDd8c2/minimalGREENa55/freshindependentAstraSOURCE+FOCUSEDCONTRACT ACCEPT. No passing-suite replay.",
+      "failed_only_log": "/mnt/data/tmp2/fathomdb-0829-continuation/root-release-20261116/logs/portable-code-phase-cuda-only-final.log",
+      "scope": "Lint/workspacetypes/strictsecurity0violations0blockers0downgrades/Rustworkspace/selectedpool+measurementadapters+observers+CLI/Python+nativeReceipt/TS/hermeticNAPI passed. All236executedoutcomesresolved;3privateG/M/Dlivecontrols explicitlyunselected, earlierproofretainsoriginalsubjects.",
+      "limits": "Assembled qualification; originalfullEXIT1 retained, no uninterruptedgreenclaim. Originalscientific/native/artifact/paid72subjects unchanged. S50remaining78ordinary+24diagnostic and final50/90/160joins precedeCIreview/appropriateCI;registrypublicationheld."
+    },
+    "previous_source_phase_17af": {
+      "status": "ASSEMBLED_FULL_SOURCE_PASS_INDEPENDENT_ASTRA_ACCEPTED",
+      "subject": "17af05fe5a969248ef82aa7a784f3cc7b83d1270",
+      "qualification_checkout": "17af05fe5a969248ef82aa7a784f3cc7b83d1270",
+      "worktree": "/mnt/data/worktrees/fathomdb-0.8.29",
+      "evidence": "239registered/236ran/235initialPASS/1modulelockFAIL/3explicitprivatecontrolSKIP/0excluded; unchangedfailed-onlymodulePASS29+5 with132modules/20governed/128cfg. Allselected executed source suites resolved; strictsecurity0/0/0 and ownedstrictMkDocsPASS.",
+      "full_wrapper_seconds": 4160,
+      "limits": "OriginalfullEXIT1/config-freeCargoHome resumption retained; assembled236/236 executed outcomes, no uninterruptedgreen or currentlive-controlskip-as-pass claim. Earlier live-control proof retains its actualsubject. RemainingS50/combinedrelease/CI/publication separate."
     }
   },
   "generated_views": [

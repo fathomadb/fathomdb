@@ -15,4 +15,3 @@ replace-with = "candle-https"
 [source.candle-https]
 git = "https://github.com/coreyt/candle-fathomdb.git"
 rev = "2ee39305a78ed1463ff913f71dcd3d45ecbfd84f"
-

@@ -11,8 +11,8 @@ trap 'rm -rf "$WORK"' EXIT
 pass() { printf 'PASS  %s\n' "$1"; }
 fail() { printf 'FAIL  %s\n' "$1" >&2; exit 1; }
 
-# The schema-5 Cargo shape (0.8.28 Slice 31, design § 3.4): the root patch
-# table holds only candle-kernels by git at K9; the embedder pins the Candle fork crates and cudarc-fathomdb
+# The governed Cargo shape includes the exact root/driver patch cohort and
+# source-only same-commit mirrors; the embedder pins the fork crates
 # exactly (R-CODE-4: Candle requires cudarc-fathomdb only as a caret
 # requirement); Cargo.lock holds each fork crate once,
 # from the exact qualified local Git source, without a registry checksum.
@@ -41,6 +41,23 @@ if mode == "cudarc-patch":
     patches += 'cudarc = { path = "local/cudarc" }\n'
 if mode == "candle-git-patch":
     patches += f'candle-core-fathomdb = {{ git = "{git}", rev = "{k9}" }}\n'
+for package, source in (("cudarc-fathomdb", cudarc_local),
+                        *((name + "-fathomdb", candle_local) for name in ("candle-core", "candle-nn", "candle-transformers"))):
+    if mode == "candle-git-patch" and package == "candle-core-fathomdb":
+        continue
+    url, rev = source.removeprefix("git+").split("?rev=")
+    patches += f'{package} = {{ git = "{url}", rev = "{rev.split("#")[0]}" }}\n'
+patches += ('\n[patch."file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb"]\n'
+            f'candle-kernels = {{ git = "{git}", rev = "{k9}" }}\n')
+config = root / ".cargo/config.toml"
+config.parent.mkdir(exist_ok=True)
+config.write_text('\n'.join(
+    f'[source.{name}]\ngit = "{url}"\nrev = "{rev}"\n' + (f'replace-with = "{replacement}"\n' if replacement else "")
+    for name, url, rev, replacement in (
+        ("qualified-cudarc", cudarc_local.removeprefix("git+").split("?")[0], cudarc_local.split("#")[1], "cudarc-https"),
+        ("cudarc-https", "https://github.com/coreyt/cudarc.git", cudarc_local.split("#")[1], None),
+        ("qualified-candle", candle_local.removeprefix("git+").split("?")[0], candle_local.split("#")[1], "candle-https"),
+        ("candle-https", git, candle_local.split("#")[1], None))), encoding="utf-8")
 extra_manifest = ""
 if mode == "replace":
     extra_manifest = "\n[replace]\n\"other:1.0.0\" = { git = \"https://example.invalid/other.git\", rev = \"0123456789abcdef0123456789abcdef01234567\" }\n"
@@ -464,7 +481,7 @@ make_candle_fixture() {
       ;;
     config-ordinary)
       mkdir -p "$fixture/.cargo"
-      printf '%s\n' '[build]' 'target-dir = "target"' >"$fixture/.cargo/config.toml"
+      printf '%s\n' '[build]' 'target-dir = "target"' >>"$fixture/.cargo/config.toml"
       ;;
   esac
   printf '%s' "$fixture"
@@ -623,7 +640,7 @@ expect_failure 'unsupported Cargo override/git source Cargo.toml:patch.crates-io
 
 # The standalone Rust SDK driver (experiments/sdk_drivers/rust) is its own
 # Cargo workspace, so it must repeat the root patch set. It may repeat only the
-# approved root source, candle-kernels at the approved revision. A stale copy
+# approved root cohort with the same immutable sources. A stale copy
 # of an older root set is unsupported.
 write_sdk_driver() {
   local fixture="$1" mode="$2"
@@ -636,18 +653,18 @@ mode = sys.argv[2]
 git = "https://github.com/coreyt/candle-fathomdb.git"
 k9 = "182ceab0547348993b6dbec4b1aed610dcc8b23f"
 old_rev = "1aefdd008ad1c994635b688b8e6f2ae5a5a920ae"
-patches = []
-if mode != "missing-kernels":
-    patches.append(f'candle-kernels = {{ git = "{git}", rev = "{k9}" }}')
+patches = (root / "Cargo.toml").read_text().split("[patch.crates-io]\n", 1)[1]
+if mode == "missing-kernels":
+    patches = patches.replace(f'candle-kernels = {{ git = "{git}", rev = "{k9}" }}\n', "", 1)
 if mode == "stale-cudarc":
-    patches.append('cudarc = { path = "../../../third_party/cudarc-0.19.7" }')
+    patches = 'cudarc = { path = "../../../third_party/cudarc-0.19.7" }\n' + patches
 if mode == "stale-candle":
-    patches.append(f'candle-core-fathomdb = {{ git = "{git}", rev = "{old_rev}" }}')
+    patches = patches.replace('file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb", rev = "2ee39305a78ed1463ff913f71dcd3d45ecbfd84f', git + '", rev = "' + old_rev, 1)
 driver = root / "experiments/sdk_drivers/rust/Cargo.toml"
 driver.parent.mkdir(parents=True, exist_ok=True)
 driver.write_text(
     "[package]\nname = \"fathomdb-sdk-benchmark-driver\"\nversion = \"0.1.0\"\n\n[workspace]\n\n"
-    "[patch.crates-io]\n" + "\n".join(patches) + "\n",
+    "[patch.crates-io]\n" + patches,
     encoding="utf-8",
 )
 PY

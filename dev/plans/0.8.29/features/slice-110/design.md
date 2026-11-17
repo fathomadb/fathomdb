@@ -300,40 +300,86 @@ accepted `cb36642fad90c1796693c36ee59e3d3d162f4410`. Candle's qualified helper G
 `2ee39305a78ed1463ff913f71dcd3d45ecbfd84f`; its three0.12.0 packages resolve
 at that exact revision.
 
-After Candle qualification, update all four exact version requirements together
-and supply a local Cargo configuration with `[patch.crates-io]` entries for
-cudarc and all three Candle packages. Each entry uses `git = "file:///..."`
-pointing to its existing local fork repository and the full qualified `rev`.
-Use Git revisions, not mutable worktree `path` overrides. Resolve/lock through
-that configuration in owned storage; no registry checksum exists for these Git
-packages and none may be fabricated. This is a local integration route, not a
-registry-ready publish claim; final release dependency publication/normalization
-still needs its separately authorized route.
+The qualified integration used an owned external Cargo configuration: four
+`[patch.crates-io]` entries pin those exact local Git revisions, and a
+`[patch."file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb"]` entry
+redirects the workspace kernel dependency to HTTPS K9. The original root
+crates.io K9 patch remains
+`https://github.com/coreyt/candle-fathomdb.git` at
+`182ceab0547348993b6dbec4b1aed610dcc8b23f`. That separation supplies static
+CUDART linkage; merely changing Candle's file URL to HTTPS would turn its
+kernel redirection into an unsupported same-source/different-revision patch.
 
-Candle's workspace `path` dependency on kernels would otherwise resolve kernels
-from the new Candle Git source. Keep the existing root crates.io K9 patch and
-add a second local-configuration patch table keyed by the exact Candle file Git
-URL, for example `[patch."file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb"]`
-(matching the exact Git URL used for the three local Candle patches). In that table
-set `candle-kernels` to the existing
-`https://github.com/coreyt/candle-fathomdb.git` revision
-`182ceab0547348993b6dbec4b1aed610dcc8b23f`.
-A tiny file-only Cargo fixture verified that a Git-source patch redirects a
-workspace path dependency to a distinct Git source; its cached
-`metadata --offline --locked` passed without compilation. No fork manifest change
-is needed. The owning Candle workspace qualifies its unchanged K9 kernel bytes;
-its path-source lock is not product K9 source proof.
+#### Portable repository delivery of the same graph
 
-Before a product build, actual resolved metadata/lock must show one coherent
-0.12.0 Candle trio, cudarc0.20.0 at the full qualified revision, and kernel0.10.2
-at the original remote K9 source. Preserve feature and static-CUDART boundaries.
-If Cargo cannot resolve this exact graph from existing local objects/cache, stop
-at that dependency error; do not publish, fetch unrelated source, downgrade or
-silently change kernel source. The first affected checks/builds require the
-parent's released resource window. Actual CUDA-enabled product metadata/lock now verifies this exact graph with
-`--offline --locked`. Bounded CPU-only native compile, semantic RED/GREEN and
-scoped CUDA/CPU Clippy ran with GPUs hidden; no product GPU/model/reset or
-installed-consumer qualification is inferred.
+The portable route preserves all four logical file Git source IDs, qualified
+revisions, versions and feature selections. It changes where Cargo fetches the
+same immutable source, not the fork source or dependency family:
+
+- Put the existing four registry overrides and Candle-file-source K9 override
+  in root `Cargo.toml`; keep the original root HTTPS K9 entry unchanged.
+  Repeat only that exact approved cohort in the existing standalone
+  `experiments/sdk_drivers/rust/Cargo.toml`. Workspace manifest patches avoid
+  applying private CargoHome patches to unrelated standalone tools.
+- Add source-only `.cargo/config.toml` mappings for the cudarc and Candle file
+  URLs. Each logical `git`+full `rev` replaces with its owner's HTTPS Git URL
+  at the SAME full revision: `https://github.com/coreyt/cudarc.git` at343 and
+  `https://github.com/coreyt/candle-fathomdb.git` at2ee. No registry replacement,
+  repository config patch, URL spelling trick, branch pin or source rewrite is
+  allowed. K9 retains its original separate HTTPS source/revision.
+- Extend the existing pinned-override checker/metadata and its existing tests
+  to authenticate the exact root/driver patch cohort and both mirror pairs,
+  including replacement URL/revision and allowed configuration shape. Logical
+  lock IDs alone cannot authenticate fetched mirror bytes. Keep other
+  overrides/config patches fail-closed; add no generic source/lock framework.
+
+Root `Cargo.lock` must remain byte-for-byte unchanged. The standalone SDK
+lock is actually stale at registry Candle0.11.0/cudarc0.19.10 and needs a
+separately attributed Cargo-produced reconciliation to the qualified root
+shared-package/source/version closure. Keep its existing defaults/feature
+choices; driver-specific features are not required to equal the root's.
+Generate that actual lock while qualified local sources are available, before
+activating replacement for sources absent from its old lock: Cargo requires an
+existing precise Git lock for source replacement. Reject unrelated dependency
+drift; do not handwrite entries or retag the old driver proof.
+
+A scratch real-Cargo feasibility probe resolved the locked graph after both
+logical repositories were disconnected, using a second fresh mirror-only
+CargoHome. Package identities/versions, resolved features and lock bytes matched
+the actual baseline; one K9-like kernel remained at its separate revision on
+the SAME physical mirror URL as the newer trio. The naive same-source patch
+was actually rejected. Initial missing-lock setup and a supplementary incorrect
+handwritten feature expectation remain failed observations; this feasibility
+is not product RED/GREEN or a clean-wrapper claim. It involved no compilation,
+network, actual checkout mutation or existing Cargo cache mutation.
+
+Before implementation, independent design review precedes staged semantic REDs
+in the existing pinned-override tests: the old checker rejects the approved
+portable root/driver shape and ignores an inconsistent mirror behind unchanged
+logical lock IDs. Minimal GREEN authenticates only this explicit route. Extend
+the same bounded control with actual no-build Cargo resolution: compare actual
+baseline graph/features, independently require K9 identity/tree bytes, make the
+logical repositories unavailable, then require mirror-only `metadata --offline
+--locked` success and unchanged lock. Do not invent a new golden feature list.
+Before adoption, require actual root and standalone driver locked metadata
+under their existing feature choices in a fresh owned config-free CargoHome.
+The unchanged standalone module gate must also resolve with `--offline --locked`
+without injected patch pollution; no compilation is needed for this check.
+After actual workspace/driver success, parent may remove only redundant patch
+tables from its owned CargoHome configuration, preserving cache objects; the
+implementer does not mutate that shared configuration. No model/native/GPU or
+passing campaign replay follows. Retained artifacts keep their actual producer
+identities.
+
+Cudarc343 is now confirmed on the owner's HTTPS remote after an authorized
+branch push. Candle2ee HTTPS availability/fetch remains pending its appropriate
+CI-review/push stage because its fork has an unconditional push scan. No tag,
+registry upload, workflow/settings change or new fork revision is authorized
+by this design. Root patches do not propagate to external published Rust
+consumers: the exact registry requirements stay unchanged, and dependency
+publication/normalization remains separate. No registry checksum or
+registry-ready downstream claim is fabricated. Fork B/C and new CUDA delivery
+remain in their already selected future releases.
 
 Projection/query/ordinary/frozen search preserve current typed-error propagation;
 rerank never converts loss to0.0 or unavailable. Existing singleton retry can

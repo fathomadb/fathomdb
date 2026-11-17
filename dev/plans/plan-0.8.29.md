@@ -432,6 +432,6 @@ the substantive work; do not create receipt-only follow-up phases.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.29:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 30** (`MEASURE`) — Current source-bound baseline and tracked AC083 measurements
+**IMMEDIATE NEXT: Slice 50** (`FUSION-TEXT`) — Approved identity semantics and exact text/snippet route
 
-**Remaining ladder:** 30 → 50 → 90 → 160.<!-- END GENERATED release-state:0.8.29:plan-immediate-next -->
+**Remaining ladder:** 50 → 90 → 160.<!-- END GENERATED release-state:0.8.29:plan-immediate-next -->

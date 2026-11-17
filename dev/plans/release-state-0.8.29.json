@@ -215,7 +215,7 @@
       "depends_on": [
         10
       ],
-      "status": "IN_PROGRESS",
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
       "design_refs": [
         "dev/plans/0.8.29/features/slice-30/plan.md",
         "dev/plans/0.8.29/features/slice-30/requirements.md",
@@ -232,10 +232,10 @@
         "dev/plans/0.8.29/features/slice-30/continuation-gd.md",
         "dev/plans/0.8.29/features/slice-30/continuation-m.md"
       ],
-      "phase": "G84_D24_F_M46_QUALIFIED_PAIRED44_OF136",
+      "phase": "COMPLETE_SELECTED_MEASUREMENT_BASELINE",
       "plan_sha": "bea7f05cd2497af0d73c6eb8da509e11a947ca08",
-      "conditions": "G84/D24/TC5F-Q8/M46 independentlyaccepted. S50 checkpoint44ordinary qualified; next original044-054 window now actuallyrunning,92ordinary+24diagnostic remain. Finalsource/Q17 qualification independentlyaccepted. Baseline native/source identities and observed naturalstate differences remain explicit; combinedjoins/CI stillopen.",
-      "evidence": "Accepted baselines retain original native/source identities. D24 and M46 complete/independently accepted; earlier Storage cause UNKNOWN. M46 includes36795 actual RPC outcomes, all8 pre-EOF lifecycleGPU proofs and original cumulative limits. Whole30 remains open on current S50 baseline and final joins.",
+      "conditions": "AllselectedR30-1..9/A30-1..7 satisfied: P16/G84/D24/M46/F-Q8 and actual20Windows plus finalsource/Q17 independentlyaccepted. Slice50 performance is separate downstream work; it is not a30closuredependency. Originalnative/source identities, failed/aborted histories, Gouterwrapperstatus1 and allcharges/limits preserved.",
+      "evidence": "Independent Astra-medium CLOSE ACCEPT at02bfa144b final30docs; accepted17af assembledsource resolves236executed outcomes with3explicitprivatecontrolskips and strictMkDocsPASS. P100k/500naturaltext reports keepAC083tracked-only; G72writes/146520currentprobes,D24overlap,M46andF7667docs/100queries/K192/top10 exactf32 recall.958CI[.938,.974] retain actualsubjects. Final90timing is not borrowed.",
       "qualified_subset_sha": "2fd772558e46d0b1645dce2ffea730d0bdd3305c",
       "continuation_plan_sha": "0d8be5bb75516955ebf99b94913b9b54921bb3a4",
       "g_design_review": "Independent Astra-medium FIX1 PASS plus actual20 fit PASS; all G/D contracts unchanged,40 file pins/13 subtrees/44 Cargo manifests verified at f803a964. See continuation-gd.md and review-log.md.",
@@ -863,7 +863,9 @@
         "results": "24 exact registered complete/closed/error0 outcomes;24000successful calls/3280000physical/vector/span/terminalrows;12Ccomplete/loss0 and6positive overlap witnesses;Tobservations absent, not zero.",
         "provenance": "Eight originaldc8f10k subjects and16d109/a512 subjects retained, not retagged. Frozened960 controller source. Three original failed/interrupted attempts retained and charged; finite replacements only;no third attempts.",
         "scope": "Selected drain/worker characterization complete, qualifies_natural=false; no canonical natural-search latency pass, unknown Storage-cause closure, whole30/90/release/CI claim."
-      }
+      },
+      "sha": "02bfa144b156dff211ac581eccab0490cab415d2",
+      "closure_review": "CLOSE ACCEPT independentAstra; exact documentation count correction registered239/ran236 applied at integration, no rereview/replay required. Source/measurement/acceptanceoracles unchanged."
     },
     {
       "slice": 40,
@@ -1531,7 +1533,7 @@
         "accepted_corrections": "Integrated through ec54f833c981d9b0f878a407b7df0d15aa4d6842: current MCP fixture/field census, strict approved compact-contract oracle reconciliation, typed embedder-profile admission before deferred coverage-token failure, and narrowly handled enumerated /proc ESRCH race. Genuine RED/GREEN plus independent Astra ACCEPT; original failing tests retained.",
         "module_gate": "Unchanged standalone gate PASS29+5 tests and132 modules/128 configurations under owned config-free Cargo home; exact --locked preserved. First sandbox read-only fixture refusal retained.",
         "q3_affected": "35 distinct affected normal-feature test IDs assembled PASS with independent Astra ACCEPT; original observer missing-Python failures retained. Unchanged prior Q3 scope reused explicitly, not retagged or rerun.",
-        "remaining": "RemainingS50 original92ordinary+24diagnostic native members and combined30/50/90/160 requirement/applicability joins precede localcompletion; source/Q17/D24/M46/approved72/currentartifact+MCP scopes independentlyaccepted. After localpasses reviewCIcorrectness then appropriateCI. No newoptimization/episode/VMaction.",
+        "remaining": "Slice30closed independently; source/Q17/M46/D24/approved72/currentartifact+MCP scopes accepted. RemainingS50 original92ordinary+24diagnostic outcomes and final50/90/160 requirement/applicability joins precede localcompletion, thenCIcorrectnessreview/appropriateCI. No newoptimization/episode/VMaction.",
         "episodes": "Completed once:72valid episodes/all144grades, exact approved served models/qIDs/tool policy; independent Astra final ACCEPT. Reported total$0.13444673; no new quality threshold/noninferiority claim or further paid replay. See90 current_execution and existing comparison README.",
         "delivery": "Local passes, then review CI scripts before running appropriate CI; registry publication excluded.",
         "hints_failed_only": "One exact original unoptimized executable resumption PASS1/1 in7.37s; SHA2563f94cd2e7e9eb39ecd83456d5679ba6c4d18f435a1d56039ca52a6fe6b7b7860, original serial argument/environment/cwd. Original290.4us>200 failure and warnings retained; new numerical statistics captured/unavailable. No profile substitution or additional resumption.",
@@ -1583,9 +1585,8 @@
     }
   ],
   "landed": [],
-  "next_slice": 30,
+  "next_slice": 50,
   "remaining_ladder": [
-    30,
     50,
     90,
     160
@@ -1821,7 +1822,7 @@
   },
   "release_readiness": {
     "status": "NOT_READY",
-    "qualification": "Finalsource/Q17 independentlyaccepted assembled; selectedD24/M46/currentartifact+MCP/performance/singlepaid72 scopes retained. S50checkpoint44ordinary credited; originalprefix044-054 actuallyrunning under all13serialauthorization.92ordinary+24diagnostic outcomes and combinedjoins remain, thenCIreview/appropriateCI. Originalsubjects/failures/charges and naturalobservations preserved; no newmatrixreplay/currenttimingretag. Registrypublishingexcluded;VMholdended/persistent32GiBintact.",
+    "qualification": "Slice30 measurementbaseline CLOSED independently after finalA30-1..7review; acceptedsource/Q17/currentartifact+MCP/performance/singlepaid72 scopes retained. S50checkpoint44ordinarycredited and originalremaining13windowsrunning serially;92ordinary+24diagnostic outcomes and final50/90/160joins remain, thenCIreview/appropriateCI. Preserve originalsubjects/failures/charges/naturalobservations; no newmatrixreplay/timingretag. Registrypublishingexcluded;VMholdended/persistent32GiBintact.",
     "publication": "HELD: registry publication and v* tag push excluded by owner scope. Appropriate CI is authorized after required local qualification and CI correctness review; bootstrap alone grants no external publication/ACL action.",
     "local_source_phase": {
       "status": "ASSEMBLED_FULL_SOURCE_PASS_INDEPENDENT_ASTRA_ACCEPTED",

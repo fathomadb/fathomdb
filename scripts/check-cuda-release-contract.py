@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import runpy
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -133,18 +134,10 @@ CUDA_TEGRA_HOST_CUDART_LIB = "/usr/local/cuda-12.6/targets/aarch64-linux/lib"
 CUDA_TEGRA_HOST_DRIVER_LIB = "/usr/lib/aarch64-linux-gnu/nvidia/libcuda.so.1"
 UPLOAD_ARTIFACT_ACTION = "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
 UPLOAD_RETRY_ACTION = ROOT / ".github/actions/upload-artifact-retry/action.yml"
-# 0.8.28 Slice 31 (REQ31-16, OP-1): the only Candle source this contract
-# governs is the candle-kernels git patch that carries the statically linked
-# CUDA runtime into the artifacts. Its source and rev are read from the
-# pinned-override record (one literal); the registry Candle fork crates are
-# the pinned-override checker's.
+# K9 owns the static-runtime boundary; Slice110's pin guard owns the exact
+# repository-only fork cohort, independently of downstream registry publishing.
 PINNED_OVERRIDE_RECORD = ROOT / "scripts/pinned-override-rot.json"
 CANDLE_KERNELS_PACKAGE = "candle-kernels"
-CANDLE_FORK_PACKAGES = (
-    "candle-core-fathomdb",
-    "candle-nn-fathomdb",
-    "candle-transformers-fathomdb",
-)
 DRIVERLESS_DEVICE_SELECTION_VARIABLES = (
     "FATHOMDB_EMBED_DEVICE",
     "FATHOMDB_RERANK_DEVICE",
@@ -758,12 +751,19 @@ def main() -> None:
             f"[patch.crates-io] {CANDLE_KERNELS_PACKAGE} must pin {candle_git}@{candle_rev} "
             f"(scripts/pinned-override-rot.json cargo_candle_exception); got {pin!r}"
         )
-    for package_name in CANDLE_FORK_PACKAGES:
-        if package_name in crates_io_patch:
-            fail(
-                f"[patch.crates-io] must not patch {package_name!r}: the Candle fork crates "
-                "come from crates.io"
-            )
+    # Load the control-plane policy beside this checker, never from the
+    # inspected candidate's ROOT or its self-attested override metadata.
+    pin_policy = runpy.run_path(str(Path(__file__).with_name("check-pinned-override-rot.py")))
+    try:
+        pin_policy["validate_candle_exception"](record)
+        pin_policy["validate_fork_pins"](record)
+    except pin_policy["Unverified"] as error:
+        fail(str(error))
+    expected_patches: dict[str, dict[str, dict[str, str]]] = {}
+    for (mechanism, package_name), (git, rev) in pin_policy["APPROVED_PATCHES"].items():
+        expected_patches.setdefault(mechanism.removeprefix("patch."), {})[package_name] = {"git": git, "rev": rev}
+    if patches != expected_patches:
+        fail("workspace Cargo patches must equal the governed fork/kernel cohort")
 
     lockfile = load_toml(LOCKFILE)
     locked_packages = lockfile.get("package")

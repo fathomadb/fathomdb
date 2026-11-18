@@ -198,6 +198,13 @@ fi
 [ "$1" = install ]
 printf 'npm fixture: optional dependency failed to resolve\n'
 printf 'NPM_TOKEN=synthetic-private-marker\n'
+if [ "${SMOKE_PARTIAL_CREDENTIAL:-0}" = 1 ]; then
+  head -c 22000 /dev/zero | tr '\000' x
+  printf '\n'
+  canary=synthetic-bounded-tail-marker
+  printf 'Authorization: Bearer %s\n' "$canary"
+  head -c "$((16384 - ${#canary} - 1))" /dev/zero | tr '\000' x
+fi
 [ "${SMOKE_INSTALL_EXIT:-0}" = 0 ] || exit "$SMOKE_INSTALL_EXIT"
 mkdir -p node_modules/fathomdb node_modules/fathomdb-linux-x64-gnu node_modules/fathomdb-linux-arm64-gnu
 printf '{"name":"fathomdb","version":"0.8.30","optionalDependencies":{"fathomdb-linux-x64-gnu":"0.8.30"}}\n' > node_modules/fathomdb/package.json
@@ -226,6 +233,15 @@ if [ "$host_machine" = "Linux x86_64" ] && node -e 'process.exit(process.report.
     pass "Bash npm smoke preserves the exact install failure and redacted output"
   else
     fail "npm install failure lost its exit, diagnostic or redaction: exit=$result output=$diagnostic"
+  fi
+  result=0
+  diagnostic="$(PATH="$fixture/bin:$PATH" SMOKE_INSTALL_EXIT=43 SMOKE_PARTIAL_CREDENTIAL=1 \
+    bash "$NPM" 0.8.30 2>&1)" || result=$?
+  if [ "$result" -eq 43 ] && [[ "$diagnostic" == *"npm install output truncated"* ]] \
+    && [[ "$diagnostic" != *synthetic-bounded-tail-marker* ]]; then
+    pass "npm log capping cannot expose a partial authorization header"
+  else
+    fail "npm log capping exposed a partial authorization header or erased the failure"
   fi
 fi
 

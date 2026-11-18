@@ -74,6 +74,69 @@ else
   cat "$WORK/assert.out" >&2
 fi
 
+# Exercise the real --assert-only entry point with a release-shaped host
+# fixture. Only host observations are substituted. No build tool runs.
+tegra_fixture="$WORK/tegra-fixture"
+tegra_ts="$tegra_fixture/src/ts"
+tegra_cuda="$tegra_fixture/cuda"
+tegra_bin="$tegra_fixture/bin"
+mkdir -p "$tegra_fixture/scripts/release" "$tegra_cuda/bin" "$tegra_bin" \
+  "$tegra_ts/node_modules/@napi-rs/cli" "$tegra_ts/node_modules/typescript"
+cp "$WRAPPER" "$REPO_ROOT/scripts/release/"{cuda-artifact-contract,glibc-floor-contract}.sh \
+  "$tegra_fixture/scripts/release/"
+mkdir -p "$tegra_ts/npm-tegra"
+cp -R "$TEGRA_PACKAGE_DIR" "$tegra_ts/npm-tegra/"
+printf '{"version":"0.8.29","packageManager": "npm@11.20.0"}\n' >"$tegra_ts/package.json"
+touch "$tegra_ts/node_modules/"{typescript,@napi-rs/cli}/package.json \
+  "$tegra_cuda/libcudart.so" "$tegra_cuda/libcuda.so.1"
+cat >>"$tegra_fixture/scripts/release/cuda-artifact-contract.sh" <<'STUB_CONTRACT'
+CUDA_TEGRA_HOST_TOOLKIT_ROOT="$TEGRA_TEST_CUDA"
+CUDA_HOST_CC_TEGRA_ORIN="$TEGRA_TEST_BIN/gcc"
+CUDA_HOST_CXX_TEGRA_ORIN="$TEGRA_TEST_BIN/gcc"
+CUDA_TEGRA_HOST_CUDART_LIB="$TEGRA_TEST_CUDA"
+CUDA_TEGRA_HOST_DRIVER_LIB="$TEGRA_TEST_CUDA/libcuda.so.1"
+STUB_CONTRACT
+
+write_version_stub() {
+  printf '#!/usr/bin/env bash\nprintf "%%s\\n" "%s"\n' "$2" >"$1"
+  chmod +x "$1"
+}
+write_version_stub "$tegra_bin/uname" aarch64
+write_version_stub "$tegra_bin/rustc" 'rustc 1.95.0 (fixture)'
+write_version_stub "$tegra_bin/gcc" 'gcc 11.4.0 (fixture)'
+write_version_stub "$tegra_cuda/bin/nvcc" 'Cuda compilation tools, release 12.6, V12.6.68'
+write_version_stub "$tegra_bin/npm" '$TEGRA_TEST_NPM_VERSION'
+cat >"$tegra_bin/node" <<'STUB_NODE'
+#!/usr/bin/env bash
+if [ "$1" = --version ]; then
+  printf '%s\n' "$TEGRA_TEST_NODE_VERSION"
+else
+  exec "$TEGRA_TEST_REAL_NODE" "$@"
+fi
+STUB_NODE
+chmod +x "$tegra_bin/node"
+tegra_test_real_node="$(command -v node)"
+
+check_tegra_role() {
+  local node_version="$1" npm_version="$2" expected_status="$3" expected_output="$4" output status
+  status=0
+  output="$(PATH="$tegra_bin:$PATH" TEGRA_TEST_CUDA="$tegra_cuda" TEGRA_TEST_BIN="$tegra_bin" \
+    TEGRA_TEST_REAL_NODE="$tegra_test_real_node" TEGRA_TEST_NODE_VERSION="$node_version" \
+    TEGRA_TEST_NPM_VERSION="$npm_version" bash "$tegra_fixture/scripts/release/build-napi-cuda-tegra.sh" \
+    --assert-only --out "$WORK/no-tegra-build" 2>&1)" || status=$?
+  if [ "$status" -eq "$expected_status" ] && grep -Fq "$expected_output" <<<"$output" \
+    && [ ! -e "$WORK/no-tegra-build" ]; then
+    pass "$expected_output"
+  else
+    fail "expected exit $expected_status with $expected_output, got $status"
+    printf '%s\n' "$output" >&2
+  fi
+}
+
+check_tegra_role v25.9.0 11.12.1 0 'assertions passed; --assert-only'
+check_tegra_role v26.13.1 11.12.1 1 'node does not match the release contract (v25.9.0): v26.13.1'
+check_tegra_role v25.9.0 11.20.0 1 'npm does not match the release contract (11.12.1): 11.20.0'
+
 # --- No publication command, anywhere in the wrapper ------------------------
 if [ -f "$WRAPPER" ]; then
   publication_hits="$(grep -nE 'npm[[:space:]]+publish|twine|cargo[[:space:]]+publish|maturin[[:space:]]+(publish|upload)|gh[[:space:]]+(workflow|release|api)|git[[:space:]]+push|gh-pages|deploy-pages|NODE_AUTH_TOKEN|NPM_TOKEN' "$WRAPPER" || true)"

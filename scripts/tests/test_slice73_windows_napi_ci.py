@@ -128,8 +128,9 @@ class Slice73WindowsNapiContract(unittest.TestCase):
         block = ci[windows_step:windows_end]
         self.assertIn("if: matrix.label == 'win32-x64-msvc'", block)
         self.assertIn("github.event_name == 'workflow_dispatch'", ci)
-        self.assertIn('fromJSON(\'["self-hosted","Windows","X64","windchill3-windows-11"]\')', ci)
-        self.assertIn("|| 'windows-latest'", ci)
+        native_job = ci[ci.index("  native-artifact-runtime-validation:"):ci.index("  collect-native-artifact-receipts:")]
+        self.assertIn("- runner: windows-latest\n            target: x86_64-pc-windows-msvc", native_job)
+        self.assertNotIn("windchill3-windows-11", native_job)
         self.assertIn('CANDIDATE_SHA" != "$GITHUB_SHA', ci)
         self.assertIn("-RetainedTestManifest", block)
         self.assertIn("scripts/release/smoke/slice73-windows-napi-modules.json", block)

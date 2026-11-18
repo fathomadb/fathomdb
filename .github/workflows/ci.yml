@@ -235,6 +235,9 @@ jobs:
               - 'scripts/bootstrap.sh'
               - 'scripts/bootstrap-heavy.sh'
               - 'scripts/setup-python-owned.sh'
+              - 'scripts/slice135_*.py'
+              - 'scripts/tests/test_slice135_*.py'
+              - 'dev/plans/0.8.27/features/slice-135/**/*.json'
               - 'scripts/install-actionlint.sh'
               - 'scripts/install-shellcheck.sh'
             rust_test_harness:

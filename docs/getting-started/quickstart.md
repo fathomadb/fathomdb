@@ -2,7 +2,7 @@
 
 End-to-end walkthrough: install, open a fresh DB, write rows, search,
 inspect counters, close, exit cleanly. Python and TypeScript examples use the
-0.8.28 SDKs. The Rust application SDK has its own
+0.8.29 SDKs. The Rust application SDK has its own
 [runnable example](../install/rust.md#install-the-application-sdk).
 
 This page covers the same five operations in the same order as the

@@ -6,7 +6,7 @@ fresh engine has no embedder configured and vector writes fail with
 `EmbedderNotConfiguredError` until you enable the pinned default provider.
 Caller-supplied engine providers are unsupported before 1.x in all SDKs.
 
-> Status: 0.8.28 release documentation; the following measurement is historical. The ANN-fidelity
+> Status: 0.8.29 release documentation; the following measurement is historical. The ANN-fidelity
 > recall@10,
 > measured on the pre-fusion **vector stage** (the SUT the 0.90 floor gates), is
 > **0.896** (95% CI 0.864–0.925, N=7,667) and holds the **0.90 floor under the
@@ -432,7 +432,9 @@ pool mode is `on` and they pass the remaining checks.
   the same process resets the CUDA primary context, FathomDB raises
   `CudaContextLostError` and writes one `fathomdb-cuda-context-lost` line to
   stderr; closing afterwards can still crash the process. This is
-  unsupported in 0.8.28.
+  unqualified in 0.8.29. Detected terminal context loss refuses further CUDA
+  construction, embedding and cached reranking until process restart;
+  live-reset survival and post-reset close/exit remain unqualified.
 
 `fathomdb doctor cuda-allocator` shows which allocator a process gets and
 why ([CLI reference](reference/cli.md)). Each SDK's open report carries the

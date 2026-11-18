@@ -26,7 +26,7 @@ so call `configure_runtime` or open the first Engine before it. This API does no
 
 ## Engine configuration
 
-Engine-owned runtime knobs (0.8.28; the GPU pool settings 0.8.28). The same knobs are exposed by
+Engine-owned runtime knobs (0.8.29; GPU pool settings introduced in 0.8.28). The same knobs are exposed by
 every binding in idiomatic spelling (Python snake_case, TS camelCase,
 Rust snake_case).
 

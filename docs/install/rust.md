@@ -1,10 +1,14 @@
 # Install — Rust
 
+> **Publication status: pending.** Version 0.8.29 has not been published.
+> Exact-version registry commands are prepared for use after publication.
+> The latest published release remains 0.8.28.
+
 Rust application code uses `fathomdb-sdk`, the peer of the Python and
 TypeScript SDKs. The lower-level facade and operator CLI remain separate
 consumption routes:
 
-- **`fathomdb-sdk`** (0.8.28) — the
+- **`fathomdb-sdk`** (0.8.29) — the
   [Rust SDK](../reference/rust-sdk.md) with the Python/TypeScript surface.
 - **`fathomdb` facade crate** — re-exports the runtime verbs from
   `fathomdb-engine` for downstream Rust libraries and applications.
@@ -12,7 +16,7 @@ consumption routes:
   `fathomdb recover` verbs. Operator-only; does **not**
   ship `search` / `get` / `list` query verbs.
 
-> **Release 0.8.28, pre-1.0 beta.**
+> **Release 0.8.29, pre-1.0 beta.**
 
 ## Requirements
 
@@ -29,39 +33,39 @@ consumption routes:
 Lower-level library:
 
 ```bash
-cargo add fathomdb@=0.8.28
+cargo add fathomdb@=0.8.29
 ```
 
 CLI:
 
 ```bash
-cargo install fathomdb-cli --version 0.8.28
+cargo install fathomdb-cli --version '=0.8.29' --locked
 ```
 
-From 0.8.28, source crates use `rusqlite` 0.41.1 / `libsqlite3-sys` 0.39.1
+Since 0.8.28, source crates use `rusqlite` 0.41.1 / `libsqlite3-sys` 0.39.1
 (SQLite 3.54.1) without `SQLITE_ENABLE_MEMORY_MANAGEMENT`, so page caches are
 per connection without a caller flag. Pin the application SDK and CLI to the
 matching release; source consumers must also keep sibling crate versions and
 required repository patches aligned.
 
-For the immutable 0.8.28 data-plane inspection route, pin the exact version and
+For the immutable 0.8.29 data-plane inspection route, pin the exact version and
 verify the discovered binary:
 
 ```bash
-cargo install fathomdb-cli --version '=0.8.28' --locked
+cargo install fathomdb-cli --version '=0.8.29' --locked
 fathomdb --version
 ```
 
-Public 0.8.28 opens bootstrap a missing or zero-length path directly at schema
-36 and accept a non-empty database only when its committed schema is exactly
-36. There is no public automatic-upgrade route.
+Public 0.8.29 opens bootstrap a missing or zero-length path directly at schema
+37 and accept a non-empty database only when its committed schema is exactly
+37. There is no public automatic-upgrade route.
 
 ## Install the application SDK
 
 For the application surface shared with Python and TypeScript:
 
 ```bash
-cargo add fathomdb-sdk@=0.8.28
+cargo add fathomdb-sdk@=0.8.29
 ```
 
 Use this complete program in `src/main.rs`, then run `cargo run`:
@@ -80,7 +84,7 @@ fn main() -> fathomdb_sdk::Result<()> {
 
 See the [Rust SDK reference](../reference/rust-sdk.md) for operations and
 option defaults. To build from source, use a trusted
-`release/0.8.28` checkout beside the application:
+`release/0.8.29` checkout beside the application:
 
 ```bash
 cargo add fathomdb-sdk --path ../fathomdb/src/rust/crates/fathomdb-sdk

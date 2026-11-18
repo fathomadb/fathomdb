@@ -5,13 +5,17 @@ agents. It combines SQLite, FTS5, and `sqlite-vec` in your process: open a
 local database file, write records with provenance, and retrieve them through
 the Python, TypeScript, or Rust application SDK.
 
-## Release 0.8.28
+## Release 0.8.29
+
+> **Publication status: pending.** Version 0.8.29 has not been published.
+> Exact-version registry commands are prepared for use after publication.
+> The latest published release remains 0.8.28.
 
 FathomDB is pre-1.0 beta; public contracts can change between micro releases.
-0.8.28 adds filtered body FTS, search visibility controls, context packing and
-explicit erasure maintenance, with fresh store format 37. It retains three
-application SDKs and the classic Jetson Orin Python/Node CUDA delivery routes. See the [release notes](docs/release-notes/0.8.28.md)
-and [changelog](CHANGELOG.md).
+0.8.29 adds exact stored-head coverage reporting and snippet extents, corrects
+record identity in hybrid fusion, and makes compact text the MCP default.
+Store format remains 37, with no automatic migration. See the
+[release notes](docs/release-notes/0.8.29.md) and [changelog](CHANGELOG.md).
 
 ## What you can build
 
@@ -36,9 +40,9 @@ error classes. See [SDK parity](docs/positions/sdk-parity.md).
 
 | Language | Package and installation | Import | Documentation |
 | --- | --- | --- | --- |
-| Python | `python -m pip install fathomdb==0.8.28` | `from fathomdb import Engine, read, graph, admin` | [Install](docs/install/python.md) · [API](docs/reference/python-api.md) |
-| TypeScript / Node.js | `npm install --save-exact fathomdb@0.8.28` | `import { Engine, read, graph, admin } from "fathomdb"` | [Install](docs/install/typescript.md) · [API](docs/reference/typescript-api.md) |
-| Rust application SDK | `cargo add fathomdb-sdk@=0.8.28` | `use fathomdb_sdk::{Engine, read, graph, admin};` | [Install](docs/install/rust.md#install-the-application-sdk) · [API](docs/reference/rust-sdk.md) |
+| Python | `python -m pip install fathomdb==0.8.29` | `from fathomdb import Engine, read, graph, admin` | [Install](docs/install/python.md) · [API](docs/reference/python-api.md) |
+| TypeScript / Node.js | `npm install --save-exact fathomdb@0.8.29` | `import { Engine, read, graph, admin } from "fathomdb"` | [Install](docs/install/typescript.md) · [API](docs/reference/typescript-api.md) |
+| Rust application SDK | `cargo add fathomdb-sdk@=0.8.29` | `use fathomdb_sdk::{Engine, read, graph, admin};` | [Install](docs/install/rust.md#install-the-application-sdk) · [API](docs/reference/rust-sdk.md) |
 
 The [`fathomdb` Rust crate](docs/reference/rust-api.md) is the
 lower-level engine facade. The application SDK is `fathomdb-sdk`.
@@ -82,9 +86,12 @@ CPU and CUDA paths for embedding and reranking; generic Linux AArch64, macOS,
 and Windows artifacts are CPU-only. The default `auto` policy uses CPU when
 no usable GPU is available. Retrieval, fusion, graph traversal, and SQLite
 vector stages run on CPU. See the [compatibility matrix](docs/compatibility/index.md)
-for exact versions. Classic Jetson Orin uses the separate Python `+tegra`
-wheel and matched-version Node Pages tarball; generic ARM64 remains CPU-only.
-See [Python installation](docs/install/python.md#jetson--tegra-cuda) and
+for exact versions. No 0.8.29 Tegra CUDA wheel or Node addon is provided.
+The retained 0.8.28 Python `+tegra` wheel and matched 0.8.28 Node main/addon
+pair remain available. Do not combine the 0.8.29 Node main package with the
+0.8.28 Tegra addon; omit the addon to use the generic ARM64 CPU package.
+CUDA 13 artifact delivery, including Tegra, is planned for 0.8.31.
+See [Python installation](docs/install/python.md#jetson-tegra-cuda) and
 [Node installation](docs/install/typescript.md#classic-jetson-orin-with-cuda).
 
 On CUDA-capable artifacts, `FATHOMDB_EMBED_DEVICE` and
@@ -95,7 +102,7 @@ device selection and shared-GPU limits.
 The operator CLI is installed from source; no prebuilt CLI binary is published:
 
 ```bash
-cargo install fathomdb-cli --version '=0.8.28' --locked
+cargo install fathomdb-cli --version '=0.8.29' --locked
 ```
 
 Use the [CLI reference](docs/reference/cli.md) and

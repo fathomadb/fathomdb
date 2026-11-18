@@ -59,7 +59,7 @@ class GeneratedDocs(unittest.TestCase):
     def test_generated_source_links_use_publication_release_branch(self):
         for page in self.generate():
             text = page.read_text()
-            self.assertIn('https://github.com/fathomadb/fathomdb/blob/release/0.8.28/', text)
+            self.assertIn('https://github.com/fathomadb/fathomdb/blob/release/0.8.29/', text)
             self.assertNotIn('https://github.com/fathomadb/fathomdb/blob/main/', text)
 
     def test_changed_source_stale_check_is_read_only(self):

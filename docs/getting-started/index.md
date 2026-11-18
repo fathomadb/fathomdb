@@ -1,6 +1,10 @@
 # Getting Started
 
-> **Release 0.8.28, pre-1.0 beta.** Choose Python, TypeScript, or the Rust
+> **Publication status: pending.** Version 0.8.29 has not been published.
+> Exact-version registry commands are prepared for use after publication.
+> The latest published release remains 0.8.28.
+>
+> **Release 0.8.29, pre-1.0 beta.** Choose Python, TypeScript, or the Rust
 > application SDK. Install the exact release version.
 
 Native Python and Node artifacts cover Linux x86_64/glibc, Linux
@@ -9,13 +13,16 @@ AArch64/glibc, macOS x64/arm64, and Windows x64. See the
 
 ## Where to go
 
+- [0.8.29 release notes](../release-notes/0.8.29.md) — current changes and
+  compatibility boundaries, including the MCP compact-text default.
+
 - [Quickstart](quickstart.md) — install, open, write, search,
   counters, close, exit. ~5 minutes.
 - [Install — Python](../install/python.md)
 - [Install — TypeScript / Node.js](../install/typescript.md)
 - [Install — Rust](../install/rust.md)
 
-## What ships in 0.8.28
+## Release 0.8.29 surface
 
 The Python, TypeScript, and Rust application SDKs use equivalent idiomatic
 names and the same governed operation membership. The separate Rust facade
@@ -86,5 +93,5 @@ surface. Rust users can also consume the lower-level `fathomdb` facade crate. Th
 - **Caller-supplied engine embedders** are unsupported before 1.x in every SDK;
   production engine admission selects the pinned built-in default or none.
 - **No compatibility shims or public automatic upgrades.** A non-empty
-  database must already have the compiled schema version (36) — see
+  database must already have the compiled schema version (37) — see
   [compatibility](../compatibility/index.md).

@@ -1,14 +1,18 @@
 # FathomDB Public Docs
 
+> **Publication status: pending.** Version 0.8.29 has not been published.
+> Exact-version registry commands are prepared for use after publication.
+> The latest published release remains 0.8.28.
+
 FathomDB is a local-first retrieval and graph-oriented data system
 designed for application and agent workloads. This site is the public
 documentation source for users, operators, and SDK consumers.
 
-> **Release 0.8.28, pre-1.0 beta.** The surface may change between micro
+> **Release 0.8.29, pre-1.0 beta.** The surface may change between micro
 > releases. The release provides Python, TypeScript, and Rust application SDKs,
 > plus a separate operator CLI.
 > See [Install](install/python.md) and the
-> [CHANGELOG](https://github.com/fathomadb/fathomdb/blob/release/0.8.28/CHANGELOG.md).
+> [CHANGELOG](https://github.com/fathomadb/fathomdb/blob/release/0.8.29/CHANGELOG.md).
 
 Native Python and Node artifacts cover Linux x86_64/glibc, Linux
 AArch64/glibc, macOS x64/arm64, and Windows x64. See the
@@ -44,8 +48,8 @@ AArch64/glibc, macOS x64/arm64, and Windows x64. See the
 - [Positions](positions/index.md) — consumer-relevant technical
   positions (SDK parity, recovery surface, tokenizer policy,
   embedder identity).
-- [0.8.28 release notes](release-notes/0.8.28.md).
-- [Release changelog](https://github.com/fathomadb/fathomdb/blob/release/0.8.28/CHANGELOG.md) — 0.8.28 changes.
+- [0.8.29 release notes](release-notes/0.8.29.md).
+- [Release changelog](https://github.com/fathomadb/fathomdb/blob/release/0.8.29/CHANGELOG.md) — 0.8.29 changes.
   Earlier detailed changes are recorded in the repo
   [CHANGELOG](https://github.com/fathomadb/fathomdb/blob/main/CHANGELOG.md).
 

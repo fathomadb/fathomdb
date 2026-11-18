@@ -25,7 +25,8 @@ for e in a.value.elts:
     dest = fixture / p
     dest.parent.mkdir(parents=True, exist_ok=True)
     # A historical checkout remains a valid no-marker fallback case.
-    text = re.sub(r'0\.8\.(?:27|28)', '0.8.26', (root / p).read_text())
+    text = re.sub(r'^> \*\*Publication status: pending\.\*\*.*(?:\n>.*)*\n', '', (root / p).read_text(), flags=re.MULTILINE)
+    text = re.sub(r'0\.8\.(?:27|28|29)', '0.8.26', text)
     text = re.sub(r'SCHEMA_VERSION` to \*\*(?:35|36|37)\*\*', 'SCHEMA_VERSION` to **34**', text)
     text += '\nCurrent published release: v0.8.26 is published.\n'
     text += '\nNative platforms: Linux x86_64, Linux AArch64, macOS x64/arm64, and Windows x64.\n'
@@ -59,7 +60,9 @@ m = ast.parse((root / 'scripts/check-public-doc-truth.py').read_text())
 a = next(n for n in m.body if isinstance(n, ast.Assign) and any(isinstance(t, ast.Name) and t.id == 'PUBLIC_DOCS' for t in n.targets))
 for e in a.value.elts:
     p = Path(e.args[0].value)
-    text = re.sub(r'0\.8\.(?:27|28)', version, (root / p).read_text())
+    text = re.sub(r'^> \*\*Publication status: pending\.\*\*.*(?:\n>.*)*\n', '', (root / p).read_text(), flags=re.MULTILINE)
+    text = re.sub(r'0\.8\.(?:27|28)', '0.8.26', text)
+    text = text.replace('0.8.29', version)
     text = re.sub(r'SCHEMA_VERSION` to \*\*(?:34|35|36|37)\*\*', f'SCHEMA_VERSION` to **{schema}**', text)
     text = text.replace(f'The published {version} line', f'The {version} line')
     text = text.replace(f'Install the published {version} CLI', f'Install the {version} CLI')
@@ -140,6 +143,9 @@ mutate_state 0.8.28 published '{"tag":"v0.8.28","tag_commit":"111111111111111111
 expect_pass 'eventual published 0.8.28 uses reviewed format37 fact'
 mutate_state 0.8.28 schema_version 35
 expect_fail 'published format37 guard is independent of selected target' 'published release state.*schema 37'
+pending_fixture 0.8.29 37
+mutate_state 0.8.29 published '{"tag":"v0.8.29","tag_commit":"1111111111111111111111111111111111111111","published_on":"2026-11-17","npm_dist_tag":"latest"}'
+expect_pass 'eventual published 0.8.29 uses reviewed format37 fact'
 pending_fixture 0.8.28 37
 python3 - "$FIXTURE/dev/plans/release-state-9.9.9.json" <<'PY2'
 from pathlib import Path

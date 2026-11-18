@@ -1,10 +1,14 @@
 # Install — Python
 
+> **Publication status: pending.** Version 0.8.29 has not been published.
+> Exact-version registry commands are prepared for use after publication.
+> The latest published release remains 0.8.28.
+
 The `fathomdb` Python SDK is a [PyO3](https://pyo3.rs/) binding over the
 native Rust runtime. Wheels are platform-tagged (no source build
 required on supported platforms).
 
-> **Release 0.8.28, pre-1.0 beta.** Wheels cover Linux x86_64/glibc, Linux
+> **Release 0.8.29, pre-1.0 beta.** Wheels cover Linux x86_64/glibc, Linux
 > AArch64/glibc, macOS x64/arm64, and Windows x64. Other hosts must use the
 > from-source path below. FathomDB is pre-1.0 and the surface is **beta**.
 
@@ -23,15 +27,15 @@ required on supported platforms).
 ## Install the wheel
 
 ```bash
-pip install fathomdb==0.8.28
+pip install fathomdb==0.8.29
 ```
 
 ## Build from source
 
-Editable from a trusted `release/0.8.28` checkout using [maturin](https://www.maturin.rs/):
+Editable from a trusted `release/0.8.29` checkout using [maturin](https://www.maturin.rs/):
 
 ```bash
-git clone https://github.com/fathomadb/fathomdb
+git clone --branch release/0.8.29 https://github.com/fathomadb/fathomdb
 cd fathomdb
 pip install -e src/python/
 ```
@@ -42,6 +46,12 @@ produces the native PyO3 extension `fathomdb._fathomdb`. **Do not run
 only supported native-build path for development.
 
 ## Jetson / Tegra CUDA
+
+No 0.8.29 `+tegra` wheel is provided. The generic 0.8.29 AArch64 wheel is
+CPU-only, including on Jetson. For the retained CUDA route, stay on the
+published 0.8.28 wheel below in a separate environment. CUDA 13 artifact
+delivery, including Tegra, is planned for 0.8.31; local Rust/CUDA qualification
+does not supply a prebuilt 0.8.29 Tegra package.
 
 On a confirmed classic Jetson Orin (L4T R36 / JetPack 6, CUDA 12.6), install
 the exact 0.8.28 Tegra build from the first-party index. Confirm its

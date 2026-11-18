@@ -1,5 +1,9 @@
 # Tegra Pages publication
 
+This procedure documents retained 0.8.28 artifacts. No 0.8.29 Tegra CUDA wheel
+or Node addon is provided. Generic 0.8.29 AArch64 packages are CPU-only; keep
+the 0.8.28 Node main/addon versions matched when using the CUDA route below.
+
 The 0.8.28 release delivers `fathomdb==0.8.28+tegra` and the matched-version
 `fathomdb-linux-arm64-gnu-tegra` Node tarball through first-party GitHub Pages
 for classic Jetson Orin. The wheel is not published to PyPI and the tarball is

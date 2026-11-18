@@ -1,10 +1,14 @@
 # Install — TypeScript / Node.js
 
+> **Publication status: pending.** Version 0.8.29 has not been published.
+> Exact-version registry commands are prepared for use after publication.
+> The latest published release remains 0.8.28.
+
 The `fathomdb` npm package is a [napi-rs](https://napi.rs/) binding
 over the native Rust runtime. The package selects a
 platform-tagged `.node` binary at load time.
 
-> **Release 0.8.28, pre-1.0 beta.** The release supplies
+> **Release 0.8.29, pre-1.0 beta.** The release supplies
 > Linux x86_64/glibc, Linux AArch64/glibc, macOS x64/arm64, and Windows x64
 > native packages; other hosts must build from source.
 > FathomDB is pre-1.0 and the surface is **beta**.
@@ -14,7 +18,7 @@ platform-tagged `.node` binary at load time.
 ## Requirements
 
 - Node **25.x** (release CI uses Node 25.9.0).
-- The `0.8.28` npm package supports Linux
+- The `0.8.29` npm package supports Linux
   `x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu`, macOS
   `x86_64-apple-darwin` and `aarch64-apple-darwin`, and Windows
   `x86_64-pc-windows-msvc`. Other hosts must build from source.
@@ -26,14 +30,22 @@ platform-tagged `.node` binary at load time.
 ## Install the package
 
 ```bash
-npm install --save-exact fathomdb@0.8.28
+npm install --save-exact fathomdb@0.8.29
 ```
 
 On Linux AArch64 this installs the CPU-only `fathomdb-linux-arm64-gnu`
-package, including on a Jetson. For CUDA on a classic Jetson Orin, see the
-next section.
+package, including on a Jetson. No 0.8.29 Tegra CUDA addon is provided.
+For the retained 0.8.28 CUDA route, use the matched main/addon pair below.
 
 ## Classic Jetson Orin with CUDA
+
+The following procedure intentionally installs the retained **0.8.28 main
+package and 0.8.28 Tegra addon together**. Do not add that addon to
+`fathomdb@0.8.29`: on a confirmed classic Jetson Orin, mismatched versions
+are refused before native loading. With no Tegra addon installed, the loader
+uses the generic CPU package. CUDA 13 artifact delivery, including Tegra, is
+planned for 0.8.31; local Rust/CUDA qualification does not supply a prebuilt
+0.8.29 Tegra addon.
 
 A CUDA-capable Node addon for **classic Jetson Orin** (JetPack 6 / L4T R36,
 CUDA 12.6) uses the separately named package
@@ -156,7 +168,7 @@ How it behaves:
 ## Build from source
 
 ```bash
-git clone https://github.com/fathomadb/fathomdb
+git clone --branch release/0.8.29 https://github.com/fathomadb/fathomdb
 cd fathomdb/src/ts
 npm install
 npm run build

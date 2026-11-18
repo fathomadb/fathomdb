@@ -14,8 +14,12 @@ and scale/stability guarantees are staged for 0.9.x and later.
 
 ## Install
 
+> **Publication status: pending.** Version 0.8.29 has not been published.
+> Exact-version registry commands are prepared for use after publication.
+> The latest published release remains 0.8.28.
+
 ```bash
-npm install --save-exact fathomdb@0.8.28
+npm install --save-exact fathomdb@0.8.29
 ```
 
 The package is a thin TypeScript wrapper (ESM, with type declarations) over a native
@@ -23,11 +27,17 @@ The package is a thin TypeScript wrapper (ESM, with type declarations) over a na
 this package: each host triple ships as its own package (for example
 `fathomdb-linux-x64-gnu` or `fathomdb-linux-arm64-gnu`), declared as an optional dependency and
 resolved automatically on a matching host. You install `fathomdb` and nothing else. The
-0.8.28 release provides Linux x86_64 and Linux AArch64 glibc, macOS x64 and arm64, and Windows
+0.8.29 release provides Linux x86_64 and Linux AArch64 glibc, macOS x64 and arm64, and Windows
 x64 packages. Linux musl remains without an installable native package.
+Generic Linux AArch64 packages are CPU-only. No 0.8.29 Tegra CUDA addon is
+provided; the retained 0.8.28 main/addon pair remains available through
+[the Tegra installation guide](https://github.com/fathomadb/fathomdb/blob/release/0.8.29/docs/install/typescript.md#classic-jetson-orin-with-cuda).
+Do not combine the 0.8.29 main package with the 0.8.28 addon. When no Tegra
+addon is installed the loader uses the generic CPU package; mismatched
+versions are refused on a confirmed classic Jetson Orin.
 
 The documented compatibility line is Node.js 25.x. Built and tested on Node.js 25.9.0. See the
-[compatibility matrix](https://github.com/fathomadb/fathomdb/blob/release/0.8.28/docs/compatibility/index.md)
+[compatibility matrix](https://github.com/fathomadb/fathomdb/blob/release/0.8.29/docs/compatibility/index.md)
 for the release boundary.
 
 ## Quick start
@@ -82,7 +92,7 @@ and `purge`. A store configured with
 maintenance window; direct erase/purge outside it raises `MaintenanceError`.
 Queued intents leave records logically unchanged until maintenance. Use the
 completion result as proof of cleanup; incomplete cleanup retains durable
-fences. See the [maintenance guide](https://github.com/fathomadb/fathomdb/blob/release/0.8.28/docs/operations/erasure.md).
+fences. See the [maintenance guide](https://github.com/fathomadb/fathomdb/blob/release/0.8.29/docs/operations/erasure.md).
 
 ## Embeddings
 
@@ -95,9 +105,9 @@ nothing.
 ## Other SDKs
 
 The same engine is available as a Python package (`pip install fathomdb`). The Rust
-application peer is `fathomdb-sdk` (import `fathomdb_sdk`), available in
-0.8.28; use the
-[Rust SDK installation guide](https://github.com/fathomadb/fathomdb/blob/release/0.8.28/docs/install/rust.md).
+application peer is `fathomdb-sdk` (import `fathomdb_sdk`), documented for
+0.8.29; use the
+[Rust SDK installation guide](https://github.com/fathomadb/fathomdb/blob/release/0.8.29/docs/install/rust.md).
 The [`fathomdb` crate](https://crates.io/crates/fathomdb) remains the
 separate lower-level engine facade.
 

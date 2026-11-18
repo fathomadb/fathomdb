@@ -1,9 +1,9 @@
 # TypeScript API
 
 Package: `fathomdb`. Authoritative spec:
-[`dev/interfaces/typescript.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.28/dev/interfaces/typescript.md).
+[`dev/interfaces/typescript.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.29/dev/interfaces/typescript.md).
 
-> **Release 0.8.28, pre-1.0 beta.**
+> **Release 0.8.29, pre-1.0 beta.**
 
 The TypeScript, Python, and Rust SDKs share the governed operation surface
 and error categories. Language calling conventions differ. See
@@ -856,12 +856,13 @@ for typed outcomes, original-sink reattachment and retry rules.
 - [Config knobs](config.md)
 - [Errors](errors.md)
 - [Erasure](../operations/erasure.md)
-- Locked spec: [`dev/interfaces/typescript.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.28/dev/interfaces/typescript.md)
+- Locked spec: [`dev/interfaces/typescript.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.29/dev/interfaces/typescript.md)
 - TS↔Python parity matrix: [`dev/notes/12-TX-parity-matrix.md`](https://github.com/fathomadb/fathomdb/blob/main/dev/notes/12-TX-parity-matrix.md)
 
 ## Stored-head reporting
 
-Projection status includes required stored mapped-head coverage. Available
+Projection runtime status includes required stored mapped-head coverage in
+`vectorCoverage`. Available
 values report exact known/unknown/truncated heads, known/unrepresented bytes,
 unattributed heads and exact unreduced known-only shares; unavailable values
 name cache_cold or state_changed without numeric facts. The population includes

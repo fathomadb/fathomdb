@@ -1,9 +1,9 @@
 # Python API
 
 Module: `fathomdb`. Authoritative spec:
-[`dev/interfaces/python.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.28/dev/interfaces/python.md).
+[`dev/interfaces/python.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.29/dev/interfaces/python.md).
 
-> **Release 0.8.28, pre-1.0 beta.**
+> **Release 0.8.29, pre-1.0 beta.**
 
 ## Representative top-level imports
 
@@ -871,11 +871,12 @@ for typed outcomes, original-sink reattachment and retry rules.
 - [Config knobs](config.md)
 - [Errors](errors.md)
 - [Erasure](../operations/erasure.md)
-- Locked spec: [`dev/interfaces/python.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.28/dev/interfaces/python.md)
+- Locked spec: [`dev/interfaces/python.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.29/dev/interfaces/python.md)
 
 ## Stored-head reporting
 
-Projection status includes required stored mapped-head coverage. Available
+Projection runtime status includes required stored mapped-head coverage in
+`vector_coverage`. Available
 values report exact known/unknown/truncated heads, known/unrepresented bytes,
 unattributed heads and exact unreduced known-only shares; unavailable values
 name cache_cold or state_changed without numeric facts. The population includes

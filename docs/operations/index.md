@@ -1,6 +1,6 @@
 # Operations
 
-Operations docs cover the 0.8.28 release surface.
+Operations docs cover the 0.8.29 release surface.
 
 - [Tegra Pages publication](tegra-pages-publication.md) — the separately
   authorized, exact-commit route for the 0.8.28 Tegra publication.

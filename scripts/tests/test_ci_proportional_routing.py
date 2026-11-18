@@ -488,6 +488,21 @@ def main() -> int:
             ("dev/plans/0.8.27/features/slice-135/phase2-graph-evidence-fixture.json",),
             {"verify_harness": "true"}, {"verify"}, True,
         ),
+        (
+            "installed-experiment-js-driver",
+            ("scripts/slice135_ts_s01.mjs",),
+            {"verify_harness": "true"}, {"verify"}, True,
+        ),
+        (
+            "installed-experiment-snapshot",
+            ("dev/plans/0.8.27/features/slice-135/results/2026-10-07-e01-e12-feasibility/baseline/Cargo.toml.snapshot",),
+            {"verify_harness": "true"}, {"verify"}, True,
+        ),
+        (
+            "installed-experiment-markdown",
+            ("dev/plans/0.8.27/features/slice-135/plan.md",),
+            {}, set(), False,
+        ),
         ("rust-markdown", ("src/rust/crates/fathomdb/README.md",), {"rust": "true"}, set(), False),
         ("python-markdown", ("src/python/README.md",), {"python": "true"}, set(), False),
         ("typescript-markdown", ("src/ts/README.md",), {"typescript": "true"}, set(), False),

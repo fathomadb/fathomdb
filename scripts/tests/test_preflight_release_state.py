@@ -87,6 +87,51 @@ class Fixture:
         self.temp.cleanup()
 
 
+class PublishedReleasePreflightTests(unittest.TestCase):
+    def test_no_active_release_reports_verified_terminal_scope_and_refuses_commission(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            repo = Path(temporary)
+            git(repo, "init", "-q", "-b", "main")
+            state = "dev/plans/release-state-0.8.29.json"
+            board = "dev/plans/runs/STATUS-0.8.29.md"
+            (repo / board).parent.mkdir(parents=True)
+            (repo / board).write_text("# Closed — historical record\n", encoding="utf-8")
+            published_bytes = (ROOT / state).read_bytes()
+            (repo / state).write_bytes(published_bytes)
+            git(repo, "add", "dev")
+            git(
+                repo, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid",
+                "-c", "commit.gpgsign=false", "commit", "-qm", "published state",
+            )
+            selector = subprocess.run(
+                ["python3", str(ROOT / "scripts/release-current.py")],
+                cwd=repo, capture_output=True, text=True, check=True,
+            )
+            self.assertEqual(selector.stdout, "")
+
+            def preflight() -> subprocess.CompletedProcess:
+                return subprocess.run(
+                    ["bash", str(ROOT / "scripts/preflight.sh"), "--expect-closed", "120"],
+                    cwd=repo, capture_output=True, text=True, check=False,
+                )
+
+            completed = preflight()
+            self.assertEqual(completed.returncode, 1, completed.stderr)
+            self.assertIn("published ladder 0.8.29 verified; no live release to commission", completed.stderr)
+            self.assertEqual(json.loads(completed.stdout.splitlines()[-1])["state"], "no-active")
+            self.assertEqual((repo / state).read_bytes(), published_bytes)
+
+            selected = json.loads(published_bytes)
+            row = next(item for item in selected["ladder"] if item["slice"] == 120)
+            row["status"] = "ACTIVE"
+            (repo / state).write_text(json.dumps(selected), encoding="utf-8")
+            incomplete = preflight()
+            self.assertEqual(incomplete.returncode, 1, incomplete.stderr)
+            self.assertIn("Slice 120", incomplete.stderr)
+            self.assertNotIn("published ladder 0.8.29 verified", incomplete.stderr)
+            self.assertEqual(json.loads(incomplete.stdout.splitlines()[-1])["state"], "invalid")
+
+
 class PreflightReleaseStateTests(unittest.TestCase):
     def setUp(self) -> None:
         self.fixture = Fixture()
@@ -268,9 +313,11 @@ class RealPreflightRegressionTest(unittest.TestCase):
                 published,
                 key=lambda state: tuple(int(part) for part in state["release"].split(".")),
             )
-            self.assertIsNone(latest["next_slice"])
-            self.assertEqual(latest["remaining_ladder"], [])
-            self.assertTrue(all(item["status"] == "LANDED" for item in latest["ladder"]))
+            result = subprocess.run(
+                ["python3", str(MODULE_PATH), "--repo-root", str(ROOT), "--check-published"],
+                cwd=ROOT, capture_output=True, text=True, check=True,
+            )
+            self.assertEqual(result.stdout.strip(), latest["release"])
             return
         release, _board, state_path = current.split("\t")
         state = json.loads((ROOT / state_path).read_text(encoding="utf-8"))

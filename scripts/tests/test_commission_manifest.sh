@@ -720,6 +720,53 @@ else
   fail "arm 8c2b (incomplete null ladder): rc=$RC out=$OUT"
 fi
 
+# Use the recorded mixed terminal ladder in a disposable index.
+setup_fixture
+rm -f "$FIX/dev/plans/release-state-9.9.9.json"
+mixed="$FIX/dev/plans/release-state-0.8.29.json"
+cp "$REPO_ROOT/dev/plans/release-state-0.8.29.json" "$mixed"
+run_gen --verify-all
+if [ "$RC" -eq 0 ] && grep -Fq '0.8.29 complete ladder' <<<"$OUT" \
+  && cmp -s "$mixed" "$REPO_ROOT/dev/plans/release-state-0.8.29.json"; then
+  pass "--verify-all accepts the recorded .29 dispositions read-only"
+else
+  fail "mixed terminal ladder: rc=$RC out=$OUT"
+fi
+
+check_invalid_mixed_ladder() {
+  local description="$1" program="$2" diagnostic="$3"
+  python3 - "$REPO_ROOT/dev/plans/release-state-0.8.29.json" "$mixed" "$program" <<'PY_MUTATE'
+import json
+from pathlib import Path
+import sys
+original, target, program = sys.argv[1:]
+state = json.loads(Path(original).read_text())
+rows = {row['slice']: row for row in state['ladder']}
+exec(program)
+Path(target).write_text(json.dumps(state))
+PY_MUTATE
+  run_gen --verify-all
+  if [ "$RC" -eq 1 ] && grep -Fq "$diagnostic" <<<"$OUT"; then
+    pass "--verify-all rejects $description"
+  else
+    fail "$description: rc=$RC out=$OUT"
+  fi
+}
+check_invalid_mixed_ladder 'owner deferral without its ruling' \
+  "state['decisions']['ruled'] = []" 'Slice 120'
+check_invalid_mixed_ladder 'optional row without its recorded disposition' \
+  "state['decisions']['unruled'] = []" 'Slice 150'
+check_invalid_mixed_ladder 'selected unfinished work with an empty remaining ladder' \
+  "rows[120]['status'] = 'ACTIVE'" 'Slice 120'
+check_invalid_mixed_ladder 'a generic NOT_STARTED row' \
+  "state['ladder'].append({'slice': 999, 'status': 'NOT_STARTED'})" 'Slice 999'
+check_invalid_mixed_ladder 'a malformed terminal row' \
+  "state['ladder'].append(999)" 'malformed'
+check_invalid_mixed_ladder 'a duplicate terminal row' \
+  "state['ladder'].append(rows[150])" 'duplicate'
+check_invalid_mixed_ladder 'a missing terminal next pointer' \
+  "del state['next_slice']" 'end-of-ladder'
+
 # --- Arm 8d: --verify-all with ZERO state files -> hard FAIL (TC-37) -------
 setup_fixture
 rm -f "$FIX/dev/plans/release-state-9.9.9.json"

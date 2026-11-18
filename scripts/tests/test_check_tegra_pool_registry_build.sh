@@ -29,3 +29,5 @@ RC=$?
 set -e
 [ "$RC" -eq 2 ] || fail "unknown argument: expected exit 2, got rc=$RC: $OUT"
 pass "an unknown argument is a usage error"
+
+python3 "$ROOT/scripts/tests/test_check_tegra_pool_registry_build.py"

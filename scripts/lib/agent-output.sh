@@ -40,11 +40,16 @@ agent_format_elapsed() {
 
 agent_redact_log() {
   awk '
-    /(^|[[:space:]"{,])"?(PATH|PYTHONPATH|NODE_PATH|LD_[[:alnum:]_]*|HOME|SSH_AUTH_SOCK|XDG_[[:alnum:]_]*|GITHUB_[[:alnum:]_]*|RUNNER_[[:alnum:]_]*|ACTIONS_[[:alnum:]_]*|[[:alnum:]_]*(TOKEN|SECRET|PASSWORD|KEY)[[:alnum:]_]*)"?[[:space:]]*[:=]/ {
-      print "[REDACTED environment transcript line]"
-      next
+    {
+      folded = tolower($0)
+      if (folded ~ /(^|[[:space:]"{,])"?(path|pythonpath|node_path|ld_[[:alnum:]_]*|home|ssh_auth_sock|xdg_[[:alnum:]_]*|github_[[:alnum:]_]*|runner_[[:alnum:]_]*|actions_[[:alnum:]_]*|authorization|[[:alnum:]_]*(token|secret|password|key)[[:alnum:]_]*)"?[[:space:]]*[:=]/ ||
+          folded ~ /(^|[[:space:]":,])bearer[[:space:]]+[[:alnum:]_.~+\/=-]{8,}/ ||
+          folded ~ /https?:\/\/[^[:space:]\/@]+@/) {
+        print "[REDACTED environment or credential line]"
+      } else {
+        print
+      }
     }
-    { print }
   ' "$1"
 }
 

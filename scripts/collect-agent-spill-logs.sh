@@ -3,7 +3,7 @@
 #
 # The source is deliberately restricted to regular files named
 # fathomdb-agent-*.log. Before a log becomes an artifact, whole lines carrying
-# process/environment transcript values are replaced. Compiler/test output and
+# process/environment transcript values or credentials are replaced. Compiler/test output and
 # ordinary diagnostics remain intact, but a command that happened to dump PATH,
 # a GitHub token, or runner configuration cannot turn the CI artifact into an
 # environment transcript.
@@ -73,7 +73,7 @@ fi
 mkdir -p "$destination"
 manifest="$destination/MANIFEST.txt"
 printf 'format=fathomdb-agent-spill-logs-v1\n' >"$manifest"
-printf 'redaction=whole environment-transcript lines\n' >>"$manifest"
+printf 'redaction=whole environment-transcript or credential lines\n' >>"$manifest"
 
 copied=0
 for candidate in "${regular_candidates[@]}"; do

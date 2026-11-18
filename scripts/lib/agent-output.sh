@@ -13,22 +13,48 @@
 
 set -u
 
+agent_monotonic_ms() {
+  local value
+  value="$(python3 -c 'import time; print(time.monotonic_ns() // 1_000_000)' 2>/dev/null)" || return 1
+  [[ "$value" =~ ^[0-9]{1,16}$ ]] || return 1
+  printf '%s\n' "$value"
+}
+
+agent_elapsed_ms() {
+  local start_ms="$1" end_ms
+  end_ms="$(agent_monotonic_ms)" || end_ms=""
+  if [ -n "$start_ms" ] && [ -n "$end_ms" ] && ((10#$end_ms >= 10#$start_ms)); then
+    printf '%d\n' "$((10#$end_ms - 10#$start_ms))"
+  else
+    printf 'unavailable\n'
+  fi
+}
+
+agent_format_elapsed() {
+  if [ "$1" = unavailable ]; then
+    printf '%s' "$1"
+  else
+    printf '%sms' "$1"
+  fi
+}
+
 # Usage: run_capped <verb> <command...>
 # Returns the underlying command's exit code.
 run_capped() {
   local verb="$1"
   shift
 
+  _agent_capped_ms=unavailable
   local spill_dir="${AGENT_LOG_DIR:-/tmp}"
   if [[ "$spill_dir" != /* ]] || [ ! -d "$spill_dir" ] || [ -L "$spill_dir" ]; then
     printf 'run_capped: spill directory must be an existing absolute regular directory: %s\n' "$spill_dir" >&2
     return 2
   fi
   local spill="$spill_dir/fathomdb-agent-${verb}-$$.log"
-  local start_ms end_ms duration_ms
+  local start_ms duration
   local rc=0
 
-  start_ms=$(date +%s%3N 2>/dev/null || python3 -c 'import time; print(int(time.time()*1000))')
+  start_ms="$(agent_monotonic_ms)" || start_ms=""
 
   # Capture combined stdout+stderr.
   set +e
@@ -37,12 +63,12 @@ run_capped() {
   set -e
   set -u
 
-  end_ms=$(date +%s%3N 2>/dev/null || python3 -c 'import time; print(int(time.time()*1000))')
-  duration_ms=$((end_ms - start_ms))
+  _agent_capped_ms="$(agent_elapsed_ms "$start_ms")"
+  duration="$(agent_format_elapsed "$_agent_capped_ms")"
 
   if [ "$rc" -eq 0 ]; then
     if [ "${AGENT_VERBOSE:-0}" = "1" ]; then
-      printf 'ok %s %sms\n' "$verb" "$duration_ms"
+      printf 'ok %s %s\n' "$verb" "$duration"
     fi
     rm -f "$spill"
     return 0
@@ -54,7 +80,7 @@ run_capped() {
   total_lines="$(wc -l <"$spill")"
   total_lines="${total_lines//[[:space:]]/}"
 
-  printf 'FAIL %s (exit=%d, %sms)\n' "$verb" "$rc" "$duration_ms"
+  printf 'FAIL %s (exit=%d, %s)\n' "$verb" "$rc" "$duration"
   printf -- '----\n'
   head -n 200 "$spill"
   if [ "$total_lines" -gt 200 ]; then

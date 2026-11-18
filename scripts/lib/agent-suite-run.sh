@@ -137,7 +137,7 @@ _github_write_suite_summary() {
 }
 
 _github_emit_failure_annotations() {
-  local label escaped_label state i n
+  local label escaped_label state i n duration
 
   [ -n "${GITHUB_ACTIONS:-}" ] || return 0
   n="${#_SUITE_LABELS[@]}"
@@ -146,17 +146,10 @@ _github_emit_failure_annotations() {
     [ "$state" = "FAIL" ] || continue
     label="${_SUITE_LABELS[$i]}"
     escaped_label="$(_github_escape_command_data "$label")"
-    printf '::error title=agent-test suite failed::%s (exit=%s, duration=%sms)\n' \
-      "$escaped_label" "${_SUITE_RCS[$i]}" "${_SUITE_MS[$i]}"
+    duration="$(agent_format_elapsed "${_SUITE_MS[$i]}")"
+    printf '::error title=agent-test suite failed::%s (exit=%s, duration=%s)\n' \
+      "$escaped_label" "${_SUITE_RCS[$i]}" "$duration"
   done
-}
-
-# Direct heavy runs can legitimately skip Python; missing timing must not skip work.
-_suite_monotonic_ms() {
-  local value
-  value="$(python3 -c 'import time; print(time.monotonic_ns() // 1_000_000)' 2>/dev/null)" || return 1
-  [[ "$value" =~ ^[0-9]+$ ]] || return 1
-  printf '%s\n' "$value"
 }
 
 # Usage: run_suite <label> <cmd...>
@@ -167,7 +160,7 @@ _suite_monotonic_ms() {
 # excluded, the command is never invoked at all; state EXCL is recorded.
 run_suite() {
   local label="$1"; shift
-  local start_ms end_ms ms rc
+  local _agent_capped_ms rc=0
 
   if _is_excluded "$label"; then
     _EXCLUDED_MATCHED+=("$label")
@@ -175,19 +168,12 @@ run_suite() {
     return 0
   fi
 
-  start_ms="$(_suite_monotonic_ms)" || start_ms=""
-  rc=0
   run_capped "$label" "$@" || rc=$?
-  end_ms="$(_suite_monotonic_ms)" || end_ms=""
-  ms="unavailable"
-  if [ -n "$start_ms" ] && [ -n "$end_ms" ]; then
-    ms=$((10#$end_ms - 10#$start_ms))
-  fi
 
   if [ "$rc" -eq 0 ]; then
-    _record "$label" "PASS" "$rc" "$ms"
+    _record "$label" "PASS" "$rc" "$_agent_capped_ms"
   else
-    _record "$label" "FAIL" "$rc" "$ms"
+    _record "$label" "FAIL" "$rc" "$_agent_capped_ms"
   fi
   return 0
 }
@@ -220,7 +206,7 @@ skip_suite() {
 #       skip_suite call site in the caller has executed, since that is the
 #       first point at which "matched nothing" can be known).
 suite_summary_and_exit() {
-  local i n label state rc ms
+  local i n label state rc ms duration
   local registered=0 ran=0 passed=0 failed=0 skipped=0 excluded=0
   local failed_labels=()
 
@@ -272,7 +258,8 @@ suite_summary_and_exit() {
       state="${_SUITE_STATES[$i]}"
       rc="${_SUITE_RCS[$i]}"
       ms="${_SUITE_MS[$i]}"
-      printf '%s %s rc=%s %sms\n' "$state" "$label" "$rc" "$ms"
+      duration="$(agent_format_elapsed "$ms")"
+      printf '%s %s rc=%s %s\n' "$state" "$label" "$rc" "$duration"
     done
     printf 'registered=%d ran=%d passed=%d failed=%d skipped=%d excluded=%d\n' \
       "$registered" "$ran" "$passed" "$failed" "$skipped" "$excluded"

@@ -72,18 +72,24 @@ while [ "$#" -gt 0 ]; do
   shift
 done
 
-start=$(date +%s)
+start_ms="$(agent_monotonic_ms)" || start_ms=""
+
+verify_elapsed() {
+  local elapsed
+  elapsed="$(agent_elapsed_ms "$start_ms")"
+  agent_format_elapsed "$elapsed"
+}
 
 if [ "$verify_scope" = "markdown" ]; then
   printf 'verify scope=markdown: running agent-lint-md.sh only; lint,typecheck,security,test skipped\n'
   if ! "$SCRIPT_DIR/agent-lint-md.sh"; then
-    end=$(date +%s)
-    printf 'FAIL verify at scope=markdown (%ss elapsed)\n' "$((end - start))"
+    display_elapsed="$(verify_elapsed)"
+    printf 'FAIL verify at scope=markdown (%s elapsed)\n' "$display_elapsed"
     exit 1
   fi
   if [ "${AGENT_VERBOSE:-0}" = "1" ]; then
-    end=$(date +%s)
-    printf 'ok verify scope=markdown %ss\n' "$((end - start))"
+    display_elapsed="$(verify_elapsed)"
+    printf 'ok verify scope=markdown %s\n' "$display_elapsed"
   fi
   exit 0
 fi
@@ -105,17 +111,16 @@ verify_preflight() {
 }
 
 if ! run_capped verify-preflight verify_preflight; then
-  end=$(date +%s)
-  printf 'FAIL verify at step=preflight (%ss elapsed)\n' "$((end - start))" >&2
+  display_elapsed="$(verify_elapsed)"
+  printf 'FAIL verify at step=preflight (%s elapsed)\n' "$display_elapsed" >&2
   exit 1
 fi
 
 run_step() {
-  local step="$1"
+  local step="$1" display_elapsed
   if ! "$SCRIPT_DIR/agent-$step.sh"; then
-    local end
-    end=$(date +%s)
-    printf 'FAIL verify at step=%s (%ss elapsed)\n' "$step" "$((end - start))"
+    display_elapsed="$(verify_elapsed)"
+    printf 'FAIL verify at step=%s (%s elapsed)\n' "$step" "$display_elapsed"
     return 1
   fi
 }
@@ -140,12 +145,12 @@ if [ "$verify_tier" != "heavy" ]; then
 fi
 
 if ! bash "$SCRIPT_DIR/agent-test.sh" "--tier=$verify_tier"; then
-  end=$(date +%s)
-  printf 'FAIL verify at step=test tier=%s (%ss elapsed)\n' "$verify_tier" "$((end - start))"
+  display_elapsed="$(verify_elapsed)"
+  printf 'FAIL verify at step=test tier=%s (%s elapsed)\n' "$verify_tier" "$display_elapsed"
   exit 1
 fi
 
-end=$(date +%s)
 if [ "${AGENT_VERBOSE:-0}" = "1" ]; then
-  printf 'ok verify tier=%s %ss\n' "$verify_tier" "$((end - start))"
+  display_elapsed="$(verify_elapsed)"
+  printf 'ok verify tier=%s %s\n' "$verify_tier" "$display_elapsed"
 fi

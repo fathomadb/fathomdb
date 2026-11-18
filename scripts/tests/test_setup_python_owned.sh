@@ -138,9 +138,22 @@ case "${1:-bootstrap}" in
   refuse --build extra
   refuse --check-ownership --features pyo3/extension-module
   refuse --check-ownership --compatibility linux
+  refuse --tools-only --features pyo3/extension-module
+  refuse --tools-only --compatibility linux
   test ! -e "$fixture/.cache/agent/python-native.json"
   test ! -e "$fixture/injected"
   echo 'PASS malformed/unknown/repeated selections stop before build/install'
+  ;;
+ tools-only)
+  /usr/bin/python3 -c 'import shutil,sys; shutil.rmtree(sys.argv[1])' "$fixture/.venv"
+  (cd "$fixture"; bash "$root/scripts/setup-python-owned.sh" --tools-only)
+  test -x "$fixture/.venv/bin/python"
+  grep -Fq 'python|-m|pip|install|pytest' "$S10_CALLS"
+  if grep -Eq '\|maturin\|build\||\|force-reinstall\||S10_NATIVE_PROBE' "$S10_CALLS"; then
+    echo 'FAIL tool-only setup reached native build, installation or import' >&2; exit 1
+  fi
+  test ! -e "$fixture/.cache/agent/python-native.json"
+  echo 'PASS tool-only setup creates a checkout-owned environment with pinned developer tools'
   ;;
  bootstrap)
   (cd "$fixture"; bash "$root/scripts/bootstrap-heavy.sh")

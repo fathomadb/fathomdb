@@ -193,7 +193,8 @@ const fastRuns = runs("verify-fast");
 
 console.log(`heavy=${verifyRuns.filter((run) => run.includes("bash scripts/bootstrap-heavy.sh")).length}`);
 console.log(`heavy-full=${verifyRuns.filter((run) => run.includes("bash scripts/bootstrap.sh")).length}`);
-console.log(`fast-full=${fastRuns.filter((run) => run.includes("bash scripts/bootstrap.sh")).length}`);
+console.log(`fast-tools=${fastRuns.filter((run) => run === "bash scripts/bootstrap.sh --tools-only").length}`);
+console.log(`fast-full=${fastRuns.filter((run) => run === "bash scripts/bootstrap.sh").length}`);
 console.log(`routed=${filters.includes("'scripts/bootstrap-heavy.sh'")}`);
 JS
 
@@ -202,16 +203,22 @@ JS
   else
     fail "verify uses only the heavy bootstrap"
   fi
-  if grep -Fxq 'fast-full=1' "$CONTRACT"; then
-    pass "verify-fast retains the full developer bootstrap"
+  if grep -Fxq 'fast-full=0' "$CONTRACT" && grep -Fxq 'fast-tools=1' "$CONTRACT"; then
+    pass "verify-fast provisions tools without constructing the heavy production wheel"
   else
-    fail "verify-fast retains the full developer bootstrap"
+    fail "verify-fast provisions tools without constructing the heavy production wheel"
   fi
   if grep -Fxq 'routed=true' "$CONTRACT"; then
     pass "heavy bootstrap changes route through verify_harness"
   else
     fail "heavy bootstrap changes route through verify_harness"
   fi
+fi
+
+if grep -Eq '^run_tier_maybe_suite heavy test-slice135-harness ' "$REPO_ROOT/scripts/agent-test.sh"; then
+  pass "real native experiment consumer runs with the heavy production wheel"
+else
+  fail "real native experiment consumer needs the heavy production wheel"
 fi
 
 printf '%s passed, %s failed\n' "$PASS" "$FAIL"

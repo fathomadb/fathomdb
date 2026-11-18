@@ -192,6 +192,9 @@ STAGING_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/fathomdb-tegra-python.XXXXXX")"
 trap 'rm -rf "$STAGING_ROOT"' EXIT
 STAGED_PYTHON="$STAGING_ROOT/python"
 cp -a "$SOURCE_PYTHON" "$STAGED_PYTHON"
+# Maturin runs Cargo metadata here, outside the checkout config search path.
+mkdir -p "$STAGED_PYTHON/.cargo"
+cp "$REPO_ROOT/.cargo/config.toml" "$STAGED_PYTHON/.cargo/config.toml"
 "$INTERPRETER" - "$STAGED_PYTHON/pyproject.toml" "$REPO_ROOT/src/rust/crates/fathomdb-py/Cargo.toml" "$TEGRA_LOCAL_VERSION" <<'PY'
 from pathlib import Path
 import re

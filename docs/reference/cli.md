@@ -156,8 +156,8 @@ version, and whether one is refused. Its JSON record is
 exits `70`; otherwise it exits `0`. See
 [GPU acceleration](../embedder.md#cuda-library-and-gpu-requirements).
 
-For a confirmed classic Jetson/Tegra CUDA host, use the retained 0.8.28
-[Python installation route](../install/python.md#jetson-tegra-cuda): `fathomdb==0.8.28+tegra` from
+For a confirmed classic Jetson/Tegra CUDA host, use the published 0.8.29
+[Python installation route](../install/python.md#jetson-tegra-cuda): `fathomdb==0.8.29+tegra` from
 `https://fathomadb.github.io/fathomdb/tegra/simple/`. It uses one index and an
 exact version; do not use a floating requirement or `--extra-index-url`.
 Unsupported targets have no supported Tegra CUDA route.

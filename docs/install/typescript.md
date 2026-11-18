@@ -30,18 +30,16 @@ npm install --save-exact fathomdb@0.8.29
 ```
 
 On Linux AArch64 this installs the CPU-only `fathomdb-linux-arm64-gnu`
-package, including on a Jetson. No 0.8.29 Tegra CUDA addon is provided.
-For the retained 0.8.28 CUDA route, use the matched main/addon pair below.
+package, including on a Jetson. For CUDA on classic Jetson Orin, install
+the published, version-matched 0.8.29 Tegra addon from Pages as shown below.
 
 ## Classic Jetson Orin with CUDA
 
-The following procedure intentionally installs the retained **0.8.28 main
-package and 0.8.28 Tegra addon together**. Do not add that addon to
-`fathomdb@0.8.29`: on a confirmed classic Jetson Orin, mismatched versions
-are refused before native loading. With no Tegra addon installed, the loader
-uses the generic CPU package. CUDA 13 artifact delivery, including Tegra, is
-planned for 0.8.31; local Rust/CUDA qualification does not supply a prebuilt
-0.8.29 Tegra addon.
+The following procedure installs the published **0.8.29 main package and
+0.8.29 Tegra addon together**. On a confirmed classic Jetson Orin, mismatched
+versions are refused before native loading. With no Tegra addon installed,
+the loader uses the generic CPU package. CUDA 13 artifact delivery, including
+Tegra, is planned for 0.8.31.
 
 A CUDA-capable Node addon for **classic Jetson Orin** (JetPack 6 / L4T R36,
 CUDA 12.6) uses the separately named package
@@ -54,9 +52,9 @@ of the npm registry:
 https://fathomadb.github.io/fathomdb/tegra/packages/fathomdb-linux-arm64-gnu-tegra-<version>.tgz
 ```
 
-The [retained artifact manifest](https://github.com/fathomadb/fathomdb/blob/release/0.8.28/scripts/release/tegra-pages-retained.json)
+The [retained artifact manifest](https://github.com/fathomadb/fathomdb/blob/release/0.8.29/scripts/release/tegra-pages-retained.json)
 records exact URLs and SHA-256 digests. The install below requires its
-`node-tarball` entry for 0.8.28; it stops if the entry is absent or the bytes
+`node-tarball` entry for 0.8.29; it stops if the entry is absent or the bytes
 do not match.
 
 Use it only on a confirmed classic Jetson Orin: the loader requires a Tegra
@@ -74,15 +72,15 @@ node --input-type=commonjs - <<'NODE'
 const fs = require('node:fs');
 const crypto = require('node:crypto');
 (async () => {
-  const manifestUrl = 'https://raw.githubusercontent.com/fathomadb/fathomdb/release/0.8.28/scripts/release/tegra-pages-retained.json';
+  const manifestUrl = 'https://raw.githubusercontent.com/fathomadb/fathomdb/release/0.8.29/scripts/release/tegra-pages-retained.json';
   const response = await fetch(manifestUrl);
   if (!response.ok) throw new Error(`Manifest fetch failed: ${response.status}`);
   const manifest = await response.json();
-  const entry = manifest.artifacts.find(item => item.kind === 'node-tarball' && item.version === '0.8.28');
-  const name = 'fathomdb-linux-arm64-gnu-tegra-0.8.28.tgz';
+  const entry = manifest.artifacts.find(item => item.kind === 'node-tarball' && item.version === '0.8.29');
+  const name = 'fathomdb-linux-arm64-gnu-tegra-0.8.29.tgz';
   const url = `https://fathomadb.github.io/fathomdb/tegra/packages/${name}`;
   if (!entry || entry.filename !== name || entry.url !== url || !/^[0-9a-f]{64}$/.test(entry.sha256)) {
-    throw new Error('Matching 0.8.28 Tegra artifact is missing from the retained manifest');
+    throw new Error('Matching 0.8.29 Tegra artifact is missing from the retained manifest');
   }
   const tarball = await fetch(url);
   if (!tarball.ok) throw new Error(`Tarball fetch failed: ${tarball.status}`);
@@ -94,12 +92,12 @@ const crypto = require('node:crypto');
   console.log('Tegra tarball SHA-256 verified');
 })().catch(error => { console.error(error.message); process.exitCode = 1; });
 NODE
-npm install --save-exact --package-lock-only --ignore-scripts fathomdb@0.8.28
-npm install --save-optional --package-lock-only --ignore-scripts https://fathomadb.github.io/fathomdb/tegra/packages/fathomdb-linux-arm64-gnu-tegra-0.8.28.tgz
+npm install --save-exact --package-lock-only --ignore-scripts fathomdb@0.8.29
+npm install --save-optional --package-lock-only --ignore-scripts https://fathomadb.github.io/fathomdb/tegra/packages/fathomdb-linux-arm64-gnu-tegra-0.8.29.tgz
 node --input-type=commonjs - <<'NODE'
 const fs = require('node:fs');
 const crypto = require('node:crypto');
-const name = 'fathomdb-linux-arm64-gnu-tegra-0.8.28.tgz';
+const name = 'fathomdb-linux-arm64-gnu-tegra-0.8.29.tgz';
 const lock = JSON.parse(fs.readFileSync('package-lock.json', 'utf8'));
 const installed = lock.packages?.['node_modules/fathomdb-linux-arm64-gnu-tegra']?.integrity;
 const checked = 'sha512-' + crypto.createHash('sha512').update(fs.readFileSync(name)).digest('base64');
@@ -130,10 +128,10 @@ loads the generic CPU binary instead.
 ```json
 {
   "dependencies": {
-    "fathomdb": "0.8.28"
+    "fathomdb": "0.8.29"
   },
   "optionalDependencies": {
-    "fathomdb-linux-arm64-gnu-tegra": "https://fathomadb.github.io/fathomdb/tegra/packages/fathomdb-linux-arm64-gnu-tegra-0.8.28.tgz"
+    "fathomdb-linux-arm64-gnu-tegra": "https://fathomadb.github.io/fathomdb/tegra/packages/fathomdb-linux-arm64-gnu-tegra-0.8.29.tgz"
   }
 }
 ```

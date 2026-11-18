@@ -60,36 +60,35 @@ same gate, not exempted from it: both numbers come from
 `scripts/check-glibc-floor-doc-truth.sh` fails if either claim on this page
 drifts from it.
 
-No 0.8.29 Tegra CUDA wheel or Node addon is provided. Generic 0.8.29 AArch64
-packages remain CPU-only, including on Jetson. The following CUDA routes
-retain the published 0.8.28 artifacts; local Rust/CUDA qualification does not
-establish prebuilt 0.8.29 Tegra availability. CUDA 13 artifact delivery,
-including Tegra, is planned for 0.8.31.
+The `0.8.29+tegra` Python wheel and matching 0.8.29 Node addon are published
+through first-party GitHub Pages for classic Jetson Orin. Generic 0.8.29
+AArch64 packages remain CPU-only, including on Jetson. CUDA 13 artifact
+delivery, including Tegra, is planned for 0.8.31.
 
-For a confirmed classic Jetson Orin only, the 0.8.28 distribution route for
-the exact `fathomdb==0.8.28+tegra` wheel is the interim first-party PEP 503
+For a confirmed classic Jetson Orin only, the 0.8.29 distribution route for
+the exact `fathomdb==0.8.29+tegra` wheel is the interim first-party PEP 503
 index. Install it only after the retained manifest lists the exact wheel and
 digest:
 
 ```bash
 python -m pip install --isolated --no-cache-dir --only-binary=:all: \
   --index-url https://fathomadb.github.io/fathomdb/tegra/simple/ \
-  'fathomdb==0.8.28+tegra'
+  'fathomdb==0.8.29+tegra'
 ```
 
 Do not use a floating requirement or `--extra-index-url`: pip merges candidate
-sets and does not prioritize indexes. The Pages route is interim 0.8.28
+sets and does not prioritize indexes. The Pages route is interim 0.8.29
 hosting, not a durable multi-version distribution decision. Use
 `fathomdb doctor platform --json` to distinguish classic Tegra from ARM64 SBSA
 before diagnosing an incompatible CUDA provider.
 
 For Node.js, the generic `linux-arm64-gnu` npm package stays CPU-only on every
-AArch64 host, including Jetson. In 0.8.28, a
+AArch64 host, including Jetson. In 0.8.29, a
 confirmed classic Jetson Orin can add the CUDA-capable
 `fathomdb-linux-arm64-gnu-tegra` package. It is distributed only as an
 exact-version tarball from the Tegra Pages site, never from the npm registry,
 and must match the `fathomdb` version exactly. Keep the main package at
-0.8.28 for this addon: do not combine it with `fathomdb@0.8.29`. Without an
+0.8.29 for this addon; do not combine different main/addon versions. Without an
 installed Tegra addon, the loader uses the generic CPU package. Check its SHA-256 against the release's retained artifact manifest before
 installation; follow the [verification procedure](../install/typescript.md#classic-jetson-orin-with-cuda):
 

@@ -1,10 +1,11 @@
 # Tegra Pages publication
 
-This procedure documents retained 0.8.28 artifacts. No 0.8.29 Tegra CUDA wheel
-or Node addon is provided. Generic 0.8.29 AArch64 packages are CPU-only; keep
-the 0.8.28 Node main/addon versions matched when using the CUDA route below.
+This procedure publishes the 0.8.29 Tegra CUDA wheel and matching Node addon.
+[Run 44246092920](https://github.com/fathomadb/fathomdb/actions/runs/44246092920)
+completed every build, platform, Pages and installed-public-consumer job.
+Generic AArch64 packages remain CPU-only; keep Node main/addon versions matched.
 
-The 0.8.28 release delivers `fathomdb==0.8.28+tegra` and the matched-version
+The 0.8.29 release delivers `fathomdb==0.8.29+tegra` and the matched-version
 `fathomdb-linux-arm64-gnu-tegra` Node tarball through first-party GitHub Pages
 for classic Jetson Orin. The wheel is not published to PyPI and the tarball is
 not published to npm. This exact-commit procedure performs that publication
@@ -54,9 +55,9 @@ the retained list before their publication is verified.
 ## Publish
 
 Publication is deliberately manual: it requires an exact reviewed commit on
-`release/0.8.28`, then uses the dedicated Jetson workflow. Dispatch the
+`release/0.8.29`, then uses the dedicated Jetson workflow. Dispatch the
 workflow from an authenticated operator host with the exact remote branch
-head, `candidate_version=0.8.28` and `publish_to_pages=true`; its
+head, `candidate_version=0.8.29` and `publish_to_pages=true`; its
 `post-publish-smoke-jetson` job runs the installed public-artifact proof.
 Alternatively, from a clean checkout on the classic Jetson host with
 authenticated `gh`, the operator helper dispatches the same workflow and
@@ -64,8 +65,8 @@ repeats the public-artifact smokes locally:
 
 ```bash
 scripts/release/publish-tegra-pages.sh \
-  --candidate-version 0.8.28 \
-  --candidate-sha <remote-release-0.8.28-head>
+  --candidate-version 0.8.29 \
+  --candidate-sha <remote-release-0.8.29-head>
 ```
 
 The script refuses a SHA that is not the current remote release-branch head,
@@ -91,7 +92,7 @@ The site serves:
 ```text
 https://fathomadb.github.io/fathomdb/tegra/simple/
 https://fathomadb.github.io/fathomdb/tegra/node/
-https://fathomadb.github.io/fathomdb/tegra/packages/fathomdb-linux-arm64-gnu-tegra-0.8.28.tgz
+https://fathomadb.github.io/fathomdb/tegra/packages/fathomdb-linux-arm64-gnu-tegra-0.8.29.tgz
 ```
 
 The workflow's `post-publish-smoke-jetson` job runs two post-publication
@@ -99,7 +100,7 @@ smokes on the Jetson. The operator script also runs these smokes when invoked
 from the Jetson host:
 
 - the installed Pages-wheel forced-CUDA smoke;
-- a Node smoke that installs `fathomdb@0.8.28` from npm and the tarball from
+- a Node smoke that installs `fathomdb@0.8.29` from npm and the tarball from
   its Pages URL. It checks the downloaded tarball's SHA-256 against the
   Jetson build digest before installing. It then repeats forced-CUDA
   embedding with its GPU allocation witness, forced-CUDA reranking (checked
@@ -112,7 +113,7 @@ INCOMPLETE.
 
 ## Current allocation witness contract
 
-The 0.8.28 artifacts use
+The 0.8.29 artifacts use
 `fathomdb.tegra-gpu-allocation-witness/v2`. Its tagged `measurement` identifies
 which counter proves model allocation. On Tegra, `private_pool_used` requires
 an actual private pool, checked completion, at least 64 MiB of live model

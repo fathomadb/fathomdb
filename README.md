@@ -82,10 +82,10 @@ CPU and CUDA paths for embedding and reranking; generic Linux AArch64, macOS,
 and Windows artifacts are CPU-only. The default `auto` policy uses CPU when
 no usable GPU is available. Retrieval, fusion, graph traversal, and SQLite
 vector stages run on CPU. See the [compatibility matrix](docs/compatibility/index.md)
-for exact versions. No 0.8.29 Tegra CUDA wheel or Node addon is provided.
-The retained 0.8.28 Python `+tegra` wheel and matched 0.8.28 Node main/addon
-pair remain available. Do not combine the 0.8.29 Node main package with the
-0.8.28 Tegra addon; omit the addon to use the generic ARM64 CPU package.
+for exact versions. Classic Jetson Orin has a published `0.8.29+tegra` Python wheel and a
+matching 0.8.29 Node addon through first-party GitHub Pages. Keep the Node
+main/addon versions matched; omit the addon to use the generic ARM64 CPU
+package. Earlier verified Tegra artifacts remain available.
 CUDA 13 artifact delivery, including Tegra, is planned for 0.8.31.
 See [Python installation](docs/install/python.md#jetson-tegra-cuda) and
 [Node installation](docs/install/typescript.md#classic-jetson-orin-with-cuda).

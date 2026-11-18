@@ -15,10 +15,13 @@ command -v gh >/dev/null || {
 bootstrap="${FATHOMDB_RELEASE_TAG_BOOTSTRAP:-}"
 workflow_ref="fathomadb/fathomdb/.github/workflows/release.yml@refs/tags/$tag"
 if [ -n "$bootstrap" ]; then
-  if { [ "$bootstrap" != v0.8.28 ] && [ "$bootstrap" != v0.8.29 ]; } || [ "$bootstrap" != "$tag" ]; then
-    printf 'check-tag-cuda-route: bootstrap marker must match the authorized exact v0.8.28 or v0.8.29 tag\n' >&2
-    exit 1
-  fi
+  case "$bootstrap:$tag" in
+    v0.8.28:v0.8.28|v0.8.29:v0.8.29|v0.8.30:v0.8.30) ;;
+    *)
+      printf 'check-tag-cuda-route: bootstrap marker must match an authorized exact first tag\n' >&2
+      exit 1
+      ;;
+  esac
   if ref_response="$(gh api "repos/fathomadb/fathomdb/git/ref/tags/$tag" --include)"; then
     printf 'check-tag-cuda-route: bootstrap requires a confirmed absent remote tag\n' >&2
     exit 1

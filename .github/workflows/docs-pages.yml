@@ -60,6 +60,7 @@ jobs:
           python3 - <<'PY' >> "$GITHUB_OUTPUT"
           import json
           from pathlib import Path
+          import runpy
           import subprocess
           import sys
 
@@ -67,11 +68,13 @@ jobs:
               [sys.executable, "scripts/release-current.py"],
               check=True, stdout=subprocess.PIPE, text=True,
           ).stdout.strip()
-          authorized = False
           if selected:
               release, board, state = selected.split("\t")
               data = json.loads(Path(state).read_text())
-              authorized = data.get("release_readiness", {}).get("pages_publication_authorized") is True
+          else:
+              truth = runpy.run_path("scripts/check-public-doc-truth.py")
+              data = truth["current_published_state"](Path.cwd())
+          authorized = data.get("release_readiness", {}).get("pages_publication_authorized") is True
           print(f"authorized={str(authorized).lower()}")
           PY
 

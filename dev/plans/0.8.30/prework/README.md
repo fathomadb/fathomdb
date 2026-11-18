@@ -53,9 +53,9 @@ was performed by this prework.
   qualification. Preserve its branch and make its .30 integration an explicit
   scope/owner decision rather than overwriting it or inheriting its completion.
 
-## Stop before Slice 9
+## Slice 9 interactive review
 
-Slice9's interactive scoring, include/postpone decisions and final preparation
-plan have **not** been performed. The owner can now review one coherent set of
-proposals. Slice10 is drafted from actual9 decisions and implements only the
+The owner has commissioned [Slice9 scoring and decisions](slice-9.md). The
+scored recommendations are saved and interactive review is in progress; no
+HITL scope decision or final preparation plan has been approved yet. Slice10 is drafted from actual9 decisions and implements only the
 approved preparation. No20+ feature slice is commissioned by this completion.

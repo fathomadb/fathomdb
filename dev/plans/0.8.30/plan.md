@@ -220,7 +220,8 @@ failures and honest unknowns; no force-retag or hook bypass.
 
 Master and all seven feature-plan reviews passed; the reviewed plans and
 [completed prework0–8](prework/README.md) are committed on `release/0.8.30`.
-Next is Slice9's interactive proposal scoring and owner decisions. Slice9,
-10 and20+ remain unexecuted; do not infer approval from completed investigations.
+Slice9's [interactive scoring and decisions](prework/slice-9.md) are in progress.
+No scope rulings are recorded yet;10 and20+ remain unexecuted. Do not infer
+approval from completed investigations.
 The structured .30 release state/board is created only at its approved activation
 step, not to turn proposal drafting into an implementation campaign.

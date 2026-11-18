@@ -300,6 +300,5 @@
       "id": "plan-immediate-next",
       "file": "dev/plans/0.8.30/plan.md"
     }
-  ],
-  "public_docs_target_release": "0.8.29"
+  ]
 }

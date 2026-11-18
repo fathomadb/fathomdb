@@ -35,6 +35,7 @@ with path.open("a") as out:
     print(json.dumps({
         "argv": args,
         "legacy": "NODE_AUTH_TOKEN" in os.environ or "NPM_TOKEN" in os.environ,
+        "oidc_override": "NPM_ID_TOKEN" in os.environ,
         "oidc": bool(os.environ.get("ACTIONS_ID_TOKEN_REQUEST_TOKEN")),
     }), file=out)
 if "--version" in args:
@@ -68,6 +69,7 @@ else:
             "TEST_NPM_CALLS": str(self.calls),
             "NODE_AUTH_TOKEN": "synthetic-legacy-fixture",
             "NPM_TOKEN": "synthetic-legacy-fixture",
+            "NPM_ID_TOKEN": "synthetic-untrusted-id-fixture",
             "ACTIONS_ID_TOKEN_REQUEST_URL": "https://oidc.fixture.invalid",
             "ACTIONS_ID_TOKEN_REQUEST_TOKEN": "synthetic-oidc-fixture",
             "RELEASE_TAG": "v0.8.30",
@@ -105,6 +107,7 @@ else:
                 index = argv.index("dist-tag")
                 self.assertEqual(argv[index:index + 4], ["dist-tag", "add", f"fathomdb@{VERSION}", "latest"])
                 self.assertFalse(writes[0]["legacy"])
+                self.assertFalse(writes[0]["oidc_override"])
                 self.assertTrue(writes[0]["oidc"])
                 self.assertEqual(len(reads), 3)
                 self.assertTrue(all("--prefer-online" in row["argv"] for row in reads))

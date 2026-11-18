@@ -111,25 +111,20 @@ jobs:
       - name: Recurrence guard for the job itself (fixture arms)
         run: bash scripts/tests/test_shell_lint_ci_job.sh
 
-  # Docs-only fast-path detector. Computes whether the diff touches ANY
-  # non-markdown file. A markdown/docs-only change then runs ONLY the lightweight
-  # `markdownlint` job (plus the always-on `docs` mkdocs gate) and skips the heavy
-  # verify / security / embedder / wheel jobs — so a trivial docs edit
-  # no longer burns the full matrix (and a single md finding no longer reds main
-  # via the heavy gate). The md gate itself is PRESERVED on the fast path; this is
-  # not a `paths-ignore` drop. paths-filter handles base-ref resolution for both
-  # push (before SHA) and pull_request (base branch).
+  # Markdown and generated release-state inputs use the lightweight path.
+  # Independent state, commission, documentation and current-tree security
+  # checks still run. paths-filter handles push and PR base-ref resolution.
   changes:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
-      # docs_only = true for an automatic event when NO changed file is outside
-      # markdown (i.e. every changed path is *.md). A manual candidate dispatch
+      # docs_only is true for automatic markdown and release-state-only edits.
+      # A manual candidate dispatch
       # always requests the full matrix, including when its release branch has
       # already been fast-forwarded into main and therefore has no branch diff.
       # The bias is safe: a misread can only make heavy jobs RUN on a docs change
       # (slower), never SKIP on a code change or manual release qualification.
-      docs_only: ${{ github.event_name != 'workflow_dispatch' && steps.filter.outputs.nonmd == 'false' }}
+      docs_only: ${{ github.event_name != 'workflow_dispatch' && steps.python_non_windows.outputs.non_metadata == 'false' }}
       rust: ${{ steps.filter.outputs.rust }}
       python: ${{ steps.python_non_windows.outputs.python }}
       typescript: ${{ steps.filter.outputs.typescript }}
@@ -219,8 +214,6 @@ jobs:
         id: filter
         with:
           filters: |
-            nonmd:
-              - '!**/*.md'
             windows:
               - 'src/python/tests/test_slice65_wal_attribution_installed.py'
               - 'scripts/release/smoke/python-test-hooks-v1.json'
@@ -241,6 +234,7 @@ jobs:
               - 'scripts/lib/agent-python-env.sh'
               - 'scripts/bootstrap.sh'
               - 'scripts/bootstrap-heavy.sh'
+              - 'scripts/setup-python-owned.sh'
               - 'scripts/install-actionlint.sh'
               - 'scripts/install-shellcheck.sh'
             rust_test_harness:
@@ -275,6 +269,9 @@ jobs:
         with:
           predicate-quantifier: every
           filters: |
+            non_metadata:
+              - '!**/*.md'
+              - '!dev/plans/release-state-+([0-9]).+([0-9]).+([0-9]).json'
             python:
               - 'src/python/**'
               - '!src/python/tests/test_slice65_wal_attribution_installed.py'

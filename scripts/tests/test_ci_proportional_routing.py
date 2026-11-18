@@ -417,7 +417,7 @@ def main() -> int:
         "changes checkout does not select the real PR head",
     )
     checks.require(
-        "docs_only: ${{ github.event_name != 'workflow_dispatch' && steps.filter.outputs.nonmd == 'false' }}"
+        "docs_only: ${{ github.event_name != 'workflow_dispatch' && steps.python_non_windows.outputs.non_metadata == 'false' }}"
         in changes,
         "manual candidate dispatch can be suppressed by the docs-only fast path",
     )
@@ -574,13 +574,10 @@ def main() -> int:
                 for category in CATEGORIES:
                     if category != "python" and category in primary_outputs:
                         outputs[category] = primary_outputs[category]
-                nonmd = primary_outputs.get("nonmd", "")
-                outputs["docs_only"] = "true" if nonmd == "false" else "false"
-            else:
-                outputs["docs_only"] = ""
             if python_filter is not None:
                 python_outputs = run_matcher(*python_filter, paths, work, f"{label}-python", checks)
                 outputs["python"] = python_outputs.get("python", "")
+                outputs["docs_only"] = "true" if python_outputs.get("non_metadata") == "false" else "false"
             for output_name, expected_value in expected_outputs.items():
                 checks.require(
                     outputs.get(output_name) == expected_value,
@@ -594,7 +591,7 @@ def main() -> int:
             )
             checks.require(
                 ("verify-fast" in selected) is expected_verify_fast,
-                f"{label}: verify-fast selection did not match non-Markdown policy",
+                f"{label}: verify-fast selection did not match source and metadata policy",
             )
 
     failed_outputs = {category: "" for category in (*CATEGORIES, "docs_only", "ci_mode")}

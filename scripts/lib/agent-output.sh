@@ -3,8 +3,8 @@
 #
 # Output contract:
 #   - Pass: silent on stdout (or "ok <verb> NNNms" if AGENT_VERBOSE=1).
-#   - Fail: first 200 lines of captured output to stdout, then a footer
-#           with the spill path and exit code. Spill file always written.
+#   - Fail: the exact exit and spill path. Locally print the first 200 lines.
+#           GitHub receives an immediate bounded redacted first diagnostic.
 #
 # Rationale: keep agent context clean on the happy path; on failure give
 # the agent the *start* of the diagnostic (where the actionable error
@@ -38,6 +38,50 @@ agent_format_elapsed() {
   fi
 }
 
+agent_redact_log() {
+  awk '
+    /(^|[[:space:]"{,])"?(PATH|PYTHONPATH|NODE_PATH|LD_[[:alnum:]_]*|HOME|SSH_AUTH_SOCK|XDG_[[:alnum:]_]*|GITHUB_[[:alnum:]_]*|RUNNER_[[:alnum:]_]*|ACTIONS_[[:alnum:]_]*|[[:alnum:]_]*(TOKEN|SECRET|PASSWORD|KEY)[[:alnum:]_]*)"?[[:space:]]*[:=]/ {
+      print "[REDACTED environment transcript line]"
+      next
+    }
+    { print }
+  ' "$1"
+}
+
+agent_ci_live() {
+  [ "${GITHUB_ACTIONS:-}" = true ] && [ "${AGENT_CI_LIVE:-}" = 1 ]
+}
+
+_agent_live_failure() {
+  local spill="$1" resume_token
+  resume_token="$(python3 -c 'import secrets; print(secrets.token_hex(24))')" || return 1
+  [[ "$resume_token" =~ ^[0-9a-f]{48}$ ]] || return 1
+  printf '::stop-commands::%s\n' "$resume_token"
+  local rc=0
+  (
+    set -o pipefail
+    agent_redact_log "$spill" | python3 -c '
+import sys
+
+source = sys.stdin.buffer
+output = sys.stdout.buffer
+edge = 32 * 1024
+first = source.read(edge)
+last = source.read(edge)
+omitted = False
+while chunk := source.read(edge):
+    omitted = True
+    last = (last + chunk)[-edge:]
+output.write(first)
+if omitted:
+    output.write(b"\n[live diagnostic truncated; showing the first and last 32 KiB]\n")
+output.write(last)
+'
+  ) || rc=$?
+  printf '\n::%s::\n' "$resume_token"
+  return "$rc"
+}
+
 # Usage: run_capped <verb> <command...>
 # Returns the underlying command's exit code.
 run_capped() {
@@ -58,7 +102,7 @@ run_capped() {
 
   # Capture combined stdout+stderr.
   set +e
-  "$@" >"$spill" 2>&1
+  (unset AGENT_CI_LIVE; "$@") >"$spill" 2>&1
   rc=$?
   set -e
   set -u
@@ -74,20 +118,27 @@ run_capped() {
     return 0
   fi
 
+  printf 'FAIL %s (exit=%d, %s)\n' "$verb" "$rc" "$duration"
+  if agent_ci_live; then
+    if [ "${_agent_first_failure_emitted:-0}" -eq 0 ]; then
+      _agent_first_failure_emitted=1
+      if ! _agent_live_failure "$spill"; then
+        printf 'Could not stream the redacted failure diagnostic.\n' >&2
+      fi
+    fi
+    printf 'full log: %s\n' "$spill"
+    return "$rc"
+  fi
+
   local total_lines
-  # `wc -l | tr` would hide a failing wc behind tr's success; strip the
-  # padding some wc implementations emit with parameter expansion instead.
   total_lines="$(wc -l <"$spill")"
   total_lines="${total_lines//[[:space:]]/}"
-
-  printf 'FAIL %s (exit=%d, %s)\n' "$verb" "$rc" "$duration"
   printf -- '----\n'
   head -n 200 "$spill"
+  printf -- '----\n'
   if [ "$total_lines" -gt 200 ]; then
-    printf -- '----\n'
     printf 'output truncated (%s lines total); full log: %s\n' "$total_lines" "$spill"
   else
-    printf -- '----\n'
     printf 'full log: %s\n' "$spill"
   fi
   return "$rc"

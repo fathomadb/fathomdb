@@ -94,6 +94,10 @@ if [ "$verify_scope" = "markdown" ]; then
   exit 0
 fi
 
+if [ "${GITHUB_ACTIONS:-}" = true ]; then
+  export AGENT_CI_LIVE=1
+fi
+
 verify_preflight() {
   local tool_output
   if [ ! -x .venv/bin/python ]; then

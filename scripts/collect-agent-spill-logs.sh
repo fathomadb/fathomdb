@@ -50,15 +50,9 @@ if [ -e "$destination" ]; then
   exit 2
 fi
 
-redact_log() {
-  awk '
-    /(^|[[:space:]"{,])"?(PATH|PYTHONPATH|NODE_PATH|LD_[[:alnum:]_]*|HOME|SSH_AUTH_SOCK|XDG_[[:alnum:]_]*|GITHUB_[[:alnum:]_]*|RUNNER_[[:alnum:]_]*|ACTIONS_[[:alnum:]_]*|[[:alnum:]_]*(TOKEN|SECRET|PASSWORD|KEY)[[:alnum:]_]*)"?[[:space:]]*[:=]/ {
-      print "[REDACTED environment transcript line]"
-      next
-    }
-    { print }
-  ' "$1"
-}
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/agent-output.sh
+. "$SCRIPT_DIR/lib/agent-output.sh"
 
 regular_candidates=()
 skipped_nonregular=0
@@ -84,7 +78,7 @@ printf 'redaction=whole environment-transcript lines\n' >>"$manifest"
 copied=0
 for candidate in "${regular_candidates[@]}"; do
   target="$destination/${candidate##*/}"
-  redact_log "$candidate" >"$target"
+  agent_redact_log "$candidate" >"$target"
   copied=$((copied + 1))
 done
 

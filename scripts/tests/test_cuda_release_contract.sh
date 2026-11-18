@@ -219,6 +219,70 @@ if missing:
 PY
 printf 'PASS  Slice 80.7 Tegra wrapper stamps and proves local-version metadata\n'
 
+# Execute the wrapper's actual staging/build block, stopping at the compiler
+# boundary. Source replacement must survive staging outside the checkout.
+python3 - "$REPO_ROOT" "$TMPROOT" <<'PYTEST'
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+
+root, work = map(Path, sys.argv[1:])
+fixture = work / "source checkout with spaces"
+(fixture / ".cargo").mkdir(parents=True)
+(fixture / "src/python").mkdir(parents=True)
+shutil.copy2(root / ".cargo/config.toml", fixture / ".cargo/config.toml")
+shutil.copy2(root / "src/python/pyproject.toml", fixture / "src/python/pyproject.toml")
+source = (root / "scripts/release/build-python-cuda-tegra.sh").read_text()
+block = source[source.index('mkdir -p "$OUT_DIR"'):source.index('# Use shell globbing')]
+probe_bin = work / "probe bin"
+probe_bin.mkdir()
+probe = probe_bin / "maturin"
+probe.write_text("#!" + sys.executable + "\n" + r'''
+import os
+from pathlib import Path
+import sys
+
+args = sys.argv[1:]
+root = Path(os.environ["REPO_ROOT"])
+assert args[0] == "build", args
+assert "--config" in args, "staged maturin build lost checked-in Cargo source config"
+config = Path(args[args.index("--config") + 1])
+assert config.is_absolute(), config
+assert config == root / ".cargo/config.toml", config
+assert config.read_bytes() == Path(os.environ["EXPECTED_CONFIG"]).read_bytes()
+assert "--" not in args, "Cargo config must not be forwarded as Rustc arguments"
+assert "--locked" in args and "--release" in args, args
+observer = os.environ["OBSERVER"] == "1"
+assert ("--offline" in args) == observer, args
+features = args[args.index("--features") + 1]
+assert features == "pyo3/extension-module,embed-cuda,rerank-cuda,tegra-pool" + (",cuda-pool-observer" if observer else ""), features
+cwd = Path.cwd()
+assert root not in cwd.parents, cwd
+metadata = (cwd / "pyproject.toml").read_text()
+assert 'version = "0.8.29+tegra"' in metadata
+assert f'manifest-path = "{root}/src/rust/crates/fathomdb-py/Cargo.toml"' in metadata
+print("staged-source-config-ok")
+sys.exit(78)
+''')
+probe.chmod(0o755)
+for observer in (False, True):
+    env = dict(os.environ, REPO_ROOT=str(fixture), SOURCE_PYTHON=str(fixture / "src/python"),
+               OUT_DIR=str(work / "wheel output"), BASE_VERSION="0.8.29", INTERPRETER=sys.executable,
+               EXPECTED_CONFIG=str(root / ".cargo/config.toml"), OBSERVER=str(int(observer)),
+               PATH=str(probe_bin) + os.pathsep + os.environ["PATH"])
+    features = "pyo3/extension-module,embed-cuda,rerank-cuda,tegra-pool"
+    if observer:
+        features += ",cuda-pool-observer"
+    env.update(CUDA_PYTHON_FEATURES_TEGRA=features, CUDA_TEGRA_WHEEL_COMPATIBILITY="linux")
+    flags = "BUILD_CARGO_FLAGS=(--locked" + (" --offline" if observer else "") + ")\n"
+    result = subprocess.run(["bash", "-euc", flags + block], env=env, text=True,
+                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    assert result.returncode == 78 and "staged-source-config-ok" in result.stdout, result.stdout
+PYTEST
+printf 'PASS  staged Tegra wheel build retains exact Cargo sources and shipping/observer flags\n'
+
 # A Tegra wheel may not leave CUDA Runtime imports unresolved: the Python
 # loader otherwise accepts a wheel that fails on its first import unless a
 # host CUDA library happens to be preloaded. The wrapper must inspect the

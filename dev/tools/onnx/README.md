@@ -1,10 +1,9 @@
 # ONNX embedder export tooling (FathomDB 0.8.16 Slice 10)
 
 Reproducible, **offline** tooling that exports `BAAI/bge-small-en-v1.5` from the
-pinned local Hugging Face cache to an ONNX graph for the cross-vendor
-`OrtBgeEmbedder` (`fathomdb-embedder`, feature `onnx-embedder`). This backend
-reaches AMD ROCm / Intel OpenVINO / Windows DirectML that the candle default
-cannot (ADR-0.8.16-onnx-embedder-backend).
+pinned local Hugging Face cache to an ONNX graph for the CPU-qualified
+`OrtBgeEmbedder` evaluation backend (`fathomdb-embedder`, feature
+`onnx-embedder`). See the [ONNX backend ADR](../../adr/ADR-0.8.16-onnx-embedder-backend.md).
 
 The exported `.onnx` is a **generated eval asset (~133 MB) and is NOT
 committed** (gitignored `*.onnx`, default export path is under `~/.cache`). The

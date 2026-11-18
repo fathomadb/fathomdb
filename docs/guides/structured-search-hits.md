@@ -14,7 +14,7 @@ can rank, filter, and attribute results without a second lookup.
 | `body`      | `str` / `string`          | The matched record body.                                                |
 | `score`     | `float` / `number`        | G9 RRF-fused relevance (see below).                                     |
 | `branch`    | `"vector"` \| `"text"` \| `"text_edge"` \| `"graph_arm"` | Which retrieval branch produced the representative hit. |
-| `source_id` / `sourceId` | `str \| None` / `string \| null` | Source-document ID when known, including the ID `erase_source` accepts. Ownerless FTS hits can carry `None` / `null`. |
+| `source_id` / `sourceId` | `str \| None` / `string \| null` | Source-document ID when known. Caller-provided IDs can be used with `erase_source`. Ownerless FTS hits can carry `None` / `null`. |
 | `ce_score` / `ceScore`   | `float \| None` / `number \| null` | Cross-encoder score (`sigmoid(logit)`) for hits inside the reranked pool; `None`/`null` otherwise. |
 
 ### `id` is a typed `IdSpace` (breaking since 0.8.9)
@@ -109,6 +109,7 @@ Both bindings return equivalent hits for the same database and query — the
 structured-hit shape is part of the cross-binding SDK contract.
 
 > Governed writes require a source ID and raise `WriteValidationError` when
-> it is missing. Hit provenance can be absent for ownerless FTS rows. When
-> present, the source ID is the one [`erase_source`](../operations/erasure.md)
-> addresses.
+> it is missing. Hit provenance can be absent for ownerless FTS rows. Use
+> `erase_source` with caller-provided source IDs. Reserved historical IDs
+> such as `_legacy:pre-0.8.20` use the
+> [operator erasure path](../operations/erasure.md).

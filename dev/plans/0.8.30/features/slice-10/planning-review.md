@@ -21,7 +21,7 @@ verdict: NEEDS_FIX. The parent applied and checked FIX-1 before re-review.
 Re-review on2026-11-18: **PASS after FIX-1**, both findings resolved. One of
 up to four allowed correction cycles was used. No outstanding planning finding.
 This is planning review only; no new runtime, platform, dependency, model or
-publication result is claimed. The final HITL plan decision remains pending.
+publication result was claimed. The final HITL decision was pending at that re-review.
 
 ## Implementation design review
 

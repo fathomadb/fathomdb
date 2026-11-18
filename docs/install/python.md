@@ -111,7 +111,7 @@ for a richer walkthrough.
   bundled Rust dependencies and need supported C/C++ build tools.
 - **Native build failure** — verify the checkout and the declared Rust
   1.95.0 toolchain, then rerun the source-build entry point for that checkout.
-  Avoid copying a separately built native library into the Python package.
+  Install the native extension through the checkout's documented build entry point.
 
 - **`fathomdb.errors.DatabaseLockedError`** — another process holds an
   exclusive lock on the DB file. See

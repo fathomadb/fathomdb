@@ -25,8 +25,8 @@ Use current `origin/main` and reconcile changes at each slice entry. Published
 .29 tag `b64d32f80` and closure `569652e61` are historical anchors, not reset
 points. Carry the subsequent staged-Tegra Cargo-config repair and scope note
 from `d6e5d9427`. Supplemental .29 Tegra CUDA wheel/addon/Pages delivery under
-seq-398 remains .29-owned: recheck its current result before final .30 Tegra
-qualification; independent CPU/source planning proceeds.
+seq-398 was completed in .29; match its retained evidence to the final .30
+Tegra subject before claiming reuse.
 
 The existing Rust engine, Python/TypeScript boundaries and MCP server remain
 the product footprint. Format 37, accepted numerical gates, driver/toolkit and
@@ -36,6 +36,12 @@ needs current matched benefit and correct snapshot/time invalidation before
 separate adoption. Physical erasure is complete except for concrete defects.
 CUDA 13 delivery remains .31-owned. Preserve [.30 feedback/reset allocations](release-followups.md),
 [module-model release](../../ROADMAP.md#0830-backlog) and [fork work](fork-maintenance-plan.md).
+
+Owner clarification seq-398 required the .29 Tegra CUDA wheel/addon and Pages
+delivery on `10.83.10.13`. This was completed in .29 by
+[run 44246092920](https://github.com/fathomadb/fathomdb/actions/runs/44246092920),
+including fresh installed public consumers. Reuse the exact supported Orin/CUDA12.6
+baseline where applicable; this does not extend support to other ARM/GPU hosts.
 
 ## A. Prework effort
 
@@ -89,9 +95,17 @@ numerical/artifact proof. Serialize shared engine/search edits and pin/state
 integration; concurrent writers each get a worktree. Reuse valid earlier proof
 by actual source/features/artifact/fixture/protocol, not merely ancestry.
 
+Keep a native-verification candidate clean while its gate runs. Stage pending
+release records outside that checkout until candidate construction finishes;
+the .29 Python clean-candidate guard correctly rejected parent metadata edits.
+
 ### First-wave scope and limits
 
-- **20:** useful full diagnostics after a >200-line failure followed by later
+- **20:** fix the real-repository preflight and commission-manifest all-LANDED
+  assumptions, covering published/no-active-release and authorized terminal
+  dispositions without weakening selected-work checks. The stale platform and
+  archive metadata was repaired in .29; maintain it through normal publication.
+  Also provide useful full diagnostics after a >200-line failure followed by later
   cancellation; preserve actual exit/completed/unrun outcomes and fail-fast
   callers. Monotonic timing in the remaining wrapper; shared qualified pinned
   OIDC normal/recovery promotion; bounded registry visibility with expected and
@@ -220,8 +234,8 @@ failures and honest unknowns; no force-retag or hook bypass.
 
 Master and all seven feature-plan reviews passed; the reviewed plans and
 [completed prework0–8](prework/README.md) are committed on `release/0.8.30`.
-Slice9's [interactive scoring and decisions](prework/slice-9.md) are in progress.
-No scope rulings are recorded yet;10 and20+ remain unexecuted. Do not infer
-approval from completed investigations.
-The structured .30 release state/board is created only at its approved activation
-step, not to turn proposal drafting into an implementation campaign.
+Slice9's [scope decisions](prework/slice-9.md) are ruled at seq-399. The
+[concrete Slice10 preparation plan](features/slice-10/plan.md) passed [Astra-medium review](features/slice-10/planning-review.md) after FIX-1
+and awaits the final HITL plan decision. Slices10 and20+ remain unexecuted.
+The structured .30 release state/board is created only at approved activation;
+carry seq-399 into that state without reopening the scope choices.

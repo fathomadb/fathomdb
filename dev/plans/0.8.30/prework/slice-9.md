@@ -8,8 +8,10 @@ date: 2026-11-18
 
 # Slice 9 scored proposals and interactive decisions
 
-Interactive review is in progress. These are recommendations, not HITL rulings.
-No proposal below is approved by silence. Source basis is the
+Proposal-scope choices are closed by HITL ruling seq-399: “I agree with all of
+the proposals.” All 14 recommendations below, including their postponements,
+are selected. The final concrete Slice10 plan decision remains pending.
+Source basis is the
 [completed prework](README.md), reviewed [master](../plan.md) and subsequent
 mainline reconciliation `b86b19847852e9beaeea32b98dae03b537d8fea4`.
 The .30 execution state has not been activated; these local proposal IDs are
@@ -28,9 +30,10 @@ not canonical ACs or a replacement for the published .29 decision arrays.
 
 ## Proposal register
 
-All new choices have status PENDING. Include means in .30's selected scope,
-with stated prerequisites; it does not authorize publication, live resets or
-new external venues. Each eventual ruling will reference its ledger entry.
+All rows P9-01–14 are RULED at seq-399, selecting the recommendation in each
+row, including the conditional triage and postponements. Include means in
+.30's selected scope with stated prerequisites; it does not authorize
+publication, live resets or new external venues.
 
 | ID | Proposal / receiving owner | U | Risk | Effort | Recommendation and reason |
 | --- | --- | --- | --- | --- | --- |
@@ -78,25 +81,18 @@ all available major versions as required upgrades.
   ANN/chunking, host reset, driver/primary-toolkit change or new platform claim
   is added. Previously ruled allocation is not blanket run authority.
 
-## Interactive sequence and pending rulings
+## HITL ruling and remaining interactive boundary
 
-1. Security and basic preparation: P9-02, then P9-01/P9-07.
-2. Runtime and dependency breadth: P9-03–06.
-3. Engineering scope and test/performance limits: P9-08–13.
-4. Inspector integration and any remaining consequential choices: P9-14.
+On 2026-11-18 the owner answered: “I agree with all of the proposals.”
+Recorded through ledgerwrite at **seq-399**. Each proposal row P9-01–14
+references that ruling; the recorded body maps the selected scope and limits.
+The .30 state has not been activated. Carry seq-399 into its ruled set on
+approved activation; do not write these answers into the closed .29 ladder.
 
-Start with P9-02. Options are include all three recommended fixes; include only
-TLS/Tokio and postpone the Markdown tool update; or postpone all three.
-Including all three addresses the recorded advisory set in one bounded
-preparation phase. Restricting the scope saves tooling qualification but leaves
-that recorded parser issue outstanding. Reassess a particular fix if the exact
-resolved feature/API path or candidate compatibility contradicts prework.
-These choices block the affected10 work only; scoring and independent proposals
-can proceed. No irreversible external operation is behind this decision.
-
-**HITL answers recorded: none yet.** Subsequent actual rulings are recorded via
-ledgerwrite, with proposal rows referencing the resulting seq and no invented
-approval. Preserve the current release-state ownership; do not write .30
-answers into the closed .29 ladder. Once scope rulings are collected, draft10,
-obtain the requested subagent review with up to four FIX-n cycles, present the
-result interactively, and capture the final owner decision before implementation.
+The [concrete Slice10 plan](../features/slice-10/plan.md) implements only the
+selected preparation and assigns feature work to20–80. The requested
+[Astra-medium review](../features/slice-10/planning-review.md) passed after
+FIX-1, using one of up to four permitted cycles. Present the reviewed plan
+and capture the final HITL plan decision before implementation.
+Slice9 stays ACTIVE until that final decision is captured. Scope choices are
+settled; no confirmation run or repeat vote on P9-01–14 is required.

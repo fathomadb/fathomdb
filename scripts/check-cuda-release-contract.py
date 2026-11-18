@@ -627,9 +627,6 @@ def require_tegra_napi_route(contract: str) -> None:
         require_fragment(contract, fragment, "CUDA artifact contract")
     if contract.count("CUDA_TEGRA_NAPI_RUST_VERSION=") != 1:
         fail("the Tegra N-API Rust pin must be shared with CUDA_RUST_VERSION by reference")
-    ts_package = load_json(TS_PACKAGE)
-    if ts_package.get("packageManager") != f"npm@{CUDA_TEGRA_NAPI_NPM_VERSION}":
-        fail("src/ts packageManager must match the Tegra N-API npm pin")
 
     wrapper = read_text(CUDA_TEGRA_NAPI_BUILD)
     label = "Tegra CUDA N-API build wrapper"

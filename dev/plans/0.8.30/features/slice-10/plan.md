@@ -57,6 +57,10 @@ These labels are local to this slice; they do not modify canonical AC numbering.
 
 ## Design, architecture fit and difficult seams
 
+The [implementation design and acceptance](design.md) reconciles the
+activated baseline, exact version candidates, development and release
+runtime ownership, controls and receiving allocations.
+
 Use [architecture v2](../../../../design/fathomdb-data-plane-architecture-v2.md),
 [ADR index](../../../../adr/ADR-0.6.0-decision-index.md),
 [bindings design](../../../../design/bindings.md) and

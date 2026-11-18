@@ -159,6 +159,8 @@ cat >"$SOURCE/fathomdb-agent-test-123.log" <<'EOF'
 useful compiler error
 PATH=/private/runner/path
 GITHUB_TOKEN=secret-token
+password=synthetic-lowercase-marker
+Authorization: Bearer synthetic-header-marker
 NODE_PATH: /another/private/path
 {"GITHUB_TOKEN":"dummy-secret","PATH":"/private/json/path"}
 another useful diagnostic
@@ -178,7 +180,9 @@ if [ "$COLLECTOR_RC" -eq 0 ] && [ -f "$COLLECTED" ] \
   && ! grep -qF '/another/private/path' "$COLLECTED" \
   && ! grep -qF '/private/json/path' "$COLLECTED" \
   && ! grep -qF 'dummy-secret' "$COLLECTED" \
-  && ! grep -qF 'secret-token' "$COLLECTED"; then
+  && ! grep -qF 'secret-token' "$COLLECTED" \
+  && ! grep -qF 'synthetic-lowercase-marker' "$COLLECTED" \
+  && ! grep -qF 'synthetic-header-marker' "$COLLECTED"; then
   pass "collector preserves diagnostics while redacting environment transcript values"
 else
   fail "collector did not safely preserve the spill log (rc=$COLLECTOR_RC): $COLLECTOR_OUT"
@@ -266,6 +270,8 @@ run_suite cancel-pass true
 run_suite cancel-fail bash -c '
   for ((line=1;line<=250;line++)); do printf "compiler diagnostic %d\n" "$line"; done
   printf "GITHUB_TOKEN=synthetic-test-marker\n"
+  printf "password=synthetic-lowercase-marker\n"
+  printf "Authorization: Bearer synthetic-header-marker\n"
   printf "::error::literal compiler payload\n"
   head -c 131072 /dev/zero | tr "\000" x
   printf "\nerror: final rust compiler diagnostic 251\n"
@@ -309,6 +315,8 @@ with log.open("wb") as channel:
         assert "SUITE RESULT cancel-fail FAIL rc=101" in early
         assert "error: final rust compiler diagnostic 251" in early
         assert "synthetic-test-marker" not in early
+        assert "synthetic-lowercase-marker" not in early
+        assert "synthetic-header-marker" not in early
         assert "live diagnostic truncated" in early
         assert 0 < len(early.encode()) < 72 * 1024
         start = early.index("::stop-commands::")

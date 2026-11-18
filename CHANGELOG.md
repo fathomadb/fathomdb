@@ -8,6 +8,24 @@ released section MUST list every removed public symbol under a `### Removed` hea
 the removal-detect linter (`scripts/security/check-removal-changelog.sh`,
 AC-050c) gates merges against this invariant.
 
+## Unreleased
+
+### Changed
+
+- Development and test use Node.js 26.13.1 with npm 11.20.0. The published
+  TypeScript SDK still requires Node `>=25 <26`. Node 26 SDK support awaits
+  Slice 70 qualification.
+- Updated the search guide to describe stored record/version identity and
+  nullable hit provenance. Clarified checkout-owned native Python setup and
+  developer verification.
+
+### Security
+
+- Updated Markdown tooling to markdownlint-cli2 0.24.0 and markdown-it 15.0.3,
+  the model loaders' TLS root bundle to webpki-roots 1.0.12, and Tokio to 1.54.1.
+- Updated the offline ONNX exporter to certifi 2026.10.18. Reproduction matched
+  the accepted ONNX graph and tokenizer digests.
+
 ## 0.8.29 — 2026-11-18
 
 **Published.** crates.io, PyPI, npm `latest` and GitHub Releases carry0.8.29.

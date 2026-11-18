@@ -244,8 +244,8 @@ seq-400. The reviewed Slice10 implementation is integrated on `release/0.8.30`;
 its [status](features/slice-10/status.md) and [verification record](features/slice-10/verification.json)
 retain the failed full gate, scoped correction and open qualification owners.
 Preparation acceptance is IMPLEMENTED_WITH_OPEN_QUALIFICATION. Release
-readiness remains NOT_READY and publication held. The next proposed slice is 20;
-feature slices20–80 remain uncommissioned. The [state](../release-state-0.8.30.json)
+readiness remains NOT_READY and publication held. Slice20 is commissioned at seq-401 using the owner's supplied slice prompt
+template. Feature slices30–80 remain uncommissioned. The [state](../release-state-0.8.30.json)
 and [board](../runs/STATUS-0.8.30.md) own current status.
 
 <!-- BEGIN GENERATED release-state:0.8.30:plan-immediate-next -->

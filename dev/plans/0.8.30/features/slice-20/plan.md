@@ -1,6 +1,6 @@
 ---
 title: Slice 20 efficient and diagnosable CI/CD
-status: PROPOSED
+status: ACTIVE
 target_release: 0.8.30
 slice: 20
 ---
@@ -10,7 +10,7 @@ slice: 20
 Make a failed CI run actionable after cancellation, make normal npm finalization
 use the qualified OIDC path, and reduce measured verification overhead while
 preserving test coverage. Depends on approved Slice 10 preparation and separate
-Slice 20 commissioning. Follow the [master execution contract](../../plan.md#c-slice-planning-and-execution-contract).
+Slice 20 commissioning. That commissioning is recorded at seq-401. Follow the [master execution contract](../../plan.md#c-slice-planning-and-execution-contract).
 
 ## Entry and scope
 

@@ -6,11 +6,11 @@ The [state](../release-state-0.8.30.json) owns status and next actions. The
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.30:status-current-state -->**Next is Slice 20 (CI), PROPOSED_NOT_COMMISSIONED.** Completed on local `release/0.8.30` per release state: 0 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 1 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 2 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 3 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 4 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 5 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 6 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 7 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 8 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 9 (`9b60aed656330acdcce06d3c77e6008dbef739c3`) · 10 (`9c9b786585961d5393d1155eb6b44b611b63e06d`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.30:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.30:status-current-state -->**Next is Slice 20 (CI), IN_PROGRESS.** Completed on local `release/0.8.30` per release state: 0 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 1 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 2 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 3 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 4 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 5 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 6 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 7 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 8 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 9 (`9b60aed656330acdcce06d3c77e6008dbef739c3`) · 10 (`9c9b786585961d5393d1155eb6b44b611b63e06d`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.30:status-current-state -->
 
 ## Next action
 
-<!-- BEGIN GENERATED release-state:0.8.30:status-next-action -->**Commission Slice 20 (CI)** — Efficient and diagnosable CI/CD. **Remaining ladder:** 20 → 30 → 40 → 50 → 60 → 70 → 80.<!-- END GENERATED release-state:0.8.30:status-next-action -->
+<!-- BEGIN GENERATED release-state:0.8.30:status-next-action -->**Continue Slice 20 (CI)** — Efficient and diagnosable CI/CD. **Remaining ladder:** 20 → 30 → 40 → 50 → 60 → 70 → 80.<!-- END GENERATED release-state:0.8.30:status-next-action -->
 
 ## Decisions, implementation and qualification
 
@@ -23,4 +23,5 @@ The [state](../release-state-0.8.30.json) owns status and next actions. The
   synchronization to50, and integrated/renderer qualification to70.
 - All numerical and security criteria remain intact. Public Node26 support,
   additional platform/native proof and registry publication remain held.
-- Feature slices20–80 remain uncommissioned. Inspector stays separate.
+- Slice20 is commissioned at seq-401 using the supplied slice prompt template.
+  Feature slices30–80 remain uncommissioned. Inspector stays separate.

@@ -167,10 +167,11 @@
       "depends_on": [
         10
       ],
-      "status": "PROPOSED_NOT_COMMISSIONED",
+      "status": "IN_PROGRESS",
       "design_refs": [
         "dev/plans/0.8.30/features/slice-20/plan.md"
-      ]
+      ],
+      "commission_source": "seq-401"
     },
     {
       "slice": 30,
@@ -271,6 +272,11 @@
         "id": "slice10-preparation",
         "source": "seq-400",
         "ruling": "Approve reviewed concrete Slice10 plan and begin implementation."
+      },
+      {
+        "id": "slice20-commission",
+        "source": "seq-401",
+        "ruling": "Spawn an agent to perform Slice20 using the supplied slice prompt template."
       }
     ],
     "unruled": []
@@ -297,7 +303,7 @@
   "release_readiness": {
     "status": "NOT_READY",
     "publication_authorized": false,
-    "scope": "Slice10 implementation integrated; features20\u201380 uncommissioned. Source, timing, logging-fixture and renderer qualifications remain open."
+    "scope": "Slice20 commissioned by seq-401; feature slices30\u201380 uncommissioned. Open qualification and publication hold remain unchanged."
   },
   "generated_views": [
     {

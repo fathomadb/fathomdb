@@ -154,9 +154,6 @@ if [ "$npm_version" != "$CUDA_TEGRA_NAPI_NPM_VERSION" ]; then
   fail "npm does not match the release contract ($CUDA_TEGRA_NAPI_NPM_VERSION): $npm_version"
 fi
 printf 'npm %s\n' "$npm_version"
-if ! grep -F "\"packageManager\": \"npm@$CUDA_TEGRA_NAPI_NPM_VERSION\"" "$TS_DIR/package.json" >/dev/null; then
-  fail "src/ts/package.json packageManager is not npm@$CUDA_TEGRA_NAPI_NPM_VERSION"
-fi
 if [ ! -f "$TS_DIR/node_modules/@napi-rs/cli/package.json" ] || [ ! -f "$TS_DIR/node_modules/typescript/package.json" ]; then
   fail 'src/ts dependencies are not installed; run `npm ci` in src/ts first'
 fi

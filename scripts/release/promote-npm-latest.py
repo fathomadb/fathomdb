@@ -85,7 +85,7 @@ def main() -> int:
         return 1
     env = {
         name: value for name, value in os.environ.items()
-        if name.upper() not in {"NODE_AUTH_TOKEN", "NPM_TOKEN"}
+        if name.upper() not in {"NODE_AUTH_TOKEN", "NPM_TOKEN", "NPM_ID_TOKEN"}
         and not name.lower().startswith("npm_config_")
     }
     with tempfile.TemporaryDirectory(prefix="fathomdb-npm-promote-") as working:

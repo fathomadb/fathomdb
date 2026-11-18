@@ -247,10 +247,9 @@ import sys
 args = sys.argv[1:]
 root = Path(os.environ["REPO_ROOT"])
 assert args[0] == "build", args
-assert "--config" in args, "staged maturin build lost checked-in Cargo source config"
-config = Path(args[args.index("--config") + 1])
-assert config.is_absolute(), config
-assert config == root / ".cargo/config.toml", config
+cwd = Path.cwd()
+config = cwd / ".cargo/config.toml"
+assert config.is_file(), "staged maturin metadata lost discoverable Cargo source config"
 assert config.read_bytes() == Path(os.environ["EXPECTED_CONFIG"]).read_bytes()
 assert "--" not in args, "Cargo config must not be forwarded as Rustc arguments"
 assert "--locked" in args and "--release" in args, args
@@ -258,7 +257,6 @@ observer = os.environ["OBSERVER"] == "1"
 assert ("--offline" in args) == observer, args
 features = args[args.index("--features") + 1]
 assert features == "pyo3/extension-module,embed-cuda,rerank-cuda,tegra-pool" + (",cuda-pool-observer" if observer else ""), features
-cwd = Path.cwd()
 assert root not in cwd.parents, cwd
 metadata = (cwd / "pyproject.toml").read_text()
 assert 'version = "0.8.29+tegra"' in metadata

@@ -39,7 +39,45 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  authorize-pages:
+    name: Check release authorization for Pages publication
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      authorized: ${{ steps.authorization.outputs.authorized }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Require explicit authorization in the candidate release state
+        id: authorization
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          from pathlib import Path
+          import subprocess
+          import sys
+
+          selected = subprocess.run(
+              [sys.executable, "scripts/release-current.py"],
+              check=True, stdout=subprocess.PIPE, text=True,
+          ).stdout.strip()
+          authorized = False
+          if selected:
+              release, board, state = selected.split("\t")
+              data = json.loads(Path(state).read_text())
+              authorized = data.get("release_readiness", {}).get("pages_publication_authorized") is True
+          print(f"authorized={str(authorized).lower()}")
+          PY
+
   prepare-pages:
+    needs: authorize-pages
+    if: needs.authorize-pages.result == 'success' && needs.authorize-pages.outputs.authorized == 'true'
     name: Build docs with retained Tegra package index
     runs-on: ubuntu-latest
     outputs:

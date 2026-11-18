@@ -1,6 +1,6 @@
 {
   "release": "0.8.29",
-  "release_kind": "Product publication complete; final public documentation deployment pending.",
+  "release_kind": "Publication complete; Slice160 complete; selected owner dispositions and original failures retained.",
   "board": "dev/plans/runs/STATUS-0.8.29.md",
   "plan": "dev/plans/plan-0.8.29.md",
   "master": "dev/plans/0.8.20-0.9.0-PROGRAM-SEQUENCING.md",
@@ -13,7 +13,7 @@
       "short": "ENV-PROPOSAL",
       "title": "Environment and resource preparation proposal",
       "depends_on": [],
-      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "status": "LANDED",
       "sha": "850f2c15df1ebf3262f0346e340721f9ff2422ad",
       "design_refs": [
         "dev/plans/0.8.29/prework/slice-0/plan.md"
@@ -25,7 +25,7 @@
       "short": "DEPENDENCY-PROPOSAL",
       "title": "Dependency inventory and bounded correction proposal",
       "depends_on": [],
-      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "status": "LANDED",
       "sha": "39289560125367aea0c80fb335c6d51260376ba0",
       "design_refs": [
         "dev/plans/0.8.29/prework/slice-1/plan.md"
@@ -37,7 +37,7 @@
       "short": "CRUFT-PROPOSAL",
       "title": "Retention and bounded correction proposal",
       "depends_on": [],
-      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "status": "LANDED",
       "sha": "39289560125367aea0c80fb335c6d51260376ba0",
       "design_refs": [
         "dev/plans/0.8.29/prework/slice-2/plan.md"
@@ -53,7 +53,7 @@
         1,
         2
       ],
-      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "status": "LANDED",
       "sha": "2d5041795f0cbbe49d55d81a2710f09e2043b8a9",
       "design_refs": [
         "dev/plans/0.8.29/prework/slice-3/plan.md"
@@ -67,7 +67,7 @@
       "depends_on": [
         3
       ],
-      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "status": "LANDED",
       "sha": "52a85c38cb50af220b418a4d05bc4c6e31f23fe2",
       "design_refs": [
         "dev/plans/0.8.29/prework/slice-4/plan.md"
@@ -81,7 +81,7 @@
       "depends_on": [
         3
       ],
-      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "status": "LANDED",
       "sha": "52a85c38cb50af220b418a4d05bc4c6e31f23fe2",
       "design_refs": [
         "dev/plans/0.8.29/prework/slice-5/plan.md"
@@ -93,7 +93,7 @@
       "short": "DOCS-PROPOSAL",
       "title": "Documentation correction proposal",
       "depends_on": [],
-      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "status": "LANDED",
       "sha": "de85cbf40c85cd89dd8785453346b5eb0367f01c",
       "design_refs": [
         "dev/plans/0.8.29/prework/slice-6/plan.md"
@@ -108,7 +108,7 @@
         0,
         1
       ],
-      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "status": "LANDED",
       "sha": "a0274cee6722c415e90b0bdda7a5578a43d41fda",
       "design_refs": [
         "dev/plans/0.8.29/prework/slice-7/plan.md"
@@ -120,7 +120,7 @@
       "short": "RESERVED",
       "title": "Reserved empty slice disposition",
       "depends_on": [],
-      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "status": "LANDED",
       "sha": "a0274cee6722c415e90b0bdda7a5578a43d41fda",
       "design_refs": [
         "dev/plans/0.8.29/prework/slice-8/plan.md"
@@ -142,7 +142,7 @@
         7,
         8
       ],
-      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "status": "LANDED",
       "sha": "e76031ae422e56b9aead73042dedc6190a96d0ae",
       "design_refs": [
         "dev/plans/0.8.29/prework/slice-9/plan.md"
@@ -156,7 +156,7 @@
       "depends_on": [
         9
       ],
-      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "status": "LANDED",
       "design_refs": [
         "dev/plans/0.8.29/features/slice-10/plan.md"
       ],
@@ -170,7 +170,7 @@
       "depends_on": [
         10
       ],
-      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "status": "LANDED",
       "design_refs": [
         "dev/plans/0.8.29/features/slice-20/acceptance.md",
         "dev/plans/0.8.29/features/slice-20/design.md",
@@ -215,7 +215,7 @@
       "depends_on": [
         10
       ],
-      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "status": "LANDED",
       "design_refs": [
         "dev/plans/0.8.29/features/slice-30/plan.md",
         "dev/plans/0.8.29/features/slice-30/requirements.md",
@@ -874,7 +874,7 @@
       "depends_on": [
         10
       ],
-      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "status": "LANDED",
       "design_refs": [
         "dev/plans/0.8.29/features/slice-40/acceptance.md",
         "dev/plans/0.8.29/features/slice-40/design.md",
@@ -897,7 +897,7 @@
       "depends_on": [
         10
       ],
-      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "status": "LANDED",
       "design_refs": [
         "dev/plans/0.8.29/features/slice-50/census.md",
         "dev/plans/0.8.29/features/slice-50/design.md",
@@ -1109,7 +1109,7 @@
       "depends_on": [
         10
       ],
-      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "status": "LANDED",
       "design_refs": [
         "dev/plans/0.8.29/features/slice-60/design.md",
         "dev/plans/0.8.29/features/slice-60/plan.md",
@@ -1140,7 +1140,7 @@
       "depends_on": [
         10
       ],
-      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "status": "LANDED",
       "design_refs": [
         "dev/plans/0.8.29/features/slice-70/design.md",
         "dev/plans/0.8.29/features/slice-70/execution-map.md",
@@ -1164,7 +1164,7 @@
         10,
         70
       ],
-      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "status": "LANDED",
       "design_refs": [
         "dev/plans/0.8.29/features/slice-80/acceptance.md",
         "dev/plans/0.8.29/features/slice-80/census.md",
@@ -1197,7 +1197,7 @@
         70,
         80
       ],
-      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "status": "LANDED",
       "design_refs": [
         "dev/plans/0.8.29/features/slice-90/acceptance.md",
         "dev/plans/0.8.29/features/slice-90/census.md",
@@ -1288,7 +1288,7 @@
       "depends_on": [
         10
       ],
-      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "status": "LANDED",
       "design_refs": [
         "dev/plans/0.8.29/features/slice-100/coverage-matrix.md",
         "dev/plans/0.8.29/features/slice-100/design.md",
@@ -1333,7 +1333,7 @@
       "depends_on": [
         10
       ],
-      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "status": "LANDED",
       "design_refs": [
         "dev/plans/0.8.29/features/slice-110/plan.md",
         "dev/plans/0.8.29/features/slice-110/requirements.md",
@@ -1395,7 +1395,7 @@
       "depends_on": [
         110
       ],
-      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "status": "LANDED",
       "design_refs": [
         "dev/plans/0.8.29/features/slice-130/acceptance.md",
         "dev/plans/0.8.29/features/slice-130/campaign-protocol.md",
@@ -1506,7 +1506,7 @@
       "depends_on": [
         9
       ],
-      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "status": "LANDED",
       "design_refs": [
         "dev/plans/0.8.29/features/slice-140/acceptance.md",
         "dev/plans/0.8.29/features/slice-140/design.md",
@@ -1559,7 +1559,7 @@
       "consumer_adoption": {
         "source": "1ea7bf41c037e47b0c17d19a178411ff8101153b",
         "review": "Independent Astra accepts selected138 seams and actual common source, healthy, ordinaryOOM and installed consumer results.",
-        "remaining": "No selected mandatory local110/140 row remains. Actualreset survival/originaldefectclosure stay.30;130E and final160 remain separate; product publication authorized by seq-396/397; actual registry consumers pending."
+        "remaining": "Historical phase note: No selected mandatory local110/140 row remains. Actualreset survival/originaldefectclosure stay.30;130E and final160 remain separate; product publication authorized by seq-396/397; actual registry consumers pending. Current registry/160 publication closure is complete."
       },
       "local_exact_lock_proposal": {
         "source": "aff8ba27f9b5833794475dcbddc958993dba3132",
@@ -1607,7 +1607,7 @@
         110,
         130
       ],
-      "status": "IN_PROGRESS",
+      "status": "LANDED",
       "design_refs": [
         "dev/plans/0.8.29/features/slice-160/design.md",
         "dev/plans/0.8.29/features/slice-160/plan.md",
@@ -1617,9 +1617,9 @@
         "dev/plans/0.8.29/features/slice-160/status.md",
         "dev/plans/0.8.29/features/slice-160/test-map.md"
       ],
-      "conditions": "Every selected mandatory outcome qualified or explicitly disposed; actual installed/publication proof separate.20 closes only with actual Windows A6;40 conditional scope is complete by independently reviewed non-adoption under existing Batch3 authorization;30/50/60/70/80 reach160 through90. Optional140/150 only if selected. Finished bounded local tasks are not local completion: every selected mandatory installed/platform (Q14) row and release dry-run (Q18) part that a permitted local or owned venue can qualify stays open until qualified there. Current assembled source/platform qualification is independently accepted with original failures/cancellations retained. Publication authorized by seq-396/397 is complete: shipping builds, product publishers and eight Q19 registry consumers pass. Public docs deployment remains pending. Owner seq377 explicitly defers live reset qualification to.30; seq378 defers new CUDA13 delivery/compiler/new-artifact proof to.31; seq379 accepts usage limits. These exclusions are owner dispositions, not passing tests. Existing platform/artifact rows remain. Seq381 also reallocates130A CUDA13 Tegra qualification to.31 while130D/E remain mandatory in.29;seq387 excludes unavailable non-Tegra ARM+GPU B/C.",
-      "phase": "PRODUCT_PUBLISHED_PAGES_FINALIZATION",
-      "evidence": "IndependentAstraaccepted actualQ10longvariants,threeverifiedleafpackages,missingAC037live;Linuxx64/ARM64CPU2.28wheelsanddeclaredaddonfloors/strictTS/runtime/graph/frozen/modelCPUcontrols;Windowsproduction186tests/wheelsize/tenWAL+external+installedcontrols;canonicalCUDA12.6wheel2.28/NAPI2.39linkage/driverless/fourtypedrefusals;source-archiveRustSDKpersist/reopenandCLIimmutableintegrity. Source/target/nativeorigins,originaltaskfailures andARMmonitoringdeviation retained. No inventedx64CPUaddon2.28promise. ActualabccCUDApairGPUallocation/PIDUUIDandbothAC082dCPUnegative/CUDApositivepairsnowindependentlyAstraACCEPTattool686d:128MiBmodeldelta>=64MiBfloor,completeCPUtraces/loaders,noCUDAaccess,alllifecycleexit0/strictcleanup/FD9released. Mac/final90artifactapplicability,remainingfeature/performance/complete rehearsalstayopen;localpasses->CIreview->CI,registrypublishheld. IndependentAstraaccepted clean686d releaseperformance:AC011a1538.787/s>=1000,b268.069/s>=100;AC012n10000p50/p991/3ms,AC013n10000dim768p50/p9963/73ms;7freshAC081hard500/100mspasses,seq337.851121\u2013344.381150mswarnings/concurrent46.958327\u201352.513726ms. RealAC073stressN1000p9943ms<=150,N7667p9946ms<=316pass. OriginalEU7overallexit101/legacyrecallci_hi.897/.801remainfailed/unqualified;separateTC5F/Q8qualificationunchanged. Nohelperdefect/fakeRED/fix;originalplannedREDwrapperexit1wasexpectationonly. DCPUnoiseobserved/noquietclaim,noconcurrentbuildtimings. Q3/final90/rehearsalstillopen. Q3normalfeaturecampaignnowSOURCE+ASSEMBLEDQ3AstraACCEPTat5176860192cb3b2d82618f76251af44779ed6c37:30actualruns/230planned/207passed0runtimefailed23ignored. Exactrecordedmatrixextras+8manualignoredentriesandlibrary-IDresolverRED/GREENrevalidatedSAMEimmutablelogs;no passingreplay. OriginalEXIT1/10metadatafailuresandinterruptedwriterEXIT143retained.12unchangedoptin-exclusionlistingfreshnesschecksretainoriginalno-staleresultonly;nonewlistedIDclaim.403target/44gateonlystaticcoveragePASSafterrootintegration. Ignoredarenotpasses/manualfaultqualification;final90applicabilityremains.",
+      "conditions": "All selected mandatory A160-1..6 outcomes qualified or explicitly disposed under their recorded scope. S50 final2diagnostics accepted solely by393, no score tolerance/generalized equivalency;3extraCUDArehearsals omitted394, actualproductionshipping/transport passed under396397. Original source/CI/runtime failures, ignored cases and explicit skips retained. No .29Tegra CUDA artifact or reset-survival/CUDA13/non-TegraARM+GPU claim. Optional150 remains unselected and nonblocking; owner .30/.31 allocations unchanged.",
+      "phase": "COMPLETE_PUBLISHED",
+      "evidence": "Selected .29 qualification independently accepted as assembled evidence with owner393 narrow S50 exception and394 omitted rehearsal retained. Production44229162869 all shippingbuilds/publishers/eightregistryconsumerjobs/co-tagging pass; failedonly npmconsumer recovery and originallegacypromotionE401 retained. OIDC44233820520 attempt2SUCCESS creates GitHubReleasefivewheels after confirmed latest.29. Pages44235051883 all4jobsPASS plus actualnewpublicreleasepage verified. Temporary shippingworker retired/FD9released; both3090free. Evidence /mnt/data/fathomdb/0.8.29-release-evidence.",
       "qualified_subset_sha": "b07a161317ff753b86b5eb706e7c5e761adecb9a",
       "final90_qualification": {
         "collector_source": "999acc37826efa3808afc0d1a899e08bd6478f3a",
@@ -1629,9 +1629,9 @@
         "accepted_corrections": "Integrated through ec54f833c981d9b0f878a407b7df0d15aa4d6842: current MCP fixture/field census, strict approved compact-contract oracle reconciliation, typed embedder-profile admission before deferred coverage-token failure, and narrowly handled enumerated /proc ESRCH race. Genuine RED/GREEN plus independent Astra ACCEPT; original failing tests retained.",
         "module_gate": "Unchanged standalone gate PASS29+5 tests and132 modules/128 configurations under owned config-free Cargo home; exact --locked preserved. First sandbox read-only fixture refusal retained.",
         "q3_affected": "35 distinct affected normal-feature test IDs assembled PASS with independent Astra ACCEPT; original observer missing-Python failures retained. Unchanged prior Q3 scope reused explicitly, not retagged or rerun.",
-        "remaining": "Product publication and all eight registry consumers complete under396397 with original failures/focused recoveries retained; final public documentation deployment pending.",
+        "remaining": "Selected mandatory0.8.29 work is complete; prior phase note (historical): COMPLETE: selected local/source/hosted/platform qualification, actual product publication, eight registry consumers and public Pages delivery. Original subjects/failures/scoped recoveries retained.",
         "episodes": "Completed once:72valid episodes/all144grades, exact approved served models/qIDs/tool policy; independent Astra final ACCEPT. Reported total$0.13444673; no new quality threshold/noninferiority claim or further paid replay. See90 current_execution and existing comparison README.",
-        "delivery": "Product publication and all eight registry consumers complete under396397 with original failures/focused recoveries retained; final public documentation deployment pending.",
+        "delivery": "COMPLETE: selected local/source/hosted/platform qualification, actual product publication, eight registry consumers and public Pages delivery. Original subjects/failures/scoped recoveries retained.",
         "hints_failed_only": "One exact original unoptimized executable resumption PASS1/1 in7.37s; SHA2563f94cd2e7e9eb39ecd83456d5679ba6c4d18f435a1d56039ca52a6fe6b7b7860, original serial argument/environment/cwd. Original290.4us>200 failure and warnings retained; new numerical statistics captured/unavailable. No profile substitution or additional resumption.",
         "current_performance": "One exact retained AC011a resumption FAIL993.996/s (59640/60.000239089s), original760.621 retained. Independent first-current AC011b PASS429.322/s>=100;7 AC081 processes PASS sequential324.699516\u2013345.138117ms<=500/concurrent47.880991\u201350.739633ms<=100, all7 sequential200ms warnings retained. Exact operator/AGENT_LONG AC021 PASS60s/60 cycles/60 rebuilds/schema violations0; cursor PASS1000 searches/212 writes/211 during reads/999 advancing hits/0 violations. Actual retained subjects, not retagged.",
         "throughput_diagnostic": "One attribution-only GDB execution completed normally after65.09s; debugger133722/inferior133778 gone.9 stacks (not16), no end-counter snapshot.3 writer SQLite-prepare stacks,3 nonblocking WAL lock operations,1 each WAL write/allocation cleanup/trigger VM; workers parked. Instrumented765.406/s is not acceptance; no host-cause inference or second diagnostic. Narrow compiled-statement reuse proposal remains unimplemented.",
@@ -1667,7 +1667,7 @@
         "native_archive_producer": "d2267d1e7bbccf55c543ecb10359df0cf578d817",
         "review": "Independent Astra-medium component/artifact ACCEPT plus fresh independent ACCEPT of actual current GPU2+4 and MCP14 runtime cohort; no actionable findings.",
         "qualified_scope": "24 affected installed Python/N-API cases across Linux x64 CPU, ARM64 CPU, Windows CPU and x64 CUDA pairs; zero N-API skips. Declared floors, installed isolation/strict TS/native hashes, driverless CUDA and archive SDK/CLI consumers passed. Current ordinary AC011a1482/b429,AC0817 and exact long controls passed on recorded retained subjects. Prior healthy-path/Q3 results retain actual origins and bounded applicability.",
-        "remaining": "Five generic targets now have actuale192hostedCPUinstalledconsumers/receipts; originald226CUDA/othercomponentproofretained. Actualproductionshippingbuild/publication/registry-installedconsumers remain. No new.29TegraPagesCUDAartifact claimed; genericARMCPUonly, matchedold.28Pagespackagesretained.",
+        "remaining": "Selected mandatory0.8.29 work is complete; prior phase note (historical): Five generic targets now have actuale192hostedCPUinstalledconsumers/receipts; originald226CUDA/othercomponentproofretained. Actualproductionshippingbuild/publication/registry-installedconsumers remain. No new.29TegraPagesCUDAartifact claimed; genericARMCPUonly, matchedold.28Pagespackagesretained.",
         "notes": "0.8.29 pending-publication CHANGELOG and MCP corrective-interface summaries integrated with the reviewed installed regression cases. No production statement-cache optimization adopted; no extra Tegra artifact gate or blanket cross-product replay added.",
         "gpu": "Actual d226 Python/N-API allocation each134217728B>=67108864floor with hostPID-to-namespacePID1-to-selected3090UUID binding. Four AC082d consumers exit0/closed/cleanup certain; CUDA-positive ownPID observed, explicitCPU-negative complete42/73 traces/loaders contain no CUDA access, effectiveCPU/selectednull. Installed native digests match. Owned containers/actors gone; compute-empty raw cleanup and transcript-observed fresh FD9sameinode acquire/release. No reset/sharing/replay."
       },
@@ -1688,13 +1688,13 @@
         "proof_root": "/mnt/data/tmp2/fathomdb-0829-continuation/portable-fork-delivery-20261116",
         "canonical_logs": "/mnt/data/tmp2/fathomdb-0829-continuation/root-release-20261116/logs/portable-canonical-*",
         "remote": "Cudarc343 remotely available as recorded. Candle2ee pushed explicitly to coreyt/candle-fathomdb branch llm/0.8.29-candle-lifetime-20261115 after independent push-workflow review; fresh unauthenticated HTTPSfetch in empty owned bare store confirms exact2ee39305a78ed1463ff913f71dcd3d45ecbfd84f. No tags/registry/Pages/settings changes.",
-        "remaining": "Public source delivery and accepted assembled CI qualification complete; actual product publication remains. Qualified pins/graph/lock/features unchanged.",
+        "remaining": "Selected mandatory0.8.29 work is complete; prior phase note (historical): Public source delivery and accepted assembled CI qualification complete; actual product publication remains. Qualified pins/graph/lock/features unchanged.",
         "public_fetch_store": "/mnt/data/tmp2/fathomdb-0829-continuation/portable-fork-delivery-20261116/public-candle-https-20261117.git"
       },
       "local_combined_review": {
         "verdict": "Independent Astra-medium ACCEPT bounded local Q2-Q17 applicability; no concrete changed-input gap requires reopening accepted scopes.",
         "scope": "Actual assembled source/security/feature/scoped correction/performance/long/crash/selectedD-E/current artifact and strict docs proofs retain exact subjects. d226artifacts/222MCP-paid/17afassembledsource/portableb674+a55 are not retagged to a common uninterrupted pass.",
-        "remaining": "Q14 five-platform consumers and public Candle HTTPS fetch complete; assembled source/platform qualification accepted. Additional three CUDA rehearsals omitted by394. Production publication and Q19 registry consumers authorized by396/397 and pending."
+        "remaining": "Selected mandatory0.8.29 work is complete; prior phase note (historical): Q14 five-platform consumers and public Candle HTTPS fetch complete; assembled source/platform qualification accepted. Additional three CUDA rehearsals omitted by394. Production publication and Q19 registry consumers authorized by396/397 and pending."
       },
       "ci_route_review": {
         "verdict": "Independent Astra-medium review: publisher/dry-run/immutable-main route guards effective; bounded corrective design PASS.",
@@ -1747,7 +1747,7 @@
         "worker_package": "Officialactionsrunner2.338.2 SHAbaebf204307bac6193480852732f0aba2ae97b6c5597c244f4d5558390147c40",
         "launcher": "/mnt/data/tmp2/fathomdb-0829-continuation/production-cuda-20261117/ops/production-cuda-launch.py",
         "review": "Preparation snapshot: independentAstra accepted isolated launcher00cf4a86, which did not register or execute a worker because existing168 claimed exactjob. Subsequent independent review accepted exacttag/GPU existingworker continuation and explicitcgroup/container cleanup. ActualshippingSUCCESS and rootdirectcleanup are recorded separately.",
-        "next": "Deploy truthfulpublished publicdocs with retained0.26\u20130.28Tegra artifacts, then closeinternalrelease record.",
+        "next": "None. Worker retired, lease released and actual shipping/native identity evidence retained.",
         "tag": "v0.8.29",
         "tag_commit": "b64d32f80bea2853bf4939b6334e32501174ffb1",
         "production_run": 44229162869,
@@ -1782,14 +1782,46 @@
         ],
         "cuda_identity": "PyPIwheel fullSHAfd651614f68faecac5f4ad3ea529d7a92b70d08a62f44ab24439488e2217b3c6 and npm nativeSHA9d290f7c9f477e3b875e56e9228e6c1dc09fd688d2805ae1703f113a48a922ac match shippingproof. npmarchive README difference retained separately.",
         "limits": "Historyadvisory multiset failure, original npmoptionalnative failure, invalidlegacypromotiontoken and initialOIDCcachedpostcondition failure preserved. No GPU/build/paid/model/scientific replays."
+      },
+      "sha": "c81efd7737f4f474633037f5f7860facdb39c91e",
+      "pages_delivery": {
+        "state": "PASS",
+        "run_id": 44235051883,
+        "source_commit": "c81efd7737f4f474633037f5f7860facdb39c91e",
+        "jobs": 4,
+        "public_release_notes": "https://fathomadb.github.io/fathomdb/release-notes/0.8.29/",
+        "retained_tegra": "Existing0.26/0.27/0.28 public artifacts verified by liveURLchecks; no new0.29 TegraCUDA artifact."
       }
     }
   ],
-  "landed": [],
-  "next_slice": 160,
-  "remaining_ladder": [
+  "landed": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    20,
+    30,
+    40,
+    50,
+    60,
+    70,
+    80,
+    90,
+    100,
+    110,
+    130,
+    140,
     160
   ],
+  "next_slice": null,
+  "remaining_ladder": [],
   "decisions": {
     "ruled": [
       {
@@ -2037,22 +2069,35 @@
   "acceptance": {
     "status": "PASS",
     "criteria": [
-      "S10-A1",
-      "S10-A2",
-      "S10-A3",
-      "S10-A4",
-      "S10-A5",
-      "S10-A6",
-      "S10-A7",
-      "S10-A8"
+      "A160-1",
+      "A160-2",
+      "A160-3",
+      "A160-4",
+      "A160-5",
+      "A160-6"
     ],
-    "record": "dev/plans/0.8.29/features/slice-10/preparation-register.md",
-    "scope": "S10-A1..A8 approved local preparation only; independent implementation review PASS104dcbc. Canonical release acceptance and final readiness remain160-owned."
+    "record": "dev/plans/0.8.29/features/slice-160/status.md",
+    "scope": "All selected mandatory criteria qualified within explicit owner/source/platform scopes. Assembled source/CI evidence and focused recoveries remain distinct from uninterrupted green; S50 narrow exception393 and omitted rehearsal394 retained. Actual published consumers and Pages delivery verified.",
+    "preparation_acceptance": {
+      "status": "PASS",
+      "criteria": [
+        "S10-A1",
+        "S10-A2",
+        "S10-A3",
+        "S10-A4",
+        "S10-A5",
+        "S10-A6",
+        "S10-A7",
+        "S10-A8"
+      ],
+      "record": "dev/plans/0.8.29/features/slice-10/preparation-register.md",
+      "scope": "S10-A1..A8 approved local preparation only; independent implementation review PASS104dcbc. Canonical release acceptance and final readiness remain160-owned."
+    }
   },
   "release_readiness": {
-    "status": "PRODUCT_PUBLISHED_PAGES_PENDING",
+    "status": "COMPLETE",
     "qualification": "Assembledsource/platformqualification independentlyACCEPTED: all239registered outcomesresolved within exactsources/venues,3explicitprivatecontrolskips/Tegrahostdisposition/72Rustignoredcases retained. OriginalhostedRust101+45/60mcancels preserved; no uninterruptedCIgreenclaim. Actuale192five-targetCPUconsumers/receipts passed; rootcanonicalRust2828/NAPIuncompletedtail andfast19PASS; priorpaid72/S50ownerexception/currentlocalCUDAproof retained. Fourforkdepsactualpublished/byteverified andno-patchregistryresolutionPASS. Actualshippingbuild/tag/registries/postpubconsumers remain under396/397. Actual tagb64 shippingCUDA and allfiveplatform builds, allproductpublishers and eight actualregistry-installed consumers pass; normalpipeline failures and focusedrecoveries retained. ProductionCUDAwheel registrySHA and publishedNode nativeSHA match selected-GPU-qualified artifacts; Nodearchive onlyREADME differs.",
-    "publication": "PUBLISHED: crates.io, PyPI, npm latest and GitHub Release. All8freshregistryconsumerjobs and co-taggingPASS. Publicdocumentation deployment finalizing.",
+    "publication": "PUBLISHED: crates.io, PyPI, npm latest, GitHub Release and public documentation. All8registryconsumerjobs/co-tagging and Pages4jobs pass. GPUworker retired and both3090free.",
     "local_source_phase": {
       "status": "ASSEMBLED_FULL_SOURCE_PASS",
       "subject": "b6749b4bcf33816e068c61c270ae531ef6968cf7",
@@ -2073,7 +2118,7 @@
       "qualification_checkout": "b6749b4bcf33816e068c61c270ae531ef6968cf7",
       "worktree": "/mnt/data/worktrees/fathomdb-0.8.29"
     },
-    "ci": "Production44229162869 has successful allshippingbuilds/productpublishers/eightregistryconsumerjobs/co-tagging. Originalnpmoptionalnative failure recovered by onefailed-only retry; invalidlegacypromotiontokenE401 leaves overallproductionFAILURE. SeparateOIDCfinalization44233820520 attempt2SUCCESS promoteslatest and createsGitHubReleasefivewheels; initialOIDCPUT204/stalepostcondition retained. Pagesdeployment pending. No GPU/build/model/paid/scientific replay.",
+    "ci": "Assembled source/platform qualification accepted; production44229162869 allshippingbuilds/publishers/eightregistryconsumers/co-tagging pass. OverallproductionFAILURE from invalidlegacytokenpromotion retained; OIDCfinalization44233820520 attempt2SUCCESS, Pages44235051883 SUCCESS. Originalnpmconsumer and immediateOIDCpostcondition failures plus focusedrecoveries retained; no broad/GPU/paid/model replay.",
     "initial_local_source_phase": {
       "status": "ASSEMBLED_FULL_SOURCE_PASS_INDEPENDENT_ASTRA_ACCEPTED",
       "subject": "ef544124d155bdca08f338bee4644379f8af56a5",
@@ -2111,23 +2156,14 @@
       "full_wrapper_seconds": 4160,
       "limits": "OriginalfullEXIT1/config-freeCargoHome resumption retained; assembled236/236 executed outcomes, no uninterruptedgreen or currentlive-controlskip-as-pass claim. Earlier live-control proof retains its actualsubject. RemainingS50/combinedrelease/CI/publication separate."
     },
-    "pages_publication_authorized": true
+    "pages_publication_authorized": true,
+    "prior_phase_records": "local_source_phase, initial_local_source_phase, portable_delivery_phase and previous_source_phase_17af are historical producer snapshots; current COMPLETE/qualification/ci/publication and published receipt control. Original results/charges unchanged."
   },
   "generated_views": [
     {
-      "id": "plan-immediate-next",
+      "id": "plan-landed-roll-up",
       "file": "dev/plans/plan-0.8.29.md",
-      "location": "Immediate next slice"
-    },
-    {
-      "id": "status-current-state",
-      "file": "dev/plans/runs/STATUS-0.8.29.md",
-      "location": "Current state"
-    },
-    {
-      "id": "status-next-action",
-      "file": "dev/plans/runs/STATUS-0.8.29.md",
-      "location": "Next action"
+      "location": "Final landed source roll-up; completed ladder has no next-slice controls"
     }
   ],
   "public_docs_target_release": "0.8.29",
@@ -2136,6 +2172,17 @@
     "tag_commit": "b64d32f80bea2853bf4939b6334e32501174ffb1",
     "published_on": "2026-11-18",
     "npm_dist_tag": "latest",
-    "evidence": "Production44229162869 all shippingbuilds/publishers, eight registry-installed consumer jobs and co-taggingPASS. Attempt1 npmconsumer missingoptionalnative, exactversions/nativebytes verified and singlefailed-only retryPASS. Legacy promotionE401 retained. OIDCfinalization44233820520 attempt2SUCCESS: initialOIDCPUT204 succeeded but immediatecachedverificationstale; two registryviews independentlyconfirm latest.29, targetedfinalizationretryPASS and GitHubReleasefivewheels. Evidence /mnt/data/fathomdb/0.8.29-release-evidence. PublicDocsdeployment pending separately."
+    "evidence": "Production44229162869 all shippingbuilds/publishers, eight registry-installed consumer jobs and co-taggingPASS. Attempt1 npmconsumer missingoptionalnative, exactversions/nativebytes verified and singlefailed-only retryPASS. Legacy promotionE401 retained. OIDCfinalization44233820520 attempt2SUCCESS: initialOIDCPUT204 succeeded but immediatecachedverificationstale; two registryviews independentlyconfirm latest.29, targetedfinalizationretryPASS and GitHubReleasefivewheels. Evidence /mnt/data/fathomdb/0.8.29-release-evidence. Pages44235051883 all4jobsSUCCESS and live0.8.29releasepage verified; retained oldTegraURLs pass."
+  },
+  "completion": {
+    "ref": "origin/release/0.8.29",
+    "main_integration": "COMPLETE"
+  },
+  "disk_cleanup": {
+    "authority": "Owner explicit cleanup request in this chat",
+    "reclaimed_allocated_bytes": 69924065280,
+    "archive_root": "/mnt/data/fathomdb/cleanup-2026-11-17",
+    "record": "/mnt/data/fathomdb/cleanup-2026-11-17/cleanup-summary.json",
+    "scope": "Only inactive olddev.29debug/release and two.27Cargo caches; native/raw evidence archived and checksumverified. Source/currentwork/S50 and requiredreleaseevidence retained."
   }
 }

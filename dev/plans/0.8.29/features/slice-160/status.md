@@ -1,10 +1,16 @@
 ---
-title: Slice 160 local qualification status
-status: IN_PROGRESS
+title: Slice 160 qualification and publication complete
+status: COMPLETE
 target_release: 0.8.29
 ---
 
-# Slice 160 local qualification status
+# Slice 160 qualification and publication complete
+
+**COMPLETE. FathomDB0.8.29 is published; installed consumers and public docs are verified.**
+Actual tag `v0.8.29` remains `b64d32f80bea2853bf4939b6334e32501174ffb1`.
+Production44229162869 passes all shipping builds/publishers, eight registry consumer
+jobs and co-tagging. Its overall failure from legacy promotion401 remains.
+OIDC finalization44233820520 attempt2 and Pages44235051883 are SUCCESS.
 
 The first local batch used `d259d84c59e38861de11192cb8764979458fb127` on
 `llm/0.8.29-s160-local-20261116`; later rows retain their actual producer revisions. The [design](design.md) selects the
@@ -289,27 +295,18 @@ they are distinct from the successful later container execution.
 
 ## Remaining qualification
 
-Local source, scientific, paid-model and five-platform candidate qualification
-are independently accepted within their recorded scopes. Current hosted run
-44215258383 has31 successful jobs, one expected skip and two cancelled verifier
-jobs. The missing19 fast controls, full serial Rust workspace and interrupted
-NAPI scope pass locally; original hosted Rust101 remains unexplained and is
-retained. The state records exact producers, ignores and skips. No full hosted
-green claim is made and no further broad replay is required.
-
-HITL seq-396 authorizes publication; seq-397 authorizes the bounded temporary
-production CUDA worker and exact-tag route. All four required fork registry
-packages are published and the registry-only resolve check passes. Actual
-product shipping builds, publishers and fresh post-publication registry
-consumers remain open. The additional three CUDA rehearsal jobs remain omitted
-under seq-394.
+No selected mandatory0.8.29 work remains. Original failures, explicit skips and
+ignored cases retain their recorded subjects. S50 is accepted only within
+seq-393; the three extra rehearsal jobs remain omitted under394. Optional150
+remains unselected and does not become a completed study. Deferred .30/.31 and
+unsupported configurations retain their original dispositions.
 
 Owner dispositions in [requirements](requirements.md#owner-dispositions) retain
 format37 with no migration, reset work in .30, CUDA13 including Tegra in .31,
 and non-Tegra ARM+GPU excluded from .29 gates/known-working claims. No private
 Memex population census or new capacity/admin ritual blocks this local batch.
 
-## Final local applicability join and CI boundary
+## Final local applicability join and CI boundary — historical prepublication snapshot
 
 Independent Astra-medium review accepts the S50 measurement exit and S90-A12/
 Block1 join under HITL seq-393. All160 native members completed:136 ordinary
@@ -331,3 +328,33 @@ macOS/five-target installed consumers pass. Assembled source/platform
 qualification is independently accepted. Proceed with the authorized exact-tag
 production release, one shipping CUDA worker and Q19 registry consumers under
 seq-396/397. Existing evidence retains its original subjects and exceptions.
+
+## Actual publication and cleanup
+
+All eight fresh registry consumer jobs pass on0.8.29, including Python and Node
+on the five native targets plus Linux Rust SDK/CLI consumers. The first Linux
+npm install lacked its optional native package; exact dependency versions and
+published native bytes were verified, and its single failed-only retry passes.
+The original missing-native failure remains; observed registry propagation is
+a plausible explanation, not a captured npm resolver trace.
+
+The legacy promotion token fails401. The existing OIDC route successfully writes
+latest0.8.29; its immediate cached read first fails the postcondition. Both
+registry views then independently show latest0.8.29, and the targeted finalization
+retry passes and creates the five-wheel GitHub Release. No rebuild/republication
+or passing-consumer replay follows. The history audit multiset failure remains
+nonblocking and retained.
+
+Pages44235051883 passes authorization, build, deploy and retained Tegra liveURL
+verification. The actual new public0.8.29release page returns200 and published
+notes. No0.8.29Tegra CUDA artifact is claimed; matched0.8.28 remains retained.
+
+Shipping worker168 is retired and credentials removed. Exact cgroup/container/
+compute quiescence and parent FD9 release are proved; both3090 GPUs are free.
+Actual evidence is under `/mnt/data/fathomdb/0.8.29-release-evidence/`.
+
+Under the owner's cleanup instruction,65.12GiB of inactive compiler output was
+removed after preserving/hash-verifying native/raw evidence under
+`/mnt/data/fathomdb/cleanup-2026-11-17/`. All source/git state, active checkouts,
+neighboring logs/wheels and S50 evidence remain. Root free space rises from
+approximately89GiB to156GiB.

@@ -1,6 +1,6 @@
 ---
 title: Slice 160 qualification matrix
-status: PROPOSED
+status: COMPLETE
 target_release: 0.8.29
 ---
 
@@ -23,7 +23,7 @@ accepted successors control any stale historical wiring.
 
 | Row / local acceptance | Existing route and meaningful oracle | Freshness / current hold |
 | --- | --- | --- |
-| Q1 / A160-1 | Selected slices' actual review/exits plus condition register below; reconcile source/git and raw evidence, not run-state narration. |Current accepted exits include20/60/70/80/100 and selected110/140 source/healthy/OOM/consumer scope. Remaining selected measurements and consumers stay open; see status. No separate status-copy packet. |
+| Q1 / A160-1 | Selected slices' actual review/exits plus condition register below; reconcile source/git and raw evidence, not run-state narration. |Current accepted exits include20/60/70/80/100 and selected110/140 source/healthy/OOM/consumer scope. Selected measurements and actual registry consumers are complete within recorded scope; see final status. No separate status-copy packet. |
 | Q2 / A160-2 | `scripts/agent-verify.sh` full default: owned tools, workspace clippy/check, security and actual registered tests. Prepare clean final tree; preserve lint→type→test short-circuit. | One final code-phase broad run, scoped correction/resumption afterward. Accepted assembled source results retain their exact inputs and limits; final integrated .29 applicability still requires assessment, not automatic full replay. |
 | Q3 / A160-2 | Current `scripts/check-test-target-coverage.py` inventory and `scripts/test-feature-complete.sh` with pinned live BGE/reranker/nomic/ONNX/available3090 requirements; actual missing assets fail. | Currentnormalcampaignisassembled-qualified:actual30runs/207passes/23ignored/0runtimefailures, reviewed5176860metadata/parsercorrectionandretained-logrescan. OriginalEXIT1/10metadatafailuresretained;12unchangedoptin-exclusionlistingchecksreuseoriginalnostaleevidence. Ignoredmanualscopesretainseparatevenues/proofs;final90affectedcoverageisreassessed. |
 | Q4 / A160-2 | `STRICT=1 scripts/agent-security.sh`; real AC036/037 plus maintained security controls;0violations/0blockers/0downgrades. | The160 batch rebuilt current locked security_cycle and passed both missing canonical AC037 live scripts without downgrade or host changes; see status/logs. Combine only with applicable accepted unchanged other controls. This is scoped completion, not a newly executed aggregate battery; reassess changed90 inputs. |
@@ -41,7 +41,7 @@ accepted successors control any stale historical wiring.
 | Q16 / A160-4 | Selected110 source/seam remedy and applicable healthy lifecycle controls, current artifact/library/PTX/selection, independent130 D/E local SDK pool/lifecycle/soak protocols and included140 pins. |Seq-376 policy selected; seq-377 live reset children HELD .30 and no reset-survival/original-defect closure. Seq-378 new x86 CUDA13 delivery/compiler work is .31; it is not required for .29. Selected130 D17, shipping consumers/build equivalence and the declared instrumented semi-space4 E pair are independently accepted; original default-profile failure and monitoring deviation remain disclosed. Final90 artifact applicability remains a combined qualification assessment. Seq-381 explicitly defers Tegra CUDA13 A to .31; D/E/current CUDA12.6 remain .29. |
 | Q17 / A160-5 | Scoped interfaces/parity/surface/version/docs/lifecycle/state gates, strict MkDocs where public docs affected. W0.8.29, independentE; notes disclose accepted source breaks/default and support limits. | After actual changes; .29 routing repair already in10, external exact-tag checks occur when applicable. Metadata-only changes need no second full source gate. |
 | Q18 / A160-5 | `scripts/release/local-dry-run.sh` and distinct `release.yml` immutable-candidate dry-run; actual package/auth/routing/required job outcomes. | Current7d035022 local steps1–4 PASS; original missing-note and offline-step5 failures retained. Only the3 canonical leaf publish dry-runs resume online and PASS/abort upload. Assembled validatable local completion is separate from hosted rehearsal, dependent publishers and registry consumers. HITL seq-394 omits three additional CUDA rehearsal jobs. Current hosted CI and scoped local completion are independently accepted as assembled qualification; original cancellations and Rust101 remain retained. Actual production delivery is authorized by seq-396/397. |
-| Q19 / A160-6 | Required publishers and fresh published-version Python/npm/Rust SDK/CLI consumers, persisted read/write, missing record, separate-process reopen, close/exit. | **AUTHORIZED AND PENDING under HITL seq-396/397.** Actual product publishers and fresh registry consumers are required before closure. Candidate installs cannot close this post-publication row. |
+| Q19 / A160-6 | Required publishers and fresh published-version Python/npm/Rust SDK/CLI consumers, persisted read/write, missing record, separate-process reopen, close/exit. | **PASS under HITL seq-396/397.** Actual product publishers and eight fresh registry consumers pass; OIDC finalization and public Pages delivery pass. Exact subjects and original failures/recoveries are in status; candidate installs are not substituted. |
 
 ## Conditional inclusion and no-run criteria
 
@@ -64,7 +64,7 @@ A required-row exclusion requires its existing contract/authority; absence of
 resources is BLOCKED/UNMEASURED. Routine conditional no-run outcomes above need
 no new blanket human approval. No exclusion is described as PASS.
 
-## Current hosted-rehearsal disposition
+## Hosted-rehearsal disposition — historical prepublication snapshot
 
 HITL seq-394 disposes the proposed additional three CUDA release-rehearsal jobs
 for this nonpublishing objective. Accepted local CUDA/package/GPU proofs retain
@@ -76,7 +76,7 @@ registry consumers retain their separate authority and applicable readiness gate
 Seq-395 grants one protected-main rehearsal exception; it is currently unused
 and does not itself grant new runner registration or revive the omitted runs.
 
-## Production publication authority
+## Production publication authority — historical authorization snapshot
 
 HITL seq-396 authorizes publication of0.8.29. Seq-397 authorizes one temporary
 production CUDA worker, exact-tag route and reviewed protected-main exception
@@ -86,3 +86,12 @@ passes. Current hosted five-platform consumers and assembled source qualificatio
 are independently accepted; the two cancelled verifier jobs and original Rust101
 remain disclosed. Actual shipping builds, product publication and fresh Q19
 registry consumers remain pending.
+
+## Final publication verdict
+
+All selected A160-1..6 criteria are qualified or explicitly disposed within
+their recorded scope. Production44229162869 supplies actual publishers and
+eight registry consumers; OIDC44233820520 and Pages44235051883 are SUCCESS.
+Original overall failures, scoped recoveries and skipped/ignored cases remain
+distinct. Seq-393 is a narrow S50 disposition; seq-394 omits additional rehearsals
+and does not become a passing rehearsal claim. See status for retained evidence.

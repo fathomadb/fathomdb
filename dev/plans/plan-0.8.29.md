@@ -1,12 +1,16 @@
 ---
 title: FathomDB 0.8.29 — release execution plan
-status: ACTIVE
+status: COMPLETE
 target_release: 0.8.29
 date: 2026-11-09
 execution_model: direct slice agents; GPT-6.1 Sol high; Astra medium review gates
 ---
 
 # FathomDB 0.8.29 — release execution plan
+
+**COMPLETE.** Published and verified on2026-11-18 UTC. The release state and
+final Slice160 record own actual outcomes; historical plan/proposal conditions
+below retain their original chronology and owner dispositions.
 
 ## Current execution mandate
 
@@ -103,7 +107,7 @@ plan below. Approved scope follows the direct review pipeline; each pending cond
   Concurrent owners use their own parent-created sibling worktrees.
 - .28 is published; completed10 activated the tracked.29 state/board selected by
   `scripts/release-current.py`. Runtime qualification remains row-specific.
-  Generated control regions below are owned by release-state-0.8.29.json.
+  The retired next-slice control below records completion; release-state-0.8.29.json remains the source of final release facts.
 - Runtime/manifest versions, available hosts and source-bound verification
   evidence must be distinguished from actual current environment readiness.
   Do not borrow another checkout's venv or repoint editable bindings.
@@ -431,7 +435,9 @@ the substantive work; do not create receipt-only follow-up phases.
 
 ## Immediate next slice
 
-<!-- BEGIN GENERATED release-state:0.8.29:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 160** (`COMBINED-CLOSE`) — Selected combined qualification documentation and release readiness
+**COMPLETE.** FathomDB0.8.29 is published and verified. No next slice remains; see the release state and final Slice160 record.
 
-**Remaining ladder:** 160.<!-- END GENERATED release-state:0.8.29:plan-immediate-next -->
+## Final landed source roll-up
+
+<!-- BEGIN GENERATED release-state:0.8.29:plan-landed-roll-up -->
+**LANDED on `origin/main`, in full:** Slices 0 (`850f2c15df1ebf3262f0346e340721f9ff2422ad`) · 1 (`39289560125367aea0c80fb335c6d51260376ba0`) · 2 (`39289560125367aea0c80fb335c6d51260376ba0`) · 3 (`2d5041795f0cbbe49d55d81a2710f09e2043b8a9`) · 4 (`52a85c38cb50af220b418a4d05bc4c6e31f23fe2`) · 5 (`52a85c38cb50af220b418a4d05bc4c6e31f23fe2`) · 6 (`de85cbf40c85cd89dd8785453346b5eb0367f01c`) · 7 (`a0274cee6722c415e90b0bdda7a5578a43d41fda`) · 8 (`a0274cee6722c415e90b0bdda7a5578a43d41fda`) · 9 (`e76031ae422e56b9aead73042dedc6190a96d0ae`) · 10 (`104dcbcbe92a1eca730d146b99ab17d444df6217`) · 20 (`29669b6e239e093e77de0dfac17c055ac4e997eb`) · 30 (`02bfa144b156dff211ac581eccab0490cab415d2`) · 40 (`c72cfd8109ce27a551120a739443815e0eaeab15`) · 50 (`aa0d9be5ef13494b5e5637654c9145e2d23fac35`) · 60 (`4005fc07cc5f1f5560910c2603dac88a9e08df21`) · 70 (`e875f36042f89c1d84756f78135db0e8926c1ed4`) · 80 (`8432acd9db200422e4284d71169c527c439df67a`) · 90 (`aa0d9be5ef13494b5e5637654c9145e2d23fac35`) · 100 (`fb92d51ab92702c0cc7a5dc515aa8a69187008e2`) · 110 (`434afa89241d0c47a39a6d49eaafde41de114af8`) · 130 (`a9d35254498c3dad7bbaf0db24c0bd8613359dac`) · 140 (`6863ffb4b2d47bc5c42a4c2ee29bf67b2850c4da`) · 160 (`c81efd7737f4f474633037f5f7860facdb39c91e`). SCHEMA is 37; remaining ladder = none.<!-- END GENERATED release-state:0.8.29:plan-landed-roll-up -->

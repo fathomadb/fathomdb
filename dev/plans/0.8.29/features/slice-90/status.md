@@ -58,10 +58,12 @@ final222/b3c6 integrated candidate under seq392, with all144 grades and independ
 Astra final ACCEPT. Exact models, complete qIDs, costs and paired intervals are
 in the [existing comparison report](../../../../experiments/agent-remeasure/README.md#current-candidate-results-2026-11-16).
 No additional episode, quality threshold or noninferiority claim follows.
-Separate160 Mac/platform and CI/release obligations stay open; no tag or registry
-publication occurred.
+The separate160 Mac/platform and CI/release obligations are now complete;
+actual0.8.29 publication and eight registry consumers pass, with original
+failures/focused recoveries retained in the160 record.
 
 Independent Astra-medium final local applicability review accepts S90-A12/Block1
 after all160 S50 native outcomes and HITL seq-393 disposition of the final
 diagnostic pair. Original exact-result failure and producer limits remain.
-Local90 is complete; macOS/five-target and hosted CI remain160 obligations.
+Local90 and the160 publication join are complete; macOS/five-target consumers,
+actual registry consumers and public docs have their separate successful evidence.

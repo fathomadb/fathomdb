@@ -19,6 +19,14 @@ AC-050c) gates merges against this invariant.
   nullable hit provenance. Clarified checkout-owned native Python setup and
   developer verification.
 
+- CI emits suite outcomes and the first redacted failure diagnostic as it runs,
+  so later cancellation leaves completed and unrun scope visible. Verification
+  uses monotonic elapsed time, a faster Windows workflow checker, and a
+  tools-only fast bootstrap. Release metadata uses scoped validation.
+- The release workflow uses the same pinned npm OIDC promotion as the recovery
+  workflow and verifies `latest` before finalization. Exact-version Rust,
+  Python and Node consumer smokes verify persisted data across process exits.
+
 ### Security
 
 - Updated Markdown tooling to markdownlint-cli2 0.24.0 and markdown-it 15.0.3,

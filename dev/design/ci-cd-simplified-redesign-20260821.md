@@ -291,6 +291,19 @@ conditions instead:
 | Remaining 13 always-on jobs | Always-on; unchanged |
 
 Every category-selected scoped job also requires `docs_only != 'true'`.
+Markdown and exact-version release-state JSON route through the lightweight
+document and independent state checks. Verify-fast provisions the checkout's
+pinned Python developer tools. The heavy tier constructs the production wheel
+for the installed experiment consumers and keeps the test-hooks build isolated.
+
+The verifier registers the cohort before starting children. GitHub receives
+the plan, each start and each completed outcome in the step log. The first
+failure includes a redacted diagnostic bounded to 64 KiB of captured output,
+with a head and tail when it exceeds that size. A start without an outcome
+marks interrupted or lost execution, and a planned suite with neither event
+is unrun. The usual failure artifacts retain full redacted spills when the
+runner reaches those steps. Elapsed times use a monotonic clock.
+
 Language globs intentionally own their entire source trees, which include
 README files; the shared condition guard, not eight duplicated matcher
 exclusions, preserves the Markdown fast path. `ci_workflow=true` remains the
@@ -307,7 +320,8 @@ The 14 always-on jobs are `gitleaks`, `shell-lint`, `board-currency`,
 The categories follow actual call edges:
 
 - `verify_harness` contains `agent-verify.sh`, `agent-test.sh`, the three
-  libraries sourced by `agent-test.sh`, and `bootstrap.sh`. It selects
+  libraries sourced by `agent-test.sh`, the bootstrap scripts and
+  `setup-python-owned.sh`. It selects
   `verify`, not security, the race report, or default-embedder tests.
 - `rust_test_harness` contains `test-rust-workspace.sh`. Both `verify`'s heavy
   Rust suite and the race-report job invoke it, so both run.

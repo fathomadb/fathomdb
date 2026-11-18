@@ -45,40 +45,65 @@ assert_contains() {
   local haystack="$1" message="${!#}" missing=""
   shift
   while (($# > 1)); do
-    grep -Fq -- "$1" <<<"$haystack" || missing="${missing:+$missing, }$1"
+    [[ "$haystack" == *"$1"* ]] || missing="${missing:+$missing, }$1"
     shift
   done
   if [[ -z "$missing" ]]; then pass "$message"; else fail "$message (missing: $missing)"; fi
 }
 
 assert_absent() {
-  if grep -Fq -- "$2" <<<"$1"; then fail "$3 (unexpected: $2)"; else pass "$3"; fi
+  if [[ "$1" == *"$2"* ]]; then fail "$3 (unexpected: $2)"; else pass "$3"; fi
+}
+
+# Each changed input has its own cache during this check invocation.
+body_dir() {
+  local identity
+  identity="$(printf '%s' "$1" | git hash-object --stdin)"
+  printf '%s/%s' "$CHECK_INPUTS" "$identity"
+}
+
+prepare_bodies() {
+  local path="$1" language="$2" directory
+  directory="$(body_dir "$path")"
+  if [ -d "$directory" ]; then return; fi
+  mkdir "$directory"
+  python3 - "$path" "$language" "$directory" <<'PY_BODIES'
+import ast
+from pathlib import Path
+import re
+import sys
+
+source_path, language, output_path = sys.argv[1:]
+output = Path(output_path)
+source = Path(source_path).read_text(encoding="utf-8")
+if language == "python":
+    lines = source.splitlines(keepends=True)
+    tree = ast.parse(source, filename=source_path)
+    sections = (
+        (node.name, "".join(lines[node.lineno - 1 : node.end_lineno]))
+        for node in tree.body if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+    )
+else:
+    starts = list(re.finditer(r"(?m)^    (?:pub(?:\(crate\))? )?fn (\w+)\(", source))
+    ends = [match.start() for match in starts[1:]] + [len(source)]
+    sections = ((match[1], source[match.start():end]) for match, end in zip(starts, ends))
+for name, body in sections:
+    path = output / name
+    if not path.exists():
+        path.write_text(body, encoding="utf-8")
+PY_BODIES
 }
 
 function_body() {
-  awk -v name="$2" '
-    $0 ~ "^    (pub(\\(crate\\))? )?fn " name "\\(" { inside = 1 }
-    inside && $0 ~ "^    (pub(\\(crate\\))? )?fn " && $0 !~ "^    (pub(\\(crate\\))? )?fn " name "\\(" { exit }
-    inside { print }
-  ' "$1"
+  local directory
+  directory="$(body_dir "$1")"
+  if [ -f "$directory/$2" ]; then cat "$directory/$2"; fi
 }
 
 python_function_body() {
-  python3 - "$1" "$2" <<'PY'
-import ast
-import sys
-
-source_path, function_name = sys.argv[1:]
-source = open(source_path, encoding="utf-8").read()
-module = ast.parse(source, filename=source_path)
-for node in module.body:
-    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == function_name:
-        lines = source.splitlines()
-        print("\n".join(lines[node.lineno - 1 : node.end_lineno]))
-        break
-else:
-    raise SystemExit(f"top-level Python function not found: {function_name}")
-PY
+  local directory
+  directory="$(body_dir "$1")"
+  cat "$directory/$2"
 }
 
 assert_before_in_function() {
@@ -132,213 +157,244 @@ assert_cfg_test_near_marker() {
   fi
 }
 
-JOB="$(job_block "$CI")"
-CODE="$(grep -v '^[[:space:]]*#' <<<"$JOB" || true)"
-if [ -n "$JOB" ]; then pass "ci.yml defines Windows WAL attribution"; else fail "ci.yml has no windows-wal-attribution job"; fi
-assert_contains "$CODE" 'runs-on: windows-latest' "job runs on hosted Windows x64"
-if [ -f "$HOOK_CONTRACT" ] && python3 "$REPO_ROOT/scripts/tests/test_slice50_hook_inventory.py" >/dev/null; then
-  pass "installed-wheel hook contract is complete"
-else
-  fail "installed-wheel hook contract is complete"
-fi
-assert_contains "$CODE" 'FATHOMDB_WAL_ATTRIBUTION = "1"' "job opts into private attribution"
-assert_contains "$CODE" 'wal_attribution_owned_reader_typed_refusal_then_post_release_sampler_is_recorded' "job runs truthful managed-reader record contract"
-assert_contains "$CODE" 'tests::wal_attribution_owned_reader_typed_refusal_then_post_release_sampler_is_recorded' "job selects the truthful full exact lib-test path"
-assert_contains "$CODE" 'managed-reader attribution command selected zero tests' "job rejects a zero-test managed-reader invocation"
-assert_contains "$CODE" 'managed_reader_original_erase=typed_erasure_incomplete owned_busy_attempts=5' "job requires the original managed-reader typed busy marker"
-assert_contains "$CODE" 'managed_reader_completion_ack reader_autocommit=1 collector_roles=idle' "job requires post-finish managed-reader acknowledgement"
-assert_contains "$CODE" 'managed_reader_native_state_inventory=state_inventory=complete reason=complete' "job requires complete managed-reader native-state inventory"
-assert_contains "$CODE" 'managed_reader_sampler_native_state control=binding_sampler phase=before' "job requires managed-reader sampler before facts"
-assert_contains "$CODE" 'managed_reader_sampler_native_state control=binding_sampler phase=after' "job requires managed-reader sampler after facts"
-assert_contains "$CODE" 'managed_reader_sampler_terminal outcome=' "job requires managed-reader sampler terminal outcome"
-assert_contains "$CODE" 'wal_attribution_retained_materialized_result_is_idle_at_checkpoint' "job runs retained-result idle control"
-assert_contains "$CODE" 'tests::wal_attribution_reader_handoff_is_idle_before_materialized_reply' "job selects the exact reader-handoff control"
-assert_contains "$CODE" 'reader-handoff attribution command selected zero tests' "job rejects a zero-test reader-handoff invocation"
-assert_contains "$CODE" 'slice65_wal reader_handoff_idle_before_reply=passed' "job requires the reader-handoff artifact marker"
-assert_absent "$CODE" 'tests::wal_attribution_incident_checkpoint_ladder_retains_typed_erase_observation' "job does not select the perturbing pre-erase raw ladder as primary evidence"
-assert_contains "$CODE" 'tests::wal_attribution_actual_checkpoint_observation_retains_real_attempt_facts' "job selects the exact direct-Rust actual-checkpoint control"
-assert_contains "$CODE" 'actual-checkpoint observation selected zero tests' "job rejects a zero-test direct-Rust actual-checkpoint invocation"
-assert_contains "$CODE" 'slice65_wal actual_checkpoint control=direct_rust phase=before' "job retains direct-Rust pre-attempt facts"
-assert_contains "$CODE" 'slice65_wal actual_checkpoint control=direct_rust phase=after' "job retains direct-Rust post-attempt facts"
-assert_contains "$CODE" 'slice65_wal actual_checkpoint control=python_serial phase=before' "job retains installed-Python pre-attempt facts"
-assert_contains "$CODE" 'slice65_wal actual_checkpoint control=python_serial phase=after' "job retains installed-Python post-attempt facts"
-assert_contains "$CODE" 'wal_attribution_projection_worker_typed_refusal_then_post_release_sampler_is_recorded' "job runs truthful projection-worker record contract"
-assert_contains "$CODE" 'tests::wal_attribution_projection_worker_typed_refusal_then_post_release_sampler_is_recorded' "job selects the truthful full projection-worker lib-test path"
-assert_contains "$CODE" 'projection-worker attribution command selected zero tests' "job rejects a zero-test projection-worker invocation"
-assert_contains "$CODE" 'projection_worker_original_erase=typed_erasure_incomplete owned_busy_attempts=5' "job requires the original projection-worker typed busy marker"
-assert_contains "$CODE" 'projection_worker_completion_ack worker_autocommit=1 collector_roles=idle' "job requires post-finish projection-worker acknowledgement"
-assert_contains "$CODE" 'projection_worker_native_state_inventory=state_inventory=complete reason=complete' "job requires complete projection-worker native-state inventory"
-assert_contains "$CODE" 'projection_worker_sampler_native_state control=binding_sampler phase=before' "job requires projection-worker sampler before facts"
-assert_contains "$CODE" 'projection_worker_sampler_native_state control=binding_sampler phase=after' "job requires projection-worker sampler after facts"
-assert_contains "$CODE" 'projection_worker_sampler_terminal outcome=' "job requires projection-worker sampler terminal outcome"
-assert_contains "$CODE" 'tests::wal_attribution_post_commit_acknowledges_and_records_raw_checkpoint_diagnostic' "job selects the exact post-commit diagnostic control"
-assert_contains "$CODE" 'post-commit diagnostic command selected zero tests' "job rejects a zero-test post-commit diagnostic invocation"
-assert_contains "$CODE" 'slice65_wal post_commit_ack direct_inventory=' "job requires direct post-commit transaction facts"
-assert_contains "$CODE" 'collector_roles=idle' "job retains collector state separately from direct transaction facts"
-assert_contains "$CODE" 'slice65_wal post_commit_raw case=pre_close' "job requires redacted pre-close raw checkpoint samples"
-assert_contains "$CODE" 'slice65_wal post_commit_child_raw case=after_close' "job requires the redacted fresh-child probe outcome"
-assert_contains "$CODE" 'python_binding_completion_ack reader_autocommit=1 collector=idle' "job requires installed binding direct completion acknowledgement"
-assert_absent "$CODE" 'python_binding_completion_ack collector=idle' "job does not accept the collector-only binding completion marker"
-assert_contains "$CODE" "\$artifact -SimpleMatch 'slice65_wal python_binding_completion_ack reader_autocommit=1 collector=idle'" "job requires the binding completion acknowledgement in the retained artifact"
-assert_absent "$CODE" 'python_binding_snapshot_released' "job does not require the removed binding post-release marker"
-assert_contains "$CODE" 'python_binding_direct_inventory=' "job requires direct installed binding inventory"
-assert_contains "$CODE" 'python_binding_direct_inventory=roles=writer:0,readers:0-7,dispatcher:0,workers:0-1;writer=autocommit;readers=8-autocommit;dispatcher=autocommit;workers=2-autocommit;creation=writer:1,readers:8,dispatcher:1,workers:2,probes:0' "installed binding expects no cfg(test)-only runtime probes"
-assert_contains "$CODE" 'python_binding_held_reader_native_state=' "job requires the held reader native-state positive control"
-assert_contains "$CODE" 'readers:0(auto=0,txn=read,' "job requires held reader autocommit-off/read-state evidence"
-assert_contains "$CODE" 'python_binding_native_state_inventory=state_inventory=complete reason=complete' "job requires post-release complete native-state inventory"
-assert_contains "$CODE" 'workers:1(auto=1,txn=none,busy=0,received=1)' "job requires every managed role to be direct-native idle"
-assert_contains "$CODE" 'python_binding_native_state control=binding_sampler phase=before' "job requires binding sampler native state before each checkpoint"
-assert_contains "$CODE" 'python_binding_native_state control=binding_sampler phase=after' "job requires binding sampler native state after each checkpoint"
-assert_contains "$CODE" 'installed binding sampler did not retain complete before/after native-state facts' "job fails closed on incomplete sampler native state"
-assert_contains "$CODE" 'python_binding_raw case=before_engine_sampler' "job requires the first installed binding raw sample"
-assert_contains "$CODE" 'python_binding_engine_sampler' "job requires exactly one installed binding Engine-path sampler"
-assert_contains "$CODE" 'python_binding_raw case=after_engine_sampler' "job requires the second installed binding raw sample"
-assert_contains "$CODE" 'python_binding_child_raw case=after_close' "job requires the conditional installed binding child probe outcome"
-assert_contains "$CODE" 'wal_attribution_close_boundary_raw_checkpoint_is_clean' "job runs direct close-boundary control"
-assert_contains "$CODE" 'wal_attribution_close_boundary_fresh_open_is_clean' "job runs fresh-open close-boundary control"
-assert_contains "$CODE" 'wal_attribution_close_boundary_read_get_is_clean' "job runs read-get close-boundary control"
-assert_contains "$CODE" 'wal_attribution_close_boundary_neighbors_is_clean' "job runs neighbors close-boundary control"
-assert_contains "$CODE" 'close-boundary direct checkpoint control selected zero tests' "job rejects zero selected direct close-boundary tests"
-assert_contains "$CODE" 'close-boundary fresh-open control selected zero tests' "job rejects zero selected fresh-open close-boundary tests"
-assert_contains "$CODE" 'close-boundary read-get control selected zero tests' "job rejects zero selected read-get close-boundary tests"
-assert_contains "$CODE" 'close-boundary neighbors control selected zero tests' "job rejects zero selected neighbors close-boundary tests"
-assert_contains "$CODE" 'test_slice65_wal_attribution_installed.py' "job runs installed-wheel controls"
-assert_contains "$CODE" '--control retained' "job runs installed retained-result control"
-assert_contains "$CODE" 'current_head=$(git rev-parse HEAD)' "job records current source identity"
-assert_contains "$CODE" 'args: --release --out ${{ github.workspace }}/dist-slice65-test -i python3.11 --features pyo3/extension-module,test-hooks' "job builds the disposable wheel at an explicit workspace-absolute path"
-assert_contains "$CODE" '$currentWheelDir = Join-Path $env:GITHUB_WORKSPACE "dist-slice65-test"' "job derives the current wheel directory from the workspace"
-assert_contains "$CODE" 'Test-Path -LiteralPath $currentWheelDir -PathType Container' "job fails closed when the current wheel directory is missing"
-assert_contains "$CODE" '$currentWheelCandidates = @(Get-ChildItem -LiteralPath $currentWheelDir -Filter "*.whl" -File)' "job discovers the disposable current wheel only beneath the resolved workspace directory"
-assert_contains "$CODE" 'expected exactly one disposable current test-hooks wheel' "job rejects an ambiguous disposable current wheel output"
-assert_contains "$CODE" 'current_wheel_path=' "job records the resolved current wheel path"
-assert_contains "$CODE" 'current_wheel_sha256=' "job records current wheel digest"
-assert_contains "$CODE" '& "$currentEnv\Scripts\python.exe" -m pip install --no-index --no-deps $currentWheel' "job installs exactly the resolved current wheel"
-assert_absent "$CODE" 'src/python/dist-slice65-test' "job does not look for the disposable wheel beneath the Python source directory"
-assert_absent "$CODE" 'Get-ChildItem -Path "dist-slice65-test"' "job has no naked relative current-wheel lookup"
-assert_absent "$CODE" '-Recurse' "job does not recursively discover a current wheel"
-assert_contains "$CODE" 'released_native_sha256=' "job records released native input identity"
-assert_contains "$CODE" 'test-hooks' "job builds a non-shipping test-hooks wheel"
-assert_contains "$CODE" 'fathomdb==0.8.22' "job installs the released 0.8.22 comparison wheel"
-assert_contains "$CODE" 'serial_wheel_selector=released-0.8.22' "job retains released-wheel selector"
-assert_contains "$CODE" 'serial_wheel_selector=current-source-test-hooks' "job retains current-wheel selector"
-assert_contains "$CODE" 'src/python/pyproject.toml' "job derives the disposable current-wheel version from candidate source"
-assert_contains "$CODE" '$currentWheelVersion' "job binds every current-wheel control to the candidate version"
-current_wheel_version_controls="$(grep -Fc -- '--wheel-version $currentWheelVersion' <<<"$CODE" || true)"
-if [ "$current_wheel_version_controls" -eq 3 ]; then
-  pass "job checks all three current-wheel controls against the candidate version"
-else
-  fail "job has $current_wheel_version_controls current-wheel version controls; expected 3"
-fi
-released_wheel_version_controls="$(grep -Fc -- '--wheel-version 0.8.22' <<<"$CODE" || true)"
-if [ "$released_wheel_version_controls" -eq 1 ]; then
-  pass "job keeps the released baseline version separate from the candidate version"
-else
-  fail "job has $released_wheel_version_controls released-wheel version controls; expected 1"
-fi
-assert_contains "$CODE" '--observe-baseline-first-erase' "job explicitly observes exactly the released serial first erase"
-assert_contains "$CODE" '$releasedSerialExit' "job retains the released serial process outcome"
-assert_contains "$CODE" 'BASELINE_FIRST_ERASE outcome=typed_erasure_incomplete' "job parses the typed first-erase baseline observation"
-assert_contains "$CODE" 'BASELINE_FIRST_ERASE outcome=clean_completion' "job parses the clean first-erase baseline observation"
-assert_contains "$CODE" 'OBSERVED_EXPECTED_ERASURE_INCOMPLETE' "job emits the typed released failure observation"
-assert_contains "$CODE" 'OBSERVED_CLEAN_SERIAL_COMPLETION' "job emits the clean released completion observation"
-assert_contains "$CODE" '$releasedSerialExit -eq 65' "job accepts only the typed baseline observation exit"
-assert_contains "$CODE" '$releasedSerialExit -eq 66' "job accepts only the clean baseline observation exit"
-assert_contains "$CODE" 'released serial baseline did not produce an accepted first-erase observation' "job rejects every other released baseline process outcome"
-assert_contains "$CODE" 'serial_current_attribution_expected=1' "job validates current serial attribution marker"
-assert_contains "$CODE" 'serial_idle_after_read_get=passed' "job retains immediate serial read.get idle marker"
-assert_contains "$CODE" 'serial_idle_after_neighbors=passed' "job retains immediate serial neighbors idle marker"
-assert_contains "$CODE" 'erasure_busy_cross_process_windows_yields_typed_diagnostic' "job retains external-reader comparison"
-assert_contains "$CODE" 'external-reader attribution command selected zero tests' "job rejects a zero-test external-reader invocation"
-assert_contains "$CODE" 'running 1 test' "job rejects a zero-test managed-reader invocation"
-assert_contains "$CODE" 'Select-String -Path $managedReaderLog -SimpleMatch "running 1 test" -Quiet' "job checks managed-reader output for an executed test"
-assert_contains "$CODE" '--nocapture' "job retains diagnostic lifecycle markers"
-assert_contains "$CODE" 'slice65-windows-wal-attribution.log' "job writes Slice 65 artifact"
-assert_contains "$CODE" 'slice65-windows-wal-attribution-${{ github.run_id }}-${{ github.run_attempt }}' "artifact name is unique"
-assert_contains "$CODE" 'if: always()' "artifact uploads after a failure"
-assert_contains "$CODE" 'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a' "artifact uploader is pinned"
+check_workflow() {
+  local JOB CODE
+  JOB="$(job_block "$1")"
+  CODE="$(grep -v '^[[:space:]]*#' <<<"$JOB" || true)"
+  if [ -n "$JOB" ]; then pass "ci.yml defines Windows WAL attribution"; else fail "ci.yml has no windows-wal-attribution job"; fi
+  assert_contains "$CODE" 'runs-on: windows-latest' "job runs on hosted Windows x64"
+  assert_contains "$CODE" 'FATHOMDB_WAL_ATTRIBUTION = "1"' "job opts into private attribution"
+  assert_contains "$CODE" 'wal_attribution_owned_reader_typed_refusal_then_post_release_sampler_is_recorded' "job runs truthful managed-reader record contract"
+  assert_contains "$CODE" 'tests::wal_attribution_owned_reader_typed_refusal_then_post_release_sampler_is_recorded' "job selects the truthful full exact lib-test path"
+  assert_contains "$CODE" 'managed-reader attribution command selected zero tests' "job rejects a zero-test managed-reader invocation"
+  assert_contains "$CODE" 'managed_reader_original_erase=typed_erasure_incomplete owned_busy_attempts=5' "job requires the original managed-reader typed busy marker"
+  assert_contains "$CODE" 'managed_reader_completion_ack reader_autocommit=1 collector_roles=idle' "job requires post-finish managed-reader acknowledgement"
+  assert_contains "$CODE" 'managed_reader_native_state_inventory=state_inventory=complete reason=complete' "job requires complete managed-reader native-state inventory"
+  assert_contains "$CODE" 'managed_reader_sampler_native_state control=binding_sampler phase=before' "job requires managed-reader sampler before facts"
+  assert_contains "$CODE" 'managed_reader_sampler_native_state control=binding_sampler phase=after' "job requires managed-reader sampler after facts"
+  assert_contains "$CODE" 'managed_reader_sampler_terminal outcome=' "job requires managed-reader sampler terminal outcome"
+  assert_contains "$CODE" 'wal_attribution_retained_materialized_result_is_idle_at_checkpoint' "job runs retained-result idle control"
+  assert_contains "$CODE" 'tests::wal_attribution_reader_handoff_is_idle_before_materialized_reply' "job selects the exact reader-handoff control"
+  assert_contains "$CODE" 'reader-handoff attribution command selected zero tests' "job rejects a zero-test reader-handoff invocation"
+  assert_contains "$CODE" 'slice65_wal reader_handoff_idle_before_reply=passed' "job requires the reader-handoff artifact marker"
+  assert_absent "$CODE" 'tests::wal_attribution_incident_checkpoint_ladder_retains_typed_erase_observation' "job does not select the perturbing pre-erase raw ladder as primary evidence"
+  assert_contains "$CODE" 'tests::wal_attribution_actual_checkpoint_observation_retains_real_attempt_facts' "job selects the exact direct-Rust actual-checkpoint control"
+  assert_contains "$CODE" 'actual-checkpoint observation selected zero tests' "job rejects a zero-test direct-Rust actual-checkpoint invocation"
+  assert_contains "$CODE" 'slice65_wal actual_checkpoint control=direct_rust phase=before' "job retains direct-Rust pre-attempt facts"
+  assert_contains "$CODE" 'slice65_wal actual_checkpoint control=direct_rust phase=after' "job retains direct-Rust post-attempt facts"
+  assert_contains "$CODE" 'slice65_wal actual_checkpoint control=python_serial phase=before' "job retains installed-Python pre-attempt facts"
+  assert_contains "$CODE" 'slice65_wal actual_checkpoint control=python_serial phase=after' "job retains installed-Python post-attempt facts"
+  assert_contains "$CODE" 'wal_attribution_projection_worker_typed_refusal_then_post_release_sampler_is_recorded' "job runs truthful projection-worker record contract"
+  assert_contains "$CODE" 'tests::wal_attribution_projection_worker_typed_refusal_then_post_release_sampler_is_recorded' "job selects the truthful full projection-worker lib-test path"
+  assert_contains "$CODE" 'projection-worker attribution command selected zero tests' "job rejects a zero-test projection-worker invocation"
+  assert_contains "$CODE" 'projection_worker_original_erase=typed_erasure_incomplete owned_busy_attempts=5' "job requires the original projection-worker typed busy marker"
+  assert_contains "$CODE" 'projection_worker_completion_ack worker_autocommit=1 collector_roles=idle' "job requires post-finish projection-worker acknowledgement"
+  assert_contains "$CODE" 'projection_worker_native_state_inventory=state_inventory=complete reason=complete' "job requires complete projection-worker native-state inventory"
+  assert_contains "$CODE" 'projection_worker_sampler_native_state control=binding_sampler phase=before' "job requires projection-worker sampler before facts"
+  assert_contains "$CODE" 'projection_worker_sampler_native_state control=binding_sampler phase=after' "job requires projection-worker sampler after facts"
+  assert_contains "$CODE" 'projection_worker_sampler_terminal outcome=' "job requires projection-worker sampler terminal outcome"
+  assert_contains "$CODE" 'tests::wal_attribution_post_commit_acknowledges_and_records_raw_checkpoint_diagnostic' "job selects the exact post-commit diagnostic control"
+  assert_contains "$CODE" 'post-commit diagnostic command selected zero tests' "job rejects a zero-test post-commit diagnostic invocation"
+  assert_contains "$CODE" 'slice65_wal post_commit_ack direct_inventory=' "job requires direct post-commit transaction facts"
+  assert_contains "$CODE" 'collector_roles=idle' "job retains collector state separately from direct transaction facts"
+  assert_contains "$CODE" 'slice65_wal post_commit_raw case=pre_close' "job requires redacted pre-close raw checkpoint samples"
+  assert_contains "$CODE" 'slice65_wal post_commit_child_raw case=after_close' "job requires the redacted fresh-child probe outcome"
+  assert_contains "$CODE" 'python_binding_completion_ack reader_autocommit=1 collector=idle' "job requires installed binding direct completion acknowledgement"
+  assert_absent "$CODE" 'python_binding_completion_ack collector=idle' "job does not accept the collector-only binding completion marker"
+  assert_contains "$CODE" "\$artifact -SimpleMatch 'slice65_wal python_binding_completion_ack reader_autocommit=1 collector=idle'" "job requires the binding completion acknowledgement in the retained artifact"
+  assert_absent "$CODE" 'python_binding_snapshot_released' "job does not require the removed binding post-release marker"
+  assert_contains "$CODE" 'python_binding_direct_inventory=' "job requires direct installed binding inventory"
+  assert_contains "$CODE" 'python_binding_direct_inventory=roles=writer:0,readers:0-7,dispatcher:0,workers:0-1;writer=autocommit;readers=8-autocommit;dispatcher=autocommit;workers=2-autocommit;creation=writer:1,readers:8,dispatcher:1,workers:2,probes:0' "installed binding expects no cfg(test)-only runtime probes"
+  assert_contains "$CODE" 'python_binding_held_reader_native_state=' "job requires the held reader native-state positive control"
+  assert_contains "$CODE" 'readers:0(auto=0,txn=read,' "job requires held reader autocommit-off/read-state evidence"
+  assert_contains "$CODE" 'python_binding_native_state_inventory=state_inventory=complete reason=complete' "job requires post-release complete native-state inventory"
+  assert_contains "$CODE" 'workers:1(auto=1,txn=none,busy=0,received=1)' "job requires every managed role to be direct-native idle"
+  assert_contains "$CODE" 'python_binding_native_state control=binding_sampler phase=before' "job requires binding sampler native state before each checkpoint"
+  assert_contains "$CODE" 'python_binding_native_state control=binding_sampler phase=after' "job requires binding sampler native state after each checkpoint"
+  assert_contains "$CODE" 'installed binding sampler did not retain complete before/after native-state facts' "job fails closed on incomplete sampler native state"
+  assert_contains "$CODE" 'python_binding_raw case=before_engine_sampler' "job requires the first installed binding raw sample"
+  assert_contains "$CODE" 'python_binding_engine_sampler' "job requires exactly one installed binding Engine-path sampler"
+  assert_contains "$CODE" 'python_binding_raw case=after_engine_sampler' "job requires the second installed binding raw sample"
+  assert_contains "$CODE" 'python_binding_child_raw case=after_close' "job requires the conditional installed binding child probe outcome"
+  assert_contains "$CODE" 'wal_attribution_close_boundary_raw_checkpoint_is_clean' "job runs direct close-boundary control"
+  assert_contains "$CODE" 'wal_attribution_close_boundary_fresh_open_is_clean' "job runs fresh-open close-boundary control"
+  assert_contains "$CODE" 'wal_attribution_close_boundary_read_get_is_clean' "job runs read-get close-boundary control"
+  assert_contains "$CODE" 'wal_attribution_close_boundary_neighbors_is_clean' "job runs neighbors close-boundary control"
+  assert_contains "$CODE" 'close-boundary direct checkpoint control selected zero tests' "job rejects zero selected direct close-boundary tests"
+  assert_contains "$CODE" 'close-boundary fresh-open control selected zero tests' "job rejects zero selected fresh-open close-boundary tests"
+  assert_contains "$CODE" 'close-boundary read-get control selected zero tests' "job rejects zero selected read-get close-boundary tests"
+  assert_contains "$CODE" 'close-boundary neighbors control selected zero tests' "job rejects zero selected neighbors close-boundary tests"
+  assert_contains "$CODE" 'test_slice65_wal_attribution_installed.py' "job runs installed-wheel controls"
+  assert_contains "$CODE" '--control retained' "job runs installed retained-result control"
+  assert_contains "$CODE" 'current_head=$(git rev-parse HEAD)' "job records current source identity"
+  assert_contains "$CODE" 'args: --release --out ${{ github.workspace }}/dist-slice65-test -i python3.11 --features pyo3/extension-module,test-hooks' "job builds the disposable wheel at an explicit workspace-absolute path"
+  assert_contains "$CODE" '$currentWheelDir = Join-Path $env:GITHUB_WORKSPACE "dist-slice65-test"' "job derives the current wheel directory from the workspace"
+  assert_contains "$CODE" 'Test-Path -LiteralPath $currentWheelDir -PathType Container' "job fails closed when the current wheel directory is missing"
+  assert_contains "$CODE" '$currentWheelCandidates = @(Get-ChildItem -LiteralPath $currentWheelDir -Filter "*.whl" -File)' "job discovers the disposable current wheel only beneath the resolved workspace directory"
+  assert_contains "$CODE" 'expected exactly one disposable current test-hooks wheel' "job rejects an ambiguous disposable current wheel output"
+  assert_contains "$CODE" 'current_wheel_path=' "job records the resolved current wheel path"
+  assert_contains "$CODE" 'current_wheel_sha256=' "job records current wheel digest"
+  assert_contains "$CODE" '& "$currentEnv\Scripts\python.exe" -m pip install --no-index --no-deps $currentWheel' "job installs exactly the resolved current wheel"
+  assert_absent "$CODE" 'src/python/dist-slice65-test' "job does not look for the disposable wheel beneath the Python source directory"
+  assert_absent "$CODE" 'Get-ChildItem -Path "dist-slice65-test"' "job has no naked relative current-wheel lookup"
+  assert_absent "$CODE" '-Recurse' "job does not recursively discover a current wheel"
+  assert_contains "$CODE" 'released_native_sha256=' "job records released native input identity"
+  assert_contains "$CODE" 'test-hooks' "job builds a non-shipping test-hooks wheel"
+  assert_contains "$CODE" 'fathomdb==0.8.22' "job installs the released 0.8.22 comparison wheel"
+  assert_contains "$CODE" 'serial_wheel_selector=released-0.8.22' "job retains released-wheel selector"
+  assert_contains "$CODE" 'serial_wheel_selector=current-source-test-hooks' "job retains current-wheel selector"
+  assert_contains "$CODE" 'src/python/pyproject.toml' "job derives the disposable current-wheel version from candidate source"
+  assert_contains "$CODE" '$currentWheelVersion' "job binds every current-wheel control to the candidate version"
+  current_wheel_version_controls="$(grep -Fc -- '--wheel-version $currentWheelVersion' <<<"$CODE" || true)"
+  if [ "$current_wheel_version_controls" -eq 3 ]; then
+    pass "job checks all three current-wheel controls against the candidate version"
+  else
+    fail "job has $current_wheel_version_controls current-wheel version controls; expected 3"
+  fi
+  released_wheel_version_controls="$(grep -Fc -- '--wheel-version 0.8.22' <<<"$CODE" || true)"
+  if [ "$released_wheel_version_controls" -eq 1 ]; then
+    pass "job keeps the released baseline version separate from the candidate version"
+  else
+    fail "job has $released_wheel_version_controls released-wheel version controls; expected 1"
+  fi
+  assert_contains "$CODE" '--observe-baseline-first-erase' "job explicitly observes exactly the released serial first erase"
+  assert_contains "$CODE" '$releasedSerialExit' "job retains the released serial process outcome"
+  assert_contains "$CODE" 'BASELINE_FIRST_ERASE outcome=typed_erasure_incomplete' "job parses the typed first-erase baseline observation"
+  assert_contains "$CODE" 'BASELINE_FIRST_ERASE outcome=clean_completion' "job parses the clean first-erase baseline observation"
+  assert_contains "$CODE" 'OBSERVED_EXPECTED_ERASURE_INCOMPLETE' "job emits the typed released failure observation"
+  assert_contains "$CODE" 'OBSERVED_CLEAN_SERIAL_COMPLETION' "job emits the clean released completion observation"
+  assert_contains "$CODE" '$releasedSerialExit -eq 65' "job accepts only the typed baseline observation exit"
+  assert_contains "$CODE" '$releasedSerialExit -eq 66' "job accepts only the clean baseline observation exit"
+  assert_contains "$CODE" 'released serial baseline did not produce an accepted first-erase observation' "job rejects every other released baseline process outcome"
+  assert_contains "$CODE" 'serial_current_attribution_expected=1' "job validates current serial attribution marker"
+  assert_contains "$CODE" 'serial_idle_after_read_get=passed' "job retains immediate serial read.get idle marker"
+  assert_contains "$CODE" 'serial_idle_after_neighbors=passed' "job retains immediate serial neighbors idle marker"
+  assert_contains "$CODE" 'erasure_busy_cross_process_windows_yields_typed_diagnostic' "job retains external-reader comparison"
+  assert_contains "$CODE" 'external-reader attribution command selected zero tests' "job rejects a zero-test external-reader invocation"
+  assert_contains "$CODE" 'running 1 test' "job rejects a zero-test managed-reader invocation"
+  assert_contains "$CODE" 'Select-String -Path $managedReaderLog -SimpleMatch "running 1 test" -Quiet' "job checks managed-reader output for an executed test"
+  assert_contains "$CODE" '--nocapture' "job retains diagnostic lifecycle markers"
+  assert_contains "$CODE" 'slice65-windows-wal-attribution.log' "job writes Slice 65 artifact"
+  assert_contains "$CODE" 'slice65-windows-wal-attribution-${{ github.run_id }}-${{ github.run_attempt }}' "artifact name is unique"
+  assert_contains "$CODE" 'if: always()' "artifact uploads after a failure"
+  assert_contains "$CODE" 'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a' "artifact uploader is pinned"
+  assert_before_in_text \
+    "$CODE" \
+    '--control serial' \
+    '--control binding' \
+    "installed serial control runs before the binding diagnostic"
+  assert_before_in_text \
+    "$CODE" \
+    '--control binding' \
+    '--control retained' \
+    "installed binding diagnostic runs before retained-result control"
+  assert_before_in_text \
+    "$CODE" \
+    'post-commit diagnostic command selected zero tests' \
+    'serial_wheel_selector=current-source-test-hooks' \
+    "current instrumented serial control runs after post-commit diagnostic artifact"
+}
 
-for marker in \
-  'slice65_wal managed_reader_snapshot_ready' \
-  'pause_reader_after_wal_snapshot_for_test' \
-  'wal_attribution_checkpoints_for_test' \
-  'managed_reader_original_erase=typed_erasure_incomplete owned_busy_attempts=' \
-  'managed_reader_completion_ack reader_autocommit=1 collector_roles=idle' \
-  'managed_reader_native_state_inventory=' \
-  'managed_reader_sampler_native_state' \
-  'managed_reader_sampler_terminal outcome=' \
-  'active_roles == vec![(WalAttributionRole::ReaderWorker, 0)]' \
-  'SELECT COUNT(*) FROM canonical_nodes' \
-  'owned_reader_snapshot' \
-  'owned_runtime_transaction' \
-  'reader_handoff_idle_before_reply=passed' \
-  'fn wal_attribution_incident_checkpoint_ladder_retains_typed_erase_observation' \
-  '"old_close"' \
-  'incident_ladder stage=after_fresh_reads' \
-  'incident_ladder runtime_probe_drop_ack' \
-  'incident_ladder typed_erase_observation=wal_checkpoint' \
-  'incident_ladder erase_observation=' \
-  'RuntimeProbeRegistration' \
-  'runtime_probe_actual_drop' \
-  'retained_materialized_idle=passed' \
-  'projection_worker_transaction_ready' \
-  'fn wal_attribution_projection_worker_typed_refusal_then_post_release_sampler_is_recorded' \
-  'projection_worker_original_erase=typed_erasure_incomplete owned_busy_attempts=' \
-  'projection_worker_completion_ack worker_autocommit=1 collector_roles=idle' \
-  'projection_worker_native_state_inventory=' \
-  'projection_worker_sampler_native_state' \
-  'projection_worker_sampler_terminal outcome=' \
-  'fn wal_attribution_post_commit_acknowledges_and_records_raw_checkpoint_diagnostic' \
-  'post_commit_ack_for_test' \
-  'post_commit_raw case={case}' \
-  'post_commit_child_raw case=after_close' \
-  'WalConnectionInventory' \
-  'RuntimeConnectionInventoryRequest' \
-  'report_runtime_connection_inventory_for_test' \
-  'ManagedConnectionRegistry' \
-  'post_commit_inventory=incomplete' \
-  'fn wal_attribution_close_boundary_raw_checkpoint_is_clean' \
-  'fn wal_attribution_close_boundary_fresh_open_is_clean' \
-  'fn wal_attribution_close_boundary_read_get_is_clean' \
-  'fn wal_attribution_close_boundary_neighbors_is_clean' \
-  'unclassified_external'; do
-  assert_contains "$(<"$SOURCE_TEST") $(<"$ENGINE_SOURCE") $(<"$WAL_RUNTIME_SOURCE") $(<"$READER_POOL_SOURCE") $(<"$PROJECTION_WORKER_SOURCE")" "$marker" "source retains $marker"
-done
-assert_contains "$(<"$PY_ENGINE_SOURCE")" \
-  '_arm_next_reader_snapshot_pause_for_test' \
-  'wal_attribution_checkpoint_records_for_test' \
-  "installed binding exposes the rendezvous only in its test-hooks build"
-assert_contains "$(<"$PY_ENGINE_SOURCE")" \
-  '_arm_next_reader_completion_pause_for_test' \
-  '_wal_attribution_binding_inventory_for_test' \
-  "installed binding exposes completion and direct-inventory hooks only in its test-hooks build"
-assert_contains "$(<"$PY_ENGINE_SOURCE")" \
-  '_arm_binding_native_state_observation_for_test' \
-  '_drain_binding_native_state_observations_for_test' \
-  "installed binding exposes the private binding native-state observer only in its test-hooks build"
-assert_contains "$(<"$PY_ENGINE_SOURCE")" \
-  '_wal_attribution_binding_native_state_inventory_for_test' \
-  "installed binding exposes complete native-state inventory"
-assert_contains "$(<"$PY_TEST_SUPPORT_SOURCE")" \
-  'fn reader_native_state_for_test(&self)' \
-  "installed binding exposes held-reader positive evidence"
-assert_contains "$(<"$PY_TEST_SUPPORT_SOURCE")" \
-  '_native_raw_wal_checkpoint_for_test' \
-  "native raw-checkpoint hook implementation remains gated"
-assert_contains "$(<"$PY_SOURCE")" \
-  'wrap_pyfunction!(native_raw_wal_checkpoint_for_test, &m)' \
-  "installed binding exposes the native child raw-checkpoint hook only in its test-hooks build"
-assert_contains "$(<"$PY_ENGINE_SOURCE")" \
-  '_arm_actual_checkpoint_observation_for_test' \
-  '_drain_actual_checkpoint_observations_for_test' \
-  "installed serial exposes actual-checkpoint observation only in its test-hooks build"
-assert_contains "$(<"$REPO_ROOT/src/rust/crates/fathomdb-engine/Cargo.toml")" \
-  'test-hooks = []' \
-  "engine reader rendezvous is a non-default test feature"
-assert_contains "$(<"$WAL_RUNTIME_SOURCE")" \
-  '#[cfg(any(test, feature = "test-hooks"))]' \
-  'pub fn pause_reader_after_wal_snapshot_for_test' \
-  "managed-reader hook is unavailable from shipped production builds"
-if managed_reader_gate_out="$(python3 - "$SCRIPT_DIR" "$WAL_RUNTIME_SOURCE" <<'PY_GATE'
+check_sources() {
+  local body_source
+  for body_source in "$ENGINE_SOURCE" "$WAL_RUNTIME_SOURCE" "$ERASURE_SOURCE" "$RUNTIME_SOURCE"; do
+    prepare_bodies "$body_source" rust || return
+  done
+  prepare_bodies "$PY_CONTROL" python || return
+  local CONNECTION_SOURCE_TEXT; CONNECTION_SOURCE_TEXT="$(<"$CONNECTION_SOURCE")"
+  local ENGINE_SOURCE_TEXT; ENGINE_SOURCE_TEXT="$(<"$ENGINE_SOURCE")"
+  local ERASURE_SOURCE_TEXT; ERASURE_SOURCE_TEXT="$(<"$ERASURE_SOURCE")"
+  local PROJECTION_WORKER_SOURCE_TEXT; PROJECTION_WORKER_SOURCE_TEXT="$(<"$PROJECTION_WORKER_SOURCE")"
+  local PY_CONTROL_TEXT; PY_CONTROL_TEXT="$(<"$PY_CONTROL")"
+  local PY_ENGINE_SOURCE_TEXT; PY_ENGINE_SOURCE_TEXT="$(<"$PY_ENGINE_SOURCE")"
+  local PY_SOURCE_TEXT; PY_SOURCE_TEXT="$(<"$PY_SOURCE")"
+  local PY_TEST_SUPPORT_SOURCE_TEXT; PY_TEST_SUPPORT_SOURCE_TEXT="$(<"$PY_TEST_SUPPORT_SOURCE")"
+  local READER_POOL_SOURCE_TEXT; READER_POOL_SOURCE_TEXT="$(<"$READER_POOL_SOURCE")"
+  local SOURCE_TEST_TEXT; SOURCE_TEST_TEXT="$(<"$SOURCE_TEST")"
+  local WAL_ATTRIBUTION_SOURCE_TEXT; WAL_ATTRIBUTION_SOURCE_TEXT="$(<"$WAL_ATTRIBUTION_SOURCE")"
+  local WAL_RUNTIME_SOURCE_TEXT; WAL_RUNTIME_SOURCE_TEXT="$(<"$WAL_RUNTIME_SOURCE")"
+  for marker in \
+    'slice65_wal managed_reader_snapshot_ready' \
+    'pause_reader_after_wal_snapshot_for_test' \
+    'wal_attribution_checkpoints_for_test' \
+    'managed_reader_original_erase=typed_erasure_incomplete owned_busy_attempts=' \
+    'managed_reader_completion_ack reader_autocommit=1 collector_roles=idle' \
+    'managed_reader_native_state_inventory=' \
+    'managed_reader_sampler_native_state' \
+    'managed_reader_sampler_terminal outcome=' \
+    'active_roles == vec![(WalAttributionRole::ReaderWorker, 0)]' \
+    'SELECT COUNT(*) FROM canonical_nodes' \
+    'owned_reader_snapshot' \
+    'owned_runtime_transaction' \
+    'reader_handoff_idle_before_reply=passed' \
+    'fn wal_attribution_incident_checkpoint_ladder_retains_typed_erase_observation' \
+    '"old_close"' \
+    'incident_ladder stage=after_fresh_reads' \
+    'incident_ladder runtime_probe_drop_ack' \
+    'incident_ladder typed_erase_observation=wal_checkpoint' \
+    'incident_ladder erase_observation=' \
+    'RuntimeProbeRegistration' \
+    'runtime_probe_actual_drop' \
+    'retained_materialized_idle=passed' \
+    'projection_worker_transaction_ready' \
+    'fn wal_attribution_projection_worker_typed_refusal_then_post_release_sampler_is_recorded' \
+    'projection_worker_original_erase=typed_erasure_incomplete owned_busy_attempts=' \
+    'projection_worker_completion_ack worker_autocommit=1 collector_roles=idle' \
+    'projection_worker_native_state_inventory=' \
+    'projection_worker_sampler_native_state' \
+    'projection_worker_sampler_terminal outcome=' \
+    'fn wal_attribution_post_commit_acknowledges_and_records_raw_checkpoint_diagnostic' \
+    'post_commit_ack_for_test' \
+    'post_commit_raw case={case}' \
+    'post_commit_child_raw case=after_close' \
+    'WalConnectionInventory' \
+    'RuntimeConnectionInventoryRequest' \
+    'report_runtime_connection_inventory_for_test' \
+    'ManagedConnectionRegistry' \
+    'post_commit_inventory=incomplete' \
+    'fn wal_attribution_close_boundary_raw_checkpoint_is_clean' \
+    'fn wal_attribution_close_boundary_fresh_open_is_clean' \
+    'fn wal_attribution_close_boundary_read_get_is_clean' \
+    'fn wal_attribution_close_boundary_neighbors_is_clean' \
+    'unclassified_external'; do
+    assert_contains "${SOURCE_TEST_TEXT} ${ENGINE_SOURCE_TEXT} ${WAL_RUNTIME_SOURCE_TEXT} ${READER_POOL_SOURCE_TEXT} ${PROJECTION_WORKER_SOURCE_TEXT}" "$marker" "source retains $marker"
+  done
+  assert_contains "${PY_ENGINE_SOURCE_TEXT}" \
+    '_arm_next_reader_snapshot_pause_for_test' \
+    'wal_attribution_checkpoint_records_for_test' \
+    "installed binding exposes the rendezvous only in its test-hooks build"
+  assert_contains "${PY_ENGINE_SOURCE_TEXT}" \
+    '_arm_next_reader_completion_pause_for_test' \
+    '_wal_attribution_binding_inventory_for_test' \
+    "installed binding exposes completion and direct-inventory hooks only in its test-hooks build"
+  assert_contains "${PY_ENGINE_SOURCE_TEXT}" \
+    '_arm_binding_native_state_observation_for_test' \
+    '_drain_binding_native_state_observations_for_test' \
+    "installed binding exposes the private binding native-state observer only in its test-hooks build"
+  assert_contains "${PY_ENGINE_SOURCE_TEXT}" \
+    '_wal_attribution_binding_native_state_inventory_for_test' \
+    "installed binding exposes complete native-state inventory"
+  assert_contains "${PY_TEST_SUPPORT_SOURCE_TEXT}" \
+    'fn reader_native_state_for_test(&self)' \
+    "installed binding exposes held-reader positive evidence"
+  assert_contains "${PY_TEST_SUPPORT_SOURCE_TEXT}" \
+    '_native_raw_wal_checkpoint_for_test' \
+    "native raw-checkpoint hook implementation remains gated"
+  assert_contains "${PY_SOURCE_TEXT}" \
+    'wrap_pyfunction!(native_raw_wal_checkpoint_for_test, &m)' \
+    "installed binding exposes the native child raw-checkpoint hook only in its test-hooks build"
+  assert_contains "${PY_ENGINE_SOURCE_TEXT}" \
+    '_arm_actual_checkpoint_observation_for_test' \
+    '_drain_actual_checkpoint_observations_for_test' \
+    "installed serial exposes actual-checkpoint observation only in its test-hooks build"
+  assert_contains "$(<"$REPO_ROOT/src/rust/crates/fathomdb-engine/Cargo.toml")" \
+    'test-hooks = []' \
+    "engine reader rendezvous is a non-default test feature"
+  assert_contains "${WAL_RUNTIME_SOURCE_TEXT}" \
+    '#[cfg(any(test, feature = "test-hooks"))]' \
+    'pub fn pause_reader_after_wal_snapshot_for_test' \
+    "managed-reader hook is unavailable from shipped production builds"
+  if managed_reader_gate_out="$(python3 - "$SCRIPT_DIR" "$WAL_RUNTIME_SOURCE" <<'PY_GATE'
 from pathlib import Path
 import re
 import sys
@@ -350,76 +406,397 @@ assert match is not None, "managed-reader hook missing"
 gates = [a for a in outer_attributes(source, match.start() + 4) if a.startswith("#[cfg")]
 assert gates == ['#[cfg(any(test,feature="test-hooks"))]'], gates
 PY_GATE
-)"; then
-  pass "managed-reader hook cfg requires unit tests or explicit test-hooks"
-else
-  fail "managed-reader hook cfg requires unit tests or explicit test-hooks ($managed_reader_gate_out)"
-fi
-assert_contains "$(<"$READER_POOL_SOURCE")" \
-  'wal_attribution.fire_reader_completion_pause(connection.is_autocommit())' \
-  "reader pool retains the private completion-pause seam"
-assert_contains "$(<"$WAL_RUNTIME_SOURCE")" \
-  'binding_connection_inventory_for_test' \
-  'checkpoint_at_rest_for_test' \
-  "engine retains private inventory and checkpoint sampler seams"
-assert_contains "$(<"$WAL_RUNTIME_SOURCE")" \
-  'pub(crate) struct RuntimeConnectionInventoryRequest' \
-  'pub(crate) struct RuntimeNativeStateRequest' \
-  "WAL runtime owns both distinct inventory request carriers"
-assert_absent "$(<"$ENGINE_SOURCE")" \
-  'struct RuntimeConnectionInventoryRequest' \
-  "root no longer defines the WAL runtime inventory carrier"
-assert_contains "$(<"$PROJECTION_WORKER_SOURCE")" \
-  'fn report_runtime_connection_inventory_for_test(' \
-  'fn report_runtime_native_state_inventory_for_test(' \
-  "projection worker owns both connection-thread inventory reply arms"
-assert_absent "$(<"$ENGINE_SOURCE")" \
-  'fn report_runtime_connection_inventory_for_test(' \
-  "root no longer defines the projection connection inventory reply arm"
-assert_absent "$(<"$ENGINE_SOURCE")" \
-  'fn report_runtime_native_state_inventory_for_test(' \
-  "root no longer defines the projection native-state inventory reply arm"
-assert_contains "$(<"$WAL_ATTRIBUTION_SOURCE")" \
-  'NativeTransactionState' \
-  'native_connection_state_for_test' \
-  "WAL owner retains private native SQLite transaction and statement-state observation"
-assert_contains "$(<"$ENGINE_SOURCE")" \
-  'binding_native_state_observations' \
-  "engine retains the private binding observer field"
-assert_contains "$(<"$WAL_ATTRIBUTION_SOURCE")" \
-  'connection.transaction_state(Some("main"))' \
-  'connection.is_busy()' \
-  "WAL owner uses rusqlite state APIs on owning connections without custom SQLite FFI"
-assert_contains "$(<"$READER_POOL_SOURCE")" \
-  'WalNativeStateInventory' \
-  "reader pool retains the native-state reader request"
-assert_contains "$(<"$ENGINE_SOURCE")" \
-  '#[cfg(any(test, feature = "test-hooks"))]' \
-  'actual_checkpoint_observations: Mutex<Option<ActualCheckpointObserver>>' \
-  "actual checkpoint observation is test/test-hooks-only"
-assert_contains "$(<"$WAL_RUNTIME_SOURCE")" \
-  'native_raw_wal_checkpoint_for_test' \
-  'open_managed_connection' \
-  "engine retains the native fresh-child raw-checkpoint seam behind the audited opener"
-assert_contains "$(<"$ENGINE_SOURCE")" \
-  'fresh_writer_connection_open=' \
-  "source records the live fresh writer connection fact"
-if managed_owner_out="$(python3 "$SCRIPT_DIR/slice65_managed_connection_owners.py" \
-  "$REPO_ROOT/src/rust/crates/fathomdb-engine/src" \
-  --override "lib.rs=$ENGINE_SOURCE" \
-  --override "slice20_fix1_tests.rs=$SLICE20_FIX1_SOURCE" \
-  --override "wal_runtime.rs=$WAL_RUNTIME_SOURCE" \
-  --override "connection_runtime.rs=$CONNECTION_SOURCE" \
-  --override "open.rs=$OPEN_SOURCE" \
-  --override "projection_worker.rs=$PROJECTION_WORKER_SOURCE" \
-  --override "projection_commit.rs=$PROJECTION_COMMIT_SOURCE" \
-  --override "read_api.rs=$READ_API_SOURCE" \
-  --override "reader_pool.rs=$READER_POOL_SOURCE")"; then
-  pass "source classifies every Engine-managed SQLite open"
-else
-  fail "source classifies every Engine-managed SQLite open ($managed_owner_out)"
-fi
-if unit_production_mask_out="$(python3 - "$SCRIPT_DIR" <<'PY_UNIT_MASK'
+  )"; then
+    pass "managed-reader hook cfg requires unit tests or explicit test-hooks"
+  else
+    fail "managed-reader hook cfg requires unit tests or explicit test-hooks ($managed_reader_gate_out)"
+  fi
+  assert_contains "${READER_POOL_SOURCE_TEXT}" \
+    'wal_attribution.fire_reader_completion_pause(connection.is_autocommit())' \
+    "reader pool retains the private completion-pause seam"
+  assert_contains "${WAL_RUNTIME_SOURCE_TEXT}" \
+    'binding_connection_inventory_for_test' \
+    'checkpoint_at_rest_for_test' \
+    "engine retains private inventory and checkpoint sampler seams"
+  assert_contains "${WAL_RUNTIME_SOURCE_TEXT}" \
+    'pub(crate) struct RuntimeConnectionInventoryRequest' \
+    'pub(crate) struct RuntimeNativeStateRequest' \
+    "WAL runtime owns both distinct inventory request carriers"
+  assert_absent "${ENGINE_SOURCE_TEXT}" \
+    'struct RuntimeConnectionInventoryRequest' \
+    "root no longer defines the WAL runtime inventory carrier"
+  assert_contains "${PROJECTION_WORKER_SOURCE_TEXT}" \
+    'fn report_runtime_connection_inventory_for_test(' \
+    'fn report_runtime_native_state_inventory_for_test(' \
+    "projection worker owns both connection-thread inventory reply arms"
+  assert_absent "${ENGINE_SOURCE_TEXT}" \
+    'fn report_runtime_connection_inventory_for_test(' \
+    "root no longer defines the projection connection inventory reply arm"
+  assert_absent "${ENGINE_SOURCE_TEXT}" \
+    'fn report_runtime_native_state_inventory_for_test(' \
+    "root no longer defines the projection native-state inventory reply arm"
+  assert_contains "${WAL_ATTRIBUTION_SOURCE_TEXT}" \
+    'NativeTransactionState' \
+    'native_connection_state_for_test' \
+    "WAL owner retains private native SQLite transaction and statement-state observation"
+  assert_contains "${ENGINE_SOURCE_TEXT}" \
+    'binding_native_state_observations' \
+    "engine retains the private binding observer field"
+  assert_contains "${WAL_ATTRIBUTION_SOURCE_TEXT}" \
+    'connection.transaction_state(Some("main"))' \
+    'connection.is_busy()' \
+    "WAL owner uses rusqlite state APIs on owning connections without custom SQLite FFI"
+  assert_contains "${READER_POOL_SOURCE_TEXT}" \
+    'WalNativeStateInventory' \
+    "reader pool retains the native-state reader request"
+  assert_contains "${ENGINE_SOURCE_TEXT}" \
+    '#[cfg(any(test, feature = "test-hooks"))]' \
+    'actual_checkpoint_observations: Mutex<Option<ActualCheckpointObserver>>' \
+    "actual checkpoint observation is test/test-hooks-only"
+  assert_contains "${WAL_RUNTIME_SOURCE_TEXT}" \
+    'native_raw_wal_checkpoint_for_test' \
+    'open_managed_connection' \
+    "engine retains the native fresh-child raw-checkpoint seam behind the audited opener"
+  assert_contains "${ENGINE_SOURCE_TEXT}" \
+    'fresh_writer_connection_open=' \
+    "source records the live fresh writer connection fact"
+  assert_contains "${ENGINE_SOURCE_TEXT}" \
+    'fn wal_attribution_owned_reader_typed_refusal_then_post_release_sampler_is_recorded' \
+    "engine source retains the WAL-attribution tests"
+  assert_contains "${WAL_ATTRIBUTION_SOURCE_TEXT}" \
+    'struct WalAttributionCollector' \
+    'enum WalAttributionRole' \
+    "WAL attribution module owns the runtime"
+  assert_contains "${ERASURE_SOURCE_TEXT}" \
+    'pub(crate) fn complete_erasure_at_rest(' \
+    "erasure source owns complete_erasure_at_rest"
+  for marker in \
+    'runtime_probe_lifecycle: Mutex<RuntimeProbeLifecycle>' \
+    'struct RuntimeProbeLifecycle' \
+    'struct RuntimeProbeRegistration' \
+    'struct RuntimeProbeConnection' \
+    'fn register_runtime_probe' \
+    'impl RuntimeProbeRegistration' \
+    'impl Drop for RuntimeProbeRegistration' \
+    'impl RuntimeProbeConnection'; do
+    assert_cfg_test_near_marker \
+      "$WAL_RUNTIME_SOURCE" \
+      "$marker" \
+      "runtime-probe ladder bookkeeping is cfg(test)-only: $marker"
+  done
+  assert_contains "${CONNECTION_SOURCE_TEXT}" \
+    'fn open_managed_connection' \
+    "connection owner centralizes Engine-managed SQLite opens through the audited factory"
+  assert_absent "${ENGINE_SOURCE_TEXT}" \
+    'fn open_managed_connection' \
+    "root no longer defines the audited connection factory"
+  PRODUCTION_ENGINE_SOURCE="$(sed '/^mod tests {$/,$d' "$ENGINE_SOURCE")"
+  PRODUCTION_CONNECTION_SOURCE="$(sed '/^mod tests {$/,$d' "$CONNECTION_SOURCE")"
+  PRODUCTION_WAL_RUNTIME_SOURCE="$(sed '/^mod tests {$/,$d' "$WAL_RUNTIME_SOURCE")"
+  FACTORY_DIRECT_OPENS="$(grep -Fc 'Connection::open(' <<<"$PRODUCTION_ENGINE_SOURCE" || true)"
+  FACTORY_DIRECT_OPENS=$((FACTORY_DIRECT_OPENS + $(grep -Fc 'Connection::open(' <<<"$PRODUCTION_CONNECTION_SOURCE" || true)))
+  FACTORY_DIRECT_OPENS=$((FACTORY_DIRECT_OPENS + $(grep -Fc 'Connection::open(' <<<"$PRODUCTION_WAL_RUNTIME_SOURCE" || true)))
+  if [ "$FACTORY_DIRECT_OPENS" -eq 1 ]; then
+    pass "only the audited factory directly opens Engine SQLite connections"
+  else
+    fail "Engine, WAL runtime, and connection production sources have $FACTORY_DIRECT_OPENS direct SQLite opens; expected the one audited factory"
+  fi
+  assert_contains "${PY_CONTROL_TEXT}" \
+    '--observe-baseline-first-erase' \
+    "installed serial control has an explicit first-erase baseline observation mode"
+  assert_contains "${PY_CONTROL_TEXT}" \
+    'ErasureIncompleteError' \
+    "installed serial baseline accepts only the typed erasure error"
+  assert_contains "${PY_CONTROL_TEXT}" \
+    'stage != "wal_checkpoint"' \
+    "installed serial baseline rejects a non-WAL erasure stage"
+  assert_contains "${PY_CONTROL_TEXT}" \
+    'frames still in the log' \
+    "installed serial baseline records normalized WAL frame evidence"
+  assert_contains "${PY_CONTROL_TEXT}" \
+    'BASELINE_FIRST_ERASE outcome=clean_completion' \
+    "installed serial baseline records clean first-erase completion separately"
+  assert_absent "${PY_CONTROL_TEXT}" \
+    'import sqlite3' \
+    "installed binding diagnostic never imports Python stdlib sqlite3"
+  assert_absent "${PY_CONTROL_TEXT}" \
+    'sqlite3.connect' \
+    "installed binding diagnostic never opens a stdlib raw checkpoint connection"
+  serial_incident_body="$(python_function_body "$PY_CONTROL" "run_serial_incident")"
+  assert_absent "$serial_incident_body" \
+    'fresh.transition' \
+    "installed serial has no deletion transition after its one original erase"
+  assert_absent "$serial_incident_body" \
+    'fresh.purge' \
+    "installed serial has no purge after its one original erase"
+  assert_before_in_python_function \
+    "$PY_CONTROL" \
+    "run_binding_reader_erase" \
+    'completion_pause.reader_connection_autocommit_for_test()' \
+    'python_binding_completion_ack reader_autocommit=1 collector=idle' \
+    "binding diagnostic verifies actual reader autocommit before completion acknowledgement"
+  assert_before_in_python_function \
+    "$PY_CONTROL" \
+    "run_binding_reader_erase" \
+    'python_binding_completion_ack reader_autocommit=1 collector=idle' \
+    'python_binding_direct_inventory=' \
+    "binding diagnostic emits completion acknowledgement before direct inventory"
+  assert_before_in_python_function \
+    "$PY_CONTROL" \
+    "run_binding_reader_erase" \
+    'python_binding_direct_inventory=' \
+    '_raw_binding_checkpoint(path, "before_engine_sampler")' \
+    "binding diagnostic completes direct inventory before raw samples"
+  assert_before_in_python_function \
+    "$PY_CONTROL" \
+    "run_binding_reader_erase" \
+    '_raw_binding_checkpoint(path, "before_engine_sampler")' \
+    'samples = test_hooks._checkpoint_at_rest_for_test()' \
+    "binding diagnostic places the Engine sampler after raw sample one"
+  assert_before_in_python_function \
+    "$PY_CONTROL" \
+    "run_binding_reader_erase" \
+    'samples = test_hooks._checkpoint_at_rest_for_test()' \
+    '_raw_binding_checkpoint(path, "after_engine_sampler")' \
+    "binding diagnostic places raw sample two after the Engine sampler"
+  binding_erase_calls="$(python_function_body "$PY_CONTROL" "run_binding_reader_erase" | grep -Fc 'engine.erase_source(' || true)"
+  if [ "$binding_erase_calls" -eq 1 ]; then
+    pass "binding diagnostic retains exactly one original erasure"
+  else
+    fail "binding diagnostic must retain exactly one original erasure; found $binding_erase_calls"
+  fi
+  binding_body="$(python_function_body "$PY_CONTROL" "run_binding_reader_erase")"
+  assert_contains "$binding_body" \
+    'all(role_fact in before for role_fact in NATIVE_IDLE_ROLE_FACTS)' \
+    "every sampler before record carries all twelve native role facts"
+  assert_contains "$binding_body" \
+    'all(role_fact in after for role_fact in NATIVE_IDLE_ROLE_FACTS)' \
+    "every sampler after record carries all twelve native role facts"
+  assert_contains "$binding_body" \
+    'if first_raw[0] != 0 or second_raw[0] != 0:' \
+    "binding diagnostic runs the child only after a busy raw sample"
+  assert_before_in_text \
+    "$binding_body" \
+    'engine.close()' \
+    'subprocess.run(' \
+    "binding diagnostic closes and joins its Engine before the conditional child"
+  binding_child_calls="$(grep -Fc 'subprocess.run(' <<<"$binding_body" || true)"
+  if [ "$binding_child_calls" -eq 1 ]; then
+    pass "binding diagnostic retains exactly one conditional fresh child"
+  else
+    fail "binding diagnostic must retain exactly one conditional fresh child; found $binding_child_calls"
+  fi
+  binding_child_body="$(python_function_body "$PY_CONTROL" "run_binding_child")"
+  assert_contains "$binding_child_body" \
+    '_native_raw_checkpoint_test_hook()._native_raw_wal_checkpoint_for_test(path)' \
+    "fresh child calls the native FathomDB/Rusqlite checkpoint hook"
+  actual_checkpoint_body="$(function_body "$ENGINE_SOURCE" "wal_attribution_actual_checkpoint_observation_retains_real_attempt_facts")"
+  assert_contains "$actual_checkpoint_body" \
+    'arm_actual_checkpoint_observation_for_test' \
+    "direct-Rust actual-checkpoint control arms the private observer"
+  assert_contains "$actual_checkpoint_body" \
+    'fresh.engine.erase_source(' \
+    "direct-Rust actual-checkpoint control retains one original erase"
+  assert_before_in_text \
+    "$actual_checkpoint_body" \
+    'arm_actual_checkpoint_observation_for_test' \
+    'fresh.engine.erase_source(' \
+    "direct-Rust observer arms immediately before the original erase"
+  assert_absent "$actual_checkpoint_body" \
+    'incident_ladder_raw_checkpoint' \
+    "direct-Rust actual-checkpoint control has no raw TRUNCATE probe"
+  assert_absent "$actual_checkpoint_body" \
+    'RuntimeProbe' \
+    "direct-Rust actual-checkpoint control has no RuntimeProbe"
+  assert_absent "$actual_checkpoint_body" \
+    'wal_checkpoint_truncate_once' \
+    "direct-Rust actual-checkpoint control has no extra checkpoint call"
+  managed_reader_body="$(function_body "$ENGINE_SOURCE" "wal_attribution_owned_reader_typed_refusal_then_post_release_sampler_is_recorded")"
+  managed_reader_erase_calls="$(grep -Fc 'opened.engine.erase_source(' <<<"$managed_reader_body" || true)"
+  if [ "$managed_reader_erase_calls" -eq 1 ]; then
+    pass "managed-reader diagnostic retains exactly one original erase"
+  else
+    fail "managed-reader diagnostic must retain exactly one original erase; found $managed_reader_erase_calls"
+  fi
+  assert_contains "$managed_reader_body" \
+    'arm_next_reader_completion_pause_for_test' \
+    "managed-reader diagnostic waits for post-finish owner-thread acknowledgement"
+  assert_contains "$managed_reader_body" \
+    'native_state_inventory_for_test' \
+    "managed-reader diagnostic requires complete native-state inventory"
+  assert_contains "$managed_reader_body" \
+    'state_inventory=incomplete' \
+    "managed-reader diagnostic emits incomplete inventory before failure"
+  assert_contains "$managed_reader_body" \
+    'arm_binding_native_state_observation_for_test' \
+    "managed-reader diagnostic arms the bounded sampler observer"
+  assert_contains "$managed_reader_body" \
+    'checkpoint_at_rest_for_test' \
+    "managed-reader diagnostic runs exactly one bounded sampler"
+  assert_absent "$managed_reader_body" \
+    'retry after release' \
+    "managed-reader diagnostic does not retry the original erase"
+  projection_worker_body="$(function_body "$ENGINE_SOURCE" "wal_attribution_projection_worker_typed_refusal_then_post_release_sampler_is_recorded")"
+  projection_worker_erase_calls="$(grep -Fc 'opened.engine.complete_erasure_at_rest(' <<<"$projection_worker_body" || true)"
+  if [ "$projection_worker_erase_calls" -eq 1 ]; then
+    pass "projection-worker diagnostic retains exactly one original erase"
+  else
+    fail "projection-worker diagnostic must retain exactly one original erase; found $projection_worker_erase_calls"
+  fi
+  assert_contains "$projection_worker_body" \
+    'report_runtime_connection_inventory_for_test' \
+    "projection-worker diagnostic waits for post-finish owner-thread acknowledgement"
+  assert_contains "$projection_worker_body" \
+    'native_state_inventory_for_test' \
+    "projection-worker diagnostic requires complete native-state inventory"
+  assert_contains "$projection_worker_body" \
+    'state_inventory=incomplete' \
+    "projection-worker diagnostic emits incomplete inventory before failure"
+  assert_contains "$projection_worker_body" \
+    'arm_binding_native_state_observation_for_test' \
+    "projection-worker diagnostic arms the bounded sampler observer"
+  assert_contains "$projection_worker_body" \
+    'checkpoint_at_rest_for_test' \
+    "projection-worker diagnostic runs exactly one bounded sampler"
+  assert_absent "$projection_worker_body" \
+    'retry after release' \
+    "projection-worker diagnostic does not retry the original erase"
+  actual_checkpoint_engine_body="$(function_body "$ERASURE_SOURCE" "checkpoint_erasure_at_rest")"
+  assert_before_in_text \
+    "$actual_checkpoint_engine_body" \
+    'self.actual_checkpoint_observation_for_test(' \
+    'let checkpoint_result = self.wal_checkpoint_truncate_once(false);' \
+    "erasure source keeps the before observer ahead of the checkpoint"
+  assert_before_in_text \
+    "$actual_checkpoint_engine_body" \
+    'let checkpoint_result = self.wal_checkpoint_truncate_once(false);' \
+    'checkpoint_result.as_ref().ok().cloned()' \
+    "erasure source keeps the checkpoint ahead of the after observer result"
+  actual_checkpoint_observer_body="$(function_body "$WAL_RUNTIME_SOURCE" "actual_checkpoint_observation_for_test")"
+  assert_contains "$actual_checkpoint_observer_body" \
+    '"python_serial" => 0' \
+    "feature-built Python observer expects no cfg(test)-only runtime probes"
+  normal_runtime_inventory_body="$(function_body "$RUNTIME_SOURCE" "report_runtime_connection_inventory_for_test")"
+  assert_contains "${WAL_RUNTIME_SOURCE_TEXT}" \
+    'respond: SyncSender<(WalAttributionRole, usize, bool)>' \
+    "normal actual/post-commit runtime inventory retains boolean replies"
+  assert_contains "$normal_runtime_inventory_body" \
+    'Duration::from_secs(2)' \
+    "normal actual/post-commit runtime inventory retains its two-second timeout"
+  assert_absent "$normal_runtime_inventory_body" \
+    'native_connection_state_for_test' \
+    "normal actual/post-commit runtime inventory cannot sample native state"
+  assert_absent "$normal_runtime_inventory_body" \
+    'NativeConnectionStateFact' \
+    "normal actual/post-commit runtime inventory cannot return native state facts"
+  native_runtime_inventory_body="$(function_body "$RUNTIME_SOURCE" "report_runtime_native_state_inventory_for_test")"
+  assert_contains "$native_runtime_inventory_body" \
+    'Duration::from_millis(250)' \
+    "binding native-state runtime inventory has its own finite timeout"
+  assert_contains "$native_runtime_inventory_body" \
+    'NativeConnectionStateFact' \
+    "binding native-state runtime inventory has a separate fact reply"
+  native_state_inventory_body="$(function_body "$WAL_RUNTIME_SOURCE" "native_state_inventory_for_test")"
+  assert_contains "$native_state_inventory_body" \
+    'report_runtime_native_state_inventory_for_test' \
+    "binding native-state inventory alone requests runtime native facts"
+  actual_direct_inventory_body="$(function_body "$WAL_RUNTIME_SOURCE" "actual_checkpoint_direct_inventory_for_test")"
+  assert_contains "$actual_direct_inventory_body" \
+    'report_runtime_connection_inventory_for_test' \
+    "normal actual observer retains its boolean runtime inventory request"
+  assert_absent "$actual_direct_inventory_body" \
+    'report_runtime_native_state_inventory_for_test' \
+    "normal actual observer cannot request runtime native facts"
+  serial_incident_body="$(python_function_body "$PY_CONTROL" "run_serial_incident")"
+  assert_contains "$serial_incident_body" \
+    'creation=writer:1,readers:8,dispatcher:1,workers:2,probes:0;complete=1' \
+    "installed Python serial expects no cfg(test)-only runtime probes"
+  binding_inventory_body="$(function_body "$WAL_RUNTIME_SOURCE" "binding_connection_inventory_for_test")"
+  assert_contains "$binding_inventory_body" \
+    'creation != (1, READER_POOL_SIZE, 1, worker_count, 0)' \
+    "installed binding inventory rejects cfg(test)-only runtime probes"
+  assert_contains "$serial_incident_body" \
+    'test_hooks._arm_actual_checkpoint_observation_for_test()' \
+    "installed Python serial arms the private observer immediately before erase"
+  assert_contains "$serial_incident_body" \
+    'test_hooks._drain_actual_checkpoint_observations_for_test()' \
+    "installed Python serial drains real-attempt records after erase"
+  assert_before_in_text \
+    "$serial_incident_body" \
+    'test_hooks._arm_actual_checkpoint_observation_for_test()' \
+    'nested = fresh.erase_source(' \
+    "installed Python observer arms immediately before its original erase"
+  assert_absent "$serial_incident_body" \
+    '_native_raw_wal_checkpoint_for_test' \
+    "installed Python serial has no raw TRUNCATE probe"
+  assert_absent "$serial_incident_body" \
+    '_checkpoint_at_rest_for_test' \
+    "installed Python serial has no extra Engine checkpoint sampler"
+  assert_absent "$serial_incident_body" \
+    '_arm_binding_native_state_observation_for_test' \
+    "installed Python serial never arms the binding-only native-state observer"
+  assert_absent "$actual_checkpoint_engine_body" \
+    'binding_native_state_observation_for_test' \
+    "real erasure checkpoint path is untouched by the binding sampler observer"
+  retained_rust_body="$(function_body "$ENGINE_SOURCE" "wal_attribution_retained_materialized_result_is_idle_at_checkpoint")"
+  assert_contains "$retained_rust_body" \
+    'Err(EngineError::ErasureIncomplete { stage, .. }) if stage == "wal_checkpoint"' \
+    "retained Rust control accepts only the typed WAL-checkpoint refusal"
+  assert_contains "$retained_rust_body" \
+    'record.busy && record.classification == "unclassified_external"' \
+    "retained Rust control classifies an idle-owned BUSY checkpoint as unattributed"
+  assert_contains "$retained_rust_body" \
+    'records.iter().all(|record| record.active_roles.is_empty())' \
+    "retained Rust control rejects a managed active role on every attempt"
+  assert_contains "$retained_rust_body" \
+    'record.classification == "no_owned_snapshot"' \
+    "retained Rust control preserves the clean checkpoint outcome"
+  retained_python_body="$(python_function_body "$PY_CONTROL" "run_retained_materialized")"
+  assert_contains "$retained_python_body" \
+    'except ErasureIncompleteError as error:' \
+    "retained installed-Python control accepts only a typed erasure refusal"
+  assert_contains "$retained_python_body" \
+    'error.stage == "wal_checkpoint"' \
+    "retained installed-Python control rejects a non-WAL refusal"
+  assert_contains "$retained_python_body" \
+    '(True, "unclassified_external", [])' \
+    "retained installed-Python control requires unattributed BUSY with no managed role"
+  assert_contains "$retained_python_body" \
+    '(False, "no_owned_snapshot", [])' \
+    "retained installed-Python control preserves clean no-owned checkpoints"
+  for control in \
+    wal_attribution_close_boundary_fresh_open_is_clean \
+    wal_attribution_close_boundary_read_get_is_clean \
+    wal_attribution_close_boundary_neighbors_is_clean; do
+    assert_before_in_function \
+      "$ENGINE_SOURCE" \
+      "$control" \
+      'raw_close_boundary_checkpoint' \
+      'fresh.engine.close().expect("fresh close")' \
+      "$control probes while the fresh Engine remains open"
+  done
+}
+
+check_managed_owners() {
+  if managed_owner_out="$(python3 "$SCRIPT_DIR/slice65_managed_connection_owners.py" \
+    "$REPO_ROOT/src/rust/crates/fathomdb-engine/src" \
+    --override "lib.rs=$ENGINE_SOURCE" \
+    --override "slice20_fix1_tests.rs=$SLICE20_FIX1_SOURCE" \
+    --override "wal_runtime.rs=$WAL_RUNTIME_SOURCE" \
+    --override "connection_runtime.rs=$CONNECTION_SOURCE" \
+    --override "open.rs=$OPEN_SOURCE" \
+    --override "projection_worker.rs=$PROJECTION_WORKER_SOURCE" \
+    --override "projection_commit.rs=$PROJECTION_COMMIT_SOURCE" \
+    --override "read_api.rs=$READ_API_SOURCE" \
+    --override "reader_pool.rs=$READER_POOL_SOURCE")"; then
+    pass "source classifies every Engine-managed SQLite open"
+  else
+    fail "source classifies every Engine-managed SQLite open ($managed_owner_out)"
+  fi
+}
+
+check_inventory_mutations() {
+  if unit_production_mask_out="$(python3 - "$SCRIPT_DIR" <<'PY_UNIT_MASK'
 import sys
 sys.path.insert(0, sys.argv[1])
 from slice65_managed_connection_owners import production
@@ -428,12 +805,12 @@ assert 'Connection::open' not in production('#[test]\n' + body)
 for ordinary in (body, '// #[test]\n' + body, 'const DECOY: &str = "#[test]";\n' + body):
     assert 'Connection::open' in production(ordinary), ordinary
 PY_UNIT_MASK
-)"; then
-  pass "production opener inventory excludes actual unit tests and retains ordinary opener mutants"
-else
-  fail "production opener inventory excludes actual unit tests and retains ordinary opener mutants ($unit_production_mask_out)"
-fi
-if policy_probe_out="$(python3 - "$SCRIPT_DIR" "$REPO_ROOT/src/rust/crates/fathomdb-engine/src" <<'PY_POLICY_PROBE'
+  )"; then
+    pass "production opener inventory excludes actual unit tests and retains ordinary opener mutants"
+  else
+    fail "production opener inventory excludes actual unit tests and retains ordinary opener mutants ($unit_production_mask_out)"
+  fi
+  if policy_probe_out="$(python3 - "$SCRIPT_DIR" "$REPO_ROOT/src/rust/crates/fathomdb-engine/src" <<'PY_POLICY_PROBE'
 from pathlib import Path
 import sys
 sys.path.insert(0, sys.argv[1])
@@ -451,343 +828,11 @@ for mutant in (
     errors = owner_errors(sources | {owner: mutant})
     assert any("direct SQLite open outside sole audited factory" in error for error in errors), errors
 PY_POLICY_PROBE
-)"; then
-  pass "persisted-policy read-only probe has exact scoped owner and rejects writable/extra opens"
-else
-  fail "persisted-policy probe census or mutation guard failed ($policy_probe_out)"
-fi
-assert_contains "$(<"$ENGINE_SOURCE")" \
-  'fn wal_attribution_owned_reader_typed_refusal_then_post_release_sampler_is_recorded' \
-  "engine source retains the WAL-attribution tests"
-assert_contains "$(<"$WAL_ATTRIBUTION_SOURCE")" \
-  'struct WalAttributionCollector' \
-  'enum WalAttributionRole' \
-  "WAL attribution module owns the runtime"
-assert_contains "$(<"$ERASURE_SOURCE")" \
-  'pub(crate) fn complete_erasure_at_rest(' \
-  "erasure source owns complete_erasure_at_rest"
-for marker in \
-  'runtime_probe_lifecycle: Mutex<RuntimeProbeLifecycle>' \
-  'struct RuntimeProbeLifecycle' \
-  'struct RuntimeProbeRegistration' \
-  'struct RuntimeProbeConnection' \
-  'fn register_runtime_probe' \
-  'impl RuntimeProbeRegistration' \
-  'impl Drop for RuntimeProbeRegistration' \
-  'impl RuntimeProbeConnection'; do
-  assert_cfg_test_near_marker \
-    "$WAL_RUNTIME_SOURCE" \
-    "$marker" \
-    "runtime-probe ladder bookkeeping is cfg(test)-only: $marker"
-done
-assert_contains "$(<"$CONNECTION_SOURCE")" \
-  'fn open_managed_connection' \
-  "connection owner centralizes Engine-managed SQLite opens through the audited factory"
-assert_absent "$(<"$ENGINE_SOURCE")" \
-  'fn open_managed_connection' \
-  "root no longer defines the audited connection factory"
-PRODUCTION_ENGINE_SOURCE="$(sed '/^mod tests {$/,$d' "$ENGINE_SOURCE")"
-PRODUCTION_CONNECTION_SOURCE="$(sed '/^mod tests {$/,$d' "$CONNECTION_SOURCE")"
-PRODUCTION_WAL_RUNTIME_SOURCE="$(sed '/^mod tests {$/,$d' "$WAL_RUNTIME_SOURCE")"
-FACTORY_DIRECT_OPENS="$(grep -Fc 'Connection::open(' <<<"$PRODUCTION_ENGINE_SOURCE" || true)"
-FACTORY_DIRECT_OPENS=$((FACTORY_DIRECT_OPENS + $(grep -Fc 'Connection::open(' <<<"$PRODUCTION_CONNECTION_SOURCE" || true)))
-FACTORY_DIRECT_OPENS=$((FACTORY_DIRECT_OPENS + $(grep -Fc 'Connection::open(' <<<"$PRODUCTION_WAL_RUNTIME_SOURCE" || true)))
-if [ "$FACTORY_DIRECT_OPENS" -eq 1 ]; then
-  pass "only the audited factory directly opens Engine SQLite connections"
-else
-  fail "Engine, WAL runtime, and connection production sources have $FACTORY_DIRECT_OPENS direct SQLite opens; expected the one audited factory"
-fi
-assert_contains "$(<"$PY_CONTROL")" \
-  '--observe-baseline-first-erase' \
-  "installed serial control has an explicit first-erase baseline observation mode"
-assert_contains "$(<"$PY_CONTROL")" \
-  'ErasureIncompleteError' \
-  "installed serial baseline accepts only the typed erasure error"
-assert_contains "$(<"$PY_CONTROL")" \
-  'stage != "wal_checkpoint"' \
-  "installed serial baseline rejects a non-WAL erasure stage"
-assert_contains "$(<"$PY_CONTROL")" \
-  'frames still in the log' \
-  "installed serial baseline records normalized WAL frame evidence"
-assert_contains "$(<"$PY_CONTROL")" \
-  'BASELINE_FIRST_ERASE outcome=clean_completion' \
-  "installed serial baseline records clean first-erase completion separately"
-assert_absent "$(<"$PY_CONTROL")" \
-  'import sqlite3' \
-  "installed binding diagnostic never imports Python stdlib sqlite3"
-assert_absent "$(<"$PY_CONTROL")" \
-  'sqlite3.connect' \
-  "installed binding diagnostic never opens a stdlib raw checkpoint connection"
-serial_incident_body="$(python_function_body "$PY_CONTROL" "run_serial_incident")"
-assert_absent "$serial_incident_body" \
-  'fresh.transition' \
-  "installed serial has no deletion transition after its one original erase"
-assert_absent "$serial_incident_body" \
-  'fresh.purge' \
-  "installed serial has no purge after its one original erase"
-assert_before_in_text \
-  "$CODE" \
-  '--control serial' \
-  '--control binding' \
-  "installed serial control runs before the binding diagnostic"
-assert_before_in_text \
-  "$CODE" \
-  '--control binding' \
-  '--control retained' \
-  "installed binding diagnostic runs before retained-result control"
-assert_before_in_text \
-  "$CODE" \
-  'post-commit diagnostic command selected zero tests' \
-  'serial_wheel_selector=current-source-test-hooks' \
-  "current instrumented serial control runs after post-commit diagnostic artifact"
-assert_before_in_python_function \
-  "$PY_CONTROL" \
-  "run_binding_reader_erase" \
-  'completion_pause.reader_connection_autocommit_for_test()' \
-  'python_binding_completion_ack reader_autocommit=1 collector=idle' \
-  "binding diagnostic verifies actual reader autocommit before completion acknowledgement"
-assert_before_in_python_function \
-  "$PY_CONTROL" \
-  "run_binding_reader_erase" \
-  'python_binding_completion_ack reader_autocommit=1 collector=idle' \
-  'python_binding_direct_inventory=' \
-  "binding diagnostic emits completion acknowledgement before direct inventory"
-assert_before_in_python_function \
-  "$PY_CONTROL" \
-  "run_binding_reader_erase" \
-  'python_binding_direct_inventory=' \
-  '_raw_binding_checkpoint(path, "before_engine_sampler")' \
-  "binding diagnostic completes direct inventory before raw samples"
-assert_before_in_python_function \
-  "$PY_CONTROL" \
-  "run_binding_reader_erase" \
-  '_raw_binding_checkpoint(path, "before_engine_sampler")' \
-  'samples = test_hooks._checkpoint_at_rest_for_test()' \
-  "binding diagnostic places the Engine sampler after raw sample one"
-assert_before_in_python_function \
-  "$PY_CONTROL" \
-  "run_binding_reader_erase" \
-  'samples = test_hooks._checkpoint_at_rest_for_test()' \
-  '_raw_binding_checkpoint(path, "after_engine_sampler")' \
-  "binding diagnostic places raw sample two after the Engine sampler"
-binding_erase_calls="$(python_function_body "$PY_CONTROL" "run_binding_reader_erase" | grep -Fc 'engine.erase_source(' || true)"
-if [ "$binding_erase_calls" -eq 1 ]; then
-  pass "binding diagnostic retains exactly one original erasure"
-else
-  fail "binding diagnostic must retain exactly one original erasure; found $binding_erase_calls"
-fi
-binding_body="$(python_function_body "$PY_CONTROL" "run_binding_reader_erase")"
-assert_contains "$binding_body" \
-  'all(role_fact in before for role_fact in NATIVE_IDLE_ROLE_FACTS)' \
-  "every sampler before record carries all twelve native role facts"
-assert_contains "$binding_body" \
-  'all(role_fact in after for role_fact in NATIVE_IDLE_ROLE_FACTS)' \
-  "every sampler after record carries all twelve native role facts"
-assert_contains "$binding_body" \
-  'if first_raw[0] != 0 or second_raw[0] != 0:' \
-  "binding diagnostic runs the child only after a busy raw sample"
-assert_before_in_text \
-  "$binding_body" \
-  'engine.close()' \
-  'subprocess.run(' \
-  "binding diagnostic closes and joins its Engine before the conditional child"
-binding_child_calls="$(grep -Fc 'subprocess.run(' <<<"$binding_body" || true)"
-if [ "$binding_child_calls" -eq 1 ]; then
-  pass "binding diagnostic retains exactly one conditional fresh child"
-else
-  fail "binding diagnostic must retain exactly one conditional fresh child; found $binding_child_calls"
-fi
-binding_child_body="$(python_function_body "$PY_CONTROL" "run_binding_child")"
-assert_contains "$binding_child_body" \
-  '_native_raw_checkpoint_test_hook()._native_raw_wal_checkpoint_for_test(path)' \
-  "fresh child calls the native FathomDB/Rusqlite checkpoint hook"
-actual_checkpoint_body="$(function_body "$ENGINE_SOURCE" "wal_attribution_actual_checkpoint_observation_retains_real_attempt_facts")"
-assert_contains "$actual_checkpoint_body" \
-  'arm_actual_checkpoint_observation_for_test' \
-  "direct-Rust actual-checkpoint control arms the private observer"
-assert_contains "$actual_checkpoint_body" \
-  'fresh.engine.erase_source(' \
-  "direct-Rust actual-checkpoint control retains one original erase"
-assert_before_in_text \
-  "$actual_checkpoint_body" \
-  'arm_actual_checkpoint_observation_for_test' \
-  'fresh.engine.erase_source(' \
-  "direct-Rust observer arms immediately before the original erase"
-assert_absent "$actual_checkpoint_body" \
-  'incident_ladder_raw_checkpoint' \
-  "direct-Rust actual-checkpoint control has no raw TRUNCATE probe"
-assert_absent "$actual_checkpoint_body" \
-  'RuntimeProbe' \
-  "direct-Rust actual-checkpoint control has no RuntimeProbe"
-assert_absent "$actual_checkpoint_body" \
-  'wal_checkpoint_truncate_once' \
-  "direct-Rust actual-checkpoint control has no extra checkpoint call"
-managed_reader_body="$(function_body "$ENGINE_SOURCE" "wal_attribution_owned_reader_typed_refusal_then_post_release_sampler_is_recorded")"
-managed_reader_erase_calls="$(grep -Fc 'opened.engine.erase_source(' <<<"$managed_reader_body" || true)"
-if [ "$managed_reader_erase_calls" -eq 1 ]; then
-  pass "managed-reader diagnostic retains exactly one original erase"
-else
-  fail "managed-reader diagnostic must retain exactly one original erase; found $managed_reader_erase_calls"
-fi
-assert_contains "$managed_reader_body" \
-  'arm_next_reader_completion_pause_for_test' \
-  "managed-reader diagnostic waits for post-finish owner-thread acknowledgement"
-assert_contains "$managed_reader_body" \
-  'native_state_inventory_for_test' \
-  "managed-reader diagnostic requires complete native-state inventory"
-assert_contains "$managed_reader_body" \
-  'state_inventory=incomplete' \
-  "managed-reader diagnostic emits incomplete inventory before failure"
-assert_contains "$managed_reader_body" \
-  'arm_binding_native_state_observation_for_test' \
-  "managed-reader diagnostic arms the bounded sampler observer"
-assert_contains "$managed_reader_body" \
-  'checkpoint_at_rest_for_test' \
-  "managed-reader diagnostic runs exactly one bounded sampler"
-assert_absent "$managed_reader_body" \
-  'retry after release' \
-  "managed-reader diagnostic does not retry the original erase"
-projection_worker_body="$(function_body "$ENGINE_SOURCE" "wal_attribution_projection_worker_typed_refusal_then_post_release_sampler_is_recorded")"
-projection_worker_erase_calls="$(grep -Fc 'opened.engine.complete_erasure_at_rest(' <<<"$projection_worker_body" || true)"
-if [ "$projection_worker_erase_calls" -eq 1 ]; then
-  pass "projection-worker diagnostic retains exactly one original erase"
-else
-  fail "projection-worker diagnostic must retain exactly one original erase; found $projection_worker_erase_calls"
-fi
-assert_contains "$projection_worker_body" \
-  'report_runtime_connection_inventory_for_test' \
-  "projection-worker diagnostic waits for post-finish owner-thread acknowledgement"
-assert_contains "$projection_worker_body" \
-  'native_state_inventory_for_test' \
-  "projection-worker diagnostic requires complete native-state inventory"
-assert_contains "$projection_worker_body" \
-  'state_inventory=incomplete' \
-  "projection-worker diagnostic emits incomplete inventory before failure"
-assert_contains "$projection_worker_body" \
-  'arm_binding_native_state_observation_for_test' \
-  "projection-worker diagnostic arms the bounded sampler observer"
-assert_contains "$projection_worker_body" \
-  'checkpoint_at_rest_for_test' \
-  "projection-worker diagnostic runs exactly one bounded sampler"
-assert_absent "$projection_worker_body" \
-  'retry after release' \
-  "projection-worker diagnostic does not retry the original erase"
-actual_checkpoint_engine_body="$(function_body "$ERASURE_SOURCE" "checkpoint_erasure_at_rest")"
-assert_before_in_text \
-  "$actual_checkpoint_engine_body" \
-  'self.actual_checkpoint_observation_for_test(' \
-  'let checkpoint_result = self.wal_checkpoint_truncate_once(false);' \
-  "erasure source keeps the before observer ahead of the checkpoint"
-assert_before_in_text \
-  "$actual_checkpoint_engine_body" \
-  'let checkpoint_result = self.wal_checkpoint_truncate_once(false);' \
-  'checkpoint_result.as_ref().ok().cloned()' \
-  "erasure source keeps the checkpoint ahead of the after observer result"
-actual_checkpoint_observer_body="$(function_body "$WAL_RUNTIME_SOURCE" "actual_checkpoint_observation_for_test")"
-assert_contains "$actual_checkpoint_observer_body" \
-  '"python_serial" => 0' \
-  "feature-built Python observer expects no cfg(test)-only runtime probes"
-normal_runtime_inventory_body="$(function_body "$RUNTIME_SOURCE" "report_runtime_connection_inventory_for_test")"
-assert_contains "$(<"$WAL_RUNTIME_SOURCE")" \
-  'respond: SyncSender<(WalAttributionRole, usize, bool)>' \
-  "normal actual/post-commit runtime inventory retains boolean replies"
-assert_contains "$normal_runtime_inventory_body" \
-  'Duration::from_secs(2)' \
-  "normal actual/post-commit runtime inventory retains its two-second timeout"
-assert_absent "$normal_runtime_inventory_body" \
-  'native_connection_state_for_test' \
-  "normal actual/post-commit runtime inventory cannot sample native state"
-assert_absent "$normal_runtime_inventory_body" \
-  'NativeConnectionStateFact' \
-  "normal actual/post-commit runtime inventory cannot return native state facts"
-native_runtime_inventory_body="$(function_body "$RUNTIME_SOURCE" "report_runtime_native_state_inventory_for_test")"
-assert_contains "$native_runtime_inventory_body" \
-  'Duration::from_millis(250)' \
-  "binding native-state runtime inventory has its own finite timeout"
-assert_contains "$native_runtime_inventory_body" \
-  'NativeConnectionStateFact' \
-  "binding native-state runtime inventory has a separate fact reply"
-native_state_inventory_body="$(function_body "$WAL_RUNTIME_SOURCE" "native_state_inventory_for_test")"
-assert_contains "$native_state_inventory_body" \
-  'report_runtime_native_state_inventory_for_test' \
-  "binding native-state inventory alone requests runtime native facts"
-actual_direct_inventory_body="$(function_body "$WAL_RUNTIME_SOURCE" "actual_checkpoint_direct_inventory_for_test")"
-assert_contains "$actual_direct_inventory_body" \
-  'report_runtime_connection_inventory_for_test' \
-  "normal actual observer retains its boolean runtime inventory request"
-assert_absent "$actual_direct_inventory_body" \
-  'report_runtime_native_state_inventory_for_test' \
-  "normal actual observer cannot request runtime native facts"
-serial_incident_body="$(python_function_body "$PY_CONTROL" "run_serial_incident")"
-assert_contains "$serial_incident_body" \
-  'creation=writer:1,readers:8,dispatcher:1,workers:2,probes:0;complete=1' \
-  "installed Python serial expects no cfg(test)-only runtime probes"
-binding_inventory_body="$(function_body "$WAL_RUNTIME_SOURCE" "binding_connection_inventory_for_test")"
-assert_contains "$binding_inventory_body" \
-  'creation != (1, READER_POOL_SIZE, 1, worker_count, 0)' \
-  "installed binding inventory rejects cfg(test)-only runtime probes"
-assert_contains "$serial_incident_body" \
-  'test_hooks._arm_actual_checkpoint_observation_for_test()' \
-  "installed Python serial arms the private observer immediately before erase"
-assert_contains "$serial_incident_body" \
-  'test_hooks._drain_actual_checkpoint_observations_for_test()' \
-  "installed Python serial drains real-attempt records after erase"
-assert_before_in_text \
-  "$serial_incident_body" \
-  'test_hooks._arm_actual_checkpoint_observation_for_test()' \
-  'nested = fresh.erase_source(' \
-  "installed Python observer arms immediately before its original erase"
-assert_absent "$serial_incident_body" \
-  '_native_raw_wal_checkpoint_for_test' \
-  "installed Python serial has no raw TRUNCATE probe"
-assert_absent "$serial_incident_body" \
-  '_checkpoint_at_rest_for_test' \
-  "installed Python serial has no extra Engine checkpoint sampler"
-assert_absent "$serial_incident_body" \
-  '_arm_binding_native_state_observation_for_test' \
-  "installed Python serial never arms the binding-only native-state observer"
-assert_absent "$actual_checkpoint_engine_body" \
-  'binding_native_state_observation_for_test' \
-  "real erasure checkpoint path is untouched by the binding sampler observer"
-retained_rust_body="$(function_body "$ENGINE_SOURCE" "wal_attribution_retained_materialized_result_is_idle_at_checkpoint")"
-assert_contains "$retained_rust_body" \
-  'Err(EngineError::ErasureIncomplete { stage, .. }) if stage == "wal_checkpoint"' \
-  "retained Rust control accepts only the typed WAL-checkpoint refusal"
-assert_contains "$retained_rust_body" \
-  'record.busy && record.classification == "unclassified_external"' \
-  "retained Rust control classifies an idle-owned BUSY checkpoint as unattributed"
-assert_contains "$retained_rust_body" \
-  'records.iter().all(|record| record.active_roles.is_empty())' \
-  "retained Rust control rejects a managed active role on every attempt"
-assert_contains "$retained_rust_body" \
-  'record.classification == "no_owned_snapshot"' \
-  "retained Rust control preserves the clean checkpoint outcome"
-retained_python_body="$(python_function_body "$PY_CONTROL" "run_retained_materialized")"
-assert_contains "$retained_python_body" \
-  'except ErasureIncompleteError as error:' \
-  "retained installed-Python control accepts only a typed erasure refusal"
-assert_contains "$retained_python_body" \
-  'error.stage == "wal_checkpoint"' \
-  "retained installed-Python control rejects a non-WAL refusal"
-assert_contains "$retained_python_body" \
-  '(True, "unclassified_external", [])' \
-  "retained installed-Python control requires unattributed BUSY with no managed role"
-assert_contains "$retained_python_body" \
-  '(False, "no_owned_snapshot", [])' \
-  "retained installed-Python control preserves clean no-owned checkpoints"
-for control in \
-  wal_attribution_close_boundary_fresh_open_is_clean \
-  wal_attribution_close_boundary_read_get_is_clean \
-  wal_attribution_close_boundary_neighbors_is_clean; do
-  assert_before_in_function \
-    "$ENGINE_SOURCE" \
-    "$control" \
-    'raw_close_boundary_checkpoint' \
-    'fresh.engine.close().expect("fresh close")' \
-    "$control probes while the fresh Engine remains open"
-done
-
-if [ "${WINDOWS_WAL_ATTRIBUTION_FIXTURE:-0}" != "1" ]; then
+  )"; then
+    pass "persisted-policy read-only probe has exact scoped owner and rejects writable/extra opens"
+  else
+    fail "persisted-policy probe census or mutation guard failed ($policy_probe_out)"
+  fi
   if property_corpus_audit_out="$(PYTHONPATH="$SCRIPT_DIR" python3 - "$REPO_ROOT/src/rust/crates/fathomdb-engine/src" <<'PY_GATE'
 from pathlib import Path
 import sys
@@ -808,12 +853,57 @@ unrelated = source + "\nfn unrelated_private_open() { let _ = Connection::open_i
 errors = owner_errors(sources | {"search.rs": unrelated})
 assert any("direct SQLite open outside sole audited factory" in error for error in errors), errors
 PY_GATE
-)"; then
+  )"; then
     pass "private property corpus allowance rejects file, duplicate and unrelated opens"
   else
     fail "private property corpus opener audit mutation ($property_corpus_audit_out)"
   fi
-  TMPROOT="$(mktemp -d)"
+}
+
+check_mutated_workflow() {
+  local PASSED=0 FAILED=0
+  check_workflow "$CI_YML" || return
+  [ "$FAILED" -eq 0 ]
+}
+
+check_mutated_sources() {
+  local PASSED=0 FAILED=0
+  check_sources || return
+  if [ "$ENGINE_SOURCE" != "$baseline_engine" ] || [ "$SLICE20_FIX1_SOURCE" != "$baseline_slice20" ] \
+    || [ "$WAL_RUNTIME_SOURCE" != "$baseline_wal" ] || [ "$CONNECTION_SOURCE" != "$baseline_connection" ] \
+    || [ "$OPEN_SOURCE" != "$baseline_open" ] || [ "$PROJECTION_WORKER_SOURCE" != "$baseline_worker" ] \
+    || [ "$READER_POOL_SOURCE" != "$baseline_reader" ] || [ "$PROJECTION_COMMIT_SOURCE" != "$baseline_commit" ] \
+    || [ "$READ_API_SOURCE" != "$baseline_read" ]; then
+    check_managed_owners
+  fi
+  [ "$FAILED" -eq 0 ]
+}
+
+TMPROOT="$(mktemp -d)"
+trap 'rm -rf "$TMPROOT"' EXIT
+CHECK_INPUTS="$TMPROOT/check-inputs"
+mkdir "$CHECK_INPUTS"
+baseline_engine="$ENGINE_SOURCE"
+baseline_slice20="$SLICE20_FIX1_SOURCE"
+baseline_wal="$WAL_RUNTIME_SOURCE"
+baseline_connection="$CONNECTION_SOURCE"
+baseline_open="$OPEN_SOURCE"
+baseline_worker="$PROJECTION_WORKER_SOURCE"
+baseline_reader="$READER_POOL_SOURCE"
+baseline_commit="$PROJECTION_COMMIT_SOURCE"
+baseline_read="$READ_API_SOURCE"
+
+check_workflow "$CI"
+if [ -f "$HOOK_CONTRACT" ] && python3 "$REPO_ROOT/scripts/tests/test_slice50_hook_inventory.py" >/dev/null; then
+  pass "installed-wheel hook contract is complete"
+else
+  fail "installed-wheel hook contract is complete"
+fi
+check_sources
+check_managed_owners
+
+if [ "${WINDOWS_WAL_ATTRIBUTION_FIXTURE:-0}" != "1" ]; then
+  check_inventory_mutations
   MANAGED_READER_DEBUG_MUTATED="$TMPROOT/wal-with-default-debug-hook.rs"
   python3 - "$WAL_RUNTIME_SOURCE" "$MANAGED_READER_DEBUG_MUTATED" <<'PY_GATE'
 from pathlib import Path
@@ -824,7 +914,7 @@ assert source.count(anchor) == 1
 Path(sys.argv[2]).write_text(source.replace(anchor, anchor.replace('any(test, feature', 'any(test, debug_assertions, feature'), 1))
 PY_GATE
   set +e
-  managed_reader_debug_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 WAL_RUNTIME_SOURCE="$MANAGED_READER_DEBUG_MUTATED" bash "$0" 2>&1)"
+  managed_reader_debug_out="$(WAL_RUNTIME_SOURCE="$MANAGED_READER_DEBUG_MUTATED" check_mutated_sources 2>&1)"
   managed_reader_debug_rc=$?
   set -e
   if [ "$managed_reader_debug_rc" -ne 0 ] && grep -Fq 'FAIL  managed-reader hook cfg requires unit tests or explicit test-hooks' <<<"$managed_reader_debug_out"; then
@@ -832,12 +922,11 @@ PY_GATE
   else
     fail "mutation did not reject managed-reader debug cfg widening: $managed_reader_debug_out"
   fi
-  trap 'rm -rf "$TMPROOT"' EXIT
 
   WRONG_ENGINE_OWNER="$TMPROOT/erasure-as-engine-owner.rs"
   cp "$ERASURE_SOURCE" "$WRONG_ENGINE_OWNER"
   set +e
-  wrong_engine_owner_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 ENGINE_SOURCE="$WRONG_ENGINE_OWNER" ERASURE_SOURCE="$ERASURE_SOURCE" bash "$0" 2>&1)"
+  wrong_engine_owner_out="$(ENGINE_SOURCE="$WRONG_ENGINE_OWNER" ERASURE_SOURCE="$ERASURE_SOURCE" check_mutated_sources 2>&1)"
   wrong_engine_owner_rc=$?
   set -e
   if [ "$wrong_engine_owner_rc" -ne 0 ] \
@@ -848,7 +937,7 @@ PY_GATE
   fi
 
   set +e
-  old_connection_owner_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CONNECTION_SOURCE="$ENGINE_SOURCE" bash "$0" 2>&1)"
+  old_connection_owner_out="$(CONNECTION_SOURCE="$ENGINE_SOURCE" check_mutated_sources 2>&1)"
   old_connection_owner_rc=$?
   set -e
   if [ "$old_connection_owner_rc" -ne 0 ] \
@@ -862,7 +951,7 @@ PY_GATE
   sed 's/fn open_managed_connection(/fn removed_managed_connection(/' \
     "$CONNECTION_SOURCE" >"$MISSING_CONNECTION_FACTORY"
   set +e
-  missing_connection_factory_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CONNECTION_SOURCE="$MISSING_CONNECTION_FACTORY" bash "$0" 2>&1)"
+  missing_connection_factory_out="$(CONNECTION_SOURCE="$MISSING_CONNECTION_FACTORY" check_mutated_sources 2>&1)"
   missing_connection_factory_rc=$?
   set -e
   if [ "$missing_connection_factory_rc" -ne 0 ] \
@@ -876,7 +965,7 @@ PY_GATE
   cp "$CONNECTION_SOURCE" "$EXTRA_DIRECT_CONNECTION_OPEN"
   printf '\nfn unaudited_open() { let _ = Connection::open("/tmp/unaudited"); }\n' >>"$EXTRA_DIRECT_CONNECTION_OPEN"
   set +e
-  extra_direct_open_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CONNECTION_SOURCE="$EXTRA_DIRECT_CONNECTION_OPEN" bash "$0" 2>&1)"
+  extra_direct_open_out="$(CONNECTION_SOURCE="$EXTRA_DIRECT_CONNECTION_OPEN" check_mutated_sources 2>&1)"
   extra_direct_open_rc=$?
   set -e
   if [ "$extra_direct_open_rc" -ne 0 ] \
@@ -901,7 +990,7 @@ assert "mod tests {" in root
 root_decoy.write_text(root.replace("mod tests {", 'const OLD_CATEGORY_TOKEN: &str = "ManagedConnectionCategory";\nmod tests {', 1))
 PY
   set +e
-  wrong_writer_role_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 OPEN_SOURCE="$WRONG_WRITER_ROLE" ENGINE_SOURCE="$OLD_ROOT_CATEGORY_DECOY" bash "$0" 2>&1)"
+  wrong_writer_role_out="$(OPEN_SOURCE="$WRONG_WRITER_ROLE" ENGINE_SOURCE="$OLD_ROOT_CATEGORY_DECOY" check_mutated_sources 2>&1)"
   wrong_writer_role_rc=$?
   set -e
   if [ "$wrong_writer_role_rc" -ne 0 ] \
@@ -923,7 +1012,7 @@ declaration = "fn wrong_owner_open(path: &str, registry: &ManagedConnectionRegis
 output.write_text(text + "\n" + declaration)
 PY
   set +e
-  wrong_category_owner_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 READER_POOL_SOURCE="$WRONG_CATEGORY_OWNER" bash "$0" 2>&1)"
+  wrong_category_owner_out="$(READER_POOL_SOURCE="$WRONG_CATEGORY_OWNER" check_mutated_sources 2>&1)"
   wrong_category_owner_rc=$?
   set -e
   if [ "$wrong_category_owner_rc" -ne 0 ] \
@@ -937,7 +1026,7 @@ PY
   MISSING_CATEGORY_REGISTRATION="$TMPROOT/connection-without-role-registration.rs"
   sed '/managed_connections.record_open(category);/d' "$CONNECTION_SOURCE" >"$MISSING_CATEGORY_REGISTRATION"
   set +e
-  missing_category_registration_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CONNECTION_SOURCE="$MISSING_CATEGORY_REGISTRATION" bash "$0" 2>&1)"
+  missing_category_registration_out="$(CONNECTION_SOURCE="$MISSING_CATEGORY_REGISTRATION" check_mutated_sources 2>&1)"
   missing_category_registration_rc=$?
   set -e
   if [ "$missing_category_registration_rc" -ne 0 ] \
@@ -958,7 +1047,7 @@ assert text.count("        category,\n") == 1
 output.write_text(text.replace("        category,\n", "        ManagedConnectionCategory::ReaderWorker,\n", 1))
 PY
   set +e
-  wrong_runtime_forward_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CONNECTION_SOURCE="$WRONG_RUNTIME_FORWARD" bash "$0" 2>&1)"
+  wrong_runtime_forward_out="$(CONNECTION_SOURCE="$WRONG_RUNTIME_FORWARD" check_mutated_sources 2>&1)"
   wrong_runtime_forward_rc=$?
   set -e
   if [ "$wrong_runtime_forward_rc" -ne 0 ] \
@@ -979,7 +1068,7 @@ declaration = 'fn bypass_managed_factory() { let _ = Connection::open("/tmp/bypa
 output.write_text(text + "\n" + declaration)
 PY
   set +e
-  direct_worker_open_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 PROJECTION_WORKER_SOURCE="$DIRECT_WORKER_OPEN" bash "$0" 2>&1)"
+  direct_worker_open_out="$(PROJECTION_WORKER_SOURCE="$DIRECT_WORKER_OPEN" check_mutated_sources 2>&1)"
   direct_worker_open_rc=$?
   set -e
   if [ "$direct_worker_open_rc" -ne 0 ] \
@@ -997,7 +1086,7 @@ PY
     cp "$PROJECTION_WORKER_SOURCE" "$DIRECT_WORKER_VARIANT"
     printf '\nfn bypass_managed_factory() { let _ = Connection::%s; }\n' "$constructor" >>"$DIRECT_WORKER_VARIANT"
     set +e
-    direct_worker_variant_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 PROJECTION_WORKER_SOURCE="$DIRECT_WORKER_VARIANT" bash "$0" 2>&1)"
+    direct_worker_variant_out="$(PROJECTION_WORKER_SOURCE="$DIRECT_WORKER_VARIANT" check_mutated_sources 2>&1)"
     direct_worker_variant_rc=$?
     set -e
     if [ "$direct_worker_variant_rc" -ne 0 ] \
@@ -1021,7 +1110,7 @@ assert text.count(original) == 1
 output.write_text(text.replace(original, original.replace("READ_ONLY", "READ_WRITE"), 1))
 PY
   set +e
-  wrong_schema_probe_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 OPEN_SOURCE="$WRONG_SCHEMA_PROBE" bash "$0" 2>&1)"
+  wrong_schema_probe_out="$(OPEN_SOURCE="$WRONG_SCHEMA_PROBE" check_mutated_sources 2>&1)"
   wrong_schema_probe_rc=$?
   set -e
   if [ "$wrong_schema_probe_rc" -ne 0 ] \
@@ -1048,7 +1137,7 @@ assert "#[test]" in test_text
 test_output.write_text(test_text.replace("#[test]", ""))
 PY
   set +e
-  ungated_test_module_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 ENGINE_SOURCE="$UNGATED_TEST_MODULE" SLICE20_FIX1_SOURCE="$UNGATED_TEST_FUNCTIONS" bash "$0" 2>&1)"
+  ungated_test_module_out="$(ENGINE_SOURCE="$UNGATED_TEST_MODULE" SLICE20_FIX1_SOURCE="$UNGATED_TEST_FUNCTIONS" check_mutated_sources 2>&1)"
   ungated_test_module_rc=$?
   set -e
   if [ "$ungated_test_module_rc" -ne 0 ] \
@@ -1063,7 +1152,7 @@ PY
   cp "$ENGINE_SOURCE" "$ROOT_OPEN_AFTER_TEST_MODULE"
   printf '\nfn appended_bypass() { let _ = Connection::open_in_memory(); }\n' >>"$ROOT_OPEN_AFTER_TEST_MODULE"
   set +e
-  root_open_after_test_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 ENGINE_SOURCE="$ROOT_OPEN_AFTER_TEST_MODULE" bash "$0" 2>&1)"
+  root_open_after_test_out="$(ENGINE_SOURCE="$ROOT_OPEN_AFTER_TEST_MODULE" check_mutated_sources 2>&1)"
   root_open_after_test_rc=$?
   set -e
   if [ "$root_open_after_test_rc" -ne 0 ] \
@@ -1078,7 +1167,7 @@ PY
   sed 's/fn complete_erasure_at_rest(/fn completion_owner_removed(/' \
     "$ERASURE_SOURCE" >"$MISSING_ERASURE_OWNER"
   set +e
-  missing_erasure_owner_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 ENGINE_SOURCE="$ENGINE_SOURCE" ERASURE_SOURCE="$MISSING_ERASURE_OWNER" bash "$0" 2>&1)"
+  missing_erasure_owner_out="$(ENGINE_SOURCE="$ENGINE_SOURCE" ERASURE_SOURCE="$MISSING_ERASURE_OWNER" check_mutated_sources 2>&1)"
   missing_erasure_owner_rc=$?
   set -e
   if [ "$missing_erasure_owner_rc" -ne 0 ] \
@@ -1106,7 +1195,7 @@ mutated = source[:observer] + source[observer_end:checkpoint_end] + observer_blo
 open(output_path, "w", encoding="utf-8").write(mutated)
 PY
   set +e
-  swapped_erasure_order_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 ENGINE_SOURCE="$ENGINE_SOURCE" ERASURE_SOURCE="$SWAPPED_ERASURE_ORDER" bash "$0" 2>&1)"
+  swapped_erasure_order_out="$(ENGINE_SOURCE="$ENGINE_SOURCE" ERASURE_SOURCE="$SWAPPED_ERASURE_ORDER" check_mutated_sources 2>&1)"
   swapped_erasure_order_rc=$?
   set -e
   if [ "$swapped_erasure_order_rc" -ne 0 ] \
@@ -1120,7 +1209,7 @@ PY
   sed '/python_binding_direct_inventory=/ s/workers:2,probes:0/workers:2,probes:2/' \
     "$CI" >"$BINDING_WORKFLOW_PROBES_MUTATED"
   set +e
-  binding_workflow_probes_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$BINDING_WORKFLOW_PROBES_MUTATED" bash "$0" 2>&1)"
+  binding_workflow_probes_out="$(CI_YML="$BINDING_WORKFLOW_PROBES_MUTATED" check_mutated_workflow 2>&1)"
   binding_workflow_probes_rc=$?
   set -e
   if [ "$binding_workflow_probes_rc" -ne 0 ] \
@@ -1134,7 +1223,7 @@ PY
   sed '/pub fn binding_connection_inventory_for_test/,/^    pub fn / s/worker_count, 0/worker_count, 2/' \
     "$WAL_RUNTIME_SOURCE" >"$BINDING_ENGINE_PROBES_MUTATED"
   set +e
-  binding_engine_probes_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 WAL_RUNTIME_SOURCE="$BINDING_ENGINE_PROBES_MUTATED" bash "$0" 2>&1)"
+  binding_engine_probes_out="$(WAL_RUNTIME_SOURCE="$BINDING_ENGINE_PROBES_MUTATED" check_mutated_sources 2>&1)"
   binding_engine_probes_rc=$?
   set -e
   if [ "$binding_engine_probes_rc" -ne 0 ] \
@@ -1148,7 +1237,7 @@ PY
   sed '/fn wal_attribution_retained_materialized_result_is_idle_at_checkpoint/,/^    fn / s/unclassified_external/retained-classification-removed/' \
     "$ENGINE_SOURCE" >"$RETAINED_RUST_CLASSIFICATION_MUTATED"
   set +e
-  retained_rust_classification_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 ENGINE_SOURCE="$RETAINED_RUST_CLASSIFICATION_MUTATED" bash "$0" 2>&1)"
+  retained_rust_classification_out="$(ENGINE_SOURCE="$RETAINED_RUST_CLASSIFICATION_MUTATED" check_mutated_sources 2>&1)"
   retained_rust_classification_rc=$?
   set -e
   if [ "$retained_rust_classification_rc" -ne 0 ] \
@@ -1162,7 +1251,7 @@ PY
   sed '/^def run_retained_materialized/,/^def / s/unclassified_external/retained-classification-removed/' \
     "$PY_CONTROL" >"$RETAINED_PY_CLASSIFICATION_MUTATED"
   set +e
-  retained_py_classification_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 PY_CONTROL="$RETAINED_PY_CLASSIFICATION_MUTATED" bash "$0" 2>&1)"
+  retained_py_classification_out="$(PY_CONTROL="$RETAINED_PY_CLASSIFICATION_MUTATED" check_mutated_sources 2>&1)"
   retained_py_classification_rc=$?
   set -e
   if [ "$retained_py_classification_rc" -ne 0 ] \
@@ -1181,7 +1270,7 @@ PY
     MANAGED_MARKER_MUTATED="$TMPROOT/ci-without-managed-marker.yml"
     sed "s|$marker|managed-marker-removed|" "$CI" >"$MANAGED_MARKER_MUTATED"
     set +e
-    managed_marker_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$MANAGED_MARKER_MUTATED" bash "$0" 2>&1)"
+    managed_marker_out="$(CI_YML="$MANAGED_MARKER_MUTATED" check_mutated_workflow 2>&1)"
     managed_marker_rc=$?
     set -e
     if [ "$managed_marker_rc" -ne 0 ] && grep -Fq "missing: $marker" <<<"$managed_marker_out"; then
@@ -1195,7 +1284,7 @@ PY
   sed 's/let samples = opened/let _second = opened.engine.erase_source("slice65-owned-reader");\n        let samples = opened/' "$ENGINE_SOURCE" \
     >"$MANAGED_READER_REERASE_MUTATED"
   set +e
-  managed_reader_reerase_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 ENGINE_SOURCE="$MANAGED_READER_REERASE_MUTATED" bash "$0" 2>&1)"
+  managed_reader_reerase_out="$(ENGINE_SOURCE="$MANAGED_READER_REERASE_MUTATED" check_mutated_sources 2>&1)"
   managed_reader_reerase_rc=$?
   set -e
   if [ "$managed_reader_reerase_rc" -ne 0 ] \
@@ -1209,7 +1298,7 @@ PY
   sed 's/let samples = opened/\/\/ retry after release\n        let samples = opened/' "$ENGINE_SOURCE" \
     >"$MANAGED_READER_RETRY_MUTATED"
   set +e
-  managed_reader_retry_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 ENGINE_SOURCE="$MANAGED_READER_RETRY_MUTATED" bash "$0" 2>&1)"
+  managed_reader_retry_out="$(ENGINE_SOURCE="$MANAGED_READER_RETRY_MUTATED" check_mutated_sources 2>&1)"
   managed_reader_retry_rc=$?
   set -e
   if [ "$managed_reader_retry_rc" -ne 0 ] \
@@ -1229,7 +1318,7 @@ PY
     PROJECTION_MARKER_MUTATED="$TMPROOT/ci-without-projection-marker.yml"
     sed "s|$marker|projection-marker-removed|" "$CI" >"$PROJECTION_MARKER_MUTATED"
     set +e
-    projection_marker_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$PROJECTION_MARKER_MUTATED" bash "$0" 2>&1)"
+    projection_marker_out="$(CI_YML="$PROJECTION_MARKER_MUTATED" check_mutated_workflow 2>&1)"
     projection_marker_rc=$?
     set -e
     if [ "$projection_marker_rc" -ne 0 ] && grep -Fq "missing: $marker" <<<"$projection_marker_out"; then
@@ -1242,7 +1331,7 @@ PY
   PROJECTION_SELECTOR_MUTATED="$TMPROOT/ci-without-projection-selector.yml"
   sed 's/tests::wal_attribution_projection_worker_typed_refusal_then_post_release_sampler_is_recorded/tests::projection-worker-selector-removed/' "$CI" >"$PROJECTION_SELECTOR_MUTATED"
   set +e
-  projection_selector_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$PROJECTION_SELECTOR_MUTATED" bash "$0" 2>&1)"
+  projection_selector_out="$(CI_YML="$PROJECTION_SELECTOR_MUTATED" check_mutated_workflow 2>&1)"
   projection_selector_rc=$?
   set -e
   if [ "$projection_selector_rc" -ne 0 ] \
@@ -1255,7 +1344,7 @@ PY
   PROJECTION_ZERO_TEST_MUTATED="$TMPROOT/ci-without-projection-zero-test-guard.yml"
   sed 's/projection-worker attribution command selected zero tests/projection-worker-zero-test-guard-removed/' "$CI" >"$PROJECTION_ZERO_TEST_MUTATED"
   set +e
-  projection_zero_test_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$PROJECTION_ZERO_TEST_MUTATED" bash "$0" 2>&1)"
+  projection_zero_test_out="$(CI_YML="$PROJECTION_ZERO_TEST_MUTATED" check_mutated_workflow 2>&1)"
   projection_zero_test_rc=$?
   set -e
   if [ "$projection_zero_test_rc" -ne 0 ] \
@@ -1269,7 +1358,7 @@ PY
   sed 's/let samples = opened/let _second = opened.engine.complete_erasure_at_rest("slice65-projection-checkpoint");\n        let samples = opened/' "$ENGINE_SOURCE" \
     >"$PROJECTION_REERASE_MUTATED"
   set +e
-  projection_reerase_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 ENGINE_SOURCE="$PROJECTION_REERASE_MUTATED" bash "$0" 2>&1)"
+  projection_reerase_out="$(ENGINE_SOURCE="$PROJECTION_REERASE_MUTATED" check_mutated_sources 2>&1)"
   projection_reerase_rc=$?
   set -e
   if [ "$projection_reerase_rc" -ne 0 ] \
@@ -1283,7 +1372,7 @@ PY
   sed 's/let samples = opened/\/\/ retry after release\n        let samples = opened/' "$ENGINE_SOURCE" \
     >"$PROJECTION_RETRY_MUTATED"
   set +e
-  projection_retry_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 ENGINE_SOURCE="$PROJECTION_RETRY_MUTATED" bash "$0" 2>&1)"
+  projection_retry_out="$(ENGINE_SOURCE="$PROJECTION_RETRY_MUTATED" check_mutated_sources 2>&1)"
   projection_retry_rc=$?
   set -e
   if [ "$projection_retry_rc" -ne 0 ] \
@@ -1296,7 +1385,7 @@ PY
   MUTATED="$TMPROOT/ci.yml"
   sed '/^  windows-wal-attribution:/,/^  wheel-size-gate:/d' "$CI" >"$MUTATED"
   set +e
-  out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$MUTATED" bash "$0" 2>&1)"
+  out="$(CI_YML="$MUTATED" check_mutated_workflow 2>&1)"
   rc=$?
   set -e
   if [ "$rc" -ne 0 ] && grep -Fq 'ci.yml has no windows-wal-attribution job' <<<"$out"; then
@@ -1309,7 +1398,7 @@ PY
   sed '/Select-String -Path \$managedReaderLog -SimpleMatch "running 1 test" -Quiet/d;/managed-reader attribution command selected zero tests/d' "$CI" \
     >"$EXECUTION_GUARD_MUTATED"
   set +e
-  execution_guard_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$EXECUTION_GUARD_MUTATED" bash "$0" 2>&1)"
+  execution_guard_out="$(CI_YML="$EXECUTION_GUARD_MUTATED" check_mutated_workflow 2>&1)"
   execution_guard_rc=$?
   set -e
   if [ "$execution_guard_rc" -ne 0 ] \
@@ -1323,7 +1412,7 @@ PY
   sed '/tests::wal_attribution_reader_handoff_is_idle_before_materialized_reply/d' "$CI" \
     >"$HANDOFF_SELECTOR_MUTATED"
   set +e
-  handoff_selector_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$HANDOFF_SELECTOR_MUTATED" bash "$0" 2>&1)"
+  handoff_selector_out="$(CI_YML="$HANDOFF_SELECTOR_MUTATED" check_mutated_workflow 2>&1)"
   handoff_selector_rc=$?
   set -e
   if [ "$handoff_selector_rc" -ne 0 ] \
@@ -1336,7 +1425,7 @@ PY
   HANDOFF_GUARD_MUTATED="$TMPROOT/ci-without-reader-handoff-guard.yml"
   sed '/reader-handoff attribution command selected zero tests/d' "$CI" >"$HANDOFF_GUARD_MUTATED"
   set +e
-  handoff_guard_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$HANDOFF_GUARD_MUTATED" bash "$0" 2>&1)"
+  handoff_guard_out="$(CI_YML="$HANDOFF_GUARD_MUTATED" check_mutated_workflow 2>&1)"
   handoff_guard_rc=$?
   set -e
   if [ "$handoff_guard_rc" -ne 0 ] \
@@ -1349,7 +1438,7 @@ PY
   HANDOFF_MARKER_MUTATED="$TMPROOT/ci-without-reader-handoff-marker.yml"
   sed '/slice65_wal reader_handoff_idle_before_reply=passed/d' "$CI" >"$HANDOFF_MARKER_MUTATED"
   set +e
-  handoff_marker_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$HANDOFF_MARKER_MUTATED" bash "$0" 2>&1)"
+  handoff_marker_out="$(CI_YML="$HANDOFF_MARKER_MUTATED" check_mutated_workflow 2>&1)"
   handoff_marker_rc=$?
   set -e
   if [ "$handoff_marker_rc" -ne 0 ] \
@@ -1363,7 +1452,7 @@ PY
   sed '/tests::wal_attribution_post_commit_acknowledges_and_records_raw_checkpoint_diagnostic/d' "$CI" \
     >"$POST_COMMIT_SELECTOR_MUTATED"
   set +e
-  post_commit_selector_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$POST_COMMIT_SELECTOR_MUTATED" bash "$0" 2>&1)"
+  post_commit_selector_out="$(CI_YML="$POST_COMMIT_SELECTOR_MUTATED" check_mutated_workflow 2>&1)"
   post_commit_selector_rc=$?
   set -e
   if [ "$post_commit_selector_rc" -ne 0 ] \
@@ -1376,7 +1465,7 @@ PY
   POST_COMMIT_GUARD_MUTATED="$TMPROOT/ci-without-post-commit-guard.yml"
   sed '/post-commit diagnostic command selected zero tests/d' "$CI" >"$POST_COMMIT_GUARD_MUTATED"
   set +e
-  post_commit_guard_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$POST_COMMIT_GUARD_MUTATED" bash "$0" 2>&1)"
+  post_commit_guard_out="$(CI_YML="$POST_COMMIT_GUARD_MUTATED" check_mutated_workflow 2>&1)"
   post_commit_guard_rc=$?
   set -e
   if [ "$post_commit_guard_rc" -ne 0 ] \
@@ -1389,7 +1478,7 @@ PY
   POST_COMMIT_ARTIFACT_MUTATED="$TMPROOT/ci-without-post-commit-artifact.yml"
   sed '/slice65_wal post_commit_ack direct_inventory=/d' "$CI" >"$POST_COMMIT_ARTIFACT_MUTATED"
   set +e
-  post_commit_artifact_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$POST_COMMIT_ARTIFACT_MUTATED" bash "$0" 2>&1)"
+  post_commit_artifact_out="$(CI_YML="$POST_COMMIT_ARTIFACT_MUTATED" check_mutated_workflow 2>&1)"
   post_commit_artifact_rc=$?
   set -e
   if [ "$post_commit_artifact_rc" -ne 0 ] \
@@ -1403,7 +1492,7 @@ PY
   sed '/tests::wal_attribution_actual_checkpoint_observation_retains_real_attempt_facts/d' "$CI" \
     >"$ACTUAL_CHECKPOINT_SELECTOR_MUTATED"
   set +e
-  actual_checkpoint_selector_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$ACTUAL_CHECKPOINT_SELECTOR_MUTATED" bash "$0" 2>&1)"
+  actual_checkpoint_selector_out="$(CI_YML="$ACTUAL_CHECKPOINT_SELECTOR_MUTATED" check_mutated_workflow 2>&1)"
   actual_checkpoint_selector_rc=$?
   set -e
   if [ "$actual_checkpoint_selector_rc" -ne 0 ] \
@@ -1416,7 +1505,7 @@ PY
   ACTUAL_CHECKPOINT_GUARD_MUTATED="$TMPROOT/ci-without-actual-checkpoint-guard.yml"
   sed '/actual-checkpoint observation selected zero tests/d' "$CI" >"$ACTUAL_CHECKPOINT_GUARD_MUTATED"
   set +e
-  actual_checkpoint_guard_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$ACTUAL_CHECKPOINT_GUARD_MUTATED" bash "$0" 2>&1)"
+  actual_checkpoint_guard_out="$(CI_YML="$ACTUAL_CHECKPOINT_GUARD_MUTATED" check_mutated_workflow 2>&1)"
   actual_checkpoint_guard_rc=$?
   set -e
   if [ "$actual_checkpoint_guard_rc" -ne 0 ] \
@@ -1429,7 +1518,7 @@ PY
   ACTUAL_CHECKPOINT_ARTIFACT_MUTATED="$TMPROOT/ci-without-actual-checkpoint-artifact.yml"
   sed '/slice65_wal actual_checkpoint control=direct_rust phase=before/d' "$CI" >"$ACTUAL_CHECKPOINT_ARTIFACT_MUTATED"
   set +e
-  actual_checkpoint_artifact_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$ACTUAL_CHECKPOINT_ARTIFACT_MUTATED" bash "$0" 2>&1)"
+  actual_checkpoint_artifact_out="$(CI_YML="$ACTUAL_CHECKPOINT_ARTIFACT_MUTATED" check_mutated_workflow 2>&1)"
   actual_checkpoint_artifact_rc=$?
   set -e
   if [ "$actual_checkpoint_artifact_rc" -ne 0 ] \
@@ -1442,7 +1531,7 @@ PY
   ACTUAL_CHECKPOINT_RAW_MUTATED="$TMPROOT/lib-with-raw-primary-probe.rs"
   sed 's/let observed = fresh.engine.erase_source(/let _raw_probe = incident_ladder_raw_checkpoint;\n        let observed = fresh.engine.erase_source(/' "$ENGINE_SOURCE" >"$ACTUAL_CHECKPOINT_RAW_MUTATED"
   set +e
-  actual_checkpoint_raw_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 ENGINE_SOURCE="$ACTUAL_CHECKPOINT_RAW_MUTATED" bash "$0" 2>&1)"
+  actual_checkpoint_raw_out="$(ENGINE_SOURCE="$ACTUAL_CHECKPOINT_RAW_MUTATED" check_mutated_sources 2>&1)"
   actual_checkpoint_raw_rc=$?
   set -e
   if [ "$actual_checkpoint_raw_rc" -ne 0 ] \
@@ -1455,7 +1544,7 @@ PY
   ACTUAL_CHECKPOINT_RUNTIME_MUTATED="$TMPROOT/lib-with-runtime-primary-probe.rs"
   sed 's/let observed = fresh.engine.erase_source(/let _runtime_probe = RuntimeProbeConnection;\n        let observed = fresh.engine.erase_source(/' "$ENGINE_SOURCE" >"$ACTUAL_CHECKPOINT_RUNTIME_MUTATED"
   set +e
-  actual_checkpoint_runtime_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 ENGINE_SOURCE="$ACTUAL_CHECKPOINT_RUNTIME_MUTATED" bash "$0" 2>&1)"
+  actual_checkpoint_runtime_out="$(ENGINE_SOURCE="$ACTUAL_CHECKPOINT_RUNTIME_MUTATED" check_mutated_sources 2>&1)"
   actual_checkpoint_runtime_rc=$?
   set -e
   if [ "$actual_checkpoint_runtime_rc" -ne 0 ] \
@@ -1468,7 +1557,7 @@ PY
   RUNTIME_PROBE_LIFECYCLE_MUTATED="$TMPROOT/wal-runtime-without-runtime-probe-registration.rs"
   sed 's/RuntimeProbeRegistration/ProbeLifecycleRegistrationRemoved/g' "$WAL_RUNTIME_SOURCE" >"$RUNTIME_PROBE_LIFECYCLE_MUTATED"
   set +e
-  runtime_probe_lifecycle_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 WAL_RUNTIME_SOURCE="$RUNTIME_PROBE_LIFECYCLE_MUTATED" bash "$0" 2>&1)"
+  runtime_probe_lifecycle_out="$(WAL_RUNTIME_SOURCE="$RUNTIME_PROBE_LIFECYCLE_MUTATED" check_mutated_sources 2>&1)"
   runtime_probe_lifecycle_rc=$?
   set -e
   if [ "$runtime_probe_lifecycle_rc" -ne 0 ] \
@@ -1485,7 +1574,7 @@ PY
   cp "$ENGINE_SOURCE" "$WAL_REQUEST_OLD_ROOT_DECOY"
   printf '\nstruct RuntimeConnectionInventoryRequest;\n' >>"$WAL_REQUEST_OLD_ROOT_DECOY"
   set +e
-  wal_request_owner_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 ENGINE_SOURCE="$WAL_REQUEST_OLD_ROOT_DECOY" WAL_RUNTIME_SOURCE="$WAL_REQUEST_MISSING_OWNER" bash "$0" 2>&1)"
+  wal_request_owner_out="$(ENGINE_SOURCE="$WAL_REQUEST_OLD_ROOT_DECOY" WAL_RUNTIME_SOURCE="$WAL_REQUEST_MISSING_OWNER" check_mutated_sources 2>&1)"
   wal_request_owner_rc=$?
   set -e
   if [ "$wal_request_owner_rc" -ne 0 ] \
@@ -1502,7 +1591,7 @@ PY
   cp "$ENGINE_SOURCE" "$WORKER_ARMS_OLD_ROOT_DECOY"
   printf '\nfn report_runtime_connection_inventory_for_test() {}\n' >>"$WORKER_ARMS_OLD_ROOT_DECOY"
   set +e
-  worker_arms_owner_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 ENGINE_SOURCE="$WORKER_ARMS_OLD_ROOT_DECOY" PROJECTION_WORKER_SOURCE="$WORKER_ARMS_MISSING_OWNER" bash "$0" 2>&1)"
+  worker_arms_owner_out="$(ENGINE_SOURCE="$WORKER_ARMS_OLD_ROOT_DECOY" PROJECTION_WORKER_SOURCE="$WORKER_ARMS_MISSING_OWNER" check_mutated_sources 2>&1)"
   worker_arms_owner_rc=$?
   set -e
   if [ "$worker_arms_owner_rc" -ne 0 ] \
@@ -1515,7 +1604,7 @@ PY
   IDENTITY_MUTATED="$TMPROOT/ci-without-wheel-identity.yml"
   sed '/current_wheel_sha256=/d' "$CI" >"$IDENTITY_MUTATED"
   set +e
-  identity_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$IDENTITY_MUTATED" bash "$0" 2>&1)"
+  identity_out="$(CI_YML="$IDENTITY_MUTATED" check_mutated_workflow 2>&1)"
   identity_rc=$?
   set -e
   if [ "$identity_rc" -ne 0 ] \
@@ -1528,7 +1617,7 @@ PY
   WHEEL_PATH_MUTATED="$TMPROOT/ci-without-wheel-path.yml"
   sed '/current_wheel_path=/d' "$CI" >"$WHEEL_PATH_MUTATED"
   set +e
-  wheel_path_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$WHEEL_PATH_MUTATED" bash "$0" 2>&1)"
+  wheel_path_out="$(CI_YML="$WHEEL_PATH_MUTATED" check_mutated_workflow 2>&1)"
   wheel_path_rc=$?
   set -e
   if [ "$wheel_path_rc" -ne 0 ] \
@@ -1541,7 +1630,7 @@ PY
   WHEEL_BUILD_OUT_MUTATED="$TMPROOT/ci-with-relative-wheel-out.yml"
   sed 's#${{ github.workspace }}/dist-slice65-test#dist-slice65-test#' "$CI" >"$WHEEL_BUILD_OUT_MUTATED"
   set +e
-  wheel_build_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$WHEEL_BUILD_OUT_MUTATED" bash "$0" 2>&1)"
+  wheel_build_out="$(CI_YML="$WHEEL_BUILD_OUT_MUTATED" check_mutated_workflow 2>&1)"
   wheel_build_out_rc=$?
   set -e
   if [ "$wheel_build_out_rc" -ne 0 ] \
@@ -1554,7 +1643,7 @@ PY
   WHEEL_DIRECTORY_MUTATED="$TMPROOT/ci-without-wheel-directory.yml"
   sed '/\$currentWheelDir = Join-Path \$env:GITHUB_WORKSPACE "dist-slice65-test"/d' "$CI" >"$WHEEL_DIRECTORY_MUTATED"
   set +e
-  wheel_directory_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$WHEEL_DIRECTORY_MUTATED" bash "$0" 2>&1)"
+  wheel_directory_out="$(CI_YML="$WHEEL_DIRECTORY_MUTATED" check_mutated_workflow 2>&1)"
   wheel_directory_rc=$?
   set -e
   if [ "$wheel_directory_rc" -ne 0 ] \
@@ -1567,7 +1656,7 @@ PY
   WHEEL_LITERAL_LOOKUP_MUTATED="$TMPROOT/ci-without-wheel-literal-lookup.yml"
   sed 's/Get-ChildItem -LiteralPath \$currentWheelDir/Get-ChildItem -Path \$currentWheelDir/' "$CI" >"$WHEEL_LITERAL_LOOKUP_MUTATED"
   set +e
-  wheel_literal_lookup_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$WHEEL_LITERAL_LOOKUP_MUTATED" bash "$0" 2>&1)"
+  wheel_literal_lookup_out="$(CI_YML="$WHEEL_LITERAL_LOOKUP_MUTATED" check_mutated_workflow 2>&1)"
   wheel_literal_lookup_rc=$?
   set -e
   if [ "$wheel_literal_lookup_rc" -ne 0 ] \
@@ -1580,7 +1669,7 @@ PY
   BASELINE_TYPED_OBSERVATION_MUTATED="$TMPROOT/ci-without-typed-baseline-observation.yml"
   sed '/OBSERVED_EXPECTED_ERASURE_INCOMPLETE/d' "$CI" >"$BASELINE_TYPED_OBSERVATION_MUTATED"
   set +e
-  baseline_typed_observation_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$BASELINE_TYPED_OBSERVATION_MUTATED" bash "$0" 2>&1)"
+  baseline_typed_observation_out="$(CI_YML="$BASELINE_TYPED_OBSERVATION_MUTATED" check_mutated_workflow 2>&1)"
   baseline_typed_observation_rc=$?
   set -e
   if [ "$baseline_typed_observation_rc" -ne 0 ] \
@@ -1593,7 +1682,7 @@ PY
   BASELINE_CLEAN_OBSERVATION_MUTATED="$TMPROOT/ci-without-clean-baseline-observation.yml"
   sed '/OBSERVED_CLEAN_SERIAL_COMPLETION/d' "$CI" >"$BASELINE_CLEAN_OBSERVATION_MUTATED"
   set +e
-  baseline_clean_observation_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$BASELINE_CLEAN_OBSERVATION_MUTATED" bash "$0" 2>&1)"
+  baseline_clean_observation_out="$(CI_YML="$BASELINE_CLEAN_OBSERVATION_MUTATED" check_mutated_workflow 2>&1)"
   baseline_clean_observation_rc=$?
   set -e
   if [ "$baseline_clean_observation_rc" -ne 0 ] \
@@ -1606,7 +1695,7 @@ PY
   BASELINE_CLEAN_EXIT_MUTATED="$TMPROOT/ci-without-clean-baseline-exit.yml"
   sed '/\$releasedSerialExit -eq 66/d' "$CI" >"$BASELINE_CLEAN_EXIT_MUTATED"
   set +e
-  baseline_clean_exit_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$BASELINE_CLEAN_EXIT_MUTATED" bash "$0" 2>&1)"
+  baseline_clean_exit_out="$(CI_YML="$BASELINE_CLEAN_EXIT_MUTATED" check_mutated_workflow 2>&1)"
   baseline_clean_exit_rc=$?
   set -e
   if [ "$baseline_clean_exit_rc" -ne 0 ] \
@@ -1619,7 +1708,7 @@ PY
   ARTIFACT_BINDING_COMPLETION_MUTATED="$TMPROOT/ci-without-artifact-binding-completion.yml"
   sed '/\$artifact -SimpleMatch .*python_binding_completion_ack reader_autocommit=1 collector=idle/d' "$CI" >"$ARTIFACT_BINDING_COMPLETION_MUTATED"
   set +e
-  artifact_binding_completion_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$ARTIFACT_BINDING_COMPLETION_MUTATED" bash "$0" 2>&1)"
+  artifact_binding_completion_out="$(CI_YML="$ARTIFACT_BINDING_COMPLETION_MUTATED" check_mutated_workflow 2>&1)"
   artifact_binding_completion_rc=$?
   set -e
   if [ "$artifact_binding_completion_rc" -ne 0 ] \
@@ -1632,7 +1721,7 @@ PY
   FRESH_CONNECTION_MUTATED="$TMPROOT/lib-without-fresh-connection-marker.rs"
   sed '/fresh_writer_connection_open=/d' "$ENGINE_SOURCE" >"$FRESH_CONNECTION_MUTATED"
   set +e
-  fresh_connection_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 ENGINE_SOURCE="$FRESH_CONNECTION_MUTATED" bash "$0" 2>&1)"
+  fresh_connection_out="$(ENGINE_SOURCE="$FRESH_CONNECTION_MUTATED" check_mutated_sources 2>&1)"
   fresh_connection_rc=$?
   set -e
   if [ "$fresh_connection_rc" -ne 0 ] \
@@ -1645,7 +1734,7 @@ PY
   BINDING_ORDER_MUTATED="$TMPROOT/ci-without-binding-command.yml"
   sed '/--control binding --wheel-version/d' "$CI" >"$BINDING_ORDER_MUTATED"
   set +e
-  binding_order_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$BINDING_ORDER_MUTATED" bash "$0" 2>&1)"
+  binding_order_out="$(CI_YML="$BINDING_ORDER_MUTATED" check_mutated_workflow 2>&1)"
   binding_order_rc=$?
   set -e
   if [ "$binding_order_rc" -ne 0 ] \
@@ -1658,7 +1747,7 @@ PY
   RETAINED_ORDER_MUTATED="$TMPROOT/ci-without-retained-command.yml"
   sed '/--control retained --wheel-version/d' "$CI" >"$RETAINED_ORDER_MUTATED"
   set +e
-  retained_order_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$RETAINED_ORDER_MUTATED" bash "$0" 2>&1)"
+  retained_order_out="$(CI_YML="$RETAINED_ORDER_MUTATED" check_mutated_workflow 2>&1)"
   retained_order_rc=$?
   set -e
   if [ "$retained_order_rc" -ne 0 ] \
@@ -1672,7 +1761,7 @@ PY
   sed 's/workers:1(auto=1,txn=none,busy=0,received=1)/workers:1(native-state-role-removed)/' "$CI" \
     >"$NATIVE_STATE_ROLE_MUTATED"
   set +e
-  native_state_role_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$NATIVE_STATE_ROLE_MUTATED" bash "$0" 2>&1)"
+  native_state_role_out="$(CI_YML="$NATIVE_STATE_ROLE_MUTATED" check_mutated_workflow 2>&1)"
   native_state_role_rc=$?
   set -e
   if [ "$native_state_role_rc" -ne 0 ] \
@@ -1685,7 +1774,7 @@ PY
   NATIVE_STATE_MARKER_MUTATED="$TMPROOT/ci-without-native-state-before-marker.yml"
   sed '/python_binding_native_state control=binding_sampler phase=before/d' "$CI" >"$NATIVE_STATE_MARKER_MUTATED"
   set +e
-  native_state_marker_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$NATIVE_STATE_MARKER_MUTATED" bash "$0" 2>&1)"
+  native_state_marker_out="$(CI_YML="$NATIVE_STATE_MARKER_MUTATED" check_mutated_workflow 2>&1)"
   native_state_marker_rc=$?
   set -e
   if [ "$native_state_marker_rc" -ne 0 ] \
@@ -1699,7 +1788,7 @@ PY
   sed 's/test_hooks\._arm_actual_checkpoint_observation_for_test()/test_hooks._arm_binding_native_state_observation_for_test()\n                test_hooks._arm_actual_checkpoint_observation_for_test()/' "$PY_CONTROL" \
     >"$SERIAL_NATIVE_STATE_MUTATED"
   set +e
-  serial_native_state_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 PY_CONTROL="$SERIAL_NATIVE_STATE_MUTATED" bash "$0" 2>&1)"
+  serial_native_state_out="$(PY_CONTROL="$SERIAL_NATIVE_STATE_MUTATED" check_mutated_sources 2>&1)"
   serial_native_state_rc=$?
   set -e
   if [ "$serial_native_state_rc" -ne 0 ] \
@@ -1713,7 +1802,7 @@ PY
   sed 's/let runtime = self\.projection_runtime\.report_runtime_connection_inventory_for_test();/let runtime = self.projection_runtime.report_runtime_native_state_inventory_for_test();/' "$WAL_RUNTIME_SOURCE" \
     >"$ACTUAL_NATIVE_STATE_MUTATED"
   set +e
-  actual_native_state_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 WAL_RUNTIME_SOURCE="$ACTUAL_NATIVE_STATE_MUTATED" bash "$0" 2>&1)"
+  actual_native_state_out="$(WAL_RUNTIME_SOURCE="$ACTUAL_NATIVE_STATE_MUTATED" check_mutated_sources 2>&1)"
   actual_native_state_rc=$?
   set -e
   if [ "$actual_native_state_rc" -ne 0 ] \
@@ -1727,7 +1816,7 @@ PY
   sed 's/recv_timeout(Duration::from_secs(2))/recv_timeout(Duration::from_millis(250))/' "$RUNTIME_SOURCE" \
     >"$RUNTIME_TIMEOUT_MUTATED"
   set +e
-  runtime_timeout_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 RUNTIME_SOURCE="$RUNTIME_TIMEOUT_MUTATED" bash "$0" 2>&1)"
+  runtime_timeout_out="$(RUNTIME_SOURCE="$RUNTIME_TIMEOUT_MUTATED" check_mutated_sources 2>&1)"
   runtime_timeout_rc=$?
   set -e
   if [ "$runtime_timeout_rc" -ne 0 ] \
@@ -1741,7 +1830,7 @@ PY
     CLOSE_BOUNDARY_GUARD_MUTATED="$TMPROOT/ci-without-${selector}.yml"
     sed "/${guard}/d" "$CI" >"$CLOSE_BOUNDARY_GUARD_MUTATED"
     set +e
-    close_boundary_guard_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$CLOSE_BOUNDARY_GUARD_MUTATED" bash "$0" 2>&1)"
+    close_boundary_guard_out="$(CI_YML="$CLOSE_BOUNDARY_GUARD_MUTATED" check_mutated_workflow 2>&1)"
     close_boundary_guard_rc=$?
     set -e
     if [ "$close_boundary_guard_rc" -ne 0 ] \

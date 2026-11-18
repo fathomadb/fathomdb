@@ -45,9 +45,10 @@ verify Axis E sits at its independently declared version.
 ## First-tag CUDA route bootstrap
 
 GitHub cannot add a selected-workflow tag ref before that tag exists. For the
-authorized first `v0.8.28` or `v0.8.29` push only, explicitly set
+authorized first `v0.8.28`, `v0.8.29`, or `v0.8.30` push, explicitly set
 `FATHOMDB_RELEASE_TAG_BOOTSTRAP` to that exact tag on the normal `git push`
-command. This route does not authorize publication; that remains separately gated.
+command. Slice 20 qualifies the `v0.8.30` source guard. Slice 80 owns
+production routing and separately authorized publication.
 The unchanged pre-push hook runs the guard: bootstrap requires a confirmed
 remote HTTP404 for that exact tag, the restricted selected GPU group allowing
 `release.yml@refs/heads/main`, the exact environment tag policy and nonempty
@@ -245,24 +246,32 @@ commit via its `Cargo.toml`.
 
 ## Post-publish smoke
 
-The live release plan owns integrated **non-publishing** candidate verification
-(0.8.28 Slice 95, after Slice 92 documentation convergence). The .26 Slice 50
-record is historical evidence, not current ownership.
-That pre-publication matrix must not be cited as registry or post-publish
-evidence. Publication and the registry-installed smoke below remain separately
-authorized release actions.
+The [active release selector](../../scripts/release-current.py) identifies the
+plan that owns integrated candidate qualification. Candidate packages and
+source-based consumers provide pre-publication evidence. Publication and the
+following fresh registry installs require separate authorization.
 
-Per `feedback_release_verification`, "green CI + published wheel" is not
-done. Release-evidence sweep installs the published wheel from PyPI and
-runs an end-to-end open + close + exit smoke before the release is
-declared signed. Equivalent npm smoke applies for `fathomdb` publishes.
-The npm packages are published as bare `fathomdb` and unscoped
-`fathomdb-<triple>` names (not a `@fathomdb/` scope), except Windows x64 MSVC,
-which is `fathomdb-native-win32-x64-msvc` because that is the registry-owned
-publishable name. This preserves a single brand across crates, wheel, and npm.
-Crate publishes are smoked via `cargo install fathomdb-cli`
-followed by `fathomdb doctor check-integrity --json` against a fresh
-fixture database.
+The Rust SDK, PyPI wheel and npm smokes install exact versions in fresh
+consumers. Each writes and reads an exact body, checks the missing-record
+result, closes and exits, and then reopens the same database in a second
+process to repeat the reads. The npm smoke binds the main and optional package
+versions to the loaded platform binary. Linux smokes check the matching native
+artifact against its glibc floor. On npm install or resolution failure, the
+smoke logs sanitized npm output, both package versions, and the expected and
+observed native paths before cleanup. The exact crates.io CLI install also
+runs the legacy and immutable integrity checks.
+
+The release jobs wait for exact registry versions before installing packages.
+After all required smokes and co-tagging pass, the normal publication workflow
+uses the same [promotion helper](../../scripts/release/promote-npm-latest.py)
+as the recovery workflow. The hosted jobs install npm 11.21.0 on Node 25.9.0
+and present their own workflow identities. Only the main exact
+`fathomdb@VERSION` moves to `latest`. The optional platform packages stay
+on `next` and resolve by version. A monotonic 60-second readback budget allows
+up to six observations and reports the expected and actual value before the
+GitHub Release job can finalize. Verify that both trusted-publisher identities
+have the dist-tag action in npm before authorizing production. [npm trusted
+publishing](https://docs.npmjs.com/trusted-publishers/)
 
 ## Sources
 

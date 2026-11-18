@@ -450,6 +450,7 @@ run_tier_suite fast test-smoke-scripts bash scripts/tests/test_smoke_scripts.sh
 # assertions (matrix gated to x86_64-linux, tiered ordering, non-latest npm
 # dist-tag). Pure python3+PyYAML parse; never runs the workflow.
 run_tier_suite fast test-release-workflow-scope bash scripts/tests/test_release_workflow_scope.sh
+run_tier_suite fast test-npm-promotion python3 scripts/tests/test_npm_promotion.py
 
 # Fast mutation coverage for the manifest-derived release-ready native matrix.
 # This standard-library checker guards matrix, package, smoke, and promotion

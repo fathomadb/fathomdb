@@ -89,6 +89,7 @@ control_jobs = {
     "cuda-package-rehearsal",
     "cuda-reranker-package-rehearsal",
     "wait-for-package-registry-visibility",
+    "promote-npm-latest",
 }
 control = [entry for entry in checkouts if entry[1] == "${{ github.workflow_sha }}"]
 ordinary = [entry for entry in checkouts if entry[1] == "${{ env.RELEASE_CHECKOUT_REF }}"]
@@ -99,7 +100,7 @@ ok = (
     and env.get("RELEASE_GATES_CANDIDATE_COMMIT") == "${{ inputs.candidate_commit || '' }}"
     and checkouts
     and len(checkouts) == len(ordinary) + len(control)
-    and len(control) == 5
+    and len(control) == len(control_jobs)
     and {job for job, _, _ in control} == control_jobs
     and all(with_.get("persist-credentials") is False for _, _, with_ in control)
     and all(
@@ -261,7 +262,7 @@ required = {
     "co-tagging-assert",
 }
 text = str(job)
-print("PROMOTION", required <= needs and "npm dist-tag add" in text and "latest" in text)
+print("PROMOTION", required <= needs and "python3 scripts/release/promote-npm-latest.py" in text)
 PY
 )"
 if printf '%s\n' "$promotion_out" | grep -q '^PROMOTION True'; then

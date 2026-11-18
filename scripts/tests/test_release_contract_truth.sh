@@ -417,10 +417,10 @@ import sys
 
 path = Path(sys.argv[1])
 text = path.read_text()
-needle = 'run: npm dist-tag add "fathomdb@${RELEASE_TAG#v}" latest'
+needle = 'run: python3 scripts/release/promote-npm-latest.py "${RELEASE_TAG#v}"'
 if text.count(needle) != 1:
     raise SystemExit("test fixture no longer contains exactly one main-package promotion command")
-path.write_text(text.replace(needle, needle.replace("fathomdb@", "fathomdb-linux-x64-gnu@", 1)))
+path.write_text(text.replace(needle, needle.replace("${RELEASE_TAG#v}", "fathomdb-linux-x64-gnu@${RELEASE_TAG#v}", 1)))
 PY
 expect_fail "$FIXTURE" 'rejects a latest promotion of a platform package'
 
@@ -431,7 +431,7 @@ import sys
 
 path = Path(sys.argv[1])
 text = path.read_text()
-needle = '        run: npm dist-tag add "fathomdb@${RELEASE_TAG#v}" latest\n'
+needle = '        run: python3 scripts/release/promote-npm-latest.py "${RELEASE_TAG#v}"\n'
 if text.count(needle) != 1:
     raise SystemExit("test fixture no longer contains exactly one direct main-package promotion")
 extra = (

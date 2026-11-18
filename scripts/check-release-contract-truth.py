@@ -125,7 +125,7 @@ WINDOWS_NPM_SMOKE = re.compile(
     re.MULTILINE,
 )
 PROMOTION_COMMAND = re.compile(
-    r'^        run: npm dist-tag add "fathomdb@\$\{RELEASE_TAG#v\}" latest\s*$',
+    r'^        run: python3 scripts/release/promote-npm-latest\.py "\$\{RELEASE_TAG#v\}"\s*$',
     re.MULTILINE,
 )
 CONTINUE_ON_ERROR = re.compile(
@@ -557,9 +557,16 @@ def main() -> None:
         fail("promote-npm-latest must depend on every release-ready platform smoke")
     if "co-tagging-assert" not in promotion_needs:
         fail("promote-npm-latest must depend on co-tagging-assert")
-    promotion_command_count = promotion.count("npm dist-tag add")
-    if promotion_command_count != 1 or not PROMOTION_COMMAND.search(promotion):
-        fail("promote-npm-latest must promote only fathomdb@${RELEASE_TAG#v} to latest")
+    if (
+        len(PROMOTION_COMMAND.findall(promotion)) != 1
+        or re.search(r"dist-tag\s+(?:add|a|set|s|rm|r|del|d|remove)\b", promotion)
+        or "NPM_TOKEN" in promotion
+        or "NODE_AUTH_TOKEN" in promotion
+        or 'npm install --global npm@11.21.0' not in promotion
+        or 'ref: ${{ github.workflow_sha }}' not in promotion
+        or 'persist-credentials: false' not in promotion
+    ):
+        fail("promote-npm-latest must use the pinned OIDC helper at the reviewed workflow SHA")
 
     github_release = jobs.get("github-release")
     if github_release is None:

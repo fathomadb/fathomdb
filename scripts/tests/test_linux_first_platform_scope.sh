@@ -142,7 +142,7 @@ for required_need in \
     fail "latest promotion waits for $required_need"
   fi
 done
-if grep -Fqx '        run: npm dist-tag add "fathomdb@${RELEASE_TAG#v}" latest' <<<"$promotion_block"; then
+if grep -Fqx '        run: python3 scripts/release/promote-npm-latest.py "${RELEASE_TAG#v}"' <<<"$promotion_block"; then
   pass "only the main fathomdb package is promoted after all five smokes"
 else
   fail "promotion must add latest only to the main fathomdb package"

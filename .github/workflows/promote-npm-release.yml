@@ -1,7 +1,7 @@
 name: Promote npm release
 
 # Recovery route for a release whose package builds and installed smokes passed
-# but whose legacy npm token could not move the main package to latest.
+# but whose main package still needs verified latest promotion.
 on:
   workflow_dispatch:
     inputs:
@@ -32,6 +32,7 @@ jobs:
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
+          ref: ${{ github.workflow_sha }}
           persist-credentials: false
       - name: Require exact tag and successful production publish smokes
         env:
@@ -72,17 +73,7 @@ jobs:
         env:
           VERSION: ${{ inputs.release_version }}
         shell: bash
-        run: |
-          set -euo pipefail
-          npm_version="$(npm --version)"
-          printf 'npm CLI version: %s\n' "$npm_version"
-          [ "$npm_version" = "11.21.0" ] || { printf 'OIDC dist-tag requires npm 11.21.0\n' >&2; exit 1; }
-          [ -n "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ] && [ -n "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}" ] || {
-            printf 'GitHub OIDC request credentials are unavailable\n' >&2
-            exit 1
-          }
-          npm --loglevel=verbose dist-tag add "fathomdb@$VERSION" latest
-          [ "$(npm view fathomdb dist-tags.latest)" = "$VERSION" ]
+        run: python3 scripts/release/promote-npm-latest.py "$VERSION"
 
   github-release:
     needs: promote-npm-latest

@@ -169,6 +169,57 @@ for s in "$CRATES" "$PYPI" "$NPM"; do
   fi
 done
 
+SDK="$SMOKE_DIR/smoke-crates-sdk.sh"
+check_common "$SDK" "smoke-crates-sdk"
+assert_contains "Rust SDK reads in a separate process" "$SDK" '"$consumer" "$work/smoke.sqlite" reopen'
+assert_contains "Python SDK reads in a separate process" "$PYPI" '"$consumer" "$PIP_VERSION" "$DB" reopen'
+assert_contains "Windows Python SDK reads in a separate process" "$PYPI_WINDOWS" '& $python -I $consumer $Version $db reopen'
+assert_contains "Node SDK reads in a separate process" "$NPM" 'node "$consumer" reopen "$WORK" "$VERSION"'
+assert_contains "Windows Node SDK reads in a separate process" "$NPM_WINDOWS" 'node $consumer reopen $work $Version'
+
+fixture="$(mktemp -d)"
+trap 'rm -rf "$fixture"' EXIT
+mkdir -p "$fixture/bin"
+cat > "$fixture/bin/npm" <<'SHIM'
+#!/usr/bin/env bash
+set -euo pipefail
+if [ "$1" = init ]; then
+  printf '{}\n' > package.json
+  exit 0
+fi
+[ "$1" = install ]
+printf 'npm fixture: optional dependency failed to resolve\n'
+printf 'NPM_TOKEN=synthetic-private-marker\n'
+[ "${SMOKE_INSTALL_EXIT:-0}" = 0 ] || exit "$SMOKE_INSTALL_EXIT"
+mkdir -p node_modules/fathomdb node_modules/fathomdb-linux-x64-gnu node_modules/fathomdb-linux-arm64-gnu
+printf '{"name":"fathomdb","version":"0.8.30","optionalDependencies":{"fathomdb-linux-x64-gnu":"0.8.30"}}\n' > node_modules/fathomdb/package.json
+printf '{"name":"fathomdb-linux-x64-gnu","version":"0.8.30","main":"fathomdb.linux-x64-gnu.node"}\n' > node_modules/fathomdb-linux-x64-gnu/package.json
+printf 'wrong platform binary\n' > node_modules/fathomdb-linux-arm64-gnu/fathomdb.linux-arm64-gnu.node
+SHIM
+chmod +x "$fixture/bin/npm"
+if [ "$(uname -sm)" = "Linux x86_64" ] && node -e 'process.exit(process.report.getReport().header.glibcVersionRuntime ? 0 : 1)'; then
+  result=0
+  diagnostic="$(PATH="$fixture/bin:$PATH" bash "$NPM" 0.8.30 2>&1)" || result=$?
+  if [ "$result" -ne 0 ] && [[ "$diagnostic" == *"requested=0.8.30 resolved=0.8.30"* ]] \
+    && [[ "$diagnostic" == *"optional=fathomdb-linux-x64-gnu expected_version=0.8.30 installed_version=0.8.30"* ]] \
+    && [[ "$diagnostic" == *"expected_path="*"/fathomdb.linux-x64-gnu.node"* ]] \
+    && [[ "$diagnostic" == *"observed_native=missing"* ]] \
+    && [[ "$diagnostic" == *"optional dependency failed to resolve"* ]] \
+    && [[ "$diagnostic" != *synthetic-private-marker* ]]; then
+    pass "Bash npm smoke rejects a missing matching addon even with a wrong-platform binary installed"
+  else
+    fail "npm missing-native diagnostic lost version, path, install output or redaction: exit=$result output=$diagnostic"
+  fi
+  result=0
+  diagnostic="$(PATH="$fixture/bin:$PATH" SMOKE_INSTALL_EXIT=43 bash "$NPM" 0.8.30 2>&1)" || result=$?
+  if [ "$result" -eq 43 ] && [[ "$diagnostic" == *"optional dependency failed to resolve"* ]] \
+    && [[ "$diagnostic" != *synthetic-private-marker* ]]; then
+    pass "Bash npm smoke preserves the exact install failure and redacted output"
+  else
+    fail "npm install failure lost its exit, diagnostic or redaction: exit=$result output=$diagnostic"
+  fi
+fi
+
 if [ "$FAILED" -gt 0 ]; then
   printf '\n%d test(s) failed\n' "$FAILED" >&2
   exit 1

@@ -31,21 +31,21 @@ Start from current `origin/main` containing published 0.8.29 and its qualified
 repairs. The known closure is `569652e61d0736ae788c7cbb2d327c4481fc3e1c`;
 the retrospective/recommendations commit is
 `3e637ab7ea84021f560667ab0099ba5d4546c08b`. Verify actual ancestry and changes
-at activation rather than resetting to those snapshots. The shipping.29 tag
+at activation rather than resetting to those snapshots. The shipping .29 tag
 remains `b64d32f80bea2853bf4939b6334e32501174ffb1`.
 
 Owner clarification seq-398 adds required 0.8.29 Tegra CUDA wheel/addon and
 GitHub Pages delivery on `10.83.10.13`. That supplemental 0.8.29 work is OPEN;
 generic ARM64 CPU packages and retained 0.8.28 Tegra packages do not complete it.
-Finish it in 0.8.29 before accepting0.8.30's final Tegra/platform baseline. Independent
+Finish it in 0.8.29 before accepting 0.8.30's final Tegra/platform baseline. Independent
 .30 planning and CPU/source work need not wait; this draft does not move the
 requirement into 0.8.30.
 
 Reuse 0.8.29 evidence by the claim it supports and its source/features/native/
-fixture/protocol identity. Do not replay paid72, all160 S50 members or healthy
+fixture/protocol identity. Do not replay paid 72, all 160 S50 members or healthy
 GPU/platform controls simply because a new release number exists. Changed
 native artifacts and declared package support still need their actual applicable
-consumer proof. Store format37 is the baseline; no format/default/precision
+consumer proof. Store format 37 is the baseline; no format/default/precision
 change, migration, chunking or new retrieval backend is selected by this draft.
 
 Footprint: existing in-process Rust engine plus Python/TypeScript boundaries;
@@ -58,16 +58,16 @@ unfixed asynchronous states.
 ## 2. Deliverables and acceptance
 
 These are proposed release-local requirements, not new canonical AC numbers.
-Freeze concrete changed-case selectors and comparison rules in Slice0; do not
+Freeze concrete changed-case selectors and comparison rules in Slice 0; do not
 invent tests that have already passed or change an oracle to fit a result.
 
 | ID | Deliverable | Falsifiable acceptance |
 | --- | --- | --- |
 | R30-DIAG | Failures remain attributable through cancellation. | A suite fails after more than 200 diagnostic lines; a later child is cancelled. Original exit, full useful diagnostic, completed outcomes and unrun tail remain available through existing capture mechanisms, with bounded redaction and correct fail-fast/collect-all behavior. Elapsed timing stays nonnegative under clock adjustment. |
 | R30-COR | Bounded bug hunt and fixes at composed correctness boundaries. | Each selected case has a real reproducer/seed, intended result and classification. Confirmed defects have observed RED→GREEN and regression tests. Coverage/identity/feedback/FFI/queue/recovery invariants below hold on real databases where applicable; unresolved critical wrong-result/data-loss findings cannot be labeled passed. |
-| R30-S50 | Resolve or precisely bound the retained score observation. | Inspect preserved sample860/query360/op9971 first; any selected reproduction captures candidate/rank/tie and snapshot/cursor context sufficient to distinguish fixed-state error from concurrent-state movement. Report root cause or bounded non-reproduction with explicit residual uncertainty. No general tolerance or retroactive exact pass; a new semantic exception requires owner disposition. |
+| R30-S50 | Resolve or precisely bound the retained score observation. | Inspect preserved sample 860/query 360/op 9971 first; any selected reproduction captures candidate/rank/tie and snapshot/cursor context sufficient to distinguish fixed-state error from concurrent-state movement. Report root cause or bounded non-reproduction with explicit residual uncertainty. No general tolerance or retroactive exact pass; a new semantic exception requires owner disposition. |
 | R30-LAT | Current latency attribution and justified improvements. | Comparable baseline/treatment inputs and profiles; queue/service/component and end-to-end latency, p50/p95/p99, throughput, refusal/timeout rates and resource cost. A promoted change improves the selected measured bottleneck without breaking output/lifecycle or accepted numerical criteria. Neutral/negative results justify non-adoption, not a fabricated speedup. |
-| R30-ROB | Resource/lifecycle behavior and safe release semantics. | Selected cancellation/close/reopen and default-Node memory cases have exact exit/post-state/resource outcomes. Default-profile behavior is assessed separately from semispace4. An opt-in module-model release API can ship only after its reset-safe-drop prerequisite, binding parity and release/concurrent-use/reload behavior are qualified. |
+| R30-ROB | Resource/lifecycle behavior and safe release semantics. | Selected cancellation/close/reopen and default-Node memory cases have exact exit/post-state/resource outcomes. Default-profile behavior is assessed separately from semispace 4. An opt-in module-model release API can ship only after its reset-safe-drop prerequisite, binding parity and release/concurrent-use/reload behavior are qualified. |
 | R30-TEST | Higher-value testing with less duplication. | A concise audit of expensive/critical suites names claim, observed runtime, useful defects/misses and overlap. Retained/new state/property, differential, boundary and fault cases cover selected risks; removal/consolidation preserves meaningful oracles and actual platform/runtime controls. No database mocks or regenerated goldens. |
 | R30-CI | Efficient ordinary CI and reliable normal finalization. | Normal publication uses the qualified OIDC mechanism rather than the legacy token, with bounded visibility polling and expected/observed diagnostics. Missing native packages fail informatively. Tool-only setup avoids native wheel builds; the 856.43s static-check hotspot and selected DAG/setup costs have measured before/after improvement with their intended controls intact. |
 | R30-FORK | Reconciled fork maintenance with truthful supported targets. | Every selected rebase/marker/kernel change has the retained/removed delta map, exact coherent pins/features, actual supported/unsupported controls and affected installed-consumer proof. Target list and numerical cold-start/build/size tradeoffs are selected before execution; no new dtype, CUDA13 or platform claim by inference. |
@@ -77,24 +77,24 @@ invent tests that have already passed or change an oracle to fit a result.
 
 | Slice | Work and requirement | Depends on | Exit |
 | --- | --- | --- | --- |
-|0 | Baseline and scope selection; quality/policy review; minimal plan/state setup. | Published.29; current-source reread. | Existing proof applicability, selected early cases, unchanged thresholds and necessary resource limits identified; remaining consequential choices named once. |
-|5 | Diagnostic retention and CI/CD correctness/efficiency — R30-DIAG/CI. |0 | Failure capture, normal OIDC/visibility and install diagnostics fixed; scoped setup/static/DAG improvements measured. No new general CI framework. |
-|10 | Correctness bug hunt and targeted repairs — R30-COR/S50. |0; use5 diagnostics when relevant. | High-risk sentinels first; confirmed defects fixed, expected behavior/non-reproductions distinguished and residual critical uncertainty explicitly resolved or held for owner disposition. |
-|15 | Latency profiling and selected improvements — R30-LAT. |0 for baseline; relevant10 invariants before promotion. | Same-state correctness/reference controls plus comparable performance results; retain justified non-adoption. |
-|20 | Lifecycle/resource robustness — R30-ROB/COR. |0; consumed10 fixes; reset-safe fork repair before unsafe drop/release tests. | Default-Node growth characterized/remedied where reproduced; selected close/crash cases and any selected module release implementation qualified. Live resets remain separately authorized. |
-|25 | Test-value review and consolidation — R30-TEST. |0; findings from5/10/15/20 as they arise. | Focused state/property/reference/fault coverage and reduced duplicate work; this is not a second full qualification campaign. |
-|30 | Scoped fork maintenance and GPU policy/qualification — R30-FORK/ROB. |0 for research/design; actual consumed lifecycle contracts/repairs for implementation. | Owner-placed B/C work reconciled and selected final cohort qualified before final native/performance sign-off. |
-|40 | Combined qualification, interfaces/docs and release readiness — all requirements. | Selected exits5–30. | One stable coherent-phase full gate plus necessary changed-claim/long/performance/platform/artifact checks and independent final review. Original failures/skips remain distinct. |
-|45 | Authorized publication and post-publish proof — R30-REL. |40 plus explicit production authority. | Required registries, installed consumers, finalization, public docs and owned cleanup complete; immutable shipping tag preserved. |
+| 0 | Baseline and scope selection; quality/policy review; minimal plan/state setup. | Published.29; current-source reread. | Existing proof applicability, selected early cases, unchanged thresholds and necessary resource limits identified; remaining consequential choices named once. |
+| 5 | Diagnostic retention and CI/CD correctness/efficiency — R30-DIAG/CI. | 0 | Failure capture, normal OIDC/visibility and install diagnostics fixed; scoped setup/static/DAG improvements measured. No new general CI framework. |
+| 10 | Correctness bug hunt and targeted repairs — R30-COR/S50. | 0; use5 diagnostics when relevant. | High-risk sentinels first; confirmed defects fixed, expected behavior/non-reproductions distinguished and residual critical uncertainty explicitly resolved or held for owner disposition. |
+| 15 | Latency profiling and selected improvements — R30-LAT. | 0 for baseline; relevant10 invariants before promotion. | Same-state correctness/reference controls plus comparable performance results; retain justified non-adoption. |
+| 20 | Lifecycle/resource robustness — R30-ROB/COR. | 0; consumed10 fixes; reset-safe fork repair before unsafe drop/release tests. | Default-Node growth characterized/remedied where reproduced; selected close/crash cases and any selected module release implementation qualified. Live resets remain separately authorized. |
+| 25 | Test-value review and consolidation — R30-TEST. | 0; findings from5/10/15/20 as they arise. | Focused state/property/reference/fault coverage and reduced duplicate work; this is not a second full qualification campaign. |
+| 30 | Scoped fork maintenance and GPU policy/qualification — R30-FORK/ROB. | 0 for research/design; actual consumed lifecycle contracts/repairs for implementation. | Owner-placed B/C work reconciled and selected final cohort qualified before final native/performance sign-off. |
+| 40 | Combined qualification, interfaces/docs and release readiness — all requirements. | Selected exits 5–30. | One stable coherent-phase full gate plus necessary changed-claim/long/performance/platform/artifact checks and independent final review. Original failures/skips remain distinct. |
+| 45 | Authorized publication and post-publish proof — R30-REL. | 40 plus explicit production authority. | Required registries, installed consumers, finalization, public docs and owned cleanup complete; immutable shipping tag preserved. |
 
 Numbers are integration seams, not a request for a packet or model review per
 helper. Use gaps only for a materially new coherent scope that will not fit its
 owning slice; do not create a new slice for every found defect. Reconcile scope
 before consuming a neighboring number rather than silently growing the ladder.
 
-After0, delivery work5, correctness10 and performance baseline15 can proceed in
-parallel;25 starts its audit alongside them. Fork research/design can also start
-without waiting for whole20. Only consumed code/contracts gate implementation.
+After 0, delivery work 5, correctness 10 and performance baseline 15 can proceed in
+parallel; 25 starts its audit alongside them. Fork research/design can also start
+without waiting for whole 20. Only consumed code/contracts gate implementation.
 Serialize shared engine/search/coverage edits and dependency/pin integration.
 Every concurrent writer has its own worktree; root alone integrates state.
 Finalize relevant fork/native inputs before final numerical/artifact evidence;
@@ -104,9 +104,9 @@ if they change later, reassess only the claims they invalidate.
 
 Use existing harnesses with a small first wave, not a Cartesian matrix:
 
-- S50 preserved natural-write observation and one representative100k hybrid/SDK
+- S50 preserved natural-write observation and one representative 100k hybrid/SDK
   case, before bulk lower-risk repetitions. Both differing original calls were
-  reference-route; async projection remains unproved, and their1.240362%/
+  reference-route; async projection remains unproved, and their 1.240362%/
   0.850694% differences are not a CPU/GPU rounding tolerance.
 - Duplicate-body/distinct-record identity and repeated-ref atomic feedback;
   coverage `R=K+U`, unknown versus zero, UTF-8 spans and pinned-reader publication.
@@ -121,7 +121,7 @@ Keep classifications: confirmed product defect, harness/operator defect,
 expected behavior, not reproduced, or unresolved observation. A minimized real
 regression is the deliverable; no standalone bug-catalog system is needed.
 
-For15, profile current eligibility/visibility scans, hydration/materialization,
+For 15, profile current eligibility/visibility scans, hydration/materialization,
 serialization/copies, queueing and resource pressure. The 0.8.29 scan cost of roughly
 48–49 ms is a lead, not a current 0.8.30 baseline. Cache HIT/MISS/key/invalidation
 costs and natural-write benefit must be measured; time-dependent eligibility
@@ -134,11 +134,11 @@ retain noise and all original failures without weakening accepted thresholds.
 
 | Allocation | Owning work | Retained boundary |
 | --- | --- | --- |
-| Precise feedback, seq-375 / TC-e70f4224 |10 design/contract review; implementation only for the selected correctness need. |.29 atomic ambiguity refusal remains valid. Richer occurrence labels need explicit response/store/epoch lifetime and paging/fetch semantics; no ABI is silently chosen. |
-| Reset review, seq-376/377 / TC-cab4c8d7; original TC-281155a1 |20/30 | Software-loss tests do not qualify actual reset survival. Original Orin defect needs Orin proof;3090 is separate. No prior one-use approval is replenished. |
-| Module CUDA model release, B30-01 / TC-8d3c1cde |20, consumed fork prerequisite in30 | Preserve the [roadmap contract](../../ROADMAP.md#0830-backlog): explicit opt-in Rust/Python/TS call, no automatic idle release; clearable ownership, typed errors, concurrency, repeated release and reload. Safe post-reset drop is a hard prerequisite to shipping/executing the unsafe release path, not a paperwork exception. |
-| S50 observation, seq-393 |10 | Investigate the saved evidence; preserve fixed-state exactness and original.29 exception. That exception is not blanket.30 acceptance. |
-| F30-REBASE / TC-509dc8a6; F30-MARKER / TC-93d11583; F30-MULTIARCH / TC-323f15b0, seq-367 |30 |.30 placement remains. Choose a justified upstream/cohort and actual target list; retain required.29 repairs. Marker removal cannot remove pool behavior; kernel/dtype/target expansion is not automatically selected by the quality theme. |
+| Precise feedback, seq-375 / TC-e70f4224 | 10 design/contract review; implementation only for the selected correctness need. | .29 atomic ambiguity refusal remains valid. Richer occurrence labels need explicit response/store/epoch lifetime and paging/fetch semantics; no ABI is silently chosen. |
+| Reset review, seq-376/377 / TC-cab4c8d7; original TC-281155a1 | 20/30 | Software-loss tests do not qualify actual reset survival. Original Orin defect needs Orin proof; 3090 is separate. No prior one-use approval is replenished. |
+| Module CUDA model release, B30-01 / TC-8d3c1cde | 20, consumed fork prerequisite in 30 | Preserve the [roadmap contract](../../ROADMAP.md#0830-backlog): explicit opt-in Rust/Python/TS call, no automatic idle release; clearable ownership, typed errors, concurrency, repeated release and reload. Safe post-reset drop is a hard prerequisite to shipping/executing the unsafe release path, not a paperwork exception. |
+| S50 observation, seq-393 | 10 | Investigate the saved evidence; preserve fixed-state exactness and original .29 exception. That exception is not blanket .30 acceptance. |
+| F30-REBASE / TC-509dc8a6; F30-MARKER / TC-93d11583; F30-MULTIARCH / TC-323f15b0, seq-367 | 30 | .30 placement remains. Choose a justified upstream/cohort and actual target list; retain required .29 repairs. Marker removal cannot remove pool behavior; kernel/dtype/target expansion is not automatically selected by the quality theme. |
 
 If a previously placed item cannot fit the selected targets, safety prerequisites
 or available authority, identify the specific owner disposition needed. Do not
@@ -174,10 +174,15 @@ Real package/platform proof remains distinct from inherited source qualification
 
 ## 7. Delivery efficiency and process
 
-Slice5 addresses the observed failures first: immediate useful diagnostics before
+Slice 5 addresses the observed failures first: immediate useful diagnostics before
 collect-all continues, monotonic elapsed timing, shared normal/recovery OIDC
 promotion, bounded visibility polling with observed values, useful optional-
 package install errors, and known-worker inventory before eligibility/approval.
+The postpublication [0.8.29 CI run](https://github.com/fathomadb/fathomdb/actions/runs/44244789028/job/134601018880)
+also exposes a closure-check mismatch: `commission-manifest` requires every
+ladder entry to be LANDED, including owner-deferred 120 and unselected 150.
+Keep those dispositions truthful and make the checker distinguish selected
+unfinished work from explicit deferred/unselected work; do not fabricate passes.
 Then reduce the slow static checker, mandatory native bootstrap work, duplicate
 builds and inappropriate diff/platform triggers. Preserve meaningful mutation,
 Windows runtime, package-loading and release access protections.
@@ -225,16 +230,16 @@ The current source checks still show divergent mechanisms: normal
 `promote-npm-release.yml:69–79` uses the qualified OIDC CLI; `agent-output.sh:31/40`
 uses wall time while the suite runner has monotonic timing; CI spill collection
 is late at `ci.yml:339/430`; bootstrap calls owned provisioning even for setup.
-These observed conflicts belong to5, not another audit packet. Old force-retag
+These observed conflicts belong to 5, not another audit packet. Old force-retag
 memory and stale “pending” historical prose must not override current policy or
 release state. Use current AGENTS/source plus owner rulings.
 
 **CUDA policy review.** The standing [per-release review](../../design/cuda-version-support-review.md)
 is completed as a bounded [dated refresh](research/cuda-version-adoption.md), with comparable usage shares explicitly unknown. It is a supporting input, not a
 new GPU experiment or permission change. Retain the accepted importance/driver/
-primary-toolkit policy unless the owner ratifies a change; new CUDA13 delivery
+primary-toolkit policy unless the owner ratifies a change; new CUDA 13 delivery
 and quantitative work remain in 0.8.31. Unknown comparable-month usage shares stay
-unknown, and the 0.8.29 review is not relabeled as fresh. Before30 selects targets,
+unknown, and the 0.8.29 review is not relabeled as fresh. Before 30 selects targets,
 reconcile the refresh, existing fork requirements and actual available venues.
 
 **Overflow tripwires.** The [chunking review](../../design/overflow-chunking-reevaluation.md)
@@ -248,13 +253,13 @@ Open selections, resolved only when consumed: exact bounded native/fault profile
 and venue authority; safe model-release/feedback API details; justified upstream
 revision and kernel target list; any actual support/precision change; production
 publication/runner access. None requires asking permission again for already
-selected ordinary source work or replacing established.29 proof.
+selected ordinary source work or replacing established .29 proof.
 
 ## 10. Immediate next action
 
 Review this proposed plan as one coherent scope. On execution authorization,
-open0: verify current source/accepted carryover, select the small first-wave
+open 0: verify current source/accepted carryover, select the small first-wave
 cases and resource bounds, complete only consequential policy/API/target choices,
 and activate the minimal state/board with this file as the plan pointer. Then
-start5,10 and the15 baseline in parallel where source ownership permits. No
-implementation, paid/model/GPU/fault run or publishing action has started here.
+start 5, 10 and the 15 baseline in parallel where source ownership permits. No
+0.8.30 implementation, paid/model/GPU/fault run or publishing action has started here.

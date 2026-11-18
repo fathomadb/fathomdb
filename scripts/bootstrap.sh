@@ -2,6 +2,13 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+python_setup=--provision
+case "$#:${1:-}" in
+  0:) ;;
+  1:--tools-only) python_setup=--tools-only ;;
+  *) echo 'usage: bootstrap.sh [--tools-only]' >&2; exit 2 ;;
+esac
+
 # `git rev-parse` failing here used to degrade to `cd ""` — a bash no-op that
 # leaves the script running in an arbitrary cwd. Bind and check it instead.
 _repo_toplevel="$(git rev-parse --show-toplevel)" || exit 1
@@ -32,7 +39,7 @@ if [ -f src/python/pyproject.toml ]; then
   # (pip resolution, an unguarded import that fails pyright) must be VISIBLE in
   # the CI log, not swallowed. Dropping `--quiet`/`>/dev/null` is what surfaced
   # the httpx import-not-found error that was silently failing bootstrap on main.
-  bash "$SCRIPT_DIR/setup-python-owned.sh" --provision
+  bash "$SCRIPT_DIR/setup-python-owned.sh" "$python_setup"
   .venv/bin/python -c 'import pytest, hypothesis'
   .venv/bin/pyright -p src/python
 fi

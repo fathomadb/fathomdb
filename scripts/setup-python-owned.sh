@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
-# Build and install a source-bound noneditable wheel in this checkout's venv.
+# Provision developer tools or a source-bound noneditable wheel in this checkout.
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root"
 mode=--build
 if [ "$#" -gt 0 ]; then mode="$1"; shift; fi
-case "$mode" in --check-ownership|--provision|--build) ;; *) echo 'setup-python-owned: use --check-ownership, --provision or --build' >&2; exit 2 ;; esac
+case "$mode" in
+  --check-ownership|--tools-only|--provision|--build) ;;
+  *) echo 'setup-python-owned: use --check-ownership, --tools-only, --provision or --build' >&2; exit 2 ;;
+esac
 features=''
 compatibility=''
 while [ "$#" -gt 0 ]; do
@@ -31,8 +34,9 @@ while [ "$#" -gt 0 ]; do
     *) echo "setup-python-owned: unknown argument $1" >&2; exit 2 ;;
   esac
 done
-if [ "$mode" = --check-ownership ] && { [ -n "$features" ] || [ -n "$compatibility" ]; }; then
-  echo 'setup-python-owned: --check-ownership accepts no build options' >&2; exit 2
+if { [ "$mode" = --check-ownership ] || [ "$mode" = --tools-only ]; } \
+  && { [ -n "$features" ] || [ -n "$compatibility" ]; }; then
+  echo "setup-python-owned: $mode accepts no build options" >&2; exit 2
 fi
 if [ -L .venv ]; then echo 'setup-python-owned: .venv must be owned by this checkout, not a symlink' >&2; exit 1; fi
 if [ -n "${VIRTUAL_ENV:-}" ] && [ "$VIRTUAL_ENV" != "$repo_root/.venv" ]; then
@@ -52,7 +56,7 @@ for owned_dir in node_modules src/ts/node_modules; do
   fi
 done
 if [ "$mode" = --check-ownership ]; then exit 0; fi
-if [ "$mode" = --provision ] && [ ! -x .venv/bin/python ]; then
+if { [ "$mode" = --provision ] || [ "$mode" = --tools-only ]; } && [ ! -x .venv/bin/python ]; then
   # shellcheck source=lib/agent-python-env.sh
   . "$SCRIPT_DIR/lib/agent-python-env.sh"
   create_venv_with_selected_python .venv
@@ -75,23 +79,28 @@ for path in (venv,root/'node_modules',root/'src/ts/node_modules'):
 if pathlib.Path(sys.prefix).resolve()!=venv:
     raise SystemExit('setup-python-owned: interpreter prefix is foreign; refusing package installation')
 config=tomllib.loads((root/'src/python/pyproject.toml').read_text())
+mode=sys.argv[1]
 features=sys.argv[3] or ','.join(config['tool']['maturin']['features'])
 compatibility=sys.argv[4] or None
-manifest=root/'src/python'/config['tool']['maturin']['manifest-path']
-allowed=set(tomllib.loads(manifest.read_text())['features'])|{'pyo3/extension-module'}
-selected=features.split(',')
-if len(set(selected))!=len(selected) or any(feature not in allowed for feature in selected):
-    raise SystemExit('setup-python-owned: features must be distinct exact Python Cargo feature names')
-if 'pyo3/extension-module' not in selected:
-    raise SystemExit('setup-python-owned: features require pyo3/extension-module')
+if mode!="--tools-only":
+    manifest=root/'src/python'/config['tool']['maturin']['manifest-path']
+    allowed=set(tomllib.loads(manifest.read_text())['features'])|{'pyo3/extension-module'}
+    selected=features.split(',')
+    if len(set(selected))!=len(selected) or any(feature not in allowed for feature in selected):
+        raise SystemExit('setup-python-owned: features must be distinct exact Python Cargo feature names')
+    if 'pyo3/extension-module' not in selected:
+        raise SystemExit('setup-python-owned: features require pyo3/extension-module')
 run([python,'-m','pip','--version'])
-if sys.argv[1]=='--provision':
+if mode in {'--tools-only','--provision'}:
     run([python,'-m','pip','install',*config['project']['optional-dependencies']['dev']])
 for name in ('ruff','pyright'):
     pin=next(x.split('==',1)[1] for x in config['project']['optional-dependencies']['dev'] if x.startswith(name+'=='))
     found=run([venv/'bin'/name,'--version'],capture_output=True,text=True).stdout.strip()
     if not found or found.splitlines()[0]!=f'{name} {pin}':
         raise SystemExit(f'setup-python-owned: {name} pin mismatch: {found!r}, want {pin}')
+if mode=='--tools-only':
+    print('setup-python-owned: checkout developer tools are ready')
+    raise SystemExit(0)
 output=pathlib.Path(tempfile.mkdtemp(prefix='fathomdb-owned-python-'))
 build=[python,'-m','maturin','build','--locked','--release','--interpreter',python,'--features',features,'--out',output]
 if compatibility is not None:

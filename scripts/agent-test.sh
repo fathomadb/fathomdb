@@ -582,6 +582,7 @@ run_tier_suite fast test-ci-long-job-efficiency bash scripts/tests/test_ci_long_
 run_tier_suite fast test-bootstrap-heavy bash scripts/tests/test_bootstrap_heavy.sh
 run_tier_suite fast test-bootstrap-venv-ownership bash scripts/tests/test_bootstrap_ownership_order.sh venv
 run_tier_suite fast test-bootstrap-module-ownership bash scripts/tests/test_bootstrap_ownership_order.sh modules
+run_tier_suite fast test-owned-python-tools-only bash scripts/tests/test_setup_python_owned.sh tools-only
 run_tier_suite fast test-owned-python-bootstrap bash scripts/tests/test_setup_python_owned.sh bootstrap
 run_tier_suite fast test-owned-python-stale bash scripts/tests/test_setup_python_owned.sh stale
 run_tier_suite fast test-owned-python-missing bash scripts/tests/test_setup_python_owned.sh missing
@@ -834,9 +835,9 @@ else
 fi
 run_tier_maybe_suite fast test-program-experiment-harness "$experiment_track_runner_skip_reason" "${experiment_track_runner_command[@]}"
 
-# Slice 135 measurement receipts and negative controls live outside src/python/.
-# Register the whole script suite so a normal fast/full run exercises them.
-run_tier_maybe_suite fast test-slice135-harness "$experiment_track_runner_skip_reason" \
+# Slice 135 phase 2 exercises real stores using the installed production wheel
+# in the heavy job. The test-hook suite uses its own separate candidate.
+run_tier_maybe_suite heavy test-slice135-harness "$experiment_track_runner_skip_reason" \
   env PYTHONDONTWRITEBYTECODE=1 "$python_bin" -m pytest -q -p no:cacheprovider \
   scripts/tests/test_slice135_*.py
 slice135_node_skip_reason=""

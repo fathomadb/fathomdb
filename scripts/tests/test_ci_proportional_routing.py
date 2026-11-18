@@ -473,6 +473,21 @@ def main() -> int:
             ("scripts/setup-python-owned.sh",),
             {"verify_harness": "true"}, {"verify"}, True,
         ),
+        (
+            "installed-experiment-test",
+            ("scripts/tests/test_slice135_phase2_vector_runner.py",),
+            {"verify_harness": "true"}, {"verify"}, True,
+        ),
+        (
+            "installed-experiment-driver",
+            ("scripts/slice135_phase2_vector_runner.py",),
+            {"verify_harness": "true"}, {"verify"}, True,
+        ),
+        (
+            "installed-experiment-fixture",
+            ("dev/plans/0.8.27/features/slice-135/phase2-graph-evidence-fixture.json",),
+            {"verify_harness": "true"}, {"verify"}, True,
+        ),
         ("rust-markdown", ("src/rust/crates/fathomdb/README.md",), {"rust": "true"}, set(), False),
         ("python-markdown", ("src/python/README.md",), {"python": "true"}, set(), False),
         ("typescript-markdown", ("src/ts/README.md",), {"typescript": "true"}, set(), False),

@@ -193,6 +193,11 @@ run_contains_invocation() {
 block="$(job_block)" || fail 'missing native-artifact-runtime-validation job'
 matrix_target="\${{ matrix.target }}"
 
+grep -Fq 'node-version: "26.13.1"' <<<"$block" \
+  || fail 'local native artifact validation must use the development Node candidate'
+grep -Fq -- "--node '26.13.1'" <<<"$block" \
+  || fail 'the native artifact receipt must name the selected development Node runtime'
+
 grep -Fqx '    needs: changes' <<<"$block" \
   || fail 'runtime job must run after the non-docs detector'
 # Proportional routing: the job runs for the categories that actually feed the

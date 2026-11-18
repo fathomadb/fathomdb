@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Exact local/CI runtime pins prevent a locally green preflight from using a
-# different compiler or publisher than the release workflow.
+# Check the exact development tools and the independent release publisher.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -28,10 +27,10 @@ for workflow in ci.yml release.yml perf-canonical.yml; do
 done
 
 for manifest in "$REPO_ROOT/package.json" "$REPO_ROOT/src/ts/package.json"; do
-  if grep -q '"packageManager": "npm@11.12.1"' "$manifest"; then
-    pass "$(basename "$manifest") pins npm 11.12.1"
+  if grep -q '"packageManager": "npm@11.20.0"' "$manifest"; then
+    pass "$(basename "$manifest") pins npm 11.20.0"
   else
-    fail "$(basename "$manifest") must pin npm 11.12.1"
+    fail "$(basename "$manifest") must pin npm 11.20.0"
   fi
 done
 

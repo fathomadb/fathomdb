@@ -764,17 +764,19 @@ class Slice85NodeSupportContractTest(unittest.TestCase):
             self.assertIn("25.9.0", text)
             self.assertNotIn("24.19.0", text)
 
-    def test_ci_and_release_node_is_25(self) -> None:
-        for relative in (
-            ".github/workflows/aarch64-release-preflight.yml",
-            ".github/workflows/ci.yml",
-            ".github/workflows/release.yml",
-        ):
-            text = (ROOT / relative).read_text(encoding="utf-8")
-            setup_count = text.count("uses: actions/setup-node@")
-            self.assertGreater(setup_count, 0)
-            self.assertEqual(text.count('node-version: "25.9.0"'), setup_count)
-            self.assertNotIn('node-version: "24.19.0"', text)
+    def test_ci_and_release_pin_their_exact_node_versions(self) -> None:
+        expected = {
+            ".github/workflows/aarch64-release-preflight.yml": "25.9.0",
+            ".github/workflows/ci.yml": "26.13.1",
+            ".github/workflows/release.yml": "25.9.0",
+        }
+        for relative, version in expected.items():
+            with self.subTest(workflow=relative):
+                text = (ROOT / relative).read_text(encoding="utf-8")
+                setup_count = text.count("uses: actions/setup-node@")
+                self.assertGreater(setup_count, 0)
+                self.assertEqual(text.count(f'node-version: "{version}"'), setup_count)
+                self.assertNotIn('node-version: "24.19.0"', text)
 
     def test_node_25_arm64_archive_digest_is_sealed(self) -> None:
         expected = "bf007bf0dcc2fddd90888fde374a1ad33c1ab2ca2ad324c645dd7aed0f9f1460"

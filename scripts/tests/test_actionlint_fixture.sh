@@ -256,11 +256,8 @@ if [ "$CRATES_OIDC_FAILED" -eq 0 ]; then
   printf 'PASS  cargo publish tiers use pinned OIDC with one scoped SDK bootstrap exception\n'
 fi
 
-# Node's exact version is part of the release test environment: npm and native
-# N-API behavior must match the production-target Node 25.9.0, not float on a
-# runner-provided major. Every setup-node use in the two CI entry points must
-# carry that exact pin. The cross-platform release has one setup per N-API
-# build, platform publish, registry smoke, and promotion job.
+# Development CI and release publication each keep their exact Node pin.
+# The publisher still chooses Node's bundled npm.
 NODE_PIN_FAILED=0
 setup_node_total=0
 # Slice 0's CUDA preflight is a sixth release consumer of Node: its pinned
@@ -272,15 +269,21 @@ EXPECTED_RELEASE_SETUP_NODE_COUNT=15
 EXPECTED_SETUP_NODE_TOTAL=20
 for workflow in "$CI_YML" "$RELEASE_YML"; do
   setup_node_count="$(grep -c 'uses: actions/setup-node@' "$workflow" || true)"
-  node_pin_count="$(grep -c 'node-version: "25.9.0"' "$workflow" || true)"
   case "$workflow" in
-    "$CI_YML") expected_setup_node_count=$EXPECTED_CI_SETUP_NODE_COUNT ;;
-    "$RELEASE_YML") expected_setup_node_count=$EXPECTED_RELEASE_SETUP_NODE_COUNT ;;
+    "$CI_YML")
+      expected_setup_node_count=$EXPECTED_CI_SETUP_NODE_COUNT
+      expected_node_version=26.13.1
+      ;;
+    "$RELEASE_YML")
+      expected_setup_node_count=$EXPECTED_RELEASE_SETUP_NODE_COUNT
+      expected_node_version=25.9.0
+      ;;
   esac
+  node_pin_count="$(grep -Fc "node-version: \"$expected_node_version\"" "$workflow" || true)"
   setup_node_total=$((setup_node_total + setup_node_count))
   if [ "$setup_node_count" -ne "$expected_setup_node_count" ] || [ "$setup_node_count" -ne "$node_pin_count" ]; then
-    printf 'FAIL  %s must have exactly %s setup-node steps, each pinned to Node 25.9.0 (setup-node=%s, pins=%s)\n' \
-      "$workflow" "$expected_setup_node_count" "$setup_node_count" "$node_pin_count" >&2
+    printf 'FAIL  %s must have exactly %s setup-node steps, each pinned to Node %s (setup-node=%s, pins=%s)\n' \
+      "$workflow" "$expected_setup_node_count" "$expected_node_version" "$setup_node_count" "$node_pin_count" >&2
     NODE_PIN_FAILED=$((NODE_PIN_FAILED + 1))
   fi
   if grep -Fq 'node-version: "22"' "$workflow"; then
@@ -294,14 +297,14 @@ if [ "$setup_node_total" -ne "$EXPECTED_SETUP_NODE_TOTAL" ]; then
   NODE_PIN_FAILED=$((NODE_PIN_FAILED + 1))
 fi
 if [ "$NODE_PIN_FAILED" -eq 0 ]; then
-  printf 'PASS  ci.yml and release.yml pin every setup-node step to Node 25.9.0\n'
+  printf 'PASS  CI pins Node 26.13.1 and release pins Node 25.9.0 for every setup-node step\n'
 fi
 pinned_node_version=""
 if [ -f "$NODE_VERSION_FILE" ]; then
   pinned_node_version="$(tr -d '\r\n' < "$NODE_VERSION_FILE")"
 fi
-if [ "$pinned_node_version" != "25.9.0" ]; then
-  printf 'FAIL  .nvmrc must pin local Node to 25.9.0\n' >&2
+if [ "$pinned_node_version" != "26.13.1" ]; then
+  printf 'FAIL  .nvmrc must pin local Node to 26.13.1\n' >&2
   NODE_PIN_FAILED=$((NODE_PIN_FAILED + 1))
 fi
 if ! grep -Fq 'Built and tested on Node.js 25.9.0.' "$TS_README" || grep -Fq '24.19.0' "$TS_README"; then
@@ -313,7 +316,7 @@ if ! grep -Fqx -- '- Node **25.x** (release CI uses Node 25.9.0).' "$TS_INSTALL_
   NODE_PIN_FAILED=$((NODE_PIN_FAILED + 1))
 fi
 if [ "$NODE_PIN_FAILED" -eq 0 ]; then
-  printf 'PASS  local Node pin and TypeScript docs declare the sole Node 25 target\n'
+  printf 'PASS  local Node pin and documented release support match their respective runtimes\n'
 fi
 
 # Prove the step-order assertion is non-vacuous. This deliberately moves T1's

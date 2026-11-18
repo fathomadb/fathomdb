@@ -74,6 +74,35 @@ else
   fail "Markdown scope must fail when agent-lint-md.sh fails: rc=$MARKDOWN_FAIL_RC out=$MARKDOWN_FAIL_OUT"
 fi
 
+mkdir -p "$TMPROOT/clock-bin"
+printf '200\n' >"$TMPROOT/wall-clock"
+cat >"$TMPROOT/clock-bin/date" <<'CLOCK'
+#!/bin/bash
+read -r wall < "$VERIFY_TEST_WALL"
+printf '%s\n' "$((wall - 100))" > "$VERIFY_TEST_WALL"
+printf '%s\n' "$wall"
+CLOCK
+chmod +x "$TMPROOT/clock-bin/date"
+CLOCK_FAIL_RC=0
+CLOCK_FAIL_OUT="$(cd "$FIXTURE" && PATH="$TMPROOT/clock-bin:$PATH" \
+  VERIFY_TEST_WALL="$TMPROOT/wall-clock" bash scripts/agent-verify.sh --scope=markdown 2>&1)" || CLOCK_FAIL_RC=$?
+if [ "$CLOCK_FAIL_RC" -eq 1 ] && grep -Eq 'FAIL verify at scope=markdown \([0-9]+ms elapsed\)' <<<"$CLOCK_FAIL_OUT"; then
+  pass "verification reports monotonic elapsed time and preserves its failing verdict"
+else
+  fail "verification used wall time or changed its verdict: rc=$CLOCK_FAIL_RC out=$CLOCK_FAIL_OUT"
+fi
+
+printf '#!/bin/bash\nexit 9\n' >"$TMPROOT/clock-bin/python3"
+chmod +x "$TMPROOT/clock-bin/python3"
+CLOCK_FAIL_RC=0
+CLOCK_FAIL_OUT="$(cd "$FIXTURE" && PATH="$TMPROOT/clock-bin:$PATH" \
+  VERIFY_TEST_WALL="$TMPROOT/wall-clock" bash scripts/agent-verify.sh --scope=markdown 2>&1)" || CLOCK_FAIL_RC=$?
+if [ "$CLOCK_FAIL_RC" -eq 1 ] && grep -Fq '(unavailable elapsed)' <<<"$CLOCK_FAIL_OUT"; then
+  pass "verification reports unavailable time and preserves its failing verdict"
+else
+  fail "verification invented elapsed time or changed its verdict: rc=$CLOCK_FAIL_RC out=$CLOCK_FAIL_OUT"
+fi
+
 : >"$VERIFY_SCOPE_LOG"
 set +e
 MISSING_VENV_OUT="$(cd "$FIXTURE" && bash scripts/agent-verify.sh 2>&1)"

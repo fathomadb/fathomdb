@@ -233,7 +233,8 @@ assert "FAILED SUITES: clock-fail" in text
 assert "output truncated (210 lines total); full log:" in text
 spill, = (root / "clock-logs").glob("fathomdb-agent-clock-fail-*.log")
 assert spill.read_text().splitlines() == [f"failure-line-{i:03d}" for i in range(1, 211)]
-assert int((root / "wall-state").read_text()) < 100000
+assert re.search(r"^ok clock-pass [0-9]+ms$", text, re.M), text
+assert re.search(r"^FAIL clock-fail \(exit=7, [0-9]+ms\)$", text, re.M), text
 assert all(int(ms) > 0 for name, state, rc, ms in rows), rows
 PYCLOCK
 then
@@ -296,6 +297,8 @@ assert rows == [("untimed-pass", "PASS", "0", "unavailable"),
                 ("test-python", "SKIP", "0", "0")], rows
 assert "registered=3 ran=2 passed=1 failed=1 skipped=1 excluded=0" in text
 assert "FAILED SUITES: untimed-fail" in text
+assert "ok untimed-pass unavailable" in text
+assert "FAIL untimed-fail (exit=7, unavailable)" in text
 spill, = (root / f"no-clock-logs-{mode}").glob("fathomdb-agent-untimed-fail-*.log")
 assert spill.read_text() == "fail work\n"
 PYNOCLK

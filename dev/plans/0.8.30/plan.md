@@ -239,13 +239,16 @@ failures and honest unknowns; no force-retag or hook bypass.
 
 ## Immediate next slice and interactive boundary
 
-Scope choices are ruled at seq-399. The concrete Slice10 plan passed
-[Astra-medium review](features/slice-10/planning-review.md) after FIX-1 and was
-approved at seq-400. Slice9 is closed; Slice10 implementation is commissioned.
-The [release state](../release-state-0.8.30.json) and
-[board](../runs/STATUS-0.8.30.md) are active. Slices20–80 remain uncommissioned.
+Scope choices are ruled at seq-399 and preparation was commissioned at
+seq-400. The reviewed Slice10 implementation is integrated on `release/0.8.30`;
+its [status](features/slice-10/status.md) and [verification record](features/slice-10/verification.json)
+retain the failed full gate, scoped correction and open qualification owners.
+Preparation acceptance is IMPLEMENTED_WITH_OPEN_QUALIFICATION. Release
+readiness remains NOT_READY and publication held. The next proposed slice is 20;
+feature slices20–80 remain uncommissioned. The [state](../release-state-0.8.30.json)
+and [board](../runs/STATUS-0.8.30.md) own current status.
 
 <!-- BEGIN GENERATED release-state:0.8.30:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 10** (`PREPARATION`) — Approved environment, security, runtime and documentation preparation
+**IMMEDIATE NEXT: Slice 20** (`CI`) — Efficient and diagnosable CI/CD
 
-**Remaining ladder:** 10 → 20 → 30 → 40 → 50 → 60 → 70 → 80.<!-- END GENERATED release-state:0.8.30:plan-immediate-next -->
+**Remaining ladder:** 20 → 30 → 40 → 50 → 60 → 70 → 80.<!-- END GENERATED release-state:0.8.30:plan-immediate-next -->

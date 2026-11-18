@@ -1,6 +1,6 @@
 ---
 title: Slice 10 approved-scope preparation
-status: ACTIVE
+status: COMPLETE
 target_release: 0.8.30
 slice: 10
 date: 2026-11-18
@@ -179,3 +179,5 @@ ask the owner to decide P9-01–14 again.
 
 Activation: seq-400 closes the final planning decision and commissions10.
 The implementation status is owned by release-state-0.8.30.json.
+
+Implementation is integrated on `release/0.8.30`; see [actual outcomes and open qualification](status.md) and [verification record](verification.json).

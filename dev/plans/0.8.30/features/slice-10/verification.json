@@ -1,0 +1,291 @@
+{
+  "implementation_status": "COMPLETE_ON_RELEASE_BRANCH",
+  "integrated_reviewed_tip": "9c9b786585961d5393d1155eb6b44b611b63e06d",
+  "qualification_status": "OPEN",
+  "release_readiness": "NOT_READY",
+  "full_gate": {
+    "source_sha": "ec7cc887113bfd0deb00153778444cc83ecbf454",
+    "clean_before_and_after": true,
+    "full_gate_exit": 1,
+    "duration_seconds": 5251,
+    "preflight": "pass",
+    "lint": "pass; Tegra-only lint skipped",
+    "typecheck": "pass",
+    "security": "pass: 0 violations, 0 blockers, 0 downgrades",
+    "registered": 239,
+    "ran": 236,
+    "passed": 231,
+    "failed": 5,
+    "skipped": 3,
+    "excluded": 0,
+    "failed_suites": [
+      "test-public-doc-truth",
+      "test-slice10-preparation",
+      "test-commission-manifest",
+      "test-rust",
+      "test-python"
+    ],
+    "rust_result_lines": 422,
+    "rust_totals": {
+      "passed": 2827,
+      "failed": 1,
+      "ignored": 72,
+      "measured": 0,
+      "filtered_out": 426
+    },
+    "python": {
+      "passed": 1785,
+      "failed": 1,
+      "skipped": 36
+    },
+    "limits": "Full default gate failed. Private Slice 30 live controls skipped, long tests excluded by gate design; no platform matrix, CUDA hardware, registry or publication claim. Per-test ignored and skipped cases are not passes.",
+    "log": "/tmp/fathomdb-0830-terra-node/full-gate.log"
+  },
+  "cohort_recovery": {
+    "source_sha": "8a822a57467b21a27acaa68356232bfcf06697cc",
+    "tracked_tree_clean_before_after": true,
+    "preparation_exit": 0,
+    "pin_policy_exit": 0,
+    "pin_fixture_exit": 0,
+    "pin_fixture_pass_rows": 47,
+    "pin_fixture_unit_tests": 16,
+    "npm_ls_exit": 0,
+    "npm_cohort": {
+      "markdownlint-cli2": "0.24.0",
+      "markdown-it": "15.0.3",
+      "js-yaml": "5.4.3",
+      "smol-toml": "1.9.1"
+    },
+    "scope": "Scoped checks only; original ec7 full gate remains failed; registry publication unqualified."
+  },
+  "unchanged_focused_rechecks": {
+    "source_sha": "ec7cc887113bfd0deb00153778444cc83ecbf454",
+    "tracked_tree_clean_before_after": true,
+    "hints": {
+      "exit": 101,
+      "passed": 0,
+      "failed": 1,
+      "ignored": 0,
+      "limit100_us_per_iteration": 366.8,
+      "threshold_us": 200,
+      "limit10_p50_us": 106.6,
+      "limit10_p99_us": 148.7,
+      "executable_sha256": "c2a0d7f47f1590e743617ef9e0c6f67c1f8bd69e661915b7acbf740af3690910",
+      "log": "/tmp/fathomdb-0830-terra-node/hints-recheck.log"
+    },
+    "python": {
+      "exit": 1,
+      "passed": 0,
+      "failed": 1,
+      "module_sha256_before_after": "77febf0eec16cd8f66a05d836f6d76ef4e63a9c4956ebeea367b6e33bb5e265b",
+      "receipt_sha256_before_after": "ae3daedcfe8b92b1e8b35d12764b74ce601ca5d95248b6b31bb3e661c44c5cd4",
+      "assertion": "6 != 3",
+      "log": "/tmp/fathomdb-0830-terra-node/python-recheck.log"
+    },
+    "note": "One standalone focused recheck per target. The later baseline/candidate comparison is recorded separately."
+  },
+  "logging_observation": {
+    "callbacks": [
+      {
+        "ordinal": 1,
+        "phase": "started",
+        "source": "engine",
+        "category": "admin",
+        "code": null,
+        "attempts": [
+          {
+            "operation": "search",
+            "result": "rejected",
+            "type": "InvalidArgumentError"
+          },
+          {
+            "operation": "open",
+            "result": "rejected",
+            "type": "InvalidArgumentError"
+          },
+          {
+            "operation": "close",
+            "result": "rejected",
+            "type": "InvalidArgumentError"
+          }
+        ]
+      },
+      {
+        "ordinal": 1,
+        "phase": "finished",
+        "source": "engine",
+        "category": "admin",
+        "code": null,
+        "attempts": [
+          {
+            "operation": "search",
+            "result": "rejected",
+            "type": "InvalidArgumentError"
+          },
+          {
+            "operation": "open",
+            "result": "rejected",
+            "type": "InvalidArgumentError"
+          },
+          {
+            "operation": "close",
+            "result": "rejected",
+            "type": "InvalidArgumentError"
+          }
+        ]
+      },
+      {
+        "ordinal": 2,
+        "phase": "started",
+        "source": "engine",
+        "category": "admin",
+        "code": null,
+        "attempts": [
+          {
+            "operation": "search",
+            "result": "rejected",
+            "type": "InvalidArgumentError"
+          },
+          {
+            "operation": "open",
+            "result": "rejected",
+            "type": "InvalidArgumentError"
+          },
+          {
+            "operation": "close",
+            "result": "rejected",
+            "type": "InvalidArgumentError"
+          }
+        ]
+      },
+      {
+        "ordinal": 2,
+        "phase": "finished",
+        "source": "engine",
+        "category": "admin",
+        "code": null,
+        "attempts": [
+          {
+            "operation": "search",
+            "result": "rejected",
+            "type": "InvalidArgumentError"
+          },
+          {
+            "operation": "open",
+            "result": "rejected",
+            "type": "InvalidArgumentError"
+          },
+          {
+            "operation": "close",
+            "result": "rejected",
+            "type": "InvalidArgumentError"
+          }
+        ]
+      }
+    ],
+    "outer": [
+      {
+        "ordinal": 1,
+        "configure": "returned",
+        "finished_callback_completed": true
+      },
+      {
+        "ordinal": 2,
+        "configure": "returned",
+        "finished_callback_completed": true
+      }
+    ],
+    "problems": [],
+    "closed": true,
+    "status": "pass"
+  },
+  "hints_ordered_comparison": {
+    "order": [
+      "baseline",
+      "candidate"
+    ],
+    "cwd": "/tmp/fathomdb-0830-slice10-impl",
+    "tracked_head": "9c9b786585961d5393d1155eb6b44b611b63e06d",
+    "tracked_clean_before_after": true,
+    "argv": [
+      "--test-threads=1",
+      "--quiet"
+    ],
+    "environment": {
+      "path_prefix": [
+        "/tmp/fathomdb-0830-slice10-impl/.venv/bin",
+        "/tmp/fathomdb-0830-slice10-impl/target/slice10/toolchain/bin"
+      ],
+      "cargo_home": "/tmp/fathomdb-0830-slice10-impl/.cache/slice10-cargo",
+      "npm_cache": "/tmp/fathomdb-0830-slice10-impl/target/slice10/npm-cache",
+      "AGENT_LONG": "unset",
+      "AGENT_SLICE30_LIVE_CONTROLS": "unset"
+    },
+    "initial_loadavg": "50.14 48.62 42.29",
+    "initial_affinity": "0-23",
+    "baseline": {
+      "source": "51f20be1 (parent-supplied baseline identity)",
+      "sha256_before_after": "a4a1b6fc952e0083b44ad90ba98e924eabe33600b0b1802f8f5a7965616cf776",
+      "bytes": 139355288,
+      "exit": 101,
+      "limit100_us": 345.3,
+      "limit10_p50_us": 80.7,
+      "limit10_p99_us": 142.7,
+      "log": "/tmp/fathomdb-0830-terra-node/pair-baseline.log"
+    },
+    "candidate": {
+      "source_sha": "ec7cc887113bfd0deb00153778444cc83ecbf454",
+      "sha256_before_after": "c2a0d7f47f1590e743617ef9e0c6f67c1f8bd69e661915b7acbf740af3690910",
+      "bytes": 136809656,
+      "exit": 101,
+      "limit100_us": 374.6,
+      "limit10_p50_us": 97.3,
+      "limit10_p99_us": 114.4,
+      "log": "/tmp/fathomdb-0830-terra-node/pair-candidate.log"
+    },
+    "threshold_us": 200,
+    "comparability": "/tmp/fathomdb-0830-hints-baseline.RVMbhW/compared-fingerprints.json",
+    "limitations": "Both old and candidate inputs exceeded bound on this executor; no cause, waiver, or qualification established. Host-only strsim proc-macro build-profile and private-cache differences remain. Original gate and focused failures remain."
+  },
+  "evidence_archive": "/tmp/fathomdb-0830-slice10-evidence",
+  "open_qualification": [
+    {
+      "item": "Synthetic pending-publication fixture",
+      "owner_slice": 20,
+      "state": "OPEN",
+      "evidence": "test-public-doc-truth failed at baseline and candidate; live published-documentation checker passes."
+    },
+    {
+      "item": "Closed-ladder commission fixture",
+      "owner_slice": 20,
+      "state": "OPEN",
+      "evidence": "The .29 checker rejects truthful deferred120/unselected150 dispositions; preserve those dispositions."
+    },
+    {
+      "item": "Hints overhead criterion",
+      "owner_slice": 40,
+      "state": "OPEN",
+      "evidence": "Unchanged200us bound failed: full289.9us, preserved recheck366.8us, ordered baseline345.3us/candidate374.6us. Neither attribution nor waiver follows."
+    },
+    {
+      "item": "Asynchronous logging fixture synchronization",
+      "owner_slice": 50,
+      "state": "OPEN",
+      "evidence": "Original and focused pytest fail6!=3. Bounded independent observation validates12 typed refusals across4 callbacks and successful outer operations; original assertion remains failed."
+    },
+    {
+      "item": "Renderer advisory graph and browser qualification",
+      "owner_slice": 70,
+      "state": "HELD",
+      "evidence": "Supported rendering trial retains affectedZod viaPuppeteer; needs a supported patched graph and real compatible-browser proof."
+    },
+    {
+      "item": "Integrated source, platform, runtime and artifact qualification",
+      "owner_slice": 70,
+      "state": "OPEN",
+      "evidence": "Join owning-slice corrections and applicable qualification. Node26 public-engine promotion remains held; local packed proof is not platform or registry proof."
+    }
+  ],
+  "scope_limits": "No full-source green claim, criterion waiver, Node26 public support promotion, CUDA/matrix/long/private-control coverage, registry publication or feature20+ commissioning.",
+  "closure_record_review": "Independent Astra-medium PASS on truthful implementation closure, after clarifying the focused-recheck note. No release qualification or criterion waiver."
+}

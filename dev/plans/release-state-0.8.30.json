@@ -1,6 +1,6 @@
 {
   "release": "0.8.30",
-  "release_kind": "minor",
+  "release_kind": "Preparation implemented; qualification open and publication held",
   "board": "dev/plans/runs/STATUS-0.8.30.md",
   "plan": "dev/plans/0.8.30/plan.md",
   "master": "dev/plans/0.8.30/plan.md",
@@ -153,10 +153,12 @@
       "depends_on": [
         9
       ],
-      "status": "IN_PROGRESS",
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
       "design_refs": [
         "dev/plans/0.8.30/features/slice-10/plan.md"
-      ]
+      ],
+      "sha": "9c9b786585961d5393d1155eb6b44b611b63e06d",
+      "evidence": "dev/plans/0.8.30/features/slice-10/status.md; implementation complete with open source qualification, no full-gate pass or criterion waiver."
     },
     {
       "slice": 20,
@@ -248,9 +250,8 @@
     }
   ],
   "landed": [],
-  "next_slice": 10,
+  "next_slice": 20,
   "remaining_ladder": [
-    10,
     20,
     30,
     40,
@@ -278,14 +279,25 @@
     "status": "NOT_EVALUATED",
     "record": "dev/plans/0.8.30/features/slice-70/plan.md",
     "preparation_acceptance": {
-      "status": "IN_PROGRESS",
-      "record": "dev/plans/0.8.30/features/slice-10/plan.md"
+      "status": "IMPLEMENTED_WITH_OPEN_QUALIFICATION",
+      "criteria": [
+        "PREP-ENV",
+        "PREP-SEC",
+        "PREP-NODE",
+        "PREP-TRIAGE",
+        "PREP-DOC",
+        "PREP-ALLOC",
+        "PREP-STATE"
+      ],
+      "record": "dev/plans/0.8.30/features/slice-10/status.md",
+      "verification": "dev/plans/0.8.30/features/slice-10/verification.json",
+      "scope": "Approved local preparation implemented; original full gate FAIL and focused recovery/diagnostics retained. Open findings have owners20/40/50/70; no waiver or release-readiness claim."
     }
   },
   "release_readiness": {
     "status": "NOT_READY",
     "publication_authorized": false,
-    "scope": "Only Slice10 commissioned by seq-400; no platform/support, registry, reset or new-venue authority inferred."
+    "scope": "Slice10 implementation integrated; features20\u201380 uncommissioned. Source, timing, logging-fixture and renderer qualifications remain open."
   },
   "generated_views": [
     {
@@ -299,6 +311,44 @@
     {
       "id": "plan-immediate-next",
       "file": "dev/plans/0.8.30/plan.md"
+    }
+  ],
+  "qualification_holds": [
+    {
+      "item": "Synthetic pending-publication fixture",
+      "owner_slice": 20,
+      "state": "OPEN",
+      "evidence": "test-public-doc-truth failed at baseline and candidate; live published-documentation checker passes."
+    },
+    {
+      "item": "Closed-ladder commission fixture",
+      "owner_slice": 20,
+      "state": "OPEN",
+      "evidence": "The .29 checker rejects truthful deferred120/unselected150 dispositions; preserve those dispositions."
+    },
+    {
+      "item": "Hints overhead criterion",
+      "owner_slice": 40,
+      "state": "OPEN",
+      "evidence": "Unchanged200us bound failed: full289.9us, preserved recheck366.8us, ordered baseline345.3us/candidate374.6us. Neither attribution nor waiver follows."
+    },
+    {
+      "item": "Asynchronous logging fixture synchronization",
+      "owner_slice": 50,
+      "state": "OPEN",
+      "evidence": "Original and focused pytest fail6!=3. Bounded independent observation validates12 typed refusals across4 callbacks and successful outer operations; original assertion remains failed."
+    },
+    {
+      "item": "Renderer advisory graph and browser qualification",
+      "owner_slice": 70,
+      "state": "HELD",
+      "evidence": "Supported rendering trial retains affectedZod viaPuppeteer; needs a supported patched graph and real compatible-browser proof."
+    },
+    {
+      "item": "Integrated source, platform, runtime and artifact qualification",
+      "owner_slice": 70,
+      "state": "OPEN",
+      "evidence": "Join owning-slice corrections and applicable qualification. Node26 public-engine promotion remains held; local packed proof is not platform or registry proof."
     }
   ]
 }

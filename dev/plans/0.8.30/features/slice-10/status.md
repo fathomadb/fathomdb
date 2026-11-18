@@ -1,6 +1,6 @@
 ---
 title: Slice 10 implementation evidence
-status: ACTIVE
+status: COMPLETE
 target_release: 0.8.30
 slice: 10
 date: 2026-11-18
@@ -10,8 +10,10 @@ date: 2026-11-18
 
 Baseline `7dd493e634033e98db5c66db862510923f089e8f`.
 The [design and allocation](design.md) passed its [Astra-medium re-review](planning-review.md).
-The independent full developer gate and integration are pending the parent.
-The source and platform evidence here is local and uses existing compute.
+The reviewed implementation tip `9c9b786585961d5393d1155eb6b44b611b63e06d`
+is integrated into local `release/0.8.30`. Preparation is implemented with open
+qualification. The canonical full source gate failed; release readiness remains
+NOT_READY. Evidence here is local and uses existing compute.
 
 ## Security and runtime
 
@@ -140,3 +142,47 @@ release-surface checks. Those branches remain unrun.
   checker selects published 0.8.29 and passed after this metadata merge.
   The release-state generated views passed. Publication-facing runtime
   compatibility remains with the published packages.
+
+## Full gate, recovery and open qualification
+
+The direct Terra verifier ran the canonical full gate once on clean
+`ec7cc887113bfd0deb00153778444cc83ecbf454`. It exited **1** after 5,251s:
+239 registered, 236 ran, 231 passed, five failed, three explicitly skipped,
+and zero excluded. Lint, typecheck and strict security passed with zero
+violations, blockers or downgrades. Tegra-only lint was skipped. The Rust
+log aggregates 2,827 passed, one failed, 72 ignored and 426 filtered cases;
+Python reported 1,785 passed, one failed and 36 skipped. Internal ignored,
+filtered and skipped paths are not runtime passes.
+
+The original failing suites were public-doc-truth, slice10-preparation,
+commission-manifest, Rust hints overhead, and Python logging subscription.
+The preparation failure was the stale pre-upgrade Markdown cohort assertion.
+Mechanical correction `8a822a57467b21a27acaa68356232bfcf06697cc` updated only
+that cohort and its provenance comment, retaining all assertions, the advisory,
+AST and pin-policy controls. Independent Sol review and Terra's focused
+preparation, pin-policy, 47 fixture rows, 16 unit tests and npm inspection pass.
+This recovery does not change the original full-gate exit or result counts.
+The subsequent Unreleased changelog entry passed independent Sol review.
+
+| Remaining finding | Actual evidence and disposition | Receiving owner |
+| --- | --- | --- |
+| Pending-publication fixture | The synthetic .27 fixture fails at baseline and candidate. The live checker selects published .29 and passes. |20 |
+| Closed-ladder fixture | Commission-manifest rejects .29's explicitly deferred Slice 120 and unselected Slice 150 rows. Preserve the actual owner dispositions. |20 |
+| Hints timing criterion | Full run 289.9 µs and one unchanged preserved-executable recheck 366.8 µs exceed the unchanged 200 µs bound. A single ordered comparison also fails: baseline 345.3 µs, candidate 374.6 µs. Runtime-linked features/profiles match across 244 units; a host-only proc-macro compile-profile difference remains recorded. Load averages 50.14 then 45.48 on 24 CPUs are context, not proof of cause. No numerical criterion is waived and no regression attribution is established. |40 |
+| Logging fixture | The original and single unchanged focused test both fail `6 != 3` before checking exception types. A separate bounded real-store observation records started/finished for each of two serialized configure calls, all 12 nested search/open/close attempts rejected as InvalidArgumentError, and successful outer operations and final close. It supports a callback-count/synchronization lead; it does not pass the original test. The same assertion failure is retained in .28 history. |50 |
+| Renderer | The trial's successful rendering does not close its affected Zod/Puppeteer graph. Adoption needs a supported patched graph and compatible browser startup/render proof. |70/tooling |
+| Integrated qualification | Join the owning fixes and applicable source, long, numerical, native and platform proof. Public Node26 support and production delivery remain held. |70/80 |
+
+The [machine-readable record](verification.json) preserves full-run and focused
+results separately. Direct Astra-medium review accepted recording preparation
+implementation complete with these open qualifications, after integration.
+It did not accept the release or waive any failing criterion. Source-qualified
+artifacts retain their actual build subjects; later cohort/comment/changelog
+and release-record changes do not retroactively relabel them.
+
+Raw scoped logs, exact packed artifacts, Python receipts and test-hooks module,
+full-gate/focused results, and both timing executables are preserved outside the
+implementation worktree at `/tmp/fathomdb-0830-slice10-evidence/`. The original
+Terra results also remain under `/tmp/fathomdb-0830-terra-node/`. This record
+and verification.json are tracked so findings survive worktree cleanup.
+Slices20–80 remain uncommissioned. Publication is not authorized.

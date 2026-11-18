@@ -1,12 +1,15 @@
 ---
 title: FathomDB 0.8.29 completed release board
-status: ACTIVE
+status: COMPLETE
 target_release: 0.8.29
 ---
 
 # FathomDB 0.8.29 release board
 
-Core publication and its consumers/docs are complete. **Required0.8.29Tegra CUDA Pages delivery is OPEN under owner seq-398.** Use existing`coreyt@10.83.10.13`; genericARMCPU and matched.28Tegra do not complete it.
+**0.8.29 is published, including the required Tegra CUDA wheel/addon on Pages.**
+All seven jobs of [44246092920](https://github.com/fathomadb/fathomdb/actions/runs/44246092920)
+pass, including installed public consumers on `10.83.10.13`. The exact .29 pair
+is retained beside earlier artifacts; the temporary FathomDB runner is stopped.
 
 [State](../release-state-0.8.29.json) owns generated control facts.
 [Master](../plan-0.8.29.md) and [direct method](../0.8.29/direct-execution.md)
@@ -16,16 +19,29 @@ consumer jobs and public documentation delivery are complete.
 
 ## Current state
 
-**Core published; Tegra delivery pending.** Finish the version-matched0.8.29Tegra wheel and Node addon, Pages distribution, public installed consumers and retained manifest under seq-398. Original core evidence stays qualified.
+**Published including Tegra, under seq-398.** Preserve the exact retained .29
+wheel/addon and older Pages URLs. Original core and S50 evidence remains
+qualified within its recorded scope; no additional GPU/model campaign is needed.
 
 Proposal/reserved outputs0–9 and approved preparation10 are complete on the
 local release branch, with actual independent review and reachable witnesses.
-10 qualification preserves original failed runs and scoped resumptions. Product,
-selected platform/artifact and final acceptance remain pending.
+10 qualification preserves original failed runs and scoped resumptions. Core
+publication and supplemental Tegra qualification are complete. The current
+general source gate retains postpublication state-checker failures separately;
+actual Tegra runtime/publication success is not an uninterrupted CI-green claim.
+The general run ended exit 1 in 3,393s: 239 registered, 236 ran, 230 initially passed,
+six failed and three explicit live-control skips. Four failed-only recoveries
+now pass, including 1,786 Python tests and a fresh native receipt on a clean
+checkout. The two remaining suites reject truthful owner-deferred/unselected
+terminal ladder rows; they are the proposed .30 R30-CI checker work, not failed
+Tegra delivery. See the state for exact outcomes and retained raw logs.
 
 ## Next action
 
-**Core published; Tegra delivery pending.** Finish the version-matched0.8.29Tegra wheel and Node addon, Pages distribution, public installed consumers and retained manifest under seq-398. Original core evidence stays qualified.
+Tegra delivery and the updated install guides are complete: Pages run 44248417964
+passes all four jobs and retains all seven artifacts. Preserve the general
+source-gate outcomes and proposed 0.8.30 checker follow-ups. No additional Tegra,
+GPU/model or scientific replay is needed.
 
 Current source and measurement subjects are distinct; the JSON remains the
 ladder authority. Original failures, interrupted wrappers, inner skips and native

@@ -1,12 +1,33 @@
 ---
 title: Slice 160 qualification and publication complete
-status: IN_PROGRESS
+status: COMPLETE
 target_release: 0.8.29
 ---
 
 # Slice 160 qualification and publication complete
 
-**CORE PUBLISHED; TEGRA DELIVERY OPEN.** Owner seq-398 requires0.8.29Tegra CUDA wheel/addon and Pages distribution on`10.83.10.13`. Existing.28Tegra and genericARMCPU are insufficient. The core results below remain qualified; see `release-state-0.8.29.json` `tegra_delivery` for the current supplemental task.
+**PUBLISHED, INCLUDING REQUIRED 0.8.29 TEGRA DELIVERY (seq-398).**
+All seven jobs of [44246092920](https://github.com/fathomadb/fathomdb/actions/runs/44246092920)
+pass at `d6e5d9427baebca4eddfc9848b919048a0f4f4e0`: host-native wheel/addon
+builds, installed CPU/auto/forced-CUDA and private allocation checks, hosted
+ARM64 driverless import, Pages retention/digests and installed public consumers
+on `10.83.10.13`. Python wheel SHA-256 is `190f339cc0201f249a5d7359a8bcbd6c3be3d7551ba238c767e1b5f717b6a40e`;
+Node addon tarball is `8a52ba601486012110b11dfc40f611157ca1a579e6efb37a6c2b8a5334c4a2db`.
+The pair is in the retained manifest with all older entries. Existing runner 22
+is offline; its temporary user unit and cgroup are gone, Memex is untouched.
+The initial staged-Cargo-config build failure, genuine RED/minimal GREEN,
+pinned maturin correction and independent ACCEPT remain in
+`/mnt/data/fathomdb/0.8.29-release-evidence/tegra/`. Rust/binding code and pins
+match the core release. The current general source gate's postpublication
+checker failures remain distinct from the successful seven-job Tegra route.
+The general run retains exit 1/3,393s and 239 registrations (236 ran, 230 initial
+passes, six failures, three explicit live skips). Four failed-only recoveries
+pass: publication metadata, the exact .29 runbook expectation, 1,786 Python tests
+with 36 skips, and the fresh native receipt after restoring a clean candidate.
+Rust/workspace, pool/measurement units, TypeScript and N-API pass. Only the
+preflight/commission all-LANDED assumptions remain; source/native inputs are
+unchanged and those checker follow-ups are in proposed .30 R30-CI.
+
 Actual tag `v0.8.29` remains `b64d32f80bea2853bf4939b6334e32501174ffb1`.
 Production44229162869 passes all shipping builds/publishers, eight registry consumer
 jobs and co-tagging. Its overall failure from legacy promotion401 remains.

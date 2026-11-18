@@ -1,6 +1,6 @@
 {
   "release": "0.8.29",
-  "release_kind": "Core publication complete; required supplemental0.8.29Tegra CUDA Pages delivery OPEN under owner398.",
+  "release_kind": "Publication complete, including owner398 required 0.8.29 Tegra CUDA wheel/addon and GitHub Pages distribution.",
   "board": "dev/plans/runs/STATUS-0.8.29.md",
   "plan": "dev/plans/plan-0.8.29.md",
   "master": "dev/plans/0.8.20-0.9.0-PROGRAM-SEQUENCING.md",
@@ -2073,7 +2073,7 @@
     ]
   },
   "acceptance": {
-    "status": "CORE_PASS_TEGRA_PENDING",
+    "status": "CORE_AND_TEGRA_PASS_WITH_TOOLING_CHECK_FAILURES",
     "criteria": [
       "A160-1",
       "A160-2",
@@ -2083,7 +2083,7 @@
       "A160-6"
     ],
     "record": "dev/plans/0.8.29/features/slice-160/status.md",
-    "scope": "All selected mandatory criteria qualified within explicit owner/source/platform scopes. Assembled source/CI evidence and focused recoveries remain distinct from uninterrupted green; S50 narrow exception393 and omitted rehearsal394 retained. Actual published consumers and Pages delivery verified. Coreacceptance retained; owner398Tegra delivery addedafterclosure and remainsopen until actualnewartifacts/publicconsumers.",
+    "scope": "All selected mandatory criteria qualified within explicit owner/source/platform scopes. Assembled source/CI evidence and focused recoveries remain distinct from uninterrupted green; S50 narrow exception393 and omitted rehearsal394 retained. Actual published consumers and Pages delivery verified. Owner398 supplemental Tegra delivery also passes all seven actual build/platform/publication/public-consumer jobs; the general postpublication source checker results remain separately recorded.",
     "preparation_acceptance": {
       "status": "PASS",
       "criteria": [
@@ -2101,9 +2101,9 @@
     }
   },
   "release_readiness": {
-    "status": "CORE_PUBLISHED_TEGRA_DELIVERY_PENDING",
+    "status": "PUBLISHED_DELIVERY_COMPLETE_WITH_TOOLING_CHECK_FAILURES",
     "qualification": "Assembledsource/platformqualification independentlyACCEPTED: all239registered outcomesresolved within exactsources/venues,3explicitprivatecontrolskips/Tegrahostdisposition/72Rustignoredcases retained. OriginalhostedRust101+45/60mcancels preserved; no uninterruptedCIgreenclaim. Actuale192five-targetCPUconsumers/receipts passed; rootcanonicalRust2828/NAPIuncompletedtail andfast19PASS; priorpaid72/S50ownerexception/currentlocalCUDAproof retained. Fourforkdepsactualpublished/byteverified andno-patchregistryresolutionPASS. Actualshippingbuild/tag/registries/postpubconsumers remain under396/397. Actual tagb64 shippingCUDA and allfiveplatform builds, allproductpublishers and eight actualregistry-installed consumers pass; normalpipeline failures and focusedrecoveries retained. ProductionCUDAwheel registrySHA and publishedNode nativeSHA match selected-GPU-qualified artifacts; Nodearchive onlyREADME differs.",
-    "publication": "PUBLISHED: crates.io, PyPI, npm latest, GitHub Release and public documentation. All8registryconsumerjobs/co-tagging and Pages4jobs pass. GPUworker retired and both3090free. Owner398 subsequently requires0.8.29TegraCUDAwheel/addon+Pages; that delivery is OPEN, .28retainedartifacts andgenericARMCPU do notsubstitute.",
+    "publication": "PUBLISHED: crates.io, PyPI, npm latest, GitHub Release and public documentation. All8registryconsumerjobs/co-tagging and Pages4jobs pass. GPUworker retired and both3090free. Supplemental 0.8.29 Tegra wheel/addon are public on Pages; all seven jobs of44246092920 pass, including fresh public consumers on10.83.10.13. Exact pair is retained with older artifacts; existing runner22 is offline and its temporary owned cgroup is gone.",
     "local_source_phase": {
       "status": "ASSEMBLED_FULL_SOURCE_PASS",
       "subject": "b6749b4bcf33816e068c61c270ae531ef6968cf7",
@@ -2178,7 +2178,8 @@
     "tag_commit": "b64d32f80bea2853bf4939b6334e32501174ffb1",
     "published_on": "2026-11-18",
     "npm_dist_tag": "latest",
-    "evidence": "Production44229162869 all shippingbuilds/publishers, eight registry-installed consumer jobs and co-taggingPASS. Attempt1 npmconsumer missingoptionalnative, exactversions/nativebytes verified and singlefailed-only retryPASS. Legacy promotionE401 retained. OIDCfinalization44233820520 attempt2SUCCESS: initialOIDCPUT204 succeeded but immediatecachedverificationstale; two registryviews independentlyconfirm latest.29, targetedfinalizationretryPASS and GitHubReleasefivewheels. Evidence /mnt/data/fathomdb/0.8.29-release-evidence. Pages44235051883 all4jobsSUCCESS and live0.8.29releasepage verified; retained oldTegraURLs pass. Subsequentowner398 requiresadditional0.8.29TegraCUDA Pages delivery; OPEN separately, thisreceipt doesnotclaimTegraCUDApublication."
+    "evidence": "Production44229162869 all shippingbuilds/publishers, eight registry-installed consumer jobs and co-taggingPASS. Attempt1 npmconsumer missingoptionalnative, exactversions/nativebytes verified and singlefailed-only retryPASS. Legacy promotionE401 retained. OIDCfinalization44233820520 attempt2SUCCESS: initialOIDCPUT204 succeeded but immediatecachedverificationstale; two registryviews independentlyconfirm latest.29, targetedfinalizationretryPASS and GitHubReleasefivewheels. Evidence /mnt/data/fathomdb/0.8.29-release-evidence. Pages44235051883 all4jobsSUCCESS and live0.8.29releasepage verified; retained oldTegraURLs pass. Subsequentowner398 requiresadditional0.8.29TegraCUDA Pages delivery; OPEN separately, thisreceipt doesnotclaimTegraCUDApublication.",
+    "note": "Core tag/registry receipt retained unchanged. Owner398 supplemental 0.8.29 Tegra wheel/addon and Pages public consumers completed in44246092920 at separate main-reachable candidate d6e5d9427baebca4eddfc9848b919048a0f4f4e0; no tag move or core republish."
   },
   "completion": {
     "ref": "origin/release/0.8.29",
@@ -2192,16 +2193,57 @@
     "scope": "Only inactive olddev.29debug/release and two.27Cargo caches; native/raw evidence archived and checksumverified. Source/currentwork/S50 and requiredreleaseevidence retained."
   },
   "tegra_delivery": {
-    "status": "REQUIRED_PREFLIGHT",
+    "status": "COMPLETE",
     "authority": "seq-398",
     "host": "coreyt@10.83.10.13",
     "version": "0.8.29",
     "wheel": "fathomdb-0.8.29+tegra-cp310-abi3-linux_aarch64.whl",
     "node": "fathomdb-linux-arm64-gnu-tegra-0.8.29.tgz",
     "route": ".github/workflows/jetson-tegra-cuda-evidence.yml",
-    "preflight": "SSHreachable, existingOrin/L4TR36.5.2/CUDA12.6/GCC11/Rust1.95/Node25.9; repo runner22offline. github-pages lacks exactrelease/.29 branch policy. No build/dispatch yet.",
+    "preflight": "Orin/L4T R36.5.2, CUDA12.6.68, GCC11.4, Rust1.95, Node25.9/npm11.12.1. Exact release/0.8.29 Pages admission added without changing other branch policies. User-visible GPU checks found no clients; inaccessible proc descriptors prevented a global exclusivity claim. Actual installed allocation witnesses passed.",
     "acceptance": "Buildexactsource/pins onexistingTegra, installedCPU/auto/forcedCUDA and attributablewitness forPython/Node, hostedARMdriverless, deployexactpairpreservingretainedURLs, verifypublicURLs and installedpublicartifacts onTegra. Addnewpair toretentionmanifest before any laterPagesdeploy.",
     "limits": "No reset/reflash/driver/toolkit change, noMemexrunner/unrelatedprocess action, noforce-tag orcore-registryrepublish. Existing180minbuild/90minpublicsmoke joblimits; actualhostreadiness/ownedcleanup required.",
-    "next": "Prepare exact.29Pagesbranchadmission and boundedexistingrunner22start, then dispatch normalTegra publisher on immutablemain-reachable.29source."
+    "next": "No Tegra build/model/consumer work remains. Keep the exact .29 pair and all older manifest entries during future Pages deployments; generic state-checker follow-ups belong to the proposed .30 CI work.",
+    "candidate_sha": "d6e5d9427baebca4eddfc9848b919048a0f4f4e0",
+    "run": 44246092920,
+    "run_url": "https://github.com/fathomadb/fathomdb/actions/runs/44246092920",
+    "conclusion": "SUCCESS: all seven jobs",
+    "wheel_sha256": "190f339cc0201f249a5d7359a8bcbd6c3be3d7551ba238c767e1b5f717b6a40e",
+    "node_sha256": "8a52ba601486012110b11dfc40f611157ca1a579e6efb37a6c2b8a5334c4a2db",
+    "evidence": "/mnt/data/fathomdb/0.8.29-release-evidence/tegra/",
+    "cleanup": "Existing repo runner22 reused through bounded transient USER unit (330min maximum, unchanged180/90min job limits). Unit stopped, owned cgroup and listener PIDs gone, system service inactive, repo runner offline/nonbusy. Existing Memex listener5653 preserved.",
+    "initial_failure": "44244848576 failed before compilation because staged Python lost Cargo configuration and attempted developer-local file:// forks. Genuine RED, corrected discoverability RED and minimal exact-config-copy GREEN; independent Astra design/implementation ACCEPT. Initial --config-only proposal disproved by pinned maturin1.14.1 metadata probe and not shipped. Product Rust/binding code, dependency pins and immutable core tag unchanged.",
+    "source_gate": {
+      "status": "FULL_RUN_FAILED; FOUR_FAILED_ONLY_RECOVERIES_PASS; TWO_KNOWN_TERMINAL_STATE_CHECK_SUITES_REMAIN",
+      "full_exit": 1,
+      "full_seconds": 3393,
+      "initial_counts": {
+        "registered": 239,
+        "ran": 236,
+        "passed": 230,
+        "failed": 6,
+        "skipped": 3,
+        "excluded": 0
+      },
+      "log": "/mnt/data/fathomdb/0.8.29-release-evidence/tegra/source-phase/tegra-source-phase-verify-20261117.log",
+      "scope": "Own checkout .venv; lint/typechecks/strict security/Rust workspace/selected pool and measurement units/TypeScript/N-API PASS. Three explicit private G/M/D live controls not selected. No uninterrupted full-green claim.",
+      "recovered": [
+        "test-slice10-preparation: mechanical published platform-version/Tegra availability and archive-current-link metadata corrected; failed-only PASS.",
+        "test-tegra-publication-operator-path: real runbook expectation mechanically updated .28+tegra to owner-required .29+tegra; 35 controls PASS, mocked .27 cases unchanged.",
+        "test-python and test-python-native-receipt: pending parent release-record edits originally blocked the clean-candidate guard, causing a stale nonce. Edits preserved outside checkout; clean42629c2a1 rerun passes1786 tests/36 explicit skips and validates exact fresh nonce/module/SHA receipt. No test oracle weakened."
+      ],
+      "unresolved": [
+        "test-preflight-release-state",
+        "test-commission-manifest"
+      ],
+      "unresolved_cause": "Both require every closed ladder row to be LANDED, including owner-deferred120(seq378/379) and optional unselected150. Keep those truthful dispositions; no native/package defect follows. Proposed.30 R30-CI carries narrow selected/deferred/unselected terminal-state checks.",
+      "identity": "Shipping Rust/binding/dependency inputs unchanged from core tagb64; accepted wrapper config-copy fix is in d6e5d9427. Documentation-only42629c2a1 occurred during general verification. The clean Python candidate is42629c2a1; final metadata/mechanical runbook-expectation changes do not change its native inputs.",
+      "recovery_log": "/mnt/data/fathomdb/0.8.29-release-evidence/tegra/source-phase/tegra-python-clean-failed-only-20261118.log",
+      "receipt_log": "/mnt/data/fathomdb/0.8.29-release-evidence/tegra/source-phase/tegra-python-receipt-clean-failed-only-20261118.log"
+    },
+    "guides_commit": "42629c2a148bd2a46e3b2993a3de2e1651249e22",
+    "guides_run": 44248417964,
+    "guides_conclusion": "SUCCESS: all four jobs; all seven retained artifacts verified after deployment. Python/Node installation and .29 release-notes pages return200 and describe the actual .29 Tegra distribution.",
+    "final_review": "Independent Astra-medium ACCEPT of final delivery/docs/retention/metadata and truthful source-gate disposition; no blockers or further native replay. Final scoped metadata checks enforced before commit."
   }
 }

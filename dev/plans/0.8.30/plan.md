@@ -34,12 +34,13 @@ the retrospective/recommendations commit is
 at activation rather than resetting to those snapshots. The shipping .29 tag
 remains `b64d32f80bea2853bf4939b6334e32501174ffb1`.
 
-Owner clarification seq-398 adds required 0.8.29 Tegra CUDA wheel/addon and
-GitHub Pages delivery on `10.83.10.13`. That supplemental 0.8.29 work is OPEN;
-generic ARM64 CPU packages and retained 0.8.28 Tegra packages do not complete it.
-Finish it in 0.8.29 before accepting 0.8.30's final Tegra/platform baseline. Independent
-.30 planning and CPU/source work need not wait; this draft does not move the
-requirement into 0.8.30.
+Owner clarification seq-398 required the 0.8.29 Tegra CUDA wheel/addon and
+GitHub Pages delivery on `10.83.10.13`. This was completed **in 0.8.29**, by
+[run 44246092920](https://github.com/fathomadb/fathomdb/actions/runs/44246092920),
+including fresh installed public consumers. Use that exact supported
+Orin/CUDA12.6 artifact evidence as the .30 platform baseline where applicable;
+generic ARM64 CPU and retained .28 artifacts were not substitutes. This plan
+does not move the .29 delivery into .30 or extend support to other ARM/GPU hosts.
 
 Reuse 0.8.29 evidence by the claim it supports and its source/features/native/
 fixture/protocol identity. Do not replay paid 72, all 160 S50 members or healthy
@@ -96,6 +97,10 @@ After 0, delivery work 5, correctness 10 and performance baseline 15 can proceed
 parallel; 25 starts its audit alongside them. Fork research/design can also start
 without waiting for whole 20. Only consumed code/contracts gate implementation.
 Serialize shared engine/search/coverage edits and dependency/pin integration.
+Keep a native-verification candidate clean while its gate runs; stage pending
+release records outside that checkout until candidate construction finishes.
+The .29 Python clean-candidate guard correctly rejected parent metadata edits;
+avoid causing that preventable failed-only recovery again.
 Every concurrent writer has its own worktree; root alone integrates state.
 Finalize relevant fork/native inputs before final numerical/artifact evidence;
 if they change later, reassess only the claims they invalidate.
@@ -183,6 +188,11 @@ also exposes a closure-check mismatch: `commission-manifest` requires every
 ladder entry to be LANDED, including owner-deferred 120 and unselected 150.
 Keep those dispositions truthful and make the checker distinguish selected
 unfinished work from explicit deferred/unselected work; do not fabricate passes.
+The real-repository preflight regression has the same all-LANDED assumption.
+Cover published/no-active-release and authorized terminal dispositions without
+weakening selected-work checks. Stale platform-manifest and archive-current-link
+metadata found during this phase was corrected in .29, with the failed-only
+preparation check passing; maintain those publication updates in the normal path.
 Then reduce the slow static checker, mandatory native bootstrap work, duplicate
 builds and inappropriate diff/platform triggers. Preserve meaningful mutation,
 Windows runtime, package-loading and release access protections.

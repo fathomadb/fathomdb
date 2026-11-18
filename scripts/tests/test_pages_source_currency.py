@@ -106,7 +106,8 @@ class PagesAuthorization(unittest.TestCase):
         self.git('config', 'user.name', 'Fixture')
         self.git('config', 'user.email', 'fixture@example.invalid')
         (self.repo / 'scripts').mkdir()
-        shutil.copy(HELPER.parents[1] / 'release-current.py', self.repo / 'scripts/release-current.py')
+        for script in ('release-current.py', 'check-public-doc-truth.py'):
+            shutil.copy(HELPER.parents[1] / script, self.repo / 'scripts' / script)
         self.state_path = self.repo / 'dev/plans/release-state-9.9.9.json'
         self.board = self.repo / 'dev/plans/runs/STATUS-9.9.9.md'
         self.board.parent.mkdir(parents=True)
@@ -146,13 +147,84 @@ class PagesAuthorization(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual(outputs.get('authorized'), 'false')
 
-    def test_no_active_release_skips_cleanly(self):
-        self.state['release_readiness'] = {'pages_publication_authorized': True}
-        self.state['published'] = {'tag': 'v9.9.9', 'tag_commit': 'a' * 40,
-                                   'published_on': '2026-11-17', 'npm_dist_tag': 'latest'}
+    def published_receipt(self, version='9.9.9'):
+        return {'tag': f'v{version}', 'tag_commit': 'a' * 40,
+                'published_on': '2026-11-17', 'npm_dist_tag': 'latest'}
+
+    def add_published_state(self, version, authorization):
+        board = f'dev/plans/runs/STATUS-{version}.md'
+        (self.repo / board).write_text('# Published release\n')
+        state = {'release': version, 'board': board,
+                 'published': self.published_receipt(version),
+                 'release_readiness': {'pages_publication_authorized': authorization}}
+        (self.repo / f'dev/plans/release-state-{version}.json').write_text(json.dumps(state))
+
+    def test_no_active_release_skips_cleanly_without_authorization(self):
+        self.state['published'] = self.published_receipt()
+        for readiness in (None, {}, {'pages_publication_authorized': False}):
+            with self.subTest(readiness=readiness):
+                if readiness is None:
+                    self.state.pop('release_readiness', None)
+                else:
+                    self.state['release_readiness'] = readiness
+                result, outputs = self.run_authorization()
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(outputs.get('authorized'), 'false')
+
+    def test_no_active_release_only_json_boolean_true_authorizes(self):
+        self.state['published'] = self.published_receipt()
+        for value in (True, False, 'true', 'false', 1, 0, None, [], {}):
+            with self.subTest(value=value):
+                self.state['release_readiness'] = {'pages_publication_authorized': value}
+                result, outputs = self.run_authorization()
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(outputs.get('authorized'), 'true' if value is True else 'false')
+
+    def test_newest_published_state_controls_authorization(self):
+        self.state['published'] = self.published_receipt()
+        self.add_published_state('8.8.8', True)
+        self.state['release_readiness'] = {'pages_publication_authorized': False}
         result, outputs = self.run_authorization()
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(outputs.get('authorized'), 'false')
+        self.state['release_readiness'] = {'pages_publication_authorized': True}
+        self.add_published_state('8.8.8', False)
+        result, outputs = self.run_authorization()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(outputs.get('authorized'), 'true')
+
+    def test_active_release_cannot_fall_back_to_historical_authorization(self):
+        self.add_published_state('8.8.8', True)
+        for readiness in ({}, {'pages_publication_authorized': False}):
+            with self.subTest(readiness=readiness):
+                self.state['release_readiness'] = readiness
+                result, outputs = self.run_authorization()
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(outputs.get('authorized'), 'false')
+
+    def test_malformed_published_receipt_fails_closed(self):
+        self.state['release_readiness'] = {'pages_publication_authorized': True}
+        for receipt in ({}, 'true', self.published_receipt('8.8.8'),
+                        dict(self.published_receipt(), tag_commit='broken'),
+                        dict(self.published_receipt(), published_on='2026-02-30')):
+            with self.subTest(receipt=receipt):
+                self.state['published'] = receipt
+                result, outputs = self.run_authorization()
+                self.assertNotEqual(result.returncode, 0)
+                self.assertNotEqual(outputs.get('authorized'), 'true')
+
+    def test_no_published_receipt_cannot_authorize_historical_state(self):
+        self.board.write_text('# Closed — historical record\n')
+        self.state['release_readiness'] = {'pages_publication_authorized': True}
+        result, outputs = self.run_authorization()
+        self.assertNotEqual(outputs.get('authorized'), 'true')
+
+    def test_published_state_wrong_event_candidate_fails_closed(self):
+        self.state['published'] = self.published_receipt()
+        self.state['release_readiness'] = {'pages_publication_authorized': True}
+        result, outputs = self.run_authorization(candidate='f' * 40)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertNotEqual(outputs.get('authorized'), 'true')
 
     def test_selector_and_malformed_state_fail_closed(self):
         self.state['release_readiness'] = {'pages_publication_authorized': True}

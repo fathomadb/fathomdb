@@ -200,22 +200,60 @@ def validate_state(
     }
 
 
+def validate_published_closure(repo_root: Path) -> str:
+    """Validate the latest tracked published ladder after a no-live selection."""
+    from lib.closed_release_state import validate_closed_ladder
+
+    states = {}
+    for relative in git(repo_root, "ls-files", "--", "dev/plans/release-state-*.json").splitlines():
+        state = load_object(repo_root / relative)
+        release = state.get("release")
+        if (
+            not isinstance(release, str)
+            or relative != f"dev/plans/release-state-{release}.json"
+            or not isinstance(state.get("published"), dict)
+        ):
+            raise StateError(f"{relative} is not a published release state")
+        parts = release.split(".")
+        if len(parts) != 3 or any(not part.isascii() or not part.isdecimal() for part in parts):
+            raise StateError(f"{relative} does not name a numeric release")
+        states[tuple(map(int, parts))] = state
+    if not states:
+        raise StateError("no tracked published release states")
+    latest = states[max(states)]
+    try:
+        validate_closed_ladder(latest["release"], latest)
+    except ValueError as exc:
+        raise StateError(f"published ladder {latest['release']}: {exc}") from exc
+    return latest["release"]
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo-root", type=Path, default=Path.cwd())
-    parser.add_argument("--release", required=True)
-    parser.add_argument("--board", required=True)
-    parser.add_argument("--state", required=True)
+    parser.add_argument("--check-published", action="store_true")
+    parser.add_argument("--release")
+    parser.add_argument("--board")
+    parser.add_argument("--state")
     parser.add_argument("--plan")
     parser.add_argument("--expect-closed")
-    parser.add_argument("--target-head", required=True)
+    parser.add_argument("--target-head")
     parser.add_argument("--format", choices=["json", "tsv"], default="json")
-    return parser.parse_args()
+    args = parser.parse_args()
+    if args.check_published:
+        if any((args.release, args.board, args.state, args.plan, args.expect_closed, args.target_head)):
+            parser.error("--check-published accepts no selected-release inputs")
+    elif not all((args.release, args.board, args.state, args.target_head)):
+        parser.error("--release, --board, --state and --target-head are required for a selected release")
+    return args
 
 
 def main() -> int:
     args = parse_args()
     try:
+        if args.check_published:
+            print(validate_published_closure(args.repo_root))
+            return 0
         facts = validate_state(
             repo_root=args.repo_root,
             release=args.release,

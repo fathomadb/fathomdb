@@ -129,8 +129,18 @@ if [ -n "$WT" ] || [ -n "$EXPECT_CLOSED" ]; then
     && [ "$(git -C "$WT" rev-parse --show-toplevel 2>/dev/null || true)" = "$WT" ]; then
     STATE_TARGET_HEAD="$(git -C "$WT" rev-parse HEAD)"
   fi
-  if CURRENT_RELEASE_FACTS="$("$SELF_DIR/release-current.py" 2>&1)" \
-    && [ -n "$CURRENT_RELEASE_FACTS" ]; then
+  if ! CURRENT_RELEASE_FACTS="$("$SELF_DIR/release-current.py" 2>&1)"; then
+    RELEASE_STATE_STATUS="invalid"
+    hard "release-state discovery failed: $CURRENT_RELEASE_FACTS"
+  elif [ -z "$CURRENT_RELEASE_FACTS" ]; then
+    if PUBLISHED_RELEASE="$(python3 "$SELF_DIR/preflight-release-state.py" --repo-root "$CANON" --check-published 2>&1)"; then
+      RELEASE_STATE_STATUS="no-active"
+      hard "published ladder $PUBLISHED_RELEASE verified; no live release to commission"
+    else
+      RELEASE_STATE_STATUS="invalid"
+      hard "$PUBLISHED_RELEASE"
+    fi
+  else
     IFS=$'\t' read -r CURRENT_RELEASE CURRENT_BOARD CURRENT_STATE <<<"$CURRENT_RELEASE_FACTS"
     STATE_ARGS=(
       --repo-root "$CANON"
@@ -157,9 +167,6 @@ if [ -n "$WT" ] || [ -n "$EXPECT_CLOSED" ]; then
       RELEASE_STATE_STATUS="invalid"
       hard "$VERIFIED_RELEASE_FACTS"
     fi
-  else
-    RELEASE_STATE_STATUS="invalid"
-    hard "release-state discovery failed: ${CURRENT_RELEASE_FACTS:-no live release}"
   fi
 fi
 
@@ -468,9 +475,9 @@ json_arr() { local out="" x; for x in "$@"; do out="${out:+$out,}\"$(printf '%s'
 STATUS=$([ ${#HARD_FAILS[@]} -eq 0 ] && echo pass || echo fail)
 HARD_FAILS_JSON="$(json_arr "${HARD_FAILS[@]+"${HARD_FAILS[@]}"}")"
 WARNINGS_JSON="$(json_arr "${WARNS[@]+"${WARNS[@]}"}")"
-printf '{"preflight":"%s","main_ref":"%s","main_sha":"%s","worktree":"%s","release":"%s","state":"%s","baseline_ref":"%s","dependency_sha":"%s","hard_fails":%s,"warnings":%s}\n' \
+printf '{"preflight":"%s","main_ref":"%s","main_sha":"%s","worktree":"%s","release":"%s","state":"%s","state_status":"%s","baseline_ref":"%s","dependency_sha":"%s","hard_fails":%s,"warnings":%s}\n' \
   "$STATUS" "$MAIN_REF" "$MAIN_SHA" "${WT:-}" "$SELECTED_RELEASE" "$SELECTED_STATE_FILE" \
-  "$RELEASE_BASELINE_REF" "$DEPENDENCY_SHA" \
+  "$RELEASE_STATE_STATUS" "$RELEASE_BASELINE_REF" "$DEPENDENCY_SHA" \
   "$HARD_FAILS_JSON" "$WARNINGS_JSON"
 
 [ "$STATUS" = pass ]

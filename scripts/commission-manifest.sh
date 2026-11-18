@@ -122,6 +122,7 @@
 # Exit: 0 = manifest emitted (or verified) with every path and anchor resolving;
 #       1 = a dead citation, an unknown release/slice, or a vacuous manifest.
 set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # `git rev-parse` failing here used to degrade to `cd ""` — a bash no-op that
 # leaves the script running in an arbitrary cwd. Bind and check it instead.
 _repo_toplevel="$(git rev-parse --show-toplevel)" || exit 1
@@ -171,7 +172,7 @@ if ! command -v python3 >/dev/null 2>&1; then
   exit 1
 fi
 
-MODE="$MODE" RELEASE="$RELEASE" SLICE="$SLICE" python3 - <<'PY'
+MODE="$MODE" RELEASE="$RELEASE" SLICE="$SLICE" COMMISSION_SCRIPT_DIR="$SCRIPT_DIR" python3 - <<'PY'
 import glob
 import json
 import os
@@ -1187,6 +1188,9 @@ def generate(release, slice_sel):
 
 
 if MODE == "verify-all":
+    sys.path.insert(0, os.environ["COMMISSION_SCRIPT_DIR"])
+    from lib.closed_release_state import validate_closed_ladder
+
     states = sorted(glob.glob(STATE_GLOB))
     if not states:
         die(["FAIL commission-manifest: ZERO release-state files under %s." % STATE_GLOB,
@@ -1199,37 +1203,13 @@ if MODE == "verify-all":
         except Exception as exc:                              # noqa: BLE001
             die(["FAIL commission-manifest: `%s` is not readable release state: %s"
                  % (sp, exc)])
+        if not isinstance(state, dict) or state.get("release") != rel:
+            die(["FAIL commission-manifest: `%s` must be an object naming release %s." % (sp, rel)])
         if state.get("next_slice") is None:
-            ladder = state.get("ladder")
-            landed = state.get("landed")
-            remaining = state.get("remaining_ladder")
-            if not isinstance(ladder, list) or not isinstance(landed, list) or remaining != []:
-                die(["FAIL commission-manifest: `%s` declares end-of-ladder (`next_slice: null`) "
-                     "but does not carry a list ladder + landed set and `remaining_ladder: []`."
-                     % sp])
-            completion = state.get("completion")
-            branch_ref = "origin/release/%s" % rel
-            pending_branch_completion = (
-                isinstance(completion, dict)
-                and completion.get("ref") == branch_ref
-                and completion.get("main_integration") == "PENDING"
-                and set(completion) == {"ref", "main_integration"}
-            )
-            accepted_statuses = (
-                {"LANDED", "COMPLETE_ON_RELEASE_BRANCH"}
-                if pending_branch_completion else {"LANDED"}
-            )
-            incomplete = [e.get("slice") for e in ladder
-                          if not isinstance(e, dict)
-                          or e.get("status") not in accepted_statuses]
-            missing = [e.get("slice") for e in ladder
-                       if isinstance(e, dict)
-                       and e.get("status") == "LANDED"
-                       and e.get("slice") not in landed]
-            if incomplete or missing:
-                die(["FAIL commission-manifest: `%s` declares end-of-ladder but its ladder is "
-                     "not fully landed (non-LANDED=%s; absent-from-landed=%s)."
-                     % (sp, incomplete or "none", missing or "none")])
+            try:
+                pending_branch_completion = validate_closed_ladder(rel, state)
+            except ValueError as exc:
+                die(["FAIL commission-manifest: `%s`: %s." % (sp, exc)])
             if pending_branch_completion:
                 print("commission-manifest: %s complete on release branch; origin/main "
                       "integration pending — no next-slice manifest to verify." % rel)

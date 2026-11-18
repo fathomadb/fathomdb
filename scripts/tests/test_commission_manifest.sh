@@ -85,6 +85,8 @@ setup_fixture() {
   rm -rf "$FIX"
   mkdir -p "$FIX/dev/plans/runs/codex" "$FIX/dev/plans/prompts" "$FIX/dev/design/sub" \
            "$FIX/scripts" "$FIX/src/conformance" "$FIX/src/rust/crates/fathomdb-schema/src"
+  mkdir -p "$FIX/scripts/lib"
+  cp "$REPO_ROOT/scripts/lib/closed_release_state.py" "$FIX/scripts/lib/"
   cp "$GEN" "$FIX/scripts/commission-manifest.sh"
   chmod +x "$FIX/scripts/commission-manifest.sh"
   (cd "$FIX" && git init -q && git config user.email t@example.com && git config user.name t)

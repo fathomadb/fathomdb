@@ -118,7 +118,7 @@ class PublishedReleasePreflightTests(unittest.TestCase):
             completed = preflight()
             self.assertEqual(completed.returncode, 1, completed.stderr)
             self.assertIn("published ladder 0.8.29 verified; no live release to commission", completed.stderr)
-            self.assertEqual(json.loads(completed.stdout.splitlines()[-1])["state"], "no-active")
+            self.assertEqual(json.loads(completed.stdout.splitlines()[-1])["state_status"], "no-active")
             self.assertEqual((repo / state).read_bytes(), published_bytes)
 
             selected = json.loads(published_bytes)
@@ -129,7 +129,7 @@ class PublishedReleasePreflightTests(unittest.TestCase):
             self.assertEqual(incomplete.returncode, 1, incomplete.stderr)
             self.assertIn("Slice 120", incomplete.stderr)
             self.assertNotIn("published ladder 0.8.29 verified", incomplete.stderr)
-            self.assertEqual(json.loads(incomplete.stdout.splitlines()[-1])["state"], "invalid")
+            self.assertEqual(json.loads(incomplete.stdout.splitlines()[-1])["state_status"], "invalid")
 
 
 class PreflightReleaseStateTests(unittest.TestCase):

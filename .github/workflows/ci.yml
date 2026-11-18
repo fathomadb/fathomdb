@@ -1262,14 +1262,14 @@ jobs:
             target: aarch64-apple-darwin
             label: darwin-arm64
             manylinux: "auto"
-          - runner: ${{ github.event_name == 'workflow_dispatch' && startsWith(github.ref, 'refs/heads/release/') && fromJSON('["self-hosted","Windows","X64","windchill3-windows-11"]') || 'windows-latest' }}
+          - runner: windows-latest
             target: x86_64-pc-windows-msvc
             label: win32-x64-msvc
             manylinux: "auto"
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
     steps:
-      - name: Require the exact release candidate before self-hosted execution
+      - name: Require the exact release candidate before native validation
         if: github.event_name == 'workflow_dispatch'
         shell: bash
         env:

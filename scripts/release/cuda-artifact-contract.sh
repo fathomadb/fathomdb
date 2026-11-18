@@ -146,8 +146,8 @@ export CUDA_RERANKER_MODEL_SHA256='a0e7364ddf91ff7028f1102e1b91ac7a72e3db4061241
 # distribution, which supersedes D-80.6-2's wheel-only Tegra scope for this
 # artifact). The Tegra feature tuple includes the private pool; x86_64 keeps
 # its separate rerank tuple. The toolchain remains shared with the release
-# Rust pin. Node and npm match the release Node toolchain and src/ts's
-# packageManager; the Jetson runner provisions them host-natively.
+# Rust pin. The Jetson runner provisions and validates the release Node and
+# npm pair host-natively.
 export CUDA_TEGRA_NAPI_FEATURES='embed-cuda,rerank-cuda,tegra-pool'
 export CUDA_TEGRA_NAPI_RUST_VERSION="$CUDA_RUST_VERSION"
 export CUDA_TEGRA_NAPI_NODE_VERSION='25.9.0'

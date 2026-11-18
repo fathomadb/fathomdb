@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
 """Current-main ancestry on real local Git histories, without publication."""
+import json
+import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
+
+from test_ci_proportional_routing import Expression, block_scalar, job_block, normalized_condition
 
 HELPER = Path(__file__).resolve().parents[1] / 'release/check-pages-source.py'
 
@@ -85,6 +90,109 @@ class PagesCurrency(unittest.TestCase):
         result = self.check(self.ahead, shallow)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('full Git history required', result.stderr)
+
+
+class PagesAuthorization(unittest.TestCase):
+    def setUp(self):
+        self.workflow = (HELPER.parents[2] / '.github/workflows/docs-pages.yml').read_text()
+        self.authorization = job_block(self.workflow, 'authorize-pages')
+        self.assertIsNotNone(self.authorization, 'Pages needs an early publication authorization job')
+        self.script = block_scalar(self.authorization, 'run', 8)
+        self.assertIsNotNone(self.script, 'authorization must execute its release-state check')
+        self.temp = tempfile.TemporaryDirectory(prefix='pages-authorization-')
+        self.addCleanup(self.temp.cleanup)
+        self.repo = Path(self.temp.name)
+        self.git('init', '-b', 'main')
+        self.git('config', 'user.name', 'Fixture')
+        self.git('config', 'user.email', 'fixture@example.invalid')
+        (self.repo / 'scripts').mkdir()
+        shutil.copy(HELPER.parents[1] / 'release-current.py', self.repo / 'scripts/release-current.py')
+        self.state_path = self.repo / 'dev/plans/release-state-9.9.9.json'
+        self.board = self.repo / 'dev/plans/runs/STATUS-9.9.9.md'
+        self.board.parent.mkdir(parents=True)
+        self.board.write_text('# Active release\n')
+        self.state = {'release': '9.9.9', 'board': 'dev/plans/runs/STATUS-9.9.9.md'}
+
+    def git(self, *args):
+        return subprocess.check_output(['git', '-C', str(self.repo), *args], stderr=subprocess.DEVNULL, text=True).strip()
+
+    def run_authorization(self, candidate=None):
+        self.state_path.write_text(json.dumps(self.state))
+        self.git('add', '.')
+        self.git('commit', '--allow-empty', '-m', 'release fixture')
+        output = self.repo / 'github-output'
+        output.write_text('')
+        env = dict(os.environ, GITHUB_OUTPUT=str(output), GITHUB_SHA=candidate or self.git('rev-parse', 'HEAD'))
+        result = subprocess.run(['bash', '-c', self.script], cwd=self.repo, env=env, capture_output=True, text=True)
+        outputs = dict(line.split('=', 1) for line in output.read_text().splitlines())
+        return result, outputs
+
+    def test_only_json_boolean_true_authorizes(self):
+        for value in (True, False, 'true', 'false', 1, 0, None, [], {}):
+            with self.subTest(value=value):
+                self.state['release_readiness'] = {'pages_publication_authorized': value}
+                result, outputs = self.run_authorization()
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(outputs.get('authorized'), 'true' if value is True else 'false')
+
+    def test_missing_authorization_skips_cleanly(self):
+        for readiness in (None, {}):
+            with self.subTest(readiness=readiness):
+                if readiness is None:
+                    self.state.pop('release_readiness', None)
+                else:
+                    self.state['release_readiness'] = readiness
+                result, outputs = self.run_authorization()
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(outputs.get('authorized'), 'false')
+
+    def test_no_active_release_skips_cleanly(self):
+        self.state['release_readiness'] = {'pages_publication_authorized': True}
+        self.state['published'] = {'tag': 'v9.9.9', 'tag_commit': 'a' * 40,
+                                   'published_on': '2026-11-17', 'npm_dist_tag': 'latest'}
+        result, outputs = self.run_authorization()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(outputs.get('authorized'), 'false')
+
+    def test_selector_and_malformed_state_fail_closed(self):
+        self.state['release_readiness'] = {'pages_publication_authorized': True}
+        for content in ('{', json.dumps({'release': 'broken'})):
+            with self.subTest(content=content):
+                (self.repo / 'dev/plans/release-state-8.8.8.json').write_text(content)
+                result, outputs = self.run_authorization()
+                self.assertNotEqual(result.returncode, 0)
+                self.assertNotEqual(outputs.get('authorized'), 'true')
+
+    def test_wrong_event_candidate_fails_closed(self):
+        self.state['release_readiness'] = {'pages_publication_authorized': True}
+        result, outputs = self.run_authorization(candidate='f' * 40)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertNotEqual(outputs.get('authorized'), 'true')
+
+    def test_workflow_requires_success_and_exact_authorization(self):
+        self.assertIn('runs-on: ubuntu-latest', self.authorization)
+        self.assertIn('ref: ${{ github.sha }}', self.authorization)
+        self.assertIn('persist-credentials: false', self.authorization)
+        self.assertIn('contents: read', self.authorization)
+        self.assertNotIn(': write', self.authorization)
+        self.assertIn('authorized: ${{ steps.authorization.outputs.authorized }}', self.authorization)
+        self.assertIn('id: authorization', self.authorization)
+        prepare = job_block(self.workflow, 'prepare-pages')
+        self.assertIn('needs: authorize-pages', prepare)
+        condition = normalized_condition(prepare)
+        self.assertIsNotNone(condition)
+        self.assertNotIn('always()', condition)
+        for result in ('success', 'failure', 'cancelled', 'skipped'):
+            for authorized in ('true', 'false', '', 'True', '1'):
+                context = {'needs.authorize-pages.result': result,
+                           'needs.authorize-pages.outputs.authorized': authorized}
+                self.assertEqual(Expression(condition, context).evaluate(),
+                                 result == 'success' and authorized == 'true', context)
+        for job, predecessor in (('deploy-pages', 'prepare-pages'), ('verify-pages-live', 'deploy-pages')):
+            block = job_block(self.workflow, job)
+            self.assertIn('needs: ' + predecessor, block)
+            self.assertIsNone(normalized_condition(block), 'publication chain must depend on predecessor success')
+        self.assertEqual(self.workflow.count('scripts/release/check-pages-source.py'), 3)
 
 
 if __name__ == '__main__':

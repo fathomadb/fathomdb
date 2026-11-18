@@ -1,6 +1,6 @@
 ---
 title: Slice 10 approved-scope preparation
-status: PROPOSED
+status: ACTIVE
 target_release: 0.8.30
 slice: 10
 date: 2026-11-18
@@ -13,7 +13,7 @@ runtime changes, correct targeted current documentation, and deliver the local
 contract allocations needed by20–80. The scope ruling is seq-399, recorded from
 “I agree with all of the proposals”; see the [proposal register](../../prework/slice-9.md).
 This concrete plan passed [Astra-medium review](planning-review.md) after FIX-1
-and awaits the final Slice9 HITL decision.
+and is approved for implementation at seq-400.
 No implementation or platform/support claim is established by this document.
 
 ## Entry reconciliation and slice prep
@@ -172,3 +172,6 @@ The parent checks fixes before re-review. After PASS, commit the planning
 artifacts and present the concrete preparation plan to HITL for the final
 implementation decision. The scope agreement at seq-399 is settled; do not
 ask the owner to decide P9-01–14 again.
+
+Activation: seq-400 closes the final planning decision and commissions10.
+The implementation status is owned by release-state-0.8.30.json.

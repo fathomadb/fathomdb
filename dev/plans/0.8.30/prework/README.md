@@ -55,9 +55,8 @@ was performed by this prework.
 
 ## Slice 9 interactive review
 
-The owner agreed to all [Slice9 recommendations](slice-9.md), including
+The owner selected all [Slice9 recommendations](slice-9.md), including
 postponements, at seq-399. The [concrete Slice10 plan](../features/slice-10/plan.md)
-is drafted from those choices and passed
-[Astra-medium review](../features/slice-10/planning-review.md) after FIX-1.
-It awaits the final HITL plan decision. No10 implementation or20+ feature slice is commissioned
-by this proposal-scope ruling.
+passed [Astra-medium review](../features/slice-10/planning-review.md) after
+FIX-1 and was approved at seq-400. Slice9 is complete and10 is commissioned;
+feature slices20–80 remain uncommissioned.

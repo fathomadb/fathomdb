@@ -1,6 +1,6 @@
 ---
 title: Slice 9 scored proposals and interactive decisions
-status: ACTIVE
+status: COMPLETE
 target_release: 0.8.30
 slice: 9
 date: 2026-11-18
@@ -10,11 +10,11 @@ date: 2026-11-18
 
 Proposal-scope choices are closed by HITL ruling seq-399: “I agree with all of
 the proposals.” All 14 recommendations below, including their postponements,
-are selected. The final concrete Slice10 plan decision remains pending.
+are selected. The concrete Slice10 plan is approved at seq-400.
 Source basis is the
 [completed prework](README.md), reviewed [master](../plan.md) and subsequent
 mainline reconciliation `b86b19847852e9beaeea32b98dae03b537d8fea4`.
-The .30 execution state has not been activated; these local proposal IDs are
+The .30 execution state is activated after seq-400; these local proposal IDs are
 not canonical ACs or a replacement for the published .29 decision arrays.
 
 ## Score meanings
@@ -86,13 +86,12 @@ all available major versions as required upgrades.
 On 2026-11-18 the owner answered: “I agree with all of the proposals.”
 Recorded through ledgerwrite at **seq-399**. Each proposal row P9-01–14
 references that ruling; the recorded body maps the selected scope and limits.
-The .30 state has not been activated. Carry seq-399 into its ruled set on
-approved activation; do not write these answers into the closed .29 ladder.
+The .30 state now records seq-399 and seq-400 in its ruled set. The closed
+.29 ladder is unchanged.
 
 The [concrete Slice10 plan](../features/slice-10/plan.md) implements only the
 selected preparation and assigns feature work to20–80. The requested
 [Astra-medium review](../features/slice-10/planning-review.md) passed after
-FIX-1, using one of up to four permitted cycles. Present the reviewed plan
-and capture the final HITL plan decision before implementation.
-Slice9 stays ACTIVE until that final decision is captured. Scope choices are
-settled; no confirmation run or repeat vote on P9-01–14 is required.
+FIX-1. The owner answered “approve. begin” at seq-400 after presentation of
+that reviewed plan. Slice9 is COMPLETE; Slice10 is commissioned. No repeated
+scope vote or confirming run is required.

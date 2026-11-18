@@ -1,0 +1,305 @@
+{
+  "release": "0.8.30",
+  "release_kind": "minor",
+  "board": "dev/plans/runs/STATUS-0.8.30.md",
+  "plan": "dev/plans/0.8.30/plan.md",
+  "master": "dev/plans/0.8.30/plan.md",
+  "active_ref": "refs/heads/release/0.8.30",
+  "schema_version": 37,
+  "schema_version_source": "pub const SCHEMA_VERSION in src/rust/crates/fathomdb-schema/src/lib.rs",
+  "ladder": [
+    {
+      "slice": 0,
+      "short": "ENVIRONMENT",
+      "title": "Environment inventory",
+      "depends_on": [],
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "sha": "7c9377b87db6bf0e93e9f489ecb8b28e6629733e",
+      "design_refs": [
+        "dev/plans/0.8.30/prework/slice-0.md"
+      ],
+      "evidence": "Proposal investigation only; committed prework outputs."
+    },
+    {
+      "slice": 1,
+      "short": "LIBRARIES",
+      "title": "Library and advisory sweep",
+      "depends_on": [
+        0
+      ],
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "sha": "7c9377b87db6bf0e93e9f489ecb8b28e6629733e",
+      "design_refs": [
+        "dev/plans/0.8.30/prework/slice-1.md"
+      ],
+      "evidence": "Proposal investigation only; committed prework outputs."
+    },
+    {
+      "slice": 2,
+      "short": "CRUFT",
+      "title": "Cruft proposals",
+      "depends_on": [
+        1
+      ],
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "sha": "7c9377b87db6bf0e93e9f489ecb8b28e6629733e",
+      "design_refs": [
+        "dev/plans/0.8.30/prework/slice-2.md"
+      ],
+      "evidence": "Proposal investigation only; committed prework outputs."
+    },
+    {
+      "slice": 3,
+      "short": "CONTRACTS",
+      "title": "Local contract drafts",
+      "depends_on": [
+        2
+      ],
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "sha": "7c9377b87db6bf0e93e9f489ecb8b28e6629733e",
+      "design_refs": [
+        "dev/plans/0.8.30/prework/slice-3.md"
+      ],
+      "evidence": "Proposal investigation only; committed prework outputs."
+    },
+    {
+      "slice": 4,
+      "short": "ARCHITECTURE",
+      "title": "Architecture/source review",
+      "depends_on": [
+        3
+      ],
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "sha": "7c9377b87db6bf0e93e9f489ecb8b28e6629733e",
+      "design_refs": [
+        "dev/plans/0.8.30/prework/slice-4.md"
+      ],
+      "evidence": "Proposal investigation only; committed prework outputs."
+    },
+    {
+      "slice": 5,
+      "short": "TESTING",
+      "title": "Test adequacy review",
+      "depends_on": [
+        4
+      ],
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "sha": "7c9377b87db6bf0e93e9f489ecb8b28e6629733e",
+      "design_refs": [
+        "dev/plans/0.8.30/prework/slice-5.md"
+      ],
+      "evidence": "Proposal investigation only; committed prework outputs."
+    },
+    {
+      "slice": 6,
+      "short": "DOCUMENTATION",
+      "title": "Stale documentation review",
+      "depends_on": [
+        5
+      ],
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "sha": "7c9377b87db6bf0e93e9f489ecb8b28e6629733e",
+      "design_refs": [
+        "dev/plans/0.8.30/prework/slice-6.md"
+      ],
+      "evidence": "Proposal investigation only; committed prework outputs."
+    },
+    {
+      "slice": 7,
+      "short": "DELIVERY",
+      "title": "CI/CD evidence review",
+      "depends_on": [
+        6
+      ],
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "sha": "7c9377b87db6bf0e93e9f489ecb8b28e6629733e",
+      "design_refs": [
+        "dev/plans/0.8.30/prework/slice-7.md"
+      ],
+      "evidence": "Proposal investigation only; committed prework outputs."
+    },
+    {
+      "slice": 8,
+      "short": "RESERVED",
+      "title": "Reserved placeholder",
+      "depends_on": [
+        7
+      ],
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "sha": "7c9377b87db6bf0e93e9f489ecb8b28e6629733e",
+      "design_refs": [
+        "dev/plans/0.8.30/prework/slice-8.md"
+      ],
+      "evidence": "Proposal investigation only; committed prework outputs."
+    },
+    {
+      "slice": 9,
+      "short": "DECISIONS",
+      "title": "Interactive scope and preparation approval",
+      "depends_on": [
+        8
+      ],
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "sha": "9b60aed656330acdcce06d3c77e6008dbef739c3",
+      "design_refs": [
+        "dev/plans/0.8.30/prework/slice-9.md"
+      ],
+      "evidence": "Scope seq-399; concrete preparation approved seq-400 after Astra-medium PASS/FIX-1. Plan artifact at cited SHA; decision recorded on activation."
+    },
+    {
+      "slice": 10,
+      "short": "PREPARATION",
+      "title": "Approved environment, security, runtime and documentation preparation",
+      "depends_on": [
+        9
+      ],
+      "status": "IN_PROGRESS",
+      "design_refs": [
+        "dev/plans/0.8.30/features/slice-10/plan.md"
+      ]
+    },
+    {
+      "slice": 20,
+      "short": "CI",
+      "title": "Efficient and diagnosable CI/CD",
+      "depends_on": [
+        10
+      ],
+      "status": "PROPOSED_NOT_COMMISSIONED",
+      "design_refs": [
+        "dev/plans/0.8.30/features/slice-20/plan.md"
+      ]
+    },
+    {
+      "slice": 30,
+      "short": "CORRECTNESS",
+      "title": "Correctness bug hunt and remediation",
+      "depends_on": [
+        10
+      ],
+      "status": "PROPOSED_NOT_COMMISSIONED",
+      "design_refs": [
+        "dev/plans/0.8.30/features/slice-30/plan.md"
+      ]
+    },
+    {
+      "slice": 40,
+      "short": "LATENCY",
+      "title": "Performance and end-to-end latency",
+      "depends_on": [
+        10
+      ],
+      "status": "PROPOSED_NOT_COMMISSIONED",
+      "design_refs": [
+        "dev/plans/0.8.30/features/slice-40/plan.md"
+      ]
+    },
+    {
+      "slice": 50,
+      "short": "ROBUSTNESS",
+      "title": "Concurrency lifecycle and resource bug hunt and remediation",
+      "depends_on": [
+        10
+      ],
+      "status": "PROPOSED_NOT_COMMISSIONED",
+      "design_refs": [
+        "dev/plans/0.8.30/features/slice-50/plan.md"
+      ]
+    },
+    {
+      "slice": 60,
+      "short": "FORK",
+      "title": "Scoped fork maintenance and qualification",
+      "depends_on": [
+        10
+      ],
+      "status": "PROPOSED_NOT_COMMISSIONED",
+      "design_refs": [
+        "dev/plans/0.8.30/features/slice-60/plan.md"
+      ]
+    },
+    {
+      "slice": 70,
+      "short": "QUALIFICATION",
+      "title": "Integrated qualification and release readiness",
+      "depends_on": [
+        20,
+        30,
+        40,
+        50,
+        60
+      ],
+      "status": "PROPOSED_NOT_COMMISSIONED",
+      "design_refs": [
+        "dev/plans/0.8.30/features/slice-70/plan.md"
+      ]
+    },
+    {
+      "slice": 80,
+      "short": "DELIVERY",
+      "title": "Separately authorized publishing and public consumers",
+      "depends_on": [
+        70
+      ],
+      "status": "PROPOSED_NOT_COMMISSIONED",
+      "design_refs": [
+        "dev/plans/0.8.30/features/slice-80/plan.md"
+      ]
+    }
+  ],
+  "landed": [],
+  "next_slice": 10,
+  "remaining_ladder": [
+    10,
+    20,
+    30,
+    40,
+    50,
+    60,
+    70,
+    80
+  ],
+  "decisions": {
+    "ruled": [
+      {
+        "id": "prework-scope",
+        "source": "seq-399",
+        "ruling": "Select every P9-01\u201314 recommendation, including postponements; see Slice9 register and ledger body."
+      },
+      {
+        "id": "slice10-preparation",
+        "source": "seq-400",
+        "ruling": "Approve reviewed concrete Slice10 plan and begin implementation."
+      }
+    ],
+    "unruled": []
+  },
+  "acceptance": {
+    "status": "NOT_EVALUATED",
+    "record": "dev/plans/0.8.30/features/slice-70/plan.md",
+    "preparation_acceptance": {
+      "status": "IN_PROGRESS",
+      "record": "dev/plans/0.8.30/features/slice-10/plan.md"
+    }
+  },
+  "release_readiness": {
+    "status": "NOT_READY",
+    "publication_authorized": false,
+    "scope": "Only Slice10 commissioned by seq-400; no platform/support, registry, reset or new-venue authority inferred."
+  },
+  "generated_views": [
+    {
+      "id": "status-current-state",
+      "file": "dev/plans/runs/STATUS-0.8.30.md"
+    },
+    {
+      "id": "status-next-action",
+      "file": "dev/plans/runs/STATUS-0.8.30.md"
+    },
+    {
+      "id": "plan-immediate-next",
+      "file": "dev/plans/0.8.30/plan.md"
+    }
+  ],
+  "public_docs_target_release": "0.8.29"
+}

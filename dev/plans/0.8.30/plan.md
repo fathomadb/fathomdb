@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.30 release plan
-status: PROPOSED
+status: ACTIVE
 target_release: 0.8.30
 date: 2026-11-17
 ---
@@ -19,7 +19,7 @@ checkpoint. Slice 10 implements only its approved preparation. Product work,
 live faults, new GPU sessions, paid runs and publication require their applicable
 later commissioning or concrete authority; drafting an execution plan grants none.
 
-## Baseline and scope
+## Release goal and scope
 
 Use current `origin/main` and reconcile changes at each slice entry. Published
 .29 tag `b64d32f80` and closure `569652e61` are historical anchors, not reset
@@ -71,7 +71,7 @@ When later commissioned, Slice 10 implements only the preparation selected in
 Its plan is drafted after the decisions; a speculative all-purpose implementation
 packet is not needed now. Substantive product work belongs to 20+.
 
-## B. Feature ladder
+## B. Feature slice ladder
 
 Initial feature numbers are multiples of ten beginning at 20. Gaps remain
 reserved for a necessary coherent follow-up; do not assign a number per defect
@@ -99,7 +99,7 @@ Keep a native-verification candidate clean while its gate runs. Stage pending
 release records outside that checkout until candidate construction finishes;
 the .29 Python clean-candidate guard correctly rejected parent metadata edits.
 
-### First-wave scope and limits
+### Requirements and acceptance criteria: first-wave scope and limits
 
 - **20:** fix the real-repository preflight and commission-manifest all-LANDED
   assumptions, covering published/no-active-release and authorized terminal
@@ -152,6 +152,13 @@ bug or rewriting already-correct code. Critical wrong-result/data-loss findings
 need repair or explicit owner disposition; .29's S50 exception is not a general
 score tolerance. No paid72/full160 campaign repeats for a release-number change.
 
+### Reserved-gap work
+
+Unassigned slice numbers remain reserved. A needed coherent follow-up requires
+explicit scope placement; broad cruft deletion, general version refresh and
+Inspector integration remain postponed under seq-399. Scope gaps do not grant
+implementation authority.
+
 ## C. Slice planning and execution contract
 
 A direct `gpt-6.2-sol` high subagent drafts each20+ slice plan; this commission
@@ -194,7 +201,7 @@ a stable coherent source phase, then recheck failed/affected/unrun scopes. Broad
 changes can justify another phase. Source qualification, hosted artifact proof
 and post-registry consumers remain distinct.
 
-## Testing, policy and cross-cutting completion
+## Cross-cutting DoD: testing and policy
 
 Apply the [quality roadmap](../../notes/fathomdb-quality-testing-roadmap.md):
 real-store state/property and round-trip tests, independent same-state oracles,
@@ -230,12 +237,15 @@ missing-record, separate-process reopen, close/exit, registry finalization and
 public downloads. Partial publication remains incomplete. Retain original
 failures and honest unknowns; no force-retag or hook bypass.
 
-## Immediate work and interactive boundary
+## Immediate next slice and interactive boundary
 
-Master and all seven feature-plan reviews passed; the reviewed plans and
-[completed prework0–8](prework/README.md) are committed on `release/0.8.30`.
-Slice9's [scope decisions](prework/slice-9.md) are ruled at seq-399. The
-[concrete Slice10 preparation plan](features/slice-10/plan.md) passed [Astra-medium review](features/slice-10/planning-review.md) after FIX-1
-and awaits the final HITL plan decision. Slices10 and20+ remain unexecuted.
-The structured .30 release state/board is created only at approved activation;
-carry seq-399 into that state without reopening the scope choices.
+Scope choices are ruled at seq-399. The concrete Slice10 plan passed
+[Astra-medium review](features/slice-10/planning-review.md) after FIX-1 and was
+approved at seq-400. Slice9 is closed; Slice10 implementation is commissioned.
+The [release state](../release-state-0.8.30.json) and
+[board](../runs/STATUS-0.8.30.md) are active. Slices20–80 remain uncommissioned.
+
+<!-- BEGIN GENERATED release-state:0.8.30:plan-immediate-next -->
+**IMMEDIATE NEXT: Slice 10** (`PREPARATION`) — Approved environment, security, runtime and documentation preparation
+
+**Remaining ladder:** 10 → 20 → 30 → 40 → 50 → 60 → 70 → 80.<!-- END GENERATED release-state:0.8.30:plan-immediate-next -->

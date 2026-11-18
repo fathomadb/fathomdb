@@ -1,0 +1,88 @@
+{
+  "retrieval_date_local": "2026-11-17",
+  "timezone": "America/Chicago",
+  "retrieval_date_utc": "2026-11-18",
+  "method": "Delegated bounded read-only primary-source refresh; no installs, native execution or settings changes. No downloaded HTML retained.",
+  "observations": [
+    {
+      "signal": "Comparable runtime download shares and trend",
+      "label": "UNKNOWN",
+      "observation": "September/October2026 comparable SQL retrieval inaccessible; ClickPy403; PepyAPI inaccessible; rollingPypistats total not a complete-month denominator. No fresh share/trend measured.",
+      "sources": [
+        "https://clickpy.clickhouse.com/dashboard/nvidia-cuda-runtime",
+        "https://pypistats.org/packages/nvidia-cuda-runtime-cu12",
+        "https://pepy.tech/api/v2/projects/nvidia-cuda-runtime"
+      ]
+    },
+    {
+      "signal": "PyTorch distribution",
+      "label": "REPORTED",
+      "observation": "PyTorch2.15 announcement identifiesCUDA13.2.2 default andCUDA13.4 GA wheels with experimentalRubin support. Distribution choice is not fleet share.",
+      "sources": [
+        "https://pytorch.org/blog/pytorch-2-15-release-blog/",
+        "https://raw.githubusercontent.com/pytorch/pytorch/v2.15.0/RELEASE.md"
+      ]
+    },
+    {
+      "signal": "llama.cpp assets",
+      "label": "REPORTED",
+      "observation": "Current listings retainCUDA12-family andCUDA13-family assets;13 assets now list13.5. Download count sections/API unavailable; no measured split.",
+      "sources": [
+        "https://github.com/ggml-org/llama.cpp/releases"
+      ]
+    },
+    {
+      "signal": "JetPack",
+      "label": "REPORTED",
+      "observation": "6.2.3 listsCUDA12.6.10/JetsonLinux36.5.2;7.2.1 listsCUDA13.2.2/JetsonLinux39.2.1 andThor/Orin. Availability is not installedfleet or FathomDB qualification.",
+      "sources": [
+        "https://developer.nvidia.com/embedded/jetpack-sdk-623",
+        "https://developer.nvidia.com/embedded/jetpack/downloads"
+      ]
+    },
+    {
+      "signal": "Driver compatibility and lifecycle",
+      "label": "REPORTED",
+      "observation": "FamilyminimumCUDA12 R525/CUDA13 R580; PTX compatibility remains a separate restriction. R580LTS endsJune2028; Maxwell/Pascal/Volta end atCUDA12.x/R580.",
+      "sources": [
+        "https://docs.nvidia.com/deploy/cuda-compatibility/latest/minor-version-compatibility.html",
+        "https://docs.nvidia.com/datacenter/tesla/drivers/620/supported-drivers-and-cuda-toolkit-versions.html",
+        "https://docs.nvidia.com/datacenter/tesla/drivers/latest/cuda-toolkit-driver-and-architecture-matrix.html"
+      ]
+    },
+    {
+      "signal": "Compiler6111901",
+      "label": "REPORTED",
+      "observation": "CUDA13.2.2 release notes describe nested-divergence/reconvergence fix6111901 present since12.8. Exact FathomDB exposure remainsunknown.",
+      "sources": [
+        "https://docs.nvidia.com/cuda/archive/13.2.2/cuda-toolkit-release-notes/index.html#cuda-compiler"
+      ]
+    },
+    {
+      "signal": "Peers",
+      "label": "REPORTED",
+      "observation": "Docs.rs showscudarc0.19.10/Candle0.11.1; docs listCUDA12/13 bindings. ONNXRuntime docs cover1.27\u20131.30 withCUDA13default andseparate12.8+ builds;vLLM stable docs12.9default plus12.8/13.0;JAXcuda13recommended withcuda12alternative;CuPy14.2 docsseparate12/13 distributions. These are documentation observations, not latestregistry or adoption measurements.",
+      "sources": [
+        "https://docs.rs/crate/cudarc/latest",
+        "https://docs.rs/crate/candle-core/latest",
+        "https://onnxruntime.ai/docs/execution-providers/CUDA-ExecutionProvider.html",
+        "https://docs.vllm.ai/en/stable/getting_started/installation/gpu/index.html",
+        "https://docs.jax.dev/en/latest/installation.html",
+        "https://docs.cupy.dev/en/stable/install.html"
+      ]
+    },
+    {
+      "signal": "Ollama",
+      "label": "REPORTED",
+      "observation": "Docs listcompute5.0+ withdriver550+,570+ for5.0\u20136.2 andseparateARM64Linuxpackage. No JetPackfleet split; doesnotestablishK620/FathomDB support.",
+      "sources": [
+        "https://docs.ollama.com/gpu",
+        "https://docs.ollama.com/linux"
+      ]
+    }
+  ],
+  "recommendation": {
+    "label": "INFERRED",
+    "action": "Retain all accepted importance ratings and existingartifact/driver/primarytoolkit policy. No new .30CUDA13delivery; futurework remains.31. Unknown shares not replaced by qualitative packageavailability."
+  }
+}

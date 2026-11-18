@@ -1,12 +1,12 @@
 ---
 title: FathomDB 0.8.29 completed release board
-status: COMPLETE
+status: ACTIVE
 target_release: 0.8.29
 ---
 
 # FathomDB 0.8.29 release board
 
-Closed — historical record. Product publication, installed consumers and public docs are complete.
+Core publication and its consumers/docs are complete. **Required0.8.29Tegra CUDA Pages delivery is OPEN under owner seq-398.** Use existing`coreyt@10.83.10.13`; genericARMCPU and matched.28Tegra do not complete it.
 
 [State](../release-state-0.8.29.json) owns generated control facts.
 [Master](../plan-0.8.29.md) and [direct method](../0.8.29/direct-execution.md)
@@ -16,7 +16,7 @@ consumer jobs and public documentation delivery are complete.
 
 ## Current state
 
-**COMPLETE.** FathomDB0.8.29 is published and verified. No next slice remains; see the release state and final Slice160 record.
+**Core published; Tegra delivery pending.** Finish the version-matched0.8.29Tegra wheel and Node addon, Pages distribution, public installed consumers and retained manifest under seq-398. Original core evidence stays qualified.
 
 Proposal/reserved outputs0–9 and approved preparation10 are complete on the
 local release branch, with actual independent review and reachable witnesses.
@@ -25,7 +25,7 @@ selected platform/artifact and final acceptance remain pending.
 
 ## Next action
 
-**COMPLETE.** FathomDB0.8.29 is published and verified. No next slice remains; see the release state and final Slice160 record.
+**Core published; Tegra delivery pending.** Finish the version-matched0.8.29Tegra wheel and Node addon, Pages distribution, public installed consumers and retained manifest under seq-398. Original core evidence stays qualified.
 
 Current source and measurement subjects are distinct; the JSON remains the
 ladder authority. Original failures, interrupted wrappers, inner skips and native

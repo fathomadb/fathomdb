@@ -1,6 +1,6 @@
 {
   "release": "0.8.29",
-  "release_kind": "Publication complete; Slice160 complete; selected owner dispositions and original failures retained.",
+  "release_kind": "Core publication complete; required supplemental0.8.29Tegra CUDA Pages delivery OPEN under owner398.",
   "board": "dev/plans/runs/STATUS-0.8.29.md",
   "plan": "dev/plans/plan-0.8.29.md",
   "master": "dev/plans/0.8.20-0.9.0-PROGRAM-SEQUENCING.md",
@@ -1791,7 +1791,8 @@
         "jobs": 4,
         "public_release_notes": "https://fathomadb.github.io/fathomdb/release-notes/0.8.29/",
         "retained_tegra": "Existing0.26/0.27/0.28 public artifacts verified by liveURLchecks; no new0.29 TegraCUDA artifact."
-      }
+      },
+      "supplemental_delivery": "Required0.8.29TegraCUDA Pages work open under398; originalsource/corelandings remainhistoricalqualifiedcredit."
     }
   ],
   "landed": [
@@ -2056,6 +2057,11 @@
         "owner_slice": 160,
         "source": "dev/steward/steward-ledger.jsonl seq-397",
         "scope": "One temporary productionCUDAworker on existinghost, exclusive selected3090FD9/inode8532374,45minjob/90minsetup-build-cleanupbound; exactv0.8.29group/environmenttagentries only, preserve reviewers, approve aftertagchecks, remove onlytemporaryworker. Protectedmainexception extends onlyreviewedproductiontag; no mainsettingschange/reset/toolkit/driver/otherrelease action."
+      },
+      {
+        "id": "tegra-029-pages-delivery",
+        "title": "Owner requires0.8.29Tegra CUDA wheel/Node and GitHubPagesdistribution on existing10.83.10.13; do not defer to.30.",
+        "source": "dev/steward/steward-ledger.jsonl seq-398"
       }
     ],
     "unruled": [
@@ -2067,7 +2073,7 @@
     ]
   },
   "acceptance": {
-    "status": "PASS",
+    "status": "CORE_PASS_TEGRA_PENDING",
     "criteria": [
       "A160-1",
       "A160-2",
@@ -2077,7 +2083,7 @@
       "A160-6"
     ],
     "record": "dev/plans/0.8.29/features/slice-160/status.md",
-    "scope": "All selected mandatory criteria qualified within explicit owner/source/platform scopes. Assembled source/CI evidence and focused recoveries remain distinct from uninterrupted green; S50 narrow exception393 and omitted rehearsal394 retained. Actual published consumers and Pages delivery verified.",
+    "scope": "All selected mandatory criteria qualified within explicit owner/source/platform scopes. Assembled source/CI evidence and focused recoveries remain distinct from uninterrupted green; S50 narrow exception393 and omitted rehearsal394 retained. Actual published consumers and Pages delivery verified. Coreacceptance retained; owner398Tegra delivery addedafterclosure and remainsopen until actualnewartifacts/publicconsumers.",
     "preparation_acceptance": {
       "status": "PASS",
       "criteria": [
@@ -2095,9 +2101,9 @@
     }
   },
   "release_readiness": {
-    "status": "COMPLETE",
+    "status": "CORE_PUBLISHED_TEGRA_DELIVERY_PENDING",
     "qualification": "Assembledsource/platformqualification independentlyACCEPTED: all239registered outcomesresolved within exactsources/venues,3explicitprivatecontrolskips/Tegrahostdisposition/72Rustignoredcases retained. OriginalhostedRust101+45/60mcancels preserved; no uninterruptedCIgreenclaim. Actuale192five-targetCPUconsumers/receipts passed; rootcanonicalRust2828/NAPIuncompletedtail andfast19PASS; priorpaid72/S50ownerexception/currentlocalCUDAproof retained. Fourforkdepsactualpublished/byteverified andno-patchregistryresolutionPASS. Actualshippingbuild/tag/registries/postpubconsumers remain under396/397. Actual tagb64 shippingCUDA and allfiveplatform builds, allproductpublishers and eight actualregistry-installed consumers pass; normalpipeline failures and focusedrecoveries retained. ProductionCUDAwheel registrySHA and publishedNode nativeSHA match selected-GPU-qualified artifacts; Nodearchive onlyREADME differs.",
-    "publication": "PUBLISHED: crates.io, PyPI, npm latest, GitHub Release and public documentation. All8registryconsumerjobs/co-tagging and Pages4jobs pass. GPUworker retired and both3090free.",
+    "publication": "PUBLISHED: crates.io, PyPI, npm latest, GitHub Release and public documentation. All8registryconsumerjobs/co-tagging and Pages4jobs pass. GPUworker retired and both3090free. Owner398 subsequently requires0.8.29TegraCUDAwheel/addon+Pages; that delivery is OPEN, .28retainedartifacts andgenericARMCPU do notsubstitute.",
     "local_source_phase": {
       "status": "ASSEMBLED_FULL_SOURCE_PASS",
       "subject": "b6749b4bcf33816e068c61c270ae531ef6968cf7",
@@ -2172,7 +2178,7 @@
     "tag_commit": "b64d32f80bea2853bf4939b6334e32501174ffb1",
     "published_on": "2026-11-18",
     "npm_dist_tag": "latest",
-    "evidence": "Production44229162869 all shippingbuilds/publishers, eight registry-installed consumer jobs and co-taggingPASS. Attempt1 npmconsumer missingoptionalnative, exactversions/nativebytes verified and singlefailed-only retryPASS. Legacy promotionE401 retained. OIDCfinalization44233820520 attempt2SUCCESS: initialOIDCPUT204 succeeded but immediatecachedverificationstale; two registryviews independentlyconfirm latest.29, targetedfinalizationretryPASS and GitHubReleasefivewheels. Evidence /mnt/data/fathomdb/0.8.29-release-evidence. Pages44235051883 all4jobsSUCCESS and live0.8.29releasepage verified; retained oldTegraURLs pass."
+    "evidence": "Production44229162869 all shippingbuilds/publishers, eight registry-installed consumer jobs and co-taggingPASS. Attempt1 npmconsumer missingoptionalnative, exactversions/nativebytes verified and singlefailed-only retryPASS. Legacy promotionE401 retained. OIDCfinalization44233820520 attempt2SUCCESS: initialOIDCPUT204 succeeded but immediatecachedverificationstale; two registryviews independentlyconfirm latest.29, targetedfinalizationretryPASS and GitHubReleasefivewheels. Evidence /mnt/data/fathomdb/0.8.29-release-evidence. Pages44235051883 all4jobsSUCCESS and live0.8.29releasepage verified; retained oldTegraURLs pass. Subsequentowner398 requiresadditional0.8.29TegraCUDA Pages delivery; OPEN separately, thisreceipt doesnotclaimTegraCUDApublication."
   },
   "completion": {
     "ref": "origin/release/0.8.29",
@@ -2184,5 +2190,18 @@
     "archive_root": "/mnt/data/fathomdb/cleanup-2026-11-17",
     "record": "/mnt/data/fathomdb/cleanup-2026-11-17/cleanup-summary.json",
     "scope": "Only inactive olddev.29debug/release and two.27Cargo caches; native/raw evidence archived and checksumverified. Source/currentwork/S50 and requiredreleaseevidence retained."
+  },
+  "tegra_delivery": {
+    "status": "REQUIRED_PREFLIGHT",
+    "authority": "seq-398",
+    "host": "coreyt@10.83.10.13",
+    "version": "0.8.29",
+    "wheel": "fathomdb-0.8.29+tegra-cp310-abi3-linux_aarch64.whl",
+    "node": "fathomdb-linux-arm64-gnu-tegra-0.8.29.tgz",
+    "route": ".github/workflows/jetson-tegra-cuda-evidence.yml",
+    "preflight": "SSHreachable, existingOrin/L4TR36.5.2/CUDA12.6/GCC11/Rust1.95/Node25.9; repo runner22offline. github-pages lacks exactrelease/.29 branch policy. No build/dispatch yet.",
+    "acceptance": "Buildexactsource/pins onexistingTegra, installedCPU/auto/forcedCUDA and attributablewitness forPython/Node, hostedARMdriverless, deployexactpairpreservingretainedURLs, verifypublicURLs and installedpublicartifacts onTegra. Addnewpair toretentionmanifest before any laterPagesdeploy.",
+    "limits": "No reset/reflash/driver/toolkit change, noMemexrunner/unrelatedprocess action, noforce-tag orcore-registryrepublish. Existing180minbuild/90minpublicsmoke joblimits; actualhostreadiness/ownedcleanup required.",
+    "next": "Prepare exact.29Pagesbranchadmission and boundedexistingrunner22start, then dispatch normalTegra publisher on immutablemain-reachable.29source."
   }
 }

@@ -181,7 +181,7 @@ holds the full rulings.
 ## 0.8.30 backlog
 
 Placed by HITL decision on 2026-10-07. This is backlog with a release slot,
-not implementation authority; no plan, release-state file, or board exists.
+not implementation authority. A [proposed quality release plan](plans/0.8.30/plan.md) now reconciles this backlog; no0.8.30 execution state or board is activated.
 
 **B30-01 — release the module-level CUDA models.** Todo
 `TC-8d3c1cde-97d7-46d5-af50-9cc479da6de7`. The embedder-close fix releases the

@@ -1,12 +1,12 @@
 ---
 title: Slice 160 qualification and publication complete
-status: COMPLETE
+status: IN_PROGRESS
 target_release: 0.8.29
 ---
 
 # Slice 160 qualification and publication complete
 
-**COMPLETE. FathomDB0.8.29 is published; installed consumers and public docs are verified.**
+**CORE PUBLISHED; TEGRA DELIVERY OPEN.** Owner seq-398 requires0.8.29Tegra CUDA wheel/addon and Pages distribution on`10.83.10.13`. Existing.28Tegra and genericARMCPU are insufficient. The core results below remain qualified; see `release-state-0.8.29.json` `tegra_delivery` for the current supplemental task.
 Actual tag `v0.8.29` remains `b64d32f80bea2853bf4939b6334e32501174ffb1`.
 Production44229162869 passes all shipping builds/publishers, eight registry consumer
 jobs and co-tagging. Its overall failure from legacy promotion401 remains.

@@ -122,6 +122,21 @@ printf 'PASS  hosted CUDA verifier is main-owned and candidate-independent\n'
 FIXTURE="$TMPROOT/fixture"
 make_fixture "$FIXTURE"
 expect_pass "$FIXTURE" 'baseline CUDA contract agrees'
+
+# Development npm metadata must not change the sealed Tegra runtime.
+ROLE_FIXTURE="$TMPROOT/development-npm"
+make_fixture "$ROLE_FIXTURE"
+python3 - "$ROLE_FIXTURE/src/ts/package.json" <<'PY_ROLE'
+import json
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+package = json.loads(path.read_text())
+package["packageManager"] = "npm@11.20.0"
+path.write_text(json.dumps(package))
+PY_ROLE
+expect_pass "$ROLE_FIXTURE" 'Tegra release pins are independent of the development npm manifest'
 if ! grep -Fxq "export CUDA_TEGRA_NAPI_FEATURES='embed-cuda,rerank-cuda,tegra-pool'" \
   "$FIXTURE/scripts/release/cuda-artifact-contract.sh"; then
   printf '%s\n' 'FAIL  Tegra N-API artifact must include the private pool' >&2

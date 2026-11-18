@@ -12,9 +12,9 @@
 #   forwards a consumer feature `embed-cuda`. The consumer has no `[patch]`
 #   table at all: every crate comes from crates.io.
 #     (a) Resolution (any host): `cargo generate-lockfile`; the lock must hold
-#         cudarc-fathomdb 0.19.10, candle-{core,nn,transformers}-fathomdb
-#         0.11.0 and candle-kernels 0.10.2, each from the crates.io registry,
-#         and no cudarc 0.19.x (ug-cuda's cudarc 0.17.8 is allowed).
+#         cudarc-fathomdb 0.20.0, candle-{core,nn,transformers}-fathomdb
+#         0.12.0 and candle-kernels 0.10.2, each from the crates.io registry,
+#         and no cudarc 0.19.x or 0.20.x (ug-cuda's 0.17.8 is allowed).
 #     (b) Build and link (aarch64 Linux Tegra host): `cargo build` and
 #         `cargo test --no-run` with `--features embed-cuda`. Registry
 #         candle-kernels links libcudart dynamically, so LIBRARY_PATH must
@@ -145,7 +145,7 @@ embed-cuda = ["fathomdb-embedder/embed-cuda"]
 fathomdb-embedder = { path = "../src/rust/crates/fathomdb-embedder", $DEPENDENCY_FEATURES }
 
 [dev-dependencies]
-candle-core = { package = "candle-core-fathomdb", version = "=0.11.0" }
+candle-core = { package = "candle-core-fathomdb", version = "=0.12.0" }
 TOML
 if grep -q '^\[patch' "$CONSUMER/Cargo.toml"; then
   fail 'the consumer manifest has a [patch] table'
@@ -161,10 +161,10 @@ import sys
 # Python 3.10 (the Jetson's) has no tomllib; Cargo.lock's package blocks are regular.
 REGISTRY = "registry+https://github.com/rust-lang/crates.io-index"
 EXPECTED = {
-    "cudarc-fathomdb": "0.19.10",
-    "candle-core-fathomdb": "0.11.0",
-    "candle-nn-fathomdb": "0.11.0",
-    "candle-transformers-fathomdb": "0.11.0",
+    "cudarc-fathomdb": "0.20.0",
+    "candle-core-fathomdb": "0.12.0",
+    "candle-nn-fathomdb": "0.12.0",
+    "candle-transformers-fathomdb": "0.12.0",
     "candle-kernels": "0.10.2",
 }
 packages = []
@@ -180,7 +180,7 @@ for name, version in EXPECTED.items():
         print(f"  {name} {version} {REGISTRY}")
 for name, version, source in packages:
     if name == "cudarc":
-        if version.startswith("0.19."):
+        if version.startswith(("0.19.", "0.20.")):
             failures.append(f"upstream cudarc {version} resolved ({source})")
         else:
             print(f"  cudarc {version} {source} (ug-cuda; allowed)")

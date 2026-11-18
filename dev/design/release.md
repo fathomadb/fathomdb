@@ -151,10 +151,10 @@ consumer of a copy of `fathomdb-embedder` with `tegra-pool` and **no
 `[patch]` table**, so every crate comes from crates.io
 (`dev/adr/ADR-0.8.28-tegra-private-cuda-pool.md`, amendment of 2026-10-13).
 Step (a), on any host with crates.io access, checks that `cudarc-fathomdb`
-0.19.10, the three Candle fork crates 0.11.0 and `candle-kernels` 0.10.2
-resolve from the registry and that no `cudarc` 0.19 does
-(`--resolve-only` runs only this). On the Jetson it then (b) builds and
-links the consumer, with `LIBRARY_PATH` naming the CUDA library directory
+0.20.0, the three Candle fork crates 0.12.0 and `candle-kernels` 0.10.2
+resolve from the registry and that no upstream `cudarc` 0.19.x or 0.20.x
+does (ug-cuda's `cudarc` 0.17.8 is allowed; `--resolve-only` runs only this).
+On the Jetson it then (b) builds and links the consumer, with `LIBRARY_PATH` naming the CUDA library directory
 (registry `candle-kernels` links `libcudart` dynamically), and (c) runs the
 copied `tegra_fragmented_va_cuda` test. crates.io consumers get a dynamic
 `libcudart`; REQ-068's CPU-loadable guarantee covers only FathomDB-built

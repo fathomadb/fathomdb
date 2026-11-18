@@ -62,9 +62,15 @@ function showInstallLog(log) {
       const buffer = Buffer.alloc(length);
       return buffer.subarray(0, readSync(fd, buffer, 0, length, position)).toString("utf8");
     }
-    content = size > edge * 2
-      ? `${readAt(edge, 0)}\n[npm install output truncated]\n${readAt(edge, size - edge)}`
-      : readAt(size, 0);
+    if (size > edge * 2) {
+      // A partial line could retain the value while losing its redaction marker.
+      const head = readAt(edge, 0);
+      const tail = readAt(edge, size - edge);
+      const tailStart = tail.indexOf("\n");
+      content = `${head.slice(0, head.lastIndexOf("\n") + 1)}[npm install output truncated]\n${tailStart >= 0 ? tail.slice(tailStart + 1) : ""}`;
+    } else {
+      content = readAt(size, 0);
+    }
   } finally {
     closeSync(fd);
   }

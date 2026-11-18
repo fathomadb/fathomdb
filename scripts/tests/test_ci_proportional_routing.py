@@ -454,6 +454,25 @@ def main() -> int:
             conditions[job_name] = condition
 
     scenarios = (
+        ("release-state", ("dev/plans/release-state-0.8.30.json",), {}, set(), False),
+        (
+            "release-state-and-board",
+            ("dev/plans/release-state-0.8.30.json", "dev/plans/runs/STATUS-0.8.30.md"),
+            {}, set(), False,
+        ),
+        ("unrelated-json", ("dev/plans/release-state-policy.json",), {}, set(), True),
+        (
+            "release-state-and-rust",
+            ("dev/plans/release-state-0.8.30.json", "src/rust/crates/fathomdb-engine/src/lib.rs"),
+            {"rust": "true"},
+            set(SCOPED_DRIVERS),
+            True,
+        ),
+        (
+            "owned-python-setup",
+            ("scripts/setup-python-owned.sh",),
+            {"verify_harness": "true"}, {"verify"}, True,
+        ),
         ("rust-markdown", ("src/rust/crates/fathomdb/README.md",), {"rust": "true"}, set(), False),
         ("python-markdown", ("src/python/README.md",), {"python": "true"}, set(), False),
         ("typescript-markdown", ("src/ts/README.md",), {"typescript": "true"}, set(), False),

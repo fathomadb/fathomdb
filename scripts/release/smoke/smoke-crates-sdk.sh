@@ -19,19 +19,14 @@ edition = "2021"
 [dependencies]
 fathomdb-sdk = "=$version"
 EOF
-cat > "$work/src/main.rs" <<'EOF'
-use fathomdb_sdk::{Engine, OpenOptions};
-
-fn main() -> fathomdb_sdk::Result<()> {
-    let path = std::env::args().nth(1).expect("database path");
-    let engine = Engine::open(path, OpenOptions::default())?;
-    engine.close()?;
-    Ok(())
-}
-EOF
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cp "$script_dir/registry-sdk.rs" "$work/src/main.rs"
 (
   cd "$work"
   cargo generate-lockfile
-  cargo run --locked --quiet -- "$work/smoke.sqlite"
+  cargo build --locked --quiet --target-dir "$work/target"
+  consumer="$work/target/debug/fathomdb-sdk-registry-smoke"
+  "$consumer" "$work/smoke.sqlite" write
+  "$consumer" "$work/smoke.sqlite" reopen
 )
-printf 'smoke-crates-sdk: ok — fathomdb-sdk %s resolved from crates.io; external consumer opened and closed\n' "$version"
+printf 'smoke-crates-sdk: ok — fathomdb-sdk %s resolved from crates.io; independent write and reopen processes exited cleanly\n' "$version"

@@ -4,7 +4,7 @@
 #   $1 = version (e.g. 0.6.0)
 #
 # Installs fathomdb@$1 from npm into a fresh workspace, exercises the
-# napi binding end-to-end (open + write minimal record + search + close),
+# matching napi binding, native trace controls and persisted record reads,
 # and asserts the node process exits cleanly. Same `feedback_release_
 # verification` rationale as the PyPI smoke — locks + process exit are
 # the bug signal that only fires under real install-from-registry.
@@ -31,7 +31,13 @@ trap 'rm -rf "$WORK"' EXIT
 
 cd "$WORK"
 npm init -y >/dev/null
-npm install --silent "fathomdb@${VERSION}"
+install_exit=0
+npm install --loglevel=warn "fathomdb@${VERSION}" > "$WORK/npm-install.log" 2>&1 || install_exit=$?
+consumer="$REPO_ROOT/scripts/release/smoke/registry-node.mjs"
+check_exit=0
+NATIVE_BINARY="$(node "$consumer" inspect "$WORK" "$VERSION" "$WORK/npm-install.log" "$install_exit")" || check_exit=$?
+if [ "$install_exit" -ne 0 ]; then exit "$install_exit"; fi
+if [ "$check_exit" -ne 0 ]; then exit "$check_exit"; fi
 
 # AC80-1/R80-2: the floor gate must bind the published bytes, not only a
 # local build. Only Linux carries a glibc floor — `.node` is napi-rs's
@@ -39,11 +45,6 @@ npm install --silent "fathomdb@${VERSION}"
 # merely on whether that file was found.
 HOST_OS="$(uname -s)"
 if [ "$HOST_OS" = "Linux" ]; then
-  NATIVE_BINARY="$(find "$WORK/node_modules" -maxdepth 2 -type f -name 'fathomdb.*.node' -print -quit)"
-  if [ -z "$NATIVE_BINARY" ]; then
-    printf 'smoke-npm-package: no native .node binary found under node_modules on Linux — glibc-floor gate did not run\n' >&2
-    exit 1
-  fi
   # shellcheck source=/dev/null
   . "$REPO_ROOT/scripts/release/glibc-floor-contract.sh"
   case "$(basename "$NATIVE_BINARY")" in
@@ -59,82 +60,7 @@ if [ "$HOST_OS" = "Linux" ]; then
   bash "$REPO_ROOT/scripts/check-glibc-floor.sh" --floor "$GLIBC_FLOOR" "$NATIVE_BINARY"
 fi
 
-DB="$WORK/smoke.fdb"
-cat > smoke.mjs <<'JS'
-import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
-import { DependencyTraceError, Engine } from "fathomdb";
-const dbPath = process.argv[2];
-const e = await Engine.open(dbPath, { useDefaultEmbedder: false });
-const sourceBody = "slice55 npm source";
-await e.write([
-  {
-    kind: "doc",
-    body: sourceBody,
-    sourceId: "smoke:npm-package",
-    logicalId: "source",
-    provenance: {
-      schemaVersion: 1,
-      role: "canonical",
-      artifactRevisionId: "source-r1",
-      sourceVersionId: "v1",
-    },
-  },
-  {
-    kind: "fact",
-    body: "slice55 npm derived",
-    sourceId: "smoke:npm-package",
-    logicalId: "derived",
-    provenance: {
-      schemaVersion: 1,
-      role: "derived",
-      artifactRevisionId: "derived-r1",
-      sourceVersionId: "v1",
-      sourceRevisionId: "source-r1",
-      sourceLocator: { kind: "whole_body" },
-      canonicalSourceHash: {
-        algorithm: "sha256",
-        digestHex: createHash("sha256").update(sourceBody).digest("hex"),
-      },
-    },
-  },
-]);
-await e.registerSourceDependency({
-  schemaVersion: 1,
-  dependencyId: "dep-1",
-  sourceRevisionId: "source-r1",
-  derivedRevisionId: "derived-r1",
-});
-const context = await e.freezeReadContext({ schemaVersion: 1, view: {}, eligibility: {} });
-const trace = await e.traceDependency({
-  schemaVersion: 1,
-  rootRevisionId: "source-r1",
-  direction: "to_dependents",
-  context,
-});
-assert.equal(trace.complete, true);
-assert.equal(trace.dependencyEdges.length, 1);
-const explained = await e.search("slice55", undefined, 0, false, 0.3, 0, true);
-assert.ok(explained.explanation?.correlationId);
-assert.ok(explained.explanation.perHit.every((item) => item.structural !== undefined));
-await assert.rejects(
-  e.traceDependency({
-    schemaVersion: 1,
-    rootRevisionId: "source-r1",
-    direction: "invalid",
-    context,
-  }),
-  (error) =>
-    error instanceof DependencyTraceError &&
-    error.reason === "trace_direction_invalid" &&
-    error.fieldPath === "/direction",
-);
-assert.equal("checkDataPlaneIntegrity" in e, false);
-assert.equal("doctor" in e, false);
-await e.close();
-console.log("slice55 npm native smoke: ok");
-JS
-node smoke.mjs "$DB"
+node "$consumer" write "$WORK" "$VERSION"
+node "$consumer" reopen "$WORK" "$VERSION"
 
-printf 'smoke-npm-package: ok — fathomdb %s installed + Slice 55 native trace/explain/refusal + process exit clean\n' \
-  "$VERSION"
+printf 'smoke-npm-package: ok — fathomdb %s installed + native trace controls + independent write and reopen processes exited cleanly\n' "$VERSION"

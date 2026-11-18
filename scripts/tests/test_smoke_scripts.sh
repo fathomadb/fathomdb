@@ -82,6 +82,8 @@ PYPI="$SMOKE_DIR/smoke-pypi-wheel.sh"
 NPM="$SMOKE_DIR/smoke-npm-package.sh"
 PYPI_WINDOWS="$SMOKE_DIR/smoke-pypi-wheel.ps1"
 NPM_WINDOWS="$SMOKE_DIR/smoke-npm-package.ps1"
+PY_CONSUMER="$SMOKE_DIR/registry-python.py"
+NODE_CONSUMER="$SMOKE_DIR/registry-node.mjs"
 
 check_common "$CRATES" "smoke-crates-cli"
 # Exact-version cargo install (--version "=$VERSION", not a compatible range).
@@ -98,32 +100,32 @@ assert_contains "smoke-pypi-wheel: pinned pip install" "$PYPI" \
 # PEP 440 normalization helper present (SemVer -rc.N -> PEP 440 rcN).
 assert_contains "smoke-pypi-wheel: PEP 440 normalization" "$PYPI" \
   'pep440_normalize()'
-assert_contains "smoke-pypi-wheel: open/close exercise" "$PYPI" 'Engine.open'
-assert_contains "smoke-pypi-wheel: close call" "$PYPI" 'e.close()'
+assert_contains "smoke-pypi-wheel: open/close exercise" "$PY_CONSUMER" 'Engine.open'
+assert_contains "smoke-pypi-wheel: close call" "$PY_CONSUMER" 'engine.close()'
 # Canonical writes require provenance. Keep this structural assertion alongside
 # the real-registry smoke contract so a future edit cannot reintroduce a
 # publish-only WriteValidationError.
-assert_contains "smoke-pypi-wheel: write carries source_id" "$PYPI" \
+assert_contains "smoke-pypi-wheel: write carries source_id" "$PY_CONSUMER" \
   '"source_id": "smoke:pypi-wheel"'
 
 check_common "$NPM" "smoke-npm-package"
 assert_contains "smoke-npm-package: fresh npm init" "$NPM" 'npm init -y'
 assert_contains "smoke-npm-package: pinned npm install" "$NPM" \
-  'npm install --silent "fathomdb@${VERSION}"'
-assert_contains "smoke-npm-package: Engine.open exercise" "$NPM" 'Engine.open'
-assert_contains "smoke-npm-package: close call" "$NPM" 'await e.close()'
+  'npm install --loglevel=warn "fathomdb@${VERSION}"'
+assert_contains "smoke-npm-package: Engine.open exercise" "$NODE_CONSUMER" 'Engine.open'
+assert_contains "smoke-npm-package: close call" "$NODE_CONSUMER" 'await engine.close()'
 # TypeScript accepts camelCase at the N-API boundary; the opaque id is the
 # smoke fixture's provenance, not caller content.
-assert_contains "smoke-npm-package: write carries sourceId" "$NPM" \
+assert_contains "smoke-npm-package: write carries sourceId" "$NODE_CONSUMER" \
   'sourceId: "smoke:npm-package"'
 
 # Windows uses PowerShell rather than assuming a Unix shell. Its scripts retain
 # the same registry-pinned open/write/search/close contract as the bash legs.
 assert_contains "windows PyPI smoke: creates a fresh venv" "$PYPI_WINDOWS" 'python -m venv'
 assert_contains "windows PyPI smoke: pinned install" "$PYPI_WINDOWS" '"fathomdb==$Version"'
-assert_contains "windows PyPI smoke: closes engine" "$PYPI_WINDOWS" 'engine.close()'
+assert_contains "windows PyPI smoke: uses the shared wheel consumer" "$PYPI_WINDOWS" 'registry-python.py'
 assert_contains "windows npm smoke: pinned install" "$NPM_WINDOWS" '"fathomdb@$Version"'
-assert_contains "windows npm smoke: closes engine" "$NPM_WINDOWS" 'await engine.close()'
+assert_contains "windows npm smoke: uses the shared Node consumer" "$NPM_WINDOWS" 'registry-node.mjs'
 
 # `$ErrorActionPreference` does not reliably turn a nonzero native-process
 # exit into a terminating PowerShell error.  Every native command therefore
@@ -137,13 +139,19 @@ assert_next_line "windows PyPI smoke: pip upgrade propagates native failure" "$P
 assert_next_line "windows PyPI smoke: wheel install propagates native failure" "$PYPI_WINDOWS" \
   '  & $python -m pip install --quiet "fathomdb==$Version"' "$native_exit_guard"
 assert_next_line "windows PyPI smoke: SDK exercise propagates native failure" "$PYPI_WINDOWS" \
-  "'@ | & \$python - \$db" "$native_exit_guard"
+  '  & $python -I $consumer $Version $db write' "$native_exit_guard"
+assert_next_line "windows PyPI smoke: reopen propagates native failure" "$PYPI_WINDOWS" \
+  '  & $python -I $consumer $Version $db reopen' "$native_exit_guard"
 assert_next_line "windows npm smoke: npm init propagates native failure" "$NPM_WINDOWS" \
   '  npm init -y | Out-Null' "$native_exit_guard"
 assert_next_line "windows npm smoke: npm install propagates native failure" "$NPM_WINDOWS" \
-  '  npm install --silent "fathomdb@$Version"' "$native_exit_guard"
+  '  npm install --loglevel=warn "fathomdb@$Version" *> $installLog' '  $installExit = $LASTEXITCODE'
+assert_contains "windows npm smoke: original install exit takes precedence" "$NPM_WINDOWS" \
+  'if ($installExit -ne 0) { exit $installExit }'
 assert_next_line "windows npm smoke: Node exercise propagates native failure" "$NPM_WINDOWS" \
-  "  node smoke.mjs (Join-Path \$work 'smoke.fdb')" "$native_exit_guard"
+  '  node $consumer write $work $Version' "$native_exit_guard"
+assert_next_line "windows npm smoke: reopen propagates native failure" "$NPM_WINDOWS" \
+  '  node $consumer reopen $work $Version' "$native_exit_guard"
 
 # Run each smoke with a bad version arg — must exit non-zero BEFORE doing
 # any network work, with a usage-shaped diagnostic.
@@ -197,7 +205,8 @@ printf '{"name":"fathomdb-linux-x64-gnu","version":"0.8.30","main":"fathomdb.lin
 printf 'wrong platform binary\n' > node_modules/fathomdb-linux-arm64-gnu/fathomdb.linux-arm64-gnu.node
 SHIM
 chmod +x "$fixture/bin/npm"
-if [ "$(uname -sm)" = "Linux x86_64" ] && node -e 'process.exit(process.report.getReport().header.glibcVersionRuntime ? 0 : 1)'; then
+host_machine="$(uname -sm)"
+if [ "$host_machine" = "Linux x86_64" ] && node -e 'process.exit(process.report.getReport().header.glibcVersionRuntime ? 0 : 1)'; then
   result=0
   diagnostic="$(PATH="$fixture/bin:$PATH" bash "$NPM" 0.8.30 2>&1)" || result=$?
   if [ "$result" -ne 0 ] && [[ "$diagnostic" == *"requested=0.8.30 resolved=0.8.30"* ]] \

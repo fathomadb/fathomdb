@@ -4,8 +4,7 @@
 #   $1 = version (e.g. 0.6.0)
 #
 # Installs fathomdb==$1 from PyPI into a fresh venv, exercises the SDK
-# end-to-end (open + write minimal record + search + close), and asserts
-# the python process exits cleanly. Per `feedback_release_verification`:
+# with exact persisted reads and a missing lookup in separate processes. Per `feedback_release_verification`:
 # the wheel-on-disk lock cleanup + process exit are the bug signal that
 # only fires under real install-from-registry conditions.
 set -euo pipefail
@@ -51,6 +50,7 @@ pip install --quiet "fathomdb==${PIP_VERSION}"
 # merely on whether that file was found.
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 HOST_OS="$(uname -s)"
+checked_native=()
 if [ "$HOST_OS" = "Linux" ]; then
   NATIVE_BINARY="$(find "$WORK/venv" -type f -name '_fathomdb.abi3.so' -print -quit)"
   if [ -z "$NATIVE_BINARY" ]; then
@@ -60,19 +60,13 @@ if [ "$HOST_OS" = "Linux" ]; then
   # shellcheck source=/dev/null
   . "$REPO_ROOT/scripts/release/glibc-floor-contract.sh"
   bash "$REPO_ROOT/scripts/check-glibc-floor.sh" --floor "$GLIBC_FLOOR" "$NATIVE_BINARY"
+  checked_native=("$NATIVE_BINARY")
 fi
 
 DB="$WORK/smoke.fdb"
-python3 - "$DB" <<'PY'
-import sys
-from fathomdb import Engine
-db_path = sys.argv[1]
-e = Engine.open(db_path)
-e.write([{"kind": "doc", "body": "{}", "source_id": "smoke:pypi-wheel"}])
-e.search("smoke")
-e.close()
-print("ok")
-PY
+consumer="$REPO_ROOT/scripts/release/smoke/registry-python.py"
+"${WORK}/venv/bin/python" -I "$consumer" "$PIP_VERSION" "$DB" write "${checked_native[@]}"
+"${WORK}/venv/bin/python" -I "$consumer" "$PIP_VERSION" "$DB" reopen "${checked_native[@]}"
 
 env -u PYTHONPATH python3 "$REPO_ROOT/src/python/tests/smoke_slice55_installed.py"
 

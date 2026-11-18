@@ -1,5 +1,11 @@
 param([Parameter(Mandatory = $true)][string]$Version)
 $ErrorActionPreference = 'Stop'
+if ($Version -cnotmatch '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$') {
+  throw "smoke-pypi-wheel: invalid version '$Version'"
+}
+$Version = $Version -creplace '-rc\.', 'rc' -creplace '-alpha\.', 'a' -creplace '-beta\.', 'b'
+$consumer = Join-Path $PSScriptRoot 'registry-python.py'
+$PSNativeCommandUseErrorActionPreference = $false
 $work = Join-Path ([System.IO.Path]::GetTempPath()) ("fathomdb-pypi-" + [guid]::NewGuid())
 New-Item -ItemType Directory -Path $work | Out-Null
 try {
@@ -11,13 +17,8 @@ try {
   & $python -m pip install --quiet "fathomdb==$Version"
   if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
   $db = Join-Path $work 'smoke.fdb'
-  @'
-import sys
-from fathomdb import Engine
-engine = Engine.open(sys.argv[1])
-engine.write([{"kind": "doc", "body": "{}", "source_id": "smoke:pypi-wheel"}])
-engine.search("smoke")
-engine.close()
-'@ | & $python - $db
+  & $python -I $consumer $Version $db write
+  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+  & $python -I $consumer $Version $db reopen
   if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 } finally { Remove-Item -Recurse -Force $work }

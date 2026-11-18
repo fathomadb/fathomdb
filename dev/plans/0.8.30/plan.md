@@ -1,216 +1,225 @@
 ---
-title: FathomDB 0.8.30 release plan — correctness, performance, latency and robustness
-date: 2026-11-17
+title: FathomDB 0.8.30 release plan
 status: PROPOSED
 target_release: 0.8.30
+date: 2026-11-17
 ---
 
 # FathomDB 0.8.30 release plan
 
-Find and fix wrong results and unsafe lifecycle behavior, improve measured
-end-to-end latency, and reduce the time developers wait for actionable failures.
-Make ordinary publication finish through the same trusted mechanism that worked
-in recovery. The two investigations below have bounded exits even when their
-first-wave hypotheses yield no confirmed product defect.
+Survey and improve correctness, performance, end-to-end latency, robustness and
+CI/CD efficiency. Use the [historical findings](testing-robustness-findings.md)
+and [.29 retrospective](../../notes/0.8.29-retrospective.md) to select bounded
+work, preserve useful tests and qualification, and fix demonstrated defects.
+Two feature slices include both bug hunting and remediation.
 
-The [testing and robustness findings](testing-robustness-findings.md) cover
-0.8.27 and 0.8.28. The [0.8.29 retrospective](../../notes/0.8.29-retrospective.md)
-and [engineering recommendations](quality-performance-robustness-recommendations.md)
-identify the more recent observations. This draft follows an independent
-`gpt-6.2-astra` medium review of the findings and existing allocations. Execution,
-real faults, GPU or paid campaigns, and publication retain their existing
-authorization boundaries.
+The owner requests this release structure and authorizes completion of prework
+0–8 after planning and independent review. Slice 9 remains the interactive HITL
+checkpoint. Slice 10 implements only its approved preparation. Product work,
+live faults, new GPU sessions, paid runs and publication require their applicable
+later commissioning or concrete authority; drafting an execution plan grants none.
 
-## Baseline and order
+## Baseline and scope
 
-At activation, verify current `origin/main` against the published 0.8.29 tag
-`b64d32f80` and closure `569652e61`. Start from current qualified repairs and
-store format 37. Reuse a result when its source behavior, features, artifact,
-fixture and protocol still support the claim. Test changed native packages
-through installed consumers. Preserve failed and skipped historical results.
+Use current `origin/main` and reconcile changes at each slice entry. Published
+.29 tag `b64d32f80` and closure `569652e61` are historical anchors, not reset
+points. Carry the subsequent staged-Tegra Cargo-config repair and scope note
+from `d6e5d9427`. Supplemental .29 Tegra CUDA wheel/addon/Pages delivery under
+seq-398 remains .29-owned: recheck its current result before final .30 Tegra
+qualification; independent CPU/source planning proceeds.
 
-Supplemental Tegra CUDA wheel, addon and Pages delivery remains open in 0.8.29
-under seq-398. Resolve that work in .29 before accepting the final .30 Tegra
-baseline. Independent .30 CPU and design work can proceed.
+The existing Rust engine, Python/TypeScript boundaries and MCP server remain
+the product footprint. Format 37, accepted numerical gates, driver/toolkit and
+support policies remain baseline. No migration, chunking, ANN, new precision,
+retrieval backend or automatic idle-model release is selected. A proposed cache
+needs current matched benefit and correct snapshot/time invalidation before
+separate adoption. Physical erasure is complete except for concrete defects.
+CUDA 13 delivery remains .31-owned. Preserve [.30 feedback/reset allocations](release-followups.md),
+[module-model release](../../ROADMAP.md#0830-backlog) and [fork work](fork-maintenance-plan.md).
 
-| Slice | Priority and dependency | Decision at exit |
+## A. Prework effort
+
+Slices 0–8 inspect and propose; they do not implement the changes they discover.
+The minimal Git branch/worktree isolation in Slice 0 is the administrative step
+needed to avoid writing proposals on main. Existing isolated planning work can
+be reused; no venv/npm/toolchain/platform provisioning occurs in this effort.
+Write one concise result per slice at `prework/slice-N.md`; label findings,
+proposals, uncertainty and deferred execution distinctly. Link sources rather
+than copying historical status packets. Shared proposals are reconciled in 9.
+
+| Slice | Investigation and durable result | Acceptance / limit |
 | --- | --- | --- |
-| 0 | Confirm baseline, first-wave selectors and existing evidence on activation. | Identify changed claims, sample limits and relevant accepted thresholds. |
-| 5 | Start delivery repairs alongside 10 and the baseline for 15. | Failures survive cancellation, the normal promoter is corrected and the expensive CI path is measured. |
-| 10 | Correctness bug hunt and remediation. | Classify the bounded cases and fix confirmed defects. |
-| 15 | Profile before optimizing. Consume relevant 10 repairs before promotion. | Adopt a measured improvement or retain the baseline with its result. |
-| 20 | Concurrency, lifecycle and resource bug hunt and remediation. | Resolve or bound the selected schedules and resource behavior. |
-| 30 | Begin fork research after 0. Integrate qualified prerequisites into 20. | Qualify the selected dependency cohort and affected installed consumers. |
-| 40 | Qualify stable integrated source and final artifacts. | Required checks and consequential open dispositions are visible. |
-| 45 | Publish only after 40 and separate production authorization. | Verify the real registries, installed consumers, release and documentation. |
+| 0 | Identify environment setup/changes and project infrastructure. Verify/create the dedicated `release/0.8.30` branch and worktree and switch before writes; verify an overall plan exists. Inventory checkout-owned venv, Rust/Python/TS/Node/npm pins, CPU/native features, Linux/Windows/macOS and x64/ARM64 needs, relevant browsers if any, compute/VM/runner locations and access. | Record actual baseline/isolation and current versus proposed environment choices, availability and consequential gaps. No dependency installation, external provisioning, host change or new execution state. |
+| 1 | Plan the library/Dependabot sweep. Enumerate direct/transitive dependencies, available upgrades, advisories, pending automated PRs and exact version/source pins with their compatibility/qualification reasons. | Give each candidate a keep/upgrade/investigate disposition and owning slice; distinguish unavailable lookup from no updates. Do not update manifests, lockfiles or forks. |
+| 2 | Review cruft across program docs, `dev/`, requirements/acceptance/architecture/design/code/tests, notes/intermediate records and public/developer/contributor docs. | Enumerate scoped candidate groups with evidence and keep/deprecate-in-place/archive/delete proposals. No deletion, moves or authoritative document changes. |
+| 3 | Review product needs, requirements, acceptance and architecture. Draft create/update/rename/delete changes locally and allocate each to 10 or a feature slice. | Local proposed contracts have observable acceptance and owners; preserve canonical acceptance/ADRs pending decisions. No product implementation or accepted-contract edits. |
+| 4 | Review architectural changes suggested by earlier prework, then inspect code at high level for alignment. | Record actual owner/call-path examples and propose code or architecture changes. Separate verified mismatch from investigation; no structural rewrite. |
+| 5 | Review verification adequacy: need→requirement→acceptance→test, product goals, known critical paths, oracle strength, feature/platform execution and runtime cost. | Map selected critical claims to real tests, including in-crate tests; record gaps, duplication and applied/deferred testing methods. Do not build a new framework or run the full test matrix. |
+| 6 | Inspect available release evidence and transcripts for stale user, consuming-developer and contributor documentation. | Record source-grounded contradictions and proposed corrections with owners; identify inaccessible transcripts. No invented transcript evidence or full corpus copying. |
+| 7 | Inspect build/preflight/agent-verify/CI/package/gitleaks/registry and post-product-build delay evidence, including recent failures. | Identify observed causes versus hypotheses and pragmatic fixes, preserving original outcomes, scopes and applicable command ordering. No hosted dispatch, publication or speculative platform repair. |
+| 8 | Reserved placeholder. | Record explicit empty disposition; do not invent work. |
+| 9 | Consolidate 0–8 proposals, score understood/risk/effort, recommend include/postpone, present concise choices interactively and collect HITL decisions. | Record actual decisions, draft 10 from them, obtain direct subagent review, allow at most four FIX-n cycles, present resulting changes interactively and capture the final decision before updating the plan. No invented approval. |
 
-Use separate worktrees for concurrent writers and serialize shared source and
-pin integration. Review substantive design and final implementation in coherent
-batches. Maintain one state and board when execution starts. Finalize consumed
-fork/native inputs before final performance and artifact qualification; later
-changes invalidate only the claims that actually depend on them.
+When later commissioned, Slice 10 implements only the preparation selected in
+9: setup/tool/dependency/cruft/document changes, exact scope and validation.
+Its plan is drafted after the decisions; a speculative all-purpose implementation
+packet is not needed now. Substantive product work belongs to 20+.
 
-## Slice 5 — actionable failures, CI cost and normal finalization
+## B. Feature ladder
 
-- Exercise a real wrapper failure beyond 200 diagnostic lines followed by
-  cancellation of a later child. Preserve the first exit and full useful
-  diagnostic before continuing, completed outcomes, and the unrun tail. Bound
-  capture and redact sensitive data. Check both collect-all and fail-fast callers.
-- Use monotonic elapsed time in the remaining wall-clock wrapper. A clock
-  adjustment must leave nonnegative durations and preserve the original exit.
-- Share the qualified pinned OIDC CLI promotion mechanism between normal and
-  recovery workflows. Check trust for the actual normal workflow and exact tag.
-  Only the main npm package advances to `latest`. After a successful mutation,
-  print expected and observed versions and poll within a fixed bound. Two stale
-  reads followed by the target succeed. Persistent mismatch fails without
-  republishing. Check real normal finalization in 45.
-- A missing optional npm binary must fail the installed smoke with the actual
-  platform, resolved dependency, native path and install diagnostic. Check
-  matching workers/services before production access or approval.
-- Time the existing Windows WAL source checker and tool-only bootstrap on
-  matched inputs. The .29 observations were 856.43 seconds and about 8 min 50 s
-  respectively. Remove recursive rescans or duplicate builds where measured.
-  Tool-only setup starts no native wheel build. Invalid workflow controls and
-  the real Windows WAL test still run in their appropriate jobs.
-- Use job durations to distinguish queue, setup, execution and repeated builds.
-  Report before/after elapsed time and affected coverage. Keep a reduction
-  only with its original oracle intact. Reuse built inputs only with matching
-  trusted identity. Keep ordinary CI proportional to changed paths; no new merge
-  queue, required-check expansion, nightly campaign or soak period is selected.
+Initial feature numbers are multiples of ten beginning at 20. Gaps remain
+reserved for a necessary coherent follow-up; do not assign a number per defect
+or silently change an adjacent slice. Scope overflow goes back to the owner.
 
-## Slice 10 — correctness bug hunt and remediation
+| Slice | Deliverable and requirement | Depends on | Falsifiable exit |
+| --- | --- | --- | --- |
+| 20 | Efficient, diagnosable CI/CD — R30-CI/DIAG | Approved 10 preparation | Preserve first failure through cancellation, fix normal OIDC/visibility and truthful closure checks, measure selected setup/static-check savings without losing controls. |
+| 30 | Correctness bug hunt and remediation — R30-COR/S50 | Approved 10; consume 20 diagnostics when needed | Classify bounded S50/identity/feedback/coverage/FFI cases; confirmed defects have observed RED→GREEN and exact state/error regressions. |
+| 40 | Performance and end-to-end latency — R30-LAT | Approved 10 for baseline; relevant 30 fixes and final consumed 60 pins before promotion | Comparable baseline/treatment, measured useful latency/tails/throughput/resources, unchanged correctness; justified non-adoption is valid. |
+| 50 | Concurrency, lifecycle and resource bug hunt and remediation — R30-ROB | Approved 10; consumed 30 fixes; safe-drop fork prerequisite from 60 for unsafe release only | Positive concurrent work, capacity/cleanup/reopen assertions, default Node growth disposition and safe selected module-release behavior. |
+| 60 | Scoped fork maintenance and qualification — R30-FORK | Approved 10 for design; consumed lifecycle contracts | Selected upstream/delta map, coherent pins, independent supported/unsupported kernel/output/resource controls and installed consumers. |
+| 70 | Integrated qualification and release readiness — R30-QUAL/TEST | Selected exits 20–60 | Applicable source/security/long/performance/platform/artifact and docs checks plus independent review; every selected test gap has a discriminating oracle and owner; original nonpasses stay visible. |
+| 80 | Authorized delivery and registry consumers — R30-REL | 70 and separate production authority | Every required publisher, exact-version installed consumer, co-tagging, normal finalization, public docs/download and owned cleanup completes. |
 
-Start with the saved S50 case and two small real-store sentinels. Inspect existing
-integration and in-crate tests before adding cases. Fix each confirmed defect
-behind its own observed failing behavioral regression and rerun the affected
-route. Distinguish product, fixture and operator failures.
+Detailed drafts live at `features/slice-N/plan.md`. Their requirements are
+release-local proposals, not new canonical AC numbers. After 10, delivery20,
+correctness30 and baseline40 can proceed independently where ownership permits;
+60 design can run alongside safe50 work. Final fork/native inputs precede final
+numerical/artifact proof. Serialize shared engine/search edits and pin/state
+integration; concurrent writers each get a worktree. Reuse valid earlier proof
+by actual source/features/artifact/fixture/protocol, not merely ancestry.
 
-1. Inspect the preserved natural-write SDK-hybrid sample 860/query 360/op 9971.
-   Both calls used reference routing. Ordered IDs and text agreed, but two scores
-   differed. Start from [the retained evidence and allocation](release-followups.md).
-   For one bounded reproduction on the affected route, capture candidate IDs,
-   distances, ranks, ties, cursor/snapshot and route. Compare a fixed-state
-   control exactly. Different reader states need positive evidence. Preserve the
-   original failure and seq-393 disposition if the cause remains unresolved.
-2. Write distinct records with identical bodies and exercise repeated public refs
-   through real feedback. Verify stored identity, exact attribution on accepted
-   input, and zero feedback writes on a mixed valid/ambiguous request. Review the
-   allocated occurrence-label contract, including response/store/epoch lifetime,
-   paging, fetch, both formats and validation before any new ABI is selected.
-3. Exercise coverage publication across a write and a pinned reader with a UTF-8
-   boundary. Check exact known/unknown populations, `R=K+U`, byte spans and
-   publication after rollback. Add a malformed native/open case where a changed
-   boundary or observed error makes the next probe discriminating.
+### First-wave scope and limits
 
-Stop after the named cases and one targeted follow-up per ambiguity unless a
-specific new state predicts a different outcome. Record what ran, the observed
-result and residual consequence. Expected behavior and bounded non-reproduction
-are valid exits. Critical wrong results or data loss require repair or explicit
-owner disposition. Fixed-state exactness and existing score criteria apply.
+- **20:** useful full diagnostics after a >200-line failure followed by later
+  cancellation; preserve actual exit/completed/unrun outcomes and fail-fast
+  callers. Monotonic timing in the remaining wrapper; shared qualified pinned
+  OIDC normal/recovery promotion; bounded registry visibility with expected and
+  observed values, no blind republish. Missing npm binary diagnostics must name
+  actual resolution/native path. Inspect matching workers before production.
+  Measure the 856.43-second Windows source-check hotspot and tool-only bootstrap
+  before/after; keep meaningful workflow mutations and real Windows WAL tests.
+  Fix `commission-manifest` rejecting a closed ladder with .29 owner-deferred
+  120/unselected150: accept explicitly authorized terminal dispositions while
+  rejecting unfinished selected work. Do not rewrite historical row statuses.
+- **30:** inspect retained sample860/query360/op9971 before replay. Capture
+  candidate IDs/distances/ranks/ties and snapshot/cursor on one bounded
+  reproduction, with exact fixed-state control. Both original calls used the
+  reference route; async projection is unproved. Check distinct-record/equal-body
+  ownership and atomic repeated-ref feedback; review exact occurrence labels
+  before selecting an ABI. Test known/unknown coverage, `R=K+U`, UTF-8 spans,
+  pinned-reader/rollback publication and a discriminating malformed-open case.
+- **40:** profile one current100k hybrid/SDK route and a relevant text/lifecycle
+  control. Separate queue/service/eligibility/retrieval/hydration/rerank/wire cost
+  and caller p50/p95/p99, useful throughput, refusal/timeouts and resources.
+  Match snapshots/configuration and interleave baseline/treatment on the ordinary
+  shared CPU host. Fix comparison rules before treatment; retain all outcomes.
+  The .29 eligibility-scan48–49ms is a lead, not current .30 attribution.
+- **50:** use existing rendezvous for queued cancellation, started timeout,
+  cross-engine/path ownership and close/reopen with positive work and subsequent
+  recovery. Fixture watchdogs are not total-close SLAs: retain database
+  quiescence before provider-drain timing. Separate default Node JS/native live
+  ownership/reservation from the prior semispace4 pair. Conditional delivered
+  checkpoint faults need concrete authority. Safe post-reset drop precedes
+  exercising or shipping B30-01 opt-in model release; review concurrent use,
+  repeated release, error parity and reload in Rust/Python/TS. Other safe work
+  proceeds while a prerequisite is held. Orin requires Orin proof; no host reset.
+- **60:** retain F30-REBASE/MARKER/MULTIARCH and .29 fixes; choose justified
+  upstream and actual native/PTX targets, compare K1–K9 and retained/removed
+  patches, preserve private-pool primitives independently of marker cleanup,
+  measure cold-start/JIT/build/size and unsupported cases. Qualify inside each
+  fork, then consume exact pins; no inferred new dtype, platform or CUDA13 claim.
 
-## Slice 15 — performance and end-to-end latency
+Bug hunts30/50 each select named hypotheses and bounds before running; stop after
+those cases and a discriminating follow-up unless new evidence justifies more.
+Classify confirmed product defect, fixture/operator defect, expected behavior,
+bounded non-reproduction or unresolved consequence. Do not require finding a
+bug or rewriting already-correct code. Critical wrong-result/data-loss findings
+need repair or explicit owner disposition; .29's S50 exception is not a general
+score tolerance. No paid72/full160 campaign repeats for a release-number change.
 
-- Profile one current 100k hybrid SDK workload and a relevant text or lifecycle
-  control. Keep provider-free, SDK, cold/warm, snippet and output-format cases
-  distinct. Use matched state, data, configuration, instrumentation and
-  interleaved baseline/treatment runs on the ordinary CPU host.
-- Measure caller-observed p50/p95/p99, throughput, refusals, timeouts and
-  resources. Attribute queue wait, service, eligibility, retrieval, hydration,
-  reranking and serialization on the selected path. Retain sample counts,
-  outliers and host load. The .29 roughly 48–49 ms eligibility scan is a lead.
-- Pick one demonstrated bottleneck. Fix the comparison rule before changing
-  implementation. Compare cost and outputs on the same snapshot and include
-  natural writes if reuse or invalidation is involved. Time-dependent
-  eligibility can change without a generation change.
-- Promote a treatment only if it improves the selected measure under that rule
-  and preserves accepted correctness, tail, lifecycle and resource criteria.
-  An inconclusive or negative result closes the experiment with its scope.
+## C. Slice planning and execution contract
 
-## Slice 20 — concurrency, lifecycle and resource bug hunt and remediation
+A direct `gpt-6.2-sol` high subagent drafts each20+ slice plan; this commission
+writes plans only. The master is critically reviewed by direct Astra-medium,
+with at most one FIX-1 revision and re-review before commit. Apply the same
+single-FIX limit to each updated feature plan, reviewing coherent batches with
+individual verdicts. Slice9's separate preparation loop permits up to four
+FIX-n cycles. If a review still fails at its limit, preserve findings and stop
+the affected transition instead of silently adding cycles or claiming PASS.
 
-1. At existing barriers, cancel a queued call and time out a started call, then
-   close and reopen. Exercise independent engines or path aliases where they
-   share an owner. Require positive work before the transition, correct capacity
-   ownership, no stranded waiter, completion within the fixture watchdog and
-   successful subsequent use. Preserve database quiescence before the shared
-   provider-drain deadline; add no total-close latency guarantee.
-2. Use the existing Node sampler under shipping defaults. Separate JS heap,
-   live native ownership and allocator reservation. Compare matched ON/OFF
-   cases within the selected run bound. Preserve .29 default FAIL/OFF_NOT_RUN
-   and the separate semispace4 result. Fix reproducible leaks with an ownership
-   regression. State remaining uncertainty when the sample cannot identify one.
-3. If a changed commit/checkpoint path requires crash proof, use the existing
-   child/observer seam only within its approved fault bounds. Require delivered
-   interruption at the named point, then compare canonical survivors, projection
-   and queue state on reopen. Record undelivered or unrun cases as such.
+Each feature plan includes the following complete sequence for later execution:
 
-Fix confirmed defects with observed RED then GREEN. Stop after the selected
-schedules, one matched resource comparison and any affected recovery boundary.
-Expand only for a concrete missing interleaving or observed ownership discrepancy.
+1. **Entry reconciliation:** enumerate changes since drafting, related in-repo
+   work, assigned functions and allocated drafts; update/approve/reject/adjust
+   the plan against actual sources before relying on it.
+2. **Slice prep:** state goals and non-goals; propose local needs, requirements
+   and acceptance, inspect product architecture, draft design and challenging
+   decisions, research primary-source approaches where necessary, check fit and
+   revise. Record prerequisite work and who owns it for the next reviewer.
+3. **Design:** update the real requirements/design/interface/ADR deltas needed
+   for slice-complete behavior; direct Astra-medium reviews design additions.
+4. **Implementation plan:** identify meaningful failing behavioral tests before
+   RED→GREEN→refactor; preserve human oracles and real DBs. Direct Sol6.2-high
+   reviews code. A directly spawned Terra independently verifies actual affected
+   tests/artifacts; compile or symbol presence does not replace runtime proof.
+5. **Updated-plan gate:** direct Astra-medium critically reviews the reconciled
+   slice plan, one FIX-1 at most, re-review, then commit after PASS. This gate
+   precedes implementation, not an extra gate for every helper. Then implement
+   when the slice is commissioned and its dependencies/authority are satisfied.
+6. **Closure:** record concise status and actual test exits/skips/limits, update
+   affected SDK parity/docs and release state once, merge any temporary branch
+   back into the owning release branch, and clean only owned inactive worktrees
+   and scratch after needed evidence is retained. Reuse the existing release
+   checkout for serialized work; isolate concurrent writers.
 
-Review frozen native residue, no growth after known loss, opaque host bytes and
-typed refusal under the [reset allocation](release-followups.md). Healthy, OOM
-and software-loss results retain their scope. Orin teardown needs Orin proof.
-A 3090 run serves its own claim. Actual reset needs concrete venue, resource
-and session authority. Prior one-use approvals are spent.
+Spawn Astra/Sol/Terra directly; do not use Steward, Orchestrator, or an MCP agent
+runner. Scoped lint/type/tests cover work and blast radius. Do not rerun full
+regressions for a narrow finding correction; run the required full gate once on
+a stable coherent source phase, then recheck failed/affected/unrun scopes. Broad
+changes can justify another phase. Source qualification, hosted artifact proof
+and post-registry consumers remain distinct.
 
-B30-01 proposes explicit opt-in Rust/Python/TypeScript module-model release.
-First qualify the cudarc post-reset drop repair before exercising or shipping
-the unsafe drop path. Then test concurrent use, repeated release, typed errors,
-use after release and reload with clearable ownership. Preserve engine close
-semantics and select no automatic idle release. If the prerequisite remains
-open, record the blocked allocation and continue independent work.
-[Module-model release contract](../../ROADMAP.md#0830-backlog) remains authoritative.
+## Testing, policy and cross-cutting completion
 
-## Slice 30 — allocated fork maintenance
+Apply the [quality roadmap](../../notes/fathomdb-quality-testing-roadmap.md):
+real-store state/property and round-trip tests, independent same-state oracles,
+first/persistent failure and cleanup checks, positive concurrency progress and a
+few targeted semantic mutations where assertions are in doubt. One deep owning
+suite plus thin installed-binding checks avoids copied matrices. Review actual
+suite duration, claim, useful defects/misses and overlap before consolidation.
+**R30-TEST is an implementation obligation after Slice9 decisions:** selected
+harness/CI test improvements belong to20, correctness/reference/property gaps
+to30, and concurrency/resource/recovery gaps to50. Slice70 accounts for every
+selected gap and its owning fix or explicit disposition, real-store or independent
+oracle, and a plausible wrong result that the oracle rejects. A consolidation
+must preserve its meaningful semantic/platform coverage and show cost/overlap
+evidence where that motivates the change. Proposal-only prework5 does not close
+this requirement; no separate test framework or broad campaign is required.
+The .27 swallowed errors, .28 vacuous cursor test and .29 rank/state and lost
+failure observations explain priority. Defer global MC/DC, exhaustive VFS/OOM,
+new generic frameworks and unneeded paid/platform campaigns. Do not weaken
+accepted tests, numerical thresholds or security to make the release green.
 
-Retain F30-REBASE, F30-MARKER and F30-MULTIARCH under seq-367. Compare K1–K9
-with a justified upstream revision, preserve required .29 repairs, and qualify
-one coherent cudarc family before pin integration. Check the marker separately
-from the private-pool primitive. Select native/PTX targets before implementation.
-Inspect actual kernel bytes, run supported and unsupported controls, and compare
-cold start/JIT, size and build time. Qualify in each fork, then exercise affected
-installed product consumers on the final pins. [Fork allocations](fork-maintenance-plan.md)
-retain their acceptance criteria and stable identities.
+The [CUDA policy refresh](research/cuda-version-adoption.md) is a planning input;
+comparable usage shares remain unknown. Reconcile it in0/1/9 and60 under the
+[standing policy](../../design/cuda-version-support-review.md); owner ratification
+precedes changes. Keep R580/primary12.6. Check the [overflow tripwires](../../design/overflow-chunking-reevaluation.md)
+against actual changes; no new chunking decision is inferred from old results.
 
-Use the [dated CUDA review](research/cuda-version-adoption.md) and
-[standing policy](../../design/cuda-version-support-review.md) for target choices.
-Comparable usage shares remain unknown. Retain existing driver/toolkit policy.
-CUDA13 delivery belongs to .31. The [overflow tripwires](../../design/overflow-chunking-reevaluation.md)
-govern future chunking review. Physical erasure receives concrete defect fixes
-only. This draft selects no migration, new precision, backend, schema, cache or
-default. A cache treatment needs measured cost, invalidation and snapshot proof
-before separate adoption; chunking and ANN are not selected.
+Every selected behavior change updates its contract/ADR and changelog, with
+Rust/Python/TS parity where affected. Public docs update navigation and pass
+strict MkDocs when changed. At70 obtain actual applicable full/feature/security/
+long/performance/platform/native checks or explicit authorized dispositions.
+At80 require trusted exact-tag routing and fresh installed persisted write/read,
+missing-record, separate-process reopen, close/exit, registry finalization and
+public downloads. Partial publication remains incomplete. Retain original
+failures and honest unknowns; no force-retag or hook bypass.
 
-## Testing choices and final verification
+## Immediate work and interactive boundary
 
-Apply the [quality roadmap](../../notes/fathomdb-quality-testing-roadmap.md)
-inside the owning slices. Use real databases, small stateful properties for
-projection/recovery and round trips, independent same-state reference cases,
-first/persistent failures and positive concurrency progress. Use a few
-wrong-order, swallowed-error or missing-cleanup mutations where an oracle is
-in doubt. Keep one deep semantic owner and thin installed-binding checks.
-For an expensive test, identify its timing, claim and defect caught or missed.
-Move or consolidate it only when the replacement still catches that failure.
-
-The .27 row-error repairs and .28 cursor fixture show how covered paths can
-pass with wrong or empty results. The .29 score ambiguity, default Node growth
-and lost failure output determine the first cases. Defer global MC/DC, general
-VFS/allocator fuzzing, broad platform/paid campaigns and new test frameworks.
-Their cost has no corresponding changed claim in this plan. No database mocks,
-regenerated goldens, weakened thresholds or new canonical acceptance numbers.
-
-Run scoped checks while editing. At 40 run the required full source gate on
-stable clean source once per coherent code phase and the applicable security,
-long, performance, platform and artifact checks. After a narrow fix, cover
-failed, affected and unrun scopes. A broad change can require fresh verification.
-Retain original failures and skips. Update affected interfaces, ADRs, changelog,
-docs/navigation and strict docs checks. Canonical acceptance and thresholds stand.
-
-At 45 use explicit publication authority and the immutable shipping tag. Verify
-all required publishers, exact-version fresh registry installs and runtime
-open/close/exit, persisted write/read and separate-process reopen, co-tagging,
-normal finalization, and public Pages/downloads. Partial publication stays open.
-Reuse equivalent qualification and close with one concise result identifying any
-owner disposition or remaining limitation. No .30 implementation or release
-activation has started through this planning task.
+Finish master and feature-plan reviews, commit the planning work, then complete
+prework0–8 as authorized. Present their concise result and Slice9's proposed
+choice register to the owner; do not execute9's decisions,10 or20+ by inference.
+The structured .30 release state/board is created only at its approved activation
+step, not to turn proposal drafting into an implementation campaign.

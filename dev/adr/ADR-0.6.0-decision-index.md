@@ -2,17 +2,19 @@
 title: 0.6.0 Decision Index
 date: 2026-04-25
 target_release: 0.6.0
-desc: Triage list of candidate decisions; not itself an ADR
+desc: Historical triage and locator for accepted ADRs
 blast_radius: TBD
 status: in-progress
 ---
 
-# Decision Index (triage)
+# Decision index
 
-This file is a **triage list**, not a decision. Each row is a candidate decision
-that may become an accepted ADR.
+Use this index to locate triage records, accepted ADRs, and their successors.
+The accepted ADRs and maintained [interfaces](../interfaces) define current
+semantics. Run `python3 scripts/release-current.py` to find the commissioned
+release plan and board.
 
-Workflow per row: draft → critic (`architecture-inspector`) → HITL marks
+The original triage workflow ran draft → critic (`architecture-inspector`) → HITL marks
 `decide-now | defer | drop`. Decide-now → ADR file
 `ADR-0.6.0-<kebab-title>.md` gets full options/tradeoffs/recommendation;
 HITL accepts → ADR `status: accepted`.

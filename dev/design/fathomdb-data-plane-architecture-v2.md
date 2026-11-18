@@ -2,14 +2,14 @@
 title: FathomDB data-plane architecture v2
 status: ACTIVE
 architecture_version: 2.2
-implementation_status: active authority; current integrated profile; published artifacts remain 0.8.28
+implementation_status: active source authority for the integrated profile
 target_release: 0.8.29
 baseline: dev/design/fathomdb-data-plane-architecture-v1.md
 approval_status: APPROVED
 approved_by: 0.8.25 Slice 6 HITL seq-272..274
 activation_gate: 0.8.25 Slice 7 S7-07 GREEN
 activated_on: 2026-09-02
-last_reconciled: 2026-11-10 workspace/profile correction during 0.8.29 preparation
+last_reconciled: 2026-11-18 workspace profile and release authority review
 ---
 
 # FathomDB data-plane architecture v2
@@ -259,7 +259,7 @@ paths, persisted evidence replay, and semantic policy remain deferred.
 
 ## Architecture destination and executable profile
 
-The 0.8.28 profile above describes the implemented system. Architecture v2 also
+The integrated profile above describes behavior present in source. Architecture v2 also
 states longer-term constraints; a destination type or behavior below is not
 an implemented API merely because it appears in the model. Deferred mechanisms
 remain in [the design notes](0.8.x-after-0.8.25-design-notes.md) until their own
@@ -441,9 +441,10 @@ reuses, amends, or supersedes them.
 
 ## Release allocation
 
-The 0.8.28 release is allocated by
-[`plan-0.8.28.md`](../plans/plan-0.8.28.md). Slice 95 owns final CI and
-installed-artifact qualification; publication follows explicit owner
-authorization and the registry/Pages gates. Accepted ADRs and the current
-interface contracts remain the semantic authorities. Earlier allocations and
-activation evidence remain in their release-local plans and Git history.
+Run `python3 scripts/release-current.py` to find the current release state
+and its allocation. The [engineering index](../README.md#where-the-live-work-is)
+links the plan and board conventions. Accepted ADRs and maintained interface
+contracts define semantics. The [.29 release notes](../../docs/release-notes/0.8.29.md)
+describe the latest verified publication at this reconciliation. Historical
+allocations and activation evidence remain in their release plans and Git
+history.

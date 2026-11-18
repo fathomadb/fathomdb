@@ -28,7 +28,7 @@ pip install fathomdb==0.8.29
 
 ## Build from source
 
-Editable from a trusted `release/0.8.29` checkout using [maturin](https://www.maturin.rs/):
+From a direct clone of the trusted `release/0.8.29` branch, use the editable build through [maturin](https://www.maturin.rs/).
 
 ```bash
 git clone --branch release/0.8.29 https://github.com/fathomadb/fathomdb
@@ -37,9 +37,13 @@ pip install -e src/python/
 ```
 
 `pip install -e src/python/` invokes maturin against the workspace and
-produces the native PyO3 extension `fathomdb._fathomdb`. **Do not run
-`cargo build` and copy the `.so` manually.** Editable install is the
-only supported native-build path for development.
+produces the native PyO3 extension `fathomdb._fathomdb`. Use this build
+entry point to keep the native extension bound to its Python package.
+
+For worktrees and source-bound verification, run
+`bash scripts/setup-python-owned.sh --provision` from that checkout. The
+script installs a noneditable wheel and pinned developer tools into the
+checkout's own `.venv`. See the [contributor setup](../contributing/index.md#verify-the-change).
 
 ## Jetson / Tegra CUDA
 
@@ -105,9 +109,9 @@ for a richer walkthrough.
   `sqlite-vec`. Verify the exact wheel/platform and environment rather than
   installing unrelated system SQLite libraries. Source builds use the pinned
   bundled Rust dependencies and need supported C/C++ build tools.
-- **Editable native build failure** — follow the contributor bootstrap and
-  `pip install -e src/python/` route with Rust 1.95.0 or newer. Do not copy a
-  separately built native module into the package.
+- **Native build failure** — verify the checkout and the declared Rust
+  1.95.0 toolchain, then rerun the source-build entry point for that checkout.
+  Avoid copying a separately built native library into the Python package.
 
 - **`fathomdb.errors.DatabaseLockedError`** — another process holds an
   exclusive lock on the DB file. See

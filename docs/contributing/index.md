@@ -1,7 +1,7 @@
 # Contributing
 
-Start with the [source map](../generated/contributor-map.md) for workspace
-Rust workspace owners, Python/TypeScript package roots, and typed developer
+Start with the [source map](../generated/contributor-map.md) for Rust
+workspace owners, Python/TypeScript package roots, and typed developer
 commands. The [SDK operation map](../generated/sdk-operation-map.md)
 connects governed operations across Python, TypeScript, and Rust; detailed
 contracts remain in the language references.
@@ -21,8 +21,13 @@ Public API changes need the matching interface or ADR update.
 
 ## Verify the change
 
-Select the repository's declared Node/npm and Rust toolchains. Each checkout owns its root/TS
-`node_modules` from `npm ci` and its Python `.venv`. Run
+Use the development Node version in `.nvmrc`, its bundled npm version
+declared in the root and TypeScript manifests, and the Rust toolchain in
+`rust-toolchain.toml`. Published TypeScript compatibility is documented in the
+[install guide](../install/typescript.md).
+
+Each checkout owns its root and TypeScript `node_modules` from `npm ci` and
+its Python `.venv`. Run
 `bash scripts/setup-python-owned.sh --provision` from that checkout to install developer tools
 and its noneditable, source-bound Python wheel. Never share mutable environments or editable
 bindings between worktrees. After this setup:
@@ -32,8 +37,12 @@ bindings between worktrees. After this setup:
 - Release-state changes: `./scripts/check-release-state-views.sh`.
 - Source, tests, or executable scripts: `./scripts/agent-verify.sh` runs the
   full developer gate. Resolve specific findings with focused checks, then
-  run the required full gate on the integrated candidate.
+  run the required full gate on the integrated candidate. Its strict AC-036
+  check needs a ptrace-capable executor. If the sandbox denies
+  `PTRACE_TRACEME`, rerun the same strict gate where ptrace is available.
 - `./scripts/check.sh` is the broader CI gate, including the MkDocs build.
+  Use `AGENT_LONG=1 ./scripts/check.sh` for the long AC-021 and AC-059b
+  cases. The default developer gate skips those variants.
 
 A scoped pass does not establish a full-workspace pass. Keep the command,
 candidate commit, result, and any environment limits in the review record.

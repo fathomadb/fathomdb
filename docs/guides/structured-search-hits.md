@@ -14,7 +14,7 @@ can rank, filter, and attribute results without a second lookup.
 | `body`      | `str` / `string`          | The matched record body.                                                |
 | `score`     | `float` / `number`        | G9 RRF-fused relevance (see below).                                     |
 | `branch`    | `"vector"` \| `"text"` \| `"text_edge"` \| `"graph_arm"` | Which retrieval branch produced the representative hit. |
-| `source_id` / `sourceId` | `str \| None` / `string \| null` | Source-document provenance — the id `erase_source` consumes. Populated on **every** hit path. |
+| `source_id` / `sourceId` | `str \| None` / `string \| null` | Source-document ID when known, including the ID `erase_source` accepts. Ownerless FTS hits can carry `None` / `null`. |
 | `ce_score` / `ceScore`   | `float \| None` / `number \| null` | Cross-encoder score (`sigmoid(logit)`) for hits inside the reranked pool; `None`/`null` otherwise. |
 
 ### `id` is a typed `IdSpace` (breaking since 0.8.9)
@@ -45,31 +45,27 @@ opt-in graph BFS arm).
 (`Σ_branch w_branch / (30 + rank_branch)`, with weight 3 for the text branch and
 1 for the vector and graph branches; higher = more relevant). The vector (`vec_distance_l2`) and text (`bm25()`) branches are fused
 on **rank**, never compared raw. Results are sorted by the fused score
-descending (vector-first tiebreak), deduplicated on body. See
-[Hybrid search & filtering](hybrid-search-filtering.md) for the full ranking +
-filter model.
+descending (vector-first tiebreak). Each stored record version contributes
+one fusion unit across retrieval branches. See
+[Hybrid search & filtering](hybrid-search-filtering.md) for the ranking and
+filtering model.
 
-## Selected 0.8.29 changes (implementation pending)
+## Stored versions and public IDs
 
-The selected 0.8.29 design will fuse occurrences of the same stored record/version
-across retrieval arms, while retaining distinct versions and sources even when
-their bodies match. Provenance will keep the existing representative preference:
-vector, then text, then graph. Public `IdSpace` values will remain unchanged;
-several returned records can therefore share one public ID. This is planned
-behavior, not a claim that record-based fusion has shipped.
+Fusion keeps distinct stored node and edge versions and separate ownerless FTS
+rows, including when their bodies match. For a record matched by multiple
+branches, representative provenance follows the vector, text, then graph
+preference. Several returned records can share one public `IdSpace`.
 
-`context_item_from_hit` keeps deriving its item ID from the public ID, and
-`pack_context` keeps rejecting duplicate item IDs. Callers needing both records
-can supply unique packing labels and retain a label-to-selected-record map.
-Those labels do not change engine identity.
+`context_item_from_hit` derives its item ID from the public ID, and
+`pack_context` rejects duplicate item IDs. To pack both records, supply unique
+packing labels and keep a map from each label to the selected record.
 
-The selected MCP correction will atomically reject otherwise-recordable feedback
-that names a ref shared by distinct returned records, without recording partial
-labels. Existing `not_recorded` outcomes keep their precedence. Logical fetch
-continues to select the latest eligible revision for its requested view; a
-search ref does not promise an exact historical-revision fetch. The feedback
-correction is planned for 0.8.29; richer per-result feedback labels require a
-later review. Store format37 and the no-migration decision remain unchanged.
+For otherwise-recordable MCP feedback, a named ref shared by distinct returned
+records causes the whole feedback call to refuse before it writes any labels.
+Existing `not_recorded` outcomes keep their precedence. Logical fetch selects
+the latest eligible revision for its requested view. A search ref can
+therefore resolve to a different version from the one returned by search.
 
 ## Python
 
@@ -112,7 +108,7 @@ await engine.close();
 Both bindings return equivalent hits for the same database and query — the
 structured-hit shape is part of the cross-binding SDK contract.
 
-> **`source_id` is mandatory on every write.** It is what
-> [`erase_source`](../operations/erasure.md) addresses, and it is echoed back
-> on every hit so a caller can always resolve a result to the document it came
-> from. Omitting it raises `WriteValidationError`.
+> Governed writes require a source ID and raise `WriteValidationError` when
+> it is missing. Hit provenance can be absent for ownerless FTS rows. When
+> present, the source ID is the one [`erase_source`](../operations/erasure.md)
+> addresses.

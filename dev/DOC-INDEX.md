@@ -65,8 +65,10 @@ refresh in the closing commit when you touch a doc).
 | `dev/plans/release-state-0.8.26.json` · `dev/plans/runs/STATUS-0.8.26.md` | Published release state and completed board through Slice 65 | 0.8.26 history | 2026-09-21 |
 | `dev/plans/0.8.26-prework-slices-0-9.md` | Draft environment, failure-evidence, HITL, and approved-prework contract | 0.8.26 Slices 0–9 | 2026-09-12 |
 | `dev/plans/0.8.26/` | Release-local plans, designs, reviews, and status records through Slice 65 | 0.8.26 Slice 65 | 2026-09-21 |
-| `dev/plans/plan-0.8.29.md` | Active .29 release plan with reviewed preparation and gated feature allocation | 0.8.29 planning | 2026-11-10 |
-| `dev/plans/release-state-0.8.29.json` · `dev/plans/runs/STATUS-0.8.29.md` | Active .29 state authority and generated live board | 0.8.29 Slice10 | 2026-11-10 |
+| `dev/plans/plan-0.8.29.md` | Completed .29 release plan and historical feature allocations | 0.8.29 delivery | 2026-11-18 |
+| `dev/plans/release-state-0.8.29.json` · `dev/plans/runs/STATUS-0.8.29.md` | Closed .29 state and delivery evidence | 0.8.29 Slice 160 | 2026-11-18 |
+| [Release selector](../scripts/release-current.py) · [0.8.30 plan](plans/0.8.30/plan.md) | Live release lookup and the commissioned .30 scope | 0.8.30 Slice 10 | 2026-11-18 |
+| [Slice 10 design](plans/0.8.30/features/slice-10/design.md) | Development toolchain, selected security fixes and receiving slice contracts | 0.8.30 Slice 10 | 2026-11-18 |
 | `dev/plans/0.8.29/features/slice-10/` | Reviewed owned-setup, survey, dependency, route and preparation evidence | 0.8.29 Slice10 | 2026-11-10 |
 | [Slice30 M continuation](plans/0.8.29/features/slice-30/continuation-m.md) | Proposed stdio measurement inventory, attribution, lifecycle, TDD and fixed-cap fit | 0.8.29 Slice30 | 2026-11-13 |
 | `dev/plans/0.8.29/README.md` | Index of .29 slice drafts, proposal decisions and planning evidence | 0.8.29 planning | 2026-11-09 |

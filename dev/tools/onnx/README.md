@@ -48,37 +48,35 @@ export host. (Point the script at an alternate cache root with `HF_HUB_CACHE`.)
 
 ## Toolchain
 
-The base `python3` and the fathomdb `.venv` LACK `torch`/`transformers`, so the
-export runs in a **dedicated throwaway venv** (never mutate the shared
-`.venv`s):
+Use a disposable owned CPython 3.12 environment on Linux x86_64. The
+[export requirements](export-requirements.txt) pin the compatible CPU Torch
+2.4.1, Transformers 4.44.2, NumPy and ONNX wheels by hash. From the checkout root:
 
 ```sh
-python3 -m venv /tmp/onnx-export-venv
-/tmp/onnx-export-venv/bin/pip install "torch==2.4.1" --index-url https://download.pytorch.org/whl/cpu
-/tmp/onnx-export-venv/bin/pip install "transformers==4.44.2" "numpy<2" onnx
+export_scratch="$(mktemp -d)"
+python3.12 -m venv "$export_scratch/venv"
+export_python="$export_scratch/venv/bin/python"
+"$export_python" -m pip install --require-hashes --no-deps --only-binary=:all: \
+    -r dev/tools/onnx/export-requirements.txt
+"$export_python" -m pip check
 ```
 
-- `torch 2.4.1` (CPU) + `transformers 4.44.2`: transformers >=5 routes the BERT
-  attention mask through a `masking_utils` path that `torch.onnx.export`'s
-  TorchScript tracer cannot follow (`IndexError` in `create_bidirectional_mask`),
-  so 4.44.2 is used for a clean trace. `onnx` is needed only for the final proto
-  write step of the TorchScript exporter.
-- `numpy<2` for torch 2.4 ABI.
-
-(Only the pip installs above touch the network — toolchain setup, not the model.
-The interpreter at `/home/coreyt/projects/memex/.venv/bin/python`, torch 2.11 +
-transformers 5.4, can be read read-only but its transformers 5.x breaks the
-TorchScript trace, so the throwaway venv is preferred.)
+Verify the exact trusted local snapshot revision and the model, config and
+tokenizer hashes recorded in the Candle loader before using this toolchain.
+Use only the pinned `model.safetensors` weights. The pinned Torch version
+precedes the fix for its unsafe pickle-loading path. See the
+[PyTorch advisory](https://github.com/pytorch/pytorch/security/advisories/GHSA-53q9-r3pm-6pq6).
 
 ## Run
 
 ```sh
-/tmp/onnx-export-venv/bin/python dev/tools/onnx/export_bge_small_onnx.py --verify
+HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 "$export_python" \
+    dev/tools/onnx/export_bge_small_onnx.py --out "$export_scratch/model.onnx" --verify
 ```
 
-Default output: `~/.cache/fathomdb/embedders/onnx/bge-small-en-v1.5/model.onnx`
-(override with `--out`). `--verify` exports twice and asserts a byte-identical
-SHA-256.
+`--verify` exports twice and asserts that their SHA-256 digests match. Compare
+the resulting graph with the accepted digest in the exporter requirements
+and the tokenizer with the pinned Candle loader digest.
 
 ## ONNX Runtime native lib (Task B — offline, no download)
 

@@ -35,10 +35,10 @@ root.
 ## Engineering reference
 
 - [`design/fathomdb-data-plane-architecture-v2.md`](design/fathomdb-data-plane-architecture-v2.md)
-  — the current system and data-plane architecture, including the current 0.8.28 profile
+  — the system and data-plane architecture, including the integrated workspace and schema profile
 - [`architecture.md`](architecture.md) — the retained superseded 0.6.0
   architecture snapshot
-- `adr/` architectural decisions and their decision index
+- [ADR decision index](adr/ADR-0.6.0-decision-index.md) and the accepted decisions it locates
 - `design/` subsystem design docs beneath the active architecture
 - `interfaces/` maintained, section-status-qualified interface contracts
 - `interface-inventory/` interface inventory artifacts

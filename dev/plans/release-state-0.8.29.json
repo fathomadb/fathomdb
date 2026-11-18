@@ -1618,7 +1618,7 @@
         "dev/plans/0.8.29/features/slice-160/test-map.md"
       ],
       "conditions": "Every selected mandatory outcome qualified or explicitly disposed; actual installed/publication proof separate.20 closes only with actual Windows A6;40 conditional scope is complete by independently reviewed non-adoption under existing Batch3 authorization;30/50/60/70/80 reach160 through90. Optional140/150 only if selected. Finished bounded local tasks are not local completion: every selected mandatory installed/platform (Q14) row and release dry-run (Q18) part that a permitted local or owned venue can qualify stays open until qualified there. The local mandate completes only when the remaining rows need CI after local passes and CI correctness review, or excluded registry publication; each is named outstanding, neither waived nor passed. Publication held. Owner seq377 explicitly defers live reset qualification to.30; seq378 defers new CUDA13 delivery/compiler/new-artifact proof to.31; seq379 accepts usage limits. These exclusions are owner dispositions, not passing tests. Existing platform/artifact rows remain. Seq381 also reallocates130A CUDA13 Tegra qualification to.31 while130D/E remain mandatory in.29;seq387 excludes unavailable non-Tegra ARM+GPU B/C.",
-      "phase": "LOCAL_QUALIFICATION_ACCEPTED_CI_CORRECTNESS_REVIEW",
+      "phase": "LOCAL_ACCEPTED_REVIEWED_CI_READY_FOR_DISPATCH",
       "evidence": "IndependentAstraaccepted actualQ10longvariants,threeverifiedleafpackages,missingAC037live;Linuxx64/ARM64CPU2.28wheelsanddeclaredaddonfloors/strictTS/runtime/graph/frozen/modelCPUcontrols;Windowsproduction186tests/wheelsize/tenWAL+external+installedcontrols;canonicalCUDA12.6wheel2.28/NAPI2.39linkage/driverless/fourtypedrefusals;source-archiveRustSDKpersist/reopenandCLIimmutableintegrity. Source/target/nativeorigins,originaltaskfailures andARMmonitoringdeviation retained. No inventedx64CPUaddon2.28promise. ActualabccCUDApairGPUallocation/PIDUUIDandbothAC082dCPUnegative/CUDApositivepairsnowindependentlyAstraACCEPTattool686d:128MiBmodeldelta>=64MiBfloor,completeCPUtraces/loaders,noCUDAaccess,alllifecycleexit0/strictcleanup/FD9released. Mac/final90artifactapplicability,remainingfeature/performance/complete rehearsalstayopen;localpasses->CIreview->CI,registrypublishheld. IndependentAstraaccepted clean686d releaseperformance:AC011a1538.787/s>=1000,b268.069/s>=100;AC012n10000p50/p991/3ms,AC013n10000dim768p50/p9963/73ms;7freshAC081hard500/100mspasses,seq337.851121\u2013344.381150mswarnings/concurrent46.958327\u201352.513726ms. RealAC073stressN1000p9943ms<=150,N7667p9946ms<=316pass. OriginalEU7overallexit101/legacyrecallci_hi.897/.801remainfailed/unqualified;separateTC5F/Q8qualificationunchanged. Nohelperdefect/fakeRED/fix;originalplannedREDwrapperexit1wasexpectationonly. DCPUnoiseobserved/noquietclaim,noconcurrentbuildtimings. Q3/final90/rehearsalstillopen. Q3normalfeaturecampaignnowSOURCE+ASSEMBLEDQ3AstraACCEPTat5176860192cb3b2d82618f76251af44779ed6c37:30actualruns/230planned/207passed0runtimefailed23ignored. Exactrecordedmatrixextras+8manualignoredentriesandlibrary-IDresolverRED/GREENrevalidatedSAMEimmutablelogs;no passingreplay. OriginalEXIT1/10metadatafailuresandinterruptedwriterEXIT143retained.12unchangedoptin-exclusionlistingfreshnesschecksretainoriginalno-staleresultonly;nonewlistedIDclaim.403target/44gateonlystaticcoveragePASSafterrootintegration. Ignoredarenotpasses/manualfaultqualification;final90applicabilityremains.",
       "qualified_subset_sha": "b07a161317ff753b86b5eb706e7c5e761adecb9a",
       "final90_qualification": {
@@ -1687,13 +1687,21 @@
         "canonical_checks": "47pinrotshell+16Python PASS; focusedPyright0 after ownedtomli2.5setup; scopedMD/links/statePASS; actualcanonicalcargo metadata --offline --locked0 after exactredundanttaskCargoHomepatchremoval. Earlierfixtureofflineinheritfailure/missingtomlitypefailure retained.",
         "proof_root": "/mnt/data/tmp2/fathomdb-0829-continuation/portable-fork-delivery-20261116",
         "canonical_logs": "/mnt/data/tmp2/fathomdb-0829-continuation/root-release-20261116/logs/portable-canonical-*",
-        "remote": "Cudarc343 authorizedbranchpush/remotecommitconfirmed. Candle2ee publicfetch remains PENDING permittedCIreview/pushstage; no workflow/settings/tag/registryaction.",
-        "remaining": "Local code-phase checks resolved through accepted a55 CUDAcontract correction and canonicalfailed-onlyPASS. PublicCandleHTTPSfetch/CI remain pending; S50measurements/finalreleasejoins separate."
+        "remote": "Cudarc343 remotely available as recorded. Candle2ee pushed explicitly to coreyt/candle-fathomdb branch llm/0.8.29-candle-lifetime-20261115 after independent push-workflow review; fresh unauthenticated HTTPSfetch in empty owned bare store confirms exact2ee39305a78ed1463ff913f71dcd3d45ecbfd84f. No tags/registry/Pages/settings changes.",
+        "remaining": "Public source delivery complete; reviewed nonpublishing CI remains. Qualified pins/graph/lock/features unchanged.",
+        "public_fetch_store": "/mnt/data/tmp2/fathomdb-0829-continuation/portable-fork-delivery-20261116/public-candle-https-20261117.git"
       },
       "local_combined_review": {
         "verdict": "Independent Astra-medium ACCEPT bounded local Q2-Q17 applicability; no concrete changed-input gap requires reopening accepted scopes.",
         "scope": "Actual assembled source/security/feature/scoped correction/performance/long/crash/selectedD-E/current artifact and strict docs proofs retain exact subjects. d226artifacts/222MCP-paid/17afassembledsource/portableb674+a55 are not retagged to a common uninterrupted pass.",
         "remaining": "Q14macOS/five-target completion, publicCandleHTTPSfetch and Q18hostednonpublishingrehearsal after CI correctness review; Q19publication excluded."
+      },
+      "ci_route_review": {
+        "verdict": "Independent Astra-medium review: publisher/dry-run/immutable-main route guards effective; bounded corrective design PASS.",
+        "corrections": "Use hosted Windows for exact release-branch CI so VM stays off; gate Pages on explicit current-state boolean authorization before eventual main integration. Preserve trust/SHA and existing Pages source/Tegra protections.",
+        "scope": "ci.yml full exact-candidate dispatch for five-target qualification; main-owned release.yml dryrun only after reviewed candidate is main-reachable. Publisher bodies are skipped in dryrun, so local leaf publish-dryrun results retain separate scope.",
+        "status": "Independent Astra-medium final ACCEPT a0d602ecf06336a2bc251e00f70e938ef7ee69ba, integrated with genuine Windows/Pages RED-GREEN and actual actionlint/affected controls PASS. Current pages_publication_authorized=false. Exact candidate branchCI next; no VM start.",
+        "remaining_infrastructure": "No Linux/X64/gpu/cuda-12 runner registered. Existing restricted group3+environment/coreyt reviewer/GPUUUID match route; temporary runner registration requires new explicit authority. Effective main branch protections absent, discrepancy with R10-2 protected-default wording; no settings change or trust waiver inferred. Hosted branchCI can proceed independently."
       }
     }
   ],
@@ -1940,7 +1948,7 @@
   },
   "release_readiness": {
     "status": "NOT_READY",
-    "qualification": "Local S50/90/Block1 and Q2-Q17 applicability independently ACCEPTED with bounded HITL seq-393 diagnostic exception, original source/artifact subjects and assembled failures retained. Remaining: CI correctness review, publicCandleHTTPSfetch, Q14macOS/five-target completion and Q18hostednonpublishingrehearsal. Registrypublication excluded; releaseNOTcomplete.",
+    "qualification": "S50/90/Block1 and bounded Q2-Q17 local applicability independently ACCEPTED under HITL seq-393, original source/artifact subjects and assembled failures retained. Reviewed hostedWindows/Pages-hold CI fixes integrated; publicCandle2ee freshHTTPSfetch verified. Exact candidate hosted branchCI next (including Q14macOS/five-target). Q18CUDA rehearsal needs separately authorized temporary restrictedGPUrunner and resolution of protected-main trust discrepancy. Registry/Pagespublication excluded; releaseNOTcomplete.",
     "publication": "HELD: registry publication and v* tag push excluded by owner scope. Appropriate CI is authorized after required local qualification and CI correctness review; bootstrap alone grants no external publication/ACL action.",
     "local_source_phase": {
       "status": "ASSEMBLED_FULL_SOURCE_PASS",
@@ -1999,7 +2007,8 @@
       "evidence": "239registered/236ran/235initialPASS/1modulelockFAIL/3explicitprivatecontrolSKIP/0excluded; unchangedfailed-onlymodulePASS29+5 with132modules/20governed/128cfg. Allselected executed source suites resolved; strictsecurity0/0/0 and ownedstrictMkDocsPASS.",
       "full_wrapper_seconds": 4160,
       "limits": "OriginalfullEXIT1/config-freeCargoHome resumption retained; assembled236/236 executed outcomes, no uninterruptedgreen or currentlive-controlskip-as-pass claim. Earlier live-control proof retains its actualsubject. RemainingS50/combinedrelease/CI/publication separate."
-    }
+    },
+    "pages_publication_authorized": false
   },
   "generated_views": [
     {

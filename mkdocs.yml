@@ -44,7 +44,7 @@ nav:
       - Frozen Evidence: guides/frozen-evidence.md
       - Prompt Context: guides/prompt-context.md
   - Release Notes:
-      - 0.8.29 (in progress): release-notes/0.8.29.md
+      - 0.8.29: release-notes/0.8.29.md
       - 0.8.28: release-notes/0.8.28.md
   - Positions:
       - Index: positions/index.md

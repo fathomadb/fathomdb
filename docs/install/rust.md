@@ -1,9 +1,5 @@
 # Install — Rust
 
-> **Publication status: pending.** Version 0.8.29 has not been published.
-> Exact-version registry commands are prepared for use after publication.
-> The latest published release remains 0.8.28.
-
 Rust application code uses `fathomdb-sdk`, the peer of the Python and
 TypeScript SDKs. The lower-level facade and operator CLI remain separate
 consumption routes:

@@ -1,6 +1,6 @@
 {
   "release": "0.8.29",
-  "release_kind": "Complete and publish0.8.29 under HITL seq-396/397; preserve accepted assembled qualification and finish real shipping builds, product publishers and registry consumers.",
+  "release_kind": "Product publication complete; final public documentation deployment pending.",
   "board": "dev/plans/runs/STATUS-0.8.29.md",
   "plan": "dev/plans/plan-0.8.29.md",
   "master": "dev/plans/0.8.20-0.9.0-PROGRAM-SEQUENCING.md",
@@ -1617,8 +1617,8 @@
         "dev/plans/0.8.29/features/slice-160/status.md",
         "dev/plans/0.8.29/features/slice-160/test-map.md"
       ],
-      "conditions": "Every selected mandatory outcome qualified or explicitly disposed; actual installed/publication proof separate.20 closes only with actual Windows A6;40 conditional scope is complete by independently reviewed non-adoption under existing Batch3 authorization;30/50/60/70/80 reach160 through90. Optional140/150 only if selected. Finished bounded local tasks are not local completion: every selected mandatory installed/platform (Q14) row and release dry-run (Q18) part that a permitted local or owned venue can qualify stays open until qualified there. Current assembled source/platform qualification is independently accepted with original failures/cancellations retained. Publication is authorized by seq-396/397; actual shipping builds and Q19 registry consumers remain pending. Owner seq377 explicitly defers live reset qualification to.30; seq378 defers new CUDA13 delivery/compiler/new-artifact proof to.31; seq379 accepts usage limits. These exclusions are owner dispositions, not passing tests. Existing platform/artifact rows remain. Seq381 also reallocates130A CUDA13 Tegra qualification to.31 while130D/E remain mandatory in.29;seq387 excludes unavailable non-Tegra ARM+GPU B/C.",
-      "phase": "ASSEMBLED_QUALIFICATION_ACCEPTED_PRODUCTION_DELIVERY_READY",
+      "conditions": "Every selected mandatory outcome qualified or explicitly disposed; actual installed/publication proof separate.20 closes only with actual Windows A6;40 conditional scope is complete by independently reviewed non-adoption under existing Batch3 authorization;30/50/60/70/80 reach160 through90. Optional140/150 only if selected. Finished bounded local tasks are not local completion: every selected mandatory installed/platform (Q14) row and release dry-run (Q18) part that a permitted local or owned venue can qualify stays open until qualified there. Current assembled source/platform qualification is independently accepted with original failures/cancellations retained. Publication authorized by seq-396/397 is complete: shipping builds, product publishers and eight Q19 registry consumers pass. Public docs deployment remains pending. Owner seq377 explicitly defers live reset qualification to.30; seq378 defers new CUDA13 delivery/compiler/new-artifact proof to.31; seq379 accepts usage limits. These exclusions are owner dispositions, not passing tests. Existing platform/artifact rows remain. Seq381 also reallocates130A CUDA13 Tegra qualification to.31 while130D/E remain mandatory in.29;seq387 excludes unavailable non-Tegra ARM+GPU B/C.",
+      "phase": "PRODUCT_PUBLISHED_PAGES_FINALIZATION",
       "evidence": "IndependentAstraaccepted actualQ10longvariants,threeverifiedleafpackages,missingAC037live;Linuxx64/ARM64CPU2.28wheelsanddeclaredaddonfloors/strictTS/runtime/graph/frozen/modelCPUcontrols;Windowsproduction186tests/wheelsize/tenWAL+external+installedcontrols;canonicalCUDA12.6wheel2.28/NAPI2.39linkage/driverless/fourtypedrefusals;source-archiveRustSDKpersist/reopenandCLIimmutableintegrity. Source/target/nativeorigins,originaltaskfailures andARMmonitoringdeviation retained. No inventedx64CPUaddon2.28promise. ActualabccCUDApairGPUallocation/PIDUUIDandbothAC082dCPUnegative/CUDApositivepairsnowindependentlyAstraACCEPTattool686d:128MiBmodeldelta>=64MiBfloor,completeCPUtraces/loaders,noCUDAaccess,alllifecycleexit0/strictcleanup/FD9released. Mac/final90artifactapplicability,remainingfeature/performance/complete rehearsalstayopen;localpasses->CIreview->CI,registrypublishheld. IndependentAstraaccepted clean686d releaseperformance:AC011a1538.787/s>=1000,b268.069/s>=100;AC012n10000p50/p991/3ms,AC013n10000dim768p50/p9963/73ms;7freshAC081hard500/100mspasses,seq337.851121\u2013344.381150mswarnings/concurrent46.958327\u201352.513726ms. RealAC073stressN1000p9943ms<=150,N7667p9946ms<=316pass. OriginalEU7overallexit101/legacyrecallci_hi.897/.801remainfailed/unqualified;separateTC5F/Q8qualificationunchanged. Nohelperdefect/fakeRED/fix;originalplannedREDwrapperexit1wasexpectationonly. DCPUnoiseobserved/noquietclaim,noconcurrentbuildtimings. Q3/final90/rehearsalstillopen. Q3normalfeaturecampaignnowSOURCE+ASSEMBLEDQ3AstraACCEPTat5176860192cb3b2d82618f76251af44779ed6c37:30actualruns/230planned/207passed0runtimefailed23ignored. Exactrecordedmatrixextras+8manualignoredentriesandlibrary-IDresolverRED/GREENrevalidatedSAMEimmutablelogs;no passingreplay. OriginalEXIT1/10metadatafailuresandinterruptedwriterEXIT143retained.12unchangedoptin-exclusionlistingfreshnesschecksretainoriginalno-staleresultonly;nonewlistedIDclaim.403target/44gateonlystaticcoveragePASSafterrootintegration. Ignoredarenotpasses/manualfaultqualification;final90applicabilityremains.",
       "qualified_subset_sha": "b07a161317ff753b86b5eb706e7c5e761adecb9a",
       "final90_qualification": {
@@ -1629,9 +1629,9 @@
         "accepted_corrections": "Integrated through ec54f833c981d9b0f878a407b7df0d15aa4d6842: current MCP fixture/field census, strict approved compact-contract oracle reconciliation, typed embedder-profile admission before deferred coverage-token failure, and narrowly handled enumerated /proc ESRCH race. Genuine RED/GREEN plus independent Astra ACCEPT; original failing tests retained.",
         "module_gate": "Unchanged standalone gate PASS29+5 tests and132 modules/128 configurations under owned config-free Cargo home; exact --locked preserved. First sandbox read-only fixture refusal retained.",
         "q3_affected": "35 distinct affected normal-feature test IDs assembled PASS with independent Astra ACCEPT; original observer missing-Python failures retained. Unchanged prior Q3 scope reused explicitly, not retagged or rerun.",
-        "remaining": "Assembledsource/platformqualification independentlyACCEPTED with originalCI101/cancellations and S50seq393 exception retained. Actual0.8.29publication authorized396/397; shippingpipeline and registryconsumers remain.",
+        "remaining": "Product publication and all eight registry consumers complete under396397 with original failures/focused recoveries retained; final public documentation deployment pending.",
         "episodes": "Completed once:72valid episodes/all144grades, exact approved served models/qIDs/tool policy; independent Astra final ACCEPT. Reported total$0.13444673; no new quality threshold/noninferiority claim or further paid replay. See90 current_execution and existing comparison README.",
-        "delivery": "Local and current hosted/scoped qualification independently accepted. Production publication authorized by seq-396/397; shipping builds and Q19 registry consumers pending.",
+        "delivery": "Product publication and all eight registry consumers complete under396397 with original failures/focused recoveries retained; final public documentation deployment pending.",
         "hints_failed_only": "One exact original unoptimized executable resumption PASS1/1 in7.37s; SHA2563f94cd2e7e9eb39ecd83456d5679ba6c4d18f435a1d56039ca52a6fe6b7b7860, original serial argument/environment/cwd. Original290.4us>200 failure and warnings retained; new numerical statistics captured/unavailable. No profile substitution or additional resumption.",
         "current_performance": "One exact retained AC011a resumption FAIL993.996/s (59640/60.000239089s), original760.621 retained. Independent first-current AC011b PASS429.322/s>=100;7 AC081 processes PASS sequential324.699516\u2013345.138117ms<=500/concurrent47.880991\u201350.739633ms<=100, all7 sequential200ms warnings retained. Exact operator/AGENT_LONG AC021 PASS60s/60 cycles/60 rebuilds/schema violations0; cursor PASS1000 searches/212 writes/211 during reads/999 advancing hits/0 violations. Actual retained subjects, not retagged.",
         "throughput_diagnostic": "One attribution-only GDB execution completed normally after65.09s; debugger133722/inferior133778 gone.9 stacks (not16), no end-counter snapshot.3 writer SQLite-prepare stacks,3 nonblocking WAL lock operations,1 each WAL write/allocation cleanup/trigger VM; workers parked. Instrumented765.406/s is not acceptance; no host-cause inference or second diagnostic. Narrow compiled-statement reuse proposal remains unimplemented.",
@@ -1741,13 +1741,47 @@
       },
       "production_route": {
         "authority": "dev/steward/steward-ledger.jsonl seq-397",
-        "state": "PREPARED_NOT_REGISTERED",
+        "state": "COMPLETE_WORKER_RETIRED_GPU_RELEASED",
         "environment_tag_policy_id": 67212695,
         "reviewer_id": 219899,
         "worker_package": "Officialactionsrunner2.338.2 SHAbaebf204307bac6193480852732f0aba2ae97b6c5597c244f4d5558390147c40",
         "launcher": "/mnt/data/tmp2/fathomdb-0829-continuation/production-cuda-20261117/ops/production-cuda-launch.py",
-        "review": "IndependentAstra-medium ACCEPT correctedlauncher00cf4a86e564150a1f0f6c32ad4e7cce280b7e0e1761978b2c8ba0da1a98b5f5, tag/run/group/admission/parentFD9/ownedcleanup verified. No runner/lease started.",
-        "next": "Final release documentation, main integration, exactv0.8.29tagbootstrap; add exacttagworkflow togroup3aftertagexists, verify normalroute/peeledSHA, approve canonicalproductionjob and launchoneworker."
+        "review": "Preparation snapshot: independentAstra accepted isolated launcher00cf4a86, which did not register or execute a worker because existing168 claimed exactjob. Subsequent independent review accepted exacttag/GPU existingworker continuation and explicitcgroup/container cleanup. ActualshippingSUCCESS and rootdirectcleanup are recorded separately.",
+        "next": "Deploy truthfulpublished publicdocs with retained0.26\u20130.28Tegra artifacts, then closeinternalrelease record.",
+        "tag": "v0.8.29",
+        "tag_commit": "b64d32f80bea2853bf4939b6334e32501174ffb1",
+        "production_run": 44229162869,
+        "cuda_job": 134549901705,
+        "normal_route": "PASS after adding only exacttagworkflow togroup3; reviewer219899/envpolicy67212695 unchanged; protected-main exception397.",
+        "approval": "Exact protectedenvironment approved under397 after verify-release/trustedroute/normalroute passed.",
+        "worker": "Existing old0.8.28 runner168 windchill3-fathomdb-cuda unexpectedly claimed canonicaljob before new launcher registration. New helper rejected competingactivejob and did not register. Exacttag/source/GPU verified; independentAstra ACCEPT continuation without restart.",
+        "environment_deviation": "Existing runner-owned Cargo/Rustup and shared HOME=/home/coreyt; reviewed isolated launcher environment did not execute.",
+        "containment": "Historical during shipping: parentFD9 inode8532374 held by4142211; removedgpu label and disabledserviceautostart. Final rootdirectcleanup stopped/reaped exactcgroup, deleted168/localcredentials and proved noownedcontainers/compute. FD9guard independently rechecked and EXIT0 at03:33Z; no lease/worker remains.",
+        "lease_receipt": "/mnt/data/tmp2/fathomdb-0829-continuation/production-cuda-20261117/ops/existing-worker-lease.json",
+        "cuda_completed_at": "2026-11-18T03:29:18Z",
+        "cuda_outcome": "SUCCESS actual canonicalbuild, installed CPU/forcednegative/GPUallocation/reranker and artifacttransport under exacttag; no rehearsal replacement.",
+        "shipping_witness": "/mnt/data/tmp2/fathomdb-0829-continuation/production-cuda-20261117/shipping-witness/cuda-preflight-witness.json",
+        "raw_job_log": "/mnt/data/tmp2/fathomdb-0829-continuation/root-release-20261116/logs/production-cuda-job-134549901705.log",
+        "pages_authorization_fix": "IndependentAstra ACCEPT f8bde706: no-active selector permits newestvalidatedpublishedreceipt only with exactbooleantrue; activefalse/malformedrecord/headguard remainfailclosed. Posttag workflow/docs-only finalization; shippingtag unchanged.",
+        "nonblocking_advisory": "Historyauditjob134549660200 failure safe multiset mismatch expected100 observed171 unknown71 missing0 count_mismatch0; no leaks found scan line retained; continue-on-error advisory, not publisher gate.",
+        "cleanup": "Root directly completed reviewed exact-job cleanup; disabled/stopped service, reaped only verifiedcgroup descendants, removed remote168 and localcredentials; noownedcontainers/cgroup/compute remain. FD9guard rechecked and EXIT0 at03:33Z; both3090 GPUsfree. Corrected cleanuphelper retained unused.",
+        "cleanup_receipt": "/mnt/data/tmp2/fathomdb-0829-continuation/production-cuda-20261117/ops/existing-worker-cleanup-confirmed.json"
+      },
+      "registry_delivery": {
+        "state": "PASS",
+        "production_run": 44229162869,
+        "finalization_run": 44233820520,
+        "evidence": "/mnt/data/fathomdb/0.8.29-release-evidence",
+        "registry_consumers": 8,
+        "platforms": [
+          "linux-x64",
+          "linux-arm64-cpu",
+          "macos-x64",
+          "macos-arm64",
+          "windows-x64"
+        ],
+        "cuda_identity": "PyPIwheel fullSHAfd651614f68faecac5f4ad3ea529d7a92b70d08a62f44ab24439488e2217b3c6 and npm nativeSHA9d290f7c9f477e3b875e56e9228e6c1dc09fd688d2805ae1703f113a48a922ac match shippingproof. npmarchive README difference retained separately.",
+        "limits": "Historyadvisory multiset failure, original npmoptionalnative failure, invalidlegacypromotiontoken and initialOIDCcachedpostcondition failure preserved. No GPU/build/paid/model/scientific replays."
       }
     }
   ],
@@ -2016,9 +2050,9 @@
     "scope": "S10-A1..A8 approved local preparation only; independent implementation review PASS104dcbc. Canonical release acceptance and final readiness remain160-owned."
   },
   "release_readiness": {
-    "status": "NOT_READY",
-    "qualification": "Assembledsource/platformqualification independentlyACCEPTED: all239registered outcomesresolved within exactsources/venues,3explicitprivatecontrolskips/Tegrahostdisposition/72Rustignoredcases retained. OriginalhostedRust101+45/60mcancels preserved; no uninterruptedCIgreenclaim. Actuale192five-targetCPUconsumers/receipts passed; rootcanonicalRust2828/NAPIuncompletedtail andfast19PASS; priorpaid72/S50ownerexception/currentlocalCUDAproof retained. Fourforkdepsactualpublished/byteverified andno-patchregistryresolutionPASS. Actualshippingbuild/tag/registries/postpubconsumers remain under396/397.",
-    "publication": "AUTHORIZED by explicit HITL seq-396: Get this release published. Complete real0.8.29shippingbuilds, requiredfork dependency availability, normaltag/publisher route and actualregistryinstalledsmokes. No releasecompletionuntil all requiredpublishers/consumers pass.",
+    "status": "PRODUCT_PUBLISHED_PAGES_PENDING",
+    "qualification": "Assembledsource/platformqualification independentlyACCEPTED: all239registered outcomesresolved within exactsources/venues,3explicitprivatecontrolskips/Tegrahostdisposition/72Rustignoredcases retained. OriginalhostedRust101+45/60mcancels preserved; no uninterruptedCIgreenclaim. Actuale192five-targetCPUconsumers/receipts passed; rootcanonicalRust2828/NAPIuncompletedtail andfast19PASS; priorpaid72/S50ownerexception/currentlocalCUDAproof retained. Fourforkdepsactualpublished/byteverified andno-patchregistryresolutionPASS. Actualshippingbuild/tag/registries/postpubconsumers remain under396/397. Actual tagb64 shippingCUDA and allfiveplatform builds, allproductpublishers and eight actualregistry-installed consumers pass; normalpipeline failures and focusedrecoveries retained. ProductionCUDAwheel registrySHA and publishedNode nativeSHA match selected-GPU-qualified artifacts; Nodearchive onlyREADME differs.",
+    "publication": "PUBLISHED: crates.io, PyPI, npm latest and GitHub Release. All8freshregistryconsumerjobs and co-taggingPASS. Publicdocumentation deployment finalizing.",
     "local_source_phase": {
       "status": "ASSEMBLED_FULL_SOURCE_PASS",
       "subject": "b6749b4bcf33816e068c61c270ae531ef6968cf7",
@@ -2035,11 +2069,11 @@
       "failed_only": "CanonicalCUDAcontract121PASS exit0 after genuineREDd8c2/minimalGREENa55/freshindependentAstraSOURCE+FOCUSEDCONTRACT ACCEPT. No passing-suite replay.",
       "failed_only_log": "/mnt/data/tmp2/fathomdb-0829-continuation/root-release-20261116/logs/portable-code-phase-cuda-only-final.log",
       "scope": "Lint/workspacetypes/strictsecurity0violations0blockers0downgrades/Rustworkspace/selectedpool+measurementadapters+observers+CLI/Python+nativeReceipt/TS/hermeticNAPI passed. All236executedoutcomesresolved;3privateG/M/Dlivecontrols explicitlyunselected, earlierproofretainsoriginalsubjects.",
-      "limits": "Assembled qualification; originalfullEXIT1 retained, no uninterruptedgreenclaim. Originalscientific/native/artifact/paid72subjects unchanged. S50remaining78ordinary+24diagnostic and final50/90/160joins precedeCIreview/appropriateCI;registrypublicationheld.",
+      "limits": "Historical code-phase snapshot: Assembled qualification; originalfullEXIT1 retained, no uninterruptedgreenclaim. Originalscientific/native/artifact/paid72subjects unchanged. S50remaining78ordinary+24diagnostic and final50/90/160joins precedeCIreview/appropriateCI;registrypublicationheld.",
       "qualification_checkout": "b6749b4bcf33816e068c61c270ae531ef6968cf7",
       "worktree": "/mnt/data/worktrees/fathomdb-0.8.29"
     },
-    "ci": "After all required local qualification passes, review CI scripts for correctness before running appropriate CI. Registry publication remains excluded; never push a v* tag that auto-publishes.",
+    "ci": "Production44229162869 has successful allshippingbuilds/productpublishers/eightregistryconsumerjobs/co-tagging. Originalnpmoptionalnative failure recovered by onefailed-only retry; invalidlegacypromotiontokenE401 leaves overallproductionFAILURE. SeparateOIDCfinalization44233820520 attempt2SUCCESS promoteslatest and createsGitHubReleasefivewheels; initialOIDCPUT204/stalepostcondition retained. Pagesdeployment pending. No GPU/build/model/paid/scientific replay.",
     "initial_local_source_phase": {
       "status": "ASSEMBLED_FULL_SOURCE_PASS_INDEPENDENT_ASTRA_ACCEPTED",
       "subject": "ef544124d155bdca08f338bee4644379f8af56a5",
@@ -2077,7 +2111,7 @@
       "full_wrapper_seconds": 4160,
       "limits": "OriginalfullEXIT1/config-freeCargoHome resumption retained; assembled236/236 executed outcomes, no uninterruptedgreen or currentlive-controlskip-as-pass claim. Earlier live-control proof retains its actualsubject. RemainingS50/combinedrelease/CI/publication separate."
     },
-    "pages_publication_authorized": false
+    "pages_publication_authorized": true
   },
   "generated_views": [
     {
@@ -2096,5 +2130,12 @@
       "location": "Next action"
     }
   ],
-  "public_docs_target_release": "0.8.29"
+  "public_docs_target_release": "0.8.29",
+  "published": {
+    "tag": "v0.8.29",
+    "tag_commit": "b64d32f80bea2853bf4939b6334e32501174ffb1",
+    "published_on": "2026-11-18",
+    "npm_dist_tag": "latest",
+    "evidence": "Production44229162869 all shippingbuilds/publishers, eight registry-installed consumer jobs and co-taggingPASS. Attempt1 npmconsumer missingoptionalnative, exactversions/nativebytes verified and singlefailed-only retryPASS. Legacy promotionE401 retained. OIDCfinalization44233820520 attempt2SUCCESS: initialOIDCPUT204 succeeded but immediatecachedverificationstale; two registryviews independentlyconfirm latest.29, targetedfinalizationretryPASS and GitHubReleasefivewheels. Evidence /mnt/data/fathomdb/0.8.29-release-evidence. PublicDocsdeployment pending separately."
+  }
 }

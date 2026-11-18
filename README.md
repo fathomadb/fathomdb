@@ -7,10 +7,6 @@ the Python, TypeScript, or Rust application SDK.
 
 ## Release 0.8.29
 
-> **Publication status: pending.** Version 0.8.29 has not been published.
-> Exact-version registry commands are prepared for use after publication.
-> The latest published release remains 0.8.28.
-
 FathomDB is pre-1.0 beta; public contracts can change between micro releases.
 0.8.29 adds exact stored-head coverage reporting and snippet extents, corrects
 record identity in hybrid fusion, and makes compact text the MCP default.

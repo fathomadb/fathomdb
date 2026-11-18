@@ -9,7 +9,8 @@ target_release: 0.8.29
 [State](../release-state-0.8.29.json) owns generated control facts.
 [Master](../plan-0.8.29.md) and [direct method](../0.8.29/direct-execution.md)
 retain scope and item gates. [Preparation evidence](../0.8.29/features/slice-10/execution.md)
-records assembled qualification; release readiness remains NOT_READY.
+records assembled qualification. Product publication and eight registry-installed
+consumer jobs are complete; final public documentation deployment is pending.
 
 ## Current state
 
@@ -50,4 +51,4 @@ Required fork repairs A only in.29; B/C stay.30. R580/primary12.6 fixed; no K620
 Selected policy, deferrals, TC5 input and approvals are recorded in seq373–392 and receiving .30/.31
 plans. Session/spend, optional150 and publication choices remain explicit in
 state/actual9 records. Missing future choices do not
-block unrelated approved preparation. Readiness NOT_READY; publication HELD.
+block unrelated approved preparation. Product publication is complete under seq-396/397; public documentation deployment is finalizing.

@@ -1,9 +1,5 @@
 # Install — Python
 
-> **Publication status: pending.** Version 0.8.29 has not been published.
-> Exact-version registry commands are prepared for use after publication.
-> The latest published release remains 0.8.28.
-
 The `fathomdb` Python SDK is a [PyO3](https://pyo3.rs/) binding over the
 native Rust runtime. Wheels are platform-tagged (no source build
 required on supported platforms).

@@ -1,9 +1,5 @@
 # FathomDB Public Docs
 
-> **Publication status: pending.** Version 0.8.29 has not been published.
-> Exact-version registry commands are prepared for use after publication.
-> The latest published release remains 0.8.28.
-
 FathomDB is a local-first retrieval and graph-oriented data system
 designed for application and agent workloads. This site is the public
 documentation source for users, operators, and SDK consumers.

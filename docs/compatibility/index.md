@@ -1,9 +1,5 @@
 # Compatibility
 
-> **Publication status: pending.** Version 0.8.29 has not been published.
-> Exact-version registry commands are prepared for use after publication.
-> The latest published release remains 0.8.28.
-
 Supported platforms, toolchains, and version-alignment policy for the
 **0.8.29** release.
 

@@ -8,12 +8,12 @@ released section MUST list every removed public symbol under a `### Removed` hea
 the removal-detect linter (`scripts/security/check-removal-changelog.sh`,
 AC-050c) gates merges against this invariant.
 
-## 0.8.29 — publication pending
+## 0.8.29 — 2026-11-18
 
-**Publication status: authorized, pending.** Source and five-platform
-qualification are complete with recorded scoped exceptions. Actual shipping
-builds, registry publication and published-version consumers remain in progress.
-This version has not yet been published.
+**Published.** crates.io, PyPI, npm `latest` and GitHub Releases carry0.8.29.
+All eight fresh registry-installed consumer jobs pass. Qualification retains
+its recorded scoped exceptions and original failures; the S50 score observation
+is accepted by HITL and remains an investigation for0.8.30.
 
 ### Added
 

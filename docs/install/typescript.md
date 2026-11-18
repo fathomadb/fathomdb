@@ -1,9 +1,5 @@
 # Install — TypeScript / Node.js
 
-> **Publication status: pending.** Version 0.8.29 has not been published.
-> Exact-version registry commands are prepared for use after publication.
-> The latest published release remains 0.8.28.
-
 The `fathomdb` npm package is a [napi-rs](https://napi.rs/) binding
 over the native Rust runtime. The package selects a
 platform-tagged `.node` binary at load time.

@@ -25,9 +25,9 @@ serde_json = { version = "1", optional = true }
 thiserror = { version = "1", optional = true }
 
 # Candle stack + tokenizer for the default `CandleBgeEmbedder` (EU-4).
-# Qualified local Slice110 stack: Candle 0.12.0 and cudarc 0.20.0.
-# Exact Git revisions are supplied by the reviewed local integration config;
-# these versions are unpublished and are not registry-release claims.
+# Qualified Slice110 stack: Candle 0.12.0 and cudarc 0.20.0.
+# The matching fork versions are published for downstream registry consumers;
+# workspace builds retain the reviewed exact Git revisions and HTTPS mirrors.
 # Candle keeps its Rust crate names and re-exports cudarc. The no-feature
 # closure remains thin; safetensors is reached through candle-core.
 candle-core         = { package = "candle-core-fathomdb", version = "=0.12.0", optional = true }

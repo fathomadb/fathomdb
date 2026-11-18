@@ -289,27 +289,20 @@ they are distinct from the successful later container execution.
 
 ## Remaining qualification
 
-- Earlier20 Windows rows and the assembled238-suite source gate retain their
-  actual source scope. Current integrated Q2/Q3 outcomes remain parent-owned;
-  ordinary smoke/skip behavior stays distinct from the actual long runs above.
-- 60/70/80 and100 have accepted selected exits;110/140's selected .29
-  source/healthy/OOM/consumer scope is independently accepted.30's remaining
-  G/M/D campaigns and50's paired observations remain incomplete; the
-  [release state](../../../release-state-0.8.29.json) owns their current progress.
-- 40 conditional disposition is complete with no new treatment; the exact approved72 model episodes remain parent-owned
-  integrated exits. Selected130 D/E is independently accepted; full90 source is
-  independently accepted under seq392 and is integrated.
-- Current affected d226 three-target CPU, CUDA12.6 driverless and source-archive
-  proofs and exact new CUDA GPU witnesses are recorded above. Mac targets
-  remain open; current Q2/Q3/model status is parent-owned. Original
-  throughput failures remain alongside the current ordinary pass. Combined
-  local readiness is not claimed. The local
-  rehearsal is assembled-qualified; its distinct hosted counterpart remains.
-  Earlier observations retain original scope; no automatic full replay follows
-  document edits.
-- After local passes, review CI scripts and execute CI. The earlier blanket CI
-  exclusion is superseded. No publishing tags, registry uploads or published
-  registry-consumer proof is authorized; readiness and publication remain distinct.
+Local source, scientific, paid-model and five-platform candidate qualification
+are independently accepted within their recorded scopes. Current hosted run
+44215258383 has31 successful jobs, one expected skip and two cancelled verifier
+jobs. The missing19 fast controls, full serial Rust workspace and interrupted
+NAPI scope pass locally; original hosted Rust101 remains unexplained and is
+retained. The state records exact producers, ignores and skips. No full hosted
+green claim is made and no further broad replay is required.
+
+HITL seq-396 authorizes publication; seq-397 authorizes the bounded temporary
+production CUDA worker and exact-tag route. All four required fork registry
+packages are published and the registry-only resolve check passes. Actual
+product shipping builds, publishers and fresh post-publication registry
+consumers remain open. The additional three CUDA rehearsal jobs remain omitted
+under seq-394.
 
 Owner dispositions in [requirements](requirements.md#owner-dispositions) retain
 format37 with no migration, reset work in .30, CUDA13 including Tegra in .31,
@@ -333,7 +326,8 @@ final90 measurement. Current affected coverage controls, installed boundaries,
 MCP14, the single72episode/144grade comparison and final source qualification
 cover changed scopes. No additional local execution gap was identified.
 
-Proceed to CI correctness review, then public Candle HTTPS fetch, macOS/five-
-target completion and the distinct hosted nonpublishing rehearsal. These remain
-open Q14/Q18 obligations. Registry publication and post-publication Q19 remain
-outside the mandate; this local acceptance is not full release readiness.
+CI routing and public Candle HTTPS delivery are reviewed; current hosted
+macOS/five-target installed consumers pass. Assembled source/platform
+qualification is independently accepted. Proceed with the authorized exact-tag
+production release, one shipping CUDA worker and Q19 registry consumers under
+seq-396/397. Existing evidence retains its original subjects and exceptions.

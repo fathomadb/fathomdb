@@ -10,8 +10,10 @@ AC-050c) gates merges against this invariant.
 
 ## 0.8.29 — publication pending
 
-**Publication status: pending.** Integrated qualification and the release
-rehearsals are in progress. This version has not been published.
+**Publication status: authorized, pending.** Source and five-platform
+qualification are complete with recorded scoped exceptions. Actual shipping
+builds, registry publication and published-version consumers remain in progress.
+This version has not yet been published.
 
 ### Added
 
@@ -71,9 +73,12 @@ rehearsals are in progress. This version has not been published.
 - Current CUDA qualification uses CUDA 12.6. CUDA 13 artifact delivery, including
   Tegra, is planned for 0.8.31. Non-Tegra ARM+GPU configurations are not
   known-working CUDA environments and are excluded from 0.8.29 qualification.
-- CPU platform/package qualification and the distinct hosted release rehearsal
-  remain pending completion. Local candidate installs do not establish registry
-  publication or registry-installed consumer success.
+- The five generic CPU platform consumers are qualified. The additional CUDA
+  rehearsal was omitted; the production workflow builds the actual shipping
+  CUDA packages. Registry-installed consumer verification follows publication.
+- Generic ARM64 packages are CPU-only. This release does not add Tegra CUDA
+  wheel/addon packages; existing Tegra Pages users must keep their main package
+  and CUDA addon versions matched. The retained 0.8.28 packages remain available.
 
 ## 0.8.28 — 2026-11-09
 

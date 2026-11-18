@@ -255,6 +255,86 @@ else
   fail "long failure lost its exit or uncapped diagnostics (exit=$LONG_RC output=$LONG_OUT)"
 fi
 
+CANCEL_SPILLS="$TMPROOT/cancel-spills"
+mkdir -p "$CANCEL_SPILLS"
+cat >"$TMPROOT/cancel-driver.sh" <<'DRIVER_CANCEL'
+#!/usr/bin/env bash
+set -euo pipefail
+. "$OUTPUT_LIB"
+. "$SUITE_LIB"
+run_suite cancel-pass true
+run_suite cancel-fail bash -c '
+  for ((line=1;line<=250;line++)); do printf "compiler diagnostic %d\n" "$line"; done
+  printf "GITHUB_TOKEN=synthetic-test-marker\n"
+  printf "::error::literal compiler payload\n"
+  head -c 131072 /dev/zero | tr "\000" x
+  printf "\nerror: final rust compiler diagnostic 251\n"
+  exit 101
+'
+run_suite cancel-block bash -c 'touch "$READY_FILE"; exec sleep 60'
+run_suite cancel-unrun bash -c 'touch "$UNRUN_FILE"'
+suite_summary_and_exit
+DRIVER_CANCEL
+if OUTPUT_LIB="$OUTPUT_LIB" SUITE_LIB="$SUITE_LIB" python3 - "$TMPROOT" "$CANCEL_SPILLS" <<'PY_CANCEL'
+import os
+from pathlib import Path
+import signal
+import subprocess
+import sys
+import time
+
+root, spills = map(Path, sys.argv[1:])
+ready = root / "cancel-ready"
+unrun = root / "cancel-unrun"
+log = root / "cancel-stream.log"
+env = os.environ | {
+    "AGENT_CI_LIVE": "1", "GITHUB_ACTIONS": "true",
+    "GITHUB_STEP_SUMMARY": str(root / "cancel-summary"),
+    "AGENT_LOG_DIR": str(spills), "READY_FILE": str(ready), "UNRUN_FILE": str(unrun),
+}
+with log.open("wb") as channel:
+    child = subprocess.Popen(
+        ["bash", str(root / "cancel-driver.sh")], stdout=channel,
+        stderr=subprocess.STDOUT, start_new_session=True, env=env,
+    )
+    try:
+        deadline = time.monotonic() + 10
+        while not ready.exists() and child.poll() is None and time.monotonic() < deadline:
+            time.sleep(0.01)
+        assert ready.exists(), log.read_text()
+        early = log.read_text()
+        assert "SUITE PLAN cancel-pass" in early and "SUITE PLAN cancel-unrun" in early, early[:3000]
+        assert early.index("SUITE PLAN cancel-unrun") < early.index("SUITE START cancel-pass")
+        assert "SUITE RESULT cancel-pass PASS rc=0" in early, early[:3000]
+        assert "SUITE RESULT cancel-fail FAIL rc=101" in early
+        assert "error: final rust compiler diagnostic 251" in early
+        assert "synthetic-test-marker" not in early
+        assert "live diagnostic truncated" in early
+        assert 0 < len(early.encode()) < 72 * 1024
+        start = early.index("::stop-commands::")
+        token = early[start:].splitlines()[0].split("::")[-1]
+        assert len(token) >= 16 and start < early.index("::error::literal compiler payload")
+        assert early.index("::error::literal compiler payload") < early.index(f"::{token}::")
+        assert "SUITE START cancel-block" in early
+        assert "SUITE RESULT cancel-block" not in early
+        assert "SUITE START cancel-unrun" not in early
+        assert "SUITE RESULT cancel-unrun" not in early
+        assert "compiler diagnostic 250" in early
+    finally:
+        if child.poll() is None:
+            os.killpg(child.pid, signal.SIGTERM)
+        child.wait(timeout=10)
+    assert child.returncode != 0
+assert not unrun.exists()
+assert not (root / "cancel-summary").exists()
+assert log.read_text() == early
+PY_CANCEL
+then
+  pass "first bounded redacted failure and planned outcomes survive cancellation of a later child"
+else
+  fail "live evidence was absent or inaccurate before cancellation"
+fi
+
 if [ "$FAILED" -gt 0 ]; then
   printf '\n%d test(s) failed\n' "$FAILED" >&2
   exit 1

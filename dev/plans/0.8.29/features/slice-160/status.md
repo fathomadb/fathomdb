@@ -315,3 +315,25 @@ Owner dispositions in [requirements](requirements.md#owner-dispositions) retain
 format37 with no migration, reset work in .30, CUDA13 including Tegra in .31,
 and non-Tegra ARM+GPU excluded from .29 gates/known-working claims. No private
 Memex population census or new capacity/admin ritual blocks this local batch.
+
+## Final local applicability join and CI boundary
+
+Independent Astra-medium review accepts the S50 measurement exit and S90-A12/
+Block1 join under HITL seq-393. All160 native members completed:136 ordinary
+and22 diagnostics qualify by exact-result comparison; the final2 diagnostics
+are accepted solely by that ruling. The raw failed comparison is retained in
+`/mnt/data/fathomdb/0.8.29-S50-data/`; investigation belongs to.30. No score
+tolerance, fixed-state A3 change or native/paid replay follows.
+
+Accepted assembled source/security/feature, scoped corrections, numerical gates,
+long controls, crash/selected D/E, installed artifact and strict documentation
+evidence satisfy the local join within their recorded subjects. Frozen S50
+snippets=None supports hydration/ranking; its setup/readiness/RSS does not become
+final90 measurement. Current affected coverage controls, installed boundaries,
+MCP14, the single72episode/144grade comparison and final source qualification
+cover changed scopes. No additional local execution gap was identified.
+
+Proceed to CI correctness review, then public Candle HTTPS fetch, macOS/five-
+target completion and the distinct hosted nonpublishing rehearsal. These remain
+open Q14/Q18 obligations. Registry publication and post-publication Q19 remain
+outside the mandate; this local acceptance is not full release readiness.

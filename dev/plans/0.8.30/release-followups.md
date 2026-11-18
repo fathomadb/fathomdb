@@ -1,5 +1,5 @@
 ---
-title: 0.8.30 receiving allocations — feedback and reset review
+title: 0.8.30 receiving allocations — feedback, reset and S50 observation review
 status: PROPOSED
 target_release: 0.8.30
 ---
@@ -14,6 +14,7 @@ source before implementation. Existing fork-maintenance scope remains separate.
 | --- | --- | --- |
 | Precise per-result feedback; TC-e70f4224-4d38-4932-9ef6-bf801d10c334; seq-375 | Review richer occurrence labels that identify the exact selected result within response/store/epoch, including repeated public refs. Select schema, text rendering, validation, paging and fetch distinction explicitly. Tests must prove exact attribution, label lifetime, both formats, unique/repeated refs and atomic validation without invented oracle snapshots. | The selected [.29 atomic ambiguity refusal](../0.8.29/features/slice-50/feedback-decision.md) must land and qualify in .29; this review cannot replace or postpone it. Genuine behavioral RED before GREEN and independent design/final review precede any selected new ABI. |
 | Reset policy and live-fault review; TC-cab4c8d7-0ea1-426c-9166-22ebd4cc4fc9; seq-376/377 | Revisit quiescent completed-construction/frozen-native-live-set residue until restart, no post-loss growth, known accounting and opaque native host bytes without a hard cap. Review real Orin private-pool and selected3090 child reset tests for typed refusal, immediate close, last-clone drop, normal exit and fresh-process recovery. | First consume [.29 source/seam repairs](../0.8.29/features/slice-110/plan.md) and qualified pins. Actual faults remain HELD until concrete venue/session/resource authority. Partial-load real reset remains excluded pending separately reviewed handoff. |
+| S50 natural-write score observation; HITL seq-393 | Investigate the G-W b10/s1 SDK-hybrid diagnostic pair: sample860/query360/op9971 has two score differences, +1.240362% and +0.850694% eager relative to winner; ordered document IDs and text agree. Both calls used the reference route. Source and exact fusion arithmetic support different vector ranks during asynchronous projection, but actual candidate IDs/distances/ranks were not captured and cause remains unproved. Evidence: `/mnt/data/fathomdb/0.8.29-S50-data/README.md`, raw attempts, final databases, reports, source pins and SHA-256 manifest. | Investigation deferred to0.8.30; seq-393 permits0.8.29 progression with this observed deviation. Review candidate-state/rank participation, ties and the natural-write comparison contract. Retain the original failed result, separate fixed-state A3 exactness, all prior qualification credit and original charges. No new score tolerance, retrospective exact-equality pass, GPU/native replay or production change is authorized by this allocation. |
 
 Source/seam proof alone cannot claim real reset survival or close original
 TC-281155a1. The original Orin defect requires actual Orin positive teardown proof;

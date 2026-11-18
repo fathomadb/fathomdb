@@ -897,7 +897,7 @@
       "depends_on": [
         10
       ],
-      "status": "IN_PROGRESS",
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
       "design_refs": [
         "dev/plans/0.8.29/features/slice-50/census.md",
         "dev/plans/0.8.29/features/slice-50/design.md",
@@ -908,7 +908,7 @@
         "dev/plans/0.8.29/features/slice-50/test-map.md"
       ],
       "conditions": "Astra-medium PASS on named-artifact entry: closed10 plus qualifiedLinux451, acceptedP2fd results and G29de assessment(11qualified/73refused), selected374/375contracts and source/consumercensus. Whole30/M/D/F/Windows/privateMemexsnapshot are not source-entry prerequisites. Ordinary source implementation, exactness/work controls and independent review are integrated at9036507bc. Current paired measurement and affected feature/performance acceptance remain; no runtime/whole30 gate is waived.",
-      "phase": "SOURCE_QUALIFIED_P32_G2_PREFIX5_ACTUALLY_RUNNING",
+      "phase": "MEASUREMENT_EXIT_ACCEPTED_WITH_HITL_SEQ393_EXCEPTION",
       "evidence": "Integrated9036507bc98ef31c05ae334aa22ec5101323c7e7 after genuine separate identity, atomic ambiguous-feedback, complete-rank winner-hydration and bounded-prefix RED/GREEN units and fresh Astra-medium acceptance. Original full verification stopped on strict du observation timeout before Rust tests; stale derived source inventory was repaired with the unchanged8-test guard. Canonical19-suite unfinished tail ran18:17 passed,1 observer failure,1 explicit G-live skip,0 exclusions. Rust workspace, Python/native and TS/hermetic NAPI passed. Frozen observer failure was corrected by attributing the existing real winner hydration outside fusion;24 affected functions, changed-engine lint/typecheck/Markdown and rebuilt current-source Python/NAPI parity passed. Final Astra accepted903 and assembled ordinary source verification. No uninterrupted full-wrapper pass, final Rust body-count reconstruction, actual-model/GPU/performance, live-G or whole50 completion is claimed. R6 current paired measurements and Block1 acceptance remain open.",
       "census_access_review": {
         "reviewed_sha": "1032a826d25440d24ea492e6bb3a8c1f2034359f",
@@ -984,19 +984,19 @@
         "first_g_pair": "G10k r0 winner/eager attempt0002 both complete/qualification_issues[]; phase_qualified/window_completetrue, firststageexit0, strictquiescent/exactboundaryremoved/all5NULL. Originalattempt0001PRENATIVE failure preserved.",
         "first_pair_charge_ns": 249385575728,
         "first_pair_common_ns": 42094922897,
-        "qualified_ordinary": 58,
-        "remaining_g_ordinary": 78,
-        "remaining_diagnostic": 24,
-        "current": "Original054-064 terminalEXIT1 after four new qualified members;58ordinary credited/nativecomplete58,diag0. Thirdpair winner refused when foreignselectedGPU work appeared; owned native stopped/strictcleanupcertain. No sourcebug or passing-member replay. ConditionalparentGO permits one failedmember resumption in exact58-64 remainder only after actualGPUfree/freshadmission; original064onward remainsserial.",
-        "limits": "Original900s/member1800s/pair cumulative caps,48h192GiB TOTAL/allpriorcharges; common600s/256MiB and24GiBgrowth. Exact58-64 remainder prospective3pairs/5600sphase; failedwinnerremaining779402810517ns/pair1679402810517ns. Stopfirstfailure/refusal; no automatic thirdattempt.",
-        "dependency": "Slice30CLOSED; acceptedsource/Q17/currentartifacts/paid72 and narrowreportrecovery retained. Resume exact58-64 only when selectedGPUforeignworkgone; no quietCPUcondition or foreignactoraction, no new reviewstop.",
-        "scope": "Current58ordinary only, not whole136+24/S50/treatment-conclusion. Allpriorfailures/charges/native/sourceidentities retained; no passingnative/model replay, build or calibration.",
-        "completed_g_native_pairs": 13,
-        "remaining_native_g_ordinary": 78,
+        "qualified_ordinary": 136,
+        "remaining_g_ordinary": 0,
+        "remaining_diagnostic": 0,
+        "current": "Final coherent independent Astra-medium local join ACCEPT; measurement exit complete with seq-393 exception. Investigation remains0.8.30; raw final comparison unchanged. No native or paid replay.",
+        "limits": "Original900s/member1800s/pair cumulative,48h/192GiB TOTAL/all prior charges. Existing original successor selections only: common600s/256MiB,24GiB growth; unchanged finitephase/pair limits. One failedwinner attempt0002 is spent and complete; no automatic further retry.",
+        "dependency": "Slice30 CLOSED; acceptedsource/Q17/currentartifacts/paid72 and reportrecovery retained. Foreignjob inactive/unloaded in system+user managers, selectedGPUempty before resumption. Fresh admission each originalentry; no quietCPU prerequisite or new review stop.",
+        "scope": "Original136ordinary+24diagnostic cohort executed. Final2diagnostic members accepted only by HITL seq-393 exception, preserving all raw failures, histories, charges and source/native identities. No passing-native/model/paid replay or rebuild. Local combined acceptance join pending independent review; hosted/macOS CI remain.",
+        "completed_g_native_pairs": 52,
+        "remaining_native_g_ordinary": 0,
         "held_reassessment_members": 0,
         "five_prefix_charge_ns": 4518022202401,
         "five_prefix_common_ns": 67792215433,
-        "cleanup": "Original054-064 guardian1527199/controller1527264/failedpayload1552536 absent; boundaryquiescent/unpopulated/exactremoved; all5NULL/markerabsent/physicalFD9inode8532374acquired+released. ForeigncoralsmolPID1564859selected5f9/256MiBuntouched; noGPUemptyclaim.",
+        "cleanup": "Final156-160 guardian/childEXIT1 with certain strict cleanup/exact empty boundary removed; all5ownershipNULL/markerabsent/physicalFD9lock released. Both3090 GPUs compute-empty,2MiB/0percent, verified2026-11-18T00:47:32Z (18:47CST Nov17), and rechecked after failure investigation. UnitMainPID0. No GPU reset or foreign-job mutation.",
         "controller_source": "c2ed2e8550635ec17291e95c0008f7511e04639c",
         "correction_review": "IndependentAstra design/final SOURCE ACCEPT359f99116 and publicAPI delta270aaf413;genuineREDfd2935b/41618551b/c102cecd,70affectedcontrolsPASS1.934s/Ruff/scopedMD/hooksPASS. A3fixedstatefulloracle unchanged; no newthreshold/nativecontrol.",
         "reassessment": {
@@ -1042,9 +1042,65 @@
           "window_charge_ns": 1150757811218,
           "window_common_ns": 82422046226,
           "shared_used_ns": 61444866903705,
-          "next": "Conditional one attempt0002, exact58-64 only after GPUfree/freshadmission; preserve passed54-58 and allcharges. Then original064onward, stopfirst/noauto thirdattempt."
-        }
-      }
+          "next": "Approved one attempt0002 completed successfully in exact058-064. Original failed attempt/charge retained; continue original064 onward serially, stopfirst/no automatic retries.",
+          "resumption": {
+            "raw": "/mnt/data/tmp2/fathomdb-0829-continuation/s50-g-visibility-20261116/logs/resume-original-058-064-c2ed2e8550-20261117.log",
+            "guardian": "4c96eedc-d0df-409a-b1bf-d1c666c4435e",
+            "exit": 0,
+            "phase_qualified": true,
+            "window_complete": true,
+            "qualified_ordinary": 64,
+            "charged_ns": 1944532832514,
+            "common_ns": 87088807677,
+            "shared_used_ns": 63390164205029,
+            "failed_member_cumulative_ns": 529658150459
+          }
+        },
+        "final_diagnostic_failure": {
+          "origin_id": "g-w-b10-s1-sdk-hybrid-r0",
+          "purpose": "diagnostic",
+          "window": "156-160",
+          "log": "/mnt/data/tmp2/fathomdb-0829-continuation/s50-g-visibility-20261116/logs/original-156-160-c2ed2e8550-20261117.log",
+          "complete": false,
+          "phase_qualified": true,
+          "window_complete": false,
+          "native_completed": 160,
+          "qualified_ordinary": 136,
+          "qualified_diagnostic": 22,
+          "charge_ns": 1802616732243,
+          "common_ns": 294939119965,
+          "shared_used_ns": 92320787877321,
+          "differences": [
+            {
+              "path": "/samples/860/hits/2/score_bits",
+              "id": "l:s30doc-51291",
+              "winner": 4592308368138809986,
+              "eager": 4592403180762544102
+            },
+            {
+              "path": "/samples/860/hits/5/score_bits",
+              "id": "l:s30doc-90996",
+              "winner": 4591023612635624095,
+              "eager": 4591077709928445362
+            }
+          ],
+          "evidence": "Existing authorized cursor/readiness normalization and clock exclusions leave exactly these two score differences; observation_issues empty for both. Both operations route=reference/lightweight_rows0; projection_cursor108610 vs108600 and vector_body_bytes6188 vs5233. Differing vector participation plausible, not proved; no deferred-hydration regression or report defect established.",
+          "review": "Independent Astra medium retained-result and frozen-source review complete: acceptance blocked; no report defect or deferred-hydration regression established. Both routes reference. Exact f64 fusion arithmetic uniquely fits vector/text ranks(10,7)vs(8,7) for51291 and(7,19)vs(6,19) for90996. These are mathematical reconstructions, not captured ranks. Search/projection transactions and no-drain G-W schedule support asynchronous vector participation as leading explanation; actual candidate identities/distances/ranks and historical snapshots unavailable, tie ordering also unproved.",
+          "next_decision": "Already ruled seq-393; proceed with remaining0.8.29 local combined qualification, then CI correctness review and permitted nonpublishing CI. No renewed confirmation of this exception.",
+          "owner_disposition": "HITL seq-393 explicitly accepts the observed negligible score deviation/likely asynchronous projection for0.8.29 progression; investigation remains0.8.30. Preserve failed comparison; no universal error bound, exact-equality pass, fixed-state A3 waiver or native retry.",
+          "evidence_archive": "/mnt/data/fathomdb/0.8.29-S50-data/",
+          "followup": "dev/plans/0.8.30/release-followups.md",
+          "hitl_exception_source": "dev/steward/steward-ledger.jsonl seq-393"
+        },
+        "accepted_diagnostic_by_hitl_exception": 2
+      },
+      "final_exit_review": {
+        "verdict": "Independent Astra-medium ACCEPT bounded S50 measurement exit and final90/Block1 local applicability join; no additional local execution gap before CI correctness review.",
+        "scope": "All160native completed:136ordinary+22diagnostic exact-result qualified; final2diagnostic accepted solely by HITL seq-393. Raw mismatch, fixed-state A3, native09c/compiler8465, recovered044-054 credit, prior failures/charges and strict cleanup preserved. No replay.",
+        "authority": "dev/steward/steward-ledger.jsonl seq-393",
+        "limitations": "Frozen snippets=None hydration/ranking comparison applies; setup/readiness/RSS remain original binaries, not final90 runtime measurements."
+      },
+      "sha": "aa0d9be5ef13494b5e5637654c9145e2d23fac35"
     },
     {
       "slice": 60,
@@ -1141,7 +1197,7 @@
         70,
         80
       ],
-      "status": "IN_PROGRESS",
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
       "design_refs": [
         "dev/plans/0.8.29/features/slice-90/acceptance.md",
         "dev/plans/0.8.29/features/slice-90/census.md",
@@ -1154,7 +1210,7 @@
         "dev/plans/0.8.29/features/slice-90/test-map.md"
       ],
       "conditions": "Owner seq392 supersedes the whole-Block1 pre-source hold: accepted80 plus fresh actual integrated qualified20/50/60/70 source-contract fit and accepted independent design permit90 implementation while measurements continue. Whole50 closure is an integrated qualification exit, not a source dependency. All selected30/50 measurements,completed40 conditional disposition, applicable correctness/performance/conformance/artifact gates remain required before local close. Run the exact seq38872 episodes once on the final integrated90 candidate with unchanged models, fixtures, scoring, budget and stops. Final local passes then CI review then CI; publication excluded.",
-      "phase": "SOURCE_AND_APPROVED72_ACCEPTED_REMAINING_MEASUREMENTS_PENDING",
+      "phase": "FULL90_BLOCK1_LOCAL_EXIT_ACCEPTED",
       "evidence": "Full80 implementation independently Astra accepted at261c5698f10170fe826e05cac160f15ac9f264a2 and integratede57e0874fabc893888b01362b4cfc6bb0701b31a. Actual semantic RED/GREEN includes installed Python/TS before shared converters; actual malformed-null decoder path bug separately repaired.13realengine cache/identity/snapshot/SQL-work controls,29installedPython,3installedTS,4nativeconverter andSDK consumer controls PASS; field census/module132/static409targets/lint/typechecks PASS. Parent combined qualification and remaining measurements remain pending; the exact72 comparison and judges are independently accepted. Slice40 conditional disposition is complete; source/artifact qualification retains the scoped results in160.",
       "block1_smoke_runner": {
         "source": "db2857c3012f8bdd245d1c6f80a419eff324030d",
@@ -1218,7 +1274,12 @@
         "tdd": "Observed decoder RED cbe7636cc65d67e9a9fd89c82752337b9d0af0e6 and actual delayed-reader RED07fb420a097ec35513b8b492b39b4d95269a1db4; GREEN58bceaf30/7ff065dc0.",
         "proofs": "5 decoder tests including64 exact-domain cases; original24 native CLI tests;2 original Python surface tests with30 authored declarations/5 exports and unchanged historical checksums;2 real-reader tests including unchanged missing-facts negative;8 unchanged TS configuration tests on actual hooks native. Shipping Python/TS front source unchanged.",
         "limits": "Python metadata proof uses immutable1349 wheel only for unchanged API scope, not typed-open shipping proof. Reader fix is cfg(test/test-hooks)-only. Fresh222 provider-free MCP probes and subsequent boundedCUDA14-call stage passed with independent Astra-medium runtime ACCEPT. No paid72 episodes or whole-release qualification."
-      }
+      },
+      "final_exit_review": {
+        "verdict": "Independent Astra-medium ACCEPT S90-A12/Block1 local applicability join after S50 seq-393 disposition.",
+        "scope": "Accepted predecessor exits/full90 implementation/conformance/MCP14/installed boundary controls/single72episodes144grades/final assembled source evidence compose within original producers and limits. No additional local execution required; macOS/hosted CI remain160."
+      },
+      "sha": "aa0d9be5ef13494b5e5637654c9145e2d23fac35"
     },
     {
       "slice": 100,
@@ -1557,7 +1618,7 @@
         "dev/plans/0.8.29/features/slice-160/test-map.md"
       ],
       "conditions": "Every selected mandatory outcome qualified or explicitly disposed; actual installed/publication proof separate.20 closes only with actual Windows A6;40 conditional scope is complete by independently reviewed non-adoption under existing Batch3 authorization;30/50/60/70/80 reach160 through90. Optional140/150 only if selected. Finished bounded local tasks are not local completion: every selected mandatory installed/platform (Q14) row and release dry-run (Q18) part that a permitted local or owned venue can qualify stays open until qualified there. The local mandate completes only when the remaining rows need CI after local passes and CI correctness review, or excluded registry publication; each is named outstanding, neither waived nor passed. Publication held. Owner seq377 explicitly defers live reset qualification to.30; seq378 defers new CUDA13 delivery/compiler/new-artifact proof to.31; seq379 accepts usage limits. These exclusions are owner dispositions, not passing tests. Existing platform/artifact rows remain. Seq381 also reallocates130A CUDA13 Tegra qualification to.31 while130D/E remain mandatory in.29;seq387 excludes unavailable non-Tegra ARM+GPU B/C.",
-      "phase": "PORTABLE_DELIVERY_ASSEMBLED_SOURCE_PASS_S50_GPU_WAIT",
+      "phase": "LOCAL_QUALIFICATION_ACCEPTED_CI_CORRECTNESS_REVIEW",
       "evidence": "IndependentAstraaccepted actualQ10longvariants,threeverifiedleafpackages,missingAC037live;Linuxx64/ARM64CPU2.28wheelsanddeclaredaddonfloors/strictTS/runtime/graph/frozen/modelCPUcontrols;Windowsproduction186tests/wheelsize/tenWAL+external+installedcontrols;canonicalCUDA12.6wheel2.28/NAPI2.39linkage/driverless/fourtypedrefusals;source-archiveRustSDKpersist/reopenandCLIimmutableintegrity. Source/target/nativeorigins,originaltaskfailures andARMmonitoringdeviation retained. No inventedx64CPUaddon2.28promise. ActualabccCUDApairGPUallocation/PIDUUIDandbothAC082dCPUnegative/CUDApositivepairsnowindependentlyAstraACCEPTattool686d:128MiBmodeldelta>=64MiBfloor,completeCPUtraces/loaders,noCUDAaccess,alllifecycleexit0/strictcleanup/FD9released. Mac/final90artifactapplicability,remainingfeature/performance/complete rehearsalstayopen;localpasses->CIreview->CI,registrypublishheld. IndependentAstraaccepted clean686d releaseperformance:AC011a1538.787/s>=1000,b268.069/s>=100;AC012n10000p50/p991/3ms,AC013n10000dim768p50/p9963/73ms;7freshAC081hard500/100mspasses,seq337.851121\u2013344.381150mswarnings/concurrent46.958327\u201352.513726ms. RealAC073stressN1000p9943ms<=150,N7667p9946ms<=316pass. OriginalEU7overallexit101/legacyrecallci_hi.897/.801remainfailed/unqualified;separateTC5F/Q8qualificationunchanged. Nohelperdefect/fakeRED/fix;originalplannedREDwrapperexit1wasexpectationonly. DCPUnoiseobserved/noquietclaim,noconcurrentbuildtimings. Q3/final90/rehearsalstillopen. Q3normalfeaturecampaignnowSOURCE+ASSEMBLEDQ3AstraACCEPTat5176860192cb3b2d82618f76251af44779ed6c37:30actualruns/230planned/207passed0runtimefailed23ignored. Exactrecordedmatrixextras+8manualignoredentriesandlibrary-IDresolverRED/GREENrevalidatedSAMEimmutablelogs;no passingreplay. OriginalEXIT1/10metadatafailuresandinterruptedwriterEXIT143retained.12unchangedoptin-exclusionlistingfreshnesschecksretainoriginalno-staleresultonly;nonewlistedIDclaim.403target/44gateonlystaticcoveragePASSafterrootintegration. Ignoredarenotpasses/manualfaultqualification;final90applicabilityremains.",
       "qualified_subset_sha": "b07a161317ff753b86b5eb706e7c5e761adecb9a",
       "final90_qualification": {
@@ -1568,7 +1629,7 @@
         "accepted_corrections": "Integrated through ec54f833c981d9b0f878a407b7df0d15aa4d6842: current MCP fixture/field census, strict approved compact-contract oracle reconciliation, typed embedder-profile admission before deferred coverage-token failure, and narrowly handled enumerated /proc ESRCH race. Genuine RED/GREEN plus independent Astra ACCEPT; original failing tests retained.",
         "module_gate": "Unchanged standalone gate PASS29+5 tests and132 modules/128 configurations under owned config-free Cargo home; exact --locked preserved. First sandbox read-only fixture refusal retained.",
         "q3_affected": "35 distinct affected normal-feature test IDs assembled PASS with independent Astra ACCEPT; original observer missing-Python failures retained. Unchanged prior Q3 scope reused explicitly, not retagged or rerun.",
-        "remaining": "RemainingS50 original78ordinary+24diagnostic native outcomes/final50-90-160joins. Actual054-064 stoppedforeignGPU afterfournewqualified;58credited. Exact58-64 conditionalresumption waitsactualGPUfree; no passingreplay/foreignactoraction. Localpasses thenCIreview/appropriateCI;publicationheld.",
+        "remaining": "S50/90/Block1 local join independently ACCEPTED with HITL seq-393 exception; no further local native/paid execution. CI correctness review now, then publicCandleHTTPSfetch/macOS/five-target/hostednonpublishingrehearsal. Registrypublication excluded.",
         "episodes": "Completed once:72valid episodes/all144grades, exact approved served models/qIDs/tool policy; independent Astra final ACCEPT. Reported total$0.13444673; no new quality threshold/noninferiority claim or further paid replay. See90 current_execution and existing comparison README.",
         "delivery": "Local passes, then review CI scripts before running appropriate CI; registry publication excluded.",
         "hints_failed_only": "One exact original unoptimized executable resumption PASS1/1 in7.37s; SHA2563f94cd2e7e9eb39ecd83456d5679ba6c4d18f435a1d56039ca52a6fe6b7b7860, original serial argument/environment/cwd. Original290.4us>200 failure and warnings retained; new numerical statistics captured/unavailable. No profile substitution or additional resumption.",
@@ -1628,14 +1689,17 @@
         "canonical_logs": "/mnt/data/tmp2/fathomdb-0829-continuation/root-release-20261116/logs/portable-canonical-*",
         "remote": "Cudarc343 authorizedbranchpush/remotecommitconfirmed. Candle2ee publicfetch remains PENDING permittedCIreview/pushstage; no workflow/settings/tag/registryaction.",
         "remaining": "Local code-phase checks resolved through accepted a55 CUDAcontract correction and canonicalfailed-onlyPASS. PublicCandleHTTPSfetch/CI remain pending; S50measurements/finalreleasejoins separate."
+      },
+      "local_combined_review": {
+        "verdict": "Independent Astra-medium ACCEPT bounded local Q2-Q17 applicability; no concrete changed-input gap requires reopening accepted scopes.",
+        "scope": "Actual assembled source/security/feature/scoped correction/performance/long/crash/selectedD-E/current artifact and strict docs proofs retain exact subjects. d226artifacts/222MCP-paid/17afassembledsource/portableb674+a55 are not retagged to a common uninterrupted pass.",
+        "remaining": "Q14macOS/five-target completion, publicCandleHTTPSfetch and Q18hostednonpublishingrehearsal after CI correctness review; Q19publication excluded."
       }
     }
   ],
   "landed": [],
-  "next_slice": 50,
+  "next_slice": 160,
   "remaining_ladder": [
-    50,
-    90,
     160
   ],
   "decisions": {
@@ -1837,6 +1901,13 @@
         "owner_slice": 90,
         "source": "dev/steward/steward-ledger.jsonl seq-392",
         "scope": "Source entry uses accepted80 and fresh integrated qualified20/50/60/70 source contracts. Required30/50 measurements and40 disposition remain integrated qualification exits. Same seq38872 episodes once on final integrated90 candidate, unchanged models/budget/oracles. No publication or extra calls."
+      },
+      {
+        "id": "s50-natural-gw-score-deviation",
+        "title": "HITL reviewed the observation and justified (negligible error; likely async projection) that it is okay to proceed",
+        "owner_slice": 50,
+        "source": "dev/steward/steward-ledger.jsonl seq-393",
+        "scope": "Accept the observed final G-W SDK-hybrid diagnostic pair deviation for0.8.29 progression; retain raw result_equal=false,136ordinary+22diagnostic exact-result credit and2diagnostic members accepted by HITL exception. No generalized score tolerance or fixed-state A3 change. Causal investigation allocated0.8.30; evidence /mnt/data/fathomdb/0.8.29-S50-data/. Remaining qualification/CI/publication boundaries unchanged."
       }
     ],
     "unruled": [
@@ -1869,7 +1940,7 @@
   },
   "release_readiness": {
     "status": "NOT_READY",
-    "qualification": "Currentportablebuild-deliverycodephaseassembledPASS:239registered/236ran/235initialPASS+soleCUDAcontractfailed-only121PASS,3explicitprivatecontrolskips;original2781sEXIT1 retained. Independentimplementationreviewsaccepted; no broad/scientific/paid replay. S50has58credited/78ordinary+24diagnosticremain; exact58-64oneconditionalresumptionwaitsforeigntrainingunitterminal+actualGPUfree. Final50/90/160joins,Candlepublicfetch/macOS/hostedCIreview+qualification remain;registrypublicationexcluded. ReleaseNOTcomplete.",
+    "qualification": "Local S50/90/Block1 and Q2-Q17 applicability independently ACCEPTED with bounded HITL seq-393 diagnostic exception, original source/artifact subjects and assembled failures retained. Remaining: CI correctness review, publicCandleHTTPSfetch, Q14macOS/five-target completion and Q18hostednonpublishingrehearsal. Registrypublication excluded; releaseNOTcomplete.",
     "publication": "HELD: registry publication and v* tag push excluded by owner scope. Appropriate CI is authorized after required local qualification and CI correctness review; bootstrap alone grants no external publication/ACL action.",
     "local_source_phase": {
       "status": "ASSEMBLED_FULL_SOURCE_PASS",

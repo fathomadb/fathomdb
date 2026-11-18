@@ -50,14 +50,18 @@ executed outcomes are resolved; strict owned MkDocs passes. See
 [final source qualification](../slice-160/status.md#final-integrated-source-and-documentation).
 The [artifact/MCP applicability record](../slice-160/status.md#typed-open-admission-fix-and-current-artifacts)
 retains d226/222 producer identities. Slice40 conditional disposition and
-Slice30 are closed. Slice90 remains open
-for completion/review of Slice50's original136 ordinary plus24 diagnostic
-outcomes and the final Block1 combined exit; these are qualification exits,
-not a restored source-entry hold.
+Slice30 are closed. Slice90's final Block1 local exit is independently accepted after all160 S50
+native outcomes and the narrow HITL seq-393 diagnostic disposition; the original
+failed comparison and producer limits remain.
 The same seq388-approved72 episodes subsequently completed once on the
 final222/b3c6 integrated candidate under seq392, with all144 grades and independent
 Astra final ACCEPT. Exact models, complete qIDs, costs and paired intervals are
 in the [existing comparison report](../../../../experiments/agent-remeasure/README.md#current-candidate-results-2026-11-16).
 No additional episode, quality threshold or noninferiority claim follows.
-Remaining Slice50/Block1 combined qualification and separate160 Mac/platform
-and CI/release obligations stay open; no tag or registry publication occurred.
+Separate160 Mac/platform and CI/release obligations stay open; no tag or registry
+publication occurred.
+
+Independent Astra-medium final local applicability review accepts S90-A12/Block1
+after all160 S50 native outcomes and HITL seq-393 disposition of the final
+diagnostic pair. Original exact-result failure and producer limits remain.
+Local90 is complete; macOS/five-target and hosted CI remain160 obligations.

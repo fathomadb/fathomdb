@@ -432,6 +432,6 @@ the substantive work; do not create receipt-only follow-up phases.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.29:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 50** (`FUSION-TEXT`) — Approved identity semantics and exact text/snippet route
+**IMMEDIATE NEXT: Slice 160** (`COMBINED-CLOSE`) — Selected combined qualification documentation and release readiness
 
-**Remaining ladder:** 50 → 90 → 160.<!-- END GENERATED release-state:0.8.29:plan-immediate-next -->
+**Remaining ladder:** 160.<!-- END GENERATED release-state:0.8.29:plan-immediate-next -->

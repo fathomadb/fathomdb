@@ -38,7 +38,9 @@ original events/charges; no retagging or duplicate execution/charge.
 
 A1/A2 follow owner seq-374 record/version identity and representative-first
 provenance; seq-375 selects atomic ambiguous named-ref feedback refusal. These
-are planned .29 changes; implementation/qualification remain pending.
+are implemented and source-qualified .29 changes. The final measurement exit
+is independently accepted with the narrow HITL seq-393 diagnostic exception;
+all160 native outcomes and the original failed comparison are retained.
 [Design](design.md) distinguishes existing and new behavior;
 [test map](test-map.md) separates inspected tests from future REDs. Preserve the
 approved60 format/filter/flag contract while keeping repeated-reference policy

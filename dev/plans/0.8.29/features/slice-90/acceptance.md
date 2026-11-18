@@ -34,8 +34,8 @@ None alone proves these new local behaviors.20 Windows/common-source,60/70,
 Slice40 conditional disposition and Slice30 are closed. The same approved72
 episodes and144 grades, current MCP14 and final17af source/Q17 qualification
 are independently accepted; their actual native/artifact origins remain
-recorded in [status](status.md). A12 remains open for completion/review of
-Slice50's original136 ordinary plus24 diagnostic outcomes and the final Block1
-exit.160 Mac/platform and subsequent CI/release obligations stay separate.
+recorded in [status](status.md). A12 and the final Block1 local join are independently accepted after
+all160 S50 native outcomes and HITL seq-393 disposition of the final diagnostic
+pair; original result failure, source identities and qualification limits remain.160 Mac/platform and subsequent CI/release obligations stay separate.
 Scoped Markdown validation neither supplies those outcomes nor requires
 replay of the already accepted controls.

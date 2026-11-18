@@ -25,10 +25,10 @@ this package: each host triple ships as its own package (for example
 resolved automatically on a matching host. You install `fathomdb` and nothing else. The
 0.8.29 release provides Linux x86_64 and Linux AArch64 glibc, macOS x64 and arm64, and Windows
 x64 packages. Linux musl remains without an installable native package.
-Generic Linux AArch64 packages are CPU-only. No 0.8.29 Tegra CUDA addon is
-provided; the retained 0.8.28 main/addon pair remains available through
+Generic Linux AArch64 packages are CPU-only. Classic Jetson Orin can use
+the matching 0.8.29 Tegra CUDA addon published through GitHub Pages; follow
 [the Tegra installation guide](https://github.com/fathomadb/fathomdb/blob/release/0.8.29/docs/install/typescript.md#classic-jetson-orin-with-cuda).
-Do not combine the 0.8.29 main package with the 0.8.28 addon. When no Tegra
+Keep the main/addon versions matched. When no Tegra
 addon is installed the loader uses the generic CPU package; mismatched
 versions are refused on a confirmed classic Jetson Orin.
 

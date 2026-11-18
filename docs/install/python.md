@@ -43,16 +43,15 @@ only supported native-build path for development.
 
 ## Jetson / Tegra CUDA
 
-No 0.8.29 `+tegra` wheel is provided. The generic 0.8.29 AArch64 wheel is
-CPU-only, including on Jetson. For the retained CUDA route, stay on the
-published 0.8.28 wheel below in a separate environment. CUDA 13 artifact
-delivery, including Tegra, is planned for 0.8.31; local Rust/CUDA qualification
-does not supply a prebuilt 0.8.29 Tegra package.
+The published `0.8.29+tegra` wheel supplies CUDA on classic Jetson Orin.
+It is distributed through first-party GitHub Pages, separately from PyPI.
+The generic 0.8.29 AArch64 wheel remains CPU-only, including on Jetson.
+CUDA 13 artifact delivery, including Tegra, is planned for 0.8.31.
 
 On a confirmed classic Jetson Orin (L4T R36 / JetPack 6, CUDA 12.6), install
-the exact 0.8.28 Tegra build from the first-party index. Confirm its
-`0.8.28+tegra` wheel entry and SHA-256 in the
-[retained artifact manifest](https://github.com/fathomadb/fathomdb/blob/release/0.8.28/scripts/release/tegra-pages-retained.json)
+the exact 0.8.29 Tegra build from the first-party index. Confirm its
+`0.8.29+tegra` wheel entry and SHA-256 in the
+[retained artifact manifest](https://github.com/fathomadb/fathomdb/blob/release/0.8.29/scripts/release/tegra-pages-retained.json)
 before installation:
 
 ```bash
@@ -60,11 +59,11 @@ python3 -m venv .venv
 . .venv/bin/activate
 python -m pip install --isolated --no-cache-dir --only-binary=:all: \
   --index-url https://fathomadb.github.io/fathomdb/tegra/simple/ \
-  'fathomdb==0.8.28+tegra'
+  'fathomdb==0.8.29+tegra'
 ```
 
 This is a detection-gated, exact-version route: do not use a floating version
-or `--extra-index-url`. The GitHub Pages transport is interim 0.8.28 hosting
+or `--extra-index-url`. The GitHub Pages transport is interim 0.8.29 hosting
 and is published only through the documented exact-SHA workflow. Unsupported JetPack,
 generic AArch64/SBSA, and Thor hosts have no supported Tegra CUDA route. Do not
 use a generic AArch64 CUDA build on classic Tegra; the SDK emits a visible

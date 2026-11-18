@@ -218,8 +218,9 @@ failures and honest unknowns; no force-retag or hook bypass.
 
 ## Immediate work and interactive boundary
 
-Finish master and feature-plan reviews, commit the planning work, then complete
-prework0–8 as authorized. Present their concise result and Slice9's proposed
-choice register to the owner; do not execute9's decisions,10 or20+ by inference.
+Master and all seven feature-plan reviews passed; the reviewed plans and
+[completed prework0–8](prework/README.md) are committed on `release/0.8.30`.
+Next is Slice9's interactive proposal scoring and owner decisions. Slice9,
+10 and20+ remain unexecuted; do not infer approval from completed investigations.
 The structured .30 release state/board is created only at its approved activation
 step, not to turn proposal drafting into an implementation campaign.

@@ -11,68 +11,67 @@ FIXTURE="$TMPROOT/fixture"
 make_fixture() {
   rm -rf "$FIXTURE"
   mkdir -p "$FIXTURE/scripts" "$FIXTURE/dev/plans/runs" "$FIXTURE/docs/generated"
-  python3 - "$REPO_ROOT" "$FIXTURE" <<'PY'
+  python3 - "$REPO_ROOT" "$FIXTURE" "${1:-0.8.26}" "${2:-34}" <<'PY_FIXTURE'
 import ast
+import json
 from pathlib import Path
-import re
 import shutil
 import sys
-root, fixture = map(Path, sys.argv[1:])
-m = ast.parse((root / 'scripts/check-public-doc-truth.py').read_text())
-a = next(n for n in m.body if isinstance(n, ast.Assign) and any(isinstance(t, ast.Name) and t.id == 'PUBLIC_DOCS' for t in n.targets))
-for e in a.value.elts:
-    p = Path(e.args[0].value)
-    dest = fixture / p
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    # A historical checkout remains a valid no-marker fallback case.
-    text = re.sub(r'^> \*\*Publication status: pending\.\*\*.*(?:\n>.*)*\n', '', (root / p).read_text(), flags=re.MULTILINE)
-    text = re.sub(r'0\.8\.(?:27|28|29)', '0.8.26', text)
-    text = re.sub(r'SCHEMA_VERSION` to \*\*(?:35|36|37)\*\*', 'SCHEMA_VERSION` to **34**', text)
-    text += '\nCurrent published release: v0.8.26 is published.\n'
-    text += '\nNative platforms: Linux x86_64, Linux AArch64, macOS x64/arm64, and Windows x64.\n'
-    if p.as_posix() == 'docs/install/typescript.md':
-        text = text.replace('npm install --save-exact fathomdb@0.8.26', 'npm install fathomdb@next')
-        text += '\nRecorded published route: `npm install fathomdb@latest`.\n'
-    if p.as_posix() == 'README.md':
-        text += '\n- Twelve Rust workspace members\n'
-    dest.write_text(text)
-for p in ['Cargo.toml', 'scripts/release-current.py', 'dev/platform-capabilities.json', 'dev/plans/release-state-0.8.26.json', 'dev/plans/runs/STATUS-0.8.26.md', 'docs/generated/contributor-map.md']:
-    shutil.copyfile(root / p, fixture / p)
-schema = fixture / 'src/rust/crates/fathomdb-schema/src/lib.rs'
-schema.parent.mkdir(parents=True, exist_ok=True)
-schema.write_text('pub const SCHEMA_VERSION: u32 = 34;\n')
-PY
+
+root, fixture = map(Path, sys.argv[1:3])
+version, schema = sys.argv[3], int(sys.argv[4])
+published = version == '0.8.26'
+checker = ast.parse((root / 'scripts/check-public-doc-truth.py').read_text())
+documents = next(
+    node.value.elts for node in checker.body
+    if isinstance(node, ast.Assign)
+    and any(isinstance(target, ast.Name) and target.id == 'PUBLIC_DOCS' for target in node.targets)
+)
+platforms = 'Native platforms: Linux x86_64, Linux AArch64, macOS x64/arm64, and Windows x64.'
+for document in documents:
+    relative = Path(document.args[0].value)
+    path = fixture / relative
+    path.parent.mkdir(parents=True, exist_ok=True)
+    text = f'# Release {version}\n\n{platforms}\n'
+    if published:
+        text += f'\nCurrent published release: v{version} is published.\n'
+    if relative.as_posix() == 'docs/install/typescript.md':
+        if published:
+            text += '\n`npm install fathomdb@next`\n\n`npm install fathomdb@latest`\n'
+        else:
+            text += f'\n`npm install --save-exact fathomdb@{version}`\n'
+    if relative.as_posix() == 'docs/compatibility/index.md':
+        text += f'\nThis release sets `SCHEMA_VERSION` to **{schema}** with no public automatic migration.\n'
+        for triple in (
+            'x86_64-unknown-linux-gnu', 'aarch64-unknown-linux-gnu',
+            'x86_64-apple-darwin', 'aarch64-apple-darwin', 'x86_64-pc-windows-msvc',
+        ):
+            qualification = ' (manylinux 2_28)' if triple == 'aarch64-unknown-linux-gnu' else ''
+            text += f'| `{triple}` | **yes**{qualification} |\n'
+    path.write_text(text)
+for relative in (
+    'Cargo.toml', 'scripts/release-current.py', 'dev/platform-capabilities.json',
+    'dev/plans/release-state-0.8.26.json', 'dev/plans/runs/STATUS-0.8.26.md',
+    'docs/generated/contributor-map.md',
+):
+    shutil.copyfile(root / relative, fixture / relative)
+if not published:
+    state = {
+        'release': version, 'board': f'dev/plans/runs/STATUS-{version}.md',
+        'schema_version': schema, 'public_docs_target_release': version, 'published': None,
+    }
+    (fixture / f'dev/plans/release-state-{version}.json').write_text(json.dumps(state) + '\n')
+    (fixture / state['board']).write_text(f'# Active release {version}\n')
+schema_path = fixture / 'src/rust/crates/fathomdb-schema/src/lib.rs'
+schema_path.parent.mkdir(parents=True, exist_ok=True)
+schema_path.write_text(f'pub const SCHEMA_VERSION: u32 = {schema};\n')
+PY_FIXTURE
   git -C "$FIXTURE" init -q
   git -C "$FIXTURE" add .
 }
 
 pending_fixture() {
-  make_fixture
-  python3 - "$REPO_ROOT" "$FIXTURE" "${1:-0.8.27}" "${2:-34}" <<'PY'
-import ast
-import json
-from pathlib import Path
-import re
-import sys
-root, fixture = map(Path, sys.argv[1:3])
-version, schema = sys.argv[3], int(sys.argv[4])
-m = ast.parse((root / 'scripts/check-public-doc-truth.py').read_text())
-a = next(n for n in m.body if isinstance(n, ast.Assign) and any(isinstance(t, ast.Name) and t.id == 'PUBLIC_DOCS' for t in n.targets))
-for e in a.value.elts:
-    p = Path(e.args[0].value)
-    text = re.sub(r'^> \*\*Publication status: pending\.\*\*.*(?:\n>.*)*\n', '', (root / p).read_text(), flags=re.MULTILINE)
-    text = re.sub(r'0\.8\.(?:27|28)', '0.8.26', text)
-    text = text.replace('0.8.29', version)
-    text = re.sub(r'SCHEMA_VERSION` to \*\*(?:34|35|36|37)\*\*', f'SCHEMA_VERSION` to **{schema}**', text)
-    text = text.replace(f'The published {version} line', f'The {version} line')
-    text = text.replace(f'Install the published {version} CLI', f'Install the {version} CLI')
-    (fixture / p).write_text(text)
-state = {'release': version, 'board': f'dev/plans/runs/STATUS-{version}.md', 'schema_version': schema, 'public_docs_target_release': version, 'published': None}
-(fixture / f'dev/plans/release-state-{version}.json').write_text(json.dumps(state) + '\n')
-(fixture / state['board']).write_text(f'# Active release {version}\n')
-(fixture / 'src/rust/crates/fathomdb-schema/src/lib.rs').write_text(f'pub const SCHEMA_VERSION: u32 = {schema};\n')
-PY
-  git -C "$FIXTURE" add .
+  make_fixture "${1:-0.8.27}" "${2:-34}"
 }
 
 mutate_state() {

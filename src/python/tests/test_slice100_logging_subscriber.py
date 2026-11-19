@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import sqlite3
 import gc
 import subprocess
 import sys
@@ -106,36 +107,65 @@ class LoggingSubscriberTests(unittest.TestCase):
 
     def test_handler_database_reentry_is_rejected_without_recursion(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
-            engine = Engine.open(str(Path(directory) / "subscriber.sqlite"))
+            database = Path(directory) / "subscriber.sqlite"
+            engine = Engine.open(str(database))
             engine.set_slow_threshold_ms(value=60_000)
             logger = logging.Logger("fathomdb-s100", level=logging.DEBUG)
-            attempted = threading.Event()
-            errors: list[Exception] = []
+            fenced = threading.Event()
+            batches: list[tuple[str, str, list[tuple[str, Exception | None]]]] = []
 
             class Reenter(logging.Handler):
                 def emit(self, record: logging.LogRecord) -> None:
-                    for operation in (
-                        lambda: engine.search("missing"),
-                        lambda: Engine.open(str(Path(directory) / "nested.sqlite")),
-                        engine.close,
-                    ):
-                        try:
-                            operation()
-                        except Exception as error:
-                            errors.append(error)
-                    if getattr(record, "fathomdb", {}).get("phase") == "finished":
-                        attempted.set()
+                    payload = getattr(record, "fathomdb", {})
+                    if payload.get("category") == "admin":
+                        outcomes: list[tuple[str, Exception | None]] = []
+                        for name, operation in (
+                            ("search", lambda: engine.search("missing")),
+                            ("open", lambda: Engine.open(str(Path(directory) / "nested.sqlite"))),
+                            ("close", engine.close),
+                        ):
+                            try:
+                                operation()
+                            except Exception as error:
+                                outcomes.append((name, error))
+                            else:
+                                outcomes.append((name, None))
+                        batches.append((payload.get("source"), payload.get("phase"), outcomes))
+                    elif payload.get("category") == "search" and payload.get("phase") == "finished":
+                        # One FIFO consumer has now completed every earlier Admin callback.
+                        fenced.set()
 
             logger.addHandler(Reenter())
             try:
                 engine.attach_logging_subscriber(logger)
-                admin.configure(engine, name="slice100", body="{}")
-                self.assertTrue(attempted.wait(5))
-                self.assertEqual(len(errors), 3)
-                self.assertTrue(all(isinstance(error, InvalidArgumentError) for error in errors))
-                admin.configure(engine, name="slice100-again", body="{}")
+                first = admin.configure(engine, name="slice100", body="{}")
+                second = admin.configure(engine, name="slice100-again", body="{}")
+                self.assertGreater(first.cursor, 0)
+                self.assertGreater(second.cursor, first.cursor)
+                self.assertEqual(engine.search("missing").results, [])
+                self.assertTrue(fenced.wait(5), "missing FIFO search completion")
+                self.assertEqual(
+                    [(source, phase) for source, phase, _ in batches],
+                    [("engine", "started"), ("engine", "finished")] * 2,
+                )
+                for _, phase, outcomes in batches:
+                    self.assertEqual([name for name, _ in outcomes], ["search", "open", "close"])
+                    for name, error in outcomes:
+                        self.assertIsInstance(error, InvalidArgumentError, (phase, name, error))
+                self.assertFalse((Path(directory) / "nested.sqlite").exists())
             finally:
                 engine.close()
+            reopened = Engine.open(str(database))
+            reopened.close()
+            with sqlite3.connect(database) as connection:
+                self.assertEqual(
+                    connection.execute(
+                        "SELECT name, kind, schema_json, retention_json FROM operational_collections "
+                        "WHERE name IN ('slice100', 'slice100-again') ORDER BY name"
+                    ).fetchall(),
+                    [("slice100", "latest_state", "{}", "{}"),
+                     ("slice100-again", "latest_state", "{}", "{}")],
+                )
 
     def test_replacement_close_and_caller_owned_logger_lifetime(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

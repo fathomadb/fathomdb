@@ -13,14 +13,37 @@ It takes its first cases from the [findings](../../testing-robustness-findings.m
 
 Commissioned at seq-402 for implementation using the supplied slice prompt template.
 
-## Entry and preparation
+## Baseline and allocation decisions
 
-- Reconcile the commissioned checkout with reviewed draft `f7fb1da9a81ee226c70ae347fa2fab3e64ac3c25` and current `origin/main`. Inventory commits since drafting that affect assigned functions, contracts, fixtures, pins, tooling or allocations. Keep, adjust or reject the affected plan items against the actual changes.
-- Consume the local needs/requirements/acceptance, architecture and testing proposals from prework3–5 and the Slice9 decisions allocated to30. Record adopt/adjust/reject for each, update the corresponding local contract/design/test draft and identify any prerequisite owner before implementation.
-- Require commissioned Slice 30 and the applicable approved Slice 10 preparation, including a checkout-owned test environment. Consume Slice 20 diagnostics when needed to establish first failure or actual execution scope. Slice 20 owns diagnostic repairs.
-- Reconcile seq-393 S50 and seq-375 occurrence-label review, the [identity decision](../../../../adr/ADR-0.8.29-retrieval-record-identity.md), and the [.29 typed admission proof](../../../0.8.29/features/slice-160/status.md#typed-open-admission-fix-and-current-artifacts). Consume the shipped ambiguity refusal as an existing contract. Reset and module lifecycle work belong to Slice 50.
-- Map existing boundaries from the [architecture](../../../../design/fathomdb-data-plane-architecture-v2.md) to the actual paths below. Reconcile any contract delta with the [ADR index](../../../../adr/ADR-0.6.0-decision-index.md). State the current mechanism, proposed change, owning function and prerequisite for each selected case.
-- The scope is current correctness on the existing store format and routes. New caches, schema changes, precision changes and retrieval backends are outside this slice. This draft grants no paid, GPU, native-matrix, live-fault or production execution.
+- Release baseline `5f4edd9831ddbb5ee12ebe594a3f6cd17fcc46b8` commissions
+  the slice (seq-402) after 10 and 20. The worktree is based on that commit.
+  Since reviewed draft `f7fb1da9a81ee226c70ae347fa2fab3e64ac3c25`, the
+  affected Rust search, projection, MCP and admission source, interface
+  contracts, and typed-error fixtures have no changes. Fresh `origin/main`
+  at `b86b19847852e9beaeea32b98dae03b537d8fea4` has no new changes in
+  those paths beyond the release. Resolution has advanced Tokio 1.52.3 to
+  1.54.1 and webpki-roots 1.0.7 to 1.0.12. Preserve both.
+- Adopt prework [3](../../prework/slice-3.md) and [4](../../prework/slice-4.md):
+  exact same-state output, canonical attribution, atomic feedback, snapshot
+  witness and committed coverage. Format 37, existing reader and writer
+  boundaries, and [embedder-owned identity](../../../../adr/ADR-0.6.0-vector-identity-embedder-owned.md)
+  apply under the [architecture](../../../../design/fathomdb-data-plane-architecture-v2.md)
+  and [ADR index](../../../../adr/ADR-0.6.0-decision-index.md). Reject any
+  new persisted snapshot stamp, write lane or cache.
+- Adopt prework [5](../../prework/slice-5.md) and [9](../../prework/slice-9.md)
+  P9-11: add independent rank and coverage oracles where existing assertions
+  leave a gap. Map and retire the self-equality query scaffold. Keep the
+  existing eligibility-before-cap, feedback validation and typed-admission
+  mechanisms. Leave performance treatment, reset/model lifecycle, fork work,
+  integrated qualification and publication with their assigned owners.
+- Adopt the findings and recommendations for one bounded correctness hunt,
+  author-derived expectations, selected committed/rolled-back state, and
+  paired reference comparison. Defer broad mutation, coverage, fault and
+  resource campaigns under the [quality roadmap](../../../../notes/fathomdb-quality-testing-roadmap.md).
+  Slice 10/20 added source-bound developer setup and diagnostic routing.
+  Use checkout-owned Python 3.12 and npm dependencies, Rust 1.95 and dev
+  Node 26.13.1. Preserve the selected SDK Node support range and inherited
+  unqualified outcomes in their owning slices.
 
 ## Local requirements and acceptance
 
@@ -30,7 +53,7 @@ These are release-local refinements. The canonical acceptance suite remains auth
 
 - Need: distinguish rank movement between reader states from a same-state wrong result. First inspect the retained reports, both sample records, source pins and final databases indexed by `/mnt/data/fathomdb/0.8.29-S50-data/README.md`. Keep the archival evidence intact.
 - The G-W b10/s1 SDK-hybrid diagnostic differs at sample 860, query 360, operation 9971. Eager scores are 1.240362% and 0.850694% higher for two hits, with matching ordered document IDs and text. Both calls used the reference route. The cursors were 108610 and 108600. Reconstructed ranks support a hypothesis, while the missing historical candidate lists and reader states leave asynchronous projection and tie order unresolved.
-- If commissioned, use one bounded CPU reproduction on an owned real store with one query and a controlled projection step. Capture the selected route and relevant candidate record IDs, raw vector distances, original arm positions, tie groups and resolved tie order, reader snapshot witness and projection cursor. Capture both sides at the ranking read, with the same query inputs and validity window. A cursor value alone cannot identify the complete reader state.
+- Use one bounded CPU reproduction on an owned real store with one query and a controlled projection step. Capture the selected route and relevant candidate record IDs, raw vector distances, original arm positions, tie groups and resolved tie order, reader snapshot witness and projection cursor. Capture both sides at the ranking read, with the same query inputs and validity window. A cursor value alone cannot identify the complete reader state.
 - Pair the moving-state case with a fixed-state control exercising the supported reference and optimized routes with route witnesses. Require [S50-A3](../../../0.8.29/features/slice-50/requirements.md) exactness for ordered fields, score bits, cursor, sidecars and applicable error/fallback metadata on matched state and inputs.
 - Acceptance: independently recompute affected scores from captured original ranks and identify the input or ordering difference, or report precisely what the bounded probe leaves unresolved. Discuss a state-aware natural-write comparison design and the evidence it would require. Preserve the original failed comparison, qualification credit and charges. Add no blanket tolerance, retrospective pass or full 160-member replay.
 
@@ -50,8 +73,19 @@ These are release-local refinements. The canonical acceptance suite remains auth
 - Acceptance: independently enumerate attributable mapped heads. Check `R=K+U`, truncated known count, body and unrepresented bytes, exact fractions and denominator-zero nulls. Distinguish NULL from known zero and count unattributed heads separately while preserving original corruption refusals. Include retained history and an unmapped record.
 - With a deterministic reader rendezvous and existing transaction controls, distinguish committed results, rollback, conservative invalidation and frozen refusal. A pinned reader returns the old exact endpoint or the contract's frozen refusal. A new ordinary read sees committed facts. A failed or rolled-back capture cannot publish staged counts.
 - Assert original-body UTF-8 boundaries, including role bytes, and exact scored extent for the selected canonical vector participant. Reject a mid-codepoint or malformed tuple. Unknown endpoints and nonparticipants omit the extent, and known zero survives. Keep bounded indexed extent work and snippets-off behavior.
-- Review [open admission](../../../../../src/rust/crates/fathomdb-engine/src/open.rs) against the existing [Python](../../../../../src/python/tests/test_typed_errors.py) and [Node](../../../../../src/ts/tests/typed-errors.test.ts) installed cases. Those cover malformed profile name/revision BLOBs and negative dimension. Select one discriminating malformed-native case only if reconciliation exposes a gap. A candidate is a malformed stored profile plus a bad coverage token, if existing controls leave their joint precedence unproved.
-- Acceptance for a selected open case: exercise actual native open, assert original class, kind, stage, hint and anchor, relevant precedence, repeated refusal without mutation or lock retention, then restore only the injected fixture fields and reopen the persisted body in a fresh process. Use one owning engine case and thin boundary proof where affected.
+- [Open admission](../../../../../src/rust/crates/fathomdb-engine/src/open.rs)
+  and the coverage token both decode the same stored profile columns. A
+  name/revision BLOB or negative dimension already causes token capture to
+  fail as well as admission to refuse. Existing installed
+  [Python](../../../../../src/python/tests/test_typed_errors.py) and
+  [Node](../../../../../src/ts/tests/typed-errors.test.ts) cases discriminate
+  which failure wins. Reuse these checks on exact checkout-native artifacts.
+  The engine controls independently distinguish span tuple refusal, requested
+  provider mismatch and token-only refusal. A second malformed field within
+  the same profile adds no precedence information. Keep payload and repeat
+  refusal assertions, and prove process isolation and healthy persisted reopen
+  with the existing native case or a thin invocation of it. No admission
+  rewrite or duplicate binding matrix.
 
 ## R30-TEST and stop rules
 
@@ -60,15 +94,74 @@ These are release-local refinements. The canonical acceptance suite remains auth
 - End after the named cases and at most one discriminating minimized follow-up unless new evidence justifies extending the scope. Classify each as confirmed product defect, fixture/operator defect, expected behavior, bounded non-reproduction or unresolved observation with consequence. There is no bug quota.
 - Remediate confirmed defects in this slice. Critical wrong results or data loss require repair or explicit owner disposition before release. Give Slice 70 each selected test gap, its implemented oracle or authorized disposition, and the concrete wrong result the oracle rejects.
 
-## Design, implementation and closure
+## Design and execution
 
-1. Draft the smallest design that meets the accepted contracts. Resolve capture placement and snapshot witness, tie and cap handling, feedback response scope, and commit-only publication. Where source evidence leaves a question, consult primary sources for the pinned SQLite WAL and FTS5 behavior and sqlite-vec tie/cap behavior, then check fit against the local source and fixture. Prepare applicable design, interface or ADR deltas and obtain direct Astra-medium design review before implementation.
-2. Submit the reconciled plan to direct Astra-medium critical review, with one FIX-1 and re-review at most. Commit the updated plan after PASS. If it still fails, retain the findings and hold the affected transition. Proceed with implementation only after the slice is commissioned and its dependencies and authority are satisfied.
-3. For each confirmed behavior defect, commit a real-database regression that fails for the intended assertion and include the observed failure in the RED commit. Follow with a separate GREEN commit and refactor if needed. Keep passing characterization and oracle-strength controls explicitly separate from defect REDs. Preserve human-authored expectations.
-4. Obtain direct Sol6.2-high code review and direct Terra independent verification of affected runtime tests and any affected installed artifacts. Use scoped lint, type and test checks during work. Run the required full gate once on a stable source phase, then recheck failed, affected or unrun scopes after narrow fixes. Preserve full diagnostics and actual exits, skips and limits.
-5. Record concise dispositions and update affected contracts, changelog, SDK parity and owning release state once. Merge any temporary branch into the owning release branch and clean only owned inactive worktrees and scratch after preserving needed evidence. Serialize shared source/state edits and isolate concurrent writers. Spawn reviewers and verifier directly.
-
-## Prerequisites and open choices
-
-- Entry depends on approved Slice 10 preparation and later Slice 30 commissioning. Confirm retained archive access, availability of controlled local replay and actual native inputs before relying on that proof.
-- Select the bounded replay's state witness and limits, any genuinely uncovered malformed-native case, and the Slice 9 oracle improvements. Exact occurrence labels remain an explicit owner choice. This draft claims no runtime or artifact result.
+1. **Controlled ranking read.** Use a single owned temporary format-37 store,
+   one fixed valid-as-of, a deterministic 8-D test embedder and a handful of
+   real writes, under 16 authored rows. Build vector/FTS state through the
+   normal write and projection path. Drain the seed. Freeze the existing
+   scheduler, write one nearer nonlexical candidate, then compare the same
+   reference hybrid before and after releasing and draining that projection.
+   This separates the pending vector from synchronous lexical and canonical
+   work. Use explicit validity, the existing projection controls and bounded
+   waits. Keep the selected visible twin records and text ranks stable, and
+   expect the one added vector to shift their original positions.
+2. **Ranking and authority witness.** In the in-crate diagnostic only, attach
+   an opt-in operation setting to the existing observer token. Use the
+   existing forced reference route without changing environment in a
+   thread-sharing test. Extend observations at the actual vector SQL output
+   (raw exact L2 and physical rowids) and before fusion (typed record keys,
+   original position and raw score for each vector and text arm, including
+   deferred lexical inputs). Record actual winner hydration versus reference
+   execution. Use the existing in-transaction cursor, visibility generation,
+   nonce, dependency generation and bound view as the paired witness. The
+   single small fixture is below every cap and captures the complete ranked
+   input. Equal distances expose observed order, without assuming a new
+   cross-state tie policy. No new SQL for candidate tracing, ordinary
+   observer payload change, production code path or public ABI.
+3. **Independent and same-state oracle.** Fixture vector geometry and text
+   frequency/length give distances, ties and lexical order. Check expected
+   membership independent of producer output, then recompute both score
+   bit patterns using fixed K30/weights1/3 and first original positions.
+   Compare full ordered response, score bits, snapshot/cursor, metadata and
+   snippet sidecars across reference and actual winner hydration at both
+   fixed boundaries. Reuse A3 rank-above-200, malformed losing candidate,
+   empty-arm/duplicate, fallback and mixed node/edge controls at their owning
+   suite. Use the existing same-body, ownerless, repeat-credit and SDK packing
+   tests for provenance; strengthen a concrete uncovered composition only.
+4. **Coverage and extent oracle.** Use the existing engine fixture/control
+   seams with a bounded generated group of attributed mapped records of
+   independently authored body lengths and endpoints (NULL, zero, truncated
+   and full), a retained version, an unmapped fact and a well-formed
+   unattributed head. Cross-check every public count and exact optional
+   numerator/denominator from the fixture, including explicit all-unknown
+   and known-zero cases. Compose endpoint changes in a real rollback and
+   commit, validate conservative invalidation and refresh, and reopen to
+   confirm only committed counts. Keep failed capture publication, pinned
+   reader/external commit and original corruption tests. Use the original
+   role-tagged string and its byte indices for a UTF-8 case through search,
+   covering a selected participating record and the existing nonparticipant,
+   unknown and invalid-boundary behavior.
+5. **Feedback and test maintenance.** Run the existing mixed unique/ambiguous,
+   same-cursor, validation-order and compact refusal cases. Extend the MCP
+   suite with a telemetry-backed continuation where one public ref is unique
+   on each kept response and maps to that response's distinct query/cursor.
+   Review precise labels with schema/rendering, validation and budget in the
+   closure. The owner retains the choice to add them. The query compiler's
+   in-crate `lib.rs` and `stop_words_tests.rs` already exercise generated
+   literal quoting and stop-word behavior. Delete
+   `fathomdb-query/tests/property_template.rs` (string equals its clone);
+   the existing scaffold checker never registered it.
+6. **Review and verification.** Obtain direct Astra-medium review of this
+   plan and design, with one FIX-1 and re-review if needed, then commit.
+   Each confirmed behavior defect needs a separate genuinely failing
+   regression commit with the observed failure, followed by GREEN. Record
+   passing characterization and oracle improvements as such. Obtain direct
+   Sol6.2-high code review and Terra verification. Run one strict full gate
+   on stable source; recover narrowly and verify failed, affected and unrun
+   scopes where possible. Preserve ordinary hooks, exact runtime selectors,
+   diagnostics and actual exits.
+7. **Closure.** Write this slice's status and send the parent exact commit
+   range, findings, test coverage and qualification gaps. The parent owns
+   canonical state, integration and worktree cleanup. Do not modify any
+   frozen campaign result, shared ledger or release-state artifact.

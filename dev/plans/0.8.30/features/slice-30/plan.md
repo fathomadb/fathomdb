@@ -11,7 +11,9 @@ Make retrieval, attribution, coverage and open failures agree with their contrac
 This draft refines R30-COR/S50 and owns the correctness portion of R30-TEST under the [release plan](../../plan.md).
 It takes its first cases from the [findings](../../testing-robustness-findings.md), [recommendations](../../quality-performance-robustness-recommendations.md) and [receiving allocations](../../release-followups.md).
 
-Commissioned at seq-402 for implementation using the supplied slice prompt template.
+Commissioned at seq-402 for implementation using the supplied slice prompt
+template. Seq-403 adds [issue #264](https://github.com/fathomadb/fathomdb/issues/264)
+to the same slice.
 
 ## Baseline and allocation decisions
 
@@ -86,6 +88,54 @@ These are release-local refinements. The canonical acceptance suite remains auth
   refusal assertions, and prove process isolation and healthy persisted reopen
   with the existing native case or a thin invocation of it. No admission
   rewrite or duplicate binding matrix.
+
+### R30-COR — Authenticate partial-span dependency traces
+
+- Need: consumers can confirm a derived artifact that cites a strict UTF-8
+  subspan of its source. [Issue #264](https://github.com/fathomadb/fathomdb/issues/264)
+  was open with no comments when seq-403 extended the scope. The previously
+  reviewed slice at `7fb71579e` added the MCP correction and the ranking and
+  coverage oracles. Its trace, write and evidence paths were unchanged. The
+  final full gate has yet to run.
+- [Canonical provenance](../../../0.8.25/features/slice-15/design.md) defines
+  SHA-256 over all original canonical source bytes. The writer, dependency
+  registry and evidence resolve follow that definition.
+  [Trace](../../../../../src/rust/crates/fathomdb-engine/src/dependency_trace.rs)
+  incorrectly compares the digest with the cited bytes. The
+  [trace ADR](../../../../adr/ADR-0.8.25-governed-dependency-trace-and-integrity.md)
+  governs reciprocal visibility, bounds and nondisclosure.
+- Design: keep the existing source identity, version, hash grammar, locator
+  shape and trace authorization checks. Validate locator offsets using checked
+  conversion and the UTF-8 string byte range, then verify the persisted digest
+  with `canonical_body_hash` over the full source for both locator kinds.
+  `source_link_valid` already serves root and relation checks in both
+  directions. A partial locator now hashes the full body already read for
+  validation. SQL work, schema, stored values, wire fields, lifecycle and
+  frozen/refusal precedence stay within their existing contracts.
+- Acceptance: write and register a derived node and a derived edge for
+  `aé猫z` with the strict byte span [1,3) and the whole-body digest. Inspect
+  the stored locator and digest directly. A single frozen context gives
+  reciprocal exact endpoints and relations with complete results and the
+  expected work counts. Include a full-length byte range. Existing trace
+  cases retain the whole-body control.
+- Use real persisted fixtures with a span-only digest, a mid-codepoint
+  endpoint, an out-of-bounds endpoint and changed bytes outside the cited
+  span. Keep the canonical root valid for the outside-span control so it
+  independently checks the derived digest. A derived-root trace refuses
+  without disclosing a relation, and a source-root trace does not return the
+  invalid relation. Existing typed write, source/version, lifecycle, frozen,
+  bound and nondisclosure cases keep their authority.
+- The writer and registration admit empty ranges at valid byte boundaries.
+  Trace currently requires a nonempty range. Record this adjacent policy
+  discrepancy with its existing observable outcome. Seq-403 selects the
+  digest correction. Any range-policy change needs its own requirement and
+  regression.
+- Obtain direct Astra-medium review of this addition before code. Commit a
+  genuine unmodified-engine RED with the observed trace failure, then GREEN
+  separately. Run focused trace, provenance, dependency, evidence and scoped
+  lint/type checks. Use thin real Python and Node source-bound positive
+  probes. Sol-high reviews the delta and cumulative slice, and Terra
+  independently verifies the new controls and affected installed routes.
 
 ## R30-TEST and stop rules
 

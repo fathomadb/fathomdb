@@ -82,15 +82,20 @@ or silently change an adjacent slice. Scope overflow goes back to the owner.
 | 20 | Efficient, diagnosable CI/CD — R30-CI/DIAG | Approved 10 preparation | Preserve first failure through cancellation, fix normal OIDC/visibility and truthful closure checks, measure selected setup/static-check savings without losing controls. |
 | 30 | Correctness bug hunt and remediation — R30-COR/S50 | Approved 10; consume 20 diagnostics when needed | Classify bounded S50/identity/feedback/coverage/FFI cases; confirmed defects have observed RED→GREEN and exact state/error regressions. |
 | 40 | Performance and end-to-end latency — R30-LAT | Approved 10 for baseline; relevant 30 fixes and final consumed 60 pins before promotion | Comparable baseline/treatment, measured useful latency/tails/throughput/resources, unchanged correctness; justified non-adoption is valid. |
-| 50 | Concurrency, lifecycle and resource bug hunt and remediation — R30-ROB | Approved 10; consumed 30 fixes; safe-drop fork prerequisite from 60 for unsafe release only | Positive concurrent work, capacity/cleanup/reopen assertions, default Node growth disposition and safe selected module-release behavior. |
+| 50 | Runtime concurrency and resource bug hunt and remediation — R30-ROB | Approved 10; consumed 30 fixes; safe-drop fork prerequisite from 60 for unsafe release only | Positive concurrent work, capacity/cleanup/reopen assertions, default Node growth disposition and safe selected module-release behavior. |
+| 55 | Data integrity and recovery — R30-TEST | Approved10 and consumed30; applicable50 runtime fixes before affected promotion | Independent cross-index/temporal/relationship state, bounded fuzz and crash/WAL proof, doctor fixes and thin behavioral fixtures. |
 | 60 | Scoped fork maintenance and qualification — R30-FORK | Approved 10 for design; consumed lifecycle contracts | Selected upstream/delta map, coherent pins, independent supported/unsupported kernel/output/resource controls and installed consumers. |
-| 70 | Integrated qualification and release readiness — R30-QUAL/TEST | Selected exits 20–60 | Applicable source/security/long/performance/platform/artifact and docs checks plus independent review; every selected test gap has a discriminating oracle and owner; original nonpasses stay visible. |
-| 80 | Authorized delivery and registry consumers — R30-REL | 70 and separate production authority | Every required publisher, exact-version installed consumer, co-tagging, normal finalization, public docs/download and owned cleanup completes. |
+| 70 | Integrated behavior and source qualification — R30-QUAL/TEST | Selected20/30/40/50/55/60 exits | Applicable source/security/features/long/performance/fidelity and composed-behavior checks; every selected test gap has a discriminating oracle and owner; original nonpasses stay visible. |
+| 75 | Platform and artifact qualification — R30-QUAL | Source-qualified70 candidate and final consumed pins | Five-target installed/native/source-archive consumers, actual Windows WAL and hosted cancellation, declared CUDA support, contracts/docs convergence and nonpublishing immutable-candidate handoff. |
+| 80 | Authorized delivery and registry consumers — R30-REL | 75 and separate production authority | Every required publisher, exact-version installed consumer, co-tagging, normal finalization, public docs/download and owned cleanup completes. |
 
 Detailed drafts live at `features/slice-N/plan.md`. Their requirements are
 release-local proposals, not new canonical AC numbers. After 10, delivery20,
 correctness30 and baseline40 can proceed independently where ownership permits;
-60 design can run alongside safe50 work. Final fork/native inputs precede final
+60 design can run alongside safe50 work.55 may prepare independent CPU/data
+fixtures after30 while50 finishes a conditional fork prerequisite, but must consume
+affected runtime fixes before promotion.70 joins all selected implementation exits;
+75 consumes70 and supplies80 the qualified artifact candidate. Final fork/native inputs precede final
 numerical/artifact proof. Serialize shared engine/search edits and pin/state
 integration; concurrent writers each get a worktree. Reuse valid earlier proof
 by actual source/features/artifact/fixture/protocol, not merely ancestry.
@@ -134,15 +139,34 @@ the .29 Python clean-candidate guard correctly rejected parent metadata edits.
   recovery. Fixture watchdogs are not total-close SLAs: retain database
   quiescence before provider-drain timing. Separate default Node JS/native live
   ownership/reservation from the prior semispace4 pair. Conditional delivered
-  checkpoint faults need concrete authority. Safe post-reset drop precedes
+  checkpoint faults move to55 and need their applicable concrete authority. Safe post-reset drop precedes
   exercising or shipping B30-01 opt-in model release; review concurrent use,
   repeated release, error parity and reload in Rust/Python/TS. Other safe work
   proceeds while a prerequisite is held. Orin requires Orin proof; no host reset.
+- **55:** own the selected seq-406 cohesion/temporal/relationship fixture and
+  bounded operation model, up to three product-input fuzz targets, missing CPU
+  process-crash/WAL composition and17-doctor gap fixes. Reuse the fixture for thin
+  SDK/MCP boundary assertions and selected oracle-sensitivity checks. Preserve
+  independently authored state, valid-WAL witnesses and truthful async readiness;
+  no new semantics, broad framework or power-loss claim.
 - **60:** retain F30-REBASE/MARKER/MULTIARCH and .29 fixes; choose justified
   upstream and actual native/PTX targets, compare K1–K9 and retained/removed
   patches, preserve private-pool primitives independently of marker cleanup,
   measure cold-start/JIT/build/size and unsupported cases. Qualify inside each
   fork, then consume exact pins; no inferred new dtype, platform or CUDA13 claim.
+
+Owner seq-407 right-sizes the remaining work without reopening completed slices.
+[50](features/slice-50/plan.md) and [55](features/slice-55/plan.md) implement their
+own test/fix scope. [70](features/slice-70/plan.md) qualifies integrated source;
+[75](features/slice-75/plan.md) qualifies actual installed platforms/artifacts and
+converges docs. Implementation owners update affected contracts with each change.
+Freeze final support/version/native inputs before their applicable artifact proofs;
+changes invalidate only affected claims. Do not repeat unchanged full gates or
+duplicate engine tests across languages.75 does not grant publication authority.
+
+Sol6.2-high drafted55/75. Direct Astra-medium passed50/55/70/75 and the
+master/state split after one consolidated FIX-1; this is plan review, not
+runtime verification or implementation commissioning.
 
 Bug hunts30/50 each select named hypotheses and bounds before running; stop after
 those cases and a discriminating follow-up unless new evidence justifies more.
@@ -155,7 +179,7 @@ score tolerance. No paid72/full160 campaign repeats for a release-number change.
 ### Reserved-gap work
 
 Unassigned slice numbers remain reserved. A needed coherent follow-up requires
-explicit scope placement; broad cruft deletion, general version refresh and
+explicit scope placement; seq-407 inserts55/75 for the approved50/70 split. Broad cruft deletion, general version refresh and
 Inspector integration remain postponed under seq-399. Scope gaps do not grant
 implementation authority.
 
@@ -211,7 +235,8 @@ suite plus thin installed-binding checks avoids copied matrices. Review actual
 suite duration, claim, useful defects/misses and overlap before consolidation.
 **R30-TEST is an implementation obligation after Slice9 decisions:** selected
 harness/CI test improvements belong to20, correctness/reference/property gaps
-to30, and concurrency/resource/recovery gaps to50. Slice70 accounts for every
+to30, concurrency/resource gaps to50 and composed data/recovery/fuzz/doctor gaps
+to55. Slice70 accounts for every
 selected gap and its owning fix or explicit disposition, real-store or independent
 oracle, and a plausible wrong result that the oracle rejects. A consolidation
 must preserve its meaningful semantic/platform coverage and show cost/overlap
@@ -221,7 +246,9 @@ Owner seq-406 adds the [coverage audit and gap allocations](coverage-audit.md):
 one composed canonical/FTS/vector/graph temporal-lifecycle fixture, bounded
 real-store state sequences, actual product-input fuzzing, selected CPU crash/WAL
 composition, all-doctor outcome/effect coverage and thin behavioral SDK/MCP
-parity. Slice50 implements missing cases after commissioning; Slice70 requires
+parity. Ownerseq-407 splits implementation between50 runtime and55 data integrity,
+and qualification between70 source behavior and75 installed platforms/artifacts.
+Each begins only after its applicable commissioning; qualification requires
 actual exact-candidate proof and dispositions. Existing40 latency scope remains
 unchanged. Erasure retains lower-priority critical regressions. These additions
 adopt the SQLite-method roadmap at FathomDB-owned boundaries, with bounded
@@ -241,7 +268,8 @@ against actual changes; no new chunking decision is inferred from old results.
 Every selected behavior change updates its contract/ADR and changelog, with
 Rust/Python/TS parity where affected. Public docs update navigation and pass
 strict MkDocs when changed. At70 obtain actual applicable full/feature/security/
-long/performance/platform/native checks or explicit authorized dispositions.
+long/performance/source-behavior proof, and at75 installed platform/native and
+contract/doc convergence proof, or explicit authorized dispositions.
 At80 require trusted exact-tag routing and fresh installed persisted write/read,
 missing-record, separate-process reopen, close/exit, registry finalization and
 public downloads. Partial publication remains incomplete. Retain original
@@ -273,4 +301,4 @@ own current status.
 <!-- BEGIN GENERATED release-state:0.8.30:plan-immediate-next -->
 **IMMEDIATE NEXT: Slice 40** (`LATENCY`) — Performance and end-to-end latency
 
-**Remaining ladder:** 40 → 50 → 60 → 70 → 80.<!-- END GENERATED release-state:0.8.30:plan-immediate-next -->
+**Remaining ladder:** 40 → 50 → 55 → 60 → 70 → 75 → 80.<!-- END GENERATED release-state:0.8.30:plan-immediate-next -->

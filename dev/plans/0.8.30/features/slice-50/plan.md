@@ -1,11 +1,11 @@
 ---
-title: 0.8.30 Slice 50 concurrency, lifecycle and resources
+title: 0.8.30 Slice 50 runtime concurrency and resources
 status: PROPOSED
 slice: 50
 target_release: 0.8.30
 ---
 
-# Slice 50 — Concurrency, lifecycle and resource bug hunt and remediation
+# Slice 50 — Runtime concurrency and resource bug hunt and remediation
 
 ## Entry and prerequisites
 
@@ -35,35 +35,24 @@ policy and the physical-erasure defect-only scope.
 | R30-ROB engine dispatch and isolation | Test two independent engines on distinct databases, using a canonical/path-alias hook only for its intended engine. Queue saturation/expiry yields `Overloaded`; a started embedding timeout yields `Embedder` at the direct dispatch boundary while its worker remains occupied until provider return. Ordinary search may use its documented sparse fallback. Assert each layer's actual error/fallback, capacity recovery and exact positive results rather than equating worker slots with MCP permits. |
 | R30-ROB close and recovery | Exercise concurrent/repeated close and canonical/alias ownership using positive committed writes and reads. Record waiter completion, owner teardown, release of locks and exact read/write state after fresh-process reopen. Observe SQLite quiescence before the one shared provider-drain deadline, including expiry and later return. |
 | R30-ROB default Node | Compare matched pool ON/OFF on the default Node runtime with positive calls, exact outputs, passive JS and native observations, resource bounds and normal close/exit. Classify growth against owned live allocations, allocator reservation and measurement overhead. Keep the .29 default FAIL/OFF_NOT_RUN visible and preserve its semispace4 result separately. |
-| R30-ROB conditional fault/release | For an authorized checkpoint interruption, show actual delivery and expected recovered canonical, projection and queue state. For selected B30-01 after safe-drop proof, show explicit Rust/Python/TypeScript release, concurrent-use safety, repeat release, healthy reload and error parity. For separately authorized real CUDA loss, require typed refusal, safe teardown and fresh-process recovery on each selected venue. |
+| R30-ROB conditional model release | For selected B30-01 after safe-drop proof, show explicit Rust/Python/TypeScript release, concurrent-use safety, repeat release, healthy reload and error parity. For separately authorized real CUDA loss, require typed refusal, safe teardown and fresh-process recovery on each selected venue. |
+| R30-ROB logging synchronization | Reproduce the retained asynchronous logging fixture failure (`6 != 3`) and establish its intended event/owner contract. Use rendezvous or observable completion, assert the actual intended events and successful outer work, and distinguish a fixture timing defect from duplicate product emission. A sleep, dropped assertion or arbitrary new count does not close the case. |
 
-## Selected test-coverage additions under seq-406
+## Scope after the approved split
 
-The owner requests broader explicit robustness coverage using the
-[SQLite-method roadmap](../../../../notes/fathomdb-quality-testing-roadmap.md).
-The [coverage audit](../../coverage-audit.md) records inherited assertions,
-actual .30 proof and remaining gaps separately. These additions are part of
-this draft slice plan when commissioned; they do not activate it or grant live
-hardware-fault authority. Preserve all original concurrency, ownership and
-resource cases above. Erasure remains lower-priority, defects-only regression.
+Owner seq-407 splits the prior50 plan. This slice retains runtime concurrency,
+shutdown, asynchronous logging, default Node resource investigation and conditional
+B30-01 model release. [Slice55](../slice-55/plan.md) owns the seq-406 data-integrity
+fixture, temporal/relationship composition, product fuzzing, process-crash/WAL
+and doctor gap fixes, and thin shared behavioral tests. No selected work is
+removed. This restructuring does not commission either slice.
 
-| Local requirement | Bounded implementation and acceptance |
-| --- | --- |
-| R30-TEST / object cohesion and temporal relationships | Reuse one small real-store fixture with two sources, Unicode and equal-body distinct identities, authored vectors, declared attributes and named relationships. Cover write/commit, truthful projection lag, drain, supersession/update, rollback and fresh-process reopen. Assert canonical revision/source ownership, FTS/BM25 and vector eligibility, graph reachability and exact evidence against independently specified expected facts at each boundary. Modalities may rank differently; async indexes need truthful readiness and correct converged state. Cover node half-open validity and expiry without a generation change, inactive/history flags, filtered bridges and graph direction/kinds/caps. Preserve the actual edge-recency contract: future `t_valid` does not currently block traversal. Add a small seeded real-store operation model with minimized failures; no new ontology or relatedness algorithm. |
-| R30-TEST / process crash and WAL composition | Reuse the existing before/after-acknowledged-write child-kill and projection-commit/reopen fixtures. Add only a missing composed seam, at most three selected CPU fault points with healthy controls. Require actual delivered termination, exact committed/uncommitted canonical and dependency/projection work state, unrelated survivors, healthy retry and fresh-process reopen. A held reader performs positive work while writes grow WAL; assert the declared busy checkpoint outcome, reader release/join, successful checkpoint and exact recovered records. Observe owned handles/workers/queues and subsequent positive progress. Watchdogs detect hangs, not a product SLA. This is owned temporary-store process-failure testing; power-loss/torn-write and exhaustive VFS faults remain separate. |
-| R30-TEST / real malformed-input fuzz | Select at most three actual query/filter, reference/cursor/frozen-wire or MCP/native argument boundaries. Implement and invoke bounded product-input fuzzing with a valid seed corpus, size/depth limits, nonzero execution counts, reproducible seeds and minimized regressions. Select prospective time/iteration budgets, initially no more than 60 seconds per target and five minutes total per smoke run. Separate property/random testing from coverage-guided fuzzing in results; evaluate and document the coverage-guided target/toolchain route rather than treating queue simulation as product fuzz. Invalid inputs must have declared typed outcomes and no unintended persisted effects; valid inputs use their actual contract. Retain panic/hang and state-integrity oracles. Reuse the existing Proptest/Hypothesis infrastructure and persist discriminating cases; no generic SQLite SQL/B-tree fuzzer or large framework. |
-| R30-TEST / doctor outcome and recovery oracles | Inventory all 17 current `DoctorCommand` variants and their real execution paths with70. Extend existing CLI tests only for uncovered outcomes/effects. Prioritize an actual full-integrity findings fixture: an early open refusal or `Clean` result cannot satisfy a findings assertion. Keep open-refusal coverage separate. Add one composed WAL-only export/recover case. Before invoking either CLI route, prove the selected committed record is visible in an isolated source copy with its WAL and absent from a main-file-only copy prepared at the same quiescent boundary; both copies must open successfully and retain an independently chosen control record. Then verify the exported/recovered record and independently inspect canonical/profile/lexical/vector facts through the SDK. Reconcile the seven ignored CLI placeholders with newer engine assertions; replace or retire only demonstrated overlap. Do not invent a CLI manifest-verifier command. Classify read diagnostics, immutable offline inspection, cache/network work, export artifacts and transactional `recompute-mean` separately. |
-| R30-TEST / behavioral boundary and oracle sensitivity | Reuse the cohesion fixture for thin Rust/Python/TypeScript and both MCP-format expectations: identity, Unicode, temporal/filter scope, provenance, typed refusals, budgets, epoch/continuation rules and persisted reopen. Keep deep semantics in one engine owner and exercise actual boundary differences. SDK membership counts do not prove equivalent behavior. For selected high-risk predicates use a few plausible wrong-order, swallowed-error or missing-cleanup variants to show the independent oracle detects them; preserve useful regressions rather than adding a broad mutation campaign. |
-
-Record a concise test/feature/oracle map for70, including existing tests reused,
-new gaps closed, exact selectors, actual case counts and remaining omissions.
-Prefer existing maintained test targets and shared fixtures; keep fast
-regressions separate from explicitly selected fuzz/crash qualification runs.
-Do not add a new binary or harness per doctor or per failure variant.
-The fuzz method and any testing-only toolchain setup require the normal local
-design review; no supported product toolchain change is implied. Generic native
-memory-safety fuzzing and compound VFS/power-loss campaigns are not claimed by
-a parser smoke. A required unavailable proof stays open for owner disposition.
+Reuse [the SQLite-method roadmap](../../../../notes/fathomdb-quality-testing-roadmap.md)
+for first/persistent runtime faults, positive progress and owned-resource cleanup.
+Do not duplicate55's data model or its deep engine matrix in each SDK. Keep
+thin actual binding checks for any runtime/API change made here and hand the
+stable source and discriminating runtime regressions to70;75 owns final installed
+platform proof. Erasure remains lower-priority, defects-only regression.
 
 ## Architecture and draft design
 
@@ -100,11 +89,10 @@ a parser smoke. A required unavailable proof stays open for owner disposition.
   unavailable counters explicitly. [Node process memory](https://nodejs.org/download/release/v25.9.0/docs/api/process.html#processmemoryusage),
   [V8 heap spaces](https://nodejs.org/download/release/v25.9.0/docs/api/v8.html#v8getheapspacestatistics),
   [CUDA allocator](https://docs.nvidia.com/cuda/cuda-driver-api/cuda_driver_api/group__CUDA__MALLOC__ASYNC.html).
-- Where do process fault and release claims end? Match checkpoint delivery to
-  owned WAL/SHM state and post-reopen proof. Check whether Rust ownership keeps
-  model references live through queued work and native execution until actual
-  last use. Revise the design and identify unresolved venue or API choices.
-  [SQLite WAL](https://sqlite.org/wal.html), [Rust Arc](https://doc.rust-lang.org/std/sync/struct.Arc.html).
+- Check whether Rust ownership keeps model references live through queued work
+  and native execution until actual last use. Revise the design and identify
+  unresolved venue or API choices. Keep close ownership assertions here;55 owns
+  composed durable crash/WAL assertions. [Rust Arc](https://doc.rust-lang.org/std/sync/struct.Arc.html).
 
 ## Probe, review and implement
 
@@ -125,11 +113,8 @@ a parser smoke. A required unavailable proof stays open for owner disposition.
    changes. An ON refusal or resource stop may leave OFF unrun. Attribute only
    what was observed and retain the original result. Use a separately selected
    bounded diagnostic pair if needed and authorized.
-3. Select one changed checkpoint boundary only with explicit live-fault
-   authority. Reuse [Slice 100](../../../../experiments/0.8.29-slice100-checkpoint/README.md)
-   healthy and delivered-fault controls, then preserve pre-reopen companions
-   and assert exact durable outcomes. Process interruption covers process-crash
-   recovery. Reuse qualified healthy, OOM and software-loss evidence for CUDA.
+3. Slice55 owns checkpoint interruption and durable crash/WAL composition.
+   Reuse qualified healthy, OOM and software-loss evidence for CUDA here.
    Apply the [held F9–F11 scope](../../../0.8.29/features/slice-110/test-map.md#faultcontrol-matrix-and-deadlines)
    only with confirmed venue/session/resource authority. Require actual Orin
    for the original Orin claim, preserve completed-construction scope and keep
@@ -148,9 +133,9 @@ a parser smoke. A required unavailable proof stays open for owner disposition.
 
 Record actual exits and limits, preserved original failures, fixed regressions,
 and any consequence needing owner disposition. Carry selected R30-TEST
-concurrency/resource/recovery gaps, their discriminating oracles and dispositions
-to 70. Use scoped tests during development and the required full gate once for
-the coherent source phase. Update affected contracts, SDKs, changelog and
+runtime concurrency/resource gaps, their discriminating oracles and dispositions
+to70, with final installed-platform applicability in75. Use scoped tests during
+development and the required full gate once for the coherent source phase. Update affected contracts, SDKs, changelog and
 authorized release state once. Integrate into the owning release branch and
 clean only owned inactive worktrees and scratch after proof is retained. Use
 direct agents throughout.

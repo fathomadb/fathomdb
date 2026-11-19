@@ -81,7 +81,9 @@ without making FathomDB resistant to necessary change.
 
 Owner seq-406 requests explicit application to the0.8.30 priorities. The
 [coverage audit](../plans/0.8.30/coverage-audit.md) maps existing assertions,
-actual execution and gaps; draft Slices50/70 select composed index/temporal
+actual execution and gaps. Under ownerseq-407, draft50 retains runtime/resource
+work,55 implements data-integrity/recovery tests,70 qualifies source behavior
+and75 qualifies installed artifacts/platforms. These plans retain composed index/temporal
 state tests, bounded product-input fuzz, CPU crash/WAL and first/persistent
 failure checks, all-doctor outcomes/effects, behavioral parity and targeted
 oracle sensitivity. Their execution remains to be proved. Erasure is a

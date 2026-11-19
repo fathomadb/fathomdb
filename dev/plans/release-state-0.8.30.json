@@ -209,13 +209,28 @@
     {
       "slice": 50,
       "short": "ROBUSTNESS",
-      "title": "Concurrency lifecycle and resource bug hunt and remediation",
+      "title": "Runtime concurrency and resource bug hunt and remediation",
       "depends_on": [
         10
       ],
       "status": "PROPOSED_NOT_COMMISSIONED",
       "design_refs": [
         "dev/plans/0.8.30/features/slice-50/plan.md"
+      ],
+      "scope_source": "seq-407"
+    },
+    {
+      "slice": 55,
+      "short": "INTEGRITY",
+      "title": "Data integrity and recovery",
+      "depends_on": [
+        10,
+        30
+      ],
+      "status": "PROPOSED_NOT_COMMISSIONED",
+      "scope_source": "seq-407",
+      "design_refs": [
+        "dev/plans/0.8.30/features/slice-55/plan.md"
       ]
     },
     {
@@ -233,17 +248,32 @@
     {
       "slice": 70,
       "short": "QUALIFICATION",
-      "title": "Integrated qualification and release readiness",
+      "title": "Integrated behavior and source qualification",
       "depends_on": [
         20,
         30,
         40,
         50,
+        55,
         60
       ],
       "status": "PROPOSED_NOT_COMMISSIONED",
       "design_refs": [
         "dev/plans/0.8.30/features/slice-70/plan.md"
+      ],
+      "scope_source": "seq-407"
+    },
+    {
+      "slice": 75,
+      "short": "ARTIFACTS",
+      "title": "Platform and artifact qualification",
+      "depends_on": [
+        70
+      ],
+      "status": "PROPOSED_NOT_COMMISSIONED",
+      "scope_source": "seq-407",
+      "design_refs": [
+        "dev/plans/0.8.30/features/slice-75/plan.md"
       ]
     },
     {
@@ -251,7 +281,7 @@
       "short": "DELIVERY",
       "title": "Separately authorized publishing and public consumers",
       "depends_on": [
-        70
+        75
       ],
       "status": "PROPOSED_NOT_COMMISSIONED",
       "design_refs": [
@@ -264,8 +294,10 @@
   "remaining_ladder": [
     40,
     50,
+    55,
     60,
     70,
+    75,
     80
   ],
   "decisions": {
@@ -309,13 +341,18 @@
         "id": "quality-coverage-gap-plan",
         "source": "seq-406",
         "ruling": "Analyze and fill .30 test-coverage gaps using the SQLite-testing roadmap and the listed robustness, retrieval, index, SDK/MCP, fuzz, crash/WAL and doctor priorities; erasure is lower priority."
+      },
+      {
+        "id": "rightsize-50-70",
+        "source": "seq-407",
+        "ruling": "Proceed with the proposed additional slices and right-sizing:50/55 runtime versus data integrity/recovery;70/75 source behavior versus platform/artifact qualification."
       }
     ],
     "unruled": []
   },
   "acceptance": {
     "status": "NOT_EVALUATED",
-    "record": "dev/plans/0.8.30/features/slice-70/plan.md",
+    "record": "dev/plans/0.8.30/plan.md",
     "preparation_acceptance": {
       "status": "IMPLEMENTED_WITH_OPEN_QUALIFICATION",
       "criteria": [
@@ -329,7 +366,7 @@
       ],
       "record": "dev/plans/0.8.30/features/slice-10/status.md",
       "verification": "dev/plans/0.8.30/features/slice-10/verification.json",
-      "scope": "Approved local preparation implemented; original full gate FAIL and focused recovery/diagnostics retained. Open findings have owners20/40/50/70; no waiver or release-readiness claim."
+      "scope": "Approved local preparation implemented; original full gate FAIL and focused recovery/diagnostics retained. Slice20 resolved the inherited tooling holds; remaining hints/logging/source/platform-renderer qualification belongs to40/50/70/75. No waiver or release-readiness claim."
     },
     "slice20": {
       "status": "SOURCE_AND_OFFLINE_VERIFIED_WITH_RECORDED_LIMITS",
@@ -370,7 +407,7 @@
     "coverage_plan": {
       "status": "PLANNED_NOT_VERIFIED",
       "record": "dev/plans/0.8.30/coverage-audit.md",
-      "implementation_owner": 50,
+      "implementation_owner": 55,
       "qualification_owner": 70,
       "selected": [
         "composed canonical/index/temporal/relationship state",
@@ -379,13 +416,19 @@
         "all-doctor outcomes/effects and actual integrity findings",
         "thin behavioral SDK/MCP parity and oracle sensitivity"
       ],
-      "scope": "Draft50/70 plans amended underseq-406; existing40 remains latency-only. Test existence and inherited runs are distinct from exact-candidate proof. No newly planned row is claimed executed."
-    }
+      "scope": "Selected seq-406 work split underseq-407 across draft50/55 and70/75. Current40 unchanged. These plans are not commissioned; inherited assertions remain distinct from exact-candidate runtime proof.",
+      "runtime_owner": 50,
+      "artifact_qualification_owner": 75
+    },
+    "qualification_records": [
+      "dev/plans/0.8.30/features/slice-70/plan.md",
+      "dev/plans/0.8.30/features/slice-75/plan.md"
+    ]
   },
   "release_readiness": {
     "status": "NOT_READY",
     "publication_authorized": false,
-    "scope": "Slices10/20/30 implementation integrated; Slice40 commissioned at seq-405. Features50\u201380 remain uncommissioned. Integrated source, platform, timing, subscriber-fixture and renderer qualifications remain open; publication is not authorized. Vercel research stays in the0.9.0 backlog underseq-404."
+    "scope": "Slices10/20/30 implementation integrated; Slice40 commissioned atseq-405. Future50/55/60/70/75/80 remain uncommissioned; seq-407 right-sizes their plans only. Source, platform, timing and artifact qualification remain open. Publication not authorized; Vercel research remains0.9.0 underseq-404."
   },
   "generated_views": [
     {
@@ -428,21 +471,27 @@
     },
     {
       "item": "Renderer advisory graph and browser qualification",
-      "owner_slice": 70,
+      "owner_slice": 75,
       "state": "HELD",
       "evidence": "Supported rendering trial retains affectedZod viaPuppeteer; needs a supported patched graph and real compatible-browser proof."
     },
     {
-      "item": "Integrated source, platform, runtime and artifact qualification",
+      "item": "Integrated source, feature and runtime qualification",
       "owner_slice": 70,
       "state": "OPEN",
-      "evidence": "Join owning-slice corrections and applicable qualification. Node26 public-engine promotion remains held; local packed proof is not platform or registry proof."
+      "evidence": "Join source corrections and applicable feature/behavior proof in70. Final platform/artifact, renderer and public Node26 support qualification belongs to75; local packed proof is not registry proof."
     },
     {
       "item": "Hosted cancellation and Windows runtime validation",
-      "owner_slice": 70,
+      "owner_slice": 75,
       "state": "OPEN",
       "evidence": "Slice20 source/offline cancellation and static Windows controls pass; hosted cancellation and fresh Windows/native runtime proof remain outstanding. Production registry delivery belongs to80."
+    },
+    {
+      "item": "Final platform, native artifact and support qualification",
+      "owner_slice": 75,
+      "state": "OPEN",
+      "evidence": "Ownerseq-407 splits the original70 scope. Five-target installed native and CLI/source archive consumers, Windows WAL, declared CUDA applicability, Node26 support/renderer docs convergence and the final candidate handoff remain unverified."
     }
   ]
 }

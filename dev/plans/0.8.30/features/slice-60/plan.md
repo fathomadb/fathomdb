@@ -102,7 +102,8 @@ selected fork and product configuration.
    unrun scope after narrow changes. Apply direct review per the master.
 5. Record concise actual outcomes, supported targets, limitations and pending
    authority in the owning repositories. Hand the safe-drop determination to
-   Slice 50 and final pin/consumer evidence to Slice 70. Integrate reviewed
+   Slice50, final source/pin evidence to70 and installed consumer/native
+   applicability evidence to75 underseq-407. Integrate reviewed
    pins into the owning release branch, update affected SDK/build docs, and
    clean owned inactive scratch and worktrees after evidence retention.
 

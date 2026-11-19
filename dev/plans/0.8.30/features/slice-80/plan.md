@@ -15,16 +15,16 @@ AC-052/054/056. The acceptance checks below refine those contracts locally.
 
 ## Entry and preparation
 
-- Require a commissioned Slice 80, accepted Slice 70 candidate and separate
+- Require a commissioned Slice 80, accepted Slice75 candidate and separate
   explicit owner production authority for the version, exact candidate, route
   and applicable protected environments. Creating or pushing the production
-  tag is never an automatic consequence of plan approval or Slice 70 PASS.
+  tag is never an automatic consequence of plan approval or Slice75 PASS.
 - At entry compare the release checkout and current `origin/main` with reviewed
   draft `f7fb1da9a81ee226c70ae347fa2fab3e64ac3c25`. Inventory relevant intervening
   changes to jobs, scripts, required checks, publisher identity, artifact scope
   and allocated drafts. Reconcile prework 1 dependencies, 3 acceptance, 6 docs
   and 7 delivery findings, Slice 10 preparation, and the actual Slice 20, 60
-  and 70 exits. Keep, adjust or reject claims using source and observed results.
+  70 and75 exits. Keep, adjust or reject claims using source and observed results.
 - Trace the version axes, actual product and fork graph, and candidate-to-public
   artifacts through [preflight](../../../../../scripts/verify-release-gates.sh),
   [release jobs](../../../../../.github/workflows/release.yml) and
@@ -42,9 +42,9 @@ AC-052/054/056. The acceptance checks below refine those contracts locally.
 
 | Need | Release-local acceptance and maintained route |
 | --- | --- |
-| One trusted candidate | Resolve the reviewed, clean, main-reachable candidate by full commit SHA. Check lockstep Axis W 0.8.30, independent Axis E, changelog and crate metadata. Bind the prospective tag, workflow provenance, approvals, manifests and build inputs to that commit. Verify the peeled remote tag after the explicitly authorized tag push. Use applicable approved nonpublishing rehearsal evidence from 70. |
+| One trusted candidate | Resolve the reviewed, clean, main-reachable candidate by full commit SHA. Check lockstep Axis W 0.8.30, independent Axis E, changelog and crate metadata. Bind the prospective tag, workflow provenance, approvals, manifests and build inputs to that commit. Verify the peeled remote tag after the explicitly authorized tag push. Use applicable approved nonpublishing rehearsal evidence from75. |
 | Protected production route | Verify the restricted group, exact `v0.8.30` workflow and environment route, identified reviewers, and real matching workers before approval. Check owned runner process, host, toolchain, workspace/cache, credential scope, exclusive device/lease and job bounds when applicable. Verify the trust facts for the actual active worker, including any old matching service. A missing route or reviewer holds the affected transition. [Tag-route check](../../../../../scripts/release/check-tag-cuda-route.sh). |
-| Complete immutable packages | Require all builds before publication. Keep the Rust dependency order embedder-api, schema, query, embedder, engine, facade plus SDK, then CLI. Verify PyPI and npm normal-path publishers, including all five npm platform packages and the thin main package, and expected five-target wheel contents. Preserve existing published versions only after confirming exact version and applicable artifact identity. Join the shipping native members and wheels to Slice 70 proof by digest or verify the affected changed bytes within the applicable authorization. [Release jobs](../../../../../.github/workflows/release.yml). |
+| Complete immutable packages | Require all builds before publication. Keep the Rust dependency order embedder-api, schema, query, embedder, engine, facade plus SDK, then CLI. Verify PyPI and npm normal-path publishers, including all five npm platform packages and the thin main package, and expected five-target wheel contents. Preserve existing published versions only after confirming exact version and applicable artifact identity. Join the shipping native members and wheels to Slice75 proof by digest or verify the affected changed bytes within the applicable authorization. [Release jobs](../../../../../.github/workflows/release.yml). |
 | Exact registry visibility | Verify each required crates.io dependency before running dependent tiers and the required PyPI/npm versions before consumers. Record expected and observed values and use Slice 20's bounded poll. Distinguish transient visibility from missing or wrong bytes. [Crates wait](../../../../../scripts/release/wait-for-crate-version.sh), [package wait](../../../../../scripts/release/wait-for-registry-version.py). |
 | Eight successful public consumer jobs | Require four Linux x64 jobs (crates CLI, crates SDK, PyPI, npm) and four paired Python/npm jobs on Linux ARM64, macOS x64, macOS ARM64 and Windows x64. Fresh registry installs prove exact package and native resolution. SDK/bindings write a fixture, assert its body and the missing-record outcome, close and exit, then reopen, read and close in a separate process. CLI checks exact version and integrity on the persisted fixture. Keep native path/version, process exits and platform bounds. [Registry smoke jobs](../../../../../.github/workflows/release.yml). |
 | Normal finalization | After all publishers, eight consumers and sibling co-tagging succeed, use Slice 20's shared pinned OIDC route to promote only main `fathomdb@0.8.30` to npm `latest`. Platform packages remain staged and resolve by pinned optional dependencies. Require bounded observed visibility and the GitHub Release for the exact tag with its expected assets. [Co-tagging](../../../../../scripts/release/assert-co-tagging.sh), [recovery precedent](../../../../../.github/workflows/promote-npm-release.yml). |
@@ -55,7 +55,7 @@ registry binding smokes exercise one process. Compare the [SDK smoke](../../../.
 [Python smoke](../../../../../scripts/release/smoke/smoke-pypi-wheel.sh) and
 [npm smoke](../../../../../scripts/release/smoke/smoke-npm-package.sh) with the
 maintained qualification consumers. Slice20 owns implementation and offline
-qualification of the missing flows and the exact-first-tag route guard. Slice70
+qualification of the missing flows and the exact-first-tag route guard. Slice75
 qualifies the candidate consumer bytes;80 requires their actual authorized
 registry processes and route. Archive/local installs cannot supply that proof.
 
@@ -99,7 +99,7 @@ registry processes and route. Archive/local installs cannot supply that proof.
    live Pages and owned cleanup have attributable outcomes. Record the exact
    tag/commit, actual release attempts, final registry and Pages results and
    any remaining limits in the owning release state. Module release and
-   post-reset claims retain Slice 50/60/70's actual bounds.
+   post-reset claims retain Slice 50/60/70/75's actual bounds.
 8. Reap only verified owned workers, containers and children, remove owned
    temporary registration and credentials, and confirm lease release and
    quiescence. Preserve useful raw logs and artifact evidence before cleanup.
@@ -109,6 +109,6 @@ registry processes and route. Archive/local installs cannot supply that proof.
 ## Open decisions
 
 The owner must commission production and the applicable protected routes for
-the Slice 70 candidate. Resolve any missing smoke or route before publication,
+the Slice75 candidate. Resolve any missing smoke or route before publication,
 and confirm whether a matching .30 Tegra payload is selected. This draft records
 planning only.

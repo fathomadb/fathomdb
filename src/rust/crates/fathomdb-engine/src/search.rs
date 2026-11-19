@@ -2721,8 +2721,6 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                 view.edge_now(),
             )?;
         let deferred_candidates = if defer_full_hydration {
-            #[cfg(all(feature = "slice50-measurement", any(test, feature = "slice30-observer")))]
-            crate::slice30_observer::slice50_route("winner_hydration");
             let sql = format!(
                 "SELECT si.rowid, si.write_cursor, bm25(search_index), cn.write_cursor, \
                  si.body IS cn.body, si.kind IS cn.kind, si.body, si.kind, cn.logical_id, cn.source_id \
@@ -2731,29 +2729,19 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                  WHERE search_index MATCH ?1 {text_existence}{text_validity}{limit_clause}"
             );
             let mut statement = prepare_search_statement(&tx, &sql)?;
+            let mut requires_legacy_proof = false;
             let rows =
                 statement.query_map(rusqlite::params_from_iter(text_params.iter()), |row| {
                     // Validate losing matches before deferring their allocations.
                     row.get_ref(6)?.as_str().map_err(|_| rusqlite::Error::InvalidQuery)?;
                     row.get_ref(7)?.as_str().map_err(|_| rusqlite::Error::InvalidQuery)?;
-                    let malformed_identity = row.get_ref(8)?.as_str_or_null().is_err()
-                        || row.get_ref(9)?.as_str_or_null().is_err();
-                    // The old all-eligible route only decoded winner identity. Preserve
-                    // that behavior, and the reference refusal on mixed stores.
-                    if malformed_identity
-                        && !dependency_closure::all_nodes_directly_eligible(
-                            &tx,
-                            view.view.include_superseded,
-                            view.view.include_inactive,
-                            view.view.include_out_of_window,
-                            view.edge_now(),
-                        )?
-                    {
-                        row.get::<_, Option<String>>(8)?;
-                        row.get::<_, Option<String>>(9)?;
-                    }
                     let rowid = row.get::<_, i64>(0)?;
-                    let write_cursor = row.get::<_, i64>(1)? as u64;
+                    let raw_cursor = row.get::<_, i64>(1)?;
+                    requires_legacy_proof = requires_legacy_proof
+                        || raw_cursor < 0
+                        || row.get_ref(8)?.as_str_or_null().is_err()
+                        || row.get_ref(9)?.as_str_or_null().is_err();
+                    let write_cursor = raw_cursor as u64;
                     let ownership = if row.get::<_, Option<i64>>(3)?.is_some() {
                         if !row.get::<_, bool>(4)? || !row.get::<_, bool>(5)? {
                             return Err(rusqlite::Error::InvalidQuery);
@@ -2771,20 +2759,38 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                     Ok(ConsistentNodeFts { rowid, write_cursor, ownership, score })
                 })?;
             let mut candidates = rows.collect::<rusqlite::Result<Vec<_>>>()?;
-            candidates.sort_by(|left, right| {
-                left.score
-                    .total_cmp(&right.score)
-                    .then_with(|| left.write_cursor.cmp(&right.write_cursor))
-            });
-            if snippet.is_some() {
-                for hit in &candidates {
-                    fts_rows
-                        .entry(hit.ownership.record_key(hit.write_cursor))
-                        .or_insert((FtsTable::Nodes, hit.rowid));
+            // An unusual matched row may require the legacy sort or decoding.
+            if requires_legacy_proof
+                && !dependency_closure::all_nodes_directly_eligible(
+                    &tx,
+                    view.view.include_superseded,
+                    view.view.include_inactive,
+                    view.view.include_out_of_window,
+                    view.edge_now(),
+                )?
+            {
+                None
+            } else {
+                #[cfg(all(
+                    feature = "slice50-measurement",
+                    any(test, feature = "slice30-observer")
+                ))]
+                crate::slice30_observer::slice50_route("winner_hydration");
+                candidates.sort_by(|left, right| {
+                    left.score
+                        .total_cmp(&right.score)
+                        .then_with(|| left.write_cursor.cmp(&right.write_cursor))
+                });
+                if snippet.is_some() {
+                    for hit in &candidates {
+                        fts_rows
+                            .entry(hit.ownership.record_key(hit.write_cursor))
+                            .or_insert((FtsTable::Nodes, hit.rowid));
+                    }
                 }
+                deferred_node_candidates = Some(candidates);
+                Some(Vec::new())
             }
-            deferred_node_candidates = Some(candidates);
-            Some(Vec::new())
         } else if defer_text_identity {
             #[cfg(all(feature = "slice50-measurement", any(test, feature = "slice30-observer")))]
             crate::slice30_observer::slice50_route("eager_text_identity");

@@ -311,6 +311,13 @@ fn node_only_winner_checks_eligibility_of_matches_without_a_global_scan() {
                 .clone()
         };
         assert_eq!(snapshot(&work.records), snapshot(&reference_work.records));
+        let lexical_ranks = |records: &[crate::Slice30ObservationRecord]| {
+            records.iter().find(|record| record.phase == "s50_rank_inputs").unwrap().facts["text"]
+                .clone()
+        };
+        let actual_ranks = lexical_ranks(&work.records);
+        assert_eq!(actual_ranks, lexical_ranks(&reference_work.records));
+        assert_eq!(actual_ranks.as_array().unwrap().len(), 2);
         for (hit, reference) in optimized.results.iter().zip(&controlled.results) {
             assert_eq!(hit.score.to_bits(), reference.score.to_bits());
             assert_eq!(hit.source_id.as_deref(), Some("eligibility:fixture"));

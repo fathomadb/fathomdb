@@ -289,3 +289,76 @@ fn losing_ownerless_invalid_utf8_body_refuses_like_full_reference() {
         "'note'",
     );
 }
+
+#[test]
+fn mixed_visibility_uses_the_reference_order_for_negative_ownerless_cursors() {
+    let _serial = ENV_LOCK.lock().unwrap_or_else(|error| error.into_inner());
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("signed-cursor.sqlite");
+    let engine = Engine::open_with_embedder_for_test(&path, Arc::new(Fixed)).unwrap().engine;
+    engine.configure_vector_kind_for_test("doc").unwrap();
+    let mut pending = node(Some("pending"), "note", "unrelated pending node");
+    if let PreparedWrite::Node { state, .. } = &mut pending {
+        *state = InitialState::Pending;
+    }
+    engine.write(&[node(Some("vector"), "doc", "nearby vector"), pending]).unwrap();
+    engine.drain(10_000).unwrap();
+    let raw = rusqlite::Connection::open(&path).unwrap();
+    for (body, cursor) in [("needle alpha", -1_i64), ("needle bravo", 999999)] {
+        raw.execute(
+            "INSERT INTO search_index(body,kind,write_cursor) VALUES(?1,'note',?2)",
+            rusqlite::params![body, cursor],
+        )
+        .unwrap();
+    }
+    raw.close().unwrap();
+
+    let result = paired(&engine);
+    let cursors =
+        result.results.into_iter().take(2).map(|hit| hit.write_cursor).collect::<Vec<_>>();
+    assert_eq!(cursors, [u64::MAX, 999999]);
+    engine.close().unwrap();
+}
+
+#[test]
+fn malformed_losing_identity_keeps_the_existing_refusals_by_route() {
+    let _serial = ENV_LOCK.lock().unwrap_or_else(|error| error.into_inner());
+    for (column, value) in [("source_id", "X'FF'"), ("logical_id", "CAST(X'FF' AS TEXT)")] {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("malformed-losing-id.sqlite");
+        let engine = Engine::open_with_embedder_for_test(&path, Arc::new(Fixed)).unwrap().engine;
+        engine.configure_vector_kind_for_test("doc").unwrap();
+        let mut writes = (0..15)
+            .map(|i| node(Some(&format!("valid-{i}")), "note", &format!("needle candidate {i}")))
+            .collect::<Vec<_>>();
+        writes.push(node(Some("vector"), "doc", "unmatched vector body"));
+        writes.push(node(Some("corrupt"), "note", &format!("needle {}", "dilute ".repeat(100))));
+        let corrupt_cursor = engine.write(&writes).unwrap().row_cursors[16];
+        engine.drain(10_000).unwrap();
+        let raw = rusqlite::Connection::open(&path).unwrap();
+        raw.execute(
+            &format!("UPDATE canonical_nodes SET {column}={value} WHERE write_cursor=?1"),
+            [corrupt_cursor],
+        )
+        .unwrap();
+        assert!(query(&engine)
+            .unwrap()
+            .results
+            .iter()
+            .all(|hit| hit.write_cursor != corrupt_cursor));
+
+        let mut pending = node(Some("pending"), "note", "unmatched pending row");
+        if let PreparedWrite::Node { state, .. } = &mut pending {
+            *state = InitialState::Pending;
+        }
+        engine.write(&[pending]).unwrap();
+        let observed = query(&engine).unwrap_err();
+        let _restore = Restore(std::env::var_os("FATHOMDB_FTS_FORCE_FULL_SORT_FOR_TEST"));
+        unsafe { std::env::set_var("FATHOMDB_FTS_FORCE_FULL_SORT_FOR_TEST", "1") };
+        let reference = query(&engine).unwrap_err();
+        assert!(matches!(observed, EngineError::Storage));
+        assert!(matches!(reference, EngineError::Storage));
+        raw.close().unwrap();
+        engine.close().unwrap();
+    }
+}

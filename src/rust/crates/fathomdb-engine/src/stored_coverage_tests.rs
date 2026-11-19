@@ -2,7 +2,7 @@ use super::*;
 use crate::fusion::RecordKey;
 use crate::stored_coverage::StoredHeadCoverageUnavailableReason as Reason;
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
-use proptest::prelude::*;
+use proptest::test_runner::{Config, RngSeed, TestRunner};
 use rusqlite::hooks::{AuthAction, AuthContext, Authorization, TransactionOperation};
 use rusqlite::trace::{TraceEvent, TraceEventCodes};
 use std::collections::BTreeMap;
@@ -853,17 +853,20 @@ fn update_endpoint(connection: &Connection, cursor: u64, end: Option<usize>) {
     );
 }
 
-proptest! {
-    #![proptest_config(ProptestConfig {
+#[test]
+fn stored_coverage_counts_only_committed_authored_endpoints() {
+    let mut runner = TestRunner::new(Config {
         cases: 8,
-        rng_seed: proptest::test_runner::RngSeed::Fixed(0x5_0830),
-        ..ProptestConfig::default()
-    })]
-
-    #[test]
-    fn stored_coverage_counts_only_committed_authored_endpoints(
-        layouts in prop::collection::vec((4_usize..20, 0_u8..4), 1..5),
-    ) {
+        rng_seed: RngSeed::Fixed(0x5_0830),
+        source_file: Some(file!()),
+        test_name: Some(concat!(
+            module_path!(),
+            "::stored_coverage_counts_only_committed_authored_endpoints"
+        )),
+        ..Config::default()
+    });
+    let layouts = proptest::collection::vec((4_usize..20, 0_u8..4), 1..5);
+    let run_case = |layouts: Vec<(usize, u8)>| {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("coverage-history.sqlite");
         let provider = Arc::new(Provider(None));
@@ -875,9 +878,10 @@ proptest! {
 
         let mut writes = vec![node("history", "current")];
         writes.extend(
-            layouts.iter().enumerate().map(|(i, &(length, _))| {
-                node(&format!("covered:{i}"), &"x".repeat(length))
-            }),
+            layouts
+                .iter()
+                .enumerate()
+                .map(|(i, &(length, _))| node(&format!("covered:{i}"), &"x".repeat(length))),
         );
         let mut unmapped = node("unmapped", "kept without a mapped head");
         if let PreparedWrite::Node { kind, .. } = &mut unmapped {
@@ -890,8 +894,15 @@ proptest! {
         {
             let setup = raw.transaction().unwrap();
             // Empty persisted bodies have a defined count even though the live write API rejects them.
-            setup.execute("UPDATE canonical_nodes SET body='' WHERE write_cursor=?1", [historical]).unwrap();
-            setup.execute("UPDATE _fathomdb_vector_spans SET body_length=0 WHERE write_cursor=?1", [historical]).unwrap();
+            setup
+                .execute("UPDATE canonical_nodes SET body='' WHERE write_cursor=?1", [historical])
+                .unwrap();
+            setup
+                .execute(
+                    "UPDATE _fathomdb_vector_spans SET body_length=0 WHERE write_cursor=?1",
+                    [historical],
+                )
+                .unwrap();
             setup.execute_batch(
                 "INSERT INTO _fathomdb_vector_rows(rowid,kind,write_cursor)
                     VALUES(987654,'edge_fact',987654);
@@ -941,5 +952,7 @@ proptest! {
         let reopened = Engine::open_with_embedder_for_test(&path, provider).unwrap();
         assert_authored_counts(&reopened.engine, &heads);
         reopened.engine.close().unwrap();
-    }
+        Ok(())
+    };
+    runner.run(&layouts, run_case).unwrap();
 }

@@ -253,8 +253,9 @@ Slice30, commissioned at seq-402 and extended by seq-403 for
 [issue #264](https://github.com/fathomadb/fathomdb/issues/264), is integrated at
 `5b0348775279883fe2ffcd52f60c23c90171166e`. Its
 [status](features/slice-30/status.md) retains the original failed wrapper/test
-runs, passing focused recovery and final exact native proofs. Slice40 is next;
-feature slices40–80 remain uncommissioned. Owner seq-404 places the Vercel UI SDK
+runs, passing focused recovery and final exact native proofs. Slice40 is
+commissioned at seq-405 using the full execution template and its whole plan;
+feature slices50–80 remain uncommissioned. Owner seq-404 places the Vercel UI SDK
 research in the [0.9.0 backlog](../0.9.0/backlog.md); it adds no .30 feature work. The
 [state](../release-state-0.8.30.json) and [board](../runs/STATUS-0.8.30.md)
 own current status.

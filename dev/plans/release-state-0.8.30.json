@@ -1,6 +1,6 @@
 {
   "release": "0.8.30",
-  "release_kind": "Slices10,20 and30 implemented; qualification open and publication held",
+  "release_kind": "Slices10/20/30 implemented; Slice40 commissioned; qualification open and publication held",
   "board": "dev/plans/runs/STATUS-0.8.30.md",
   "plan": "dev/plans/0.8.30/plan.md",
   "master": "dev/plans/0.8.30/plan.md",
@@ -200,10 +200,11 @@
       "depends_on": [
         10
       ],
-      "status": "PROPOSED_NOT_COMMISSIONED",
+      "status": "IN_PROGRESS",
       "design_refs": [
         "dev/plans/0.8.30/features/slice-40/plan.md"
-      ]
+      ],
+      "commission_source": "seq-405"
     },
     {
       "slice": 50,
@@ -298,6 +299,11 @@
         "id": "agent-storage-research-placement",
         "source": "seq-404",
         "ruling": "Place Vercel UI SDK research and derived FathomDB proposal in the0.9.0 backlog; keep this session focused on0.8.30 robustness."
+      },
+      {
+        "id": "slice40-commission",
+        "source": "seq-405",
+        "ruling": "Spawn an agent to perform Slice40 using the provided template and the whole Slice40 plan."
       }
     ],
     "unruled": []
@@ -360,7 +366,7 @@
   "release_readiness": {
     "status": "NOT_READY",
     "publication_authorized": false,
-    "scope": "Slices10/20/30 implementation integrated. Features40\u201380 remain uncommissioned. Integrated source, platform, timing, subscriber-fixture and renderer qualifications remain open; publication is not authorized. Vercel research is0.9.0 backlog under seq-404, outside0.8.30 implementation."
+    "scope": "Slices10/20/30 implementation integrated; Slice40 commissioned at seq-405. Features50\u201380 remain uncommissioned. Integrated source, platform, timing, subscriber-fixture and renderer qualifications remain open; publication is not authorized. Vercel research stays in the0.9.0 backlog underseq-404."
   },
   "generated_views": [
     {

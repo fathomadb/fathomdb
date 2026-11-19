@@ -1,11 +1,14 @@
 ---
 title: 0.8.30 Slice 40 performance and end-to-end latency
-status: PROPOSED
+status: ACTIVE
 slice: 40
 target_release: 0.8.30
 ---
 
 # Slice 40 — Performance and end-to-end latency
+
+Commissioned at seq-405 to complete the whole slice using the supplied execution
+template.
 
 ## Entry and ownership
 
@@ -23,6 +26,12 @@ inputs. CPU baseline and research can proceed after 10 without waiting for the
 whole of 30 or 60. Before promotion, reconcile relevant 30 fixes and repeat
 affected proof on final consumed inputs. Slice 50 owns lifecycle and resource
 defects found outside the selected latency treatment.
+
+Also reconcile the inherited hints-overhead qualification assigned to40 in
+[Slice10 status](../slice-10/status.md). Keep the unchanged200 µs criterion and
+the original failed observations. Select a bounded diagnosis in the reviewed
+measurement plan; this obligation does not replace the100k baseline or grant
+an unrelated second optimization.
 
 ## Goals, local requirements and acceptance
 

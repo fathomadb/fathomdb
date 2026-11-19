@@ -1,8 +1,11 @@
 """Check the fixed study's metrics and pair denominators."""
 
+import json
+from pathlib import Path
+from tempfile import TemporaryDirectory
 import unittest
 
-from summarize_study import metrics, pair_summary, population
+from summarize_study import metrics, pair_summary, population, summarize
 
 
 class MetricsTest(unittest.TestCase):
@@ -53,6 +56,45 @@ class MetricsTest(unittest.TestCase):
         rows[0]["query_index"] = 1
         with self.assertRaisesRegex(ValueError, "count or order"):
             population({"samples": rows}, "samples", ["hybrid"], 2, partial=True)
+
+    def test_interrupted_output_retains_preceding_complete_calls(self):
+        with TemporaryDirectory() as scratch:
+            root = Path(scratch)
+            cell = root / "read-0-hybrid"
+            native = cell / "native"
+            native.mkdir(parents=True)
+            (cell / "config.json").write_text(
+                json.dumps(
+                    {
+                        "family": "G-R",
+                        "routes": ["hybrid"],
+                        "samples": 2,
+                        "warmup": 0,
+                        "observe": False,
+                        "record_first_call": False,
+                    }
+                )
+            )
+            (cell / "attempt.json").write_text(
+                json.dumps({"exit": -9, "watchdog": True})
+            )
+            (native / "result.json").write_text('{"samples":[')
+            finished = {
+                "route": "hybrid",
+                "sample_index": 0,
+                "query_index": 0,
+                "ok": True,
+                "elapsed_ns": 1000,
+            }
+            (native / "samples.jsonl").write_bytes(
+                (json.dumps(finished) + '\n{"route":').encode()
+            )
+            result = summarize(root)["cells"]["read-0-hybrid"]
+            self.assertFalse(result["complete"])
+            self.assertEqual(result["routes"]["hybrid"]["successful"], 1)
+            self.assertEqual(result["routes"]["hybrid"]["missing"], 1)
+            self.assertEqual(result["routes"]["hybrid"]["timeouts"], 0)
+            self.assertEqual(len(result["interrupted_outputs"]), 2)
 
     def test_relative_improvement_is_computed_within_each_block(self):
         def cell(p50, throughput, cpu, rss):

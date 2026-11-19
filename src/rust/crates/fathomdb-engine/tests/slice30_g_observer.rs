@@ -122,9 +122,25 @@ fn seed_dense(path: &std::path::Path) -> Engine {
 }
 
 #[test]
-fn no_dependency_hybrid_observes_each_actual_guard_once_without_invented_sql() {
+fn mixed_edge_hybrid_observes_each_actual_guard_once_without_invented_sql() {
     let directory = tempfile::tempdir().unwrap();
     let engine = seed_dense(&directory.path().join("dense.sqlite"));
+    engine
+        .write(&[PreparedWrite::Edge {
+            kind: "link".into(),
+            from: "alpha".into(),
+            to: "beta".into(),
+            body: Some("unrelated relationship".into()),
+            source_id: SourceId::new("test:slice30-edge").unwrap(),
+            logical_id: Some("alpha-beta".into()),
+            t_valid: None,
+            t_invalid: None,
+            confidence: None,
+            extractor_model_id: None,
+            temporal_fallback: None,
+        }])
+        .unwrap();
+    engine.drain(5_000).unwrap();
     let observation = engine.begin_slice30_observation(128).unwrap();
     let result = observation.with_operation(100, || engine.search("needle")).unwrap();
     assert_eq!(result.results[0].id.value, "alpha");
@@ -152,6 +168,33 @@ fn no_dependency_hybrid_observes_each_actual_guard_once_without_invented_sql() {
         .chain(&direct)
         .all(|record| record.status == "ok" && record.operation_id == 100));
     assert_eq!(batch.dropped_records, 0);
+    engine.close().unwrap();
+}
+
+#[test]
+fn node_only_hybrid_observes_the_replaced_eligibility_guard() {
+    let directory = tempfile::tempdir().unwrap();
+    let engine = seed_dense(&directory.path().join("node-only.sqlite"));
+    let observer = engine.begin_slice30_observation(128).unwrap();
+    let result = observer.with_operation(101, || engine.search("needle")).unwrap();
+    assert_eq!(result.results[0].id.value, "alpha");
+    let batch = observer.take();
+    let guard = batch
+        .records
+        .iter()
+        .filter(|record| record.phase == "all_nodes_directly_eligible")
+        .collect::<Vec<_>>();
+    assert_eq!(guard.len(), 1, "match-local eligibility should account for the skipped scan");
+    let record = guard[0];
+    assert_eq!(record.operation_id, 101);
+    assert_eq!(record.status, "not_run");
+    assert_eq!(record.facts["reason"], "match_local_eligibility");
+    assert_eq!(record.facts["called"], false);
+    assert_eq!(record.facts["sql_executed"], false);
+    assert!(record.facts.get("result").is_none());
+    assert!(record.started_ns.is_none() && record.ended_ns.is_none());
+    assert_eq!(batch.dropped_records, 0);
+    assert!(batch.issues.is_empty());
     engine.close().unwrap();
 }
 

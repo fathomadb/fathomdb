@@ -217,6 +217,16 @@ oracle, and a plausible wrong result that the oracle rejects. A consolidation
 must preserve its meaningful semantic/platform coverage and show cost/overlap
 evidence where that motivates the change. Proposal-only prework5 does not close
 this requirement; no separate test framework or broad campaign is required.
+Owner seq-406 adds the [coverage audit and gap allocations](coverage-audit.md):
+one composed canonical/FTS/vector/graph temporal-lifecycle fixture, bounded
+real-store state sequences, actual product-input fuzzing, selected CPU crash/WAL
+composition, all-doctor outcome/effect coverage and thin behavioral SDK/MCP
+parity. Slice50 implements missing cases after commissioning; Slice70 requires
+actual exact-candidate proof and dispositions. Existing40 latency scope remains
+unchanged. Erasure retains lower-priority critical regressions. These additions
+adopt the SQLite-method roadmap at FathomDB-owned boundaries, with bounded
+resource/failure tests and independent oracles rather than new storage semantics.
+
 The .27 swallowed errors, .28 vacuous cursor test and .29 rank/state and lost
 failure observations explain priority. Defer global MC/DC, exhaustive VFS/OOM,
 new generic frameworks and unneeded paid/platform campaigns. Do not weaken

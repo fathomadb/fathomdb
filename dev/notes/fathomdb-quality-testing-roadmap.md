@@ -79,6 +79,15 @@ without making FathomDB resistant to necessary change.
 
 ## Release-planning use
 
+Owner seq-406 requests explicit application to the0.8.30 priorities. The
+[coverage audit](../plans/0.8.30/coverage-audit.md) maps existing assertions,
+actual execution and gaps; draft Slices50/70 select composed index/temporal
+state tests, bounded product-input fuzz, CPU crash/WAL and first/persistent
+failure checks, all-doctor outcomes/effects, behavioral parity and targeted
+oracle sensitivity. Their execution remains to be proved. Erasure is a
+lower-priority critical-regression area; the broader failure and storage models
+retain the limits in this analysis.
+
 Before authoring each new release plan, read this analysis and record in that
 plan which recommendations apply, which are deferred and why, and what new
 evidence or changed architecture revises the assessment. Update this document

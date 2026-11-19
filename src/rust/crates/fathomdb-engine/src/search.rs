@@ -3539,3 +3539,6 @@ mod historical_property_lifecycle_tests {
 
 #[cfg(all(test, feature = "slice50-measurement"))]
 mod paired50_tests;
+
+#[cfg(test)]
+mod ranking_tests;

@@ -12,7 +12,7 @@ use serde::{
     Serialize,
 };
 
-use crate::write_commit::{canonical_body_hash, load_next_cursor};
+use crate::write_commit::load_next_cursor;
 use crate::{
     edge_fts_hit_passes_filter, frozen_read, load_dependency_generation, projection_generation,
     valid_caller_identity, Engine, EngineError, FrozenReadContextV1, LifecycleState, ReadContextV1,
@@ -558,7 +558,7 @@ pub(crate) fn source_link_valid(
         _ => false,
     };
     // Stored provenance binds the full source revision even for an excerpt.
-    Ok(locator_valid && canonical_body_hash(&canonical_body) == digest)
+    Ok(locator_valid && crate::canonical_body_hash(&canonical_body) == digest)
 }
 
 pub(crate) fn canonical_source_chain_valid(

@@ -112,8 +112,8 @@ reported runtime_lifecycle
 governed search
 reported search::paired50_tests
 reported search::historical_property_lifecycle_tests
+reported search::ranking_tests
 governed search_api
-reported search_ranking_tests
 governed search_types
 reported slice20_fix1_tests
 reported slice20_open_hook_tests

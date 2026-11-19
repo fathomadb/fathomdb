@@ -1,7 +1,11 @@
-use super::*;
 use crate::slice30_observer::{RankProbeRoute, Slice30ObservationGuard};
+use crate::{
+    Engine, IdSpaceKind, InitialState, PreparedWrite, ReadView, SearchResult, SnippetOptions,
+    SourceId,
+};
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use serde_json::{json, Value};
+use std::sync::Arc;
 
 const TWINS: &str = "\u{001e}\u{0011}café pear";
 const NEWCOMER: &str = "nearby vector";

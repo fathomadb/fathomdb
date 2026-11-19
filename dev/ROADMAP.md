@@ -57,7 +57,7 @@ file, and board. Publishing always requires a separate explicit HITL decision.
 | **0.8.30** | Backlog | Explicit release of the process-lifetime module-level CUDA models. |
 | **0.8.31** | **Review checkpoint** | Associative retrieval and automatic profile-routing experiments. |
 | **0.8.33** | **Review checkpoint** | Expanded integrity, repair-planning, and release-matrix experiments. |
-| **0.9.0** | Planning only | Define post-0.8.x product identity and the next major release. No implementation is scheduled by the program schedule. |
+| **0.9.0** | Planning only | Define post-0.8.x product identity and the next major release. Vercel UI SDK research and agent data interfaces are preserved in the [0.9.0 backlog](plans/0.9.0/backlog.md) under seq-404. No implementation is scheduled by the program schedule. |
 | **Post-1.0, pre-2.1** | Backlog | ANN indexing for the 100k/1M vector-latency tiers. |
 
 ## 0.8.27 scope
@@ -269,6 +269,14 @@ at least two manual profiles have been accepted with inspectable fallback.
 
 Promotion requires proof that representative checks miss a material failure or
 that the additional machinery changes an operator or release decision.
+
+## 0.9.0 backlog
+
+Owner seq-404 places the Vercel UI SDK research and the resulting FathomDB
+agent-data-interface proposal in the [0.9.0 backlog](plans/0.9.0/backlog.md).
+Revalidate and select scope during release planning. This placement adds no
+implementation to 0.8.30, whose correctness and robustness work remains the
+session focus.
 
 ## Unscheduled product backlog
 

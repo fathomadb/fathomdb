@@ -1,6 +1,6 @@
 {
   "release": "0.8.30",
-  "release_kind": "Slices10 and20 implemented; Slice30 commissioned; qualification open and publication held",
+  "release_kind": "Slices10,20 and30 implemented; qualification open and publication held",
   "board": "dev/plans/runs/STATUS-0.8.30.md",
   "plan": "dev/plans/0.8.30/plan.md",
   "master": "dev/plans/0.8.30/plan.md",
@@ -182,11 +182,16 @@
       "depends_on": [
         10
       ],
-      "status": "IN_PROGRESS",
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
       "design_refs": [
         "dev/plans/0.8.30/features/slice-30/plan.md"
       ],
-      "commission_source": "seq-402"
+      "commission_source": "seq-402",
+      "scope_extension_sources": [
+        "seq-403"
+      ],
+      "evidence": "dev/plans/0.8.30/features/slice-30/status.md; Astra/Sol/Terra reviews and exact final native verification; original wrapper/test failures and focused recoveries preserved.",
+      "sha": "5b0348775279883fe2ffcd52f60c23c90171166e"
     },
     {
       "slice": 40,
@@ -254,9 +259,8 @@
     }
   ],
   "landed": [],
-  "next_slice": 30,
+  "next_slice": 40,
   "remaining_ladder": [
-    30,
     40,
     50,
     60,
@@ -284,6 +288,16 @@
         "id": "slice30-commission",
         "source": "seq-402",
         "ruling": "Spawn an agent to perform Slice 30 using the supplied slice prompt template."
+      },
+      {
+        "id": "slice30-issue264",
+        "source": "seq-403",
+        "ruling": "Include issue264 in Slice30; existing Slice30 agent implements it under the complete slice plan with TDD, required reviews and verification."
+      },
+      {
+        "id": "agent-storage-research-placement",
+        "source": "seq-404",
+        "ruling": "Place Vercel UI SDK research and derived FathomDB proposal in the0.9.0 backlog; keep this session focused on0.8.30 robustness."
       }
     ],
     "unruled": []
@@ -318,12 +332,35 @@
       "skipped": 3,
       "excluded": 0,
       "focused_recovery": "Both failed fixtures independently pass at7299d8be7a0348c809eeb2fb32c42c40649908a6; original full-gate result unchanged. Hosted cancellation, Windows runtime, integrated candidate and registry qualification remain later work."
+    },
+    "slice30": {
+      "status": "SOURCE_AND_NATIVE_VERIFIED_WITH_RECORDED_LIMITS",
+      "record": "dev/plans/0.8.30/features/slice-30/status.md",
+      "source_subject": "47bd06261867105964bf6a2aa2875eaee4c4adb3",
+      "implementation_sha": "5b0348775279883fe2ffcd52f60c23c90171166e",
+      "full_wrapper": {
+        "source_subject": "aef9b1ba3acb62989be49fb3afb219452952ee3c",
+        "exit": 1,
+        "stopped_at": "module-boundary lint, before typecheck/security/test registration"
+      },
+      "collecting_test": {
+        "source_subject": "74247a65d3caa7c92f8aea2e019cb29e9ff709de",
+        "exit": 1,
+        "registered": 241,
+        "ran": 238,
+        "passed": 234,
+        "failed": 4,
+        "skipped": 3,
+        "excluded": 0
+      },
+      "focused_recovery": "All four static guards, module boundary, affected rank/trace/query checks passed at47bd06261. Typecheck and strict security passed. Rust/Python/TS/native runtime passed; Terra reverified exact rebuilt production bindings. No uninterrupted full-gate pass is claimed.",
+      "limits": "Original S50 historical cause remains unresolved; precise occurrence labels and identical-membership invocation attribution remain owner choices; empty-span trace/write policy discrepancy recorded. Prior hints/logging holds and integrated qualification remain with their assigned slices."
     }
   },
   "release_readiness": {
     "status": "NOT_READY",
     "publication_authorized": false,
-    "scope": "Slices10/20 implementation integrated; Slice30 commissioned at seq-402. Features40\u201380 remain uncommissioned. Integrated source, platform, timing, subscriber-fixture and renderer qualifications remain open; publication is not authorized."
+    "scope": "Slices10/20/30 implementation integrated. Features40\u201380 remain uncommissioned. Integrated source, platform, timing, subscriber-fixture and renderer qualifications remain open; publication is not authorized. Vercel research is0.9.0 backlog under seq-404, outside0.8.30 implementation."
   },
   "generated_views": [
     {

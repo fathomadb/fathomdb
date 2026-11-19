@@ -249,13 +249,17 @@ at seq-401 and its reviewed implementation is now integrated at
 `5e7906b6d7a871611ccdddd74a9ed1410c32cc47`. Its
 [status](features/slice-20/status.md) retains the full-gate failure and the two
 independent scoped fixture recoveries, plus open venue/qualification limits.
-Slice30 is commissioned at seq-402 and entering implementation in an isolated
-worktree using the supplied slice prompt template. Feature slices40–80 remain
-uncommissioned. The
+Slice30, commissioned at seq-402 and extended by seq-403 for
+[issue #264](https://github.com/fathomadb/fathomdb/issues/264), is integrated at
+`5b0348775279883fe2ffcd52f60c23c90171166e`. Its
+[status](features/slice-30/status.md) retains the original failed wrapper/test
+runs, passing focused recovery and final exact native proofs. Slice40 is next;
+feature slices40–80 remain uncommissioned. Owner seq-404 places the Vercel UI SDK
+research in the [0.9.0 backlog](../0.9.0/backlog.md); it adds no .30 feature work. The
 [state](../release-state-0.8.30.json) and [board](../runs/STATUS-0.8.30.md)
 own current status.
 
 <!-- BEGIN GENERATED release-state:0.8.30:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 30** (`CORRECTNESS`) — Correctness bug hunt and remediation
+**IMMEDIATE NEXT: Slice 40** (`LATENCY`) — Performance and end-to-end latency
 
-**Remaining ladder:** 30 → 40 → 50 → 60 → 70 → 80.<!-- END GENERATED release-state:0.8.30:plan-immediate-next -->
+**Remaining ladder:** 40 → 50 → 60 → 70 → 80.<!-- END GENERATED release-state:0.8.30:plan-immediate-next -->

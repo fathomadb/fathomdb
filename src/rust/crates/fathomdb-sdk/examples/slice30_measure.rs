@@ -313,6 +313,14 @@ fn observe_g_diagnostic_route(
 }
 
 fn g_fixture_observation(engine: &Adapter, path: &Path) -> Value {
+    g_fixture_observation_after_replacements(engine, path, None)
+}
+
+fn g_fixture_observation_after_replacements(
+    engine: &Adapter,
+    path: &Path,
+    expected_replacements: Option<u64>,
+) -> Value {
     let readiness = match engine {
         Adapter::Core(engine) => {
             engine.read_embedding_readiness().map_err(fathomdb_sdk::Error::from)
@@ -337,6 +345,10 @@ fn g_fixture_observation(engine: &Adapter, path: &Path) -> Value {
             .expect("open owned G fixture for separate untimed counts");
     let count = |sql| connection.query_row(sql, [], |row| row.get::<_, u64>(0)).ok();
     let natural = count("SELECT COUNT(*) FROM canonical_nodes WHERE kind='doc' AND superseded_at IS NULL AND state='active'");
+    let retained = expected_replacements.and_then(|_| {
+        count("SELECT COUNT(*) FROM canonical_nodes WHERE kind='doc' AND superseded_at IS NOT NULL AND state='active'")
+    });
+    let expected_vectors = natural.and_then(|n| n.checked_add(expected_replacements.unwrap_or(0)));
     let vectors = count("SELECT COUNT(*) FROM _fathomdb_vector_rows");
     let spans = count("SELECT COUNT(*) FROM _fathomdb_vector_spans");
     let physical = count("SELECT COUNT(*) FROM vector_default");
@@ -348,17 +360,24 @@ fn g_fixture_observation(engine: &Adapter, path: &Path) -> Value {
         && generation.readiness == fathomdb_engine::ProjectionReadinessV1::Ready
         && generation.failed_count == 0
         && natural.is_some_and(|n| n > 0)
-        && vectors == natural
-        && spans == natural
-        && physical == natural
+        && retained == expected_replacements
+        && expected_vectors.is_some()
+        && vectors == expected_vectors
+        && spans == expected_vectors
+        && physical == expected_vectors
         && format == Some(37);
-    json!({"natural_records":natural,"vector_rows":vectors,"span_rows":spans,
+    let mut fixture = json!({"natural_records":natural,"vector_rows":vectors,"span_rows":spans,
         "physical_vector_rows":physical,"format":format,
         "pending_count":readiness.pending_count,"readiness":readiness.state.as_str(),
         "usable_embedder":readiness.usable_embedder,"generation_id":generation.generation_id.as_str(),
         "generation_readiness":generation.readiness.as_str(),"generation_pending":generation.pending_count,
         "generation_failed":generation.failed_count,"qualified_dense_fixture":qualified,
-        "observation_scope":"adjacent public readiness/generation and separate count transactions; not a search snapshot"})
+        "observation_scope":"adjacent public readiness/generation and separate count transactions; not a search snapshot"});
+    if let Some(expected) = expected_replacements {
+        fixture["retained_superseded_records"] = json!(retained);
+        fixture["expected_retained_superseded_records"] = json!(expected);
+    }
+    fixture
 }
 
 fn g_readiness_observation(engine: &Adapter) -> Value {
@@ -1112,6 +1131,13 @@ fn run_g_read(config: &Value, out: &Path) -> Value {
         } else {
             None
         };
+    let expected_replacements = config.get("diagnostic_reopen_replacements").map(|value| {
+        assert_eq!(config["family"], "G-O", "written reopen requires a diagnostic cell");
+        assert!(!negative, "written reopen needs the configured default embedder");
+        let count = value.as_u64().expect("numeric diagnostic replacement count");
+        assert!(count > 0, "written reopen requires a committed replacement");
+        count
+    });
     let observed = config["observe"] == true;
     let record_first = config
         .get("record_first_call")
@@ -1134,7 +1160,21 @@ fn run_g_read(config: &Value, out: &Path) -> Value {
         open_report["adapter"] = json!(name);
         open_reports.push(open_report);
         let open_ns = u64::try_from(opening.elapsed().as_nanos()).unwrap();
-        let fixture = g_fixture_observation(&engine, store);
+        let mut fixture =
+            g_fixture_observation_after_replacements(&engine, store, expected_replacements);
+        if expected_replacements.is_some()
+            && fixture["pending_count"].as_u64().is_some_and(|pending| pending > 0)
+        {
+            match &engine {
+                Adapter::Core(engine) => engine.drain(10_000).map_err(Into::into),
+                Adapter::Sdk(engine) => engine.drain(10_000),
+            }
+            .expect("drain reopened written subject within diagnostic limit");
+            let initial = fixture;
+            fixture =
+                g_fixture_observation_after_replacements(&engine, store, expected_replacements);
+            fixture["initial_reopen"] = initial;
+        }
         assert!(
             negative || fixture["qualified_dense_fixture"] == true,
             "G read requires selected qualified dense store"

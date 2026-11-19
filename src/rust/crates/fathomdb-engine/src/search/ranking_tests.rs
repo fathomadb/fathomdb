@@ -216,3 +216,113 @@ fn projection_step_moves_vector_ranks_with_exact_fixed_state_controls() {
     }
     engine.close().unwrap();
 }
+
+#[test]
+fn node_only_winner_checks_eligibility_of_matches_without_a_global_scan() {
+    let make = |id: &str, from, until, state| {
+        let mut write = node("eligibility:fixture", &format!("cafe {id}"));
+        if let PreparedWrite::Node { logical_id, valid_from, valid_until, state: initial, .. } =
+            &mut write
+        {
+            *logical_id = Some(id.into());
+            *valid_from = from;
+            *valid_until = until;
+            *initial = state;
+        }
+        write
+    };
+    for shape in ["all-eligible", "early-ineligible", "mixed"] {
+        let directory = tempfile::tempdir().unwrap();
+        let opened = Engine::open_with_embedder_for_test(
+            directory.path().join("eligibility.sqlite"),
+            Arc::new(RankingProvider),
+        )
+        .unwrap();
+        let engine = &opened.engine;
+        engine.configure_vector_kind_for_test("doc").unwrap();
+        let mut writes = Vec::new();
+        if shape != "all-eligible" {
+            writes.push(make("expired", None, Some(AS_OF), InitialState::Active));
+        }
+        writes.extend([
+            make("starts", Some(AS_OF), None, InitialState::Active),
+            make("unbounded", None, None, InitialState::Active),
+        ]);
+        if shape == "mixed" {
+            writes.extend([
+                make("future", Some(AS_OF + 1), None, InitialState::Active),
+                make("pending", None, None, InitialState::Pending),
+            ]);
+        }
+        engine.write(&writes).unwrap();
+        let replacement = if shape == "mixed" {
+            let mut replacement = make("unbounded", None, None, InitialState::Active);
+            if let PreparedWrite::Node { body, .. } = &mut replacement {
+                *body = "cafe replacement".into();
+            }
+            Some(engine.write(&[replacement]).unwrap().row_cursors[0])
+        } else {
+            None
+        };
+        engine.drain(10_000).unwrap();
+        let observer = engine.begin_slice30_observation(128).unwrap();
+        let query = || {
+            engine.search_reranked_view_with_snippets(
+                "cafe",
+                None,
+                0,
+                false,
+                0.3,
+                0,
+                false,
+                &ReadView { valid_as_of: Some(AS_OF), ..ReadView::default() },
+                10,
+                Some(&SnippetOptions { highlights: true, ..SnippetOptions::default() }),
+            )
+        };
+
+        let optimized = observer.with_rank_probe(1, RankProbeRoute::Optimized, query).unwrap();
+        let work = observer.take();
+        assert_eq!(work.dropped_records, 0);
+        assert!(work.issues.is_empty());
+        let scan_count = work
+            .records
+            .iter()
+            .filter(|record| {
+                record.phase == "all_nodes_directly_eligible"
+                    && record.facts["sql_executed"] == true
+            })
+            .count();
+        assert_eq!(scan_count, 0, "{shape} performed a whole-store eligibility query");
+        assert!(work.records.iter().any(|record| {
+            record.phase == "s50_ranking_route" && record.facts == "winner_hydration"
+        }));
+        let controlled = observer.with_rank_probe(2, RankProbeRoute::Reference, query).unwrap();
+        let reference_work = observer.take();
+        assert_eq!(reference_work.dropped_records, 0);
+        assert!(reference_work.issues.is_empty());
+        assert_eq!(optimized, controlled);
+        let snapshot = |records: &[crate::Slice30ObservationRecord]| {
+            records
+                .iter()
+                .find(|record| record.phase == "observer_snapshot_capture")
+                .unwrap()
+                .facts
+                .clone()
+        };
+        assert_eq!(snapshot(&work.records), snapshot(&reference_work.records));
+        for (hit, reference) in optimized.results.iter().zip(&controlled.results) {
+            assert_eq!(hit.score.to_bits(), reference.score.to_bits());
+            assert_eq!(hit.source_id.as_deref(), Some("eligibility:fixture"));
+        }
+        let mut ids = optimized.results.iter().map(|hit| hit.id.to_prefixed()).collect::<Vec<_>>();
+        ids.sort();
+        assert_eq!(ids, ["l:starts", "l:unbounded"]);
+        if let Some(cursor) = replacement {
+            let hit =
+                optimized.results.iter().find(|hit| hit.id.to_prefixed() == "l:unbounded").unwrap();
+            assert_eq!(hit.write_cursor, cursor);
+            assert_eq!(hit.body, "cafe replacement");
+        }
+    }
+}

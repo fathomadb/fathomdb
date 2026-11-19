@@ -1,11 +1,14 @@
 ---
 title: 0.8.30 Slice 50 runtime concurrency and resources
-status: PROPOSED
+status: ACTIVE
 slice: 50
 target_release: 0.8.30
 ---
 
 # Slice 50 — Runtime concurrency and resource bug hunt and remediation
+
+Owner seq-408 commissions the whole revised plan with `gpt-6.1-sol` high
+after40 source completion and remediation of its review findings.
 
 ## Entry and prerequisites
 
@@ -45,7 +48,8 @@ shutdown, asynchronous logging, default Node resource investigation and conditio
 B30-01 model release. [Slice55](../slice-55/plan.md) owns the seq-406 data-integrity
 fixture, temporal/relationship composition, product fuzzing, process-crash/WAL
 and doctor gap fixes, and thin shared behavioral tests. No selected work is
-removed. This restructuring does not commission either slice.
+removed. The seq-407 split itself granted no execution authority; seq-408 now
+commissions50.
 
 Reuse [the SQLite-method roadmap](../../../../notes/fathomdb-quality-testing-roadmap.md)
 for first/persistent runtime faults, positive progress and owned-resource cleanup.

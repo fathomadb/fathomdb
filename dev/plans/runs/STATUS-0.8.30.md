@@ -6,11 +6,11 @@ The [state](../release-state-0.8.30.json) owns status and next actions. The
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.30:status-current-state -->**Next is Slice 40 (LATENCY), IN_PROGRESS.** Completed on local `release/0.8.30` per release state: 0 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 1 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 2 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 3 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 4 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 5 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 6 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 7 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 8 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 9 (`9b60aed656330acdcce06d3c77e6008dbef739c3`) · 10 (`9c9b786585961d5393d1155eb6b44b611b63e06d`) · 20 (`5e7906b6d7a871611ccdddd74a9ed1410c32cc47`) · 30 (`5b0348775279883fe2ffcd52f60c23c90171166e`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.30:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.30:status-current-state -->**Next is Slice 50 (ROBUSTNESS), IN_PROGRESS.** Completed on local `release/0.8.30` per release state: 0 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 1 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 2 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 3 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 4 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 5 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 6 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 7 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 8 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 9 (`9b60aed656330acdcce06d3c77e6008dbef739c3`) · 10 (`9c9b786585961d5393d1155eb6b44b611b63e06d`) · 20 (`5e7906b6d7a871611ccdddd74a9ed1410c32cc47`) · 30 (`5b0348775279883fe2ffcd52f60c23c90171166e`) · 40 (`d64e870bd96103851b104afc927d48c64067db35`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.30:status-current-state -->
 
 ## Next action
 
-<!-- BEGIN GENERATED release-state:0.8.30:status-next-action -->**Continue Slice 40 (LATENCY)** — Performance and end-to-end latency. **Remaining ladder:** 40 → 50 → 55 → 60 → 70 → 75 → 80.<!-- END GENERATED release-state:0.8.30:status-next-action -->
+<!-- BEGIN GENERATED release-state:0.8.30:status-next-action -->**Continue Slice 50 (ROBUSTNESS)** — Runtime concurrency and resource bug hunt and remediation. **Remaining ladder:** 50 → 55 → 60 → 70 → 75 → 80.<!-- END GENERATED release-state:0.8.30:status-next-action -->
 
 ## Decisions, implementation and qualification
 
@@ -48,3 +48,11 @@ The [state](../release-state-0.8.30.json) owns status and next actions. The
   70 integrated source behavior and75 installed platform/artifact qualification.
   Completed statuses are unchanged. The added slices are not commissioned;
   current40 continues.75 now supplies the qualified candidate to80.
+
+- Reviewed40 source is integrated at`d64e870bd96103851b104afc927d48c64067db35`.
+  Its [status](../0.8.30/features/slice-40/status.md) retains the original full-gate
+  exit1 and237/238 passing suites, sole observer recovery11/11 and independent
+  rebuilt native verification. All review findings are remediated. Inherited
+  hints qualification remains open with70; final pin/platform proof is unchanged.
+- Owner seq-408 commissions the whole revised50 plan using the supplied template
+  and `gpt-6.1-sol` high after40 completion.55/60/70/75/80 remain uncommissioned.

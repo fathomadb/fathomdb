@@ -1,6 +1,6 @@
 {
   "release": "0.8.30",
-  "release_kind": "Slices10/20/30 implemented; Slice40 commissioned; qualification open and publication held",
+  "release_kind": "Slices10/20/30/40 implemented; Slice50 commissioned; qualification open and publication held",
   "board": "dev/plans/runs/STATUS-0.8.30.md",
   "plan": "dev/plans/0.8.30/plan.md",
   "master": "dev/plans/0.8.30/plan.md",
@@ -200,24 +200,28 @@
       "depends_on": [
         10
       ],
-      "status": "IN_PROGRESS",
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
       "design_refs": [
         "dev/plans/0.8.30/features/slice-40/plan.md"
       ],
-      "commission_source": "seq-405"
+      "commission_source": "seq-405",
+      "sha": "d64e870bd96103851b104afc927d48c64067db35",
+      "evidence": "dev/plans/0.8.30/features/slice-40/status.md; reviewed CPU improvement and exact-state controls, review findings remediated, sole full-gate observer failure independently recovered. Inherited hints and final pin/source/platform qualification remain open."
     },
     {
       "slice": 50,
       "short": "ROBUSTNESS",
       "title": "Runtime concurrency and resource bug hunt and remediation",
       "depends_on": [
-        10
+        10,
+        40
       ],
-      "status": "PROPOSED_NOT_COMMISSIONED",
+      "status": "IN_PROGRESS",
       "design_refs": [
         "dev/plans/0.8.30/features/slice-50/plan.md"
       ],
-      "scope_source": "seq-407"
+      "scope_source": "seq-407",
+      "commission_source": "seq-408"
     },
     {
       "slice": 55,
@@ -290,9 +294,8 @@
     }
   ],
   "landed": [],
-  "next_slice": 40,
+  "next_slice": 50,
   "remaining_ladder": [
-    40,
     50,
     55,
     60,
@@ -346,6 +349,11 @@
         "id": "rightsize-50-70",
         "source": "seq-407",
         "ruling": "Proceed with the proposed additional slices and right-sizing:50/55 runtime versus data integrity/recovery;70/75 source behavior versus platform/artifact qualification."
+      },
+      {
+        "id": "slice50-commission",
+        "source": "seq-408",
+        "ruling": "After Slice40 completion and remediation of its review findings, spawn gpt-6.1-sol at high effort to complete the whole revised Slice50 plan using the supplied prompt template."
       }
     ],
     "unruled": []
@@ -423,12 +431,32 @@
     "qualification_records": [
       "dev/plans/0.8.30/features/slice-70/plan.md",
       "dev/plans/0.8.30/features/slice-75/plan.md"
-    ]
+    ],
+    "slice40": {
+      "status": "SOURCE_AND_CPU_VERIFIED_WITH_RECORDED_LIMITS",
+      "record": "dev/plans/0.8.30/features/slice-40/status.md",
+      "implementation_sha": "d64e870bd96103851b104afc927d48c64067db35",
+      "timed_native_subject": "342d859591f43e5ecb22cb63d3b1c32e6bbcc680",
+      "full_gate": {
+        "source_subject": "b757d0922b7c4461c826815f202e5d7135d587f8",
+        "exit": 1,
+        "registered": 241,
+        "ran": 238,
+        "passed": 237,
+        "failed": 1,
+        "skipped": 3,
+        "excluded": 0
+      },
+      "focused_recovery": "Observer RED22735c2ff/GREEN8f71f4cb8 passes11/11 plus targeted clippy; Sol PASS and Terra independently verifies rebuilt12 diagnostic and4 ordinary exact-state cases. No broad or timing replay; original full-gate exit retained.",
+      "measured_result": "Corrected paired hybrid p50 improvement24.758% read/37.266% governed-write, exact fixed-state results and discriminating current-cursor reopen; tails/useful throughput improved on the declared CPU inputs.",
+      "review": "Astra plan/design PASS afterFIX-1, Sol code/corrections PASS, Terra runtime/artifacts PASS; parent Codex reviewed final production/observer/rank/malformed-identity and interrupted-summary corrections before integration.",
+      "limits": "Inherited200us hints qualification remains open with original four fails preserved. Final60 pins,70 integrated source and75 installed/platform proof remain required; no uninterrupted full-gate or release-ready claim."
+    }
   },
   "release_readiness": {
     "status": "NOT_READY",
     "publication_authorized": false,
-    "scope": "Slices10/20/30 implementation integrated; Slice40 commissioned atseq-405. Future50/55/60/70/75/80 remain uncommissioned; seq-407 right-sizes their plans only. Source, platform, timing and artifact qualification remain open. Publication not authorized; Vercel research remains0.9.0 underseq-404."
+    "scope": "Slices10/20/30/40 source work integrated;50 commissioned underseq-408 after40 review findings remediated. Future55/60/70/75/80 remain uncommissioned. Inherited hints, final pins/source/platform/artifact qualification remain open. Publication not authorized; Vercel research remains0.9.0."
   },
   "generated_views": [
     {
@@ -459,9 +487,9 @@
     },
     {
       "item": "Hints overhead criterion",
-      "owner_slice": 40,
+      "owner_slice": 70,
       "state": "OPEN",
-      "evidence": "Unchanged200us bound failed: full289.9us, preserved recheck366.8us, ordered baseline345.3us/candidate374.6us. Neither attribution nor waiver follows."
+      "evidence": "Slice40 completed its bounded diagnosis; original unchanged200us failures289.9/366.8/345.3/374.6us retained. Current standalone pass suppressed percentile stdout; balanced post-plan emission/shaping median186.162us and combined182.124us do not explain historical cause or close final qualification.70 joins final unchanged-criterion evidence; no waiver."
     },
     {
       "item": "Asynchronous logging fixture synchronization",

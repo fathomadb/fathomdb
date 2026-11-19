@@ -15,8 +15,8 @@ work. [Slice55](features/slice-55/plan.md) implements data-integrity, recovery,
 fuzz, doctor and shared behavioral gaps after commissioning.
 [Slice70](features/slice-70/plan.md) qualifies source behavior and
 [Slice75](features/slice-75/plan.md) qualifies installed artifacts/platforms.
-[Slice40](features/slice-40/plan.md) retains its latency scope. None of the
-restructured future slices is commissioned by the plan split.
+[Slice40](features/slice-40/plan.md) retains its latency scope. The plan split itself granted no execution authority; the release state owns
+subsequent commissions and completion.
 
 The basis is the [SQLite-method roadmap](../../notes/fathomdb-quality-testing-roadmap.md)
 and the [official testing reference](https://www.sqlite.org/testing.html),
@@ -26,7 +26,7 @@ reviewed again on 2026-11-19.
 
 - **A30:** explicitly retained .30 scoped execution, chiefly `features/slice-30/status.md`; new proof is identified separately from inherited tests. **I:** existing source assertions, with individual .30 execution **not established** from retained summaries inspected here. **G:** feature/long/platform/live selection matters. **P:** planned, no .30 result yet. A registered suite or passing workspace suite does not prove every gated body ran.
 - Slice30: initial112 focused cases; subsequent81 trace/wire/provenance/dependency/evidence passes (one release-only debug ignore); final production Python/Node three profile cases per binding plus process reopen/partial-span trace at `47bd06261867105964bf6a2aa2875eaee4c4adb3`. The full wrapper failed lint before tests; assembled continuation later ran238/241 suites,234 pass/four static guard failures/three private opt-in skips. Four guards subsequently recovered. Preserve original exits; no uninterrupted full-gate claim.
-- Slice20 supplies actual offline persisted/read/missing/separate-process Rust/Python/Node consumers and diagnostics controls. Some Node artifacts were matched .29 packages; this is not final .30/platform/registry proof. Slice40 is commissioned;50/55/60/70/75/80 remain proposed. Vercel UI SDK remains0.9 backlog, not .30.
+- Slice20 supplies actual offline persisted/read/missing/separate-process Rust/Python/Node consumers and diagnostics controls. Some Node artifacts were matched .29 packages; this is not final .30/platform/registry proof. At this audit snapshot,40 was commissioned and50/55/60/70/75/80 proposed; the release state records subsequent progress. Vercel UI SDK remains0.9 backlog, not .30.
 - `E/…` below means `src/rust/crates/fathomdb-engine/…`; `M/…` means `src/rust/crates/fathomdb-mcp/…`; `C/…` means `src/rust/crates/fathomdb-cli/…`; `S/…` means `src/rust/crates/fathomdb-sdk/…`. Exact symbols are searchable witnesses, not assumptions derived from names.
 
 ## Requirement / witness / residual gap / bounded placement

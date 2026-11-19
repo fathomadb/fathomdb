@@ -82,7 +82,7 @@ or silently change an adjacent slice. Scope overflow goes back to the owner.
 | 20 | Efficient, diagnosable CI/CD — R30-CI/DIAG | Approved 10 preparation | Preserve first failure through cancellation, fix normal OIDC/visibility and truthful closure checks, measure selected setup/static-check savings without losing controls. |
 | 30 | Correctness bug hunt and remediation — R30-COR/S50 | Approved 10; consume 20 diagnostics when needed | Classify bounded S50/identity/feedback/coverage/FFI cases; confirmed defects have observed RED→GREEN and exact state/error regressions. |
 | 40 | Performance and end-to-end latency — R30-LAT | Approved 10 for baseline; relevant 30 fixes and final consumed 60 pins before promotion | Comparable baseline/treatment, measured useful latency/tails/throughput/resources, unchanged correctness; justified non-adoption is valid. |
-| 50 | Runtime concurrency and resource bug hunt and remediation — R30-ROB | Approved 10; consumed 30 fixes; safe-drop fork prerequisite from 60 for unsafe release only | Positive concurrent work, capacity/cleanup/reopen assertions, default Node growth disposition and safe selected module-release behavior. |
+| 50 | Runtime concurrency and resource bug hunt and remediation — R30-ROB | Approved10; completed40 underseq-408; consumed30 fixes; safe-drop fork prerequisite from 60 for unsafe release only | Positive concurrent work, capacity/cleanup/reopen assertions, default Node growth disposition and safe selected module-release behavior. |
 | 55 | Data integrity and recovery — R30-TEST | Approved10 and consumed30; applicable50 runtime fixes before affected promotion | Independent cross-index/temporal/relationship state, bounded fuzz and crash/WAL proof, doctor fixes and thin behavioral fixtures. |
 | 60 | Scoped fork maintenance and qualification — R30-FORK | Approved 10 for design; consumed lifecycle contracts | Selected upstream/delta map, coherent pins, independent supported/unsupported kernel/output/resource controls and installed consumers. |
 | 70 | Integrated behavior and source qualification — R30-QUAL/TEST | Selected20/30/40/50/55/60 exits | Applicable source/security/features/long/performance/fidelity and composed-behavior checks; every selected test gap has a discriminating oracle and owner; original nonpasses stay visible. |
@@ -292,13 +292,18 @@ Slice30, commissioned at seq-402 and extended by seq-403 for
 `5b0348775279883fe2ffcd52f60c23c90171166e`. Its
 [status](features/slice-30/status.md) retains the original failed wrapper/test
 runs, passing focused recovery and final exact native proofs. Slice40 is
-commissioned at seq-405 using the full execution template and its whole plan;
-feature slices50–80 remain uncommissioned. Owner seq-404 places the Vercel UI SDK
+commissioned at seq-405 using the full execution template and its whole plan,
+and its reviewed source work is integrated at
+`d64e870bd96103851b104afc927d48c64067db35`. Its
+[status](features/slice-40/status.md) preserves the original failed full gate and
+independently passing observer recovery. Review findings are remediated; inherited
+hints/final qualification remains open. Owner seq-408 commissions the revised50
+plan with `gpt-6.1-sol` high after40 completion.55/60/70/75/80 remain uncommissioned. Owner seq-404 places the Vercel UI SDK
 research in the [0.9.0 backlog](../0.9.0/backlog.md); it adds no .30 feature work. The
 [state](../release-state-0.8.30.json) and [board](../runs/STATUS-0.8.30.md)
 own current status.
 
 <!-- BEGIN GENERATED release-state:0.8.30:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 40** (`LATENCY`) — Performance and end-to-end latency
+**IMMEDIATE NEXT: Slice 50** (`ROBUSTNESS`) — Runtime concurrency and resource bug hunt and remediation
 
-**Remaining ladder:** 40 → 50 → 55 → 60 → 70 → 75 → 80.<!-- END GENERATED release-state:0.8.30:plan-immediate-next -->
+**Remaining ladder:** 50 → 55 → 60 → 70 → 75 → 80.<!-- END GENERATED release-state:0.8.30:plan-immediate-next -->

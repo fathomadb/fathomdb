@@ -1,6 +1,6 @@
 ---
 title: 0.8.30 Slice 40 study record
-status: ACTIVE
+status: COMPLETE
 slice: 40
 target_release: 0.8.30
 ---
@@ -277,3 +277,13 @@ hints evidence remains in `/tmp/fathomdb-0830-slice10-evidence` and
 `/tmp/fathomdb-0830-terra-node/hints-pair-result.json`. The
 [study commands](../../../../experiments/0.8.30-slice40/README.md) regenerate
 the selected comparisons from the declared inputs.
+
+## Release integration
+
+Parent Codex reviewed the final production/rank/observer changes and the repaired
+interrupted-summary path and accepted source integration at
+`d64e870bd96103851b104afc927d48c64067db35`. The signed-ownerless, interrupted-output
+and observer findings have genuine RED/GREEN and scoped independent verification.
+Source completion preserves the original full-gate failure and the open inherited
+hints/final qualification above. Owner seq-408 commissions50 only after this
+completion;70 owns the remaining hints qualification and75 installed platform proof.

@@ -2576,7 +2576,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         let force_full_sort = rank_probe.map_or(force_full_sort, |route| {
             route == crate::slice30_observer::RankProbeRoute::Reference
         });
-        let defer_text_identity =
+        let can_defer_text_identity =
             observe_slice30_guard(
                 "all_nodes_directly_eligible",
                 "vector_unavailable",
@@ -2638,14 +2638,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                     "force_full_sort",
                     false,
                     !force_full_sort,
-                )
-                && dependency_closure::all_nodes_directly_eligible(
-                    &tx,
-                    view.view.include_superseded,
-                    view.view.include_inactive,
-                    view.view.include_out_of_window,
-                    view.edge_now(),
-                )?;
+                );
         let join_sql = crate::filter::body_fts_rank_sql_view(
             &text_validity,
             &text_eligibility,
@@ -2709,7 +2702,8 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         let eager_text = false;
         #[cfg(test)]
         let eager_text = rank_probe.is_none() && eager_text;
-        let defer_full_hydration = defer_text_identity
+        // The node-only route already joins each matched owner before ranking.
+        let defer_full_hydration = can_defer_text_identity
             && !eager_text
             && !vector_stage_only
             && tx.query_row(
@@ -2717,25 +2711,47 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                 [],
                 |row| row.get::<_, bool>(0),
             )?;
+        let defer_text_identity = can_defer_text_identity
+            && !defer_full_hydration
+            && dependency_closure::all_nodes_directly_eligible(
+                &tx,
+                view.view.include_superseded,
+                view.view.include_inactive,
+                view.view.include_out_of_window,
+                view.edge_now(),
+            )?;
         let deferred_candidates = if defer_full_hydration {
             #[cfg(all(feature = "slice50-measurement", any(test, feature = "slice30-observer")))]
             crate::slice30_observer::slice50_route("winner_hydration");
-            let now_binding =
-                now_param.map(|_| " AND (?2 IS NULL OR ?2 IS NOT NULL)").unwrap_or("");
             let sql = format!(
                 "SELECT si.rowid, si.write_cursor, bm25(search_index), cn.write_cursor, \
-                 si.body IS cn.body, si.kind IS cn.kind, si.body, si.kind FROM search_index si \
+                 si.body IS cn.body, si.kind IS cn.kind, si.body, si.kind, cn.logical_id, cn.source_id \
+                 FROM search_index si \
                  LEFT JOIN canonical_nodes cn ON cn.write_cursor=si.write_cursor \
-                 WHERE search_index MATCH ?1{now_binding}{limit_clause}"
+                 WHERE search_index MATCH ?1 {text_existence}{text_validity}{limit_clause}"
             );
             let mut statement = prepare_search_statement(&tx, &sql)?;
             let rows =
                 statement.query_map(rusqlite::params_from_iter(text_params.iter()), |row| {
-                    // The reference materializes both Strings for every match,
-                    // including losing ownerless rows. Preserve type/UTF-8
-                    // refusal with borrowed values before deferring allocation.
+                    // Validate losing matches before deferring their allocations.
                     row.get_ref(6)?.as_str().map_err(|_| rusqlite::Error::InvalidQuery)?;
                     row.get_ref(7)?.as_str().map_err(|_| rusqlite::Error::InvalidQuery)?;
+                    let malformed_identity = row.get_ref(8)?.as_str_or_null().is_err()
+                        || row.get_ref(9)?.as_str_or_null().is_err();
+                    // The old all-eligible route only decoded winner identity. Preserve
+                    // that behavior, and the reference refusal on mixed stores.
+                    if malformed_identity
+                        && !dependency_closure::all_nodes_directly_eligible(
+                            &tx,
+                            view.view.include_superseded,
+                            view.view.include_inactive,
+                            view.view.include_out_of_window,
+                            view.edge_now(),
+                        )?
+                    {
+                        row.get::<_, Option<String>>(8)?;
+                        row.get::<_, Option<String>>(9)?;
+                    }
                     let rowid = row.get::<_, i64>(0)?;
                     let write_cursor = row.get::<_, i64>(1)? as u64;
                     let ownership = if row.get::<_, Option<i64>>(3)?.is_some() {

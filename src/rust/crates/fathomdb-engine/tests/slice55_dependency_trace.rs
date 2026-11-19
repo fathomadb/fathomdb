@@ -339,7 +339,7 @@ fn slice55_trace_partial_spans_authenticate_the_whole_canonical_source() {
         assert!(reverse.complete);
         assert_eq!(reverse.checked_work_units, 2);
         assert_eq!(reverse.read_boundary, forward.read_boundary);
-        assert_eq!(reverse.dependency_edges, [edge.clone()]);
+        assert_eq!(reverse.dependency_edges.as_slice(), std::slice::from_ref(edge));
         assert_eq!(reverse.nodes.len(), 2);
         let mut root = forward_node.clone();
         root.depth = 0;

@@ -304,6 +304,11 @@
         "id": "slice40-commission",
         "source": "seq-405",
         "ruling": "Spawn an agent to perform Slice40 using the provided template and the whole Slice40 plan."
+      },
+      {
+        "id": "quality-coverage-gap-plan",
+        "source": "seq-406",
+        "ruling": "Analyze and fill .30 test-coverage gaps using the SQLite-testing roadmap and the listed robustness, retrieval, index, SDK/MCP, fuzz, crash/WAL and doctor priorities; erasure is lower priority."
       }
     ],
     "unruled": []
@@ -361,6 +366,20 @@
       },
       "focused_recovery": "All four static guards, module boundary, affected rank/trace/query checks passed at47bd06261. Typecheck and strict security passed. Rust/Python/TS/native runtime passed; Terra reverified exact rebuilt production bindings. No uninterrupted full-gate pass is claimed.",
       "limits": "Original S50 historical cause remains unresolved; precise occurrence labels and identical-membership invocation attribution remain owner choices; empty-span trace/write policy discrepancy recorded. Prior hints/logging holds and integrated qualification remain with their assigned slices."
+    },
+    "coverage_plan": {
+      "status": "PLANNED_NOT_VERIFIED",
+      "record": "dev/plans/0.8.30/coverage-audit.md",
+      "implementation_owner": 50,
+      "qualification_owner": 70,
+      "selected": [
+        "composed canonical/index/temporal/relationship state",
+        "CPU process-crash/WAL and persistent failure recovery",
+        "bounded real product-input fuzzing and minimized regressions",
+        "all-doctor outcomes/effects and actual integrity findings",
+        "thin behavioral SDK/MCP parity and oracle sensitivity"
+      ],
+      "scope": "Draft50/70 plans amended underseq-406; existing40 remains latency-only. Test existence and inherited runs are distinct from exact-candidate proof. No newly planned row is claimed executed."
     }
   },
   "release_readiness": {

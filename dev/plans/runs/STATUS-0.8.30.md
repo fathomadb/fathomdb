@@ -38,3 +38,7 @@ The [state](../release-state-0.8.30.json) owns status and next actions. The
   Feature slices50–80 remain uncommissioned. Inspector stays separate.
 - Owner seq-404 places the Vercel research in the [0.9.0 backlog](../0.9.0/backlog.md).
   The .30 session remains focused on its correctness and robustness goals.
+
+- Owner seq-406 adds explicit SQLite-method coverage and gap work to draft50/70.
+  The [audit](../0.8.30/coverage-audit.md) distinguishes actual proof, inherited
+  assertions and planned execution; the added rows are not yet verified.

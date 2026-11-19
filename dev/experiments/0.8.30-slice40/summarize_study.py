@@ -232,37 +232,41 @@ def natural_proof(
         for index, probe in enumerate(result["probes"]):
             reference = f"l:{probe['logical_id']}"
             position = len(result["probes"]) + index
-            original = next(
-                row
-                for row in before["samples"]
-                if row["route"] == "text" and row["query_index"] == index
-            )
-            reopened_text = next(
-                row
-                for row in reopened["samples"]
-                if row["route"] == "text" and row["query_index"] == position
-            )
-            if observed_snapshot(before, original)["projection_cursor"] != initial_high:
-                raise ValueError(
-                    "pre-write original-body query did not use baseline authority"
+            for route in ("hybrid", "text"):
+                original = next(
+                    row
+                    for row in before["samples"]
+                    if row["route"] == route and row["query_index"] == index
                 )
-            originally_seen = [
-                hit["write_cursor"]
-                for hit in original["hits"]
-                if hit["id"] == reference
-            ]
-            now_seen = [
-                hit["write_cursor"]
-                for hit in reopened_text["hits"]
-                if hit["id"] == reference
-            ]
-            if originally_seen != [original_cursors[reference]] or now_seen != [
-                latest[reference]
-            ]:
-                raise ValueError(
-                    f"original body query did not discriminate superseded {reference}"
+                after = next(
+                    row
+                    for row in reopened["samples"]
+                    if row["route"] == route and row["query_index"] == position
                 )
-            original_term_checks += 1
+                if (
+                    observed_snapshot(before, original)["projection_cursor"]
+                    != initial_high
+                ):
+                    raise ValueError(
+                        "pre-write original-body query did not use baseline authority"
+                    )
+                originally_seen = [
+                    hit["write_cursor"]
+                    for hit in original["hits"]
+                    if hit["id"] == reference
+                ]
+                now_seen = [
+                    hit["write_cursor"]
+                    for hit in after["hits"]
+                    if hit["id"] == reference
+                ]
+                if originally_seen != [original_cursors[reference]] or now_seen != [
+                    latest[reference]
+                ]:
+                    raise ValueError(
+                        f"original body query did not discriminate superseded {reference} via {route}"
+                    )
+                original_term_checks += 1
     if high <= initial_high or not reopened["fixtures"][0]["qualified_dense_fixture"]:
         raise ValueError(
             "reopened subject did not reach the ready dense state after writes"
@@ -305,12 +309,19 @@ def pair_summary(baseline, candidate):
     }
 
 
-def read_jsonl(path):
-    return (
-        [json.loads(line) for line in path.read_text().splitlines()]
-        if path.exists()
-        else []
-    )
+def read_jsonl(path, interrupted_outputs):
+    if not path.exists():
+        return []
+    lines = path.read_bytes().splitlines(keepends=True)
+    rows = []
+    for i, line in enumerate(lines):
+        try:
+            rows.append(json.loads(line))
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            if i != len(lines) - 1 or line.endswith(b"\n"):
+                raise
+            interrupted_outputs.append(f"{path.name}: incomplete final row")
+    return rows
 
 
 def summarize(root):
@@ -322,10 +333,17 @@ def summarize(root):
         config = load(directory / "config.json")
         attempt = load(directory / "attempt.json")
         result_path = directory / "native/result.json"
-        result = load(result_path) if result_path.exists() else {}
+        interrupted_outputs = []
+        try:
+            result = load(result_path) if result_path.exists() else {}
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            interrupted_outputs.append("result.json: incomplete native summary")
+            result = {}
         complete = attempt["exit"] == 0 and result.get("complete") is True
         actual = result or {
-            key: read_jsonl(directory / f"native/{key.replace('_', '-')}.jsonl")
+            key: read_jsonl(
+                directory / f"native/{key.replace('_', '-')}.jsonl", interrupted_outputs
+            )
             for key in populations
         }
         planned = {
@@ -386,6 +404,7 @@ def summarize(root):
             "complete": complete,
             "routes": rows_summary,
             "attempt": attempt,
+            "interrupted_outputs": interrupted_outputs,
             **resource_data,
             "raw_persistence": result.get("raw_persistence"),
         }
@@ -393,12 +412,14 @@ def summarize(root):
             batches = (
                 result["batches"]
                 if result
-                else read_jsonl(directory / "native/batches.jsonl")
+                else read_jsonl(directory / "native/batches.jsonl", interrupted_outputs)
             )
             probes = (
                 result["probes"]
                 if result
-                else read_jsonl(directory / "native/g-marker-probes.jsonl")
+                else read_jsonl(
+                    directory / "native/g-marker-probes.jsonl", interrupted_outputs
+                )
             )
             cells[directory.name]["governed"] = {
                 "planned_batches": math.ceil(
@@ -540,7 +561,7 @@ def compare(root, report):
         and same_state
         and removed_work
         and all(
-            item["discriminating_original_body_queries"] == 2
+            item["discriminating_original_body_queries"] == 4
             for item in natural.values()
         ),
         "measured_work_removed": removed_work,

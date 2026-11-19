@@ -242,10 +242,13 @@ class Study:
                 "plan_attempts": samples * len(routes),
             },
         )
+        print(f"exit {code} {name}", flush=True)
+        if code != 0:
+            self.failures.append(name)
+            return None
         result_path = directory / "native/result.json"
         result = load(result_path) if result_path.is_file() else None
-        print(f"exit {code} {name}", flush=True)
-        if code or result is None or not result["complete"]:
+        if result is None or not result["complete"]:
             self.failures.append(name)
             return None
         if family != "G-W":

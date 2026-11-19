@@ -117,6 +117,54 @@ async fn hybrid_feedback_is_recorded_against_its_own_query_with_label_source_age
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn feedback_preserves_an_earlier_response_after_same_ref_revision() {
+    let fixture = Fixture::new();
+    let engine = std::sync::Arc::new(
+        fathomdb_sdk::Engine::open(fixture.path("revision.sqlite"), Default::default()).unwrap(),
+    );
+    let harness = Harness::start(fixture.config(json!({
+        "telemetry_dir": "telemetry"
+    })))
+    .await;
+    harness.adapter.register_engine("a", engine.clone()).unwrap();
+    harness.ok("use_store", json!({"store":"a"})).await;
+    let args = json!({"query":"river", "mode":"hybrid", "as_of":1_800_000_000});
+    let old_cursor =
+        engine.write(&[node("version", "note", "river first")]).unwrap().row_cursors[0];
+    let old = harness.ok("search", args.clone()).await;
+    let new_cursor =
+        engine.write(&[node("version", "note", "river second")]).unwrap().row_cursors[0];
+    let new = harness.ok("search", args.clone()).await;
+    assert_eq!(refs(&old), ["l:version"]);
+    assert_eq!(refs(&new), ["l:version"]);
+    assert_ne!(old["results"][0]["snippet"], new["results"][0]["snippet"]);
+    let old_response = harness
+        .ok("feedback", json!({"response_id":old["response_id"], "used":["l:version"]}))
+        .await;
+    assert_eq!(old_response["status"], "recorded");
+    let new_response = harness
+        .ok("feedback", json!({"response_id":new["response_id"], "used":["l:version"]}))
+        .await;
+    assert_eq!(new_response["status"], "recorded");
+    let all = records(&sink(&fixture, "a", 1));
+    let events = of_type(&all, "event");
+    let labels = of_type(&all, "feedback");
+    assert_eq!(events.len(), 2);
+    assert_eq!(labels.len(), 2);
+    assert_ne!(events[0]["query_id"], events[1]["query_id"]);
+    for (index, cursor) in [old_cursor, new_cursor].into_iter().enumerate() {
+        assert_eq!(events[index]["result_ids"], json!([cursor]));
+        assert_eq!(labels[index]["relevant_ids"], json!([cursor]), "response {index} cursor");
+        assert_eq!(labels[index]["query_id"], events[index]["query_id"], "response {index} query");
+    }
+    assert_ne!(old["response_id"], new["response_id"]);
+    let repeated = harness.ok("search", args).await;
+    assert_eq!(new, repeated, "identical state and inputs preserve deterministic output");
+    harness.shutdown().await;
+    engine.close().unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn concurrent_hybrid_searches_credit_feedback_to_the_right_search() {
     let fixture = Fixture::new();
     let harness = start(&fixture, true, json!({"admission_cap": 7})).await;

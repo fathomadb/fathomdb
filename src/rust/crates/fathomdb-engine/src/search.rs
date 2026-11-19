@@ -2771,6 +2771,13 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             {
                 None
             } else {
+                #[cfg(any(test, feature = "slice30-observer"))]
+                if !requires_legacy_proof {
+                    crate::slice30_observer::not_run(
+                        "all_nodes_directly_eligible",
+                        "match_local_eligibility",
+                    );
+                }
                 #[cfg(all(
                     feature = "slice50-measurement",
                     any(test, feature = "slice30-observer")

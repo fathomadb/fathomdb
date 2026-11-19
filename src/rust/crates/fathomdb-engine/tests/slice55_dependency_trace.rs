@@ -2,9 +2,10 @@
 
 use fathomdb_engine::{
     ArtifactRevisionId, CanonicalHash, DependencyTraceDirectionV1, DependencyTraceErrorReasonV1,
-    DependencyTraceRequestV1, Engine, EngineError, InitialState, PreparedWrite, ProvenancedNodeV1,
-    ReadContextV1, ReadView, SearchFilter, SourceDependencyRegistrationV1, SourceId, SourceLocator,
-    SourceRevisionId, SourceVersionId, WriteProvenanceV1,
+    DependencyTraceRequestV1, Engine, EngineError, InitialState, PreparedWrite, ProvenancedEdgeV1,
+    ProvenancedNodeV1, ReadContextV1, ReadView, SearchFilter, SourceDependencyRegistrationV1,
+    SourceId, SourceLocator, SourceRevisionId, SourceVersionId, TraceArtifactClassV1,
+    TraceArtifactRoleV1, WriteProvenanceV1,
 };
 // Only used by the debug-build-only tests below.
 #[cfg(debug_assertions)]
@@ -37,6 +38,20 @@ fn source(revision: &str, logical: &str, body: &str) -> PreparedWrite {
 }
 
 fn derived(revision: &str, logical: &str, source_revision: &str, body: &str) -> PreparedWrite {
+    derived_node(
+        logical,
+        body,
+        WriteProvenanceV1::derived(
+            ArtifactRevisionId::new(revision).unwrap(),
+            SourceVersionId::new("slice55-v1").unwrap(),
+            SourceRevisionId::new(source_revision).unwrap(),
+            SourceLocator::whole_body(),
+            CanonicalHash::sha256(digest("canonical trace bytes")).unwrap(),
+        ),
+    )
+}
+
+fn derived_node(logical: &str, body: &str, provenance: WriteProvenanceV1) -> PreparedWrite {
     PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
         kind: "fact".into(),
         body: body.into(),
@@ -46,13 +61,7 @@ fn derived(revision: &str, logical: &str, source_revision: &str, body: &str) -> 
         reason: None,
         valid_from: None,
         valid_until: None,
-        provenance: WriteProvenanceV1::derived(
-            ArtifactRevisionId::new(revision).unwrap(),
-            SourceVersionId::new("slice55-v1").unwrap(),
-            SourceRevisionId::new(source_revision).unwrap(),
-            SourceLocator::whole_body(),
-            CanonicalHash::sha256(digest("canonical trace bytes")).unwrap(),
-        ),
+        provenance,
     })
 }
 
@@ -199,6 +208,230 @@ fn slice55_trace_reciprocal_same_context() {
     assert_eq!(forward.dependency_edges, reverse.dependency_edges);
     assert_eq!(forward.checked_work_units, 2);
     assert_eq!(reverse.checked_work_units, 2);
+}
+
+const SPAN_SOURCE: &str = "aé猫z";
+
+fn partial_span_provenance(revision: &str, locator: SourceLocator) -> WriteProvenanceV1 {
+    WriteProvenanceV1::derived(
+        ArtifactRevisionId::new(revision).unwrap(),
+        SourceVersionId::new("slice55-v1").unwrap(),
+        SourceRevisionId::new("span-source-r1").unwrap(),
+        locator,
+        CanonicalHash::sha256(digest(SPAN_SOURCE)).unwrap(),
+    )
+}
+
+fn partial_span_fixture() -> (TempDir, fathomdb_engine::OpenedEngine, rusqlite::Connection) {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("spans{SQLITE_SUFFIX}"));
+    let opened = Engine::open(&path).unwrap();
+    let node = |revision, logical, locator| {
+        derived_node(logical, "derived span", partial_span_provenance(revision, locator))
+    };
+    opened
+        .engine
+        .write(&[
+            source("span-source-r1", "span-source", SPAN_SOURCE),
+            node("node-r1", "span-node", SourceLocator::utf8_bytes(1, 3)),
+            node("full-r1", "full-node", SourceLocator::utf8_bytes(0, 7)),
+            PreparedWrite::ProvenancedEdge(ProvenancedEdgeV1 {
+                kind: "relates".into(),
+                from: "span-source".into(),
+                to: "span-node".into(),
+                source_id: SourceId::new("slice55-source").unwrap(),
+                logical_id: Some("span-edge".into()),
+                body: Some("derived edge".into()),
+                t_valid: None,
+                t_invalid: None,
+                confidence: None,
+                extractor_model_id: None,
+                temporal_fallback: None,
+                provenance: partial_span_provenance("edge-r1", SourceLocator::utf8_bytes(1, 3)),
+            }),
+        ])
+        .unwrap();
+    for (dependency, revision) in
+        [("dep-node", "node-r1"), ("dep-full", "full-r1"), ("dep-edge", "edge-r1")]
+    {
+        opened
+            .engine
+            .register_source_dependency(
+                SourceDependencyRegistrationV1::new(dependency, "span-source-r1", revision)
+                    .unwrap(),
+            )
+            .unwrap();
+    }
+    let raw = rusqlite::Connection::open(path).unwrap();
+    (dir, opened, raw)
+}
+
+#[test]
+fn slice55_trace_partial_spans_authenticate_the_whole_canonical_source() {
+    let (_dir, opened, raw) = partial_span_fixture();
+    let engine = &opened.engine;
+    let context = engine.freeze_read_context(&read_context()).unwrap();
+    let forward = engine
+        .trace_dependency(
+            DependencyTraceRequestV1::new(
+                "span-source-r1",
+                DependencyTraceDirectionV1::ToDependents,
+                context.clone(),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+
+    let cases = [
+        ("edge-r1", "dep-edge", TraceArtifactClassV1::Edge, (1, 3), 3),
+        ("full-r1", "dep-full", TraceArtifactClassV1::Node, (0, 7), 2),
+        ("node-r1", "dep-node", TraceArtifactClassV1::Node, (1, 3), 1),
+    ];
+    let reverse: Vec<_> = cases
+        .iter()
+        .map(|&(revision, _, _, _, _)| {
+            engine.trace_dependency(
+                DependencyTraceRequestV1::new(
+                    revision,
+                    DependencyTraceDirectionV1::ToSource,
+                    context.clone(),
+                )
+                .unwrap(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        forward.dependency_edges.iter().map(|edge| edge.dependency_id.as_str()).collect::<Vec<_>>(),
+        ["dep-edge", "dep-full", "dep-node"],
+        "reverse traces: {reverse:?}"
+    );
+    assert!(forward.complete);
+    assert_eq!(forward.checked_work_units, 4);
+    assert_eq!(forward.nodes.len(), 4);
+    assert_eq!(forward.nodes[0].artifact_revision_id, "span-source-r1");
+    assert_eq!(forward.nodes[0].role, TraceArtifactRoleV1::CanonicalSource);
+    assert_eq!(forward.nodes[0].depth, 0);
+    for (index, ((revision, dependency, class, (start, end), generation), reverse)) in
+        cases.into_iter().zip(reverse).enumerate()
+    {
+        let stored: (String, i64, i64, String, String) = raw
+            .query_row(
+                "SELECT locator_kind,start_byte,end_byte,hash_algorithm,hash_digest
+                 FROM _fathomdb_source_links WHERE artifact_revision_id=?1",
+                [revision],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
+            )
+            .unwrap();
+        assert_eq!(stored, ("utf8_bytes".into(), start, end, "sha256".into(), digest(SPAN_SOURCE)));
+
+        let forward_node = &forward.nodes[index + 1];
+        assert_eq!(forward_node.artifact_revision_id, revision);
+        assert_eq!(forward_node.artifact_class, class);
+        assert_eq!(forward_node.role, TraceArtifactRoleV1::Derived);
+        assert_eq!(forward_node.depth, 1);
+        let edge = &forward.dependency_edges[index];
+        assert_eq!(edge.dependency_id, dependency);
+        assert_eq!(edge.source_revision_id, "span-source-r1");
+        assert_eq!(edge.derived_revision_id, revision);
+        assert_eq!(edge.registered_dependency_generation, generation);
+
+        let reverse = reverse.unwrap();
+        assert!(reverse.complete);
+        assert_eq!(reverse.checked_work_units, 2);
+        assert_eq!(reverse.read_boundary, forward.read_boundary);
+        assert_eq!(reverse.dependency_edges, [edge.clone()]);
+        assert_eq!(reverse.nodes.len(), 2);
+        let mut root = forward_node.clone();
+        root.depth = 0;
+        let mut source = forward.nodes[0].clone();
+        source.depth = 1;
+        assert_eq!(reverse.nodes, [root, source]);
+    }
+}
+
+#[test]
+fn slice55_trace_partial_span_corruption_preserves_nondisclosure() {
+    let (_dir, opened, mut raw) = partial_span_fixture();
+    let assert_refused = || {
+        let engine = &opened.engine;
+        let context = engine.freeze_read_context(&read_context()).unwrap();
+        let reverse = engine
+            .trace_dependency(
+                DependencyTraceRequestV1::new(
+                    "node-r1",
+                    DependencyTraceDirectionV1::ToSource,
+                    context.clone(),
+                )
+                .unwrap(),
+            )
+            .unwrap_err();
+        assert!(
+            matches!(
+                reverse,
+                EngineError::DependencyTrace(ref error)
+                    if error.reason == DependencyTraceErrorReasonV1::TraceUnavailable
+                        && error.field_path == "/rootRevisionId"
+            ),
+            "{reverse:?}"
+        );
+        let forward = engine
+            .trace_dependency(
+                DependencyTraceRequestV1::new(
+                    "span-source-r1",
+                    DependencyTraceDirectionV1::ToDependents,
+                    context,
+                )
+                .unwrap(),
+            )
+            .unwrap();
+        assert!(forward.complete);
+        assert_eq!(forward.checked_work_units, 3);
+        assert_eq!(
+            forward.nodes.iter().map(|n| n.artifact_revision_id.as_str()).collect::<Vec<_>>(),
+            ["span-source-r1", "edge-r1", "full-r1"]
+        );
+        assert_eq!(
+            forward
+                .dependency_edges
+                .iter()
+                .map(|edge| edge.dependency_id.as_str())
+                .collect::<Vec<_>>(),
+            ["dep-edge", "dep-full"]
+        );
+    };
+
+    for (start, end, hash) in [
+        (1, 3, digest("é")),
+        (2, 3, digest(SPAN_SOURCE)),
+        (1, 8, digest(SPAN_SOURCE)),
+        (1, 1, digest(SPAN_SOURCE)),
+    ] {
+        raw.execute(
+            "UPDATE _fathomdb_source_links SET start_byte=?1,end_byte=?2,hash_digest=?3
+             WHERE artifact_revision_id='node-r1'",
+            rusqlite::params![start, end, hash],
+        )
+        .unwrap();
+        assert_refused();
+    }
+
+    let changed = "bé猫z";
+    assert_eq!(&changed[1..3], &SPAN_SOURCE[1..3]);
+    let tx = raw.transaction().unwrap();
+    tx.execute("UPDATE canonical_nodes SET body=?1 WHERE logical_id='span-source'", [changed])
+        .unwrap();
+    tx.execute(
+        "UPDATE _fathomdb_source_links SET hash_digest=?1 WHERE artifact_revision_id!='node-r1'",
+        [digest(changed)],
+    )
+    .unwrap();
+    tx.execute(
+        "UPDATE _fathomdb_source_links SET start_byte=1,end_byte=3 WHERE artifact_revision_id='node-r1'",
+        [],
+    )
+    .unwrap();
+    tx.commit().unwrap();
+    assert_refused();
 }
 
 #[test]

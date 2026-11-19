@@ -1,7 +1,7 @@
 ---
 status: ACTIVE
 scope: post-0.8.26
-updated: 2026-10-09
+updated: 2026-11-19
 ---
 
 # FathomDB roadmap after 0.8.26
@@ -21,9 +21,14 @@ file, and board. Publishing always requires a separate explicit HITL decision.
 
 ## Current position
 
-- **0.8.26 is the published predecessor.** Its retained state contains the
-  historical publication receipt.
-- **0.8.27 is the active implementation release** on `release/0.8.27`.
+- **0.8.30 is the active release** on `release/0.8.30`. Slices 10, 20 and 30
+  are integrated; Slice 40 is next and remains uncommissioned. The
+  [state](plans/release-state-0.8.30.json) and [board](plans/runs/STATUS-0.8.30.md)
+  own current progress and qualification limits. Publication remains held.
+- **Historical 0.8.27 planning snapshot:** 0.8.26 was the published predecessor;
+  its retained state contains the historical publication receipt.
+- **0.8.27 was the active implementation release** on `release/0.8.27`
+  in the following 2026-10-10 snapshot.
   Prework approved correction-safe erasure and a behavior-preserving semantic
   refactor. As of 2026-10-10, release state records Slice 135's bounded
   system qualification and Slice 117's qualified, unpublished Jetson Node
@@ -54,7 +59,7 @@ file, and board. Publishing always requires a separate explicit HITL decision.
 | **0.8.27** | **Active implementation; Slice 117 complete, 140 next** | Correction-safe source erasure, semantic decomposition, bounded system qualification, and the qualified, unpublished Jetson CUDA Node route are recorded. Slice 160 owns publication and post-publication proof. |
 | **0.8.28** | **Proposed release scope** | Advanced retrieval and continuation, Tegra CUDA memory-pool adoption, four owner-placed Slice 135 follow-ups, cudarc fork delivery, and filtered direct body FTS. |
 | **0.8.29** | **Review checkpoint** | Candidate-selection experiments. |
-| **0.8.30** | Backlog | Explicit release of the process-lifetime module-level CUDA models. |
+| **0.8.30** | **Active quality release; 10/20/30 integrated** | Correctness, performance, latency, robustness, testing value and efficient CI/CD; the retained module-model release is reconciled in the [release plan](plans/0.8.30/plan.md). |
 | **0.8.31** | **Review checkpoint** | Associative retrieval and automatic profile-routing experiments. |
 | **0.8.33** | **Review checkpoint** | Expanded integrity, repair-planning, and release-matrix experiments. |
 | **0.9.0** | Planning only | Define post-0.8.x product identity and the next major release. Vercel UI SDK research and agent data interfaces are preserved in the [0.9.0 backlog](plans/0.9.0/backlog.md) under seq-404. No implementation is scheduled by the program schedule. |
@@ -181,7 +186,10 @@ holds the full rulings.
 ## 0.8.30 backlog
 
 Placed by HITL decision on 2026-10-07. This is backlog with a release slot,
-not implementation authority. A [proposed quality release plan](plans/0.8.30/plan.md) now reconciles this backlog; no0.8.30 execution state or board is activated.
+not implementation authority. The [active quality release plan](plans/0.8.30/plan.md)
+reconciles this backlog. Its [state](plans/release-state-0.8.30.json) and
+[board](plans/runs/STATUS-0.8.30.md) own commissioning, progress and qualification;
+the backlog itself grants no additional execution authority.
 
 **B30-01 — release the module-level CUDA models.** Todo
 `TC-8d3c1cde-97d7-46d5-af50-9cc479da6de7`. The embedder-close fix releases the

@@ -215,8 +215,41 @@ cells also completed every governed cohort and marker probe.
 **Disposition:** The corrected treatment meets the current CPU comparison
 and correctness rules. Source adoption is supported on these inputs. Slice
 60 must reconcile the exact final consumed native pins before promotion.
-Slice 70 owns integrated installed-artifact and platform proof. The
+Slice 70 owns integrated source qualification and Slice 75 owns installed
+artifact and platform proof under the owner-approved seq-407 split. The
 separate inherited hints qualification remains open below.
+
+## Workspace verification and scoped recovery
+
+The single workspace gate on clean source `b757d0922b7c4461c826815f202e5d7135d587f8`
+ran with owned Python 3.12, Node 26.13.1/npm 11.20.0, and a ptrace-capable
+executor. Lint, typecheck and strict security passed with zero violations,
+blockers or downgrades. The Tegra lint skipped on x86-64. The gate wrapper
+exited **1** with **241 registered, 238 ran, 237 passed, 1 failed, 3 skipped,
+0 excluded**. The three private opt-in controls skipped. Workspace Rust,
+Python and its native receipt, TypeScript, and the hermetic N-API build
+passed. The source-bound Python wheel and model/artifact hashes are retained.
+
+The sole failing suite was `test-slice30-g-observer` (rc 101, 9 passed,
+1 failed). Its original node-only fixture expected an event for an executed
+global SQL proof. That fixture received zero global eligibility events in the
+new path. RED `22735c2ff` retained the full original SQL assertions on a
+real mixed-edge store and added the node-only skipped-scan requirement.
+That mixed-edge case passed, and the new event assertion genuinely failed.
+
+GREEN `8f71f4cb8` emits one explicit `match_local_eligibility` skip for a
+request that bypassed the scan. The 11 observer cases and targeted Clippy
+passed. Sol independently reviewed the correction. The rebuilt CPU
+diagnostic artifact preserved all 12 full fixed-time results on fresh 100k
+copies and emitted exactly one untimed, no-SQL skip per request. The rebuilt
+ordinary feature closure excludes the event and matched all four selected
+same-state SDK outputs. Terra independently checked the recovery outputs
+and artifact hashes. This scoped check adds no latency sample. The
+ordinary timing evidence remains attached to the measured binaries.
+
+The original gate result is retained alongside the passing affected
+recovery. The final branch incorporates metadata `1e4459376` after the gate.
+There is no uninterrupted full-gate pass claim.
 
 ## Inherited MCP hints qualification
 

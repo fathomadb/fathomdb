@@ -113,7 +113,11 @@ unobserved where no corresponding span exists. State that configured depth
 zero bypasses cross-encoder rerank. Label harness output recording separately
 from final API shaping. The diagnostic fixture and projection observation are
 separate from the actual search snapshot unless the request records a reader
-capture.
+capture. When the node-only route applies eligibility on matched rows and
+skips the global proof, the opt-in observer records one untimed
+`all_nodes_directly_eligible` event with status `not_run`, reason
+`match_local_eligibility`, and no executed SQL or eligibility result.
+A request that needs the legacy proof reports its actual SQL span.
 
 For `has_source_dependencies` and `all_nodes_directly_eligible`, retain
 current query plan and SQLite `FULLSCAN_STEP` and `VM_STEP` from the exact

@@ -133,8 +133,9 @@ as applicable.
 
 Retain commands, inputs, original outcomes, matched summaries and one concise
 disposition. Apply scoped checks during work and the required full gate once
-for a coherent source phase. Hand Slice 70 the exact reusable proof and any
-remaining numerical, platform or installed-artifact obligations. Update
+for a coherent source phase. Hand Slice 70 the exact reusable source and
+numerical proof and Slice 75 the remaining installed-artifact and platform
+obligations. Update
 affected interfaces, changelog, binding parity and authorized release state once.
 Integrate into the owning release branch and clean only owned inactive
 worktrees and scratch after retaining evidence. Use direct agents throughout.
@@ -154,7 +155,7 @@ cells and decision criteria.
 | From `f7fb1da9a` to commission | 10 closed with preparation and inherited hints failure. 20 landed delivery provenance and installed-experiment changes. Lock resolves Tokio 1.54.1 and webpki-roots 1.0.12. 30 landed the response binding and whole-source digest fixes, independent committed coverage and stationary rank controls, and a test-only isolated rank selector. The SDK adapter source and historical tooling have unchanged bytes in this window. |
 | [30 status](../slice-30/status.md) | Adopt its independent expected-value controls and current integrated source. Historical moving-write S50 rank cause stays unresolved. Compare stationary outcomes exactly, and judge moving observations against their own committed cursor/visibility. Do not grant a score tolerance from prior work. |
 | [Prior G evidence](../../../0.8.29/features/slice-30/continuation-gd.md) and [P evidence](../../../0.8.29/features/slice-30/results-p.md) | Revise to the released closed G dense seed and pinned CPU model on current source. P is useful historical direct-text evidence. Its provider-none zero-vector store cannot qualify the dense route. Decline the historical GPU campaign, budgets, full G-W matrix and archived timings as current results. |
-| [60](../slice-60/plan.md), [70](../slice-70/plan.md), [50](../slice-50/plan.md) | Defer consumed-fork/native pin qualification to 60 and exact integrated artifact proof to 70. 50 owns general runtime/resource/lifecycle defects. Inspector and 0.9.0 research stay outside this slice. |
+| [60](../slice-60/plan.md), [70](../slice-70/plan.md), [75](../slice-75/plan.md), [50](../slice-50/plan.md) | Defer consumed-fork pins to 60, integrated source qualification to 70, and installed-artifact and platform proof to 75. 50 owns general runtime/resource/lifecycle defects. Inspector and 0.9.0 research stay outside this slice. |
 
 A40-1 requires the two current 100k SDK paths with initial provider/readiness
 and demonstrated close/reopen, attributed workload and denominators. A40-2

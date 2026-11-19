@@ -12,6 +12,9 @@ AC-050c) gates merges against this invariant.
 
 ### Changed
 
+- Hybrid search checks matching text rows for eligibility before ranking on
+  the optimized node-only path, avoiding a full scan of canonical nodes.
+
 - Development and test use Node.js 26.13.1 with npm 11.20.0. The published
   TypeScript SDK still requires Node `>=25 <26`. Node 26 SDK support awaits
   Slice 70 qualification.

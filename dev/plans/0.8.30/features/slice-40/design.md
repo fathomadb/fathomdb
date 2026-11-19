@@ -1,6 +1,6 @@
 ---
 title: 0.8.30 Slice 40 CPU study and hints qualification design
-status: DRAFT
+status: ACTIVE
 slice: 40
 target_release: 0.8.30
 ---

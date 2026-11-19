@@ -27,6 +27,11 @@ AC-050c) gates merges against this invariant.
   workflow and verifies `latest` before finalization. Exact-version Rust,
   Python and Node consumer smokes verify persisted data across process exits.
 
+### Fixed
+
+- MCP feedback preserves attribution to the returned revision when later
+  hybrid searches return a replacement under the same public reference.
+
 ### Security
 
 - Updated Markdown tooling to markdownlint-cli2 0.24.0 and markdown-it 15.0.3,

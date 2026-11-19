@@ -437,8 +437,8 @@ details below). A response from another store is `invalid_request/wrong_store`
 (MR-024.5). `used` may be empty. Recorded feedback reaches `record_feedback`
 with label source `agent` (MR-024.1). Each distinct hybrid page membership
 retains its own cursor mapping and query id while its response is cached.
-Identical invocations that share a deterministic handle use the latest retained
-query id for that handle. Feedback never alters later results.
+Invocations that share a deterministic handle use its latest retained query id.
+Feedback never alters later results.
 For otherwise recordable calls, a named ref shared by different result cursors
 returns `invalid_request/bad_argument` atomically with zero feedback labels.
 Repeated occurrences of the same cursor remain unique; ambiguity in an unmentioned

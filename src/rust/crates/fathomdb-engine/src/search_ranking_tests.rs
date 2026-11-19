@@ -54,8 +54,7 @@ fn read(
     operation: u64,
     route: RankProbeRoute,
 ) -> RankedRead {
-    let mut snippets = SnippetOptions::default();
-    snippets.highlights = true;
+    let snippets = SnippetOptions { highlights: true, ..SnippetOptions::default() };
     let result = observer
         .with_rank_probe(operation, route, || {
             engine.search_reranked_view_with_snippets(
@@ -194,10 +193,13 @@ fn projection_step_moves_vector_ranks_with_exact_fixed_state_controls() {
     assert_eq!(before.authority["dependency_generation"], after.authority["dependency_generation"]);
     assert_eq!(before.ranks["text"], after.ranks["text"]);
     assert_eq!(before.result.snippets, after.result.snippets);
+    let mut score_decreased = false;
     for (a, b) in before.result.results.iter().zip(&after.result.results) {
         assert_eq!(a.id, b.id);
-        assert!(a.score > b.score, "vector rank insertion must lower each fused score");
+        assert!(a.score >= b.score, "inserting a nearer vector cannot improve either rank");
+        score_decreased |= a.score > b.score;
     }
+    assert!(score_decreased, "inserting a nearer vector must move at least one rank");
 
     for (label, read) in [("pending", &before), ("committed", &after)] {
         eprintln!(

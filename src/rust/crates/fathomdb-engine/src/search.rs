@@ -2153,6 +2153,8 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         )
     };
     let cursor = load_projection_cursor_for_search(&tx)?;
+    #[cfg(test)]
+    let rank_probe = crate::slice30_observer::rank_probe_route();
     #[cfg(any(test, feature = "slice30-observer"))]
     if crate::slice30_observer::is_recording() {
         let observation = crate::slice30_observer::span("observer_snapshot_capture");
@@ -2251,7 +2253,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                 rowids.push(row?);
             }
             #[cfg(test)]
-            if crate::slice30_observer::rank_probe_route().is_some() {
+            if rank_probe.is_some() {
                 let candidates: Vec<_> =
                     rowids.iter().map(|(rowid, distance)| (rowid, distance.to_bits())).collect();
                 crate::slice30_observer::record_rank_probe(
@@ -2571,9 +2573,9 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         #[cfg(not(feature = "test-hooks"))]
         let force_full_sort = false;
         #[cfg(test)]
-        let force_full_sort = force_full_sort
-            || crate::slice30_observer::rank_probe_route()
-                == Some(crate::slice30_observer::RankProbeRoute::Reference);
+        let force_full_sort = rank_probe.map_or(force_full_sort, |route| {
+            route == crate::slice30_observer::RankProbeRoute::Reference
+        });
         let defer_text_identity =
             observe_slice30_guard(
                 "all_nodes_directly_eligible",
@@ -2705,6 +2707,8 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             .is_ok_and(|value| value == "1");
         #[cfg(not(feature = "slice50-measurement"))]
         let eager_text = false;
+        #[cfg(test)]
+        let eager_text = rank_probe.is_none() && eager_text;
         let defer_full_hydration = defer_text_identity
             && !eager_text
             && !vector_stage_only
@@ -2823,10 +2827,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             candidates
         } else if let Ok(mut statement) = tx.prepare(&join_sql) {
             #[cfg(test)]
-            if force_full_sort
-                && query_vector.is_some()
-                && crate::slice30_observer::rank_probe_route().is_some()
-            {
+            if force_full_sort && query_vector.is_some() && rank_probe.is_some() {
                 crate::slice30_observer::record_rank_probe(
                     "s50_ranking_route",
                     serde_json::json!("hybrid_full_sort_forced"),
@@ -3033,7 +3034,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         };
     text_results.extend(edge_candidates);
     #[cfg(test)]
-    if crate::slice30_observer::rank_probe_route().is_some() {
+    if rank_probe.is_some() {
         let vector = rank_probe_arm(vector_results.iter().map(|hit| (hit.key(), hit.score)));
         let text = if let Some(candidates) = &deferred_node_candidates {
             crate::slice30_observer::record_rank_probe(

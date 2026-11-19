@@ -2082,6 +2082,10 @@ schema 33, and existing result types are unchanged. Failures use
 one-hop trace under an authenticated `FrozenReadContextV1`. It accepts only
 `to_source` or `to_dependents`, returns the eligible root plus at most 100
 registered relations, and fails without a partial result above 101 work units.
+Each source link authenticates the SHA-256 of the entire canonical source
+body. A `utf8_bytes` locator must also select a nonempty in-bounds range on
+UTF-8 character boundaries for trace. The writer and registration accept
+empty ranges at valid boundaries.
 All `DependencyTrace*V1`, `Trace*V1`, and `DependencyTraceError*` types are
 default-facade exports.
 `DependencyTraceErrorV1` and the operator-only `DataPlaneIntegrityErrorV1`

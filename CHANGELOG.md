@@ -31,6 +31,8 @@ AC-050c) gates merges against this invariant.
 
 - MCP feedback preserves attribution to the returned revision when later
   hybrid searches return a replacement under the same public reference.
+- Dependency tracing authenticates canonical source hashes for valid partial
+  UTF-8 locators in both directions ([#264](https://github.com/fathomadb/fathomdb/issues/264)).
 
 ### Security
 

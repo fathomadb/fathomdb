@@ -11,9 +11,8 @@ use serde::{
     ser::{SerializeMap, Serializer as _},
     Serialize,
 };
-use sha2::{Digest, Sha256};
 
-use crate::write_commit::load_next_cursor;
+use crate::write_commit::{canonical_body_hash, load_next_cursor};
 use crate::{
     edge_fts_hit_passes_filter, frozen_read, load_dependency_generation, projection_generation,
     valid_caller_identity, Engine, EngineError, FrozenReadContextV1, LifecycleState, ReadContextV1,
@@ -550,20 +549,16 @@ pub(crate) fn source_link_valid(
     if !version_valid {
         return Ok(false);
     }
-    let selected = match (locator.as_str(), start, end) {
-        ("whole_body", None, None) => Some(canonical_body.as_bytes()),
-        ("utf8_bytes", Some(start), Some(end)) => {
-            usize::try_from(start).ok().zip(usize::try_from(end).ok()).and_then(|(start, end)| {
-                (canonical_body.is_char_boundary(start) && canonical_body.is_char_boundary(end))
-                    .then(|| canonical_body.as_bytes().get(start..end))
-                    .flatten()
-            })
-        }
-        _ => None,
+    let locator_valid = match (locator.as_str(), start, end) {
+        ("whole_body", None, None) => true,
+        ("utf8_bytes", Some(start), Some(end)) => usize::try_from(start)
+            .ok()
+            .zip(usize::try_from(end).ok())
+            .is_some_and(|(start, end)| canonical_body.get(start..end).is_some()),
+        _ => false,
     };
-    Ok(selected.is_some_and(|bytes| {
-        Sha256::digest(bytes).iter().map(|byte| format!("{byte:02x}")).collect::<String>() == digest
-    }))
+    // Stored provenance binds the full source revision even for an excerpt.
+    Ok(locator_valid && canonical_body_hash(&canonical_body) == digest)
 }
 
 pub(crate) fn canonical_source_chain_valid(

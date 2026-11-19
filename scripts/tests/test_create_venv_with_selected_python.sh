@@ -56,8 +56,12 @@ BOOTSTRAP="$REPO_ROOT/scripts/bootstrap.sh"
 OWNED_SETUP="$REPO_ROOT/scripts/setup-python-owned.sh"
 # Match the shell source literally, not this fixture's SCRIPT_DIR.
 # shellcheck disable=SC2016
-grep -Fq 'bash "$SCRIPT_DIR/setup-python-owned.sh" --provision' "$BOOTSTRAP" \
+grep -Fq 'bash "$SCRIPT_DIR/setup-python-owned.sh" "$python_setup"' "$BOOTSTRAP" \
   || fail "arm C: bootstrap.sh no longer delegates to owned setup"
+grep -Fxq 'python_setup=--provision' "$BOOTSTRAP" \
+  || fail "arm C: bootstrap.sh lost its default native preparation"
+grep -Fq '1:--tools-only) python_setup=--tools-only ;;' "$BOOTSTRAP" \
+  || fail "arm C: bootstrap.sh lost the explicit tools-only path"
 grep -Fq 'create_venv_with_selected_python .venv' "$OWNED_SETUP" \
   || fail "arm C: owned setup no longer calls the canonical selector"
 if grep -Eq '^\s*python3\s+-m\s+venv\b' "$BOOTSTRAP"; then

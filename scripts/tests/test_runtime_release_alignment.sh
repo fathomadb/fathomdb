@@ -86,9 +86,10 @@ control_jobs = {
     "cuda-package-rehearsal",
     "cuda-reranker-package-rehearsal",
     "wait-for-package-registry-visibility",
+    "promote-npm-latest",
 }
 checkout_count = 0
-control_count = 0
+seen_control_jobs = set()
 ok = True
 for job_name, block in jobs.items():
     for checkout in re.finditer(r"uses: actions/checkout@.*?(?=\n      - |\Z)", block, re.DOTALL):
@@ -100,7 +101,7 @@ for job_name, block in jobs.items():
             continue
         if ref.group(1) == release_ref:
             continue
-        if ref.group(1) != control_ref or job_name not in control_jobs:
+        if ref.group(1) != control_ref or job_name not in control_jobs or job_name in seen_control_jobs:
             ok = False
             continue
         if "persist-credentials: false" not in step:
@@ -109,8 +110,9 @@ for job_name, block in jobs.items():
         if job_name in {"cuda-contract-preflight", "cuda-package-rehearsal", "cuda-reranker-package-rehearsal", "wait-for-package-registry-visibility"} and "path: control-plane" not in step:
             ok = False
             continue
-        control_count += 1
-print(f"CHECKOUTS {ok and checkout_count > 0 and control_count == 5} total={checkout_count} control={control_count}")
+        seen_control_jobs.add(job_name)
+valid = ok and checkout_count > 0 and seen_control_jobs == control_jobs
+print(f"CHECKOUTS {valid} total={checkout_count} control={len(seen_control_jobs)}")
 PY
 )"
 if printf '%s\n' "$checkout_policy" | grep -q '^CHECKOUTS True ' \

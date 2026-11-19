@@ -2004,6 +2004,23 @@ fn observe_slice30_guard(
     value
 }
 
+#[cfg(test)]
+fn rank_probe_arm(hits: impl IntoIterator<Item = (RecordKey, f64)>) -> Vec<serde_json::Value> {
+    hits.into_iter()
+        .enumerate()
+        .map(|(index, (key, raw))| {
+            let identity = match key {
+                RecordKey::CanonicalNode(cursor) => serde_json::json!(["node", cursor]),
+                RecordKey::CanonicalEdge(cursor) => serde_json::json!(["edge", cursor]),
+                RecordKey::OwnerlessNodeFts(rowid) => {
+                    serde_json::json!(["ownerless_node_fts", rowid])
+                }
+            };
+            serde_json::json!([index + 1, identity, raw.to_bits()])
+        })
+        .collect()
+}
+
 #[allow(clippy::too_many_arguments)]
 fn read_search_in_tx<C: SearchOriginCapture>(
     reader: &mut Connection,
@@ -2232,6 +2249,15 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             })?;
             for row in rows {
                 rowids.push(row?);
+            }
+            #[cfg(test)]
+            if crate::slice30_observer::rank_probe_route().is_some() {
+                let candidates: Vec<_> =
+                    rowids.iter().map(|(rowid, distance)| (rowid, distance.to_bits())).collect();
+                crate::slice30_observer::record_rank_probe(
+                    "s50_vector_candidates",
+                    serde_json::json!(candidates),
+                );
             }
             #[cfg(any(test, feature = "slice30-observer"))]
             sql_observation.counted_success(rowids.len());
@@ -2544,6 +2570,10 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             std::env::var("FATHOMDB_FTS_FORCE_FULL_SORT_FOR_TEST").is_ok_and(|value| value == "1");
         #[cfg(not(feature = "test-hooks"))]
         let force_full_sort = false;
+        #[cfg(test)]
+        let force_full_sort = force_full_sort
+            || crate::slice30_observer::rank_probe_route()
+                == Some(crate::slice30_observer::RankProbeRoute::Reference);
         let defer_text_identity =
             observe_slice30_guard(
                 "all_nodes_directly_eligible",
@@ -2792,6 +2822,16 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             });
             candidates
         } else if let Ok(mut statement) = tx.prepare(&join_sql) {
+            #[cfg(test)]
+            if force_full_sort
+                && query_vector.is_some()
+                && crate::slice30_observer::rank_probe_route().is_some()
+            {
+                crate::slice30_observer::record_rank_probe(
+                    "s50_ranking_route",
+                    serde_json::json!("hybrid_full_sort_forced"),
+                );
+            }
             #[cfg(feature = "test-hooks")]
             if query_vector.is_some() && force_full_sort {
                 record_fts_route_for_test("hybrid_full_sort_forced");
@@ -2992,6 +3032,27 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             0
         };
     text_results.extend(edge_candidates);
+    #[cfg(test)]
+    if crate::slice30_observer::rank_probe_route().is_some() {
+        let vector = rank_probe_arm(vector_results.iter().map(|hit| (hit.key(), hit.score)));
+        let text = if let Some(candidates) = &deferred_node_candidates {
+            crate::slice30_observer::record_rank_probe(
+                "s50_ranking_route",
+                serde_json::json!("winner_hydration"),
+            );
+            rank_probe_arm(
+                candidates
+                    .iter()
+                    .map(|hit| (hit.ownership.record_key(hit.write_cursor), hit.score)),
+            )
+        } else {
+            rank_probe_arm(text_results.iter().map(|hit| (hit.key(), hit.score)))
+        };
+        crate::slice30_observer::record_rank_probe(
+            "s50_rank_inputs",
+            serde_json::json!({"vector": vector, "text": text}),
+        );
+    }
     // GA-2 / Slice-40 (◆ B-1) measurement seam: when `vector_stage_only` is set
     // (only ever by the eu7 recall harness via `set_vector_stage_only_for_test`,
     // off for every production caller), return the pre-fusion VECTOR-branch

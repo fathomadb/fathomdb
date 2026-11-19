@@ -2,6 +2,7 @@ use super::*;
 use crate::fusion::RecordKey;
 use crate::stored_coverage::StoredHeadCoverageUnavailableReason as Reason;
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
+use proptest::prelude::*;
 use rusqlite::hooks::{AuthAction, AuthContext, Authorization, TransactionOperation};
 use rusqlite::trace::{TraceEvent, TraceEventCodes};
 use std::collections::BTreeMap;
@@ -113,9 +114,7 @@ fn stored_coverage_failed_commit_cannot_publish_a_staged_capture() {
     {
         let mut guard = engine.connection.lock().unwrap();
         let connection = guard.as_mut().unwrap();
-        connection
-            .execute("UPDATE canonical_nodes SET reason='new snapshot' WHERE logical_id='n0'", [])
-            .unwrap();
+        connection.execute("UPDATE _fathomdb_vector_spans SET byte_end=0", []).unwrap();
         connection
             .authorizer(Some(|context: AuthContext<'_>| match context.action {
                 AuthAction::Transaction { operation: TransactionOperation::Unknown } => {
@@ -130,7 +129,10 @@ fn stored_coverage_failed_commit_cannot_publish_a_staged_capture() {
         let mut guard = engine.connection.lock().unwrap();
         guard.as_mut().unwrap().authorizer(None::<fn(AuthContext<'_>) -> Authorization>).unwrap();
     }
-    assert_eq!(engine.stored_head_coverage.lock().unwrap().as_ref().unwrap().token, original.token);
+    let cached = engine.stored_head_coverage.lock().unwrap().clone().unwrap();
+    assert_eq!(cached.token, original.token);
+    assert_eq!(cached.counts, original.counts);
+    assert_eq!(cached.counts.unrepresented_known_bytes, 6);
     unavailable(engine, Reason::StateChanged);
 }
 
@@ -807,4 +809,137 @@ fn stored_coverage_includes_retained_history_but_excludes_unmapped_canonical_rec
     let counts = crate::vector_spans::capture(connection).unwrap();
     assert_eq!(counts.records, 1);
     assert_eq!(counts.known_body_bytes, 10);
+}
+
+fn assert_authored_counts(engine: &Engine, heads: &[(usize, Option<usize>)]) {
+    engine.read_projection_generation_status().unwrap();
+    let StoredHeadCoverageV1::Available { counts, .. } =
+        engine.read_projection_status().unwrap().vector_coverage
+    else {
+        panic!("expected committed stored-head counts");
+    };
+    let known: Vec<_> =
+        heads.iter().filter_map(|&(length, end)| end.map(|end| (length, end))).collect();
+    let missing = heads.len() - known.len();
+    let truncated = known.iter().filter(|(length, end)| end < length).count();
+    let body_bytes: usize = known.iter().map(|&(length, _)| length).sum();
+    let represented: usize = known.iter().map(|&(_, end)| end).sum();
+    assert_eq!(counts.records, (known.len() + missing) as u64);
+    assert_eq!(counts.known_records, known.len() as u64);
+    assert_eq!(counts.unknown_records, missing as u64);
+    assert_eq!(counts.truncated_known_records, truncated as u64);
+    assert_eq!(counts.known_body_bytes, body_bytes as u128);
+    assert_eq!(counts.unrepresented_known_bytes, (body_bytes - represented) as u128);
+    assert_eq!(counts.unattributed_heads, 1);
+    assert_eq!(
+        counts.truncated_known_share.map(|share| (share.numerator, share.denominator)),
+        (!known.is_empty()).then_some((truncated as u128, known.len() as u128))
+    );
+    assert_eq!(
+        counts.unrepresented_known_byte_share.map(|share| (share.numerator, share.denominator)),
+        (body_bytes != 0).then_some(((body_bytes - represented) as u128, body_bytes as u128))
+    );
+}
+
+fn update_endpoint(connection: &Connection, cursor: u64, end: Option<usize>) {
+    assert_eq!(
+        connection
+            .execute(
+                "UPDATE _fathomdb_vector_spans SET byte_end=?1 WHERE write_cursor=?2",
+                rusqlite::params![end, cursor],
+            )
+            .unwrap(),
+        1
+    );
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig {
+        cases: 8,
+        rng_seed: proptest::test_runner::RngSeed::Fixed(0x5_0830),
+        ..ProptestConfig::default()
+    })]
+
+    #[test]
+    fn stored_coverage_counts_only_committed_authored_endpoints(
+        layouts in prop::collection::vec((4_usize..20, 0_u8..4), 1..5),
+    ) {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("coverage-history.sqlite");
+        let provider = Arc::new(Provider(None));
+        let opened = Engine::open_with_embedder_for_test(&path, provider.clone()).unwrap();
+        let engine = &opened.engine;
+        engine.configure_vector_kind_for_test("doc").unwrap();
+        let historical = engine.write(&[node("history", "previous")]).unwrap().row_cursors[0];
+        engine.drain(10_000).unwrap();
+
+        let mut writes = vec![node("history", "current")];
+        writes.extend(
+            layouts.iter().enumerate().map(|(i, &(length, _))| {
+                node(&format!("covered:{i}"), &"x".repeat(length))
+            }),
+        );
+        let mut unmapped = node("unmapped", "kept without a mapped head");
+        if let PreparedWrite::Node { kind, .. } = &mut unmapped {
+            "note".clone_into(kind);
+        }
+        writes.push(unmapped);
+        let cursors = engine.write(&writes).unwrap().row_cursors;
+        engine.drain(10_000).unwrap();
+        let mut raw = Connection::open(&path).unwrap();
+        {
+            let setup = raw.transaction().unwrap();
+            // Empty persisted bodies have a defined count even though the live write API rejects them.
+            setup.execute("UPDATE canonical_nodes SET body='' WHERE write_cursor=?1", [historical]).unwrap();
+            setup.execute("UPDATE _fathomdb_vector_spans SET body_length=0 WHERE write_cursor=?1", [historical]).unwrap();
+            setup.execute_batch(
+                "INSERT INTO _fathomdb_vector_rows(rowid,kind,write_cursor)
+                    VALUES(987654,'edge_fact',987654);
+                 INSERT INTO _fathomdb_vector_spans(vector_rowid,write_cursor,window_number,byte_start,body_length,byte_end)
+                    VALUES(987654,987654,0,0,0,NULL);"
+            ).unwrap();
+            setup.commit().unwrap();
+        }
+
+        let mut heads = vec![(0, None), (7, None)];
+        heads.extend(layouts.iter().map(|&(length, _)| (length, None)));
+        assert_authored_counts(engine, &heads);
+
+        {
+            let mut guard = engine.connection.lock().unwrap();
+            let rollback = guard.as_mut().unwrap().transaction().unwrap();
+            update_endpoint(&rollback, historical, Some(0));
+            update_endpoint(&rollback, cursors[0], Some(7));
+            rollback.rollback().unwrap();
+        }
+        unavailable(engine, Reason::StateChanged);
+
+        {
+            let commit = raw.transaction().unwrap();
+            update_endpoint(&commit, historical, Some(0));
+            commit.commit().unwrap();
+        }
+        heads[0].1 = Some(0);
+        assert_authored_counts(engine, &heads);
+
+        {
+            let commit = raw.transaction().unwrap();
+            update_endpoint(&commit, cursors[0], Some(0));
+            heads[1].1 = Some(0);
+            for ((&(length, variant), &cursor), head) in
+                layouts.iter().zip(&cursors[1..]).zip(&mut heads[2..])
+            {
+                let end = [None, Some(0), Some(length / 2), Some(length)][usize::from(variant)];
+                update_endpoint(&commit, cursor, end);
+                head.1 = end;
+            }
+            commit.commit().unwrap();
+        }
+        unavailable(engine, Reason::StateChanged);
+        assert_authored_counts(engine, &heads);
+        engine.close().unwrap();
+        let reopened = Engine::open_with_embedder_for_test(&path, provider).unwrap();
+        assert_authored_counts(&reopened.engine, &heads);
+        reopened.engine.close().unwrap();
+    }
 }

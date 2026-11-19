@@ -112,6 +112,8 @@ pub use projection_registry::{
     DenseReadiness, ProjectionDelta, ProjectionFts, ProjectionRole, ProjectionSpec,
     ProjectionVector,
 };
+#[cfg(test)]
+mod search_ranking_tests;
 mod stored_coverage;
 #[cfg(test)]
 mod stored_coverage_tests;

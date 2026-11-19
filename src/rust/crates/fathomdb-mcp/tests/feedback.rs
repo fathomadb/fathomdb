@@ -433,6 +433,50 @@ fn repeated_reference_notes() -> Vec<fathomdb_sdk::PreparedWrite> {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn continuation_labels_only_the_kept_occurrence_of_a_shared_ref() {
+    let fixture = Fixture::new();
+    let mut writes = repeated_reference_notes();
+    writes.pop();
+    fixture.store("a.sqlite", writes);
+    let harness = Harness::start(fixture.config(json!({
+        "stores":{"a":{"path":"a.sqlite"}}, "default_store":"a",
+        "idle_timeout_secs":0, "telemetry_dir":"telemetry"
+    })))
+    .await;
+    let first = harness
+        .ok("search", json!({"query":"river", "mode":"hybrid", "limit":1, "as_of":1_800_000_000}))
+        .await;
+    let second = harness.ok("search", json!({"continuation":first["continuation"]})).await;
+    assert_eq!(refs(&first), ["l:shared"]);
+    assert_eq!(refs(&second), ["l:shared"]);
+    assert_eq!(first["results"][0]["snippet"], "river node fact");
+    assert_eq!(second["results"][0]["snippet"], "river edge fact");
+
+    for page in [&second, &first] {
+        let answer = harness
+            .ok("feedback", json!({"response_id":page["response_id"], "used":["l:shared"]}))
+            .await;
+        assert_eq!(answer["status"], "recorded");
+    }
+
+    let all = records(&sink(&fixture, "a", 1));
+    let events = of_type(&all, "event");
+    let labels = of_type(&all, "feedback");
+    assert_eq!(events.len(), 2);
+    assert_eq!(labels.len(), 2);
+    assert_ne!(events[0]["query_id"], events[1]["query_id"]);
+    // Fixture writes the node first and the edge second. The second ranking run
+    // includes the first page's hit as well, but feedback covers the kept page.
+    assert_eq!(events[0]["result_ids"], json!([1]));
+    assert_eq!(events[1]["result_ids"], json!([1, 2]));
+    assert_eq!(labels[0]["query_id"], events[1]["query_id"]);
+    assert_eq!(labels[0]["relevant_ids"], json!([2]));
+    assert_eq!(labels[1]["query_id"], events[0]["query_id"]);
+    assert_eq!(labels[1]["relevant_ids"], json!([1]));
+    harness.shutdown().await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn repeated_reference_feedback_keeps_existing_not_recorded_and_membership_precedence() {
     for (telemetry, mode, reason) in
         [(false, "hybrid", "telemetry_disabled"), (true, "text", "text_mode")]

@@ -105,12 +105,21 @@ impl Collector {
     }
 }
 
+#[cfg(test)]
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum RankProbeRoute {
+    Reference,
+    Optimized,
+}
+
 #[derive(Clone)]
 pub(crate) struct OperationToken {
     collector: Weak<Collector>,
     engine_id: usize,
     operation_id: u64,
     parent_span_id: Option<u64>,
+    #[cfg(test)]
+    rank_probe_route: Option<RankProbeRoute>,
     #[cfg(feature = "slice50-measurement")]
     body_work: Arc<Mutex<Slice50BodyWork>>,
 }
@@ -202,6 +211,20 @@ pub(crate) fn enter_token(
                 .is_some_and(|collector| collector.active.load(Ordering::Acquire))
     });
     OperationScope(CURRENT.with(|slot| slot.replace(token)))
+}
+
+#[cfg(test)]
+pub(crate) fn rank_probe_route() -> Option<RankProbeRoute> {
+    CURRENT.with(|slot| slot.borrow().as_ref().and_then(|token| token.rank_probe_route))
+}
+
+#[cfg(test)]
+pub(crate) fn record_rank_probe(phase: &'static str, facts: serde_json::Value) {
+    let record = span(phase);
+    if let Some(data) = &record.data {
+        data.facts.replace(facts);
+        data.status.set("ok");
+    }
 }
 
 pub(crate) fn is_recording() -> bool {
@@ -377,6 +400,8 @@ impl Slice30ObservationGuard {
             engine_id: self.collector.engine_id,
             operation_id,
             parent_span_id: None,
+            #[cfg(test)]
+            rank_probe_route: None,
             #[cfg(feature = "slice50-measurement")]
             body_work: Arc::new(Mutex::new(Slice50BodyWork {
                 route: "reference",
@@ -385,6 +410,19 @@ impl Slice30ObservationGuard {
         };
         let _restore = OperationScope(CURRENT.with(|slot| slot.replace(Some(token))));
         work()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_rank_probe<R>(
+        &self,
+        operation_id: u64,
+        route: RankProbeRoute,
+        work: impl FnOnce() -> R,
+    ) -> R {
+        self.with_operation(operation_id, || {
+            CURRENT.with(|slot| slot.borrow_mut().as_mut().unwrap().rank_probe_route = Some(route));
+            work()
+        })
     }
 
     /// Drain bounded records outside product clocks, retaining loss/issue counts.
@@ -500,6 +538,8 @@ impl Slice30ProjectionObservationGuard {
             engine_id: self.collector.engine_id,
             operation_id,
             parent_span_id: None,
+            #[cfg(test)]
+            rank_probe_route: None,
             #[cfg(feature = "slice50-measurement")]
             body_work: Arc::new(Mutex::new(Slice50BodyWork {
                 route: "reference",
@@ -696,6 +736,8 @@ pub(crate) fn enter_projection(
             engine_id: collector.engine_id,
             operation_id: ticket.operation_id,
             parent_span_id: None,
+            #[cfg(test)]
+            rank_probe_route: None,
             #[cfg(feature = "slice50-measurement")]
             body_work: Arc::new(Mutex::new(Slice50BodyWork {
                 route: "reference",

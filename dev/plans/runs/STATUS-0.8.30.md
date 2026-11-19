@@ -10,7 +10,7 @@ The [state](../release-state-0.8.30.json) owns status and next actions. The
 
 ## Next action
 
-<!-- BEGIN GENERATED release-state:0.8.30:status-next-action -->**Continue Slice 40 (LATENCY)** — Performance and end-to-end latency. **Remaining ladder:** 40 → 50 → 60 → 70 → 80.<!-- END GENERATED release-state:0.8.30:status-next-action -->
+<!-- BEGIN GENERATED release-state:0.8.30:status-next-action -->**Continue Slice 40 (LATENCY)** — Performance and end-to-end latency. **Remaining ladder:** 40 → 50 → 55 → 60 → 70 → 75 → 80.<!-- END GENERATED release-state:0.8.30:status-next-action -->
 
 ## Decisions, implementation and qualification
 
@@ -20,7 +20,8 @@ The [state](../release-state-0.8.30.json) owns status and next actions. The
   completion with qualification open. The full source gate failed; it is not green.
 - Affected Markdown cohort checks recovered after the mechanical correction.
   Remaining tooling fixtures belong to20, hints timing to40, logging-fixture
-  synchronization to50, and integrated/renderer qualification to70.
+  synchronization to50, source qualification to70 and renderer/platform
+  qualification to75.
 - All numerical and security criteria remain intact. Public Node26 support,
   additional platform/native proof and registry publication remain held.
 - Reviewed Slice20 implementation is integrated at
@@ -42,3 +43,8 @@ The [state](../release-state-0.8.30.json) owns status and next actions. The
 - Owner seq-406 adds explicit SQLite-method coverage and gap work to draft50/70.
   The [audit](../0.8.30/coverage-audit.md) distinguishes actual proof, inherited
   assertions and planned execution; the added rows are not yet verified.
+
+- Owner seq-407 splits the remaining plans into50 runtime,55 data integrity/recovery,
+  70 integrated source behavior and75 installed platform/artifact qualification.
+  Completed statuses are unchanged. The added slices are not commissioned;
+  current40 continues.75 now supplies the qualified candidate to80.

@@ -1,6 +1,6 @@
 {
   "release": "0.8.30",
-  "release_kind": "Slices10 and20 implemented; qualification open and publication held",
+  "release_kind": "Slices10 and20 implemented; Slice30 commissioned; qualification open and publication held",
   "board": "dev/plans/runs/STATUS-0.8.30.md",
   "plan": "dev/plans/0.8.30/plan.md",
   "master": "dev/plans/0.8.30/plan.md",
@@ -182,10 +182,11 @@
       "depends_on": [
         10
       ],
-      "status": "PROPOSED_NOT_COMMISSIONED",
+      "status": "IN_PROGRESS",
       "design_refs": [
         "dev/plans/0.8.30/features/slice-30/plan.md"
-      ]
+      ],
+      "commission_source": "seq-402"
     },
     {
       "slice": 40,
@@ -278,6 +279,11 @@
         "id": "slice20-commission",
         "source": "seq-401",
         "ruling": "Spawn an agent to perform Slice20 using the supplied slice prompt template."
+      },
+      {
+        "id": "slice30-commission",
+        "source": "seq-402",
+        "ruling": "Spawn an agent to perform Slice 30 using the supplied slice prompt template."
       }
     ],
     "unruled": []
@@ -317,7 +323,7 @@
   "release_readiness": {
     "status": "NOT_READY",
     "publication_authorized": false,
-    "scope": "Slices10/20 implementation integrated; features30\u201380 uncommissioned. Integrated source, platform, timing, subscriber-fixture and renderer qualifications remain open; publication is not authorized."
+    "scope": "Slices10/20 implementation integrated; Slice30 commissioned at seq-402. Features40\u201380 remain uncommissioned. Integrated source, platform, timing, subscriber-fixture and renderer qualifications remain open; publication is not authorized."
   },
   "generated_views": [
     {

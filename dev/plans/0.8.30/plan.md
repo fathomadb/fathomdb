@@ -249,7 +249,9 @@ at seq-401 and its reviewed implementation is now integrated at
 `5e7906b6d7a871611ccdddd74a9ed1410c32cc47`. Its
 [status](features/slice-20/status.md) retains the full-gate failure and the two
 independent scoped fixture recoveries, plus open venue/qualification limits.
-Slice30 is next; feature slices30–80 remain uncommissioned. The
+Slice30 is commissioned at seq-402 and entering implementation in an isolated
+worktree using the supplied slice prompt template. Feature slices40–80 remain
+uncommissioned. The
 [state](../release-state-0.8.30.json) and [board](../runs/STATUS-0.8.30.md)
 own current status.
 

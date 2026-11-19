@@ -1,6 +1,6 @@
 ---
 title: Slice 30 correctness bug hunt and remediation
-status: PROPOSED
+status: ACTIVE
 slice: 30
 target_release: 0.8.30
 ---
@@ -10,6 +10,8 @@ target_release: 0.8.30
 Make retrieval, attribution, coverage and open failures agree with their contracts on a small set of real-store cases.
 This draft refines R30-COR/S50 and owns the correctness portion of R30-TEST under the [release plan](../../plan.md).
 It takes its first cases from the [findings](../../testing-robustness-findings.md), [recommendations](../../quality-performance-robustness-recommendations.md) and [receiving allocations](../../release-followups.md).
+
+Commissioned at seq-402 for implementation using the supplied slice prompt template.
 
 ## Entry and preparation
 

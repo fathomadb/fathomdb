@@ -12,6 +12,12 @@ after40 source completion and remediation of its review findings.
 
 ## Entry and prerequisites
 
+Execution baseline is `cd64360a63bf06c7d1bc5f27865cca6d7400eff8` in
+`/tmp/fathomdb-0830-slice50-impl`, branch `impl/0.8.30-slice50`.
+The [execution design](design.md) reconciles the drafted scope, bounded
+schedules, local acceptance and prerequisite findings. It is reviewed before
+behavioral edits. Parent owns canonical release records and final integration.
+
 Reconcile [master § C](../../plan.md#c-slice-planning-and-execution-contract)
 on the commissioned checkout. List changes since `f7fb1da9a`, overlapping work,
 the actual source and installed/native inputs, and Slice 3/4/5 drafts assigned

@@ -1,6 +1,6 @@
 {
   "release": "0.8.30",
-  "release_kind": "Preparation implemented; qualification open and publication held",
+  "release_kind": "Slices10 and20 implemented; qualification open and publication held",
   "board": "dev/plans/runs/STATUS-0.8.30.md",
   "plan": "dev/plans/0.8.30/plan.md",
   "master": "dev/plans/0.8.30/plan.md",
@@ -167,11 +167,13 @@
       "depends_on": [
         10
       ],
-      "status": "IN_PROGRESS",
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
       "design_refs": [
         "dev/plans/0.8.30/features/slice-20/plan.md"
       ],
-      "commission_source": "seq-401"
+      "commission_source": "seq-401",
+      "sha": "5e7906b6d7a871611ccdddd74a9ed1410c32cc47",
+      "evidence": "dev/plans/0.8.30/features/slice-20/status.md; independent Astra/Sol/Terra reviews, single full gate and independent failed-only fixture recovery retained."
     },
     {
       "slice": 30,
@@ -251,9 +253,8 @@
     }
   ],
   "landed": [],
-  "next_slice": 20,
+  "next_slice": 30,
   "remaining_ladder": [
-    20,
     30,
     40,
     50,
@@ -298,12 +299,25 @@
       "record": "dev/plans/0.8.30/features/slice-10/status.md",
       "verification": "dev/plans/0.8.30/features/slice-10/verification.json",
       "scope": "Approved local preparation implemented; original full gate FAIL and focused recovery/diagnostics retained. Open findings have owners20/40/50/70; no waiver or release-readiness claim."
+    },
+    "slice20": {
+      "status": "SOURCE_AND_OFFLINE_VERIFIED_WITH_RECORDED_LIMITS",
+      "record": "dev/plans/0.8.30/features/slice-20/status.md",
+      "source_subject": "5093cf0fd1e798c9b87d6806d2704fd223c0d096",
+      "full_gate_exit": 1,
+      "registered": 241,
+      "ran": 238,
+      "passed": 236,
+      "failed": 2,
+      "skipped": 3,
+      "excluded": 0,
+      "focused_recovery": "Both failed fixtures independently pass at7299d8be7a0348c809eeb2fb32c42c40649908a6; original full-gate result unchanged. Hosted cancellation, Windows runtime, integrated candidate and registry qualification remain later work."
     }
   },
   "release_readiness": {
     "status": "NOT_READY",
     "publication_authorized": false,
-    "scope": "Slice20 commissioned by seq-401; feature slices30\u201380 uncommissioned. Open qualification and publication hold remain unchanged."
+    "scope": "Slices10/20 implementation integrated; features30\u201380 uncommissioned. Integrated source, platform, timing, subscriber-fixture and renderer qualifications remain open; publication is not authorized."
   },
   "generated_views": [
     {
@@ -323,14 +337,14 @@
     {
       "item": "Synthetic pending-publication fixture",
       "owner_slice": 20,
-      "state": "OPEN",
-      "evidence": "test-public-doc-truth failed at baseline and candidate; live published-documentation checker passes."
+      "state": "RESOLVED_BY_SLICE20",
+      "evidence": "Source/offline fixture and real-state checks pass in Slice20. See dev/plans/0.8.30/features/slice-20/status.md; historical .29 authority/dispositions preserved."
     },
     {
       "item": "Closed-ladder commission fixture",
       "owner_slice": 20,
-      "state": "OPEN",
-      "evidence": "The .29 checker rejects truthful deferred120/unselected150 dispositions; preserve those dispositions."
+      "state": "RESOLVED_BY_SLICE20",
+      "evidence": "Source/offline fixture and real-state checks pass in Slice20. See dev/plans/0.8.30/features/slice-20/status.md; historical .29 authority/dispositions preserved."
     },
     {
       "item": "Hints overhead criterion",
@@ -355,6 +369,12 @@
       "owner_slice": 70,
       "state": "OPEN",
       "evidence": "Join owning-slice corrections and applicable qualification. Node26 public-engine promotion remains held; local packed proof is not platform or registry proof."
+    },
+    {
+      "item": "Hosted cancellation and Windows runtime validation",
+      "owner_slice": 70,
+      "state": "OPEN",
+      "evidence": "Slice20 source/offline cancellation and static Windows controls pass; hosted cancellation and fresh Windows/native runtime proof remain outstanding. Production registry delivery belongs to80."
     }
   ]
 }

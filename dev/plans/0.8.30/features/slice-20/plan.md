@@ -1,6 +1,6 @@
 ---
 title: Slice 20 efficient and diagnosable CI/CD
-status: ACTIVE
+status: COMPLETE
 target_release: 0.8.30
 slice: 20
 ---

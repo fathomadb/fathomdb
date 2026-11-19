@@ -66,3 +66,14 @@ and live registry delivery remain open in their owning venues. Slice 80 owns
 production runner, environment and npm trust checks and actual publication.
 Raw logs, selected artifact inputs and the timing comparison are under
 `/tmp/fathomdb-0830-slice20-evidence/` for review and worktree cleanup.
+
+## Release-branch integration
+
+Reviewed implementation `5e7906b6d7a871611ccdddd74a9ed1410c32cc47` is integrated
+into local `release/0.8.30` after landing preflight. Both post-gate corrections
+were inspected against the full-gate subject; they retain checkout trust,
+default native provisioning and explicit tools-only controls. No second full
+run was performed. Source/offline implementation is complete; the original
+full-run exit and later qualification limits remain as recorded above.
+Slice30 is next and remains uncommissioned. Raw evidence is preserved outside
+the implementation worktree before cleanup.

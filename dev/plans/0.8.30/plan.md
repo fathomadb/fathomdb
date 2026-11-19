@@ -244,11 +244,16 @@ seq-400. The reviewed Slice10 implementation is integrated on `release/0.8.30`;
 its [status](features/slice-10/status.md) and [verification record](features/slice-10/verification.json)
 retain the failed full gate, scoped correction and open qualification owners.
 Preparation acceptance is IMPLEMENTED_WITH_OPEN_QUALIFICATION. Release
-readiness remains NOT_READY and publication held. Slice20 is commissioned at seq-401 using the owner's supplied slice prompt
-template. Feature slices30–80 remain uncommissioned. The [state](../release-state-0.8.30.json)
-and [board](../runs/STATUS-0.8.30.md) own current status.
+readiness remains NOT_READY and publication held. Slice20 was commissioned
+at seq-401 and its reviewed implementation is now integrated at
+`5e7906b6d7a871611ccdddd74a9ed1410c32cc47`. Its
+[status](features/slice-20/status.md) retains the full-gate failure and the two
+independent scoped fixture recoveries, plus open venue/qualification limits.
+Slice30 is next; feature slices30–80 remain uncommissioned. The
+[state](../release-state-0.8.30.json) and [board](../runs/STATUS-0.8.30.md)
+own current status.
 
 <!-- BEGIN GENERATED release-state:0.8.30:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 20** (`CI`) — Efficient and diagnosable CI/CD
+**IMMEDIATE NEXT: Slice 30** (`CORRECTNESS`) — Correctness bug hunt and remediation
 
-**Remaining ladder:** 20 → 30 → 40 → 50 → 60 → 70 → 80.<!-- END GENERATED release-state:0.8.30:plan-immediate-next -->
+**Remaining ladder:** 30 → 40 → 50 → 60 → 70 → 80.<!-- END GENERATED release-state:0.8.30:plan-immediate-next -->

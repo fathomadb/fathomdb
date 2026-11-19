@@ -896,13 +896,22 @@ pub(crate) fn shape_search_page(input: &SearchShape<'_>) -> Shaped {
         let cut = kept < page.len();
         let continuation = shape::next_offset(offset, kept, page_hits, page_limit, MAX_RANKED)
             .map(|next| shape::handle('c', epoch, &[store, canonical_json, &next.to_string()]));
-        let refs: Vec<&str> =
-            page[..kept].iter().map(|(hit, _, _)| hit.reference.as_str()).collect();
-        let response_id = shape::handle(
-            'r',
-            epoch,
-            &[store, canonical_json, &offset.to_string(), &refs.join("\n")],
-        );
+        let membership = match mode {
+            SearchMode::Hybrid => {
+                let records: Vec<_> = page[..kept]
+                    .iter()
+                    .map(|(hit, cursor, _)| (hit.reference.as_str(), cursor))
+                    .collect();
+                serde_json::to_string(&records).expect("response membership serializes")
+            }
+            SearchMode::Text => {
+                let refs: Vec<_> =
+                    page[..kept].iter().map(|(hit, _, _)| hit.reference.as_str()).collect();
+                refs.join("\n")
+            }
+        };
+        let response_id =
+            shape::handle('r', epoch, &[store, canonical_json, &offset.to_string(), &membership]);
         let explanation = canonical.explain.then(|| match (trace, mode) {
             (Some(trace), SearchMode::Hybrid) => ExplanationOut::Detail {
                 trace: trace.clone(),

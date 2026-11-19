@@ -146,6 +146,10 @@ These are release-local refinements. The canonical acceptance suite remains auth
    same-cursor, validation-order and compact refusal cases. Extend the MCP
    suite with a telemetry-backed continuation where one public ref is unique
    on each kept response and maps to that response's distinct query/cursor.
+   A focused Astra-reviewed follow-up covers a replacement revision with the
+   same public ref. Bind hybrid response IDs to ordered kept ref/cursor pairs
+   so the earlier handle retains its original query and cursor. Repeat
+   requests with the same membership retain deterministic IDs.
    Review precise labels with schema/rendering, validation and budget in the
    closure. The owner retains the choice to add them. The query compiler's
    in-crate `lib.rs` and `stop_words_tests.rs` already exercise generated

@@ -110,6 +110,13 @@ fn reference_handle(prefix: char, epoch: u64, parts: &[&str]) -> String {
     format!("{prefix}{epoch}-{suffix}")
 }
 
+fn expected_hybrid_response_id() -> String {
+    let canonical = r#"{"query":"story","mode":"hybrid","kind":null,"source_type":null,"status":null,"created_after":null,"attributes":[],"as_of":1900000000,"limit":6,"explain":true}"#;
+    // The first six fixture writes have cursors 1..=6 in this order.
+    let membership = r#"[["l:note:00",1],["l:note:01",2],["l:note:02",3],["l:note:03",4],["l:note:04",5],["l:note:05",6]]"#;
+    reference_handle('r', 1, &["a", canonical, "0", membership])
+}
+
 fn historical_search_prefix(expected: &Value, kept: usize) -> Value {
     let mut payload = expected.clone();
     let results = expected["results"].as_array().unwrap()[..kept].to_vec();
@@ -243,6 +250,7 @@ fn compare_baseline(current: &Value, expected: &Value, index: usize) -> Result<(
             {"arm":"vector","reason":"embedder_absent"},
             {"arm":"vector","reason":"embedder_unavailable"}
         ]);
+        desired["response_id"] = json!(expected_hybrid_response_id());
     }
     if let Some(budget) = payload.get("budget") {
         let max = original["budget"]["max_tokens"].as_u64().ok_or("unexpected budget")?;
@@ -427,6 +435,7 @@ fn historical_hybrid_absence_has_only_the_authored_successor_delta() {
     ]);
     let mut payload = authored_omission(rows[4]["result"]["structuredContent"].clone());
     payload["degradation"] = pair.clone();
+    payload["response_id"] = json!(expected_hybrid_response_id());
     let valid = current_wire(&rows[4], payload.clone());
     assert!(compare_baseline(&valid, &rows[4], 4).is_ok(), "approved exact absence successor");
     for wrong in [

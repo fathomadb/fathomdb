@@ -323,7 +323,11 @@ Meets AN-021.
   `explanation.correlation_id`, which the engine assigns under the sink lock. It
   never uses `last_telemetry_query_id`, which is engine-wide and can be swapped
   between concurrent searches. The explanation is dropped from the response
-  unless the caller asked for it, so output is unchanged (MR-043).
+  unless the caller asked for it. Distinct kept hybrid memberships include
+  stored cursors in the response key, so replacing a result under the same
+  public ref preserves attribution for the earlier response. If invocations
+  share the deterministic response key, feedback uses its latest retained
+  query id (MR-043).
 - MR-024.7 Every telemetry query id the adapter records is unique within its
   sink file. The adapter enables a fresh sink file on every open, named from the
   operator's telemetry directory, the store and the open epoch, because

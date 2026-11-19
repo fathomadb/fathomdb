@@ -308,9 +308,11 @@ not establish positive projected-status/time qualification.
 Result adds:
 
 - `response_id`: string `r<epoch>-<hash>`, for `feedback`, where `<hash>` is
-  the first 16 hex digits of SHA-256 over the store, the canonical arguments and
-  the result references. Identical requests on identical state get identical
-  ids (MR-043).
+  the first 16 hex digits of SHA-256 over length-prefixed store, canonical
+  arguments, page offset and kept page membership. For hybrid search,
+  membership is a compact JSON array of ordered `[ref, stored cursor]` pairs.
+  Text search uses its newline-joined refs. Identical requests on identical
+  state get identical ids (MR-043).
 - `results`: array of `{ref, kind, snippet, snippet_cut, snippet_anchor, highlights?, source_id, score, arm, ce_score?}` in engine rank order.
   - `snippet` is at most `snippet_bytes` bytes, chosen by the engine (EP-17).
     It is centred on the matched words, keeps the record head, and uses `…`
@@ -433,7 +435,10 @@ reasons, every ref in `used` and `unused` must belong to it
 (`invalid_request/refs_not_in_response` otherwise, with bounded occurrence
 details below). A response from another store is `invalid_request/wrong_store`
 (MR-024.5). `used` may be empty. Recorded feedback reaches `record_feedback`
-with label source `agent` (MR-024.1). Feedback never alters later results.
+with label source `agent` (MR-024.1). Each distinct hybrid page membership
+retains its own cursor mapping and query id while its response is cached.
+Identical invocations that share a deterministic handle use the latest retained
+query id for that handle. Feedback never alters later results.
 For otherwise recordable calls, a named ref shared by different result cursors
 returns `invalid_request/bad_argument` atomically with zero feedback labels.
 Repeated occurrences of the same cursor remain unique; ambiguity in an unmentioned

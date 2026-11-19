@@ -107,6 +107,7 @@ class LoggingSubscriberTests(unittest.TestCase):
     def test_handler_database_reentry_is_rejected_without_recursion(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             engine = Engine.open(str(Path(directory) / "subscriber.sqlite"))
+            engine.set_slow_threshold_ms(value=60_000)
             logger = logging.Logger("fathomdb-s100", level=logging.DEBUG)
             attempted = threading.Event()
             errors: list[Exception] = []
@@ -122,7 +123,8 @@ class LoggingSubscriberTests(unittest.TestCase):
                             operation()
                         except Exception as error:
                             errors.append(error)
-                    attempted.set()
+                    if getattr(record, "fathomdb", {}).get("phase") == "finished":
+                        attempted.set()
 
             logger.addHandler(Reenter())
             try:

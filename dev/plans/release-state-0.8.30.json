@@ -1,6 +1,6 @@
 {
   "release": "0.8.30",
-  "release_kind": "Slices10/20/30/40 complete;50 partially implemented;55 commissioned;60 then finish50 authorized",
+  "release_kind": "10/20/30/40/55 complete;50 partially implemented;60 activated underseq-409",
   "board": "dev/plans/runs/STATUS-0.8.30.md",
   "plan": "dev/plans/0.8.30/plan.md",
   "master": "dev/plans/0.8.30/plan.md",
@@ -235,12 +235,14 @@
         10,
         30
       ],
-      "status": "IN_PROGRESS",
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
       "scope_source": "seq-407",
       "design_refs": [
         "dev/plans/0.8.30/features/slice-55/plan.md"
       ],
-      "commission_source": "seq-409"
+      "commission_source": "seq-409",
+      "sha": "3595192b0a3d4587556aa00b24768a06469af3ba",
+      "evidence": "dev/plans/0.8.30/features/slice-55/status.md; all six selected CPU/test rows complete; Astra/Sol/Terra PASS and canonical strict verifier exit0. Separate outer-monitor124 and unselected scopes retained."
     },
     {
       "slice": 60,
@@ -250,11 +252,11 @@
         10,
         55
       ],
-      "status": "PROPOSED_NOT_COMMISSIONED",
+      "status": "IN_PROGRESS",
       "design_refs": [
         "dev/plans/0.8.30/features/slice-60/plan.md"
       ],
-      "scheduled_commission_source": "seq-409"
+      "commission_source": "seq-409"
     },
     {
       "slice": 70,
@@ -301,9 +303,8 @@
     }
   ],
   "landed": [],
-  "next_slice": 55,
+  "next_slice": 60,
   "remaining_ladder": [
-    55,
     60,
     50,
     70,
@@ -425,7 +426,7 @@
       "limits": "Original S50 historical cause remains unresolved; precise occurrence labels and identical-membership invocation attribution remain owner choices; empty-span trace/write policy discrepancy recorded. Prior hints/logging holds and integrated qualification remain with their assigned slices."
     },
     "coverage_plan": {
-      "status": "PLANNED_NOT_VERIFIED",
+      "status": "IMPLEMENTED_CPU_SCOPED_VERIFIED_FINAL_QUALIFICATION_OPEN",
       "record": "dev/plans/0.8.30/coverage-audit.md",
       "implementation_owner": 55,
       "qualification_owner": 70,
@@ -436,9 +437,10 @@
         "all-doctor outcomes/effects and actual integrity findings",
         "thin behavioral SDK/MCP parity and oracle sensitivity"
       ],
-      "scope": "Selected seq-406 work split underseq-407 across draft50/55 and70/75. Current40 unchanged. These plans are not commissioned; inherited assertions remain distinct from exact-candidate runtime proof.",
+      "scope": "Seq-406 CPU/test additions implemented and verified in55 underseq-409.50 runtime portion verified but remaining GPU/model-release work open;60 now active.70 joins final source/long/feature proof and75 installed hardware/platform/cache applicability. No broad fuzz/power-loss/universal doctor claim.",
       "runtime_owner": 50,
-      "artifact_qualification_owner": 75
+      "artifact_qualification_owner": 75,
+      "execution_record": "dev/plans/0.8.30/features/slice-55/status.md"
     },
     "qualification_records": [
       "dev/plans/0.8.30/features/slice-70/plan.md",
@@ -497,12 +499,36 @@
         "B30-01 implementation and verification after60 exact-pin safe-drop proof"
       ],
       "completion": "Not complete. Ownerseq-409 runs55 then60 before completing remaining50; evidence retained outside old checkout."
+    },
+    "slice55": {
+      "status": "SOURCE_AND_CPU_SCOPES_VERIFIED_WITH_RECORDED_LIMITS",
+      "record": "dev/plans/0.8.30/features/slice-55/status.md",
+      "implementation_sha": "3595192b0a3d4587556aa00b24768a06469af3ba",
+      "source_subject": "866dcad1650f9b9efade23959e0258b33cbe7197",
+      "full_gate": {
+        "exit": 0,
+        "elapsed_seconds": 3825.632,
+        "registered": 241,
+        "ran": 238,
+        "passed": 238,
+        "failed": 0,
+        "skipped": 3,
+        "excluded": 0,
+        "exit_witness": "Actual verifier PID/start-time and zombie kernel exit status captured before outer monitor resume/reap. Unchanged verifier/test process groups, source and criteria."
+      },
+      "outer_wrapper": {
+        "exit": 124,
+        "scope": "Unrequested2400s timeout monitor suspended individually while verifier progressed; after actual verifier exit0 and no live test children, resumed monitor reported pending alarm124. Separate result retained; no gate restart or downgrade."
+      },
+      "reviews": "Astra plan/design PASS after oneFIX-1 and final refinement PASS; Sol final code PASS; Terra independent runtime/native PASS; parent Codex critical-control review PASS before integration.",
+      "scope": "All six selected fixture/property/doctor/boundary CPU rows and maintained fault/temporal/graph/index controls executed. Proptest input smoke is not coverage-guided fuzzing; branch map manual, no measured percentage. No production contract change.",
+      "limits": "Declared private live controls3 skipped. Long/hardware/successful cache/network/final artifact proof stays70/75; actual CUDA/safe-drop belongs60 and remaining50. Process kill is not power-loss recovery; no new live fault or publication."
     }
   },
   "release_readiness": {
     "status": "NOT_READY",
     "publication_authorized": false,
-    "scope": "10/20/30/40 complete on release branch; reviewed50 runtime/logging portion integrated but50 remains open. Ownerseq-409 commissions55 now, then60, then completion of50; qualification70/75 and separately authorized publication80 follow. Inherited hints, final pins/source/platform/artifacts remain open; no publication authorization."
+    "scope": "10/20/30/40/55 complete on local release branch;50 partial runtime/logging integrated.60 activated underseq-409 after55 reviews and strict-source verification. Then finish50, qualify70/75, and separately authorize80 publication. Inherited hints and final pins/source/platform/artifacts remain open."
   },
   "generated_views": [
     {
@@ -578,6 +604,6 @@
       75,
       80
     ],
-    "next_transition": "After55 completion and review remediation, commission60 with the full template; after60 supplies qualified pins/safe-drop proof, finish50 without replaying passing runtime work. No sequence reconfirmation needed. Preserve separate concrete venue/session/live-fault needs and exact-candidate publication authority."
+    "next_transition": "Complete60 with the full template and qualified exact-pin safe-drop proof; then finish50 underseq-409 without replaying unaffected passing work.70/75 qualification follow;80 exact-candidate publication remains separately authorized."
   }
 }

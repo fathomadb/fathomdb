@@ -1,6 +1,6 @@
 ---
 title: Slice 60 fork maintenance and qualification
-status: PROPOSED
+status: ACTIVE
 target_release: 0.8.30
 slice: 60
 ---
@@ -14,8 +14,8 @@ F30-MARKER and F30-MULTIARCH in .30. Slice 9 selects scope and Slice 10 owns
 approved preparation. Implementation, native sessions, live faults and
 publication require their applicable authority. [Fork allocation](../../fork-maintenance-plan.md) · [Master execution contract](../../plan.md#c-slice-planning-and-execution-contract)
 
-Owner seq-409 authorizes activation after55 completion and remediation of its
-review findings, using the full execution template. Prioritize the exact-pin
+Owner seq-409 activates this plan after reviewed55 completion at
+`3595192b0a3d4587556aa00b24768a06469af3ba`, using the full execution template. Prioritize the exact-pin
 safe-drop prerequisite needed to finish50. No repeat sequence confirmation is
 needed; concrete venue/session/live-fault authority remains separate.
 

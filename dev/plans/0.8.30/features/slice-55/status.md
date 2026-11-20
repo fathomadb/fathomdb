@@ -134,3 +134,11 @@ truthful doctor matrix at866dcad. Sol6.2-high and Terra results remain as above.
 All owned gate/monitor/test processes ended. Final closure changes only these
 local plan/status records; the native/gate subjects remain their actual866dcad
 source. Parent owns integration and temporary branch/worktree removal.
+
+## Release integration
+
+Parent Codex accepted the final critical recovery, identity/vector ownership,
+temporal/graph, input and integrity oracles and integrated
+`3595192b0a3d4587556aa00b24768a06469af3ba`. The verifier exit0 is supported by
+the captured kernel status, with outer124 retained separately. Owner seq-409
+now activates60;50 remains partial and will resume after its prerequisite.

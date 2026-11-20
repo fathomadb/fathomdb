@@ -303,15 +303,19 @@ hints/final qualification remains open. Owner seq-408 commissions the revised50
 plan with `gpt-6.1-sol` high after40 completion. Its reviewed runtime/logging
 portion is integrated at`daf12b6d9839816fab4cd7c72c81e2f10918bf0f`, with both
 remaining obligations open. Owner seq-409 supersedes the finish50-before55
-condition:55 is commissioned now with `gpt-6.1-sol` high and the full template;
-then activate60 and finish50 under the same sequential mandate without another
-sequence confirmation.70/75 have not started;80 publication still requires
-separate exact-candidate authority. Owner seq-404 places the Vercel UI SDK
+condition. Reviewed55 is now integrated at
+`3595192b0a3d4587556aa00b24768a06469af3ba`; its
+[status](features/slice-55/status.md) records all six selected rows and the actual
+strict verifier exit0,238 passed/3 explicit skips/0 failures, with the separate
+outer-monitor124 preserved.60 is now activated with the full template under
+seq-409; finish50 after its prerequisite without another sequence confirmation.
+70/75 have not started;80 publication still requires separate exact-candidate
+authority. Owner seq-404 places the Vercel UI SDK
 research in the [0.9.0 backlog](../0.9.0/backlog.md); it adds no .30 feature work. The
 [state](../release-state-0.8.30.json) and [board](../runs/STATUS-0.8.30.md)
 own current status.
 
 <!-- BEGIN GENERATED release-state:0.8.30:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 55** (`INTEGRITY`) — Data integrity and recovery
+**IMMEDIATE NEXT: Slice 60** (`FORK`) — Scoped fork maintenance and qualification
 
-**Remaining ladder:** 55 → 60 → 50 → 70 → 75 → 80.<!-- END GENERATED release-state:0.8.30:plan-immediate-next -->
+**Remaining ladder:** 60 → 50 → 70 → 75 → 80.<!-- END GENERATED release-state:0.8.30:plan-immediate-next -->

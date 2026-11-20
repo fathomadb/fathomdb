@@ -6,11 +6,11 @@ The [state](../release-state-0.8.30.json) owns status and next actions. The
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.30:status-current-state -->**Next is Slice 55 (INTEGRITY), IN_PROGRESS.** Completed on local `release/0.8.30` per release state: 0 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 1 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 2 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 3 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 4 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 5 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 6 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 7 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 8 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 9 (`9b60aed656330acdcce06d3c77e6008dbef739c3`) · 10 (`9c9b786585961d5393d1155eb6b44b611b63e06d`) · 20 (`5e7906b6d7a871611ccdddd74a9ed1410c32cc47`) · 30 (`5b0348775279883fe2ffcd52f60c23c90171166e`) · 40 (`d64e870bd96103851b104afc927d48c64067db35`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.30:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.30:status-current-state -->**Next is Slice 60 (FORK), IN_PROGRESS.** Completed on local `release/0.8.30` per release state: 0 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 1 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 2 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 3 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 4 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 5 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 6 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 7 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 8 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 9 (`9b60aed656330acdcce06d3c77e6008dbef739c3`) · 10 (`9c9b786585961d5393d1155eb6b44b611b63e06d`) · 20 (`5e7906b6d7a871611ccdddd74a9ed1410c32cc47`) · 30 (`5b0348775279883fe2ffcd52f60c23c90171166e`) · 40 (`d64e870bd96103851b104afc927d48c64067db35`) · 55 (`3595192b0a3d4587556aa00b24768a06469af3ba`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.30:status-current-state -->
 
 ## Next action
 
-<!-- BEGIN GENERATED release-state:0.8.30:status-next-action -->**Continue Slice 55 (INTEGRITY)** — Data integrity and recovery. **Remaining ladder:** 55 → 60 → 50 → 70 → 75 → 80.<!-- END GENERATED release-state:0.8.30:status-next-action -->
+<!-- BEGIN GENERATED release-state:0.8.30:status-next-action -->**Continue Slice 60 (FORK)** — Scoped fork maintenance and qualification. **Remaining ladder:** 60 → 50 → 70 → 75 → 80.<!-- END GENERATED release-state:0.8.30:status-next-action -->
 
 ## Decisions, implementation and qualification
 
@@ -63,3 +63,10 @@ The [state](../release-state-0.8.30.json) owns status and next actions. The
   55 is commissioned with `gpt-6.1-sol` high and the full template. After55 and
   review remediation, activate60 then finish50 without a new sequence approval.
   Concrete live-fault/venue authority and80 publication remain separate.
+
+- Reviewed55 is integrated at`3595192b0a3d4587556aa00b24768a06469af3ba`.
+  [Status](../0.8.30/features/slice-55/status.md): all six selected rows, actual
+  canonical verifier exit0,238 passed/3 explicit skips/0 failures; separate
+  outer-monitor124 preserved. All reviews passed and owned processes ended.
+- 60 is activated under the existing seq-409 mandate after55 completion.
+  Then finish50;70/75 and separately authorized80 publication follow.

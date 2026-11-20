@@ -195,51 +195,104 @@ async fn a_client_cancel_removes_a_queued_call() {
     let fixture = Fixture::new();
     let harness = Harness::start(store_config(
         &fixture,
-        json!({"admission_cap": 1, "queue_limit": 2, "call_deadline_ms": 5000}),
+        json!({"admission_cap": 1, "queue_limit": 2, "call_deadline_ms": 10000}),
     ))
     .await;
     harness.ok("orient", json!({"store": "a"})).await;
     let seams = harness.adapter.seams().clone();
     seams.block_calls("a");
-    let running = spawn_call(&harness, "search", search_a());
+    let running = spawn_call(&harness, "fetch", fetch_a());
     wait_for("the running call to be held", Duration::from_secs(5), || seams.held_calls("a") == 1)
         .await;
-    // The call to cancel waits on its own connection, so it can be cancelled
-    // by request id.
+
+    let cancelled_observation = seams.observe_pre_enqueue("a");
     let mut raw = common::RawClient::connect(&harness.adapter).await;
-    let cancelled =
-        raw.send_request("tools/call", json!({"name": "search", "arguments": search_a()})).await;
-    tokio::time::sleep(Duration::from_millis(100)).await;
-    let next = spawn_call(&harness, "search", search_a());
-    tokio::time::sleep(Duration::from_millis(100)).await;
-    let full = error_of(&spawn_call(&harness, "search", search_a()).await.unwrap());
-    assert_eq!(full["busy"]["reason"], "queue_full", "two calls wait: {full}");
-    assert_eq!(full["busy"]["queued"], 2, "{full}");
-
+    let cancelled = raw
+        .send_request(
+            "tools/call",
+            json!({"name": "fetch", "arguments": fetch_a(),
+                   "_meta": {"progressToken": "cancelled-waiter"}}),
+        )
+        .await;
+    wait_for("cancelled attempt at pre-enqueue", Duration::from_secs(5), || {
+        cancelled_observation.snapshot().reached.is_some()
+    })
+    .await;
+    let reached = cancelled_observation.snapshot().reached.unwrap();
+    assert_eq!((reached.in_flight, reached.queued), (1, 0));
+    cancelled_observation.release();
+    let queued = raw
+        .read_matching_message(|message| {
+            message["method"] == "notifications/progress"
+                && message["params"]["progressToken"] == "cancelled-waiter"
+                && message["params"]["message"] == "queued: 1 waiting, 1 running"
+        })
+        .await;
+    assert_eq!(queued["params"]["message"], "queued: 1 waiting, 1 running");
     raw.cancel(cancelled).await;
-    tokio::time::sleep(Duration::from_millis(100)).await;
-    // The cancelled call left the line: one more call fits.
-    let later = spawn_call(&harness, "search", search_a());
-    tokio::time::sleep(Duration::from_millis(100)).await;
-    assert!(!later.is_finished(), "a call fits in the line again");
-    let full = error_of(&spawn_call(&harness, "search", search_a()).await.unwrap());
-    assert_eq!(full["busy"]["reason"], "queue_full", "{full}");
-    assert_eq!(full["busy"]["queued"], 2, "the cancelled call is not counted: {full}");
+    wait_for("cancelled queue lease to retire", Duration::from_secs(5), || {
+        !cancelled_observation.is_active()
+    })
+    .await;
+    assert!(cancelled_observation.snapshot().bridge_epochs.is_empty());
+    assert_eq!(seams.held_calls("a"), 1, "cancelled work never enters the bridge");
 
-    // On release the next waiter is admitted, not the cancelled call.
+    let mut survivors = Vec::new();
+    for (index, token) in ["next-waiter", "later-waiter"].into_iter().enumerate() {
+        let mut client = common::RawClient::connect(&harness.adapter).await;
+        let id = client
+            .send_request(
+                "tools/call",
+                json!({"name": "fetch", "arguments": fetch_a(),
+                       "_meta": {"progressToken": token}}),
+            )
+            .await;
+        let expected = format!("queued: {} waiting, 1 running", index + 1);
+        client
+            .read_matching_message(|message| {
+                message["method"] == "notifications/progress"
+                    && message["params"]["progressToken"] == token
+                    && message["params"]["message"] == expected
+            })
+            .await;
+        survivors.push((client, id));
+    }
+    let full = error_of(&spawn_call(&harness, "fetch", fetch_a()).await.unwrap());
+    assert_eq!(full["busy"]["reason"], "queue_full");
+    assert_eq!(full["busy"]["queued"], 2, "cancelled request consumed no capacity");
+
     assert!(seams.release_one_call("a"));
-    let _ = running.await.unwrap();
-    wait_for("the next waiter to be held", Duration::from_secs(5), || seams.held_calls("a") == 1)
-        .await;
-    assert!(seams.release_one_call("a"));
-    let next = next.await.unwrap();
-    assert_ne!(next.is_error, Some(true), "{:?}", next.structured_content);
-    wait_for("the later waiter to be held", Duration::from_secs(5), || seams.held_calls("a") == 1)
-        .await;
-    assert!(seams.release_one_call("a"));
-    let later = later.await.unwrap();
-    assert_ne!(later.is_error, Some(true), "{:?}", later.structured_content);
+    assert_exact_fetch(&running.await.unwrap());
+    for (mut client, id) in survivors {
+        wait_for("surviving waiter held", Duration::from_secs(5), || seams.held_calls("a") == 1)
+            .await;
+        assert!(seams.release_one_call("a"));
+        let response = client.read_matching_message(|message| message["id"] == id).await;
+        let result: CallToolResult = serde_json::from_value(response["result"].clone()).unwrap();
+        common::assert_output_valid(
+            "fetch",
+            result.structured_content.as_ref().unwrap(),
+            &serde_json::to_value(harness.tools().await).unwrap(),
+        );
+        assert_exact_fetch(&result);
+    }
+    assert!(cancelled_observation.snapshot().bridge_epochs.is_empty());
+    assert_eq!(seams.held_calls("a"), 0);
+    seams.release_calls("a");
+    assert_exact_fetch(&harness.call("fetch", fetch_a()).await);
     harness.shutdown().await;
+}
+
+fn assert_exact_fetch(result: &CallToolResult) {
+    assert_ne!(result.is_error, Some(true), "{:?}", result.structured_content);
+    let payload = result.structured_content.as_ref().expect("fetch structured content");
+    assert_eq!(
+        payload["items"],
+        json!([{
+            "ref": "l:note:a",
+            "record": {"kind": "note", "body": "alpha river crossing", "body_cut": false}
+        }])
+    );
 }
 
 /// With every permit held and `queue_limit` 1, a new call is queued and
@@ -687,24 +740,88 @@ async fn an_abandoned_call_keeps_its_permit_and_is_counted() {
     harness.ok("orient", json!({"store": "a"})).await;
     let seams = harness.adapter.seams().clone();
     seams.block_calls("a");
-    let error = harness.err("search", search_a()).await;
+    let running = spawn_call(&harness, "fetch", fetch_a());
+    wait_for("run-limited call held after admission", Duration::from_secs(5), || {
+        seams.held_calls("a") == 1
+    })
+    .await;
+    let error = error_of(&running.await.unwrap());
     assert_eq!(error["class"], "timeout", "abandoned at the run limit: {error}");
+    assert_eq!(error["code"], "deadline");
     let probe = harness.err("search", search_a()).await;
     assert_eq!(probe["busy"]["abandoned"], 1, "{probe}");
     assert_eq!(probe["busy"]["in_flight"], 1, "the abandoned call keeps its permit: {probe}");
 
     seams.release_calls("a");
-    let found = harness.ok("search", search_a()).await;
-    assert_eq!(found["results"][0]["ref"], "l:note:a", "the permit is free again");
+    assert_exact_fetch(&harness.call("fetch", fetch_a()).await);
     seams.block_calls("a");
-    let running = spawn_call(&harness, "search", search_a());
+    let running = spawn_call(&harness, "fetch", fetch_a());
     wait_for("the running call to be held", Duration::from_secs(5), || seams.held_calls("a") == 1)
         .await;
     let probe = harness.err("search", search_a()).await;
     assert_eq!(probe["busy"]["abandoned"], 0, "{probe}");
     assert_eq!(probe["busy"]["in_flight"], 1, "{probe}");
     seams.release_calls("a");
-    let _ = running.await.unwrap();
+    assert_exact_fetch(&running.await.unwrap());
+    harness.shutdown().await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn store_switch_and_independent_registry_keep_their_own_capacity() {
+    let fixture = Fixture::new();
+    fixture.store("b.sqlite", vec![node("note:c", "note", "second store survivor")]);
+    let harness = Harness::start(store_config(
+        &fixture,
+        json!({
+            "stores": {"a": {"path": "a.sqlite"}, "b": {"path": "b.sqlite"}},
+            "admission_cap": 1, "call_deadline_ms": 10000
+        }),
+    ))
+    .await;
+    harness.ok("orient", json!({"store": "a"})).await;
+    let other_fixture = Fixture::new();
+    other_fixture.store("other.sqlite", vec![node("note:other", "note", "independent registry")]);
+    let other = Harness::start(other_fixture.config(json!({
+        "stores": {"other": {"path": "other.sqlite"}}, "idle_timeout_secs": 0,
+        "admission_cap": 1, "call_deadline_ms": 10000
+    })))
+    .await;
+    other.ok("orient", json!({"store": "other"})).await;
+    let seams = harness.adapter.seams();
+    let other_seams = other.adapter.seams();
+    seams.block_calls("a");
+    other_seams.block_calls("other");
+    let first = spawn_call(&harness, "fetch", fetch_a());
+    let second = spawn_call(&other, "fetch", json!({"store": "other", "refs": ["l:note:other"]}));
+    wait_for("both independent registries admitted", Duration::from_secs(5), || {
+        seams.held_calls("a") == 1 && other_seams.held_calls("other") == 1
+    })
+    .await;
+    let busy = harness.err("fetch", json!({"store": "b", "refs": ["l:note:c"]})).await;
+    assert_eq!(
+        (busy["class"].as_str(), busy["code"].as_str()),
+        (Some("busy"), Some("store_switch"))
+    );
+    seams.release_calls("a");
+    other_seams.release_calls("other");
+    assert_exact_fetch(&first.await.unwrap());
+    let second = second.await.unwrap();
+    assert_ne!(second.is_error, Some(true));
+    assert_eq!(
+        second.structured_content.as_ref().unwrap()["items"],
+        json!([{
+            "ref": "l:note:other", "record": {"kind": "note", "body": "independent registry", "body_cut": false}
+        }])
+    );
+    let switched = harness.ok("fetch", json!({"store": "b", "refs": ["l:note:c"]})).await;
+    assert_eq!(
+        switched["items"],
+        json!([{
+            "ref": "l:note:c", "record": {"kind": "note", "body": "second store survivor", "body_cut": false}
+        }])
+    );
+    assert_exact_fetch(&harness.call("fetch", fetch_a()).await);
+    other.shutdown().await;
     harness.shutdown().await;
 }
 

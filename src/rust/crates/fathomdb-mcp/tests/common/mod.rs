@@ -348,6 +348,27 @@ impl RawClient {
         self.notify("notifications/cancelled", json!({"requestId": id, "reason": "test"})).await;
     }
 
+    /// Read this dedicated connection until its identified message arrives.
+    /// One watchdog covers all intervening notifications, not each line.
+    pub async fn read_matching_message(&mut self, matches: impl Fn(&Value) -> bool) -> Value {
+        tokio::time::timeout(Duration::from_secs(5), async {
+            loop {
+                let mut buffer = String::new();
+                let read = self.reader.read_line(&mut buffer).await.expect("read raw message");
+                assert!(read > 0, "server closed the pipe");
+                let message: Value = serde_json::from_str(&buffer).expect("JSON-RPC message");
+                if message.get("id").is_none() {
+                    self.notifications.push(message.clone());
+                }
+                if matches(&message) {
+                    return message;
+                }
+            }
+        })
+        .await
+        .expect("identified raw message within watchdog")
+    }
+
     pub async fn request(&mut self, method: &str, params: Value) -> Value {
         let id = self.next_id;
         self.next_id += 1;

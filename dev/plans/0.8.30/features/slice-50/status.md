@@ -1,0 +1,58 @@
+---
+title: Slice 50 runtime implementation and open proof
+status: ACTIVE
+slice: 50
+target_release: 0.8.30
+---
+
+# Slice 50 runtime implementation and open proof
+
+Commissioned by seq-408 from `cd64360a63bf06c7d1bc5f27865cca6d7400eff8`.
+Direct Astra-medium passed the [reconciled plan](plan.md) and [design](design.md)
+after one consolidated FIX-1. Direct Sol6.2-high passed the source changes
+after fixing SQLite connection cleanup, bounding the entire new engine
+schedule and strengthening the exact MCP recovery results. No product defect
+was demonstrated in these bounded schedules; no public API or product
+contract changed. This is not Slice50 closure: two required proofs remain open.
+
+## Implemented and measured scope
+
+| Selected row | Actual result |
+| --- | --- |
+| MCP admission/cancellation | Serial `cargo test --locked -p fathomdb-mcp --features test-seams --test admission -- --test-threads=1` passed30/30. Cancellation now has its own progress token and actual queued notification, retired pre-enqueue lease and empty bridge history. Two surviving waiters and a subsequent call return exact authored fetch items. Started run-limit returns timeout/deadline and retains in_flight1/abandoned1 until actual return; later exact fetches recover and abandoned resets0. One registry refuses a second busy store with busy/store_switch, then switches successfully. Distinct registries simultaneously hold actual admitted calls on distinct databases and return their own exact records. |
+| Engine dispatch/isolation | Existing baseline foreground scope passed10/10. Final scope passed11/11 with one added bounded real-store schedule: A's worker remains occupied after direct Embedder timeout; queued expiry is Overloaded without a replacement call; B writes/reads exact Unicode state and embeds successfully; releasing A allows an exact healthy vector. Existing saturation, error/panic reuse, sparse fallback and frozen-reader cases remain intact. |
+| Close/alias/reopen | `--features operator,test-hooks --lib slice20_open_hook_tests` passed2/2, close-review passed2/2 and concurrent-close passed3/3. The targeted canonical/alias startup hook leaves a sibling's open, committed read and later write intact. Existing observation proves SQLite quiescence precedes one shared provider deadline across concurrent/repeated close/Drop, provider-only retention on expiry and accounting0 after return. New ownership/reopen/verify phases each run in a supervised fresh child with a60s watchdog, positive completion marker and normal exit0. Explicit close releases canonical locks while closed handles still live. A fresh child reads both exact originals, writes/reads new sentinels; another child reopens and checks all four records. |
+| Logging synchronization | The retained6!=3 failures remain unchanged. One unchanged installed-native run passed after its first callback, exposing the race. RED `accb149fa` waits for actual Admin/finished and fails6!=3. GREEN `01cd67854` asserts each intended started/finished event, every named typed reentry refusal, a distinct Search/finished FIFO fence after both serialized configure calls, and exact persisted configuration records after reopen. The final installed-native module run passed10/10. This repairs the fixture's completion/count assumption; no duplicate product emission was found and no sleep or weakened assertion was used. |
+| Default Node resources | **OPEN / NOT_RUN.** Historical .29 default Node FAIL/OFF_NOT_RUN and the separate semispace4 pair remain as recorded in [.29 status](../../../0.8.29/features/slice-130/status.md). No current Orin session/resource authority was established; seq-408 grants no new GPU session. CPU or semispace4 evidence cannot satisfy the selected default private-pool ON/OFF comparison. No new plateau or attribution is claimed. |
+| Conditional B30-01 model release | **OPEN / PREREQUISITE_UNAVAILABLE.** Consumed cudarc343b04fa/Candle2ee39305/kernel182ceab0 match the exact revisions in the design. [.29 Slice110](../../../0.8.29/features/slice-110/plan.md) explicitly holds real Orin/3090 reset-close, last-clone and consumer proof. [60](../slice-60/plan.md) has not supplied the required exact-pin safe-drop proof. The design inventories all static model consumers and specifies owned leases/serialized release; no unsafe release API is exercised or shipped, and no CPU-only subset is presented as the complete row. Original Orin reset-survival/TC-281155a1 remains unqualified. |
+
+The quality roadmap is applied to positive work, queue pressure, owned cleanup
+and restart. General data cohesion, fuzz, crash/WAL and doctor work remains55;
+integrated source/features/security/long/numerical qualification remains70;
+final installed-platform/support convergence remains75. The inherited200us
+hints criterion remains open with70;40's original failed gate is not relabeled.
+
+## Verification and evidence
+
+Owned Python3.12.3/pip/Ruff0.15.17/Pyright1.1.410 and noneditable CPU ABI3 wheel.
+Exact Node26.13.1/npm11.20.0 are installed under
+`/tmp/fathomdb-0830-slice50-tools`; root and TypeScript npm modules are owned
+by this checkout. Rust1.95.0 is unchanged. The public Node range is unchanged.
+Initial sandbox registry DNS failed; the approved-registry executor provisioned
+the tools. An initial pytest command selected the source package without its
+native module and failed collection; the installed run used `-o pythonpath=''`.
+Neither setup failure is behavioral RED. The deterministic logging RED is
+separately retained.
+
+Scoped Clippy for engine/MCP all targets with operator/test-hooks/test-seams,
+Ruff, Markdown, generated release views and the pinned environment check
+passed. The one required clean-source full gate and direct Terra runtime/native
+verification are pending at this source checkpoint. Original outcomes and
+focused continuations will be recorded separately without an uninterrupted
+green claim.
+
+Raw original/scoped logs and needed native subjects are retained under
+`/tmp/fathomdb-0830-slice50-evidence`. Parent owns canonical release records,
+integration and worktree removal. No GPU session, reset, driver/toolkit change,
+paid campaign or publication ran. Final handoff must confirm all owned
+processes ended and retain the two mandatory open rows for owner disposition.

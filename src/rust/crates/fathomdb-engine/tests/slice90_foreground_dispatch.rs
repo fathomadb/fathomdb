@@ -8,8 +8,8 @@ use std::time::{Duration, Instant};
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{
-    Engine, EngineConfig, EngineError, InitialState, PreparedWrite, ReadContextV1, ReadView,
-    SearchFilter, SourceId, TestEmbedderChoice,
+    Engine, EngineConfig, EngineError, EngineOpenError, InitialState, PreparedWrite, ReadContextV1,
+    ReadView, SearchFilter, SourceId, TestEmbedderChoice,
 };
 
 #[derive(Debug)]
@@ -447,4 +447,193 @@ fn frozen_sparse_fallback_keeps_reader_snapshot_across_provider_wait() {
     assert!(result.results.iter().all(|hit| hit.write_cursor != after.cursor));
     release.send(()).expect("release provider");
     engine.drain(2_000).expect("finish later projection");
+}
+
+fn named_document(id: &str, body: &str) -> PreparedWrite {
+    let mut write = document(body);
+    if let PreparedWrite::Node { logical_id, .. } = &mut write {
+        *logical_id = Some(id.to_owned());
+    }
+    write
+}
+
+fn exact_record(engine: &Engine, id: &str, body: &str) {
+    let record =
+        engine.read_get(id, &ReadView::default()).expect("read exact record").expect("present");
+    assert_eq!(record.logical_id, id);
+    assert_eq!(record.body, body);
+}
+
+struct ReleaseProvider(mpsc::Sender<()>);
+
+impl Drop for ReleaseProvider {
+    fn drop(&mut self) {
+        let _ = self.0.send(());
+    }
+}
+
+const STORED_RECORDS: [(&str, &str, &str); 2] = [
+    ("held.sqlite", "held-record", "held side committed aé猫"),
+    ("sibling.sqlite", "sibling-record", "independent sibling committed aé猫"),
+];
+
+#[test]
+fn two_engine_dispatch_and_alias_close_recover_exact_state_in_fresh_process() {
+    if let Some(directory) = std::env::var_os("FATHOMDB_SLICE50_CASE_DIR") {
+        let directory = std::path::Path::new(&directory);
+        let phase = std::env::var("FATHOMDB_SLICE50_CASE_PHASE").expect("selected child phase");
+        match phase.as_str() {
+            "ownership" => two_engine_ownership_case(directory),
+            "reopen" | "verify" => {
+                for (file, id, body) in STORED_RECORDS {
+                    let engine =
+                        Engine::open(directory.join(file)).expect("fresh-process open").engine;
+                    exact_record(&engine, id, body);
+                    assert!(engine.read_get("absent", &ReadView::default()).unwrap().is_none());
+                    let sentinel = format!("fresh-process {id}");
+                    if phase == "reopen" {
+                        engine
+                            .write(&[named_document("restart-sentinel", &sentinel)])
+                            .expect("write after reopen");
+                    }
+                    exact_record(&engine, "restart-sentinel", &sentinel);
+                    engine.close().expect("fresh-process close");
+                }
+            }
+            _ => panic!("unknown child phase {phase}"),
+        }
+        println!("SLICE50_CASE_COMPLETED phase={phase} pid={}", std::process::id());
+        return;
+    }
+    let directory = tempfile::tempdir().expect("real stores");
+    std::fs::create_dir(directory.path().join("alias-parent")).unwrap();
+    for phase in ["ownership", "reopen", "verify"] {
+        run_bounded_engine_case(directory.path(), phase);
+    }
+}
+
+fn two_engine_ownership_case(directory: &std::path::Path) {
+    let database = directory.join("held.sqlite");
+    let alias = directory.join("alias-parent/../held.sqlite");
+    let (entered, entered_rx) = mpsc::channel();
+    let (release, held) = mpsc::channel();
+    let release_on_unwind = ReleaseProvider(release.clone());
+    let provider =
+        Arc::new(FirstCallHeld { calls: AtomicUsize::new(0), entered, release: Mutex::new(held) });
+    let engine = Arc::new(
+        Engine::open_with_test_choice_and_config_for_test(
+            &alias,
+            TestEmbedderChoice::Caller(provider.clone()),
+            EngineConfig {
+                embedder_pool_size: Some(1),
+                embedder_call_timeout_ms: Some(200),
+                ..EngineConfig::default()
+            },
+        )
+        .expect("open aliased owner")
+        .engine,
+    );
+    engine.write(&[named_document("held-record", "held side committed aé猫")]).unwrap();
+    exact_record(&engine, "held-record", "held side committed aé猫");
+    assert!(
+        matches!(Engine::open(&database), Err(EngineOpenError::DatabaseLocked { .. })),
+        "canonical path shares live ownership"
+    );
+    let first_engine = Arc::clone(&engine);
+    let first = thread::spawn(move || first_engine.embed_text("held first call"));
+    entered_rx.recv_timeout(Duration::from_secs(5)).expect("A provider entered");
+
+    let sibling = Engine::open_with_test_choice_and_config_for_test(
+        directory.join("sibling.sqlite"),
+        TestEmbedderChoice::Caller(Arc::new(ShortServiceEmbedder)),
+        EngineConfig::default(),
+    )
+    .expect("independent engine open")
+    .engine;
+    sibling
+        .write(&[named_document("sibling-record", "independent sibling committed aé猫")])
+        .unwrap();
+    exact_record(&sibling, "sibling-record", "independent sibling committed aé猫");
+    assert_eq!(sibling.embed_text("sibling has its own worker").unwrap(), vec![1.0; 8]);
+    assert!(matches!(first.join().expect("started timeout waiter"), Err(EngineError::Embedder)));
+    assert!(matches!(
+        engine.embed_text("expires queued behind retained worker"),
+        Err(EngineError::Overloaded)
+    ));
+    assert_eq!(
+        provider.calls.load(Ordering::SeqCst),
+        1,
+        "queued expiry cannot invoke provider or replace the live worker"
+    );
+    exact_record(&sibling, "sibling-record", "independent sibling committed aé猫");
+    release.send(()).expect("release actual provider");
+    assert_eq!(engine.embed_text("healthy after late return").unwrap(), vec![1.0; 8]);
+    assert_eq!(provider.calls.load(Ordering::SeqCst), 2);
+    drop(release_on_unwind);
+
+    let other_close = Arc::clone(&engine);
+    let close = thread::spawn(move || other_close.close());
+    engine.close().expect("concurrent close");
+    close.join().expect("close actor").expect("other close");
+    engine.close().expect("repeated close");
+    assert!(matches!(
+        engine.read_get("held-record", &ReadView::default()),
+        Err(EngineError::Closing)
+    ));
+    sibling.close().expect("sibling close");
+    // Explicit close, rather than Drop, must release both canonical locks.
+    for (file, id, body) in STORED_RECORDS {
+        let reopened = Engine::open(directory.join(file))
+            .expect("lock released while closed handle is alive")
+            .engine;
+        exact_record(&reopened, id, body);
+        reopened.close().expect("reacquired owner close");
+    }
+    drop(engine);
+    drop(sibling);
+}
+
+struct OwnedRuntimeChild(std::process::Child);
+
+impl Drop for OwnedRuntimeChild {
+    fn drop(&mut self) {
+        if !matches!(self.0.try_wait(), Ok(Some(_))) {
+            let _ = self.0.kill();
+            let _ = self.0.wait();
+        }
+    }
+}
+
+fn run_bounded_engine_case(directory: &std::path::Path, phase: &str) {
+    let stdout_path = directory.join(format!("{phase}.stdout"));
+    let stderr_path = directory.join(format!("{phase}.stderr"));
+    let mut child = OwnedRuntimeChild(
+        std::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "two_engine_dispatch_and_alias_close_recover_exact_state_in_fresh_process",
+                "--nocapture",
+            ])
+            .env("FATHOMDB_SLICE50_CASE_DIR", directory)
+            .env("FATHOMDB_SLICE50_CASE_PHASE", phase)
+            .stdin(std::process::Stdio::null())
+            .stdout(std::fs::File::create(&stdout_path).unwrap())
+            .stderr(std::fs::File::create(&stderr_path).unwrap())
+            .spawn()
+            .expect("spawn exact runtime case"),
+    );
+    let deadline = Instant::now() + Duration::from_secs(60);
+    let status = loop {
+        if let Some(status) = child.0.try_wait().expect("observe child") {
+            break status;
+        }
+        assert!(Instant::now() < deadline, "runtime case {phase} exceeded watchdog");
+        thread::sleep(Duration::from_millis(10));
+    };
+    let stdout = std::fs::read_to_string(stdout_path).unwrap();
+    let stderr = std::fs::read_to_string(stderr_path).unwrap();
+    assert!(status.success(), "case={phase} status={status} stdout={stdout} stderr={stderr}");
+    assert!(stdout.contains(&format!("SLICE50_CASE_COMPLETED phase={phase} pid={}", child.0.id())));
+    assert!(stdout.contains("1 passed; 0 failed; 0 ignored"), "{stdout}");
+    print!("{stdout}");
 }

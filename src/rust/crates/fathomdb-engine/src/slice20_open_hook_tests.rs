@@ -2,7 +2,7 @@ use super::reader_pool::READER_POOL_SIZE;
 use super::{
     acquire_lock_without_metadata_mutation, install_post_probe_startup_fault_for_test,
     install_post_probe_visibility_fault_for_test, Engine, EngineConfig, EngineOpenError,
-    TestEmbedderChoice,
+    InitialState, PreparedWrite, ReadView, SourceId, TestEmbedderChoice,
 };
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use std::fs::File;
@@ -113,10 +113,31 @@ fn startup_fault_alias_body() {
     )
     .expect("first real open");
     initial.engine.configure_vector_kind_for_test("doc").expect("enrol vector kind");
+    initial
+        .engine
+        .write(&[named_record("target", "target committed aé猫")])
+        .expect("commit target state");
     initial.engine.close().expect("close first session");
+    let sibling_path = dir.path().join("unrelated.sqlite");
+    let sibling = Engine::open_with_test_choice_for_test(
+        &sibling_path,
+        TestEmbedderChoice::Caller(Arc::new(FixedProvider)),
+    )
+    .expect("initial sibling")
+    .engine;
+    sibling.configure_vector_kind_for_test("doc").expect("sibling vector kind");
+    sibling.write(&[named_record("sibling", "unrelated committed aé猫")]).expect("commit sibling");
+    sibling.close().expect("close initial sibling");
 
     let (observed_tx, observed_rx) = mpsc::channel();
     install_post_probe_startup_fault_for_test(path.clone(), observed_tx);
+    let sibling = Engine::open_with_test_choice_for_test(
+        &sibling_path,
+        TestEmbedderChoice::Caller(Arc::new(FixedProvider)),
+    )
+    .expect("targeted alias hook must not consume sibling startup")
+    .engine;
+    exact_record(&sibling, "sibling", "unrelated committed aé猫");
     let result = Engine::open_with_test_choice_and_config_for_test(
         &path,
         TestEmbedderChoice::Caller(Arc::new(FixedProvider)),
@@ -151,6 +172,40 @@ fn startup_fault_alias_body() {
     assert_eq!(owners_at_return, 0, "all managed SQLite owners must exit");
     assert_eq!(retained_at_return, 0, "accepted provider workers leave on failed startup");
     assert!(admission_released, "failed open must release admission lock");
+    exact_record(&sibling, "sibling", "unrelated committed aé猫");
+    sibling
+        .write(&[named_record("after-fault", "sibling still writes")])
+        .expect("sibling work after target fault");
+    exact_record(&sibling, "after-fault", "sibling still writes");
+    sibling.close().expect("sibling clean close");
+    let recovered = Engine::open_with_test_choice_for_test(
+        &path,
+        TestEmbedderChoice::Caller(Arc::new(FixedProvider)),
+    )
+    .expect("target ownership recovers")
+    .engine;
+    exact_record(&recovered, "target", "target committed aé猫");
+    recovered.close().expect("recovered target close");
+}
+
+fn named_record(id: &str, body: &str) -> PreparedWrite {
+    PreparedWrite::Node {
+        kind: "note".to_owned(),
+        body: body.to_owned(),
+        source_id: SourceId::new("test:alias-isolation").unwrap(),
+        logical_id: Some(id.to_owned()),
+        state: InitialState::Active,
+        reason: None,
+        valid_from: None,
+        valid_until: None,
+    }
+}
+
+fn exact_record(engine: &Engine, id: &str, body: &str) {
+    let row =
+        engine.read_get(id, &ReadView::default()).expect("read committed row").expect("present");
+    assert_eq!(row.logical_id, id);
+    assert_eq!(row.body, body);
 }
 
 #[test]

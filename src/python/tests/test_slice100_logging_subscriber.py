@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import closing
 import logging
 import sqlite3
 import gc
@@ -157,7 +158,7 @@ class LoggingSubscriberTests(unittest.TestCase):
                 engine.close()
             reopened = Engine.open(str(database))
             reopened.close()
-            with sqlite3.connect(database) as connection:
+            with closing(sqlite3.connect(database)) as connection:
                 self.assertEqual(
                     connection.execute(
                         "SELECT name, kind, schema_json, retention_json FROM operational_collections "

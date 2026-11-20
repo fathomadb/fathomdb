@@ -140,3 +140,12 @@ failures and use owner disposition for unavailable mandatory proof. Update the
 affected contracts, status and authorized state once, integrate the owning
 branch and clean only owned inactive scratch and worktrees after retaining
 evidence. Planning carries no new fault, download, GPU, paid or publish authority.
+
+## Commissioned reconciliation
+
+The exact entry is `72abe1043b0735ecaf79cde35fda227753c2ca2e` after reviewed
+partial50, superseding the draft entry above. The six selected rows are retained.
+[Composed design](design.md) enumerates changes, concrete fixtures, bounded
+selectors, independent oracles, prerequisites and review/verification order.
+Already-correct characterization need not manufacture RED; each demonstrated
+behavior defect requires its own genuine failing RED then separate GREEN.

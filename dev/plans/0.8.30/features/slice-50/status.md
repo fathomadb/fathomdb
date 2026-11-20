@@ -19,7 +19,7 @@ contract changed. This is not Slice50 closure: two required proofs remain open.
 
 | Selected row | Actual result |
 | --- | --- |
-| MCP admission/cancellation | Serial `cargo test --locked -p fathomdb-mcp --features test-seams --test admission -- --test-threads=1` passed30/30. Cancellation now has its own progress token and actual queued notification, retired pre-enqueue lease and empty bridge history. Two surviving waiters and a subsequent call return exact authored fetch items. Started run-limit returns timeout/deadline and retains in_flight1/abandoned1 until actual return; later exact fetches recover and abandoned resets0. One registry refuses a second busy store with busy/store_switch, then switches successfully. Distinct registries simultaneously hold actual admitted calls on distinct databases and return their own exact records. |
+| MCP admission/cancellation | Serial `cargo test --locked -p fathomdb-mcp --features test-seams --test admission -- --test-threads=1` passed30/30. Cancellation now has its own progress token and actual queued notification, retired pre-enqueue lease and empty bridge history. Two surviving waiters and a subsequent call return exact authored fetch items. Started run-limit returns timeout/deadline and retains in_flight1/abandoned1 until actual return; later exact fetches recover and abandoned resets0. One registry refuses a second busy store with busy/store_switch, then switches successfully. Distinct registries simultaneously hold actual admitted calls on distinct databases and return their own exact records. The Slice10 startup timing lead did not recur in these selected serial runs; broader parallel flakiness is not excluded. |
 | Engine dispatch/isolation | Existing baseline foreground scope passed10/10. Final scope passed11/11 with one added bounded real-store schedule: A's worker remains occupied after direct Embedder timeout; queued expiry is Overloaded without a replacement call; B writes/reads exact Unicode state and embeds successfully; releasing A allows an exact healthy vector. Existing saturation, error/panic reuse, sparse fallback and frozen-reader cases remain intact. |
 | Close/alias/reopen | `--features operator,test-hooks --lib slice20_open_hook_tests` passed2/2, close-review passed2/2 and concurrent-close passed3/3. The targeted canonical/alias startup hook leaves a sibling's open, committed read and later write intact. Existing observation proves SQLite quiescence precedes one shared provider deadline across concurrent/repeated close/Drop, provider-only retention on expiry and accounting0 after return. New ownership/reopen/verify phases each run in a supervised fresh child with a60s watchdog, positive completion marker and normal exit0. Explicit close releases canonical locks while closed handles still live. A fresh child reads both exact originals, writes/reads new sentinels; another child reopens and checks all four records. |
 | Logging synchronization | The retained6!=3 failures remain unchanged. One unchanged installed-native run passed after its first callback, exposing the race. RED `accb149fa` waits for actual Admin/finished and fails6!=3. GREEN `01cd67854` asserts each intended started/finished event, every named typed reentry refusal, a distinct Search/finished FIFO fence after both serialized configure calls, and exact persisted configuration records after reopen. The final installed-native module run passed10/10. This repairs the fixture's completion/count assumption; no duplicate product emission was found and no sleep or weakened assertion was used. |
@@ -65,12 +65,38 @@ The narrow recovery changes only the batch field annotation to object,
 preserving unconditional event capture and every exact runtime assertion.
 Full-package Pyright then reported0 errors/warnings/informations and the
 installed logging scope passed10/10. Sol6.2-high passed this annotation-only
-correction. The remaining typecheck/security/test phases will continue once
-on the clean corrected source. This is an assembled continuation, not a
-rerun or an uninterrupted full-gate pass.
+correction.
 
-Raw original/scoped logs and needed native subjects are retained under
+Terra independently ran the affected and remaining phases on clean
+`cb98f6b743f2966012fee7fcb75a39d06f1b48eb`: Python typecheck0 errors,
+installed logging10/10, TypeScript typecheck exit0, strict security exit0
+and default `agent-test.sh` exit0. AC-036 and AC-037's live catch executed;
+security reported zero violations, blockers or downgrades. The test runner
+registered241 suites, ran238, passed238, failed0, skipped3 and excluded0.
+The skips are the unselected Slice30 G/M/D live controls, requiring
+`AGENT_SLICE30_LIVE_CONTROLS=1`. No such controls were activated.
+
+The normal runner deleted passing Rust/Python/TypeScript temporary spills
+before their final case aggregates were captured; partial Python/TypeScript
+progress logs remain. No aggregate case count is inferred. Rust ignored
+branches and Python/TypeScript network branches under
+`FATHOMDB_SKIP_NETWORK_TESTS=1` are not runtime passes. The exact independent
+runtime selections above retain their actual complete counts. The current
+source test-hooks Python module and receipt were retained; module SHA-256
+`e041eced43fe0c382fa821fb955e572e7f5692ae4c3fcbae9a319a19ef64d735`.
+The production wheel/module above remain their actual2d76eea2 subjects;
+the subsequent change is a test annotation and release-local status only.
+This is assembled completion of the source-gate components, not a rerun or
+an uninterrupted full-gate pass. It does not close the mandatory Node or
+conditional model-release rows, nor70/75's remaining qualification.
+
+Raw original/scoped/continuation logs and needed native subjects are retained under
 `/tmp/fathomdb-0830-slice50-evidence`. Parent owns canonical release records,
 integration and worktree removal. No GPU session, reset, driver/toolkit change,
-paid campaign or publication ran. Final handoff must confirm all owned
-processes ended and retain the two mandatory open rows for owner disposition.
+paid campaign or publication ran. During compilation, free disk fell to18GiB.
+After the Rust workspace phase, Terra verified the owned debug incremental
+cache inactive and removed only that13GiB cache; compiled executables,
+native subjects, receipts, release artifacts and unrelated caches were kept.
+The runner was uninterrupted; final free space is30GiB. All owned verification
+processes ended. The branch is ready for parent integration of this source
+subset, with both mandatory open rows retained for owner disposition.

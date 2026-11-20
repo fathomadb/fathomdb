@@ -68,23 +68,17 @@ fathomdb-sdk          = { path = "src/rust/crates/fathomdb-sdk",          versio
 # Every entry here is governed by scripts/check-pinned-override-rot.py, which
 # authenticates its exact source; see scripts/pinned-override-rot.json.
 #
-# candle-kernels: FathomDB's Candle fork at its 0.11.0 publication commit
-# (182ceab0, coreyt/candle-fathomdb). The kernel crate owns the CUDART link
-# boundary: the fork links the CUDA runtime statically so a CPU-mode binding
-# can map on a host without libcudart, while CUDA driver discovery stays
-# dynamic (REQ-068). The selected Slice110 Candle 0.12.0 trio and cudarc
-# 0.20.0 keep their qualified logical Git IDs below; .cargo/config.toml
-# fetches same-commit HTTPS mirrors. Kernels keep this separate K9 source.
-# This repository integration is not a registry publication claim.
-#
-# Root patches apply to workspace builds only; they do not propagate to
-# downstream users of the published Rust crates.
+# Slice60 qualifies a coherent Candle0.13/cudarc0.21 source cohort.
+# The renamed kernel package owns static CUDART and the native/PTX candidate;
+# the product default remains PTX until the prospective adoption gates pass.
+# Exact logical IDs fetch same-commit owner HTTPS mirrors. Root patches do
+# not propagate to independent workspaces or registry consumers.
 [patch.crates-io]
-candle-kernels = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "182ceab0547348993b6dbec4b1aed610dcc8b23f" }
-cudarc-fathomdb = { git = "file:///home/coreyt/projects/fathomdb-forks/cudarc", rev = "343b04fa73f85ee78754d6ee2baa07b959cc9ccc" }
-candle-core-fathomdb = { git = "file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb", rev = "2ee39305a78ed1463ff913f71dcd3d45ecbfd84f" }
-candle-nn-fathomdb = { git = "file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb", rev = "2ee39305a78ed1463ff913f71dcd3d45ecbfd84f" }
-candle-transformers-fathomdb = { git = "file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb", rev = "2ee39305a78ed1463ff913f71dcd3d45ecbfd84f" }
+candle-kernels-fathomdb = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "4eb768c62c1a57a00f4942e738f148a94fbcbddb" }
+cudarc-fathomdb = { git = "file:///home/coreyt/projects/fathomdb-forks/cudarc", rev = "8e2f2b39777055e936791db52fb4a11d5ded8617" }
+candle-core-fathomdb = { git = "file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb", rev = "4eb768c62c1a57a00f4942e738f148a94fbcbddb" }
+candle-nn-fathomdb = { git = "file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb", rev = "4eb768c62c1a57a00f4942e738f148a94fbcbddb" }
+candle-transformers-fathomdb = { git = "file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb", rev = "4eb768c62c1a57a00f4942e738f148a94fbcbddb" }
 
 [patch."file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb"]
-candle-kernels = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "182ceab0547348993b6dbec4b1aed610dcc8b23f" }
+candle-kernels-fathomdb = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "4eb768c62c1a57a00f4942e738f148a94fbcbddb" }

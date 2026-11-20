@@ -25,16 +25,16 @@ serde_json = { version = "1", optional = true }
 thiserror = { version = "1", optional = true }
 
 # Candle stack + tokenizer for the default `CandleBgeEmbedder` (EU-4).
-# Qualified Slice110 stack: Candle 0.12.0 and cudarc 0.20.0.
-# The matching fork versions are published for downstream registry consumers;
-# workspace builds retain the reviewed exact Git revisions and HTTPS mirrors.
+# Slice60 source candidate: Candle0.13.0 and cudarc0.21.0.
+# Exact Git revisions and HTTPS mirrors qualify this candidate. Matching
+# public-registry delivery remains pending its separate owner disposition.
 # Candle keeps its Rust crate names and re-exports cudarc. The no-feature
 # closure remains thin; safetensors is reached through candle-core.
-candle-core         = { package = "candle-core-fathomdb", version = "=0.12.0", optional = true }
-candle-nn           = { package = "candle-nn-fathomdb", version = "=0.12.0", optional = true }
-candle-transformers = { package = "candle-transformers-fathomdb", version = "=0.12.0", optional = true, default-features = false }
+candle-core         = { package = "candle-core-fathomdb", version = "=0.13.0", optional = true }
+candle-nn           = { package = "candle-nn-fathomdb", version = "=0.13.0", optional = true }
+candle-transformers = { package = "candle-transformers-fathomdb", version = "=0.13.0", optional = true, default-features = false }
 # Match Candle's cudarc version exactly without enabling extra features.
-cudarc-fathomdb     = { version = "=0.20.0", optional = true, default-features = false }
+cudarc-fathomdb     = { version = "=0.21.0", optional = true, default-features = false }
 tokenizers          = { version = "0.20", optional = true, default-features = false, features = ["onig"] }
 
 # Standalone/evaluation ONNX backend. Production engines accept only the pinned

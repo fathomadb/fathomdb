@@ -6,7 +6,7 @@
 #   A. the lock has an upstream `cudarc` 0.19.x or 0.20.x package (the ug-cuda chain's
 #      cudarc 0.17.8 is excluded by version);
 #   C. for each Linux target and each embedder feature set, the resolved
-#      normal tree has a `cudarc v0.19` or `cudarc v0.20` node, a `cudarc-fathomdb` node that is
+#      normal tree has any upstream `cudarc` node, a `cudarc-fathomdb` node that is
 #      not exactly the pinned version and source (a git or path source prints a
 #      parenthesised source), or no `cudarc-fathomdb` node at all for a set
 #      that enables embed-cuda or rerank-cuda;
@@ -114,7 +114,7 @@ for target in TARGETS:
         where = f"{target} --features {features}"
         found = False
         for line in lines:
-            if line.startswith(("cudarc v0.19", "cudarc v0.20")):
+            if line.startswith("cudarc v"):
                 failures.append(f"C: {where}: the tree has {line}")
             elif line.startswith("cudarc-fathomdb "):
                 found = True

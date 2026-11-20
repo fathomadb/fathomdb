@@ -56,39 +56,33 @@ come, so a pin outlives its reason and silently holds the tree back.
   cannot be evaluated by a future reader. The existing `comment-overrides`
   convention is the shape; the guard should require *a* rationale, not a
   particular prose style.
-- **R4 — the Cargo exceptions are reproducible and explicitly bounded.** The
-  supported Cargo exceptions are the exact root/standalone-driver patch
-  cohort and same-commit source mirrors from Slice110. The root
-  `[patch.crates-io]` table retains `candle-kernels` at the one
-  checker-owned coreyt/candle-fathomdb immutable revision (the fork's 0.11.0
-  publication commit), replacing crates.io `candle-kernels` 0.10.2, with the
-  exact `git+…?rev=…#…` `Cargo.lock` source; a missing entry, another
-  revision, or a lock-source disagreement fails. The embedder requires
-  `cudarc-fathomdb =0.20.0` and the coherent Candle fork trio `=0.12.0`.
-  Each lock entry must occur once with the exact local Git URL and full
-  qualified revision from Slice110's
-  [local consumption contract](../plans/0.8.29/features/slice-110/design.md#exact-revision-local-consumption):
-  cudarc at `343b04fa73f85ee78754d6ee2baa07b959cc9ccc` and Candle at
-  `2ee39305a78ed1463ff913f71dcd3d45ecbfd84f`, under the existing
-  `/home/coreyt/projects/fathomdb-forks/` repositories. No registry checksum
-  exists for these unpublished Git packages; a checksum, registry source,
-  different URL or revision, or mixed family fails. This gate establishes
-  local source qualification only. Registry publication and dependency
-  normalization retain their separately authorized route. The
-  root and standalone SDK driver repeat the four exact fork registry
-  overrides and the Candle-file-source K9 override. The standalone driver
-  may repeat only that full root cohort. Any other Cargo
-  `[patch]`, `[replace]`, or direct Git dependency fails as unsupported
-  rather than being interpreted by a general package-ID parser; that
-  includes a `libsqlite3-sys` patch, since 0.8.28 Slice 42 moved the
-  workspace to the crates.io `libsqlite3-sys`. Repository
-  `.cargo/config.toml` and `.cargo/config` are also fail-closed: any
-  `[patch]` table or an unparseable candidate fails. The exact four
-  `[source]` tables map the two logical file URLs to the owner HTTPS URLs at
-  the same full revisions; changed URLs, revisions, routing, extra keys or
-  other source replacements fail. Ordinary non-source configuration remains
-  valid. The root lock remains byte-identical; the driver lock is separately
-  reconciled by Cargo to the qualified shared closure under its own features.
+- **R4 — the Cargo exceptions are reproducible and explicitly bounded.**
+  [The checker-owned contract](../../scripts/pinned-override-rot.json) names the
+  exact Slice60 candidate cohort: `cudarc-fathomdb =0.21.0`, the Candle fork
+  trio `=0.13.0`, and `candle-kernels-fathomdb =0.13.0`. The kernel and trio
+  share one full owner-fork code revision; cudarc has its own qualified revision.
+  Both the root and standalone SDK driver repeat the complete exact patch
+  cohort, including the Candle-file-source kernel override. Both tracked locks
+  must operationally resolve those exact versions, logical URLs and revisions once each.
+  The kernel uses the owner HTTPS source; the other four entries retain the
+  governed local logical Git sources. No registry checksum belongs on these
+  Git package entries. A missing entry, mixed family, source/checksum/revision
+  disagreement, or unqualified revision fails. The static checker validates the root lock; actual locked metadata checks
+  separately qualify the standalone lock. Both locks are reconciled by
+  Cargo under each workspace's selected features; byte equality with the old
+  release lock is not asserted.
+
+  Repository `.cargo/config.toml` and `.cargo/config` remain fail-closed:
+  `[patch]` tables and unparseable candidates fail. The four exact `[source]`
+  tables mirror the two logical file URLs to owner HTTPS URLs at the same
+  immutable revisions. Extra keys, routing, revisions or replacements fail;
+  ordinary non-source configuration remains valid. Any other manifest
+  `[patch]`, `[replace]`, or direct Git dependency remains unsupported,
+  including `libsqlite3-sys`, which has used the registry since Slice42.
+  This establishes qualified source consumption, not public registry delivery.
+  Old published 0.12/0.20 artifacts cannot carry changed source under their
+  immutable registry identity. The new versions and renamed kernel are
+  candidates until the separately authorized publication route completes.
 
 ## Design constraints
 
@@ -120,10 +114,12 @@ human advisory review and a deliberate guard redesign.
 manifest paths and the exact source-mirror tables. Workspace manifest patches
 supply the fork/kernel overrides; repository Cargo config is source-only and
 config patches remain unsupported. HTTPS fetch availability is separate from
-offline source qualification; unpublished registry versions remain unpublished. The
-registry-only Tegra probe retains the published `0.19.10`/`0.11.0` floor and its
-published checksums; a local gate pass does not qualify those newer versions for
-that probe or for publication. `scripts/governed-
+offline source qualification. The
+registry-only Tegra probe checks the current candidate cohort without root
+patches. Its public-registry resolution remains OPEN until those exact package
+versions are published; staged normalized archives prove a separate local
+consumer route. Historical published-floor receipts retain their original
+versions and checksums; they are not evidence of the new candidate's visibility. `scripts/governed-
 surface-pin.json` pins repository contract content rather than an external
 dependency version, so its integrity remains owned by
 `scripts/check-governed-surface-pin.sh`.
@@ -139,7 +135,7 @@ dependency version, so its integrity remains owned by
   vulnerable and prove the guard fails on it. Re-pinning js-yaml back to 4.2.0
   in a fixture is the exact historical case and makes the regression concrete.
 - Cargo fixtures must prove the narrow exceptions: the approved
-  `candle-kernels` patch and exact local fork pins pass, but a missing entry, a
+  `candle-kernels-fathomdb` patch and exact qualified fork pins pass, but a missing entry, a
   revision or lock drift, or a fork pin with another version, source or a checksum
   fails; a `libsqlite3-sys` or `cudarc` patch, any `[replace]`, and any
   direct Git dependency are unsupported.

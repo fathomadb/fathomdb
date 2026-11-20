@@ -9,7 +9,7 @@
   },
   "scope": {
     "npm": "All root package.json overrides are governed. Each must have a matching npm_overrides record with a rationale and a complete per-pin advisory_ids mapping. R2 deliberately fails closed for any live override: npm's lockfile records the override result, not a mechanically reproducible no-override resolution.",
-    "cargo": "The root candle-kernels patch remains HTTPS K9 at 182ceab0547348993b6dbec4b1aed610dcc8b23f (0.10.2). The embedder requires cudarc-fathomdb =0.20.0 and the coherent Candle fork trio =0.12.0. cargo_fork_pins binds each lock entry to the exact accepted local Git URL and revision, once per package and without a registry checksum. This is Slice110 local qualification only; no registry publication or registry-ready normalization is claimed. The root and standalone SDK driver manifests repeat the exact six-entry patch cohort. Repository source-only Git mirrors retain the same logical source IDs and commits while fetching the owner HTTPS repositories; their exact URLs, revisions, and routing are governed. See dev/plans/0.8.29/features/slice-110/design.md#exact-revision-local-consumption. Any other repository [patch], [replace], or direct Git dependency is unsupported, including libsqlite3-sys. Repository .cargo/config.toml and .cargo/config reject patch tables and unparseable candidates. The root K9 patch does not propagate through a published Rust crate.",
+    "cargo": "Slice60 source candidate pins the renamed kernel and Candle trio0.13.0 to one qualified owner-fork code commit, with cudarc0.21.0 at its qualified source. Root and standalone SDK repeat exact patches and logical Git/HTTPS mirrors. Matching public-registry delivery is separately held; version equality alone is insufficient. Any other patch/replace/direct Git dependency remains unsupported. Complete static-CUDART kernel ownership remains required by ADR0.8.25; root patches do not propagate downstream.",
     "governed_commit_pins": "scripts/governed-surface-pin.json pins repository contract content, not an external dependency version. Its commit/hash integrity is enforced by scripts/check-governed-surface-pin.sh; it has no package-advisory semantics and is explicitly not reinterpreted here."
   },
   "npm_overrides": [],
@@ -17,14 +17,14 @@
     "manifest": "Cargo.toml",
     "mechanism": "patch.crates-io",
     "packages": [
-      "candle-kernels"
+      "candle-kernels-fathomdb"
     ],
     "git": "https://github.com/coreyt/candle-fathomdb.git",
-    "rev": "182ceab0547348993b6dbec4b1aed610dcc8b23f",
+    "rev": "4eb768c62c1a57a00f4942e738f148a94fbcbddb",
     "versions": {
-      "candle-kernels": "0.10.2"
+      "candle-kernels-fathomdb": "0.13.0"
     },
-    "rationale": "The candle-kernels patch exists only to carry the Candle fork's statically linked CUDA runtime (fork items K4 and K6) into FathomDB-built artifacts, so CPU-mode distributable artifacts can map without libcuda.so.1 or libcudart while CUDA driver discovery stays dynamic (REQ-068, REQ31-16, owner ruling Q2). crates.io publishes candle-kernels 0.10.2 with dynamic libcudart; this immutable revision is the commit the Candle fork crates 0.11.0 were published from (182ceab0), whose candle-kernels tree equals the qualified 853324fc. The newer Candle fork trio uses the separate exact local Git source recorded in cargo_fork_pins; kernels retain this original HTTPS K9 source.",
+    "rationale": "The renamed kernel candidate carries static CUDART (K4/K6), declared-header invalidation and the bounded native/PTX treatment from the same code commit as the trio. PTX remains the product default pending prospective adoption results. Published old upstream kernels and old fork versions do not supply this source. Exact qualified Git/HTTPS identity and independent staged normalized-package consumers are separate proofs; no registry publication is claimed.",
     "advisory_posture": {
       "status": "external-source-unassessed",
       "scope": "outside the checked-in npm advisory snapshot",
@@ -37,46 +37,46 @@
       {
         "dependency": "cudarc-fathomdb",
         "package": "cudarc-fathomdb",
-        "version": "0.20.0",
-        "source": "git+file:///home/coreyt/projects/fathomdb-forks/cudarc?rev=343b04fa73f85ee78754d6ee2baa07b959cc9ccc#343b04fa73f85ee78754d6ee2baa07b959cc9ccc"
+        "version": "0.21.0",
+        "source": "git+file:///home/coreyt/projects/fathomdb-forks/cudarc?rev=8e2f2b39777055e936791db52fb4a11d5ded8617#8e2f2b39777055e936791db52fb4a11d5ded8617"
       },
       {
         "dependency": "candle-core",
         "package": "candle-core-fathomdb",
-        "version": "0.12.0",
-        "source": "git+file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb?rev=2ee39305a78ed1463ff913f71dcd3d45ecbfd84f#2ee39305a78ed1463ff913f71dcd3d45ecbfd84f"
+        "version": "0.13.0",
+        "source": "git+file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb?rev=4eb768c62c1a57a00f4942e738f148a94fbcbddb#4eb768c62c1a57a00f4942e738f148a94fbcbddb"
       },
       {
         "dependency": "candle-nn",
         "package": "candle-nn-fathomdb",
-        "version": "0.12.0",
-        "source": "git+file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb?rev=2ee39305a78ed1463ff913f71dcd3d45ecbfd84f#2ee39305a78ed1463ff913f71dcd3d45ecbfd84f"
+        "version": "0.13.0",
+        "source": "git+file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb?rev=4eb768c62c1a57a00f4942e738f148a94fbcbddb#4eb768c62c1a57a00f4942e738f148a94fbcbddb"
       },
       {
         "dependency": "candle-transformers",
         "package": "candle-transformers-fathomdb",
-        "version": "0.12.0",
-        "source": "git+file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb?rev=2ee39305a78ed1463ff913f71dcd3d45ecbfd84f#2ee39305a78ed1463ff913f71dcd3d45ecbfd84f"
+        "version": "0.13.0",
+        "source": "git+file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb?rev=4eb768c62c1a57a00f4942e738f148a94fbcbddb#4eb768c62c1a57a00f4942e738f148a94fbcbddb"
       }
     ],
     "source_mirrors": {
       "qualified-cudarc": {
         "git": "file:///home/coreyt/projects/fathomdb-forks/cudarc",
-        "rev": "343b04fa73f85ee78754d6ee2baa07b959cc9ccc",
+        "rev": "8e2f2b39777055e936791db52fb4a11d5ded8617",
         "replace-with": "cudarc-https"
       },
       "cudarc-https": {
         "git": "https://github.com/coreyt/cudarc.git",
-        "rev": "343b04fa73f85ee78754d6ee2baa07b959cc9ccc"
+        "rev": "8e2f2b39777055e936791db52fb4a11d5ded8617"
       },
       "qualified-candle": {
         "git": "file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb",
-        "rev": "2ee39305a78ed1463ff913f71dcd3d45ecbfd84f",
+        "rev": "4eb768c62c1a57a00f4942e738f148a94fbcbddb",
         "replace-with": "candle-https"
       },
       "candle-https": {
         "git": "https://github.com/coreyt/candle-fathomdb.git",
-        "rev": "2ee39305a78ed1463ff913f71dcd3d45ecbfd84f"
+        "rev": "4eb768c62c1a57a00f4942e738f148a94fbcbddb"
       }
     },
     "patch_manifests": [

@@ -997,3 +997,11 @@ mod tests {
         );
     }
 }
+
+#[cfg(all(test, feature = "embed-cuda"))]
+#[path = "cuda_module_image_tests.rs"]
+mod module_image_tests;
+
+#[cfg(all(test, feature = "embed-cuda", feature = "rerank-cuda", feature = "cuda-pool-observer"))]
+#[path = "cuda_completed_model_tests.rs"]
+mod completed_model_tests;

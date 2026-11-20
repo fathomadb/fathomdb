@@ -12,11 +12,11 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parents[2]
-CUDARC_REV = "343b04fa73f85ee78754d6ee2baa07b959cc9ccc"
-CANDLE_REV = "2ee39305a78ed1463ff913f71dcd3d45ecbfd84f"
+CUDARC_REV = "8e2f2b39777055e936791db52fb4a11d5ded8617"
+CANDLE_REV = "4eb768c62c1a57a00f4942e738f148a94fbcbddb"
 CUDARC_GIT = "file:///home/coreyt/projects/fathomdb-forks/cudarc"
 CANDLE_GIT = "file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb"
-K9 = "182ceab0547348993b6dbec4b1aed610dcc8b23f"
+K9 = "4eb768c62c1a57a00f4942e738f148a94fbcbddb"
 
 
 class QualifiedForkPins(unittest.TestCase):
@@ -86,12 +86,12 @@ class QualifiedForkPins(unittest.TestCase):
         self.refused()
 
     def test_candle_family_cannot_mix_qualified_and_published_members(self):
-        self.replace("Cargo.lock", 'name = "candle-nn-fathomdb"\nversion = "0.12.0"',
+        self.replace("Cargo.lock", 'name = "candle-nn-fathomdb"\nversion = "0.13.0"',
                      'name = "candle-nn-fathomdb"\nversion = "0.11.0"')
         self.refused()
 
     def test_manifest_cannot_downgrade_the_selected_family(self):
-        self.replace("src/rust/crates/fathomdb-embedder/Cargo.toml", '=0.12.0', '=0.11.0')
+        self.replace("src/rust/crates/fathomdb-embedder/Cargo.toml", '=0.13.0', '=0.11.0')
         self.refused()
 
     def test_kernels_cannot_follow_the_new_local_candle_source(self):
@@ -117,11 +117,11 @@ class QualifiedForkPins(unittest.TestCase):
         cargo = bin_dir / "cargo"
         cargo.write_text('#!/bin/sh\ncase " $* " in *" -e normal "*) printf "%s\\n" "$TEST_CUDARC_LINE" ;; esac\n')
         cargo.chmod(0o755)
-        expected = f"cudarc-fathomdb v0.20.0 ({CUDARC_GIT}?rev={CUDARC_REV}#{CUDARC_REV[:8]})"
-        for line, code in ((expected, 0), ("cudarc-fathomdb v0.20.0", 1),
+        expected = f"cudarc-fathomdb v0.21.0 ({CUDARC_GIT}?rev={CUDARC_REV}#{CUDARC_REV[:8]})"
+        for line, code in ((expected, 0), ("cudarc-fathomdb v0.21.0", 1),
                            (expected.replace(CUDARC_REV, "0" * 40), 1),
                            (expected.replace(CUDARC_GIT, CUDARC_GIT + "-other"), 1),
-                           ("cudarc v0.20.0\n" + expected, 1)):
+                           ("cudarc v0.21.0\n" + expected, 1)):
             with self.subTest(line=line):
                 result = subprocess.run(
                     ["bash", str(ROOT / "scripts/check-single-cudarc.sh"), "--root", str(self.root)],
@@ -145,7 +145,7 @@ def portable_patches():
         f'cudarc-fathomdb = {{ git = "{CUDARC_GIT}", rev = "{CUDARC_REV}" }}\n'
         + "".join(f'{name}-fathomdb = {{ git = "{CANDLE_GIT}", rev = "{CANDLE_REV}" }}\n'
                   for name in ("candle-core", "candle-nn", "candle-transformers"))
-        + f'\n[patch."{CANDLE_GIT}"]\ncandle-kernels = {{ git = "https://github.com/coreyt/candle-fathomdb.git", rev = "{K9}" }}\n'
+        + f'\n[patch."{CANDLE_GIT}"]\ncandle-kernels-fathomdb = {{ git = "https://github.com/coreyt/candle-fathomdb.git", rev = "{K9}" }}\n'
     )
 
 
@@ -204,7 +204,7 @@ class PortableForkConsumption(unittest.TestCase):
         root_manifest = fixture.root / "Cargo.toml"
         # Construct the reviewed cohort, independently of the current product manifest.
         root_manifest.write_text('[workspace]\n[patch.crates-io]\n'
-            + f'candle-kernels = {{ git = "https://github.com/coreyt/candle-fathomdb.git", rev = "{K9}" }}\n'
+            + f'candle-kernels-fathomdb = {{ git = "https://github.com/coreyt/candle-fathomdb.git", rev = "{K9}" }}\n'
             + portable_patches())
         driver = fixture.root / "experiments/sdk_drivers/rust/Cargo.toml"
         driver.parent.mkdir(parents=True)
@@ -237,18 +237,18 @@ class PortableForkConsumption(unittest.TestCase):
         candle.mkdir()
         run(["git", "init", "-q"], candle)
         (candle / "Cargo.toml").write_text('[workspace]\nmembers=["core","nn","transformers","kernels"]\nresolver="2"\n')
-        crate(candle / "kernels", "candle-kernels", "0.10.2", '[features]\ndefault=[]\nstatic-cudart=[]\n')
+        crate(candle / "kernels", "candle-kernels-fathomdb", "0.10.2", '[features]\ndefault=[]\nstatic-cudart=[]\n')
         for name in ("core", "nn", "transformers"):
             crate(candle / name, f"candle-{name}-fathomdb", "0.11.0",
-                  '[features]\ndefault=[]\ncuda=["candle-kernels/static-cudart"]\n'
-                  '[dependencies]\ncandle-kernels={path="../kernels",version="=0.10.2"}\n')
+                  '[features]\ndefault=[]\ncuda=["candle-kernels-fathomdb/static-cudart"]\n'
+                  '[dependencies]\ncandle-kernels-fathomdb={path="../kernels",version="=0.10.2"}\n')
         k9 = commit(candle, "kernel boundary")
         for name in ("core", "nn", "transformers"):
             manifest = candle / name / "Cargo.toml"
-            manifest.write_text(manifest.read_text().replace('version="0.11.0"', 'version="0.12.0"'))
+            manifest.write_text(manifest.read_text().replace('version="0.11.0"', 'version="0.13.0"'))
         candle_rev = commit(candle, "fork versions")
         cudarc = self.root / "logical-cudarc"
-        crate(cudarc, "cudarc-fathomdb", "0.20.0", '[features]\ndefault=[]\nstd=[]\ndriver=[]\n')
+        crate(cudarc, "cudarc-fathomdb", "0.21.0", '[features]\ndefault=[]\nstd=[]\ndriver=[]\n')
         run(["git", "init", "-q"], cudarc)
         cudarc_rev = commit(cudarc, "driver boundary")
         for repo in (candle, cudarc):
@@ -256,13 +256,13 @@ class PortableForkConsumption(unittest.TestCase):
         candle_url, cudarc_url = candle.as_uri(), cudarc.as_uri()
         candle_mirror, cudarc_mirror = candle_url + "-mirror", cudarc_url + "-mirror"
         consumer = self.root / "consumer"
-        deps = ''.join(f'{name}-fathomdb={{version="=0.12.0",features=["cuda"],default-features=false}}\n'
+        deps = ''.join(f'{name}-fathomdb={{version="=0.13.0",features=["cuda"],default-features=false}}\n'
                        for name in ("candle-core", "candle-nn", "candle-transformers"))
-        deps += 'cudarc-fathomdb={version="=0.20.0",features=["std","driver"],default-features=false}\n'
+        deps += 'cudarc-fathomdb={version="=0.21.0",features=["std","driver"],default-features=false}\n'
         patches = ''.join(f'{name}-fathomdb={{git="{candle_url}",rev="{candle_rev}"}}\n'
                           for name in ("candle-core", "candle-nn", "candle-transformers"))
         patches += f'cudarc-fathomdb={{git="{cudarc_url}",rev="{cudarc_rev}"}}\n'
-        kernel = f'candle-kernels={{git="{candle_mirror}",rev="{k9}"}}\n'
+        kernel = f'candle-kernels-fathomdb={{git="{candle_mirror}",rev="{k9}"}}\n'
         crate(consumer, "consumer", "0.1.0", '[workspace]\n[dependencies]\n' + deps
               + '[patch.crates-io]\n' + patches + kernel + f'[patch."{candle_url}"]\n' + kernel)
 
@@ -270,7 +270,7 @@ class PortableForkConsumption(unittest.TestCase):
             seed_dir = self.root / home.name
             crate(seed_dir, "seed", "0.1.0", '[workspace]\n[dependencies]\n'
                   + f'core={{package="candle-core-fathomdb",git="{candle_source}",rev="{candle_rev}"}}\n'
-                  + f'kernel={{package="candle-kernels",git="{candle_mirror}",rev="{k9}"}}\n'
+                  + f'kernel={{package="candle-kernels-fathomdb",git="{candle_mirror}",rev="{k9}"}}\n'
                   + f'cudarc={{package="cudarc-fathomdb",git="{cudarc_source}",rev="{cudarc_rev}"}}\n')
             # These fixture-only file Git URLs must be fetched into the fresh home;
             # the consumer proofs below still require explicit --offline.
@@ -304,7 +304,7 @@ class PortableForkConsumption(unittest.TestCase):
             return sorted((node["id"], node["features"]) for node in data["resolve"]["nodes"])
         self.assertEqual(identities(before), identities(after))
         self.assertEqual(features(before), features(after))
-        kernels = [p for p in after["packages"] if p["name"] == "candle-kernels"]
+        kernels = [p for p in after["packages"] if p["name"] == "candle-kernels-fathomdb"]
         self.assertEqual(len(kernels), 1)
         self.assertEqual(kernels[0]["source"], f"git+{candle_mirror}?rev={k9}#{k9}")
         self.assertEqual(Path(kernels[0]["manifest_path"]).read_bytes(),

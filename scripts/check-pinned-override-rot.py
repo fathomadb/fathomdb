@@ -59,47 +59,46 @@ EXTERNAL_SOURCE_ADVISORY_STATUS = "external-source-unassessed"
 EXTERNAL_SOURCE_ADVISORY_SCOPE = "outside the checked-in npm advisory snapshot"
 CANDLE_MANIFEST = "Cargo.toml"
 CANDLE_MECHANISM = "patch.crates-io"
-# K9 remains the driverless-linkage boundary even while the three newer
-# Candle crates are qualified through their separate exact local Git source.
-CANDLE_PACKAGES = ("candle-kernels",)
+# The complete coherent Slice60 kernel source owns driverless linkage.
+CANDLE_PACKAGES = ("candle-kernels-fathomdb",)
 CANDLE_GIT = "https://github.com/coreyt/candle-fathomdb.git"
-CANDLE_REV = "182ceab0547348993b6dbec4b1aed610dcc8b23f"
-CANDLE_VERSIONS = {"candle-kernels": "0.10.2"}
+CANDLE_REV = "4eb768c62c1a57a00f4942e738f148a94fbcbddb"
+CANDLE_VERSIONS = {"candle-kernels-fathomdb": "0.13.0"}
 FORK_PINS_MANIFEST = "src/rust/crates/fathomdb-embedder/Cargo.toml"
 CUDARC_LOCAL_SOURCE = (
     "git+file:///home/coreyt/projects/fathomdb-forks/cudarc"
-    "?rev=343b04fa73f85ee78754d6ee2baa07b959cc9ccc#343b04fa73f85ee78754d6ee2baa07b959cc9ccc"
+    "?rev=8e2f2b39777055e936791db52fb4a11d5ded8617#8e2f2b39777055e936791db52fb4a11d5ded8617"
 )
 CANDLE_LOCAL_SOURCE = (
     "git+file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb"
-    "?rev=2ee39305a78ed1463ff913f71dcd3d45ecbfd84f#2ee39305a78ed1463ff913f71dcd3d45ecbfd84f"
+    "?rev=4eb768c62c1a57a00f4942e738f148a94fbcbddb#4eb768c62c1a57a00f4942e738f148a94fbcbddb"
 )
-# Slice110's accepted local integration route has no registry publication or
+# Slice60's candidate integration route has no registry publication or
 # checksum. Replacing these sources with published crates needs a separately
 # authorized normalization; matching version numbers alone is insufficient.
 FORK_PINS = [
     {
         "dependency": "cudarc-fathomdb",
         "package": "cudarc-fathomdb",
-        "version": "0.20.0",
+        "version": "0.21.0",
         "source": CUDARC_LOCAL_SOURCE,
     },
     {
         "dependency": "candle-core",
         "package": "candle-core-fathomdb",
-        "version": "0.12.0",
+        "version": "0.13.0",
         "source": CANDLE_LOCAL_SOURCE,
     },
     {
         "dependency": "candle-nn",
         "package": "candle-nn-fathomdb",
-        "version": "0.12.0",
+        "version": "0.13.0",
         "source": CANDLE_LOCAL_SOURCE,
     },
     {
         "dependency": "candle-transformers",
         "package": "candle-transformers-fathomdb",
-        "version": "0.12.0",
+        "version": "0.13.0",
         "source": CANDLE_LOCAL_SOURCE,
     },
 ]
@@ -107,8 +106,8 @@ FORK_PINS = [
 SDK_DRIVER_MANIFEST = "experiments/sdk_drivers/rust/Cargo.toml"
 CUDARC_GIT = "file:///home/coreyt/projects/fathomdb-forks/cudarc"
 CANDLE_LOCAL_GIT = "file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb"
-CUDARC_REV = "343b04fa73f85ee78754d6ee2baa07b959cc9ccc"
-CANDLE_FORK_REV = "2ee39305a78ed1463ff913f71dcd3d45ecbfd84f"
+CUDARC_REV = "8e2f2b39777055e936791db52fb4a11d5ded8617"
+CANDLE_FORK_REV = "4eb768c62c1a57a00f4942e738f148a94fbcbddb"
 SOURCE_MIRRORS = {
     "qualified-cudarc": {"git": CUDARC_GIT, "rev": CUDARC_REV, "replace-with": "cudarc-https"},
     "cudarc-https": {"git": "https://github.com/coreyt/cudarc.git", "rev": CUDARC_REV},
@@ -116,8 +115,8 @@ SOURCE_MIRRORS = {
     "candle-https": {"git": CANDLE_GIT, "rev": CANDLE_FORK_REV},
 }
 APPROVED_PATCHES = {
-    (CANDLE_MECHANISM, "candle-kernels"): (CANDLE_GIT, CANDLE_REV),
-    (f"patch.{CANDLE_LOCAL_GIT}", "candle-kernels"): (CANDLE_GIT, CANDLE_REV),
+    (CANDLE_MECHANISM, "candle-kernels-fathomdb"): (CANDLE_GIT, CANDLE_REV),
+    (f"patch.{CANDLE_LOCAL_GIT}", "candle-kernels-fathomdb"): (CANDLE_GIT, CANDLE_REV),
     (CANDLE_MECHANISM, "cudarc-fathomdb"): (CUDARC_GIT, CUDARC_REV),
     **{(CANDLE_MECHANISM, name): (CANDLE_LOCAL_GIT, CANDLE_FORK_REV)
        for name in ("candle-core-fathomdb", "candle-nn-fathomdb", "candle-transformers-fathomdb")},
@@ -528,11 +527,11 @@ def validate_cargo_pins(root: Path) -> list[str]:
             continue
         found.add(key)
         if (pin["git"], pin["rev"]) != source:
-            if key == (CANDLE_MANIFEST, CANDLE_MECHANISM, "candle-kernels"):
+            if key == (CANDLE_MANIFEST, CANDLE_MECHANISM, "candle-kernels-fathomdb"):
                 if pin["git"] != CANDLE_GIT:
-                    failures.append("Candle patch candle-kernels Git source is not the approved source")
+                    failures.append("Candle patch candle-kernels-fathomdb Git source is not the approved source")
                 if pin["rev"] != CANDLE_REV:
-                    failures.append("Candle patch candle-kernels revision is not the approved immutable revision")
+                    failures.append("Candle patch candle-kernels-fathomdb revision is not the approved immutable revision")
             else:
                 failures.append(f"unsupported Cargo override/git source {label}")
     for manifest, mechanism, package in sorted(expected.keys() - found):

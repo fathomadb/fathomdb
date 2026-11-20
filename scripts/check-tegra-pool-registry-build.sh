@@ -1,34 +1,19 @@
 #!/usr/bin/env bash
-# check-tegra-pool-registry-build.sh — a downstream consumer of the published
-# crates builds and runs `tegra-pool` with no `[patch]` table (0.8.28 Slice 31,
-# AC31-08; design § 3.6). It replaces Slice 30's check that the feature
-# failed against registry cudarc: the cudarc and Candle forks are now
-# published, so the opposite claim holds.
+# check-tegra-pool-registry-build.sh — current .30 candidate registry consumer.
+# Source/staged-package qualification does not make unpublished versions visible.
+# Run this only as the separately authorized public delivery qualification;
+# existing historical published-floor receipts keep their original identities.
 #
 # WHAT IT DOES
-#   Copies the tracked workspace sources into a scratch directory (mktemp
-#   under $TMPDIR) and adds one consumer crate, its own workspace root, that
-#   depends on the copied fathomdb-embedder by path with `tegra-pool` and
-#   forwards a consumer feature `embed-cuda`. The consumer has no `[patch]`
-#   table at all: every crate comes from crates.io.
-#     (a) Resolution (any host): `cargo generate-lockfile`; the lock must hold
-#         cudarc-fathomdb 0.20.0, candle-{core,nn,transformers}-fathomdb
-#         0.12.0 and candle-kernels 0.10.2, each from the crates.io registry,
-#         and no cudarc 0.19.x or 0.20.x (ug-cuda's 0.17.8 is allowed).
-#     (b) Build and link (aarch64 Linux Tegra host): `cargo build` and
-#         `cargo test --no-run` with `--features embed-cuda`. Registry
-#         candle-kernels links libcudart dynamically, so LIBRARY_PATH must
-#         name the CUDA library directory.
-#     (c) Runtime (aarch64 Linux Tegra host): the consumer carries copies of
-#         tests/tegra_fragmented_va_cuda.rs and tests/support/live.rs (the
-#         Slice 30 files are copied, not edited) and runs
-#         forced_cuda_probe_succeeds_when_the_default_memory_pool_is_unavailable
-#         with FATHOMDB_REQUIRE_LIVE=1; exactly one test must pass.
-#   A non-member path dependency cannot run its own tests in another
-#   workspace, which is why the test is copied into the consumer.
-#   crates.io consumers get a dynamic libcudart through upstream
-#   candle-kernels 0.10.2; REQ-068's CPU-loadable guarantee applies only to
-#   FathomDB-built artifacts, which patch candle-kernels to the Candle fork.
+#   Copies tracked workspace sources to owned scratch and adds an independent
+#   consumer workspace with no consumer-local patches or source config. Resolution
+#   requires exactly cudarc-fathomdb0.21.0 and the complete Candle0.13.0 cohort,
+#   including candle-kernels-fathomdb, with logical crates.io identities, and no upstream cudarc or
+#   upstream candle-kernels. The kernel source retains static CUDART ownership.
+#   Full mode builds/links on actual Tegra and runs the existing real synchronous fallback
+#   test with the default pool unavailable with FATHOMDB_REQUIRE_LIVE=1; exactly one test must pass.
+#   A path dependency cannot run its own tests in another workspace, so the
+#   existing test and live support are copied without modifying their oracle.
 #
 # WHEN TO RUN
 #   A release check, run by hand before a release that changes cudarc,
@@ -49,8 +34,8 @@
 #
 # ENV
 #   CUDA_COMPUTE_CAP  passed to candle-kernels (default 87, the Jetson Orin).
-#   CUDA_PATH, PATH, LIBRARY_PATH  the CUDA toolkit for (b) and (c);
-#                     LIBRARY_PATH is required there.
+#   CUDA_PATH, PATH, LIBRARY_PATH  the CUDA12.6 toolkit for (b) and (c);
+#                     LIBRARY_PATH must expose its static CUDART archive.
 #   FATHOMDB_POOL_MODE  passed through to (c) (the qualification runs `off`).
 #   CARGO_TARGET_DIR  reuse a target directory (default: inside the scratch
 #                     copy, removed on exit).
@@ -113,9 +98,7 @@ printf 'check-tegra-pool-registry-build: CUDA_PATH=%s\n' "${CUDA_PATH:-<unset>}"
 printf 'check-tegra-pool-registry-build: PATH=%s\n' "$PATH"
 printf 'check-tegra-pool-registry-build: LIBRARY_PATH=%s\n' "${LIBRARY_PATH:-<unset>}"
 
-# Tracked files only, from the working tree: build output and untracked
-# scratch never reach the copy. The SQLite patch is a workspace patch the
-# embedder does not reach, so it is not copied.
+# Tracked working-tree sources only; no root Cargo config reaches the consumer.
 (
   cd "$REPO_ROOT"
   git ls-files -z -- Cargo.toml Cargo.lock rust-toolchain.toml src/rust \
@@ -145,13 +128,13 @@ embed-cuda = ["fathomdb-embedder/embed-cuda"]
 fathomdb-embedder = { path = "../src/rust/crates/fathomdb-embedder", $DEPENDENCY_FEATURES }
 
 [dev-dependencies]
-candle-core = { package = "candle-core-fathomdb", version = "=0.12.0" }
+candle-core = { package = "candle-core-fathomdb", version = "=0.13.0" }
 TOML
 if grep -q '^\[patch' "$CONSUMER/Cargo.toml"; then
   fail 'the consumer manifest has a [patch] table'
 fi
 
-printf 'check-tegra-pool-registry-build: (a) resolution with no [patch] table\n'
+printf 'check-tegra-pool-registry-build: (a) logical resolution with no [patch] table; ambient mirrors are not public-delivery proof\n'
 (cd "$CONSUMER" && cargo generate-lockfile -q) || fail 'cargo generate-lockfile failed in the consumer'
 if ! python3 - "$CONSUMER/Cargo.lock" <<'PY'
 from pathlib import Path
@@ -161,11 +144,11 @@ import sys
 # Python 3.10 (the Jetson's) has no tomllib; Cargo.lock's package blocks are regular.
 REGISTRY = "registry+https://github.com/rust-lang/crates.io-index"
 EXPECTED = {
-    "cudarc-fathomdb": "0.20.0",
-    "candle-core-fathomdb": "0.12.0",
-    "candle-nn-fathomdb": "0.12.0",
-    "candle-transformers-fathomdb": "0.12.0",
-    "candle-kernels": "0.10.2",
+    "cudarc-fathomdb": "0.21.0",
+    "candle-core-fathomdb": "0.13.0",
+    "candle-nn-fathomdb": "0.13.0",
+    "candle-transformers-fathomdb": "0.13.0",
+    "candle-kernels-fathomdb": "0.13.0",
 }
 packages = []
 for block in Path(sys.argv[1]).read_text(encoding="utf-8").split("[[package]]")[1:]:
@@ -179,30 +162,27 @@ for name, version in EXPECTED.items():
     else:
         print(f"  {name} {version} {REGISTRY}")
 for name, version, source in packages:
-    if name == "cudarc":
-        if version.startswith(("0.19.", "0.20.")):
-            failures.append(f"upstream cudarc {version} resolved ({source})")
-        else:
-            print(f"  cudarc {version} {source} (ug-cuda; allowed)")
+    if name in {"cudarc", "candle-kernels"}:
+        failures.append(f"upstream {name} {version} resolved ({source})")
 for failure in failures:
     print(f"  {failure}", file=sys.stderr)
 raise SystemExit(1 if failures else 0)
 PY
 then
-  fail '(a) the consumer did not resolve the published fork crates from crates.io'
+  fail '(a) the consumer did not resolve the exact fork crates with logical crates.io identities'
 fi
-printf 'PASS  (a) the published fork crates resolve from crates.io with no [patch] table\n'
+printf 'PASS  (a) exact logical crates.io identities resolve with no [patch] table; independently verify public archive checksums/downloads before public delivery sign-off\n'
 
 if [ "$RESOLVE_ONLY" = "1" ]; then
   printf 'check-tegra-pool-registry-build: --resolve-only: (b) and (c) not run\n'
   exit 0
 fi
-[ -n "${LIBRARY_PATH:-}" ] || fail '(b) LIBRARY_PATH must name the CUDA library directory (registry candle-kernels links libcudart dynamically)'
+[ -n "${LIBRARY_PATH:-}" ] || fail '(b) LIBRARY_PATH must name the CUDA toolkit library directory containing libcudart_static.a'
 
 printf 'check-tegra-pool-registry-build: (b) build and link on this Tegra host\n'
 (cd "$CONSUMER" && cargo build --locked --features embed-cuda) || fail '(b) cargo build --features embed-cuda failed'
 (cd "$CONSUMER" && cargo test --locked --no-run --features embed-cuda) || fail '(b) cargo test --no-run --features embed-cuda failed'
-printf 'PASS  (b) the consumer builds and links tegra-pool from crates.io\n'
+printf 'PASS  (b) the consumer builds and links the locked registry cohort\n'
 
 printf 'check-tegra-pool-registry-build: (c) %s\n' "$TEST_NAME"
 set +e
@@ -213,4 +193,4 @@ set -e
 printf '%s\n' "$OUTPUT"
 [ "$STATUS" -eq 0 ] || fail "(c) $TEST_NAME failed"
 grep -Eq '^test result: ok\. 1 passed;' <<<"$OUTPUT" || fail "(c) expected exactly one passed test"
-printf 'PASS  (c) %s against the crates.io resolution\n' "$TEST_NAME"
+printf 'PASS  (c) %s against the locked logical registry resolution\n' "$TEST_NAME"

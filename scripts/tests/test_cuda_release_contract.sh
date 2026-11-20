@@ -667,18 +667,18 @@ import sys
 
 path = Path(sys.argv[1])
 text, count = re.subn(
-    r'^(candle-kernels = \{ git = "https://github\.com/coreyt/candle-fathomdb\.git", rev = ")[0-9a-f]{40}(" \})$',
+    r'^(candle-kernels-fathomdb = \{ git = "https://github\.com/coreyt/candle-fathomdb\.git", rev = ")[0-9a-f]{40}(" \})$',
     r"\g<1>89abcdef0123456789abcdef0123456789abcdef\g<2>",
     path.read_text(),
     count=1,
     flags=re.MULTILINE,
 )
 if count != 1:
-    raise SystemExit("fixture no longer contains the root candle-kernels git patch")
+    raise SystemExit("fixture no longer contains the root candle-kernels-fathomdb git patch")
 path.write_text(text)
 PY
-expect_fail_with "$FIXTURE" "[patch.crates-io] candle-kernels must pin https://github.com/coreyt/candle-fathomdb.git@182ceab0547348993b6dbec4b1aed610dcc8b23f" \
-  'rejects a candle-kernels patch at a rev other than K9'
+expect_fail_with "$FIXTURE" "[patch.crates-io] candle-kernels-fathomdb must pin https://github.com/coreyt/candle-fathomdb.git@4eb768c62c1a57a00f4942e738f148a94fbcbddb" \
+  'rejects a candle-kernels-fathomdb patch at a rev other than K9'
 
 for fork_patch_mutation in candle-source cudarc-revision path-override extra-patch missing-file-kernel; do
   make_fixture "$FIXTURE"
@@ -689,12 +689,12 @@ import sys
 path = Path(sys.argv[1])
 mutation = sys.argv[2]
 text = path.read_text()
-candle = 'candle-core-fathomdb = { git = "file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb", rev = "2ee39305a78ed1463ff913f71dcd3d45ecbfd84f" }'
-cudarc = 'cudarc-fathomdb = { git = "file:///home/coreyt/projects/fathomdb-forks/cudarc", rev = "343b04fa73f85ee78754d6ee2baa07b959cc9ccc" }'
+candle = 'candle-core-fathomdb = { git = "file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb", rev = "4eb768c62c1a57a00f4942e738f148a94fbcbddb" }'
+cudarc = 'cudarc-fathomdb = { git = "file:///home/coreyt/projects/fathomdb-forks/cudarc", rev = "8e2f2b39777055e936791db52fb4a11d5ded8617" }'
 if mutation == "candle-source":
-    before, after = candle, 'candle-core-fathomdb = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "182ceab0547348993b6dbec4b1aed610dcc8b23f" }'
+    before, after = candle, 'candle-core-fathomdb = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "4eb768c62c1a57a00f4942e738f148a94fbcbddb" }'
 elif mutation == "cudarc-revision":
-    before, after = cudarc, cudarc.replace("343b04fa73f85ee78754d6ee2baa07b959cc9ccc", "0" * 40)
+    before, after = cudarc, cudarc.replace("8e2f2b39777055e936791db52fb4a11d5ded8617", "0" * 40)
 elif mutation == "path-override":
     before, after = candle, 'candle-core-fathomdb = { path = "local/candle-core" }'
 elif mutation == "extra-patch":
@@ -702,7 +702,7 @@ elif mutation == "extra-patch":
     after = before + 'libsqlite3-sys = { path = "local/sqlite" }\n'
 else:
     before = ('[patch."file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb"]\n'
-              'candle-kernels = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "182ceab0547348993b6dbec4b1aed610dcc8b23f" }\n')
+              'candle-kernels-fathomdb = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "4eb768c62c1a57a00f4942e738f148a94fbcbddb" }\n')
     after = ""
 if text.count(before) != 1:
     raise SystemExit(f"fixture no longer contains exactly one {mutation} target")
@@ -720,16 +720,16 @@ import sys
 
 path = Path(sys.argv[1])
 text, count = re.subn(
-    r'(\[\[package\]\]\nname = "candle-kernels"\nversion = "[^"]+"\n)source = "git\+[^"]+"\n',
+    r'(\[\[package\]\]\nname = "candle-kernels-fathomdb"\nversion = "[^"]+"\n)source = "git\+[^"]+"\n',
     r'\1source = "registry+https://github.com/rust-lang/crates.io-index"\nchecksum = "' + "1" * 64 + '"\n',
     path.read_text(),
 )
 if count != 1:
-    raise SystemExit("fixture no longer contains exactly one candle-kernels git lock entry")
+    raise SystemExit("fixture no longer contains exactly one candle-kernels-fathomdb git lock entry")
 path.write_text(text)
 PY
-expect_fail_with "$FIXTURE" "Cargo.lock must resolve 'candle-kernels' from 'git+https://github.com/coreyt/candle-fathomdb.git?rev=182ceab0547348993b6dbec4b1aed610dcc8b23f#182ceab0547348993b6dbec4b1aed610dcc8b23f'" \
-  'rejects a candle-kernels lock entry from crates.io'
+expect_fail_with "$FIXTURE" "Cargo.lock must resolve 'candle-kernels-fathomdb' from 'git+https://github.com/coreyt/candle-fathomdb.git?rev=4eb768c62c1a57a00f4942e738f148a94fbcbddb#4eb768c62c1a57a00f4942e738f148a94fbcbddb'" \
+  'rejects a candle-kernels-fathomdb lock entry from crates.io'
 
 make_fixture "$FIXTURE"
 python3 - "$FIXTURE/src/rust/crates/fathomdb-napi/Cargo.toml" <<'PY'

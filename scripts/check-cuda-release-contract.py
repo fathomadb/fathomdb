@@ -137,7 +137,7 @@ UPLOAD_RETRY_ACTION = ROOT / ".github/actions/upload-artifact-retry/action.yml"
 # K9 owns the static-runtime boundary; Slice110's pin guard owns the exact
 # repository-only fork cohort, independently of downstream registry publishing.
 PINNED_OVERRIDE_RECORD = ROOT / "scripts/pinned-override-rot.json"
-CANDLE_KERNELS_PACKAGE = "candle-kernels"
+CANDLE_KERNELS_PACKAGE = "candle-kernels-fathomdb"
 DRIVERLESS_DEVICE_SELECTION_VARIABLES = (
     "FATHOMDB_EMBED_DEVICE",
     "FATHOMDB_RERANK_DEVICE",
@@ -732,14 +732,14 @@ def main() -> None:
     candle_git = candle_exception.get("git")
     candle_rev = candle_exception.get("rev")
     if not isinstance(candle_git, str) or not isinstance(candle_rev, str):
-        fail("cargo_candle_exception must name the candle-kernels git source and rev")
+        fail("cargo_candle_exception must name the candle-kernels-fathomdb git source and rev")
     workspace_manifest = load_toml(WORKSPACE_MANIFEST)
     patches = workspace_manifest.get("patch")
     if not isinstance(patches, dict):
-        fail("workspace Cargo.toml has no [patch.crates-io] candle-kernels source pin")
+        fail("workspace Cargo.toml has no [patch.crates-io] candle-kernels-fathomdb source pin")
     crates_io_patch = patches.get("crates-io")
     if not isinstance(crates_io_patch, dict):
-        fail("workspace Cargo.toml has no [patch.crates-io] candle-kernels source pin")
+        fail("workspace Cargo.toml has no [patch.crates-io] candle-kernels-fathomdb source pin")
     pin = crates_io_patch.get(CANDLE_KERNELS_PACKAGE)
     if not isinstance(pin, dict):
         fail(f"[patch.crates-io] lacks the {CANDLE_KERNELS_PACKAGE!r} source pin")

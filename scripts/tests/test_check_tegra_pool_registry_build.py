@@ -12,11 +12,11 @@ import unittest
 SCRIPT = Path(__file__).resolve().parents[1] / 'check-tegra-pool-registry-build.sh'
 REGISTRY = 'registry+https://github.com/rust-lang/crates.io-index'
 COHORT = {
-    'cudarc-fathomdb': '0.20.0',
-    'candle-core-fathomdb': '0.12.0',
-    'candle-nn-fathomdb': '0.12.0',
-    'candle-transformers-fathomdb': '0.12.0',
-    'candle-kernels': '0.10.2',
+    'cudarc-fathomdb': '0.21.0',
+    'candle-core-fathomdb': '0.13.0',
+    'candle-nn-fathomdb': '0.13.0',
+    'candle-transformers-fathomdb': '0.13.0',
+    'candle-kernels-fathomdb': '0.13.0',
 }
 
 
@@ -51,7 +51,6 @@ cp Cargo.toml "$MANIFEST_CAPTURE"
     def check(self, packages=None):
         if packages is None:
             packages = [(name, version, REGISTRY) for name, version in COHORT.items()]
-            packages.append(('cudarc', '0.17.8', REGISTRY))
         lock = self.root / 'input.lock'
         lock.write_text('version = 3\n' + ''.join(
             f'\n[[package]]\nname = "{name}"\nversion = "{version}"\n' +
@@ -63,22 +62,21 @@ cp Cargo.toml "$MANIFEST_CAPTURE"
         return subprocess.run(['bash', str(self.script), '--resolve-only'],
                               env=env, capture_output=True, text=True)
 
-    def test_current_registry_cohort_and_ug_cuda_pass(self):
+    def test_current_registry_cohort_pass(self):
         result = self.check()
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertIn('cudarc 0.17.8', result.stdout)
         self.assertIn('--resolve-only: (b) and (c) not run', result.stdout)
         manifest = self.capture.read_text()
-        self.assertIn('package = "candle-core-fathomdb", version = "=0.12.0"', manifest)
+        self.assertIn('package = "candle-core-fathomdb", version = "=0.13.0"', manifest)
         self.assertNotIn('[patch', manifest)
 
     def test_old_cohort_fails(self):
         packages = [(name, '0.19.10' if name == 'cudarc-fathomdb' else
-                     '0.10.2' if name == 'candle-kernels' else '0.11.0', REGISTRY)
+                     '0.10.2' if name == 'candle-kernels-fathomdb' else '0.11.0', REGISTRY)
                     for name in COHORT]
         result = self.check(packages)
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn('expected exactly 0.20.0 from crates.io', result.stderr)
+        self.assertIn('expected exactly 0.21.0 from crates.io', result.stderr)
 
     def test_wrong_versions_fail(self):
         for wrong in COHORT:
@@ -107,13 +105,20 @@ cp Cargo.toml "$MANIFEST_CAPTURE"
         self.assertIn('cudarc-fathomdb: expected exactly', result.stderr)
 
     def test_upstream_current_and_previous_cudarc_families_fail(self):
-        for version in ('0.19.10', '0.20.0'):
+        for version in ('0.17.8', '0.19.10', '0.20.0', '0.21.0'):
             with self.subTest(version=version):
                 packages = [(name, value, REGISTRY) for name, value in COHORT.items()]
                 packages.append(('cudarc', version, REGISTRY))
                 result = self.check(packages)
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn(f'upstream cudarc {version} resolved', result.stderr)
+
+    def test_upstream_kernel_fails(self):
+        packages = [(name, value, REGISTRY) for name, value in COHORT.items()]
+        packages.append(('candle-kernels', '0.10.2', REGISTRY))
+        result = self.check(packages)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('upstream candle-kernels 0.10.2 resolved', result.stderr)
 
     def test_consumer_patch_fails_before_cargo(self):
         original = self.script.read_text()

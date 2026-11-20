@@ -124,6 +124,6 @@ selected fork and product configuration.
 
 ## Open choices and prerequisites
 
-- Slice9 selected placement; this execution selects published upstream Candle0.11.1 with exact unpublished Git delivery after qualification, as the design records. Slice10 tooling is retained; no registry publication is selected.
+- Slice9 selected placement; this execution selects published upstream Candle0.11.1, exact qualified Git delivery and the reviewed fresh0.13/0.21 normalized-package proposal. Slice10 tooling is retained. Registry publication remains a separate concrete owner disposition; old0.12/0.20 versions are immutable.
 - The design prospectively selects target rows and cost limits. Recheck actual exclusive venue availability before native execution. Keep R580/primary12.6 and exclude K620.
 - Live reset qualification needs separate venue, resource and fault authority. Slice 50 can proceed with independent safe work while that prerequisite is held.

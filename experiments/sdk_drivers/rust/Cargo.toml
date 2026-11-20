@@ -28,11 +28,11 @@ rerank-metal = ["fathomdb-sdk/rerank-metal"]
 # Standalone workspaces repeat the exact governed root cohort; source-only
 # mirrors are inherited from the repository .cargo/config.toml.
 [patch.crates-io]
-candle-kernels = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "182ceab0547348993b6dbec4b1aed610dcc8b23f" }
-cudarc-fathomdb = { git = "file:///home/coreyt/projects/fathomdb-forks/cudarc", rev = "343b04fa73f85ee78754d6ee2baa07b959cc9ccc" }
-candle-core-fathomdb = { git = "file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb", rev = "2ee39305a78ed1463ff913f71dcd3d45ecbfd84f" }
-candle-nn-fathomdb = { git = "file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb", rev = "2ee39305a78ed1463ff913f71dcd3d45ecbfd84f" }
-candle-transformers-fathomdb = { git = "file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb", rev = "2ee39305a78ed1463ff913f71dcd3d45ecbfd84f" }
+candle-kernels-fathomdb = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "4eb768c62c1a57a00f4942e738f148a94fbcbddb" }
+cudarc-fathomdb = { git = "file:///home/coreyt/projects/fathomdb-forks/cudarc", rev = "8e2f2b39777055e936791db52fb4a11d5ded8617" }
+candle-core-fathomdb = { git = "file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb", rev = "4eb768c62c1a57a00f4942e738f148a94fbcbddb" }
+candle-nn-fathomdb = { git = "file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb", rev = "4eb768c62c1a57a00f4942e738f148a94fbcbddb" }
+candle-transformers-fathomdb = { git = "file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb", rev = "4eb768c62c1a57a00f4942e738f148a94fbcbddb" }
 
 [patch."file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb"]
-candle-kernels = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "182ceab0547348993b6dbec4b1aed610dcc8b23f" }
+candle-kernels-fathomdb = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "4eb768c62c1a57a00f4942e738f148a94fbcbddb" }

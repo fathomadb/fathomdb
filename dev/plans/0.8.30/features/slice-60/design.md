@@ -42,8 +42,9 @@ Removal is feature metadata cleanup; preservation tests are not fabricated RED.
 Select upstream Candle0.11.1 at
 `59f8e903ca80a32ea7f8514b39748fc979e69e82`, authenticated by published
 candle-core0.11.1 `.cargo_vcs_info.json`. Current upstream main1a49dc27
-is a comparison input, not the candidate. Preserve the unpublished fork0.12.0
-trio names and direct cudarc0.20.0 dependency; migrate directly to the selected
+is a comparison input, not the candidate. The existing fork0.12.0 trio and cudarc0.20.0 are already published at
+2ee39305 and343b04fa respectively; their immutable registry sources cannot
+represent this candidate. Preserve the trio library names; migrate directly to the selected
 upstream API. The consumed kernels become upstream0.11.1 plus required linkage
 and selected image changes, replacing K9's0.10.2 bytes only after qualification.
 A common qualified code commit may serve both trio and kernels; do not assume
@@ -62,7 +63,7 @@ their present split has already disappeared. No registry delivery is claimed.
 | K4/K6 | Retain static whole-archive CUDART, CUDA_PATH search/rerun; include source/header rebuild tracking. |
 | K5 | Retain public existing-context constructor and its default-stream semantics; upstream constructor remains private and its ordinary new uses per-thread stream. |
 | K7/K7t | Retain renamed qualified cudarc edge and actual private-pool isolation test. Upstream removes ug, closing its old lock-only cudarc0.17.8 path for selected graphs. |
-| K8/K9 | Replace old registry cohort assumptions with exact unpublished code pins; qualify complete kernel source and standalone SDK graph. |
+| K8/K9 | Replace old registry cohort assumptions with fresh qualified code pins; qualify complete kernel source and standalone SDK graph. |
 | .29 F32 helper | Reapply borrowed BLAS admission before pointer guards and checked handle immediately before unchanged raw GEMM. Keep original dimension/stride/datatype/compute/algo behavior. |
 
 Upstream0.11.1 also advances zip to9.1.3 with defaults disabled and tokenizer
@@ -324,3 +325,145 @@ safe-drop pins to50, graph/source proof to70, installed/native applicability to7
 Direct Astra-medium returned PLAN PASS and DESIGN PASS after one consolidated
 FIX-1, including the cudarc and both Candle owning amendments. This is source
 planning acceptance; native/cost/safe-drop/installed rows remain unexecuted.
+
+## Native attribution refinement after actual baseline
+
+Actual Orin PTX baseline Fill passed; JIT-disabled Fill failed specifically at
+Candle module load with JIT_COMPILATION_DISABLED. A separate forced-PTX run
+failed earlier at CudaDevice's cuBLAS construction (ALLOC_FAILED), so it is
+retained as a failed dependency control and proves no Candle PTX launch.
+Extract the existing private kernel-module loader from the production cache
+path, preserving its existing behavior before image work. Owning unit controls
+call that same helper and launch the seven selected kernels on cudarc owning
+buffers with exact existing scalar arguments/results; they construct no BLAS
+or model. Native JIT-disabled and forced-PTX now isolate the actual changed
+Candle loader, with explicit module/symbol and readback after every launch.
+The ordinary model cache must use this helper; no test-only alternate loader.
+Keep integration Tensor/BGE/reranker ordinary-dispatch numerical/adoption and
+final-owner controls unchanged. Do not repair cuBLAS vendor forced-PTX internals
+or claim global forced-PTX full-model support. This focused refinement receives
+Astra review before helper/image edits; the prior plan PASS stays intact.
+
+Direct Astra-medium passed the focused native attribution refinement after
+checking the actual production cache miss path and retained exact oracles.
+The observed vendor forced-PTX failure remains separate from Candle results.
+
+## Registry delivery correction (proposed successor to Slice31 Q2)
+
+Primary registry source inspection confirms the published0.12.0 trio is at
+2ee39305; core normalizes its kernel edge to upstream candle-kernels0.10.2.
+Published cudarc0.20.0 is343b04fa. Existing versions cannot be overwritten and
+root patches do not reach independent registry consumers. Historical Slice31
+Q2's “no, not now” fork-kernel decision relied on the root Git patch and did
+not promise matching downstream CUDA linkage. ADR0.8.25 still requires the
+complete static-CUDART kernel source; this successor changes delivery only.
+
+Select candidate cudarc-fathomdb0.21.0 and Candle trio0.13.0. Introduce
+candle-kernels-fathomdb0.13.0 with library name candle_kernels retained and
+exact dependency edges; no new public backend/dtype/runtime option. This new
+owner-fork kernel identity is necessary to deliver the modified build script
+without claiming upstream's crate namespace. Keep exact Git pins and HTTPS
+mirrors during qualification, including the independent SDK consumer. Package
+normalization must retain exact versions, renamed kernel package and one
+cudarc; no accidental source/file path or root-patch dependency may remain.
+
+Before candidate rename/bump, read-only registry preflight checks exact versions
+(including yanked entries), new-name availability/ownership if existing and
+intended publisher rights on all existing names. New-name creation capability
+is a parent prerequisite; an available name is not reserved. Reconfirm these
+facts immediately before any later authorized upload.
+
+Before irreversible publication prepare reviewed clean code pins, source
+identity/delta/normal+feature+target graph proofs, actual native and installed
+controls, and source-normalized package dry runs in dependency order:
+cudarc and kernels, core, nn, transformers. Populate an isolated temporary staging registry with the actual normalized
+checksum-bound .crate archives in dependency order. An external consumer with
+no workspace/root patches must resolve selected CUDA features to exactly one
+cudarc and the renamed kernel. Assert core AND nn kernel aliases normalize to
+package candle-kernels-fathomdb/version =0.13.0, and inventory every packaged
+.cu/.cuh/build.rs against qualified source. This reversible execution proves
+staged package compatibility only; actual public-registry checksum/download/
+consumer verification remains OPEN until authorized uploads are complete. Parent obtains the concrete Q2
+successor/publication disposition after these candidates are reviewable.
+No publication is authorized by this proposal, and a Git-only pass does not
+close matching-registry delivery or later release gates.
+
+## 3090 healthy-session resource refinement
+
+Original3090 preflight refused execution: MemAvailable about53GiB but SwapFree
+14MiB, below the selected2GiB floor. Preserve that NOT_RUN outcome. Swapped-out
+cold pages from unrelated processes do not measure this healthy child's RAM
+headroom. Before any3090 healthy trial select a host-specific RAM budget:
+start MemAvailable>=40GiB, stop below24GiB; report SwapFree without a floor.
+Keep existing exclusive lock/UUID, unchanged8GiB device/16GiB ownedRSS ceilings,
+8GiB GPU-free start,32/16GiB disk start/stop,120s child/30min runtime-session
+bounds and passive100ms samples. Known small kernel/model inputs stay fixed;
+this is not a host-OOM stress test and introduces no tuning/cleanup/swap action.
+The start budget reserves24GiB beyond the ownedRSS ceiling and the stop budget
+maintains8GiB beyond it; a passive bound is an abort guard, not a hard memory
+containment claim. Orin retains its original RAM/swap floors. Numerical, cost
+and adoption criteria do not change. This refinement covers healthy3090 work
+only; actual resets remain separately HELDseq377.
+
+## K6 build-tool reconciliation
+
+Actual normalized package verification selected current registry cudaforge0.1.6
+while the existing qualified lock uses0.1.5. Registry source at
+903f226b64b737a23610df361ec6371aaebdfd0d adds shared-header watch hashes to
+both PTX and static caches. Select explicit =0.1.6 and .watch(["src"]) on
+both production builders; remove local manual output/cache deletion after the
+unchanged real compiler/header regressions pass. This replaces the defects-only
+local repair with the maintained upstream mechanism and prevents uncontrolled
+range selection. Compiler discovery remains shared through CudaToolkit::detect.
+
+Accept only if the same two actual compiler tests pass against a new exact
+source+lock: all11 native invocations use the PTX-selected real compiler; a
+declared-header-only edit recompiles both PTX and static MoE. Preserve0.1.5
+RED/GREEN and the failed path candidate. Compilation arguments, generated
+image targets/symbols and runtime source stay unchanged; compare actual input/
+output identities before carrying prior native results forward. New installed
+consumers and comparable adoption arms use the final resolved0.1.6 graph. No
+new tolerance, target or product threshold; source/native outcome attribution
+continues to name its actual dependency inputs.
+
+## Installed completed-child reset actor
+
+Python can call the driver through ctypes; Node needs an explicitly built
+qualification-only N-API C bridge. Neither actor is a product API or shipped
+package member. The bridge imports without loading CUDA and exposes only a
+mode-checked coordinate call. After every application constructor/operation
+has returned, every engine successfully drains durable pending projections AND
+active workers via Engine.drain, producers are frozen and no calls are queued,
+require the selected primary context
+already active (refuse inactive before retain), retain that existing context,
+record its real ID, bind it on the actor thread and synchronize ALL streams.
+Every failure after successful retain balances exactly that actor reference
+once, including ID lookup, prior-context mismatch, bind and sync failures. A
+failed precondition aborts before reset; failed bind/sync releases once and
+terminates the child without restoring an uncertain context. After an attempted reset never restore
+a possibly stale context. Healthy mode restores the prior context and balances
+the retain. Separately
+authorized reset mode calls cuDevicePrimaryCtxReset_v2 and then only the
+permitted balanced primary release; never restore/bind a stale context, query
+pool counters, construct a replacement or retry after loss. A mismatched prior
+non-null context refuses before reset. The bridge's sole driver-library handle
+is fixed before reset and retained until process exit; no post-loss growth.
+
+Each installed Python/Node child uses only FathomDB plus this driver-call actor
+on the selected device, one sequential application thread with all awaits
+completed and no overlapping constructor/destructor/clone holder. Healthy
+coordinate plus real subsequent forward/close qualifies actor setup first.
+Record actor source/binary and loaded package hashes, actual retained ID and
+compare returned typed loss IDs/cause across32 single/batch/rerank refusals.
+Match the recorded ID to the actor's actual pre-loss ID, and to an exposed
+product pre-loss generation ID where available; mutual error consistency alone
+is insufficient. Drain timeout/failure means no reset.
+Reset-drop mode performs no forward after reset before existing Engine.close.
+The engine-owned provider must release; any existing global batch/rerank caches
+remain an explicitly counted finite live set until restart (module-release is
+Slice50). Cached observations after loss carry no native counters and cannot
+prove opaque residue reclamation. Require normal close/drop marker and exit0,
+one process snapshot, passive bound samples and a SEPARATE fresh process
+reopening the real DB and doing a healthy CUDA forward after each fault child.
+Existing historical crash characterizer stays unexecuted. Final exact child
+commands/artifact hashes and parent seq377 authority remain prerequisites.

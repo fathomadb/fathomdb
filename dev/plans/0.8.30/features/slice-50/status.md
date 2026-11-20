@@ -46,10 +46,28 @@ separately retained.
 
 Scoped Clippy for engine/MCP all targets with operator/test-hooks/test-seams,
 Ruff, Markdown, generated release views and the pinned environment check
-passed. The one required clean-source full gate and direct Terra runtime/native
-verification are pending at this source checkpoint. Original outcomes and
-focused continuations will be recorded separately without an uninterrupted
-green claim.
+passed. Terra independently executed all six runtime selections above with
+the same30/11/2/2/3/10 pass counts and verified the actual installed native
+module against its source-bound receipt. The wheel SHA-256 is
+`5c555b2513e7c883e6c7b2617d432385b62db4266f360a3b90e1373bf2bf6c8d`;
+the module SHA-256 is
+`8469f797f0bb7604afdec5a7de839963a86b9a790c2a4bcc0cdff929519226bd`.
+
+Terra ran the full gate once on clean
+`2d76eea2f75376c2d25f71f7b0cc3f7c063f5c40` in the unconfined executor.
+It exited **1** after219.259s at Python typecheck: one fixture annotation
+required string fields while raw diagnostic payload access can return None.
+Lint and the preceding Rust typechecks passed; Tegra pool lint had its
+declared platform skip. The test phase and strict security had not run.
+No aggregate test-suite count exists for that stopped wrapper.
+
+The narrow recovery changes only the batch field annotation to object,
+preserving unconditional event capture and every exact runtime assertion.
+Full-package Pyright then reported0 errors/warnings/informations and the
+installed logging scope passed10/10. Sol6.2-high passed this annotation-only
+correction. The remaining typecheck/security/test phases will continue once
+on the clean corrected source. This is an assembled continuation, not a
+rerun or an uninterrupted full-gate pass.
 
 Raw original/scoped logs and needed native subjects are retained under
 `/tmp/fathomdb-0830-slice50-evidence`. Parent owns canonical release records,

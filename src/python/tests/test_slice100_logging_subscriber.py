@@ -113,7 +113,7 @@ class LoggingSubscriberTests(unittest.TestCase):
             engine.set_slow_threshold_ms(value=60_000)
             logger = logging.Logger("fathomdb-s100", level=logging.DEBUG)
             fenced = threading.Event()
-            batches: list[tuple[str, str, list[tuple[str, Exception | None]]]] = []
+            batches: list[tuple[object, object, list[tuple[str, Exception | None]]]] = []
 
             class Reenter(logging.Handler):
                 def emit(self, record: logging.LogRecord) -> None:

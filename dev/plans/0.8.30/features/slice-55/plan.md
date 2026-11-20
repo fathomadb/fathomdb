@@ -1,6 +1,6 @@
 ---
 title: Slice 55 data integrity and recovery
-status: PROPOSED
+status: ACTIVE
 slice: 55
 target_release: 0.8.30
 ---
@@ -8,7 +8,9 @@ target_release: 0.8.30
 # Slice 55 — Data integrity and recovery
 
 Owner seq-407 allocates this scope from the prior 50 plan.
-This draft does not commission implementation or qualification.
+Owner seq-409 commissions the whole plan with `gpt-6.1-sol` high, after
+integration of reviewed partial50 source.55 precedes60, which supplies the
+remaining50 prerequisite; no completed slice is reopened.
 
 ## Entry and ownership
 
@@ -27,7 +29,7 @@ post-recovery state. 55 implements the selected R30-TEST integrity, recovery and
 boundary gaps. 50 owns runtime admission, close, logging, Node resources and
 conditional model release. 70 integrates executed behavior and source proof.
 75 qualifies target-specific installed artifacts and Windows WAL. Protect the
-active 40 measurement checkout and serialize shared source edits.
+retained40 proof and serialize shared source edits.
 
 ## Needs, requirements and acceptance
 

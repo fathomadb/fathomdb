@@ -82,9 +82,9 @@ or silently change an adjacent slice. Scope overflow goes back to the owner.
 | 20 | Efficient, diagnosable CI/CD — R30-CI/DIAG | Approved 10 preparation | Preserve first failure through cancellation, fix normal OIDC/visibility and truthful closure checks, measure selected setup/static-check savings without losing controls. |
 | 30 | Correctness bug hunt and remediation — R30-COR/S50 | Approved 10; consume 20 diagnostics when needed | Classify bounded S50/identity/feedback/coverage/FFI cases; confirmed defects have observed RED→GREEN and exact state/error regressions. |
 | 40 | Performance and end-to-end latency — R30-LAT | Approved 10 for baseline; relevant 30 fixes and final consumed 60 pins before promotion | Comparable baseline/treatment, measured useful latency/tails/throughput/resources, unchanged correctness; justified non-adoption is valid. |
-| 50 | Runtime concurrency and resource bug hunt and remediation — R30-ROB | Approved10; completed40 underseq-408; consumed30 fixes; safe-drop fork prerequisite from 60 for unsafe release only | Positive concurrent work, capacity/cleanup/reopen assertions, default Node growth disposition and safe selected module-release behavior. |
 | 55 | Data integrity and recovery — R30-TEST | Approved10 and consumed30; applicable50 runtime fixes before affected promotion | Independent cross-index/temporal/relationship state, bounded fuzz and crash/WAL proof, doctor fixes and thin behavioral fixtures. |
-| 60 | Scoped fork maintenance and qualification — R30-FORK | Approved 10 for design; consumed lifecycle contracts | Selected upstream/delta map, coherent pins, independent supported/unsupported kernel/output/resource controls and installed consumers. |
+| 60 | Scoped fork maintenance and qualification — R30-FORK | Complete55 underseq-409; approved10; consumed50 lifecycle contracts | Selected upstream/delta map, coherent pins, independent supported/unsupported kernel/output/resource controls and installed consumers. |
+| 50 | Runtime concurrency and resource bug hunt and remediation — R30-ROB | Reviewed partial source integrated; complete60 before remaining50 underseq-409 | Positive concurrent work, capacity/cleanup/reopen assertions, default Node growth disposition and safe selected module-release behavior. |
 | 70 | Integrated behavior and source qualification — R30-QUAL/TEST | Selected20/30/40/50/55/60 exits | Applicable source/security/features/long/performance/fidelity and composed-behavior checks; every selected test gap has a discriminating oracle and owner; original nonpasses stay visible. |
 | 75 | Platform and artifact qualification — R30-QUAL | Source-qualified70 candidate and final consumed pins | Five-target installed/native/source-archive consumers, actual Windows WAL and hosted cancellation, declared CUDA support, contracts/docs convergence and nonpublishing immutable-candidate handoff. |
 | 80 | Authorized delivery and registry consumers — R30-REL | 75 and separate production authority | Every required publisher, exact-version installed consumer, co-tagging, normal finalization, public docs/download and owned cleanup completes. |
@@ -92,10 +92,12 @@ or silently change an adjacent slice. Scope overflow goes back to the owner.
 Detailed drafts live at `features/slice-N/plan.md`. Their requirements are
 release-local proposals, not new canonical AC numbers. After 10, delivery20,
 correctness30 and baseline40 can proceed independently where ownership permits;
-60 design can run alongside safe50 work.55 may prepare independent CPU/data
-fixtures after30 while50 finishes a conditional fork prerequisite, but must consume
-affected runtime fixes before promotion.70 joins all selected implementation exits;
-75 consumes70 and supplies80 the qualified artifact candidate. Final fork/native inputs precede final
+Owner seq-409 selects55 →60 →finish50 →70 →75 →80. Reviewed partial50 runtime
+source is integrated before55;50 remains open and is not closed/reopened.
+60 follows55 and supplies50's exact-pin safe-drop prerequisite. After60, finish50
+including the separately authorized default Node private-pool comparison.
+70 joins all selected implementation exits;75 consumes70 and supplies80 the
+qualified artifact candidate. Final fork/native inputs precede final
 numerical/artifact proof. Serialize shared engine/search edits and pin/state
 integration; concurrent writers each get a worktree. Reuse valid earlier proof
 by actual source/features/artifact/fixture/protocol, not merely ancestry.
@@ -298,12 +300,18 @@ and its reviewed source work is integrated at
 [status](features/slice-40/status.md) preserves the original failed full gate and
 independently passing observer recovery. Review findings are remediated; inherited
 hints/final qualification remains open. Owner seq-408 commissions the revised50
-plan with `gpt-6.1-sol` high after40 completion.55/60/70/75/80 remain uncommissioned. Owner seq-404 places the Vercel UI SDK
+plan with `gpt-6.1-sol` high after40 completion. Its reviewed runtime/logging
+portion is integrated at`daf12b6d9839816fab4cd7c72c81e2f10918bf0f`, with both
+remaining obligations open. Owner seq-409 supersedes the finish50-before55
+condition:55 is commissioned now with `gpt-6.1-sol` high and the full template;
+then activate60 and finish50 under the same sequential mandate without another
+sequence confirmation.70/75 have not started;80 publication still requires
+separate exact-candidate authority. Owner seq-404 places the Vercel UI SDK
 research in the [0.9.0 backlog](../0.9.0/backlog.md); it adds no .30 feature work. The
 [state](../release-state-0.8.30.json) and [board](../runs/STATUS-0.8.30.md)
 own current status.
 
 <!-- BEGIN GENERATED release-state:0.8.30:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 50** (`ROBUSTNESS`) — Runtime concurrency and resource bug hunt and remediation
+**IMMEDIATE NEXT: Slice 55** (`INTEGRITY`) — Data integrity and recovery
 
-**Remaining ladder:** 50 → 55 → 60 → 70 → 75 → 80.<!-- END GENERATED release-state:0.8.30:plan-immediate-next -->
+**Remaining ladder:** 55 → 60 → 50 → 70 → 75 → 80.<!-- END GENERATED release-state:0.8.30:plan-immediate-next -->

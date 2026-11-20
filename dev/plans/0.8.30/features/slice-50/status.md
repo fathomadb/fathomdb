@@ -100,3 +100,10 @@ native subjects, receipts, release artifacts and unrelated caches were kept.
 The runner was uninterrupted; final free space is30GiB. All owned verification
 processes ended. The branch is ready for parent integration of this source
 subset, with both mandatory open rows retained for owner disposition.
+
+## Partial integration and remaining sequence
+
+Parent Codex reviewed the strengthened runtime and exact event/state assertions
+and integrated this partial source at`daf12b6d9839816fab4cd7c72c81e2f10918bf0f`.
+Owner seq-409 selects55 →60 →finish50; this record is not slice closure.
+The original gate failure, assembled recovery and two open rows remain intact.

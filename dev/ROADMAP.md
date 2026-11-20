@@ -22,7 +22,8 @@ file, and board. Publishing always requires a separate explicit HITL decision.
 ## Current position
 
 - **0.8.30 is the active release** on `release/0.8.30`. Slices10,20,30 and40
-  are integrated; Slice50 is commissioned under seq-408. The
+  are integrated. Reviewed partial50 runtime work is integrated;55 is commissioned
+  underseq-409, then60 supplies prerequisites for finishing50. The
   [state](plans/release-state-0.8.30.json) and [board](plans/runs/STATUS-0.8.30.md)
   own current progress and qualification limits. Publication remains held.
 - **Historical 0.8.27 planning snapshot:** 0.8.26 was the published predecessor;

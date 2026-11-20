@@ -1,6 +1,6 @@
 {
   "release": "0.8.30",
-  "release_kind": "Slices10/20/30/40 implemented; Slice50 commissioned; qualification open and publication held",
+  "release_kind": "Slices10/20/30/40 complete;50 partially implemented;55 commissioned;60 then finish50 authorized",
   "board": "dev/plans/runs/STATUS-0.8.30.md",
   "plan": "dev/plans/0.8.30/plan.md",
   "master": "dev/plans/0.8.30/plan.md",
@@ -214,14 +214,18 @@
       "title": "Runtime concurrency and resource bug hunt and remediation",
       "depends_on": [
         10,
-        40
+        40,
+        60
       ],
-      "status": "IN_PROGRESS",
+      "status": "PARTIALLY_IMPLEMENTED",
       "design_refs": [
         "dev/plans/0.8.30/features/slice-50/plan.md"
       ],
       "scope_source": "seq-407",
-      "commission_source": "seq-408"
+      "commission_source": "seq-408",
+      "sequence_source": "seq-409",
+      "partial_sha": "daf12b6d9839816fab4cd7c72c81e2f10918bf0f",
+      "evidence": "dev/plans/0.8.30/features/slice-50/status.md; runtime/logging portion reviewed and integrated. Default Node pool comparison and conditional B30-01 remain open. Resume after60;50 is not closed."
     },
     {
       "slice": 55,
@@ -231,23 +235,26 @@
         10,
         30
       ],
-      "status": "PROPOSED_NOT_COMMISSIONED",
+      "status": "IN_PROGRESS",
       "scope_source": "seq-407",
       "design_refs": [
         "dev/plans/0.8.30/features/slice-55/plan.md"
-      ]
+      ],
+      "commission_source": "seq-409"
     },
     {
       "slice": 60,
       "short": "FORK",
       "title": "Scoped fork maintenance and qualification",
       "depends_on": [
-        10
+        10,
+        55
       ],
       "status": "PROPOSED_NOT_COMMISSIONED",
       "design_refs": [
         "dev/plans/0.8.30/features/slice-60/plan.md"
-      ]
+      ],
+      "scheduled_commission_source": "seq-409"
     },
     {
       "slice": 70,
@@ -294,11 +301,11 @@
     }
   ],
   "landed": [],
-  "next_slice": 50,
+  "next_slice": 55,
   "remaining_ladder": [
-    50,
     55,
     60,
+    50,
     70,
     75,
     80
@@ -354,6 +361,11 @@
         "id": "slice50-commission",
         "source": "seq-408",
         "ruling": "After Slice40 completion and remediation of its review findings, spawn gpt-6.1-sol at high effort to complete the whole revised Slice50 plan using the supplied prompt template."
+      },
+      {
+        "id": "sequence55-60-finish50",
+        "source": "seq-409",
+        "ruling": "Proceed55 then60 then finish50 using the supplied template and gpt-6.1-sol high; replaces the prior finish50-before55 condition. Coordinate70/75/80 afterward; exact-candidate publication remains separate."
       }
     ],
     "unruled": []
@@ -451,12 +463,46 @@
       "measured_result": "Corrected paired hybrid p50 improvement24.758% read/37.266% governed-write, exact fixed-state results and discriminating current-cursor reopen; tails/useful throughput improved on the declared CPU inputs.",
       "review": "Astra plan/design PASS afterFIX-1, Sol code/corrections PASS, Terra runtime/artifacts PASS; parent Codex reviewed final production/observer/rank/malformed-identity and interrupted-summary corrections before integration.",
       "limits": "Inherited200us hints qualification remains open with original four fails preserved. Final60 pins,70 integrated source and75 installed/platform proof remain required; no uninterrupted full-gate or release-ready claim."
+    },
+    "slice50": {
+      "status": "PARTIAL_SOURCE_VERIFIED_REMAINING_WORK_OPEN",
+      "record": "dev/plans/0.8.30/features/slice-50/status.md",
+      "partial_sha": "daf12b6d9839816fab4cd7c72c81e2f10918bf0f",
+      "reviews": "Astra plan/design PASS; Sol code and typing-recovery PASS; Terra actual runtime/native PASS; parent Codex reviewed the bounded real-store queue/close/isolation and exact logging assertions before partial integration.",
+      "scoped_pass_counts": [
+        30,
+        11,
+        2,
+        2,
+        3,
+        10
+      ],
+      "full_gate": {
+        "source_subject": "2d76eea2f75376c2d25f71f7b0cc3f7c063f5c40",
+        "exit": 1,
+        "stopped_at": "Python typecheck before security/test registration"
+      },
+      "assembled_continuation": {
+        "source_subject": "cb98f6b743f2966012fee7fcb75a39d06f1b48eb",
+        "registered": 241,
+        "ran": 238,
+        "passed": 238,
+        "failed": 0,
+        "skipped": 3,
+        "excluded": 0,
+        "scope": "Annotation-only recovery passed Python/TS typecheck, installed logging10/10, strict security with0violations/blockers/downgrades, and tests. Original wrapper exit retained; no broad replay or uninterrupted pass claim."
+      },
+      "open": [
+        "default Node private-pool ON/OFF with actual current Orin venue authority",
+        "B30-01 implementation and verification after60 exact-pin safe-drop proof"
+      ],
+      "completion": "Not complete. Ownerseq-409 runs55 then60 before completing remaining50; evidence retained outside old checkout."
     }
   },
   "release_readiness": {
     "status": "NOT_READY",
     "publication_authorized": false,
-    "scope": "Slices10/20/30/40 source work integrated;50 commissioned underseq-408 after40 review findings remediated. Future55/60/70/75/80 remain uncommissioned. Inherited hints, final pins/source/platform/artifact qualification remain open. Publication not authorized; Vercel research remains0.9.0."
+    "scope": "10/20/30/40 complete on release branch; reviewed50 runtime/logging portion integrated but50 remains open. Ownerseq-409 commissions55 now, then60, then completion of50; qualification70/75 and separately authorized publication80 follow. Inherited hints, final pins/source/platform/artifacts remain open; no publication authorization."
   },
   "generated_views": [
     {
@@ -521,5 +567,17 @@
       "state": "OPEN",
       "evidence": "Ownerseq-407 splits the original70 scope. Five-target installed native and CLI/source archive consumers, Windows WAL, declared CUDA applicability, Node26 support/renderer docs convergence and the final candidate handoff remain unverified."
     }
-  ]
+  ],
+  "coordination_mandate": {
+    "source": "seq-409",
+    "sequence": [
+      55,
+      60,
+      50,
+      70,
+      75,
+      80
+    ],
+    "next_transition": "After55 completion and review remediation, commission60 with the full template; after60 supplies qualified pins/safe-drop proof, finish50 without replaying passing runtime work. No sequence reconfirmation needed. Preserve separate concrete venue/session/live-fault needs and exact-candidate publication authority."
+  }
 }

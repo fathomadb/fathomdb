@@ -14,6 +14,11 @@ F30-MARKER and F30-MULTIARCH in .30. Slice 9 selects scope and Slice 10 owns
 approved preparation. Implementation, native sessions, live faults and
 publication require their applicable authority. [Fork allocation](../../fork-maintenance-plan.md) · [Master execution contract](../../plan.md#c-slice-planning-and-execution-contract)
 
+Owner seq-409 authorizes activation after55 completion and remediation of its
+review findings, using the full execution template. Prioritize the exact-pin
+safe-drop prerequisite needed to finish50. No repeat sequence confirmation is
+needed; concrete venue/session/live-fault authority remains separate.
+
 ## Entry and boundaries
 
 - Reconcile current `origin/main`, both owner forks, and changes since `f7fb1da9a`.

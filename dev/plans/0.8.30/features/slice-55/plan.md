@@ -1,6 +1,6 @@
 ---
 title: Slice 55 data integrity and recovery
-status: ACTIVE
+status: COMPLETE
 slice: 55
 target_release: 0.8.30
 ---
@@ -149,3 +149,6 @@ partial50, superseding the draft entry above. The six selected rows are retained
 selectors, independent oracles, prerequisites and review/verification order.
 Already-correct characterization need not manufacture RED; each demonstrated
 behavior defect requires its own genuine failing RED then separate GREEN.
+
+Completed selected implementation and default clean-source gate; see [status](status.md)
+for actual independent counts, artifact subjects and qualification limits.

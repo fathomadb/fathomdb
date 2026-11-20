@@ -1,6 +1,6 @@
 ---
 title: Slice 55 composed integrity verification
-status: ACTIVE
+status: COMPLETE
 slice: 55
 target_release: 0.8.30
 ---
@@ -69,11 +69,68 @@ production checkpoint boundary and ran only owned temporary-store CPU faults.
 
 Scoped Clippy for engine/CLI/SDK/MCP targets, Rust formatting, Python Ruff,
 full-package Pyright0 errors and TypeScript compilation passed. Markdown lint
-and release-state views passed. The single clean-source full gate and final
-native preparation remain pending at this source commit. This is not a
-full-workspace-green or release qualification claim.
+and release-state views passed. The final clean-source native preparation and the single full gate completed
+as recorded below. This completes55 implementation and its default source gate;
+70/75 retain their integrated, long, hardware and final-artifact qualification.
 
 Raw affected logs and the independent verifier's selected logs are retained
 under `/tmp/fathomdb-0830-slice55-evidence` and
-`/tmp/fathomdb-0830-slice55-terra`. Final full-gate/native results follow here.
+`/tmp/fathomdb-0830-slice55-terra`. Final full-gate/native results are recorded below.
 Parent owns canonical state, integration and worktree/branch cleanup.
+
+## Final clean-source gate
+
+Direct Terra ran unchanged `./scripts/agent-verify.sh` once on clean
+`866dcad1650f9b9efade23959e0258b33cbe7197`. The actual verifier exited **0**
+after3825.632s.241 suites registered,238 ran and passed,0 failed,3 skipped,
+0 excluded. The three skips are the explicitly unselected Slice30 G/M/D live
+private-cgroup controls. Lint, default/release/test-hooks typechecks and strict
+security passed; AC-036 executed real strace and AC-037 the live netns catch.
+Security reports0 violations,0 blockers and0 downgrades. Tegra pool lint and
+unconfigured ESLint retain their declared skips. The inherited200µs hints
+criterion was unchanged; earlier40/50 records are not relabelled.
+
+Captured Python reports1787 passed/36 skipped; TypeScript638 passed/6 skipped,
+0 failed,644 total. Rust's424 result lines sum2852 passed,0 failed,74 ignored
+and432 filtered, including39 zero-result lines; this is the raw reported sum,
+possibly including subprocess results, **not** a deduplicated test count.
+Ignored, filtered, network-disabled/early-return and unselected long branches
+are not additional runtime proof. The independently selected nonzero bodies
+above remain the discriminating55 witnesses.
+
+The owned outer2400s timeout monitor was suspended individually while the
+canonical gate continued making progress after its lengthy initial compile.
+Before monitor resumption/reaping, the actual verifier's zombie kernel wait
+status0 and PID/start-time topology were captured in `verifier-exit-stat.txt`
+and companion evidence. No live test children remained in that process group.
+The resumed outer monitor then reported124 from its pending alarm; that
+separate wrapper status remains unmodified in `gate-result.txt`. It is not the
+verifier exit. The raw log watcher retained316 spill FDs with zero missed files.
+No gate restart, source edit, security downgrade or numerical change occurred.
+
+Free space fell to9.4GiB during Rust build/test work. After proving that no
+compiler, open FD or mapping owned the main incremental cache, and verifying
+and retaining native modules/wheel/receipts, only this checkout's inactive
+`target/debug/incremental` cache was removed. Deps, executables, active
+trybuild files, native subjects and unrelated data were kept;25GiB was
+restored and the gate remained uninterrupted.
+
+Clean-head production Python wheel SHA-256:
+`83574b979204f55b5e5925ea712080da984ef04c6a64d03ab54872e883b2ca01`;
+installed production module:
+`8469f797f0bb7604afdec5a7de839963a86b9a790c2a4bcc0cdff929519226bd`.
+Gate source test-hooks module:
+`e041eced43fe0c382fa821fb955e572e7f5692ae4c3fcbae9a319a19ef64d735`.
+Initial independently checked Node test-hooks addon:
+`32dedb1fb7b79397e52f697adc31b5fa866f15743a7e1a8db5071ac4cf4b1e64`;
+the gate's Node build produced and tested:
+`6b9575d60b399c2fd4b1a55d25f40321bb9fbecfee1cf3fc253ba4642211f521`.
+Both Node subjects, Python subjects, wheel and source-bound receipts are kept
+under the evidence `native/` directory. Manifests are0.8.29 on this source
+candidate; developer Node26.13.1/npm11.20.0 do not promote public support.
+
+Direct Astra-medium also passed the final truncate-WAL design refinement and
+truthful doctor matrix at866dcad. Sol6.2-high and Terra results remain as above.
+All owned gate/monitor/test processes ended. Final closure changes only these
+local plan/status records; the native/gate subjects remain their actual866dcad
+source. Parent owns integration and temporary branch/worktree removal.

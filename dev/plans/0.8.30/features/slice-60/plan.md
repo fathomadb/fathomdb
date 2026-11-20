@@ -19,6 +19,16 @@ Owner seq-409 activates this plan after reviewed55 completion at
 safe-drop prerequisite needed to finish50. No repeat sequence confirmation is
 needed; concrete venue/session/live-fault authority remains separate.
 
+## Concrete execution selection
+
+The [execution design](design.md) reconciles all selected requirements against
+exact consumed source and published upstream Candle0.11.1 at
+`59f8e903ca80a32ea7f8514b39748fc979e69e82`. Its source/delta map, bounded
+sm75/sm86/sm87+PTX candidate, prospective cost rules, owning TDD controls,
+installed-consumer joins and concrete live-protocol preparation govern this
+execution. Direct Astra reviews plan and design before behavioral changes.
+The whole scope remains selected; an unavailable mandatory cell stays OPEN.
+
 ## Entry and boundaries
 
 - Reconcile current `origin/main`, both owner forks, and changes since `f7fb1da9a`.
@@ -114,6 +124,6 @@ selected fork and product configuration.
 
 ## Open choices and prerequisites
 
-- Slice 9 selects the upstream candidate and exact source/registry route using prework 1 and fork-local design evidence. Slice 10 supplies approved tooling and access.
-- Select native/PTX targets, comparison bounds and real venue availability before build. Keep windchill3 R580 and primary CUDA 12.6, and exclude K620.
+- Slice9 selected placement; this execution selects published upstream Candle0.11.1 with exact unpublished Git delivery after qualification, as the design records. Slice10 tooling is retained; no registry publication is selected.
+- The design prospectively selects target rows and cost limits. Recheck actual exclusive venue availability before native execution. Keep R580/primary12.6 and exclude K620.
 - Live reset qualification needs separate venue, resource and fault authority. Slice 50 can proceed with independent safe work while that prerequisite is held.

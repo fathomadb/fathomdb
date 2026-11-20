@@ -1,0 +1,34 @@
+{
+  "query": "wombat",
+  "instant": 2000000000,
+  "body": "{\"text\":\"wombat café 猫\",\"group\":\"kept\"}",
+  "updatedBody": "{\"text\":\"wombat revised naïve 🦦\",\"group\":\"kept\"}",
+  "nodes": [
+    {
+      "id": "cohesion:a",
+      "source": "cohesion:source-a",
+      "revision": "cohesion:a-r1",
+      "version": "cohesion:a-v1"
+    },
+    {
+      "id": "cohesion:b",
+      "source": "cohesion:source-b",
+      "revision": "cohesion:b-r1",
+      "version": "cohesion:b-v1"
+    }
+  ],
+  "currentIds": [
+    "cohesion:a",
+    "cohesion:b"
+  ],
+  "expiredIds": [
+    "cohesion:b"
+  ],
+  "group": "kept",
+  "relation": "supports",
+  "invalidQuery": "wombat\u0000",
+  "mcpRefs": [
+    "l:cohesion:a",
+    "l:cohesion:b"
+  ]
+}

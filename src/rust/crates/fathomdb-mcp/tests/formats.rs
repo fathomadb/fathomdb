@@ -771,3 +771,137 @@ async fn compact_filtered_pages_traverse_the_sdk_prefix_when_each_whole_hit_fits
     assert_eq!(collected, expected, "full traversal follows only from the whole-hit fit proof");
     harness.shutdown().await;
 }
+
+#[tokio::test]
+async fn slice55_shared_fixture_matches_exact_identity_unicode_time_and_both_formats() {
+    let expected: Value =
+        serde_json::from_str(include_str!("../../../../conformance/slice55-behavior.json"))
+            .unwrap();
+    for format in ["structured", "text"] {
+        let fixture = Fixture::new();
+        let writes = expected["nodes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .enumerate()
+            .map(|(i, n)| {
+                let mut write = common::sourced_node(
+                    n["id"].as_str().unwrap(),
+                    "doc",
+                    expected["body"].as_str().unwrap(),
+                    n["source"].as_str().unwrap(),
+                );
+                if let fathomdb_sdk::PreparedWrite::Node { valid_from, valid_until, .. } =
+                    &mut write
+                {
+                    *valid_from = Some(1_000_000_000);
+                    *valid_until = if i == 0 { Some(2_000_000_001) } else { None };
+                }
+                write
+            })
+            .collect();
+        fixture.store("a.sqlite", writes);
+        let harness = Harness::start(wire_config(
+            &fixture,
+            json!({"result_format":format,"default_max_tokens":20000}),
+        ))
+        .await;
+        let result = wire(
+            &harness,
+            "fetch",
+            json!({"refs":expected["mcpRefs"],"as_of":expected["instant"],"max_tokens":20000}),
+        )
+        .await;
+        assert_ne!(result.is_error, Some(true));
+        assert_eq!(result.structured_content.is_some(), format == "structured");
+        checked_wire_budget(&result, format, 20000).unwrap();
+        if format == "structured" {
+            let value = result.structured_content.as_ref().unwrap();
+            assert_eq!(value["epoch"], 1);
+            assert_eq!(value["validity_instant"], expected["instant"]);
+            for (item, reference) in value["items"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .zip(expected["mcpRefs"].as_array().unwrap())
+            {
+                assert_eq!(&item["ref"], reference);
+                assert_eq!(item["record"]["body"], expected["body"]);
+                assert_eq!(item["record"]["body_cut"], false);
+            }
+            assert_eq!(value["items"].as_array().unwrap().len(), 2);
+        } else {
+            let frames = fetch_frames(&text_of(&result));
+            assert_eq!(frames.len(), 2);
+            for (item, reference) in frames.iter().zip(expected["mcpRefs"].as_array().unwrap()) {
+                assert_eq!(&item["ref"], reference);
+                assert_eq!(item["body"], expected["body"]);
+                assert_eq!(item["cut"], false);
+            }
+        }
+        let expired = wire(
+            &harness,
+            "fetch",
+            json!({"refs":expected["mcpRefs"],"as_of":2_000_000_001_i64,"max_tokens":20000}),
+        )
+        .await;
+        assert_eq!(expired.structured_content.is_some(), format == "structured");
+        if let Some(value) = expired.structured_content {
+            assert_eq!(value["items"][0]["error"]["class"], "not_found");
+            assert_eq!(value["items"][1]["record"]["body"], expected["body"]);
+        } else {
+            let frames = fetch_frames(&text_of(&expired));
+            assert!(frames[0]["error"].as_str().unwrap().contains("not_found"));
+            assert_eq!(frames[1]["body"], expected["body"]);
+        }
+        let result=wire(&harness,"search",json!({"query":expected["query"],"kind":"doc","as_of":expected["instant"],"max_tokens":20000})).await;
+        assert_ne!(result.is_error, Some(true));
+        assert_eq!(result.structured_content.is_some(), format == "structured");
+        checked_wire_budget(&result, format, 20000).unwrap();
+        if let Some(value) = &result.structured_content {
+            assert_eq!(
+                value["results"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|r| r["ref"].clone())
+                    .collect::<Vec<_>>(),
+                expected["mcpRefs"].as_array().unwrap().clone()
+            );
+            for (hit, node) in value["results"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .zip(expected["nodes"].as_array().unwrap())
+            {
+                assert_eq!(hit["source_id"], node["source"]);
+                assert_eq!(hit["snippet"], expected["body"]);
+            }
+        } else {
+            let text = text_of(&result);
+            let lines = text.lines().skip(1).collect::<Vec<_>>();
+            assert_eq!(lines.len(), 2);
+            for ((line, node), reference) in lines
+                .iter()
+                .zip(expected["nodes"].as_array().unwrap())
+                .zip(expected["mcpRefs"].as_array().unwrap())
+            {
+                let (actual, fields) = quoted_prefix(line);
+                assert_eq!(actual, reference.as_str().unwrap());
+                let (_, source) = fields.split_once(" src=").unwrap();
+                let (source, tail) = quoted_prefix(source);
+                assert_eq!(source, node["source"].as_str().unwrap());
+                assert_eq!(tail, format!(" | {}", expected["body"].as_str().unwrap()));
+            }
+        }
+        let negative=wire(&harness,"search",json!({"query":expected["query"],"kind":"absent","as_of":expected["instant"],"max_tokens":20000})).await;
+        assert_ne!(negative.is_error, Some(true));
+        assert_eq!(negative.structured_content.is_some(), format == "structured");
+        if let Some(value) = negative.structured_content {
+            assert_eq!(value["results"], json!([]));
+        } else {
+            assert!(text_of(&negative).lines().next().unwrap().contains(" hits=0 "));
+        }
+        harness.shutdown().await;
+    }
+}

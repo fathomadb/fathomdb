@@ -52,6 +52,9 @@ default-reranker = ["fathomdb/default-reranker", "fathomdb-embedder/default-rera
 rerank-cuda = ["default-reranker", "tegra-pool", "fathomdb/rerank-cuda", "fathomdb-embedder/rerank-cuda"]
 
 [dev-dependencies]
+fathomdb-engine = { workspace = true, features = ["test-hooks"] }
+fathomdb-sdk.workspace = true
+sha2 = "0.11"
 # `doctor_orphan_provenance` must fabricate the legacy/corrupt canonical row
 # shapes the erasure verbs cannot reach (NULL `source_id`), which no supported
 # write path can produce. Raw SQL is the only way to build that fixture, and

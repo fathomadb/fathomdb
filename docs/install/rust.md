@@ -26,9 +26,9 @@ consumption routes:
 
 ## Install the lower-level facade and CLI
 
-Registry publication is pending. The exact-version registry commands on this
-page apply after 0.8.30 is published; source consumers can use the trusted
-release checkout.
+Registry publication is pending. After registry publication, use the exact-version
+0.8.30 commands on this page. Source consumers can use the trusted release
+checkout.
 
 Lower-level library:
 

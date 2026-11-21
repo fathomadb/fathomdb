@@ -27,8 +27,8 @@ platform-tagged `.node` binary at load time.
 
 ## Install the package
 
-Registry publication is pending. Use these exact-version commands after the
-0.8.30 registry and Tegra Pages artifacts are published and verified.
+Registry and Tegra Pages publication are pending. After publication and public
+artifact verification, use the exact-version 0.8.30 commands below.
 
 ```bash
 npm install --save-exact fathomdb@0.8.30

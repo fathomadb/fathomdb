@@ -22,8 +22,8 @@ required on supported platforms).
 
 ## Install the wheel
 
-Registry publication is pending; run the exact-version install after 0.8.30
-is published. Use a virtual environment for your application.
+Registry publication is pending. After registry publication, run the exact-version
+0.8.30 install below. Use a virtual environment for your application.
 
 ```bash
 pip install fathomdb==0.8.30

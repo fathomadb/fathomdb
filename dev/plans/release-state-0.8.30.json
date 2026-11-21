@@ -387,6 +387,11 @@
         "id": "release-orin-verification-use",
         "source": "seq-412",
         "ruling": "You do not need approval to use the Orin. Use the Orin as-needed. Use is authorized. Standing release-verification use includes the prepared7+7 process-local reset/recovery action with its disclosed resource and observed-only visibility limits, and same-scope test-artifact/harness updates. Do not ask repeatedly. Finish3090 work first. Host changes,user databases and registry publication remain outside that test scope."
+      },
+      {
+        "id": "slice60-fork-cohort-publication",
+        "source": "seq-413",
+        "ruling": "Publish these five fork crates: cudarc-fathomdb0.21.0 from clean3509cd6b and candle-{kernels,core,nn,transformers}-fathomdb0.13.0 from the existing verified952edb7d export. Includes the new kernel namespace and successor to the earlier not-now choice. Normal Cargo verification/dependency order and actual public download/checksum/consumer proof apply. FathomDB0.8.30 publication remains separately held."
       }
     ],
     "unruled": []

@@ -372,6 +372,16 @@
         "id": "slice60-orin-normal-verification",
         "source": "seq-410",
         "ruling": "Approve both reviewed Orin actions and same-scope release-owned source/test-artifact/harness updates for CPU and healthy GPU verification at coreyt@10.83.10.13 within /tmp/fathomdb-0830-slice60/. Credentials,user databases,resets,host changes and publication are excluded."
+      },
+      {
+        "id": "slice60-3090-reset-verification",
+        "source": "seq-411",
+        "ruling": "Approve the exact46719be4 launcher/e5d7b0cf action: seven child process-primary resets and seven fresh recoveries on the selected3090, with stated8GiB GPU/16GiB ownedRSS/40-24GiB RAM/swap-report/120s-child/30min-venue limits. Accept the healthy clone functional witness as prerequisite while preserving its monitored NOTPASSED result. Finish execution and cleanup before23:00Central2026-11-20, targeting22:30. No Orin reset,host change or publication authority."
+      },
+      {
+        "id": "slice60-3090-oom-retry",
+        "source": "seq-411",
+        "ruling": "Try again. each3090 has24GB. Retry the existing default-pool OOM test once with its own full-card24GB allowance and normal owned-child controls; reset tests retain8GiB. The proposed unqualified-row acceptance was not selected. Preserve the stopped first probe; no broad gate or passing-campaign replay."
       }
     ],
     "unruled": []

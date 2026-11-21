@@ -1,6 +1,6 @@
 ---
 title: Slice 70 integrated behavior and source qualification
-status: PROPOSED
+status: ACTIVE
 slice: 70
 target_release: 0.8.30
 ---
@@ -17,8 +17,8 @@ Owner seq-407 splits the prior70 plan. This slice owns source, security,
 feature, long-running, numerical and composed-behavior qualification.
 [Slice75](../slice-75/plan.md) owns final installed artifacts, platform/CUDA
 applicability, contract/public-doc convergence and the nonpublishing handoff to80.
-The union preserves the original selected gates; neither slice is commissioned
-by this restructuring. A70 PASS alone is not release readiness or publish authority.
+The union preserves the original selected gates. Owner seq-409 commissions70
+after50; entry is `ef254b2ab21cb293633ad8252b4050d8716550dd`. A70 PASS alone is not release readiness or publish authority.
 
 ## Entry and preparation
 
@@ -51,8 +51,8 @@ and thresholds. Confirm each command's current registration and actual inputs.
 
 | Need and requirement | Falsifiable acceptance and maintained proof |
 | --- | --- |
-| R30-QUAL / integrated source | Run `./scripts/agent-verify.sh` in the stable, clean candidate checkout with its owned tools and venv. Actual workspace-wide Clippy and type check run on all targets, with registered Rust, Python and affected TypeScript tests and lint in the gate's prescribed order. Retain exits and counts. [Verifier](../../../../../scripts/agent-verify.sh). |
-| R30-QUAL / feature execution | Run `python3 scripts/check-test-target-coverage.py` and `./scripts/test-feature-complete.sh` for the applicable maintained registrations. Check executable test IDs, actual feature sets, model/runtime assets, ignored/benign-marker/excluded classifications and stale entries. A matrix/list command, zero selected tests, an early return or a host exclusion cannot supply runtime proof. [Matrix](../../../../../scripts/test-feature-matrix.toml), [skip allowlist](../../../../../scripts/test-skip-allowlist.toml). |
+| R30-QUAL / integrated source | Reuse50's completed coherent source phase and exact scoped recovery; rerun `./scripts/agent-verify.sh` only if genuinely broad new source changes invalidate it. A slice boundary or Markdown edits alone do not. Actual workspace-wide Clippy and type check run on all targets, with registered Rust, Python and affected TypeScript tests and lint in the gate's prescribed order. Retain exits and counts. [Verifier](../../../../../scripts/agent-verify.sh). |
+| R30-QUAL / feature execution | Run `python3 scripts/check-test-target-coverage.py`; reconcile feature-complete registrations against actual prior runs and execute only omitted/affected maintained Cargo selections. Do not repeat the entire feature battery. Check executable test IDs, actual feature sets, model/runtime assets, ignored/benign-marker/excluded classifications and stale entries. A matrix/list command, zero selected tests, an early return or a host exclusion cannot supply runtime proof. [Matrix](../../../../../scripts/test-feature-matrix.toml), [skip allowlist](../../../../../scripts/test-skip-allowlist.toml). |
 | R30-QUAL / strict security | `STRICT=1 AC037_LIVE_OPTIONAL=0 ./scripts/agent-security.sh` on a capable executor produces 0 violations, 0 blockers and 0 downgrades. Verify AC-036 actual ptrace and AC-037 live deny-egress and catch controls, plus existing FTS5/AST/removal checks. A downgraded verifier copy needs the authoritative live result. Run `./scripts/security/gitleaks-current.sh` at its existing scope. [Security runner](../../../../../scripts/agent-security.sh), [CI contract](../../../../../.github/workflows/ci.yml). |
 | R30-QUAL / long concurrent state | Run the exact unchanged long selectors below with actual positive progress. AC-021 exercises the 60-second reader/admin DDL window with successful projection add/drop and rebuild, zero SQLITE_SCHEMA warnings. The AC-059b race exercises 1,000 searches, committed overlapping writes, advancing visible hits and zero row-count/cursor and hit-cursor violations. [DDL test](../../../../../src/rust/crates/fathomdb-engine/tests/lifecycle_reliability.rs), [cursor test](../../../../../src/rust/crates/fathomdb-engine/tests/cursor_read_after_write.rs). |
 | R30-QUAL / binding performance | Preserve the canonical release profiles and gates. `./scripts/run-ac011-write-throughput.sh` requires the registered Linux x64/NVMe fixture and 5-second warmup/60-second measurements (1 KB ≥1,000/s and 100 KB ≥100/s). Run the AC-012/013 test functions under AC-076/072 budgets via isolated release `perf_gates`, N=10,000, with the 20/150 ms text and 80/300 ms dim-768 vector p50/p99 bounds. Run AC-081a/b's existing seven-process absolute batch protocol (≤500 ms sequential, ≤100 ms eight-reader), retain warnings, and require AC-081c reader progress. [Performance gates](../../../../design/perf-gates.md), [AC-081 driver](../../../../../scripts/perf-experiments/run-slice80-ac081-cell.sh). |
@@ -69,9 +69,9 @@ passing wrapper alone is not evidence that the selected body ran.
 
 | Required row | Exact-candidate proof |
 | --- | --- |
-| Canonical object, indexes, temporal and graph cohesion | Run the authored cross-index lifecycle scenario and small operation model from55. Record exact expected revisions, ownership, current/history visibility, node-time boundaries, shipped edge-recency semantics, relationship direction/kinds, filter-before-cap and source evidence. Check lag/readiness and converged post-drain state, rollback and reopened state; do not require equal ranking across different modalities. Record creation/enrollment/population/update/removal, generation and cursor controls from existing index suites with actual feature selection. |
-| Crash, WAL and persistent failure recovery | Execute existing selected CPU child-kill and first/persistent SQLite-full/provider-fault cases on relevant final source, plus only the missing composed projection/dependency seam from55. Require delivered fault, exact surviving state, pending work/recovery, unrelated positive work and resource release. Include held-reader WAL/busy-checkpoint/release/checkpoint/reopen behavior and hand75 the existing Windows WAL regression for its actual supported target. Declare process-crash versus power-loss scope. |
-| Product fuzz and regression replay | Run the implemented55 boundary fuzz smoke with exact target, method, byte/depth/time bounds, nonzero input count and seed/corpus. Replay minimized regression inputs in ordinary suites. Distinguish Proptest/Hypothesis, random simulation and coverage-guided fuzzing; a queue simulation or list-only invocation does not close product parser fuzz coverage. Report remaining native/FFI/sanitizer gaps without claiming a broad campaign. |
+| Canonical object, indexes, temporal and graph cohesion | Reuse55's authored cross-index lifecycle scenario and small operation model where the final source preserves the tested path; execute only affected seams. Record exact expected revisions, ownership, current/history visibility, node-time boundaries, shipped edge-recency semantics, relationship direction/kinds, filter-before-cap and source evidence. Check lag/readiness and converged post-drain state, rollback and reopened state; do not require equal ranking across different modalities. Record creation/enrollment/population/update/removal, generation and cursor controls from existing index suites with actual feature selection. |
+| Crash, WAL and persistent failure recovery | Reuse55's executed CPU child-kill, first/persistent SQLite-full/provider-fault and composed projection/dependency seam proof on matching final paths; execute only invalidated seams. Require delivered fault, exact surviving state, pending work/recovery, unrelated positive work and resource release. Include held-reader WAL/busy-checkpoint/release/checkpoint/reopen behavior and hand75 the existing Windows WAL regression for its actual supported target. Declare process-crash versus power-loss scope. |
+| Product fuzz and regression replay | Reuse the executed55 boundary fuzz smoke on matching final parser/cursor paths with exact target, method, byte/depth/time bounds, nonzero input count and seed/corpus. Replay minimized regression inputs in ordinary suites. Distinguish Proptest/Hypothesis, random simulation and coverage-guided fuzzing; a queue simulation or list-only invocation does not close product parser fuzz coverage. Report remaining native/FFI/sanitizer gaps without claiming a broad campaign. |
 | All doctor command outcomes and effects | Derive the current command inventory from the CLI and account for all17 existing variants. For each, identify selected success, findings/refusal, busy, malformed and unsupported outcomes as applicable; assert semantic fields and exact exit class, not JSON parseability alone. Verify declared effects: immutable `data-plane-integrity` preserves database/companions; ordinary doctors may open an Engine; `safe-export` writes verified artifacts, `warm-cache` touches approved cache/network and `recompute-mean` mutates transactionally. Include actual full-integrity findings and WAL-only export/recover composition. Require the pre-action paired-copy witness: selected committed record present with WAL, absent from readable main-only copy, independent control present in both; a checkpointed record does not supply WAL-only proof. 75 owns the thin installed final CLI route and target-specific applicability. Selected GPU positives require actual approved final artifact/venue proof there, while unsupported branches remain labeled. Do not silently run downloads, hardware faults or a platform Cartesian product. |
 | Behavioral SDK/MCP parity | Match one independently authored fixture across Rust/Python/TS and structured/compact MCP, within each surface's actual capabilities. Compare expected data, Unicode, identity/provenance, temporal/filter behavior, typed errors, budget and store/epoch/continuation facts. MCP has no general mutation or exact SDK evidence-resolution tools; exercise those through SDKs rather than inventing parity. Check source/native boundary semantics here;75 proves final installed binary/module identity, exact source/version, separate-process reopen and natural exit. Return confirmed executable defects to55 (or50 for a runtime defect); no deep matrix duplication in every language. |
 | Semantic oracle sensitivity | For selected critical Fathom-owned predicates, retain the wrong-condition/wrong-order/missing-cleanup variant and the test that rejects it, or another concrete independent oracle already demonstrating that sensitivity. Collect a focused line/branch overlay for changed high-risk paths where existing tooling supports it, identify missed conditions and their consequences, and keep instrumentation separate from optimized latency measurements. If measurement is unavailable, label the manual branch/oracle map as such and retain the measurement gap explicitly. Preserve defensive checks. This is a targeted assessment of tests, not a whole-workspace percentage, MC/DC requirement or general mutation framework. |
@@ -126,8 +126,8 @@ AGENT_LONG=1 cargo test -p fathomdb-engine --test cursor_read_after_write \
    to their owners. Record needed design/interface/ADR changes and get direct Astra-medium design review.
 3. Have direct Astra-medium review the updated plan, with at most one FIX-1 and re-review. Commit
    after PASS. Preserve findings and hold the affected transition on continued failure.
-4. After commissioning, freeze stable source, generated views and owned environment. Run the
-   full source gate once for the coherent phase and execute the required omitted rows. Continue
+4. After commissioning, freeze stable source, generated views and owned environment. Reuse the
+   completed50 source gate plus scoped recovery for this same coherent phase; execute only required omitted/affected rows. A broad new source phase alone justifies another full gate. Continue
    failed, affected and unrun registrations with exact scoped routes. Record any assembled
    completion as assembled, preserving original wrapper exits, cancellations, failures and skips.
    Scoped Markdown, contract and release-state checks cover later metadata edits. Broad source
@@ -151,6 +151,27 @@ AGENT_LONG=1 cargo test -p fathomdb-engine --test cursor_read_after_write \
 
 ## Open choices
 
-Confirm approved venues and current fixture/model availability, which retained scopes survive the
-final inputs, and any required execution/location authorization. Record any outstanding .29 Tegra
-delivery limit with75 before an affected .30 artifact verdict. This draft records no runtime or artifact result.
+The [qualification design](design.md) records reconciled inputs, reuse and exact remaining rows.
+3090 GPU access has ended; CPU execution on windchill3 remains available. Orin
+seq-412 remains authorized as needed, with no automatic new GPU campaign.
+Unavailable mandatory proof stays open;75 owns final installed/platform qualification.
+
+## Reconciled entry and scope changes
+
+Since draft `f7fb1da9a`,20 repaired CI/delivery diagnostics;30 repaired retrieval
+identity, partial-span provenance and issue264;40 retained measured eligibility
+optimization and fixed-state oracles;55 implemented the six selected integrity,
+fuzz, crash/WAL, doctor, parity and sensitivity rows;60 changed exact native
+pins and qualified owning/native/public dependency delivery;50 added explicit
+module release and completed runtime/default-Node comparison. See each owner's
+status and the design's applicability map. The historical audit remains an entry
+claim audit, not a statement those implementations are still pending.
+
+Keep the selected requirements and thresholds. Adjust execution to reuse50's
+actual strict484 gate (exit1,235/238 passed) plus its three passing scoped
+recoveries at1550b96bb. Reject fresh broad source/native replays and redundant
+55 deep parity campaigns. Keep canonical long/numerical/feature omissions open
+until actual bodies run or material evidence equivalence is established.
+No new product requirements, storage format, public API or architectural change
+is proposed. Research is needed only if a concrete selection/loader ambiguity
+cannot be resolved from maintained source; use primary documentation then.

@@ -364,20 +364,21 @@ fn counted_text(text: &str, max_tokens: u32, cut: bool) -> String {
 fn finish(output: &impl Serialize, text: String, max_tokens: u32, cut: bool) -> (Rendered, u64) {
     let text = counted_text(&text, max_tokens, cut);
     let mut value = serde_json::to_value(output).expect("tool outputs serialize");
-    value["budget"]["cut"] = serde_json::json!(cut);
-    value["budget"]["max_tokens"] = serde_json::json!(max_tokens);
-    value["budget"]["used_tokens"] = serde_json::json!(0);
-    let budget = value.as_object_mut().unwrap().remove("budget").unwrap();
+    let object = value.as_object_mut().expect("tool output is an object");
+    object.remove("budget").expect("tool output has a budget");
+    let field_overhead = usize::from(!object.is_empty()) + "\"budget\":".len();
     let without = serde_json::to_string(&value).expect("tool outputs serialize").len();
-    value["budget"] = budget;
+    let mut budget = serde_json::json!({"max_tokens": max_tokens, "used_tokens": 0, "cut": cut});
     for _ in 0..4 {
-        let json = serde_json::to_string(&value).expect("tool outputs serialize");
-        let used = shape::estimate_tokens(without + json.len());
-        if value["budget"]["used_tokens"] == used {
-            let (structured, whole) = shape::with_budget(value, &json, max_tokens, cut);
-            return (Rendered { structured, text }, whole);
+        // Only the budget's digit width changes; the rest of the object is fixed.
+        let budget_len = serde_json::to_string(&budget).expect("budget serializes").len();
+        let with = without + field_overhead + budget_len;
+        let used = shape::estimate_tokens(without + with);
+        if budget["used_tokens"] == used {
+            value["budget"] = budget;
+            return (Rendered { structured: value, text }, shape::estimate_tokens(with + with));
         }
-        value["budget"]["used_tokens"] = serde_json::json!(used);
+        budget["used_tokens"] = serde_json::json!(used);
     }
     panic!("structured budget count did not converge within four renders");
 }

@@ -3,6 +3,7 @@
 //! handles and text rendering. No I/O, no clock, no rmcp.
 
 use serde::Serialize;
+#[cfg(test)]
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
@@ -31,6 +32,7 @@ pub fn estimate_tokens(bytes: usize) -> u64 {
 /// `used_tokens` is computed before `budget` is inserted, as the interface
 /// defines it, so it is stable; the returned whole-response estimate is what
 /// a caller compares with `max_tokens` (MR-041.1).
+#[cfg(test)]
 #[must_use]
 pub fn with_budget(mut structured: Value, text: &str, max_tokens: u32, cut: bool) -> (Value, u64) {
     if let Value::Object(object) = &mut structured {

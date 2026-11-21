@@ -93,3 +93,26 @@ Direct Terra independently checks actual execution/evidence applicability,
 not duplicate unchanged passing runs. Parent Codex reviews final coherent
 diff/status. Run scoped Markdown validators for these documents; no broad
 gate for their edits. Parent owns canonical state, integration and cleanup.
+
+## Hints budget serialization remediation
+
+Actual unchanged `hints_overhead_devloop` failed at201.8us (limit100), versus
+200us; the old failures remain. No retry or noise attribution is selected.
+`tools::finish` repeatedly serializes the entire structured response although
+its fixed-point loop changes only `budget`. Replace those repeated full-object
+serializations with the exact length of the non-budget object, one fixed key,
+its conditional comma and the serialized three-field budget. Iterate only the
+small budget until `used_tokens = ceil((without_budget + with_budget)/4)`
+converges, then insert it. The structured whole-response estimate is
+`ceil(2 * with_budget/4)`, preserving its identical JSON text copy. Compact text
+keeps its existing independent count and renderer. No wire fields, ordering,
+formats, handles, hint content, limits or refusal policy changes.
+
+The existing failing performance assertion supplies RED. Existing independent
+`hints_baseline` byte/semantic and `formats` wire-budget oracles, hint outcomes,
+allocation gates and shape property tests must pass read-only; their reference
+serialization must remain unchanged. Direct Astra reviews this focused design;
+Sol reviews the code change. Rebuild the affected MCP subjects, run the unchanged
+performance criterion and all affected MCP rendering/budget tests, then scoped
+lint/type checks. This small internal optimization does not invalidate engine,
+model, fork or SDK qualification and does not justify another full source gate.

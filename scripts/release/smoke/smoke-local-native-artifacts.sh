@@ -275,6 +275,9 @@ else:
 engine.close()
 print("local Python wheel runtime validation: ok")
 PY
+wheel_version="$("$PYTHON" -c 'import importlib.metadata; print(importlib.metadata.version("fathomdb"))')"
+"$PYTHON" -I "$REPO_ROOT/scripts/release/smoke/registry-python.py" "$wheel_version" "$WORK/python-persisted.fdb" write
+"$PYTHON" -I "$REPO_ROOT/scripts/release/smoke/registry-python.py" "$wheel_version" "$WORK/python-persisted.fdb" reopen
 printf 'slice75-native-python-result: markers=3 write_search=pass dependency=pass frozen_read=pass\n'
 
 MAIN="$WORK/main"
@@ -288,9 +291,9 @@ cp "$PLATFORM_PACKAGE_DIR/package.json" "$PLATFORM_PACKAGE_DIR/LICENSE" "$PLATFO
 cp "$TS_DIR/fathomdb.$NAPI_LABEL.node" "$PLATFORM/fathomdb.$NAPI_LABEL.node"
 
 # This is the same publish-time injection used by the release workflow. The
-# local fixture contains only its matched platform package, so npm never needs
-# a registry to resolve unrelated native packages.
-bash "$REPO_ROOT/scripts/release/npm-inject-optional-deps.sh" "$MAIN" "$NPM_ROOT"
+# main retains all five release platform entries. The isolated install supplies
+# its matched local platform; unsupported optional packages stay uninstalled.
+bash "$REPO_ROOT/scripts/release/npm-inject-optional-deps.sh" "$MAIN" "$TS_DIR/npm"
 
 platform_name="$("$NODE_CMD" -p "require(process.argv[1]).name" "$PLATFORM/package.json")"
 main_version="$("$NODE_CMD" -p "require(process.argv[1]).version" "$MAIN/package.json")"
@@ -567,6 +570,13 @@ console.log("slice20 installed N-API graph evidence: pass");
 JS
 )
 printf 'slice85-runtime-configuration-result: python=3 node=3 skipped=0\n'
+
+"$NODE_CMD" "$REPO_ROOT/scripts/release/smoke/registry-node.mjs" write "$CONSUMER" "$main_version"
+"$NODE_CMD" "$REPO_ROOT/scripts/release/smoke/registry-node.mjs" reopen "$CONSUMER" "$main_version"
+if [ -n "${FATHOMDB_NATIVE_ARTIFACT_DIR:-}" ]; then
+  mkdir -p "$FATHOMDB_NATIVE_ARTIFACT_DIR"
+  cp "${wheel_paths[0]}" "$MAIN/$main_tarball" "$PLATFORM/$platform_tarball" "$FATHOMDB_NATIVE_ARTIFACT_DIR/"
+fi
 
 resolved_main="$(cd "$CONSUMER" && "$NODE_CMD" -e 'process.stdout.write(require.resolve(process.argv[1]))' fathomdb)"
 resolved_native="$(cd "$CONSUMER" && "$NODE_CMD" -e 'process.stdout.write(require.resolve(process.argv[1]))' "$platform_name")"

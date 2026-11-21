@@ -88,3 +88,14 @@ The manual `CI diagnostic cancellation` workflow emits a complete redacted
 that separate hosted run only after `CANCELLATION_PROBE_READY` appears, then
 verify the actual cancelled conclusion and retained completed/started/unrun
 scope. The existing offline oversized-line truncation control is separate.
+
+`run_cuda_rows.py --build` compiles only the two outstanding current-pin CUDA
+source selections; `--gpu` runs them once on the renewed selected3090 with the
+existing inode8532374 per-UUID lease. Paths and bounds are deliberately specific
+to this approved venue. It monitors the owned process group (including isolated
+calibration workers), compute/graphics peers, host/device/RSS/disk limits and
+shared deadline, and reaps owned children on interruption. Builds use sm75/PTX0
+and stay outside the30-minute runtime window. Sampling is observational and
+makes no between-sample excursion or fault-campaign cadence claim. Exact assets,
+commands, failed build setup attempts and outputs are under the owned
+`/tmp/fathomdb-0830-slice75-evidence/terra-cuda` directory.

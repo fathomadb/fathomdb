@@ -90,3 +90,41 @@ behavior it rejects, and any consolidation's coverage and cost evidence.
 Update affected release instructions, contracts and canonical state once.
 Integrate into the owning release branch and clean only owned inactive scratch
 and worktrees after preserving needed evidence.
+
+## Public smoke control repair during Slice 80
+
+The immutable public `v0.8.30` tag peels to
+`e3d31f5cdc0df3e32dab9bad151c5ab5c321222c`; production run `44929252460`,
+attempt 1, published all registries. Its Linux PyPI and macOS ARM Python
+installs failed during propagation. Intel macOS Python instead skipped every
+runtime call: Bash 3's empty-array expansion raised an unbound-variable error,
+and its successful EXIT cleanup masked that error as exit 0. Intel npm passed
+in a separate step. Keep these original outcomes and package bytes unchanged.
+
+Use portable positional arguments for the optional Linux native path. Preserve
+cleanup's incoming failure status, and default completion to failure until all
+Python write, reopen and installed trace consumers finish. A Bash 3 regression
+must first demonstrate absent calls and false exit 0, then require both calls
+and exact install/runtime failure exits. Shell fixtures prove control flow;
+actual recovered registry processes provide product evidence.
+
+Extend only the maintained npm recovery workflow with an opt-in, exact `.30`
+mode. Bind version, annotated tag object, source, production run and attempt 1.
+Require completed original publishers, co-tagging and unaffected consumer jobs;
+inherit Intel npm only from its unique completed successful step 7 with the
+exact original command name. Never count its Python false green. Refuse wrong
+identity, attempt, missing, duplicate, skipped or failed inherited proof.
+Paginate the bound attempt's jobs. Run fresh corrected Python consumers on
+Linux x64 and both macOS architectures, plus the unrun macOS ARM npm consumer,
+from the trusted workflow source with read-only permissions. Require every
+recovery matrix job to succeed before the existing pinned OIDC promotion and
+original-run GitHub Release attachment. The default all-original-green recovery
+route and normal release workflow retain their existing requirements. No
+build, publisher, GPU campaign, retag or version change belongs to this repair.
+
+Obtain direct Astra-medium design approval after at most one consolidated FIX,
+then stage behavioral workflow refusal RED before implementation. Direct
+Sol6.2-high reviews final source; delivery's Terra verifies actual recovery.
+Use affected script tests, actionlint and ShellCheck, retaining the accepted
+full source/native qualification without repeating it for this control repair.
+The parent integrates and dispatches recovery after delivery's source checks.

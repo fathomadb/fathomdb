@@ -36,7 +36,18 @@ pep440_normalize() {
 PIP_VERSION="$(pep440_normalize "$VERSION")"
 
 WORK="$(mktemp -d)"
-trap 'rm -rf "$WORK"' EXIT
+smoke_complete=0
+cleanup() {
+  local status=$? cleanup_status=0
+  trap - EXIT
+  rm -rf "$WORK" || cleanup_status=$?
+  # Bash 3 can enter EXIT with status 0 after a fatal nounset expansion.
+  if [ "$status" -eq 0 ]; then
+    if [ "$smoke_complete" -ne 1 ]; then status=1; else status=$cleanup_status; fi
+  fi
+  exit "$status"
+}
+trap cleanup EXIT
 
 python3 -m venv "$WORK/venv"
 # shellcheck source=/dev/null
@@ -50,7 +61,7 @@ pip install --quiet "fathomdb==${PIP_VERSION}"
 # merely on whether that file was found.
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 HOST_OS="$(uname -s)"
-checked_native=()
+set --
 if [ "$HOST_OS" = "Linux" ]; then
   NATIVE_BINARY="$(find "$WORK/venv" -type f -name '_fathomdb.abi3.so' -print -quit)"
   if [ -z "$NATIVE_BINARY" ]; then
@@ -60,15 +71,16 @@ if [ "$HOST_OS" = "Linux" ]; then
   # shellcheck source=/dev/null
   . "$REPO_ROOT/scripts/release/glibc-floor-contract.sh"
   bash "$REPO_ROOT/scripts/check-glibc-floor.sh" --floor "$GLIBC_FLOOR" "$NATIVE_BINARY"
-  checked_native=("$NATIVE_BINARY")
+  set -- "$NATIVE_BINARY"
 fi
 
 DB="$WORK/smoke.fdb"
 consumer="$REPO_ROOT/scripts/release/smoke/registry-python.py"
-"${WORK}/venv/bin/python" -I "$consumer" "$PIP_VERSION" "$DB" write "${checked_native[@]}"
-"${WORK}/venv/bin/python" -I "$consumer" "$PIP_VERSION" "$DB" reopen "${checked_native[@]}"
+"${WORK}/venv/bin/python" -I "$consumer" "$PIP_VERSION" "$DB" write "$@"
+"${WORK}/venv/bin/python" -I "$consumer" "$PIP_VERSION" "$DB" reopen "$@"
 
 env -u PYTHONPATH python3 "$REPO_ROOT/src/python/tests/smoke_slice55_installed.py"
 
+smoke_complete=1
 printf 'smoke-pypi-wheel: ok — fathomdb %s installed + Slice 55 native trace/explain/refusals + process exit clean\n' \
   "$VERSION"

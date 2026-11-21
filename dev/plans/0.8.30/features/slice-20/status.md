@@ -77,3 +77,45 @@ run was performed. Source/offline implementation is complete; the original
 full-run exit and later qualification limits remain as recorded above.
 Slice30 is next and remains uncommissioned. Raw evidence is preserved outside
 the implementation worktree before cleanup.
+
+## Slice 80 public-smoke control repair
+
+Baseline `e3d31f5cdc0df3e32dab9bad151c5ab5c321222c` and public annotated
+`v0.8.30` object `fbae0d3319fb31bb62360977fded676f2dea8557` are unchanged.
+Production `44929252460`, attempt 1, failed Linux PyPI and macOS ARM install
+resolution during propagation. Intel Python step 6 falsely reported success:
+its empty native-argument array aborted under Bash 3 before write/reopen, then
+successful EXIT cleanup returned 0. Its separate npm step 7 genuinely passed.
+The original failed and false-green outcomes remain evidence.
+
+RED `45be3abc854381b5bfdd5a03b5faeea33d572865` ran the actual smoke under
+Bash 3.2.57 and observed no consumer calls and exit 0 where 43/44 were required.
+The registry image digest was
+`sha256:2556c2da19c32c1614d318645c73a7bf64d38be21cf69e98e3ca51f053983719`,
+with network disabled and source mounted read-only. Portable positional native
+arguments and a completion-aware cleanup trap now pass that same regression.
+It covers write/reopen/trace, install failure, fatal nounset, and preservation
+of the original failure when cleanup also fails. Bash 5 also passes.
+
+Recovery RED `f2b8eee8b8a5086fcdbb6942a19b79d15560b4a6` demonstrated the
+missing bounded recovery gate. Review REDs `737008cfbfe9ab4a6872e1ce1da661c513e0d2e5` and `9b06e2d066b6ec5b8b6df918aaf2cc48e1ea25a3`
+additionally refused apparent green `.30` reruns, cleanup exit masking and
+promotion after cancellation. All six recovery fixture tests now pass. The
+actual read-only prerequisite verifier accepted the immutable tag and bound
+original production attempt. It does not dispatch or mutate registry state.
+
+Direct Astra-medium approved the design after one consolidated FIX binding
+attempt 1 and Intel npm step 7. Direct Sol6.2-high approved final source after
+the consolidated corrections. Existing npm promotion (4 tests), smoke-script,
+release workflow scope, release contract and runtime alignment checks pass.
+Affected Ruff, ShellCheck, actionlint, Markdown lint and diff checks pass;
+structural shell literals use the existing SC2016 exclusion. New regression
+suites are registered in the maintained fast runner. No duplicate full source,
+native or GPU qualification was run for this narrow control repair.
+
+The existing recovery workflow's selected `.30` mode requires fresh Linux and
+both macOS Python consumers plus macOS ARM npm before pinned OIDC promotion.
+The ordinary recovery path still requires all original successes for other
+versions; `.30` cannot use its known-broken tag consumers as proof. Parent
+integration and dispatch, actual recovered registry runtimes, final promotion
+and all five GitHub Release wheel assets remain Slice 80/Terra delivery gates.

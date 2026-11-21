@@ -119,7 +119,9 @@ Linux x64 and both macOS architectures, plus the unrun macOS ARM npm consumer,
 from the trusted workflow source with read-only permissions. Require every
 recovery matrix job to succeed before the existing pinned OIDC promotion and
 original-run GitHub Release attachment. The default all-original-green recovery
-route and normal release workflow retain their existing requirements. No
+route retains its all-original-success requirements for unaffected versions;
+`.30` must use corrected consumers even if a tag rerun appears all green. The
+normal release workflow retains its existing requirements. No
 build, publisher, GPU campaign, retag or version change belongs to this repair.
 
 Obtain direct Astra-medium design approval after at most one consolidated FIX,

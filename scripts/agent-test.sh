@@ -451,6 +451,8 @@ run_tier_suite fast test-smoke-scripts bash scripts/tests/test_smoke_scripts.sh
 # dist-tag). Pure python3+PyYAML parse; never runs the workflow.
 run_tier_suite fast test-release-workflow-scope bash scripts/tests/test_release_workflow_scope.sh
 run_tier_suite fast test-npm-promotion python3 scripts/tests/test_npm_promotion.py
+run_tier_suite fast test-public-smoke-recovery python3 scripts/tests/test_public_smoke_recovery.py
+run_tier_suite fast test-pypi-smoke-shell bash scripts/tests/test_pypi_smoke_shell.sh
 
 # Fast mutation coverage for the manifest-derived release-ready native matrix.
 # This standard-library checker guards matrix, package, smoke, and promotion

@@ -100,6 +100,12 @@ makes no between-sample excursion or fault-campaign cadence claim. Exact assets,
 commands, failed build setup attempts and outputs are under the owned
 `/tmp/fathomdb-0830-slice75-evidence/terra-cuda` directory.
 
+`run_cuda_rows.py --node26` runs the maintained installed N-API preflight worker
+with Node26.13.1 and the final full main package paired with the same-run shipping
+CUDA addon. It reuses the per-UUID lease and guard, checks the allocation report
+against the selected UUID and independently observed owned NVML PID, then closes.
+Run it only after the normal rehearsal jobs release GPU0; GPU1 is foreign.
+
 `run_orin_installed.py` invokes the maintained local-wheel and Tegra-package
 policy consumers under the existing Orin observed-peer/group/resource helpers,
 then the maintained package row/verdict on Node26.10.0. It binds final534

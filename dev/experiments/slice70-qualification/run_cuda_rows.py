@@ -3,7 +3,10 @@
 import ctypes, fcntl, hashlib, json, os, pathlib, shutil, signal, subprocess, sys, time
 
 root = pathlib.Path(__file__).resolve().parents[3]
-out = pathlib.Path("/tmp/fathomdb-0830-slice75-evidence/terra-cuda")
+node26 = sys.argv[1:] == ["--node26"]
+out = pathlib.Path("/tmp/fathomdb-0830-slice75-evidence/" + ("node26-shipping/gpu" if node26 else "terra-cuda"))
+if node26:
+    out.mkdir()
 cache = pathlib.Path("/tmp/fathomdb-0830-slice70-evidence/cache")
 uuid = "GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b"
 
@@ -274,20 +277,33 @@ if sys.argv[1:] == ["--build"]:
         run("build-sm75-" + str(i + 1), cmds[i] + ["--no-run"])
     print("builds finished", flush=True)
     sys.exit(0)
-if sys.argv[1:] != ["--gpu"]:
-    raise SystemExit("usage: runner.py --build|--gpu")
+if sys.argv[1:] not in (["--gpu"], ["--node26"]):
+    raise SystemExit("usage: runner.py --build|--gpu|--node26")
 sys.path.insert(0, str(root / "scripts/lib"))
 import feature_complete  # noqa: E402
 
-assets = feature_complete.stage_slice72_assets(
-    feature_complete.SLICE72_SUPPORT, cache, out / "assets"
-)
-(out / "receipts").mkdir(exist_ok=False)
-env.update(
-    FATHOMDB_SLICE72_RUNNER="approved-nvidia",
-    FATHOMDB_SLICE72_ASSET_ROOT=str(assets),
-    FATHOMDB_SLICE72_RECEIPT_DIR=str(out / "receipts"),
-)
+if not node26:
+    assets = feature_complete.stage_slice72_assets(
+        feature_complete.SLICE72_SUPPORT, cache, out / "assets"
+    )
+    (out / "receipts").mkdir(exist_ok=False)
+    env.update(
+        FATHOMDB_SLICE72_RUNNER="approved-nvidia",
+        FATHOMDB_SLICE72_ASSET_ROOT=str(assets),
+        FATHOMDB_SLICE72_RECEIPT_DIR=str(out / "receipts"),
+    )
+else:
+    consumer = out.parent / "consumer"
+    source = (root / "scripts/release/cuda-preflight.sh").read_text()
+    marker = "cat > \"$WORK_DIR/gpu-napi-smoke.mjs\" <<'JS'\n"
+    body = source.split(marker, 1)[1].split("\nJS\n", 1)[0]
+    body = body.replace("/fathomdb-tmp", str(out)).replace("/evidence", str(out))
+    probe = consumer / "gpu-napi-smoke.mjs"
+    probe.write_text(body + "\n")
+    env.update(HF_HOME=str(pathlib.Path.home() / ".cache/huggingface"),
+               FATHOMDB_EMBED_DEVICE="cuda:0", FATHOMDB_GPU_ALLOCATION_WITNESS="1",
+               LD_LIBRARY_PATH="/usr/local/cuda-12.6/lib64")
+    cmds = [["/tmp/fathomdb-0830-slice50-tools/node_modules/node-linux-x64/bin/node", str(probe)]]
 nv = ctypes.CDLL("libnvidia-ml.so.1")
 
 
@@ -375,10 +391,10 @@ with lock.open("rb") as lf:
         or v["cuda_primary"] != "/usr/local/cuda-12.6"
     ):
         raise RuntimeError("preflight failed " + repr(pre))
-    for i in range(2):
+    for i in range(len(cmds)):
         run(
             "row-" + str(i + 1),
-            cmds[i]
+            cmds[i] if node26 else cmds[i]
             + ["--", "--exact"]
             + selectors[i]
             + ["--nocapture", "--test-threads=1"],
@@ -387,11 +403,24 @@ with lock.open("rb") as lf:
         )
         log = (out / ("row-" + str(i + 1) + ".log")).read_text()
         if (
-            "2 passed; 0 failed" not in log
+            ("installed N-API CUDA artifact GPU smoke: ok" if node26 else "2 passed; 0 failed") not in log
             or "SKIP " in log
             or "PENDING_EXTERNAL" in log
         ):
             raise RuntimeError("nonpassing or skipped row " + str(i + 1))
+    if node26:
+        report = json.loads((out / "gpu-napi-open-report.json").read_text())
+        witness = report["allocation_witness"]
+        def normalize(value):
+            return value.removeprefix("GPU-").lower()
+        if (report["effective_device"] != "cuda:0"
+            or normalize(report["selected_uuid"]) != normalize(uuid)
+            or normalize(witness["device_uuid"]) != normalize(uuid)):
+            raise RuntimeError("Node26 selected device differs from leased GPU")
+        pid = witness["process_id"]
+        samples = [json.loads(line) for line in (out / "row-1.samples.jsonl").read_text().splitlines()]
+        if not any(pid in row["gpu_actors"] and str(pid) in row["group"] for row in samples):
+            raise RuntimeError("Node26 witness PID was not independently observed on leased GPU")
     post = {
         "resource": resource(),
         "gpu": gpu(),

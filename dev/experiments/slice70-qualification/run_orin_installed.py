@@ -152,34 +152,41 @@ def main():
     timeout.chmod(0o755)
     env["PATH"] = str(tools) + ":" + env["PATH"]
     consumer = BASE / "node26-consumer"
-    consumer.mkdir()
+    prepared = consumer.exists()
+    consumer.mkdir(exist_ok=True)
     packages = {
         "fathomdb": main,
         "fathomdb-linux-arm64-gnu-tegra": addon,
         "fathomdb-linux-arm64-gnu": generic,
     }
-    (consumer / "package.json").write_text(
-        json.dumps(
-            {
-                "private": True,
-                "type": "module",
-                "dependencies": {
-                    name: "file:" + str(path) for name, path in packages.items()
-                },
-            }
+    manifest = {
+        "private": True,
+        "type": "module",
+        "dependencies": {name: "file:" + str(path) for name, path in packages.items()},
+    }
+    if prepared:
+        if json.loads((consumer / "package.json").read_text()) != manifest:
+            raise RuntimeError("prepared consumer input changed")
+    else:
+        (consumer / "package.json").write_text(json.dumps(manifest))
+        subprocess.run(
+            [
+                "npm",
+                "install",
+                "--offline",
+                "--ignore-scripts",
+                "--no-audit",
+                "--no-fund",
+            ],
+            cwd=consumer,
+            env=env,
+            check=True,
+            timeout=120,
         )
-    )
-    subprocess.run(
-        ["npm", "install", "--offline", "--ignore-scripts", "--no-audit", "--no-fund"],
-        cwd=consumer,
-        env=env,
-        check=True,
-        timeout=120,
-    )
     shutil.copyfile(
         ROOT / "scripts/release/smoke/tegra_node_package_row.mjs", consumer / "row.mjs"
     )
-    (consumer / "databases").mkdir()
+    (consumer / "databases").mkdir(exist_ok=True)
     with tarfile.open(addon) as package:
         native_digest = hashlib.sha256(
             package.extractfile("package/fathomdb.linux-arm64-gnu.node").read()
@@ -189,7 +196,7 @@ def main():
         "tegra_node_sha256": native_digest,
     }
     guard.owned_root = BASE
-    (BASE / "runtime").mkdir()
+    (BASE / "runtime").mkdir(exist_ok=True)
     guard.output_root = BASE / "runtime"
     signal.signal(signal.SIGTERM, interrupted)
     signal.signal(signal.SIGINT, interrupted)
@@ -197,9 +204,18 @@ def main():
         if os.fstat(lease.fileno()).st_ino != 32899085:
             raise RuntimeError("Orin lease inode changed")
         fcntl.flock(lease, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        smi = next(
+            path
+            for path in (
+                "/usr/bin/nvidia-smi",
+                "/usr/sbin/nvidia-smi",
+                "/usr/local/bin/nvidia-smi",
+            )
+            if os.access(path, os.X_OK)
+        )
         actual = (
             subprocess.check_output(
-                ["/usr/bin/nvidia-smi", "--query-gpu=uuid", "--format=csv,noheader"],
+                [smi, "--query-gpu=uuid", "--format=csv,noheader"],
                 text=True,
                 timeout=5,
             )

@@ -29,6 +29,10 @@ def _interrupted(_signum, _frame):
     STOP_REQUESTED = True
 
 
+def owned_sample_rss(leader, birth, peers):
+    return guard.owned_rss(leader, birth, peers)
+
+
 def main():
     """Run the selected bridge; stop owned work before releasing its GPU lease."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -93,7 +97,7 @@ def main():
                         break
                     peers = guard.actors()
                     resource = guard.resource()
-                    total, identities = guard.owned_rss(process.pid, birth, peers)
+                    total, identities = owned_sample_rss(process.pid, birth, peers)
                     resource.update(elapsed=time.monotonic() - start, rss=total, gpu_owners=identities)
                     rows.write(json.dumps(resource) + "\n")
                     rows.flush()

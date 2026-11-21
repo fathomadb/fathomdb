@@ -120,7 +120,7 @@ class RecoveryWorkflowTests(unittest.TestCase):
     def test_workflow_requires_recovery_success_before_oidc(self):
         source = (ROOT / ".github/workflows/promote-npm-release.yml").read_text()
         for required in (
-            "recover_0830_public_smokes:", "verify-production:", "recover-public-smokes:",
+            "!cancelled()", "recover_0830_public_smokes:", "verify-production:", "recover-public-smokes:",
             "needs: [verify-production, recover-public-smokes]",
             "needs.verify-production.result == 'success'",
             "needs.recover-public-smokes.result == 'success'",

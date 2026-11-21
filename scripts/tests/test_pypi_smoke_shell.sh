@@ -47,7 +47,7 @@ for phase in none write reopen trace install nounset write-cleanup cleanup; do
   cleanup_exit=0
   fail_phase="$phase"
   case "$phase" in
-    write-cleanup) fail_phase=write; cleanup_exit=45;;
+    write-cleanup) fail_phase="write"; cleanup_exit=45;;
     cleanup) fail_phase=none; cleanup_exit=45;;
   esac
   if [ "$phase" = install ]; then install_exit=42; fi

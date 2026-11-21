@@ -62,19 +62,13 @@ export CUDA_MANYLINUX='2_28'
 # touching x86_64's. CUDA 7.5 is the lowest device in the restricted x86_64
 # runner group (the hosted T4); the self-hosted RTX 3090 is forward-compatible
 # with this build target. CUDA_COMPUTE_CAP_TEGRA_ORIN='87' matches the Jetson
-# Orin AGX's SM_87 — Tegra is NOT forward-compatible the way discrete GPUs
-# are, so unlike x86_64 this is a single pin, not a list (§ 7 80.4). Neither
-# value is consumed by a real build yet: x86_64's compiled kernels don't
-# depend on it (candle-flash-attn-v3, which reads it, isn't in this crate
-# graph), and Tegra's own host-native build script doesn't exist until
-# Slice 80.6.
+# Orin AGX's SM_87 — Tegra uses its own host-native producer and target.
+# The pinned cudaforge/Candle build consumes this explicit cap; leaving it
+# unset permits live-device detection instead of the declared artifact floor.
 export CUDA_COMPUTE_CAP_X86_64='75'
 export CUDA_COMPUTE_CAP_TEGRA_ORIN='87'
-# CUDA_COMPUTE_CAP is the literal env var name candle-flash-attn-v3's
-# build.rs (in the pinned Candle fork) reads — not ours to rename. It selects
-# the x86_64 value because that is the only target build-napi-cuda.sh and
-# cuda-preflight.sh build for today; Tegra's future host-native build script
-# will source CUDA_COMPUTE_CAP_TEGRA_ORIN directly instead.
+# The x86_64 producers source this default. The maintained Tegra wheel and
+# addon producers explicitly select CUDA_COMPUTE_CAP_TEGRA_ORIN instead.
 export CUDA_COMPUTE_CAP="$CUDA_COMPUTE_CAP_X86_64"
 export CUDA_NAPI_FEATURES='embed-cuda'
 export CUDA_PYTHON_FEATURES='pyo3/extension-module,embed-cuda'

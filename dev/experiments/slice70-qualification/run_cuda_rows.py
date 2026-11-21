@@ -3,8 +3,17 @@
 import ctypes, fcntl, hashlib, json, os, pathlib, shlex, shutil, signal, subprocess, sys, time
 
 root = pathlib.Path(__file__).resolve().parents[3]
-node26 = sys.argv[1:] == ["--node26"]
-out = pathlib.Path("/tmp/fathomdb-0830-slice75-evidence/" + ("node26-shipping/gpu" if node26 else "terra-cuda"))
+node26_v3 = sys.argv[1:] == ["--node26-v3"]
+node26 = sys.argv[1:] in (["--node26"], ["--node26-recovery"]) or node26_v3
+node26_recovery = sys.argv[1:] == ["--node26-recovery"] or node26_v3
+label = "terra-cuda"
+if node26:
+    label = "node26-shipping/gpu"
+if node26_recovery:
+    label = "node26-shipping/gpu-recovery-" + str(time.time_ns())
+if node26_v3:
+    label = "node26-shipping-v3/gpu-" + str(time.time_ns())
+out = pathlib.Path("/tmp/fathomdb-0830-slice75-evidence/" + label)
 if node26:
     out.mkdir()
 cache = pathlib.Path("/tmp/fathomdb-0830-slice70-evidence/cache")
@@ -150,7 +159,7 @@ def resource(start=False):
         "swap_free": m["SwapFree"],
         "swap_total": m["SwapTotal"],
         "disk_free": disk,
-        "ok": m["MemAvailable"] >= (40 if start else 24) * 2**30
+        "ok": m["MemAvailable"] >= ((8 if start else 6) if node26 else (40 if start else 24)) * 2**30
         and disk >= (32 if start else 16) * 2**30,
     }
 
@@ -208,7 +217,7 @@ def run(name, cmd, gpu=None, deadline=None):
                         reason = "shared venue 30 minutes"
                 if stop_requested:
                     reason = "requested termination"
-                if not sample["ok"] or rss > 16 * 2**30:
+                if not sample["ok"] or rss > (2 if node26 else 16) * 2**30:
                     reason = "host resource floor or owned RSS ceiling"
                 samples.write(json.dumps(sample) + "\n")
                 samples.flush()
@@ -277,8 +286,8 @@ if sys.argv[1:] == ["--build"]:
         run("build-sm75-" + str(i + 1), cmds[i] + ["--no-run"])
     print("builds finished", flush=True)
     sys.exit(0)
-if sys.argv[1:] not in (["--gpu"], ["--node26"]):
-    raise SystemExit("usage: runner.py --build|--gpu|--node26")
+if sys.argv[1:] not in (["--gpu"], ["--node26"], ["--node26-recovery"], ["--node26-v3"]):
+    raise SystemExit("usage: runner.py --build|--gpu|--node26|--node26-recovery|--node26-v3")
 sys.path.insert(0, str(root / "scripts/lib"))
 import feature_complete  # noqa: E402
 
@@ -298,6 +307,26 @@ else:
     marker = "cat > \"$WORK_DIR/gpu-napi-smoke.mjs\" <<'JS'\n"
     body = source.split(marker, 1)[1].split("\nJS\n", 1)[0]
     body = body.replace("/fathomdb-tmp", str(out)).replace("/evidence", str(out))
+    hold = "await new Promise((resolve) => setTimeout(resolve, 20_000));"
+    if body.count(hold) != 1:
+        raise RuntimeError("maintained CUDA observer hold changed")
+    body = body.replace(hold, "await new Promise((resolve) => setTimeout(resolve, 2_000));")
+    if node26_v3:
+        inference = """await engine.write([
+  {kind: "doc", body: "cuda package rerank smoke one", sourceId: "cuda-package-gpu"},
+  {kind: "doc", body: "cuda package rerank smoke two", sourceId: "cuda-package-gpu"},
+]);
+const result = await engine.search("cuda package rerank smoke", undefined, 2, undefined, undefined, undefined, undefined, {limit: 2});
+if (result.results.length !== 2 || !result.results.every(row => typeof row.ceScore === "number" && Number.isFinite(row.ceScore))) throw new Error("rerank model forward missing");
+const reranker = engine.openReport().rerankerDeviceResolution;
+if (reranker?.effectiveDevice.kind !== "cuda") throw new Error("expected CUDA reranker selection");
+fs.writeFileSync("RERANK_RESULT_PATH", JSON.stringify({pid: process.pid, result_count: result.results.length, ce_scores: result.results.map(row => row.ceScore), resolution: reranker}) + "\\n");
+""".replace("RERANK_RESULT_PATH", str(out / "gpu-napi-rerank-result.json"))
+        marker = 'console.log("installed N-API CUDA artifact GPU smoke: ok");'
+        if body.count(marker) != 1:
+            raise RuntimeError("maintained CUDA inference insertion marker changed")
+        body = body.replace(marker, inference + marker)
+        env.update(FATHOMDB_RERANK_DEVICE="cuda:0", FATHOMDB_RERANKER_CACHE=str(cache))
     probe = consumer / "gpu-napi-smoke.mjs"
     probe.write_text(body + "\n")
     env.update(HF_HOME=str(pathlib.Path.home() / ".cache/huggingface"),
@@ -308,6 +337,8 @@ else:
     rerank_cli = cli_root / "cuda-rerank-rehearsal/independent/fathomdb"
     cli_commands = [shlex.join([str(base_cli), "doctor", "gpu", "--json"]),
                     shlex.join([str(rerank_cli), "doctor", "reranker-gpu", "--json"])]
+    if node26_recovery:
+        cli_commands = []
     node_command = shlex.join(["/tmp/fathomdb-0830-slice50-tools/node_modules/node-linux-x64/bin/node", str(probe)])
     cmds = [["bash", "-ceu", "; ".join(cli_commands + ["exec " + node_command])]]
 nv = ctypes.CDLL("libnvidia-ml.so.1")
@@ -424,6 +455,11 @@ with lock.open("rb") as lf:
             or normalize(witness["device_uuid"]) != normalize(uuid)):
             raise RuntimeError("Node26 selected device differs from leased GPU")
         pid = witness["process_id"]
+        if node26_v3:
+            rerank = json.loads((out / "gpu-napi-rerank-result.json").read_text())
+            if (rerank["pid"] != pid or rerank["result_count"] != 2
+                or normalize(rerank["resolution"]["selectedCudaUuid"]) != normalize(uuid)):
+                raise RuntimeError("shipping v3 reranker report differs from owned GPU forward")
         samples = [json.loads(line) for line in (out / "row-1.samples.jsonl").read_text().splitlines()]
         if not any(pid in row["gpu_actors"] and str(pid) in row["group"] for row in samples):
             raise RuntimeError("Node26 witness PID was not independently observed on leased GPU")

@@ -104,6 +104,12 @@ commands, failed build setup attempts and outputs are under the owned
 with Node26.13.1 and the final full main package paired with the same-run shipping
 CUDA addon. It reuses the per-UUID lease and guard, checks the allocation report
 against the selected UUID and independently observed owned NVML PID, then closes.
+The scoped Node observer holds for2seconds after inference; source selections
+retain their original controls. `--node26-recovery` reuses completed CLI doctors
+and preserves failed attempts in fresh output directories. `--node26-v3` checks
+the actual canonical shipping embed+rerank addon using the maintained two-document
+CE oracle, finite scores and explicit CUDA reranker selection. Node-only bounds
+are8/6GiB host admission/stop and2GiB ownedRSS; source bounds remain unchanged.
 Run it only after the normal rehearsal jobs release GPU0; GPU1 is foreign.
 
 `run_orin_installed.py` invokes the maintained local-wheel and Tegra-package

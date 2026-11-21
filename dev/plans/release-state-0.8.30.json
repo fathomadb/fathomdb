@@ -1,6 +1,6 @@
 {
   "release": "0.8.30",
-  "release_kind": "10/20/30/40/55 complete;50 partially implemented;60 activated underseq-409",
+  "release_kind": "10/20/30/40/55/60 complete;50 resumed underseq-409",
   "board": "dev/plans/runs/STATUS-0.8.30.md",
   "plan": "dev/plans/0.8.30/plan.md",
   "master": "dev/plans/0.8.30/plan.md",
@@ -217,7 +217,7 @@
         40,
         60
       ],
-      "status": "PARTIALLY_IMPLEMENTED",
+      "status": "IN_PROGRESS",
       "design_refs": [
         "dev/plans/0.8.30/features/slice-50/plan.md"
       ],
@@ -225,7 +225,7 @@
       "commission_source": "seq-408",
       "sequence_source": "seq-409",
       "partial_sha": "daf12b6d9839816fab4cd7c72c81e2f10918bf0f",
-      "evidence": "dev/plans/0.8.30/features/slice-50/status.md; runtime/logging portion reviewed and integrated. Default Node pool comparison and conditional B30-01 remain open. Resume after60;50 is not closed."
+      "evidence": "dev/plans/0.8.30/features/slice-50/status.md; unchanged runtime/logging portion retained. Resume default Node pool comparison and B30-01 after qualified60 integration underseq-409; Orin use authorizedseq-412."
     },
     {
       "slice": 55,
@@ -252,11 +252,13 @@
         10,
         55
       ],
-      "status": "IN_PROGRESS",
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
       "design_refs": [
         "dev/plans/0.8.30/features/slice-60/plan.md"
       ],
-      "commission_source": "seq-409"
+      "commission_source": "seq-409",
+      "sha": "3f738dcf38358dc9e111a28db13e093cd35225a3",
+      "evidence": "dev/plans/0.8.30/features/slice-60/status.md; reviewed exact pins, strict source gate, both native fault/recovery sets, OOM and installed consumers, and authorized public fork delivery verified. PTX default retained; future50/75 proof remains separate."
     },
     {
       "slice": 70,
@@ -303,9 +305,8 @@
     }
   ],
   "landed": [],
-  "next_slice": 60,
+  "next_slice": 50,
   "remaining_ladder": [
-    60,
     50,
     70,
     75,
@@ -462,7 +463,7 @@
         "all-doctor outcomes/effects and actual integrity findings",
         "thin behavioral SDK/MCP parity and oracle sensitivity"
       ],
-      "scope": "Seq-406 CPU/test additions implemented and verified in55 underseq-409.50 runtime portion verified but remaining GPU/model-release work open;60 now active.70 joins final source/long/feature proof and75 installed hardware/platform/cache applicability. No broad fuzz/power-loss/universal doctor claim.",
+      "scope": "Seq-406 CPU/test additions implemented and verified in55.60 exact-pin/native/public-fork qualification complete;50 runtime/logging portion retained and remaining work resumed.70 joins final source/long/feature proof;75 qualifies final installed platforms/artifacts. No broad fuzz/power-loss/universal doctor claim.",
       "runtime_owner": 50,
       "artifact_qualification_owner": 75,
       "execution_record": "dev/plans/0.8.30/features/slice-55/status.md"
@@ -520,10 +521,10 @@
         "scope": "Annotation-only recovery passed Python/TS typecheck, installed logging10/10, strict security with0violations/blockers/downgrades, and tests. Original wrapper exit retained; no broad replay or uninterrupted pass claim."
       },
       "open": [
-        "default Node private-pool ON/OFF with actual current Orin venue authority",
-        "B30-01 implementation and verification after60 exact-pin safe-drop proof"
+        "default Node private-pool ON/OFF on actual Orin; standing venue use authorizedseq-412",
+        "B30-01 module-release implementation and fresh affected API verification using qualified60 pins"
       ],
-      "completion": "Not complete. Ownerseq-409 runs55 then60 before completing remaining50; evidence retained outside old checkout."
+      "completion": "Resumed underseq-409 after60 integration; not complete. Reuse unchanged partial runtime/logging proof; remaining model-cache/API and default Node work stays50."
     },
     "slice55": {
       "status": "SOURCE_AND_CPU_SCOPES_VERIFIED_WITH_RECORDED_LIMITS",
@@ -548,12 +549,36 @@
       "reviews": "Astra plan/design PASS after oneFIX-1 and final refinement PASS; Sol final code PASS; Terra independent runtime/native PASS; parent Codex critical-control review PASS before integration.",
       "scope": "All six selected fixture/property/doctor/boundary CPU rows and maintained fault/temporal/graph/index controls executed. Proptest input smoke is not coverage-guided fuzzing; branch map manual, no measured percentage. No production contract change.",
       "limits": "Declared private live controls3 skipped. Long/hardware/successful cache/network/final artifact proof stays70/75; actual CUDA/safe-drop belongs60 and remaining50. Process kill is not power-loss recovery; no new live fault or publication."
+    },
+    "slice60": {
+      "status": "SOURCE_NATIVE_AND_PUBLIC_FORK_DELIVERY_VERIFIED_WITH_RECORDED_LIMITS",
+      "record": "dev/plans/0.8.30/features/slice-60/status.md",
+      "implementation_sha": "3f738dcf38358dc9e111a28db13e093cd35225a3",
+      "source_subject": "f020b84af7b89df4588b69b4f7e558aafeae2f89",
+      "full_gate": {
+        "exit": 0,
+        "elapsed_seconds": 4263.969,
+        "registered": 241,
+        "ran": 238,
+        "passed": 238,
+        "failed": 0,
+        "skipped": 3,
+        "excluded": 0
+      },
+      "fork_pins": {
+        "cudarc": "3509cd6bd83b44204be1880e833474ab0f75e060",
+        "candle_and_kernels": "952edb7dcd1e29563acedd485a3c1ce8ef07a85c"
+      },
+      "native": "Each3090/Orin venue passed7 process-primary faults and7 immediate fresh recoveries. Both ordinary OOM controls passed; original3090 resource-bound failure and clone monitor failure retained. All owned children ended and leases freed before the3090 deadline.",
+      "public_delivery": "Seq-413 five fork uploads, actual public archives/checksums and independent public consumer verified. Cudarc/kernel match staged bytes; other three differ only generated Cargo.lock. Source/manifests and200 dependency versions/edges preserved. No GPU/full gate replay.",
+      "reviews": "Astra plan/design PASS afterFIX-1; Sol source PASS; Terra native/runtime PASS; parent Codex source/closure PASS.",
+      "limits": "PTX0 default retained after inconclusive Orin native-adoption protocol. Orin peer inventory observed-only; total GPU bytes unavailable. Existing0.8.29 development artifacts do not qualify new50 APIs or final75 shipping artifacts. Product0.8.30 publication remains separately held."
     }
   },
   "release_readiness": {
     "status": "NOT_READY",
     "publication_authorized": false,
-    "scope": "10/20/30/40/55 complete on local release branch;50 partial runtime/logging integrated.60 activated underseq-409 after55 reviews and strict-source verification. Then finish50, qualify70/75, and separately authorize80 publication. Inherited hints and final pins/source/platform/artifacts remain open."
+    "scope": "10/20/30/40/55/60 complete on the local release branch;50 resumed for default Node resources and B30-01. Then70/75 source/platform qualification and separately authorized80 publication. Inherited hints and final shipping/source applicability remain open."
   },
   "generated_views": [
     {
@@ -629,6 +654,6 @@
       75,
       80
     ],
-    "next_transition": "Complete60 with the full template and qualified exact-pin safe-drop proof; then finish50 underseq-409 without replaying unaffected passing work.70/75 qualification follow;80 exact-candidate publication remains separately authorized."
+    "next_transition": "Finish50 underseq-409 with the qualified60 safe-drop pins and standingOrin authorityseq-412; reuse unaffected passing work. Then70/75 qualification and separately authorized80 exact-candidate publication."
   }
 }

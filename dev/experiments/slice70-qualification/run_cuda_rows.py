@@ -1,6 +1,6 @@
 """Run only the two remaining current-pin CUDA source selections under the owned lease."""
 
-import ctypes, fcntl, hashlib, json, os, pathlib, shutil, signal, subprocess, sys, time
+import ctypes, fcntl, hashlib, json, os, pathlib, shlex, shutil, signal, subprocess, sys, time
 
 root = pathlib.Path(__file__).resolve().parents[3]
 node26 = sys.argv[1:] == ["--node26"]
@@ -303,7 +303,13 @@ else:
     env.update(HF_HOME=str(pathlib.Path.home() / ".cache/huggingface"),
                FATHOMDB_EMBED_DEVICE="cuda:0", FATHOMDB_GPU_ALLOCATION_WITNESS="1",
                LD_LIBRARY_PATH="/usr/local/cuda-12.6/lib64")
-    cmds = [["/tmp/fathomdb-0830-slice50-tools/node_modules/node-linux-x64/bin/node", str(probe)]]
+    cli_root = out.parents[1]
+    base_cli = cli_root / "cuda-base-rehearsal/independent/fathomdb"
+    rerank_cli = cli_root / "cuda-rerank-rehearsal/independent/fathomdb"
+    cli_commands = [shlex.join([str(base_cli), "doctor", "gpu", "--json"]),
+                    shlex.join([str(rerank_cli), "doctor", "reranker-gpu", "--json"])]
+    node_command = shlex.join(["/tmp/fathomdb-0830-slice50-tools/node_modules/node-linux-x64/bin/node", str(probe)])
+    cmds = [["bash", "-ceu", "; ".join(cli_commands + ["exec " + node_command])]]
 nv = ctypes.CDLL("libnvidia-ml.so.1")
 
 

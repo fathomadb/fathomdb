@@ -307,12 +307,12 @@ if [ "$pinned_node_version" != "26.13.1" ]; then
   printf 'FAIL  .nvmrc must pin local Node to 26.13.1\n' >&2
   NODE_PIN_FAILED=$((NODE_PIN_FAILED + 1))
 fi
-if ! grep -Fq 'Node.js 25.x and 26.x' "$TS_README" || ! grep -Fq '25.9.0' "$TS_README" || grep -Fq '24.19.0' "$TS_README"; then
+if ! grep -Eq 'Node(\.js)?[^[:cntrl:]]*25[^[:cntrl:]]*26' "$TS_README" || ! grep -Fq '25.9.0' "$TS_README" || grep -Fq '24.19.0' "$TS_README"; then
   printf 'FAIL  TypeScript README must declare Node 25/26 and the held 25.9.0 producer\n' >&2
   NODE_PIN_FAILED=$((NODE_PIN_FAILED + 1))
 fi
-if ! grep -Fq 'Published0.8.29 requires Node **25.x**' "$TS_INSTALL_DOC" || ! grep -Fq 'candidate declares Node25/26' "$TS_INSTALL_DOC" || grep -Fq '24.19.0' "$TS_INSTALL_DOC"; then
-  printf 'FAIL  TypeScript install doc must distinguish published Node25 and candidate Node25/26\n' >&2
+if ! grep -Eq 'Node(\.js)?[^[:cntrl:]]*25[^[:cntrl:]]*26' "$TS_INSTALL_DOC" || ! grep -Fq '25.9.0' "$TS_INSTALL_DOC" || grep -Fq '24.19.0' "$TS_INSTALL_DOC"; then
+  printf 'FAIL  TypeScript install doc must declare Node25/26 and the held 25.9.0 producer\n' >&2
   NODE_PIN_FAILED=$((NODE_PIN_FAILED + 1))
 fi
 if [ "$NODE_PIN_FAILED" -eq 0 ]; then

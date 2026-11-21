@@ -66,6 +66,11 @@ database candidate**.
   API references + package-local agent-consumable documentation (carrying
   forward the documentation half of
   [03-fathomdb-agent-storage-proposal.md](../../notes/agent-storage-sdk/03-fathomdb-agent-storage-proposal.md)).
+  Explicitly document `ingest_with_extractor` as legacy/non-provenanced and
+  guide governed agents to `Engine.actuate` + `WriteProvenanceV1` (Memex E3),
+  and verify full coverage of `fathomdb-cli` PyPI installation, PyPI CUDA/CE
+  wheel support, `use_graph_arm` seeding modes, and mixed-`source_id` batch
+  atomicity.
 - **MCP (`docs/mcp/`)**: first-class public documentation (currently absent
   from `docs/`) covering setup for Claude Desktop, Cursor, Memex, Hermes, and
   OpenClaw; configuration schema; every tool and error code; scoping/security;

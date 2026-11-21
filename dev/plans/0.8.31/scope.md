@@ -21,19 +21,38 @@ repository and release cycle.
 ### 1. First-class property graph (nodes and edges; no GQL)
 
 - **Typed properties on nodes and edges (`SCHEMA_VERSION` bump `37 -> 38+`)**:
-  - Support arbitrary key-value typed properties (string, integer, float,
-    boolean) on both `canonical_nodes` and `canonical_edges`, with full SDK
-    parity across Rust (`fathomdb-sdk`), Python, and TypeScript.
+  - Store arbitrary key-value typed properties (string, integer, float,
+    boolean) **outside `canonical_nodes.body` and `canonical_edges.body`** so
+    `body` remains clean plain text for FTS5 and 512-wordpiece embedding
+    without envelope JSON keys, UUIDs, or hashes polluting retrieval.
+  - Make typed node properties **filterable in `SearchFilter` / `Filter`** as
+    well as `graph.expand`, and readable on `SearchHit` and resolved evidence,
+    with full SDK parity across Rust (`fathomdb-sdk`), Python, and TypeScript.
+    *(This eliminates the need for Memex ask R2 / projected-text indexing on
+    the hybrid route.)*
   - Keep property updates strictly **immutable/revisioned** (new `write_cursor`,
     new `_fathomdb_artifact_revisions` entry, superseding the prior version) —
     never in-place mutation.
-- **Typed edge and target property predicates in traversal**:
+- **App-declared vector-committable kinds (Memex R1)**:
+  - Lift the hardcoded 7-kind dense node allowlist (`email`, `article`, `paper`,
+    `meeting`, `note`, `todo`, `doc`) so applications (such as Memex `mms1:*`,
+    Hermes, OpenClaw, and domain apps) can declare their own vector-indexed
+    node kinds without overloading `note`.
+- **Typed edge/target predicates, opt-in fused-hit graph seeding, and seed provenance**:
   - Extend `GraphExpandRequestV1` to accept closed, validated typed predicates
     on **edges and target nodes** (e.g., `test_method = "bench"`,
     `confidence > 0.9`) reusing/extending `FilterTerm`/`Predicate` safely (no
     raw SQL or open query DSL).
   - Return edge properties on `GraphOriginV1` / `GraphTargetV1` and prove that
     ineligible edges cannot enter a traversal path or displace eligible results.
+  - Add an **opt-in fused-hit seeding mode** (`graph_seed="fused_top_k" |
+    "graph_fts" | "both"`, `graph_seed_k`) and **per-hit seed provenance + hop
+    depth** in explanation and evidence (Memex Graph Asks 2 & 3), allowing
+    dense/reranked hits and body-less property-graph edges to drive graph
+    expansion while keeping default `use_graph_arm=False` zero-cost.
+  - Add edge-kind/edge-property filtering on `use_graph_arm` and fix the
+    mixed-edge `SEED_FTS_N` slot caveat so edges touching ineligible nodes
+    cannot displace eligible seed slots (Memex Graph Ask 5).
 
 ### 2. Historical graph reconstruction (External Reviewer P2 — largest functional gap)
 
@@ -52,24 +71,47 @@ repository and release cycle.
   partial state after reopen, while retaining explicit loose/bulk import when
   requested.
 
-### 4. Production agent interface and access boundaries (External Reviewer P1)
+### 4. Production agent interface, SDK ergonomics, and access boundaries (External Reviewer P1 + Memex 0.6.2 asks)
 
 - **Engine-enforced caller scope / isolation**:
   - Define and enforce a first-class caller/namespace scope boundary across
-    `search`, `fetch`, `expand`, frozen read contexts, continuations, and
-    governed writes.
+    `search` (including `use_graph_arm`), `fetch`, `expand`, frozen read
+    contexts, continuations, and governed writes (Memex Graph Ask 6).
   - Prove with overlapping multi-caller fixtures that restricted records remain
     inaccessible across every route, including stale references/cursors after
     grant revocation, and that unauthorized/stale writes leave state unchanged
     while lost responses retry idempotently.
-- **Graduate `fathomdb-mcp` from evaluation build**:
+- **SDK evidence, hints, capability, and op-store parity (Memex Asks 1, 2, 4, R12)**:
+  - Add bounded batch **`resolve_evidence_many`** under one frozen context with
+    per-ref typed refusals (`get_many` partial-result style) to eliminate N
+    round trips and N frozen-context validations per search.
+  - Expose engine **search hints** (`no_results`, `degraded`, `more_results`)
+    across Python, TypeScript, and Rust on `search`, `search_frozen`, and
+    `EvidenceSearchRequestV1`.
+  - Add explicit capability booleans on **`OpenReport`** (`reranker_compiled`,
+    `cuda_compiled`, `rerank_available`).
+  - Add SDK **readback of operational-collection kinds** and explicit mismatch
+    behavior on re-registration.
+- **Graduate `fathomdb-mcp` and ship lockstep `fathomdb-cli` PyPI wheels (Memex R10)**:
   - Expose a bounded **exact frozen-evidence search-and-resolve workflow**
     (exact bytes, revision identity, typed drift/erasure/truncation outcomes)
     aligned with a corresponding SDK-hosted helper workflow.
   - Enforce caller scope across all MCP tools and continuations.
   - Package and publish `fathomdb-mcp` binaries in the release workflow.
+  - Publish a lockstep **`fathomdb-cli` PyPI binary wheel** (Maturin
+    `bindings = "bin"`, optionally exposed via `fathomdb[cli]`) so Python-only
+    consumers (`pip install` / `uv tool install`) get exact-version `fathomdb
+    doctor`, `recompute-mean`, `recover`, and later `0.8.33`'s `migrate`
+    without needing a Rust toolchain, while preserving the SDK-vs-CLI operator
+    boundary.
   - *(Open HITL decision: whether governed/idempotent writes & checkpoints enter
     MCP in `0.8.31` or remain SDK-only.)*
+- **Targeted contract doc fixes (Memex Graph Ask 1, Ask 4, Ask 5)**:
+  - Fix stale `use_graph_arm` description in `docs/reference/python-api.md`,
+    document PyPI wheel CUDA + cross-encoder reranker coverage in
+    `docs/install/python.md`, and document mixed-`source_id`
+    `Engine.write(batch)` single-transaction atomicity and zero-row rollback on
+    `WriteValidationError`.
 
 ### 5. Operational durability and existing `0.8.31` quality backlog
 
@@ -97,6 +139,12 @@ repository and release cycle.
     revocation and physical erasure stay distinct semantics.
   - Every new feature slice ships RED→GREEN `purge` and `erase_source` tests
     asserting zero rows, zero WAL/file remnants, and valid closure proofs.
+  - **Targeted W12 erasure defect/ergonomics fixes (Memex Ask 3)**:
+    distinguish a completing-retry `EraseReport` from already-erased, make BUSY
+    checkpoint error text accurate (do not unconditionally blame a caller
+    reader), and verify in Slice 0 whether checkpoint-only owed-closure
+    write-fencing on unrelated writers can be narrowed without weakening
+    closure durability.
 - **Metadata management integrity**:
   - Add every new canonical, property, and scope table to the **read-visibility
     generation and coalescing trigger manifest** (`fathomdb-schema` step 37+
@@ -144,6 +192,13 @@ repository and release cycle.
   [0.8.32](../0.8.32/scope.md).
 - Publishable competitive benchmark campaigns — scheduled in
   [0.8.34](../0.8.34/scope.md).
+- **Not needed / superseded (Memex R2)**: projected-text indexing on the hybrid
+  route is unnecessary once `0.8.31` stores typed node properties outside
+  `canonical_nodes.body` and allows plain-text bodies with filtered properties.
+- **Deferred (Memex E3)**: upgrading `ingest_with_extractor` to full
+  `WriteProvenanceV1` / caller scope / multi-source dependencies is deferred
+  (post-`0.8.33` / `0.9.0`); `0.8.32` will document it as legacy-only and steer
+  consumers to `Engine.actuate`.
 - **Recommended deferral (HITL needed)**: defer
   [cuda-delivery-plan.md](cuda-delivery-plan.md) (CUDA 13 + Tegra CUDA 13) out
   of `0.8.31` so `0.8.31` stays focused on property graph, production readiness,

@@ -28,8 +28,11 @@ FathomDB cleanly as their primary database.
     forbidden ad-hoc rewrite-era shims from tested, versioned forward
     migrations.
 - **Migration execution path (`37 -> 38+ -> current` and `38+ -> current`)**:
-  - Provide an explicit CLI verb (`fathomdb migrate <db>`) — and evaluate an
-    opt-in SDK/open upgrade path — that:
+  - Provide an explicit CLI verb (`fathomdb migrate <db>`) — distributed
+    directly via the lockstep `fathomdb-cli` PyPI binary wheel established in
+    `0.8.31` so Python-only agent installs (`pip install` / `uv tool install`)
+    upgrade with zero Rust toolchain — and evaluate an opt-in SDK/open upgrade
+    path that:
     1. Refuses active locks or corrupt inputs cleanly before touching the store.
     2. Creates a verified pre-migration backup (or requires explicit caller
        confirmation of an external backup).
@@ -68,7 +71,10 @@ FathomDB cleanly as their primary database.
   - Documented and tested single-writer / multi-reader coordination patterns
     (agent SDK writer + MCP reader + Inspector inspection).
   - Portable local backup/export and live upgrade path verified on a real
-    `0.8.30` Memex database upgraded directly to `0.8.33`.
+    `0.8.30` Memex database upgraded directly to `0.8.33` (including Memex's
+    transition from its `0.8.30` JSON-envelope `body` workaround to clean
+    plain-text `body` + outside-`body` typed node properties + caller scope +
+    `actuate`).
 
 ## Out of scope
 

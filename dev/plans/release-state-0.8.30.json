@@ -1,6 +1,6 @@
 {
   "release": "0.8.30",
-  "release_kind": "10/20/30/40/50/55/60/70 complete;75 final artifact qualification",
+  "release_kind": "Source and artifact qualification complete; normal 0.8.30 delivery authorized",
   "board": "dev/plans/runs/STATUS-0.8.30.md",
   "plan": "dev/plans/0.8.30/plan.md",
   "master": "dev/plans/0.8.30/plan.md",
@@ -291,31 +291,32 @@
       "depends_on": [
         70
       ],
-      "status": "IN_PROGRESS",
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
       "scope_source": "seq-407",
       "design_refs": [
         "dev/plans/0.8.30/features/slice-75/plan.md"
       ],
       "commission_source": "seq-414",
-      "evidence": "Whole75 platform/artifact preparation commissioned. Shared execution may supply the two open70 CUDA rows without transferring acceptance or repeating tests.70 closure and75 final readiness still require their actual proof."
+      "sha": "cd3a6caaa61fca8625f7468f4dae8341b958a241",
+      "evidence": "dev/plans/0.8.30/features/slice-75/status.md; five native targets, Windows WAL/path, hosted cancellation, source archive, renderer, shipping-v3 CUDA and Orin installed consumers qualified. Node26 shipping-v3 embed/rerank/close passed; original CI failures, heavy timeout and scoped reuse retained. Parent Codex and direct Astra/Sol/Terra reviews passed; publication/public consumers remain80."
     },
     {
       "slice": 80,
       "short": "DELIVERY",
-      "title": "Separately authorized publishing and public consumers",
+      "title": "Authorized publication and public consumers",
       "depends_on": [
         75
       ],
-      "status": "PROPOSED_NOT_COMMISSIONED",
+      "status": "IN_PROGRESS",
+      "commission_source": "seq-414",
       "design_refs": [
         "dev/plans/0.8.30/features/slice-80/plan.md"
       ]
     }
   ],
   "landed": [],
-  "next_slice": 75,
+  "next_slice": 80,
   "remaining_ladder": [
-    75,
     80
   ],
   "decisions": {
@@ -424,10 +425,10 @@
     "unruled": []
   },
   "acceptance": {
-    "status": "NOT_EVALUATED",
+    "status": "QUALIFIED_FOR_NORMAL_DELIVERY_WITH_RECORDED_LIMITS",
     "record": "dev/plans/0.8.30/plan.md",
     "preparation_acceptance": {
-      "status": "IMPLEMENTED_WITH_OPEN_QUALIFICATION",
+      "status": "COMPLETE_WITH_RECORDED_LIMITS",
       "criteria": [
         "PREP-ENV",
         "PREP-SEC",
@@ -439,7 +440,7 @@
       ],
       "record": "dev/plans/0.8.30/features/slice-10/status.md",
       "verification": "dev/plans/0.8.30/features/slice-10/verification.json",
-      "scope": "Approved local preparation implemented; original full gate FAIL and focused recovery/diagnostics retained. Slice20 resolved the inherited tooling holds; remaining hints/logging/source/platform-renderer qualification belongs to40/50/70/75. No waiver or release-readiness claim."
+      "scope": "Approved preparation and its allocated20/40/50/70/75 qualification are complete. Original full gate failures and scoped recoveries remain recorded. Public delivery belongs to80; no uninterrupted full-gate or universal platform claim."
     },
     "slice20": {
       "status": "SOURCE_AND_OFFLINE_VERIFIED_WITH_RECORDED_LIMITS",
@@ -478,7 +479,7 @@
       "limits": "Original S50 historical cause remains unresolved; precise occurrence labels and identical-membership invocation attribution remain owner choices; empty-span trace/write policy discrepancy recorded. Prior hints/logging holds and integrated qualification remain with their assigned slices."
     },
     "coverage_plan": {
-      "status": "IMPLEMENTED_CPU_SCOPED_VERIFIED_FINAL_QUALIFICATION_OPEN",
+      "status": "SOURCE_CPU_AND_SELECTED_PLATFORM_SCOPES_VERIFIED",
       "record": "dev/plans/0.8.30/coverage-audit.md",
       "implementation_owner": 55,
       "qualification_owner": 70,
@@ -489,7 +490,7 @@
         "all-doctor outcomes/effects and actual integrity findings",
         "thin behavioral SDK/MCP parity and oracle sensitivity"
       ],
-      "scope": "Seq-406 CPU/test additions verified in55;60 exact-pin/native/public-fork qualification and50 runtime/model/resource work complete.70 joins final source/long/feature proof;75 qualifies final installed platforms/artifacts. No broad fuzz, power-loss or universal doctor claim.",
+      "scope": "Seq-406 CPU/test additions verified in55;60 exact-pin/native/public-fork qualification and50 runtime/model/resource work complete.70 source/long/feature and75 selected installed platform/artifact qualification complete. No broad fuzz, power-loss or universal doctor claim; public delivery remains80.",
       "runtime_owner": 50,
       "artifact_qualification_owner": 75,
       "execution_record": "dev/plans/0.8.30/features/slice-55/status.md"
@@ -650,6 +651,17 @@
         "raw": "/tmp/fathomdb-0830-slice75-evidence/terra-cuda"
       }
     },
+    "slice75": {
+      "status": "COMPLETE_WITH_RECORDED_LIMITS",
+      "record": "dev/plans/0.8.30/features/slice-75/status.md",
+      "completion_sha": "cd3a6caaa61fca8625f7468f4dae8341b958a241",
+      "runtime_source_sha": "53400f69d29cbc5029f0c759d58a5edb1f76e874",
+      "reviews": "Astra-medium whole plan/design PASS after FIX1; Sol source/control PASS; Terra actual execution/member/identity verification PASS; parent Codex coherent implementation and closure PASS.",
+      "native_matrix_run": 44920128162,
+      "cuda_rehearsal_run": 44922568609,
+      "scope": "All five target-native installed SDK/CLI/Python/Node consumers, Windows WAL/path, actual hosted cancellation, source archive, renderer, CUDA shipping-v3 Node26 embed/rerank/close and Orin installed policies passed. Final npm main changes only README from the measured main;44 other payloads are identical.",
+      "limits": "Original fast-gate four failures recovered only in affected scopes; heavy CI reached60-minute limit with10 passes,1 declared skip and remaining scopes covered by applicable earlier source gates and affected/final native checks. No uninterrupted hosted green, broad fuzz, power-loss, CLI model-forward, CUDA13, unsupported physical-device or public registry/Pages claim."
+    },
     "quality_backlog31": {
       "source": "seq-414",
       "record": "dev/plans/0.8.31/quality-backlog.md",
@@ -661,9 +673,11 @@
     }
   },
   "release_readiness": {
-    "status": "NOT_READY",
-    "publication_authorized": false,
-    "scope": "10/20/30/40/50/55/60/70 complete.75 final platform/artifact qualification active; corrected final package inputs and normal protected rehearsal remain, then80 publication/public readback. Broad coverage-guided fuzzing and power-loss proof are0.8.31 underseq414."
+    "status": "QUALIFIED_AWAITING_NORMAL_DELIVERY",
+    "publication_authorized": true,
+    "authorization_source": "seq-414",
+    "qualification_source_commit": "cd3a6caaa61fca8625f7468f4dae8341b958a241",
+    "scope": "10/20/30/40/50/55/60/70/75 complete with recorded limits.80 must bind the exact reviewed main-reachable candidate, protect the normal tag route, publish and verify public consumers/Pages before declaring completion. GPU1 is foreign; GPU0 only. Broad coverage-guided fuzzing and power-loss proof remain0.8.31 underseq414."
   },
   "generated_views": [
     {
@@ -707,8 +721,8 @@
     {
       "item": "Renderer advisory graph and browser qualification",
       "owner_slice": 75,
-      "state": "HELD",
-      "evidence": "Supported rendering trial retains affectedZod viaPuppeteer; needs a supported patched graph and real compatible-browser proof."
+      "state": "RESOLVED_BY_SLICE75",
+      "evidence": "Supported Mermaid/Puppeteer/Zod graph has zero advisories; actual21 browser renders and sanitizer passed. Original audit/startup failures retained in75 status."
     },
     {
       "item": "Integrated source, feature and runtime qualification",
@@ -719,14 +733,14 @@
     {
       "item": "Hosted cancellation and Windows runtime validation",
       "owner_slice": 75,
-      "state": "OPEN",
-      "evidence": "Slice20 source/offline cancellation and static Windows controls pass; hosted cancellation and fresh Windows/native runtime proof remain outstanding. Production registry delivery belongs to80."
+      "state": "RESOLVED_BY_SLICE75",
+      "evidence": "Actual hosted cancellation retained complete redacted runtime failures and truthful completed/started/unrun states. Windows WAL/path and installed native consumers passed; public registry delivery remains80."
     },
     {
       "item": "Final platform, native artifact and support qualification",
       "owner_slice": 75,
-      "state": "OPEN",
-      "evidence": "Ownerseq-407 splits the original70 scope. Five-target installed native and CLI/source archive consumers, Windows WAL, declared CUDA applicability, Node26 support/renderer docs convergence and the final candidate handoff remain unverified."
+      "state": "RESOLVED_BY_SLICE75",
+      "evidence": "Five native targets, CLI/source archive, Windows WAL, shipping-v3 CUDA and Orin consumers, Node26 support, renderer and active documentation qualified with recorded limits atcd3a6caaa61fca8625f7468f4dae8341b958a241. Exact public delivery remains80."
     }
   ],
   "coordination_mandate": {
@@ -739,6 +753,6 @@
       75,
       80
     ],
-    "next_transition": "Finish75 final corrected package-input qualification and the single protected shipping rehearsal on the renewed3090 venue; then normal80 publication and public consumers underseq414.70 source requirements are closed by actual passing shared executions, not a waiver."
+    "next_transition": "Execute normal80 publication and public consumers underseq414 using accepted75 qualification and the exact reviewed main-reachable candidate. Preserve GPU1 foreign work and useGPU0 only. Public registry/Pages readback and owned-runner cleanup remain required; no fresh generic publication approval is open."
   }
 }

@@ -316,6 +316,6 @@ research in the [0.9.0 backlog](../0.9.0/backlog.md); it adds no .30 feature wor
 own current status.
 
 <!-- BEGIN GENERATED release-state:0.8.30:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 75** (`ARTIFACTS`) — Platform and artifact qualification
+**IMMEDIATE NEXT: Slice 80** (`DELIVERY`) — Authorized publication and public consumers
 
-**Remaining ladder:** 75 → 80.<!-- END GENERATED release-state:0.8.30:plan-immediate-next -->
+**Remaining ladder:** 80.<!-- END GENERATED release-state:0.8.30:plan-immediate-next -->

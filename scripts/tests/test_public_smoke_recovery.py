@@ -108,6 +108,11 @@ class PublicSmokeRecoveryTests(unittest.TestCase):
             self.helper.validate(**data)
         for job in data["jobs"]:
             job["conclusion"] = "success"
+        # The same tag tree always carries the broken macOS Python script.
+        with self.assertRaises(ValueError):
+            self.helper.validate(**data)
+        data["version"] = "0.8.31"
+        data["run"]["head_branch"] = "v0.8.31"
         self.helper.validate(**data)
 
 

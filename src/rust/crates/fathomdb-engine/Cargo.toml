@@ -990,3 +990,8 @@ required-features = ["slice30-observer", "test-hooks"]
 [[test]]
 name = "slice55_composed_integrity"
 required-features = ["test-hooks"]
+
+[[example]]
+name = "slice70_stress_compare"
+path = "../../../../dev/experiments/slice70-qualification/stress_compare.rs"
+required-features = ["default-embedder", "test-hooks"]

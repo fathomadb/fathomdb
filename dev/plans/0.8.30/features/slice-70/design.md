@@ -174,3 +174,29 @@ executes a fresh100-query cohort. The six old query result files stay retained;
 they are not counted as this new cohort. This is assembled ingest plus fresh
 query proof, with separate bounded exclusive cells; the original failed wrapper
 is never relabeled. Existing model/allocator/unit successes need no replay.
+
+## Focused query recovery and contention diagnosis
+
+Tegra SMI reports the same physical UUID without its CUDA `GPU-` prefix.
+Normalize only structurally valid bare UUIDs; keep exact manifest matching and
+refuse an explicit CUDA pin if the inventory is empty. Unavailable PCI metadata
+stays absent. A typed nonmeasurement stops the arm at once.
+
+A complete ingest may be reused only with its full input/model/index/original
+executor binding, exact counts and no pending WAL. Preserve wheel/configuration
+identity independently. An explicitly supplied old executor validates that old
+manifest; the current configuration separately verifies the actual new query
+executor. Each query opens a new byte-identical copy because Engine open mutates
+operational metadata. Resume accepts only the two maintained first-query layouts
+and always copies the immutable ingest. Original failures and partial cohorts
+remain separate. Unknown observed GPU owners still abort; the later first-snapshot
+exit race remains unresolved and supplies no100-query qualification.
+
+For the observed AC073 miss, a matched stress-only experiment uses separate
+processes/copies of the same drained real corpus. The caller provider delegates
+all methods identically, with only an optional forward mutex. Preserve query
+order, candidate/result settings and the original warmup/baseline/concurrency
+protocol. Outside elapsed time, every result must preserve its ordered witness
+and report no fallback/degradation; witnesses require pre-fusion vector activity.
+Both arms must agree before interpreting timing. This diagnoses serialization,
+not necessarily mutex unfairness, and does not edit canonical test oracles.

@@ -403,6 +403,11 @@
         "id": "quality-backlog31-and-finish30",
         "source": "seq-414",
         "ruling": "Put broad coverage-guided fuzzing and power-loss proof in0.8.31, then finish0.8.30. Continue qualification and normal release delivery; no waiver of remaining CUDA rows or renewed3090 availability is inferred."
+      },
+      {
+        "id": "release3090-availability-renewed",
+        "source": "seq-415",
+        "ruling": "3090s are available again for the remaining CUDA qualification and shipping CUDA build needed for release completion; normal selected-device, lease/resource and peer controls remain."
       }
     ],
     "unruled": []
@@ -713,6 +718,6 @@
       75,
       80
     ],
-    "next_transition": "Complete remaining70 CUDA proof and75 platform/artifact work using shared execution where applicable, then normal80 delivery under the owner direction to finish. Broad coverage-guided fuzzing and power-loss proof are allocated to0.8.31. Expired3090 availability is not renewed implicitly."
+    "next_transition": "Use renewed3090 venue underseq-415 to complete the two named70 CUDA rows jointly with75 final candidate qualification, then normal80 delivery underseq-414. No new reset/OOM campaign. Broad coverage-guided fuzzing and power-loss proof remain0.8.31."
   }
 }

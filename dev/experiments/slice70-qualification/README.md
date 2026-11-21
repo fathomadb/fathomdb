@@ -55,3 +55,15 @@ It executes only078–100, each as the guard's native leader with an unreaped PI
 120seconds per cell and one shared30-minute deadline. TERM/INT forwards to the
 active guard and awaits cleanup. Unknown peers still abort. Original wrapper
 failures remain; any completed result is assembled fidelity proof only.
+
+After the matched diagnosis, `historical-direct` uses the exact repaired EU7
+provider from the shared test-support module. It keeps the original fixture's
+batching/truncation defaults and validates only the affected stress protocol on
+the preserved snapshot. No corpus seeding, recall or passing battery is repeated.
+
+For the selected1000-row stress recovery, run the exact ignored selector
+`eu7_repaired_provider_small_stress_only` in `eu7_real_corpus_ac`, with
+`AGENT_LONG=1`, the warm original corpus/model, explicit CPU and
+`default-embedder,default-reranker,operator,test-hooks`. It reuses canonical
+seeding/drain and stress helpers and skips ground truth/recall. Always select
+by exact name; the original whole EU7 result remains separately recorded.

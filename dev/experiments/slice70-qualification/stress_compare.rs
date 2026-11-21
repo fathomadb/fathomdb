@@ -1,4 +1,6 @@
 //! Diagnose only serialized-provider contention on an existing drained EU7 database.
+#[path = "../../../src/rust/crates/fathomdb-engine/tests/support/eu7_bge.rs"]
+mod canonical;
 #[path = "../../../src/rust/crates/fathomdb-engine/tests/support/corpus_subset.rs"]
 mod corpus_subset;
 use corpus_subset::{load_subset_or_skip, Doc};
@@ -159,7 +161,7 @@ fn checked(result: SearchResult, expected: &[String]) {
 fn main() {
     let args: Vec<_> = std::env::args().collect();
     assert_eq!(args.len(), 5, "MODE SNAPSHOT EXPECTED_SHA FRESH_DIRECTORY");
-    assert!(matches!(args[1].as_str(), "serialized" | "direct"));
+    assert!(matches!(args[1].as_str(), "serialized" | "direct" | "historical-direct"));
     assert_eq!(std::env::var("FATHOMDB_EMBED_DEVICE").as_deref(), Ok("cpu"));
     assert_eq!(std::env::var("CUDA_VISIBLE_DEVICES").as_deref(), Ok(""));
     let snapshot = Path::new(&args[2]);
@@ -190,10 +192,15 @@ fn main() {
         .iter()
         .map(|byte| format!("{byte:02x}"))
         .collect::<String>();
-    let provider = Arc::new(ComparedProvider {
-        inner: CandleBgeEmbedder::new().expect("real CPU BGE"),
-        lock: (args[1] == "serialized").then(|| Mutex::new(())),
-    });
+    let inner = CandleBgeEmbedder::new().expect("real CPU BGE");
+    let provider: Arc<dyn Embedder> = if args[1] == "historical-direct" {
+        Arc::new(canonical::Eu7Bge::new(inner))
+    } else {
+        Arc::new(ComparedProvider {
+            inner,
+            lock: (args[1] == "serialized").then(|| Mutex::new(())),
+        })
+    };
     let opened =
         Engine::open_with_test_choice_for_test(&database, TestEmbedderChoice::Caller(provider))
             .expect("engine open");

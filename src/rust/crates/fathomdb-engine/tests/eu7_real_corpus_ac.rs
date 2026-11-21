@@ -83,7 +83,7 @@
 //!
 //! Run:
 //!   AGENT_LONG=1 cargo test -p fathomdb-engine --features default-embedder \
-//!     --test eu7_real_corpus_ac -- --nocapture
+//!     --test eu7_real_corpus_ac eu7_real_corpus_ac_validation -- --exact --ignored --nocapture
 //!
 //! Tunables (env):
 //!   EU7_N_VALUES         comma-separated haystack sizes (default "1000,7667")
@@ -111,46 +111,14 @@ use std::time::{Duration, Instant};
 
 use corpus_subset::{load_subset_or_skip, Doc};
 use fathomdb_embedder::CandleBgeEmbedder;
-use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
+use fathomdb_embedder_api::Embedder;
 use fathomdb_engine::{Engine, PreparedWrite, TestEmbedderChoice};
 use serde_json::json;
 use tempfile::TempDir;
 
-/// Serializes `CandleBgeEmbedder::embed` behind a `Mutex`.
-///
-/// The engine's projection pool runs `PROJECTION_WORKERS` (=2) worker
-/// threads that call `embed()` concurrently on one shared instance.
-/// candle's own guidance is to guard a shared model (`Arc<RwLock<Model>>`)
-/// for concurrent CPU inference; this `Mutex` is that guard, applied
-/// harness-side without touching the engine's writer/projection contracts.
-/// It is a measurement-fidelity wrapper only: the produced vectors,
-/// identity, and mean-centering behaviour are byte-identical to the bare
-/// embedder; only concurrency is constrained.
-///
-/// (The original EU-7 seeding stall was NOT this — it was Finding C, the
-/// missing 512-token truncation, now fixed in `CandleBgeEmbedder`. This
-/// guard remains as defensive isolation against concurrent candle forward.)
-struct SerializedBge {
-    inner: Mutex<CandleBgeEmbedder>,
-    identity: EmbedderIdentity,
-}
-
-impl SerializedBge {
-    fn new(inner: CandleBgeEmbedder) -> Self {
-        let identity = inner.identity();
-        Self { inner: Mutex::new(inner), identity }
-    }
-}
-
-impl Embedder for SerializedBge {
-    fn identity(&self) -> EmbedderIdentity {
-        self.identity.clone()
-    }
-
-    fn embed(&self, text: &str) -> Result<Vector, EmbedderError> {
-        self.inner.lock().expect("embedder mutex poisoned").embed(text)
-    }
-}
+#[path = "support/eu7_bge.rs"]
+mod eu7_bge;
+use eu7_bge::Eu7Bge;
 
 // ── Budgets (mirrored verbatim from tests/perf_gates.rs; do NOT relax) ──
 // AC-013: HITL-locked vector-retrieval latency budget.
@@ -756,7 +724,7 @@ fn measure_stress(
 /// This does NOT create a vacuous green: R-20-EU7 was CLOSED by HITL decision,
 /// so this test no longer gates anything. Run:
 ///   AGENT_LONG=1 cargo test -p fathomdb-engine --features default-embedder \
-///     --test eu7_real_corpus_ac -- --ignored --nocapture
+///     --test eu7_real_corpus_ac eu7_real_corpus_ac_validation -- --exact --ignored --nocapture
 #[test]
 #[ignore = "TC-20: EU-7 real-corpus measurement is ~1.5h of wall clock; opt in with --ignored"]
 fn eu7_real_corpus_ac_validation() {
@@ -784,12 +752,9 @@ fn eu7_real_corpus_ac_validation() {
         queries.len()
     );
 
-    // Build the real embedder once (warm cache, no network), serialized to
-    // dodge the concurrent-embed projection-pool stall. Reused as the
-    // engine's embedder AND as the ground-truth query encoder.
-    let embedder = Arc::new(SerializedBge::new(
-        CandleBgeEmbedder::new().expect("construct real bge embedder"),
-    ));
+    // Share the same real provider between production dispatch and exact ground truth.
+    let embedder =
+        Arc::new(Eu7Bge::new(CandleBgeEmbedder::new().expect("construct real bge embedder")));
 
     let mut ac013 = Vec::new();
     let mut ac013b = Vec::new();
@@ -1132,4 +1097,47 @@ fn write_measurements_json(m: MeasurementsOut) {
     std::fs::write(&out_path, serde_json::to_string_pretty(&doc).unwrap())
         .expect("write measurements json");
     eprintln!("EU7_WROTE {}", out_path.display());
+}
+
+#[test]
+#[ignore = "Slice70 focused N1000 stress recovery; explicit AGENT_LONG and warm real corpus required"]
+fn eu7_repaired_provider_small_stress_only() {
+    assert!(std::env::var_os("AGENT_LONG").is_some());
+    assert!(std::env::var_os("FATHOMDB_SKIP_NETWORK_TESTS").is_none());
+    let (real, queries) = load_real_and_queries(100).expect("original real corpus");
+    assert!(real.len() >= 1000);
+    assert_eq!(queries.len(), 100);
+    let bodies = haystack_bodies(&real, 1000);
+    let provider = Arc::new(Eu7Bge::new(CandleBgeEmbedder::new().expect("real BGE")));
+    let directory = TempDir::new().unwrap();
+    let database = directory.path().join("eu7_stress1000.sqlite");
+    let opened =
+        Engine::open_with_test_choice_for_test(&database, TestEmbedderChoice::Caller(provider))
+            .expect("engine with historical provider");
+    let engine = Arc::new(opened.engine);
+    engine.configure_vector_kind_for_test("doc").unwrap();
+    seed_slice(&engine, &bodies, 0, 1000);
+    let connection = rusqlite::Connection::open_with_flags(
+        &database,
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+    )
+    .unwrap();
+    for table in ["canonical_nodes", "_fathomdb_vector_rows"] {
+        let count: usize = connection
+            .query_row(&format!("SELECT count(*) FROM {table}"), [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(count, 1000);
+    }
+    drop(connection);
+    engine.set_search_limit_for_test(15);
+    engine.set_vector_stage_only_for_test(false);
+    let witness = engine.search_explained(&queries[0].text, None, 0, false, 0.6, 20).unwrap();
+    assert!(witness.soft_fallback.is_none() && witness.degradations.is_empty());
+    assert!(witness.explanation.unwrap().trace.vector_hits > 0);
+    let stress = measure_stress(engine, &queries, 1000, 250);
+    eprintln!(
+        "EU7_FOCUSED_STRESS n=1000 warmups=1000 baseline_samples=1000 threads=8 per_thread=250 baseline_p99_us={} stress_p99_us={} bound_us={}",
+        stress.baseline_p99.as_micros(), stress.stress_p99.as_micros(), stress.bound.as_micros(),
+    );
+    assert!(stress.stress_p99 <= stress.bound, "unchanged AC073 same-run bound");
 }

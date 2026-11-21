@@ -1,6 +1,6 @@
 ---
 title: Slice 70 source qualification design
-status: DRAFT
+status: ACTIVE
 target_release: 0.8.30
 slice: 70
 ---
@@ -200,3 +200,11 @@ protocol. Outside elapsed time, every result must preserve its ordered witness
 and report no fallback/degradation; witnesses require pre-fusion vector activity.
 Both arms must agree before interpreting timing. This diagnoses serialization,
 not necessarily mutex unfairness, and does not edit canonical test oracles.
+
+The matched mutex-only diagnosis passed on the direct provider and retained
+identical witnesses. The exact repaired historical provider is shared from
+`tests/support/eu7_bge.rs`; it preserves historical trait defaults and removes
+only the outer lock. Validate the7667-row stress on the drained snapshot, then
+only the originally selected1000-row stress through canonical seed/drain/sampler
+helpers, without repeating recall or7667 seeding. Original full-body failures
+remain separate from these scoped recoveries.

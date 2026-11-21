@@ -60,7 +60,8 @@ cargo add fathomdb-embedder-api
 | Crate | Role |
 | --- | --- |
 | [`fathomdb-embedder`](https://crates.io/crates/fathomdb-embedder) | Built-in implementations of this trait |
-| [`fathomdb`](https://crates.io/crates/fathomdb) | The facade most applications should use |
+| [`fathomdb-sdk`](https://crates.io/crates/fathomdb-sdk) | Rust application SDK, peer of Python and TypeScript |
+| [`fathomdb`](https://crates.io/crates/fathomdb) | Lower-level engine facade |
 
 ## License
 

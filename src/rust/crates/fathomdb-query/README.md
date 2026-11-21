@@ -5,9 +5,11 @@ SQLite.
 
 ## Is this the crate you want?
 
-Probably not, unless you are working *on* FathomDB rather than *with* it. Applications should depend
-on [`fathomdb`](https://crates.io/crates/fathomdb) and call `Engine::search`, which uses this crate
-internally.
+Probably not, unless you need the standalone compiler or are working on
+FathomDB. Rust applications should use
+[`fathomdb-sdk`](https://crates.io/crates/fathomdb-sdk) and call `Engine::search`,
+which uses this crate internally. The [`fathomdb`](https://crates.io/crates/fathomdb)
+crate remains the lower-level engine facade.
 
 It is published separately because it is a **leaf** — its one dependency is `sha2` — and because
 the one thing it does is independently useful: turning arbitrary user text into an SQLite FTS5 `MATCH`

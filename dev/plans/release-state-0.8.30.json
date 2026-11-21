@@ -382,6 +382,11 @@
         "id": "slice60-3090-oom-retry",
         "source": "seq-411",
         "ruling": "Try again. each3090 has24GB. Retry the existing default-pool OOM test once with its own full-card24GB allowance and normal owned-child controls; reset tests retain8GiB. The proposed unqualified-row acceptance was not selected. Preserve the stopped first probe; no broad gate or passing-campaign replay."
+      },
+      {
+        "id": "release-orin-verification-use",
+        "source": "seq-412",
+        "ruling": "You do not need approval to use the Orin. Use the Orin as-needed. Use is authorized. Standing release-verification use includes the prepared7+7 process-local reset/recovery action with its disclosed resource and observed-only visibility limits, and same-scope test-artifact/harness updates. Do not ask repeatedly. Finish3090 work first. Host changes,user databases and registry publication remain outside that test scope."
       }
     ],
     "unruled": []

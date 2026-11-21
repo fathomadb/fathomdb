@@ -575,3 +575,29 @@ separate from source review and ordinary healthy results.
 Direct Astra-medium returned focused PLAN PASS and DESIGN PASS for the CLI
 allocation, prospective ordinary Orin visibility protocol and conditional
 producer-input design before any new Orin trial or producer code edit.
+
+## Tegra Node driverless caller-fit correction
+
+Accepted [Tegra Node distribution ADR](../../../../../dev/adr/ADR-0.8.27-jetson-tegra-node-addon-distribution.md)
+clauses3/4/6 distinguish thin-package selection from addon linkage/import.
+An absent or indeterminate nvgpu tier selects the generic ARM package. With
+only the Tegra package installed in a driverless masked-signal container,
+`UnsupportedPlatformError` naming the absent generic package is the expected
+thin-loader outcome. The observed failed public import remains a failed import:
+no model, DB or forced-CUDA body ran, and it is not a .30 loader regression.
+Reject the draft's accidental Tegra-only thin-SDK driverless lifecycle parity.
+
+Run the existing maintained `tegra_node_driverless_probe.sh` and its verdict:
+record absent driver/device/family facts, expected thin-loader selection/error
+rows, and separately require the exact installed Tegra addon to load and
+open/close a real CPU DB without libcuda. Any sentinel generic-package row is
+a negative package-selection control, never real generic application proof.
+Label a masked-signal Orin container as that controlled environment, not a
+physical generic ARM venue. No fake positive GPU signal, raw-addon substitute
+for SDK success, loader/API change or existing-registry stand-in closes an
+application row. Normal confirmed-Tegra thin-SDK GPU model/persisted lifecycle
+still needs its actual installed-host witness.75 owns current-version generic
+ARM thin-SDK driverless lifecycle with the actual matching generic platform
+artifact and support/docs convergence. X86 installed driverless SDK and CLI
+proof remains separately valid. This follows the existing ADR and leaves
+F32 tolerances, PTX0 selection and source/publication controls unchanged.

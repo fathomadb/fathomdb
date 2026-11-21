@@ -343,8 +343,8 @@ rule is `dev/adr/ADR-0.8.28-tegra-private-cuda-pool.md`.
   Linux CUDA build on a host that is not a Jetson (Grace, Graviton, SBSA), a
   source-built Python extension also runs `cuInit` at import, so the fork
   hazard H-1 below applies there too. Node already does the same. No
-  published artifact targets these hosts; skipping the import-time `cuInit`
-  there is investigated for 0.8.29.
+  published CUDA artifact targets these hosts. Their CUDA configuration remains
+  unqualified; generic AArch64 published artifacts remain CPU-only.
 - **Fork hazard H-1 (potentially breaking).** After `import fathomdb` the
   driver is initialised, and the CUDA driver is not fork-safe once
   initialised. A `multiprocessing` child created with `fork` after the

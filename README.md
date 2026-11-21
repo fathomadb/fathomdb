@@ -5,13 +5,15 @@ agents. It combines SQLite, FTS5, and `sqlite-vec` in your process: open a
 local database file, write records with provenance, and retrieve them through
 the Python, TypeScript, or Rust application SDK.
 
-## Release 0.8.29
+## Release 0.8.30
 
 FathomDB is pre-1.0 beta; public contracts can change between micro releases.
-0.8.29 adds exact stored-head coverage reporting and snippet extents, corrects
-record identity in hybrid fusion, and makes compact text the MCP default.
-Store format remains 37, with no automatic migration. See the
-[release notes](docs/release-notes/0.8.29.md) and [changelog](CHANGELOG.md).
+0.8.30 adds explicit module model release, optimizes eligible node-only hybrid
+retrieval, and fixes MCP revision attribution and partial-span dependency tracing.
+Store format remains 37, with no automatic migration. Registry and Tegra Pages
+publication are pending; exact-version installation examples apply after
+publication. See the
+[release notes](docs/release-notes/0.8.30.md) and [changelog](CHANGELOG.md).
 
 ## What you can build
 
@@ -36,9 +38,9 @@ error classes. See [SDK parity](docs/positions/sdk-parity.md).
 
 | Language | Package and installation | Import | Documentation |
 | --- | --- | --- | --- |
-| Python | `python -m pip install fathomdb==0.8.29` | `from fathomdb import Engine, read, graph, admin` | [Install](docs/install/python.md) · [API](docs/reference/python-api.md) |
-| TypeScript / Node.js | `npm install --save-exact fathomdb@0.8.29` | `import { Engine, read, graph, admin } from "fathomdb"` | [Install](docs/install/typescript.md) · [API](docs/reference/typescript-api.md) |
-| Rust application SDK | `cargo add fathomdb-sdk@=0.8.29` | `use fathomdb_sdk::{Engine, read, graph, admin};` | [Install](docs/install/rust.md#install-the-application-sdk) · [API](docs/reference/rust-sdk.md) |
+| Python | `python -m pip install fathomdb==0.8.30` | `from fathomdb import Engine, read, graph, admin` | [Install](docs/install/python.md) · [API](docs/reference/python-api.md) |
+| TypeScript / Node.js | `npm install --save-exact fathomdb@0.8.30` | `import { Engine, read, graph, admin } from "fathomdb"` | [Install](docs/install/typescript.md) · [API](docs/reference/typescript-api.md) |
+| Rust application SDK | `cargo add fathomdb-sdk@=0.8.30` | `use fathomdb_sdk::{Engine, read, graph, admin};` | [Install](docs/install/rust.md#install-the-application-sdk) · [API](docs/reference/rust-sdk.md) |
 
 The [`fathomdb` Rust crate](docs/reference/rust-api.md) is the
 lower-level engine facade. The application SDK is `fathomdb-sdk`.
@@ -82,8 +84,10 @@ CPU and CUDA paths for embedding and reranking; generic Linux AArch64, macOS,
 and Windows artifacts are CPU-only. The default `auto` policy uses CPU when
 no usable GPU is available. Retrieval, fusion, graph traversal, and SQLite
 vector stages run on CPU. See the [compatibility matrix](docs/compatibility/index.md)
-for exact versions. Classic Jetson Orin has a published `0.8.29+tegra` Python wheel and a
-matching 0.8.29 Node addon through first-party GitHub Pages. Keep the Node
+for exact versions, ABI floors, and the Node 25/26 contract. Classic Jetson Orin
+uses a separate `0.8.30+tegra` Python wheel and matching 0.8.30 Node addon through
+first-party GitHub Pages, available after their publication and manifest
+readback. Keep the Node
 main/addon versions matched; omit the addon to use the generic ARM64 CPU
 package. Earlier verified Tegra artifacts remain available.
 CUDA 13 artifact delivery, including Tegra, is planned for 0.8.31.
@@ -93,12 +97,15 @@ See [Python installation](docs/install/python.md#jetson-tegra-cuda) and
 On CUDA-capable artifacts, `FATHOMDB_EMBED_DEVICE` and
 `FATHOMDB_RERANK_DEVICE` independently accept `auto`, `cpu`, or `cuda:N`
 (for example, `cuda:0`). The [embedder guide](docs/embedder.md) describes
-device selection and shared-GPU limits.
+device selection, shared-GPU limits, and
+[`release_models()` / `releaseModels()`](docs/embedder.md#release-module-models).
+Explicit release drops cached standalone CLS and cross-encoder models while
+engine-owned Mean providers retain their own close lifecycle.
 
 The operator CLI is installed from source; no prebuilt CLI binary is published:
 
 ```bash
-cargo install fathomdb-cli --version '=0.8.29' --locked
+cargo install fathomdb-cli --version '=0.8.30' --locked
 ```
 
 Use the [CLI reference](docs/reference/cli.md) and
@@ -123,7 +130,11 @@ matching governed names across the three languages.
   [TypeScript SDK](src/ts/). [Cross-language fixtures](test/) complement
   package-local tests.
 
-After setup, use `./scripts/agent-verify.sh` for the developer gate;
-`./scripts/check.sh` adds the broader checks and documentation build.
+Each checkout owns its Python environment and npm installs; use
+`bash scripts/setup-python-owned.sh --provision` for a noneditable native Python
+build and pinned developer tools. Use `./scripts/agent-verify.sh` for source,
+test, or executable-script changes; Markdown-only work uses the scoped checks
+in the contributor guide. `./scripts/check.sh` adds the broader checks and
+documentation build.
 
 Licensed [MIT](LICENSE).

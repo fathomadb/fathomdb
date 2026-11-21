@@ -1,9 +1,9 @@
 # Python API
 
 Module: `fathomdb`. Authoritative spec:
-[`dev/interfaces/python.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.29/dev/interfaces/python.md).
+[`dev/interfaces/python.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.30/dev/interfaces/python.md).
 
-> **Release 0.8.29, pre-1.0 beta.**
+> **Release 0.8.30, pre-1.0 beta.**
 
 ## Representative top-level imports
 
@@ -40,6 +40,17 @@ from fathomdb import (
     read,
 )
 ```
+
+## `release_models() -> None`
+
+`from fathomdb import release_models` releases the process module-level CLS
+embedder and cross-encoder caches before returning. Empty and repeated calls
+succeed without loading weights or initializing CUDA. Loading, cache waits,
+inference, or another release causes immediate `OverloadedError`; neither cache
+changes on refusal. Python releases the GIL for native model work and teardown.
+Healthy later calls reload on demand. Engine-owned Mean providers remain open;
+terminal CUDA generation loss still requires process restart. See
+[model lifetime and examples](../embedder.md#release-module-models).
 
 ## `Engine`
 
@@ -871,7 +882,7 @@ for typed outcomes, original-sink reattachment and retry rules.
 - [Config knobs](config.md)
 - [Errors](errors.md)
 - [Erasure](../operations/erasure.md)
-- Locked spec: [`dev/interfaces/python.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.29/dev/interfaces/python.md)
+- Locked spec: [`dev/interfaces/python.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.30/dev/interfaces/python.md)
 
 ## Stored-head reporting
 

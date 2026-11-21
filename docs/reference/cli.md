@@ -5,7 +5,7 @@ application-surface verbs like `search`, `get`, or `list`. Use the SDK
 for those.
 
 Authoritative spec:
-[`dev/interfaces/cli.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.29/dev/interfaces/cli.md);
+[`dev/interfaces/cli.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.30/dev/interfaces/cli.md);
 recovery semantics owned by `dev/design/recovery.md`.
 
 ## Roots
@@ -31,12 +31,12 @@ recovery semantics owned by `dev/design/recovery.md`.
 | ----------------- | ------------------------------------------------------------------------------ | ----------------- |
 | `check-integrity` | `fathomdb doctor check-integrity [--quick] [--full] [--round-trip] [--pretty]` | `0` / `65` / `70` / `71` |
 | `data-plane-integrity` | `fathomdb doctor data-plane-integrity [--check <kind>]... [--max-work <n>] [--max-findings <n>] [--json] <db_path>` | `0` / `65` / `70` / `71` |
-| `safe-export`     | `fathomdb doctor safe-export <out> [--manifest <path>]`                        | `0` / `66` / `71` |
-| `verify-embedder` | `fathomdb doctor verify-embedder --identity <s> --dimension <n>`               | `0` / `65`        |
-| `trace`           | `fathomdb doctor trace --source-ref <id>`                                      | `0` / `65` / `70` / `71` |
-| `dump-schema`     | `fathomdb doctor dump-schema`                                                  | `0` / `65` / `70` / `71` |
-| `dump-row-counts` | `fathomdb doctor dump-row-counts`                                              | `0` / `65` / `70` / `71` |
-| `dump-profile`    | `fathomdb doctor dump-profile`                                                 | `0` / `65` / `70` / `71` |
+| `safe-export`     | `fathomdb doctor safe-export <out> [--manifest <path>]`                        | `0 / 66 / 70 / 71` |
+| `verify-embedder` | `fathomdb doctor verify-embedder --identity <s> --dimension <n>`               | `0 / 70 / 71` |
+| `trace`           | `fathomdb doctor trace --source-ref <id>`                                      | `0 / 70 / 71` |
+| `dump-schema`     | `fathomdb doctor dump-schema`                                                  | `0 / 70 / 71` |
+| `dump-row-counts` | `fathomdb doctor dump-row-counts`                                              | `0 / 70 / 71` |
+| `dump-profile`    | `fathomdb doctor dump-profile`                                                 | `0 / 70 / 71` |
 | `gpu`             | `fathomdb doctor gpu [--json] [pool flags]`                                    | `0` / `65` / `70`        |
 | `reranker-gpu`    | `fathomdb doctor reranker-gpu [--json] [pool flags]` | `0` / `65` / `70` |
 | `platform`        | `fathomdb doctor platform [--json]`                                            | `0` / `70`               |
@@ -44,8 +44,20 @@ recovery semantics owned by `dev/design/recovery.md`.
 | `cuda-libraries`  | `fathomdb doctor cuda-libraries [--json]`                                      | `0` / `70`               |
 | `dump-mutations`  | `fathomdb doctor dump-mutations <collection> [--after-id <n>] [--limit <n>] [--json] <db_path>` | `0` / `70` / `71` |
 | `orphan-provenance` | `fathomdb doctor orphan-provenance [--json] <db_path>`                        | `0` / `65` / `70` / `71` |
-| `warm-cache`      | `fathomdb doctor warm-cache ...` — pre-fetch + verify the pinned default-embedder weights so the next open runs offline | see [exit-code classes](#exit-code-classes) |
-| `recompute-mean`  | `fathomdb doctor recompute-mean <db_path>` — re-derive and re-pin the corpus mean, re-quantizing every row in one transaction | see [exit-code classes](#exit-code-classes) |
+| `warm-cache`      | `fathomdb doctor warm-cache ...` — pre-fetch + verify the pinned default-embedder weights so the next open runs offline | `0 / 70` |
+| `recompute-mean`  | `fathomdb doctor recompute-mean <db_path>` — re-derive and re-pin the corpus mean, re-quantizing every row in one transaction | `0 / 70 / 71` |
+
+`verify-embedder` reports identity/dimension match or mismatch in its JSON and
+returns 0 for either completed comparison; a mismatch is not exit 65. Ordinary
+Engine-open failures still return 70 or 71. `trace` is the source-event diagnostic,
+not governed `trace_dependency` / `traceDependency`.
+
+Most database doctor commands use an ordinary Engine open: they may initialize a
+missing path, start workers and change operational metadata. Stop the application
+Engine before running them. `data-plane-integrity` instead uses the immutable,
+quiescent route below. `safe-export` includes committed WAL data via SQLite
+`VACUUM INTO`, then writes the export manifest; occupied output/export failure
+returns 66, while an earlier open refusal retains 70/71.
 
 `check-integrity --full` may emit doctor-only finding codes such as
 `E_CORRUPT_INTEGRITY_CHECK`.
@@ -92,15 +104,15 @@ Inspection failures use `inspection_unavailable`, `inspection_lock_missing`,
 `database_schema_mismatch`, or `integrity_corrupt` without exposing raw SQLite
 diagnostics.
 
-Install the 0.8.29 CLI after publication at the exact version and confirm its identity:
+Install the 0.8.30 CLI after publication at the exact version and confirm its identity:
 
 ```bash
-cargo install fathomdb-cli --version '=0.8.29' --locked
+cargo install fathomdb-cli --version '=0.8.30' --locked
 fathomdb --version
 ```
 
 During source qualification, use the [Rust install procedure](../install/rust.md).
-Public 0.8.29 opens require a fresh or already-current schema-37 database; an
+Public 0.8.30 opens require a fresh or already-current schema-37 database; an
 older non-empty database is rejected before product mutation.
 
 ### GPU and platform diagnostics
@@ -156,8 +168,9 @@ version, and whether one is refused. Its JSON record is
 exits `70`; otherwise it exits `0`. See
 [GPU acceleration](../embedder.md#cuda-library-and-gpu-requirements).
 
-For a confirmed classic Jetson/Tegra CUDA host, use the published 0.8.29
-[Python installation route](../install/python.md#jetson-tegra-cuda): `fathomdb==0.8.29+tegra` from
+For a confirmed classic Jetson/Tegra CUDA host, use the separate 0.8.30
+[Python installation route](../install/python.md#jetson-tegra-cuda) after
+publication and manifest verification: `fathomdb==0.8.30+tegra` from
 `https://fathomadb.github.io/fathomdb/tegra/simple/`. It uses one index and an
 exact version; do not use a floating requirement or `--extra-index-url`.
 Unsupported targets have no supported Tegra CUDA route.
@@ -316,4 +329,4 @@ See [Python API](python-api.md) / [TypeScript API](typescript-api.md).
 
 - [Errors](errors.md)
 - [Install — Rust / CLI](../install/rust.md)
-- Locked spec: [`dev/interfaces/cli.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.29/dev/interfaces/cli.md)
+- Locked spec: [`dev/interfaces/cli.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.30/dev/interfaces/cli.md)

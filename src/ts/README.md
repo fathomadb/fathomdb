@@ -99,6 +99,17 @@ engine's pinned default embedder; on first use the weights are downloaded and ca
 at all, and vector writes then fail with `EmbedderNotConfiguredError` rather than quietly doing
 nothing.
 
+## Release cached module models
+
+`import { releaseModels } from "fathomdb"` exposes asynchronous
+`await releaseModels()`, which drops both standalone CLS and cross-encoder caches
+before completion. Call it after admitted model work finishes. Loading, cache
+waits, inference or another release rejects immediately with `OverloadedError`
+and clears neither cache. Empty/repeated release constructs nothing; later
+healthy calls reload on demand. Engine-owned Mean providers close separately
+with their Engine. Terminal CUDA loss still requires process restart. See
+[model lifetime and examples](https://github.com/fathomadb/fathomdb/blob/release/0.8.30/docs/embedder.md#release-module-models).
+
 ## Other SDKs
 
 The same engine is available as a Python package (`pip install fathomdb`). The Rust

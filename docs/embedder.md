@@ -6,12 +6,9 @@ fresh engine has no embedder configured and vector writes fail with
 `EmbedderNotConfiguredError` until you enable the pinned default provider.
 Caller-supplied engine providers are unsupported before 1.x in all SDKs.
 
-> Status: 0.8.29 release documentation; the following measurement is historical. The ANN-fidelity
-> recall@10,
-> measured on the pre-fusion **vector stage** (the SUT the 0.90 floor gates), is
-> **0.896** (95% CI 0.864–0.925, N=7,667) and holds the **0.90 floor under the
-> one-sided CI gate** (`recall_ci_hi ≥ 0.90`) — see
-> [Caveats](#caveats-and-limitations).
+> 0.8.30 source documentation; registry and Tegra Pages publication are pending.
+> Vector fidelity measures agreement with the same model's exact-f32 neighbors,
+> not answer relevance. See [qualification limits](#caveats-and-limitations).
 
 ## What it is
 
@@ -60,7 +57,7 @@ The published Python wheel already includes the default embedder; there is no
 `default-embedder` extra to install. Install the package normally:
 
 ```bash
-pip install fathomdb
+python -m pip install fathomdb==0.8.30
 ```
 
 ### TypeScript
@@ -152,9 +149,17 @@ policy without recompiling:
    - `embed-metal` — retained build support; the public Slice 70 selection
      policy currently does not expose a Metal request.
    Application users of a supported CUDA-capable package do **not** rebuild it.
-   For local package development, build the Python extension on the **main
-   checkout** (never a worktree):
-   `maturin develop --features pyo3/extension-module,embed-cuda`.
+   For local Python development, use the checkout-owned noneditable wheel path:
+
+   ```bash
+   bash scripts/setup-python-owned.sh --provision \
+     --features pyo3/extension-module,embed-cuda,rerank-cuda \
+     --compatibility linux
+   ```
+
+   This host-local recipe requires the CUDA toolkit/linker environment and
+   creates no portable release artifact. Each worktree owns its `.venv` and
+   build output; never use another checkout's environment.
 2. **The `FATHOMDB_EMBED_DEVICE` environment variable** selects the device at
    runtime: `auto` · `cpu` · `cuda:N` (GPU N). The unset/default policy is `auto` only on a CUDA-capable artifact;
    it is resolved once, when the engine opens, and the result is exposed in `OpenReport`.
@@ -209,11 +214,12 @@ device facts list them too (`cuda_libraries` in Rust and Python,
 
 FathomDB-built artifacts (the wheels, npm packages and CLI) link the CUDA
 runtime statically, so their CPU mode loads on a host without `libcudart`.
-A Rust project that builds `fathomdb-embedder` from crates.io with
-`embed-cuda` (or `tegra-pool`) gets the published fork crates and links
-`libcudart` dynamically through upstream `candle-kernels` 0.10.2: set
-`LIBRARY_PATH` to the CUDA library directory to link, and keep `libcudart`
-loadable at run time.
+The published `candle-kernels-fathomdb` 0.13.0 fork also owns static CUDART
+linkage for independent Rust CUDA consumers. Source builds need the CUDA toolkit,
+including its static runtime archive; set `CUDA_PATH` to that toolkit and make
+`nvcc` and the required linker libraries available. CUDA driver discovery stays
+dynamic and starts only when the selected runtime path needs CUDA. cuBLAS and
+cuRAND remain runtime requirements for CUDA execution.
 
 ### Embedding and cross-encoder on one GPU
 
@@ -253,7 +259,7 @@ The generic Linux AArch64 npm package is CPU-only and does not need any of
 this. Python's Tegra wheel starts CUDA at import instead; see "Jetson: private
 CUDA memory pool" below.
 
-The 0.8.28 Tegra Node addon build includes `tegra-pool`, creating a private
+The Tegra Node addon build includes `tegra-pool`, creating a private
 pool at first CUDA device use when its Tegra checks pass. The generic arm64 npm package remains
 CPU-only.
 
@@ -335,7 +341,7 @@ These measurements come from one Jetson AGX Orin 64 GB (L4T R36, CUDA 12.6).
 Other Jetson models are unmeasured. So are non-Tegra AArch64 Linux CUDA hosts
 such as Grace Hopper, GB10 and SBSA servers, which also build this behaviour.
 These non-Tegra ARM+GPU configurations are not known-working CUDA environments
-and are excluded from 0.8.29 qualification; no GPU support claim is implied.
+and are excluded from 0.8.30 qualification; no GPU support claim is implied.
 
 ### Jetson: private CUDA memory pool
 
@@ -422,26 +428,75 @@ pool mode is `on` and they pass the remaining checks.
   its value. A cap near total device memory is not recommended.
 - **When the pool is full**, the request fails with
   `CudaPoolExhaustedError`, and the next request runs normally.
-- **Module-level models keep their memory.** `embed_batch_cls` /
-  `embedBatchCls`, module-level `rerank`, the Rust SDK's standalone
-  functions and the engine's reranker keep one model for the life of the
-  process, so their pool memory is held until it exits, and under `max` the
-  pool keeps its reservation while one of them is open. An engine's own
-  embedder returns its memory when the engine closes.
-- **Do not reset the GPU context underneath FathomDB.** If another library in
-  the same process resets the CUDA primary context, FathomDB raises
-  `CudaContextLostError` and writes one `fathomdb-cuda-context-lost` line to
-  stderr; closing afterwards can still crash the process. This is
-  unqualified in 0.8.29. Detected terminal context loss refuses further CUDA
-  construction, embedding and cached reranking until process restart;
-  live-reset survival and post-reset close/exit remain unqualified.
+- **Module models have explicit lifetime.** Standalone `embed_batch_cls` /
+  `embedBatchCls`, module-level `rerank`, and the engine rerank path share
+  process caches. They retain model ownership until
+  [explicit release](#release-module-models) or process exit. Under `max`,
+  the pool keeps its reservation while an owner remains. Engine-owned Mean
+  providers have a separate close lifecycle.
+- **Do not reset the GPU context underneath FathomDB.** Detected generation
+  loss raises `CudaContextLostError` and emits one
+  `fathomdb-cuda-context-lost` line per process. Further CUDA construction,
+  embedding, and cached reranking on that device refuse until process restart.
+  Close and explicit release relinquish Rust ownership, workers, and locks;
+  lost native handles/allocations can remain as a frozen live set until restart.
+  Opaque native host bytes have no established hard bound, and successful close
+  does not certify residue reclamation. Selected completed-construction loss
+  and teardown cases are qualified; reset during inference and same-process
+  CUDA recovery remain unsupported.
 
 `fathomdb doctor cuda-allocator` shows which allocator a process gets and
 why ([CLI reference](reference/cli.md)). Each SDK's open report carries the
 same decision on the CUDA device facts: `cuda_allocator` in Rust and Python,
 `cudaAllocator` in TypeScript.
 
-### Measured speedup
+## Release module models
+
+Use explicit release when a long-lived process has finished standalone CLS or
+cross-encoder work and wants to drop the cached models. It releases both caches
+before success, including the cross-encoder cache used by engine reranking.
+It does not close an Engine or release its engine-owned Mean provider.
+
+| SDK | Call | Busy outcome |
+| --- | --- | --- |
+| Python | `fathomdb.release_models()` | `OverloadedError` |
+| TypeScript | `await releaseModels()` | rejected Promise with `OverloadedError` |
+| Rust SDK | `fathomdb_sdk::release_models()?` | `ErrorKind::Overloaded` |
+
+First let your admitted model calls finish, then release:
+
+```python
+from fathomdb import embed_batch_cls, release_models
+
+vectors = embed_batch_cls(["one document"])
+release_models()
+# A later healthy call reloads on demand.
+again = embed_batch_cls(["one document"])
+release_models()
+```
+
+```ts
+import { embedBatchCls, releaseModels } from "fathomdb";
+
+const vectors = await embedBatchCls(["one document"]);
+await releaseModels();
+const again = await embedBatchCls(["one document"]);
+await releaseModels();
+```
+
+Concurrent loading, cache waits, inference, or another release causes immediate
+refusal, without clearing either cache or disturbing admitted work. New module
+model work also refuses while native teardown runs. Wait for those calls and
+retry; release does not wait for active inference. Python performs native model
+work and destruction outside the GIL. Empty and repeated calls succeed without
+model construction, downloads, or CUDA initialization.
+
+Healthy reload is supported. Release clears healthy unavailable/policy
+memoization, but does not reset process pool settings or erase terminal CUDA
+loss. Detected loss still requires process restart. Automatic idle release and
+same-process CUDA recovery are not provided.
+
+## Measured speedup
 
 Re-embedding a 2,000-document corpus, single-stream, on one RTX 3090 vs CPU
 (`cargo run --release --example gpu_speedup`):
@@ -456,7 +511,7 @@ batching is *slower* than per-document calls (padding overhead with no
 parallelism to amortize it); on GPU, batching wins decisively. A 27-hour CPU
 re-embed becomes minutes.
 
-### Cross-backend discipline
+## Cross-backend discipline
 
 Stored vectors are valid only for the exact embedding function that produced
 them — model, revision, **and backend numerics**. `EmbedderIdentity`
@@ -486,20 +541,19 @@ See [errors](reference/errors.md) for typed failures and operational limits.
 
 ## Caveats and limitations
 
-- **Recall.** The ANN-fidelity measurement — how faithfully the 1-bit
-  sign-quant index reproduces the same model's exact f32 top-10 — is
-  **recall@10 = 0.896** (95% CI 0.864–0.925) on the real bge-small embedder
-  (N=7,667, K=192, mean-centering), measured on the pre-fusion **vector stage**
-  (the SUT the floor gates). The **0.90 floor holds under the one-sided CI
-  gate** (`recall_ci_hi 0.925 ≥ 0.90`). This is an ANN/quantization-fidelity
-  number, **not** an IR-relevance number. (An earlier **0.937** figure was
-  measured on a different, pre-correction `search()` SUT; the 0.937→0.896
-  difference is a measurement-SUT change, not a fidelity regression, and is not
-  caused by embedder pooling. An earlier ~0.83 dev-box figure was a measurement
-  artifact — exclude-after-top-10 plus body-string ground truth over a corpus
-  with duplicate bodies.) A full-scale N=1M run remains infeasible on commodity
-  hardware; the N≈7.7k value is treated as a near-upper bound (recall declines
-  slowly with N).
+- **Vector fidelity.** The 0.8.30 Orin TC5 direct-vector measurement reports
+  recall@10 **0.958** (95% CI **0.938–0.974**) across 100 frozen query ordinals,
+  7,666 eligible rows, K=192 and an exact-f32 top-10 reference. It measures
+  quantization fidelity for the same model. FTS, fusion, graph and cross-encoder
+  routes did not run in those measurements; this is not answer relevance or a
+  general retrieval-quality guarantee. The evidence was assembled after scoped
+  executor recoveries; the original wrapper failures remain recorded in the
+  [qualification status](https://github.com/fathomadb/fathomdb/blob/release/0.8.30/dev/plans/0.8.30/features/slice-70/status.md).
+- **Memory measurements are bounded.** The paired Orin Node 25 default-heap
+  comparison covered ten minutes per ON/OFF arm. The diagnostic ON RSS-slope
+  assessment passed while OFF growth failed; the original protocol result
+  remains UNMEASURED. Neither establishes a general shipping plateau, an
+  hour-scale bound, or a cause for opaque host RSS growth.
 - **Retrieval latency grows with corpus size.** There is no ANN index — the
   vector arm is a full scan. See
   [compatibility § performance posture](compatibility/index.md).

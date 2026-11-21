@@ -3,13 +3,13 @@ title: FathomDB data-plane architecture v2
 status: ACTIVE
 architecture_version: 2.2
 implementation_status: active source authority for the integrated profile
-target_release: 0.8.29
+target_release: 0.8.30
 baseline: dev/design/fathomdb-data-plane-architecture-v1.md
 approval_status: APPROVED
 approved_by: 0.8.25 Slice 6 HITL seq-272..274
 activation_gate: 0.8.25 Slice 7 S7-07 GREEN
 activated_on: 2026-09-02
-last_reconciled: 2026-11-18 workspace profile and release authority review
+last_reconciled: 2026-11-21 module model ownership and current retrieval profile
 ---
 
 # FathomDB data-plane architecture v2
@@ -46,8 +46,8 @@ The current Rust workspace has **twelve** members: `fathomdb`, `fathomdb-sdk`,
 the private `fathomdb-mcp` binary and the internal `fathomdb-tc5-benchmark`. The dedicated
 Rust application SDK is a peer of the Python and TypeScript SDKs, with the
 53 live governed operation endpoints across `Engine`, `read`, `graph`, `admin` and
-root-level `rerank`. The standalone `embed_batch_cls` operation remains
-outside that signed map. Arguments and defaults follow the accepted
+root-level `rerank`. The standalone `embed_batch_cls` and explicit `release_models` operations
+remain outside that signed map. Arguments and defaults follow the accepted
 [Rust SDK translations](../adr/ADR-0.8.27-rust-sdk-parity.md), including the
 TypeScript resolution where Python and TypeScript differ. Calls are
 synchronous and return `Result`, with one `Error` type and `ErrorKind`
@@ -195,6 +195,29 @@ limitations remain explicit in [embedder.md](embedder.md). The
 [maintenance contract](explicit-maintenance-erasure/contract.md) owns exclusive
 explicit windows and durable incomplete obligations; queued intent does not
 revoke logical visibility. No SLA or new erasure campaign follows.
+
+### Module model ownership and release
+
+The accepted [0.8.30 ownership decision](../adr/ADR-0.8.30-explicit-module-model-release.md)
+adds synchronous Rust SDK/Python `release_models` and asynchronous TypeScript
+`releaseModels`. Standalone CLS and cross-encoder models are owned process
+caches behind scoped leases; engine reranking leases the cross-encoder cache.
+Engine-owned Mean providers retain a separate close lifecycle. One admission
+gate covers loading, waits, inference and both native destructors. Overlap
+refuses with the existing overload class, leaves both caches untouched and
+preserves admitted work. Loading/inference/destruction occur outside cache and
+gate locks and, for Python, outside the GIL. Healthy calls may reload; empty
+release constructs nothing. Terminal CUDA generation loss and process pool
+settings survive release. Selected completed-construction loss teardown is
+qualified; reset during inference and same-process recovery are unsupported.
+
+The optimized node-only hybrid route checks matched canonical eligibility
+before cap/ranking instead of scanning every canonical node. Fusion still keys
+actual stored node/edge versions and ownerless FTS rows, keeps original arm
+positions and representative provenance, and never deduplicates by body/public
+ID alone. Bounded `graph_expand` query seeding remains eligible body FTS ordered
+by BM25/cursor with its own ranked seed cap and separate walk. It does not seed
+from fused hits or perform entity resolution.
 
 ### Method-specific CUDA allocation evidence
 
@@ -445,6 +468,7 @@ Run `python3 scripts/release-current.py` to find the current release state
 and its allocation. The [engineering index](../README.md#where-the-live-work-is)
 links the plan and board conventions. Accepted ADRs and maintained interface
 contracts define semantics. The [.29 release notes](../../docs/release-notes/0.8.29.md)
-describe the latest verified publication at this reconciliation. Historical
+describe the retained verified publication; the [.30 notes](../../docs/release-notes/0.8.30.md)
+describe current source behavior with registry/Pages publication pending. Historical
 allocations and activation evidence remain in their release plans and Git
 history.

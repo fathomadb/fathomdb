@@ -6,8 +6,8 @@ AArch64/glibc, macOS x64/arm64, and Windows x64. See the
 
 ## Where to go
 
-- [0.8.29 release notes](../release-notes/0.8.29.md) — current changes and
-  compatibility boundaries, including the MCP compact-text default.
+- [0.8.30 release notes](../release-notes/0.8.30.md) — current changes and
+  compatibility boundaries, including explicit module model release.
 
 - [Quickstart](quickstart.md) — install, open, write, search,
   counters, close, exit. ~5 minutes.
@@ -15,7 +15,7 @@ AArch64/glibc, macOS x64/arm64, and Windows x64. See the
 - [Install — TypeScript / Node.js](../install/typescript.md)
 - [Install — Rust](../install/rust.md)
 
-## Release 0.8.29 surface
+## Release 0.8.30 surface
 
 The Python, TypeScript, and Rust application SDKs use equivalent idiomatic
 names and the same governed operation membership. The separate Rust facade
@@ -23,6 +23,8 @@ exposes lower-level inherent methods and re-exported types:
 
 - **Core** — `Engine.open`, `write`, `search`, `close`,
   `admin.configure`.
+- **Model lifetime** — standalone `release_models` / `releaseModels` releases
+  CLS and cross-encoder caches; engine-owned providers close with their engine.
 - **Retrieval** — `search` (hybrid FTS5 + vector, RRF-fused, optional
   cross-encoder rerank and graph arm), `search_text_only`, `rerank`,
   `embed`.

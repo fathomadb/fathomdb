@@ -60,21 +60,28 @@ see that ADR's 2026-06-06 amendment).
 | ----------------- | ------------------------------------------------------------------------------ | ----------------------------------- |
 | `check-integrity` | `fathomdb doctor check-integrity [--quick] [--full] [--round-trip] [--pretty]` | `doctor-check-*` = 0 / 65 / 70 / 71 |
 | `data-plane-integrity` | `fathomdb doctor data-plane-integrity [--check <kind>]... [--max-work <n>] [--max-findings <n>] [--json] <db_path>` | `0 / 65 / 70 / 71` |
-| `safe-export`     | `fathomdb doctor safe-export <out> [--manifest <path>]`                        | `doctor-export-*` = 0 / 66 / 71     |
-| `verify-embedder` | `fathomdb doctor verify-embedder --identity <s> --dimension <n>`               | `doctor-check-*` = 0 / 65           |
-| `trace`           | `fathomdb doctor trace --source-ref <id>`                                      | `doctor-check-*`                    |
-| `dump-schema`     | `fathomdb doctor dump-schema`                                                  | `doctor-check-*`                    |
-| `dump-row-counts` | `fathomdb doctor dump-row-counts`                                              | `doctor-check-*`                    |
-| `dump-profile`    | `fathomdb doctor dump-profile`                                                 | `doctor-check-*`                    |
+| `safe-export`     | `fathomdb doctor safe-export <out> [--manifest <path>]`                        | `0 / 66 / 70 / 71` |
+| `verify-embedder` | `fathomdb doctor verify-embedder --identity <s> --dimension <n>`               | `0 / 70 / 71` |
+| `trace`           | `fathomdb doctor trace --source-ref <id>`                                      | `0 / 70 / 71` |
+| `dump-schema`     | `fathomdb doctor dump-schema`                                                  | `0 / 70 / 71` |
+| `dump-row-counts` | `fathomdb doctor dump-row-counts`                                              | `0 / 70 / 71` |
+| `dump-profile`    | `fathomdb doctor dump-profile`                                                 | `0 / 70 / 71` |
 | `gpu`             | `fathomdb doctor gpu [--json]`                                                 | `doctor-gpu` = 0 / 65 / 70          |
 | `platform`        | `fathomdb doctor platform [--json]`                                            | `0 / 70`                            |
 | `reranker-gpu`    | `fathomdb doctor reranker-gpu [--json]`                                        | `0 / 65 / 70`                       |
 | `cuda-allocator`  | `fathomdb doctor cuda-allocator [--json]`                                      | `0 / 70`                            |
 | `cuda-libraries`  | `fathomdb doctor cuda-libraries [--json]`                                      | `0 / 70`                            |
-| `recompute-mean`  | `fathomdb doctor recompute-mean <db_path> [--json]`                            | `doctor-check-*` = 0 / 70 / 71      |
+| `recompute-mean`  | `fathomdb doctor recompute-mean <db_path> [--json]`                            | `0 / 70 / 71` |
 | `dump-mutations`  | `fathomdb doctor dump-mutations <collection> [--after-id <n>] [--limit <n>] [--json] <db_path>` | `0 / 70 / 71`      |
-| `warm-cache`      | `fathomdb doctor warm-cache ...` (EU-5b)                                       | `doctor-check-*`                    |
+| `warm-cache`      | `fathomdb doctor warm-cache ...` (EU-5b)                                       | `0 / 70` |
 | `orphan-provenance` | `fathomdb doctor orphan-provenance [--json] <db_path>`                       | `doctor-check-*` = 0 / 65 / 70 / 71 |
+
+Completed `verify-embedder` comparison returns 0 even for a reported mismatch;
+ordinary Engine-open refusals retain 70/71. The dump and source-event trace verbs
+return 0 on a completed report, 70 on a command/open failure and 71 on lock refusal.
+`safe-export` retains 70/71 for admission errors before its artifact-producing
+step, whose own failures use 66. These are the actual `run_doctor` routes; they do
+not imply that each doctor performs an actionable-findings check.
 
 `doctor-check-*` means the verb may use the exit-code class set `{0, 65, 70,
 71}` depending on clean/findings/unrecoverable/lock-held outcome.

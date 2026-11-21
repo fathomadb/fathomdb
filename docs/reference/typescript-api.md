@@ -1,9 +1,9 @@
 # TypeScript API
 
 Package: `fathomdb`. Authoritative spec:
-[`dev/interfaces/typescript.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.29/dev/interfaces/typescript.md).
+[`dev/interfaces/typescript.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.30/dev/interfaces/typescript.md).
 
-> **Release 0.8.29, pre-1.0 beta.**
+> **Release 0.8.30, pre-1.0 beta.**
 
 The TypeScript, Python, and Rust SDKs share the governed operation surface
 and error categories. Language calling conventions differ. See
@@ -50,6 +50,17 @@ import {
   // ...typed classes below the root, see errors reference
 } from "fathomdb";
 ```
+
+## `releaseModels(): Promise<void>`
+
+`import { releaseModels } from "fathomdb"` releases the process module-level CLS
+embedder and cross-encoder caches. Await its Promise to observe completed native
+teardown. Empty and repeated calls succeed without loading weights or starting
+CUDA. Loading, cache waits, inference, or another release rejects immediately
+with `OverloadedError`; neither cache changes on refusal. Healthy later calls
+reload on demand. Engine-owned Mean providers remain open; terminal CUDA
+generation loss still requires process restart. See
+[model lifetime and examples](../embedder.md#release-module-models).
 
 ## `Engine`
 
@@ -856,7 +867,7 @@ for typed outcomes, original-sink reattachment and retry rules.
 - [Config knobs](config.md)
 - [Errors](errors.md)
 - [Erasure](../operations/erasure.md)
-- Locked spec: [`dev/interfaces/typescript.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.29/dev/interfaces/typescript.md)
+- Locked spec: [`dev/interfaces/typescript.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.30/dev/interfaces/typescript.md)
 - TS↔Python parity matrix: [`dev/notes/12-TX-parity-matrix.md`](https://github.com/fathomadb/fathomdb/blob/main/dev/notes/12-TX-parity-matrix.md)
 
 ## Stored-head reporting

@@ -4,7 +4,7 @@ The `fathomdb` npm package is a [napi-rs](https://napi.rs/) binding
 over the native Rust runtime. The package selects a
 platform-tagged `.node` binary at load time.
 
-> **Release 0.8.29, pre-1.0 beta.** The release supplies
+> **Release 0.8.30, pre-1.0 beta.** The release supplies
 > Linux x86_64/glibc, Linux AArch64/glibc, macOS x64/arm64, and Windows x64
 > native packages; other hosts must build from source.
 > FathomDB is pre-1.0 and the surface is **beta**.
@@ -13,10 +13,10 @@ platform-tagged `.node` binary at load time.
 
 ## Requirements
 
-- Published0.8.29 requires Node **25.x** (release builds use Node25.9.0).
-  The0.8.30 candidate declares Node25/26; final target-native installed
-  qualification must pass before Node26 support is announced.
-- The `0.8.29` npm package supports Linux
+- Node **25.x** or **26.x** (`engines.node = ">=25 <27"`).
+  Development uses Node 26.13.1/npm 11.20.0; held release and Tegra producers
+  use Node 25.9.0/npm 11.12.1. npm OIDC promotion uses npm 11.21.0 separately.
+- The `0.8.30` npm package supports Linux
   `x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu`, macOS
   `x86_64-apple-darwin` and `aarch64-apple-darwin`, and Windows
   `x86_64-pc-windows-msvc`. Other hosts must build from source.
@@ -27,18 +27,22 @@ platform-tagged `.node` binary at load time.
 
 ## Install the package
 
+Registry and Tegra Pages publication are pending. After publication and public
+artifact verification, use the exact-version 0.8.30 commands below.
+
 ```bash
-npm install --save-exact fathomdb@0.8.29
+npm install --save-exact fathomdb@0.8.30
 ```
 
 On Linux AArch64 this installs the CPU-only `fathomdb-linux-arm64-gnu`
 package, including on a Jetson. For CUDA on classic Jetson Orin, install
-the published, version-matched 0.8.29 Tegra addon from Pages as shown below.
+the version-matched 0.8.30 Tegra addon after its publication from Pages as shown below.
 
 ## Classic Jetson Orin with CUDA
 
-The following procedure installs the published **0.8.29 main package and
-0.8.29 Tegra addon together**. On a confirmed classic Jetson Orin, mismatched
+After publication, the following procedure installs the **0.8.30 main package
+and 0.8.30 Tegra addon together**. The retained manifest must first list this
+exact version; an absent entry means this route is not yet available. On a confirmed classic Jetson Orin, mismatched
 versions are refused before native loading. With no Tegra addon installed,
 the loader uses the generic CPU package. CUDA 13 artifact delivery, including
 Tegra, is planned for 0.8.31.
@@ -54,9 +58,9 @@ of the npm registry:
 https://fathomadb.github.io/fathomdb/tegra/packages/fathomdb-linux-arm64-gnu-tegra-<version>.tgz
 ```
 
-The [retained artifact manifest](https://github.com/fathomadb/fathomdb/blob/release/0.8.29/scripts/release/tegra-pages-retained.json)
+The [retained artifact manifest](https://github.com/fathomadb/fathomdb/blob/release/0.8.30/scripts/release/tegra-pages-retained.json)
 records exact URLs and SHA-256 digests. The install below requires its
-`node-tarball` entry for 0.8.29; it stops if the entry is absent or the bytes
+`node-tarball` entry for 0.8.30; it stops if the entry is absent or the bytes
 do not match.
 
 Use it only on a confirmed classic Jetson Orin: the loader requires a Tegra
@@ -74,15 +78,15 @@ node --input-type=commonjs - <<'NODE'
 const fs = require('node:fs');
 const crypto = require('node:crypto');
 (async () => {
-  const manifestUrl = 'https://raw.githubusercontent.com/fathomadb/fathomdb/release/0.8.29/scripts/release/tegra-pages-retained.json';
+  const manifestUrl = 'https://raw.githubusercontent.com/fathomadb/fathomdb/release/0.8.30/scripts/release/tegra-pages-retained.json';
   const response = await fetch(manifestUrl);
   if (!response.ok) throw new Error(`Manifest fetch failed: ${response.status}`);
   const manifest = await response.json();
-  const entry = manifest.artifacts.find(item => item.kind === 'node-tarball' && item.version === '0.8.29');
-  const name = 'fathomdb-linux-arm64-gnu-tegra-0.8.29.tgz';
+  const entry = manifest.artifacts.find(item => item.kind === 'node-tarball' && item.version === '0.8.30');
+  const name = 'fathomdb-linux-arm64-gnu-tegra-0.8.30.tgz';
   const url = `https://fathomadb.github.io/fathomdb/tegra/packages/${name}`;
   if (!entry || entry.filename !== name || entry.url !== url || !/^[0-9a-f]{64}$/.test(entry.sha256)) {
-    throw new Error('Matching 0.8.29 Tegra artifact is missing from the retained manifest');
+    throw new Error('Matching 0.8.30 Tegra artifact is missing from the retained manifest');
   }
   const tarball = await fetch(url);
   if (!tarball.ok) throw new Error(`Tarball fetch failed: ${tarball.status}`);
@@ -94,12 +98,12 @@ const crypto = require('node:crypto');
   console.log('Tegra tarball SHA-256 verified');
 })().catch(error => { console.error(error.message); process.exitCode = 1; });
 NODE
-npm install --save-exact --package-lock-only --ignore-scripts fathomdb@0.8.29
-npm install --save-optional --package-lock-only --ignore-scripts https://fathomadb.github.io/fathomdb/tegra/packages/fathomdb-linux-arm64-gnu-tegra-0.8.29.tgz
+npm install --save-exact --package-lock-only --ignore-scripts fathomdb@0.8.30
+npm install --save-optional --package-lock-only --ignore-scripts https://fathomadb.github.io/fathomdb/tegra/packages/fathomdb-linux-arm64-gnu-tegra-0.8.30.tgz
 node --input-type=commonjs - <<'NODE'
 const fs = require('node:fs');
 const crypto = require('node:crypto');
-const name = 'fathomdb-linux-arm64-gnu-tegra-0.8.29.tgz';
+const name = 'fathomdb-linux-arm64-gnu-tegra-0.8.30.tgz';
 const lock = JSON.parse(fs.readFileSync('package-lock.json', 'utf8'));
 const installed = lock.packages?.['node_modules/fathomdb-linux-arm64-gnu-tegra']?.integrity;
 const checked = 'sha512-' + crypto.createHash('sha512').update(fs.readFileSync(name)).digest('base64');
@@ -130,10 +134,10 @@ loads the generic CPU binary instead.
 ```json
 {
   "dependencies": {
-    "fathomdb": "0.8.29"
+    "fathomdb": "0.8.30"
   },
   "optionalDependencies": {
-    "fathomdb-linux-arm64-gnu-tegra": "https://fathomadb.github.io/fathomdb/tegra/packages/fathomdb-linux-arm64-gnu-tegra-0.8.29.tgz"
+    "fathomdb-linux-arm64-gnu-tegra": "https://fathomadb.github.io/fathomdb/tegra/packages/fathomdb-linux-arm64-gnu-tegra-0.8.30.tgz"
   }
 }
 ```
@@ -164,7 +168,7 @@ How it behaves:
 ## Build from source
 
 ```bash
-git clone --branch release/0.8.29 https://github.com/fathomadb/fathomdb
+git clone --branch release/0.8.30 https://github.com/fathomadb/fathomdb
 cd fathomdb/src/ts
 npm install
 npm run build

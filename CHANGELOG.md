@@ -38,7 +38,7 @@ artifact qualification; this heading does not declare release readiness.
 ### Added
 
 - Explicit `release_models()` / `releaseModels()` drops the standalone CLS and
-  reranker model caches after admitted calls complete. Busy calls refuse without
+  reranker model caches when no model work is admitted. Busy calls refuse without
   clearing caches; later healthy inference reloads them. Engine-owned Mean
   models and terminal CUDA-loss policy retain their separate lifetimes.
 

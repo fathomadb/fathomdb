@@ -40,10 +40,13 @@ nav:
       - Overview: guides/index.md
       - Structured Search Hits: guides/structured-search-hits.md
       - Hybrid Search & Filtering: guides/hybrid-search-filtering.md
+      - Graph Retrieval: guides/graph-retrieval.md
       - Retrieve by Id: guides/retrieve-by-id.md
+      - Extractor Provenance: guides/extractor-provenance.md
       - Frozen Evidence: guides/frozen-evidence.md
       - Prompt Context: guides/prompt-context.md
   - Release Notes:
+      - 0.8.30: release-notes/0.8.30.md
       - 0.8.29: release-notes/0.8.29.md
       - 0.8.28: release-notes/0.8.28.md
   - Positions:

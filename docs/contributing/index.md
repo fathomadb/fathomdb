@@ -21,19 +21,25 @@ Public API changes need the matching interface or ADR update.
 
 ## Verify the change
 
-Use the development Node version in `.nvmrc`, its bundled npm version
-declared in the root and TypeScript manifests, and the Rust toolchain in
-`rust-toolchain.toml`. Published TypeScript compatibility is documented in the
+Use Node 26.13.1 from `.nvmrc`, npm 11.20.0 from the root and TypeScript
+manifests, and Rust 1.95.0 from `rust-toolchain.toml`. Python package runtime
+support starts at 3.10; repository developer gates require Python 3.11 or later.
+Published TypeScript compatibility is documented in the
 [install guide](../install/typescript.md).
 
 Each checkout owns its root and TypeScript `node_modules` from `npm ci` and
 its Python `.venv`. Run
 `bash scripts/setup-python-owned.sh --provision` from that checkout to install developer tools
 and its noneditable, source-bound Python wheel. Never share mutable environments or editable
-bindings between worktrees. After this setup:
+bindings between worktrees. `--tools-only` provisions just developer tools for
+fast/scoped work; it does not install or verify the native binding and cannot
+replace `--provision` for the full gate. Use `--build` after native source changes
+to rebuild the same checkout's wheel. Do not run `maturin develop` or editable
+installs from a worktree. After this setup:
 
 - Documentation and plan changes: `./scripts/agent-lint-md.sh`.
-- Public documentation: also `./scripts/agent-lint-docs.sh`.
+- Public documentation: also `./scripts/agent-lint-docs.sh`,
+  `python3 scripts/generate-public-docs.py --check`, and `mkdocs build --strict`.
 - Release-state changes: `./scripts/check-release-state-views.sh`.
 - Source, tests, or executable scripts: `./scripts/agent-verify.sh` runs the
   full developer gate. Resolve specific findings with focused checks, then
@@ -43,6 +49,9 @@ bindings between worktrees. After this setup:
 - `./scripts/check.sh` is the broader CI gate, including the MkDocs build.
   Use `AGENT_LONG=1 ./scripts/check.sh` for the long AC-021 and AC-059b
   cases. The default developer gate skips those variants.
+
+Use `npm run format:md` for guarded Markdown fixes. Never use Prettier on
+Markdown or invoke `markdownlint-cli2 --fix` directly.
 
 A scoped pass does not establish a full-workspace pass. Keep the command,
 candidate commit, result, and any environment limits in the review record.

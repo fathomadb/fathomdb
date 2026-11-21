@@ -1,6 +1,6 @@
 # Rust API
 
-Crate: `fathomdb` 0.8.29. The facade re-exports the supported application
+Crate: `fathomdb` 0.8.30. The facade re-exports the supported application
 surface from `fathomdb-engine`; generated item-level documentation is published
 at [`docs.rs/fathomdb`](https://docs.rs/fathomdb/). The locked
 [Rust interface](https://github.com/fathomadb/fathomdb/blob/main/dev/interfaces/rust.md)
@@ -9,7 +9,7 @@ owns the contract and feature-gating details.
 ## Surface model
 
 This facade is not namespace-identical to the Python and TypeScript SDKs;
-for that surface in Rust, use [`fathomdb-sdk`](rust-sdk.md) (0.8.29). Application
+for that surface in Rust, use [`fathomdb-sdk`](rust-sdk.md) (0.8.30). Application
 operations are inherent `Engine` methods and public carriers are facade
 re-exports. The default feature set contains no recovery-named or raw-SQL
 method. The `operator` feature enables the diagnostic and recovery seam used by

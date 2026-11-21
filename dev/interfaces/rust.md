@@ -1751,9 +1751,10 @@ The decision rule is
   only on aarch64 Linux with `embed-cuda` or `rerank-cuda`; on x86_64 it
   compiles nothing. A Rust build therefore cannot compile the pool out on
   aarch64 Linux; `cuda_pool = off` is the run-time opt-out. It adds no dependency:
-  the pool primitive comes from `cudarc-fathomdb` 0.19.10 (FathomDB's cudarc
+  the pool primitive comes from `cudarc-fathomdb` 0.21.0 (FathomDB's cudarc
   fork, on crates.io), which the embedder reaches only through the Candle
-  fork crates 0.11.0. A downstream build of the published crates with
+  fork crates 0.13.0, including the published renamed kernel with static CUDART
+  linkage. A downstream build of the published crates with
   `tegra-pool` resolves and builds from crates.io with no `[patch]` table
   (`scripts/check-tegra-pool-registry-build.sh`).
 - **Settings** (0.8.28 Slice 31, owner rulings Q33 and Q35). `EngineConfig`

@@ -76,6 +76,16 @@ pinned default embedder; on first use the weights are downloaded and cached unde
 access at all, and vector writes then raise `EmbedderNotConfiguredError` rather than quietly doing
 nothing.
 
+## Release cached module models
+
+`from fathomdb import release_models` exposes `release_models()`, which drops
+both standalone CLS and cross-encoder caches before success. Call it after
+admitted model work finishes. Loading, cache waits, inference or another release
+raises `OverloadedError` immediately and clears neither cache. Empty/repeated
+release constructs nothing; later healthy calls reload on demand. Engine-owned
+Mean providers close separately with their Engine. Terminal CUDA loss still
+requires process restart. See [model lifetime and examples](https://github.com/fathomadb/fathomdb/blob/release/0.8.30/docs/embedder.md#release-module-models).
+
 ## Erasing data
 
 Every canonical row carries a `source_id`, and that is deliberate: it is what makes the row

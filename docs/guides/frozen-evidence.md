@@ -51,6 +51,17 @@ equivalent frozen context and current visibility. Reference strings contain
 fresh randomness, so compare artifact revision identity and resolved semantics,
 not reference bytes from separate searches.
 
+## Trace registered dependencies
+
+`trace_dependency` / `traceDependency` traverses the registered source-to-derived
+relationship graph under the frozen context with explicit relation/work bounds.
+It does not infer semantic relationships. A valid partial UTF-8 locator is
+checked independently while the stored canonical digest authenticates the whole
+source body; a digest of only the cited span is not a substitute. Forward and
+reverse traces retain exact revision ownership and nondisclosure rules. Empty
+locators may be accepted by writes/registration but are refused by trace's
+nonempty-range policy.
+
 ## Exact graph evidence
 
 Graph evidence is also frozen and opt-in. It does not use body re-search or a

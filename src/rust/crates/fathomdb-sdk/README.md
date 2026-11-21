@@ -8,7 +8,7 @@ packages:
 
 - an `Engine` with the governed engine operations;
 - the `read`, `graph`, and `admin` namespaces;
-- the standalone `rerank` and `embed_batch_cls` operations;
+- the standalone `rerank`, `embed_batch_cls`, and `release_models` operations;
 - the same option defaults and error categories through `Error` / `ErrorKind`.
 
 If you are writing a Rust application against FathomDB, depend on this crate.
@@ -92,6 +92,15 @@ repository.
 | `embed-cuda`, `rerank-cuda`, `embed-metal`, `rerank-metal` | GPU builds of the above. |
 
 No feature is enabled by default.
+
+## Release cached module models
+
+`fathomdb_sdk::release_models() -> Result<()>` releases standalone CLS and
+cross-encoder caches before success. Loading, cache waits, inference or another
+release returns `ErrorKind::Overloaded` immediately and changes neither cache.
+Empty/repeated calls construct nothing; healthy later calls reload on demand.
+Engine-owned Mean providers close separately with their Engine. Terminal CUDA
+loss still requires process restart. See [model lifetime](https://github.com/fathomadb/fathomdb/blob/release/0.8.30/docs/embedder.md#release-module-models).
 
 ## Not in this crate
 

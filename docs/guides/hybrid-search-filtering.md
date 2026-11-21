@@ -13,18 +13,22 @@ within a branch and the weight `w` is 3 for the text branch and 1 for the vector
 and graph branches:
 
 ```text
-score(body) = Σ_branch  w_branch / (30 + rank_branch(body))
+score(record) = Σ_branch  w_branch / (30 + rank_branch(record))
 ```
 
-Each branch counts a body once, at the rank of its first occurrence, so rows
-that share a byte-identical body do not add up within one branch.
+Each branch credits a stored record version once, at its first original
+positional rank. Repeated occurrences do not renumber later candidates.
+Canonical node and edge versions and ownerless FTS rows have separate internal
+ownership keys; equal bodies or equal public IDs do not collapse distinct
+records. Representative fields and provenance follow vector, then text, then
+graph input preference. See [stored versions and public IDs](structured-search-hits.md#stored-versions-and-public-ids).
 
 The vector branch always fuses at least its ten nearest surviving rows, so a
 search with a limit below 10 ranks as the first results of a limit-10 search,
 scores included (with no rerank and no graph arm). Limits of 10 and above are
 unchanged.
 
-A body that **both** branches rank highly accumulates two terms, so agreement
+A record that **both** branches rank highly accumulates two terms, so agreement
 pushes it to the top — which is the whole point of hybrid retrieval. RRF fuses
 the *ordinal rank* each branch assigns, never the raw `vec_distance_l2` / `bm25()`
 scores (those live on different, non-comparable scales). The fused value lands in
@@ -51,7 +55,11 @@ omitted (or all-empty) filter is the unfiltered path.
 | `attributes`   | ordered AND equality over `filterable` projections     |
 
 The filter prunes the vector branch inside the single phase-1 KNN statement and
-constrains the text branch by the same metadata.
+constrains the text branch by the same metadata. On the optimized node-only
+hybrid path, matching node rows pass visibility and eligibility before the
+candidate cap and ranking; unrelated ineligible rows do not consume that cap.
+This optimization preserves actual record provenance and original fusion ranks.
+Other query shapes retain their applicable fallback routes.
 
 > **`status` caveat.** `status` is wired end-to-end but ships an **empty-string
 > sentinel only** — as of 0.8.20 there is still no real population source (vec0
@@ -150,5 +158,6 @@ on the SDK surface.
 
 ## See also
 
+- [Graph retrieval and bounded expansion](graph-retrieval.md)
 - [Working with structured search hits](structured-search-hits.md)
 - [Python API](../reference/python-api.md) · [TypeScript API](../reference/typescript-api.md)

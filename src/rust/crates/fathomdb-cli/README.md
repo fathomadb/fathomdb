@@ -26,17 +26,21 @@ That installs a binary named `fathomdb`.
 ## Two roots
 
 ```text
-fathomdb doctor <verb> [--json] [<db-path>]             # read-only diagnostics
+fathomdb doctor <verb> [--json] [<db-path>]             # diagnostics / export / maintenance
 fathomdb recover --accept-data-loss [flags] <db-path>   # lossy repair
 ```
 
-`doctor` never destroys anything. `recover` can, which is why every `recover` invocation requires an
+`doctor` contains diagnostics, exports and explicit maintenance. Ordinary-open
+commands can initialize a missing database or start projection workers;
+`recompute-mean` mutates the stored mean and sign-bit vectors. `recover` admits
+lossy repair, which is why every invocation requires an
 explicit `--accept-data-loss` acknowledgement: without it the command refuses with
 `E_RECOVER_REQUIRES_ACCEPT_DATA_LOSS` and exits 70. There is no way to run a lossy workflow by
 accident.
 
-Most `doctor` verbs take a database path; `warm-cache` operates on the shared weight cache and takes
-none.
+Most `doctor` verbs take a database path. `gpu`, `reranker-gpu`, `platform`,
+`cuda-allocator`, `cuda-libraries` and `warm-cache` are database-free;
+`warm-cache` can populate the shared model cache.
 
 ### `doctor` verbs
 
@@ -49,9 +53,12 @@ none.
 | `trace` | Trace the resolution chain for a source reference |
 | `dump-schema` | Dump the canonical schema definition |
 | `dump-row-counts` | Per-table row counts |
-| `dump-profile` | The response-cycle profile the engine recorded |
+| `dump-profile` | Stored embedder identity, dimension and registered vector kinds |
 | `dump-mutations` | Page through the operational-mutation log for one collection |
 | `orphan-provenance` | Per-`source_id` census; reports rows reachable by **no** erasure verb |
+| `gpu`, `reranker-gpu` | Inspect embedding or cross-encoder device policy |
+| `platform` | Classify the host without opening a database |
+| `cuda-allocator`, `cuda-libraries` | Inspect CUDA allocation and library selection |
 | `warm-cache` | Pre-fetch and verify the pinned default-embedder weights (needs the `default-embedder` feature) |
 | `recompute-mean` | Re-derive and re-pin the corpus mean, re-quantizing every vector in one transaction |
 
@@ -64,7 +71,7 @@ unchanged.
 
 ### `recover` flags
 
-`--truncate-wal`, `--rebuild-vec0`, `--rebuild-projections`, `--excise-source <id>`, and
+`--truncate-wal`, `--rebuild-vec0`, `--rebuild-projections`, `--complete-erasures`, `--excise-source <id>`, and
 `--excise-collection <c> --excise-record-key <k>` (which must be given together).
 
 ## Machine-readable output

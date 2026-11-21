@@ -32,7 +32,7 @@ network access. Everything below is opt-in at build time.
 
 | Feature | What it adds |
 | --- | --- |
-| `default-embedder` | `CandleBgeEmbedder` — the pinned default (`fathomdb-bge-small-en-v1.5`, 384 dimensions) on the qualified `candle-*-fathomdb` 0.11.0 fork runtime — plus `NomicEmbedder` (768 dimensions) and the `loader` module. |
+| `default-embedder` | `CandleBgeEmbedder` — the pinned default (`fathomdb-bge-small-en-v1.5`, 384 dimensions) on the qualified `candle-*-fathomdb` 0.13.0 fork runtime — plus `NomicEmbedder` (768 dimensions) and the `loader` module. |
 | `onnx-embedder` | `OrtBgeEmbedder`, the same BGE model under ONNX Runtime, carrying its own distinct embedder identity (`fathomdb-bge-small-en-v1.5-onnx`). Useful where the candle stack is not viable. |
 | `default-reranker` | `CandleTinyBertReranker` (`fathomdb-ms-marco-TinyBERT-L2-v2`) — cross-encoder scoring of `(query, passage)` pairs. |
 | `embed-cuda` / `embed-metal` | Candle GPU build support. The public embedder policy currently selects CUDA only. |
@@ -53,6 +53,15 @@ Python/Node builds on AArch64 can initialize the driver at import; select CPU
 policies before import or use the documented early-init control. See the
 [embedder guide](https://github.com/fathomadb/fathomdb/blob/release/0.8.30/docs/embedder.md)
 for pool configuration, fork/linkage requirements and import/fork limits.
+
+## Cache ownership
+
+The application SDKs expose explicit `release_models()` / `releaseModels()` for
+the shared standalone CLS and cross-encoder caches. Engine-owned Mean providers
+have a separate close lifecycle. Concurrent admitted model work makes explicit
+release refuse without clearing either cache; healthy calls can later reload.
+Release preserves terminal CUDA generation loss until process restart. See
+[the lifecycle guide](https://github.com/fathomadb/fathomdb/blob/release/0.8.30/docs/embedder.md#release-module-models).
 
 ## Weight loading
 

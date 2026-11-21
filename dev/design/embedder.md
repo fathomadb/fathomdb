@@ -56,6 +56,18 @@ This file owns dispatch onto the engine-owned embedder pool, eager warmup,
 per-call timeout handling, and the runtime mechanics behind
 `EmbedderIdentityMismatch`.
 
+## Module model release (0.8.30)
+
+The [accepted ownership ADR](../adr/ADR-0.8.30-explicit-module-model-release.md)
+owns standalone CLS/cross-encoder cache lifetime and the shared admission gate.
+SDK `release_models` / `releaseModels` releases both caches before success;
+busy loading/waiting/inference/release refuses immediately without changing
+either cache. The engine reranker takes a scoped cross-encoder lease, while
+engine-owned Mean providers continue through the independent dispatcher and
+close lifecycle below. Native load/inference/destruction hold neither gate nor
+cache mutexes; Python also releases the GIL. Healthy reload is allowed; terminal
+CUDA loss remains until restart. See [public usage](../../docs/embedder.md#release-module-models).
+
 ## Current engine dispatch
 
 [`ADR-0.8.27-engine-owned-runtime-topology`](../adr/ADR-0.8.27-engine-owned-runtime-topology.md)

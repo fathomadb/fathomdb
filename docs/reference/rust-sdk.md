@@ -1,10 +1,10 @@
 # Rust SDK
 
-Crate: `fathomdb-sdk` 0.8.29 (import `fathomdb_sdk`). It has the same surface as the Python and TypeScript SDKs:
+Crate: `fathomdb-sdk` 0.8.30 (import `fathomdb_sdk`). It has the same surface as the Python and TypeScript SDKs:
 
 - an `Engine` with the same operations;
 - the `read`, `graph`, and `admin` namespaces;
-- the standalone `rerank` and `embed_batch_cls` operations;
+- the standalone `rerank`, `embed_batch_cls`, and `release_models` operations;
 - the same option defaults and error categories, represented by one Rust
   `Error` type and its `ErrorKind`.
 
@@ -54,6 +54,21 @@ exposes typed queue/status/withdraw outcomes and an owned `ErasureMaintenance`
 window from `begin_erasure_maintenance`; activated cleanup returns typed complete
 or incomplete results. See [maintenance semantics](../operations/erasure.md#schedule-an-explicit-maintenance-window).
 No completion deadline or immediate-revocation promise is implied.
+
+## Explicit module model release
+
+`fathomdb_sdk::release_models() -> Result<()>` releases the standalone CLS and
+cross-encoder caches before success. Empty and repeated calls succeed without
+loading models or initializing CUDA. Concurrent loading, cache waits, inference,
+or another release returns `ErrorKind::Overloaded` immediately and leaves both
+caches unchanged. Healthy subsequent calls can reload. Engine-owned Mean
+providers remain attached to their engines. Terminal CUDA loss remains terminal
+until process restart. See [the lifecycle guide](../embedder.md#release-module-models).
+
+Downstream exhaustive matches on `RerankerDevicePolicyError` must handle the
+new `ModelBusy` variant (`kind() == "overloaded"`, no ordinal). Fallible reranker
+paths map it to overload; infallible `rerank_fused` retains unchanged-input
+fallback.
 
 ## Differences from Python and TypeScript
 

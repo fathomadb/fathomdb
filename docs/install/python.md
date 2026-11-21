@@ -4,7 +4,7 @@ The `fathomdb` Python SDK is a [PyO3](https://pyo3.rs/) binding over the
 native Rust runtime. Wheels are platform-tagged (no source build
 required on supported platforms).
 
-> **Release 0.8.29, pre-1.0 beta.** Wheels cover Linux x86_64/glibc, Linux
+> **Release 0.8.30, pre-1.0 beta.** Wheels cover Linux x86_64/glibc, Linux
 > AArch64/glibc, macOS x64/arm64, and Windows x64. Other hosts must use the
 > from-source path below. FathomDB is pre-1.0 and the surface is **beta**.
 
@@ -22,40 +22,46 @@ required on supported platforms).
 
 ## Install the wheel
 
+Registry publication is pending; run the exact-version install after 0.8.30
+is published. Use a virtual environment for your application.
+
 ```bash
-pip install fathomdb==0.8.29
+pip install fathomdb==0.8.30
 ```
 
 ## Build from source
 
-From a direct clone of the trusted `release/0.8.29` branch, use the editable build through [maturin](https://www.maturin.rs/).
+Use a trusted `release/0.8.30` checkout and the declared Rust 1.95.0 toolchain.
+For repository development, provision that checkout's own Python environment
+and install its noneditable, source-bound native wheel:
 
 ```bash
-git clone --branch release/0.8.29 https://github.com/fathomadb/fathomdb
+git clone --branch release/0.8.30 https://github.com/fathomadb/fathomdb
 cd fathomdb
-pip install -e src/python/
+bash scripts/setup-python-owned.sh --provision
+. .venv/bin/activate
 ```
 
-`pip install -e src/python/` invokes maturin against the workspace and
-produces the native PyO3 extension `fathomdb._fathomdb`. Use this build
-entry point to keep the native extension bound to its Python package.
-
-For worktrees and source-bound verification, run
-`bash scripts/setup-python-owned.sh --provision` from that checkout. The
-script installs a noneditable wheel and pinned developer tools into the
-checkout's own `.venv`. See the [contributor setup](../contributing/index.md#verify-the-change).
+Developer gates require Python 3.11 or later even though installed packages
+support Python 3.10. The setup script selects a suitable interpreter, installs
+pinned developer tools, and builds through Maturin. Never borrow another
+checkout's `.venv` or run an editable install from a worktree. After source
+changes, `bash scripts/setup-python-owned.sh --build` refreshes this owned wheel.
+See the [contributor setup](../contributing/index.md#verify-the-change).
 
 ## Jetson / Tegra CUDA
 
-The published `0.8.29+tegra` wheel supplies CUDA on classic Jetson Orin.
+The `0.8.30+tegra` wheel supplies CUDA on classic Jetson Orin after its
+separate Pages publication. Publication is pending; do not infer availability
+from generic ARM64 CPU package qualification.
 It is distributed through first-party GitHub Pages, separately from PyPI.
-The generic 0.8.29 AArch64 wheel remains CPU-only, including on Jetson.
+The generic 0.8.30 AArch64 wheel remains CPU-only, including on Jetson.
 CUDA 13 artifact delivery, including Tegra, is planned for 0.8.31.
 
 On a confirmed classic Jetson Orin (L4T R36 / JetPack 6, CUDA 12.6), install
-the exact 0.8.29 Tegra build from the first-party index. Confirm its
-`0.8.29+tegra` wheel entry and SHA-256 in the
-[retained artifact manifest](https://github.com/fathomadb/fathomdb/blob/release/0.8.29/scripts/release/tegra-pages-retained.json)
+the exact 0.8.30 Tegra build from the first-party index. Confirm its
+`0.8.30+tegra` wheel entry and SHA-256 in the
+[retained artifact manifest](https://github.com/fathomadb/fathomdb/blob/release/0.8.30/scripts/release/tegra-pages-retained.json)
 before installation:
 
 ```bash
@@ -63,11 +69,11 @@ python3 -m venv .venv
 . .venv/bin/activate
 python -m pip install --isolated --no-cache-dir --only-binary=:all: \
   --index-url https://fathomadb.github.io/fathomdb/tegra/simple/ \
-  'fathomdb==0.8.29+tegra'
+  'fathomdb==0.8.30+tegra'
 ```
 
 This is a detection-gated, exact-version route: do not use a floating version
-or `--extra-index-url`. The GitHub Pages transport is interim 0.8.29 hosting
+or `--extra-index-url`. The GitHub Pages transport is interim 0.8.30 hosting
 and is published only through the documented exact-SHA workflow. Unsupported JetPack,
 generic AArch64/SBSA, and Thor hosts have no supported Tegra CUDA route. Do not
 use a generic AArch64 CUDA build on classic Tegra; the SDK emits a visible

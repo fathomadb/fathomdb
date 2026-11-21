@@ -36,7 +36,7 @@ by `transition` / `purge`.
 ### Branches
 
 `branch` names which retrieval branch produced the representative hit:
-`vector` (ANN vector branch over node bodies), `text` (node-body FTS5),
+`vector` (full-scan bit-KNN and f32 shortlist rerank over node bodies), `text` (node-body FTS5),
 `text_edge` (an edge-body hit — FTS or vector-projected edge fact,
 `kind == "edge_fact"`), and `graph_arm` (a node reached only through the
 opt-in graph BFS arm).
@@ -63,7 +63,9 @@ packing labels and keep a map from each label to the selected record.
 
 For otherwise-recordable MCP feedback, a named ref shared by distinct returned
 records causes the whole feedback call to refuse before it writes any labels.
-Existing `not_recorded` outcomes keep their precedence. Logical fetch selects
+Existing `not_recorded` outcomes keep their precedence. MCP response attribution
+binds the ordered returned ref/cursor pairs, so a later search returning a
+replacement under the same public ref does not relabel an earlier response. Logical fetch selects
 the latest eligible revision for its requested view. A search ref can
 therefore resolve to a different version from the one returned by search.
 

@@ -1,6 +1,6 @@
 # Concepts
 
-Mental model for the 0.8.29 release. Detailed treatment lives in internal design
+Mental model for the 0.8.30 release. Detailed treatment lives in internal design
 docs under
 [`dev/design/`](https://github.com/fathomadb/fathomdb/tree/main/dev/design);
 this page is the consumer-facing overview.
@@ -27,6 +27,10 @@ open → write / search / admin.configure / instrumentation → close → proces
 3. **Close** — `engine.close()` shuts down the projection scheduler and reader workers,
    releases SQLite handles, and releases the on-disk lock.
    Idempotent.
+   Closing an Engine does not release process CLS/cross-encoder caches. Use
+   [`release_models` / `releaseModels`](../embedder.md#release-module-models)
+   after module model calls finish; engine-owned Mean providers have their own
+   close lifecycle.
 4. **Process exit** — the process must exit cleanly after close. The
    installed-package release checks verify lock cleanup and clean process
    exit after close.

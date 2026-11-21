@@ -26,7 +26,7 @@ so call `configure_runtime` or open the first Engine before it. This API does no
 
 ## Engine configuration
 
-Engine-owned runtime knobs (0.8.29; GPU pool settings introduced in 0.8.28). The same knobs are exposed by
+Engine-owned runtime knobs (0.8.30; GPU pool settings introduced in 0.8.28). The same knobs are exposed by
 every binding in idiomatic spelling (Python snake_case, TS camelCase,
 Rust snake_case).
 
@@ -64,7 +64,8 @@ for queueing, exclusive windows and durable incomplete outcomes.
 
 The three GPU pool settings take effect only on AArch64 Linux CUDA builds;
 elsewhere they are validated, read back and held to the rule below, but do
-nothing. Rust spells them as `EngineConfig` fields of types `CudaPoolMode`,
+nothing. Explicit module model release does not reset these process-wide
+settings; see [model lifetime](../embedder.md#release-module-models). Rust spells them as `EngineConfig` fields of types `CudaPoolMode`,
 `u64` and `ReleaseThreshold`.
 
 > **One pool configuration per process.** The GPU pool settings

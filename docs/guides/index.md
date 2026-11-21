@@ -7,9 +7,13 @@ Guides cover the current public surface.
   `ce_score` fields on each `search()` hit.
 - [Hybrid search & filtering](hybrid-search-filtering.md) — RRF ranking and the
   closed `SearchFilter` metadata filter.
+- [Graph retrieval and bounded expansion](graph-retrieval.md) — choose hybrid
+  convenience paths or bounded lexical/explicit-seed expansion.
 - [Retrieve by id](retrieve-by-id.md) — point lookups by `logical_id`
   (`read.get` / `read.get_many`) and paginated op-store read-back
   (`read.collection` / `read.mutations`).
+- [Extractor provenance and vector kinds](extractor-provenance.md) — caller
+  attribution, legacy extraction limits, and dense eligibility.
 - [Frozen evidence](frozen-evidence.md) — choose frozen ranking, exact source
   evidence, or canonical pagination without weakening read authority.
 - [Prompt context from search hits](prompt-context.md) — render ranked hits

@@ -316,6 +316,6 @@ research in the [0.9.0 backlog](../0.9.0/backlog.md); it adds no .30 feature wor
 own current status.
 
 <!-- BEGIN GENERATED release-state:0.8.30:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 50** (`ROBUSTNESS`) — Runtime concurrency and resource bug hunt and remediation
+**IMMEDIATE NEXT: Slice 70** (`QUALIFICATION`) — Integrated behavior and source qualification
 
-**Remaining ladder:** 50 → 70 → 75 → 80.<!-- END GENERATED release-state:0.8.30:plan-immediate-next -->
+**Remaining ladder:** 70 → 75 → 80.<!-- END GENERATED release-state:0.8.30:plan-immediate-next -->

@@ -367,6 +367,11 @@
         "id": "sequence55-60-finish50",
         "source": "seq-409",
         "ruling": "Proceed55 then60 then finish50 using the supplied template and gpt-6.1-sol high; replaces the prior finish50-before55 condition. Coordinate70/75/80 afterward; exact-candidate publication remains separate."
+      },
+      {
+        "id": "slice60-orin-normal-verification",
+        "source": "seq-410",
+        "ruling": "Approve both reviewed Orin actions and same-scope release-owned source/test-artifact/harness updates for CPU and healthy GPU verification at coreyt@10.83.10.13 within /tmp/fathomdb-0830-slice60/. Credentials,user databases,resets,host changes and publication are excluded."
       }
     ],
     "unruled": []
@@ -566,8 +571,8 @@
     {
       "item": "Asynchronous logging fixture synchronization",
       "owner_slice": 50,
-      "state": "OPEN",
-      "evidence": "Original and focused pytest fail6!=3. Bounded independent observation validates12 typed refusals across4 callbacks and successful outer operations; original assertion remains failed."
+      "state": "RESOLVED_BY_SLICE50_PARTIAL",
+      "evidence": "Integrated partial50 atdaf12b6d9839816fab4cd7c72c81e2f10918bf0f repairs the fixture completion/count oracle with actual event pairs and a FIFO fence; independent installed logging10/10 and Pyright0 errors. Original6!=3 failures remain in features/slice-50/status.md.50 itself remains partial for Node pool comparison and B30-01."
     },
     {
       "item": "Renderer advisory graph and browser qualification",

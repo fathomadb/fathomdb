@@ -1,0 +1,53 @@
+name: CI diagnostic cancellation
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: Exact release candidate commit on the dispatched branch
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  cancellation-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Require immutable candidate
+        shell: bash
+        env:
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+        run: |
+          set -euo pipefail
+          [[ "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$CANDIDATE_SHA" = "$GITHUB_SHA"
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - name: Emit completed outcomes then await real cancellation
+        shell: bash
+        env:
+          AGENT_CI_LIVE: "1"
+        run: |
+          set -euo pipefail
+          . scripts/lib/agent-output.sh
+          . scripts/lib/agent-suite-run.sh
+          AGENT_LOG_DIR="$RUNNER_TEMP/cancellation-probe"
+          export AGENT_LOG_DIR
+          mkdir -p "$AGENT_LOG_DIR"
+          run_suite cancel-pass true
+          # shellcheck disable=SC2016
+          run_suite cancel-fail bash -c '
+            for ((line=1;line<=250;line++)); do printf "compiler diagnostic %03d\n" "$line"; done
+            printf "GITHUB_TOKEN=synthetic-cancel-token\n"
+            printf "password=synthetic-cancel-password\n"
+            printf "Authorization: Bearer synthetic-cancel-bearer\n"
+            printf "error: final complete compiler diagnostic 251\n"
+            exit 101
+          '
+          run_suite cancel-block bash -c 'printf "CANCELLATION_PROBE_READY\n"; exec sleep 600'
+          run_suite cancel-unrun bash -c 'printf "CANCELLATION_PROBE_UNRUN_EXECUTED\n"'
+          suite_summary_and_exit

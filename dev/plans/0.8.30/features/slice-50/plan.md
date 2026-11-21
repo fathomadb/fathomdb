@@ -17,6 +17,14 @@ the then-current release tip after60; do not replay unaffected passing work.
 
 ## Entry and prerequisites
 
+Finish50 is commissioned at clean `bc6dba1518cdbccb45bfab9c50a03d606f68012d`
+in `/tmp/fathomdb-0830-slice50-finish`, branch `impl/0.8.30-slice50-finish`.
+The [remaining-work design](design.md#finish50-design-delta) consumes completed60
+and seq412's standing Orin authority. Earlier paths and unavailable-proof
+statements below describe the retained first phase, not the resumed gate.
+Reuse its unchanged MCP/dispatch/close/logging proof. Only model ownership,
+release APIs and the actual default-Node comparison remain implementation work.
+
 Execution baseline is `cd64360a63bf06c7d1bc5f27865cca6d7400eff8` in
 `/tmp/fathomdb-0830-slice50-impl`, branch `impl/0.8.30-slice50`.
 The [execution design](design.md) reconciles the drafted scope, bounded

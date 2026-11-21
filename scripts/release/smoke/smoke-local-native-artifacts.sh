@@ -16,7 +16,6 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 PYTHON_BASE="${FATHOMDB_SMOKE_PYTHON:-python3}"
 NODE_CMD="${FATHOMDB_SMOKE_NODE:-node}"
 LIGHTWEIGHT="${FATHOMDB_SMOKE_LIGHTWEIGHT:-0}"
-main_version="$("$NODE_CMD" -p 'JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8")).version' "$TS_DIR/package.json")"
 
 wheel_paths=("$WHEEL_DIR"/*.whl)
 if [ "${#wheel_paths[@]}" -ne 1 ] || [ ! -f "${wheel_paths[0]}" ]; then
@@ -64,6 +63,8 @@ then
     "$wheel_name" "$ABI3_TAG" >&2
   exit 1
 fi
+
+main_version="$("$NODE_CMD" -p 'JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8")).version' "$TS_DIR/package.json")"
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT

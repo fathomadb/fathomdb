@@ -305,6 +305,19 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
+      - name: Materialize the governing release baseline for real preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          current="$(python3 scripts/release-current.py)"
+          if [ -n "$current" ]; then
+            release="${current%%$'\t'*}"
+            baseline="refs/heads/release/$release"
+            if ! git rev-parse --verify "$baseline^{commit}" >/dev/null 2>&1; then
+              remote="refs/remotes/origin/release/$release"
+              git update-ref "$baseline" "$(git rev-parse --verify "$remote^{commit}")"
+            fi
+          fi
       - name: Configure per-session TMPDIR
         shell: bash
         run: |

@@ -68,8 +68,8 @@ def check_dependency() -> None:
 def check_action_comments() -> None:
     workflow = (ROOT / ".github/workflows/ci.yml").read_text()
     pinned = f"actions/upload-artifact@{UPLOAD_SHA} # v7.0.1"
-    require(workflow.count(pinned) == 2, "both upload-artifact comments must identify v7.0.1")
-    require(workflow.count(f"actions/upload-artifact@{UPLOAD_SHA}") == 7, "all upload SHAs must stay byte-identical")
+    require(workflow.count(pinned) == 3, "all three upload-artifact comments must identify v7.0.1")
+    require(workflow.count(f"actions/upload-artifact@{UPLOAD_SHA}") == 8, "all upload SHAs must stay byte-identical")
     require(f"actions/upload-artifact@{UPLOAD_SHA} # v4.6.2" not in workflow, "stale action comments must be gone")
 
 

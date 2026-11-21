@@ -73,9 +73,9 @@ CANDLE_LOCAL_SOURCE = (
     "git+file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb"
     "?rev=952edb7dcd1e29563acedd485a3c1ce8ef07a85c#952edb7dcd1e29563acedd485a3c1ce8ef07a85c"
 )
-# Slice60's candidate integration route has no registry publication or
-# checksum. Replacing these sources with published crates needs a separately
-# authorized normalization; matching version numbers alone is insufficient.
+# The qualified integration lock retains exact Git sources without registry
+# checksums. Public delivery has separate archive/consumer proof; replacing
+# these lock sources requires normalization, not version-number equality.
 FORK_PINS = [
     {
         "dependency": "cudarc-fathomdb",
@@ -704,7 +704,7 @@ def main() -> int:
             print(f"FAIL  pinned-override-rot: {failure}", file=sys.stderr)
         return 1
     print(
-        "ok pinned-override-rot: governed npm overrides, K9 kernels and exact fork sources pass local qualification; registry publication remains unqualified"
+        "ok pinned-override-rot: governed npm overrides, K9 kernels and exact fork sources pass local qualification; public delivery is a separate proof"
     )
     return 0
 

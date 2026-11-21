@@ -1,6 +1,6 @@
 ---
 title: Slice 60 fork maintenance and qualification
-status: ACTIVE
+status: COMPLETE
 target_release: 0.8.30
 slice: 60
 ---
@@ -124,6 +124,6 @@ selected fork and product configuration.
 
 ## Open choices and prerequisites
 
-- Slice9 selected placement; this execution selects published upstream Candle0.11.1, exact qualified Git delivery and the reviewed fresh0.13/0.21 normalized-package proposal. Slice10 tooling is retained. Registry publication remains a separate concrete owner disposition; old0.12/0.20 versions are immutable.
+- Slice9 selected placement; this execution selects published upstream Candle0.11.1, exact qualified Git delivery and the reviewed fresh0.13/0.21 normalized-package proposal. Slice10 tooling is retained. Owner seq413 subsequently authorized the exact five-package publication and Q2 successor; actual public delivery is recorded in [status](status.md). Old0.12/0.20 versions remain immutable.
 - The design prospectively selects target rows and cost limits. Recheck actual exclusive venue availability before native execution. Keep R580/primary12.6 and exclude K620.
 - Live reset qualification needs separate venue, resource and fault authority. Slice 50 can proceed with independent safe work while that prerequisite is held.

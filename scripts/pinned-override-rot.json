@@ -9,7 +9,7 @@
   },
   "scope": {
     "npm": "All root package.json overrides are governed. Each must have a matching npm_overrides record with a rationale and a complete per-pin advisory_ids mapping. R2 deliberately fails closed for any live override: npm's lockfile records the override result, not a mechanically reproducible no-override resolution.",
-    "cargo": "Slice60 source candidate pins the renamed kernel and Candle trio0.13.0 to one qualified owner-fork code commit, with cudarc0.21.0 at its qualified source. Root and standalone SDK repeat exact patches and logical Git/HTTPS mirrors. Matching public-registry delivery is separately held; version equality alone is insufficient. Any other patch/replace/direct Git dependency remains unsupported. Complete static-CUDART kernel ownership remains required by ADR0.8.25; root patches do not propagate downstream.",
+    "cargo": "Slice60 source candidate pins the renamed kernel and Candle trio0.13.0 to one qualified owner-fork code commit, with cudarc0.21.0 at its qualified source. Root and standalone SDK repeat exact patches and logical Git/HTTPS mirrors. Owner seq413 authorized matching public-registry delivery; actual public source/checksums and independent consumers are recorded in Slice60 status. Version equality alone is insufficient. Any other patch/replace/direct Git dependency remains unsupported. Complete static-CUDART kernel ownership remains required by ADR0.8.25; root patches do not propagate downstream.",
     "governed_commit_pins": "scripts/governed-surface-pin.json pins repository contract content, not an external dependency version. Its commit/hash integrity is enforced by scripts/check-governed-surface-pin.sh; it has no package-advisory semantics and is explicitly not reinterpreted here."
   },
   "npm_overrides": [],
@@ -24,7 +24,7 @@
     "versions": {
       "candle-kernels-fathomdb": "0.13.0"
     },
-    "rationale": "The renamed kernel candidate carries static CUDART (K4/K6), declared-header invalidation and the bounded native/PTX treatment from the same code commit as the trio. PTX remains the product default pending prospective adoption results. Published old upstream kernels and old fork versions do not supply this source. Exact qualified Git/HTTPS identity and independent staged normalized-package consumers are separate proofs; no registry publication is claimed.",
+    "rationale": "The renamed kernel candidate carries static CUDART (K4/K6), declared-header invalidation and the bounded native/PTX treatment from the same code commit as the trio. The inconclusive Orin adoption result retains the product PTX default. Published old upstream kernels and old fork versions do not supply this source. Exact qualified Git/HTTPS identity and independent staged and public normalized-package consumers are separate proofs; Slice60 status records actual publication.",
     "advisory_posture": {
       "status": "external-source-unassessed",
       "scope": "outside the checked-in npm advisory snapshot",

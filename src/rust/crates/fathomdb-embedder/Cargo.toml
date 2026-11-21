@@ -25,9 +25,9 @@ serde_json = { version = "1", optional = true }
 thiserror = { version = "1", optional = true }
 
 # Candle stack + tokenizer for the default `CandleBgeEmbedder` (EU-4).
-# Slice60 source candidate: Candle0.13.0 and cudarc0.21.0.
-# Exact Git revisions and HTTPS mirrors qualify this candidate. Matching
-# public-registry delivery remains pending its separate owner disposition.
+# Slice60 qualified cohort: published Candle0.13.0 and cudarc0.21.0.
+# Exact Git revisions and HTTPS mirrors preserve the qualified source;
+# independent public-registry consumers use the same source and manifests.
 # Candle keeps its Rust crate names and re-exports cudarc. The no-feature
 # closure remains thin; safetensors is reached through candle-core.
 candle-core         = { package = "candle-core-fathomdb", version = "=0.13.0", optional = true }

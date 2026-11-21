@@ -82,7 +82,8 @@ come, so a pin outlives its reason and silently holds the tree back.
   This establishes qualified source consumption, not public registry delivery.
   Old published 0.12/0.20 artifacts cannot carry changed source under their
   immutable registry identity. The new versions and renamed kernel are
-  candidates until the separately authorized publication route completes.
+  qualified sources; owner seq413 authorized matching public publication, whose
+  actual checksums and consumer outcome are recorded in Slice60 status.
 
 ## Design constraints
 

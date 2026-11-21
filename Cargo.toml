@@ -68,9 +68,9 @@ fathomdb-sdk          = { path = "src/rust/crates/fathomdb-sdk",          versio
 # Every entry here is governed by scripts/check-pinned-override-rot.py, which
 # authenticates its exact source; see scripts/pinned-override-rot.json.
 #
-# Slice60 qualifies a coherent Candle0.13/cudarc0.21 source cohort.
+# Slice60 qualifies the published Candle0.13/cudarc0.21 source cohort.
 # The renamed kernel package owns static CUDART and the native/PTX candidate;
-# the product default remains PTX until the prospective adoption gates pass.
+# the inconclusive Orin adoption gate retains the product PTX default.
 # Exact logical IDs fetch same-commit owner HTTPS mirrors. Root patches do
 # not propagate to independent workspaces or registry consumers.
 [patch.crates-io]

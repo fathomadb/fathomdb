@@ -24,7 +24,7 @@ and9's selected fork placement. Adjust the old upstream leads to the actual
 registry source below. Keep format37, F32 model precision, current public
 numerical/security/support policy, healthy OOM recovery and driverless loading.
 No CUDA13, cutile/ug/flash-attn, new backend/dtype, ANN, model re-export,
-publication, host reset or partial-construction live reset is selected.
+host reset or partial-construction live reset is selected. Publication later received explicit owner seq413 authority below.
 The [quality roadmap](../../../../notes/fathomdb-quality-testing-roadmap.md)
 applies through first/persistent native errors, known-output controls and exact
 installed ownership. Defer exhaustive GPU fuzzing and architecture campaigns.
@@ -48,7 +48,7 @@ represent this candidate. Preserve the trio library names; migrate directly to t
 upstream API. The consumed kernels become upstream0.11.1 plus required linkage
 and selected image changes, replacing K9's0.10.2 bytes only after qualification.
 A common qualified code commit may serve both trio and kernels; do not assume
-their present split has already disappeared. No registry delivery is claimed.
+their present split has already disappeared. Actual final registry delivery is recorded in [status](status.md).
 
 | Delta | Selected disposition and current need |
 | --- | --- |
@@ -349,7 +349,7 @@ Direct Astra-medium passed the focused native attribution refinement after
 checking the actual production cache miss path and retained exact oracles.
 The observed vendor forced-PTX failure remains separate from Candle results.
 
-## Registry delivery correction (proposed successor to Slice31 Q2)
+## Registry delivery correction (owner seq413 successor to Slice31 Q2)
 
 Primary registry source inspection confirms the published0.12.0 trio is at
 2ee39305; core normalizes its kernel edge to upstream candle-kernels0.10.2.
@@ -384,10 +384,11 @@ cudarc and the renamed kernel. Assert core AND nn kernel aliases normalize to
 package candle-kernels-fathomdb/version =0.13.0, and inventory every packaged
 .cu/.cuh/build.rs against qualified source. This reversible execution proves
 staged package compatibility only; actual public-registry checksum/download/
-consumer verification remains OPEN until authorized uploads are complete. Parent obtains the concrete Q2
-successor/publication disposition after these candidates are reviewable.
-No publication is authorized by this proposal, and a Git-only pass does not
-close matching-registry delivery or later release gates.
+consumer verification requires actual authorized uploads. Owner seq413 explicitly
+approved this exact five-package publication and the Q2/new-namespace successor
+after prerequisite reviews and actual qualification. Normal Cargo verification,
+public downloads/checksums and an independent public consumer complete delivery;
+a Git-only pass does not close later release gates.
 
 ## 3090 healthy-session resource refinement
 

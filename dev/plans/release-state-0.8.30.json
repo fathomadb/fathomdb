@@ -1,11 +1,12 @@
 {
   "release": "0.8.30",
-  "release_kind": "10/20/30/40/55/60 complete;50 resumed underseq-409",
+  "release_kind": "10/20/30/40/50/55/60/70 complete;75 final artifact qualification",
   "board": "dev/plans/runs/STATUS-0.8.30.md",
   "plan": "dev/plans/0.8.30/plan.md",
   "master": "dev/plans/0.8.30/plan.md",
   "active_ref": "refs/heads/release/0.8.30",
   "schema_version": 37,
+  "public_docs_target_release": "0.8.30",
   "schema_version_source": "pub const SCHEMA_VERSION in src/rust/crates/fathomdb-schema/src/lib.rs",
   "ladder": [
     {
@@ -413,6 +414,11 @@
         "id": "release-orin-transfers-session-only",
         "source": "seq-416",
         "ruling": "Transfer to Orin is authorized for this session only. Necessary source/artifact/harness transfers for this release session may proceed; no future-session transfer authorization is inferred."
+      },
+      {
+        "id": "gpu0-only-and-active-doc-correctness",
+        "source": "seq-417",
+        "ruling": "GPU1 is in use; release work may useGPU0 as needed. Update README version and active documentation all-around for correctness, preserving historical evidence and actual support limits."
       }
     ],
     "unruled": []

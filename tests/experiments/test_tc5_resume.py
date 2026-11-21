@@ -158,3 +158,15 @@ def test_each_query_starts_from_the_same_immutable_sqlite_snapshot(tmp_path, mon
     result = tc5.run_arm(tmp_path / "config", "bridge", output_root=tmp_path / "run", binary=binary, resume_from=prior)
     assert len(seen) == 2 and seen[0] != seen[1]
     assert json.loads(result.read_text())["checked_queries"] == 2
+
+
+def test_reuse_accepts_the_known_isolated_query_layout_but_copies_only_ingest(tmp_path):
+    config, inputs, prior, database, binary = prior_fixture(tmp_path)
+    manifest_path = prior / "query-jobs/query-001.manifest.json"
+    value = json.loads(manifest_path.read_text())
+    value["database"] = str(prior / "query-jobs/query-001/fathomdb.sqlite")
+    manifest_path.write_text(json.dumps(value))
+    output = tmp_path / "next"
+    output.mkdir()
+    copied = tc5._copy_prior_database(config, "bridge", inputs, prior, output, binary)
+    assert copied.read_bytes() == database.read_bytes()

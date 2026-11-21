@@ -884,6 +884,66 @@ mod tests {
         }
     }
 
+    #[cfg(all(target_os = "linux", target_arch = "aarch64", feature = "tc5-benchmark-cuda"))]
+    #[test]
+    fn tegra_query_factory_is_admitted_only_after_explicit_three_gib_pool_claim() {
+        struct PoolCheckingFactory;
+        impl CacheOnlyEmbedderFactory for PoolCheckingFactory {
+            fn local_asset_identity(&self, _: &Path) -> Result<String, FactoryFailure> {
+                Ok("0".repeat(64))
+            }
+            fn create(
+                &self,
+                _: &SelectedDevice,
+                _: &Path,
+            ) -> Result<CreatedEmbedder, FactoryFailure> {
+                let settings = fathomdb_embedder::pool_settings_in_force();
+                assert_eq!(settings.mode, Some(fathomdb_embedder::PoolMode::On));
+                let size =
+                    fathomdb_embedder::claim_pool_config(&fathomdb_embedder::CudaPoolRequest {
+                        max_size: Some(4 * 1024 * 1024 * 1024),
+                        ..Default::default()
+                    })
+                    .unwrap_err();
+                assert_eq!(
+                    size.in_force,
+                    Some(fathomdb_embedder::CudaPoolSettingValue::MaxSize(3 * 1024 * 1024 * 1024))
+                );
+                let threshold =
+                    fathomdb_embedder::claim_pool_config(&fathomdb_embedder::CudaPoolRequest {
+                        release_threshold: Some(fathomdb_embedder::ReleaseThreshold::Max),
+                        ..Default::default()
+                    })
+                    .unwrap_err();
+                assert_eq!(
+                    threshold.in_force,
+                    Some(fathomdb_embedder::CudaPoolSettingValue::ReleaseThreshold(
+                        fathomdb_embedder::ReleaseThreshold::Zero
+                    ))
+                );
+                Err(FactoryFailure::DeviceUnavailable)
+            }
+        }
+        let root = tempdir().unwrap();
+        let mut manifest = valid_manifest("unused", &"0".repeat(64));
+        manifest.cuda_uuid = Some("GPU-pinned".into());
+        let device = DeviceInfo {
+            uuid: "GPU-pinned".into(),
+            pci_bus_id: "0000:00:00.0".into(),
+            name: "Orin".into(),
+            driver: "540.5".into(),
+            cuda_ordinal: 0,
+        };
+        execute_with_factory(
+            &root.path().join("result.json"),
+            &valid_spec(),
+            &manifest,
+            &[device],
+            &PoolCheckingFactory,
+        )
+        .unwrap();
+    }
+
     #[test]
     fn canonical_digest_is_length_prefixed() {
         assert_ne!(canonical_digest(&[("a", "bc")]), canonical_digest(&[("ab", "c")]));

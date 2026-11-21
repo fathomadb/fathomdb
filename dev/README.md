@@ -89,3 +89,11 @@ root.
 - `security-review.md`
 - `learnings.md`
 - `experiments-ledger.md`
+
+## Inspector product area
+
+[Inspector engineering documentation](inspector/README.md) owns its needs,
+requirements, acceptance, design, reviews, [0.2.1 plan](inspector/plans/0.2.1/plan.md),
+and [roadmap](inspector/ROADMAP.md). Public prose lives in `docs/inspector/`
+and application source in `src/inspector/`. Inspector versioning is distinct
+from the FathomDB database release line.

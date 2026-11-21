@@ -105,6 +105,10 @@ crate = "fathomdb-engine"
 features = ["test-hooks"]
 
 [[entry]]
+crate = "fathomdb-inspector"
+features = []
+
+[[entry]]
 crate = "fathomdb-mcp"
 features = []
 

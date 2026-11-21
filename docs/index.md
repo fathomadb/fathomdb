@@ -60,3 +60,9 @@ AArch64/glibc, macOS x64/arm64, and Windows x64. See the
   guarantee and what they do not; and
   [worktree and branch consolidation](operations/worktree-consolidation.md),
   the manifest-gated local cleanup workflow.
+
+## Inspector
+
+[FathomDB Inspector](inspector/index.md) is a local browser GUI for canonical
+records, FTS/BM25, vectors, and graphs. See its [roadmap](inspector/ROADMAP.md)
+for scope and future candidates.

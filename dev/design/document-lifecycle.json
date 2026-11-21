@@ -947,6 +947,51 @@
       "successor": null
     },
     {
+      "path": "dev/design/db-inspector/astra-review.md",
+      "class": "superseded",
+      "topic": "db-inspector",
+      "role": "review",
+      "owner": "dev/inspector/reviews/astra-review.md",
+      "release": "future:inspector-0.1",
+      "successor": "dev/inspector/reviews/astra-review.md"
+    },
+    {
+      "path": "dev/design/db-inspector/fable-action-assessment.md",
+      "class": "superseded",
+      "topic": "db-inspector",
+      "role": "action-assessment",
+      "owner": "dev/inspector/reviews/fable-action-assessment.md",
+      "release": "future:inspector-0.1",
+      "successor": "dev/inspector/reviews/fable-action-assessment.md"
+    },
+    {
+      "path": "dev/design/db-inspector/fable-review.md",
+      "class": "superseded",
+      "topic": "db-inspector",
+      "role": "fable-review",
+      "owner": "dev/inspector/reviews/fable-review.md",
+      "release": "future:inspector-0.1",
+      "successor": "dev/inspector/reviews/fable-review.md"
+    },
+    {
+      "path": "dev/design/db-inspector/high-level-design.md",
+      "class": "superseded",
+      "topic": "db-inspector",
+      "role": "design",
+      "owner": "dev/inspector/design/high-level-design.md",
+      "release": "future:inspector-0.1",
+      "successor": "dev/inspector/design/high-level-design.md"
+    },
+    {
+      "path": "dev/design/db-inspector/needs-requirements-acceptance.md",
+      "class": "superseded",
+      "topic": "db-inspector",
+      "role": "requirements",
+      "owner": "dev/inspector/needs-requirements-acceptance.md",
+      "release": "future:inspector-0.1",
+      "successor": "dev/inspector/needs-requirements-acceptance.md"
+    },
+    {
       "path": "dev/design/dedicated-checkout-per-orchestration-guard-proposal.md",
       "class": "reference",
       "topic": "dedicated-checkout-per-orchestration-guard-proposal",

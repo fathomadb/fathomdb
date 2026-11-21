@@ -13,6 +13,7 @@ see [Contributing](../contributing/index.md). Package versions are omitted.
 
 | Package | Manifest |
 | --- | --- |
+| `fathomdb-inspector` | [src/inspector/Cargo.toml](https://github.com/fathomadb/fathomdb/blob/release/0.8.30/src/inspector/Cargo.toml) |
 | `fathomdb` | [src/rust/crates/fathomdb/Cargo.toml](https://github.com/fathomadb/fathomdb/blob/release/0.8.30/src/rust/crates/fathomdb/Cargo.toml) |
 | `fathomdb-cli` | [src/rust/crates/fathomdb-cli/Cargo.toml](https://github.com/fathomadb/fathomdb/blob/release/0.8.30/src/rust/crates/fathomdb-cli/Cargo.toml) |
 | `fathomdb-embedder` | [src/rust/crates/fathomdb-embedder/Cargo.toml](https://github.com/fathomadb/fathomdb/blob/release/0.8.30/src/rust/crates/fathomdb-embedder/Cargo.toml) |

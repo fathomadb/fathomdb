@@ -28,7 +28,7 @@ MATCHER_RUNNER = REPO_ROOT / "scripts/tests/lib/run-paths-filter-action.sh"
 PATHS_FILTER_PIN = "fbd0ab8f3e69293af611ebaee6363fc25e6d187d"
 
 SCOPED_DRIVERS = {
-    "verify": ("rust", "python", "typescript", "verify_harness", "rust_test_harness"),
+    "verify": ("rust", "python", "typescript", "inspector", "verify_harness", "rust_test_harness"),
     "rust-workspace-race-report": ("rust", "rust_test_harness"),
     "security": ("rust", "python", "typescript", "security_harness"),
     "default-embedder-tests": ("rust", "python", "typescript"),
@@ -43,6 +43,7 @@ SCOPED_DRIVERS = {
     "windows-wal-attribution": ("rust", "python", "windows"),
 }
 CATEGORIES = (
+    "inspector",
     "rust",
     "python",
     "typescript",
@@ -453,7 +454,16 @@ def main() -> int:
         if condition is not None:
             conditions[job_name] = condition
 
+    checks.require(
+        "inspector: ${{ steps.filter.outputs.inspector }}" in changes,
+        "changes does not export the Inspector path classification",
+    )
     scenarios = (
+        ("inspector-source", ("src/inspector/src/worker.rs",), {"inspector": "true", "rust": "false"}, {"verify"}, True),
+        ("inspector-assets", ("src/inspector/assets/app.js",), {"inspector": "true", "rust": "false", "typescript": "false"}, {"verify"}, True),
+        ("inspector-package", ("src/inspector/tools/package.sh",), {"inspector": "true", "rust": "false"}, {"verify"}, True),
+        ("inspector-markdown", ("src/inspector/README.md",), {"inspector": "true", "rust": "false"}, set(), False),
+        ("inspector-source-lite", ("src/inspector/src/worker.rs",), {"inspector": "true", "rust": "false"}, set(), True),
         ("release-state", ("dev/plans/release-state-0.8.30.json",), {}, set(), False),
         (
             "release-state-and-board",
@@ -598,7 +608,7 @@ def main() -> int:
         work = Path(temp)
         for label, paths, expected_outputs, expected_scoped, expected_verify_fast in scenarios:
             outputs = {category: "false" for category in CATEGORIES}
-            outputs["ci_mode"] = "lite" if label == "ci-workflow-lite" else "normal"
+            outputs["ci_mode"] = "lite" if label.endswith("-lite") else "normal"
             if primary is not None:
                 primary_outputs = run_matcher(*primary, paths, work, f"{label}-primary", checks)
                 for category in CATEGORIES:

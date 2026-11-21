@@ -427,3 +427,44 @@ refresh in the closing commit when you touch a doc).
 | `tests/corpus/corpus-card.md` + `README.md` | Eval corpus card + acquisition README (scripts under `tests/corpus/scripts/`) | corpus-work (eval) | 2026-06-02 |
 | `tests/corpus/scripts/acquire_musique.py` | MuSiQue-Ans corpus acquire script | 0.8.2 Slice 4 | 2026-06-17 |
 | `tests/corpus/scripts/test_acquire_musique.py` | TDD tests for MuSiQue materializer | 0.8.2 Slice 4 | 2026-06-17 |
+
+## Inspector product area
+
+| Path | Purpose | Owning slice / AC | Last-touched |
+| --- | --- | --- | --- |
+| `dev/inspector/README.md` | Inspector engineering entry map and product boundaries | Inspector 0.2.0 / 0.2.1 | 2026-11-21 |
+| `dev/inspector/needs.md` | User needs and research | Inspector 0.2.0 | 2026-10-29 |
+| `dev/inspector/requirements.md` | Requirements and mandatory Need/Should scope | Inspector 0.2.0 | 2026-10-29 |
+| `dev/inspector/acceptance.md` | Stable criteria, fixtures and acceptance signals | Inspector 0.2.0 | 2026-10-29 |
+| `dev/inspector/design/` | Inspector high-level architecture and design ownership | Inspector 0.2.0 | 2026-10-29 |
+| `dev/inspector/reviews/` | Independent reviews, 0.2.0 assessment, and 0.8.30 compatibility review | Inspector 0.2.0 / 0.2.1 | 2026-11-21 |
+| `dev/inspector/plans/0.2.0/scope.md` · `plan.md` | Adopted 0.2.0 scope and completed delivery ladder | Inspector 0.2.0 | 2026-11-21 |
+| `dev/inspector/plans/0.2.1/scope.md` · `plan.md` | Adopted 0.2.1 scope (FathomDB 0.8.30, native Ubuntu 24.04) and four-slice plan | Inspector 0.2.1 | 2026-11-21 |
+| `dev/inspector/plans/plan-0.1.md` | Historical delivery plan, decisions and quality strategy | Inspector v0.1 history | 2026-10-29 |
+| `dev/inspector/ROADMAP.md` | Initial commitment and deferred candidates | Inspector roadmap | 2026-10-29 |
+| `dev/design/db-inspector/` | Redirects preserving earlier Inspector design links | Historical entry paths | 2026-10-28 |
+| `docs/inspector/` | Public Inspector overview, concepts, views, boundaries and roadmap | Inspector 0.2.0 / 0.2.1 | 2026-11-21 |
+| `src/inspector/README.md` | Inspector application source, development commands and ownership | Inspector 0.2.0 / 0.2.1 | 2026-11-21 |
+
+## Inspector v0.1 slice drafts
+
+| Path | Purpose | Owning slice / AC | Last-touched |
+| --- | --- | --- | --- |
+| `dev/inspector/plans/0.1/README.md` | Two preparation slices and five feature slices with dependency index | Inspector v0.1 | 2026-10-29 |
+| `dev/inspector/plans/0.1/slice-workflow.md` | Direct review, TDD, verification and cleanup workflow | Inspector v0.1 | 2026-10-29 |
+| `dev/inspector/plans/0.1/slice-15/plan.md` · `design.md` | Release-wide requirements, acceptance and verification planning | Inspector Slice 15 | 2026-10-29 |
+| `dev/inspector/plans/0.1/slice-16/plan.md` · `design.md` | Release-wide architecture and evolution through FathomDB 1.x | Inspector Slice 16 | 2026-10-29 |
+| `dev/inspector/plans/0.1/slice-20/plan.md` · `design.md` | Foundations and record inspection draft plan/design | Inspector Slice 20 | 2026-10-29 |
+| `dev/inspector/plans/0.1/slice-30/plan.md` · `design.md` | FTS/BM25 and lexical retrieval draft plan/design | Inspector Slice 30 | 2026-10-29 |
+| `dev/inspector/plans/0.1/slice-40/plan.md` · `design.md` | Vector representations and neighborhood draft plan/design | Inspector Slice 40 | 2026-10-29 |
+| `dev/inspector/plans/0.1/slice-50/plan.md` · `design.md` | Graph, provenance and retained revision draft plan/design | Inspector Slice 50 | 2026-10-29 |
+| `dev/inspector/plans/0.1/slice-60/plan.md` · `design.md` | Integrated investigation and qualification draft plan/design | Inspector Slice 60 | 2026-10-29 |
+
+## Inspector compatibility research
+
+| Path | Purpose | Owning slice / AC | Last-touched |
+| --- | --- | --- | --- |
+| `dev/inspector/design/compatibility-0.8.28-0.8.29.md` | Pinned storage/query differences and Inspector complexity assessment | Inspector compatibility research | 2026-10-29 |
+| `dev/inspector/research/compatibility-architectures.md` | Implemented compatibility patterns, source examples and Inspector implications | Inspector compatibility research | 2026-10-29 |
+| `dev/inspector/reviews/compatibility-architecture-review.md` | Astra evidence review, minimal architecture recommendation and disproof tests | Inspector compatibility research | 2026-10-29 |
+| `dev/inspector/research/compatibility-evolution-stress-test.md` | Evolution scenarios, semantic coherence limits and proposed disproof tests | Inspector compatibility research | 2026-10-29 |

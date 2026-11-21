@@ -56,3 +56,14 @@ nav:
       - Recovery Surface: positions/recovery-surface.md
       - Tokenizer Policy: positions/tokenizer-policy.md
       - Embedder Identity: positions/embedder-identity.md
+
+  - Inspector:
+      - Overview: inspector/index.md
+      - Getting Started: inspector/getting-started/index.md
+      - Concepts: inspector/concepts/index.md
+      - Views: inspector/guides/index.md
+      - Reference: inspector/reference/index.md
+      - Operations: inspector/operations/index.md
+      - Contributing: inspector/contributing/index.md
+      - Release Notes: inspector/releases/0.2.0.md
+      - Roadmap: inspector/ROADMAP.md

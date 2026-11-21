@@ -23,9 +23,8 @@ five generic native targets. Development uses Node **26.13.1** with npm
 **11.20.0**; held release and Tegra producers use Node **25.9.0** with npm
 **11.12.1**. npm OIDC promotion separately uses npm **11.21.0**.
 
-Registry publication is pending. The already-published 0.8.29 package retains
-its Node 25-only contract; a newer development runtime does not extend that
-older package's support.
+Version 0.8.30 is published. The older 0.8.29 package retains its Node 25-only
+contract; a newer development runtime does not extend that older package's support.
 
 ## Supported Rust toolchain
 
@@ -67,8 +66,9 @@ same gate, not exempted from it: both numbers come from
 drifts from it.
 
 The `0.8.30+tegra` Python wheel and matching 0.8.30 Node addon use
-first-party GitHub Pages for classic Jetson Orin. Their publication is pending;
-require the exact version and digest in the retained manifest before installing. Generic 0.8.30
+first-party GitHub Pages for classic Jetson Orin. Public readback and installed
+Orin smokes passed; verify the exact retained version and digest before
+installing. Generic 0.8.30
 AArch64 packages remain CPU-only, including on Jetson. CUDA 13 artifact
 delivery, including Tegra, is planned for 0.8.31.
 

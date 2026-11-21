@@ -49,6 +49,20 @@
       "filename": "fathomdb-linux-arm64-gnu-tegra-0.8.29.tgz",
       "sha256": "8a52ba601486012110b11dfc40f611157ca1a579e6efb37a6c2b8a5334c4a2db",
       "url": "https://fathomadb.github.io/fathomdb/tegra/packages/fathomdb-linux-arm64-gnu-tegra-0.8.29.tgz"
+    },
+    {
+      "kind": "wheel",
+      "version": "0.8.30+tegra",
+      "filename": "fathomdb-0.8.30+tegra-cp310-abi3-linux_aarch64.whl",
+      "sha256": "0b7e4418112578a3f0611cd7fb3c48e0fc3d8eafdc781462cb76209127e32735",
+      "url": "https://fathomadb.github.io/fathomdb/tegra/packages/fathomdb-0.8.30+tegra-cp310-abi3-linux_aarch64.whl"
+    },
+    {
+      "kind": "node-tarball",
+      "version": "0.8.30",
+      "filename": "fathomdb-linux-arm64-gnu-tegra-0.8.30.tgz",
+      "sha256": "9bb0ac75a22e0d1f4fa450dc69dc869570c1e076a7bab49e3b714185b23ab4f2",
+      "url": "https://fathomadb.github.io/fathomdb/tegra/packages/fathomdb-linux-arm64-gnu-tegra-0.8.30.tgz"
     }
   ]
 }

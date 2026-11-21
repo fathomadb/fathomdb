@@ -60,8 +60,8 @@ the required GPU environment. Default routing and hook checks stay active.
 ## Tiered publish order
 
 The publish order is a strict topological sort of the workspace crate
-dependency graph plus the two binding packages. Index-propagation sleeps
-sit between tiers (pattern from pre-0.6.0 `.github/workflows/release.yml`).
+dependency graph plus the two binding packages. Bounded exact-version polling
+gates registry dependencies between tiers.
 
 | Tier | Targets                                                      | Why                                                                                                                                                                 |
 | ---- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

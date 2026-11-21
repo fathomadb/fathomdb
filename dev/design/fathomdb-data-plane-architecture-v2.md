@@ -467,8 +467,8 @@ reuses, amends, or supersedes them.
 Run `python3 scripts/release-current.py` to find the current release state
 and its allocation. The [engineering index](../README.md#where-the-live-work-is)
 links the plan and board conventions. Accepted ADRs and maintained interface
-contracts define semantics. The [.29 release notes](../../docs/release-notes/0.8.29.md)
-describe the retained verified publication; the [.30 notes](../../docs/release-notes/0.8.30.md)
-describe current source behavior with registry/Pages publication pending. Historical
+contracts define semantics. The [.30 release notes](../../docs/release-notes/0.8.30.md)
+describe the current published registry and Tegra Pages delivery. The
+[.29 notes](../../docs/release-notes/0.8.29.md) retain their historical scope. Historical
 allocations and activation evidence remain in their release plans and Git
 history.

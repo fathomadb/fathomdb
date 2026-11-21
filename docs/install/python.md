@@ -22,8 +22,8 @@ required on supported platforms).
 
 ## Install the wheel
 
-Registry publication is pending. After registry publication, run the exact-version
-0.8.30 install below. Use a virtual environment for your application.
+Version 0.8.30 is published on PyPI. Use the exact-version install below in
+a virtual environment for your application.
 
 ```bash
 pip install fathomdb==0.8.30
@@ -51,9 +51,9 @@ See the [contributor setup](../contributing/index.md#verify-the-change).
 
 ## Jetson / Tegra CUDA
 
-The `0.8.30+tegra` wheel supplies CUDA on classic Jetson Orin after its
-separate Pages publication. Publication is pending; do not infer availability
-from generic ARM64 CPU package qualification.
+The published `0.8.30+tegra` wheel supplies CUDA on classic Jetson Orin. Its
+separate Pages delivery passed public readback and installed Orin smokes;
+verify its retained digest before installation.
 It is distributed through first-party GitHub Pages, separately from PyPI.
 The generic 0.8.30 AArch64 wheel remains CPU-only, including on Jetson.
 CUDA 13 artifact delivery, including Tegra, is planned for 0.8.31.

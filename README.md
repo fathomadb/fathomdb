@@ -10,12 +10,15 @@ the Python, TypeScript, or Rust application SDK.
 FathomDB is pre-1.0 beta; public contracts can change between micro releases.
 0.8.30 adds explicit module model release, optimizes eligible node-only hybrid
 retrieval, and fixes MCP revision attribution and partial-span dependency tracing.
-Store format remains 37, with no automatic migration. Registry and Tegra Pages
-publication are pending; exact-version installation examples apply after
-publication. See the
+Store format remains 37, with no automatic migration. Version 0.8.30 is
+published on crates.io, PyPI and npm; the matching Tegra CUDA wheel and Node
+addon are available through first-party GitHub Pages. See the
 [release notes](docs/release-notes/0.8.30.md) and [changelog](CHANGELOG.md).
 
 ## What you can build
+
+See [FathomDB Use Cases](docs/use-cases.md) for practical engineering, workflow,
+business, knowledge management and personal agent examples.
 
 - **Retrieval:** full-text and vector search fused with Reciprocal Rank Fusion,
   optional cross-encoder reranking, filters, and graph-assisted retrieval.
@@ -86,8 +89,8 @@ no usable GPU is available. Retrieval, fusion, graph traversal, and SQLite
 vector stages run on CPU. See the [compatibility matrix](docs/compatibility/index.md)
 for exact versions, ABI floors, and the Node 25/26 contract. Classic Jetson Orin
 uses a separate `0.8.30+tegra` Python wheel and matching 0.8.30 Node addon through
-first-party GitHub Pages, available after their publication and manifest
-readback. Keep the Node
+first-party GitHub Pages, with exact URLs and digests in the
+[retained manifest](scripts/release/tegra-pages-retained.json). Keep the Node
 main/addon versions matched; omit the addon to use the generic ARM64 CPU
 package. Earlier verified Tegra artifacts remain available.
 CUDA 13 artifact delivery, including Tegra, is planned for 0.8.31.

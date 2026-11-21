@@ -26,9 +26,8 @@ consumption routes:
 
 ## Install the lower-level facade and CLI
 
-Registry publication is pending. After registry publication, use the exact-version
-0.8.30 commands on this page. Source consumers can use the trusted release
-checkout.
+Version 0.8.30 is published on crates.io. Use the exact-version commands on
+this page. Source consumers can use the trusted release checkout.
 
 Lower-level library:
 

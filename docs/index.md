@@ -7,8 +7,8 @@ documentation source for users, operators, and SDK consumers.
 > **Release 0.8.30, pre-1.0 beta.** The surface may change between micro
 > releases. The release provides Python, TypeScript, and Rust application SDKs,
 > plus a separate operator CLI.
-> Registry and Tegra Pages publication are pending; the installation examples
-> describe the exact versions to use after publication.
+> Version 0.8.30 is published on crates.io, PyPI and npm, with its matching
+> Tegra CUDA wheel and Node addon on first-party GitHub Pages.
 > See [Install](install/python.md) and the
 > [CHANGELOG](https://github.com/fathomadb/fathomdb/blob/release/0.8.30/CHANGELOG.md).
 

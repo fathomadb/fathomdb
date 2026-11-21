@@ -2,7 +2,7 @@
 title: MCP Server Interface (fathomdb-mcp)
 date: 2026-11-10
 target_release: unscheduled (evaluation build)
-desc: Tool contract, launch configuration, result envelope and error model for the fathomdb-mcp server, first release (read-only, adapter-only).
+desc: Tool contract, launch configuration, result envelope and error model for the evaluation adapter; governed-record reads and feedback labels.
 blast_radius: src/rust/crates/fathomdb-mcp/**; dev/design/mcp-adapter/*.md
 status: proposed
 ---
@@ -15,8 +15,9 @@ includes queue/hints, compact formats and direct text filters. Selected historic
 0.8.29 adds omission/disclosure, bounded corrective details, explicit session
 default and stored-head reporting. Semantics
 are owned by `dev/design/mcp-adapter/requirements.md` (MR-###); this file owns
-names, shapes, defaults and codes. The server is read-only and unscoped in this
-release.
+names, shapes, defaults and codes. The retrieval/governed-record surface is
+read-only and unscoped in this evaluation build. Feedback may persist agent
+labels; no checkpoint-write or actuation tools are exposed.
 
 ## 1. Launch
 

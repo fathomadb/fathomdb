@@ -1,12 +1,12 @@
 # Tegra Pages publication
 
-This procedure targets the 0.8.30 Tegra CUDA wheel and matching Node addon.
-Publication is pending. The already-published 0.8.29 pair remains available;
-[its run](https://github.com/fathomadb/fathomdb/actions/runs/44246092920)
-completed the build, platform, Pages and installed-public-consumer jobs.
+The 0.8.30 Tegra CUDA wheel and matching Node addon are published.
+[Run 44931574481](https://github.com/fathomadb/fathomdb/actions/runs/44931574481)
+completed the same-run build, driverless ARM, Pages, public readback and
+installed-public-consumer jobs. Earlier published pairs remain retained.
 Generic AArch64 packages remain CPU-only; keep Node main/addon versions matched.
 
-After authorization and publication, `fathomdb==0.8.30+tegra` and the matching
+The published `fathomdb==0.8.30+tegra` and matching
 `fathomdb-linux-arm64-gnu-tegra` Node tarball use first-party GitHub Pages
 for classic Jetson Orin. The wheel is not published to PyPI and the tarball is
 not published to npm. This exact-commit procedure does not publish generic

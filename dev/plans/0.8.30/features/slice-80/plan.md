@@ -13,7 +13,11 @@ coverage-guided fuzzing and power-loss proof are allocated to0.8.31.
 Direct Astra-medium passed this updated whole plan after one consolidated
 FIX-1. Slice75 is accepted at `cd3a6caaa61fca8625f7468f4dae8341b958a241`;
 parent commission `623f982798d2a2eddd396bbe104e81139a753741` is the clean,
-main-reachable entry and proposed immutable publication subject.
+main-reachable entry. Final reviewed immutable publication subject is
+`e3d31f5cdc0df3e32dab9bad151c5ab5c321222c`: five crate README corrections
+only, with no code, manifest, lock, runtime or producer change. Parent Codex
+passed that metadata delta; the current whole-entry Astra-medium review passed
+at623, and its unchanged executable applicability extends to this final binding.
 
 Deliver one qualified, immutable 0.8.30 candidate through the normal release
 workflow and verify the exact versions from public registries and Pages.
@@ -126,7 +130,7 @@ After final branch/main freeze and public npm0.8.30 visibility,80 dispatches
 `jetson-tegra-cuda-evidence.yml` once with exact branch SHA and
 `publish_to_pages=true`. Its wheel/addon must be built in that same run, not
 substituted from local75 packages. DriverlessARM and public installed matching
-pair consumers must pass. Parent holds main fixed until both source-currency
+pair consumers must pass. Parent holds main and release/0.8.30 fixed at e3d until both source-currency
 checks and site build/deployment finish: the candidate must contain freshly
 fetched current main.80 signals when that constraint is released.
 
@@ -187,6 +191,11 @@ No docs-only native/rehearsal or full-source regression is needed.
    quiescence. Preserve useful raw logs and artifact evidence before cleanup.
    Merge any temporary documentation branch back into its owning branch and
    clean only inactive owned scratch/worktrees.
+
+The actual delivery and the owner20-reviewed focused consumer recovery are
+recorded in the [Slice80 status](status.md). The recovery retains exact tag and
+package identities, original outcomes and existing OIDC finalization; it changes
+no product/producer scope or passing native qualification.
 
 ## Remaining entry conditions
 

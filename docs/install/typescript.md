@@ -27,8 +27,8 @@ platform-tagged `.node` binary at load time.
 
 ## Install the package
 
-Registry and Tegra Pages publication are pending. After publication and public
-artifact verification, use the exact-version 0.8.30 commands below.
+Version 0.8.30 is published on npm. Use the exact-version commands below;
+verify the matching Tegra Pages addon digest before adding it on classic Orin.
 
 ```bash
 npm install --save-exact fathomdb@0.8.30
@@ -36,7 +36,7 @@ npm install --save-exact fathomdb@0.8.30
 
 On Linux AArch64 this installs the CPU-only `fathomdb-linux-arm64-gnu`
 package, including on a Jetson. For CUDA on classic Jetson Orin, install
-the version-matched 0.8.30 Tegra addon after its publication from Pages as shown below.
+the published, version-matched 0.8.30 Tegra addon from Pages as shown below.
 
 ## Classic Jetson Orin with CUDA
 

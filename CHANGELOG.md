@@ -10,19 +10,22 @@ AC-050c) gates merges against this invariant.
 
 ## Unreleased
 
-## 0.8.30 — candidate
+## 0.8.30 — 2026-11-21
 
-Registry publication remains pending. The candidate is under final platform and
-artifact qualification; this heading does not declare release readiness.
+**Published.** crates.io, PyPI, npm `latest` and GitHub Releases carry 0.8.30.
+The matching 0.8.30 Tegra CUDA wheel and Node addon are public on first-party
+GitHub Pages. Original consumer failures and the focused recovery remain in
+the release records; no packages were rebuilt, republished or retagged.
 
 ### Changed
 
 - Hybrid search checks matching text rows for eligibility before ranking on
   the optimized node-only path, avoiding a full scan of canonical nodes.
 
-- Development and test use Node.js 26.13.1 with npm 11.20.0. The0.8.30 candidate
-  TypeScript SDK declares Node `>=25 <27`; Node26 promotion requires the final
-  installed platform qualification in Slice75. Published0.8.29 remains Node25.
+- Development and test use Node.js 26.13.1 with npm 11.20.0. The 0.8.30
+  TypeScript SDK supports Node `>=25 <27`, with target-native installed
+  qualification on all five generic platforms. Published 0.8.29 retains its
+  Node 25-only contract.
 - Updated the search guide to describe stored record/version identity and
   nullable hit provenance. Clarified checkout-owned native Python setup and
   developer verification.

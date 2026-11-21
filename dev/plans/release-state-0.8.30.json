@@ -279,7 +279,8 @@
       ],
       "scope_source": "seq-407",
       "commission_source": "seq-409",
-      "evidence": "Commissioned after50 closure for the whole Slice70 plan; reuse matching50/55/60 evidence and run omitted qualification only."
+      "evidence": "dev/plans/0.8.30/features/slice-70/status.md; reviewed source fixes and long/CPU/stress/assembled fidelity proof integrated. Current-pin CUDA CLS calibration and shared-GPU basic/overlap remain mandatory and open; no scope transfer or waiver.",
+      "partial_sha": "ba7aa72df5a219ce2329c1aa2029b6ba2542975b"
     },
     {
       "slice": 75,
@@ -593,12 +594,34 @@
       "public_delivery": "Seq-413 five fork uploads, actual public archives/checksums and independent public consumer verified. Cudarc/kernel match staged bytes; other three differ only generated Cargo.lock. Source/manifests and200 dependency versions/edges preserved. No GPU/full gate replay.",
       "reviews": "Astra plan/design PASS afterFIX-1; Sol source PASS; Terra native/runtime PASS; parent Codex source/closure PASS.",
       "limits": "PTX0 default retained after inconclusive Orin native-adoption protocol. Orin peer inventory observed-only; total GPU bytes unavailable. Existing0.8.29 development artifacts do not qualify new50 APIs or final75 shipping artifacts. Product0.8.30 publication remains separately held."
+    },
+    "slice70": {
+      "status": "PARTIAL_REVIEWED_INTEGRATED_MANDATORY_CUDA_OPEN",
+      "record": "dev/plans/0.8.30/features/slice-70/status.md",
+      "partial_sha": "ba7aa72df5a219ce2329c1aa2029b6ba2542975b",
+      "reviews": "Astra updated plan/design and focused repairs PASS; Sol code PASS; Terra actual execution and applicability independently verified; parent Codex coherent source/status integration PASS. Not a slice-closure verdict.",
+      "completed": "Long60s DDL and1000-search cursor progress, canonical10k text/vector latency, write throughput and seven-process read gates, exact hints criterion after internal serialization repair, CPU/ONNX feature bodies, focused real-corpus stress recovery at1000/7667 and assembled100-query AC075 fidelity proof.",
+      "fidelity": {
+        "queries": 100,
+        "recall": 0.958,
+        "ci_95": [
+          0.938,
+          0.974
+        ],
+        "scope": "Frozen7667-document/K192 exact-f32 bridge.77 retained measurements plus only23 new; original wrapper failures unchanged. Fidelity, not general retrieval relevance or shipping-artifact proof."
+      },
+      "source_gate": "Reuses applicable50 source gate and failed-only recovery plus affected70 tests/Clippy; no full source/native replay. Original failures, skips, legacy EU7 recall and real-corpus p50 miss remain recorded.",
+      "open": [
+        "Current-pin45-probe CLS CUDA calibration against CPU/ONNX, including both named calibration bodies",
+        "Current-pin source72 shared-CUDA basic/overlap real bodies requiring discrete-GPU telemetry"
+      ],
+      "disposition": "Both rows remain owned by70. Agent/Astra recommend explicit unchanged-criteria transfer to75; no such owner decision has been recorded."
     }
   },
   "release_readiness": {
     "status": "NOT_READY",
     "publication_authorized": false,
-    "scope": "10/20/30/40/50/55/60 complete on the local release branch.70 integrated source/long/feature/numerical qualification active;75 final artifacts/platforms follows, then separately authorized80 product publication. Inherited hints and final shipping applicability remain open."
+    "scope": "10/20/30/40/50/55/60 complete. Reviewed partial70 source/CPU/long/stress/fidelity work integrated; two current-pin CUDA source-feature rows remain open.75 final platforms/artifacts and separately authorized80 product publication remain."
   },
   "generated_views": [
     {
@@ -630,8 +653,8 @@
     {
       "item": "Hints overhead criterion",
       "owner_slice": 70,
-      "state": "OPEN",
-      "evidence": "Slice40 completed its bounded diagnosis; original unchanged200us failures289.9/366.8/345.3/374.6us retained. Current standalone pass suppressed percentile stdout; balanced post-plan emission/shaping median186.162us and combined182.124us do not explain historical cause or close final qualification.70 joins final unchanged-criterion evidence; no waiver."
+      "state": "RESOLVED_BY_SLICE70_SCOPED_REPAIR",
+      "evidence": "Original200us failures retained. Reviewed MCP change removes repeated whole-response serialization while preserving exact budget/render oracles. Rebuilt unchanged criterion passed67.8us atlimit100; original201.8us retained as unpaired baseline. See slice70 status."
     },
     {
       "item": "Asynchronous logging fixture synchronization",
@@ -649,7 +672,7 @@
       "item": "Integrated source, feature and runtime qualification",
       "owner_slice": 70,
       "state": "OPEN",
-      "evidence": "Join source corrections and applicable feature/behavior proof in70. Final platform/artifact, renderer and public Node26 support qualification belongs to75; local packed proof is not registry proof."
+      "evidence": "Reviewed partial70 integrated atba7aa72df5a219ce2329c1aa2029b6ba2542975b with long/CPU/real-corpus stress/fidelity proof. Current-pin CUDA CLS calibration and source72 shared-GPU basic/overlap execution remain open; no silent handoff to75."
     },
     {
       "item": "Hosted cancellation and Windows runtime validation",
@@ -674,6 +697,6 @@
       75,
       80
     ],
-    "next_transition": "Perform whole70 underseq-409 using matching final50/55/60 proof, then75 platform/artifact qualification and separately authorized80 exact-candidate publication."
+    "next_transition": "Resolve the two named70 CUDA source-feature rows or obtain an explicit scope disposition before70 closure. Continue75 then separately authorized80 underseq-409; no blanket waiver or new3090 access."
   }
 }

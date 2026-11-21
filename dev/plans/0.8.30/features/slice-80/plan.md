@@ -1,6 +1,6 @@
 ---
 title: Slice 80 authorized delivery and registry consumers
-status: IN_PROGRESS
+status: COMPLETE
 slice: 80
 target_release: 0.8.30
 ---
@@ -197,13 +197,12 @@ recorded in the [Slice80 status](status.md). The recovery retains exact tag and
 package identities, original outcomes and existing OIDC finalization; it changes
 no product/producer scope or passing native qualification.
 
-## Remaining entry conditions
+## Entry and completion disposition
 
-Slice75 qualification is accepted. Bind the exact reviewed main-reachable
-candidate and verify the specified tag/group/environment sequence before GPU approval.
-Resolve any missing required smoke or route before publication. Seq-414 already
-directs normal release completion; no fresh generic production approval is open.
-Any selected matching0.8.30 Tegra delivery requires its own applicable75 package
-proof and protected Pages route; it cannot inherit generic ARM CPU evidence.
-Orin transfers remain limited to this session underseq-416. This plan itself
-does not assert that qualification, publication or public readback has finished.
+Slice75 qualification was accepted and the exact reviewed main-reachable
+candidate was bound to the tag/group/environment sequence before GPU approval.
+Seq414 authorized normal completion. Matching0.8.30 Tegra delivery used its
+same-run payload and protected Pages route under session-only Orin authority.
+Actual publication, focused consumer recovery, independent acceptance and public
+readback are complete in the [Slice80 status](status.md). Original failures and
+qualification limits remain visible; product/producer scope stayed unchanged.

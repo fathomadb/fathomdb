@@ -1,14 +1,15 @@
 ---
 title: Slice 80 authorized release delivery
-status: IN_PROGRESS
+status: COMPLETE
 slice: 80
 target_release: 0.8.30
 ---
 
 # Slice 80 delivery status
 
-Registry and Tegra delivery are complete; final documentation publication
-and independent closure remain open.
+Registry, Tegra and final documentation delivery are complete. Direct Terra
+independently verified the actual public delivery and final release body.
+Parent owns canonical closure, integration and worktree cleanup.
 The annotated `v0.8.30` object `fbae0d3319fb31bb62360977fded676f2dea8557`
 peels to `e3d31f5cdc0df3e32dab9bad151c5ab5c321222c`.
 The current whole-entry Astra-medium review passed. The final five-crate README
@@ -77,10 +78,30 @@ stopped only owned Orin listener22 with natural exit0. Existing22 registration
 and credentials remain; foreign Memex listener/GPU1 and driver/primaryCUDA stay
 untouched. No further remote model execution is planned.
 
-## Remaining work
+## Final documentation and acceptance
 
-Complete the truthful published receipt and final docs, normal docs Pages/public
-readback, independent Terra acceptance and normal-hook integration. Parent alone
-owns canonical JSON/board/ledgers. Final docs publication must include the retained
-pair before its authorization flag can permit deployment. Preserve the original
-consumer failures, false success, history advisory and source75 limits above.
+The coherent published receipt/docs commit is
+`1b975b753b8ec09cfaf6985a5ec47a24c5d97584`.
+[Docs Pages44935332669](https://github.com/fathomadb/fathomdb/actions/runs/44935332669)
+passed authorization, both current-main checks, site build/deployment and all
+retained URL/digest checks. Direct public reads returned200 for published
+[0.8.30 notes](https://fathomadb.github.io/fathomdb/release-notes/0.8.30/),
+[FathomDB Use Cases](https://fathomadb.github.io/fathomdb/use-cases/) and the home
+navigation. The README source links the new853-word, five-case page. Current
+SDK evidence and source/evaluation MCP boundaries are explicit; no feature or
+API was added by that document.
+
+The previously empty [GitHub Release body](https://github.com/fathomadb/fathomdb/releases/tag/v0.8.30)
+now contains a factual summary and the verified absolute live notes link.
+Independent readback confirmed its unchanged annotated tag, peeled source and
+five wheel assets. Terra separately downloaded all nine retained Tegra artifacts:
+each public URL returned200 and matched the final manifest digest.
+
+Final independent delivery acceptance PASS covers assembled registry consumer
+proofs, actual finalization, same-run Tegra delivery, public docs/use cases,
+release body and preserved downloads. Parent-observed owned runner cleanup
+retains its separate observation scope. Scoped Markdown/docs, public truth,
+generated/state views, glibc-floor and strict MkDocs checks passed; no extra
+native/runtime/full-workspace campaign was run for documentation. Original
+production failures, false success, history advisory and source75 limits remain
+as recorded above. Canonical JSON/board/ledgers remain parent-owned.

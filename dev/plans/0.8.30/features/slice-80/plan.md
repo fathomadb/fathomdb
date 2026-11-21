@@ -7,6 +7,12 @@ target_release: 0.8.30
 
 # Slice 80 — Authorized delivery and registry consumers
 
+Owner seq-414 directs normal release completion after qualification. Seq-415
+renews3090 availability; seq-416 limits Orin transfers to this session. Broad
+coverage-guided fuzzing and power-loss proof are allocated to0.8.31.
+Direct Astra-medium passed this updated whole plan after one consolidated
+FIX-1; final75 acceptance remains the entry gate for actual delivery.
+
 Deliver one qualified, immutable 0.8.30 candidate through the normal release
 workflow and verify the exact versions from public registries and Pages.
 R30-REL covers delivery and finalization under the [release plan](../../plan.md),
@@ -15,10 +21,12 @@ AC-052/054/056. The acceptance checks below refine those contracts locally.
 
 ## Entry and preparation
 
-- Require a commissioned Slice 80, accepted Slice75 candidate and separate
-  explicit owner production authority for the version, exact candidate, route
-  and applicable protected environments. Creating or pushing the production
-  tag is never an automatic consequence of plan approval or Slice75 PASS.
+- Require a commissioned Slice80 and accepted Slice75 candidate. Under the
+  owner's explicit seq-414 completion direction, bind the exact reviewed
+  candidate and normal protected route before the irreversible tag push.
+  Do not request the already-granted normal completion again. A new version,
+  bad immutable package or changed product scope needs its own disposition.
+  Preparation may proceed while75 finishes; publication cannot.
 - At entry compare the release checkout and current `origin/main` with reviewed
   draft `f7fb1da9a81ee226c70ae347fa2fab3e64ac3c25`. Inventory relevant intervening
   changes to jobs, scripts, required checks, publisher identity, artifact scope
@@ -50,21 +58,45 @@ AC-052/054/056. The acceptance checks below refine those contracts locally.
 | Normal finalization | After all publishers, eight consumers and sibling co-tagging succeed, use Slice 20's shared pinned OIDC route to promote only main `fathomdb@0.8.30` to npm `latest`. Platform packages remain staged and resolve by pinned optional dependencies. Require bounded observed visibility and the GitHub Release for the exact tag with its expected assets. [Co-tagging](../../../../../scripts/release/assert-co-tagging.sh), [recovery precedent](../../../../../.github/workflows/promote-npm-release.yml). |
 | Public docs and downloads | Require actual authorized Pages build, deployment and public reads of the version page and advertised downloads. Verify retained Tegra URLs and expected manifests/digests. For a selected new Tegra delivery, use the applicable authorized Tegra route and public installed consumers for its own matching pair. Generic ARM CPU packages and retained older Tegra downloads cover their own configurations. [Pages route](../../../../../.github/workflows/docs-pages.yml), [live verifier](../../../../../scripts/release/verify-tegra-pages-live.sh). |
 
-The current Rust registry SDK smoke only opens and closes. The current POSIX
-registry binding smokes exercise one process. Compare the [SDK smoke](../../../../../scripts/release/smoke/smoke-crates-sdk.sh),
+Slice20 implemented persisted-body, missing-record and separate-process reopen
+in the maintained registry consumers. Reuse that reviewed implementation and
+execute its actual registry-installed routes here. Compare the [SDK smoke](../../../../../scripts/release/smoke/smoke-crates-sdk.sh),
 [Python smoke](../../../../../scripts/release/smoke/smoke-pypi-wheel.sh) and
 [npm smoke](../../../../../scripts/release/smoke/smoke-npm-package.sh) with the
 maintained qualification consumers. Slice20 owns implementation and offline
-qualification of the missing flows and the exact-first-tag route guard. Slice75
+qualification of those flows and the exact-first-tag route guard. Slice75
 qualifies the candidate consumer bytes;80 requires their actual authorized
 registry processes and route. Archive/local installs cannot supply that proof.
+
+The prospective package-input candidate is
+`53400f69d29cbc5029f0c759d58a5edb1f76e874`, already on remote main and
+release/0.8.30.75 still owns its final artifact acceptance. Retain the6d native
+matrix and source proof within their unchanged executable scope; the later
+README/control/acceptance-record delta is explicit. Final package bytes and
+public installations need their own exact identities. Do not replay passing
+native/source tests for that metadata delta.
+
+The normal protected rehearsal is44922568609. The obsolete6d rehearsal was
+cancelled before GPU execution; automatic duplicate CI runs were cancelled.
+Keep one current rehearsal and recover only failed/unrun jobs on a demonstrated
+cause. The existing temporary user runner169 uses group3 and the selected3090;
+stop it and remove its own registration after required delivery work. Preserve
+the disabled service, unrelated listeners, driver and primary CUDA12.6.
+
+The exactv0.8.30 CUDA environment tag policy is present; required reviewers
+remain intact. After the tag exists, add only its exact selected workflow to
+group3 and pass the marker-free route check before protected GPU approval.
+Pages already permits main. Authorize and verify actual0.8.30 public docs only
+after the corresponding delivery, retaining historical download evidence.
+Converge provisional changelog/support wording in normal finalization without
+retagging or repeating unchanged runtime qualification.
 
 ## Design, execution and recovery
 
 1. Draft route and evidence decisions before commissioning. Resolve control-plane
    versus tag subject identity, first-tag protected-route readiness, installed
    native resolution and bounded registry propagation. The current first-tag
-   bootstrap allowlist covers .28/.29 only. Verify the approved .30 route against
+   bootstrap allowlist includes .30 after Slice20. Verify that route against
    actual group and environment policy. Where necessary, consult primary GitHub
    documentation on runner restrictions, approval and reruns, npm CLI/OIDC and
    dist-tag behavior, and registry immutability and digest metadata. Check fit
@@ -106,9 +138,13 @@ registry processes and route. Archive/local installs cannot supply that proof.
    Merge any temporary documentation branch back into its owning branch and
    clean only inactive owned scratch/worktrees.
 
-## Open decisions
+## Remaining entry conditions
 
-The owner must commission production and the applicable protected routes for
-the Slice75 candidate. Resolve any missing smoke or route before publication,
-and confirm whether a matching .30 Tegra payload is selected. This draft records
-planning only.
+Accept Slice75's actual qualification, bind its exact reviewed candidate, and
+verify the specified tag/group/environment sequence before GPU approval.
+Resolve any missing required smoke or route before publication. Seq-414 already
+directs normal release completion; no fresh generic production approval is open.
+Any selected matching0.8.30 Tegra delivery requires its own applicable75 package
+proof and protected Pages route; it cannot inherit generic ARM CPU evidence.
+Orin transfers remain limited to this session underseq-416. This plan itself
+does not assert that qualification, publication or public readback has finished.

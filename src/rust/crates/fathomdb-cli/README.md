@@ -17,7 +17,7 @@ releases.
 ## Install
 
 ```bash
-cargo install fathomdb-cli --version '=0.8.28' --locked
+cargo install fathomdb-cli --version '=0.8.30' --locked
 fathomdb --version
 ```
 

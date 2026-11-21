@@ -15,7 +15,7 @@ and scale/stability guarantees are staged for 0.9.x and later.
 ## Install
 
 ```bash
-pip install fathomdb==0.8.28
+pip install fathomdb==0.8.30
 ```
 
 Requires Python 3.10 or newer. Wheels are `abi3`, so one wheel per platform serves every supported
@@ -89,14 +89,14 @@ requires an exclusive maintenance window for physical erasure; direct
 erase/purge outside that window raises `MaintenanceError`. Queueing an erasure
 intent does not delete or hide records. Completion is certified by the
 maintenance result, while incomplete cleanup retains its durable fences. See
-the [maintenance guide](https://github.com/fathomadb/fathomdb/blob/release/0.8.28/docs/operations/erasure.md).
+the [maintenance guide](https://github.com/fathomadb/fathomdb/blob/release/0.8.30/docs/operations/erasure.md).
 
 ## Other SDKs
 
 The same engine is available as a Node.js package (`npm install fathomdb`). The Rust
 application peer is `fathomdb-sdk` (import `fathomdb_sdk`), available in
-0.8.28; use the
-[Rust SDK installation guide](https://github.com/fathomadb/fathomdb/blob/release/0.8.28/docs/install/rust.md).
+0.8.30; use the
+[Rust SDK installation guide](https://github.com/fathomadb/fathomdb/blob/release/0.8.30/docs/install/rust.md).
 The [`fathomdb` crate](https://crates.io/crates/fathomdb) remains the
 separate lower-level engine facade.
 

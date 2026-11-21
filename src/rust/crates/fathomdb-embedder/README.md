@@ -51,7 +51,7 @@ CUDA features imply `tegra-pool`: qualified AGX Orin builds use the private
 pool, while generic AArch64 CPU artifacts do not acquire CUDA capability. CUDA
 Python/Node builds on AArch64 can initialize the driver at import; select CPU
 policies before import or use the documented early-init control. See the
-[embedder guide](https://github.com/fathomadb/fathomdb/blob/release/0.8.28/docs/embedder.md)
+[embedder guide](https://github.com/fathomadb/fathomdb/blob/release/0.8.30/docs/embedder.md)
 for pool configuration, fork/linkage requirements and import/fork limits.
 
 ## Weight loading

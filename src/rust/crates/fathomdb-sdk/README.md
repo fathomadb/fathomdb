@@ -15,19 +15,19 @@ If you are writing a Rust application against FathomDB, depend on this crate.
 
 ## Status: pre-1.0, beta
 
-This is the Rust application SDK for FathomDB 0.8.28. Public contracts may
+This is the Rust application SDK for FathomDB 0.8.30. Public contracts may
 change between micro releases.
 
 ## Install
 
 ```bash
-cargo add fathomdb-sdk@=0.8.28
+cargo add fathomdb-sdk@=0.8.30
 ```
 
 To enable the pinned default embedder, add `--features default-embedder` to
 that command. Model use can download weights; the example below requires no
 model feature. See the
-[Rust install guide](https://github.com/fathomadb/fathomdb/blob/release/0.8.28/docs/install/rust.md).
+[Rust install guide](https://github.com/fathomadb/fathomdb/blob/release/0.8.30/docs/install/rust.md).
 
 ## Example
 
@@ -63,8 +63,8 @@ fn main() -> fathomdb_sdk::Result<()> {
 identity under the default autonomous policy. Stores using explicit-maintenance
 policy require the exclusive maintenance API; queued intents do not delete or
 hide rows, and only a Complete result certifies cleanup. See the
-[maintenance guide](https://github.com/fathomadb/fathomdb/blob/release/0.8.28/docs/operations/erasure.md)
-and the [SDK reference](https://github.com/fathomadb/fathomdb/blob/release/0.8.28/docs/reference/rust-sdk.md)
+[maintenance guide](https://github.com/fathomadb/fathomdb/blob/release/0.8.30/docs/operations/erasure.md)
+and the [SDK reference](https://github.com/fathomadb/fathomdb/blob/release/0.8.30/docs/reference/rust-sdk.md)
 for hybrid search, graph operations, and option defaults.
 
 ## How it maps to Python and TypeScript

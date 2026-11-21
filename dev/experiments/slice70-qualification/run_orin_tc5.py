@@ -3,6 +3,7 @@
 
 import argparse
 import fcntl
+import hashlib
 import json
 import importlib.util
 import os
@@ -21,6 +22,7 @@ GROUP_SPEC = importlib.util.spec_from_file_location(
 )
 GROUP = importlib.util.module_from_spec(GROUP_SPEC)
 GROUP_SPEC.loader.exec_module(GROUP)
+OWNED_ROOT = Path("/tmp/fathomdb-0830-slice70")
 STOP_REQUESTED = False
 
 
@@ -49,6 +51,30 @@ def owned_sample_rss(leader, birth, peers):
     return sum(row["rss"] for row in owners.values()) + (guard.last_fuser_rss or 0), owners
 
 
+def native_query_command(config, spec, result, environment):
+    """Bind one native executor as the unreaped guarded leader, without ambient controls."""
+    binary = Path(config["candidate"]["benchmark_binary"]).resolve(strict=True)
+    spec, result = spec.resolve(strict=True), result.resolve()
+    if any(not path.is_relative_to(OWNED_ROOT) for path in (binary, spec, result)):
+        raise ValueError("native query paths must remain in owned storage")
+    if not binary.is_file() or not spec.is_file() or result.exists():
+        raise ValueError("existing native inputs and a fresh result are required")
+    if hashlib.sha256(binary.read_bytes()).hexdigest() != config["candidate"]["benchmark_binary_sha256"]:
+        raise ValueError("native executor identity changed")
+    stem = spec.name.removesuffix(".spec.json")
+    manifest_path = Path(json.loads(spec.read_text())["manifest"]).resolve(strict=True)
+    expected_manifest = spec.with_name(f"{stem}.manifest.json")
+    if manifest_path != expected_manifest or not manifest_path.is_relative_to(OWNED_ROOT):
+        raise ValueError("native manifest must be the owned query sibling")
+    database = Path(json.loads(manifest_path.read_text())["database"]).resolve(strict=True)
+    expected_database = spec.parent / stem / "fathomdb.sqlite"
+    if database != expected_database or not database.is_relative_to(OWNED_ROOT) or not database.is_file():
+        raise ValueError("native database must be the owned isolated query copy")
+    clean = {key: value for key, value in environment.items()
+             if not key.startswith("FATHOMDB_") and key != "NVIDIA_VISIBLE_DEVICES"}
+    return [str(binary), "--spec", str(spec), "--result", str(result)], clean
+
+
 def main():
     """Run the selected bridge; stop owned work before releasing its GPU lease."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -56,7 +82,17 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--resume-from", type=Path)
     parser.add_argument("--prior-executor", type=Path)
+    parser.add_argument("--query-spec", type=Path)
+    parser.add_argument("--query-result", type=Path)
+    parser.add_argument("--native-deadline", type=float)
     args = parser.parse_args()
+    native = args.query_spec is not None
+    if (args.query_result is not None) != native or (args.native_deadline is not None) != native:
+        parser.error("native recovery requires --query-spec, --query-result and --native-deadline")
+    if native and (args.resume_from is not None or args.prior_executor is not None):
+        parser.error("native query recovery cannot start or resume an ingest")
+    if native and (not 0 < args.native_deadline - time.monotonic() <= 1800):
+        parser.error("native deadline must be within the current30-minute batch")
     if args.prior_executor is not None and args.resume_from is None:
         parser.error("--prior-executor requires --resume-from")
     output = args.output.resolve()
@@ -98,6 +134,8 @@ def main():
             if not str(executor).startswith("/tmp/fathomdb-0830-slice70/"):
                 raise ValueError("the preserved executor must remain in owned storage")
             command.extend(["--prior-executor", str(executor)])
+    if native:
+        command, env = native_query_command(config, args.query_spec, args.query_result, env)
     lock = Path("/tmp/fathomdb-gpu.lock")
     with lock.open("rb") as lease:
         if os.fstat(lease.fileno()).st_ino != 32899085:
@@ -107,12 +145,12 @@ def main():
             raise RuntimeError("resource or observed-peer preflight refused")
         process = None
         start = time.monotonic()
-        deadline = start + 1800
+        deadline = min(start + 120, args.native_deadline) if native else start + 1800
         old_handlers = {sig: signal.signal(sig, _interrupted) for sig in (signal.SIGTERM, signal.SIGINT)}
         with (output / "run.log").open("w") as log, (output / "resources.jsonl").open("w") as rows:
             try:
-                if STOP_REQUESTED:
-                    raise KeyboardInterrupt("stop requested before dispatch")
+                if STOP_REQUESTED or time.monotonic() >= deadline:
+                    raise RuntimeError("stop or deadline reached before dispatch")
                 process = subprocess.Popen(command, env=env, cwd=ROOT, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
                 birth = guard.proc(process.pid)["start_ticks"]
                 while True:

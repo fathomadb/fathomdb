@@ -4,6 +4,7 @@
 import json
 from pathlib import Path
 import shutil
+import signal
 import subprocess
 import sys
 import time
@@ -13,6 +14,12 @@ sys.path.insert(0, str(ROOT))
 from experiments import tc5_gpu_v2 as tc5  # noqa: E402
 
 OWNED = Path("/tmp/fathomdb-0830-slice70")
+STOP_REQUESTED = False
+
+
+def request_stop(_signum, _frame):
+    global STOP_REQUESTED
+    STOP_REQUESTED = True
 
 
 def bound_result(path, manifest, spec):
@@ -31,7 +38,25 @@ def bound_result(path, manifest, spec):
 
 
 def run_guard(command, deadline):
-    return subprocess.run(command, check=False).returncode
+    """Forward cancellation without releasing the guard before its cleanup completes."""
+    if STOP_REQUESTED or time.monotonic() >= deadline:
+        raise tc5.Tc5GpuV2Error("batch stopped before guard dispatch")
+    process = subprocess.Popen(command, start_new_session=True)
+    forwarded = False
+    try:
+        while process.poll() is None:
+            if (STOP_REQUESTED or time.monotonic() >= deadline) and not forwarded:
+                process.terminate()
+                forwarded = True
+            time.sleep(0.02)
+        if STOP_REQUESTED or forwarded:
+            raise tc5.Tc5GpuV2Error("batch stopped after awaiting guard cleanup")
+        return process.returncode
+    finally:
+        if process.poll() is None:
+            process.terminate()
+            while process.poll() is None:
+                time.sleep(0.02)
 
 
 def main():
@@ -103,4 +128,6 @@ def main():
 
 
 if __name__ == "__main__":
+    for signum in (signal.SIGTERM, signal.SIGINT):
+        signal.signal(signum, request_stop)
     main()

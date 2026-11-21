@@ -75,7 +75,12 @@ def test_native_query_mode_keeps_the_actual_executor_as_the_guarded_leader(tmp_p
     binary = tmp_path / "executor"
     binary.write_bytes(b"owned native executor")
     spec = tmp_path / "query.spec.json"
-    spec.write_text("{}")
+    manifest = tmp_path / "query.manifest.json"
+    database = tmp_path / "query/fathomdb.sqlite"
+    database.parent.mkdir()
+    database.write_bytes(b"owned query copy")
+    manifest.write_text(json.dumps({"database": str(database)}))
+    spec.write_text(json.dumps({"manifest": str(manifest)}))
     result = tmp_path / "fresh.result.json"
     monkeypatch.setattr(runner, "OWNED_ROOT", tmp_path, raising=False)
     config = {"candidate": {"benchmark_binary": str(binary), "benchmark_binary_sha256": hashlib.sha256(binary.read_bytes()).hexdigest()}}

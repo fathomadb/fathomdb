@@ -99,3 +99,11 @@ and stay outside the30-minute runtime window. Sampling is observational and
 makes no between-sample excursion or fault-campaign cadence claim. Exact assets,
 commands, failed build setup attempts and outputs are under the owned
 `/tmp/fathomdb-0830-slice75-evidence/terra-cuda` directory.
+
+`run_orin_installed.py` invokes the maintained local-wheel and Tegra-package
+policy consumers under the existing Orin observed-peer/group/resource helpers,
+then the maintained package row/verdict on Node26.10.0. It binds final534
+packages, original inode32899085 and3GiB private pools. The task-only timeout
+shim preserves the monitored process group and the original deadlines.
+Execution/transfers use the owner's session-only Orin authority; this retained
+script grants no future venue, transfer or publication permission.

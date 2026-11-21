@@ -127,3 +127,34 @@ def test_run_cli_preserves_the_previous_executor_binding(monkeypatch, tmp_path):
         "--binary", "new-binary", "--resume-from", str(tmp_path / "old"), "--prior-executor", "old-binary",
     ]) == 0
     assert seen["prior_executor"] == Path("old-binary")
+
+
+def test_each_query_starts_from_the_same_immutable_sqlite_snapshot(tmp_path, monkeypatch):
+    from dataclasses import replace
+    from types import SimpleNamespace
+    import sqlite3
+
+    config, inputs, prior, _database, binary = prior_fixture(tmp_path)
+    inputs = replace(inputs, queries=inputs.queries * 2)
+    monkeypatch.setattr(tc5, "load_config", lambda _: config)
+    monkeypatch.setattr(tc5, "_validate_candidate_artifacts", lambda *a, **k: None)
+    monkeypatch.setattr(tc5, "_validate_candidate_runtime", lambda *a, **k: None)
+    monkeypatch.setattr(tc5, "_load_arm_inputs", lambda *a, **k: inputs)
+    monkeypatch.setattr(tc5, "aggregate_results", lambda *a, **k: {"checked_queries": len(k["results"])})
+    seen = []
+
+    def metadata_writing_executor(command, **_kwargs):
+        spec = json.loads(Path(command[2]).read_text())
+        manifest = json.loads(Path(spec["manifest"]).read_text())
+        database = Path(manifest["database"])
+        assert tc5._sha_file(database) == manifest["index_digest"]
+        seen.append(database)
+        with sqlite3.connect(database) as connection:
+            connection.execute("PRAGMA user_version=17")
+        Path(command[-1]).write_text(json.dumps({"status": "measurement_complete"}))
+        return SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr(tc5.subprocess, "run", metadata_writing_executor)
+    result = tc5.run_arm(tmp_path / "config", "bridge", output_root=tmp_path / "run", binary=binary, resume_from=prior)
+    assert len(seen) == 2 and seen[0] != seen[1]
+    assert json.loads(result.read_text())["checked_queries"] == 2

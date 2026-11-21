@@ -17,6 +17,7 @@ tc5-benchmark-cuda = [
     "tc5-benchmark",
     "fathomdb-engine/embed-cuda",
     "fathomdb-embedder/embed-cuda",
+    "fathomdb-embedder/cuda-pool-observer",
 ]
 
 [dependencies]

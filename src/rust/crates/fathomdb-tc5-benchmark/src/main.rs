@@ -147,6 +147,24 @@ impl CacheOnlyEmbedderFactory for CandleCacheOnlyFactory {
         device: &SelectedDevice,
         asset_dir: &Path,
     ) -> Result<CreatedEmbedder, FactoryFailure> {
+        #[cfg(all(target_os = "linux", target_arch = "aarch64", feature = "tc5-benchmark-cuda"))]
+        if let SelectedDevice::Cuda(expected) = device {
+            let resolution = fathomdb_embedder::resolve_default_embedder_device_from_env()
+                .map_err(|_| FactoryFailure::DeviceUnavailable)?;
+            let fathomdb_embedder::EffectiveEmbedDevice::Cuda(info) = resolution.effective_device
+            else {
+                return Err(FactoryFailure::DeviceUnavailable);
+            };
+            let allocator = info.cuda_allocator.ok_or(FactoryFailure::DeviceUnavailable)?;
+            if info.ordinal != 0
+                || info.uuid.as_deref() != Some(expected.uuid.as_str())
+                || allocator.path != Some(fathomdb_embedder::CudaAllocatorPath::Private)
+                || allocator.pool_max_size_bytes != Some(3 * 1024 * 1024 * 1024)
+                || allocator.release_threshold != Some(fathomdb_embedder::ReleaseThreshold::Zero)
+            {
+                return Err(FactoryFailure::DeviceUnavailable);
+            }
+        }
         let device = match device {
             SelectedDevice::Cpu => ExplicitCandleDevice::Cpu,
             SelectedDevice::Cuda(info) => ExplicitCandleDevice::Cuda(info.cuda_ordinal as usize),
@@ -163,6 +181,22 @@ impl CacheOnlyEmbedderFactory for CandleCacheOnlyFactory {
             && (construction.cuda_ordinal() != Some(0) || observed_cuda_uuid.is_none())
         {
             return Err(FactoryFailure::DeviceUnavailable);
+        }
+        #[cfg(all(target_os = "linux", target_arch = "aarch64", feature = "tc5-benchmark-cuda"))]
+        if matches!(device, ExplicitCandleDevice::Cuda(_)) {
+            let pool = fathomdb_embedder::observe_cuda_pool_for_qualification();
+            if pool.status != "private"
+                || pool.configured_max_size_bytes != Some(3 * 1024 * 1024 * 1024)
+                || pool.release_threshold != Some("0")
+                || pool.uuid != observed_cuda_uuid
+                || pool.used_current_bytes.is_none_or(|bytes| bytes > 3 * 1024 * 1024 * 1024)
+            {
+                return Err(FactoryFailure::DeviceUnavailable);
+            }
+            eprintln!(
+                "TC5_TEGRA_POOL status=private cap_bytes=3221225472 release_threshold=0 uuid={}",
+                pool.uuid.as_deref().unwrap()
+            );
         }
         let embedder = construction.into_embedder();
         Ok(CreatedEmbedder { embedder: Box::new(embedder), observed_cuda_uuid })
@@ -259,6 +293,18 @@ fn run() -> Result<(), String> {
     let manifest = parse_json::<Manifest>(Path::new(&spec.manifest))?;
     validate_manifest(&manifest, &spec)?;
     validate_resolved_settings_digest(&spec, &manifest)?;
+    #[cfg(all(target_os = "linux", target_arch = "aarch64", feature = "tc5-benchmark-cuda"))]
+    if manifest.cuda_uuid.is_some()
+        && fathomdb_embedder::run_module_load_early_init(true, false)
+            != fathomdb_embedder::ModuleLoadInit::Ran
+    {
+        return write_nonmeasurement(
+            &result_path,
+            "device_unavailable",
+            "tegra_early_init_failed",
+            &spec,
+        );
+    }
     let visible = match discover_visible_cuda() {
         Ok(visible) => visible,
         Err(_) => {
@@ -321,6 +367,15 @@ fn execute_with_factory(
             "cuda_binary_unavailable",
             spec,
         );
+    }
+    #[cfg(all(target_os = "linux", target_arch = "aarch64", feature = "tc5-benchmark-cuda"))]
+    if matches!(selected, SelectedDevice::Cuda(_)) {
+        fathomdb_embedder::claim_pool_config(&fathomdb_embedder::CudaPoolRequest {
+            mode: Some(fathomdb_embedder::PoolMode::On),
+            max_size: Some(3 * 1024 * 1024 * 1024),
+            release_threshold: Some(fathomdb_embedder::ReleaseThreshold::Zero),
+        })
+        .map_err(|error| format!("bounded Tegra pool claim failed: {error}"))?;
     }
     let created = match factory.create(&selected, asset_dir) {
         Ok(created) => created,

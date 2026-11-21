@@ -116,3 +116,42 @@ Sol reviews the code change. Rebuild the affected MCP subjects, run the unchange
 performance criterion and all affected MCP rendering/budget tests, then scoped
 lint/type checks. This small internal optimization does not invalidate engine,
 model, fork or SDK qualification and does not justify another full source gate.
+
+## Current TC5 route
+
+The maintained GPU runner rejected release0.8.30 and the selected Orin
+`0.8.29+tegra` development wheel. Five real admission assertions failed before
+implementation. Admit only the .30 development/release package cohort
+`0.8.29`, `0.8.29+tegra`, `0.8.30`, `0.8.30+tegra`; retain all exact artifact,
+installed-distribution, candidate, UUID, input, model and runtime checks.
+The qualifier still separates source release .30 from actual package .29;
+this grants no shipping/support claim. Select only the frozen bridge arm.
+
+Use the standing Orin authorization and the already qualified50 CUDA wheel;
+build the affected current TC5 Rust executor with CUDA and Tegra pool features
+in owned release storage. No3090 use, reset, driver change or user database.
+Use the existing exclusive lock and observed-peer rules,3GiB private pool,
+16GiB owned RSS, RAM12/8GiB, swap2/1GiB and disk32/16GiB entry/run floors,
+and a30-minute outer deadline. A fidelity-only runner may sample resources at
+one-second cadence: it makes no latency,100ms protocol or total-device claim.
+Unknown observed peers abort. Reuse the maintained observed-peer/resource/exit
+helpers from50; retain actual corpus/model identities and all failures.
+
+Focused review held dispatch: the original TC5 child strips ambient FathomDB
+controls and the Rust entry has no module-load initialization; wrapper environment
+alone cannot cap its query executors. The selected Linux ARM CUDA executor now
+runs early driver initialization, makes an explicit typed On/3GiB/Zero pool
+claim before admitting the native factory, and refuses unless the actual checked
+pool observation confirms that cap, threshold and UUID. Its compiled source and
+binary identity bind this fixed qualification policy; fidelity inputs and math
+stay unchanged. Ambient FathomDB controls remain rejected. The ARM-only factory
+admission regression uses no native GPU work and checks conflicting size and
+threshold claims against the values already in force.
+
+The concrete launcher now reuses the existing WNOWAIT group helper: pin its
+private leader until all owned group members stop; handle TERM/INT with a stop
+flag that cannot interrupt Popen ownership registration; validate the deadline
+before success and run from the selected source root. Cleanup checks the owned
+group even after leader exit, stops only that pinned session, then reaps and
+requires empty observed GPU inventory before releasing the lease. The original
+unexecuted unsafe draft is not qualified or used for dispatch.

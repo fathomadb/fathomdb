@@ -170,7 +170,7 @@ def load_config(path: str | Path) -> Tc5GpuConfig:
     if (
         document["schema_version"] != "tc5-gpu-execution.v2"
         or document["program_track"] != "SCALE-01"
-        or document["release"] not in {"0.8.23", "0.8.25", "0.8.26", "0.8.28", "0.8.29"}
+        or document["release"] not in {"0.8.23", "0.8.25", "0.8.26", "0.8.28", "0.8.29", "0.8.30"}
         or document["arms"] != {"bridge": 7667, "primary": 17272}
         or document["claim_boundary"] != "fidelity_and_uncertainty_only"
         or not isinstance(measurement, dict)
@@ -223,6 +223,7 @@ def load_config(path: str | Path) -> Tc5GpuConfig:
             "0.8.26": {"0.8.26"},
             "0.8.28": {"0.8.27", "0.8.28"},
             "0.8.29": {"0.8.29"},
+            "0.8.30": {"0.8.29", "0.8.29+tegra", "0.8.30", "0.8.30+tegra"},
         }[document["release"]]
         if (
             not isinstance(candidate, dict)
@@ -795,6 +796,14 @@ def _ingest_database(
 
         engine = Engine.open(str(prepared.database_path), use_default_embedder=True)
         try:
+            if config.release == "0.8.30" and (config.package_version or "").endswith("+tegra"):
+                resolution = engine.open_report().embedder_device_resolution
+                device = resolution.effective_device.cuda_device if resolution is not None else None
+                allocator = device.cuda_allocator if device is not None else None
+                if (device is None or device.uuid != config.cuda_uuid or allocator is None
+                    or allocator.path != "private" or allocator.pool_max_size_bytes != 3 * 2**30
+                    or allocator.release_threshold != "0"):
+                    raise Tc5GpuV2Error("Tegra ingestion did not select the bounded private pool")
             configure_tc5_dense_projection(engine)
             for offset in range(0, len(inputs.documents), 256):
                 engine.write(

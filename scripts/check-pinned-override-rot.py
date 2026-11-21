@@ -62,16 +62,16 @@ CANDLE_MECHANISM = "patch.crates-io"
 # The complete coherent Slice60 kernel source owns driverless linkage.
 CANDLE_PACKAGES = ("candle-kernels-fathomdb",)
 CANDLE_GIT = "https://github.com/coreyt/candle-fathomdb.git"
-CANDLE_REV = "4eb768c62c1a57a00f4942e738f148a94fbcbddb"
+CANDLE_REV = "952edb7dcd1e29563acedd485a3c1ce8ef07a85c"
 CANDLE_VERSIONS = {"candle-kernels-fathomdb": "0.13.0"}
 FORK_PINS_MANIFEST = "src/rust/crates/fathomdb-embedder/Cargo.toml"
 CUDARC_LOCAL_SOURCE = (
     "git+file:///home/coreyt/projects/fathomdb-forks/cudarc"
-    "?rev=8e2f2b39777055e936791db52fb4a11d5ded8617#8e2f2b39777055e936791db52fb4a11d5ded8617"
+    "?rev=3509cd6bd83b44204be1880e833474ab0f75e060#3509cd6bd83b44204be1880e833474ab0f75e060"
 )
 CANDLE_LOCAL_SOURCE = (
     "git+file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb"
-    "?rev=4eb768c62c1a57a00f4942e738f148a94fbcbddb#4eb768c62c1a57a00f4942e738f148a94fbcbddb"
+    "?rev=952edb7dcd1e29563acedd485a3c1ce8ef07a85c#952edb7dcd1e29563acedd485a3c1ce8ef07a85c"
 )
 # Slice60's candidate integration route has no registry publication or
 # checksum. Replacing these sources with published crates needs a separately
@@ -106,8 +106,8 @@ FORK_PINS = [
 SDK_DRIVER_MANIFEST = "experiments/sdk_drivers/rust/Cargo.toml"
 CUDARC_GIT = "file:///home/coreyt/projects/fathomdb-forks/cudarc"
 CANDLE_LOCAL_GIT = "file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb"
-CUDARC_REV = "8e2f2b39777055e936791db52fb4a11d5ded8617"
-CANDLE_FORK_REV = "4eb768c62c1a57a00f4942e738f148a94fbcbddb"
+CUDARC_REV = "3509cd6bd83b44204be1880e833474ab0f75e060"
+CANDLE_FORK_REV = "952edb7dcd1e29563acedd485a3c1ce8ef07a85c"
 SOURCE_MIRRORS = {
     "qualified-cudarc": {"git": CUDARC_GIT, "rev": CUDARC_REV, "replace-with": "cudarc-https"},
     "cudarc-https": {"git": "https://github.com/coreyt/cudarc.git", "rev": CUDARC_REV},

@@ -25,12 +25,12 @@ from pathlib import Path
 root = Path(sys.argv[1])
 mode = sys.argv[2]
 git = "https://github.com/coreyt/candle-fathomdb.git"
-k9 = "4eb768c62c1a57a00f4942e738f148a94fbcbddb"
+k9 = "952edb7dcd1e29563acedd485a3c1ce8ef07a85c"
 other_rev = "89abcdef0123456789abcdef0123456789abcdef"
 registry = "registry+https://github.com/rust-lang/crates.io-index"
-cudarc_git = "git+https://github.com/coreyt/cudarc.git?rev=8e2f2b39777055e936791db52fb4a11d5ded8617#8e2f2b39777055e936791db52fb4a11d5ded8617"
-cudarc_local = "git+file:///home/coreyt/projects/fathomdb-forks/cudarc?rev=8e2f2b39777055e936791db52fb4a11d5ded8617#8e2f2b39777055e936791db52fb4a11d5ded8617"
-candle_local = "git+file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb?rev=4eb768c62c1a57a00f4942e738f148a94fbcbddb#4eb768c62c1a57a00f4942e738f148a94fbcbddb"
+cudarc_git = "git+https://github.com/coreyt/cudarc.git?rev=3509cd6bd83b44204be1880e833474ab0f75e060#3509cd6bd83b44204be1880e833474ab0f75e060"
+cudarc_local = "git+file:///home/coreyt/projects/fathomdb-forks/cudarc?rev=3509cd6bd83b44204be1880e833474ab0f75e060#3509cd6bd83b44204be1880e833474ab0f75e060"
+candle_local = "git+file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb?rev=952edb7dcd1e29563acedd485a3c1ce8ef07a85c#952edb7dcd1e29563acedd485a3c1ce8ef07a85c"
 versions = {"cudarc-fathomdb": "0.21.0", "candle-core-fathomdb": "0.13.0",
             "candle-nn-fathomdb": "0.13.0", "candle-transformers-fathomdb": "0.13.0"}
 
@@ -650,7 +650,7 @@ from pathlib import Path
 root = Path(sys.argv[1])
 mode = sys.argv[2]
 git = "https://github.com/coreyt/candle-fathomdb.git"
-k9 = "4eb768c62c1a57a00f4942e738f148a94fbcbddb"
+k9 = "952edb7dcd1e29563acedd485a3c1ce8ef07a85c"
 old_rev = "1aefdd008ad1c994635b688b8e6f2ae5a5a920ae"
 patches = (root / "Cargo.toml").read_text().split("[patch.crates-io]\n", 1)[1]
 if mode == "missing-kernels":
@@ -658,7 +658,7 @@ if mode == "missing-kernels":
 if mode == "stale-cudarc":
     patches = 'cudarc = { path = "../../../third_party/cudarc-0.19.7" }\n' + patches
 if mode == "stale-candle":
-    patches = patches.replace('file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb", rev = "4eb768c62c1a57a00f4942e738f148a94fbcbddb', git + '", rev = "' + old_rev, 1)
+    patches = patches.replace('file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb", rev = "952edb7dcd1e29563acedd485a3c1ce8ef07a85c', git + '", rev = "' + old_rev, 1)
 driver = root / "experiments/sdk_drivers/rust/Cargo.toml"
 driver.parent.mkdir(parents=True, exist_ok=True)
 driver.write_text(

@@ -295,9 +295,10 @@ and downstream graph tests must reject second active cudarc, wrong pin/mirror,
 wrong CUDA feature and accidental kernel substitution. Git sources have no
 registry checksum; no publication follows from successful local package tests.
 
-Build owned Python/Node/CLI CUDA artifacts and fresh installed consumers. Each
-runs positive F32 embed/rerank, device attribution, authored persisted write/read,
-close and separate-process reopen/exit. Explicit CPU/auto driverless consumers
+Build owned Python/Node/CLI CUDA artifacts and fresh installed consumers.
+Python/Node run positive F32 embed/rerank, device attribution, authored persisted
+write/read, close and separate-process reopen/exit. CLI exercises its existing
+operator/diagnostic contract as specified below. Explicit CPU/auto driverless consumers
 load CUDA-capable bytes without NVIDIA libraries/devices; forced CUDA refuses
 with the existing typed error. ARM CPU preserves F32 and F16 refusal. Retain
 exact source/lock/features/toolchain/artifact/native resolution identities.
@@ -467,3 +468,110 @@ one process snapshot, passive bound samples and a SEPARATE fresh process
 reopening the real DB and doing a healthy CUDA forward after each fault child.
 Existing historical crash characterizer stays unexecuted. Final exact child
 commands/artifact hashes and parent seq377 authority remain prerequisites.
+
+## CLI caller-fit correction
+
+Actual installed CLI help/source and accepted
+[CLI scope ADR](../../../../../dev/adr/ADR-0.6.0-cli-scope.md) expose only the
+operator roots `recover`/`doctor`; application writes/queries remain SDK-only.
+Reject the draft's accidental requirement that *each* artifact run SDK model
+forwards and application writes/searches. That would require an unrelated new
+public CLI surface and contradict the ADR. This correction allocates existing
+behavior explicitly, without changing numerical or native adoption criteria.
+
+Python/Node installed consumers carry the authored F32 embedding/rerank and
+persisted write/read/drain/close/fresh-process-reopen proof. Each actual CLI
+archive instead runs existing `doctor gpu` and `doctor reranker-gpu` with the
+selected forced device, binds its actual device/source/exit JSON, and runs
+`doctor check-integrity` and `doctor dump-row-counts` twice in fresh processes
+over the exact synthetic DB written/closed by an installed SDK. Compare CLI
+row counts to independent raw SQLite counts; both authored source IDs/bodies
+remain SDK/raw-DB oracles. Driverless CLI auto resolves CPU/exit0 and forced
+CUDA refuses with existing diagnostic reason/exit65. A short diagnostic is not
+credited as model inference, a sampled GPU-owning model process or a CLI write/
+application query. Keep CLI raw/archive size limits and exact dependency/source
+identity; no new command, compatibility shim or acceptance ID is introduced.
+
+## Orin ordinary-session observability and conditional artifact selection
+
+Actual JetPack driver540.5.0 reports NOT_SUPPORTED from NVML compute/graphics
+process-v3 queries. Unprivileged fuser cannot inspect some other-UID process
+FDs; its empty result is not absolute actor absence. A fixed read-only sudo-n
+inventory refused with a password requirement and never ran fuser. Preserve
+that and the original PID-unknown abort as NOT PASS. A separately instrumented
+healthy diagnostic proved an actual child-owned nvidia-smi subprocess via live
+PPid/PGID/start-time and the selected UUID mask; it does not retroactively
+identify the old unknown PID.
+
+Before the first Orin comparison, parent execution coordination accepts the
+existing owner seq410 ordinary healthy scope under the established cooperative
+exclusive lock, verified live owned Tgid/PPid/PGID/helper identities and
+observable actor inventory. Any observed unknown/foreign actor aborts. Retain
+original Orin RAM/swap/disk floors,120s child/30min session,16GiB owned-RSS stop,
+fixed inputs and3GiB private-cap/USED proof. Total device bytes are unavailable;
+no absolute physical exclusivity or total-device8GiB hard enforcement is claimed.
+No known sharing, passwords, privileged retries, host tuning or reset authority
+follows. These explicit conditions may support the same unchanged10%/5%/3x/2x
+criteria in one matched campaign; any missed/aborted/inconclusive row preserves
+PTX. Measured host conditions and visibility limits remain part of the result.
+
+If and only if all selected rows pass,60 selects native1 for existing qualified
+Linuxx86/Tegra CUDA artifact producers before its final source gate. Wire one
+explicit per-axis constant in the existing CUDA build contract into N-API,
+manylinux preflight Python/Node packages, Tegra Python/Node wrappers and CUDA
+CLI workflow builds; retain actual input/target/family identity in existing
+build/verification output. These producer paths select75+86+PTX75 onx86 and
+87+PTX87 on Orin. No generic crate, RustSDK, CPU or unsupported-target default
+changes: the published kernel crate's build-only switch still defaults PTX0.
+
+Before enabling the qualified producers, retain semantic baseline RED with an
+actual installed PTX artifact unable to execute selected F32 work with JIT
+excluded, then require the selected native artifact/control to execute. Test
+producer propagation before its code edit; after wiring, use the same explicit
+native1 compiler inputs/verified artifact bytes already measured, and exercise
+the changed producer default and affected native-only control. Do not replay
+unchanged model/latency/fork campaigns for metadata. If any criterion fails,
+leave producer baseline0 and record non-adoption instead.75 receives a completed
+selected-input contract and owns final shipping/support qualification.
+
+## Recorded adoption outcome and final source refresh
+
+Native defaults are NOT ADOPTED for0.8.30. Keep the existing product/crate
+PTX0 default;75 must use that selected baseline, with no native-producer flip.
+The reviewed conditional native1 wiring above is deliberately not activated:
+its all-rows prerequisite did not pass. This is the planned conservative
+outcome, not unfinished feature work allocated to75.
+
+One3090 campaign completed40 measured and4 prewarm children. Cold startup
+improved90.89% for embedding and92.70% for reranking; each cold/warm steady
+median stayed within5%. Clean x86 kernel Cargo wall time was171.269s PTX versus
+234.124s native (1.367x, below3x); Cargo custom-build units were163.83s versus
+226.63s, with preparation before those units7.22s versus7.17s. Every x86
+corresponding raw/package size ratio was below2x (maximum1.220x). These are
+actual f02-lock/8e-cudarc/4eb-Candle/cudaforge0.1.6 phase subjects.
+
+The one Orin campaign stopped after7 valid cold embedding measurements. The
+8th child produced validated output,20 operations, close and exit0, but fuser
+permission-denied visibility and a136.911ms maximum sample gap failed the
+protocol. That row is NOT PASS. Remaining32 measured cells and4 prewarms are
+NOT RUN and decision-irrelevant after the inconclusive adoption gate. Preserve
+all raw outputs and failures; no retiming, replay, cadence or threshold change
+rescues this campaign. Correct only the ordinary functional-proof launcher to
+record the already accepted exact proc-FD visibility warnings while continuing
+to reject actual observed unknown actors. The failed measurement source stays
+unchanged and is never relabeled as a successful campaign.
+
+Publication-facing metadata audit then corrected stale packaged headers only.
+Final source pins are cudarc3509cd6bd83b44204be1880e833474ab0f75e060 (0.21.0)
+and common Candle952edb7dcd1e29563acedd485a3c1ce8ef07a85c (0.13.0).
+Their manifests, Rust/tests/build inputs remain byte-identical to8e/4eb;
+measured old subjects remain preservation evidence, not fresh executions.
+Coupled root/SDK locks move only those five Git identities. The literal adopted
+lock-set rule still requires fresh owning CPU qualification against the final
+lock on both native architectures; no metadata waiver or guard weakening.
+Existing registry delivery and held process-primary-reset decisions remain
+separate from source review and ordinary healthy results.
+
+Direct Astra-medium returned focused PLAN PASS and DESIGN PASS for the CLI
+allocation, prospective ordinary Orin visibility protocol and conditional
+producer-input design before any new Orin trial or producer code edit.

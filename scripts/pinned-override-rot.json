@@ -20,7 +20,7 @@
       "candle-kernels-fathomdb"
     ],
     "git": "https://github.com/coreyt/candle-fathomdb.git",
-    "rev": "4eb768c62c1a57a00f4942e738f148a94fbcbddb",
+    "rev": "952edb7dcd1e29563acedd485a3c1ce8ef07a85c",
     "versions": {
       "candle-kernels-fathomdb": "0.13.0"
     },
@@ -38,45 +38,45 @@
         "dependency": "cudarc-fathomdb",
         "package": "cudarc-fathomdb",
         "version": "0.21.0",
-        "source": "git+file:///home/coreyt/projects/fathomdb-forks/cudarc?rev=8e2f2b39777055e936791db52fb4a11d5ded8617#8e2f2b39777055e936791db52fb4a11d5ded8617"
+        "source": "git+file:///home/coreyt/projects/fathomdb-forks/cudarc?rev=3509cd6bd83b44204be1880e833474ab0f75e060#3509cd6bd83b44204be1880e833474ab0f75e060"
       },
       {
         "dependency": "candle-core",
         "package": "candle-core-fathomdb",
         "version": "0.13.0",
-        "source": "git+file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb?rev=4eb768c62c1a57a00f4942e738f148a94fbcbddb#4eb768c62c1a57a00f4942e738f148a94fbcbddb"
+        "source": "git+file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb?rev=952edb7dcd1e29563acedd485a3c1ce8ef07a85c#952edb7dcd1e29563acedd485a3c1ce8ef07a85c"
       },
       {
         "dependency": "candle-nn",
         "package": "candle-nn-fathomdb",
         "version": "0.13.0",
-        "source": "git+file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb?rev=4eb768c62c1a57a00f4942e738f148a94fbcbddb#4eb768c62c1a57a00f4942e738f148a94fbcbddb"
+        "source": "git+file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb?rev=952edb7dcd1e29563acedd485a3c1ce8ef07a85c#952edb7dcd1e29563acedd485a3c1ce8ef07a85c"
       },
       {
         "dependency": "candle-transformers",
         "package": "candle-transformers-fathomdb",
         "version": "0.13.0",
-        "source": "git+file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb?rev=4eb768c62c1a57a00f4942e738f148a94fbcbddb#4eb768c62c1a57a00f4942e738f148a94fbcbddb"
+        "source": "git+file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb?rev=952edb7dcd1e29563acedd485a3c1ce8ef07a85c#952edb7dcd1e29563acedd485a3c1ce8ef07a85c"
       }
     ],
     "source_mirrors": {
       "qualified-cudarc": {
         "git": "file:///home/coreyt/projects/fathomdb-forks/cudarc",
-        "rev": "8e2f2b39777055e936791db52fb4a11d5ded8617",
+        "rev": "3509cd6bd83b44204be1880e833474ab0f75e060",
         "replace-with": "cudarc-https"
       },
       "cudarc-https": {
         "git": "https://github.com/coreyt/cudarc.git",
-        "rev": "8e2f2b39777055e936791db52fb4a11d5ded8617"
+        "rev": "3509cd6bd83b44204be1880e833474ab0f75e060"
       },
       "qualified-candle": {
         "git": "file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb",
-        "rev": "4eb768c62c1a57a00f4942e738f148a94fbcbddb",
+        "rev": "952edb7dcd1e29563acedd485a3c1ce8ef07a85c",
         "replace-with": "candle-https"
       },
       "candle-https": {
         "git": "https://github.com/coreyt/candle-fathomdb.git",
-        "rev": "4eb768c62c1a57a00f4942e738f148a94fbcbddb"
+        "rev": "952edb7dcd1e29563acedd485a3c1ce8ef07a85c"
       }
     },
     "patch_manifests": [

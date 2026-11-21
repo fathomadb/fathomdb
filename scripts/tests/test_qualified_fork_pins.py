@@ -12,11 +12,11 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parents[2]
-CUDARC_REV = "8e2f2b39777055e936791db52fb4a11d5ded8617"
-CANDLE_REV = "4eb768c62c1a57a00f4942e738f148a94fbcbddb"
+CUDARC_REV = "3509cd6bd83b44204be1880e833474ab0f75e060"
+CANDLE_REV = "952edb7dcd1e29563acedd485a3c1ce8ef07a85c"
 CUDARC_GIT = "file:///home/coreyt/projects/fathomdb-forks/cudarc"
 CANDLE_GIT = "file:///home/coreyt/projects/fathomdb-forks/candle-fathomdb"
-K9 = "4eb768c62c1a57a00f4942e738f148a94fbcbddb"
+K9 = "952edb7dcd1e29563acedd485a3c1ce8ef07a85c"
 
 
 class QualifiedForkPins(unittest.TestCase):

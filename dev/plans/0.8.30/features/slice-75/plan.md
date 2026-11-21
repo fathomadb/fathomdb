@@ -1,6 +1,6 @@
 ---
 title: Slice 75 platform and artifact qualification
-status: PROPOSED
+status: ACTIVE
 slice: 75
 target_release: 0.8.30
 ---
@@ -8,7 +8,9 @@ target_release: 0.8.30
 # Slice 75 — Platform and artifact qualification
 
 Owner seq-407 allocates this scope from the prior 70 plan.
-This draft does not commission implementation or qualification.
+The whole slice is commissioned under the owner's direction to finish the
+release; execution remains nonpublishing. Parent owns canonical state,
+Slice70 closure and final integration/publication.
 
 ## Entry and ownership
 
@@ -125,3 +127,30 @@ the reviewed artifact/receipt map, open dispositions and nonpublishing route
 evidence to 80. Integrate the owning branch and clean only owned inactive
 worktrees and scratch after retaining evidence. No permission to dispatch,
 download, use a GPU, deliver a fault, spend or publish follows from this draft.
+
+## Commissioned preparation at 0f5db6cc
+
+Current origin/main `b86b19847852e9beaeea32b98dae03b537d8fea4` is already
+an ancestor. No unrelated primary-checkout changes enter this candidate.
+Since the proposal anchor,40 supplied measured nonadoption and a narrow search
+repair;55 supplied composed integrity/fuzz/crash/WAL/thin fixtures;60 changed
+Cudarc/Candle/cudaforge and published its five fork packages;50 added explicit
+module-model release across Rust/Python/Node;70 repaired MCP serialization and
+private benchmark/fixture execution. Consume their exact statuses rather than
+replaying passing campaigns. Broad coverage-guided fuzzing and power-loss proof
+are allocated to.31 by seq414.70 still owns the two current-pin CLS/shared-GPU
+source rows; unavailable discrete telemetry does not close them.
+
+Approve the prework3/4/5 installed persistence, native identity, diagnostics and
+contract proposals in this slice. Retain the existing Engine/SDK ownership and
+operator-only CLI. Reject a new qualification framework and duplicate deep
+17-doctor matrix. Adjust prework's70 artifact ownership to the explicit75 split;
+canonical source numerical/security results remain70-owned. Current source
+format37, exact final60 pins, AxisE and PTX0 producer default remain fixed.
+
+The local design and execution sequence are in [design](design.md). Direct
+Astra-medium reviews both before implementation. Candidate-producing changes
+are reserved to this worktree until freeze; the parent confirmed no imminent
+source integration. One final exact candidate is pushed to a separate
+`release/0.8.30-qualification` branch for existing manual CI. This leaves the
+parent's canonical release ref under its sole ownership.

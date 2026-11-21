@@ -56,3 +56,14 @@ def test_unknown_or_foreign_snapshot_is_never_admitted(record):
             runner.owned_sample_rss(process.pid, birth, [999999])
     finally:
         runner.GROUP.stop_owned_group(process)
+
+
+def test_prior_executor_requires_resume_before_any_output_or_config_access(tmp_path, monkeypatch):
+    monkeypatch.setattr(sys, "argv", [
+        "run_orin_tc5.py", str(tmp_path / "absent-config"), "--output",
+        str(tmp_path / "must-not-exist"), "--prior-executor", str(tmp_path / "old"),
+    ])
+    with pytest.raises(SystemExit) as error:
+        runner.main()
+    assert error.value.code == 2
+    assert not (tmp_path / "must-not-exist").exists()

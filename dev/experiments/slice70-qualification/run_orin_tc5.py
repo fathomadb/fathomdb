@@ -55,7 +55,10 @@ def main():
     parser.add_argument("config", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--resume-from", type=Path)
+    parser.add_argument("--prior-executor", type=Path)
     args = parser.parse_args()
+    if args.prior_executor is not None and args.resume_from is None:
+        parser.error("--prior-executor requires --resume-from")
     output = args.output.resolve()
     if not str(output).startswith("/tmp/fathomdb-0830-slice70/") or output.exists():
         raise ValueError("fresh Slice70-owned output required")
@@ -90,6 +93,11 @@ def main():
         if not str(prior).startswith("/tmp/fathomdb-0830-slice70/"):
             raise ValueError("only the owned prior bridge may be reused")
         command.extend(["--resume-from", str(prior)])
+        if args.prior_executor is not None:
+            executor = args.prior_executor.resolve()
+            if not str(executor).startswith("/tmp/fathomdb-0830-slice70/"):
+                raise ValueError("the preserved executor must remain in owned storage")
+            command.extend(["--prior-executor", str(executor)])
     lock = Path("/tmp/fathomdb-gpu.lock")
     with lock.open("rb") as lease:
         if os.fstat(lease.fileno()).st_ino != 32899085:

@@ -841,7 +841,7 @@ def _ingest_database(
 
 def _copy_prior_database(
     config: Tc5GpuConfig, arm: str, inputs: ArmInputs, prior: Path,
-    output_root: Path, binary: Path,
+    output_root: Path, binary: Path, prior_binary: Path | None = None,
 ) -> Path:
     if config.release != "0.8.30" or arm != "bridge":
         raise Tc5GpuV2Error("existing-ingest recovery is limited to the selected .30 bridge")
@@ -857,7 +857,7 @@ def _copy_prior_database(
         expected, _ = build_query_job(
             config, query=inputs.queries[0], database_path=database,
             document_count=config.arms[arm], fixture_digest=inputs.fixture_digest,
-            index_digest=index_digest, binary_digest=_sha_file(binary), manifest_path=manifest_path,
+            index_digest=index_digest, binary_digest=_sha_file(prior_binary or binary), manifest_path=manifest_path,
         )
         if manifest != expected:
             raise Tc5GpuV2Error("prior database input/model/binary binding drifted")
@@ -884,9 +884,12 @@ def run_arm(
     output_root: Path,
     binary: Path,
     resume_from: Path | None = None,
+    prior_executor: Path | None = None,
 ) -> Path:
     """Execute a GPU arm; an explicit .30 recovery may reuse a byte-pinned complete ingest."""
     config = load_config(config_path)
+    if prior_executor is not None and resume_from is None:
+        raise Tc5GpuV2Error("a prior executor requires an explicit prior ingest")
     _validate_candidate_artifacts(config, binary=binary)
     _validate_candidate_runtime(config)
     inputs = _load_arm_inputs(config, arm)
@@ -898,7 +901,7 @@ def run_arm(
     jobs_root = output_root / "query-jobs"
     jobs_root.mkdir(mode=0o700)
     database = (_ingest_database(config, inputs, output_root) if resume_from is None else
-                _copy_prior_database(config, arm, inputs, resume_from, output_root, binary))
+                _copy_prior_database(config, arm, inputs, resume_from, output_root, binary, prior_binary=prior_executor))
     index_digest = _sha_file(database)
     binary_digest = _sha_file(binary)
     environment = binary_environment(os.environ, config.cuda_uuid)
@@ -932,6 +935,11 @@ def run_arm(
         result = json.loads(result_path.read_text(encoding="utf-8"))
         if not isinstance(result, dict):
             raise Tc5GpuV2Error("TC-5 private executor emitted an invalid result")
+        if result.get("status") != "measurement_complete":
+            raise Tc5GpuV2Error(
+                f"TC-5 private executor returned a nonmeasurement at query {offset:03d}: "
+                f"{result.get('error_code', 'unknown')}"
+            )
         results.append(result)
     receipt = aggregate_results(
         config,
@@ -958,6 +966,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         if command == "run":
             child.add_argument("--binary", type=Path, required=True)
             child.add_argument("--resume-from", type=Path)
+            child.add_argument("--prior-executor", type=Path)
     args = parser.parse_args(argv)
     if args.command == "dry-run":
         result = dry_run(args.config, args.arm, output_root=args.output_root)
@@ -966,6 +975,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         receipt = run_arm(
             args.config, args.arm, output_root=args.output_root, binary=args.binary,
             resume_from=args.resume_from,
+            prior_executor=args.prior_executor,
         )
         print(json.dumps({"receipt": str(receipt)}, sort_keys=True))
     return 0

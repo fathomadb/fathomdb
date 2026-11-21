@@ -586,7 +586,11 @@ fn select_device(
     pinned_uuid: Option<&str>,
 ) -> Result<SelectedDevice, String> {
     if devices.is_empty() {
-        return Ok(SelectedDevice::Cpu);
+        return if pinned_uuid.is_some() {
+            Err("the pinned CUDA device is not visible".into())
+        } else {
+            Ok(SelectedDevice::Cpu)
+        };
     }
     let pinned_uuid = pinned_uuid.ok_or("visible CUDA requires a manifest UUID pin")?;
     let matching: Vec<&DeviceInfo> =
@@ -626,8 +630,23 @@ fn parse_cuda_inventory(raw: &[u8]) -> Result<Vec<DeviceInfo>, String> {
             if fields.len() != 4 || fields.iter().any(|field| field.is_empty()) {
                 return Err("ambiguous CUDA preflight output".to_string());
             }
+            let uuid = if fields[0].starts_with("GPU-") {
+                fields[0].to_owned()
+            } else if fields[0].len() == 36
+                && fields[0].bytes().enumerate().all(|(index, byte)| {
+                    if [8, 13, 18, 23].contains(&index) {
+                        byte == b'-'
+                    } else {
+                        byte.is_ascii_hexdigit()
+                    }
+                })
+            {
+                format!("GPU-{}", fields[0])
+            } else {
+                return Err("invalid CUDA inventory UUID".into());
+            };
             Ok(DeviceInfo {
-                uuid: fields[0].into(),
+                uuid,
                 pci_bus_id: fields[1].into(),
                 name: fields[2].into(),
                 driver: fields[3].into(),
@@ -719,7 +738,7 @@ fn write_measurement(
         SelectedDevice::Cpu => (None, None, None, None, None),
         SelectedDevice::Cuda(device) => (
             Some(device.uuid.as_str()),
-            Some(device.pci_bus_id.as_str()),
+            (device.pci_bus_id != "[N/A]").then_some(device.pci_bus_id.as_str()),
             Some(device.name.as_str()),
             Some(device.driver.as_str()),
             Some(device.cuda_ordinal),
@@ -1122,7 +1141,7 @@ mod tests {
         assert_eq!(selected.logical_label(), "cuda:0");
         assert!(select_device(&devices, Some("GPU-other")).is_err());
         assert!(select_device(&devices, None).is_err());
-        assert_eq!(select_device(&[], Some("GPU-pinned")).unwrap().logical_label(), "cpu");
+        assert_eq!(select_device(&[], None).unwrap().logical_label(), "cpu");
     }
 
     #[test]

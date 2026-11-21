@@ -854,8 +854,11 @@ def _copy_prior_database(
         wal = Path(str(database) + "-wal")
         if (wal.exists() and wal.stat().st_size > 32) or index_digest != manifest.get("index_digest"):
             raise Tc5GpuV2Error("prior database bytes or WAL differ from the completed ingest")
+        manifest_database = Path(manifest.get("database", ""))
+        if manifest_database not in (database, prior / "query-jobs/query-001/fathomdb.sqlite"):
+            raise Tc5GpuV2Error("prior manifest database layout is not recognized")
         expected, _ = build_query_job(
-            config, query=inputs.queries[0], database_path=database,
+            config, query=inputs.queries[0], database_path=manifest_database,
             document_count=config.arms[arm], fixture_digest=inputs.fixture_digest,
             index_digest=index_digest, binary_digest=_sha_file(prior_binary or binary), manifest_path=manifest_path,
         )
@@ -911,10 +914,17 @@ def run_arm(
         manifest_path = jobs_root / f"{stem}.manifest.json"
         spec_path = jobs_root / f"{stem}.spec.json"
         result_path = jobs_root / f"{stem}.result.json"
+        # Engine open updates operational metadata; every process gets the same input bytes.
+        query_directory = jobs_root / stem
+        query_directory.mkdir(mode=0o700)
+        query_database = query_directory / "fathomdb.sqlite"
+        shutil.copyfile(database, query_database)
+        if _sha_file(query_database) != index_digest:
+            raise Tc5GpuV2Error("query database copy does not match the qualified index")
         manifest, spec = build_query_job(
             config,
             query=query,
-            database_path=database,
+            database_path=query_database,
             document_count=len(inputs.documents),
             fixture_digest=inputs.fixture_digest,
             index_digest=index_digest,

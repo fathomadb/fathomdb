@@ -1,7 +1,7 @@
 {
   "schema": "fathomdb.cudarc-fathomdb-lock-set.v2",
-  "fathomdb_lock_commit": "7c064a5457893e8cb7860ba6e79249b464abfa8a",
-  "fathomdb_lock_sha256": "f02a722f51e298525db9670045908cbfb22d26ebd2ad89b7369396ec6cc4072f",
+  "fathomdb_lock_commit": "d1cf8f8c12d9bc86ab1eef7bf880ab61d0628a7f",
+  "fathomdb_lock_sha256": "201407c65d1a10f8d61b271939eaf3a1f6a4cbbd01fdfec100d4cd3ef4682296",
   "closure": "linux-normal",
   "root_features": [
     "cublas",
@@ -20,7 +20,7 @@
       {
         "name": "cudarc-fathomdb",
         "version": "0.21.0",
-        "source": "git+file:///home/coreyt/projects/fathomdb-forks/cudarc?rev=8e2f2b39777055e936791db52fb4a11d5ded8617#8e2f2b39777055e936791db52fb4a11d5ded8617",
+        "source": "git+file:///home/coreyt/projects/fathomdb-forks/cudarc?rev=3509cd6bd83b44204be1880e833474ab0f75e060#3509cd6bd83b44204be1880e833474ab0f75e060",
         "checksum": null
       },
       {
@@ -154,7 +154,7 @@
       {
         "name": "cudarc-fathomdb",
         "version": "0.21.0",
-        "source": "git+file:///home/coreyt/projects/fathomdb-forks/cudarc?rev=8e2f2b39777055e936791db52fb4a11d5ded8617#8e2f2b39777055e936791db52fb4a11d5ded8617",
+        "source": "git+file:///home/coreyt/projects/fathomdb-forks/cudarc?rev=3509cd6bd83b44204be1880e833474ab0f75e060#3509cd6bd83b44204be1880e833474ab0f75e060",
         "checksum": null
       },
       {
@@ -285,7 +285,7 @@
       }
     ]
   },
-  "set_sha256": "c65f31e2cda85a556a2c105fad390390773b74dcd00059cd3b9d0677f0d96c78",
+  "set_sha256": "66f7fd5675afa8e36e28b4dd1331faffc83a6719baf90098bbbb55ca9c15965e",
   "qualification": {
     "kind": "local-native",
     "protocol": "dev/plans/0.8.29/features/slice-140/design.md#local-executor-for-exact-lock-fork-qualification",
@@ -311,28 +311,165 @@
       "rand_distr",
       "syn"
     ],
-    "fork_revision": "8e2f2b39777055e936791db52fb4a11d5ded8617",
     "previous_native_qualification": {
       "kind": "local-native",
       "protocol": "dev/plans/0.8.29/features/slice-140/design.md#local-executor-for-exact-lock-fork-qualification",
       "owner_rulings": [
         "seq-389",
-        "seq-391"
+        "seq-391",
+        "seq-409",
+        "seq-410"
       ],
       "fork_repository": "https://github.com/coreyt/cudarc",
-      "fork_revision": "343b04fa73f85ee78754d6ee2baa07b959cc9ccc",
       "scratch_only_manifest_edits": [
         "Cargo.toml",
         "fathomdb/lock-consumer/Cargo.toml"
       ],
       "historical_hosted_record": "scripts/cudarc-fathomdb-lock-set-hosted-20261014.json",
+      "projection_scope": "Both Linux normal package identities/checksums and cudarc root features; not equality of every non-root feature set.",
+      "nonroot_feature_sets_differing_from_product": [
+        "bytemuck",
+        "half",
+        "libc",
+        "num-traits",
+        "rand",
+        "rand_distr",
+        "syn"
+      ],
+      "fork_revision": "8e2f2b39777055e936791db52fb4a11d5ded8617",
+      "previous_native_qualification": {
+        "kind": "local-native",
+        "protocol": "dev/plans/0.8.29/features/slice-140/design.md#local-executor-for-exact-lock-fork-qualification",
+        "owner_rulings": [
+          "seq-389",
+          "seq-391"
+        ],
+        "fork_repository": "https://github.com/coreyt/cudarc",
+        "fork_revision": "343b04fa73f85ee78754d6ee2baa07b959cc9ccc",
+        "scratch_only_manifest_edits": [
+          "Cargo.toml",
+          "fathomdb/lock-consumer/Cargo.toml"
+        ],
+        "historical_hosted_record": "scripts/cudarc-fathomdb-lock-set-hosted-20261014.json",
+        "native_runs": {
+          "x86_64-unknown-linux-gnu": {
+            "host": "windchill3",
+            "rustc": "1.95.0",
+            "source": "/mnt/data/tmp2/fathomdb-0829-continuation/local-lock-qual-20261115/source",
+            "compile_exit": 0,
+            "list_exit": 0,
+            "selected_exit": 0,
+            "tests": {
+              "selected": 323,
+              "passed": 323,
+              "failed": 0,
+              "ignored": 0
+            },
+            "test_executable": "/mnt/data/tmp2/fathomdb-0829-continuation/local-lock-qual-20261115/target/debug/deps/cudarc-00e78dfed21714b8",
+            "compile_command": [
+              "cargo",
+              "test",
+              "--offline",
+              "--locked",
+              "--workspace",
+              "--lib",
+              "--no-default-features",
+              "-F",
+              "std,cublas,cublaslt,curand,driver,nvrtc,f16,f8,cuda-version-from-build-system,dynamic-loading",
+              "--no-run",
+              "--message-format=json"
+            ],
+            "each_test_arguments": [
+              "--exact",
+              "<selected name in raw log>",
+              "--test-threads=1",
+              "--format=terse"
+            ],
+            "logs": {
+              "compile": "/mnt/data/tmp2/fathomdb-0829-continuation/local-lock-qual-20261115/logs/x86-qual-compile.log",
+              "list": "/mnt/data/tmp2/fathomdb-0829-continuation/local-lock-qual-20261115/logs/x86-qual-list.log",
+              "selected": "/mnt/data/tmp2/fathomdb-0829-continuation/local-lock-qual-20261115/logs/x86-qual-selected.log"
+            },
+            "resource_control": {
+              "mode": "private-user-cgroup",
+              "memory_max_bytes": 2147483648,
+              "memory_swap_max_bytes": 0,
+              "cpu_max": "100000 100000",
+              "tasks_max": 128,
+              "runtime_max_seconds": 300,
+              "outer_max_seconds": 320
+            }
+          },
+          "aarch64-unknown-linux-gnu": {
+            "host": "ubuntu",
+            "rustc": "1.95.0",
+            "source": "/home/coreyt/fathomdb-0829-local-lock-20261115/source",
+            "compile_exit": 0,
+            "list_exit": 0,
+            "selected_exit": 0,
+            "tests": {
+              "selected": 322,
+              "passed": 322,
+              "failed": 0,
+              "ignored": 0
+            },
+            "test_executable": "/home/coreyt/fathomdb-0829-local-lock-20261115/target/debug/deps/cudarc-02d132bd556cf083",
+            "compile_command": [
+              "cargo",
+              "test",
+              "--offline",
+              "--locked",
+              "--workspace",
+              "--lib",
+              "--no-default-features",
+              "-F",
+              "std,cublas,cublaslt,curand,driver,nvrtc,f16,f8,cuda-version-from-build-system,dynamic-loading",
+              "--no-run",
+              "--message-format=json"
+            ],
+            "each_test_arguments": [
+              "--exact",
+              "<selected name in raw log>",
+              "--test-threads=1",
+              "--format=terse"
+            ],
+            "logs": {
+              "compile": "/home/coreyt/fathomdb-0829-local-lock-20261115/logs/regular-arm-qual-compile.log",
+              "list": "/home/coreyt/fathomdb-0829-local-lock-20261115/logs/regular-arm-qual-list.log",
+              "selected": "/home/coreyt/fathomdb-0829-local-lock-20261115/logs/regular-arm-qual-selected.log"
+            },
+            "resource_control": {
+              "mode": "regular-ssh",
+              "cgroup_caps": false,
+              "owner_ruling": "seq-391"
+            },
+            "local_log_copies": {
+              "compile": "/mnt/data/tmp2/fathomdb-0829-continuation/local-lock-qual-20261115/logs/regular-arm-qual-compile.log",
+              "list": "/mnt/data/tmp2/fathomdb-0829-continuation/local-lock-qual-20261115/logs/regular-arm-qual-list.log",
+              "selected": "/mnt/data/tmp2/fathomdb-0829-continuation/local-lock-qual-20261115/logs/regular-arm-qual-selected.log"
+            }
+          }
+        },
+        "projection_scope": "Both Linux normal package identities/checksums and cudarc root features; not equality of every non-root feature set.",
+        "nonroot_feature_sets_differing_from_product": [
+          "bytemuck",
+          "libc",
+          "num-traits",
+          "rand",
+          "rand_distr",
+          "syn"
+        ],
+        "whole_product_feature_compile": "Existing dc8f97601f27f1b0ea4eefad70dfe860dd590cac x86 wheel/CLI/TC5 build remains separate evidence; local unit bridge does not claim all whole-product dependency features."
+      },
+      "whole_product_feature_compile": "Current final-code Python A/B manylinux release wheels and independent staged-registry CUDA consumer compile are separate evidence; owning unit bridge does not claim every whole-product dependency feature.",
       "native_runs": {
         "x86_64-unknown-linux-gnu": {
           "host": "windchill3",
           "rustc": "1.95.0",
-          "source": "/mnt/data/tmp2/fathomdb-0829-continuation/local-lock-qual-20261115/source",
+          "fork_revision": "8e2f2b39777055e936791db52fb4a11d5ded8617",
+          "product_lock_sha256": "f02a722f51e298525db9670045908cbfb22d26ebd2ad89b7369396ec6cc4072f",
+          "scratch_lock_sha256": "a61c62c140f3c0520fa8dedd5442cd8596944529f7a1ee6457f047f2dfad8f10",
           "compile_exit": 0,
-          "list_exit": 0,
           "selected_exit": 0,
           "tests": {
             "selected": 323,
@@ -340,47 +477,24 @@
             "failed": 0,
             "ignored": 0
           },
-          "test_executable": "/mnt/data/tmp2/fathomdb-0829-continuation/local-lock-qual-20261115/target/debug/deps/cudarc-00e78dfed21714b8",
-          "compile_command": [
-            "cargo",
-            "test",
-            "--offline",
-            "--locked",
-            "--workspace",
-            "--lib",
-            "--no-default-features",
-            "-F",
-            "std,cublas,cublaslt,curand,driver,nvrtc,f16,f8,cuda-version-from-build-system,dynamic-loading",
-            "--no-run",
-            "--message-format=json"
+          "test_executable_sha256": "75114e22883c7b7ee1d1ecec9dead78589aa60c6d9f7625c7579166ec5ffe56f",
+          "logs": [
+            "/mnt/data/tmp2/fathomdb-0830-slice60/terra-exact-lock/logs/x86-selected.log",
+            "/mnt/data/tmp2/fathomdb-0830-slice60/terra-exact-lock/logs/x86-resume.log"
           ],
-          "each_test_arguments": [
-            "--exact",
-            "<selected name in raw log>",
-            "--test-threads=1",
-            "--format=terse"
-          ],
-          "logs": {
-            "compile": "/mnt/data/tmp2/fathomdb-0829-continuation/local-lock-qual-20261115/logs/x86-qual-compile.log",
-            "list": "/mnt/data/tmp2/fathomdb-0829-continuation/local-lock-qual-20261115/logs/x86-qual-list.log",
-            "selected": "/mnt/data/tmp2/fathomdb-0829-continuation/local-lock-qual-20261115/logs/x86-qual-selected.log"
-          },
           "resource_control": {
-            "mode": "private-user-cgroup",
-            "memory_max_bytes": 2147483648,
-            "memory_swap_max_bytes": 0,
-            "cpu_max": "100000 100000",
-            "tasks_max": 128,
-            "runtime_max_seconds": 300,
-            "outer_max_seconds": 320
-          }
+            "mode": "regular-local",
+            "cgroup_caps": false
+          },
+          "harness_notes": "Original x86 panic-text false alarm after caught-panic test retained; only remaining65\u2013323 ran on corrected operator."
         },
         "aarch64-unknown-linux-gnu": {
           "host": "ubuntu",
           "rustc": "1.95.0",
-          "source": "/home/coreyt/fathomdb-0829-local-lock-20261115/source",
+          "fork_revision": "8e2f2b39777055e936791db52fb4a11d5ded8617",
+          "product_lock_sha256": "f02a722f51e298525db9670045908cbfb22d26ebd2ad89b7369396ec6cc4072f",
+          "scratch_lock_sha256": "a61c62c140f3c0520fa8dedd5442cd8596944529f7a1ee6457f047f2dfad8f10",
           "compile_exit": 0,
-          "list_exit": 0,
           "selected_exit": 0,
           "tests": {
             "selected": 322,
@@ -388,61 +502,30 @@
             "failed": 0,
             "ignored": 0
           },
-          "test_executable": "/home/coreyt/fathomdb-0829-local-lock-20261115/target/debug/deps/cudarc-02d132bd556cf083",
-          "compile_command": [
-            "cargo",
-            "test",
-            "--offline",
-            "--locked",
-            "--workspace",
-            "--lib",
-            "--no-default-features",
-            "-F",
-            "std,cublas,cublaslt,curand,driver,nvrtc,f16,f8,cuda-version-from-build-system,dynamic-loading",
-            "--no-run",
-            "--message-format=json"
+          "test_executable_sha256": "b31caf5d7b71b666343c88513fe80171b65919c80c09acf3a0382670137d5b33",
+          "logs": [
+            "/mnt/data/tmp2/fathomdb-0830-slice60/terra-exact-lock/logs/arm-selected.log"
           ],
-          "each_test_arguments": [
-            "--exact",
-            "<selected name in raw log>",
-            "--test-threads=1",
-            "--format=terse"
-          ],
-          "logs": {
-            "compile": "/home/coreyt/fathomdb-0829-local-lock-20261115/logs/regular-arm-qual-compile.log",
-            "list": "/home/coreyt/fathomdb-0829-local-lock-20261115/logs/regular-arm-qual-list.log",
-            "selected": "/home/coreyt/fathomdb-0829-local-lock-20261115/logs/regular-arm-qual-selected.log"
-          },
           "resource_control": {
             "mode": "regular-ssh",
             "cgroup_caps": false,
-            "owner_ruling": "seq-391"
+            "owner_ruling": "seq-410"
           },
-          "local_log_copies": {
-            "compile": "/mnt/data/tmp2/fathomdb-0829-continuation/local-lock-qual-20261115/logs/regular-arm-qual-compile.log",
-            "list": "/mnt/data/tmp2/fathomdb-0829-continuation/local-lock-qual-20261115/logs/regular-arm-qual-list.log",
-            "selected": "/mnt/data/tmp2/fathomdb-0829-continuation/local-lock-qual-20261115/logs/regular-arm-qual-selected.log"
-          }
+          "harness_notes": "Original cache-preflight refusal retained; checksum-verified public registry cache then offline build. Corrected only false panic-text ban before full322 run.",
+          "test_executable": "/tmp/fathomdb-0830-slice60/terra-exact-lock/target/debug/deps/cudarc-6512d24bfe1880e6",
+          "identity_receipt": "/mnt/data/tmp2/fathomdb-0830-slice60/terra-exact-lock/logs/arm-identity.txt",
+          "source_integrity_receipt": "/mnt/data/tmp2/fathomdb-0830-slice60/terra-exact-lock/logs/arm-source-integrity-after.log"
         }
-      },
-      "projection_scope": "Both Linux normal package identities/checksums and cudarc root features; not equality of every non-root feature set.",
-      "nonroot_feature_sets_differing_from_product": [
-        "bytemuck",
-        "libc",
-        "num-traits",
-        "rand",
-        "rand_distr",
-        "syn"
-      ],
-      "whole_product_feature_compile": "Existing dc8f97601f27f1b0ea4eefad70dfe860dd590cac x86 wheel/CLI/TC5 build remains separate evidence; local unit bridge does not claim all whole-product dependency features."
+      }
     },
-    "whole_product_feature_compile": "Current final-code Python A/B manylinux release wheels and independent staged-registry CUDA consumer compile are separate evidence; owning unit bridge does not claim every whole-product dependency feature.",
+    "fork_revision": "3509cd6bd83b44204be1880e833474ab0f75e060",
+    "whole_product_feature_compile": "Fresh owning CPU bridge proves the exact22 normal identities/checksums and ten root features. Final selected product artifacts and public registry delivery remain separately qualified; old8e/4eb runtime/timing results retain original subjects and applicable code-identity evidence.",
     "native_runs": {
       "x86_64-unknown-linux-gnu": {
         "host": "windchill3",
         "rustc": "1.95.0",
-        "fork_revision": "8e2f2b39777055e936791db52fb4a11d5ded8617",
-        "product_lock_sha256": "f02a722f51e298525db9670045908cbfb22d26ebd2ad89b7369396ec6cc4072f",
+        "fork_revision": "3509cd6bd83b44204be1880e833474ab0f75e060",
+        "product_lock_sha256": "201407c65d1a10f8d61b271939eaf3a1f6a4cbbd01fdfec100d4cd3ef4682296",
         "scratch_lock_sha256": "a61c62c140f3c0520fa8dedd5442cd8596944529f7a1ee6457f047f2dfad8f10",
         "compile_exit": 0,
         "selected_exit": 0,
@@ -452,22 +535,25 @@
           "failed": 0,
           "ignored": 0
         },
-        "test_executable_sha256": "75114e22883c7b7ee1d1ecec9dead78589aa60c6d9f7625c7579166ec5ffe56f",
+        "test_executable_sha256": "90bca9ce078667744d64726bf810f871cdc140178e23d0659a9306a7e1ad6729",
+        "lock_consumer_sha256": "94b0986d6a52c9a7f586f2a0afb9d1455e7dec79683c5c41eb45304f7ca28149",
         "logs": [
-          "/mnt/data/tmp2/fathomdb-0830-slice60/terra-exact-lock/logs/x86-selected.log",
-          "/mnt/data/tmp2/fathomdb-0830-slice60/terra-exact-lock/logs/x86-resume.log"
+          "/mnt/data/tmp2/fathomdb-0830-slice60/terra-final-exact-lock/logs/x86-selected.log"
         ],
+        "identity_receipt": "/mnt/data/tmp2/fathomdb-0830-slice60/terra-final-exact-lock/logs/x86-binary-sha256.txt",
+        "source_integrity_receipt": "/mnt/data/tmp2/fathomdb-0830-slice60/terra-final-exact-lock/logs/source-integrity-after.log",
         "resource_control": {
           "mode": "regular-local",
           "cgroup_caps": false
         },
-        "harness_notes": "Original x86 panic-text false alarm after caught-panic test retained; only remaining65\u2013323 ran on corrected operator."
+        "setup_failures": "Original offline-cache refusal retained; owner-source cache fetch preceded unchanged frozen offline metadata/build/tests.",
+        "lock_consumer_compile_exit": 0
       },
       "aarch64-unknown-linux-gnu": {
         "host": "ubuntu",
         "rustc": "1.95.0",
-        "fork_revision": "8e2f2b39777055e936791db52fb4a11d5ded8617",
-        "product_lock_sha256": "f02a722f51e298525db9670045908cbfb22d26ebd2ad89b7369396ec6cc4072f",
+        "fork_revision": "3509cd6bd83b44204be1880e833474ab0f75e060",
+        "product_lock_sha256": "201407c65d1a10f8d61b271939eaf3a1f6a4cbbd01fdfec100d4cd3ef4682296",
         "scratch_lock_sha256": "a61c62c140f3c0520fa8dedd5442cd8596944529f7a1ee6457f047f2dfad8f10",
         "compile_exit": 0,
         "selected_exit": 0,
@@ -477,19 +563,19 @@
           "failed": 0,
           "ignored": 0
         },
-        "test_executable_sha256": "b31caf5d7b71b666343c88513fe80171b65919c80c09acf3a0382670137d5b33",
+        "test_executable_sha256": "82e12f3c2749176e787255a734a48eae8ffb1c7e81042011744c97fafabc8f20",
         "logs": [
-          "/mnt/data/tmp2/fathomdb-0830-slice60/terra-exact-lock/logs/arm-selected.log"
+          "/mnt/data/tmp2/fathomdb-0830-slice60/terra-final-exact-lock/logs/arm-selected.log"
         ],
+        "identity_receipt": "/mnt/data/tmp2/fathomdb-0830-slice60/terra-final-exact-lock/logs/arm-identity.txt",
+        "source_integrity_receipt": "/mnt/data/tmp2/fathomdb-0830-slice60/terra-final-exact-lock/logs/source-integrity-after.log",
         "resource_control": {
           "mode": "regular-ssh",
           "cgroup_caps": false,
           "owner_ruling": "seq-410"
         },
-        "harness_notes": "Original cache-preflight refusal retained; checksum-verified public registry cache then offline build. Corrected only false panic-text ban before full322 run.",
-        "test_executable": "/tmp/fathomdb-0830-slice60/terra-exact-lock/target/debug/deps/cudarc-6512d24bfe1880e6",
-        "identity_receipt": "/mnt/data/tmp2/fathomdb-0830-slice60/terra-exact-lock/logs/arm-identity.txt",
-        "source_integrity_receipt": "/mnt/data/tmp2/fathomdb-0830-slice60/terra-exact-lock/logs/arm-source-integrity-after.log"
+        "setup_failures": "Original offline-cache refusal retained; owner-source cache fetch preceded unchanged frozen offline metadata/build/tests.",
+        "lock_consumer_compile_exit": 0
       }
     }
   }

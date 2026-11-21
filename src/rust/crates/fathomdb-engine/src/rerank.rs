@@ -169,6 +169,15 @@ pub fn rerank_passages(
     if passages.is_empty() {
         return Ok(vec![]);
     }
+    #[cfg(feature = "default-reranker")]
+    let _module_lease = if rerank_depth > 0 {
+        Some(
+            fathomdb_embedder::module_models::admit_reranker()
+                .map_err(RerankPassagesError::Reranker)?,
+        )
+    } else {
+        None
+    };
     // Slice 71: a forced CUDA policy is a request to run CE inference on that
     // device, never permission to silently return CPU CE scores. Resolve before
     // loading weights so malformed/forced policy errors are observable without
@@ -241,11 +250,6 @@ fn ce_rerank<H: RankedHit>(
         return Ok(Some(vec![]));
     }
 
-    // Try to get the loaded model. Returns None when weights are absent.
-    let Some(model) = CandleCrossEncoder::try_get_loaded()? else {
-        return Ok(None);
-    };
-
     // 0.8.5 (D4) — the reranked pool is the top `pool_n` (caller resolves the
     // `unwrap_or(rerank_depth)` default at the binding), clamped to the hit count.
     let n = pool_n.min(hits.len());
@@ -256,11 +260,15 @@ fn ce_rerank<H: RankedHit>(
     // ALPHA blend, sort) is byte-unchanged — only the scoring is batched.
     let bodies: Vec<&str> = top.iter().map(|h| h.hit().body.as_str()).collect();
     #[cfg(feature = "slice72-test-hooks")]
-    let raw_logits = slice72_test_hooks::with_ce_forward(|| model.score_batch(_query, &bodies))?;
+    let raw_logits = fathomdb_embedder::module_models::with_reranker(|model| {
+        slice72_test_hooks::with_ce_forward(|| score_pool(model, _query, &bodies))
+    })?;
     #[cfg(not(feature = "slice72-test-hooks"))]
-    let raw_logits = model.score_batch(_query, &bodies)?;
+    let raw_logits = fathomdb_embedder::module_models::with_reranker(|model| {
+        score_pool(model, _query, &bodies)
+    })?;
 
-    Ok(Some(blend_ce_ranked(hits, raw_logits, alpha, pool_n)))
+    Ok(raw_logits.map(|raw_logits| blend_ce_ranked(hits, raw_logits, alpha, pool_n)))
 }
 
 #[cfg(any(feature = "default-reranker", test))]
@@ -362,128 +370,6 @@ fn score_pool<S: CeScorer + ?Sized>(
     }
 }
 
-/// What the process-wide reranker singleton remembers.
-#[cfg(any(feature = "default-reranker", test))]
-enum SingletonState<T: 'static> {
-    Loaded(&'static T),
-    /// No weights and no network: memoized so a query does not retry the load.
-    Unavailable,
-    DevicePolicy(RerankerDevicePolicyError),
-}
-
-/// A failed load, as the singleton treats it.
-#[cfg(any(feature = "default-reranker", test))]
-#[derive(Debug, PartialEq)]
-enum LoadFailure {
-    /// Memoized and returned on every call.
-    DevicePolicy(RerankerDevicePolicyError),
-    /// A CUDA pool kind: returned, not memoized; the next call loads again.
-    Retry(RerankerDevicePolicyError),
-    /// Memoized as "no reranker"; callers fall back to RRF order.
-    Unavailable,
-}
-
-/// Return the memoized reranker, loading it under `cell`'s lock when nothing
-/// is memoized. The lock is held across the load so concurrent first calls
-/// load once.
-#[cfg(any(feature = "default-reranker", test))]
-fn get_or_load<T: 'static>(
-    cell: &'static std::sync::Mutex<Option<SingletonState<T>>>,
-    load: impl FnOnce() -> Result<T, LoadFailure>,
-) -> Result<Option<&'static T>, RerankerDevicePolicyError> {
-    let mut state = cell.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-    if state.is_none() {
-        *state = Some(match load() {
-            Ok(model) => SingletonState::Loaded(Box::leak(Box::new(model))),
-            Err(LoadFailure::DevicePolicy(error)) => SingletonState::DevicePolicy(error),
-            Err(LoadFailure::Unavailable) => SingletonState::Unavailable,
-            Err(LoadFailure::Retry(error)) => return Err(error),
-        });
-    }
-    match state.as_ref() {
-        Some(SingletonState::Loaded(model)) => Ok(Some(*model)),
-        Some(SingletonState::DevicePolicy(error)) => Err(error.clone()),
-        Some(SingletonState::Unavailable) | None => Ok(None),
-    }
-}
-
-#[cfg(feature = "default-reranker")]
-fn classify_reranker_load_error(error: fathomdb_embedder::RerankerLoadError) -> LoadFailure {
-    use fathomdb_embedder::RerankerLoadError;
-    match error {
-        // A private-pool failure in the resolution probe: returned, and the
-        // next call resolves again.
-        RerankerLoadError::DevicePolicy(
-            error @ (RerankerDevicePolicyError::CudaPoolExhausted { .. }
-            | RerankerDevicePolicyError::CudaContextLost { .. }
-            | RerankerDevicePolicyError::CudaPrivateBuildRefused { .. }),
-        ) => LoadFailure::Retry(error),
-        RerankerLoadError::DevicePolicy(error) => LoadFailure::DevicePolicy(error),
-        RerankerLoadError::CudaPoolExhausted { ordinal, max_size_bytes, message } => {
-            LoadFailure::Retry(RerankerDevicePolicyError::CudaPoolExhausted {
-                ordinal,
-                max_size_bytes,
-                message,
-            })
-        }
-        RerankerLoadError::CudaContextLost {
-            recorded_context_id,
-            current_context_id,
-            driver_error,
-            operation,
-        } => LoadFailure::Retry(RerankerDevicePolicyError::CudaContextLost {
-            recorded_context_id,
-            current_context_id,
-            driver_error,
-            operation,
-        }),
-        RerankerLoadError::CudaPrivateBuildRefused { ordinal, message } => {
-            LoadFailure::Retry(RerankerDevicePolicyError::CudaPrivateBuildRefused {
-                ordinal,
-                message,
-            })
-        }
-        _ => LoadFailure::Unavailable,
-    }
-}
-
-/// 0.8.1 Slice 10 (R1) / 0.8.2 Slice E1 — TinyBERT-L-2 cross-encoder;
-/// its CPU or CUDA backend is selected by the reranker device policy.
-///
-/// Thin engine-side handle over the embedder crate's `CandleTinyBertReranker`
-/// (Candle BERT stack + `tokenizers`, pinned `cross-encoder/ms-marco-TinyBERT-
-/// L2-v2`). The model is loaded once, process-wide, the first time
-/// `rerank_depth > 0` reaches the CE path; on cache miss that first load
-/// fetches the ~17 MB weights over the network (sha256-verified). When the
-/// weights are absent and the network is unavailable, the load fails and
-/// `try_get_loaded()` returns `None` so the caller soft-falls-back to RRF
-/// order — it never panics.
-///
-/// Footprint: this whole type compiles ONLY under `default-reranker`. With the
-/// feature off the CE path compiles away and `rerank_fused` is always identity.
-/// With the feature on, `rerank_depth == 0` short-circuits in `rerank_fused`
-/// BEFORE this is ever touched, so depth-0 stays byte-identical and no-network.
-/// Similarly, an empty hit set short-circuits in `ce_rerank` before the singleton
-/// is consulted (fix-1 [P2]).
-#[cfg(feature = "default-reranker")]
-struct CandleCrossEncoder {
-    inner: &'static fathomdb_embedder::CandleTinyBertReranker,
-}
-
-/// Process-wide lazily-initialized reranker. A loaded model, a device-policy
-/// refusal and a genuinely unavailable model (no weights, no network) are
-/// memoized; a CUDA pool kind is returned and the next call loads again.
-#[cfg(feature = "default-reranker")]
-fn reranker_singleton(
-) -> Result<Option<&'static fathomdb_embedder::CandleTinyBertReranker>, RerankerDevicePolicyError> {
-    static CELL: std::sync::Mutex<
-        Option<SingletonState<fathomdb_embedder::CandleTinyBertReranker>>,
-    > = std::sync::Mutex::new(None);
-    get_or_load(&CELL, || {
-        fathomdb_embedder::CandleTinyBertReranker::try_load().map_err(classify_reranker_load_error)
-    })
-}
-
 #[cfg(feature = "default-reranker")]
 impl CeScorer for fathomdb_embedder::CandleTinyBertReranker {
     fn score_pair(
@@ -504,26 +390,6 @@ impl CeScorer for fathomdb_embedder::CandleTinyBertReranker {
 
     fn forced_cuda_runtime_error(&self) -> Option<RerankerDevicePolicyError> {
         fathomdb_embedder::CandleTinyBertReranker::forced_cuda_runtime_error(self)
-    }
-}
-
-#[cfg(feature = "default-reranker")]
-impl CandleCrossEncoder {
-    /// Returns a model handle if the reranker is (or can be) loaded, `None`
-    /// otherwise. The first call drives the lazy load (cache probe → gated
-    /// download); subsequent calls reuse the memoized result.
-    fn try_get_loaded() -> Result<Option<Self>, RerankerDevicePolicyError> {
-        Ok(reranker_singleton()?.map(|inner| Self { inner }))
-    }
-
-    /// Score every `(query, passage_i)` pair in one forward pass; see
-    /// [`score_pool`] for the failure contract.
-    fn score_batch(
-        &self,
-        query: &str,
-        passages: &[&str],
-    ) -> Result<Vec<f64>, RerankerDevicePolicyError> {
-        score_pool(self.inner, query, passages)
     }
 }
 

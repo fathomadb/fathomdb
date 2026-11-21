@@ -2,24 +2,6 @@ use super::*;
 
 // ===== CLS batch embedder =============================================
 
-/// Process-wide, lazily-initialized CLS-pooled default embedder. The value is
-/// memoized only after a successful weight load, so a transient cache/network
-/// failure remains retryable on the next JavaScript call.
-#[cfg(feature = "default-embedder")]
-pub(crate) fn cls_embedder_singleton() -> std::result::Result<
-    &'static fathomdb_embedder::CandleBgeEmbedder,
-    fathomdb_embedder::loader::EmbedderLoadError,
-> {
-    static CELL: std::sync::OnceLock<fathomdb_embedder::CandleBgeEmbedder> =
-        std::sync::OnceLock::new();
-    if let Some(embedder) = CELL.get() {
-        return Ok(embedder);
-    }
-    let embedder =
-        fathomdb_embedder::CandleBgeEmbedder::new()?.with_pooling(fathomdb_embedder::Pooling::Cls);
-    Ok(CELL.get_or_init(|| embedder))
-}
-
 /// Embed a batch with the pinned default BGE-small model using CLS pooling.
 ///
 /// This is the TypeScript peer of Python's module-level `embed_batch_cls`.
@@ -171,16 +153,22 @@ pub(crate) fn cls_load_error_to_napi(error: fathomdb_embedder::loader::EmbedderL
 
 #[cfg(feature = "default-embedder")]
 pub(crate) async fn embed_batch_cls_impl(texts: Vec<String>) -> Result<Vec<Vec<f64>>> {
-    use fathomdb_embedder_api::Embedder;
-
     if texts.is_empty() {
         return Ok(Vec::new());
     }
     let join_result = tokio::task::spawn_blocking(move || {
         catch_unwind(AssertUnwindSafe(|| {
-            let embedder = cls_embedder_singleton().map_err(cls_load_error_to_napi)?;
             let refs: Vec<&str> = texts.iter().map(String::as_str).collect();
-            embedder.embed_batch(&refs).map_err(cls_forward_error_to_napi)
+            fathomdb_embedder::module_models::embed_batch_cls(&refs).map_err(|error| {
+                use fathomdb_embedder::module_models::ModuleEmbeddingError;
+                match error {
+                    ModuleEmbeddingError::Busy => {
+                        typed_error(CODE_OVERLOADED, "module models are busy", JsonValue::Null)
+                    }
+                    ModuleEmbeddingError::Load(error) => cls_load_error_to_napi(error),
+                    ModuleEmbeddingError::Forward(error) => cls_forward_error_to_napi(error),
+                }
+            })
         }))
     })
     .await;
@@ -206,4 +194,25 @@ pub(crate) async fn embed_batch_cls_impl(_texts: Vec<String>) -> Result<Vec<Vec<
         "embedBatchCls requires a build with the `default-embedder` feature",
         JsonValue::Null,
     ))
+}
+
+/// Release module CLS and reranker caches on a blocking worker. Returns
+/// FDB_OVERLOADED without clearing either cache during admitted model work or
+/// teardown. Empty/repeated release is model-free; engine providers and terminal
+/// CUDA generation loss are unaffected.
+#[napi(js_name = "releaseModels")]
+pub async fn release_models() -> Result<()> {
+    match tokio::task::spawn_blocking(|| {
+        catch_unwind(AssertUnwindSafe(fathomdb_embedder::module_models::release_models))
+    })
+    .await
+    {
+        Ok(Ok(result)) => result.map_err(reranker_device_policy_error_to_napi),
+        Ok(Err(_)) => Err(panic_error()),
+        Err(error) => Err(typed_error(
+            CODE_PANIC,
+            format!("spawn_blocking join error: {error}"),
+            JsonValue::Null,
+        )),
+    }
 }

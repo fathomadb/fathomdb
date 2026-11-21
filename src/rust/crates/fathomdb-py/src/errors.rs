@@ -347,6 +347,7 @@ pub(super) fn reranker_device_policy_error_to_py(
 ) -> PyErr {
     use fathomdb_embedder::RerankerDevicePolicyError as PolicyError;
     match error {
+        PolicyError::ModelBusy => OverloadedError::new_err("module models are busy"),
         PolicyError::CudaPoolExhausted { ordinal, max_size_bytes, message } => {
             cuda_pool_exhausted_to_py(ordinal, max_size_bytes, message)
         }

@@ -92,17 +92,24 @@ pub fn embed_batch_cls(texts: &[&str]) -> Result<Vec<Vec<f32>>> {
     cls::embed(texts)
 }
 
+/// Release module-level CLS and reranker caches after their admitted work ends.
+/// Empty/repeated release succeeds without loading models. Engine-owned providers
+/// and terminal CUDA generation loss are unaffected; healthy calls may reload.
+///
+/// # Errors
+/// Returns `Overloaded` immediately if inference, loading or release is active;
+/// neither cache is cleared on refusal.
+pub fn release_models() -> Result<()> {
+    fathomdb_embedder::module_models::release_models()
+        .map_err(|error| Error::from(fathomdb_engine::EngineError::from(error)))
+}
+
 #[cfg(feature = "default-embedder")]
 mod cls {
-    use std::sync::OnceLock;
 
     use fathomdb_embedder::loader::EmbedderLoadError;
-    use fathomdb_embedder::{CandleBgeEmbedder, Pooling};
-    use fathomdb_embedder_api::Embedder;
 
     use crate::error::{CudaErrorDetails, Error, ErrorKind, Result};
-
-    static EMBEDDER: OnceLock<CandleBgeEmbedder> = OnceLock::new();
 
     /// A CUDA pool kind keeps its typed class; any other load failure means
     /// the default weights are unavailable.
@@ -132,20 +139,15 @@ mod cls {
         }
     }
 
-    // Cached on success only, so a failed weight load is retried next call.
-    fn embedder() -> Result<&'static CandleBgeEmbedder> {
-        if let Some(embedder) = EMBEDDER.get() {
-            return Ok(embedder);
-        }
-        let loaded = CandleBgeEmbedder::new().map_err(load_error)?.with_pooling(Pooling::Cls);
-        Ok(EMBEDDER.get_or_init(|| loaded))
-    }
-
     pub(super) fn embed(texts: &[&str]) -> Result<Vec<Vec<f32>>> {
-        if texts.is_empty() {
-            return Ok(Vec::new());
-        }
-        embedder()?.embed_batch(texts).map_err(super::cls_forward_error)
+        use fathomdb_embedder::module_models::ModuleEmbeddingError;
+        fathomdb_embedder::module_models::embed_batch_cls(texts).map_err(|error| match error {
+            ModuleEmbeddingError::Busy => {
+                Error::sdk(ErrorKind::Overloaded, "module models are busy")
+            }
+            ModuleEmbeddingError::Load(error) => load_error(error),
+            ModuleEmbeddingError::Forward(error) => super::cls_forward_error(error),
+        })
     }
 }
 

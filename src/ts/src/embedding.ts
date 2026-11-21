@@ -101,3 +101,13 @@ export async function embed(nativeEngine: NativeEngine, text: string): Promise<n
     validateFfiString(text);
     return intercept(() => nativeEngine.embed(text));
   }
+
+/**
+ * Release cached module CLS and reranker models without closing engines.
+ * Rejects with OverloadedError during admitted model work or teardown, leaving
+ * both caches unchanged. Empty/repeated release succeeds without loading models.
+ * Healthy calls may reload; CUDA generation loss requires process restart.
+ */
+export async function releaseModels(): Promise<void> {
+  return intercept(() => native.releaseModels());
+}

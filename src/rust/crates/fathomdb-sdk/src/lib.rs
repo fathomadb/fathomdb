@@ -60,7 +60,8 @@ pub use options::{
 };
 pub use standalone::{
     context_item_from_hit, decode_round_body, embed_batch_cls, encode_round_body, pack_context,
-    rerank, search_hints, snippet_for, ContextHitOptions, RerankPassage, RerankResult,
+    release_models, rerank, search_hints, snippet_for, ContextHitOptions, RerankPassage,
+    RerankResult,
 };
 
 // Shared request, result and payload types: the `fathomdb` facade's

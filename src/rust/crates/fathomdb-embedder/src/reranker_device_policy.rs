@@ -70,6 +70,8 @@ impl std::error::Error for RerankerDevicePolicyParseError {}
 /// A typed reranker-policy error for bindings and callers.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum RerankerDevicePolicyError {
+    /// An explicit module-model release overlaps admitted work or teardown.
+    ModelBusy,
     /// The ambient policy did not use the exact supported grammar.
     InvalidPolicy(RerankerDevicePolicyParseError),
     /// A forced CUDA policy could not select its required device.
@@ -96,6 +98,7 @@ impl RerankerDevicePolicyError {
     #[must_use]
     pub const fn kind(&self) -> &'static str {
         match self {
+            Self::ModelBusy => "overloaded",
             Self::InvalidPolicy(_) => "invalid_policy",
             Self::Resolution(RerankerDeviceResolutionError::CudaNotCompiled { .. }) => {
                 "cuda_not_compiled"
@@ -119,7 +122,7 @@ impl RerankerDevicePolicyError {
     #[must_use]
     pub const fn ordinal(&self) -> Option<usize> {
         match self {
-            Self::InvalidPolicy(_) | Self::CudaContextLost { .. } => None,
+            Self::ModelBusy | Self::InvalidPolicy(_) | Self::CudaContextLost { .. } => None,
             Self::CudaPoolExhausted { ordinal, .. }
             | Self::CudaPrivateBuildRefused { ordinal, .. } => Some(*ordinal),
             Self::Resolution(RerankerDeviceResolutionError::CudaNotCompiled { ordinal })
@@ -139,6 +142,7 @@ impl RerankerDevicePolicyError {
 impl fmt::Display for RerankerDevicePolicyError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::ModelBusy => formatter.write_str("module models are busy"),
             Self::InvalidPolicy(error) => error.fmt(formatter),
             Self::Resolution(error) => error.fmt(formatter),
             Self::CudaPoolExhausted { ordinal, max_size_bytes, message } => write!(

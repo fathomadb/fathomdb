@@ -116,7 +116,8 @@ impl CudaErrorDetails {
             RerankerDevicePolicyError::CudaPrivateBuildRefused { ordinal, message } => {
                 Some(Self::PrivateBuildRefused { ordinal: *ordinal, message: message.clone() })
             }
-            RerankerDevicePolicyError::InvalidPolicy(_)
+            RerankerDevicePolicyError::ModelBusy
+            | RerankerDevicePolicyError::InvalidPolicy(_)
             | RerankerDevicePolicyError::Resolution(_) => None,
         }
     }

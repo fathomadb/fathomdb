@@ -41,7 +41,7 @@ export {
   ConsolidateReceipt,
   ConsolidateAxis,
 } from "./write.js";
-export { embedBatchCls, RerankPassage, RerankOptions, RerankResult, rerank } from "./embedding.js";
+export { embedBatchCls, releaseModels, RerankPassage, RerankOptions, RerankResult, rerank } from "./embedding.js";
 export {
   ContextHitOptions,
   ContextItem,

@@ -547,6 +547,7 @@ pub enum EngineError {
 impl From<RerankerDevicePolicyError> for EngineError {
     fn from(error: RerankerDevicePolicyError) -> Self {
         match error {
+            RerankerDevicePolicyError::ModelBusy => Self::Overloaded,
             RerankerDevicePolicyError::CudaPoolExhausted { ordinal, max_size_bytes, message } => {
                 Self::CudaPoolExhausted { ordinal, max_size_bytes, message }
             }

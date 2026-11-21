@@ -39,6 +39,8 @@ RUST_NON_COMMAND = {
     "engine_instance:vector_equivalence_refusal_count",
     "admin:configure_runtime",
     "package:embed_batch_cls",
+    # Process model lifecycle, not a database command (ADR-0.8.30-explicit-module-model-release).
+    "package:release_models",
     "package:search_hints",
     "package:snippet_for",
 }

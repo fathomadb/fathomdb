@@ -17,8 +17,8 @@
 //! platform cache; that is the crate's only network access, and it happens only
 //! when the feature is on and the embedder is opted into.
 
-#[cfg(test)]
-mod module_models;
+#[doc(hidden)]
+pub mod module_models;
 
 use std::path::PathBuf;
 

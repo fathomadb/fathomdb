@@ -318,6 +318,7 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     // 0.8.2 Slice E2 — standalone rerank over an arbitrary passage list.
     m.add_function(wrap_pyfunction!(rerank, &m)?)?;
     m.add_function(wrap_pyfunction!(embed_batch_cls, &m)?)?;
+    m.add_function(wrap_pyfunction!(release_models, &m)?)?;
     // 0.8.28 Slice 41 — context pack JSON wire (wrapped by fathomdb._sdk_context_pack).
     m.add_function(wrap_pyfunction!(_pack_context_json, &m)?)?;
     m.add_function(wrap_pyfunction!(_encode_round_body_json, &m)?)?;

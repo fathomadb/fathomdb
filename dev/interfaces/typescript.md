@@ -963,8 +963,7 @@ above; Python source builds now do the same (owner ruling Q38). The rule is
   `fathomdb doctor cuda-allocator --json` reports the same decision from the
   CLI.
 - **Module-level models.** `embedBatchCls` and `rerank` load process
-  singletons; on the private pool they hold their memory until the process
-  exits, and under `"max"` the pool keeps its reservation while one is open.
+  models until explicit `releaseModels()` or process exit; and under `"max"` the pool keeps its reservation while one is open.
   An engine's own embedder returns its memory when the engine closes.
 - **Errors.** `CudaPoolExhaustedError`, `CudaContextLostError` and
   `CudaPrivateBuildRefusedError` (below).
@@ -1600,3 +1599,23 @@ RFC6901 path under `/vectorCoverage`.
 The [Rust contract](rust.md#stored-mapped-head-coverage-0829) defines population,
 commit-only capture, conservative invalidation and same-reader per-hit validation.
 No automatic refresh, threshold, new operation or physical-health claim is added.
+
+## Explicit module model release (0.8.30)
+
+`releaseModels(): Promise<void>` releases the cached module-level CLS embedder and cross-encoder
+before successful return. Empty/repeated release succeeds without loading
+weights or initializing CUDA. It leaves engine-owned providers open. Healthy
+later module calls may reload; explicit release clears unavailable/policy
+memoization but preserves terminal CUDA generation loss until process restart.
+
+Loading, cache waits, inference or another release cause immediate
+`OverloadedError` refusal (Rust `ErrorKind::Overloaded`; TypeScript native
+`FDB_OVERLOADED`). Neither cache changes on refusal, and already admitted work
+finishes normally. New model work is refused during native teardown. Python
+releases the GIL around all native load, wait, inference and release work.
+
+The public Rust `RerankerDevicePolicyError` adds `ModelBusy` (`kind()` is
+`"overloaded"`, `ordinal()` is `None`); exhaustive matches must handle it.
+Fallible reranker APIs map it to the shared overload class. Infallible
+`rerank_fused` keeps its unchanged-input fallback. See
+[the ownership decision](../adr/ADR-0.8.30-explicit-module-model-release.md).

@@ -1,7 +1,6 @@
 //! 0.8.28 Slice 30 (R30-04a, F-1, F-2) — the cross-encoder's scoring and
 //! singleton seams.
 
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
 
 use fathomdb_embedder::{RerankerDeviceResolutionError, RerankerDeviceResolutionReason};
@@ -105,121 +104,6 @@ fn a_forced_policy_still_reports_pool_exhaustion_as_itself() {
         forced: Some(forced()),
     };
     assert_eq!(score_pool(&scorer, "q", &["a"]), Err(exhausted()));
-}
-
-#[test]
-fn a_pool_kind_load_failure_is_returned_and_retried_next_call() {
-    static CELL: Mutex<Option<SingletonState<u32>>> = Mutex::new(None);
-    let loads = AtomicUsize::new(0);
-    let first = get_or_load(&CELL, || {
-        loads.fetch_add(1, Ordering::SeqCst);
-        Err(LoadFailure::Retry(exhausted()))
-    });
-    assert_eq!(first, Err(exhausted()));
-    let second = get_or_load(&CELL, || {
-        loads.fetch_add(1, Ordering::SeqCst);
-        Ok(7)
-    });
-    assert_eq!(second, Ok(Some(&7)));
-    let third = get_or_load(&CELL, || -> Result<u32, LoadFailure> {
-        panic!("a loaded model is never reloaded")
-    });
-    assert_eq!(third, Ok(Some(&7)));
-    assert_eq!(loads.load(Ordering::SeqCst), 2);
-}
-
-#[test]
-fn a_genuinely_unavailable_model_is_memoized() {
-    static CELL: Mutex<Option<SingletonState<u32>>> = Mutex::new(None);
-    assert_eq!(get_or_load(&CELL, || Err(LoadFailure::Unavailable)), Ok(None));
-    let again = get_or_load(&CELL, || -> Result<u32, LoadFailure> {
-        panic!("an unavailable model is not reloaded")
-    });
-    assert_eq!(again, Ok(None));
-}
-
-#[test]
-fn a_device_policy_refusal_is_memoized() {
-    static CELL: Mutex<Option<SingletonState<u32>>> = Mutex::new(None);
-    assert_eq!(get_or_load(&CELL, || Err(LoadFailure::DevicePolicy(forced()))), Err(forced()));
-    let again = get_or_load(&CELL, || -> Result<u32, LoadFailure> {
-        panic!("a device-policy refusal is not reloaded")
-    });
-    assert_eq!(again, Err(forced()));
-}
-
-#[cfg(feature = "default-reranker")]
-#[test]
-fn load_errors_classify_into_the_three_singleton_outcomes() {
-    use fathomdb_embedder::RerankerLoadError;
-
-    assert_eq!(
-        classify_reranker_load_error(RerankerLoadError::CudaPoolExhausted {
-            ordinal: 0,
-            max_size_bytes: 1,
-            message: "m".to_owned(),
-        }),
-        LoadFailure::Retry(RerankerDevicePolicyError::CudaPoolExhausted {
-            ordinal: 0,
-            max_size_bytes: 1,
-            message: "m".to_owned(),
-        })
-    );
-    assert_eq!(
-        classify_reranker_load_error(RerankerLoadError::CudaContextLost {
-            recorded_context_id: 1,
-            current_context_id: Some(2),
-            driver_error: "d".to_owned(),
-            operation: "o".to_owned(),
-        }),
-        LoadFailure::Retry(RerankerDevicePolicyError::CudaContextLost {
-            recorded_context_id: 1,
-            current_context_id: Some(2),
-            driver_error: "d".to_owned(),
-            operation: "o".to_owned(),
-        })
-    );
-    assert_eq!(
-        classify_reranker_load_error(RerankerLoadError::CudaPrivateBuildRefused {
-            ordinal: 0,
-            message: "m".to_owned(),
-        }),
-        LoadFailure::Retry(RerankerDevicePolicyError::CudaPrivateBuildRefused {
-            ordinal: 0,
-            message: "m".to_owned(),
-        })
-    );
-    assert_eq!(
-        classify_reranker_load_error(RerankerLoadError::DevicePolicy(forced())),
-        LoadFailure::DevicePolicy(forced())
-    );
-    assert_eq!(
-        classify_reranker_load_error(RerankerLoadError::TokenizerLoad("t".to_owned())),
-        LoadFailure::Unavailable
-    );
-}
-
-/// A pool failure in the open-time reranker probe reaches the singleton as a
-/// device-policy error; it is returned and retried, never memoized.
-#[cfg(feature = "default-reranker")]
-#[test]
-fn a_pool_kind_device_policy_failure_is_retried_not_memoized() {
-    use fathomdb_embedder::RerankerLoadError;
-
-    assert_eq!(
-        classify_reranker_load_error(RerankerLoadError::DevicePolicy(exhausted())),
-        LoadFailure::Retry(exhausted())
-    );
-    assert_eq!(
-        classify_reranker_load_error(RerankerLoadError::DevicePolicy(context_lost())),
-        LoadFailure::Retry(context_lost())
-    );
-    let refused =
-        RerankerDevicePolicyError::CudaPrivateBuildRefused { ordinal: 0, message: "m".to_owned() };
-    assert_eq!(
-        classify_reranker_load_error(RerankerLoadError::DevicePolicy(refused.clone())),
-        LoadFailure::Retry(refused)
-    );
 }
 
 #[test]

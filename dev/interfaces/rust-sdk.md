@@ -20,7 +20,7 @@ its separate contract in [`rust.md`](rust.md).
 
 `fathomdb_sdk` exports `Engine`, `EngineConfig`, `OpenOptions`, the option
 structs, `SearchFilterArg`, `Error`, `ErrorKind`, `Result`, `rerank`,
-`embed_batch_cls`, `snippet_for`, `search_hints`, the rerank DTOs, the shared DTO re-exports, and the
+`embed_batch_cls`, `release_models`, `snippet_for`, `search_hints`, the rerank DTOs, the shared DTO re-exports, and the
 modules `read`, `graph` and `admin`. The SDK `Engine` owns its core engine
 privately; there is no `Deref`, accessor or conversion to
 `fathomdb_engine::Engine`. Custom embedder injection, the operator/recovery seam, raw SQL, test hooks and the
@@ -485,7 +485,8 @@ device-policy error kind `cuda_library_unavailable`, carried by
 / `ErrorKind::RerankerDevicePolicy`; `dev/interfaces/rust.md` § CUDA library
 check and GPU floor). The
 standalone `embed_batch_cls` and `rerank` models are process singletons:
-on the private pool they hold their memory until the process exits.
+on the private pool they hold memory until explicit `release_models()` or
+process exit.
 
 ## Request-struct defaults
 
@@ -635,3 +636,14 @@ adds `scored_bytes: Option<u32>` from the exact original vector participant;
 standalone `snippet_for` returns None. No governed operation is added. Population,
 cache, same-snapshot validation and refusal semantics are specified in
 [Rust stored-head reporting](rust.md#stored-mapped-head-coverage-0829).
+
+## Module model lifecycle (0.8.30)
+
+`release_models() -> Result<()>` releases both module model caches before
+successful return. It is a process lifecycle helper outside the governed database
+command map, matching Python `release_models()` and TypeScript `releaseModels()`.
+Empty/repeated release is model-free. Loading/inference/teardown returns
+`ErrorKind::Overloaded` immediately without clearing either cache. Engine-owned
+providers stay open; healthy later calls may reload. Terminal CUDA generation
+loss persists until restart. See
+[the ownership ADR](../adr/ADR-0.8.30-explicit-module-model-release.md).

@@ -22,6 +22,8 @@ const ENGINE_NON_COMMAND = new Set([
 ]);
 const PACKAGE_NON_COMMAND = new Set([
   "embedBatchCls",
+  // Process model lifecycle: ADR-0.8.30-explicit-module-model-release.
+  "releaseModels",
   "filterToSearchFilter",
   "isKnownEmbedderEvent",
   "mapEmbedderEvent",

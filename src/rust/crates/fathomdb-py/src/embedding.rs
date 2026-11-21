@@ -138,48 +138,6 @@ pub(super) fn cls_forward_error_to_py(error: fathomdb_embedder_api::EmbedderErro
 // does NOT change `embed()`'s default pooling. This also closes the standing
 // "Python embed cannot select CLS pooling" exposure gap.
 
-/// Memoize the result of `init` in `cell`, caching **only on success**.
-///
-/// fix-1 finding 2: the previous CLS-embedder singleton stored
-/// `Option<CandleBgeEmbedder>` and initialized it with `init().ok()`, so a
-/// *transient* load failure (cache miss + no network) was cached as `None`
-/// forever and every later call — even after connectivity returned — reported
-/// the same "unavailable" error and never retried. This helper instead returns
-/// the real error on failure and leaves `cell` empty, so the next call retries;
-/// a value is stored only when init succeeds. On a lost init race the loser's
-/// value is dropped and the winner's `'static` ref is returned.
-#[allow(dead_code)] // used under `default-embedder`; exercised directly by unit tests
-pub(super) fn get_or_try_init<T, E>(
-    cell: &'static std::sync::OnceLock<T>,
-    init: impl FnOnce() -> Result<T, E>,
-) -> Result<&'static T, E> {
-    if let Some(v) = cell.get() {
-        return Ok(v);
-    }
-    let v = init()?;
-    Ok(cell.get_or_init(|| v))
-}
-
-/// Process-wide, lazily-initialized CLS-pooled default embedder. Loaded on
-/// first use and memoized **on success only** (via [`get_or_try_init`]): a
-/// failed load surfaces the real [`EmbedderLoadError`] and is NOT cached, so a
-/// later call retries. Unlike the engine's `reranker_singleton` (which caches a
-/// `None`), this preserves the ability to recover once weights become reachable.
-///
-/// [`EmbedderLoadError`]: fathomdb_embedder::loader::EmbedderLoadError
-#[cfg(feature = "default-embedder")]
-pub(super) fn cls_embedder_singleton() -> Result<
-    &'static fathomdb_embedder::CandleBgeEmbedder,
-    fathomdb_embedder::loader::EmbedderLoadError,
-> {
-    static CELL: std::sync::OnceLock<fathomdb_embedder::CandleBgeEmbedder> =
-        std::sync::OnceLock::new();
-    get_or_try_init(&CELL, || {
-        Ok(fathomdb_embedder::CandleBgeEmbedder::new()?
-            .with_pooling(fathomdb_embedder::Pooling::Cls))
-    })
-}
-
 /// Embed many texts with the pinned default bge-small weights using **CLS
 /// pooling** + L2-normalization, honoring `FATHOMDB_EMBED_DEVICE`. Returns one
 /// `list[float]` per input, in the same order. Distinct from `Engine.embed()`,
@@ -196,23 +154,22 @@ pub(super) fn embed_batch_cls(py: Python<'_>, texts: Vec<String>) -> PyResult<Ve
 
 #[cfg(feature = "default-embedder")]
 pub(super) fn embed_batch_cls_impl(py: Python<'_>, texts: Vec<String>) -> PyResult<Vec<Vec<f32>>> {
-    use fathomdb_embedder_api::Embedder;
-    if texts.is_empty() {
-        return Ok(Vec::new());
-    }
-    let embedder = cls_embedder_singleton().map_err(cls_load_error_to_py)?;
-    // Release the GIL for the (pure CPU/GPU compute) forward pass, and wrap in
-    // `catch_unwind` so the never-panic FFI contract holds even though the
-    // embedder returns a Result channel (mirrors `rerank`).
     let result = py
         .detach(|| {
             catch_unwind(AssertUnwindSafe(|| {
                 let refs: Vec<&str> = texts.iter().map(String::as_str).collect();
-                embedder.embed_batch(&refs)
+                fathomdb_embedder::module_models::embed_batch_cls(&refs)
             }))
         })
         .map_err(|_| PanicException::new_err("embed_batch_cls panic (see logs)"))?;
-    result.map_err(cls_forward_error_to_py)
+    result.map_err(|error| {
+        use fathomdb_embedder::module_models::ModuleEmbeddingError;
+        match error {
+            ModuleEmbeddingError::Busy => OverloadedError::new_err("module models are busy"),
+            ModuleEmbeddingError::Load(error) => cls_load_error_to_py(error),
+            ModuleEmbeddingError::Forward(error) => cls_forward_error_to_py(error),
+        }
+    })
 }
 
 /// A CLS model-load failure: a CUDA pool kind keeps its typed class; any
@@ -254,4 +211,15 @@ pub(super) fn embed_batch_cls_impl(
         "embed_batch_cls requires a wheel built with the `default-embedder` \
          (or `embed-cuda`) feature",
     ))
+}
+
+/// Release cached module CLS and reranker models without closing engines.
+/// Active inference/loading/release raises OverloadedError and clears neither
+/// cache. Empty/repeated release succeeds. Healthy subsequent calls may reload;
+/// CUDA generation loss remains terminal until process restart.
+#[pyfunction]
+pub(super) fn release_models(py: Python<'_>) -> PyResult<()> {
+    py.detach(|| catch_unwind(AssertUnwindSafe(fathomdb_embedder::module_models::release_models)))
+        .map_err(|_| PanicException::new_err("release_models panic (see logs)"))?
+        .map_err(reranker_device_policy_error_to_py)
 }

@@ -1836,9 +1836,9 @@ The decision rule is
   `run_module_load_early_init` stays binding support (§ Unstable
   binding-support items in `fathomdb-embedder`), not re-exported by the
   facade or the SDK.
-- **Module-level models hold pool memory until exit.** The CLS embedder and
-  reranker singletons are never released, so under `max` the pool keeps its
-  reservation while one is open; an engine's own embedder returns its
+- **Module-level model release.** The CLS embedder and reranker caches can be
+  released with `release_models()`; under `max` the pool keeps its reservation
+  while an owner remains; an engine's own embedder returns its
   memory to the pool, and at threshold 0 to the driver, when the engine
   closes.
 - **Context reset remains unsupported (C7).** The 0.8.29 implementation shares
@@ -2424,3 +2424,23 @@ cannot lend participation or extents. Text-only/ownerless/standalone paths make
 no extent read; snippets-off builds no participation set or coverage sidecar.
 Original body bytes include role markers; snippet windows/highlights retain
 existing coordinates. SearchHit, ranking, frozen refusals and selectors are unchanged.
+
+## Explicit module model release (0.8.30)
+
+`fathomdb_sdk::release_models() -> Result<()>` releases the cached module-level CLS embedder and cross-encoder
+before successful return. Empty/repeated release succeeds without loading
+weights or initializing CUDA. It leaves engine-owned providers open. Healthy
+later module calls may reload; explicit release clears unavailable/policy
+memoization but preserves terminal CUDA generation loss until process restart.
+
+Loading, cache waits, inference or another release cause immediate
+`OverloadedError` refusal (Rust `ErrorKind::Overloaded`; TypeScript native
+`FDB_OVERLOADED`). Neither cache changes on refusal, and already admitted work
+finishes normally. New model work is refused during native teardown. Python
+releases the GIL around all native load, wait, inference and release work.
+
+The public Rust `RerankerDevicePolicyError` adds `ModelBusy` (`kind()` is
+`"overloaded"`, `ordinal()` is `None`); exhaustive matches must handle it.
+Fallible reranker APIs map it to the shared overload class. Infallible
+`rerank_fused` keeps its unchanged-input fallback. See
+[the ownership decision](../adr/ADR-0.8.30-explicit-module-model-release.md).

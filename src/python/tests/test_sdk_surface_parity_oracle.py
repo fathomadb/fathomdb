@@ -31,7 +31,8 @@ ENGINE_NON_COMMAND = {
 }
 # `snippet_for` is the EP-17 pure selector: like `embed_batch_cls`, a
 # standalone helper outside the signed governed-operation map.
-PACKAGE_NON_COMMAND = {"embed_batch_cls", "snippet_for"}
+# Explicit process model lifecycle has no governed database command.
+PACKAGE_NON_COMMAND = {"embed_batch_cls", "release_models", "snippet_for"}
 ADMIN_NON_COMMAND = {"configure_runtime"}
 
 

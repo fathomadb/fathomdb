@@ -648,29 +648,6 @@ mod tests {
         }
     }
 
-    // fix-1 finding 2: the CLS-embedder singleton must NOT cache a failed load.
-    // `cls_embedder_singleton` itself is `#[cfg(feature = "default-embedder")]`
-    // and drives a real model load, so we test the caching contract through the
-    // feature-agnostic helper it is built on.
-    #[test]
-    fn get_or_try_init_caches_only_on_success() {
-        static CELL: std::sync::OnceLock<u32> = std::sync::OnceLock::new();
-
-        // A failed init returns the real error and leaves the cell empty so the
-        // next call retries (the exact regression finding 2 flags).
-        let err = get_or_try_init::<u32, &str>(&CELL, || Err("transient")).unwrap_err();
-        assert_eq!(err, "transient");
-        assert!(CELL.get().is_none(), "a failed init must not be cached");
-
-        // A subsequent success is stored and returned.
-        let v = get_or_try_init::<u32, &str>(&CELL, || Ok(7)).unwrap();
-        assert_eq!(*v, 7);
-
-        // Once cached, the init closure is never run again.
-        let v2 = get_or_try_init::<u32, &str>(&CELL, || panic!("must not re-init")).unwrap();
-        assert_eq!(*v2, 7);
-    }
-
     // 0.8.16 Slice 5 / F9 (codex §9 fix-1, FINDING 2) — the pyo3 `PerHitExplain`
     // mirror must copy the new `importance`/`confidence` fields from the engine
     // type, keeping Py symmetric with the N-API mirror; otherwise Python

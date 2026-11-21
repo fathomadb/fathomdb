@@ -505,6 +505,9 @@ pub(crate) fn reranker_device_policy_error_to_napi(
 ) -> Error {
     use fathomdb_embedder::RerankerDevicePolicyError as PolicyError;
     let error = match error {
+        PolicyError::ModelBusy => {
+            return typed_error(CODE_OVERLOADED, "module models are busy", JsonValue::Null)
+        }
         PolicyError::CudaPoolExhausted { ordinal, max_size_bytes, message } => {
             return cuda_pool_exhausted_to_napi(ordinal, max_size_bytes, message);
         }

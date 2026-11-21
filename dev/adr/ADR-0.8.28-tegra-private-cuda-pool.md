@@ -163,9 +163,10 @@ embedder protocol is unchanged.
   `CudaDeviceInfo` (new field, `#[non_exhaustive]`);
   `RerankerDevicePolicyError`, `EmbedderLoadError` and `RerankerLoadError`
   (new variants); `fathomdb_engine::rerank_passages` (error type).
-- **Module-level models hold pool memory until exit (ruling 32).** The CLS
-  embedder and reranker singletons are never released; engine-owned models
-  return their memory when the engine closes.
+- **Module-level models (ruling 32, superseded for explicit release).** The
+  original lifetime-until-exit clause is superseded by
+  [explicit module release](ADR-0.8.30-explicit-module-model-release.md).
+  Engine-owned models still return their memory when the engine closes.
 - **Fork hazard H-1.** With the Tegra wheel's import hook, a `fork`-based
   `multiprocessing` child created after `import fathomdb` cannot use CUDA. Set
   `FATHOMDB_CUDA_EARLY_INIT=off`, or use the `spawn` or `forkserver` start

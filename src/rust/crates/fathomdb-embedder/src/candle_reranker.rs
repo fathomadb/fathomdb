@@ -457,7 +457,7 @@ pub enum RerankerLoadError {
 // ----- Loaded model ---------------------------------------------------------
 
 /// Default cross-encoder reranker. `Send + Sync` (candle tensors are
-/// `Arc`-backed), so the engine can hold one in a process-wide `OnceLock`.
+/// `Arc`-backed), so the module cache can share one under scoped inference leases.
 pub struct CandleTinyBertReranker {
     tokenizer: Tokenizer,
     model: BertModel,

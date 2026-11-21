@@ -1171,3 +1171,12 @@ class ProjectionGenerationError(EngineError):
 class MaintenanceError(EngineError):
     reason: str
     def __init__(self, *args: Any, reason: str = ...) -> None: ...
+
+
+def release_models() -> None:
+    """Release module CLS/reranker caches; raise OverloadedError during model work.
+
+    Empty/repeated release is model-free. Engine providers and terminal CUDA
+    generation loss are unaffected. Healthy later calls may reload.
+    """
+    ...

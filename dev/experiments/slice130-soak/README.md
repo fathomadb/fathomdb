@@ -122,3 +122,21 @@ controls remain mandatory. The existing Python installed smoke accepts
 `--local-wheel FILE VERSION+tegra SHA256 CANDIDATE_SHA NEW_OUTPUT`; its existing
 Pages route remains available. Local input never invents Pages deployment
 provenance. Neither route publishes an artifact.
+
+## Slice 50 default Node diagnostic
+
+The explicit `profile: "node-default-10m"` collection spec selects only the
+`node` worker, sixty 10-second samples, the last thirty as the terminal window,
+and a 5/6-second schedule tolerance. Its arm watchdog is at most750s and each
+request remains at most120s. The collector injects `--node-default-profile` and
+checks its ready handshake, ordinary Node flags and passive JS/V8 measurements.
+No heap flags, forced GC, synchronization or trim are used. Historical hour
+profiles retain their existing cadence and stop rules.
+
+The numerical bounds stay unchanged. A complete, valid numerical-only failure
+still permits the matched OFF diagnostic and signed pair deltas; operation,
+counter, resource, deadline or close failures do not. This ten-minute diagnostic
+does not establish an hour plateau or shipping qualification. The selected
+Orin entry point is [the existing-peer guarded driver](../../tools/slice50_orin_profile.py).
+Its output retains actual samples, natural exits and the unprivileged fuser
+visibility limit; it cannot establish host-wide peer absence or total GPU bytes.

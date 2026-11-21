@@ -5,6 +5,11 @@ import importlib.util
 from pathlib import Path
 import unittest
 import tracemalloc
+import os
+import sys
+import tempfile
+import threading
+from unittest.mock import patch
 
 SPEC = importlib.util.spec_from_file_location("slice130_soak", Path(__file__).resolve().parents[1] / "slice130_soak.py")
 assert SPEC and SPEC.loader
@@ -142,6 +147,50 @@ class NumericalProtocolTests(unittest.TestCase):
         self.assertEqual(soak.evaluate_pair(arm(), off)["status"], "UNMEASURED")
 
 
+class NodeDefaultProfileTests(unittest.TestCase):
+    def profile_arm(self, mode="on", slope=0):
+        value = arm(mode, rss=lambda k: 100 + slope * k / 6)
+        value.update(sdk="node", profile="node-default-10m")
+        for point in [value["baseline"], *value["samples"]]:
+            # Integer byte counters on a dyadic clock avoid a floating-point
+            # fixture exceeding the exact inclusive boundary by one ULP.
+            ticks = (320 * point["k"] + 14) // 15
+            point["elapsed_s"] = ticks * 15 / 32
+            point["rss_bytes"] = 100 * MIB + slope * ticks * (MIB // 128)
+            point["node_heap"] = {key: 8 * MIB for key in ("rss", "heapUsed", "heapTotal", "external", "arrayBuffers")}
+            point["node_v8"] = {"heap": {key: 8 * MIB for key in ("used_heap_size", "total_heap_size", "heap_size_limit", "external_memory")}, "spaces": [{"space_name": "new_space", **{key: MIB for key in ("space_size", "space_used_size", "space_available_size", "physical_space_size")}}]}
+        return value
+
+    def test_ten_minute_profile_uses_real_seconds_and_original_bounds(self):
+        result = soak.evaluate_arm(self.profile_arm(slope=0.5))
+        self.assertEqual(result["status"], "PASS")
+        self.assertEqual(result["terminal_count"], 30)
+        self.assertAlmostEqual(result["rss_slope_mib_per_min"], 0.5)
+        self.assertEqual(soak.evaluate_arm(self.profile_arm(slope=1))["status"], "FAIL")
+
+    def test_failed_absolute_arm_still_reports_signed_matched_diagnostic_deltas(self):
+        result = soak.evaluate_pair(self.profile_arm(slope=1), self.profile_arm("off", slope=0))
+        self.assertEqual(result["status"], "FAIL")
+        self.assertAlmostEqual(result["on_minus_off_slope_mib_per_min"], 1)
+        self.assertAlmostEqual(result["on_minus_off_median_rss_mib"], (960 + 982) / 2 / 128)
+        self.assertEqual(result["on"]["status"], "FAIL")
+
+
+    def test_default_profile_requires_passive_js_and_v8_measurements(self):
+        for field in ("node_heap", "node_v8"):
+            data = self.profile_arm()
+            del data["samples"][20][field]
+            self.assertEqual(soak.evaluate_arm(data)["status"], "UNMEASURED")
+
+    def test_operation_failure_does_not_gain_diagnostic_pair_metrics(self):
+        on, off = self.profile_arm(), self.profile_arm("off")
+        off["samples"][20]["errors"] = 1
+        result = soak.evaluate_pair(on, off)
+        self.assertEqual(result["status"], "FAIL")
+        self.assertNotIn("on_minus_off_slope_mib_per_min", result)
+
+
+
 class LinuxMemoryTests(unittest.TestCase):
     STATUS = "VmRSS: 10 kB\nRssAnon: 6 kB\nRssFile: 3 kB\nRssShmem: 1 kB\nVmSwap: 0 kB\n"
     MEMINFO = "MemTotal: 100 kB\nMemAvailable: 40 kB\n"
@@ -273,6 +322,15 @@ class SamplerProtocolTests(unittest.TestCase):
             tracemalloc.stop()
         self.assertEqual(len(data["samples"]), 60)
         self.assertLess(peak, 2 * MIB)  # the historical 200000-dict sampling churn exceeds this
+
+
+class WorkerCleanupTests(unittest.TestCase):
+    def test_repeated_reap_never_signals_a_reused_process_group(self):
+        with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryFile() as stderr:
+            worker = soak.Worker([sys.executable, "-c", "import sys; sys.stdin.read()"], directory, os.environ.copy(), stderr, threading.Event())
+            first = worker.reap()
+            with patch.object(soak.os, "killpg", side_effect=AssertionError("a reaped process group must never be signaled again")):
+                self.assertEqual(worker.reap(), first)
 
 
 class RawObservationBindingTests(unittest.TestCase):

@@ -24,6 +24,14 @@ SAMPLE_COUNT = 60
 DEADLINE_TOLERANCE_SECONDS = 5
 
 
+def _schedule(profile, sdk=None):
+    if profile is None:
+        return SAMPLE_SECONDS, DEADLINE_TOLERANCE_SECONDS, ("python", "node")
+    if profile != "node-default-10m" or sdk not in (None, "node"):
+        raise ValueError("unknown profile or non-Node worker for node-default-10m")
+    return 10, 5 / 6, ("node",)
+
+
 def _number(value: object) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
 
@@ -131,6 +139,26 @@ def wait_for_zero(observe, emit, *, expected, started_at=None, clock=time.monoto
         sleep(min(0.05, max(0, 5 - (clock() - started))))
 
 
+def _node_measurements_present(point):
+    memory = point.get("node_heap")
+    v8 = point.get("node_v8")
+    if not isinstance(memory, dict) or any(not _number(memory.get(key)) or memory[key] < 0 for key in ("rss", "heapUsed", "heapTotal", "external", "arrayBuffers")):
+        return False
+    if not isinstance(v8, dict) or not isinstance(v8.get("heap"), dict):
+        return False
+    if any(not _number(v8["heap"].get(key)) or v8["heap"][key] < 0 for key in ("used_heap_size", "total_heap_size", "heap_size_limit", "external_memory")):
+        return False
+    spaces = v8.get("spaces")
+    return isinstance(spaces, list) and bool(spaces) and all(
+        isinstance(space, dict) and isinstance(space.get("space_name"), str)
+        and all(_number(space.get(key)) and space[key] >= 0 for key in ("space_size", "space_used_size", "space_available_size", "physical_space_size")) for space in spaces)
+
+
+def _numerical_completion(arm, result):
+    return result["valid_measurement"] and arm.get("aborted") is None and arm.get("exit_code") == 0 and all(
+        "terminal RSS" in reason or "terminal private" in reason for reason in result["reasons"])
+
+
 def evaluate_arm(arm: dict) -> dict:
     """Check frozen E measurement criteria, preserving failures and invalid experiment reasons.
 
@@ -143,6 +171,7 @@ def evaluate_arm(arm: dict) -> dict:
     """
     invalid: list[str] = []
     failures: list[str] = []
+    sample_seconds, tolerance, _ = _schedule(arm.get("profile"), arm.get("sdk"))
     samples = arm.get("samples", [])
     baseline = arm.get("baseline")
     result = {"scope": "instrumented_measurement_only", "sample_count": len(samples),
@@ -169,14 +198,16 @@ def evaluate_arm(arm: dict) -> dict:
         invalid.append("separate baseline and exactly 60 scheduled samples required")
     else:
         points = [baseline, *samples]
+        if arm.get("profile") == "node-default-10m" and any(not _node_measurements_present(point) for point in points):
+            invalid.append("Node profile requires actual JS memory and V8 heap/space measurements")
         if [p.get("k") for p in points] != list(range(61)):
             invalid.append("sample indices must be baseline 0 then exactly 1..60 in order")
         fields = ("elapsed_s", "rss_bytes", "vm_swap_bytes", "pswpin", "pswpout", "errors", "mismatches", "iterations")
         if any(not _number(p.get(f)) or p[f] < 0 for p in points for f in fields):
             invalid.append("missing, negative or nonfinite measurement")
         else:
-            if any(abs(p["elapsed_s"] - k * SAMPLE_SECONDS) > DEADLINE_TOLERANCE_SECONDS for k, p in enumerate(points)):
-                invalid.append("sample missed its 5-second deadline")
+            if any(abs(p["elapsed_s"] - k * sample_seconds) > tolerance for k, p in enumerate(points)):
+                invalid.append("sample missed its declared deadline")
             if any(b["elapsed_s"] <= a["elapsed_s"] or b["iterations"] <= a["iterations"] for a, b in zip(points, points[1:])):
                 invalid.append("samples require advancing monotonic time and completed work")
             if any(p["vm_swap_bytes"] != 0 or p["pswpin"] != baseline["pswpin"] or p["pswpout"] != baseline["pswpout"] for p in points):
@@ -196,7 +227,7 @@ def evaluate_arm(arm: dict) -> dict:
                 result["reserved_median_growth_mib"] = _median(terminal[-5:], "private_reserved_bytes") - _median(terminal[:5], "private_reserved_bytes")
                 if result["reserved_range_mib"] > 32 or result["reserved_median_growth_mib"] > 16:
                     failures.append("terminal private reservation range or growth exceeds frozen bound")
-    result.update(status=_status(failures, invalid), reasons=failures + invalid)
+    result.update(status=_status(failures, invalid), reasons=failures + invalid, valid_measurement=not invalid)
     return result
 
 
@@ -216,7 +247,10 @@ def evaluate_pair(on: dict, off: dict) -> dict:
         failures.append("one or both arm measurements failed")
     if on_result["status"] == "UNMEASURED" or off_result["status"] == "UNMEASURED":
         invalid.append("one or both arm measurements incomplete or invalid")
-    if not invalid and not failures:
+    diagnostic = on.get("profile") == off.get("profile") == "node-default-10m"
+    if on.get("profile") != off.get("profile"):
+        invalid.append("pair profiles differ")
+    if not invalid and (not failures or diagnostic and _numerical_completion(on, on_result) and _numerical_completion(off, off_result)):
         if off["started_monotonic_s"] < on["started_monotonic_s"] + on["samples"][-1]["elapsed_s"]:
             invalid.append("off arm overlaps or precedes on arm")
         result["on_minus_off_slope_mib_per_min"] = on_result["rss_slope_mib_per_min"] - off_result["rss_slope_mib_per_min"]
@@ -265,7 +299,7 @@ def read_linux_memory(proc_root: Path = Path("/proc")) -> dict:
                               (proc_root / "meminfo").read_text(), (proc_root / "vmstat").read_text())
 
 
-def collect_arm(sdk, pool_mode, iteration, snapshot, emit, *, clock=time.monotonic):
+def collect_arm(sdk, pool_mode, iteration, snapshot, emit, *, clock=time.monotonic, profile=None):
     """Run one warm-up and the frozen 60-sample schedule between completed iterations.
 
     Caller preloads real models and supplies an iteration returning latency_ms,
@@ -280,10 +314,13 @@ def collect_arm(sdk, pool_mode, iteration, snapshot, emit, *, clock=time.monoton
     The caller closes real SDK resources; a reaping supervisor must attach the
     actual exit_code afterward. This function never claims successful process exit.
     """
+    sample_seconds, tolerance, _ = _schedule(profile, sdk)
     if pool_mode not in ("on", "off"):
         raise ValueError("pool mode must be on or off")
     result = {"sdk": sdk, "pool_mode": pool_mode, "baseline": None,
               "samples": [], "aborted": None, "abort_kind": None, "exit_code": None}
+    if profile is not None:
+        result["profile"] = profile
     iterations = 0
     mismatches = 0
     phase = "warmup"
@@ -323,7 +360,7 @@ def collect_arm(sdk, pool_mode, iteration, snapshot, emit, *, clock=time.monoton
         result["baseline"] = capture(0)
         if stop_for_counter_failure(result["baseline"]):
             return result
-        if result["baseline"]["elapsed_s"] > DEADLINE_TOLERANCE_SECONDS:
+        if result["baseline"]["elapsed_s"] > tolerance:
             result["aborted"] = "baseline deadline exceeded"
             result["abort_kind"] = "deadline"
             return result
@@ -339,14 +376,14 @@ def collect_arm(sdk, pool_mode, iteration, snapshot, emit, *, clock=time.monoton
                 result["aborted"] = "operation output mismatch"
                 result["abort_kind"] = "output_mismatch"
                 break
-            if clock() - started < k * SAMPLE_SECONDS:
+            if clock() - started < k * sample_seconds:
                 continue
             phase = "sample"
             point = capture(k)
             result["samples"].append(point)
             if stop_for_counter_failure(point):
                 break
-            if point["elapsed_s"] > k * SAMPLE_SECONDS + DEADLINE_TOLERANCE_SECONDS:
+            if point["elapsed_s"] > k * sample_seconds + tolerance:
                 result["aborted"] = f"sample {k} deadline exceeded"
                 result["abort_kind"] = "deadline"
                 break
@@ -370,12 +407,14 @@ class Worker:
     replies; stderr streams directly to a file. Stop/timeout never implies exit0.
     """
 
-    def __init__(self, command, cwd, env, stderr, stop, timeout_s=120, check=lambda: None, stdout_sink=None):
+    def __init__(self, command, cwd, env, stderr, stop, timeout_s=120, check=lambda: None, stdout_sink=None, poll_interval_s=0.1):
         self.process = subprocess.Popen(command, cwd=cwd, env=env, stdin=subprocess.PIPE,
                                         stdout=subprocess.PIPE, stderr=stderr, start_new_session=True)
         self.stop = stop
         self.stdout_sink = stdout_sink
         self.group_cleanup_needed = False
+        self.reaped = False
+        self.poll_interval_s = poll_interval_s
         self.timeout_s = timeout_s
         self.check = check
         self.buffer = b""
@@ -393,7 +432,7 @@ class Worker:
                 raise ResourceStop("sibling resource window stopped") if getattr(self.stop, "reason", None) in ("resource", "deadline") else RuntimeError("sibling worker/campaign stopped")
             if time.monotonic() >= deadline:
                 raise TimeoutError(f"worker {operation} exceeded {self.timeout_s}s")
-            if self.selector.select(min(0.1, max(0, deadline - time.monotonic()))):
+            if self.selector.select(min(self.poll_interval_s, max(0, deadline - time.monotonic()))):
                 chunk = os.read(self.process.stdout.fileno(), 65536)
                 if not chunk:
                     raise RuntimeError(f"worker exited before {operation} reply (exit={self.process.poll()})")
@@ -415,7 +454,16 @@ class Worker:
         started = time.monotonic()
         try:
             self.request("close")
-            code = self.process.wait(timeout=max(0.001, 5 - (time.monotonic() - started)))
+            while self.process.poll() is None:
+                self.check()
+                remaining = 5 - (time.monotonic() - started)
+                if remaining <= 0:
+                    raise TimeoutError("worker did not exit naturally within 5s after close")
+                try:
+                    self.process.wait(timeout=min(self.poll_interval_s, remaining))
+                except subprocess.TimeoutExpired:
+                    continue
+            code = self.process.returncode
             if code != 0:
                 raise RuntimeError(f"worker exit after close: {code}")
             return code
@@ -426,6 +474,8 @@ class Worker:
         """Terminate an unfinished owned group and return its actual exit status."""
         # The group can outlive a cleanly exited leader; always stop owned
         # descendants as well, rather than treating leader exit as containment.
+        if self.reaped:
+            return self.process.returncode
         leader_exited = self.process.poll() is not None
         try:
             os.killpg(self.process.pid, signal.SIGTERM)
@@ -446,16 +496,20 @@ class Worker:
         self.selector.close()
         self.process.stdin.close()
         self.process.stdout.close()
+        self.reaped = True
         return self.process.returncode
 
 
-def run_concurrent_arm(commands, pool_mode, output, limits, *, collect=collect_arm):
+def run_concurrent_arm(commands, pool_mode, output, limits, *, collect=collect_arm, profile=None):
     """Run one Node and one Python worker concurrently using the existing sampler.
 
     Numeric resource bounds are required caller-selected execution inputs. Native
     results are streamed; only the existing baseline/60 snapshots stay in memory.
     This starts no follow-up arm after any failed/incomplete measurement.
     """
+    sample_seconds, tolerance, sdks = _schedule(profile)
+    if set(commands) != set(sdks):
+        raise ValueError("worker set differs from the selected profile")
     output.mkdir()
     stop = threading.Event()
     started = time.monotonic()
@@ -465,8 +519,10 @@ def run_concurrent_arm(commands, pool_mode, output, limits, *, collect=collect_a
     limit_fields = ("mem_floor_bytes", "free_floor_bytes", "storage_limit_bytes", "arm_timeout_s", "request_timeout_s")
     if any(not _number(limits.get(k)) or limits[k] <= 0 for k in limit_fields):
         raise ValueError("all declared resource/deadline limits must be positive")
-    if limits["request_timeout_s"] > 120 or limits["arm_timeout_s"] <= 3605:
-        raise ValueError("request deadline must be <=120s and arm watchdog must include 3600s sampling")
+    if limits["request_timeout_s"] > 120 or limits["arm_timeout_s"] <= SAMPLE_COUNT * sample_seconds + tolerance:
+        raise ValueError("request deadline must be <=120s and arm watchdog must include the sampling schedule")
+    if profile is not None and limits["arm_timeout_s"] > 750:
+        raise ValueError("Node default arm watchdog must be <=750s")
 
     def check():
         current = read_linux_memory()
@@ -485,9 +541,16 @@ def run_concurrent_arm(commands, pool_mode, output, limits, *, collect=collect_a
     results = {}
     try:
         check()
-        for sdk in ("python", "node"):
+        for sdk in sdks:
             config = commands[sdk]
-            command = config["command"]
+            command = list(config["command"])
+            if profile is not None:
+                if os.environ.get("NODE_OPTIONS") or config.get("environment", {}).get("NODE_OPTIONS"):
+                    raise ValueError("default Node profile requires no NODE_OPTIONS override")
+                if len(command) < 2 or not Path(command[1]).is_absolute():
+                    raise ValueError("default Node profile requires a script without Node runtime flags")
+                if "--node-default-profile" not in command:
+                    command.append("--node-default-profile")
             if not command or not all(isinstance(arg, str) for arg in command) or not Path(command[0]).is_absolute():
                 raise ValueError("worker command must be an argv array with an absolute executable")
             err = (output / f"{sdk}.stderr").open("wb")
@@ -499,7 +562,7 @@ def run_concurrent_arm(commands, pool_mode, output, limits, *, collect=collect_a
             dbs = output / f"{sdk}-dbs"
             dbs.mkdir()
             env["FATHOMDB_DB_SCRATCH"] = str(dbs.resolve())
-            worker = Worker(command, config["cwd"], env, err, stop, limits["request_timeout_s"], check, stdout)
+            worker = Worker(command, config["cwd"], env, err, stop, limits["request_timeout_s"], check, stdout, poll_interval_s=0.02 if profile else 0.1)
             workers[sdk] = (worker, events)
 
         def one(sdk):
@@ -513,6 +576,8 @@ def run_concurrent_arm(commands, pool_mode, output, limits, *, collect=collect_a
                 nonlocal identity
                 reply = worker.request("snapshot")
                 raw = reply["raw_observation"]
+                if profile is not None and pool_mode == "on" and (raw.get("uuid") != env["FATHOMDB_SELECTED_UUID"] or _u64(raw.get("configured_max_size_bytes"), "configured_max_size_bytes") != 3 * 2**30):
+                    raise ValueError("native ON observation differs from selected UUID or 3GiB pool")
                 emit({"event": "native_observation", "raw_observation": raw})
                 checked = adapt_observation(raw, pool_mode, pid=worker.process.pid, expected=identity)
                 identity = checked["identity"]
@@ -521,13 +586,16 @@ def run_concurrent_arm(commands, pool_mode, output, limits, *, collect=collect_a
                 check()
                 if memory["vm_swap_bytes"]:
                     raise ResourceStop("worker VmSwap invalidated window")
-                return dict(memory, **checked, node_heap=reply.get("node_heap"))
+                return dict(memory, **checked, node_heap=reply.get("node_heap"), node_v8=reply.get("node_v8"))
 
             result = {"sdk": sdk, "pool_mode": pool_mode, "baseline": None, "samples": [],
                       "exit_code": None, "aborted": None, "abort_kind": None}
             try:
-                emit({"event": "ready", "result": worker.request("ready"), "pid": worker.process.pid})
-                result = collect(sdk, pool_mode, lambda: worker.request("iteration"), snapshot, emit)
+                ready = worker.request("ready")
+                if profile is not None and (ready.get("profile") != profile or ready.get("exec_argv") != [] or ready.get("node_options") or ready.get("selected_cuda_uuid") != env["FATHOMDB_SELECTED_UUID"]):
+                    raise ValueError("worker did not confirm ordinary-default Node profile")
+                emit({"event": "ready", "result": ready, "pid": worker.process.pid})
+                result = collect(sdk, pool_mode, lambda: worker.request("iteration"), snapshot, emit, **({"profile": profile} if profile else {}))
                 if result.get("aborted") is None:
                     result["exit_code"] = worker.close()
                 else:
@@ -549,8 +617,8 @@ def run_concurrent_arm(commands, pool_mode, output, limits, *, collect=collect_a
                 (output / f"{sdk}.json").write_text(json.dumps(result, allow_nan=False))
             return sdk, result
 
-        with ThreadPoolExecutor(max_workers=2) as executor:
-            for sdk, result in executor.map(one, ("python", "node")):
+        with ThreadPoolExecutor(max_workers=len(sdks)) as executor:
+            for sdk, result in executor.map(one, sdks):
                 results[sdk] = result
         return results
     finally:
@@ -566,14 +634,19 @@ def collect_pair(spec: dict, output: Path) -> dict:
     if output.exists():
         raise ValueError("campaign output must be a fresh owned directory")
     output.mkdir(parents=True)
-    on = run_concurrent_arm(spec["workers"], "on", output / "on", spec["limits"])
+    profile = spec.get("profile")
+    _, _, sdks = _schedule(profile)
+    on = run_concurrent_arm(spec["workers"], "on", output / "on", spec["limits"], profile=profile)
     verdicts = {sdk: evaluate_arm(arm) for sdk, arm in on.items()}
-    if any(result["status"] != "PASS" for result in verdicts.values()):
+    diagnostic_complete = profile == "node-default-10m" and all(
+        _numerical_completion(arm, verdicts[sdk]) for sdk, arm in on.items()
+    )
+    if any(result["status"] != "PASS" for result in verdicts.values()) and not diagnostic_complete:
         return {"scope": "instrumented_measurement_only", "status": "FAIL" if any(v["status"] == "FAIL" for v in verdicts.values()) else "UNMEASURED",
                 "on": verdicts, "off": "NOT_RUN"}
-    off = run_concurrent_arm(spec["workers"], "off", output / "off", spec["limits"])
+    off = run_concurrent_arm(spec["workers"], "off", output / "off", spec["limits"], profile=profile)
     results = {}
-    for sdk in ("python", "node"):
+    for sdk in sdks:
         pair = {"on": on[sdk], "off": off[sdk]}
         (output / f"{sdk}-pair.json").write_text(json.dumps(pair, allow_nan=False))
         results[sdk] = evaluate_pair(**pair)

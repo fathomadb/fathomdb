@@ -1,0 +1,25 @@
+import assert from 'node:assert/strict';
+import path from 'node:path';
+import {pathToFileURL} from 'node:url';
+import {createRequire} from 'node:module';
+const e=process.env, pkg=e.FATHOMDB_PACKAGE_DIR;
+const {Engine,embedBatchCls,rerank,releaseModels}=await import(pathToFileURL(path.join(pkg,'dist/index.js')));
+const require=createRequire(path.join(pkg,'package.json'));
+const native=require(require.resolve(e.FATHOMDB_NATIVE_PACKAGE));
+const observe=()=>JSON.parse(native.cudaPoolObservationForQualification());
+const input=['the cat sat on the mat','a cat is on a mat','quantum mechanics dictates the behaviour of subatomic particles'];
+const q='What is the capital of France?', p=['Paris.','Paris is the capital and most populous city of France.','France is a country in Western Europe; its capital and largest city is Paris, a major global center for art, fashion, and culture.'].map((body,id)=>({id,body,score:1}));
+await releaseModels(); await releaseModels();
+let engine=await Engine.open(e.FATHOMDB_DB,{useDefaultEmbedder:true});
+const mean=await engine.embed(input[0]); assert.equal(mean.length,384);
+const cls=await embedBatchCls(input), scores=await rerank(q,p,3);
+assert.equal(cls.length,3); assert(scores.every(x=>Number.isFinite(x.ceScore)));
+await engine.write([{kind:'doc',body:'Paris is the capital of France.',sourceId:'release-paris'}]); await engine.drain(30000);
+const before=observe(); if(before.status==='private') assert.equal(Number(before.live_models_after),3); else assert.equal(before.status,'not_built');
+await releaseModels(); const released=observe(); if(before.status==='private'){assert.equal(Number(released.live_models_after),1); assert(BigInt(released.used_current_bytes)<BigInt(before.used_current_bytes));} else assert.equal(released.status,'not_built');
+assert.deepEqual(await engine.embed(input[0]),mean); await releaseModels();
+assert.deepEqual(await embedBatchCls(input),cls); assert.deepEqual(await rerank(q,p,3),scores);
+const reloaded=observe(); if(before.status==='private') assert.equal(Number(reloaded.live_models_after),3); else assert.equal(reloaded.status,'not_built');
+await releaseModels(); await engine.close(); engine=null;
+let final=observe(); const until=performance.now()+5000; while(final.status==='private' && (Number(final.live_models_after)!==0 || BigInt(final.used_current_bytes)!==0n || BigInt(final.reserved_current_bytes)!==0n) && performance.now()<until) final=observe(); if(final.status==='private'){assert.equal(Number(final.live_models_after),0); assert.equal(BigInt(final.used_current_bytes),0n); assert.equal(BigInt(final.reserved_current_bytes),0n)}
+console.log(JSON.stringify({marker:'RELEASE_HEALTHY_OK',before,released,reloaded,final}));

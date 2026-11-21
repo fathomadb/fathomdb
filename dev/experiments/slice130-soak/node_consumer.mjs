@@ -7,9 +7,11 @@ import { pathToFileURL } from "node:url";
 import { createInterface } from "node:readline";
 import { createHash } from "node:crypto";
 import { performance } from "node:perf_hooks";
+import { getHeapStatistics, getHeapSpaceStatistics } from "node:v8";
 
 const args = process.argv.slice(2);
 const lifecycle = args.includes("--lifecycle");
+const defaultProfile = args.includes("--node-default-profile");
 const rootIndex = args.indexOf("--consumer-root");
 if (rootIndex < 0 || !args[rootIndex + 1]) throw new Error("--consumer-root must name the fresh installed consumer");
 const root = realpathSync(resolve(args[rootIndex + 1]));
@@ -34,6 +36,8 @@ const PASSAGES = [
 const engines = [];
 const expected = [];
 let expectedScores;
+let expectedBatch;
+const FIXED_BATCH = Array.from({ length: 32 }, (_, k) => `fixed item ${k} about memory pools`);
 let iteration = 0;
 function hash(vector) {
   if (vector.length !== 384 || !vector.every(Number.isFinite)) throw new Error("invalid model embedding");
@@ -58,7 +62,7 @@ for await (const line of lines) {
     switch (operation) {
       case "ready":
         if (!lifecycle) await openEngine();
-        result = { pid: process.pid, package: main, native: addon };
+        result = { pid: process.pid, package: main, native: addon, ...(defaultProfile ? { profile: "node-default-10m", exec_argv: process.execArgv, node_options: process.env.NODE_OPTIONS ?? null, node_version: process.version } : {}) };
         if (engines.length) {
           const resolution = engines[0].openReport().embedderDeviceResolution;
           result.allocator = resolution.effectiveDevice.cudaDevice?.cudaAllocator ?? null;
@@ -71,7 +75,7 @@ for await (const line of lines) {
         result = { outputs: expected };
         break;
       case "snapshot":
-        result = { raw_observation: JSON.parse(native.cudaPoolObservationForQualification()), node_heap: process.memoryUsage() };
+        result = { raw_observation: JSON.parse(native.cudaPoolObservationForQualification()), node_heap: process.memoryUsage(), ...(defaultProfile ? { node_v8: { heap: getHeapStatistics(), spaces: getHeapSpaceStatistics() } } : {}) };
         break;
       case "iteration": {
         const latency = {};
@@ -79,10 +83,11 @@ for await (const line of lines) {
         const single = hash(await engines[0].embed(TEXT));
         latency.embed = performance.now() - start;
         start = performance.now();
-        const batch = await sdk.embedBatchCls(Array.from({ length: 32 }, (_, k) => `soak ${iteration} item ${k} about pools`));
+        const batch = await sdk.embedBatchCls(defaultProfile ? FIXED_BATCH : Array.from({ length: 32 }, (_, k) => `soak ${iteration} item ${k} about pools`));
         latency.batch32 = performance.now() - start;
         if (batch.length !== 32) throw new Error("batch32 output count changed");
         const batchHashes = batch.map(hash);
+        if (defaultProfile) expectedBatch ??= batchHashes;
         start = performance.now();
         const ranked = await sdk.rerank("Which device shares DRAM?", PASSAGES, 2);
         latency.rerank = performance.now() - start;
@@ -93,7 +98,7 @@ for await (const line of lines) {
         start = performance.now();
         await engines[0].write(Array.from({ length: 50 }, (_, k) => ({ kind: "doc", body: `soak ${iteration} document ${k} about memory pools`, sourceId: "slice30-qual" })));
         latency.write = performance.now() - start;
-        result = { latency_ms: latency, mismatches: Number(single !== expected[0]) + Number(JSON.stringify(scores) !== JSON.stringify(expectedScores)),
+        result = { latency_ms: latency, mismatches: Number(single !== expected[0]) + Number(JSON.stringify(scores) !== JSON.stringify(expectedScores)) + Number(defaultProfile && JSON.stringify(batchHashes) !== JSON.stringify(expectedBatch)),
           outputs: { embed_sha256: single, batch32_sha256: batchHashes, rerank: ranked }, input_iteration: iteration++ };
         break;
       }

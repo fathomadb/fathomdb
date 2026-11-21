@@ -1,6 +1,6 @@
 {
   "release": "0.8.30",
-  "release_kind": "Published packages and Tegra; final documentation/readback closure in progress",
+  "release_kind": "Publication complete, including matching 0.8.30 Tegra delivery, current documentation and FathomDB Use Cases. Recorded qualification limits remain explicit.",
   "board": "dev/plans/runs/STATUS-0.8.30.md",
   "plan": "dev/plans/0.8.30/plan.md",
   "master": "dev/plans/0.8.30/plan.md",
@@ -14,7 +14,7 @@
       "short": "ENVIRONMENT",
       "title": "Environment inventory",
       "depends_on": [],
-      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "status": "LANDED",
       "sha": "7c9377b87db6bf0e93e9f489ecb8b28e6629733e",
       "design_refs": [
         "dev/plans/0.8.30/prework/slice-0.md"
@@ -28,7 +28,7 @@
       "depends_on": [
         0
       ],
-      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "status": "LANDED",
       "sha": "7c9377b87db6bf0e93e9f489ecb8b28e6629733e",
       "design_refs": [
         "dev/plans/0.8.30/prework/slice-1.md"
@@ -42,7 +42,7 @@
       "depends_on": [
         1
       ],
-      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "status": "LANDED",
       "sha": "7c9377b87db6bf0e93e9f489ecb8b28e6629733e",
       "design_refs": [
         "dev/plans/0.8.30/prework/slice-2.md"
@@ -56,7 +56,7 @@
       "depends_on": [
         2
       ],
-      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "status": "LANDED",
       "sha": "7c9377b87db6bf0e93e9f489ecb8b28e6629733e",
       "design_refs": [
         "dev/plans/0.8.30/prework/slice-3.md"
@@ -70,7 +70,7 @@
       "depends_on": [
         3
       ],
-      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "status": "LANDED",
       "sha": "7c9377b87db6bf0e93e9f489ecb8b28e6629733e",
       "design_refs": [
         "dev/plans/0.8.30/prework/slice-4.md"
@@ -84,7 +84,7 @@
       "depends_on": [
         4
       ],
-      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "status": "LANDED",
       "sha": "7c9377b87db6bf0e93e9f489ecb8b28e6629733e",
       "design_refs": [
         "dev/plans/0.8.30/prework/slice-5.md"
@@ -98,7 +98,7 @@
       "depends_on": [
         5
       ],
-      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "status": "LANDED",
       "sha": "7c9377b87db6bf0e93e9f489ecb8b28e6629733e",
       "design_refs": [
         "dev/plans/0.8.30/prework/slice-6.md"
@@ -112,7 +112,7 @@
       "depends_on": [
         6
       ],
-      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "status": "LANDED",
       "sha": "7c9377b87db6bf0e93e9f489ecb8b28e6629733e",
       "design_refs": [
         "dev/plans/0.8.30/prework/slice-7.md"
@@ -126,7 +126,7 @@
       "depends_on": [
         7
       ],
-      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "status": "LANDED",
       "sha": "7c9377b87db6bf0e93e9f489ecb8b28e6629733e",
       "design_refs": [
         "dev/plans/0.8.30/prework/slice-8.md"
@@ -140,7 +140,7 @@
       "depends_on": [
         8
       ],
-      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "status": "LANDED",
       "sha": "9b60aed656330acdcce06d3c77e6008dbef739c3",
       "design_refs": [
         "dev/plans/0.8.30/prework/slice-9.md"
@@ -154,7 +154,7 @@
       "depends_on": [
         9
       ],
-      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "status": "LANDED",
       "design_refs": [
         "dev/plans/0.8.30/features/slice-10/plan.md"
       ],
@@ -168,7 +168,7 @@
       "depends_on": [
         10
       ],
-      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "status": "LANDED",
       "design_refs": [
         "dev/plans/0.8.30/features/slice-20/plan.md"
       ],
@@ -183,7 +183,7 @@
       "depends_on": [
         10
       ],
-      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "status": "LANDED",
       "design_refs": [
         "dev/plans/0.8.30/features/slice-30/plan.md"
       ],
@@ -201,7 +201,7 @@
       "depends_on": [
         10
       ],
-      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "status": "LANDED",
       "design_refs": [
         "dev/plans/0.8.30/features/slice-40/plan.md"
       ],
@@ -218,7 +218,7 @@
         40,
         60
       ],
-      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "status": "LANDED",
       "design_refs": [
         "dev/plans/0.8.30/features/slice-50/plan.md"
       ],
@@ -237,7 +237,7 @@
         10,
         30
       ],
-      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "status": "LANDED",
       "scope_source": "seq-407",
       "design_refs": [
         "dev/plans/0.8.30/features/slice-55/plan.md"
@@ -254,7 +254,7 @@
         10,
         55
       ],
-      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "status": "LANDED",
       "design_refs": [
         "dev/plans/0.8.30/features/slice-60/plan.md"
       ],
@@ -274,7 +274,7 @@
         55,
         60
       ],
-      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "status": "LANDED",
       "design_refs": [
         "dev/plans/0.8.30/features/slice-70/plan.md"
       ],
@@ -291,7 +291,7 @@
       "depends_on": [
         70
       ],
-      "status": "COMPLETE_ON_RELEASE_BRANCH",
+      "status": "LANDED",
       "scope_source": "seq-407",
       "design_refs": [
         "dev/plans/0.8.30/features/slice-75/plan.md"
@@ -307,18 +307,40 @@
       "depends_on": [
         75
       ],
-      "status": "IN_PROGRESS",
+      "status": "LANDED",
       "commission_source": "seq-414",
       "design_refs": [
         "dev/plans/0.8.30/features/slice-80/plan.md"
-      ]
+      ],
+      "sha": "1b975b753b8ec09cfaf6985a5ec47a24c5d97584",
+      "evidence": "dev/plans/0.8.30/features/slice-80/status.md; exact immutable e3d tag, actual registry publishers and assembled eight consumer scopes, reviewed affected-only recovery/OIDC/GitHub Release, same-run Tegra/public installs, final Pages44935332669 and Use Cases/README/live retained downloads independently verified. Original failures and history advisory retained.",
+      "completion_record_commit": "b58b6e0154f27ced00502599845469d352da4774"
     }
   ],
-  "landed": [],
-  "next_slice": 80,
-  "remaining_ladder": [
+  "landed": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    20,
+    30,
+    40,
+    50,
+    55,
+    60,
+    70,
+    75,
     80
   ],
+  "next_slice": null,
+  "remaining_ladder": [],
   "decisions": {
     "ruled": [
       {
@@ -425,8 +447,8 @@
     "unruled": []
   },
   "acceptance": {
-    "status": "PUBLIC_PACKAGES_VERIFIED_FINAL_DOCS_PENDING",
-    "record": "dev/plans/0.8.30/plan.md",
+    "status": "PASS_WITH_RECORDED_LIMITS",
+    "record": "dev/plans/0.8.30/features/slice-80/status.md",
     "preparation_acceptance": {
       "status": "COMPLETE_WITH_RECORDED_LIMITS",
       "criteria": [
@@ -679,37 +701,36 @@
       "status": "ALLOCATED_NOT_EXECUTED"
     },
     "slice80": {
-      "status": "PUBLIC_DELIVERY_VERIFIED_FINAL_DOCS_PENDING",
+      "status": "COMPLETE_WITH_RECORDED_LIMITS",
       "record": "dev/plans/0.8.30/features/slice-80/status.md",
       "product_commit": "e3d31f5cdc0df3e32dab9bad151c5ab5c321222c",
       "control_repair_commit": "43de86365794252504ccf92d9387f63d12bff83c",
       "production_run": 44929252460,
       "recovery_run": 44933445558,
       "tegra_run": 44931574481,
-      "scope": "All immutable packages published. Original successful public consumers plus four actual recovered runtime bodies qualify the eight required consumer scopes; pinned OIDC latest promotion and five GitHub wheel assets passed. Same-run Tegra seven-job route/public wheel and Node policies passed. Final current docs deployment/readback remains.",
-      "limits": "Original production failure and Bash3 false-green preserved. History advisory remains100expected/171observed/71unclassified; focused190-commit tag range scan exit0/zero findings, not a full-history clearance. No product rebuild, republish, retag, GPU or full-gate replay for the verifier repair."
-    }
+      "scope": "All immutable packages and eight required consumer scopes verified through original successes plus the four corrected recovery bodies. Pinned OIDC latest promotion, five GitHub wheel assets, same-run Tegra seven-job/public policies, final Pages and all nine retained download hashes passed independent Terra review. FathomDB Use Cases is live and linked from README. GitHub Release body and live notes link verified; owned GPU workers retired.",
+      "limits": "Original production failure and Bash3 false-green preserved. History advisory remains100expected/171observed/71unclassified; focused190-commit tag range scan exit0/zero findings, not a full-history clearance. No product rebuild, republish, retag, GPU or full-gate replay for the verifier repair.",
+      "pages_run": 44935332669,
+      "completion_record_commit": "b58b6e0154f27ced00502599845469d352da4774"
+    },
+    "scope": "Selected source/platform/recovery/public-delivery criteria are complete within their recorded scopes. Final current docs and Use Cases page/README link are live. Original gate failures, heavy CI timeout and history-only advisory are retained; no uninterrupted full-hosted green or universal coverage claim."
   },
   "release_readiness": {
-    "status": "PUBLIC_PACKAGES_VERIFIED_FINAL_DOCS_PENDING",
+    "status": "PUBLISHED_COMPLETE_WITH_RECORDED_LIMITS",
     "publication_authorized": true,
     "authorization_source": "seq-414",
     "qualification_source_commit": "cd3a6caaa61fca8625f7468f4dae8341b958a241",
-    "scope": "Core registry and same-run Tegra publication/public consumers, npm latest promotion and GitHub wheel assets verified. Publish updated current docs together with the retained .30 Tegra pair, verify live pages, then close80. All release-owned GPU processes/listeners stopped; temporary169 credentials/registration removed; existingOrin22 registration preserved/offline. Historical failures/advisory remain explicit.",
-    "pages_publication_authorized": true
+    "scope": "Core registries, assembled public consumer scopes, latest promotion, five GitHub wheel assets, matching Tegra public installations and final current docs/readbacks complete. All nine retained downloads verified. Required reviews passed. All release-owned GPU processes/listeners stopped; temporary169 credentials/registration removed; existingOrin22 registration preserved/offline. Original failures/advisory and source75 limits remain explicit.",
+    "pages_publication_authorized": true,
+    "pages_run_id": 44935332669,
+    "public_release_notes": "https://fathomadb.github.io/fathomdb/release-notes/0.8.30/",
+    "public_use_cases": "https://fathomadb.github.io/fathomdb/use-cases/"
   },
   "generated_views": [
     {
-      "id": "status-current-state",
-      "file": "dev/plans/runs/STATUS-0.8.30.md"
-    },
-    {
-      "id": "status-next-action",
-      "file": "dev/plans/runs/STATUS-0.8.30.md"
-    },
-    {
-      "id": "plan-immediate-next",
-      "file": "dev/plans/0.8.30/plan.md"
+      "id": "plan-landed-roll-up",
+      "file": "dev/plans/0.8.30/plan.md",
+      "location": "Final landed source roll-up; completed ladder has no next-slice controls"
     }
   ],
   "qualification_holds": [
@@ -772,7 +793,7 @@
       75,
       80
     ],
-    "next_transition": "Deploy the final current .30 docs with the retained actual Tegra pair, verify public pages and final GitHub Release notes, then close80 and clean inactive owned worktrees. All package and GPU execution is complete; no further publication approval, product rebuild or model run is needed."
+    "next_transition": "None: selected 0.8.30 release and requested Use Cases documentation are complete. Broad coverage-guided fuzzing and power-loss proof are allocated, not executed, in0.8.31; agent/harness storage research remains0.9.0 backlog."
   },
   "published": {
     "tag": "v0.8.30",

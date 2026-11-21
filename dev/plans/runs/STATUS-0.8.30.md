@@ -1,18 +1,20 @@
 # FathomDB 0.8.30 release status
 
-Active release on local `release/0.8.30`; this board makes no main landing claim.
+**CLOSED — historical record.** Published on 2026-11-21 from immutable `v0.8.30`.
+All selected slices are landed; registry, Tegra and final documentation delivery
+are verified in the [Slice 80 record](../0.8.30/features/slice-80/status.md).
 The [state](../release-state-0.8.30.json) owns status and next actions. The
 [master plan](../0.8.30/plan.md) owns scope and execution contracts.
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.30:status-current-state -->**Next is Slice 80 (DELIVERY), IN_PROGRESS.** Completed on local `release/0.8.30` per release state: 0 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 1 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 2 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 3 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 4 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 5 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 6 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 7 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 8 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 9 (`9b60aed656330acdcce06d3c77e6008dbef739c3`) · 10 (`9c9b786585961d5393d1155eb6b44b611b63e06d`) · 20 (`5e7906b6d7a871611ccdddd74a9ed1410c32cc47`) · 30 (`5b0348775279883fe2ffcd52f60c23c90171166e`) · 40 (`d64e870bd96103851b104afc927d48c64067db35`) · 50 (`1550b96bb6e92c01deb08855ad3685c99f649f59`) · 55 (`3595192b0a3d4587556aa00b24768a06469af3ba`) · 60 (`3f738dcf38358dc9e111a28db13e093cd35225a3`) · 70 (`6d0e6c37b6cf35e3fecfe93ae3859a32d1b94a8f`) · 75 (`cd3a6caaa61fca8625f7468f4dae8341b958a241`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.30:status-current-state -->
+**Complete.** All selected slices are landed and 0.8.30 is published. The [delivery record](../0.8.30/features/slice-80/status.md) preserves actual publication, recovered consumer scopes, Pages results and original failures.
 
 ## Next action
 
-<!-- BEGIN GENERATED release-state:0.8.30:status-next-action -->**Continue Slice 80 (DELIVERY)** — Authorized publication and public consumers. **Remaining ladder:** 80.<!-- END GENERATED release-state:0.8.30:status-next-action -->
+**None.** Release delivery and the requested Use Cases page are complete. Broad coverage-guided fuzzing and power-loss proof remain allocated to 0.8.31; the agent/harness research remains in the 0.9.0 backlog.
 
-## Decisions, implementation and qualification
+## Historical decisions and phase observations
 
 - Scope recommendations remain ruled at seq-399; preparation approval is seq-400.
 - Reviewed Slice10 implementation is integrated at `9c9b786585961d5393d1155eb6b44b611b63e06d`.

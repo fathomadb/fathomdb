@@ -1,11 +1,15 @@
 ---
 title: FathomDB 0.8.30 release plan
-status: ACTIVE
+status: COMPLETE
 target_release: 0.8.30
 date: 2026-11-17
 ---
 
 # FathomDB 0.8.30 release plan
+
+Completed and published on 2026-11-21. The [delivery record](features/slice-80/status.md)
+preserves actual registry, recovery, Tegra and documentation outcomes and their
+limits. The phase instructions below retain the approved execution plan.
 
 Survey and improve correctness, performance, end-to-end latency, robustness and
 CI/CD efficiency. Use the [historical findings](testing-robustness-findings.md)
@@ -277,7 +281,10 @@ missing-record, separate-process reopen, close/exit, registry finalization and
 public downloads. Partial publication remains incomplete. Retain original
 failures and honest unknowns; no force-retag or hook bypass.
 
-## Immediate next slice and interactive boundary
+## Immediate next slice and interactive boundary — historical record
+
+The following records earlier phase status; the completed state and delivery
+record above supersede its then-open qualification and commissioning notes.
 
 Scope choices are ruled at seq-399 and preparation was commissioned at
 seq-400. The reviewed Slice10 implementation is integrated on `release/0.8.30`;
@@ -315,7 +322,9 @@ research in the [0.9.0 backlog](../0.9.0/backlog.md); it adds no .30 feature wor
 [state](../release-state-0.8.30.json) and [board](../runs/STATUS-0.8.30.md)
 own current status.
 
-<!-- BEGIN GENERATED release-state:0.8.30:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 80** (`DELIVERY`) — Authorized publication and public consumers
+**Complete.** Selected implementation, qualification, publication and documentation are finished. See the [delivery record](features/slice-80/status.md) for actual outcomes and retained limits.
 
-**Remaining ladder:** 80.<!-- END GENERATED release-state:0.8.30:plan-immediate-next -->
+## Final landed source roll-up
+
+<!-- BEGIN GENERATED release-state:0.8.30:plan-landed-roll-up -->
+**LANDED on `origin/main`, in full:** Slices 0 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 1 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 2 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 3 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 4 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 5 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 6 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 7 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 8 (`7c9377b87db6bf0e93e9f489ecb8b28e6629733e`) · 9 (`9b60aed656330acdcce06d3c77e6008dbef739c3`) · 10 (`9c9b786585961d5393d1155eb6b44b611b63e06d`) · 20 (`5e7906b6d7a871611ccdddd74a9ed1410c32cc47`) · 30 (`5b0348775279883fe2ffcd52f60c23c90171166e`) · 40 (`d64e870bd96103851b104afc927d48c64067db35`) · 50 (`1550b96bb6e92c01deb08855ad3685c99f649f59`) · 55 (`3595192b0a3d4587556aa00b24768a06469af3ba`) · 60 (`3f738dcf38358dc9e111a28db13e093cd35225a3`) · 70 (`6d0e6c37b6cf35e3fecfe93ae3859a32d1b94a8f`) · 75 (`cd3a6caaa61fca8625f7468f4dae8341b958a241`) · 80 (`1b975b753b8ec09cfaf6985a5ec47a24c5d97584`). SCHEMA is 37; remaining ladder = none.<!-- END GENERATED release-state:0.8.30:plan-landed-roll-up -->

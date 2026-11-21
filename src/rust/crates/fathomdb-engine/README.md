@@ -1,12 +1,12 @@
 # fathomdb-engine
 
 The core of **FathomDB** — a local-first, embedded retrieval engine for application and agent
-workloads. Storage, migrations, ingest, projection maintenance and hybrid query all live here.
+workloads. Storage, schema admission/bootstrap, ingest, projection maintenance and hybrid query live here.
 
-> Most Rust applications should depend on the [`fathomdb`](https://crates.io/crates/fathomdb) facade
-> crate instead, which re-exports this crate's public surface behind a single import path. Depend on
-> `fathomdb-engine` directly when you need its Cargo features (embedder backends, GPU acceleration)
-> or are building another binding on top of it.
+> Rust applications sharing the Python/TypeScript surface should use
+> [`fathomdb-sdk`](https://crates.io/crates/fathomdb-sdk). The
+> [`fathomdb`](https://crates.io/crates/fathomdb) crate is the lower-level facade.
+> Depend on `fathomdb-engine` directly for lower-level features or to build a binding.
 
 ## Status: pre-1.0, beta
 
@@ -32,6 +32,11 @@ process model layered on top:
 - **Records have a lifecycle.** `transition` and `purge` move and hard-erase governed nodes;
   `ReadView` selects existence and world-time validity for the read verbs.
 
+Public open in 0.8.30 creates missing/empty databases at schema 37 and accepts
+only that exact schema for nonempty stores. It rejects incompatible versions;
+there is no automatic migration. Low-level migration helpers in `fathomdb-schema`
+serve internal/test/tooling uses, not an application upgrade contract.
+
 ## Install
 
 ```bash
@@ -55,7 +60,8 @@ network access.
 
 | Crate | Role |
 | --- | --- |
-| [`fathomdb`](https://crates.io/crates/fathomdb) | The facade most applications should use |
+| [`fathomdb-sdk`](https://crates.io/crates/fathomdb-sdk) | Rust application SDK, peer of Python and TypeScript |
+| [`fathomdb`](https://crates.io/crates/fathomdb) | Lower-level engine facade |
 | [`fathomdb-schema`](https://crates.io/crates/fathomdb-schema) | Versioned migration registry |
 | [`fathomdb-query`](https://crates.io/crates/fathomdb-query) | Query compilation and the JSON filter AST |
 | [`fathomdb-embedder`](https://crates.io/crates/fathomdb-embedder) | Built-in embedder runtimes |

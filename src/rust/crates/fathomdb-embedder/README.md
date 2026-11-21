@@ -9,10 +9,12 @@ turns a pinned model name into a usable embedder.
 
 ## Is this the crate you want?
 
-If you just want FathomDB to embed things for you, depend on
+For application embedding through the Python/TypeScript-equivalent Rust surface,
+use [`fathomdb-sdk`](https://crates.io/crates/fathomdb-sdk) with its
+`default-embedder` feature and opt in at open. Lower-level consumers can use
 [`fathomdb`](https://crates.io/crates/fathomdb) or
-[`fathomdb-engine`](https://crates.io/crates/fathomdb-engine) and turn on the engine's
-`default-embedder` feature — the engine pulls this crate in.
+[`fathomdb-engine`](https://crates.io/crates/fathomdb-engine) with the same feature;
+the engine pulls this crate in.
 
 Depend on it directly if you want to construct an embedder yourself, or want the reranker without
 the engine. Production engine admission before 1.x still accepts only the

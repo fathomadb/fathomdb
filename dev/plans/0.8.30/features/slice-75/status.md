@@ -1,14 +1,14 @@
 ---
 title: Slice75 final candidate qualification
-status: IN_PROGRESS
+status: COMPLETE
 slice: 75
 target_release: 0.8.30
 ---
 
 # Slice75 candidate qualification
 
-Nonpublishing qualification executions passed. The final documentation-only main
-package and coherent handoff are being finalized. Parent owns canonical closure, final documentation integration,
+Nonpublishing qualification is complete. Final executions and the documentation-only
+main package are verified. Parent owns canonical closure, final documentation integration,
 publication and registry/Pages readback. Astra-medium approved the reconciled
 whole plan/design after FIX1 at `c1e55adc6`; direct Sol6.2-high and parent Codex
 passed the implementation and scoped recovery controls. Terra independently
@@ -16,7 +16,10 @@ inspected actual executions, artifact members, kernel images and applicability.
 
 ## Candidate and input convergence
 
-Product/package freeze is `53400f69d29cbc5029f0c759d58a5edb1f76e874`.
+Product/producer runtime subject is `53400f69d29cbc5029f0c759d58a5edb1f76e874`.
+Final coherent source merge is `52d305aa52812e1b842a1e742632f341d9171345`,
+including parent docs/state `2cf798139` and the reviewed control-only recoveries.
+The completion record changes no runtime or producer input.
 The five-target source subject is `6d0e6c37b6cf35e3fecfe93ae3859a32d1b94a8f`;
 the intervening delta contains seven packed README corrections, reviewed
 qualification controls and parent release records, with no product code,
@@ -69,7 +72,8 @@ is the rehearsal baseline and is never substituted for shipping-v3 byte proof.
 | Shipping-v3 manylinux2.28 wheel | `577a1ff5ba72b405567b9600bbd30f240edd56d3ca687743bf3e3ae9ad0e3b19` |
 | Shipping-v3 x64 CUDA npm platform | `170228211cb33b89e27bb3c33a9a1550345a2b9348b03f9da0e2c1c12121dca2` |
 | Reranker CLI archive | `f925ad9606c90117ea65a175b23bcd508225e544514efbc66777951a88f72c80` |
-| Full release-shaped npm main | `68482cce3e1756224c19685bb66665fad35a7804e7f20f8d6f321b1878166755` |
+| Measured full release-shaped npm main | `68482cce3e1756224c19685bb66665fad35a7804e7f20f8d6f321b1878166755` |
+| Final docs-updated npm main | `a6aa14b451e4d9278179ebb8dd3668600c806adee41b3fc20b5b29a861f69943` |
 | Orin0.8.30+tegra wheel | `ac27fdacf7a9398d80bd4b10b64087dafc83dfc858d83c478e2fe9850656afdb` |
 | Orin0.8.30 Tegra npm platform | `68bd782a30ab8e58f3d2b9c713de936f533067b3e7290ffff9160ff98ae51648` |
 
@@ -81,6 +85,13 @@ Both contain ten sm75 PTX markers and15 sm75 static cubins. Wheel glibc floor is
 actual glibc floor2.34 and15 sm86 static GGML cubins; the doctor path performs
 library/device/context/zero-allocation diagnostics, not model/GGML inference.
 No CLI model-forward or sm75 kernel-execution claim follows from those bytes.
+
+The final docs-updated main was packed once with held Node25.9.0/npm11.12.1
+from the reviewed parent README; its README exactly matches the merged source.
+Only `package/README.md` differs from the measured full main: all44 other
+payloads, including every executable/declaration/manifest, are byte-identical.
+Both retain five exact optional0.8.30 entries and `>=25 <27`; this is explicit
+README-only applicability, not replacement of any original measured receipt.
 
 The original preflight main is an intentionally narrower fixture. Its sealed
 witness is untouched. The full main above adds the packed README and all five
@@ -189,8 +200,11 @@ packages as if they were that hosted payload. Retention currently ends at0.8.29;
 add the actual published0.8.30 pair after normal delivery. Orin transfer authority
 is session-only. Existing Fathom runner installation is
 `/home/coreyt/actions-runner/fathomdb`, with its own `_work`; the registered
-Fathom runner was offline and no Fathom listener was observed. The unrelated
-Memex service is foreign. Existing warm Cargo cache is
+Fathom runner was initially offline with no Fathom listener observed. Parent
+subsequently started existing runner22 (2.338.2) as owned foreground session47423,
+listening at17:02:40Z with no queued jobs. No registration or credentials were
+replaced; parent owns stopping only that foreground listener after80. The
+unrelated Memex service is foreign. Existing warm Cargo cache is
 `/tmp/fathomdb-0830-slice60/product-artifacts/cargo-home`, Rustup is
 `/home/coreyt/.rustup`, Node25.9.0/26.10.0 are under `/home/coreyt/.nvm`, and
 CPython3.12 is under `/home/coreyt/.local/share/uv/python/`; the owned source

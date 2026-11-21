@@ -1,6 +1,6 @@
 ---
 title: Slice 75 candidate qualification design
-status: ACTIVE
+status: COMPLETE
 slice: 75
 target_release: 0.8.30
 ---

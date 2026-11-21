@@ -1,6 +1,6 @@
 ---
 title: Slice 75 platform and artifact qualification
-status: ACTIVE
+status: COMPLETE
 slice: 75
 target_release: 0.8.30
 ---

@@ -275,6 +275,35 @@ def rss(pid):
     return 0
 
 
+def confirmed_owned_exit(process, recorded_birth, observed_peers, *, deadline=None):
+    if any(pid != process.pid for pid in observed_peers):
+        return False
+    if (
+        recorded_birth is None
+        or getattr(process, "_slice50_birth", None) != recorded_birth
+    ):
+        return False
+    started = time.monotonic()
+    deadline = min(started + 0.1, deadline) if deadline is not None else started + 0.1
+    if process.poll() is None:
+        # procfs can lose the main thread's exe before the kernel makes the
+        # registered child waitable. Completion still requires an actual reap.
+        remaining = min(0.05, deadline - time.monotonic())
+        if remaining <= 0:
+            return False
+        try:
+            process.wait(timeout=remaining)
+        except subprocess.TimeoutExpired:
+            return False
+    if process.returncode != 0:
+        return False
+    try:
+        proc(process.pid)
+    except FileNotFoundError:
+        return not actors() and time.monotonic() <= deadline
+    return False
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("spec", type=Path)
@@ -343,6 +372,15 @@ def main():
     started = time.monotonic()
     history = {}
     last_guard = [None]
+    owned_workers = []
+    original_worker = soak.Worker
+
+    class ObservedWorker(original_worker):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            owned_workers.append(self.process)
+
+    soak.Worker = ObservedWorker
 
     def checked_memory():
         checked_at = time.monotonic()
@@ -350,16 +388,20 @@ def main():
         resource_now = resource()
         if not resource_now["ok"] or time.monotonic() - started > 1800:
             raise soak.ResourceStop("Orin resource floor or shared 30-minute deadline")
-        # Worker is the collector's direct child, and starts its own session.
-        child_file = Path(f"/proc/{os.getpid()}/task/{os.getpid()}/children")
-        children = [int(value) for value in child_file.read_text().split()]
+        # The collector supplies its actual owned Popen objects; this does
+        # not depend on optional procfs children entries on the Tegra kernel.
+        children = [process.pid for process in owned_workers if process.poll() is None]
         peers = actors()
         owned_total = memory["rss_bytes"]
         owned = {}
+        known_exit = None
         if children:
             if len(children) != 1:
                 raise soak.ResourceStop("unexpected collector child")
             leader = children[0]
+            process = next(
+                item for item in reversed(owned_workers) if item.pid == leader
+            )
             try:
                 actual = proc(leader)
                 if actual["PPid"] != os.getpid():
@@ -367,10 +409,19 @@ def main():
                 prior = history.get(leader)
                 if str(actual["State"]).startswith("Z"):
                     last_guard[0] = None
-                    if prior != actual["start_ticks"] or peers:
+                    if prior != actual["start_ticks"] or not confirmed_owned_exit(
+                        process, prior, peers, deadline=started + 1800
+                    ):
                         raise soak.ResourceStop(
                             "unproven exited worker or remaining peer"
                         )
+                    known_exit = {
+                        "pid": leader,
+                        "start_ticks": prior,
+                        "exit_code": process.returncode,
+                        "stale_peers": peers,
+                        "fresh_peers": [],
+                    }
                 else:
                     if Path(f"/proc/{leader}/exe").resolve(strict=True) != node:
                         raise soak.ResourceStop("unexpected Node worker executable")
@@ -385,22 +436,25 @@ def main():
                         )
                     last_guard[0] = (*identity, checked_at)
                     prior = history.setdefault(leader, actual["start_ticks"])
+                    process._slice50_birth = prior
                     total, owned = ordinary_owned_rss(leader, prior, peers)
                     owned_total += total
             except FileNotFoundError:
                 last_guard[0] = None
-                try:
-                    remaining = proc(leader)
-                except FileNotFoundError:
-                    remaining = None
-                if (
-                    peers
-                    or remaining is not None
-                    and not str(remaining["State"]).startswith("Z")
+                prior = history.get(leader)
+                if not confirmed_owned_exit(
+                    process, prior, peers, deadline=started + 1800
                 ):
                     raise soak.ResourceStop(
                         "worker identity inaccessible while live or with peers"
                     )
+                known_exit = {
+                    "pid": leader,
+                    "start_ticks": prior,
+                    "exit_code": process.returncode,
+                    "stale_peers": peers,
+                    "fresh_peers": [],
+                }
         elif peers:
             raise soak.ResourceStop("unknown observed GPU peer")
         else:
@@ -416,6 +470,7 @@ def main():
                         "owned_rss": owned_total,
                         "owned": owned,
                         "actors": peers,
+                        "confirmed_owned_exit": known_exit,
                     }
                 )
                 + "\n"

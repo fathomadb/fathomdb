@@ -1,6 +1,6 @@
 ---
 title: 0.8.30 Slice 50 runtime concurrency and resources
-status: ACTIVE
+status: COMPLETE
 slice: 50
 target_release: 0.8.30
 ---
@@ -11,9 +11,10 @@ Owner seq-408 commissions the whole revised plan with `gpt-6.1-sol` high
 after40 source completion and remediation of its review findings.
 
 Owner seq-409 now sequences55 →60 →finish50. The reviewed runtime/logging
-portion is integrated at`daf12b6d9839816fab4cd7c72c81e2f10918bf0f`;50 remains
-open for the Node pool comparison and conditional model release. Resume from
-the then-current release tip after60; do not replay unaffected passing work.
+portion is integrated at`daf12b6d9839816fab4cd7c72c81e2f10918bf0f`.
+Finish50 completes the remaining model-release work and the factual assembled
+Node comparison/classification; [status](status.md) preserves protocol failures
+and diagnostic limits. Unaffected passing work was not replayed.
 
 ## Entry and prerequisites
 

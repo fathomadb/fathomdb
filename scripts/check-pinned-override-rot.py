@@ -704,7 +704,7 @@ def main() -> int:
             print(f"FAIL  pinned-override-rot: {failure}", file=sys.stderr)
         return 1
     print(
-        "ok pinned-override-rot: governed npm overrides, K9 kernels and exact fork sources pass local qualification; public delivery is a separate proof"
+        "ok pinned-override-rot: governed npm overrides, K9 kernels and exact fork sources pass local qualification; registry publication is a separate proof"
     )
     return 0
 

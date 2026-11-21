@@ -2142,8 +2142,17 @@
         "path": "fathomdb.StoredHeadCoverageUnavailable.status",
         "signature": "status: Literal['unavailable'] = 'unavailable'"
       }
+    },
+    {
+      "release": "0.8.30",
+      "slice": 50,
+      "declaration": {
+        "kind": "python-reexport",
+        "path": "fathomdb.release_models",
+        "signature": "from fathomdb._fathomdb import release_models"
+      }
     }
   ],
-  "native_stub_sha256": "8207f193cd1781c4c866188f29ac6854f6f34e29c183ca842d4a7273f9f442b7",
+  "native_stub_sha256": "4f3939dbb5bff1f0616cdc3520d1d7d9bcf7f946d9c2d1421d1e7b7f8a2f7dac",
   "slice85_authority": "Owner-approved 2026-11-04 explicit-maintenance contract (steward-ledger seq-363) and current completion instruction; exact reviewed maintenance declarations only. Frozen pre-move baseline and every previous registry entry remain unchanged."
 }

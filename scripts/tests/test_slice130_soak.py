@@ -9,6 +9,10 @@ import os
 import sys
 import tempfile
 import threading
+import selectors
+import subprocess
+import shutil
+import time
 from unittest.mock import patch
 
 SPEC = importlib.util.spec_from_file_location("slice130_soak", Path(__file__).resolve().parents[1] / "slice130_soak.py")
@@ -331,6 +335,73 @@ class WorkerCleanupTests(unittest.TestCase):
             first = worker.reap()
             with patch.object(soak.os, "killpg", side_effect=AssertionError("a reaped process group must never be signaled again")):
                 self.assertEqual(worker.reap(), first)
+
+
+@unittest.skipUnless(sys.platform == "linux" and shutil.which("cc"), "Linux procfs and a C compiler required")
+class OwnedExitTransitionTests(unittest.TestCase):
+    def test_pending_reap_after_main_thread_exit_is_bounded_and_identity_checked(self):
+        root = Path(__file__).resolve().parents[2]
+        spec = importlib.util.spec_from_file_location("profile_guard", root / "dev/tools/slice50_orin_profile.py")
+        guard = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(guard)
+        with tempfile.TemporaryDirectory() as directory:
+            binary = Path(directory) / "exit-transition"
+            compiled = subprocess.run([shutil.which("cc"), "-std=c11", "-O2", "-pthread", str(root / "dev/experiments/slice50-release/proc_exit_transition.c"), "-o", str(binary)], capture_output=True, text=True)
+            if compiled.returncode:
+                sys.stdout.write(compiled.stdout)
+                sys.stderr.write(compiled.stderr)
+                self.fail("CPU transition fixture did not compile")
+            child = subprocess.Popen([str(binary)], stdin=subprocess.PIPE, stdout=subprocess.PIPE, start_new_session=True)
+            selector = selectors.DefaultSelector()
+            selector.register(child.stdout, selectors.EVENT_READ)
+            release_thread = None
+            def line():
+                self.assertTrue(selector.select(5), "bounded child handshake")
+                return child.stdout.readline().decode().strip()
+            try:
+                self.assertEqual(line(), "READY")
+                birth = guard.proc(child.pid)["start_ticks"]
+                child._slice50_birth = birth
+                with patch.object(guard, "actors", return_value=[]):
+                    self.assertFalse(guard.confirmed_owned_exit(child, birth, [child.pid]))
+                    self.assertFalse(guard.confirmed_owned_exit(child, birth, [child.pid, os.getpid()]))
+                    child.stdin.write(b"G")
+                    child.stdin.flush()
+                    self.assertEqual(line(), "EXE_GONE")
+                    with self.assertRaises(FileNotFoundError):
+                        Path(f"/proc/{child.pid}/exe").resolve(strict=True)
+                    pending = threading.Event()
+                    original_poll = child.poll
+                    def poll():
+                        code = original_poll()
+                        if code is None:
+                            pending.set()
+                        return code
+                    child.poll = poll
+                    def release():
+                        if pending.wait(5):
+                            child.stdin.write(b"E")
+                            child.stdin.flush()
+                    release_thread = threading.Thread(target=release)
+                    release_thread.start()
+                    self.assertTrue(guard.confirmed_owned_exit(child, birth, []))
+                    release_thread.join(5)
+                    self.assertFalse(release_thread.is_alive())
+                    self.assertEqual(child.wait(timeout=5), 0)
+                    self.assertFalse(guard.confirmed_owned_exit(child, None, []))
+                    self.assertFalse(guard.confirmed_owned_exit(child, birth, [os.getpid()]))
+                    self.assertFalse(guard.confirmed_owned_exit(child, birth, [], deadline=time.monotonic() - 1))
+                with patch.object(guard, "actors", return_value=[os.getpid()]):
+                    self.assertFalse(guard.confirmed_owned_exit(child, birth, []))
+            finally:
+                if child.poll() is None:
+                    child.kill()
+                    child.wait(timeout=5)
+                if release_thread:
+                    release_thread.join(5)
+                selector.close()
+                child.stdin.close()
+                child.stdout.close()
 
 
 class RawObservationBindingTests(unittest.TestCase):

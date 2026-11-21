@@ -974,8 +974,10 @@ above; Python source builds now do the same (owner ruling Q38). The rule is
   Close releases Rust ownership, workers and locks; lost native handles and
   allocations may remain as the frozen live set until restart. Opaque native
   host bytes have no established hard bound. Successful close does not assert
-  native residue reclamation. Live-reset survival and post-reset close/exit
-  remain unqualified and held for 0.8.30 review.
+  native residue reclamation. Selected completed-construction post-loss teardown
+  and explicit release evidence is recorded in
+  [0.8.30 Slice50](../plans/0.8.30/features/slice-50/status.md). Reset during
+  inference and same-process CUDA recovery remain unsupported.
 
 TypeScript exposes one concrete class per canonical row in
 `design/errors.md`, matching the Python set below `EngineError`. The maintained

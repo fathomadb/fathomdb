@@ -1849,8 +1849,10 @@ The decision rule is
   are released normally; lost native handles/allocations can remain as the
   frozen live set until restart. Opaque native host bytes have no established
   hard bound, and successful close does not assert native residue reclamation.
-  CPU seam proof does not qualify live-reset survival or post-reset close/exit;
-  those remain unqualified and held for 0.8.30 review.
+  CPU seam proof alone does not qualify live-reset survival. Selected
+  completed-construction post-loss teardown and explicit release evidence is
+  recorded in [0.8.30 Slice50](../plans/0.8.30/features/slice-50/status.md);
+  reset during inference and same-process CUDA recovery remain unsupported.
 
 ### CUDA library check and GPU floor (0.8.28 Slice 31)
 

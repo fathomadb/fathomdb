@@ -13,10 +13,14 @@ never authorize a venue, reset, publication or host change.
   private counters.
 - `busy.py` and `busy.mjs` positively observe typed overload during actual CLS
   inference, preserve its exact output and require subsequent release/reload.
-- `orin-loss.mjs` uses the existing completed-construction process-local reset
+- `orin-loss.py` and `orin-loss.mjs` use the existing completed-construction process-local reset
   actor, immediately calls the new API, requires persistent typed loss and
   performs fresh-process recovery against the committed database. This case
   requires standing Orin release-verification authority and its resource guard.
+
+- `proc_exit_transition.c` reproduces Linux main-thread exit/procfs disappearance
+  before the child becomes waitable. Its bounded CPU controls run through
+  `python3 scripts/tests/test_slice130_soak.py`; they perform no GPU work.
 
 Python runs with its owned installed environment's `bin/python -I`; retain that
 path without resolving its virtual-environment symlink. Node reads

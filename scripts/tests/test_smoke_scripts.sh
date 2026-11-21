@@ -74,7 +74,8 @@ check_common() {
   assert_matches  "$label_prefix: version regex guard on \$1" "$script" \
     '\^\[0-9\]\+\\\.\[0-9\]\+\\\.\[0-9\]\+\(-\[0-9A-Za-z\.-\]\+\)\?\$'
   assert_contains "$label_prefix: mktemp -d for fixture dir" "$script" 'mktemp -d'
-  assert_contains "$label_prefix: EXIT trap cleanup" "$script" "trap 'rm -rf"
+  assert_matches "$label_prefix: EXIT trap registered" "$script" 'trap .* EXIT'
+  assert_matches "$label_prefix: temporary directory cleanup" "$script" 'rm -rf "\$(WORK|work)"'
 }
 
 CRATES="$SMOKE_DIR/smoke-crates-cli.sh"

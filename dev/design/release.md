@@ -273,6 +273,20 @@ GitHub Release job can finalize. Verify that both trusted-publisher identities
 have the dist-tag action in npm before authorizing production. [npm trusted
 publishing](https://docs.npmjs.com/trusted-publishers/)
 
+The maintained recovery workflow also has an opt-in
+`recover_0830_public_smokes` mode for production run `44929252460`, attempt 1,
+immutable source `e3d31f5cdc0df3e32dab9bad151c5ab5c321222c`. It checks the
+original annotated tag, successful publishers/co-tagging and unaffected
+consumers, including the Intel macOS npm step. Its original Intel Python
+step is unqualified despite a success conclusion: Bash 3 aborted before the
+consumer and its EXIT cleanup masked the failure. Fresh corrected Linux and
+both macOS Python smokes, plus macOS ARM npm, must all succeed from the trusted
+control source before promotion. Registry installs still use the unchanged
+public `.30` bytes. The default route continues requiring all original smokes for unaffected
+versions; `.30` requires corrected recovery even after an apparent green rerun;
+normal publication, build and publisher jobs are unchanged. Original failures
+remain evidence. See the [repair plan](../plans/0.8.30/features/slice-20/plan.md#public-smoke-control-repair-during-slice-80).
+
 ## Sources
 
 - `dev/plans/ci-deferred.md` enumerates the pre-0.6.0 workflows being

@@ -289,11 +289,13 @@
       "depends_on": [
         70
       ],
-      "status": "PROPOSED_NOT_COMMISSIONED",
+      "status": "IN_PROGRESS",
       "scope_source": "seq-407",
       "design_refs": [
         "dev/plans/0.8.30/features/slice-75/plan.md"
-      ]
+      ],
+      "commission_source": "seq-414",
+      "evidence": "Whole75 platform/artifact preparation commissioned. Shared execution may supply the two open70 CUDA rows without transferring acceptance or repeating tests.70 closure and75 final readiness still require their actual proof."
     },
     {
       "slice": 80,
@@ -396,6 +398,11 @@
         "id": "slice60-fork-cohort-publication",
         "source": "seq-413",
         "ruling": "Publish these five fork crates: cudarc-fathomdb0.21.0 from clean3509cd6b and candle-{kernels,core,nn,transformers}-fathomdb0.13.0 from the existing verified952edb7d export. Includes the new kernel namespace and successor to the earlier not-now choice. Normal Cargo verification/dependency order and actual public download/checksum/consumer proof apply. FathomDB0.8.30 publication remains separately held."
+      },
+      {
+        "id": "quality-backlog31-and-finish30",
+        "source": "seq-414",
+        "ruling": "Put broad coverage-guided fuzzing and power-loss proof in0.8.31, then finish0.8.30. Continue qualification and normal release delivery; no waiver of remaining CUDA rows or renewed3090 availability is inferred."
       }
     ],
     "unruled": []
@@ -616,12 +623,21 @@
         "Current-pin source72 shared-CUDA basic/overlap real bodies requiring discrete-GPU telemetry"
       ],
       "disposition": "Both rows remain owned by70. Agent/Astra recommend explicit unchanged-criteria transfer to75; no such owner decision has been recorded."
+    },
+    "quality_backlog31": {
+      "source": "seq-414",
+      "record": "dev/plans/0.8.31/quality-backlog.md",
+      "items": [
+        "Broad coverage-guided fuzzing",
+        "Power-loss proof"
+      ],
+      "status": "ALLOCATED_NOT_EXECUTED"
     }
   },
   "release_readiness": {
     "status": "NOT_READY",
     "publication_authorized": false,
-    "scope": "10/20/30/40/50/55/60 complete. Reviewed partial70 source/CPU/long/stress/fidelity work integrated; two current-pin CUDA source-feature rows remain open.75 final platforms/artifacts and separately authorized80 product publication remain."
+    "scope": "10/20/30/40/50/55/60 complete; reviewed partial70 integrated. Two CUDA source-feature rows remain open.75 preparation active; final qualification and normal80 publication/readback must finish. Broad coverage-guided fuzzing and power-loss proof belong to0.8.31 underseq-414."
   },
   "generated_views": [
     {
@@ -688,7 +704,7 @@
     }
   ],
   "coordination_mandate": {
-    "source": "seq-409",
+    "source": "seq-414",
     "sequence": [
       55,
       60,
@@ -697,6 +713,6 @@
       75,
       80
     ],
-    "next_transition": "Resolve the two named70 CUDA source-feature rows or obtain an explicit scope disposition before70 closure. Continue75 then separately authorized80 underseq-409; no blanket waiver or new3090 access."
+    "next_transition": "Complete remaining70 CUDA proof and75 platform/artifact work using shared execution where applicable, then normal80 delivery under the owner direction to finish. Broad coverage-guided fuzzing and power-loss proof are allocated to0.8.31. Expired3090 availability is not renewed implicitly."
   }
 }

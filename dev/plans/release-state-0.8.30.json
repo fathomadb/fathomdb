@@ -1,6 +1,6 @@
 {
   "release": "0.8.30",
-  "release_kind": "Source and artifact qualification complete; normal 0.8.30 delivery authorized",
+  "release_kind": "Published packages and Tegra; final documentation/readback closure in progress",
   "board": "dev/plans/runs/STATUS-0.8.30.md",
   "plan": "dev/plans/0.8.30/plan.md",
   "master": "dev/plans/0.8.30/plan.md",
@@ -425,7 +425,7 @@
     "unruled": []
   },
   "acceptance": {
-    "status": "QUALIFIED_FOR_NORMAL_DELIVERY_WITH_RECORDED_LIMITS",
+    "status": "PUBLIC_PACKAGES_VERIFIED_FINAL_DOCS_PENDING",
     "record": "dev/plans/0.8.30/plan.md",
     "preparation_acceptance": {
       "status": "COMPLETE_WITH_RECORDED_LIMITS",
@@ -453,7 +453,14 @@
       "failed": 2,
       "skipped": 3,
       "excluded": 0,
-      "focused_recovery": "Both failed fixtures independently pass at7299d8be7a0348c809eeb2fb32c42c40649908a6; original full-gate result unchanged. Hosted cancellation, Windows runtime, integrated candidate and registry qualification remain later work."
+      "focused_recovery": "Both failed fixtures independently pass at7299d8be7a0348c809eeb2fb32c42c40649908a6; original full-gate result unchanged. Hosted cancellation, Windows runtime, integrated candidate and registry qualification remain later work.",
+      "delivery_repair": {
+        "source_commit": "43de86365794252504ccf92d9387f63d12bff83c",
+        "record": "dev/plans/0.8.30/features/slice-20/status.md",
+        "red_commit": "45be3abc854381b5bfdd5a03b5faeea33d572865",
+        "reviews": "Astra-medium design PASS after FIX1; Sol6.2-high source/control and parent Codex PASS; actual recovered consumers independently verified by Terra.",
+        "scope": "Bash3 positional optional arguments and completion/cleanup status fix; bound original run/attempt/Intel npm step, affected-only consumers, cancellation-safe unchanged OIDC/GitHub Release. Original false-green and resolution failures retained."
+      }
     },
     "slice30": {
       "status": "SOURCE_AND_NATIVE_VERIFIED_WITH_RECORDED_LIMITS",
@@ -670,14 +677,26 @@
         "Power-loss proof"
       ],
       "status": "ALLOCATED_NOT_EXECUTED"
+    },
+    "slice80": {
+      "status": "PUBLIC_DELIVERY_VERIFIED_FINAL_DOCS_PENDING",
+      "record": "dev/plans/0.8.30/features/slice-80/status.md",
+      "product_commit": "e3d31f5cdc0df3e32dab9bad151c5ab5c321222c",
+      "control_repair_commit": "43de86365794252504ccf92d9387f63d12bff83c",
+      "production_run": 44929252460,
+      "recovery_run": 44933445558,
+      "tegra_run": 44931574481,
+      "scope": "All immutable packages published. Original successful public consumers plus four actual recovered runtime bodies qualify the eight required consumer scopes; pinned OIDC latest promotion and five GitHub wheel assets passed. Same-run Tegra seven-job route/public wheel and Node policies passed. Final current docs deployment/readback remains.",
+      "limits": "Original production failure and Bash3 false-green preserved. History advisory remains100expected/171observed/71unclassified; focused190-commit tag range scan exit0/zero findings, not a full-history clearance. No product rebuild, republish, retag, GPU or full-gate replay for the verifier repair."
     }
   },
   "release_readiness": {
-    "status": "QUALIFIED_AWAITING_NORMAL_DELIVERY",
+    "status": "PUBLIC_PACKAGES_VERIFIED_FINAL_DOCS_PENDING",
     "publication_authorized": true,
     "authorization_source": "seq-414",
     "qualification_source_commit": "cd3a6caaa61fca8625f7468f4dae8341b958a241",
-    "scope": "10/20/30/40/50/55/60/70/75 complete with recorded limits.80 must bind the exact reviewed main-reachable candidate, protect the normal tag route, publish and verify public consumers/Pages before declaring completion. GPU1 is foreign; GPU0 only. Broad coverage-guided fuzzing and power-loss proof remain0.8.31 underseq414."
+    "scope": "Core registry and same-run Tegra publication/public consumers, npm latest promotion and GitHub wheel assets verified. Publish updated current docs together with the retained .30 Tegra pair, verify live pages, then close80. All release-owned GPU processes/listeners stopped; temporary169 credentials/registration removed; existingOrin22 registration preserved/offline. Historical failures/advisory remain explicit.",
+    "pages_publication_authorized": true
   },
   "generated_views": [
     {
@@ -753,6 +772,16 @@
       75,
       80
     ],
-    "next_transition": "Execute normal80 publication and public consumers underseq414 using accepted75 qualification and the exact reviewed main-reachable candidate. Preserve GPU1 foreign work and useGPU0 only. Public registry/Pages readback and owned-runner cleanup remain required; no fresh generic publication approval is open."
+    "next_transition": "Deploy the final current .30 docs with the retained actual Tegra pair, verify public pages and final GitHub Release notes, then close80 and clean inactive owned worktrees. All package and GPU execution is complete; no further publication approval, product rebuild or model run is needed."
+  },
+  "published": {
+    "tag": "v0.8.30",
+    "tag_object": "fbae0d3319fb31bb62360977fded676f2dea8557",
+    "tag_commit": "e3d31f5cdc0df3e32dab9bad151c5ab5c321222c",
+    "published_on": "2026-11-21",
+    "npm_dist_tag": "latest",
+    "release_run_id": 44929252460,
+    "recovery_run_id": 44933445558,
+    "tegra_run_id": 44931574481
   }
 }

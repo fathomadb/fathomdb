@@ -1,6 +1,6 @@
 ---
 title: Slice 80 authorized delivery and registry consumers
-status: PROPOSED
+status: IN_PROGRESS
 slice: 80
 target_release: 0.8.30
 ---
@@ -11,7 +11,9 @@ Owner seq-414 directs normal release completion after qualification. Seq-415
 renews3090 availability; seq-416 limits Orin transfers to this session. Broad
 coverage-guided fuzzing and power-loss proof are allocated to0.8.31.
 Direct Astra-medium passed this updated whole plan after one consolidated
-FIX-1; final75 acceptance remains the entry gate for actual delivery.
+FIX-1. Slice75 is accepted at `cd3a6caaa61fca8625f7468f4dae8341b958a241`;
+parent commission `623f982798d2a2eddd396bbe104e81139a753741` is the clean,
+main-reachable entry and proposed immutable publication subject.
 
 Deliver one qualified, immutable 0.8.30 candidate through the normal release
 workflow and verify the exact versions from public registries and Pages.
@@ -68,28 +70,76 @@ qualification of those flows and the exact-first-tag route guard. Slice75
 qualifies the candidate consumer bytes;80 requires their actual authorized
 registry processes and route. Archive/local installs cannot supply that proof.
 
-The prospective package-input candidate is
-`53400f69d29cbc5029f0c759d58a5edb1f76e874`, already on remote main and
-release/0.8.30.75 still owns its final artifact acceptance. Retain the6d native
-matrix and source proof within their unchanged executable scope; the later
-README/control/acceptance-record delta is explicit. Final package bytes and
-public installations need their own exact identities. Do not replay passing
-native/source tests for that metadata delta.
+## Entry reconciliation and concrete binding
 
-The normal protected rehearsal is44922568609. The obsolete6d rehearsal was
-cancelled before GPU execution; automatic duplicate CI runs were cancelled.
-Keep one current rehearsal and recover only failed/unrun jobs on a demonstrated
-cause. The existing temporary user runner169 uses group3 and the selected3090;
-stop it and remove its own registration after required delivery work. Preserve
-the disabled service, unrelated listeners, driver and primary CUDA12.6.
+Compare the earlier draft `f7fb1da9a81ee226c70ae347fa2fab3e64ac3c25`
+with entry `623f982798d2a2eddd396bbe104e81139a753741`. Slices10/20 closed
+selected dependency/tooling preparation, exact registry consumers, shared pinned
+OIDC promotion, first-tag guard and useful diagnostics. Slices30/40/50 closed
+correctness, measured latency and explicit module release;60 published all five
+qualified fork crates;70 completed integrated source qualification;75 accepted
+the final native/platform, source-archive, CUDA and Orin package scope. The
+allocated prework1/3/6/7 drafts are reconciled through those owning exits; no
+additional product feature, runtime migration or publication framework is needed.
+Current README and42 active public documents already describe0.8.30 source;
+actual published-doc receipt remains0.8.29 until this delivery succeeds.
 
-The exactv0.8.30 CUDA environment tag policy is present; required reviewers
-remain intact. After the tag exists, add only its exact selected workflow to
-group3 and pass the marker-free route check before protected GPU approval.
-Pages already permits main. Authorize and verify actual0.8.30 public docs only
-after the corresponding delivery, retaining historical download evidence.
-Converge provisional changelog/support wording in normal finalization without
-retagging or repeating unchanged runtime qualification.
+Product/producer runtime subject remains
+`53400f69d29cbc5029f0c759d58a5edb1f76e874`. The final tag may include the later
+reviewed README, control and acceptance-record delta; those changes leave the
+executable scope unchanged. Retain6d native/source proof and actual source75
+scope, without replaying qualification for metadata. AxisW is0.8.30, AxisE
+is0.8.0; exact Cudarc3509cd6b, Candle/kernel952edb7d and PTX0 remain unchanged.
+All five fork packages are already public and verified; do not republish them.
+
+Normal protected rehearsal44922568609 succeeded. Canonical production
+`build-cuda-linux-x64-gnu` runs `cuda-preflight.sh --rerank-cuda`, so its applicable
+shipping proof is the v3 embed+rerank cohort, not the base cohort. Accepted75
+records v3 platform170228211cb33b89e27bb3c33a9a1550345a2b9348b03f9da0e2c1c12121dca2,
+addonafe6eab14c2344fe82378b267985a342da3b90f8ec12cbd042f48cd7d0062403,
+and wheel577a1ff5ba72b405567b9600bbd30f240edd56d3ca687743bf3e3ae9ad0e3b19.
+Final docs-updated main a6aa14b451e4d9278179ebb8dd3668600c806adee41b3fc20b5b29a861f69943
+differs from measured68482 main only in README;44 other payloads match.
+Production builds the exact tag and joins actual shipping identities/applicability
+to those proofs. Changed native bytes require affected-byte verification; a
+README-only delta does not require native replay. Preserve75's original failed,
+skipped, cancelled and timeout outcomes and scoped recoveries; no whole-hosted
+CI green claim follows.
+
+Parent owns tag creation/push, canonical JSON/board/ledgers, protected approvals,
+GPU/Pages control-plane and both runner listeners.80 owns publication monitoring,
+coordinated normal Tegra dispatch, independent actual-delivery verification and
+final docs/status edits in its own checkout. Normal publication is authorized
+byseq414; no fresh generic production approval is open. Parent binds the final
+reviewed main-reachable SHA. After the tag exists, parent fresh-reads group3,
+adds only exact `release.yml@refs/tags/v0.8.30`, preserves all restrictions and
+passes the marker-free route check before GPU approval. Exact environment tag
+policy and reviewers remain present. Parent's temporary group3 runner169 uses
+GPU0 only, UUID `GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b`; GPU1 is foreign.
+Parent removes only its temporary169 registration/credentials after delivery.
+
+Matching0.8.30 Tegra publication is selected. Parent verified the exact Pages
+branch policy `release/0.8.30` (policy67692074); main policy remains intact.
+Existing Orin runner22 is live under parent's foreground listener ownership;
+its registration, credentials, service and foreign Memex listener stay intact.
+After final branch/main freeze and public npm0.8.30 visibility,80 dispatches
+`jetson-tegra-cuda-evidence.yml` once with exact branch SHA and
+`publish_to_pages=true`. Its wheel/addon must be built in that same run, not
+substituted from local75 packages. DriverlessARM and public installed matching
+pair consumers must pass. Parent holds main fixed until both source-currency
+checks and site build/deployment finish: the candidate must contain freshly
+fetched current main.80 signals when that constraint is released.
+
+After actual Tegra public installs pass,80 adds the delivered pair to the
+existing retained manifest, preserving older artifacts. Reconcile published
+support/install/CHANGELOG wording, add the accepted0.8.30 schema37 receipt to
+`check-public-doc-truth.py` and mechanically advance
+`dev/platform-capabilities.json` only at actual delivery. Parent owns the
+canonical Pages authorization flag and integrates those final docs before the
+normal docs Pages deployment/public readback. Authorization-only skipped docs
+run44928516448 is not actual0.8.30 public-page proof. Use scoped Markdown,
+public-truth, generated/state, glibc-floor and strict MkDocs checks as applicable.
+No docs-only native/rehearsal or full-source regression is needed.
 
 ## Design, execution and recovery
 
@@ -140,8 +190,8 @@ retagging or repeating unchanged runtime qualification.
 
 ## Remaining entry conditions
 
-Accept Slice75's actual qualification, bind its exact reviewed candidate, and
-verify the specified tag/group/environment sequence before GPU approval.
+Slice75 qualification is accepted. Bind the exact reviewed main-reachable
+candidate and verify the specified tag/group/environment sequence before GPU approval.
 Resolve any missing required smoke or route before publication. Seq-414 already
 directs normal release completion; no fresh generic production approval is open.
 Any selected matching0.8.30 Tegra delivery requires its own applicable75 package

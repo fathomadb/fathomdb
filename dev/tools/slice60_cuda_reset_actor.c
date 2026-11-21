@@ -71,12 +71,28 @@ static napi_value coordinate(napi_env env, napi_callback_info info) {
 #define CHECK(call, label) do { status = (call); if (status != CUDA_SUCCESS) { phase = (label); goto finish; } } while (0)
     CHECK(cuDeviceGet_fn(&device, 0), "device");
     CHECK(cuDeviceGetUuid_fn(&uuid, device), "uuid");
+    char uuid_text[41] = "GPU-";
+    size_t offset = 4;
+    for (size_t i = 0; i < 16; ++i) {
+        if (i == 4 || i == 6 || i == 8 || i == 10) uuid_text[offset++] = '-';
+        snprintf(uuid_text + offset, sizeof(uuid_text) - offset, "%02x", (unsigned int)(unsigned char)uuid.bytes[i]);
+        offset += 2;
+    }
+    const char *selected_uuid = getenv("FATHOMDB_SELECTED_UUID");
+    if (!selected_uuid || strcmp(selected_uuid, uuid_text)) return refuse(env, "selected-uuid-mismatch");
     CHECK(cuDevicePrimaryCtxGetState_fn(device, &flags, &active), "primary-state");
     if (!active) return refuse(env, "primary-inactive-before-retain");
     CHECK(cuCtxGetCurrent_fn(&previous), "previous-context");
     CHECK(cuDevicePrimaryCtxRetain_fn(&context, device), "retain-existing-primary");
     retained = true;
     CHECK(cuCtxGetId_fn(context, &id), "retained-context-id");
+    const char *expected_id = getenv("FATHOMDB_EXPECTED_CONTEXT_ID");
+    char context_text[32];
+    snprintf(context_text, sizeof(context_text), "%" PRIu64, (uint64_t)id);
+    if (expected_id && strcmp(expected_id, context_text)) {
+        precondition = "expected-context-id-mismatch";
+        goto finish;
+    }
     if (previous && previous != context) {
         precondition = "prior-context-mismatch";
         goto finish;
@@ -101,13 +117,6 @@ finish:
 #undef CHECK
     if (phase) return native_failure(env, phase, status, retained, released);
     if (precondition) return refuse(env, precondition);
-    char uuid_text[41] = "GPU-";
-    size_t offset = 4;
-    for (size_t i = 0; i < 16; ++i) {
-        if (i == 4 || i == 6 || i == 8 || i == 10) uuid_text[offset++] = '-';
-        snprintf(uuid_text + offset, sizeof(uuid_text) - offset, "%02x", (unsigned int)(unsigned char)uuid.bytes[i]);
-        offset += 2;
-    }
     char report[256];
     snprintf(report, sizeof(report), "{\"context_id\":\"%" PRIu64 "\",\"uuid\":\"%s\",\"mode\":\"%s\",\"balanced_release\":true}", (uint64_t)id, uuid_text, mode);
     if (napi_create_string_utf8(env, report, NAPI_AUTO_LENGTH, &output) != napi_ok) return NULL;

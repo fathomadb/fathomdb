@@ -601,3 +601,26 @@ ARM thin-SDK driverless lifecycle with the actual matching generic platform
 artifact and support/docs convergence. X86 installed driverless SDK and CLI
 proof remains separately valid. This follows the existing ADR and leaves
 F32 tolerances, PTX0 selection and source/publication controls unchanged.
+
+## Pre-fault launcher and identity guards
+
+Direct Astra-medium focused DESIGN PASS permits the qualification-only launcher
+extension before any live fault. Healthy remains the default. An explicit
+reset-refuse/reset-drop campaign also requires a separately supplied owner ruling
+and a shared monotonic venue deadline capped at30minutes. Each language and mode
+gets its own fresh DB/output directory and immediate separate-process recovery.
+All children must end normally with their case-specific markers. Product/SDK
+faults require exactly one parsed, identity-matched native loss snapshot; the
+raw Candle clone requires its separate real last-owner/loss marker instead.
+
+Before the fault, installed Orin children require exactly3live model owners,
+a3GiB configured cap and USED≤cap. Owning Rust model tests require their actual
+2owners; the Candle clone keeps its selected96MiB pool. The Node bridge must
+compare the selected UUID before retaining, and any available private context ID
+before binding/synchronizing/resetting, then balance only its own retain once.
+Synthetic driver-ABI tests must fail on wrong UUID/context without a reset.
+Original fault resource floors apply unless the owner explicitly accepts a
+concrete exception. Ordinary-only resource/observed-peer rulings do not grant
+fault authority. Orin observed-only visibility and unavailable total GPU bytes
+need explicit disposition with exact final subjects and commands. Seq410 still
+excludes actual resets. No live fault has run.

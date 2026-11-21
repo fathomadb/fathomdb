@@ -36,23 +36,37 @@ fn completed_models_preserve_healthy_or_coordinated_loss_drop_contract() {
         .score("What is the capital of France?", "Paris.")
         .expect("healthy CUDA rerank")
         .is_finite());
-    embedder
-        .device
-        .as_cuda_device()
-        .expect("selected CUDA device")
-        .cuda_stream()
-        .context()
-        .synchronize()
-        .expect("all primary-context streams completed");
+    let stream = embedder.device.as_cuda_device().expect("selected CUDA device").cuda_stream();
+    let context = stream.context();
+    let uuid_hex: String = context
+        .uuid()
+        .expect("actual selected UUID")
+        .bytes
+        .iter()
+        .map(|byte| format!("{:02x}", *byte as u8))
+        .collect();
+    let uuid = format!(
+        "GPU-{}-{}-{}-{}-{}",
+        &uuid_hex[..8],
+        &uuid_hex[8..12],
+        &uuid_hex[12..16],
+        &uuid_hex[16..20],
+        &uuid_hex[20..]
+    );
+    assert_eq!(std::env::var("FATHOMDB_SELECTED_UUID").as_deref(), Ok(uuid.as_str()));
+    context.synchronize().expect("all primary-context streams completed");
     let lifetime = crate::cuda_lifetime::existing(0).expect("production shared generation");
     assert!(lifetime.loss().is_none());
+    assert_eq!(context.primary_lifetime().unwrap().recorded_id(), lifetime.recorded_id());
+    drop(stream);
     let before = crate::cuda_pool_policy::observe_pool();
     if cfg!(all(target_arch = "aarch64", target_os = "linux")) {
         assert_eq!(before.status, "private");
         assert_eq!(before.live_models_after, Some(2));
-        assert!(before.used_current_bytes.unwrap() < 8 << 30);
+        assert_eq!(before.configured_max_size_bytes, Some(3 << 30));
+        assert!(before.used_current_bytes.unwrap() <= 3 << 30);
     }
-    println!("completed-models: ready synchronized model-count=2 mode={mode} pool={before:?}");
+    println!("completed-models: ready synchronized model-count=2 mode={mode} uuid={uuid} context_id={} pool={before:?}", lifetime.recorded_id());
     if mode != "healthy" {
         let ordinal = result::device::get(0).expect("selected device ordinal");
         // The sole test thread owns every completed model and clone. Calls above

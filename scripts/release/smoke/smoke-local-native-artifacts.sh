@@ -16,6 +16,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 PYTHON_BASE="${FATHOMDB_SMOKE_PYTHON:-python3}"
 NODE_CMD="${FATHOMDB_SMOKE_NODE:-node}"
 LIGHTWEIGHT="${FATHOMDB_SMOKE_LIGHTWEIGHT:-0}"
+main_version="$("$NODE_CMD" -p 'JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8")).version' "$TS_DIR/package.json")"
 
 wheel_paths=("$WHEEL_DIR"/*.whl)
 if [ "${#wheel_paths[@]}" -ne 1 ] || [ ! -f "${wheel_paths[0]}" ]; then
@@ -275,9 +276,8 @@ else:
 engine.close()
 print("local Python wheel runtime validation: ok")
 PY
-wheel_version="$("$PYTHON" -c 'import importlib.metadata; print(importlib.metadata.version("fathomdb"))')"
-"$PYTHON" -I "$REPO_ROOT/scripts/release/smoke/registry-python.py" "$wheel_version" "$WORK/python-persisted.fdb" write
-"$PYTHON" -I "$REPO_ROOT/scripts/release/smoke/registry-python.py" "$wheel_version" "$WORK/python-persisted.fdb" reopen
+"$PYTHON" -I "$REPO_ROOT/scripts/release/smoke/registry-python.py" "$main_version" "$WORK/python-persisted.fdb" write
+"$PYTHON" -I "$REPO_ROOT/scripts/release/smoke/registry-python.py" "$main_version" "$WORK/python-persisted.fdb" reopen
 printf 'slice75-native-python-result: markers=3 write_search=pass dependency=pass frozen_read=pass\n'
 
 MAIN="$WORK/main"
@@ -296,7 +296,8 @@ cp "$TS_DIR/fathomdb.$NAPI_LABEL.node" "$PLATFORM/fathomdb.$NAPI_LABEL.node"
 bash "$REPO_ROOT/scripts/release/npm-inject-optional-deps.sh" "$MAIN" "$TS_DIR/npm"
 
 platform_name="$("$NODE_CMD" -p "require(process.argv[1]).name" "$PLATFORM/package.json")"
-main_version="$("$NODE_CMD" -p "require(process.argv[1]).version" "$MAIN/package.json")"
+staged_main_version="$("$NODE_CMD" -p "require(process.argv[1]).version" "$MAIN/package.json")"
+test "$staged_main_version" = "$main_version"
 injected="$("$NODE_CMD" -p "require(process.argv[1]).optionalDependencies[process.argv[2]] || ''" \
   "$MAIN/package.json" "$platform_name")"
 if [ "$injected" != "$main_version" ]; then

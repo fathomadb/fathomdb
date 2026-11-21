@@ -164,3 +164,12 @@ deps-missing checkout, so it also proves the "never auto-install" guarantee.
 | `package.json`      | pins `@mermaid-js/mermaid-cli` |
 | `package-lock.json` | locked dependency tree |
 | `node_modules/`     | git-ignored; created by `install` |
+
+## Qualified dependency and browser pair
+
+The maintained lock uses MermaidCLI12.2.0, Mermaid12.3.0/parser2.0.1,
+Puppeteer25.18.1/chromium-bidi157.0.8090-0 and Zod4.6.7. It has no forced
+Zod override. The official paired Chrome for Testing is157.0.8103.78;
+set `PUPPETEER_EXECUTABLE_PATH` to an approved existing copy when running the
+render and sanitizer tests. A cache containing Chrome150 is not that pairing.
+The normal no-unattended-download rule above still applies.

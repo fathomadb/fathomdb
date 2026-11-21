@@ -238,7 +238,7 @@ print("local Python wheel runtime validation: ok")
   Copy-Item (Join-Path $PlatformPackageDirectory 'LICENSE') $platform
   Copy-Item $native (Join-Path $platform "fathomdb.$NapiLabel.node")
 
-  & bash (Join-Path $repoRoot 'scripts/release/npm-inject-optional-deps.sh') $main $npmRoot
+  & bash (Join-Path $repoRoot 'scripts/release/npm-inject-optional-deps.sh') $main (Join-Path $TsDirectory 'npm')
   if ($LASTEXITCODE -ne 0) { throw 'smoke-local-native-artifacts: optionalDependency injection failed' }
 
   $platformPackage = Get-Content (Join-Path $platform 'package.json') -Raw | ConvertFrom-Json
@@ -465,6 +465,22 @@ console.log("local N-API package runtime validation: ok");
     }
   }
   Write-Output ('slice73-windows-napi-result:' + ($result | ConvertTo-Json -Depth 6 -Compress))
+  $version = $mainPackage.version
+  $pythonConsumer = Join-Path $repoRoot 'scripts/release/smoke/registry-python.py'
+  $pythonStore = Join-Path $work 'python-persisted.fdb'
+  & $python -I $pythonConsumer $version $pythonStore write
+  if ($LASTEXITCODE -ne 0) { throw 'installed Python write failed' }
+  & $python -I $pythonConsumer $version $pythonStore reopen
+  if ($LASTEXITCODE -ne 0) { throw 'installed Python reopen failed' }
+  $nodeConsumer = Join-Path $repoRoot 'scripts/release/smoke/registry-node.mjs'
+  & node $nodeConsumer write $consumer $version
+  if ($LASTEXITCODE -ne 0) { throw 'installed Node write failed' }
+  & node $nodeConsumer reopen $consumer $version
+  if ($LASTEXITCODE -ne 0) { throw 'installed Node reopen failed' }
+  if ($env:FATHOMDB_NATIVE_ARTIFACT_DIR) {
+    New-Item -ItemType Directory -Force -Path $env:FATHOMDB_NATIVE_ARTIFACT_DIR | Out-Null
+    Copy-Item $wheel[0].FullName, (Join-Path $main $mainTarball), (Join-Path $platform $platformTarball) $env:FATHOMDB_NATIVE_ARTIFACT_DIR
+  }
   Write-Output 'smoke-local-native-artifacts: ok - local wheel + matched N-API package + retained modules validated'
 } finally {
   Remove-Item -LiteralPath $work -Recurse -Force

@@ -17,9 +17,15 @@ targets those three interpreters explicitly.
 
 ## Supported Node versions
 
-Node **25.x**. CI, development, and the release build use exact Node **25.9.0**.
+Published0.8.29 supports Node **25.x**; its release build uses Node **25.9.0**.
+Development and candidate verification use Node **26.13.1**.
 The package declares `engines.node = ">=25 <26"`. Compatibility with other
 Node release lines is not part of the 0.8.29 contract.
+
+The0.8.30 candidate declares `>=25 <27`. Node26 public support is pending
+final installed qualification on the five release targets, including the
+CUDA-capable Linux x64 package. This candidate statement does not change the
+published0.8.29 support contract.
 
 ## Supported Rust toolchain
 

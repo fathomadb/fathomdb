@@ -790,6 +790,17 @@ jobs:
         run: |
           cargo test -p fathomdb-engine --features operator --test erasure_completeness erasure_busy_cross_process_windows_yields_typed_diagnostic -- --exact --nocapture 2>&1 | Tee-Object -FilePath "$env:RUNNER_TEMP\slice60-windows-wal-diagnostic.log"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Execute real Windows canonical and verbatim path controls
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          foreach ($selector in @('tests::local_canonical_path_does_not_strand_idle_wal_readers', 'tests::unpatched_sqlite_refuses_unsimplifiable_local_verbatim_paths')) {
+            $output = @(cargo test --locked -p fathomdb-engine --features operator --lib $selector -- --exact --nocapture 2>&1)
+            $exit = $LASTEXITCODE
+            $text = $output -join "`n"
+            Write-Output $text
+            if ($exit -ne 0 -or $text -notmatch '1 passed; 0 failed') { throw "Windows path selector did not execute/pass: $selector exit=$exit" }
+          }
       - name: Upload cross-process WAL checkpoint diagnostics
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -1267,7 +1278,7 @@ jobs:
             label: win32-x64-msvc
             manylinux: "auto"
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - name: Require the exact release candidate before native validation
         if: github.event_name == 'workflow_dispatch'
@@ -1306,6 +1317,7 @@ jobs:
           manylinux: ${{ matrix.manylinux }}
           working-directory: src/python
       - name: Build local N-API artifact and TypeScript package
+        if: matrix.label != 'linux-arm64-gnu'
         working-directory: src/ts
         env:
           CARGO_BUILD_TARGET: ${{ matrix.target }}
@@ -1313,9 +1325,55 @@ jobs:
           npm ci
           npm run build:native
           npm exec -- tsc -p tsconfig.build.json
+      - name: Provision release ARM64 manylinux producer
+        if: matrix.label == 'linux-arm64-gnu'
+        run: bash scripts/release/provision-napi-manylinux.sh
+      - name: Build release ARM64 addon and check floor
+        if: matrix.label == 'linux-arm64-gnu'
+        shell: bash
+        run: |
+          set -euo pipefail
+          . scripts/release/napi-artifact-contract.sh
+          docker run --rm --platform "$NAPI_MANYLINUX_PLATFORM" \
+            --user "$(id -u):$(id -g)" \
+            -v "$PWD:/workspace" -w /workspace/src/ts \
+            -e CARGO_BUILD_TARGET=${{ matrix.target }} \
+            -e HOME=/tmp -e npm_config_cache=/tmp/npm-cache \
+            -e CARGO_HOME=/tmp/fathomdb-cargo -e CARGO_TARGET_DIR=/tmp/fathomdb-cargo-target \
+            -e NAPI_RUST_VERSION -e NAPI_NODE_VERSION -e NAPI_RUSTUP_TOOLCHAIN \
+            -e "RUSTUP_TOOLCHAIN=$NAPI_RUSTUP_TOOLCHAIN" \
+            "$NAPI_MANYLINUX_IMAGE" \
+            sh -ceu 'node --version | grep -F "v$NAPI_NODE_VERSION"; rustc --version | grep -F "rustc $NAPI_RUST_VERSION"; test ! -w /opt/fathomdb/rustup; npm ci && npm run build:native'
+          . scripts/release/glibc-floor-contract.sh
+          bash scripts/check-glibc-floor.sh --floor "$GLIBC_FLOOR" src/ts/fathomdb.linux-arm64-gnu.node
+          cd src/ts
+          npm ci
+          npm exec -- tsc -p tsconfig.build.json
+      - name: Execute target-native Rust SDK and build CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo test --locked -p fathomdb-sdk --test slice55_shared_behavior -- --nocapture
+          cargo build --locked -p fathomdb-cli --bin fathomdb
+      - name: Execute candidate CLI diagnostics
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+          LABEL: ${{ matrix.label }}
+        run: |
+          set -euo pipefail
+          suffix=''
+          if [ "$LABEL" = win32-x64-msvc ]; then suffix='.exe'; fi
+          cli="target/debug/fathomdb$suffix"
+          version="$(python -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["workspace"]["package"]["version"])')"
+          python scripts/release/smoke/candidate-cli.py "$cli" "$version"
+          mkdir -p "$RUNNER_TEMP/candidate-artifacts"
+          cp "$cli" "$RUNNER_TEMP/candidate-artifacts/"
       - name: Validate local wheel and N-API package
         if: matrix.label != 'win32-x64-msvc'
         shell: bash
+        env:
+          FATHOMDB_NATIVE_ARTIFACT_DIR: ${{ runner.temp }}/candidate-artifacts
         run: |
           bash scripts/release/smoke/smoke-local-native-artifacts.sh \
             "$PWD/src/python/dist" \
@@ -1325,6 +1383,8 @@ jobs:
       - name: Validate local wheel and N-API package (Windows)
         if: matrix.label == 'win32-x64-msvc'
         shell: pwsh
+        env:
+          FATHOMDB_NATIVE_ARTIFACT_DIR: ${{ runner.temp }}/candidate-artifacts
         run: ./scripts/release/smoke/smoke-local-native-artifacts.ps1 -WheelDirectory "$PWD/src/python/dist" -TsDirectory "$PWD/src/ts" -PlatformPackageDirectory "$PWD/src/ts/npm/${{ matrix.label }}" -NapiLabel "${{ matrix.label }}" -RetainedTestManifest "$PWD/scripts/release/smoke/slice73-windows-napi-modules.json"
       - name: Write exact-candidate native artifact receipt
         shell: bash
@@ -1353,6 +1413,13 @@ jobs:
         with:
           name: native-artifact-receipt-${{ matrix.label }}
           path: ${{ runner.temp }}/native-artifact-receipt-${{ matrix.label }}.json
+          if-no-files-found: error
+
+      - name: Retain actual candidate packages and CLI
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: candidate-artifacts-${{ matrix.label }}
+          path: ${{ runner.temp }}/candidate-artifacts
           if-no-files-found: error
 
   collect-native-artifact-receipts:

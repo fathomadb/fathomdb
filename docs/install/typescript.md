@@ -13,7 +13,9 @@ platform-tagged `.node` binary at load time.
 
 ## Requirements
 
-- Node **25.x** (release CI uses Node 25.9.0).
+- Published0.8.29 requires Node **25.x** (release builds use Node25.9.0).
+  The0.8.30 candidate declares Node25/26; final target-native installed
+  qualification must pass before Node26 support is announced.
 - The `0.8.29` npm package supports Linux
   `x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu`, macOS
   `x86_64-apple-darwin` and `aarch64-apple-darwin`, and Windows

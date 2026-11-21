@@ -752,9 +752,9 @@ class Slice85InstalledRuntimeContractTest(unittest.TestCase):
 
 
 class Slice85NodeSupportContractTest(unittest.TestCase):
-    def test_package_and_docs_support_only_node_25(self) -> None:
+    def test_package_candidate_supports_node_25_and_26(self) -> None:
         package = json.loads((ROOT / "src/ts/package.json").read_text(encoding="utf-8"))
-        self.assertEqual(package.get("engines", {}).get("node"), ">=25 <26")
+        self.assertEqual(package.get("engines", {}).get("node"), ">=25 <27")
         install = (ROOT / "docs/install/typescript.md").read_text(encoding="utf-8")
         compatibility = (ROOT / "docs/compatibility/index.md").read_text(
             encoding="utf-8"

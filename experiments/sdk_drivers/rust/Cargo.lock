@@ -678,7 +678,7 @@ checksum = "9f1f227452a390804cdb637b74a86990f2a7d7ba4b7d5693aac9b4dd6defd8d6"
 
 [[package]]
 name = "fathomdb-embedder"
-version = "0.8.29"
+version = "0.8.30"
 dependencies = [
  "candle-core-fathomdb",
  "candle-nn-fathomdb",
@@ -700,7 +700,7 @@ version = "0.8.0"
 
 [[package]]
 name = "fathomdb-engine"
-version = "0.8.29"
+version = "0.8.30"
 dependencies = [
  "dunce",
  "fathomdb-embedder",
@@ -719,21 +719,21 @@ dependencies = [
 
 [[package]]
 name = "fathomdb-query"
-version = "0.8.29"
+version = "0.8.30"
 dependencies = [
  "sha2 0.11.0",
 ]
 
 [[package]]
 name = "fathomdb-schema"
-version = "0.8.29"
+version = "0.8.30"
 dependencies = [
  "rusqlite",
 ]
 
 [[package]]
 name = "fathomdb-sdk"
-version = "0.8.29"
+version = "0.8.30"
 dependencies = [
  "fathomdb-embedder",
  "fathomdb-embedder-api",

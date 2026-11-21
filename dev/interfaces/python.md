@@ -1335,6 +1335,14 @@ coherence. Refusals use `GraphExpansionError` with code
 `FDB_GRAPH_EXPANSION`, `reason`, and `field_path`; frozen authentication and
 state failures remain `FrozenReadError`.
 
+Query seeds use the eligible canonical-node body FTS result in the same reader
+transaction, ordered by BM25 then write cursor and bounded by the requested
+ranked limit before duplicate logical IDs are removed. They do not invoke the
+embedder, vector retrieval, CE reranking or a helper search route. Explicit
+logical seeds retain caller order. The graph walk then applies its own direction,
+kind, validity, eligibility and work bounds; this is separate from the legacy
+`search_expand` / `searchExpand` convenience helpers.
+
 ## Exact graph artifact evidence
 
 Set `GraphExpandRequestV1.include_evidence=True` only with a

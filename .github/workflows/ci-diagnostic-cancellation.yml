@@ -38,6 +38,7 @@ jobs:
           AGENT_LOG_DIR="$RUNNER_TEMP/cancellation-probe"
           export AGENT_LOG_DIR
           mkdir -p "$AGENT_LOG_DIR"
+          exec 3>&1
           run_suite cancel-pass true
           # shellcheck disable=SC2016
           run_suite cancel-fail bash -c '
@@ -48,6 +49,6 @@ jobs:
             printf "error: final complete compiler diagnostic 251\n"
             exit 101
           '
-          run_suite cancel-block bash -c 'printf "CANCELLATION_PROBE_READY\n"; exec sleep 600'
+          run_suite cancel-block bash -c 'printf "CANCELLATION_PROBE_READY\n" >&3; exec sleep 600'
           run_suite cancel-unrun bash -c 'printf "CANCELLATION_PROBE_UNRUN_EXECUTED\n"'
           suite_summary_and_exit

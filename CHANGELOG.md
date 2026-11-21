@@ -10,14 +10,19 @@ AC-050c) gates merges against this invariant.
 
 ## Unreleased
 
+## 0.8.30 — candidate
+
+Registry publication remains pending. The candidate is under final platform and
+artifact qualification; this heading does not declare release readiness.
+
 ### Changed
 
 - Hybrid search checks matching text rows for eligibility before ranking on
   the optimized node-only path, avoiding a full scan of canonical nodes.
 
-- Development and test use Node.js 26.13.1 with npm 11.20.0. The published
-  TypeScript SDK still requires Node `>=25 <26`. Node 26 SDK support awaits
-  Slice 70 qualification.
+- Development and test use Node.js 26.13.1 with npm 11.20.0. The0.8.30 candidate
+  TypeScript SDK declares Node `>=25 <27`; Node26 promotion requires the final
+  installed platform qualification in Slice75. Published0.8.29 remains Node25.
 - Updated the search guide to describe stored record/version identity and
   nullable hit provenance. Clarified checkout-owned native Python setup and
   developer verification.
@@ -30,6 +35,13 @@ AC-050c) gates merges against this invariant.
   workflow and verifies `latest` before finalization. Exact-version Rust,
   Python and Node consumer smokes verify persisted data across process exits.
 
+### Added
+
+- Explicit `release_models()` / `releaseModels()` drops the standalone CLS and
+  reranker model caches after admitted calls complete. Busy calls refuse without
+  clearing caches; later healthy inference reloads them. Engine-owned Mean
+  models and terminal CUDA-loss policy retain their separate lifetimes.
+
 ### Fixed
 
 - MCP feedback preserves attribution to the returned revision when later
@@ -38,6 +50,9 @@ AC-050c) gates merges against this invariant.
   UTF-8 locators in both directions ([#264](https://github.com/fathomadb/fathomdb/issues/264)).
 
 ### Security
+
+- The Mermaid renderer uses upstream-supported CLI12.2.0, Puppeteer25.18.1
+  and patched Zod4.6.7; compatible Chrome157 render/sanitizer checks qualify it.
 
 - Updated Markdown tooling to markdownlint-cli2 0.24.0 and markdown-it 15.0.3,
   the model loaders' TLS root bundle to webpki-roots 1.0.12, and Tokio to 1.54.1.

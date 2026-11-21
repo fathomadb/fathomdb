@@ -67,3 +67,24 @@ For the selected1000-row stress recovery, run the exact ignored selector
 `default-embedder,default-reranker,operator,test-hooks`. It reuses canonical
 seeding/drain and stress helpers and skips ground truth/recall. Always select
 by exact name; the original whole EU7 result remains separately recorded.
+
+## Final platform and archive consumers (Slice75)
+
+The existing exact-candidate native CI matrix runs target-native SDK shared
+behavior, CLI diagnostics, installed wheel and release-shaped npm main/platform
+consumers (including separate write/reopen processes and strict TypeScript).
+It retains packages and CLI separately from JSON native receipts. Linux x64
+hostCPU CI remains narrower than the final CUDA-capable shipping pair.
+
+`bash scripts/release/smoke/smoke-source-archive.sh SOURCE.tar FRESH_WORK_DIR`
+builds SDK/CLI against the archive's producer lock and tracked source mirrors,
+links the maintained SDK consumer from a clean external directory and executes
+its write/reopen phases plus `candidate-cli.py` diagnostics. Source file-set,
+lock and configuration must remain byte-identical. Registry resolution is a
+separate delivery claim.
+
+The manual `CI diagnostic cancellation` workflow emits a complete redacted
+250-line failure and its exact101 outcome before a bounded later wait. Cancel
+that separate hosted run only after `CANCELLATION_PROBE_READY` appears, then
+verify the actual cancelled conclusion and retained completed/started/unrun
+scope. The existing offline oversized-line truncation control is separate.

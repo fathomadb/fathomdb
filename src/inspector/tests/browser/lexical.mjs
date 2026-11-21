@@ -53,6 +53,8 @@ test("native lexical workspace follows indexed text to query evidence and exact 
     await a.waitFor();
     assert.equal(await a.locator("mark").first().textContent(),"Café");
     assert.match(await a.textContent(),/rrf/);
+    assert.match(await a.textContent(),/Record identity: record_keyed_not_merged\./);
+    assert.doesNotMatch(await a.textContent(),/Equal-body contributors: unknown/);
     const original=await page.locator("pre.query-context").textContent();
     const origin=a.getByRole("button",{name:"Open exact origin lexical-a",exact:true});
     await origin.focus();await page.keyboard.press("Enter");

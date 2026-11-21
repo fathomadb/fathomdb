@@ -169,6 +169,10 @@ crate = "fathomdb-engine"
 features = ["slice50-measurement"]
 
 [[extra]]
+crate = "fathomdb-inspector"
+features = ["cached-cpu"]
+
+[[extra]]
 crate = "fathomdb-napi"
 features = ["default-embedder"]
 

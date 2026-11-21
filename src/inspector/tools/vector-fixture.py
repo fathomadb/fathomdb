@@ -36,19 +36,37 @@ source_cache = (
     / "embedders"
     / "0b2926f8a9b1"
 )
+libc = ctypes.CDLL(None, use_errno=True)
+MFD_ALLOW_SEALING = getattr(os, "MFD_ALLOW_SEALING", 2)
+F_ADD_SEALS = getattr(fcntl, "F_ADD_SEALS", 1033)
+F_SEAL_SEAL = getattr(fcntl, "F_SEAL_SEAL", 1)
+F_SEAL_SHRINK = getattr(fcntl, "F_SEAL_SHRINK", 2)
+F_SEAL_GROW = getattr(fcntl, "F_SEAL_GROW", 4)
+F_SEAL_WRITE = getattr(fcntl, "F_SEAL_WRITE", 8)
+
+
+def _memfd_create(name: str, flags: int) -> int:
+    if hasattr(os, "memfd_create"):
+        return os.memfd_create(name, flags)
+    # Standalone Linux Python builds compiled against an older glibc sysroot may omit
+    # os.memfd_create even though the host x86_64 Linux kernel supports SYS_memfd_create (319).
+    fd = libc.syscall(319, ctypes.c_char_p(name.encode("utf-8")), ctypes.c_uint(flags))
+    if fd < 0:
+        err = ctypes.get_errno()
+        raise OSError(err, os.strerror(err))
+    return int(fd)
+
+
 for name, pin in pins.items():
-    fd = os.memfd_create(name, os.MFD_ALLOW_SEALING)
+    fd = _memfd_create(name, MFD_ALLOW_SEALING)
     fds.append(fd)
     with open(source_cache / name, "rb") as source:
         while data := source.read(65536):
             os.write(fd, data)
     fcntl.fcntl(
         fd,
-        fcntl.F_ADD_SEALS,
-        fcntl.F_SEAL_WRITE
-        | fcntl.F_SEAL_GROW
-        | fcntl.F_SEAL_SHRINK
-        | fcntl.F_SEAL_SEAL,
+        F_ADD_SEALS,
+        F_SEAL_WRITE | F_SEAL_GROW | F_SEAL_SHRINK | F_SEAL_SEAL,
     )
     os.lseek(fd, 0, 0)
     h = hashlib.sha256()
@@ -56,7 +74,6 @@ for name, pin in pins.items():
         h.update(data)
     assert h.hexdigest() == pin
     (cache / name).symlink_to("/proc/self/fd/" + str(fd))
-libc = ctypes.CDLL(None, use_errno=True)
 rights = sum(1 << n for n in [1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14])
 
 

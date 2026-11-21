@@ -1334,7 +1334,7 @@ function renderLexical() {
         card.append(el("pre",JSON.stringify({windows:hit.snippet.windows,spans:hit.snippet.spans,highlights:hit.snippet.highlights},null,2)));
         card.append(button(`Copy observed snippet ${hit.rank}`,()=>copyLexical(current,hit.snippet.text)));
       } else card.append(el("p","no_native_snippet: match spans unavailable for this native route."));
-      card.append(el("p",`Origin: ${hit.origin.state}; ${hit.origin.scope}. Equal-body contributors: ${hit.origin.all_equal_body_contributors}.`));
+      card.append(el("p",`Origin: ${hit.origin.state}; ${hit.origin.scope}. Record identity: ${hit.origin.all_equal_body_contributors}.`));
       for (const origin of hit.origin.targets)
         originActions.append(button(`Open exact origin ${origin.record.logical_id ?? origin.record.write_cursor}`,()=>openDetail(origin.handle)));
       results.append(card);

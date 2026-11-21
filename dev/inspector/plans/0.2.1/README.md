@@ -28,6 +28,6 @@ byte-identical Rust/Cargo source to `v0.8.30` `e3d31f5cd`) and drops Ubuntu
 | Slice | Goal | Status |
 | --- | --- | --- |
 | Slice 10 | 0.8.30 base integration (`inspector/dev/0.2.1` on `release/0.8.30`), selective workspace wiring, `Cargo.lock` hygiene, `.venv` setup | [COMPLETE](slice-10/status.md) |
-| Slice 20 | 0.8.30 retrieval ownership & copy updates, degradations/`Closing`/FTS/ownerless tests, provenance semantics, deferred open & Candle 0.13 confinement | NEXT |
-| Slice 30 | Native Ubuntu 24.04 tooling (remove Docker/Ubuntu 22.04/`openbox`/`xdotool`), `0.2.1` packaging, dual published `0.8.29`/`0.8.30` qualification, local release to `dist/inspector/0.2.1/` | PLANNED |
+| Slice 20 | 0.8.30 retrieval ownership & copy updates, degradations/`Closing`/FTS/ownerless tests, provenance semantics, deferred open & Candle 0.13 confinement | [COMPLETE](slice-20/status.md) |
+| Slice 30 | Native Ubuntu 24.04 tooling (remove Docker/Ubuntu 22.04/`openbox`/`xdotool`), `0.2.1` packaging, dual published `0.8.29`/`0.8.30` qualification, local release to `dist/inspector/0.2.1/` | NEXT |
 | Slice 40 | Documentation reconciliation (`docs/inspector/`, `src/inspector/{README,tools/README}.md`, `dev/inspector/`) and docs-only release closure | PLANNED |

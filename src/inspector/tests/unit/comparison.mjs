@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { entries, comparisonPage } from '../../assets/comparison.mjs';
+import { entries, comparisonPage, canonicalCorrespondence } from '../../assets/comparison.mjs';
 const context={database:'db-é🦀',attachment:'session',operation:'1'};
 const origin=(id,cursor,cls='node',revision='r1')=>({handle:`${cls}-${cursor}-${id}`,record:{class:cls,logical_id:id,write_cursor:cursor,revision_id:revision}});
 const native=(space,value,cursor,origins=[])=>({class:'node',native_id:{space,value,complete:true},write_cursor:cursor,representative_branch:'text',rank:'7',score:'0.01639344262295082',payload:{text:'identical',complete:false},origin:{state:origins.length===1?'exact':'choices',targets:origins}});
@@ -79,4 +79,24 @@ test('representative retrieval arms do not change one native physical identity',
  assert.equal(result.total,1,'same class/IdSpace/value/cursor must overlap across representative arms');
  assert.equal(result.rows[0].A.item.representative_branch,'text');assert.equal(result.rows[0].B.item.representative_branch,'Vector');
  assert.equal(result.rows[0].A.rank,'7');assert.equal(result.rows[0].B.rank,'2');
+});
+
+test('record-keyed equal-body node/edge pairs and repeated logical IDs keep separate membership and correspondence',()=>{
+ const n1=origin('dup-id','10','node','r1');
+ const n2=origin('dup-id','11','node','r2');
+ const e1=origin('dup-id','10','edge','e1');
+ const left=entries(lexical([
+  native('logical','dup-id','10',[n1]),
+  native('logical','dup-id','11',[n2]),
+  {...native('logical','dup-id','10',[e1]),class:'edge',representative_branch:'text_edge'},
+ ]),{op:'lexical'});
+ const right=entries(graph([
+  {...n1.record,handle:n1.handle},
+  {...n2.record,handle:n2.handle},
+  {...e1.record,handle:e1.handle},
+ ]),{op:'graph'});
+ assert.equal(new Set(left.map(key)).size,3,'equal-body node, retained revision, and edge must have distinct keys');
+ assert.equal(comparisonPage(left,right,{mode:'intersection'}).total,0,'typed native_result and canonical graph membership stay separate');
+ const corr=canonicalCorrespondence(left,right);
+ assert.equal(corr.size,3,'each exact canonical physical revision establishes its own correspondence group');
 });

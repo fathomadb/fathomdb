@@ -433,3 +433,293 @@ fn collapsing_seed_preserves_edges_owned_by_an_independently_expanded_hub() {
     );
     reader.session.close().unwrap();
 }
+
+#[test]
+fn provenance_partial_utf8_spans_and_negative_boundaries_distinguish_raw_links_from_native_eligibility(
+) {
+    use fathomdb_engine::{
+        ArtifactRevisionId, CanonicalHash, InitialState, ProvenancedEdgeV1, ProvenancedNodeV1,
+        SourceDependencyRegistrationV1, SourceLocator, SourceRevisionId, SourceVersionId,
+        WriteProvenanceV1,
+    };
+    use sha2::{Digest, Sha256};
+
+    let dir = tempfile::tempdir().unwrap();
+    let path = fixtures::database(dir.path());
+    let source_body = "Café résumé 🦀 alpha excerpt";
+    let whole_digest: String =
+        Sha256::digest(source_body.as_bytes()).iter().map(|b| format!("{b:02x}")).collect();
+    let cafe_end = "Café".len() as u64; // 5 bytes ('é' is 2 bytes: offsets 3..5)
+
+    let opened = Engine::open_with_choice(&path, EmbedderChoice::None).unwrap();
+    let make_derived = |id: &str, rev: &str, body: &str, locator: SourceLocator| {
+        PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+            kind: "document".into(),
+            body: body.into(),
+            source_id: SourceId::new("fixture:prov").unwrap(),
+            logical_id: Some(id.into()),
+            state: InitialState::Active,
+            reason: None,
+            valid_from: None,
+            valid_until: None,
+            provenance: WriteProvenanceV1::derived(
+                ArtifactRevisionId::new(rev).unwrap(),
+                SourceVersionId::new("prov-v1").unwrap(),
+                SourceRevisionId::new("prov-source-r1").unwrap(),
+                locator,
+                CanonicalHash::sha256(whole_digest.clone()).unwrap(),
+            ),
+        })
+    };
+    let make_edge = |kind: &str, edge_id: &str, target_id: &str| {
+        PreparedWrite::ProvenancedEdge(ProvenancedEdgeV1 {
+            kind: kind.into(),
+            from: "prov-hub".into(),
+            to: target_id.into(),
+            source_id: SourceId::new("fixture:prov").unwrap(),
+            logical_id: Some(edge_id.into()),
+            body: Some(format!("edge to {target_id}")),
+            t_valid: None,
+            t_invalid: None,
+            confidence: Some(0.9),
+            extractor_model_id: Some("extractor-v1".into()),
+            temporal_fallback: Some(false),
+            provenance: WriteProvenanceV1::derived(
+                ArtifactRevisionId::new(format!("{edge_id}-r1")).unwrap(),
+                SourceVersionId::new("prov-v1").unwrap(),
+                SourceRevisionId::new("prov-source-r1").unwrap(),
+                SourceLocator::whole_body(),
+                CanonicalHash::sha256(whole_digest.clone()).unwrap(),
+            ),
+        })
+    };
+
+    opened
+        .engine
+        .write(&[
+            PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+                kind: "document".into(),
+                body: source_body.into(),
+                source_id: SourceId::new("fixture:prov").unwrap(),
+                logical_id: Some("prov-source".into()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                provenance: WriteProvenanceV1::canonical(
+                    ArtifactRevisionId::new("prov-source-r1").unwrap(),
+                    SourceVersionId::new("prov-v1").unwrap(),
+                ),
+            }),
+            PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+                kind: "document".into(),
+                body: "hub node".into(),
+                source_id: SourceId::new("fixture:prov").unwrap(),
+                logical_id: Some("prov-hub".into()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                provenance: WriteProvenanceV1::canonical(
+                    ArtifactRevisionId::new("prov-hub-r1").unwrap(),
+                    SourceVersionId::new("prov-hub-v1").unwrap(),
+                ),
+            }),
+            make_derived(
+                "derived-whole",
+                "derived-whole-r1",
+                "provsentinel whole derivation",
+                SourceLocator::whole_body(),
+            ),
+            make_derived(
+                "derived-excerpt",
+                "derived-excerpt-r1",
+                "provsentinel partial utf8 derivation",
+                SourceLocator::utf8_bytes(0, cafe_end),
+            ),
+            make_derived(
+                "derived-empty",
+                "derived-empty-r1",
+                "provsentinel empty span derivation",
+                SourceLocator::utf8_bytes(cafe_end, cafe_end),
+            ),
+            make_derived(
+                "derived-bad-digest",
+                "derived-bad-digest-r1",
+                "provsentinel bad digest derivation",
+                SourceLocator::utf8_bytes(0, cafe_end),
+            ),
+            make_derived(
+                "derived-mid-utf8",
+                "derived-mid-utf8-r1",
+                "provsentinel mid utf8 boundary derivation",
+                SourceLocator::utf8_bytes(0, cafe_end),
+            ),
+            make_edge("cites", "edge-whole", "derived-whole"),
+            make_edge("cites", "edge-excerpt", "derived-excerpt"),
+            make_edge("cites", "edge-empty", "derived-empty"),
+            make_edge("cites_fault", "edge-bad-digest", "derived-bad-digest"),
+            make_edge("cites_fault", "edge-mid-utf8", "derived-mid-utf8"),
+        ])
+        .unwrap();
+
+    for (dep, rev) in [
+        ("dep-whole", "derived-whole-r1"),
+        ("dep-excerpt", "derived-excerpt-r1"),
+        ("dep-empty", "derived-empty-r1"),
+        ("dep-bad-digest", "derived-bad-digest-r1"),
+        ("dep-mid-utf8", "derived-mid-utf8-r1"),
+    ] {
+        opened
+            .engine
+            .register_source_dependency(
+                SourceDependencyRegistrationV1::new(dep, "prov-source-r1", rev).unwrap(),
+            )
+            .unwrap();
+    }
+    opened.engine.close().unwrap();
+
+    // Introduce stored negative-boundary faults on the two fault-specific links.
+    let c = rusqlite::Connection::open(&path).unwrap();
+    let bad_digest = "0".repeat(64);
+    c.execute(
+        "UPDATE _fathomdb_source_links SET hash_digest = ?1 WHERE artifact_revision_id = 'derived-bad-digest-r1'",
+        [&bad_digest],
+    )
+    .unwrap();
+    // Byte offset 4 lands inside the 2-byte UTF-8 sequence for 'é' (bytes 3..5).
+    c.execute(
+        "UPDATE _fathomdb_source_links SET end_byte = 4 WHERE artifact_revision_id = 'derived-mid-utf8-r1'",
+        [],
+    )
+    .unwrap();
+    drop(c);
+
+    let mut r = Reader::new(Session::attach(&path, Policy::default()).unwrap());
+
+    // 1. Both recorded and registered-dependency directions work on partial UTF-8 and whole-body derivations.
+    let whole_h = handle(&mut r, Class::Node, "derived-whole", true);
+    let whole_inv = r.investigate(&whole_h).unwrap();
+    let whole_links = whole_inv["links"].as_array().unwrap();
+    let whole_src = whole_links.iter().find(|v| v["kind"] == "recorded_source").unwrap();
+    assert_eq!(whole_src["target"]["revision_id"], "prov-source-r1");
+    assert_eq!(whole_src["metadata"]["locator_kind"], "whole_body");
+    assert_eq!(whole_src["metadata"]["start_byte"], serde_json::Value::Null);
+    assert_eq!(whole_src["metadata"]["end_byte"], serde_json::Value::Null);
+    assert!(whole_links.iter().any(|v| {
+        v["kind"] == "registered_dependency_to_source"
+            && v["metadata"]["dependency_id"] == "dep-whole"
+            && v["metadata"]["locator_kind"] == "whole_body"
+    }));
+
+    let cafe_end_str = cafe_end.to_string();
+    let excerpt_h = handle(&mut r, Class::Node, "derived-excerpt", true);
+    let excerpt_inv = r.investigate(&excerpt_h).unwrap();
+    let excerpt_links = excerpt_inv["links"].as_array().unwrap();
+    let src_link = excerpt_links.iter().find(|v| v["kind"] == "recorded_source").unwrap();
+    assert_eq!(src_link["target"]["revision_id"], "prov-source-r1");
+    assert_eq!(src_link["metadata"]["locator_kind"], "utf8_bytes");
+    assert_eq!(src_link["metadata"]["start_byte"], "0");
+    assert_eq!(src_link["metadata"]["end_byte"], cafe_end_str);
+    assert!(excerpt_links.iter().any(|v| {
+        v["kind"] == "registered_dependency_to_source"
+            && v["metadata"]["dependency_id"] == "dep-excerpt"
+            && v["metadata"]["locator_kind"] == "utf8_bytes"
+            && v["metadata"]["start_byte"] == "0"
+            && v["metadata"]["end_byte"] == cafe_end_str.as_str()
+    }));
+
+    let source_h = handle(&mut r, Class::Node, "prov-source", true);
+    let source_inv = r.investigate(&source_h).unwrap();
+    let source_links = source_inv["links"].as_array().unwrap();
+    for (dep, rev) in [
+        ("dep-whole", "derived-whole-r1"),
+        ("dep-excerpt", "derived-excerpt-r1"),
+        ("dep-empty", "derived-empty-r1"),
+        ("dep-bad-digest", "derived-bad-digest-r1"),
+        ("dep-mid-utf8", "derived-mid-utf8-r1"),
+    ] {
+        assert!(
+            source_links
+                .iter()
+                .any(|v| v["kind"] == "recorded_derived" && v["target"]["revision_id"] == rev),
+            "raw recorded_derived link must remain visible for {rev}"
+        );
+        assert!(
+            source_links.iter().any(|v| {
+                v["kind"] == "registered_dependency_to_dependents"
+                    && v["target"]["revision_id"] == rev
+                    && v["metadata"]["dependency_id"] == dep
+            }),
+            "reverse registered_dependency_to_dependents link must remain visible for ({dep}, {rev})"
+        );
+    }
+    let excerpt_dep_link = source_links
+        .iter()
+        .find(|v| {
+            v["kind"] == "registered_dependency_to_dependents"
+                && v["target"]["revision_id"] == "derived-excerpt-r1"
+        })
+        .unwrap();
+    assert_eq!(excerpt_dep_link["metadata"]["locator_kind"], "utf8_bytes");
+    assert_eq!(excerpt_dep_link["metadata"]["start_byte"], "0");
+    assert_eq!(excerpt_dep_link["metadata"]["end_byte"], cafe_end.to_string());
+    let whole_dep_link = source_links
+        .iter()
+        .find(|v| {
+            v["kind"] == "registered_dependency_to_dependents"
+                && v["target"]["revision_id"] == "derived-whole-r1"
+        })
+        .unwrap();
+    assert_eq!(whole_dep_link["metadata"]["locator_kind"], "whole_body");
+
+    // 2. Native structural dependency evidence via graph_serving (with evidence preflight)
+    //    must mark whole_body and valid partial utf8_bytes Registered, reject empty spans
+    //    as NotRegistered, and refuse corrupted digest/UTF-8 targets cleanly.
+    let hub_h = handle(&mut r, Class::Node, "prov-hub", true);
+    let graph_valid =
+        r.graph_serving(&hub_h, Direction::Outgoing, Some("cites".into()), 1).unwrap();
+    let graph_dep: std::collections::BTreeMap<String, String> = graph_valid["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|item| {
+            (
+                item["target"]["logical_id"].as_str().unwrap().to_string(),
+                item["evidence"]["dependency"].as_str().unwrap().to_string(),
+            )
+        })
+        .collect();
+    assert_eq!(graph_dep.get("derived-whole").map(String::as_str), Some("Registered"));
+    assert_eq!(graph_dep.get("derived-excerpt").map(String::as_str), Some("Registered"));
+    assert_eq!(graph_dep.get("derived-empty").map(String::as_str), Some("NotRegistered"));
+    assert_eq!(
+        r.graph_serving(&hub_h, Direction::Outgoing, Some("cites_fault".into()), 1),
+        Err("native_query_refused"),
+        "graph evidence preflight must refuse corrupted digest/UTF-8 links"
+    );
+
+    // 3. Native structural dependency evidence via serving (search_frozen explanation ->
+    //    structural_state::structural_dependency_state -> source_link_valid) verifies all
+    //    five targets side-by-side: whole & valid excerpt are Registered; empty, bad-digest,
+    //    and mid-UTF-8 boundaries all evaluate to NotRegistered.
+    r.session.cached_cpu = true;
+    let search_prov = r.serving("provsentinel", 10).unwrap();
+    let search_dep: std::collections::BTreeMap<String, String> = search_prov["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|item| {
+            (
+                item["native_id"]["value"].as_str().unwrap().to_string(),
+                item["evidence"]["structural"]["dependency_state"].as_str().unwrap().to_string(),
+            )
+        })
+        .collect();
+    assert_eq!(search_dep.get("derived-whole").map(String::as_str), Some("Registered"));
+    assert_eq!(search_dep.get("derived-excerpt").map(String::as_str), Some("Registered"));
+    assert_eq!(search_dep.get("derived-empty").map(String::as_str), Some("NotRegistered"));
+    assert_eq!(search_dep.get("derived-bad-digest").map(String::as_str), Some("NotRegistered"));
+    assert_eq!(search_dep.get("derived-mid-utf8").map(String::as_str), Some("NotRegistered"));
+    r.session.close().unwrap();
+}

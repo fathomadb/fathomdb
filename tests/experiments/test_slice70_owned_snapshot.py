@@ -67,3 +67,24 @@ def test_prior_executor_requires_resume_before_any_output_or_config_access(tmp_p
         runner.main()
     assert error.value.code == 2
     assert not (tmp_path / "must-not-exist").exists()
+
+
+def test_native_query_mode_keeps_the_actual_executor_as_the_guarded_leader(tmp_path, monkeypatch):
+    import hashlib
+
+    binary = tmp_path / "executor"
+    binary.write_bytes(b"owned native executor")
+    spec = tmp_path / "query.spec.json"
+    spec.write_text("{}")
+    result = tmp_path / "fresh.result.json"
+    monkeypatch.setattr(runner, "OWNED_ROOT", tmp_path, raising=False)
+    config = {"candidate": {"benchmark_binary": str(binary), "benchmark_binary_sha256": hashlib.sha256(binary.read_bytes()).hexdigest()}}
+    command, environment = runner.native_query_command(config, spec, result, {
+        "FATHOMDB_POOL_MODE": "on", "CUDA_VISIBLE_DEVICES": "GPU-pinned", "PATH": "/usr/bin",
+    })
+    assert command == [str(binary), "--spec", str(spec), "--result", str(result)]
+    assert "FATHOMDB_POOL_MODE" not in environment
+    assert environment["CUDA_VISIBLE_DEVICES"] == "GPU-pinned"
+    binary.write_bytes(b"changed")
+    with pytest.raises(ValueError):
+        runner.native_query_command(config, spec, result, {})

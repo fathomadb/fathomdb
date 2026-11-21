@@ -273,14 +273,15 @@
         55,
         60
       ],
-      "status": "IN_PROGRESS",
+      "status": "COMPLETE_ON_RELEASE_BRANCH",
       "design_refs": [
         "dev/plans/0.8.30/features/slice-70/plan.md"
       ],
       "scope_source": "seq-407",
       "commission_source": "seq-409",
-      "evidence": "dev/plans/0.8.30/features/slice-70/status.md; reviewed source fixes and long/CPU/stress/assembled fidelity proof integrated. Current-pin CUDA CLS calibration and shared-GPU basic/overlap remain mandatory and open; no scope transfer or waiver.",
-      "partial_sha": "ba7aa72df5a219ce2329c1aa2029b6ba2542975b"
+      "evidence": "dev/plans/0.8.30/features/slice-70/status.md; reviewed source/CPU/long/stress/fidelity plus both exact current-pin CUDA rows PASS. Shared75 execution closes70 acceptance without transfer or waiver; shipping artifact proof remains75.",
+      "partial_sha": "ba7aa72df5a219ce2329c1aa2029b6ba2542975b",
+      "sha": "6d0e6c37b6cf35e3fecfe93ae3859a32d1b94a8f"
     },
     {
       "slice": 75,
@@ -311,9 +312,8 @@
     }
   ],
   "landed": [],
-  "next_slice": 70,
+  "next_slice": 75,
   "remaining_ladder": [
-    70,
     75,
     80
   ],
@@ -408,6 +408,11 @@
         "id": "release3090-availability-renewed",
         "source": "seq-415",
         "ruling": "3090s are available again for the remaining CUDA qualification and shipping CUDA build needed for release completion; normal selected-device, lease/resource and peer controls remain."
+      },
+      {
+        "id": "release-orin-transfers-session-only",
+        "source": "seq-416",
+        "ruling": "Transfer to Orin is authorized for this session only. Necessary source/artifact/harness transfers for this release session may proceed; no future-session transfer authorization is inferred."
       }
     ],
     "unruled": []
@@ -608,7 +613,7 @@
       "limits": "PTX0 default retained after inconclusive Orin native-adoption protocol. Orin peer inventory observed-only; total GPU bytes unavailable. Existing0.8.29 development artifacts do not qualify new50 APIs or final75 shipping artifacts. Product0.8.30 publication remains separately held."
     },
     "slice70": {
-      "status": "PARTIAL_REVIEWED_INTEGRATED_MANDATORY_CUDA_OPEN",
+      "status": "COMPLETE_WITH_RECORDED_LIMITS",
       "record": "dev/plans/0.8.30/features/slice-70/status.md",
       "partial_sha": "ba7aa72df5a219ce2329c1aa2029b6ba2542975b",
       "reviews": "Astra updated plan/design and focused repairs PASS; Sol code PASS; Terra actual execution and applicability independently verified; parent Codex coherent source/status integration PASS. Not a slice-closure verdict.",
@@ -623,11 +628,21 @@
         "scope": "Frozen7667-document/K192 exact-f32 bridge.77 retained measurements plus only23 new; original wrapper failures unchanged. Fidelity, not general retrieval relevance or shipping-artifact proof."
       },
       "source_gate": "Reuses applicable50 source gate and failed-only recovery plus affected70 tests/Clippy; no full source/native replay. Original failures, skips, legacy EU7 recall and real-corpus p50 miss remain recorded.",
-      "open": [
-        "Current-pin45-probe CLS CUDA calibration against CPU/ONNX, including both named calibration bodies",
-        "Current-pin source72 shared-CUDA basic/overlap real bodies requiring discrete-GPU telemetry"
-      ],
-      "disposition": "Both rows remain owned by70. Agent/Astra recommend explicit unchanged-criteria transfer to75; no such owner decision has been recorded."
+      "open": [],
+      "disposition": "Both mandatory CUDA rows executed and passed with75 shared qualification; requirements retained, no owner waiver or scope transfer.",
+      "qualified_candidate_sha": "6d0e6c37b6cf35e3fecfe93ae3859a32d1b94a8f",
+      "cuda_source_features": {
+        "authority": "seq-415",
+        "calibration_selected_passed": 2,
+        "cls_probes": 45,
+        "cosine_mean_cpu_cuda": 1.0,
+        "cosine_mean_cuda_onnx": 1.0,
+        "raw_centered_flips": 0,
+        "shared_gpu_selected_passed": 2,
+        "skipped": 0,
+        "scope": "Actual sm75/PTX0 current-pin test binaries on selected3090 with typed resource/lease/peer controls, zero postflight actors. Not shipping package byte identity or complete kernel coverage.",
+        "raw": "/tmp/fathomdb-0830-slice75-evidence/terra-cuda"
+      }
     },
     "quality_backlog31": {
       "source": "seq-414",
@@ -642,7 +657,7 @@
   "release_readiness": {
     "status": "NOT_READY",
     "publication_authorized": false,
-    "scope": "10/20/30/40/50/55/60 complete; reviewed partial70 integrated. Two CUDA source-feature rows remain open.75 preparation active; final qualification and normal80 publication/readback must finish. Broad coverage-guided fuzzing and power-loss proof belong to0.8.31 underseq-414."
+    "scope": "10/20/30/40/50/55/60/70 complete.75 final platform/artifact qualification active; corrected final package inputs and normal protected rehearsal remain, then80 publication/public readback. Broad coverage-guided fuzzing and power-loss proof are0.8.31 underseq414."
   },
   "generated_views": [
     {
@@ -692,8 +707,8 @@
     {
       "item": "Integrated source, feature and runtime qualification",
       "owner_slice": 70,
-      "state": "OPEN",
-      "evidence": "Reviewed partial70 integrated atba7aa72df5a219ce2329c1aa2029b6ba2542975b with long/CPU/real-corpus stress/fidelity proof. Current-pin CUDA CLS calibration and source72 shared-GPU basic/overlap execution remain open; no silent handoff to75."
+      "state": "RESOLVED_BY_SLICE70",
+      "evidence": "Whole70 complete including actual45-probe CLS CUDA calibration and source72 basic/overlap afterseq415 renewal. Original failures/recoveries and shipping/platform boundaries retained in its status."
     },
     {
       "item": "Hosted cancellation and Windows runtime validation",
@@ -718,6 +733,6 @@
       75,
       80
     ],
-    "next_transition": "Use renewed3090 venue underseq-415 to complete the two named70 CUDA rows jointly with75 final candidate qualification, then normal80 delivery underseq-414. No new reset/OOM campaign. Broad coverage-guided fuzzing and power-loss proof remain0.8.31."
+    "next_transition": "Finish75 final corrected package-input qualification and the single protected shipping rehearsal on the renewed3090 venue; then normal80 publication and public consumers underseq414.70 source requirements are closed by actual passing shared executions, not a waiver."
   }
 }

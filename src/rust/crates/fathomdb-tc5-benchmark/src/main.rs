@@ -611,9 +611,12 @@ fn discover_visible_cuda() -> Result<Vec<DeviceInfo>, String> {
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
         Err(_) => return Err("cannot preflight CUDA visibility".into()),
     };
-    let physical = output
-        .stdout
-        .split(|byte| *byte == b'\n')
+    let physical = parse_cuda_inventory(&output.stdout)?;
+    apply_cuda_visible_devices(&physical, env::var("CUDA_VISIBLE_DEVICES").ok().as_deref())
+}
+
+fn parse_cuda_inventory(raw: &[u8]) -> Result<Vec<DeviceInfo>, String> {
+    raw.split(|byte| *byte == b'\n')
         .filter(|line| !line.is_empty())
         .enumerate()
         .map(|(ordinal, line)| {
@@ -631,8 +634,7 @@ fn discover_visible_cuda() -> Result<Vec<DeviceInfo>, String> {
                 cuda_ordinal: ordinal as u32,
             })
         })
-        .collect::<Result<Vec<_>, _>>()?;
-    apply_cuda_visible_devices(&physical, env::var("CUDA_VISIBLE_DEVICES").ok().as_deref())
+        .collect::<Result<Vec<_>, _>>()
 }
 
 fn apply_cuda_visible_devices(
@@ -997,6 +999,26 @@ mod tests {
             &PoolCheckingFactory,
         )
         .unwrap();
+    }
+
+    #[test]
+    fn tegra_bare_uuid_inventory_binds_the_same_canonical_cuda_device() {
+        let devices = parse_cuda_inventory(
+            b"bbbe9f37-7028-556a-930b-54e5f3b67a82, [N/A], Orin (nvgpu), 540.5.0\n",
+        )
+        .unwrap();
+        let visible =
+            apply_cuda_visible_devices(&devices, Some("GPU-bbbe9f37-7028-556a-930b-54e5f3b67a82"))
+                .unwrap();
+        let selected =
+            select_device(&visible, Some("GPU-bbbe9f37-7028-556a-930b-54e5f3b67a82")).unwrap();
+        assert!(matches!(selected, SelectedDevice::Cuda(device) if device.cuda_ordinal == 0));
+    }
+
+    #[test]
+    fn a_pinned_cuda_request_never_becomes_cpu_when_inventory_is_empty() {
+        assert!(select_device(&[], Some("GPU-pinned")).is_err());
+        assert_eq!(select_device(&[], None).unwrap(), SelectedDevice::Cpu);
     }
 
     #[test]

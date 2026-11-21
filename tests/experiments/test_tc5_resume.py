@@ -76,3 +76,54 @@ def test_reuse_refuses_changed_bytes_inputs_or_uncheckpointed_wal(tmp_path, dama
     output.mkdir()
     with pytest.raises(tc5.Tc5GpuV2Error):
         tc5._copy_prior_database(config, "bridge", inputs, prior, output, binary)
+
+
+def test_nonmeasurement_stops_before_launching_more_queries(monkeypatch, tmp_path):
+    from types import SimpleNamespace
+
+    config, inputs, prior, _database, binary = prior_fixture(tmp_path)
+    inputs = replace(inputs, queries=inputs.queries * 100)
+    monkeypatch.setattr(tc5, "load_config", lambda _: config)
+    monkeypatch.setattr(tc5, "_validate_candidate_artifacts", lambda *a, **k: None)
+    monkeypatch.setattr(tc5, "_validate_candidate_runtime", lambda *a, **k: None)
+    monkeypatch.setattr(tc5, "_load_arm_inputs", lambda *a, **k: inputs)
+    calls = []
+
+    def unavailable(command, **_kwargs):
+        calls.append(command)
+        Path(command[-1]).write_text(json.dumps({"status": "device_unavailable", "error_code": "device_preflight_failed"}))
+        return SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr(tc5.subprocess, "run", unavailable)
+    with pytest.raises(tc5.Tc5GpuV2Error):
+        tc5.run_arm(tmp_path / "config", "bridge", output_root=tmp_path / "run", binary=binary, resume_from=prior)
+    assert len(calls) == 1
+
+
+def test_resume_can_bind_the_preserved_executor_after_an_inventory_only_fix(tmp_path):
+    config, inputs, prior, _database, old_binary = prior_fixture(tmp_path)
+    replacement = tmp_path / "new-executor"
+    replacement.write_bytes(b"inventory formatting fix")
+    output = tmp_path / "new"
+    output.mkdir()
+    with pytest.raises(tc5.Tc5GpuV2Error):
+        tc5._copy_prior_database(config, "bridge", inputs, prior, output, replacement)
+    copied = tc5._copy_prior_database(
+        config, "bridge", inputs, prior, output, replacement, prior_binary=old_binary,
+    )
+    assert copied.is_file()
+
+
+def test_run_cli_preserves_the_previous_executor_binding(monkeypatch, tmp_path):
+    seen = {}
+
+    def run(*_args, **kwargs):
+        seen.update(kwargs)
+        return tmp_path / "result.json"
+
+    monkeypatch.setattr(tc5, "run_arm", run)
+    assert tc5.main([
+        "run", "--config", "chosen.json", "--arm", "bridge", "--output-root", str(tmp_path / "new"),
+        "--binary", "new-binary", "--resume-from", str(tmp_path / "old"), "--prior-executor", "old-binary",
+    ]) == 0
+    assert seen["prior_executor"] == Path("old-binary")

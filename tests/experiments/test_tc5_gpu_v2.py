@@ -109,6 +109,22 @@ def test_0826_candidate_requires_matching_product_and_package_versions(tmp_path)
         tc5_gpu_v2.load_config(unsupported)
 
 
+@pytest.mark.parametrize("package_version", ["0.8.29", "0.8.29+tegra", "0.8.30", "0.8.30+tegra"])
+def test_0830_candidate_admits_only_selected_development_and_release_packages(tmp_path, package_version):
+    config = tc5_gpu_v2.load_config(
+        _candidate_config(tmp_path, release="0.8.30", package_version=package_version)
+    )
+    assert config.release == "0.8.30"
+    assert config.candidate_version == "0.8.30"
+    assert config.package_version == package_version
+
+
+def test_0830_candidate_refuses_an_unselected_older_package(tmp_path):
+    path = _candidate_config(tmp_path, release="0.8.30", package_version="0.8.28")
+    with pytest.raises(tc5_gpu_v2.Tc5GpuV2Error, match="0.8.30 TC-5"):
+        tc5_gpu_v2.load_config(path)
+
+
 def test_candidate_dry_run_rejects_artifact_digest_drift(tmp_path, monkeypatch):
     path = _candidate_config(tmp_path)
     config = tc5_gpu_v2.load_config(path)

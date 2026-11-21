@@ -155,3 +155,22 @@ before success and run from the selected source root. Cleanup checks the owned
 group even after leader exit, stops only that pinned session, then reaps and
 requires empty observed GPU inventory before releasing the lease. The original
 unexecuted unsafe draft is not qualified or used for dispatch.
+
+## Scoped Orin observation recovery
+
+The first bridge cell completed ingest and reached query6 before resource
+sampling failed in a second procfs lookup of an already checked owner. It stays
+FAILED, not protocolPASS. Existing process-group cleanup completed with empty
+observed GPU inventory. A real CPU parent/child/reap regression reproduces the
+second-lookup failure; a checked ownership snapshot now contributes conservative
+RSS even if that known child exits before summation. Unknown, missing or foreign
+ownership still refuses. No native/F32 code or threshold changes.
+
+Avoid repeating the completed7667-row ingest: its main-file SHA matches the
+first pinned query manifest, WAL is empty and canonical/vector counts are both
+7667. Explicit `--resume-from` validates those bytes and the complete frozen
+input/model/binary first-query binding, copies to a fresh owned database and
+executes a fresh100-query cohort. The six old query result files stay retained;
+they are not counted as this new cohort. This is assembled ingest plus fresh
+query proof, with separate bounded exclusive cells; the original failed wrapper
+is never relabeled. Existing model/allocator/unit successes need no replay.

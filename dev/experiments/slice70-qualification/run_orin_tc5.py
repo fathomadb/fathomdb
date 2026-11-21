@@ -30,7 +30,23 @@ def _interrupted(_signum, _frame):
 
 
 def owned_sample_rss(leader, birth, peers):
-    return guard.owned_rss(leader, birth, peers)
+    """Count checked owner snapshots conservatively without racing a second child lookup."""
+    root = guard.proc(leader)
+    if (root["Tgid"], root["PGID"], root["SID"], root["start_ticks"]) != (leader, leader, leader, birth):
+        raise RuntimeError("owned leader identity changed")
+    owners = {str(leader): root}
+    required = {"Name", "Tgid", "PGID", "SID", "start_ticks", "rss"}
+    for pid in peers:
+        if pid == guard.last_fuser:
+            continue
+        checked = guard.last_details.get(str(pid), {})
+        if "error" in checked or not required <= checked.keys() or (checked["PGID"], checked["SID"]) != (leader, leader):
+            raise RuntimeError(f"unknown observed GPU owner: {pid}: {checked}")
+        tgid = str(checked["Tgid"])
+        if tgid != str(leader) and (tgid not in owners or checked["rss"] > owners[tgid]["rss"]):
+            owners[tgid] = checked
+    # A child may already have exited; including its last checked RSS overcounts safely.
+    return sum(row["rss"] for row in owners.values()) + (guard.last_fuser_rss or 0), owners
 
 
 def main():
@@ -38,6 +54,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("config", type=Path)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--resume-from", type=Path)
     args = parser.parse_args()
     output = args.output.resolve()
     if not str(output).startswith("/tmp/fathomdb-0830-slice70/") or output.exists():
@@ -68,6 +85,11 @@ def main():
         str(args.config.resolve()), "--arm", "bridge", "--output-root",
         str(output / "bridge"), "--binary", config["candidate"]["benchmark_binary"],
     ]
+    if args.resume_from is not None:
+        prior = args.resume_from.resolve()
+        if not str(prior).startswith("/tmp/fathomdb-0830-slice70/"):
+            raise ValueError("only the owned prior bridge may be reused")
+        command.extend(["--resume-from", str(prior)])
     lock = Path("/tmp/fathomdb-gpu.lock")
     with lock.open("rb") as lease:
         if os.fstat(lease.fileno()).st_ino != 32899085:

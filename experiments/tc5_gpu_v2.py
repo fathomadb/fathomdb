@@ -15,6 +15,7 @@ import importlib.metadata
 import json
 import math
 import os
+import shutil
 import sqlite3
 import statistics
 import subprocess
@@ -838,14 +839,53 @@ def _ingest_database(
     return prepared.database_path
 
 
+def _copy_prior_database(
+    config: Tc5GpuConfig, arm: str, inputs: ArmInputs, prior: Path,
+    output_root: Path, binary: Path,
+) -> Path:
+    if config.release != "0.8.30" or arm != "bridge":
+        raise Tc5GpuV2Error("existing-ingest recovery is limited to the selected .30 bridge")
+    prior = Path(prior).resolve()
+    database = prior / "database/fathomdb.sqlite"
+    manifest_path = prior / "query-jobs/query-001.manifest.json"
+    try:
+        manifest = json.loads(manifest_path.read_text())
+        index_digest = _sha_file(database)
+        wal = Path(str(database) + "-wal")
+        if (wal.exists() and wal.stat().st_size > 32) or index_digest != manifest.get("index_digest"):
+            raise Tc5GpuV2Error("prior database bytes or WAL differ from the completed ingest")
+        expected, _ = build_query_job(
+            config, query=inputs.queries[0], database_path=database,
+            document_count=config.arms[arm], fixture_digest=inputs.fixture_digest,
+            index_digest=index_digest, binary_digest=_sha_file(binary), manifest_path=manifest_path,
+        )
+        if manifest != expected:
+            raise Tc5GpuV2Error("prior database input/model/binary binding drifted")
+        with sqlite3.connect(database.as_uri() + "?mode=ro&immutable=1", uri=True) as connection:
+            nodes = connection.execute("SELECT COUNT(*) FROM canonical_nodes WHERE kind = 'doc'").fetchone()[0]
+            vectors = connection.execute("SELECT COUNT(*) FROM _fathomdb_vector_rows WHERE kind = 'doc'").fetchone()[0]
+        if nodes != config.arms[arm] or vectors != config.arms[arm]:
+            raise Tc5GpuV2Error("prior database is not the complete selected arm")
+        destination = output_root / "database/fathomdb.sqlite"
+        destination.parent.mkdir(mode=0o700)
+        shutil.copyfile(database, destination)
+        destination.chmod(0o600)
+        if _sha_file(destination) != index_digest:
+            raise Tc5GpuV2Error("prior database changed while copying")
+        return destination
+    except (OSError, ValueError, sqlite3.Error) as error:
+        raise Tc5GpuV2Error("prior database recovery inputs are unavailable or invalid") from error
+
+
 def run_arm(
     config_path: str | Path,
     arm: str,
     *,
     output_root: Path,
     binary: Path,
+    resume_from: Path | None = None,
 ) -> Path:
-    """Create and execute one new GPU arm, returning its safe receipt path."""
+    """Execute a GPU arm; an explicit .30 recovery may reuse a byte-pinned complete ingest."""
     config = load_config(config_path)
     _validate_candidate_artifacts(config, binary=binary)
     _validate_candidate_runtime(config)
@@ -857,7 +897,8 @@ def run_arm(
     output_root.mkdir(mode=0o700, parents=True)
     jobs_root = output_root / "query-jobs"
     jobs_root.mkdir(mode=0o700)
-    database = _ingest_database(config, inputs, output_root)
+    database = (_ingest_database(config, inputs, output_root) if resume_from is None else
+                _copy_prior_database(config, arm, inputs, resume_from, output_root, binary))
     index_digest = _sha_file(database)
     binary_digest = _sha_file(binary)
     environment = binary_environment(os.environ, config.cuda_uuid)
@@ -916,13 +957,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         child.add_argument("--output-root", type=Path, required=True)
         if command == "run":
             child.add_argument("--binary", type=Path, required=True)
+            child.add_argument("--resume-from", type=Path)
     args = parser.parse_args(argv)
     if args.command == "dry-run":
         result = dry_run(args.config, args.arm, output_root=args.output_root)
         print(json.dumps(result, sort_keys=True))
     else:
         receipt = run_arm(
-            args.config, args.arm, output_root=args.output_root, binary=args.binary
+            args.config, args.arm, output_root=args.output_root, binary=args.binary,
+            resume_from=args.resume_from,
         )
         print(json.dumps({"receipt": str(receipt)}, sort_keys=True))
     return 0

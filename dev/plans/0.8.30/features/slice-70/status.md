@@ -1,6 +1,6 @@
 ---
 title: Slice 70 integrated source qualification
-status: IN_PROGRESS
+status: COMPLETE
 slice: 70
 target_release: 0.8.30
 ---
@@ -10,9 +10,11 @@ target_release: 0.8.30
 Entry `ef254b2ab21cb293633ad8252b4050d8716550dd`; isolated branch
 `impl/0.8.30-slice70`. Astra-medium passed the updated whole plan/design after
 one consolidated FIX-1. Planning commit `8cab7ffca34cbd13d5d84ebb139794bd2a76b75a`.
-Parent owns canonical release state, integration and cleanup. **Not closed:**
-two current-pin CUDA source-feature rows remain open. AC073 has passing
-focused recoveries and AC075 has assembled100-query passing fidelity proof. This is not a release-readiness or publication verdict.
+Parent owns canonical release state, integration and cleanup. All selected
+source-qualification rows are complete, including the two current-pin CUDA
+rows executed jointly with75 on candidate `6d0e6c37b6cf35e3fecfe93ae3859a32d1b94a8f`.
+Original failures and scoped recoveries remain as recorded. This is not final
+platform/artifact readiness or a publication verdict.
 
 ## Source, security and coverage reuse
 
@@ -232,24 +234,24 @@ all runtime database copies remain under `/tmp/fathomdb-0830-slice70/` on Orin.
 1. AC073 selected stress rows have passing scoped recoveries at1000 and7667.
    Original full-body failure, legacy recall and all numerical limits remain.
 2. AC075 is complete as assembled fidelity proof; original wrappers remain failed.
-3. Current-pin feature calibration still lacks the exact45 CLS-vector CUDA
-   comparison against CPU and ONNX, including
-   `calibration_candle_cuda_leg_measures_on_gpu` and the GPU leg of
-   `calibration_reports_p1_flips_and_p2_l2`. CPU/ONNX and ordinary Mean-pooling
-   native evidence are narrower claims. The known ONNX runtime asset is x86-only.
-   Read-only fork comparison confirms material CPU/CUDA kernel changes since
-   .29, so the old calibration cannot be treated as current-pin numeric proof.
-4. The source 72 real shared-CUDA basic/overlap bodies lack current-pin execution.
-   Their discrete-NVIDIA total-memory/compute telemetry is unavailable on Orin,
-   and 3090 access has ended. Earlier .29 logs predate the final native pins.
-   Contract/parser tests and early returns cannot substitute for these bodies.
+3. Under renewed3090 availability seq-415, actual current-pin calibration passed
+   both selected tests with45 CLS probes. CPU↔CUDA and CUDA↔ONNX cosine means
+   and minima printed1.000000000; raw/centered flips0, maximum L2 about1.30e-6.
+4. The actual source72 basic/overlap bodies passed2/2 with no skips or guard
+   abort, real BGE/CE work and UUID/PID/memory receipts. Both commands exited0;
+   postflight observed no compute or graphics peers and the unchanged driver
+   and primary CUDA12.6. The established per-UUID lease was used.
 
-Every selected requirement needs applicable passing proof or explicit owner
-scope disposition. Astra's final scope review confirms the source-feature rows
-remain owned by70;75 can execute shared checks once, but that does not silently
-transfer acceptance. Recommend explicitly assigning these two unchanged rows to75
-alongside final CUDA artifact qualification; without that disposition70 stays
-open. Neither gap is declared PASS.
+Terra independently executed these exact bodies on the frozen candidate.
+Actual test binaries contain the maintained sm75 PTX families and PTX0 policy;
+inspection also identifies sm75 static cubins separately. This closes the
+source-feature requirements, with no transfer or waiver. It supplies no byte
+identity or complete-kernel claim for future shipping wheel/addon/CLI builds.
+Raw commands, results and receipts are retained at
+`/tmp/fathomdb-0830-slice75-evidence/terra-cuda`; final artifact qualification
+remains75. Parent Codex inspected the actual pass logs and architecture scope
+and accepted70 closure.
+
 75 retains final installed platforms/artifacts, Windows WAL/hosted cancellation,
 Node support, renderer and public-contract/docs convergence.80 retains actual
 product publication and registry consumers under its later exact-candidate grant.
@@ -260,8 +262,8 @@ Updated whole plan/design: Astra PASS after one FIX-1. Every focused design and
 code repair has Astra/Sol PASS after its stated correction; no public API,
 storage-format, dependency-pin or product requirement changed. Terra independently
 verified the CPU selections, actual failures, all100 native query bindings/routes
-and the deterministic bootstrap. Final parent Codex review and integration are
-still required. No canonical release state or board was edited by this worker.
+and the deterministic bootstrap. Parent Codex passed coherent source integration and the final shared CUDA
+closure. Canonical release state remains parent-owned.
 
 Final changed Rust scopes `eu7_real_corpus_ac` and the private stress example
 passed scoped release Clippy in25.26seconds; source checks remain scoped,

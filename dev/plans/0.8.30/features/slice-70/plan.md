@@ -1,6 +1,6 @@
 ---
 title: Slice 70 integrated behavior and source qualification
-status: ACTIVE
+status: COMPLETE
 slice: 70
 target_release: 0.8.30
 ---

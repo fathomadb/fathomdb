@@ -19,7 +19,7 @@ class GeneratedDocs(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory(prefix='slice140-generated-docs-')
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
-        inputs = ['Cargo.toml', 'src/conformance/governed-operation-parity.json',
+        inputs = ['Cargo.toml', 'src/inspector/Cargo.toml', 'src/conformance/governed-operation-parity.json',
                   'src/python/pyproject.toml', 'src/ts/package.json']
         inputs += [p.relative_to(REPO).as_posix() for p in (REPO / 'src/rust/crates').glob('*/Cargo.toml')]
         inputs += [f'scripts/agent-{verb}.sh' for verb in VERBS]

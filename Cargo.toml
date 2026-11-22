@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "src/inspector",
     "src/rust/crates/fathomdb",
     "src/rust/crates/fathomdb-cli",
     "src/rust/crates/fathomdb-embedder",

@@ -440,3 +440,10 @@ When placement changes, update the owning schedule, draft, or decision record
 first, then update this roadmap in the same closing documentation change. Do
 not use this summary to bypass release-state, plan, board, design-review, or
 HITL gates.
+
+## Inspector product roadmap
+
+Inspector has a separate [engineering section](inspector/README.md),
+[ROADMAP](inspector/ROADMAP.md), and [0.2.1 plan](inspector/plans/0.2.1/plan.md).
+This does not change the database release ladder or identify Inspector versions
+with a FathomDB 0.8.x release.

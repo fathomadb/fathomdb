@@ -1,0 +1,280 @@
+{
+  "source_values": {
+    "retrieved_on": "2026-11-19",
+    "type": "selected public factual values, not full raw HTTP responses",
+    "values": [
+      {
+        "url": "https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/index.html",
+        "label": "REPORTED",
+        "values": {
+          "current_toolkit": "13.5",
+          "corresponding_driver": "R620",
+          "cuda_13_0_driver": "R580",
+          "cuda_12_6_ga_linux": "560.28.03"
+        },
+        "excerpt": "CUDA 13.5 | R620"
+      },
+      {
+        "url": "https://docs.nvidia.com/deploy/cuda-compatibility/latest/minor-version-compatibility.html",
+        "label": "REPORTED",
+        "values": {
+          "cuda13_min_driver": 580,
+          "cuda12_min_driver": 525
+        }
+      },
+      {
+        "url": "https://docs.nvidia.com/datacenter/tesla/drivers/latest/supported-drivers-and-cuda-toolkit-versions.html",
+        "label": "REPORTED",
+        "values": {
+          "page_updated": "2026-11-04",
+          "R580": {
+            "designation": "LTS",
+            "eol": "June 2028"
+          },
+          "R595": {
+            "designation": "production",
+            "eol": "March 2027"
+          },
+          "R620": {
+            "designation": "LTS",
+            "eol": "September 2029"
+          }
+        },
+        "excerpt": "June 2028 | March 2027 | September 2029"
+      },
+      {
+        "url": "https://docs.nvidia.com/datacenter/tesla/drivers/latest/cuda-toolkit-driver-and-architecture-matrix.html",
+        "label": "REPORTED",
+        "values": {
+          "Maxwell": {
+            "last_cuda": "12.x",
+            "last_driver": "R580"
+          },
+          "Pascal": {
+            "last_cuda": "12.x",
+            "last_driver": "R580"
+          },
+          "Volta": {
+            "last_cuda": "12.x",
+            "last_driver": "R580"
+          }
+        }
+      },
+      {
+        "url": "https://developer.nvidia.com/embedded/jetpack-sdk-623",
+        "label": "REPORTED",
+        "values": {
+          "jetpack": "6.2.3",
+          "cuda": "12.6.10",
+          "linux": "36.5.2"
+        },
+        "excerpt": "JetPack 6.2.3 includes CUDA 12.6.10"
+      },
+      {
+        "url": "https://developer.nvidia.com/embedded/jetpack/downloads/archive-7.2.1",
+        "label": "REPORTED",
+        "values": {
+          "jetpack": "7.2.1",
+          "cuda": "13.2.2",
+          "linux": "39.2.1",
+          "supported_families": [
+            "Thor",
+            "Orin"
+          ]
+        },
+        "excerpt": "Jetson Orin Family"
+      },
+      {
+        "url": "https://pypi.org/project/torch/2.15.0/",
+        "label": "REPORTED",
+        "values": {
+          "version": "2.15.0",
+          "wheel_upload_date": "2026-10-28"
+        },
+        "note": "requires_dist not extractable; no directly measured dependency list saved"
+      },
+      {
+        "url": "https://github.com/pytorch/pytorch/issues/190385",
+        "label": "REPORTED",
+        "values": {
+          "default_cuda": "13.2",
+          "proposal_removes": [
+            "12.6",
+            "13.0"
+          ]
+        },
+        "excerpt": "Keep CUDA 13.2 as Stable / Default"
+      },
+      {
+        "url": "https://dev-discuss.pytorch.org/t/removing-cuda-13-0-builds-from-pytorch-ci-cd-starting-the-week-of-sept-28/3447",
+        "label": "REPORTED",
+        "values": {
+          "notice_date": "2026-09-23",
+          "nightly_stable": "13.2",
+          "nightly_prototype": "13.4",
+          "claimed_fix_toolkit": "13.2.2"
+        },
+        "excerpt": "Nightly CUDA builds will be 13.2 (stable / default) and 13.4 (prototype)."
+      },
+      {
+        "url": "https://onnxruntime.ai/docs/execution-providers/CUDA-ExecutionProvider.html",
+        "label": "REPORTED",
+        "values": {
+          "cuda_default_from_1_27": "13.0",
+          "current_matrix_through": "1.30.x",
+          "cuda12_alternative": "12.8"
+        }
+      },
+      {
+        "url": "https://docs.vllm.ai/en/latest/getting_started/installation/gpu/",
+        "label": "REPORTED",
+        "values": {
+          "cuda_default": "12.9",
+          "cuda_variants": [
+            "12.8",
+            "13.2"
+          ]
+        }
+      },
+      {
+        "url": "https://docs.jax.dev/en/latest/installation.html",
+        "label": "REPORTED",
+        "values": {
+          "cuda_wheel_variants": [
+            "12",
+            "13"
+          ],
+          "cuda13_build_toolkit": "13.0"
+        }
+      },
+      {
+        "url": "https://docs.cupy.dev/en/stable/install.html",
+        "label": "REPORTED",
+        "values": {
+          "version": "14.2.0",
+          "wheels": [
+            "cupy-cuda12x",
+            "cupy-cuda13x"
+          ],
+          "listed_toolkits_max": "13.2"
+        }
+      },
+      {
+        "url": "https://docs.rs/crate/cudarc/latest/features",
+        "label": "REPORTED",
+        "values": {
+          "version": "0.19.10",
+          "min_cuda_feature": "cuda-11040",
+          "max_cuda_feature": "cuda-13040"
+        }
+      },
+      {
+        "url": "https://docs.rs/crate/candle-core/latest",
+        "label": "REPORTED",
+        "values": {
+          "version": "0.11.1",
+          "cudarc_dependency": "^0.19.10"
+        }
+      },
+      {
+        "url": "https://api.github.com/repos/ggml-org/llama.cpp/releases/latest",
+        "label": "REPORTED",
+        "values": {
+          "tag_name": "v1.0.0",
+          "published_at": "2026-11-13T10:20:19Z",
+          "only_asset": {
+            "name": "nightly-tag.txt",
+            "download_count": 38374
+          }
+        },
+        "note": "Observed raw queried count is not a CUDA-build download count; excluded from all shares."
+      },
+      {
+        "url": "https://docs.aws.amazon.com/dlami/latest/devguide/aws-deep-learning-ami-gpubaseoss-ul2404-2026-11-18.html",
+        "label": "REPORTED search excerpt only",
+        "values": {
+          "default_cuda": "/usr/local/cuda-13.2/"
+        },
+        "note": "Direct open failed; limited confidence, no driver version or population-default inference"
+      }
+    ],
+    "derived_shares": [],
+    "measured_current_adoption": "UNASSESSED"
+  },
+  "access_attempts": {
+    "retrieved_on": "2026-11-19",
+    "method": "read-only web open/find/search; no curl, installs or host operations",
+    "attempts": [
+      {
+        "url": "https://sql-clickhouse.clickhouse.com/",
+        "query_file": "clickpy-query.sql",
+        "parameters": "user=demo; query=<URL encoded SELECT>",
+        "result": "not accessible via this tool"
+      },
+      {
+        "url": "https://pypistats.org/api/packages/nvidia-cuda-runtime/recent",
+        "result": "not accessible via this tool"
+      },
+      {
+        "url": "https://pypistats.org/api/packages/nvidia-cuda-runtime-cu11/recent",
+        "result": "not accessible via this tool"
+      },
+      {
+        "url": "https://pypistats.org/api/packages/nvidia-cuda-runtime-cu12/recent",
+        "result": "not accessible via this tool"
+      },
+      {
+        "url": "https://pepy.tech/api/v2/projects/nvidia-cuda-runtime",
+        "result": "not accessible via this tool"
+      },
+      {
+        "url": "https://pepy.tech/api/v2/projects/nvidia-cuda-runtime-cu12",
+        "result": "not accessible via this tool"
+      },
+      {
+        "url": "https://pypi.org/pypi/torch/json",
+        "result": "JSON opened but web representation/find did not expose usable requires_dist"
+      },
+      {
+        "url": "https://pypi.org/pypi/torch/2.15.0/json",
+        "result": "JSON opened but web representation/find did not expose usable requires_dist"
+      },
+      {
+        "url": "https://api.github.com/repos/ggml-org/llama.cpp/releases/tags/b12359",
+        "result": "not accessible via this tool"
+      },
+      {
+        "url": "https://api.github.com/repos/ggml-org/llama.cpp/releases?per_page=1",
+        "result": "not accessible via this tool"
+      },
+      {
+        "url": "https://github.com/ggml-org/llama.cpp/releases/tag/b12359",
+        "result": "HTML opened; no comparable CUDA count series extracted"
+      },
+      {
+        "url": "https://api.github.com/repos/ollama/ollama/releases/latest",
+        "result": "one-line JSON web representation did not expose usable count series"
+      },
+      {
+        "url": "https://github.com/ollama/ollama/releases/latest",
+        "result": "redirected v0.40.16; no JetPack count series extracted"
+      },
+      {
+        "url": "https://crates.io/api/v1/crates/cudarc",
+        "result": "no usable API metadata surfaced; docs.rs fallback used"
+      },
+      {
+        "url": "https://crates.io/api/v1/crates/candle-core",
+        "result": "no usable API metadata surfaced; docs.rs fallback used"
+      },
+      {
+        "url": "https://packages.ubuntu.com/noble-updates/amd64/nvidia-driver-580",
+        "result": "not accessible via this tool; search confirms package name only"
+      },
+      {
+        "url": "https://pytorch.org/get-started/locally/",
+        "result": "web text showed stale Stable(2.7.0) selector; excluded from version/default conclusions"
+      }
+    ]
+  }
+}

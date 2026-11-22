@@ -105,6 +105,10 @@ crate = "fathomdb-engine"
 features = ["test-hooks"]
 
 [[entry]]
+crate = "fathomdb-inspector"
+features = []
+
+[[entry]]
 crate = "fathomdb-mcp"
 features = []
 
@@ -163,6 +167,10 @@ features = ["cuda-pool-observer", "default-embedder", "default-reranker", "embed
 [[extra]]
 crate = "fathomdb-engine"
 features = ["slice50-measurement"]
+
+[[extra]]
+crate = "fathomdb-inspector"
+features = ["cached-cpu"]
 
 [[extra]]
 crate = "fathomdb-napi"

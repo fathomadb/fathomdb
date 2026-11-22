@@ -125,6 +125,7 @@ jobs:
       # The bias is safe: a misread can only make heavy jobs RUN on a docs change
       # (slower), never SKIP on a code change or manual release qualification.
       docs_only: ${{ github.event_name != 'workflow_dispatch' && steps.python_non_windows.outputs.non_metadata == 'false' }}
+      inspector: ${{ steps.filter.outputs.inspector }}
       rust: ${{ steps.filter.outputs.rust }}
       python: ${{ steps.python_non_windows.outputs.python }}
       typescript: ${{ steps.filter.outputs.typescript }}
@@ -218,6 +219,8 @@ jobs:
               - 'src/python/tests/test_slice65_wal_attribution_installed.py'
               - 'scripts/release/smoke/python-test-hooks-v1.json'
               - 'scripts/release/native-artifact-receipts.py'
+            inspector:
+              - 'src/inspector/**'
             rust:
               - 'src/rust/**'
               - 'Cargo.toml'
@@ -380,6 +383,7 @@ jobs:
           needs.changes.outputs.rust == 'true' ||
           needs.changes.outputs.python == 'true' ||
           needs.changes.outputs.typescript == 'true' ||
+          needs.changes.outputs.inspector == 'true' ||
           needs.changes.outputs.verify_harness == 'true' ||
           needs.changes.outputs.rust_test_harness == 'true'
         ) &&

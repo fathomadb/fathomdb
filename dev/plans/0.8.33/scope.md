@@ -70,12 +70,12 @@ open-source database candidate** — documenting the complete stabilized
   forward the documentation half of
   [03-fathomdb-agent-storage-proposal.md](../../notes/agent-storage-sdk/03-fathomdb-agent-storage-proposal.md)).
   Explicitly document `ingest_with_extractor` as legacy/non-provenanced and
-  guide governed agents to `Engine.actuate` + `WriteProvenanceV1` (Memex E3),
+  guide governed agents to `Engine.actuate` + `WriteProvenanceV1`,
   and verify full coverage of `fathomdb-cli` PyPI installation, PyPI CUDA/CE
   wheel support, `use_graph_arm` seeding modes, and mixed-`source_id` batch
   atomicity.
 - **MCP (`docs/mcp/`)**: first-class public documentation covering setup for
-  Claude Desktop, Cursor, Memex, Hermes, and OpenClaw; configuration schema;
+  Claude Desktop, Cursor, Hermes, OpenClaw, and generic MCP hosts; configuration schema;
   all read and write/checkpoint tools (`0.8.32`) and error codes; caller
   scoping/security; token budgets; frozen-evidence workflow; and
   troubleshooting.
@@ -97,8 +97,8 @@ open-source database candidate** — documenting the complete stabilized
   3. Business process / design-controls evidence assistant (exact citations and
      host-level abstention).
   4. Knowledge management (property graph + historical path replay).
-  5. Personal agent local memory (Memex / Hermes / OpenClaw pattern, including
-     caller scope, erasure, and backup/restore).
+  5. Personal agent local memory (Hermes / OpenClaw / generic local-agent
+     pattern, including caller scope, erasure, and backup/restore).
 
 ## Out of scope
 

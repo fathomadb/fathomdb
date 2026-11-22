@@ -32,14 +32,14 @@ Source-grounded evaluation of Memex Ask 3 (W12 erasure ergonomics) in
   to `dependency_closure::guard_no_pending_physical` (`dependency_closure.rs`),
   fencing even unrelated plain writes until the checkpoint retry succeeds.
 
-### Safety analysis and Slice 10 disposition
+### Safety analysis and Slice 20 disposition
 
 - **Unsafe to bypass `guard_no_pending_physical` directly after
   `prepare_redacted`**: once `denied_sources`/`denied_identities` are cleared,
   the engine can no longer distinguish unrelated writes from writes re-inserting
   erased identities, and advancing `write_cursor` without `certify_plain_write`
   breaks `validate_physical_zero` (`current_write_boundary <= safe_boundary`).
-- **Safe, bounded Slice 10 fix (Autonomous mode only)**:
+- **Safe, bounded Slice 20 fix (Autonomous mode only)**:
   - In Autonomous mode, `RootDebt` stores only SHA-256 hashes and integer
     cursors (no plaintext selectors). Perform the first `wal_checkpoint(TRUNCATE)`
     **before** `prepare_redacted` clears `denied_sources`/`denied_identities`
@@ -76,7 +76,7 @@ return `ExciseReport { nodes_excised: 0, edges_excised: 0, projections_invalidat
 — indistinguishable from calling `erase_source` on a source that never existed
 or was already erased.
 
-### Slice 10 fix
+### Slice 20 fix
 
 - Add additive boolean field `completed_pending_erasure: bool` (TypeScript:
   `completedPendingErasure: boolean`) to `ExciseReport` / `EraseReport` across
@@ -116,7 +116,7 @@ without recording anything — so in production release builds without
 pinning the WAL snapshot. Enabling full trace logging unconditionally would
 acquire a `Mutex` and write `eprintln!("slice65_wal ...")` on every transaction.
 
-### Slice 10 fix
+### Slice 20 fix
 
 - Decouple **always-on lightweight atomic active-role and checkpoint-overlap
   counters** (zero `Mutex` contention and zero `eprintln!` on the hot path)

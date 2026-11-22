@@ -85,7 +85,7 @@ status: accepted
    - All existing `0.8.30` rows remain intact (`properties = NULL`,
      `scope = ''`); previously erased rows remain absent.
 
-3. **Slice 40 SDK unblockers (`resolve_evidence_many`, `search(hints=)`, `OpenReport` booleans)**:
+3. **Slice 50 SDK unblockers (`resolve_evidence_many`, `search(hints=)`, `OpenReport` booleans)**:
    - **`resolve_evidence_many`**: bounded batch evidence resolver under one
      authenticated frozen context returning per-reference resolved artifacts or
      typed per-reference refusals (`get_many` partial-result style), eliminating

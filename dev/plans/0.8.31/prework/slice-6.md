@@ -145,12 +145,12 @@ All findings below are verified against source, CI workflows, and accepted `0.8.
   - Add `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, GitHub issue/PR templates, and a public-OSS root `README.md`.
 - **Why not `0.8.31`:** Destructive/large-scale `dev/` pruning requires a dedicated `0.8.33` Slice 0 manifest and HITL sign-off; touching it in `0.8.31` risks churn against active `0.8.31`–`0.8.32` execution.
 
-#### `P6-13` (`0.8.33` Slices 20–50 — Public Docs Architecture, Auto-Docs, MCP, Recipes, Memex E3)
+#### `P6-13` (`0.8.33` Slices 20–50 — Public Docs Architecture, Auto-Docs, MCP, Recipes, Legacy `ingest_with_extractor` Framing)
 
 - **Scope (`R33-02` – `R33-06`):**
   - Upgrade `scripts/generate-public-docs.py` (rich `rustdoc`, Python/TS API docs, CLI `--help`, `fathomdb-mcp` JSON schema docs, CI drift checks) and `mkdocs.yml` theme + sanitized Mermaid/SVG diagrams.
   - Author `docs/architecture/` internals (eliminating raw `dev/design/` links across `docs/`).
-  - Author `docs/mcp/` for read + write/checkpoint tools (`0.8.32`), package-local agent docs, Memex E3 legacy framing (`ingest_with_extractor` vs. `actuate`), and 5 CI-tested runnable `docs/recipes/`.
+  - Author `docs/mcp/` for read + write/checkpoint tools (`0.8.32`), package-local agent docs, product-generic framing of `ingest_with_extractor` as legacy/non-provenanced vs. `Engine.actuate` + `WriteProvenanceV1` (no external-project/Memex-specific references in tracked repo files), and 5 CI-tested runnable `docs/recipes/`.
 - **Why not `0.8.31`:** Depends on `0.8.32` caller scope and read/write MCP contracts landing first.
 
 ---
@@ -171,4 +171,4 @@ All findings below are verified against source, CI workflows, and accepted `0.8.
 | `P6-10` | `0.8.31` (Slice 40) | Sync `dev/ROADMAP.md` & `PROGRAM-SEQUENCING.md` current-release tables |
 | `P6-11` | `0.8.31` (Slice 40/50) | Add Slice 0 Python `3.12`/TS preflight & Slice 50 `local-ci.sh` notes to `docs/contributing/` |
 | `P6-12` | `0.8.33` (Slice 10) | Root stray files, `dev/` pruning, `hygeine-roadmap` rename, OSS community files |
-| `P6-13` | `0.8.33` (Slices 20–50) | Auto-doc pipeline, MkDocs theme/diagrams, `docs/architecture/`, `docs/mcp/`, `docs/recipes/`, E3 |
+| `P6-13` | `0.8.33` (Slices 20–50) | Auto-doc pipeline, MkDocs theme/diagrams, `docs/architecture/`, `docs/mcp/`, `docs/recipes/`, product-generic `ingest_with_extractor` vs. `actuate` framing |

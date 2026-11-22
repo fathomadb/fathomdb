@@ -30,14 +30,14 @@ use_checkout_venv_python_path() {
 # release/CI gates (scripts/check-license-consistency.sh,
 # scripts/check-pinned-override-rot.py).
 #
-# Tries versions newest-first (3.13, 3.12, 3.11); for each, tries a bare PATH
-# command before falling back to `uv python find` if `uv` is present, so a
-# higher version wins regardless of which mechanism provides it. The `uv`
-# fallback exists because a modern interpreter can be genuinely available on
-# a host — via `uv python install` — without ever appearing as a bare command
-# on PATH; a selection function that only probes bare commands silently fails
-# on exactly that host. Fails closed (nonzero exit, actionable stderr, no
-# stdout) when nothing qualifies anywhere.
+# Prefers bare PATH commands newest-first (3.13, 3.12, 3.11) before falling
+# back to `uv python find` (3.13, 3.12, 3.11). On Ubuntu 24.04 this selects
+# system `/usr/bin/python3.12` (which provides `os.memfd_create` and system
+# `libpython` for `cargo test -p fathomdb-py --lib`) instead of a `uv`
+# standalone Python 3.13. On hosts whose OS Python is 3.10 (Ubuntu 22.04 /
+# L4T R36), no bare 3.11+ exists on PATH, so the `uv` fallback still resolves
+# the newest `uv`-managed interpreter. Fails closed (nonzero exit, actionable
+# stderr, no stdout) when nothing qualifies anywhere.
 select_python_for_venv() {
   local versions=(3.13 3.12 3.11) v candidate
 
@@ -47,14 +47,17 @@ select_python_for_venv() {
       printf '%s\n' "$candidate"
       return 0
     fi
-    if command -v uv >/dev/null 2>&1; then
+  done
+
+  if command -v uv >/dev/null 2>&1; then
+    for v in "${versions[@]}"; do
       candidate="$(uv python find "$v" 2>/dev/null || true)"
       if [ -n "$candidate" ]; then
         printf '%s\n' "$candidate"
         return 0
       fi
-    fi
-  done
+    done
+  fi
 
   {
     printf 'select_python_for_venv: no Python 3.11+ interpreter found (checked bare\n'

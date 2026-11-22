@@ -31,19 +31,28 @@ treat them as historical record, not as live guidance (see the staleness index i
 
 ## Live prompts an agent should actually read
 
-Only a handful of files here are **live, generic entry points** meant to be read by a
-new session rather than archived history:
+Only the entry point below is **live** for new release and slice planning:
 
 | Prompt | Role |
-|--------|------|
-| `0.8.x-STEWARD-HANDOFF.md` | Program Steward hand-off — role/mandate (canonical, cross-release). |
-| `0.8.x-RELEASE-ORCHESTRATOR-HANDOFF.md` | Release Orchestrator hand-off — per-release entry point (sibling role, not the Steward). |
-| `DOC-HYGIENE-1-HANDOFF.md` | This cross-cutting docs/tooling-hygiene effort's own commissioning brief. |
-| `LIBRARY-BUMP-STEWARD.md` | Library Bump Steward — recurring dependency-sweep role brief. |
-| `LIBRARY-BUMP-ORCHESTRATOR-TEMPLATE.md` | Per-sweep Library Bump Orchestrator template. |
-| `PLAN-TEMPLATE.md` | Per-release plan-authoring template (fill-in skeleton for a new `plan-<release>.md`). |
+|---|---|
+| `RELEASE-AND-SLICE-PLANNING-TEMPLATE.md` | **Canonical** cross-harness / cross-model release scaffolding, prework, slice planning, and Slices 20+ execution template. |
+
+## Deprecated / legacy entry points (retained in place)
+
+These former entry points are **deprecated — do not use for new releases or slices**. They remain on disk under the archive-in-place convention (and `scripts/commission-manifest.sh` compatibility) only:
+
+| Prompt | Former Role / Status |
+|---|---|
+| `PLAN-TEMPLATE.md` | **DEPRECATED** — superseded by `RELEASE-AND-SLICE-PLANNING-TEMPLATE.md`. |
+| `0.8.0-SLICE-TEMPLATE.md` | **DEPRECATED** — superseded by `RELEASE-AND-SLICE-PLANNING-TEMPLATE.md` (Section 2). |
+| `LIBRARY-BUMP-ORCHESTRATOR-TEMPLATE.md` | **DEPRECATED** — LBO workflow retired; superseded by `RELEASE-AND-SLICE-PLANNING-TEMPLATE.md` (Slice 1 / Slice 10). |
+| `LIBRARY-BUMP-STEWARD.md` | **DEPRECATED** — LBS workflow retired; superseded by `RELEASE-AND-SLICE-PLANNING-TEMPLATE.md` (Slice 1 / Slice 9 / Slice 10). |
+| `0.8.x-STEWARD-HANDOFF.md` | **DEPRECATED** — Program Steward workflow and skills removed. |
+| `0.8.x-RELEASE-ORCHESTRATOR-HANDOFF.md` | **DEPRECATED** — Release Orchestrator workflow and skills removed. |
+| `0.8.0-SESSION-SCAFFOLD-GENERATOR.md` | **DEPRECATED** — closed `0.8.0` campaign. |
+| `DOC-HYGIENE-1-HANDOFF.md` | Historical DOC-HYGIENE-1 commissioning brief. |
 
 Everything else in this directory is closed-line and archived-in-place. For
 current program state, read the single live
-`dev/plans/release-state-*.json` file, then the board named by its `board` key
-(currently `dev/plans/runs/STATUS-0.8.27.md`), not a scan of this directory.
+`dev/plans/release-state-*.json` file selected by `scripts/release-current.py`,
+then the board named by its `board` key, not a scan of this directory.

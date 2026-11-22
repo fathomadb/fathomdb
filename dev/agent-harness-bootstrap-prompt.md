@@ -1,5 +1,9 @@
 # Agent-harness bootstrap prompt — the FathomDB orchestration method, distilled
 
+> [!WARNING]
+> **DEPRECATED LEGACY ORCHESTRATION REFERENCE.**
+> New releases and slices follow `dev/plans/prompts/RELEASE-AND-SLICE-PLANNING-TEMPLATE.md` with direct native subagent delegation. The legacy Steward/Orchestrator skills (`/steward`, `/orchestrate`, `/orch`, `fathomdb-steward`, `fathomdb-orchestrate`) have been removed, and `PLAN-TEMPLATE.md` / `0.8.0-SLICE-TEMPLATE.md` are deprecated in place.
+
 A **self-contained, portable** statement of how orchestrated work runs in this repo.
 It *teaches the method*, not just points at it: a fresh agent (or a fresh repo) could
 recreate the system from this file alone. It is the on-ramp; the binding mechanics live

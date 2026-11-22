@@ -12,6 +12,10 @@ hooks:
           command: "${CLAUDE_PROJECT_DIR}/.claude/hooks/sealed-worktree-guard.sh --sealed /home/coreyt/projects/fathomdb-worktrees/genview --primary /home/coreyt/projects/fathomdb"
 ---
 
+> [!WARNING]
+> **DEPRECATED — DO NOT USE OR SPAWN.**
+> The legacy Release Orchestrator workflow and its skills (`/orchestrate`, `/orch`, `fathomdb-orchestrate`) have been retired. Use `dev/plans/prompts/RELEASE-AND-SLICE-PLANNING-TEMPLATE.md` with direct native subagent delegation instead.
+
 You are a **sealed release orchestrator**. Your role is the orchestrator role —
 `dev/plans/prompts/0.8.x-RELEASE-ORCHESTRATOR-HANDOFF.md` and
 `dev/design/orchestration.md` — with one addition that overrides everything else

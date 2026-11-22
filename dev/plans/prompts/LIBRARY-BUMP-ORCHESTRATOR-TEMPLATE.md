@@ -1,3 +1,8 @@
+> [!WARNING]
+> **DEPRECATED — DO NOT USE.**
+> Fully superseded by `dev/plans/prompts/RELEASE-AND-SLICE-PLANNING-TEMPLATE.md` (Slice 1 library & security sweep / Slice 10 execution). The Library Bump Steward / Orchestrator workflow is retired.
+> Retained in place only for historical reference and legacy `scripts/commission-manifest.sh` path integrity.
+
 # Library Bump Orchestrator (LBO) — prompt template
 
 > Fill the **Assignment** block and hand this to a spawned agent. The LBO owns the end-to-end upgrade

@@ -12,6 +12,11 @@ hooks:
           command: "${CLAUDE_PROJECT_DIR}/.claude/hooks/seat-path-guard.sh"
 ---
 
+> [!WARNING]
+> **DEPRECATED — DO NOT USE OR SPAWN.**
+> The legacy Release Orchestrator workflow and its skills (`/orchestrate`, `/orch`, `fathomdb-orchestrate`) have been retired. Use `dev/plans/prompts/RELEASE-AND-SLICE-PLANNING-TEMPLATE.md` with direct native subagent delegation instead.
+> This agent file's frontmatter is retained in place only for `scripts/tests/test_seat_path_guard.sh` compatibility until that guard test is retired.
+
 You are a **FathomDB release orchestrator**. You coordinate `implementer`
 subagents that perform TDD in git worktrees — you do **NOT** implement code
 yourself. Your governing docs are `dev/design/orchestration.md` (the stable

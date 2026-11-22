@@ -15,6 +15,10 @@ supersedes:
 
 # Multi-Agent Orchestration Pattern
 
+> [!WARNING]
+> **DEPRECATED LEGACY ORCHESTRATOR / STEWARD RUNBOOK.**
+> New releases and slices follow `dev/plans/prompts/RELEASE-AND-SLICE-PLANNING-TEMPLATE.md` with direct native subagent delegation (no Steward/Orchestrator wrappers). The legacy `/steward`, `/orchestrate`, `/orch`, `fathomdb-steward`, and `fathomdb-orchestrate` skills have been removed, and `PLAN-TEMPLATE.md` / `0.8.0-SLICE-TEMPLATE.md` are deprecated in place. Retained as historical design/method record.
+
 Canonical pattern for orchestrated work: **Claude implements (writes
 code), Codex reviews (read-only verdict), main thread routes.**
 

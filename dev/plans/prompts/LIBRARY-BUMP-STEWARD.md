@@ -1,3 +1,8 @@
+> [!WARNING]
+> **DEPRECATED — DO NOT USE.**
+> The Library Bump Steward / Orchestrator workflow is retired. Superseded by `dev/plans/prompts/RELEASE-AND-SLICE-PLANNING-TEMPLATE.md` (Slice 1 library & security sweep, Slice 9 triage, Slice 10 execution).
+> Retained in place only for historical reference and inbound link integrity.
+
 # Library Bump Steward (LBS) — charter & operating manual
 
 > A second Steward archetype, parallel to the program Steward. The program Steward owns the

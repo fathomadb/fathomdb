@@ -1,3 +1,8 @@
+> [!WARNING]
+> **DEPRECATED — DO NOT USE FOR NEW RELEASES.**
+> Superseded by `dev/plans/prompts/RELEASE-AND-SLICE-PLANNING-TEMPLATE.md`.
+> Retained in place only for historical reference and inbound link integrity (`dev/plans/prompts/README.md`).
+
 <!--
 ========================================================================
 PLAN AUTHORING TEMPLATE  (this comment block is harmless if left in)

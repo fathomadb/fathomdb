@@ -1,5 +1,8 @@
 # `dev/steward/` — the Steward ledger discipline
 
+> [!NOTE]
+> The legacy Program Steward and Release Orchestrator roles/skills (`/steward`, `/orchestrate`, `/orch`, `fathomdb-steward`, `fathomdb-orchestrate`) are **retired**; new releases follow `dev/plans/prompts/RELEASE-AND-SLICE-PLANNING-TEMPLATE.md`. The append-only decision ledger (`dev/steward/steward-ledger.jsonl`) and `ledgerwatch`/`ledgerwrite` tooling documented below remain retained for durable program decision records.
+
 This directory holds the **Steward's append-only decision ledger** and the
 discipline for keeping it. The Program Steward (see
 `dev/plans/prompts/0.8.x-STEWARD-HANDOFF.md`) is the program-scope keeper who

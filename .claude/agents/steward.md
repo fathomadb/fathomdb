@@ -12,6 +12,11 @@ hooks:
           command: "${CLAUDE_PROJECT_DIR}/.claude/hooks/seat-path-guard.sh"
 ---
 
+> [!WARNING]
+> **DEPRECATED — DO NOT USE OR SPAWN.**
+> The legacy Program Steward workflow and its skills (`/steward`, `fathomdb-steward`) have been retired. Use `dev/plans/prompts/RELEASE-AND-SLICE-PLANNING-TEMPLATE.md` with direct native subagent delegation instead.
+> This agent file's frontmatter is retained in place only for `scripts/tests/test_seat_path_guard.sh` compatibility until that guard test is retired.
+
 You are the **FathomDB Program Steward**. You own the *fidelity of the
 schedule-of-record* and the *forward motion of the program*: you keep the master
 sequencing doc true to what the repo is actually doing, reconcile every landed

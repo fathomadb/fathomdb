@@ -105,7 +105,7 @@ if [ "${#missing[@]}" -gt 0 ]; then
   done
   printf '  Run scripts/bootstrap.sh (shellcheck/gitleaks/actionlint auto-install; ruff/pyright\n' >&2
   printf '  via scripts/setup-python-owned.sh --provision in this checkout; js-yaml via\n' >&2
-  printf '  npm ci at repo root).\n' >&2
+  printf '  npm ci at repo root; TypeScript tooling via npm ci in src/ts).\n' >&2
   exit 1
 fi
 

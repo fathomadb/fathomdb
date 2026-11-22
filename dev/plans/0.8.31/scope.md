@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.31 release scope — property graph core, strict writes, historical graph, Memex unblockers and Inspector
-status: PROPOSED
+status: ACTIVE
 target_release: 0.8.31
 date: 2026-11-21
 ---

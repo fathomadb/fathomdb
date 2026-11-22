@@ -49,13 +49,37 @@ following storage, indexing, identity, erasure, and visibility contracts:
      - `attr_name TEXT NOT NULL`
      - `value_type TEXT NOT NULL CHECK(value_type IN ('string', 'integer', 'float', 'boolean'))`
      - `text_val TEXT`
-     - `num_val REAL`
+     - `num_val NUMERIC` (SQLite `NUMERIC` affinity preserves exact 64-bit
+       `INTEGER` storage class for `|x| > 2^53` while ordering `INTEGER` and
+       `REAL` values accurately in one B-tree index; cross-type `Int` vs
+       `Float` comparisons use exact numeric ordering without lossy `i64 -> f64`
+       truncation for `Int` vs `Int` predicates)
      - `bool_val INTEGER CHECK(bool_val IS NULL OR bool_val IN (0, 1))`
    - Composite B-tree indexes:
      - `canonical_property_values_cursor_idx(write_cursor)`
      - `canonical_property_values_text_idx(entity_class, attr_name, text_val, write_cursor)`
      - `canonical_property_values_num_idx(entity_class, attr_name, num_val, write_cursor)`
      - `canonical_property_values_bool_idx(entity_class, attr_name, bool_val, write_cursor)`
+   - **Active-only maintenance contract**: `canonical_property_values` is
+     strictly active-only (mirroring `canonical_attributes`):
+     - On node supersession (`logical_id`), purge prior cursor's rows via
+       `purge_row_projections_for_cursor_in`.
+     - On edge supersession — both G0 (`logical_id`) and G11
+       (`(from_id, to_id, kind)`) — purge prior cursor's rows via
+       `purge_row_projections_for_cursor_in`.
+     - On node lifecycle transitions (`transition` to `deleted` / `pending`),
+       purge the node's `canonical_property_values` rows; on transition back to
+       `active`, re-project declared filterable properties from the active row's
+       `properties` (with `json_extract(body, ...)` fallback).
+   - **Schema 38 incident edge indexes**: include both partial active incident
+     indexes (`canonical_edges_from_active_idx ON canonical_edges(from_id, kind)
+     WHERE superseded_at IS NULL` and `canonical_edges_to_active_idx ON
+     canonical_edges(to_id, kind) WHERE superseded_at IS NULL`) for zero-waste
+     current-time `graph.expand`, and composite historical indexes
+     (`canonical_edges_from_kind_sup_idx(from_id, kind, superseded_at)` and
+     `canonical_edges_to_kind_sup_idx(to_id, kind, superseded_at)`) for
+     bitemporal `as_of` traversal — avoiding any second schema bump in later
+     `0.8.31` slices.
    - Only properties declared `Filterable` via `configure_projections` (extended
      additively with optional `entity_class` defaulting to `node`) are written
      to `canonical_property_values` (synchronous, same-transaction) and, for
@@ -97,10 +121,11 @@ following storage, indexing, identity, erasure, and visibility contracts:
      (`projection_registry.rs`) and add it to the schema-38 read-visibility
      trigger manifest (`read_visibility_coalescing_upgrade_sql!` in
      `fathomdb-schema` and `VISIBILITY_TRIGGER_TABLES` in `frozen_read.rs`).
-   - Extend `physical_erasure/admission.rs` (`envelope`) to include
-     `length(CAST(properties AS BLOB))` alongside `body` on `canonical_nodes`
-     and `canonical_edges`, and include `canonical_property_values` in derived
-     cleanup and `doctor` integrity verification.
+   - Extend `physical_erasure/admission.rs` (`envelope`) to sum
+     `COALESCE(length(CAST(body AS BLOB)), 0) + COALESCE(length(CAST(properties AS BLOB)), 0)`
+     on `canonical_nodes` and `canonical_edges` (both `canonical_edges.body`
+     and `properties` are nullable), and include `canonical_property_values` in
+     derived cleanup and `doctor` integrity verification.
    - Add an automated `sqlite_master` completeness audit test in
      `fathomdb-engine` asserting every non-SQLite-internal table in a
      bootstrapped schema-38 database is explicitly classified across:

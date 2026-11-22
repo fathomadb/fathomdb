@@ -52,6 +52,12 @@ Source-grounded evaluation of Memex Ask 3 (W12 erasure ergonomics) in
   - Once the first truncate succeeds, run `prepare_redacted` + final
     `wal_checkpoint(TRUNCATE)` + finalize so zero debt metadata remains in the
     WAL at rest.
+  - **Targeted amendment to `ADR-0.8.28-resumable-physical-cleanup.md`**: this
+    introduces a bounded two-truncate Autonomous completion sequence (truncate
+    before `prepare_redacted`, then `prepare_redacted` + final truncate +
+    finalize). Implementation must audit existing `ActualCheckpointObserver`
+    and checkpoint-count assertions so they match the amended Autonomous
+    sequence without weakening single-truncate guarantees where applicable.
   - ExplicitMaintenance tickets (which hold plaintext selectors) keep their
     existing scrub-before-truncate ordering untouched.
 
@@ -76,10 +82,15 @@ or was already erased.
   `completedPendingErasure: boolean`) to `ExciseReport` / `EraseReport` across
   `fathomdb-engine`, `fathomdb`, `fathomdb-sdk`, `fathomdb-py` (`_fathomdb.pyi`),
   and `fathomdb-napi` / `src/ts/`.
-- Set `completed_pending_erasure = true` whenever either `finish_redacted_before_request`
-  or the `root_retry || !pending.is_empty()` branch completed an owed physical
-  closure for the request (and skip writing a redundant zero-count
-  `excise_source_audit` row when the request only finished an owed closure).
+- Set `completed_pending_erasure = true` whenever either
+  `finish_redacted_before_request` or the `root_retry || !pending.is_empty()`
+  branch completed an owed physical closure during the call.
+- **Cross-source audit guard**: because `prepare_redacted` clears `debt.retry`,
+  `finish_redacted_before_request` can finish a *prior* source's redacted
+  closure before `excise_source_inner` excises real rows for a *different*
+  `source_id`. Skip writing `excise_source_audit` **only** when
+  `completed_pending_erasure == true && nodes_excised == 0 && edges_excised == 0`
+  — never skip the audit row when real rows were excised for the current call.
 - Set `completed_pending_erasure = false` on normal fresh erasures and true
   already-erased no-ops.
 
@@ -96,10 +107,23 @@ via `WalAttributionCollector::classification` (`wal_attribution.rs`:
 claiming `"a concurrent reader is pinning a WAL snapshot"` and `"`{verb}`
 deleted its rows"` even on completing retries or internal runtime transactions.
 
+**Critical production catch (Slice 0 review P1-1):** `WalAttributionCollector::new()`
+sets `enabled: cfg!(test) || std::env::var_os("FATHOMDB_WAL_ATTRIBUTION").is_some()`.
+When `!enabled`, `register()`, `set()`, and `checkpoint_begin()` early-return
+without recording anything — so in production release builds without
+`FATHOMDB_WAL_ATTRIBUTION`, `classification()` would always return
+`"unclassified_external"` even when an owned reader or projection worker is
+pinning the WAL snapshot. Enabling full trace logging unconditionally would
+acquire a `Mutex` and write `eprintln!("slice65_wal ...")` on every transaction.
+
 ### Slice 10 fix
 
-- Include the actual `WalAttributionCollector` classification and active role
-  summary in `EngineError::ErasureIncomplete.detail`, distinguish initial
-  erasure vs. completing retry wording, and avoid blaming a caller reader when
-  the blocker is `"local_checkpoint_overlap"`, `"owned_runtime_transaction"`,
-  or `"unclassified_external"`.
+- Decouple **always-on lightweight atomic active-role and checkpoint-overlap
+  counters** (zero `Mutex` contention and zero `eprintln!` on the hot path)
+  from the opt-in `FATHOMDB_WAL_ATTRIBUTION` stderr trace sink.
+- Drive `Engine::checkpoint_erasure_at_rest`'s `ErasureIncomplete.detail` from
+  those always-on atomic counters so release builds truthfully report
+  `"local_checkpoint_overlap"`, `"owned_reader_snapshot"`,
+  `"owned_runtime_transaction"`, or `"unclassified_external"` plus active role
+  counts, distinguish initial erasure vs. completing retry wording, and avoid
+  blaming a caller reader when the blocker is internal or unclassified.

@@ -46,8 +46,11 @@ In FathomDB 0.8.30:
      historical traversal replays only retained superseded/expired revisions.
    - **Zero penalty on default current-time traversal**: default current-time
      `graph.expand` uses a partial active SQL predicate (`superseded_at IS NULL`)
-     backed by partial active edge indexes so superseded rows never consume
-     incident-edge `LIMIT` or `work_units`. Historical traversal uses dedicated
+     backed by Schema 38 partial active incident indexes
+     (`canonical_edges_from_active_idx(from_id, kind) WHERE superseded_at IS NULL`
+     and `canonical_edges_to_active_idx(to_id, kind) WHERE superseded_at IS NULL`)
+     so superseded rows never consume incident-edge `LIMIT` or `work_units`,
+     even when `edge_kinds` is empty. Historical traversal uses dedicated
      composite indexes `(from_id, kind, superseded_at)` and
      `(to_id, kind, superseded_at)` (verified via `EXPLAIN QUERY PLAN`
      `SEARCH`).

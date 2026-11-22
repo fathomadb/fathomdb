@@ -15,12 +15,13 @@ Slice 0 is active on `release/0.8.31`:
   and bootstrapped owned `.venv`, `node_modules`, and `src/ts/node_modules`.
 - Authored ADRs `#73`–`#76` (`ADR-0.8.31-*`) and the W12 checkpoint-fence
   review (`dev/plans/0.8.31/features/slice-0/w12-fence-review.md`).
-- Capturing `v0.8.30` baseline latency measurements and closed golden
-  schema-37 fixture DB prior to opening Slice 10.
+- Captured `v0.8.30` baseline latency measurements (`baseline-0.8.30-latency.json`)
+  and closed golden schema-37 fixture DB (`golden-0.8.30-manifest.json`),
+  adopted `RELEASE-AND-SLICE-PLANNING-TEMPLATE.md` (`6ee16b9e8`), remediated
+  all Slice 0 adversarial review findings (P1-1 through P1-7), and fanned out
+  Prework Audits (Slices 1–7) in parallel.
 
 ## Next action
 
-Finish Slice 0 baseline capture + independent review, close Slice 0, and launch
-Slice 10 (`SCHEMA_VERSION` 38+, inline typed node/edge properties + declared
-typed indexes, app-declared vector kinds, op-collection kind readback, W12
-erasure ergonomics fixes, and `sqlite_master` completeness audit).
+Synthesize Prework Audits (Slices 1–7) into Slice 9 triage (`prework/slice-9-triage.md`)
+for HITL Gate 1, then execute approved prework and `0.8.31` feature slices.

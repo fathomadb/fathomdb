@@ -87,7 +87,7 @@ release cycle. Full scope boundaries live in [scope.md](scope.md).
 - **X2 (Erasure & metadata audit)**: `sqlite_master` table-classification test,
   read-visibility triggers, `purge`/`erase_source`, and `doctor` checks pass.
 - **X3 (Performance guard)**: `EXPLAIN QUERY PLAN` checks and scoped latency
-  spot-checks pass before slice close; full paired gate runs in Slice 70.
+  spot-checks pass before slice close; full paired gate runs in Slice 60.
 - **X4 (Docs & interfaces)**: `dev/interfaces/{rust,rust-sdk,python,typescript,cli,wire}.md`
   and `docs/` updated in the same slice as any contract change.
 

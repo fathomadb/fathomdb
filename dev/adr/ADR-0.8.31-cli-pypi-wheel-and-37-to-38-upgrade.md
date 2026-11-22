@@ -62,10 +62,12 @@ status: accepted
      6. Applies schema-38 additive DDL inside a single `BEGIN IMMEDIATE`
         transaction (`properties TEXT` NULL on `canonical_nodes`/`canonical_edges`,
         `scope TEXT NOT NULL DEFAULT ''`, `canonical_property_values` + indexes,
-        historical edge composite indexes, updated read-visibility triggers,
-        `PRAGMA user_version = 38`), preserving existing `vector_default` /
-        `_fathomdb_vector_spans` / `_fathomdb_embedder_profiles` verbatim and
-        rolling back atomically on any failure.
+        partial active edge incident indexes (`canonical_edges_from_active_idx`,
+        `canonical_edges_to_active_idx`), historical edge composite indexes,
+        updated read-visibility triggers, `PRAGMA user_version = 38`), preserving
+        existing `vector_default` / `_fathomdb_vector_spans` /
+        `_fathomdb_embedder_profiles` verbatim and rolling back atomically on
+        any failure.
      7. Runs `doctor full-integrity` verification on the upgraded database and
         fails closed if any finding is reported.
    - **Shared durable-authority interchange alignment

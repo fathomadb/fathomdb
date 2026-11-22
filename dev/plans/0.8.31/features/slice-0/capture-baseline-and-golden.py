@@ -356,7 +356,7 @@ def main() -> int:
     parser.add_argument(
         "--golden-db",
         type=Path,
-        default=Path("/mnt/data/fathomdb/0.8.31-golden-fixtures/golden-0.8.30-schema37.sqlite"),
+        default=Path("/mnt/data/worktrees/fathomdb-0.8.31-golden/golden-0.8.30-schema37.sqlite"),
     )
     parser.add_argument(
         "--golden-manifest",

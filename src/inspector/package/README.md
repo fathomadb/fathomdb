@@ -1,19 +1,20 @@
-# FathomDB Inspector 0.2.0 local bundle
+# FathomDB Inspector 0.2.1 local bundle
 
 This bundle contains the Linux x86_64 executable, embedded UI, license, build
 description and internal checksums. No Node, Python or development server is
 needed to run it. The surrounding candidate/local distribution contains the tar,
 outer `SHA256SUMS` and unsigned `candidate.json` source/build/support metadata.
-A candidate becomes the local release only when90 promotes its exact bytes to
-`dist/inspector/0.2.0/`. No registry release or human-study validation is claimed.
+A candidate becomes the local release only when `local-release.py promote`
+copies its exact bytes atomically to `dist/inspector/0.2.1/`. No registry
+release or human-study validation is claimed.
 
 From the surrounding distribution directory:
 
 ```sh
 sha256sum --check SHA256SUMS
 mkdir inspector-install
-tar -xzf fathomdb-inspector-0.2.0-linux-x86_64.tar.gz -C inspector-install
-cd inspector-install/fathomdb-inspector-0.2.0-linux-x86_64
+tar -xzf fathomdb-inspector-0.2.1-linux-x86_64.tar.gz -C inspector-install
+cd inspector-install/fathomdb-inspector-0.2.1-linux-x86_64
 sha256sum --check SHA256SUMS
 ./fathomdb-inspector --help
 ./fathomdb-inspector --build-description
@@ -22,20 +23,24 @@ sha256sum --check SHA256SUMS
 
 Omit the database path to select it in the local UI. Close the application before
 removing only its owned extraction folder/archive; preserve databases and caches.
-Stop all external writers before attach. The selected Engine0.8.29 source commit
-is `6edc1155f039f87cd0a37660cb27ae4373bbce71`, compiled schema 37. Normal owned
-Engine startup/background/shutdown can change files. Missing/held lock, nonempty
-initial WAL/journal, unsupported schema/layout/encoding and corrupt input refuse.
-Preserve original files/sidecars; do not delete WAL or create a missing lock to
-force admission. There is no migration, recovery or repair control.
+Stop all external writers before attach. The selected Engine 0.8.30 source commit
+is `72fe93634321616214352a7e07066ce0f93bcf4c` (byte-identical Rust/Cargo source
+to `v0.8.30` `e3d31f5cd`), compiled schema 37, qualified against fresh closed
+databases produced by both published FathomDB 0.8.29 and published FathomDB
+0.8.30. Normal owned Engine startup/background/shutdown can change files.
+Missing/held lock, nonempty initial WAL/journal, unsupported schema/layout/encoding
+and corrupt input refuse. Preserve original files/sidecars; do not delete WAL or
+create a missing lock to force admission. There is no migration, recovery or
+repair control.
 
 ## Exact qualified environment
 
-Ubuntu 22.04/glibc 2.35 Linux x86_64 userland, kernel 7.0.0-43-generic/Landlock ABI 8,
-Chromium 156.0.8078.4 in a graphical session. The compatible executable requires
-at mostGLIBC 2.34. Cached CPU requires Landlock ABI >=3, so stock Ubuntu 22/kernel 5.15
-is insufficient. This is not blanket newer-Linux/browser support. Allow four CPU
-cores, 8 GiB available RAM and scratch at least twice the fixture size.
+Ubuntu 24.04 / glibc 2.39 Linux x86_64 userland, kernel 7.0.0-43-generic /
+Landlock ABI 8, Chromium 156.0.8078.4 in a graphical session. The native
+executable requires at most GLIBC 2.39 (Ubuntu 22.04 / glibc 2.35 is not
+supported). Cached CPU requires Landlock ABI >= 3. This is not blanket
+newer-Linux/browser support. Allow four CPU cores, 8 GiB available RAM and
+scratch at least twice the fixture size.
 
 Shipping builds explicitly enable cached CPU and exclude fixture controls.
 Native CPU queries need existing `BAAI/bge-small-en-v1.5` revision
@@ -49,11 +54,13 @@ stored/text inspection when CPU assets are unavailable. No GPU/reranker chooser.
 Browse records by bounded stored title/name plus exact identity; inspect complete
 document/tree, metadata and scalar values. Indexed text provides effective
 property choices and nearby validation; original requests and separately timed
-evidence remain distinguishable. Stored vector/L2 neighborhoods retain exact
-origins. Directed graph branches retain explicit scope; source/dependency/history
-navigation and Back preserve admitted original context. Pin two actual bounded
-observations for typed membership and separate exact-origin correspondence;
-methods retain their own ranks/values, without a common score scale.
+evidence remain distinguishable, and 0.8.30 body/property lexical results are
+record-keyed rather than merged across equal bodies. Stored vector/L2
+neighborhoods retain exact origins. Directed graph branches retain explicit
+scope; source/dependency/history navigation and Back preserve admitted original
+context. Pin two actual bounded observations for typed membership and separate
+exact-origin correspondence; methods retain their own ranks/values, without a
+common score scale.
 
 Independent flags: `--no-show-inactive` hides otherwise retained history/inactive
 records; `--show-erased` permits legitimately retained erasure content and narrow

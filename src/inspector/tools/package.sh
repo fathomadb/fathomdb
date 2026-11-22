@@ -34,7 +34,7 @@ if [[ "$build_target" != /* ]]; then
 fi
 cd -- "$root"
 cargo build --quiet --target-dir "$build_target" --release --target x86_64-unknown-linux-gnu --locked --offline --no-default-features --features cached-cpu -p fathomdb-inspector
-name="fathomdb-inspector-0.2.0-linux-x86_64"
+name="fathomdb-inspector-0.2.1-linux-x86_64"
 stage="$output/$name"
 mkdir -m 755 -- "$stage"
 install -m 755 -- "$build_target/x86_64-unknown-linux-gnu/release/fathomdb-inspector" "$stage/fathomdb-inspector"

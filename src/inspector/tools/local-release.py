@@ -13,12 +13,13 @@ import subprocess
 import tarfile
 import tempfile
 
-NAME = 'fathomdb-inspector-0.2.0-linux-x86_64'
+VERSION = '0.2.1'
+NAME = f'fathomdb-inspector-{VERSION}-linux-x86_64'
 ARCHIVE = NAME + '.tar.gz'
 FILES = {'fathomdb-inspector', 'build-description.json', 'LICENSE', 'README.md'}
-ENGINE = '6edc1155f039f87cd0a37660cb27ae4373bbce71'
+ENGINE = '72fe93634321616214352a7e07066ce0f93bcf4c'
 ROOT = Path(__file__).resolve().parents[3]
-SUPPORT = {'userland': 'Ubuntu 22.04 / glibc 2.35', 'architecture': 'Linux x86_64',
+SUPPORT = {'userland': 'Ubuntu 24.04 / glibc 2.39', 'architecture': 'Linux x86_64',
            'kernel_qualified': '7.0.0-43-generic', 'landlock_abi_minimum': 3,
            'chromium_qualified': '156.0.8078.4', 'distribution': 'local-only',
            'models': 'existing pinned cache only; not bundled or downloaded'}
@@ -65,7 +66,7 @@ def payload(candidate):
     check_sums(bundle, FILES)
     check_sums(candidate, {ARCHIVE})
     description = json.loads((bundle / 'build-description.json').read_text())
-    for key, expected in {'version': '0.2.0', 'target': 'x86_64-unknown-linux-gnu',
+    for key, expected in {'version': VERSION, 'target': 'x86_64-unknown-linux-gnu',
                           'profile': 'release', 'compiled_schema': 37, 'protocol': 1,
                           'fixture_control': False, 'cached_default_cpu': True}.items():
         require(type(description.get(key)) is type(expected) and description[key] == expected,
@@ -98,7 +99,7 @@ def verify(candidate, source=False):
     metadata_path = candidate / 'candidate.json'
     require(metadata_path.is_file() and not metadata_path.is_symlink(), 'candidate metadata must be regular')
     metadata = json.loads(metadata_path.read_text())
-    require(metadata.get('version') == '0.2.0' and metadata.get('engine_commit') == ENGINE, 'wrong product/Engine identity')
+    require(metadata.get('version') == VERSION and metadata.get('engine_commit') == ENGINE, 'wrong product/Engine identity')
     require(re.fullmatch('[0-9a-f]{40}', metadata.get('source_sha', '')), 'invalid source SHA')
     require(metadata.get('build') == description, 'candidate build metadata differs')
     require(metadata.get('archive_sha256') == sha(candidate / ARCHIVE), 'archive metadata checksum differs')
@@ -109,7 +110,7 @@ def verify(candidate, source=False):
         subprocess.run(['git', '-C', str(ROOT), 'merge-base', '--is-ancestor', base, 'HEAD'], check=True)
         changed = git('diff', '--name-only', base, 'HEAD').splitlines()
         require(all((p.startswith(('dev/inspector/', 'docs/inspector/')) and p.endswith('.md'))
-                    or p in ('src/inspector/README.md', 'src/inspector/tools/README.md') for p in changed),
+                    or p in ('src/inspector/README.md', 'src/inspector/tools/README.md', 'mkdocs.yml') for p in changed),
                 'candidate source differs beyond permitted documentation closure')
     return metadata
 
@@ -118,7 +119,7 @@ def seal(candidate):
     require(not (candidate / 'candidate.json').exists(), 'candidate is already sealed')
     require(not git('status', '--porcelain'), 'source checkout must be clean before sealing')
     description = payload(candidate)
-    metadata = {'version': '0.2.0', 'source_sha': git('rev-parse', 'HEAD'), 'engine_commit': ENGINE,
+    metadata = {'version': VERSION, 'source_sha': git('rev-parse', 'HEAD'), 'engine_commit': ENGINE,
                 'build': description, 'archive_sha256': sha(candidate / ARCHIVE),
                 'executable_sha256': sha(candidate / NAME / 'fathomdb-inspector'), 'support': SUPPORT}
     with (candidate / 'candidate.json').open('x') as stream:

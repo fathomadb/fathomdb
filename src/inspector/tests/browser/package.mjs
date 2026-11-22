@@ -22,22 +22,23 @@ test(
       if (built.status !== 0) process.stderr.write(built.stderr ?? "");
       assert.equal(built.status, 0, "real offline packaging must succeed");
       const archive = built.stdout.trim();
-      assert.equal(archive, join(output, "fathomdb-inspector-0.2.0-linux-x86_64.tar.gz"));
+      assert.equal(archive, join(output, "fathomdb-inspector-0.2.1-linux-x86_64.tar.gz"));
       const entries = execFileSync("tar", ["-tzf", archive], { encoding: "utf8" })
         .trim()
         .split("\n");
-      assert.ok(entries.includes("fathomdb-inspector-0.2.0-linux-x86_64/fathomdb-inspector"));
-      assert.ok(entries.includes("fathomdb-inspector-0.2.0-linux-x86_64/build-description.json"));
-      assert.ok(entries.includes("fathomdb-inspector-0.2.0-linux-x86_64/LICENSE"));
+      assert.ok(entries.includes("fathomdb-inspector-0.2.1-linux-x86_64/fathomdb-inspector"));
+      assert.ok(entries.includes("fathomdb-inspector-0.2.1-linux-x86_64/build-description.json"));
+      assert.ok(entries.includes("fathomdb-inspector-0.2.1-linux-x86_64/LICENSE"));
       assert.ok(!entries.some((name) => /node_modules|\.venv|fixture|driver|tests\//.test(name)));
       const installed = join(scratch, "installed");
       await mkdir(installed);
       execFileSync("tar", ["-xzf", archive, "-C", installed]);
-      const directory = join(installed, "fathomdb-inspector-0.2.0-linux-x86_64"),
+      const directory = join(installed, "fathomdb-inspector-0.2.1-linux-x86_64"),
         binary = join(directory, "fathomdb-inspector");
       const description = JSON.parse(
         execFileSync(binary, ["--build-description"], { encoding: "utf8", env: {} }),
       );
+      assert.equal(description.version, "0.2.1");
       assert.equal(description.fixture_control, false);
       assert.equal(description.cached_default_cpu, true, "shipping artifact must compile supported cached CPU serving");
       assert.equal(description.profile, "release");

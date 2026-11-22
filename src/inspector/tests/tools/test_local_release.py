@@ -13,7 +13,7 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[4]
 TOOL = ROOT / 'src/inspector/tools/local-release.py'
-NAME = 'fathomdb-inspector-0.2.0-linux-x86_64'
+NAME = 'fathomdb-inspector-0.2.1-linux-x86_64'
 FILES = ['fathomdb-inspector', 'build-description.json', 'LICENSE', 'README.md']
 
 
@@ -30,7 +30,7 @@ class ReleaseTests(unittest.TestCase):
         self.candidate.mkdir()
         bundle = self.candidate / NAME
         bundle.mkdir()
-        description = {'version': '0.2.0', 'build': 'a' * 64, 'target': 'x86_64-unknown-linux-gnu',
+        description = {'version': '0.2.1', 'build': 'a' * 64, 'target': 'x86_64-unknown-linux-gnu',
                        'profile': 'release', 'compiled_schema': 37, 'fixture_control': False,
                        'cached_default_cpu': True, 'protocol': 1}
         (bundle / 'build-description.json').write_text(json.dumps(description))
@@ -43,8 +43,8 @@ class ReleaseTests(unittest.TestCase):
         with tarfile.open(archive, 'w:gz') as tar:
             tar.add(bundle, arcname=NAME)
         (self.candidate / 'SHA256SUMS').write_text(f'{digest(archive)}  {archive.name}\n')
-        manifest = {'version': '0.2.0', 'source_sha': 'b' * 40, 'build': description,
-                    'engine_commit': '6edc1155f039f87cd0a37660cb27ae4373bbce71',
+        manifest = {'version': '0.2.1', 'source_sha': 'b' * 40, 'build': description,
+                    'engine_commit': '72fe93634321616214352a7e07066ce0f93bcf4c',
                     'archive_sha256': digest(archive),
                     'executable_sha256': digest(bundle / 'fathomdb-inspector')}
         (self.candidate / 'candidate.json').write_text(json.dumps(manifest))

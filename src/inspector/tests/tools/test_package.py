@@ -45,7 +45,7 @@ binary.chmod(0o755)
         output = self.root / 'candidate'
         result = subprocess.run(['bash', str(self.script), str(output)], env=dict(self.env, CARGO_TARGET_DIR=str(target)), capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
-        archive = output / 'fathomdb-inspector-0.2.0-linux-x86_64.tar.gz'
+        archive = output / 'fathomdb-inspector-0.2.1-linux-x86_64.tar.gz'
         self.assertEqual((output / 'SHA256SUMS').read_text(), hashlib.sha256(archive.read_bytes()).hexdigest() + '  ' + archive.name + '\n')
         self.assertTrue((target / 'x86_64-unknown-linux-gnu/release/fathomdb-inspector').is_file())
 

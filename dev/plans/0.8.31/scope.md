@@ -157,17 +157,44 @@ cleanly without overloading `0.8.31`.)*
     100k) proving no statistically significant p50/p95 regression on unpredicated
     workloads.
 
-### 6. Inspector brought in-line and into the release cycle
+### 6. Inspector brought in-line, upgraded to `0.8.31`, and hardened for fast release cycles
 
-- Merge `inspector/dev/0.2.0` (`src/inspector/`, `dev/inspector/`,
-  `docs/inspector/`) onto `main`.
-- Upgrade Inspector from its `.28`/early-`.29` Engine baseline (`6edc1155f`,
-  Candle 0.11 / cudarc 0.19.10) to the `0.8.31` Engine (schema 38+, Candle 0.13 /
-  cudarc 0.21), executing the integration and qualification checks from
-  `compatibility-0.8.30-assessment.md` (on `inspector/dev/0.2.0`) plus UI views
-  for **node/edge properties** and **historical graph inspection**.
-- Wire Inspector versioning, build, smoke qualification, and release artifacts
-  into the standard FathomDB release pipeline.
+- **Integrate completed Inspector `0.2.1` branch onto `main` / `0.8.31`**:
+  - Source: **`origin/inspector/dev/0.2.1`** at
+    `d6501cc5ac9b4fd1747be28f1896f7f7670ff39a` (based on `release/0.8.30`
+    `72fe93634`, zero `src/rust/` / `.cargo/config.toml` diff, `Cargo.lock`
+    `+17/-0` adding only `fathomdb-inspector 0.2.1`, already verified across
+    `0.8.29`/`0.8.30`, 81/81 installed tests, and `mkdocs build --strict`).
+  - Upgrade Inspector from its verified `0.8.30` baseline to `0.8.31` (schema
+    38+), adding UI views for **outside-`body` node/edge properties** and
+    **historical graph inspection (`as_of`)**.
+  - Wire Inspector versioning, build, smoke qualification, and release
+    artifacts into the standard FathomDB release pipeline.
+- **Inspector & monorepo CI/bootstrap hardening (owner-requested from Inspector
+  `0.2.1` retrospective)**:
+  1. **Decouple `src/inspector/tools/local-ci.sh` from full-monorepo
+     `scripts/agent-verify.sh` when `src/rust/`, `src/python/`, and `src/ts/`
+     are unchanged**: default to an Inspector-scoped source gate
+     (`agent-lint.sh` + `agent-typecheck.sh` + `cargo test -p fathomdb-inspector`
+     bare & `cached-cpu` + Inspector unit/tool/browser suites, ~5 min vs. ~45
+     min), retaining `--full-workspace` when shared core paths change.
+  2. **Fix worktree Python/TS bootstrap (`scripts/bootstrap.sh` /
+     `scripts/setup-python-owned.sh`)** to preflight everything
+     `agent-verify.sh` assumes upfront: prefer system `/usr/bin/python3.12`
+     over `uv` standalone Python 3.13 on Ubuntu 24.04 (fixing missing
+     `os.memfd_create` in `src/inspector/tools/vector-fixture.py` and late
+     `libpython3.13.so.1.0` failure in `cargo test -p fathomdb-py --lib`), and
+     provision checkout-owned `src/ts/node_modules` alongside root
+     `node_modules` so `test_tegra_napi_build_contract.sh` and
+     `test_native_artifact_runtime_validation.sh` never fail mid-gate.
+  3. **Add explicit per-command timeouts** to process-spawning, GUI, and
+     `strace` qualification harnesses so cleanup hangs (such as parent-wrapped
+     `strace` + detached child holding stdout open after a test failure) cannot
+     stall unattended runs.
+  4. **Retain the Docker-free native Ubuntu 24.04 (`glibc 2.39`) qualification
+     pipeline (`D4 = B`)**: keep native `Xvfb -displayfd`, `/proc` browser PID
+     discovery, CDP `Browser.close`, and parent-wrapped `strace -ff` (no
+     Docker, `openbox`, `xdotool`, or `sudo`).
 
 ## Out of scope / explicitly placed elsewhere
 

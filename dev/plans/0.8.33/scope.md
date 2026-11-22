@@ -22,13 +22,39 @@ open-source database candidate** — documenting the complete stabilized
 - Remove stray working files committed at repo root (`0.8.23-release-todo.md`,
   `CORPUS-01-supersession-questions.txt`, `plan-slice-85-recovery.md`,
   `plan-slice-85-review.md`) and audit top-level files for public cleanliness.
-- Streamline `dev/` (currently over 11,000 files, ~9,900 under `dev/plans/`):
-  - Archive or prune historical per-release slice runs, intermediate scratch
-    packets, and superseded draft notes out of the active contributor tree
-    (preserving git tags/history and load-bearing ADRs, interfaces, and active
-    plans).
+- Streamline `dev/` across all three sediment pools (currently over 10,300
+  files / ~377 MB, with ~9,900 files / ~369 MB under `dev/plans/`, 242 files
+  under `dev/design/`, and 488 KB of append-only slice logs under
+  `dev/interfaces/`):
+  - **`dev/plans/`**: prune closed pre-`0.8.32` slice runs, intermediate
+    scratch packets, and committed raw evidence/benchmark dumps (including the
+    284 MB `dev/plans/0.8.27/features/` subtree and historical
+    `dev/plans/runs/`), relying on git tags for archaeology while retaining
+    active plans and load-bearing ADRs.
+  - **`dev/design/`**: separate live subsystem owner docs (`≤ 25` active files
+    indexed by `dev/design/README.md`, including
+    `dev/design/cross-cutting-change-checklist.md`) from ~215 dated
+    slice-specific design docs, pruning/archiving historical slice designs
+    whose contracts live in code, tests, and ADRs.
+  - **`dev/interfaces/`**: refactor the append-only chronological slice logs
+    (`dev/interfaces/{rust,rust-sdk,python,typescript}.md`) into
+    capability-scoped, current-state contracts
+    (`dev/interfaces/contracts/{open-config,write-actuate,search-filter,graph-evidence,erasure-maintenance,errors,cli,mcp,wire}.md`,
+    each `≤ 35 KB`) plus thin language-delta files
+    (`{rust-sdk,python,typescript}-delta.md`), delegating mechanical symbol
+    lists to `scripts/generate-public-docs.py`.
+  - **Anti-regrowth CI guard (`scripts/check-dev-hygiene.sh`)**: wire a
+    permanent check into `scripts/agent-lint.sh` enforcing `dev/` file/size
+    budgets (`< 400` files and `< 10 MB`), `≤ 25` live `dev/design/` docs,
+    `≤ 35 KB` per `dev/interfaces/` file, and rejecting committed raw
+    `.jsonl`/benchmark dumps under `dev/plans/`.
+  - **Cold-start orientation verification**: confirm a fresh read-only agent
+    starting from `AGENTS.md` enumerates all touchpoints for a schema + SDK
+    addition in `≤ 4` file reads with zero missed registries.
   - Fix `dev/hygeine-roadmap.md` filename typo and staleness; refresh
-    `dev/ROADMAP.md` and `dev/README.md` into a crisp contributor map.
+    `dev/ROADMAP.md`, `dev/README.md`, `dev/design/README.md`, and
+    `dev/design/cross-cutting-change-checklist.md` into a crisp contributor
+    map.
 - Add standard public open-source repository files: `CONTRIBUTING.md`,
   `SECURITY.md`, `CODE_OF_CONDUCT.md`, GitHub issue/PR templates, and a sharp,
   compelling root `README.md`.
@@ -88,9 +114,9 @@ open-source database candidate** — documenting the complete stabilized
 - Clearly articulate **why FathomDB** (benefits and honest tradeoffs vs. plain
   SQLite+FTS5, vector-only stores, and split graph+vector stacks).
 - Add **visual diagrams** across `docs/` (currently zero diagrams): system
-  architecture, write→projection→read lifecycle, frozen-evidence verification
-  loop, property-graph + bitemporal supersession diagram, and SDK/MCP agent
-  topology.
+  architecture, write→visibility-trigger→projection→frozen-read→erasure
+  invariant coupling map, frozen-evidence verification loop, property-graph +
+  bitemporal supersession diagram, and SDK/MCP agent topology.
 - Ship **CI-executed, runnable use-case recipes** (`docs/recipes/`):
   1. Coding agent searchable engineering memory.
   2. Computer agent runbooks and workflow checkpoints (SDK + read/write MCP).
@@ -102,8 +128,10 @@ open-source database candidate** — documenting the complete stabilized
 
 ## Out of scope
 
-- Engine schema changes or new database features (frozen on `0.8.31`/`0.8.32`
-  schema).
+- Engine schema changes, Rust runtime hotspot splits, or new database features
+  (frozen on `0.8.31`/`0.8.32` schema; zero-behavior-change Rust file splits
+  ride inside `0.8.32` for `search`/`evidence` and `0.8.34` for
+  `cli`/`schema`/`engine` root).
 - Full general multi-version `fathomdb migrate` and personal-agent reference
   connectors (allocated to [0.8.34](../0.8.34/scope.md)).
 - Full publishable latency and competitive benchmark campaigns (allocated to

@@ -129,137 +129,135 @@ policy independently of generation updates. Neither fixture is a product control
 Installed/all-view technical checks completed70/75; the unperformed human
 study is historical and removed.
 
-## Installed0.2.0 qualification
+## Installed 0.2.1 qualification
 
-`ubuntu22.Dockerfile` prepares local compiler/Chromium/X11 test prerequisites.
-Build with pinned Rust 1.95, locked offline dependencies, explicit cached-cpu and
-an isolated Ubuntu 22 target; never reuse host compiled artifacts. Package using
-`package.sh` inside that same userland and independently extract its tar. Inspect
-ELF interpreter/versioned GLIBC requirements and run the extracted executable.
+Inspector `0.2.1` builds and qualifies natively on Ubuntu 24.04 (`glibc 2.39`);
+Docker, Ubuntu 22.04 (`glibc 2.35`), `openbox`, and `xdotool` have been
+removed. Build with pinned Rust 1.95, locked offline dependencies, explicit
+`--features cached-cpu`, and an isolated build target directory. Package using
+`package.sh`, inspect ELF versioned GLIBC requirements (`<= 2.39`), and
+independently extract the tar to run the extracted executable.
 
 `run-installed.sh ABSOLUTE_EXTRACTED_PACKAGE ABSOLUTE_FIXTURE_BASELINES
-ABSOLUTE_UBUNTU22_TARGET [node test arguments...]` runs existing native/workspace/
-comparison oracles against actual production launch in a network-disabled Ubuntu22
-container. Baselines person/vector/study variants are generated beforehand by
-`vector-fixture.py` with the owned Python/native wheel and pinned existing cache.
-Ordinary nonvector fixtures use the same-source Ubuntu 22 release fixture example.
-`INSPECTOR_UBUNTU22_IMAGE`, `INSPECTOR_CHROMIUM_DIRECTORY`, `INSPECTOR_NODE_MODULES`
-can select the exact existing local image/browser/test modules. Defaults are local
-`inspector70-jammy:desktop`, Chromium1248 and existing Codex Playwright modules.
-Node is mounted as a measurement tool, not bundled or needed by the application.
+ABSOLUTE_BUILD_TARGET [node test arguments...]` runs existing native/workspace/
+comparison oracles against actual production launch directly on the host under
+an isolated `Xvfb -displayfd` display and temporary `HOME` (unsetting host
+`WAYLAND_DISPLAY`, `XAUTHORITY`, `DBUS_SESSION_BUS_ADDRESS`, and
+`XDG_RUNTIME_DIR`). Baselines (`person`, `vector`, `study-training`,
+`study-unseen`) are generated beforehand by `vector-fixture.py` with the owned
+Python/native wheel and pinned existing cache. Ordinary nonvector fixtures use
+the same-source release `fixture` example. `INSPECTOR_CHROMIUM_DIRECTORY` and
+`INSPECTOR_NODE_MODULES` select existing local Chromium/Playwright installs.
+Node is an external measurement tool, not bundled or needed by the application.
 
-The test-only `installed-browser.sh` preserves normal sandbox and production
-arguments, adding loopback CDP. `installed-harness.mjs` discovers the owned native
-window, samples all-thread descendant service/worker and browser process RSS plus
-separate canonical heap growth, and closes that actual window with Alt+F4 through
-X11/Openbox. It checks supervisor success, private-state removal and an independent
-lock acquisition. No debug driver, fixture-control route or SIGTERM qualifies that
-close; SIGTERM is failed-run cleanup only. RSS values are25ms samples, not total
-instantaneous memory peaks. Ubuntu 22 userland shares the declared host kernel;
-inside-runtime Landlock ABI >=3 remains mandatory for cached positives.
+The test-only `installed-browser.sh` generates a wrapper inside the temporary
+`HOME` that preserves Chromium's normal sandbox and production arguments under
+`env_clear()`, adding `--remote-debugging-port=0`. `installed-harness.mjs`
+discovers the owned native browser PID via `/proc/<pid>/cmdline`, samples
+all-thread descendant service/worker and browser process RSS plus separate
+canonical heap growth, and closes the native browser cleanly via CDP
+`Browser.close` / `page.close()`. It checks supervisor exit `0`, private-state
+removal (`fdi-*`), and nonblocking `flock` reacquisition. No debug driver,
+fixture-control route or `SIGTERM` qualifies that close; `SIGTERM` is
+failed-run cleanup only. RSS values are 25 ms samples, not total instantaneous
+memory peaks. Landlock ABI >= 3 remains mandatory for cached CPU positives.
 
 `study_fixture.py`, selected via `vector-fixture.py ... study-training` or
-`study-unseen`, makes ordinary-write distinct familiarization/unseen F07 databases.
-The fixed coordinator key and task/rubric/result form live in Slice70 `study.md`.
-The five-person study is removed by INS-020-LOCAL-RELEASE; no human sessions
-occurred or are inferred from fixture automation. Keep the coordinator key out of participant-facing documentation.
+`study-unseen`, makes ordinary-write distinct familiarization/unseen F07
+databases. The five-person study remains removed by `INS-020-LOCAL-RELEASE`; no
+human sessions occurred or are inferred from fixture automation.
 
 `qualify-installed-network.sh PACKAGE FIXTURES TARGET NEW_TRACE_DIRECTORY` runs
-the actual installed person/CPU investigation, pausing only before attachment
-for root tracing inside its isolated container PID namespace. Container-local
-SYS_PTRACE permits tracing the exact recorded supervisor and newborn worker;
-normal Chromium sandbox remains enabled. It asserts no Internet-family socket/
-connect attempts, all three pinned source assets opened O_RDONLY, and no source
-cache mutation calls. Runtime/strace raw logs stay in the caller-owned directory.
-This does not alter host ptrace/kernel configuration or trace another task.
+the actual installed person/CPU investigation with parent-wrapped
+`strace -ff -e trace=network,%file,process` (working natively under Ubuntu's
+`ptrace_scope=1` without `sudo` or Docker root while keeping Chromium's normal
+sandbox enabled). It asserts 0 Internet-family socket/connect attempts across
+the `--session-worker` tree, 0 outbound connect/send/UDP/IPv6 attempts across
+the supervisor tree, all three pinned source assets (`config.json`,
+`tokenizer.json`, `model.safetensors`) opened `O_RDONLY`, and 0 source-cache
+mutation calls. Raw logs stay in the caller-owned directory.
 
-`lexical-deadline-fixture.py NEW_DIRECTORY` uses ordinary model-free Engine writes
-to prepare4800 records containing1332 one/two-character terms. The legal query
-fits4096 bytes and conservative64MiB admission; the optimized installed release
-then reaches its actual30s native request deadline without a synthetic pause.
-The inherited3500-record/800-term debug corpus completes too quickly in release
-and is not counted as a deadline pass. `installed.mjs` also executes all8retained
-content/chunk/export and all8autonomous absence/telemetry combinations, installed
-asset missing/partial/corrupt/replaced/race cases, document/tree/copy/security,
-real F06 UI+native controls and frozen study-fixture checks.
+`lexical-deadline-fixture.py NEW_DIRECTORY` uses ordinary model-free Engine
+writes to prepare 4800 records containing 1332 one/two-character terms. The
+legal query fits 4096 bytes and conservative 64 MiB admission; the optimized
+installed release then reaches its actual 30 s native request deadline without
+a synthetic pause. `installed.mjs` also executes all 8 retained
+content/chunk/export and all 8 autonomous absence/telemetry combinations,
+installed asset missing/partial/corrupt/replaced/race cases, document/tree/copy/
+security, real F06 UI+native controls and frozen study-fixture checks.
 
 ## Installed UX evidence output
 
 `run-installed.sh` accepts optional `INSPECTOR_EVIDENCE_DIRECTORY`, an existing
-absolute owned directory mounted as `/evidence`. A probe may save screenshots or
-read its verification script there without making the source checkout writable.
-The installed harness's `review` fixture clones `review/work/fixture.sqlite` from
-the selected fixture baseline; preserve the published0.8.29 review original and
-place only a disposable closed-store copy at that baseline, including its existing
-`fixture.sqlite.lock` sentinel. Inspector correctly refuses an absent lock; the
-probe must not reinterpret that as permission to create one. Normal native-window close,
-process/lock cleanup and resource assertions still apply.
+absolute owned directory. A probe may save screenshots or read its verification
+script there without making the source checkout writable. The installed
+harness's `review` fixture clones `review/work/fixture.sqlite` from the
+selected fixture baseline; preserve the published `0.8.29` and `0.8.30`
+originals read-only (`0444`) and place only disposable closed-store copies at
+that baseline, including their existing `fixture.sqlite.lock` sentinels.
+Inspector correctly refuses an absent lock; the probe must not reinterpret that
+as permission to create one. Normal native-window close, process/lock cleanup
+and resource assertions still apply.
 
 ## Local release readiness
 
 Source/package/runtime checks use one entry point from a clean target checkout:
 
 ```sh
-PATH=/tmp/inspector40-tools:/usr/local/go/bin:$PATH bash src/inspector/tools/local-ci.sh /mnt/data/inspector80-owned/candidate /mnt/data/inspector80-owned/fixtures /tmp/inspector70-jammy-target
+bash src/inspector/tools/local-ci.sh /absolute/new/candidate /absolute/fixtures /absolute/build-target
 ```
 
-Paths above are this executor's owned storage, not universal install paths.
-Use `.venv/bin/python` for release tooling; Python3.12 is preflighted.
-The existing npm wrapper matches the repository developer-tool pin; other
-executors use bootstrap's pinned tools normally. Keep source HEAD unchanged
-through the source gate, compatible build and host seal. No model download,
-global installation, tag, upload or final-dist release occurs.
+Use `.venv/bin/python` for release tooling; Python >= 3.12 is preflighted. Keep
+source HEAD unchanged through the source gate, native build and host seal. No
+model download, global installation, tag, upload or final-dist release occurs.
 
-Prerequisites: checkout-owned Python 3.12 `.venv` and pinned dev tools, Rust 1.95/
-GNU target and offline dependencies, Node/Playwright, existing Chromium156,
-Docker and prepared `inspector70-jammy:desktop` Ubuntu 22 image, `readelf`, and
-existing pinned BGE cache. `ubuntu22.Dockerfile` documents image preparation.
-`INSPECTOR_UBUNTU22_IMAGE`, `INSPECTOR_CHROMIUM_DIRECTORY` and
-`INSPECTOR_NODE_MODULES` select existing local installations; nothing is pulled
-implicitly. Cargo/rustup homes are mounted read-only; the Ubuntu 22 build target
-is isolated from host objects. Docker runs network-none with the invoking UID.
+Prerequisites: checkout-owned Python >= 3.12 `.venv` (system `/usr/bin/python3.12`
+recommended so `fathomdb-py --lib` links against system `libpython3.12`) and
+pinned dev tools, Rust 1.95 / GNU target and offline dependencies, checkout-owned
+`node_modules` and `src/ts/node_modules`, Node/Playwright, existing Chromium 156,
+host `Xvfb`, `flock`, `readelf`, `strace`, and existing pinned BGE cache.
+`INSPECTOR_CHROMIUM_DIRECTORY` and `INSPECTOR_NODE_MODULES` select existing
+local installations; nothing is pulled implicitly.
 
-Prepare a new owned fixtures directory. Existing frozen70 fixture baselines can
-be copied there while closed, including their original lock sentinels. To create
-fresh baseline stores, use this checkout's installed native wheel (never editable
-worktree bindings): `vector-fixture.py NEW_DIRECTORY` for vector; append `person`,
-`study-training` or `study-unseen` for those variants. These last names are legacy
-fixture names; tests assert structural facts, not participant results.
-`lexical-deadline-fixture.py NEW_DIRECTORY` builds the natural native deadline
-corpus. F06 uses the existing production fixture example's `scale` variant,
-appended after ordinary vector preparation as in the existing qualification tools.
-Preserve generated `work/fixture.sqlite` plus sidecars/sentinel; producers must
-close normally and leave no nonempty WAL/journal. Never manufacture a missing lock.
-For the published0.8.29 review corpus, preserve the original and copy its closed
-`notes.sqlite` and existing `.lock` sentinel to `review/work/fixture.sqlite` and
-`fixture.sqlite.lock`; the harness uses only its disposable copies.
+Prepare a new owned fixtures directory using this checkout's installed native
+wheel (never editable worktree bindings): `vector-fixture.py NEW_DIRECTORY` for
+`vector`; append `person`, `study-training` or `study-unseen` for those
+variants. `lexical-deadline-fixture.py NEW_DIRECTORY` builds the natural native
+deadline corpus. `f06` first builds ordinary vectors via `vector-fixture.py`,
+then appends the release `fixture` example's `scale` variant. Preserve
+generated `work/fixture.sqlite` plus sidecars/sentinel; producers must close
+normally and leave no nonempty WAL/journal. Never manufacture a missing lock.
+For dual published producer qualification (`0.8.29` and `0.8.30`), preserve
+both originals read-only and copy each closed store + `.lock` sentinel into a
+disposable `review/work/` baseline.
 
-Default local CI runs the full typed gate once, tool filesystem/failure tests and
-JS unit tests, then builds package and release examples inside the Ubuntu22
-userland/target consumed by `run-installed.sh`. It seals the candidate with the
-same clean source SHA and actual executable build identity, checks ELF compatibility,
-and freshly extracts the actual tar for installed native/lexical/vector/graph/
-workspace/comparison/UX tests.
-Failures report `stage=...` and preserve status; missing prerequisites fail2.
-Raw test output is the result. Long scale/cache campaigns retain their prior
-artifact/source scope; this path does not silently claim to rerun every campaign.
+Default local CI runs the full typed `scripts/agent-verify.sh` gate once, tool
+filesystem/failure tests and JS unit tests, then builds the native Ubuntu 24.04
+(`glibc 2.39`) package and release examples consumed by `run-installed.sh`. It
+seals the candidate with the same clean source SHA and actual executable build
+identity, checks ELF `GLIBC <= 2.39`, and freshly extracts the actual tar for
+installed native/lexical/vector/graph/workspace/comparison/UX tests. Failures
+report `stage=...` and preserve status; missing prerequisites exit 2.
 
 After a source-stage failure, fix with focused tests and preserve the failure.
 Use `--installed-only` solely for a separately completed source phase and an
 already sealed candidate. It verifies clean source equal to the candidate or an
-Inspector documentation-only descendant (excluding packaged README), makes no
-source-gate claim, and rechecks package/ABI/installed behavior. Substantive source,
-packaging or test changes require a freshly qualified source/candidate.
+Inspector documentation-only descendant (`dev/inspector/*.md`,
+`docs/inspector/*.md`, `src/inspector/README.md`,
+`src/inspector/tools/README.md`, `mkdocs.yml`; excluding packaged README),
+makes no source-gate claim, and rechecks package/ABI/installed behavior.
+Substantive source, packaging or test changes require a freshly qualified
+source/candidate.
 
-### Candidate contract and90 promotion
+### Candidate contract and local promotion
 
 Stable top-level candidate contents:
 
 ```text
-fathomdb-inspector-0.2.0-linux-x86_64.tar.gz
+fathomdb-inspector-0.2.1-linux-x86_64.tar.gz
 SHA256SUMS                       # archive checksum
 candidate.json                   # actual source/build/hash/support metadata
-fathomdb-inspector-0.2.0-linux-x86_64/
+fathomdb-inspector-0.2.1-linux-x86_64/
   fathomdb-inspector
   build-description.json
   LICENSE
@@ -267,34 +265,34 @@ fathomdb-inspector-0.2.0-linux-x86_64/
   SHA256SUMS                     # four bundle files
 ```
 
-`candidate.json` is unsigned local provenance. It binds actual archive/executable
-bytes to clean packaging HEAD, selected Engine commit/schema, features and declared
-support. It is not a registry signature or proof of bit-reproducible compilation.
-Verify candidate source before releasing and retain the real source SHA even when
-later status/docs commits have a different HEAD. The candidate source remains
-reviewable in Git. Finaldist contains the same metadata and exact approved bytes.
+`candidate.json` is unsigned local provenance. It binds actual
+archive/executable bytes to clean packaging HEAD, selected Engine commit/schema,
+features and declared support. It is not a registry signature or proof of
+bit-reproducible compilation. Verify candidate source before releasing and
+retain the real source SHA even when later status/docs commits have a different
+HEAD. The candidate source remains reviewable in Git. Final dist contains the
+same metadata and exact approved bytes.
 
-For a rehearsal, choose a new destination beneath an existing owned scratch parent.
-For90 only, create the ignored destination parent and use the same tested command:
+To promote a verified candidate to the gitignored local release directory:
 
 ```sh
 .venv/bin/python src/inspector/tools/local-release.py verify /absolute/candidate --source
 mkdir -p dist/inspector
-.venv/bin/python src/inspector/tools/local-release.py promote /absolute/candidate "$PWD/dist/inspector/0.2.0"
-.venv/bin/python src/inspector/tools/local-release.py verify "$PWD/dist/inspector/0.2.0" --source
-git check-ignore dist/inspector/0.2.0/candidate.json
+.venv/bin/python src/inspector/tools/local-release.py promote /absolute/candidate "$PWD/dist/inspector/0.2.1"
+.venv/bin/python src/inspector/tools/local-release.py verify "$PWD/dist/inspector/0.2.1" --source
+git check-ignore dist/inspector/0.2.1/candidate.json
 git ls-files dist
 ```
 
 The existing root ignore covers all dist payloads; do not add duplicate rules.
-Promotion refuses any existing destination, even identical/empty, without replacing
-it. If already present, verify and inspect it explicitly; choose no overwrite.
-A fresh sibling stage is revalidated before Linux atomic RENAME_NOREPLACE. Failed/catchably
-interrupted copy removes only that self-created stage; unrelated entries remain.
-After90 promotion, independently extract/check the final tar and run its actual
-native person/all-view/compare workflow/close using the installed harness, then
-record release availability. No final dist is created by80 rehearsal.
+Promotion refuses any existing destination, even identical/empty, without
+replacing it. A fresh sibling stage is revalidated before Linux atomic
+`RENAME_NOREPLACE`. Failed or interrupted copy removes only that self-created
+stage; unrelated entries remain. After promotion, independently extract/check
+the final tar and run `qualify-installed-network.sh` plus dual published
+`0.8.29` / `0.8.30` verification using the installed harness.
 
-The public0.2.0 release notes document future archive/registry channels and the
-remaining credentials, Inspector-specific version/tag/signing and supported CI
-work. No uploader, credential request or Engine publishing tag is implemented.
+The public `0.2.1` release notes document future archive/registry channels and
+the remaining credentials, Inspector-specific version/tag/signing and supported
+CI work. No uploader, credential request or Engine publishing tag is
+implemented.

@@ -1,19 +1,21 @@
 # FathomDB Inspector
 
-**Inspector 0.2.0 is released locally.** Record/tree,
-lexical, stored-vector/L2, cache-only CPU hybrid, directed graph, provenance,
-retained history and two-observation comparison are implemented. Installed
-technical qualification covers the selected pairing;75 adds seven verified UX
-corrections.80 completed release readiness;90 created the local distribution
-at `dist/inspector/0.2.0/` in the dedicated release checkout.
-No registry package or human-study validation is claimed.
+**Inspector 0.2.1 is released locally.** Record/tree, lexical,
+stored-vector/L2, cache-only CPU hybrid, directed graph, provenance, retained
+history and two-observation comparison are implemented on FathomDB 0.8.30
+(schema 37) and qualified natively on Ubuntu 24.04 (`glibc 2.39`) against
+closed databases produced by both published FathomDB 0.8.29 and published
+FathomDB 0.8.30. The local distribution lives at `dist/inspector/0.2.1/` in the
+dedicated `inspector/dev/0.2.1` release checkout (`dist/inspector/0.2.0/` is
+preserved separately). No registry package or human-study validation is
+claimed.
 
 Inspector is a local browser GUI for FathomDB's records, text indexes,
 vectors, and graphs. It connects these views using recorded identities and
 origins so you can inspect the same data through its different representations.
 A generic SQLite table browser does not cover this purpose.
 
-## Implemented0.2.0 capabilities
+## Implemented 0.2.1 capabilities
 
 - Browse canonical records, attributes, edges, operational collections, and projection declarations.
 - Read documents and structured values; follow exact record identities and retained revision relationships.
@@ -42,10 +44,11 @@ See [disclosure rules](operations/index.md#observations-and-disclosure).
 - [Reference and supported scope](reference/index.md)
 - [Operating boundaries](operations/index.md)
 - [Contributing](contributing/index.md)
-- [0.2.0 release notes and distribution](releases/0.2.0.md)
+- [0.2.1 release notes and distribution](releases/0.2.1.md)
+- [0.2.0 release notes (historical)](releases/0.2.0.md)
 - [ROADMAP](ROADMAP.md)
 
-Inspector has its own product versions; 0.2.0 is not FathomDB database 0.2
+Inspector has its own product versions; 0.2.1 is not FathomDB database 0.2
 or a promise that a particular database release ships the application.
 
 The owner clarified on 2026-10-31 that retained-erasure display/export applies

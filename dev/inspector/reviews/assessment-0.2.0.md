@@ -145,3 +145,7 @@ guides release scope without imposing automatic gates:
   reranker execution, multi-window vectors (`RM-12`), nonempty WAL / live-writer
   attachment (`RM-05`/`RM-06`), public registry publication/signing, additional
   OS/arch platforms, five-person UX study, and `INSP-B05`–`B10`.
+- **Delivery outcome:** Inspector `0.2.1` completed all four slices (Slices
+  10–40) and promoted locally to `dist/inspector/0.2.1/`; see
+  [0.2.1 delivery index](../plans/0.2.1/README.md) and
+  [0.2.1 release notes](../../../docs/inspector/releases/0.2.1.md).

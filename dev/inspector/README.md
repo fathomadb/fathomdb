@@ -1,8 +1,8 @@
 ---
 title: Inspector engineering documentation
-date: 2026-10-28
+date: 2026-11-21
 product: FathomDB Inspector
-target_release: 0.2.0
+target_release: 0.2.1
 desc: Entry map and ownership for the Inspector product
 status: ACTIVE
 ---
@@ -44,16 +44,18 @@ This mirrors FathomDB's engineering conventions: needs, requirements,
 acceptance, subsystem design, release plans, and roadmap. Public usage prose
 belongs under `docs/inspector/`; application code belongs under `src/inspector/`.
 
-Inspector versions are independent of database release numbering. Inspector 0.2.0
-implements all record, lexical, vector, graph/history and two-observation views
-on selected Engine commit `6edc1155f039f87cd0a37660cb27ae4373bbce71`, schema 37.
-The [current ladder](plans/0.2.0/README.md) records completed20–60,70 technical
-qualification and75 UX remediation. [80 readiness](plans/0.2.0/slice-80/plan.md)
-completed docs/local CI/package methods;[90](plans/0.2.0/slice-90/status.md)
-released locally to ignored `dist/inspector/0.2.0/`.
-The [owner ruling](plans/0.2.0/release-decisions.md) removes the unperformed
-five-person study. Public registry publication and broader platforms are future
-work. See [release instructions](../../src/inspector/tools/README.md#local-release-readiness).
+Inspector versions are independent of database release numbering. Inspector
+`0.2.1` upgrades the locally released `0.2.0` product onto delivered FathomDB
+`0.8.30` (`release/0.8.30`, `72fe93634321616214352a7e07066ce0f93bcf4c`, schema
+37) and native Ubuntu 24.04 (`glibc 2.39`) delivery, qualified against closed
+databases from both published FathomDB `0.8.29` and published FathomDB `0.8.30`.
+The [0.2.1 delivery plan](plans/0.2.1/README.md) records completed Slices 10–40
+and atomic local promotion to ignored `dist/inspector/0.2.1/` (`dist/inspector/0.2.0/`
+is preserved separately). The [owner ruling](plans/0.2.0/release-decisions.md)
+(`INS-020-LOCAL-RELEASE`, carried forward by 0.2.1 D2 = A) keeps delivery
+local-only without a five-person UX study. Public registry publication and
+broader platforms remain future work. See
+[release instructions](../../src/inspector/tools/README.md#local-release-readiness).
 
 Engine startup is permitted when required for the adopted scope. The
 [attachment/effect contract](requirements.md#engine-startup-allowance-2026-10-29)

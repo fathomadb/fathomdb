@@ -1,24 +1,22 @@
 ---
 title: Inspector ROADMAP
-date: 2026-10-28
+date: 2026-11-21
 product: FathomDB Inspector
-target_release: 0.2.0
+target_release: 0.2.1
 desc: Adopted release commitment and explicitly deferred product work
 status: ACTIVE
 ---
 
 # Inspector ROADMAP
 
-The [adopted 0.2.0 scope](plans/0.2.0/scope.md) owns the current boundary: the
-unfinished original full-v0.1 obligations and remaining foundational qualification
-carry forward, with bounded two-observation comparison added. Scope is adopted;
-implementation, detailed design and runtime qualification are separate. The
-[current approved ladder](plans/0.2.0/README.md), [release plan](plans/0.2.0/plan.md)
-and [workflow](plans/0.2.0/slice-workflow.md) record execution.20–60 and70
-technical qualification are complete;75 resolves seven expert UX findings.
-[INS-020-LOCAL-RELEASE](plans/0.2.0/release-decisions.md) removes the unperformed
-five-person study.80 completed readiness and[90](plans/0.2.0/slice-90/status.md)
-released locally to ignored `dist/inspector/0.2.0/`.
+The [adopted 0.2.1 scope](plans/0.2.1/scope.md) and
+[completed 0.2.1 plan](plans/0.2.1/README.md) own the current release line,
+upgrading the completed [0.2.0 ladder](plans/0.2.0/README.md) onto FathomDB
+`0.8.30` and native Ubuntu 24.04 (`glibc 2.39`) delivery (removing Docker,
+Ubuntu 22.04, `openbox`, and `xdotool`) and promoting locally to ignored
+`dist/inspector/0.2.1/`. [INS-020-LOCAL-RELEASE](plans/0.2.0/release-decisions.md)
+(carried forward via 0.2.1 D2 = A) keeps delivery local-only without a
+five-person UX study.
 
 ## 0.2.0 — adopted connected exploration scope
 

@@ -1,8 +1,9 @@
 # Inspector operating boundaries
 
-The local Inspector 0.2.0 application starts and owns an Engine to inspect
-one existing current-schema database. These boundaries apply to all implemented
-record, lexical, vector, graph, provenance and comparison views.
+The local Inspector 0.2.1 application starts and owns a FathomDB 0.8.30 Engine
+to inspect one existing current-schema (schema 37) database produced by
+published FathomDB 0.8.29 or 0.8.30. These boundaries apply to all implemented
+record, record-keyed lexical, vector, graph, provenance and comparison views.
 
 ## Before attachment
 

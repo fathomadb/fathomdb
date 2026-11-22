@@ -1,27 +1,30 @@
 # Inspector availability and getting started
 
-Inspector 0.2.0 is available locally at `dist/inspector/0.2.0/`
-in the dedicated `inspector/dev/0.2.0` release checkout. Slice90 released the
-qualified80 candidate on2026-11-21. There is no registry download. Obtain the complete local
-bundle from its owner, including the archive and outer `SHA256SUMS`.
-[Release notes](../releases/0.2.0.md) explain the current boundary.
+Inspector 0.2.1 is available locally at `dist/inspector/0.2.1/` in the
+dedicated `inspector/dev/0.2.1` release checkout (released locally on
+2026-11-21; `dist/inspector/0.2.0/` remains separate). There is no registry
+download. Obtain the complete local bundle from its owner, including the
+archive and outer `SHA256SUMS`. [Release notes](../releases/0.2.1.md) explain
+the current boundary.
 
-The package supports unchanged selected Engine0.8.29 source/schema 37 with all
-external writers stopped. It does not migrate older formats. It embeds the UI;
-Node, Python and a development server are not application requirements.
-The qualified pairing is Ubuntu 22.04/glibc 2.35 Linux x86_64 userland,
-kernel 7.0.0-43-generic/Landlock ABI 8 and Chromium 156.0.8078.4. Cached CPU needs
-Landlock ABI >=3, so stock Ubuntu 22/kernel 5.15 is insufficient. This is an exact
-pairing qualification, not all-Linux or all-Chromium support. Allow four CPU
-cores, 8 GiB available RAM and scratch at least twice the inspected fixture size.
+The package builds against unchanged FathomDB Engine 0.8.30 source (schema 37)
+and is qualified against fresh closed databases produced by both published
+FathomDB 0.8.29 and published FathomDB 0.8.30, with all external writers
+stopped. It does not migrate older formats. It embeds the UI; Node, Python and
+a development server are not application requirements. The qualified pairing is
+Ubuntu 24.04 / glibc 2.39 Linux x86_64 userland, kernel `7.0.0-43-generic` /
+Landlock ABI 8 and Chromium `156.0.8078.4`. Ubuntu 22.04 / glibc 2.35 is not
+supported. Cached CPU requires Landlock ABI >= 3. This is an exact pairing
+qualification, not all-Linux or all-Chromium support. Allow four CPU cores,
+8 GiB available RAM and scratch at least twice the inspected fixture size.
 
 From the supplied distribution directory, extract into a new owned directory:
 
 ```sh
 sha256sum --check SHA256SUMS
 mkdir inspector-install
-tar -xzf fathomdb-inspector-0.2.0-linux-x86_64.tar.gz -C inspector-install
-cd inspector-install/fathomdb-inspector-0.2.0-linux-x86_64
+tar -xzf fathomdb-inspector-0.2.1-linux-x86_64.tar.gz -C inspector-install
+cd inspector-install/fathomdb-inspector-0.2.1-linux-x86_64
 sha256sum --check SHA256SUMS
 ./fathomdb-inspector --help
 ./fathomdb-inspector --build-description

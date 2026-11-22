@@ -3,7 +3,7 @@ title: Inspector 0.2.1 release plan — FathomDB 0.8.30 support
 date: 2026-11-21
 product: FathomDB Inspector
 target_release: 0.2.1
-status: ACTIVE
+status: COMPLETE
 desc: Four-slice sequential delivery plan for Inspector 0.2.1 on FathomDB 0.8.30 and native Ubuntu 24.04
 ---
 

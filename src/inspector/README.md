@@ -10,18 +10,18 @@ hybrid serving. Slice 50 adds directed stored graph exploration, recorded
 dependency/source investigation, retained history and actual frozen graph evidence
 in [adopted 0.2.0](../../dev/inspector/plans/0.2.0/scope.md).
 Slice 60 adds bounded A/B observation comparison and complete person investigation.
-The source package is0.2.0. [70 installed technical qualification](../../dev/inspector/plans/0.2.0/slice-70/status.md)
-and75 UX remediation are complete. The owner removed the unperformed five-person
-study.80 completed readiness;[90 released locally](../../dev/inspector/plans/0.2.0/slice-90/status.md)
-to ignored `dist/inspector/0.2.0/` in this release checkout.
-No registry availability or human-validation claim is made. The
-[Slice20 record foundation](../../dev/inspector/plans/0.2.0/slice-20/status.md)
-retains its separate development evidence. Lexical evidence is recorded in the
-[current Slice 30 status](../../dev/inspector/plans/0.2.0/slice-30/status.md).
+The source package is `0.2.1`, upgrading the locally released `0.2.0` product
+onto delivered FathomDB `0.8.30` and native Ubuntu 24.04 (`glibc 2.39`)
+delivery. See the [0.2.1 plan](../../dev/inspector/plans/0.2.1/README.md) and
+[Slice 30 release evidence](../../dev/inspector/plans/0.2.1/slice-30/status.md);
+the verified local distribution lives at ignored `dist/inspector/0.2.1/` in the
+`inspector/dev/0.2.1` release checkout (`dist/inspector/0.2.0/` remains
+separate). No registry availability or human-validation claim is made.
 
-This branch targets the unchanged `dev/0.8.29` Engine/schema (format 37).
-The [port record](../../dev/inspector/plans/0.1/compatibility-0.8.29-port.md)
-separates current compatibility checks from imported historical qualification.
+This branch targets the unchanged `release/0.8.30` Engine/schema (commit
+`72fe93634321616214352a7e07066ce0f93bcf4c`, byte-identical Rust/Cargo source to
+`v0.8.30` `e3d31f5cd`, format 37) and is qualified against fresh closed
+databases from both published FathomDB `0.8.29` and published FathomDB `0.8.30`.
 
 ## Build and launch
 
@@ -87,10 +87,11 @@ Cached CPU serving uses production Default only when existing pinned assets,
 probe baseline, materialization and Linux LandlockABI3+ are available. Bytes are
 sealed before the loader sees them; source cache is never downloaded/repaired.
 No persisted embeddings are created by Inspector. A failed Default open is not
-retried None; deliberately selected model-free mode leaves stored/text inspection
-usable. CPU/reranker/GPU choosers are absent. The compatible70/75 artifacts are qualified on Ubuntu 22/glibc 2.35 userland,
-kernel 7.0.0-43-generic/Landlock ABI 8 and Chromium 156.0.8078.4. Stock Ubuntu 22/
-kernel 5.15 lacks required cached-CPU ABI>=3; host Ubuntu24 success alone is insufficient.
+retried None; deliberately selected model-free mode leaves stored/text
+inspection usable. CPU/reranker/GPU choosers are absent. Inspector `0.2.1` is
+qualified natively on Ubuntu 24.04 / glibc 2.39 userland, kernel
+`7.0.0-43-generic` / Landlock ABI 8 and Chromium `156.0.8078.4` (Ubuntu 22.04 /
+glibc 2.35 is dropped). Cached CPU requires Landlock ABI >= 3.
 
 ## Verify this feature
 
@@ -158,7 +159,7 @@ own feature boundaries and independent oracles.
 ```sh
 bash src/inspector/tools/package.sh /absolute/existing/parent/new-output-directory
 node --test src/inspector/tests/browser/package.mjs
-bash src/inspector/tools/local-ci.sh /absolute/new/candidate /absolute/fixtures /absolute/ubuntu22-target
+bash src/inspector/tools/local-ci.sh /absolute/new/candidate /absolute/fixtures /absolute/build-target
 ```
 
 `package.sh` builds a locked offline cached-CPU release with fixture controls
@@ -168,28 +169,31 @@ license/install notes/build description and inner/outer checksums. Failure remov
 only its newly created output and preserves compiler exit status.
 
 `local-ci.sh` is the documented local source+package+installed path: preflight,
-one typed full source gate, tooling/JS tests, isolated Ubuntu 22 offline production
-build/examples, clean-source candidate seal, ELF check and actual installed
-native/browser qualification. The candidate stays outside final dist. An explicit
+one typed full source gate, tooling/JS tests, native Ubuntu 24.04 (`glibc 2.39`)
+offline production build/examples, clean-source candidate seal, ELF
+`GLIBC <= 2.39` check and actual installed native/browser qualification under
+host `Xvfb`, `/proc` process discovery and CDP `Browser.close` (no Docker, no
+`openbox`, no `xdotool`). The candidate stays outside final dist. An explicit
 `--installed-only` path rechecks existing bytes after permitted docs-only closure;
 it makes no source-gate claim. No required positive stage silently skips.
 Existing hosted CI already routes Inspector changes to Ubuntu verify; it does not
 claim the local installed target has run remotely.
 
-[Tool instructions](tools/README.md#local-release-readiness) give exact preparation,
-commands and Slice90 promotion. `local-release.py` verifies strict contents/hashes/
-actual executable build identity, seals unsigned source-bound metadata, and copies
-to verified same-filesystem staging before atomic no-overwrite promotion. Existing
-or mismatched destinations refuse; failures/interrupts clean only owned staging.
-The exact qualified80 bytes are now released locally by90 at ignored
-`dist/inspector/0.2.0/`. See [release notes](../../docs/inspector/releases/0.2.0.md)
-for the final archive/executable hashes and support limits.
+[Tool instructions](tools/README.md#local-release-readiness) give exact
+preparation, commands and promotion steps. `local-release.py` verifies strict
+contents/hashes/actual executable build identity, seals unsigned source-bound
+metadata, and copies to verified same-filesystem staging before atomic
+no-overwrite promotion. Existing or mismatched destinations refuse;
+failures/interrupts clean only owned staging. The verified `0.2.1` bytes are
+released locally at ignored `dist/inspector/0.2.1/`. See
+[0.2.1 release notes](../../docs/inspector/releases/0.2.1.md) for the final
+archive/executable hashes and support limits.
 
-The Ubuntu22-compatible build uses separate compiled objects in the declared
-container/userland. The actual compatible binary's maximum GLIBC symbol is2.34.
-Neither a GNU target nor host24/glibc 2.39 execution proves22 compatibility. Runtime
-support remains the exact qualified kernel/browser/userland pairing. Historical
-20/70/75 artifacts retain their original identities and are not relabeled.
+The native Ubuntu 24.04 build uses an isolated build target directory. The
+actual `0.2.1` binary's maximum GLIBC symbol is `2.39`. Runtime support remains
+the exact qualified kernel/browser/userland pairing (`Ubuntu 24.04 / glibc 2.39`,
+`7.0.0-43-generic`, Chromium `156.0.8078.4`). Historical `0.2.0` artifacts
+retain their original identities and are not relabeled.
 
 ## Stored graph and retained investigation
 

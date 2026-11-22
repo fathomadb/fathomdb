@@ -3,8 +3,8 @@ title: Inspector 0.2.1 planning index
 date: 2026-11-21
 product: FathomDB Inspector
 target_release: 0.2.1
-status: ACTIVE
-desc: Adopted scope, ruled decisions, and four-slice release plan for FathomDB 0.8.30 support
+status: COMPLETE
+desc: Adopted scope, ruled decisions, and completed four-slice release plan for FathomDB 0.8.30 support
 ---
 
 # Inspector 0.2.1
@@ -30,4 +30,4 @@ byte-identical Rust/Cargo source to `v0.8.30` `e3d31f5cd`) and drops Ubuntu
 | Slice 10 | 0.8.30 base integration (`inspector/dev/0.2.1` on `release/0.8.30`), selective workspace wiring, `Cargo.lock` hygiene, `.venv` setup | [COMPLETE](slice-10/status.md) |
 | Slice 20 | 0.8.30 retrieval ownership & copy updates, degradations/`Closing`/FTS/ownerless tests, provenance semantics, deferred open & Candle 0.13 confinement | [COMPLETE](slice-20/status.md) |
 | Slice 30 | Native Ubuntu 24.04 tooling (remove Docker/Ubuntu 22.04/`openbox`/`xdotool`), `0.2.1` packaging, dual published `0.8.29`/`0.8.30` qualification, local release to `dist/inspector/0.2.1/` | [COMPLETE](slice-30/status.md) |
-| Slice 40 | Documentation reconciliation (`docs/inspector/`, `src/inspector/{README,tools/README}.md`, `dev/inspector/`) and docs-only release closure | NEXT |
+| Slice 40 | Documentation reconciliation (`docs/inspector/`, `src/inspector/{README,tools/README}.md`, `dev/inspector/`) and docs-only release closure | [COMPLETE](slice-40/status.md) |

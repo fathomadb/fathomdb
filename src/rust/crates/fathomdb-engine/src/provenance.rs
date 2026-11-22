@@ -125,6 +125,8 @@ pub struct ProvenancedNodeV1 {
     pub valid_from: Option<i64>,
     /// Exclusive world-time validity bound in epoch seconds.
     pub valid_until: Option<i64>,
+    /// Optional typed scalar property map stored outside `body`.
+    pub properties: Option<PropertyMap>,
     /// Closed schema-version-1 provenance.
     pub provenance: WriteProvenanceV1,
 }
@@ -155,6 +157,8 @@ pub struct ProvenancedEdgeV1 {
     pub extractor_model_id: Option<String>,
     /// Whether event time fell back to ingestion time.
     pub temporal_fallback: Option<bool>,
+    /// Optional typed scalar property map stored outside `body`.
+    pub properties: Option<PropertyMap>,
     /// Closed schema-version-1 derived provenance.
     pub provenance: WriteProvenanceV1,
 }

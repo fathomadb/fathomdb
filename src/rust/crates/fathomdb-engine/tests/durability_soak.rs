@@ -88,6 +88,7 @@ fn _power_cut_victim_entry() {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             }])
             .expect("victim write");
         if first {

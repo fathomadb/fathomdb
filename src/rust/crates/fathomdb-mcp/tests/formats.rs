@@ -195,6 +195,7 @@ async fn compact_orient_reports_real_projection_status_without_a_provider() {
         fts: Some(fathomdb_sdk::ProjectionFts { tokenizer: None }),
         vector: None,
         source: None,
+        entity_class: fathomdb_sdk::PropertyEntityClass::Node,
     };
     engine.configure_projections(&[spec], &[]).unwrap();
     engine.write(&[node("one", "note", "river")]).unwrap();
@@ -570,6 +571,7 @@ async fn budgeted_tools_refuse_mandatory_metadata_overflow() {
             fts: None,
             vector: None,
             source: None,
+            entity_class: fathomdb_sdk::PropertyEntityClass::Node,
         })
         .collect::<Vec<_>>();
     engine.configure_projections(&specs, &[]).unwrap();

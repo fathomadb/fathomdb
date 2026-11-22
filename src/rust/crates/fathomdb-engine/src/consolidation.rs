@@ -388,6 +388,7 @@ fn slice70_future_invalidation_refreshes_native_edge_deadline() {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     };
     opened
         .engine
@@ -406,6 +407,7 @@ fn slice70_future_invalidation_refreshes_native_edge_deadline() {
                 confidence: None,
                 extractor_model_id: None,
                 temporal_fallback: None,
+                properties: None,
             },
         ])
         .unwrap();

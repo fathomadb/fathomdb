@@ -4,36 +4,36 @@ use crate::{policy::Policy, session::Session};
 
 #[test]
 fn raw_classification_uses_integer_boundaries_and_withholds_unknown_lifecycle() {
-    use fathomdb_engine::{EmbedderChoice, Engine, InitialState, PreparedWrite, SourceId};
+    use fathomdb_engine::{EmbedderChoice, Engine, InitialState};
     let dir = tempfile::tempdir().unwrap();
     let path = fixtures::database(dir.path());
     let opened = Engine::open_with_choice(&path, EmbedderChoice::None).unwrap();
     opened
         .engine
         .write(&[
-            PreparedWrite::Node {
-                kind: "timed".into(),
-                body: "timed body".into(),
-                source_id: SourceId::new("fixture:timed").unwrap(),
-                logical_id: Some("timed-node".into()),
-                state: InitialState::Active,
-                reason: None,
-                valid_from: Some(10),
-                valid_until: Some(20),
-            },
-            PreparedWrite::Edge {
-                kind: "timed".into(),
-                from: "alpha".into(),
-                to: "beta".into(),
-                source_id: SourceId::new("fixture:timed").unwrap(),
-                logical_id: Some("timed-edge".into()),
-                body: None,
-                t_valid: Some(30),
-                t_invalid: Some(40),
-                confidence: None,
-                extractor_model_id: None,
-                temporal_fallback: None,
-            },
+            fixtures::node_with(
+                "timed",
+                Some("timed-node"),
+                "timed body",
+                "fixture:timed",
+                InitialState::Active,
+                None,
+                Some(10),
+                Some(20),
+            ),
+            fixtures::edge_with(
+                "timed",
+                "alpha",
+                "beta",
+                "fixture:timed",
+                Some("timed-edge"),
+                None,
+                Some(30),
+                Some(40),
+                None,
+                None,
+                None,
+            ),
         ])
         .unwrap();
     opened.engine.close().unwrap();

@@ -77,6 +77,7 @@ fn anonymous(source: &str, body_json: &str) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 
@@ -92,6 +93,7 @@ fn governed(logical_id: &str, source: &str, body_json: &str) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 
@@ -102,6 +104,7 @@ fn spec(name: &str, roles: &[ProjectionRole], fts: bool) -> ProjectionSpec {
         fts: fts.then_some(ProjectionFts { tokenizer: None }),
         vector: None,
         source: None,
+        entity_class: fathomdb_engine::PropertyEntityClass::Node,
     }
 }
 

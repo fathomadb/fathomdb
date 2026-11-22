@@ -3,9 +3,10 @@ use std::fmt::{Display, Formatter};
 use rusqlite::{Connection, OptionalExtension};
 
 use crate::{
-    frozen_read, ArtifactRevisionId, CanonicalHash, DependencyId, Engine, EngineError,
-    FrozenReadContextV1, LifecycleState, ProjectionGenerationId, SearchResult, SoftFallbackBranch,
-    SourceDependencyV1, SourceLocator, SourceRevisionId,
+    frozen_read, properties::properties_to_json_value, ArtifactRevisionId, CanonicalHash,
+    DependencyId, Engine, EngineError, FrozenReadContextV1, LifecycleState, ProjectionGenerationId,
+    PropertyMap, SearchResult, SoftFallbackBranch, SourceDependencyV1, SourceLocator,
+    SourceRevisionId,
 };
 
 const SCHEMA_VERSION: u32 = 1;
@@ -220,7 +221,7 @@ pub struct GraphEvidenceSidecarV1 {
 }
 
 /// Request to resolve one graph-evidence reference under frozen authority.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct GraphEvidenceResolveRequestV1 {
     pub schema_version: u32,
     pub evidence_ref: GraphEvidenceRefV1,
@@ -228,24 +229,28 @@ pub struct GraphEvidenceResolveRequestV1 {
 }
 
 /// Exact immutable graph artifact selected by constrained expansion.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum GraphEvidenceArtifactV1 {
     Node {
         logical_id: String,
         kind: String,
         body: String,
+        /// Optional typed scalar property map stored outside `body`.
+        properties: Option<PropertyMap>,
     },
     Edge {
         logical_id: Option<String>,
         kind: String,
         body: Option<String>,
+        /// Optional typed scalar property map stored outside `body`.
+        properties: Option<PropertyMap>,
         from: String,
         to: String,
     },
 }
 
 /// Canonical intrinsic evidence for one exact graph artifact revision.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ResolvedGraphEvidenceV1 {
     pub schema_version: u32,
     pub artifact_revision_id: ArtifactRevisionId,
@@ -268,13 +273,46 @@ pub fn encode_resolved_graph_evidence_v1(
     value: &ResolvedGraphEvidenceV1,
 ) -> Result<Vec<u8>, EvidenceErrorV1> {
     let artifact = match &value.artifact {
-        GraphEvidenceArtifactV1::Node { logical_id, kind, body } => serde_json::json!({
-            "artifactClass": "node", "logicalId": logical_id, "kind": kind, "body": body
-        }),
-        GraphEvidenceArtifactV1::Edge { logical_id, kind, body, from, to } => serde_json::json!({
-            "artifactClass": "edge", "logicalId": logical_id, "kind": kind, "body": body,
-            "from": from, "to": to
-        }),
+        GraphEvidenceArtifactV1::Node { logical_id, kind, body, properties } => {
+            let mut obj = serde_json::Map::new();
+            obj.insert("artifactClass".into(), serde_json::json!("node"));
+            obj.insert("logicalId".into(), serde_json::json!(logical_id));
+            obj.insert("kind".into(), serde_json::json!(kind));
+            obj.insert("body".into(), serde_json::json!(body));
+            if let Some(props) = properties.as_ref().filter(|m| !m.is_empty()) {
+                obj.insert(
+                    "properties".into(),
+                    properties_to_json_value(props).map_err(|_| {
+                        EvidenceErrorV1::new(
+                            EvidenceErrorReasonV1::EvidenceCorrupt,
+                            "/artifact/properties",
+                        )
+                    })?,
+                );
+            }
+            serde_json::Value::Object(obj)
+        }
+        GraphEvidenceArtifactV1::Edge { logical_id, kind, body, properties, from, to } => {
+            let mut obj = serde_json::Map::new();
+            obj.insert("artifactClass".into(), serde_json::json!("edge"));
+            obj.insert("logicalId".into(), serde_json::json!(logical_id));
+            obj.insert("kind".into(), serde_json::json!(kind));
+            obj.insert("body".into(), serde_json::json!(body));
+            if let Some(props) = properties.as_ref().filter(|m| !m.is_empty()) {
+                obj.insert(
+                    "properties".into(),
+                    properties_to_json_value(props).map_err(|_| {
+                        EvidenceErrorV1::new(
+                            EvidenceErrorReasonV1::EvidenceCorrupt,
+                            "/artifact/properties",
+                        )
+                    })?,
+                );
+            }
+            obj.insert("from".into(), serde_json::json!(from));
+            obj.insert("to".into(), serde_json::json!(to));
+            serde_json::Value::Object(obj)
+        }
     };
     let locator = match &value.locator {
         SourceLocator::WholeBody => serde_json::json!({
@@ -357,7 +395,7 @@ pub struct EvidenceSearchResultV1 {
 }
 
 /// Versioned request to resolve one evidence reference.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct EvidenceResolveRequestV1 {
     pub schema_version: u32,
     pub evidence_ref: EvidenceRefV1,
@@ -383,6 +421,8 @@ pub struct ResolvedEvidenceV1 {
     pub projection_origin: EvidenceProjectionOriginV1,
     pub retrieval_contribution: EvidenceContributionV1,
     pub dependency: Option<SourceDependencyV1>,
+    /// Optional typed scalar property map stored on the resolved artifact.
+    pub properties: Option<PropertyMap>,
 }
 
 /// Closed evidence-refusal vocabulary.
@@ -853,6 +893,7 @@ pub(crate) fn resolve(
         },
         retrieval_contribution: payload.contribution,
         dependency,
+        properties: None,
     })
 }
 
@@ -1524,6 +1565,8 @@ struct PendingGraphEvidence {
     write_cursor: u64,
     target_index: u32,
     values: Vec<rusqlite::types::Value>,
+    #[allow(dead_code)] // Populated from canonical SQL in Layer 3.
+    properties: Option<PropertyMap>,
 }
 
 fn pending_i64(row: &PendingGraphEvidence, index: usize) -> Option<i64> {
@@ -1592,7 +1635,13 @@ fn query_graph_evidence_batch(
         for index in 0..58 {
             values.push(row.get(index).map_err(|_| EngineError::Storage)?);
         }
-        pending.push(PendingGraphEvidence { artifact_class, write_cursor, target_index, values });
+        pending.push(PendingGraphEvidence {
+            artifact_class,
+            write_cursor,
+            target_index,
+            values,
+            properties: None,
+        });
     }
     if pending.len() != cursors.len() {
         return Err(EvidenceErrorV1::unavailable().into());
@@ -2758,6 +2807,7 @@ mod tests {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
             provenance: WriteProvenanceV1::canonical(
                 ArtifactRevisionId::new("source-r1").unwrap(),
                 SourceVersionId::new("v1").unwrap(),
@@ -2773,6 +2823,7 @@ mod tests {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
                 provenance: derived(&format!("target-r{index}")),
             }));
             writes.push(PreparedWrite::ProvenancedEdge(ProvenancedEdgeV1 {
@@ -2787,6 +2838,7 @@ mod tests {
                 confidence: Some(0.9),
                 extractor_model_id: None,
                 temporal_fallback: None,
+                properties: None,
                 provenance: derived(&format!("edge-r{index}")),
             }));
         }

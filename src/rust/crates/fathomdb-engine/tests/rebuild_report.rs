@@ -55,6 +55,7 @@ fn rebuild_projections_returns_structured_report() {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             }])
             .expect("write");
     }
@@ -98,6 +99,7 @@ fn rebuild_vec0_returns_structured_report() {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             }])
             .expect("write");
     }

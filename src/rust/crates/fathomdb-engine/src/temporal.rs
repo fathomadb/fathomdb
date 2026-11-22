@@ -164,7 +164,7 @@ impl ReadView {
 /// A node can cross BOTH boundaries in the same interval (a window that opened
 /// and closed inside it), so the two fields are independent `Option`s rather
 /// than one enum.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct BoundaryCrossing {
     /// The node that crossed.
     pub node: NodeRecord,

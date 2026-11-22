@@ -45,6 +45,7 @@ fn node(logical_id: &str, body: &str) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 
@@ -397,6 +398,7 @@ fn every_eligibility_term_executes_before_page_truncation() {
                 fts: None,
                 vector: None,
                 source: None,
+                entity_class: fathomdb_engine::PropertyEntityClass::Node,
             }],
             &[],
         )
@@ -412,6 +414,7 @@ fn every_eligibility_term_executes_before_page_truncation() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         })
         .collect::<Vec<_>>();
     writes.push(PreparedWrite::Node {
@@ -423,6 +426,7 @@ fn every_eligibility_term_executes_before_page_truncation() {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     });
     writes.push(PreparedWrite::Node {
         logical_id: None,
@@ -433,6 +437,7 @@ fn every_eligibility_term_executes_before_page_truncation() {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     });
     opened.engine.write(&writes).unwrap();
     opened.engine.drain(10_000).unwrap();

@@ -115,6 +115,7 @@ fn seed_rows(engine: &Engine, source_id: &str) {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         })
         .collect();
     engine.write(&writes).expect("write");
@@ -133,6 +134,7 @@ fn body_bearing_edge(source_id: &str) -> PreparedWrite {
         confidence: None,
         extractor_model_id: None,
         temporal_fallback: None,
+        properties: None,
     }
 }
 
@@ -215,6 +217,7 @@ fn purge_removes_no_embedder_pending_vector_work_after_soft_delete() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("write pending vector");
     assert!(matches!(opened.engine.drain(1_000), Err(EngineError::EmbedderRequired(_))));

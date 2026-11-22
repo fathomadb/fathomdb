@@ -379,8 +379,10 @@ impl PyProjectionSpec {
                     .vector_dense_readiness
                     .as_deref()
                     .and_then(RustDenseReadiness::from_str_opt),
+                kinds: None,
             }),
             source: self.source.clone(),
+            entity_class: fathomdb_engine::PropertyEntityClass::Node,
         })
     }
 }
@@ -731,6 +733,7 @@ mod stored_coverage_tests {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             })
             .collect();
         writes.push(PreparedWrite::Edge {
@@ -745,6 +748,7 @@ mod stored_coverage_tests {
             confidence: None,
             extractor_model_id: None,
             temporal_fallback: None,
+            properties: None,
         });
         opened.engine.write(&writes).unwrap();
         opened.engine.drain(10_000).unwrap();

@@ -20,6 +20,7 @@ fn node(id: &str, body: &str) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 
@@ -49,6 +50,7 @@ fn malformed_graph_edge_source_must_not_silently_drop_reachable_node() {
                 confidence: None,
                 extractor_model_id: None,
                 temporal_fallback: None,
+                properties: None,
             },
         ])
         .unwrap();

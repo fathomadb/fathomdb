@@ -137,6 +137,7 @@ fn write_docs<F: Fn(usize) -> String>(engine: &Engine, count: usize, batch: usiz
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             })
             .collect();
         engine.write(&nodes).expect("production write");

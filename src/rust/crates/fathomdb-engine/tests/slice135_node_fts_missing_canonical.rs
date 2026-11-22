@@ -20,6 +20,7 @@ fn missing_current_schema_canonical_nodes_must_not_fallback_to_orphaned_fts() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .unwrap();
     engine.drain(10_000).unwrap();

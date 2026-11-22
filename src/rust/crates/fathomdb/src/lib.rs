@@ -46,6 +46,7 @@
 //!     reason: None,
 //!     valid_from: None,
 //!     valid_until: None,
+//!     properties: None,
 //! }])?;
 //!
 //! for hit in engine.search("sky")?.results {
@@ -184,13 +185,14 @@ pub use fathomdb_engine::{
     GraphSeedV1, GraphTargetExplanationV1, GraphTargetV1, IdSpace, IdSpaceKind,
     IngestWithExtractorReceipt, InitialState, LifecycleActuationV1, LifecycleState,
     MutationProjectionStatusRequestV1, MutationProjectionStatusV1, NodeRecord, OpenReport,
-    OpenStage, OpenedEngine, OperationalStateRecordV1, PageCursor, PageError, PageErrorReason,
-    PageRequestV1, PageV1, PerHitExplain, Predicate, PreparedWrite, ProjectionDelta, ProjectionFts,
-    ProjectionGenerationError, ProjectionGenerationErrorReason, ProjectionGenerationId,
-    ProjectionGenerationOriginV1, ProjectionGenerationStatusV1, ProjectionReadinessV1,
-    ProjectionRole, ProjectionRuntimeStateV1, ProjectionRuntimeStatus,
+    OpenStage, OpenedEngine, OperationalCollectionInfo, OperationalStateRecordV1, PageCursor,
+    PageError, PageErrorReason, PageRequestV1, PageV1, PerHitExplain, Predicate, PreparedWrite,
+    ProjectionDelta, ProjectionFts, ProjectionGenerationError, ProjectionGenerationErrorReason,
+    ProjectionGenerationId, ProjectionGenerationOriginV1, ProjectionGenerationStatusV1,
+    ProjectionReadinessV1, ProjectionRole, ProjectionRuntimeStateV1, ProjectionRuntimeStatus,
     ProjectionRuntimeStatusEntry, ProjectionRuntimeUnavailabilityReason, ProjectionSpec,
-    ProjectionStatusDenseReadiness, ProjectionVector, ProvenanceCompleteness, ProvenanceError,
+    ProjectionStatusDenseReadiness, ProjectionVector, PropertyComparisonOp, PropertyEntityClass,
+    PropertyMap, PropertyPredicate, PropertyValue, ProvenanceCompleteness, ProvenanceError,
     ProvenanceErrorReason, ProvenancedEdgeV1, ProvenancedNodeV1, QueryTrace, ReadContextV1,
     ReadView, RecoveryHint, ResolvedEvidenceV1, ResolvedGraphEvidenceV1, ResolvedGraphSeedV1,
     RuntimeConfiguration, RuntimeConfigurationError, RuntimeSqliteMode, ScalarValue,

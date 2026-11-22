@@ -55,7 +55,7 @@ const VISIBILITY_TRIGGER_TABLES: [(&str, &str); 20] = [
 ];
 
 /// Versioned search eligibility and validity requested by a caller.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ReadContextV1 {
     /// Wire-schema version. Version 1 is the only accepted value.
     pub schema_version: u32,
@@ -75,7 +75,7 @@ impl ReadContextV1 {
 }
 
 /// Engine-minted authenticated context bound to one database read state.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct FrozenReadContextV1 {
     /// Wire-schema version. Version 1 is the only accepted value.
     pub schema_version: u32,

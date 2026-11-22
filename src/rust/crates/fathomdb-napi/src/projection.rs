@@ -366,8 +366,10 @@ impl ProjectionSpec {
                     .vector_dense_readiness
                     .as_deref()
                     .and_then(RustDenseReadiness::from_str_opt),
+                kinds: None,
             }),
             source: self.source.clone(),
+            entity_class: fathomdb_engine::PropertyEntityClass::Node,
         })
     }
 }

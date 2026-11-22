@@ -45,6 +45,7 @@ fn node(id: impl Into<String>) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 
@@ -61,6 +62,7 @@ fn edge(id: String, to: String) -> PreparedWrite {
         confidence: None,
         extractor_model_id: None,
         temporal_fallback: None,
+        properties: None,
     }
 }
 

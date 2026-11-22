@@ -63,6 +63,7 @@ fn canonical(body: &str) -> PreparedWrite {
             ArtifactRevisionId::new("source-revision-low-entropy").unwrap(),
             SourceVersionId::new("source-version-low-entropy").unwrap(),
         ),
+        properties: None,
     })
 }
 
@@ -83,6 +84,7 @@ fn derived(source_body: &str) -> PreparedWrite {
             SourceLocator::utf8_bytes(1, 3),
             CanonicalHash::sha256(digest(source_body)).unwrap(),
         ),
+        properties: None,
     })
 }
 
@@ -106,6 +108,7 @@ fn canonical_named(
             ArtifactRevisionId::new(revision).unwrap(),
             SourceVersionId::new(version).unwrap(),
         ),
+        properties: None,
     })
 }
 
@@ -157,6 +160,7 @@ fn derived_kind_named(
             SourceLocator::whole_body(),
             CanonicalHash::sha256(digest(source_body)).unwrap(),
         ),
+        properties: None,
     })
 }
 
@@ -413,6 +417,7 @@ fn seed_graph_matrix(engine: &Engine) {
                 fts: None,
                 vector: None,
                 source: None,
+                entity_class: fathomdb_engine::PropertyEntityClass::Node,
             }],
             &[],
         )
@@ -470,6 +475,7 @@ fn seed_graph_matrix(engine: &Engine) {
                     SourceLocator::whole_body(),
                     CanonicalHash::sha256(digest(edge_source)).unwrap(),
                 ),
+                properties: None,
             }),
         ])
         .unwrap();
@@ -741,6 +747,7 @@ fn graph_arm_resolves_node_body_source_and_separate_edge_origin() {
                     SourceLocator::whole_body(),
                     CanonicalHash::sha256(digest(edge_source)).unwrap(),
                 ),
+                properties: None,
             }),
         ])
         .unwrap();
@@ -865,6 +872,7 @@ fn source_bytes_must_match_access_bearing_attribute_terms() {
                 fts: None,
                 vector: None,
                 source: None,
+                entity_class: fathomdb_engine::PropertyEntityClass::Node,
             }],
             &[],
         )
@@ -951,6 +959,7 @@ fn equivalent_context_survives_restart_and_retired_projection_generation() {
                 fts: None,
                 vector: None,
                 source: None,
+                entity_class: fathomdb_engine::PropertyEntityClass::Node,
             }],
             &[],
         )
@@ -1148,6 +1157,7 @@ fn incomplete_detail_is_disclosed_only_after_current_source_authorization() {
                 fts: None,
                 vector: None,
                 source: None,
+                entity_class: fathomdb_engine::PropertyEntityClass::Node,
             }],
             &[],
         )
@@ -2103,6 +2113,7 @@ fn ordinary_authorization_revocation_matrix_is_indistinguishable() {
                     fts: None,
                     vector: None,
                     source: None,
+                    entity_class: fathomdb_engine::PropertyEntityClass::Node,
                 }],
                 &[],
             )
@@ -2179,6 +2190,7 @@ fn graph_origin_revocation_matrix_is_indistinguishable() {
                             SourceLocator::whole_body(),
                             CanonicalHash::sha256(digest(edge_source)).unwrap(),
                         ),
+                        properties: None,
                     })])
                     .unwrap();
             }
@@ -2452,6 +2464,7 @@ fn all_reachable_origin_contributions_and_atomic_sidecars() {
                         SourceLocator::whole_body(),
                         CanonicalHash::sha256(digest(source_body)).unwrap(),
                     ),
+                    properties: None,
                 }),
                 PreparedWrite::ProvenancedEdge(ProvenancedEdgeV1 {
                     kind: "related".into(),
@@ -2472,6 +2485,7 @@ fn all_reachable_origin_contributions_and_atomic_sidecars() {
                         SourceLocator::whole_body(),
                         CanonicalHash::sha256(digest(source_body)).unwrap(),
                     ),
+                    properties: None,
                 }),
             ])
             .unwrap();
@@ -2668,6 +2682,7 @@ fn historical_evidence_attribute_access_uses_canonical_artifact_values() {
                 fts: None,
                 vector: None,
                 source: None,
+                entity_class: fathomdb_engine::PropertyEntityClass::Node,
             }],
             &[],
         )
@@ -2789,6 +2804,7 @@ fn historical_evidence_issuance_refuses_source_missing_access_attribute() {
                 fts: None,
                 vector: None,
                 source: None,
+                entity_class: fathomdb_engine::PropertyEntityClass::Node,
             }],
             &[],
         )

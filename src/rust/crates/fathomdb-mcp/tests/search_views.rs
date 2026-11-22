@@ -143,6 +143,7 @@ fn history() -> (Fixture, Arc<Engine>) {
                 fts: None,
                 vector: None,
                 source: None,
+                entity_class: fathomdb_sdk::PropertyEntityClass::Node,
             }],
             &[],
         )

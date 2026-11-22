@@ -146,6 +146,8 @@ pub struct ProjectionVector {
     /// not round-trip: a readiness supplied with `vector = false`, and any
     /// spelling outside `{unavailable, embedding, ready}`.
     pub dense_readiness: Option<DenseReadiness>,
+    /// Optional explicit list of custom node kinds opted into dense vector indexing.
+    pub kinds: Option<Vec<String>>,
 }
 
 /// 0.8.20 Slice 15d (R-20-PR / C-1) — a single declarative projection
@@ -163,6 +165,9 @@ pub struct ProjectionSpec {
     /// Optional ordered literal object-member path in the canonical node body.
     /// `None` preserves the legacy direct top-level lookup by `name`.
     pub source: Option<Vec<String>>,
+    /// Entity class targeted by this projection (`Node` by default, or `Edge` for
+    /// `Filterable` edge properties).
+    pub entity_class: PropertyEntityClass,
 }
 
 /// 0.8.20 Slice 15d (R-20-PR) — the diff [`Engine::configure_projections`]
@@ -685,11 +690,13 @@ impl StoredProjection {
                 Some(ProjectionVector {
                     embedder: self.vector_embedder.clone(),
                     dense_readiness: None,
+                    kinds: None,
                 })
             } else {
                 None
             },
             source: self.source.clone(),
+            entity_class: PropertyEntityClass::Node,
         }
     }
 
@@ -2596,6 +2603,7 @@ mod historical_reconciliation_tests {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             });
         }
         for i in 0..count {
@@ -2611,6 +2619,7 @@ mod historical_reconciliation_tests {
                 confidence: None,
                 extractor_model_id: None,
                 temporal_fallback: None,
+                properties: None,
             });
         }
         opened.engine.write(&writes).unwrap();

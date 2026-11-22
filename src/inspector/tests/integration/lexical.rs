@@ -1,11 +1,11 @@
 use super::dispatch;
 use crate::{
-    fixtures::{database, node},
+    fixtures::{database, edge, edge_with, node, projection_spec},
     policy::Policy,
     session::Session,
     storage::Reader,
 };
-use fathomdb_engine::{EmbedderChoice, Engine, ProjectionFts, ProjectionRole, ProjectionSpec};
+use fathomdb_engine::{EmbedderChoice, Engine, ProjectionFts, ProjectionRole};
 use serde_json::{json, Value};
 
 fn corpus() -> (tempfile::TempDir, std::path::PathBuf) {
@@ -15,16 +15,13 @@ fn corpus() -> (tempfile::TempDir, std::path::PathBuf) {
     opened
         .engine
         .configure_projections(
-            &[ProjectionSpec {
-                name: "biography".into(),
-                roles: std::collections::BTreeSet::from([
-                    ProjectionRole::Searchable,
-                    ProjectionRole::Filterable,
-                ]),
-                fts: Some(ProjectionFts { tokenizer: Some("unicode61".into()) }),
-                vector: None,
-                source: Some(vec!["profile".into(), "biography".into()]),
-            }],
+            &[projection_spec(
+                "biography",
+                &[ProjectionRole::Searchable, ProjectionRole::Filterable],
+                Some(ProjectionFts { tokenizer: Some("unicode61".into()) }),
+                None,
+                Some(vec!["profile".into(), "biography".into()]),
+            )],
             &[],
         )
         .unwrap();
@@ -225,12 +222,14 @@ fn native_resource_admission_accounts_for_historical_property_alias_expansion() 
     let path = database(dir.path());
     let opened = Engine::open_with_choice(&path, EmbedderChoice::None).unwrap();
     let specs = (0..24)
-        .map(|n| ProjectionSpec {
-            name: format!("alias-{n}"),
-            roles: std::collections::BTreeSet::from([ProjectionRole::Searchable]),
-            fts: Some(ProjectionFts::default()),
-            vector: None,
-            source: Some(vec!["text".into()]),
+        .map(|n| {
+            projection_spec(
+                &format!("alias-{n}"),
+                &[ProjectionRole::Searchable],
+                Some(ProjectionFts::default()),
+                None,
+                Some(vec!["text".into()]),
+            )
         })
         .collect::<Vec<_>>();
     opened.engine.configure_projections(&specs, &[]).unwrap();
@@ -277,13 +276,13 @@ fn lexical_disclosure_composes_all_eight_real_queue_flags_and_rechecks_each_tran
     );
     engine
         .configure_projections(
-            &[ProjectionSpec {
-                name: "biography".into(),
-                roles: std::collections::BTreeSet::from([ProjectionRole::Searchable]),
-                fts: Some(ProjectionFts::default()),
-                vector: None,
-                source: None,
-            }],
+            &[projection_spec(
+                "biography",
+                &[ProjectionRole::Searchable],
+                Some(ProjectionFts::default()),
+                None,
+                None,
+            )],
             &[],
         )
         .unwrap();
@@ -399,19 +398,14 @@ fn lexical_large_payloads_are_bounded_original_windows_and_native_edge_origins_a
         .engine
         .write(&[
             node("large-lexical", &body),
-            fathomdb_engine::PreparedWrite::Edge {
-                kind: "knows".into(),
-                from: "lexical-a".into(),
-                to: "lexical-b".into(),
-                source_id: fathomdb_engine::SourceId::new("fixture:edge").unwrap(),
-                logical_id: Some("lexical-a".into()),
-                body: Some("café edge-only".into()),
-                t_valid: None,
-                t_invalid: None,
-                confidence: None,
-                extractor_model_id: None,
-                temporal_fallback: None,
-            },
+            edge(
+                "knows",
+                "lexical-a",
+                "lexical-b",
+                "fixture:edge",
+                Some("lexical-a"),
+                Some("café edge-only".into()),
+            ),
         ])
         .unwrap();
     opened.engine.close().unwrap();
@@ -502,7 +496,6 @@ fn relaxed_property_result_opens_the_exact_retained_revision_without_current_sub
 #[test]
 fn record_keyed_fusion_preserves_equal_body_node_edge_pairs_repeated_public_ids_and_retained_revisions(
 ) {
-    use fathomdb_engine::{PreparedWrite, SourceId};
     let dir = tempfile::tempdir().unwrap();
     let path = database(dir.path());
     let shared = "shared phoenix body";
@@ -513,19 +506,19 @@ fn record_keyed_fusion_preserves_equal_body_node_edge_pairs_repeated_public_ids_
             node("phoenix-1", shared),
             node("phoenix-2", shared),
             node("phoenix-reused", shared),
-            PreparedWrite::Edge {
-                kind: "relates".into(),
-                from: "phoenix-1".into(),
-                to: "phoenix-2".into(),
-                source_id: SourceId::new("fixture:edge").unwrap(),
-                logical_id: Some("phoenix-edge".into()),
-                body: Some(shared.into()),
-                t_valid: None,
-                t_invalid: None,
-                confidence: Some(0.9),
-                extractor_model_id: None,
-                temporal_fallback: None,
-            },
+            edge_with(
+                "relates",
+                "phoenix-1",
+                "phoenix-2",
+                "fixture:edge",
+                Some("phoenix-edge"),
+                Some(shared.into()),
+                None,
+                None,
+                Some(0.9),
+                None,
+                None,
+            ),
         ])
         .unwrap();
     // Write a second revision under the same logical_id with the exact same body.
@@ -567,7 +560,6 @@ fn record_keyed_fusion_preserves_equal_body_node_edge_pairs_repeated_public_ids_
 
 #[test]
 fn diverged_fts_body_or_kind_refuses_and_ownerless_node_fts_is_withheld_truthfully() {
-    use fathomdb_engine::{PreparedWrite, SourceId};
     let dir = tempfile::tempdir().unwrap();
     let path = database(dir.path());
     let opened = Engine::open_with_choice(&path, EmbedderChoice::None).unwrap();
@@ -576,32 +568,32 @@ fn diverged_fts_body_or_kind_refuses_and_ownerless_node_fts_is_withheld_truthful
         .write(&[
             node("consistent-node", "cobalt signal body"),
             node("kind-node", "topaz kind signal body"),
-            PreparedWrite::Edge {
-                kind: "supports".into(),
-                from: "consistent-node".into(),
-                to: "alpha".into(),
-                source_id: SourceId::new("fixture:edge").unwrap(),
-                logical_id: Some("consistent-edge".into()),
-                body: Some("amber edge signal".into()),
-                t_valid: None,
-                t_invalid: None,
-                confidence: Some(0.8),
-                extractor_model_id: None,
-                temporal_fallback: None,
-            },
-            PreparedWrite::Edge {
-                kind: "supports".into(),
-                from: "kind-node".into(),
-                to: "alpha".into(),
-                source_id: SourceId::new("fixture:edge").unwrap(),
-                logical_id: Some("kind-edge".into()),
-                body: Some("emerald kind edge signal".into()),
-                t_valid: None,
-                t_invalid: None,
-                confidence: Some(0.8),
-                extractor_model_id: None,
-                temporal_fallback: None,
-            },
+            edge_with(
+                "supports",
+                "consistent-node",
+                "alpha",
+                "fixture:edge",
+                Some("consistent-edge"),
+                Some("amber edge signal".into()),
+                None,
+                None,
+                Some(0.8),
+                None,
+                None,
+            ),
+            edge_with(
+                "supports",
+                "kind-node",
+                "alpha",
+                "fixture:edge",
+                Some("kind-edge"),
+                Some("emerald kind edge signal".into()),
+                None,
+                None,
+                Some(0.8),
+                None,
+                None,
+            ),
         ])
         .unwrap();
     opened.engine.close().unwrap();

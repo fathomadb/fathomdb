@@ -312,6 +312,7 @@ fn run(args: Args) -> Result<(), String> {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         });
         if node_batch.len() >= NODE_BATCH {
             nodes_written += flush_nodes(&engine, &mut node_batch)?;
@@ -355,6 +356,7 @@ fn run(args: Args) -> Result<(), String> {
             confidence: None,
             extractor_model_id: None,
             temporal_fallback: None,
+            properties: None,
         });
         if edge_batch.len() >= EDGE_BATCH {
             edges_written += flush_edges(&engine, &mut edge_batch)?;

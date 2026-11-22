@@ -84,6 +84,7 @@ fn node(id: &str, source: &str) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 fn accepted(r: QueueResult) -> String {

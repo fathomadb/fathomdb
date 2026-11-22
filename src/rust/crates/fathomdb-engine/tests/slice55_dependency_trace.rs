@@ -34,6 +34,7 @@ fn source(revision: &str, logical: &str, body: &str) -> PreparedWrite {
             ArtifactRevisionId::new(revision).unwrap(),
             SourceVersionId::new("slice55-v1").unwrap(),
         ),
+        properties: None,
     })
 }
 
@@ -62,6 +63,7 @@ fn derived_node(logical: &str, body: &str, provenance: WriteProvenanceV1) -> Pre
         valid_from: None,
         valid_until: None,
         provenance,
+        properties: None,
     })
 }
 
@@ -248,6 +250,7 @@ fn partial_span_fixture() -> (TempDir, fathomdb_engine::OpenedEngine, rusqlite::
                 extractor_model_id: None,
                 temporal_fallback: None,
                 provenance: partial_span_provenance("edge-r1", SourceLocator::utf8_bytes(1, 3)),
+                properties: None,
             }),
         ])
         .unwrap();

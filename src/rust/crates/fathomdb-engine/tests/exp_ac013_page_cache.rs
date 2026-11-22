@@ -308,6 +308,7 @@ fn ac013_page_cache_probe() {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             })
             .collect();
         engine.write(&batch).expect("seed write");
@@ -327,6 +328,7 @@ fn ac013_page_cache_probe() {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             })
             .collect();
         for chunk in heavy.chunks(20) {

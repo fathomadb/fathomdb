@@ -68,8 +68,13 @@ fn spec(name: &str, rs: &[ProjectionRole], fts: bool, vector: bool) -> Projectio
         name: name.to_string(),
         roles: roles(rs),
         fts: fts.then_some(ProjectionFts { tokenizer: None }),
-        vector: vector.then_some(ProjectionVector { embedder: None, dense_readiness: None }),
+        vector: vector.then_some(ProjectionVector {
+            embedder: None,
+            dense_readiness: None,
+            kinds: None,
+        }),
         source: None,
+        entity_class: fathomdb_engine::PropertyEntityClass::Node,
     }
 }
 
@@ -83,6 +88,7 @@ fn node(logical_id: &str, body_json: &str) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 

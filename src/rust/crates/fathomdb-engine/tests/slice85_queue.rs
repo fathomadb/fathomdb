@@ -10,6 +10,7 @@ fn node(id: &str, source: &str) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 fn fixture() -> (tempfile::TempDir, Arc<Engine>) {
@@ -134,6 +135,7 @@ fn queued_admin_refusal(effect: &str) {
                         fts: None,
                         vector: None,
                         source: None,
+                        entity_class: fathomdb_engine::PropertyEntityClass::Node,
                     }],
                     &[],
                 )

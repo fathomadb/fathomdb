@@ -68,6 +68,7 @@ fn seeded() -> (TempDir, Engine) {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             },
             PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
                 logical_id: Some("source".into()),
@@ -82,6 +83,7 @@ fn seeded() -> (TempDir, Engine) {
                     ArtifactRevisionId::new("source-r1").unwrap(),
                     SourceVersionId::new("v1").unwrap(),
                 ),
+                properties: None,
             }),
             PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
                 logical_id: Some("derived".into()),
@@ -99,6 +101,7 @@ fn seeded() -> (TempDir, Engine) {
                     SourceLocator::whole_body(),
                     CanonicalHash::sha256(digest("canonical source")).unwrap(),
                 ),
+                properties: None,
             }),
             PreparedWrite::Edge {
                 logical_id: Some("root-derived".into()),
@@ -112,6 +115,7 @@ fn seeded() -> (TempDir, Engine) {
                 confidence: None,
                 extractor_model_id: None,
                 temporal_fallback: None,
+                properties: None,
             },
         ])
         .unwrap();

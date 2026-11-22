@@ -1708,6 +1708,7 @@ mod historical_property_lifecycle_tests {
                     fts: Some(ProjectionFts { tokenizer: None }),
                     vector: None,
                     source: None,
+                    entity_class: crate::PropertyEntityClass::Node,
                 }],
                 &[],
             )

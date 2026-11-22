@@ -70,6 +70,7 @@ fn node_win(
         reason: None,
         valid_from,
         valid_until,
+        properties: None,
     }
 }
 

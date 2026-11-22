@@ -20,6 +20,7 @@ fn seed(engine: &Engine) {
                 fts: None,
                 vector: None,
                 source: None,
+                entity_class: PropertyEntityClass::Node,
             }],
             &[],
         )
@@ -38,6 +39,7 @@ fn seed(engine: &Engine) {
                 reason: None,
                 valid_from: Some(1_000_000_000),
                 valid_until: if n["id"] == "cohesion:a" { Some(2_000_000_001) } else { None },
+                properties: None,
                 provenance: WriteProvenanceV1::canonical(
                     ArtifactRevisionId::new(n["revision"].as_str().unwrap()).unwrap(),
                     SourceVersionId::new(n["version"].as_str().unwrap()).unwrap(),

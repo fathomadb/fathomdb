@@ -48,10 +48,11 @@ fn fixture(name: &str) -> (TempDir, std::path::PathBuf) {
 
 // ===== D1: FilterTerm exhaustiveness (exactly five variants) ==============
 
-/// Exhaustiveness pin: `FilterTerm` is EXACTLY the five D1 variants. A sixth
-/// variant (or a `Fused`/`_unchecked` leak) breaks this `match` at compile time.
+/// Exhaustiveness pin: `FilterTerm` is the six closed filter variants (five
+/// D1 variants plus 0.8.31 Slice 20 `Property`). Any unapproved seventh variant
+/// breaks this `match` at compile time.
 #[test]
-fn filterterm_enum_is_exactly_five_variants() {
+fn filterterm_enum_is_exactly_six_variants() {
     let terms = [
         FilterTerm::SourceType("todo".to_string()),
         FilterTerm::Kind("todo".to_string()),
@@ -61,15 +62,21 @@ fn filterterm_enum_is_exactly_five_variants() {
             Predicate::json_path_eq("$.status", ScalarValue::Text("open".to_string()))
                 .expect("valid"),
         ),
+        FilterTerm::Property(fathomdb_engine::PropertyPredicate {
+            key: "score".to_string(),
+            op: fathomdb_engine::PropertyComparisonOp::Eq,
+            value: fathomdb_engine::PropertyValue::Int(1),
+        }),
     ];
     for t in &terms {
-        // Exhaustive match — a sixth variant would fail to compile.
+        // Exhaustive match — a seventh variant would fail to compile.
         match t {
             FilterTerm::SourceType(_)
             | FilterTerm::Kind(_)
             | FilterTerm::CreatedAfter(_)
             | FilterTerm::Status(_)
-            | FilterTerm::Json(_) => {}
+            | FilterTerm::Json(_)
+            | FilterTerm::Property(_) => {}
         }
         // D-F2: no fused/unchecked names leak into the unified surface.
         let debug = format!("{t:?}").to_lowercase();
@@ -161,6 +168,7 @@ fn search_filter_typed_rejects_json_term() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("write");
     opened.engine.drain(10_000).expect("drain");
@@ -198,6 +206,7 @@ fn read_list_filter_accepts_full_set() {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             }])
             .expect("write");
     };
@@ -245,6 +254,7 @@ fn read_list_filter_kind_and_source_type_constant_fold() {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             },
             PreparedWrite::Node {
                 kind: "todo".to_string(),
@@ -255,6 +265,7 @@ fn read_list_filter_kind_and_source_type_constant_fold() {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             },
         ])
         .expect("write");
@@ -317,6 +328,7 @@ fn parity_kind_predicate_both_backends() {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             },
             PreparedWrite::Node {
                 kind: "note".to_string(),
@@ -327,6 +339,7 @@ fn parity_kind_predicate_both_backends() {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             },
         ])
         .expect("write");

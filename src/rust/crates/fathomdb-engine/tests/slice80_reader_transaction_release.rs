@@ -12,6 +12,7 @@ fn node(logical_id: &str, body: &str, source: &str) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 

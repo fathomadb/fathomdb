@@ -25,6 +25,7 @@ fn canonical(revision: &str, logical: &str, source_id: &str) -> ProvenancedNodeV
             ArtifactRevisionId::new(revision).unwrap(),
             SourceVersionId::new(format!("version-{revision}")).unwrap(),
         ),
+        properties: None,
     }
 }
 

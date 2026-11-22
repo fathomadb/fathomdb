@@ -56,6 +56,7 @@ fn doc(logical_id: &str, text: String) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 
@@ -222,6 +223,7 @@ fn reader_page_cache_timing_report() {
             fts: fts.then_some(ProjectionFts { tokenizer: None }),
             vector: None,
             source: None,
+            entity_class: fathomdb_engine::PropertyEntityClass::Node,
         };
         opened
             .engine
@@ -245,6 +247,7 @@ fn reader_page_cache_timing_report() {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             })
             .collect();
         for chunk in writes.chunks(1000) {

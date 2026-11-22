@@ -124,6 +124,7 @@ fn concurrent_searches_route_to_workers_without_loss_or_duplication() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("seed write");
 
@@ -180,6 +181,7 @@ fn one_reader_progresses_while_another_reader_holds_a_snapshot() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("seed write");
 

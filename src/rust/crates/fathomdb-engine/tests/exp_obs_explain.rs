@@ -58,6 +58,7 @@ fn seed_corpus(engine: &Engine) {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             }])
             .expect("write");
     }

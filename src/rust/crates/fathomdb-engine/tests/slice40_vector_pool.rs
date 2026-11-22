@@ -55,6 +55,7 @@ fn write(kind: &str, logical_id: &str, body: String) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 

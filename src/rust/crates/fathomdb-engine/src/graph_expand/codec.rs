@@ -1,6 +1,11 @@
 use crate::filter::SearchFilter;
 use crate::frozen_read::{FrozenReadContextV1, ReadContextV1};
 use crate::identity::IdSpace;
+use crate::properties::{
+    decode_properties_value, json_to_property_value, properties_to_json_value,
+    property_value_to_json, validate_property_predicate, PropertyComparisonOp, PropertyMap,
+    PropertyPredicate,
+};
 use crate::search_types::{StructuralDependencyStateV1, StructuralLifecycleStateV1};
 use crate::temporal::ReadView;
 use serde::Serialize;
@@ -59,12 +64,22 @@ struct ViewWire {
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+struct PropertyPredicateWire<'a> {
+    key: &'a str,
+    op: &'static str,
+    value: serde_json::Value,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct FilterWire<'a> {
     source_type: Option<&'a str>,
     kind: Option<&'a str>,
     created_after: Option<i64>,
     status: Option<&'a str>,
     attributes: Vec<(&'a str, &'a str)>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    property_predicates: Vec<PropertyPredicateWire<'a>>,
 }
 
 #[derive(Serialize)]
@@ -132,8 +147,28 @@ fn direction_str(value: TraversalDirection) -> &'static str {
     }
 }
 
-fn read_context_wire(value: &ReadContextV1) -> ReadContextWire<'_> {
-    ReadContextWire {
+fn read_context_wire(value: &ReadContextV1) -> Result<ReadContextWire<'_>, GraphExpansionErrorV1> {
+    let mut property_predicates = Vec::with_capacity(value.eligibility.property_predicates.len());
+    for (index, pred) in value.eligibility.property_predicates.iter().enumerate() {
+        validate_property_predicate(pred).map_err(|_| {
+            request_error(
+                GraphExpansionErrorReasonV1::GraphContextInvalid,
+                format!("/context/eligibility/propertyPredicates/{index}"),
+            )
+        })?;
+        let json_val = property_value_to_json(&pred.value).ok_or_else(|| {
+            request_error(
+                GraphExpansionErrorReasonV1::GraphContextInvalid,
+                format!("/context/eligibility/propertyPredicates/{index}/value"),
+            )
+        })?;
+        property_predicates.push(PropertyPredicateWire {
+            key: pred.key.as_str(),
+            op: pred.op.as_str(),
+            value: json_val,
+        });
+    }
+    Ok(ReadContextWire {
         schema_version: value.schema_version,
         view: ViewWire {
             include_superseded: value.view.include_superseded,
@@ -152,8 +187,9 @@ fn read_context_wire(value: &ReadContextV1) -> ReadContextWire<'_> {
                 .iter()
                 .map(|(name, value)| (name.as_str(), value.as_str()))
                 .collect(),
+            property_predicates,
         },
-    }
+    })
 }
 
 /// Encode a graph-expansion request into canonical declaration-order JSON.
@@ -185,7 +221,7 @@ pub fn encode_graph_expand_request_v1(
             GraphContextWire::Current(CurrentContextWire {
                 schema_version: *schema_version,
                 r#type: "current",
-                context: read_context_wire(context),
+                context: read_context_wire(context)?,
             })
         }
         GraphReadContextV1::Frozen { schema_version, context } => {
@@ -195,7 +231,7 @@ pub fn encode_graph_expand_request_v1(
                 context: FrozenContextWire {
                     schema_version: context.schema_version,
                     effective_valid_at: context.effective_valid_at,
-                    context: read_context_wire(&context.context),
+                    context: read_context_wire(&context.context)?,
                     token: &context.token,
                 },
             })
@@ -359,7 +395,7 @@ fn parse_read_context(
     )?;
     check_closed(
         eligibility_object,
-        &["sourceType", "kind", "createdAfter", "status", "attributes"],
+        &["sourceType", "kind", "createdAfter", "status", "attributes", "propertyPredicates"],
         &eligibility_base,
     )?;
     let optional_string = |field: &str| -> Result<Option<String>, GraphExpansionErrorV1> {
@@ -434,6 +470,67 @@ fn parse_read_context(
         })?;
         attributes.push((name.to_string(), value.to_string()));
     }
+    let mut property_predicates = Vec::new();
+    if let Some(predicates_value) = eligibility_object.get("propertyPredicates") {
+        let pred_base = format!("{eligibility_base}/propertyPredicates");
+        let items = predicates_value.as_array().ok_or_else(|| {
+            request_error(GraphExpansionErrorReasonV1::GraphContextInvalid, &pred_base)
+        })?;
+        for (index, item) in items.iter().enumerate() {
+            let item_base = format!("{pred_base}/{index}");
+            let obj = object(item, GraphExpansionErrorReasonV1::GraphContextInvalid, &item_base)?;
+            check_closed(obj, &["key", "op", "value"], &item_base)?;
+            let key = required(
+                obj,
+                "key",
+                GraphExpansionErrorReasonV1::GraphContextInvalid,
+                &format!("{item_base}/key"),
+            )?
+            .as_str()
+            .ok_or_else(|| {
+                request_error(
+                    GraphExpansionErrorReasonV1::GraphContextInvalid,
+                    format!("{item_base}/key"),
+                )
+            })?;
+            let op_str = required(
+                obj,
+                "op",
+                GraphExpansionErrorReasonV1::GraphContextInvalid,
+                &format!("{item_base}/op"),
+            )?
+            .as_str()
+            .ok_or_else(|| {
+                request_error(
+                    GraphExpansionErrorReasonV1::GraphContextInvalid,
+                    format!("{item_base}/op"),
+                )
+            })?;
+            let op = PropertyComparisonOp::parse(op_str).ok_or_else(|| {
+                request_error(
+                    GraphExpansionErrorReasonV1::GraphContextInvalid,
+                    format!("{item_base}/op"),
+                )
+            })?;
+            let raw_val = required(
+                obj,
+                "value",
+                GraphExpansionErrorReasonV1::GraphContextInvalid,
+                &format!("{item_base}/value"),
+            )?;
+            let value = json_to_property_value(raw_val).ok_or_else(|| {
+                request_error(
+                    GraphExpansionErrorReasonV1::GraphContextInvalid,
+                    format!("{item_base}/value"),
+                )
+            })?;
+            let pred = PropertyPredicate { key: key.to_string(), op, value };
+            validate_property_predicate(&pred).map_err(|_| {
+                request_error(GraphExpansionErrorReasonV1::GraphContextInvalid, &item_base)
+            })?;
+            property_predicates.push(pred);
+        }
+    }
     Ok(ReadContextV1 {
         schema_version: 1,
         view: ReadView {
@@ -448,6 +545,7 @@ fn parse_read_context(
             created_after,
             status: optional_string("status")?,
             attributes,
+            property_predicates,
         },
     })
 }
@@ -842,6 +940,8 @@ struct OriginWire<'a> {
     hop_count: u32,
     terminal_edge_kind: &'a str,
     terminal_direction: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    terminal_edge_properties: Option<serde_json::Value>,
 }
 
 #[derive(Serialize)]
@@ -852,6 +952,8 @@ struct TargetWire<'a> {
     kind: &'a str,
     body: &'a str,
     write_cursor: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    properties: Option<serde_json::Value>,
     origin: OriginWire<'a>,
 }
 
@@ -911,8 +1013,23 @@ struct ResultWire<'a> {
     evidence: Option<EvidenceSidecarWire<'a>>,
 }
 
-fn origin_wire(value: &GraphOriginV1) -> OriginWire<'_> {
-    OriginWire {
+fn optional_properties_wire(
+    props: Option<&PropertyMap>,
+    path: &str,
+) -> Result<Option<serde_json::Value>, GraphExpansionErrorV1> {
+    let Some(map) = props.filter(|m| !m.is_empty()) else {
+        return Ok(None);
+    };
+    properties_to_json_value(map)
+        .map(Some)
+        .map_err(|_| response_error(GraphExpansionErrorReasonV1::GraphCorrupt, path))
+}
+
+fn origin_wire<'a>(
+    value: &'a GraphOriginV1,
+    base_path: &str,
+) -> Result<OriginWire<'a>, GraphExpansionErrorV1> {
+    Ok(OriginWire {
         schema_version: value.schema_version,
         seed_logical_id: &value.seed_logical_id,
         seed_ordinal: value.seed_ordinal,
@@ -921,7 +1038,11 @@ fn origin_wire(value: &GraphOriginV1) -> OriginWire<'_> {
         hop_count: value.hop_count,
         terminal_edge_kind: &value.terminal_edge_kind,
         terminal_direction: direction_str(value.terminal_direction),
-    }
+        terminal_edge_properties: optional_properties_wire(
+            value.terminal_edge_properties.as_ref(),
+            &format!("{base_path}/terminalEdgeProperties"),
+        )?,
+    })
 }
 
 /// Encode a graph-expansion response into canonical declaration-order JSON.
@@ -929,38 +1050,62 @@ pub fn encode_graph_expand_result_v1(
     value: &GraphExpandResultV1,
 ) -> Result<Vec<u8>, GraphExpansionErrorV1> {
     validate_response_coherence(value)?;
-    let explanation = value.explanation.as_ref().map(|explanation| ExplanationWire {
-        schema_version: explanation.schema_version,
-        correlation_id: &explanation.correlation_id,
-        seed_source: match explanation.seed_source {
-            GraphSeedSourceV1::Query => "query",
-            GraphSeedSourceV1::Explicit => "explicit",
-        },
-        read_mode: match explanation.read_mode {
-            GraphReadModeV1::Current => "current",
-            GraphReadModeV1::Frozen => "frozen",
-        },
-        projection_generation_id: explanation.projection_generation_id.as_deref(),
-        projection_origin: projection_origin_str(explanation.projection_origin),
-        projection_readiness: projection_readiness_str(explanation.projection_readiness),
-        degradation_codes: explanation
-            .degradation_codes
-            .iter()
-            .copied()
-            .map(degradation_str)
-            .collect(),
-        per_target: explanation
-            .per_target
-            .iter()
-            .map(|target| TargetExplanationWire {
-                schema_version: target.schema_version,
-                target_index: target.target_index,
-                origin: origin_wire(&target.origin),
-                lifecycle_state: lifecycle_str(target.lifecycle_state),
-                dependency_state: dependency_str(target.dependency_state),
+    let explanation = value
+        .explanation
+        .as_ref()
+        .map(|explanation| -> Result<ExplanationWire<'_>, GraphExpansionErrorV1> {
+            let mut per_target = Vec::with_capacity(explanation.per_target.len());
+            for (index, target) in explanation.per_target.iter().enumerate() {
+                per_target.push(TargetExplanationWire {
+                    schema_version: target.schema_version,
+                    target_index: target.target_index,
+                    origin: origin_wire(
+                        &target.origin,
+                        &format!("/explanation/perTarget/{index}/origin"),
+                    )?,
+                    lifecycle_state: lifecycle_str(target.lifecycle_state),
+                    dependency_state: dependency_str(target.dependency_state),
+                });
+            }
+            Ok(ExplanationWire {
+                schema_version: explanation.schema_version,
+                correlation_id: &explanation.correlation_id,
+                seed_source: match explanation.seed_source {
+                    GraphSeedSourceV1::Query => "query",
+                    GraphSeedSourceV1::Explicit => "explicit",
+                },
+                read_mode: match explanation.read_mode {
+                    GraphReadModeV1::Current => "current",
+                    GraphReadModeV1::Frozen => "frozen",
+                },
+                projection_generation_id: explanation.projection_generation_id.as_deref(),
+                projection_origin: projection_origin_str(explanation.projection_origin),
+                projection_readiness: projection_readiness_str(explanation.projection_readiness),
+                degradation_codes: explanation
+                    .degradation_codes
+                    .iter()
+                    .copied()
+                    .map(degradation_str)
+                    .collect(),
+                per_target,
             })
-            .collect(),
-    });
+        })
+        .transpose()?;
+    let mut targets = Vec::with_capacity(value.targets.len());
+    for (index, target) in value.targets.iter().enumerate() {
+        targets.push(TargetWire {
+            schema_version: target.schema_version,
+            logical_id: &target.logical_id,
+            kind: &target.kind,
+            body: &target.body,
+            write_cursor: target.write_cursor.to_string(),
+            properties: optional_properties_wire(
+                target.properties.as_ref(),
+                &format!("/targets/{index}/properties"),
+            )?,
+            origin: origin_wire(&target.origin, &format!("/targets/{index}/origin"))?,
+        });
+    }
     serde_json::to_vec(&ResultWire {
         schema_version: value.schema_version,
         seeds: value
@@ -973,18 +1118,7 @@ pub fn encode_graph_expand_result_v1(
                 query_score: seed.query_score,
             })
             .collect(),
-        targets: value
-            .targets
-            .iter()
-            .map(|target| TargetWire {
-                schema_version: target.schema_version,
-                logical_id: &target.logical_id,
-                kind: &target.kind,
-                body: &target.body,
-                write_cursor: target.write_cursor.to_string(),
-                origin: origin_wire(&target.origin),
-            })
-            .collect(),
+        targets,
         complete: value.complete,
         work_units: value.work_units.to_string(),
         degradation_codes: value.degradation_codes.iter().copied().map(degradation_str).collect(),
@@ -1087,6 +1221,19 @@ fn parse_direction(
     }
 }
 
+fn parse_optional_properties(
+    object: &serde_json::Map<String, serde_json::Value>,
+    field: &str,
+    path: &str,
+) -> Result<Option<PropertyMap>, GraphExpansionErrorV1> {
+    match object.get(field) {
+        None => Ok(None),
+        Some(val) if val.is_null() => Ok(None),
+        Some(val) => decode_properties_value(val)
+            .map_err(|_| response_error(GraphExpansionErrorReasonV1::GraphCorrupt, path)),
+    }
+}
+
 fn parse_origin(
     value: &serde_json::Value,
     base: &str,
@@ -1126,6 +1273,11 @@ fn parse_origin(
         terminal_direction: parse_direction(
             response_required(object, "terminalDirection", &format!("{base}/terminalDirection"))?,
             &format!("{base}/terminalDirection"),
+        )?,
+        terminal_edge_properties: parse_optional_properties(
+            object,
+            "terminalEdgeProperties",
+            &format!("{base}/terminalEdgeProperties"),
         )?,
     })
 }
@@ -1376,6 +1528,11 @@ pub fn decode_graph_expand_result_v1(
             write_cursor: response_u64(
                 response_required(object, "writeCursor", &format!("{base}/writeCursor"))?,
                 &format!("{base}/writeCursor"),
+            )?,
+            properties: parse_optional_properties(
+                object,
+                "properties",
+                &format!("{base}/properties"),
             )?,
             origin: parse_origin(
                 response_required(object, "origin", &format!("{base}/origin"))?,

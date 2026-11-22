@@ -17,6 +17,7 @@ fn node(id: &str, kind: &str) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 
@@ -78,6 +79,7 @@ fn representative_body_plan_uses_fts_and_indexed_eav_before_ranking() {
                 fts: None,
                 vector: None,
                 source: None,
+                entity_class: fathomdb_engine::PropertyEntityClass::Node,
             }],
             &[],
         )

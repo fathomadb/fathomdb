@@ -32,6 +32,7 @@ fn nested_spec(
         fts: fts.then_some(ProjectionFts { tokenizer: None }),
         vector: None,
         source: Some(source.iter().map(|segment| (*segment).to_string()).collect()),
+        entity_class: fathomdb_engine::PropertyEntityClass::Node,
     }
 }
 
@@ -45,6 +46,7 @@ fn node(logical_id: &str, source_id: &str, body: &str) -> fathomdb_engine::Prepa
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 
@@ -58,6 +60,7 @@ fn pending_node(logical_id: &str, source_id: &str, body: &str) -> fathomdb_engin
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 

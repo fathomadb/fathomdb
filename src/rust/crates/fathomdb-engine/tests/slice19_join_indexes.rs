@@ -27,6 +27,7 @@ fn node(logical_id: &str, body: &str) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 
@@ -43,6 +44,7 @@ fn edge(from: &str, to: &str, body: &str) -> PreparedWrite {
         confidence: None,
         extractor_model_id: None,
         temporal_fallback: None,
+        properties: None,
     }
 }
 
@@ -53,6 +55,7 @@ fn searchable_title() -> ProjectionSpec {
         fts: Some(ProjectionFts { tokenizer: None }),
         vector: None,
         source: None,
+        entity_class: fathomdb_engine::PropertyEntityClass::Node,
     }
 }
 

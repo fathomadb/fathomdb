@@ -93,6 +93,7 @@ fn ac_060b_schema_validation_failure_leaves_no_batch_residue() {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             },
             PreparedWrite::OpStore {
                 collection: "validated".to_string(),

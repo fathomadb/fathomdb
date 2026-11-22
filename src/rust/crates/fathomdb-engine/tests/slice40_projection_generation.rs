@@ -39,8 +39,9 @@ fn vector_spec() -> ProjectionSpec {
         name: "summary".into(),
         roles: [ProjectionRole::Searchable].into_iter().collect(),
         fts: Some(ProjectionFts { tokenizer: None }),
-        vector: Some(ProjectionVector { embedder: None, dense_readiness: None }),
+        vector: Some(ProjectionVector { embedder: None, dense_readiness: None, kinds: None }),
         source: None,
+        entity_class: fathomdb_engine::PropertyEntityClass::Node,
     }
 }
 
@@ -105,6 +106,7 @@ fn non_noop_configuration_mints_but_exact_replay_reuses_generation() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .unwrap();
     let before = opened.engine.read_projection_generation_status().unwrap().generation_id;
@@ -187,6 +189,7 @@ fn body_edge_without_a_runtime_is_blocked_not_corrupt() {
             confidence: None,
             extractor_model_id: None,
             temporal_fallback: None,
+            properties: None,
         }])
         .unwrap();
 
@@ -213,6 +216,7 @@ fn a_terminal_without_its_physical_vector_is_typed_corruption() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .unwrap();
     opened.engine.configure_vector_kind_for_test("doc").unwrap();

@@ -1,6 +1,7 @@
 use crate::errors::EngineError;
 use crate::projection_registry::ProjectionRole;
 use crate::projection_registry::{encode_attr_vec0_present, load_projection_registry};
+use crate::properties::PropertyPredicate;
 use crate::search_types::TOP_K_BIT_CANDIDATES;
 use crate::temporal::ReadView;
 use crate::vector_storage::{attr_vec0_column, resolve_source_type};
@@ -85,7 +86,7 @@ pub enum Predicate {
 // FUTURE field add is not a source break for them. Construction inside
 // `fathomdb-engine` is unaffected: `#[non_exhaustive]` only constrains other
 // crates. Governed-surface status: PROPOSED / NOT SIGNED.
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 #[non_exhaustive]
 pub struct SearchFilter {
     pub source_type: Option<String>,
@@ -100,6 +101,8 @@ pub struct SearchFilter {
     /// registry projection name; the encoded column is derived by
     /// [`attr_vec0_column`].
     pub attributes: Vec<(String, String)>,
+    /// Typed scalar predicates evaluated against declared `Filterable` node properties.
+    pub property_predicates: Vec<PropertyPredicate>,
 }
 
 // ===== 0.8.11 Slice 40 (#17) — unified filter grammar (G4 + G10) =========
@@ -141,6 +144,8 @@ pub enum FilterTerm {
     /// on `search_filtered` because it would require a post-KNN `json_extract`
     /// that defeats the indexed pre-KNN filter (D3 no-demotion guarantee).
     Json(Predicate),
+    /// Typed scalar predicate evaluated against declared `Filterable` node properties.
+    Property(PropertyPredicate),
 }
 
 /// 0.8.11 Slice 40 (#17) — the unified closed `Filter` contract. ONE superset
@@ -278,6 +283,7 @@ impl SearchFilter {
             && self.created_after.is_none()
             && self.status.is_none()
             && self.attributes.is_empty()
+            && self.property_predicates.is_empty()
     }
 }
 
@@ -288,7 +294,7 @@ impl TryFrom<&SearchFilter> for Filter {
     /// unified [`Filter`]. Attribute equality is intentionally not part of the
     /// unified grammar, so it is refused rather than silently discarded. Field
     /// → term uses canonical order (`source_type`, `kind`, `created_after`,
-    /// `status`) so an attribute-free round-trip stays byte-identical.
+    /// `status`, `property_predicates`) so an attribute-free round-trip stays byte-identical.
     fn try_from(sf: &SearchFilter) -> Result<Self, Self::Error> {
         if !sf.attributes.is_empty() {
             return Err(EngineError::InvalidFilter {
@@ -310,13 +316,16 @@ impl TryFrom<&SearchFilter> for Filter {
         if let Some(s) = &sf.status {
             terms.push(FilterTerm::Status(s.clone()));
         }
+        for pred in &sf.property_predicates {
+            terms.push(FilterTerm::Property(pred.clone()));
+        }
         Ok(Filter { terms })
     }
 }
 
 impl Filter {
     /// Backend dispatch for `search_filtered` (vec0 — indexed pre-KNN). Lowers
-    /// the metadata subset `{SourceType, Kind, CreatedAfter, Status}` back into a
+    /// the metadata subset `{SourceType, Kind, CreatedAfter, Status, Property}` back into a
     /// [`SearchFilter`] (which the shipped `vector_filter_clause` compiles to the
     /// pre-KNN `WHERE`), and **typed-rejects** a [`FilterTerm::Json`] term with
     /// [`EngineError::InvalidFilter`] — the explicit no-demotion guarantee (D3).
@@ -331,6 +340,7 @@ impl Filter {
                 FilterTerm::Kind(k) => sf.kind = Some(k.clone()),
                 FilterTerm::CreatedAfter(c) => sf.created_after = Some(*c),
                 FilterTerm::Status(s) => sf.status = Some(s.clone()),
+                FilterTerm::Property(pred) => sf.property_predicates.push(pred.clone()),
                 FilterTerm::Json(_) => {
                     return Err(EngineError::InvalidFilter {
                         reason: "arbitrary json-path predicate not supported on search_filtered; \
@@ -390,6 +400,12 @@ impl Filter {
                         Ok(resolved) if resolved == s.as_str() => {}
                         _ => return Ok(None),
                     }
+                }
+                FilterTerm::Property(_) => {
+                    return Err(EngineError::InvalidFilter {
+                        reason: "property predicates on read.list are implemented in Layer 3"
+                            .to_string(),
+                    });
                 }
             }
         }

@@ -33,6 +33,7 @@ fn body_edge() -> PreparedWrite {
         confidence: None,
         extractor_model_id: None,
         temporal_fallback: None,
+        properties: None,
     }
 }
 
@@ -230,6 +231,7 @@ fn pending_vector_work_reports_only_supported_remedies_in_readiness_and_drain() 
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .unwrap();
     let readiness = engine.read_embedding_readiness().unwrap();

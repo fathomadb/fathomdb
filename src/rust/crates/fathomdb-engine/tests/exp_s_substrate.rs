@@ -86,6 +86,7 @@ fn write_fixture(engine: &Engine) {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         })
         .collect();
     engine.write(&leaves).expect("write leaf batch");

@@ -76,6 +76,7 @@ fn canonical(
             ArtifactRevisionId::new(revision).unwrap(),
             SourceVersionId::new(version).unwrap(),
         ),
+        properties: None,
     }
 }
 
@@ -96,6 +97,7 @@ fn derived(source_id: &str) -> ProvenancedNodeV1 {
             SourceLocator::whole_body(),
             CanonicalHash::sha256(digest(ORIGINAL_BODY)).unwrap(),
         ),
+        properties: None,
     }
 }
 

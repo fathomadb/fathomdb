@@ -29,6 +29,7 @@ fn node(id: Option<&str>, kind: &str, body: &str) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 fn query(engine: &Engine) -> Result<SearchResult, EngineError> {
@@ -185,6 +186,7 @@ fn edge_presence_keeps_exact_mixed_text_reference_ranks() {
                 confidence: None,
                 extractor_model_id: None,
                 temporal_fallback: None,
+                properties: None,
             },
         ])
         .unwrap();

@@ -39,6 +39,7 @@ fn malformed_deferred_source_must_fail_instead_of_erasing_hit_provenance() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .unwrap();
     opened.engine.drain(10_000).unwrap();

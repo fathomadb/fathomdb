@@ -145,17 +145,19 @@ fn log_pages_keep_exact_entry_ids_and_use_retained_entry_order() {
 
 #[test]
 fn catalog_unicode_declarations_share_one_response_byte_budget() {
-    use fathomdb_engine::{ProjectionRole, ProjectionSpec};
+    use fathomdb_engine::ProjectionRole;
     let dir = tempfile::tempdir().unwrap();
     let path = database(dir.path());
     let opened = Engine::open_with_choice(&path, EmbedderChoice::None).unwrap();
     let declarations = (0..200)
-        .map(|n| ProjectionSpec {
-            name: format!("{n}-{}", "🦀".repeat(4096)),
-            roles: std::collections::BTreeSet::from([ProjectionRole::Searchable]),
-            fts: None,
-            vector: None,
-            source: None,
+        .map(|n| {
+            crate::fixtures::projection_spec(
+                &format!("{n}-{}", "🦀".repeat(4096)),
+                &[ProjectionRole::Searchable],
+                None,
+                None,
+                None,
+            )
         })
         .collect::<Vec<_>>();
     opened.engine.configure_projections(&declarations, &[]).unwrap();
@@ -174,17 +176,19 @@ fn catalog_unicode_declarations_share_one_response_byte_budget() {
 
 #[test]
 fn catalog_collections_declarations_and_groups_share_one_item_limit() {
-    use fathomdb_engine::{ProjectionRole, ProjectionSpec};
+    use fathomdb_engine::ProjectionRole;
     let dir = tempfile::tempdir().unwrap();
     let path = database(dir.path());
     let opened = Engine::open_with_choice(&path, EmbedderChoice::None).unwrap();
     let declarations = (0..200)
-        .map(|n| ProjectionSpec {
-            name: format!("field-{n}"),
-            roles: std::collections::BTreeSet::from([ProjectionRole::Searchable]),
-            fts: None,
-            vector: None,
-            source: None,
+        .map(|n| {
+            crate::fixtures::projection_spec(
+                &format!("field-{n}"),
+                &[ProjectionRole::Searchable],
+                None,
+                None,
+                None,
+            )
         })
         .collect::<Vec<_>>();
     opened.engine.configure_projections(&declarations, &[]).unwrap();

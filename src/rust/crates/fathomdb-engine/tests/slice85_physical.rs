@@ -10,6 +10,7 @@ fn node(id: &str, source: &str, body: &str) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 fn fixture() -> (tempfile::TempDir, Arc<Engine>) {
@@ -291,6 +292,7 @@ fn absent_logical_root_never_completes_over_retained_touching_edges() {
             confidence: None,
             extractor_model_id: None,
             temporal_fallback: None,
+            properties: None,
         }])
         .unwrap();
     assert_eq!(

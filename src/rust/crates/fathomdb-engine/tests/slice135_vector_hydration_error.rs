@@ -38,6 +38,7 @@ fn malformed_canonical_kind_must_fail_instead_of_omitting_vector_hit() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .unwrap();
     opened.engine.drain(10_000).unwrap();

@@ -27,6 +27,7 @@ fn hit(id: u64, body: &str, score: f64) -> SearchHit {
         branch: SoftFallbackBranch::Vector,
         source_id: None,
         ce_score: None,
+        properties: None,
     }
 }
 
@@ -109,6 +110,7 @@ fn recency_flag_off_by_default_e2e() {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             }])
             .expect("write");
     }

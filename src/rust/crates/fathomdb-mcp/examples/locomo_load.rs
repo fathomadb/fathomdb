@@ -77,8 +77,9 @@ fn spec() -> ProjectionSpec {
         name: "turn".into(),
         roles: [ProjectionRole::Searchable].into_iter().collect(),
         fts: Some(ProjectionFts { tokenizer: None }),
-        vector: Some(ProjectionVector { embedder: None, dense_readiness: None }),
+        vector: Some(ProjectionVector { embedder: None, dense_readiness: None, kinds: None }),
         source: None,
+        entity_class: fathomdb_sdk::PropertyEntityClass::Node,
     }
 }
 
@@ -145,6 +146,7 @@ fn load(label: &str, turns: Vec<Turn>, path: &Path) -> Result<(), String> {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         })
         .collect();
     for chunk in writes.chunks(256) {

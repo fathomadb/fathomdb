@@ -49,8 +49,13 @@ fn spec(name: &str, rs: &[ProjectionRole], fts: bool, vector: bool) -> Projectio
         fts: fts.then_some(ProjectionFts { tokenizer: None }),
         // 0.8.20 Slice 20 (R-20-DR) — `dense_readiness` is engine-set READ
         // METADATA, so a caller-authored spec always carries `None` here.
-        vector: vector.then_some(ProjectionVector { embedder: None, dense_readiness: None }),
+        vector: vector.then_some(ProjectionVector {
+            embedder: None,
+            dense_readiness: None,
+            kinds: None,
+        }),
         source: None,
+        entity_class: fathomdb_engine::PropertyEntityClass::Node,
     }
 }
 
@@ -66,6 +71,7 @@ fn node(logical_id: &str, source: &str, body_json: &str) -> fathomdb_engine::Pre
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 
@@ -86,6 +92,7 @@ fn node_state(
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 
@@ -398,6 +405,7 @@ fn vector_subobject_is_stored_not_built() {
             vector: Some(ProjectionVector {
                 embedder: None,
                 dense_readiness: Some(DenseReadiness::Unavailable),
+                kinds: None,
             }),
             ..s.clone()
         }],

@@ -64,6 +64,7 @@ fn node(logical_id: &str, body: String) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 
@@ -279,6 +280,7 @@ fn edges_are_ineligible_and_malformed_full_sort_rows_fail_closed() {
                 confidence: None,
                 extractor_model_id: None,
                 temporal_fallback: None,
+                properties: None,
             },
         ])
         .expect("write edge corpus");

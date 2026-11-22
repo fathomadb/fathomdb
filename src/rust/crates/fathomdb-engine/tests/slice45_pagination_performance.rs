@@ -59,6 +59,7 @@ fn seed(path: &Path, rows: usize) {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             })
             .collect::<Vec<_>>();
         opened.engine.write(&nodes).expect("seed canonical nodes");

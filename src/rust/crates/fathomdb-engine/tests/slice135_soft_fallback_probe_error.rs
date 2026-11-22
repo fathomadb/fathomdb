@@ -37,6 +37,7 @@ fn missing_vector_kind_table_must_fail_instead_of_suppressing_probe_error() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .unwrap();
     opened.engine.drain(10_000).unwrap();

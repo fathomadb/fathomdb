@@ -157,6 +157,7 @@ fn fts5_control_syntax_is_safe_and_matches_reference() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         })
         .collect();
     engine.write(&writes).expect("seed write");

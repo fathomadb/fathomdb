@@ -202,6 +202,7 @@ pub fn rerank_passages(
             branch: SoftFallbackBranch::Vector,
             source_id: None,
             ce_score: None,
+            properties: None,
         })
         .collect();
     // 0.8.5 — project `(id, score, ce_score)` so the binding can surface the CE

@@ -32,6 +32,7 @@ fn canonical(revision: &str, logical: &str, body: &str) -> ProvenancedNodeV1 {
             ArtifactRevisionId::new(revision).unwrap(),
             SourceVersionId::new(format!("version-{revision}")).unwrap(),
         ),
+        properties: None,
     }
 }
 
@@ -52,6 +53,7 @@ fn derived(revision: &str, logical: &str, body: &str, source_revision: &str) -> 
             SourceLocator::whole_body(),
             CanonicalHash::sha256(digest("source body")).unwrap(),
         ),
+        properties: None,
     }
 }
 
@@ -149,6 +151,7 @@ fn shared_all_variant_fixture_has_exact_receipt_and_digest() {
                     ArtifactRevisionId::new("source-r1").unwrap(),
                     SourceVersionId::new("source-v1").unwrap(),
                 ),
+                properties: None,
             }),
             ActuationOperationV1::PutDerivedNode(ProvenancedNodeV1 {
                 kind: "fact".into(),
@@ -169,6 +172,7 @@ fn shared_all_variant_fixture_has_exact_receipt_and_digest() {
                     )
                     .unwrap(),
                 ),
+                properties: None,
             }),
             ActuationOperationV1::PutDerivedEdge(ProvenancedEdgeV1 {
                 kind: "supports".into(),
@@ -192,6 +196,7 @@ fn shared_all_variant_fixture_has_exact_receipt_and_digest() {
                     )
                     .unwrap(),
                 ),
+                properties: None,
             }),
             ActuationOperationV1::RegisterSourceDependency(
                 SourceDependencyRegistrationV1::new("dependency-r1", "source-r1", "derived-r1")

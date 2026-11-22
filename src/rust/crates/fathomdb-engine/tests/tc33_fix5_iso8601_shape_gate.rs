@@ -191,6 +191,7 @@ fn edge_with_temporal(t_valid: Option<i64>, t_invalid: Option<i64>) -> PreparedW
         confidence: None,
         extractor_model_id: None,
         temporal_fallback: None,
+        properties: None,
     }
 }
 

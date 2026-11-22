@@ -33,8 +33,9 @@ fn vector_spec() -> ProjectionSpec {
         name: "memory".into(),
         roles: [ProjectionRole::Searchable].into_iter().collect(),
         fts: None,
-        vector: Some(ProjectionVector { embedder: None, dense_readiness: None }),
+        vector: Some(ProjectionVector { embedder: None, dense_readiness: None, kinds: None }),
         source: None,
+        entity_class: fathomdb_engine::PropertyEntityClass::Node,
     }
 }
 
@@ -60,6 +61,7 @@ fn measured_batch(index: usize) -> ActuationBatchV1 {
                 ArtifactRevisionId::new(format!("slice40-status-r{index}")).unwrap(),
                 SourceVersionId::new(format!("slice40-status-v{index}")).unwrap(),
             ),
+            properties: None,
         })],
     )
     .unwrap()
@@ -104,6 +106,7 @@ fn measure_generation_and_mutation_status_at_50k() {
                     reason: None,
                     valid_from: None,
                     valid_until: None,
+                    properties: None,
                 })
                 .collect::<Vec<_>>();
             setup.engine.write(&batch).unwrap();

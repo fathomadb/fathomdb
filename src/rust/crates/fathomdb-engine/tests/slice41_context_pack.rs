@@ -651,6 +651,7 @@ fn node(logical_id: String, body: String) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 

@@ -212,6 +212,7 @@ mod scored_extent_tests {
                     reason: None,
                     valid_from: None,
                     valid_until: None,
+                    properties: None,
                 }])
                 .unwrap();
             opened.engine.drain(10_000).unwrap();

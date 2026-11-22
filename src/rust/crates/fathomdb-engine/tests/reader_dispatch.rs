@@ -35,6 +35,7 @@ fn seeded_engine(name: &str) -> (TempDir, OpenedEngine) {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("seed write");
     (dir, opened)

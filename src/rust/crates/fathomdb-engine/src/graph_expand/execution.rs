@@ -919,6 +919,7 @@ pub(crate) fn read_graph_expand_with_stop_words_in_tx(
                     hop_count: depth + 1,
                     terminal_edge_kind: edge.kind.clone(),
                     terminal_direction,
+                    terminal_edge_properties: None,
                 };
                 let target = GraphTargetV1 {
                     schema_version: 1,
@@ -926,6 +927,7 @@ pub(crate) fn read_graph_expand_with_stop_words_in_tx(
                     kind,
                     body,
                     write_cursor,
+                    properties: None,
                     origin,
                 };
                 if let Some(existing) = candidates.get_mut(next) {

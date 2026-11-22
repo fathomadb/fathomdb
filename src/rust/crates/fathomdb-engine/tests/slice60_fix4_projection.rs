@@ -89,6 +89,7 @@ fn graph_expand_maps_injected_source_projection_statuses_through_production_mapp
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .unwrap();
 

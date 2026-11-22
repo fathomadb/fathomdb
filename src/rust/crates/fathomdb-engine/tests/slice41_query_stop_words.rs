@@ -80,6 +80,7 @@ fn build_site_store(dir: &TempDir) -> PathBuf {
                 fts: Some(ProjectionFts { tokenizer: None }),
                 vector: None,
                 source: None,
+                entity_class: fathomdb_engine::PropertyEntityClass::Node,
             }],
             &[],
         )
@@ -100,6 +101,7 @@ fn build_site_store(dir: &TempDir) -> PathBuf {
                     ArtifactRevisionId::new(format!("{id}-r1")).expect("revision"),
                     SourceVersionId::new(format!("{id}-v1")).expect("version"),
                 ),
+                properties: None,
             })
         })
         .collect();
@@ -305,6 +307,7 @@ fn shared_fixture_ranks_as_derived_and_as_the_harness_transform() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         })
         .collect();
     let default = open(&path, None);

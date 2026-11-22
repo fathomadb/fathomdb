@@ -71,6 +71,7 @@ fn node(logical_id: &str, body: &str) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 
@@ -377,6 +378,7 @@ fn t15_edge_hits_take_spans_from_the_edge_index() {
             confidence: None,
             extractor_model_id: None,
             temporal_fallback: None,
+            properties: None,
         }])
         .expect("edge");
     for (path, result) in [

@@ -25,6 +25,7 @@ fn searchable_title() -> ProjectionSpec {
         fts: Some(ProjectionFts { tokenizer: None }),
         vector: None,
         source: None,
+        entity_class: fathomdb_engine::PropertyEntityClass::Node,
     }
 }
 
@@ -39,6 +40,7 @@ fn corpus() -> Vec<PreparedWrite> {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         })
         .collect()
 }
@@ -173,6 +175,7 @@ fn vector_rerank_fanout_reaches_requested_twenty_and_fifty() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         })
         .collect();
     engine.write(&batch).expect("write");
@@ -208,6 +211,7 @@ fn projected_text_limit_is_applied_after_metadata_filtering() {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     });
     let retained = (0..20).map(|n| PreparedWrite::Node {
         kind: "keep".to_string(),
@@ -218,6 +222,7 @@ fn projected_text_limit_is_applied_after_metadata_filtering() {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     });
     engine.write(&skipped.chain(retained).collect::<Vec<_>>()).expect("write");
     engine.drain(10_000).expect("drain");

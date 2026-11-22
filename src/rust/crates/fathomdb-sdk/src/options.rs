@@ -97,7 +97,7 @@ impl Default for SearchOptions {
 /// ```compile_fail,E0639
 /// let _ = fathomdb_sdk::TextSearchOptions { limit: 5, ..Default::default() };
 /// ```
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct TextSearchOptions {
     /// Closed metadata predicates, applied before candidate collection.
@@ -114,7 +114,7 @@ impl Default for TextSearchOptions {
 }
 
 /// `Engine::search_projected_text` options.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ProjectedTextSearchOptions {
     pub filter: Option<SearchFilter>,
     pub view: ReadView,

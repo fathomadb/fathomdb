@@ -49,6 +49,7 @@ fn seed(engine: &Engine, kind: &str, body: &str) {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("write");
 }

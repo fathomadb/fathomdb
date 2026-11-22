@@ -230,8 +230,9 @@ fn seed(path: &Path) {
         name: KIND.into(),
         roles: [ProjectionRole::Searchable].into_iter().collect(),
         fts: None,
-        vector: Some(ProjectionVector { embedder: None, dense_readiness: None }),
+        vector: Some(ProjectionVector { embedder: None, dense_readiness: None, kinds: None }),
         source: None,
+        entity_class: fathomdb_sdk::PropertyEntityClass::Node,
     };
     let delta = engine.configure_projections(&[spec], &[]).expect("configure projections");
     assert!(delta.vector_unsupported_kinds.is_empty(), "{:?}", delta.vector_unsupported_kinds);
@@ -248,6 +249,7 @@ fn seed(path: &Path) {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             })
             .collect();
         engine.write(&batch).expect("seed write");

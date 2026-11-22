@@ -279,6 +279,7 @@ pub(crate) fn crossed_boundary_since_in_tx(
                 kind: row.get(1)?,
                 body: row.get(2)?,
                 write_cursor: row.get::<_, i64>(3)? as u64,
+                properties: None,
             },
             became_valid_at: valid_from.filter(|t| *t > since && *t <= upper),
             became_invalid_at: valid_until.filter(|t| *t > since && *t <= upper),
@@ -329,6 +330,7 @@ pub(crate) fn graph_neighbors_in_tx(
             kind: row.get(1)?,
             body: row.get(2)?,
             write_cursor: row.get::<_, i64>(3)? as u64,
+            properties: None,
         })
     })?;
     let mut out = Vec::new();
@@ -465,6 +467,7 @@ pub(crate) fn search_expand_on_snapshot<H: RankedHit>(
                         kind: row.get(1)?,
                         body: row.get(2)?,
                         write_cursor: row.get::<_, i64>(3)? as u64,
+                        properties: None,
                     };
                     let min_depth: i64 = row.get(4)?;
                     Ok((node, min_depth as u32))

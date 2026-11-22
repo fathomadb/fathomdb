@@ -77,6 +77,7 @@ fn write_node(engine: &Engine, body: &str, source_id: &str) -> u64 {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("write")
         .cursor
@@ -310,6 +311,7 @@ fn rebuild_edge_projection_matches_write_path() {
         confidence: Some(0.9),
         extractor_model_id: Some("stub-extractor-v1".to_string()),
         temporal_fallback: None,
+        properties: None,
     };
     // A structural (body-less) edge: NO FTS row, NO vector row, but the write
     // path DOES record a `up_to_date` readiness terminal for its cursor.
@@ -325,6 +327,7 @@ fn rebuild_edge_projection_matches_write_path() {
         confidence: None,
         extractor_model_id: None,
         temporal_fallback: None,
+        properties: None,
     };
     let receipt = opened.engine.write(&[fact_edge, plain_edge]).expect("seed edges");
     assert_eq!(receipt.row_cursors.len(), 2);

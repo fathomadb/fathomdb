@@ -130,8 +130,9 @@ fn vector_spec(name: &str) -> ProjectionSpec {
         name: name.to_string(),
         roles: roles(&[ProjectionRole::Searchable]),
         fts: None,
-        vector: Some(ProjectionVector { embedder: None, dense_readiness: None }),
+        vector: Some(ProjectionVector { embedder: None, dense_readiness: None, kinds: None }),
         source: None,
+        entity_class: fathomdb_engine::PropertyEntityClass::Node,
     }
 }
 
@@ -150,6 +151,7 @@ fn edge(logical_id: &str, from: &str, to: &str, body: &str) -> PreparedWrite {
         confidence: None,
         extractor_model_id: None,
         temporal_fallback: None,
+        properties: None,
     }
 }
 
@@ -163,6 +165,7 @@ fn node(kind: &str, logical_id: &str, body_json: &str) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 

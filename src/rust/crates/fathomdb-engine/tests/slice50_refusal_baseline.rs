@@ -60,6 +60,7 @@ fn node(kind: &str, logical: &str) -> PreparedWrite {
             ArtifactRevisionId::new(format!("{logical}-r1")).unwrap(),
             SourceVersionId::new(format!("{logical}-v1")).unwrap(),
         ),
+        properties: None,
     })
 }
 fn edge() -> PreparedWrite {
@@ -75,6 +76,7 @@ fn edge() -> PreparedWrite {
         confidence: None,
         extractor_model_id: None,
         temporal_fallback: None,
+        properties: None,
     }
 }
 fn snapshot(path: &Path) -> Value {

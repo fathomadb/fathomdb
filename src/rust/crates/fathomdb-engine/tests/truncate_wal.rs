@@ -108,6 +108,7 @@ fn ac_040a_truncate_wal_after_write_reports_done() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("write");
     let report = opened.engine.truncate_wal().expect("truncate_wal");
@@ -362,6 +363,7 @@ fn valid_wal_busy_does_not_claim_recovery() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("write after snapshot");
     opened.engine.close().expect("release product lock");

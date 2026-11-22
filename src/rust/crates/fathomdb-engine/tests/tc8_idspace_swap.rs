@@ -69,6 +69,7 @@ fn governed_hit_id_is_logical_space() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("write");
     opened.engine.drain(10_000).expect("drain");
@@ -108,6 +109,7 @@ fn doc_seeded_hit_id_is_content_space() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("write");
     opened.engine.drain(10_000).expect("drain");
@@ -153,6 +155,7 @@ fn every_hit_id_is_non_null_and_space_total() {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             },
             PreparedWrite::Node {
                 kind: "note".to_string(),
@@ -163,6 +166,7 @@ fn every_hit_id_is_non_null_and_space_total() {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             },
         ])
         .expect("write");

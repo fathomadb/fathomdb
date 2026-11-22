@@ -43,8 +43,9 @@ fn vector_spec() -> ProjectionSpec {
         name: "memory".into(),
         roles: [ProjectionRole::Searchable].into_iter().collect(),
         fts: None,
-        vector: Some(ProjectionVector { embedder: None, dense_readiness: None }),
+        vector: Some(ProjectionVector { embedder: None, dense_readiness: None, kinds: None }),
         source: None,
+        entity_class: fathomdb_engine::PropertyEntityClass::Node,
     }
 }
 
@@ -58,6 +59,7 @@ fn node(logical_id: &str) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 
@@ -97,6 +99,7 @@ fn seed_dense_owner_provenance(engine: &Engine, suffix: &str, register_dependenc
                     ArtifactRevisionId::new(source_revision.clone()).unwrap(),
                     SourceVersionId::new(format!("slice40-source-v-{suffix}")).unwrap(),
                 ),
+                properties: None,
             }),
             PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
                 kind: "doc".into(),
@@ -114,6 +117,7 @@ fn seed_dense_owner_provenance(engine: &Engine, suffix: &str, register_dependenc
                     SourceLocator::whole_body(),
                     CanonicalHash::sha256(sha256(&source_body)).unwrap(),
                 ),
+                properties: None,
             }),
         ])
         .unwrap();
@@ -155,6 +159,7 @@ fn complete_edge_without_required_enrolment_is_corrupt() {
             confidence: None,
             extractor_model_id: None,
             temporal_fallback: None,
+            properties: None,
         }])
         .unwrap();
     opened.engine.drain(10_000).unwrap();
@@ -378,6 +383,7 @@ fn generation_status_cache_invalidates_at_an_edge_membership_boundary() {
             confidence: None,
             extractor_model_id: None,
             temporal_fallback: None,
+            properties: None,
         }])
         .unwrap();
 
@@ -420,6 +426,7 @@ fn generation_status_cache_invalidates_at_a_source_validity_boundary() {
                     ArtifactRevisionId::new("slice40-future-source-r1").unwrap(),
                     SourceVersionId::new("slice40-future-source-v1").unwrap(),
                 ),
+                properties: None,
             }),
             PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
                 kind: "doc".into(),
@@ -437,6 +444,7 @@ fn generation_status_cache_invalidates_at_a_source_validity_boundary() {
                     SourceLocator::whole_body(),
                     CanonicalHash::sha256(sha256(source_body)).unwrap(),
                 ),
+                properties: None,
             }),
         ])
         .unwrap();
@@ -488,6 +496,7 @@ fn dispatcher_rechecks_pending_member_at_source_valid_from_without_external_noti
                     ArtifactRevisionId::new("slice40-clock-rollback-source-r1").unwrap(),
                     SourceVersionId::new("slice40-clock-rollback-source-v1").unwrap(),
                 ),
+                properties: None,
             }),
             PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
                 kind: "doc".into(),
@@ -505,6 +514,7 @@ fn dispatcher_rechecks_pending_member_at_source_valid_from_without_external_noti
                     SourceLocator::whole_body(),
                     CanonicalHash::sha256(sha256(source_body)).unwrap(),
                 ),
+                properties: None,
             }),
         ])
         .unwrap()

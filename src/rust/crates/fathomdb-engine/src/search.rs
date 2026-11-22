@@ -390,6 +390,7 @@ pub(crate) fn read_projected_text_in_tx(
             branch: SoftFallbackBranch::Text,
             source_id,
             ce_score: None,
+            properties: None,
         });
         if results.len() >= limit {
             break;
@@ -524,6 +525,7 @@ fn read_historical_projected_text(
                 score: -score,
                 branch: SoftFallbackBranch::Text,
                 ce_score: None,
+                properties: None,
             })
         })?;
         results.push(hit);
@@ -882,6 +884,7 @@ fn rank_search_hit_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<(Search
         branch: SoftFallbackBranch::Text,
         source_id: row.get::<_, Option<String>>(5)?,
         ce_score: None,
+        properties: None,
     };
     Ok((hit, row.get::<_, i64>(6)?))
 }
@@ -1808,6 +1811,7 @@ fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
                                 branch: SoftFallbackBranch::GraphArm,
                                 source_id,
                                 ce_score: None,
+                                properties: None,
                             },
                         });
                     }
@@ -1973,6 +1977,7 @@ fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
                             // BLOCK-2: the session this fact-edge was extracted from.
                             source_id: edge_source_id.clone(),
                             ce_score: None,
+                            properties: None,
                         },
                     });
                 }
@@ -2387,6 +2392,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                         // the document it was written from).
                         source_id,
                         ce_score: None,
+                        properties: None,
                     },
                 });
             } else if let Some((body, logical_id, source_id)) = edge_stmt
@@ -2413,6 +2419,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                         // graph arm's existing edge-source semantics.
                         source_id,
                         ce_score: None,
+                        properties: None,
                     },
                 });
             }
@@ -2822,6 +2829,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                             branch: SoftFallbackBranch::Text,
                             source_id: None,
                             ce_score: None,
+                            properties: None,
                         };
                         Ok((
                             FusionHit { hit, ownership: node_fts_ownership(row)? },
@@ -2912,6 +2920,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                         branch: SoftFallbackBranch::Text,
                         source_id: row.get::<_, Option<String>>(4)?,
                         ce_score: None,
+                        properties: None,
                     };
                     Ok((hit, row.get::<_, i64>(5)?))
                 })?;
@@ -2942,6 +2951,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                         branch: SoftFallbackBranch::Text,
                         source_id: None,
                         ce_score: None,
+                        properties: None,
                     };
                     Ok((hit, row.get::<_, i64>(4)?))
                 })?;

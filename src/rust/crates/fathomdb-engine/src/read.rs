@@ -5,6 +5,7 @@ use crate::filter::{
 };
 use crate::frozen_read::{self, FrozenReadContextV1, FrozenReadError};
 use crate::pagination::{self, PageErrorReason, PageRequestV1, PageV1};
+use crate::properties::PropertyMap;
 use crate::reader_transaction::begin_attributed_reader_tx;
 use crate::temporal::ReadView;
 #[cfg(any(test, feature = "test-hooks"))]
@@ -21,12 +22,14 @@ use std::sync::Arc;
 /// interim id carrier (same column `SearchHit.id` carries). Only ACTIVE rows
 /// (`superseded_at IS NULL`) are ever materialised into this shape; a missing or
 /// superseded `logical_id` is a normal absence (`None`), never an error.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct NodeRecord {
     pub logical_id: String,
     pub kind: String,
     pub body: String,
     pub write_cursor: u64,
+    /// Optional typed scalar property map stored outside `body`.
+    pub properties: Option<PropertyMap>,
 }
 
 /// Slice 30 (G3) — one `operational_mutations` row returned by `read.collection`
@@ -117,6 +120,7 @@ pub(crate) fn read_get_by_id_in_tx(
                 kind: row.get(1)?,
                 body: row.get(2)?,
                 write_cursor: row.get::<_, i64>(3)? as u64,
+                properties: None,
             })
         })?;
         for row in rows {
@@ -264,6 +268,7 @@ pub(crate) fn read_list_in_tx(
             kind: row.get(1)?,
             body: row.get(2)?,
             write_cursor: row.get::<_, i64>(3)? as u64,
+            properties: None,
         })
     })?;
 
@@ -369,6 +374,7 @@ fn query_canonical_page_rows(
             kind: row.get(1)?,
             body: row.get(2)?,
             write_cursor: row.get::<_, i64>(3)? as u64,
+            properties: None,
         })
     })?;
     let items = rows.collect::<Result<Vec<_>, _>>()?;

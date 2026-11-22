@@ -180,6 +180,7 @@ impl Engine {
                             reason: None,
                             valid_from: None,
                             valid_until: None,
+                            properties: None,
                         })
                     })
                     .collect::<Result<Vec<_>, _>>()?;
@@ -399,6 +400,7 @@ impl Engine {
                             confidence,
                             extractor_model_id: extractor_model_id.clone(),
                             temporal_fallback: if is_temporal_fallback { Some(true) } else { None },
+                            properties: None,
                         })
                     })
                     .collect::<Result<Vec<_>, _>>()?;

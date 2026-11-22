@@ -48,6 +48,7 @@ fn node(
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
         provenance,
     })
 }
@@ -95,6 +96,7 @@ fn governed_owed_fixture() -> (TempDir, PathBuf, String) {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             },
         ])
         .unwrap();
@@ -256,6 +258,7 @@ fn offline_recovery_completes_proven_erasure_and_clears_write_fence() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("fence lifted only after completion");
     reopened.engine.close().unwrap();

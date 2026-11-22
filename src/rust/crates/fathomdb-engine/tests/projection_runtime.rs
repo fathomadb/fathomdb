@@ -233,6 +233,7 @@ fn ac_024a_second_open_rejects_quickly_with_pending_vector_work() {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             }])
             .expect("write");
     }
@@ -285,6 +286,7 @@ fn ac_025_drop_with_pending_vector_work_returns_promptly() {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             }])
             .expect("write");
     }
@@ -327,6 +329,7 @@ fn ac_029_canonical_writes_complete_under_projection_stall() {
                     reason: None,
                     valid_from: None,
                     valid_until: None,
+                    properties: None,
                 }])
                 .expect("baseline write");
         }
@@ -352,6 +355,7 @@ fn ac_029_canonical_writes_complete_under_projection_stall() {
                     reason: None,
                     valid_from: None,
                     valid_until: None,
+                    properties: None,
                 }])
                 .expect("stalled write");
         }
@@ -385,6 +389,7 @@ fn ac_031_hybrid_search_surfaces_vector_soft_fallback_when_projection_lags() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("write");
 
@@ -416,6 +421,7 @@ fn hybrid_search_returns_vector_results_when_text_branch_has_no_match() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("write");
     opened.engine.drain(10_000).expect("drain");
@@ -444,6 +450,7 @@ fn hybrid_search_deduplicates_rows_seen_by_text_and_vector_branches() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("write");
     opened.engine.drain(10_000).expect("drain");
@@ -474,6 +481,7 @@ fn ac_032a_drain_succeeds_when_timeout_is_sufficient() {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             }])
             .expect("write")
             .cursor;
@@ -508,6 +516,7 @@ fn ac_032b_drain_returns_typed_timeout_when_work_does_not_finish() {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             }])
             .expect("write");
     }
@@ -589,6 +598,7 @@ fn ac_063a_exhausted_projection_failure_is_recorded_once_and_vector_stays_absent
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("write")
         .cursor;
@@ -622,6 +632,7 @@ fn ac_063b_restart_does_not_retry_terminal_projection_failures() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("write")
         .cursor;
@@ -659,6 +670,7 @@ fn projection_status_is_tracked_per_kind_not_just_global_cursor() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("note write");
     opened.engine.drain(10_000).expect("note drain");
@@ -674,6 +686,7 @@ fn projection_status_is_tracked_per_kind_not_just_global_cursor() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("doc write");
 

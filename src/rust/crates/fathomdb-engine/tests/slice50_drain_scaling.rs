@@ -200,6 +200,7 @@ fn slice50_drain_scaling() {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             })
             .collect::<Vec<_>>();
         engine.write(&writes).unwrap();

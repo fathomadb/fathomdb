@@ -130,6 +130,7 @@ pub use projection_runtime::{
 #[cfg(feature = "test-hooks")]
 pub use projection_runtime::{ProjectionScanForTest, ProjectionScanPageForTest};
 mod projection_worker;
+mod properties;
 mod provenance;
 mod provider;
 mod read;
@@ -353,6 +354,10 @@ use projection_runtime::{
 use projection_worker::{
     connection_has_pending_projection_work, database_has_pending_projection_work,
     pending_embedding_work, projection_dispatcher_loop, projection_worker_loop, ProjectionOutcome,
+};
+pub use properties::{
+    OperationalCollectionInfo, PropertyComparisonOp, PropertyEntityClass, PropertyMap,
+    PropertyPredicate, PropertyValue,
 };
 pub(crate) use provenance::ProvenanceRole;
 pub use provenance::{
@@ -757,6 +762,7 @@ impl Engine {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])?;
 
         let poison_outcome: Mutex<Option<EngineError>> = Mutex::new(None);
@@ -782,6 +788,7 @@ impl Engine {
                     reason: None,
                     valid_from: None,
                     valid_until: None,
+                    properties: None,
                 }]);
             });
             // One poison thread — empty batch is a deterministic
@@ -1622,6 +1629,7 @@ mod tests {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             })
             .collect::<Vec<_>>();
         opened.engine.write(&writes).expect("write pending rows");
@@ -1928,6 +1936,7 @@ mod tests {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             }])
             .expect("write");
         let (completion_ready, completion_release, reader_autocommit) =
@@ -2110,6 +2119,7 @@ mod tests {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             }])
             .expect("write");
 
@@ -2301,6 +2311,7 @@ mod tests {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             }])
             .expect("write");
         let retained = opened
@@ -2363,6 +2374,7 @@ mod tests {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             }])
             .expect("write");
 
@@ -2670,6 +2682,7 @@ mod tests {
                     reason: None,
                     valid_from: None,
                     valid_until: None,
+                    properties: None,
                 },
                 PreparedWrite::Node {
                     kind: "doc".to_string(),
@@ -2680,6 +2693,7 @@ mod tests {
                     reason: None,
                     valid_from: None,
                     valid_until: None,
+                    properties: None,
                 },
                 PreparedWrite::Edge {
                     kind: "relates_to".to_string(),
@@ -2693,6 +2707,7 @@ mod tests {
                     confidence: None,
                     extractor_model_id: None,
                     temporal_fallback: None,
+                    properties: None,
                 },
             ])
             .expect("old write");
@@ -3146,6 +3161,7 @@ mod tests {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             }])
             .expect("write");
         transaction_pause
@@ -3266,6 +3282,7 @@ mod tests {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             }])
             .expect("write");
 
@@ -3306,6 +3323,7 @@ mod tests {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             }])
             .expect("write");
         transaction_pause
@@ -3608,6 +3626,7 @@ mod tests {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             }])
             .expect("write should succeed");
 
@@ -3690,6 +3709,7 @@ mod tests {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             })
             .collect::<Vec<_>>();
         opened.engine.write(&batch).expect("batch write");
@@ -3722,6 +3742,7 @@ mod tests {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             })
             .collect::<Vec<_>>();
 
@@ -3758,6 +3779,7 @@ mod tests {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             })
             .collect::<Vec<_>>();
 
@@ -3814,6 +3836,7 @@ mod tests {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             })
             .collect::<Vec<_>>();
 
@@ -3857,6 +3880,7 @@ mod tests {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         };
 
         assert!(matches!(
@@ -3926,6 +3950,7 @@ mod tests {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             })
             .collect::<Vec<_>>();
 
@@ -3988,6 +4013,7 @@ mod tests {
                     reason: None,
                     valid_from: None,
                     valid_until: None,
+                    properties: None,
                 }])
                 .unwrap();
 
@@ -4021,6 +4047,7 @@ mod tests {
                 branch: SoftFallbackBranch::Text,
                 source_id: Some("slice20:test".to_string()),
                 ce_score: None,
+                properties: None,
             };
             let mut native = scores
                 .iter()

@@ -33,6 +33,7 @@ fn open(dir: &TempDir) -> fathomdb_engine::OpenedEngine {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .unwrap();
     opened.engine.drain(5_000).unwrap();

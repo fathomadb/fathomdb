@@ -24,9 +24,10 @@ use fathomdb_sdk::{
     GraphEvidenceResolveRequestV1, GraphExpandRequestV1, GraphExpandResultV1, IdSpace, IdSpaceKind,
     IngestWithExtractorReceipt, LifecycleState, ListOptions, MigrationStepReport, ModuleLoadInit,
     MutationProjectionStatusRequestV1, MutationProjectionStatusV1, NeighborsOptions, NodeRecord,
-    OpStoreRow, OpenOptions, OpenReport, OperationalStateRecordV1, PageRequestV1, PageV1,
-    Predicate, PreparedWrite, ProjectedTextSearchOptions, ProjectionDelta,
-    ProjectionGenerationStatusV1, ProjectionRuntimeStatus, ProjectionSpec, ReadContextV1, ReadView,
+    OpStoreRow, OpenOptions, OpenReport, OperationalCollectionInfo, OperationalStateRecordV1,
+    PageRequestV1, PageV1, Predicate, PreparedWrite, ProjectedTextSearchOptions, ProjectionDelta,
+    ProjectionGenerationStatusV1, ProjectionRuntimeStatus, ProjectionSpec, PropertyComparisonOp,
+    PropertyEntityClass, PropertyMap, PropertyPredicate, PropertyValue, ReadContextV1, ReadView,
     ReleaseThreshold, RerankOptions, RerankPassage, RerankResult, RerankerDeviceResolution,
     ResolvedEvidenceV1, ResolvedGraphEvidenceV1, Result, RuntimeConfiguration,
     RuntimeConfigurationError, RuntimeSqliteMode, SearchExpandOptions, SearchExpandResult,
@@ -323,6 +324,12 @@ fn shared_types_are_nameable() {
     named::<CudaAllocatorReason>();
     named::<ReleaseThreshold>();
     named::<ModuleLoadInit>();
+    named::<PropertyValue>();
+    named::<PropertyMap>();
+    named::<PropertyEntityClass>();
+    named::<PropertyComparisonOp>();
+    named::<PropertyPredicate>();
+    named::<OperationalCollectionInfo>();
 }
 
 /// 0.8.28 Slice 30 (AC30-06) — the allocator report on an open report's CUDA

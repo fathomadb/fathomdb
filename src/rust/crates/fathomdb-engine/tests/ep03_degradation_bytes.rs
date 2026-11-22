@@ -67,6 +67,7 @@ fn degradations_leave_results_and_soft_fallback_byte_identical() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         })
         .collect();
     engine.write(&writes).expect("write");

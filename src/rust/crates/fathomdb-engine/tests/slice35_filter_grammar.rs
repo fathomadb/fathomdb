@@ -34,6 +34,7 @@ fn write_node(engine: &Engine, logical_id: &str, kind: &str, body: &str) {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("write failed");
 }
@@ -493,6 +494,7 @@ fn read_list_includes_nodes_written_without_logical_id_type_check() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("write without logical_id");
 

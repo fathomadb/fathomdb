@@ -27,6 +27,7 @@ fn request(operation_id: &str) -> ActuationBatchV1 {
             ArtifactRevisionId::new("source-r1").unwrap(),
             SourceVersionId::new("source-v1").unwrap(),
         ),
+        properties: None,
     };
     ActuationBatchV1::new(operation_id, vec![ActuationOperationV1::PutCanonicalNode(node)]).unwrap()
 }
@@ -45,6 +46,7 @@ fn canonical_node(revision: &str, logical: &str, source_id: &str) -> Provenanced
             ArtifactRevisionId::new(revision).unwrap(),
             SourceVersionId::new(format!("version-{revision}")).unwrap(),
         ),
+        properties: None,
     }
 }
 
@@ -69,6 +71,7 @@ fn derived_node(revision: &str, logical: &str, source_revision: &str) -> Provena
             SourceLocator::whole_body(),
             CanonicalHash::sha256(hash).unwrap(),
         ),
+        properties: None,
     }
 }
 

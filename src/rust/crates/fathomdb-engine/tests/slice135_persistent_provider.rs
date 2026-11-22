@@ -71,6 +71,7 @@ fn persistent_provider_failure_stays_truthful_until_explicit_rebuild() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("canonical write");
     opened.engine.drain(10_000).expect("terminal failure drains");

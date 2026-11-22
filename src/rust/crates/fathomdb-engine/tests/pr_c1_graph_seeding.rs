@@ -28,6 +28,7 @@ fn entity_node(body: &str, logical_id: &str) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 
@@ -56,6 +57,7 @@ fn edge(
         confidence: None,
         extractor_model_id: None,
         temporal_fallback,
+        properties: None,
     }
 }
 

@@ -44,6 +44,7 @@ fn canonical(revision: &str, logical: &str, body: &str) -> PreparedWrite {
             ArtifactRevisionId::new(revision).unwrap(),
             SourceVersionId::new(format!("version-{revision}")).unwrap(),
         ),
+        properties: None,
     })
 }
 
@@ -64,6 +65,7 @@ fn derived(revision: &str, logical: &str, source_revision: &str, body: &str) -> 
             SourceLocator::whole_body(),
             CanonicalHash::sha256(digest("slice55 integrity canonical")).unwrap(),
         ),
+        properties: None,
     })
 }
 
@@ -80,6 +82,7 @@ fn edge(from: &str, to: &str, body: &str) -> PreparedWrite {
         confidence: None,
         extractor_model_id: None,
         temporal_fallback: None,
+        properties: None,
     }
 }
 
@@ -90,6 +93,7 @@ fn property_spec() -> ProjectionSpec {
         fts: Some(ProjectionFts { tokenizer: None }),
         vector: None,
         source: None,
+        entity_class: fathomdb_engine::PropertyEntityClass::Node,
     }
 }
 
@@ -100,6 +104,7 @@ fn filter_spec(name: &str) -> ProjectionSpec {
         fts: None,
         vector: None,
         source: None,
+        entity_class: fathomdb_engine::PropertyEntityClass::Node,
     }
 }
 
@@ -173,6 +178,7 @@ fn edge_with_expiry(from: &str, to: &str, body: &str, t_invalid: i64) -> Prepare
         confidence: None,
         extractor_model_id: None,
         temporal_fallback: None,
+        properties: None,
     }
 }
 

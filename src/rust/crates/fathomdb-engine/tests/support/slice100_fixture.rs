@@ -14,6 +14,7 @@ pub(super) fn node(id: &str, source: &str, body: String) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 struct Fixed;
@@ -50,6 +51,7 @@ pub(super) fn rich_fixture(path: &std::path::Path, targets: bool) -> Arc<Engine>
                 fts: Some(ProjectionFts { tokenizer: None }),
                 vector: None,
                 source: None,
+                entity_class: PropertyEntityClass::Node,
             }],
             &[],
         )
@@ -74,6 +76,7 @@ pub(super) fn rich_fixture(path: &std::path::Path, targets: bool) -> Arc<Engine>
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
                 provenance,
             })
         };
@@ -133,6 +136,7 @@ pub(super) fn rich_fixture(path: &std::path::Path, targets: bool) -> Arc<Engine>
                 confidence: None,
                 extractor_model_id: None,
                 temporal_fallback: None,
+                properties: None,
             });
         }
         engine.write(&batch).unwrap();
@@ -179,6 +183,7 @@ pub(super) fn rich(path: &Path, targets: bool) -> Arc<Engine> {
                 confidence: None,
                 extractor_model_id: None,
                 temporal_fallback: None,
+                properties: None,
             }])
             .unwrap();
     }

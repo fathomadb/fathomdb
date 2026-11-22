@@ -162,6 +162,7 @@ fn governed_node(i: usize) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 
@@ -178,6 +179,7 @@ fn anonymous_node(i: usize) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 

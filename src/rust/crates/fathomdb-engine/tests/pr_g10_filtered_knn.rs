@@ -87,6 +87,7 @@ fn filter_prunes_vector_candidates_by_kind() {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             },
             PreparedWrite::Node {
                 kind: "note".to_string(),
@@ -97,6 +98,7 @@ fn filter_prunes_vector_candidates_by_kind() {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             },
         ])
         .expect("write");
@@ -141,6 +143,7 @@ fn status_filter_prunes_all_because_population_is_null_only() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("write");
     opened.engine.drain(10_000).expect("drain");

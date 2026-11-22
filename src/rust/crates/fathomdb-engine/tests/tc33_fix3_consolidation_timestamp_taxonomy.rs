@@ -40,6 +40,7 @@ fn fact_edge(
         confidence: Some(confidence),
         extractor_model_id: Some("stub-extractor-v1".to_string()),
         temporal_fallback: None,
+        properties: None,
     }
 }
 

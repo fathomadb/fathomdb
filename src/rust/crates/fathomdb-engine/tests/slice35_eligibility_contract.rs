@@ -22,6 +22,7 @@ fn canonical_attribute_order_has_one_authenticated_encoding() {
                     fts: None,
                     vector: None,
                     source: None,
+                    entity_class: fathomdb_engine::PropertyEntityClass::Node,
                 },
                 ProjectionSpec {
                     name: "z".to_string(),
@@ -29,6 +30,7 @@ fn canonical_attribute_order_has_one_authenticated_encoding() {
                     fts: None,
                     vector: None,
                     source: None,
+                    entity_class: fathomdb_engine::PropertyEntityClass::Node,
                 },
             ],
             &[],

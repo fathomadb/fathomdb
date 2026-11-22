@@ -168,6 +168,7 @@ fn full_lexical_ranks_do_not_allocate_every_matching_body() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         })
         .collect();
     let receipt = opened.engine.write(&writes).unwrap();

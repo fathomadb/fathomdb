@@ -30,6 +30,7 @@ proptest! {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }]).expect("write");
         opened.engine.drain(5_000).expect("projection drain");
         let before = opened.engine.search(&token).expect("search before close");

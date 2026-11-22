@@ -29,6 +29,7 @@ fn node(logical_id: Option<&str>, kind: &str, body: &str, source: &str) -> Prepa
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 
@@ -45,6 +46,7 @@ fn edge(from: &str, to: &str) -> PreparedWrite {
         confidence: None,
         extractor_model_id: None,
         temporal_fallback: None,
+        properties: None,
     }
 }
 
@@ -540,6 +542,7 @@ fn evidence_search_resolves_each_reference_under_the_same_context() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
             provenance: fathomdb_sdk::WriteProvenanceV1::canonical(
                 fathomdb_sdk::ArtifactRevisionId::new("doc-evidence-r1").expect("revision"),
                 fathomdb_sdk::SourceVersionId::new("doc-evidence-v1").expect("version"),
@@ -590,6 +593,7 @@ fn projected_text_search_reads_a_declared_property_projection() {
         fts: Some(fathomdb_sdk::ProjectionFts { tokenizer: None }),
         vector: None,
         source: None,
+        entity_class: fathomdb_sdk::PropertyEntityClass::Node,
     };
     engine.configure_projections(&[spec], &[]).expect("configure projections");
     engine
@@ -747,6 +751,7 @@ fn filtered_snippets_keep_node_attribute_scope_and_edge_rowid_identity() {
                 fts: None,
                 vector: None,
                 source: None,
+                entity_class: fathomdb_sdk::PropertyEntityClass::Node,
             }],
             &[],
         )

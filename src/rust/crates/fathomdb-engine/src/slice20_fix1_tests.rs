@@ -22,6 +22,7 @@ fn canonical() -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
         provenance: WriteProvenanceV1::canonical(
             ArtifactRevisionId::new("batch-source-r1").unwrap(),
             SourceVersionId::new("v1").unwrap(),
@@ -39,6 +40,7 @@ fn derived(revision: &str, logical: &str) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
         provenance: WriteProvenanceV1::derived(
             ArtifactRevisionId::new(revision).unwrap(),
             SourceVersionId::new("v1").unwrap(),

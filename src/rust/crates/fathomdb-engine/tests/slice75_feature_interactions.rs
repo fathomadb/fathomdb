@@ -53,6 +53,7 @@ fn node(logical_id: &str, body: String, source: &str) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 
@@ -84,6 +85,7 @@ fn canonical(revision: &str, logical: &str, source: &str, body: &str) -> Prepare
             ArtifactRevisionId::new(revision).expect("revision"),
             SourceVersionId::new("slice75-v1").expect("source version"),
         ),
+        properties: None,
     })
 }
 
@@ -111,6 +113,7 @@ fn derived(
             SourceLocator::whole_body(),
             canonical_hash(source_body),
         ),
+        properties: None,
     })
 }
 
@@ -208,6 +211,7 @@ fn deferred_hybrid_search_matches_full_sort_and_frozen_eligibility_hides_inactiv
             reason: Some("fixture".into()),
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("write inactive row");
     let context =

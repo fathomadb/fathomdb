@@ -240,6 +240,7 @@ fn ac_021_zero_sqlite_schema_warnings_under_concurrent_reads_and_ddl() {
                     fts: None,
                     vector: None,
                     source: None,
+                    entity_class: fathomdb_engine::PropertyEntityClass::Node,
                 };
                 if engine.configure_projections(&[spec], &[]).is_ok() {
                     if engine.rebuild_projections().is_ok() {

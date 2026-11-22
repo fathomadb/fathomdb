@@ -31,6 +31,7 @@ fn run(path: PathBuf) -> Result<(), String> {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .map_err(|e| format!("write: {e:?}"))?;
 

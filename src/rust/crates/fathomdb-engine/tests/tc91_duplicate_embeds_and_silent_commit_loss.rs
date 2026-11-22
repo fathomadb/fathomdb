@@ -280,6 +280,7 @@ fn node(i: usize, governed: bool) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 

@@ -2,6 +2,7 @@ use std::fmt::{Display, Formatter};
 
 use crate::frozen_read::{FrozenReadContextV1, ReadContextV1};
 use crate::identity::IdSpace;
+use crate::properties::PropertyMap;
 use crate::search_types::{StructuralDependencyStateV1, StructuralLifecycleStateV1};
 
 pub(crate) const SCHEMA_VERSION: u32 = 1;
@@ -83,7 +84,7 @@ pub enum GraphSeedV1 {
 }
 
 /// Closed current-or-frozen read context.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum GraphReadContextV1 {
     /// Use a newly pinned current reader snapshot.
     Current { schema_version: u32, context: ReadContextV1 },
@@ -92,7 +93,7 @@ pub enum GraphReadContextV1 {
 }
 
 /// Versioned, bounded constrained graph-expansion request.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct GraphExpandRequestV1 {
     pub schema_version: u32,
     pub seed: GraphSeedV1,
@@ -118,7 +119,7 @@ pub struct ResolvedGraphSeedV1 {
 }
 
 /// Compact deterministic origin for one returned target.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct GraphOriginV1 {
     pub schema_version: u32,
@@ -129,10 +130,12 @@ pub struct GraphOriginV1 {
     pub hop_count: u32,
     pub terminal_edge_kind: String,
     pub terminal_direction: TraversalDirection,
+    /// Optional typed scalar property map carried by the winning terminal edge.
+    pub terminal_edge_properties: Option<PropertyMap>,
 }
 
 /// One graph-expansion target with its compact origin.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct GraphTargetV1 {
     pub schema_version: u32,
@@ -140,11 +143,13 @@ pub struct GraphTargetV1 {
     pub kind: String,
     pub body: String,
     pub write_cursor: u64,
+    /// Optional typed scalar property map stored on the target node.
+    pub properties: Option<PropertyMap>,
     pub origin: GraphOriginV1,
 }
 
 /// Structural explanation for one target.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct GraphTargetExplanationV1 {
     pub schema_version: u32,
@@ -155,7 +160,7 @@ pub struct GraphTargetExplanationV1 {
 }
 
 /// Optional compact explanation sidecar for graph expansion.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct GraphExpansionExplanationV1 {
     pub schema_version: u32,

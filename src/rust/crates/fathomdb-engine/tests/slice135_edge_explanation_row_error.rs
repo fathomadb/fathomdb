@@ -29,6 +29,7 @@ fn node(id: &str, body: &str) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 
@@ -54,6 +55,7 @@ fn edge_count_decode_error_must_not_report_zero_dropped_edge_hits() {
                 fts: None,
                 vector: None,
                 source: None,
+                entity_class: fathomdb_engine::PropertyEntityClass::Node,
             }],
             &[],
         )
@@ -76,6 +78,7 @@ fn edge_count_decode_error_must_not_report_zero_dropped_edge_hits() {
                 confidence: None,
                 extractor_model_id: None,
                 temporal_fallback: None,
+                properties: None,
             },
         ])
         .expect("write corpus");

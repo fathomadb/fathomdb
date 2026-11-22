@@ -674,6 +674,7 @@ mod tests {
                     reason: None,
                     valid_from: None,
                     valid_until: None,
+                    properties: None,
                 },
                 PreparedWrite::Node {
                     kind: "doc".to_string(),
@@ -684,6 +685,7 @@ mod tests {
                     reason: None,
                     valid_from: None,
                     valid_until: None,
+                    properties: None,
                 },
                 PreparedWrite::Edge {
                     kind: "link".to_string(),
@@ -697,6 +699,7 @@ mod tests {
                     confidence: Some(0.90),
                     extractor_model_id: None,
                     temporal_fallback: None,
+                    properties: None,
                 },
             ])
             .expect("write");

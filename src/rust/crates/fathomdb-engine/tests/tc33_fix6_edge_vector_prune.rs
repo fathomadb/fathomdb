@@ -85,6 +85,7 @@ fn write_fact_edge(engine: &Engine, logical: &str, body: &str) -> i64 {
         confidence: Some(0.9),
         extractor_model_id: Some("stub-extractor-v1".to_string()),
         temporal_fallback: None,
+        properties: None,
     };
     engine.write(&[edge]).expect("write edge").row_cursors[0] as i64
 }
@@ -100,6 +101,7 @@ fn write_doc_node(engine: &Engine, body: &str, source: &str) -> i64 {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("write node")
         .cursor as i64

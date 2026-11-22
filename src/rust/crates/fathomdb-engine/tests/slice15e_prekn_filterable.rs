@@ -90,6 +90,7 @@ fn node(logical: &str, body_json: &str) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 
@@ -106,13 +107,21 @@ fn edge(logical: &str, from: &str, to: &str, body_json: &str) -> PreparedWrite {
         confidence: None,
         extractor_model_id: None,
         temporal_fallback: None,
+        properties: None,
     }
 }
 
 fn filterable_spec(name: &str) -> ProjectionSpec {
     let mut roles = BTreeSet::new();
     roles.insert(ProjectionRole::Filterable);
-    ProjectionSpec { name: name.to_string(), roles, fts: None, vector: None, source: None }
+    ProjectionSpec {
+        name: name.to_string(),
+        roles,
+        fts: None,
+        vector: None,
+        source: None,
+        entity_class: fathomdb_engine::PropertyEntityClass::Node,
+    }
 }
 
 fn nested_filterable_vector_spec(name: &str, source: &[&str]) -> ProjectionSpec {
@@ -125,6 +134,7 @@ fn nested_filterable_vector_spec(name: &str, source: &[&str]) -> ProjectionSpec 
         fts: None,
         vector: Some(ProjectionVector::default()),
         source: Some(source.iter().map(|segment| (*segment).to_string()).collect()),
+        entity_class: fathomdb_engine::PropertyEntityClass::Node,
     }
 }
 

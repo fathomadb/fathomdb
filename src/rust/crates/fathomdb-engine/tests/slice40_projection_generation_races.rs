@@ -76,8 +76,9 @@ fn vector_spec() -> ProjectionSpec {
         name: "memory".into(),
         roles: [ProjectionRole::Searchable].into_iter().collect(),
         fts: None,
-        vector: Some(ProjectionVector { embedder: None, dense_readiness: None }),
+        vector: Some(ProjectionVector { embedder: None, dense_readiness: None, kinds: None }),
         source: None,
+        entity_class: fathomdb_engine::PropertyEntityClass::Node,
     }
 }
 
@@ -99,6 +100,7 @@ fn actuate_race_node(engine: &Engine, suffix: &str) -> fathomdb_engine::Actuatio
                         ArtifactRevisionId::new(format!("slice40-{suffix}-r1")).unwrap(),
                         SourceVersionId::new(format!("slice40-{suffix}-v1")).unwrap(),
                     ),
+                    properties: None,
                 })],
             )
             .unwrap(),
@@ -132,6 +134,7 @@ fn stale_worker_result_cannot_publish_into_a_new_generation() {
                         ArtifactRevisionId::new("slice40-race-r1").unwrap(),
                         SourceVersionId::new("slice40-race-v1").unwrap(),
                     ),
+                    properties: None,
                 })],
             )
             .unwrap(),
@@ -210,6 +213,7 @@ fn worker_computing_across_generation_transition_discards_stale_result() {
                         ArtifactRevisionId::new("slice40-computing-r1").unwrap(),
                         SourceVersionId::new("slice40-computing-v1").unwrap(),
                     ),
+                    properties: None,
                 })],
             )
             .unwrap(),

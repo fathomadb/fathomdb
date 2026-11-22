@@ -28,6 +28,7 @@ fn seed(engine: &Engine) {
                     ArtifactRevisionId::new("s70-source-r1").unwrap(),
                     SourceVersionId::new("s70-v1").unwrap(),
                 ),
+                properties: None,
             }),
             PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
                 kind: "claim".into(),
@@ -45,6 +46,7 @@ fn seed(engine: &Engine) {
                     SourceLocator::whole_body(),
                     CanonicalHash::sha256(hash).unwrap(),
                 ),
+                properties: None,
             }),
         ])
         .unwrap();

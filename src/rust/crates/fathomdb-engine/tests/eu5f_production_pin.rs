@@ -139,6 +139,7 @@ fn write_docs_production(engine: &Engine, start: usize, count: usize, batch: usi
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             })
             .collect();
         engine.write(&nodes).expect("production write");
@@ -339,6 +340,7 @@ fn panicking_embedder_does_not_wedge_drain() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         })
         .collect();
     engine.write(&nodes).expect("write");

@@ -81,6 +81,7 @@ fn node(index: usize) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 

@@ -54,6 +54,7 @@ fn fixture(directory: &TempDir, name: &str) -> (std::path::PathBuf, Engine) {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             },
             PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
                 logical_id: Some("source".into()),
@@ -68,6 +69,7 @@ fn fixture(directory: &TempDir, name: &str) -> (std::path::PathBuf, Engine) {
                     ArtifactRevisionId::new("source-r1").unwrap(),
                     SourceVersionId::new("v1").unwrap(),
                 ),
+                properties: None,
             }),
             PreparedWrite::Edge {
                 logical_id: Some("root-derived".into()),
@@ -81,6 +83,7 @@ fn fixture(directory: &TempDir, name: &str) -> (std::path::PathBuf, Engine) {
                 confidence: None,
                 extractor_model_id: None,
                 temporal_fallback: None,
+                properties: None,
             },
         ])
         .unwrap();

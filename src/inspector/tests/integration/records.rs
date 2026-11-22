@@ -1,10 +1,10 @@
 use crate::{
-    fixtures::{database, node},
+    fixtures::{database, edge_with, node},
     policy::Policy,
     session::Session,
     storage::{Class, Filter, Reader},
 };
-use fathomdb_engine::{EmbedderChoice, Engine, PreparedWrite, SourceId};
+use fathomdb_engine::{EmbedderChoice, Engine};
 #[test]
 fn exact_canonical_browse_keeps_revisions_classes_and_policy_separate() {
     let dir = tempfile::tempdir().unwrap();
@@ -14,19 +14,19 @@ fn exact_canonical_browse_keeps_revisions_classes_and_policy_separate() {
         .engine
         .write(&[
             node("alpha", "second revision"),
-            PreparedWrite::Edge {
-                kind: "relates".into(),
-                from: "alpha".into(),
-                to: "beta".into(),
-                source_id: SourceId::new("fixture:source").unwrap(),
-                logical_id: Some("alpha".into()),
-                body: Some("edge body".into()),
-                t_valid: Some(10),
-                t_invalid: Some(20),
-                confidence: None,
-                extractor_model_id: None,
-                temporal_fallback: None,
-            },
+            edge_with(
+                "relates",
+                "alpha",
+                "beta",
+                "fixture:source",
+                Some("alpha"),
+                Some("edge body".into()),
+                Some(10),
+                Some(20),
+                None,
+                None,
+                None,
+            ),
         ])
         .unwrap();
     opened.engine.close().unwrap();

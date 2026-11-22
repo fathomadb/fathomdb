@@ -17,6 +17,7 @@ fn text_options_forward_the_filter_to_the_core() {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             },
             PreparedWrite::Node {
                 kind: "note".into(),
@@ -27,6 +28,7 @@ fn text_options_forward_the_filter_to_the_core() {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             },
         ])
         .unwrap();

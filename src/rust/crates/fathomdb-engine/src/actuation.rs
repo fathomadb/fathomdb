@@ -2483,6 +2483,7 @@ mod tests {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
             provenance: WriteProvenanceV1::canonical(
                 ArtifactRevisionId::new(revision).unwrap(),
                 SourceVersionId::new(format!("version-{revision}")).unwrap(),
@@ -2503,6 +2504,7 @@ mod tests {
             confidence: Some(0.5),
             extractor_model_id: Some("model-a".into()),
             temporal_fallback: Some(false),
+            properties: None,
             provenance: WriteProvenanceV1::derived(
                 ArtifactRevisionId::new("edge-r1").unwrap(),
                 SourceVersionId::new("source-v1").unwrap(),

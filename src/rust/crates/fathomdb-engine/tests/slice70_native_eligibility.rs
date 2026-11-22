@@ -25,6 +25,7 @@ fn node(id: &str, from: Option<i64>, until: Option<i64>) -> PreparedWrite {
         reason: None,
         valid_from: from,
         valid_until: until,
+        properties: None,
     }
 }
 
@@ -180,6 +181,7 @@ fn filterable_attribute_capacity_is_ten_and_overflow_is_atomic() {
             fts: None,
             vector: None,
             source: None,
+            entity_class: fathomdb_engine::PropertyEntityClass::Node,
         })
         .collect::<Vec<_>>();
     opened.engine.configure_projections(&specs[..10], &[]).unwrap();
@@ -229,6 +231,7 @@ fn atomic_actuation_updates_native_lifecycle() {
             revision.clone(),
             SourceVersionId::new("version1").unwrap(),
         ),
+        properties: None,
     };
     opened
         .engine

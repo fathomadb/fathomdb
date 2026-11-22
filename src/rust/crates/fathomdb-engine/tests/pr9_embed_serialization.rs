@@ -91,6 +91,7 @@ fn one_slot_provider_pool_has_one_active_call() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         })
         .collect();
     engine.write(&nodes).expect("write");

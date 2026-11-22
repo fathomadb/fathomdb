@@ -4,7 +4,7 @@ use crate::{
     session::Session,
     storage::{graph::Direction, Class, Filter, Reader},
 };
-use fathomdb_engine::{EmbedderChoice, Engine, PreparedWrite, SourceId};
+use fathomdb_engine::{EmbedderChoice, Engine};
 fn handle(r: &mut Reader, class: Class, id: &str, last: bool) -> String {
     let page =
         r.page(class, 0, 200, Filter { identity: Some(id.into()), ..Default::default() }).unwrap();
@@ -171,8 +171,8 @@ fn graph_and_history_obey_all_eight_disclosure_combinations_and_fresh_withdrawal
 #[test]
 fn native_graph_admission_refuses_repeated_large_source_and_large_target_before_hydration() {
     use fathomdb_engine::{
-        ArtifactRevisionId, CanonicalHash, InitialState, ProvenancedEdgeV1, ProvenancedNodeV1,
-        SourceLocator, SourceRevisionId, SourceVersionId, WriteProvenanceV1,
+        ArtifactRevisionId, CanonicalHash, SourceLocator, SourceRevisionId, SourceVersionId,
+        WriteProvenanceV1,
     };
     use sha2::{Digest, Sha256};
     for source_large in [true, false] {
@@ -191,17 +191,7 @@ fn native_graph_admission_refuses_repeated_large_source_and_large_target_before_
             )
         };
         let node = |id: &str, body: String, provenance| {
-            PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
-                kind: "document".into(),
-                body,
-                source_id: SourceId::new("fixture:large").unwrap(),
-                logical_id: Some(id.into()),
-                state: InitialState::Active,
-                reason: None,
-                valid_from: None,
-                valid_until: None,
-                provenance,
-            })
+            fixtures::provenanced_node(Some(id), &body, "fixture:large", None, provenance)
         };
         let opened = Engine::open_with_choice(&path, EmbedderChoice::None).unwrap();
         opened
@@ -224,20 +214,18 @@ fn native_graph_admission_refuses_repeated_large_source_and_large_target_before_
                     if source_large { "small target".into() } else { "t".repeat(4 * 1024 * 1024) },
                     derived("large-target-r1"),
                 ),
-                PreparedWrite::ProvenancedEdge(ProvenancedEdgeV1 {
-                    kind: "supports".into(),
-                    from: "large-root".into(),
-                    to: "large-target".into(),
-                    source_id: SourceId::new("fixture:large").unwrap(),
-                    logical_id: Some("large-edge".into()),
-                    body: None,
-                    t_valid: None,
-                    t_invalid: None,
-                    confidence: None,
-                    extractor_model_id: None,
-                    temporal_fallback: None,
-                    provenance: derived("large-edge-r1"),
-                }),
+                fixtures::provenanced_edge(
+                    "supports",
+                    "large-root",
+                    "large-target",
+                    "fixture:large",
+                    Some("large-edge"),
+                    None,
+                    None,
+                    None,
+                    None,
+                    derived("large-edge-r1"),
+                ),
             ])
             .unwrap();
         opened.engine.close().unwrap();
@@ -260,7 +248,20 @@ proptest::proptest! {
  fn directed_identity_and_bounds_match_independently_authored_edges(edges in proptest::collection::vec((0usize..4,0usize..4,0usize..3),0..30), depth in 1usize..4){
     let dir=tempfile::tempdir().unwrap();let path=fixtures::database(dir.path());let opened=Engine::open_with_choice(&path,EmbedderChoice::None).unwrap();
     opened.engine.write(&(0..4).map(|i|fixtures::node(&format!("p{i}"),"equal label/body")).collect::<Vec<_>>()).unwrap();
-    let writes=edges.iter().enumerate().map(|(i,(from,to,kind))|PreparedWrite::Edge{kind:format!("k{kind}"),from:format!("p{from}"),to:format!("p{to}"),source_id:SourceId::new("fixture:property").unwrap(),logical_id:Some(format!("e{i}")),body:Some("edge body".into()),t_valid:None,t_invalid:None,confidence:None,extractor_model_id:None,temporal_fallback:None}).collect::<Vec<_>>();
+    let writes = edges
+        .iter()
+        .enumerate()
+        .map(|(i, (from, to, kind))| {
+            fixtures::edge(
+                &format!("k{kind}"),
+                &format!("p{from}"),
+                &format!("p{to}"),
+                "fixture:property",
+                Some(&format!("e{i}")),
+                Some("edge body".into()),
+            )
+        })
+        .collect::<Vec<_>>();
     if !writes.is_empty(){opened.engine.write(&writes).unwrap();}opened.engine.close().unwrap();drop(opened);
     let mut r=Reader::new(Session::attach(&path,Policy::default()).unwrap());let h=handle(&mut r,Class::Node,"p0",true);
     for (direction,incoming,outgoing) in [(Direction::Both,true,true),(Direction::Incoming,true,false),(Direction::Outgoing,false,true)]{
@@ -289,19 +290,14 @@ fn endpoint_resolution_matches_complete_identity_instead_of_display_preview() {
                     &(id.clone() + "-same-prefix"),
                     "different record sharing the display prefix",
                 ),
-                PreparedWrite::Edge {
-                    kind: "long-id".into(),
-                    from: "alpha".into(),
-                    to: id.clone(),
-                    source_id: SourceId::new("fixture:long").unwrap(),
-                    logical_id: Some("long-endpoint-edge".into()),
-                    body: None,
-                    t_valid: None,
-                    t_invalid: None,
-                    confidence: None,
-                    extractor_model_id: None,
-                    temporal_fallback: None,
-                },
+                fixtures::edge(
+                    "long-id",
+                    "alpha",
+                    &id,
+                    "fixture:long",
+                    Some("long-endpoint-edge"),
+                    None,
+                ),
             ])
             .unwrap();
         opened.engine.close().unwrap();
@@ -352,18 +348,19 @@ fn investigation_charges_selected_record_metadata_to_the_shared_response_budget(
     let large = "🦀".repeat(3800);
     let opened = Engine::open_with_choice(&path, EmbedderChoice::None).unwrap();
     for n in 0..35 {
+        let body = format!("revision {n}");
         opened
             .engine
-            .write(&[PreparedWrite::Node {
-                kind: large.clone(),
-                body: format!("revision {n}"),
-                source_id: SourceId::new(large.clone()).unwrap(),
-                logical_id: Some(large.clone()),
-                state: fathomdb_engine::InitialState::Pending,
-                reason: Some(large.clone()),
-                valid_from: None,
-                valid_until: None,
-            }])
+            .write(&[fixtures::node_with(
+                &large,
+                Some(&large),
+                &body,
+                &large,
+                fathomdb_engine::InitialState::Pending,
+                Some(&large),
+                None,
+                None,
+            )])
             .unwrap();
     }
     opened.engine.close().unwrap();
@@ -438,9 +435,8 @@ fn collapsing_seed_preserves_edges_owned_by_an_independently_expanded_hub() {
 fn provenance_partial_utf8_spans_and_negative_boundaries_distinguish_raw_links_from_native_eligibility(
 ) {
     use fathomdb_engine::{
-        ArtifactRevisionId, CanonicalHash, InitialState, ProvenancedEdgeV1, ProvenancedNodeV1,
-        SourceDependencyRegistrationV1, SourceLocator, SourceRevisionId, SourceVersionId,
-        WriteProvenanceV1,
+        ArtifactRevisionId, CanonicalHash, SourceDependencyRegistrationV1, SourceLocator,
+        SourceRevisionId, SourceVersionId, WriteProvenanceV1,
     };
     use sha2::{Digest, Sha256};
 
@@ -453,78 +449,64 @@ fn provenance_partial_utf8_spans_and_negative_boundaries_distinguish_raw_links_f
 
     let opened = Engine::open_with_choice(&path, EmbedderChoice::None).unwrap();
     let make_derived = |id: &str, rev: &str, body: &str, locator: SourceLocator| {
-        PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
-            kind: "document".into(),
-            body: body.into(),
-            source_id: SourceId::new("fixture:prov").unwrap(),
-            logical_id: Some(id.into()),
-            state: InitialState::Active,
-            reason: None,
-            valid_from: None,
-            valid_until: None,
-            provenance: WriteProvenanceV1::derived(
+        fixtures::provenanced_node(
+            Some(id),
+            body,
+            "fixture:prov",
+            None,
+            WriteProvenanceV1::derived(
                 ArtifactRevisionId::new(rev).unwrap(),
                 SourceVersionId::new("prov-v1").unwrap(),
                 SourceRevisionId::new("prov-source-r1").unwrap(),
                 locator,
                 CanonicalHash::sha256(whole_digest.clone()).unwrap(),
             ),
-        })
+        )
     };
     let make_edge = |kind: &str, edge_id: &str, target_id: &str| {
-        PreparedWrite::ProvenancedEdge(ProvenancedEdgeV1 {
-            kind: kind.into(),
-            from: "prov-hub".into(),
-            to: target_id.into(),
-            source_id: SourceId::new("fixture:prov").unwrap(),
-            logical_id: Some(edge_id.into()),
-            body: Some(format!("edge to {target_id}")),
-            t_valid: None,
-            t_invalid: None,
-            confidence: Some(0.9),
-            extractor_model_id: Some("extractor-v1".into()),
-            temporal_fallback: Some(false),
-            provenance: WriteProvenanceV1::derived(
+        fixtures::provenanced_edge(
+            kind,
+            "prov-hub",
+            target_id,
+            "fixture:prov",
+            Some(edge_id),
+            Some(format!("edge to {target_id}")),
+            Some(0.9),
+            Some("extractor-v1".into()),
+            Some(false),
+            WriteProvenanceV1::derived(
                 ArtifactRevisionId::new(format!("{edge_id}-r1")).unwrap(),
                 SourceVersionId::new("prov-v1").unwrap(),
                 SourceRevisionId::new("prov-source-r1").unwrap(),
                 SourceLocator::whole_body(),
                 CanonicalHash::sha256(whole_digest.clone()).unwrap(),
             ),
-        })
+        )
     };
 
     opened
         .engine
         .write(&[
-            PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
-                kind: "document".into(),
-                body: source_body.into(),
-                source_id: SourceId::new("fixture:prov").unwrap(),
-                logical_id: Some("prov-source".into()),
-                state: InitialState::Active,
-                reason: None,
-                valid_from: None,
-                valid_until: None,
-                provenance: WriteProvenanceV1::canonical(
+            fixtures::provenanced_node(
+                Some("prov-source"),
+                source_body,
+                "fixture:prov",
+                None,
+                WriteProvenanceV1::canonical(
                     ArtifactRevisionId::new("prov-source-r1").unwrap(),
                     SourceVersionId::new("prov-v1").unwrap(),
                 ),
-            }),
-            PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
-                kind: "document".into(),
-                body: "hub node".into(),
-                source_id: SourceId::new("fixture:prov").unwrap(),
-                logical_id: Some("prov-hub".into()),
-                state: InitialState::Active,
-                reason: None,
-                valid_from: None,
-                valid_until: None,
-                provenance: WriteProvenanceV1::canonical(
+            ),
+            fixtures::provenanced_node(
+                Some("prov-hub"),
+                "hub node",
+                "fixture:prov",
+                None,
+                WriteProvenanceV1::canonical(
                     ArtifactRevisionId::new("prov-hub-r1").unwrap(),
                     SourceVersionId::new("prov-hub-v1").unwrap(),
                 ),
-            }),
+            ),
             make_derived(
                 "derived-whole",
                 "derived-whole-r1",

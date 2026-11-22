@@ -34,6 +34,7 @@ fn canonical(revision: &str, logical: &str, source_id: &str, version: &str) -> P
             ArtifactRevisionId::new(revision).unwrap(),
             SourceVersionId::new(version).unwrap(),
         ),
+        properties: None,
     })
 }
 
@@ -60,6 +61,7 @@ fn derived(
             SourceLocator::whole_body(),
             CanonicalHash::sha256(digest(&format!("body-{source_revision}"))).unwrap(),
         ),
+        properties: None,
     })
 }
 

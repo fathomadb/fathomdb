@@ -48,8 +48,10 @@ fn string_projection_provider_selectors_are_rejected_before_mutation() {
             vector: Some(ProjectionVector {
                 embedder: Some(selector.into()),
                 dense_readiness: None,
+                kinds: None,
             }),
             source: None,
+            entity_class: fathomdb_engine::PropertyEntityClass::Node,
         };
         assert!(
             matches!(
@@ -238,8 +240,13 @@ fn historical_selector_remains_inspectable_but_cannot_activate_a_provider() {
                 name: "body".into(),
                 roles: [ProjectionRole::Searchable].into(),
                 fts: None,
-                vector: Some(ProjectionVector { embedder: None, dense_readiness: None }),
+                vector: Some(ProjectionVector {
+                    embedder: None,
+                    dense_readiness: None,
+                    kinds: None,
+                }),
                 source: None,
+                entity_class: fathomdb_engine::PropertyEntityClass::Node,
             }],
             &[],
         )
@@ -355,7 +362,7 @@ proptest::proptest! {
         let path = dir.path().join("projection-roundtrip.fathomdb");
         let opened = Engine::open(&path).unwrap();
         let mut spec = ProjectionSpec { name: "body".into(), roles: [ProjectionRole::Searchable].into(), fts: None,
-            vector: Some(ProjectionVector { embedder: Some(selector), dense_readiness: None }), source: None };
+            vector: Some(ProjectionVector { embedder: Some(selector), dense_readiness: None, kinds: None }), source: None, entity_class: fathomdb_engine::PropertyEntityClass::Node };
         proptest::prop_assert!(matches!(opened.engine.configure_projections(&[spec.clone()], &[]), Err(EngineError::WriteValidation)));
         proptest::prop_assert!(opened.engine.read_projections().unwrap().is_empty());
         spec.vector.as_mut().unwrap().embedder = None;

@@ -60,6 +60,7 @@ pub(crate) fn validate_write(
                     reason: node.reason.clone(),
                     valid_from: node.valid_from,
                     valid_until: node.valid_until,
+                    properties: node.properties.clone(),
                 },
             )?;
             if node.provenance.schema_version != 1 {
@@ -93,6 +94,7 @@ pub(crate) fn validate_write(
                     confidence: edge.confidence,
                     extractor_model_id: edge.extractor_model_id.clone(),
                     temporal_fallback: edge.temporal_fallback,
+                    properties: edge.properties.clone(),
                 },
             )?;
             if edge.provenance.schema_version != 1 {

@@ -20,6 +20,7 @@ fn node(id: &str, body: &str, valid_from: Option<i64>) -> PreparedWrite {
         reason: None,
         valid_from,
         valid_until: None,
+        properties: None,
     }
 }
 
@@ -36,6 +37,7 @@ fn edge(id: &str, from: &str, to: &str) -> PreparedWrite {
         confidence: None,
         extractor_model_id: None,
         temporal_fallback: None,
+        properties: None,
     }
 }
 

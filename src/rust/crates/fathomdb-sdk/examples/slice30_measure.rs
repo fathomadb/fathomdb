@@ -132,6 +132,7 @@ fn node(id: &str, kind: &str, body: &str) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 
@@ -1518,6 +1519,7 @@ fn run_g_seed(config: &Value, out: &Path) -> Value {
         fts: None,
         vector: Some(fathomdb_engine::ProjectionVector::default()),
         source: None,
+        entity_class: fathomdb_engine::PropertyEntityClass::Node,
     };
     let start = std::time::Instant::now();
     match &engine {
@@ -1634,6 +1636,7 @@ fn run_g_source_fixture(config: &Value, out: &Path) -> Value {
         fts: None,
         vector: Some(fathomdb_engine::ProjectionVector::default()),
         source: None,
+        entity_class: fathomdb_engine::PropertyEntityClass::Node,
     };
     match &engine {
         Adapter::Core(engine) => engine.configure_projections(&[spec], &[]).map_err(Into::into),
@@ -1654,6 +1657,7 @@ fn run_g_source_fixture(config: &Value, out: &Path) -> Value {
         reason: None,
         valid_from: Some(now - 1),
         valid_until: Some(boundary),
+        properties: None,
         provenance: WriteProvenanceV1::canonical(
             ArtifactRevisionId::new("g-source-r1").unwrap(),
             SourceVersionId::new("v1").unwrap(),
@@ -1668,6 +1672,7 @@ fn run_g_source_fixture(config: &Value, out: &Path) -> Value {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
         provenance: WriteProvenanceV1::derived(
             ArtifactRevisionId::new("g-derived-r1").unwrap(),
             SourceVersionId::new("v1").unwrap(),

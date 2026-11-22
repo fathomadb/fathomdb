@@ -47,6 +47,7 @@ fn canonical(revision: &str, logical: &str) -> ProvenancedNodeV1 {
             ArtifactRevisionId::new(revision).unwrap(),
             SourceVersionId::new(format!("version-{revision}")).unwrap(),
         ),
+        properties: None,
     }
 }
 
@@ -76,6 +77,7 @@ fn derived_with_source_hash(
             SourceLocator::whole_body(),
             hash(source_body),
         ),
+        properties: None,
     }
 }
 
@@ -109,8 +111,13 @@ fn configure_rollback_projections(engine: &Engine) {
                 name: "topic".into(),
                 roles: BTreeSet::from([ProjectionRole::Filterable, ProjectionRole::Searchable]),
                 fts: Some(ProjectionFts { tokenizer: None }),
-                vector: Some(ProjectionVector { embedder: None, dense_readiness: None }),
+                vector: Some(ProjectionVector {
+                    embedder: None,
+                    dense_readiness: None,
+                    kinds: None,
+                }),
                 source: None,
+                entity_class: fathomdb_engine::PropertyEntityClass::Node,
             }],
             &[],
         )

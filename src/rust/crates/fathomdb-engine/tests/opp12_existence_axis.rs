@@ -54,6 +54,7 @@ fn active_node(kind: &str, body: &str, logical_id: &str) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 
@@ -67,6 +68,7 @@ fn pending_node(kind: &str, body: &str, logical_id: &str, reason: &str) -> Prepa
         reason: Some(reason.to_string()),
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 
@@ -207,6 +209,7 @@ fn r_ex_2_graph_traversal_excludes_pending_neighbor() {
         confidence: None,
         extractor_model_id: None,
         temporal_fallback: None,
+        properties: None,
     }])
     .unwrap();
     let neighbors: Vec<String> = e1
@@ -237,6 +240,7 @@ fn r_ex_2_graph_traversal_excludes_pending_neighbor() {
         confidence: None,
         extractor_model_id: None,
         temporal_fallback: None,
+        properties: None,
     }])
     .unwrap();
     let neighbors2: Vec<String> = e2
@@ -281,6 +285,7 @@ fn r_ex_2_vector_search_excludes_superseded_node_version() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("write v1");
     engine.drain(10_000).expect("drain v1");
@@ -298,6 +303,7 @@ fn r_ex_2_vector_search_excludes_superseded_node_version() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("write v2");
     engine.drain(10_000).expect("drain v2");

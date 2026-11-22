@@ -35,6 +35,7 @@ fn canonical(revision: &str, logical: &str, body: &str) -> ProvenancedNodeV1 {
             ArtifactRevisionId::new(revision).unwrap(),
             SourceVersionId::new(format!("version-{revision}")).unwrap(),
         ),
+        properties: None,
     }
 }
 
@@ -49,6 +50,7 @@ fn derived_node(revision: &str, logical: &str) -> ProvenancedNodeV1 {
         valid_from: None,
         valid_until: None,
         provenance: derived_provenance(revision),
+        properties: None,
     }
 }
 
@@ -78,6 +80,7 @@ fn derived_edge(revision: &str, logical: &str, from: &str, to: &str) -> Provenan
         extractor_model_id: Some("model\0id".into()),
         temporal_fallback: Some(false),
         provenance: derived_provenance(revision),
+        properties: None,
     }
 }
 
@@ -91,6 +94,7 @@ fn plain_node(logical: &str) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 
@@ -107,6 +111,7 @@ fn regular_edge(index: usize) -> PreparedWrite {
         confidence: None,
         extractor_model_id: None,
         temporal_fallback: None,
+        properties: None,
     }
 }
 

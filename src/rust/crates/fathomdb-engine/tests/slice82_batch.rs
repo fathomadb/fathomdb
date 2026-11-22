@@ -38,6 +38,7 @@ fn root_erasure_scans_each_fts_family_once_instead_of_once_per_revision() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         })
         .collect::<Vec<_>>();
     engine.write(&writes).unwrap();

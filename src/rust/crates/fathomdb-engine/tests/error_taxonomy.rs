@@ -266,6 +266,7 @@ fn write_validation_boundary_is_exactly_one_error_family() {
             reason: None,
             valid_from: from,
             valid_until: until,
+            properties: None,
         }
     };
 
@@ -317,6 +318,7 @@ fn write_validation_boundary_is_exactly_one_error_family() {
         confidence: None,
         extractor_model_id: None,
         temporal_fallback: None,
+        properties: None,
     }]);
     match unrenderable.expect_err("an unrenderable edge epoch must be refused") {
         EngineError::InvalidArgument { msg } => assert!(

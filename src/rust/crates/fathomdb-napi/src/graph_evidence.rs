@@ -516,6 +516,7 @@ mod per_hit_explain_tests {
                     reason: None,
                     valid_from: None,
                     valid_until: None,
+                    properties: None,
                 },
                 EngPreparedWrite::Node {
                     kind: "doc".to_string(),
@@ -527,6 +528,7 @@ mod per_hit_explain_tests {
                     reason: None,
                     valid_from: None,
                     valid_until: None,
+                    properties: None,
                 },
                 EngPreparedWrite::Edge {
                     kind: "link".to_string(),
@@ -541,6 +543,7 @@ mod per_hit_explain_tests {
                     confidence: Some(0.90),
                     extractor_model_id: None,
                     temporal_fallback: None,
+                    properties: None,
                 },
             ])
             .expect("write");

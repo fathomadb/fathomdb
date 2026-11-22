@@ -97,6 +97,8 @@ pub struct ExciseReport {
     pub nodes_excised: u64,
     pub edges_excised: u64,
     pub projections_invalidated: u64,
+    /// True when this call completed a previously pending redacted erasure.
+    pub completed_pending_erasure: bool,
 }
 
 /// 0.8.20 Slice 5b (R-20-E7) — outcome of
@@ -1164,6 +1166,7 @@ impl Engine {
                     nodes_excised: 0,
                     edges_excised: 0,
                     projections_invalidated: 0,
+                    completed_pending_erasure: false,
                 })
             })();
             self.projection_runtime.set_frozen(false);
@@ -1532,6 +1535,7 @@ impl Engine {
                 nodes_excised,
                 edges_excised,
                 projections_invalidated: shadow_invalidated,
+                completed_pending_erasure: false,
             },
             closure_ids,
         ))

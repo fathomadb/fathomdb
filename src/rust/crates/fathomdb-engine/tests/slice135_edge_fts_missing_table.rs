@@ -20,6 +20,7 @@ fn node(id: &str) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 
@@ -49,6 +50,7 @@ fn missing_current_schema_edge_index_must_report_storage_error() {
                 confidence: None,
                 extractor_model_id: None,
                 temporal_fallback: None,
+                properties: None,
             },
         ])
         .unwrap();

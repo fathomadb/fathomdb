@@ -787,8 +787,13 @@ mod tests {
                     name: "summary".into(),
                     roles: BTreeSet::from([ProjectionRole::Searchable]),
                     fts: None,
-                    vector: Some(ProjectionVector { embedder: None, dense_readiness: None }),
+                    vector: Some(ProjectionVector {
+                        embedder: None,
+                        dense_readiness: None,
+                        kinds: None,
+                    }),
                     source: None,
+                    entity_class: crate::PropertyEntityClass::Node,
                 }],
                 &[],
             )
@@ -803,6 +808,7 @@ mod tests {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             }])
             .unwrap();
         let guard = engine.connection.lock().unwrap();
@@ -833,6 +839,7 @@ mod tests {
                     reason: None,
                     valid_from: None,
                     valid_until: None,
+                    properties: None,
                 };
                 engine
                     .write(&[make_node("subject", "target"), make_node("survivor", "other")])

@@ -86,6 +86,7 @@ pub fn sourced_node(logical_id: &str, kind: &str, body: &str, source: &str) -> P
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 
@@ -104,6 +105,7 @@ pub fn windowed_node(
         reason: None,
         valid_from,
         valid_until,
+        properties: None,
     }
 }
 
@@ -120,6 +122,7 @@ pub fn edge(kind: &str, from: &str, to: &str) -> PreparedWrite {
         confidence: None,
         extractor_model_id: None,
         temporal_fallback: None,
+        properties: None,
     }
 }
 
@@ -644,5 +647,6 @@ pub fn body_edge(kind: &str, from: &str, to: &str, body: &str) -> PreparedWrite 
         confidence: None,
         extractor_model_id: None,
         temporal_fallback: None,
+        properties: None,
     }
 }

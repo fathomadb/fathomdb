@@ -118,16 +118,18 @@ fn materialized_attribute_has_its_own_exact_origin_and_full_chunk_access() {
 
 #[test]
 fn association_categories_share_one_item_and_byte_budget_and_report_partial() {
-    use fathomdb_engine::{EmbedderChoice, Engine, ProjectionRole, ProjectionSpec};
+    use fathomdb_engine::{EmbedderChoice, Engine, ProjectionRole};
     let dir = tempfile::tempdir().unwrap();
     let path = database(dir.path());
     let declarations = (0..201)
-        .map(|n| ProjectionSpec {
-            name: format!("p{n:03}"),
-            roles: std::collections::BTreeSet::from([ProjectionRole::Searchable]),
-            fts: None,
-            vector: None,
-            source: None,
+        .map(|n| {
+            crate::fixtures::projection_spec(
+                &format!("p{n:03}"),
+                &[ProjectionRole::Searchable],
+                None,
+                None,
+                None,
+            )
         })
         .collect::<Vec<_>>();
     let body: serde_json::Map<String, serde_json::Value> = (0..201)

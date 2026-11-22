@@ -21,6 +21,7 @@ fn node(id: &str, source: &str, body: &str) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 
@@ -47,6 +48,7 @@ fn fixture_with_targets(include_targets: bool) -> (TempDir, Engine) {
                 fts: Some(ProjectionFts { tokenizer: None }),
                 vector: None,
                 source: None,
+                entity_class: fathomdb_engine::PropertyEntityClass::Node,
             }],
             &[],
         )
@@ -83,6 +85,7 @@ fn fixture_with_targets(include_targets: bool) -> (TempDir, Engine) {
                 confidence: None,
                 extractor_model_id: None,
                 temporal_fallback: None,
+                properties: None,
             });
         }
         engine.write(&writes).unwrap();

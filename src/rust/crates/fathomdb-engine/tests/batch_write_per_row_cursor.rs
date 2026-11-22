@@ -78,6 +78,7 @@ fn batched_write_produces_one_vec0_row_per_node() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         })
         .collect();
     engine.write(&batch).expect("write batch");
@@ -107,6 +108,7 @@ fn batched_write_each_node_searchable_by_body() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         })
         .collect();
     engine.write(&batch).expect("write batch");

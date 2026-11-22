@@ -83,6 +83,7 @@ fn no_canonical_row_has_null_source_id() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("public node write");
     engine
@@ -98,6 +99,7 @@ fn no_canonical_row_has_null_source_id() {
             confidence: None,
             extractor_model_id: None,
             temporal_fallback: None,
+            properties: None,
         }])
         .expect("public edge write");
 

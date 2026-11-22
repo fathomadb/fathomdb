@@ -122,8 +122,9 @@ fn vector_spec(name: &str) -> ProjectionSpec {
         name: name.to_string(),
         roles: roles(&[ProjectionRole::Searchable]),
         fts: None,
-        vector: Some(ProjectionVector { embedder: None, dense_readiness: None }),
+        vector: Some(ProjectionVector { embedder: None, dense_readiness: None, kinds: None }),
         source: None,
+        entity_class: fathomdb_engine::PropertyEntityClass::Node,
     }
 }
 
@@ -137,6 +138,7 @@ fn node(logical_id: &str, body_json: &str) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 
@@ -181,6 +183,7 @@ fn anon_node(body_json: &str) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 
@@ -729,8 +732,11 @@ fn caller_supplied_dense_readiness_is_inert_engine_reports_derived_truth() {
 
     // Declare with a LIE: `ready` while nothing is embedded yet.
     let mut lying = vector_spec("summary");
-    lying.vector =
-        Some(ProjectionVector { embedder: None, dense_readiness: Some(DenseReadiness::Ready) });
+    lying.vector = Some(ProjectionVector {
+        embedder: None,
+        dense_readiness: Some(DenseReadiness::Ready),
+        kinds: None,
+    });
     engine.configure_projections(&[lying.clone()], &[]).expect("configure accepts it inertly");
 
     engine.set_projection_scheduler_frozen_for_test(true);
@@ -746,8 +752,11 @@ fn caller_supplied_dense_readiness_is_inert_engine_reports_derived_truth() {
     engine.set_projection_scheduler_frozen_for_test(false);
     engine.drain(30_000).expect("drain");
     let mut lying_other_way = vector_spec("summary");
-    lying_other_way.vector =
-        Some(ProjectionVector { embedder: None, dense_readiness: Some(DenseReadiness::Embedding) });
+    lying_other_way.vector = Some(ProjectionVector {
+        embedder: None,
+        dense_readiness: Some(DenseReadiness::Embedding),
+        kinds: None,
+    });
     engine.configure_projections(&[lying_other_way], &[]).expect("configure");
     assert_eq!(
         readiness(engine, "summary"),
@@ -827,6 +836,7 @@ fn default_path_is_unchanged_when_no_vector_projection_is_declared() {
                 fts: None,
                 vector: None,
                 source: None,
+                entity_class: fathomdb_engine::PropertyEntityClass::Node,
             }],
             &[],
         )

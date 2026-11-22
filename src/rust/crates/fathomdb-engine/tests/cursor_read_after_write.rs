@@ -102,6 +102,7 @@ fn projection_cursor_bounds_observed_row_count() {
                     reason: None,
                     valid_from: None,
                     valid_until: None,
+                    properties: None,
                 }])?;
                 progress.successful += 1;
                 if progress.successful == 1 {

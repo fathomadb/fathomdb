@@ -206,6 +206,7 @@ fn node(i: usize, fail: bool) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 fn edge(i: usize, fail: bool) -> PreparedWrite {
@@ -221,6 +222,7 @@ fn edge(i: usize, fail: bool) -> PreparedWrite {
         confidence: None,
         extractor_model_id: None,
         temporal_fallback: None,
+        properties: None,
     }
 }
 

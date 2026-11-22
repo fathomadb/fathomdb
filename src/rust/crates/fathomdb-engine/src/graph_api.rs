@@ -308,6 +308,7 @@ impl Engine {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])?;
         let mut writes = Vec::new();
         for index in 0..work {
@@ -320,6 +321,7 @@ impl Engine {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             });
             writes.push(PreparedWrite::Edge {
                 logical_id: Some(format!("edge-{index}")),
@@ -333,6 +335,7 @@ impl Engine {
                 confidence: None,
                 extractor_model_id: None,
                 temporal_fallback: None,
+                properties: None,
             });
         }
         if !writes.is_empty() {

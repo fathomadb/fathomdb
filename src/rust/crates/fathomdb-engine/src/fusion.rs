@@ -384,6 +384,7 @@ mod tests {
                 branch: SoftFallbackBranch::Text,
                 source_id: None,
                 ce_score: None,
+                properties: None,
             },
         }
     }

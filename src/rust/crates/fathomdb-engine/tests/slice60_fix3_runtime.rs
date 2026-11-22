@@ -58,6 +58,7 @@ fn open_graph(directory: &TempDir, name: &str, registered: bool) -> Engine {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             },
             PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
                 logical_id: Some("source".into()),
@@ -72,6 +73,7 @@ fn open_graph(directory: &TempDir, name: &str, registered: bool) -> Engine {
                     ArtifactRevisionId::new("source-r1").unwrap(),
                     SourceVersionId::new("v1").unwrap(),
                 ),
+                properties: None,
             }),
             PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
                 logical_id: Some("derived".into()),
@@ -89,6 +91,7 @@ fn open_graph(directory: &TempDir, name: &str, registered: bool) -> Engine {
                     SourceLocator::whole_body(),
                     CanonicalHash::sha256(hash(source_body)).unwrap(),
                 ),
+                properties: None,
             }),
             PreparedWrite::Edge {
                 logical_id: Some("root-derived".into()),
@@ -102,6 +105,7 @@ fn open_graph(directory: &TempDir, name: &str, registered: bool) -> Engine {
                 confidence: None,
                 extractor_model_id: None,
                 temporal_fallback: None,
+                properties: None,
             },
         ])
         .unwrap();
@@ -185,6 +189,7 @@ fn measured_expansion_rss_is_an_immediate_proportional_delta() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         });
     }
     large.write(&writes).unwrap();

@@ -59,6 +59,7 @@ fn real_graph_expand_observes_every_projection_origin_readiness_degradation_comb
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .unwrap();
 

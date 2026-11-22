@@ -360,6 +360,7 @@ mod tests {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             }])
             .unwrap();
         engine.drain(1_000).unwrap();

@@ -23,6 +23,7 @@ fn node(body: &str) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 fn history() -> ReadView {
@@ -39,6 +40,7 @@ fn setup(path: &std::path::Path) -> Arc<Engine> {
                 fts: Some(ProjectionFts { tokenizer: None }),
                 vector: None,
                 source: None,
+                entity_class: fathomdb_engine::PropertyEntityClass::Node,
             }],
             &[],
         )

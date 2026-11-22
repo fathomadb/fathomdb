@@ -77,6 +77,7 @@ fn node(body: &str) -> fathomdb_engine::PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 
@@ -294,6 +295,7 @@ fn edge_supersession_retains_spans_until_source_erasure() {
             confidence: None,
             extractor_model_id: None,
             temporal_fallback: None,
+            properties: None,
         };
         let old = opened.engine.write(&[edge(false)]).unwrap().row_cursors[0];
         opened.engine.drain(10_000).unwrap();

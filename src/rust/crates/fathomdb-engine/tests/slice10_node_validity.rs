@@ -50,6 +50,7 @@ fn node(kind: &str, body: &str, logical_id: &str) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 
@@ -66,6 +67,7 @@ fn edge(from: &str, to: &str, logical_id: &str) -> PreparedWrite {
         confidence: None,
         extractor_model_id: None,
         temporal_fallback: None,
+        properties: None,
     }
 }
 
@@ -647,6 +649,7 @@ fn r_20_nv_edge_temporal_filter_is_unchanged() {
                 confidence: None,
                 extractor_model_id: None,
                 temporal_fallback: None,
+                properties: None,
             },
         ])
         .expect("seed");

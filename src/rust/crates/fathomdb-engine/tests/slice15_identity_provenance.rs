@@ -43,8 +43,9 @@ fn vector_spec() -> ProjectionSpec {
         name: "summary".into(),
         roles: BTreeSet::from([ProjectionRole::Searchable]),
         fts: None,
-        vector: Some(ProjectionVector { embedder: None, dense_readiness: None }),
+        vector: Some(ProjectionVector { embedder: None, dense_readiness: None, kinds: None }),
         source: None,
+        entity_class: fathomdb_engine::PropertyEntityClass::Node,
     }
 }
 
@@ -107,6 +108,7 @@ fn node(
         valid_from: None,
         valid_until: None,
         provenance,
+        properties: None,
     })
 }
 
@@ -147,6 +149,7 @@ fn canonical_and_derived_revisions_persist_exact_utf8_provenance_across_restart(
                 SourceLocator::utf8_bytes(1, 3),
                 CanonicalHash::sha256(&source_hash).unwrap(),
             ),
+            properties: None,
         });
         let receipt = opened.engine.write(&[canonical, derived]).unwrap();
         assert_eq!(receipt.row_cursors.len(), 2);
@@ -219,6 +222,7 @@ fn invalid_locator_or_hash_rejects_the_whole_batch_with_typed_reason_and_path() 
             SourceLocator::utf8_bytes(2, 3),
             CanonicalHash::sha256(digest("AéB")).unwrap(),
         ),
+        properties: None,
     });
     let error = opened
         .engine
@@ -363,6 +367,7 @@ fn legacy_write_gets_runtime_revision_without_claiming_complete_provenance() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .unwrap();
     opened.engine.close().unwrap();
@@ -424,6 +429,7 @@ fn failing_provenance_write_cannot_commit_late_vector_enrolment_or_queue_changes
             SourceLocator::utf8_bytes(0, 10_000),
             CanonicalHash::sha256(digest(source_body)).unwrap(),
         ),
+        properties: None,
     });
     let error = opened.engine.write(&[failing]).unwrap_err();
     assert!(matches!(
@@ -531,6 +537,7 @@ fn runtime_edge_revision_distinguishes_null_from_empty_body_at_the_same_cursor()
                 confidence: None,
                 extractor_model_id: None,
                 temporal_fallback: None,
+                properties: None,
             }])
             .unwrap();
         opened.engine.close().unwrap();

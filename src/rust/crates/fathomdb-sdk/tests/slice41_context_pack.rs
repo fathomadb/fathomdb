@@ -187,6 +187,7 @@ fn node(logical_id: &str, body: String) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 
@@ -269,6 +270,7 @@ fn record_unique_tagged_twins_keep_public_helper_ids_and_duplicate_pack_refusal(
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         })
         .collect();
     engine.write(&writes).unwrap();

@@ -39,6 +39,7 @@ fn node_with_window(
         reason: None,
         valid_from,
         valid_until,
+        properties: None,
     }
 }
 
@@ -56,6 +57,7 @@ fn pending_node(id: &str, kind: &str) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 
@@ -79,6 +81,7 @@ fn edge_with_time(
         confidence: None,
         extractor_model_id: None,
         temporal_fallback: None,
+        properties: None,
     }
 }
 

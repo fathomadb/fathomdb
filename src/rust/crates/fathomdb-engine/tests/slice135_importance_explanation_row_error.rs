@@ -29,6 +29,7 @@ fn malformed_importance_must_not_produce_neutral_explanation() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("write node");
     opened.engine.drain(10_000).expect("drain");

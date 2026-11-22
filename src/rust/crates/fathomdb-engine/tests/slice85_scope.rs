@@ -11,6 +11,7 @@ fn node(id: &str, source: &str, body: String) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 fn open(path: &std::path::Path) -> Arc<Engine> {
@@ -136,6 +137,7 @@ fn rich_fixture(path: &std::path::Path, targets: bool) -> Arc<Engine> {
                 fts: Some(ProjectionFts { tokenizer: None }),
                 vector: None,
                 source: None,
+                entity_class: fathomdb_engine::PropertyEntityClass::Node,
             }],
             &[],
         )
@@ -161,6 +163,7 @@ fn rich_fixture(path: &std::path::Path, targets: bool) -> Arc<Engine> {
                 valid_from: None,
                 valid_until: None,
                 provenance,
+                properties: None,
             })
         };
         engine
@@ -219,6 +222,7 @@ fn rich_fixture(path: &std::path::Path, targets: bool) -> Arc<Engine> {
                 confidence: None,
                 extractor_model_id: None,
                 temporal_fallback: None,
+                properties: None,
             });
         }
         engine.write(&batch).unwrap();
@@ -353,6 +357,7 @@ fn queued_effect_guards_cover_batch_old_new_endpoints_provenance_and_dependencie
         confidence: None,
         extractor_model_id: None,
         temporal_fallback: None,
+        properties: None,
     };
     for effect in [edge("new-edge", "left", "root"), edge("target-edge", "left", "right")] {
         assert!(engine
@@ -373,6 +378,7 @@ fn queued_effect_guards_cover_batch_old_new_endpoints_provenance_and_dependencie
             ArtifactRevisionId::new("new-r1").unwrap(),
             SourceVersionId::new("v2").unwrap(),
         ),
+        properties: None,
     });
     assert!(matches!(
         engine.write(&[provenance]),

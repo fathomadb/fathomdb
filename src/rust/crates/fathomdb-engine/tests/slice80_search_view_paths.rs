@@ -22,6 +22,7 @@ fn node(
         reason: None,
         valid_from,
         valid_until,
+        properties: None,
     }
 }
 
@@ -38,6 +39,7 @@ fn edge(from: &str, to: &str) -> PreparedWrite {
         confidence: None,
         extractor_model_id: None,
         temporal_fallback: None,
+        properties: None,
     }
 }
 
@@ -110,6 +112,7 @@ fn projected_text_applies_the_search_validity_view() {
                 fts: Some(ProjectionFts { tokenizer: None }),
                 vector: None,
                 source: None,
+                entity_class: fathomdb_engine::PropertyEntityClass::Node,
             }],
             &[],
         )

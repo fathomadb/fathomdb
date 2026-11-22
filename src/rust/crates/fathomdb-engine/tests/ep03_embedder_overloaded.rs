@@ -103,6 +103,7 @@ fn note(logical_id: &str, body: &str) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 
@@ -228,6 +229,7 @@ fn open_provenanced_engine(dir: &TempDir, embedder: Arc<GatedEmbedder>) -> Arc<E
                     ArtifactRevisionId::new("ep03-source-r1").unwrap(),
                     SourceVersionId::new("ep03-source-v1").unwrap(),
                 ),
+                properties: None,
             }),
             PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
                 kind: "claim".into(),
@@ -245,6 +247,7 @@ fn open_provenanced_engine(dir: &TempDir, embedder: Arc<GatedEmbedder>) -> Arc<E
                     SourceLocator::whole_body(),
                     CanonicalHash::sha256(digest(source_body)).unwrap(),
                 ),
+                properties: None,
             }),
         ])
         .expect("write provenanced fixture");

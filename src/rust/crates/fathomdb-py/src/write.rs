@@ -785,6 +785,7 @@ pub(super) fn translate_node(item: &Bound<'_, PyAny>) -> PyResult<PreparedWrite>
             reason,
             valid_from,
             valid_until,
+            properties: None,
             provenance,
         })),
         None => Ok(PreparedWrite::Node {
@@ -796,6 +797,7 @@ pub(super) fn translate_node(item: &Bound<'_, PyAny>) -> PyResult<PreparedWrite>
             reason,
             valid_from,
             valid_until,
+            properties: None,
         }),
     }
 }
@@ -865,6 +867,7 @@ pub(super) fn translate_edge(item: &Bound<'_, PyAny>) -> PyResult<PreparedWrite>
             confidence: None,
             extractor_model_id: None,
             temporal_fallback: None,
+            properties: None,
             provenance,
         })),
         None => Ok(PreparedWrite::Edge {
@@ -879,6 +882,7 @@ pub(super) fn translate_edge(item: &Bound<'_, PyAny>) -> PyResult<PreparedWrite>
             confidence: None,
             extractor_model_id: None,
             temporal_fallback: None,
+            properties: None,
         }),
     }
 }

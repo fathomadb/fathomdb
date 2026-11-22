@@ -578,6 +578,7 @@ mod degradation_tests {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             }])
             .unwrap();
         engine.drain(30_000).unwrap();
@@ -643,6 +644,7 @@ mod degradation_tests {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             }])
             .unwrap();
         engine
@@ -714,6 +716,7 @@ mod degradation_tests {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             }])
             .unwrap();
         engine.drain(30_000).unwrap();

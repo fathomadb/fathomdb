@@ -13,6 +13,7 @@ fn node(id: &str, source: &str, body: &str) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 
@@ -65,6 +66,7 @@ fn dependent_seed(path: &std::path::Path) -> Engine {
             valid_from: None,
             valid_until: None,
             provenance,
+            properties: None,
         })
     };
     engine
@@ -199,6 +201,7 @@ fn edge(id: &str, from: &str, to: &str) -> PreparedWrite {
         confidence: None,
         extractor_model_id: None,
         temporal_fallback: None,
+        properties: None,
     }
 }
 

@@ -72,6 +72,7 @@ fn node_fts_search_has_no_per_hit_post_filter_statements() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         })
         .collect::<Vec<_>>();
     opened.engine.write(&writes).expect("seed");
@@ -110,6 +111,7 @@ fn hybrid_deferred_identity_matches_complete_ranked_control_at_limit_100() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         })
         .collect::<Vec<_>>();
     writes.push(PreparedWrite::Node {
@@ -121,6 +123,7 @@ fn hybrid_deferred_identity_matches_complete_ranked_control_at_limit_100() {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     });
     writes.push(PreparedWrite::Node {
         kind: "doc".into(),
@@ -131,6 +134,7 @@ fn hybrid_deferred_identity_matches_complete_ranked_control_at_limit_100() {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     });
     opened.engine.write(&writes).expect("seed");
     opened.engine.drain(10_000).expect("drain");

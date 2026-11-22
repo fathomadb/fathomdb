@@ -1785,6 +1785,7 @@ mod degradation_tests {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             }])
             .unwrap();
         let mut result = engine.search("mcpep03needle", SearchOptions::default()).unwrap();

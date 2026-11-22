@@ -340,44 +340,46 @@ fn cached_cpu_candle013_serving_preserves_equal_body_records_reports_timeout_and
     opened
         .engine
         .configure_projections(
-            &[ProjectionSpec {
-                name: "summary".into(),
-                roles: std::collections::BTreeSet::from([ProjectionRole::Searchable]),
-                fts: None,
-                vector: Some(ProjectionVector { embedder: None, dense_readiness: None }),
-                source: None,
-            }],
+            &[crate::fixtures::projection_spec(
+                "summary",
+                &[ProjectionRole::Searchable],
+                None,
+                Some(crate::fixtures::projection_vector(None)),
+                None,
+            )],
             &[],
         )
         .unwrap();
-    let make_doc = |id: &str| PreparedWrite::Node {
-        kind: "doc".into(),
-        body: shared.into(),
-        source_id: SourceId::new("fixture:vector").unwrap(),
-        logical_id: Some(id.into()),
-        state: fathomdb_engine::InitialState::Active,
-        reason: None,
-        valid_from: None,
-        valid_until: None,
+    let make_doc = |id: &str| {
+        crate::fixtures::node_with(
+            "doc",
+            Some(id),
+            shared,
+            "fixture:vector",
+            fathomdb_engine::InitialState::Active,
+            None,
+            None,
+            None,
+        )
     };
     opened
         .engine
         .write(&[
             make_doc("beacon-1"),
             make_doc("beacon-2"),
-            PreparedWrite::Edge {
-                kind: "tracks".into(),
-                from: "beacon-1".into(),
-                to: "beacon-2".into(),
-                source_id: SourceId::new("fixture:edge").unwrap(),
-                logical_id: Some("beacon-edge".into()),
-                body: Some(shared.into()),
-                t_valid: None,
-                t_invalid: None,
-                confidence: Some(0.9),
-                extractor_model_id: None,
-                temporal_fallback: None,
-            },
+            crate::fixtures::edge_with(
+                "tracks",
+                "beacon-1",
+                "beacon-2",
+                "fixture:edge",
+                Some("beacon-edge"),
+                Some(shared.into()),
+                None,
+                None,
+                Some(0.9),
+                None,
+                None,
+            ),
         ])
         .unwrap();
     opened.engine.drain(30_000).unwrap();

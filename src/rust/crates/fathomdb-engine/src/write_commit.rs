@@ -672,6 +672,7 @@ pub(crate) fn apply_batch_in_transaction(
                     reason,
                     valid_from,
                     valid_until,
+                    properties: _,
                 },
                 WritePlan::Node,
             ) => {
@@ -785,6 +786,7 @@ pub(crate) fn apply_batch_in_transaction(
                     confidence,
                     extractor_model_id,
                     temporal_fallback,
+                    properties: _,
                 },
                 WritePlan::Edge,
             ) => {
@@ -1081,6 +1083,7 @@ mod tests {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         };
         let edge = PreparedWrite::Edge {
             kind: "related".to_string(),
@@ -1094,6 +1097,7 @@ mod tests {
             confidence: None,
             extractor_model_id: None,
             temporal_fallback: None,
+            properties: None,
         };
         {
             let mut guard = opened.engine.connection.lock().unwrap();

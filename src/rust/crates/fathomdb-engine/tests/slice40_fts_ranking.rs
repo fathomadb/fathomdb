@@ -43,6 +43,7 @@ fn hit(cursor: u64, body: &str, branch: SoftFallbackBranch) -> FusionHit {
             branch,
             source_id: None,
             ce_score: None,
+            properties: None,
         },
     }
 }
@@ -377,6 +378,7 @@ fn node(logical_id: &str, body: &str) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 

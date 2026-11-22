@@ -35,6 +35,7 @@ fn node_write(kind: &str, body: &str, logical_id: &str) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 
@@ -52,6 +53,7 @@ fn edge_with_t_invalid(from: &str, to: &str, logical_id: &str, t_invalid: i64) -
         confidence: None,
         extractor_model_id: None,
         temporal_fallback: None,
+        properties: None,
     }
 }
 
@@ -68,6 +70,7 @@ fn live_edge(from: &str, to: &str, logical_id: &str) -> PreparedWrite {
         confidence: None,
         extractor_model_id: None,
         temporal_fallback: None,
+        properties: None,
     }
 }
 
@@ -84,6 +87,7 @@ fn temporal_fallback_edge(from: &str, to: &str, logical_id: &str) -> PreparedWri
         confidence: None,
         extractor_model_id: None,
         temporal_fallback: Some(true),
+        properties: None,
     }
 }
 

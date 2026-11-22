@@ -31,6 +31,7 @@ fn seed_and_register(engine: &Engine) {
                     ArtifactRevisionId::new("source-r1").unwrap(),
                     SourceVersionId::new("v1").unwrap(),
                 ),
+                properties: None,
             }),
             PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
                 kind: "fact".into(),
@@ -54,6 +55,7 @@ fn seed_and_register(engine: &Engine) {
                     )
                     .unwrap(),
                 ),
+                properties: None,
             }),
         ])
         .unwrap();

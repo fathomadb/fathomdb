@@ -28,6 +28,7 @@ fn node(id: &str) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 
@@ -341,6 +342,7 @@ fn slice135_bounded_sqlite_full_write_rolls_back_and_reopens() {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }]);
     let after_failure = snapshot(&opened.engine, &ids);
     let error = result.expect_err("SQLite page cap must refuse oversized write");
@@ -409,6 +411,7 @@ fn slice135_persistent_sqlite_full_preserves_state_until_cap_lifts() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }]);
         let error = result.expect_err("persistent SQLite page cap must refuse every write");
         errors.push(format!("{error:?}"));

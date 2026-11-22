@@ -54,6 +54,7 @@ fn canonical(revision: &str, logical: &str, body: &str) -> ProvenancedNodeV1 {
             ArtifactRevisionId::new(revision).unwrap(),
             SourceVersionId::new(format!("version-{revision}")).unwrap(),
         ),
+        properties: None,
     }
 }
 
@@ -74,6 +75,7 @@ fn derived_node(index: usize) -> ProvenancedNodeV1 {
             SourceLocator::whole_body(),
             source_hash(),
         ),
+        properties: None,
     }
 }
 
@@ -97,6 +99,7 @@ fn derived_edge(index: usize) -> ProvenancedEdgeV1 {
             SourceLocator::whole_body(),
             source_hash(),
         ),
+        properties: None,
     }
 }
 

@@ -17,6 +17,7 @@ fn setup(path: &Path) -> Engine {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .unwrap();
     engine

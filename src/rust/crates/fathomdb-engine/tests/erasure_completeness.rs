@@ -118,6 +118,7 @@ fn write_node(engine: &Engine, body: &str, source_id: &str, logical_id: Option<&
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("write")
         .cursor

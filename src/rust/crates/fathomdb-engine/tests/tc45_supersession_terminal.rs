@@ -108,6 +108,7 @@ fn fact_edge(
         confidence: None,
         extractor_model_id: None,
         temporal_fallback: None,
+        properties: None,
     }
 }
 

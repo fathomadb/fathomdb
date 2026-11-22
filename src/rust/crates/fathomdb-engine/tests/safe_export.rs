@@ -23,6 +23,7 @@ fn ac_039a_manifest_digest_matches_export_bytes() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("write");
 
@@ -62,6 +63,7 @@ fn ac_039b_one_byte_tamper_detected_by_recompute() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("write");
 

@@ -36,6 +36,7 @@ fn hit(id: u64, body: &str, score: f64) -> SearchHit {
         branch: SoftFallbackBranch::Vector,
         source_id: None,
         ce_score: None,
+        properties: None,
     }
 }
 
@@ -139,6 +140,7 @@ fn importance_write_read_roundtrip_and_range_validation() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("write");
     let cursor = receipt.cursor;
@@ -176,6 +178,7 @@ fn seed_two_docs(engine: &Engine) -> (u64, u64) {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("write a")
         .cursor;
@@ -189,6 +192,7 @@ fn seed_two_docs(engine: &Engine) -> (u64, u64) {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("write b")
         .cursor;
@@ -288,6 +292,7 @@ fn entity_node(body: &str, logical_id: &str) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 
@@ -306,6 +311,7 @@ fn conf_edge(from: &str, to: &str, logical_id: &str, body: &str, confidence: f64
         confidence: Some(confidence),
         extractor_model_id: None,
         temporal_fallback: None,
+        properties: None,
     }
 }
 

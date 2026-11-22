@@ -268,6 +268,7 @@ fn run_dataset(dataset_id: &str) {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             })
             .collect::<Vec<_>>();
         engine.write(&batch).expect("ingest pinned vector corpus batch");
@@ -433,6 +434,7 @@ fn run_tiny_fixture() {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             }])
             .expect("write real vector row");
     }

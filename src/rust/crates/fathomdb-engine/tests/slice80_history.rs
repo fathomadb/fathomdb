@@ -22,6 +22,7 @@ fn node(id: &str, body: &str, state: InitialState) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 fn view(superseded: bool, inactive: bool) -> ReadView {
@@ -77,6 +78,7 @@ fn edge(id: &str, body: &str) -> PreparedWrite {
         confidence: None,
         extractor_model_id: None,
         temporal_fallback: None,
+        properties: None,
     }
 }
 #[test]
@@ -234,6 +236,7 @@ fn property() -> fathomdb_engine::ProjectionSpec {
         fts: Some(fathomdb_engine::ProjectionFts { tokenizer: None }),
         vector: None,
         source: None,
+        entity_class: fathomdb_engine::PropertyEntityClass::Node,
     }
 }
 #[test]

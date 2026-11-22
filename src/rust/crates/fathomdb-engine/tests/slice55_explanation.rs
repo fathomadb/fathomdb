@@ -32,6 +32,7 @@ fn explained() -> (TempDir, fathomdb_engine::OpenedEngine, fathomdb_engine::Sear
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .unwrap();
     let result = opened.engine.search_explained("slice55", None, 0, false, 0.3, 0).unwrap();
@@ -43,8 +44,9 @@ fn vector_spec() -> ProjectionSpec {
         name: "summary".into(),
         roles: [ProjectionRole::Searchable].into_iter().collect(),
         fts: Some(ProjectionFts { tokenizer: None }),
-        vector: Some(ProjectionVector { embedder: None, dense_readiness: None }),
+        vector: Some(ProjectionVector { embedder: None, dense_readiness: None, kinds: None }),
         source: None,
+        entity_class: fathomdb_engine::PropertyEntityClass::Node,
     }
 }
 
@@ -86,6 +88,7 @@ fn provenance_node(
         valid_from: None,
         valid_until: None,
         provenance,
+        properties: None,
     })
 }
 
@@ -240,6 +243,7 @@ fn slice55_structural_projection_blocked_is_live_authority() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .unwrap();
     let result = opened.engine.search_explained("blocked", None, 0, false, 0.3, 0).unwrap();
@@ -341,6 +345,7 @@ fn slice55_graph_bound_reached_is_produced_by_live_traversal() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         });
     }
     for index in 0..63 {
@@ -356,6 +361,7 @@ fn slice55_graph_bound_reached_is_produced_by_live_traversal() {
             confidence: None,
             extractor_model_id: None,
             temporal_fallback: None,
+            properties: None,
         });
     }
     opened.engine.write(&writes).unwrap();
@@ -382,6 +388,7 @@ fn slice55_graph_bound_is_absent_at_exact_eligible_cap() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         });
     }
     for index in 0..49 {
@@ -397,6 +404,7 @@ fn slice55_graph_bound_is_absent_at_exact_eligible_cap() {
             confidence: None,
             extractor_model_id: None,
             temporal_fallback: None,
+            properties: None,
         });
     }
     opened.engine.write(&writes).unwrap();
@@ -552,6 +560,7 @@ fn slice55_structural_edge_lifecycle_is_live() {
             confidence: None,
             extractor_model_id: None,
             temporal_fallback: None,
+            properties: None,
         }])
         .unwrap();
     let result = opened.engine.search_explained("structural", None, 0, false, 0.3, 0).unwrap();

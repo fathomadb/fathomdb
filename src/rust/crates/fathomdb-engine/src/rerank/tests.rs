@@ -120,6 +120,7 @@ fn ce_blend_retains_exact_key_and_representative_through_reordering() {
             branch: SoftFallbackBranch::Text,
             source_id: Some(source.into()),
             ce_score: None,
+            properties: None,
         },
     };
     let hits = vec![

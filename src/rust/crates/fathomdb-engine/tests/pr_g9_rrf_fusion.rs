@@ -37,6 +37,7 @@ fn hit(id: u64, body: &str, branch: SoftFallbackBranch) -> FusionHit {
             branch,
             source_id: None,
             ce_score: None,
+            properties: None,
         },
     }
 }
@@ -178,6 +179,7 @@ fn rrf_end_to_end_order_is_deterministic() {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             }])
             .expect("write");
     }
@@ -218,6 +220,7 @@ fn vector_empty_soft_fallback_signal_survives_fusion() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("write");
 

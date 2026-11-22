@@ -556,6 +556,7 @@ fn ir_c_gold_diagnostics() {
                     reason: None,
                     valid_from: None,
                     valid_until: None,
+                    properties: None,
                 })
                 .collect();
             engine.write(&batch).expect("seed write");

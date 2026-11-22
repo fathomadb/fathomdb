@@ -1,5 +1,6 @@
 use crate::errors::EngineError;
 use crate::identity::IdSpace;
+use crate::properties::PropertyMap;
 use crate::snippet::SnippetV1;
 
 /// Soft-fallback signal carried on hybrid `search` results.
@@ -157,6 +158,8 @@ pub struct SearchHit {
     /// no-CE-model soft-fallback. Additive + nullable: it never participates in
     /// ranking, so default-path ordering/scores stay byte-stable.
     pub ce_score: Option<f64>,
+    /// Optional typed scalar property map stored outside `body`.
+    pub properties: Option<PropertyMap>,
 }
 
 /// G0 Phase-2 (E0a / BLOCK-1) — graph-arm frontier instrumentation. A

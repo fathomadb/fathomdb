@@ -28,6 +28,7 @@ fn later_original_inventory_growth_stays_bounded_and_reopenable() {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             });
         }
     }

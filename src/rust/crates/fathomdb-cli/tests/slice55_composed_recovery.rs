@@ -113,6 +113,7 @@ mod wal_only {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }
     }
     fn copy(path: &Path, main: &[u8], wal: Option<&[u8]>) {
@@ -350,6 +351,7 @@ fn doctor_inventory_and_selected_refusal_effects_are_exact() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .unwrap();
     engine.close().unwrap();

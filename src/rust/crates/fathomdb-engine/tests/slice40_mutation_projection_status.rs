@@ -34,8 +34,9 @@ fn vector_spec() -> ProjectionSpec {
         name: "memory".into(),
         roles: [ProjectionRole::Searchable].into_iter().collect(),
         fts: None,
-        vector: Some(ProjectionVector { embedder: None, dense_readiness: None }),
+        vector: Some(ProjectionVector { embedder: None, dense_readiness: None, kinds: None }),
         source: None,
+        entity_class: fathomdb_engine::PropertyEntityClass::Node,
     }
 }
 
@@ -53,6 +54,7 @@ fn canonical() -> ProvenancedNodeV1 {
             ArtifactRevisionId::new("slice40-r1").unwrap(),
             SourceVersionId::new("slice40-v1").unwrap(),
         ),
+        properties: None,
     }
 }
 

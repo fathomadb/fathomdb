@@ -115,6 +115,7 @@ fn governed_fixture() -> Vec<PreparedWrite> {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         },
         node("note:gone", "note", "retracted river record"),
     ]

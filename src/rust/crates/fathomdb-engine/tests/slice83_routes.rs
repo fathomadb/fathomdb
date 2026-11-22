@@ -28,6 +28,7 @@ fn node(id: &str, source: &str, body: String) -> PreparedWrite {
             ArtifactRevisionId::new(format!("revision-{id}")).unwrap(),
             SourceVersionId::new(format!("version-{id}")).unwrap(),
         ),
+        properties: None,
     })
 }
 fn edge(id: &str, source: &str, from: &str, to: &str) -> PreparedWrite {
@@ -43,6 +44,7 @@ fn edge(id: &str, source: &str, from: &str, to: &str) -> PreparedWrite {
         confidence: None,
         extractor_model_id: None,
         temporal_fallback: None,
+        properties: None,
     }
 }
 fn fixture(path: &std::path::Path) -> Engine {
@@ -55,6 +57,7 @@ fn fixture(path: &std::path::Path) -> Engine {
                 fts: Some(ProjectionFts { tokenizer: None }),
                 vector: None,
                 source: None,
+                entity_class: fathomdb_engine::PropertyEntityClass::Node,
             }],
             &[],
         )

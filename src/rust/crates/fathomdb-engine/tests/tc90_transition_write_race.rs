@@ -214,6 +214,7 @@ fn governed_node(logical_id: &str, body_tag: &str) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 

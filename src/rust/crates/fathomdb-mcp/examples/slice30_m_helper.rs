@@ -57,6 +57,7 @@ mod unix {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             }])?;
             engine.close()?;
         }

@@ -59,6 +59,7 @@ fn anonymous_node(body: &str, source_id: &str) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 

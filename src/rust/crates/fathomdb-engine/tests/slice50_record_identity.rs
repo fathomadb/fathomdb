@@ -17,6 +17,7 @@ fn node(id: Option<&str>, source: &str, body: &str) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 
@@ -152,6 +153,7 @@ fn equal_body_node_and_edge_keep_their_namespaces_and_text_positions() {
                 confidence: None,
                 extractor_model_id: None,
                 temporal_fallback: None,
+                properties: None,
             },
         ])
         .unwrap();
@@ -245,6 +247,7 @@ fn graph_reached_record_is_not_excluded_by_an_unrelated_vector_body_twin() {
                 confidence: None,
                 extractor_model_id: None,
                 temporal_fallback: None,
+                properties: None,
             },
         ])
         .unwrap();
@@ -328,6 +331,7 @@ fn ownerless_fixture(
                 confidence,
                 extractor_model_id: None,
                 temporal_fallback: None,
+                properties: None,
             },
         ])
         .unwrap();
@@ -490,6 +494,7 @@ fn conflicting_fts_owner_bodies_and_stored_kinds_refuse_instead_of_returning_for
                     confidence: None,
                     extractor_model_id: None,
                     temporal_fallback: None,
+                    properties: None,
                 }
             };
             let receipt = opened.engine.write(&[write]).unwrap();
@@ -563,6 +568,7 @@ fn same_record_vector_edge_keeps_its_representative_kind_and_source() {
             confidence: None,
             extractor_model_id: None,
             temporal_fallback: None,
+            properties: None,
         }])
         .unwrap();
     opened.engine.drain(10_000).unwrap();
@@ -676,6 +682,7 @@ fn equal_body_evidence_sidecars_resolve_the_exact_selected_record_source() {
                     ArtifactRevisionId::new(format!("revision:{label}")).unwrap(),
                     SourceVersionId::new(format!("version:{label}")).unwrap(),
                 ),
+                properties: None,
             })
         })
         .collect();

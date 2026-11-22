@@ -1,19 +1,155 @@
 use fathomdb_engine::{
     configure_runtime, EmbedderChoice, Engine, EngineConfig, InitialState, PreparedWrite,
-    RuntimeSqliteMode, SourceId,
+    ProjectionFts, ProjectionRole, ProjectionSpec, ProjectionVector, PropertyEntityClass,
+    RuntimeSqliteMode, SourceId, WriteProvenanceV1,
 };
 use std::path::{Path, PathBuf};
 
-pub(crate) fn node(id: &str, body: &str) -> PreparedWrite {
+#[allow(clippy::too_many_arguments)]
+#[allow(dead_code)]
+pub(crate) fn node_with(
+    kind: &str,
+    logical_id: Option<&str>,
+    body: &str,
+    source_id: &str,
+    state: InitialState,
+    reason: Option<&str>,
+    valid_from: Option<i64>,
+    valid_until: Option<i64>,
+) -> PreparedWrite {
     PreparedWrite::Node {
+        kind: kind.into(),
+        body: body.into(),
+        source_id: SourceId::new(source_id).unwrap(),
+        logical_id: logical_id.map(str::to_string),
+        state,
+        reason: reason.map(str::to_string),
+        valid_from,
+        valid_until,
+        properties: None,
+    }
+}
+
+pub(crate) fn node(id: &str, body: &str) -> PreparedWrite {
+    node_with("document", Some(id), body, "fixture:source", InitialState::Active, None, None, None)
+}
+
+#[allow(clippy::too_many_arguments)]
+#[allow(dead_code)]
+pub(crate) fn edge_with(
+    kind: &str,
+    from: &str,
+    to: &str,
+    source_id: &str,
+    logical_id: Option<&str>,
+    body: Option<String>,
+    t_valid: Option<i64>,
+    t_invalid: Option<i64>,
+    confidence: Option<f64>,
+    extractor_model_id: Option<String>,
+    temporal_fallback: Option<bool>,
+) -> PreparedWrite {
+    PreparedWrite::Edge {
+        kind: kind.into(),
+        from: from.into(),
+        to: to.into(),
+        source_id: SourceId::new(source_id).unwrap(),
+        logical_id: logical_id.map(str::to_string),
+        body,
+        t_valid,
+        t_invalid,
+        confidence,
+        extractor_model_id,
+        temporal_fallback,
+        properties: None,
+    }
+}
+
+#[allow(dead_code)]
+pub(crate) fn edge(
+    kind: &str,
+    from: &str,
+    to: &str,
+    source_id: &str,
+    logical_id: Option<&str>,
+    body: Option<String>,
+) -> PreparedWrite {
+    edge_with(kind, from, to, source_id, logical_id, body, None, None, None, None, None)
+}
+
+#[allow(dead_code)]
+pub(crate) fn provenanced_node(
+    logical_id: Option<&str>,
+    body: &str,
+    source_id: &str,
+    valid_until: Option<i64>,
+    provenance: WriteProvenanceV1,
+) -> PreparedWrite {
+    PreparedWrite::ProvenancedNode(fathomdb_engine::ProvenancedNodeV1 {
         kind: "document".into(),
         body: body.into(),
-        source_id: SourceId::new("fixture:source").unwrap(),
-        logical_id: Some(id.into()),
+        source_id: SourceId::new(source_id).unwrap(),
+        logical_id: logical_id.map(str::to_string),
         state: InitialState::Active,
         reason: None,
         valid_from: None,
-        valid_until: None,
+        valid_until,
+        properties: None,
+        provenance,
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+#[allow(dead_code)]
+pub(crate) fn provenanced_edge(
+    kind: &str,
+    from: &str,
+    to: &str,
+    source_id: &str,
+    logical_id: Option<&str>,
+    body: Option<String>,
+    confidence: Option<f64>,
+    extractor_model_id: Option<String>,
+    temporal_fallback: Option<bool>,
+    provenance: WriteProvenanceV1,
+) -> PreparedWrite {
+    PreparedWrite::ProvenancedEdge(fathomdb_engine::ProvenancedEdgeV1 {
+        kind: kind.into(),
+        from: from.into(),
+        to: to.into(),
+        source_id: SourceId::new(source_id).unwrap(),
+        logical_id: logical_id.map(str::to_string),
+        body,
+        t_valid: None,
+        t_invalid: None,
+        confidence,
+        extractor_model_id,
+        temporal_fallback,
+        properties: None,
+        provenance,
+    })
+}
+
+#[allow(dead_code)]
+pub(crate) fn projection_vector(embedder: Option<String>) -> ProjectionVector {
+    ProjectionVector { embedder, dense_readiness: None, kinds: None }
+}
+
+#[allow(dead_code)]
+pub(crate) fn projection_spec(
+    name: &str,
+    roles: &[ProjectionRole],
+    fts: Option<ProjectionFts>,
+    vector: Option<ProjectionVector>,
+    source: Option<Vec<String>>,
+) -> ProjectionSpec {
+    ProjectionSpec {
+        name: name.into(),
+        roles: roles.iter().copied().collect(),
+        fts,
+        vector,
+        source,
+        entity_class: PropertyEntityClass::Node,
     }
 }
 pub(crate) fn database(dir: &Path) -> PathBuf {
@@ -30,37 +166,20 @@ pub(crate) fn database(dir: &Path) -> PathBuf {
 
 pub(crate) fn add_related(path: &Path) {
     use fathomdb_engine::{
-        ArtifactRevisionId, CanonicalHash, ProjectionRole, ProjectionSpec, ProvenancedNodeV1,
-        SourceLocator, SourceRevisionId, SourceVersionId, WriteProvenanceV1,
+        ArtifactRevisionId, CanonicalHash, SourceLocator, SourceRevisionId, SourceVersionId,
     };
     use sha2::{Digest, Sha256};
     let source = r#"{"title":"source-title","text":"source body"}"#;
     let digest: String =
         Sha256::digest(source.as_bytes()).iter().map(|b| format!("{b:02x}")).collect();
     let make = |id: &str, body: &str, provenance| {
-        PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
-            kind: "document".into(),
-            body: body.into(),
-            source_id: SourceId::new("fixture:canonical").unwrap(),
-            logical_id: Some(id.into()),
-            state: InitialState::Active,
-            reason: None,
-            valid_from: None,
-            valid_until: None,
-            provenance,
-        })
+        provenanced_node(Some(id), body, "fixture:canonical", None, provenance)
     };
     let opened = Engine::open_with_choice(path, EmbedderChoice::None).unwrap();
     opened
         .engine
         .configure_projections(
-            &[ProjectionSpec {
-                name: "title".into(),
-                roles: std::collections::BTreeSet::from([ProjectionRole::Filterable]),
-                fts: None,
-                vector: None,
-                source: None,
-            }],
+            &[projection_spec("title", &[ProjectionRole::Filterable], None, None, None)],
             &[],
         )
         .unwrap();
@@ -98,16 +217,16 @@ pub(crate) fn add_erasure_cases(path: &Path) {
         .engine
         .write(&[
             node("alpha", "new retained revision"),
-            PreparedWrite::Node {
-                kind: "document".into(),
-                body: "pending retained body".into(),
-                source_id: SourceId::new("fixture:pending").unwrap(),
-                logical_id: Some("pending".into()),
-                state: InitialState::Pending,
-                reason: Some("fixture state".into()),
-                valid_from: None,
-                valid_until: None,
-            },
+            node_with(
+                "document",
+                Some("pending"),
+                "pending retained body",
+                "fixture:pending",
+                InitialState::Pending,
+                Some("fixture state"),
+                None,
+                None,
+            ),
         ])
         .unwrap();
     opened
@@ -175,18 +294,15 @@ pub(crate) fn add_scale(path: &Path) {
     }
     for batch in 0..10 {
         let writes = (batch * 1000..(batch + 1) * 1000)
-            .map(|n| PreparedWrite::Edge {
-                kind: "scale-incident".into(),
-                from: "alpha".into(),
-                to: format!("scale-{n}"),
-                source_id: SourceId::new("fixture:scale").unwrap(),
-                logical_id: Some(format!("scale-edge-{n}")),
-                body: Some("incident edge".into()),
-                t_valid: None,
-                t_invalid: None,
-                confidence: None,
-                extractor_model_id: None,
-                temporal_fallback: None,
+            .map(|n| {
+                edge(
+                    "scale-incident",
+                    "alpha",
+                    &format!("scale-{n}"),
+                    "fixture:scale",
+                    Some(&format!("scale-edge-{n}")),
+                    Some("incident edge".into()),
+                )
             })
             .collect::<Vec<_>>();
         opened.engine.write(&writes).unwrap();
@@ -202,21 +318,8 @@ pub(crate) fn add_scale(path: &Path) {
 #[allow(dead_code)]
 pub(crate) fn add_nullable(path: &Path) {
     let opened = Engine::open_with_choice(path, EmbedderChoice::None).unwrap();
-    let writes = [("null-edge", None), ("empty-edge", Some(String::new()))].map(|(id, body)| {
-        PreparedWrite::Edge {
-            kind: "nullable".into(),
-            from: "alpha".into(),
-            to: "beta".into(),
-            source_id: SourceId::new("fixture:nullable").unwrap(),
-            logical_id: Some(id.into()),
-            body,
-            t_valid: None,
-            t_invalid: None,
-            confidence: None,
-            extractor_model_id: None,
-            temporal_fallback: None,
-        }
-    });
+    let writes = [("null-edge", None), ("empty-edge", Some(String::new()))]
+        .map(|(id, body)| edge("nullable", "alpha", "beta", "fixture:nullable", Some(id), body));
     opened.engine.write(&writes).unwrap();
     opened.engine.close().unwrap();
 }
@@ -224,32 +327,33 @@ pub(crate) fn add_nullable(path: &Path) {
 #[allow(dead_code)]
 pub(crate) fn add_metadata(path: &Path) {
     let opened = Engine::open_with_choice(path, EmbedderChoice::None).unwrap();
+    let reason = "retained reason é🦀".repeat(20000);
     opened
         .engine
         .write(&[
-            PreparedWrite::Node {
-                kind: "document".into(),
-                body: "metadata fixture body".into(),
-                source_id: SourceId::new("fixture:metadata").unwrap(),
-                logical_id: Some("metadata".into()),
-                state: InitialState::Pending,
-                reason: Some("retained reason é🦀".repeat(20000)),
-                valid_from: Some(1),
-                valid_until: None,
-            },
-            PreparedWrite::Edge {
-                kind: "precision".into(),
-                from: "alpha".into(),
-                to: "beta".into(),
-                source_id: SourceId::new("fixture:metadata").unwrap(),
-                logical_id: Some("metadata-edge".into()),
-                body: None,
-                t_valid: None,
-                t_invalid: None,
-                confidence: Some(0.12345678901234566),
-                extractor_model_id: Some(String::new()),
-                temporal_fallback: Some(true),
-            },
+            node_with(
+                "document",
+                Some("metadata"),
+                "metadata fixture body",
+                "fixture:metadata",
+                InitialState::Pending,
+                Some(&reason),
+                Some(1),
+                None,
+            ),
+            edge_with(
+                "precision",
+                "alpha",
+                "beta",
+                "fixture:metadata",
+                Some("metadata-edge"),
+                None,
+                None,
+                None,
+                Some(0.12345678901234566),
+                Some(String::new()),
+                Some(true),
+            ),
         ])
         .unwrap();
     opened.engine.close().unwrap();
@@ -257,18 +361,11 @@ pub(crate) fn add_metadata(path: &Path) {
 
 #[allow(dead_code)]
 pub(crate) fn add_catalog_cap_cases(path: &Path) {
-    use fathomdb_engine::{ProjectionRole, ProjectionSpec};
     let opened = Engine::open_with_choice(path, EmbedderChoice::None).unwrap();
     opened
         .engine
         .configure_projections(
-            &[ProjectionSpec {
-                name: "title".into(),
-                roles: std::collections::BTreeSet::from([ProjectionRole::Searchable]),
-                fts: None,
-                vector: None,
-                source: None,
-            }],
+            &[projection_spec("title", &[ProjectionRole::Searchable], None, None, None)],
             &[],
         )
         .unwrap();
@@ -312,8 +409,7 @@ pub(crate) fn add_catalog_cap_cases(path: &Path) {
 #[allow(dead_code)]
 pub(crate) fn add_many_related(path: &Path) {
     use fathomdb_engine::{
-        ArtifactRevisionId, CanonicalHash, ProvenancedNodeV1, SourceLocator, SourceRevisionId,
-        SourceVersionId, WriteProvenanceV1,
+        ArtifactRevisionId, CanonicalHash, SourceLocator, SourceRevisionId, SourceVersionId,
     };
     use sha2::{Digest, Sha256};
     add_related(path);
@@ -325,23 +421,19 @@ pub(crate) fn add_many_related(path: &Path) {
     let opened = Engine::open_with_choice(path, EmbedderChoice::None).unwrap();
     opened
         .engine
-        .write(&[PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
-            kind: "document".into(),
-            body: r#"{"title":"new-derived-title","text":"second derived body"}"#.into(),
-            source_id: SourceId::new("fixture:canonical").unwrap(),
-            logical_id: Some("derived".into()),
-            state: InitialState::Active,
-            reason: None,
-            valid_from: None,
-            valid_until: None,
-            provenance: WriteProvenanceV1::derived(
+        .write(&[provenanced_node(
+            Some("derived"),
+            r#"{"title":"new-derived-title","text":"second derived body"}"#,
+            "fixture:canonical",
+            None,
+            WriteProvenanceV1::derived(
                 ArtifactRevisionId::new("derived-r2").unwrap(),
                 SourceVersionId::new("source-v1").unwrap(),
                 SourceRevisionId::new("source-r1").unwrap(),
                 SourceLocator::whole_body(),
                 CanonicalHash::sha256(digest).unwrap(),
             ),
-        })])
+        )])
         .unwrap();
     opened.engine.close().unwrap();
 }
@@ -356,21 +448,17 @@ pub(crate) fn add_chunked(path: &Path) {
 
 #[allow(dead_code)]
 pub(crate) fn add_lexical(path: &Path) {
-    use fathomdb_engine::{ProjectionFts, ProjectionRole, ProjectionSpec};
     let opened = Engine::open_with_choice(path, EmbedderChoice::None).unwrap();
     opened
         .engine
         .configure_projections(
-            &[ProjectionSpec {
-                name: "biography".into(),
-                roles: std::collections::BTreeSet::from([
-                    ProjectionRole::Searchable,
-                    ProjectionRole::Filterable,
-                ]),
-                fts: Some(ProjectionFts { tokenizer: Some("unicode61".into()) }),
-                vector: None,
-                source: Some(vec!["profile".into(), "biography".into()]),
-            }],
+            &[projection_spec(
+                "biography",
+                &[ProjectionRole::Searchable, ProjectionRole::Filterable],
+                Some(ProjectionFts { tokenizer: Some("unicode61".into()) }),
+                None,
+                Some(vec!["profile".into(), "biography".into()]),
+            )],
             &[],
         )
         .unwrap();
@@ -396,26 +484,20 @@ pub(crate) fn add_lexical(path: &Path) {
     }
     opened
         .engine
-        .write(&[PreparedWrite::Edge {
-            kind: "knows".into(),
-            from: "lexical-a".into(),
-            to: "lexical-b".into(),
-            source_id: SourceId::new("fixture:lexical-edge").unwrap(),
-            logical_id: Some("lexical-edge".into()),
-            body: Some("café runner edge".into()),
-            t_valid: None,
-            t_invalid: None,
-            confidence: None,
-            extractor_model_id: None,
-            temporal_fallback: None,
-        }])
+        .write(&[edge(
+            "knows",
+            "lexical-a",
+            "lexical-b",
+            "fixture:lexical-edge",
+            Some("lexical-edge"),
+            Some("café runner edge".into()),
+        )])
         .unwrap();
     opened.engine.close().unwrap();
 }
 
 #[allow(dead_code)]
 pub(crate) fn add_lexical_envelope(path: &Path) -> serde_json::Value {
-    use fathomdb_engine::{ProjectionRole, ProjectionSpec};
     let opened = Engine::open_with_choice(path, EmbedderChoice::None).unwrap();
     let names = (0..8).map(|n| format!("{}-{n}", "a".repeat(4090))).collect::<Vec<_>>();
     let value = "v".repeat(4096);
@@ -424,18 +506,14 @@ pub(crate) fn add_lexical_envelope(path: &Path) -> serde_json::Value {
         .configure_projections(
             &names
                 .iter()
-                .map(|name| ProjectionSpec {
-                    name: name.clone(),
-                    roles: std::collections::BTreeSet::from([ProjectionRole::Filterable]),
-                    fts: None,
-                    vector: None,
-                    source: None,
-                })
+                .map(|name| projection_spec(name, &[ProjectionRole::Filterable], None, None, None))
                 .collect::<Vec<_>>(),
             &[],
         )
         .unwrap();
     let prefix = "i".repeat(4080);
+    let source_id = "s".repeat(4096);
+    let reason = "🦀".repeat(4096);
     let mut writes = vec![];
     for n in 0..100 {
         let mut body = serde_json::Map::new();
@@ -444,16 +522,17 @@ pub(crate) fn add_lexical_envelope(path: &Path) -> serde_json::Value {
         }
         body.insert("text".into(), serde_json::json!("needle"));
         body.insert("number".into(), serde_json::json!(n));
-        writes.push(PreparedWrite::Node {
-            kind: "document".into(),
-            body: serde_json::Value::Object(body).to_string(),
-            source_id: SourceId::new("s".repeat(4096)).unwrap(),
-            logical_id: Some(format!("{prefix}-{n}")),
-            state: InitialState::Active,
-            reason: Some("🦀".repeat(4096)),
-            valid_from: None,
-            valid_until: None,
-        });
+        let logical_id = format!("{prefix}-{n}");
+        writes.push(node_with(
+            "document",
+            Some(&logical_id),
+            &serde_json::Value::Object(body).to_string(),
+            &source_id,
+            InitialState::Active,
+            Some(&reason),
+            None,
+            None,
+        ));
     }
     opened.engine.write(&writes).unwrap();
     opened.engine.close().unwrap();
@@ -476,8 +555,8 @@ pub(crate) fn add_lexical_native(path: &Path) {
 #[allow(dead_code)]
 pub(crate) fn add_graph(path: &Path) {
     use fathomdb_engine::{
-        ArtifactRevisionId, CanonicalHash, ProvenancedEdgeV1, SourceDependencyRegistrationV1,
-        SourceLocator, SourceRevisionId, SourceVersionId, WriteProvenanceV1,
+        ArtifactRevisionId, CanonicalHash, SourceDependencyRegistrationV1, SourceLocator,
+        SourceRevisionId, SourceVersionId,
     };
     use sha2::{Digest, Sha256};
     add_many_related(path);
@@ -494,23 +573,19 @@ pub(crate) fn add_graph(path: &Path) {
         Sha256::digest(source.as_bytes()).iter().map(|b| format!("{b:02x}")).collect();
     opened
         .engine
-        .write(&[PreparedWrite::ProvenancedNode(fathomdb_engine::ProvenancedNodeV1 {
-            kind: "document".into(),
-            body: "native graph alpha target".into(),
-            source_id: SourceId::new("fixture:canonical").unwrap(),
-            logical_id: Some("alpha".into()),
-            state: InitialState::Active,
-            reason: None,
-            valid_from: None,
-            valid_until: None,
-            provenance: WriteProvenanceV1::derived(
+        .write(&[provenanced_node(
+            Some("alpha"),
+            "native graph alpha target",
+            "fixture:canonical",
+            None,
+            WriteProvenanceV1::derived(
                 ArtifactRevisionId::new("alpha-r1").unwrap(),
                 SourceVersionId::new("source-v1").unwrap(),
                 SourceRevisionId::new("source-r1").unwrap(),
                 SourceLocator::whole_body(),
                 CanonicalHash::sha256(digest.clone()).unwrap(),
             ),
-        })])
+        )])
         .unwrap();
     let mut writes = vec![];
     for (id, from, to, kind, body) in [
@@ -526,26 +601,24 @@ pub(crate) fn add_graph(path: &Path) {
         ("cycle", "alpha", "derived", "returns", Some("cycle body".into())),
         ("missing", "derived", "not-retained", "supports", Some("missing endpoint body".into())),
     ] {
-        writes.push(PreparedWrite::ProvenancedEdge(ProvenancedEdgeV1 {
-            kind: kind.into(),
-            from: from.into(),
-            to: to.into(),
-            source_id: SourceId::new("fixture:canonical").unwrap(),
-            logical_id: Some(id.into()),
+        writes.push(provenanced_edge(
+            kind,
+            from,
+            to,
+            "fixture:canonical",
+            Some(id),
             body,
-            t_valid: None,
-            t_invalid: None,
-            confidence: Some(0.75),
-            extractor_model_id: Some("extractor-v1".into()),
-            temporal_fallback: Some(false),
-            provenance: WriteProvenanceV1::derived(
+            Some(0.75),
+            Some("extractor-v1".into()),
+            Some(false),
+            WriteProvenanceV1::derived(
                 ArtifactRevisionId::new(format!("{id}-r1")).unwrap(),
                 SourceVersionId::new("source-v1").unwrap(),
                 SourceRevisionId::new("source-r1").unwrap(),
                 SourceLocator::whole_body(),
                 CanonicalHash::sha256(digest.clone()).unwrap(),
             ),
-        }));
+        ));
     }
     opened.engine.write(&writes).unwrap();
     opened.engine.close().unwrap();
@@ -556,18 +629,15 @@ pub(crate) fn add_graph_visual(path: &Path) {
     add_graph(path);
     let opened = Engine::open_with_choice(path, EmbedderChoice::None).unwrap();
     let writes = (0..10)
-        .map(|i| PreparedWrite::Edge {
-            kind: "visual".into(),
-            from: "derived".into(),
-            to: if i < 2 { "derived".into() } else { "alpha".into() },
-            source_id: SourceId::new("fixture:visual").unwrap(),
-            logical_id: Some(format!("visual-{i}")),
-            body: None,
-            t_valid: None,
-            t_invalid: None,
-            confidence: None,
-            extractor_model_id: None,
-            temporal_fallback: None,
+        .map(|i| {
+            edge(
+                "visual",
+                "derived",
+                if i < 2 { "derived" } else { "alpha" },
+                "fixture:visual",
+                Some(&format!("visual-{i}")),
+                None,
+            )
         })
         .collect::<Vec<_>>();
     opened.engine.write(&writes).unwrap();
@@ -577,21 +647,18 @@ pub(crate) fn add_graph_visual(path: &Path) {
 #[allow(dead_code)]
 pub(crate) fn add_graph_missing_prefix(path: &Path) {
     let opened = Engine::open_with_choice(path, EmbedderChoice::None).unwrap();
+    let from = "p".repeat(5000);
+    let to = format!("{}q", "p".repeat(5000));
     opened
         .engine
-        .write(&[PreparedWrite::Edge {
-            kind: "missing-prefix".into(),
-            from: "p".repeat(5000),
-            to: format!("{}q", "p".repeat(5000)),
-            source_id: SourceId::new("fixture:missing-prefix").unwrap(),
-            logical_id: Some("prefix-edge".into()),
-            body: None,
-            t_valid: None,
-            t_invalid: None,
-            confidence: None,
-            extractor_model_id: None,
-            temporal_fallback: None,
-        }])
+        .write(&[edge(
+            "missing-prefix",
+            &from,
+            &to,
+            "fixture:missing-prefix",
+            Some("prefix-edge"),
+            None,
+        )])
         .unwrap();
     opened.engine.close().unwrap();
 }
@@ -600,18 +667,15 @@ pub(crate) fn add_graph_missing_prefix(path: &Path) {
 pub(crate) fn add_graph_highdegree(path: &Path) {
     let opened = Engine::open_with_choice(path, EmbedderChoice::None).unwrap();
     let writes = (0..160)
-        .map(|i| PreparedWrite::Edge {
-            kind: "bounded-incident".into(),
-            from: "alpha".into(),
-            to: format!("missing-{i}"),
-            source_id: SourceId::new("fixture:highdegree").unwrap(),
-            logical_id: Some(format!("incident-{i}")),
-            body: None,
-            t_valid: None,
-            t_invalid: None,
-            confidence: None,
-            extractor_model_id: None,
-            temporal_fallback: None,
+        .map(|i| {
+            edge(
+                "bounded-incident",
+                "alpha",
+                &format!("missing-{i}"),
+                "fixture:highdegree",
+                Some(&format!("incident-{i}")),
+                None,
+            )
         })
         .collect::<Vec<_>>();
     opened.engine.write(&writes).unwrap();
@@ -642,16 +706,16 @@ pub(crate) fn comparison_policy(dir: &Path) -> PathBuf {
         .engine
         .write(&[
             node("alpha", "current comparison needle"),
-            PreparedWrite::Node {
-                kind: "document".into(),
-                body: "pending retained body".into(),
-                source_id: SourceId::new("fixture:source").unwrap(),
-                logical_id: Some("pending".into()),
-                state: InitialState::Pending,
-                reason: Some("fixture state".into()),
-                valid_from: None,
-                valid_until: None,
-            },
+            node_with(
+                "document",
+                Some("pending"),
+                "pending retained body",
+                "fixture:source",
+                InitialState::Pending,
+                Some("fixture state"),
+                None,
+                None,
+            ),
             PreparedWrite::AdminSchema {
                 name: "state".into(),
                 kind: "latest_state".into(),
@@ -690,8 +754,7 @@ pub(crate) fn comparison_policy(dir: &Path) -> PathBuf {
 #[allow(dead_code)]
 pub(crate) fn add_comparison_expiry(path: &Path) {
     use fathomdb_engine::{
-        ArtifactRevisionId, CanonicalHash, ProvenancedNodeV1, SourceLocator, SourceRevisionId,
-        SourceVersionId, WriteProvenanceV1,
+        ArtifactRevisionId, CanonicalHash, SourceLocator, SourceRevisionId, SourceVersionId,
     };
     use sha2::{Digest, Sha256};
     add_graph(path);
@@ -704,23 +767,19 @@ pub(crate) fn add_comparison_expiry(path: &Path) {
         + 8;
     opened
         .engine
-        .write(&[PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
-            kind: "document".into(),
-            body: "alpha expires after unpin".into(),
-            source_id: SourceId::new("fixture:canonical").unwrap(),
-            logical_id: Some("alpha".into()),
-            state: InitialState::Active,
-            reason: None,
-            valid_from: None,
-            valid_until: Some(end),
-            provenance: WriteProvenanceV1::derived(
+        .write(&[provenanced_node(
+            Some("alpha"),
+            "alpha expires after unpin",
+            "fixture:canonical",
+            Some(end),
+            WriteProvenanceV1::derived(
                 ArtifactRevisionId::new("alpha-expiring-r1").unwrap(),
                 SourceVersionId::new("source-v1").unwrap(),
                 SourceRevisionId::new("source-r1").unwrap(),
                 SourceLocator::whole_body(),
                 CanonicalHash::sha256(digest).unwrap(),
             ),
-        })])
+        )])
         .unwrap();
     opened.engine.close().unwrap();
 }
@@ -735,22 +794,19 @@ pub(crate) fn add_ux_hub(path: &Path) {
     for n in 0..210 {
         writes.push(node(&format!("ux-leaf-{n}"), "ordinary linked note"));
     }
-    let edge = |id: String, from: String, to: String| PreparedWrite::Edge {
-        kind: "mentions_project".into(),
-        from,
-        to,
-        logical_id: Some(id),
-        source_id: SourceId::new("fixture:ux").unwrap(),
-        body: Some("recorded project mention".into()),
-        t_valid: None,
-        t_invalid: None,
-        confidence: None,
-        extractor_model_id: None,
-        temporal_fallback: None,
+    let ux_edge = |id: String, from: String, to: String| {
+        edge(
+            "mentions_project",
+            &from,
+            &to,
+            "fixture:ux",
+            Some(&id),
+            Some("recorded project mention".into()),
+        )
     };
-    writes.push(edge("ux-first".into(), "ux-seed".into(), "ux-hub".into()));
+    writes.push(ux_edge("ux-first".into(), "ux-seed".into(), "ux-hub".into()));
     for n in 0..210 {
-        writes.push(edge(format!("ux-edge-{n}"), "ux-hub".into(), format!("ux-leaf-{n}")));
+        writes.push(ux_edge(format!("ux-edge-{n}"), "ux-hub".into(), format!("ux-leaf-{n}")));
     }
     opened.engine.write(&writes).unwrap();
     opened.engine.close().unwrap();

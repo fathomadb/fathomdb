@@ -187,6 +187,7 @@ fn plain_node(
         reason: None,
         valid_from,
         valid_until,
+        properties: None,
     }
 }
 
@@ -214,6 +215,7 @@ fn plain_edge(
         confidence: None,
         extractor_model_id: None,
         temporal_fallback: None,
+        properties: None,
     }
 }
 
@@ -231,6 +233,7 @@ fn provenanced_seed(logical_id: &str, version: &str) -> PreparedWrite {
             ArtifactRevisionId::new(SEED_REVISION).unwrap(),
             SourceVersionId::new(version).unwrap(),
         ),
+        properties: None,
     })
 }
 
@@ -239,8 +242,9 @@ fn vector_spec() -> ProjectionSpec {
         name: "summary".into(),
         roles: BTreeSet::from([ProjectionRole::Searchable]),
         fts: None,
-        vector: Some(ProjectionVector { embedder: None, dense_readiness: None }),
+        vector: Some(ProjectionVector { embedder: None, dense_readiness: None, kinds: None }),
         source: None,
+        entity_class: fathomdb_engine::PropertyEntityClass::Node,
     }
 }
 

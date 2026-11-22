@@ -158,6 +158,7 @@ fn write_throughput_sample(payload_bytes: usize, minimum_commits_per_second: f64
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     };
 
     let warmup_deadline = Instant::now() + AC011_WARMUP;
@@ -235,6 +236,7 @@ fn seed_ac020_fixture(engine: &Engine) {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             }])
             .expect("vector-only write");
         engine
@@ -247,6 +249,7 @@ fn seed_ac020_fixture(engine: &Engine) {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             }])
             .expect("hybrid write");
     }
@@ -462,6 +465,7 @@ fn seed_ac012_corpus(engine: &Engine, n: usize) -> Duration {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             });
         }
         engine.write(&batch).expect("ac-012 seed write");
@@ -581,6 +585,7 @@ fn seed_ac013_corpus(engine: &Engine, n: usize) -> Ac013SeedMetrics {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             });
         }
         engine.write(&batch).expect("ac-013 seed write");
@@ -1019,6 +1024,7 @@ fn ac_013_vector_read_path_smoke() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         })
         .collect();
     opened.engine.write(&batch).expect("smoke seed write");
@@ -1091,6 +1097,7 @@ fn ac_017_vector_projection_freshness_p99_le_five_seconds() {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             }])
             .expect("write");
 
@@ -1137,6 +1144,7 @@ fn ac_018_drain_of_100_vectors_le_two_seconds() {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             }])
             .expect("write");
     }

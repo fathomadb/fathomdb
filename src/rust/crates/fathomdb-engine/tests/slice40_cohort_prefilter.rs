@@ -96,6 +96,7 @@ fn spec(name: &str, role: ProjectionRole, fts: bool) -> ProjectionSpec {
         fts: fts.then_some(ProjectionFts { tokenizer: None }),
         vector: None,
         source: None,
+        entity_class: fathomdb_engine::PropertyEntityClass::Node,
     }
 }
 
@@ -109,6 +110,7 @@ fn node(logical_id: &str, kind: &str, title: &str, cohort: &str, tag: &str) -> P
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 
@@ -664,6 +666,7 @@ fn cohort_prefilter_timing_report() {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             })
             .collect();
         for chunk in writes.chunks(1000) {

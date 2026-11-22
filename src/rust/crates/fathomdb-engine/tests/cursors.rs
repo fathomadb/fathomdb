@@ -53,6 +53,7 @@ fn ac_059a_projection_cursor_is_monotonic_non_decreasing() {
                     reason: None,
                     valid_from: None,
                     valid_until: None,
+                    properties: None,
                 }])
                 .unwrap();
         }
@@ -80,6 +81,7 @@ fn ac_059b_write_cursor_is_satisfied_by_projection_cursor_and_queryable() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .unwrap()
         .cursor;
@@ -117,6 +119,7 @@ fn failed_commit_does_not_publish_projection_cursor() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .unwrap()
         .cursor;
@@ -132,6 +135,7 @@ fn failed_commit_does_not_publish_projection_cursor() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("test-like node kind is still user data");
     assert_eq!(err.cursor, committed + 1);
@@ -148,6 +152,7 @@ fn failed_commit_does_not_publish_projection_cursor() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect_err("forced storage failure should fail after validation");
     assert_eq!(err, fathomdb_engine::EngineError::Storage);
@@ -172,6 +177,7 @@ fn concurrent_search_does_not_observe_speculative_failed_cursor() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .unwrap()
         .cursor;
@@ -194,6 +200,7 @@ fn concurrent_search_does_not_observe_speculative_failed_cursor() {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             }])
             .expect_err("forced storage failure should fail")
     });

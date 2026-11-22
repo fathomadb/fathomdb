@@ -2356,6 +2356,7 @@ fn excise_report_json(r: &ExciseReport) -> Value {
         "nodes_excised": r.nodes_excised,
         "edges_excised": r.edges_excised,
         "projections_invalidated": r.projections_invalidated,
+        "completed_pending_erasure": r.completed_pending_erasure,
     })
 }
 

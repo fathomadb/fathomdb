@@ -76,6 +76,7 @@ fn ac_g1_hit_shape_text_branch() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("write");
     opened.engine.drain(10_000).expect("drain");
@@ -117,6 +118,7 @@ fn ac_g1_hit_shape_vector_branch() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("write");
     opened.engine.drain(10_000).expect("drain");
@@ -151,6 +153,7 @@ fn ac_g1_dedup_on_body_and_vector_first_order() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("write 1");
     let r2 = opened
@@ -164,6 +167,7 @@ fn ac_g1_dedup_on_body_and_vector_first_order() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("write 2");
     opened.engine.drain(10_000).expect("drain");
@@ -218,6 +222,7 @@ fn ac_g1_no_eq_but_partial_eq() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("write");
     opened.engine.drain(10_000).expect("drain");
@@ -255,6 +260,7 @@ fn cause_a_doc_node_stable_id_is_content_hash() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("write");
     opened.engine.drain(10_000).expect("drain");
@@ -300,6 +306,7 @@ fn cause_a_doc_node_stable_id_survives_reingest() {
                     reason: None,
                     valid_from: None,
                     valid_until: None,
+                    properties: None,
                 }])
                 .expect("pad");
         }
@@ -314,6 +321,7 @@ fn cause_a_doc_node_stable_id_survives_reingest() {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             }])
             .expect("write");
         opened.engine.drain(10_000).expect("drain");
@@ -354,6 +362,7 @@ fn cause_a_logical_id_node_is_l_tagged() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("write");
     opened.engine.drain(10_000).expect("drain");
@@ -401,6 +410,7 @@ fn supersession_search_excludes_superseded_node_version() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("write v1");
     opened.engine.drain(10_000).expect("drain v1");
@@ -418,6 +428,7 @@ fn supersession_search_excludes_superseded_node_version() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("write v2");
     opened.engine.drain(10_000).expect("drain v2");
@@ -462,6 +473,7 @@ fn cause_a_distinct_bodies_distinct_stable_ids() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("w1");
     let r2 = opened
@@ -475,6 +487,7 @@ fn cause_a_distinct_bodies_distinct_stable_ids() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("w2");
     opened.engine.drain(10_000).expect("drain");

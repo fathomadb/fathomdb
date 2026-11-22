@@ -34,6 +34,7 @@ fn write_chain(engine: &Engine, source_id: &str) {
                     ArtifactRevisionId::new("source-r1").unwrap(),
                     SourceVersionId::new("v1").unwrap(),
                 ),
+                properties: None,
             }),
             PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
                 kind: "fact".into(),
@@ -51,6 +52,7 @@ fn write_chain(engine: &Engine, source_id: &str) {
                     SourceLocator::whole_body(),
                     CanonicalHash::sha256(digest("canonical body")).unwrap(),
                 ),
+                properties: None,
             }),
         ])
         .unwrap();

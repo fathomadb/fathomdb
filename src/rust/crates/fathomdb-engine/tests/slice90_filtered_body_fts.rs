@@ -15,6 +15,7 @@ fn node(id: &str, body: String) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 
@@ -31,6 +32,7 @@ fn edge(id: &str, body: String) -> PreparedWrite {
         confidence: None,
         extractor_model_id: None,
         temporal_fallback: None,
+        properties: None,
     }
 }
 
@@ -41,6 +43,7 @@ fn filterable(name: &str) -> ProjectionSpec {
         fts: None,
         vector: None,
         source: None,
+        entity_class: fathomdb_engine::PropertyEntityClass::Node,
     }
 }
 

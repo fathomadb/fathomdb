@@ -388,6 +388,7 @@ pub fn ingest(engine: &Engine, docs: &[Doc]) -> (usize, usize, BTreeMap<String, 
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         })
         .collect();
     let nodes_written = node_batch.len();
@@ -415,6 +416,7 @@ pub fn ingest(engine: &Engine, docs: &[Doc]) -> (usize, usize, BTreeMap<String, 
             confidence: None,
             extractor_model_id: None,
             temporal_fallback: None,
+            properties: None,
         });
     }
     let edges_written = edge_batch.len();

@@ -17,6 +17,7 @@ fn write_node(engine: &fathomdb_engine::Engine, body: &str, source_id: &str) -> 
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("write")
         .cursor
@@ -69,6 +70,7 @@ fn ac_042_trace_source_ref_includes_edges_alongside_nodes() {
             confidence: None,
             extractor_model_id: None,
             temporal_fallback: None,
+            properties: None,
         }])
         .expect("edge write");
 
@@ -96,6 +98,7 @@ fn ac_042_trace_source_ref_excludes_null_source_rows() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("write");
 

@@ -82,6 +82,7 @@ fn canonical(revision: &str, version: &str, logical: &str, body: &str) -> Prepar
             ArtifactRevisionId::new(revision).unwrap(),
             SourceVersionId::new(version).unwrap(),
         ),
+        properties: None,
     })
 }
 
@@ -106,6 +107,7 @@ fn canonical_with_validity(
             ArtifactRevisionId::new(revision).unwrap(),
             SourceVersionId::new(version).unwrap(),
         ),
+        properties: None,
     })
 }
 
@@ -120,6 +122,7 @@ fn derived_node(revision: &str, logical: &str, source_revision: &str) -> Prepare
         valid_from: None,
         valid_until: None,
         provenance: derived_provenance(revision, source_revision),
+        properties: None,
     })
 }
 
@@ -134,6 +137,7 @@ fn derived_node_with_body(revision: &str, logical: &str, body: &str) -> Prepared
         valid_from: None,
         valid_until: None,
         provenance: derived_provenance(revision, "source-r1"),
+        properties: None,
     })
 }
 
@@ -150,6 +154,7 @@ fn plain_edge(from: &str, to: &str, logical_id: &str) -> PreparedWrite {
         confidence: None,
         extractor_model_id: None,
         temporal_fallback: None,
+        properties: None,
     }
 }
 
@@ -195,6 +200,7 @@ fn derived_edge(revision: &str, source_revision: &str) -> PreparedWrite {
         extractor_model_id: None,
         temporal_fallback: None,
         provenance: derived_provenance(revision, source_revision),
+        properties: None,
     })
 }
 
@@ -731,6 +737,7 @@ fn vector_top_k_ineligible_dependencies_degrade_before_candidate_truncation() {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     });
     opened.engine.write(&writes).unwrap();
     for index in 0..TOP_K_BIT_CANDIDATES {
@@ -1047,6 +1054,7 @@ fn barrier_hides_derived_nodes_from_expansion_and_property_search() {
                 fts: Some(ProjectionFts { tokenizer: None }),
                 vector: None,
                 source: None,
+                entity_class: fathomdb_engine::PropertyEntityClass::Node,
             }],
             &[],
         )
@@ -1069,6 +1077,7 @@ fn barrier_hides_derived_nodes_from_expansion_and_property_search() {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             },
             plain_edge("root", "derived", "root-derived"),
         ])

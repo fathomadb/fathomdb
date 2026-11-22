@@ -39,6 +39,7 @@ fn node(id: &str, source: &str, body: &str) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 fn open(path: &Path) -> OpenedEngine {
@@ -55,6 +56,7 @@ fn seed(engine: &Engine) -> Vec<u64> {
                 fts: None,
                 vector: None,
                 source: None,
+                entity_class: fathomdb_engine::PropertyEntityClass::Node,
             }],
             &[],
         )
@@ -79,6 +81,7 @@ fn seed(engine: &Engine) -> Vec<u64> {
                     ArtifactRevisionId::new(n["revision"].as_str().unwrap()).unwrap(),
                     SourceVersionId::new(n["version"].as_str().unwrap()).unwrap(),
                 ),
+                properties: None,
             })
         })
         .collect::<Vec<_>>();
@@ -104,6 +107,7 @@ fn seed(engine: &Engine) -> Vec<u64> {
                 SourceLocator::whole_body(),
                 CanonicalHash::sha256(hash).unwrap(),
             ),
+            properties: None,
         })])
         .unwrap();
     engine
@@ -129,6 +133,7 @@ fn seed(engine: &Engine) -> Vec<u64> {
             confidence: None,
             extractor_model_id: None,
             temporal_fallback: None,
+            properties: None,
         }])
         .unwrap();
     receipt.row_cursors
@@ -484,6 +489,7 @@ fn object_cohesion_lag_drain_supersede_rollback_and_fresh_reopen() {
                 ArtifactRevisionId::new("cohesion:b-r2").unwrap(),
                 SourceVersionId::new("cohesion:b-v2").unwrap(),
             ),
+            properties: None,
         })])
         .unwrap();
     engine.drain(10_000).unwrap();

@@ -90,6 +90,8 @@ pub enum PreparedWrite {
         /// **the offending bounds are no longer carried in the error**. A caller
         /// that parsed them out must validate the pair before calling.
         valid_until: Option<i64>,
+        /// Optional typed scalar properties stored outside `body`.
+        properties: Option<PropertyMap>,
     },
     Edge {
         kind: String,
@@ -133,6 +135,8 @@ pub enum PreparedWrite {
         /// event times and are excluded from graph-arm BFS temporal queries.
         /// `None`/`false` = not a fallback; `Some(true)` = fallback.
         temporal_fallback: Option<bool>,
+        /// Optional typed scalar properties stored outside `body`.
+        properties: Option<PropertyMap>,
     },
     OpStore {
         collection: String,
@@ -159,6 +163,7 @@ pub(crate) fn storage_write_shape(write: &PreparedWrite) -> std::borrow::Cow<'_,
             reason: node.reason.clone(),
             valid_from: node.valid_from,
             valid_until: node.valid_until,
+            properties: node.properties.clone(),
         }),
         PreparedWrite::ProvenancedEdge(edge) => std::borrow::Cow::Owned(PreparedWrite::Edge {
             kind: edge.kind.clone(),
@@ -172,6 +177,7 @@ pub(crate) fn storage_write_shape(write: &PreparedWrite) -> std::borrow::Cow<'_,
             confidence: edge.confidence,
             extractor_model_id: edge.extractor_model_id.clone(),
             temporal_fallback: edge.temporal_fallback,
+            properties: edge.properties.clone(),
         }),
         _ => std::borrow::Cow::Borrowed(write),
     }

@@ -31,6 +31,7 @@ fn node() -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 
@@ -73,6 +74,7 @@ fn mutate(engine: &Engine, mutation: Mutation) {
                         fts: None,
                         vector: None,
                         source: None,
+                        entity_class: fathomdb_engine::PropertyEntityClass::Node,
                     }],
                     &[],
                 )

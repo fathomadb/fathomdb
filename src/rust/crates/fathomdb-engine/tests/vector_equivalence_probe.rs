@@ -694,6 +694,7 @@ fn post_open_registration_serves_in_session_and_baselines_at_next_open() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("write must not block on / be gated by the probe");
     // In-session serving is not refused (the registering backend is serving).

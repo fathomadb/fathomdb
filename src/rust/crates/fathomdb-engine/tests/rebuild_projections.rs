@@ -117,6 +117,7 @@ fn ac_044_rebuild_projections_purges_sentinel_bytes() {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             }])
             .expect("write");
         opened.engine.drain(10_000).expect("drain");
@@ -192,6 +193,7 @@ fn ac_063c_rebuild_projections_materializes_failed_terminal_rows() {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             }])
             .expect("write");
         assert!(wait_until(
@@ -251,6 +253,7 @@ fn slice_a_rebuild_projections_excludes_recency_invalidated_edge() {
             confidence: Some(0.9),
             extractor_model_id: Some("stub-extractor-v1".to_string()),
             temporal_fallback: None,
+            properties: None,
         };
         let newer = PreparedWrite::Edge {
             kind: "works_for".to_string(),
@@ -264,6 +267,7 @@ fn slice_a_rebuild_projections_excludes_recency_invalidated_edge() {
             confidence: Some(0.8),
             extractor_model_id: Some("stub-extractor-v1".to_string()),
             temporal_fallback: None,
+            properties: None,
         };
         let receipt = opened.engine.write(&[older, newer]).expect("seed two competing edges");
         assert_eq!(receipt.row_cursors.len(), 2, "batch of two edges");
@@ -383,6 +387,7 @@ fn slice15d_fix2_rebuild_projects_only_active_non_superseded_attributes() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }
     }
 
@@ -402,6 +407,7 @@ fn slice15d_fix2_rebuild_projects_only_active_non_superseded_attributes() {
                 fts: Some(fathomdb_engine::ProjectionFts { tokenizer: None }),
                 vector: None,
                 source: None,
+                entity_class: fathomdb_engine::PropertyEntityClass::Node,
             }],
             &[],
         )

@@ -63,6 +63,7 @@ fn db_with_sources() -> (TempDir, PathBuf) {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("write a");
     opened
@@ -76,6 +77,7 @@ fn db_with_sources() -> (TempDir, PathBuf) {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("write a2");
     opened
@@ -89,6 +91,7 @@ fn db_with_sources() -> (TempDir, PathBuf) {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("write b");
     opened.engine.close().expect("close");
@@ -151,6 +154,7 @@ fn t_erasure_bookkeeping_collections_refused_via_cli() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("write");
     opened.engine.drain(10_000).expect("drain");
@@ -483,6 +487,7 @@ fn busy_truncate_wal_is_retryable_not_accepted_loss() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("write after reader snapshot");
     opened.engine.close().expect("release product lock");

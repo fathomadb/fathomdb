@@ -43,6 +43,7 @@ fn fact_edge(from: &str, to: &str, logical_id: &str, body: &str, t_valid: i64) -
         confidence: Some(0.9),
         extractor_model_id: Some("stub-extractor-v1".to_string()),
         temporal_fallback: None,
+        properties: None,
     }
 }
 

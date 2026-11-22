@@ -345,6 +345,7 @@ fn the_projection_worker_records_the_pool_kind_stable_code() {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             }])
             .expect("write")
             .cursor;

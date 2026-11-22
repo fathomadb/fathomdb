@@ -86,6 +86,7 @@ fn spec(name: &str, role: ProjectionRole, fts: bool) -> ProjectionSpec {
         fts: fts.then_some(ProjectionFts { tokenizer: None }),
         vector: None,
         source: None,
+        entity_class: fathomdb_engine::PropertyEntityClass::Node,
     }
 }
 
@@ -99,6 +100,7 @@ fn node(logical_id: &str, title: &str, cohort: &str) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 

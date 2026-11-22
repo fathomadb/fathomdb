@@ -37,6 +37,7 @@ fn node(kind: &str, body: &str, logical_id: &str) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 
@@ -53,6 +54,7 @@ fn edge(from: &str, to: &str, logical_id: &str) -> PreparedWrite {
         confidence: None,
         extractor_model_id: None,
         temporal_fallback: None,
+        properties: None,
     }
 }
 
@@ -70,6 +72,7 @@ fn edge_with_t_invalid(from: &str, to: &str, logical_id: &str, t_invalid: i64) -
         confidence: None,
         extractor_model_id: None,
         temporal_fallback: None,
+        properties: None,
     }
 }
 
@@ -441,6 +444,7 @@ fn expired_edge_is_excluded_from_traversal() {
                 confidence: None,
                 extractor_model_id: None,
                 temporal_fallback: None,
+                properties: None,
             },
         ])
         .expect("write");
@@ -609,6 +613,7 @@ fn search_expand_anon_node_hit_does_not_crash() {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             },
             node("doc", "named shimmer unique probe beta node", "NAMED"),
         ])
@@ -651,6 +656,7 @@ fn write_rejects_logical_id_containing_record_separator() {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }]);
     assert!(
         matches!(result, Err(EngineError::WriteValidation)),
@@ -678,6 +684,7 @@ fn write_rejects_edge_endpoint_containing_record_separator() {
         confidence: None,
         extractor_model_id: None,
         temporal_fallback: None,
+        properties: None,
     }]);
     assert!(
         matches!(result, Err(EngineError::WriteValidation)),

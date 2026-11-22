@@ -55,6 +55,7 @@ fn fixture_with_pre_freeze_sql(sql: Option<&str>) -> (TempDir, Engine, GraphExpa
                     ArtifactRevisionId::new("source-r1").unwrap(),
                     SourceVersionId::new("source-v1").unwrap(),
                 ),
+                properties: None,
             }),
             PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
                 logical_id: Some("root".into()),
@@ -66,6 +67,7 @@ fn fixture_with_pre_freeze_sql(sql: Option<&str>) -> (TempDir, Engine, GraphExpa
                 valid_from: None,
                 valid_until: None,
                 provenance: derived("root-r1"),
+                properties: None,
             }),
             PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
                 logical_id: Some("target".into()),
@@ -77,6 +79,7 @@ fn fixture_with_pre_freeze_sql(sql: Option<&str>) -> (TempDir, Engine, GraphExpa
                 valid_from: None,
                 valid_until: None,
                 provenance: derived("target-r1"),
+                properties: None,
             }),
             PreparedWrite::ProvenancedEdge(ProvenancedEdgeV1 {
                 logical_id: Some("winner".into()),
@@ -91,6 +94,7 @@ fn fixture_with_pre_freeze_sql(sql: Option<&str>) -> (TempDir, Engine, GraphExpa
                 extractor_model_id: None,
                 temporal_fallback: None,
                 provenance: derived("edge-r1"),
+                properties: None,
             }),
         ])
         .unwrap();
@@ -160,6 +164,7 @@ fn fixture_with_two_targets() -> (TempDir, Engine, GraphExpandRequestV1) {
                     ArtifactRevisionId::new("source-r2").unwrap(),
                     SourceVersionId::new("source-v2").unwrap(),
                 ),
+                properties: None,
             }),
             PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
                 logical_id: Some("target-two".into()),
@@ -171,6 +176,7 @@ fn fixture_with_two_targets() -> (TempDir, Engine, GraphExpandRequestV1) {
                 valid_from: None,
                 valid_until: None,
                 provenance: derived("target-two-r1"),
+                properties: None,
             }),
             PreparedWrite::ProvenancedEdge(ProvenancedEdgeV1 {
                 logical_id: Some("winner-two".into()),
@@ -185,6 +191,7 @@ fn fixture_with_two_targets() -> (TempDir, Engine, GraphExpandRequestV1) {
                 extractor_model_id: None,
                 temporal_fallback: None,
                 provenance: derived("edge-two-r1"),
+                properties: None,
             }),
         ])
         .unwrap();
@@ -299,6 +306,7 @@ fn temporal_fixture(
                     ArtifactRevisionId::new("temporal-source-r1").unwrap(),
                     SourceVersionId::new("temporal-v1").unwrap(),
                 ),
+                properties: None,
             }),
             PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
                 logical_id: Some("temporal-root".into()),
@@ -310,6 +318,7 @@ fn temporal_fixture(
                 valid_from: None,
                 valid_until: None,
                 provenance: derived("temporal-root-r1"),
+                properties: None,
             }),
             PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
                 logical_id: Some("temporal-target".into()),
@@ -321,6 +330,7 @@ fn temporal_fixture(
                 valid_from: target_window.0,
                 valid_until: target_window.1,
                 provenance: derived("temporal-target-r1"),
+                properties: None,
             }),
             PreparedWrite::ProvenancedEdge(ProvenancedEdgeV1 {
                 logical_id: Some("temporal-edge".into()),
@@ -335,6 +345,7 @@ fn temporal_fixture(
                 extractor_model_id: None,
                 temporal_fallback: None,
                 provenance: derived("temporal-edge-r1"),
+                properties: None,
             }),
         ])
         .unwrap();
@@ -459,6 +470,7 @@ fn anonymous_winning_terminal_edge_resolves_with_no_logical_id() {
                 SourceLocator::whole_body(),
                 CanonicalHash::sha256(digest("canonical source bytes")).unwrap(),
             ),
+            properties: None,
         })])
         .unwrap();
     engine.drain(30_000).unwrap();
@@ -510,6 +522,7 @@ fn evidence_pins_the_traversal_winner_among_parallel_edges() {
                 SourceLocator::whole_body(),
                 CanonicalHash::sha256(digest(source)).unwrap(),
             ),
+            properties: None,
         })])
         .unwrap();
     engine.drain(30_000).unwrap();
@@ -769,6 +782,7 @@ fn source_attribute_eligibility_distinguishes_absent_from_present_empty() {
                 fts: None,
                 vector: None,
                 source: None,
+                entity_class: fathomdb_engine::PropertyEntityClass::Node,
             }],
             &[],
         )
@@ -1326,6 +1340,7 @@ fn canonical_target_fixture() -> (TempDir, Engine, GraphExpandRequestV1) {
                     ArtifactRevisionId::new("edge-source-r1").unwrap(),
                     SourceVersionId::new("edge-source-v1").unwrap(),
                 ),
+                properties: None,
             }),
             PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
                 logical_id: Some("root".into()),
@@ -1337,6 +1352,7 @@ fn canonical_target_fixture() -> (TempDir, Engine, GraphExpandRequestV1) {
                 valid_from: None,
                 valid_until: None,
                 provenance: derived("root-r1"),
+                properties: None,
             }),
             PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
                 logical_id: Some("target".into()),
@@ -1351,6 +1367,7 @@ fn canonical_target_fixture() -> (TempDir, Engine, GraphExpandRequestV1) {
                     ArtifactRevisionId::new("target-r1").unwrap(),
                     SourceVersionId::new("target-v1").unwrap(),
                 ),
+                properties: None,
             }),
             PreparedWrite::ProvenancedEdge(ProvenancedEdgeV1 {
                 logical_id: Some("winner".into()),
@@ -1365,6 +1382,7 @@ fn canonical_target_fixture() -> (TempDir, Engine, GraphExpandRequestV1) {
                 extractor_model_id: None,
                 temporal_fallback: Some(false),
                 provenance: derived("edge-r1"),
+                properties: None,
             }),
         ])
         .unwrap();
@@ -1651,6 +1669,7 @@ fn graph_terminal_edge_reference_requires_current_temporal_validity() {
                     SourceLocator::whole_body(),
                     CanonicalHash::sha256(digest("independent edge source bytes")).unwrap(),
                 ),
+                properties: None,
             }),
             PreparedWrite::ProvenancedEdge(ProvenancedEdgeV1 {
                 logical_id: Some("newer-winner".into()),
@@ -1665,6 +1684,7 @@ fn graph_terminal_edge_reference_requires_current_temporal_validity() {
                 extractor_model_id: None,
                 temporal_fallback: None,
                 provenance: derived,
+                properties: None,
             }),
         ])
         .unwrap();
@@ -1713,6 +1733,7 @@ fn superseded_revoked_closure_fenced_and_missing_artifacts_are_nondisclosing() {
                 SourceLocator::whole_body(),
                 CanonicalHash::sha256(digest("canonical source bytes")).unwrap(),
             ),
+            properties: None,
         })])
         .unwrap();
     unavailable(
@@ -1823,6 +1844,7 @@ fn canonical_source_graph_target_resolves_without_dependency() {
                     ArtifactRevisionId::new("source-r1").unwrap(),
                     SourceVersionId::new("source-v1").unwrap(),
                 ),
+                properties: None,
             }),
             PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
                 logical_id: Some("root".into()),
@@ -1834,6 +1856,7 @@ fn canonical_source_graph_target_resolves_without_dependency() {
                 valid_from: None,
                 valid_until: None,
                 provenance: derived("root-r1"),
+                properties: None,
             }),
             PreparedWrite::ProvenancedEdge(ProvenancedEdgeV1 {
                 logical_id: Some("edge".into()),
@@ -1848,6 +1871,7 @@ fn canonical_source_graph_target_resolves_without_dependency() {
                 extractor_model_id: None,
                 temporal_fallback: None,
                 provenance: derived("edge-r1"),
+                properties: None,
             }),
         ])
         .unwrap();

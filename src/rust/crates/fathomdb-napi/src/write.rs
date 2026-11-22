@@ -832,6 +832,7 @@ pub(crate) fn translate_node_at(
             reason,
             valid_from,
             valid_until,
+            properties: None,
             provenance,
         })),
         None => Ok(PreparedWrite::Node {
@@ -843,6 +844,7 @@ pub(crate) fn translate_node_at(
             reason,
             valid_from,
             valid_until,
+            properties: None,
         }),
     }
 }
@@ -924,6 +926,7 @@ pub(crate) fn translate_edge(item: &JsonValue) -> Result<PreparedWrite> {
             confidence: None,
             extractor_model_id: None,
             temporal_fallback: None,
+            properties: None,
             provenance,
         })),
         None => Ok(PreparedWrite::Edge {
@@ -938,6 +941,7 @@ pub(crate) fn translate_edge(item: &JsonValue) -> Result<PreparedWrite> {
             confidence: None,
             extractor_model_id: None,
             temporal_fallback: None,
+            properties: None,
         }),
     }
 }

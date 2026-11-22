@@ -19,6 +19,7 @@ fn node(id: &str) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 
@@ -48,6 +49,7 @@ fn malformed_edge_fts_kind_must_not_silently_remove_a_committed_hit() {
                 confidence: None,
                 extractor_model_id: None,
                 temporal_fallback: None,
+                properties: None,
             },
         ])
         .unwrap();

@@ -201,7 +201,7 @@ pub struct DependencyTraceResultV1 {
 }
 
 /// Versioned, bounded dependency trace request.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct DependencyTraceRequestV1 {
     pub schema_version: u32,
     pub root_revision_id: String,

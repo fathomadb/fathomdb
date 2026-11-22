@@ -72,6 +72,7 @@ fn node(body: &str, source_id: &str, logical_id: Option<&str>) -> PreparedWrite 
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 
@@ -88,6 +89,7 @@ fn edge(from: &str, to: &str, logical_id: &str, source_id: &str, body: &str) -> 
         confidence: None,
         extractor_model_id: None,
         temporal_fallback: None,
+        properties: None,
     }
 }
 

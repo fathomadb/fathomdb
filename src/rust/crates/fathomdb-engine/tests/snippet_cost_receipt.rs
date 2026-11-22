@@ -82,6 +82,7 @@ fn store(len: usize, k: usize, records: usize) -> Store {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         })
         .collect();
     opened.engine.write(&writes).expect("write");

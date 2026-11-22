@@ -31,6 +31,7 @@ fn node(id: &str, body: &str) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 
@@ -184,6 +185,7 @@ fn stored_coverage_attribution_exclusions_never_hide_original_corruption() {
             confidence: None,
             extractor_model_id: None,
             temporal_fallback: None,
+            properties: None,
         }])
         .unwrap()
         .row_cursors[0];
@@ -484,6 +486,7 @@ fn scored_extent_equal_bodies_and_repeated_public_refs_keep_exact_record_endpoin
                 confidence: None,
                 extractor_model_id: None,
                 temporal_fallback: None,
+                properties: None,
             },
         ])
         .unwrap();
@@ -685,6 +688,7 @@ fn scored_extent_nested_graph_cannot_manufacture_vector_participation() {
             confidence: None,
             extractor_model_id: None,
             temporal_fallback: None,
+            properties: None,
         });
     }
     engine.write(&writes).unwrap();

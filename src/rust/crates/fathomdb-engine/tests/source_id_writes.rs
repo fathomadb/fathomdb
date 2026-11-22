@@ -24,6 +24,7 @@ fn phase9_pack_b_source_id_round_trips_through_canonical_nodes() {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             }])
             .expect("write");
         opened.engine.close().unwrap();
@@ -58,6 +59,7 @@ fn phase9_pack_b_source_id_round_trips_through_canonical_edges() {
                 confidence: None,
                 extractor_model_id: None,
                 temporal_fallback: None,
+                properties: None,
             }])
             .expect("write");
         opened.engine.close().unwrap();
@@ -96,6 +98,7 @@ fn every_write_stores_a_non_null_source_id() {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             }])
             .expect("write");
         opened.engine.close().unwrap();

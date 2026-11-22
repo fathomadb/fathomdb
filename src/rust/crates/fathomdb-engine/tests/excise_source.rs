@@ -58,6 +58,7 @@ fn write_node(engine: &Engine, body: &str, source_id: &str) -> u64 {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("write")
         .cursor

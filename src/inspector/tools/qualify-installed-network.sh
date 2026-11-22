@@ -9,11 +9,15 @@ root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../../.." && pwd -P)"
 mkdir -m 700 -- "$4"
 output="$4/runtime.log"
 cache_root="${XDG_CACHE_HOME:-$HOME/.cache}/fathomdb"
+rc=0
 INSPECTOR_TRACE_OUTPUT="$4/native" \
   bash "$root/src/inspector/tools/run-installed.sh" "$1" "$2" "$3" \
     --test --test-name-pattern='real person investigation' \
-    src/inspector/tests/browser/comparison.mjs >"$output" 2>&1
+    src/inspector/tests/browser/comparison.mjs >"$output" 2>&1 || rc=$?
 cat "$output"
+if [[ "$rc" -ne 0 ]]; then
+  exit "$rc"
+fi
 node --input-type=module - "$4" "$1/fathomdb-inspector" "$cache_root" <<'JS'
 import assert from 'node:assert/strict';
 import {readdir,readFile} from 'node:fs/promises';
@@ -66,17 +70,17 @@ for(const pid of allWorkerPids){
  }
 }
 assert.deepEqual(workerInternet,[],'no Internet-family socket or connect attempts from installed native CPU worker tree');
-const supervisorConnect=[];
+const supervisorOutbound=[];
 for(const pid of allSupervisorPids){
  for(const line of (byPid.get(pid)??'').split('\n')){
-  if(/connect\([^\n]*sa_family=AF_INET6?\b/.test(line))supervisorConnect.push({pid,line});
+  if(/(?:connect|sendto|sendmsg)\([^\n]*sa_family=AF_INET6?\b|socket\(AF_INET6\b|socket\(AF_INET,\s*SOCK_DGRAM/.test(line))supervisorOutbound.push({pid,line});
  }
 }
-assert.deepEqual(supervisorConnect,[],'no outbound Internet-family connect attempts from installed supervisor tree');
+assert.deepEqual(supervisorOutbound,[],'no outbound Internet-family connect/send or UDP/IPv6 socket attempts from installed supervisor tree');
 const opens=[];
 const mutations=[];
 const cachePrefixes=[cacheRoot,process.argv[4]].filter((v,i,a)=>a.indexOf(v)===i);
-const hasCachePath=(line)=>cachePrefixes.some(p=>line.includes(`"${p}/`));
+const hasCachePath=(line)=>cachePrefixes.some(p=>line.includes(`"${p}/`)||line.includes(`"${p}"`));
 for(const [pid,content] of byPid){
  for(const line of content.split('\n')){
   if(line.startsWith('openat(')&&hasCachePath(line))opens.push(line);
@@ -94,7 +98,7 @@ console.log(JSON.stringify({
  supervisor_traced_pids:allSupervisorPids.size,
  worker_traced_pids:allWorkerPids.size,
  worker_internet_family_attempts:workerInternet.length,
- supervisor_connect_attempts:supervisorConnect.length,
+ supervisor_outbound_attempts:supervisorOutbound.length,
  source_asset_readonly_opens:opens.length,
  source_cache_mutations:mutations.length,
 }));

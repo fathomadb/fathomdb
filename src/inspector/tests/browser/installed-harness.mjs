@@ -12,13 +12,13 @@ async function until(action,ms=30000){const end=Date.now()+ms;let error;while(Da
 async function children(pid){try{const result=[];for(const tid of await readdir(`/proc/${pid}/task`)){try{result.push(...(await readFile(`/proc/${pid}/task/${tid}/children`,'utf8')).trim().split(/\s+/).filter(Boolean).map(Number));}catch{}}return [...new Set(result)];}catch{return [];}}
 async function tree(pid){return [pid,...(await Promise.all((await children(pid)).map(tree))).flat()];}
 async function rss(pid){try{return Number((await readFile(`/proc/${pid}/status`,'utf8')).match(/^VmRSS:\s+(\d+)/m)?.[1]??0)*1024;}catch{return 0;}}
-async function cmdline(pid){try{return (await readFile(`/proc/${pid}/cmdline`,'utf8')).split(/[\0\s]+/).filter(Boolean);}catch{return [];}}
+async function rawCmdline(pid){try{return await readFile(`/proc/${pid}/cmdline`,'utf8');}catch{return '';}}
 async function findBrowserPid(supervisorPid,profilePath){
  const profileArg=`--user-data-dir=${profilePath}`;
  const pids=await tree(supervisorPid);
  for(const pid of pids){
-  const argv=await cmdline(pid);
-  if(argv.includes(profileArg)&&!argv.some(arg=>arg.startsWith('--type=')))return pid;
+  const raw=await rawCmdline(pid);
+  if(raw.includes(profileArg)&&!/(?:^|[\0\s])--type=/.test(raw))return pid;
  }
  return null;
 }
@@ -42,7 +42,7 @@ export async function installedWorkspace(action,fixture='linked',flags=[],nodes=
   }
   exited=new Promise(r=>child.once('exit',(code,signal)=>r({code,signal})));let stderr='';child.stderr.on('data',b=>stderr+=b);
   const profile=await until(async()=>{assert.equal(child.exitCode,null,stderr);for(const entry of await readdir(dir)){const path=join(dir,entry,'browser');try{const port=await readFile(join(path,'DevToolsActivePort'),'utf8');return {path,port:Number(port.split('\n')[0])};}catch{}}});
-  supervisorPid=traceOutput?await until(async()=>{const kids=await children(child.pid);for(const pid of kids){const argv=await cmdline(pid);if(argv[0]===binary)return pid;}return null;}):child.pid;
+  supervisorPid=traceOutput?await until(async()=>{const kids=await children(child.pid);for(const pid of kids){const raw=await rawCmdline(pid);if(raw===binary||raw.startsWith(`${binary}\0`))return pid;}return null;}):child.pid;
   browser=await chromium.connectOverCDP(`http://127.0.0.1:${profile.port}`);
   const context=browser.contexts()[0];const page=await until(async()=>context.pages().find(p=>p.url().startsWith('http://127.0.0.1:')));
   page.setDefaultTimeout(30000);const external=[];page.on('request',r=>{if(!r.url().startsWith(new URL(page.url()).origin))external.push(r.url());});
@@ -67,7 +67,7 @@ export async function installedWorkspace(action,fixture='linked',flags=[],nodes=
   const preClose=await identity(browserPid);
   assert.ok(preClose?.live&&(await tree(supervisorPid)).includes(browserPid),'owned actual native browser exists before close');
   const closeStart=performance.now();
-  await cdp.send('Browser.close').catch(()=>page.close());
+  await cdp.send('Browser.close').catch(()=>page.close().catch(()=>{}));
   const result=await Promise.race([exited,delay(30000,undefined,{ref:false}).then(()=>{throw new Error('actual native window close deadline');})]);
   assert.deepEqual(result,{code:0,signal:null},stderr);clearInterval(sample);await until(async()=>{if(sampling)return false;for(const [pid,start]of owned){const current=await identity(pid);if(current?.live&&current.start===start)return false;}return true;},Math.max(1,30000-(performance.now()-closeStart)));assert.ok(performance.now()-closeStart<30000);closed=true;execFileSync('flock',['--nonblock',`${db}.lock`,'true']);
   const retained=(await readdir(dir)).filter(n=>n.startsWith('fdi-'));assert.deepEqual(retained,[],'private native launch resources released');
@@ -76,8 +76,12 @@ export async function installedWorkspace(action,fixture='linked',flags=[],nodes=
  }finally{
   clearInterval(sample);
   if(browser)await browser.close().catch(()=>{});
-  if(supervisorPid&&supervisorPid!==child?.pid){try{process.kill(supervisorPid,'SIGTERM');}catch{}}
-  if(child&&child.exitCode===null){child.kill('SIGTERM');await Promise.race([exited,delay(5000,undefined,{ref:false})]);if(supervisorPid&&supervisorPid!==child.pid){try{process.kill(supervisorPid,'SIGKILL');}catch{}}if(child.exitCode===null){child.kill('SIGKILL');await exited;}}
+  if(!closed&&child&&child.exitCode===null){
+   if(supervisorPid&&supervisorPid!==child.pid){try{process.kill(supervisorPid,'SIGTERM');}catch{}}
+   child.kill('SIGTERM');await Promise.race([exited,delay(5000,undefined,{ref:false})]);
+   if(supervisorPid&&supervisorPid!==child.pid){try{process.kill(supervisorPid,'SIGKILL');}catch{}}
+   if(child.exitCode===null){child.kill('SIGKILL');await exited;}
+  }
   await rm(dir,{recursive:true,force:true});
   if(!closed)console.error('installed native window close NOT qualified for this failed run');
  }

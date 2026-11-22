@@ -91,6 +91,10 @@ uname -r
 
 cd -- "$root"
 env \
+  -u WAYLAND_DISPLAY \
+  -u XAUTHORITY \
+  -u DBUS_SESSION_BUS_ADDRESS \
+  -u XDG_RUNTIME_DIR \
   HOME="$testhome" \
   XDG_CONFIG_HOME="$testhome/.config" \
   XDG_CACHE_HOME="$cache" \

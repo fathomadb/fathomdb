@@ -1,0 +1,25 @@
+{
+  "schema": "fathomdb.golden-fixture/v1",
+  "producer_release": "0.8.30",
+  "schema_version": 37,
+  "git_sha": "db271323fdd38672fafd51898ca81c5763329af2",
+  "path": "/mnt/data/worktrees/fathomdb-0.8.31-golden/golden-0.8.30-schema37.sqlite",
+  "bytes": 634880,
+  "sha256": "59d56eabb9a6e817168c5c540b4bb2ec6eb7f741fb24a72c7617df4aa5004548",
+  "expected": {
+    "active_nodes": [
+      "req:1",
+      "ver:1"
+    ],
+    "erased_source": "src-erase-1",
+    "erased_logical_ids": [
+      "secret:1"
+    ],
+    "erased_nodes_count": 1,
+    "active_edge_logical_id": "edge:verifies:1",
+    "operational_collections": {
+      "agent_checkpoints": "latest_state",
+      "agent_audit": "append_only_log"
+    }
+  }
+}

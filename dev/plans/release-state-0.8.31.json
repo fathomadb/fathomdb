@@ -1,0 +1,136 @@
+{
+  "release": "0.8.31",
+  "release_kind": "Active implementation release on release/0.8.31: property graph core (Option 1), strict-only write integrity, historical graph reconstruction, Memex 0.6.2 unblockers, lockstep fathomdb-cli PyPI wheel, minimal 37->38 upgrade helper, and Inspector integration.",
+  "board": "dev/plans/runs/STATUS-0.8.31.md",
+  "plan": "dev/plans/0.8.31/plan.md",
+  "master": "dev/plans/0.8.31/plan.md",
+  "active_ref": "refs/heads/release/0.8.31",
+  "schema_version": 37,
+  "public_docs_target_release": "0.8.31",
+  "schema_version_source": "pub const SCHEMA_VERSION in src/rust/crates/fathomdb-schema/src/lib.rs",
+  "ladder": [
+    {
+      "slice": 0,
+      "short": "PREFLIGHT",
+      "title": "Preflight, Inspector 0.2.1 merge, bootstrap fix, ADRs, W12 review and 0.8.30 baseline",
+      "depends_on": [],
+      "status": "ACTIVE",
+      "design_refs": [
+        "dev/plans/0.8.31/features/slice-0/prompt.md",
+        "dev/plans/0.8.31/features/slice-0/w12-fence-review.md"
+      ]
+    },
+    {
+      "slice": 10,
+      "short": "PROPERTY-SCHEMA",
+      "title": "Schema 38+, outside-body inline properties + declared typed indexes, app-declared vector kinds, op-collection readback, W12 fixes, and sqlite_master audit",
+      "depends_on": [
+        0
+      ],
+      "status": "PLANNED",
+      "design_refs": [
+        "dev/adr/ADR-0.8.31-property-graph-inline-and-declared-indexes.md"
+      ]
+    },
+    {
+      "slice": 20,
+      "short": "STRICT-GRAPH",
+      "title": "Strict-only endpoint integrity, edge/target predicates, opt-in fused-hit seeding + seed provenance, and mixed-edge slot fix",
+      "depends_on": [
+        10
+      ],
+      "status": "PLANNED",
+      "design_refs": [
+        "dev/adr/ADR-0.8.31-strict-endpoint-integrity.md",
+        "dev/adr/ADR-0.8.31-historical-graph-and-fused-seeding.md"
+      ]
+    },
+    {
+      "slice": 30,
+      "short": "HISTORY-GRAPH",
+      "title": "Historical graph reconstruction (as_of / revision-aware traversal)",
+      "depends_on": [
+        10
+      ],
+      "status": "PLANNED",
+      "design_refs": [
+        "dev/adr/ADR-0.8.31-historical-graph-and-fused-seeding.md"
+      ]
+    },
+    {
+      "slice": 40,
+      "short": "SDK-CLI-UPGRADE",
+      "title": "SDK unblockers (resolve_evidence_many, search hints, OpenReport booleans), minimal 37->38 upgrade helper, fathomdb-cli PyPI wheel, and doc fixes",
+      "depends_on": [
+        20,
+        30
+      ],
+      "status": "PLANNED",
+      "design_refs": [
+        "dev/adr/ADR-0.8.31-cli-pypi-wheel-and-37-to-38-upgrade.md"
+      ]
+    },
+    {
+      "slice": 50,
+      "short": "INSPECTOR",
+      "title": "Inspector 0.8.31 Engine + property/history UI upgrade, scoped local-ci.sh, harness timeouts, and release-cycle wiring",
+      "depends_on": [
+        20,
+        30
+      ],
+      "status": "PLANNED",
+      "design_refs": [
+        "dev/plans/0.8.31/scope.md"
+      ]
+    },
+    {
+      "slice": 60,
+      "short": "QUALIFICATION",
+      "title": "Full-workspace qualification and paired 0.8.30 vs. 0.8.31 latency gate",
+      "depends_on": [
+        40,
+        50
+      ],
+      "status": "PLANNED",
+      "design_refs": [
+        "dev/plans/0.8.31/plan.md"
+      ]
+    },
+    {
+      "slice": 70,
+      "short": "PUBLICATION",
+      "title": "Authorized 0.8.31 publication (crates, PyPI fathomdb + fathomdb-cli, npm, Tegra, Inspector)",
+      "depends_on": [
+        60
+      ],
+      "status": "HELD",
+      "design_refs": [
+        "dev/plans/0.8.31/plan.md"
+      ]
+    }
+  ],
+  "landed": [],
+  "remaining_ladder": [
+    0,
+    10,
+    20,
+    30,
+    40,
+    50,
+    60,
+    70
+  ],
+  "next_slice": 0,
+  "publish_gate": {
+    "status": "HELD",
+    "publication_authorized": false,
+    "scope": "Publication requires completed Slice 60 qualification and separate explicit HITL publication authorization."
+  },
+  "generated_views": [
+    {
+      "id": "plan-landed-roll-up",
+      "file": "dev/plans/0.8.31/plan.md",
+      "location": "Landed slice roll-up"
+    }
+  ]
+}

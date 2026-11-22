@@ -1,0 +1,69 @@
+{
+  "schema": "fathomdb.0831-latency-baseline/v1",
+  "label": "0.8.30-baseline",
+  "git_sha": "db271323fdd38672fafd51898ca81c5763329af2",
+  "schema_version": 37,
+  "host": {
+    "platform": "Linux-7.0.0-43-generic-x86_64-with-glibc2.39",
+    "machine": "x86_64",
+    "python": "3.12.3"
+  },
+  "workload": {
+    "num_nodes": 5000,
+    "num_edges": 7500,
+    "queries": 100
+  },
+  "metrics": {
+    "cold_open_ms": 37.937,
+    "warm_open": {
+      "n": 5,
+      "p50_ms": 69.1234,
+      "p95_ms": 85.4057,
+      "p99_ms": 85.4057,
+      "min_ms": 68.3375,
+      "max_ms": 85.4057
+    },
+    "write_node_batch_200": {
+      "n": 25,
+      "p50_ms": 39.3781,
+      "p95_ms": 48.5712,
+      "p99_ms": 54.413,
+      "min_ms": 27.2768,
+      "max_ms": 54.413
+    },
+    "write_edge_batch_200": {
+      "n": 38,
+      "p50_ms": 19.8617,
+      "p95_ms": 24.6693,
+      "p99_ms": 27.508,
+      "min_ms": 8.4941,
+      "max_ms": 27.508
+    },
+    "search_text_only": {
+      "n": 100,
+      "p50_ms": 13.7992,
+      "p95_ms": 15.5293,
+      "p99_ms": 17.2602,
+      "min_ms": 12.225,
+      "max_ms": 18.2495
+    },
+    "search_hybrid_cpu_no_embedder": {
+      "n": 100,
+      "p50_ms": 6.3176,
+      "p95_ms": 7.7447,
+      "p99_ms": 10.4934,
+      "min_ms": 5.7402,
+      "max_ms": 10.5473
+    },
+    "graph_expand_2hop": {
+      "n": 100,
+      "p50_ms": 0.7018,
+      "p95_ms": 0.8955,
+      "p99_ms": 0.9348,
+      "min_ms": 0.5289,
+      "max_ms": 0.9692
+    },
+    "db_bytes": 9101312,
+    "peak_rss_bytes": 122961920
+  }
+}

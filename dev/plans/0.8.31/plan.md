@@ -1,18 +1,18 @@
 ---
 title: FathomDB 0.8.31 release plan
-status: PROPOSED
+status: ACTIVE
 target_release: 0.8.31
 date: 2026-11-21
 ---
 
 # FathomDB 0.8.31 release plan
 
-> **Status: PROPOSED — all HITL scoping decisions settled (2026-11-21); paused
-> pending owner go-ahead to begin Slice 0.**
-> Execution requires an approved `release-state-0.8.31.json`, live board
-> `dev/plans/runs/STATUS-0.8.31.md`, and separate publication authority.
+> **Status: ACTIVE on `release/0.8.31` (owner go-ahead 2026-11-22).**
+> Live state lives in [release-state-0.8.31.json](../release-state-0.8.31.json)
+> and [STATUS-0.8.31.md](../runs/STATUS-0.8.31.md). Slice 70 publication
+> remains separately HITL-gated.
 
-## Goal
+## Goal and scope
 
 Deliver FathomDB **0.8.31**: outside-`body` inline typed properties on **both
 nodes and edges** with declared typed indexes (Option 1), app-declared
@@ -22,7 +22,7 @@ provenance, Memex SDK/CLI unblockers (`resolve_evidence_many`, `search(hints=)`,
 `OpenReport` booleans, op-collection readback, W12 erasure fixes, lockstep
 `fathomdb-cli` PyPI wheel, minimal schema-37→38 upgrade helper), zero latency
 regression against `0.8.30`, and **Inspector** integrated into `main` and the
-release cycle.
+release cycle. Full scope boundaries live in [scope.md](scope.md).
 
 ## Settled HITL decisions (2026-11-21)
 
@@ -80,7 +80,7 @@ release cycle.
 | R31-07 | Zero latency regression vs. `0.8.30` | Paired `v0.8.30` vs. `0.8.31` benchmark (10k / 50k / 100k) via `experiments/sdk_benchmark.py` shows no statistically significant p50/p95 regression on unpredicated open, write, streamed FTS, optimized hybrid, and current-graph expansion; `EXPLAIN QUERY PLAN` checks pass. |
 | R31-08 | Inspector `0.2.1` integrated onto `main`, upgraded to `0.8.31`, wired into release cycle, and CI/bootstrap/harness hardened | `origin/inspector/dev/0.2.1` (`d6501cc5a`) is integrated; `src/inspector/` compiles against `0.8.31` Engine (model-free + `cached-cpu`) and passes property/history/erasure qualification under the retained Docker-free native Ubuntu 24.04 pipeline (`D4 = B`); `local-ci.sh` defaults to an Inspector-scoped gate (~5 min) when shared core paths are unchanged (retaining `--full-workspace`); `bootstrap.sh`/`setup-python-owned.sh` prefer system `/usr/bin/python3.12` on Ubuntu 24.04 and provision `src/ts/node_modules`; process/GUI/`strace` harnesses enforce explicit per-command timeouts; Inspector release artifacts build and smoke-pass in release CI. |
 
-## Cross-cutting Definition of Done (every feature slice)
+## Cross-cutting DoD (every feature slice)
 
 - **X1 (SDK parity)**: Rust (`fathomdb-sdk`), Python, TypeScript, and
   `src/conformance/governed-operation-parity.json` stay in lockstep.
@@ -124,6 +124,27 @@ release cycle.
   and W12 erasure ergonomics.
 - **No silent behavior change** on unpredicated, current-time queries.
 
+## Reserved-gap policy and deferred work
+
+Slice numbers advance in steps of 10 (`0, 10, 20, 30, 40, 50, 60, 70`), leaving
+gaps reserved for necessary coherent follow-ups; scope overflow halts for owner
+disposition. Explicitly deferred out of `0.8.31`: caller scope, read+write MCP,
+bulk write opt-in, and `quality-backlog.md` (moved to [0.8.32](../0.8.32/plan.md));
+CUDA 13 (`cuda-delivery-plan.md`, deferred post-`0.8.35`); Memex E3
+(`ingest_with_extractor`, deferred post-`0.8.34`).
+
+## Immediate next slice
+
+Active slice is owned by [release-state-0.8.31.json](../release-state-0.8.31.json)
+and [STATUS-0.8.31.md](../runs/STATUS-0.8.31.md). Slice prompts live under
+`dev/plans/0.8.31/features/slice-<N>/prompt.md`.
+
 ## Open HITL decisions
 
-None remaining for scoping; ready to begin Slice 0 upon owner go-ahead.
+None remaining for scoping. Publication (Slice 70) requires separate HITL
+authorization after Slice 60 qualification completes.
+
+## Landed slice roll-up
+
+<!-- BEGIN GENERATED release-state:0.8.31:plan-landed-roll-up -->
+**LANDED on `origin/main`, in full:** no slices. SCHEMA is 37; remaining ladder = 0 → 10 → 20 → 30 → 40 → 50 → 60 → 70.<!-- END GENERATED release-state:0.8.31:plan-landed-roll-up -->

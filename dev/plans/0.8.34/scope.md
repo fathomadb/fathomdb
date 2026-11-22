@@ -1,5 +1,5 @@
 ---
-title: FathomDB 0.8.34 release scope — publishable benchmarking, runner upgrades and competitive evaluations
+title: FathomDB 0.8.34 release scope — full multi-version data migration and personal agent enablement
 status: PROPOSED
 target_release: 0.8.34
 date: 2026-11-21
@@ -9,107 +9,79 @@ date: 2026-11-21
 
 ## Theme
 
-Upgrade FathomDB's configurable, repeatable benchmarking toolchain and execute
-**rigorous, reproducible, publishable latency, scale, retrieval-quality,
-evidence-sufficiency, and competitive benchmark evaluations** — directly closing
-the External Reviewer's P0 proof bar and publishing transparent results in
-`docs/benchmarks/`.
+Deliver FathomDB's **full, crash-resilient multi-version schema and data
+migration contract** across `0.8.30` (schema 37), `0.8.31`, and `0.8.32`
+databases — generalizing the minimal Memex helper introduced in `0.8.31` — and
+enable local personal agents (**Memex, Hermes, OpenClaw**, and similar
+local-first agents) to adopt FathomDB cleanly as their primary database.
 
 ## In scope
 
-### 1. Maintain and upgrade the configurable, repeatable benchmarking tool
+### 1. Full controlled data migration from `0.8.30`, `0.8.31`, and `0.8.32`
 
-Build on the existing config-driven coordinators on `main`
-(`experiments/sdk_benchmark.py` with `sdk.experiment.v1` / `sdk.driver.v1`, and
-`experiments/competitive_runner.py` with `competitive.experiment.v1/v2` /
-`competitive.adapter.v1` / `experiments/scorecard.py`):
+- **Policy ADR and guard update**:
+  - Author an ADR superseding `ADR-0.8.26-breaking-v1-contract-and-fresh-database-boundary.md`
+    to formalize FathomDB's standing forward-migration contract (explicit
+    `fathomdb migrate` verb, mandatory backup/verification, atomic transaction +
+    `PRAGMA user_version` step-up, deterministic projection rebuild, and
+    post-migration integrity verification).
+  - Update `AGENTS.md` § 10 and `scripts/agent-lint-migrations.sh` to distinguish
+    forbidden ad-hoc rewrite-era shims from tested, versioned forward
+    migrations.
+- **Migration execution path (`37 -> 38+ -> current` and `38+ -> current`)**:
+  - Deliver `fathomdb migrate <db>` — distributed directly via the lockstep
+    `fathomdb-cli` PyPI binary wheel established in `0.8.31` so Python-only
+    agent installs (`pip install` / `uv tool install`) upgrade with zero Rust
+    toolchain — and evaluate an opt-in SDK/open upgrade path that:
+    1. Refuses active locks or corrupt inputs cleanly before touching the store.
+    2. Creates a verified pre-migration backup (or requires explicit caller
+       confirmation of an external backup).
+    3. Applies deterministic schema/data steps atomically inside
+       `BEGIN IMMEDIATE`, preserving all canonical nodes, edges, properties,
+       scopes, revisions, provenance links, source dependencies, closures,
+       operational collections, and queued erasure state.
+    4. Rebuilds affected derived projections cleanly and runs full post-upgrade
+       integrity verification (`fathomdb doctor full-integrity`).
+- **Real historical producer qualification**:
+  - Qualify migrations against **closed golden `0.8.30` (schema 37)**,
+    **`0.8.31` (schema 38+)**, and **`0.8.32`** databases created by the actual
+    published artifacts — including active/superseded rows, properties, scopes,
+    provenance, dependencies, operational state, and queued erasure.
+  - Test crash/interruption mid-migration (proving clean rollback and recovery
+    from pre-migration backup with zero silent corruption).
+  - Document the forward compatibility and upgrade policy clearly in
+    `docs/operations/` and `docs/compatibility/`.
 
-- **Unified, declarative configuration (`sdk.experiment.v2` /
-  `competitive.experiment.v3`)**:
-  - Pin dataset paths and SHA-256 digests, verified installed package versions
-    and build attestations (published wheel/npm/crate, never accidental dev
-    builds), hardware/device profile (`cpu`, `cuda`, `orin`), warmup vs. timed
-    repetitions, random seed, process isolation/timeouts, and paired-cell
-    comparability rules.
-  - Enforce strict separation between **data-plane** and **end-to-end (host +
-    LLM)** layers per
-    [FATHOMDB-BOUNDARY.md](../../performance-benchmarking/FATHOMDB-BOUNDARY.md).
-- **Full operation & driver coverage (closing `BT-AC04` and `BT-AC06`)**:
-  - Upgrade Python, TypeScript, and Rust SDK drivers — and add a **4th driver
-    for `fathomdb-mcp`** — to benchmark: cold/warm `open`, `write`/`actuate`
-    (ingest-to-ready and mutation-to-ready), `search_text_only`, `search`
-    (vector, hybrid, reranked, filtered — explanations off and on),
-    `graph.expand` (1–3 hops: unpredicated, edge-property-predicated,
-    historical `as_of`), `freeze_read_context` + `resolve_evidence` /
-    `resolve_graph_evidence`, `erase_source`/`purge`, and scoped multi-caller
-    queries.
-- **Expanded metric families & cross-platform telemetry**:
-  - Add `complete_evidence_recall`, `exact_citation_accuracy`,
-    `abstention_precision` / `abstention_recall` / `abstention_f1`,
-    `historical_path_exact_match`, `scope_isolation_violations`,
-    `ingest_to_ready_ms`, `tokens_per_verified_answer`, and
-    `tool_calls_per_verified_answer`.
-  - Add macOS and Windows peak RSS attribution alongside Linux.
-  - Compute paired bootstrap 95% confidence intervals and generate publishable
-    Markdown tables/charts directly for `docs/benchmarks/`.
-- **Lean runner self-tests**:
-  - Maintain fast deterministic CI smoke checks for config validation, rerun
-    repeatability (identical treatment hashes), and driver contracts (measuring
-    correctness only — no tamper-test bloat).
+### 2. Local personal agent enablement (Memex, Hermes, OpenClaw, etc.)
 
-### 2. Competitive benchmark evaluations (four apples-to-apples tracks)
-
-All competitive runs use identical corpora, chunking, and (where applicable)
-identical LLM reader/answerer and judge models on verified installed packages:
-
-1. **Track 1 — Evidence Sufficiency & Embedded Retrieval (External Reviewer P0
-   flagship)**:
-   - **Competitors**: **SQLite + FTS5** (fairly equipped with identical
-     revision IDs and source offsets), **SQLite + FTS5 + `sqlite-vec`** (DIY
-     stack), and **LanceDB** or **Chroma** (embedded).
-   - **Corpora & query classes**: Held-out **Design-Controls / Evidence
-     Sufficiency suite** (exact-ID, paraphrase, conflicting-revision,
-     missing-evidence abstention via host policy, and graph-hop) plus
-     **NFCorpus / BEIR** and scale tiers (10k / 50k / 100k).
-   - **Metrics**: complete evidence retrieval, exact citation/span accuracy,
-     host-level abstention F1, p50/p95/p99 latency, ingest-to-ready, DB bytes,
-     peak RSS.
-2. **Track 2 — Agent Memory Systems (Personal & Long-Horizon Agent Fit)**:
-   - **Competitors**: **Mem0 (OSS)**, **Graphiti / Zep**, and naive RAG
-     baseline under one shared reader and judge.
-   - **Corpora**: **LoCoMo** and **LongMemEval** (factoid, temporal,
-     multi-session, knowledge-update, abstention) — refreshing all historical
-     0.8.3 numbers on the single current `0.8.34` artifact.
-   - **Metrics**: answer accuracy, temporal correctness, per-class recall,
-     latency, tokens and dollar cost per verified answer.
-3. **Track 3 — Embedded Property Graph & Multi-Hop Retrieval**:
-   - **Competitors**: **Kùzu** (embedded property graph), **SurrealDB**
-     (reusing existing `experiments/comp_drivers/surrealdb`), and **HippoRAG-2**
-     (multi-hop retrieval).
-   - **Workloads**: 1–3 hop property-filtered graph traversals (`0.8.31` edge
-     and node predicates + historical `as_of` replay) and **MuSiQue** (2–4 hop
-     supporting-evidence reachability).
-   - **Metrics**: traversal p50/p95/p99, historical path exactness, all-bridges
-     multi-hop recall, memory footprint.
-4. **Track 4 — Cross-SDK, MCP & Hardware Matrix (Internal Parity & Scaling)**:
-   - **Matrix**: Rust (`fathomdb-sdk`) vs. Python vs. TypeScript vs. MCP across
-     **CPU (x86_64/ARM64)**, **CUDA (RTX 3090)**, and **Jetson Orin** at 1k /
-     10k / 50k / 100k+ records.
-   - **Metrics**: cross-binding latency overhead, GPU speedup envelope,
-     tokens/calls per verified answer (SDK vs. MCP), RSS and disk amplification,
-     and TC5 exact-f32 vector fidelity (strictly separated from IR relevance).
-
-### 3. Public benchmark documentation and reproducibility package
-
-- Publish `docs/benchmarks/` containing methodology, hardware/software
-  disclosure, summary tables and charts, 95% confidence intervals, one-command
-  reproduction manifests, and an explicit **"What this proves and what it does
-  not establish"** section for every track.
+- **Turnkey personal-agent integration kits / reference adapters**:
+  - Provide tested integration adapters, read+write MCP server profiles, and
+    starter templates targeting **Memex, Hermes, and OpenClaw** (and a generic
+    local-agent blueprint) mapping:
+    - conversation turns, long-term preferences, and factual claims (plain-text
+      `body` + outside-`body` typed properties);
+    - property-rich entity and relationship graphs with temporal supersession
+      and historical replay;
+    - workflow checkpoints (`operational_state` / `latest_state` via SDK or
+      MCP);
+    - engine-enforced caller/persona scoping (separating user statements, agent
+      inferences, and external tool/policy sources); and
+    - user-initiated correction and erasure (`purge` / `erase_source`).
+- **Personal-agent operational ergonomics (incorporating `0.8.30`–`0.8.32` Memex
+  lessons)**:
+  - Smooth zero-friction local install (`fathomdb`, `fathomdb-cli` PyPI wheels,
+    and `fathomdb-mcp`) and offline embedder cache management.
+  - Predictable idle memory footprint (`release_models()` and clean lifecycle
+    guidance for long-running local daemons).
+  - Documented and tested single-writer / multi-reader coordination patterns
+    (agent SDK writer + MCP reader/writer + Inspector inspection).
+  - Portable local backup/export and live upgrade proof on real `0.8.30` and
+    `0.8.31` Memex databases upgraded directly to `0.8.34`.
 
 ## Out of scope
 
-- Engine architecture rewrites (ANN/HNSW stays post-1.0 / 2.x; 1–2M custom
-  kernel stays gated on E1 attribution).
-- Unrepeatable single-run marketing claims or undisclosed judge/hardware
-  comparisons.
-- Mixing historical `0.8.x` numbers with `0.8.34` results in published tables.
+- Migration from pre-`0.8.30` prototype formats (`SCHEMA_VERSION < 37`).
+- Multi-tenant cloud/networked server mode (FathomDB remains local-first
+  embedded + local stdio MCP).
+- Publishable competitive benchmark campaigns (allocated to
+  [0.8.35](../0.8.35/scope.md)).

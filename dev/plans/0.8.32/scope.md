@@ -1,5 +1,5 @@
 ---
-title: FathomDB 0.8.32 release scope — public open-source readiness and documentation excellence
+title: FathomDB 0.8.32 release scope — caller scope, production read/write MCP, bulk opt-in and hardened durability
 status: PROPOSED
 target_release: 0.8.32
 date: 2026-11-21
@@ -9,98 +9,98 @@ date: 2026-11-21
 
 ## Theme
 
-Get the repository, contributor documentation, auto-documentation, engine
-internals documentation, SDK/MCP/Inspector references, and user-facing guides
-and recipes into shape as a **clear, articulate, concise public open-source
-database candidate**.
+Complete FathomDB's **production-grade security, agent-interface, bulk-ingest,
+and durability guarantees**: engine-enforced **caller scope and write
+authority**, a production **read+write `fathomdb-mcp`** (scoped frozen-evidence
+resolution + governed idempotent writes and checkpoints), **opt-in bulk /
+non-strict write mode**, and deep durability qualification (**backup/restore/
+rebuild, power-loss recovery, and coverage-guided fuzzing**).
+
+*(Created by owner 2026-11-21 split of the original `0.8.31` scope so property
+graph + Memex unblockers + Inspector ship cleanly in `0.8.31` while security,
+read+write MCP, bulk opt-in, and deep durability receive dedicated focus here.)*
 
 ## In scope
 
-### 1. Repository and `dev/` contributor hygiene
+### 1. Engine-enforced caller scope and write authority (External Reviewer P1 + Memex Graph Ask 6)
 
-- Remove stray working files committed at repo root (`0.8.23-release-todo.md`,
-  `CORPUS-01-supersession-questions.txt`, `plan-slice-85-recovery.md`,
-  `plan-slice-85-review.md`) and audit top-level files for public cleanliness.
-- Streamline `dev/` (currently over 11,000 files, ~9,900 under `dev/plans/`):
-  - Archive or prune historical per-release slice runs, intermediate scratch
-    packets, and superseded draft notes out of the active contributor tree
-    (preserving git tags/history and load-bearing ADRs, interfaces, and active
-    plans).
-  - Fix `dev/hygeine-roadmap.md` filename typo and staleness; refresh
-    `dev/ROADMAP.md` and `dev/README.md` into a crisp contributor map.
-- Add standard public open-source repository files: `CONTRIBUTING.md`,
-  `SECURITY.md`, `CODE_OF_CONDUCT.md`, GitHub issue/PR templates, and a sharp,
-  compelling root `README.md`.
+- Activate and enforce the first-class caller/namespace **`scope`** boundary
+  (using the `scope` column reserved in `0.8.31` schema 38 — **no breaking
+  schema bump for `0.8.31` / Memex stores**) across:
+  - `search` (FTS, vector, hybrid, filtered, and `use_graph_arm`),
+  - `fetch` / `read.*`,
+  - `graph.expand` (current and historical `as_of`),
+  - `freeze_read_context`, continuations, and `resolve_evidence` /
+    `resolve_evidence_many` / `resolve_graph_evidence`, and
+  - `write`, `actuate`, `transition`, `purge`, and `erase_source`.
+- Prove with overlapping multi-caller fixtures and distinct grants that:
+  - restricted records stay inaccessible through every route, including old
+    references and cursors after access changes;
+  - unauthorized or stale write requests leave database state unchanged;
+  - lost responses retry idempotently without duplicating mutations; and
+  - single/default-scope stores (e.g., personal agents) short-circuit with
+    **zero latency penalty**.
 
-### 2. Working, valuable auto-documentation pipeline
+### 2. Production read+write `fathomdb-mcp` (External Reviewer P1 + owner A2 ruling 2026-11-21)
 
-- Upgrade `scripts/generate-public-docs.py` beyond the two bare name-only
-  tables (`docs/generated/sdk-operation-map.md`,
-  `docs/generated/contributor-map.md`):
-  - Generate rich, source-derived API references: `rustdoc` (`fathomdb-sdk` and
-    `fathomdb`), Python API docs from docstrings/type stubs, TypeScript API
-    docs from `.d.ts` (`typedoc`), CLI `--help` reference, and **MCP
-    tool/schema reference** directly from `fathomdb-mcp` JSON schemas.
-  - Enforce CI freshness checks so generated docs cannot drift from code.
-- Upgrade `mkdocs.yml` from the plain default `mkdocs` theme to a polished
-  public documentation theme with full search, clean navigation, and automated
-  Mermaid/SVG diagram rendering (reusing the `dev/tools/mermaid` sanitizer and
-  rendering checks qualified in `0.8.30`).
+- Graduate `fathomdb-mcp` from evaluation build to a first-class supported
+  surface:
+  - **Bounded exact frozen-evidence search-and-resolve workflow**: return exact
+    bytes, revision identity, and typed drift, erasure, and truncation outcomes
+    (matching the SDK workflow on identical tasks).
+  - **Governed, idempotent writes and `latest_state` checkpoints over MCP**:
+    expose bounded caller-scoped write / actuation and checkpoint tools backed
+    by `operation_id` digest replay and `expected_write_boundary` preconditions.
+  - **Caller scope enforcement** across every MCP tool, session, and
+    continuation.
+  - **Release packaging**: build, smoke-test, and distribute `fathomdb-mcp`
+    release binaries (and evaluate PyPI/npm wrapper distribution alongside
+    `fathomdb-cli`).
+- Add **Inspector scope/readiness UI view** to reflect caller scopes cleanly.
 
-### 3. Engine internals documentation ("how it works")
+### 3. Opt-in bulk / non-strict write mode (owner A3 follow-up 2026-11-21)
 
-- Author clear, illustrated public architecture docs under `docs/architecture/`
-  (replacing raw GitHub links into `dev/design/`):
-  - On-disk SQLite, WAL, and sidecar lock model.
-  - Canonical nodes, edges, and typed property storage/indexing (`0.8.31`).
-  - Immutable revisions, versioned provenance, and dependency closure.
-  - Derived projection pipeline (FTS5, property FTS, `sqlite-vec`, synchronous
-    vs. asynchronous readiness generations).
-  - Hybrid RRF fusion, cross-encoder reranking, and bitemporal property-graph
-    traversal.
-  - Caller scope isolation, erasure lifecycle, and crash/power-loss recovery.
+- Keep `0.8.31`'s **strict endpoint integrity as the default** on `engine.write`.
+- Add an explicit **opt-in bulk / non-strict import mode** (per batch request
+  or explicit bulk session) for controlled out-of-order ingestion that reports
+  `dangling_edge_endpoints` cleanly and supports explicit post-import integrity
+  verification (`fathomdb doctor`).
 
-### 4. Excellent SDK, MCP, and Inspector documentation
+### 4. Hardened durability and quality backlog (`0.8.31` `quality-backlog.md` re-slotted)
 
-- **SDKs (Python, TypeScript, Rust)**: complete task-oriented guides + accurate
-  API references + package-local agent-consumable documentation (carrying
-  forward the documentation half of
-  [03-fathomdb-agent-storage-proposal.md](../../notes/agent-storage-sdk/03-fathomdb-agent-storage-proposal.md)).
-  Explicitly document `ingest_with_extractor` as legacy/non-provenanced and
-  guide governed agents to `Engine.actuate` + `WriteProvenanceV1` (Memex E3),
-  and verify full coverage of `fathomdb-cli` PyPI installation, PyPI CUDA/CE
-  wheel support, `use_graph_arm` seeding modes, and mixed-`source_id` batch
-  atomicity.
-- **MCP (`docs/mcp/`)**: first-class public documentation (currently absent
-  from `docs/`) covering setup for Claude Desktop, Cursor, Memex, Hermes, and
-  OpenClaw; configuration schema; every tool and error code; scoping/security;
-  token budgets; frozen-evidence workflow; and troubleshooting.
-- **Inspector (`docs/inspector/`)**: integrate Inspector's user and operator
-  documentation into `mkdocs.yml` covering the `0.8.31` property, history, and
-  scope views.
+- **Backup, restore, and full rebuild proof (External Reviewer P0)**:
+  - Verify backup, restore, and rebuild from an authoritative corpus on pinned
+    installed artifacts, asserting identical revisions, evidence spans,
+    properties, scopes, and graph results (preserving the CLI operator boundary
+    in [recovery-surface.md](../../../docs/positions/recovery-surface.md)).
+- **Power-loss / torn-write recovery proof** (from
+  [0.8.31/quality-backlog.md](../0.8.31/quality-backlog.md)):
+  - Declare the supported filesystem/storage/cache configuration, SQLite
+    durability settings, acknowledged-write oracle, and fault model; exercise
+    dropped, torn, or reordered writes at commit, WAL/checkpoint, and recovery
+    boundaries in a disposable environment (beyond process `SIGKILL`).
+- **Broad coverage-guided fuzzing** (from
+  [0.8.31/quality-backlog.md](../0.8.31/quality-backlog.md)):
+  - Run instrumented coverage-guided fuzzing across query/filter, typed
+    property predicates, scope enforcement, authenticated cursors, codec, MCP
+    JSON-RPC protocol, and recovery boundaries with declared budgets; retain
+    minimized reproducers as ordinary regressions.
 
-### 5. User-facing value proposition, visual illustrations, and tested recipes
+### 5. Non-negotiable invariants: erasure, metadata completeness, and zero latency regression
 
-- Clearly articulate **why FathomDB** (benefits and honest tradeoffs vs. plain
-  SQLite+FTS5, vector-only stores, and split graph+vector stacks).
-- Add **visual diagrams** across `docs/` (currently zero diagrams): system
-  architecture, write→projection→read lifecycle, frozen-evidence verification
-  loop, property-graph + bitemporal supersession diagram, and SDK/MCP agent
-  topology.
-- Ship **CI-executed, runnable use-case recipes** (`docs/recipes/`):
-  1. Coding agent searchable engineering memory.
-  2. Computer agent runbooks and workflow checkpoints.
-  3. Business process / design-controls evidence assistant (exact citations and
-     host-level abstention).
-  4. Knowledge management (property graph + historical path replay).
-  5. Personal agent local memory (Memex / Hermes / OpenClaw pattern, including
-     erasure and backup/restore).
+- Scope revocation (immediate visibility hide) remains cleanly separated from
+  physical erasure (`purge` / `erase_source`), and erasure respects scope
+  authority while removing any scope-owned metadata cleanly.
+- `sqlite_master` completeness audit, read-visibility triggers, and paired
+  `v0.8.31` vs. `0.8.32` latency/RSS regression gate pass (verifying single-
+  scope fast path preserves `0.8.30`/`0.8.31` latency).
 
 ## Out of scope
 
-- Engine schema changes or new database features (frozen on `0.8.31` schema).
-- Schema/data migration from `.30` and `.31` (allocated to
-  [0.8.33](../0.8.33/scope.md)).
-- Full publishable latency and competitive benchmark campaigns (allocated to
-  [0.8.34](../0.8.34/scope.md), though `0.8.32` sets up the clean `docs/`
-  structure ready to receive `docs/benchmarks/`).
+- Public OSS repo/doc overhaul, `dev/` declutter, and auto-doc redesign —
+  scheduled in [0.8.33](../0.8.33/scope.md).
+- Full general multi-version `fathomdb migrate` and Hermes/OpenClaw personal
+  agent kits — scheduled in [0.8.34](../0.8.34/scope.md).
+- Publishable competitive benchmark campaigns — scheduled in
+  [0.8.35](../0.8.35/scope.md).
+- CUDA 13 delivery — deferred post-`0.8.35` or dedicated release.

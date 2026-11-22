@@ -24,8 +24,8 @@ reproduces a blocking defect.
      consolidate or prune abandoned worktrees.
    - Capture and archive a **closed golden `0.8.30` (schema 37) fixture
      database** (plus a representative anonymized Memex workload database) to
-     serve as real producer fixtures for `0.8.31` Inspector qualification and
-     `0.8.33` data migration.
+     serve as real producer fixtures for `0.8.31` Inspector/upgrade-helper
+     qualification and `0.8.34` full data migration.
 2. **Memex adoption on published `fathomdb==0.8.30`**
    - Integrate Memex against the published `0.8.30` SDK artifact (dedicated
      local embedded store per personal agent instance).
@@ -42,27 +42,29 @@ reproduces a blocking defect.
      readiness under the real Memex write/read cadence, reusing `0.8.30`
      [Slice 55 integrity and recovery patterns](features/slice-55/status.md) and
      `fathomdb doctor` / `safe-export`.
-4. **Input capture for `0.8.31` and `0.8.33`**
-   - Record real Memex friction points: missing node/edge property semantics,
-     historical graph needs, SDK vs. MCP workflow gaps, idle memory/model
-     lifecycle (`release_models()`), and real record-length distribution (needed
-     evidence for
+4. **Input capture for `0.8.31`–`0.8.34`**
+   - Record real Memex friction points: missing outside-`body` node/edge
+     properties, historical graph needs, SDK vs. MCP workflow gaps, idle
+     memory/model lifecycle (`release_models()`), and real record-length
+     distribution (needed evidence for
      [overflow-chunking tripwires](../../design/overflow-chunking-reevaluation.md)).
 
 ## Out of scope
 
 - Any `0.8.30` schema change (format remains **37**) or new FathomDB engine
   features.
-- Node/edge property graph expansion, historical graph replay, or engine-level
-  caller scoping (allocated to [0.8.31](../0.8.31/scope.md)).
-- Automatic in-place migration from schema 37 to later schemas (allocated to
-  [0.8.33](../0.8.33/scope.md)).
-- Multi-agent enablement for Hermes/OpenClaw beyond recording shared
-  personal-agent requirements (allocated to [0.8.33](../0.8.33/scope.md)).
+- Node/edge property graph expansion, strict writes, historical graph replay,
+  and the minimal schema-37→38 Memex upgrade helper (allocated to
+  [0.8.31](../0.8.31/scope.md)).
+- Engine-enforced caller scope, read+write MCP, opt-in bulk writes, and
+  power-loss/fuzzing durability campaigns (allocated to
+  [0.8.32](../0.8.32/scope.md)).
+- Full multi-version migration and Hermes/OpenClaw personal-agent enablement
+  (allocated to [0.8.34](../0.8.34/scope.md)).
 
-## Migration bridge constraint
+## Migration bridge (settled 2026-11-21)
 
-Because `0.8.31` is expected to bump `SCHEMA_VERSION` (`37 -> 38+`) while
-supported in-place migration is scheduled for `0.8.33`, Memex deployments on
-`0.8.30` either remain pinned to `0.8.30` (or rebuild from Memex's authoritative
-source records) until `0.8.33` delivers verified schema-37 migration.
+Per owner ruling (2026-11-21), `0.8.31` includes a **minimal schema-37→38
+export/upgrade helper** so Memex can upgrade live `0.8.30` stores directly to
+`0.8.31` ahead of the full general multi-version `fathomdb migrate` contract in
+[0.8.34](../0.8.34/scope.md).

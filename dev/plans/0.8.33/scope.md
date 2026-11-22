@@ -1,5 +1,5 @@
 ---
-title: FathomDB 0.8.33 release scope — data migration from 0.8.30/0.8.31 and personal agent enablement
+title: FathomDB 0.8.33 release scope — public open-source readiness and documentation excellence
 status: PROPOSED
 target_release: 0.8.33
 date: 2026-11-21
@@ -9,77 +9,103 @@ date: 2026-11-21
 
 ## Theme
 
-Deliver **safe, verified in-place data migration** from `0.8.30` (schema 37)
-and `0.8.31`/`0.8.32` (schema 38+) database versions, and enable local personal
-agents — **Memex, Hermes, OpenClaw**, and similar local-first agents — to adopt
-FathomDB cleanly as their primary database.
+Get the repository, contributor documentation, auto-documentation, engine
+internals documentation, SDK/MCP/CLI/Inspector references, and user-facing
+guides and recipes into shape as a **clear, articulate, concise public
+open-source database candidate** — documenting the complete stabilized
+`0.8.31` + `0.8.32` production surface.
 
 ## In scope
 
-### 1. Controlled data migration from `0.8.30` and `0.8.31`
+### 1. Repository and `dev/` contributor hygiene
 
-- **Policy ADR and guard update**:
-  - Author an ADR superseding `ADR-0.8.26-breaking-v1-contract-and-fresh-database-boundary.md`
-    to define FathomDB's controlled upgrade contract (explicit upgrade verb,
-    mandatory backup/verification, atomic transaction + `PRAGMA user_version`
-    step-up, deterministic projection rebuild, and post-migration integrity
-    verification).
-  - Update `AGENTS.md` § 10 and `scripts/agent-lint-migrations.sh` to distinguish
-    forbidden ad-hoc rewrite-era shims from tested, versioned forward
-    migrations.
-- **Migration execution path (`37 -> 38+ -> current` and `38+ -> current`)**:
-  - Provide an explicit CLI verb (`fathomdb migrate <db>`) — distributed
-    directly via the lockstep `fathomdb-cli` PyPI binary wheel established in
-    `0.8.31` so Python-only agent installs (`pip install` / `uv tool install`)
-    upgrade with zero Rust toolchain — and evaluate an opt-in SDK/open upgrade
-    path that:
-    1. Refuses active locks or corrupt inputs cleanly before touching the store.
-    2. Creates a verified pre-migration backup (or requires explicit caller
-       confirmation of an external backup).
-    3. Applies deterministic schema/data steps atomically inside
-       `BEGIN IMMEDIATE`, preserving all canonical nodes, edges, revisions,
-       provenance links, source dependencies, closures, operational collections,
-       and queued erasure state.
-    4. Rebuilds affected derived projections cleanly and runs full post-upgrade
-       integrity verification (`fathomdb doctor full-integrity`).
-- **Real historical producer qualification**:
-  - Qualify migrations against **closed golden `0.8.30` (schema 37)** and
-    **`0.8.31` (schema 38+)** databases created by the actual published
-    artifacts — including active/superseded rows, properties, provenance,
-    dependencies, operational state, and queued erasure.
-  - Test crash/interruption mid-migration (proving clean rollback and recovery
-    from pre-migration backup with zero silent corruption).
-  - Document the forward compatibility and upgrade policy clearly in
-    `docs/operations/` and `docs/compatibility/`.
+- Remove stray working files committed at repo root (`0.8.23-release-todo.md`,
+  `CORPUS-01-supersession-questions.txt`, `plan-slice-85-recovery.md`,
+  `plan-slice-85-review.md`) and audit top-level files for public cleanliness.
+- Streamline `dev/` (currently over 11,000 files, ~9,900 under `dev/plans/`):
+  - Archive or prune historical per-release slice runs, intermediate scratch
+    packets, and superseded draft notes out of the active contributor tree
+    (preserving git tags/history and load-bearing ADRs, interfaces, and active
+    plans).
+  - Fix `dev/hygeine-roadmap.md` filename typo and staleness; refresh
+    `dev/ROADMAP.md` and `dev/README.md` into a crisp contributor map.
+- Add standard public open-source repository files: `CONTRIBUTING.md`,
+  `SECURITY.md`, `CODE_OF_CONDUCT.md`, GitHub issue/PR templates, and a sharp,
+  compelling root `README.md`.
 
-### 2. Local personal agent enablement (Memex, Hermes, OpenClaw, etc.)
+### 2. Working, valuable auto-documentation pipeline
 
-- **Turnkey personal-agent integration kits / reference adapters**:
-  - Provide tested integration adapters, MCP server profiles, and starter
-    templates targeting **Memex, Hermes, and OpenClaw** (and a generic
-    local-agent blueprint) mapping:
-    - conversation turns, long-term preferences, and factual claims;
-    - property-rich entity and relationship graphs with temporal supersession;
-    - workflow checkpoints (`operational_state` / `latest_state`);
-    - caller/persona scoping (separating user statements, agent inferences, and
-      external tool/policy sources); and
-    - user-initiated correction and erasure (`purge` / `erase_source`).
-- **Personal-agent operational ergonomics (incorporating `0.8.30` Memex lessons)**:
-  - Smooth zero-friction local install and offline embedder cache management.
-  - Predictable idle memory footprint (`release_models()` and clean lifecycle
-    guidance for long-running local daemons).
-  - Documented and tested single-writer / multi-reader coordination patterns
-    (agent SDK writer + MCP reader + Inspector inspection).
-  - Portable local backup/export and live upgrade path verified on a real
-    `0.8.30` Memex database upgraded directly to `0.8.33` (including Memex's
-    transition from its `0.8.30` JSON-envelope `body` workaround to clean
-    plain-text `body` + outside-`body` typed node properties + caller scope +
-    `actuate`).
+- Upgrade `scripts/generate-public-docs.py` beyond the two bare name-only
+  tables (`docs/generated/sdk-operation-map.md`,
+  `docs/generated/contributor-map.md`):
+  - Generate rich, source-derived API references: `rustdoc` (`fathomdb-sdk` and
+    `fathomdb`), Python API docs from docstrings/type stubs, TypeScript API
+    docs from `.d.ts` (`typedoc`), CLI `--help` reference, and **MCP
+    tool/schema reference** directly from `fathomdb-mcp` JSON schemas.
+  - Enforce CI freshness checks so generated docs cannot drift from code.
+- Upgrade `mkdocs.yml` from the plain default `mkdocs` theme to a polished
+  public documentation theme with full search, clean navigation, and automated
+  Mermaid/SVG diagram rendering (reusing the `dev/tools/mermaid` sanitizer and
+  rendering checks qualified in `0.8.30`).
+
+### 3. Engine internals documentation ("how it works")
+
+- Author clear, illustrated public architecture docs under `docs/architecture/`
+  (replacing raw GitHub links into `dev/design/`):
+  - On-disk SQLite, WAL, and sidecar lock model.
+  - Canonical nodes, edges, inline outside-`body` typed properties, and
+    declared typed B-tree/`vec0` indexes (`0.8.31`).
+  - Immutable revisions, versioned provenance, and dependency closure.
+  - Derived projection pipeline (FTS5, property FTS, `sqlite-vec`, synchronous
+    vs. asynchronous readiness generations).
+  - Hybrid RRF fusion, cross-encoder reranking, fused-hit graph seeding, and
+    bitemporal property-graph traversal.
+  - Strict vs. bulk opt-in write integrity, caller scope isolation, erasure
+    lifecycle, and crash/power-loss recovery (`0.8.32`).
+
+### 4. Excellent SDK, MCP, CLI, and Inspector documentation
+
+- **SDKs (Python, TypeScript, Rust)**: complete task-oriented guides + accurate
+  API references + package-local agent-consumable documentation (carrying
+  forward the documentation half of
+  [03-fathomdb-agent-storage-proposal.md](../../notes/agent-storage-sdk/03-fathomdb-agent-storage-proposal.md)).
+  Explicitly document `ingest_with_extractor` as legacy/non-provenanced and
+  guide governed agents to `Engine.actuate` + `WriteProvenanceV1` (Memex E3),
+  and verify full coverage of `fathomdb-cli` PyPI installation, PyPI CUDA/CE
+  wheel support, `use_graph_arm` seeding modes, and mixed-`source_id` batch
+  atomicity.
+- **MCP (`docs/mcp/`)**: first-class public documentation covering setup for
+  Claude Desktop, Cursor, Memex, Hermes, and OpenClaw; configuration schema;
+  all read and write/checkpoint tools (`0.8.32`) and error codes; caller
+  scoping/security; token budgets; frozen-evidence workflow; and
+  troubleshooting.
+- **Inspector (`docs/inspector/`)**: integrate Inspector's user and operator
+  documentation into `mkdocs.yml` covering the `0.8.31`/`0.8.32` property,
+  history, and scope views.
+
+### 5. User-facing value proposition, visual illustrations, and tested recipes
+
+- Clearly articulate **why FathomDB** (benefits and honest tradeoffs vs. plain
+  SQLite+FTS5, vector-only stores, and split graph+vector stacks).
+- Add **visual diagrams** across `docs/` (currently zero diagrams): system
+  architecture, write→projection→read lifecycle, frozen-evidence verification
+  loop, property-graph + bitemporal supersession diagram, and SDK/MCP agent
+  topology.
+- Ship **CI-executed, runnable use-case recipes** (`docs/recipes/`):
+  1. Coding agent searchable engineering memory.
+  2. Computer agent runbooks and workflow checkpoints (SDK + read/write MCP).
+  3. Business process / design-controls evidence assistant (exact citations and
+     host-level abstention).
+  4. Knowledge management (property graph + historical path replay).
+  5. Personal agent local memory (Memex / Hermes / OpenClaw pattern, including
+     caller scope, erasure, and backup/restore).
 
 ## Out of scope
 
-- Migration from pre-`0.8.30` prototype formats (`SCHEMA_VERSION < 37`).
-- Multi-tenant cloud/networked server mode (FathomDB remains local-first
-  embedded + local stdio MCP).
-- Publishable competitive benchmark campaigns (allocated to
-  [0.8.34](../0.8.34/scope.md)).
+- Engine schema changes or new database features (frozen on `0.8.31`/`0.8.32`
+  schema).
+- Full general multi-version `fathomdb migrate` and personal-agent reference
+  connectors (allocated to [0.8.34](../0.8.34/scope.md)).
+- Full publishable latency and competitive benchmark campaigns (allocated to
+  [0.8.35](../0.8.35/scope.md), though `0.8.33` sets up the clean `docs/`
+  structure ready to receive `docs/benchmarks/`).

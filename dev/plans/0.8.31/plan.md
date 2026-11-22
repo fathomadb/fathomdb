@@ -7,40 +7,58 @@ date: 2026-11-21
 
 # FathomDB 0.8.31 release plan
 
-> **Status: PROPOSED — paused pending owner go-ahead and open-decision rulings.**
+> **Status: PROPOSED — all HITL scoping decisions settled (2026-11-21); paused
+> pending owner go-ahead to begin Slice 0.**
 > Execution requires an approved `release-state-0.8.31.json`, live board
 > `dev/plans/runs/STATUS-0.8.31.md`, and separate publication authority.
 
 ## Goal
 
-Deliver FathomDB **0.8.31** as a production-grade embedded property graph and
-evidence database with typed node/edge properties, bitemporal historical graph
-reconstruction, strict endpoint integrity, engine-enforced caller scoping, a
-production-ready frozen-evidence MCP surface, verified operational durability,
-zero latency regression against `0.8.30`, and **Inspector** integrated into the
-main repository and release cycle.
+Deliver FathomDB **0.8.31**: outside-`body` inline typed properties on **both
+nodes and edges** with declared typed indexes (Option 1), app-declared
+vector-committable kinds, strict-only write endpoint integrity, bitemporal
+historical graph reconstruction, opt-in fused-hit graph seeding with seed
+provenance, Memex SDK/CLI unblockers (`resolve_evidence_many`, `search(hints=)`,
+`OpenReport` booleans, op-collection readback, W12 erasure fixes, lockstep
+`fathomdb-cli` PyPI wheel, minimal schema-37→38 upgrade helper), zero latency
+regression against `0.8.30`, and **Inspector** integrated into `main` and the
+release cycle.
+
+## Settled HITL decisions (2026-11-21)
+
+| Decision | Ruling | Consequence |
+| --- | --- | --- |
+| Release split | Split into `0.8.31` (Property Graph + Strict Writes + History + Memex + Inspector) and [0.8.32](../0.8.32/plan.md) (Caller Scope + Read/Write MCP + Bulk Opt-In + Hardened Durability); shift Docs → `0.8.33`, Migration + Agents → `0.8.34`, Benchmarks → `0.8.35`. | Keeps `0.8.31` tight and unblocks Memex + Inspector first; reserves `scope` column in schema 38 so `0.8.32` avoids a breaking schema bump. |
+| Property indexing (A4) | **Option 1**: inline canonical typed JSON `properties` (outside `body`, ad-hoc predicates on `graph.expand`/`use_graph_arm`) + declared typed B-tree/`vec0` indexes for corpus-wide `SearchFilter`. | O(1) hydration, clean plain-text `body` (eliminating Memex R2), zero B-tree bloat on hashes/UUIDs, competitive write/read latency. |
+| Write integrity (A3) | **Strict-only** endpoint integrity in `0.8.31`; opt-in bulk/non-strict import lands in `0.8.32`. | Slice 0 ADR formalizes strict-only contract and updates legacy dangling-edge tests. |
+| Memex upgrade bridge (A5) | Include a **minimal schema-37→38 export/upgrade helper** in `0.8.31`. | Unblocks live `0.8.30` Memex upgrades ahead of full `0.8.34` `fathomdb migrate`. |
+| CUDA 13 (A1) | **Defer** [cuda-delivery-plan.md](cuda-delivery-plan.md) out of `0.8.31`. | Retains qualified `0.8.30` CUDA 12.6 + Orin stack; CUDA 13 re-slotted post-`0.8.35` or dedicated release. |
+| Memex Graph Asks 2 & 3 | **Include** opt-in fused-hit graph seeding + per-hit seed provenance in `0.8.31`. | Dense/reranked hits seed body-less property-graph edges with auditable seed/depth provenance. |
+| Memex R2 & E3 | **Skip R2** (superseded by Option 1); **defer E3** (`ingest_with_extractor` post-`0.8.34`, documented legacy in `0.8.33`). | Reduces engine churn and keeps focus on governed `actuate` + property graph. |
 
 ## Footprint and runtime posture
 
-- Core storage, property indexing, typed predicate evaluation, historical graph
-  traversal, scoping, frozen reads, and recovery remain **in-library,
-  deterministic, and CPU-only**.
-- Optional embedding and cross-encoder reranking retain the `0.8.30` CPU/CUDA
+- Core storage, inline property storage, declared typed indexing, predicate
+  evaluation, historical graph traversal, strict write validation, frozen reads,
+  and recovery remain **in-library, deterministic, and CPU-only**.
+- Optional embedding and cross-encoder reranking retain the `0.8.30` CPU / CUDA
   12.6 / Orin policy.
-- `fathomdb-mcp` remains a standalone Rust stdio binary over `fathomdb-sdk`.
-- Inspector remains a standalone desktop/local tool embedding `fathomdb-engine`
-  with model-free default builds and opt-in `cached-cpu`.
+- `fathomdb-cli` ships as a lockstep Rust binary and PyPI binary wheel.
+- Inspector remains a standalone local tool embedding `fathomdb-engine` with
+  model-free default builds and opt-in `cached-cpu`.
 
 ## Quality roadmap and standing tripwire check
 
 - **Quality testing roadmap**
   ([fathomdb-quality-testing-roadmap.md](../../notes/fathomdb-quality-testing-roadmap.md)):
-  - **Applies in `0.8.31`**: anomaly/fault injection at commit, queue, provider,
-    and erasure boundaries; resource-leak checks on close/cancel; boundary-value
-    property tests on typed predicates, bitemporal edges, and scopes;
-    disabled-optimization equivalence tests (comparing indexed property/scope
-    fast paths against reference scans); plus [quality-backlog.md](quality-backlog.md)
-    (coverage-guided fuzzing and power-loss recovery proof).
+  - **Applies in `0.8.31`**: anomaly/fault injection at commit, property-index,
+    upgrade-helper, and erasure boundaries; resource-leak checks on close/cancel;
+    boundary-value property tests on typed predicates and bitemporal edges;
+    disabled-optimization equivalence tests (comparing declared-index fast paths
+    against reference scans).
+  - **Re-slotted to `0.8.32`**: [quality-backlog.md](quality-backlog.md)
+    (power-loss recovery proof and broad coverage-guided fuzzing) moves cleanly
+    to [0.8.32](../0.8.32/plan.md) alongside caller scope and read+write MCP.
   - **Deferred**: global 100% MC/DC, general SQLite SQL/B-tree fuzzing, and
     ANN/2.x backend qualification.
 - **Standing tripwires**
@@ -52,16 +70,14 @@ main repository and release cycle.
 
 | ID | Requirement | Falsifiable acceptance signal |
 | --- | --- | --- |
-| R31-01 | Typed properties on nodes and edges outside `body` (`SCHEMA_VERSION` 38+), app-declared vector-committable kinds (Memex R1), and op-collection kind readback (Memex R12) with Rust/Python/TS SDK parity | Real-DB TDD + `proptest`/Hypothesis round-trip tests across all 3 SDKs for string/int/float/bool properties on nodes & edges outside `body` (filterable in `SearchFilter` and readable on hits/evidence); custom app-declared kinds vector-index cleanly; op-collection kind readback and mismatch handling pass; property updates create immutable revisions (`_fathomdb_artifact_revisions`) and never mutate in place. |
-| R31-02 | Closed typed predicates on edges/target nodes in `graph.expand` and `use_graph_arm`, opt-in fused-hit graph seeding + seed provenance (Memex Graph Asks 2, 3, 5), and mixed-edge seed-slot fix | Traversal tests prove `=`, `!=`, `<`, `<=`, `>`, `>=` on edge and target properties; ineligible edges never enter paths, displace eligible results, or consume `SEED_FTS_N` slots; opt-in `graph_seed="fused_top_k"\|"graph_fts"\|"both"` seeds body-less edges from fused/reranked hits with per-hit seed provenance + hop depth in explain/evidence; `EXPLAIN QUERY PLAN` verifies indexed `SEARCH` (no full `SCAN`). |
-| R31-03 | Historical graph reconstruction (`as_of` / revision-aware traversal) | Real-DB tests reconstruct exact paths before and after edge supersession, including divergent validity (`t_valid`/`t_invalid`) and revision timestamps; erased rows are never replayed. |
-| R31-04 | Opt-in strict write endpoint integrity | Real-DB tests prove missing or inactive endpoints cause atomic refusal on strict `engine.write` with zero partial state after reopen; default non-strict mode retains explicit `dangling_edge_endpoints` reporting. |
-| R31-05 | Engine-enforced caller scope and write authority (incl. `use_graph_arm`, Memex Graph Ask 6) | Multi-caller fixtures with overlapping data and distinct grants prove zero cross-scope leakage across `search` (including `use_graph_arm`), `fetch`, `expand`, frozen contexts, continuations, and stale handles after grant revocation; unauthorized/stale writes leave state unchanged and retries remain idempotent. |
-| R31-06 | Production `fathomdb-mcp` (scoped frozen evidence + release packaging), batch `resolve_evidence_many`, `search(hints=)` parity, `OpenReport` capability booleans, lockstep `fathomdb-cli` PyPI wheel (Memex R10), and Memex doc fixes (Graph Ask 1, Ask 4, Ask 5) | Same evidence tasks run via SDK (`resolve_evidence_many`) and MCP verify exact bytes, revision identity, typed drift/erasure/truncation outcomes, and caller scope enforcement; `search(hints=)` and `OpenReport` booleans (`reranker_compiled`, `cuda_compiled`, `rerank_available`) pass across all 3 SDKs; `fathomdb-mcp` and `fathomdb-cli` PyPI wheel install and pass consumer smokes (`fathomdb doctor`) without a Rust toolchain; `docs/reference/python-api.md` and `docs/install/python.md` fixes verified. |
-| R31-07 | Erasure, W12 ergonomics fixes (Memex Ask 3), and metadata completeness invariants | `sqlite_master` audit test passes (every table classified in canonical/projection, read-visibility triggers, erasure, `doctor`, Inspector); `purge` and `erase_source` (Autonomous + ExplicitMaintenance) leave zero property/scope rows, zero WAL/file remnants, and valid closure proofs; completing-retry `EraseReport` is distinguishable from already-erased and BUSY checkpoint errors report accurate causes. |
-| R31-08 | Zero latency regression vs. `0.8.30` | Paired `v0.8.30` vs. `0.8.31` benchmark (10k / 50k / 100k) via `experiments/sdk_benchmark.py` shows no statistically significant p50/p95 regression on unpredicated open, write, streamed FTS, optimized hybrid, and current-graph expansion; `EXPLAIN QUERY PLAN` checks pass. |
-| R31-09 | Operational durability: backup/restore/rebuild, power-loss proof, and coverage-guided fuzzing | Round-trip backup/restore and rebuild match revisions, evidence spans, and graph outputs; power-loss fault campaign passes under declared durability model; instrumented coverage-guided fuzzing runs within declared budgets with minimized regressions committed. |
-| R31-10 | Inspector merged into `main`, upgraded to `0.8.31`, and wired into release cycle | `src/inspector/` compiles against `0.8.31` Engine (model-free + `cached-cpu`), passes retrieval/ownership/property/history/scope/erasure qualification on real `.30` and `.31` fixtures, and produces qualified release artifacts in the release workflow. |
+| R31-01 | Outside-`body` inline typed node/edge properties + declared typed B-tree/`vec0` indexes (`SCHEMA_VERSION` 38+, reserved `scope` column), app-declared vector kinds (R1), and op-collection readback (R12) with Rust/Python/TS parity | Real-DB TDD + `proptest`/Hypothesis round-trip tests across all 3 SDKs for string/int/float/bool properties outside `body`; declared properties pre-filter cleanly in `SearchFilter` (undeclared rejected cleanly); custom app-declared kinds vector-index; op-collection kind readback/mismatch passes; property updates create immutable revisions (`_fathomdb_artifact_revisions`). |
+| R31-02 | Ad-hoc + declared typed predicates on `graph.expand` and `use_graph_arm`, opt-in fused-hit seeding + seed provenance (Memex Graph Asks 2, 3, 5), and mixed-edge seed-slot fix | Traversal tests prove `=`, `!=`, `<`, `<=`, `>`, `>=` on both undeclared (inline) and declared edge/target properties; ineligible edges never enter paths, displace eligible results, or consume `SEED_FTS_N` slots; opt-in `graph_seed="fused_top_k"\|"graph_fts"\|"both"` seeds body-less edges from fused/reranked hits with per-hit seed provenance + hop depth; `EXPLAIN QUERY PLAN` verifies indexed `SEARCH` (no full `SCAN`). |
+| R31-03 | Historical graph reconstruction (`as_of` / revision-aware traversal) | Real-DB tests reconstruct exact paths before and after edge supersession, including divergent validity (`t_valid`/`t_invalid`) and revision timestamps; purged/erased rows are never replayed. |
+| R31-04 | Strict-only write endpoint integrity | Real-DB tests prove every `engine.write` / `actuate` call referencing a missing or inactive endpoint causes atomic refusal with zero partial state after reopen; zero dangling edges exist in `0.8.31` stores. |
+| R31-05 | Memex SDK/CLI unblockers, minimal 37→38 upgrade helper, lockstep `fathomdb-cli` PyPI wheel, and doc fixes | `resolve_evidence_many`, `search(hints=)`, and `OpenReport` booleans (`reranker_compiled`, `cuda_compiled`, `rerank_available`) pass across all 3 SDKs; `fathomdb-cli` PyPI wheel installs and runs `fathomdb doctor` + minimal 37→38 upgrade on a real closed `0.8.30` DB with no Rust toolchain; `docs/reference/python-api.md` and `docs/install/python.md` fixes verified. |
+| R31-06 | Erasure, W12 ergonomics fixes (Memex Ask 3), and metadata completeness invariants | `sqlite_master` audit test passes (every table classified in canonical/projection, read-visibility triggers, erasure, `doctor`, Inspector); `purge` and `erase_source` (Autonomous + ExplicitMaintenance) leave zero property rows, zero WAL/file remnants, and valid closure proofs; completing-retry `EraseReport` is distinguishable from already-erased and BUSY checkpoint diagnostics are accurate. |
+| R31-07 | Zero latency regression vs. `0.8.30` | Paired `v0.8.30` vs. `0.8.31` benchmark (10k / 50k / 100k) via `experiments/sdk_benchmark.py` shows no statistically significant p50/p95 regression on unpredicated open, write, streamed FTS, optimized hybrid, and current-graph expansion; `EXPLAIN QUERY PLAN` checks pass. |
+| R31-08 | Inspector merged into `main`, upgraded to `0.8.31`, and wired into release cycle | `src/inspector/` compiles against `0.8.31` Engine (model-free + `cached-cpu`), passes retrieval/ownership/property/history/erasure qualification on real `.30` (upgraded) and `.31` fixtures, and produces qualified release artifacts in the release workflow. |
 
 ## Cross-cutting Definition of Done (every feature slice)
 
@@ -70,57 +86,43 @@ main repository and release cycle.
 - **X2 (Erasure & metadata audit)**: `sqlite_master` table-classification test,
   read-visibility triggers, `purge`/`erase_source`, and `doctor` checks pass.
 - **X3 (Performance guard)**: `EXPLAIN QUERY PLAN` checks and scoped latency
-  spot-checks pass before slice close; full paired gate runs in Slice 80.
-- **X4 (Docs & interfaces)**: `dev/interfaces/{rust,rust-sdk,python,typescript,cli,mcp,wire}.md`
+  spot-checks pass before slice close; full paired gate runs in Slice 70.
+- **X4 (Docs & interfaces)**: `dev/interfaces/{rust,rust-sdk,python,typescript,cli,wire}.md`
   and `docs/` updated in the same slice as any contract change.
 
 ## Slice ladder (proposed)
 
 | Slice | Title | Requirements | Depends on | Parallel / conflict notes |
 | --- | --- | --- | --- | --- |
-| 0 | Preflight, ADRs, W12 fence review, and baseline `0.8.30` latency capture | All | `0.8.30` closed + open decisions ruled | Writes ADRs for outside-`body` property schema, app-declared vector kinds, historical graph, caller scope, MCP/CLI wheel packaging, and strict-write contract; evaluates W12 checkpoint-only fence safety; captures `v0.8.30` baseline numbers. |
-| 10 | Schema 38+, outside-`body` node/edge typed properties, app-declared vector kinds, op-collection readback, W12 fixes, and metadata/erasure audit | R31-01, R31-07 | 0 | Keystone for schema, `fathomdb-schema`, `SearchFilter` property predicates, `ROW_OWNED_PROJECTIONS`, triggers, `physical_erasure`, W12 ergonomics fixes, and `sqlite_master` audit. |
-| 20 | Edge/target predicates, opt-in fused-hit graph seeding + seed provenance, mixed-edge slot fix, and strict endpoint integrity | R31-02, R31-04, R31-07 | 10 | Touches `graph_expand/`, `search.rs`, `filter.rs`, `write_validation.rs`, `write_commit.rs`, SDK bindings. |
-| 30 | Historical graph reconstruction (`as_of` / revision-aware traversal) | R31-03, R31-07 | 10 | Can run parallel to 20 after shared `graph_expand/types.rs` contract is frozen; serialize merge on `graph_expand/execution.rs`. |
-| 40 | Engine-enforced caller scope and write authority (incl. `use_graph_arm`) | R31-05, R31-07 | 10 | Touches `read.rs`, `search.rs`, `frozen_read.rs`, `graph_expand/`, `write.rs`, `actuation.rs`, SDKs. |
-| 50 | Production `fathomdb-mcp`, `resolve_evidence_many`, `search(hints=)`, `OpenReport` booleans, `fathomdb-cli` PyPI wheel, and Memex doc fixes | R31-06, R31-07 | 20, 30, 40 | Touches `fathomdb-mcp`, SDK evidence/hints/open bindings, `fathomdb-cli` wheel packaging, docs fixes, and release workflow. |
-| 60 | Inspector merge, `0.8.31` Engine/UI upgrade, and release-cycle wiring | R31-10 | 20, 30, 40 | Merges `inspector/dev/0.2.0` onto `main`; adds property, history, and scope UI views + release CI integration. |
-| 70 | Operational durability: backup/restore/rebuild, power-loss proof, and coverage-guided fuzzing | R31-09 | 50 | Executes `quality-backlog.md` and External Reviewer P0 durability proofs on real stores. |
-| 80 | Full-workspace qualification and paired `0.8.30` vs. `0.8.31` latency gate | R31-08, All | 60, 70 | Full `./scripts/agent-verify.sh`, paired latency/RSS gate, 5-target + Orin + Inspector candidate qualification; archives closed golden `0.8.31` fixture DB for `0.8.33`. |
-| 90 | Authorized `0.8.31` publication (crates, PyPI, npm, Tegra, MCP, Inspector) | All | 80 + explicit HITL publish approval | Separate publish authorization; post-publish installed consumer smokes across all targets. |
+| 0 | Preflight, ADRs, W12 fence review, and baseline `0.8.30` latency capture | All | `0.8.30` closed + owner go-ahead | Writes ADRs for Option-1 property schema (with reserved `scope` column), app-declared vector kinds, strict-only endpoint integrity, historical graph, minimal 37→38 upgrade helper, and `fathomdb-cli` PyPI wheel; evaluates W12 checkpoint-only fence safety; captures `v0.8.30` baseline numbers. |
+| 10 | Schema 38+, outside-`body` inline properties + declared typed indexes, app-declared vector kinds, op-collection readback, W12 fixes, and `sqlite_master` audit | R31-01, R31-06 | 0 | Keystone for `fathomdb-schema`, `SearchFilter` property predicates, `ROW_OWNED_PROJECTIONS`, triggers, `physical_erasure`, W12 ergonomics fixes, and `sqlite_master` completeness audit. |
+| 20 | Strict-only endpoint integrity, edge/target predicates, opt-in fused-hit seeding + seed provenance, and mixed-edge slot fix | R31-02, R31-04, R31-06 | 10 | Touches `write_validation.rs`, `write_commit.rs`, `graph_expand/`, `search.rs`, `filter.rs`, SDK bindings; updates legacy dangling-edge tests per Slice 0 ADR. |
+| 30 | Historical graph reconstruction (`as_of` / revision-aware traversal) | R31-03, R31-06 | 10 | Can run parallel to 20 after shared `graph_expand/types.rs` contract is frozen; serialize merge on `graph_expand/execution.rs`. |
+| 40 | SDK unblockers (`resolve_evidence_many`, `search(hints=)`, `OpenReport` booleans), minimal 37→38 upgrade helper, `fathomdb-cli` PyPI wheel, and doc fixes | R31-05, R31-06 | 20, 30 | Touches SDK bindings, `fathomdb-cli` upgrade helper + PyPI Maturin bin packaging, and Memex doc fixes. |
+| 50 | Inspector merge, `0.8.31` Engine + property/history UI upgrade, and release-cycle wiring | R31-08 | 20, 30 | Can overlap with 40; merges `inspector/dev/0.2.0` onto `main`, adds property and historical graph UI views, and integrates Inspector into release CI. |
+| 60 | Full-workspace qualification and paired `0.8.30` vs. `0.8.31` latency gate | R31-07, All | 40, 50 | Full `./scripts/agent-verify.sh`, paired latency/RSS gate, 5-target + Orin + `fathomdb-cli` PyPI wheel + Inspector candidate qualification; archives closed golden `0.8.31` fixture DB for `0.8.34`. |
+| 70 | Authorized `0.8.31` publication (crates, PyPI `fathomdb` + `fathomdb-cli`, npm, Tegra, Inspector) | All | 60 + explicit HITL publish approval | Separate publish authorization; post-publish installed consumer smokes across all targets. |
 
 ## Behavior-change register (expected)
 
-- **Schema version bump (`37 -> 38+`)**: non-empty schema-37 stores remain
-  refused at open until `0.8.33` migration lands (documented clearly in release
-  notes and compatibility docs).
-- **Additive SDK, CLI & MCP surface**: outside-`body` typed node/edge
-  properties (filterable in `SearchFilter` and `graph.expand`), app-declared
-  vector-committable kinds, opt-in fused-hit graph seeding (`graph_seed`) with
-  seed/depth provenance, `use_graph_arm` edge filters, historical graph view
-  mode, opt-in strict endpoint writes, caller scope parameters, batch
+- **Breaking (pre-1.0) — schema version bump (`37 -> 38+`)**: non-empty
+  schema-37 stores are refused on direct open; use the `0.8.31` minimal 37→38
+  upgrade helper (or full `0.8.34` `fathomdb migrate` later).
+- **Breaking (pre-1.0) — strict-only write endpoint integrity**: edges with
+  missing or inactive endpoints are atomically refused on `engine.write` (opt-in
+  bulk/non-strict import arrives in `0.8.32`).
+- **Additive SDK & CLI surface**: outside-`body` typed node/edge properties
+  (inline JSON + declared typed indexes for `SearchFilter`), app-declared
+  vector-committable kinds, ad-hoc & declared edge/target predicates, opt-in
+  fused-hit graph seeding (`graph_seed`) with seed/depth provenance,
+  `use_graph_arm` edge filters, historical graph `as_of` mode, batch
   `resolve_evidence_many`, `search(hints=)`, `OpenReport` capability booleans,
-  op-collection kind readback, MCP frozen-evidence tools, and lockstep
-  `fathomdb-cli` PyPI wheels.
+  op-collection kind readback, minimal 37→38 upgrade helper, and lockstep
+  `fathomdb-cli` PyPI binary wheels.
 - **Targeted defect/ergonomics fixes**: mixed-edge `SEED_FTS_N` seed-slot fix
-  and W12 erasure ergonomics (completing-retry counts, accurate BUSY checkpoint
-  diagnostics, and Slice 0 checkpoint-fence review).
-- **No silent behavior change** on unpredicated, unscoped, current-time queries
-  or default write receipts.
+  and W12 erasure ergonomics.
+- **No silent behavior change** on unpredicated, current-time queries.
 
-## Open HITL decisions required before Slice 0 starts
+## Open HITL decisions
 
-1. **CUDA 13 disposition**: Confirm deferring
-   [cuda-delivery-plan.md](cuda-delivery-plan.md) out of `0.8.31`.
-2. **MCP write surface**: Keep `0.8.31` MCP scoped + frozen-evidence read-only
-   (writes/checkpoints via SDK), or expose governed/idempotent writes over MCP
-   in `0.8.31`?
-3. **Default write integrity**: Keep strict endpoint integrity opt-in per
-   request/store (recommended for backward compatibility with bulk imports), or
-   make strict the default?
-4. **Property schema shape**: Confirm inline canonical JSON properties +
-   declared typed index table (`text_val`/`num_val`/`bool_val`) vs. indexing all
-   properties automatically (tradeoff: write amplification & DB size vs. ad-hoc
-   predicate speed).
-5. **Memex `.30 -> .31` bridge**: Confirm Memex stays on `0.8.30` (or rebuilds)
-   until `0.8.33` migration ships.
+None remaining for scoping; ready to begin Slice 0 upon owner go-ahead.

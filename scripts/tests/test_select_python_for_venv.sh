@@ -98,14 +98,26 @@ OUT_C="$(PATH="$DIR_C:$NO_SYSTEM_PATH" select_python_for_venv)"
 [ "$OUT_C" = "$UV_TARGET_C" ] || fail "arm C: expected uv-resolved $UV_TARGET_C, got $OUT_C"
 pass "arm C: falls back to 'uv python find' when no bare command exists (the real host case)"
 
-# --- Arm D: bare 3.11 present AND uv resolves 3.13 -> version, not mechanism, wins
+# --- Arm D: bare 3.11 present AND uv resolves 3.13 -> bare PATH wins over uv
+# (0.8.31 Slice 0: prefer system/PATH Python >=3.11 over uv standalone Python,
+# because uv standalone 3.13 on Ubuntu 24.04 lacks os.memfd_create and breaks
+# cargo test -p fathomdb-py --lib dynamic libpython linking).
 DIR_D="$FIX/d"; mkshim "$DIR_D" 3.11
 UV_TARGET_D="$FIX/uv-managed-d/python3.13"
 mkdir -p "$(dirname "$UV_TARGET_D")"; : >"$UV_TARGET_D"; chmod +x "$UV_TARGET_D"
 mkuv "$DIR_D" "3.13:$UV_TARGET_D" "3.12:" "3.11:"
 OUT_D="$(PATH="$DIR_D:$NO_SYSTEM_PATH" select_python_for_venv)"
-[ "$OUT_D" = "$UV_TARGET_D" ] || fail "arm D: expected the higher uv-resolved 3.13 ($UV_TARGET_D) to beat bare 3.11, got $OUT_D"
-pass "arm D: preference is by version across mechanisms, not bare-PATH-first"
+[ "$OUT_D" = "$DIR_D/python3.11" ] || fail "arm D: expected bare PATH python3.11 ($DIR_D/python3.11) to beat uv-managed 3.13, got $OUT_D"
+pass "arm D: bare PATH Python >=3.11 takes precedence over uv-managed Python"
+
+# --- Arm G: Ubuntu 24.04 case — bare 3.12 on PATH AND uv resolves 3.13 -> bare 3.12 wins
+DIR_G="$FIX/g"; mkshim "$DIR_G" 3.12
+UV_TARGET_G="$FIX/uv-managed-g/python3.13"
+mkdir -p "$(dirname "$UV_TARGET_G")"; : >"$UV_TARGET_G"; chmod +x "$UV_TARGET_G"
+mkuv "$DIR_G" "3.13:$UV_TARGET_G" "3.12:" "3.11:"
+OUT_G="$(PATH="$DIR_G:$NO_SYSTEM_PATH" select_python_for_venv)"
+[ "$OUT_G" = "$DIR_G/python3.12" ] || fail "arm G: expected bare PATH python3.12 ($DIR_G/python3.12) to beat uv-managed 3.13, got $OUT_G"
+pass "arm G: Ubuntu 24.04 case — bare python3.12 beats uv-managed 3.13"
 
 # --- Arm E: nothing available anywhere -> fails closed with actionable message
 DIR_E="$FIX/e"; mkdir -p "$DIR_E"

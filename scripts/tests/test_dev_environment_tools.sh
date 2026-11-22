@@ -89,6 +89,15 @@ else
   missing+=("js-yaml: not found at repo-root node_modules/ (run npm ci at repo root)")
 fi
 
+# Checkout-owned TypeScript tooling (src/ts/node_modules) — required by
+# test_tegra_napi_build_contract.sh and test_native_artifact_runtime_validation.sh
+# so full verification never discovers missing TS packages mid-gate.
+if [ -f src/ts/node_modules/typescript/bin/tsc ] && [ -f src/ts/node_modules/@napi-rs/cli/package.json ]; then
+  printf 'ok  TypeScript tooling resolvable at src/ts/node_modules\n'
+else
+  missing+=("src/ts/node_modules: missing typescript or @napi-rs/cli (run npm ci in src/ts)")
+fi
+
 if [ "${#missing[@]}" -gt 0 ]; then
   printf 'FAIL  dev-environment-tools: %d pinned tool(s) missing or wrong version:\n' "${#missing[@]}" >&2
   for m in "${missing[@]}"; do

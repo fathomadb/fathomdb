@@ -381,7 +381,7 @@ impl Engine {
         // applies, from the SAME predicate, so the two cannot drift: a kind the
         // vector writer cannot commit must never be enrolled, or the projection
         // worker wedges on it forever. See [`kind_is_vector_committable`].
-        if !kind_is_vector_committable(kind) {
+        if !kind_is_vector_committable_on(connection, kind) {
             return Ok(false);
         }
         if kind_is_vector_indexed(connection, kind)? {
@@ -604,6 +604,7 @@ impl Engine {
                 // `state = 'active'` (no state column in its INSERT), so the row
                 // is always active and its attributes project.
                 true,
+                None,
             )
             .map_err(|_| EngineError::Storage)?;
             advance_projection_cursor(&tx).map_err(|_| EngineError::Storage)?;

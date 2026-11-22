@@ -444,6 +444,7 @@ struct EdgeRow {
     logical_id: Option<String>,
     superseded_at: Option<i64>,
     t_invalid: Option<i64>,
+    properties: Option<crate::PropertyMap>,
 }
 
 struct GraphCandidate {
@@ -451,12 +452,19 @@ struct GraphCandidate {
     terminal_edge_cursor: u64,
 }
 
+struct LoadedNodeRow {
+    kind: String,
+    body: String,
+    write_cursor: u64,
+    properties: Option<crate::PropertyMap>,
+}
+
 fn load_node(
     tx: &Connection,
     logical_id: &str,
     view: FrozenView,
     filter: &SearchFilter,
-) -> Result<Option<(String, String, u64)>, EngineError> {
+) -> Result<Option<LoadedNodeRow>, EngineError> {
     let mut params = vec![rusqlite::types::Value::Text(logical_id.to_string())];
     if let Some(now) = view.now_param() {
         params.push(rusqlite::types::Value::Integer(now));
@@ -470,11 +478,16 @@ fn load_node(
     )
     .map_err(|_| EngineError::Storage)?;
     let sql = format!(
-        "SELECT n.kind,n.body,n.write_cursor FROM canonical_nodes n WHERE n.logical_id=?1{}{} ORDER BY n.write_cursor DESC LIMIT 1",
+        "SELECT n.kind,n.body,n.write_cursor,n.properties FROM canonical_nodes n WHERE n.logical_id=?1{}{} ORDER BY n.write_cursor DESC LIMIT 1",
         view.node_sql("n", 2), eligibility
     );
     tx.query_row(&sql, rusqlite::params_from_iter(params.iter()), |row| {
-        Ok((row.get(0)?, row.get(1)?, u64::try_from(row.get::<_, i64>(2)?).unwrap_or(0)))
+        Ok(LoadedNodeRow {
+            kind: row.get(0)?,
+            body: row.get(1)?,
+            write_cursor: u64::try_from(row.get::<_, i64>(2)?).unwrap_or(0),
+            properties: crate::properties::decode_properties_row_col(row, 3)?,
+        })
     })
     .optional()
     .map_err(|_| EngineError::Storage)
@@ -492,7 +505,7 @@ fn graph_expand_incident_sql(direction: TraversalDirection) -> String {
         TraversalDirection::Incoming => "to_id=?1",
         TraversalDirection::Both => "(from_id=?1 OR to_id=?1)",
     };
-    format!("SELECT write_cursor,kind,from_id,to_id,logical_id,superseded_at,t_invalid FROM canonical_edges WHERE {predicate} LIMIT ?2")
+    format!("SELECT write_cursor,kind,from_id,to_id,logical_id,superseded_at,t_invalid,properties FROM canonical_edges WHERE {predicate} LIMIT ?2")
 }
 
 pub(crate) fn graph_expand_incident_query(
@@ -547,6 +560,7 @@ fn load_incident_edges(
                 logical_id: row.get(4)?,
                 superseded_at: row.get(5)?,
                 t_invalid: row.get(6)?,
+                properties: crate::properties::decode_properties_row_col(row, 7)?,
             })
         })
         .map_err(|_| EngineError::Storage)?;
@@ -897,7 +911,7 @@ pub(crate) fn read_graph_expand_with_stop_words_in_tx(
                 {
                     continue;
                 }
-                let Some((kind, body, write_cursor)) =
+                let Some(LoadedNodeRow { kind, body, write_cursor, properties: node_properties }) =
                     load_node(&tx, next, view, &context.eligibility)?
                 else {
                     continue;
@@ -919,7 +933,7 @@ pub(crate) fn read_graph_expand_with_stop_words_in_tx(
                     hop_count: depth + 1,
                     terminal_edge_kind: edge.kind.clone(),
                     terminal_direction,
-                    terminal_edge_properties: None,
+                    terminal_edge_properties: edge.properties.clone(),
                 };
                 let target = GraphTargetV1 {
                     schema_version: 1,
@@ -927,7 +941,7 @@ pub(crate) fn read_graph_expand_with_stop_words_in_tx(
                     kind,
                     body,
                     write_cursor,
-                    properties: None,
+                    properties: node_properties,
                     origin,
                 };
                 if let Some(existing) = candidates.get_mut(next) {

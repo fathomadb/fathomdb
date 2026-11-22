@@ -71,9 +71,11 @@ pub(crate) fn ensure_vector_partition(
     }
 }
 
-/// Format-35 layout: plain metadata is filtered inside KNN; attributes share
-/// the sixteen-column metadata budget with six built-in metadata columns.
+/// Format-38 layout: plain metadata is filtered inside KNN; declared node
+/// properties share the sixteen-column metadata budget with seven built-in
+/// metadata columns and one slot reserved for future scope filtering.
 /// Every partition, including attribute reshapes, uses 64-row chunks.
+pub(crate) const MAX_VEC0_NODE_PROPERTY_SLOTS: usize = 8;
 fn vector_partition_create_sql(
     dimension: u32,
     if_not_exists: bool,
@@ -139,19 +141,26 @@ pub(crate) fn decode_attr_vec0_column(col: &str) -> Option<String> {
     String::from_utf8(bytes).ok()
 }
 
-/// 0.8.20 Slice 15e — the DESIRED `attr_<hex>` columns implied by the durable
-/// projection registry: one per `filterable` projection, sorted by attribute name
-/// (⇒ sorted by column, since hex encoding preserves byte order). This is the
-/// derived-cache source the reshape reconciles the live vec0 shape against.
-fn desired_vector_attr_columns(conn: &Connection) -> rusqlite::Result<Vec<String>> {
+/// 0.8.20 Slice 15e + 0.8.31 Slice 20 — the DESIRED `attr_<hex>` columns implied
+/// by the durable projection registry: at most `MAX_VEC0_NODE_PROPERTY_SLOTS` (`8`)
+/// node `Filterable` projections (excluding edge properties and leaving 1 slot
+/// reserved for future `scope`), sorted deterministically by attribute name.
+pub(crate) fn desired_vector_attr_columns(conn: &Connection) -> rusqlite::Result<Vec<String>> {
     let registry = load_projection_registry(conn)?;
-    let mut cols: Vec<String> = registry
+    let mut names: Vec<&String> = registry
         .iter()
-        .filter(|(_, stored)| stored.roles.contains(&ProjectionRole::Filterable))
-        .map(|(name, _)| attr_vec0_column(name))
+        .filter(|(_, stored)| {
+            stored.entity_class == PropertyEntityClass::Node
+                && stored.roles.contains(&ProjectionRole::Filterable)
+        })
+        .map(|(name, _)| name)
         .collect();
-    cols.sort();
-    Ok(cols)
+    names.sort();
+    Ok(names
+        .into_iter()
+        .take(MAX_VEC0_NODE_PROPERTY_SLOTS)
+        .map(|name| attr_vec0_column(name))
+        .collect())
 }
 
 /// 0.8.20 Slice 15e — the `attr_<hex>` columns actually present on the live
@@ -265,8 +274,9 @@ pub(crate) fn refresh_vector_attr_values_for_row(
     conn: &Connection,
     rowid: i64,
     body: &str,
+    properties: Option<&PropertyMap>,
 ) -> rusqlite::Result<()> {
-    let (cols_sql, _, values) = vector_attr_insert_fragments(conn, body, 1)?;
+    let (cols_sql, _, values) = vector_attr_insert_fragments(conn, body, properties, 1)?;
     if cols_sql.is_empty() {
         return Ok(());
     }
@@ -292,29 +302,6 @@ pub(crate) fn refresh_vector_attr_values_for_row(
     Ok(())
 }
 
-/// 0.8.20 Slice 15e — the NON-DESTRUCTIVE reshape itself. Stages every live row
-/// (base columns + all ACTUAL attribute columns), drops + recreates
-/// `vector_default` at the DESIRED shape, then re-inserts each row.
-///
-/// THE FOUR LOAD-BEARING CONDITIONS (any one broken ⇒ silently wrong results):
-///   1. `rowid` is listed EXPLICITLY in the re-insert (a vec0 row maps to its node
-///      through the vector-row mapping; auto-assigned IDs would decouple
-///      embeddings from their owners);
-///   2. each attribute column is PLAIN `TEXT` metadata (via
-///      [`vector_partition_create_sql`]), never a vec0 `aux`/`+` column (aux
-///      hard-errors a filtered KNN);
-///   3. a DESIRED column with no ACTUAL predecessor back-fills each row from the
-///      already-populated `canonical_attributes` (fix-1 finding 2) so a
-///      pre-existing row whose body carries the attribute is immediately
-///      filterable; the `''` sentinel (vec0 TEXT metadata is NOT-NULL-able) is
-///      used ONLY where the attribute is genuinely absent, so an absent row
-///      cleanly fails-to-match instead of erroring;
-///   4. `embedding_bin` is copied VERBATIM via `vec_bit(...)` — NOT re-quantized —
-///      so old rows keep their (possibly mean-centered) bits and stay Hamming-
-///      comparable to new rows.
-///
-/// Runs on `conn` directly (the caller owns the transaction). Transactional
-/// atomicity and reader isolation are the caller's responsibility.
 fn reshape_vector_partition_nondestructive(
     conn: &Connection,
     dimension: u32,
@@ -352,57 +339,114 @@ fn reshape_vector_partition_nondestructive(
     // Recreate at the DESIRED shape (plain TEXT attr columns — condition #2).
     conn.execute_batch(&vector_partition_create_sql(dimension, false, desired_cols))?;
 
-    // Re-insert. `rowid` explicit (condition #1); `vec_bit(embedding_bin)`
-    // verbatim, never re-quantized (condition #4); `status` and each surviving
-    // attribute column carried forward; each NEW desired column back-fills from
-    // `canonical_attributes` (the `''` sentinel only where genuinely absent —
-    // condition #3).
     let mut insert_cols =
         String::from("rowid, embedding, embedding_bin, source_type, kind, created_at, status, lifecycle, valid_from, valid_until");
-    let mut select_exprs = String::from(
-        "rowid, embedding, vec_bit(embedding_bin), source_type, kind, created_at, status, lifecycle, valid_from, valid_until",
-    );
-    for col in desired_cols {
+    let mut placeholders = String::from("?1, ?2, vec_bit(?3), ?4, ?5, ?6, ?7, ?8, ?9, ?10");
+    let mut stage_select_actual = String::new();
+    let mut need_owner_source = false;
+    let mut col_plan: Vec<(usize, Option<(String, StoredProjection)>)> =
+        Vec::with_capacity(desired_cols.len());
+    let registry = load_projection_registry(conn)?;
+    for (idx, col) in desired_cols.iter().enumerate() {
         insert_cols.push_str(&format!(", {col}"));
-        if actual_cols.iter().any(|a| a == col) && !refresh_values {
-            // Surviving column — carry its value forward (never NULL: vec0 TEXT
-            // metadata is `''`-sentinelled, but COALESCE defends the stage table).
-            select_exprs.push_str(&format!(", COALESCE({col}, '')"));
-        } else {
-            // Mapped historical/inactive vectors outlive the current-only EAV
-            // projection. Re-derive their scalar values from canonical bodies.
-            match decode_attr_vec0_column(col) {
-                Some(name) => {
-                    // vec0/execute_batch takes no bind params; embed the decoded name
-                    // as a SQL string literal, escaping single quotes.
-                    //
-                    // Present values use the same marker encoding as writes;
-                    // absent values use the empty sentinel, including history.
-                    let registry = load_projection_registry(conn)?;
-                    let stored = registry.get(&name).ok_or(rusqlite::Error::InvalidQuery)?;
-                    let path = crate::projection_registry::projection_json_path(&name, stored)
-                        .replace('\'', "''");
-                    let scalar = crate::projection_registry::scalar_attribute_sql(
-                        "cn.body",
-                        &format!("'{path}'"),
-                    );
-                    select_exprs.push_str(&format!(
-                        ", COALESCE((SELECT char(1) || {scalar} FROM canonical_nodes cn \
-                         JOIN _fathomdb_vector_rows vr ON vr.write_cursor=cn.write_cursor \
-                         WHERE vr.rowid=_fathomdb_vector_reshape_stage.rowid LIMIT 1), '')"
-                    ));
-                }
-                // A desired column always decodes (built by `attr_vec0_column`); if it
-                // somehow does not, fall back to the sentinel rather than panic.
-                None => select_exprs.push_str(", ''"),
+        placeholders.push_str(&format!(", ?{}", 11 + idx));
+        if let Some(actual_pos) = actual_cols.iter().position(|a| a == col) {
+            if !refresh_values {
+                stage_select_actual.push_str(&format!(", s.{col}"));
+                col_plan.push((actual_pos, None));
+                continue;
             }
         }
+        need_owner_source = true;
+        if let Some(name) = decode_attr_vec0_column(col) {
+            let stored = registry.get(&name).ok_or(rusqlite::Error::InvalidQuery)?.clone();
+            col_plan.push((usize::MAX, Some((name, stored))));
+        } else {
+            col_plan.push((usize::MAX, None));
+        }
     }
-    conn.execute_batch(&format!(
-        "INSERT INTO {DEFAULT_VECTOR_PARTITION}({insert_cols})
-             SELECT {select_exprs} FROM _fathomdb_vector_reshape_stage;
-         DROP TABLE _fathomdb_vector_reshape_stage;"
-    ))?;
+
+    let select_stage_sql = if need_owner_source {
+        "SELECT s.rowid, s.embedding, s.embedding_bin, s.source_type, s.kind, s.created_at, \
+         s.status, s.lifecycle, s.valid_from, s.valid_until, cn.body, cn.properties \
+         FROM _fathomdb_vector_reshape_stage s \
+         LEFT JOIN _fathomdb_vector_rows vr ON vr.rowid = s.rowid \
+         LEFT JOIN canonical_nodes cn ON cn.write_cursor = vr.write_cursor"
+            .to_string()
+    } else {
+        format!(
+            "SELECT s.rowid, s.embedding, s.embedding_bin, s.source_type, s.kind, s.created_at, \
+             s.status, s.lifecycle, s.valid_from, s.valid_until{stage_select_actual} \
+             FROM _fathomdb_vector_reshape_stage s"
+        )
+    };
+    let insert_sql =
+        format!("INSERT INTO {DEFAULT_VECTOR_PARTITION}({insert_cols}) VALUES({placeholders})");
+    {
+        let mut read_stmt = conn.prepare(&select_stage_sql)?;
+        let mut write_stmt = conn.prepare(&insert_sql)?;
+        let mut rows = read_stmt.query([])?;
+        let mut surviving_idx_map = Vec::with_capacity(col_plan.len());
+        let mut next_surviving_col = 10_usize;
+        for (actual_pos, back_spec) in &col_plan {
+            if *actual_pos != usize::MAX && back_spec.is_none() {
+                surviving_idx_map.push(Some(next_surviving_col));
+                next_surviving_col += 1;
+            } else {
+                surviving_idx_map.push(None);
+            }
+        }
+        while let Some(row) = rows.next()? {
+            let mut binds: Vec<rusqlite::types::Value> =
+                Vec::with_capacity(10 + desired_cols.len());
+            for i in 0..10 {
+                let val: rusqlite::types::Value = row.get(i)?;
+                if i == 6 {
+                    // status: ensure non-NULL for vec0 NOT-NULL semantics
+                    match val {
+                        rusqlite::types::Value::Text(s) => {
+                            binds.push(rusqlite::types::Value::Text(s))
+                        }
+                        _ => binds.push(rusqlite::types::Value::Text(String::new())),
+                    }
+                } else {
+                    binds.push(val);
+                }
+            }
+            let (owner_body, owner_props): (Option<String>, Option<PropertyMap>) =
+                if need_owner_source {
+                    (
+                        row.get::<_, Option<String>>(10)?,
+                        crate::properties::decode_properties_row_col(row, 11)?,
+                    )
+                } else {
+                    (None, None)
+                };
+            for (slot_idx, (_, back_spec)) in col_plan.iter().enumerate() {
+                if let Some(surv_col) = surviving_idx_map[slot_idx] {
+                    let s: Option<String> = row.get(surv_col)?;
+                    binds.push(rusqlite::types::Value::Text(s.unwrap_or_default()));
+                } else if let (Some(body), Some((name, stored))) =
+                    (owner_body.as_deref(), back_spec)
+                {
+                    let typed = crate::projection_registry::extract_typed_node_property(
+                        conn,
+                        body,
+                        owner_props.as_ref(),
+                        name,
+                        stored,
+                    )?;
+                    binds.push(rusqlite::types::Value::Text(
+                        crate::projection_registry::encode_property_vec0_metadata(typed.as_ref()),
+                    ));
+                } else {
+                    binds.push(rusqlite::types::Value::Text(String::new()));
+                }
+            }
+            write_stmt.execute(rusqlite::params_from_iter(binds.iter()))?;
+        }
+    }
+    conn.execute_batch("DROP TABLE _fathomdb_vector_reshape_stage;")?;
     Ok(())
 }
 
@@ -472,49 +516,45 @@ pub(crate) const VECTOR_COMMITTABLE_NODE_KIND_SOURCE_TYPES: [(&str, &str); 7] = 
     ("doc", "article"),
 ];
 
-pub(crate) fn resolve_source_type(kind: &str) -> Result<&'static str, EngineError> {
+pub(crate) fn resolve_builtin_source_type(kind: &str) -> Option<&'static str> {
     if kind == "edge_fact" {
-        // G11 (Slice 15) — edge-body projection; separate `source_type` partition
-        // key distinguishes edge vectors from node vectors in `vector_default`.
-        return Ok("edge_fact");
+        return Some("edge_fact");
     }
     VECTOR_COMMITTABLE_NODE_KIND_SOURCE_TYPES
         .iter()
         .find_map(|(candidate, source_type)| (*candidate == kind).then_some(*source_type))
-        .ok_or(EngineError::Storage)
 }
 
-/// 0.8.20 Slice 20c fix-2 (codex §9 [P1]) — **can the vector writer COMMIT a row
-/// of this kind?** The ONE definition of the vector pipeline's kind domain, shared
-/// by every enrolment path.
-///
-/// [`commit_projection_outcomes`] resolves `kind -> source_type` through
-/// [`resolve_source_type`] and returns `Err` for anything outside its locked
-/// vocabulary — *before* it records the row's terminal. `PreparedWrite::Node`, by
-/// contrast, accepts ANY non-empty `kind` (`validate_write` constrains the body,
-/// the identity and the validity window, never the kind against that vocabulary),
-/// so a corpus can legitimately hold e.g. an `"invoice"` node.
-///
-/// Enrolling such a kind is therefore a permanent LIVENESS WEDGE for the whole
-/// workspace: the scheduler picks the row up, the commit fails, no terminal is
-/// ever written, the scanner re-enqueues it forever, `drain` burns its entire
-/// timeout into [`EngineError::Scheduler`] and `dense_readiness` sticks on
-/// `embedding` — starving the rows whose kinds ARE commit-able along with it.
-///
-/// So enrolment is RESTRICTED to this predicate rather than the vector writer
-/// being taught arbitrary kinds (which would reach into `resolve_source_type`'s
-/// locked Pack-1 partition-key semantics — `dev/design/0.7.0-vector-quant-pack1.md`
-/// D3, a HITL lock). A non-commit-able kind simply gets NO dense arm, which is
-/// precisely its pre-slice status quo; it is deliberately **not** a new typed
-/// error and adds no governed surface.
-///
-/// It DELEGATES to `resolve_source_type` instead of restating the list. A
-/// hand-copied second vocabulary is the TC-56 defect shape (a mirror that silently
-/// drifts from its original), and here the drift would be silent in the worst
-/// direction: a kind added to `resolve_source_type` but missing from a copied
-/// filter would just never be embedded.
-pub(crate) fn kind_is_vector_committable(kind: &str) -> bool {
-    resolve_source_type(kind).is_ok()
+pub(crate) fn kind_is_builtin_vector_committable(kind: &str) -> bool {
+    resolve_builtin_source_type(kind).is_some()
+}
+
+pub(crate) fn resolve_source_type_on<'a>(
+    conn: &Connection,
+    kind: &'a str,
+) -> Result<std::borrow::Cow<'a, str>, EngineError> {
+    if let Some(builtin) = resolve_builtin_source_type(kind) {
+        return Ok(std::borrow::Cow::Borrowed(builtin));
+    }
+    if kind == "edge_fact" {
+        return Ok(std::borrow::Cow::Borrowed("edge_fact"));
+    }
+    let enrolled: bool = conn
+        .prepare_cached(
+            "SELECT EXISTS(SELECT 1 FROM _fathomdb_vector_kinds WHERE kind = ?1 AND kind <> 'edge_fact')",
+        )
+        .map_err(|_| EngineError::Storage)?
+        .query_row([kind], |row| row.get(0))
+        .map_err(|_| EngineError::Storage)?;
+    if enrolled {
+        Ok(std::borrow::Cow::Borrowed(kind))
+    } else {
+        Err(EngineError::Storage)
+    }
+}
+
+pub(crate) fn kind_is_vector_committable_on(conn: &Connection, kind: &str) -> bool {
+    resolve_source_type_on(conn, kind).is_ok()
 }
 
 impl Engine {
@@ -561,7 +601,7 @@ impl Engine {
         } else {
             blob.clone()
         };
-        let source_type = resolve_source_type(kind)?;
+        let source_type = resolve_source_type_on(connection, kind)?;
         let now_unix =
             SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs() as i64;
 
@@ -606,7 +646,7 @@ impl Engine {
         // extracts nothing). When the table has no attr columns the statement is
         // byte-identical to the shipped form.
         let (cols_sql, ph_sql, attr_vals) =
-            vector_attr_insert_fragments(&tx, "", 7).map_err(|_| EngineError::Storage)?;
+            vector_attr_insert_fragments(&tx, "", None, 7).map_err(|_| EngineError::Storage)?;
         let sql = format!(
             "INSERT INTO vector_default(
                 rowid, embedding, embedding_bin, source_type, kind, created_at, status,lifecycle,valid_from,valid_until{cols_sql}
@@ -821,7 +861,7 @@ fn slice70_record_erasure_removes_all_mapped_vector_ids() {
 #[test]
 fn slice70_attribute_refresh_uses_record_mapping() {
     let conn = slice70_mapping_fixture(true);
-    refresh_vector_attr_values_for_row(&conn, 10, r#"{"owner":"alice"}"#).unwrap();
+    refresh_vector_attr_values_for_row(&conn, 10, r#"{"owner":"alice"}"#, None).unwrap();
     let col = attr_vec0_column("owner");
     let values = conn
         .prepare(&format!("SELECT {col} FROM vector_default"))

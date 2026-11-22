@@ -357,7 +357,7 @@ pub(crate) fn commit_projection_outcomes(
                         None
                     };
 
-                    let source_type = resolve_source_type(kind).map_err(|_| {
+                    let source_type = resolve_source_type_on(&tx, kind).map_err(|_| {
                         rusqlite::Error::SqliteFailure(
                             rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_CONSTRAINT),
                             Some(format!("unknown kind for source_type mapping: {kind}")),
@@ -408,16 +408,21 @@ pub(crate) fn commit_projection_outcomes(
                             params![cursor, blob, centered_blob, source_type, kind, now_unix,lifecycle,valid_from,valid_until],
                         )?;
                     } else {
-                        let body: String = tx
+                        let (body, props): (String, Option<crate::PropertyMap>) = tx
                             .query_row(
-                                "SELECT body FROM canonical_nodes WHERE write_cursor = ?1 LIMIT 1",
+                                "SELECT body, properties FROM canonical_nodes WHERE write_cursor = ?1 LIMIT 1",
                                 [*cursor as i64],
-                                |row| row.get(0),
+                                |row| {
+                                    Ok((
+                                        row.get(0)?,
+                                        crate::properties::decode_properties_row_col(row, 1)?,
+                                    ))
+                                },
                             )
                             .optional()?
                             .unwrap_or_default();
                         let (cols_sql, ph_sql, attr_vals) =
-                            vector_attr_insert_fragments(&tx, &body, 10)?;
+                            vector_attr_insert_fragments(&tx, &body, props.as_ref(), 10)?;
                         let sql = format!(
                             "INSERT INTO vector_default(
                                 rowid, embedding, embedding_bin, source_type, kind, created_at, status,lifecycle,valid_from,valid_until{cols_sql}

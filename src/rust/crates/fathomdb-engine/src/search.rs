@@ -376,11 +376,12 @@ pub(crate) fn read_projected_text_in_tx(
             row.get::<_, String>(3)?,
             row.get::<_, Option<String>>(4)?,
             row.get::<_, Option<String>>(5)?,
+            crate::properties::decode_properties_row_col(row, 6)?,
         ))
     })?;
     let mut results = Vec::new();
     for row in rows {
-        let (cursor, bm25, kind, body, logical_id, source_id) = row?;
+        let (cursor, bm25, kind, body, logical_id, source_id, properties) = row?;
         results.push(SearchHit {
             id: derive_stable_id(logical_id.as_deref(), &body),
             write_cursor: cursor as u64,
@@ -390,7 +391,7 @@ pub(crate) fn read_projected_text_in_tx(
             branch: SoftFallbackBranch::Text,
             source_id,
             ce_score: None,
-            properties: None,
+            properties,
         });
         if results.len() >= limit {
             break;
@@ -469,27 +470,39 @@ fn read_historical_projected_text(
             view.view.include_out_of_window,
             1,
         );
-        let scalar = crate::projection_registry::scalar_attribute_sql("n.body", "?2");
-        let mut additions = tx.prepare(&format!(
-            "SELECT n.write_cursor,{scalar} FROM canonical_nodes n
-            WHERE ?1 IS NOT NULL AND (n.superseded_at IS NOT NULL OR n.state!='active')
-            {existence}{dependency} ORDER BY n.write_cursor"
-        ))?;
-        for (attribute, stored) in registry.iter().filter(|(_, stored)| stored.wants_property_fts())
-        {
-            let path = crate::projection_registry::projection_json_path(attribute, stored);
-            let rows = additions.query_map(params![view.edge_now(), path], |r| {
-                Ok((r.get::<_, u64>(0)?, r.get::<_, Option<String>>(1)?))
+        let relaxed_rows: Vec<(u64, String, Option<crate::PropertyMap>)> = {
+            let mut additions = tx.prepare(&format!(
+                "SELECT n.write_cursor,n.body,n.properties FROM canonical_nodes n
+                WHERE ?1 IS NOT NULL AND (n.superseded_at IS NOT NULL OR n.state!='active')
+                {existence}{dependency} ORDER BY n.write_cursor"
+            ))?;
+            let rows = additions.query_map(params![view.edge_now()], |r| {
+                Ok((
+                    r.get::<_, u64>(0)?,
+                    r.get::<_, String>(1)?,
+                    crate::properties::decode_properties_row_col(r, 2)?,
+                ))
             })?;
-            for row in rows {
-                let (cursor, value) = row?;
+            rows.collect::<rusqlite::Result<Vec<_>>>()?
+        };
+        for (attribute, stored) in registry.iter().filter(|(_, stored)| {
+            stored.entity_class == crate::PropertyEntityClass::Node && stored.wants_property_fts()
+        }) {
+            for (cursor, body, props) in &relaxed_rows {
+                let value = crate::extract_scalar_attribute_with_properties(
+                    tx,
+                    body,
+                    props.as_ref(),
+                    attribute,
+                    stored,
+                )?;
                 if let Some(value) = value {
-                    if !baseline.contains(&(cursor, attribute.clone())) {
+                    if !baseline.contains(&(*cursor, attribute.clone())) {
                         insert.execute(params![
                             value,
                             attribute,
-                            cursor,
-                            eligible.contains(&cursor)
+                            *cursor,
+                            eligible.contains(cursor)
                         ])?;
                     }
                 }
@@ -508,7 +521,7 @@ fn read_historical_projected_text(
         Ok((r.get::<_, u64>(0)?, r.get::<_, f64>(1)?))
     })?;
     let mut hydrate = tx.prepare(
-        "SELECT body,kind,logical_id,source_id FROM canonical_nodes WHERE write_cursor=?1",
+        "SELECT body,kind,logical_id,source_id,properties FROM canonical_nodes WHERE write_cursor=?1",
     )?;
     let mut results = Vec::new();
     for winner in winners {
@@ -525,7 +538,7 @@ fn read_historical_projected_text(
                 score: -score,
                 branch: SoftFallbackBranch::Text,
                 ce_score: None,
-                properties: None,
+                properties: crate::properties::decode_properties_row_col(r, 4)?,
             })
         })?;
         results.push(hit);
@@ -561,7 +574,7 @@ fn historical_dense_incomplete(tx: &Connection, view: FrozenView) -> rusqlite::R
     let mut incomplete = false;
     for row in rows {
         let (cursor, kind, edge) = row?;
-        if !edge && !crate::kind_is_vector_committable(&kind) {
+        if !edge && !crate::kind_is_vector_committable_on(tx, &kind) {
             continue;
         }
         if crate::projection_commit::projection_physical_tuple_is_empty(tx, cursor)? {
@@ -872,7 +885,10 @@ fn search_body_from_row(
     Ok(body)
 }
 
-fn rank_search_hit_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<(SearchHit, i64)> {
+fn rank_search_hit_from_row(
+    row: &rusqlite::Row<'_>,
+    properties_col: usize,
+) -> rusqlite::Result<(SearchHit, i64)> {
     let body = search_body_from_row(row, 0, false)?;
     let logical_id = row.get::<_, Option<String>>(4)?;
     let hit = SearchHit {
@@ -884,7 +900,7 @@ fn rank_search_hit_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<(Search
         branch: SoftFallbackBranch::Text,
         source_id: row.get::<_, Option<String>>(5)?,
         ce_score: None,
-        properties: None,
+        properties: crate::properties::decode_properties_row_col(row, properties_col)?,
     };
     Ok((hit, row.get::<_, i64>(6)?))
 }
@@ -898,7 +914,7 @@ fn collect_complete_rank_boundary(
     let mut boundary_score = None;
 
     while let Some(row) = rows.next()? {
-        let (candidate, _rowid) = rank_search_hit_from_row(row)?;
+        let (candidate, _rowid) = rank_search_hit_from_row(row, 7)?;
         if candidates.len() < limit {
             if candidates.len().saturating_add(1) == limit {
                 boundary_score = Some(candidate.score);
@@ -987,7 +1003,7 @@ impl DeferredFusionHit {
 }
 
 fn node_fusion_hit_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<(FusionHit, i64)> {
-    let (hit, rowid) = rank_search_hit_from_row(row)?;
+    let (hit, rowid) = rank_search_hit_from_row(row, 10)?;
     Ok((FusionHit { hit, ownership: node_fts_ownership(row)? }, rowid))
 }
 
@@ -995,7 +1011,7 @@ fn edge_fusion_hit_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<(Fusion
     if !row.get::<_, bool>(7)? || !row.get::<_, bool>(8)? {
         return Err(rusqlite::Error::InvalidQuery);
     }
-    let (mut hit, rowid) = rank_search_hit_from_row(row)?;
+    let (mut hit, rowid) = rank_search_hit_from_row(row, 9)?;
     hit.branch = SoftFallbackBranch::TextEdge;
     Ok((FusionHit { hit, ownership: FusionOwnership::CanonicalEdge }, rowid))
 }
@@ -1758,7 +1774,7 @@ fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
             &view.view,
         )?;
         let mut active_stmt = tx.prepare(&format!(
-            "SELECT kind, body, write_cursor, source_id FROM canonical_nodes \
+            "SELECT kind, body, write_cursor, source_id, properties FROM canonical_nodes \
              WHERE logical_id = ?1{active_existence}\
              {active_validity}{active_eligibility}{active_filter} ORDER BY write_cursor DESC LIMIT 1"
         ))?;
@@ -1766,17 +1782,32 @@ fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
             stats.seeds_considered += 1;
             let mut active_params = active_params_template.clone();
             active_params[0] = rusqlite::types::Value::Text(lid.clone());
-            let row: Option<(String, String, i64, Option<String>)> = active_stmt
+            struct BfsActiveNodeRow {
+                kind: String,
+                body: String,
+                write_cursor: i64,
+                selected_source: Option<String>,
+                properties: Option<crate::PropertyMap>,
+            }
+            let row: Option<BfsActiveNodeRow> = active_stmt
                 .query_row(rusqlite::params_from_iter(active_params.iter()), |r| {
-                    Ok((
-                        r.get::<_, String>(0)?,
-                        r.get::<_, String>(1)?,
-                        r.get::<_, i64>(2)?,
-                        r.get::<_, Option<String>>(3)?,
-                    ))
+                    Ok(BfsActiveNodeRow {
+                        kind: r.get(0)?,
+                        body: r.get(1)?,
+                        write_cursor: r.get(2)?,
+                        selected_source: r.get(3)?,
+                        properties: crate::properties::decode_properties_row_col(r, 4)?,
+                    })
                 })
                 .optional()?;
-            if let Some((kind, body, write_cursor, selected_source)) = row {
+            if let Some(BfsActiveNodeRow {
+                kind,
+                body,
+                write_cursor,
+                selected_source,
+                properties,
+            }) = row
+            {
                 let source_id = if matches!(&graph_origin, CapturedGraphOrigin::EntitySeed) {
                     selected_source
                 } else {
@@ -1811,7 +1842,7 @@ fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
                                 branch: SoftFallbackBranch::GraphArm,
                                 source_id,
                                 ce_score: None,
-                                properties: None,
+                                properties,
                             },
                         });
                     }
@@ -1891,7 +1922,7 @@ fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
         &view.view,
     )?;
     let mut body_stmt = tx.prepare(&format!(
-        "SELECT kind, body, write_cursor FROM canonical_nodes \
+        "SELECT kind, body, write_cursor, properties FROM canonical_nodes \
          WHERE logical_id = ?1{body_existence}\
          {body_validity}{body_eligibility}{body_filter} \
          ORDER BY write_cursor DESC LIMIT 1"
@@ -1936,13 +1967,18 @@ fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
             // Fetch neighbor body + write_cursor from canonical_nodes.
             let mut body_params = body_params_template.clone();
             body_params[0] = rusqlite::types::Value::Text(neighbor.clone());
-            let row: Option<(String, String, i64)> = body_stmt
+            let row: Option<(String, String, i64, Option<crate::PropertyMap>)> = body_stmt
                 .query_row(rusqlite::params_from_iter(body_params.iter()), |row| {
-                    Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get::<_, i64>(2)?))
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, i64>(2)?,
+                        crate::properties::decode_properties_row_col(row, 3)?,
+                    ))
                 })
                 .optional()?;
 
-            if let Some((kind, body, write_cursor)) = row {
+            if let Some((kind, body, write_cursor, properties)) = row {
                 // Skip only the same canonical record already covered by the two-arm result.
                 if !seed_records.contains(&RecordKey::CanonicalNode(write_cursor as u64)) {
                     if candidates.len() >= cap {
@@ -1977,7 +2013,7 @@ fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
                             // BLOCK-2: the session this fact-edge was extracted from.
                             source_id: edge_source_id.clone(),
                             ce_score: None,
-                            properties: None,
+                            properties,
                         },
                     });
                 }
@@ -2243,13 +2279,18 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             // Retain the existing rerank/fusion fanout and canonical hydration
             // guards without letting excluded rows consume the binary cap.
             let candidate_limit = candidate_limit.max(final_limit).max(TOP_K_BIT_CANDIDATES);
-            let sql = build_vector_phase1_sql(filter, candidate_limit, &view.view);
+            let (sql, tail_params) = crate::filter::build_vector_phase1_plan(
+                Some(&tx),
+                filter,
+                candidate_limit,
+                &view.view,
+                view.edge_now(),
+            )?;
             let mut params: Vec<rusqlite::types::Value> = vec![
                 rusqlite::types::Value::Text(bin_vector.to_string()),
                 rusqlite::types::Value::Text(query_vector.to_string()),
             ];
-            params.extend(vector_filter_values(filter));
-            params.push(rusqlite::types::Value::Integer(view.edge_now()));
+            params.extend(tail_params);
             let mut statement = prepare_search_statement(&tx, &sql)?;
             let rows = statement.query_map(rusqlite::params_from_iter(params.iter()), |row| {
                 Ok((row.get::<_, i64>(0)?, row.get::<_, f64>(1)?))
@@ -2315,7 +2356,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         let mut node_stmt = prepare_search_statement(
             &tx,
             &format!(
-                "SELECT kind, body, logical_id, source_id FROM canonical_nodes \
+                "SELECT kind, body, logical_id, source_id, properties FROM canonical_nodes \
              WHERE write_cursor = ?1{node_existence}\
              {node_validity}{node_eligibility} LIMIT 1"
             ),
@@ -2338,7 +2379,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         let mut edge_stmt = prepare_search_statement(
             &tx,
             &format!(
-                "SELECT body, logical_id, source_id FROM canonical_edges \
+                "SELECT body, logical_id, source_id, properties FROM canonical_edges \
              WHERE write_cursor = ?1 AND body IS NOT NULL{edge_existence}\
              {edge_validity}{edge_eligibility} LIMIT 1"
             ),
@@ -2367,13 +2408,14 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             if results.len() >= final_limit.max(VECTOR_FUSION_POOL) {
                 break;
             }
-            if let Some((kind, body, logical_id, source_id)) = node_stmt
+            if let Some((kind, body, logical_id, source_id, properties)) = node_stmt
                 .query_row(rusqlite::params_from_iter(node_params(rowid)), |row| {
                     Ok((
                         row.get::<_, String>(0)?,
                         search_body_from_row(row, 1, true)?,
                         row.get::<_, Option<String>>(2)?,
                         row.get::<_, Option<String>>(3)?,
+                        crate::properties::decode_properties_row_col(row, 4)?,
                     ))
                 })
                 .optional()?
@@ -2392,15 +2434,16 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                         // the document it was written from).
                         source_id,
                         ce_score: None,
-                        properties: None,
+                        properties,
                     },
                 });
-            } else if let Some((body, logical_id, source_id)) = edge_stmt
+            } else if let Some((body, logical_id, source_id, properties)) = edge_stmt
                 .query_row(rusqlite::params![rowid, view.edge_now()], |row| {
                     Ok((
                         search_body_from_row(row, 0, true)?,
                         row.get::<_, Option<String>>(1)?,
                         row.get::<_, Option<String>>(2)?,
+                        crate::properties::decode_properties_row_col(row, 3)?,
                     ))
                 })
                 .optional()?
@@ -2419,7 +2462,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                         // graph arm's existing edge-source semantics.
                         source_id,
                         ce_score: None,
-                        properties: None,
+                        properties,
                     },
                 });
             }
@@ -2676,7 +2719,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             let rank_sql = format!(
                 "SELECT search_index.body, search_index.kind, search_index.write_cursor, \
                  bm25(search_index), cn.logical_id, cn.source_id, search_index.rowid, cn.write_cursor, \
-                 search_index.body IS cn.body, search_index.kind IS cn.kind \
+                 search_index.body IS cn.body, search_index.kind IS cn.kind, cn.properties \
                  FROM search_index \
                  LEFT JOIN canonical_nodes cn ON cn.write_cursor = search_index.write_cursor \
                  WHERE search_index MATCH ?1 \
@@ -3028,49 +3071,52 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     // Attribute predicates intentionally apply only to node projections. Count
     // edge-FTS candidates that would otherwise pass when the caller requested
     // the opt-in explanation, without adding work to the default search path.
-    let dropped_edge_hits =
-        if explain && filter.is_some_and(|active_filter| !active_filter.attributes.is_empty()) {
-            let mut non_attribute_filter = filter.cloned().unwrap_or_default();
-            non_attribute_filter.attributes.clear();
-            let edge_validity = edge_validity_sql_for_view("ce", 2, &view.view);
-            let mut params = vec![
-                rusqlite::types::Value::Text(compiled.match_expression.clone()),
-                rusqlite::types::Value::Integer(view.edge_now()),
-            ];
-            let eligibility =
-                append_edge_eligibility_sql(Some(&non_attribute_filter), "ce", &mut params);
-            #[cfg(feature = "test-hooks")]
-            let cursor_column =
-                if std::env::var_os("FATHOMDB_EDGE_EXPLANATION_BAD_CURSOR_FOR_TEST").is_some() {
-                    "CAST(ce.write_cursor AS BLOB)"
-                } else {
-                    "ce.write_cursor"
-                };
-            #[cfg(not(feature = "test-hooks"))]
-            let cursor_column = "ce.write_cursor";
-            let sql = format!(
-                "SELECT {cursor_column} FROM search_index_edges sei \
+    let dropped_edge_hits = if explain
+        && filter.is_some_and(|active_filter| {
+            !active_filter.attributes.is_empty() || !active_filter.property_predicates.is_empty()
+        }) {
+        let mut non_attribute_filter = filter.cloned().unwrap_or_default();
+        non_attribute_filter.attributes.clear();
+        non_attribute_filter.property_predicates.clear();
+        let edge_validity = edge_validity_sql_for_view("ce", 2, &view.view);
+        let mut params = vec![
+            rusqlite::types::Value::Text(compiled.match_expression.clone()),
+            rusqlite::types::Value::Integer(view.edge_now()),
+        ];
+        let eligibility =
+            append_edge_eligibility_sql(Some(&non_attribute_filter), "ce", &mut params);
+        #[cfg(feature = "test-hooks")]
+        let cursor_column =
+            if std::env::var_os("FATHOMDB_EDGE_EXPLANATION_BAD_CURSOR_FOR_TEST").is_some() {
+                "CAST(ce.write_cursor AS BLOB)"
+            } else {
+                "ce.write_cursor"
+            };
+        #[cfg(not(feature = "test-hooks"))]
+        let cursor_column = "ce.write_cursor";
+        let sql = format!(
+            "SELECT {cursor_column} FROM search_index_edges sei \
              JOIN canonical_edges ce ON ce.write_cursor=sei.write_cursor \
              WHERE search_index_edges MATCH ?1 AND ce.superseded_at IS NULL\
              {edge_validity}{eligibility}"
-            );
-            let mut dropped = 0_u32;
-            let mut statement = tx.prepare(&sql)?;
-            let rows = statement
-                .query_map(rusqlite::params_from_iter(params.iter()), |row| row.get::<_, i64>(0))?;
-            for cursor in rows {
-                if !hit_attributes_pass_filter(
-                    &tx,
-                    cursor? as u64,
-                    filter.expect("attribute filter checked above"),
-                )? {
-                    dropped = dropped.saturating_add(1);
-                }
+        );
+        let mut dropped = 0_u32;
+        let mut statement = tx.prepare(&sql)?;
+        let rows = statement
+            .query_map(rusqlite::params_from_iter(params.iter()), |row| row.get::<_, i64>(0))?;
+        for cursor in rows {
+            if !hit_attributes_pass_filter(
+                &tx,
+                cursor? as u64,
+                filter.expect("attribute filter checked above"),
+            )? {
+                dropped = dropped.saturating_add(1);
             }
-            dropped
-        } else {
-            0
-        };
+        }
+        dropped
+    } else {
+        0
+    };
     text_results.extend(edge_candidates);
     #[cfg(test)]
     if rank_probe.is_some() {
@@ -3167,7 +3213,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
             };
             let mut hydrate = tx.prepare_cached(
                 "SELECT si.body, si.kind, si.write_cursor, 0.0, cn.logical_id, cn.source_id, \
-                 si.rowid, cn.write_cursor, si.body IS cn.body, si.kind IS cn.kind \
+                 si.rowid, cn.write_cursor, si.body IS cn.body, si.kind IS cn.kind, cn.properties \
                  FROM search_index si LEFT JOIN canonical_nodes cn \
                  ON cn.write_cursor=si.write_cursor WHERE si.rowid=?1",
             )?;
@@ -3283,20 +3329,25 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         #[cfg(any(test, feature = "slice30-observer"))]
         let identity_observation = crate::slice30_observer::span("deferred_identity_hydration");
         let mut identity_stmt = tx.prepare_cached(
-            "SELECT logical_id, source_id FROM canonical_nodes WHERE write_cursor=?1 LIMIT 1",
+            "SELECT logical_id, source_id, properties FROM canonical_nodes WHERE write_cursor=?1 LIMIT 1",
         )?;
         for hit in &mut results {
             if hit.branch != SoftFallbackBranch::Text {
                 continue;
             }
-            if let Some((logical_id, source_id)) = identity_stmt
+            if let Some((logical_id, source_id, properties)) = identity_stmt
                 .query_row([hit.write_cursor], |row| {
-                    Ok((row.get::<_, Option<String>>(0)?, row.get::<_, Option<String>>(1)?))
+                    Ok((
+                        row.get::<_, Option<String>>(0)?,
+                        row.get::<_, Option<String>>(1)?,
+                        crate::properties::decode_properties_row_col(row, 2)?,
+                    ))
                 })
                 .optional()?
             {
                 hit.id = derive_stable_id(logical_id.as_deref(), &hit.body);
                 hit.source_id = source_id;
+                hit.properties = properties;
             } else {
                 hit.id = derive_stable_id(None, &hit.body);
             }
@@ -3488,10 +3539,9 @@ use crate::embedding::search_query_vector;
 use crate::errors::EngineError;
 use crate::evidence::{self, EvidenceSearchResultV1};
 use crate::filter::{
-    append_edge_eligibility_sql, build_vector_phase1_sql, hit_attributes_pass_filter,
-    property_fts_cohort_stream_sql, property_fts_rank_sql, property_fts_rank_stream_sql,
-    validate_filter_attributes_on_snapshot, vector_filter_values, SearchFilter,
-    SnapshotFilterError,
+    append_edge_eligibility_sql, hit_attributes_pass_filter, property_fts_cohort_stream_sql,
+    property_fts_rank_sql, property_fts_rank_stream_sql, validate_filter_attributes_on_snapshot,
+    SearchFilter, SnapshotFilterError,
 };
 use crate::frozen_read::{self, FrozenReadContextV1, FrozenReadError, FrozenReadErrorReason};
 use crate::fusion::{

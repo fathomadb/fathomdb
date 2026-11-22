@@ -869,11 +869,16 @@ pub(crate) fn member_completion(
         )
         .map_err(|_| EngineError::Storage)?;
 
+    let expected_source_type = if is_edge {
+        std::borrow::Cow::Borrowed("edge_fact")
+    } else {
+        super::resolve_source_type_on(connection, expected_kind)?
+    };
     classify_completion(
         terminal.as_deref(),
         sidecar.as_ref().map(|(rowid, kind)| (kind.as_str(), *rowid == cursor)),
         physical.as_ref().map(|(source_type, kind)| (source_type.as_str(), kind.as_str())),
-        expected_kind,
+        (expected_kind, expected_source_type.as_ref()),
         is_edge,
         enrolled,
         runtime_state,
@@ -884,12 +889,11 @@ fn classify_completion(
     terminal: Option<&str>,
     sidecar: Option<(&str, bool)>,
     physical: Option<(&str, &str)>,
-    expected_kind: &str,
+    (expected_kind, expected_source_type): (&str, &str),
     is_edge: bool,
     enrolled: bool,
     runtime_state: ProjectionRuntimeStateV1,
 ) -> Result<Completion, EngineError> {
-    let expected_source_type = super::resolve_source_type(expected_kind)?;
     if terminal == Some("up_to_date")
         && sidecar.is_some_and(|(kind, identity_matches)| kind == expected_kind && identity_matches)
         && physical.is_some_and(|(source_type, kind)| {
@@ -1014,7 +1018,7 @@ pub(crate) fn dense_member_kind_at(
         if (!enrolled
             && !super::vector_projection_declared(connection).map_err(|_| EngineError::Storage)?)
             || !matches!(row_kind.as_str(), "leaf" | "coverage")
-            || !super::kind_is_vector_committable(&kind)
+            || !super::kind_is_vector_committable_on(connection, &kind)
         {
             return Ok(None);
         }
@@ -1073,25 +1077,32 @@ fn completion_aggregate_row(
 }
 
 fn unregistered_node_completion_sql() -> String {
-    let vocabulary = super::VECTOR_COMMITTABLE_NODE_KIND_SOURCE_TYPES
+    let builtin_kinds = super::VECTOR_COMMITTABLE_NODE_KIND_SOURCE_TYPES
         .iter()
-        .map(|(kind, source_type)| format!("('{kind}','{source_type}')"))
+        .map(|(kind, _)| format!("'{kind}'"))
         .collect::<Vec<_>>()
         .join(",");
+    let remapped_cases = super::VECTOR_COMMITTABLE_NODE_KIND_SOURCE_TYPES
+        .iter()
+        .filter(|(kind, source_type)| kind != source_type)
+        .map(|(kind, source_type)| format!("WHEN '{kind}' THEN '{source_type}'"))
+        .collect::<Vec<_>>()
+        .join(" ");
     format!(
-        "WITH committable(expected_kind,expected_source_type) AS (VALUES {vocabulary}),
-      members AS (
-        SELECT n.write_cursor AS cursor,c.expected_kind,c.expected_source_type,
+        "WITH members AS (
+        SELECT n.write_cursor AS cursor,
+               n.kind AS expected_kind,
+               CASE n.kind {remapped_cases} ELSE n.kind END AS expected_source_type,
                pt.state AS terminal,vr.rowid AS sidecar_rowid,vr.kind AS sidecar_kind,
                vd.source_type AS physical_source_type,vd.kind AS physical_kind,
                (vk.kind IS NOT NULL) AS enrolled
         FROM canonical_nodes n
-        JOIN committable c ON c.expected_kind=n.kind
         LEFT JOIN _fathomdb_projection_terminal pt ON pt.write_cursor=n.write_cursor
         LEFT JOIN _fathomdb_vector_rows vr ON vr.write_cursor=n.write_cursor
         LEFT JOIN vector_default vd ON vd.rowid=n.write_cursor
-        LEFT JOIN _fathomdb_vector_kinds vk ON vk.kind=n.kind
+        LEFT JOIN _fathomdb_vector_kinds vk ON vk.kind=n.kind AND vk.kind<>'edge_fact'
         WHERE n.row_kind IN ('leaf','coverage')
+          AND (n.kind IN ({builtin_kinds}) OR vk.kind IS NOT NULL)
           AND (?1!=0 OR vk.kind IS NOT NULL)
           AND NOT EXISTS(
             SELECT 1 FROM _fathomdb_artifact_revisions r
@@ -1235,18 +1246,17 @@ fn empty_physical_fast_path(
         return Ok(None);
     }
 
-    let vocabulary = super::VECTOR_COMMITTABLE_NODE_KIND_SOURCE_TYPES
+    let builtin_kinds = super::VECTOR_COMMITTABLE_NODE_KIND_SOURCE_TYPES
         .iter()
-        .map(|(kind, _)| format!("('{kind}')"))
+        .map(|(kind, _)| format!("'{kind}'"))
         .collect::<Vec<_>>()
         .join(",");
     let node_sql = format!(
-        "WITH committable(kind) AS (VALUES {vocabulary})
-         SELECT COUNT(*),MIN(n.write_cursor),COALESCE(SUM(vk.kind IS NULL),0)
+        "SELECT COUNT(*),MIN(n.write_cursor),COALESCE(SUM(vk.kind IS NULL),0)
          FROM canonical_nodes n
-         JOIN committable c ON c.kind=n.kind
-         LEFT JOIN _fathomdb_vector_kinds vk ON vk.kind=n.kind
+         LEFT JOIN _fathomdb_vector_kinds vk ON vk.kind=n.kind AND vk.kind<>'edge_fact'
          WHERE n.row_kind IN ('leaf','coverage')
+           AND (n.kind IN ({builtin_kinds}) OR vk.kind IS NOT NULL)
            AND (?1!=0 OR vk.kind IS NOT NULL)"
     );
     let (node_count, first_node, unenrolled_nodes): (u64, Option<u64>, u64) = connection
@@ -2125,7 +2135,13 @@ mod tests {
                                     None
                                 };
                                 let actual = classify_completion(
-                                    terminal, sidecar, physical, "doc", is_edge, enrolled, runtime,
+                                    terminal,
+                                    sidecar,
+                                    physical,
+                                    ("doc", "article"),
+                                    is_edge,
+                                    enrolled,
+                                    runtime,
                                 );
                                 match expected {
                                     Some(expected) => match actual {

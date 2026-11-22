@@ -995,3 +995,15 @@ required-features = ["test-hooks"]
 name = "slice70_stress_compare"
 path = "../../../../dev/experiments/slice70-qualification/stress_compare.rs"
 required-features = ["default-embedder", "test-hooks"]
+
+[[test]]
+name = "slice38_properties_and_indexes"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice38_vector_kinds"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice38_query_plans"
+required-features = ["test-hooks"]

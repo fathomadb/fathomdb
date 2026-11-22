@@ -158,7 +158,7 @@ fn build_bfs_sql(direction: TraversalDirection, view: &ReadView) -> String {
       AND instr(t.visited, char(30) || {target_expr} || char(30)) = 0
     LIMIT {cte_cap}
   )
-SELECT DISTINCT n.logical_id, n.kind, n.body, n.write_cursor
+SELECT DISTINCT n.logical_id, n.kind, n.body, n.write_cursor, n.properties
 FROM traversal tr
 JOIN canonical_nodes n ON n.logical_id = tr.logical_id
 WHERE tr.logical_id != ?1{projection_node}
@@ -220,11 +220,11 @@ fn build_bfs_with_depth_sql(
       LIMIT {cte_cap}
     ), reached AS (SELECT logical_id,MIN(depth) AS min_depth FROM traversal GROUP BY logical_id),
     candidates AS (
-      SELECT n.logical_id,n.kind,n.body,n.write_cursor,r.min_depth,
+      SELECT n.logical_id,n.kind,n.body,n.write_cursor,r.min_depth,n.properties,
         ROW_NUMBER() OVER(PARTITION BY n.logical_id ORDER BY n.write_cursor DESC) AS revision_rank
       FROM reached r JOIN canonical_nodes n ON n.logical_id=r.logical_id
       WHERE r.logical_id!=?1{projection_node}{projection_eligibility}
-    ) SELECT logical_id,kind,body,write_cursor,min_depth FROM candidates WHERE revision_rank=1
+    ) SELECT logical_id,kind,body,write_cursor,min_depth,properties FROM candidates WHERE revision_rank=1
       ORDER BY min_depth,logical_id LIMIT {cap}");
     Ok((sql, params))
 }
@@ -260,7 +260,7 @@ pub(crate) fn crossed_boundary_since_in_tx(
     // `1 = 1` keeps the leading ` AND ` of `existence_sql` well-formed even when
     // every existence flag is relaxed and the conjunct is empty.
     let sql = format!(
-        "SELECT logical_id, kind, body, write_cursor, valid_from, valid_until \
+        "SELECT logical_id, kind, body, write_cursor, valid_from, valid_until, properties \
          FROM canonical_nodes \
          WHERE 1 = 1{existence}{eligibility} \
            AND logical_id IS NOT NULL \
@@ -279,7 +279,7 @@ pub(crate) fn crossed_boundary_since_in_tx(
                 kind: row.get(1)?,
                 body: row.get(2)?,
                 write_cursor: row.get::<_, i64>(3)? as u64,
-                properties: None,
+                properties: crate::properties::decode_properties_row_col(row, 6)?,
             },
             became_valid_at: valid_from.filter(|t| *t > since && *t <= upper),
             became_invalid_at: valid_until.filter(|t| *t > since && *t <= upper),
@@ -330,7 +330,7 @@ pub(crate) fn graph_neighbors_in_tx(
             kind: row.get(1)?,
             body: row.get(2)?,
             write_cursor: row.get::<_, i64>(3)? as u64,
-            properties: None,
+            properties: crate::properties::decode_properties_row_col(row, 4)?,
         })
     })?;
     let mut out = Vec::new();
@@ -467,7 +467,7 @@ pub(crate) fn search_expand_on_snapshot<H: RankedHit>(
                         kind: row.get(1)?,
                         body: row.get(2)?,
                         write_cursor: row.get::<_, i64>(3)? as u64,
-                        properties: None,
+                        properties: crate::properties::decode_properties_row_col(row, 5)?,
                     };
                     let min_depth: i64 = row.get(4)?;
                     Ok((node, min_depth as u32))

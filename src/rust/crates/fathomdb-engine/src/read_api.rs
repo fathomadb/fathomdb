@@ -172,6 +172,18 @@ impl Engine {
         limit: usize,
         view: &ReadView,
     ) -> Result<Vec<NodeRecord>, EngineError> {
+        self.read_list_with_extras(kind, predicates, &[], &[], limit, view)
+    }
+
+    fn read_list_with_extras(
+        &self,
+        kind: &str,
+        predicates: &[Predicate],
+        source_types: &[String],
+        property_predicates: &[crate::PropertyPredicate],
+        limit: usize,
+        view: &ReadView,
+    ) -> Result<Vec<NodeRecord>, EngineError> {
         let _operation = self.ensure_open()?;
         // Defense-in-depth: revalidate paths even if the caller bypassed the
         // validated constructors by constructing enum variants directly.
@@ -187,6 +199,8 @@ impl Engine {
         let request = ReaderRequest::read_list(
             kind.to_string(),
             predicates.to_vec(),
+            source_types.to_vec(),
+            property_predicates.to_vec(),
             limit,
             *view,
             response_tx,
@@ -194,13 +208,7 @@ impl Engine {
         if self.reader_pool.dispatch(request).is_err() {
             return Err(EngineError::Closing);
         }
-        match response_rx.recv().map_err(|_| EngineError::Storage)? {
-            Ok(rows) => Ok(rows),
-            Err(err) => {
-                self.emit_sqlite_internal_error(&err);
-                Err(EngineError::Storage)
-            }
-        }
+        self.receive_page_result(response_rx)
     }
 
     /// 0.8.11 Slice 40 (#17) — unified-`Filter` entry point for the
@@ -208,10 +216,9 @@ impl Engine {
     /// set (D3): `Json` runs the shipped allowlisted `json_extract` path;
     /// `Status`/`CreatedAfter` lower to allowlisted json-paths; `Kind`/`SourceType`
     /// **constant-fold** against the partition `kind` (a guaranteed-empty fold
-    /// returns an empty `Vec` without touching SQL). Dispatches to the same
-    /// [`Engine::read_list`] machinery the shipped `Predicate` surface uses, so
-    /// every inherited invariant (`superseded_at IS NULL`, `json_valid(body)`,
-    /// the `canonical_nodes(kind)` index, parameterized binds) is preserved.
+    /// returns an empty `Vec` without touching SQL); `Property` filters on
+    /// declared `node` + `Filterable` properties via `canonical_property_values`
+    /// (or inline `(body, properties)` under relaxed `ReadView`).
     pub fn read_list_filter(
         &self,
         kind: &str,
@@ -220,9 +227,16 @@ impl Engine {
         view: &ReadView,
     ) -> Result<Vec<NodeRecord>, EngineError> {
         let _operation = self.ensure_open()?;
-        match filter.lower_for_read_list(kind)? {
+        match filter.decompose_for_read_list(kind)? {
             None => Ok(Vec::new()),
-            Some(preds) => self.read_list(kind, &preds, limit, view),
+            Some((preds, source_types, property_predicates)) => self.read_list_with_extras(
+                kind,
+                &preds,
+                &source_types,
+                &property_predicates,
+                limit,
+                view,
+            ),
         }
     }
 

@@ -563,6 +563,13 @@ fn commit_batch_transaction(
             dependency_closure::SoftClosureMode::Complete,
         )
         .and_then(|result| {
+            if !batch.is_empty() {
+                crate::temporal::record_batch_commit_timestamp(
+                    &tx,
+                    base_cursor.saturating_add(batch.len() as u64),
+                    crate::temporal::current_epoch_ms(),
+                )?;
+            }
             advance_read_visibility(&tx)?;
             Ok(result)
         });
@@ -587,6 +594,13 @@ fn commit_batch_transaction(
         vector_kinds_to_enrol,
         dependency_closure::SoftClosureMode::Complete,
     )?;
+    if !batch.is_empty() {
+        crate::temporal::record_batch_commit_timestamp(
+            &tx,
+            base_cursor.saturating_add(batch.len() as u64),
+            crate::temporal::current_epoch_ms(),
+        )?;
+    }
     tx.commit()?;
     Ok(result)
 }
@@ -672,7 +686,7 @@ pub(crate) fn apply_batch_in_transaction(
                     reason,
                     valid_from,
                     valid_until,
-                    properties: _,
+                    properties,
                 },
                 WritePlan::Node,
             ) => {
@@ -725,7 +739,11 @@ pub(crate) fn apply_batch_in_transaction(
                         purge_row_projections_for_cursor_in(
                             tx,
                             *sc,
-                            &[ProjectionClass::Attribute, ProjectionClass::PropertyFts],
+                            &[
+                                ProjectionClass::Attribute,
+                                ProjectionClass::PropertyFts,
+                                ProjectionClass::PropertyValue,
+                            ],
                         )?;
                     }
                 }
@@ -746,11 +764,14 @@ pub(crate) fn apply_batch_in_transaction(
                 // `ReadView::validity_sql` reads as UNBOUNDED on that side. So a
                 // write that omits the window is byte-identical on disk to a
                 // pre-slice write, and default-view visibility cannot drift.
+                let encoded_properties =
+                    crate::properties::encode_properties_json(properties.as_ref())
+                        .map_err(CommitBatchError::Engine)?;
                 tx.prepare_cached(
-                    "INSERT INTO canonical_nodes(write_cursor, kind, body, source_id, logical_id, row_kind, state, reason, valid_from, valid_until)
-                     VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+                    "INSERT INTO canonical_nodes(write_cursor, kind, body, source_id, logical_id, row_kind, state, reason, valid_from, valid_until, properties)
+                     VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
                 )?
-                .execute(params![cursor, kind, body, source_id.as_str(), logical_id, RowKind::Leaf.as_str(), state.as_str(), reason, valid_from, valid_until])?;
+                .execute(params![cursor, kind, body, source_id.as_str(), logical_id, RowKind::Leaf.as_str(), state.as_str(), reason, valid_from, valid_until, encoded_properties])?;
                 // EXP-S (D2/D5) — per-row_kind index-target dispatch. For `leaf`
                 // this is behavior-identical to the pre-EXP-S inline path: FTS
                 // (sync, in-tx) + vector (async, gated by kind_is_vector_indexed);
@@ -771,6 +792,7 @@ pub(crate) fn apply_batch_in_transaction(
                     RowKind::Leaf,
                     ProjectionPass::Write,
                     matches!(state, InitialState::Active),
+                    properties.as_ref(),
                 )?;
             }
             (
@@ -786,7 +808,7 @@ pub(crate) fn apply_batch_in_transaction(
                     confidence,
                     extractor_model_id,
                     temporal_fallback,
-                    properties: _,
+                    properties,
                 },
                 WritePlan::Edge,
             ) => {
@@ -805,6 +827,11 @@ pub(crate) fn apply_batch_in_transaction(
                     )?;
                     for sc in &prior_g0 {
                         vector_storage::refresh_vector_eligibility_for_cursor(tx, *sc)?;
+                        purge_row_projections_for_cursor_in(
+                            tx,
+                            *sc,
+                            &[ProjectionClass::PropertyValue],
+                        )?;
                     }
                 }
                 // G11 — invalidate-not-accumulate: for fact-edges (body IS NOT NULL),
@@ -822,16 +849,24 @@ pub(crate) fn apply_batch_in_transaction(
                     )?;
                     for sc in &prior_g11 {
                         vector_storage::refresh_vector_eligibility_for_cursor(tx, *sc)?;
+                        purge_row_projections_for_cursor_in(
+                            tx,
+                            *sc,
+                            &[ProjectionClass::PropertyValue],
+                        )?;
                     }
                 }
                 let temporal_fallback_i: Option<i64> =
                     temporal_fallback.and_then(|f| if f { Some(1) } else { None });
+                let encoded_properties =
+                    crate::properties::encode_properties_json(properties.as_ref())
+                        .map_err(CommitBatchError::Engine)?;
                 tx.execute(
                     "INSERT INTO canonical_edges(
                          write_cursor, kind, from_id, to_id, source_id, logical_id,
                          body, t_valid, t_invalid, confidence, extractor_model_id,
-                         temporal_fallback
-                     ) VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+                         temporal_fallback, properties
+                     ) VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
                     params![
                         cursor,
                         kind,
@@ -844,7 +879,8 @@ pub(crate) fn apply_batch_in_transaction(
                         t_invalid,
                         confidence,
                         extractor_model_id,
-                        temporal_fallback_i
+                        temporal_fallback_i,
+                        encoded_properties
                     ],
                 )?;
                 // 0.8.20 Slice 5a (R-20-E1, work item 1) — edge projection is no
@@ -856,6 +892,8 @@ pub(crate) fn apply_batch_in_transaction(
                     kind,
                     body.as_deref(),
                     ProjectionPass::Write,
+                    properties.as_ref(),
+                    true,
                 )?;
             }
             (

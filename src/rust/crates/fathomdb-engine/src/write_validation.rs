@@ -106,9 +106,15 @@ pub(crate) fn validate_write(
             }
             Ok(WritePlan::Edge)
         }
-        PreparedWrite::Node { kind, body, logical_id, valid_from, valid_until, .. } => {
+        PreparedWrite::Node {
+            kind, body, logical_id, valid_from, valid_until, properties, ..
+        } => {
             if kind.trim().is_empty() || body.trim().is_empty() {
                 return Err(EngineError::WriteValidation);
+            }
+            if let Some(props) = properties {
+                crate::properties::validate_property_map(props)
+                    .map_err(|_| EngineError::WriteValidation)?;
             }
             // 0.8.20 Slice 15b (TC-34) — the validity window is HALF-OPEN
             // `[valid_from, valid_until)`, so a pair with `from >= until` selects
@@ -159,9 +165,15 @@ pub(crate) fn validate_write(
             }
             Ok(WritePlan::Node)
         }
-        PreparedWrite::Edge { kind, from, to, logical_id, t_valid, t_invalid, .. } => {
+        PreparedWrite::Edge {
+            kind, from, to, logical_id, t_valid, t_invalid, properties, ..
+        } => {
             if kind.trim().is_empty() || from.trim().is_empty() || to.trim().is_empty() {
                 return Err(EngineError::WriteValidation);
+            }
+            if let Some(props) = properties {
+                crate::properties::validate_property_map(props)
+                    .map_err(|_| EngineError::WriteValidation)?;
             }
             // Reject char(30) in from/to: these become from_id/to_id in canonical_edges
             // and appear in BFS visited strings — an \x1e there would corrupt the guard.

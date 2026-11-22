@@ -1,11 +1,20 @@
 use crate::errors::EngineError;
-use crate::projection_registry::ProjectionRole;
-use crate::projection_registry::{encode_attr_vec0_present, load_projection_registry};
-use crate::properties::PropertyPredicate;
+use crate::projection_registry::{
+    encode_attr_vec0_present, encode_property_vec0_metadata, extract_typed_node_property,
+    load_projection_registry, ProjectionRole, StoredProjection,
+};
+use crate::properties::{
+    eval_property_value, normalize_finite_f64, validate_property_predicate, PropertyComparisonOp,
+    PropertyEntityClass, PropertyPredicate, PropertyValue,
+};
 use crate::search_types::TOP_K_BIT_CANDIDATES;
 use crate::temporal::ReadView;
-use crate::vector_storage::{attr_vec0_column, resolve_source_type};
+use crate::vector_storage::{
+    actual_vector_attr_columns, attr_vec0_column, resolve_builtin_source_type,
+    resolve_source_type_on,
+};
 use rusqlite::{params, Connection, OptionalExtension};
+use std::collections::BTreeSet;
 
 // ===== G4 filter grammar types (Slice 35) ===============================
 
@@ -323,6 +332,8 @@ impl TryFrom<&SearchFilter> for Filter {
     }
 }
 
+pub(crate) type DecomposedReadListFilter = (Vec<Predicate>, Vec<String>, Vec<PropertyPredicate>);
+
 impl Filter {
     /// Backend dispatch for `search_filtered` (vec0 — indexed pre-KNN). Lowers
     /// the metadata subset `{SourceType, Kind, CreatedAfter, Status, Property}` back into a
@@ -369,11 +380,13 @@ impl Filter {
     /// constant-fold vs the partition `kind` arg (no-op if equal, empty if not);
     /// `SourceType(s)` → constant-fold vs `resolve_source_type(kind)` (no-op if
     /// equal, empty otherwise — the column does not exist in `body`).
-    pub(crate) fn lower_for_read_list(
+    pub(crate) fn decompose_for_read_list(
         &self,
         kind: &str,
-    ) -> Result<Option<Vec<Predicate>>, EngineError> {
+    ) -> Result<Option<DecomposedReadListFilter>, EngineError> {
         let mut preds = Vec::new();
+        let mut source_types = Vec::new();
+        let mut property_predicates = Vec::new();
         for term in &self.terms {
             match term {
                 FilterTerm::Json(p) => preds.push(p.clone()),
@@ -394,20 +407,38 @@ impl Filter {
                     }
                 }
                 FilterTerm::SourceType(s) => {
-                    // source_type is NOT a canonical_nodes column; it is a pure
-                    // function of `kind`. Constant-fold (D2/D3).
-                    match resolve_source_type(kind) {
-                        Ok(resolved) if resolved == s.as_str() => {}
-                        _ => return Ok(None),
-                    }
+                    // Checked against snapshot (`resolve_source_type_on`) in `read_list_in_tx`
+                    // so explicitly enrolled R1 custom vector kinds match too.
+                    source_types.push(s.clone());
                 }
-                FilterTerm::Property(_) => {
-                    return Err(EngineError::InvalidFilter {
-                        reason: "property predicates on read.list are implemented in Layer 3"
-                            .to_string(),
-                    });
+                FilterTerm::Property(pred) => {
+                    property_predicates.push(pred.clone());
                 }
             }
+        }
+        Ok(Some((preds, source_types, property_predicates)))
+    }
+
+    #[cfg(any(test, feature = "test-hooks"))]
+    pub(crate) fn lower_for_read_list(
+        &self,
+        kind: &str,
+    ) -> Result<Option<Vec<Predicate>>, EngineError> {
+        let Some((preds, source_types, property_predicates)) =
+            self.decompose_for_read_list(kind)?
+        else {
+            return Ok(None);
+        };
+        for s in source_types {
+            match resolve_builtin_source_type(kind) {
+                Some(resolved) if resolved == s.as_str() => {}
+                _ => return Ok(None),
+            }
+        }
+        if !property_predicates.is_empty() {
+            return Err(EngineError::InvalidFilter {
+                reason: "property predicates require reader snapshot validation".to_string(),
+            });
         }
         Ok(Some(preds))
     }
@@ -464,27 +495,82 @@ impl Filter {
 /// [`SnapshotFilterError::InvalidFilter`] as the EXISTING typed
 /// [`EngineError::InvalidFilter`], so both arms see the SAME rejection because it is
 /// raised before either runs.
-pub(crate) fn validate_filter_attributes_on_snapshot(
+pub(crate) fn validate_property_predicates_on_snapshot(
     conn: &Connection,
-    filter: &SearchFilter,
+    predicates: &[PropertyPredicate],
 ) -> Result<(), SnapshotFilterError> {
-    if filter.attributes.is_empty() {
+    if predicates.is_empty() {
         return Ok(());
     }
-    // `?` maps a registry-read failure to `SnapshotFilterError::Sqlite` (unchanged
-    // `Storage` semantics for a genuine backend fault) via the `From` impl.
-    let registry = load_projection_registry(conn)?;
-    for (name, _value) in &filter.attributes {
-        let declared_filterable =
-            registry.get(name).is_some_and(|s| s.roles.contains(&ProjectionRole::Filterable));
-        if !declared_filterable {
+    for pred in predicates {
+        if let Err(EngineError::InvalidFilter { reason }) = validate_property_predicate(pred) {
+            return Err(SnapshotFilterError::InvalidFilter(reason));
+        }
+        if matches!(pred.value, PropertyValue::Bool(_))
+            && matches!(
+                pred.op,
+                PropertyComparisonOp::Lt
+                    | PropertyComparisonOp::Lte
+                    | PropertyComparisonOp::Gt
+                    | PropertyComparisonOp::Gte
+            )
+        {
             return Err(SnapshotFilterError::InvalidFilter(format!(
-                "filter attribute {name:?} is not a declared `filterable` projection; \
-                 declare it via configure_projections before filtering on it"
+                "boolean property predicate {:?} does not support ordering comparison {:?}",
+                pred.key, pred.op
+            )));
+        }
+    }
+    let registry = load_projection_registry(conn)?;
+    for pred in predicates {
+        let Some(stored) = registry.get(&pred.key) else {
+            return Err(SnapshotFilterError::InvalidFilter(format!(
+                "property predicate key {:?} is not a declared `filterable` projection; \
+                 declare it via configure_projections before filtering on it",
+                pred.key
+            )));
+        };
+        if stored.entity_class != PropertyEntityClass::Node {
+            return Err(SnapshotFilterError::InvalidFilter(format!(
+                "property predicate key {:?} is edge-scoped and cannot filter node queries",
+                pred.key
+            )));
+        }
+        if !stored.roles.contains(&ProjectionRole::Filterable) {
+            return Err(SnapshotFilterError::InvalidFilter(format!(
+                "property predicate key {:?} is not declared `filterable`",
+                pred.key
             )));
         }
     }
     Ok(())
+}
+
+pub(crate) fn validate_filter_attributes_on_snapshot(
+    conn: &Connection,
+    filter: &SearchFilter,
+) -> Result<(), SnapshotFilterError> {
+    if filter.attributes.is_empty() && filter.property_predicates.is_empty() {
+        return Ok(());
+    }
+    if !filter.attributes.is_empty() {
+        // `?` maps a registry-read failure to `SnapshotFilterError::Sqlite` (unchanged
+        // `Storage` semantics for a genuine backend fault) via the `From` impl.
+        let registry = load_projection_registry(conn)?;
+        for (name, _value) in &filter.attributes {
+            let declared_filterable = registry.get(name).is_some_and(|s| {
+                s.entity_class == PropertyEntityClass::Node
+                    && s.roles.contains(&ProjectionRole::Filterable)
+            });
+            if !declared_filterable {
+                return Err(SnapshotFilterError::InvalidFilter(format!(
+                    "filter attribute {name:?} is not a declared `filterable` projection; \
+                     declare it via configure_projections before filtering on it"
+                )));
+            }
+        }
+    }
+    validate_property_predicates_on_snapshot(conn, &filter.property_predicates)
 }
 
 pub(crate) enum SnapshotFilterError {
@@ -505,6 +591,205 @@ impl From<rusqlite::Error> for SnapshotFilterError {
 /// `filterable`-attribute predicates (`attr_<hex>=?n`) in `attributes` order, and
 /// is mirrored exactly by [`vector_filter_values`]. Empty for `None`/all-`None`
 /// (byte-identity path).
+fn property_comparison_sql_op(op: PropertyComparisonOp) -> &'static str {
+    match op {
+        PropertyComparisonOp::Eq => "=",
+        PropertyComparisonOp::Ne => "!=",
+        PropertyComparisonOp::Lt => "<",
+        PropertyComparisonOp::Lte => "<=",
+        PropertyComparisonOp::Gt => ">",
+        PropertyComparisonOp::Gte => ">=",
+    }
+}
+
+fn is_vec0_pushable_property_predicate(pred: &PropertyPredicate) -> bool {
+    pred.op == PropertyComparisonOp::Eq
+        && matches!(pred.value, PropertyValue::String(_) | PropertyValue::Bool(_))
+}
+
+fn append_cpv_property_predicate(
+    alias: &str,
+    cpv_alias: &str,
+    pred: &PropertyPredicate,
+    base_offset: usize,
+    params: &mut Vec<rusqlite::types::Value>,
+    sql: &mut String,
+) {
+    use rusqlite::types::Value;
+    let mut bind = |value: Value| {
+        params.push(value);
+        base_offset + params.len()
+    };
+    let key_index = bind(Value::Text(pred.key.clone()));
+    let sql_op = property_comparison_sql_op(pred.op);
+    match &pred.value {
+        PropertyValue::String(s) => {
+            let val_index = bind(Value::Text(s.clone()));
+            sql.push_str(&format!(
+                " AND EXISTS(SELECT 1 FROM canonical_property_values {cpv_alias} \
+                 WHERE {cpv_alias}.entity_class = 'node' \
+                 AND {cpv_alias}.write_cursor = {alias}.write_cursor \
+                 AND {cpv_alias}.attr_name = ?{key_index} \
+                 AND {cpv_alias}.value_type = 'string' \
+                 AND {cpv_alias}.text_val {sql_op} ?{val_index})"
+            ));
+        }
+        PropertyValue::Int(i) => {
+            let val_index = bind(Value::Integer(*i));
+            sql.push_str(&format!(
+                " AND EXISTS(SELECT 1 FROM canonical_property_values {cpv_alias} \
+                 WHERE {cpv_alias}.entity_class = 'node' \
+                 AND {cpv_alias}.write_cursor = {alias}.write_cursor \
+                 AND {cpv_alias}.attr_name = ?{key_index} \
+                 AND {cpv_alias}.value_type IN ('integer', 'float') \
+                 AND {cpv_alias}.num_val {sql_op} ?{val_index})"
+            ));
+        }
+        PropertyValue::Float(f) => {
+            let norm = normalize_finite_f64(*f).unwrap_or(0.0);
+            let val_index = bind(Value::Real(norm));
+            sql.push_str(&format!(
+                " AND EXISTS(SELECT 1 FROM canonical_property_values {cpv_alias} \
+                 WHERE {cpv_alias}.entity_class = 'node' \
+                 AND {cpv_alias}.write_cursor = {alias}.write_cursor \
+                 AND {cpv_alias}.attr_name = ?{key_index} \
+                 AND {cpv_alias}.value_type IN ('integer', 'float') \
+                 AND {cpv_alias}.num_val {sql_op} ?{val_index})"
+            ));
+        }
+        PropertyValue::Bool(b) => {
+            let val_index = bind(Value::Integer(i64::from(*b)));
+            sql.push_str(&format!(
+                " AND EXISTS(SELECT 1 FROM canonical_property_values {cpv_alias} \
+                 WHERE {cpv_alias}.entity_class = 'node' \
+                 AND {cpv_alias}.write_cursor = {alias}.write_cursor \
+                 AND {cpv_alias}.attr_name = ?{key_index} \
+                 AND {cpv_alias}.value_type = 'boolean' \
+                 AND {cpv_alias}.bool_val {sql_op} ?{val_index})"
+            ));
+        }
+    }
+}
+
+fn append_inline_property_predicate(
+    alias: &str,
+    pred: &PropertyPredicate,
+    stored: &StoredProjection,
+    base_offset: usize,
+    params: &mut Vec<rusqlite::types::Value>,
+    sql: &mut String,
+) {
+    use rusqlite::types::Value;
+    let mut bind = |value: Value| {
+        params.push(value);
+        base_offset + params.len()
+    };
+    let key_index = bind(Value::Text(pred.key.clone()));
+    let path_index =
+        bind(Value::Text(crate::projection_registry::projection_json_path(&pred.key, stored)));
+    let sql_op = property_comparison_sql_op(pred.op);
+    let safe_props =
+        format!("CASE WHEN json_valid({alias}.properties) THEN {alias}.properties END");
+    let safe_body_type = format!(
+        "CASE WHEN json_valid({alias}.body) THEN json_type({alias}.body, ?{path_index}) END"
+    );
+    let safe_body_val = format!(
+        "CASE WHEN json_valid({alias}.body) THEN json_extract({alias}.body, ?{path_index}) END"
+    );
+    let (prop_cond, body_cond, val_index) = match &pred.value {
+        PropertyValue::String(s) => {
+            let vi = bind(Value::Text(s.clone()));
+            (
+                format!("pe.type = 'text' AND pe.value {sql_op} ?{vi}"),
+                format!("{safe_body_type} = 'text' AND {safe_body_val} {sql_op} ?{vi}"),
+                vi,
+            )
+        }
+        PropertyValue::Int(i) => {
+            let vi = bind(Value::Integer(*i));
+            (
+                format!("pe.type IN ('integer', 'real') AND pe.value {sql_op} ?{vi}"),
+                format!(
+                    "{safe_body_type} IN ('integer', 'real') AND {safe_body_val} {sql_op} ?{vi}"
+                ),
+                vi,
+            )
+        }
+        PropertyValue::Float(f) => {
+            let norm = normalize_finite_f64(*f).unwrap_or(0.0);
+            let vi = bind(Value::Real(norm));
+            (
+                format!("pe.type IN ('integer', 'real') AND pe.value {sql_op} ?{vi}"),
+                format!(
+                    "{safe_body_type} IN ('integer', 'real') AND {safe_body_val} {sql_op} ?{vi}"
+                ),
+                vi,
+            )
+        }
+        PropertyValue::Bool(b) => {
+            let vi = bind(Value::Integer(i64::from(*b)));
+            (
+                format!(
+                    "pe.type IN ('true', 'false') \
+                     AND (CASE pe.type WHEN 'true' THEN 1 ELSE 0 END) {sql_op} ?{vi}"
+                ),
+                format!(
+                    "{safe_body_type} IN ('true', 'false') \
+                     AND (CASE {safe_body_type} WHEN 'true' THEN 1 ELSE 0 END) {sql_op} ?{vi}"
+                ),
+                vi,
+            )
+        }
+    };
+    let _ = val_index;
+    sql.push_str(&format!(
+        " AND (EXISTS(SELECT 1 FROM json_each({safe_props}) pe \
+         WHERE pe.key = ?{key_index} AND {prop_cond}) \
+         OR (NOT EXISTS(SELECT 1 FROM json_each({safe_props}) pe \
+         WHERE pe.key = ?{key_index}) \
+         AND {body_cond}))"
+    ));
+}
+
+fn append_inline_attr_predicate(
+    alias: &str,
+    name: &str,
+    value: &str,
+    stored: &StoredProjection,
+    base_offset: usize,
+    params: &mut Vec<rusqlite::types::Value>,
+    sql: &mut String,
+) {
+    use rusqlite::types::Value;
+    let mut bind = |v: Value| {
+        params.push(v);
+        base_offset + params.len()
+    };
+    let key_index = bind(Value::Text(name.to_string()));
+    let path_index =
+        bind(Value::Text(crate::projection_registry::projection_json_path(name, stored)));
+    let val_index = bind(Value::Text(value.to_string()));
+    let safe_props =
+        format!("CASE WHEN json_valid({alias}.properties) THEN {alias}.properties END");
+    let scalar = crate::projection_registry::scalar_attribute_sql(
+        &format!("{alias}.body"),
+        &format!("?{path_index}"),
+    );
+    sql.push_str(&format!(
+        " AND (EXISTS(SELECT 1 FROM json_each({safe_props}) pe \
+         WHERE pe.key = ?{key_index} \
+         AND (CASE pe.type \
+              WHEN 'text' THEN pe.value \
+              WHEN 'true' THEN 'true' \
+              WHEN 'false' THEN 'false' \
+              WHEN 'integer' THEN CAST(pe.value AS TEXT) \
+              WHEN 'real' THEN CAST(pe.value AS TEXT) END) = ?{val_index}) \
+         OR (NOT EXISTS(SELECT 1 FROM json_each({safe_props}) pe \
+         WHERE pe.key = ?{key_index}) \
+         AND {scalar} = ?{val_index}))"
+    ));
+}
+
 fn vector_filter_clause(filter: Option<&SearchFilter>) -> String {
     let Some(filter) = filter else {
         return String::new();
@@ -532,6 +817,9 @@ fn vector_filter_clause(filter: Option<&SearchFilter>) -> String {
     }
     for (name, _value) in &filter.attributes {
         cols.push((attr_vec0_column(name), "="));
+    }
+    for pred in &filter.property_predicates {
+        cols.push((attr_vec0_column(&pred.key), "="));
     }
     let mut clause = String::new();
     for (i, (col, op)) in cols.iter().enumerate() {
@@ -572,12 +860,173 @@ pub(crate) fn vector_filter_values(filter: Option<&SearchFilter>) -> Vec<rusqlit
     for (_name, value) in &filter.attributes {
         out.push(Value::Text(encode_attr_vec0_present(value)));
     }
+    for pred in &filter.property_predicates {
+        out.push(Value::Text(encode_property_vec0_metadata(Some(&pred.value))));
+    }
     out
 }
 
-/// Build native metadata eligibility inside phase-1 KNN before its candidate cap.
-/// Attribute/filter bindings retain their original positions; frozen time follows them.
-pub(crate) fn build_vector_phase1_sql(
+fn filter_needs_preselection(
+    conn: Option<&Connection>,
+    filter: Option<&SearchFilter>,
+    view: &ReadView,
+) -> rusqlite::Result<bool> {
+    let Some(filter) = filter else {
+        return Ok(false);
+    };
+    let relaxed = view.include_superseded || view.include_inactive;
+    if relaxed && (!filter.attributes.is_empty() || !filter.property_predicates.is_empty()) {
+        return Ok(true);
+    }
+    if filter.property_predicates.iter().any(|pred| !is_vec0_pushable_property_predicate(pred)) {
+        return Ok(true);
+    }
+    if filter.attributes.is_empty() && filter.property_predicates.is_empty() {
+        return Ok(false);
+    }
+    let Some(conn) = conn else {
+        return Ok(false);
+    };
+    let live_cols: BTreeSet<String> = actual_vector_attr_columns(conn)?.into_iter().collect();
+    for (name, _) in &filter.attributes {
+        if !live_cols.contains(&attr_vec0_column(name)) {
+            return Ok(true);
+        }
+    }
+    for pred in &filter.property_predicates {
+        if !live_cols.contains(&attr_vec0_column(&pred.key)) {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
+/// Build vector phase-1 SQL plus tail parameters starting at placeholder `?3`
+/// (`?1` = sign-quant query, `?2` = f32 rerank query).
+///
+/// Unpredicated queries and `<=8`-slot `String`/`Bool` `Eq` predicates run directly
+/// inside `vec0` bit-KNN (`ORDER BY distance LIMIT TOP_K_BIT_CANDIDATES`). Non-pushable
+/// predicates (`Ne`, ranges, numeric `Eq`, slot `9+`, or relaxed `ReadView`) pre-select
+/// eligible `write_cursor`s via `canonical_property_values` (or inline `(body, properties)`)
+/// before exact L2 scoring for 100% recall beyond `TOP_K_BIT_CANDIDATES`.
+pub(crate) fn build_vector_phase1_plan(
+    conn: Option<&Connection>,
+    filter: Option<&SearchFilter>,
+    final_limit: usize,
+    view: &ReadView,
+    edge_now: i64,
+) -> rusqlite::Result<(String, Vec<rusqlite::types::Value>)> {
+    use rusqlite::types::Value;
+    if !filter_needs_preselection(conn, filter, view)? {
+        let sql = build_vec0_fast_phase1_sql(filter, final_limit, view);
+        let mut tail_params = vector_filter_values(filter);
+        tail_params.push(Value::Integer(edge_now));
+        return Ok((sql, tail_params));
+    }
+
+    let filter = filter.expect("needs_preselection guarantees Some(filter)");
+    let mut tail_params: Vec<Value> = Vec::new();
+    let base_offset = 2usize; // ?1 = bin_vector, ?2 = query_vector
+    let mut candidate_where = String::from(
+        "WHERE (?1 IS NOT NULL OR ?1 IS NULL) \
+         AND EXISTS(SELECT 1 FROM _fathomdb_vector_rows vr WHERE vr.write_cursor = cn.write_cursor)",
+    );
+    let relaxed = view.include_superseded || view.include_inactive;
+    if !relaxed {
+        candidate_where.push_str(" AND cn.superseded_at IS NULL AND cn.state = 'active'");
+        for (ordinal, pred) in filter.property_predicates.iter().enumerate() {
+            append_cpv_property_predicate(
+                "cn",
+                &format!("cpv_v{ordinal}"),
+                pred,
+                base_offset,
+                &mut tail_params,
+                &mut candidate_where,
+            );
+        }
+        for (ordinal, (name, value)) in filter.attributes.iter().enumerate() {
+            tail_params.push(Value::Text(name.clone()));
+            let name_index = base_offset + tail_params.len();
+            tail_params.push(Value::Text(value.clone()));
+            let value_index = base_offset + tail_params.len();
+            candidate_where.push_str(&format!(
+                " AND EXISTS(SELECT 1 FROM canonical_attributes ca_v{ordinal} \
+                 WHERE ca_v{ordinal}.write_cursor = cn.write_cursor \
+                 AND ca_v{ordinal}.attr_name = ?{name_index} \
+                 AND ca_v{ordinal}.attr_value = ?{value_index})"
+            ));
+        }
+    } else if let Some(conn) = conn {
+        let registry = load_projection_registry(conn)?;
+        for (name, value) in &filter.attributes {
+            let stored = registry.get(name).ok_or(rusqlite::Error::InvalidQuery)?;
+            append_inline_attr_predicate(
+                "cn",
+                name,
+                value,
+                stored,
+                base_offset,
+                &mut tail_params,
+                &mut candidate_where,
+            );
+        }
+        for pred in &filter.property_predicates {
+            let stored = registry.get(&pred.key).ok_or(rusqlite::Error::InvalidQuery)?;
+            append_inline_property_predicate(
+                "cn",
+                pred,
+                stored,
+                base_offset,
+                &mut tail_params,
+                &mut candidate_where,
+            );
+        }
+    }
+
+    let mut vec_where = String::from("WHERE 1=1");
+    let mut push_vec = |v: Value| {
+        tail_params.push(v);
+        base_offset + tail_params.len()
+    };
+    if let Some(s) = &filter.source_type {
+        let idx = push_vec(Value::Text(s.clone()));
+        vec_where.push_str(&format!(" AND v.source_type=?{idx}"));
+    }
+    if let Some(k) = &filter.kind {
+        let idx = push_vec(Value::Text(k.clone()));
+        vec_where.push_str(&format!(" AND v.kind=?{idx}"));
+    }
+    if let Some(c) = filter.created_after {
+        let idx = push_vec(Value::Integer(c));
+        vec_where.push_str(&format!(" AND v.created_at>=?{idx}"));
+    }
+    if let Some(s) = &filter.status {
+        let idx = push_vec(Value::Text(s.clone()));
+        vec_where.push_str(&format!(" AND v.status=?{idx}"));
+    }
+    vec_where.push_str(match (view.include_superseded, view.include_inactive) {
+        (false, false) => " AND v.lifecycle=0",
+        (false, true) => " AND v.lifecycle IN (0,1)",
+        (true, false) => " AND v.lifecycle IN (0,2)",
+        (true, true) => "",
+    });
+    if !view.include_out_of_window {
+        let now_idx = push_vec(Value::Integer(edge_now));
+        vec_where.push_str(&format!(" AND v.valid_from<=?{now_idx} AND v.valid_until>=?{now_idx}"));
+    }
+    let sql = format!(
+        "WITH candidates AS (\
+            SELECT cn.write_cursor AS rowid FROM canonical_nodes cn {candidate_where}\
+         ) \
+         SELECT c.rowid, vec_distance_l2(v.embedding, vec_f32(?2)) AS l2 \
+         FROM candidates c JOIN vector_default v ON v.rowid=c.rowid \
+         {vec_where} \
+         ORDER BY l2 LIMIT {final_limit}"
+    );
+    Ok((sql, tail_params))
+}
+
+fn build_vec0_fast_phase1_sql(
     filter: Option<&SearchFilter>,
     final_limit: usize,
     view: &ReadView,
@@ -613,6 +1062,19 @@ pub(crate) fn build_vector_phase1_sql(
     )
 }
 
+/// Build native metadata eligibility inside phase-1 KNN before its candidate cap.
+/// Attribute/filter bindings retain their original positions; frozen time follows them.
+#[cfg(any(test, feature = "test-hooks"))]
+pub(crate) fn build_vector_phase1_sql(
+    filter: Option<&SearchFilter>,
+    final_limit: usize,
+    view: &ReadView,
+) -> String {
+    build_vector_phase1_plan(None, filter, final_limit, view, 0)
+        .map(|(sql, _)| sql)
+        .unwrap_or_else(|_| build_vec0_fast_phase1_sql(filter, final_limit, view))
+}
+
 /// Compile node eligibility into SQL that executes before ranking or limits.
 pub(crate) fn append_node_eligibility_sql(
     filter: Option<&SearchFilter>,
@@ -631,9 +1093,13 @@ pub(crate) fn append_node_eligibility_sql(
     if let Some(value) = &filter.source_type {
         let index = bind(Value::Text(value.clone()));
         sql.push_str(&format!(
-            " AND CASE {alias}.kind WHEN 'email' THEN 'email' WHEN 'article' THEN 'article' \
+            " AND COALESCE(\
+             CASE {alias}.kind WHEN 'email' THEN 'email' WHEN 'article' THEN 'article' \
              WHEN 'paper' THEN 'paper' WHEN 'meeting' THEN 'meeting' WHEN 'note' THEN 'note' \
-             WHEN 'todo' THEN 'todo' WHEN 'doc' THEN 'article' END = ?{index}"
+             WHEN 'todo' THEN 'todo' WHEN 'doc' THEN 'article' ELSE NULL END, \
+             (SELECT vk.kind FROM _fathomdb_vector_kinds vk \
+              WHERE vk.kind = {alias}.kind AND vk.kind <> 'edge_fact')\
+             ) = ?{index}"
         ));
     }
     if let Some(value) = &filter.kind {
@@ -664,6 +1130,9 @@ pub(crate) fn append_node_eligibility_sql(
              AND ca{ordinal}.attr_value = ?{value_index})"
         ));
     }
+    for (ordinal, pred) in filter.property_predicates.iter().enumerate() {
+        append_cpv_property_predicate(alias, &format!("cpv_p{ordinal}"), pred, 0, params, &mut sql);
+    }
     sql
 }
 
@@ -680,22 +1149,21 @@ pub(crate) fn append_node_eligibility_sql_view(
     let Some(filter) = filter else {
         return Ok(String::new());
     };
+    if filter.attributes.is_empty() && filter.property_predicates.is_empty() {
+        return Ok(append_node_eligibility_sql(Some(filter), alias, params));
+    }
     let mut base = filter.clone();
     base.attributes.clear();
+    base.property_predicates.clear();
     let mut sql = append_node_eligibility_sql(Some(&base), alias, params);
-    if !filter.attributes.is_empty() {
-        let registry = load_projection_registry(connection)?;
-        for (name, value) in &filter.attributes {
-            let stored = registry.get(name).ok_or(rusqlite::Error::InvalidQuery)?;
-            let path = crate::projection_registry::projection_json_path(name, stored);
-            params.push(rusqlite::types::Value::Text(path));
-            let scalar = crate::projection_registry::scalar_attribute_sql(
-                &format!("{alias}.body"),
-                &format!("?{}", params.len()),
-            );
-            params.push(rusqlite::types::Value::Text(value.clone()));
-            sql.push_str(&format!(" AND {scalar} = ?{}", params.len()));
-        }
+    let registry = load_projection_registry(connection)?;
+    for (name, value) in &filter.attributes {
+        let stored = registry.get(name).ok_or(rusqlite::Error::InvalidQuery)?;
+        append_inline_attr_predicate(alias, name, value, stored, 0, params, &mut sql);
+    }
+    for pred in &filter.property_predicates {
+        let stored = registry.get(&pred.key).ok_or(rusqlite::Error::InvalidQuery)?;
+        append_inline_property_predicate(alias, pred, stored, 0, params, &mut sql);
     }
     Ok(sql)
 }
@@ -747,6 +1215,9 @@ pub(crate) fn append_edge_eligibility_sql(
              AND eca{ordinal}.attr_value = ?{value_index})"
         ));
     }
+    if !filter.property_predicates.is_empty() {
+        sql.push_str(" AND 0");
+    }
     sql
 }
 
@@ -771,7 +1242,7 @@ pub(crate) fn body_fts_rank_sql_view(
     format!(
         "SELECT search_index.body, search_index.kind, search_index.write_cursor, \
          bm25(search_index), cn.logical_id, cn.source_id, search_index.rowid, cn.write_cursor, \
-         search_index.body IS cn.body, search_index.kind IS cn.kind FROM search_index \
+         search_index.body IS cn.body, search_index.kind IS cn.kind, cn.properties FROM search_index \
          LEFT JOIN canonical_nodes cn ON cn.write_cursor = search_index.write_cursor \
          WHERE search_index MATCH ?1 {existence}{validity}{lifecycle}{eligibility} \
          ORDER BY bm25(search_index), search_index.write_cursor{limit_clause}"
@@ -787,7 +1258,8 @@ pub(crate) fn edge_fts_rank_sql_view(validity: &str, eligibility: &str, view: &R
     let existence = view.edge_existence_sql("ce");
     format!(
         "SELECT sei.body, sei.kind, sei.write_cursor, bm25(search_index_edges), \
-         ce.logical_id, ce.source_id, sei.rowid, sei.body IS ce.body, sei.kind IS ce.kind \
+         ce.logical_id, ce.source_id, sei.rowid, sei.body IS ce.body, sei.kind IS ce.kind, \
+         ce.properties \
          FROM search_index_edges sei \
          JOIN canonical_edges ce ON ce.write_cursor = sei.write_cursor \
          WHERE search_index_edges MATCH ?1 {existence}{validity}{eligibility} \
@@ -797,7 +1269,7 @@ pub(crate) fn edge_fts_rank_sql_view(validity: &str, eligibility: &str, view: &R
 
 pub(crate) fn property_fts_rank_sql(validity: &str, eligibility: &str) -> String {
     format!(
-        "SELECT p.write_cursor, bm25(property_search_index), n.kind, n.body, n.logical_id, n.source_id
+        "SELECT p.write_cursor, bm25(property_search_index), n.kind, n.body, n.logical_id, n.source_id, n.properties
          FROM property_search_index p JOIN canonical_nodes n ON n.write_cursor = p.write_cursor
          WHERE p.attr_name = ?1 AND property_search_index MATCH ?2
            {validity}{eligibility}
@@ -815,7 +1287,7 @@ pub(crate) fn property_fts_rank_stream_sql(
 ) -> String {
     format!(
         "SELECT n.body, n.kind, p.write_cursor, bm25(property_search_index), n.logical_id, n.source_id,
-                p.rowid
+                p.rowid, n.properties
          FROM property_search_index p JOIN canonical_nodes n ON n.write_cursor = p.write_cursor
          WHERE p.attr_name = ?1 AND property_search_index MATCH ?2
            {validity}{eligibility}
@@ -840,7 +1312,7 @@ pub(crate) fn property_fts_cohort_stream_sql(
 ) -> String {
     format!(
         "SELECT n.body, n.kind, p.write_cursor, bm25(property_search_index), n.logical_id, n.source_id,
-                p.rowid
+                p.rowid, n.properties
          FROM property_search_index p JOIN canonical_nodes n ON n.write_cursor = p.write_cursor
          WHERE p.attr_name = ?1 AND property_search_index MATCH ?2
            {validity}{eligibility}
@@ -859,24 +1331,45 @@ pub(crate) fn text_hit_passes_filter_view(
     view: &ReadView,
 ) -> rusqlite::Result<bool> {
     let Some(filter) = filter else { return Ok(true) };
-    if (!view.include_superseded && !view.include_inactive) || filter.attributes.is_empty() {
+    if (!view.include_superseded && !view.include_inactive)
+        || (filter.attributes.is_empty() && filter.property_predicates.is_empty())
+    {
         return text_hit_passes_filter(tx, id, kind, Some(filter));
     }
     let mut base = filter.clone();
     base.attributes.clear();
+    base.property_predicates.clear();
     if !text_hit_passes_filter(tx, id, kind, Some(&base))? {
         return Ok(false);
     }
-    let body: Option<String> = tx
-        .query_row("SELECT body FROM canonical_nodes WHERE write_cursor=?1", [id], |r| r.get(0))
+    let row: Option<(String, Option<crate::PropertyMap>)> = tx
+        .query_row(
+            "SELECT body, properties FROM canonical_nodes WHERE write_cursor=?1",
+            [id],
+            |r| Ok((r.get(0)?, crate::properties::decode_properties_row_col(r, 1)?)),
+        )
         .optional()?;
-    let Some(body) = body else { return Ok(false) };
+    let Some((body, props)) = row else { return Ok(false) };
     let registry = load_projection_registry(tx)?;
     for (name, wanted) in &filter.attributes {
         let stored = registry.get(name).ok_or(rusqlite::Error::InvalidQuery)?;
-        if crate::projection_registry::extract_scalar_attribute(tx, &body, name, stored)?.as_ref()
+        if crate::projection_registry::extract_scalar_attribute_with_properties(
+            tx,
+            &body,
+            props.as_ref(),
+            name,
+            stored,
+        )?
+        .as_ref()
             != Some(wanted)
         {
+            return Ok(false);
+        }
+    }
+    for pred in &filter.property_predicates {
+        let stored = registry.get(&pred.key).ok_or(rusqlite::Error::InvalidQuery)?;
+        let val = extract_typed_node_property(tx, &body, props.as_ref(), &pred.key, stored)?;
+        if !eval_property_value(val.as_ref(), pred.op, &pred.value) {
             return Ok(false);
         }
     }
@@ -909,7 +1402,7 @@ pub(crate) fn text_hit_passes_filter(
         }
     }
     if let Some(st) = &filter.source_type {
-        match resolve_source_type(kind) {
+        match resolve_source_type_on(tx, kind) {
             Ok(resolved) if resolved == st.as_str() => {}
             _ => return Ok(false),
         }
@@ -941,6 +1434,65 @@ pub(crate) fn text_hit_passes_filter(
     // attribute-equality predicates on the TEXT/FTS arm too (D3 total dispatch).
     if !hit_attributes_pass_filter(tx, id, filter)? {
         return Ok(false);
+    }
+    if !hit_property_predicates_pass_filter(tx, id, filter)? {
+        return Ok(false);
+    }
+    Ok(true)
+}
+
+struct StoredCpvRow {
+    value_type: String,
+    text_val: Option<String>,
+    num_val: Option<rusqlite::types::Value>,
+    bool_val: Option<i64>,
+}
+
+fn hit_property_predicates_pass_filter(
+    tx: &Connection,
+    id: u64,
+    filter: &SearchFilter,
+) -> rusqlite::Result<bool> {
+    for pred in &filter.property_predicates {
+        let stored: Option<StoredCpvRow> = tx
+            .query_row(
+                "SELECT value_type, text_val, num_val, bool_val FROM canonical_property_values \
+                 WHERE entity_class = 'node' AND write_cursor = ?1 AND attr_name = ?2 LIMIT 1",
+                params![id as i64, pred.key],
+                |row| {
+                    Ok(StoredCpvRow {
+                        value_type: row.get(0)?,
+                        text_val: row.get(1)?,
+                        num_val: row.get(2)?,
+                        bool_val: row.get(3)?,
+                    })
+                },
+            )
+            .optional()?;
+        let Some(StoredCpvRow { value_type, text_val, num_val, bool_val }) = stored else {
+            return Ok(false);
+        };
+        let decoded = match value_type.as_str() {
+            "string" => text_val.map(PropertyValue::String),
+            "integer" => match num_val {
+                Some(rusqlite::types::Value::Integer(i)) => Some(PropertyValue::Int(i)),
+                _ => None,
+            },
+            "float" => match num_val {
+                Some(rusqlite::types::Value::Real(f)) => {
+                    normalize_finite_f64(f).map(PropertyValue::Float)
+                }
+                Some(rusqlite::types::Value::Integer(i)) => {
+                    normalize_finite_f64(i as f64).map(PropertyValue::Float)
+                }
+                _ => None,
+            },
+            "boolean" => bool_val.map(|b| PropertyValue::Bool(b != 0)),
+            _ => None,
+        };
+        if !eval_property_value(decoded.as_ref(), pred.op, &pred.value) {
+            return Ok(false);
+        }
     }
     Ok(true)
 }
@@ -1098,6 +1650,9 @@ pub(crate) fn edge_fts_hit_passes_filter(
     if !hit_attributes_pass_filter(tx, write_cursor, filter)? {
         return Ok(false);
     }
+    if !filter.property_predicates.is_empty() {
+        return Ok(false);
+    }
     Ok(true)
 }
 
@@ -1116,6 +1671,7 @@ fn edge_fts_hit_passes_non_attribute_filter(
     };
     let mut non_attribute_filter = filter.clone();
     non_attribute_filter.attributes.clear();
+    non_attribute_filter.property_predicates.clear();
     edge_fts_hit_passes_filter(tx, write_cursor, row_kind, Some(&non_attribute_filter))
 }
 

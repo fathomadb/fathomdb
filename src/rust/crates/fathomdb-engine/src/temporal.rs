@@ -291,6 +291,39 @@ pub(crate) fn current_epoch_seconds() -> i64 {
         .unwrap_or(0)
 }
 
+/// Wall-clock now as INTEGER epoch MILLISECONDS (UTC), saturating at 0 before the
+/// Unix epoch. Used by batch commit timestamps.
+pub(crate) fn current_epoch_ms() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| i64::try_from(d.as_millis()).unwrap_or(i64::MAX))
+        .unwrap_or(0)
+}
+
+/// Record one monotonically non-decreasing commit timestamp row keyed by the
+/// batch's high-water `write_cursor` inside the committing transaction.
+pub(crate) fn record_batch_commit_timestamp(
+    tx: &rusqlite::Connection,
+    high_water_cursor: u64,
+    now_epoch_ms: i64,
+) -> rusqlite::Result<()> {
+    let prev_ms: Option<i64> = tx
+        .query_row(
+            "SELECT committed_at_ms FROM _fathomdb_commit_timestamps \
+             ORDER BY write_cursor DESC LIMIT 1",
+            [],
+            |r| r.get(0),
+        )
+        .optional()?;
+    let committed_at_ms = prev_ms.map_or(now_epoch_ms, |prev| prev.max(now_epoch_ms));
+    let cursor_i64 = i64::try_from(high_water_cursor).map_err(|_| rusqlite::Error::InvalidQuery)?;
+    tx.prepare_cached(
+        "INSERT INTO _fathomdb_commit_timestamps(write_cursor, committed_at_ms) VALUES(?1, ?2)",
+    )?
+    .execute(params![cursor_i64, committed_at_ms])?;
+    Ok(())
+}
+
 /// TC-33 — the edge-validity conjunct, bound to positional parameter
 /// `?{now_idx}`. THE one generator for "is this edge valid at `:now`", so no
 /// read site can drift from another (the same discipline

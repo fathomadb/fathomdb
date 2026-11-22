@@ -510,6 +510,35 @@ fn encode_node(hasher: &mut Sha256, node: &ProvenancedNodeV1) {
         node.provenance.canonical_source_hash.as_ref().map(CanonicalHash::digest_hex),
         encode_string,
     );
+    if let Some(props) = node.properties.as_ref().filter(|p| !p.is_empty()) {
+        hasher.update([0x37]);
+        encode_properties_digest(hasher, props);
+    }
+}
+
+fn encode_properties_digest(hasher: &mut Sha256, props: &crate::PropertyMap) {
+    encode_u32(hasher, u32::try_from(props.len()).unwrap_or(u32::MAX));
+    for (k, v) in props {
+        encode_string(hasher, k);
+        match v {
+            crate::PropertyValue::String(s) => {
+                hasher.update([0x01]);
+                encode_string(hasher, s);
+            }
+            crate::PropertyValue::Int(i) => {
+                hasher.update([0x02]);
+                encode_i64(hasher, *i);
+            }
+            crate::PropertyValue::Float(f) => {
+                hasher.update([0x03]);
+                let norm = if *f == 0.0 && f.is_sign_negative() { 0.0 } else { *f };
+                encode_u64(hasher, norm.to_bits());
+            }
+            crate::PropertyValue::Bool(b) => {
+                hasher.update([0x04, u8::from(*b)]);
+            }
+        }
+    }
 }
 
 fn encode_edge(hasher: &mut Sha256, edge: &ProvenancedEdgeV1) {
@@ -569,6 +598,10 @@ fn encode_edge(hasher: &mut Sha256, edge: &ProvenancedEdgeV1) {
         edge.provenance.canonical_source_hash.as_ref().map(CanonicalHash::digest_hex),
         encode_string,
     );
+    if let Some(props) = edge.properties.as_ref().filter(|p| !p.is_empty()) {
+        hasher.update([0x6c]);
+        encode_properties_digest(hasher, props);
+    }
 }
 
 fn receipt_for_refusal(
@@ -1782,12 +1815,18 @@ fn apply_lifecycle(
             path: Some(format!("/operations/{index}/toState")),
         }));
     }
-    let (write_cursor, body): (i64, String) = connection
+    let (write_cursor, body, props): (i64, String, Option<crate::PropertyMap>) = connection
         .query_row(
-            "SELECT write_cursor,body FROM canonical_nodes \
+            "SELECT write_cursor,body,properties FROM canonical_nodes \
              WHERE logical_id=?1 AND superseded_at IS NULL",
             [&operation.logical_id],
-            |row| Ok((row.get(0)?, row.get(1)?)),
+            |row| {
+                Ok((
+                    row.get(0)?,
+                    row.get(1)?,
+                    crate::properties::decode_properties_row_col(row, 2)?,
+                ))
+            },
         )
         .map_err(|_| RefusalOrInfrastructure::Infrastructure(EngineError::Storage))?;
     let closure_id = if operation.to_state == LifecycleState::Deleted && role == "canonical_source"
@@ -1804,7 +1843,7 @@ fn apply_lifecycle(
         None
     };
     if operation.to_state == LifecycleState::Active {
-        validate_nested_projection_sources_for_body(connection, &body)
+        validate_nested_projection_sources_for_body(connection, &body, props.as_ref())
             .map_err(RefusalOrInfrastructure::Infrastructure)?;
         dependency_closure::guard_derived_reactivation(connection, write_cursor)
             .map_err(RefusalOrInfrastructure::Infrastructure)?;
@@ -1823,13 +1862,13 @@ fn apply_lifecycle(
     purge_row_projections_for_cursor_in(
         connection,
         write_cursor,
-        &[ProjectionClass::Attribute, ProjectionClass::PropertyFts],
+        &[ProjectionClass::Attribute, ProjectionClass::PropertyValue, ProjectionClass::PropertyFts],
     )
     .map_err(|_| RefusalOrInfrastructure::Infrastructure(EngineError::Storage))?;
     if operation.to_state == LifecycleState::Active {
-        project_node_attributes(connection, write_cursor, &body)
+        project_node_attributes(connection, write_cursor, &body, props.as_ref())
             .map_err(|_| RefusalOrInfrastructure::Infrastructure(EngineError::Storage))?;
-        refresh_vector_attr_values_for_row(connection, write_cursor, &body)
+        refresh_vector_attr_values_for_row(connection, write_cursor, &body, props.as_ref())
             .map_err(|_| RefusalOrInfrastructure::Infrastructure(EngineError::Storage))?;
     }
     let reopened = if operation.to_state == LifecycleState::Active {
@@ -1846,6 +1885,7 @@ fn apply_lifecycle(
             &kind,
             &body,
             &row_kind,
+            props.as_ref(),
         )
         .map_err(RefusalOrInfrastructure::Infrastructure)?
     } else {
@@ -2430,6 +2470,14 @@ impl Engine {
                 .map(|id| id.as_str().to_string())
                 .collect(),
         };
+        if next_cursor > base_cursor {
+            crate::temporal::record_batch_commit_timestamp(
+                &tx,
+                next_cursor,
+                crate::temporal::current_epoch_ms(),
+            )
+            .map_err(|_| EngineError::Storage)?;
+        }
         store_receipt(&tx, &receipt, request.operations.len())?;
         store_source_refs(
             &tx,

@@ -332,19 +332,17 @@ pub use projection_generation::{
     ProjectionGenerationStatusV1, ProjectionReadinessV1, ProjectionRuntimeStateV1,
 };
 use projection_registry::{
-    boot_graft_declared_vector_backfill, erase_row_projections, load_projection_registry,
-    project_node_attributes, purge_row_projections_for_cursor_in,
-    reconcile_inert_vector_enrolments_on_boot, rederive_projections_on_boot,
-    reenqueue_stranded_vector_rows, register_vector_kind, truncate_row_projections_in,
-    unsupported_vector_kinds, validate_nested_projection_sources_for_body,
-    validate_nested_projection_sources_for_write, vector_attr_insert_fragments,
-    vector_projection_declared, ProjectionClass, ProjectionPass, StoredProjection,
-    ROW_OWNED_PROJECTIONS,
+    boot_graft_declared_vector_backfill, erase_row_projections,
+    extract_scalar_attribute_with_properties, load_projection_registry, project_node_attributes,
+    purge_row_projections_for_cursor_in, reconcile_inert_vector_enrolments_on_boot,
+    rederive_projections_on_boot, reenqueue_stranded_vector_rows, register_vector_kind,
+    truncate_row_projections_in, unsupported_vector_kinds,
+    validate_nested_projection_sources_for_body, validate_nested_projection_sources_for_write,
+    vector_attr_insert_fragments, vector_projection_declared, ProjectionClass, ProjectionPass,
+    StoredProjection, ROW_OWNED_PROJECTIONS,
 };
 #[cfg(feature = "operator")]
-use projection_registry::{
-    extract_scalar_attribute, load_projection_registry_row, truncate_all_row_projections,
-};
+use projection_registry::{load_projection_registry_row, truncate_all_row_projections};
 #[cfg(test)]
 use projection_runtime::ProjectionRuntimeStartupFaultForTest;
 use projection_runtime::{
@@ -429,12 +427,14 @@ pub use test_hooks::{ProjectionWorkerPauseReadyError, ProjectionWorkerTransactio
 use vector_equivalence::run_vector_equivalence_probe;
 #[cfg(any(test, feature = "test-hooks", feature = "operator"))]
 use vector_storage::load_default_profile;
+#[cfg(test)]
+use vector_storage::resolve_builtin_source_type;
 use vector_storage::{
     actual_vector_attr_columns, decode_attr_vec0_column, decode_vector_blob,
     default_profile_dimension, delete_vector_partition_row, encode_vector_blob,
-    ensure_vector_partition, hamming_bytes, kind_is_vector_committable, kind_is_vector_indexed,
+    ensure_vector_partition, hamming_bytes, kind_is_vector_committable_on, kind_is_vector_indexed,
     quantize_binary_via_sql, reconcile_vector_attr_columns, refresh_vector_attr_values,
-    refresh_vector_attr_values_for_row, resolve_source_type,
+    refresh_vector_attr_values_for_row, resolve_source_type_on,
     VECTOR_COMMITTABLE_NODE_KIND_SOURCE_TYPES,
 };
 pub(crate) use write::storage_write_shape;
@@ -903,12 +903,13 @@ mod tests {
     use super::{
         acquire_lock_without_metadata_mutation, derive_stable_id,
         install_admission_locked_hook_for_test, native_connection_state_for_test,
-        prepare_search_statement, resolve_source_type, retain_complete_rank_boundary_candidates,
-        DeviceResolution, Engine, EngineConfig, EngineError, EngineOpenError, IdSpace, IdSpaceKind,
-        InitialState, LoaderInfo, ManagedConnectionRegistry, NativeTransactionState, PreparedWrite,
-        ProjectionRuntime, ProjectionRuntimeStartupFaultForTest, ProjectionRuntimeStartupRole,
-        RuntimeProbeConnection, SearchHit, SoftFallbackBranch, SourceId, TestEmbedderChoice,
-        WalAttributionCollector, WalAttributionRole, PROJECTION_WORKERS, ROW_OWNED_PROJECTIONS,
+        prepare_search_statement, resolve_builtin_source_type,
+        retain_complete_rank_boundary_candidates, DeviceResolution, Engine, EngineConfig,
+        EngineError, EngineOpenError, IdSpace, IdSpaceKind, InitialState, LoaderInfo,
+        ManagedConnectionRegistry, NativeTransactionState, PreparedWrite, ProjectionRuntime,
+        ProjectionRuntimeStartupFaultForTest, ProjectionRuntimeStartupRole, RuntimeProbeConnection,
+        SearchHit, SoftFallbackBranch, SourceId, TestEmbedderChoice, WalAttributionCollector,
+        WalAttributionRole, PROJECTION_WORKERS, ROW_OWNED_PROJECTIONS,
     };
     use fathomdb_embedder::{
         DeviceResolutionReason, EffectiveEmbedDevice, EmbedDevicePolicy, NoopEmbedder,
@@ -3575,13 +3576,13 @@ mod tests {
             ("doc", "article"),
         ];
         for (kind, expected) in want {
-            let got = resolve_source_type(kind).unwrap_or_else(|_| {
-                panic!("resolve_source_type({kind}) returned Err; want Ok({expected})")
+            let got = resolve_builtin_source_type(kind).unwrap_or_else(|| {
+                panic!("resolve_builtin_source_type({kind}) returned None; want Some({expected})")
             });
             assert_eq!(got, *expected, "Rust helper drift for kind={kind}");
         }
         assert!(
-            resolve_source_type("banana").is_err(),
+            resolve_builtin_source_type("banana").is_none(),
             "unknown kind must surface as writer error"
         );
 
@@ -3603,7 +3604,7 @@ mod tests {
             .collect();
         assert_eq!(rows.len(), kinds.len(), "row count drift");
         for (kind, sql_result) in &rows {
-            let rust_result = resolve_source_type(kind).expect("known kind");
+            let rust_result = resolve_builtin_source_type(kind).expect("known kind");
             assert_eq!(
                 sql_result, rust_result,
                 "SQL CASE vs Rust helper drift for kind={kind}: SQL={sql_result}, Rust={rust_result}"

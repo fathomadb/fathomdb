@@ -151,6 +151,16 @@ pub(crate) struct EvidenceSearchReaderRequest {
     respond: SyncSender<EvidenceReaderResponse>,
 }
 
+pub(crate) struct ReadListReaderRequest {
+    kind: String,
+    predicates: Vec<Predicate>,
+    source_types: Vec<String>,
+    property_predicates: Vec<crate::PropertyPredicate>,
+    limit: usize,
+    view: ReadView,
+    respond: SyncSender<Result<Vec<NodeRecord>, crate::read::PageReaderError>>,
+}
+
 pub(crate) struct CanonicalPageReaderRequest {
     kind: String,
     frozen: FrozenReadContextV1,
@@ -242,14 +252,7 @@ pub(crate) enum ReaderRequest {
     /// zero or more `Predicate`s (AND-combined), up to `limit` rows.
     /// Path validation already happened at `Predicate` construction time;
     /// the worker only compiles + executes parameterized SQL.
-    ReadList {
-        kind: String,
-        predicates: Vec<Predicate>,
-        limit: usize,
-        /// R-20-RV — the read view this listing runs under.
-        view: ReadView,
-        respond: SyncSender<rusqlite::Result<Vec<NodeRecord>>>,
-    },
+    ReadList(Box<ReadListReaderRequest>),
     ReadCanonicalPage(Box<CanonicalPageReaderRequest>),
     ReadOperationalState(Box<OperationalStateReaderRequest>),
     ReadOperationalStatePage(Box<OperationalStatePageReaderRequest>),
@@ -438,11 +441,21 @@ impl ReaderRequest {
     pub(crate) fn read_list(
         kind: String,
         predicates: Vec<Predicate>,
+        source_types: Vec<String>,
+        property_predicates: Vec<crate::PropertyPredicate>,
         limit: usize,
         view: ReadView,
-        respond: SyncSender<rusqlite::Result<Vec<NodeRecord>>>,
+        respond: SyncSender<Result<Vec<NodeRecord>, crate::read::PageReaderError>>,
     ) -> Self {
-        Self::ReadList { kind, predicates, limit, view, respond }
+        Self::ReadList(Box::new(ReadListReaderRequest {
+            kind,
+            predicates,
+            source_types,
+            property_predicates,
+            limit,
+            view,
+            respond,
+        }))
     }
 
     pub(crate) fn canonical_page(
@@ -783,13 +796,17 @@ fn reader_worker_loop(
                 );
                 let _ = respond.send(result);
             }
-            ReaderRequest::ReadList { kind, predicates, limit, view, respond } => {
+            ReaderRequest::ReadList(request) => {
                 let result = read_list_in_tx(
                     &mut connection,
-                    &kind,
-                    &predicates,
-                    limit,
-                    &view,
+                    crate::read::ReadListQuery {
+                        kind: &request.kind,
+                        predicates: &request.predicates,
+                        source_types: &request.source_types,
+                        property_predicates: &request.property_predicates,
+                        limit: request.limit,
+                        view: &request.view,
+                    },
                     &wal_attribution,
                     worker_idx,
                 );
@@ -799,7 +816,7 @@ fn reader_worker_loop(
                     worker_idx,
                     physical_read.take(),
                 );
-                let _ = respond.send(result);
+                let _ = request.respond.send(result);
             }
             ReaderRequest::ReadCanonicalPage(request) => {
                 let result = read_canonical_page_in_tx(

@@ -57,7 +57,8 @@ const PROPERTY_MEMBER_QUERY: &str =
      WHERE rowid>=?1 ORDER BY rowid LIMIT ?2";
 #[cfg(feature = "operator")]
 const ATTRIBUTE_OWNER_QUERY: &str =
-    "SELECT n.write_cursor,r.revision_id,n.body,n.state,n.superseded_at FROM canonical_nodes n \
+    "SELECT n.write_cursor,r.revision_id,n.body,n.properties,n.state,n.superseded_at \
+     FROM canonical_nodes n \
      INDEXED BY canonical_nodes_write_cursor_idx \
      LEFT JOIN _fathomdb_artifact_revisions r \
        ON r.artifact_class='node' AND r.write_cursor=n.write_cursor \
@@ -244,15 +245,16 @@ fn expected_attribute_members(
                     row.get::<_, i64>(0)?,
                     row.get::<_, Option<String>>(1)?,
                     row.get::<_, String>(2)?,
-                    row.get::<_, String>(3)?,
-                    row.get::<_, Option<i64>>(4)?,
+                    crate::properties::decode_properties_row_col(row, 3)?,
+                    row.get::<_, String>(4)?,
+                    row.get::<_, Option<i64>>(5)?,
                 ))
             })
             .map_err(|_| EngineError::Storage)?
             .collect::<rusqlite::Result<Vec<_>>>()
             .map_err(|_| EngineError::Storage)?;
         let exhausted = owners.len() < usize::try_from(limit).unwrap_or(usize::MAX);
-        for (cursor, revision, body, state, superseded_at) in owners {
+        for (cursor, revision, body, properties, state, superseded_at) in owners {
             after_cursor = cursor;
             take_work(aggregate_checked, max_work_units)?;
             if state != "active" || superseded_at.is_some() {
@@ -266,8 +268,14 @@ fn expected_attribute_members(
             )? {
                 continue;
             }
-            let Some(value) = crate::extract_scalar_attribute(connection, &body, name, stored)
-                .map_err(|_| EngineError::Storage)?
+            let Some(value) = crate::extract_scalar_attribute_with_properties(
+                connection,
+                &body,
+                properties.as_ref(),
+                name,
+                stored,
+            )
+            .map_err(|_| EngineError::Storage)?
             else {
                 continue;
             };
@@ -1119,7 +1127,10 @@ fn owner_retention_at(
                     OwnerRetention::GovernedPruningResidue
                 } else if required {
                     OwnerRetention::RequiredMembership
-                } else if kind.as_deref().is_some_and(crate::kind_is_vector_committable) {
+                } else if kind
+                    .as_deref()
+                    .is_some_and(|k| crate::kind_is_vector_committable_on(connection, k))
+                {
                     OwnerRetention::LegitimateRetained
                 } else {
                     OwnerRetention::GovernedPruningResidue
@@ -1245,7 +1256,7 @@ fn dense_physical_shape(
         + u8::from(sidecar.is_some())
         + u8::from(vector.is_some())
         + u8::from(span_count != 0);
-    let expected_source_type = crate::resolve_source_type(expected_kind)?;
+    let expected_source_type = crate::resolve_source_type_on(connection, expected_kind)?;
     let complete = span_count == 1
         && span_valid
         && terminal.as_ref().is_some_and(|state| state.as_deref() == Some("up_to_date"))
@@ -1253,7 +1264,7 @@ fn dense_physical_shape(
             rowid.is_some_and(|rowid| rowid == cursor) && kind.as_deref() == Some(expected_kind)
         })
         && vector.as_ref().is_some_and(|(source_type, kind)| {
-            source_type.as_deref() == Some(expected_source_type)
+            source_type.as_deref() == Some(expected_source_type.as_ref())
                 && kind.as_deref() == Some(expected_kind)
         });
     Ok(DensePhysicalShape {

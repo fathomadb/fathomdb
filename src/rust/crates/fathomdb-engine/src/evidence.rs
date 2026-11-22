@@ -498,12 +498,15 @@ struct StoredEvidence {
     source_superseded_at: Option<i64>,
     source_valid_from: Option<i64>,
     source_valid_until: Option<i64>,
+    artifact_properties: Option<PropertyMap>,
 }
 
 type SourceLinkRow = (String, String, String, String, Option<i64>, Option<i64>, String);
 type SourceArtifactRow = (String, String, Option<i64>, i64, String, Option<i64>, Option<i64>);
-type NodeArtifactRow = (Option<String>, String, String, Option<i64>, Option<i64>, Option<i64>);
-type EdgeArtifactRow = (Option<String>, String, Option<i64>, Option<i64>, Option<i64>, Option<i64>);
+type NodeArtifactRow =
+    (Option<String>, String, String, Option<i64>, Option<i64>, Option<i64>, Option<String>);
+type EdgeArtifactRow =
+    (Option<String>, String, Option<i64>, Option<i64>, Option<i64>, Option<i64>, Option<String>);
 
 #[derive(Clone, Debug)]
 struct Payload {
@@ -893,7 +896,7 @@ pub(crate) fn resolve(
         },
         retrieval_contribution: payload.contribution,
         dependency,
-        properties: None,
+        properties: stored.artifact_properties,
     })
 }
 
@@ -1104,11 +1107,12 @@ fn load_stored(
         _artifact_valid_until,
         edge_valid,
         edge_temporal_fallback,
+        artifact_properties_raw,
     ) = match class {
         EvidenceArtifactClassV1::Node => {
             let row: Option<NodeArtifactRow> = connection
                 .query_row(
-                    "SELECT logical_id,kind,state,superseded_at,valid_from,valid_until \
+                    "SELECT logical_id,kind,state,superseded_at,valid_from,valid_until,properties \
                          FROM canonical_nodes WHERE write_cursor=?1",
                     [cursor],
                     |row| {
@@ -1119,24 +1123,35 @@ fn load_stored(
                             row.get(3)?,
                             row.get(4)?,
                             row.get(5)?,
+                            row.get(6)?,
                         ))
                     },
                 )
                 .optional()
                 .map_err(|_| EngineError::Storage)?;
-            let (logical, kind, state, superseded, valid_from, valid_until) =
+            let (logical, kind, state, superseded, valid_from, valid_until, props_raw) =
                 row.ok_or_else(EvidenceErrorV1::unavailable)?;
             let valid = valid_from.is_none_or(|start| start <= effective)
                 && valid_until.is_none_or(|end| end > effective);
             if !include_out_of_window && !valid {
                 return Err(EvidenceErrorV1::unavailable().into());
             }
-            (logical, kind, Some(state), superseded, valid_from, valid_until, true, false)
+            (
+                logical,
+                kind,
+                Some(state),
+                superseded,
+                valid_from,
+                valid_until,
+                true,
+                false,
+                props_raw,
+            )
         }
         EvidenceArtifactClassV1::Edge => {
             let row: Option<EdgeArtifactRow> = connection
                 .query_row(
-                    "SELECT logical_id,kind,superseded_at,t_valid,t_invalid,temporal_fallback \
+                    "SELECT logical_id,kind,superseded_at,t_valid,t_invalid,temporal_fallback,properties \
                      FROM canonical_edges WHERE write_cursor=?1",
                     [cursor],
                     |row| {
@@ -1147,12 +1162,13 @@ fn load_stored(
                             row.get(3)?,
                             row.get(4)?,
                             row.get(5)?,
+                            row.get(6)?,
                         ))
                     },
                 )
                 .optional()
                 .map_err(|_| EngineError::Storage)?;
-            let (logical, kind, superseded, valid_from, valid_until, temporal_fallback) =
+            let (logical, kind, superseded, valid_from, valid_until, temporal_fallback, props_raw) =
                 row.ok_or_else(EvidenceErrorV1::unavailable)?;
             let valid = include_out_of_window
                 || (valid_from.is_none_or(|start| start <= effective)
@@ -1166,9 +1182,12 @@ fn load_stored(
                 valid_until,
                 valid,
                 temporal_fallback.unwrap_or(0) != 0,
+                props_raw,
             )
         }
     };
+    let artifact_properties =
+        crate::properties::decode_properties_json(artifact_properties_raw.as_deref())?;
     Ok(StoredEvidence {
         artifact_revision_id,
         completeness,
@@ -1192,6 +1211,7 @@ fn load_stored(
         source_superseded_at,
         source_valid_from,
         source_valid_until,
+        artifact_properties,
     })
 }
 
@@ -1403,7 +1423,8 @@ const INTRINSIC_NODE_PREFLIGHT_SQL: &str = "WITH requested(ordinal,write_cursor)
              (c.root_kind='source_revision' AND c.root_value=l.source_revision_id) OR\
              (c.root_kind='source_bucket' AND c.root_value=l.source_id))),\
            CASE WHEN n.write_cursor IS NOT NULL /*TARGET_ELIGIBILITY*/ THEN 1 ELSE 0 END,\
-           CASE WHEN sn.write_cursor IS NOT NULL /*SOURCE_ELIGIBILITY*/ THEN 1 ELSE 0 END \
+           CASE WHEN sn.write_cursor IS NOT NULL /*SOURCE_ELIGIBILITY*/ THEN 1 ELSE 0 END,\
+           n.properties \
      FROM requested q \
      LEFT JOIN _fathomdb_artifact_revisions r \
        ON r.artifact_class='node' AND r.write_cursor=q.write_cursor \
@@ -1435,7 +1456,8 @@ const INTRINSIC_EDGE_PREFLIGHT_SQL: &str = "WITH requested(ordinal,write_cursor)
              (c.root_kind='source_revision' AND c.root_value=l.source_revision_id) OR\
              (c.root_kind='source_bucket' AND c.root_value=l.source_id))),\
            CASE WHEN e.write_cursor IS NOT NULL /*TARGET_ELIGIBILITY*/ THEN 1 ELSE 0 END,\
-           CASE WHEN sn.write_cursor IS NOT NULL /*SOURCE_ELIGIBILITY*/ THEN 1 ELSE 0 END \
+           CASE WHEN sn.write_cursor IS NOT NULL /*SOURCE_ELIGIBILITY*/ THEN 1 ELSE 0 END,\
+           e.properties \
      FROM requested q \
      LEFT JOIN _fathomdb_artifact_revisions r \
        ON r.artifact_class='edge' AND r.write_cursor=q.write_cursor \
@@ -1518,6 +1540,7 @@ pub(crate) struct GraphEvidenceMaterial {
     dependency_generation: Option<u64>,
     edge_from: Option<String>,
     edge_to: Option<String>,
+    artifact_properties: Option<PropertyMap>,
 }
 
 impl GraphEvidenceMaterial {
@@ -1565,7 +1588,6 @@ struct PendingGraphEvidence {
     write_cursor: u64,
     target_index: u32,
     values: Vec<rusqlite::types::Value>,
-    #[allow(dead_code)] // Populated from canonical SQL in Layer 3.
     properties: Option<PropertyMap>,
 }
 
@@ -1635,12 +1657,14 @@ fn query_graph_evidence_batch(
         for index in 0..58 {
             values.push(row.get(index).map_err(|_| EngineError::Storage)?);
         }
+        let properties = crate::properties::decode_properties_row_col(row, 58)
+            .map_err(|_| EngineError::Storage)?;
         pending.push(PendingGraphEvidence {
             artifact_class,
             write_cursor,
             target_index,
             values,
-            properties: None,
+            properties,
         });
     }
     if pending.len() != cursors.len() {
@@ -1934,6 +1958,7 @@ fn materialize_graph_evidence_batch(
             dependency_generation: dependency_generation_u64,
             edge_from,
             edge_to,
+            artifact_properties: raw.properties,
         });
     }
     Ok(material)
@@ -2179,6 +2204,7 @@ pub(crate) struct GraphEvidenceResolvedMaterial {
     pub dependency: Option<SourceDependencyV1>,
     pub edge_from: Option<String>,
     pub edge_to: Option<String>,
+    pub artifact_properties: Option<PropertyMap>,
 }
 
 #[allow(dead_code)]
@@ -2340,10 +2366,11 @@ pub(crate) fn resolve_graph_evidence(
         edge_t_valid,
         edge_t_invalid,
         edge_temporal_fallback,
+        artifact_properties,
     ) = match payload.artifact_class {
         EvidenceArtifactClassV1::Node => connection
             .query_row(
-                "SELECT body,state,valid_from,valid_until FROM canonical_nodes WHERE write_cursor=?1",
+                "SELECT body,state,valid_from,valid_until,properties FROM canonical_nodes WHERE write_cursor=?1",
                 [cursor],
                 |row| {
                     Ok((
@@ -2356,13 +2383,14 @@ pub(crate) fn resolve_graph_evidence(
                         None,
                         None,
                         false,
+                        crate::properties::decode_properties_row_col(row, 4)?,
                     ))
                 },
             )
             .map_err(|_| EngineError::Storage)?,
         EvidenceArtifactClassV1::Edge => connection
             .query_row(
-                "SELECT body,from_id,to_id,t_valid,t_invalid,temporal_fallback \
+                "SELECT body,from_id,to_id,t_valid,t_invalid,temporal_fallback,properties \
                  FROM canonical_edges WHERE write_cursor=?1",
                 [cursor],
                 |row| {
@@ -2376,6 +2404,7 @@ pub(crate) fn resolve_graph_evidence(
                         row.get(3)?,
                         row.get(4)?,
                         row.get::<_, Option<i64>>(5)?.unwrap_or(0) != 0,
+                        crate::properties::decode_properties_row_col(row, 6)?,
                     ))
                 },
             )
@@ -2411,6 +2440,7 @@ pub(crate) fn resolve_graph_evidence(
             .map(|value| value.registered_dependency_generation),
         edge_from: edge_from.clone(),
         edge_to: edge_to.clone(),
+        artifact_properties: artifact_properties.clone(),
     };
     let target_cursor = i64::try_from(payload.target_cursor).map_err(|_| EngineError::Storage)?;
     let edge_cursor =
@@ -2474,6 +2504,7 @@ pub(crate) fn resolve_graph_evidence(
         dependency,
         edge_from,
         edge_to,
+        artifact_properties,
     })
 }
 

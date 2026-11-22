@@ -736,6 +736,46 @@ fn encode_context(context: &ReadContextV1) -> Vec<u8> {
         encode_string(&mut bytes, &name);
         encode_string(&mut bytes, &value);
     }
+    if !context.eligibility.property_predicates.is_empty() {
+        bytes.push(0x50);
+        bytes.push(0x01);
+        let mut encoded_preds: Vec<(&str, u8, u8, Vec<u8>)> = context
+            .eligibility
+            .property_predicates
+            .iter()
+            .map(|pred| {
+                let op_byte = match pred.op {
+                    crate::PropertyComparisonOp::Eq => 1,
+                    crate::PropertyComparisonOp::Ne => 2,
+                    crate::PropertyComparisonOp::Lt => 3,
+                    crate::PropertyComparisonOp::Lte => 4,
+                    crate::PropertyComparisonOp::Gt => 5,
+                    crate::PropertyComparisonOp::Gte => 6,
+                };
+                let (val_tag, val_bytes) = match &pred.value {
+                    crate::PropertyValue::String(s) => (1_u8, s.as_bytes().to_vec()),
+                    crate::PropertyValue::Int(i) => (2_u8, i.to_le_bytes().to_vec()),
+                    crate::PropertyValue::Float(f) => {
+                        let norm = if *f == 0.0 { 0.0_f64 } else { *f };
+                        (3_u8, norm.to_bits().to_le_bytes().to_vec())
+                    }
+                    crate::PropertyValue::Bool(b) => (4_u8, vec![u8::from(*b)]),
+                };
+                (pred.key.as_str(), op_byte, val_tag, val_bytes)
+            })
+            .collect();
+        encoded_preds.sort();
+        encode_u32(&mut bytes, u32::try_from(encoded_preds.len()).unwrap_or(u32::MAX));
+        for (key, op_byte, val_tag, val_bytes) in encoded_preds {
+            encode_string(&mut bytes, key);
+            bytes.push(op_byte);
+            bytes.push(val_tag);
+            if val_tag == 1 {
+                encode_u32(&mut bytes, u32::try_from(val_bytes.len()).unwrap_or(u32::MAX));
+            }
+            bytes.extend_from_slice(&val_bytes);
+        }
+    }
     bytes
 }
 

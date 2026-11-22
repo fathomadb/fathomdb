@@ -102,7 +102,7 @@ pub(crate) fn read_get_by_id_in_tx(
         // the slot DETERMINISTICALLY to the most recent version, rather than
         // leaving it at the mercy of scan order.
         let sql = format!(
-            "SELECT logical_id, kind, body, write_cursor
+            "SELECT logical_id, kind, body, write_cursor, properties
              FROM canonical_nodes
              WHERE logical_id IN ({placeholders}){node_sql}
              ORDER BY write_cursor"
@@ -120,7 +120,7 @@ pub(crate) fn read_get_by_id_in_tx(
                 kind: row.get(1)?,
                 body: row.get(2)?,
                 write_cursor: row.get::<_, i64>(3)? as u64,
-                properties: None,
+                properties: crate::properties::decode_properties_row_col(row, 4)?,
             })
         })?;
         for row in rows {
@@ -202,65 +202,89 @@ pub(crate) fn read_collection_in_tx(
 ///       validated at `Predicate` construction time), never the raw caller string;
 ///   (d) `ComparisonOp` compiles to a server-side literal operator string from a
 ///       closed enum, not a caller-supplied string.
+pub(crate) struct ReadListQuery<'a> {
+    pub(crate) kind: &'a str,
+    pub(crate) predicates: &'a [Predicate],
+    pub(crate) source_types: &'a [String],
+    pub(crate) property_predicates: &'a [crate::PropertyPredicate],
+    pub(crate) limit: usize,
+    pub(crate) view: &'a ReadView,
+}
+
 pub(crate) fn read_list_in_tx(
     reader: &mut Connection,
-    kind: &str,
-    predicates: &[Predicate],
-    limit: usize,
-    view: &ReadView,
+    query: ReadListQuery<'_>,
     attribution: &Arc<WalAttributionCollector>,
     worker_idx: usize,
-) -> rusqlite::Result<Vec<NodeRecord>> {
+) -> Result<Vec<NodeRecord>, PageReaderError> {
+    let ReadListQuery { kind, predicates, source_types, property_predicates, limit, view } = query;
+    let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
+    if !property_predicates.is_empty() {
+        crate::filter::validate_property_predicates_on_snapshot(&tx, property_predicates)
+            .map_err(page_filter_error)?;
+    }
+    for expected_source_type in source_types {
+        match crate::resolve_source_type_on(&tx, kind) {
+            Ok(resolved) if resolved == expected_source_type.as_str() => {}
+            _ => return Ok(Vec::new()),
+        }
+    }
     if limit == 0 {
         return Ok(Vec::new());
     }
     // Build the SQL WHERE clauses for each predicate.
-    // Parameters: ?1 = kind; ?2..?N = predicate values; limit is inlined.
+    // Parameters: ?1 = kind; ?2..?N = predicate values; ?now = view validity;
+    // remaining binds = declared property predicates; limit is inlined.
     // `logical_id IS NOT NULL` is a SQL-level predicate so that LIMIT counts
     // only rows that can be represented as NodeRecord (which requires a non-null
     // String logical_id). Anonymous nodes (PreparedWrite::Node { logical_id: None })
     // cannot be included in NodeRecord results and are excluded before LIMIT.
     // When predicates are present we add `json_valid(body)` so rows with
     // non-JSON bodies are skipped rather than causing a `malformed JSON` error.
-    let json_valid_guard = if predicates.is_empty() { "" } else { " AND json_valid(body)" };
-    // R-20-RV/R-20-NV: the view's predicates replace the previously hard-coded
-    // existence pair. The validity instant takes the positional slot AFTER the
-    // predicate binds (?1 = kind, ?2..=?(1+n) = predicate values), so it is
-    // `?{predicates.len() + 2}`. Positional `?N` is order-independent in SQLite,
-    // so emitting it here — textually before the predicate clauses appended
-    // below — is safe and unambiguous.
-    let now_idx = predicates.len() + 2;
-    let node_sql = view.node_sql("canonical_nodes", now_idx);
-    let mut sql = format!(
-        "SELECT logical_id, kind, body, write_cursor \
-         FROM canonical_nodes \
-         WHERE kind = ?1{node_sql} \
-         AND logical_id IS NOT NULL{json_valid_guard}"
-    );
+    let json_valid_guard = if predicates.is_empty() { "" } else { " AND json_valid(cn.body)" };
 
-    // Predicate params start at ?2.
-    for (i, pred) in predicates.iter().enumerate() {
-        let param_idx = i + 2; // ?1 is kind
-        sql.push_str(" AND ");
-        sql.push_str(&Predicate::to_sql_clause(pred, param_idx));
-    }
-    sql.push_str(&format!(" LIMIT {limit}"));
-
-    let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
-    let mut statement = tx.prepare(&sql)?;
-
-    // Bind all parameters: [kind, predicate_values...]
+    // Bind parameters in exact placeholder order: [kind, predicate_values..., optional now, property_predicates...].
     let mut params: Vec<rusqlite::types::Value> = Vec::with_capacity(2 + predicates.len());
     params.push(rusqlite::types::Value::Text(kind.to_string()));
     for pred in predicates {
         params.push(Predicate::bind_value(pred));
     }
-    // Lands at index `now_idx` (= predicates.len() + 2), matching `?{now_idx}`
-    // emitted by `ReadView::validity_sql`. Omitted entirely when the view
-    // relaxes validity, in which case no `?{now_idx}` was emitted either.
+    let now_idx = params.len() + 1;
+    let node_sql = view.node_sql("cn", now_idx);
     if let Some(now) = view.now_param() {
         params.push(rusqlite::types::Value::Integer(now));
     }
+
+    let mut sql = format!(
+        "SELECT cn.logical_id, cn.kind, cn.body, cn.write_cursor, cn.properties \
+         FROM canonical_nodes cn \
+         WHERE cn.kind = ?1{node_sql} \
+         AND cn.logical_id IS NOT NULL{json_valid_guard}"
+    );
+
+    // Predicate params start at ?2 (and may reference `body` on `cn`).
+    for (i, pred) in predicates.iter().enumerate() {
+        let param_idx = i + 2; // ?1 is kind
+        sql.push_str(" AND ");
+        sql.push_str(&Predicate::to_sql_clause(pred, param_idx));
+    }
+    if !property_predicates.is_empty() {
+        let prop_filter = SearchFilter {
+            property_predicates: property_predicates.to_vec(),
+            ..Default::default()
+        };
+        let prop_sql = crate::filter::append_node_eligibility_sql_view(
+            &tx,
+            Some(&prop_filter),
+            "cn",
+            &mut params,
+            view,
+        )?;
+        sql.push_str(&prop_sql);
+    }
+    sql.push_str(&format!(" LIMIT {limit}"));
+
+    let mut statement = tx.prepare(&sql)?;
 
     let rows = statement.query_map(rusqlite::params_from_iter(params.iter()), |row| {
         Ok(NodeRecord {
@@ -268,7 +292,7 @@ pub(crate) fn read_list_in_tx(
             kind: row.get(1)?,
             body: row.get(2)?,
             write_cursor: row.get::<_, i64>(3)? as u64,
-            properties: None,
+            properties: crate::properties::decode_properties_row_col(row, 4)?,
         })
     })?;
 
@@ -366,7 +390,7 @@ fn query_canonical_page_rows(
     after: u64,
     limit: usize,
 ) -> rusqlite::Result<(Vec<NodeRecord>, bool)> {
-    let (sql, binds) = canonical_page_query(kind, view, filter, after, limit)?;
+    let (sql, binds) = canonical_page_query_on(Some(connection), kind, view, filter, after, limit)?;
     let mut statement = connection.prepare(&sql)?;
     let rows = statement.query_map(rusqlite::params_from_iter(binds.iter()), |row| {
         Ok(NodeRecord {
@@ -374,7 +398,7 @@ fn query_canonical_page_rows(
             kind: row.get(1)?,
             body: row.get(2)?,
             write_cursor: row.get::<_, i64>(3)? as u64,
-            properties: None,
+            properties: crate::properties::decode_properties_row_col(row, 4)?,
         })
     })?;
     let items = rows.collect::<Result<Vec<_>, _>>()?;
@@ -382,7 +406,19 @@ fn query_canonical_page_rows(
     Ok((items, has_more))
 }
 
+#[cfg(feature = "test-hooks")]
 pub(crate) fn canonical_page_query(
+    kind: &str,
+    view: &ReadView,
+    filter: &SearchFilter,
+    after: u64,
+    limit: usize,
+) -> rusqlite::Result<(String, Vec<rusqlite::types::Value>)> {
+    canonical_page_query_on(None, kind, view, filter, after, limit)
+}
+
+fn canonical_page_query_on(
+    connection: Option<&Connection>,
     kind: &str,
     view: &ReadView,
     filter: &SearchFilter,
@@ -401,7 +437,16 @@ pub(crate) fn canonical_page_query(
     if let Some(now) = view.now_param() {
         binds.push(rusqlite::types::Value::Integer(now));
     }
-    let eligibility = append_node_eligibility_sql(Some(filter), "n", &mut binds);
+    let eligibility = match connection {
+        Some(conn) => crate::filter::append_node_eligibility_sql_view(
+            conn,
+            Some(filter),
+            "n",
+            &mut binds,
+            view,
+        )?,
+        None => append_node_eligibility_sql(Some(filter), "n", &mut binds),
+    };
     let limit_idx = binds.len() + 1;
     let query_limit = limit.checked_add(1).ok_or(rusqlite::Error::InvalidQuery)?;
     binds.push(rusqlite::types::Value::Integer(
@@ -409,7 +454,7 @@ pub(crate) fn canonical_page_query(
             .map_err(|_| rusqlite::Error::IntegralValueOutOfRange(0, i64::MAX))?,
     ));
     let sql = format!(
-        "SELECT n.logical_id,n.kind,n.body,n.write_cursor \
+        "SELECT n.logical_id,n.kind,n.body,n.write_cursor,n.properties \
          FROM canonical_nodes n \
          WHERE n.kind=?1 AND n.write_cursor>?2 AND n.logical_id IS NOT NULL \
          {visibility}{eligibility} \

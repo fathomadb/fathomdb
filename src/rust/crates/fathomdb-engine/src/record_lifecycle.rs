@@ -227,9 +227,9 @@ impl Engine {
         // version; a `deleted` row is still that active version, just flagged.
         // fix-2 [P2] — also read its `write_cursor` + `body` so the row-owned
         // attribute projection can be maintained after the state flip.
-        let current: Option<(String, i64, String, String, String)> = tx
+        let current: Option<(String, i64, String, String, String, Option<PropertyMap>)> = tx
             .query_row(
-                "SELECT state, write_cursor, kind, body, row_kind FROM canonical_nodes \
+                "SELECT state, write_cursor, kind, body, row_kind, properties FROM canonical_nodes \
                  WHERE logical_id = ?1 AND superseded_at IS NULL",
                 params![lid],
                 |r| {
@@ -239,6 +239,7 @@ impl Engine {
                         r.get::<_, String>(2)?,
                         r.get::<_, String>(3)?,
                         r.get::<_, String>(4)?,
+                        crate::properties::decode_properties_row_col(r, 5)?,
                     ))
                 },
             )
@@ -248,7 +249,9 @@ impl Engine {
         // A missing active row is an absent/purged node — the terminal `Purged`
         // state for legality purposes (nothing is a legal target from there).
         let from_state = match &current {
-            Some((s, _, _, _, _)) => LifecycleState::from_str_opt(s).ok_or(EngineError::Storage)?,
+            Some((s, _, _, _, _, _)) => {
+                LifecycleState::from_str_opt(s).ok_or(EngineError::Storage)?
+            }
             None => LifecycleState::Purged,
         };
 
@@ -261,16 +264,16 @@ impl Engine {
         }
 
         if matches!(to_state, LifecycleState::Active) {
-            if let Some((_, _, _, body, _)) = &current {
-                validate_nested_projection_sources_for_body(&tx, body)?;
+            if let Some((_, _, _, body, _, props)) = &current {
+                validate_nested_projection_sources_for_body(&tx, body, props.as_ref())?;
             }
-            if let Some((_, cursor, _, _, _)) = &current {
+            if let Some((_, cursor, _, _, _, _)) = &current {
                 dependency_closure::guard_derived_reactivation(&tx, *cursor)?;
             }
         }
 
         if matches!(to_state, LifecycleState::Deleted) {
-            if let Some((_, cursor, _, _, _)) = &current {
+            if let Some((_, cursor, _, _, _, _)) = &current {
                 if let Some(source_revision) =
                     dependency_closure::source_revision_for_cursor(&tx, *cursor)?
                 {
@@ -298,25 +301,37 @@ impl Engine {
         )
         .map_err(|_| EngineError::Storage)?;
 
-        if let Some((_, cursor, _, body, _)) = &current {
+        if let Some((_, cursor, _, body, _, props)) = &current {
             vector_storage::refresh_vector_eligibility_for_cursor(&tx, *cursor)
                 .map_err(|_| EngineError::Storage)?;
             purge_row_projections_for_cursor_in(
                 &tx,
                 *cursor,
-                &[ProjectionClass::Attribute, ProjectionClass::PropertyFts],
+                &[
+                    ProjectionClass::Attribute,
+                    ProjectionClass::PropertyValue,
+                    ProjectionClass::PropertyFts,
+                ],
             )
             .map_err(|_| EngineError::Storage)?;
             if matches!(to_state, LifecycleState::Active) {
-                project_node_attributes(&tx, *cursor, body).map_err(|_| EngineError::Storage)?;
-                refresh_vector_attr_values_for_row(&tx, *cursor, body)
+                project_node_attributes(&tx, *cursor, body, props.as_ref())
+                    .map_err(|_| EngineError::Storage)?;
+                refresh_vector_attr_values_for_row(&tx, *cursor, body, props.as_ref())
                     .map_err(|_| EngineError::Storage)?;
             }
         }
         let reopened = if matches!(to_state, LifecycleState::Active) {
             match &current {
-                Some((_, cursor, kind, body, row_kind)) => {
-                    restore_registered_derived_projections(&tx, *cursor, kind, body, row_kind)?
+                Some((_, cursor, kind, body, row_kind, props)) => {
+                    restore_registered_derived_projections(
+                        &tx,
+                        *cursor,
+                        kind,
+                        body,
+                        row_kind,
+                        props.as_ref(),
+                    )?
                 }
                 None => false,
             }

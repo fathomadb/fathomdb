@@ -135,7 +135,7 @@ fn is_valid_property_string(value: &str) -> bool {
     !value.contains(['\0', '\x1e'])
 }
 
-fn normalize_finite_f64(value: f64) -> Option<f64> {
+pub(crate) fn normalize_finite_f64(value: f64) -> Option<f64> {
     if !value.is_finite() {
         None
     } else if value == 0.0 {
@@ -234,7 +234,6 @@ pub(crate) fn validate_property_map(map: &PropertyMap) -> Result<(), EngineError
 }
 
 /// Validate and serialize an optional [`PropertyMap`] to compact canonical JSON.
-#[allow(dead_code)] // Wired into write/actuate persistence in Layer 3.
 pub(crate) fn encode_properties_json(
     props: Option<&PropertyMap>,
 ) -> Result<Option<String>, EngineError> {
@@ -252,7 +251,6 @@ pub(crate) fn encode_properties_json(
 ///
 /// Normalizes `{}` to `None` so persisted/hydrated `Option<PropertyMap>` never
 /// carries an empty map.
-#[allow(dead_code)] // Wired into read hydration in Layer 3.
 pub(crate) fn decode_properties_json(
     raw: Option<&str>,
 ) -> Result<Option<PropertyMap>, EngineError> {
@@ -261,6 +259,24 @@ pub(crate) fn decode_properties_json(
     };
     let parsed: serde_json::Value = serde_json::from_str(raw).map_err(|_| EngineError::Storage)?;
     decode_properties_value(&parsed)
+}
+
+/// Decode a nullable TEXT SQL column containing canonical JSON properties.
+pub(crate) fn decode_properties_row_col(
+    row: &rusqlite::Row<'_>,
+    col_idx: usize,
+) -> rusqlite::Result<Option<PropertyMap>> {
+    let raw: Option<String> = row.get(col_idx)?;
+    decode_properties_json(raw.as_deref()).map_err(|_| {
+        rusqlite::Error::FromSqlConversionFailure(
+            col_idx,
+            rusqlite::types::Type::Text,
+            Box::new(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "invalid stored properties JSON",
+            )),
+        )
+    })
 }
 
 /// Validate a [`PropertyPredicate`] for query-time evaluation.
@@ -343,19 +359,19 @@ fn cmp_i64_f64(i: i64, f: f64) -> Option<Ordering> {
     }
 }
 
-/// Evaluate a [`PropertyPredicate`] against an optional [`PropertyMap`].
-#[allow(dead_code)] // Wired into traversal/relaxed-view property evaluation in Layer 3 / Slice 30.
+/// Evaluate a [`PropertyPredicate`] against an optional resolved [`PropertyValue`].
 #[must_use]
-pub(crate) fn eval_property_predicate(
-    props: Option<&PropertyMap>,
-    pred: &PropertyPredicate,
+pub(crate) fn eval_property_value(
+    lhs: Option<&PropertyValue>,
+    op: PropertyComparisonOp,
+    rhs: &PropertyValue,
 ) -> bool {
-    let Some(lhs) = props.and_then(|map| map.get(&pred.key)) else {
+    let Some(lhs) = lhs else {
         return false;
     };
-    match (lhs, &pred.value) {
-        (PropertyValue::String(a), PropertyValue::String(b)) => apply_ordering(a.cmp(b), pred.op),
-        (PropertyValue::Bool(a), PropertyValue::Bool(b)) => match pred.op {
+    match (lhs, rhs) {
+        (PropertyValue::String(a), PropertyValue::String(b)) => apply_ordering(a.cmp(b), op),
+        (PropertyValue::Bool(a), PropertyValue::Bool(b)) => match op {
             PropertyComparisonOp::Eq => a == b,
             PropertyComparisonOp::Ne => a != b,
             PropertyComparisonOp::Lt
@@ -363,22 +379,32 @@ pub(crate) fn eval_property_predicate(
             | PropertyComparisonOp::Gt
             | PropertyComparisonOp::Gte => false,
         },
-        (PropertyValue::Int(a), PropertyValue::Int(b)) => apply_ordering(a.cmp(b), pred.op),
+        (PropertyValue::Int(a), PropertyValue::Int(b)) => apply_ordering(a.cmp(b), op),
         (PropertyValue::Float(a), PropertyValue::Float(b)) => {
             if !a.is_finite() || !b.is_finite() {
                 false
             } else {
-                a.partial_cmp(b).is_some_and(|ord| apply_ordering(ord, pred.op))
+                a.partial_cmp(b).is_some_and(|ord| apply_ordering(ord, op))
             }
         }
         (PropertyValue::Int(i), PropertyValue::Float(f)) => {
-            cmp_i64_f64(*i, *f).is_some_and(|ord| apply_ordering(ord, pred.op))
+            cmp_i64_f64(*i, *f).is_some_and(|ord| apply_ordering(ord, op))
         }
-        (PropertyValue::Float(f), PropertyValue::Int(i)) => cmp_i64_f64(*i, *f)
-            .map(Ordering::reverse)
-            .is_some_and(|ord| apply_ordering(ord, pred.op)),
+        (PropertyValue::Float(f), PropertyValue::Int(i)) => {
+            cmp_i64_f64(*i, *f).map(Ordering::reverse).is_some_and(|ord| apply_ordering(ord, op))
+        }
         _ => false,
     }
+}
+
+/// Evaluate a [`PropertyPredicate`] against an optional [`PropertyMap`].
+#[cfg(test)]
+#[must_use]
+pub(crate) fn eval_property_predicate(
+    props: Option<&PropertyMap>,
+    pred: &PropertyPredicate,
+) -> bool {
+    eval_property_value(props.and_then(|map| map.get(&pred.key)), pred.op, &pred.value)
 }
 
 #[cfg(test)]
@@ -810,8 +836,12 @@ mod tests {
                 prop_assert_eq!(encoded, None);
             } else {
                 let json = encoded.unwrap();
-                prop_assert!(!json.contains("-0.0"));
                 let decoded = decode_properties_json(Some(&json)).unwrap().unwrap();
+                for value in decoded.values() {
+                    if let PropertyValue::Float(f) = value {
+                        prop_assert_ne!(f.to_bits(), (-0.0_f64).to_bits());
+                    }
+                }
                 prop_assert_eq!(&decoded, &map);
                 let reencoded = encode_properties_json(Some(&decoded)).unwrap().unwrap();
                 prop_assert_eq!(reencoded, json);

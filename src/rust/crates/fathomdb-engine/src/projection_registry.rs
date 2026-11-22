@@ -586,22 +586,30 @@ pub(crate) struct StoredProjection {
     pub(crate) vector_declared: bool,
     pub(crate) vector_embedder: Option<String>,
     pub(crate) source: Option<Vec<String>>,
+    pub(crate) entity_class: PropertyEntityClass,
+    pub(crate) vector_kinds: Option<Vec<String>>,
 }
 
 impl StoredProjection {
     /// True iff the declared roles want the attribute VALUE stored at rest in
-    /// the EAV store: `filterable` (the value IS the filter target) or
-    /// `searchable` (the value is the retrievable meaning, and Slice 20's vector
-    /// embed will read it from here). `rankable`-only wants no value at rest.
+    /// the node EAV store (`canonical_attributes`).
     pub(crate) fn wants_eav(&self) -> bool {
+        self.entity_class == PropertyEntityClass::Node
+            && (self.roles.contains(&ProjectionRole::Filterable)
+                || self.roles.contains(&ProjectionRole::Searchable))
+    }
+
+    /// True iff the declared roles project typed values into `canonical_property_values`.
+    pub(crate) fn wants_property_value(&self) -> bool {
         self.roles.contains(&ProjectionRole::Filterable)
-            || self.roles.contains(&ProjectionRole::Searchable)
     }
 
     /// True iff a `searchable→FTS` property-FTS row should be written: the
     /// `searchable` role AND an `fts` sub-object.
     pub(crate) fn wants_property_fts(&self) -> bool {
-        self.roles.contains(&ProjectionRole::Searchable) && self.fts_present
+        self.entity_class == PropertyEntityClass::Node
+            && self.roles.contains(&ProjectionRole::Searchable)
+            && self.fts_present
     }
 
     /// 0.8.20 Slice 21c (ledger `TC-71`) — **THE `searchable→vector` predicate.**
@@ -631,7 +639,9 @@ impl StoredProjection {
     /// wants a stored-but-unbuilt `vector` sub-object reported however it was
     /// declared. TC-71 changes what the engine DOES, not what it says.
     pub(crate) fn wants_vector(&self) -> bool {
-        self.roles.contains(&ProjectionRole::Searchable) && self.vector_declared
+        self.entity_class == PropertyEntityClass::Node
+            && self.roles.contains(&ProjectionRole::Searchable)
+            && self.vector_declared
     }
 
     /// The `fts_tokenizer` column value: `None` (SQL NULL) when no `fts`
@@ -645,14 +655,13 @@ impl StoredProjection {
     }
 
     /// Build from the public [`ProjectionSpec`].
-    ///
-    /// 0.8.20 Slice 20 (R-20-DR) — note what is DELIBERATELY not read here:
-    /// `spec.vector.dense_readiness`. Readiness is engine-set READ METADATA, not
-    /// part of the declaration, so it never reaches the durable registry. That
-    /// is what makes a caller-supplied value INERT (the engine always reports the
-    /// derived truth) and what keeps it out of the destructive-change diff — a
-    /// readiness difference can never look like a projection change.
     pub(crate) fn from_spec(spec: &ProjectionSpec) -> Self {
+        let vector_kinds = spec.vector.as_ref().and_then(|v| {
+            v.kinds.as_ref().map(|kinds| {
+                let unique: BTreeSet<String> = kinds.iter().cloned().collect();
+                unique.into_iter().collect()
+            })
+        });
         StoredProjection {
             roles: spec.roles.clone(),
             fts_present: spec.fts.is_some(),
@@ -668,6 +677,8 @@ impl StoredProjection {
                 .and_then(|v| v.embedder.clone())
                 .filter(|e| !e.is_empty()),
             source: spec.source.clone(),
+            entity_class: spec.entity_class,
+            vector_kinds,
         }
     }
 
@@ -682,21 +693,16 @@ impl StoredProjection {
                 None
             },
             vector: if self.vector_declared {
-                // 0.8.20 Slice 20 (R-20-DR) — the registry knows nothing about
-                // readiness (it is DERIVED, never stored), so the durable shape
-                // reconstructs with `dense_readiness: None`.
-                // [`Engine::read_projections`] fills it from
-                // [`derive_dense_readiness`] on the way out.
                 Some(ProjectionVector {
                     embedder: self.vector_embedder.clone(),
                     dense_readiness: None,
-                    kinds: None,
+                    kinds: self.vector_kinds.clone(),
                 })
             } else {
                 None
             },
             source: self.source.clone(),
-            entity_class: PropertyEntityClass::Node,
+            entity_class: self.entity_class,
         }
     }
 
@@ -799,19 +805,25 @@ fn validate_projection_source_backfill(
     name: &str,
     stored: &StoredProjection,
 ) -> Result<(), EngineError> {
-    if stored.source.is_none() {
+    if stored.entity_class != PropertyEntityClass::Node || stored.source.is_none() {
         return Ok(());
     }
     let mut stmt = conn
         .prepare(
-            "SELECT body FROM canonical_nodes
+            "SELECT body, properties FROM canonical_nodes
              WHERE superseded_at IS NULL AND state = 'active'",
         )
         .map_err(|_| EngineError::Storage)?;
-    let bodies =
-        stmt.query_map([], |row| row.get::<_, String>(0)).map_err(|_| EngineError::Storage)?;
-    for body in bodies {
-        let body = body.map_err(|_| EngineError::Storage)?;
+    let rows = stmt
+        .query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, crate::properties::decode_properties_row_col(row, 1)?))
+        })
+        .map_err(|_| EngineError::Storage)?;
+    for row in rows {
+        let (body, properties) = row.map_err(|_| EngineError::Storage)?;
+        if properties.as_ref().is_some_and(|map| map.contains_key(name)) {
+            continue;
+        }
         if nested_projection_terminal_is_composite(conn, &body, name, stored)
             .map_err(|_| EngineError::Storage)?
         {
@@ -829,13 +841,21 @@ pub(crate) fn validate_nested_projection_sources_for_write(
     batch: &[PreparedWrite],
 ) -> Result<(), EngineError> {
     let registry = load_projection_registry(conn).map_err(|_| EngineError::Storage)?;
-    if registry.values().all(|stored| stored.source.is_none()) {
+    if registry
+        .values()
+        .all(|stored| stored.entity_class != PropertyEntityClass::Node || stored.source.is_none())
+    {
         return Ok(());
     }
     for write in batch {
         let write = storage_write_shape(write);
-        let PreparedWrite::Node { body, .. } = write.as_ref() else { continue };
-        validate_nested_projection_sources_for_body_in_registry(conn, body, &registry)?;
+        let PreparedWrite::Node { body, properties, .. } = write.as_ref() else { continue };
+        validate_nested_projection_sources_for_body_in_registry(
+            conn,
+            body,
+            properties.as_ref(),
+            &registry,
+        )?;
     }
     Ok(())
 }
@@ -843,9 +863,10 @@ pub(crate) fn validate_nested_projection_sources_for_write(
 pub(crate) fn validate_nested_projection_sources_for_body(
     conn: &Connection,
     body: &str,
+    properties: Option<&PropertyMap>,
 ) -> Result<(), EngineError> {
     let registry = load_projection_registry(conn).map_err(|_| EngineError::Storage)?;
-    validate_nested_projection_sources_for_body_in_registry(conn, body, &registry)
+    validate_nested_projection_sources_for_body_in_registry(conn, body, properties, &registry)
 }
 
 /// Validate one body against a registry snapshot owned by the caller. Batch
@@ -854,9 +875,16 @@ pub(crate) fn validate_nested_projection_sources_for_body(
 fn validate_nested_projection_sources_for_body_in_registry(
     conn: &Connection,
     body: &str,
+    properties: Option<&PropertyMap>,
     registry: &BTreeMap<String, StoredProjection>,
 ) -> Result<(), EngineError> {
     for (name, stored) in registry {
+        if stored.entity_class != PropertyEntityClass::Node {
+            continue;
+        }
+        if properties.is_some_and(|map| map.contains_key(name)) {
+            continue;
+        }
         if nested_projection_terminal_is_composite(conn, body, name, stored)
             .map_err(|_| EngineError::Storage)?
         {
@@ -870,15 +898,71 @@ fn validate_nested_projection_sources_for_body_in_registry(
 /// (`_fathomdb_projection_registry`) into a name→[`StoredProjection`] map. This
 /// is the derived-cache source (Q5) that boot re-derive and every
 /// `configure_projections` diff read.
+fn decode_stored_projection_row(
+    row: &rusqlite::Row<'_>,
+    col_offset: usize,
+    has_step38_cols: bool,
+) -> rusqlite::Result<StoredProjection> {
+    let roles_json: String = row.get(col_offset)?;
+    let fts_col: Option<String> = row.get(col_offset + 1)?;
+    let vector_embedder: Option<String> = row.get(col_offset + 2)?;
+    let vector_declared: i64 = row.get(col_offset + 3)?;
+    let source_col_idx = col_offset + 4;
+    let source_json: Option<String> = row.get(source_col_idx)?;
+    let (entity_class_col, vector_kinds_json, vk_col_idx) = if has_step38_cols {
+        (
+            row.get::<_, String>(col_offset + 5)?,
+            row.get::<_, Option<String>>(col_offset + 6)?,
+            col_offset + 6,
+        )
+    } else {
+        ("node".to_string(), None, source_col_idx)
+    };
+    let roles: BTreeSet<ProjectionRole> = parse_roles_json(&roles_json);
+    let fts_present = fts_col.is_some();
+    let fts_tokenizer = fts_col.filter(|t| !t.is_empty());
+    let source = source_json
+        .map(|encoded| serde_json::from_str::<Vec<String>>(&encoded))
+        .transpose()
+        .map_err(|err| {
+            rusqlite::Error::FromSqlConversionFailure(
+                source_col_idx,
+                rusqlite::types::Type::Text,
+                Box::new(err),
+            )
+        })?;
+    let entity_class =
+        PropertyEntityClass::parse(&entity_class_col).ok_or(rusqlite::Error::InvalidQuery)?;
+    let vector_kinds = vector_kinds_json
+        .map(|encoded| serde_json::from_str::<Vec<String>>(&encoded))
+        .transpose()
+        .map_err(|err| {
+            rusqlite::Error::FromSqlConversionFailure(
+                vk_col_idx,
+                rusqlite::types::Type::Text,
+                Box::new(err),
+            )
+        })?
+        .map(|kinds| {
+            let unique: BTreeSet<String> = kinds.into_iter().collect();
+            unique.into_iter().collect::<Vec<String>>()
+        });
+    Ok(StoredProjection {
+        roles,
+        fts_present,
+        fts_tokenizer,
+        vector_declared: vector_declared != 0,
+        vector_embedder,
+        source,
+        entity_class,
+        vector_kinds,
+    })
+}
+
 pub(crate) fn load_projection_registry(
     conn: &Connection,
 ) -> rusqlite::Result<BTreeMap<String, StoredProjection>> {
     let mut out = BTreeMap::new();
-    // The registry table is created by schema step 24; a DB migrated to a
-    // pre-24 head (e.g. a compatibility/partial-migration test open) does not
-    // have it. Absent ⇒ no projections declared ⇒ empty registry, not an error.
-    // This keeps boot re-derive and the write-path attribute projector safe on
-    // every pre-24 schema.
     let table_exists: bool = conn
         .prepare_cached(
             "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = '_fathomdb_projection_registry'",
@@ -889,45 +973,40 @@ pub(crate) fn load_projection_registry(
     if !table_exists {
         return Ok(out);
     }
-    let mut stmt = conn.prepare_cached(
-        "SELECT name, roles, fts_tokenizer, vector_embedder, vector_declared, source
-         FROM _fathomdb_projection_registry",
-    )?;
-    let rows = stmt.query_map([], |row| {
-        let name: String = row.get(0)?;
-        let roles_json: String = row.get(1)?;
-        let fts_tokenizer: Option<String> = row.get(2)?;
-        let vector_embedder: Option<String> = row.get(3)?;
-        let vector_declared: i64 = row.get(4)?;
-        let source_json: Option<String> = row.get(5)?;
-        Ok((name, roles_json, fts_tokenizer, vector_embedder, vector_declared, source_json))
-    })?;
-    for row in rows {
-        let (name, roles_json, fts_col, vector_embedder, vector_declared, source_json) = row?;
-        let roles: BTreeSet<ProjectionRole> = parse_roles_json(&roles_json);
-        let fts_present = fts_col.is_some();
-        let fts_tokenizer = fts_col.filter(|t| !t.is_empty());
-        let source = source_json
-            .map(|encoded| serde_json::from_str::<Vec<String>>(&encoded))
-            .transpose()
-            .map_err(|err| {
-                rusqlite::Error::FromSqlConversionFailure(
-                    5,
-                    rusqlite::types::Type::Text,
-                    Box::new(err),
-                )
-            })?;
-        out.insert(
-            name,
-            StoredProjection {
-                roles,
-                fts_present,
-                fts_tokenizer,
-                vector_declared: vector_declared != 0,
-                vector_embedder,
-                source,
-            },
-        );
+    let has_step38_cols = conn
+        .prepare_cached(
+            "SELECT entity_class, vector_kinds FROM _fathomdb_projection_registry LIMIT 0",
+        )
+        .is_ok();
+    if has_step38_cols {
+        let mut stmt = conn.prepare_cached(
+            "SELECT name, roles, fts_tokenizer, vector_embedder, vector_declared, source, \
+                    entity_class, vector_kinds
+             FROM _fathomdb_projection_registry",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            let name: String = row.get(0)?;
+            let stored = decode_stored_projection_row(row, 1, true)?;
+            Ok((name, stored))
+        })?;
+        for row in rows {
+            let (name, stored) = row?;
+            out.insert(name, stored);
+        }
+    } else {
+        let mut stmt = conn.prepare_cached(
+            "SELECT name, roles, fts_tokenizer, vector_embedder, vector_declared, source
+             FROM _fathomdb_projection_registry",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            let name: String = row.get(0)?;
+            let stored = decode_stored_projection_row(row, 1, false)?;
+            Ok((name, stored))
+        })?;
+        for row in rows {
+            let (name, stored) = row?;
+            out.insert(name, stored);
+        }
     }
     Ok(out)
 }
@@ -937,37 +1016,28 @@ pub(crate) fn load_projection_registry_row(
     conn: &Connection,
     name: &str,
 ) -> rusqlite::Result<Option<StoredProjection>> {
-    conn.query_row(
-        "SELECT roles,fts_tokenizer,vector_embedder,vector_declared,source \
-         FROM _fathomdb_projection_registry WHERE name=?1",
-        [name],
-        |row| {
-            let roles_json: String = row.get(0)?;
-            let fts_column: Option<String> = row.get(1)?;
-            let vector_embedder: Option<String> = row.get(2)?;
-            let vector_declared: i64 = row.get(3)?;
-            let source_json: Option<String> = row.get(4)?;
-            let source = source_json
-                .map(|encoded| serde_json::from_str::<Vec<String>>(&encoded))
-                .transpose()
-                .map_err(|error| {
-                    rusqlite::Error::FromSqlConversionFailure(
-                        4,
-                        rusqlite::types::Type::Text,
-                        Box::new(error),
-                    )
-                })?;
-            Ok(StoredProjection {
-                roles: parse_roles_json(&roles_json),
-                fts_present: fts_column.is_some(),
-                fts_tokenizer: fts_column.filter(|value| !value.is_empty()),
-                vector_declared: vector_declared != 0,
-                vector_embedder,
-                source,
-            })
-        },
-    )
-    .optional()
+    let has_step38_cols = conn
+        .prepare_cached(
+            "SELECT entity_class, vector_kinds FROM _fathomdb_projection_registry LIMIT 0",
+        )
+        .is_ok();
+    if has_step38_cols {
+        conn.query_row(
+            "SELECT roles,fts_tokenizer,vector_embedder,vector_declared,source,entity_class,vector_kinds \
+             FROM _fathomdb_projection_registry WHERE name=?1",
+            [name],
+            |row| decode_stored_projection_row(row, 0, true),
+        )
+        .optional()
+    } else {
+        conn.query_row(
+            "SELECT roles,fts_tokenizer,vector_embedder,vector_declared,source \
+             FROM _fathomdb_projection_registry WHERE name=?1",
+            [name],
+            |row| decode_stored_projection_row(row, 0, false),
+        )
+        .optional()
+    }
 }
 
 /// Roles are persisted as a compact, sorted, comma-separated list (set
@@ -992,16 +1062,24 @@ fn persist_projection_row(
         .map(serde_json::to_string)
         .transpose()
         .map_err(|err| rusqlite::Error::ToSqlConversionFailure(Box::new(err)))?;
+    let vector_kinds = stored
+        .vector_kinds
+        .as_ref()
+        .map(serde_json::to_string)
+        .transpose()
+        .map_err(|err| rusqlite::Error::ToSqlConversionFailure(Box::new(err)))?;
     tx.execute(
         "INSERT INTO _fathomdb_projection_registry
-             (name, roles, fts_tokenizer, vector_embedder, vector_declared, source)
-         VALUES(?1, ?2, ?3, ?4, ?5, ?6)
+             (name, roles, fts_tokenizer, vector_embedder, vector_declared, source, entity_class, vector_kinds)
+         VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
          ON CONFLICT(name) DO UPDATE SET
              roles = excluded.roles,
              fts_tokenizer = excluded.fts_tokenizer,
              vector_embedder = excluded.vector_embedder,
              vector_declared = excluded.vector_declared,
-             source = excluded.source",
+             source = excluded.source,
+             entity_class = excluded.entity_class,
+             vector_kinds = excluded.vector_kinds",
         params![
             name,
             roles_to_storage(&stored.roles),
@@ -1009,6 +1087,8 @@ fn persist_projection_row(
             stored.vector_embedder,
             i64::from(stored.vector_declared),
             source,
+            stored.entity_class.as_str(),
+            vector_kinds,
         ],
     )?;
     Ok(())
@@ -1020,75 +1100,139 @@ fn remove_projection_row(tx: &Connection, name: &str) -> rusqlite::Result<()> {
     Ok(())
 }
 
-/// 0.8.20 Slice 15d (R-20-EAV) — delete every EAV + property-FTS row for one
-/// attribute `name` (all owning nodes). The idempotent-rebuild primitive: a
-/// changed or dropped projection clears its rows before (re)backfill.
+/// 0.8.20 Slice 15d (R-20-EAV) — delete every EAV + property-FTS + cpv row for one
+/// attribute `name` (all owning records).
 fn clear_attribute_projection(tx: &Connection, name: &str) -> rusqlite::Result<()> {
     physical_erasure::mark_dirty(tx)?;
     tx.execute("DELETE FROM property_search_index WHERE attr_name = ?1", params![name])?;
     tx.execute("DELETE FROM canonical_attributes WHERE attr_name = ?1", params![name])?;
+    tx.execute("DELETE FROM canonical_property_values WHERE attr_name = ?1", params![name])?;
     Ok(())
 }
 
-/// 0.8.20 Slice 15d (R-20-EAV) — project ONE attribute value for ONE node row
-/// into the EAV store and (if `searchable→FTS`) the property-FTS shadow. Skips a
-/// NULL/absent extraction (an absent attribute means no row, so a `filterable`
-/// equality simply never matches it — correct). Shared by the write path and
-/// the backfill so they cannot drift.
+fn property_value_to_eav_string(value: &PropertyValue) -> String {
+    match value {
+        PropertyValue::String(s) => s.clone(),
+        PropertyValue::Int(i) => i.to_string(),
+        PropertyValue::Float(f) => serde_json::to_string(f).unwrap_or_else(|_| f.to_string()),
+        PropertyValue::Bool(b) => if *b { "true" } else { "false" }.to_string(),
+    }
+}
+
+fn insert_canonical_property_value(
+    tx: &Connection,
+    entity_class: PropertyEntityClass,
+    cursor: i64,
+    name: &str,
+    value: &PropertyValue,
+) -> rusqlite::Result<()> {
+    let (value_type, text_val, num_val, bool_val): (
+        &str,
+        Option<&str>,
+        rusqlite::types::Value,
+        Option<i64>,
+    ) = match value {
+        PropertyValue::String(s) => {
+            ("string", Some(s.as_str()), rusqlite::types::Value::Null, None)
+        }
+        PropertyValue::Int(i) => ("integer", None, rusqlite::types::Value::Integer(*i), None),
+        PropertyValue::Float(f) => {
+            let norm =
+                crate::properties::normalize_finite_f64(*f).ok_or(rusqlite::Error::InvalidQuery)?;
+            ("float", None, rusqlite::types::Value::Real(norm), None)
+        }
+        PropertyValue::Bool(b) => {
+            ("boolean", None, rusqlite::types::Value::Null, Some(i64::from(*b)))
+        }
+    };
+    tx.prepare_cached(
+        "INSERT OR REPLACE INTO canonical_property_values(
+             entity_class, write_cursor, attr_name, value_type, text_val, num_val, bool_val
+         ) VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+    )?
+    .execute(params![
+        entity_class.as_str(),
+        cursor,
+        name,
+        value_type,
+        text_val,
+        num_val,
+        bool_val
+    ])?;
+    Ok(())
+}
+
+pub(crate) fn extract_typed_node_property(
+    conn: &Connection,
+    body: &str,
+    properties: Option<&PropertyMap>,
+    name: &str,
+    stored: &StoredProjection,
+) -> rusqlite::Result<Option<PropertyValue>> {
+    if stored.entity_class != PropertyEntityClass::Node {
+        return Ok(None);
+    }
+    if let Some(prop_val) = properties.and_then(|map| map.get(name)) {
+        return Ok(Some(prop_val.clone()));
+    }
+    let path = projection_json_path(name, stored);
+    let mut stmt = conn.prepare_cached(
+        "SELECT CASE WHEN json_valid(?1) THEN json_type(?1, ?2) END,
+                CASE WHEN json_valid(?1) THEN json_extract(?1, ?2) END",
+    )?;
+    let (json_type, raw_val): (Option<String>, rusqlite::types::Value) =
+        stmt.query_row(params![body, path], |row| Ok((row.get(0)?, row.get(1)?)))?;
+    let parsed = match (json_type.as_deref(), raw_val) {
+        (Some("text"), rusqlite::types::Value::Text(s)) => Some(PropertyValue::String(s)),
+        (Some("integer"), rusqlite::types::Value::Integer(i)) => Some(PropertyValue::Int(i)),
+        (Some("real"), rusqlite::types::Value::Real(f)) => {
+            crate::properties::normalize_finite_f64(f).map(PropertyValue::Float)
+        }
+        (Some("real"), rusqlite::types::Value::Integer(i)) => {
+            crate::properties::normalize_finite_f64(i as f64).map(PropertyValue::Float)
+        }
+        (Some("true"), _) => Some(PropertyValue::Bool(true)),
+        (Some("false"), _) => Some(PropertyValue::Bool(false)),
+        _ => None,
+    };
+    Ok(parsed)
+}
+
 fn project_one_attribute(
     tx: &Connection,
     cursor: i64,
     body: &str,
+    properties: Option<&PropertyMap>,
     name: &str,
     stored: &StoredProjection,
 ) -> rusqlite::Result<()> {
-    if !stored.wants_eav() {
+    if stored.entity_class != PropertyEntityClass::Node {
         return Ok(());
     }
-    // json_extract over a non-JSON body would error; guard with json_valid so a
-    // plain-text body simply yields no attribute rows. The canonical scalar
-    // extraction is shared with the Slice-15e vec0 pre-KNN column via
-    // [`extract_scalar_attribute`], so the EAV value and the `attr_<hex>` value
-    // are IDENTICAL by construction.
-    //
-    // fix-1 finding 1 [P2] — project EVERY JSON scalar type, not just strings.
-    // The prior form read the extraction as `Option<String>`; for a JSON number
-    // or bool, `json_extract` returns an INTEGER/REAL, the `get::<Option<String>>`
-    // conversion FAILED, and `.unwrap_or(None)` silently treated the attribute as
-    // absent — so a numeric/boolean filterable value never projected. We now
-    // render a single canonical TEXT form per JSON type, keyed on `json_type` so
-    // the stored value is deterministic and the SAME value flows to BOTH
-    // `canonical_attributes` and `property_search_index` (consistency by
-    // construction — one `value` binding below):
-    //   - string  -> the text verbatim
-    //   - integer -> decimal text (CAST AS TEXT); e.g. 3 -> "3"
-    //   - real    -> decimal text (CAST AS TEXT); e.g. 3.5 -> "3.5"
-    //   - true    -> "true", false -> "false"  (preserve the JSON literal, NOT the
-    //                SQLite `1`/`0` that a bare `CAST(json_extract(...) AS TEXT)`
-    //                would yield — so a bool filter matches the value the caller
-    //                wrote, and "true" never collides with the number 1).
-    //   - null / absent path -> SQL NULL -> no row (an absent attribute correctly
-    //                never matches a `filterable` equality).
-    //   - object / array -> DELIBERATELY SKIPPED (SQL NULL -> no row): a composite
-    //                value is not a scalar filter/FTS target in 15d; projecting its
-    //                raw JSON text would be a footgun (nested-field filtering is the
-    //                >=0.9.x multi-field work). Skipping is deliberate, not an
-    //                accidental type-conversion drop — no scalar type is dropped.
-    let Some(value) = extract_scalar_attribute(tx, body, name, stored)? else {
+    if !stored.wants_eav() && !stored.wants_property_value() {
+        return Ok(());
+    }
+    let Some(typed_value) = extract_typed_node_property(tx, body, properties, name, stored)? else {
         return Ok(());
     };
-    tx.execute(
-        "INSERT INTO canonical_attributes(write_cursor, attr_name, attr_value)
-         VALUES(?1, ?2, ?3)",
-        params![cursor, name, value],
-    )?;
-    if stored.wants_property_fts() {
-        physical_erasure::mark_dirty(tx)?;
+    if stored.wants_property_value() {
+        insert_canonical_property_value(tx, PropertyEntityClass::Node, cursor, name, &typed_value)?;
+    }
+    if stored.wants_eav() {
+        let value = property_value_to_eav_string(&typed_value);
         tx.execute(
-            "INSERT INTO property_search_index(attr_value, attr_name, write_cursor)
+            "INSERT INTO canonical_attributes(write_cursor, attr_name, attr_value)
              VALUES(?1, ?2, ?3)",
-            params![value, name, cursor],
+            params![cursor, name, value],
         )?;
+        if stored.wants_property_fts() {
+            physical_erasure::mark_dirty(tx)?;
+            tx.execute(
+                "INSERT INTO property_search_index(attr_value, attr_name, write_cursor)
+                 VALUES(?1, ?2, ?3)",
+                params![value, name, cursor],
+            )?;
+        }
     }
     Ok(())
 }
@@ -1123,13 +1267,19 @@ pub(crate) fn encode_attr_vec0_present(value: &str) -> String {
     s
 }
 
-/// 0.8.20 Slice 15e — extract the canonical TEXT form of attribute `name` from a
-/// node `body`, using the SAME `json_type` CASE as [`project_one_attribute`] so
-/// the vec0 pre-KNN `attr_<hex>` column value equals the EAV
-/// `canonical_attributes` value (consistency by construction — a `filterable`
-/// filter routed pre-KNN sees exactly what the EAV path stored). Returns `None`
-/// for an absent / null / object / array / non-JSON extraction (⇒ the `''`
-/// sentinel at the vec0 column, ⇒ fail-to-match).
+/// Encode a typed scalar property into the `vec0` TEXT metadata slot:
+/// - `String(s)` -> `"\u{1}" + s` (matching legacy present-string prefix)
+/// - `Bool(true)` -> `"\u{2}b:1"`, `Bool(false)` -> `"\u{2}b:0"` (disjoint from String)
+/// - `Int` / `Float` / absent -> `""` sentinel (numeric filtering runs via `canonical_property_values`)
+pub(crate) fn encode_property_vec0_metadata(value: Option<&PropertyValue>) -> String {
+    match value {
+        Some(PropertyValue::String(s)) => encode_attr_vec0_present(s),
+        Some(PropertyValue::Bool(true)) => "\u{2}b:1".to_string(),
+        Some(PropertyValue::Bool(false)) => "\u{2}b:0".to_string(),
+        Some(PropertyValue::Int(_)) | Some(PropertyValue::Float(_)) | None => String::new(),
+    }
+}
+
 pub(crate) fn scalar_attribute_sql(body: &str, path: &str) -> String {
     format!(
         "CASE WHEN json_valid({body}) THEN CASE json_type({body}, {path})
@@ -1139,12 +1289,19 @@ pub(crate) fn scalar_attribute_sql(body: &str, path: &str) -> String {
     )
 }
 
-pub(crate) fn extract_scalar_attribute(
+pub(crate) fn extract_scalar_attribute_with_properties(
     conn: &Connection,
     body: &str,
+    properties: Option<&PropertyMap>,
     name: &str,
     stored: &StoredProjection,
 ) -> rusqlite::Result<Option<String>> {
+    if stored.entity_class != PropertyEntityClass::Node {
+        return Ok(None);
+    }
+    if let Some(prop_val) = properties.and_then(|map| map.get(name)) {
+        return Ok(Some(property_value_to_eav_string(prop_val)));
+    }
     let path = projection_json_path(name, stored);
     let value: Option<String> = conn
         .query_row(
@@ -1156,17 +1313,10 @@ pub(crate) fn extract_scalar_attribute(
     Ok(value)
 }
 
-/// 0.8.20 Slice 15e — for a node `body`, build the `, attr_<hex>` column suffix,
-/// the `, ?N` placeholder suffix (numbered from `start_idx`), and the bound TEXT
-/// values for EVERY attribute column CURRENTLY on the live `vector_default` (read
-/// from the table's own SQL, so the INSERT always matches the table shape exactly —
-/// vec0 rejects a partial-column INSERT). Each value is the body's canonical
-/// scalar extraction, or the `''` sentinel when absent. Returns empty fragments
-/// (and no values) when the table has no attribute columns, so the INSERT stays
-/// byte-identical to the shipped statement.
 pub(crate) fn vector_attr_insert_fragments(
     conn: &Connection,
     body: &str,
+    properties: Option<&PropertyMap>,
     start_idx: usize,
 ) -> rusqlite::Result<(String, String, Vec<rusqlite::types::Value>)> {
     let cols = actual_vector_attr_columns(conn)?;
@@ -1176,17 +1326,16 @@ pub(crate) fn vector_attr_insert_fragments(
     let mut values: Vec<rusqlite::types::Value> = Vec::new();
     for (i, col) in cols.iter().enumerate() {
         let name = decode_attr_vec0_column(col).unwrap_or_default();
-        // fix-3 [P2] — a PRESENT scalar value is encoded `\x01 || V` so it is
-        // DISJOINT from the `''`-absent sentinel (present-empty ⇒ the bare marker,
-        // never `''`). Absent stays the bare `''` sentinel.
-        let scalar = match registry.get(&name) {
-            Some(stored) => extract_scalar_attribute(conn, body, &name, stored)?,
-            None => None,
+        let typed = match registry.get(&name) {
+            Some(stored)
+                if stored.entity_class == PropertyEntityClass::Node
+                    && stored.roles.contains(&ProjectionRole::Filterable) =>
+            {
+                extract_typed_node_property(conn, body, properties, &name, stored)?
+            }
+            _ => None,
         };
-        let value = match scalar {
-            Some(v) => encode_attr_vec0_present(&v),
-            None => String::new(),
-        };
+        let value = encode_property_vec0_metadata(typed.as_ref());
         col_sql.push_str(&format!(", {col}"));
         ph_sql.push_str(&format!(", ?{}", start_idx + i));
         values.push(rusqlite::types::Value::Text(value));
@@ -1194,48 +1343,116 @@ pub(crate) fn vector_attr_insert_fragments(
     Ok((col_sql, ph_sql, values))
 }
 
-/// 0.8.20 Slice 15d (R-20-EAV) — the write-path attribute projector: for a
-/// just-inserted node, project EVERY declared attribute (reading the live
-/// registry from `tx`). Same-transaction, so the node is filter/FTS-retrievable
-/// on commit. A no-op when the registry is empty (the pre-`configure_projections`
-/// default), so it costs one empty-table scan per node and is behaviour-neutral
-/// until a projection is declared.
 pub(crate) fn project_node_attributes(
     tx: &Connection,
     cursor: i64,
     body: &str,
+    properties: Option<&PropertyMap>,
 ) -> rusqlite::Result<()> {
     let registry = load_projection_registry(tx)?;
     for (name, stored) in &registry {
-        project_one_attribute(tx, cursor, body, name, stored)?;
+        project_one_attribute(tx, cursor, body, properties, name, stored)?;
     }
     Ok(())
 }
 
-/// 0.8.20 Slice 15d (R-20-PR) — backfill ONE attribute across every ACTIVE,
-/// non-superseded canonical node. Called by `configure_projections` when a
-/// projection is added/changed (after `clear_attribute_projection`), and by boot
-/// re-derive. Idempotent when paired with the clear.
+pub(crate) fn project_edge_properties(
+    tx: &Connection,
+    cursor: i64,
+    properties: Option<&PropertyMap>,
+) -> rusqlite::Result<()> {
+    let Some(props) = properties else {
+        return Ok(());
+    };
+    if props.is_empty() {
+        return Ok(());
+    }
+    let has_edge_specs: bool = tx
+        .prepare_cached(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = '_fathomdb_projection_registry')",
+        )?
+        .query_row([], |row| row.get(0))?;
+    if !has_edge_specs {
+        return Ok(());
+    }
+    let registry = load_projection_registry(tx)?;
+    for (name, stored) in &registry {
+        if stored.entity_class == PropertyEntityClass::Edge && stored.wants_property_value() {
+            if let Some(value) = props.get(name) {
+                insert_canonical_property_value(
+                    tx,
+                    PropertyEntityClass::Edge,
+                    cursor,
+                    name,
+                    value,
+                )?;
+            }
+        }
+    }
+    Ok(())
+}
+
 fn backfill_attribute(
     tx: &Connection,
     name: &str,
     stored: &StoredProjection,
 ) -> rusqlite::Result<()> {
-    if !stored.wants_eav() {
-        return Ok(());
-    }
-    let rows: Vec<(i64, String)> = {
-        let mut stmt = tx.prepare(
-            "SELECT write_cursor, body FROM canonical_nodes
-             WHERE superseded_at IS NULL AND state = 'active'",
-        )?;
-        let collected = stmt
-            .query_map([], |row| Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?)))?
-            .collect::<rusqlite::Result<Vec<_>>>()?;
-        collected
-    };
-    for (cursor, body) in rows {
-        project_one_attribute(tx, cursor, &body, name, stored)?;
+    match stored.entity_class {
+        PropertyEntityClass::Node => {
+            if !stored.wants_eav() && !stored.wants_property_value() {
+                return Ok(());
+            }
+            let rows: Vec<(i64, String, Option<PropertyMap>)> = {
+                let mut stmt = tx.prepare(
+                    "SELECT write_cursor, body, properties FROM canonical_nodes
+                     WHERE superseded_at IS NULL AND state = 'active'",
+                )?;
+                let collected = stmt
+                    .query_map([], |row| {
+                        Ok((
+                            row.get::<_, i64>(0)?,
+                            row.get::<_, String>(1)?,
+                            crate::properties::decode_properties_row_col(row, 2)?,
+                        ))
+                    })?
+                    .collect::<rusqlite::Result<Vec<_>>>()?;
+                collected
+            };
+            for (cursor, body, properties) in rows {
+                project_one_attribute(tx, cursor, &body, properties.as_ref(), name, stored)?;
+            }
+        }
+        PropertyEntityClass::Edge => {
+            if !stored.wants_property_value() {
+                return Ok(());
+            }
+            let rows: Vec<(i64, Option<PropertyMap>)> = {
+                let mut stmt = tx.prepare(
+                    "SELECT write_cursor, properties FROM canonical_edges
+                     WHERE superseded_at IS NULL AND properties IS NOT NULL",
+                )?;
+                let collected = stmt
+                    .query_map([], |row| {
+                        Ok((
+                            row.get::<_, i64>(0)?,
+                            crate::properties::decode_properties_row_col(row, 1)?,
+                        ))
+                    })?
+                    .collect::<rusqlite::Result<Vec<_>>>()?;
+                collected
+            };
+            for (cursor, properties) in rows {
+                if let Some(value) = properties.as_ref().and_then(|map| map.get(name)) {
+                    insert_canonical_property_value(
+                        tx,
+                        PropertyEntityClass::Edge,
+                        cursor,
+                        name,
+                        value,
+                    )?;
+                }
+            }
+        }
     }
     Ok(())
 }
@@ -1250,6 +1467,9 @@ fn is_destructive_projection_change(
     existing: &StoredProjection,
     desired: &StoredProjection,
 ) -> bool {
+    if existing.entity_class != desired.entity_class {
+        return true;
+    }
     if existing.roles.iter().any(|r| !desired.roles.contains(r)) {
         return true;
     }
@@ -1273,6 +1493,13 @@ fn is_destructive_projection_change(
 /// [`EngineError::ProjectionDestructive`] so the caller sees WHAT it must drop.
 fn describe_projection_delta(existing: &StoredProjection, desired: &StoredProjection) -> String {
     let mut parts: Vec<String> = Vec::new();
+    if existing.entity_class != desired.entity_class {
+        parts.push(format!(
+            "entity_class changed from '{}' to '{}'",
+            existing.entity_class.as_str(),
+            desired.entity_class.as_str()
+        ));
+    }
     for r in &existing.roles {
         if !desired.roles.contains(r) {
             parts.push(format!("role '{}' removed", r.as_str()));
@@ -1420,11 +1647,28 @@ fn apply_projection_config(
     // variant, so this refusal cannot name WHICH spec in `specs` was invalid —
     // strictly worse than the name rejections above. Recorded, not worked around.
     for spec in specs {
-        if spec.roles.contains(&ProjectionRole::Searchable) {
-            continue;
-        }
-        if spec.fts.is_some() || spec.vector.is_some() {
+        if spec.entity_class == PropertyEntityClass::Edge
+            && (spec.roles.contains(&ProjectionRole::Searchable)
+                || spec.roles.contains(&ProjectionRole::Rankable)
+                || spec.source.is_some())
+        {
             return Err(EngineError::WriteValidation);
+        }
+        if !spec.roles.contains(&ProjectionRole::Searchable)
+            && (spec.fts.is_some() || spec.vector.is_some())
+        {
+            return Err(EngineError::WriteValidation);
+        }
+        if let Some(kinds) = spec.vector.as_ref().and_then(|vector| vector.kinds.as_ref()) {
+            for kind in kinds {
+                if kind.trim().is_empty()
+                    || kind.contains('\0')
+                    || kind.contains('\x1e')
+                    || kind == "edge_fact"
+                {
+                    return Err(EngineError::WriteValidation);
+                }
+            }
         }
     }
 
@@ -1499,9 +1743,20 @@ fn apply_projection_config(
                 }
                 persist_projection_row(tx, &spec.name, &desired)
                     .map_err(|_| EngineError::Storage)?;
-                clear_attribute_projection(tx, &spec.name).map_err(|_| EngineError::Storage)?;
-                backfill_attribute(tx, &spec.name, &desired).map_err(|_| EngineError::Storage)?;
-                if desired.wants_eav() {
+                let eav_or_cpv_changed = existing.roles != desired.roles
+                    || existing.fts_present != desired.fts_present
+                    || existing.fts_tokenizer != desired.fts_tokenizer
+                    || existing.source != desired.source
+                    || existing.entity_class != desired.entity_class;
+                if eav_or_cpv_changed {
+                    clear_attribute_projection(tx, &spec.name).map_err(|_| EngineError::Storage)?;
+                    backfill_attribute(tx, &spec.name, &desired)
+                        .map_err(|_| EngineError::Storage)?;
+                }
+                if desired.wants_eav()
+                    || (desired.entity_class == PropertyEntityClass::Edge
+                        && desired.wants_property_value())
+                {
                     delta.built.push(spec.name.clone());
                 }
                 // 0.8.20 Slice 15e fix-2 finding 2 [P2] — this arm ONLY runs when
@@ -1526,7 +1781,10 @@ fn apply_projection_config(
                     .map_err(|_| EngineError::Storage)?;
                 clear_attribute_projection(tx, &spec.name).map_err(|_| EngineError::Storage)?;
                 backfill_attribute(tx, &spec.name, &desired).map_err(|_| EngineError::Storage)?;
-                if desired.wants_eav() {
+                if desired.wants_eav()
+                    || (desired.entity_class == PropertyEntityClass::Edge
+                        && desired.wants_property_value())
+                {
                     delta.built.push(spec.name.clone());
                 }
                 if desired.has_deferred() {
@@ -1566,18 +1824,23 @@ fn apply_projection_config(
     // un-enrol the node kinds the forward path enrols; otherwise enrolment is a
     // one-way door and the write path keeps embedding for a projection the
     // registry no longer declares.
-    let vector_declared_after = vector_projection_declared(tx).map_err(|_| EngineError::Storage)?;
+    let previous_custom_kinds = declared_custom_vector_kinds_from(&pre_drop);
+    let post_registry = load_projection_registry(tx).map_err(|_| EngineError::Storage)?;
+    let current_custom_kinds = declared_custom_vector_kinds_from(&post_registry);
+    let vector_declared_after = post_registry.values().any(StoredProjection::wants_vector);
+    if vector_declared_after {
+        for kind in &current_custom_kinds {
+            register_vector_kind(tx, kind).map_err(|_| EngineError::Storage)?;
+        }
+        for removed_kind in previous_custom_kinds.difference(&current_custom_kinds) {
+            tx.execute(
+                "DELETE FROM _fathomdb_vector_kinds WHERE kind = ?1 AND kind <> 'edge_fact'",
+                [removed_kind],
+            )
+            .map_err(|_| EngineError::Storage)?;
+        }
+    }
     let enqueued = if vector_declared_after {
-        // 0.8.20 Slice 22 (R-20-VC / TC-67) — THE REPORT. Scoped to a live dense
-        // -arm declaration (with no `searchable→vector` projection there is
-        // nothing for a kind to be unsupported FOR, so reporting would be noise
-        // on every `filterable`/FTS-only call), but deliberately OUTSIDE the
-        // `dense_arm_live` gate below — see [`unsupported_vector_kinds`].
-        //
-        // Placed AFTER `delta.unchanged` is computed, and it does not feed it:
-        // this is a STATE report, not a diff, so an idempotent re-apply still
-        // carries it (that is also the documented refresh path for the
-        // declare-time residual).
         delta.vector_unsupported_kinds =
             unsupported_vector_kinds(tx).map_err(|_| EngineError::Storage)?;
         if dense_arm_live {
@@ -1586,18 +1849,6 @@ fn apply_projection_config(
             false
         }
     } else {
-        // fix-1 (codex §9 round 1 [P2], ledger `TC-71`) — the transition arm is
-        // KEPT as-is and a state-keyed reconciliation is added BESIDE it; neither
-        // subsumes the other. The transition fires when this very call removed the
-        // last dense-arm declaration, including the case where it removed the last
-        // `vector` sub-object with it (which leaves
-        // `registry_governs_an_inert_dense_arm` false). The reconciliation covers
-        // the ALREADY-AFFECTED database whose user calls `configure_projections`
-        // again with anything at all: there `before` is already `false`, so the
-        // transition arm is inert and the inert enrolment used to survive
-        // indefinitely. `||` short-circuits, so the transition case pays nothing
-        // extra; the other case pays two cached `EXISTS` probes on a governed call,
-        // never on the hot write path.
         if vector_declared_before
             || registry_governs_an_inert_dense_arm(tx).map_err(|_| EngineError::Storage)?
         {
@@ -2142,10 +2393,33 @@ fn vector_eligible_node_kinds(tx: &Connection) -> rusqlite::Result<Vec<String>> 
 /// transient one, which is the very conflation TC-67 exists to end — a
 /// no-embedder caller is exactly the caller who most needs to know that
 /// attaching an embedder later will still not embed these kinds.
+fn declared_custom_vector_kinds_from(
+    registry: &BTreeMap<String, StoredProjection>,
+) -> BTreeSet<String> {
+    let mut out = BTreeSet::new();
+    for stored in registry.values() {
+        if stored.wants_vector() {
+            if let Some(kinds) = &stored.vector_kinds {
+                for kind in kinds {
+                    if !vector_storage::kind_is_builtin_vector_committable(kind) {
+                        out.insert(kind.clone());
+                    }
+                }
+            }
+        }
+    }
+    out
+}
+
 pub(crate) fn unsupported_vector_kinds(tx: &Connection) -> rusqlite::Result<Vec<String>> {
+    let registry = load_projection_registry(tx)?;
+    let declared_custom = declared_custom_vector_kinds_from(&registry);
     Ok(vector_eligible_node_kinds(tx)?
         .into_iter()
-        .filter(|kind| !kind_is_vector_committable(kind))
+        .filter(|kind| {
+            !vector_storage::kind_is_builtin_vector_committable(kind)
+                && !declared_custom.contains(kind)
+        })
         .collect())
 }
 
@@ -2154,22 +2428,16 @@ fn enqueue_declared_vector_backfill(tx: &Connection) -> rusqlite::Result<bool> {
         return Ok(false);
     }
 
-    // (1) Enrol the vector-eligible kinds the live corpus actually contains —
-    // RESTRICTED to the ones the vector writer can actually commit
-    // ([`kind_is_vector_committable`], fix-2 / codex §9 [P1]). Enrolling a kind
-    // outside `resolve_source_type`'s locked vocabulary wedges the projection
-    // worker forever and starves every other kind with it.
-    //
-    // 0.8.20 Slice 22 (TC-67) — the kinds this filter DROPS are what
-    // [`unsupported_vector_kinds`] reports; both read the same scan through
-    // [`vector_eligible_node_kinds`] so the report can never describe a
-    // different set from the one actually excluded.
+    let registry = load_projection_registry(tx)?;
+    for custom_kind in declared_custom_vector_kinds_from(&registry) {
+        register_vector_kind(tx, &custom_kind)?;
+    }
     let kinds = vector_eligible_node_kinds(tx)?;
-    for kind in kinds.iter().filter(|kind| kind_is_vector_committable(kind)) {
+    for kind in kinds.iter().filter(|kind| vector_storage::kind_is_vector_committable_on(tx, kind))
+    {
         register_vector_kind(tx, kind)?;
     }
 
-    // (2)+(3) Un-strand the rows the new enrolment now covers.
     reenqueue_stranded_vector_rows(tx)
 }
 
@@ -2314,8 +2582,79 @@ type ProjectionAttributeCacheRow = (i64, String, Option<String>);
 
 type ProjectionPropertyFtsCacheRow = (i64, String, String);
 
-type ProjectionRegistryCacheSnapshot =
-    (Vec<ProjectionAttributeCacheRow>, Vec<ProjectionPropertyFtsCacheRow>);
+#[derive(Eq, Ord, PartialEq, PartialOrd)]
+struct ProjectionPropertyValueCacheRow {
+    entity_class: String,
+    write_cursor: i64,
+    attr_name: String,
+    value_type: String,
+    text_val: Option<String>,
+    num_int: Option<i64>,
+    num_real_bits: Option<u64>,
+    bool_val: Option<i64>,
+}
+
+impl ProjectionPropertyValueCacheRow {
+    fn from_property_value(
+        entity_class: PropertyEntityClass,
+        write_cursor: i64,
+        attr_name: String,
+        value: &PropertyValue,
+    ) -> rusqlite::Result<Self> {
+        Ok(match value {
+            PropertyValue::String(s) => Self {
+                entity_class: entity_class.as_str().to_string(),
+                write_cursor,
+                attr_name,
+                value_type: "string".to_string(),
+                text_val: Some(s.clone()),
+                num_int: None,
+                num_real_bits: None,
+                bool_val: None,
+            },
+            PropertyValue::Int(i) => Self {
+                entity_class: entity_class.as_str().to_string(),
+                write_cursor,
+                attr_name,
+                value_type: "integer".to_string(),
+                text_val: None,
+                num_int: Some(*i),
+                num_real_bits: None,
+                bool_val: None,
+            },
+            PropertyValue::Float(f) => {
+                let norm = crate::properties::normalize_finite_f64(*f)
+                    .ok_or(rusqlite::Error::InvalidQuery)?;
+                Self {
+                    entity_class: entity_class.as_str().to_string(),
+                    write_cursor,
+                    attr_name,
+                    value_type: "float".to_string(),
+                    text_val: None,
+                    num_int: None,
+                    num_real_bits: Some(norm.to_bits()),
+                    bool_val: None,
+                }
+            }
+            PropertyValue::Bool(b) => Self {
+                entity_class: entity_class.as_str().to_string(),
+                write_cursor,
+                attr_name,
+                value_type: "boolean".to_string(),
+                text_val: None,
+                num_int: None,
+                num_real_bits: None,
+                bool_val: Some(i64::from(*b)),
+            },
+        })
+    }
+}
+
+type ProjectionRegistryCacheSnapshot = (
+    Vec<ProjectionAttributeCacheRow>,
+    Vec<ProjectionPropertyFtsCacheRow>,
+    Vec<ProjectionPropertyValueCacheRow>,
+);
 
 fn expected_projection_registry_cache_snapshot(
     conn: &Connection,
@@ -2323,25 +2662,78 @@ fn expected_projection_registry_cache_snapshot(
 ) -> rusqlite::Result<ProjectionRegistryCacheSnapshot> {
     let nodes = {
         let mut statement = conn.prepare(
-            "SELECT write_cursor,body FROM canonical_nodes \
+            "SELECT write_cursor,body,properties FROM canonical_nodes \
              WHERE superseded_at IS NULL AND state='active' ORDER BY write_cursor",
         )?;
         let rows = statement
-            .query_map([], |row| Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?)))?
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, i64>(0)?,
+                    row.get::<_, String>(1)?,
+                    crate::properties::decode_properties_row_col(row, 2)?,
+                ))
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        rows
+    };
+    let edges = {
+        let mut statement = conn.prepare(
+            "SELECT write_cursor,properties FROM canonical_edges \
+             WHERE superseded_at IS NULL AND properties IS NOT NULL ORDER BY write_cursor",
+        )?;
+        let rows = statement
+            .query_map([], |row| {
+                Ok((row.get::<_, i64>(0)?, crate::properties::decode_properties_row_col(row, 1)?))
+            })?
             .collect::<rusqlite::Result<Vec<_>>>()?;
         rows
     };
     let mut attributes = Vec::new();
     let mut property_fts = Vec::new();
+    let mut property_values = Vec::new();
     for (name, stored) in registry {
-        if !stored.wants_eav() {
-            continue;
-        }
-        for (cursor, body) in &nodes {
-            if let Some(value) = extract_scalar_attribute(conn, body, name, stored)? {
-                attributes.push((*cursor, name.clone(), Some(value.clone())));
-                if stored.wants_property_fts() {
-                    property_fts.push((*cursor, name.clone(), value));
+        match stored.entity_class {
+            PropertyEntityClass::Node => {
+                if !stored.wants_eav() && !stored.wants_property_value() {
+                    continue;
+                }
+                for (cursor, body, properties) in &nodes {
+                    if let Some(typed) =
+                        extract_typed_node_property(conn, body, properties.as_ref(), name, stored)?
+                    {
+                        if stored.wants_property_value() {
+                            property_values.push(
+                                ProjectionPropertyValueCacheRow::from_property_value(
+                                    PropertyEntityClass::Node,
+                                    *cursor,
+                                    name.clone(),
+                                    &typed,
+                                )?,
+                            );
+                        }
+                        if stored.wants_eav() {
+                            let value = property_value_to_eav_string(&typed);
+                            attributes.push((*cursor, name.clone(), Some(value.clone())));
+                            if stored.wants_property_fts() {
+                                property_fts.push((*cursor, name.clone(), value));
+                            }
+                        }
+                    }
+                }
+            }
+            PropertyEntityClass::Edge => {
+                if !stored.wants_property_value() {
+                    continue;
+                }
+                for (cursor, properties) in &edges {
+                    if let Some(val) = properties.as_ref().and_then(|map| map.get(name)) {
+                        property_values.push(ProjectionPropertyValueCacheRow::from_property_value(
+                            PropertyEntityClass::Edge,
+                            *cursor,
+                            name.clone(),
+                            val,
+                        )?);
+                    }
                 }
             }
         }
@@ -2352,7 +2744,8 @@ fn expected_projection_registry_cache_snapshot(
     property_fts.sort_by(|left, right| {
         left.0.cmp(&right.0).then_with(|| left.1.cmp(&right.1)).then_with(|| left.2.cmp(&right.2))
     });
-    Ok((attributes, property_fts))
+    property_values.sort();
+    Ok((attributes, property_fts, property_values))
 }
 
 fn projection_registry_cache_snapshot(
@@ -2378,7 +2771,48 @@ fn projection_registry_cache_snapshot(
             .collect::<rusqlite::Result<Vec<_>>>()?;
         rows
     };
-    Ok((attributes, property_fts))
+    let mut property_values = {
+        let mut statement = conn.prepare(
+            "SELECT entity_class,write_cursor,attr_name,value_type,text_val,num_val,bool_val \
+             FROM canonical_property_values",
+        )?;
+        let rows = statement
+            .query_map([], |row| {
+                let entity_class: String = row.get(0)?;
+                let write_cursor: i64 = row.get(1)?;
+                let attr_name: String = row.get(2)?;
+                let value_type: String = row.get(3)?;
+                let text_val: Option<String> = row.get(4)?;
+                let num_val: rusqlite::types::Value = row.get(5)?;
+                let bool_val: Option<i64> = row.get(6)?;
+                let (num_int, num_real_bits) = match (value_type.as_str(), num_val) {
+                    ("integer", rusqlite::types::Value::Integer(i)) => (Some(i), None),
+                    ("float", rusqlite::types::Value::Real(f)) => {
+                        let norm = crate::properties::normalize_finite_f64(f).unwrap_or(f);
+                        (None, Some(norm.to_bits()))
+                    }
+                    ("float", rusqlite::types::Value::Integer(i)) => {
+                        let norm = crate::properties::normalize_finite_f64(i as f64).unwrap_or(0.0);
+                        (None, Some(norm.to_bits()))
+                    }
+                    _ => (None, None),
+                };
+                Ok(ProjectionPropertyValueCacheRow {
+                    entity_class,
+                    write_cursor,
+                    attr_name,
+                    value_type,
+                    text_val,
+                    num_int,
+                    num_real_bits,
+                    bool_val,
+                })
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        rows
+    };
+    property_values.sort();
+    Ok((attributes, property_fts, property_values))
 }
 
 impl Engine {

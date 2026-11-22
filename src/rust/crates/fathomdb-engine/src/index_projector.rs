@@ -26,6 +26,7 @@ pub(crate) fn restore_registered_derived_projections(
     kind: &str,
     body: &str,
     row_kind: &str,
+    properties: Option<&crate::PropertyMap>,
 ) -> Result<bool, EngineError> {
     let registered: bool = tx
         .query_row(
@@ -83,6 +84,7 @@ pub(crate) fn restore_registered_derived_projections(
                 row_kind,
                 ProjectionPass::FtsOnly,
                 true,
+                properties,
             )
             .map_err(|_| EngineError::Storage)?;
         }
@@ -90,7 +92,7 @@ pub(crate) fn restore_registered_derived_projections(
     }
     if !vector_projection_declared(tx).map_err(|_| EngineError::Storage)?
         || !matches!(row_kind, "leaf" | "coverage")
-        || !kind_is_vector_committable(kind)
+        || !kind_is_vector_committable_on(tx, kind)
     {
         return Ok(false);
     }
@@ -117,11 +119,11 @@ pub(crate) fn restore_registered_derived_projections(
         })
         .optional()
         .map_err(|_| EngineError::Storage)?;
-    let expected_source_type = resolve_source_type(kind)?;
+    let expected_source_type = resolve_source_type_on(tx, kind)?;
     if terminal.as_deref() == Some("up_to_date")
         && sidecar.as_deref() == Some(kind)
         && physical.as_ref().is_some_and(|(source_type, physical_kind)| {
-            source_type == expected_source_type && physical_kind == kind
+            source_type == expected_source_type.as_ref() && physical_kind == kind
         })
     {
         return Ok(false);
@@ -165,6 +167,7 @@ pub(crate) struct CanonicalNodeRow {
     /// Node-FTS / vector shadows are rebuilt for every row (their stale versions
     /// are excluded by the read-side lifecycle join, unchanged from before).
     pub(crate) attr_projected: bool,
+    pub(crate) properties: Option<crate::PropertyMap>,
 }
 
 /// 0.8.0 Slice 5 (G1) — re-tokenize `search_index` from the canonical source
@@ -211,6 +214,7 @@ pub(crate) fn reproject_search_index_after_tokenizer_upgrade(
                 // the backfill's active-and-non-superseded predicate) so the field
                 // has a reader in every build configuration.
                 row.attr_projected,
+                row.properties.as_ref(),
             )?;
         }
         connection.execute(
@@ -270,7 +274,7 @@ pub(crate) fn canonical_node_rows(
     // superseded_at IS NULL`): a NULL/foreign state is NOT 'active' and so is
     // excluded, identical to the SQL equality.
     let mut statement = connection.prepare(
-        "SELECT write_cursor, kind, body, row_kind, state, superseded_at \
+        "SELECT write_cursor, kind, body, row_kind, state, superseded_at, properties \
          FROM canonical_nodes ORDER BY write_cursor",
     )?;
     let rows = statement.query_map([], |row| {
@@ -282,6 +286,7 @@ pub(crate) fn canonical_node_rows(
             body: row.get::<_, String>(2)?,
             row_kind: row_kind_from_column(&row.get::<_, String>(3)?),
             attr_projected: state.as_deref() == Some("active") && superseded_at.is_none(),
+            properties: crate::properties::decode_properties_row_col(row, 6)?,
         })
     })?;
     rows.collect()
@@ -350,6 +355,7 @@ pub(crate) fn index_targets_for_row_kind(row_kind: RowKind) -> IndexTargetSet {
 /// Returns `true` iff async vector work was enqueued (the caller must then
 /// `notify_new_work`). For `RowKind::Leaf` this is behavior-identical to the
 /// pre-EXP-S inline node path.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn project_canonical_node_row(
     tx: &Connection,
     cursor: u64,
@@ -358,6 +364,7 @@ pub(crate) fn project_canonical_node_row(
     row_kind: RowKind,
     pass: ProjectionPass,
     node_active: bool,
+    properties: Option<&crate::PropertyMap>,
 ) -> rusqlite::Result<bool> {
     let targets = index_targets_for_row_kind(row_kind);
     if targets.fts && pass.writes_fts() {
@@ -412,7 +419,7 @@ pub(crate) fn project_canonical_node_row(
     // `Engine::transition`). Passes where `writes_attributes()` is false ignore the
     // flag entirely.
     if pass.writes_attributes() && node_active {
-        project_node_attributes(tx, cursor as i64, body)?;
+        project_node_attributes(tx, cursor as i64, body, properties)?;
     }
     // 0.8.20 Slice 20c (R-20-DR remainder) — UNCHANGED, deliberately. Late
     // enrolment of a kind first written AFTER a `searchable→vector` declaration
@@ -464,10 +471,9 @@ pub(crate) fn project_canonical_edge_row(
     kind: &str,
     body: Option<&str>,
     pass: ProjectionPass,
+    properties: Option<&crate::PropertyMap>,
+    edge_active: bool,
 ) -> rusqlite::Result<bool> {
-    // G11 — edge FTS projection into `search_index_edges` (separate table from
-    // node-body `search_index` — Option B partition). Body-less structural
-    // edges carry no lexical content and project no FTS row.
     if pass.writes_fts() {
         physical_erasure::mark_dirty(tx)?;
         if let Some(edge_body) = body {
@@ -477,6 +483,9 @@ pub(crate) fn project_canonical_edge_row(
                 params![edge_body, kind, cursor],
             )?;
         }
+    }
+    if pass.writes_attributes() && edge_active {
+        crate::projection_registry::project_edge_properties(tx, cursor as i64, properties)?;
     }
     let enqueue_vector = body.is_some();
     if pass.writes_vector_state() {

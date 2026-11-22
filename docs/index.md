@@ -4,7 +4,7 @@ FathomDB is a local-first retrieval and graph-oriented data system
 designed for application and agent workloads. This site is the public
 documentation source for users, operators, and SDK consumers.
 
-> **Release 0.8.30, pre-1.0 beta.** The surface may change between micro
+> **Release 0.8.31 (pre-publication documentation target; newest published release is 0.8.30), pre-1.0 beta.** The surface may change between micro
 > releases. The release provides Python, TypeScript, and Rust application SDKs,
 > plus a separate operator CLI.
 > Version 0.8.30 is published on crates.io, PyPI and npm, with its matching

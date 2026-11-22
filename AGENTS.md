@@ -28,7 +28,7 @@ Bullet form, prescriptive, ≤300 lines. Link out, do not inline.
 
 ## 2. Repo shape
 
-- **Rust workspace** under `src/rust/crates/` — 12 crates: `fathomdb`, `fathomdb-sdk`, `fathomdb-cli`, `fathomdb-engine`, `fathomdb-query`, `fathomdb-schema`, `fathomdb-embedder`, `fathomdb-embedder-api`, `fathomdb-mcp` (MCP server, `publish = false`), `fathomdb-napi`, `fathomdb-py`, and `fathomdb-tc5-benchmark`.
+- **Rust workspace** — 13 crates: 12 under `src/rust/crates/` (`fathomdb`, `fathomdb-sdk`, `fathomdb-cli`, `fathomdb-engine`, `fathomdb-query`, `fathomdb-schema`, `fathomdb-embedder`, `fathomdb-embedder-api`, `fathomdb-mcp` [MCP server, `publish = false`], `fathomdb-napi`, `fathomdb-py`, `fathomdb-tc5-benchmark`) plus `fathomdb-inspector` under `src/inspector/`.
 - **Python bindings** under `src/python/` (package: `fathomdb`).
 - **TypeScript bindings** under `src/ts/`.
 - **Public docs** under `docs/` (MkDocs-built).
@@ -71,7 +71,7 @@ The broader CI gate is `./scripts/check.sh` (adds mkdocs build); the agent-loop 
 - Rust toolchain: stable per `rust-version` in `Cargo.toml`. clippy + rustfmt come with rustup defaults.
 - Python dev tooling: `bash scripts/setup-python-owned.sh --provision` — installs `pytest`, `hypothesis`, `ruff`, `pyright`. Without the selected Ruff 0.15.17, Python lint fails loudly; Python typecheck/test steps still emit a skip notice and pass without exercising.
 - TypeScript: `cd src/ts && npm install` if you intend to touch TS. Without this, TS verbs skip.
-- Markdown tooling: `npm install` at repo root — installs `markdownlint-cli2`, and `prettier` which is retained as a devDep for non-markdown use only (§ 3 bans it on `.md`). `cargo install --locked lychee` for link checking (one-time). All wired up by `./scripts/bootstrap.sh`.
+- Markdown tooling: `npm ci` at repo root — installs `markdownlint-cli2` (and `js-yaml` for lint scripts; Prettier is not installed and § 3 bans it on `.md`). `cargo install --locked lychee` for link checking (one-time). All wired up by `./scripts/bootstrap.sh`.
 - **AArch64 / Jetson (Ubuntu 22.04, L4T R36):** the OS-shipped `python3` is 3.10,
   which lacks stdlib `tomllib` — several release/CI gates (license consistency,
   pinned-override-rot) require Python ≥3.11. `scripts/bootstrap.sh` selects a
@@ -129,7 +129,7 @@ Do not paraphrase, summarize, or shorten compiler diagnostics — pass them thro
 ## 9. Pointers
 
 - **Decisions:** `dev/adr/ADR-0.6.0-decision-index.md`
-- **Interfaces:** `dev/interfaces/{rust,python,typescript,cli,wire}.md`
+- **Interfaces:** `dev/interfaces/{rust,rust-sdk,python,typescript,cli,wire,mcp}.md`
 - **Release & slice planning template (canonical):** `dev/plans/prompts/RELEASE-AND-SLICE-PLANNING-TEMPLATE.md` (cross-harness release scaffolding, prework, slice planning, and Slices 20+ execution; supersedes deprecated `PLAN-TEMPLATE.md` and `0.8.0-SLICE-TEMPLATE.md`)
 - **Preflight gate:** `scripts/preflight.sh` (run before every worktree spawn — stale-base + dep-CLOSED + disk)
 - **Legacy orchestration references (deprecated):** `dev/agent-harness-bootstrap-prompt.md` · `dev/design/orchestration.md` (historical pre-0.8.31 method; do not use for new releases)

@@ -1,6 +1,6 @@
 # Reference
 
-Reference for the 0.8.30 release. Field spellings and type-level details are
+Reference for the 0.8.31 release target (newest published release: 0.8.30). Field spellings and type-level details are
 authoritative in the interface specs
 (`dev/interfaces/{python,typescript,rust-sdk,cli}.md`); this section is the
 client-facing view.

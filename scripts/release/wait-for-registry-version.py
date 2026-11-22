@@ -4,7 +4,9 @@
 from __future__ import annotations
 
 import argparse
+import http.client
 import json
+import re
 import sys
 import time
 import urllib.error
@@ -12,6 +14,35 @@ import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
+
+TRANSPORT_ERRORS = (
+    urllib.error.URLError,
+    TimeoutError,
+    http.client.HTTPException,
+    OSError,
+)
+
+PEP691_ACCEPT = "application/vnd.pypi.simple.v1+json"
+PYPI_GENERIC_WHEEL_PLATFORM_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("linux_x86_64", re.compile(r"manylinux[^-]*x86_64\.whl$")),
+    ("linux_aarch64", re.compile(r"manylinux[^-]*aarch64\.whl$")),
+    ("macosx_x86_64", re.compile(r"macosx_[^-]*x86_64\.whl$")),
+    ("macosx_arm64", re.compile(r"macosx_[^-]*arm64\.whl$")),
+    ("win_amd64", re.compile(r"win_amd64\.whl$")),
+)
+
+
+def pep440_normalize(version: str) -> str:
+    """Normalize SemVer pre-release tags (-rc.N/-alpha.N/-beta.N) to PEP 440."""
+
+    version = re.sub(r"-rc\.(\d+)$", r"rc\1", version)
+    version = re.sub(r"-alpha\.(\d+)$", r"a\1", version)
+    version = re.sub(r"-beta\.(\d+)$", r"b\1", version)
+    return version
+
+
+def _normalize_pypi_dist_prefix(package: str) -> str:
+    return re.sub(r"[-_.]+", "_", package.lower())
 
 
 @dataclass(frozen=True)
@@ -65,10 +96,17 @@ def release_packages(root: Path, version: str, *, include_npm: bool) -> tuple[Re
 def _metadata_url(registry: str, base_url: str, package: str, version: str) -> str:
     base = base_url.rstrip("/")
     quoted_name = urllib.parse.quote(package, safe="")
-    quoted_version = urllib.parse.quote(version, safe="")
+    effective_version = pep440_normalize(version) if registry == "pypi" else version
+    quoted_version = urllib.parse.quote(effective_version, safe="")
     if registry == "pypi":
         return f"{base}/pypi/{quoted_name}/{quoted_version}/json"
     return f"{base}/{quoted_name}/{quoted_version}"
+
+
+def _pypi_simple_url(base_url: str, package: str) -> str:
+    base = base_url.rstrip("/")
+    quoted_name = urllib.parse.quote(package, safe="")
+    return f"{base}/simple/{quoted_name}/"
 
 
 def _validate_metadata(registry: str, payload: object, package: str, version: str) -> None:
@@ -79,8 +117,38 @@ def _validate_metadata(registry: str, payload: object, package: str, version: st
         raise ValueError("malformed_metadata")
     if metadata.get("name") != package:
         raise ValueError("package_mismatch")
-    if metadata.get("version") != version:
+    expected_version = pep440_normalize(version) if registry == "pypi" else version
+    if metadata.get("version") != expected_version:
         raise ValueError("version_mismatch")
+
+
+def _validate_pypi_simple_wheels(payload: object, package: str, version: str) -> bool:
+    """Return True iff PEP 691 /simple/<pkg>/ advertises all 5 generic wheels."""
+
+    if not isinstance(payload, dict):
+        raise ValueError("malformed_metadata")
+    name = payload.get("name")
+    if not isinstance(name, str) or _normalize_pypi_dist_prefix(name) != _normalize_pypi_dist_prefix(package):
+        raise ValueError("package_mismatch")
+    files = payload.get("files")
+    if not isinstance(files, list):
+        raise ValueError("malformed_metadata")
+    prefix = f"{_normalize_pypi_dist_prefix(package)}-{pep440_normalize(version)}-"
+    filenames: list[str] = []
+    for entry in files:
+        if not isinstance(entry, dict):
+            raise ValueError("malformed_metadata")
+        filename = entry.get("filename")
+        if not isinstance(filename, str):
+            raise ValueError("malformed_metadata")
+        if entry.get("yanked"):
+            continue
+        if filename.startswith(prefix) and filename.endswith(".whl"):
+            filenames.append(filename)
+    for _label, pattern in PYPI_GENERIC_WHEEL_PLATFORM_PATTERNS:
+        if not any(pattern.search(fname) for fname in filenames):
+            return False
+    return True
 
 
 def _validate_absence_response(
@@ -114,12 +182,16 @@ def wait_for_version(
     started = time.monotonic()
     deadline = started + timeout_seconds
     attempts = 0
+    last_pending_reason = "exact_version_unavailable"
     url = _metadata_url(package.registry, base_url, package.name, package.version)
+    simple_url = (
+        _pypi_simple_url(base_url, package.name) if package.registry == "pypi" else None
+    )
     while True:
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             raise VisibilityFailure(
-                "exact_version_unavailable", attempts, time.monotonic() - started
+                last_pending_reason, attempts, time.monotonic() - started
             )
         attempts += 1
         try:
@@ -136,15 +208,63 @@ def wait_for_version(
                     raise VisibilityFailure(
                         str(error), attempts, time.monotonic() - started
                     ) from error
+            if simple_url is None:
                 return VisibilityResult(attempts, time.monotonic() - started)
+            simple_remaining = deadline - time.monotonic()
+            if simple_remaining <= 0:
+                raise VisibilityFailure(
+                    "simple_index_wheels_unavailable", attempts, time.monotonic() - started
+                )
+            simple_request = urllib.request.Request(
+                simple_url, headers={"Accept": PEP691_ACCEPT}
+            )
+            try:
+                with urllib.request.urlopen(
+                    simple_request, timeout=max(0.001, min(30.0, simple_remaining))
+                ) as simple_response:
+                    try:
+                        simple_payload = json.load(simple_response)
+                    except (json.JSONDecodeError, UnicodeDecodeError) as error:
+                        raise VisibilityFailure(
+                            "malformed_metadata", attempts, time.monotonic() - started
+                        ) from error
+                    try:
+                        wheels_ready = _validate_pypi_simple_wheels(
+                            simple_payload, package.name, package.version
+                        )
+                    except ValueError as error:
+                        raise VisibilityFailure(
+                            str(error), attempts, time.monotonic() - started
+                        ) from error
+                    if wheels_ready:
+                        return VisibilityResult(attempts, time.monotonic() - started)
+                    last_pending_reason = "simple_index_wheels_unavailable"
+            except urllib.error.HTTPError as error:
+                if error.code == 404:
+                    last_pending_reason = "simple_index_wheels_unavailable"
+                else:
+                    if error.code in (401, 403):
+                        reason = "authentication"
+                    elif error.code == 429:
+                        reason = "rate_limit"
+                    else:
+                        reason = f"http_{error.code}"
+                    raise VisibilityFailure(
+                        reason, attempts, time.monotonic() - started
+                    ) from error
         except urllib.error.HTTPError as error:
             if error.code == 404:
                 try:
                     _validate_absence_response(package.registry, error, package.version)
+                except TRANSPORT_ERRORS as transport_error:
+                    raise VisibilityFailure(
+                        "transport_error", attempts, time.monotonic() - started
+                    ) from transport_error
                 except ValueError as absence_error:
                     raise VisibilityFailure(
                         str(absence_error), attempts, time.monotonic() - started
                     ) from absence_error
+                last_pending_reason = "exact_version_unavailable"
             else:
                 if error.code in (401, 403):
                     reason = "authentication"
@@ -153,7 +273,7 @@ def wait_for_version(
                 else:
                     reason = f"http_{error.code}"
                 raise VisibilityFailure(reason, attempts, time.monotonic() - started) from error
-        except urllib.error.URLError as error:
+        except TRANSPORT_ERRORS as error:
             raise VisibilityFailure(
                 "transport_error", attempts, time.monotonic() - started
             ) from error

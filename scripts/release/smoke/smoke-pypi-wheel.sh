@@ -53,7 +53,35 @@ python3 -m venv "$WORK/venv"
 # shellcheck source=/dev/null
 . "$WORK/venv/bin/activate"
 pip install --quiet --upgrade pip
-pip install --quiet "fathomdb==${PIP_VERSION}"
+
+# Bounded retry on transient PyPI CDN/simple-index skew only; non-skew errors
+# (including synthetic non-zero fixture exits) fail immediately with exact status.
+max_install_attempts="${FATHOMDB_SMOKE_PYPI_INSTALL_ATTEMPTS:-5}"
+if ! [[ "$max_install_attempts" =~ ^[1-9][0-9]*$ ]]; then
+  printf 'smoke-pypi-wheel: FATHOMDB_SMOKE_PYPI_INSTALL_ATTEMPTS must be >= 1 (got "%s")\n' "$max_install_attempts" >&2
+  exit 2
+fi
+retry_delay_secs="${FATHOMDB_SMOKE_PYPI_RETRY_DELAY_SECS:-15}"
+attempt=1
+while true; do
+  install_exit=0
+  pip install --quiet "fathomdb==${PIP_VERSION}" > "$WORK/pip-install.log" 2>&1 || install_exit=$?
+  if [ "$install_exit" -eq 0 ]; then
+    break
+  fi
+  if [ "$attempt" -lt "$max_install_attempts" ] \
+    && grep -qE "No matching distribution found for fathomdb==|Could not find a version that satisfies the requirement fathomdb==" "$WORK/pip-install.log"; then
+    printf 'smoke-pypi-wheel: transient PyPI simple-index skew on attempt %s/%s; retrying in %ss\n' \
+      "$attempt" "$max_install_attempts" "$retry_delay_secs" >&2
+    attempt=$((attempt + 1))
+    if [ "$retry_delay_secs" -gt 0 ]; then
+      sleep "$retry_delay_secs"
+    fi
+    continue
+  fi
+  cat "$WORK/pip-install.log" >&2
+  exit "$install_exit"
+done
 
 # AC80-1/R80-2: the floor gate must bind the published bytes, not only a
 # local build. Only Linux carries a glibc floor — macOS's extension module

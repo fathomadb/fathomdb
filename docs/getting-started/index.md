@@ -15,7 +15,7 @@ AArch64/glibc, macOS x64/arm64, and Windows x64. See the
 - [Install — TypeScript / Node.js](../install/typescript.md)
 - [Install — Rust](../install/rust.md)
 
-## Release 0.8.30 surface
+## Release 0.8.31 surface (pre-publication target; newest published release is 0.8.30)
 
 The Python, TypeScript, and Rust application SDKs use equivalent idiomatic
 names and the same governed operation membership. The separate Rust facade

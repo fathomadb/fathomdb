@@ -9,7 +9,7 @@ embedder can download its weights. Retrieval runs in your own process.
 
 ## Status: pre-1.0, beta
 
-The 0.8.x line is under active development. The public surface can change between minor releases,
+The 0.8.x line is under active development (documentation target: 0.8.31; newest published release: 0.8.30). The public surface can change between minor releases,
 and scale/stability guarantees are staged for 0.9.x and later.
 
 ## Install

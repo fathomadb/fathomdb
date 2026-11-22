@@ -56,6 +56,19 @@ can prolong the post-tombstone mutation fence without a finite upper bound.
 A new erase/purge call completes any prior tombstone before processing its own
 argument, and cannot return another operation's success as its own.
 
+**0.8.31 targeted amendment (Autonomous mode two-truncate ordering):** In
+Autonomous mode only (where `RootDebt` holds only SHA-256 hashes and integer
+cursors with zero plaintext selectors), finalization runs the first
+`wal_checkpoint(TRUNCATE)` **before** `prepare_redacted` clears
+`denied_sources`/`denied_identities` and sets `debt.redacted = true`. If that
+first truncate fails BUSY, `debt.redacted` remains `false`, keeping unrelated
+plain canonical writes open via `guard_plain_write_inner` + `certify_plain_write`
+while denied sources/identities and dependency/actuation/admin writes stay
+strictly fenced. Once the first truncate succeeds, `prepare_redacted` + final
+`wal_checkpoint(TRUNCATE)` + finalize complete the closure with zero debt
+metadata left in the WAL at rest. ExplicitMaintenance tickets retain their
+existing scrub-before-truncate ordering unchanged.
+
 ## Consequences
 
 Root and closure blockers persist on synchronous and worker failures. Reopening

@@ -12,16 +12,35 @@ command -v gh >/dev/null || {
   exit 1
 }
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+CARGO_TOML="${FATHOMDB_CARGO_TOML:-$REPO_ROOT/Cargo.toml}"
+
+read_workspace_version() {
+  awk '
+    /^\[workspace\.package\]/ { in_block = 1; next }
+    /^\[/                     { in_block = 0 }
+    in_block && /^version[[:space:]]*=/ {
+      n = split($0, parts, "\"")
+      if (n >= 3) { print parts[2] }
+      exit
+    }
+  ' "$CARGO_TOML"
+}
+
 bootstrap="${FATHOMDB_RELEASE_TAG_BOOTSTRAP:-}"
 workflow_ref="fathomadb/fathomdb/.github/workflows/release.yml@refs/tags/$tag"
 if [ -n "$bootstrap" ]; then
-  case "$bootstrap:$tag" in
-    v0.8.28:v0.8.28|v0.8.29:v0.8.29|v0.8.30:v0.8.30) ;;
-    *)
-      printf 'check-tag-cuda-route: bootstrap marker must match an authorized exact first tag\n' >&2
-      exit 1
-      ;;
-  esac
+  ws_version="$(read_workspace_version)"
+  if [ -z "$ws_version" ]; then
+    printf 'check-tag-cuda-route: cannot read [workspace.package].version from %s\n' "$CARGO_TOML" >&2
+    exit 1
+  fi
+  allowed_tag="v${ws_version}"
+  if [ "$bootstrap" != "$allowed_tag" ] || [ "$tag" != "$allowed_tag" ]; then
+    printf 'check-tag-cuda-route: bootstrap marker must match workspace version tag %s\n' "$allowed_tag" >&2
+    exit 1
+  fi
   if ref_response="$(gh api "repos/fathomadb/fathomdb/git/ref/tags/$tag" --include)"; then
     printf 'check-tag-cuda-route: bootstrap requires a confirmed absent remote tag\n' >&2
     exit 1

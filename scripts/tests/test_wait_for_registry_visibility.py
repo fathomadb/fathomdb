@@ -8,6 +8,7 @@ import json
 import subprocess
 import sys
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -17,12 +18,60 @@ SCRIPT = ROOT / "scripts/release/wait-for-registry-version.py"
 RELEASE_VERSION = json.loads((ROOT / "src/ts/package.json").read_text(encoding="utf-8"))["version"]
 
 
+WHEEL_TAGS = (
+    "cp310-abi3-manylinux_2_28_x86_64.whl",
+    "cp310-abi3-manylinux_2_28_aarch64.whl",
+    "cp310-abi3-macosx_11_0_x86_64.whl",
+    "cp310-abi3-macosx_11_0_arm64.whl",
+    "cp310-abi3-win_amd64.whl",
+)
+
+
 class Handler(BaseHTTPRequestHandler):
     counts: dict[str, int] = {}
+    simple_counts: dict[str, int] = {}
+    simple_accepts: list[str] = []
 
     def do_GET(self) -> None:  # noqa: N802
         prefix = self.path.split("/", 2)[1]
-        pypi = "/pypi/" in self.path
+        is_simple = "/simple/" in self.path
+        pypi = "/pypi/" in self.path or is_simple
+        if is_simple:
+            Handler.simple_counts[prefix] = Handler.simple_counts.get(prefix, 0) + 1
+            Handler.simple_accepts.append(self.headers.get("Accept", ""))
+            if prefix == "simple_auth":
+                self.send_response(401)
+                self.end_headers()
+                return
+            if prefix == "simple_server":
+                self.send_response(503)
+                self.end_headers()
+                return
+            if prefix == "simple_malformed":
+                self.send_response(200)
+                self.send_header("Content-Type", "application/vnd.pypi.simple.v1+json")
+                self.end_headers()
+                self.wfile.write(b"{")
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", "application/vnd.pypi.simple.v1+json")
+            self.end_headers()
+            ver = "0.8.31rc1" if prefix == "prerelease" else (
+                RELEASE_VERSION if prefix == "delayed" else "0.8.26"
+            )
+            tags = WHEEL_TAGS
+            if prefix == "wheel_missing" or (
+                prefix == "wheel_lag" and Handler.simple_counts[prefix] == 1
+            ):
+                tags = WHEEL_TAGS[:-1]
+            files = [{"filename": f"fathomdb-{ver}-{tag}"} for tag in tags]
+            body = {
+                "meta": {"api-version": "1.1"},
+                "name": "fathomdb",
+                "files": files,
+            }
+            self.wfile.write(json.dumps(body).encode("utf-8"))
+            return
         requested_version = self.path.rstrip("/").split("/")[-2 if pypi else -1]
         Handler.counts[prefix] = Handler.counts.get(prefix, 0) + 1
         if prefix == "server":
@@ -66,6 +115,25 @@ class Handler(BaseHTTPRequestHandler):
             )
             self.wfile.write(json.dumps(body).encode("utf-8"))
             return
+        if prefix == "truncated":
+            self.protocol_version = "HTTP/1.1"
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Transfer-Encoding", "chunked")
+            self.end_headers()
+            self.wfile.write(b'8\r\n{"info":\r\n')
+            self.wfile.flush()
+            self.close_connection = True
+            return
+        if prefix == "slow_body":
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", "100")
+            self.end_headers()
+            self.wfile.write(b'{"info":')
+            self.wfile.flush()
+            time.sleep(0.25)
+            return
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
         self.end_headers()
@@ -85,7 +153,7 @@ class Handler(BaseHTTPRequestHandler):
         return
 
 
-def invoke(base: str, registry: str = "pypi") -> subprocess.CompletedProcess[str]:
+def invoke(base: str, registry: str = "pypi", version: str = "0.8.26") -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [
             sys.executable,
@@ -93,7 +161,7 @@ def invoke(base: str, registry: str = "pypi") -> subprocess.CompletedProcess[str
             "wait",
             "--registry", registry,
             "--package", "fathomdb",
-            "--version", "0.8.26",
+            "--version", version,
             "--base-url", base,
             "--timeout-seconds", "0.15",
             "--interval-seconds", "0.01",
@@ -140,14 +208,47 @@ def main() -> None:
     root = f"http://127.0.0.1:{server.server_port}"
     try:
         for registry in ("pypi", "npm"):
+            Handler.simple_counts["present"] = 0
+            Handler.simple_accepts.clear()
             present = invoke(f"{root}/present", registry)
             assert present.returncode == 0, present.stderr
             assert "attempts=1" in present.stdout and "timeout_seconds=0.15" in present.stdout
+            if registry == "pypi":
+                assert Handler.simple_counts.get("present") == 1, Handler.simple_counts
+                assert Handler.simple_accepts == ["application/vnd.pypi.simple.v1+json"], Handler.simple_accepts
             Handler.counts["eventual"] = 0
+            Handler.simple_counts["eventual"] = 0
             eventual = invoke(f"{root}/eventual", registry)
             assert eventual.returncode == 0, eventual.stderr
             assert Handler.counts["eventual"] == 2
+            if registry == "pypi":
+                assert Handler.simple_counts.get("eventual") == 1, Handler.simple_counts
             assert "attempts=2" in eventual.stdout
+        Handler.counts["wheel_lag"] = 0
+        Handler.simple_counts["wheel_lag"] = 0
+        wheel_lag = invoke(f"{root}/wheel_lag", "pypi")
+        assert wheel_lag.returncode == 0, wheel_lag.stderr
+        assert Handler.simple_counts["wheel_lag"] == 2
+        assert "attempts=2" in wheel_lag.stdout
+        Handler.counts["wheel_missing"] = 0
+        Handler.simple_counts["wheel_missing"] = 0
+        wheel_missing = invoke(f"{root}/wheel_missing", "pypi")
+        assert wheel_missing.returncode == 1 and "simple_index_wheels_unavailable" in wheel_missing.stderr, wheel_missing.stderr
+        Handler.counts["prerelease"] = 0
+        Handler.simple_counts["prerelease"] = 0
+        prerelease = invoke(f"{root}/prerelease", "pypi", version="0.8.31-rc.1")
+        assert prerelease.returncode == 0, prerelease.stderr
+        assert Handler.simple_counts["prerelease"] == 1
+        for prefix, reason in (
+            ("simple_auth", "authentication"),
+            ("simple_server", "http_503"),
+            ("simple_malformed", "malformed_metadata"),
+        ):
+            Handler.counts[prefix] = 0
+            Handler.simple_counts[prefix] = 0
+            result = invoke(f"{root}/{prefix}", "pypi")
+            assert result.returncode == 1 and reason in result.stderr, result.stderr
+            assert Handler.simple_counts[prefix] == 1
         missing = invoke(f"{root}/missing")
         assert missing.returncode == 1 and "exact_version_unavailable" in missing.stderr
         assert "registry=pypi" in missing.stderr
@@ -161,6 +262,8 @@ def main() -> None:
             ("rate", "rate_limit"),
             ("server", "http_503"),
             ("malformed", "malformed_metadata"),
+            ("truncated", "transport_error"),
+            ("slow_body", "transport_error"),
             ("mismatch", "package_mismatch"),
             ("wrongversion", "version_mismatch"),
         ):

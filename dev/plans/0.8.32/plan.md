@@ -44,7 +44,7 @@ regression on single-scope workloads.
 - **Standing tripwires**
   ([overflow-chunking-reevaluation.md](../../design/overflow-chunking-reevaluation.md)):
   No tripwire (`T1`–`T3`) touched; re-check before Slice 0 against any new
-  Memex `0.8.31` evidence.
+  `0.8.31` field-adoption evidence.
 
 ## Requirements and acceptance signals
 

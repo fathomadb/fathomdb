@@ -6,8 +6,9 @@ operation surface in 0.8.30. The CLI remains a separate operator surface.
 ## Shared behavior
 
 The governed-surface allowlist is shared by the Python and TypeScript
-conformance suites. The Rust SDK operation map also checks its 44-operation
-membership against that allowlist.
+conformance suites. The Rust SDK operation map also checks its full governed
+membership against that allowlist (see the generated
+[SDK operation map](../generated/sdk-operation-map.md)).
 
 The SDKs provide:
 

@@ -1,6 +1,6 @@
 # Rust API
 
-Crate: `fathomdb` 0.8.30. The facade re-exports the supported application
+Crate: `fathomdb` (0.8.31 documentation target; newest published release: 0.8.30). The facade re-exports the supported application
 surface from `fathomdb-engine`; generated item-level documentation is published
 at [`docs.rs/fathomdb`](https://docs.rs/fathomdb/). The locked
 [Rust interface](https://github.com/fathomadb/fathomdb/blob/main/dev/interfaces/rust.md)

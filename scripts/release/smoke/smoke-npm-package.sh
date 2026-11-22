@@ -27,7 +27,18 @@ fi
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 
 WORK="$(mktemp -d)"
-trap 'rm -rf "$WORK"' EXIT
+smoke_complete=0
+cleanup() {
+  local status=$? cleanup_status=0
+  trap - EXIT
+  rm -rf "$WORK" || cleanup_status=$?
+  # Bash 3 can enter EXIT with status 0 after a fatal nounset expansion.
+  if [ "$status" -eq 0 ]; then
+    if [ "$smoke_complete" -ne 1 ]; then status=1; else status=$cleanup_status; fi
+  fi
+  exit "$status"
+}
+trap cleanup EXIT
 
 cd "$WORK"
 npm init -y >/dev/null
@@ -63,4 +74,5 @@ fi
 node "$consumer" write "$WORK" "$VERSION"
 node "$consumer" reopen "$WORK" "$VERSION"
 
+smoke_complete=1
 printf 'smoke-npm-package: ok — fathomdb %s installed + native trace controls + independent write and reopen processes exited cleanly\n' "$VERSION"

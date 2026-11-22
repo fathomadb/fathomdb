@@ -35,6 +35,7 @@ if ! command -v grep >/dev/null 2>&1; then
     echo "AC-037-catch BLOCKER: grep not available" >&2
     exit 2
 fi
+SECURITY_CATCH_TIMEOUT_SECS="${FATHOMDB_SECURITY_CATCH_TIMEOUT_SECS:-15}"
 
 WORK="$(mktemp -d -t fdb-ac037-catch-XXXXXX)"
 trap 'rm -rf "$WORK"' EXIT
@@ -89,14 +90,25 @@ fi
 if command -v unshare >/dev/null 2>&1 && command -v strace >/dev/null 2>&1 \
    && unshare -rUn true >/dev/null 2>&1; then
     LIVE="$WORK/live.trace"
+    if ! command -v timeout >/dev/null 2>&1; then
+        echo "AC-037-catch BLOCKER: timeout(1) not available" >&2
+        exit 2
+    fi
     # bash's /dev/tcp pseudo-device issues a real connect() to a literal public
     # IP (no DNS). Inside the empty netns it fails (ENETUNREACH) but strace
     # records the off-loopback attempt — exactly what the gate must catch.
-    unshare -rUn -- bash -c '
-        ip link set lo up 2>/dev/null || true
-        strace -f -e trace=connect -o "$1" \
-            bash -c "exec 3<>/dev/tcp/8.8.8.8/53" >/dev/null 2>&1 || true
-    ' bash "$LIVE" 2>/dev/null || true
+    timeout --kill-after=5s "${SECURITY_CATCH_TIMEOUT_SECS}s" \
+        unshare -rUn -- bash -c '
+            ip link set lo up 2>/dev/null || true
+            strace -f -e trace=connect -o "$1" \
+                bash -c "exec 3<>/dev/tcp/8.8.8.8/53" >/dev/null 2>&1 || true
+        ' bash "$LIVE" 2>/dev/null
+    live_rc=$?
+    if [ "$live_rc" -eq 124 ] || [ "$live_rc" -eq 137 ]; then
+        echo "AC-037 CATCH VIOLATION: live netns probe timed out after ${SECURITY_CATCH_TIMEOUT_SECS}s (exit ${live_rc})" >&2
+        cat "$LIVE" >&2 || true
+        exit 1
+    fi
 
     if [ ! -s "$LIVE" ]; then
         echo "AC-037 catch: live netns produced no trace (strace/connect unsupported here); offline layer proved the catch."

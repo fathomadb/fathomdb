@@ -27,8 +27,12 @@ support starts at 3.10; repository developer gates require Python 3.11 or later.
 Published TypeScript compatibility is documented in the
 [install guide](../install/typescript.md).
 
-Each checkout owns its root and TypeScript `node_modules` from `npm ci` and
-its Python `.venv`. Run
+Each checkout owns its root and TypeScript `node_modules` from `npm ci` (both
+are preflighted upfront by `scripts/tests/test_dev_environment_tools.sh`) and
+its Python `.venv`. On Ubuntu 24.04 hosts, `scripts/bootstrap.sh` and
+`scripts/setup-python-owned.sh` prefer bare PATH Python `>=3.11` (such as
+`/usr/bin/python3.12`) over `uv` standalone Python builds before falling back
+to `uv python find`. Run
 `bash scripts/setup-python-owned.sh --provision` from that checkout to install developer tools
 and its noneditable, source-bound Python wheel. Never share mutable environments or editable
 bindings between worktrees. `--tools-only` provisions just developer tools for

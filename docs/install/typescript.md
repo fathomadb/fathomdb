@@ -4,7 +4,7 @@ The `fathomdb` npm package is a [napi-rs](https://napi.rs/) binding
 over the native Rust runtime. The package selects a
 platform-tagged `.node` binary at load time.
 
-> **Release 0.8.30, pre-1.0 beta.** The release supplies
+> **Release 0.8.31 (pre-publication documentation target; newest published release is 0.8.30), pre-1.0 beta.** The release supplies
 > Linux x86_64/glibc, Linux AArch64/glibc, macOS x64/arm64, and Windows x64
 > native packages; other hosts must build from source.
 > FathomDB is pre-1.0 and the surface is **beta**.
@@ -27,7 +27,9 @@ platform-tagged `.node` binary at load time.
 
 ## Install the package
 
-Version 0.8.30 is published on npm. Use the exact-version commands below;
+Version 0.8.30 is published on npm (pre-publication target command for the
+in-development `0.8.31` release: `npm install --save-exact fathomdb@0.8.31`).
+Use the exact-version command below for the current published release, and
 verify the matching Tegra Pages addon digest before adding it on classic Orin.
 
 ```bash
@@ -44,8 +46,8 @@ After publication, the following procedure installs the **0.8.30 main package
 and 0.8.30 Tegra addon together**. The retained manifest must first list this
 exact version; an absent entry means this route is not yet available. On a confirmed classic Jetson Orin, mismatched
 versions are refused before native loading. With no Tegra addon installed,
-the loader uses the generic CPU package. CUDA 13 artifact delivery, including
-Tegra, is planned for 0.8.31.
+the loader uses the generic CPU package. CUDA 13 artifact delivery is deferred
+beyond 0.8.31 (`0.8.31` retains the CUDA 12.6 + classic Jetson Orin stack).
 
 A CUDA-capable Node addon for **classic Jetson Orin** (JetPack 6 / L4T R36,
 CUDA 12.6) uses the separately named package
@@ -202,7 +204,7 @@ offline/`HF_TOKEN` notes, caveats, and migration.
 import { Engine } from "fathomdb";
 
 const engine = await Engine.open("./hello.fdb");
-await engine.write([]);
+await engine.write([{ kind: "note", body: "hello fathomdb", sourceId: "verify" }]);
 await engine.search("hello");
 await engine.close();
 console.log("ok");

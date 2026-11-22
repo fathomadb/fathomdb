@@ -76,6 +76,8 @@ check_common() {
   assert_contains "$label_prefix: mktemp -d for fixture dir" "$script" 'mktemp -d'
   assert_matches "$label_prefix: EXIT trap registered" "$script" 'trap .* EXIT'
   assert_matches "$label_prefix: temporary directory cleanup" "$script" 'rm -rf "\$(WORK|work)"'
+  assert_contains "$label_prefix: Bash 3 EXIT completion sentinel initialized" "$script" 'smoke_complete=0'
+  assert_contains "$label_prefix: Bash 3 EXIT completion sentinel set before exit" "$script" 'smoke_complete=1'
 }
 
 CRATES="$SMOKE_DIR/smoke-crates-cli.sh"
@@ -137,12 +139,18 @@ assert_next_line "windows PyPI smoke: venv propagates native failure" "$PYPI_WIN
   '  python -m venv "$work/venv"' "$native_exit_guard"
 assert_next_line "windows PyPI smoke: pip upgrade propagates native failure" "$PYPI_WINDOWS" \
   '  & $python -m pip install --quiet --upgrade pip' "$native_exit_guard"
-assert_next_line "windows PyPI smoke: wheel install propagates native failure" "$PYPI_WINDOWS" \
-  '  & $python -m pip install --quiet "fathomdb==$Version"' "$native_exit_guard"
+assert_contains "windows PyPI smoke: wheel install retries transient CDN skew" "$PYPI_WINDOWS" \
+  'No matching distribution found for fathomdb=='
+assert_contains "windows PyPI smoke: wheel install propagates non-retry failure" "$PYPI_WINDOWS" \
+  'if ($installExit -ne 0) { exit $installExit }'
 assert_next_line "windows PyPI smoke: SDK exercise propagates native failure" "$PYPI_WINDOWS" \
   '  & $python -I $consumer $Version $db write' "$native_exit_guard"
 assert_next_line "windows PyPI smoke: reopen propagates native failure" "$PYPI_WINDOWS" \
   '  & $python -I $consumer $Version $db reopen' "$native_exit_guard"
+assert_contains "windows PyPI smoke: runs Slice 55 installed trace/explain/refusals smoke" "$PYPI_WINDOWS" \
+  'smoke_slice55_installed.py'
+assert_next_line "windows PyPI smoke: Slice 55 installed smoke propagates native failure" "$PYPI_WINDOWS" \
+  '  & $python $slice55' "$native_exit_guard"
 assert_next_line "windows npm smoke: npm init propagates native failure" "$NPM_WINDOWS" \
   '  npm init -y | Out-Null' "$native_exit_guard"
 assert_next_line "windows npm smoke: npm install propagates native failure" "$NPM_WINDOWS" \

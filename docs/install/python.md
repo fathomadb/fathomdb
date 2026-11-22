@@ -4,7 +4,7 @@ The `fathomdb` Python SDK is a [PyO3](https://pyo3.rs/) binding over the
 native Rust runtime. Wheels are platform-tagged (no source build
 required on supported platforms).
 
-> **Release 0.8.30, pre-1.0 beta.** Wheels cover Linux x86_64/glibc, Linux
+> **Release 0.8.31 (pre-publication documentation target; newest published release is 0.8.30), pre-1.0 beta.** Wheels cover Linux x86_64/glibc, Linux
 > AArch64/glibc, macOS x64/arm64, and Windows x64. Other hosts must use the
 > from-source path below. FathomDB is pre-1.0 and the surface is **beta**.
 
@@ -56,7 +56,7 @@ separate Pages delivery passed public readback and installed Orin smokes;
 verify its retained digest before installation.
 It is distributed through first-party GitHub Pages, separately from PyPI.
 The generic 0.8.30 AArch64 wheel remains CPU-only, including on Jetson.
-CUDA 13 artifact delivery, including Tegra, is planned for 0.8.31.
+CUDA 13 artifact delivery is deferred beyond 0.8.31 (`0.8.31` retains the CUDA 12.6 + classic Jetson Orin stack).
 
 On a confirmed classic Jetson Orin (L4T R36 / JetPack 6, CUDA 12.6), install
 the exact 0.8.30 Tegra build from the first-party index. Confirm its
@@ -100,7 +100,7 @@ contract, offline/`HF_TOKEN` notes, caveats, and migration.
 from fathomdb import Engine
 
 engine = Engine.open("./hello.fdb")
-engine.write([])
+engine.write([{"kind": "note", "body": "hello fathomdb", "source_id": "verify"}])
 engine.search("hello")
 engine.close()
 print("ok")

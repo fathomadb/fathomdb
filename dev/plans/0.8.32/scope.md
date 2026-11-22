@@ -17,16 +17,16 @@ non-strict write mode**, and deep durability qualification (**backup/restore/
 rebuild, power-loss recovery, and coverage-guided fuzzing**).
 
 *(Created by owner 2026-11-21 split of the original `0.8.31` scope so property
-graph + Memex unblockers + Inspector ship cleanly in `0.8.31` while security,
+graph + SDK/CLI unblockers + Inspector ship cleanly in `0.8.31` while security,
 read+write MCP, bulk opt-in, and deep durability receive dedicated focus here.)*
 
 ## In scope
 
-### 1. Engine-enforced caller scope and write authority (External Reviewer P1 + Memex Graph Ask 6)
+### 1. Engine-enforced caller scope and write authority (External Reviewer P1)
 
 - Activate and enforce the first-class caller/namespace **`scope`** boundary
   (using the `scope` column reserved in `0.8.31` schema 38 — **no breaking
-  schema bump for `0.8.31` / Memex stores**) across:
+  schema bump for `0.8.31` stores**) across:
   - `search` (FTS, vector, hybrid, filtered, and `use_graph_arm`),
   - `fetch` / `read.*`,
   - `graph.expand` (current and historical `as_of`),

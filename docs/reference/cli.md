@@ -1,6 +1,6 @@
 # CLI
 
-Binary: `fathomdb`. Operator-only; the CLI does **not** ship
+Binary: `fathomdb` (0.8.31 documentation target; newest published release: 0.8.30). Operator-only; the CLI does **not** ship
 application-surface verbs like `search`, `get`, or `list`. Use the SDK
 for those.
 

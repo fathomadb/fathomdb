@@ -5,14 +5,15 @@ agents. It combines SQLite, FTS5, and `sqlite-vec` in your process: open a
 local database file, write records with provenance, and retrieve them through
 the Python, TypeScript, or Rust application SDK.
 
-## Release 0.8.30
+## Release 0.8.30 (0.8.31 in development)
 
 FathomDB is pre-1.0 beta; public contracts can change between micro releases.
+This checkout targets the in-development **0.8.31** release; **0.8.30** is the
+newest published release on crates.io, PyPI and npm, with its matching Tegra
+CUDA wheel and Node addon available through first-party GitHub Pages.
 0.8.30 adds explicit module model release, optimizes eligible node-only hybrid
 retrieval, and fixes MCP revision attribution and partial-span dependency tracing.
-Store format remains 37, with no automatic migration. Version 0.8.30 is
-published on crates.io, PyPI and npm; the matching Tegra CUDA wheel and Node
-addon are available through first-party GitHub Pages. See the
+Store format remains 37, with no automatic migration. See the
 [release notes](docs/release-notes/0.8.30.md) and [changelog](CHANGELOG.md).
 
 ## What you can build
@@ -93,7 +94,7 @@ first-party GitHub Pages, with exact URLs and digests in the
 [retained manifest](scripts/release/tegra-pages-retained.json). Keep the Node
 main/addon versions matched; omit the addon to use the generic ARM64 CPU
 package. Earlier verified Tegra artifacts remain available.
-CUDA 13 artifact delivery, including Tegra, is planned for 0.8.31.
+CUDA 13 artifact delivery is deferred beyond 0.8.31 (`0.8.31` retains the CUDA 12.6 + classic Jetson Orin stack).
 See [Python installation](docs/install/python.md#jetson-tegra-cuda) and
 [Node installation](docs/install/typescript.md#classic-jetson-orin-with-cuda).
 
@@ -129,7 +130,8 @@ matching governed names across the three languages.
 - [Agent/contributor instructions](AGENTS.md): setup, TDD, isolated worktrees,
   and required verification. Find the live release with
   `python3 scripts/release-current.py`.
-- Implementation: [Rust workspace](src/rust/crates/), [Python SDK](src/python/),
+- Implementation: 13 Rust workspace members ([core crates](src/rust/crates/) and
+  [inspector](src/inspector/)), [Python SDK](src/python/),
   [TypeScript SDK](src/ts/). [Cross-language fixtures](test/) complement
   package-local tests.
 

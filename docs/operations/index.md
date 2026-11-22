@@ -1,6 +1,6 @@
 # Operations
 
-Operations docs cover the 0.8.30 release surface.
+Operations docs cover the 0.8.31 release target (newest published release: 0.8.30).
 
 - [Tegra Pages publication](tegra-pages-publication.md) — the separately
   authorized, exact-commit route for the matching Tegra wheel and Node addon.

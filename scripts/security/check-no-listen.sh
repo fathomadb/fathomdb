@@ -22,6 +22,11 @@ if ! command -v strace >/dev/null 2>&1; then
     echo "  (apt install strace, ~50KB, unprivileged)." >&2
     exit 2
 fi
+if ! command -v timeout >/dev/null 2>&1; then
+    echo "AC-036 BLOCKER: timeout(1) not installed." >&2
+    exit 2
+fi
+SECURITY_TIMEOUT_SECS="${FATHOMDB_SECURITY_TIMEOUT_SECS:-60}"
 
 # Cargo runs from the checkout below, including for relative target paths.
 CARGO_TARGET_PATH="${CARGO_TARGET_DIR:-$REPO_ROOT/target}"
@@ -52,9 +57,16 @@ DB="$TMPDIR/cycle.sqlite"
 # target starts, so it is an unavailable measurement capability, not a
 # security-cycle failure.
 set +e
-strace -f -e trace=socket,listen -o "$TRACE" "$BIN" "$DB" >/dev/null 2>"$STRACE_STDERR"
+timeout --kill-after=5s "${SECURITY_TIMEOUT_SECS}s" \
+    strace -f -e trace=socket,listen -o "$TRACE" "$BIN" "$DB" >/dev/null 2>"$STRACE_STDERR"
 STRACE_STATUS=$?
 set -e
+if [ "$STRACE_STATUS" -eq 124 ] || [ "$STRACE_STATUS" -eq 137 ]; then
+    echo "AC-036 VIOLATION: strace security_cycle timed out after ${SECURITY_TIMEOUT_SECS}s (exit ${STRACE_STATUS})" >&2
+    cat "$STRACE_STDERR" >&2 || true
+    cat "$TRACE" >&2 || true
+    exit 1
+fi
 if [ "$STRACE_STATUS" -ne 0 ]; then
     if grep -E '^strace:.*(PTRACE_TRACEME|ptrace.*Operation not permitted)' "$STRACE_STDERR" >/dev/null; then
         cat "$STRACE_STDERR" >&2

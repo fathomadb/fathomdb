@@ -83,10 +83,9 @@ const receipt = await engine.write([
 console.log(receipt.cursor); // → 1
 ```
 
-An **empty** batch (`write([])`) is also valid and carries no items, so
-it needs no `source_id` — that is what the release smoke uses to
-exercise the writer thread and op-store wiring. Real client batches are
-caller-shaped canonical rows; see
+An **empty** batch (`write([])`) is rejected with `WriteValidationError` —
+batches must contain at least one canonical or operational item. Real client
+batches are caller-shaped canonical rows; see
 [concepts](../concepts/index.md).
 
 ## 4. Run a search query

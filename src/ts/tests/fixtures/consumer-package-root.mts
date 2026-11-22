@@ -17,7 +17,9 @@ import {
 const config: EngineConfig = { schedulerRuntimeThreads: 1 };
 const frozen = null as unknown as FrozenReadContextV1;
 const opened: Promise<Engine> = Engine.open("consumer.db", { engineConfig: config });
-const written: Promise<WriteReceipt> = opened.then((engine) => engine.write([]));
+const written: Promise<WriteReceipt> = opened.then((engine) =>
+  engine.write([{ kind: "note", body: "consumer-smoke", sourceId: "consumer-smoke" }]),
+);
 const searched: Promise<SearchResult> = opened.then((engine) => engine.search("term"));
 const evidence: Promise<EvidenceSearchResultV1> = opened.then((engine) =>
   engine.searchWithEvidence({

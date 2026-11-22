@@ -12,7 +12,7 @@ consumption routes:
   `fathomdb recover` verbs. Operator-only; does **not**
   ship `search` / `get` / `list` query verbs.
 
-> **Release 0.8.30, pre-1.0 beta.**
+> **Release 0.8.31 (pre-publication documentation target; newest published release is 0.8.30), pre-1.0 beta.**
 
 ## Requirements
 

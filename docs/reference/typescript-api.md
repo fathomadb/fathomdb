@@ -3,7 +3,7 @@
 Package: `fathomdb`. Authoritative spec:
 [`dev/interfaces/typescript.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.30/dev/interfaces/typescript.md).
 
-> **Release 0.8.30, pre-1.0 beta.**
+> **Release 0.8.31 (pre-publication documentation target; newest published release is 0.8.30), pre-1.0 beta.**
 
 The TypeScript, Python, and Rust SDKs share the governed operation surface
 and error categories. Language calling conventions differ. See
@@ -103,8 +103,9 @@ is no dense-disabled report mode. See [compatibility errors](errors.md) and
 
 Enqueue a batch of canonical rows.
 
-- `batch` (`unknown[]`) — caller-shaped canonical rows. Defaults to `[]`
-  (a valid, item-less batch).
+- `batch` (`unknown[]`) — non-empty array of caller-shaped canonical or
+  operational rows. Passing `undefined` or an empty array (`[]`) rejects with
+  `WriteValidationError`.
 
 Every **node** item accepts these keys:
 
@@ -823,7 +824,7 @@ interface SearchExpandResult {
 
 ## Errors
 
-`fathomdb` exports `FathomDbError` (the catch-all base) plus **44**
+`fathomdb` exports `FathomDbError` (the catch-all base) plus **46**
 concrete classes below it. See [errors reference](errors.md).
 
 The lifecycle / erasure verbs reject with `IllegalTransitionError`,

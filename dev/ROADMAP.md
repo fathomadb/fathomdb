@@ -1,7 +1,7 @@
 ---
 status: ACTIVE
 scope: post-0.8.26
-updated: 2026-11-19
+updated: 2026-11-22
 ---
 
 # FathomDB roadmap after 0.8.26
@@ -21,23 +21,17 @@ file, and board. Publishing always requires a separate explicit HITL decision.
 
 ## Current position
 
-- **0.8.30 is the active release** on `release/0.8.30`. Slices10,20,30,40 and55
-  are integrated. Reviewed partial50 runtime work is integrated;60 is active
-  underseq-409 to supply prerequisites for finishing50. The
-  [state](plans/release-state-0.8.30.json) and [board](plans/runs/STATUS-0.8.30.md)
-  own current progress and qualification limits. Publication remains held.
-- **Historical 0.8.27 planning snapshot:** 0.8.26 was the published predecessor;
-  its retained state contains the historical publication receipt.
-- **0.8.27 was the active implementation release** on `release/0.8.27`
-  in the following 2026-10-10 snapshot.
-  Prework approved correction-safe erasure and a behavior-preserving semantic
-  refactor. As of 2026-10-10, release state records Slice 135's bounded
-  system qualification and Slice 117's qualified, unpublished Jetson Node
-  delivery route complete alongside the erasure fix (Slice 20) and the
-  NAPI, TypeScript, Python and Rust SDK slices (110–132). Slice 140 is next,
-  followed by final-candidate qualification (150) and publication (160).
-  Its plan, state, and board are the execution authority; publication remains
-  separately gated.
+- **Active release lookup:** Run `python3 scripts/release-current.py` for the
+  authoritative live release state and board. As of `2026-11-22`, **`0.8.31` is
+  the active release** on `release/0.8.31` (property graph core Option 1,
+  strict-only write integrity, historical graph `as_of`, SDK/CLI unblockers +
+  lockstep `fathomdb-cli` PyPI wheel + minimal 37→38 `fathomdb migrate`, and
+  Inspector integration). See [0.8.31 plan](plans/0.8.31/plan.md),
+  [state](plans/release-state-0.8.31.json), and
+  [board](plans/runs/STATUS-0.8.31.md).
+- **`0.8.30` is published** (`v0.8.30`, schema `37`, including matching Tegra
+  CUDA Pages artifacts). Historical `0.8.27`–`0.8.30` snapshots below remain
+  for archival continuity until the `0.8.33` repo declutter.
 - An open todo does not automatically become roadmap scope. This file includes
   work only when a current schedule, draft scope, or explicit backlog/proposal
   record preserves it.
@@ -57,12 +51,12 @@ file, and board. Publishing always requires a separate explicit HITL decision.
 
 | Release | Status | Theme |
 | --- | --- | --- |
-| **0.8.27** | **Active implementation; Slice 117 complete, 140 next** | Correction-safe source erasure, semantic decomposition, bounded system qualification, and the qualified, unpublished Jetson CUDA Node route are recorded. Slice 160 owns publication and post-publication proof. |
-| **0.8.28** | **Proposed release scope** | Advanced retrieval and continuation, Tegra CUDA memory-pool adoption, four owner-placed Slice 135 follow-ups, cudarc fork delivery, and filtered direct body FTS. |
-| **0.8.29** | **Review checkpoint** | Candidate-selection experiments. |
-| **0.8.30** | **Active quality release; 10/20/30/40/55 integrated** | Correctness, performance, latency, robustness, testing value and efficient CI/CD; the retained module-model release is reconciled in the [release plan](plans/0.8.30/plan.md). |
-| **0.8.31** | **Review checkpoint** | Associative retrieval and automatic profile-routing experiments. |
-| **0.8.33** | **Review checkpoint** | Expanded integrity, repair-planning, and release-matrix experiments. |
+| **0.8.27–0.8.30** | **Published** | Completed historical releases (`0.8.30` is the newest published release on schema 37). |
+| **0.8.31** | **Active implementation (`release/0.8.31`)** | Property graph core (Option 1), strict-only write integrity, bitemporal historical graph (`as_of`), SDK/CLI unblockers (`fathomdb-cli` PyPI wheel, minimal 37→38 `fathomdb migrate`), and Inspector integration ([plan](plans/0.8.31/plan.md)). |
+| **0.8.32** | **Planned** | Engine-enforced caller scope & write authority, production read+write `fathomdb-mcp`, opt-in bulk writes, and hardened durability/fuzzing ([plan](plans/0.8.32/plan.md)). |
+| **0.8.33** | **Planned** | Public OSS readiness, repo declutter, automated docs, architecture guides, and CI-tested recipes ([plan](plans/0.8.33/plan.md)). |
+| **0.8.34** | **Planned** | Full crash-resilient multi-version `fathomdb migrate` (`0.8.30+`) and local personal-agent enablement ([plan](plans/0.8.34/plan.md)). |
+| **0.8.35** | **Planned** | Publishable scale/latency benchmarking and competitive evaluations ([plan](plans/0.8.35/plan.md)). |
 | **0.9.0** | Planning only | Define post-0.8.x product identity and the next major release. Vercel UI SDK research and agent data interfaces are preserved in the [0.9.0 backlog](plans/0.9.0/backlog.md) under seq-404. No implementation is scheduled by the program schedule. |
 | **Post-1.0, pre-2.1** | Backlog | ANN indexing for the 100k/1M vector-latency tiers. |
 

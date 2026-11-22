@@ -11,8 +11,8 @@ date: 2026-11-21
 
 Deliver FathomDB's **full, crash-resilient multi-version schema and data
 migration contract** across `0.8.30` (schema 37), `0.8.31`, and `0.8.32`
-databases — generalizing the minimal Memex helper introduced in `0.8.31` — and
-enable local personal agents (**Memex, Hermes, OpenClaw**, and similar
+databases — generalizing the minimal 37→38 helper introduced in `0.8.31` — and
+enable local personal agents (**Hermes, OpenClaw**, and similar
 local-first agents) to adopt FathomDB cleanly as their primary database.
 
 ## In scope
@@ -52,12 +52,12 @@ local-first agents) to adopt FathomDB cleanly as their primary database.
   - Document the forward compatibility and upgrade policy clearly in
     `docs/operations/` and `docs/compatibility/`.
 
-### 2. Local personal agent enablement (Memex, Hermes, OpenClaw, etc.)
+### 2. Local personal agent enablement (Hermes, OpenClaw, and generic local agents)
 
 - **Turnkey personal-agent integration kits / reference adapters**:
   - Provide tested integration adapters, read+write MCP server profiles, and
-    starter templates targeting **Memex, Hermes, and OpenClaw** (and a generic
-    local-agent blueprint) mapping:
+    starter templates targeting **Hermes, OpenClaw**, and a generic
+    local-agent blueprint mapping:
     - conversation turns, long-term preferences, and factual claims (plain-text
       `body` + outside-`body` typed properties);
     - property-rich entity and relationship graphs with temporal supersession
@@ -67,16 +67,16 @@ local-first agents) to adopt FathomDB cleanly as their primary database.
     - engine-enforced caller/persona scoping (separating user statements, agent
       inferences, and external tool/policy sources); and
     - user-initiated correction and erasure (`purge` / `erase_source`).
-- **Personal-agent operational ergonomics (incorporating `0.8.30`–`0.8.32` Memex
-  lessons)**:
+- **Personal-agent operational ergonomics (incorporating `0.8.30`–`0.8.32`
+  field lessons)**:
   - Smooth zero-friction local install (`fathomdb`, `fathomdb-cli` PyPI wheels,
     and `fathomdb-mcp`) and offline embedder cache management.
   - Predictable idle memory footprint (`release_models()` and clean lifecycle
     guidance for long-running local daemons).
   - Documented and tested single-writer / multi-reader coordination patterns
     (agent SDK writer + MCP reader/writer + Inspector inspection).
-  - Portable local backup/export and live upgrade proof on real `0.8.30` and
-    `0.8.31` Memex databases upgraded directly to `0.8.34`.
+  - Portable local backup/export and live upgrade proof on real closed `0.8.30`
+    and `0.8.31` databases upgraded directly to `0.8.34`.
 
 ## Out of scope
 

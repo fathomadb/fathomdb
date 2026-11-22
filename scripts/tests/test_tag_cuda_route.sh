@@ -102,36 +102,44 @@ reject_bootstrap() {
   fi
   printf 'PASS bootstrap rejects %s\n' "$label"
 }
-for tag in v0.8.28 v0.8.29 v0.8.30; do
-  export ROUTE_TEST_TAG="$tag" ROUTE_BOOTSTRAP_ENV="$fixture/env-tag.json"
-  printf '{"branch_policies":[{"name":"main","type":"branch"},{"name":"%s","type":"tag"}]}\n' "$tag" >"$ROUTE_BOOTSTRAP_ENV"
-  if output="$(run_bootstrap "$tag")" \
-    && [[ "$output" == *"bootstrap ready for $tag"* ]] \
-    && [[ "$output" == *"GPU approval HELD"* ]] \
-    && [[ "$output" != *"can reach the GPU runner"* ]]; then
-    printf 'PASS %s explicit absent-tag bootstrap keeps GPU approval held\n' "$tag"
-  else
-    printf 'FAIL %s absent-tag bootstrap rejected or claimed an already-routable tag\n' "$tag" >&2
-    exit 1
-  fi
-  reject_bootstrap 'unset marker' unset
-  reject_bootstrap 'wrong marker' v0.8.27
-  reject_bootstrap 'existing tag' "$tag" ROUTE_REF_STATE=present
-  reject_bootstrap 'non-404 response' "$tag" ROUTE_REF_STATE=forbidden
-  reject_bootstrap 'network failure' "$tag" ROUTE_REF_STATE=network
-  reject_bootstrap 'malformed ref response' "$tag" ROUTE_REF_STATE=malformed
-  reject_bootstrap 'missing ref status' "$tag" ROUTE_REF_STATE=malformed-status
-  reject_bootstrap 'successful malformed ref response' "$tag" ROUTE_REF_STATE=success-404
-  reject_bootstrap 'absent trusted main workflow' "$tag" ROUTE_GROUP_JSON="$fixture/no-main.json"
-  reject_bootstrap 'unrestricted group' "$tag" ROUTE_GROUP_JSON="$fixture/unrestricted.json"
-  reject_bootstrap 'wrong group name' "$tag" ROUTE_GROUP_JSON="$fixture/wrong-name.json"
-  reject_bootstrap 'wrong group visibility' "$tag" ROUTE_GROUP_JSON="$fixture/public-group.json"
-  reject_bootstrap 'missing environment tag policy' "$tag" ROUTE_ENV_JSON="$fixture/env-missing.json"
-  reject_bootstrap 'missing required-reviewer rule' "$tag" ROUTE_ENV_DETAILS_JSON="$fixture/no-reviewers.json"
-  reject_bootstrap 'empty reviewers' "$tag" ROUTE_ENV_DETAILS_JSON="$fixture/empty-reviewers.json"
-  reject_bootstrap 'malformed reviewers' "$tag" ROUTE_ENV_DETAILS_JSON="$fixture/malformed-reviewers.json"
-done
+ws_version="$(awk '
+  /^\[workspace\.package\]/ { in_block = 1; next }
+  /^\[/                     { in_block = 0 }
+  in_block && /^version[[:space:]]*=/ {
+    n = split($0, parts, "\"")
+    if (n >= 3) { print parts[2] }
+    exit
+  }
+' "$repo_root/Cargo.toml")"
+tag="v${ws_version}"
+export ROUTE_TEST_TAG="$tag" ROUTE_BOOTSTRAP_ENV="$fixture/env-tag.json"
+printf '{"branch_policies":[{"name":"main","type":"branch"},{"name":"%s","type":"tag"}]}\n' "$tag" >"$ROUTE_BOOTSTRAP_ENV"
+if output="$(run_bootstrap "$tag")" \
+  && [[ "$output" == *"bootstrap ready for $tag"* ]] \
+  && [[ "$output" == *"GPU approval HELD"* ]] \
+  && [[ "$output" != *"can reach the GPU runner"* ]]; then
+  printf 'PASS %s explicit absent-tag bootstrap keeps GPU approval held\n' "$tag"
+else
+  printf 'FAIL %s absent-tag bootstrap rejected or claimed an already-routable tag\n' "$tag" >&2
+  exit 1
+fi
+reject_bootstrap 'unset marker' unset
+reject_bootstrap 'wrong marker' v0.8.27
+reject_bootstrap 'existing tag' "$tag" ROUTE_REF_STATE=present
+reject_bootstrap 'non-404 response' "$tag" ROUTE_REF_STATE=forbidden
+reject_bootstrap 'network failure' "$tag" ROUTE_REF_STATE=network
+reject_bootstrap 'malformed ref response' "$tag" ROUTE_REF_STATE=malformed
+reject_bootstrap 'missing ref status' "$tag" ROUTE_REF_STATE=malformed-status
+reject_bootstrap 'successful malformed ref response' "$tag" ROUTE_REF_STATE=success-404
+reject_bootstrap 'absent trusted main workflow' "$tag" ROUTE_GROUP_JSON="$fixture/no-main.json"
+reject_bootstrap 'unrestricted group' "$tag" ROUTE_GROUP_JSON="$fixture/unrestricted.json"
+reject_bootstrap 'wrong group name' "$tag" ROUTE_GROUP_JSON="$fixture/wrong-name.json"
+reject_bootstrap 'wrong group visibility' "$tag" ROUTE_GROUP_JSON="$fixture/public-group.json"
+reject_bootstrap 'missing environment tag policy' "$tag" ROUTE_ENV_JSON="$fixture/env-missing.json"
+reject_bootstrap 'missing required-reviewer rule' "$tag" ROUTE_ENV_DETAILS_JSON="$fixture/no-reviewers.json"
+reject_bootstrap 'empty reviewers' "$tag" ROUTE_ENV_DETAILS_JSON="$fixture/empty-reviewers.json"
+reject_bootstrap 'malformed reviewers' "$tag" ROUTE_ENV_DETAILS_JSON="$fixture/malformed-reviewers.json"
 
-export ROUTE_TEST_TAG=v0.8.31
-printf '{"branch_policies":[{"name":"v0.8.31","type":"tag"}]}\n' >"$ROUTE_BOOTSTRAP_ENV"
-reject_bootstrap 'uncommissioned first tag despite compatible route settings' v0.8.31
+export ROUTE_TEST_TAG=v9.9.9
+printf '{"branch_policies":[{"name":"v9.9.9","type":"tag"}]}\n' >"$ROUTE_BOOTSTRAP_ENV"
+reject_bootstrap 'uncommissioned first tag despite compatible route settings' v9.9.9

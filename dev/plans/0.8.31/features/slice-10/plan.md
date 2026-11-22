@@ -1,6 +1,6 @@
 ---
 title: Slice 10 Plan — 0.8.31 Prework Prep
-status: APPROVED_FOR_HITL_GATE_2
+status: CLOSED
 target_release: 0.8.31
 slice: 10
 date: 2026-11-22

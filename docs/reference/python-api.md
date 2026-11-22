@@ -3,7 +3,7 @@
 Module: `fathomdb`. Authoritative spec:
 [`dev/interfaces/python.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.30/dev/interfaces/python.md).
 
-> **Release 0.8.30, pre-1.0 beta.**
+> **Release 0.8.31 (pre-publication documentation target; newest published release is 0.8.30), pre-1.0 beta.**
 
 ## Representative top-level imports
 
@@ -94,8 +94,9 @@ is no dense-disabled report mode. See [compatibility errors](errors.md) and
 Write a batch of canonical rows synchronously through the primary writer
 connection; return its committed receipt.
 
-- `batch` (`list[Any] | None`) — caller-shaped canonical rows.
-  Defaults to `[]` (a valid, item-less batch).
+- `batch` (`list[Any] | None`) — non-empty list of caller-shaped canonical
+  or operational rows. Passing `None` or an empty list (`[]`) raises
+  `WriteValidationError`.
 
 Every **node** item accepts these keys:
 
@@ -840,7 +841,7 @@ Returned by `graph.search_expand`. `all_logical_ids` contains the
 
 ## Errors
 
-`fathomdb.errors` exports `EngineError` (the catch-all base) plus **44**
+`fathomdb.errors` exports `EngineError` (the catch-all base) plus **46**
 concrete classes below it. See [errors reference](errors.md) for the full
 matrix and recovery-hint codes.
 

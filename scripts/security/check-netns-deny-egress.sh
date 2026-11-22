@@ -35,6 +35,11 @@ if ! command -v unshare >/dev/null 2>&1; then
     echo "AC-037 BLOCKER: unshare(1) not available" >&2
     exit 2
 fi
+if ! command -v timeout >/dev/null 2>&1; then
+    echo "AC-037 BLOCKER: timeout(1) not available" >&2
+    exit 2
+fi
+SECURITY_TIMEOUT_SECS="${FATHOMDB_SECURITY_TIMEOUT_SECS:-60}"
 
 # Environmental capability checks come BEFORE the cargo build: a host that
 # can't create a rootless userns (e.g. ubuntu-latest/24.04 AppArmor) should
@@ -83,12 +88,21 @@ DB="$TMPDIR/cycle.sqlite"
 # Inside the netns we bring loopback up so the engine's intra-process
 # UNIX/loopback bookkeeping (none expected) can still proceed.
 # strace -f follows the engine's reader-pool threads.
-if ! unshare -rUn -- bash -c '
-    set -euo pipefail
-    ip link set lo up || true
-    exec strace -f -e trace=connect -o "$1" "$2" "$3" >/dev/null
-' bash "$TRACE" "$BIN" "$DB"; then
-    echo "AC-037: security_cycle exited non-zero in netns under strace" >&2
+set +e
+timeout --kill-after=5s "${SECURITY_TIMEOUT_SECS}s" \
+    unshare -rUn -- bash -c '
+        set -euo pipefail
+        ip link set lo up || true
+        exec strace -f -e trace=connect -o "$1" "$2" "$3" >/dev/null
+    ' bash "$TRACE" "$BIN" "$DB"
+NETNS_STATUS=$?
+set -e
+if [ "$NETNS_STATUS" -eq 124 ] || [ "$NETNS_STATUS" -eq 137 ]; then
+    echo "AC-037 VIOLATION: netns security_cycle timed out after ${SECURITY_TIMEOUT_SECS}s (exit ${NETNS_STATUS})" >&2
+    cat "$TRACE" >&2 || true
+    exit 1
+elif [ "$NETNS_STATUS" -ne 0 ]; then
+    echo "AC-037: security_cycle exited non-zero in netns under strace (exit ${NETNS_STATUS})" >&2
     cat "$TRACE" >&2 || true
     exit 1
 fi

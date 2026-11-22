@@ -469,3 +469,14 @@ refresh in the closing commit when you touch a doc).
 | `dev/inspector/research/compatibility-architectures.md` | Implemented compatibility patterns, source examples and Inspector implications | Inspector compatibility research | 2026-10-29 |
 | `dev/inspector/reviews/compatibility-architecture-review.md` | Astra evidence review, minimal architecture recommendation and disproof tests | Inspector compatibility research | 2026-10-29 |
 | `dev/inspector/research/compatibility-evolution-stress-test.md` | Evolution scenarios, semantic coherence limits and proposed disproof tests | Inspector compatibility research | 2026-10-29 |
+
+## Release 0.8.31 ADRs and plans
+
+| Path | Purpose | Owning slice / AC | Last-touched |
+| --- | --- | --- | --- |
+| `dev/adr/ADR-0.8.31-property-graph-inline-and-declared-indexes.md` | Schema 38 inline properties, declared indexes, commit timestamps, scope, vector kinds, audit | 0.8.31 Slice 0 / 10 / 20 | 2026-11-22 |
+| `dev/adr/ADR-0.8.31-strict-endpoint-integrity.md` | Strict-only write endpoint integrity contract across all 0.8.31 write paths | 0.8.31 Slice 0 / 30 | 2026-11-22 |
+| `dev/adr/ADR-0.8.31-historical-graph-and-fused-seeding.md` | Bitemporal as_of traversal, typed traversal predicates, opt-in fused seeding & seed provenance | 0.8.31 Slice 0 / 10 / 30 / 40 | 2026-11-22 |
+| `dev/adr/ADR-0.8.31-cli-pypi-wheel-and-37-to-38-upgrade.md` | Lockstep fathomdb-cli PyPI binary wheel, minimal 37->38 migrate helper & SDK enhancements | 0.8.31 Slice 0 / 10 / 50 | 2026-11-22 |
+| `dev/plans/0.8.31/scope.md` · `plan.md` | Active 0.8.31 scope, HITL decisions, requirements and Phase B slice ladder (Slices 0–80) | 0.8.31 Slice 0 / 10 | 2026-11-22 |
+| `dev/plans/release-state-0.8.31.json` · `dev/plans/runs/STATUS-0.8.31.md` | Machine-readable 0.8.31 release state and board of record | 0.8.31 | 2026-11-22 |

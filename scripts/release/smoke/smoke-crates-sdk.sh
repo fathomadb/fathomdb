@@ -8,7 +8,18 @@ if [ "$#" -ne 1 ] || ! [[ "$1" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]];
 fi
 version="$1"
 work="$(mktemp -d)"
-trap 'rm -rf "$work"' EXIT
+smoke_complete=0
+cleanup() {
+  local status=$? cleanup_status=0
+  trap - EXIT
+  rm -rf "$work" || cleanup_status=$?
+  # Bash 3 can enter EXIT with status 0 after a fatal nounset expansion.
+  if [ "$status" -eq 0 ]; then
+    if [ "$smoke_complete" -ne 1 ]; then status=1; else status=$cleanup_status; fi
+  fi
+  exit "$status"
+}
+trap cleanup EXIT
 mkdir -p "$work/src"
 cat > "$work/Cargo.toml" <<EOF
 [package]
@@ -29,4 +40,5 @@ cp "$script_dir/registry-sdk.rs" "$work/src/main.rs"
   "$consumer" "$work/smoke.sqlite" write
   "$consumer" "$work/smoke.sqlite" reopen
 )
+smoke_complete=1
 printf 'smoke-crates-sdk: ok — fathomdb-sdk %s resolved from crates.io; independent write and reopen processes exited cleanly\n' "$version"

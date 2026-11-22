@@ -3,13 +3,13 @@ title: FathomDB data-plane architecture v2
 status: ACTIVE
 architecture_version: 2.2
 implementation_status: active source authority for the integrated profile
-target_release: 0.8.30
+target_release: 0.8.31
 baseline: dev/design/fathomdb-data-plane-architecture-v1.md
 approval_status: APPROVED
 approved_by: 0.8.25 Slice 6 HITL seq-272..274
 activation_gate: 0.8.25 Slice 7 S7-07 GREEN
 activated_on: 2026-09-02
-last_reconciled: 2026-11-21 module model ownership and current retrieval profile
+last_reconciled: 2026-11-22 0.8.31 workspace profile (13 members including fathomdb-inspector)
 ---
 
 # FathomDB data-plane architecture v2
@@ -40,10 +40,11 @@ duplicated liveness rules, or manual projection cleanup.
 
 ### Workspace and application SDK ownership
 
-The current Rust workspace has **twelve** members: `fathomdb`, `fathomdb-sdk`,
+The current Rust workspace has **thirteen** members: `fathomdb`, `fathomdb-sdk`,
 `fathomdb-engine`, `fathomdb-cli`, `fathomdb-query`, `fathomdb-schema`,
 `fathomdb-embedder-api`, `fathomdb-embedder`, `fathomdb-py`, `fathomdb-napi`,
-the private `fathomdb-mcp` binary and the internal `fathomdb-tc5-benchmark`. The dedicated
+the private `fathomdb-mcp` binary, the internal `fathomdb-tc5-benchmark`, and
+`fathomdb-inspector` (`src/inspector/`). The dedicated
 Rust application SDK is a peer of the Python and TypeScript SDKs, with the
 53 live governed operation endpoints across `Engine`, `read`, `graph`, `admin` and
 root-level `rerank`. The standalone `embed_batch_cls` and explicit `release_models` operations

@@ -1,7 +1,7 @@
 # Compatibility
 
 Supported platforms, toolchains, and version-alignment policy for the
-**0.8.30** release.
+Documentation target: **0.8.31** (pre-publication; newest published release is **0.8.30**).
 
 > **Pre-1.0 = beta.** FathomDB is on a pre-1.0 line. The surface may
 > change between micro releases; consult the
@@ -70,7 +70,7 @@ first-party GitHub Pages for classic Jetson Orin. Public readback and installed
 Orin smokes passed; verify the exact retained version and digest before
 installing. Generic 0.8.30
 AArch64 packages remain CPU-only, including on Jetson. CUDA 13 artifact
-delivery, including Tegra, is planned for 0.8.31.
+delivery is deferred beyond 0.8.31 (`0.8.31` retains the CUDA 12.6 + classic Jetson Orin stack).
 
 For a confirmed classic Jetson Orin only, the 0.8.30 distribution route for
 the exact `fathomdb==0.8.30+tegra` wheel is the interim first-party PEP 503

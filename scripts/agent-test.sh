@@ -166,6 +166,7 @@ run_tier_suite fast test-check-design-lifecycle bash scripts/tests/test_check_de
 run_tier_suite fast test-slice70-embedding-docs-contract bash scripts/tests/test_slice70_embedding_docs_contract.sh
 run_tier_suite fast test-slice70-cli-artifact-design bash scripts/tests/test_slice70_cli_artifact_design.sh
 run_tier_suite fast test-ac036-ptrace-blocker bash scripts/tests/test_ac036_ptrace_blocker.sh
+run_tier_suite fast test-security-timeouts bash scripts/tests/test_security_timeouts.sh
 run_tier_suite fast test-security-cycle-target-dir bash scripts/tests/test_security_cycle_target_dir.sh
 run_tier_suite fast test-agent-verify-markdown-scope bash scripts/tests/test_agent_verify_markdown_scope.sh
 
@@ -186,6 +187,8 @@ run_tier_suite fast test-agent-test-collect-all bash scripts/tests/test_agent_te
 
 # Scripts (bash): release-time preflight (tag/--check-files/CHANGELOG/metadata).
 run_tier_suite fast test-verify-release-gates bash scripts/tests/test_verify_release_gates.sh
+run_tier_suite fast test-extract-changelog-section bash scripts/tests/test_extract_changelog_section.sh
+run_tier_suite fast test-check-tag-cuda-route bash scripts/tests/test_check_tag_cuda_route.sh
 run_tier_suite fast test-verify-release-python-wheel bash scripts/tests/test_verify_release_python_wheel.sh
 run_tier_suite fast test-slice50-hook-inventory python3 scripts/tests/test_slice50_hook_inventory.py
 run_tier_suite fast test-wait-for-registry-visibility python3 scripts/tests/test_wait_for_registry_visibility.py

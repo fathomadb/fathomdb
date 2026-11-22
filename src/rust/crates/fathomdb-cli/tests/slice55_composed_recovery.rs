@@ -265,7 +265,7 @@ mod wal_only {
             assert_eq!(rows.iter().find(|r| r["name"] == "canonical_edges").unwrap()["rows"], 0);
             let (code, schema) = cli(&["doctor", "dump-schema", "--json", out.to_str().unwrap()]);
             assert_eq!(code, 0);
-            assert_eq!(schema["user_version"], 37);
+            assert_eq!(schema["user_version"], 38);
             let tables = schema["tables"].as_array().unwrap();
             assert!(tables.iter().any(|t| t["name"] == "canonical_nodes"));
             assert!(tables.iter().any(|t| t["name"] == "canonical_edges"));

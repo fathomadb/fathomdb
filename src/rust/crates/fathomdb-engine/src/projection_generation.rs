@@ -396,6 +396,12 @@ fn bootstrap_is_fresh(connection: &Connection, schema_version: u32) -> Result<bo
     if schema_version >= 36 && count(connection, "_fathomdb_erasure_requests")? != 0 {
         return Ok(false);
     }
+    if schema_version >= 38
+        && (count(connection, "canonical_property_values")? != 0
+            || count(connection, "_fathomdb_commit_timestamps")? != 0)
+    {
+        return Ok(false);
+    }
 
     let seeded_collection_is_exact: bool = connection
         .query_row(
@@ -465,7 +471,55 @@ fn put_scalar(bytes: &mut Vec<u8>, value: &str) {
     bytes.extend_from_slice(value.as_bytes());
 }
 
+fn put_declaration_base_row(
+    bytes: &mut Vec<u8>,
+    name: &str,
+    roles_json: &str,
+    fts: Option<String>,
+    embedder: Option<String>,
+    declared: i64,
+    source: Option<String>,
+) -> Result<(), EngineError> {
+    put_scalar(bytes, name);
+    let mut roles: Vec<String> = roles_json
+        .split(',')
+        .map(str::trim)
+        .filter(|role| !role.is_empty())
+        .map(str::to_string)
+        .collect();
+    roles.sort();
+    bytes.extend_from_slice(&(roles.len() as u64).to_be_bytes());
+    for role in roles {
+        put_scalar(bytes, &role);
+    }
+    for value in [fts, embedder] {
+        match value {
+            Some(value) => {
+                bytes.push(1);
+                put_scalar(bytes, &value);
+            }
+            None => bytes.push(0),
+        }
+    }
+    bytes.push(u8::from(declared != 0));
+    match source {
+        Some(value) => {
+            bytes.push(1);
+            let segments: Vec<String> = serde_json::from_str(&value).map_err(|_| corruption())?;
+            bytes.extend_from_slice(&(segments.len() as u64).to_be_bytes());
+            for segment in segments {
+                put_scalar(bytes, &segment);
+            }
+        }
+        None => bytes.push(0),
+    }
+    Ok(())
+}
+
 fn declaration_digest(connection: &Connection) -> Result<String, EngineError> {
+    let schema_version: u32 = connection
+        .query_row("PRAGMA user_version", [], |row| row.get(0))
+        .map_err(|_| EngineError::Storage)?;
     let mut bytes = b"fathomdb.projection-serving-declaration.v1\0".to_vec();
     put_scalar(&mut bytes, "projection-serving-set/1");
     for arm in
@@ -473,42 +527,43 @@ fn declaration_digest(connection: &Connection) -> Result<String, EngineError> {
     {
         put_scalar(&mut bytes, arm);
     }
-    let mut statement = connection
-        .prepare(
-            "SELECT name,roles,fts_tokenizer,vector_embedder,vector_declared,source \
-             FROM _fathomdb_projection_registry ORDER BY CAST(name AS BLOB)",
-        )
-        .map_err(|_| EngineError::Storage)?;
-    let rows = statement
-        .query_map([], |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, String>(1)?,
-                row.get::<_, Option<String>>(2)?,
-                row.get::<_, Option<String>>(3)?,
-                row.get::<_, i64>(4)?,
-                row.get::<_, Option<String>>(5)?,
-            ))
-        })
-        .map_err(|_| EngineError::Storage)?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|_| EngineError::Storage)?;
-    bytes.extend_from_slice(&(rows.len() as u64).to_be_bytes());
-    for (name, roles_json, fts, embedder, declared, source) in rows {
-        put_scalar(&mut bytes, &name);
-        let mut roles: Vec<String> = roles_json
-            .split(',')
-            .map(str::trim)
-            .filter(|role| !role.is_empty())
-            .map(str::to_string)
-            .collect();
-        roles.sort();
-        bytes.extend_from_slice(&(roles.len() as u64).to_be_bytes());
-        for role in roles {
-            put_scalar(&mut bytes, &role);
-        }
-        for value in [fts, embedder] {
-            match value {
+    if schema_version >= 38 {
+        let mut statement = connection
+            .prepare(
+                "SELECT name,roles,fts_tokenizer,vector_embedder,vector_declared,source,entity_class,vector_kinds \
+                 FROM _fathomdb_projection_registry ORDER BY CAST(name AS BLOB)",
+            )
+            .map_err(|_| EngineError::Storage)?;
+        let rows = statement
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, Option<String>>(2)?,
+                    row.get::<_, Option<String>>(3)?,
+                    row.get::<_, i64>(4)?,
+                    row.get::<_, Option<String>>(5)?,
+                    row.get::<_, String>(6)?,
+                    row.get::<_, Option<String>>(7)?,
+                ))
+            })
+            .map_err(|_| EngineError::Storage)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|_| EngineError::Storage)?;
+        bytes.extend_from_slice(&(rows.len() as u64).to_be_bytes());
+        for (name, roles_json, fts, embedder, declared, source, entity_class, vector_kinds) in rows
+        {
+            put_declaration_base_row(
+                &mut bytes,
+                &name,
+                &roles_json,
+                fts,
+                embedder,
+                declared,
+                source,
+            )?;
+            put_scalar(&mut bytes, &entity_class);
+            match vector_kinds {
                 Some(value) => {
                     bytes.push(1);
                     put_scalar(&mut bytes, &value);
@@ -516,18 +571,38 @@ fn declaration_digest(connection: &Connection) -> Result<String, EngineError> {
                 None => bytes.push(0),
             }
         }
-        bytes.push(u8::from(declared != 0));
-        match source {
-            Some(value) => {
-                bytes.push(1);
-                let segments: Vec<String> =
-                    serde_json::from_str(&value).map_err(|_| corruption())?;
-                bytes.extend_from_slice(&(segments.len() as u64).to_be_bytes());
-                for segment in segments {
-                    put_scalar(&mut bytes, &segment);
-                }
-            }
-            None => bytes.push(0),
+    } else {
+        let mut statement = connection
+            .prepare(
+                "SELECT name,roles,fts_tokenizer,vector_embedder,vector_declared,source \
+                 FROM _fathomdb_projection_registry ORDER BY CAST(name AS BLOB)",
+            )
+            .map_err(|_| EngineError::Storage)?;
+        let rows = statement
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, Option<String>>(2)?,
+                    row.get::<_, Option<String>>(3)?,
+                    row.get::<_, i64>(4)?,
+                    row.get::<_, Option<String>>(5)?,
+                ))
+            })
+            .map_err(|_| EngineError::Storage)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|_| EngineError::Storage)?;
+        bytes.extend_from_slice(&(rows.len() as u64).to_be_bytes());
+        for (name, roles_json, fts, embedder, declared, source) in rows {
+            put_declaration_base_row(
+                &mut bytes,
+                &name,
+                &roles_json,
+                fts,
+                embedder,
+                declared,
+                source,
+            )?;
         }
     }
     let profile: (String, String, String, u32) = connection

@@ -253,6 +253,9 @@ pub(crate) enum ProjectionClass {
     /// 0.8.20 Slice 15d (R-20-EAV) — the property-FTS5 shadow of attribute
     /// values (`searchable→FTS`). Same-transaction, row-owned.
     PropertyFts,
+    /// 0.8.31 Schema 38 — typed declared property index
+    /// (`canonical_property_values`). Same-transaction, row-owned.
+    PropertyValue,
 }
 
 /// 0.8.20 Slice 5a (R-20-E1) — one ROW-OWNED projection table: a shadow whose
@@ -346,6 +349,11 @@ pub(crate) const ROW_OWNED_PROJECTIONS: &[RowOwnedProjection] = &[
         table: "property_search_index",
         cursor_column: "write_cursor",
         class: ProjectionClass::PropertyFts,
+    },
+    RowOwnedProjection {
+        table: "canonical_property_values",
+        cursor_column: "write_cursor",
+        class: ProjectionClass::PropertyValue,
     },
 ];
 
@@ -503,6 +511,7 @@ pub(crate) fn truncate_all_row_projections(tx: &Connection) -> rusqlite::Result<
             ProjectionClass::Readiness,
             ProjectionClass::Attribute,
             ProjectionClass::PropertyFts,
+            ProjectionClass::PropertyValue,
         ],
     )
 }

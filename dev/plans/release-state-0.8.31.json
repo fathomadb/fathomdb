@@ -5,7 +5,7 @@
   "plan": "dev/plans/0.8.31/plan.md",
   "master": "dev/plans/0.8.31/plan.md",
   "active_ref": "refs/heads/release/0.8.31",
-  "schema_version": 37,
+  "schema_version": 38,
   "public_docs_target_release": "0.8.31",
   "schema_version_source": "pub const SCHEMA_VERSION in src/rust/crates/fathomdb-schema/src/lib.rs",
   "ladder": [

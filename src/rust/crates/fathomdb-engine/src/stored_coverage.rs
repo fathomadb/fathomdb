@@ -146,7 +146,7 @@ pub(crate) fn token(connection: &Connection) -> Result<Option<CoverageToken>, En
             .map_err(|_| corrupt())?,
         total_changes: connection.total_changes(),
     };
-    if token.user_version != 37 || token.schema_version == 0 {
+    if token.user_version != fathomdb_schema::SCHEMA_VERSION || token.schema_version == 0 {
         return Err(corrupt());
     }
     Ok(Some(token))

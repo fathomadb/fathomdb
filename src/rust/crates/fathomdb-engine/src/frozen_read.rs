@@ -31,7 +31,7 @@ const SERVING_DOMAIN_V2: &[u8] = b"fathomdb.projection-serving-binding.v2\0";
 const SERVING_DOMAIN_V3: &[u8] = b"fathomdb.projection-serving-binding.v3\0";
 const DATABASE_ID_KEY: &str = "_fathomdb_database_id";
 const READ_CONTEXT_KEY: &str = "_fathomdb_read_context_key";
-const VISIBILITY_TRIGGER_TABLES: [(&str, &str); 19] = [
+const VISIBILITY_TRIGGER_TABLES: [(&str, &str); 20] = [
     ("cn", "canonical_nodes"),
     ("ce", "canonical_edges"),
     ("ar", "_fathomdb_artifact_revisions"),
@@ -51,6 +51,7 @@ const VISIBILITY_TRIGGER_TABLES: [(&str, &str); 19] = [
     ("oc", "operational_collections"),
     ("os", "operational_state"),
     ("vs", "_fathomdb_vector_spans"),
+    ("cpv", "canonical_property_values"),
 ];
 
 /// Versioned search eligibility and validity requested by a caller.
@@ -415,7 +416,9 @@ pub(crate) fn validate_on_open(connection: &Connection, schema_version: u32) -> 
             return Err("invalid frozen-read branch-sensitive state".to_string());
         }
     }
-    let trigger_tables = if schema_version >= 35 {
+    let trigger_tables = if schema_version >= 38 {
+        &VISIBILITY_TRIGGER_TABLES[..20]
+    } else if schema_version >= 35 {
         &VISIBILITY_TRIGGER_TABLES[..19]
     } else if schema_version >= 33 {
         &VISIBILITY_TRIGGER_TABLES[..18]
@@ -558,34 +561,96 @@ fn binding_for_snapshot(
     })
 }
 
+fn encode_registry_base_columns(
+    bytes: &mut Vec<u8>,
+    name: &str,
+    roles: &str,
+    fts: Option<&str>,
+    embedder: Option<&str>,
+    vector: i64,
+    source: Option<&str>,
+) {
+    encode_string(bytes, name);
+    encode_string(bytes, roles);
+    encode_optional_string(bytes, fts);
+    encode_optional_string(bytes, embedder);
+    encode_i64(bytes, vector);
+    encode_optional_string(bytes, source);
+}
+
 fn projection_registry_digest(connection: &Connection) -> Result<[u8; 32], EngineError> {
+    let schema_version: u32 = connection
+        .query_row("PRAGMA user_version", [], |row| row.get(0))
+        .map_err(|_| EngineError::Storage)?;
     let mut bytes = Vec::from(REGISTRY_DOMAIN);
-    let mut statement = connection
-        .prepare(
-            "SELECT name,roles,fts_tokenizer,vector_embedder,vector_declared,source \
-             FROM _fathomdb_projection_registry ORDER BY name",
-        )
-        .map_err(|_| EngineError::Storage)?;
-    let rows = statement
-        .query_map([], |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, String>(1)?,
-                row.get::<_, Option<String>>(2)?,
-                row.get::<_, Option<String>>(3)?,
-                row.get::<_, i64>(4)?,
-                row.get::<_, Option<String>>(5)?,
-            ))
-        })
-        .map_err(|_| EngineError::Storage)?;
-    for row in rows {
-        let (name, roles, fts, embedder, vector, source) = row.map_err(|_| EngineError::Storage)?;
-        encode_string(&mut bytes, &name);
-        encode_string(&mut bytes, &roles);
-        encode_optional_string(&mut bytes, fts.as_deref());
-        encode_optional_string(&mut bytes, embedder.as_deref());
-        encode_i64(&mut bytes, vector);
-        encode_optional_string(&mut bytes, source.as_deref());
+    if schema_version >= 38 {
+        let mut statement = connection
+            .prepare(
+                "SELECT name,roles,fts_tokenizer,vector_embedder,vector_declared,source,entity_class,vector_kinds \
+                 FROM _fathomdb_projection_registry ORDER BY name",
+            )
+            .map_err(|_| EngineError::Storage)?;
+        let rows = statement
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, Option<String>>(2)?,
+                    row.get::<_, Option<String>>(3)?,
+                    row.get::<_, i64>(4)?,
+                    row.get::<_, Option<String>>(5)?,
+                    row.get::<_, String>(6)?,
+                    row.get::<_, Option<String>>(7)?,
+                ))
+            })
+            .map_err(|_| EngineError::Storage)?;
+        for row in rows {
+            let (name, roles, fts, embedder, vector, source, entity_class, vector_kinds) =
+                row.map_err(|_| EngineError::Storage)?;
+            encode_registry_base_columns(
+                &mut bytes,
+                &name,
+                &roles,
+                fts.as_deref(),
+                embedder.as_deref(),
+                vector,
+                source.as_deref(),
+            );
+            encode_string(&mut bytes, &entity_class);
+            encode_optional_string(&mut bytes, vector_kinds.as_deref());
+        }
+    } else {
+        let mut statement = connection
+            .prepare(
+                "SELECT name,roles,fts_tokenizer,vector_embedder,vector_declared,source \
+                 FROM _fathomdb_projection_registry ORDER BY name",
+            )
+            .map_err(|_| EngineError::Storage)?;
+        let rows = statement
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, Option<String>>(2)?,
+                    row.get::<_, Option<String>>(3)?,
+                    row.get::<_, i64>(4)?,
+                    row.get::<_, Option<String>>(5)?,
+                ))
+            })
+            .map_err(|_| EngineError::Storage)?;
+        for row in rows {
+            let (name, roles, fts, embedder, vector, source) =
+                row.map_err(|_| EngineError::Storage)?;
+            encode_registry_base_columns(
+                &mut bytes,
+                &name,
+                &roles,
+                fts.as_deref(),
+                embedder.as_deref(),
+                vector,
+                source.as_deref(),
+            );
+        }
     }
     Ok(Sha256::digest(bytes).into())
 }

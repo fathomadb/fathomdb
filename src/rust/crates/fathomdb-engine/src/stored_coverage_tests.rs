@@ -97,12 +97,12 @@ fn stored_coverage_cache_detects_local_rollback_external_schema_and_profile_chan
         )
         .unwrap();
     unavailable(engine, Reason::StateChanged);
-    external.execute_batch("PRAGMA user_version=36").unwrap();
+    external.execute_batch("PRAGMA user_version=37").unwrap();
     assert!(
         engine.read_projection_status().is_err(),
         "unsupported token domain is error, not availability"
     );
-    external.execute_batch("PRAGMA user_version=37").unwrap();
+    external.execute_batch("PRAGMA user_version=38").unwrap();
 }
 
 #[test]

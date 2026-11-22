@@ -21,7 +21,7 @@ use std::time::Instant;
 use rusqlite::Connection;
 
 /// Exact admitted on-disk format; nonempty stores at another version are refused.
-pub const SCHEMA_VERSION: u32 = 37;
+pub const SCHEMA_VERSION: u32 = 38;
 
 /// SQLite `PRAGMA` name carrying the on-disk schema-version sentinel.
 ///
@@ -148,6 +148,69 @@ macro_rules! visibility_coalescing_trigger_sql {
         )
     };
 }
+
+/// Schema step 38 SQL DDL: inline typed properties, declared property B-tree
+/// indexes, batch commit timestamps, reserved 0.8.32 scope columns, schema-38
+/// node/edge incident indexes, and `cpv` visibility coalescing triggers.
+///
+/// Exported as the single source of truth for [`MIGRATIONS`] step 38 and
+/// explicit offline upgrade tooling.
+pub const STEP_38_SQL: &str = concat!(
+    "-- MIGRATION-ACCRETION-EXEMPTION: 0.8.31 Schema 38 inline typed properties, declared property B-tree indexes, batch commit timestamps, reserved 0.8.32 scope columns, schema-38 edge incident indexes, and cpv visibility coalescing triggers; additive shape only, no canonical or projection content migration.\n",
+    "ALTER TABLE canonical_nodes ADD COLUMN properties TEXT;\n",
+    "ALTER TABLE canonical_nodes ADD COLUMN scope TEXT NOT NULL DEFAULT '';\n",
+    "ALTER TABLE canonical_edges ADD COLUMN properties TEXT;\n",
+    "ALTER TABLE canonical_edges ADD COLUMN scope TEXT NOT NULL DEFAULT '';\n",
+    "ALTER TABLE operational_mutations ADD COLUMN scope TEXT NOT NULL DEFAULT '';\n",
+    "ALTER TABLE operational_state ADD COLUMN scope TEXT NOT NULL DEFAULT '';\n",
+    "ALTER TABLE _fathomdb_projection_registry ADD COLUMN entity_class TEXT NOT NULL DEFAULT 'node' CHECK(entity_class IN ('node', 'edge'));\n",
+    "ALTER TABLE _fathomdb_projection_registry ADD COLUMN vector_kinds TEXT;\n",
+    "\n",
+    "CREATE TABLE canonical_property_values(\n",
+    "    entity_class TEXT NOT NULL CHECK(entity_class IN ('node', 'edge')),\n",
+    "    write_cursor INTEGER NOT NULL CHECK(write_cursor > 0),\n",
+    "    attr_name TEXT NOT NULL CHECK(length(attr_name) > 0),\n",
+    "    value_type TEXT NOT NULL CHECK(value_type IN ('string', 'integer', 'float', 'boolean')),\n",
+    "    text_val TEXT,\n",
+    "    num_val NUMERIC,\n",
+    "    bool_val INTEGER CHECK(bool_val IS NULL OR bool_val IN (0, 1)),\n",
+    "    PRIMARY KEY(entity_class, write_cursor, attr_name),\n",
+    "    CHECK(\n",
+    "        (value_type = 'string' AND text_val IS NOT NULL AND num_val IS NULL AND bool_val IS NULL) OR\n",
+    "        (value_type IN ('integer', 'float') AND text_val IS NULL AND num_val IS NOT NULL AND bool_val IS NULL) OR\n",
+    "        (value_type = 'boolean' AND text_val IS NULL AND num_val IS NULL AND bool_val IS NOT NULL)\n",
+    "    )\n",
+    ");\n",
+    "CREATE INDEX canonical_property_values_cursor_idx\n",
+    "    ON canonical_property_values(write_cursor);\n",
+    "CREATE INDEX canonical_property_values_text_idx\n",
+    "    ON canonical_property_values(entity_class, attr_name, text_val, write_cursor);\n",
+    "CREATE INDEX canonical_property_values_num_idx\n",
+    "    ON canonical_property_values(entity_class, attr_name, num_val, write_cursor);\n",
+    "CREATE INDEX canonical_property_values_bool_idx\n",
+    "    ON canonical_property_values(entity_class, attr_name, bool_val, write_cursor);\n",
+    "\n",
+    "CREATE TABLE _fathomdb_commit_timestamps(\n",
+    "    write_cursor INTEGER PRIMARY KEY CHECK(write_cursor > 0),\n",
+    "    committed_at_ms INTEGER NOT NULL\n",
+    ");\n",
+    "CREATE INDEX _fathomdb_commit_timestamps_ms_idx\n",
+    "    ON _fathomdb_commit_timestamps(committed_at_ms, write_cursor);\n",
+    "\n",
+    "CREATE INDEX canonical_nodes_logical_sup_idx\n",
+    "    ON canonical_nodes(logical_id, superseded_at, write_cursor);\n",
+    "CREATE INDEX canonical_edges_from_active_idx\n",
+    "    ON canonical_edges(from_id, kind) WHERE superseded_at IS NULL;\n",
+    "CREATE INDEX canonical_edges_to_active_idx\n",
+    "    ON canonical_edges(to_id, kind) WHERE superseded_at IS NULL;\n",
+    "CREATE INDEX canonical_edges_from_sup_kind_idx\n",
+    "    ON canonical_edges(from_id, superseded_at, kind);\n",
+    "CREATE INDEX canonical_edges_to_sup_kind_idx\n",
+    "    ON canonical_edges(to_id, superseded_at, kind);\n",
+    visibility_coalescing_trigger_sql!("cpv", "ai", "INSERT", "canonical_property_values"),
+    visibility_coalescing_trigger_sql!("cpv", "au", "UPDATE", "canonical_property_values"),
+    visibility_coalescing_trigger_sql!("cpv", "ad", "DELETE", "canonical_property_values"),
+);
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MigrationStepReport {
@@ -1401,6 +1464,7 @@ pub const MIGRATIONS: &[Migration] = &[
             ("vs", "_fathomdb_vector_spans"),
         ),
     },
+    Migration { step_id: 38, sql: STEP_38_SQL },
 ];
 
 /// `_fathomdb_open_state` key under which step 23 reserved the pre-TC-33
@@ -2021,4 +2085,15 @@ pub fn check_migration_accretion(name: &str, sql: &str) -> Result<(), MigrationA
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{MIGRATIONS, STEP_38_SQL};
+
+    #[test]
+    fn step38_sql_constant_matches_migration_38() {
+        assert_eq!(MIGRATIONS[37].step_id, 38);
+        assert_eq!(MIGRATIONS[37].sql, STEP_38_SQL);
+    }
 }

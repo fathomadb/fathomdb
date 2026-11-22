@@ -1186,8 +1186,8 @@ mod tests {
         assert!(!older_installed_schema, "the losing older opener must not install schema 33");
         let opened = current.join().expect("current opener thread").expect("current open");
         assert_eq!(opened.report.schema_version_before, 0);
-        assert_eq!(opened.report.schema_version_after, 37);
-        assert_eq!(opened.report.migration_steps.last().map(|step| step.step_id), Some(37));
+        assert_eq!(opened.report.schema_version_after, 38);
+        assert_eq!(opened.report.migration_steps.last().map(|step| step.step_id), Some(38));
         opened.engine.close().expect("close current engine");
     }
 
@@ -3343,6 +3343,7 @@ mod tests {
             "operational_mutations",
             "operational_state",
             "_fathomdb_artifact_revisions",
+            "_fathomdb_commit_timestamps",
         ];
 
         let dir = TempDir::new().unwrap();
@@ -3438,13 +3439,20 @@ mod tests {
     /// content-storing projection a red test, not a silent erasure leak.
     #[test]
     fn slice15d_attribute_projections_registered_and_guard_bites() {
-        const NON_PROJECTION_CURSOR_TABLES: &[&str] =
-            &["canonical_nodes", "canonical_edges", "operational_mutations", "operational_state"];
+        const NON_PROJECTION_CURSOR_TABLES: &[&str] = &[
+            "canonical_nodes",
+            "canonical_edges",
+            "operational_mutations",
+            "operational_state",
+            "_fathomdb_artifact_revisions",
+            "_fathomdb_commit_timestamps",
+        ];
 
         let registered: Vec<&str> = ROW_OWNED_PROJECTIONS.iter().map(|p| p.table).collect();
 
-        // (1) Both new content-storing projections are registered as row-owned.
-        for table in ["canonical_attributes", "property_search_index"] {
+        // (1) Content-storing property/attribute projections are registered as row-owned.
+        for table in ["canonical_attributes", "property_search_index", "canonical_property_values"]
+        {
             assert!(
                 registered.contains(&table),
                 "{table} holds attribute values at rest and MUST be in ROW_OWNED_PROJECTIONS \
@@ -3455,7 +3463,8 @@ mod tests {
         // (2) The guard predicate BITES: pretend one of them was never
         //     registered — the guard's "registered OR source-of-truth" check must
         //     reject it (the exact assertion `guard_row_owned_registry` runs).
-        for hidden in ["canonical_attributes", "property_search_index"] {
+        for hidden in ["canonical_attributes", "property_search_index", "canonical_property_values"]
+        {
             let as_if_unregistered: Vec<&str> =
                 registered.iter().copied().filter(|t| *t != hidden).collect();
             let accepted = as_if_unregistered.contains(&hidden)

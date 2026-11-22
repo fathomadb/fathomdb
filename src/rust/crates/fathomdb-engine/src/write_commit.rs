@@ -439,7 +439,7 @@ pub(crate) fn canonical_batch_has_no_custom_triggers(
                    'canonical_nodes','canonical_edges','_fathomdb_artifact_revisions',
                    '_fathomdb_source_versions','_fathomdb_source_links',
                    '_fathomdb_source_dependencies','_fathomdb_dependency_closures',
-                   'canonical_attributes','_fathomdb_projection_state',
+                   'canonical_attributes','canonical_property_values','_fathomdb_projection_state',
                    '_fathomdb_projection_terminal','_fathomdb_vector_kinds',
                    '_fathomdb_vector_rows','_fathomdb_vector_spans','operational_mutations',
                    '_fathomdb_open_state','_fathomdb_read_visibility_state'
@@ -453,7 +453,7 @@ pub(crate) fn canonical_batch_has_no_custom_triggers(
                    'canonical_nodes','canonical_edges','_fathomdb_artifact_revisions',
                    '_fathomdb_source_versions','_fathomdb_source_links',
                    '_fathomdb_source_dependencies','_fathomdb_dependency_closures',
-                   'canonical_attributes','_fathomdb_projection_state',
+                   'canonical_attributes','canonical_property_values','_fathomdb_projection_state',
                    '_fathomdb_projection_terminal','_fathomdb_vector_kinds',
                    '_fathomdb_vector_rows','_fathomdb_vector_spans','operational_mutations',
                    '_fathomdb_open_state','_fathomdb_read_visibility_state'

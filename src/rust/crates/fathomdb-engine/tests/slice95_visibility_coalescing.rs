@@ -37,7 +37,7 @@ fn format37_has_constrained_clean_state_and_all57_gated_triggers() {
     let dir = TempDir::new().unwrap();
     let path = dir.path().join("format37.sqlite");
     let opened = Engine::open(&path).unwrap();
-    assert_eq!(opened.report.schema_version_after, 37);
+    assert_eq!(opened.report.schema_version_after, 38);
     let connection = Connection::open(&path).unwrap();
     assert_eq!(
         connection
@@ -70,7 +70,7 @@ fn format37_has_constrained_clean_state_and_all57_gated_triggers() {
         .unwrap()
         .collect::<Result<Vec<_>, _>>()
         .unwrap();
-    assert_eq!(sql.len(), 57);
+    assert_eq!(sql.len(), 60);
     assert!(sql.iter().all(|sql| sql.contains("coalescing")));
     assert_eq!(connection.query_row(
         "SELECT sql FROM sqlite_master WHERE name='_fathomdb_vector_spans_mapping_delete'",
@@ -165,7 +165,7 @@ fn format36_refusal_preserves_database_wal_shm_and_lock_bytes() {
     let before = bytes(dir.path());
     assert!(matches!(
         Engine::open(&path),
-        Err(EngineOpenError::IncompatibleSchemaVersion { seen: 36, supported: 37 })
+        Err(EngineOpenError::IncompatibleSchemaVersion { seen: 36, supported: 38 })
     ));
     assert_eq!(bytes(dir.path()), before);
     assert_eq!(

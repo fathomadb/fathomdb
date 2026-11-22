@@ -900,6 +900,16 @@ pub(crate) fn apply_batch_in_transaction(
                 PreparedWrite::AdminSchema { name, kind, schema_json, retention_json },
                 WritePlan::AdminSchema,
             ) => {
+                let existing_kind: Option<String> = tx
+                    .query_row(
+                        "SELECT kind FROM operational_collections WHERE name = ?1",
+                        [name],
+                        |row| row.get(0),
+                    )
+                    .optional()?;
+                if existing_kind.as_deref().is_some_and(|existing| existing != kind.as_str()) {
+                    return Err(EngineError::WriteValidation.into());
+                }
                 tx.execute(
                     "INSERT INTO operational_collections(
                         name, kind, schema_json, retention_json, format_version, created_at

@@ -3,8 +3,9 @@
 
 use fathomdb_engine::{
     BoundaryCrossing, EmbeddingReadiness, FrozenReadContextV1, MutationProjectionStatusRequestV1,
-    MutationProjectionStatusV1, NodeRecord, OpStoreRow, OperationalStateRecordV1, PageRequestV1,
-    PageV1, ProjectionGenerationStatusV1, ProjectionRuntimeStatus, ProjectionSpec, ReadView,
+    MutationProjectionStatusV1, NodeRecord, OpStoreRow, OperationalCollectionInfo,
+    OperationalStateRecordV1, PageRequestV1, PageV1, ProjectionGenerationStatusV1,
+    ProjectionRuntimeStatus, ProjectionSpec, ReadView,
 };
 
 use crate::error::{Error, Result};
@@ -88,6 +89,20 @@ pub fn canonical_page(
     guard::text(kind)?;
     guard::page(page)?;
     Ok(engine.core().read_canonical_page(kind, context, page)?)
+}
+
+/// Registered operational collections ordered by `name ASC`.
+pub fn operational_collections(engine: &Engine) -> Result<Vec<OperationalCollectionInfo>> {
+    Ok(engine.core().read_operational_collections()?)
+}
+
+/// Metadata for one registered operational collection by `name`, or `None` if absent.
+pub fn operational_collection(
+    engine: &Engine,
+    name: &str,
+) -> Result<Option<OperationalCollectionInfo>> {
+    guard::non_empty_identifier("collection name", name)?;
+    Ok(engine.core().read_operational_collection(name)?)
 }
 
 /// The operational-state record for `record_key`, optionally under a frozen context.

@@ -19,7 +19,16 @@ pub(crate) fn envelope(c: &Connection) -> Result<(), EngineError> {
     }
     drop(pages_timer);
     let body_timer = physical_metrics::stage("envelope_bodies");
-    let (rows, bytes, largest): (u64, u64, u64) = c.query_row("SELECT COUNT(*),COALESCE(SUM(length(CAST(body AS BLOB))),0),COALESCE(MAX(length(CAST(body AS BLOB))),0) FROM (SELECT body FROM canonical_nodes UNION ALL SELECT body FROM canonical_edges)", [], |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?))).map_err(|_| EngineError::Storage)?;
+    let (rows, bytes, largest): (u64, u64, u64) = c
+        .query_row(
+            "SELECT COUNT(*),\
+                    COALESCE(SUM(COALESCE(length(CAST(body AS BLOB)),0)+COALESCE(length(CAST(properties AS BLOB)),0)),0),\
+                    COALESCE(MAX(COALESCE(length(CAST(body AS BLOB)),0)+COALESCE(length(CAST(properties AS BLOB)),0)),0) \
+             FROM (SELECT body,properties FROM canonical_nodes UNION ALL SELECT body,properties FROM canonical_edges)",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+        )
+        .map_err(|_| EngineError::Storage)?;
     drop(body_timer);
     let vector_timer = physical_metrics::stage("envelope_vectors");
     let vectors: u64 = c

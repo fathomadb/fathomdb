@@ -20,6 +20,19 @@ pub(crate) fn text(value: &str) -> Result<()> {
     Ok(())
 }
 
+pub(crate) fn non_empty_identifier(field: &str, value: &str) -> Result<()> {
+    text(value)?;
+    if value.trim().is_empty() {
+        return Err(Error::invalid_argument(format!("{field} must not be empty")));
+    }
+    if value.chars().any(char::is_control) {
+        return Err(Error::invalid_argument(format!(
+            "{field} must not contain control characters"
+        )));
+    }
+    Ok(())
+}
+
 pub(crate) fn path(path: &std::path::Path) -> Result<()> {
     if path.as_os_str().as_encoded_bytes().contains(&0) {
         return Err(Error::sdk(ErrorKind::WriteValidation, "embedded NUL byte in path argument"));

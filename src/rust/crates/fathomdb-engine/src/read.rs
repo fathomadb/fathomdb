@@ -192,6 +192,64 @@ pub(crate) fn read_collection_in_tx(
     Ok(out)
 }
 
+/// 0.8.31 Slice 20 — list all registered operational collections ordered by
+/// `name ASC` inside a DEFERRED reader transaction.
+pub(crate) fn read_operational_collections_in_tx(
+    reader: &mut Connection,
+    attribution: &Arc<WalAttributionCollector>,
+    worker_idx: usize,
+) -> rusqlite::Result<Vec<crate::OperationalCollectionInfo>> {
+    let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
+    let mut statement = tx.prepare_cached(
+        "SELECT name, kind, schema_json, retention_json, format_version, created_at
+         FROM operational_collections
+         ORDER BY name ASC",
+    )?;
+    let rows = statement.query_map([], |row| {
+        Ok(crate::OperationalCollectionInfo {
+            name: row.get(0)?,
+            kind: row.get(1)?,
+            schema_json: row.get(2)?,
+            retention_json: row.get(3)?,
+            format_version: row.get(4)?,
+            created_at: row.get(5)?,
+        })
+    })?;
+    let mut out = Vec::new();
+    for row in rows {
+        out.push(row?);
+    }
+    Ok(out)
+}
+
+/// 0.8.31 Slice 20 — point lookup of one registered operational collection by
+/// `name` inside a DEFERRED reader transaction.
+pub(crate) fn read_operational_collection_in_tx(
+    reader: &mut Connection,
+    name: &str,
+    attribution: &Arc<WalAttributionCollector>,
+    worker_idx: usize,
+) -> rusqlite::Result<Option<crate::OperationalCollectionInfo>> {
+    let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
+    let mut statement = tx.prepare_cached(
+        "SELECT name, kind, schema_json, retention_json, format_version, created_at
+         FROM operational_collections
+         WHERE name = ?1",
+    )?;
+    statement
+        .query_row([name], |row| {
+            Ok(crate::OperationalCollectionInfo {
+                name: row.get(0)?,
+                kind: row.get(1)?,
+                schema_json: row.get(2)?,
+                retention_json: row.get(3)?,
+                format_version: row.get(4)?,
+                created_at: row.get(5)?,
+            })
+        })
+        .optional()
+}
+
 /// Slice 35 (G4) — execute `read.list` inside a DEFERRED reader transaction.
 ///
 /// Builds parameterized SQL: `kind = ?1 AND superseded_at IS NULL [AND

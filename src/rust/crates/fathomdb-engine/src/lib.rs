@@ -353,6 +353,10 @@ use projection_worker::{
     connection_has_pending_projection_work, database_has_pending_projection_work,
     pending_embedding_work, projection_dispatcher_loop, projection_worker_loop, ProjectionOutcome,
 };
+#[cfg(any(test, feature = "test-hooks", feature = "operator"))]
+mod export_manifest;
+#[cfg(any(test, feature = "test-hooks", feature = "operator"))]
+pub use export_manifest::{audit_schema_38_sqlite_master, classify_schema_38_table, ExportClass};
 pub use properties::{
     OperationalCollectionInfo, PropertyComparisonOp, PropertyEntityClass, PropertyMap,
     PropertyPredicate, PropertyValue,
@@ -437,6 +441,8 @@ use vector_storage::{
     refresh_vector_attr_values_for_row, resolve_source_type_on,
     VECTOR_COMMITTABLE_NODE_KIND_SOURCE_TYPES,
 };
+#[cfg(any(test, feature = "test-hooks"))]
+pub use wal_attribution::ReleaseWalAttributionProbe;
 pub(crate) use write::storage_write_shape;
 pub use write::{PreparedWrite, WriteReceipt};
 pub(crate) use write_commit::{

@@ -610,7 +610,15 @@ impl Engine {
         verb: &'static str,
         closure_ids: &[ClosureOperationId],
     ) -> Result<(), EngineError> {
-        self.finish_physical_dependency_closures_with_sinks(verb, closure_ids, None)
+        self.finish_physical_dependency_closures_with_sinks_and_mode(verb, closure_ids, None, false)
+    }
+
+    fn finish_physical_dependency_closures_retry(
+        &self,
+        verb: &'static str,
+        closure_ids: &[ClosureOperationId],
+    ) -> Result<(), EngineError> {
+        self.finish_physical_dependency_closures_with_sinks_and_mode(verb, closure_ids, None, true)
     }
 
     pub(crate) fn finish_physical_dependency_closures_with_sinks(
@@ -619,7 +627,23 @@ impl Engine {
         closure_ids: &[ClosureOperationId],
         sinks: Option<&BTreeMap<String, PathBuf>>,
     ) -> Result<(), EngineError> {
-        let result = self.finish_physical_dependency_closures_inner(verb, closure_ids, sinks);
+        self.finish_physical_dependency_closures_with_sinks_and_mode(
+            verb,
+            closure_ids,
+            sinks,
+            false,
+        )
+    }
+
+    fn finish_physical_dependency_closures_with_sinks_and_mode(
+        &self,
+        verb: &'static str,
+        closure_ids: &[ClosureOperationId],
+        sinks: Option<&BTreeMap<String, PathBuf>>,
+        is_retry: bool,
+    ) -> Result<(), EngineError> {
+        let result =
+            self.finish_physical_dependency_closures_inner(verb, closure_ids, sinks, is_retry);
         if let Err(error) = &result {
             let guard = self.physical_writer(true)?;
             physical_erasure::record_blocker(guard.as_ref().ok_or(EngineError::Closing)?, error)?;
@@ -632,6 +656,7 @@ impl Engine {
         verb: &'static str,
         closure_ids: &[ClosureOperationId],
         sinks: Option<&BTreeMap<String, PathBuf>>,
+        is_retry: bool,
     ) -> Result<(), EngineError> {
         {
             let connection = self.physical_writer(true)?;
@@ -675,9 +700,11 @@ impl Engine {
             Err(error) => {
                 drop(drain);
                 drop(_reader_pause);
-                // Preserve actual bounded checkpoint observations, but a failed
-                // drain never authorizes journal scrubbing or completion.
-                let _ = self.checkpoint_erasure_at_rest(verb);
+                // Preserve actual bounded checkpoint observations, and surface
+                // the attributed checkpoint BUSY diagnostic when truncation
+                // observes the active reader snapshot. A failed drain never
+                // authorizes journal scrubbing or completion.
+                self.checkpoint_erasure_at_rest(verb, is_retry)?;
                 return Err(error);
             }
         };
@@ -698,6 +725,33 @@ impl Engine {
         } else {
             self.discharge_pending_redactions(verb)?;
         }
+        // W12 Ask 3a (ADR-0.8.28 amendment): in Autonomous mode when `debt.redacted`
+        // is still `false`, run the first `wal_checkpoint(TRUNCATE)` BEFORE
+        // `prepare_redacted` clears `denied_sources`/`denied_identities`. On BUSY,
+        // unrelated plain Node/Edge writes stay open via `guard_plain_write_inner`
+        // while denied identities/sources and non-plain writes remain fenced.
+        let autonomous_unredacted = self.physical_policy == PhysicalErasurePolicy::Autonomous && {
+            let connection = self.physical_writer(true)?;
+            let c = connection.as_ref().ok_or(EngineError::Closing)?;
+            physical_erasure::root(c)?.is_some_and(|debt| !debt.redacted)
+        };
+        if autonomous_unredacted {
+            if let Err(error) = self.checkpoint_erasure_at_rest(verb, is_retry) {
+                if matches!(
+                    &error,
+                    EngineError::ErasureIncomplete { stage, .. } if stage == "wal_checkpoint"
+                ) {
+                    let connection = self.physical_writer(true)?;
+                    let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+                    dependency_closure::mark_physical_incomplete(
+                        connection,
+                        closure_ids,
+                        "wal_checkpoint",
+                    )?;
+                }
+                return Err(error);
+            }
+        }
         {
             let connection = self.physical_writer(true)?;
             physical_erasure::prepare_redacted(
@@ -705,7 +759,7 @@ impl Engine {
                 closure_ids,
             )?;
         }
-        if let Err(error) = self.complete_erasure_at_rest(verb) {
+        if let Err(error) = self.complete_erasure_at_rest_mode(verb, is_retry) {
             let blocker = match &error {
                 EngineError::ErasureIncomplete { stage, .. }
                     if stage == "telemetry_redaction" || stage == "wal_checkpoint" =>
@@ -728,18 +782,19 @@ impl Engine {
         Ok(())
     }
 
-    fn finish_redacted_before_request(&self) -> Result<(), EngineError> {
+    fn finish_redacted_before_request(&self) -> Result<bool, EngineError> {
         let ids = {
             let connection = self.physical_writer(false)?;
             physical_erasure::redacted_ids(connection.as_ref().ok_or(EngineError::Closing)?)?
         };
         if let Some(ids) = ids {
             self.freeze_projection_for_closure_retry()?;
-            let result = self.finish_physical_dependency_closures("erase_source", &ids);
+            let result = self.finish_physical_dependency_closures_retry("erase_source", &ids);
             self.projection_runtime.set_frozen(false);
             result?;
+            return Ok(true);
         }
-        Ok(())
+        Ok(false)
     }
 
     /// OPP-12 Phase-1 (0.8.19 Slice 10, R-PG-1/2) — irreversibly hard-erase a
@@ -792,7 +847,7 @@ impl Engine {
         };
         if root_retry || !pending.is_empty() {
             self.freeze_projection_for_closure_retry()?;
-            let result = self.finish_physical_dependency_closures("purge", &pending);
+            let result = self.finish_physical_dependency_closures_retry("purge", &pending);
             self.projection_runtime.set_frozen(false);
             return result;
         }
@@ -1145,7 +1200,7 @@ impl Engine {
             slice15_erasure_lock_hook::fire();
         }
 
-        self.finish_redacted_before_request()?;
+        let completed_prior = self.finish_redacted_before_request()?;
         let _physical_attempt = self.physical_attempt();
 
         let pending = {
@@ -1160,13 +1215,13 @@ impl Engine {
         if root_retry || !pending.is_empty() {
             self.freeze_projection_for_closure_retry()?;
             let result = (|| {
-                self.finish_physical_dependency_closures(verb, &pending)?;
+                self.finish_physical_dependency_closures_retry(verb, &pending)?;
                 Ok(ExciseReport {
                     source_ref: source_id.to_string(),
                     nodes_excised: 0,
                     edges_excised: 0,
                     projections_invalidated: 0,
-                    completed_pending_erasure: false,
+                    completed_pending_erasure: true,
                 })
             })();
             self.projection_runtime.set_frozen(false);
@@ -1192,8 +1247,11 @@ impl Engine {
         // otherwise-unserviceable no-embedder rows.
         self.freeze_projection_for_erasure()?;
         let outcome = (|| {
-            let (report, closure_ids) = self.excise_source_inner(verb, source_id)?;
-            self.finish_physical_dependency_closures(verb, &closure_ids)?;
+            let (report, closure_ids, needs_physical_finish) =
+                self.excise_source_inner_with_prior(verb, source_id, completed_prior)?;
+            if needs_physical_finish {
+                self.finish_physical_dependency_closures(verb, &closure_ids)?;
+            }
             Ok(report)
         })();
         self.projection_runtime.set_frozen(false);
@@ -1225,17 +1283,32 @@ impl Engine {
     /// [`EngineError::ErasureIncomplete`] — **an erasure verb must never report
     /// success on an incomplete erasure.** The retry budget is deliberately small
     /// (~100 ms total): the caller retries the verb, the verb does not block.
+    #[cfg(feature = "operator")]
     pub(crate) fn complete_erasure_at_rest(&self, verb: &'static str) -> Result<(), EngineError> {
+        self.complete_erasure_at_rest_mode(verb, false)
+    }
+
+    fn complete_erasure_at_rest_mode(
+        &self,
+        verb: &'static str,
+        is_retry: bool,
+    ) -> Result<(), EngineError> {
         // The ids are NOT passed in: they were persisted inside the erasing
         // transaction, and this drains that queue. The WAL truncation below then
         // runs AFTER the pending rows have been deleted, so the freed pages
         // holding them (zeroed by `secure_delete=ON`) are checkpointed out too.
         self.discharge_pending_redactions(verb)?;
-        self.checkpoint_erasure_at_rest(verb)
+        self.checkpoint_erasure_at_rest(verb, is_retry)
     }
 
-    fn checkpoint_erasure_at_rest(&self, verb: &'static str) -> Result<(), EngineError> {
+    fn checkpoint_erasure_at_rest(
+        &self,
+        verb: &'static str,
+        is_retry: bool,
+    ) -> Result<(), EngineError> {
         let mut last: Option<TruncateWalReport> = None;
+        let mut last_classification: &'static str = "unclassified_external";
+        let mut last_counts = crate::wal_attribution::WalActiveRoleCounts::default();
         for attempt in 0..ERASURE_WAL_TRUNCATE_ATTEMPTS {
             self.wal_attribution.set(WalAttributionRole::Writer, 0, true, "checkpoint_start");
             let overlap = self.wal_attribution.checkpoint_begin();
@@ -1266,6 +1339,8 @@ impl Engine {
             if report.status == TruncateWalStatus::Busy && classification == "no_owned_snapshot" {
                 classification = "unclassified_external";
             }
+            last_classification = classification;
+            last_counts = snapshot.active_counts;
             self.wal_attribution.checkpoint_event(
                 (attempt + 1) as usize,
                 elapsed,
@@ -1282,13 +1357,38 @@ impl Engine {
             }
         }
         let frames = last.map_or(0, |r| r.log_frames);
+        let lead = if is_retry {
+            format!(
+                "`{verb}` retry could not complete physical erasure because `wal_checkpoint(TRUNCATE)` \
+                 reported BUSY on all {ERASURE_WAL_TRUNCATE_ATTEMPTS} attempts ({frames} frames still in the log)"
+            )
+        } else {
+            format!(
+                "`{verb}` deleted its rows, but `wal_checkpoint(TRUNCATE)` reported BUSY on all \
+                 {ERASURE_WAL_TRUNCATE_ATTEMPTS} attempts ({frames} frames still in the log)"
+            )
+        };
+        let cause = match last_classification {
+            "local_checkpoint_overlap" => {
+                "an overlapping local checkpoint is in progress; retry once it finishes."
+            }
+            "owned_reader_snapshot" => {
+                "an engine-owned reader worker is pinning a WAL snapshot; retry once active reads finish."
+            }
+            "owned_runtime_transaction" => {
+                "an engine-owned projection runtime transaction is pinning a WAL snapshot; retry once background projection work settles."
+            }
+            _ => {
+                "an external SQLite connection or unclassified snapshot is pinning the WAL (no engine-owned reader or projection transaction was active); retry once the external holder releases its snapshot."
+            }
+        };
         Err(EngineError::ErasureIncomplete {
             stage: "wal_checkpoint".to_string(),
             detail: format!(
-                "`{verb}` deleted its rows, but `wal_checkpoint(TRUNCATE)` reported BUSY on all \
-                 {ERASURE_WAL_TRUNCATE_ATTEMPTS} attempts ({frames} frames still in the log) — a \
-                 concurrent reader is pinning a WAL snapshot, so the erased bytes remain readable \
-                 in the `-wal` file. Retry once the reader has finished."
+                "{lead} [classification={last_classification}, active_roles=reader_workers:{},projection_dispatchers:{},projection_workers:{}] — {cause}",
+                last_counts.reader_workers,
+                last_counts.projection_dispatchers,
+                last_counts.projection_workers,
             ),
         })
     }
@@ -1358,6 +1458,17 @@ impl Engine {
         verb: &'static str,
         source_id: &str,
     ) -> Result<(ExciseReport, Vec<ClosureOperationId>), EngineError> {
+        let (report, closure_ids, _) =
+            self.excise_source_inner_with_prior(verb, source_id, false)?;
+        Ok((report, closure_ids))
+    }
+
+    fn excise_source_inner_with_prior(
+        &self,
+        verb: &'static str,
+        source_id: &str,
+        completed_prior: bool,
+    ) -> Result<(ExciseReport, Vec<ClosureOperationId>, bool), EngineError> {
         let _native = self.physical_maintenance.metrics.timer("native");
         let waiting = self.physical_maintenance.metrics.timer("native_writer_wait");
         let mut connection = self.physical_writer(false)?;
@@ -1369,6 +1480,7 @@ impl Engine {
         let tx = connection
             .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
             .map_err(|_| EngineError::Storage)?;
+        let total_changes_before = tx.total_changes();
         crate::frozen_read::require_clean_visibility(&tx)?;
         dependency_closure::guard_no_pending_physical(&tx)?;
 
@@ -1499,23 +1611,49 @@ impl Engine {
         // mirror the vec writer pattern (load + 1, then store post-commit)
         // so the audit row's `write_cursor` is strictly greater than every
         // canonical row that preceded it.
-        let excised_at = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
-        let payload = serde_json::json!({
-            "source_id": source_id,
-            "excised_at": excised_at,
-            "nodes_excised": nodes_excised,
-            "edges_excised": edges_excised,
-            "projections_invalidated": shadow_invalidated,
-        })
-        .to_string();
-        let audit_cursor = self.next_cursor.load(Ordering::SeqCst).saturating_add(1);
-        tx.execute(
-            "INSERT INTO operational_mutations(
-                collection_name, record_key, op_kind, payload_json, schema_id, write_cursor
-             ) VALUES('excise_source_audit', ?1, 'append', ?2, NULL, ?3)",
-            params![source_id, payload, audit_cursor],
-        )
-        .map_err(|_| EngineError::Storage)?;
+        let suppress_duplicate_audit = completed_prior && nodes_excised == 0 && edges_excised == 0;
+        if suppress_duplicate_audit
+            && tx.total_changes() == total_changes_before
+            && closure_ids.is_empty()
+            && erased_stable_ids.is_empty()
+        {
+            tx.commit().map_err(|_| EngineError::Storage)?;
+            return Ok((
+                ExciseReport {
+                    source_ref: source_id.to_string(),
+                    nodes_excised: 0,
+                    edges_excised: 0,
+                    projections_invalidated: 0,
+                    completed_pending_erasure: true,
+                },
+                Vec::new(),
+                false,
+            ));
+        }
+
+        let mut audit_cursor = self.next_cursor.load(Ordering::SeqCst);
+        let mut wrote_audit = false;
+        if !suppress_duplicate_audit {
+            let excised_at =
+                SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
+            let payload = serde_json::json!({
+                "source_id": source_id,
+                "excised_at": excised_at,
+                "nodes_excised": nodes_excised,
+                "edges_excised": edges_excised,
+                "projections_invalidated": shadow_invalidated,
+            })
+            .to_string();
+            audit_cursor = audit_cursor.saturating_add(1);
+            tx.execute(
+                "INSERT INTO operational_mutations(
+                    collection_name, record_key, op_kind, payload_json, schema_id, write_cursor
+                 ) VALUES('excise_source_audit', ?1, 'append', ?2, NULL, ?3)",
+                params![source_id, payload, audit_cursor],
+            )
+            .map_err(|_| EngineError::Storage)?;
+            wrote_audit = true;
+        }
 
         // 0.8.20 Slice 5 fix-1 (codex §9 P2) — durably record the redaction this
         // erasure owes, atomically with the deletes. Shares `audit_cursor`: one
@@ -1527,7 +1665,9 @@ impl Engine {
         physical_erasure::faultpoint("before_delete_commit")?;
 
         tx.commit().map_err(|_| EngineError::Storage)?;
-        self.next_cursor.store(audit_cursor, Ordering::SeqCst);
+        if wrote_audit {
+            self.next_cursor.store(audit_cursor, Ordering::SeqCst);
+        }
         physical_erasure::faultpoint("after_delete_commit")?;
         Ok((
             ExciseReport {
@@ -1535,9 +1675,10 @@ impl Engine {
                 nodes_excised,
                 edges_excised,
                 projections_invalidated: shadow_invalidated,
-                completed_pending_erasure: false,
+                completed_pending_erasure: completed_prior,
             },
             closure_ids,
+            true,
         ))
     }
 

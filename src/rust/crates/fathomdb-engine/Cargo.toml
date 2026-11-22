@@ -1007,3 +1007,7 @@ required-features = ["test-hooks"]
 [[test]]
 name = "slice38_query_plans"
 required-features = ["test-hooks"]
+
+[[test]]
+name = "slice38_erasure_and_audit"
+required-features = ["operator", "test-hooks"]

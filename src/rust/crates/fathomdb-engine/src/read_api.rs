@@ -131,6 +131,47 @@ impl Engine {
         self.read_collection_dispatch(collection, after_id, limit)
     }
 
+    /// 0.8.31 Slice 20 — list all registered operational collections ordered
+    /// deterministically by `name ASC` via the `ReaderWorkerPool`.
+    pub fn read_operational_collections(
+        &self,
+    ) -> Result<Vec<crate::OperationalCollectionInfo>, EngineError> {
+        let _operation = self.ensure_open()?;
+        let (response_tx, response_rx) = mpsc::sync_channel(1);
+        let request = ReaderRequest::read_operational_collections(response_tx);
+        if self.reader_pool.dispatch(request).is_err() {
+            return Err(EngineError::Closing);
+        }
+        match response_rx.recv().map_err(|_| EngineError::Storage)? {
+            Ok(rows) => Ok(rows),
+            Err(err) => {
+                self.emit_sqlite_internal_error(&err);
+                Err(EngineError::Storage)
+            }
+        }
+    }
+
+    /// 0.8.31 Slice 20 — look up one registered operational collection by
+    /// `name` via the `ReaderWorkerPool`. Returns `Ok(None)` when absent.
+    pub fn read_operational_collection(
+        &self,
+        name: &str,
+    ) -> Result<Option<crate::OperationalCollectionInfo>, EngineError> {
+        let _operation = self.ensure_open()?;
+        let (response_tx, response_rx) = mpsc::sync_channel(1);
+        let request = ReaderRequest::read_operational_collection(name.to_string(), response_tx);
+        if self.reader_pool.dispatch(request).is_err() {
+            return Err(EngineError::Closing);
+        }
+        match response_rx.recv().map_err(|_| EngineError::Storage)? {
+            Ok(row) => Ok(row),
+            Err(err) => {
+                self.emit_sqlite_internal_error(&err);
+                Err(EngineError::Storage)
+            }
+        }
+    }
+
     fn read_collection_dispatch(
         &self,
         collection: &str,

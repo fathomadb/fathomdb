@@ -826,7 +826,7 @@ fn slice55_mutation_readiness_receipt_matrix_reports_guarded_corruption() {
 fn slice55_projection_scan_plans_use_indexed_order() {
     let (_dir, opened) = opened();
     let candidates = opened.engine.data_plane_integrity_candidate_queries_for_test();
-    assert_eq!(candidates.len(), 13);
+    assert_eq!(candidates.len(), 14);
     for (table, index) in [
         ("canonical_nodes", "canonical_nodes_write_cursor_idx"),
         ("canonical_edges", "canonical_edges_write_cursor_idx"),
@@ -835,6 +835,7 @@ fn slice55_projection_scan_plans_use_indexed_order() {
         ("search_index_edges", "search_index_edges"),
         ("canonical_attributes", "canonical_attributes"),
         ("property_search_index", "property_search_index"),
+        ("canonical_property_values", "canonical_property_values"),
     ] {
         let sql = candidates
             .iter()
@@ -847,13 +848,17 @@ fn slice55_projection_scan_plans_use_indexed_order() {
                 | "search_index_edges"
                 | "canonical_attributes"
                 | "property_search_index"
+                | "canonical_property_values"
         ) {
             assert!(sql.contains("rowid>=?1"), "missing inclusive signed start: {sql}");
         } else {
             assert!(sql.contains(">?1"), "missing after-key bound: {sql}");
         }
         assert!(sql.contains("LIMIT ?2"), "missing remaining+1 bound: {sql}");
-        if table.starts_with("canonical_") && !table.ends_with("attributes") {
+        if table.starts_with("canonical_")
+            && !table.ends_with("attributes")
+            && !table.ends_with("property_values")
+        {
             assert!(sql.contains(&format!("INDEXED BY {index}")), "missing {index}: {sql}");
         }
     }
@@ -871,6 +876,7 @@ fn slice55_projection_scan_plans_use_indexed_order() {
         "search_index_edges",
         "canonical_attributes",
         "property_search_index",
+        "canonical_property_values",
         "_fathomdb_vector_spans USING INTEGER PRIMARY KEY",
     ] {
         assert!(plans.iter().any(|plan| plan.contains(required)), "missing {required}: {plans:#?}");
@@ -1230,7 +1236,7 @@ fn slice55_projection_residue_reports_resolvable_revision_in_class_order() {
             finding.code == DataPlaneIntegrityFindingCodeV1::SearchProjectionOutsideMembership
         })
         .collect::<Vec<_>>();
-    assert_eq!(residue.len(), 2, "{result:#?}");
+    assert_eq!(residue.len(), 3, "{result:#?}");
     assert!(residue.iter().all(|finding| finding.artifact_revision_ids == ["residue-owner-r1"]));
 }
 

@@ -232,14 +232,12 @@ pub(crate) fn commit_projection_outcomes(
         }
         let coalesce_visibility = projection_batch_has_no_custom_triggers(&tx)?;
         let mut visibility_changed = false;
-        let _activity = shared.wal_attribution.enabled.then(|| {
-            WalAttributionActivity::begin(
-                Arc::clone(&shared.wal_attribution),
-                WalAttributionRole::ProjectionWorker,
-                worker_idx,
-                "transaction_opened",
-            )
-        });
+        let _activity = WalAttributionActivity::begin(
+            Arc::clone(&shared.wal_attribution),
+            WalAttributionRole::ProjectionWorker,
+            worker_idx,
+            "transaction_opened",
+        );
         #[cfg(any(test, feature = "test-hooks"))]
         if let Some((transaction_ready, release)) = shared
             .projection_worker_transaction_pause

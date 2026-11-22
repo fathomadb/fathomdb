@@ -234,8 +234,22 @@ fn busy_finalization_redacts_denial_metadata_and_retry_processes_its_own_argumen
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("redacted.sqlite");
     let engine = dependent_seed(&path);
-    let pin = rusqlite::Connection::open(&path).unwrap();
-    pin.execute_batch("BEGIN; SELECT * FROM canonical_nodes;").unwrap();
+    // W12 Ask 3a (ADR-0.8.28 amendment): under Autonomous two-truncate ordering,
+    // `prepare_redacted` commits only after the first truncate succeeds; pin the
+    // WAL at `after_redacted_commit` to force the second truncate BUSY on the
+    // redacted identity-free finalization tombstone.
+    let held_pin = Arc::new(std::sync::Mutex::new(None));
+    let pin_slot = Arc::clone(&held_pin);
+    let pin_path = path.clone();
+    fathomdb_engine::arm_physical_erasure_hook_for_test(
+        "after_redacted_commit",
+        Box::new(move || {
+            let pin = rusqlite::Connection::open(&pin_path).unwrap();
+            pin.execute_batch("BEGIN; SELECT * FROM canonical_nodes;").unwrap();
+            *pin_slot.lock().unwrap() = Some(pin);
+            Ok(())
+        }),
+    );
     assert!(matches!(engine.erase_source("target"), Err(EngineError::ErasureIncomplete { .. })));
     assert_eq!(engine.query_i64_col_for_test("SELECT json_extract(value,'$.redacted') FROM _fathomdb_open_state WHERE key='_fathomdb_physical_erasure'").unwrap(), vec![1], "checkpoint waits on a durable identity-free finalization tombstone");
     assert_eq!(engine.query_i64_col_for_test("SELECT length(json_extract(value,'$.retry')) + json_array_length(value,'$.denied_sources') + json_array_length(value,'$.denied_identities') FROM _fathomdb_open_state WHERE key='_fathomdb_physical_erasure'").unwrap(), vec![0]);
@@ -243,8 +257,12 @@ fn busy_finalization_redacts_denial_metadata_and_retry_processes_its_own_argumen
         engine.write(&[node("new", "other", "public")]),
         Err(EngineError::ErasureIncomplete { .. })
     ));
-    pin.execute_batch("ROLLBACK").unwrap();
-    engine.erase_source("survivor").unwrap();
+    if let Some(pin) = held_pin.lock().unwrap().take() {
+        pin.execute_batch("ROLLBACK").unwrap();
+    }
+    let report = engine.erase_source("survivor").unwrap();
+    assert!(report.completed_pending_erasure);
+    assert_eq!(report.nodes_excised, 1);
     assert_eq!(
         engine.query_i64_col_for_test("SELECT count(*) FROM canonical_nodes").unwrap(),
         vec![0],

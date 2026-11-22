@@ -171,19 +171,40 @@ fn root_only_busy_erasure_fences_mutation_then_exact_retry_finishes() {
             matches!(error, EngineError::ErasureIncomplete { ref stage, .. } if stage == "wal_checkpoint"),
             "{error:?}"
         );
+        // W12 Ask 3a (ADR-0.8.28 amendment): Autonomous first-truncate fails BUSY
+        // before `prepare_redacted`, so denied identities/sources and non-plain
+        // mutations stay fenced while unrelated plain writes remain admitted.
+        let denied_write = if purge {
+            node("subject", "other", "recreated denied identity")
+        } else {
+            node("reinsert", "target", "recreated denied source")
+        };
+        assert!(
+            matches!(engine.write(&[denied_write]), Err(EngineError::ErasureIncomplete { .. })),
+            "root-only physical debt must fence denied identities/sources"
+        );
         assert!(
             matches!(
-                engine.write(&[node("other", "other", "unrelated")]),
+                engine.write(&[PreparedWrite::AdminSchema {
+                    name: "fenced".into(),
+                    kind: "latest_state".into(),
+                    schema_json: "{}".into(),
+                    retention_json: "{}".into(),
+                }]),
                 Err(EngineError::ErasureIncomplete { .. })
             ),
-            "root-only physical debt must fence writers"
+            "root-only physical debt must fence non-plain mutations"
         );
+        engine
+            .write(&[node("unrelated-during-busy", "other", "unrelated")])
+            .expect("unrelated plain writes progress while unredacted debt awaits first truncate");
         assert!(!engine.pending_erasures().unwrap().is_empty());
         pin.execute_batch("ROLLBACK").unwrap();
         if purge {
             engine.purge("subject").unwrap();
         } else {
-            engine.erase_source("target").unwrap();
+            let report = engine.erase_source("target").unwrap();
+            assert!(report.completed_pending_erasure);
         }
         engine.write(&[node("other", "other", "unrelated")]).unwrap();
         engine.close().unwrap();

@@ -31,7 +31,7 @@ const NODE_BODY_OWNER_QUERY: &str =
      WHERE n.write_cursor>?1 ORDER BY n.write_cursor LIMIT ?2";
 #[cfg(feature = "operator")]
 const EDGE_BODY_OWNER_QUERY: &str =
-    "SELECT e.write_cursor,r.revision_id,e.body,e.kind,e.superseded_at,e.t_invalid \
+    "SELECT e.write_cursor,r.revision_id,e.body,e.kind,e.superseded_at,e.t_invalid,e.properties \
      FROM canonical_edges e \
      INDEXED BY canonical_edges_write_cursor_idx \
      LEFT JOIN _fathomdb_artifact_revisions r \
@@ -55,6 +55,10 @@ const ATTRIBUTE_MEMBER_QUERY: &str =
 const PROPERTY_MEMBER_QUERY: &str =
     "SELECT rowid,write_cursor,attr_name,attr_value FROM property_search_index \
      WHERE rowid>=?1 ORDER BY rowid LIMIT ?2";
+#[cfg(feature = "operator")]
+const PROPERTY_VALUE_MEMBER_QUERY: &str =
+    "SELECT rowid,entity_class,write_cursor,attr_name,value_type,text_val,num_val,bool_val \
+     FROM canonical_property_values WHERE rowid>=?1 ORDER BY rowid LIMIT ?2";
 #[cfg(feature = "operator")]
 const ATTRIBUTE_OWNER_QUERY: &str =
     "SELECT n.write_cursor,r.revision_id,n.body,n.properties,n.state,n.superseded_at \
@@ -155,7 +159,7 @@ fn nullable_text_value(row: &rusqlite::Row<'_>, index: usize) -> NullableValue<S
 }
 
 #[cfg(all(feature = "operator", feature = "test-hooks"))]
-pub(crate) fn candidate_queries_for_test() -> [&'static str; 13] {
+pub(crate) fn candidate_queries_for_test() -> [&'static str; 14] {
     [
         NODE_BODY_OWNER_QUERY,
         EDGE_BODY_OWNER_QUERY,
@@ -164,6 +168,7 @@ pub(crate) fn candidate_queries_for_test() -> [&'static str; 13] {
         EDGE_SEARCH_MEMBER_QUERY,
         ATTRIBUTE_MEMBER_QUERY,
         PROPERTY_MEMBER_QUERY,
+        PROPERTY_VALUE_MEMBER_QUERY,
         DENSE_TERMINAL_MEMBER_QUERY,
         DENSE_SIDECAR_MEMBER_QUERY,
         DENSE_VECTOR_MEMBER_QUERY,
@@ -286,6 +291,155 @@ fn expected_attribute_members(
         }
     }
     Ok(members)
+}
+
+#[cfg(feature = "operator")]
+fn expected_property_value_members(
+    connection: &Connection,
+    name: &str,
+    stored: &crate::StoredProjection,
+    effective_at_epoch_s: i64,
+    max_work_units: u32,
+    aggregate_checked: &mut u32,
+) -> Result<Vec<(i64, Option<String>, crate::PropertyValue)>, EngineError> {
+    let mut members = Vec::new();
+    let mut after_cursor = 0_i64;
+    match stored.entity_class {
+        crate::PropertyEntityClass::Node => loop {
+            let remaining = max_work_units.saturating_sub(*aggregate_checked);
+            let limit = i64::from(remaining) + 1;
+            let mut statement =
+                connection.prepare(ATTRIBUTE_OWNER_QUERY).map_err(|_| EngineError::Storage)?;
+            let owners = statement
+                .query_map(rusqlite::params![after_cursor, limit], |row| {
+                    Ok((
+                        row.get::<_, i64>(0)?,
+                        row.get::<_, Option<String>>(1)?,
+                        row.get::<_, String>(2)?,
+                        crate::properties::decode_properties_row_col(row, 3)?,
+                        row.get::<_, String>(4)?,
+                        row.get::<_, Option<i64>>(5)?,
+                    ))
+                })
+                .map_err(|_| EngineError::Storage)?
+                .collect::<rusqlite::Result<Vec<_>>>()
+                .map_err(|_| EngineError::Storage)?;
+            let exhausted = owners.len() < usize::try_from(limit).unwrap_or(usize::MAX);
+            for (cursor, revision, body, properties, state, superseded_at) in owners {
+                after_cursor = cursor;
+                take_work(aggregate_checked, max_work_units)?;
+                if state != "active" || superseded_at.is_some() {
+                    continue;
+                }
+                let cursor_u64 = u64::try_from(cursor).map_err(|_| EngineError::Storage)?;
+                if !crate::dependency_closure::projection_owner_is_eligible_at(
+                    connection,
+                    cursor_u64,
+                    effective_at_epoch_s,
+                )? {
+                    continue;
+                }
+                let Some(value) = crate::projection_registry::extract_typed_node_property(
+                    connection,
+                    &body,
+                    properties.as_ref(),
+                    name,
+                    stored,
+                )
+                .map_err(|_| EngineError::Storage)?
+                else {
+                    continue;
+                };
+                members.push((cursor, revision, value));
+            }
+            if exhausted {
+                break;
+            }
+        },
+        crate::PropertyEntityClass::Edge => loop {
+            let remaining = max_work_units.saturating_sub(*aggregate_checked);
+            let limit = i64::from(remaining) + 1;
+            let mut statement =
+                connection.prepare(EDGE_BODY_OWNER_QUERY).map_err(|_| EngineError::Storage)?;
+            let owners = statement
+                .query_map(rusqlite::params![after_cursor, limit], |row| {
+                    Ok((
+                        row.get::<_, i64>(0)?,
+                        row.get::<_, Option<String>>(1)?,
+                        row.get::<_, Option<i64>>(4)?,
+                        crate::properties::decode_properties_row_col(row, 6)?,
+                    ))
+                })
+                .map_err(|_| EngineError::Storage)?
+                .collect::<rusqlite::Result<Vec<_>>>()
+                .map_err(|_| EngineError::Storage)?;
+            let exhausted = owners.len() < usize::try_from(limit).unwrap_or(usize::MAX);
+            for (cursor, revision, superseded_at, properties) in owners {
+                after_cursor = cursor;
+                take_work(aggregate_checked, max_work_units)?;
+                if superseded_at.is_some() {
+                    continue;
+                }
+                let cursor_u64 = u64::try_from(cursor).map_err(|_| EngineError::Storage)?;
+                if !crate::dependency_closure::projection_owner_is_eligible_at(
+                    connection,
+                    cursor_u64,
+                    effective_at_epoch_s,
+                )? {
+                    continue;
+                }
+                let Some(value) = properties.as_ref().and_then(|map| map.get(name)).cloned() else {
+                    continue;
+                };
+                members.push((cursor, revision, value));
+            }
+            if exhausted {
+                break;
+            }
+        },
+    }
+    Ok(members)
+}
+
+#[cfg(feature = "operator")]
+fn property_value_row_matches(
+    expected: &crate::PropertyValue,
+    value_type: Option<&str>,
+    text_val: Option<&str>,
+    num_val: &rusqlite::types::Value,
+    bool_val: Option<i64>,
+) -> bool {
+    match expected {
+        crate::PropertyValue::String(s) => {
+            value_type == Some("string")
+                && text_val == Some(s.as_str())
+                && matches!(num_val, rusqlite::types::Value::Null)
+                && bool_val.is_none()
+        }
+        crate::PropertyValue::Int(i) => {
+            value_type == Some("integer")
+                && text_val.is_none()
+                && *num_val == rusqlite::types::Value::Integer(*i)
+                && bool_val.is_none()
+        }
+        crate::PropertyValue::Float(f) => {
+            let Some(norm) = crate::properties::normalize_finite_f64(*f) else {
+                return false;
+            };
+            let num_matches = match num_val {
+                rusqlite::types::Value::Real(r) => *r == norm,
+                rusqlite::types::Value::Integer(i) => (*i as f64) == norm,
+                _ => false,
+            };
+            value_type == Some("float") && text_val.is_none() && num_matches && bool_val.is_none()
+        }
+        crate::PropertyValue::Bool(b) => {
+            value_type == Some("boolean")
+                && text_val.is_none()
+                && matches!(num_val, rusqlite::types::Value::Null)
+                && bool_val == Some(i64::from(*b))
+        }
+    }
 }
 
 #[cfg(feature = "operator")]
@@ -1278,6 +1432,45 @@ fn dense_physical_shape(
 }
 
 #[cfg(feature = "operator")]
+fn edge_is_legitimate_bodyless_terminal_only(
+    connection: &Connection,
+    cursor: i64,
+    effective_at_epoch_s: i64,
+) -> Result<bool, EngineError> {
+    let cursor_u64 = u64::try_from(cursor).map_err(|_| EngineError::Storage)?;
+    let row = connection
+        .query_row(
+            "SELECT body,superseded_at FROM canonical_edges WHERE write_cursor=?1",
+            [cursor],
+            |row| Ok((nullable_text_value(row, 0), nullable_integer_value(row, 1))),
+        )
+        .optional()
+        .map_err(|_| EngineError::Storage)?;
+    let Some((NullableValue::Null, NullableValue::Null)) = row else {
+        return Ok(false);
+    };
+    if !crate::dependency_closure::projection_owner_is_eligible_at(
+        connection,
+        cursor_u64,
+        effective_at_epoch_s,
+    )? {
+        return Ok(false);
+    }
+    let terminal_state = connection
+        .query_row(
+            "SELECT state FROM _fathomdb_projection_terminal WHERE write_cursor=?1",
+            [cursor],
+            |row| Ok(text_value(row, 0)),
+        )
+        .optional()
+        .map_err(|_| EngineError::Storage)?;
+    if terminal_state.as_ref().and_then(|s| s.as_deref()) != Some("up_to_date") {
+        return Ok(false);
+    }
+    Ok(dense_physical_shape(connection, cursor, "edge_fact")?.terminal_only)
+}
+
+#[cfg(feature = "operator")]
 fn body_residue_finding(
     connection: &Connection,
     artifact_class: &str,
@@ -1722,6 +1915,15 @@ fn active_projection_findings(
             } else {
                 String::new()
             };
+            if artifact_class == Some("edge")
+                && edge_is_legitimate_bodyless_terminal_only(
+                    connection,
+                    cursor_i64,
+                    effective_at_epoch_s,
+                )?
+            {
+                continue;
+            }
             let retention = if let Some(class) = artifact_class {
                 owner_retention_at(
                     connection,
@@ -1921,6 +2123,140 @@ fn active_projection_findings(
             push_finding(findings, item, max_findings)?;
         }
     }
+
+    // Typed `canonical_property_values` verification (node + edge, entity-class-aware).
+    let mut expected_property_values = BTreeMap::new();
+    for (name, stored) in &registry_snapshot {
+        if !stored.wants_property_value() {
+            continue;
+        }
+        let class_str = stored.entity_class.as_str().to_string();
+        for (cursor, revision, value) in expected_property_value_members(
+            connection,
+            name,
+            stored,
+            effective_at_epoch_s,
+            max_work_units,
+            aggregate_checked,
+        )? {
+            expected_property_values
+                .insert((class_str.clone(), name.clone(), cursor), (value, revision));
+        }
+    }
+    {
+        type PhysicalPropertyValueRow =
+            (i64, Option<String>, Option<String>, rusqlite::types::Value, Option<i64>);
+        let remaining = max_work_units.saturating_sub(*aggregate_checked);
+        let mut physical_statement =
+            connection.prepare(PROPERTY_VALUE_MEMBER_QUERY).map_err(|_| EngineError::Storage)?;
+        let physical = physical_statement
+            .query_map(rusqlite::params![FIRST_SQLITE_ROWID, i64::from(remaining) + 1], |row| {
+                Ok((
+                    integer_value(row, 0),
+                    text_value(row, 1),
+                    integer_value(row, 2),
+                    text_value(row, 3),
+                    text_value(row, 4),
+                    text_value(row, 5),
+                    row.get::<_, rusqlite::types::Value>(6)?,
+                    integer_value(row, 7),
+                ))
+            })
+            .map_err(|_| EngineError::Storage)?
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(|_| EngineError::Storage)?;
+        let mut physical_members: BTreeMap<(String, String, i64), Vec<PhysicalPropertyValueRow>> =
+            BTreeMap::new();
+        let mut invalid_physical = Vec::new();
+        for (rowid, entity_class, cursor, name, value_type, text_val, num_val, bool_val) in physical
+        {
+            take_work(aggregate_checked, max_work_units)?;
+            match (rowid, entity_class, cursor, name) {
+                (Some(rowid), Some(class), Some(cursor), Some(name))
+                    if matches!(class.as_str(), "node" | "edge") && cursor > 0 =>
+                {
+                    physical_members
+                        .entry((class, name, cursor))
+                        .or_default()
+                        .push((rowid, value_type, text_val, num_val, bool_val));
+                }
+                (Some(rowid), _, _, _) => invalid_physical.push(rowid),
+                (None, _, _, _) => invalid_physical.push(i64::MAX),
+            }
+        }
+        for ((class, name, cursor), (expected_value, revision)) in &expected_property_values {
+            match physical_members.get(&(class.clone(), name.clone(), *cursor)) {
+                None => {
+                    let mut item = finding(
+                        DataPlaneIntegrityFindingCodeV1::CanonicalAttributeMissing,
+                        DataPlaneIntegritySeverityV1::Critical,
+                    );
+                    item.write_cursor = u64::try_from(*cursor).ok();
+                    item.artifact_revision_ids = revision.iter().cloned().collect();
+                    push_finding(findings, item, max_findings)?;
+                }
+                Some(rows)
+                    if rows.len() != 1
+                        || !property_value_row_matches(
+                            expected_value,
+                            rows[0].1.as_deref(),
+                            rows[0].2.as_deref(),
+                            &rows[0].3,
+                            rows[0].4,
+                        ) =>
+                {
+                    let mut item = finding(
+                        DataPlaneIntegrityFindingCodeV1::SearchProjectionIdentityMismatch,
+                        DataPlaneIntegritySeverityV1::Error,
+                    );
+                    item.write_cursor = u64::try_from(*cursor).ok();
+                    item.artifact_revision_ids = revision.iter().cloned().collect();
+                    push_finding(findings, item, max_findings)?;
+                }
+                Some(_) => {}
+            }
+        }
+        let mut residue = physical_members
+            .iter()
+            .filter(|(key, _)| !expected_property_values.contains_key(*key))
+            .flat_map(|((class, _name, cursor), rows)| {
+                rows.iter().map(move |(rowid, _, _, _, _)| (*rowid, class.clone(), *cursor))
+            })
+            .collect::<Vec<_>>();
+        residue.sort_unstable_by_key(|entry| entry.0);
+        for (_, class, cursor) in residue {
+            let owner_sql = if class == "edge" {
+                "SELECT EXISTS(SELECT 1 FROM canonical_edges WHERE write_cursor=?1)"
+            } else {
+                "SELECT EXISTS(SELECT 1 FROM canonical_nodes WHERE write_cursor=?1)"
+            };
+            let owner_exists: bool = connection
+                .query_row(owner_sql, [cursor], |row| row.get(0))
+                .map_err(|_| EngineError::Storage)?;
+            let mut item = finding(
+                if owner_exists {
+                    DataPlaneIntegrityFindingCodeV1::SearchProjectionOutsideMembership
+                } else {
+                    DataPlaneIntegrityFindingCodeV1::SearchProjectionOwnerMissing
+                },
+                DataPlaneIntegritySeverityV1::Critical,
+            );
+            item.write_cursor = u64::try_from(cursor).ok();
+            if owner_exists {
+                let revision = revision_for_owner(connection, class.as_str(), cursor)?;
+                item.artifact_revision_ids = revision.into_iter().collect();
+            }
+            push_finding(findings, item, max_findings)?;
+        }
+        invalid_physical.sort_unstable();
+        for _ in invalid_physical {
+            let item = finding(
+                DataPlaneIntegrityFindingCodeV1::SearchProjectionIdentityMismatch,
+                DataPlaneIntegritySeverityV1::Error,
+            );
+            push_finding(findings, item, max_findings)?;
+        }
+    }
     Ok(*aggregate_checked - start)
 }
 
@@ -2020,6 +2356,15 @@ fn projection_generation_findings(
                 None
             };
             if expected.is_none() {
+                if artifact_class == Some("edge")
+                    && edge_is_legitimate_bodyless_terminal_only(
+                        connection,
+                        cursor,
+                        effective_at_epoch_s,
+                    )?
+                {
+                    continue;
+                }
                 let retention = if let Some(class) = artifact_class {
                     owner_retention_at(
                         connection,
@@ -2498,7 +2843,7 @@ impl Engine {
     /// Candidate SQL executed by the bounded Slice 55 integrity scans.
     #[cfg(all(feature = "operator", feature = "test-hooks"))]
     #[doc(hidden)]
-    pub fn data_plane_integrity_candidate_queries_for_test(&self) -> [&'static str; 13] {
+    pub fn data_plane_integrity_candidate_queries_for_test(&self) -> [&'static str; 14] {
         crate::data_plane_integrity::candidate_queries_for_test()
     }
 

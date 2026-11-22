@@ -138,6 +138,14 @@ impl PhysicalMaintenance {
                         let guard = physical_metrics::writer(&metrics, &connection, true)?;
                         let c = guard.as_ref().ok_or(EngineError::Closing)?;
                         erasure::discharge_pending_redactions_on(c, &telemetry)?;
+                        let autonomous_unredacted = crate::erasure_maintenance::read_policy(c)?
+                            == PhysicalErasurePolicy::Autonomous
+                            && physical_erasure::root(c)?.is_some_and(|debt| !debt.redacted);
+                        if autonomous_unredacted {
+                            let checkpoint_timer = metrics.timer("checkpoint");
+                            checkpoint(c)?;
+                            drop(checkpoint_timer);
+                        }
                         physical_erasure::prepare_redacted(c, &ids)?;
                         let checkpoint_timer = metrics.timer("checkpoint");
                         checkpoint(c)?;

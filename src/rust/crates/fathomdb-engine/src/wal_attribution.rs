@@ -17,6 +17,40 @@ impl WalAttributionRole {
             Self::ProjectionWorker => "projection_worker",
         }
     }
+
+    pub(super) const fn ordinal(self) -> usize {
+        match self {
+            Self::Writer => 0,
+            Self::ReaderWorker => 1,
+            Self::ProjectionDispatcher => 2,
+            Self::ProjectionWorker => 3,
+        }
+    }
+}
+
+const MAX_TRACKED_WAL_SLOTS: usize = 64;
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(super) struct WalActiveRoleCounts {
+    pub(super) writer: u64,
+    pub(super) reader_workers: u64,
+    pub(super) projection_dispatchers: u64,
+    pub(super) projection_workers: u64,
+}
+
+/// Test-only probe summary for release-mode (`enabled = false`) lock-free WAL
+/// attribution idempotency and classification checks.
+#[cfg(any(test, feature = "test-hooks"))]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ReleaseWalAttributionProbe {
+    pub after_double_reader_set_true: u64,
+    pub reader_classification: &'static str,
+    pub after_double_reader_set_false: u64,
+    pub after_double_worker_set_true: u64,
+    pub worker_classification: &'static str,
+    pub after_double_worker_set_false: u64,
+    pub overlap_classification: &'static str,
+    pub idle_classification: &'static str,
 }
 
 #[cfg(any(test, feature = "test-hooks"))]
@@ -134,6 +168,7 @@ pub(super) struct WalAttributionRoleSnapshot {
 pub(super) struct WalAttributionSnapshot {
     pub(super) roles: Vec<WalAttributionRoleSnapshot>,
     pub(super) active_roles: Vec<(WalAttributionRole, usize)>,
+    pub(super) active_counts: WalActiveRoleCounts,
     pub(super) no_owned_snapshot: bool,
     pub(super) local_checkpoint_overlap: bool,
 }
@@ -241,13 +276,18 @@ pub(super) type ReaderHandoffPause = (Arc<Barrier>, Arc<Barrier>);
 #[cfg(any(test, feature = "test-hooks"))]
 pub(super) type ReaderCompletionPause = (Arc<Barrier>, Arc<Barrier>, Arc<AtomicBool>);
 
-/// Private diagnostic state. It is off unless controlled CI/test config opts in
-/// via presence of `FATHOMDB_WAL_ATTRIBUTION`; the off path is a single atomic read.
+/// Private diagnostic state. Lightweight lock-free active-role and checkpoint
+/// overlap counters are ALWAYS active (zero `Mutex` / zero `eprintln!` on the
+/// hot path) so release-mode checkpoint diagnostics truthfully classify BUSY
+/// causes. Full stderr trace and checkpoint history remain opt-in via
+/// `FATHOMDB_WAL_ATTRIBUTION` (or `cfg!(test)`).
 pub(super) struct WalAttributionCollector {
     #[cfg(any(test, feature = "slice30-observer"))]
     pub(super) slice30_observation: crate::slice30_observer::ObservationSlot,
-    pub(super) enabled: bool,
+    pub(super) enabled: AtomicBool,
     pub(super) started: Instant,
+    role_active_counts: [AtomicU64; 4],
+    slot_active: [[AtomicBool; MAX_TRACKED_WAL_SLOTS]; 4],
     pub(super) roles: Mutex<BTreeMap<(WalAttributionRole, usize), WalAttributionRoleState>>,
     pub(super) checkpoints: Mutex<Vec<WalCheckpointRecord>>,
     pub(super) checkpoint_active: AtomicBool,
@@ -295,11 +335,17 @@ impl Drop for WalAttributionActivity {
 
 impl WalAttributionCollector {
     pub(super) fn new() -> Self {
+        Self::with_enabled(cfg!(test) || std::env::var_os("FATHOMDB_WAL_ATTRIBUTION").is_some())
+    }
+
+    pub(super) fn with_enabled(enabled: bool) -> Self {
         Self {
             #[cfg(any(test, feature = "slice30-observer"))]
             slice30_observation: crate::slice30_observer::ObservationSlot::default(),
-            enabled: cfg!(test) || std::env::var_os("FATHOMDB_WAL_ATTRIBUTION").is_some(),
+            enabled: AtomicBool::new(enabled),
             started: Instant::now(),
+            role_active_counts: std::array::from_fn(|_| AtomicU64::new(0)),
+            slot_active: std::array::from_fn(|_| std::array::from_fn(|_| AtomicBool::new(false))),
             roles: Mutex::new(BTreeMap::new()),
             checkpoints: Mutex::new(Vec::new()),
             checkpoint_active: AtomicBool::new(false),
@@ -319,6 +365,15 @@ impl WalAttributionCollector {
             #[cfg(any(test, feature = "test-hooks"))]
             reader_completion_pause: Mutex::new(None),
         }
+    }
+
+    pub(super) fn is_enabled(&self) -> bool {
+        self.enabled.load(Ordering::Relaxed)
+    }
+
+    #[cfg(any(test, feature = "test-hooks"))]
+    pub(super) fn set_enabled_for_test(&self, enabled: bool) {
+        self.enabled.store(enabled, Ordering::SeqCst);
     }
 
     #[cfg(any(test, feature = "test-hooks"))]
@@ -392,7 +447,7 @@ impl WalAttributionCollector {
     }
 
     pub(super) fn register(&self, role: WalAttributionRole, index: usize) {
-        if !self.enabled {
+        if !self.is_enabled() {
             return;
         }
         if let Ok(mut roles) = self.roles.lock() {
@@ -408,7 +463,18 @@ impl WalAttributionCollector {
         active: bool,
         phase: &'static str,
     ) {
-        if !self.enabled {
+        // Always-on lock-free per-slot flip + role counter update: idempotent on
+        // repeated `set(true)` or `set(false)` calls (zero double-count/underflow).
+        let ordinal = role.ordinal();
+        if let Some(slot) = self.slot_active[ordinal].get(index) {
+            let was_active = slot.swap(active, Ordering::AcqRel);
+            if !was_active && active {
+                self.role_active_counts[ordinal].fetch_add(1, Ordering::AcqRel);
+            } else if was_active && !active {
+                self.role_active_counts[ordinal].fetch_sub(1, Ordering::AcqRel);
+            }
+        }
+        if !self.is_enabled() {
             return;
         }
         if let Ok(mut roles) = self.roles.lock() {
@@ -417,46 +483,84 @@ impl WalAttributionCollector {
         self.emit(role, index, phase);
     }
 
+    pub(super) fn active_role_counts(&self) -> WalActiveRoleCounts {
+        WalActiveRoleCounts {
+            writer: self.role_active_counts[WalAttributionRole::Writer.ordinal()]
+                .load(Ordering::Acquire),
+            reader_workers: self.role_active_counts[WalAttributionRole::ReaderWorker.ordinal()]
+                .load(Ordering::Acquire),
+            projection_dispatchers: self.role_active_counts
+                [WalAttributionRole::ProjectionDispatcher.ordinal()]
+            .load(Ordering::Acquire),
+            projection_workers: self.role_active_counts
+                [WalAttributionRole::ProjectionWorker.ordinal()]
+            .load(Ordering::Acquire),
+        }
+    }
+
     pub(super) fn snapshot(&self) -> WalAttributionSnapshot {
         let local_checkpoint_overlap = self.checkpoint_active.load(Ordering::SeqCst);
-        let role_states = self.roles.lock().map(|roles| roles.clone()).unwrap_or_default();
-        let roles = role_states
-            .iter()
-            .map(|((role, index), state)| WalAttributionRoleSnapshot {
-                role: role.name(),
-                index: *index,
-                active: state.active,
-                phase: state.phase,
-            })
-            .collect();
-        let active_roles: Vec<(WalAttributionRole, usize)> = role_states
-            .iter()
-            .filter_map(|((role, index), state)| {
-                (state.active
-                    && matches!(
-                        role,
-                        WalAttributionRole::ReaderWorker
-                            | WalAttributionRole::ProjectionDispatcher
-                            | WalAttributionRole::ProjectionWorker
-                    ))
-                .then_some((*role, *index))
-            })
-            .collect();
-        let no_owned_snapshot = active_roles.is_empty() && !local_checkpoint_overlap;
-        WalAttributionSnapshot { roles, active_roles, no_owned_snapshot, local_checkpoint_overlap }
+        let active_counts = self.active_role_counts();
+        let (roles, active_roles) = if self.is_enabled() {
+            let role_states = self.roles.lock().map(|roles| roles.clone()).unwrap_or_default();
+            let roles = role_states
+                .iter()
+                .map(|((role, index), state)| WalAttributionRoleSnapshot {
+                    role: role.name(),
+                    index: *index,
+                    active: state.active,
+                    phase: state.phase,
+                })
+                .collect();
+            let active_roles: Vec<(WalAttributionRole, usize)> = role_states
+                .iter()
+                .filter_map(|((role, index), state)| {
+                    (state.active
+                        && matches!(
+                            role,
+                            WalAttributionRole::ReaderWorker
+                                | WalAttributionRole::ProjectionDispatcher
+                                | WalAttributionRole::ProjectionWorker
+                        ))
+                    .then_some((*role, *index))
+                })
+                .collect();
+            (roles, active_roles)
+        } else {
+            let mut active_roles = Vec::new();
+            for role in [
+                WalAttributionRole::ReaderWorker,
+                WalAttributionRole::ProjectionDispatcher,
+                WalAttributionRole::ProjectionWorker,
+            ] {
+                let slots = &self.slot_active[role.ordinal()];
+                for (index, slot) in slots.iter().enumerate() {
+                    if slot.load(Ordering::Acquire) {
+                        active_roles.push((role, index));
+                    }
+                }
+            }
+            (Vec::new(), active_roles)
+        };
+        let no_owned_snapshot = active_counts.reader_workers == 0
+            && active_counts.projection_dispatchers == 0
+            && active_counts.projection_workers == 0
+            && !local_checkpoint_overlap;
+        WalAttributionSnapshot {
+            roles,
+            active_roles,
+            active_counts,
+            no_owned_snapshot,
+            local_checkpoint_overlap,
+        }
     }
 
     pub(super) fn checkpoint_begin(&self) -> bool {
-        if !self.enabled {
-            return false;
-        }
         self.checkpoint_active.swap(true, Ordering::SeqCst)
     }
 
     pub(super) fn checkpoint_end(&self) {
-        if self.enabled {
-            self.checkpoint_active.store(false, Ordering::SeqCst);
-        }
+        self.checkpoint_active.store(false, Ordering::SeqCst);
     }
 
     pub(super) fn classification(
@@ -466,11 +570,11 @@ impl WalAttributionCollector {
     ) -> &'static str {
         if overlap {
             "local_checkpoint_overlap"
-        } else if snapshot.roles.iter().any(|role| role.active && role.role == "reader_worker") {
+        } else if snapshot.active_counts.reader_workers > 0 {
             "owned_reader_snapshot"
-        } else if snapshot.roles.iter().any(|role| {
-            role.active && matches!(role.role, "projection_dispatcher" | "projection_worker")
-        }) {
+        } else if snapshot.active_counts.projection_dispatchers > 0
+            || snapshot.active_counts.projection_workers > 0
+        {
             "owned_runtime_transaction"
         } else {
             "no_owned_snapshot"
@@ -485,7 +589,7 @@ impl WalAttributionCollector {
         classification: &'static str,
         active_roles: Vec<(WalAttributionRole, usize)>,
     ) {
-        if self.enabled {
+        if self.is_enabled() {
             if let Ok(mut checkpoints) = self.checkpoints.lock() {
                 checkpoints.push(WalCheckpointRecord {
                     attempt,
@@ -536,7 +640,7 @@ use rusqlite::{Connection, TransactionState};
 use std::collections::BTreeMap;
 #[cfg(any(test, feature = "test-hooks"))]
 use std::collections::BTreeSet;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 #[cfg(any(test, feature = "test-hooks"))]
 use std::sync::Barrier;
 use std::sync::{Arc, Mutex};

@@ -11,8 +11,8 @@ pub(crate) fn begin_attributed_reader_tx<'a>(
     worker_idx: usize,
 ) -> rusqlite::Result<Transaction<'a>> {
     let tx = reader.transaction_with_behavior(TransactionBehavior::Deferred)?;
-    if attribution.enabled {
-        attribution.set(WalAttributionRole::ReaderWorker, worker_idx, true, "transaction_opened");
+    attribution.set(WalAttributionRole::ReaderWorker, worker_idx, true, "transaction_opened");
+    if attribution.is_enabled() {
         tx.query_row("SELECT COUNT(*) FROM canonical_nodes", [], |row| row.get::<_, i64>(0))?;
         attribution.set(WalAttributionRole::ReaderWorker, worker_idx, true, "snapshot_acquired");
         #[cfg(any(test, feature = "test-hooks"))]

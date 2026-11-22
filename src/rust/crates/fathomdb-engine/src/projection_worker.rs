@@ -1173,14 +1173,12 @@ fn next_pending_projection_jobs(
         let mut statement = connection.prepare_cached(&sql)?;
         // SQLite starts the implicit read transaction at statement execution; do
         // not call this a transaction before `query_map` succeeds.
-        let _activity = attribution.enabled.then(|| {
-            WalAttributionActivity::begin(
-                Arc::clone(attribution),
-                WalAttributionRole::ProjectionDispatcher,
-                dispatcher_idx,
-                "snapshot_acquired",
-            )
-        });
+        let _activity = WalAttributionActivity::begin(
+            Arc::clone(attribution),
+            WalAttributionRole::ProjectionDispatcher,
+            dispatcher_idx,
+            "snapshot_acquired",
+        );
         let mut scan_cursor = persisted_cursor;
         let mut checked_below_watermark = false;
         loop {

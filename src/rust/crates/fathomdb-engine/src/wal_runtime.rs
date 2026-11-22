@@ -329,6 +329,67 @@ impl Engine {
         self.wal_attribution_snapshot().no_owned_snapshot
     }
 
+    #[cfg(any(test, feature = "test-hooks"))]
+    #[doc(hidden)]
+    pub fn set_wal_attribution_enabled_for_test(&self, enabled: bool) {
+        self.wal_attribution.set_enabled_for_test(enabled);
+    }
+
+    #[cfg(any(test, feature = "test-hooks"))]
+    #[doc(hidden)]
+    pub fn probe_release_wal_attribution_idempotency_for_test(
+        &self,
+    ) -> crate::wal_attribution::ReleaseWalAttributionProbe {
+        let collector = WalAttributionCollector::with_enabled(false);
+        collector.set(WalAttributionRole::ReaderWorker, 0, true, "transaction_opened");
+        collector.set(WalAttributionRole::ReaderWorker, 0, true, "snapshot_acquired");
+        let reader_snap = collector.snapshot();
+        let after_double_reader_set_true = reader_snap.active_counts.reader_workers;
+        let reader_classification = collector.classification(&reader_snap, false);
+        collector.set(WalAttributionRole::ReaderWorker, 0, false, "completed");
+        collector.set(WalAttributionRole::ReaderWorker, 0, false, "idle");
+        let after_double_reader_set_false = collector.active_role_counts().reader_workers;
+
+        collector.set(WalAttributionRole::ProjectionWorker, 0, true, "transaction_opened");
+        collector.set(WalAttributionRole::ProjectionWorker, 0, true, "transaction_opened");
+        let worker_snap = collector.snapshot();
+        let after_double_worker_set_true = worker_snap.active_counts.projection_workers;
+        let worker_classification = collector.classification(&worker_snap, false);
+        collector.set(WalAttributionRole::ProjectionWorker, 0, false, "completed");
+        collector.set(WalAttributionRole::ProjectionWorker, 0, false, "idle");
+        let after_double_worker_set_false = collector.active_role_counts().projection_workers;
+
+        let first_overlap = collector.checkpoint_begin();
+        assert!(!first_overlap);
+        let second_overlap = collector.checkpoint_begin();
+        let overlap_snap = collector.snapshot();
+        let overlap_classification = collector.classification(&overlap_snap, second_overlap);
+        collector.checkpoint_end();
+        let idle_snap = collector.snapshot();
+        let idle_classification = collector.classification(&idle_snap, false);
+
+        crate::wal_attribution::ReleaseWalAttributionProbe {
+            after_double_reader_set_true,
+            reader_classification,
+            after_double_reader_set_false,
+            after_double_worker_set_true,
+            worker_classification,
+            after_double_worker_set_false,
+            overlap_classification,
+            idle_classification,
+        }
+    }
+
+    #[cfg(any(test, feature = "test-hooks"))]
+    #[doc(hidden)]
+    pub fn hold_owned_reader_snapshot_for_test(&self) -> (Arc<Barrier>, Arc<Barrier>) {
+        let snapshot_ready = Arc::new(Barrier::new(2));
+        let release = Arc::new(Barrier::new(2));
+        self.reader_pool
+            .hold_worker_zero_wal_snapshot(Arc::clone(&snapshot_ready), Arc::clone(&release));
+        (snapshot_ready, release)
+    }
+
     /// Arm private observation for the next erasure checkpoint sequence. The
     /// observer only reads connection state around the already-required
     /// checkpoint call; it never issues a diagnostic SQLite statement.

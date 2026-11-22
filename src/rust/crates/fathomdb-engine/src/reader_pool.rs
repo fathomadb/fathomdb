@@ -248,6 +248,15 @@ pub(crate) enum ReaderRequest {
         limit: usize,
         respond: SyncSender<rusqlite::Result<Vec<OpStoreRow>>>,
     },
+    /// 0.8.31 Slice 20 — list registered operational collections (`name ASC`).
+    ReadOperationalCollections {
+        respond: SyncSender<rusqlite::Result<Vec<crate::OperationalCollectionInfo>>>,
+    },
+    /// 0.8.31 Slice 20 — point lookup of one registered operational collection.
+    ReadOperationalCollection {
+        name: String,
+        respond: SyncSender<rusqlite::Result<Option<crate::OperationalCollectionInfo>>>,
+    },
     /// Slice 35 (G4) — list active canonical nodes of a `kind`, filtered by
     /// zero or more `Predicate`s (AND-combined), up to `limit` rows.
     /// Path validation already happened at `Predicate` construction time;
@@ -436,6 +445,19 @@ impl ReaderRequest {
         respond: SyncSender<rusqlite::Result<Vec<OpStoreRow>>>,
     ) -> Self {
         Self::ReadCollection { collection, after_id, limit, respond }
+    }
+
+    pub(crate) fn read_operational_collections(
+        respond: SyncSender<rusqlite::Result<Vec<crate::OperationalCollectionInfo>>>,
+    ) -> Self {
+        Self::ReadOperationalCollections { respond }
+    }
+
+    pub(crate) fn read_operational_collection(
+        name: String,
+        respond: SyncSender<rusqlite::Result<Option<crate::OperationalCollectionInfo>>>,
+    ) -> Self {
+        Self::ReadOperationalCollection { name, respond }
     }
 
     pub(crate) fn read_list(
@@ -796,6 +818,35 @@ fn reader_worker_loop(
                 );
                 let _ = respond.send(result);
             }
+            ReaderRequest::ReadOperationalCollections { respond } => {
+                let result = read_operational_collections_in_tx(
+                    &mut connection,
+                    &wal_attribution,
+                    worker_idx,
+                );
+                finish_reader_request(
+                    &connection,
+                    &wal_attribution,
+                    worker_idx,
+                    physical_read.take(),
+                );
+                let _ = respond.send(result);
+            }
+            ReaderRequest::ReadOperationalCollection { name, respond } => {
+                let result = read_operational_collection_in_tx(
+                    &mut connection,
+                    &name,
+                    &wal_attribution,
+                    worker_idx,
+                );
+                finish_reader_request(
+                    &connection,
+                    &wal_attribution,
+                    worker_idx,
+                    physical_read.take(),
+                );
+                let _ = respond.send(result);
+            }
             ReaderRequest::ReadList(request) => {
                 let result = read_list_in_tx(
                     &mut connection,
@@ -1047,6 +1098,12 @@ fn reader_worker_loop(
                 let _: i64 = connection
                     .query_row("SELECT COUNT(*) FROM canonical_nodes", [], |row| row.get(0))
                     .expect("acquire real reader snapshot");
+                wal_attribution.set(
+                    WalAttributionRole::ReaderWorker,
+                    worker_idx,
+                    true,
+                    "snapshot_acquired",
+                );
                 let _ = snapshot_ready.send(worker_idx);
                 let _ = release.recv_timeout(Duration::from_secs(5));
                 connection.execute_batch("COMMIT").expect("release reader snapshot");
@@ -1601,6 +1658,7 @@ use crate::projection_generation::ProjectionRuntimeStateV1;
 use crate::read::read_canonical_page_baseline_in_tx;
 use crate::read::{
     read_canonical_page_in_tx, read_collection_in_tx, read_get_by_id_in_tx, read_list_in_tx,
+    read_operational_collection_in_tx, read_operational_collections_in_tx,
     read_operational_state_in_tx, read_operational_state_page_in_tx, NodeRecord, OpStoreRow,
     OperationalStateRecordV1, PageReaderError,
 };

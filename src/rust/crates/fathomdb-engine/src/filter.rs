@@ -9,10 +9,9 @@ use crate::properties::{
 };
 use crate::search_types::TOP_K_BIT_CANDIDATES;
 use crate::temporal::ReadView;
-use crate::vector_storage::{
-    actual_vector_attr_columns, attr_vec0_column, resolve_builtin_source_type,
-    resolve_source_type_on,
-};
+#[cfg(any(test, feature = "test-hooks"))]
+use crate::vector_storage::resolve_builtin_source_type;
+use crate::vector_storage::{actual_vector_attr_columns, attr_vec0_column, resolve_source_type_on};
 use rusqlite::{params, Connection, OptionalExtension};
 use std::collections::BTreeSet;
 

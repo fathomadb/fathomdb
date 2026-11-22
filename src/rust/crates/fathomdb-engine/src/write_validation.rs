@@ -13,7 +13,20 @@ pub(crate) fn validate_batch(
     connection: &Connection,
     batch: &[PreparedWrite],
 ) -> Result<Vec<WritePlan>, EngineError> {
-    batch.iter().map(|write| validate_write(connection, write)).collect()
+    let mut plans = Vec::with_capacity(batch.len());
+    let mut seen_admin_kinds: BTreeMap<&str, &str> = BTreeMap::new();
+    for write in batch {
+        let plan = validate_write(connection, write)?;
+        if let PreparedWrite::AdminSchema { name, kind, .. } = write {
+            if let Some(prev_kind) = seen_admin_kinds.insert(name.as_str(), kind.as_str()) {
+                if prev_kind != kind.as_str() {
+                    return Err(EngineError::WriteValidation);
+                }
+            }
+        }
+        plans.push(plan);
+    }
+    Ok(plans)
 }
 
 pub(crate) fn collect_projection_jobs(
@@ -205,6 +218,17 @@ pub(crate) fn validate_write(
                 || contains_external_ref(schema_json)
             {
                 return Err(EngineError::SchemaValidation);
+            }
+            let existing_kind: Option<String> = connection
+                .query_row(
+                    "SELECT kind FROM operational_collections WHERE name = ?1",
+                    [name],
+                    |row| row.get(0),
+                )
+                .optional()
+                .map_err(|_| EngineError::Storage)?;
+            if existing_kind.as_deref().is_some_and(|existing| existing != kind.as_str()) {
+                return Err(EngineError::WriteValidation);
             }
             Ok(WritePlan::AdminSchema)
         }

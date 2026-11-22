@@ -36,7 +36,7 @@ pub(crate) struct RootDebt {
     #[serde(default)]
     denied_identities: Vec<String>,
     #[serde(default)]
-    redacted: bool,
+    pub(crate) redacted: bool,
     #[serde(default)]
     blocker: Option<String>,
 }

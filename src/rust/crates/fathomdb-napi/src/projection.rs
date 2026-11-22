@@ -171,6 +171,8 @@ pub struct EraseReport {
     /// Row-owned projection rows (FTS5 + vec0 + `search_index_v2`) dropped
     /// alongside the canonical rows.
     pub projections_invalidated: i64,
+    /// True when this call completed a prior pending erasure closure.
+    pub completed_pending_erasure: bool,
 }
 
 impl EraseReport {
@@ -180,6 +182,7 @@ impl EraseReport {
             nodes_excised: r.nodes_excised as i64,
             edges_excised: r.edges_excised as i64,
             projections_invalidated: r.projections_invalidated as i64,
+            completed_pending_erasure: r.completed_pending_erasure,
         }
     }
 }
@@ -205,6 +208,10 @@ pub struct ProjectionSpec {
     pub vector_dense_readiness: Option<String>,
     /// Ordered literal object-member path; absent preserves top-level lookup.
     pub source: Option<Vec<String>>,
+    /// Entity class targeted by this projection (`"node"` or `"edge"`).
+    pub entity_class: Option<String>,
+    /// Explicit opt-in custom node kinds enrolled for vector indexing.
+    pub vector_kinds: Option<Vec<String>>,
 }
 
 impl ProjectionSpec {
@@ -222,6 +229,8 @@ impl ProjectionSpec {
                 .and_then(|v| v.dense_readiness)
                 .map(|r| r.as_str().to_string()),
             source: s.source.clone(),
+            entity_class: Some(s.entity_class.as_str().to_string()),
+            vector_kinds: s.vector.as_ref().and_then(|v| v.kinds.clone()),
         }
     }
 
@@ -239,6 +248,34 @@ impl ProjectionSpec {
         if let Some(source) = &self.source {
             for segment in source {
                 validate_ffi_string_napi(segment)?;
+            }
+        }
+        let entity_class = match self.entity_class.as_deref() {
+            None => RustPropertyEntityClass::Node,
+            Some(raw) => {
+                validate_ffi_string_napi(raw)?;
+                RustPropertyEntityClass::parse(raw).ok_or_else(|| {
+                    typed_error(
+                        CODE_INVALID_ARGUMENT,
+                        format!(
+                            "projection {:?}: unknown entityClass {:?}; expected \"node\" or \"edge\"",
+                            self.name, raw
+                        ),
+                        JsonValue::Null,
+                    )
+                })?
+            }
+        };
+        if let Some(kinds) = &self.vector_kinds {
+            for kind in kinds {
+                validate_ffi_string_napi(kind)?;
+            }
+            if !self.vector && !kinds.is_empty() {
+                return Err(typed_error(
+                    CODE_WRITE_VALIDATION,
+                    format!("projection {:?}: vectorKinds requires vector=true", self.name),
+                    JsonValue::Null,
+                ));
             }
         }
         // 0.8.20 keystone closeout fix-4 — ROUND-TRIP CONSISTENCY GATE. A spec
@@ -366,10 +403,10 @@ impl ProjectionSpec {
                     .vector_dense_readiness
                     .as_deref()
                     .and_then(RustDenseReadiness::from_str_opt),
-                kinds: None,
+                kinds: self.vector_kinds.clone(),
             }),
             source: self.source.clone(),
-            entity_class: fathomdb_engine::PropertyEntityClass::Node,
+            entity_class,
         })
     }
 }

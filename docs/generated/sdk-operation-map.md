@@ -11,7 +11,7 @@ signatures, options, return shapes, or error behavior. Use the maintained
 [TypeScript API](../reference/typescript-api.md), and
 [Rust SDK reference](../reference/rust-sdk.md) for those contracts.
 
-Governed operations: **53**. Each language cell is
+Governed operations: **55**. Each language cell is
 `locator` / `spelling`; `engine_static` is on `Engine`,
 `engine_instance` is on an open handle, `package` is standalone,
 and `read`, `graph`, and `admin` name their respective surfaces.
@@ -71,3 +71,5 @@ and `read`, `graph`, and `admin` name their respective surfaces.
 | `read.canonical_page` | live | `read` / `canonical_page` | `read` / `canonicalPage` | `read` / `canonical_page` |
 | `read.operational_state` | live | `read` / `operational_state` | `read` / `operationalState` | `read` / `operational_state` |
 | `read.operational_state_page` | live | `read` / `operational_state_page` | `read` / `operationalStatePage` | `read` / `operational_state_page` |
+| `read.operational_collections` | live | `read` / `operational_collections` | `read` / `operationalCollections` | `read` / `operational_collections` |
+| `read.operational_collection` | live | `read` / `operational_collection` | `read` / `operationalCollection` | `read` / `operational_collection` |

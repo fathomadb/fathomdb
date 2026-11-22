@@ -86,6 +86,7 @@ use fathomdb_engine::{
     MutationProjectionStatusRequestV1 as RustMutationProjectionStatusRequestV1,
     MutationProjectionStatusV1 as RustMutationProjectionStatusV1, NodeRecord as RustNodeRecord,
     OpStoreRow as RustOpStoreRow, OpenReport as RustOpenReport, OpenStage,
+    OperationalCollectionInfo as RustOperationalCollectionInfo,
     OperationalStateRecordV1 as RustOperationalStateRecordV1, PageCursor as RustPageCursor,
     PageRequestV1 as RustPageRequestV1, PageV1 as RustPageV1, PerHitExplain as RustPerHitExplain,
     Predicate as RustPredicate, PreparedWrite, ProjectionDelta as RustProjectionDelta,
@@ -95,6 +96,9 @@ use fathomdb_engine::{
     ProjectionRole as RustProjectionRole, ProjectionRuntimeStatus as RustProjectionRuntimeStatus,
     ProjectionRuntimeStatusEntry as RustProjectionRuntimeStatusEntry,
     ProjectionSpec as RustProjectionSpec, ProjectionVector as RustProjectionVector,
+    PropertyComparisonOp as RustPropertyComparisonOp,
+    PropertyEntityClass as RustPropertyEntityClass, PropertyMap as RustPropertyMap,
+    PropertyPredicate as RustPropertyPredicate, PropertyValue as RustPropertyValue,
     ProvenanceError as RustProvenanceError, ProvenancedEdgeV1, ProvenancedNodeV1,
     QueryTrace as RustQueryTrace, ReadContextV1 as RustReadContextV1, ReadView as RustReadView,
     ResolvedEvidenceV1 as RustResolvedEvidenceV1, RuntimeConfiguration as RustRuntimeConfiguration,
@@ -262,6 +266,7 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyOpenReport>()?;
     m.add_class::<PyNodeRecord>()?;
     m.add_class::<PyOpStoreRow>()?;
+    m.add_class::<PyOperationalCollectionInfo>()?;
     m.add_class::<PyOperationalStateRecordV1>()?;
     m.add_class::<PyNodePageV1>()?;
     m.add_class::<PyOperationalStatePageV1>()?;
@@ -305,6 +310,8 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     // 0.8.11 Slice 40 — unified Filter → read.list backend (#17).
     m.add_function(wrap_pyfunction!(read_list_filter, &m)?)?;
     m.add_function(wrap_pyfunction!(read_canonical_page, &m)?)?;
+    m.add_function(wrap_pyfunction!(read_operational_collections, &m)?)?;
+    m.add_function(wrap_pyfunction!(read_operational_collection, &m)?)?;
     m.add_function(wrap_pyfunction!(read_operational_state, &m)?)?;
     m.add_function(wrap_pyfunction!(read_operational_state_page, &m)?)?;
     // Slice 20 — G5/G6 graph traversal fns.

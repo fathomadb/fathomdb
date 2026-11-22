@@ -1,7 +1,14 @@
 // Private graph owner for the TypeScript SDK package root.
 import { native, type NativeSearchExpandResult } from "./binding.js";
 import { GraphExpansionError, InvalidArgumentError } from "./errors.js";
-import type { NodeRecord, ReadView } from "./read.js";
+import {
+  decodeNativeProperties,
+  parseLosslessJson,
+  stringifyLosslessJson,
+  validateWireProperties,
+  type PropertyMap,
+} from "./properties.js";
+import { toNodeRecord, type NodeRecord, type ReadView } from "./read.js";
 
 import { validateFfiString } from "./validation.js";
 
@@ -134,6 +141,7 @@ export interface GraphOriginV1 {
   hopCount: number;
   terminalEdgeKind: string;
   terminalDirection: TraversalDirection;
+  terminalEdgeProperties?: PropertyMap;
 }
 
 export interface GraphTargetV1 {
@@ -142,6 +150,7 @@ export interface GraphTargetV1 {
   kind: string;
   body: string;
   writeCursor: string;
+  properties?: PropertyMap;
   origin: GraphOriginV1;
 }
 
@@ -197,12 +206,13 @@ export interface GraphEvidenceResolveRequestV1 {
 }
 
 export type GraphEvidenceArtifactV1 =
-  | { artifactClass: "node"; logicalId: string; kind: string; body: string }
+  | { artifactClass: "node"; logicalId: string; kind: string; body: string; properties?: PropertyMap }
   | {
       artifactClass: "edge";
       logicalId: string | null;
       kind: string;
       body: string | null;
+      properties?: PropertyMap;
       from: string;
       to: string;
     };
@@ -328,6 +338,14 @@ export function validateGraphOrigin(value: unknown, base: string): GraphOriginV1
       ["incoming", "outgoing", "both"] as const,
       `${base}/terminalDirection`,
     ),
+    ...(() => {
+      const props = validateWireProperties(
+        object.terminalEdgeProperties,
+        `${base}/terminalEdgeProperties`,
+        graphRefuse,
+      );
+      return props === undefined ? {} : { terminalEdgeProperties: props };
+    })(),
   };
 }
 
@@ -384,6 +402,10 @@ export function validateGraphExpandResult(value: unknown): GraphExpandResultV1 {
           graphField(object, "writeCursor", `${base}/writeCursor`),
           `${base}/writeCursor`,
         ),
+        ...(() => {
+          const props = validateWireProperties(object.properties, `${base}/properties`, graphRefuse);
+          return props === undefined ? {} : { properties: props };
+        })(),
         origin: validateGraphOrigin(
           graphField(object, "origin", `${base}/origin`),
           `${base}/origin`,
@@ -430,7 +452,7 @@ export function validateGraphExpandResult(value: unknown): GraphExpandResultV1 {
         graphField(itemObject, "origin", `${itemBase}/origin`),
         `${itemBase}/origin`,
       );
-      if (JSON.stringify(origin) !== JSON.stringify(targets[index]?.origin))
+      if (stringifyLosslessJson(origin) !== stringifyLosslessJson(targets[index]?.origin))
         graphRefuse("graph_corrupt", `${itemBase}/origin`);
       return {
         schemaVersion: 1 as const,
@@ -573,9 +595,14 @@ export function validateResolvedGraphEvidence(value: unknown): ResolvedGraphEvid
   graphExactKeys(
     artifact,
     artifactClass === "node"
-      ? ["artifactClass", "logicalId", "kind", "body"]
-      : ["artifactClass", "logicalId", "kind", "body", "from", "to"],
+      ? ["artifactClass", "logicalId", "kind", "body", "properties"]
+      : ["artifactClass", "logicalId", "kind", "body", "properties", "from", "to"],
     "/artifact",
+  );
+  const artifactProperties = validateWireProperties(
+    artifact.properties,
+    "/artifact/properties",
+    graphRefuse,
   );
   const parsedArtifact: GraphEvidenceArtifactV1 = artifactClass === "node"
     ? {
@@ -583,12 +610,14 @@ export function validateResolvedGraphEvidence(value: unknown): ResolvedGraphEvid
         logicalId: graphString(graphField(artifact, "logicalId", "/artifact/logicalId"), "/artifact/logicalId"),
         kind: graphString(graphField(artifact, "kind", "/artifact/kind"), "/artifact/kind"),
         body: graphString(graphField(artifact, "body", "/artifact/body"), "/artifact/body"),
+        ...(artifactProperties === undefined ? {} : { properties: artifactProperties }),
       }
     : {
         artifactClass,
         logicalId: artifact.logicalId === null ? null : graphString(artifact.logicalId, "/artifact/logicalId"),
         kind: graphString(graphField(artifact, "kind", "/artifact/kind"), "/artifact/kind"),
         body: artifact.body === null ? null : graphString(artifact.body, "/artifact/body"),
+        ...(artifactProperties === undefined ? {} : { properties: artifactProperties }),
         from: graphString(graphField(artifact, "from", "/artifact/from"), "/artifact/from"),
         to: graphString(graphField(artifact, "to", "/artifact/to"), "/artifact/to"),
       };
@@ -825,7 +854,7 @@ export function validateGraphExpandRequest(value: unknown): asserts value is Gra
   );
   close(
     eligibility,
-    ["sourceType", "kind", "createdAfter", "status", "attributes"],
+    ["sourceType", "kind", "createdAfter", "status", "attributes", "propertyPredicates"],
     `${currentBase}/eligibility`,
   );
   for (const name of ["sourceType", "kind", "status"] as const) {
@@ -873,6 +902,23 @@ export function validateGraphExpandRequest(value: unknown): asserts value is Gra
 }
 
 export function canonicalGraphReadContext(context: ReadContextV1): GraphObject {
+  const eligibility: GraphObject = {
+    sourceType: context.eligibility.sourceType ?? null,
+    kind: context.eligibility.kind ?? null,
+    createdAfter: context.eligibility.createdAfter ?? null,
+    status: context.eligibility.status ?? null,
+    attributes: context.eligibility.attributes ?? [],
+  };
+  if (
+    context.eligibility.propertyPredicates !== undefined &&
+    context.eligibility.propertyPredicates.length > 0
+  ) {
+    eligibility.propertyPredicates = context.eligibility.propertyPredicates.map((p) => ({
+      key: p.key,
+      op: p.op,
+      value: typeof p.value === "number" && Object.is(p.value, -0) ? 0 : p.value,
+    }));
+  }
   return {
     schemaVersion: context.schemaVersion,
     view: {
@@ -881,13 +927,7 @@ export function canonicalGraphReadContext(context: ReadContextV1): GraphObject {
       includeOutOfWindow: context.view.includeOutOfWindow ?? false,
       validAsOf: context.view.validAsOf ?? null,
     },
-    eligibility: {
-      sourceType: context.eligibility.sourceType ?? null,
-      kind: context.eligibility.kind ?? null,
-      createdAfter: context.eligibility.createdAfter ?? null,
-      status: context.eligibility.status ?? null,
-      attributes: context.eligibility.attributes ?? [],
-    },
+    eligibility,
   };
 }
 
@@ -941,11 +981,11 @@ export const graph = {
   async expand(engine: Engine, request: GraphExpandRequestV1): Promise<GraphExpandResultV1> {
     validateGraphExpandRequest(request);
     const encoded = await intercept(() =>
-      engine._native.graphExpand(JSON.stringify(canonicalGraphRequest(request))),
+      engine._native.graphExpand(stringifyLosslessJson(canonicalGraphRequest(request))),
     );
     let decoded: unknown;
     try {
-      decoded = JSON.parse(encoded);
+      decoded = parseLosslessJson(encoded);
     } catch {
       graphRefuse("graph_corrupt", "");
     }
@@ -972,9 +1012,10 @@ export const graph = {
         `graph.neighbors depth must be an integer between 1 and 3; got ${depth}`,
       );
     }
-    return intercept(() =>
+    const rows = await intercept(() =>
       native.graphNeighbors(engine._native, logicalId, depth, direction, view),
     );
+    return rows.map(toNodeRecord);
   },
 
   /**
@@ -1034,9 +1075,10 @@ export function mapNativeGraphSearchExpandResult(r: NativeSearchExpandResult): S
       sourceId: h.sourceId ?? null,
       // 0.8.5 — searchExpand never reranks (depth=0) → ceScore is always null.
       ceScore: h.ceScore ?? null,
+      properties: decodeNativeProperties(h.properties),
     })),
     expanded: r.expanded.map((e) => ({
-      node: e.node,
+      node: toNodeRecord(e.node),
       hopCount: e.hopCount,
     })),
     allLogicalIds: r.allLogicalIds,

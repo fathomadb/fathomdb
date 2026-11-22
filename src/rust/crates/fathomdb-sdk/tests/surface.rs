@@ -137,6 +137,9 @@ fn read_namespace_signatures() {
     let _: fn(&Engine, MutationProjectionStatusRequestV1) -> Result<MutationProjectionStatusV1> =
         read::mutation_projection_status;
     let _: fn(&Engine) -> Result<EmbeddingReadiness> = read::embedding_readiness;
+    let _: fn(&Engine) -> Result<Vec<OperationalCollectionInfo>> = read::operational_collections;
+    let _: fn(&Engine, &str) -> Result<Option<OperationalCollectionInfo>> =
+        read::operational_collection;
 }
 
 #[test]

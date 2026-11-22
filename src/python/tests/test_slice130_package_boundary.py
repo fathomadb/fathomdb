@@ -383,6 +383,79 @@ def test_python_declarations_match_pre_move_baseline_with_approved_deltas() -> N
     assert observed == expected
 
     stub = (package / "_fathomdb.pyi").read_text()
+    # Reverse the approved 0.8.31 Slice 20 native stub additions before the
+    # earlier reversals and frozen checksum.
+    slice20_stub_edits = (
+        ("    ProjectionStatusDenseReadiness,\n    PropertyMap,\n)",
+         "    ProjectionStatusDenseReadiness,\n)"),
+        ("    ce_score: float | None\n    properties: PropertyMap | None\n",
+         "    ce_score: float | None\n"),
+        ("    dependency: SourceDependencyV1 | None\n    properties: PropertyMap | None\n",
+         "    dependency: SourceDependencyV1 | None\n"),
+        ("    write_cursor: int\n    properties: PropertyMap | None\n",
+         "    write_cursor: int\n"),
+        ("        schema_version: int = ...,\n"
+         "        property_predicates: list[tuple[str, str, Any]] | None = ...,\n",
+         "        schema_version: int = ...,\n"),
+        (
+            "class OperationalCollectionInfo:\n"
+            "    name: str\n"
+            "    kind: str\n"
+            "    schema_json: str\n"
+            "    retention_json: str\n"
+            "    format_version: int\n"
+            "    created_at: int\n\n",
+            "",
+        ),
+        (
+            "        # EP-17: a `fathomdb.SnippetOptions` (read by attribute).\n"
+            "        snippet: object | None = ...,\n"
+            "        property_predicates: list[tuple[str, str, Any]] | None = ...,\n",
+            "        # EP-17: a `fathomdb.SnippetOptions` (read by attribute).\n"
+            "        snippet: object | None = ...,\n",
+        ),
+        (
+            "        view: ReadView | None = ...,\n"
+            "        limit: int = ...,\n"
+            "        property_predicates: list[tuple[str, str, Any]] | None = ...,\n",
+            "        view: ReadView | None = ...,\n"
+            "        limit: int = ...,\n",
+        ),
+        (
+            "        attributes: list[tuple[str, str]] | None = ...,\n"
+            "        snippet: object | None = ...,\n"
+            "        property_predicates: list[tuple[str, str, Any]] | None = ...,\n",
+            "        attributes: list[tuple[str, str]] | None = ...,\n"
+            "        snippet: object | None = ...,\n",
+        ),
+        (
+            "    projections_invalidated: int\n"
+            "    completed_pending_erasure: bool\n",
+            "    projections_invalidated: int\n",
+        ),
+        (
+            "    source: list[str] | None\n"
+            "    entity_class: str\n"
+            "    vector_kinds: list[str] | None\n",
+            "    source: list[str] | None\n",
+        ),
+        (
+            "        source: list[str] | None = ...,\n"
+            "        entity_class: str = ...,\n"
+            "        vector_kinds: list[str] | None = ...,\n",
+            "        source: list[str] | None = ...,\n",
+        ),
+        (
+            "def read_operational_collections(engine: Engine) -> list[OperationalCollectionInfo]: ...\n"
+            "def read_operational_collection(\n"
+            "    engine: Engine, name: str\n"
+            ") -> OperationalCollectionInfo | None: ...\n",
+            "",
+        ),
+    )
+    for current, historical in slice20_stub_edits:
+        assert stub.count(current) == 1, current
+        stub = stub.replace(current, historical, 1)
     # Reverse only the two approved native carrier fields before the frozen hash.
     for current, historical in (
         ("class SnippetV1:\n    scored_bytes: int | None\n", "class SnippetV1:\n"),

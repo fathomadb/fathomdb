@@ -74,6 +74,7 @@ def _map_native_search_result(result: Any) -> SearchResult:
                 branch=cast(SoftFallbackBranch, hit.branch),
                 source_id=hit.source_id,
                 ce_score=hit.ce_score,
+                properties=getattr(hit, "properties", None),
             )
             for hit in result.results
         ],
@@ -201,6 +202,10 @@ def _to_native_read_context(context: ReadContextV1) -> Any:
         status=eligibility.status,
         attributes=list(eligibility.attributes),
         schema_version=context.schema_version,
+        property_predicates=[
+            (p.key, p.op, p.value) for p in eligibility.property_predicates
+        ]
+        or None,
     )
 
 
@@ -222,6 +227,7 @@ def _map_native_search_hit(hit: Any) -> SearchHit:
         branch=cast(SoftFallbackBranch, hit.branch),
         source_id=hit.source_id,
         ce_score=hit.ce_score,
+        properties=getattr(hit, "properties", None),
     )
 
 
@@ -231,6 +237,7 @@ def _map_native_node(node: Any) -> NodeRecord:
         kind=node.kind,
         body=node.body,
         write_cursor=node.write_cursor,
+        properties=getattr(node, "properties", None),
     )
 
 
@@ -569,6 +576,10 @@ def search(
             created_after=filter.created_after,
             status=filter.status,
             attributes=list(filter.attributes),
+            property_predicates=[
+                (p.key, p.op, p.value) for p in filter.property_predicates
+            ]
+            or None,
             rerank_depth=rerank_depth,
             use_graph_arm=use_graph_arm,
             alpha=alpha,
@@ -604,6 +615,7 @@ def search(
                 branch=cast(SoftFallbackBranch, hit.branch),
                 source_id=hit.source_id,
                 ce_score=hit.ce_score,
+                properties=getattr(hit, "properties", None),
             )
             for hit in result.results
         ],
@@ -713,6 +725,10 @@ def search_projected_text(
             created_after=filter.created_after,
             status=filter.status,
             attributes=list(filter.attributes),
+            property_predicates=[
+                (p.key, p.op, p.value) for p in filter.property_predicates
+            ]
+            or None,
         )
     result = self._native.search_projected_text(query, name, **kwargs)
     return SearchResult(
@@ -727,6 +743,7 @@ def search_projected_text(
                 branch=cast(SoftFallbackBranch, hit.branch),
                 source_id=hit.source_id,
                 ce_score=hit.ce_score,
+                properties=getattr(hit, "properties", None),
             )
             for hit in result.results
         ],
@@ -752,6 +769,10 @@ def search_text_only(
             created_after=filter.created_after,
             status=filter.status,
             attributes=list(filter.attributes),
+            property_predicates=[
+                (p.key, p.op, p.value) for p in filter.property_predicates
+            ]
+            or None,
         )
     result = self._native.search_text_only(query, snippet=snippet, **kwargs)
     fallback = result.soft_fallback
@@ -772,6 +793,7 @@ def search_text_only(
                 branch=cast(SoftFallbackBranch, hit.branch),
                 source_id=hit.source_id,
                 ce_score=hit.ce_score,
+                properties=getattr(hit, "properties", None),
             )
             for hit in result.results
         ],

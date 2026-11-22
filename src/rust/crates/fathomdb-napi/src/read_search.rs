@@ -20,6 +20,255 @@ use super::*;
 ///
 /// World-time only — there is deliberately no `historyAsOf`.
 #[napi(object)]
+pub struct PropertyEntry {
+    pub key: String,
+    /// `"string"` | `"int"` | `"float"` | `"bool"`
+    pub value_type: String,
+    pub string_val: Option<String>,
+    /// Exact decimal text for 64-bit signed integer (`i64`).
+    pub int_val: Option<String>,
+    pub float_val: Option<f64>,
+    pub bool_val: Option<bool>,
+}
+
+#[napi(object)]
+pub struct PropertyPredicateInput {
+    pub key: String,
+    pub op: String,
+    /// `"string"` | `"int"` | `"float"` | `"bool"`
+    pub value_type: String,
+    pub string_val: Option<String>,
+    pub int_val: Option<String>,
+    pub float_val: Option<f64>,
+    pub bool_val: Option<bool>,
+}
+
+pub(crate) fn property_map_to_napi(props: Option<&RustPropertyMap>) -> Option<Vec<PropertyEntry>> {
+    let map = props?;
+    if map.is_empty() {
+        return None;
+    }
+    Some(
+        map.iter()
+            .map(|(k, v)| match v {
+                RustPropertyValue::String(s) => PropertyEntry {
+                    key: k.clone(),
+                    value_type: "string".to_string(),
+                    string_val: Some(s.clone()),
+                    int_val: None,
+                    float_val: None,
+                    bool_val: None,
+                },
+                RustPropertyValue::Int(i) => PropertyEntry {
+                    key: k.clone(),
+                    value_type: "int".to_string(),
+                    string_val: None,
+                    int_val: Some(i.to_string()),
+                    float_val: None,
+                    bool_val: None,
+                },
+                RustPropertyValue::Float(f) => PropertyEntry {
+                    key: k.clone(),
+                    value_type: "float".to_string(),
+                    string_val: None,
+                    int_val: None,
+                    float_val: Some(if *f == 0.0 { 0.0 } else { *f }),
+                    bool_val: None,
+                },
+                RustPropertyValue::Bool(b) => PropertyEntry {
+                    key: k.clone(),
+                    value_type: "bool".to_string(),
+                    string_val: None,
+                    int_val: None,
+                    float_val: None,
+                    bool_val: Some(*b),
+                },
+            })
+            .collect(),
+    )
+}
+
+pub(crate) fn property_predicates_from_rust(
+    preds: &[RustPropertyPredicate],
+) -> Option<Vec<PropertyPredicateInput>> {
+    if preds.is_empty() {
+        return None;
+    }
+    Some(
+        preds
+            .iter()
+            .map(|p| match &p.value {
+                RustPropertyValue::String(s) => PropertyPredicateInput {
+                    key: p.key.clone(),
+                    op: p.op.as_str().to_string(),
+                    value_type: "string".to_string(),
+                    string_val: Some(s.clone()),
+                    int_val: None,
+                    float_val: None,
+                    bool_val: None,
+                },
+                RustPropertyValue::Int(i) => PropertyPredicateInput {
+                    key: p.key.clone(),
+                    op: p.op.as_str().to_string(),
+                    value_type: "int".to_string(),
+                    string_val: None,
+                    int_val: Some(i.to_string()),
+                    float_val: None,
+                    bool_val: None,
+                },
+                RustPropertyValue::Float(f) => PropertyPredicateInput {
+                    key: p.key.clone(),
+                    op: p.op.as_str().to_string(),
+                    value_type: "float".to_string(),
+                    string_val: None,
+                    int_val: None,
+                    float_val: Some(if *f == 0.0 { 0.0 } else { *f }),
+                    bool_val: None,
+                },
+                RustPropertyValue::Bool(b) => PropertyPredicateInput {
+                    key: p.key.clone(),
+                    op: p.op.as_str().to_string(),
+                    value_type: "bool".to_string(),
+                    string_val: None,
+                    int_val: None,
+                    float_val: None,
+                    bool_val: Some(*b),
+                },
+            })
+            .collect(),
+    )
+}
+
+pub(crate) fn property_predicate_input_to_rust(
+    pred: PropertyPredicateInput,
+) -> Result<RustPropertyPredicate> {
+    validate_ffi_string_napi(&pred.key)?;
+    if pred.key.is_empty() || pred.key.contains('\x1e') {
+        return Err(typed_error(
+            CODE_INVALID_FILTER,
+            "property predicate key must be non-empty and contain no record separator bytes",
+            JsonValue::Null,
+        ));
+    }
+    validate_ffi_string_napi(&pred.op)?;
+    let op = RustPropertyComparisonOp::parse(&pred.op).ok_or_else(|| {
+        typed_error(
+            CODE_INVALID_FILTER,
+            format!("unknown property predicate op {:?}; expected eq/ne/lt/lte/gt/gte", pred.op),
+            JsonValue::Null,
+        )
+    })?;
+    let value = match pred.value_type.as_str() {
+        "string" => {
+            let s = pred.string_val.ok_or_else(|| {
+                typed_error(
+                    CODE_INVALID_FILTER,
+                    "string property predicate requires stringVal",
+                    JsonValue::Null,
+                )
+            })?;
+            validate_ffi_string_napi(&s)?;
+            if s.contains('\x1e') {
+                return Err(typed_error(
+                    CODE_INVALID_FILTER,
+                    "property predicate string value must not contain record separator bytes",
+                    JsonValue::Null,
+                ));
+            }
+            RustPropertyValue::String(s)
+        }
+        "int" => {
+            let text = pred.int_val.ok_or_else(|| {
+                typed_error(
+                    CODE_INVALID_FILTER,
+                    "int property predicate requires intVal",
+                    JsonValue::Null,
+                )
+            })?;
+            let i = text.parse::<i64>().map_err(|_| {
+                typed_error(
+                    CODE_INVALID_FILTER,
+                    "integer property predicate out of signed 64-bit range",
+                    JsonValue::Null,
+                )
+            })?;
+            RustPropertyValue::Int(i)
+        }
+        "float" => {
+            let f = pred.float_val.ok_or_else(|| {
+                typed_error(
+                    CODE_INVALID_FILTER,
+                    "float property predicate requires floatVal",
+                    JsonValue::Null,
+                )
+            })?;
+            if !f.is_finite() {
+                return Err(typed_error(
+                    CODE_INVALID_FILTER,
+                    "float property predicate must be finite",
+                    JsonValue::Null,
+                ));
+            }
+            RustPropertyValue::Float(if f == 0.0 { 0.0 } else { f })
+        }
+        "bool" => {
+            let b = pred.bool_val.ok_or_else(|| {
+                typed_error(
+                    CODE_INVALID_FILTER,
+                    "bool property predicate requires boolVal",
+                    JsonValue::Null,
+                )
+            })?;
+            if matches!(
+                op,
+                RustPropertyComparisonOp::Lt
+                    | RustPropertyComparisonOp::Lte
+                    | RustPropertyComparisonOp::Gt
+                    | RustPropertyComparisonOp::Gte
+            ) {
+                return Err(typed_error(
+                    CODE_INVALID_FILTER,
+                    "ordering operators are invalid for boolean properties",
+                    JsonValue::Null,
+                ));
+            }
+            RustPropertyValue::Bool(b)
+        }
+        other => {
+            return Err(typed_error(
+                CODE_INVALID_FILTER,
+                format!("unknown property value type {other:?}"),
+                JsonValue::Null,
+            ));
+        }
+    };
+    Ok(RustPropertyPredicate { key: pred.key, op, value })
+}
+
+#[napi(object)]
+pub struct OperationalCollectionInfo {
+    pub name: String,
+    pub kind: String,
+    pub schema_json: String,
+    pub retention_json: String,
+    pub format_version: i64,
+    pub created_at: i64,
+}
+
+impl OperationalCollectionInfo {
+    pub(crate) fn from_rust(c: &RustOperationalCollectionInfo) -> Self {
+        Self {
+            name: c.name.clone(),
+            kind: c.kind.clone(),
+            schema_json: c.schema_json.clone(),
+            retention_json: c.retention_json.clone(),
+            format_version: c.format_version,
+            created_at: c.created_at,
+        }
+    }
+}
+
+#[napi(object)]
 pub struct ReadViewInput {
     /// Relax `superseded_at IS NULL` — include historical versions.
     pub include_superseded: Option<bool>,
@@ -89,6 +338,9 @@ pub(crate) fn read_context_from_rust(context: &RustReadContextV1) -> ReadContext
                     .map(|(name, value)| vec![name.clone(), value.clone()])
                     .collect(),
             ),
+            property_predicates: property_predicates_from_rust(
+                &context.eligibility.property_predicates,
+            ),
         },
     }
 }
@@ -107,12 +359,17 @@ pub(crate) fn frozen_context_to_rust(
             _ => ("\0invalid-frozen-attribute-pair".to_string(), format!("{pair:?}")),
         })
         .collect();
+    let mut property_predicates = Vec::new();
+    for pred in eligibility.property_predicates.unwrap_or_default() {
+        property_predicates.push(property_predicate_input_to_rust(pred)?);
+    }
     let mut rust_eligibility = RustSearchFilter::default();
     rust_eligibility.source_type = eligibility.source_type;
     rust_eligibility.kind = eligibility.kind;
     rust_eligibility.created_after = eligibility.created_after;
     rust_eligibility.status = eligibility.status;
     rust_eligibility.attributes = attributes;
+    rust_eligibility.property_predicates = property_predicates;
     Ok(RustFrozenReadContextV1 {
         schema_version: input.schema_version,
         effective_valid_at: input.effective_valid_at,
@@ -394,6 +651,40 @@ pub async fn read_canonical_page(
         .map(NodePageV1::from_rust)
 }
 
+#[napi(js_name = "readOperationalCollections")]
+pub async fn read_operational_collections(
+    engine: &Engine,
+) -> Result<Vec<OperationalCollectionInfo>> {
+    let inner = Arc::clone(&engine.inner);
+    let rows = call_engine(move || inner.read_operational_collections()).await?;
+    Ok(rows.iter().map(OperationalCollectionInfo::from_rust).collect())
+}
+
+#[napi(js_name = "readOperationalCollection")]
+pub async fn read_operational_collection(
+    engine: &Engine,
+    name: String,
+) -> Result<Option<OperationalCollectionInfo>> {
+    validate_ffi_string_napi(&name)?;
+    if name.trim().is_empty() {
+        return Err(typed_error(
+            CODE_INVALID_ARGUMENT,
+            "collection name must not be empty",
+            JsonValue::Null,
+        ));
+    }
+    if name.chars().any(char::is_control) {
+        return Err(typed_error(
+            CODE_INVALID_ARGUMENT,
+            "collection name must not contain control characters",
+            JsonValue::Null,
+        ));
+    }
+    let inner = Arc::clone(&engine.inner);
+    let row = call_engine(move || inner.read_operational_collection(&name)).await?;
+    Ok(row.as_ref().map(OperationalCollectionInfo::from_rust))
+}
+
 #[napi(js_name = "readOperationalState")]
 pub async fn read_operational_state(
     engine: &Engine,
@@ -513,6 +804,7 @@ pub struct SearchHit {
     /// (`ceScore` in JS). Set only for hits inside the reranked pool; `null`
     /// otherwise (out-of-pool, identity path, or no CE model loaded).
     pub ce_score: Option<f64>,
+    pub properties: Option<Vec<PropertyEntry>>,
 }
 
 impl SearchHit {
@@ -530,6 +822,7 @@ impl SearchHit {
             },
             source_id: h.source_id.clone(),
             ce_score: h.ce_score,
+            properties: property_map_to_napi(h.properties.as_ref()),
         }
     }
 }
@@ -543,6 +836,7 @@ pub struct NodeRecord {
     pub kind: String,
     pub body: String,
     pub write_cursor: i64,
+    pub properties: Option<Vec<PropertyEntry>>,
 }
 
 impl NodeRecord {
@@ -552,6 +846,7 @@ impl NodeRecord {
             kind: r.kind.clone(),
             body: r.body.clone(),
             write_cursor: r.write_cursor as i64,
+            properties: property_map_to_napi(r.properties.as_ref()),
         }
     }
 }
@@ -673,6 +968,8 @@ pub struct SearchFilterInput {
     pub status: Option<String>,
     /// Ordered `[projectionName, canonicalText]` pairs.
     pub attributes: Option<Vec<Vec<String>>>,
+    /// Typed property predicates over declared `filterable` node properties.
+    pub property_predicates: Option<Vec<PropertyPredicateInput>>,
 }
 
 pub(crate) fn search_filter_input_to_rust(
@@ -698,17 +995,23 @@ pub(crate) fn search_filter_input_to_rust(
         validate_ffi_string_napi(&pair[1])?;
         attributes.push((pair[0].clone(), pair[1].clone()));
     }
+    let mut property_predicates = Vec::new();
+    for pred in input.property_predicates.unwrap_or_default() {
+        property_predicates.push(property_predicate_input_to_rust(pred)?);
+    }
     let mut rust = RustSearchFilter::default();
     rust.source_type = input.source_type;
     rust.kind = input.kind;
     rust.created_after = input.created_after;
     rust.status = input.status;
     rust.attributes = attributes;
+    rust.property_predicates = property_predicates;
     if rust.source_type.is_none()
         && rust.kind.is_none()
         && rust.created_after.is_none()
         && rust.status.is_none()
         && rust.attributes.is_empty()
+        && rust.property_predicates.is_empty()
     {
         Ok(None)
     } else {

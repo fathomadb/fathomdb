@@ -1,10 +1,10 @@
 ---
 title: Wire Format
-date: 2026-11-04
-target_release: 0.8.28
-desc: On-disk + IPC formats (if any) for 0.8.28; short OK
+date: 2026-11-22
+target_release: 0.8.31
+desc: On-disk + IPC formats (if any) for 0.8.31; short OK
 blast_radius: design/fathomdb-data-plane-architecture-v2.md; design/engine.md; design/migrations.md
-status: draft-0.8.28
+status: draft-0.8.31
 ---
 
 # Wire Format
@@ -28,7 +28,7 @@ The current layout and admission owners are [engine](../design/engine.md) and
 ## Schema-version sentinel
 
 The canonical schema-version sentinel is SQLite `PRAGMA user_version`. In the
-0.8.28 line `fathomdb-schema::SCHEMA_VERSION` is **37**. Step 28
+0.8.31 line `fathomdb-schema::SCHEMA_VERSION` is **38**. Step 28
 adds the source-dependency registry and generation singleton. Step 29 adds the
 bounded terminal actuation-receipt and source-reference tables without
 backfilling legacy rows. Actuation request bodies and source locators are never
@@ -70,11 +70,19 @@ Its fresh-bootstrap step adds the column before replacing all 57 visibility
 triggers, without canonical or projection backfill. The triggers retain external-writer invalidation; vector mapping
 DELETE cleanup stays active. Earlier nonempty formats are refused, not migrated.
 
+Format 38 adds nullable `properties_json` columns to `canonical_nodes` and
+`canonical_edges`, typed property index tables (`node_property_index` and
+`edge_property_index` with `val_type` discriminant and SQLite-typed value
+columns for `Str`, `Int`, `Float`, and `Bool`), `projection_registry` columns
+for `entity_class` (`'node'` | `'edge'`) and explicit `vector_kinds_json`, and
+visibility-trigger coverage for the new property index tables. No legacy format
+is migrated.
+
 ## Compatibility contract
 
-- a missing or zero-length path bootstraps directly to schema 37
+- a missing or zero-length path bootstraps directly to schema 38
 - a non-empty database opens only when its effective committed
-  `PRAGMA user_version` is exactly 37; schema 36 and earlier, future versions, and
+  `PRAGMA user_version` is exactly 38; schema 37 and earlier, future versions, and
   non-empty zero-version SQLite files return the typed incompatible-schema
   error before product mutation
 - there is no public automatic migration, compatibility reader, translator,
@@ -234,3 +242,29 @@ terminal Complete. Offline activated completion publishes the same ticket receip
 The [production design](../design/explicit-maintenance-erasure/production-design.md)
 owns metadata budgets, phases and validation. Format 35 binaries refuse 36, and
 this release refuses previous formats; no migration or metadata-only opt-in exists.
+
+## Format 38 typed inline properties and operational collections (0.8.31 Slice 20)
+
+Inline typed properties are persisted canonically as sorted-key JSON objects in
+nullable `properties_json` columns on `canonical_nodes` and `canonical_edges`
+(`NULL` when omitted or empty `{}`). Values are flat primitives only (`Str`,
+signed 64-bit `Int`, finite IEEE-754 `Float` with `-0.0` canonicalized to `0.0`,
+and `Bool`); `null`, nested objects/arrays, non-finite floats, empty keys, and
+keys or string values containing NUL (`\0`) or RS (`\x1e`) are refused with
+`WriteValidation` / `WriteValidationError`.
+
+Graph-expansion and graph-evidence wire responses carry optional additive
+`properties` on `GraphTargetV1` and `GraphEvidenceArtifactV1`, and optional
+additive `terminalEdgeProperties` on `GraphOriginV1`. When present, integer
+values outside IEEE-754 safe integer range (`±2^53 - 1`) remain exact signed
+64-bit JSON integers; TypeScript callers parse them losslessly into `bigint`.
+
+`operational_collections` stores registered collection definitions (`name`,
+`kind`, `schema_json`, `retention_json`, `format_version`, `created_at`). Fresh
+stores seed the built-in `projection_failures` operational collection. Calling
+`AdminSchema` with an existing collection name and a different `kind` is refused
+with `WriteValidation` / `WriteValidationError`.
+
+`ExciseReport` / `EraseReport` adds `completed_pending_erasure`
+(`completedPendingErasure` in TypeScript), a boolean indicating whether the
+erasure call completed previously pending post-commit erasure work.

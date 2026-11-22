@@ -1,6 +1,7 @@
 import type { StoredHeadCoverageV1 } from "./coverage.js";
 import type { NativeEngine } from "./binding.js";
 import { intercept } from "./native-call.js";
+import type { PropertyEntityClass } from "./properties.js";
 import { validateFfiTree } from "./validation.js";
 // Private projection owner for the TypeScript SDK package root.
 
@@ -101,6 +102,10 @@ export interface ProjectionSpec {
    * typed `FDB_INVALID_ARGUMENT` (it could not round-trip).
    */
   vectorDenseReadiness?: DenseReadiness | null;
+  /** Entity class targeted by this projection (`"node"` or `"edge"`). */
+  entityClass?: PropertyEntityClass;
+  /** Explicit opt-in custom node kinds enrolled for vector indexing (only with `vector: true`). */
+  vectorKinds?: string[] | null;
 }
 
 /**
@@ -209,6 +214,8 @@ export async function configureProjections(nativeEngine: NativeEngine, specs: Pr
       vectorEmbedder: s.vectorEmbedder ?? undefined,
       vectorDenseReadiness: s.vectorDenseReadiness ?? undefined,
       source: s.source ?? undefined,
+      entityClass: s.entityClass ?? undefined,
+      vectorKinds: s.vectorKinds ?? undefined,
     }));
     return intercept(() => nativeEngine.configureProjections(nativeSpecs, drop ?? null));
   }

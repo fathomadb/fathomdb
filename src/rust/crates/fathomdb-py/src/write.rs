@@ -283,6 +283,7 @@ pub(super) fn translate_actuation_operation(
                     "reason",
                     "valid_from",
                     "valid_until",
+                    "properties",
                     "provenance",
                 ],
                 &format!("{root}/record"),
@@ -317,6 +318,7 @@ pub(super) fn translate_actuation_operation(
                     "body",
                     "t_valid",
                     "t_invalid",
+                    "properties",
                     "provenance",
                 ],
                 &format!("{root}/record"),
@@ -771,6 +773,7 @@ pub(super) fn translate_node(item: &Bound<'_, PyAny>) -> PyResult<PreparedWrite>
     // Python and TypeScript share one rule and cannot drift.
     let valid_from = dict_epoch_seconds(dict, "valid_from")?;
     let valid_until = dict_epoch_seconds(dict, "valid_until")?;
+    let properties = py_property_map_to_rust(dict_get(dict, "properties")?)?;
     let provenance = match dict_get(dict, "provenance")? {
         Some(value) => Some(translate_provenance(&value)?),
         _ => None,
@@ -785,7 +788,7 @@ pub(super) fn translate_node(item: &Bound<'_, PyAny>) -> PyResult<PreparedWrite>
             reason,
             valid_from,
             valid_until,
-            properties: None,
+            properties,
             provenance,
         })),
         None => Ok(PreparedWrite::Node {
@@ -797,7 +800,7 @@ pub(super) fn translate_node(item: &Bound<'_, PyAny>) -> PyResult<PreparedWrite>
             reason,
             valid_from,
             valid_until,
-            properties: None,
+            properties,
         }),
     }
 }
@@ -850,6 +853,7 @@ pub(super) fn translate_edge(item: &Bound<'_, PyAny>) -> PyResult<PreparedWrite>
     // `None` = "still valid"; that semantic is load-bearing and unchanged.
     let t_valid = dict_epoch_seconds(dict, "t_valid")?;
     let t_invalid = dict_epoch_seconds(dict, "t_invalid")?;
+    let properties = py_property_map_to_rust(dict_get(dict, "properties")?)?;
     let provenance = match dict_get(dict, "provenance")? {
         Some(value) => Some(translate_provenance(&value)?),
         _ => None,
@@ -867,7 +871,7 @@ pub(super) fn translate_edge(item: &Bound<'_, PyAny>) -> PyResult<PreparedWrite>
             confidence: None,
             extractor_model_id: None,
             temporal_fallback: None,
-            properties: None,
+            properties,
             provenance,
         })),
         None => Ok(PreparedWrite::Edge {
@@ -882,7 +886,7 @@ pub(super) fn translate_edge(item: &Bound<'_, PyAny>) -> PyResult<PreparedWrite>
             confidence: None,
             extractor_model_id: None,
             temporal_fallback: None,
-            properties: None,
+            properties,
         }),
     }
 }

@@ -1681,3 +1681,40 @@ The public Rust `RerankerDevicePolicyError` adds `ModelBusy` (`kind()` is
 Fallible reranker APIs map it to the shared overload class. Infallible
 `rerank_fused` keeps its unchanged-input fallback. See
 [the ownership decision](../adr/ADR-0.8.30-explicit-module-model-release.md).
+
+## Typed inline properties, operational collections, and explicit vector enrollment (0.8.31 Slice 20)
+
+`fathomdb` exports `PropertyValue` (`Union[str, int, float, bool]`),
+`PropertyMap` (`dict[str, PropertyValue]`), `PropertyEntityClass`
+(`Literal["node", "edge"]`), `PropertyComparisonOp`
+(`Literal["eq", "ne", "lt", "lte", "gt", "gte"]`), frozen dataclass
+`PropertyPredicate(key, op, value)`, and frozen dataclass
+`OperationalCollectionInfo(name, kind, schema_json, retention_json, format_version, created_at)`.
+
+- **Writes & validation:** Node and edge dicts in `engine.write(...)` and
+  `engine.actuate(...)` accept optional `properties: PropertyMap | None`.
+  Python `bool` is checked before `int` so booleans never coerce to integers;
+  exact signed 64-bit integers (`i64::MIN..=i64::MAX`, including values outside
+  IEEE-754 double precision) round-trip verbatim; `-0.0` canonicalizes to
+  `0.0`; empty `{}` normalizes to `None`. `None` values, nested containers,
+  non-finite floats, out-of-range integers, empty keys, and `\0`/`\x1e` in keys
+  or string values raise `WriteValidationError`. Changing an existing
+  operational collection's `kind` via `{"admin_schema": ...}` also raises
+  `WriteValidationError`.
+- **O(1) read hydration:** `NodeRecord.properties`, `SearchHit.properties`,
+  `GraphTargetV1.properties`, `GraphOriginV1.terminal_edge_properties`,
+  `ResolvedEvidenceV1.properties`, and `GraphEvidenceArtifactV1.properties`
+  carry `PropertyMap | None` with exact caller keys preserved.
+- **Typed property predicates:** `SearchFilter.property_predicates: list[PropertyPredicate]`
+  (and `FilterTerm(property=PropertyPredicate(...))`) filters on declared node
+  `filterable` projections. Undeclared keys and range operators (`"lt"`,
+  `"lte"`, `"gt"`, `"gte"`) on booleans raise `InvalidFilterError`.
+- **Projection specs:** `ProjectionSpec` adds
+  `entity_class: PropertyEntityClass = "node"` and
+  `vector_kinds: list[str] | None = None` for explicit opt-in vector enrollment
+  (`"edge_fact"` is rejected; unenrolled kinds are reported in
+  `vector_unsupported_kinds`).
+- **Operational-collection reads:** `read.operational_collections(engine) -> list[OperationalCollectionInfo]`
+  and `read.operational_collection(engine, name) -> OperationalCollectionInfo | None`
+  are live governed reads (fresh stores seed `"projection_failures"`).
+- **Erasure reporting:** `EraseReport` adds `completed_pending_erasure: bool`.

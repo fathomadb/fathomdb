@@ -6,9 +6,9 @@
 # WHAT IS BEING PROTECTED: the HITL signed the accumulated governed-surface
 # delta of 0.8.20 Slices 5d+10b+15b+15d (AC-079), later signed deltas, and the
 # Slice 22 C5 pair, the explicitly commissioned Slice 30 addition, and the
-# owner-approved later additions through 0.8.28 Slice 85 — pinned to the exact content of
+# owner-approved later additions through 0.8.31 Slice 20 — pinned to the exact content of
 # src/conformance/governed-surface-allowlist.json at the provenance commit
-# recorded in the pin (87 allowlist members, 5 core, recovery_denylist unchanged
+# recorded in the pin (91 allowlist members, 5 core, recovery_denylist unchanged
 # at the five REQ-054 names, and 2 runtime controls). A signature keyed to specific content is worth
 # exactly as much as the mechanism that notices when that content moves.
 #
@@ -145,7 +145,7 @@ expect_routes_to_hitl() {
 run_checker
 expect_rc 0 "the real repo's governed surface matches the pin (default args)"
 expect_out 'ok +governed-surface-pin' "the passing run says ok"
-expect_out '87 allowlist / 5 core / 5 recovery_denylist / 2 runtime_controls' \
+expect_out '91 allowlist / 5 core / 5 recovery_denylist / 2 runtime_controls' \
   "the passing run states the pinned counts it verified"
 
 PIN_SHA="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["sha256"])' "$REAL_PIN")"
@@ -156,11 +156,11 @@ else
   fail "the real allowlist json no longer matches the pin's sha256 ($REAL_SHA vs $PIN_SHA)"
 fi
 
-# The accumulated signed/approved surface is an exact 87-member shape, not
+# The accumulated signed/approved surface is an exact 91-member shape, not
 # merely a count increase. This rejects a stale pin and a re-pin that swaps an
 # unrelated name while retaining the same count. The full list is deliberately
 # explicit here: it is the reviewable test oracle for the complete accumulated
-# signed and approved surface through 0.8.28 Slice 85.
+# signed and approved surface through 0.8.31 Slice 20.
 set +e
 SLICE60_SHAPE="$(python3 - "$REAL_FILE" "$REAL_PIN" <<'PY'
 import json
@@ -260,8 +260,12 @@ expected_allowlist = [
     "read.operationalState",
     "read.operational_state_page",
     "read.operationalStatePage",
+    "read.operational_collections",
+    "read.operationalCollections",
+    "read.operational_collection",
+    "read.operationalCollection",
 ]
-expected_counts = {"allowlist": 87, "core": 5, "recovery_denylist": 5, "runtime_controls": 2}
+expected_counts = {"allowlist": 91, "core": 5, "recovery_denylist": 5, "runtime_controls": 2}
 expected_denylist = ["recover", "restore", "repair", "fix", "rebuild"]
 expected_runtime_controls = ["admin.configure_runtime", "admin.configureRuntime"]
 expected_ac_provenance = "0.8.23 Slice 30"
@@ -291,9 +295,9 @@ expected_0828_slice41_comment = "0.8.28 Slice 41 — owner approval 2026-10-16"
 
 problems = []
 if allowlist.get("allowlist") != expected_allowlist:
-    problems.append("allowlist is not the exact approved 87-member accumulated shape")
+    problems.append("allowlist is not the exact approved 91-member accumulated shape")
 if pin.get("allowlist") != expected_allowlist:
-    problems.append("pin allowlist is not the exact approved 87-member accumulated shape")
+    problems.append("pin allowlist is not the exact approved 91-member accumulated shape")
 if pin.get("counts") != expected_counts:
     problems.append(f"pin counts are {pin.get('counts')!r}, not {expected_counts!r}")
 if allowlist.get("recovery_denylist") != expected_denylist:
@@ -361,7 +365,7 @@ if "current instruction to complete" not in "\n".join(pin.get("_comment", [])):
 
 if problems:
     raise SystemExit("; ".join(problems))
-print("exact approved 87-member accumulated shape and explicit provenance")
+print("exact approved 91-member accumulated shape and explicit provenance")
 PY
 )"
 SLICE60_SHAPE_RC=$?
@@ -369,7 +373,7 @@ set -e
 if [ "$SLICE60_SHAPE_RC" -eq 0 ]; then
   pass "$SLICE60_SHAPE"
 else
-  fail "the pin must retain the exact approved 87-member accumulated shape and explicit provenance: $SLICE60_SHAPE"
+  fail "the pin must retain the exact approved 91-member accumulated shape and explicit provenance: $SLICE60_SHAPE"
 fi
 
 # The pin must really describe the allowlist at its own provenance commit. Reading
@@ -420,7 +424,7 @@ check_fixture "$F"
 expect_rc 1 "an ADDED allowlist member (70) HARD-fails"
 expect_out "'allowlist' diverges from the pin" "added-member names the diverging key"
 expect_out 'ADDED shiny.new_verb' "added-member NAMES the member that appeared"
-expect_out 'Pinned 87 member\(s\), on disk 88' "added-member states pinned-vs-on-disk counts"
+expect_out 'Pinned 91 member\(s\), on disk 92' "added-member states pinned-vs-on-disk counts"
 expect_out 'content differs from the pin' "added-member reports the content-hash divergence too"
 expect_routes_to_hitl "added-member"
 
@@ -430,7 +434,7 @@ mutate "$F" 'd["allowlist"].remove("purge")'
 check_fixture "$F"
 expect_rc 1 "a REMOVED allowlist member (68) HARD-fails"
 expect_out 'REMOVED purge' "removed-member NAMES the member that vanished"
-expect_out 'Pinned 87 member\(s\), on disk 86' "removed-member states pinned-vs-on-disk counts"
+expect_out 'Pinned 91 member\(s\), on disk 90' "removed-member states pinned-vs-on-disk counts"
 expect_routes_to_hitl "removed-member"
 
 # =================== Arm 3 (RED): recovery_denylist widened ===================
@@ -515,7 +519,7 @@ PY
 check_fixture "$F" "$LAZY_PIN"
 expect_rc 1 "a LAZY RE-PIN (hashes updated, signed member list untouched) still HARD-fails"
 expect_out 'ADDED smuggled.verb' "lazy-repin names the smuggled member"
-expect_out 'counts block says 87' "lazy-repin is also caught by the counts assertion"
+expect_out 'counts block says 91' "lazy-repin is also caught by the counts assertion"
 if printf '%s' "$OUT" | grep -q 'content differs from the pin'; then
   fail "lazy-repin's hashes DO match by construction; a hash complaint means the arm is not testing what it claims: $OUT"
 else

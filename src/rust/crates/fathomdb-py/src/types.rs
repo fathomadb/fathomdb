@@ -2,13 +2,208 @@ use super::*;
 
 // Shared native carriers and conversions.
 
-#[pyclass(module = "fathomdb._fathomdb", name = "NodeRecord", frozen, get_all, skip_from_py_object)]
+fn prop_err(as_filter: bool, msg: impl Into<String>) -> PyErr {
+    if as_filter {
+        InvalidFilterError::new_err(msg.into())
+    } else {
+        WriteValidationError::new_err(msg.into())
+    }
+}
+
+pub(super) fn py_property_value_to_rust(
+    value: &Bound<'_, PyAny>,
+    as_filter: bool,
+) -> PyResult<RustPropertyValue> {
+    // Check `PyBool` BEFORE `PyInt` because Python `bool` subclasses `int`.
+    if value.is_instance_of::<PyBool>() {
+        return Ok(RustPropertyValue::Bool(value.extract::<bool>()?));
+    }
+    if value.is_instance_of::<PyInt>() {
+        return value
+            .extract::<i64>()
+            .map(RustPropertyValue::Int)
+            .map_err(|_| prop_err(as_filter, "integer property value out of signed 64-bit range"));
+    }
+    if value.is_instance_of::<pyo3::types::PyFloat>() {
+        let f = value.extract::<f64>()?;
+        if !f.is_finite() {
+            return Err(prop_err(as_filter, "float property value must be finite"));
+        }
+        let f = if f == 0.0 { 0.0 } else { f };
+        return Ok(RustPropertyValue::Float(f));
+    }
+    if value.is_instance_of::<pyo3::types::PyString>() {
+        let s = extract_validated_str(value)?;
+        if s.contains('\x1e') {
+            return Err(prop_err(
+                as_filter,
+                "property string value must not contain record separator bytes",
+            ));
+        }
+        return Ok(RustPropertyValue::String(s));
+    }
+    Err(prop_err(as_filter, "property value must be str, int, float, or bool"))
+}
+
+pub(super) fn py_property_map_to_rust(
+    value: Option<Bound<'_, PyAny>>,
+) -> PyResult<Option<RustPropertyMap>> {
+    let Some(val) = value else {
+        return Ok(None);
+    };
+    if val.is_none() {
+        return Ok(None);
+    }
+    let dict = val
+        .cast::<PyDict>()
+        .map_err(|_| WriteValidationError::new_err("properties must be a dict or None"))?;
+    let mut map = RustPropertyMap::new();
+    for (k, v) in dict.iter() {
+        if !k.is_instance_of::<pyo3::types::PyString>() {
+            return Err(WriteValidationError::new_err("property key must be a str"));
+        }
+        let key = extract_validated_str(&k)?;
+        if key.is_empty() {
+            return Err(WriteValidationError::new_err("property key must not be empty"));
+        }
+        if key.contains('\x1e') {
+            return Err(WriteValidationError::new_err(
+                "property key must not contain record separator bytes",
+            ));
+        }
+        let prop_val = py_property_value_to_rust(&v, false)?;
+        map.insert(key, prop_val);
+    }
+    if map.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(map))
+    }
+}
+
+pub(super) fn rust_property_map_to_py<'py>(
+    py: Python<'py>,
+    props: Option<&RustPropertyMap>,
+) -> PyResult<Option<Bound<'py, PyDict>>> {
+    let Some(map) = props else {
+        return Ok(None);
+    };
+    if map.is_empty() {
+        return Ok(None);
+    }
+    let dict = PyDict::new(py);
+    for (k, v) in map {
+        match v {
+            RustPropertyValue::String(s) => dict.set_item(k, s)?,
+            RustPropertyValue::Int(i) => dict.set_item(k, *i)?,
+            RustPropertyValue::Float(f) => {
+                let norm = if *f == 0.0 { 0.0 } else { *f };
+                dict.set_item(k, norm)?;
+            }
+            RustPropertyValue::Bool(b) => dict.set_item(k, *b)?,
+        }
+    }
+    Ok(Some(dict))
+}
+
+pub(super) fn py_property_predicate_to_rust(
+    item: &Bound<'_, PyAny>,
+) -> PyResult<RustPropertyPredicate> {
+    let (key_obj, op_obj, val_obj) = if let Ok(dict) = item.cast::<PyDict>() {
+        let key = dict
+            .get_item("key")?
+            .ok_or_else(|| InvalidFilterError::new_err("property predicate missing 'key'"))?;
+        let op = dict
+            .get_item("op")?
+            .ok_or_else(|| InvalidFilterError::new_err("property predicate missing 'op'"))?;
+        let val = dict
+            .get_item("value")?
+            .ok_or_else(|| InvalidFilterError::new_err("property predicate missing 'value'"))?;
+        (key, op, val)
+    } else if let Ok((k, o, v)) =
+        item.extract::<(Bound<'_, PyAny>, Bound<'_, PyAny>, Bound<'_, PyAny>)>()
+    {
+        (k, o, v)
+    } else {
+        let key = item
+            .getattr("key")
+            .map_err(|_| InvalidFilterError::new_err("property predicate missing 'key'"))?;
+        let op = item
+            .getattr("op")
+            .map_err(|_| InvalidFilterError::new_err("property predicate missing 'op'"))?;
+        let val = item
+            .getattr("value")
+            .map_err(|_| InvalidFilterError::new_err("property predicate missing 'value'"))?;
+        (key, op, val)
+    };
+    if !key_obj.is_instance_of::<pyo3::types::PyString>() {
+        return Err(InvalidFilterError::new_err("property predicate key must be a str"));
+    }
+    let key = extract_validated_str(&key_obj)?;
+    if key.is_empty() || key.contains('\x1e') {
+        return Err(InvalidFilterError::new_err(
+            "property predicate key must be non-empty and contain no record separator bytes",
+        ));
+    }
+    if !op_obj.is_instance_of::<pyo3::types::PyString>() {
+        return Err(InvalidFilterError::new_err("property predicate op must be a str"));
+    }
+    let op_str = extract_validated_str(&op_obj)?;
+    let op = RustPropertyComparisonOp::parse(&op_str).ok_or_else(|| {
+        InvalidFilterError::new_err(format!(
+            "unknown property predicate op {op_str:?}; expected eq/ne/lt/lte/gt/gte"
+        ))
+    })?;
+    let value = py_property_value_to_rust(&val_obj, true)?;
+    if matches!(value, RustPropertyValue::Bool(_))
+        && matches!(
+            op,
+            RustPropertyComparisonOp::Lt
+                | RustPropertyComparisonOp::Lte
+                | RustPropertyComparisonOp::Gt
+                | RustPropertyComparisonOp::Gte
+        )
+    {
+        return Err(InvalidFilterError::new_err(
+            "ordering operators are invalid for boolean properties",
+        ));
+    }
+    Ok(RustPropertyPredicate { key, op, value })
+}
+
+pub(super) fn py_property_predicates_to_rust(
+    preds: Option<&Bound<'_, PyList>>,
+) -> PyResult<Vec<RustPropertyPredicate>> {
+    let Some(list) = preds else {
+        return Ok(Vec::new());
+    };
+    let mut out = Vec::with_capacity(list.len());
+    for item in list.iter() {
+        out.push(py_property_predicate_to_rust(&item)?);
+    }
+    Ok(out)
+}
+
+#[pyclass(module = "fathomdb._fathomdb", name = "NodeRecord", frozen, skip_from_py_object)]
 #[derive(Clone)]
 pub(super) struct PyNodeRecord {
+    #[pyo3(get)]
     logical_id: String,
+    #[pyo3(get)]
     kind: String,
+    #[pyo3(get)]
     body: String,
+    #[pyo3(get)]
     write_cursor: u64,
+    properties: Option<RustPropertyMap>,
+}
+
+#[pymethods]
+impl PyNodeRecord {
+    #[getter]
+    fn properties<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyDict>>> {
+        rust_property_map_to_py(py, self.properties.as_ref())
+    }
 }
 
 impl PyNodeRecord {
@@ -18,6 +213,7 @@ impl PyNodeRecord {
             kind: r.kind.clone(),
             body: r.body.clone(),
             write_cursor: r.write_cursor,
+            properties: r.properties.clone(),
         }
     }
 }
@@ -90,7 +286,7 @@ impl PyReadContextV1 {
     #[new]
     #[pyo3(signature = (
         view=None, source_type=None, kind=None, created_after=None, status=None,
-        attributes=None, schema_version=1
+        attributes=None, schema_version=1, property_predicates=None
     ))]
     #[allow(clippy::too_many_arguments)]
     fn new(
@@ -101,6 +297,7 @@ impl PyReadContextV1 {
         status: Option<String>,
         attributes: Option<Vec<(String, String)>>,
         schema_version: u32,
+        property_predicates: Option<&Bound<'_, PyList>>,
     ) -> PyResult<Self> {
         let mut eligibility = RustSearchFilter::default();
         eligibility.source_type = source_type;
@@ -108,6 +305,7 @@ impl PyReadContextV1 {
         eligibility.created_after = created_after;
         eligibility.status = status;
         eligibility.attributes = attributes.unwrap_or_default();
+        eligibility.property_predicates = py_property_predicates_to_rust(property_predicates)?;
         if schema_version != 1 {
             return Err(frozen_read_error_to_py(&fathomdb_engine::FrozenReadError {
                 reason: fathomdb_engine::FrozenReadErrorReason::UnsupportedSchemaVersion,

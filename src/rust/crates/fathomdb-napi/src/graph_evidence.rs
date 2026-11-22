@@ -276,6 +276,7 @@ pub struct ResolvedEvidenceV1 {
     pub projection_origin: EvidenceProjectionOriginV1,
     pub retrieval_contribution: EvidenceContributionV1,
     pub dependency: Option<SourceDependencyV1>,
+    pub properties: Option<Vec<PropertyEntry>>,
 }
 
 impl From<RustResolvedEvidenceV1> for ResolvedEvidenceV1 {
@@ -327,6 +328,7 @@ impl From<RustResolvedEvidenceV1> for ResolvedEvidenceV1 {
             projection_origin: value.projection_origin.into(),
             retrieval_contribution: value.retrieval_contribution.into(),
             dependency: value.dependency.map(Into::into),
+            properties: property_map_to_napi(value.properties.as_ref()),
         }
     }
 }

@@ -1,4 +1,5 @@
 import type { NativeEngine } from "./binding.js";
+import { prepareActuationBatch, prepareWriteBatchItem } from "./properties.js";
 // Private write owner for the TypeScript SDK package root.
 
 import { ActuationError, DependencyClosureError, DependencyError, rethrowTyped } from "./errors.js";
@@ -451,6 +452,8 @@ export interface EraseReport {
    * alongside the canonical rows.
    */
   projectionsInvalidated: number;
+  /** True when this call completed a prior pending erasure closure. */
+  completedPendingErasure: boolean;
 }
 
 /** G11 (Slice 15) — BYO-LLM ingest receipt. */
@@ -495,7 +498,8 @@ export interface ConsolidateAxis {
 
 export async function write(nativeEngine: NativeEngine, batch: unknown[] = []): Promise<WriteReceipt> {
     validateWriteFfiTree(batch);
-    return intercept(() => nativeEngine.write(batch));
+    const prepared = batch.map(prepareWriteBatchItem);
+    return intercept(() => nativeEngine.write(prepared));
   }
 
 export async function registerSourceDependency(nativeEngine: NativeEngine, request: SourceDependencyRegistrationV1): Promise<SourceDependencyV1> {
@@ -506,7 +510,8 @@ export async function registerSourceDependency(nativeEngine: NativeEngine, reque
 
 export async function actuate(nativeEngine: NativeEngine, request: ActuationBatchV1): Promise<ActuationReceiptV1> {
     try {
-      return actuationResponse(await nativeEngine.actuate(sanitizeActuationFfiTree(request)));
+      const prepared = prepareActuationBatch(sanitizeActuationFfiTree(request));
+      return actuationResponse(await nativeEngine.actuate(prepared));
     } catch (err) {
       rethrowTyped(err);
     }

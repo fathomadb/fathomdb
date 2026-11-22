@@ -27,6 +27,7 @@ import {
   type NativeFilterTermInput,
   type NativeNodeRecord,
   type NativeOpStoreRow,
+  type NativeOperationalCollectionInfo,
   type NativeNodePageV1,
   type NativeOperationalStatePageV1,
   type NativeOperationalStateRecordV1,
@@ -41,7 +42,9 @@ import {
   ProjectionGenerationError,
   rethrowTyped,
 } from "./errors.js";
+import { decodeNativeProperties, type PropertyEntityClass, type PropertyMap } from "./properties.js";
 import { validateFfiString } from "./validation.js";
+import { nativeFrozenContext } from "./search.js";
 import type {
   DenseReadiness,
   Engine,
@@ -111,6 +114,17 @@ export interface NodeRecord {
   body: string;
   /** Interim id carrier (parity with `SearchHit.id`). */
   writeCursor: number;
+  properties?: PropertyMap | null;
+}
+
+/** Registered operational-collection schema and retention metadata. */
+export interface OperationalCollectionInfo {
+  name: string;
+  kind: string;
+  schemaJson: string;
+  retentionJson: string;
+  formatVersion: number;
+  createdAt: number;
 }
 
 /** Slice 30 (G3) — one `operational_mutations` row from `read.collection`/`read.mutations`. */
@@ -198,8 +212,27 @@ function projectionResponseEnum<T extends string>(
   return value as T;
 }
 
-function toNodeRecord(n: NativeNodeRecord): NodeRecord {
-  return { logicalId: n.logicalId, kind: n.kind, body: n.body, writeCursor: n.writeCursor };
+export function toNodeRecord(n: NativeNodeRecord): NodeRecord {
+  return {
+    logicalId: n.logicalId,
+    kind: n.kind,
+    body: n.body,
+    writeCursor: n.writeCursor,
+    properties: decodeNativeProperties(n.properties),
+  };
+}
+
+function toOperationalCollectionInfo(
+  c: NativeOperationalCollectionInfo,
+): OperationalCollectionInfo {
+  return {
+    name: c.name,
+    kind: c.kind,
+    schemaJson: c.schemaJson,
+    retentionJson: c.retentionJson,
+    formatVersion: c.formatVersion,
+    createdAt: c.createdAt,
+  };
 }
 
 function toOpStoreRow(n: NativeOpStoreRow): OpStoreRow {
@@ -474,9 +507,30 @@ export const read = {
     validateFfiString(kind);
     return toNodePage(
       await intercept(() =>
-        native.readCanonicalPage(engine._native, kind, context, nativePageRequest(page)),
+        native.readCanonicalPage(
+          engine._native,
+          kind,
+          nativeFrozenContext(context),
+          nativePageRequest(page),
+        ),
       ),
     );
+  },
+
+  /** Return all registered operational collections ordered by `name ASC`. */
+  async operationalCollections(engine: Engine): Promise<OperationalCollectionInfo[]> {
+    const rows = await intercept(() => native.readOperationalCollections(engine._native));
+    return rows.map(toOperationalCollectionInfo);
+  },
+
+  /** Return metadata for one registered operational collection by `name`, or `null` if absent. */
+  async operationalCollection(
+    engine: Engine,
+    name: string,
+  ): Promise<OperationalCollectionInfo | null> {
+    validateFfiString(name);
+    const row = await intercept(() => native.readOperationalCollection(engine._native, name));
+    return row === null ? null : toOperationalCollectionInfo(row);
   },
 
   /** Read one current value from a governed `latest_state` collection. */
@@ -489,7 +543,12 @@ export const read = {
     validateFfiString(collection);
     validateFfiString(recordKey);
     const record = await intercept(() =>
-      native.readOperationalState(engine._native, collection, recordKey, context),
+      native.readOperationalState(
+        engine._native,
+        collection,
+        recordKey,
+        context === undefined ? undefined : nativeFrozenContext(context),
+      ),
     );
     return record === null ? null : toOperationalStateRecord(record);
   },
@@ -507,7 +566,7 @@ export const read = {
         native.readOperationalStatePage(
           engine._native,
           collection,
-          context,
+          nativeFrozenContext(context),
           nativePageRequest(page),
         ),
       ),
@@ -575,6 +634,12 @@ export const read = {
       // ("unavailable"/"embedding"/"ready"; null when there is no vector
       // sub-object).
       vectorDenseReadiness: (s.vectorDenseReadiness ?? null) as DenseReadiness | null,
+      ...(s.entityClass === undefined || s.entityClass === null
+        ? {}
+        : { entityClass: s.entityClass as PropertyEntityClass }),
+      ...(s.vectorKinds === undefined || s.vectorKinds === null
+        ? {}
+        : { vectorKinds: s.vectorKinds }),
     }));
   },
 

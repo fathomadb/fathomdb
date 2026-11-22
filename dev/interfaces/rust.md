@@ -2447,3 +2447,44 @@ The public Rust `RerankerDevicePolicyError` adds `ModelBusy` (`kind()` is
 Fallible reranker APIs map it to the shared overload class. Infallible
 `rerank_fused` keeps its unchanged-input fallback. See
 [the ownership decision](../adr/ADR-0.8.30-explicit-module-model-release.md).
+
+## Typed inline properties, operational-collection introspection, and explicit vector enrollment (0.8.31 Slice 20)
+
+`PropertyValue` (`Str(String)`, `Int(i64)`, `Float(f64)`, `Bool(bool)`),
+`PropertyMap = BTreeMap<String, PropertyValue>`, `PropertyEntityClass` (`Node`,
+`Edge`), `PropertyComparisonOp` (`Eq`, `Ne`, `Lt`, `Lte`, `Gt`, `Gte`),
+`PropertyPredicate { key, op, value }`, and `OperationalCollectionInfo`
+(`name`, `kind`, `schema_json`, `retention_json`, `format_version`,
+`created_at`) are exported from `fathomdb_engine` and re-exported by
+`fathomdb`.
+
+- **Writes & validation:** `PreparedWrite::Node`, `PreparedWrite::Edge`, and
+  bounded actuation node/edge records carry `properties: Option<PropertyMap>`.
+  Empty maps normalize to `None` (`NULL` in SQLite). Non-finite floats, empty
+  keys, and keys or string values containing NUL (`\0`) or RS (`\x1e`) are
+  refused with `EngineError::WriteValidation`. Negative zero (`-0.0`) is
+  canonicalized to `0.0`. `AdminSchema` refuses changing `kind` for an existing
+  operational collection name with `EngineError::WriteValidation`.
+- **O(1) read hydration:** `NodeRecord`, `SearchHit`, `GraphTargetV1`,
+  `ResolvedEvidenceV1`, and `GraphEvidenceArtifactV1` (node/edge variants of
+  `ResolvedGraphEvidenceV1`) carry `properties: Option<PropertyMap>`;
+  `GraphOriginV1` carries `terminal_edge_properties: Option<PropertyMap>`.
+  Values are hydrated directly from canonical row columns with no extra query
+  per row.
+- **Typed property predicates:** `SearchFilter.property_predicates: Vec<PropertyPredicate>`
+  (and `FilterTerm::Property(PropertyPredicate)`) evaluates ANDed comparisons
+  against declared node `Filterable` projections using typed SQLite indexes.
+  Undeclared keys, non-filterable keys, edge-only keys, and range comparisons
+  (`Lt`, `Lte`, `Gt`, `Gte`) against `PropertyValue::Bool` are refused with
+  `EngineError::InvalidFilter`.
+- **Projection specs:** `ProjectionSpec` adds `entity_class: PropertyEntityClass`
+  (default `PropertyEntityClass::Node`) and `vector_kinds: Option<Vec<String>>`
+  (explicit opt-in node-kind vector enrollment). Enrolling `"edge_fact"` is
+  refused with `EngineError::InvalidArgument`; unenrolled node kinds are
+  reported in `vector_unsupported_kinds` without embedding.
+- **Operational-collection reads:** `Engine::read_operational_collections(&self) -> Result<Vec<OperationalCollectionInfo>, EngineError>`
+  and `Engine::read_operational_collection(&self, name: &str) -> Result<Option<OperationalCollectionInfo>, EngineError>`
+  inspect registered collections (fresh stores include `projection_failures`).
+- **Erasure reporting:** `ExciseReport` adds `completed_pending_erasure: bool`
+  (`false` on ordinary erasure; `true` when completing pending post-commit
+  erasure work).

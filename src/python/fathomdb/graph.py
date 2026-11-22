@@ -57,6 +57,7 @@ def _to_node_record(native: _NativeNodeRecord) -> NodeRecord:
         kind=native.kind,
         body=native.body,
         write_cursor=native.write_cursor,
+        properties=getattr(native, "properties", None),
     )
 
 
@@ -69,6 +70,7 @@ def _to_search_hit(native: _NativeSearchHit) -> SearchHit:
         branch=cast(SoftFallbackBranch, native.branch),
         source_id=native.source_id,
         ce_score=native.ce_score,
+        properties=getattr(native, "properties", None),
     )
 
 
@@ -203,6 +205,22 @@ def _to_search_expand_result(native_result: Any) -> SearchExpandResult:
 
 
 def _read_context_wire(context: ReadContextV1) -> dict[str, object]:
+    eligibility: dict[str, object] = {
+        "sourceType": context.eligibility.source_type,
+        "kind": context.eligibility.kind,
+        "createdAfter": context.eligibility.created_after,
+        "status": context.eligibility.status,
+        "attributes": [list(pair) for pair in context.eligibility.attributes],
+    }
+    if context.eligibility.property_predicates:
+        eligibility["propertyPredicates"] = [
+            {
+                "key": pred.key,
+                "op": pred.op,
+                "value": 0.0 if (isinstance(pred.value, float) and pred.value == 0.0) else pred.value,
+            }
+            for pred in context.eligibility.property_predicates
+        ]
     return {
         "schemaVersion": context.schema_version,
         "view": {
@@ -211,13 +229,7 @@ def _read_context_wire(context: ReadContextV1) -> dict[str, object]:
             "includeOutOfWindow": context.view.include_out_of_window,
             "validAsOf": context.view.valid_as_of,
         },
-        "eligibility": {
-            "sourceType": context.eligibility.source_type,
-            "kind": context.eligibility.kind,
-            "createdAfter": context.eligibility.created_after,
-            "status": context.eligibility.status,
-            "attributes": [list(pair) for pair in context.eligibility.attributes],
-        },
+        "eligibility": eligibility,
     }
 
 
@@ -341,12 +353,23 @@ def expand(engine: "Engine", request: GraphExpandRequestV1) -> GraphExpandResult
     request_json = json.dumps(_request_wire(request), separators=(",", ":"), ensure_ascii=False)
     response_json = engine._native.graph_expand(request_json)
 
-    def native_object(value: dict[str, object]) -> SimpleNamespace:
-        return SimpleNamespace(
-            **{re.sub(r"(?<!^)(?=[A-Z])", "_", key).lower(): item for key, item in value.items()}
-        )
+    def to_namespace(value: object) -> object:
+        if isinstance(value, list):
+            return [to_namespace(item) for item in value]
+        if isinstance(value, dict):
+            return SimpleNamespace(
+                **{
+                    re.sub(r"(?<!^)(?=[A-Z])", "_", key).lower(): (
+                        item
+                        if key in ("properties", "terminalEdgeProperties")
+                        else to_namespace(item)
+                    )
+                    for key, item in value.items()
+                }
+            )
+        return value
 
-    response = json.loads(response_json, object_hook=native_object)
+    response = to_namespace(json.loads(response_json))
     from fathomdb._sdk_graph import _map_native_graph_expand_result
 
     return _map_native_graph_expand_result(response)

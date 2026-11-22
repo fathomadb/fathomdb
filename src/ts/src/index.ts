@@ -4,6 +4,7 @@ export { read } from "./read.js";
 export type {
   BoundaryCrossing,
   NodeRecord,
+  OperationalCollectionInfo,
   OperationalStateRecordV1,
   OpStoreRow,
   PageCursor,
@@ -13,6 +14,13 @@ export type {
   ReadCollectionOptions,
   ReadView,
 } from "./read.js";
+export type {
+  PropertyComparisonOp,
+  PropertyEntityClass,
+  PropertyMap,
+  PropertyPredicate,
+  PropertyValue,
+} from "./properties.js";
 
 export {
   LifecycleState,

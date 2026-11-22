@@ -216,13 +216,15 @@ pub(super) struct PyProjectionSpec {
     /// reports the derived truth), so read output still re-applies as a no-op.
     vector_dense_readiness: Option<String>,
     source: Option<Vec<String>>,
+    entity_class: String,
+    vector_kinds: Option<Vec<String>>,
 }
 
 #[pymethods]
 impl PyProjectionSpec {
     #[new]
     #[allow(clippy::too_many_arguments)]
-    #[pyo3(signature = (name, roles, fts = false, fts_tokenizer = None, vector = false, vector_embedder = None, vector_dense_readiness = None, source = None))]
+    #[pyo3(signature = (name, roles, fts = false, fts_tokenizer = None, vector = false, vector_embedder = None, vector_dense_readiness = None, source = None, entity_class = "node".to_string(), vector_kinds = None))]
     fn new(
         name: String,
         roles: Vec<String>,
@@ -232,6 +234,8 @@ impl PyProjectionSpec {
         vector_embedder: Option<String>,
         vector_dense_readiness: Option<String>,
         source: Option<Vec<String>>,
+        entity_class: String,
+        vector_kinds: Option<Vec<String>>,
     ) -> Self {
         Self {
             name,
@@ -242,6 +246,8 @@ impl PyProjectionSpec {
             vector_embedder,
             vector_dense_readiness,
             source,
+            entity_class,
+            vector_kinds,
         }
     }
 }
@@ -261,6 +267,8 @@ impl PyProjectionSpec {
                 .and_then(|v| v.dense_readiness)
                 .map(|r| r.as_str().to_string()),
             source: s.source.clone(),
+            entity_class: s.entity_class.as_str().to_string(),
+            vector_kinds: s.vector.as_ref().and_then(|v| v.kinds.clone()),
         }
     }
 
@@ -269,6 +277,7 @@ impl PyProjectionSpec {
         // the engine (writer transaction) is reached. Mirrors the per-string
         // gate applied at every other pyo3 call site (e.g. `validate_ffi_string_py`).
         validate_ffi_string_py(&self.name)?;
+        validate_ffi_string_py(&self.entity_class)?;
         if let Some(tokenizer) = &self.fts_tokenizer {
             validate_ffi_string_py(tokenizer)?;
         }
@@ -280,6 +289,23 @@ impl PyProjectionSpec {
                 validate_ffi_string_py(segment)?;
             }
         }
+        if let Some(kinds) = &self.vector_kinds {
+            for kind in kinds {
+                validate_ffi_string_py(kind)?;
+            }
+            if !self.vector && !kinds.is_empty() {
+                return Err(WriteValidationError::new_err(format!(
+                    "projection {:?}: vector_kinds requires vector=true",
+                    self.name
+                )));
+            }
+        }
+        let entity_class = RustPropertyEntityClass::parse(&self.entity_class).ok_or_else(|| {
+            InvalidArgumentError::new_err(format!(
+                "projection {:?}: unknown entity_class {:?}; expected \"node\" or \"edge\"",
+                self.name, self.entity_class
+            ))
+        })?;
         // 0.8.20 keystone closeout fix-4 — ROUND-TRIP CONSISTENCY GATE. A spec
         // the binding ACCEPTS must round-trip through `read.projections`
         // IDENTICALLY; otherwise reject it HERE with the typed validation error
@@ -379,10 +405,10 @@ impl PyProjectionSpec {
                     .vector_dense_readiness
                     .as_deref()
                     .and_then(RustDenseReadiness::from_str_opt),
-                kinds: None,
+                kinds: self.vector_kinds.clone(),
             }),
             source: self.source.clone(),
-            entity_class: fathomdb_engine::PropertyEntityClass::Node,
+            entity_class,
         })
     }
 }

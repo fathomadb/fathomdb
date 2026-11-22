@@ -49,11 +49,13 @@ def test_erase_source_erases_anonymous_content_without_cli(db_path: str) -> None
         report = engine.erase_source("tenant-a")
         assert report.source_ref == "tenant-a"
         assert report.nodes_excised == 2, "both tenant-a rows must be erased, and ONLY those"
+        assert report.completed_pending_erasure is False
 
         # Non-perturbation, asserted as a SECOND erase: its count proves
         # tenant-b's row still existed after the first call.
         second = engine.erase_source("tenant-b")
         assert second.nodes_excised == 1, "the first erasure must not have touched tenant-b"
+        assert second.completed_pending_erasure is False
     finally:
         engine.close()
 

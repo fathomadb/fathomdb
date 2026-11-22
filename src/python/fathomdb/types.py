@@ -71,6 +71,36 @@ EmbeddingOperation = Literal["graph_edge_body_projection", "vector_projection"]
 #: ``searchable→vector`` arm at all.
 ProjectionStatusDenseReadiness = Literal["not_declared", "unavailable", "embedding", "ready"]
 
+#: Scalar value stored in an inline property map or predicate.
+PropertyValue = Union[str, int, float, bool]
+#: Canonical typed property map keyed by property name.
+PropertyMap = dict[str, PropertyValue]
+#: Entity class targeted by a declared property projection.
+PropertyEntityClass = Literal["node", "edge"]
+#: Closed comparison operator for :class:`PropertyPredicate`.
+PropertyComparisonOp = Literal["eq", "ne", "lt", "lte", "gt", "gte"]
+
+
+@dataclass(frozen=True)
+class PropertyPredicate:
+    """Closed typed property predicate evaluated over declared properties."""
+
+    key: str
+    op: PropertyComparisonOp
+    value: PropertyValue
+
+
+@dataclass(frozen=True)
+class OperationalCollectionInfo:
+    """Registered operational-collection metadata returned by ``read.operational_collections``."""
+
+    name: str
+    kind: str
+    schema_json: str
+    retention_json: str
+    format_version: int
+    created_at: int
+
 
 class WholeBodySourceLocator(TypedDict):
     """Exact locator covering the entire canonical source body."""
@@ -582,6 +612,7 @@ class SearchHit:
     branch: SoftFallbackBranch
     source_id: str | None = None
     ce_score: float | None = None
+    properties: PropertyMap | None = None
 
 
 @dataclass(frozen=True)
@@ -711,6 +742,7 @@ class GraphOriginV1:
     hop_count: int
     terminal_edge_kind: str
     terminal_direction: TraversalDirection
+    terminal_edge_properties: PropertyMap | None = None
 
 
 @dataclass(frozen=True)
@@ -723,6 +755,7 @@ class GraphTargetV1:
     body: str
     write_cursor: str
     origin: GraphOriginV1
+    properties: PropertyMap | None = None
 
 
 @dataclass(frozen=True)
@@ -804,6 +837,7 @@ class GraphEvidenceArtifactV1:
     body: str | None
     from_id: str | None = None
     to_id: str | None = None
+    properties: PropertyMap | None = None
 
 
 @dataclass(frozen=True)
@@ -1008,6 +1042,7 @@ class ResolvedEvidenceV1:
     retrieval_contribution: EvidenceContributionV1
     dependency: SourceDependencyV1 | None
     schema_version: int = 1
+    properties: PropertyMap | None = None
 
 
 class ProjectionRole:
@@ -1074,6 +1109,10 @@ class ProjectionSpec:
     #: Ordered literal object-member path in the canonical body. ``None`` keeps
     #: the legacy direct top-level lookup by ``name``.
     source: tuple[str, ...] | None = None
+    #: Entity class targeted by this projection (``"node"`` or ``"edge"``).
+    entity_class: PropertyEntityClass = "node"
+    #: Explicit opt-in custom node kinds enrolled for vector indexing (only with ``vector=True``).
+    vector_kinds: list[str] | None = None
 
 
 @dataclass(frozen=True)
@@ -1134,6 +1173,7 @@ class NodeRecord:
     kind: str
     body: str
     write_cursor: int
+    properties: PropertyMap | None = None
 
 
 @dataclass(frozen=True)
@@ -1207,6 +1247,8 @@ class SearchFilter:
     status: str | None = None
     #: Ordered ``(projection_name, canonical_text)`` equality predicates.
     attributes: tuple[tuple[str, str], ...] = ()
+    #: Typed property predicates over declared ``filterable`` node properties.
+    property_predicates: list[PropertyPredicate] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -1737,12 +1779,18 @@ __all__ = [
     "MigrationStepReport",
     "NodeRecord",
     "OpStoreRow",
+    "OperationalCollectionInfo",
     "OperationalStateRecordV1",
     "PageCursor",
     "PageRequestV1",
     "PageV1",
     "OpenReport",
     "PerHitExplain",
+    "PropertyComparisonOp",
+    "PropertyEntityClass",
+    "PropertyMap",
+    "PropertyPredicate",
+    "PropertyValue",
     "QueryTrace",
     "ResolvedEvidenceV1",
     "SearchExpandResult",

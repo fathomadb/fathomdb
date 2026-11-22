@@ -3,6 +3,7 @@ import type { NativeEngine } from "./binding.js";
 import { type NativeEvidenceSearchResultV1, type NativeResolvedEvidenceV1 } from "./binding.js";
 import { DependencyTraceError, EvidenceError, FrozenReadError, InvalidArgumentError } from "./errors.js";
 import { intercept } from "./native-call.js";
+import { decodeNativeProperties, parseLosslessJson, type PropertyMap } from "./properties.js";
 import { evidencePointerSegment, validateFfiString } from "./validation.js";
 import {
   GraphEvidenceResolveRequestV1,
@@ -155,6 +156,7 @@ export interface ResolvedEvidenceV1 {
   projectionOrigin: EvidenceProjectionOriginV1;
   retrievalContribution: EvidenceContributionV1;
   dependency: SourceDependencyV1 | null;
+  properties?: PropertyMap | null;
 }
 
 export function mapNativeEvidenceSearch(r: NativeEvidenceSearchResultV1): EvidenceSearchResultV1 {
@@ -234,6 +236,7 @@ export function mapNativeResolvedEvidence(r: NativeResolvedEvidenceV1): Resolved
           registeredDependencyGeneration: r.dependency.registeredDependencyGeneration,
         }
       : null,
+    properties: decodeNativeProperties(r.properties),
   };
 }
 
@@ -847,7 +850,7 @@ export async function resolveGraphEvidence(nativeEngine: NativeEngine, request: 
     );
     let decoded: unknown;
     try {
-      decoded = JSON.parse(encoded);
+      decoded = parseLosslessJson(encoded);
     } catch {
       evidenceRequestError("evidence_corrupt", "");
     }

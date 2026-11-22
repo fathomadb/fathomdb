@@ -565,6 +565,7 @@ test("fix-4 CONTROL — a consistent spec round-trips verbatim via read.projecti
     );
     assert.deepEqual({ ...back[0], vectorDenseReadiness: undefined }, {
       ...sent,
+      entityClass: "node",
       vectorDenseReadiness: undefined,
     });
   } finally {

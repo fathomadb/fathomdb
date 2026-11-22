@@ -1629,3 +1629,43 @@ The public Rust `RerankerDevicePolicyError` adds `ModelBusy` (`kind()` is
 Fallible reranker APIs map it to the shared overload class. Infallible
 `rerank_fused` keeps its unchanged-input fallback. See
 [the ownership decision](../adr/ADR-0.8.30-explicit-module-model-release.md).
+
+## Typed inline properties, operational collections, and explicit vector enrollment (0.8.31 Slice 20)
+
+`fathomdb` exports `PropertyValue` (`string | number | bigint | boolean`),
+`PropertyMap` (`Record<string, PropertyValue>`), `PropertyEntityClass`
+(`"node" | "edge"`), `PropertyComparisonOp`
+(`"eq" | "ne" | "lt" | "lte" | "gt" | "gte"`), `PropertyPredicate`
+(`{ key: string; op: PropertyComparisonOp; value: PropertyValue }`), and
+`OperationalCollectionInfo`
+(`{ name, kind, schemaJson, retentionJson, formatVersion, createdAt }`).
+
+- **Writes & lossless integer round-trip:** Node and edge items in
+  `engine.write(...)` and `engine.actuate(...)` accept optional
+  `properties?: PropertyMap | null`. Finite safe integers (`Number.isSafeInteger`)
+  and `bigint` values in `[-(2n ** 63n), 2n ** 63n - 1n]` encode as signed
+  64-bit `Int` (`Object.is(v, -0)` canonicalizes to `0`; non-integer finite
+  numbers encode as `Float`; integers outside `±(2^53 - 1)` decode losslessly
+  as `bigint`). Empty `{}` normalizes to `null`. `null`/nested values,
+  non-finite numbers, out-of-range `bigint` values, empty keys, lone UTF-16
+  surrogates, and `\0`/`\x1e` in keys or string values reject with
+  `WriteValidationError`. Changing an existing operational collection's `kind`
+  via `{ adminSchema: ... }` also rejects with `WriteValidationError`.
+- **O(1) read hydration:** `NodeRecord.properties`, `SearchHit.properties`,
+  `GraphTargetV1.properties`, `GraphOriginV1.terminalEdgeProperties`,
+  `ResolvedEvidenceV1.properties`, and `GraphEvidenceArtifactV1.properties`
+  expose hydrated `PropertyMap` values directly (`null` when absent on
+  `NodeRecord`/`SearchHit`/`ResolvedEvidenceV1`; omitted when absent on graph
+  wire objects).
+- **Typed property predicates:** `SearchFilter.propertyPredicates?: PropertyPredicate[]`
+  filters against declared node `filterable` projections. Undeclared keys and
+  range comparisons on booleans reject with `InvalidFilterError`.
+- **Projection specs:** `ProjectionSpec` adds optional
+  `entityClass?: PropertyEntityClass` (default `"node"`) and
+  `vectorKinds?: string[] | null` for explicit opt-in vector enrollment
+  (`"edge_fact"` is rejected; unenrolled kinds are reported in
+  `vectorUnsupportedKinds`).
+- **Operational-collection reads:** `read.operationalCollections(engine): Promise<OperationalCollectionInfo[]>`
+  and `read.operationalCollection(engine, name): Promise<OperationalCollectionInfo | null>`
+  are live governed reads (fresh stores seed `"projection_failures"`).
+- **Erasure reporting:** `EraseReport` adds `completedPendingErasure: boolean`.

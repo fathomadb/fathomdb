@@ -278,36 +278,60 @@ impl From<RustEvidenceProjectionOriginV1> for PyEvidenceProjectionOriginV1 {
     }
 }
 
-#[pyclass(
-    module = "fathomdb._fathomdb",
-    name = "ResolvedEvidenceV1",
-    frozen,
-    get_all,
-    skip_from_py_object
-)]
+#[pyclass(module = "fathomdb._fathomdb", name = "ResolvedEvidenceV1", frozen, skip_from_py_object)]
 #[derive(Clone)]
 pub(super) struct PyResolvedEvidenceV1 {
+    #[pyo3(get)]
     schema_version: u32,
+    #[pyo3(get)]
     logical_id: Option<String>,
+    #[pyo3(get)]
     artifact_revision_id: String,
+    #[pyo3(get)]
     source_id: String,
+    #[pyo3(get)]
     source_version_id: String,
+    #[pyo3(get)]
     source_revision_id: String,
+    #[pyo3(get)]
     locator_kind: String,
+    #[pyo3(get)]
     locator_start_inclusive: Option<u64>,
+    #[pyo3(get)]
     locator_end_exclusive: Option<u64>,
+    #[pyo3(get)]
     canonical_source_body: String,
+    #[pyo3(get)]
     evidence_text: String,
+    #[pyo3(get)]
     canonical_source_hash: String,
+    #[pyo3(get)]
     effective_valid_at: i64,
+    #[pyo3(get)]
     artifact_lifecycle_kind: String,
+    #[pyo3(get)]
     artifact_lifecycle_state: Option<String>,
+    #[pyo3(get)]
     artifact_superseded: bool,
+    #[pyo3(get)]
     artifact_valid_at_effective: Option<bool>,
+    #[pyo3(get)]
     source_lifecycle_state: String,
+    #[pyo3(get)]
     projection_origin: PyEvidenceProjectionOriginV1,
+    #[pyo3(get)]
     retrieval_contribution: PyEvidenceContributionV1,
+    #[pyo3(get)]
     dependency: Option<PySourceDependencyV1>,
+    properties: Option<RustPropertyMap>,
+}
+
+#[pymethods]
+impl PyResolvedEvidenceV1 {
+    #[getter]
+    fn properties<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyDict>>> {
+        rust_property_map_to_py(py, self.properties.as_ref())
+    }
 }
 
 impl From<RustResolvedEvidenceV1> for PyResolvedEvidenceV1 {
@@ -353,6 +377,7 @@ impl From<RustResolvedEvidenceV1> for PyResolvedEvidenceV1 {
             projection_origin: value.projection_origin.into(),
             retrieval_contribution: value.retrieval_contribution.into(),
             dependency: value.dependency.map(Into::into),
+            properties: value.properties,
         }
     }
 }

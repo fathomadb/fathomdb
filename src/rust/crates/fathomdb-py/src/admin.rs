@@ -310,6 +310,7 @@ pub(super) struct PyEraseReport {
     nodes_excised: u64,
     edges_excised: u64,
     projections_invalidated: u64,
+    completed_pending_erasure: bool,
 }
 
 impl PyEraseReport {
@@ -319,6 +320,7 @@ impl PyEraseReport {
             nodes_excised: r.nodes_excised,
             edges_excised: r.edges_excised,
             projections_invalidated: r.projections_invalidated,
+            completed_pending_erasure: r.completed_pending_erasure,
         }
     }
 }

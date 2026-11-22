@@ -330,6 +330,7 @@ pub(crate) fn translate_actuation_operation(
                     "reason",
                     "validFrom",
                     "validUntil",
+                    "properties",
                     "provenance",
                 ],
                 &format!("{root}/record"),
@@ -365,6 +366,7 @@ pub(crate) fn translate_actuation_operation(
                     "body",
                     "tValid",
                     "tInvalid",
+                    "properties",
                     "provenance",
                 ],
                 &format!("{root}/record"),
@@ -784,6 +786,192 @@ pub(crate) fn json_serialised_alt_required(
     })
 }
 
+pub(crate) fn json_property_map(item: &JsonValue, key: &str) -> Result<Option<RustPropertyMap>> {
+    let Some(raw) = json_get(item, key) else {
+        return Ok(None);
+    };
+    if raw.is_null() {
+        return Ok(None);
+    }
+    let obj = raw.as_object().ok_or_else(|| {
+        typed_error(CODE_WRITE_VALIDATION, "properties must be an object or null", JsonValue::Null)
+    })?;
+    let mut map = RustPropertyMap::new();
+    if obj.len() == 1 {
+        if let Some(entries_val) = obj.get("__fdb_props_v1__") {
+            let entries = entries_val.as_array().ok_or_else(|| {
+                typed_error(
+                    CODE_WRITE_VALIDATION,
+                    "invalid encoded properties payload",
+                    JsonValue::Null,
+                )
+            })?;
+            for entry in entries {
+                let eobj = entry.as_object().ok_or_else(|| {
+                    typed_error(
+                        CODE_WRITE_VALIDATION,
+                        "invalid encoded property entry",
+                        JsonValue::Null,
+                    )
+                })?;
+                let k = eobj.get("key").and_then(JsonValue::as_str).ok_or_else(|| {
+                    typed_error(
+                        CODE_WRITE_VALIDATION,
+                        "property key must be string",
+                        JsonValue::Null,
+                    )
+                })?;
+                validate_ffi_string_napi(k)?;
+                if k.is_empty() || k.contains('\x1e') {
+                    return Err(typed_error(
+                        CODE_WRITE_VALIDATION,
+                        "property key must be non-empty and contain no record separator bytes",
+                        JsonValue::Null,
+                    ));
+                }
+                let value_type =
+                    eobj.get("valueType").and_then(JsonValue::as_str).ok_or_else(|| {
+                        typed_error(
+                            CODE_WRITE_VALIDATION,
+                            "property valueType missing",
+                            JsonValue::Null,
+                        )
+                    })?;
+                let prop_val = match value_type {
+                    "string" => {
+                        let s =
+                            eobj.get("stringVal").and_then(JsonValue::as_str).ok_or_else(|| {
+                                typed_error(
+                                    CODE_WRITE_VALIDATION,
+                                    "string property requires stringVal",
+                                    JsonValue::Null,
+                                )
+                            })?;
+                        validate_ffi_string_napi(s)?;
+                        if s.contains('\x1e') {
+                            return Err(typed_error(
+                                CODE_WRITE_VALIDATION,
+                                "property string value must not contain record separator bytes",
+                                JsonValue::Null,
+                            ));
+                        }
+                        RustPropertyValue::String(s.to_string())
+                    }
+                    "int" => {
+                        let text =
+                            eobj.get("intVal").and_then(JsonValue::as_str).ok_or_else(|| {
+                                typed_error(
+                                    CODE_WRITE_VALIDATION,
+                                    "int property requires intVal",
+                                    JsonValue::Null,
+                                )
+                            })?;
+                        let i = text.parse::<i64>().map_err(|_| {
+                            typed_error(
+                                CODE_WRITE_VALIDATION,
+                                "integer property value out of signed 64-bit range",
+                                JsonValue::Null,
+                            )
+                        })?;
+                        RustPropertyValue::Int(i)
+                    }
+                    "float" => {
+                        let f =
+                            eobj.get("floatVal").and_then(JsonValue::as_f64).ok_or_else(|| {
+                                typed_error(
+                                    CODE_WRITE_VALIDATION,
+                                    "float property requires finite floatVal",
+                                    JsonValue::Null,
+                                )
+                            })?;
+                        if !f.is_finite() {
+                            return Err(typed_error(
+                                CODE_WRITE_VALIDATION,
+                                "float property value must be finite",
+                                JsonValue::Null,
+                            ));
+                        }
+                        RustPropertyValue::Float(if f == 0.0 { 0.0 } else { f })
+                    }
+                    "bool" => {
+                        let b =
+                            eobj.get("boolVal").and_then(JsonValue::as_bool).ok_or_else(|| {
+                                typed_error(
+                                    CODE_WRITE_VALIDATION,
+                                    "bool property requires boolVal",
+                                    JsonValue::Null,
+                                )
+                            })?;
+                        RustPropertyValue::Bool(b)
+                    }
+                    _ => {
+                        return Err(typed_error(
+                            CODE_WRITE_VALIDATION,
+                            "unknown property valueType",
+                            JsonValue::Null,
+                        ));
+                    }
+                };
+                map.insert(k.to_string(), prop_val);
+            }
+            return Ok(if map.is_empty() { None } else { Some(map) });
+        }
+    }
+    for (k, v) in obj {
+        validate_ffi_string_napi(k)?;
+        if k.is_empty() || k.contains('\x1e') {
+            return Err(typed_error(
+                CODE_WRITE_VALIDATION,
+                "property key must be non-empty and contain no record separator bytes",
+                JsonValue::Null,
+            ));
+        }
+        let prop_val = match v {
+            JsonValue::String(s) => {
+                validate_ffi_string_napi(s)?;
+                if s.contains('\x1e') {
+                    return Err(typed_error(
+                        CODE_WRITE_VALIDATION,
+                        "property string value must not contain record separator bytes",
+                        JsonValue::Null,
+                    ));
+                }
+                RustPropertyValue::String(s.clone())
+            }
+            JsonValue::Bool(b) => RustPropertyValue::Bool(*b),
+            JsonValue::Number(n) => {
+                if let Some(i) = n.as_i64() {
+                    RustPropertyValue::Int(i)
+                } else if let Some(f) = n.as_f64() {
+                    if !f.is_finite() {
+                        return Err(typed_error(
+                            CODE_WRITE_VALIDATION,
+                            "float property value must be finite",
+                            JsonValue::Null,
+                        ));
+                    }
+                    RustPropertyValue::Float(if f == 0.0 { 0.0 } else { f })
+                } else {
+                    return Err(typed_error(
+                        CODE_WRITE_VALIDATION,
+                        "numeric property value out of supported range",
+                        JsonValue::Null,
+                    ));
+                }
+            }
+            JsonValue::Null | JsonValue::Array(_) | JsonValue::Object(_) => {
+                return Err(typed_error(
+                    CODE_WRITE_VALIDATION,
+                    "property value must be string, number, bigint, or boolean",
+                    JsonValue::Null,
+                ));
+            }
+        };
+        map.insert(k.clone(), prop_val);
+    }
+    Ok(if map.is_empty() { None } else { Some(map) })
+}
+
 pub(crate) fn translate_node_at(
     item: &JsonValue,
     source_id_field_path: Option<&str>,
@@ -822,6 +1010,7 @@ pub(crate) fn translate_node_at(
     // Python and TypeScript share one rule and cannot drift.
     let valid_from = json_i64_alt(item, "validFrom", "valid_from")?;
     let valid_until = json_i64_alt(item, "validUntil", "valid_until")?;
+    let properties = json_property_map(item, "properties")?;
     match provenance {
         Some(provenance) => Ok(PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
             kind,
@@ -832,7 +1021,7 @@ pub(crate) fn translate_node_at(
             reason,
             valid_from,
             valid_until,
-            properties: None,
+            properties,
             provenance,
         })),
         None => Ok(PreparedWrite::Node {
@@ -844,7 +1033,7 @@ pub(crate) fn translate_node_at(
             reason,
             valid_from,
             valid_until,
-            properties: None,
+            properties,
         }),
     }
 }
@@ -913,6 +1102,7 @@ pub(crate) fn translate_edge(item: &JsonValue) -> Result<PreparedWrite> {
     // `None` = "still valid"; that semantic is load-bearing and unchanged.
     let t_valid = json_i64_alt(item, "tValid", "t_valid")?;
     let t_invalid = json_i64_alt(item, "tInvalid", "t_invalid")?;
+    let properties = json_property_map(item, "properties")?;
     match provenance {
         Some(provenance) => Ok(PreparedWrite::ProvenancedEdge(ProvenancedEdgeV1 {
             kind,
@@ -926,7 +1116,7 @@ pub(crate) fn translate_edge(item: &JsonValue) -> Result<PreparedWrite> {
             confidence: None,
             extractor_model_id: None,
             temporal_fallback: None,
-            properties: None,
+            properties,
             provenance,
         })),
         None => Ok(PreparedWrite::Edge {
@@ -941,7 +1131,7 @@ pub(crate) fn translate_edge(item: &JsonValue) -> Result<PreparedWrite> {
             confidence: None,
             extractor_model_id: None,
             temporal_fallback: None,
-            properties: None,
+            properties,
         }),
     }
 }

@@ -4,6 +4,7 @@ import {
   type NativeFrozenReadContextV1,
   type NativeArmDegradation,
   type NativeSearchExpandResult,
+  type NativeSearchFilter,
   type NativePerHitExplain,
   type NativeSearchResult,
   type NativeSnippetV1,
@@ -11,9 +12,16 @@ import {
 import { FathomDbError, ProjectionGenerationError, FrozenReadError, InvalidArgumentError, InvalidFilterError } from "./errors.js";
 import { native } from "./binding.js";
 import { intercept, interceptSync } from "./native-call.js";
+import {
+  decodeNativeProperties,
+  decodeNativePropertyPredicates,
+  encodePropertyPredicate,
+  type PropertyMap,
+  type PropertyPredicate,
+} from "./properties.js";
 import { validateFfiString, validateFfiTree } from "./validation.js";
 import type { SearchExpandResult } from "./graph.js";
-import type { Predicate, ReadView } from "./read.js";
+import { toNodeRecord, type Predicate, type ReadView } from "./read.js";
 
 export type SoftFallbackBranch = "vector" | "text" | "text_edge" | "graph_arm";
 
@@ -135,6 +143,8 @@ export interface SearchHit {
    * path, or no CE model loaded).
    */
   ceScore: number | null;
+  /** Optional typed inline property map stored outside `body` (O(1) hydrated). */
+  properties?: PropertyMap | null;
 }
 
 /**
@@ -153,6 +163,8 @@ export interface SearchFilter {
   status?: string;
   /** Ordered AND equality predicates over declared `filterable` projections. */
   attributes?: [string, string][];
+  /** Typed property predicates over declared `filterable` node properties. */
+  propertyPredicates?: PropertyPredicate[];
 }
 
 /** Versioned validity and eligibility request for a frozen read. */
@@ -331,6 +343,7 @@ export function mapNativeSearchResult(r: NativeSearchResult): SearchResult {
           : "text",
       sourceId: hit.sourceId ?? null,
       ceScore: hit.ceScore ?? null,
+      properties: decodeNativeProperties(hit.properties),
     })),
     explanation: e ? mapCandidateNativeExplanation(e, r.results) : null,
     ...mapNativeDegradations(r.degradations),
@@ -401,13 +414,36 @@ export function validateReadContext(context: ReadContextV1): void {
   );
   assertKnownKeys(
     context.eligibility,
-    ["sourceType", "kind", "createdAfter", "status", "attributes"],
+    ["sourceType", "kind", "createdAfter", "status", "attributes", "propertyPredicates"],
     "ReadContextV1.eligibility",
   );
 }
 
+export function toNativeSearchFilter(
+  filter: SearchFilter | undefined,
+): NativeSearchFilter | undefined {
+  if (filter === undefined) return undefined;
+  return {
+    sourceType: filter.sourceType,
+    kind: filter.kind,
+    createdAfter: filter.createdAfter,
+    status: filter.status,
+    attributes: filter.attributes,
+    propertyPredicates: filter.propertyPredicates?.map(encodePropertyPredicate),
+  };
+}
+
 export function nativeFrozenContext(context: FrozenReadContextV1): NativeFrozenReadContextV1 {
-  return context;
+  return {
+    schemaVersion: context.schemaVersion,
+    effectiveValidAt: context.effectiveValidAt,
+    context: {
+      schemaVersion: context.context.schemaVersion,
+      view: context.context.view,
+      eligibility: toNativeSearchFilter(context.context.eligibility) ?? {},
+    },
+    token: context.token,
+  };
 }
 
 /**
@@ -476,9 +512,12 @@ export function filterToSearchFilter(filter: Filter): SearchFilter {
 
 /** D4 sugar: re-express a shipped `SearchFilter` as the unified `Filter`. */
 export function searchFilterToFilter(sf: SearchFilter): Filter {
-  if (sf.attributes !== undefined && sf.attributes.length > 0) {
+  if (
+    (sf.attributes !== undefined && sf.attributes.length > 0) ||
+    (sf.propertyPredicates !== undefined && sf.propertyPredicates.length > 0)
+  ) {
     throw new InvalidFilterError(
-      "projected attribute predicates are not supported by the unified Filter grammar",
+      "projected attribute or property predicates are not supported by the unified Filter grammar",
     );
   }
   const terms: FilterTerm[] = [];
@@ -817,7 +856,12 @@ export interface SearchResult {
 
 export async function freezeReadContext(nativeEngine: NativeEngine, context: ReadContextV1): Promise<FrozenReadContextV1> {
     validateReadContext(context);
-    const frozen = await intercept(() => nativeEngine.freezeReadContext(context));
+    const nativeContext = {
+      schemaVersion: context.schemaVersion,
+      view: context.view,
+      eligibility: toNativeSearchFilter(context.eligibility) ?? {},
+    };
+    const frozen = await intercept(() => nativeEngine.freezeReadContext(nativeContext));
     if (frozen.schemaVersion !== 1 || frozen.context.schemaVersion !== 1) {
       throw new FrozenReadError(
         "unsupported_schema_version at /schemaVersion",
@@ -825,6 +869,9 @@ export async function freezeReadContext(nativeEngine: NativeEngine, context: Rea
         "/schemaVersion",
       );
     }
+    const propertyPredicates = decodeNativePropertyPredicates(
+      frozen.context.eligibility.propertyPredicates,
+    );
     return {
       schemaVersion: 1,
       effectiveValidAt: frozen.effectiveValidAt,
@@ -839,6 +886,7 @@ export async function freezeReadContext(nativeEngine: NativeEngine, context: Rea
           attributes: frozen.context.eligibility.attributes?.map(
             (pair) => [pair[0]!, pair[1]!] as [string, string],
           ),
+          ...(propertyPredicates === undefined ? {} : { propertyPredicates }),
         },
       },
       token: frozen.token,
@@ -1001,10 +1049,11 @@ export async function search(nativeEngine: NativeEngine, query: string, filter?:
       throw new TypeError(`explain must be a boolean, got ${typeof explain}`);
     }
     const searchOptions = splitSearchOptions(view);
+    const nativeFilter = toNativeSearchFilter(filter);
     const r = await intercept(() =>
       nativeEngine.search(
         query,
-        filter,
+        nativeFilter,
         rerankDepth,
         useGraphArm,
         alpha,
@@ -1023,8 +1072,9 @@ export async function searchTextOnly(nativeEngine: NativeEngine, query: string, 
     const { filter, ...view } = options ?? {};
     if (filter !== undefined) validateFfiTree(filter);
     const searchOptions = splitSearchOptions(view);
+    const nativeFilter = toNativeSearchFilter(filter);
     const r = await intercept(() =>
-      nativeEngine.searchTextOnly(query, searchOptions.view, searchOptions.limit, filter, searchOptions.snippet),
+      nativeEngine.searchTextOnly(query, searchOptions.view, searchOptions.limit, nativeFilter, searchOptions.snippet),
     );
     const branch = r.softFallback?.branch;
     return {
@@ -1044,6 +1094,7 @@ export async function searchTextOnly(nativeEngine: NativeEngine, query: string, 
             : "text",
         sourceId: h.sourceId ?? null,
         ceScore: h.ceScore ?? null,
+        properties: decodeNativeProperties(h.properties),
       })),
       explanation: null,
       ...mapNativeDegradations(r.degradations),
@@ -1070,11 +1121,12 @@ export async function searchProjectedText(nativeEngine: NativeEngine, query: str
     if (searchOptions.snippet !== undefined) {
       throw new InvalidArgumentError("searchProjectedText takes no snippet option");
     }
+    const nativeFilter = toNativeSearchFilter(filter);
     const r = await intercept(() =>
       nativeEngine.searchProjectedText(
         query,
         name,
-        filter,
+        nativeFilter,
         searchOptions.view,
         searchOptions.limit,
       ),
@@ -1090,6 +1142,7 @@ export async function searchProjectedText(nativeEngine: NativeEngine, query: str
         branch: "text" as SoftFallbackBranch,
         sourceId: h.sourceId ?? null,
         ceScore: h.ceScore ?? null,
+        properties: decodeNativeProperties(h.properties),
       })),
       explanation: null,
     };
@@ -1109,8 +1162,12 @@ export function mapNativeSearchExpandFrozenResult(result: NativeSearchExpandResu
           : "text",
       sourceId: hit.sourceId ?? null,
       ceScore: hit.ceScore ?? null,
+      properties: decodeNativeProperties(hit.properties),
     })),
-    expanded: result.expanded,
+    expanded: result.expanded.map((e) => ({
+      node: toNodeRecord(e.node),
+      hopCount: e.hopCount,
+    })),
     allLogicalIds: result.allLogicalIds,
     ...mapNativeDegradations(result.degradations),
   };

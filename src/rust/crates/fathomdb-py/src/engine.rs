@@ -578,7 +578,7 @@ impl PyEngine {
         signature = (query, source_type=None, kind=None, created_after=None,
                      status=None, rerank_depth=0, use_graph_arm=false,
                      alpha=None, pool_n=None, explain=false, attributes=None, view=None, limit=10,
-                     snippet=None)
+                     snippet=None, property_predicates=None)
     )]
     fn search(
         &self,
@@ -616,6 +616,7 @@ impl PyEngine {
         limit: usize,
         // EP-17 — a `fathomdb.SnippetOptions`; fills `SearchResult.snippets`.
         snippet: Option<PySnippetOptionsArg>,
+        property_predicates: Option<&Bound<'_, PyList>>,
     ) -> PyResult<PySearchResult> {
         validate_ffi_string_py(query)?;
         // G10 filter strings cross the FFI exactly like `query` and the write
@@ -631,6 +632,7 @@ impl PyEngine {
             validate_ffi_string_py(name)?;
             validate_ffi_string_py(value)?;
         }
+        let property_predicates = py_property_predicates_to_rust(property_predicates)?;
         let engine = Arc::clone(&self.inner);
         let query = query.to_string();
         let filter = if source_type.is_some()
@@ -638,18 +640,15 @@ impl PyEngine {
             || created_after.is_some()
             || status.is_some()
             || !attributes.is_empty()
+            || !property_predicates.is_empty()
         {
-            // `RustSearchFilter` is `#[non_exhaustive]` (0.8.20 Slice 15e fix-2),
-            // so an out-of-defining-crate struct literal — even with
-            // `..Default::default()` — is rejected; build from `default()` and
-            // set the four legacy metadata fields. `attributes` is NOT exposed on
-            // the Py wire in 0.8.20 (engine-internal), so it is left at its default.
             let mut f = RustSearchFilter::default();
             f.source_type = source_type;
             f.kind = kind;
             f.created_after = created_after;
             f.status = status;
             f.attributes = attributes;
+            f.property_predicates = property_predicates;
             Some(f)
         } else {
             None
@@ -688,7 +687,7 @@ impl PyEngine {
     }
 
     /// Lexically search exactly one declared `searchable→FTS` projection.
-    #[pyo3(signature = (query, name, source_type=None, kind=None, created_after=None, status=None, attributes=None, view=None, limit=10))]
+    #[pyo3(signature = (query, name, source_type=None, kind=None, created_after=None, status=None, attributes=None, view=None, limit=10, property_predicates=None))]
     #[allow(clippy::too_many_arguments)]
     fn search_projected_text(
         &self,
@@ -702,6 +701,7 @@ impl PyEngine {
         attributes: Option<Vec<(String, String)>>,
         view: Option<&PyReadView>,
         limit: usize,
+        property_predicates: Option<&Bound<'_, PyList>>,
     ) -> PyResult<PySearchResult> {
         validate_ffi_string_py(query)?;
         validate_ffi_string_py(name)?;
@@ -713,11 +713,13 @@ impl PyEngine {
             validate_ffi_string_py(attribute)?;
             validate_ffi_string_py(value)?;
         }
+        let property_predicates = py_property_predicates_to_rust(property_predicates)?;
         let filter = if source_type.is_some()
             || kind.is_some()
             || created_after.is_some()
             || status.is_some()
             || !attributes.is_empty()
+            || !property_predicates.is_empty()
         {
             let mut filter = RustSearchFilter::default();
             filter.source_type = source_type;
@@ -725,6 +727,7 @@ impl PyEngine {
             filter.created_after = created_after;
             filter.status = status;
             filter.attributes = attributes;
+            filter.property_predicates = property_predicates;
             Some(filter)
         } else {
             None
@@ -750,7 +753,7 @@ impl PyEngine {
     ///
     /// EP-17 — `snippet` (a `fathomdb.SnippetOptions`) fills
     /// `SearchResult.snippets`; `None` leaves it `None`.
-    #[pyo3(signature = (query, view=None, limit=10, *, source_type=None, kind=None, created_after=None, status=None, attributes=None, snippet=None))]
+    #[pyo3(signature = (query, view=None, limit=10, *, source_type=None, kind=None, created_after=None, status=None, attributes=None, snippet=None, property_predicates=None))]
     #[allow(clippy::too_many_arguments)]
     fn search_text_only(
         &self,
@@ -764,6 +767,7 @@ impl PyEngine {
         status: Option<Bound<'_, PyAny>>,
         attributes: Option<Vec<(String, String)>>,
         snippet: Option<PySnippetOptionsArg>,
+        property_predicates: Option<&Bound<'_, PyList>>,
     ) -> PyResult<PySearchResult> {
         validate_ffi_string_py(query)?;
         let source_type = extract_opt_validated_str(source_type.as_ref())?;
@@ -774,11 +778,13 @@ impl PyEngine {
             validate_ffi_string_py(attribute)?;
             validate_ffi_string_py(value)?;
         }
+        let property_predicates = py_property_predicates_to_rust(property_predicates)?;
         let filter = if source_type.is_some()
             || kind.is_some()
             || created_after.is_some()
             || status.is_some()
             || !attributes.is_empty()
+            || !property_predicates.is_empty()
         {
             let mut filter = RustSearchFilter::default();
             filter.source_type = source_type;
@@ -786,6 +792,7 @@ impl PyEngine {
             filter.created_after = created_after;
             filter.status = status;
             filter.attributes = attributes;
+            filter.property_predicates = property_predicates;
             Some(filter)
         } else {
             None

@@ -575,6 +575,7 @@ def _map_native_resolved_evidence(value: Any) -> ResolvedEvidenceV1:
                 registered_dependency_generation=(dependency.registered_dependency_generation),
             )
         ),
+        properties=value.properties,
     )
 
 

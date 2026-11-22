@@ -182,7 +182,7 @@ def _validate_frozen_trace_context(value: Any) -> FrozenReadContextV1:
         _frozen_trace_error("context_invalid", "/context/context/eligibility")
     _validate_frozen_trace_keys(
         eligibility,
-        {"source_type", "kind", "created_after", "status", "attributes"},
+        {"source_type", "kind", "created_after", "status", "attributes", "property_predicates"},
         "/context/context/eligibility",
     )
     for name, path in (
@@ -213,6 +213,19 @@ def _validate_frozen_trace_context(value: Any) -> FrozenReadContextV1:
             _frozen_trace_error(
                 "context_invalid",
                 f"/context/context/eligibility/attributes/{index}",
+            )
+    property_predicates = getattr(eligibility, "property_predicates", ())
+    if not isinstance(property_predicates, (list, tuple)) or len(property_predicates) > 64:
+        _frozen_trace_error("context_invalid", "/context/context/eligibility/propertyPredicates")
+    for index, pred in enumerate(property_predicates):
+        if (
+            not isinstance(getattr(pred, "key", None), str)
+            or getattr(pred, "op", None) not in ("eq", "ne", "lt", "lte", "gt", "gte")
+            or not isinstance(getattr(pred, "value", None), (str, int, float, bool))
+        ):
+            _frozen_trace_error(
+                "context_invalid",
+                f"/context/context/eligibility/propertyPredicates/{index}",
             )
     return value
 

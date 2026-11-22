@@ -157,8 +157,9 @@ pub(super) fn py_filter_term_to_rust(term: &Bound<'_, PyAny>) -> PyResult<RustFi
         }
         "status" => Ok(RustFilterTerm::Status(extract_validated_str(&term.get_item("value")?)?)),
         "json" => Ok(RustFilterTerm::Json(py_predicate_to_rust(&term.get_item("predicate")?)?)),
+        "property" => Ok(RustFilterTerm::Property(py_property_predicate_to_rust(term)?)),
         other => Err(pyo3::exceptions::PyValueError::new_err(format!(
-            "unknown filter term '{other}'; expected source_type/kind/created_after/status/json"
+            "unknown filter term '{other}'; expected source_type/kind/created_after/status/json/property"
         ))),
     }
 }
@@ -209,6 +210,38 @@ pub(super) fn read_canonical_page(
     let inner = Arc::clone(&engine.inner);
     call_engine(py, move || inner.read_canonical_page(&kind, &frozen, &page))
         .map(PyNodePageV1::from_rust)
+}
+
+#[pyfunction]
+#[pyo3(signature = (engine))]
+pub(super) fn read_operational_collections(
+    py: Python<'_>,
+    engine: &PyEngine,
+) -> PyResult<Vec<PyOperationalCollectionInfo>> {
+    let inner = Arc::clone(&engine.inner);
+    let rows = call_engine(py, move || inner.read_operational_collections())?;
+    Ok(rows.iter().map(PyOperationalCollectionInfo::from_rust).collect())
+}
+
+#[pyfunction]
+#[pyo3(signature = (engine, name))]
+pub(super) fn read_operational_collection(
+    py: Python<'_>,
+    engine: &PyEngine,
+    name: &Bound<'_, PyAny>,
+) -> PyResult<Option<PyOperationalCollectionInfo>> {
+    let name = extract_validated_str(name)?;
+    if name.trim().is_empty() {
+        return Err(InvalidArgumentError::new_err("collection name must not be empty"));
+    }
+    if name.chars().any(char::is_control) {
+        return Err(InvalidArgumentError::new_err(
+            "collection name must not contain control characters",
+        ));
+    }
+    let inner = Arc::clone(&engine.inner);
+    let row = call_engine(py, move || inner.read_operational_collection(&name))?;
+    Ok(row.as_ref().map(PyOperationalCollectionInfo::from_rust))
 }
 
 #[pyfunction]
@@ -327,7 +360,7 @@ impl PyIdSpace {
     }
 }
 
-#[pyclass(module = "fathomdb._fathomdb", name = "SearchHit", frozen, get_all, skip_from_py_object)]
+#[pyclass(module = "fathomdb._fathomdb", name = "SearchHit", frozen, skip_from_py_object)]
 #[derive(Clone)]
 pub(super) struct PySearchHit {
     /// C-2 (0.8.19 / TC-8) — the typed, non-null, id-space-total hit id
@@ -336,10 +369,15 @@ pub(super) struct PySearchHit {
     /// (`"p:"`). Its `value` equals the pre-0.8.19 `stable_id` (which this
     /// subsumes) so cross-session real-gold keying continues on `id`. The pre-C-2
     /// positional `write_cursor` id is engine-internal and no longer surfaced.
+    #[pyo3(get)]
     id: PyIdSpace,
+    #[pyo3(get)]
     kind: String,
+    #[pyo3(get)]
     body: String,
+    #[pyo3(get)]
     score: f64,
+    #[pyo3(get)]
     branch: String,
     /// Source-document provenance — the identifier `erase_source` consumes.
     /// TC-31 (0.8.20): populated on EVERY hit path, not just the graph arm.
@@ -348,10 +386,21 @@ pub(super) struct PySearchHit {
     /// the traversed edge's (unchanged). `None` only when the stored row really
     /// has NULL provenance: written before 0.8.20, or a governed row spared by
     /// the step-21 backfill under the TC-11 pin.
+    #[pyo3(get)]
     source_id: Option<String>,
     /// 0.8.5 (EXP-0) — per-candidate CE score `ce_norm = sigmoid(ce_logit)`.
     /// `Some` only for hits inside the reranked pool; `None` otherwise.
+    #[pyo3(get)]
     ce_score: Option<f64>,
+    properties: Option<RustPropertyMap>,
+}
+
+#[pymethods]
+impl PySearchHit {
+    #[getter]
+    fn properties<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyDict>>> {
+        rust_property_map_to_py(py, self.properties.as_ref())
+    }
 }
 
 impl PySearchHit {
@@ -369,6 +418,7 @@ impl PySearchHit {
             },
             source_id: h.source_id.clone(),
             ce_score: h.ce_score,
+            properties: h.properties.clone(),
         }
     }
 }
@@ -431,6 +481,36 @@ impl PyOpStoreRow {
             payload: r.payload.clone(),
             schema_id: r.schema_id.clone(),
             write_cursor: r.write_cursor,
+        }
+    }
+}
+
+#[pyclass(
+    module = "fathomdb._fathomdb",
+    name = "OperationalCollectionInfo",
+    frozen,
+    get_all,
+    skip_from_py_object
+)]
+#[derive(Clone)]
+pub(super) struct PyOperationalCollectionInfo {
+    name: String,
+    kind: String,
+    schema_json: String,
+    retention_json: String,
+    format_version: i64,
+    created_at: i64,
+}
+
+impl PyOperationalCollectionInfo {
+    pub(super) fn from_rust(c: &RustOperationalCollectionInfo) -> Self {
+        Self {
+            name: c.name.clone(),
+            kind: c.kind.clone(),
+            schema_json: c.schema_json.clone(),
+            retention_json: c.retention_json.clone(),
+            format_version: c.format_version,
+            created_at: c.created_at,
         }
     }
 }

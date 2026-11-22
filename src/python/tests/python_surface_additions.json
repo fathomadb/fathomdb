@@ -2151,6 +2151,438 @@
         "path": "fathomdb.release_models",
         "signature": "from fathomdb._fathomdb import release_models"
       }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.GraphEvidenceArtifactV1.properties",
+        "signature": "properties: PropertyMap | None = None"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.GraphOriginV1.terminal_edge_properties",
+        "signature": "terminal_edge_properties: PropertyMap | None = None"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.GraphTargetV1.properties",
+        "signature": "properties: PropertyMap | None = None"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.NodeRecord.properties",
+        "signature": "properties: PropertyMap | None = None"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-class",
+        "path": "fathomdb.OperationalCollectionInfo",
+        "signature": "@dataclass(frozen=True) class OperationalCollectionInfo"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.OperationalCollectionInfo.created_at",
+        "signature": "created_at: int"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.OperationalCollectionInfo.format_version",
+        "signature": "format_version: int"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.OperationalCollectionInfo.kind",
+        "signature": "kind: str"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.OperationalCollectionInfo.name",
+        "signature": "name: str"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.OperationalCollectionInfo.retention_json",
+        "signature": "retention_json: str"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.OperationalCollectionInfo.schema_json",
+        "signature": "schema_json: str"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.ProjectionSpec.entity_class",
+        "signature": "entity_class: PropertyEntityClass = 'node'"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.ProjectionSpec.vector_kinds",
+        "signature": "vector_kinds: list[str] | None = None"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-value",
+        "path": "fathomdb.PropertyComparisonOp",
+        "signature": "PropertyComparisonOp = Literal['eq', 'ne', 'lt', 'lte', 'gt', 'gte']"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-value",
+        "path": "fathomdb.PropertyEntityClass",
+        "signature": "PropertyEntityClass = Literal['node', 'edge']"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-value",
+        "path": "fathomdb.PropertyMap",
+        "signature": "PropertyMap = dict[str, PropertyValue]"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-class",
+        "path": "fathomdb.PropertyPredicate",
+        "signature": "@dataclass(frozen=True) class PropertyPredicate"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.PropertyPredicate.key",
+        "signature": "key: str"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.PropertyPredicate.op",
+        "signature": "op: PropertyComparisonOp"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.PropertyPredicate.value",
+        "signature": "value: PropertyValue"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-value",
+        "path": "fathomdb.PropertyValue",
+        "signature": "PropertyValue = Union[str, int, float, bool]"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.ResolvedEvidenceV1.properties",
+        "signature": "properties: PropertyMap | None = None"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.SearchFilter.property_predicates",
+        "signature": "property_predicates: list[PropertyPredicate] = field(default_factory=list)"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.SearchHit.properties",
+        "signature": "properties: PropertyMap | None = None"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-function",
+        "path": "fathomdb.read.operational_collection",
+        "signature": "def operational_collection(engine: 'Engine', name: str) -> OperationalCollectionInfo | None"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-function",
+        "path": "fathomdb.read.operational_collections",
+        "signature": "def operational_collections(engine: 'Engine') -> builtins.list[OperationalCollectionInfo]"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.GraphEvidenceArtifactV1.properties",
+        "signature": "properties: PropertyMap | None = None"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.GraphOriginV1.terminal_edge_properties",
+        "signature": "terminal_edge_properties: PropertyMap | None = None"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.GraphTargetV1.properties",
+        "signature": "properties: PropertyMap | None = None"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.NodeRecord.properties",
+        "signature": "properties: PropertyMap | None = None"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-class",
+        "path": "fathomdb.types.OperationalCollectionInfo",
+        "signature": "@dataclass(frozen=True) class OperationalCollectionInfo"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.OperationalCollectionInfo.created_at",
+        "signature": "created_at: int"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.OperationalCollectionInfo.format_version",
+        "signature": "format_version: int"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.OperationalCollectionInfo.kind",
+        "signature": "kind: str"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.OperationalCollectionInfo.name",
+        "signature": "name: str"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.OperationalCollectionInfo.retention_json",
+        "signature": "retention_json: str"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.OperationalCollectionInfo.schema_json",
+        "signature": "schema_json: str"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-value",
+        "path": "fathomdb.types.PropertyComparisonOp",
+        "signature": "PropertyComparisonOp = Literal['eq', 'ne', 'lt', 'lte', 'gt', 'gte']"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-value",
+        "path": "fathomdb.types.PropertyEntityClass",
+        "signature": "PropertyEntityClass = Literal['node', 'edge']"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-value",
+        "path": "fathomdb.types.PropertyMap",
+        "signature": "PropertyMap = dict[str, PropertyValue]"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-class",
+        "path": "fathomdb.types.PropertyPredicate",
+        "signature": "@dataclass(frozen=True) class PropertyPredicate"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.PropertyPredicate.key",
+        "signature": "key: str"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.PropertyPredicate.op",
+        "signature": "op: PropertyComparisonOp"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.PropertyPredicate.value",
+        "signature": "value: PropertyValue"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-value",
+        "path": "fathomdb.types.PropertyValue",
+        "signature": "PropertyValue = Union[str, int, float, bool]"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.ResolvedEvidenceV1.properties",
+        "signature": "properties: PropertyMap | None = None"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.SearchFilter.property_predicates",
+        "signature": "property_predicates: list[PropertyPredicate] = field(default_factory=list)"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.SearchHit.properties",
+        "signature": "properties: PropertyMap | None = None"
+      }
     }
   ],
   "native_stub_sha256": "4f3939dbb5bff1f0616cdc3520d1d7d9bcf7f946d9c2d1421d1e7b7f8a2f7dac",

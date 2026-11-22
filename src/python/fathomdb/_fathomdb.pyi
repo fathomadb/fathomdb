@@ -13,6 +13,7 @@ from fathomdb.types import (
     EmbedderEvent,
     ProjectionRuntimeUnavailabilityReason,
     ProjectionStatusDenseReadiness,
+    PropertyMap,
 )
 
 class WriteReceipt:
@@ -127,6 +128,7 @@ class SearchHit:
     # 0.8.5 (EXP-0) — CE score (sigmoid of the cross-encoder logit) for in-pool
     # reranked hits; None otherwise (out-of-pool, identity path, or no CE model).
     ce_score: float | None
+    properties: PropertyMap | None
 
 class QueryTrace:
     # 0.8.8 EXP-OBS (Slice 10) — query-level retrieval trace.
@@ -250,6 +252,7 @@ class ResolvedEvidenceV1:
     projection_origin: EvidenceProjectionOriginV1
     retrieval_contribution: EvidenceContributionV1
     dependency: SourceDependencyV1 | None
+    properties: PropertyMap | None
 
 class CounterSnapshot:
     queries: int
@@ -264,6 +267,7 @@ class NodeRecord:
     kind: str
     body: str
     write_cursor: int
+    properties: PropertyMap | None
 
 class ReadView:
     """0.8.20 Slice 10b (R-20-RV / R-20-NV) — read-mode / validity selector.
@@ -295,6 +299,7 @@ class ReadContextV1:
         status: str | None = ...,
         attributes: list[tuple[str, str]] | None = ...,
         schema_version: int = ...,
+        property_predicates: list[tuple[str, str, Any]] | None = ...,
     ) -> None: ...
 
 class FrozenReadContextV1:
@@ -323,6 +328,14 @@ class OpStoreRow:
     payload: str
     schema_id: str | None
     write_cursor: int
+
+class OperationalCollectionInfo:
+    name: str
+    kind: str
+    schema_json: str
+    retention_json: str
+    format_version: int
+    created_at: int
 
 class OperationalStateRecordV1:
     schema_version: int
@@ -599,6 +612,7 @@ class Engine:
         limit: int = ...,
         # EP-17: a `fathomdb.SnippetOptions` (read by attribute).
         snippet: object | None = ...,
+        property_predicates: list[tuple[str, str, Any]] | None = ...,
     ) -> SearchResult: ...
     def search_projected_text(
         self,
@@ -611,6 +625,7 @@ class Engine:
         attributes: list[tuple[str, str]] | None = ...,
         view: ReadView | None = ...,
         limit: int = ...,
+        property_predicates: list[tuple[str, str, Any]] | None = ...,
     ) -> SearchResult: ...
     # 0.8.18 Slice 5 (R-VEQ-4) — text-only / FTS-only path; takes the same
     # optional validity view as `search` (0.8.20 Slice 15b fix-2).
@@ -621,6 +636,7 @@ class Engine:
         created_after: int | None = ..., status: str | None = ...,
         attributes: list[tuple[str, str]] | None = ...,
         snippet: object | None = ...,
+        property_predicates: list[tuple[str, str, Any]] | None = ...,
     ) -> SearchResult: ...
     # 0.8.8 Slice 15 (OPP-9) — opt-in local telemetry capture.
     def enable_telemetry(self, sink_path: str) -> None: ...
@@ -716,6 +732,7 @@ class EraseReport:
     nodes_excised: int
     edges_excised: int
     projections_invalidated: int
+    completed_pending_erasure: bool
 
 def erase_source(engine: Engine, source_id: str) -> EraseReport: ...
 
@@ -731,6 +748,8 @@ class ProjectionSpec:
     # otherwise embedding or ready according to outstanding projection work.
     vector_dense_readiness: DenseReadiness | None
     source: list[str] | None
+    entity_class: str
+    vector_kinds: list[str] | None
     def __init__(
         self,
         name: str,
@@ -741,6 +760,8 @@ class ProjectionSpec:
         vector_embedder: str | None = ...,
         vector_dense_readiness: DenseReadiness | None = ...,
         source: list[str] | None = ...,
+        entity_class: str = ...,
+        vector_kinds: list[str] | None = ...,
     ) -> None: ...
 
 class ProjectionDelta:
@@ -823,6 +844,10 @@ def read_canonical_page(
     cursor: str | None = ...,
     schema_version: int = ...,
 ) -> NodePageV1: ...
+def read_operational_collections(engine: Engine) -> list[OperationalCollectionInfo]: ...
+def read_operational_collection(
+    engine: Engine, name: str
+) -> OperationalCollectionInfo | None: ...
 def read_operational_state(
     engine: Engine,
     collection: str,

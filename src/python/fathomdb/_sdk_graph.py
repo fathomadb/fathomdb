@@ -126,6 +126,40 @@ def _graph_revision(value: Any, path: str) -> str:
     return value
 
 
+def _graph_optional_properties(value: Any, path: str) -> dict[str, Any] | None:
+    if value is None:
+        return None
+    if not isinstance(value, dict):
+        _graph_refuse("graph_corrupt", path)
+    out: dict[str, Any] = {}
+    for k, v in value.items():
+        if not isinstance(k, str) or not k or "\x00" in k or "\x1e" in k:
+            _graph_refuse("graph_corrupt", path)
+        if isinstance(v, bool):
+            out[k] = v
+        elif isinstance(v, int):
+            if not -(2**63) <= v < 2**63:
+                _graph_refuse("graph_corrupt", f"{path}/{k}")
+            out[k] = v
+        elif isinstance(v, float):
+            if not math.isfinite(v):
+                _graph_refuse("graph_corrupt", f"{path}/{k}")
+            out[k] = 0.0 if v == 0.0 else v
+        elif isinstance(v, str):
+            if "\x00" in v or "\x1e" in v:
+                _graph_refuse("graph_corrupt", f"{path}/{k}")
+            out[k] = v
+        else:
+            _graph_refuse("graph_corrupt", f"{path}/{k}")
+    return out or None
+
+
+def _graph_optional_field(value: Any, name: str) -> Any:
+    if isinstance(value, dict):
+        return value.get(name, None)
+    return getattr(value, name, None)
+
+
 def _graph_json_resolved_evidence(value: Any) -> ResolvedGraphEvidenceV1:
     root = _graph_json_object(value, "")
     _graph_json_closed(
@@ -158,7 +192,7 @@ def _graph_json_resolved_evidence(value: Any) -> ResolvedGraphEvidenceV1:
         {"node", "edge"},
         "/artifact/artifactClass",
     )
-    artifact_fields = {"artifactClass", "logicalId", "kind", "body"}
+    artifact_fields = {"artifactClass", "logicalId", "kind", "body", "properties"}
     if artifact_class == "edge":
         artifact_fields.update({"from", "to"})
     _graph_json_closed(artifact_raw, artifact_fields, "/artifact")
@@ -169,6 +203,11 @@ def _graph_json_resolved_evidence(value: Any) -> ResolvedGraphEvidenceV1:
             "graph_corrupt",
             "/artifact/logicalId" if logical_id_raw is None else "/artifact/body",
         )
+    artifact_properties = (
+        _graph_optional_properties(artifact_raw["properties"], "/artifact/properties")
+        if "properties" in artifact_raw
+        else None
+    )
     artifact = GraphEvidenceArtifactV1(
         artifact_class=cast(Any, artifact_class),
         logical_id=(
@@ -192,6 +231,7 @@ def _graph_json_resolved_evidence(value: Any) -> ResolvedGraphEvidenceV1:
                 _graph_json_field(artifact_raw, "to", "/artifact/to"), "/artifact/to"
             )
         ),
+        properties=artifact_properties,
     )
 
     locator_raw = _graph_json_object(_graph_json_field(root, "locator", "/locator"), "/locator")
@@ -396,6 +436,10 @@ def _map_graph_origin(value: Any, path: str) -> GraphOriginV1:
                 f"{path}/terminalDirection",
             ),
         ),
+        terminal_edge_properties=_graph_optional_properties(
+            _graph_optional_field(value, "terminal_edge_properties"),
+            f"{path}/terminalEdgeProperties",
+        ),
     )
 
 
@@ -453,6 +497,10 @@ def _map_native_graph_expand_result(result: Any) -> GraphExpandResultV1:
                 ),
                 origin=_map_graph_origin(
                     _graph_field(target, "origin", f"{base}/origin"), f"{base}/origin"
+                ),
+                properties=_graph_optional_properties(
+                    _graph_optional_field(target, "properties"),
+                    f"{base}/properties",
                 ),
             )
         )

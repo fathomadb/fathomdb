@@ -48,6 +48,8 @@ def configure_projections(
             # ``read.projections`` output re-appliable as a no-op.
             s.vector_dense_readiness,
             _projection_source_segments(s.source),
+            s.entity_class,
+            list(s.vector_kinds) if s.vector_kinds is not None else None,
         )
         for s in specs
     ]

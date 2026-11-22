@@ -45,11 +45,13 @@ test("eraseSource erases anonymous content end-to-end without the CLI", async ()
     const report = await engine.eraseSource("tenant-a");
     assert.equal(report.sourceRef, "tenant-a");
     assert.equal(report.nodesExcised, 2, "both tenant-a rows must be erased, and ONLY those");
+    assert.equal(report.completedPendingErasure, false);
 
     // Non-perturbation, asserted as a SECOND erase: its count proves tenant-b's
     // row still existed after the first call.
     const second = await engine.eraseSource("tenant-b");
     assert.equal(second.nodesExcised, 1, "the first erasure must not have touched tenant-b");
+    assert.equal(second.completedPendingErasure, false);
   } finally {
     await engine.close();
   }

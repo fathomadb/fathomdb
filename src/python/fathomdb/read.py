@@ -32,12 +32,19 @@ from typing import NoReturn, TYPE_CHECKING, Any, Literal, cast
 
 from fathomdb._fathomdb import NodeRecord as _NativeNodeRecord
 from fathomdb._fathomdb import OpStoreRow as _NativeOpStoreRow
+from fathomdb._fathomdb import OperationalCollectionInfo as _NativeOperationalCollectionInfo
 from fathomdb._fathomdb import read_collection as _native_collection
 from fathomdb._fathomdb import read_get as _native_get
 from fathomdb._fathomdb import read_get_many as _native_get_many
 from fathomdb._fathomdb import read_list as _native_list
 from fathomdb._fathomdb import read_list_filter as _native_list_filter
 from fathomdb._fathomdb import read_canonical_page as _native_canonical_page
+from fathomdb._fathomdb import (
+    read_operational_collections as _native_operational_collections,
+)
+from fathomdb._fathomdb import (
+    read_operational_collection as _native_operational_collection,
+)
 from fathomdb._fathomdb import read_operational_state as _native_operational_state
 from fathomdb._fathomdb import (
     read_operational_state_page as _native_operational_state_page,
@@ -63,6 +70,7 @@ from fathomdb.types import (
     EmbeddingOperation,
     FrozenReadContextV1,
     NodeRecord,
+    OperationalCollectionInfo,
     OperationalStateRecordV1,
     OpStoreRow,
     PageRequestV1,
@@ -80,6 +88,7 @@ from fathomdb.types import (
     ProjectionReadinessV1,
     ProjectionRuntimeStateV1,
     ProjectionSpec,
+    PropertyEntityClass,
     ReadView,
 )
 
@@ -178,6 +187,20 @@ def _to_node_record(native: _NativeNodeRecord) -> NodeRecord:
         kind=native.kind,
         body=native.body,
         write_cursor=native.write_cursor,
+        properties=native.properties,
+    )
+
+
+def _to_operational_collection_info(
+    native: _NativeOperationalCollectionInfo,
+) -> OperationalCollectionInfo:
+    return OperationalCollectionInfo(
+        name=native.name,
+        kind=native.kind,
+        schema_json=native.schema_json,
+        retention_json=native.retention_json,
+        format_version=native.format_version,
+        created_at=native.created_at,
     )
 
 
@@ -208,6 +231,10 @@ def _to_native_frozen_context(context: FrozenReadContextV1) -> _NativeFrozenRead
         status=eligibility.status,
         attributes=builtins.list(eligibility.attributes),
         schema_version=context.context.schema_version,
+        property_predicates=[
+            (p.key, p.op, p.value) for p in eligibility.property_predicates
+        ]
+        or None,
     )
     return _NativeFrozenReadContextV1(
         context.effective_valid_at,
@@ -416,6 +443,20 @@ def canonical_page(
     )
 
 
+def operational_collections(engine: "Engine") -> builtins.list[OperationalCollectionInfo]:
+    """Return all registered operational collections ordered by ``name ASC``."""
+
+    rows = _native_operational_collections(engine._native)
+    return [_to_operational_collection_info(row) for row in rows]
+
+
+def operational_collection(engine: "Engine", name: str) -> OperationalCollectionInfo | None:
+    """Return metadata for one registered operational collection, or ``None`` if absent."""
+
+    row = _native_operational_collection(engine._native, name)
+    return None if row is None else _to_operational_collection_info(row)
+
+
 def operational_state(
     engine: "Engine",
     collection: str,
@@ -508,6 +549,8 @@ def projections(engine: "Engine") -> builtins.list[ProjectionSpec]:
             # vector sub-object).
             vector_dense_readiness=s.vector_dense_readiness,
             source=tuple(s.source) if s.source is not None else None,
+            entity_class=cast(PropertyEntityClass, s.entity_class),
+            vector_kinds=builtins.list(s.vector_kinds) if s.vector_kinds is not None else None,
         )
         for s in _native_read_projections(engine._native)
     ]
@@ -705,6 +748,8 @@ __all__ = [
     "mutations",
     "list",
     "canonical_page",
+    "operational_collections",
+    "operational_collection",
     "operational_state",
     "operational_state_page",
     "crossed_boundary_since",

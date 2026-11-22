@@ -149,9 +149,9 @@ def from_search_filter(sf: SearchFilter) -> Filter:
     Projected-attribute predicates deliberately have no unified grammar term;
     reject them rather than dropping a caller constraint.
     """
-    if sf.attributes:
+    if sf.attributes or sf.property_predicates:
         raise InvalidFilterError(
-            "projected attribute predicates are not supported by the unified Filter grammar"
+            "projected attribute or property predicates are not supported by the unified Filter grammar"
         )
     terms: list[FilterTerm] = []
     if sf.source_type is not None:

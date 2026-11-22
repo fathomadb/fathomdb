@@ -647,3 +647,20 @@ Empty/repeated release is model-free. Loading/inference/teardown returns
 providers stay open; healthy later calls may reload. Terminal CUDA generation
 loss persists until restart. See
 [the ownership ADR](../adr/ADR-0.8.30-explicit-module-model-release.md).
+
+## Typed inline properties and operational collections (0.8.31 Slice 20)
+
+`fathomdb_sdk` re-exports `PropertyValue`, `PropertyMap`, `PropertyEntityClass`,
+`PropertyComparisonOp`, `PropertyPredicate`, and `OperationalCollectionInfo`,
+and adds two governed `read` namespace functions matching Python and TypeScript:
+
+- `read::operational_collections(&Engine) -> Result<Vec<OperationalCollectionInfo>>`
+- `read::operational_collection(&Engine, &str) -> Result<Option<OperationalCollectionInfo>>`
+
+Write items (`PreparedWrite::Node`/`Edge` and actuation records), O(1) read
+results (`NodeRecord`, `SearchHit`, `GraphTargetV1`,
+`GraphOriginV1.terminal_edge_properties`, `ResolvedEvidenceV1`,
+`ResolvedGraphEvidenceV1`), `SearchFilter.property_predicates`,
+`ProjectionSpec.entity_class`/`vector_kinds`, `AdminSchema` kind-conflict
+refusal (`ErrorKind::WriteValidation`), and `EraseReport.completed_pending_erasure`
+follow the [core engine contract](rust.md#typed-inline-properties-operational-collection-introspection-and-explicit-vector-enrollment-0831-slice-20).

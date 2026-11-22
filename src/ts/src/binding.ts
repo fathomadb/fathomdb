@@ -220,6 +220,7 @@ interface NativeEraseReport {
   nodesExcised: number;
   edgesExcised: number;
   projectionsInvalidated: number;
+  completedPendingErasure: boolean;
 }
 
 /** 0.8.20 Slice 15d (R-20-PR) — native projection spec (flat FFI shape). */
@@ -234,6 +235,38 @@ export interface NativeProjectionSpec {
   vectorDenseReadiness?: string | null;
   /** 0.8.21 Slice 45 — declared literal body-member source path. */
   source?: string[] | null;
+  /** 0.8.31 Slice 20 — target entity class (`"node"` or `"edge"`). */
+  entityClass?: string | null;
+  /** 0.8.31 Slice 20 — explicit opt-in custom node kinds enrolled for vector indexing. */
+  vectorKinds?: string[] | null;
+}
+
+export interface NativePropertyEntry {
+  key: string;
+  valueType: string;
+  stringVal?: string | null;
+  intVal?: string | null;
+  floatVal?: number | null;
+  boolVal?: boolean | null;
+}
+
+export interface NativePropertyPredicateInput {
+  key: string;
+  op: string;
+  valueType: string;
+  stringVal?: string | null;
+  intVal?: string | null;
+  floatVal?: number | null;
+  boolVal?: boolean | null;
+}
+
+export interface NativeOperationalCollectionInfo {
+  name: string;
+  kind: string;
+  schemaJson: string;
+  retentionJson: string;
+  formatVersion: number;
+  createdAt: number;
 }
 
 /** 0.8.20 Slice 15d (R-20-PR) — native configure_projections diff. */
@@ -304,6 +337,7 @@ interface NativeSearchHit {
   /** 0.8.5 (EXP-0) — CE score (sigmoid of the cross-encoder logit) for in-pool
    * reranked hits; null otherwise. */
   ceScore?: number | null;
+  properties?: NativePropertyEntry[] | null;
 }
 
 interface NativeQueryTrace {
@@ -452,14 +486,16 @@ export interface NativeResolvedEvidenceV1 {
   projectionOrigin: NativeEvidenceProjectionOriginV1;
   retrievalContribution: NativeEvidenceContributionV1;
   dependency?: NativeSourceDependencyV1 | null;
+  properties?: NativePropertyEntry[] | null;
 }
 
-interface NativeSearchFilter {
+export interface NativeSearchFilter {
   sourceType?: string;
   kind?: string;
   createdAfter?: number;
   status?: string;
   attributes?: string[][];
+  propertyPredicates?: NativePropertyPredicateInput[];
 }
 
 interface NativeMigrationStepReport {
@@ -480,6 +516,7 @@ export interface NativeNodeRecord {
   kind: string;
   body: string;
   writeCursor: number;
+  properties?: NativePropertyEntry[] | null;
 }
 
 export interface NativeOperationalStateRecordV1 {
@@ -1033,6 +1070,11 @@ export interface NativeModule {
     context: NativeFrozenReadContextV1,
     page: NativePageRequestV1,
   ): Promise<NativeNodePageV1>;
+  readOperationalCollections(engine: NativeEngine): Promise<NativeOperationalCollectionInfo[]>;
+  readOperationalCollection(
+    engine: NativeEngine,
+    name: string,
+  ): Promise<NativeOperationalCollectionInfo | null>;
   readOperationalState(
     engine: NativeEngine,
     collection: string,

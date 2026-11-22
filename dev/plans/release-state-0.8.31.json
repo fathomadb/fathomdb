@@ -30,11 +30,14 @@
       "depends_on": [
         0
       ],
-      "status": "PLANNED",
+      "status": "LANDED",
+      "sha": "3c4b84439",
       "design_refs": [
         "dev/plans/0.8.31/prework/slice-9-triage.md",
-        "dev/plans/0.8.31/features/slice-10/plan.md"
-      ]
+        "dev/plans/0.8.31/features/slice-10/plan.md",
+        "dev/plans/0.8.31/features/slice-10/status.md"
+      ],
+      "evidence": "WP-10A..WP-10D landed at 3c4b84439; all scoped doc/workflow/security/smoke/Gitleaks gates passed; independent pro code review APPROVE after FIX-1."
     },
     {
       "slice": 20,
@@ -43,10 +46,11 @@
       "depends_on": [
         10
       ],
-      "status": "PLANNED",
+      "status": "ACTIVE",
       "design_refs": [
         "dev/adr/ADR-0.8.31-property-graph-inline-and-declared-indexes.md",
-        "dev/plans/0.8.31/features/slice-0/w12-fence-review.md"
+        "dev/plans/0.8.31/features/slice-0/w12-fence-review.md",
+        "dev/plans/0.8.31/features/slice-20/plan.md"
       ]
     },
     {
@@ -131,10 +135,10 @@
     }
   ],
   "landed": [
-    0
+    0,
+    10
   ],
   "remaining_ladder": [
-    10,
     20,
     30,
     40,
@@ -143,7 +147,7 @@
     70,
     80
   ],
-  "next_slice": 10,
+  "next_slice": 20,
   "publish_gate": {
     "status": "HELD",
     "publication_authorized": false,

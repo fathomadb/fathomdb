@@ -16,8 +16,12 @@ own settled HITL decisions, requirements, and execution contracts.
     - Renumbered ladder to `Slice 10 = Prework Prep`, feature slices `20–80` (`80 = Publication`, held for separate HITL approval).
     - Pre-authorized `governed-surface-pin.json` updates for `read.operational_collections`/`read.operational_collection` (Slice 20) and `resolve_evidence_many` (Slice 50).
     - Recorded strict project-boundary rule (no Memex-specific information written into tracked FathomDB repo/public files).
-- **Slice 10 (`PREWORK-PREP`) — PLANNED (awaiting HITL Gate 2 approval of `features/slice-10/plan.md`).**
+- **Slice 10 (`PREWORK-PREP`) — LANDED (`3c4b84439`):**
+  - Completed `WP-10A`–`WP-10D` (ADR `#73`/`#75`/`#76` & `ADR-0.8.28` amendments + project-boundary scrub; `markdownlint-cli2 ^0.24.2` & `rustix 1.1.6` lockfile hygiene; pre-publish `0.8.31` public-doc truth gate flip + `P6-01`/`P6-07`/`P6-11` fixes; `P7-03` security timeouts, `P7-07` PEP 691 + CDN-skew retry, `P7-08` CHANGELOG GitHub Release body, `P7-09` Bash 3 sentinel + Windows Slice 55 smoke, `P7-10` dynamic tag route + audited 171-record Gitleaks manifest; all wired in `scripts/agent-test.sh`).
+  - Independent `pro` adversarial code review returned `APPROVE` after `FIX-1`; recorded in `features/slice-10/status.md`.
+- **Phase C Draft Plans (`Slices 20–70`) — AUTHORED:** Draft plans written for Slices `20`, `30`, `40`, `50`, `60`, and `70`.
+- **Slice 20 (`PROPERTY-SCHEMA`) — ACTIVE:** Completing Plan Review `FIX-1`, then executing RED -> GREEN TDD implementation.
 
 ## Next action
 
-Complete adversarial plan review of Slice 10 (`features/slice-10/plan.md`) and Phase B release plan (`plan.md`), present HITL Gate 2, then execute Slice 10 and fan out Phase C draft plans for feature slices `20–70`.
+Complete Slice 20 (`PROPERTY-SCHEMA`) Plan Review `FIX-1` (`APPROVE`), then execute Slices `20 → 30 → 40 → 50 → 60 → 70` sequentially (stopping before Slice 80 Publication for separate HITL approval).

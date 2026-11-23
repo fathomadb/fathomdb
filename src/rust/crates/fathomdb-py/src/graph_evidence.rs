@@ -251,22 +251,37 @@ pub(super) struct PyEvidenceProjectionOriginV1 {
     graph_origin_kind: Option<String>,
     graph_edge_artifact_revision_id: Option<String>,
     graph_hop_count: Option<u32>,
+    graph_seed_source: Option<String>,
 }
 
 impl From<RustEvidenceProjectionOriginV1> for PyEvidenceProjectionOriginV1 {
     fn from(value: RustEvidenceProjectionOriginV1) -> Self {
-        let (graph_origin_kind, graph_edge_artifact_revision_id, graph_hop_count) = match value
-            .graph_origin
-        {
-            None => (None, None, None),
-            Some(RustEvidenceGraphOriginV1::EdgeSeed { edge_artifact_revision_id, .. }) => {
-                (Some("edge_seed".to_string()), Some(edge_artifact_revision_id), None)
-            }
+        let (
+            graph_origin_kind,
+            graph_edge_artifact_revision_id,
+            graph_hop_count,
+            graph_seed_source,
+        ) = match value.graph_origin {
+            None => (None, None, None, None),
+            Some(RustEvidenceGraphOriginV1::EdgeSeed {
+                edge_artifact_revision_id,
+                seed_source,
+            }) => (
+                Some("edge_seed".to_string()),
+                Some(edge_artifact_revision_id),
+                None,
+                Some(seed_source.as_str().to_string()),
+            ),
             Some(RustEvidenceGraphOriginV1::Traversal {
                 edge_artifact_revision_id,
                 hop_count,
-                ..
-            }) => (Some("traversal".to_string()), Some(edge_artifact_revision_id), Some(hop_count)),
+                seed_source,
+            }) => (
+                Some("traversal".to_string()),
+                Some(edge_artifact_revision_id),
+                Some(hop_count),
+                Some(seed_source.as_str().to_string()),
+            ),
         };
         Self {
             schema_version: value.schema_version,
@@ -276,6 +291,7 @@ impl From<RustEvidenceProjectionOriginV1> for PyEvidenceProjectionOriginV1 {
             graph_origin_kind,
             graph_edge_artifact_revision_id,
             graph_hop_count,
+            graph_seed_source,
         }
     }
 }
@@ -456,6 +472,8 @@ pub(super) struct PyPerHitExplain {
     /// attributes, symmetric with the N-API mirror.
     pub(super) importance: Option<f64>,
     pub(super) confidence: Option<f64>,
+    pub(super) graph_seed_source: Option<String>,
+    pub(super) graph_hop_depth: Option<u32>,
     pub(super) structural: PyStructuralInclusionV1,
 }
 
@@ -549,6 +567,8 @@ impl PyPerHitExplain {
             blended: p.blended,
             importance: p.importance,
             confidence: p.confidence,
+            graph_seed_source: p.graph_seed_source.map(|source| source.as_str().to_string()),
+            graph_hop_depth: p.graph_hop_depth,
             structural: PyStructuralInclusionV1::from_rust(&p.structural),
         }
     }

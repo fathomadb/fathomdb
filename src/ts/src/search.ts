@@ -3,6 +3,7 @@ import type { NativeEngine } from "./binding.js";
 import {
   type NativeFrozenReadContextV1,
   type NativeArmDegradation,
+  type NativeGraphArmOptionsInput,
   type NativeSearchExpandResult,
   type NativeSearchFilter,
   type NativePerHitExplain,
@@ -24,6 +25,12 @@ import type { SearchExpandResult } from "./graph.js";
 import { toNodeRecord, type Predicate, type ReadView } from "./read.js";
 
 export type SoftFallbackBranch = "vector" | "text" | "text_edge" | "graph_arm";
+
+/** Controls how the opt-in graph retrieval arm selects depth-0 BFS seeds. */
+export type GraphSeedMode = "graph_fts" | "fused_top_k" | "both";
+
+/** Which seed source introduced a `"graph_arm"` hit. */
+export type GraphArmSeedSource = "fused_top_k" | "edge_fts" | "entity_fts";
 
 export interface SoftFallback {
   branch: SoftFallbackBranch;
@@ -194,20 +201,35 @@ export interface FrozenSearchOptions {
   explain?: boolean;
   limit?: number;
   snippet?: SnippetOptions;
+  graphSeed?: GraphSeedMode;
+  graphSeedK?: number;
+  graphEdgeKinds?: readonly string[];
+  graphEdgePredicates?: readonly PropertyPredicate[];
 }
 
 /**
- * Options shared by ranked search methods. `limit` defaults to 10 and is 1–100.
- * `snippet` (EP-17; `search` and `searchTextOnly` only) fills
- * `SearchResult.snippets`.
+ * Shared read-view and presentation options for non-graph search paths.
  */
-export type SearchOptions = ReadView & {
+export type BaseSearchOptions = ReadView & {
   limit?: number;
   snippet?: SnippetOptions;
 };
 
+/**
+ * Options for hybrid `search`. `limit` defaults to 10 and is 1–100.
+ * `snippet` (EP-17) fills `SearchResult.snippets`.
+ * `graphSeed`/`graphSeedK`/`graphEdgeKinds`/`graphEdgePredicates` configure
+ * opt-in graph-arm seeding and edge filtering.
+ */
+export type SearchOptions = BaseSearchOptions & {
+  graphSeed?: GraphSeedMode;
+  graphSeedK?: number;
+  graphEdgeKinds?: readonly string[];
+  graphEdgePredicates?: readonly PropertyPredicate[];
+};
+
 /** Direct body FTS options. Filters apply before candidate bounds and ranking. */
-export type TextSearchOptions = SearchOptions & { filter?: SearchFilter };
+export type TextSearchOptions = BaseSearchOptions & { filter?: SearchFilter };
 
 /** Options for the initial ranked hits returned by {@link graph.searchExpand}. */
 export interface SearchExpandOptions {
@@ -308,18 +330,110 @@ export function snippetFor(
   return mapNativeSnippet(interceptSync(() => native.snippetFor(body, nativeSpans, nativeOptions)));
 }
 
+export function validateAndEncodeGraphArmOptions(input: {
+  graphSeed?: unknown;
+  graphSeedK?: unknown;
+  graphEdgeKinds?: unknown;
+  graphEdgePredicates?: unknown;
+}): NativeGraphArmOptionsInput | undefined {
+  const { graphSeed, graphSeedK, graphEdgeKinds, graphEdgePredicates } = input;
+  if (
+    graphSeed === undefined &&
+    graphSeedK === undefined &&
+    graphEdgeKinds === undefined &&
+    graphEdgePredicates === undefined
+  ) {
+    return undefined;
+  }
+  const out: NativeGraphArmOptionsInput = {};
+  if (graphSeed !== undefined) {
+    if (typeof graphSeed !== "string") {
+      throw new TypeError(`graphSeed must be a string, got ${typeof graphSeed}`);
+    }
+    validateFfiString(graphSeed);
+    if (graphSeed !== "graph_fts" && graphSeed !== "fused_top_k" && graphSeed !== "both") {
+      throw new InvalidArgumentError(
+        `graphSeed must be "graph_fts", "fused_top_k", or "both"; got ${JSON.stringify(graphSeed)}`,
+      );
+    }
+    out.graphSeed = graphSeed;
+  }
+  if (graphSeedK !== undefined) {
+    if (typeof graphSeedK !== "number" || !Number.isInteger(graphSeedK)) {
+      throw new InvalidArgumentError(`graphSeedK must be an integer in 1..=100; got ${String(graphSeedK)}`);
+    }
+    if (graphSeedK < 1 || graphSeedK > 100) {
+      throw new InvalidArgumentError(`graphSeedK must be an integer in 1..=100; got ${graphSeedK}`);
+    }
+    out.graphSeedK = graphSeedK;
+  }
+  if (graphEdgeKinds !== undefined) {
+    if (!Array.isArray(graphEdgeKinds)) {
+      throw new TypeError(`graphEdgeKinds must be an array of strings, got ${typeof graphEdgeKinds}`);
+    }
+    const kinds: string[] = [];
+    for (const item of graphEdgeKinds) {
+      if (typeof item !== "string") {
+        throw new TypeError(`graphEdgeKinds entries must be strings, got ${typeof item}`);
+      }
+      validateFfiString(item);
+      if (item.length === 0 || item.includes("\x1e")) {
+        throw new InvalidFilterError(
+          "graphEdgeKinds entries must be non-empty and contain no record separator bytes",
+        );
+      }
+      kinds.push(item);
+    }
+    out.graphEdgeKinds = kinds;
+  }
+  if (graphEdgePredicates !== undefined) {
+    if (!Array.isArray(graphEdgePredicates)) {
+      throw new TypeError(
+        `graphEdgePredicates must be an array of PropertyPredicate, got ${typeof graphEdgePredicates}`,
+      );
+    }
+    if (graphEdgePredicates.length > 32) {
+      throw new InvalidFilterError(
+        `graphEdgePredicates accepts at most 32 predicates; got ${graphEdgePredicates.length}`,
+      );
+    }
+    out.graphEdgePredicates = graphEdgePredicates.map((pred) =>
+      encodePropertyPredicate(pred as PropertyPredicate),
+    );
+  }
+  return out;
+}
+
 export function splitSearchOptions(options: SearchOptions | undefined): {
   limit: number;
   view: ReadView | undefined;
   snippet: SnippetOptions | undefined;
+  graphOptions: NativeGraphArmOptionsInput | undefined;
 } {
-  if (options === undefined) return { limit: 10, view: undefined, snippet: undefined };
-  const { limit, snippet, ...view } = options;
+  if (options === undefined) {
+    return { limit: 10, view: undefined, snippet: undefined, graphOptions: undefined };
+  }
+  const {
+    limit,
+    snippet,
+    graphSeed,
+    graphSeedK,
+    graphEdgeKinds,
+    graphEdgePredicates,
+    ...view
+  } = options;
   validateSnippetOptions(snippet);
+  const graphOptions = validateAndEncodeGraphArmOptions({
+    graphSeed,
+    graphSeedK,
+    graphEdgeKinds,
+    graphEdgePredicates,
+  });
   return {
     limit: validateRankedResultLimit("limit", limit),
     view: Object.keys(view).length === 0 ? undefined : view,
     snippet,
+    graphOptions,
   };
 }
 
@@ -579,6 +693,8 @@ export interface PerHitExplain {
   blended: number;
   importance: number | null;
   confidence: number | null;
+  graphSeedSource?: GraphArmSeedSource | null;
+  graphHopDepth?: number | null;
   structural?: StructuralInclusionV1;
 }
 
@@ -643,6 +759,16 @@ export function mapPerHitExplain(p: NativePerHitExplain): PerHitExplain {
   finite(p.blended, "/blended");
   finite(p.importance, "/importance", true);
   finite(p.confidence, "/confidence", true);
+  if (
+    p.graphSeedSource !== null &&
+    p.graphSeedSource !== undefined &&
+    p.graphSeedSource !== "fused_top_k" &&
+    p.graphSeedSource !== "edge_fts" &&
+    p.graphSeedSource !== "entity_fts"
+  ) {
+    invalid("/graphSeedSource");
+  }
+  optionalU32(p.graphHopDepth, "/graphHopDepth");
   const result: PerHitExplain = {
     id: p.id,
     arm: p.arm as SoftFallbackBranch,
@@ -654,6 +780,8 @@ export function mapPerHitExplain(p: NativePerHitExplain): PerHitExplain {
     blended: p.blended,
     importance: p.importance ?? null,
     confidence: p.confidence ?? null,
+    graphSeedSource: (p.graphSeedSource ?? null) as GraphArmSeedSource | null,
+    graphHopDepth: p.graphHopDepth ?? null,
   };
   if (p.structural !== undefined) {
     const structural = p.structural;
@@ -905,7 +1033,19 @@ export async function searchFrozen(nativeEngine: NativeEngine, query: string, co
     );
     assertKnownKeys(
       options,
-      ["rerankDepth", "useGraphArm", "alpha", "poolN", "explain", "limit", "snippet"],
+      [
+        "rerankDepth",
+        "useGraphArm",
+        "alpha",
+        "poolN",
+        "explain",
+        "limit",
+        "snippet",
+        "graphSeed",
+        "graphSeedK",
+        "graphEdgeKinds",
+        "graphEdgePredicates",
+      ],
       "FrozenSearchOptions",
     );
     if (options.rerankDepth !== undefined) {
@@ -940,6 +1080,12 @@ export async function searchFrozen(nativeEngine: NativeEngine, query: string, co
     }
     validateRankedResultLimit("limit", options.limit);
     validateSnippetOptions(options.snippet);
+    const graphOptions = validateAndEncodeGraphArmOptions({
+      graphSeed: options.graphSeed,
+      graphSeedK: options.graphSeedK,
+      graphEdgeKinds: options.graphEdgeKinds,
+      graphEdgePredicates: options.graphEdgePredicates,
+    });
     const result = await intercept(() =>
       nativeEngine.searchFrozen(
         query,
@@ -951,6 +1097,7 @@ export async function searchFrozen(nativeEngine: NativeEngine, query: string, co
         options.explain,
         options.limit,
         options.snippet,
+        graphOptions,
       ),
     );
     return mapNativeSearchResult(result);
@@ -1062,6 +1209,7 @@ export async function search(nativeEngine: NativeEngine, query: string, filter?:
         searchOptions.view,
         searchOptions.limit,
         searchOptions.snippet,
+        searchOptions.graphOptions,
       ),
     );
     return mapNativeSearchResult(r);
@@ -1069,6 +1217,19 @@ export async function search(nativeEngine: NativeEngine, query: string, filter?:
 
 export async function searchTextOnly(nativeEngine: NativeEngine, query: string, options?: TextSearchOptions): Promise<SearchResult> {
     validateFfiString(query);
+    if (options !== undefined) {
+      const raw = options as Record<string, unknown>;
+      for (const forbidden of [
+        "graphSeed",
+        "graphSeedK",
+        "graphEdgeKinds",
+        "graphEdgePredicates",
+      ]) {
+        if (raw[forbidden] !== undefined) {
+          throw new InvalidArgumentError(`searchTextOnly does not accept ${forbidden}`);
+        }
+      }
+    }
     const { filter, ...view } = options ?? {};
     if (filter !== undefined) validateFfiTree(filter);
     const searchOptions = splitSearchOptions(view);
@@ -1120,6 +1281,9 @@ export async function searchProjectedText(nativeEngine: NativeEngine, query: str
     const searchOptions = splitSearchOptions(view);
     if (searchOptions.snippet !== undefined) {
       throw new InvalidArgumentError("searchProjectedText takes no snippet option");
+    }
+    if (searchOptions.graphOptions !== undefined) {
+      throw new InvalidArgumentError("searchProjectedText takes no graph-arm seeding options");
     }
     const nativeFilter = toNativeSearchFilter(filter);
     const r = await intercept(() =>

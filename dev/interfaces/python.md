@@ -1134,7 +1134,8 @@ Both search verbs take the same optional `ReadView`, defaulting to `None`.
 ```python
 engine.search(query, filter=None, *, rerank_depth=0, use_graph_arm=False,
               alpha=None, pool_n=None, explain=False, view=None, limit=10,
-              snippet=None)
+              snippet=None, graph_seed="graph_fts", graph_seed_k=10,
+              graph_edge_kinds=None, graph_edge_predicates=None)
 engine.search_text_only(query, view=None, *, limit=10, filter=None, snippet=None)
 ```
 
@@ -1718,3 +1719,39 @@ Fallible reranker APIs map it to the shared overload class. Infallible
   and `read.operational_collection(engine, name) -> OperationalCollectionInfo | None`
   are live governed reads (fresh stores seed `"projection_failures"`).
 - **Erasure reporting:** `EraseReport` adds `completed_pending_erasure: bool`.
+
+## Strict endpoint integrity, traversal predicates, and opt-in fused seeding (0.8.31 Slice 30)
+
+`fathomdb` exports `GraphSeedMode` (`Literal["graph_fts", "fused_top_k", "both"]`)
+and `GraphArmSeedSource` (`Literal["fused_top_k", "edge_fts", "entity_fts"]`).
+Zero new governed operations are added.
+
+- **Strict write endpoint integrity & mixed-`source_id` atomicity:** Every edge
+  written via `engine.write(...)` (including edges superseded later in the same
+  batch and batches spanning multiple `source_id` values) must reference active,
+  non-superseded endpoint nodes (`superseded_at IS NULL AND state = 'active'`).
+  Violations raise `WriteValidationError` and roll back the entire batch
+  atomically. Same-batch forward references and active self-loops succeed with
+  `WriteReceipt.dangling_edge_endpoints == 0`. `engine.actuate(...)` continues
+  returning `ActuationOutcomeV1::Refused` (`reason="reference_unavailable"`).
+- **Closed traversal predicates on `graph.expand`:** `GraphExpandRequestV1` adds
+  defaulted `edge_predicates: tuple[PropertyPredicate, ...] = ()` and
+  `target_predicates: tuple[PropertyPredicate, ...] = ()` (evaluated strictly
+  against inline `properties`, implicit `AND`, at most `32` predicates each;
+  omitted on wire when empty). Malformed predicates, counts `> 32`, and
+  ordering operators on `bool` raise `GraphExpansionError` with reason
+  `"graph_edge_predicates_invalid"` or `"graph_target_predicates_invalid"`.
+  Current-time expansion enforces bitemporal `[t_valid, t_invalid)` edge gating
+  and indexed SQL pushdown (`UNION ALL` for `"both"`).
+- **Opt-in `use_graph_arm` seeding & provenance:** `Engine.search`,
+  `Engine.search_frozen`, and `EvidenceSearchRequestV1` accept
+  `graph_seed: GraphSeedMode = "graph_fts"`, `graph_seed_k: int = 10`
+  (`1..=100`), `graph_edge_kinds: Sequence[str] | None = None`, and
+  `graph_edge_predicates: Sequence[PropertyPredicate] | None = None`.
+  Mixed-edge FTS matches never allocate a `SEED_FTS_N = 10` slot to ineligible
+  endpoints, and `"fused_top_k"` / `"both"` seed body-less property-graph edges
+  from fused/reranked canonical-node hits (`logical_id IS NOT NULL`).
+  `PerHitExplain` exposes `graph_seed_source: GraphArmSeedSource | None = None`
+  and `graph_hop_depth: int | None = None`; `EvidenceGraphOriginV1` exposes
+  `seed_source: GraphArmSeedSource`. `Engine.search_text_only` does not accept
+  graph-arm seeding options.

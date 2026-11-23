@@ -231,10 +231,10 @@ impls for both. `Unified` is lowered through the public
 
 | Struct | Fields and defaults |
 | --- | --- |
-| `SearchOptions` | `filter: Option<SearchFilterArg> = None`, `rerank_depth: usize = 0`, `use_graph_arm: bool = false`, `alpha: Option<f64>` (None → 0.3), `pool_n: Option<usize>` (None → `rerank_depth`), `explain: bool = false`, `view: ReadView = default`, `limit: usize = 10`, `snippet: Option<SnippetOptions> = None` |
+| `SearchOptions` | `filter: Option<SearchFilterArg> = None`, `rerank_depth: usize = 0`, `use_graph_arm: bool = false`, `alpha: Option<f64>` (None → 0.3), `pool_n: Option<usize>` (None → `rerank_depth`), `explain: bool = false`, `view: ReadView = default`, `limit: usize = 10`, `snippet: Option<SnippetOptions> = None`, `graph_seed: GraphSeedMode = GraphFts`, `graph_seed_k: usize = 10`, `graph_edge_kinds: Vec<String> = []`, `graph_edge_predicates: Vec<PropertyPredicate> = []` |
 | `TextSearchOptions` | `view: ReadView = default`, `limit: usize = 10`, `snippet: Option<SnippetOptions> = None` |
 | `ProjectedTextSearchOptions` | `filter: Option<SearchFilter> = None`, `view: ReadView = default`, `limit: usize = 10` |
-| `FrozenSearchOptions` | `rerank_depth = 0`, `use_graph_arm = false`, `alpha: Option<f64>` (None → 0.3), `pool_n: Option<usize>` (None → `rerank_depth`), `explain = false`, `limit = 10`, `snippet = None` |
+| `FrozenSearchOptions` | `rerank_depth = 0`, `use_graph_arm = false`, `alpha: Option<f64>` (None → 0.3), `pool_n: Option<usize>` (None → `rerank_depth`), `explain = false`, `limit = 10`, `snippet = None`, `graph_seed = GraphFts`, `graph_seed_k = 10`, `graph_edge_kinds = []`, `graph_edge_predicates = []` |
 | `SearchExpandOptions` | `search_limit: usize = 10` |
 | `ListOptions` | `predicates: Vec<Predicate> = []`, `filter: Option<Filter> = None`, `limit: usize = 100`, `view: Option<ReadView> = None` |
 | `NeighborsOptions` | `direction: TraversalDirection = Both`, `view: Option<ReadView> = None` |
@@ -492,11 +492,15 @@ process exit.
 
 ## Request-struct defaults
 
-Core request structs are constructed in full by Rust callers. Use the values
-the Python and TypeScript SDKs default to: `EvidenceSearchRequestV1`
-`{schema_version: 1, rerank_depth: 0, use_graph_arm: false, alpha: 0.3,
-pool_n: 0, include_explanation: false, limit: 10}`;
-`DependencyTraceRequestV1::new(..)` already applies the binding bounds
+Use constructors for `#[non_exhaustive]` request structs so defaults match the
+Python and TypeScript SDKs: `EvidenceSearchRequestV1::new(query, context)`
+initializes `{schema_version: 1, rerank_depth: 0, use_graph_arm: false,
+alpha: 0.3, pool_n: 0, include_explanation: false, limit: 10,
+graph_seed: GraphSeedMode::GraphFts, graph_seed_k: 10, graph_edge_kinds: [],
+graph_edge_predicates: []}`; `GraphExpandRequestV1::new(seed, direction,
+context, max_depth, result_limit, max_work_units)` initializes empty kind and
+predicate vectors with explanation/evidence disabled;
+`DependencyTraceRequestV1::new(..)` applies the binding bounds
 (`max_relations` 100, `max_work_units` 101) when `with_bounds` is not called.
 
 ## SQLite runtime configuration
@@ -666,3 +670,24 @@ results (`NodeRecord`, `SearchHit`, `GraphTargetV1`,
 `ProjectionSpec.entity_class`/`vector_kinds`, `AdminSchema` kind-conflict
 refusal (`ErrorKind::WriteValidation`), and `EraseReport.completed_pending_erasure`
 follow the [core engine contract](rust.md#typed-inline-properties-operational-collection-introspection-and-explicit-vector-enrollment-0831-slice-20).
+
+## Strict endpoint integrity, traversal predicates, and fused seeding (0.8.31 Slice 30)
+
+`fathomdb_sdk` re-exports `GraphSeedMode`, `GraphArmSeedSource`, and
+`GraphArmOptions`, and adds zero new governed operations.
+
+- `Engine::write` enforces strict atomic active-endpoint integrity across all
+  edges (including mixed-`source_id` batches and in-batch superseded edges),
+  returning `ErrorKind::WriteValidation` on refusal and
+  `WriteReceipt.dangling_edge_endpoints == 0` on every commit. `Engine::actuate`
+  retains `ActuationOutcomeV1::Refused` (`ReferenceUnavailable`).
+- `GraphExpandRequestV1` is `#[non_exhaustive]` (`GraphExpandRequestV1::new` +
+  fluent builders) with closed `edge_predicates` / `target_predicates`
+  (`<= 32` each; `GraphEdgePredicatesInvalid` / `GraphTargetPredicatesInvalid`),
+  indexed SQL pushdown, and bitemporal `[t_valid, t_invalid)` edge gating.
+- `SearchOptions`, `FrozenSearchOptions`, and `EvidenceSearchRequestV1::new`
+  carry `graph_seed`, `graph_seed_k` (`1..=100`, default `10`),
+  `graph_edge_kinds`, and `graph_edge_predicates`; `PerHitExplain` exposes
+  `graph_seed_source` and `graph_hop_depth`; `EvidenceGraphOriginV1` carries
+  `seed_source`. Full semantics are owned by the
+  [core engine contract](rust.md#strict-endpoint-integrity-typed-traversal-predicates-and-opt-in-fused-seeding-0831-slice-30).

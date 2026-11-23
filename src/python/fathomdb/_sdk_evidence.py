@@ -11,6 +11,7 @@ from fathomdb._sdk_open import _validate_frozen_trace_context
 from fathomdb._sdk_search import (
     _map_native_search_result,
     _to_native_frozen_context,
+    _validate_graph_arm_options,
     _validate_ranked_result_limit,
 )
 from fathomdb.errors import (
@@ -479,6 +480,11 @@ def _map_native_resolved_evidence(value: Any) -> ResolvedEvidenceV1:
             _evidence_response_error("evidence_corrupt", "/projectionOrigin/graphOrigin/hopCount")
         if graph_kind == "traversal":
             _require_u32(hop_count, "/projectionOrigin/graphOrigin/hopCount", optional=False)
+        _require_evidence_variant(
+            getattr(value.projection_origin, "graph_seed_source", None),
+            {"fused_top_k", "edge_fts", "entity_fts"},
+            "/projectionOrigin/graphOrigin/seedSource",
+        )
     for name, wire_name in [
         ("vector_rank", "vectorRank"),
         ("text_rank", "textRank"),
@@ -525,6 +531,7 @@ def _map_native_resolved_evidence(value: Any) -> ResolvedEvidenceV1:
             kind=value.projection_origin.graph_origin_kind,
             edge_artifact_revision_id=(value.projection_origin.graph_edge_artifact_revision_id),
             hop_count=value.projection_origin.graph_hop_count,
+            seed_source=value.projection_origin.graph_seed_source,
         )
     )
     return ResolvedEvidenceV1(
@@ -651,6 +658,12 @@ def search_with_evidence(
         raise InvalidArgumentError(f"pool_n must be <= 4294967295, got {request.pool_n!r}")
     if not isinstance(request.include_explanation, bool):
         raise TypeError("include_explanation must be a bool")
+    seed_mode, seed_k, native_edge_kinds, native_edge_preds = _validate_graph_arm_options(
+        request.graph_seed,
+        request.graph_seed_k,
+        request.graph_edge_kinds,
+        request.graph_edge_predicates,
+    )
     native_context = _to_native_frozen_context(request.context)
     native = self._native.search_with_evidence(
         request.query,
@@ -661,6 +674,10 @@ def search_with_evidence(
         pool_n=request.pool_n,
         include_explanation=request.include_explanation,
         limit=request.limit,
+        graph_seed=seed_mode,
+        graph_seed_k=seed_k,
+        graph_edge_kinds=native_edge_kinds,
+        graph_edge_predicates=native_edge_preds,
     )
     return _map_native_evidence_search(native)
 

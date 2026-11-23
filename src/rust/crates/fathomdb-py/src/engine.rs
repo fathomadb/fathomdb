@@ -359,7 +359,8 @@ impl PyEngine {
     /// and is not part of the frozen context.
     #[pyo3(signature = (
         query, context, rerank_depth=0, use_graph_arm=false, alpha=0.3,
-        pool_n=None, explain=false, limit=10, snippet=None
+        pool_n=None, explain=false, limit=10, snippet=None,
+        graph_seed="graph_fts", graph_seed_k=10, graph_edge_kinds=None, graph_edge_predicates=None
     ))]
     #[allow(clippy::too_many_arguments)]
     fn search_frozen(
@@ -374,14 +375,24 @@ impl PyEngine {
         explain: bool,
         limit: i64,
         snippet: Option<PySnippetOptionsArg>,
+        graph_seed: &str,
+        graph_seed_k: i64,
+        graph_edge_kinds: Option<Vec<String>>,
+        graph_edge_predicates: Option<&Bound<'_, PyList>>,
     ) -> PyResult<PySearchResult> {
         let pool_n = pool_n.unwrap_or(rerank_depth);
         let engine = Arc::clone(&self.inner);
         let query = query.to_string();
         let context = context.inner.clone();
         let snippet = snippet.map(|options| options.to_rust()).transpose()?;
+        let graph_options = py_graph_arm_options_to_rust(
+            graph_seed,
+            graph_seed_k,
+            graph_edge_kinds,
+            graph_edge_predicates,
+        )?;
         call_engine(py, move || {
-            engine.search_frozen_with_snippets(
+            engine.search_frozen_with_graph_options(
                 &query,
                 &context,
                 usize::try_from(rerank_depth).unwrap_or(usize::MAX),
@@ -391,6 +402,7 @@ impl PyEngine {
                 explain,
                 usize::try_from(limit).unwrap_or(usize::MAX),
                 snippet.as_ref(),
+                &graph_options,
             )
         })
         .map(PySearchResult::from_rust)
@@ -399,7 +411,8 @@ impl PyEngine {
     /// Search and attach one authenticated evidence reference per result.
     #[pyo3(signature = (
         query, context, rerank_depth=0, use_graph_arm=false, alpha=0.3,
-        pool_n=0, include_explanation=false, limit=10
+        pool_n=0, include_explanation=false, limit=10,
+        graph_seed="graph_fts", graph_seed_k=10, graph_edge_kinds=None, graph_edge_predicates=None
     ))]
     #[allow(clippy::too_many_arguments)]
     fn search_with_evidence(
@@ -413,6 +426,10 @@ impl PyEngine {
         pool_n: i64,
         include_explanation: bool,
         limit: i64,
+        graph_seed: &str,
+        graph_seed_k: i64,
+        graph_edge_kinds: Option<Vec<String>>,
+        graph_edge_predicates: Option<&Bound<'_, PyList>>,
     ) -> PyResult<PyEvidenceSearchResultV1> {
         let rerank_depth = u32::try_from(rerank_depth).map_err(|_| {
             engine_error_to_py(RustEngineError::InvalidArgument {
@@ -429,13 +446,23 @@ impl PyEngine {
                 msg: "limit must be in 0..=4294967295".to_string(),
             })
         })?;
+        let graph_options = py_graph_arm_options_to_rust(
+            graph_seed,
+            graph_seed_k,
+            graph_edge_kinds,
+            graph_edge_predicates,
+        )?;
         let request = RustEvidenceSearchRequestV1::new(query.to_string(), context.inner.clone())
             .with_rerank_depth(rerank_depth)
             .with_use_graph_arm(use_graph_arm)
             .with_alpha(alpha)
             .with_pool_n(pool_n)
             .with_explain(include_explanation)
-            .with_limit(limit);
+            .with_limit(limit)
+            .with_graph_seed(graph_options.graph_seed)
+            .with_graph_seed_k(graph_options.graph_seed_k)
+            .with_graph_edge_kinds(graph_options.graph_edge_kinds)
+            .with_graph_edge_predicates(graph_options.graph_edge_predicates);
         let engine = Arc::clone(&self.inner);
         call_engine(py, move || engine.search_with_evidence(&request)).map(Into::into)
     }
@@ -574,7 +601,8 @@ impl PyEngine {
         signature = (query, source_type=None, kind=None, created_after=None,
                      status=None, rerank_depth=0, use_graph_arm=false,
                      alpha=None, pool_n=None, explain=false, attributes=None, view=None, limit=10,
-                     snippet=None, property_predicates=None)
+                     snippet=None, property_predicates=None,
+                     graph_seed="graph_fts", graph_seed_k=10, graph_edge_kinds=None, graph_edge_predicates=None)
     )]
     fn search(
         &self,
@@ -585,9 +613,10 @@ impl PyEngine {
         created_after: Option<i64>,
         status: Option<Bound<'_, PyAny>>,
         rerank_depth: usize,
-        // 0.8.1 R3 (Slice 30) — when True, seed BFS over temporal fact-edges
-        // from the top-10 fused hits and fuse reachable nodes as a third RRF arm.
-        // Default False → byte-identical to the pre-Slice-30 two-arm pipeline.
+        // When True, run the opt-in BFS graph arm seeded per `graph_seed`
+        // (`"graph_fts"` default, `"fused_top_k"`, or `"both"`) and fuse
+        // reachable nodes as a third RRF arm. Default False preserves the
+        // byte-identical two-arm pipeline.
         use_graph_arm: bool,
         // 0.8.5 (EXP-0) — CE-rerank knobs. `alpha` (default 0.3) is the CE-blend
         // weight, clamped to [0,1] in the engine; `pool_n` (default = rerank_depth)
@@ -613,6 +642,10 @@ impl PyEngine {
         // EP-17 — a `fathomdb.SnippetOptions`; fills `SearchResult.snippets`.
         snippet: Option<PySnippetOptionsArg>,
         property_predicates: Option<&Bound<'_, PyList>>,
+        graph_seed: &str,
+        graph_seed_k: i64,
+        graph_edge_kinds: Option<Vec<String>>,
+        graph_edge_predicates: Option<&Bound<'_, PyList>>,
     ) -> PyResult<PySearchResult> {
         validate_ffi_string_py(query)?;
         // G10 filter strings cross the FFI exactly like `query` and the write
@@ -629,6 +662,12 @@ impl PyEngine {
             validate_ffi_string_py(value)?;
         }
         let property_predicates = py_property_predicates_to_rust(property_predicates)?;
+        let graph_options = py_graph_arm_options_to_rust(
+            graph_seed,
+            graph_seed_k,
+            graph_edge_kinds,
+            graph_edge_predicates,
+        )?;
         let engine = Arc::clone(&self.inner);
         let query = query.to_string();
         let filter = if source_type.is_some()
@@ -666,7 +705,7 @@ impl PyEngine {
         // `explain` is a parameter of it, so the explain/non-explain split no
         // longer duplicates the argument list (and cannot drift on `view`).
         let result = call_engine(py, move || {
-            engine.search_reranked_view_with_snippets(
+            engine.search_reranked_view_with_graph_options(
                 &query,
                 filter,
                 rerank_depth,
@@ -677,6 +716,7 @@ impl PyEngine {
                 &view,
                 limit,
                 snippet.as_ref(),
+                &graph_options,
             )
         })?;
         Ok(PySearchResult::from_rust(result))

@@ -161,6 +161,8 @@ class PerHitExplain:
     # hit's contribution (None = graceful-absent / neutral).
     importance: float | None
     confidence: float | None
+    graph_seed_source: str | None
+    graph_hop_depth: int | None
     structural: StructuralInclusionV1
 
 class StructuralInclusionV1:
@@ -229,6 +231,7 @@ class EvidenceProjectionOriginV1:
     graph_origin_kind: str | None
     graph_edge_artifact_revision_id: str | None
     graph_hop_count: int | None
+    graph_seed_source: str | None
 
 class ResolvedEvidenceV1:
     schema_version: int
@@ -537,6 +540,10 @@ class Engine:
         explain: bool = ...,
         limit: int = ...,
         snippet: object | None = ...,
+        graph_seed: str = ...,
+        graph_seed_k: int = ...,
+        graph_edge_kinds: list[str] | None = ...,
+        graph_edge_predicates: list[tuple[str, str, Any]] | None = ...,
     ) -> SearchResult: ...
     def search_with_evidence(
         self,
@@ -548,6 +555,10 @@ class Engine:
         pool_n: int = ...,
         include_explanation: bool = ...,
         limit: int = ...,
+        graph_seed: str = ...,
+        graph_seed_k: int = ...,
+        graph_edge_kinds: list[str] | None = ...,
+        graph_edge_predicates: list[tuple[str, str, Any]] | None = ...,
     ) -> EvidenceSearchResultV1: ...
     def resolve_evidence(
         self,
@@ -613,6 +624,10 @@ class Engine:
         # EP-17: a `fathomdb.SnippetOptions` (read by attribute).
         snippet: object | None = ...,
         property_predicates: list[tuple[str, str, Any]] | None = ...,
+        graph_seed: str = ...,
+        graph_seed_k: int = ...,
+        graph_edge_kinds: list[str] | None = ...,
+        graph_edge_predicates: list[tuple[str, str, Any]] | None = ...,
     ) -> SearchResult: ...
     def search_projected_text(
         self,

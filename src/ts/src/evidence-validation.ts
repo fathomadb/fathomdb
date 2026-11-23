@@ -148,6 +148,11 @@ export function validateNativeResolvedEvidence(r: NativeResolvedEvidenceV1): voi
     if (graph.kind === "traversal") {
       u32(graph.hopCount, "/projectionOrigin/graphOrigin/hopCount", true);
     }
+    variant(
+      graph.seedSource ?? "",
+      ["fused_top_k", "edge_fts", "entity_fts"],
+      "/projectionOrigin/graphOrigin/seedSource",
+    );
   }
 
   const contribution = r.retrievalContribution;

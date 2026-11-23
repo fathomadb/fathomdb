@@ -123,3 +123,30 @@ record's original contributing stored head extent. Some(0)is known zero;
 None makes no extent claim. Pure `snippet_for` and text-only selection return
 None without extent reads. No governed operation, ranking change or refresh API
 is added.
+
+## Strict endpoint integrity, traversal predicates, and opt-in fused seeding
+
+- **Strict atomic write integrity:** `Engine::write` executes the full batch
+  atomically in one transaction even across mixed `source_id` values, verifying
+  that every edge (including edges superseded later in the same batch) points
+  at active, non-superseded nodes (`state = 'active'`, `superseded_at IS NULL`).
+  Violations return `ErrorKind::WriteValidation` with zero rows committed;
+  committed batches always report `WriteReceipt.dangling_edge_endpoints == 0`.
+  Same-batch forward references and active self-loops succeed. `Engine::actuate`
+  retains `ActuationOutcomeV1::Refused` (`ReferenceUnavailable`).
+- **Bounded `graph::expand` predicates:** Construct `GraphExpandRequestV1` via
+  `GraphExpandRequestV1::new(...)` (`#[non_exhaustive]`) and optional fluent
+  builders `.with_edge_predicates(...)` / `.with_target_predicates(...)` (at
+  most 32 closed inline `PropertyPredicate` entries each, implicit `AND`;
+  invalid predicates return `GraphEdgePredicatesInvalid` or
+  `GraphTargetPredicatesInvalid`). Current-time traversal enforces bitemporal
+  `[t_valid, t_invalid)` edge gating via indexed SQL pushdown.
+- **Opt-in `use_graph_arm` seeding and provenance:** `SearchOptions`,
+  `FrozenSearchOptions`, and `EvidenceSearchRequestV1::new(...)` accept
+  `graph_seed: GraphSeedMode` (`GraphFts` default, `FusedTopK`, `Both`),
+  `graph_seed_k` (`1..=100`, default `10`), `graph_edge_kinds`, and
+  `graph_edge_predicates`. `PerHitExplain` exposes
+  `graph_seed_source: Option<GraphArmSeedSource>` and
+  `graph_hop_depth: Option<u32>`, and `EvidenceGraphOriginV1` exposes
+  `seed_source: GraphArmSeedSource`. `TextSearchOptions` does not carry
+  graph-arm seeding fields.

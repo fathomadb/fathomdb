@@ -3,14 +3,25 @@ import type { NativeEngine } from "./binding.js";
 import { type NativeEvidenceSearchResultV1, type NativeResolvedEvidenceV1 } from "./binding.js";
 import { DependencyTraceError, EvidenceError, FrozenReadError, InvalidArgumentError } from "./errors.js";
 import { intercept } from "./native-call.js";
-import { decodeNativeProperties, parseLosslessJson, type PropertyMap } from "./properties.js";
+import {
+  decodeNativeProperties,
+  parseLosslessJson,
+  type PropertyMap,
+  type PropertyPredicate,
+} from "./properties.js";
 import { evidencePointerSegment, validateFfiString } from "./validation.js";
 import {
   GraphEvidenceResolveRequestV1,
   ResolvedGraphEvidenceV1,
   validateResolvedGraphEvidence,
 } from "./graph.js";
-import { nativeFrozenContext, validateRankedResultLimit } from "./search.js";
+import {
+  nativeFrozenContext,
+  validateAndEncodeGraphArmOptions,
+  validateRankedResultLimit,
+  type GraphArmSeedSource,
+  type GraphSeedMode,
+} from "./search.js";
 
 import { validateNativeEvidenceSearch, validateNativeResolvedEvidence } from "./evidence-validation.js";
 
@@ -84,6 +95,10 @@ export interface EvidenceSearchRequestV1 {
   poolN?: number;
   includeExplanation?: boolean;
   limit?: number;
+  graphSeed?: GraphSeedMode;
+  graphSeedK?: number;
+  graphEdgeKinds?: readonly string[];
+  graphEdgePredicates?: readonly PropertyPredicate[];
 }
 
 export interface EvidenceResolveRequestV1 {
@@ -115,6 +130,7 @@ export interface EvidenceGraphOriginV1 {
   kind: "edge_seed" | "traversal";
   edgeArtifactRevisionId: string | null;
   hopCount: number | null;
+  seedSource: GraphArmSeedSource;
 }
 
 export interface EvidenceProjectionOriginV1 {
@@ -213,6 +229,7 @@ export function mapNativeResolvedEvidence(r: NativeResolvedEvidenceV1): Resolved
             kind: graph.kind as EvidenceGraphOriginV1["kind"],
             edgeArtifactRevisionId: graph.edgeArtifactRevisionId ?? null,
             hopCount: graph.hopCount ?? null,
+            seedSource: graph.seedSource as GraphArmSeedSource,
           }
         : null,
     },
@@ -845,6 +862,10 @@ export async function searchWithEvidence(nativeEngine: NativeEngine, request: Ev
       "poolN",
       "includeExplanation",
       "limit",
+      "graphSeed",
+      "graphSeedK",
+      "graphEdgeKinds",
+      "graphEdgePredicates",
     ]);
     if (request.schemaVersion !== 1) {
       evidenceRequestError("unsupported_schema_version", "/schemaVersion");
@@ -887,6 +908,12 @@ export async function searchWithEvidence(nativeEngine: NativeEngine, request: Ev
         `includeExplanation must be a boolean, got ${typeof request.includeExplanation}`,
       );
     }
+    const graphOptions = validateAndEncodeGraphArmOptions({
+      graphSeed: request.graphSeed,
+      graphSeedK: request.graphSeedK,
+      graphEdgeKinds: request.graphEdgeKinds,
+      graphEdgePredicates: request.graphEdgePredicates,
+    });
     const result = await intercept(() =>
       nativeEngine.searchWithEvidence(
         request.query,
@@ -897,6 +924,7 @@ export async function searchWithEvidence(nativeEngine: NativeEngine, request: Ev
         request.poolN,
         request.includeExplanation,
         limit,
+        graphOptions,
       ),
     );
     return mapNativeEvidenceSearch(result);

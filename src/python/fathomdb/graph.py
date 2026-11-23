@@ -19,6 +19,7 @@ case-sensitive: ``"outgoing"``, ``"incoming"``, ``"both"``.
 from __future__ import annotations
 
 import json
+import math
 import re
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, NoReturn, cast
@@ -204,6 +205,22 @@ def _to_search_expand_result(native_result: Any) -> SearchExpandResult:
     )
 
 
+def _predicate_wire(pred: Any) -> dict[str, object]:
+    if isinstance(pred, dict):
+        key = pred["key"]
+        op = pred["op"]
+        val = pred["value"]
+    else:
+        key = pred.key
+        op = pred.op
+        val = pred.value
+    return {
+        "key": key,
+        "op": op,
+        "value": 0.0 if (isinstance(val, float) and val == 0.0) else val,
+    }
+
+
 def _read_context_wire(context: ReadContextV1) -> dict[str, object]:
     eligibility: dict[str, object] = {
         "sourceType": context.eligibility.source_type,
@@ -214,12 +231,7 @@ def _read_context_wire(context: ReadContextV1) -> dict[str, object]:
     }
     if context.eligibility.property_predicates:
         eligibility["propertyPredicates"] = [
-            {
-                "key": pred.key,
-                "op": pred.op,
-                "value": 0.0 if (isinstance(pred.value, float) and pred.value == 0.0) else pred.value,
-            }
-            for pred in context.eligibility.property_predicates
+            _predicate_wire(pred) for pred in context.eligibility.property_predicates
         ]
     return {
         "schemaVersion": context.schema_version,
@@ -277,7 +289,7 @@ def _request_wire(request: GraphExpandRequestV1) -> dict[str, object]:
     else:
         raise TypeError("graph.expand context must be a GraphReadContextV1 carrier")
 
-    return {
+    wire: dict[str, object] = {
         "schemaVersion": request.schema_version,
         "seed": seed,
         "direction": request.direction,
@@ -288,8 +300,14 @@ def _request_wire(request: GraphExpandRequestV1) -> dict[str, object]:
         "resultLimit": request.result_limit,
         "maxWorkUnits": request.max_work_units,
         "includeExplanation": request.include_explanation,
-        **({"includeEvidence": True} if request.include_evidence else {}),
     }
+    if request.edge_predicates:
+        wire["edgePredicates"] = [_predicate_wire(pred) for pred in request.edge_predicates]
+    if request.target_predicates:
+        wire["targetPredicates"] = [_predicate_wire(pred) for pred in request.target_predicates]
+    if request.include_evidence:
+        wire["includeEvidence"] = True
+    return wire
 
 
 def _validate_graph_expand_request(request: GraphExpandRequestV1) -> None:
@@ -342,50 +360,69 @@ def _validate_graph_expand_request(request: GraphExpandRequestV1) -> None:
             refuse("graph_context_invalid", f"{context_path}/eligibility/attributes/{index}")
         string(pair[0], "graph_context_invalid", f"{context_path}/eligibility/attributes/{index}/0")
         string(pair[1], "graph_context_invalid", f"{context_path}/eligibility/attributes/{index}/1")
-    predicates = eligibility.property_predicates
-    preds_base = f"{context_path}/eligibility/propertyPredicates"
-    if not isinstance(predicates, (list, tuple)) or len(predicates) > 64:
-        refuse("graph_context_invalid", preds_base)
-    import math
-
     valid_ops = {"eq", "ne", "lt", "lte", "gt", "gte"}
     order_ops = {"lt", "lte", "gt", "gte"}
     i64_min = -(1 << 63)
     i64_max = (1 << 63) - 1
-    for index, pred in enumerate(predicates):
-        pred_base = f"{preds_base}/{index}"
-        if isinstance(pred, dict):
-            if set(pred.keys()) != {"key", "op", "value"}:
-                refuse("graph_context_invalid", pred_base)
-            key = pred["key"]
-            op = pred["op"]
-            val = pred["value"]
-        elif hasattr(pred, "key") and hasattr(pred, "op") and hasattr(pred, "value"):
-            key = pred.key
-            op = pred.op
-            val = pred.value
-        else:
-            refuse("graph_context_invalid", pred_base)
-        string(key, "graph_context_invalid", f"{pred_base}/key")
-        if len(key) == 0 or "\x1e" in key:
-            refuse("graph_context_invalid", f"{pred_base}/key")
-        if not isinstance(op, str) or op not in valid_ops:
-            refuse("graph_context_invalid", f"{pred_base}/op")
-        if isinstance(val, bool):
-            if op in order_ops:
-                refuse("graph_context_invalid", f"{pred_base}/op")
-        elif isinstance(val, int):
-            if val < i64_min or val > i64_max:
-                refuse("graph_context_invalid", f"{pred_base}/value")
-        elif isinstance(val, float):
-            if not math.isfinite(val):
-                refuse("graph_context_invalid", f"{pred_base}/value")
-        elif isinstance(val, str):
-            string(val, "graph_context_invalid", f"{pred_base}/value")
-            if "\x1e" in val:
-                refuse("graph_context_invalid", f"{pred_base}/value")
-        else:
-            refuse("graph_context_invalid", f"{pred_base}/value")
+
+    def validate_predicates(
+        preds: object, reason: str, base: str, max_count: int
+    ) -> None:
+        if not isinstance(preds, (list, tuple)) or len(preds) > max_count:
+            refuse(reason, base)
+        for index, pred in enumerate(preds):
+            pred_base = f"{base}/{index}"
+            if isinstance(pred, dict):
+                if set(pred.keys()) != {"key", "op", "value"}:
+                    refuse(reason, pred_base)
+                key = pred["key"]
+                op = pred["op"]
+                val = pred["value"]
+            elif hasattr(pred, "key") and hasattr(pred, "op") and hasattr(pred, "value"):
+                key = pred.key
+                op = pred.op
+                val = pred.value
+            else:
+                refuse(reason, pred_base)
+            string(key, reason, f"{pred_base}/key")
+            if len(key) == 0 or "\x1e" in key:
+                refuse(reason, f"{pred_base}/key")
+            if not isinstance(op, str) or op not in valid_ops:
+                refuse(reason, f"{pred_base}/op")
+            if isinstance(val, bool):
+                if op in order_ops:
+                    refuse(reason, f"{pred_base}/op")
+            elif isinstance(val, int):
+                if val < i64_min or val > i64_max:
+                    refuse(reason, f"{pred_base}/value")
+            elif isinstance(val, float):
+                if not math.isfinite(val):
+                    refuse(reason, f"{pred_base}/value")
+            elif isinstance(val, str):
+                string(val, reason, f"{pred_base}/value")
+                if "\x1e" in val:
+                    refuse(reason, f"{pred_base}/value")
+            else:
+                refuse(reason, f"{pred_base}/value")
+
+    validate_predicates(
+        eligibility.property_predicates,
+        "graph_context_invalid",
+        f"{context_path}/eligibility/propertyPredicates",
+        64,
+    )
+    validate_predicates(
+        request.edge_predicates,
+        "graph_edge_predicates_invalid",
+        "/edgePredicates",
+        32,
+    )
+    validate_predicates(
+        request.target_predicates,
+        "graph_target_predicates_invalid",
+        "/targetPredicates",
+        32,
+    )
     string(request.max_work_units, "graph_work_limit_invalid", "/maxWorkUnits")
     if type(request.include_evidence) is not bool:
         refuse("graph_context_invalid", "/includeEvidence")

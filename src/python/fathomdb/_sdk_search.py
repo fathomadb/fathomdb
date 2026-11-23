@@ -28,9 +28,12 @@ from fathomdb.types import (
     DegradationReason,
     Explanation,
     FrozenReadContextV1,
+    GraphArmSeedSource,
+    GraphSeedMode,
     IdSpace,
     NodeRecord,
     PerHitExplain,
+    PropertyPredicate,
     QueryTrace,
     ReadContextV1,
     ReadView,
@@ -241,6 +244,67 @@ def _map_native_node(node: Any) -> NodeRecord:
     )
 
 
+def _validate_graph_arm_options(
+    graph_seed: object,
+    graph_seed_k: object,
+    graph_edge_kinds: object,
+    graph_edge_predicates: object,
+) -> tuple[str, int, list[str] | None, list[tuple[str, str, Any]] | None]:
+    if not isinstance(graph_seed, str):
+        raise TypeError(f"graph_seed must be a str, got {type(graph_seed).__name__!r}")
+    if graph_seed not in ("graph_fts", "fused_top_k", "both"):
+        raise InvalidArgumentError(
+            f"graph_seed must be 'graph_fts', 'fused_top_k', or 'both'; got {graph_seed!r}"
+        )
+    if not isinstance(graph_seed_k, int) or isinstance(graph_seed_k, bool):
+        raise TypeError(
+            f"graph_seed_k must be an integer in 1..=100, got {type(graph_seed_k).__name__!r}"
+        )
+    if not 1 <= graph_seed_k <= 100:
+        raise InvalidArgumentError(
+            f"graph_seed_k must be an integer in 1..=100, got {graph_seed_k!r}"
+        )
+    native_kinds: list[str] | None
+    if graph_edge_kinds is None:
+        native_kinds = None
+    else:
+        if isinstance(graph_edge_kinds, (str, bytes)) or not isinstance(graph_edge_kinds, Sequence):
+            raise TypeError(
+                "graph_edge_kinds must be a sequence of str or None, "
+                f"got {type(graph_edge_kinds).__name__!r}"
+            )
+        native_kinds = []
+        for item in graph_edge_kinds:
+            if not isinstance(item, str):
+                raise TypeError(
+                    f"graph_edge_kinds entries must be str, got {type(item).__name__!r}"
+                )
+            native_kinds.append(item)
+    native_preds: list[tuple[str, str, Any]] | None
+    if graph_edge_predicates is None:
+        native_preds = None
+    else:
+        if isinstance(graph_edge_predicates, (str, bytes)) or not isinstance(
+            graph_edge_predicates, Sequence
+        ):
+            raise TypeError(
+                "graph_edge_predicates must be a sequence of PropertyPredicate or None, "
+                f"got {type(graph_edge_predicates).__name__!r}"
+            )
+        native_preds = []
+        for item in graph_edge_predicates:
+            if isinstance(item, dict):
+                native_preds.append((item.get("key"), item.get("op"), item.get("value")))  # type: ignore[arg-type]
+            elif isinstance(item, PropertyPredicate):
+                native_preds.append((item.key, item.op, item.value))
+            else:
+                raise TypeError(
+                    "graph_edge_predicates entries must be PropertyPredicate, "
+                    f"got {type(item).__name__!r}"
+                )
+    return graph_seed, graph_seed_k, native_kinds or None, native_preds or None
+
+
 def _validate_ranked_result_limit(name: str, limit: object) -> int:
     """Return a public ranked-result limit or raise the SDK's typed error."""
     if not isinstance(limit, int) or isinstance(limit, bool):
@@ -315,6 +379,15 @@ def _map_per_hit_explain(p: Any) -> PerHitExplain:
     require_finite(getattr(p, "blended", None), "/blended")
     require_finite(getattr(p, "importance", None), "/importance", optional=True)
     require_finite(getattr(p, "confidence", None), "/confidence", optional=True)
+    graph_seed_source = getattr(p, "graph_seed_source", None)
+    if graph_seed_source is not None and graph_seed_source not in (
+        "fused_top_k",
+        "edge_fts",
+        "entity_fts",
+    ):
+        _invalid_explanation("/graphSeedSource")
+    graph_hop_depth = getattr(p, "graph_hop_depth", None)
+    require_u32(graph_hop_depth, "/graphHopDepth")
     native_structural = getattr(p, "structural", None)
     structural = (
         _map_structural_explanation(native_structural) if native_structural is not None else None
@@ -331,6 +404,8 @@ def _map_per_hit_explain(p: Any) -> PerHitExplain:
         importance=p.importance,
         confidence=p.confidence,
         structural=structural,
+        graph_seed_source=cast(GraphArmSeedSource | None, graph_seed_source),
+        graph_hop_depth=graph_hop_depth,
     )
 
 
@@ -517,6 +592,10 @@ def search(
     view: ReadView | None = None,
     limit: int = 10,
     snippet: SnippetOptions | None = None,
+    graph_seed: GraphSeedMode = "graph_fts",
+    graph_seed_k: int = 10,
+    graph_edge_kinds: Sequence[str] | None = None,
+    graph_edge_predicates: Sequence[PropertyPredicate] | None = None,
 ) -> SearchResult:
     # FIX-3: reject bool and non-int before the negative check.
     # bool is a subclass of int in Python so it passes isinstance(x, int);
@@ -551,6 +630,9 @@ def search(
         raise TypeError(f"view must be a ReadView or None, got {type(view).__name__!r}")
     _validate_snippet(snippet)
     limit = _validate_ranked_result_limit("limit", limit)
+    seed_mode, seed_k, native_edge_kinds, native_edge_preds = _validate_graph_arm_options(
+        graph_seed, graph_seed_k, graph_edge_kinds, graph_edge_predicates
+    )
     native_view = _to_native_view(view)
     # 0.8.11 Slice 40 (#17) — accept the unified Filter on the vec0 search
     # path; lower to the SearchFilter sugar (typed-rejects a Json term, D3).
@@ -567,6 +649,10 @@ def search(
             view=native_view,
             limit=limit,
             snippet=snippet,
+            graph_seed=seed_mode,
+            graph_seed_k=seed_k,
+            graph_edge_kinds=native_edge_kinds,
+            graph_edge_predicates=native_edge_preds,
         )
     else:
         result = self._native.search(
@@ -588,6 +674,10 @@ def search(
             view=native_view,
             limit=limit,
             snippet=snippet,
+            graph_seed=seed_mode,
+            graph_seed_k=seed_k,
+            graph_edge_kinds=native_edge_kinds,
+            graph_edge_predicates=native_edge_preds,
         )
     fallback = result.soft_fallback
     soft = (
@@ -665,6 +755,10 @@ def search_frozen(
     explain: bool = False,
     limit: int = 10,
     snippet: SnippetOptions | None = None,
+    graph_seed: GraphSeedMode = "graph_fts",
+    graph_seed_k: int = 10,
+    graph_edge_kinds: Sequence[str] | None = None,
+    graph_edge_predicates: Sequence[PropertyPredicate] | None = None,
 ) -> SearchResult:
     if not isinstance(context, FrozenReadContextV1):
         raise TypeError(f"context must be a FrozenReadContextV1, got {type(context).__name__!r}")
@@ -689,6 +783,9 @@ def search_frozen(
         raise TypeError("explain must be a bool")
     _validate_snippet(snippet)
     _validate_ranked_result_limit("limit", limit)
+    seed_mode, seed_k, native_edge_kinds, native_edge_preds = _validate_graph_arm_options(
+        graph_seed, graph_seed_k, graph_edge_kinds, graph_edge_predicates
+    )
     native = self._native.search_frozen(
         query,
         native_context,
@@ -699,6 +796,10 @@ def search_frozen(
         explain=explain,
         limit=limit,
         snippet=snippet,
+        graph_seed=seed_mode,
+        graph_seed_k=seed_k,
+        graph_edge_kinds=native_edge_kinds,
+        graph_edge_predicates=native_edge_preds,
     )
     return _map_native_search_result(native)
 

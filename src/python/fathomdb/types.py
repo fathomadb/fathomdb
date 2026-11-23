@@ -5,6 +5,7 @@ Field names owned by `dev/interfaces/python.md` § Caller-visible data shapes.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Generic, Literal, TypeVar, TypedDict, TypeGuard, Union
 
@@ -79,6 +80,10 @@ PropertyMap = dict[str, PropertyValue]
 PropertyEntityClass = Literal["node", "edge"]
 #: Closed comparison operator for :class:`PropertyPredicate`.
 PropertyComparisonOp = Literal["eq", "ne", "lt", "lte", "gt", "gte"]
+#: Controls how the opt-in graph retrieval arm selects depth-0 BFS seeds.
+GraphSeedMode = Literal["graph_fts", "fused_top_k", "both"]
+#: Which seed source introduced a ``"graph_arm"`` hit.
+GraphArmSeedSource = Literal["fused_top_k", "edge_fts", "entity_fts"]
 
 
 @dataclass(frozen=True)
@@ -718,6 +723,8 @@ class GraphExpandRequestV1:
     max_work_units: str
     include_explanation: bool
     include_evidence: bool = False
+    edge_predicates: tuple[PropertyPredicate, ...] = ()
+    target_predicates: tuple[PropertyPredicate, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -947,6 +954,10 @@ class EvidenceSearchRequestV1:
     include_explanation: bool = False
     limit: int = 10
     schema_version: int = 1
+    graph_seed: GraphSeedMode = "graph_fts"
+    graph_seed_k: int = 10
+    graph_edge_kinds: Sequence[str] | None = None
+    graph_edge_predicates: Sequence[PropertyPredicate] | None = None
 
 
 @dataclass(frozen=True)
@@ -990,6 +1001,7 @@ class EvidenceGraphOriginV1:
     kind: str
     edge_artifact_revision_id: str | None = None
     hop_count: int | None = None
+    seed_source: GraphArmSeedSource = "edge_fts"
 
 
 @dataclass(frozen=True)
@@ -1311,6 +1323,8 @@ class PerHitExplain:
     importance: float | None = None
     confidence: float | None = None
     structural: StructuralInclusionV1 | None = None
+    graph_seed_source: GraphArmSeedSource | None = None
+    graph_hop_depth: int | None = None
 
 
 @dataclass(frozen=True)
@@ -1739,6 +1753,8 @@ __all__ = [
     "GraphQuerySeedV1",
     "GraphReadContextV1",
     "GraphReadModeV1",
+    "GraphSeedMode",
+    "GraphArmSeedSource",
     "GraphSeedSourceV1",
     "GraphSeedV1",
     "GraphTargetExplanationV1",

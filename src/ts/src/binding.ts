@@ -371,6 +371,8 @@ export interface NativePerHitExplain {
   // `PerHitExplain` additive fields.
   importance?: number | null;
   confidence?: number | null;
+  graphSeedSource?: string | null;
+  graphHopDepth?: number | null;
   structural?: NativeStructuralInclusionV1;
 }
 
@@ -450,6 +452,7 @@ export interface NativeEvidenceGraphOriginV1 {
   kind: string;
   edgeArtifactRevisionId?: string | null;
   hopCount?: number | null;
+  seedSource?: string | null;
 }
 
 export interface NativeEvidenceProjectionOriginV1 {
@@ -496,6 +499,13 @@ export interface NativeSearchFilter {
   status?: string;
   attributes?: string[][];
   propertyPredicates?: NativePropertyPredicateInput[];
+}
+
+export interface NativeGraphArmOptionsInput {
+  graphSeed?: string;
+  graphSeedK?: number;
+  graphEdgeKinds?: string[];
+  graphEdgePredicates?: NativePropertyPredicateInput[];
 }
 
 interface NativeMigrationStepReport {
@@ -899,6 +909,7 @@ export interface NativeEngine {
     explain?: boolean,
     limit?: number,
     snippet?: NativeSnippetOptions,
+    graphOptions?: NativeGraphArmOptionsInput,
   ): Promise<NativeSearchResult>;
   searchWithEvidence(
     query: string,
@@ -909,6 +920,7 @@ export interface NativeEngine {
     poolN?: number,
     includeExplanation?: boolean,
     limit?: number,
+    graphOptions?: NativeGraphArmOptionsInput,
   ): Promise<NativeEvidenceSearchResultV1>;
   resolveEvidence(
     evidenceRef: string,
@@ -938,6 +950,7 @@ export interface NativeEngine {
     view?: NativeReadView,
     limit?: number,
     snippet?: NativeSnippetOptions,
+    graphOptions?: NativeGraphArmOptionsInput,
   ): Promise<NativeSearchResult>;
   // 0.8.18 Slice 5 (#5 vector-equivalence probe) — text-only/FTS-only path +
   // degraded-state observability.

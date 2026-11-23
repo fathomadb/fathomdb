@@ -184,6 +184,37 @@ pub(super) fn py_property_predicates_to_rust(
     Ok(out)
 }
 
+pub(super) fn py_graph_arm_options_to_rust(
+    graph_seed: &str,
+    graph_seed_k: i64,
+    graph_edge_kinds: Option<Vec<String>>,
+    graph_edge_predicates: Option<&Bound<'_, PyList>>,
+) -> PyResult<RustGraphArmOptions> {
+    validate_ffi_string_py(graph_seed)?;
+    let seed = RustGraphSeedMode::from_str_opt(graph_seed).ok_or_else(|| {
+        InvalidArgumentError::new_err(format!(
+            "graph_seed must be 'graph_fts', 'fused_top_k', or 'both'; got {graph_seed:?}"
+        ))
+    })?;
+    let seed_k = usize::try_from(graph_seed_k).map_err(|_| {
+        InvalidArgumentError::new_err(format!(
+            "graph_seed_k must be an integer in 1..=100; got {graph_seed_k}"
+        ))
+    })?;
+    let edge_kinds = graph_edge_kinds.unwrap_or_default();
+    for kind in &edge_kinds {
+        validate_ffi_string_py(kind)?;
+    }
+    let edge_predicates = py_property_predicates_to_rust(graph_edge_predicates)?;
+    let mut options = RustGraphArmOptions::default();
+    options.graph_seed = seed;
+    options.graph_seed_k = seed_k;
+    options.graph_edge_kinds = edge_kinds;
+    options.graph_edge_predicates = edge_predicates;
+    options.validate().map_err(engine_error_to_py)?;
+    Ok(options)
+}
+
 #[pyclass(module = "fathomdb._fathomdb", name = "NodeRecord", frozen, skip_from_py_object)]
 #[derive(Clone)]
 pub(super) struct PyNodeRecord {

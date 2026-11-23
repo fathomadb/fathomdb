@@ -1,11 +1,12 @@
 //! Slice 60 RED oracle for the additive default-facade graph surface.
 
 use fathomdb::{
-    Engine, EngineError, GraphExpandRequestV1, GraphExpandResultV1,
-    GraphExpansionDegradationCodeV1, GraphExpansionErrorReasonV1, GraphExpansionErrorV1,
-    GraphExpansionExplanationV1, GraphOriginV1, GraphProjectionOriginV1,
-    GraphProjectionReadinessV1, GraphReadContextV1, GraphReadModeV1, GraphSeedSourceV1,
-    GraphSeedV1, GraphTargetExplanationV1, GraphTargetV1, ResolvedGraphSeedV1,
+    Engine, EngineError, EvidenceSearchRequestV1, FrozenReadContextV1, GraphArmOptions,
+    GraphArmSeedSource, GraphExpandRequestV1, GraphExpandResultV1, GraphExpansionDegradationCodeV1,
+    GraphExpansionErrorReasonV1, GraphExpansionErrorV1, GraphExpansionExplanationV1, GraphOriginV1,
+    GraphProjectionOriginV1, GraphProjectionReadinessV1, GraphReadContextV1, GraphReadModeV1,
+    GraphSeedMode, GraphSeedSourceV1, GraphSeedV1, GraphTargetExplanationV1, GraphTargetV1,
+    ResolvedGraphSeedV1, TraversalDirection,
 };
 
 #[test]
@@ -65,6 +66,20 @@ fn complete_graph_expand_contract_is_reexported_by_default_facade() {
     ];
     let _method: fn(&Engine, &GraphExpandRequestV1) -> Result<GraphExpandResultV1, EngineError> =
         Engine::graph_expand;
+    let _expand_ctor: fn(
+        GraphSeedV1,
+        TraversalDirection,
+        GraphReadContextV1,
+        u32,
+        u32,
+        u64,
+    ) -> GraphExpandRequestV1 = GraphExpandRequestV1::new;
+    let _evidence_ctor: fn(String, FrozenReadContextV1) -> EvidenceSearchRequestV1 =
+        EvidenceSearchRequestV1::new;
+    let _seed_modes = [GraphSeedMode::GraphFts, GraphSeedMode::FusedTopK, GraphSeedMode::Both];
+    let _arm_sources =
+        [GraphArmSeedSource::FusedTopK, GraphArmSeedSource::EdgeFts, GraphArmSeedSource::EntityFts];
+    let _arm_opts = GraphArmOptions::default();
 }
 
 #[test]
@@ -76,4 +91,7 @@ fn graph_expand_is_governed_not_operator_gated() {
         .expect("facade has an operator boundary");
     assert!(before_operator_boundary.contains("GraphExpandRequestV1"));
     assert!(before_operator_boundary.contains("GraphExpandResultV1"));
+    assert!(before_operator_boundary.contains("GraphSeedMode"));
+    assert!(before_operator_boundary.contains("GraphArmSeedSource"));
+    assert!(before_operator_boundary.contains("GraphArmOptions"));
 }

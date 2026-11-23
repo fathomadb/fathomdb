@@ -275,3 +275,23 @@ with `WriteValidation` / `WriteValidationError`.
 `ExciseReport` / `EraseReport` adds `completed_pending_erasure`
 (`completedPendingErasure` in TypeScript), a boolean indicating whether the
 erasure call completed previously pending post-commit erasure work.
+
+## Graph traversal predicates and graph-arm seed provenance wire (0.8.31 Slice 30)
+
+`GraphExpandRequestV1` adds optional closed arrays `edgePredicates` and
+`targetPredicates` (each at most `32` entries), reusing the untagged plain JSON
+scalar predicate wire shape `{"key": string, "op": "eq"|"ne"|"lt"|"lte"|"gt"|"gte", "value": scalar}`
+shared with `eligibility.propertyPredicates`. Both fields are omitted during
+canonical encoding when empty so unpredicated request JSON stays byte-identical.
+Invalid predicates return `FDB_GRAPH_EXPANSION` with reason
+`graph_edge_predicates_invalid` (under `/edgePredicates/...`) or
+`graph_target_predicates_invalid` (under `/targetPredicates/...`). Frozen graph
+evidence commitments canonically normalize and authenticate both predicate
+arrays.
+
+`PerHitExplain` adds additive optional `graphSeedSource`
+(`"fused_top_k" | "edge_fts" | "entity_fts" | null`) and `graphHopDepth`
+(`u32 | null`), populated only for `arm == "graph_arm"` hits.
+`EvidenceGraphOriginV1` adds required `seedSource`
+(`"fused_top_k" | "edge_fts" | "entity_fts"`) on both `edge_seed` and
+`traversal` origins, authenticated inside the opaque evidence token payload.

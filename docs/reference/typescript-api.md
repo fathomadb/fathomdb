@@ -153,16 +153,23 @@ bound rejects with `WriteValidationError` and is never truncated.
 const receipt = await engine.write([
   { kind: "note", body: "hello", sourceId: "doc-42" },
   { kind: "note", body: "governed", sourceId: "doc-42", logicalId: "note:hello" },
+  { kind: "entity", body: "Acme Corp", sourceId: "doc-42", logicalId: "acme" },
   { kind: "mentions", from: "note:hello", to: "acme", sourceId: "doc-42",
     tValid: 1_546_300_800, tInvalid: null },
 ]);
 ```
 
+- Atomicity and endpoint integrity: a batch executes in a single SQLite
+  transaction even when items carry distinct `sourceId` values. Every edge in
+  the batch (including edges superseded later in the same batch) must reference
+  active, non-superseded endpoint nodes (`state === "active"` and
+  `superseded_at IS NULL`); same-batch forward references and active self-loops
+  are valid. Missing, superseded-only, `pending`, or `deleted` endpoints reject
+  with `WriteValidationError` and roll back the entire batch atomically.
 - Returns: `WriteReceipt { cursor, rowCursors, danglingEdgeEndpoints }` —
   `cursor` is the batch high-water `write_cursor`; `rowCursors` are the
   per-row `write_cursor`s, 1:1 with the input batch order;
-  `danglingEdgeEndpoints` (G8) counts the edge endpoints in this batch
-  pointing at a non-existent or superseded node — see
+  `danglingEdgeEndpoints` is `0` on every committed batch — see
   [`WriteReceipt`](#writereceipt).
 
 ### `engine.search(query, filter?, rerankDepth?, useGraphArm?, alpha?, poolN?, explain?, options?) -> Promise<SearchResult>`
@@ -185,28 +192,32 @@ cross-encoder reranking (0.8.1 R1) and optional graph-BFS third arm (0.8.1 R3).
   values throw `RangeError`, non-integer values throw `TypeError`. In the
   default build (no `default-reranker` feature), depth > 0 returns the identity
   order (model absent → soft-fallback).
-- `useGraphArm` (`boolean`, optional, default `undefined`/`false`) — 0.8.1 R3
-  opt-in. When `true`, seeds a BFS over temporal fact-edges from the top-10 fused
-  hits (depth ≤ 3, cap 50). Edges with `tInvalid` in the past are excluded.
-  Newly-reachable nodes are fused as a third RRF arm (`RRF_WEIGHT_GRAPH = 1.0`).
-  Omitted or `false` produces byte-identical results to the pre-R3 two-arm
-  pipeline. Non-boolean values throw `TypeError`.
+- `useGraphArm` (`boolean`, optional, default `undefined`/`false`) — opt-in
+  graph-BFS third RRF arm (`RRF_WEIGHT_GRAPH = 1.0`, depth ≤ 3, cap 50) over
+  active, temporally valid canonical edges. Depth-0 seed selection is controlled
+  by `options.graphSeed` (`"graph_fts"` default, `"fused_top_k"`, or `"both"`).
+  Omitted or `false` produces byte-identical two-arm results with zero added
+  graph SQL. Non-boolean values throw `TypeError`.
 - `alpha` (`number`, optional, default `undefined`/`0.3`) — 0.8.5 (EXP-0)
   CE-blend weight, clamped to `[0, 1]` in the engine. Omitted ⇒ `0.3`, the
-  **C6 factoid-guard** default. **`alpha: 1.0` is opt-in for the agentic-answer
-  / memory path** (the measured Mem0-parity config); the `0.3` default protects
-  naive factoid lookups. Non-finite values throw `RangeError`. Effective only
-  when `rerankDepth > 0` and the CE model is loaded.
+  **C6 factoid-guard** default. Non-finite values throw `RangeError`. Effective
+  only when `rerankDepth > 0` and the CE model is loaded.
 - `poolN` (`number`, optional, default `undefined`/`rerankDepth`) — 0.8.5 (EXP-0)
   reranked-pool size, clamped to the hit count. Omitted ⇒ `rerankDepth`. Note
   `rerankDepth === 0` is still the identity gate, so `rerankDepth: 0, poolN: 10`
   does **not** rerank. Must be a non-negative integer (`RangeError` otherwise).
-- `options.limit` (`number`, default `10`) — maximum ranked hits returned. It
-  must be an integer in `1..=100`; out-of-range values reject with
-  `InvalidArgumentError`, never a silent clamp. `options` also accepts the
-  existing `ReadView` fields, including independent `includeSuperseded` and
-  `includeInactive` opt-ins. Validity, dependency and mandatory edge-expiry
-  restrictions remain; incomplete historical dense coverage uses lexical fallback.
+- `options` (`SearchOptions`, optional) — carries `ReadView` fields,
+  `limit` (`1..=100`, default `10`), `snippet`, and opt-in graph-arm seeding
+  controls `graphSeed` (`"graph_fts"` default | `"fused_top_k"` | `"both"`),
+  `graphSeedK` (`1..=100`, default `10`), `graphEdgeKinds` (`readonly string[]`),
+  and `graphEdgePredicates` (`readonly PropertyPredicate[]`, at most `32`,
+  implicit `AND`). The same four graph-arm fields are accepted on
+  `FrozenSearchOptions` and `EvidenceSearchRequestV1`, and are excluded from
+  `TextSearchOptions` (`searchTextOnly`). When explanation or evidence is
+  requested, `PerHitExplain` reports `graphSeedSource` and `graphHopDepth`, and
+  `EvidenceGraphOriginV1` reports `seedSource`. Validity, dependency and
+  mandatory edge-expiry restrictions remain; incomplete historical dense
+  coverage uses lexical fallback.
 - Resolves to a `SearchResult` whose `results` is a `SearchHit[]`; each
   [`SearchHit`](#searchhit) carries the matched record's `id`, `kind`, `body`,
   the **RRF-fused** `score`, the `branch` that produced it (`"graph_arm"`
@@ -440,10 +451,15 @@ evidence, and trace failures throw `PageError`, `EvidenceError`, and
   `includeEvidence` is true under frozen authority—a positional exact-evidence
   sidecar.
 
-The principal graph carriers are `GraphExpandRequestV1`, `GraphExpandResultV1`,
+The principal graph carriers are `GraphExpandRequestV1` (including optional
+`edgePredicates` and `targetPredicates`, each at most `32` `PropertyPredicate`
+entries evaluated strictly against inline `properties`, plus bitemporal
+`[tValid, tInvalid)` edge gating), `GraphExpandResultV1`,
 `GraphQuerySeedV1`, `GraphExplicitSeedV1`, `GraphReadContextV1`,
-`GraphTargetV1`, and `GraphExpansionExplanationV1`. Invalid graph requests
-throw `GraphExpansionError`; invalid projection-generation reads throw
+`GraphTargetV1` (with `properties` and `origin.terminalEdgeProperties`), and
+`GraphExpansionExplanationV1`. Invalid graph requests throw
+`GraphExpansionError` (including reasons `"graph_edge_predicates_invalid"` and
+`"graph_target_predicates_invalid"`); invalid projection-generation reads throw
 `ProjectionGenerationError`.
 
 ## `admin.configure`
@@ -610,23 +626,20 @@ vector declarations. `vectorUnsupportedKinds` is sorted and deduplicated; it is
 interface WriteReceipt {
   cursor: number; // batch high-water write_cursor
   rowCursors: number[]; // G0 — per-row write_cursor, 1:1 with the batch
-  danglingEdgeEndpoints: number; // G8 — edge endpoints pointing at no active node
+  danglingEdgeEndpoints: number; // always 0 on committed batches (strict endpoint integrity)
 }
 ```
 
 `rowCursors` is the `write_cursor`-as-row-id identity carrier (G0 /
 Slice 15): for an N-row batch it is `[cursor - N + 1, …, cursor]`.
 
-`danglingEdgeEndpoints` (G8 / Slice 20) counts how many edge endpoints
-in the batch point at a node that has **no active version** — either
-never written, or superseded (an active node = `superseded_at IS NULL`
-carrying that `logicalId`). `from`/`to` are probed independently, so one
-edge contributes 0, 1, or 2. It is **informational only**: the batch
-always commits (flag-and-count; the write never rejects on a dangling
-endpoint). Because endpoints match on `logicalId`, an edge pointing at a
-legacy / own-identity node (NULL `logicalId`) counts as dangling — only
-`logicalId`-keyed nodes are valid endpoints. `0` when the batch committed
-no active edges.
+`danglingEdgeEndpoints` is retained on `WriteReceipt` for structural
+compatibility and is always `0` on every committed batch: `engine.write`
+enforces strict atomic active-endpoint integrity across all edges in the batch
+(rejecting missing, superseded-only, `pending`, or `deleted` endpoints with
+`WriteValidationError` and rolling back the entire batch). Only active
+`logicalId`-keyed nodes satisfy edge endpoints; same-batch forward references
+and active self-loops are valid.
 
 ### `NodeRecord`
 

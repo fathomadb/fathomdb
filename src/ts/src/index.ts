@@ -93,6 +93,8 @@ export {
 export {
   SoftFallbackBranch,
   SoftFallback,
+  GraphSeedMode,
+  GraphArmSeedSource,
   DegradationReason,
   ArmDegradation,
   IdSpace,
@@ -101,6 +103,7 @@ export {
   ReadContextV1,
   FrozenReadContextV1,
   FrozenSearchOptions,
+  BaseSearchOptions,
   SearchOptions,
   TextSearchOptions,
   SearchExpandOptions,

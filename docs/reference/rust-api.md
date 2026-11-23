@@ -79,6 +79,32 @@ queue/status/withdraw APIs and owned `ErasureMaintenance` handle implement the
 Open mismatch/verification failures return no Engine. Production provider choice
 is built-in default or none, with no caller-provider injection.
 
+## 0.8.31 strict endpoint integrity, traversal predicates, and fused seeding
+
+- `Engine::write` validates every edge in the batch (including in-batch
+  superseded edges and mixed-`source_id` batches) against active,
+  non-superseded endpoint nodes (`state = 'active'`, `superseded_at IS NULL`),
+  failing atomically with `EngineError::WriteValidation` on violation and
+  reporting `WriteReceipt.dangling_edge_endpoints == 0` on every commit.
+  Same-batch forward references and active self-loops commit normally;
+  `Engine::actuate` retains `ActuationOutcomeV1::Refused`
+  (`ReferenceUnavailable`).
+- `GraphExpandRequestV1` is `#[non_exhaustive]` with
+  `GraphExpandRequestV1::new(...)` and fluent builders for closed inline
+  `edge_predicates` and `target_predicates` (`<= 32` each, implicit `AND`;
+  malformed predicates return `GraphExpansionErrorReasonV1::GraphEdgePredicatesInvalid`
+  or `GraphTargetPredicatesInvalid`). Current-time expansion pushes
+  `superseded_at IS NULL`, `kind`, and bitemporal `[t_valid, t_invalid)` gating
+  into indexed SQL (`UNION ALL` for `TraversalDirection::Both`).
+- `GraphSeedMode`, `GraphArmSeedSource`, and `GraphArmOptions` configure
+  opt-in graph-arm seeding (`GraphFts` default, `FusedTopK`, `Both`),
+  `graph_seed_k` (`1..=100`), `graph_edge_kinds`, and `graph_edge_predicates`
+  on `Engine::search_reranked_view_with_graph_options`,
+  `Engine::search_frozen_with_graph_options`, and `#[non_exhaustive]`
+  `EvidenceSearchRequestV1::new(...)`. `PerHitExplain` reports
+  `graph_seed_source` and `graph_hop_depth`, and `EvidenceGraphOriginV1`
+  reports `seed_source`.
+
 ## Errors
 
 Methods return `EngineError` or `EngineOpenError` and preserve the typed

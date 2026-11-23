@@ -7,6 +7,7 @@ import {
   stringifyLosslessJson,
   validateWireProperties,
   type PropertyMap,
+  type PropertyPredicate,
 } from "./properties.js";
 import { toNodeRecord, type NodeRecord, type ReadView } from "./read.js";
 
@@ -103,6 +104,8 @@ export interface GraphExpandRequestV1 {
   direction: TraversalDirection;
   edgeKinds: string[];
   targetKinds: string[];
+  edgePredicates?: readonly PropertyPredicate[];
+  targetPredicates?: readonly PropertyPredicate[];
   context: GraphReadContextV1;
   maxDepth: number;
   resultLimit: number;
@@ -745,6 +748,8 @@ export function validateGraphExpandRequest(value: unknown): asserts value is Gra
     "direction",
     "edgeKinds",
     "targetKinds",
+    "edgePredicates",
+    "targetPredicates",
     "context",
     "maxDepth",
     "resultLimit",
@@ -876,48 +881,60 @@ export function validateGraphExpandRequest(value: unknown): asserts value is Gra
       graphRequestString(pair[1], "graph_context_invalid", `${currentBase}/eligibility/attributes/${index}/1`);
     });
   }
-  if (eligibility.propertyPredicates !== undefined) {
-    const predsBase = `${currentBase}/eligibility/propertyPredicates`;
-    if (!Array.isArray(eligibility.propertyPredicates) || eligibility.propertyPredicates.length > 64) {
-      graphRefuse("graph_context_invalid", predsBase);
+  const validOps = new Set(["eq", "ne", "lt", "lte", "gt", "gte"]);
+  const orderOps = new Set(["lt", "lte", "gt", "gte"]);
+  const i64Min = -(1n << 63n);
+  const i64Max = (1n << 63n) - 1n;
+  const validatePredicateList = (
+    list: unknown,
+    reason: string,
+    predsBase: string,
+    maxCount: number,
+  ): void => {
+    if (!Array.isArray(list) || list.length > maxCount) {
+      graphRefuse(reason, predsBase);
     }
-    const validOps = new Set(["eq", "ne", "lt", "lte", "gt", "gte"]);
-    const orderOps = new Set(["lt", "lte", "gt", "gte"]);
-    const i64Min = -(1n << 63n);
-    const i64Max = (1n << 63n) - 1n;
-    eligibility.propertyPredicates.forEach((item, index) => {
+    list.forEach((item, index) => {
       const predBase = `${predsBase}/${index}`;
-      const predObj = requestObject(item, "graph_context_invalid", predBase);
+      const predObj = requestObject(item, reason, predBase);
       close(predObj, ["key", "op", "value"], predBase);
-      graphRequestString(predObj.key, "graph_context_invalid", `${predBase}/key`);
+      graphRequestString(predObj.key, reason, `${predBase}/key`);
       if (predObj.key.length === 0 || predObj.key.includes("\x1e")) {
-        graphRefuse("graph_context_invalid", `${predBase}/key`);
+        graphRefuse(reason, `${predBase}/key`);
       }
       if (typeof predObj.op !== "string" || !validOps.has(predObj.op)) {
-        graphRefuse("graph_context_invalid", `${predBase}/op`);
+        graphRefuse(reason, `${predBase}/op`);
       }
       const predVal = predObj.value;
       if (typeof predVal === "boolean") {
         if (orderOps.has(predObj.op)) {
-          graphRefuse("graph_context_invalid", `${predBase}/op`);
+          graphRefuse(reason, `${predBase}/op`);
         }
       } else if (typeof predVal === "number") {
         if (!Number.isFinite(predVal)) {
-          graphRefuse("graph_context_invalid", `${predBase}/value`);
+          graphRefuse(reason, `${predBase}/value`);
         }
       } else if (typeof predVal === "bigint") {
         if (predVal < i64Min || predVal > i64Max) {
-          graphRefuse("graph_context_invalid", `${predBase}/value`);
+          graphRefuse(reason, `${predBase}/value`);
         }
       } else if (typeof predVal === "string") {
-        graphRequestString(predVal, "graph_context_invalid", `${predBase}/value`);
+        graphRequestString(predVal, reason, `${predBase}/value`);
         if (predVal.includes("\x1e")) {
-          graphRefuse("graph_context_invalid", `${predBase}/value`);
+          graphRefuse(reason, `${predBase}/value`);
         }
       } else {
-        graphRefuse("graph_context_invalid", `${predBase}/value`);
+        graphRefuse(reason, `${predBase}/value`);
       }
     });
+  };
+  if (eligibility.propertyPredicates !== undefined) {
+    validatePredicateList(
+      eligibility.propertyPredicates,
+      "graph_context_invalid",
+      `${currentBase}/eligibility/propertyPredicates`,
+      64,
+    );
   }
   if (!["incoming", "outgoing", "both"].includes(String(root.direction)))
     graphRefuse("graph_direction_invalid", "/direction");
@@ -927,6 +944,22 @@ export function validateGraphExpandRequest(value: unknown): asserts value is Gra
   if (!Array.isArray(root.targetKinds) || root.targetKinds.some((item) => typeof item !== "string"))
     graphRefuse("graph_target_kinds_invalid", "/targetKinds");
   root.targetKinds.forEach((item, index) => graphRequestString(item, "graph_target_kinds_invalid", `/targetKinds/${index}`));
+  if (root.edgePredicates !== undefined) {
+    validatePredicateList(
+      root.edgePredicates,
+      "graph_edge_predicates_invalid",
+      "/edgePredicates",
+      32,
+    );
+  }
+  if (root.targetPredicates !== undefined) {
+    validatePredicateList(
+      root.targetPredicates,
+      "graph_target_predicates_invalid",
+      "/targetPredicates",
+      32,
+    );
+  }
   if (!Number.isInteger(root.maxDepth) || typeof root.maxDepth !== "number")
     graphRefuse("graph_depth_invalid", "/maxDepth");
   if (!Number.isInteger(root.resultLimit) || typeof root.resultLimit !== "number")
@@ -945,6 +978,14 @@ export function validateGraphExpandRequest(value: unknown): asserts value is Gra
   // duplicate seeds, eligibility values, and frozen authentication precedence.
 }
 
+function canonicalPredicateWire(pred: PropertyPredicate): GraphObject {
+  return {
+    key: pred.key,
+    op: pred.op,
+    value: typeof pred.value === "number" && Object.is(pred.value, -0) ? 0 : pred.value,
+  };
+}
+
 export function canonicalGraphReadContext(context: ReadContextV1): GraphObject {
   const eligibility: GraphObject = {
     sourceType: context.eligibility.sourceType ?? null,
@@ -957,11 +998,9 @@ export function canonicalGraphReadContext(context: ReadContextV1): GraphObject {
     context.eligibility.propertyPredicates !== undefined &&
     context.eligibility.propertyPredicates.length > 0
   ) {
-    eligibility.propertyPredicates = context.eligibility.propertyPredicates.map((p) => ({
-      key: p.key,
-      op: p.op,
-      value: typeof p.value === "number" && Object.is(p.value, -0) ? 0 : p.value,
-    }));
+    eligibility.propertyPredicates = context.eligibility.propertyPredicates.map(
+      canonicalPredicateWire,
+    );
   }
   return {
     schemaVersion: context.schemaVersion,
@@ -1011,6 +1050,12 @@ export function canonicalGraphRequest(request: GraphExpandRequestV1): GraphObjec
     direction: request.direction,
     edgeKinds: request.edgeKinds,
     targetKinds: request.targetKinds,
+    ...(request.edgePredicates !== undefined && request.edgePredicates.length > 0
+      ? { edgePredicates: request.edgePredicates.map(canonicalPredicateWire) }
+      : {}),
+    ...(request.targetPredicates !== undefined && request.targetPredicates.length > 0
+      ? { targetPredicates: request.targetPredicates.map(canonicalPredicateWire) }
+      : {}),
     context,
     maxDepth: request.maxDepth,
     resultLimit: request.resultLimit,

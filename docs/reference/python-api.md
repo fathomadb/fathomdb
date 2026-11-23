@@ -145,20 +145,28 @@ receipt = engine.write([
     {"kind": "note", "body": "hello", "source_id": "doc-42"},
     {"kind": "note", "body": "governed", "source_id": "doc-42",
      "logical_id": "note:hello"},
+    {"kind": "entity", "body": "Acme Corp", "source_id": "doc-42",
+     "logical_id": "acme"},
     {"kind": "mentions", "from": "note:hello", "to": "acme",
      "source_id": "doc-42", "t_valid": 1_546_300_800, "t_invalid": None},
 ])
 ```
 
+- Atomicity and endpoint integrity: a batch executes in a single SQLite
+  transaction even when items carry distinct `source_id` values. Every edge in
+  the batch (including edges superseded later in the same batch) must reference
+  active, non-superseded endpoint nodes (`state == "active"` and
+  `superseded_at IS NULL`); same-batch forward references and active self-loops
+  are valid. Missing, superseded-only, `pending`, or `deleted` endpoints raise
+  `WriteValidationError` and roll back the entire batch atomically.
 - Returns: `WriteReceipt(cursor: int, row_cursors: tuple[int, ...],
   dangling_edge_endpoints: int)`. `cursor` advances monotonically across
   writes (the batch high-water cursor); `row_cursors` are the per-row
   `write_cursor`s, 1:1 with the input batch order;
-  `dangling_edge_endpoints` (G8) counts the edge endpoints in this batch
-  pointing at a non-existent or superseded node — see
+  `dangling_edge_endpoints` is `0` on every committed batch — see
   [`WriteReceipt`](#writereceipt).
 
-### `engine.search(query, filter=None, *, rerank_depth=0, use_graph_arm=False, alpha=None, pool_n=None, explain=False, view=None, limit=10) -> SearchResult`
+### `engine.search(query, filter=None, *, rerank_depth=0, use_graph_arm=False, alpha=None, pool_n=None, explain=False, view=None, limit=10, snippet=None, graph_seed="graph_fts", graph_seed_k=10, graph_edge_kinds=None, graph_edge_predicates=None) -> SearchResult`
 
 Run hybrid retrieval (FTS5 + vector) for `query`, ranked by **G9 RRF fusion**,
 with optional cross-encoder reranking (0.8.1 R1) and optional graph-BFS third
@@ -178,25 +186,40 @@ arm (0.8.1 R3).
   Must be a non-negative integer; negative values raise `ValueError`. In the
   default build (no `default-reranker` feature), depth > 0 returns the identity
   order (model absent → soft-fallback).
-- `use_graph_arm` (`bool`, default `False`) — 0.8.1 R3 opt-in. When `True`,
-  seeds a BFS over temporal fact-edges from the top-10 fused hits (depth ≤ 3,
-  cap 50). Edges with `t_invalid` in the past are excluded. Newly-reachable
-  nodes are fused as a third RRF arm (`RRF_WEIGHT_GRAPH = 1.0`). Default
-  `False` produces byte-identical results to the pre-R3 two-arm pipeline.
-  Must be a `bool`; non-bool raises `TypeError`.
+- `use_graph_arm` (`bool`, default `False`) — opt-in graph-BFS third RRF arm
+  (`RRF_WEIGHT_GRAPH = 1.0`, depth ≤ 3, cap 50) over active, temporally valid
+  canonical edges. Depth-0 seed selection is controlled by `graph_seed`
+  (`"graph_fts"` default, `"fused_top_k"`, or `"both"`). Default `False`
+  produces byte-identical two-arm results with zero added graph SQL. Must be a
+  `bool`; non-bool raises `TypeError`.
+- `graph_seed` (`GraphSeedMode`, default `"graph_fts"`) — selects depth-0 graph
+  seeds when `use_graph_arm=True`: `"graph_fts"` (edge-body and entity-node
+  FTS), `"fused_top_k"` (top-`graph_seed_k` canonical-node hits from the
+  two-arm fused/reranked ranking, enabling body-less property-graph edge
+  traversal), or `"both"` (deterministic min-hop merge with `(fused_top_k,
+  edge_fts, entity_fts)` tie-breaking). Available on `search`, `search_frozen`,
+  and `EvidenceSearchRequestV1` (not `search_text_only`).
+- `graph_seed_k` (`int`, default `10`) — maximum unique canonical-node seeds
+  taken under `"fused_top_k"` or `"both"` (`1..=100`; outside range raises
+  `InvalidArgumentError`).
+- `graph_edge_kinds` (`Sequence[str] | None`, default `None`) — optional
+  edge-kind allowlist for graph-arm seeding and traversal.
+- `graph_edge_predicates` (`Sequence[PropertyPredicate] | None`, default `None`)
+  — optional closed typed scalar predicates (implicit `AND`, at most `32`)
+  evaluated against inline edge `properties`.
 - `alpha` (`float | None`, default `None`) — 0.8.5 (EXP-0) CE-blend weight,
   clamped to `[0, 1]` in the engine. `None` ⇒ `0.3` — the **C6 factoid-guard**
   default that prevents a high-CE-but-wrong candidate from displacing a
-  BM25-correct factoid. **`alpha=1.0` is opt-in for the agentic-answer / memory
-  path** (the measured Mem0-parity config); the `0.3` default protects naive
-  factoid lookups. Only effective when `rerank_depth > 0` and the CE model is
-  loaded.
+  BM25-correct factoid. Only effective when `rerank_depth > 0` and the CE model
+  is loaded.
 - `pool_n` (`int | None`, default `None`) — 0.8.5 (EXP-0) reranked-pool size,
   clamped to the hit count. `None` ⇒ `rerank_depth` (preserves the prior
   pool == depth semantics). Note `rerank_depth == 0` is still the identity gate,
   so `rerank_depth=0, pool_n=10` does **not** rerank.
 - `explain` (`bool`, default `False`) — `True` includes retrieval explanation
-  data in `SearchResult.explanation`; non-boolean values raise `TypeError`.
+  data in `SearchResult.explanation` (including `PerHitExplain.graph_seed_source`
+  and `PerHitExplain.graph_hop_depth` for `"graph_arm"` hits); non-boolean
+  values raise `TypeError`.
 - `view` (`ReadView | None`, default `None`) — controls validity at query time
   or an explicit `valid_as_of` instant. `include_out_of_window=True` widens
   validity windows. `include_superseded` and `include_inactive` are independent
@@ -443,10 +466,15 @@ workflow and retry rules.
   `include_evidence=True` under frozen authority—a positional exact-evidence
   sidecar.
 
-The principal graph carriers are `GraphExpandRequestV1`, `GraphExpandResultV1`,
+The principal graph carriers are `GraphExpandRequestV1` (including optional
+`edge_predicates` and `target_predicates`, each at most `32` `PropertyPredicate`
+entries evaluated strictly against inline `properties`, plus bitemporal
+`[t_valid, t_invalid)` edge gating), `GraphExpandResultV1`,
 `GraphQuerySeedV1`, `GraphExplicitSeedV1`, `GraphReadContextV1`,
-`GraphTargetV1`, and `GraphExpansionExplanationV1`. Invalid graph requests
-raise `GraphExpansionError`; invalid projection-generation reads raise
+`GraphTargetV1` (with `properties` and `origin.terminal_edge_properties`), and
+`GraphExpansionExplanationV1`. Invalid graph requests raise
+`GraphExpansionError` (including reasons `"graph_edge_predicates_invalid"` and
+`"graph_target_predicates_invalid"`); invalid projection-generation reads raise
 `ProjectionGenerationError`.
 
 ## `admin.configure`
@@ -659,22 +687,19 @@ search score takes priority).
 class WriteReceipt:
     cursor: int                       # batch high-water write_cursor
     row_cursors: tuple[int, ...]      # G0 — per-row write_cursor, 1:1 with the batch
-    dangling_edge_endpoints: int      # G8 — edge endpoints pointing at no active node
+    dangling_edge_endpoints: int      # always 0 on committed batches (strict endpoint integrity)
 ```
 
 `row_cursors` is the `write_cursor`-as-row-id identity carrier (G0 /
 Slice 15): for an N-row batch it is `(cursor - N + 1, …, cursor)`.
 
-`dangling_edge_endpoints` (G8 / Slice 20) counts how many edge endpoints
-in the batch point at a node that has **no active version** — either
-never written, or superseded (an active node = `superseded_at IS NULL`
-carrying that `logical_id`). `from_id` and `to_id` are probed
-independently, so one edge contributes 0, 1, or 2. It is **informational
-only**: the batch always commits (flag-and-count; the write never
-rejects on a dangling endpoint). Because endpoints match on `logical_id`,
-an edge pointing at a legacy / own-identity node (NULL `logical_id`)
-counts as dangling — only `logical_id`-keyed nodes are valid endpoints.
-`0` when the batch committed no active edges.
+`dangling_edge_endpoints` is retained on `WriteReceipt` for structural
+compatibility and is always `0` on every committed batch: `engine.write`
+enforces strict atomic active-endpoint integrity across all edges in the batch
+(refusing missing, superseded-only, `pending`, or `deleted` endpoints with
+`WriteValidationError` and rolling back the entire batch). Only active
+`logical_id`-keyed nodes satisfy edge endpoints; same-batch forward references
+and active self-loops are valid.
 
 ### `NodeRecord`
 

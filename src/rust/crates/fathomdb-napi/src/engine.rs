@@ -412,6 +412,7 @@ impl Engine {
         explain: Option<bool>,
         limit: Option<i64>,
         snippet: Option<SnippetOptionsInput>,
+        graph_options: Option<GraphArmOptionsInput>,
     ) -> Result<SearchResult> {
         let context = frozen_context_to_rust(context)?;
         let depth = usize::try_from(rerank_depth.unwrap_or(0)).unwrap_or(usize::MAX);
@@ -422,9 +423,10 @@ impl Engine {
         let explain = explain.unwrap_or(false);
         let limit = usize::try_from(limit.unwrap_or(10)).unwrap_or(usize::MAX);
         let snippet = snippet.map(|options| options.to_rust()).transpose()?;
+        let graph_options = graph_arm_options_input_to_rust(graph_options)?;
         let engine = Arc::clone(&self.inner);
         let result = call_engine(move || {
-            engine.search_frozen_with_snippets(
+            engine.search_frozen_with_graph_options(
                 &query,
                 &context,
                 depth,
@@ -434,6 +436,7 @@ impl Engine {
                 explain,
                 limit,
                 snippet.as_ref(),
+                &graph_options,
             )
         })
         .await?;
@@ -453,6 +456,7 @@ impl Engine {
         pool_n: Option<i64>,
         include_explanation: Option<bool>,
         limit: Option<i64>,
+        graph_options: Option<GraphArmOptionsInput>,
     ) -> Result<EvidenceSearchResultV1> {
         let rerank_depth = u32::try_from(rerank_depth.unwrap_or(0)).map_err(|_| {
             engine_error_to_napi(RustEngineError::InvalidArgument {
@@ -469,13 +473,18 @@ impl Engine {
                 msg: "limit must be in 0..=4294967295".to_string(),
             })
         })?;
+        let graph_options = graph_arm_options_input_to_rust(graph_options)?;
         let request = RustEvidenceSearchRequestV1::new(query, frozen_context_to_rust(context)?)
             .with_rerank_depth(rerank_depth)
             .with_use_graph_arm(use_graph_arm.unwrap_or(false))
             .with_alpha(alpha.unwrap_or(0.3))
             .with_pool_n(pool_n)
             .with_explain(include_explanation.unwrap_or(false))
-            .with_limit(limit);
+            .with_limit(limit)
+            .with_graph_seed(graph_options.graph_seed)
+            .with_graph_seed_k(graph_options.graph_seed_k)
+            .with_graph_edge_kinds(graph_options.graph_edge_kinds)
+            .with_graph_edge_predicates(graph_options.graph_edge_predicates);
         let engine = Arc::clone(&self.inner);
         call_engine(move || engine.search_with_evidence(&request)).await.map(Into::into)
     }
@@ -544,9 +553,10 @@ impl Engine {
         query: String,
         filter: Option<SearchFilterInput>,
         rerank_depth: Option<u32>,
-        // 0.8.1 R3 (Slice 30) — when true, seed a BFS over temporal fact-edges
-        // from the top-10 fused hits and fuse the reachable nodes as a third RRF arm.
-        // Default false → byte-identical to the pre-Slice-30 two-arm pipeline.
+        // When true, run the opt-in BFS graph arm seeded per `graphOptions.graphSeed`
+        // (`"graph_fts"` default, `"fused_top_k"`, or `"both"`) and fuse reachable
+        // nodes as a third RRF arm. Default false preserves the byte-identical
+        // two-arm pipeline.
         use_graph_arm: Option<bool>,
         // 0.8.5 (EXP-0) — CE-rerank knobs. `alpha` (default 0.3, clamped to [0,1] in
         // the engine) is the CE-blend weight; `poolN` (default = rerankDepth) is the
@@ -568,6 +578,7 @@ impl Engine {
         limit: Option<u32>,
         // EP-17 — fills `SearchResult.snippets`; omitted leaves it absent.
         snippet: Option<SnippetOptionsInput>,
+        graph_options: Option<GraphArmOptionsInput>,
     ) -> Result<SearchResult> {
         validate_ffi_string_napi(&query)?;
         if query.trim().is_empty() {
@@ -600,11 +611,12 @@ impl Engine {
         let view = read_view_or_default(view);
         let limit = limit.unwrap_or(10) as usize;
         let snippet = snippet.map(|options| options.to_rust()).transpose()?;
+        let graph_options = graph_arm_options_input_to_rust(graph_options)?;
         let engine = Arc::clone(&self.inner);
         // fix-2: ONE call — `explain` is a parameter of the full-arity view entry
         // point, so the two arms can no longer drift on `view`.
         let result = call_engine(move || {
-            engine.search_reranked_view_with_snippets(
+            engine.search_reranked_view_with_graph_options(
                 &query,
                 filter,
                 depth,
@@ -615,6 +627,7 @@ impl Engine {
                 &view,
                 limit,
                 snippet.as_ref(),
+                &graph_options,
             )
         })
         .await?;

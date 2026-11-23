@@ -204,6 +204,7 @@ pub struct EvidenceGraphOriginV1 {
     pub kind: String,
     pub edge_artifact_revision_id: Option<String>,
     pub hop_count: Option<u32>,
+    pub seed_source: String,
 }
 
 #[napi(object)]
@@ -218,19 +219,23 @@ pub struct EvidenceProjectionOriginV1 {
 impl From<RustEvidenceProjectionOriginV1> for EvidenceProjectionOriginV1 {
     fn from(value: RustEvidenceProjectionOriginV1) -> Self {
         let graph_origin = value.graph_origin.map(|origin| match origin {
-            RustEvidenceGraphOriginV1::EdgeSeed { edge_artifact_revision_id, .. } => {
+            RustEvidenceGraphOriginV1::EdgeSeed { edge_artifact_revision_id, seed_source } => {
                 EvidenceGraphOriginV1 {
                     kind: "edge_seed".to_string(),
                     edge_artifact_revision_id: Some(edge_artifact_revision_id),
                     hop_count: None,
+                    seed_source: seed_source.as_str().to_string(),
                 }
             }
             RustEvidenceGraphOriginV1::Traversal {
-                edge_artifact_revision_id, hop_count, ..
+                edge_artifact_revision_id,
+                hop_count,
+                seed_source,
             } => EvidenceGraphOriginV1 {
                 kind: "traversal".to_string(),
                 edge_artifact_revision_id: Some(edge_artifact_revision_id),
                 hop_count: Some(hop_count),
+                seed_source: seed_source.as_str().to_string(),
             },
         });
         Self {
@@ -397,6 +402,8 @@ pub struct PerHitExplain {
     /// engine `PerHitExplain` additive fields (napi → `importance`, `confidence`).
     pub importance: Option<f64>,
     pub confidence: Option<f64>,
+    pub graph_seed_source: Option<String>,
+    pub graph_hop_depth: Option<u32>,
     pub structural: StructuralInclusionV1,
 }
 
@@ -483,6 +490,8 @@ impl PerHitExplain {
             blended: p.blended,
             importance: p.importance,
             confidence: p.confidence,
+            graph_seed_source: p.graph_seed_source.map(|source| source.as_str().to_string()),
+            graph_hop_depth: p.graph_hop_depth,
             structural: StructuralInclusionV1::from_rust(&p.structural),
         }
     }

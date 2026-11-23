@@ -803,6 +803,7 @@ The Rust workspace also exposes the semver-stable companion crate
 
 - `WriteReceipt` exposes `cursor` (the batch high-water `write_cursor`),
   `row_cursors` (per-row, 1:1 with the batch) and `dangling_edge_endpoints`
+  (always `0` on committed `0.8.31` batches under strict endpoint integrity)
 - `SearchResult` exposes `projection_cursor`, which names the terminal
   projection-visible point for the search snapshot
 - hybrid fallback, when present, exposes a typed branch enum whose values are
@@ -2488,3 +2489,56 @@ Fallible reranker APIs map it to the shared overload class. Infallible
 - **Erasure reporting:** `ExciseReport` adds `completed_pending_erasure: bool`
   (`false` on ordinary erasure; `true` when completing pending post-commit
   erasure work).
+
+## Strict endpoint integrity, typed traversal predicates, and opt-in fused seeding (0.8.31 Slice 30)
+
+- **Strict write endpoint integrity:** Every edge in `Engine::write` — including
+  edges superseded later in the same batch under `logical_id` or
+  `(from_id, to_id, kind)` rules — must reference active, non-superseded
+  endpoint nodes (`superseded_at IS NULL AND state = 'active'`). Missing,
+  superseded-only, `Pending`, `Deleted`, or in-batch-deactivated endpoints fail
+  the entire batch atomically with `EngineError::WriteValidation` and zero
+  committed rows across canonical, revision, property-index, FTS, and projection
+  tables. Same-batch forward references (`[Edge(A -> B), Node(A), Node(B)]`) and
+  active self-loops commit with `WriteReceipt.dangling_edge_endpoints == 0`.
+  Node-only batches execute zero `canonical_nodes` endpoint reads.
+  `Engine::actuate` retains `ActuationOutcomeV1::Refused` with reason
+  `ReferenceUnavailable` for dangling prospective edges.
+- **Mixed-`source_id` batch atomicity:** `Engine::write` executes all items in
+  one `BEGIN IMMEDIATE` transaction even when items carry distinct `source_id`
+  values; any validation or endpoint refusal rolls back the entire batch
+  atomically.
+- **`GraphExpandRequestV1` `#[non_exhaustive]` and closed traversal predicates:**
+  `GraphExpandRequestV1` is `#[non_exhaustive]` with constructor
+  `GraphExpandRequestV1::new(seed, direction, context, max_depth, result_limit, max_work_units)`
+  and fluent builders (`with_edge_kinds`, `with_target_kinds`,
+  `with_edge_predicates`, `with_target_predicates`, `with_explanation`,
+  `with_evidence`). Closed typed `edge_predicates: Vec<PropertyPredicate>` and
+  `target_predicates: Vec<PropertyPredicate>` (implicit `AND`, at most `32`
+  predicates each) evaluate strictly against inline `properties` (missing keys
+  and cross-type comparisons evaluate `false` for all 6 operators; exact 64-bit
+  integer precision is preserved; ordering operators on `Bool` and malformed
+  predicates return `GraphExpansionErrorReasonV1::GraphEdgePredicatesInvalid` or
+  `GraphTargetPredicatesInvalid`). Current-time `graph_expand` pushes
+  `superseded_at IS NULL`, `kind`, and bitemporal `[t_valid, t_invalid)` gating
+  into indexed SQL (`UNION ALL` for `Both`), so superseded, wrong-kind, expired,
+  and future-valid edges consume zero `LIMIT` or `work_units`.
+- **Opt-in `use_graph_arm` controls, `SEED_FTS_N` fix, and provenance:**
+  `GraphSeedMode` (`GraphFts` default, `FusedTopK`, `Both`),
+  `GraphArmSeedSource` (`FusedTopK`, `EdgeFts`, `EntityFts`), and
+  `GraphArmOptions` (`graph_seed`, `graph_seed_k` in `1..=100` defaulting to
+  `10`, `graph_edge_kinds`, `graph_edge_predicates`) are exported from
+  `fathomdb_engine` and re-exported by `fathomdb`. `Engine` exposes
+  `search_reranked_view_with_graph_options` and
+  `search_frozen_with_graph_options`, and `EvidenceSearchRequestV1` is
+  `#[non_exhaustive]` with `EvidenceSearchRequestV1::new(query, context)` plus
+  graph-arm builders. Mixed-edge FTS matches never allocate a `SEED_FTS_N = 10`
+  slot for an ineligible endpoint; Phase 2 traversal uses `UNION ALL` with edge
+  kind/predicate filters; `FusedTopK` and `Both` seed body-less property-graph
+  edges from fused/reranked canonical-node hits (`logical_id IS NOT NULL`) with
+  single-pass cross-encoder reuse and deterministic `(FusedTopK, EdgeFts, EntityFts)`
+  min-hop merging. `PerHitExplain` exposes
+  `graph_seed_source: Option<GraphArmSeedSource>` and
+  `graph_hop_depth: Option<u32>`, and both `EvidenceGraphOriginV1` variants
+  carry `seed_source: GraphArmSeedSource`. `use_graph_arm = false` remains
+  byte-identical with zero added SQL or joins.

@@ -1669,3 +1669,42 @@ Fallible reranker APIs map it to the shared overload class. Infallible
   and `read.operationalCollection(engine, name): Promise<OperationalCollectionInfo | null>`
   are live governed reads (fresh stores seed `"projection_failures"`).
 - **Erasure reporting:** `EraseReport` adds `completedPendingErasure: boolean`.
+
+## Strict endpoint integrity, traversal predicates, and opt-in fused seeding (0.8.31 Slice 30)
+
+`fathomdb` exports `GraphSeedMode` (`"graph_fts" | "fused_top_k" | "both"`) and
+`GraphArmSeedSource` (`"fused_top_k" | "edge_fts" | "entity_fts"`). Zero new
+governed operations are added.
+
+- **Strict write endpoint integrity & mixed-`sourceId` atomicity:** Every edge
+  written via `engine.write(...)` (including edges superseded later in the same
+  batch and batches spanning multiple `sourceId` values) must reference active,
+  non-superseded endpoint nodes (`superseded_at IS NULL AND state = 'active'`).
+  Violations reject atomically with `WriteValidationError` and zero committed
+  rows. Same-batch forward references and active self-loops commit with
+  `WriteReceipt.danglingEdgeEndpoints === 0`. `engine.actuate(...)` continues
+  returning `outcome: "refused"` with `reference_unavailable`.
+- **Closed traversal predicates on `graph.expand`:** `GraphExpandRequestV1` adds
+  optional `edgePredicates?: readonly PropertyPredicate[]` and
+  `targetPredicates?: readonly PropertyPredicate[]` (evaluated strictly against
+  inline `properties`, implicit `AND`, at most `32` predicates each; omitted on
+  wire when absent or empty; exact `bigint` precision preserved via lossless
+  JSON). Malformed predicates, counts `> 32`, and ordering operators on
+  `boolean` reject with `GraphExpansionError` (`"graph_edge_predicates_invalid"`
+  or `"graph_target_predicates_invalid"`). Current-time expansion enforces
+  bitemporal `[tValid, tInvalid)` edge gating and indexed SQL pushdown
+  (`UNION ALL` for `"both"`).
+- **Opt-in `useGraphArm` seeding & provenance:** `SearchOptions`,
+  `FrozenSearchOptions`, and `EvidenceSearchRequestV1` add optional
+  `graphSeed?: GraphSeedMode`, `graphSeedK?: number` (`1..=100`, default `10`),
+  `graphEdgeKinds?: readonly string[]`, and
+  `graphEdgePredicates?: readonly PropertyPredicate[]`. `TextSearchOptions` is
+  decoupled from `SearchOptions` (`BaseSearchOptions & { filter?: SearchFilter }`)
+  so graph-arm options never appear on `searchTextOnly` (and are rejected with
+  `InvalidArgumentError` if supplied dynamically). Mixed-edge FTS matches never
+  allocate a `SEED_FTS_N = 10` slot to ineligible endpoints, and
+  `"fused_top_k"` / `"both"` seed body-less property-graph edges from
+  fused/reranked canonical-node hits (`logical_id IS NOT NULL`).
+  `PerHitExplain` exposes `graphSeedSource?: GraphArmSeedSource | null` and
+  `graphHopDepth?: number | null`; `EvidenceGraphOriginV1` exposes
+  `seedSource: GraphArmSeedSource`.

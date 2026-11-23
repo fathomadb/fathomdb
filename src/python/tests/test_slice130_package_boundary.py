@@ -195,7 +195,10 @@ def test_package_boundary_matches_pre_move_baseline() -> None:
         "rerank_depth: 'int' = 0, use_graph_arm: 'bool' = False, "
         "alpha: 'float | None' = None, pool_n: 'int | None' = None, "
         "explain: 'bool' = False, view: 'ReadView | None' = None, "
-        "limit: 'int' = 10, snippet: 'SnippetOptions | None' = None) -> 'SearchResult'"
+        "limit: 'int' = 10, snippet: 'SnippetOptions | None' = None, "
+        "graph_seed: 'GraphSeedMode' = 'graph_fts', graph_seed_k: 'int' = 10, "
+        "graph_edge_kinds: 'Sequence[str] | None' = None, "
+        "graph_edge_predicates: 'Sequence[PropertyPredicate] | None' = None) -> 'SearchResult'"
     )
 
 
@@ -270,6 +273,20 @@ def test_python_declarations_match_pre_move_baseline_with_approved_deltas() -> N
             expected[prefix + method] = {
                 **old,
                 "signature": old["signature"].replace(") -> SearchResult", EP17_SNIPPET_PARAMETER),
+            }
+        # 0.8.31 Slice 30: opt-in graph-arm seeding & edge filtering kwargs on
+        # search and search_frozen (never on search_text_only).
+        graph_arm_params = (
+            ", graph_seed: GraphSeedMode='graph_fts', graph_seed_k: int=10, "
+            "graph_edge_kinds: Sequence[str] | None=None, "
+            "graph_edge_predicates: Sequence[PropertyPredicate] | None=None) -> SearchResult"
+        )
+        for method in ("search", "search_frozen"):
+            old = expected[prefix + method]
+            assert old["signature"].count(") -> SearchResult") == 1
+            expected[prefix + method] = {
+                **old,
+                "signature": old["signature"].replace(") -> SearchResult", graph_arm_params),
             }
     for suffix, kind, signature in EP03_EP17_TYPE_DECLARATIONS:
         for path in (f"fathomdb.{suffix}", f"fathomdb.types.{suffix}"):
@@ -383,6 +400,63 @@ def test_python_declarations_match_pre_move_baseline_with_approved_deltas() -> N
     assert observed == expected
 
     stub = (package / "_fathomdb.pyi").read_text()
+    # Reverse the approved 0.8.31 Slice 30 native stub additions before Slice 20.
+    slice30_stub_edits = (
+        (
+            "    confidence: float | None\n"
+            "    graph_seed_source: str | None\n"
+            "    graph_hop_depth: int | None\n"
+            "    structural: StructuralInclusionV1\n",
+            "    confidence: float | None\n"
+            "    structural: StructuralInclusionV1\n",
+        ),
+        (
+            "    graph_hop_count: int | None\n"
+            "    graph_seed_source: str | None\n",
+            "    graph_hop_count: int | None\n",
+        ),
+        (
+            "        limit: int = ...,\n"
+            "        snippet: object | None = ...,\n"
+            "        graph_seed: str = ...,\n"
+            "        graph_seed_k: int = ...,\n"
+            "        graph_edge_kinds: list[str] | None = ...,\n"
+            "        graph_edge_predicates: list[tuple[str, str, Any]] | None = ...,\n"
+            "    ) -> SearchResult: ...\n"
+            "    def search_with_evidence(\n",
+            "        limit: int = ...,\n"
+            "        snippet: object | None = ...,\n"
+            "    ) -> SearchResult: ...\n"
+            "    def search_with_evidence(\n",
+        ),
+        (
+            "        include_explanation: bool = ...,\n"
+            "        limit: int = ...,\n"
+            "        graph_seed: str = ...,\n"
+            "        graph_seed_k: int = ...,\n"
+            "        graph_edge_kinds: list[str] | None = ...,\n"
+            "        graph_edge_predicates: list[tuple[str, str, Any]] | None = ...,\n"
+            "    ) -> EvidenceSearchResultV1: ...\n",
+            "        include_explanation: bool = ...,\n"
+            "        limit: int = ...,\n"
+            "    ) -> EvidenceSearchResultV1: ...\n",
+        ),
+        (
+            "        property_predicates: list[tuple[str, str, Any]] | None = ...,\n"
+            "        graph_seed: str = ...,\n"
+            "        graph_seed_k: int = ...,\n"
+            "        graph_edge_kinds: list[str] | None = ...,\n"
+            "        graph_edge_predicates: list[tuple[str, str, Any]] | None = ...,\n"
+            "    ) -> SearchResult: ...\n"
+            "    def search_projected_text(\n",
+            "        property_predicates: list[tuple[str, str, Any]] | None = ...,\n"
+            "    ) -> SearchResult: ...\n"
+            "    def search_projected_text(\n",
+        ),
+    )
+    for current, historical in slice30_stub_edits:
+        assert stub.count(current) == 1, current
+        stub = stub.replace(current, historical, 1)
     # Reverse the approved 0.8.31 Slice 20 native stub additions before the
     # earlier reversals and frozen checksum.
     slice20_stub_edits = (

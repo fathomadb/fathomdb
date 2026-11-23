@@ -21,7 +21,8 @@ use fathomdb_sdk::{
     EngineError, EngineOpenError, EraseReport, Error, ErrorKind, EvidenceResolveRequestV1,
     EvidenceSearchRequestV1, EvidenceSearchResultV1, ExtractDocument, Filter, FilterTerm,
     FrozenReadContextV1, FrozenSearchOptions, GpuAllocationMeasurement, GpuAllocationWitness,
-    GraphEvidenceResolveRequestV1, GraphExpandRequestV1, GraphExpandResultV1, IdSpace, IdSpaceKind,
+    GraphArmOptions, GraphArmSeedSource, GraphEvidenceResolveRequestV1, GraphExpandRequestV1,
+    GraphExpandResultV1, GraphReadContextV1, GraphSeedMode, GraphSeedV1, IdSpace, IdSpaceKind,
     IngestWithExtractorReceipt, LifecycleState, ListOptions, MigrationStepReport, ModuleLoadInit,
     MutationProjectionStatusRequestV1, MutationProjectionStatusV1, NeighborsOptions, NodeRecord,
     OpStoreRow, OpenOptions, OpenReport, OperationalCollectionInfo, OperationalStateRecordV1,
@@ -171,6 +172,10 @@ fn option_defaults_match_python_and_typescript() {
     assert!(!search.explain);
     assert_eq!(search.view, ReadView::default());
     assert_eq!(search.limit, 10);
+    assert_eq!(search.graph_seed, GraphSeedMode::GraphFts);
+    assert_eq!(search.graph_seed_k, 10);
+    assert!(search.graph_edge_kinds.is_empty());
+    assert!(search.graph_edge_predicates.is_empty());
 
     let text = TextSearchOptions::default();
     assert_eq!((text.view, text.limit), (ReadView::default(), 10));
@@ -186,6 +191,10 @@ fn option_defaults_match_python_and_typescript() {
     assert_eq!(frozen.pool_n, None);
     assert!(!frozen.explain);
     assert_eq!(frozen.limit, 10);
+    assert_eq!(frozen.graph_seed, GraphSeedMode::GraphFts);
+    assert_eq!(frozen.graph_seed_k, 10);
+    assert!(frozen.graph_edge_kinds.is_empty());
+    assert!(frozen.graph_edge_predicates.is_empty());
 
     assert_eq!(SearchExpandOptions::default().search_limit, 10);
 
@@ -333,6 +342,61 @@ fn shared_types_are_nameable() {
     named::<PropertyComparisonOp>();
     named::<PropertyPredicate>();
     named::<OperationalCollectionInfo>();
+    named::<GraphSeedMode>();
+    named::<GraphArmSeedSource>();
+    named::<GraphArmOptions>();
+}
+
+/// 0.8.31 Slice 30 (`STRICT-GRAPH`) — `GraphExpandRequestV1::new`,
+/// `EvidenceSearchRequestV1::new`, and additive graph-seeding types/builders.
+#[test]
+fn slice30_graph_predicates_and_seeding_surface() {
+    let _: fn(
+        GraphSeedV1,
+        TraversalDirection,
+        GraphReadContextV1,
+        u32,
+        u32,
+        u64,
+    ) -> GraphExpandRequestV1 = GraphExpandRequestV1::new;
+    let _: fn(String, FrozenReadContextV1) -> EvidenceSearchRequestV1 =
+        EvidenceSearchRequestV1::new;
+    let modes = [GraphSeedMode::GraphFts, GraphSeedMode::FusedTopK, GraphSeedMode::Both];
+    assert_eq!(modes.map(GraphSeedMode::as_str), ["graph_fts", "fused_top_k", "both"]);
+    let sources =
+        [GraphArmSeedSource::FusedTopK, GraphArmSeedSource::EdgeFts, GraphArmSeedSource::EntityFts];
+    assert_eq!(sources.map(GraphArmSeedSource::as_str), ["fused_top_k", "edge_fts", "entity_fts"]);
+    let req = GraphExpandRequestV1::new(
+        GraphSeedV1::Explicit { schema_version: 1, logical_ids: vec![IdSpace::logical("seed:1")] },
+        TraversalDirection::Outgoing,
+        GraphReadContextV1::Current {
+            schema_version: 1,
+            context: ReadContextV1 {
+                schema_version: 1,
+                view: ReadView::default(),
+                eligibility: SearchFilter::default(),
+            },
+        },
+        2,
+        10,
+        100,
+    )
+    .with_edge_kinds(vec!["rel".to_string()])
+    .with_target_kinds(vec!["entity".to_string()])
+    .with_edge_predicates(vec![PropertyPredicate {
+        key: "weight".to_string(),
+        op: PropertyComparisonOp::Gte,
+        value: PropertyValue::Int(5),
+    }])
+    .with_target_predicates(vec![PropertyPredicate {
+        key: "active".to_string(),
+        op: PropertyComparisonOp::Eq,
+        value: PropertyValue::Bool(true),
+    }])
+    .with_explanation(true)
+    .with_evidence(false);
+    assert_eq!(req.edge_predicates.len(), 1);
+    assert_eq!(req.target_predicates.len(), 1);
 }
 
 /// 0.8.28 Slice 30 (AC30-06) — the allocator report on an open report's CUDA

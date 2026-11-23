@@ -1020,6 +1020,57 @@ pub(crate) fn search_filter_input_to_rust(
 }
 
 #[napi(object)]
+pub struct GraphArmOptionsInput {
+    pub graph_seed: Option<String>,
+    pub graph_seed_k: Option<i64>,
+    pub graph_edge_kinds: Option<Vec<String>>,
+    pub graph_edge_predicates: Option<Vec<PropertyPredicateInput>>,
+}
+
+pub(crate) fn graph_arm_options_input_to_rust(
+    input: Option<GraphArmOptionsInput>,
+) -> Result<RustGraphArmOptions> {
+    let Some(input) = input else { return Ok(RustGraphArmOptions::default()) };
+    let mut options = RustGraphArmOptions::default();
+    if let Some(seed_str) = input.graph_seed {
+        validate_ffi_string_napi(&seed_str)?;
+        options.graph_seed = RustGraphSeedMode::from_str_opt(&seed_str).ok_or_else(|| {
+            typed_error(
+                CODE_INVALID_ARGUMENT,
+                format!(
+                    "graphSeed must be 'graph_fts', 'fused_top_k', or 'both'; got {seed_str:?}"
+                ),
+                JsonValue::Null,
+            )
+        })?;
+    }
+    if let Some(seed_k) = input.graph_seed_k {
+        options.graph_seed_k = usize::try_from(seed_k).map_err(|_| {
+            typed_error(
+                CODE_INVALID_ARGUMENT,
+                format!("graphSeedK must be an integer in 1..=100; got {seed_k}"),
+                JsonValue::Null,
+            )
+        })?;
+    }
+    if let Some(kinds) = input.graph_edge_kinds {
+        for kind in &kinds {
+            validate_ffi_string_napi(kind)?;
+        }
+        options.graph_edge_kinds = kinds;
+    }
+    if let Some(preds) = input.graph_edge_predicates {
+        let mut out = Vec::with_capacity(preds.len());
+        for pred in preds {
+            out.push(property_predicate_input_to_rust(pred)?);
+        }
+        options.graph_edge_predicates = out;
+    }
+    options.validate().map_err(engine_error_to_napi)?;
+    Ok(options)
+}
+
+#[napi(object)]
 pub struct SearchResult {
     pub projection_cursor: i64,
     pub soft_fallback: Option<SoftFallback>,

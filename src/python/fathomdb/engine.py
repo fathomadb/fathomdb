@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Sequence
 from typing import Any, cast
 
 from fathomdb import (
@@ -64,9 +65,11 @@ from fathomdb.types import (
     EvidenceSearchResultV1,
     FrozenReadContextV1,
     GraphEvidenceResolveRequestV1,
+    GraphSeedMode,
     OpenReport,
     ProjectionDelta,
     ProjectionSpec,
+    PropertyPredicate,
     ReadContextV1,
     ReadView,
     ResolvedEvidenceV1,
@@ -332,6 +335,10 @@ class Engine:
         view: ReadView | None = None,
         limit: int = 10,
         snippet: SnippetOptions | None = None,
+        graph_seed: GraphSeedMode = "graph_fts",
+        graph_seed_k: int = 10,
+        graph_edge_kinds: Sequence[str] | None = None,
+        graph_edge_predicates: Sequence[PropertyPredicate] | None = None,
     ) -> SearchResult:
         """Hybrid search with optional CE reranking and optional graph-BFS arm.
 
@@ -342,14 +349,14 @@ class Engine:
                 N > 0 = rerank the top-N fused hits with the cross-encoder.
                 Must be a non-negative integer. Negative values raise
                 ``ValueError``.
-            use_graph_arm: When ``True``, seed a BFS over temporal fact-edges
-                from the top-10 fused hits and fuse reachable nodes as a third
-                RRF arm (Slice 30 R3). Default ``False`` → byte-identical to
-                the pre-Slice-30 two-arm pipeline.
+            use_graph_arm: When ``True``, run the opt-in BFS graph arm seeded
+                according to ``graph_seed`` (``"graph_fts"`` default,
+                ``"fused_top_k"``, or ``"both"``) over active, temporally valid
+                canonical edges and fuse reachable nodes as a third RRF arm.
+                Default ``False`` preserves the byte-identical two-arm pipeline.
             alpha: 0.8.5 (EXP-0) CE-blend weight, clamped to ``[0, 1]`` in the
                 engine. ``None`` (default) ⇒ 0.3, the C6 factoid-guard default;
-                ``1.0`` is the measured Mem0-parity config. Opt-in for the
-                agentic-answer/memory path — the default protects naive lookups.
+                ``1.0`` is the full cross-encoder blend weight.
             pool_n: 0.8.5 (EXP-0) reranked-pool size. ``None`` (default) ⇒
                 ``rerank_depth`` (preserves today's pool == depth semantics).
             view: 0.8.20 Slice 15b fix-2 (R-20-NV / R-20-RV) — optional validity
@@ -369,6 +376,18 @@ class Engine:
             snippet: EP-17 ``SnippetOptions``. When set, ``SearchResult.snippets``
                 holds one match-centred ``SnippetV1`` per hit; ``None``
                 (default) leaves it ``None`` and the result unchanged.
+            graph_seed: Depth-0 seed source when ``use_graph_arm=True``:
+                ``"graph_fts"`` (default; edge and entity FTS),
+                ``"fused_top_k"`` (top-``graph_seed_k`` canonical-node hits
+                from the two-arm fused/reranked ranking), or ``"both"``.
+            graph_seed_k: Maximum unique canonical-node seeds taken under
+                ``graph_seed="fused_top_k"`` or ``"both"`` (``1..=100``,
+                default ``10``).
+            graph_edge_kinds: Optional edge-kind allowlist restricting both
+                edge-FTS seeding and graph-arm traversal.
+            graph_edge_predicates: Optional closed typed scalar predicates
+                (implicit ``AND``, at most ``32``) evaluated against inline
+                edge ``properties`` during graph-arm seeding and traversal.
 
         Returns:
             ``SearchResult`` with RRF-fused (and optionally CE-reranked) hits.
@@ -387,6 +406,10 @@ class Engine:
             view=view,
             limit=limit,
             snippet=snippet,
+            graph_seed=graph_seed,
+            graph_seed_k=graph_seed_k,
+            graph_edge_kinds=graph_edge_kinds,
+            graph_edge_predicates=graph_edge_predicates,
         )
 
     def freeze_read_context(self, context: ReadContextV1) -> FrozenReadContextV1:
@@ -409,6 +432,10 @@ class Engine:
         explain: bool = False,
         limit: int = 10,
         snippet: SnippetOptions | None = None,
+        graph_seed: GraphSeedMode = "graph_fts",
+        graph_seed_k: int = 10,
+        graph_edge_kinds: Sequence[str] | None = None,
+        graph_edge_predicates: Sequence[PropertyPredicate] | None = None,
     ) -> SearchResult:
         """Search under an Engine-authenticated frozen context.
 
@@ -429,6 +456,10 @@ class Engine:
             explain=explain,
             limit=limit,
             snippet=snippet,
+            graph_seed=graph_seed,
+            graph_seed_k=graph_seed_k,
+            graph_edge_kinds=graph_edge_kinds,
+            graph_edge_predicates=graph_edge_predicates,
         )
 
     def search_with_evidence(

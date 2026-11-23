@@ -8,16 +8,10 @@ use fathomdb_engine::{
 };
 
 fn request() -> GraphExpandRequestV1 {
-    GraphExpandRequestV1 {
-        schema_version: 1,
-        seed: GraphSeedV1::Explicit {
-            schema_version: 1,
-            logical_ids: vec![IdSpace::logical("root")],
-        },
-        direction: TraversalDirection::Both,
-        edge_kinds: vec![],
-        target_kinds: vec![],
-        context: GraphReadContextV1::Current {
+    GraphExpandRequestV1::new(
+        GraphSeedV1::Explicit { schema_version: 1, logical_ids: vec![IdSpace::logical("root")] },
+        TraversalDirection::Both,
+        GraphReadContextV1::Current {
             schema_version: 1,
             context: ReadContextV1::new(
                 ReadView { valid_as_of: Some(1_700_000_000), ..ReadView::default() },
@@ -25,12 +19,10 @@ fn request() -> GraphExpandRequestV1 {
             )
             .unwrap(),
         },
-        max_depth: 1,
-        result_limit: 1,
-        max_work_units: 10_000,
-        include_explanation: false,
-        include_evidence: false,
-    }
+        1,
+        1,
+        10_000,
+    )
 }
 
 #[test]

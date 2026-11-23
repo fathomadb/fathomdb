@@ -1465,22 +1465,20 @@ pub(crate) async fn expand(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
     let target_kinds = args.target_kinds.unwrap_or_default();
     let (answered, result) = ctx
         .run(&store, move |engine| {
-            let request = GraphExpandRequestV1 {
-                schema_version: 1,
-                seed: GraphSeedV1::Explicit { schema_version: 1, logical_ids: ids },
+            let request = GraphExpandRequestV1::new(
+                GraphSeedV1::Explicit { schema_version: 1, logical_ids: ids },
                 direction,
-                edge_kinds,
-                target_kinds,
-                context: GraphReadContextV1::Current {
+                GraphReadContextV1::Current {
                     schema_version: 1,
                     context: ReadContextV1::new(view, SearchFilter::default())?,
                 },
-                max_depth: u32::try_from(max_depth).unwrap_or(3),
-                result_limit: u32::try_from(limit).unwrap_or(50),
-                max_work_units: EXPAND_WORK_UNITS,
-                include_explanation: true,
-                include_evidence: false,
-            };
+                u32::try_from(max_depth).unwrap_or(3),
+                u32::try_from(limit).unwrap_or(50),
+                EXPAND_WORK_UNITS,
+            )
+            .with_edge_kinds(edge_kinds)
+            .with_target_kinds(target_kinds)
+            .with_explanation(true);
             graph::expand(engine, &request)
         })
         .await?;

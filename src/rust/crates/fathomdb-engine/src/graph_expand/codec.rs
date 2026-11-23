@@ -3,8 +3,8 @@ use crate::frozen_read::{FrozenReadContextV1, ReadContextV1};
 use crate::identity::IdSpace;
 use crate::properties::{
     decode_properties_value, json_to_property_value, properties_to_json_value,
-    property_value_to_json, validate_property_predicate, PropertyComparisonOp, PropertyMap,
-    PropertyPredicate,
+    property_value_to_json, validate_property_predicate_detailed, PropertyComparisonOp,
+    PropertyMap, PropertyPredicate, PropertyPredicateInvalidField,
 };
 use crate::search_types::{StructuralDependencyStateV1, StructuralLifecycleStateV1};
 use crate::temporal::ReadView;
@@ -130,6 +130,10 @@ struct RequestWire<'a> {
     direction: &'static str,
     edge_kinds: &'a [String],
     target_kinds: &'a [String],
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    edge_predicates: Vec<PropertyPredicateWire<'a>>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    target_predicates: Vec<PropertyPredicateWire<'a>>,
     context: GraphContextWire<'a>,
     max_depth: u32,
     result_limit: u32,
@@ -137,6 +141,70 @@ struct RequestWire<'a> {
     include_explanation: bool,
     #[serde(skip_serializing_if = "is_false")]
     include_evidence: bool,
+}
+
+fn predicate_field_suffix(field: PropertyPredicateInvalidField) -> &'static str {
+    match field {
+        PropertyPredicateInvalidField::Key => "key",
+        PropertyPredicateInvalidField::Op => "op",
+        PropertyPredicateInvalidField::Value => "value",
+    }
+}
+
+fn encode_property_predicates<'a>(
+    predicates: &'a [PropertyPredicate],
+    reason: GraphExpansionErrorReasonV1,
+    base: &str,
+) -> Result<Vec<PropertyPredicateWire<'a>>, GraphExpansionErrorV1> {
+    let mut out = Vec::with_capacity(predicates.len());
+    for (index, pred) in predicates.iter().enumerate() {
+        validate_property_predicate_detailed(pred).map_err(|(field, _)| {
+            request_error(reason, format!("{base}/{index}/{}", predicate_field_suffix(field)))
+        })?;
+        let json_val = property_value_to_json(&pred.value)
+            .ok_or_else(|| request_error(reason, format!("{base}/{index}/value")))?;
+        out.push(PropertyPredicateWire {
+            key: pred.key.as_str(),
+            op: pred.op.as_str(),
+            value: json_val,
+        });
+    }
+    Ok(out)
+}
+
+fn parse_property_predicates(
+    parent: &serde_json::Map<String, serde_json::Value>,
+    field: &str,
+    reason: GraphExpansionErrorReasonV1,
+    base: &str,
+) -> Result<Vec<PropertyPredicate>, GraphExpansionErrorV1> {
+    let mut predicates = Vec::new();
+    let Some(predicates_value) = parent.get(field) else {
+        return Ok(predicates);
+    };
+    let items = predicates_value.as_array().ok_or_else(|| request_error(reason, base))?;
+    for (index, item) in items.iter().enumerate() {
+        let item_base = format!("{base}/{index}");
+        let obj = object(item, reason, &item_base)?;
+        check_closed(obj, &["key", "op", "value"], &item_base)?;
+        let key = required(obj, "key", reason, &format!("{item_base}/key"))?
+            .as_str()
+            .ok_or_else(|| request_error(reason, format!("{item_base}/key")))?;
+        let op_str = required(obj, "op", reason, &format!("{item_base}/op"))?
+            .as_str()
+            .ok_or_else(|| request_error(reason, format!("{item_base}/op")))?;
+        let op = PropertyComparisonOp::parse(op_str)
+            .ok_or_else(|| request_error(reason, format!("{item_base}/op")))?;
+        let raw_val = required(obj, "value", reason, &format!("{item_base}/value"))?;
+        let value = json_to_property_value(raw_val)
+            .ok_or_else(|| request_error(reason, format!("{item_base}/value")))?;
+        let pred = PropertyPredicate { key: key.to_string(), op, value };
+        validate_property_predicate_detailed(&pred).map_err(|(invalid_field, _)| {
+            request_error(reason, format!("{item_base}/{}", predicate_field_suffix(invalid_field)))
+        })?;
+        predicates.push(pred);
+    }
+    Ok(predicates)
 }
 
 fn direction_str(value: TraversalDirection) -> &'static str {
@@ -148,26 +216,11 @@ fn direction_str(value: TraversalDirection) -> &'static str {
 }
 
 fn read_context_wire(value: &ReadContextV1) -> Result<ReadContextWire<'_>, GraphExpansionErrorV1> {
-    let mut property_predicates = Vec::with_capacity(value.eligibility.property_predicates.len());
-    for (index, pred) in value.eligibility.property_predicates.iter().enumerate() {
-        validate_property_predicate(pred).map_err(|_| {
-            request_error(
-                GraphExpansionErrorReasonV1::GraphContextInvalid,
-                format!("/context/eligibility/propertyPredicates/{index}"),
-            )
-        })?;
-        let json_val = property_value_to_json(&pred.value).ok_or_else(|| {
-            request_error(
-                GraphExpansionErrorReasonV1::GraphContextInvalid,
-                format!("/context/eligibility/propertyPredicates/{index}/value"),
-            )
-        })?;
-        property_predicates.push(PropertyPredicateWire {
-            key: pred.key.as_str(),
-            op: pred.op.as_str(),
-            value: json_val,
-        });
-    }
+    let property_predicates = encode_property_predicates(
+        &value.eligibility.property_predicates,
+        GraphExpansionErrorReasonV1::GraphContextInvalid,
+        "/context/eligibility/propertyPredicates",
+    )?;
     Ok(ReadContextWire {
         schema_version: value.schema_version,
         view: ViewWire {
@@ -237,12 +290,24 @@ pub fn encode_graph_expand_request_v1(
             })
         }
     };
+    let edge_predicates = encode_property_predicates(
+        &value.edge_predicates,
+        GraphExpansionErrorReasonV1::GraphEdgePredicatesInvalid,
+        "/edgePredicates",
+    )?;
+    let target_predicates = encode_property_predicates(
+        &value.target_predicates,
+        GraphExpansionErrorReasonV1::GraphTargetPredicatesInvalid,
+        "/targetPredicates",
+    )?;
     serde_json::to_vec(&RequestWire {
         schema_version: value.schema_version,
         seed,
         direction: direction_str(value.direction),
         edge_kinds: &value.edge_kinds,
         target_kinds: &value.target_kinds,
+        edge_predicates,
+        target_predicates,
         context,
         max_depth: value.max_depth,
         result_limit: value.result_limit,
@@ -470,67 +535,12 @@ fn parse_read_context(
         })?;
         attributes.push((name.to_string(), value.to_string()));
     }
-    let mut property_predicates = Vec::new();
-    if let Some(predicates_value) = eligibility_object.get("propertyPredicates") {
-        let pred_base = format!("{eligibility_base}/propertyPredicates");
-        let items = predicates_value.as_array().ok_or_else(|| {
-            request_error(GraphExpansionErrorReasonV1::GraphContextInvalid, &pred_base)
-        })?;
-        for (index, item) in items.iter().enumerate() {
-            let item_base = format!("{pred_base}/{index}");
-            let obj = object(item, GraphExpansionErrorReasonV1::GraphContextInvalid, &item_base)?;
-            check_closed(obj, &["key", "op", "value"], &item_base)?;
-            let key = required(
-                obj,
-                "key",
-                GraphExpansionErrorReasonV1::GraphContextInvalid,
-                &format!("{item_base}/key"),
-            )?
-            .as_str()
-            .ok_or_else(|| {
-                request_error(
-                    GraphExpansionErrorReasonV1::GraphContextInvalid,
-                    format!("{item_base}/key"),
-                )
-            })?;
-            let op_str = required(
-                obj,
-                "op",
-                GraphExpansionErrorReasonV1::GraphContextInvalid,
-                &format!("{item_base}/op"),
-            )?
-            .as_str()
-            .ok_or_else(|| {
-                request_error(
-                    GraphExpansionErrorReasonV1::GraphContextInvalid,
-                    format!("{item_base}/op"),
-                )
-            })?;
-            let op = PropertyComparisonOp::parse(op_str).ok_or_else(|| {
-                request_error(
-                    GraphExpansionErrorReasonV1::GraphContextInvalid,
-                    format!("{item_base}/op"),
-                )
-            })?;
-            let raw_val = required(
-                obj,
-                "value",
-                GraphExpansionErrorReasonV1::GraphContextInvalid,
-                &format!("{item_base}/value"),
-            )?;
-            let value = json_to_property_value(raw_val).ok_or_else(|| {
-                request_error(
-                    GraphExpansionErrorReasonV1::GraphContextInvalid,
-                    format!("{item_base}/value"),
-                )
-            })?;
-            let pred = PropertyPredicate { key: key.to_string(), op, value };
-            validate_property_predicate(&pred).map_err(|_| {
-                request_error(GraphExpansionErrorReasonV1::GraphContextInvalid, &item_base)
-            })?;
-            property_predicates.push(pred);
-        }
-    }
+    let property_predicates = parse_property_predicates(
+        eligibility_object,
+        "propertyPredicates",
+        GraphExpansionErrorReasonV1::GraphContextInvalid,
+        &format!("{eligibility_base}/propertyPredicates"),
+    )?;
     Ok(ReadContextV1 {
         schema_version: 1,
         view: ReadView {
@@ -569,6 +579,8 @@ pub fn decode_graph_expand_request_v1(
             "direction",
             "edgeKinds",
             "targetKinds",
+            "edgePredicates",
+            "targetPredicates",
             "context",
             "maxDepth",
             "resultLimit",
@@ -806,66 +818,79 @@ pub fn decode_graph_expand_request_v1(
             ))
         }
     };
-    let request = GraphExpandRequestV1 {
-        schema_version: 1,
-        seed,
-        direction,
-        edge_kinds: strings("edgeKinds", GraphExpansionErrorReasonV1::GraphEdgeKindsInvalid)?,
-        target_kinds: strings("targetKinds", GraphExpansionErrorReasonV1::GraphTargetKindsInvalid)?,
-        context,
-        max_depth: parse_u32(
-            required(
-                root,
-                "maxDepth",
-                GraphExpansionErrorReasonV1::GraphDepthInvalid,
-                "/maxDepth",
-            )?,
-            GraphExpansionErrorReasonV1::GraphDepthInvalid,
-            "/maxDepth",
-        )?,
-        result_limit: parse_u32(
-            required(
-                root,
-                "resultLimit",
-                GraphExpansionErrorReasonV1::GraphResultLimitInvalid,
-                "/resultLimit",
-            )?,
+    let edge_kinds = strings("edgeKinds", GraphExpansionErrorReasonV1::GraphEdgeKindsInvalid)?;
+    let target_kinds =
+        strings("targetKinds", GraphExpansionErrorReasonV1::GraphTargetKindsInvalid)?;
+    let edge_predicates = parse_property_predicates(
+        root,
+        "edgePredicates",
+        GraphExpansionErrorReasonV1::GraphEdgePredicatesInvalid,
+        "/edgePredicates",
+    )?;
+    let target_predicates = parse_property_predicates(
+        root,
+        "targetPredicates",
+        GraphExpansionErrorReasonV1::GraphTargetPredicatesInvalid,
+        "/targetPredicates",
+    )?;
+    let max_depth = parse_u32(
+        required(root, "maxDepth", GraphExpansionErrorReasonV1::GraphDepthInvalid, "/maxDepth")?,
+        GraphExpansionErrorReasonV1::GraphDepthInvalid,
+        "/maxDepth",
+    )?;
+    let result_limit = parse_u32(
+        required(
+            root,
+            "resultLimit",
             GraphExpansionErrorReasonV1::GraphResultLimitInvalid,
             "/resultLimit",
         )?,
-        max_work_units: parse_canonical_u64(
-            required(
-                root,
-                "maxWorkUnits",
-                GraphExpansionErrorReasonV1::GraphWorkLimitInvalid,
-                "/maxWorkUnits",
-            )?,
+        GraphExpansionErrorReasonV1::GraphResultLimitInvalid,
+        "/resultLimit",
+    )?;
+    let max_work_units = parse_canonical_u64(
+        required(
+            root,
+            "maxWorkUnits",
             GraphExpansionErrorReasonV1::GraphWorkLimitInvalid,
             "/maxWorkUnits",
         )?,
-        include_explanation: required(
-            root,
-            "includeExplanation",
-            GraphExpansionErrorReasonV1::GraphContextInvalid,
-            "/includeExplanation",
-        )?
-        .as_bool()
-        .ok_or_else(|| {
-            request_error(GraphExpansionErrorReasonV1::GraphContextInvalid, "/includeExplanation")
-        })?,
-        include_evidence: root
-            .get("includeEvidence")
-            .map(|value| {
-                value.as_bool().ok_or_else(|| {
-                    request_error(
-                        GraphExpansionErrorReasonV1::GraphContextInvalid,
-                        "/includeEvidence",
-                    )
-                })
+        GraphExpansionErrorReasonV1::GraphWorkLimitInvalid,
+        "/maxWorkUnits",
+    )?;
+    let include_explanation = required(
+        root,
+        "includeExplanation",
+        GraphExpansionErrorReasonV1::GraphContextInvalid,
+        "/includeExplanation",
+    )?
+    .as_bool()
+    .ok_or_else(|| {
+        request_error(GraphExpansionErrorReasonV1::GraphContextInvalid, "/includeExplanation")
+    })?;
+    let include_evidence = root
+        .get("includeEvidence")
+        .map(|value| {
+            value.as_bool().ok_or_else(|| {
+                request_error(GraphExpansionErrorReasonV1::GraphContextInvalid, "/includeEvidence")
             })
-            .transpose()?
-            .unwrap_or(false),
-    };
+        })
+        .transpose()?
+        .unwrap_or(false);
+    let request = GraphExpandRequestV1::new(
+        seed,
+        direction,
+        context,
+        max_depth,
+        result_limit,
+        max_work_units,
+    )
+    .with_edge_kinds(edge_kinds)
+    .with_target_kinds(target_kinds)
+    .with_edge_predicates(edge_predicates)
+    .with_target_predicates(target_predicates)
+    .with_explanation(include_explanation)
+    .with_evidence(include_evidence);
     Ok(request)
 }
 

@@ -18,16 +18,10 @@ const GRAPH_EXPAND_SOURCE: &str = concat!(
 );
 
 fn request() -> GraphExpandRequestV1 {
-    GraphExpandRequestV1 {
-        schema_version: 1,
-        seed: GraphSeedV1::Explicit {
-            schema_version: 1,
-            logical_ids: vec![IdSpace::logical("seed-a")],
-        },
-        direction: TraversalDirection::Outgoing,
-        edge_kinds: vec!["supports".into()],
-        target_kinds: vec!["fact".into()],
-        context: GraphReadContextV1::Current {
+    GraphExpandRequestV1::new(
+        GraphSeedV1::Explicit { schema_version: 1, logical_ids: vec![IdSpace::logical("seed-a")] },
+        TraversalDirection::Outgoing,
+        GraphReadContextV1::Current {
             schema_version: 1,
             context: ReadContextV1::new(
                 ReadView { valid_as_of: Some(1_700_000_000), ..ReadView::default() },
@@ -35,12 +29,13 @@ fn request() -> GraphExpandRequestV1 {
             )
             .unwrap(),
         },
-        max_depth: 2,
-        result_limit: 10,
-        max_work_units: 100,
-        include_explanation: true,
-        include_evidence: false,
-    }
+        2,
+        10,
+        100,
+    )
+    .with_edge_kinds(vec!["supports".into()])
+    .with_target_kinds(vec!["fact".into()])
+    .with_explanation(true)
 }
 
 fn decode(value: Value) -> fathomdb_engine::GraphExpansionErrorV1 {

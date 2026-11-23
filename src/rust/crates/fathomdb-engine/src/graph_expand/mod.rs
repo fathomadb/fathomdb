@@ -40,6 +40,7 @@ mod graph_evidence_request_tests {
     use crate::filter::SearchFilter;
     use crate::frozen_read::{FrozenReadContextV1, ReadContextV1};
     use crate::identity::IdSpace;
+    use crate::properties::{PropertyComparisonOp, PropertyPredicate, PropertyValue};
     use crate::temporal::ReadView;
 
     use super::execution::encode_graph_evidence_request;
@@ -51,16 +52,13 @@ mod graph_evidence_request_tests {
             SearchFilter::default(),
         )
         .unwrap();
-        GraphExpandRequestV1 {
-            schema_version: 1,
-            seed: GraphSeedV1::Explicit {
+        GraphExpandRequestV1::new(
+            GraphSeedV1::Explicit {
                 schema_version: 1,
                 logical_ids: vec![IdSpace::logical("root"), IdSpace::logical("second")],
             },
-            direction: TraversalDirection::Both,
-            edge_kinds: vec!["supports".into(), "corrects".into()],
-            target_kinds: vec!["observation".into(), "claim".into()],
-            context: GraphReadContextV1::Frozen {
+            TraversalDirection::Both,
+            GraphReadContextV1::Frozen {
                 schema_version: 1,
                 context: FrozenReadContextV1 {
                     schema_version: 1,
@@ -69,12 +67,14 @@ mod graph_evidence_request_tests {
                     token: token.into(),
                 },
             },
-            max_depth: 2,
-            result_limit: 17,
-            max_work_units: 1_000,
-            include_explanation: true,
-            include_evidence: true,
-        }
+            2,
+            17,
+            1_000,
+        )
+        .with_edge_kinds(vec!["supports".into(), "corrects".into()])
+        .with_target_kinds(vec!["observation".into(), "claim".into()])
+        .with_explanation(true)
+        .with_evidence(true)
     }
 
     #[test]
@@ -93,5 +93,61 @@ mod graph_evidence_request_tests {
         let GraphSeedV1::Explicit { logical_ids, .. } = &mut right.seed else { unreachable!() };
         logical_ids.reverse();
         assert_ne!(encode_graph_evidence_request(&left), encode_graph_evidence_request(&right));
+    }
+
+    #[test]
+    fn graph_request_commitment_input_normalizes_predicate_order_and_detects_tampering() {
+        let p1 = PropertyPredicate {
+            key: "weight".into(),
+            op: PropertyComparisonOp::Gte,
+            value: PropertyValue::Float(-0.0),
+        };
+        let p2 = PropertyPredicate {
+            key: "verified".into(),
+            op: PropertyComparisonOp::Eq,
+            value: PropertyValue::Bool(true),
+        };
+        let q1 = PropertyPredicate {
+            key: "tier".into(),
+            op: PropertyComparisonOp::Eq,
+            value: PropertyValue::String("gold".into()),
+        };
+        let q2 = PropertyPredicate {
+            key: "rank".into(),
+            op: PropertyComparisonOp::Gt,
+            value: PropertyValue::Int((1_i64 << 53) + 1),
+        };
+
+        let unpredicated = request("tok");
+        let left = request("tok")
+            .with_edge_predicates(vec![p1.clone(), p2.clone()])
+            .with_target_predicates(vec![q1.clone(), q2.clone()]);
+        let right = request("tok")
+            .with_edge_predicates(vec![
+                p2.clone(),
+                PropertyPredicate {
+                    key: "weight".into(),
+                    op: PropertyComparisonOp::Gte,
+                    value: PropertyValue::Float(0.0),
+                },
+            ])
+            .with_target_predicates(vec![q2.clone(), q1.clone()]);
+
+        assert_eq!(encode_graph_evidence_request(&left), encode_graph_evidence_request(&right));
+        assert_ne!(
+            encode_graph_evidence_request(&unpredicated),
+            encode_graph_evidence_request(&left)
+        );
+
+        // Moving a predicate from edge to target changes the commitment.
+        let swapped = request("tok")
+            .with_edge_predicates(vec![q1.clone(), q2.clone()])
+            .with_target_predicates(vec![p1.clone(), p2.clone()]);
+        assert_ne!(encode_graph_evidence_request(&left), encode_graph_evidence_request(&swapped));
+
+        // Changing a single predicate operator or value changes the commitment.
+        let mut tampered = left.clone();
+        tampered.target_predicates[1].value = PropertyValue::Int((1_i64 << 53) + 2);
+        assert_ne!(encode_graph_evidence_request(&left), encode_graph_evidence_request(&tampered));
     }
 }

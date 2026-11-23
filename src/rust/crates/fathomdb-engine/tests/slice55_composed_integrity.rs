@@ -155,25 +155,22 @@ fn text_ids(engine: &Engine, at: i64) -> Vec<String> {
 fn graph_ids(engine: &Engine, at: i64, include_out_of_window: bool) -> Vec<String> {
     let mut requested = view(at);
     requested.include_out_of_window = include_out_of_window;
-    let request = GraphExpandRequestV1 {
-        schema_version: 1,
-        seed: GraphSeedV1::Explicit {
+    let request = GraphExpandRequestV1::new(
+        GraphSeedV1::Explicit {
             schema_version: 1,
             logical_ids: vec![IdSpace::logical("cohesion:b")],
         },
-        direction: TraversalDirection::Outgoing,
-        edge_kinds: vec!["supports".into()],
-        target_kinds: vec!["doc".into()],
-        context: GraphReadContextV1::Current {
+        TraversalDirection::Outgoing,
+        GraphReadContextV1::Current {
             schema_version: 1,
             context: ReadContextV1::new(requested, SearchFilter::default()).unwrap(),
         },
-        max_depth: 1,
-        result_limit: 1,
-        max_work_units: 10,
-        include_explanation: false,
-        include_evidence: false,
-    };
+        1,
+        1,
+        10,
+    )
+    .with_edge_kinds(vec!["supports".into()])
+    .with_target_kinds(vec!["doc".into()]);
     let result = engine.graph_expand(&request).unwrap();
     for target in &result.targets {
         assert_eq!(target.write_cursor, 1);

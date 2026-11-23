@@ -14,6 +14,12 @@ use crate::identity::IdSpaceKind;
 use crate::projection_generation::{
     self, ProjectionGenerationOriginV1, ProjectionReadinessV1, ProjectionRuntimeStateV1,
 };
+use crate::projection_registry::{load_projection_registry, ProjectionRole};
+use crate::properties::{
+    eval_property_predicate, normalize_finite_f64, validate_property_predicate_detailed,
+    PropertyComparisonOp, PropertyEntityClass, PropertyPredicate, PropertyPredicateInvalidField,
+    PropertyValue,
+};
 use crate::reader_transaction::begin_attributed_reader_tx;
 use crate::search_types::StructuralLifecycleStateV1;
 use crate::structural_state::structural_dependency_state;
@@ -343,6 +349,27 @@ fn validate_kind_list(
     Ok(())
 }
 
+fn validate_predicate_list(
+    predicates: &[PropertyPredicate],
+    reason: GraphExpansionErrorReasonV1,
+    base: &str,
+) -> Result<(), EngineError> {
+    if predicates.len() > 32 {
+        return Err(graph_error(reason, base));
+    }
+    for (index, pred) in predicates.iter().enumerate() {
+        if let Err((field, _)) = validate_property_predicate_detailed(pred) {
+            let suffix = match field {
+                PropertyPredicateInvalidField::Key => "key",
+                PropertyPredicateInvalidField::Op => "op",
+                PropertyPredicateInvalidField::Value => "value",
+            };
+            return Err(graph_error(reason, format!("{base}/{index}/{suffix}")));
+        }
+    }
+    Ok(())
+}
+
 pub(crate) fn validate_semantics(request: &GraphExpandRequestV1) -> Result<(), EngineError> {
     if request.schema_version != SCHEMA_VERSION {
         return Err(graph_error(
@@ -417,6 +444,16 @@ pub(crate) fn validate_semantics(request: &GraphExpandRequestV1) -> Result<(), E
         GraphExpansionErrorReasonV1::GraphTargetKindsInvalid,
         "/targetKinds",
     )?;
+    validate_predicate_list(
+        &request.edge_predicates,
+        GraphExpansionErrorReasonV1::GraphEdgePredicatesInvalid,
+        "/edgePredicates",
+    )?;
+    validate_predicate_list(
+        &request.target_predicates,
+        GraphExpansionErrorReasonV1::GraphTargetPredicatesInvalid,
+        "/targetPredicates",
+    )?;
     if request.max_depth > 3 {
         return Err(graph_error(GraphExpansionErrorReasonV1::GraphDepthInvalid, "/maxDepth"));
     }
@@ -459,11 +496,88 @@ struct LoadedNodeRow {
     properties: Option<crate::PropertyMap>,
 }
 
+fn property_sql_op(op: PropertyComparisonOp) -> &'static str {
+    match op {
+        PropertyComparisonOp::Eq => "=",
+        PropertyComparisonOp::Ne => "!=",
+        PropertyComparisonOp::Lt => "<",
+        PropertyComparisonOp::Lte => "<=",
+        PropertyComparisonOp::Gt => ">",
+        PropertyComparisonOp::Gte => ">=",
+    }
+}
+
+fn append_cpv_exists_prefilter(
+    entity_class: &str,
+    cursor_expr: &str,
+    cpv_alias: &str,
+    pred: &PropertyPredicate,
+    params: &mut Vec<rusqlite::types::Value>,
+    sql: &mut String,
+) {
+    use rusqlite::types::Value;
+    params.push(Value::Text(pred.key.clone()));
+    let key_idx = params.len();
+    let sql_op = property_sql_op(pred.op);
+    match &pred.value {
+        PropertyValue::String(s) => {
+            params.push(Value::Text(s.clone()));
+            let val_idx = params.len();
+            sql.push_str(&format!(
+                " AND EXISTS(SELECT 1 FROM canonical_property_values {cpv_alias} \
+                 WHERE {cpv_alias}.entity_class='{entity_class}' \
+                 AND {cpv_alias}.write_cursor={cursor_expr} \
+                 AND {cpv_alias}.attr_name=?{key_idx} \
+                 AND {cpv_alias}.value_type='string' \
+                 AND {cpv_alias}.text_val {sql_op} ?{val_idx})"
+            ));
+        }
+        PropertyValue::Int(i) => {
+            params.push(Value::Integer(*i));
+            let val_idx = params.len();
+            sql.push_str(&format!(
+                " AND EXISTS(SELECT 1 FROM canonical_property_values {cpv_alias} \
+                 WHERE {cpv_alias}.entity_class='{entity_class}' \
+                 AND {cpv_alias}.write_cursor={cursor_expr} \
+                 AND {cpv_alias}.attr_name=?{key_idx} \
+                 AND {cpv_alias}.value_type IN ('integer','float') \
+                 AND {cpv_alias}.num_val {sql_op} ?{val_idx})"
+            ));
+        }
+        PropertyValue::Float(f) => {
+            let norm = normalize_finite_f64(*f).unwrap_or(0.0);
+            params.push(Value::Real(norm));
+            let val_idx = params.len();
+            sql.push_str(&format!(
+                " AND EXISTS(SELECT 1 FROM canonical_property_values {cpv_alias} \
+                 WHERE {cpv_alias}.entity_class='{entity_class}' \
+                 AND {cpv_alias}.write_cursor={cursor_expr} \
+                 AND {cpv_alias}.attr_name=?{key_idx} \
+                 AND {cpv_alias}.value_type IN ('integer','float') \
+                 AND {cpv_alias}.num_val {sql_op} ?{val_idx})"
+            ));
+        }
+        PropertyValue::Bool(b) => {
+            params.push(Value::Integer(i64::from(*b)));
+            let val_idx = params.len();
+            sql.push_str(&format!(
+                " AND EXISTS(SELECT 1 FROM canonical_property_values {cpv_alias} \
+                 WHERE {cpv_alias}.entity_class='{entity_class}' \
+                 AND {cpv_alias}.write_cursor={cursor_expr} \
+                 AND {cpv_alias}.attr_name=?{key_idx} \
+                 AND {cpv_alias}.value_type='boolean' \
+                 AND {cpv_alias}.bool_val {sql_op} ?{val_idx})"
+            ));
+        }
+    }
+}
+
 fn load_node(
     tx: &Connection,
     logical_id: &str,
     view: FrozenView,
     filter: &SearchFilter,
+    pushed_target_predicates: &[&PropertyPredicate],
 ) -> Result<Option<LoadedNodeRow>, EngineError> {
     let mut params = vec![rusqlite::types::Value::Text(logical_id.to_string())];
     if let Some(now) = view.now_param() {
@@ -477,9 +591,20 @@ fn load_node(
         &view.view,
     )
     .map_err(|_| EngineError::Storage)?;
+    let mut target_cpv_sql = String::new();
+    for (idx, pred) in pushed_target_predicates.iter().enumerate() {
+        append_cpv_exists_prefilter(
+            "node",
+            "n.write_cursor",
+            &format!("cpv_t{idx}"),
+            pred,
+            &mut params,
+            &mut target_cpv_sql,
+        );
+    }
     let sql = format!(
-        "SELECT n.kind,n.body,n.write_cursor,n.properties FROM canonical_nodes n WHERE n.logical_id=?1{}{} ORDER BY n.write_cursor DESC LIMIT 1",
-        view.node_sql("n", 2), eligibility
+        "SELECT n.kind,n.body,n.write_cursor,n.properties FROM canonical_nodes n WHERE n.logical_id=?1{}{}{} ORDER BY n.write_cursor DESC LIMIT 1",
+        view.node_sql("n", 2), eligibility, target_cpv_sql
     );
     tx.query_row(&sql, rusqlite::params_from_iter(params.iter()), |row| {
         Ok(LoadedNodeRow {
@@ -493,31 +618,97 @@ fn load_node(
     .map_err(|_| EngineError::Storage)
 }
 
-pub(crate) struct GraphExpandIncidentQuery {
-    sql: String,
-    logical_id: String,
-    limit: i64,
+/// Modular edge-visibility boundary for `graph_expand` incident queries.
+///
+/// Slice 30 handles current-time expansion; Slice 40 extends this carrier with
+/// historical `AsOf` replay without altering the current-time SQL path.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum EdgeViewBoundary {
+    Current { edge_now: i64 },
 }
 
-fn graph_expand_incident_sql(direction: TraversalDirection) -> String {
-    let predicate = match direction {
-        TraversalDirection::Outgoing => "from_id=?1",
-        TraversalDirection::Incoming => "to_id=?1",
-        TraversalDirection::Both => "(from_id=?1 OR to_id=?1)",
-    };
-    format!("SELECT write_cursor,kind,from_id,to_id,logical_id,superseded_at,t_invalid,properties FROM canonical_edges WHERE {predicate} LIMIT ?2")
+pub(crate) struct GraphExpandIncidentQuery {
+    sql: String,
+    params: Vec<rusqlite::types::Value>,
+}
+
+fn graph_expand_incident_sql(
+    direction: TraversalDirection,
+    extra_where: &str,
+    limit_idx: usize,
+) -> String {
+    const COLS: &str =
+        "write_cursor,kind,from_id,to_id,logical_id,superseded_at,t_invalid,properties";
+    match direction {
+        TraversalDirection::Outgoing => format!(
+            "SELECT {COLS} FROM canonical_edges WHERE from_id=?1 AND superseded_at IS NULL{extra_where} LIMIT ?{limit_idx}"
+        ),
+        TraversalDirection::Incoming => format!(
+            "SELECT {COLS} FROM canonical_edges WHERE to_id=?1 AND superseded_at IS NULL{extra_where} LIMIT ?{limit_idx}"
+        ),
+        TraversalDirection::Both => format!(
+            "SELECT {COLS} FROM canonical_edges WHERE from_id=?1 AND superseded_at IS NULL{extra_where} \
+             UNION ALL \
+             SELECT {COLS} FROM canonical_edges WHERE to_id=?1 AND from_id!=?1 AND superseded_at IS NULL{extra_where} \
+             LIMIT ?{limit_idx}"
+        ),
+    }
 }
 
 pub(crate) fn graph_expand_incident_query(
     logical_id: &str,
     direction: TraversalDirection,
+    boundary: EdgeViewBoundary,
+    edge_kinds: &[String],
+    pushed_edge_predicates: &[&PropertyPredicate],
     limit: u64,
 ) -> GraphExpandIncidentQuery {
-    GraphExpandIncidentQuery {
-        sql: graph_expand_incident_sql(direction),
-        logical_id: logical_id.to_string(),
-        limit: i64::try_from(limit).unwrap_or(i64::MAX),
+    use rusqlite::types::Value;
+
+    let mut params = vec![Value::Text(logical_id.to_string())];
+    let mut extra_where = String::new();
+
+    match boundary {
+        EdgeViewBoundary::Current { edge_now } => {
+            params.push(Value::Integer(edge_now));
+            let now_idx = params.len();
+            if edge_kinds.len() == 1 {
+                params.push(Value::Text(edge_kinds[0].clone()));
+                let kind_idx = params.len();
+                extra_where.push_str(&format!(" AND kind=?{kind_idx}"));
+            } else if !edge_kinds.is_empty() {
+                extra_where.push_str(" AND kind IN (");
+                for (i, kind) in edge_kinds.iter().enumerate() {
+                    if i > 0 {
+                        extra_where.push(',');
+                    }
+                    params.push(Value::Text(kind.clone()));
+                    let kind_idx = params.len();
+                    extra_where.push_str(&format!("?{kind_idx}"));
+                }
+                extra_where.push(')');
+            }
+            extra_where.push_str(&format!(
+                " AND (t_valid IS NULL OR t_valid<=?{now_idx}) AND (t_invalid IS NULL OR t_invalid>?{now_idx})"
+            ));
+        }
     }
+
+    for (idx, pred) in pushed_edge_predicates.iter().enumerate() {
+        append_cpv_exists_prefilter(
+            "edge",
+            "canonical_edges.write_cursor",
+            &format!("cpv_e{idx}"),
+            pred,
+            &mut params,
+            &mut extra_where,
+        );
+    }
+
+    params.push(Value::Integer(i64::try_from(limit).unwrap_or(i64::MAX)));
+    let limit_idx = params.len();
+    let sql = graph_expand_incident_sql(direction, &extra_where, limit_idx);
+    GraphExpandIncidentQuery { sql, params }
 }
 
 #[cfg(any(test, feature = "test-hooks"))]
@@ -530,7 +721,7 @@ pub(crate) fn explain_graph_expand_incident_query(
         .prepare(&format!("EXPLAIN QUERY PLAN {sql}"))
         .map_err(|_| EngineError::Storage)?;
     let rows = statement
-        .query_map(rusqlite::params![query.logical_id, query.limit], |row| row.get(3))
+        .query_map(rusqlite::params_from_iter(query.params.iter()), |row| row.get(3))
         .map_err(|_| EngineError::Storage)?;
     rows.collect::<rusqlite::Result<Vec<String>>>().map_err(|_| EngineError::Storage)
 }
@@ -539,12 +730,22 @@ fn load_incident_edges(
     tx: &Connection,
     logical_id: &str,
     direction: TraversalDirection,
+    boundary: EdgeViewBoundary,
+    edge_kinds: &[String],
+    pushed_edge_predicates: &[&PropertyPredicate],
     limit: u64,
 ) -> Result<Vec<EdgeRow>, EngineError> {
-    let query = graph_expand_incident_query(logical_id, direction, limit);
+    let query = graph_expand_incident_query(
+        logical_id,
+        direction,
+        boundary,
+        edge_kinds,
+        pushed_edge_predicates,
+        limit,
+    );
     let mut statement = tx.prepare(&query.sql).map_err(|_| EngineError::Storage)?;
     let rows = statement
-        .query_map(rusqlite::params![query.logical_id, query.limit], |row| {
+        .query_map(rusqlite::params_from_iter(query.params.iter()), |row| {
             let kind: String = row.get(1)?;
             let from_id: String = row.get(2)?;
             let to_id: String = row.get(3)?;
@@ -578,12 +779,41 @@ fn direction_and_next(edge: &EdgeRow) -> (TraversalDirection, &str) {
     (edge.terminal_direction, &edge.next_logical_id)
 }
 
-fn origin_cmp(left: &GraphOriginV1, right: &GraphOriginV1) -> Ordering {
-    let direction_rank = |value| match value {
-        TraversalDirection::Outgoing => 0_u8,
+fn direction_rank(value: TraversalDirection) -> u8 {
+    match value {
+        TraversalDirection::Outgoing => 0,
         TraversalDirection::Incoming => 1,
         TraversalDirection::Both => 2,
-    };
+    }
+}
+
+fn origin_key_lt(
+    hop_count: u32,
+    seed_ordinal: u32,
+    predecessor_logical_id: &str,
+    terminal_direction: TraversalDirection,
+    terminal_edge_kind: &str,
+    target_logical_id: &str,
+    other: &GraphOriginV1,
+) -> bool {
+    (
+        hop_count,
+        seed_ordinal,
+        predecessor_logical_id.as_bytes(),
+        direction_rank(terminal_direction),
+        terminal_edge_kind.as_bytes(),
+        target_logical_id.as_bytes(),
+    ) < (
+        other.hop_count,
+        other.seed_ordinal,
+        other.predecessor_logical_id.as_bytes(),
+        direction_rank(other.terminal_direction),
+        other.terminal_edge_kind.as_bytes(),
+        other.target_logical_id.as_bytes(),
+    )
+}
+
+fn origin_cmp(left: &GraphOriginV1, right: &GraphOriginV1) -> Ordering {
     (
         left.hop_count,
         left.seed_ordinal,
@@ -632,7 +862,7 @@ fn resolve_seeds(
             .iter()
             .enumerate()
             .map(|(index, id)| {
-                if load_node(tx, &id.value, view, filter)?.is_none() {
+                if load_node(tx, &id.value, view, filter, &[])?.is_none() {
                     return Err(graph_error(
                         GraphExpansionErrorReasonV1::GraphSeedUnavailable,
                         format!("/seed/logicalIds/{index}"),
@@ -816,9 +1046,43 @@ pub(crate) fn read_graph_expand_with_stop_words_in_tx(
     let degradation_codes =
         graph_expansion_degradation_codes(seed_source, projection_origin, projection_readiness);
 
+    let (pushed_edge_predicates, pushed_target_predicates): (
+        Vec<&PropertyPredicate>,
+        Vec<&PropertyPredicate>,
+    ) = if request.edge_predicates.is_empty() && request.target_predicates.is_empty() {
+        (Vec::new(), Vec::new())
+    } else {
+        let registry = load_projection_registry(&tx).map_err(|_| EngineError::Storage)?;
+        let edge_pushed = request
+            .edge_predicates
+            .iter()
+            .filter(|pred| {
+                registry.get(&pred.key).is_some_and(|stored| {
+                    stored.entity_class == PropertyEntityClass::Edge
+                        && stored.roles.contains(&ProjectionRole::Filterable)
+                        && stored.source.is_none()
+                })
+            })
+            .collect();
+        let target_pushed = request
+            .target_predicates
+            .iter()
+            .filter(|pred| {
+                registry.get(&pred.key).is_some_and(|stored| {
+                    stored.entity_class == PropertyEntityClass::Node
+                        && stored.roles.contains(&ProjectionRole::Filterable)
+                        && stored.source.is_none()
+                })
+            })
+            .collect();
+        (edge_pushed, target_pushed)
+    };
+    let edge_boundary = EdgeViewBoundary::Current { edge_now: view.edge_now() };
+
     let all_seed_ids = seeds.iter().map(|seed| seed.logical_id.clone()).collect::<HashSet<_>>();
     let mut work_units = 0_u64;
     let mut candidates: HashMap<String, GraphCandidate> = HashMap::new();
+    let mut worst_candidate_id: Option<String> = None;
     let mut visited_by_seed =
         seeds.iter().map(|seed| HashSet::from([seed.logical_id.clone()])).collect::<Vec<_>>();
     let mut frontier = seeds
@@ -844,8 +1108,15 @@ pub(crate) fn read_graph_expand_with_stop_words_in_tx(
         for (seed_index, current) in frontier {
             let seed = &seeds[seed_index];
             let remaining = request.max_work_units.saturating_sub(work_units);
-            let mut edges =
-                load_incident_edges(&tx, &current, request.direction, remaining.saturating_add(1))?;
+            let mut edges = load_incident_edges(
+                &tx,
+                &current,
+                request.direction,
+                edge_boundary,
+                &request.edge_kinds,
+                &pushed_edge_predicates,
+                remaining.saturating_add(1),
+            )?;
             #[cfg(feature = "test-hooks")]
             observe_current_rss_peak(test_controls);
             #[cfg(feature = "test-hooks")]
@@ -865,20 +1136,15 @@ pub(crate) fn read_graph_expand_with_stop_words_in_tx(
             edges.sort_by(|left, right| {
                 let (left_direction, left_next) = direction_and_next(left);
                 let (right_direction, right_next) = direction_and_next(right);
-                let rank = |direction| match direction {
-                    TraversalDirection::Outgoing => 0_u8,
-                    TraversalDirection::Incoming => 1,
-                    TraversalDirection::Both => 2,
-                };
                 (
-                    rank(left_direction),
+                    direction_rank(left_direction),
                     left.kind.as_bytes(),
                     left_next.as_bytes(),
                     left.logical_id.as_deref().unwrap_or("").as_bytes(),
                     left.write_cursor,
                 )
                     .cmp(&(
-                        rank(right_direction),
+                        direction_rank(right_direction),
                         right.kind.as_bytes(),
                         right_next.as_bytes(),
                         right.logical_id.as_deref().unwrap_or("").as_bytes(),
@@ -907,29 +1173,83 @@ pub(crate) fn read_graph_expand_with_stop_words_in_tx(
                 {
                     continue;
                 }
+                // Always verify inline edge_predicates before visited_by_seed and terminal skip
+                // so rejected edges never poison parallel edges and body-only JSON never leaks.
+                if !request.edge_predicates.is_empty()
+                    && !request
+                        .edge_predicates
+                        .iter()
+                        .all(|pred| eval_property_predicate(edge.properties.as_deref(), pred))
+                {
+                    continue;
+                }
                 let (terminal_direction, next) = direction_and_next(&edge);
                 if depth + 1 < request.max_depth
                     && !visited_by_seed[seed_index].insert(next.to_string())
                 {
                     continue;
                 }
-                // Structural traversal order matches the output origin order. At the terminal
-                // depth, later edges cannot displace a full candidate set.
-                if depth + 1 == request.max_depth
-                    && candidates.len() >= request.result_limit as usize
-                {
-                    continue;
+                let is_terminal_depth = depth + 1 == request.max_depth;
+                if is_terminal_depth {
+                    if all_seed_ids.contains(next) {
+                        continue;
+                    }
+                    if candidates.len() >= request.result_limit as usize {
+                        if let Some(existing) = candidates.get(next) {
+                            if !origin_key_lt(
+                                depth + 1,
+                                seed.seed_ordinal,
+                                &current,
+                                terminal_direction,
+                                &edge.kind,
+                                next,
+                                &existing.target.origin,
+                            ) {
+                                continue;
+                            }
+                        } else {
+                            let worst_id = worst_candidate_id.get_or_insert_with(|| {
+                                candidates
+                                    .iter()
+                                    .max_by(|(_, left), (_, right)| {
+                                        origin_cmp(&left.target.origin, &right.target.origin)
+                                    })
+                                    .map(|(logical_id, _)| logical_id.clone())
+                                    .expect("result limit is validated nonzero")
+                            });
+                            if !origin_key_lt(
+                                depth + 1,
+                                seed.seed_ordinal,
+                                &current,
+                                terminal_direction,
+                                &edge.kind,
+                                next,
+                                &candidates[worst_id.as_str()].target.origin,
+                            ) {
+                                continue;
+                            }
+                        }
+                    }
                 }
+                // Only push target_predicates into SQL at terminal depth; intermediate nodes
+                // failing target_predicates must still load and extend multi-hop walks.
+                let hop_target_cpv: &[&PropertyPredicate] =
+                    if is_terminal_depth { &pushed_target_predicates } else { &[] };
                 let Some(LoadedNodeRow { kind, body, write_cursor, properties: node_properties }) =
-                    load_node(&tx, next, view, &context.eligibility)?
+                    load_node(&tx, next, view, &context.eligibility, hop_target_cpv)?
                 else {
                     continue;
                 };
-                if depth < request.max_depth {
+                if !is_terminal_depth {
                     next_frontier.push((seed_index, next.to_string()));
                 }
                 if all_seed_ids.contains(next)
                     || (!request.target_kinds.is_empty() && !request.target_kinds.contains(&kind))
+                    || (!request.target_predicates.is_empty()
+                        && !request
+                            .target_predicates
+                            .iter()
+                            .all(|pred| eval_property_predicate(node_properties.as_ref(), pred)))
                 {
                     continue;
                 }
@@ -958,26 +1278,32 @@ pub(crate) fn read_graph_expand_with_stop_words_in_tx(
                     if origin_cmp(&target.origin, &existing.target.origin).is_lt() {
                         *existing =
                             GraphCandidate { target, terminal_edge_cursor: edge.write_cursor };
+                        worst_candidate_id = None;
                     }
                 } else if candidates.len() < request.result_limit as usize {
                     candidates.insert(
                         next_owned,
                         GraphCandidate { target, terminal_edge_cursor: edge.write_cursor },
                     );
+                    worst_candidate_id = None;
                 } else {
-                    let worst = candidates
-                        .iter()
-                        .max_by(|(_, left), (_, right)| {
-                            origin_cmp(&left.target.origin, &right.target.origin)
-                        })
-                        .map(|(logical_id, _)| logical_id.clone())
-                        .expect("result limit is validated nonzero");
+                    let worst = worst_candidate_id.take().unwrap_or_else(|| {
+                        candidates
+                            .iter()
+                            .max_by(|(_, left), (_, right)| {
+                                origin_cmp(&left.target.origin, &right.target.origin)
+                            })
+                            .map(|(logical_id, _)| logical_id.clone())
+                            .expect("result limit is validated nonzero")
+                    });
                     if origin_cmp(&target.origin, &candidates[&worst].target.origin).is_lt() {
                         candidates.remove(&worst);
                         candidates.insert(
                             next_owned,
                             GraphCandidate { target, terminal_edge_cursor: edge.write_cursor },
                         );
+                    } else {
+                        worst_candidate_id = Some(worst);
                     }
                 }
                 #[cfg(feature = "test-hooks")]
@@ -1137,6 +1463,48 @@ pub(crate) fn read_graph_expand_with_stop_words_in_tx(
     })
 }
 
+fn canonical_predicate_bytes(pred: &PropertyPredicate) -> Vec<u8> {
+    let mut out = Vec::new();
+    frozen_read::encode_string(&mut out, &pred.key);
+    out.push(match pred.op {
+        PropertyComparisonOp::Eq => 0,
+        PropertyComparisonOp::Ne => 1,
+        PropertyComparisonOp::Lt => 2,
+        PropertyComparisonOp::Lte => 3,
+        PropertyComparisonOp::Gt => 4,
+        PropertyComparisonOp::Gte => 5,
+    });
+    match &pred.value {
+        PropertyValue::String(s) => {
+            out.push(0);
+            frozen_read::encode_string(&mut out, s);
+        }
+        PropertyValue::Int(i) => {
+            out.push(1);
+            out.extend_from_slice(&i.to_be_bytes());
+        }
+        PropertyValue::Float(f) => {
+            out.push(2);
+            let norm = normalize_finite_f64(*f).unwrap_or(0.0);
+            out.extend_from_slice(&norm.to_bits().to_be_bytes());
+        }
+        PropertyValue::Bool(b) => {
+            out.push(3);
+            out.push(u8::from(*b));
+        }
+    }
+    out
+}
+
+fn encode_sorted_predicates(bytes: &mut Vec<u8>, predicates: &[PropertyPredicate]) {
+    let mut encoded: Vec<Vec<u8>> = predicates.iter().map(canonical_predicate_bytes).collect();
+    encoded.sort_unstable();
+    frozen_read::encode_u32(bytes, u32::try_from(encoded.len()).unwrap_or(u32::MAX));
+    for item in encoded {
+        bytes.extend_from_slice(&item);
+    }
+}
+
 pub(super) fn encode_graph_evidence_request(value: &GraphExpandRequestV1) -> Vec<u8> {
     let mut bytes = Vec::new();
     frozen_read::encode_u32(&mut bytes, value.schema_version);
@@ -1182,5 +1550,10 @@ pub(super) fn encode_graph_evidence_request(value: &GraphExpandRequestV1) -> Vec
     frozen_read::encode_u64(&mut bytes, value.max_work_units);
     bytes.push(u8::from(value.include_explanation));
     bytes.push(u8::from(value.include_evidence));
+    if !value.edge_predicates.is_empty() || !value.target_predicates.is_empty() {
+        bytes.push(1);
+        encode_sorted_predicates(&mut bytes, &value.edge_predicates);
+        encode_sorted_predicates(&mut bytes, &value.target_predicates);
+    }
     bytes
 }

@@ -396,3 +396,94 @@ fn slice38_vector_preselection_uses_cpv_indexes_and_never_scans_canonical_nodes(
 
     engine.close().expect("close");
 }
+
+#[test]
+fn slice38_graph_expand_incident_query_plans_use_active_or_sup_kind_indexes_zero_scan() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("graph-qp{SQLITE_SUFFIX}"));
+    let opened = Engine::open(&path).expect("open");
+    let engine = opened.engine;
+
+    engine
+        .write(&[
+            PreparedWrite::Node {
+                kind: "note".into(),
+                body: "a".into(),
+                source_id: SourceId::new("src:gqp").unwrap(),
+                logical_id: Some("gqp-a".into()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                properties: None,
+            },
+            PreparedWrite::Node {
+                kind: "note".into(),
+                body: "b".into(),
+                source_id: SourceId::new("src:gqp").unwrap(),
+                logical_id: Some("gqp-b".into()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                properties: None,
+            },
+            PreparedWrite::Edge {
+                kind: "supports".into(),
+                from: "gqp-a".into(),
+                to: "gqp-b".into(),
+                source_id: SourceId::new("src:gqp").unwrap(),
+                logical_id: Some("gqp-e1".into()),
+                body: None,
+                t_valid: None,
+                t_invalid: None,
+                confidence: None,
+                extractor_model_id: None,
+                temporal_fallback: None,
+                properties: None,
+            },
+        ])
+        .expect("write");
+
+    let kind_sets: &[&[&str]] = &[&[], &["supports"], &["supports", "contradicts"]];
+    for direction in
+        [TraversalDirection::Outgoing, TraversalDirection::Incoming, TraversalDirection::Both]
+    {
+        for kinds in kind_sets {
+            let kinds_vec: Vec<String> = kinds.iter().map(|s| (*s).to_string()).collect();
+            let plan = engine
+                .explain_graph_expand_with_kinds_for_test(direction, &kinds_vec)
+                .unwrap_or_else(|e| panic!("explain ({direction:?}, {kinds:?}) failed: {e:?}"));
+            let has_from = plan.iter().any(|l| {
+                l.contains("SEARCH canonical_edges USING INDEX canonical_edges_from_active_idx")
+                    || l.contains(
+                        "SEARCH canonical_edges USING INDEX canonical_edges_from_sup_kind_idx",
+                    )
+            });
+            let has_to = plan.iter().any(|l| {
+                l.contains("SEARCH canonical_edges USING INDEX canonical_edges_to_active_idx")
+                    || l.contains(
+                        "SEARCH canonical_edges USING INDEX canonical_edges_to_sup_kind_idx",
+                    )
+            });
+            match direction {
+                TraversalDirection::Outgoing => {
+                    assert!(has_from && !has_to, "Outgoing {kinds:?} plan:\n{}", plan.join("\n"));
+                }
+                TraversalDirection::Incoming => {
+                    assert!(has_to && !has_from, "Incoming {kinds:?} plan:\n{}", plan.join("\n"));
+                }
+                TraversalDirection::Both => {
+                    assert!(has_from && has_to, "Both {kinds:?} plan:\n{}", plan.join("\n"));
+                }
+            }
+            assert!(
+                !plan.iter().any(|l| l.contains("SCAN canonical_edges")),
+                "{direction:?} {kinds:?} must never SCAN canonical_edges:\n{}",
+                plan.join("\n")
+            );
+        }
+    }
+
+    engine.close().expect("close");
+}

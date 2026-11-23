@@ -13,13 +13,10 @@ use fathomdb_schema::SQLITE_SUFFIX;
 use tempfile::TempDir;
 
 fn current_request(seed: GraphSeedV1) -> GraphExpandRequestV1 {
-    GraphExpandRequestV1 {
-        schema_version: 1,
+    GraphExpandRequestV1::new(
         seed,
-        direction: TraversalDirection::Outgoing,
-        edge_kinds: Vec::new(),
-        target_kinds: Vec::new(),
-        context: GraphReadContextV1::Current {
+        TraversalDirection::Outgoing,
+        GraphReadContextV1::Current {
             schema_version: 1,
             context: ReadContextV1::new(
                 ReadView { valid_as_of: Some(1_700_000_000), ..ReadView::default() },
@@ -27,12 +24,11 @@ fn current_request(seed: GraphSeedV1) -> GraphExpandRequestV1 {
             )
             .unwrap(),
         },
-        max_depth: 0,
-        result_limit: 1,
-        max_work_units: 1,
-        include_explanation: true,
-        include_evidence: false,
-    }
+        0,
+        1,
+        1,
+    )
+    .with_explanation(true)
 }
 
 fn query_request() -> GraphExpandRequestV1 {

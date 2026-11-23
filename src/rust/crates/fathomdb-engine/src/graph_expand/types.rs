@@ -2,7 +2,7 @@ use std::fmt::{Display, Formatter};
 
 use crate::frozen_read::{FrozenReadContextV1, ReadContextV1};
 use crate::identity::IdSpace;
-use crate::properties::PropertyMap;
+use crate::properties::{PropertyMap, PropertyPredicate};
 use crate::search_types::{StructuralDependencyStateV1, StructuralLifecycleStateV1};
 
 pub(crate) const SCHEMA_VERSION: u32 = 1;
@@ -94,18 +94,95 @@ pub enum GraphReadContextV1 {
 
 /// Versioned, bounded constrained graph-expansion request.
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct GraphExpandRequestV1 {
     pub schema_version: u32,
     pub seed: GraphSeedV1,
     pub direction: TraversalDirection,
     pub edge_kinds: Vec<String>,
     pub target_kinds: Vec<String>,
+    /// Closed typed scalar predicates evaluated against inline edge `properties` (implicit `AND`).
+    pub edge_predicates: Vec<PropertyPredicate>,
+    /// Closed typed scalar predicates evaluated against inline target node `properties` (implicit `AND`).
+    pub target_predicates: Vec<PropertyPredicate>,
     pub context: GraphReadContextV1,
     pub max_depth: u32,
     pub result_limit: u32,
     pub max_work_units: u64,
     pub include_explanation: bool,
     pub include_evidence: bool,
+}
+
+impl GraphExpandRequestV1 {
+    /// Construct a `v1` constrained graph-expansion request with empty kind/predicate
+    /// filters and explanation/evidence disabled.
+    #[must_use]
+    pub fn new(
+        seed: GraphSeedV1,
+        direction: TraversalDirection,
+        context: GraphReadContextV1,
+        max_depth: u32,
+        result_limit: u32,
+        max_work_units: u64,
+    ) -> Self {
+        Self {
+            schema_version: SCHEMA_VERSION,
+            seed,
+            direction,
+            edge_kinds: Vec::new(),
+            target_kinds: Vec::new(),
+            edge_predicates: Vec::new(),
+            target_predicates: Vec::new(),
+            context,
+            max_depth,
+            result_limit,
+            max_work_units,
+            include_explanation: false,
+            include_evidence: false,
+        }
+    }
+
+    /// Restrict traversal to edges whose `kind` appears in `edge_kinds`.
+    #[must_use]
+    pub fn with_edge_kinds(mut self, edge_kinds: Vec<String>) -> Self {
+        self.edge_kinds = edge_kinds;
+        self
+    }
+
+    /// Restrict returned targets to nodes whose `kind` appears in `target_kinds`.
+    #[must_use]
+    pub fn with_target_kinds(mut self, target_kinds: Vec<String>) -> Self {
+        self.target_kinds = target_kinds;
+        self
+    }
+
+    /// Restrict traversal to edges matching all typed inline `edge_predicates`.
+    #[must_use]
+    pub fn with_edge_predicates(mut self, edge_predicates: Vec<PropertyPredicate>) -> Self {
+        self.edge_predicates = edge_predicates;
+        self
+    }
+
+    /// Restrict returned targets to nodes matching all typed inline `target_predicates`.
+    #[must_use]
+    pub fn with_target_predicates(mut self, target_predicates: Vec<PropertyPredicate>) -> Self {
+        self.target_predicates = target_predicates;
+        self
+    }
+
+    /// Enable or disable the structured explanation sidecar.
+    #[must_use]
+    pub fn with_explanation(mut self, include_explanation: bool) -> Self {
+        self.include_explanation = include_explanation;
+        self
+    }
+
+    /// Enable or disable the frozen evidence sidecar.
+    #[must_use]
+    pub fn with_evidence(mut self, include_evidence: bool) -> Self {
+        self.include_evidence = include_evidence;
+        self
+    }
 }
 
 /// A logical seed resolved inside the graph-expansion snapshot.
@@ -197,6 +274,8 @@ pub enum GraphExpansionErrorReasonV1 {
     GraphDirectionInvalid,
     GraphEdgeKindsInvalid,
     GraphTargetKindsInvalid,
+    GraphEdgePredicatesInvalid,
+    GraphTargetPredicatesInvalid,
     GraphContextInvalid,
     GraphDepthInvalid,
     GraphResultLimitInvalid,
@@ -226,6 +305,8 @@ impl GraphExpansionErrorReasonV1 {
             Self::GraphDirectionInvalid => "graph_direction_invalid",
             Self::GraphEdgeKindsInvalid => "graph_edge_kinds_invalid",
             Self::GraphTargetKindsInvalid => "graph_target_kinds_invalid",
+            Self::GraphEdgePredicatesInvalid => "graph_edge_predicates_invalid",
+            Self::GraphTargetPredicatesInvalid => "graph_target_predicates_invalid",
             Self::GraphContextInvalid => "graph_context_invalid",
             Self::GraphDepthInvalid => "graph_depth_invalid",
             Self::GraphResultLimitInvalid => "graph_result_limit_invalid",

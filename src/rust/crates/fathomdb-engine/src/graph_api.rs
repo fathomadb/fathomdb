@@ -12,7 +12,7 @@ use crate::errors::EngineError;
 use crate::frozen_read;
 #[cfg(any(test, feature = "test-hooks"))]
 use crate::graph_expand::execution::{
-    explain_graph_expand_incident_query, graph_expand_incident_query,
+    explain_graph_expand_incident_query, graph_expand_incident_query, EdgeViewBoundary,
 };
 use crate::graph_expand::execution::{graph_error, validate_semantics};
 #[cfg(feature = "test-hooks")]
@@ -586,10 +586,29 @@ impl Engine {
         &self,
         direction: TraversalDirection,
     ) -> Result<Vec<String>, EngineError> {
+        self.explain_graph_expand_with_kinds_for_test(direction, &[])
+    }
+
+    /// Return endpoint-index query plans used by current-time graph expansion
+    /// with optional `edge_kinds` pushdown.
+    #[cfg(any(test, feature = "test-hooks"))]
+    #[doc(hidden)]
+    pub fn explain_graph_expand_with_kinds_for_test(
+        &self,
+        direction: TraversalDirection,
+        edge_kinds: &[String],
+    ) -> Result<Vec<String>, EngineError> {
         let _operation = self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
-        let query = graph_expand_incident_query("fixture", direction, 1);
+        let query = graph_expand_incident_query(
+            "fixture",
+            direction,
+            EdgeViewBoundary::Current { edge_now: 1_750_000_000 },
+            edge_kinds,
+            &[],
+            1,
+        );
         explain_graph_expand_incident_query(connection, &query)
     }
 }

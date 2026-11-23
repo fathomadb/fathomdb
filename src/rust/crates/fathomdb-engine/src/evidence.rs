@@ -2884,22 +2884,20 @@ mod tests {
                 .unwrap(),
             )
             .unwrap();
-        let request = GraphExpandRequestV1 {
-            schema_version: 1,
-            seed: GraphSeedV1::Explicit {
+        let request = GraphExpandRequestV1::new(
+            GraphSeedV1::Explicit {
                 schema_version: 1,
                 logical_ids: vec![crate::IdSpace::logical("root")],
             },
-            direction: crate::TraversalDirection::Outgoing,
-            edge_kinds: vec!["supports".into()],
-            target_kinds: vec!["claim".into()],
-            context: GraphReadContextV1::Frozen { schema_version: 1, context: frozen.clone() },
-            max_depth: 1,
-            result_limit: 50,
-            max_work_units: 10_000,
-            include_explanation: false,
-            include_evidence: true,
-        };
+            crate::TraversalDirection::Outgoing,
+            GraphReadContextV1::Frozen { schema_version: 1, context: frozen.clone() },
+            1,
+            50,
+            10_000,
+        )
+        .with_edge_kinds(vec!["supports".into()])
+        .with_target_kinds(vec!["claim".into()])
+        .with_evidence(true);
         let mut guard = engine.connection.lock().unwrap();
         let connection = guard.as_mut().unwrap();
         let binding = frozen_read::authenticate(connection, &frozen).unwrap();

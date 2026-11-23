@@ -13,16 +13,10 @@ use sha2::{Digest, Sha256};
 use tempfile::TempDir;
 
 fn request() -> GraphExpandRequestV1 {
-    GraphExpandRequestV1 {
-        schema_version: 1,
-        seed: GraphSeedV1::Explicit {
-            schema_version: 1,
-            logical_ids: vec![IdSpace::logical("root")],
-        },
-        direction: TraversalDirection::Outgoing,
-        edge_kinds: Vec::new(),
-        target_kinds: Vec::new(),
-        context: GraphReadContextV1::Current {
+    GraphExpandRequestV1::new(
+        GraphSeedV1::Explicit { schema_version: 1, logical_ids: vec![IdSpace::logical("root")] },
+        TraversalDirection::Outgoing,
+        GraphReadContextV1::Current {
             schema_version: 1,
             context: ReadContextV1::new(
                 ReadView { valid_as_of: Some(1_700_000_000), ..ReadView::default() },
@@ -30,12 +24,11 @@ fn request() -> GraphExpandRequestV1 {
             )
             .unwrap(),
         },
-        max_depth: 1,
-        result_limit: 50,
-        max_work_units: 10_000,
-        include_explanation: true,
-        include_evidence: false,
-    }
+        1,
+        50,
+        10_000,
+    )
+    .with_explanation(true)
 }
 
 fn hash(body: &str) -> String {

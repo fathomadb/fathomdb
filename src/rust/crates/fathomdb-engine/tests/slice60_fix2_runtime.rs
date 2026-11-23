@@ -10,16 +10,10 @@ use rusqlite::Connection;
 use tempfile::TempDir;
 
 fn request(work: u64) -> GraphExpandRequestV1 {
-    GraphExpandRequestV1 {
-        schema_version: 1,
-        seed: GraphSeedV1::Explicit {
-            schema_version: 1,
-            logical_ids: vec![IdSpace::logical("root")],
-        },
-        direction: TraversalDirection::Both,
-        edge_kinds: Vec::new(),
-        target_kinds: Vec::new(),
-        context: GraphReadContextV1::Current {
+    GraphExpandRequestV1::new(
+        GraphSeedV1::Explicit { schema_version: 1, logical_ids: vec![IdSpace::logical("root")] },
+        TraversalDirection::Both,
+        GraphReadContextV1::Current {
             schema_version: 1,
             context: ReadContextV1::new(
                 ReadView { valid_as_of: Some(1_700_000_000), ..ReadView::default() },
@@ -27,12 +21,10 @@ fn request(work: u64) -> GraphExpandRequestV1 {
             )
             .unwrap(),
         },
-        max_depth: 1,
-        result_limit: 1,
-        max_work_units: work,
-        include_explanation: false,
-        include_evidence: false,
-    }
+        1,
+        1,
+        work,
+    )
 }
 
 fn node(id: impl Into<String>) -> PreparedWrite {
@@ -81,15 +73,25 @@ fn open_populated(directory: &TempDir, name: &str, rows: usize) -> (std::path::P
 }
 
 #[test]
-fn both_explain_is_the_exact_production_or_statement_and_binds() {
+fn both_explain_is_the_exact_production_union_all_statement_and_binds() {
     let directory = TempDir::new().unwrap();
     let (path, engine) = open_populated(&directory, "both-plan", 1);
     let observed = engine.explain_graph_expand_for_test(TraversalDirection::Both).unwrap();
     let connection = Connection::open(path).unwrap();
-    let sql = "EXPLAIN QUERY PLAN SELECT write_cursor,kind,from_id,to_id,logical_id,superseded_at,t_invalid FROM canonical_edges WHERE (from_id=?1 OR to_id=?1) LIMIT ?2";
+    let sql = "EXPLAIN QUERY PLAN \
+        SELECT write_cursor,kind,from_id,to_id,logical_id,superseded_at,t_invalid,properties \
+        FROM canonical_edges \
+        WHERE from_id=?1 AND superseded_at IS NULL AND (t_valid IS NULL OR t_valid<=?2) AND (t_invalid IS NULL OR t_invalid>?2) \
+        UNION ALL \
+        SELECT write_cursor,kind,from_id,to_id,logical_id,superseded_at,t_invalid,properties \
+        FROM canonical_edges \
+        WHERE to_id=?1 AND from_id!=?1 AND superseded_at IS NULL AND (t_valid IS NULL OR t_valid<=?2) AND (t_invalid IS NULL OR t_invalid>?2) \
+        LIMIT ?3";
     let mut statement = connection.prepare(sql).unwrap();
     let expected = statement
-        .query_map(rusqlite::params!["root", 10_i64], |row| row.get::<_, String>(3))
+        .query_map(rusqlite::params!["root", 1_750_000_000_i64, 10_i64], |row| {
+            row.get::<_, String>(3)
+        })
         .unwrap()
         .collect::<rusqlite::Result<Vec<_>>>()
         .unwrap();

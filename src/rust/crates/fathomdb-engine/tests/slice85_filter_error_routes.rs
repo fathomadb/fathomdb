@@ -67,24 +67,21 @@ fn frozen_mint_and_search_share_the_validator_reason() {
 fn graph_expansion_reports_an_undeclared_attribute_as_an_invalid_context() {
     let dir = TempDir::new().unwrap();
     let opened = open(&dir);
-    let request = |eligibility: SearchFilter| GraphExpandRequestV1 {
-        schema_version: 1,
-        seed: GraphSeedV1::Explicit {
-            schema_version: 1,
-            logical_ids: vec![IdSpace::logical("root")],
-        },
-        direction: TraversalDirection::Outgoing,
-        edge_kinds: Vec::new(),
-        target_kinds: Vec::new(),
-        context: GraphReadContextV1::Current {
-            schema_version: 1,
-            context: ReadContextV1::new(ReadView::default(), eligibility).unwrap(),
-        },
-        max_depth: 1,
-        result_limit: 10,
-        max_work_units: 1_000,
-        include_explanation: false,
-        include_evidence: false,
+    let request = |eligibility: SearchFilter| {
+        GraphExpandRequestV1::new(
+            GraphSeedV1::Explicit {
+                schema_version: 1,
+                logical_ids: vec![IdSpace::logical("root")],
+            },
+            TraversalDirection::Outgoing,
+            GraphReadContextV1::Current {
+                schema_version: 1,
+                context: ReadContextV1::new(ReadView::default(), eligibility).unwrap(),
+            },
+            1,
+            10,
+            1_000,
+        )
     };
     opened.engine.graph_expand(&request(SearchFilter::default())).expect("unfiltered control");
     match opened.engine.graph_expand(&request(undeclared_filter())) {

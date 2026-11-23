@@ -569,26 +569,26 @@ impl Reader {
         let result = self
             .session
             .engine
-            .graph_expand(&GraphExpandRequestV1 {
-                schema_version: 1,
-                seed: GraphSeedV1::Explicit {
-                    schema_version: 1,
-                    logical_ids: vec![fathomdb_engine::IdSpace::logical(id.clone())],
-                },
-                direction: match direction {
-                    Direction::Incoming => TraversalDirection::Incoming,
-                    Direction::Outgoing => TraversalDirection::Outgoing,
-                    Direction::Both => TraversalDirection::Both,
-                },
-                edge_kinds: kind.clone().into_iter().collect(),
-                target_kinds: vec![],
-                context: GraphReadContextV1::Frozen { schema_version: 1, context: frozen.clone() },
-                max_depth: depth as u32,
-                result_limit: 50,
-                max_work_units: 1000,
-                include_explanation: true,
-                include_evidence: true,
-            })
+            .graph_expand(
+                &GraphExpandRequestV1::new(
+                    GraphSeedV1::Explicit {
+                        schema_version: 1,
+                        logical_ids: vec![fathomdb_engine::IdSpace::logical(id.clone())],
+                    },
+                    match direction {
+                        Direction::Incoming => TraversalDirection::Incoming,
+                        Direction::Outgoing => TraversalDirection::Outgoing,
+                        Direction::Both => TraversalDirection::Both,
+                    },
+                    GraphReadContextV1::Frozen { schema_version: 1, context: frozen.clone() },
+                    depth as u32,
+                    50,
+                    1000,
+                )
+                .with_edge_kinds(kind.clone().into_iter().collect())
+                .with_explanation(true)
+                .with_evidence(true),
+            )
             .map_err(|_| "native_query_refused")?;
         let ended = crate::session::epoch_ms();
         let c = self.session.connection()?;

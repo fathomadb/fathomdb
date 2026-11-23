@@ -32,25 +32,18 @@ fn digest(body: &str) -> String {
 }
 
 fn graph_request() -> GraphExpandRequestV1 {
-    GraphExpandRequestV1 {
-        schema_version: 1,
-        seed: GraphSeedV1::Explicit {
-            schema_version: 1,
-            logical_ids: vec![IdSpace::logical("root")],
-        },
-        direction: TraversalDirection::Outgoing,
-        edge_kinds: Vec::new(),
-        target_kinds: Vec::new(),
-        context: GraphReadContextV1::Current {
+    GraphExpandRequestV1::new(
+        GraphSeedV1::Explicit { schema_version: 1, logical_ids: vec![IdSpace::logical("root")] },
+        TraversalDirection::Outgoing,
+        GraphReadContextV1::Current {
             schema_version: 1,
             context: ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap(),
         },
-        max_depth: 1,
-        result_limit: 10,
-        max_work_units: 10,
-        include_explanation: true,
-        include_evidence: false,
-    }
+        1,
+        10,
+        10,
+    )
+    .with_explanation(true)
 }
 
 fn seeded() -> (TempDir, Engine) {

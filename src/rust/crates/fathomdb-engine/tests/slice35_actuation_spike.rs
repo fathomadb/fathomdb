@@ -200,25 +200,25 @@ fn inherited_operations_and_edge_form_one_atomic_graph_unit() {
 
     let graph = opened
         .engine
-        .graph_expand(&GraphExpandRequestV1 {
-            schema_version: 1,
-            seed: GraphSeedV1::Explicit {
-                schema_version: 1,
-                logical_ids: vec![IdSpace::logical("derived-unit")],
-            },
-            direction: TraversalDirection::Outgoing,
-            edge_kinds: vec!["supports".into()],
-            target_kinds: vec!["document".into()],
-            context: GraphReadContextV1::Current {
-                schema_version: 1,
-                context: ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap(),
-            },
-            max_depth: 1,
-            result_limit: 10,
-            max_work_units: 100,
-            include_explanation: false,
-            include_evidence: false,
-        })
+        .graph_expand(
+            &GraphExpandRequestV1::new(
+                GraphSeedV1::Explicit {
+                    schema_version: 1,
+                    logical_ids: vec![IdSpace::logical("derived-unit")],
+                },
+                TraversalDirection::Outgoing,
+                GraphReadContextV1::Current {
+                    schema_version: 1,
+                    context: ReadContextV1::new(ReadView::default(), SearchFilter::default())
+                        .unwrap(),
+                },
+                1,
+                10,
+                100,
+            )
+            .with_edge_kinds(vec!["supports".into()])
+            .with_target_kinds(vec!["document".into()]),
+        )
         .unwrap();
     assert_eq!(graph.targets.len(), 1);
     assert_eq!(graph.targets[0].logical_id, "anchor");

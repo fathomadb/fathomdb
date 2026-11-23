@@ -13,13 +13,10 @@ fn fixture() -> Value {
 }
 
 fn unicode_request() -> GraphExpandRequestV1 {
-    GraphExpandRequestV1 {
-        schema_version: 1,
-        seed: GraphSeedV1::Query { schema_version: 1, text: "café".into(), ranked_limit: 1 },
-        direction: TraversalDirection::Outgoing,
-        edge_kinds: Vec::new(),
-        target_kinds: Vec::new(),
-        context: GraphReadContextV1::Current {
+    GraphExpandRequestV1::new(
+        GraphSeedV1::Query { schema_version: 1, text: "café".into(), ranked_limit: 1 },
+        TraversalDirection::Outgoing,
+        GraphReadContextV1::Current {
             schema_version: 1,
             context: ReadContextV1::new(
                 ReadView { valid_as_of: Some(1_700_000_000), ..ReadView::default() },
@@ -27,12 +24,10 @@ fn unicode_request() -> GraphExpandRequestV1 {
             )
             .unwrap(),
         },
-        max_depth: 0,
-        result_limit: 1,
-        max_work_units: 1,
-        include_explanation: false,
-        include_evidence: false,
-    }
+        0,
+        1,
+        1,
+    )
 }
 
 fn context_error(context: Value) -> fathomdb_engine::GraphExpansionErrorV1 {

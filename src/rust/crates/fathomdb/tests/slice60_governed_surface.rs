@@ -52,6 +52,8 @@ fn complete_graph_expand_contract_is_reexported_by_default_facade() {
         GraphExpansionErrorReasonV1::GraphDirectionInvalid,
         GraphExpansionErrorReasonV1::GraphEdgeKindsInvalid,
         GraphExpansionErrorReasonV1::GraphTargetKindsInvalid,
+        GraphExpansionErrorReasonV1::GraphEdgePredicatesInvalid,
+        GraphExpansionErrorReasonV1::GraphTargetPredicatesInvalid,
         GraphExpansionErrorReasonV1::GraphContextInvalid,
         GraphExpansionErrorReasonV1::GraphDepthInvalid,
         GraphExpansionErrorReasonV1::GraphResultLimitInvalid,

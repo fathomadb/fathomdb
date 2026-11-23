@@ -135,19 +135,14 @@ fn every_site(engine: &Engine) -> Vec<(&'static str, Vec<String>)> {
     let projected =
         engine.search_projected_text(QUERY, FIELD, None, &ReadView::default()).expect("projected");
     let graph = engine
-        .graph_expand(&GraphExpandRequestV1 {
-            schema_version: 1,
-            seed: GraphSeedV1::Query { schema_version: 1, text: QUERY.into(), ranked_limit: 10 },
-            direction: TraversalDirection::Outgoing,
-            edge_kinds: Vec::new(),
-            target_kinds: Vec::new(),
-            context: GraphReadContextV1::Current { schema_version: 1, context },
-            max_depth: 0,
-            result_limit: 10,
-            max_work_units: 10,
-            include_explanation: false,
-            include_evidence: false,
-        })
+        .graph_expand(&GraphExpandRequestV1::new(
+            GraphSeedV1::Query { schema_version: 1, text: QUERY.into(), ranked_limit: 10 },
+            TraversalDirection::Outgoing,
+            GraphReadContextV1::Current { schema_version: 1, context },
+            0,
+            10,
+            10,
+        ))
         .expect("graph expand");
     vec![
         ("search_text_only", logical_ids(&text_only)),

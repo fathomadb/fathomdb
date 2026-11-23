@@ -114,22 +114,16 @@ fn fixture_with_pre_freeze_sql(sql: Option<&str>) -> (TempDir, Engine, GraphExpa
             .unwrap(),
         )
         .unwrap();
-    let request = GraphExpandRequestV1 {
-        schema_version: 1,
-        seed: GraphSeedV1::Explicit {
-            schema_version: 1,
-            logical_ids: vec![IdSpace::logical("root")],
-        },
-        direction: TraversalDirection::Outgoing,
-        edge_kinds: vec!["supports".into()],
-        target_kinds: vec!["claim".into()],
-        context: GraphReadContextV1::Frozen { schema_version: 1, context: frozen },
-        max_depth: 1,
-        result_limit: 50,
-        max_work_units: 10_000,
-        include_explanation: false,
-        include_evidence: false,
-    };
+    let request = GraphExpandRequestV1::new(
+        GraphSeedV1::Explicit { schema_version: 1, logical_ids: vec![IdSpace::logical("root")] },
+        TraversalDirection::Outgoing,
+        GraphReadContextV1::Frozen { schema_version: 1, context: frozen },
+        1,
+        50,
+        10_000,
+    )
+    .with_edge_kinds(vec!["supports".into()])
+    .with_target_kinds(vec!["claim".into()]);
     (directory, engine, request)
 }
 
@@ -196,15 +190,13 @@ fn fixture_with_two_targets() -> (TempDir, Engine, GraphExpandRequestV1) {
         ])
         .unwrap();
     engine.drain(30_000).unwrap();
+    let mut request = request;
     let context = match request.context {
         GraphReadContextV1::Frozen { context, .. } => context.context,
         GraphReadContextV1::Current { .. } => unreachable!(),
     };
     let frozen = engine.freeze_read_context(&context).unwrap();
-    let request = GraphExpandRequestV1 {
-        context: GraphReadContextV1::Frozen { schema_version: 1, context: frozen },
-        ..request
-    };
+    request.context = GraphReadContextV1::Frozen { schema_version: 1, context: frozen };
     (directory, engine, request)
 }
 
@@ -213,10 +205,7 @@ fn evidence_hydration_executes_zero_or_exactly_two_sql_statements() {
     let (_directory, engine, mut one) = fixture();
     one.include_evidence = true;
     let (without_one, baseline_one) = engine
-        .graph_expand_with_statement_count_for_test(&GraphExpandRequestV1 {
-            include_evidence: false,
-            ..one.clone()
-        })
+        .graph_expand_with_statement_count_for_test(&one.clone().with_evidence(false))
         .unwrap();
     assert_eq!(without_one.targets.len(), 1);
     let (with_one, evidence_one) = engine.graph_expand_with_statement_count_for_test(&one).unwrap();
@@ -226,10 +215,7 @@ fn evidence_hydration_executes_zero_or_exactly_two_sql_statements() {
     let mut empty = one;
     empty.target_kinds = vec!["no-such-kind".into()];
     let (without_empty, baseline_empty) = engine
-        .graph_expand_with_statement_count_for_test(&GraphExpandRequestV1 {
-            include_evidence: false,
-            ..empty.clone()
-        })
+        .graph_expand_with_statement_count_for_test(&empty.clone().with_evidence(false))
         .unwrap();
     assert!(without_empty.targets.is_empty());
     let (with_empty, evidence_empty) =
@@ -240,10 +226,7 @@ fn evidence_hydration_executes_zero_or_exactly_two_sql_statements() {
     let (_directory, engine, mut multiple) = fixture_with_two_targets();
     multiple.include_evidence = true;
     let (without_multiple, baseline_multiple) = engine
-        .graph_expand_with_statement_count_for_test(&GraphExpandRequestV1 {
-            include_evidence: false,
-            ..multiple.clone()
-        })
+        .graph_expand_with_statement_count_for_test(&multiple.clone().with_evidence(false))
         .unwrap();
     assert_eq!(without_multiple.targets.len(), 2);
     let (with_multiple, evidence_multiple) =
@@ -360,22 +343,20 @@ fn temporal_fixture(
             .unwrap(),
         )
         .unwrap();
-    let request = GraphExpandRequestV1 {
-        schema_version: 1,
-        seed: GraphSeedV1::Explicit {
+    let request = GraphExpandRequestV1::new(
+        GraphSeedV1::Explicit {
             schema_version: 1,
             logical_ids: vec![IdSpace::logical("temporal-root")],
         },
-        direction: TraversalDirection::Outgoing,
-        edge_kinds: vec!["supports".into()],
-        target_kinds: vec!["claim".into()],
-        context: GraphReadContextV1::Frozen { schema_version: 1, context: frozen },
-        max_depth: 1,
-        result_limit: 1,
-        max_work_units: 10,
-        include_explanation: false,
-        include_evidence: true,
-    };
+        TraversalDirection::Outgoing,
+        GraphReadContextV1::Frozen { schema_version: 1, context: frozen },
+        1,
+        1,
+        10,
+    )
+    .with_edge_kinds(vec!["supports".into()])
+    .with_target_kinds(vec!["claim".into()])
+    .with_evidence(true);
     (directory, opened.engine, request)
 }
 
@@ -724,7 +705,7 @@ fn missing_links_are_globally_ordered_and_use_exact_terminal_edge_path() {
         if error.reason == EvidenceErrorReasonV1::EvidenceIncomplete
             && error.field_path == "/targets/0/provenance"));
 
-    let (directory, engine, request) = fixture_with_two_targets();
+    let (directory, engine, mut request) = fixture_with_two_targets();
     let context = match request.context {
         GraphReadContextV1::Frozen { context, .. } => context.context,
         GraphReadContextV1::Current { .. } => unreachable!(),
@@ -736,11 +717,8 @@ fn missing_links_are_globally_ordered_and_use_exact_terminal_edge_path() {
          WHERE artifact_revision_id IN ('edge-r1','target-two-r1');",
     );
     let frozen = engine.freeze_read_context(&context).unwrap();
-    let request = GraphExpandRequestV1 {
-        include_evidence: true,
-        context: GraphReadContextV1::Frozen { schema_version: 1, context: frozen },
-        ..request
-    };
+    request.include_evidence = true;
+    request.context = GraphReadContextV1::Frozen { schema_version: 1, context: frozen };
     assert!(matches!(engine.graph_expand(&request).unwrap_err(), EngineError::Evidence(ref error)
         if error.reason == EvidenceErrorReasonV1::EvidenceIncomplete
             && error.field_path == "/targets/0/terminalEdge/provenance"));
@@ -748,7 +726,7 @@ fn missing_links_are_globally_ordered_and_use_exact_terminal_edge_path() {
 
 #[test]
 fn lower_target_index_precedes_later_target_even_when_the_lower_fault_is_an_edge() {
-    let (directory, engine, request) = fixture_with_two_targets();
+    let (directory, engine, mut request) = fixture_with_two_targets();
     let context = match request.context {
         GraphReadContextV1::Frozen { context, .. } => context.context,
         GraphReadContextV1::Current { .. } => unreachable!(),
@@ -759,11 +737,8 @@ fn lower_target_index_precedes_later_target_even_when_the_lower_fault_is_an_edge
         "UPDATE _fathomdb_source_links SET locator_kind='utf8_bytes',start_byte=0,end_byte=999999 WHERE artifact_revision_id IN ('edge-r1','target-two-r1');",
     );
     let frozen = engine.freeze_read_context(&context).unwrap();
-    let request = GraphExpandRequestV1 {
-        include_evidence: true,
-        context: GraphReadContextV1::Frozen { schema_version: 1, context: frozen },
-        ..request
-    };
+    request.include_evidence = true;
+    request.context = GraphReadContextV1::Frozen { schema_version: 1, context: frozen };
     assert!(matches!(engine.graph_expand(&request).unwrap_err(), EngineError::Evidence(ref error)
         if error.reason == EvidenceErrorReasonV1::EvidenceCorrupt
             && error.field_path == "/targets/0/terminalEdge/provenance/sourceLocator"));
@@ -803,11 +778,8 @@ fn source_attribute_eligibility_distinguishes_absent_from_present_empty() {
     )
     .unwrap();
     let frozen = engine.freeze_read_context(&context).unwrap();
-    let request = GraphExpandRequestV1 {
-        include_evidence: true,
-        context: GraphReadContextV1::Frozen { schema_version: 1, context: frozen },
-        ..request
-    };
+    let mut request = request.with_evidence(true);
+    request.context = GraphReadContextV1::Frozen { schema_version: 1, context: frozen };
     expansion_unavailable(engine.graph_expand(&request).unwrap_err());
 
     engine
@@ -817,10 +789,7 @@ fn source_attribute_eligibility_distinguishes_absent_from_present_empty() {
         )
         .unwrap();
     let frozen = engine.freeze_read_context(&context).unwrap();
-    let request = GraphExpandRequestV1 {
-        context: GraphReadContextV1::Frozen { schema_version: 1, context: frozen },
-        ..request
-    };
+    request.context = GraphReadContextV1::Frozen { schema_version: 1, context: frozen };
     assert_eq!(engine.graph_expand(&request).unwrap().targets.len(), 1);
 }
 
@@ -849,11 +818,8 @@ fn source_status_and_created_after_require_vector_metadata_only_when_filtered() 
     )
     .unwrap();
     let frozen = engine.freeze_read_context(&context).unwrap();
-    let request = GraphExpandRequestV1 {
-        include_evidence: true,
-        context: GraphReadContextV1::Frozen { schema_version: 1, context: frozen },
-        ..request
-    };
+    let mut request = request.with_evidence(true);
+    request.context = GraphReadContextV1::Frozen { schema_version: 1, context: frozen };
     expansion_unavailable(engine.graph_expand(&request).unwrap_err());
 
     engine
@@ -864,10 +830,7 @@ fn source_status_and_created_after_require_vector_metadata_only_when_filtered() 
         )
         .unwrap();
     let frozen = engine.freeze_read_context(&context).unwrap();
-    let request = GraphExpandRequestV1 {
-        context: GraphReadContextV1::Frozen { schema_version: 1, context: frozen },
-        ..request
-    };
+    request.context = GraphReadContextV1::Frozen { schema_version: 1, context: frozen };
     assert_eq!(engine.graph_expand(&request).unwrap().targets.len(), 1);
 }
 
@@ -1393,31 +1356,24 @@ fn canonical_target_fixture() -> (TempDir, Engine, GraphExpandRequestV1) {
     )
     .unwrap();
     let frozen = opened.engine.freeze_read_context(&context).unwrap();
-    let request = GraphExpandRequestV1 {
-        schema_version: 1,
-        seed: GraphSeedV1::Explicit {
-            schema_version: 1,
-            logical_ids: vec![IdSpace::logical("root")],
-        },
-        direction: TraversalDirection::Outgoing,
-        edge_kinds: vec!["supports".into()],
-        target_kinds: vec!["claim".into()],
-        context: GraphReadContextV1::Frozen { schema_version: 1, context: frozen },
-        max_depth: 1,
-        result_limit: 1,
-        max_work_units: 10,
-        include_explanation: false,
-        include_evidence: true,
-    };
+    let request = GraphExpandRequestV1::new(
+        GraphSeedV1::Explicit { schema_version: 1, logical_ids: vec![IdSpace::logical("root")] },
+        TraversalDirection::Outgoing,
+        GraphReadContextV1::Frozen { schema_version: 1, context: frozen },
+        1,
+        1,
+        10,
+    )
+    .with_edge_kinds(vec!["supports".into()])
+    .with_target_kinds(vec!["claim".into()])
+    .with_evidence(true);
     (directory, opened.engine, request)
 }
 
 #[test]
 fn graph_reference_requires_current_active_artifact_and_source_after_equivalent_remint() {
     let (directory, engine, request) = canonical_target_fixture();
-    let ordinary = engine
-        .graph_expand(&GraphExpandRequestV1 { include_evidence: false, ..request.clone() })
-        .unwrap();
+    let ordinary = engine.graph_expand(&request.clone().with_evidence(false)).unwrap();
     assert_eq!(ordinary.targets.len(), 1);
     let expanded = engine.graph_expand(&request).unwrap();
     let reference = expanded.evidence.unwrap().entries[0].target_evidence_ref.clone();
@@ -1884,22 +1840,22 @@ fn canonical_source_graph_target_resolves_without_dependency() {
         .unwrap();
     let result = opened
         .engine
-        .graph_expand(&GraphExpandRequestV1 {
-            schema_version: 1,
-            seed: GraphSeedV1::Explicit {
-                schema_version: 1,
-                logical_ids: vec![IdSpace::logical("root")],
-            },
-            direction: TraversalDirection::Outgoing,
-            edge_kinds: vec!["cites".into()],
-            target_kinds: vec!["document".into()],
-            context: GraphReadContextV1::Frozen { schema_version: 1, context: frozen.clone() },
-            max_depth: 1,
-            result_limit: 1,
-            max_work_units: 10,
-            include_explanation: false,
-            include_evidence: true,
-        })
+        .graph_expand(
+            &GraphExpandRequestV1::new(
+                GraphSeedV1::Explicit {
+                    schema_version: 1,
+                    logical_ids: vec![IdSpace::logical("root")],
+                },
+                TraversalDirection::Outgoing,
+                GraphReadContextV1::Frozen { schema_version: 1, context: frozen.clone() },
+                1,
+                1,
+                10,
+            )
+            .with_edge_kinds(vec!["cites".into()])
+            .with_target_kinds(vec!["document".into()])
+            .with_evidence(true),
+        )
         .unwrap();
     let reference = result.evidence.unwrap().entries[0].target_evidence_ref.clone();
     opened.engine.close().unwrap();

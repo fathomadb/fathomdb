@@ -337,22 +337,15 @@ fn slice38_node_and_edge_property_round_trip_and_o1_hydration() {
     }
 
     // 4. GraphTargetV1 & GraphOriginV1 via graph_expand + ResolvedGraphEvidenceV1
-    let mut g_req = GraphExpandRequestV1 {
-        schema_version: 1,
-        seed: GraphSeedV1::Explicit {
-            schema_version: 1,
-            logical_ids: vec![IdSpace::logical("n-prov")],
-        },
-        direction: TraversalDirection::Outgoing,
-        edge_kinds: vec![],
-        target_kinds: vec![],
-        context: GraphReadContextV1::Frozen { schema_version: 1, context: frozen.clone() },
-        max_depth: 1,
-        result_limit: 10,
-        max_work_units: 100,
-        include_explanation: false,
-        include_evidence: true,
-    };
+    let mut g_req = GraphExpandRequestV1::new(
+        GraphSeedV1::Explicit { schema_version: 1, logical_ids: vec![IdSpace::logical("n-prov")] },
+        TraversalDirection::Outgoing,
+        GraphReadContextV1::Frozen { schema_version: 1, context: frozen.clone() },
+        1,
+        10,
+        100,
+    )
+    .with_evidence(true);
     let g_res = engine.graph_expand(&g_req).expect("graph_expand");
     let g_target =
         g_res.targets.iter().find(|t| t.logical_id == "n-derived").expect("n-derived target");

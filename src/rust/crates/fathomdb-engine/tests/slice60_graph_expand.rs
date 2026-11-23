@@ -98,25 +98,20 @@ fn current(view: ReadView, eligibility: SearchFilter) -> GraphReadContextV1 {
 }
 
 fn explicit_request(ids: &[&str], direction: TraversalDirection) -> GraphExpandRequestV1 {
-    GraphExpandRequestV1 {
-        schema_version: 1,
-        seed: GraphSeedV1::Explicit {
+    GraphExpandRequestV1::new(
+        GraphSeedV1::Explicit {
             schema_version: 1,
             logical_ids: ids.iter().map(|id| IdSpace::logical(*id)).collect(),
         },
         direction,
-        edge_kinds: Vec::new(),
-        target_kinds: Vec::new(),
-        context: current(
+        current(
             ReadView { valid_as_of: Some(INSTANT), ..ReadView::default() },
             SearchFilter::default(),
         ),
-        max_depth: 3,
-        result_limit: 50,
-        max_work_units: 10_000,
-        include_explanation: false,
-        include_evidence: false,
-    }
+        3,
+        50,
+        10_000,
+    )
 }
 
 fn graph_error(
@@ -462,7 +457,7 @@ fn lifecycle_supersession_and_indexed_eligibility_apply_before_admission() {
 }
 
 #[test]
-fn superseded_edges_consume_work_but_cannot_supply_a_target() {
+fn superseded_edges_are_pushed_down_and_consume_zero_work() {
     let dir = TempDir::new().unwrap();
     let opened = Engine::open(path(&dir, "edge-supersession")).unwrap();
     opened
@@ -479,7 +474,7 @@ fn superseded_edges_consume_work_but_cannot_supply_a_target() {
     request.max_depth = 1;
     let result = opened.engine.graph_expand(&request).unwrap();
     assert_eq!(target_ids(&result), ["new"]);
-    assert_eq!(result.work_units, 2, "the raw superseded edge row is charged before liveness");
+    assert_eq!(result.work_units, 1, "superseded edges are pushed down in SQL and consume 0 work");
 
     let expected = fathomdb_engine::encode_graph_expand_result_v1(&result).unwrap();
     opened.engine.close().unwrap();
@@ -489,7 +484,7 @@ fn superseded_edges_consume_work_but_cannot_supply_a_target() {
 }
 
 #[test]
-fn node_relaxation_never_relaxes_shipped_edge_recency_and_t_valid_never_gates() {
+fn node_relaxation_never_relaxes_shipped_edge_recency_and_t_valid_gates_edges() {
     let dir = TempDir::new().unwrap();
     let opened = Engine::open(path(&dir, "temporal")).unwrap();
     opened
@@ -555,7 +550,7 @@ fn node_relaxation_never_relaxes_shipped_edge_recency_and_t_valid_never_gates() 
                 assert!(!ids.contains(&"expired-edge"));
                 assert!(!ids.contains(&"equal-edge"));
                 assert!(ids.contains(&"later-edge"));
-                assert!(ids.contains(&"future-valid-edge"));
+                assert!(!ids.contains(&"future-valid-edge"));
             }
         }
     }
@@ -603,23 +598,19 @@ fn query_seed_declines_dense_before_embedding_and_nonlogical_vector_cap() {
     opened.engine.drain(10_000).unwrap();
     calls.store(0, Ordering::SeqCst);
 
-    let request = GraphExpandRequestV1 {
-        schema_version: 1,
-        seed: GraphSeedV1::Query {
+    let request = GraphExpandRequestV1::new(
+        GraphSeedV1::Query {
             schema_version: 1,
             text: "farther lexical lodestar".into(),
             ranked_limit: 1,
         },
-        direction: TraversalDirection::Outgoing,
-        edge_kinds: Vec::new(),
-        target_kinds: Vec::new(),
-        context: current(ReadView::default(), SearchFilter::default()),
-        max_depth: 0,
-        result_limit: 1,
-        max_work_units: 1,
-        include_explanation: true,
-        include_evidence: false,
-    };
+        TraversalDirection::Outgoing,
+        current(ReadView::default(), SearchFilter::default()),
+        0,
+        1,
+        1,
+    )
+    .with_explanation(true);
     let result = opened.engine.graph_expand(&request).unwrap();
     assert_eq!(calls.load(Ordering::SeqCst), 0, "query graph seeding entered embedding/KNN");
     assert_eq!(result.seeds.len(), 1);
@@ -754,7 +745,7 @@ fn hook_test_lock() -> std::sync::MutexGuard<'static, ()> {
 }
 
 #[test]
-fn endpoint_plans_use_shipped_indexes_without_full_edge_scan_and_schema_stays_34() {
+fn endpoint_plans_use_shipped_indexes_without_full_edge_scan_and_schema_stays_38() {
     assert_eq!(SCHEMA_VERSION, 38);
     let dir = TempDir::new().unwrap();
     let opened = Engine::open(path(&dir, "plans")).unwrap();
@@ -762,8 +753,17 @@ fn endpoint_plans_use_shipped_indexes_without_full_edge_scan_and_schema_stays_34
         [TraversalDirection::Incoming, TraversalDirection::Outgoing, TraversalDirection::Both]
     {
         let plan = opened.engine.explain_graph_expand_for_test(direction).unwrap();
-        let has_from = plan.iter().any(|line| line.contains("canonical_edges_from_id_idx"));
-        let has_to = plan.iter().any(|line| line.contains("canonical_edges_to_id_idx"));
+        let has_from = plan.iter().any(|line| {
+            line.contains("SEARCH canonical_edges USING INDEX canonical_edges_from_active_idx")
+                || line.contains(
+                    "SEARCH canonical_edges USING INDEX canonical_edges_from_sup_kind_idx",
+                )
+        });
+        let has_to = plan.iter().any(|line| {
+            line.contains("SEARCH canonical_edges USING INDEX canonical_edges_to_active_idx")
+                || line
+                    .contains("SEARCH canonical_edges USING INDEX canonical_edges_to_sup_kind_idx")
+        });
         match direction {
             TraversalDirection::Incoming => assert!(has_to && !has_from, "{plan:?}"),
             TraversalDirection::Outgoing => assert!(has_from && !has_to, "{plan:?}"),

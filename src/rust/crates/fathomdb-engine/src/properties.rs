@@ -279,24 +279,36 @@ pub(crate) fn decode_properties_row_col(
     })
 }
 
-/// Validate a [`PropertyPredicate`] for query-time evaluation.
-pub(crate) fn validate_property_predicate(pred: &PropertyPredicate) -> Result<(), EngineError> {
+/// Field within a [`PropertyPredicate`] that failed validation.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum PropertyPredicateInvalidField {
+    Key,
+    Op,
+    Value,
+}
+
+/// Validate a [`PropertyPredicate`] and report which field failed validation.
+pub(crate) fn validate_property_predicate_detailed(
+    pred: &PropertyPredicate,
+) -> Result<(), (PropertyPredicateInvalidField, &'static str)> {
     if !is_valid_property_key(&pred.key) {
-        return Err(EngineError::InvalidFilter {
-            reason: "property predicate key must be non-empty and must not contain NUL or \\x1e"
-                .to_string(),
-        });
+        return Err((
+            PropertyPredicateInvalidField::Key,
+            "property predicate key must be non-empty and must not contain NUL or \\x1e",
+        ));
     }
     match &pred.value {
         PropertyValue::String(s) if !is_valid_property_string(s) => {
-            return Err(EngineError::InvalidFilter {
-                reason: "property predicate string value must not contain NUL or \\x1e".to_string(),
-            });
+            return Err((
+                PropertyPredicateInvalidField::Value,
+                "property predicate string value must not contain NUL or \\x1e",
+            ));
         }
         PropertyValue::Float(f) if !f.is_finite() => {
-            return Err(EngineError::InvalidFilter {
-                reason: "property predicate float value must be finite".to_string(),
-            });
+            return Err((
+                PropertyPredicateInvalidField::Value,
+                "property predicate float value must be finite",
+            ));
         }
         PropertyValue::Bool(_)
             if matches!(
@@ -307,10 +319,10 @@ pub(crate) fn validate_property_predicate(pred: &PropertyPredicate) -> Result<()
                     | PropertyComparisonOp::Gte
             ) =>
         {
-            return Err(EngineError::InvalidFilter {
-                reason: "ordering operators (lt, lte, gt, gte) are invalid for boolean properties"
-                    .to_string(),
-            });
+            return Err((
+                PropertyPredicateInvalidField::Op,
+                "ordering operators (lt, lte, gt, gte) are invalid for boolean properties",
+            ));
         }
         PropertyValue::String(_)
         | PropertyValue::Int(_)
@@ -318,6 +330,12 @@ pub(crate) fn validate_property_predicate(pred: &PropertyPredicate) -> Result<()
         | PropertyValue::Bool(_) => {}
     }
     Ok(())
+}
+
+/// Validate a [`PropertyPredicate`] for query-time evaluation.
+pub(crate) fn validate_property_predicate(pred: &PropertyPredicate) -> Result<(), EngineError> {
+    validate_property_predicate_detailed(pred)
+        .map_err(|(_, reason)| EngineError::InvalidFilter { reason: reason.to_string() })
 }
 
 fn apply_ordering(ord: Ordering, op: PropertyComparisonOp) -> bool {
@@ -398,7 +416,6 @@ pub(crate) fn eval_property_value(
 }
 
 /// Evaluate a [`PropertyPredicate`] against an optional [`PropertyMap`].
-#[cfg(test)]
 #[must_use]
 pub(crate) fn eval_property_predicate(
     props: Option<&PropertyMap>,

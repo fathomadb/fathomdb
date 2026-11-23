@@ -212,6 +212,16 @@ class = "ignored-by-design"
 reason = "TC-20 hard gate body documented as never running unless a human asks with -- --ignored (real corpus, AGENT_LONG)."
 
 [[entry]]
+id = "fathomdb-engine::eu7_real_corpus_ac::eu7_repaired_provider_small_stress_only"
+class = "ignored-by-design"
+reason = "#[ignore]: focused N1000 real-corpus stress recovery requiring explicit AGENT_LONG, gitignored real corpus, and -- --ignored invocation."
+
+[[entry]]
+id = "fathomdb-sdk::slice50_module_models::native_release_reload_and_busy_preserve_engine_ownership"
+class = "ignored-by-design"
+reason = "#[ignore]: requires a guarded exclusive CUDA venue and actual pinned model files; run explicitly with -- --ignored during dedicated GPU release/reload verification."
+
+[[entry]]
 id = "fathomdb-engine::slice19_measurement::write_cursor_join_index_measurement"
 class = "ignored-by-design"
 reason = "#[ignore] measurement-only harness; writes raw JSON when FATHOMDB_SLICE19_MEASUREMENT_OUTPUT is set."

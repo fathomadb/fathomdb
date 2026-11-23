@@ -1010,17 +1010,8 @@ fn validate_strict_batch_edge_endpoints(
 ) -> Result<(), CommitBatchError> {
     // Zero-SQL fast path: node-only / non-edge batches must not prepare or run
     // any query against `canonical_nodes`.
-    let has_edges = batch.iter().any(|write| {
-        matches!(write, PreparedWrite::Edge { .. } | PreparedWrite::ProvenancedEdge(_))
-    });
-    if !has_edges {
-        return Ok(());
-    }
-
-    let mut probe = tx.prepare_cached(
-        "SELECT 1 FROM canonical_nodes WHERE logical_id = ?1 AND superseded_at IS NULL AND state = 'active' LIMIT 1",
-    )?;
     let mut seen: std::collections::HashSet<&str> = std::collections::HashSet::new();
+    let mut distinct: Vec<&str> = Vec::new();
     // Validate EVERY edge in the batch (including edges superseded later in the
     // same batch under G0 `logical_id` or G11 `(from_id, to_id, kind)` rules),
     // probing each distinct endpoint logical_id at most once.
@@ -1032,10 +1023,48 @@ fn validate_strict_batch_edge_endpoints(
         };
         if let Some((from, to)) = endpoints {
             for endpoint in [from, to] {
-                if seen.insert(endpoint) && !probe.exists(params![endpoint])? {
-                    return Err(CommitBatchError::Engine(EngineError::WriteValidation));
+                if seen.insert(endpoint) {
+                    distinct.push(endpoint);
                 }
             }
+        }
+    }
+    if distinct.is_empty() {
+        return Ok(());
+    }
+
+    // `canonical_nodes_logical_active_idx` is UNIQUE on `(logical_id) WHERE
+    // superseded_at IS NULL`, so for `k` distinct endpoints a batched
+    // `SELECT COUNT(*)` equals `k` iff every endpoint is currently active.
+    // Batching in chunks of 64 cuts VDBE round-trips ~10x on 200-edge writes.
+    const CHUNK_SIZE: usize = 64;
+    for chunk in distinct.chunks(CHUNK_SIZE) {
+        let count: i64 = if chunk.len() == CHUNK_SIZE {
+            let mut stmt = tx.prepare_cached(
+                "SELECT COUNT(*) FROM canonical_nodes \
+                 WHERE logical_id IN (\
+                     ?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,\
+                     ?17,?18,?19,?20,?21,?22,?23,?24,?25,?26,?27,?28,?29,?30,?31,?32,\
+                     ?33,?34,?35,?36,?37,?38,?39,?40,?41,?42,?43,?44,?45,?46,?47,?48,\
+                     ?49,?50,?51,?52,?53,?54,?55,?56,?57,?58,?59,?60,?61,?62,?63,?64\
+                 ) AND superseded_at IS NULL AND state = 'active'",
+            )?;
+            stmt.query_row(rusqlite::params_from_iter(chunk.iter().copied()), |row| row.get(0))?
+        } else {
+            let mut sql =
+                String::from("SELECT COUNT(*) FROM canonical_nodes WHERE logical_id IN (");
+            for idx in 0..chunk.len() {
+                if idx > 0 {
+                    sql.push(',');
+                }
+                sql.push('?');
+            }
+            sql.push_str(") AND superseded_at IS NULL AND state = 'active'");
+            let mut stmt = tx.prepare_cached(&sql)?;
+            stmt.query_row(rusqlite::params_from_iter(chunk.iter().copied()), |row| row.get(0))?
+        };
+        if count as usize != chunk.len() {
+            return Err(CommitBatchError::Engine(EngineError::WriteValidation));
         }
     }
     Ok(())

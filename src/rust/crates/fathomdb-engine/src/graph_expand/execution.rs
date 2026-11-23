@@ -571,6 +571,11 @@ pub(crate) fn append_cpv_exists_prefilter(
     params.push(Value::Text(pred.key.clone()));
     let key_idx = params.len();
     let sql_op = property_sql_op(pred.op);
+    // The table CHECK constraint on `canonical_property_values` guarantees
+    // `text_val IS NOT NULL` <=> `value_type='string'`, `num_val IS NOT NULL`
+    // <=> `value_type IN ('integer','float')`, and `bool_val IS NOT NULL` <=>
+    // `value_type='boolean'`. Omitting the redundant `value_type` filter keeps
+    // the partial secondary indexes strictly covering.
     match &pred.value {
         PropertyValue::String(s) => {
             params.push(Value::Text(s.clone()));
@@ -580,7 +585,6 @@ pub(crate) fn append_cpv_exists_prefilter(
                  WHERE {cpv_alias}.entity_class='{entity_class}' \
                  AND {cpv_alias}.write_cursor={cursor_expr} \
                  AND {cpv_alias}.attr_name=?{key_idx} \
-                 AND {cpv_alias}.value_type='string' \
                  AND {cpv_alias}.text_val IS NOT NULL \
                  AND {cpv_alias}.text_val {sql_op} ?{val_idx})"
             ));
@@ -593,7 +597,6 @@ pub(crate) fn append_cpv_exists_prefilter(
                  WHERE {cpv_alias}.entity_class='{entity_class}' \
                  AND {cpv_alias}.write_cursor={cursor_expr} \
                  AND {cpv_alias}.attr_name=?{key_idx} \
-                 AND {cpv_alias}.value_type IN ('integer','float') \
                  AND {cpv_alias}.num_val IS NOT NULL \
                  AND {cpv_alias}.num_val {sql_op} ?{val_idx})"
             ));
@@ -607,7 +610,6 @@ pub(crate) fn append_cpv_exists_prefilter(
                  WHERE {cpv_alias}.entity_class='{entity_class}' \
                  AND {cpv_alias}.write_cursor={cursor_expr} \
                  AND {cpv_alias}.attr_name=?{key_idx} \
-                 AND {cpv_alias}.value_type IN ('integer','float') \
                  AND {cpv_alias}.num_val IS NOT NULL \
                  AND {cpv_alias}.num_val {sql_op} ?{val_idx})"
             ));
@@ -620,9 +622,76 @@ pub(crate) fn append_cpv_exists_prefilter(
                  WHERE {cpv_alias}.entity_class='{entity_class}' \
                  AND {cpv_alias}.write_cursor={cursor_expr} \
                  AND {cpv_alias}.attr_name=?{key_idx} \
-                 AND {cpv_alias}.value_type='boolean' \
                  AND {cpv_alias}.bool_val IS NOT NULL \
                  AND {cpv_alias}.bool_val {sql_op} ?{val_idx})"
+            ));
+        }
+    }
+}
+
+fn append_cpv_join_prefilter(
+    entity_class: &str,
+    cursor_expr: &str,
+    cpv_alias: &str,
+    pred: &PropertyPredicate,
+    params: &mut Vec<rusqlite::types::Value>,
+    joins: &mut String,
+) {
+    use rusqlite::types::Value;
+    params.push(Value::Text(pred.key.clone()));
+    let key_idx = params.len();
+    let sql_op = property_sql_op(pred.op);
+    // PRIMARY KEY(entity_class, write_cursor, attr_name) guarantees at most
+    // one CPV row per (entity, attr_name), so INNER JOIN never duplicates
+    // edges while letting SQLite use the covering partial typed index.
+    match &pred.value {
+        PropertyValue::String(s) => {
+            params.push(Value::Text(s.clone()));
+            let val_idx = params.len();
+            joins.push_str(&format!(
+                " INNER JOIN canonical_property_values {cpv_alias} \
+                  ON {cpv_alias}.entity_class='{entity_class}' \
+                  AND {cpv_alias}.write_cursor={cursor_expr} \
+                  AND {cpv_alias}.attr_name=?{key_idx} \
+                  AND {cpv_alias}.text_val IS NOT NULL \
+                  AND {cpv_alias}.text_val {sql_op} ?{val_idx}"
+            ));
+        }
+        PropertyValue::Int(i) => {
+            params.push(Value::Integer(*i));
+            let val_idx = params.len();
+            joins.push_str(&format!(
+                " INNER JOIN canonical_property_values {cpv_alias} \
+                  ON {cpv_alias}.entity_class='{entity_class}' \
+                  AND {cpv_alias}.write_cursor={cursor_expr} \
+                  AND {cpv_alias}.attr_name=?{key_idx} \
+                  AND {cpv_alias}.num_val IS NOT NULL \
+                  AND {cpv_alias}.num_val {sql_op} ?{val_idx}"
+            ));
+        }
+        PropertyValue::Float(f) => {
+            let norm = normalize_finite_f64(*f).unwrap_or(0.0);
+            params.push(Value::Real(norm));
+            let val_idx = params.len();
+            joins.push_str(&format!(
+                " INNER JOIN canonical_property_values {cpv_alias} \
+                  ON {cpv_alias}.entity_class='{entity_class}' \
+                  AND {cpv_alias}.write_cursor={cursor_expr} \
+                  AND {cpv_alias}.attr_name=?{key_idx} \
+                  AND {cpv_alias}.num_val IS NOT NULL \
+                  AND {cpv_alias}.num_val {sql_op} ?{val_idx}"
+            ));
+        }
+        PropertyValue::Bool(b) => {
+            params.push(Value::Integer(i64::from(*b)));
+            let val_idx = params.len();
+            joins.push_str(&format!(
+                " INNER JOIN canonical_property_values {cpv_alias} \
+                  ON {cpv_alias}.entity_class='{entity_class}' \
+                  AND {cpv_alias}.write_cursor={cursor_expr} \
+                  AND {cpv_alias}.attr_name=?{key_idx} \
+                  AND {cpv_alias}.bool_val IS NOT NULL \
+                  AND {cpv_alias}.bool_val {sql_op} ?{val_idx}"
             ));
         }
     }
@@ -756,22 +825,23 @@ pub(crate) struct GraphExpandIncidentQuery {
 fn graph_expand_incident_sql(
     direction: TraversalDirection,
     as_of_idx: Option<usize>,
+    extra_joins: &str,
     extra_where: &str,
     limit_idx: usize,
 ) -> String {
     const COLS: &str =
-        "write_cursor,kind,from_id,to_id,logical_id,superseded_at,t_invalid,properties";
+        "canonical_edges.write_cursor,canonical_edges.kind,canonical_edges.from_id,canonical_edges.to_id,canonical_edges.logical_id,canonical_edges.superseded_at,canonical_edges.t_invalid,canonical_edges.properties";
     match (as_of_idx, direction) {
         (None, TraversalDirection::Outgoing) => format!(
-            "SELECT {COLS} FROM canonical_edges WHERE from_id=?1 AND superseded_at IS NULL{extra_where} LIMIT ?{limit_idx}"
+            "SELECT {COLS} FROM canonical_edges{extra_joins} WHERE canonical_edges.from_id=?1 AND canonical_edges.superseded_at IS NULL{extra_where} LIMIT ?{limit_idx}"
         ),
         (None, TraversalDirection::Incoming) => format!(
-            "SELECT {COLS} FROM canonical_edges WHERE to_id=?1 AND superseded_at IS NULL{extra_where} LIMIT ?{limit_idx}"
+            "SELECT {COLS} FROM canonical_edges{extra_joins} WHERE canonical_edges.to_id=?1 AND canonical_edges.superseded_at IS NULL{extra_where} LIMIT ?{limit_idx}"
         ),
         (None, TraversalDirection::Both) => format!(
-            "SELECT {COLS} FROM canonical_edges WHERE from_id=?1 AND superseded_at IS NULL{extra_where} \
+            "SELECT {COLS} FROM canonical_edges{extra_joins} WHERE canonical_edges.from_id=?1 AND canonical_edges.superseded_at IS NULL{extra_where} \
              UNION ALL \
-             SELECT {COLS} FROM canonical_edges WHERE to_id=?1 AND from_id!=?1 AND superseded_at IS NULL{extra_where} \
+             SELECT {COLS} FROM canonical_edges{extra_joins} WHERE canonical_edges.to_id=?1 AND canonical_edges.from_id!=?1 AND canonical_edges.superseded_at IS NULL{extra_where} \
              LIMIT ?{limit_idx}"
         ),
         (Some(as_of_idx), TraversalDirection::Outgoing) => format!(
@@ -808,9 +878,9 @@ fn append_edge_kind_filter(
     if edge_kinds.len() == 1 {
         params.push(Value::Text(edge_kinds[0].clone()));
         let kind_idx = params.len();
-        extra_where.push_str(&format!(" AND kind=?{kind_idx}"));
+        extra_where.push_str(&format!(" AND canonical_edges.kind=?{kind_idx}"));
     } else if !edge_kinds.is_empty() {
-        extra_where.push_str(" AND kind IN (");
+        extra_where.push_str(" AND canonical_edges.kind IN (");
         for (i, kind) in edge_kinds.iter().enumerate() {
             if i > 0 {
                 extra_where.push(',');
@@ -834,6 +904,7 @@ pub(crate) fn graph_expand_incident_query(
     use rusqlite::types::Value;
 
     let mut params = vec![Value::Text(logical_id.to_string())];
+    let mut extra_joins = String::new();
     let mut extra_where = String::new();
     let as_of_idx = match boundary {
         EdgeViewBoundary::Current { edge_now } => {
@@ -841,16 +912,16 @@ pub(crate) fn graph_expand_incident_query(
             let now_idx = params.len();
             append_edge_kind_filter(edge_kinds, &mut params, &mut extra_where);
             extra_where.push_str(&format!(
-                " AND (t_valid IS NULL OR t_valid<=?{now_idx}) AND (t_invalid IS NULL OR t_invalid>?{now_idx})"
+                " AND (canonical_edges.t_valid IS NULL OR canonical_edges.t_valid<=?{now_idx}) AND (canonical_edges.t_invalid IS NULL OR canonical_edges.t_invalid>?{now_idx})"
             ));
             for (idx, pred) in pushed_edge_predicates.iter().enumerate() {
-                append_cpv_exists_prefilter(
+                append_cpv_join_prefilter(
                     "edge",
                     "canonical_edges.write_cursor",
                     &format!("cpv_e{idx}"),
                     pred,
                     &mut params,
-                    &mut extra_where,
+                    &mut extra_joins,
                 );
             }
             None
@@ -888,7 +959,8 @@ pub(crate) fn graph_expand_incident_query(
 
     params.push(Value::Integer(i64::try_from(limit).unwrap_or(i64::MAX)));
     let limit_idx = params.len();
-    let sql = graph_expand_incident_sql(direction, as_of_idx, &extra_where, limit_idx);
+    let sql =
+        graph_expand_incident_sql(direction, as_of_idx, &extra_joins, &extra_where, limit_idx);
     GraphExpandIncidentQuery { sql, params }
 }
 

@@ -629,7 +629,6 @@ fn append_cpv_property_join(
                   ON {cpv_alias}.entity_class = 'node' \
                   AND {cpv_alias}.write_cursor = {alias}.write_cursor \
                   AND {cpv_alias}.attr_name = ?{key_index} \
-                  AND {cpv_alias}.value_type = 'string' \
                   AND {cpv_alias}.text_val IS NOT NULL \
                   AND {cpv_alias}.text_val {sql_op} ?{val_index}"
             ));
@@ -641,7 +640,6 @@ fn append_cpv_property_join(
                   ON {cpv_alias}.entity_class = 'node' \
                   AND {cpv_alias}.write_cursor = {alias}.write_cursor \
                   AND {cpv_alias}.attr_name = ?{key_index} \
-                  AND {cpv_alias}.value_type IN ('integer', 'float') \
                   AND {cpv_alias}.num_val IS NOT NULL \
                   AND {cpv_alias}.num_val {sql_op} ?{val_index}"
             ));
@@ -654,7 +652,6 @@ fn append_cpv_property_join(
                   ON {cpv_alias}.entity_class = 'node' \
                   AND {cpv_alias}.write_cursor = {alias}.write_cursor \
                   AND {cpv_alias}.attr_name = ?{key_index} \
-                  AND {cpv_alias}.value_type IN ('integer', 'float') \
                   AND {cpv_alias}.num_val IS NOT NULL \
                   AND {cpv_alias}.num_val {sql_op} ?{val_index}"
             ));
@@ -666,7 +663,6 @@ fn append_cpv_property_join(
                   ON {cpv_alias}.entity_class = 'node' \
                   AND {cpv_alias}.write_cursor = {alias}.write_cursor \
                   AND {cpv_alias}.attr_name = ?{key_index} \
-                  AND {cpv_alias}.value_type = 'boolean' \
                   AND {cpv_alias}.bool_val IS NOT NULL \
                   AND {cpv_alias}.bool_val {sql_op} ?{val_index}"
             ));
@@ -697,7 +693,6 @@ fn append_cpv_property_predicate(
                  WHERE {cpv_alias}.entity_class = 'node' \
                  AND {cpv_alias}.write_cursor = {alias}.write_cursor \
                  AND {cpv_alias}.attr_name = ?{key_index} \
-                 AND {cpv_alias}.value_type = 'string' \
                  AND {cpv_alias}.text_val IS NOT NULL \
                  AND {cpv_alias}.text_val {sql_op} ?{val_index})"
             ));
@@ -709,7 +704,6 @@ fn append_cpv_property_predicate(
                  WHERE {cpv_alias}.entity_class = 'node' \
                  AND {cpv_alias}.write_cursor = {alias}.write_cursor \
                  AND {cpv_alias}.attr_name = ?{key_index} \
-                 AND {cpv_alias}.value_type IN ('integer', 'float') \
                  AND {cpv_alias}.num_val IS NOT NULL \
                  AND {cpv_alias}.num_val {sql_op} ?{val_index})"
             ));
@@ -722,7 +716,6 @@ fn append_cpv_property_predicate(
                  WHERE {cpv_alias}.entity_class = 'node' \
                  AND {cpv_alias}.write_cursor = {alias}.write_cursor \
                  AND {cpv_alias}.attr_name = ?{key_index} \
-                 AND {cpv_alias}.value_type IN ('integer', 'float') \
                  AND {cpv_alias}.num_val IS NOT NULL \
                  AND {cpv_alias}.num_val {sql_op} ?{val_index})"
             ));
@@ -734,7 +727,6 @@ fn append_cpv_property_predicate(
                  WHERE {cpv_alias}.entity_class = 'node' \
                  AND {cpv_alias}.write_cursor = {alias}.write_cursor \
                  AND {cpv_alias}.attr_name = ?{key_index} \
-                 AND {cpv_alias}.value_type = 'boolean' \
                  AND {cpv_alias}.bool_val IS NOT NULL \
                  AND {cpv_alias}.bool_val {sql_op} ?{val_index})"
             ));

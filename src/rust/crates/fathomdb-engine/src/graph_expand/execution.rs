@@ -548,10 +548,16 @@ fn load_incident_edges(
             let kind: String = row.get(1)?;
             let from_id: String = row.get(2)?;
             let to_id: String = row.get(3)?;
-            let (terminal_direction, next_logical_id) = if from_id == logical_id {
-                (TraversalDirection::Outgoing, to_id)
-            } else {
-                (TraversalDirection::Incoming, from_id)
+            let (terminal_direction, next_logical_id) = match direction {
+                TraversalDirection::Outgoing => (TraversalDirection::Outgoing, to_id),
+                TraversalDirection::Incoming => (TraversalDirection::Incoming, from_id),
+                TraversalDirection::Both => {
+                    if from_id == logical_id {
+                        (TraversalDirection::Outgoing, to_id)
+                    } else {
+                        (TraversalDirection::Incoming, from_id)
+                    }
+                }
             };
             Ok(EdgeRow {
                 write_cursor: u64::try_from(row.get::<_, i64>(0)?).unwrap_or(0),

@@ -344,7 +344,7 @@ def _validate_graph_expand_request(request: GraphExpandRequestV1) -> None:
         string(pair[1], "graph_context_invalid", f"{context_path}/eligibility/attributes/{index}/1")
     predicates = eligibility.property_predicates
     preds_base = f"{context_path}/eligibility/propertyPredicates"
-    if not isinstance(predicates, (list, tuple)) or len(predicates) > 32:
+    if not isinstance(predicates, (list, tuple)) or len(predicates) > 64:
         refuse("graph_context_invalid", preds_base)
     import math
 

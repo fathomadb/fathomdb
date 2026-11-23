@@ -283,7 +283,7 @@ function validateFrozenPropertyPredicates(
   failInvalid: (path: string) => never,
 ): void {
   if (value === undefined) return;
-  if (!Array.isArray(value) || value.length > 32) {
+  if (!Array.isArray(value) || value.length > 64) {
     failInvalid(basePath);
   }
   value.forEach((item, index) => {

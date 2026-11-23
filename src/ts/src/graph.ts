@@ -878,7 +878,7 @@ export function validateGraphExpandRequest(value: unknown): asserts value is Gra
   }
   if (eligibility.propertyPredicates !== undefined) {
     const predsBase = `${currentBase}/eligibility/propertyPredicates`;
-    if (!Array.isArray(eligibility.propertyPredicates) || eligibility.propertyPredicates.length > 32) {
+    if (!Array.isArray(eligibility.propertyPredicates) || eligibility.propertyPredicates.length > 64) {
       graphRefuse("graph_context_invalid", predsBase);
     }
     const validOps = new Set(["eq", "ne", "lt", "lte", "gt", "gte"]);

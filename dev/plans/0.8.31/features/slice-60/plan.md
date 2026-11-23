@@ -1,6 +1,6 @@
 ---
 title: "Slice 60 — FathomDB Inspector Schema 38, Historical Graph, Scoped CI & Release Packaging"
-status: READY
+status: CLOSED
 target_release: 0.8.31
 slice: 60
 date: 2026-11-23

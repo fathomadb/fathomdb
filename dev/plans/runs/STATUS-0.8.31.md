@@ -32,8 +32,11 @@ own settled HITL decisions, requirements, and execution contracts.
 - **Slice 50 (`SDK-CLI-UPGRADE`) — LANDED (`28f5def55`):**
   - Landed Layers 1–3 (`09dbec3bd`, `1b07584e1`, `9780e9181`) plus governed-surface commit pin (`fbb6591fc`, `56` live ops / `93` allowlist) and `FIX-1` (`28f5def55`): `resolve_evidence_many` per-ref partial results, opt-in `SearchResult.hints`, zero-I/O `OpenReport` capability booleans preserving forced-CUDA fail-closed open, `fathomdb migrate` `37 -> 38` (with fail-closed dangling-edge check, in-transaction `cpv` backfill + Schema-38 declaration rehash proven against golden Schema-37 DB), `fathomdb-cli` PyPI wheel + `fathomdb[cli]` extra + `build-python-cli` in `release.yml`, Rust/Python/TypeScript parity (1,800 Python / 662 TS / all 13 Rust crates), module-boundary cleanup, and updated public/interface/generated docs.
   - Independent adversarial code review returned **`APPROVE`** at HEAD `28f5def55`; recorded in `features/slice-50/status.md`.
-- **Slice 60 (`INSPECTOR`) — ACTIVE:** Applying Plan Review `FIX-1` to `features/slice-60/plan.md` for `APPROVE`, then executing RED -> GREEN TDD implementation.
+- **Slice 60 (`INSPECTOR`) — LANDED (`6685b0ccf`):**
+  - Landed Layers 1–3 (`35543da54`, `e86100641`, `8689b781d`) plus `FIX-1` (`6685b0ccf`): Inspector `0.3.0` Schema 38 strict admission, erasure-gated outside-`body` `properties` & reserved `scope`, `"properties"` memory admission, bounded `catalog`/`associations`, historical `as_of` graph + `P4-13` `INDEXED BY` lift + O(log N) two-branch `UNION ALL`, `.textContent`-only XSS-safe UI with `drawTree()` `field` threading + `i64` precision + `seedExpanded` preservation, `P7-02` bounded timeouts & `/proc` reaping across all harnesses, scoped `local-ci.sh`, `D4 = B` `local-release.py`, `build-inspector` in `.github/workflows/release.yml` (`upload-artifact-retry` `15`), all 4 workflow contract suites, and Inspector `0.3.0` docs.
+  - Independent adversarial code review returned **`APPROVE`** at HEAD `6685b0ccf`; recorded in `features/slice-60/status.md`.
+- **Slice 70 (`QUALIFICATION`) — ACTIVE:** Applying Plan Review `FIX-1` to `features/slice-70/plan.md` for `APPROVE`, then executing full `0.8.31` qualification gates (stopping strictly before Slice 80 Publication for separate HITL authorization).
 
 ## Next action
 
-Complete Slice 60 (`INSPECTOR`) Plan Review `FIX-1` (`APPROVE`), then execute Slices `60 → 70` sequentially (stopping before Slice 80 Publication for separate HITL approval).
+Complete Slice 70 (`QUALIFICATION`) Plan Review `FIX-1` (`APPROVE`), then execute WP-70F/70A–70G qualification gates and stop before Slice 80 Publication for separate HITL approval.

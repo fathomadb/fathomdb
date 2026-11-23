@@ -243,11 +243,11 @@ pub use errors::{
 pub use evidence::{
     encode_resolved_graph_evidence_v1, EvidenceArmV1, EvidenceArtifactClassV1,
     EvidenceArtifactLifecycleV1, EvidenceContributionV1, EvidenceErrorReasonV1, EvidenceErrorV1,
-    EvidenceGraphOriginV1, EvidenceProjectionOriginV1, EvidenceRefV1, EvidenceResolveRequestV1,
-    EvidenceSearchRequestV1, EvidenceSearchResultV1, EvidenceSidecarEntryV1,
-    GraphEvidenceArtifactV1, GraphEvidenceRefV1, GraphEvidenceResolveRequestV1,
-    GraphEvidenceSidecarEntryV1, GraphEvidenceSidecarV1, ResolvedEvidenceV1,
-    ResolvedGraphEvidenceV1,
+    EvidenceGraphOriginV1, EvidenceProjectionOriginV1, EvidenceRefV1, EvidenceResolveManyItemV1,
+    EvidenceResolveManyRequestV1, EvidenceResolveRequestV1, EvidenceSearchRequestV1,
+    EvidenceSearchResultV1, EvidenceSidecarEntryV1, GraphEvidenceArtifactV1, GraphEvidenceRefV1,
+    GraphEvidenceResolveRequestV1, GraphEvidenceSidecarEntryV1, GraphEvidenceSidecarV1,
+    ResolvedEvidenceV1, ResolvedGraphEvidenceV1, EVIDENCE_RESOLVE_MANY_MAX,
 };
 /// The GPU memory pool settings of [`EngineConfig`] and their conflict.
 pub use fathomdb_embedder::{
@@ -307,10 +307,15 @@ use mean::{
     run_pin_and_requantize_pass, subtract_mean, MeanAccumulator,
 };
 pub use mean::{MeanRecomputeReport, MEAN_VEC_PIN_THRESHOLD};
+#[cfg(all(feature = "operator", any(test, feature = "migration-test-hooks")))]
+pub use operator::arm_migrate_37_to_38_before_version_stamp_hook_for_test;
 #[cfg(feature = "operator")]
 pub use operator::recover_complete_erasures;
 #[cfg(feature = "operator")]
-pub use operator::{inspect_data_plane_integrity, recover_truncate_wal};
+pub use operator::{
+    inspect_data_plane_integrity, migrate_37_to_38, recover_truncate_wal, MigrateError,
+    MigrateErrorCode, MigratePreflightReport, MigrateReport,
+};
 pub use operator::{
     CheckIntegrityOpts, DumpProfileReport, DumpRowCountsReport, DumpSchemaReport, Finding,
     IntegrityReport, OrphanProvenanceReport, OrphanProvenanceSource, SafeExportArtifact,

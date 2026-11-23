@@ -297,6 +297,24 @@ fn classify_reranker_load_error(error: crate::RerankerLoadError) -> LoadFailure 
 #[cfg(feature = "default-reranker")]
 static RERANKER: Cell<SingletonState<crate::CandleTinyBertReranker>> = Cell::new();
 
+/// Inspect the in-process reranker singleton without blocking, loading weights,
+/// or touching CUDA.
+///
+/// Returns `Some(true)` if the singleton is loaded, `Some(false)` if it has
+/// memoized an `Unavailable` or `DevicePolicy` state, or `None` if no load has
+/// completed yet (`Empty` / `Loading`).
+#[cfg(feature = "default-reranker")]
+pub(crate) fn reranker_singleton_readiness() -> Option<bool> {
+    let state = RERANKER.value.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    match &*state {
+        State::Ready(singleton) => match singleton.as_ref() {
+            SingletonState::Loaded(_) => Some(true),
+            SingletonState::Unavailable | SingletonState::DevicePolicy(_) => Some(false),
+        },
+        State::Empty | State::Loading => None,
+    }
+}
+
 /// Use the cached reranker under a model lease; no model reference escapes.
 /// Unavailable weights and policy refusals are memoized until explicit release.
 /// CUDA failures are returned without memoization; generation loss remains

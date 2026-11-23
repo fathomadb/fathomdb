@@ -752,6 +752,25 @@ fn cache_dir() -> Result<PathBuf, RerankerLoadError> {
     Ok(root.join("fathomdb").join("reranker").join(&prefix[..12]))
 }
 
+fn weights_cached_and_verified_in(dir: &Path, files: &[(&str, &str)]) -> bool {
+    files.iter().all(|(name, sha)| matches!(file_matches_sha(&dir.join(name), sha), Ok(true)))
+}
+
+/// Check whether all pinned reranker weight files exist in the local cache and
+/// match their pinned SHA-256 digests, without creating directories, acquiring
+/// locks, touching the network, or initializing Candle/CUDA.
+pub(crate) fn weights_cached_and_verified() -> bool {
+    let Ok(dir) = cache_dir() else {
+        return false;
+    };
+    let files = [
+        ("config.json", CONFIG_JSON_SHA256),
+        ("tokenizer.json", TOKENIZER_JSON_SHA256),
+        ("model.safetensors", MODEL_SAFETENSORS_SHA256),
+    ];
+    weights_cached_and_verified_in(&dir, &files)
+}
+
 fn load_pinned_reranker_weights() -> Result<LoadedWeights, RerankerLoadError> {
     let dir = cache_dir()?;
     fs::create_dir_all(&dir)
@@ -1048,6 +1067,36 @@ mod tests {
         let Some(model) = load_or_skip() else { return };
         let out = model.score_batch(QUERY, &[]).expect("empty batch");
         assert!(out.is_empty(), "empty passages → empty output");
+    }
+
+    #[test]
+    fn weights_cached_and_verified_checks_all_files_and_digests_without_mutating_disk() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let missing = dir.path().join("nonexistent");
+        let sha = |bytes: &[u8]| -> String {
+            Sha256::digest(bytes).iter().map(|b| format!("{b:02x}")).collect()
+        };
+        let cfg_sha = sha(b"config");
+        let tok_sha = sha(b"tokenizer");
+        let mod_sha = sha(b"weights");
+        let spec = [
+            ("config.json", cfg_sha.as_str()),
+            ("tokenizer.json", tok_sha.as_str()),
+            ("model.safetensors", mod_sha.as_str()),
+        ];
+
+        assert!(!weights_cached_and_verified_in(&missing, &spec));
+        assert!(!missing.exists(), "readiness probe must not create missing cache dir");
+
+        fs::write(dir.path().join("config.json"), b"config").unwrap();
+        fs::write(dir.path().join("tokenizer.json"), b"tokenizer").unwrap();
+        assert!(!weights_cached_and_verified_in(dir.path(), &spec), "missing safetensors");
+
+        fs::write(dir.path().join("model.safetensors"), b"corrupt").unwrap();
+        assert!(!weights_cached_and_verified_in(dir.path(), &spec), "corrupt digest");
+
+        fs::write(dir.path().join("model.safetensors"), b"weights").unwrap();
+        assert!(weights_cached_and_verified_in(dir.path(), &spec), "all three digests match");
     }
 }
 

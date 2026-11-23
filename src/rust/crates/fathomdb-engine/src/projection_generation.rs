@@ -831,6 +831,38 @@ pub(crate) fn current_generation(connection: &Connection) -> Result<GenerationRo
     Ok(GenerationRow { id, digest, boundary, origin })
 }
 
+/// Recompute the serving generation's `declaration_sha256` after an offline
+/// Schema 37 -> 38 upgrade has added `entity_class` and `vector_kinds` to
+/// `_fathomdb_projection_registry` and stamped `PRAGMA user_version = 38`.
+///
+/// Must only be called inside the migration transaction after the pre-upgrade
+/// Schema-37 serving generation was already validated by [`current_generation`].
+#[cfg(feature = "operator")]
+pub(crate) fn rehash_serving_declaration_for_schema_38(
+    connection: &Connection,
+) -> Result<(), EngineError> {
+    let row: Option<(String, String)> = connection
+        .query_row(
+            "SELECT g.generation_id, g.declaration_sha256 \
+             FROM _fathomdb_projection_generation_current c \
+             JOIN _fathomdb_projection_generations g ON g.generation_id = c.generation_id \
+             WHERE c.singleton = 1 AND g.role = 'serving'",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .optional()
+        .map_err(|_| EngineError::Storage)?;
+    let Some((generation_id, stored_digest)) = row else {
+        return Ok(());
+    };
+    let expected_digest = declaration_digest(connection)?;
+    if stored_digest != expected_digest {
+        let _ = generation_id;
+        transition(connection, ProjectionGenerationOriginV1::Configuration)?;
+    }
+    Ok(())
+}
+
 pub(crate) fn member_completion(
     connection: &Connection,
     cursor: u64,

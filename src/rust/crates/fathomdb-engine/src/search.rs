@@ -319,6 +319,7 @@ pub(crate) fn read_projected_text_in_tx(
                 explanation: None,
                 degradations: Vec::new(),
                 snippets: None,
+                hints: None,
             });
         }
     }
@@ -365,6 +366,7 @@ pub(crate) fn read_projected_text_in_tx(
             explanation: None,
             degradations: Vec::new(),
             snippets: None,
+            hints: None,
         });
     }
     #[cfg(feature = "test-hooks")]
@@ -414,6 +416,7 @@ pub(crate) fn read_projected_text_in_tx(
         explanation: None,
         degradations: Vec::new(),
         snippets: None,
+        hints: None,
     })
 }
 
@@ -559,6 +562,7 @@ fn read_historical_projected_text(
         explanation: None,
         degradations: Vec::new(),
         snippets: None,
+        hints: None,
     })
 }
 
@@ -1474,6 +1478,7 @@ impl SearchOriginCapture for EvidenceCapture {
             explanation,
             degradations,
             snippets: None,
+            hints: None,
         };
         evidence::build_search_result(
             connection,

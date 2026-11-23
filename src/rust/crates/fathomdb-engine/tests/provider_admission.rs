@@ -319,6 +319,9 @@ fn returned_engine_report_and_runtime_have_no_refused_mode() {
         embedder_mean_vec_pinned: _,
         embedder_device_resolution: _,
         reranker_device_resolution: _,
+        reranker_compiled: _,
+        cuda_compiled: _,
+        rerank_available: _,
         embedder_gpu_allocation_witness: _,
         stop_words_sha256: _,
     } = &opened.report;

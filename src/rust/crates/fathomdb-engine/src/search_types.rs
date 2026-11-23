@@ -388,6 +388,9 @@ pub struct SearchResult {
     /// length, same order) when the search asked for snippets; `None`
     /// otherwise, with no per-hit work.
     pub snippets: Option<Vec<SnippetV1>>,
+    /// Opt-in agent hints derived from this search page (`hints = true`);
+    /// `None` when hints were not requested (zero allocation).
+    pub hints: Option<Vec<crate::hints::Hint>>,
 }
 
 /// 0.8.8 EXP-OBS (Slice 5) — the opt-in retrieval explanation payload returned

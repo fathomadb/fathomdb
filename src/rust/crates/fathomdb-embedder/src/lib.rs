@@ -239,6 +239,30 @@ pub use candle_reranker::RERANKER_REVISION;
 #[cfg(feature = "default-reranker")]
 pub use candle_reranker::{CandleTinyBertReranker, RerankerLoadError, DEFAULT_RERANKER_NAME};
 
+/// Return whether the built-in cross-encoder reranker is locally ready without
+/// performing network I/O, creating cache directories, or initializing CUDA.
+///
+/// Always returns `false` when the `default-reranker` feature is not compiled
+/// in. When `default-reranker` is enabled, checks the in-process reranker
+/// singleton first (`Loaded` -> `true`, memoized `Unavailable` / `DevicePolicy`
+/// -> `false`), then verifies the pinned SHA-256 digests of `config.json`,
+/// `tokenizer.json`, and `model.safetensors` under `FATHOMDB_RERANKER_CACHE` or
+/// `dirs::cache_dir()`.
+#[must_use]
+pub fn reranker_locally_ready() -> bool {
+    #[cfg(feature = "default-reranker")]
+    {
+        if let Some(ready) = module_models::reranker_singleton_readiness() {
+            return ready;
+        }
+        candle_reranker::weights_cached_and_verified()
+    }
+    #[cfg(not(feature = "default-reranker"))]
+    {
+        false
+    }
+}
+
 /// Deterministic low-level test fixture, not a production engine provider.
 #[derive(Clone, Debug)]
 pub struct NoopEmbedder {

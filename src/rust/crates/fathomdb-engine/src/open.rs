@@ -908,6 +908,15 @@ impl Engine {
                     report.embedder_gpu_allocation_witness = info.gpu_allocation_witness;
                 }
                 report.reranker_device_resolution = reranker_device_resolution;
+                #[cfg(feature = "default-reranker")]
+                {
+                    report.rerank_available = report.reranker_device_resolution.is_some()
+                        && fathomdb_embedder::reranker_locally_ready();
+                }
+                #[cfg(not(feature = "default-reranker"))]
+                {
+                    report.rerank_available = false;
+                }
 
                 // Verify after existing mean recovery and before projection startup.
                 // The existing cache may accept; an actual refusal returns no engine.
@@ -1557,6 +1566,9 @@ impl Engine {
             embedder_mean_vec_pinned,
             embedder_device_resolution: None,
             reranker_device_resolution: None,
+            reranker_compiled: cfg!(feature = "default-reranker"),
+            cuda_compiled: cfg!(any(feature = "embed-cuda", feature = "rerank-cuda")),
+            rerank_available: false,
             // 0.8.23 Slice 80.6 (D-80.6-6) — set by `open_with_migrations`
             // only when an opted-in CUDA default-embedder open measured one.
             embedder_gpu_allocation_witness: None,
@@ -1940,6 +1952,17 @@ pub struct OpenReport {
     /// never inferred from embedding-device state and makes no claim about
     /// database candidate retrieval or scoring.
     pub reranker_device_resolution: Option<RerankerDeviceResolution>,
+    /// Compile-time truth: `true` iff this binary was built with the
+    /// `default-reranker` feature (also implied by `rerank-cuda` / `rerank-metal`).
+    pub reranker_compiled: bool,
+    /// Compile-time truth: `true` iff this binary was built with CUDA support
+    /// for embedding or reranking (`embed-cuda` or `rerank-cuda`).
+    pub cuda_compiled: bool,
+    /// Open-time runtime readiness for cross-encoder reranking, evaluated with
+    /// zero network I/O and zero GPU tensor allocation: `true` iff the reranker
+    /// feature is compiled in, its open-time device policy succeeded, and its
+    /// weights are loaded in-process or SHA-256-verified in the local cache.
+    pub rerank_available: bool,
     /// Retained in-process allocation witness v2 from an opted-in built-in
     /// default-embedder open. `None` means no witness was taken, including
     /// caller/no-provider paths; a requested default-embedder witness failure

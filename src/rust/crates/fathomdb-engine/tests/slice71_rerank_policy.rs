@@ -71,6 +71,7 @@ fn normal_engine_rerank_path_returns_forced_policy_error_instead_of_rrf_fallback
             branch: SoftFallbackBranch::Vector,
             source_id: None,
             ce_score: None,
+            properties: None,
         }],
         1,
         0.3,

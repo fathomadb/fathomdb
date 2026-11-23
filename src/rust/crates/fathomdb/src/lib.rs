@@ -174,7 +174,8 @@ pub use fathomdb_engine::{
     EmbeddingReadinessState, Engine, EngineConfig, EngineConfigurationError, EngineError,
     EngineOpenError, EvidenceArmV1, EvidenceArtifactClassV1, EvidenceArtifactLifecycleV1,
     EvidenceContributionV1, EvidenceErrorReasonV1, EvidenceErrorV1, EvidenceGraphOriginV1,
-    EvidenceProjectionOriginV1, EvidenceRefV1, EvidenceResolveRequestV1, EvidenceSearchRequestV1,
+    EvidenceProjectionOriginV1, EvidenceRefV1, EvidenceResolveManyItemV1,
+    EvidenceResolveManyRequestV1, EvidenceResolveRequestV1, EvidenceSearchRequestV1,
     EvidenceSearchResultV1, EvidenceSidecarEntryV1, ExciseReport, Explanation, ExtractDocument,
     FrozenReadContextV1, FrozenReadError, FrozenReadErrorReason, GraphArmOptions,
     GraphArmSeedSource, GraphEvidenceArtifactV1, GraphEvidenceRefV1, GraphEvidenceResolveRequestV1,
@@ -182,14 +183,15 @@ pub use fathomdb_engine::{
     GraphExpansionDegradationCodeV1, GraphExpansionErrorReasonV1, GraphExpansionErrorV1,
     GraphExpansionExplanationV1, GraphOriginV1, GraphProjectionOriginV1,
     GraphProjectionReadinessV1, GraphReadContextV1, GraphReadModeV1, GraphSeedMode,
-    GraphSeedSourceV1, GraphSeedV1, GraphTargetExplanationV1, GraphTargetV1, IdSpace, IdSpaceKind,
-    IngestWithExtractorReceipt, InitialState, LifecycleActuationV1, LifecycleState,
-    MutationProjectionStatusRequestV1, MutationProjectionStatusV1, NodeRecord, OpenReport,
-    OpenStage, OpenedEngine, OperationalCollectionInfo, OperationalStateRecordV1, PageCursor,
-    PageError, PageErrorReason, PageRequestV1, PageV1, PerHitExplain, Predicate, PreparedWrite,
-    ProjectionDelta, ProjectionFts, ProjectionGenerationError, ProjectionGenerationErrorReason,
-    ProjectionGenerationId, ProjectionGenerationOriginV1, ProjectionGenerationStatusV1,
-    ProjectionReadinessV1, ProjectionRole, ProjectionRuntimeStateV1, ProjectionRuntimeStatus,
+    GraphSeedSourceV1, GraphSeedV1, GraphTargetExplanationV1, GraphTargetV1, Hint, HintAction,
+    HintArm, HintCause, HintMode, HintReason, IdSpace, IdSpaceKind, IngestWithExtractorReceipt,
+    InitialState, LifecycleActuationV1, LifecycleState, MutationProjectionStatusRequestV1,
+    MutationProjectionStatusV1, NodeRecord, OpenReport, OpenStage, OpenedEngine,
+    OperationalCollectionInfo, OperationalStateRecordV1, PageCursor, PageError, PageErrorReason,
+    PageRequestV1, PageV1, PerHitExplain, Predicate, PreparedWrite, ProjectionDelta, ProjectionFts,
+    ProjectionGenerationError, ProjectionGenerationErrorReason, ProjectionGenerationId,
+    ProjectionGenerationOriginV1, ProjectionGenerationStatusV1, ProjectionReadinessV1,
+    ProjectionRole, ProjectionRuntimeStateV1, ProjectionRuntimeStatus,
     ProjectionRuntimeStatusEntry, ProjectionRuntimeUnavailabilityReason, ProjectionSpec,
     ProjectionStatusDenseReadiness, ProjectionVector, PropertyComparisonOp, PropertyEntityClass,
     PropertyMap, PropertyPredicate, PropertyValue, ProvenanceCompleteness, ProvenanceError,
@@ -204,7 +206,7 @@ pub use fathomdb_engine::{
     StructuralDependencyStateV1, StructuralInclusionStateV1, StructuralInclusionV1,
     StructuralLifecycleStateV1, StructuralProjectionOriginV1, Subscription, TraceArtifactClassV1,
     TraceArtifactRoleV1, TraceNodeLifecycleV1, TraceReadBoundaryV1, TraversalDirection,
-    WriteProvenanceV1, WriteReceipt,
+    WriteProvenanceV1, WriteReceipt, EVIDENCE_RESOLVE_MANY_MAX,
 };
 pub use fathomdb_engine::{
     CudaPoolMode, CudaPoolSettingConflict, CudaPoolSettingValue, PoolSettingSource,
@@ -235,16 +237,16 @@ pub use fathomdb_engine::{
 //     the same posture as `dump-mutations` (Slice 34).
 #[cfg(feature = "operator")]
 pub use fathomdb_engine::{
-    inspect_data_plane_integrity, recover_complete_erasures, recover_truncate_wal,
-    CheckIntegrityOpts, CompleteErasuresReport, DataPlaneIntegrityBoundaryV1,
+    inspect_data_plane_integrity, migrate_37_to_38, recover_complete_erasures,
+    recover_truncate_wal, CheckIntegrityOpts, CompleteErasuresReport, DataPlaneIntegrityBoundaryV1,
     DataPlaneIntegrityCheckCountV1, DataPlaneIntegrityCheckV1, DataPlaneIntegrityErrorReasonV1,
     DataPlaneIntegrityErrorV1, DataPlaneIntegrityFindingCodeV1, DataPlaneIntegrityFindingV1,
     DataPlaneIntegrityRequestV1, DataPlaneIntegrityResultV1, DataPlaneIntegritySeverityV1,
     DumpProfileReport, DumpRowCountsReport, DumpSchemaReport, ExciseRecordReport, Finding,
-    IntegrityReport, MeanRecomputeReport, OrphanProvenanceReport, OrphanProvenanceSource,
-    PendingErasure, RebuildKind, RebuildReport, SafeExportArtifact, SchemaObject, Section,
-    TableRowCount, TraceEvent, TraceReport, TruncateWalReport, TruncateWalStatus,
-    VerifyEmbedderReport, VerifyEmbedderStatus,
+    IntegrityReport, MeanRecomputeReport, MigrateError, MigrateErrorCode, MigratePreflightReport,
+    MigrateReport, OrphanProvenanceReport, OrphanProvenanceSource, PendingErasure, RebuildKind,
+    RebuildReport, SafeExportArtifact, SchemaObject, Section, TableRowCount, TraceEvent,
+    TraceReport, TruncateWalReport, TruncateWalStatus, VerifyEmbedderReport, VerifyEmbedderStatus,
 };
 
 /// AC-074 method-level pin (Q5=BIND-RUST, Slice 27 fix-1): in a **default**
@@ -280,6 +282,13 @@ pub use fathomdb_engine::{
 /// ```compile_fail
 /// fn _no_recover_truncate_wal(path: std::path::PathBuf) {
 ///     let _ = fathomdb::recover_truncate_wal(path);
+/// }
+/// ```
+///
+/// The offline Schema 37 -> 38 migration helper does not resolve on the default facade:
+/// ```compile_fail
+/// fn _no_migrate_37_to_38(path: std::path::PathBuf, backup_dir: std::path::PathBuf) {
+///     let _ = fathomdb::migrate_37_to_38(path, backup_dir);
 /// }
 /// ```
 #[cfg(not(feature = "operator"))]

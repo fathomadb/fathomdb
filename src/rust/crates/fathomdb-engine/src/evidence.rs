@@ -10,6 +10,10 @@ use crate::{
 };
 
 const SCHEMA_VERSION: u32 = 1;
+/// Maximum number of evidence references accepted in a single
+/// [`crate::Engine::resolve_evidence_many`] request (enforced on raw count
+/// before deduplication).
+pub const EVIDENCE_RESOLVE_MANY_MAX: usize = 50;
 const TOKEN_PREFIX: &str = "fdbev1";
 const TOKEN_MAX_BYTES: usize = 2_048;
 const TOKEN_DOMAIN: &[u8] = b"fathomdb.evidence-ref.v1\0";
@@ -380,6 +384,7 @@ pub struct EvidenceSearchRequestV1 {
     pub graph_seed_k: usize,
     pub graph_edge_kinds: Vec<String>,
     pub graph_edge_predicates: Vec<PropertyPredicate>,
+    pub hints: bool,
 }
 
 impl EvidenceSearchRequestV1 {
@@ -401,6 +406,7 @@ impl EvidenceSearchRequestV1 {
             graph_seed_k: crate::search_types::DEFAULT_GRAPH_SEED_K,
             graph_edge_kinds: Vec::new(),
             graph_edge_predicates: Vec::new(),
+            hints: false,
         }
     }
 
@@ -477,6 +483,13 @@ impl EvidenceSearchRequestV1 {
         self
     }
 
+    /// Enable or disable opt-in search hints on the nested [`SearchResult`].
+    #[must_use]
+    pub fn with_hints(mut self, hints: bool) -> Self {
+        self.hints = hints;
+        self
+    }
+
     pub(crate) fn graph_arm_options(&self) -> GraphArmOptions {
         GraphArmOptions {
             graph_seed: self.graph_seed,
@@ -510,6 +523,24 @@ pub struct EvidenceResolveRequestV1 {
     pub schema_version: u32,
     pub evidence_ref: EvidenceRefV1,
     pub context: FrozenReadContextV1,
+}
+
+/// Versioned request to resolve a bounded batch of evidence references under
+/// one authenticated frozen read context (`1..=EVIDENCE_RESOLVE_MANY_MAX`).
+#[derive(Clone, Debug, PartialEq)]
+pub struct EvidenceResolveManyRequestV1 {
+    pub schema_version: u32,
+    pub evidence_refs: Vec<EvidenceRefV1>,
+    pub context: FrozenReadContextV1,
+}
+
+/// Per-reference outcome returned by [`crate::Engine::resolve_evidence_many`].
+#[derive(Clone, Debug, PartialEq)]
+pub enum EvidenceResolveManyItemV1 {
+    /// Authorized evidence resolved for this request slot.
+    Resolved(Box<ResolvedEvidenceV1>),
+    /// Per-slot refusal carrying a nondisclosing reason and `/evidenceRefs/{i}` path.
+    Refused(EvidenceErrorV1),
 }
 
 /// Exact source bytes and structural metadata authorized by the supplied view.
@@ -818,11 +849,92 @@ pub(crate) fn resolve(
         .into());
     }
     let (database_id, key) = frozen_read::page_cursor_material(connection)?;
-    let payload = decode_token(&key, request.evidence_ref.as_str())?;
     let context_bytes = frozen_read::validate_context(&request.context.context)?;
-    if payload.database_commitment != keyed(&key, DATABASE_DOMAIN, database_id.as_bytes())
-        || payload.context_commitment != keyed(&key, CONTEXT_DOMAIN, &context_bytes)
-        || payload.effective_valid_at != request.context.effective_valid_at
+    let database_commitment = keyed(&key, DATABASE_DOMAIN, database_id.as_bytes());
+    let context_commitment = keyed(&key, CONTEXT_DOMAIN, &context_bytes);
+    resolve_single_ref(
+        connection,
+        &key,
+        &database_commitment,
+        &context_commitment,
+        request.evidence_ref.as_str(),
+        &request.context,
+    )
+}
+
+pub(crate) fn resolve_many_raw(
+    connection: &Connection,
+    raw_refs: &[&str],
+    context: &FrozenReadContextV1,
+) -> Result<Vec<EvidenceResolveManyItemV1>, EngineError> {
+    let (database_id, key) = frozen_read::page_cursor_material(connection)?;
+    let context_bytes = frozen_read::validate_context(&context.context)
+        .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
+    let database_commitment = keyed(&key, DATABASE_DOMAIN, database_id.as_bytes());
+    let context_commitment = keyed(&key, CONTEXT_DOMAIN, &context_bytes);
+
+    let mut cache: std::collections::HashMap<
+        &str,
+        Result<ResolvedEvidenceV1, EvidenceErrorReasonV1>,
+    > = std::collections::HashMap::with_capacity(raw_refs.len());
+    let mut out = Vec::with_capacity(raw_refs.len());
+
+    for (index, &raw_ref) in raw_refs.iter().enumerate() {
+        if !cache.contains_key(raw_ref) {
+            let outcome = if raw_ref.is_empty() || raw_ref.len() > TOKEN_MAX_BYTES {
+                Err(EvidenceErrorReasonV1::EvidenceUnavailable)
+            } else {
+                match resolve_single_ref(
+                    connection,
+                    &key,
+                    &database_commitment,
+                    &context_commitment,
+                    raw_ref,
+                    context,
+                ) {
+                    Ok(resolved) => Ok(resolved),
+                    Err(EngineError::Evidence(error)) => {
+                        let reason = match error.reason {
+                            EvidenceErrorReasonV1::EvidenceCorrupt => {
+                                EvidenceErrorReasonV1::EvidenceCorrupt
+                            }
+                            EvidenceErrorReasonV1::EvidenceIncomplete => {
+                                EvidenceErrorReasonV1::EvidenceIncomplete
+                            }
+                            _ => EvidenceErrorReasonV1::EvidenceUnavailable,
+                        };
+                        Err(reason)
+                    }
+                    Err(other) => return Err(other),
+                }
+            };
+            cache.insert(raw_ref, outcome);
+        }
+        match cache.get(raw_ref).expect("just inserted") {
+            Ok(resolved) => {
+                out.push(EvidenceResolveManyItemV1::Resolved(Box::new(resolved.clone())))
+            }
+            Err(reason) => out.push(EvidenceResolveManyItemV1::Refused(EvidenceErrorV1::new(
+                *reason,
+                format!("/evidenceRefs/{index}"),
+            ))),
+        }
+    }
+    Ok(out)
+}
+
+fn resolve_single_ref(
+    connection: &Connection,
+    key: &[u8],
+    database_commitment: &[u8; 32],
+    context_commitment: &[u8; 32],
+    raw_ref: &str,
+    context: &FrozenReadContextV1,
+) -> Result<ResolvedEvidenceV1, EngineError> {
+    let payload = decode_token(key, raw_ref)?;
+    if payload.database_commitment != *database_commitment
+        || payload.context_commitment != *context_commitment
+        || payload.effective_valid_at != context.effective_valid_at
     {
         return Err(EvidenceErrorV1::unavailable().into());
     }
@@ -831,16 +943,15 @@ pub(crate) fn resolve(
         payload.artifact_class,
         payload.write_cursor,
         payload.effective_valid_at,
-        request.context.context.view.include_out_of_window,
+        context.context.view.include_out_of_window,
     )
     .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
     if payload.artifact_commitment
-        != keyed(&key, ARTIFACT_DOMAIN, stored.artifact_revision_id.as_bytes())
+        != keyed(key, ARTIFACT_DOMAIN, stored.artifact_revision_id.as_bytes())
         || payload.source_commitment
-            != keyed(&key, SOURCE_DOMAIN, stored.source_revision_id.as_bytes())
-        || payload.locator_commitment
-            != keyed(&key, LOCATOR_DOMAIN, &locator_bytes(&stored.locator))
-        || payload.hash_commitment != keyed(&key, HASH_DOMAIN, stored.hash_digest.as_bytes())
+            != keyed(key, SOURCE_DOMAIN, stored.source_revision_id.as_bytes())
+        || payload.locator_commitment != keyed(key, LOCATOR_DOMAIN, &locator_bytes(&stored.locator))
+        || payload.hash_commitment != keyed(key, HASH_DOMAIN, stored.hash_digest.as_bytes())
     {
         return Err(EvidenceErrorV1::unavailable().into());
     }
@@ -854,11 +965,11 @@ pub(crate) fn resolve(
                     connection,
                     *edge_cursor,
                     payload.effective_valid_at,
-                    request.context.context.view.include_out_of_window,
-                    request.context.context.view.include_superseded,
+                    context.context.view.include_out_of_window,
+                    context.context.view.include_superseded,
                 )
                 .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
-                if commitment != keyed(&key, GRAPH_EDGE_DOMAIN, revision.as_bytes())
+                if commitment != keyed(key, GRAPH_EDGE_DOMAIN, revision.as_bytes())
                     || stored
                         .logical_id
                         .as_ref()
@@ -867,7 +978,7 @@ pub(crate) fn resolve(
                         connection,
                         &source_revision_id,
                         payload.effective_valid_at,
-                        request.context.context.view.include_out_of_window,
+                        context.context.view.include_out_of_window,
                     )?
                 {
                     return Err(EvidenceErrorV1::unavailable().into());
@@ -888,11 +999,11 @@ pub(crate) fn resolve(
                     connection,
                     *edge_cursor,
                     payload.effective_valid_at,
-                    request.context.context.view.include_out_of_window,
-                    request.context.context.view.include_superseded,
+                    context.context.view.include_out_of_window,
+                    context.context.view.include_superseded,
                 )
                 .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
-                if commitment != keyed(&key, GRAPH_EDGE_DOMAIN, revision.as_bytes())
+                if commitment != keyed(key, GRAPH_EDGE_DOMAIN, revision.as_bytes())
                     || stored
                         .logical_id
                         .as_ref()
@@ -901,7 +1012,7 @@ pub(crate) fn resolve(
                         connection,
                         &source_revision_id,
                         payload.effective_valid_at,
-                        request.context.context.view.include_out_of_window,
+                        context.context.view.include_out_of_window,
                     )?
                 {
                     return Err(EvidenceErrorV1::unavailable().into());
@@ -921,16 +1032,16 @@ pub(crate) fn resolve(
         connection,
         &stored,
         payload.artifact_class,
-        &request.context.context.view,
+        &context.context.view,
     )?;
-    let eligibility = &request.context.context.eligibility;
+    let eligibility = &context.context.eligibility;
     let artifact_eligible = match payload.artifact_class {
         EvidenceArtifactClassV1::Node => crate::filter::text_hit_passes_filter_view(
             connection,
             payload.write_cursor,
             &stored.artifact_kind,
             Some(eligibility),
-            &request.context.context.view,
+            &context.context.view,
         ),
         EvidenceArtifactClassV1::Edge => crate::edge_fts_hit_passes_filter(
             connection,
@@ -979,7 +1090,7 @@ pub(crate) fn resolve(
     }
     let generation = resolve_generation(
         connection,
-        &key,
+        key,
         &payload.generation_nonce,
         &payload.generation_ciphertext,
     )?;

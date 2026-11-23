@@ -1011,3 +1011,18 @@ required-features = ["test-hooks"]
 [[test]]
 name = "slice38_erasure_and_audit"
 required-features = ["operator", "test-hooks"]
+
+[[test]]
+name = "slice50_resolve_evidence_many"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice50_search_hints"
+required-features = ["test-hooks"]
+
+[[test]]
+name = "slice50_open_report_capabilities"
+
+[[test]]
+name = "slice50_migrate_37_to_38"
+required-features = ["operator", "migration-test-hooks", "test-hooks"]

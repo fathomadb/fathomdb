@@ -11,14 +11,14 @@ fn data_plane_inspection_error(
 }
 
 #[cfg(feature = "operator")]
-fn data_plane_sidecar_path(path: &Path, suffix: &str) -> PathBuf {
+pub(super) fn data_plane_sidecar_path(path: &Path, suffix: &str) -> PathBuf {
     let mut sidecar = path.as_os_str().to_os_string();
     sidecar.push(suffix);
     PathBuf::from(sidecar)
 }
 
 #[cfg(feature = "operator")]
-fn immutable_sqlite_uri(path: &Path) -> String {
+pub(super) fn immutable_sqlite_uri(path: &Path) -> String {
     sqlite_uri(path, "immutable=1")
 }
 
@@ -263,7 +263,7 @@ pub fn recover_complete_erasures(
 }
 
 #[cfg(feature = "operator")]
-fn validate_recovery_database_file(path: &Path) -> Result<(), EngineOpenError> {
+pub(super) fn validate_recovery_database_file(path: &Path) -> Result<(), EngineOpenError> {
     let metadata = std::fs::metadata(path).map_err(|_| EngineOpenError::Io {
         message: "recovery requires an existing database file".to_string(),
     })?;
@@ -313,7 +313,7 @@ fn validate_effective_recovery_schema(path: &Path) -> Result<(), EngineOpenError
 }
 
 #[cfg(feature = "operator")]
-fn validate_recovery_schema_invariants(
+pub(super) fn validate_recovery_schema_invariants(
     connection: &Connection,
     schema_version: u32,
 ) -> Result<(), EngineOpenError> {

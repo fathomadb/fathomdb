@@ -77,6 +77,8 @@ pub struct SearchOptions {
     pub graph_seed_k: usize,
     pub graph_edge_kinds: Vec<String>,
     pub graph_edge_predicates: Vec<PropertyPredicate>,
+    /// Opt-in agent search hints attached to `SearchResult.hints` (default `false`).
+    pub hints: bool,
 }
 
 impl Default for SearchOptions {
@@ -95,6 +97,7 @@ impl Default for SearchOptions {
             graph_seed_k: DEFAULT_GRAPH_SEED_K,
             graph_edge_kinds: Vec::new(),
             graph_edge_predicates: Vec::new(),
+            hints: false,
         }
     }
 }
@@ -158,6 +161,8 @@ pub struct FrozenSearchOptions {
     pub graph_seed_k: usize,
     pub graph_edge_kinds: Vec<String>,
     pub graph_edge_predicates: Vec<PropertyPredicate>,
+    /// Opt-in agent search hints attached to `SearchResult.hints` (default `false`).
+    pub hints: bool,
 }
 
 impl Default for FrozenSearchOptions {
@@ -174,6 +179,7 @@ impl Default for FrozenSearchOptions {
             graph_seed_k: DEFAULT_GRAPH_SEED_K,
             graph_edge_kinds: Vec::new(),
             graph_edge_predicates: Vec::new(),
+            hints: false,
         }
     }
 }

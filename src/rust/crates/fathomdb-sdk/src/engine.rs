@@ -7,12 +7,13 @@ use fathomdb_engine::{
     ActuationBatchV1, ActuationReceiptV1, ClosureLookupV1, ClosureStatusV1, ConsolidateAxis,
     ConsolidateReceipt, CounterSnapshot, DependencyDerivedLookupV1, DependencyListV1,
     DependencySourceLookupV1, DependencyTraceRequestV1, DependencyTraceResultV1, EmbedderChoice,
-    Engine as CoreEngine, EngineConfig, EngineError, EvidenceResolveRequestV1,
-    EvidenceSearchRequestV1, EvidenceSearchResultV1, ExciseReport, ExtractDocument,
-    FrozenReadContextV1, GraphArmOptions, GraphEvidenceResolveRequestV1,
-    IngestWithExtractorReceipt, LifecycleState, OpenReport, PreparedWrite, ProjectionDelta,
-    ProjectionSpec, ReadContextV1, ResolvedEvidenceV1, ResolvedGraphEvidenceV1, SearchExpandResult,
-    SearchResult, SourceDependencyRegistrationV1, SourceDependencyV1, Subscription, WriteReceipt,
+    Engine as CoreEngine, EngineConfig, EngineError, EvidenceResolveManyItemV1,
+    EvidenceResolveManyRequestV1, EvidenceResolveRequestV1, EvidenceSearchRequestV1,
+    EvidenceSearchResultV1, ExciseReport, ExtractDocument, FrozenReadContextV1, GraphArmOptions,
+    GraphEvidenceResolveRequestV1, IngestWithExtractorReceipt, LifecycleState, OpenReport,
+    PreparedWrite, ProjectionDelta, ProjectionSpec, ReadContextV1, ResolvedEvidenceV1,
+    ResolvedGraphEvidenceV1, SearchExpandResult, SearchResult, SourceDependencyRegistrationV1,
+    SourceDependencyV1, Subscription, WriteReceipt,
 };
 
 use crate::error::{Error, Result};
@@ -256,6 +257,7 @@ impl Engine {
             graph_seed_k,
             graph_edge_kinds,
             graph_edge_predicates,
+            hints,
         } = options;
         guard::ranked_limit("limit", limit)?;
         let alpha = guard::alpha(alpha)?;
@@ -267,7 +269,7 @@ impl Engine {
         graph_options.graph_seed_k = graph_seed_k;
         graph_options.graph_edge_kinds = graph_edge_kinds;
         graph_options.graph_edge_predicates = graph_edge_predicates;
-        Ok(self.core.search_reranked_view_with_graph_options(
+        Ok(self.core.search_reranked_view_with_hints(
             query,
             filter,
             rerank_depth,
@@ -279,6 +281,7 @@ impl Engine {
             limit,
             snippet.as_ref(),
             &graph_options,
+            hints,
         )?)
     }
 
@@ -355,6 +358,7 @@ impl Engine {
             graph_seed_k,
             graph_edge_kinds,
             graph_edge_predicates,
+            hints,
         } = options;
         self.core.validate_frozen_read_context_for_binding(context)?;
         guard::ranked_limit("limit", limit)?;
@@ -366,7 +370,7 @@ impl Engine {
         graph_options.graph_seed_k = graph_seed_k;
         graph_options.graph_edge_kinds = graph_edge_kinds;
         graph_options.graph_edge_predicates = graph_edge_predicates;
-        Ok(self.core.search_frozen_with_graph_options(
+        Ok(self.core.search_frozen_with_hints(
             query,
             context,
             rerank_depth,
@@ -377,6 +381,7 @@ impl Engine {
             limit,
             snippet.as_ref(),
             &graph_options,
+            hints,
         )?)
     }
 
@@ -415,6 +420,15 @@ impl Engine {
         request: &EvidenceResolveRequestV1,
     ) -> Result<ResolvedEvidenceV1> {
         Ok(self.core.resolve_evidence(request)?)
+    }
+
+    /// Resolve a bounded batch (`1..=EVIDENCE_RESOLVE_MANY_MAX`) of opaque
+    /// evidence references under one authenticated frozen read context.
+    pub fn resolve_evidence_many(
+        &self,
+        request: &EvidenceResolveManyRequestV1,
+    ) -> Result<Vec<EvidenceResolveManyItemV1>> {
+        Ok(self.core.resolve_evidence_many(request)?)
     }
 
     /// Resolve an opaque graph evidence reference.

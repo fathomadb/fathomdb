@@ -170,8 +170,40 @@ impl Engine {
         snippet: Option<&SnippetOptions>,
         graph_options: &GraphArmOptions,
     ) -> Result<SearchResult, EngineError> {
+        self.search_frozen_with_hints(
+            query,
+            frozen,
+            rerank_depth,
+            use_graph_arm,
+            alpha,
+            pool_n,
+            explain,
+            limit,
+            snippet,
+            graph_options,
+            false,
+        )
+    }
+
+    /// [`search_frozen_with_graph_options`][Engine::search_frozen_with_graph_options]
+    /// with opt-in agent search hints (`hints = true`).
+    #[allow(clippy::too_many_arguments)]
+    pub fn search_frozen_with_hints(
+        &self,
+        query: &str,
+        frozen: &FrozenReadContextV1,
+        rerank_depth: usize,
+        use_graph_arm: bool,
+        alpha: f64,
+        pool_n: usize,
+        explain: bool,
+        limit: usize,
+        snippet: Option<&SnippetOptions>,
+        graph_options: &GraphArmOptions,
+        hints: bool,
+    ) -> Result<SearchResult, EngineError> {
         validate_snippet(snippet)?;
-        self.search_frozen_inner(
+        let mut result = self.search_frozen_inner(
             query,
             frozen,
             rerank_depth,
@@ -182,7 +214,11 @@ impl Engine {
             limit,
             snippet.copied(),
             Some(graph_options.clone()),
-        )
+        )?;
+        if hints {
+            result.hints = Some(self.compute_search_hints(&result, limit));
+        }
+        Ok(result)
     }
 
     /// Run an opt-in frozen search and return one authenticated evidence
@@ -283,6 +319,10 @@ impl Engine {
         if result.search_result.explanation.is_some() {
             self.finalize_search_observability(&request.query, &mut result.search_result);
         }
+        if request.hints {
+            result.search_result.hints =
+                Some(self.compute_search_hints(&result.search_result, result_limit));
+        }
         Ok(result)
     }
 
@@ -318,6 +358,82 @@ impl Engine {
             .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
         tx.commit().map_err(|_| EngineError::Storage)?;
         Ok(result)
+    }
+
+    /// Resolve a bounded batch (`1..=EVIDENCE_RESOLVE_MANY_MAX`) of evidence
+    /// references under a single authenticated frozen read context.
+    ///
+    /// Precedence:
+    /// 1. `schema_version != 1` -> whole-call `UnsupportedSchemaVersion` at `"/schemaVersion"`.
+    /// 2. `evidence_refs.is_empty() || evidence_refs.len() > EVIDENCE_RESOLVE_MANY_MAX`
+    ///    (raw count before deduplication, before DB access) -> whole-call `InvalidArgument`.
+    /// 3. Single connection lock + `BEGIN DEFERRED` read transaction: authenticate
+    ///    `request.context` once and validate snapshot (collapsing failures into
+    ///    whole-call `EvidenceUnavailable`).
+    /// 4. Deduplicate unique tokens while preserving exact positional order and
+    ///    arity, returning per-slot `Resolved` or nondisclosing `Refused` items
+    ///    with `field_path = "/evidenceRefs/{i}"`.
+    /// 5. Re-validate snapshot before returning (collapsing post-resolve drift
+    ///    into whole-call `EvidenceUnavailable`).
+    pub fn resolve_evidence_many(
+        &self,
+        request: &EvidenceResolveManyRequestV1,
+    ) -> Result<Vec<EvidenceResolveManyItemV1>, EngineError> {
+        let raw_refs: Vec<&str> = request.evidence_refs.iter().map(EvidenceRefV1::as_str).collect();
+        self.resolve_evidence_many_slice(request.schema_version, &raw_refs, &request.context)
+    }
+
+    /// Binding helper accepting raw string references so FFI boundaries can
+    /// route empty or oversized (`> 2048` bytes) tokens into per-slot
+    /// nondisclosing `Refused(EvidenceUnavailable, "/evidenceRefs/{i}")`
+    /// outcomes rather than aborting the whole batch.
+    #[doc(hidden)]
+    pub fn resolve_evidence_many_raw_refs(
+        &self,
+        schema_version: u32,
+        raw_refs: &[String],
+        context: &FrozenReadContextV1,
+    ) -> Result<Vec<EvidenceResolveManyItemV1>, EngineError> {
+        let refs: Vec<&str> = raw_refs.iter().map(String::as_str).collect();
+        self.resolve_evidence_many_slice(schema_version, &refs, context)
+    }
+
+    fn resolve_evidence_many_slice(
+        &self,
+        schema_version: u32,
+        raw_refs: &[&str],
+        context: &FrozenReadContextV1,
+    ) -> Result<Vec<EvidenceResolveManyItemV1>, EngineError> {
+        if schema_version != 1 {
+            return Err(EvidenceErrorV1::new(
+                EvidenceErrorReasonV1::UnsupportedSchemaVersion,
+                "/schemaVersion",
+            )
+            .into());
+        }
+        if raw_refs.is_empty() || raw_refs.len() > EVIDENCE_RESOLVE_MANY_MAX {
+            return Err(EngineError::InvalidArgument {
+                msg: format!(
+                    "evidence_refs must contain between 1 and {EVIDENCE_RESOLVE_MANY_MAX} references; got {}",
+                    raw_refs.len()
+                ),
+            });
+        }
+        let _operation = self.ensure_open()?;
+        let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_mut().ok_or(EngineError::Closing)?;
+        let tx = connection.transaction().map_err(|_| EngineError::Storage)?;
+        let binding = frozen_read::authenticate(&tx, context)
+            .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
+        frozen_read::validate_snapshot(&tx, &binding)
+            .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
+        let items = evidence::resolve_many_raw(&tx, raw_refs, context)?;
+        #[cfg(any(test, feature = "test-hooks"))]
+        self.evidence_before_resolve_return_hook.fire();
+        frozen_read::validate_snapshot(&tx, &binding)
+            .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
+        tx.commit().map_err(|_| EngineError::Storage)?;
+        Ok(items)
     }
 
     /// Resolve one exact graph artifact previously disclosed by frozen expansion.
@@ -801,6 +917,7 @@ impl Engine {
                 explanation,
                 degradations,
                 snippets,
+                hints: None,
             },
             graph_stats,
             expanded,
@@ -979,10 +1096,44 @@ impl Engine {
         snippet: Option<&SnippetOptions>,
         graph_options: &GraphArmOptions,
     ) -> Result<SearchResult, EngineError> {
+        self.search_reranked_view_with_hints(
+            query,
+            filter,
+            rerank_depth,
+            use_graph_arm,
+            alpha,
+            pool_n,
+            explain,
+            view,
+            limit,
+            snippet,
+            graph_options,
+            false,
+        )
+    }
+
+    /// [`search_reranked_view_with_graph_options`][Engine::search_reranked_view_with_graph_options]
+    /// with opt-in agent search hints (`hints = true`).
+    #[allow(clippy::too_many_arguments)]
+    pub fn search_reranked_view_with_hints(
+        &self,
+        query: &str,
+        filter: Option<SearchFilter>,
+        rerank_depth: usize,
+        use_graph_arm: bool,
+        alpha: f64,
+        pool_n: usize,
+        explain: bool,
+        view: &ReadView,
+        limit: usize,
+        snippet: Option<&SnippetOptions>,
+        graph_options: &GraphArmOptions,
+        hints: bool,
+    ) -> Result<SearchResult, EngineError> {
         let limit = validate_search_result_limit(limit)?;
         validate_snippet(snippet)?;
         graph_options.validate()?;
-        self.search_reranked_with_explain(
+        let mut result = self.search_reranked_with_explain(
             query,
             filter,
             rerank_depth,
@@ -994,7 +1145,42 @@ impl Engine {
             limit,
             snippet.copied(),
             Some(graph_options.clone()),
+        )?;
+        if hints {
+            result.hints = Some(self.compute_search_hints(&result, limit));
+        }
+        Ok(result)
+    }
+
+    fn compute_search_hints(&self, result: &SearchResult, limit: usize) -> Vec<crate::hints::Hint> {
+        let first = result.degradations.first().map(|entry| {
+            let arm = match entry.arm {
+                SoftFallbackBranch::Vector => crate::hints::HintArm::Vector,
+                SoftFallbackBranch::Text => crate::hints::HintArm::Text,
+                SoftFallbackBranch::TextEdge => crate::hints::HintArm::TextEdge,
+                SoftFallbackBranch::GraphArm => crate::hints::HintArm::GraphArm,
+            };
+            let cause = match entry.reason {
+                DegradationReason::EmbedderAbsent => crate::hints::HintCause::EmbedderAbsent,
+                DegradationReason::EmbedderTimeout => crate::hints::HintCause::EmbedderTimeout,
+                DegradationReason::EmbedderOverloaded => {
+                    crate::hints::HintCause::EmbedderOverloaded
+                }
+            };
+            (arm, cause)
+        });
+        let hybrid_available = self.runtime_embedder.is_some()
+            && !result.degradations.iter().any(|entry| entry.arm == SoftFallbackBranch::Vector);
+        let facts = crate::hints::SearchFacts::new(
+            result.results.len(),
+            limit,
+            crate::hints::HintMode::Hybrid,
         )
+        .with_degradations(first.as_slice())
+        .with_hybrid_available(hybrid_available);
+        let mut out = Vec::new();
+        crate::hints::search_hints(&facts, &mut out);
+        out
     }
 
     /// G10 — hybrid `search` with an optional closed [`SearchFilter`]. `None`
@@ -1363,6 +1549,7 @@ impl Engine {
             explanation,
             degradations: Vec::new(),
             snippets,
+            hints: None,
         };
         #[cfg(any(test, feature = "slice30-observer"))]
         response_phase.success();
@@ -1634,9 +1821,10 @@ use crate::embedding::search_query_vector;
 use crate::errors::EngineError;
 use crate::evidence::{
     self, EvidenceArtifactClassV1, EvidenceArtifactLifecycleV1, EvidenceErrorReasonV1,
-    EvidenceErrorV1, EvidenceResolveRequestV1, EvidenceSearchRequestV1, EvidenceSearchResultV1,
+    EvidenceErrorV1, EvidenceRefV1, EvidenceResolveManyItemV1, EvidenceResolveManyRequestV1,
+    EvidenceResolveRequestV1, EvidenceSearchRequestV1, EvidenceSearchResultV1,
     GraphEvidenceArtifactV1, GraphEvidenceResolveRequestV1, ResolvedEvidenceV1,
-    ResolvedGraphEvidenceV1,
+    ResolvedGraphEvidenceV1, EVIDENCE_RESOLVE_MANY_MAX,
 };
 #[cfg(any(test, feature = "test-hooks"))]
 use crate::filter::{
@@ -1660,8 +1848,8 @@ use crate::search::{bm25f_search_inner, FrozenQueryRuntime, SearchReaderError, S
 #[cfg(any(test, feature = "test-hooks"))]
 use crate::search_types::SEARCH_RERANK_LIMIT;
 use crate::search_types::{
-    validate_search_result_limit, Bm25fQueryPlan, GraphArmOptions, GraphFrontierStats,
-    SearchResult, DEFAULT_SEARCH_RESULT_LIMIT,
+    validate_search_result_limit, Bm25fQueryPlan, DegradationReason, GraphArmOptions,
+    GraphFrontierStats, SearchResult, SoftFallbackBranch, DEFAULT_SEARCH_RESULT_LIMIT,
 };
 use crate::snippet::SnippetOptions;
 #[cfg(feature = "tc5-benchmark")]

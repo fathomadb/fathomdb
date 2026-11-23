@@ -33,6 +33,7 @@ fn hit(id: u64, body: &str, score: f64) -> SearchHit {
         source_id: Some("test:fixture".to_string()),
         // 0.8.5 — additive CE score; None until set inside `ce_rerank` for in-pool hits.
         ce_score: None,
+        properties: None,
     }
 }
 

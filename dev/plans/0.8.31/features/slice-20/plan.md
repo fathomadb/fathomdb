@@ -1,6 +1,6 @@
 ---
 title: Slice 20 Plan — 0.8.31 Property Graph Schema, Inline Properties, Declared Indexes & W12 Fixes
-status: ACTIVE
+status: CLOSED
 target_release: 0.8.31
 slice: 20
 date: 2026-11-22

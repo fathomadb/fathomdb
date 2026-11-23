@@ -20,8 +20,11 @@ own settled HITL decisions, requirements, and execution contracts.
   - Completed `WP-10A`–`WP-10D` (ADR `#73`/`#75`/`#76` & `ADR-0.8.28` amendments + project-boundary scrub; `markdownlint-cli2 ^0.24.2` & `rustix 1.1.6` lockfile hygiene; pre-publish `0.8.31` public-doc truth gate flip + `P6-01`/`P6-07`/`P6-11` fixes; `P7-03` security timeouts, `P7-07` PEP 691 + CDN-skew retry, `P7-08` CHANGELOG GitHub Release body, `P7-09` Bash 3 sentinel + Windows Slice 55 smoke, `P7-10` dynamic tag route + audited 171-record Gitleaks manifest; all wired in `scripts/agent-test.sh`).
   - Independent `pro` adversarial code review returned `APPROVE` after `FIX-1`; recorded in `features/slice-10/status.md`.
 - **Phase C Draft Plans (`Slices 20–70`) — AUTHORED:** Draft plans written for Slices `20`, `30`, `40`, `50`, `60`, and `70`.
-- **Slice 20 (`PROPERTY-SCHEMA`) — ACTIVE:** Completing Plan Review `FIX-1`, then executing RED -> GREEN TDD implementation.
+- **Slice 20 (`PROPERTY-SCHEMA`) — LANDED (`975637f3c`):**
+  - Landed Layers 1–5 (`022b62b49`, `3da57de2e`, `644333afb`, `947398398`, `36802ba4e`, `9ee29cd3e`) plus `FIX-1` (`1c61aea20`) and `FIX-2` (`975637f3c`): Schema 38 (`STEP_38_SQL`), inline typed properties + O(1) hydration, `canonical_property_values` with 4 composite indexes and indexed `INNER JOIN` vector pre-selection, `vec0` 8-slot node budget, `_fathomdb_commit_timestamps`, explicit opt-in `R1` vector kinds, `read.operational_collections`/`collection` (`55/55` governed surface pinned at `36802ba4e`), W12 erasure fixes 3a/3b/3c, `ExportClass` audit, Rust/Python/TypeScript SDK parity, and updated interface docs.
+  - Independent adversarial code review returned **`APPROVE`** at HEAD `975637f3c`; recorded in `features/slice-20/status.md`.
+- **Slice 30 (`STRICT-GRAPH`) — ACTIVE:** Applying Plan Review `FIX-1` to `features/slice-30/plan.md` for `APPROVE`, then executing RED -> GREEN TDD implementation.
 
 ## Next action
 
-Complete Slice 20 (`PROPERTY-SCHEMA`) Plan Review `FIX-1` (`APPROVE`), then execute Slices `20 → 30 → 40 → 50 → 60 → 70` sequentially (stopping before Slice 80 Publication for separate HITL approval).
+Complete Slice 30 (`STRICT-GRAPH`) Plan Review `FIX-1` (`APPROVE`), then execute Slices `30 → 40 → 50 → 60 → 70` sequentially (stopping before Slice 80 Publication for separate HITL approval).

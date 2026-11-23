@@ -46,12 +46,15 @@
       "depends_on": [
         10
       ],
-      "status": "ACTIVE",
+      "status": "LANDED",
+      "sha": "975637f3c",
       "design_refs": [
         "dev/adr/ADR-0.8.31-property-graph-inline-and-declared-indexes.md",
         "dev/plans/0.8.31/features/slice-0/w12-fence-review.md",
-        "dev/plans/0.8.31/features/slice-20/plan.md"
-      ]
+        "dev/plans/0.8.31/features/slice-20/plan.md",
+        "dev/plans/0.8.31/features/slice-20/status.md"
+      ],
+      "evidence": "Layers 1-5 + FIX-1 + FIX-2 landed through 975637f3c; Schema 38, inline properties, canonical_property_values, 8-slot vec0 budget, commit timestamps, R1 vector kinds, op-collections (55/55 governed surface pinned at 36802ba4e), W12 3a/3b/3c, and ExportClass audit verified green across Rust/Py/TS; independent adversarial code review APPROVE."
     },
     {
       "slice": 30,
@@ -60,10 +63,11 @@
       "depends_on": [
         20
       ],
-      "status": "PLANNED",
+      "status": "ACTIVE",
       "design_refs": [
         "dev/adr/ADR-0.8.31-strict-endpoint-integrity.md",
-        "dev/adr/ADR-0.8.31-historical-graph-and-fused-seeding.md"
+        "dev/adr/ADR-0.8.31-historical-graph-and-fused-seeding.md",
+        "dev/plans/0.8.31/features/slice-30/plan.md"
       ]
     },
     {
@@ -136,10 +140,10 @@
   ],
   "landed": [
     0,
-    10
+    10,
+    20
   ],
   "remaining_ladder": [
-    20,
     30,
     40,
     50,
@@ -147,7 +151,7 @@
     70,
     80
   ],
-  "next_slice": 20,
+  "next_slice": 30,
   "publish_gate": {
     "status": "HELD",
     "publication_authorized": false,

@@ -4,9 +4,9 @@ use rusqlite::{Connection, OptionalExtension};
 
 use crate::{
     frozen_read, properties::properties_to_json_value, ArtifactRevisionId, CanonicalHash,
-    DependencyId, Engine, EngineError, FrozenReadContextV1, LifecycleState, ProjectionGenerationId,
-    PropertyMap, SearchResult, SoftFallbackBranch, SourceDependencyV1, SourceLocator,
-    SourceRevisionId,
+    DependencyId, Engine, EngineError, FrozenReadContextV1, GraphArmOptions, GraphArmSeedSource,
+    GraphSeedMode, LifecycleState, ProjectionGenerationId, PropertyMap, PropertyPredicate,
+    SearchResult, SoftFallbackBranch, SourceDependencyV1, SourceLocator, SourceRevisionId,
 };
 
 const SCHEMA_VERSION: u32 = 1;
@@ -129,8 +129,8 @@ impl EvidenceArmV1 {
 /// Compact graph origin. Full path replay is outside schema version 1.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum EvidenceGraphOriginV1 {
-    EdgeSeed { edge_artifact_revision_id: String },
-    Traversal { edge_artifact_revision_id: String, hop_count: u32 },
+    EdgeSeed { edge_artifact_revision_id: String, seed_source: GraphArmSeedSource },
+    Traversal { edge_artifact_revision_id: String, hop_count: u32, seed_source: GraphArmSeedSource },
 }
 
 /// Structural origin of one evidence-bearing search result.
@@ -365,6 +365,7 @@ pub fn encode_resolved_graph_evidence_v1(
 
 /// Versioned request for one opt-in evidence-producing search.
 #[derive(Clone, Debug)]
+#[non_exhaustive]
 pub struct EvidenceSearchRequestV1 {
     pub schema_version: u32,
     pub query: String,
@@ -375,6 +376,115 @@ pub struct EvidenceSearchRequestV1 {
     pub pool_n: u32,
     pub include_explanation: bool,
     pub limit: u32,
+    pub graph_seed: GraphSeedMode,
+    pub graph_seed_k: usize,
+    pub graph_edge_kinds: Vec<String>,
+    pub graph_edge_predicates: Vec<PropertyPredicate>,
+}
+
+impl EvidenceSearchRequestV1 {
+    /// Construct a V1 evidence-producing search request with default ranking
+    /// and graph-arm options.
+    #[must_use]
+    pub fn new(query: String, context: FrozenReadContextV1) -> Self {
+        Self {
+            schema_version: SCHEMA_VERSION,
+            query,
+            context,
+            rerank_depth: 0,
+            use_graph_arm: false,
+            alpha: 0.3,
+            pool_n: 0,
+            include_explanation: false,
+            limit: crate::search_types::DEFAULT_SEARCH_RESULT_LIMIT as u32,
+            graph_seed: GraphSeedMode::GraphFts,
+            graph_seed_k: crate::search_types::DEFAULT_GRAPH_SEED_K,
+            graph_edge_kinds: Vec::new(),
+            graph_edge_predicates: Vec::new(),
+        }
+    }
+
+    /// Set the cross-encoder rerank depth.
+    #[must_use]
+    pub fn with_rerank_depth(mut self, rerank_depth: u32) -> Self {
+        self.rerank_depth = rerank_depth;
+        self
+    }
+
+    /// Enable or disable the opt-in graph-BFS third arm.
+    #[must_use]
+    pub fn with_use_graph_arm(mut self, use_graph_arm: bool) -> Self {
+        self.use_graph_arm = use_graph_arm;
+        self
+    }
+
+    /// Set the cross-encoder blend weight `alpha`.
+    #[must_use]
+    pub fn with_alpha(mut self, alpha: f64) -> Self {
+        self.alpha = alpha;
+        self
+    }
+
+    /// Set the rerank pool size `pool_n`.
+    #[must_use]
+    pub fn with_pool_n(mut self, pool_n: u32) -> Self {
+        self.pool_n = pool_n;
+        self
+    }
+
+    /// Enable or disable the retrieval explanation sidecar.
+    #[must_use]
+    pub fn with_explain(mut self, include_explanation: bool) -> Self {
+        self.include_explanation = include_explanation;
+        self
+    }
+
+    /// Set the ranked result limit (`1..=100`).
+    #[must_use]
+    pub fn with_limit(mut self, limit: u32) -> Self {
+        self.limit = limit;
+        self
+    }
+
+    /// Set the graph-arm depth-0 seed mode.
+    #[must_use]
+    pub fn with_graph_seed(mut self, graph_seed: GraphSeedMode) -> Self {
+        self.graph_seed = graph_seed;
+        self
+    }
+
+    /// Set the maximum unique fused/reranked seeds (`1..=100`).
+    #[must_use]
+    pub fn with_graph_seed_k(mut self, graph_seed_k: usize) -> Self {
+        self.graph_seed_k = graph_seed_k;
+        self
+    }
+
+    /// Restrict graph-arm edge seeding and traversal to `graph_edge_kinds`.
+    #[must_use]
+    pub fn with_graph_edge_kinds(mut self, graph_edge_kinds: Vec<String>) -> Self {
+        self.graph_edge_kinds = graph_edge_kinds;
+        self
+    }
+
+    /// Restrict graph-arm edge seeding and traversal with closed inline property predicates.
+    #[must_use]
+    pub fn with_graph_edge_predicates(
+        mut self,
+        graph_edge_predicates: Vec<PropertyPredicate>,
+    ) -> Self {
+        self.graph_edge_predicates = graph_edge_predicates;
+        self
+    }
+
+    pub(crate) fn graph_arm_options(&self) -> GraphArmOptions {
+        GraphArmOptions {
+            graph_seed: self.graph_seed,
+            graph_seed_k: self.graph_seed_k,
+            graph_edge_kinds: self.graph_edge_kinds.clone(),
+            graph_edge_predicates: self.graph_edge_predicates.clone(),
+        }
+    }
 }
 
 /// Position-preserving evidence carrier for one search hit.
@@ -580,13 +690,6 @@ pub(crate) fn build_search_result(
         } else {
             None
         };
-        if matches!(graph_origin, Some(crate::CapturedGraphOrigin::EntitySeed)) {
-            return Err(EvidenceErrorV1::new(
-                EvidenceErrorReasonV1::EvidenceCorrupt,
-                format!("/results/{index}/graphOrigin"),
-            )
-            .into());
-        }
         let graph_edge_commitment = match graph_origin.as_ref() {
             Some(crate::CapturedGraphOrigin::EdgeSeed { edge_cursor })
             | Some(crate::CapturedGraphOrigin::Traversal { edge_cursor, .. }) => {
@@ -766,12 +869,13 @@ pub(crate) fn resolve(
                 (
                     Some(EvidenceGraphOriginV1::EdgeSeed {
                         edge_artifact_revision_id: revision.clone(),
+                        seed_source: GraphArmSeedSource::EdgeFts,
                     }),
                     Some((revision, source_revision_id)),
                 )
             }
             (
-                Some(crate::CapturedGraphOrigin::Traversal { edge_cursor, hop_count }),
+                Some(crate::CapturedGraphOrigin::Traversal { edge_cursor, hop_count, seed_source }),
                 Some(commitment),
             ) if payload.arm == EvidenceArmV1::GraphArm => {
                 let (revision, from_id, to_id, _, source_revision_id) = load_graph_edge_revision(
@@ -800,6 +904,7 @@ pub(crate) fn resolve(
                     Some(EvidenceGraphOriginV1::Traversal {
                         edge_artifact_revision_id: revision.clone(),
                         hop_count: *hop_count,
+                        seed_source: *seed_source,
                     }),
                     Some((revision, source_revision_id)),
                 )
@@ -2583,19 +2688,18 @@ fn encode_payload(payload: &Payload) -> Vec<u8> {
     encode_optional_f64(&mut bytes, payload.contribution.confidence);
     match (&payload.graph_origin, payload.graph_edge_commitment) {
         (None, None) => bytes.push(0),
-        (Some(crate::CapturedGraphOrigin::EntitySeed), None) => {
-            unreachable!("query-matched entity seeds remain text/vector representatives")
-        }
         (Some(crate::CapturedGraphOrigin::EdgeSeed { edge_cursor }), Some(commitment)) => {
             bytes.push(2);
+            bytes.push(GraphArmSeedSource::EdgeFts.tag());
             frozen_read::encode_u64(&mut bytes, *edge_cursor);
             bytes.extend_from_slice(&commitment);
         }
         (
-            Some(crate::CapturedGraphOrigin::Traversal { edge_cursor, hop_count }),
+            Some(crate::CapturedGraphOrigin::Traversal { edge_cursor, hop_count, seed_source }),
             Some(commitment),
         ) => {
             bytes.push(3);
+            bytes.push(seed_source.tag());
             frozen_read::encode_u64(&mut bytes, *edge_cursor);
             frozen_read::encode_u32(&mut bytes, *hop_count);
             bytes.extend_from_slice(&commitment);
@@ -2667,17 +2771,29 @@ fn decode_payload(bytes: &[u8]) -> Result<Payload, EngineError> {
     };
     let (graph_origin, graph_edge_commitment) = match cursor.u8()? {
         0 => (None, None),
-        2 => (
-            Some(crate::CapturedGraphOrigin::EdgeSeed { edge_cursor: cursor.u64()? }),
-            Some(cursor.array32()?),
-        ),
-        3 => (
-            Some(crate::CapturedGraphOrigin::Traversal {
-                edge_cursor: cursor.u64()?,
-                hop_count: cursor.u32()?,
-            }),
-            Some(cursor.array32()?),
-        ),
+        2 => {
+            let seed_source = GraphArmSeedSource::from_tag(cursor.u8()?)
+                .ok_or_else(EvidenceErrorV1::unavailable)?;
+            if seed_source != GraphArmSeedSource::EdgeFts {
+                return Err(EvidenceErrorV1::unavailable().into());
+            }
+            (
+                Some(crate::CapturedGraphOrigin::EdgeSeed { edge_cursor: cursor.u64()? }),
+                Some(cursor.array32()?),
+            )
+        }
+        3 => {
+            let seed_source = GraphArmSeedSource::from_tag(cursor.u8()?)
+                .ok_or_else(EvidenceErrorV1::unavailable)?;
+            (
+                Some(crate::CapturedGraphOrigin::Traversal {
+                    edge_cursor: cursor.u64()?,
+                    hop_count: cursor.u32()?,
+                    seed_source,
+                }),
+                Some(cursor.array32()?),
+            )
+        }
         _ => return Err(EvidenceErrorV1::unavailable().into()),
     };
     if cursor.offset != bytes.len() {

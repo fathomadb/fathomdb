@@ -1,7 +1,181 @@
 use crate::errors::EngineError;
 use crate::identity::IdSpace;
-use crate::properties::PropertyMap;
+use crate::properties::{validate_property_predicate, PropertyMap, PropertyPredicate};
 use crate::snippet::SnippetV1;
+
+/// Default number of fused/reranked hits used to seed the graph arm under
+/// [`GraphSeedMode::FusedTopK`] or [`GraphSeedMode::Both`].
+pub const DEFAULT_GRAPH_SEED_K: usize = 10;
+
+/// Maximum allowed [`GraphArmOptions::graph_seed_k`] value.
+pub const MAX_GRAPH_SEED_K: usize = 100;
+
+/// Maximum allowed number of predicates in [`GraphArmOptions::graph_edge_predicates`].
+pub const MAX_GRAPH_EDGE_PREDICATES: usize = 32;
+
+/// Controls how the opt-in graph retrieval arm (`use_graph_arm = true`)
+/// selects its depth-0 BFS seeds.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Hash)]
+pub enum GraphSeedMode {
+    /// Default: seed from graph-owned FTS surfaces (`search_index_edges`
+    /// endpoints and entity-node FTS hits with `logical_id IS NOT NULL`).
+    #[default]
+    GraphFts,
+    /// Seed from the top-`graph_seed_k` canonical-node hits (`logical_id IS NOT NULL`)
+    /// in the two-arm fused (or CE-reranked when `rerank_depth > 0`) ranking.
+    FusedTopK,
+    /// Combine `FusedTopK` seeds and `GraphFts` seeds deterministically in
+    /// `(FusedTopK, EdgeFts, EntityFts)` order (minimum hop count wins).
+    Both,
+}
+
+impl GraphSeedMode {
+    /// Canonical lowercase wire spelling used across all SDKs.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::GraphFts => "graph_fts",
+            Self::FusedTopK => "fused_top_k",
+            Self::Both => "both",
+        }
+    }
+
+    /// Parse a canonical wire spelling into a [`GraphSeedMode`].
+    #[must_use]
+    pub fn from_str_opt(value: &str) -> Option<Self> {
+        match value {
+            "graph_fts" => Some(Self::GraphFts),
+            "fused_top_k" => Some(Self::FusedTopK),
+            "both" => Some(Self::Both),
+            _ => None,
+        }
+    }
+}
+
+/// Which seed source introduced a [`SoftFallbackBranch::GraphArm`] hit.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+pub enum GraphArmSeedSource {
+    /// Seeded from a top-`graph_seed_k` canonical node in the two-arm fused/reranked pool.
+    FusedTopK,
+    /// Seeded from an edge matched by `search_index_edges` FTS.
+    EdgeFts,
+    /// Seeded from an entity node matched by `search_index` FTS.
+    EntityFts,
+}
+
+impl GraphArmSeedSource {
+    /// Canonical lowercase wire spelling used across all SDKs.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::FusedTopK => "fused_top_k",
+            Self::EdgeFts => "edge_fts",
+            Self::EntityFts => "entity_fts",
+        }
+    }
+
+    /// Parse a canonical wire spelling into a [`GraphArmSeedSource`].
+    #[must_use]
+    pub fn from_str_opt(value: &str) -> Option<Self> {
+        match value {
+            "fused_top_k" => Some(Self::FusedTopK),
+            "edge_fts" => Some(Self::EdgeFts),
+            "entity_fts" => Some(Self::EntityFts),
+            _ => None,
+        }
+    }
+
+    pub(crate) const fn tag(self) -> u8 {
+        match self {
+            Self::FusedTopK => 0,
+            Self::EdgeFts => 1,
+            Self::EntityFts => 2,
+        }
+    }
+
+    pub(crate) const fn from_tag(tag: u8) -> Option<Self> {
+        match tag {
+            0 => Some(Self::FusedTopK),
+            1 => Some(Self::EdgeFts),
+            2 => Some(Self::EntityFts),
+            _ => None,
+        }
+    }
+}
+
+/// Opt-in graph-arm seeding and edge-traversal controls for hybrid/frozen/evidence search.
+#[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
+pub struct GraphArmOptions {
+    /// How depth-0 BFS seeds are selected when `use_graph_arm = true`.
+    pub graph_seed: GraphSeedMode,
+    /// Maximum unique canonical-node seeds taken from the two-arm ranking
+    /// under [`GraphSeedMode::FusedTopK`] or [`GraphSeedMode::Both`] (`1..=100`).
+    pub graph_seed_k: usize,
+    /// Optional edge-kind allowlist applied to Seed Source A and Phase 2 traversal.
+    pub graph_edge_kinds: Vec<String>,
+    /// Optional closed typed inline-property predicates (implicit `AND`, `<= 32`)
+    /// applied to Seed Source A and Phase 2 traversal.
+    pub graph_edge_predicates: Vec<PropertyPredicate>,
+}
+
+impl Default for GraphArmOptions {
+    fn default() -> Self {
+        Self {
+            graph_seed: GraphSeedMode::GraphFts,
+            graph_seed_k: DEFAULT_GRAPH_SEED_K,
+            graph_edge_kinds: Vec::new(),
+            graph_edge_predicates: Vec::new(),
+        }
+    }
+}
+
+impl GraphArmOptions {
+    /// Validate all fields regardless of whether `use_graph_arm` is enabled.
+    ///
+    /// # Errors
+    ///
+    /// - [`EngineError::InvalidArgument`] when `graph_seed_k` is outside `1..=100`.
+    /// - [`EngineError::InvalidFilter`] when any `graph_edge_kinds` entry is empty
+    ///   or contains NUL / `\x1e`, when `graph_edge_predicates.len() > 32`, or when
+    ///   any predicate fails closed property-predicate validation.
+    pub fn validate(&self) -> Result<(), EngineError> {
+        if !(1..=MAX_GRAPH_SEED_K).contains(&self.graph_seed_k) {
+            return Err(EngineError::InvalidArgument {
+                msg: format!(
+                    "graph_seed_k must be an integer in 1..={MAX_GRAPH_SEED_K}; got {}",
+                    self.graph_seed_k
+                ),
+            });
+        }
+        for kind in &self.graph_edge_kinds {
+            if kind.is_empty() || kind.as_bytes().contains(&0) || kind.contains('\x1e') {
+                return Err(EngineError::InvalidFilter {
+                    reason: "graph_edge_kinds entries must be non-empty and contain no NUL or record separator bytes".to_string(),
+                });
+            }
+        }
+        if self.graph_edge_predicates.len() > MAX_GRAPH_EDGE_PREDICATES {
+            return Err(EngineError::InvalidFilter {
+                reason: format!(
+                    "graph_edge_predicates accepts at most {MAX_GRAPH_EDGE_PREDICATES} predicates; got {}",
+                    self.graph_edge_predicates.len()
+                ),
+            });
+        }
+        for pred in &self.graph_edge_predicates {
+            validate_property_predicate(pred)?;
+        }
+        Ok(())
+    }
+
+    pub(crate) fn is_default(&self) -> bool {
+        self.graph_seed == GraphSeedMode::GraphFts
+            && self.graph_seed_k == DEFAULT_GRAPH_SEED_K
+            && self.graph_edge_kinds.is_empty()
+            && self.graph_edge_predicates.is_empty()
+    }
+}
 
 /// Soft-fallback signal carried on hybrid `search` results.
 ///
@@ -364,6 +538,13 @@ pub struct PerHitExplain {
     /// stored value. `None` for node hits / edges without a confidence
     /// (graceful-absent, ranks NEUTRAL).
     pub confidence: Option<f64>,
+    /// Seed source that introduced this hit when `arm == SoftFallbackBranch::GraphArm`.
+    /// `None` for non-`GraphArm` hits.
+    pub graph_seed_source: Option<GraphArmSeedSource>,
+    /// Hop depth from the depth-0 seed when `arm == SoftFallbackBranch::GraphArm`
+    /// (`Some(0)` for `EdgeSeed`, `Some(hop_count)` for `Traversal`).
+    /// `None` for non-`GraphArm` hits.
+    pub graph_hop_depth: Option<u32>,
     /// Content-free inclusion classification from the same search snapshot.
     pub structural: StructuralInclusionV1,
 }

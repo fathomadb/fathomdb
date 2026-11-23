@@ -372,6 +372,9 @@ pub use read::{NodeRecord, OpStoreRow, OperationalStateRecordV1};
 pub use reader_pool::CacheStatusReply;
 pub(crate) use reader_pool::ReaderWorkerPool;
 pub use record_lifecycle::{InitialState, LifecycleState};
+#[cfg(any(test, feature = "test-hooks"))]
+#[doc(hidden)]
+pub use rerank::{install_test_ce_scorer_for_test, TestCeScorerGuard};
 #[doc(hidden)]
 pub use rerank::{rerank_fused, try_rerank_fused};
 pub use rerank::{rerank_passages, RerankPassagesError};
@@ -392,11 +395,12 @@ pub(crate) use search::{prepare_search_statement, CapturedGraphOrigin};
 pub use search_types::vector_fusion_pool_for_test;
 pub use search_types::{
     ArmDegradation, Bm25fFieldWeights, Bm25fQueryPlan, DegradationReason, Explanation,
-    GraphFrontierStats, PerHitExplain, QueryTrace, SearchHit, SearchResult, SoftFallback,
-    SoftFallbackBranch, StructuralDegradationCodeV1, StructuralDependencyStateV1,
-    StructuralInclusionStateV1, StructuralInclusionV1, StructuralLifecycleStateV1,
-    StructuralProjectionOriginV1, DEFAULT_SEARCH_RESULT_LIMIT, MAX_SEARCH_RESULT_LIMIT,
-    SEARCH_RERANK_LIMIT, TOP_K_BIT_CANDIDATES,
+    GraphArmOptions, GraphArmSeedSource, GraphFrontierStats, GraphSeedMode, PerHitExplain,
+    QueryTrace, SearchHit, SearchResult, SoftFallback, SoftFallbackBranch,
+    StructuralDegradationCodeV1, StructuralDependencyStateV1, StructuralInclusionStateV1,
+    StructuralInclusionV1, StructuralLifecycleStateV1, StructuralProjectionOriginV1,
+    DEFAULT_GRAPH_SEED_K, DEFAULT_SEARCH_RESULT_LIMIT, MAX_GRAPH_EDGE_PREDICATES, MAX_GRAPH_SEED_K,
+    MAX_SEARCH_RESULT_LIMIT, SEARCH_RERANK_LIMIT, TOP_K_BIT_CANDIDATES,
 };
 #[cfg(any(test, feature = "test-hooks"))]
 #[doc(hidden)]

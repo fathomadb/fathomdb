@@ -2,7 +2,8 @@
 //! arguments. Each `Default` equals the documented Python/TypeScript defaults.
 
 use fathomdb_engine::{
-    EngineConfig, Filter, Predicate, ReadView, SearchFilter, SnippetOptions, TraversalDirection,
+    EngineConfig, Filter, GraphSeedMode, Predicate, PropertyPredicate, ReadView, SearchFilter,
+    SnippetOptions, TraversalDirection, DEFAULT_GRAPH_SEED_K,
 };
 
 use crate::error::Result;
@@ -72,6 +73,10 @@ pub struct SearchOptions {
     pub view: ReadView,
     pub limit: usize,
     pub snippet: Option<SnippetOptions>,
+    pub graph_seed: GraphSeedMode,
+    pub graph_seed_k: usize,
+    pub graph_edge_kinds: Vec<String>,
+    pub graph_edge_predicates: Vec<PropertyPredicate>,
 }
 
 impl Default for SearchOptions {
@@ -86,6 +91,10 @@ impl Default for SearchOptions {
             view: ReadView::default(),
             limit: 10,
             snippet: None,
+            graph_seed: GraphSeedMode::GraphFts,
+            graph_seed_k: DEFAULT_GRAPH_SEED_K,
+            graph_edge_kinds: Vec::new(),
+            graph_edge_predicates: Vec::new(),
         }
     }
 }
@@ -145,6 +154,10 @@ pub struct FrozenSearchOptions {
     pub explain: bool,
     pub limit: usize,
     pub snippet: Option<SnippetOptions>,
+    pub graph_seed: GraphSeedMode,
+    pub graph_seed_k: usize,
+    pub graph_edge_kinds: Vec<String>,
+    pub graph_edge_predicates: Vec<PropertyPredicate>,
 }
 
 impl Default for FrozenSearchOptions {
@@ -157,6 +170,10 @@ impl Default for FrozenSearchOptions {
             explain: false,
             limit: 10,
             snippet: None,
+            graph_seed: GraphSeedMode::GraphFts,
+            graph_seed_k: DEFAULT_GRAPH_SEED_K,
+            graph_edge_kinds: Vec::new(),
+            graph_edge_predicates: Vec::new(),
         }
     }
 }

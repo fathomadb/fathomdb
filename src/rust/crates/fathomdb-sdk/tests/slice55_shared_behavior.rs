@@ -147,17 +147,7 @@ fn verify(engine: &Engine) {
         ErrorKind::WriteValidation
     );
     let result = engine
-        .search_with_evidence(&EvidenceSearchRequestV1 {
-            schema_version: 1,
-            query: "wombat".into(),
-            context: context.clone(),
-            rerank_depth: 0,
-            use_graph_arm: false,
-            alpha: 0.3,
-            pool_n: 0,
-            include_explanation: false,
-            limit: 10,
-        })
+        .search_with_evidence(&EvidenceSearchRequestV1::new("wombat".into(), context.clone()))
         .unwrap();
     assert_eq!(
         result.evidence.iter().map(|e| e.artifact_revision_id.as_str()).collect::<Vec<_>>(),

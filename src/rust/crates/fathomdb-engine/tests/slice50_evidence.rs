@@ -165,17 +165,7 @@ fn derived_kind_named(
 }
 
 fn request(query: &str, context: fathomdb_engine::FrozenReadContextV1) -> EvidenceSearchRequestV1 {
-    EvidenceSearchRequestV1 {
-        schema_version: 1,
-        query: query.into(),
-        context,
-        rerank_depth: 0,
-        use_graph_arm: false,
-        alpha: 0.3,
-        pool_n: 0,
-        include_explanation: false,
-        limit: 10,
-    }
+    EvidenceSearchRequestV1::new(query.into(), context)
 }
 
 fn freeze_stable(engine: &Engine, context: &ReadContextV1) -> fathomdb_engine::FrozenReadContextV1 {
@@ -779,7 +769,7 @@ fn graph_arm_resolves_node_body_source_and_separate_edge_origin() {
     assert_eq!(resolved.canonical_source_body, node_source);
     assert!(matches!(
         resolved.projection_origin.graph_origin,
-        Some(EvidenceGraphOriginV1::EdgeSeed { ref edge_artifact_revision_id })
+        Some(EvidenceGraphOriginV1::EdgeSeed { ref edge_artifact_revision_id, .. })
             if edge_artifact_revision_id == "edge-r1"
     ));
 

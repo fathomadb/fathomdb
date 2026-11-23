@@ -78,17 +78,7 @@ fn absent_route(route: &str) {
         }
         "evidence" => {
             let r = engine
-                .search_with_evidence(&EvidenceSearchRequestV1 {
-                    schema_version: 1,
-                    query: QUERY.into(),
-                    context: frozen.clone(),
-                    rerank_depth: 0,
-                    use_graph_arm: false,
-                    alpha: 0.3,
-                    pool_n: 0,
-                    include_explanation: false,
-                    limit: 10,
-                })
+                .search_with_evidence(&EvidenceSearchRequestV1::new(QUERY.into(), frozen.clone()))
                 .unwrap();
             assert_eq!(r.evidence.len(), 1);
             (r.search_result.results, r.search_result.degradations)
@@ -211,17 +201,7 @@ fn timeout_route(route: &str) {
         }
         "evidence" => {
             let r = engine
-                .search_with_evidence(&EvidenceSearchRequestV1 {
-                    schema_version: 1,
-                    query: QUERY.into(),
-                    context: frozen.clone(),
-                    rerank_depth: 0,
-                    use_graph_arm: false,
-                    alpha: 0.3,
-                    pool_n: 0,
-                    include_explanation: false,
-                    limit: 10,
-                })
+                .search_with_evidence(&EvidenceSearchRequestV1::new(QUERY.into(), frozen.clone()))
                 .unwrap();
             (r.search_result.results, r.search_result.degradations)
         }

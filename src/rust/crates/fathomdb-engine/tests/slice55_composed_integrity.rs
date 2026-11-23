@@ -260,17 +260,7 @@ fn assert_initial(engine: &Engine, vectors: bool) {
     assert_eq!(result.dependency_edges[0].source_revision_id, "cohesion:a-r1");
     assert_eq!(result.dependency_edges[0].derived_revision_id, "cohesion:claim-r1");
     let evidence = engine
-        .search_with_evidence(&EvidenceSearchRequestV1 {
-            schema_version: 1,
-            query: "authored".into(),
-            context: frozen.clone(),
-            rerank_depth: 0,
-            use_graph_arm: false,
-            alpha: 0.3,
-            pool_n: 0,
-            include_explanation: false,
-            limit: 10,
-        })
+        .search_with_evidence(&EvidenceSearchRequestV1::new("authored".into(), frozen.clone()))
         .unwrap();
     let claim =
         evidence.evidence.iter().find(|e| e.artifact_revision_id == "cohesion:claim-r1").unwrap();

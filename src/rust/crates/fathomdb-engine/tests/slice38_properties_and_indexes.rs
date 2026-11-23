@@ -406,17 +406,10 @@ fn slice38_node_and_edge_property_round_trip_and_o1_hydration() {
 
     // 5. ResolvedEvidenceV1 via search_with_evidence + resolve_evidence
     let ev_search = engine
-        .search_with_evidence(&EvidenceSearchRequestV1 {
-            schema_version: 1,
-            query: "plain_body_derived".into(),
-            context: frozen.clone(),
-            rerank_depth: 0,
-            use_graph_arm: false,
-            alpha: 0.3,
-            pool_n: 0,
-            include_explanation: false,
-            limit: 10,
-        })
+        .search_with_evidence(&EvidenceSearchRequestV1::new(
+            "plain_body_derived".into(),
+            frozen.clone(),
+        ))
         .expect("search_with_evidence");
     let hit_idx = ev_search
         .search_result

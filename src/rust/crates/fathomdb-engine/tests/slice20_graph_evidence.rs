@@ -1224,17 +1224,11 @@ fn graph_evidence_references_are_nondisclosing_across_authority_and_token_failur
     }
 
     let ranked = engine
-        .search_with_evidence(&EvidenceSearchRequestV1 {
-            schema_version: 1,
-            query: "target".into(),
-            context: frozen.clone(),
-            rerank_depth: 0,
-            use_graph_arm: false,
-            alpha: 0.5,
-            pool_n: 10,
-            include_explanation: false,
-            limit: 10,
-        })
+        .search_with_evidence(
+            &EvidenceSearchRequestV1::new("target".into(), frozen.clone())
+                .with_alpha(0.5)
+                .with_pool_n(10),
+        )
         .unwrap();
     let ranked_reference = ranked.evidence[0].evidence_ref.clone();
     unavailable(

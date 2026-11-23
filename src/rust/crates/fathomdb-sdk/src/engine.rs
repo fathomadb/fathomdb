@@ -9,10 +9,10 @@ use fathomdb_engine::{
     DependencySourceLookupV1, DependencyTraceRequestV1, DependencyTraceResultV1, EmbedderChoice,
     Engine as CoreEngine, EngineConfig, EngineError, EvidenceResolveRequestV1,
     EvidenceSearchRequestV1, EvidenceSearchResultV1, ExciseReport, ExtractDocument,
-    FrozenReadContextV1, GraphEvidenceResolveRequestV1, IngestWithExtractorReceipt, LifecycleState,
-    OpenReport, PreparedWrite, ProjectionDelta, ProjectionSpec, ReadContextV1, ResolvedEvidenceV1,
-    ResolvedGraphEvidenceV1, SearchExpandResult, SearchResult, SourceDependencyRegistrationV1,
-    SourceDependencyV1, Subscription, WriteReceipt,
+    FrozenReadContextV1, GraphArmOptions, GraphEvidenceResolveRequestV1,
+    IngestWithExtractorReceipt, LifecycleState, OpenReport, PreparedWrite, ProjectionDelta,
+    ProjectionSpec, ReadContextV1, ResolvedEvidenceV1, ResolvedGraphEvidenceV1, SearchExpandResult,
+    SearchResult, SourceDependencyRegistrationV1, SourceDependencyV1, Subscription, WriteReceipt,
 };
 
 use crate::error::{Error, Result};
@@ -252,12 +252,22 @@ impl Engine {
             view,
             limit,
             snippet,
+            graph_seed,
+            graph_seed_k,
+            graph_edge_kinds,
+            graph_edge_predicates,
         } = options;
         guard::ranked_limit("limit", limit)?;
         let alpha = guard::alpha(alpha)?;
         guard::text(query)?;
+        guard::graph_arm_options(graph_seed_k, &graph_edge_kinds, &graph_edge_predicates)?;
         let filter = filter.map(|filter| filter.lower()).transpose()?;
-        Ok(self.core.search_reranked_view_with_snippets(
+        let mut graph_options = GraphArmOptions::default();
+        graph_options.graph_seed = graph_seed;
+        graph_options.graph_seed_k = graph_seed_k;
+        graph_options.graph_edge_kinds = graph_edge_kinds;
+        graph_options.graph_edge_predicates = graph_edge_predicates;
+        Ok(self.core.search_reranked_view_with_graph_options(
             query,
             filter,
             rerank_depth,
@@ -268,6 +278,7 @@ impl Engine {
             &view,
             limit,
             snippet.as_ref(),
+            &graph_options,
         )?)
     }
 
@@ -340,12 +351,22 @@ impl Engine {
             explain,
             limit,
             snippet,
+            graph_seed,
+            graph_seed_k,
+            graph_edge_kinds,
+            graph_edge_predicates,
         } = options;
         self.core.validate_frozen_read_context_for_binding(context)?;
         guard::ranked_limit("limit", limit)?;
         let alpha = guard::alpha(alpha)?;
         guard::text(query)?;
-        Ok(self.core.search_frozen_with_snippets(
+        guard::graph_arm_options(graph_seed_k, &graph_edge_kinds, &graph_edge_predicates)?;
+        let mut graph_options = GraphArmOptions::default();
+        graph_options.graph_seed = graph_seed;
+        graph_options.graph_seed_k = graph_seed_k;
+        graph_options.graph_edge_kinds = graph_edge_kinds;
+        graph_options.graph_edge_predicates = graph_edge_predicates;
+        Ok(self.core.search_frozen_with_graph_options(
             query,
             context,
             rerank_depth,
@@ -355,6 +376,7 @@ impl Engine {
             explain,
             limit,
             snippet.as_ref(),
+            &graph_options,
         )?)
     }
 
@@ -379,6 +401,11 @@ impl Engine {
     ) -> Result<EvidenceSearchResultV1> {
         guard::ranked_limit("limit", request.limit as usize)?;
         guard::text(&request.query)?;
+        guard::graph_arm_options(
+            request.graph_seed_k,
+            &request.graph_edge_kinds,
+            &request.graph_edge_predicates,
+        )?;
         Ok(self.core.search_with_evidence(request)?)
     }
 

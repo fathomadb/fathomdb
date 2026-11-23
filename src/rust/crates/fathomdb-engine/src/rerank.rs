@@ -1,5 +1,89 @@
 use super::*;
-use crate::fusion::RankedHit;
+#[cfg(any(feature = "default-reranker", test, feature = "test-hooks"))]
+use crate::fusion::RecordKey;
+use crate::fusion::{FusionHit, RankedHit};
+#[cfg(any(feature = "default-reranker", test, feature = "test-hooks"))]
+use std::collections::HashMap;
+
+/// Per-query cross-encoder score cache (`sigmoid(ce_logit)`) shared between
+/// the `FusedTopK` / `Both` seed-ranking pass and the final rerank pass so
+/// two-arm hits are never scored twice by the cross-encoder.
+#[derive(Default)]
+pub(crate) struct CeScoreCache {
+    #[cfg(any(feature = "default-reranker", test, feature = "test-hooks"))]
+    scores: HashMap<RecordKey, f64>,
+    #[cfg(feature = "default-reranker")]
+    model_absent: bool,
+}
+
+#[cfg(any(test, feature = "test-hooks"))]
+#[doc(hidden)]
+pub type TestCeScorerFn = std::sync::Arc<dyn Fn(&str, &[&str]) -> Vec<f32> + Send + Sync>;
+
+#[cfg(any(test, feature = "test-hooks"))]
+static TEST_CE_SCORERS: std::sync::OnceLock<std::sync::Mutex<HashMap<String, TestCeScorerFn>>> =
+    std::sync::OnceLock::new();
+
+#[cfg(any(test, feature = "test-hooks"))]
+fn test_ce_scorers() -> &'static std::sync::Mutex<HashMap<String, TestCeScorerFn>> {
+    TEST_CE_SCORERS.get_or_init(|| std::sync::Mutex::new(HashMap::new()))
+}
+
+/// RAII guard that uninstalls a query-scoped test cross-encoder scorer on drop.
+#[cfg(any(test, feature = "test-hooks"))]
+#[doc(hidden)]
+pub struct TestCeScorerGuard {
+    query: String,
+}
+
+#[cfg(any(test, feature = "test-hooks"))]
+impl Drop for TestCeScorerGuard {
+    fn drop(&mut self) {
+        if let Ok(mut map) = test_ce_scorers().lock() {
+            map.remove(&self.query);
+        }
+    }
+}
+
+/// Install a deterministic query-scoped cross-encoder scorer for tests.
+/// Only queries matching `query` exactly invoke `scorer`; other concurrent
+/// tests are completely unaffected.
+#[cfg(any(test, feature = "test-hooks"))]
+#[doc(hidden)]
+pub fn install_test_ce_scorer_for_test(
+    query: impl Into<String>,
+    scorer: TestCeScorerFn,
+) -> TestCeScorerGuard {
+    let query = query.into();
+    test_ce_scorers().lock().expect("test ce scorer lock").insert(query.clone(), scorer);
+    TestCeScorerGuard { query }
+}
+
+#[cfg(any(test, feature = "test-hooks"))]
+struct ClosureCeScorer(TestCeScorerFn);
+
+#[cfg(any(test, feature = "test-hooks"))]
+impl CeScorer for ClosureCeScorer {
+    fn score_pair(
+        &self,
+        query: &str,
+        passage: &str,
+    ) -> Result<f32, Option<RerankerDevicePolicyError>> {
+        Ok((self.0)(query, &[passage]).into_iter().next().unwrap_or(0.0))
+    }
+
+    fn score_pairs(
+        &self,
+        query: &str,
+        passages: &[&str],
+    ) -> Result<Vec<f32>, Option<RerankerDevicePolicyError>> {
+        Ok((self.0)(query, passages))
+    }
+
+    fn forced_cuda_runtime_error(&self) -> Option<RerankerDevicePolicyError> {
+        None
+    }
+}
 
 /// 0.8.1 Slice 10 (R1) — CE rerank seam.
 ///
@@ -81,6 +165,48 @@ pub(crate) fn try_rerank_ranked<H: RankedHit>(
 
     // Model absent (feature off, weights not loaded, or CE returned None) →
     // soft-fallback: return input unchanged.
+    Ok(hits)
+}
+
+/// Rerank `hits` while caching per-`RecordKey` normalized CE scores (`sigmoid(logit)`)
+/// in `cache`. Hits already present in `cache` reuse their cached CE score without
+/// invoking the cross-encoder again.
+pub(crate) fn try_rerank_ranked_with_cache(
+    query: &str,
+    hits: Vec<FusionHit>,
+    rerank_depth: usize,
+    alpha: f64,
+    pool_n: usize,
+    cache: &mut CeScoreCache,
+) -> Result<Vec<FusionHit>, RerankerDevicePolicyError> {
+    if rerank_depth == 0 || hits.is_empty() {
+        return Ok(hits);
+    }
+    let n = pool_n.min(hits.len());
+    if n == 0 {
+        return Ok(hits);
+    }
+
+    #[cfg(any(test, feature = "test-hooks"))]
+    if let Some(scorer_fn) = test_ce_scorers().lock().ok().and_then(|map| map.get(query).cloned()) {
+        let scorer = ClosureCeScorer(scorer_fn);
+        return ce_rerank_with_scorer_and_cache(&scorer, query, &hits, alpha, pool_n, cache);
+    }
+
+    #[cfg(feature = "default-reranker")]
+    {
+        if cache.model_absent {
+            return Ok(hits);
+        }
+        if let Some(reranked) = ce_rerank_cached(query, &hits, alpha, pool_n, cache)? {
+            return Ok(reranked);
+        }
+        cache.model_absent = true;
+    }
+
+    #[cfg(not(feature = "default-reranker"))]
+    let _ = (query, alpha, pool_n, cache);
+
     Ok(hits)
 }
 
@@ -272,6 +398,93 @@ fn ce_rerank<H: RankedHit>(
     Ok(raw_logits.map(|raw_logits| blend_ce_ranked(hits, raw_logits, alpha, pool_n)))
 }
 
+#[cfg(feature = "default-reranker")]
+fn ce_rerank_cached(
+    query: &str,
+    hits: &[FusionHit],
+    alpha: f64,
+    pool_n: usize,
+    cache: &mut CeScoreCache,
+) -> Result<Option<Vec<FusionHit>>, RerankerDevicePolicyError> {
+    #[cfg(feature = "tc5-benchmark")]
+    tc5_benchmark::record_cross_encoder_route();
+    let alpha = if alpha.is_finite() { alpha.clamp(0.0, 1.0) } else { 0.3 };
+    if hits.is_empty() {
+        return Ok(Some(vec![]));
+    }
+    let n = pool_n.min(hits.len());
+    let top = &hits[..n];
+
+    let mut uncached_indices: Vec<usize> = Vec::new();
+    let mut uncached_bodies: Vec<&str> = Vec::new();
+    for (idx, h) in top.iter().enumerate() {
+        if !cache.scores.contains_key(&h.key()) {
+            uncached_indices.push(idx);
+            uncached_bodies.push(h.hit().body.as_str());
+        }
+    }
+
+    if !uncached_bodies.is_empty() {
+        #[cfg(feature = "slice72-test-hooks")]
+        let raw_logits = fathomdb_embedder::module_models::with_reranker(|model| {
+            slice72_test_hooks::with_ce_forward(|| score_pool(model, query, &uncached_bodies))
+        })?;
+        #[cfg(not(feature = "slice72-test-hooks"))]
+        let raw_logits = fathomdb_embedder::module_models::with_reranker(|model| {
+            score_pool(model, query, &uncached_bodies)
+        })?;
+        let Some(raw_logits) = raw_logits else {
+            return Ok(None);
+        };
+        for (idx, raw_logit) in uncached_indices.into_iter().zip(raw_logits) {
+            let ce_norm = 1.0 / (1.0 + (-raw_logit).exp());
+            cache.scores.insert(top[idx].key(), ce_norm);
+        }
+    }
+
+    let ce_norms: Vec<f64> =
+        top.iter().map(|h| cache.scores.get(&h.key()).copied().unwrap_or(0.5)).collect();
+    Ok(Some(blend_ce_norms(hits, &ce_norms, alpha, pool_n)))
+}
+
+#[cfg(any(test, feature = "test-hooks"))]
+fn ce_rerank_with_scorer_and_cache<S: CeScorer + ?Sized>(
+    scorer: &S,
+    query: &str,
+    hits: &[FusionHit],
+    alpha: f64,
+    pool_n: usize,
+    cache: &mut CeScoreCache,
+) -> Result<Vec<FusionHit>, RerankerDevicePolicyError> {
+    let alpha = if alpha.is_finite() { alpha.clamp(0.0, 1.0) } else { 0.3 };
+    if hits.is_empty() {
+        return Ok(vec![]);
+    }
+    let n = pool_n.min(hits.len());
+    let top = &hits[..n];
+
+    let mut uncached_indices: Vec<usize> = Vec::new();
+    let mut uncached_bodies: Vec<&str> = Vec::new();
+    for (idx, h) in top.iter().enumerate() {
+        if !cache.scores.contains_key(&h.key()) {
+            uncached_indices.push(idx);
+            uncached_bodies.push(h.hit().body.as_str());
+        }
+    }
+
+    if !uncached_bodies.is_empty() {
+        let raw_logits = score_pool(scorer, query, &uncached_bodies)?;
+        for (idx, raw_logit) in uncached_indices.into_iter().zip(raw_logits) {
+            let ce_norm = 1.0 / (1.0 + (-raw_logit).exp());
+            cache.scores.insert(top[idx].key(), ce_norm);
+        }
+    }
+
+    let ce_norms: Vec<f64> =
+        top.iter().map(|h| cache.scores.get(&h.key()).copied().unwrap_or(0.5)).collect();
+    Ok(blend_ce_norms(hits, &ce_norms, alpha, pool_n))
+}
+
 #[cfg(any(feature = "default-reranker", test))]
 fn blend_ce_ranked<H: RankedHit>(
     hits: &[H],
@@ -279,6 +492,13 @@ fn blend_ce_ranked<H: RankedHit>(
     alpha: f64,
     pool_n: usize,
 ) -> Vec<H> {
+    let ce_norms: Vec<f64> =
+        raw_logits.into_iter().map(|raw_logit| 1.0 / (1.0 + (-raw_logit).exp())).collect();
+    blend_ce_norms(hits, &ce_norms, alpha, pool_n)
+}
+
+#[cfg(any(feature = "default-reranker", test, feature = "test-hooks"))]
+fn blend_ce_norms<H: RankedHit>(hits: &[H], ce_norms: &[f64], alpha: f64, pool_n: usize) -> Vec<H> {
     let n = pool_n.min(hits.len());
     let top = &hits[..n];
     let rest = &hits[n..];
@@ -289,11 +509,9 @@ fn blend_ce_ranked<H: RankedHit>(
 
     let mut scored: Vec<(f64, H)> = top
         .iter()
-        .zip(raw_logits)
-        .map(|(h, raw_logit)| {
+        .zip(ce_norms.iter().copied())
+        .map(|(h, ce_norm)| {
             let rrf_norm = if rrf_span > 0.0 { (h.hit().score - rrf_min) / rrf_span } else { 1.0 };
-            // Sigmoid for CE normalization: 1/(1+exp(-x)).
-            let ce_norm = 1.0 / (1.0 + (-raw_logit).exp());
             // 0.8.5 — α is the caller-supplied (clamped) blend weight; default 0.3
             // reproduces the pre-slice `const ALPHA = 0.3` blend exactly.
             let blended = alpha * ce_norm + (1.0 - alpha) * rrf_norm;
@@ -323,7 +541,7 @@ fn blend_ce_ranked<H: RankedHit>(
 /// One cross-encoder scorer. `Err(Some(error))` is a CUDA pool kind that must
 /// propagate under every device policy; `Err(None)` is any other failure,
 /// which keeps the neutral-score fallback (or the forced-policy refusal).
-#[cfg(any(feature = "default-reranker", test))]
+#[cfg(any(feature = "default-reranker", test, feature = "test-hooks"))]
 trait CeScorer {
     fn score_pair(
         &self,
@@ -346,7 +564,7 @@ trait CeScorer {
 /// the policy (F-1). Any other batch failure is the forced policy's refusal
 /// when CUDA is forced, and otherwise falls back to per-pair scoring, where a
 /// failed pair scores a neutral `0.0` unless it, too, is a CUDA pool kind.
-#[cfg(any(feature = "default-reranker", test))]
+#[cfg(any(feature = "default-reranker", test, feature = "test-hooks"))]
 fn score_pool<S: CeScorer + ?Sized>(
     scorer: &S,
     query: &str,

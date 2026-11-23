@@ -120,17 +120,9 @@ fn every_site(engine: &Engine) -> Vec<(&'static str, Vec<String>)> {
     let frozen_search =
         engine.search_frozen(QUERY, &frozen, 0, false, 0.3, 0, true, 10).expect("frozen");
     let evidence = engine
-        .search_with_evidence(&EvidenceSearchRequestV1 {
-            schema_version: 1,
-            query: QUERY.into(),
-            context: frozen.clone(),
-            rerank_depth: 0,
-            use_graph_arm: false,
-            alpha: 0.3,
-            pool_n: 0,
-            include_explanation: true,
-            limit: 10,
-        })
+        .search_with_evidence(
+            &EvidenceSearchRequestV1::new(QUERY.into(), frozen.clone()).with_explain(true),
+        )
         .expect("evidence");
     let projected =
         engine.search_projected_text(QUERY, FIELD, None, &ReadView::default()).expect("projected");
@@ -200,17 +192,9 @@ fn trace_records_the_stop_word_hash() {
         let frozen_search =
             engine.search_frozen(QUERY, &frozen, 0, false, 0.3, 0, true, 10).expect("frozen");
         let evidence = engine
-            .search_with_evidence(&EvidenceSearchRequestV1 {
-                schema_version: 1,
-                query: QUERY.into(),
-                context: frozen,
-                rerank_depth: 0,
-                use_graph_arm: false,
-                alpha: 0.3,
-                pool_n: 0,
-                include_explanation: true,
-                limit: 10,
-            })
+            .search_with_evidence(
+                &EvidenceSearchRequestV1::new(QUERY.into(), frozen).with_explain(true),
+            )
             .expect("evidence");
         for (path_name, result) in [
             ("search_explained", &search),

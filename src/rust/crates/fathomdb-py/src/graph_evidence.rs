@@ -259,12 +259,14 @@ impl From<RustEvidenceProjectionOriginV1> for PyEvidenceProjectionOriginV1 {
             .graph_origin
         {
             None => (None, None, None),
-            Some(RustEvidenceGraphOriginV1::EdgeSeed { edge_artifact_revision_id }) => {
+            Some(RustEvidenceGraphOriginV1::EdgeSeed { edge_artifact_revision_id, .. }) => {
                 (Some("edge_seed".to_string()), Some(edge_artifact_revision_id), None)
             }
-            Some(RustEvidenceGraphOriginV1::Traversal { edge_artifact_revision_id, hop_count }) => {
-                (Some("traversal".to_string()), Some(edge_artifact_revision_id), Some(hop_count))
-            }
+            Some(RustEvidenceGraphOriginV1::Traversal {
+                edge_artifact_revision_id,
+                hop_count,
+                ..
+            }) => (Some("traversal".to_string()), Some(edge_artifact_revision_id), Some(hop_count)),
         };
         Self {
             schema_version: value.schema_version,

@@ -218,20 +218,20 @@ pub struct EvidenceProjectionOriginV1 {
 impl From<RustEvidenceProjectionOriginV1> for EvidenceProjectionOriginV1 {
     fn from(value: RustEvidenceProjectionOriginV1) -> Self {
         let graph_origin = value.graph_origin.map(|origin| match origin {
-            RustEvidenceGraphOriginV1::EdgeSeed { edge_artifact_revision_id } => {
+            RustEvidenceGraphOriginV1::EdgeSeed { edge_artifact_revision_id, .. } => {
                 EvidenceGraphOriginV1 {
                     kind: "edge_seed".to_string(),
                     edge_artifact_revision_id: Some(edge_artifact_revision_id),
                     hop_count: None,
                 }
             }
-            RustEvidenceGraphOriginV1::Traversal { edge_artifact_revision_id, hop_count } => {
-                EvidenceGraphOriginV1 {
-                    kind: "traversal".to_string(),
-                    edge_artifact_revision_id: Some(edge_artifact_revision_id),
-                    hop_count: Some(hop_count),
-                }
-            }
+            RustEvidenceGraphOriginV1::Traversal {
+                edge_artifact_revision_id, hop_count, ..
+            } => EvidenceGraphOriginV1 {
+                kind: "traversal".to_string(),
+                edge_artifact_revision_id: Some(edge_artifact_revision_id),
+                hop_count: Some(hop_count),
+            },
         });
         Self {
             schema_version: value.schema_version,

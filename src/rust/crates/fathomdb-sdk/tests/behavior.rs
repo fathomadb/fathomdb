@@ -555,18 +555,7 @@ fn evidence_search_resolves_each_reference_under_the_same_context() {
             &ReadContextV1::new(ReadView::default(), SearchFilter::default()).expect("context"),
         )
         .expect("freeze");
-    // Rust callers set every field; these are the Python/TypeScript defaults.
-    let request = fathomdb_sdk::EvidenceSearchRequestV1 {
-        schema_version: 1,
-        query: "alpha".to_string(),
-        context: context.clone(),
-        rerank_depth: 0,
-        use_graph_arm: false,
-        alpha: 0.3,
-        pool_n: 0,
-        include_explanation: false,
-        limit: 10,
-    };
+    let request = fathomdb_sdk::EvidenceSearchRequestV1::new("alpha".to_string(), context.clone());
     let result = engine.search_with_evidence(&request).expect("evidence search");
     assert!(!result.search_result.results.is_empty());
     assert_eq!(result.evidence.len(), result.search_result.results.len());
@@ -579,7 +568,7 @@ fn evidence_search_resolves_each_reference_under_the_same_context() {
         .expect("resolve");
     assert_eq!(resolved.artifact_revision_id, result.evidence[0].artifact_revision_id);
 
-    let request = fathomdb_sdk::EvidenceSearchRequestV1 { limit: 0, ..request };
+    let request = request.with_limit(0);
     assert_eq!(kind_of(engine.search_with_evidence(&request)), ErrorKind::InvalidArgument);
     engine.close().expect("close");
 }

@@ -507,7 +507,7 @@ fn property_sql_op(op: PropertyComparisonOp) -> &'static str {
     }
 }
 
-fn append_cpv_exists_prefilter(
+pub(crate) fn append_cpv_exists_prefilter(
     entity_class: &str,
     cursor_expr: &str,
     cpv_alias: &str,

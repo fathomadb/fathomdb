@@ -285,17 +285,7 @@ fn a_frozen_search_reports_embedder_overloaded() {
         .search_frozen(QUERY, &frozen, 0, false, 0.3, 0, false, 10)
         .expect("frozen search degrades");
     let evidence = engine
-        .search_with_evidence(&EvidenceSearchRequestV1 {
-            schema_version: 1,
-            query: QUERY.into(),
-            context: frozen.clone(),
-            rerank_depth: 0,
-            use_graph_arm: false,
-            alpha: 0.3,
-            pool_n: 0,
-            include_explanation: false,
-            limit: 10,
-        })
+        .search_with_evidence(&EvidenceSearchRequestV1::new(QUERY.into(), frozen.clone()))
         .expect("evidence search degrades");
 
     embedder.open();

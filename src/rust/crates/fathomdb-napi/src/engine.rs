@@ -469,17 +469,13 @@ impl Engine {
                 msg: "limit must be in 0..=4294967295".to_string(),
             })
         })?;
-        let request = RustEvidenceSearchRequestV1 {
-            schema_version: 1,
-            query,
-            context: frozen_context_to_rust(context)?,
-            rerank_depth,
-            use_graph_arm: use_graph_arm.unwrap_or(false),
-            alpha: alpha.unwrap_or(0.3),
-            pool_n,
-            include_explanation: include_explanation.unwrap_or(false),
-            limit,
-        };
+        let request = RustEvidenceSearchRequestV1::new(query, frozen_context_to_rust(context)?)
+            .with_rerank_depth(rerank_depth)
+            .with_use_graph_arm(use_graph_arm.unwrap_or(false))
+            .with_alpha(alpha.unwrap_or(0.3))
+            .with_pool_n(pool_n)
+            .with_explain(include_explanation.unwrap_or(false))
+            .with_limit(limit);
         let engine = Arc::clone(&self.inner);
         call_engine(move || engine.search_with_evidence(&request)).await.map(Into::into)
     }

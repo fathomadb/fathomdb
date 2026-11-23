@@ -3,6 +3,7 @@
 use fathomdb_engine::{
     Filter, FilterTerm, PageRequestV1, Predicate, PreparedWrite, ProjectionSpec,
     PropertyComparisonOp, PropertyMap, PropertyPredicate, PropertyValue, ScalarValue, SearchFilter,
+    MAX_GRAPH_EDGE_PREDICATES,
 };
 
 use crate::error::{Error, ErrorKind, Result};
@@ -151,6 +152,33 @@ pub(crate) fn search_filter(filter: &SearchFilter) -> Result<()> {
         text(value)
     })?;
     filter.property_predicates.iter().try_for_each(property_predicate)
+}
+
+pub(crate) fn graph_arm_options(
+    graph_seed_k: usize,
+    graph_edge_kinds: &[String],
+    graph_edge_predicates: &[PropertyPredicate],
+) -> Result<()> {
+    ranked_limit("graph_seed_k", graph_seed_k)?;
+    for kind in graph_edge_kinds {
+        text(kind)?;
+        if kind.is_empty() || kind.contains('\x1e') {
+            return Err(Error::sdk(
+                ErrorKind::InvalidFilter,
+                "graph_edge_kinds entries must be non-empty and contain no record separator bytes",
+            ));
+        }
+    }
+    if graph_edge_predicates.len() > MAX_GRAPH_EDGE_PREDICATES {
+        return Err(Error::sdk(
+            ErrorKind::InvalidFilter,
+            format!(
+                "graph_edge_predicates accepts at most {MAX_GRAPH_EDGE_PREDICATES} predicates, got {}",
+                graph_edge_predicates.len()
+            ),
+        ));
+    }
+    graph_edge_predicates.iter().try_for_each(property_predicate)
 }
 
 pub(crate) fn filter(filter: &Filter) -> Result<()> {

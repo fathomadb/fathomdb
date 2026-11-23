@@ -114,11 +114,12 @@ fn slice38_query_plans_use_declared_indexes_and_skip_cpv_on_unpredicated_search(
         ])
         .expect("write");
 
-    // 1. Unpredicated phase-1 vector SQL & search eligibility must emit ZERO canonical_property_values joins.
+    // 1. Unpredicated phase-1 vector SQL & search eligibility must emit ZERO canonical_property_values or canonical_edges joins.
     let unpred_vec_sql = vector_phase1_sql_for_test(None);
     assert!(
-        !unpred_vec_sql.contains("canonical_property_values"),
-        "unpredicated vector phase-1 SQL must not join canonical_property_values: {unpred_vec_sql}"
+        !unpred_vec_sql.contains("canonical_property_values")
+            && !unpred_vec_sql.contains("canonical_edges"),
+        "unpredicated vector phase-1 SQL must not join canonical_property_values or canonical_edges: {unpred_vec_sql}"
     );
     let mut pred_filter = SearchFilter::default();
     pred_filter.property_predicates = vec![PropertyPredicate {
@@ -145,8 +146,8 @@ fn slice38_query_plans_use_declared_indexes_and_skip_cpv_on_unpredicated_search(
     if plan_witness_path.exists() {
         let content = std::fs::read_to_string(&plan_witness_path).expect("read fts witness");
         assert!(
-            !content.contains("canonical_property_values"),
-            "unpredicated search/search_text_only must emit zero joins on canonical_property_values:\n{content}"
+            !content.contains("canonical_property_values") && !content.contains("canonical_edges"),
+            "unpredicated search/search_text_only must emit zero joins on canonical_property_values or canonical_edges:\n{content}"
         );
     }
 
@@ -483,6 +484,89 @@ fn slice38_graph_expand_incident_query_plans_use_active_or_sup_kind_indexes_zero
                 plan.join("\n")
             );
         }
+    }
+
+    engine.close().expect("close");
+}
+
+#[test]
+fn slice38_graph_arm_phase2_union_all_uses_active_or_sup_kind_indexes_zero_scan() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("graph-arm-qp{SQLITE_SUFFIX}"));
+    let opened = Engine::open(&path).expect("open");
+    let engine = opened.engine;
+
+    engine
+        .write(&[
+            PreparedWrite::Node {
+                kind: "note".into(),
+                body: "a".into(),
+                source_id: SourceId::new("src:gaqp").unwrap(),
+                logical_id: Some("gaqp-a".into()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                properties: None,
+            },
+            PreparedWrite::Node {
+                kind: "note".into(),
+                body: "b".into(),
+                source_id: SourceId::new("src:gaqp").unwrap(),
+                logical_id: Some("gaqp-b".into()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                properties: None,
+            },
+            PreparedWrite::Edge {
+                kind: "supports".into(),
+                from: "gaqp-a".into(),
+                to: "gaqp-b".into(),
+                source_id: SourceId::new("src:gaqp").unwrap(),
+                logical_id: Some("gaqp-e1".into()),
+                body: None,
+                t_valid: None,
+                t_invalid: None,
+                confidence: None,
+                extractor_model_id: None,
+                temporal_fallback: None,
+                properties: None,
+            },
+        ])
+        .expect("write");
+
+    let kind_sets: &[&[&str]] = &[&[], &["supports"], &["supports", "contradicts"]];
+    for kinds in kind_sets {
+        let kinds_vec: Vec<String> = kinds.iter().map(|s| (*s).to_string()).collect();
+        let plan = engine
+            .explain_graph_arm_phase2_for_test(&kinds_vec)
+            .unwrap_or_else(|e| panic!("explain graph arm phase2 ({kinds:?}) failed: {e:?}"));
+        let has_from = plan.iter().any(|l| {
+            l.contains("SEARCH e USING INDEX canonical_edges_from_active_idx")
+                || l.contains("SEARCH e USING INDEX canonical_edges_from_sup_kind_idx")
+                || l.contains("SEARCH canonical_edges USING INDEX canonical_edges_from_active_idx")
+                || l.contains(
+                    "SEARCH canonical_edges USING INDEX canonical_edges_from_sup_kind_idx",
+                )
+        });
+        let has_to = plan.iter().any(|l| {
+            l.contains("SEARCH e USING INDEX canonical_edges_to_active_idx")
+                || l.contains("SEARCH e USING INDEX canonical_edges_to_sup_kind_idx")
+                || l.contains("SEARCH canonical_edges USING INDEX canonical_edges_to_active_idx")
+                || l.contains("SEARCH canonical_edges USING INDEX canonical_edges_to_sup_kind_idx")
+        });
+        assert!(
+            has_from && has_to,
+            "use_graph_arm Phase 2 UNION ALL ({kinds:?}) must use from+to active/sup_kind indexes; got:\n{}",
+            plan.join("\n")
+        );
+        assert!(
+            !plan.iter().any(|l| l.contains("SCAN e") || l.contains("SCAN canonical_edges")),
+            "use_graph_arm Phase 2 UNION ALL ({kinds:?}) must never SCAN canonical_edges:\n{}",
+            plan.join("\n")
+        );
     }
 
     engine.close().expect("close");

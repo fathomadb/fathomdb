@@ -220,17 +220,11 @@ fn owed_debt_routes_match_independent_survivor_only_stores_before_caps_and_stati
                         control.read_canonical_page("doc", &baseline_frozen, &page).unwrap().items
                     );
                     let evidence = candidate
-                        .search_with_evidence(&EvidenceSearchRequestV1 {
-                            schema_version: 1,
-                            query: "common".into(),
-                            context: frozen.clone(),
-                            rerank_depth: 0,
-                            use_graph_arm: false,
-                            alpha: 0.5,
-                            pool_n: 10,
-                            include_explanation: false,
-                            limit: 10,
-                        })
+                        .search_with_evidence(
+                            &EvidenceSearchRequestV1::new("common".into(), frozen.clone())
+                                .with_alpha(0.5)
+                                .with_pool_n(10),
+                        )
                         .unwrap();
                     assert!(!evidence.evidence.is_empty());
                     assert_eq!(evidence.evidence.len(), evidence.search_result.results.len());

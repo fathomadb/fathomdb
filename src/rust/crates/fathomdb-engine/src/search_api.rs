@@ -71,6 +71,7 @@ impl Engine {
             explain,
             limit,
             None,
+            None,
         )
     }
 
@@ -86,6 +87,7 @@ impl Engine {
         explain: bool,
         limit: usize,
         snippet: Option<SnippetOptions>,
+        graph_options: Option<GraphArmOptions>,
     ) -> Result<SearchResult, EngineError> {
         let _operation = self.ensure_open()?;
         let binding = {
@@ -105,6 +107,7 @@ impl Engine {
             limit,
             Some(binding),
             snippet,
+            graph_options,
         )
         .map(|(mut result, _stats, _expanded)| {
             if result.explanation.is_some() {
@@ -147,6 +150,38 @@ impl Engine {
             explain,
             limit,
             snippet.copied(),
+            None,
+        )
+    }
+
+    /// [`search_frozen_with_snippets`][Engine::search_frozen_with_snippets]
+    /// with opt-in graph-arm seeding and edge-traversal controls.
+    #[allow(clippy::too_many_arguments)]
+    pub fn search_frozen_with_graph_options(
+        &self,
+        query: &str,
+        frozen: &FrozenReadContextV1,
+        rerank_depth: usize,
+        use_graph_arm: bool,
+        alpha: f64,
+        pool_n: usize,
+        explain: bool,
+        limit: usize,
+        snippet: Option<&SnippetOptions>,
+        graph_options: &GraphArmOptions,
+    ) -> Result<SearchResult, EngineError> {
+        validate_snippet(snippet)?;
+        self.search_frozen_inner(
+            query,
+            frozen,
+            rerank_depth,
+            use_graph_arm,
+            alpha,
+            pool_n,
+            explain,
+            limit,
+            snippet.copied(),
+            Some(graph_options.clone()),
         )
     }
 
@@ -206,7 +241,8 @@ impl Engine {
                 self.runtime_embedder_identity.clone(),
                 Arc::clone(&self.read_visibility_generation),
             ),
-        );
+        )
+        .with_graph_options(Some(request.graph_arm_options()));
         let (response_tx, response_rx) = mpsc::sync_channel::<EvidenceReaderResponse>(1);
         self.reader_pool
             .dispatch(ReaderRequest::search_evidence(
@@ -404,6 +440,7 @@ impl Engine {
             Some(binding),
             Some(depth),
             None,
+            None,
         )?;
         expanded.ok_or(EngineError::Storage)
     }
@@ -481,6 +518,7 @@ impl Engine {
             result_limit,
             None,
             None,
+            None,
         )
         .map(|(result, stats, _expanded)| (result, stats))
     }
@@ -499,6 +537,7 @@ impl Engine {
         result_limit: usize,
         frozen_binding: Option<frozen_read::FrozenReadBinding>,
         snippet: Option<SnippetOptions>,
+        graph_options: Option<GraphArmOptions>,
     ) -> Result<(SearchResult, GraphFrontierStats, Option<SearchExpandResult>), EngineError> {
         self.search_inner_with_frozen_binding_and_expansion(
             query,
@@ -513,6 +552,7 @@ impl Engine {
             frozen_binding,
             None,
             snippet,
+            graph_options,
         )
     }
 
@@ -531,6 +571,7 @@ impl Engine {
         frozen_binding: Option<frozen_read::FrozenReadBinding>,
         expand_depth: Option<u32>,
         snippet: Option<SnippetOptions>,
+        graph_options: Option<GraphArmOptions>,
     ) -> Result<(SearchResult, GraphFrontierStats, Option<SearchExpandResult>), EngineError> {
         #[cfg(any(test, feature = "slice30-observer"))]
         let _observation_scope = crate::slice30_observer::enter_engine(&self.wal_attribution);
@@ -682,7 +723,8 @@ impl Engine {
                 frozen_query_runtime,
                 expand_depth,
             )
-            .with_snippet(snippet),
+            .with_snippet(snippet)
+            .with_graph_options(graph_options),
             response_tx,
         );
         let search_result = {
@@ -871,6 +913,7 @@ impl Engine {
             *view,
             limit,
             None,
+            None,
         )
     }
 
@@ -910,6 +953,47 @@ impl Engine {
             *view,
             limit,
             snippet.copied(),
+            None,
+        )
+    }
+
+    /// [`search_reranked_view_with_snippets`][Engine::search_reranked_view_with_snippets]
+    /// with opt-in graph-arm seeding and edge-traversal controls.
+    ///
+    /// # Errors
+    ///
+    /// Validates `limit`, `snippet`, and `graph_options` at request entry
+    /// regardless of `use_graph_arm`.
+    #[allow(clippy::too_many_arguments)]
+    pub fn search_reranked_view_with_graph_options(
+        &self,
+        query: &str,
+        filter: Option<SearchFilter>,
+        rerank_depth: usize,
+        use_graph_arm: bool,
+        alpha: f64,
+        pool_n: usize,
+        explain: bool,
+        view: &ReadView,
+        limit: usize,
+        snippet: Option<&SnippetOptions>,
+        graph_options: &GraphArmOptions,
+    ) -> Result<SearchResult, EngineError> {
+        let limit = validate_search_result_limit(limit)?;
+        validate_snippet(snippet)?;
+        graph_options.validate()?;
+        self.search_reranked_with_explain(
+            query,
+            filter,
+            rerank_depth,
+            use_graph_arm,
+            alpha,
+            pool_n,
+            explain,
+            *view,
+            limit,
+            snippet.copied(),
+            Some(graph_options.clone()),
         )
     }
 
@@ -1047,6 +1131,7 @@ impl Engine {
             ReadView::default(),
             limit,
             None,
+            None,
         )
     }
 
@@ -1102,6 +1187,7 @@ impl Engine {
             true,
             ReadView::default(),
             limit,
+            None,
             None,
         )
     }
@@ -1386,6 +1472,7 @@ impl Engine {
         view: ReadView,
         limit: usize,
         snippet: Option<SnippetOptions>,
+        graph_options: Option<GraphArmOptions>,
     ) -> Result<SearchResult, EngineError> {
         let _operation = self.ensure_open()?;
         self.emit_event(lifecycle::Phase::Started, lifecycle::EventCategory::Search, None);
@@ -1403,6 +1490,7 @@ impl Engine {
                 limit,
                 None,
                 snippet,
+                graph_options,
             )
             .map(|(result, _stats, _expanded)| result);
         self.detect_slow(started, lifecycle::EventCategory::Search);
@@ -1572,8 +1660,8 @@ use crate::search::{bm25f_search_inner, FrozenQueryRuntime, SearchReaderError, S
 #[cfg(any(test, feature = "test-hooks"))]
 use crate::search_types::SEARCH_RERANK_LIMIT;
 use crate::search_types::{
-    validate_search_result_limit, Bm25fQueryPlan, GraphFrontierStats, SearchResult,
-    DEFAULT_SEARCH_RESULT_LIMIT,
+    validate_search_result_limit, Bm25fQueryPlan, GraphArmOptions, GraphFrontierStats,
+    SearchResult, DEFAULT_SEARCH_RESULT_LIMIT,
 };
 use crate::snippet::SnippetOptions;
 #[cfg(feature = "tc5-benchmark")]
@@ -1609,6 +1697,49 @@ impl Engine {
             DEFAULT_SEARCH_RESULT_LIMIT,
         )
         .map(|(_result, stats)| stats)
+    }
+
+    /// Test seam — runs the graph-arm retrieval path with explicit filter, view,
+    /// and [`GraphArmOptions`] and returns its frontier meter.
+    #[doc(hidden)]
+    pub fn _graph_frontier_stats_with_options_for_test(
+        &self,
+        query: &str,
+        filter: Option<SearchFilter>,
+        view: &ReadView,
+        graph_options: &GraphArmOptions,
+    ) -> Result<GraphFrontierStats, EngineError> {
+        graph_options.validate()?;
+        self.search_inner_with_frozen_binding_and_stats(
+            query,
+            filter,
+            0,
+            true,
+            0.3,
+            0,
+            false,
+            *view,
+            DEFAULT_SEARCH_RESULT_LIMIT,
+            None,
+            None,
+            Some(graph_options.clone()),
+        )
+        .map(|(_result, stats, _expanded)| stats)
+    }
+
+    /// Test seam — runs SQLite `EXPLAIN QUERY PLAN` on the exact `use_graph_arm`
+    /// Phase 2 `UNION ALL` edge lookup SQL against the live database.
+    #[cfg(any(test, feature = "test-hooks"))]
+    #[doc(hidden)]
+    pub fn explain_graph_arm_phase2_for_test(
+        &self,
+        edge_kinds: &[String],
+    ) -> Result<Vec<String>, EngineError> {
+        let _operation = self.ensure_open()?;
+        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+        crate::search::explain_graph_arm_phase2_query_for_test(connection, edge_kinds)
+            .map_err(|_| EngineError::Storage)
     }
 
     /// Test seam that raises vector-candidate fanout for recall tests.

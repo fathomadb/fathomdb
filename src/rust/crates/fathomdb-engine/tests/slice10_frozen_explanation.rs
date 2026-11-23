@@ -61,17 +61,8 @@ fn evidence_request(
     context: fathomdb_engine::FrozenReadContextV1,
     include_explanation: bool,
 ) -> EvidenceSearchRequestV1 {
-    EvidenceSearchRequestV1 {
-        schema_version: 1,
-        query: "slice10frozenneedle".into(),
-        context,
-        rerank_depth: 0,
-        use_graph_arm: false,
-        alpha: 0.3,
-        pool_n: 0,
-        include_explanation,
-        limit: 10,
-    }
+    EvidenceSearchRequestV1::new("slice10frozenneedle".into(), context)
+        .with_explain(include_explanation)
 }
 
 #[test]

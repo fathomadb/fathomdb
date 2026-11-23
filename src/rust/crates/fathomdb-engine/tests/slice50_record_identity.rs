@@ -712,17 +712,9 @@ fn equal_body_evidence_sidecars_resolve_the_exact_selected_record_source() {
     let frozen = opened.engine.freeze_read_context(&context).unwrap();
     let result = opened
         .engine
-        .search_with_evidence(&EvidenceSearchRequestV1 {
-            schema_version: 1,
-            query: "cafe".into(),
-            context: frozen.clone(),
-            rerank_depth: 0,
-            use_graph_arm: false,
-            alpha: 0.3,
-            pool_n: 0,
-            include_explanation: true,
-            limit: 10,
-        })
+        .search_with_evidence(
+            &EvidenceSearchRequestV1::new("cafe".into(), frozen.clone()).with_explain(true),
+        )
         .unwrap();
     assert_eq!(
         result.search_result.results.iter().map(|hit| hit.write_cursor).collect::<Vec<_>>(),

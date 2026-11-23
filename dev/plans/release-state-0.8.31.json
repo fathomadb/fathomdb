@@ -98,11 +98,14 @@
         30,
         40
       ],
-      "status": "ACTIVE",
+      "status": "LANDED",
+      "sha": "28f5def55",
       "design_refs": [
         "dev/adr/ADR-0.8.31-cli-pypi-wheel-and-37-to-38-upgrade.md",
-        "dev/plans/0.8.31/features/slice-50/plan.md"
-      ]
+        "dev/plans/0.8.31/features/slice-50/plan.md",
+        "dev/plans/0.8.31/features/slice-50/status.md"
+      ],
+      "evidence": "Layers 1-3 + governed-surface pin (9780e9181 / fbb6591fc, 56 live ops / 93 allowlist) + FIX-1 landed through 28f5def55; resolve_evidence_many, search hints, OpenReport booleans, fathomdb migrate 37->38 (proven on golden Schema-37 DB), fathomdb-cli PyPI wheel + build-python-cli workflow, Rust/Py/TS parity (1,800 Py / 662 TS / all 13 Rust crates), and docs verified green; independent adversarial code review APPROVE."
     },
     {
       "slice": 60,
@@ -113,11 +116,12 @@
         40,
         50
       ],
-      "status": "PLANNED",
+      "status": "ACTIVE",
       "design_refs": [
         "dev/plans/0.8.31/scope.md",
         "dev/plans/0.8.31/prework/slice-7.md",
-        "dev/inspector/ROADMAP.md"
+        "dev/inspector/ROADMAP.md",
+        "dev/plans/0.8.31/features/slice-60/plan.md"
       ]
     },
     {
@@ -151,15 +155,15 @@
     10,
     20,
     30,
-    40
+    40,
+    50
   ],
   "remaining_ladder": [
-    50,
     60,
     70,
     80
   ],
-  "next_slice": 50,
+  "next_slice": 60,
   "publish_gate": {
     "status": "HELD",
     "publication_authorized": false,

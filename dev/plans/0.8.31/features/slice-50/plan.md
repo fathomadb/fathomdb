@@ -1,6 +1,6 @@
 ---
 title: Slice 50 (SDK-CLI-UPGRADE) — SDK Ergonomics, OpenReport Capability Booleans, 37-to-38 Migrate Root, and CLI PyPI Wheel
-status: DRAFT
+status: CLOSED
 target_release: 0.8.31
 slice: 50
 date: 2026-11-22

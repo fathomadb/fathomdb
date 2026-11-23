@@ -29,8 +29,11 @@ own settled HITL decisions, requirements, and execution contracts.
 - **Slice 40 (`HISTORY-GRAPH`) — LANDED (`fe5e7d8a1`):**
   - Landed Layers 1–3 (`039bc7f88`, `e00a3b359`, `9f362ed1f`) plus `search.rs` `EntityFts` fix (`9ca376e57`) and `FIX-1` (`fe5e7d8a1`): bitemporal `graph_expand` (`as_of_write_cursor` / `as_of_epoch_ms`), `EdgeViewBoundary::AsOf` (`UNION ALL`, derived-edge closure barriers, zero-`SCAN` query plans), two-arm historical `load_node` + `Engine::transition` current-head check, inline `(properties > body)` historical eligibility, `proptest` snapshot BFS oracle, historical frozen graph evidence (`payload[7]`, `artifact_lifecycle.superseded`, erasure/transition/barrier revocation), Rust/Python/TypeScript parity (1,794 Python / 657 TS / all 13 Rust crates), and updated interface/guide/reference docs.
   - Independent adversarial code review returned **`APPROVE`** at HEAD `fe5e7d8a1`; recorded in `features/slice-40/status.md`.
-- **Slice 50 (`SDK-CLI-UPGRADE`) — ACTIVE:** Applying Plan Review `FIX-1` to `features/slice-50/plan.md` for `APPROVE`, then executing RED -> GREEN TDD implementation.
+- **Slice 50 (`SDK-CLI-UPGRADE`) — LANDED (`28f5def55`):**
+  - Landed Layers 1–3 (`09dbec3bd`, `1b07584e1`, `9780e9181`) plus governed-surface commit pin (`fbb6591fc`, `56` live ops / `93` allowlist) and `FIX-1` (`28f5def55`): `resolve_evidence_many` per-ref partial results, opt-in `SearchResult.hints`, zero-I/O `OpenReport` capability booleans preserving forced-CUDA fail-closed open, `fathomdb migrate` `37 -> 38` (with fail-closed dangling-edge check, in-transaction `cpv` backfill + Schema-38 declaration rehash proven against golden Schema-37 DB), `fathomdb-cli` PyPI wheel + `fathomdb[cli]` extra + `build-python-cli` in `release.yml`, Rust/Python/TypeScript parity (1,800 Python / 662 TS / all 13 Rust crates), module-boundary cleanup, and updated public/interface/generated docs.
+  - Independent adversarial code review returned **`APPROVE`** at HEAD `28f5def55`; recorded in `features/slice-50/status.md`.
+- **Slice 60 (`INSPECTOR`) — ACTIVE:** Applying Plan Review `FIX-1` to `features/slice-60/plan.md` for `APPROVE`, then executing RED -> GREEN TDD implementation.
 
 ## Next action
 
-Complete Slice 50 (`SDK-CLI-UPGRADE`) Plan Review `FIX-1` (`APPROVE`), then execute Slices `50 → 60 → 70` sequentially (stopping before Slice 80 Publication for separate HITL approval).
+Complete Slice 60 (`INSPECTOR`) Plan Review `FIX-1` (`APPROVE`), then execute Slices `60 → 70` sequentially (stopping before Slice 80 Publication for separate HITL approval).

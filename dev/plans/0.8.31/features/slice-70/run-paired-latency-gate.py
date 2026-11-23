@@ -1687,7 +1687,7 @@ def _run_sdk_benchmark_10k(args: argparse.Namespace) -> int:
         ],
         "sampling": {
             "warmup_per_query": 1,
-            "repetitions": 3,
+            "repetitions": 4,
             "seed": 20261122,
             "cache_state": "steady_after_declared_warmup",
             "concurrency": 1,

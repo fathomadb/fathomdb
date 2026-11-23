@@ -230,7 +230,8 @@ async function run(request) {
   let engine;
   try {
     validate(request);
-    if (Number(process.versions.node.split('.')[0]) !== 25) {
+    const nodeMajor = Number(process.versions.node.split('.')[0]);
+    if (nodeMajor < 25 || nodeMajor >= 27) {
       throw new DriverFailure('unsupported_runtime');
     }
     const { packageJson, packageEntry } = packageUrls(request);

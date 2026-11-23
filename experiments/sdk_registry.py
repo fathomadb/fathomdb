@@ -33,12 +33,17 @@ _SETUP = {
     "engine.configure_projections",
     "engine.ingest_with_extractor",
     "engine.consolidate_with_provider",
+    "engine.begin_erasure_maintenance",
+    "engine.queue_physical_erasure",
+    "engine.withdraw_queued_erasure",
 }
 _OBSERVE = {
     "engine.dependencies_for_source",
     "engine.dependency_for_derived",
     "engine.read_dependency_closure",
     "engine.trace_dependency",
+    "engine.physical_erasure_policy",
+    "engine.physical_erasure_status",
     "read.collection",
     "read.mutations",
     "read.list",
@@ -49,6 +54,8 @@ _OBSERVE = {
     "read.projection_generation_status",
     "read.mutation_projection_status",
     "read.canonical_page",
+    "read.operational_collection",
+    "read.operational_collections",
     "read.operational_state",
     "read.operational_state_page",
     "read.get_many",
@@ -58,11 +65,16 @@ _EXCLUDED = {
     "engine.search_expand_frozen": "frozen graph-evidence fixture pending",
     "engine.search_with_evidence": "evidence oracle pending",
     "engine.resolve_evidence": "evidence resolution fixture pending",
+    "engine.resolve_evidence_many": "evidence resolution fixture pending",
     "engine.resolve_graph_evidence": "graph evidence resolution fixture pending",
     "graph.expand": "bounded expansion fixture pending",
     "graph.search_expand": "search-expansion fixture pending",
     "rerank": "pinned reranker artifact and oracle pending",
     "engine.embed": "pinned embedder artifact and oracle pending",
+    "context_item_from_hit": "pure client helper; not a database query benchmark",
+    "decode_round_body": "pure client helper; not a database query benchmark",
+    "encode_round_body": "pure client helper; not a database query benchmark",
+    "pack_context": "pure client helper; not a database query benchmark",
 }
 
 _EXTRAS: dict[str, tuple[str, str, str, str]] = {

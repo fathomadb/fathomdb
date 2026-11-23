@@ -381,7 +381,8 @@ def execute(request: object, *, sdk: Any | None = None) -> dict[str, Any]:
             if hasattr(engine, "open_report"):
                 report = engine.open_report()
                 response["effective_options"]["query_backend"] = report.query_backend
-                response["effective_options"]["dense_disabled"] = report.dense_disabled
+                if hasattr(report, "dense_disabled"):
+                    response["effective_options"]["dense_disabled"] = report.dense_disabled
             if hasattr(engine, "drain"):
                 engine.drain(timeout_s=decoded["timeout_s"])
             binding = _BINDINGS[decoded["operation_id"]]

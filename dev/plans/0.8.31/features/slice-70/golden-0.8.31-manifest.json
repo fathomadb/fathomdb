@@ -1,0 +1,105 @@
+{
+  "schema": "fathomdb.golden-fixture/v1",
+  "producer_release": "0.8.31",
+  "schema_version": 38,
+  "git_sha": "9531fe89277337119b11a3f639b8aed4a92f285a",
+  "path": "/mnt/data/worktrees/fathomdb-0.8.31-golden/golden-0.8.31-schema38.sqlite",
+  "bytes": 1007616,
+  "sha256": "e0a078bde37ec3e973bba8b03c9bfb7c42505b16da1b038ca946fb08332c8036",
+  "use_default_embedder": true,
+  "exact_i64_canary": 9007199254740993,
+  "commit_timestamps": [
+    {
+      "write_cursor": 2,
+      "committed_at_ms": 1795453646900
+    },
+    {
+      "write_cursor": 9,
+      "committed_at_ms": 1795453646902
+    },
+    {
+      "write_cursor": 15,
+      "committed_at_ms": 1795453646903
+    },
+    {
+      "write_cursor": 18,
+      "committed_at_ms": 1795453646904
+    }
+  ],
+  "enrolled_vector_kinds": [
+    "domain_fact",
+    "edge_fact",
+    "note"
+  ],
+  "vector_unsupported_kinds": [
+    "raw_stub"
+  ],
+  "counts": {
+    "canonical_nodes_total": 6,
+    "canonical_nodes_active": 5,
+    "canonical_nodes_superseded": 1,
+    "canonical_nodes_null_properties": 1,
+    "canonical_edges_total": 3,
+    "canonical_edges_active": 2,
+    "canonical_edges_superseded": 1,
+    "canonical_property_values_total": 14,
+    "canonical_property_values_node": 12,
+    "canonical_property_values_edge": 2,
+    "commit_timestamps_count": 4,
+    "vector_rows_total": 7,
+    "vector_rows_domain_fact": 1,
+    "operational_collections_count": 3,
+    "operational_state_count": 2,
+    "operational_mutations_count": 3
+  },
+  "expected": {
+    "active_nodes": [
+      "fact:1",
+      "legacy:1",
+      "raw:1",
+      "req:1",
+      "ver:1"
+    ],
+    "null_property_node": "legacy:1",
+    "superseded_node": "req:1",
+    "active_edges": [
+      "edge:supports:1",
+      "edge:verifies:1"
+    ],
+    "superseded_edge": "edge:verifies:1",
+    "erased_source": "src-erase-1",
+    "erased_logical_ids": [
+      "secret:1",
+      "edge:secret:1"
+    ],
+    "purged_logical_ids": [
+      "temp:1"
+    ],
+    "erased_nodes_count": 1,
+    "operational_collections": {
+      "agent_checkpoints": "latest_state",
+      "agent_audit": "append_only_log"
+    },
+    "canaries_verified_absent": [
+      "CANARY_SECRET_BODY_0831_ERASE",
+      "CANARY_SECRET_PROP_0831_ERASE",
+      "CANARY_SECRET_EDGE_0831_ERASE",
+      "CANARY_TEMP_PURGE_0831_ERASE"
+    ]
+  },
+  "doctor_check_integrity": {
+    "logical": {
+      "findings": [],
+      "status": "clean"
+    },
+    "physical": {
+      "findings": [],
+      "status": "clean"
+    },
+    "semantic": {
+      "findings": [],
+      "status": "clean"
+    },
+    "verb": "check-integrity"
+  }
+}

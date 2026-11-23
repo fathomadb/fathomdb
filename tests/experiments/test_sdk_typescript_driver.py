@@ -13,7 +13,7 @@ from pathlib import Path
 import pytest
 
 
-def _node_25() -> Path | None:
+def _node_supported() -> Path | None:
     candidate = os.environ.get("FATHOMDB_BENCH_NODE") or shutil.which("node")
     if candidate is None:
         return None
@@ -22,12 +22,15 @@ def _node_25() -> Path | None:
         [str(node), "--version"], capture_output=True, text=True, check=False
     )
     return (
-        node if version.returncode == 0 and version.stdout.startswith("v25.") else None
+        node
+        if version.returncode == 0
+        and (version.stdout.startswith("v25.") or version.stdout.startswith("v26."))
+        else None
     )
 
 
-NODE = _node_25()
-pytestmark = pytest.mark.skipif(NODE is None, reason="Node 25 is required")
+NODE = _node_supported()
+pytestmark = pytest.mark.skipif(NODE is None, reason="Node >=25 <27 is required")
 DRIVER = (
     Path(__file__).resolve().parents[2]
     / "experiments/sdk_drivers/typescript_driver.mjs"

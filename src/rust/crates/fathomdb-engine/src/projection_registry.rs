@@ -1100,6 +1100,59 @@ fn remove_projection_row(tx: &Connection, name: &str) -> rusqlite::Result<()> {
     Ok(())
 }
 
+/// Backfill `canonical_property_values` for all already-registered Schema-37
+/// node projections inside the Schema 37 -> 38 migration transaction.
+///
+/// `STEP_38_SQL` creates `canonical_property_values` empty. Populating it in
+/// the same migration transaction keeps `canonical_property_values` immediately
+/// consistent with `_fathomdb_projection_registry` (so read-only
+/// `data-plane-integrity` passes immediately and first Schema-38 open does not
+/// rederive projections / mark FTS sanitation dirty).
+#[cfg(feature = "operator")]
+pub(crate) fn backfill_canonical_property_values_for_schema_38(
+    tx: &Connection,
+) -> rusqlite::Result<()> {
+    let registry = load_projection_registry(tx)?;
+    if registry.is_empty() {
+        return Ok(());
+    }
+    let rows: Vec<(i64, String, Option<PropertyMap>)> = {
+        let mut stmt = tx.prepare(
+            "SELECT write_cursor, body, properties FROM canonical_nodes
+             WHERE superseded_at IS NULL AND state = 'active'",
+        )?;
+        let collected = stmt
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, i64>(0)?,
+                    row.get::<_, String>(1)?,
+                    crate::properties::decode_properties_row_col(row, 2)?,
+                ))
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        collected
+    };
+    for (name, stored) in &registry {
+        if stored.entity_class != PropertyEntityClass::Node || !stored.wants_property_value() {
+            continue;
+        }
+        for (cursor, body, properties) in &rows {
+            if let Some(typed_value) =
+                extract_typed_node_property(tx, body, properties.as_ref(), name, stored)?
+            {
+                insert_canonical_property_value(
+                    tx,
+                    PropertyEntityClass::Node,
+                    *cursor,
+                    name,
+                    &typed_value,
+                )?;
+            }
+        }
+    }
+    Ok(())
+}
+
 /// 0.8.20 Slice 15d (R-20-EAV) — delete every EAV + property-FTS + cpv row for one
 /// attribute `name` (all owning records).
 fn clear_attribute_projection(tx: &Connection, name: &str) -> rusqlite::Result<()> {

@@ -491,6 +491,29 @@ def main() -> None:
 
     require_trusted_linux_x64_cuda_producer(jobs)
 
+    cli_block = jobs.get("build-python-cli")
+    if cli_block is None:
+        fail("release workflow lacks build-python-cli")
+    require_matrix_runner("build-python-cli", cli_block)
+    cli_rows = matrix_rows("build-python-cli", cli_block, False)
+    actual_cli = {(runner, target) for runner, target, _ in cli_rows}
+    if len(cli_rows) != len(actual_cli):
+        fail("build-python-cli matrix repeats a runner/target row")
+    if actual_cli != expected_build:
+        fail(
+            f"build-python-cli runner/target coverage is {sorted(actual_cli)}, "
+            f"expected {sorted(expected_build)}"
+        )
+    all_builds = jobs.get("all-builds-passed")
+    if all_builds is None or "build-python-cli" not in needs("all-builds-passed", all_builds):
+        fail("all-builds-passed must depend on build-python-cli")
+    if "needs.build-python-cli.result == 'success'" not in all_builds:
+        fail("all-builds-passed must gate on build-python-cli success")
+    for consumer in ("publish-pypi", "github-release"):
+        consumer_block = jobs.get(consumer)
+        if consumer_block is None or "pattern: python-cli-dist-*" not in consumer_block:
+            fail(f"{consumer} must download python-cli-dist-* artifacts")
+
     publish_jobs: list[str] = []
     smoke_jobs: list[str] = []
     for entry in ready:

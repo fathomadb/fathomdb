@@ -79,7 +79,7 @@ expect() {
 # workspace, a real pyproject, real package.json/package-lock.json.
 mkfix() {
   local d="$TMPROOT/$1"
-  mkdir -p "$d/crates/foo/src" "$d/src/python" "$d/src/ts/npm/plat"
+  mkdir -p "$d/crates/foo/src" "$d/src/python" "$d/src/python-cli" "$d/src/ts/npm/plat"
 
   cp "$REPO_ROOT/LICENSE" "$d/LICENSE"
 
@@ -112,6 +112,15 @@ license = "MIT"
 license-files = ["LICENSE"]
 EOF
   cp "$REPO_ROOT/LICENSE" "$d/src/python/LICENSE"
+
+  cat >"$d/src/python-cli/pyproject.toml" <<'EOF'
+[project]
+name = "foo-cli"
+version = "0.0.1"
+license = "MIT"
+license-files = ["LICENSE"]
+EOF
+  cp "$REPO_ROOT/LICENSE" "$d/src/python-cli/LICENSE"
 
   cat >"$d/src/ts/package.json" <<'EOF'
 {
@@ -239,6 +248,16 @@ FIX="$(mkfix py-escaping-glob)"
 sub "$FIX/src/python/pyproject.toml" 'license-files = ["LICENSE"]' 'license-files = ["../../LICENSE"]'
 run_checker --root "$FIX" --skip-packaging
 expect 1 "escapes the project root" "arm 7: a PEP-639-illegal ../ glob fails instead of quietly matching nothing"
+
+FIX="$(mkfix pycli-license)"
+sub "$FIX/src/python-cli/pyproject.toml" 'license = "MIT"' 'license = "Apache-2.0"'
+run_checker --root "$FIX" --skip-packaging
+expect 1 "src/python-cli/pyproject.toml: [project].license is 'Apache-2.0'" "arm 7b: src/python-cli/pyproject.toml license mismatch fails"
+
+FIX="$(mkfix pycli-license-drift)"
+printf 'MIT License\n\ndrifted cli license\n' >"$FIX/src/python-cli/LICENSE"
+run_checker --root "$FIX" --skip-packaging
+expect 1 "has DRIFTED from the authoritative" "arm 7c: a drifted src/python-cli/LICENSE copy fails"
 
 FIX="$(mkfix ts-license)"
 sub "$FIX/src/ts/package.json" '"license": "MIT"' '"license": "Apache-2.0"'

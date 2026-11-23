@@ -72,10 +72,33 @@ class VisibilityFailure(RuntimeError):
         self.elapsed_seconds = elapsed_seconds
 
 
+def _load_toml(path: Path) -> dict[str, object]:
+    try:
+        import tomllib
+    except ModuleNotFoundError:  # pragma: no cover - Python 3.10 fallback
+        import tomli as tomllib  # type: ignore[import-not-found,no-redef]
+    with path.open("rb") as fh:
+        data = tomllib.load(fh)
+    if not isinstance(data, dict):
+        raise ValueError(f"manifest must be a TOML table: {path}")
+    return data
+
+
 def release_packages(root: Path, version: str, *, include_npm: bool) -> tuple[RegistryPackage, ...]:
     """Return the manifest-derived PyPI/npm release package set."""
 
     packages = [RegistryPackage("pypi", "fathomdb", version)]
+    cli_manifest = root / "src/python-cli/pyproject.toml"
+    if cli_manifest.is_file():
+        cli_project = _load_toml(cli_manifest).get("project")
+        if not isinstance(cli_project, dict):
+            raise ValueError(f"python-cli manifest lacks [project]: {cli_manifest}")
+        if cli_project.get("version") != version:
+            raise ValueError("python-cli manifest version does not match requested release")
+        cli_name = cli_project.get("name")
+        if cli_name != "fathomdb-cli":
+            raise ValueError(f"unexpected python-cli package name: {cli_name!r}")
+        packages.append(RegistryPackage("pypi", "fathomdb-cli", version))
     if not include_npm:
         return tuple(packages)
     main = json.loads((root / "src/ts/package.json").read_text(encoding="utf-8"))

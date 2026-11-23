@@ -9,6 +9,7 @@ SV="$REPO_ROOT/scripts/set-version.sh"
 
 CARGO="$REPO_ROOT/Cargo.toml"
 PYPROJ="$REPO_ROOT/src/python/pyproject.toml"
+PYCLIPROJ="$REPO_ROOT/src/python-cli/pyproject.toml"
 NPMPKG="$REPO_ROOT/src/ts/package.json"
 NPMLOCK="$REPO_ROOT/src/ts/package-lock.json"
 PYRUNTIME="$REPO_ROOT/src/python/fathomdb/__init__.py"
@@ -27,6 +28,7 @@ SNAP="$TMPDIR_ROOT/snap"
 mkdir -p "$SNAP"
 cp "$CARGO" "$SNAP/Cargo.toml"
 cp "$PYPROJ" "$SNAP/pyproject.toml"
+cp "$PYCLIPROJ" "$SNAP/python-cli-pyproject.toml"
 cp "$NPMPKG" "$SNAP/package.json"
 cp "$NPMLOCK" "$SNAP/package-lock.json"
 cp "$PYRUNTIME" "$SNAP/python-init.py"
@@ -39,6 +41,7 @@ fi
 restore() {
   cp "$SNAP/Cargo.toml" "$CARGO" 2>/dev/null || true
   cp "$SNAP/pyproject.toml" "$PYPROJ" 2>/dev/null || true
+  cp "$SNAP/python-cli-pyproject.toml" "$PYCLIPROJ" 2>/dev/null || true
   cp "$SNAP/package.json" "$NPMPKG" 2>/dev/null || true
   cp "$SNAP/package-lock.json" "$NPMLOCK" 2>/dev/null || true
   cp "$SNAP/python-init.py" "$PYRUNTIME" 2>/dev/null || true
@@ -88,6 +91,33 @@ py_version() {
       exit
     }
   ' "$PYPROJ"
+}
+
+py_cli_extra_version() {
+  awk '
+    /^\[project\.optional-dependencies\]/ { in_block = 1; next }
+    /^\[/                                 { in_block = 0 }
+    in_block && /^cli[[:space:]]*=/ {
+      if (match($0, /fathomdb-cli==[^"]+/)) {
+        val = substr($0, RSTART, RLENGTH)
+        sub(/^fathomdb-cli==/, "", val)
+        print val
+      }
+      exit
+    }
+  ' "$PYPROJ"
+}
+
+pycli_version() {
+  awk '
+    /^\[project\]/ { in_block = 1; next }
+    /^\[/          { in_block = 0 }
+    in_block && /^version[[:space:]]*=/ {
+      n = split($0, parts, "\"")
+      if (n >= 3) { print parts[2] }
+      exit
+    }
+  ' "$PYCLIPROJ"
 }
 
 npm_version() {
@@ -141,10 +171,10 @@ fi
 restore
 ORIG_EMB="$(emb_version)"
 "$SV" --workspace 9.9.9 >/dev/null
-if [ "$(ws_version)" = "9.9.9" ] && [ "$(py_version)" = "9.9.9" ] && [ "$(npm_version)" = "9.9.9" ]; then
-  pass "workspace 9.9.9 updates Cargo+pyproject+package.json"
+if [ "$(ws_version)" = "9.9.9" ] && [ "$(py_version)" = "9.9.9" ] && [ "$(py_cli_extra_version)" = "9.9.9" ] && [ "$(pycli_version)" = "9.9.9" ] && [ "$(npm_version)" = "9.9.9" ]; then
+  pass "workspace 9.9.9 updates Cargo+pyproject+cli-extra+python-cli+package.json"
 else
-  fail "workspace 9.9.9 did not propagate: ws=$(ws_version) py=$(py_version) npm=$(npm_version)"
+  fail "workspace 9.9.9 did not propagate: ws=$(ws_version) py=$(py_version) cli_extra=$(py_cli_extra_version) pycli=$(pycli_version) npm=$(npm_version)"
 fi
 if [ "$(emb_version)" = "$ORIG_EMB" ]; then
   pass "workspace 9.9.9 leaves Axis E ($ORIG_EMB) untouched"
@@ -226,6 +256,28 @@ if out="$("$SV" --check-files 2>&1)"; then
 else
   assert_drift_line "check-files: pyproject drift structured diagnostic" \
     "$out" "pyproject.toml" "7.7.7" "$WS_BEFORE"
+fi
+
+# 4a-ii. Axis W drift on src/python/pyproject.toml cli extra → structured diagnostic.
+restore
+WS_BEFORE="$(ws_version)"
+sed -i 's/fathomdb-cli==[^"]*/fathomdb-cli==7.7.7/' "$PYPROJ"
+if out="$("$SV" --check-files 2>&1)"; then
+  fail "check-files should fail on drifted pyproject cli extra"
+else
+  assert_drift_line "check-files: pyproject cli extra drift structured diagnostic" \
+    "$out" "src/python/pyproject.toml" "7.7.7" "$WS_BEFORE"
+fi
+
+# 4a-iii. Axis W drift on src/python-cli/pyproject.toml → structured diagnostic.
+restore
+WS_BEFORE="$(ws_version)"
+sed -i 's/^version = "[^"]*"/version = "7.7.7"/' "$PYCLIPROJ"
+if out="$("$SV" --check-files 2>&1)"; then
+  fail "check-files should fail on drifted python-cli pyproject"
+else
+  assert_drift_line "check-files: python-cli pyproject drift structured diagnostic" \
+    "$out" "src/python-cli/pyproject.toml" "7.7.7" "$WS_BEFORE"
 fi
 
 # 4b. Axis W drift on package.json → structured diagnostic.

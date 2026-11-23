@@ -98,8 +98,19 @@ assert_contains "smoke-crates-cli: jq parses check-integrity output" "$CRATES" \
 
 check_common "$PYPI" "smoke-pypi-wheel"
 assert_contains "smoke-pypi-wheel: fresh venv" "$PYPI" 'python3 -m venv'
-assert_contains "smoke-pypi-wheel: pinned pip install" "$PYPI" \
-  'pip install --quiet "fathomdb==${PIP_VERSION}"'
+assert_contains "smoke-pypi-wheel: pinned pip install with cli extra" "$PYPI" \
+  'pip install --quiet "fathomdb[cli]==${PIP_VERSION}"'
+assert_contains "smoke-pypi-wheel: transient CDN skew retries fathomdb or fathomdb-cli" "$PYPI" \
+  'No matching distribution found for (fathomdb|fathomdb-cli)=='
+assert_contains "smoke-pypi-wheel: verifies co-installed python import" "$PYPI" \
+  'import fathomdb; print(fathomdb.__version__)'
+assert_contains "smoke-pypi-wheel: runs installed CLI --version" "$PYPI" '"$CLI_BIN" --version'
+assert_contains "smoke-pypi-wheel: runs installed CLI doctor platform --json" "$PYPI" \
+  '"$CLI_BIN" doctor platform --json'
+assert_contains "smoke-pypi-wheel: rejects perf-regression-check in CLI wheel" "$PYPI" \
+  'perf-regression-check'
+assert_contains "smoke-pypi-wheel: checks Linux glibc floor on installed CLI binary" "$PYPI" \
+  'check-glibc-floor.sh" --floor "$GLIBC_FLOOR" "$CLI_BIN"'
 # PEP 440 normalization helper present (SemVer -rc.N -> PEP 440 rcN).
 assert_contains "smoke-pypi-wheel: PEP 440 normalization" "$PYPI" \
   'pep440_normalize()'
@@ -125,7 +136,7 @@ assert_contains "smoke-npm-package: write carries sourceId" "$NODE_CONSUMER" \
 # Windows uses PowerShell rather than assuming a Unix shell. Its scripts retain
 # the same registry-pinned open/write/search/close contract as the bash legs.
 assert_contains "windows PyPI smoke: creates a fresh venv" "$PYPI_WINDOWS" 'python -m venv'
-assert_contains "windows PyPI smoke: pinned install" "$PYPI_WINDOWS" '"fathomdb==$Version"'
+assert_contains "windows PyPI smoke: pinned install with cli extra" "$PYPI_WINDOWS" '"fathomdb[cli]==$Version"'
 assert_contains "windows PyPI smoke: uses the shared wheel consumer" "$PYPI_WINDOWS" 'registry-python.py'
 assert_contains "windows npm smoke: pinned install" "$NPM_WINDOWS" '"fathomdb@$Version"'
 assert_contains "windows npm smoke: uses the shared Node consumer" "$NPM_WINDOWS" 'registry-node.mjs'
@@ -140,9 +151,17 @@ assert_next_line "windows PyPI smoke: venv propagates native failure" "$PYPI_WIN
 assert_next_line "windows PyPI smoke: pip upgrade propagates native failure" "$PYPI_WINDOWS" \
   '  & $python -m pip install --quiet --upgrade pip' "$native_exit_guard"
 assert_contains "windows PyPI smoke: wheel install retries transient CDN skew" "$PYPI_WINDOWS" \
-  'No matching distribution found for fathomdb=='
+  'No matching distribution found for (fathomdb|fathomdb-cli)=='
 assert_contains "windows PyPI smoke: wheel install propagates non-retry failure" "$PYPI_WINDOWS" \
   'if ($installExit -ne 0) { exit $installExit }'
+assert_next_line "windows PyPI smoke: co-install import propagates native failure" "$PYPI_WINDOWS" \
+  '  & $python -c "import fathomdb; print(fathomdb.__version__)"' "$native_exit_guard"
+assert_next_line "windows PyPI smoke: CLI --version propagates native failure" "$PYPI_WINDOWS" \
+  '  & $cli --version' "$native_exit_guard"
+assert_next_line "windows PyPI smoke: CLI doctor platform propagates native failure" "$PYPI_WINDOWS" \
+  '  & $cli doctor platform --json' "$native_exit_guard"
+assert_contains "windows PyPI smoke: rejects perf-regression-check.exe" "$PYPI_WINDOWS" \
+  'perf-regression-check.exe'
 assert_next_line "windows PyPI smoke: SDK exercise propagates native failure" "$PYPI_WINDOWS" \
   '  & $python -I $consumer $Version $db write' "$native_exit_guard"
 assert_next_line "windows PyPI smoke: reopen propagates native failure" "$PYPI_WINDOWS" \

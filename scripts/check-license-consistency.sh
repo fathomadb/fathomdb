@@ -441,48 +441,50 @@ if "cargo" in legs:
         die_env("no publishable workspace members found under %s" % ws_path)
 
 # ------------------------------------------------------------ python leg -----
+python_pkg_dirs = [p("src", "python"), p("src", "python-cli")]
 if "python" in legs:
-    py_path = p("src", "python", "pyproject.toml")
-    if not os.path.isfile(py_path):
-        die_env("%s does not exist (leg `python` was selected)" % py_path)
-    pyproj = load_toml(py_path)
-    proj = pyproj.get("project", {})
+    import glob as globmod
 
-    lic = proj.get("license")
-    if isinstance(lic, dict):
-        fail(
-            "%s: [project].license is the legacy table form %r. Use the PEP-639 "
-            "SPDX string (`license = \"%s\"`); the table form does not produce a "
-            "License-Expression and pairs badly with `license-files`."
-            % (py_path, lic, SPDX)
-        )
-    elif lic != SPDX:
-        fail("%s: [project].license is %r, root LICENSE is %s" % (py_path, lic, SPDX))
+    for pkg_dir in python_pkg_dirs:
+        py_path = os.path.join(pkg_dir, "pyproject.toml")
+        if not os.path.isfile(py_path):
+            die_env("%s does not exist (leg `python` was selected)" % py_path)
+        pyproj = load_toml(py_path)
+        proj = pyproj.get("project", {})
 
-    globs = proj.get("license-files")
-    if not globs:
-        fail(
-            "%s: [project] has no `license-files`, so the wheel carries no license "
-            "text in .dist-info/licenses/." % py_path
-        )
-    else:
-        import glob as globmod
+        lic = proj.get("license")
+        if isinstance(lic, dict):
+            fail(
+                "%s: [project].license is the legacy table form %r. Use the PEP-639 "
+                "SPDX string (`license = \"%s\"`); the table form does not produce a "
+                "License-Expression and pairs badly with `license-files`."
+                % (py_path, lic, SPDX)
+            )
+        elif lic != SPDX:
+            fail("%s: [project].license is %r, root LICENSE is %s" % (py_path, lic, SPDX))
 
-        matched = []
-        for g in globs:
-            if ".." in g.split("/"):
-                fail(
-                    "%s: license-files glob %r escapes the project root; PEP 639 "
-                    "forbids `..`, which is why src/python/LICENSE is a real copy."
-                    % (py_path, g)
-                )
-                continue
-            hits = sorted(globmod.glob(os.path.join(p("src", "python"), g)))
-            if not hits:
-                fail("%s: license-files glob %r matched no file" % (py_path, g))
-            matched.extend(hits)
-        for hit in matched:
-            assert_same_bytes(hit, "%s license-files" % py_path)
+        globs = proj.get("license-files")
+        if not globs:
+            fail(
+                "%s: [project] has no `license-files`, so the wheel carries no license "
+                "text in .dist-info/licenses/." % py_path
+            )
+        else:
+            matched = []
+            for g in globs:
+                if ".." in g.split("/"):
+                    fail(
+                        "%s: license-files glob %r escapes the project root; PEP 639 "
+                        "forbids `..`, which is why package-root LICENSE is a real copy."
+                        % (py_path, g)
+                    )
+                    continue
+                hits = sorted(globmod.glob(os.path.join(pkg_dir, g)))
+                if not hits:
+                    fail("%s: license-files glob %r matched no file" % (py_path, g))
+                matched.extend(hits)
+            for hit in matched:
+                assert_same_bytes(hit, "%s license-files" % py_path)
 
 # --------------------------------------------------------------- npm leg -----
 npm_dirs = []
@@ -580,62 +582,69 @@ if not SKIP_PACKAGING:
     if "python" in legs:
         if not WITH_WHEEL:
             # MECHANISM PROXY, stated plainly. The declaration half already
-            # asserted src/python/LICENSE is a real, byte-identical copy and that
-            # `license-files` matches it; that is the mechanism maturin uses. The
-            # REAL wheel is read only under --with-wheel because building it
-            # compiles the whole Rust tree.
+            # asserted src/python/LICENSE and src/python-cli/LICENSE are real,
+            # byte-identical copies and that `license-files` matches each; that
+            # is the mechanism maturin uses. The REAL wheels are read only under
+            # --with-wheel because building them compiles the Rust tree.
             print(
                 "  ~   wheel: MECHANISM PROXY only (src/python/LICENSE + "
-                "license-files). Run with --with-wheel to read a real wheel."
+                "src/python-cli/LICENSE + license-files). Run with --with-wheel "
+                "to read real wheels."
             )
         else:
-            if subprocess.run(
-                ["sh", "-c", "command -v maturin >/dev/null 2>&1"]
-            ).returncode != 0:
+            import shutil
+
+            venv_maturin = os.path.join(ROOT, ".venv", "bin", "maturin")
+            maturin_bin = shutil.which("maturin") or (
+                venv_maturin if os.path.isfile(venv_maturin) and os.access(venv_maturin, os.X_OK) else None
+            )
+            if not maturin_bin:
                 die_env("--with-wheel was requested but maturin is not on PATH")
-            with tempfile.TemporaryDirectory() as td:
-                res = run(["maturin", "build", "--out", td], cwd=p("src", "python"))
-                if res.returncode != 0:
-                    fail(
-                        "maturin build exited %d; the wheel's license content is "
-                        "UNVERIFIED.\n%s" % (res.returncode, res.stderr.strip()[:2000])
-                    )
-                else:
-                    wheels = [w for w in sorted(os.listdir(td)) if w.endswith(".whl")]
-                    if not wheels:
-                        fail("maturin build produced no .whl in %s" % td)
-                    for w in wheels:
-                        with zipfile.ZipFile(os.path.join(td, w)) as z:
-                            names = z.namelist()
-                            lics = [n for n in names if "/licenses/" in n]
-                            if not lics:
-                                fail(
-                                    "wheel %s carries no .dist-info/licenses/ entry "
-                                    "(%d entries)" % (w, len(names))
-                                )
-                            for n in lics:
-                                if z.read(n) != LICENSE_BYTES:
+            for pkg_dir in python_pkg_dirs:
+                with tempfile.TemporaryDirectory() as td:
+                    res = run([maturin_bin, "build", "--out", td], cwd=pkg_dir)
+                    if res.returncode != 0:
+                        fail(
+                            "maturin build in %s exited %d; the wheel's license content is "
+                            "UNVERIFIED.\n%s" % (pkg_dir, res.returncode, res.stderr.strip()[:2000])
+                        )
+                    else:
+                        wheels = [w for w in sorted(os.listdir(td)) if w.endswith(".whl")]
+                        if not wheels:
+                            fail("maturin build in %s produced no .whl in %s" % (pkg_dir, td))
+                        for w in wheels:
+                            wheel_failures_before = len(failures)
+                            with zipfile.ZipFile(os.path.join(td, w)) as z:
+                                names = z.namelist()
+                                lics = [n for n in names if "/licenses/" in n]
+                                if not lics:
                                     fail(
-                                        "wheel %s: %s differs from the root LICENSE"
-                                        % (w, n)
+                                        "wheel %s carries no .dist-info/licenses/ entry "
+                                        "(%d entries)" % (w, len(names))
                                     )
-                            meta = [n for n in names if n.endswith(".dist-info/METADATA")]
-                            if not meta:
-                                fail("wheel %s has no METADATA" % w)
-                            for n in meta:
-                                text = z.read(n).decode("utf-8", "replace")
-                                decl = [
-                                    ln
-                                    for ln in text.splitlines()
-                                    if ln.startswith(("License:", "License-Expression:"))
-                                ]
-                                if not any(ln.endswith(" " + SPDX) for ln in decl):
-                                    fail(
-                                        "wheel %s METADATA declares %r, root LICENSE "
-                                        "is %s" % (w, decl, SPDX)
-                                    )
-                            if not failures:
-                                print("  ok  wheel %s ships %s" % (w, ", ".join(lics)))
+                                for n in lics:
+                                    if z.read(n) != LICENSE_BYTES:
+                                        fail(
+                                            "wheel %s: %s differs from the root LICENSE"
+                                            % (w, n)
+                                        )
+                                meta = [n for n in names if n.endswith(".dist-info/METADATA")]
+                                if not meta:
+                                    fail("wheel %s has no METADATA" % w)
+                                for n in meta:
+                                    text = z.read(n).decode("utf-8", "replace")
+                                    decl = [
+                                        ln
+                                        for ln in text.splitlines()
+                                        if ln.startswith(("License:", "License-Expression:"))
+                                    ]
+                                    if not any(ln.endswith(" " + SPDX) for ln in decl):
+                                        fail(
+                                            "wheel %s METADATA declares %r, root LICENSE "
+                                            "is %s" % (w, decl, SPDX)
+                                        )
+                                if len(failures) == wheel_failures_before:
+                                    print("  ok  wheel %s ships %s" % (w, ", ".join(lics)))
 
 if failures:
     print("")

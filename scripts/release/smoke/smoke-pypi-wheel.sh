@@ -65,12 +65,12 @@ retry_delay_secs="${FATHOMDB_SMOKE_PYPI_RETRY_DELAY_SECS:-15}"
 attempt=1
 while true; do
   install_exit=0
-  pip install --quiet "fathomdb==${PIP_VERSION}" > "$WORK/pip-install.log" 2>&1 || install_exit=$?
+  pip install --quiet "fathomdb[cli]==${PIP_VERSION}" > "$WORK/pip-install.log" 2>&1 || install_exit=$?
   if [ "$install_exit" -eq 0 ]; then
     break
   fi
   if [ "$attempt" -lt "$max_install_attempts" ] \
-    && grep -qE "No matching distribution found for fathomdb==|Could not find a version that satisfies the requirement fathomdb==" "$WORK/pip-install.log"; then
+    && grep -qE "No matching distribution found for (fathomdb|fathomdb-cli)==|Could not find a version that satisfies the requirement (fathomdb|fathomdb-cli)==" "$WORK/pip-install.log"; then
     printf 'smoke-pypi-wheel: transient PyPI simple-index skew on attempt %s/%s; retrying in %ss\n' \
       "$attempt" "$max_install_attempts" "$retry_delay_secs" >&2
     attempt=$((attempt + 1))
@@ -82,6 +82,17 @@ while true; do
   cat "$WORK/pip-install.log" >&2
   exit "$install_exit"
 done
+
+CLI_BIN="$WORK/venv/bin/fathomdb"
+if [ ! -x "$CLI_BIN" ]; then
+  printf 'smoke-pypi-wheel: expected CLI binary %s not installed by fathomdb[cli]==%s\n' \
+    "$CLI_BIN" "$PIP_VERSION" >&2
+  exit 1
+fi
+if [ -e "$WORK/venv/bin/perf-regression-check" ]; then
+  printf 'smoke-pypi-wheel: unexpected perf-regression-check binary shipped in fathomdb-cli wheel\n' >&2
+  exit 1
+fi
 
 # AC80-1/R80-2: the floor gate must bind the published bytes, not only a
 # local build. Only Linux carries a glibc floor — macOS's extension module
@@ -99,8 +110,15 @@ if [ "$HOST_OS" = "Linux" ]; then
   # shellcheck source=/dev/null
   . "$REPO_ROOT/scripts/release/glibc-floor-contract.sh"
   bash "$REPO_ROOT/scripts/check-glibc-floor.sh" --floor "$GLIBC_FLOOR" "$NATIVE_BINARY"
+  bash "$REPO_ROOT/scripts/check-glibc-floor.sh" --floor "$GLIBC_FLOOR" "$CLI_BIN"
   set -- "$NATIVE_BINARY"
 fi
+
+# Verify fathomdb + fathomdb-cli co-install cleanly (`_coinstall.py` lock) and
+# that the packaged CLI binary executes without a Rust toolchain on PATH.
+"${WORK}/venv/bin/python" -c "import fathomdb; print(fathomdb.__version__)"
+"$CLI_BIN" --version
+"$CLI_BIN" doctor platform --json
 
 DB="$WORK/smoke.fdb"
 consumer="$REPO_ROOT/scripts/release/smoke/registry-python.py"
@@ -110,5 +128,5 @@ consumer="$REPO_ROOT/scripts/release/smoke/registry-python.py"
 env -u PYTHONPATH python3 "$REPO_ROOT/src/python/tests/smoke_slice55_installed.py"
 
 smoke_complete=1
-printf 'smoke-pypi-wheel: ok — fathomdb %s installed + Slice 55 native trace/explain/refusals + process exit clean\n' \
+printf 'smoke-pypi-wheel: ok — fathomdb[cli] %s installed + CLI + Slice 55 native trace/explain/refusals + process exit clean\n' \
   "$VERSION"

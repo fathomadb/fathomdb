@@ -284,11 +284,53 @@ import sys
 path = Path(sys.argv[1])
 text = path.read_text()
 needle = "    runs-on: ${{ matrix.runner }}\n"
-if text.count(needle) != 2:
-    raise SystemExit("test fixture no longer contains both matrix runner bindings")
+if text.count(needle) != 3:
+    raise SystemExit("test fixture no longer contains all three matrix runner bindings")
 path.write_text(text.replace(needle, "    runs-on: ubuntu-latest\n", 1))
 PY
 expect_fail "$FIXTURE" 'rejects a build matrix that ignores matrix.runner'
+
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/.github/workflows/release.yml" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+needle = "  build-python-cli:\n"
+if text.count(needle) != 1:
+    raise SystemExit("test fixture lacks build-python-cli")
+path.write_text(text.replace(needle, "  build-python-cli-removed:\n", 1))
+PY
+expect_fail "$FIXTURE" 'rejects removal of build-python-cli'
+
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/.github/workflows/release.yml" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+needle = " && needs.build-python-cli.result == 'success'"
+if text.count(needle) != 1:
+    raise SystemExit("test fixture lacks build-python-cli gate condition")
+path.write_text(text.replace(needle, "", 1))
+PY
+expect_fail "$FIXTURE" 'rejects all-builds-passed missing build-python-cli success guard'
+
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/.github/workflows/release.yml" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+needle = "          pattern: python-cli-dist-*\n"
+if text.count(needle) != 2:
+    raise SystemExit("test fixture lacks both python-cli-dist-* artifact downloads")
+path.write_text(text.replace(needle, "          pattern: python-dist-*\n", 1))
+PY
+expect_fail "$FIXTURE" 'rejects publish-pypi omitting python-cli-dist-* download'
 
 make_fixture "$FIXTURE"
 sed -i '/target: aarch64-apple-darwin/d' "$FIXTURE/.github/workflows/release.yml"

@@ -56,6 +56,8 @@ class Handler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-Type", "application/vnd.pypi.simple.v1+json")
             self.end_headers()
+            simple_pkg = self.path.rstrip("/").split("/")[-1]
+            dist_prefix = simple_pkg.replace("-", "_")
             ver = "0.8.31rc1" if prefix == "prerelease" else (
                 RELEASE_VERSION if prefix == "delayed" else "0.8.26"
             )
@@ -64,15 +66,17 @@ class Handler(BaseHTTPRequestHandler):
                 prefix == "wheel_lag" and Handler.simple_counts[prefix] == 1
             ):
                 tags = WHEEL_TAGS[:-1]
-            files = [{"filename": f"fathomdb-{ver}-{tag}"} for tag in tags]
+            files = [{"filename": f"{dist_prefix}-{ver}-{tag}"} for tag in tags]
             body = {
                 "meta": {"api-version": "1.1"},
-                "name": "fathomdb",
+                "name": simple_pkg,
                 "files": files,
             }
             self.wfile.write(json.dumps(body).encode("utf-8"))
             return
-        requested_version = self.path.rstrip("/").split("/")[-2 if pypi else -1]
+        parts = self.path.rstrip("/").split("/")
+        requested_version = parts[-2 if pypi else -1]
+        requested_package = parts[-3 if pypi else -2]
         Handler.counts[prefix] = Handler.counts.get(prefix, 0) + 1
         if prefix == "server":
             self.send_response(503)
@@ -140,7 +144,7 @@ class Handler(BaseHTTPRequestHandler):
         if prefix == "malformed":
             self.wfile.write(b"{")
             return
-        package = "wrong" if prefix == "mismatch" else "fathomdb"
+        package = "wrong" if prefix == "mismatch" else requested_package
         version = "0.8.25" if prefix == "wrongversion" else requested_version
         body = (
             {"info": {"name": package, "version": version}}
@@ -284,9 +288,10 @@ def main() -> None:
         Handler.counts["delayed"] = 0
         shared_deadline = invoke_release(root)
         assert shared_deadline.returncode == 1, shared_deadline.stderr
-        assert "registry_visibility_pass registry=pypi" in shared_deadline.stdout
+        assert "registry_visibility_pass registry=pypi package=fathomdb " in shared_deadline.stdout
+        assert "registry_visibility_pass registry=pypi package=fathomdb-cli " in shared_deadline.stdout
         assert "registry=npm" in shared_deadline.stderr
-        assert Handler.counts["delayed"] == 4
+        assert Handler.counts["delayed"] == 5
         remaining_bound = float(
             shared_deadline.stderr.split("timeout_seconds=", 1)[1].split()[0]
         )
@@ -300,8 +305,9 @@ def main() -> None:
 
     module = load_module()
     packages = module.release_packages(ROOT, RELEASE_VERSION, include_npm=True)
-    assert [(item.registry, item.name) for item in packages[:2]] == [
+    assert [(item.registry, item.name) for item in packages[:3]] == [
         ("pypi", "fathomdb"),
+        ("pypi", "fathomdb-cli"),
         ("npm", "fathomdb"),
     ]
     expected_npm = {
@@ -311,8 +317,35 @@ def main() -> None:
     assert {item.name for item in packages if item.registry == "npm"} == expected_npm
     assert module.release_packages(ROOT, RELEASE_VERSION, include_npm=False) == (
         module.RegistryPackage("pypi", "fathomdb", RELEASE_VERSION),
+        module.RegistryPackage("pypi", "fathomdb-cli", RELEASE_VERSION),
     )
+
+    # Historical tags (e.g. v0.8.20) lack src/python-cli/pyproject.toml and must
+    # omit fathomdb-cli rather than failing visibility checks.
+    import tempfile
+    with tempfile.TemporaryDirectory() as td:
+        historical_root = Path(td)
+        assert module.release_packages(historical_root, "0.8.20", include_npm=False) == (
+            module.RegistryPackage("pypi", "fathomdb", "0.8.20"),
+        )
+        # Mismatched src/python-cli/pyproject.toml version must fail closed.
+        cli_dir = historical_root / "src/python-cli"
+        cli_dir.mkdir(parents=True)
+        (cli_dir / "pyproject.toml").write_text(
+            '[project]\nname = "fathomdb-cli"\nversion = "0.8.99"\n',
+            encoding="utf-8",
+        )
+        try:
+            module.release_packages(historical_root, "0.8.30", include_npm=False)
+        except ValueError as err:
+            assert "python-cli manifest version" in str(err)
+        else:
+            raise AssertionError("expected ValueError on mismatched python-cli version")
     print("PASS test-wait-for-registry-visibility")
+
+
+def test_wait_for_registry_visibility() -> None:
+    main()
 
 
 if __name__ == "__main__":

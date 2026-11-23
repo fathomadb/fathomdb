@@ -711,3 +711,31 @@ class GpuAllocationWitness:
     assert (
         hashlib.sha256(pre_027_delta_stub.encode()).hexdigest() == additions["native_stub_sha256"]
     )
+
+
+def test_python_cli_package_boundary_and_zero_sdk_scripts() -> None:
+    import tomllib
+
+    checkout = Path(__file__).resolve().parents[3]
+    sdk_pyproject = tomllib.loads((checkout / "src/python/pyproject.toml").read_text(encoding="utf-8"))
+    sdk_project = sdk_pyproject["project"]
+    assert "scripts" not in sdk_project, "AC-041: base fathomdb must ship zero [project.scripts]"
+    sdk_version = sdk_project["version"]
+    assert sdk_project["optional-dependencies"]["cli"] == [f"fathomdb-cli=={sdk_version}"]
+
+    cli_dir = checkout / "src/python-cli"
+    cli_pyproject = tomllib.loads((cli_dir / "pyproject.toml").read_text(encoding="utf-8"))
+    assert cli_pyproject["build-system"]["requires"] == ["maturin>=1.9,<2"]
+    assert cli_pyproject["build-system"]["build-backend"] == "maturin"
+    assert cli_pyproject["project"]["name"] == "fathomdb-cli"
+    assert cli_pyproject["project"]["version"] == sdk_version
+    assert cli_pyproject["project"]["license"] == "MIT"
+    assert cli_pyproject["project"]["license-files"] == ["LICENSE"]
+    assert cli_pyproject["tool"]["maturin"]["bindings"] == "bin"
+    assert cli_pyproject["tool"]["maturin"]["manifest-path"] == "../rust/crates/fathomdb-cli/Cargo.toml"
+    assert cli_pyproject["tool"]["maturin"]["targets"] == [{"name": "fathomdb", "kind": "bin"}]
+
+    cli_license = cli_dir / "LICENSE"
+    assert cli_license.is_file() and not cli_license.is_symlink()
+    assert cli_license.read_bytes() == (checkout / "LICENSE").read_bytes()
+

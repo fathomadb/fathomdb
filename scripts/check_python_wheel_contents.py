@@ -1,15 +1,22 @@
 #!/usr/bin/env python3
-"""Reject generated Python bytecode in a release wheel."""
+"""Validate release wheel contents for SDK and CLI distributions."""
 
 from __future__ import annotations
 
 import argparse
 from pathlib import Path
+import re
 from zipfile import ZipFile
 
+_CLI_BINARY_RE = re.compile(r"^[^/]+\.data/scripts/fathomdb(?:\.exe)?$")
+_FORBIDDEN_CLI_BINARY_RE = re.compile(r"(?:^|/)perf-regression-check(?:\.exe)?$")
+_FORBIDDEN_NATIVE_EXT_RE = re.compile(r"(?:^|/)_fathomdb[^/]*\.(?:so|pyd)$")
 
-def validate_archive(path: Path) -> int:
-    """Return member count, or reject stale Python bytecode in the wheel."""
+
+def validate_archive(path: Path, *, kind: str = "sdk") -> int:
+    """Return member count, or reject stale bytecode / invalid CLI wheel contents."""
+    if kind not in {"sdk", "cli"}:
+        raise ValueError(f"unsupported wheel kind: {kind!r}")
     with ZipFile(path) as archive:
         names = archive.namelist()
     stale = sorted(
@@ -19,19 +26,37 @@ def validate_archive(path: Path) -> int:
     )
     if stale:
         raise ValueError(f"stale Python bytecode in wheel: {stale[0]}")
+
+    if kind == "cli":
+        cli_bins = [name for name in names if _CLI_BINARY_RE.match(name)]
+        if not cli_bins:
+            raise ValueError(
+                "missing required CLI binary (.data/scripts/fathomdb or .data/scripts/fathomdb.exe)"
+            )
+        forbidden_bins = sorted(name for name in names if _FORBIDDEN_CLI_BINARY_RE.search(name))
+        if forbidden_bins:
+            raise ValueError(f"forbidden binary in CLI wheel: {forbidden_bins[0]}")
+        forbidden_exts = sorted(name for name in names if _FORBIDDEN_NATIVE_EXT_RE.search(name))
+        if forbidden_exts:
+            raise ValueError(f"forbidden native Python extension in CLI wheel: {forbidden_exts[0]}")
+
     return len(names)
 
 
 def main() -> None:
-    """Check one built wheel from the command line."""
+    """Check one or more built wheels from the command line."""
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("wheel", type=Path)
+    parser.add_argument("--kind", choices=("sdk", "cli"), default="sdk")
+    parser.add_argument("wheels", nargs="+", type=Path)
     args = parser.parse_args()
-    try:
-        count = validate_archive(args.wheel)
-    except ValueError as error:
-        parser.error(str(error))
-    print(f"wheel bytecode hygiene: ok ({count} members)")
+    total = 0
+    for wheel in args.wheels:
+        try:
+            count = validate_archive(wheel, kind=args.kind)
+        except ValueError as error:
+            parser.error(f"{wheel}: {error}")
+        total += count
+    print(f"wheel contents ({args.kind}): ok ({len(args.wheels)} wheel(s), {total} members)")
 
 
 if __name__ == "__main__":

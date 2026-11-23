@@ -46,6 +46,7 @@ def targets(job):
     return [e.get("target") for e in inc]
 
 py = targets("build-python")
+py_cli = targets("build-python-cli")
 napi = targets("build-napi")
 expected = [
     "aarch64-unknown-linux-gnu",
@@ -53,9 +54,18 @@ expected = [
     "aarch64-apple-darwin",
     "x86_64-pc-windows-msvc",
 ]
+expected_cli = [
+    "x86_64-unknown-linux-gnu",
+    "aarch64-unknown-linux-gnu",
+    "x86_64-apple-darwin",
+    "aarch64-apple-darwin",
+    "x86_64-pc-windows-msvc",
+]
 ok_py = py == expected
+ok_py_cli = py_cli == expected_cli
 ok_napi = napi == expected
 print("PY", ok_py, py)
+print("PYCLI", ok_py_cli, py_cli)
 print("NAPI", ok_napi, napi)
 PY
 )"
@@ -64,10 +74,15 @@ if printf '%s\n' "$scope_out" | grep -q '^PY True'; then
 else
   fail "build-python matrix must carry the 0.8.22 stable target matrix: $(printf '%s' "$scope_out" | sed -n '1p')"
 fi
+if printf '%s\n' "$scope_out" | grep -q '^PYCLI True'; then
+  pass "build-python-cli matrix carries all five supported targets"
+else
+  fail "build-python-cli matrix must carry all five supported targets: $(printf '%s' "$scope_out" | sed -n '2p')"
+fi
 if printf '%s\n' "$scope_out" | grep -q '^NAPI True'; then
   pass "build-napi matrix carries every supported 0.8.22 target"
 else
-  fail "build-napi matrix must carry the 0.8.22 stable target matrix: $(printf '%s' "$scope_out" | sed -n '2p')"
+  fail "build-napi matrix must carry the 0.8.22 stable target matrix: $(printf '%s' "$scope_out" | sed -n '3p')"
 fi
 
 # --- Safe dry-run dispatch: all jobs use the one immutable candidate SHA ----
@@ -151,7 +166,7 @@ def needs(job):
 # all-builds-passed must gate on every build lane.
 abp = set(needs("all-builds-passed"))
 gate_ok = {
-    "verify-release", "build-python", "build-napi", "build-rust",
+    "verify-release", "build-python", "build-python-cli", "build-napi", "build-rust",
     "cuda-package-rehearsal", "build-cuda-linux-x64-gnu",
 } <= abp
 print("GATE", gate_ok, sorted(abp))
@@ -278,7 +293,7 @@ UPLOAD_ACTION="$REPO_ROOT/.github/actions/upload-artifact-retry/action.yml"
 JETSON_WF="$REPO_ROOT/.github/workflows/jetson-tegra-cuda-evidence.yml"
 if [ -f "$UPLOAD_ACTION" ] \
    && ! grep -q 'uses: actions/upload-artifact@' "$WF" \
-   && [ "$(grep -c 'uses: .*/upload-artifact-retry' "$WF")" -eq 13 ] \
+   && [ "$(grep -c 'uses: .*/upload-artifact-retry' "$WF")" -eq 14 ] \
    && ! grep -q 'uses: actions/upload-artifact@' "$JETSON_WF" \
    && [ "$(grep -c 'uses: .*/upload-artifact-retry' "$JETSON_WF")" -eq 1 ] \
    && [ "$(grep -c 'uses: actions/upload-artifact@' "$UPLOAD_ACTION")" -eq 3 ] \
@@ -286,7 +301,7 @@ if [ -f "$UPLOAD_ACTION" ] \
    && grep -q 'artifact-id' "$UPLOAD_ACTION"; then
   pass "release uploads and the single Jetson package upload retry in-place"
 else
-  fail "all 13 release uploads and the single Jetson package upload must use bounded retries"
+  fail "all 14 release uploads and the single Jetson package upload must use bounded retries"
 fi
 
 # Runner connectivity must be delivered by GitHub without touching build inputs.

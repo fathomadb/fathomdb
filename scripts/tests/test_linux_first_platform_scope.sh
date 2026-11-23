@@ -77,26 +77,33 @@ assert_matrix_runner_route() {
 }
 
 release_python_rows=$'ubuntu-24.04-arm|aarch64-unknown-linux-gnu\nmacos-15-intel|x86_64-apple-darwin\nmacos-15|aarch64-apple-darwin\nwindows-latest|x86_64-pc-windows-msvc'
+release_python_cli_rows=$'ubuntu-latest|x86_64-unknown-linux-gnu\nubuntu-24.04-arm|aarch64-unknown-linux-gnu\nmacos-15-intel|x86_64-apple-darwin\nmacos-15|aarch64-apple-darwin\nwindows-latest|x86_64-pc-windows-msvc'
 ci_wheel_rows=$'ubuntu-latest|x86_64-unknown-linux-gnu|linux-x64\nubuntu-24.04-arm|aarch64-unknown-linux-gnu|linux-arm64\nmacos-15-intel|x86_64-apple-darwin|darwin-x64\nmacos-15|aarch64-apple-darwin|darwin-arm64\nwindows-latest|x86_64-pc-windows-msvc|win32-x64'
 release_napi_rows=$'ubuntu-24.04-arm|aarch64-unknown-linux-gnu|linux-arm64-gnu\nmacos-15-intel|x86_64-apple-darwin|darwin-x64\nmacos-15|aarch64-apple-darwin|darwin-arm64\nwindows-latest|x86_64-pc-windows-msvc|win32-x64-msvc'
 
 ci_wheel_block="$(job_block "$CI" wheel-size-gate)"
 release_python_block="$(job_block "$RELEASE" build-python)"
+release_python_cli_block="$(job_block "$RELEASE" build-python-cli)"
 release_napi_block="$(job_block "$RELEASE" build-napi)"
 ci_wheel_actual="$(matrix_rows "$ci_wheel_block" 1)"
 release_python_actual="$(matrix_rows "$release_python_block" 0)"
+release_python_cli_actual="$(matrix_rows "$release_python_cli_block" 0)"
 release_napi_actual="$(matrix_rows "$release_napi_block" 1)"
 
 assert_matrix_runner_route "$CI" wheel-size-gate \
   "ci.yml wheel-size matrix runs on each selected target runner"
 assert_matrix_runner_route "$RELEASE" build-python \
   "release.yml Python matrix runs on each selected target runner"
+assert_matrix_runner_route "$RELEASE" build-python-cli \
+  "release.yml Python CLI matrix runs on each selected target runner"
 assert_matrix_runner_route "$RELEASE" build-napi \
   "release.yml N-API matrix runs on each selected target runner"
 assert_exact_rows "$ci_wheel_actual" "$ci_wheel_rows" \
   "ci.yml wheel-size gate covers exactly the five supported actual runners"
 assert_exact_rows "$release_python_actual" "$release_python_rows" \
   "release.yml ordinary Python build excludes the separately attested CUDA x64 route"
+assert_exact_rows "$release_python_cli_actual" "$release_python_cli_rows" \
+  "release.yml Python CLI wheel build covers all five supported actual runners"
 assert_exact_rows "$release_napi_actual" "$release_napi_rows" \
   "release.yml ordinary N-API build excludes the separately attested CUDA x64 route"
 

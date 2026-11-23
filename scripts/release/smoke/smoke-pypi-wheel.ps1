@@ -22,11 +22,11 @@ try {
   $installLog = Join-Path $work 'pip-install.log'
   $installExit = 0
   for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
-    & $python -m pip install --quiet "fathomdb==$Version" *> $installLog
+    & $python -m pip install --quiet "fathomdb[cli]==$Version" *> $installLog
     $installExit = $LASTEXITCODE
     if ($installExit -eq 0) { break }
     $logText = if (Test-Path $installLog) { Get-Content -Raw $installLog } else { '' }
-    $isSkew = $logText -match 'No matching distribution found for fathomdb==|Could not find a version that satisfies the requirement fathomdb=='
+    $isSkew = $logText -match 'No matching distribution found for (fathomdb|fathomdb-cli)==|Could not find a version that satisfies the requirement (fathomdb|fathomdb-cli)=='
     if ($attempt -lt $maxAttempts -and $isSkew) {
       Write-Error "smoke-pypi-wheel: transient PyPI simple-index skew on attempt $attempt/$maxAttempts; retrying in ${retryDelay}s" -ErrorAction Continue
       if ($retryDelay -gt 0) { Start-Sleep -Seconds $retryDelay }
@@ -36,6 +36,16 @@ try {
     break
   }
   if ($installExit -ne 0) { exit $installExit }
+  $cli = Join-Path $work 'venv/Scripts/fathomdb.exe'
+  if (-not (Test-Path $cli)) { throw "smoke-pypi-wheel: expected CLI binary '$cli' not installed by fathomdb[cli]==$Version" }
+  $forbiddenCli = Join-Path $work 'venv/Scripts/perf-regression-check.exe'
+  if (Test-Path $forbiddenCli) { throw "smoke-pypi-wheel: unexpected perf-regression-check.exe shipped in fathomdb-cli wheel" }
+  & $python -c "import fathomdb; print(fathomdb.__version__)"
+  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+  & $cli --version
+  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+  & $cli doctor platform --json
+  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
   $db = Join-Path $work 'smoke.fdb'
   & $python -I $consumer $Version $db write
   if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

@@ -279,3 +279,91 @@ fn dump_mutations_limit_is_clamped_to_the_engine_cap() {
         "above the ~1M engine cap -> clamped"
     );
 }
+
+#[test]
+fn migrate_root_parses_backup_dir_json_and_db_path() {
+    let cli = parse(&["migrate", "--backup-dir", "/tmp/backups", "/tmp/db.sqlite"]);
+    let Command::Migrate(args) = cli.command else {
+        panic!("expected migrate variant");
+    };
+    assert_eq!(args.backup_dir, std::path::PathBuf::from("/tmp/backups"));
+    assert_eq!(args.db_path, std::path::PathBuf::from("/tmp/db.sqlite"));
+    assert!(!args.json);
+
+    let cli_json = parse(&["migrate", "/tmp/db.sqlite", "--backup-dir", "/tmp/backups", "--json"]);
+    let Command::Migrate(args_json) = cli_json.command else {
+        panic!("expected migrate variant");
+    };
+    assert_eq!(args_json.backup_dir, std::path::PathBuf::from("/tmp/backups"));
+    assert_eq!(args_json.db_path, std::path::PathBuf::from("/tmp/db.sqlite"));
+    assert!(args_json.json);
+
+    Cli::try_parse_from(["fathomdb", "migrate", "/tmp/db.sqlite"])
+        .expect_err("migrate requires --backup-dir");
+    Cli::try_parse_from(["fathomdb", "migrate", "--backup-dir", "/tmp/backups"])
+        .expect_err("migrate requires <db_path>");
+    Cli::try_parse_from([
+        "fathomdb",
+        "migrate",
+        "--accept-data-loss",
+        "--backup-dir",
+        "/tmp/backups",
+        "/tmp/db.sqlite",
+    ])
+    .expect_err("migrate must reject recover-only --accept-data-loss");
+}
+
+#[test]
+fn all_seventeen_doctor_verbs_remain_parseable_alongside_migrate() {
+    let cases: [&[&str]; 17] = [
+        &["doctor", "gpu", "--json"],
+        &["doctor", "platform", "--json"],
+        &["doctor", "reranker-gpu", "--json"],
+        &["doctor", "cuda-allocator", "--json"],
+        &["doctor", "cuda-libraries", "--json"],
+        &["doctor", "check-integrity", "--full", "/tmp/db.sqlite"],
+        &["doctor", "data-plane-integrity", "--json", "/tmp/db.sqlite"],
+        &["doctor", "safe-export", "/tmp/out", "/tmp/db.sqlite"],
+        &[
+            "doctor",
+            "verify-embedder",
+            "--identity",
+            "model-x:rev-1",
+            "--dimension",
+            "384",
+            "/tmp/db.sqlite",
+        ],
+        &["doctor", "trace", "--source-ref", "src-1", "/tmp/db.sqlite"],
+        &["doctor", "dump-schema", "/tmp/db.sqlite"],
+        &["doctor", "dump-row-counts", "/tmp/db.sqlite"],
+        &["doctor", "dump-profile", "/tmp/db.sqlite"],
+        &["doctor", "warm-cache", "--json"],
+        &["doctor", "recompute-mean", "/tmp/db.sqlite"],
+        &["doctor", "dump-mutations", "events", "/tmp/db.sqlite"],
+        &["doctor", "orphan-provenance", "/tmp/db.sqlite"],
+    ];
+    let mut parsed_count = 0usize;
+    for argv in cases {
+        let cmd = doctor(parse(argv));
+        match cmd {
+            DoctorCommand::Gpu(_)
+            | DoctorCommand::Platform(_)
+            | DoctorCommand::RerankerGpu(_)
+            | DoctorCommand::CudaAllocator(_)
+            | DoctorCommand::CudaLibraries(_)
+            | DoctorCommand::CheckIntegrity(_)
+            | DoctorCommand::DataPlaneIntegrity(_)
+            | DoctorCommand::SafeExport(_)
+            | DoctorCommand::VerifyEmbedder(_)
+            | DoctorCommand::Trace(_)
+            | DoctorCommand::DumpSchema(_)
+            | DoctorCommand::DumpRowCounts(_)
+            | DoctorCommand::DumpProfile(_)
+            | DoctorCommand::WarmCache(_)
+            | DoctorCommand::RecomputeMean(_)
+            | DoctorCommand::DumpMutations(_)
+            | DoctorCommand::OrphanProvenance(_) => parsed_count += 1,
+        }
+    }
+    assert_eq!(parsed_count, 17);
+}

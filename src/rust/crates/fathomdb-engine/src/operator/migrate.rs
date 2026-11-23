@@ -269,6 +269,10 @@ pub fn migrate_37_to_38(
         connection
             .execute_batch(fathomdb_schema::STEP_38_SQL)
             .map_err(|err| format!("Schema 38 DDL batch failed: {err}"))?;
+        projection_registry::backfill_canonical_property_values_for_schema_38(&connection)
+            .map_err(|err| {
+                format!("failed to backfill canonical_property_values for Schema 38: {err}")
+            })?;
         #[cfg(any(test, feature = "migration-test-hooks"))]
         fire_migrate_before_version_stamp_hook(&canonical_path)?;
         connection

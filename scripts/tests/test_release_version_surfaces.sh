@@ -29,6 +29,27 @@ lock_top="$(jq -r '.version // empty' "$lockfile")"
 lock_root="$(jq -r '.packages[""].version // empty' "$lockfile")"
 runtime_version="$(sed -n 's/^__version__[[:space:]]*=[[:space:]]*"\([^"]*\)"/\1/p' \
   "$REPO_ROOT/src/python/fathomdb/__init__.py")"
+pycli_version="$(awk '
+  /^\[project\]/ { in_block = 1; next }
+  /^\[/ { in_block = 0 }
+  in_block && /^version[[:space:]]*=/ {
+    n = split($0, fields, "\"")
+    if (n >= 3) { print fields[2] }
+    exit
+  }
+' "$REPO_ROOT/src/python-cli/pyproject.toml")"
+py_cli_extra="$(awk '
+  /^\[project\.optional-dependencies\]/ { in_block = 1; next }
+  /^\[/ { in_block = 0 }
+  in_block && /^cli[[:space:]]*=/ {
+    if (match($0, /fathomdb-cli==[^"]+/)) {
+      val = substr($0, RSTART, RLENGTH)
+      sub(/^fathomdb-cli==/, "", val)
+      print val
+    }
+    exit
+  }
+' "$REPO_ROOT/src/python/pyproject.toml")"
 
 lock_package_versions() {
   awk -v target="$1" '
@@ -54,11 +75,13 @@ lock_package_versions() {
 }
 
 failed=0
-for label in 'package-lock top-level' 'package-lock root package' 'python runtime'; do
+for label in 'package-lock top-level' 'package-lock root package' 'python runtime' 'python-cli pyproject' 'python cli extra'; do
   case "$label" in
     'package-lock top-level') observed="$lock_top" ;;
     'package-lock root package') observed="$lock_root" ;;
     'python runtime') observed="$runtime_version" ;;
+    'python-cli pyproject') observed="$pycli_version" ;;
+    'python cli extra') observed="$py_cli_extra" ;;
   esac
   if [ "$observed" = "$workspace_version" ]; then
     printf 'PASS  %s version matches workspace (%s)\n' "$label" "$workspace_version"

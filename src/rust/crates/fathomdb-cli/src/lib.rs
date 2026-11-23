@@ -6,7 +6,7 @@
 //! (the `fathomdb` facade crate for Rust, or the Python / TypeScript packages)
 //! to read and write data.
 //!
-//! Two roots:
+//! Three roots:
 //!
 //! - `fathomdb doctor <verb>` — read-only or artifact-producing diagnostics:
 //!   `check-integrity`, `data-plane-integrity`, `safe-export`,
@@ -17,6 +17,9 @@
 //!   non-bit-preserving root: `--truncate-wal`, `--rebuild-vec0`,
 //!   `--rebuild-projections`, `--excise-source`, and the
 //!   `--excise-collection` / `--excise-record-key` pair.
+//! - `fathomdb migrate --backup-dir <dir> [--json] <db_path>` — explicit
+//!   offline Schema 37 -> 38 database upgrade with SHA-256-verified backup
+//!   and post-upgrade full integrity verification.
 //!
 //! `--json` is the normative machine-readable contract on every verb; exit
 //! codes are a stable class set (`0` clean, `64` data-loss acknowledged, `65`
@@ -47,14 +50,14 @@ use std::{
 
 use clap::{Args, Parser, Subcommand};
 use fathomdb::{
-    inspect_data_plane_integrity, recover_complete_erasures, recover_truncate_wal,
-    CheckIntegrityOpts, CompleteErasuresReport, CorruptionLocator, DataPlaneIntegrityCheckV1,
-    DataPlaneIntegrityErrorReasonV1, DataPlaneIntegrityRequestV1, DataPlaneIntegrityResultV1,
-    DumpProfileReport, DumpRowCountsReport, DumpSchemaReport, Engine, EngineError, EngineOpenError,
-    ExciseRecordReport, ExciseReport, Finding, IntegrityReport, MeanRecomputeReport,
-    OrphanProvenanceReport, PendingErasure, RebuildKind, RebuildReport, SafeExportArtifact,
-    SchemaObject, Section, TraceReport, TruncateWalReport, TruncateWalStatus, VerifyEmbedderReport,
-    VerifyEmbedderStatus,
+    inspect_data_plane_integrity, migrate_37_to_38, recover_complete_erasures,
+    recover_truncate_wal, CheckIntegrityOpts, CompleteErasuresReport, CorruptionLocator,
+    DataPlaneIntegrityCheckV1, DataPlaneIntegrityErrorReasonV1, DataPlaneIntegrityRequestV1,
+    DataPlaneIntegrityResultV1, DumpProfileReport, DumpRowCountsReport, DumpSchemaReport, Engine,
+    EngineError, EngineOpenError, ExciseRecordReport, ExciseReport, Finding, IntegrityReport,
+    MeanRecomputeReport, MigrateError, MigrateErrorCode, MigrateReport, OrphanProvenanceReport,
+    PendingErasure, RebuildKind, RebuildReport, SafeExportArtifact, SchemaObject, Section,
+    TraceReport, TruncateWalReport, TruncateWalStatus, VerifyEmbedderReport, VerifyEmbedderStatus,
 };
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -93,14 +96,32 @@ pub struct Cli {
 
 /// Root command verbs.
 ///
-/// Exactly two roots per `dev/interfaces/cli.md` § Roots: `recover` for lossy
-/// operator workflows and `doctor` for diagnostics.
+/// Three roots per `dev/interfaces/cli.md` § Roots: `recover` for lossy
+/// operator workflows, `doctor` for diagnostics, and `migrate` for explicit
+/// offline Schema 37 -> 38 upgrades.
 #[derive(Debug, Subcommand)]
 pub enum Command {
     /// Run a lossy / non-bit-preserving recovery workflow.
     Recover(RecoverArgs),
     /// Run an operator diagnostic verb.
     Doctor(DoctorArgs),
+    /// Upgrade a quiescent Schema-37 database offline to Schema 38.
+    Migrate(MigrateArgs),
+}
+
+/// Argument set for the `migrate` root command (`37 -> 38` offline upgrade).
+#[derive(Debug, Args)]
+pub struct MigrateArgs {
+    /// Directory where the pre-upgrade SHA-256-verified backup is written.
+    #[arg(long = "backup-dir", value_name = "DIR")]
+    pub backup_dir: PathBuf,
+
+    /// Emit machine-readable JSON output.
+    #[arg(long)]
+    pub json: bool,
+
+    /// Path to the Schema-37 database file to upgrade.
+    pub db_path: PathBuf,
 }
 
 /// Wrapper carrying the doctor verb table beneath the `doctor` root.
@@ -571,6 +592,130 @@ pub fn run(cli: Cli) -> i32 {
     match cli.command {
         Command::Recover(args) => run_recover(args),
         Command::Doctor(d) => run_doctor(d.command),
+        Command::Migrate(args) => run_migrate(args),
+    }
+}
+
+fn migrate_error_to_outcome(err: &MigrateError) -> CliOutcome {
+    match err.code {
+        MigrateErrorCode::LockHeld => CliOutcome::LockHeld,
+        MigrateErrorCode::AlreadyCurrent
+        | MigrateErrorCode::UnsupportedVersion
+        | MigrateErrorCode::PendingErasure
+        | MigrateErrorCode::DanglingEdges
+        | MigrateErrorCode::BackupDirInvalid
+        | MigrateErrorCode::DatabaseInvalid
+        | MigrateErrorCode::RollbackFailedOrDdlAborted => CliOutcome::Unrecoverable,
+    }
+}
+
+fn collect_migrate_findings(report: &MigrateReport) -> Vec<Value> {
+    let mut findings = Vec::new();
+    for section in
+        [&report.integrity.physical, &report.integrity.logical, &report.integrity.semantic]
+    {
+        if let Section::Findings(items) = section {
+            findings.extend(items.iter().map(finding_json));
+        }
+    }
+    for pending in &report.pending_erasures {
+        findings.push(json!({
+            "code": "E_ERASURE_INCOMPLETE",
+            "stage": "PhysicalErasure",
+            "closure_id": pending.closure_id,
+            "cause": pending.cause,
+            "phase": pending.phase,
+            "blocker": pending.blocker,
+            "sequence": pending.sequence,
+        }));
+    }
+    findings
+}
+
+fn migrate_report_json(report: &MigrateReport) -> Value {
+    let clean = report.integrity_clean();
+    let findings = collect_migrate_findings(report);
+    json!({
+        "verb": "migrate",
+        "status": if clean { "ok" } else { "findings" },
+        "from_version": report.from_version,
+        "to_version": report.to_version,
+        "db_path": report.db_path.to_string_lossy(),
+        "backup_path": report.backup_path.to_string_lossy(),
+        "backup_sha256_path": report.backup_sha256_path.to_string_lossy(),
+        "backup_sha256": report.backup_sha256,
+        "preflight": {
+            "dangling_edge_endpoints": report.preflight.dangling_edge_endpoints,
+            "superseded_edge_endpoints": report.preflight.superseded_edge_endpoints,
+        },
+        "integrity": {
+            "status": if clean { "clean" } else { "findings" },
+            "full": true,
+            "physical": section_json(&report.integrity.physical),
+            "logical": section_json(&report.integrity.logical),
+            "semantic": section_json(&report.integrity.semantic),
+        },
+        "findings": findings,
+    })
+}
+
+fn migrate_error_json(db_path: &Path, err: &MigrateError) -> Value {
+    json!({
+        "verb": "migrate",
+        "status": "error",
+        "code": err.code.as_str(),
+        "message": err.message,
+        "db_path": db_path.to_string_lossy(),
+        "seen_version": err.seen_version,
+        "preflight": err.preflight.map(|p| json!({
+            "dangling_edge_endpoints": p.dangling_edge_endpoints,
+            "superseded_edge_endpoints": p.superseded_edge_endpoints,
+        })),
+        "backup_path": err.backup_path.as_ref().map(|p| p.to_string_lossy().into_owned()),
+        "backup_sha256": err.backup_sha256,
+    })
+}
+
+fn run_migrate(args: MigrateArgs) -> i32 {
+    match migrate_37_to_38(&args.db_path, &args.backup_dir) {
+        Ok(report) => {
+            let clean = report.integrity_clean();
+            if args.json {
+                println!("{}", migrate_report_json(&report));
+            } else {
+                println!(
+                    "migrate: upgraded {} (Schema {} -> {})",
+                    report.db_path.display(),
+                    report.from_version,
+                    report.to_version
+                );
+                println!("  backup: {}", report.backup_path.display());
+                println!("  backup_sha256: {}", report.backup_sha256);
+                println!(
+                    "  preflight: dangling_edge_endpoints={} superseded_edge_endpoints={}",
+                    report.preflight.dangling_edge_endpoints,
+                    report.preflight.superseded_edge_endpoints
+                );
+                println!("  integrity (full): {}", if clean { "clean" } else { "findings" });
+            }
+            if clean {
+                exit_code::OK
+            } else {
+                exit_code::DOCTOR_FOUND_ISSUES
+            }
+        }
+        Err(err) => {
+            let outcome = migrate_error_to_outcome(&err);
+            if args.json {
+                println!("{}", migrate_error_json(&args.db_path, &err));
+            } else {
+                eprintln!("migrate failed [{}]: {}", err.code.as_str(), err.message);
+                if let Some(backup_path) = &err.backup_path {
+                    eprintln!("  backup preserved at: {}", backup_path.display());
+                }
+            }
+            outcome_to_exit_code(outcome)
+        }
     }
 }
 

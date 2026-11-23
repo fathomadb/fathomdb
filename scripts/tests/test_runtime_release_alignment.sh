@@ -221,12 +221,13 @@ if grep -Fq "if: \${{ !($recovery_dispatch_expr) }}" <<<"$build_napi_block" \
   && grep -Fq 'always()' <<<"$all_builds_block" \
   && grep -Fq "needs.verify-release.result == 'success'" <<<"$all_builds_block" \
   && grep -Fq "needs.build-python.result == 'success'" <<<"$all_builds_block" \
+  && grep -Fq "needs.build-python-cli.result == 'success'" <<<"$all_builds_block" \
   && grep -Fq "needs.build-rust.result == 'success'" <<<"$all_builds_block" \
   && grep -Fq "$recovery_dispatch_expr) || needs.build-napi.result == 'success'" <<<"$all_builds_block" \
   && grep -Fq 'all-builds-passed' <<<"$t1_block"; then
-  pass "recovery excludes the N-API build without weakening Python/Rust publish gating"
+  pass "recovery excludes the N-API build without weakening Python/Python-CLI/Rust publish gating"
 else
-  fail "recovery graph must bypass only N-API while T1 stays gated on verify, Python, and Rust"
+  fail "recovery graph must bypass only N-API while T1 stays gated on verify, Python, Python-CLI, and Rust"
 fi
 
 npm_platform_block="$(job_block publish-npm-platform-linux-x64-gnu)"

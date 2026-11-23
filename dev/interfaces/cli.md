@@ -602,11 +602,15 @@ auto-migrates.
 - Exit codes: `0` (upgraded and `check-integrity --full` clean), `65` (upgraded
   to Schema 38 with post-upgrade integrity findings), `70` (unrecoverable
   admission/preflight/DDL refusal), `71` (`.lock` held or busy WAL checkpoint).
-- `--json` emits one object with `verb: "migrate"`, `status`, `from_version: 37`,
-  `to_version: 38`, `db_path`, `backup_path`, `backup_sha256`,
-  `preflight: { dangling_edge_endpoints, superseded_edge_endpoints }`, and
-  `integrity: { status, full: true }` (or structured `error_code` / `message` on
-  refusal).
+- `--json` emits one object:
+  - On upgrade completion (`exit 0` or `exit 65`): `verb: "migrate"`, `status`
+    (`"ok"` or `"findings"`), `from_version: 37`, `to_version: 38`, `db_path`,
+    `backup_path`, `backup_sha256_path`, `backup_sha256`,
+    `preflight: { dangling_edge_endpoints, superseded_edge_endpoints }`,
+    `integrity: { status, full: true }`, and `findings`.
+  - On refusal (`exit 70` or `exit 71`): `verb: "migrate"`, `status: "error"`,
+    `code`, `message`, `db_path`, `seen_version`, `preflight`, `backup_path`,
+    and `backup_sha256`.
 
 ### Python CLI distribution (`fathomdb-cli` / `fathomdb[cli]`)
 

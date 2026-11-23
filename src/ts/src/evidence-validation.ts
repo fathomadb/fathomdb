@@ -103,7 +103,6 @@ export function validateNativeEvidenceSearch(r: NativeEvidenceSearchResultV1): v
 }
 
 const VALID_EVIDENCE_REFUSAL_REASONS = [
-  "unsupported_schema_version",
   "evidence_unavailable",
   "evidence_corrupt",
   "evidence_incomplete",
@@ -129,7 +128,9 @@ export function validateNativeEvidenceResolveMany(
       validateNativeResolvedEvidence(item.resolved);
     } else if (item.status === "refused") {
       variant(item.reason ?? "", VALID_EVIDENCE_REFUSAL_REASONS, `${base}/reason`);
-      nonEmptyString(item.fieldPath, `${base}/fieldPath`);
+      if (item.fieldPath !== base) {
+        fail("evidence_corrupt", `${base}/fieldPath`);
+      }
     } else {
       fail("evidence_corrupt", `${base}/status`);
     }

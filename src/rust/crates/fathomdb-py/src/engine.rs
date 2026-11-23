@@ -496,18 +496,20 @@ impl PyEngine {
         &self,
         py: Python<'_>,
         schema_version: u32,
-        evidence_refs: Vec<String>,
+        evidence_refs: &Bound<'_, PyList>,
         context: &PyFrozenReadContextV1,
     ) -> PyResult<Vec<PyEvidenceResolveManyItemV1>> {
+        let mut refs =
+            Vec::with_capacity(if schema_version == 1 { evidence_refs.len() } else { 0 });
         if schema_version == 1 {
-            for evidence_ref in &evidence_refs {
-                validate_ffi_string_py(evidence_ref)?;
+            for item in evidence_refs.iter() {
+                refs.push(extract_validated_str(&item)?);
             }
         }
         let context = context.inner.clone();
         let engine = Arc::clone(&self.inner);
         call_engine(py, move || {
-            engine.resolve_evidence_many_raw_refs(schema_version, &evidence_refs, &context)
+            engine.resolve_evidence_many_raw_refs(schema_version, &refs, &context)
         })
         .map(|items| items.into_iter().map(Into::into).collect())
     }

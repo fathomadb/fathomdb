@@ -706,7 +706,6 @@ def resolve_evidence(self: Engine, request: EvidenceResolveRequestV1) -> Resolve
 
 _EVIDENCE_REFUSAL_REASONS = frozenset(
     {
-        "unsupported_schema_version",
         "evidence_unavailable",
         "evidence_corrupt",
         "evidence_incomplete",
@@ -734,6 +733,8 @@ def resolve_evidence_many(
             raise TypeError("evidence_refs entries must be str")
         if "\x00" in ref:
             raise WriteValidationError("evidence_refs entries must not contain NUL bytes")
+        if any(0xD800 <= ord(ch) <= 0xDFFF for ch in ref):
+            raise WriteValidationError("evidence_refs entries must not contain lone surrogates")
         refs.append(ref)
     if len(refs) == 0 or len(refs) > EVIDENCE_RESOLVE_MANY_MAX:
         raise InvalidArgumentError(
@@ -772,8 +773,7 @@ def resolve_evidence_many(
             if (
                 not isinstance(reason, str)
                 or reason not in _EVIDENCE_REFUSAL_REASONS
-                or not isinstance(field_path, str)
-                or not field_path
+                or field_path != slot_path
             ):
                 _evidence_response_error("evidence_corrupt", slot_path)
             out.append(

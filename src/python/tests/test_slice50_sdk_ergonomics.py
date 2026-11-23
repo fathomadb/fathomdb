@@ -149,6 +149,36 @@ def test_resolve_evidence_many_validation_and_bounds(db_path: str) -> None:
                 )
             )
 
+        with pytest.raises(WriteValidationError):
+            engine.resolve_evidence_many(
+                EvidenceResolveManyRequestV1(
+                    evidence_refs=[valid_ref, "\ud800"],
+                    context=frozen,
+                )
+            )
+
+        with pytest.raises(EvidenceError) as exc_info:
+            engine.resolve_evidence_many(
+                EvidenceResolveManyRequestV1(
+                    evidence_refs=["\ud800"],
+                    context=frozen,
+                    schema_version=2,
+                )
+            )
+        assert exc_info.value.reason == "unsupported_schema_version"
+        assert exc_info.value.field_path == "/schemaVersion"
+
+        # Verify native PyO3 boundary enforces AC-068b directly as well.
+        from fathomdb._sdk_evidence import _to_native_frozen_context
+
+        native_ctx = _to_native_frozen_context(frozen)
+        with pytest.raises(WriteValidationError):
+            engine._native.resolve_evidence_many(1, ["\ud800"], native_ctx)
+        with pytest.raises(EvidenceError) as exc_info:
+            engine._native.resolve_evidence_many(2, ["\ud800"], native_ctx)
+        assert exc_info.value.reason == "unsupported_schema_version"
+        assert exc_info.value.field_path == "/schemaVersion"
+
         with pytest.raises(InvalidArgumentError):
             engine.resolve_evidence_many(
                 EvidenceResolveManyRequestV1(evidence_refs=[], context=frozen)

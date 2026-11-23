@@ -319,12 +319,29 @@ pub fn migrate_37_to_38(
 
     // Step 7: Post-upgrade WAL checkpoint truncate, full integrity check, and Schema-38 admission.
     checkpoint_truncate_quiescent(&connection, &canonical_path)?;
+    validate_recovery_schema_invariants(&connection, MIGRATE_TO_VERSION).map_err(|err| {
+        MigrateError {
+            code: MigrateErrorCode::DatabaseInvalid,
+            message: format!("post-upgrade Schema 38 invariants failed: {err}"),
+            seen_version: Some(MIGRATE_TO_VERSION),
+            preflight: Some(preflight),
+            backup_path: Some(backup_path.clone()),
+            backup_sha256: Some(backup_sha256.clone()),
+        }
+    })?;
     let integrity = IntegrityReport {
         physical: physical_section(&connection, true),
         logical: logical_section(&connection),
         semantic: semantic_section(&connection),
     };
-    let pending_erasures = collect_pending_erasures(&connection).unwrap_or_default();
+    let pending_erasures = collect_pending_erasures(&connection).map_err(|err| MigrateError {
+        code: MigrateErrorCode::DatabaseInvalid,
+        message: format!("post-upgrade pending-erasure check failed: {err}"),
+        seen_version: Some(MIGRATE_TO_VERSION),
+        preflight: Some(preflight),
+        backup_path: Some(backup_path.clone()),
+        backup_sha256: Some(backup_sha256.clone()),
+    })?;
     drop(connection);
 
     // Verify upgraded DB passes Engine::open's Schema-38 admission while still holding `_lock`.

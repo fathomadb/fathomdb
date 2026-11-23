@@ -26,7 +26,8 @@ impl Failure {
                 | "unknown_classification"
                 | "invalid_range"
                 | "invalid_utf8_boundary"
-                | "invalid_destination" => "refused",
+                | "invalid_destination"
+                | "invalid_as_of" => "refused",
                 "unsupported_operation"
                 | "unsupported_constraint"
                 | "unsupported_field"
@@ -108,6 +109,7 @@ impl Failure {
             "unsupported_constraint",
             "unsupported_field",
             "invalid_range",
+            "invalid_as_of",
             "invalid_utf8",
             "invalid_utf8_boundary",
             "not_json",

@@ -58,7 +58,7 @@ fn raw_classification_uses_integer_boundaries_and_withholds_unknown_lifecycle() 
         for (at, inactive) in cases {
             let mut c = r.session.connection().unwrap();
             c.at_epoch_s = at;
-            let (record, classification) = Reader::summary(&c, &locator).unwrap();
+            let (record, classification) = Reader::summary(&c, &locator, r.session.policy).unwrap();
             assert_eq!(classification.inactive, inactive, "{class:?} at integer{at}");
             assert!(classification.known);
             if class == Class::Edge {

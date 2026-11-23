@@ -666,3 +666,51 @@ fn diverged_fts_body_or_kind_refuses_and_ownerless_node_fts_is_withheld_truthful
     assert_eq!(dispatch(&mut reader, query("body", "emerald")), Err("storage"));
     reader.session.close().unwrap();
 }
+
+#[test]
+fn lexical_admission_charges_inline_properties_on_nodes_and_edges() {
+    for is_edge in [false, true] {
+        let dir = tempfile::tempdir().unwrap();
+        let path = database(dir.path());
+        let opened = Engine::open_with_choice(&path, EmbedderChoice::None).unwrap();
+        opened
+            .engine
+            .write(&[crate::fixtures::edge(
+                "relates",
+                "alpha",
+                "beta",
+                "fixture:source",
+                Some("prop-edge"),
+                Some("small edge".into()),
+            )])
+            .unwrap();
+        opened.engine.close().unwrap();
+        drop(opened);
+
+        // Exceed lexical_admission's 16 MiB per-value cap purely via inline properties.
+        let huge_prop = format!(r#"{{"blob":"{}"}}"#, "p".repeat(16 * 1024 * 1024 + 1024));
+        let c = rusqlite::Connection::open(&path).unwrap();
+        if is_edge {
+            c.execute(
+                "UPDATE canonical_edges SET properties=?1 WHERE logical_id='prop-edge'",
+                [&huge_prop],
+            )
+            .unwrap();
+        } else {
+            c.execute(
+                "UPDATE canonical_nodes SET properties=?1 WHERE logical_id='alpha'",
+                [&huge_prop],
+            )
+            .unwrap();
+        }
+        drop(c);
+
+        let mut reader = Reader::new(Session::attach(&path, Policy::default()).unwrap());
+        assert_eq!(
+            dispatch(&mut reader, query("body", "original")),
+            Err("budget_exhausted"),
+            "lexical_admission must charge inline properties (is_edge={is_edge})"
+        );
+        reader.session.close().unwrap();
+    }
+}

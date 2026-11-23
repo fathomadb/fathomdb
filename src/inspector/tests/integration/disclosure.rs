@@ -380,3 +380,163 @@ fn substantial_real_queue_keeps_catalog_and_unrelated_page_usable_and_fresh() {
     );
     reader.session.close().unwrap();
 }
+
+#[test]
+fn queued_erasure_withholds_properties_and_metadata_across_all_eight_flags() {
+    use fathomdb_engine::{
+        EmbedderChoice, Engine, EngineConfig, PhysicalErasurePolicy, PhysicalErasureSelector,
+        PreparedWrite, PropertyMap, PropertyValue, QueueResult, SourceId,
+    };
+    use std::sync::Arc;
+    let dir = tempfile::tempdir().unwrap();
+    fathomdb_engine::configure_runtime(fathomdb_engine::RuntimeSqliteMode::Diagnostics).unwrap();
+    let path = dir.path().join("queued-props.sqlite");
+    let engine = Arc::new(
+        Engine::open_with_choice_and_config(
+            &path,
+            EmbedderChoice::None,
+            EngineConfig {
+                physical_erasure_policy: Some(PhysicalErasurePolicy::ExplicitMaintenance),
+                ..Default::default()
+            },
+        )
+        .unwrap()
+        .engine,
+    );
+    let mut secret_node_props = PropertyMap::new();
+    secret_node_props.insert("title".into(), PropertyValue::String("SECRET_NODE_TITLE".into()));
+    secret_node_props.insert("token".into(), PropertyValue::String("SECRET_NODE_VALUE".into()));
+    let mut secret_edge_props = PropertyMap::new();
+    secret_edge_props.insert("name".into(), PropertyValue::String("SECRET_EDGE_NAME".into()));
+    secret_edge_props.insert("token".into(), PropertyValue::String("SECRET_EDGE_VALUE".into()));
+    engine
+        .write(&[
+            PreparedWrite::Node {
+                kind: "document".into(),
+                body: "plain body node".into(),
+                source_id: SourceId::new("fixture:secret").unwrap(),
+                logical_id: Some("secret-node".into()),
+                state: fathomdb_engine::InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                properties: Some(secret_node_props),
+            },
+            PreparedWrite::Node {
+                kind: "document".into(),
+                body: "public peer".into(),
+                source_id: SourceId::new("fixture:public").unwrap(),
+                logical_id: Some("public-peer".into()),
+                state: fathomdb_engine::InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                properties: None,
+            },
+            PreparedWrite::Edge {
+                kind: "relates".into(),
+                from: "secret-node".into(),
+                to: "public-peer".into(),
+                source_id: SourceId::new("fixture:secret").unwrap(),
+                logical_id: Some("secret-edge".into()),
+                body: Some("plain body edge".into()),
+                t_valid: None,
+                t_invalid: None,
+                confidence: None,
+                extractor_model_id: None,
+                temporal_fallback: None,
+                properties: Some(secret_edge_props),
+            },
+        ])
+        .unwrap();
+    let mut maintenance = engine.begin_erasure_maintenance(1000).unwrap();
+    assert!(matches!(
+        maintenance
+            .queue_physical_erasure(
+                PhysicalErasureSelector::SourceAllAtCut { source_id: "fixture:secret".into() },
+                "abcdef0123456789abcdef0123456789",
+            )
+            .unwrap(),
+        QueueResult::Accepted { .. }
+    ));
+    maintenance.close().unwrap();
+    drop(maintenance);
+    engine.close().unwrap();
+    drop(engine);
+
+    for n in [false, true] {
+        for e in [false, true] {
+            for t in [false, true] {
+                let policy = Policy { no_show_inactive: n, show_erased: e, show_payloads: t };
+                let mut reader = Reader::new(Session::attach(&path, policy).unwrap());
+                for (class, id, needle) in [
+                    (Class::Node, "secret-node", "SECRET_NODE"),
+                    (Class::Edge, "secret-edge", "SECRET_EDGE"),
+                ] {
+                    let page = reader
+                        .page(
+                            class,
+                            0,
+                            20,
+                            Filter { identity: Some(id.into()), ..Default::default() },
+                        )
+                        .unwrap();
+                    let sample = reader
+                        .sample(
+                            class,
+                            0,
+                            Filter { identity: Some(id.into()), ..Default::default() },
+                        )
+                        .unwrap();
+                    let item = &page["items"][0];
+                    let sample_item = &sample["items"][0];
+                    let handle = item["handle"].as_str().unwrap();
+                    if !e {
+                        assert_eq!(item["properties_status"], "refused");
+                        assert_eq!(sample_item["properties_status"], "refused");
+                        for forbidden_key in
+                            ["properties", "properties_bytes", "properties_storage"]
+                        {
+                            assert!(
+                                item.get(forbidden_key).is_none(),
+                                "page must omit {forbidden_key} when !show_erased (n={n},e={e},t={t})"
+                            );
+                            assert!(
+                                sample_item.get(forbidden_key).is_none(),
+                                "sample must omit {forbidden_key} when !show_erased (n={n},e={e},t={t})"
+                            );
+                        }
+                        assert!(!page.to_string().contains(needle));
+                        assert!(!sample.to_string().contains(needle));
+                        assert_eq!(reader.detail_field(handle, "properties"), Err("refused"));
+                        assert_eq!(reader.chunk(handle, "properties", 0, 100), Err("refused"));
+                        assert_eq!(
+                            reader.tree_field(handle, Some("properties"), 0, None),
+                            Err("refused")
+                        );
+                        assert_eq!(reader.associations(handle), Err("refused"));
+                    } else {
+                        assert_eq!(item["properties_status"], "available");
+                        assert_eq!(item["properties_storage"], "text");
+                        assert!(item["properties_bytes"].as_u64().unwrap() > 0);
+                        assert!(item["properties"].as_str().unwrap().contains(needle));
+                        assert!(reader.detail_field(handle, "properties").unwrap()["content"]
+                            ["text"]
+                            .as_str()
+                            .unwrap()
+                            .contains(needle));
+                        assert!(reader.chunk(handle, "properties", 0, 100).unwrap()["text"]
+                            .as_str()
+                            .unwrap()
+                            .starts_with('{'));
+                        assert_eq!(
+                            reader.tree_field(handle, Some("properties"), 0, None).unwrap()["kind"],
+                            "object"
+                        );
+                    }
+                }
+                reader.session.close().unwrap();
+            }
+        }
+    }
+}

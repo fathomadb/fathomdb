@@ -29,7 +29,7 @@ impl ReadConnection {
         }
     }
     fn load_queued_erasure_cursors(&self) -> Result<Vec<i64>, &'static str> {
-        // Format-37 admission bounds: at most 16 queued scopes of 16,384 cursors,
+        // Queued erasure admission bounds: at most 16 queued scopes of 16,384 cursors,
         // within 8 MiB of total request metadata. The cache dies with this snapshot.
         const MAX_CURSORS: usize = 16 * 16_384;
         let (requests, bytes): (i64, i64) = self.connection.query_row(

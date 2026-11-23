@@ -33,7 +33,7 @@ fn current_existing_admission_and_refusals_preserve_product() {
     lock.lock().unwrap();
     assert_eq!(preflight(&path).unwrap_err(), "locked");
     drop(lock);
-    for version in [33_u32, 35] {
+    for version in [33_u32, 35, 37] {
         let target = dir.path().join(format!("schema{version}.sqlite"));
         let mut contents = original.clone();
         contents[60..64].copy_from_slice(&version.to_be_bytes());
@@ -46,4 +46,42 @@ fn current_existing_admission_and_refusals_preserve_product() {
     fs::write(&no_lock, &original).unwrap();
     assert_eq!(preflight(&no_lock).unwrap_err(), "missing_lock");
     assert_eq!(bytes(&no_lock), original);
+}
+
+#[test]
+fn schema_38_admission_rejects_missing_schema_38_tables_and_columns() {
+    assert_eq!(fathomdb_schema::SCHEMA_VERSION, 38);
+    let dir = tempfile::tempdir().unwrap();
+    let base = database(dir.path());
+    let clone = |name: &str| {
+        let target = dir.path().join(format!("{name}.sqlite"));
+        fs::copy(&base, &target).unwrap();
+        fs::write(format!("{}.lock", target.display()), b"lock sentinel").unwrap();
+        target
+    };
+    for (name, sql) in [
+        ("drop-cpv", "DROP TABLE canonical_property_values;"),
+        ("drop-commit-ts", "DROP TABLE _fathomdb_commit_timestamps;"),
+        ("drop-vec-kinds", "DROP TABLE _fathomdb_vector_kinds;"),
+        ("drop-node-props", "ALTER TABLE canonical_nodes DROP COLUMN properties;"),
+        ("drop-node-scope", "ALTER TABLE canonical_nodes DROP COLUMN scope;"),
+        ("drop-edge-props", "ALTER TABLE canonical_edges DROP COLUMN properties;"),
+        ("drop-edge-scope", "ALTER TABLE canonical_edges DROP COLUMN scope;"),
+        ("drop-mut-scope", "ALTER TABLE operational_mutations DROP COLUMN scope;"),
+        ("drop-state-scope", "ALTER TABLE operational_state DROP COLUMN scope;"),
+        ("drop-proj-class", "ALTER TABLE _fathomdb_projection_registry DROP COLUMN entity_class;"),
+        ("drop-proj-vkinds", "ALTER TABLE _fathomdb_projection_registry DROP COLUMN vector_kinds;"),
+    ] {
+        let target = clone(name);
+        let c = rusqlite::Connection::open(&target).unwrap();
+        c.execute_batch(sql).unwrap();
+        drop(c);
+        let before = bytes(&target);
+        assert_eq!(
+            preflight(&target).unwrap_err(),
+            "malformed_layout",
+            "missing Schema 38 layout element must fail closed: {name}"
+        );
+        assert_eq!(bytes(&target), before, "refused database bytes must be untouched: {name}");
+    }
 }

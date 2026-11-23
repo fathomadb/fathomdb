@@ -1105,3 +1105,79 @@ fn native_graph_unavailable_provenance_is_a_named_refusal_and_keeps_the_worker_u
     assert!(w.call(json!({"op":"detail","handle":p["items"][0]["handle"]})).is_ok());
     w.close().unwrap();
 }
+
+#[test]
+fn worker_tree_properties_and_historical_as_of_validation_preserve_session() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = fixtures::database(dir.path());
+    fixtures::add_graph(&path);
+    let c = rusqlite::Connection::open(&path).unwrap();
+    c.execute(
+        "UPDATE canonical_nodes SET properties=?1 WHERE logical_id='alpha'",
+        [r#"{"huge":9007199254740993,"neg_zero":-0,"flag":true,"empty":""}"#],
+    )
+    .unwrap();
+    let max_cursor: i64 =
+        c.query_row("SELECT max(write_cursor) FROM canonical_nodes", [], |r| r.get(0)).unwrap();
+    let max_ts: i64 = c
+        .query_row("SELECT max(committed_at_ms) FROM _fathomdb_commit_timestamps", [], |r| r.get(0))
+        .unwrap();
+    drop(c);
+
+    let scratch = tempfile::tempdir().unwrap();
+    let mut w = OwnedWorker::spawn(
+        Path::new(env!("CARGO_BIN_EXE_fathomdb-inspector")),
+        scratch.path(),
+        json!({"path":path,"policy":{"no_show_inactive":false,"show_erased":false,"show_payloads":false}}),
+    )
+    .unwrap();
+
+    // 1. Worker tree on field="properties" preserves exact lexemes and rejects unsupported field.
+    let alpha_page = w
+        .call(json!({"op":"page","class":"node","after":"0","limit":10,"filter":{"identity":"alpha"}}))
+        .unwrap();
+    let alpha_h = alpha_page["items"][0]["handle"].as_str().unwrap().to_string();
+    let prop_tree = w
+        .call(json!({"op":"tree","handle":alpha_h,"field":"properties","start":"0","after":null}))
+        .unwrap();
+    assert_eq!(prop_tree["field"], "properties");
+    assert_eq!(prop_tree["items"][0]["lexeme"], "9007199254740993");
+    assert_eq!(prop_tree["items"][1]["lexeme"], "-0");
+    assert_eq!(prop_tree["items"][2]["lexeme"], "true");
+    assert_eq!(prop_tree["items"][3]["lexeme"], r#""""#);
+    let bad_field = w
+        .call(json!({"op":"tree","handle":alpha_h,"field":"logical_id","start":"0","after":null}))
+        .unwrap_err();
+    assert_eq!(bad_field.error, "unsupported_field");
+
+    // 2. Simultaneous as_of_write_cursor + as_of_epoch_ms and invalid syntax return invalid_as_of ("refused") without dropping worker.
+    let derived_page = w
+        .call(json!({"op":"page","class":"node","after":"0","limit":10,"filter":{"identity":"derived"}}))
+        .unwrap();
+    let derived_h = derived_page["items"][1]["handle"].as_str().unwrap().to_string();
+    for bad_req in [
+        json!({"op":"graph","handle":derived_h,"direction":"outgoing","kind":null,"depth":1,"expanded":[derived_h],"as_of_write_cursor":max_cursor.to_string(),"as_of_epoch_ms":max_ts.to_string()}),
+        json!({"op":"graph_serving","handle":derived_h,"direction":"outgoing","kind":null,"depth":1,"as_of_write_cursor":max_cursor.to_string(),"as_of_epoch_ms":max_ts.to_string()}),
+        json!({"op":"graph","handle":derived_h,"direction":"outgoing","kind":null,"depth":1,"expanded":[derived_h],"as_of_write_cursor":"-1"}),
+        json!({"op":"graph","handle":derived_h,"direction":"outgoing","kind":null,"depth":1,"expanded":[derived_h],"as_of_write_cursor":"01"}),
+        json!({"op":"graph_serving","handle":derived_h,"direction":"outgoing","kind":null,"depth":1,"as_of_epoch_ms":"not-a-number"}),
+    ] {
+        let err = w.call(bad_req).unwrap_err();
+        assert_eq!(err.error, "invalid_as_of");
+        assert_eq!(err.status, "refused");
+    }
+
+    // 3. Worker remains healthy and serves valid historical as_of requests for graph & graph_serving.
+    let hist_graph = w
+        .call(json!({"op":"graph","handle":derived_h,"direction":"outgoing","kind":"supports","depth":1,"expanded":[derived_h],"as_of_write_cursor":max_cursor.to_string()}))
+        .unwrap();
+    assert_eq!(hist_graph["scope"]["as_of"]["mode"], "write_cursor");
+    assert_eq!(hist_graph["scope"]["as_of"]["resolved_as_of_write_cursor"], max_cursor.to_string());
+
+    let hist_serving = w
+        .call(json!({"op":"graph_serving","handle":derived_h,"direction":"outgoing","kind":"supports","depth":1,"as_of_epoch_ms":max_ts.to_string()}))
+        .unwrap();
+    assert_eq!(hist_serving["request"]["as_of"]["mode"], "epoch_ms");
+    assert_eq!(hist_serving["items"].as_array().unwrap().len(), 1);
+    w.close().unwrap();
+}

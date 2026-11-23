@@ -22,7 +22,7 @@ impl Reader {
         }
         let c = self.session.connection()?;
         let context = self.context(&c)?;
-        let (record, classification) = Self::summary(&c, &locator)?;
+        let (record, classification) = Self::summary(&c, &locator, self.session.policy)?;
         if !self.session.policy.permits(classification) {
             return Err("refused");
         }
@@ -79,7 +79,7 @@ impl Reader {
             {
                 let (rowid, name) = row.map_err(|_| "storage")?;
                 let name = name.ok_or("budget_exhausted")?;
-                let configured:Option<String>=c.query_row("SELECT CASE WHEN octet_length(fts_tokenizer)<=4096 THEN fts_tokenizer END FROM _fathomdb_projection_registry WHERE name=?1",[&name],|r|r.get(0)).optional().map_err(|_|"storage")?.flatten();
+                let configured:Option<String>=c.query_row("SELECT CASE WHEN octet_length(fts_tokenizer)<=4096 THEN fts_tokenizer END FROM _fathomdb_projection_registry WHERE name=?1 AND entity_class='node'",[&name],|r|r.get(0)).optional().map_err(|_|"storage")?.flatten();
                 definitions.push((
                     format!("property:{name}"),
                     "property_search_index",
@@ -251,8 +251,13 @@ impl Reader {
             let rowid = row.map_err(|_| "storage")?;
             let revision_rowid=c.query_row("SELECT rowid FROM _fathomdb_artifact_revisions WHERE artifact_class=?1 AND write_cursor=?2",params![class.label(),cursor],|r|r.get(0)).optional().map_err(|_|"storage")?;
             let locator = Locator { class, rowid, cursor, revision_rowid };
-            let (record, policy) =
-                Self::summary_fields_budget(c, &locator, class.fields(), remaining)?;
+            let (record, policy) = Self::summary_fields_budget(
+                c,
+                &locator,
+                class.fields(),
+                Some(self.session.policy),
+                remaining,
+            )?;
             if !self.session.policy.permits(policy) {
                 return Err("refused");
             }
@@ -422,8 +427,8 @@ impl Reader {
         let mut node_rows = 0_u64;
         let mut node_bytes = 0_u64;
         for (table, columns) in [
-            ("canonical_nodes", &["body", "kind", "logical_id", "source_id"][..]),
-            ("canonical_edges", &["body", "kind", "logical_id", "source_id"][..]),
+            ("canonical_nodes", &["body", "properties", "kind", "logical_id", "source_id"][..]),
+            ("canonical_edges", &["body", "properties", "kind", "logical_id", "source_id"][..]),
             ("search_index_content", &["c0", "c1"][..]),
             ("search_index_edges_content", &["c0", "c1"][..]),
             ("search_index_v2_content", &["c0", "c1", "c2"][..]),
@@ -518,7 +523,7 @@ impl Reader {
             indexes.push(json!({"index":table,"fields":fields,"effective_ddl":ddl,"effective_tokenizer":if ddl.as_deref().is_some_and(|v|v.contains("porter unicode61 remove_diacritics 2")){"porter unicode61 remove_diacritics 2"}else{"unknown; inspect actual DDL"}}));
         }
         let declaration = if let Some(name) = query.property.as_deref() {
-            c.query_row("SELECT CASE WHEN octet_length(fts_tokenizer)<=4096 THEN fts_tokenizer END,CASE WHEN octet_length(source)<=8192 THEN source END,octet_length(source) FROM _fathomdb_projection_registry WHERE name=?1",[name],|r|Ok(json!({"name":name,"configured_tokenizer":r.get::<_,Option<String>>(0)?,"source_path_json":r.get::<_,Option<String>>(1)?,"source_path_bytes":r.get::<_,Option<i64>>(2)?.map(|n|n.to_string())}))).optional().map_err(|_|"storage")?
+            c.query_row("SELECT CASE WHEN octet_length(fts_tokenizer)<=4096 THEN fts_tokenizer END,CASE WHEN octet_length(source)<=8192 THEN source END,octet_length(source) FROM _fathomdb_projection_registry WHERE name=?1 AND entity_class='node'",[name],|r|Ok(json!({"name":name,"configured_tokenizer":r.get::<_,Option<String>>(0)?,"source_path_json":r.get::<_,Option<String>>(1)?,"source_path_bytes":r.get::<_,Option<i64>>(2)?.map(|n|n.to_string())}))).optional().map_err(|_|"storage")?
         } else {
             None
         };

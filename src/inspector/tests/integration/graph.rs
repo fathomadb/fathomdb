@@ -705,3 +705,575 @@ fn provenance_partial_utf8_spans_and_negative_boundaries_distinguish_raw_links_f
     assert_eq!(search_dep.get("derived-mid-utf8").map(String::as_str), Some("NotRegistered"));
     r.session.close().unwrap();
 }
+
+#[test]
+fn native_graph_admission_charges_inline_properties_on_nodes_and_edges() {
+    for is_edge in [false, true] {
+        let dir = tempfile::tempdir().unwrap();
+        let path = fixtures::database(dir.path());
+        fixtures::add_graph(&path);
+        // 1 MiB inline properties * 50 target/edge multiplicity + 32 MiB base > 64 MiB cap.
+        let large_prop = format!(r#"{{"blob":"{}"}}"#, "p".repeat(1024 * 1024));
+        let c = rusqlite::Connection::open(&path).unwrap();
+        if is_edge {
+            c.execute(
+                "UPDATE canonical_edges SET properties=?1 WHERE logical_id='parallel-a'",
+                [&large_prop],
+            )
+            .unwrap();
+        } else {
+            c.execute(
+                "UPDATE canonical_nodes SET properties=?1 WHERE logical_id='alpha'",
+                [&large_prop],
+            )
+            .unwrap();
+        }
+        drop(c);
+
+        let mut r = Reader::new(Session::attach(&path, Policy::default()).unwrap());
+        let root = handle(&mut r, Class::Node, "derived", true);
+        assert_eq!(
+            r.graph_serving(&root, Direction::Outgoing, Some("supports".into()), 1),
+            Err("budget_exhausted"),
+            "graph_admission must charge inline properties (is_edge={is_edge})"
+        );
+        r.session.close().unwrap();
+    }
+}
+
+#[test]
+fn historical_as_of_graph_and_graph_serving_resolve_superseded_revisions_and_p4_13() {
+    use crate::storage::graph::AsOf;
+    use fathomdb_engine::{
+        ArtifactRevisionId, CanonicalHash, PropertyMap, PropertyValue, SourceLocator,
+        SourceRevisionId, SourceVersionId, WriteProvenanceV1,
+    };
+    use sha2::{Digest, Sha256};
+
+    let dir = tempfile::tempdir().unwrap();
+    let path = fixtures::database(dir.path());
+    let src_body = "historical source body";
+    let digest: String =
+        Sha256::digest(src_body.as_bytes()).iter().map(|b| format!("{b:02x}")).collect();
+    let derived = |rev: &str| {
+        WriteProvenanceV1::derived(
+            ArtifactRevisionId::new(rev).unwrap(),
+            SourceVersionId::new("hist-v1").unwrap(),
+            SourceRevisionId::new("hist-src-r1").unwrap(),
+            SourceLocator::whole_body(),
+            CanonicalHash::sha256(digest.clone()).unwrap(),
+        )
+    };
+    let mk_node = |id: &str, rev: &str, body: &str, stage: &str| {
+        let mut props = PropertyMap::new();
+        props.insert("stage".into(), PropertyValue::String(stage.into()));
+        fathomdb_engine::PreparedWrite::ProvenancedNode(fathomdb_engine::ProvenancedNodeV1 {
+            kind: "document".into(),
+            body: body.into(),
+            source_id: fathomdb_engine::SourceId::new("fixture:hist").unwrap(),
+            logical_id: Some(id.into()),
+            state: fathomdb_engine::InitialState::Active,
+            reason: None,
+            valid_from: None,
+            valid_until: None,
+            properties: Some(props),
+            provenance: derived(rev),
+        })
+    };
+    let mk_edge = |id: &str, rev: &str, from: &str, to: &str, ver: &str| {
+        let mut props = PropertyMap::new();
+        props.insert("ver".into(), PropertyValue::String(ver.into()));
+        fathomdb_engine::PreparedWrite::ProvenancedEdge(fathomdb_engine::ProvenancedEdgeV1 {
+            kind: "links".into(),
+            from: from.into(),
+            to: to.into(),
+            source_id: fathomdb_engine::SourceId::new("fixture:hist").unwrap(),
+            logical_id: Some(id.into()),
+            body: Some(format!("edge {ver}")),
+            t_valid: None,
+            t_invalid: None,
+            confidence: Some(0.9),
+            extractor_model_id: Some("extractor-v1".into()),
+            temporal_fallback: Some(false),
+            properties: Some(props),
+            provenance: derived(rev),
+        })
+    };
+
+    let opened = Engine::open_with_choice(&path, EmbedderChoice::None).unwrap();
+    let r1 = opened
+        .engine
+        .write(&[
+            fixtures::provenanced_node(
+                Some("hist-src"),
+                src_body,
+                "fixture:hist",
+                None,
+                WriteProvenanceV1::canonical(
+                    ArtifactRevisionId::new("hist-src-r1").unwrap(),
+                    SourceVersionId::new("hist-v1").unwrap(),
+                ),
+            ),
+            mk_node("hist-root", "hist-root-r1", "root v1", "v1"),
+            mk_node("hist-mid", "hist-mid-r1", "mid v1", "v1"),
+            mk_node("hist-leaf", "hist-leaf-r1", "leaf v1", "v1"),
+            mk_edge("e-root-mid", "e-root-mid-r1", "hist-root", "hist-mid", "e1"),
+            mk_edge("e-mid-leaf", "e-mid-leaf-r1", "hist-mid", "hist-leaf", "e1"),
+        ])
+        .unwrap();
+    let c1 = r1.cursor;
+    std::thread::sleep(std::time::Duration::from_millis(5));
+    let r2 = opened
+        .engine
+        .write(&[
+            mk_node("hist-root", "hist-root-r2", "root v2", "v2"),
+            mk_node("hist-mid", "hist-mid-r2", "mid v2", "v2"),
+            mk_node("hist-leaf", "hist-leaf-r2", "leaf v2", "v2"),
+            mk_node("hist-future", "hist-future-r2", "future v2", "v2"),
+            mk_edge("e-root-mid", "e-root-mid-r2", "hist-root", "hist-mid", "e2"),
+            mk_edge("e-root-future", "e-root-future-r2", "hist-root", "hist-future", "e2"),
+        ])
+        .unwrap();
+    let c2 = r2.cursor;
+    assert!(c2 > c1);
+    std::thread::sleep(std::time::Duration::from_millis(5));
+    let r3 = opened
+        .engine
+        .write(&[
+            mk_node("hist-root", "hist-root-r3", "root v3", "v3"),
+            mk_node("hist-mid", "hist-mid-r3", "mid v3", "v3"),
+            mk_node("hist-late", "hist-late-r3", "late v3", "v3"),
+            mk_edge("e-root-late", "e-root-late-r3", "hist-root", "hist-late", "e3"),
+        ])
+        .unwrap();
+    let c3 = r3.cursor;
+    assert!(c3 > c2);
+    opened.engine.close().unwrap();
+    drop(opened);
+
+    let c = rusqlite::Connection::open(&path).unwrap();
+    let t1: i64 = c
+        .query_row(
+            "SELECT committed_at_ms FROM _fathomdb_commit_timestamps WHERE write_cursor=?1",
+            [c1 as i64],
+            |r| r.get(0),
+        )
+        .unwrap();
+    let t0: i64 = c
+        .query_row("SELECT min(committed_at_ms) FROM _fathomdb_commit_timestamps", [], |r| r.get(0))
+        .unwrap();
+    // Verify EXPLAIN QUERY PLAN for both historical UNION ALL lookups uses SEARCH ... USING INDEX.
+    for (label, sql) in [
+        (
+            "historical_node",
+            "EXPLAIN QUERY PLAN SELECT rowid, write_cursor FROM canonical_nodes WHERE logical_id='hist-root' AND superseded_at IS NULL AND write_cursor<=10 UNION ALL SELECT rowid, write_cursor FROM canonical_nodes WHERE logical_id='hist-root' AND superseded_at>10 AND write_cursor<=10 ORDER BY write_cursor DESC LIMIT 1",
+        ),
+        (
+            "historical_edge",
+            "EXPLAIN QUERY PLAN SELECT rowid, write_cursor FROM canonical_edges INDEXED BY canonical_edges_from_sup_kind_idx WHERE from_id='hist-root' AND superseded_at IS NULL AND write_cursor<=10 UNION ALL SELECT rowid, write_cursor FROM canonical_edges INDEXED BY canonical_edges_from_sup_kind_idx WHERE from_id='hist-root' AND superseded_at>10 AND write_cursor<=10 ORDER BY rowid LIMIT 100",
+        ),
+    ] {
+        let mut stmt = c.prepare(sql).unwrap();
+        let details: Vec<String> = stmt
+            .query_map([], |r| r.get::<_, String>(3))
+            .unwrap()
+            .map(Result::unwrap)
+            .collect();
+        assert!(
+            details.iter().any(|d| d.contains("SEARCH") && d.contains("INDEX")),
+            "{label} must use indexed SEARCH: {details:?}"
+        );
+        assert!(
+            !details.iter().any(|d| d.starts_with("SCAN ")),
+            "{label} must never table-SCAN: {details:?}"
+        );
+    }
+    drop(c);
+
+    let mut r = Reader::new(Session::attach(&path, Policy::default()).unwrap());
+    let root_v3 = handle(&mut r, Class::Node, "hist-root", true);
+    let future_v2 = handle(&mut r, Class::Node, "hist-future", true);
+
+    // 1. Stored graph at c1 (and t1) resolves superseded seed hist-root-r1 and c1 neighbors/edges only.
+    for (as_of, expected_mode) in
+        [(AsOf::WriteCursor(c1), "write_cursor"), (AsOf::EpochMs(t1), "epoch_ms")]
+    {
+        let g = r
+            .graph_as_of(
+                &root_v3,
+                Direction::Outgoing,
+                Some("links".into()),
+                2,
+                vec![root_v3.clone()],
+                as_of,
+            )
+            .unwrap();
+        assert_eq!(g["scope"]["as_of"]["mode"], expected_mode);
+        assert_eq!(g["query_context"]["as_of"]["mode"], expected_mode);
+        assert_eq!(g["scope"]["as_of"]["resolved_as_of_write_cursor"], c1.to_string());
+        let node_revs: std::collections::BTreeSet<&str> = g["nodes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|n| n["revision_id"].as_str().unwrap())
+            .collect();
+        assert_eq!(
+            node_revs,
+            std::collections::BTreeSet::from(["hist-root-r1", "hist-mid-r1"]),
+            "depth 1 expansion from hist-root alone yields hist-root-r1 and hist-mid-r1 (as_of={as_of:?})"
+        );
+        let edge_revs: std::collections::BTreeSet<&str> = g["edges"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|e| e["revision_id"].as_str().unwrap())
+            .collect();
+        assert_eq!(edge_revs, std::collections::BTreeSet::from(["e-root-mid-r1"]));
+
+        // 2. Native graph_serving at c1 (depth 2) resolves superseded hist-root-r1 & hist-mid-r1 origins (P4-13)!
+        let gs = r
+            .graph_serving_as_of(&root_v3, Direction::Outgoing, Some("links".into()), 2, as_of)
+            .unwrap();
+        assert_eq!(gs["request"]["as_of"]["mode"], expected_mode);
+        assert_eq!(gs["query_context"]["as_of"]["resolved_as_of_write_cursor"], c1.to_string());
+        assert_eq!(gs["scope"]["as_of"]["resolved_as_of_write_cursor"], c1.to_string());
+        let items = gs["items"].as_array().unwrap();
+        assert_eq!(
+            items.len(),
+            2,
+            "expected hist-mid-r1 (hop 1) and hist-leaf-r1 (hop 2), got: {gs}"
+        );
+        let target_revs: std::collections::BTreeSet<&str> =
+            items.iter().map(|item| item["target"]["revision_id"].as_str().unwrap()).collect();
+        assert_eq!(target_revs, std::collections::BTreeSet::from(["hist-mid-r1", "hist-leaf-r1"]));
+        let leaf = items.iter().find(|i| i["target"]["revision_id"] == "hist-leaf-r1").unwrap();
+        assert_eq!(leaf["terminal_edge"]["revision_id"], "e-mid-leaf-r1");
+        assert_eq!(leaf["payload"]["properties"]["stage"], "v1");
+        assert_eq!(leaf["payload"]["terminal_edge_properties"]["ver"], "e1");
+        let origin_revs: Vec<&str> = leaf["origin_records"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|o| o["revision_id"].as_str().unwrap())
+            .collect();
+        assert_eq!(
+            origin_revs,
+            vec!["hist-root-r1", "hist-mid-r1"],
+            "P4-13: graph_serving must resolve superseded origin/predecessor revisions at as_of cursor"
+        );
+    }
+
+    // 3. Pre-first-commit timestamp resolves to cursor 0 (empty, no fallback to current).
+    let pre_graph = r
+        .graph_as_of(
+            &root_v3,
+            Direction::Both,
+            None,
+            2,
+            vec![root_v3.clone()],
+            AsOf::EpochMs(t0 - 10_000),
+        )
+        .unwrap();
+    assert_eq!(pre_graph["scope"]["as_of"]["resolved_as_of_write_cursor"], "0");
+    assert!(pre_graph["nodes"].as_array().unwrap().is_empty());
+    assert!(pre_graph["edges"].as_array().unwrap().is_empty());
+    let pre_serving = r
+        .graph_serving_as_of(&root_v3, Direction::Outgoing, None, 2, AsOf::EpochMs(t0 - 10_000))
+        .unwrap();
+    assert_eq!(pre_serving["scope"]["as_of"]["resolved_as_of_write_cursor"], "0");
+    assert!(pre_serving["items"].as_array().unwrap().is_empty());
+
+    // 4. Future seed hist-future did not exist at c1 -> empty graph, never inserts future revision.
+    let future_at_c1 = r
+        .graph_as_of(
+            &future_v2,
+            Direction::Both,
+            None,
+            1,
+            vec![future_v2.clone()],
+            AsOf::WriteCursor(c1),
+        )
+        .unwrap();
+    assert!(future_at_c1["nodes"].as_array().unwrap().is_empty());
+    assert!(future_at_c1["edges"].as_array().unwrap().is_empty());
+
+    r.session.close().unwrap();
+}
+
+#[test]
+fn historical_as_of_graph_obeys_all_eight_disclosure_flags_including_inline_properties() {
+    use crate::storage::graph::AsOf;
+    use fathomdb_engine::{
+        ArtifactRevisionId, CanonicalHash, EngineConfig, PhysicalErasurePolicy,
+        PhysicalErasureSelector, PropertyMap, PropertyValue, QueueResult, SourceLocator,
+        SourceRevisionId, SourceVersionId, WriteProvenanceV1,
+    };
+    use sha2::{Digest, Sha256};
+    use std::sync::Arc;
+
+    let dir = tempfile::tempdir().unwrap();
+    fathomdb_engine::configure_runtime(fathomdb_engine::RuntimeSqliteMode::Diagnostics).unwrap();
+    let path = dir.path().join("hist-d01.sqlite");
+    let engine = Arc::new(
+        Engine::open_with_choice_and_config(
+            &path,
+            EmbedderChoice::None,
+            EngineConfig {
+                physical_erasure_policy: Some(PhysicalErasurePolicy::ExplicitMaintenance),
+                ..Default::default()
+            },
+        )
+        .unwrap()
+        .engine,
+    );
+    let src_body = "d01 historical source";
+    let digest: String =
+        Sha256::digest(src_body.as_bytes()).iter().map(|b| format!("{b:02x}")).collect();
+    let mk_node = |id: &str, rev: &str, source: &str, src_rev: &str, secret_prop: Option<&str>| {
+        let props = secret_prop.map(|val| {
+            let mut m = PropertyMap::new();
+            m.insert("secret".into(), PropertyValue::String(val.into()));
+            m
+        });
+        fathomdb_engine::PreparedWrite::ProvenancedNode(fathomdb_engine::ProvenancedNodeV1 {
+            kind: "document".into(),
+            body: format!("body {rev}"),
+            source_id: fathomdb_engine::SourceId::new(source).unwrap(),
+            logical_id: Some(id.into()),
+            state: fathomdb_engine::InitialState::Active,
+            reason: None,
+            valid_from: None,
+            valid_until: None,
+            properties: props,
+            provenance: WriteProvenanceV1::derived(
+                ArtifactRevisionId::new(rev).unwrap(),
+                SourceVersionId::new("v1").unwrap(),
+                SourceRevisionId::new(src_rev).unwrap(),
+                SourceLocator::whole_body(),
+                CanonicalHash::sha256(digest.clone()).unwrap(),
+            ),
+        })
+    };
+    let mk_edge = |id: &str,
+                   rev: &str,
+                   from: &str,
+                   to: &str,
+                   source: &str,
+                   src_rev: &str,
+                   secret_prop: Option<&str>| {
+        let props = secret_prop.map(|val| {
+            let mut m = PropertyMap::new();
+            m.insert("secret".into(), PropertyValue::String(val.into()));
+            m
+        });
+        fathomdb_engine::PreparedWrite::ProvenancedEdge(fathomdb_engine::ProvenancedEdgeV1 {
+            kind: "links".into(),
+            from: from.into(),
+            to: to.into(),
+            source_id: fathomdb_engine::SourceId::new(source).unwrap(),
+            logical_id: Some(id.into()),
+            body: Some(format!("edge {rev}")),
+            t_valid: None,
+            t_invalid: None,
+            confidence: None,
+            extractor_model_id: None,
+            temporal_fallback: None,
+            properties: props,
+            provenance: WriteProvenanceV1::derived(
+                ArtifactRevisionId::new(rev).unwrap(),
+                SourceVersionId::new("v1").unwrap(),
+                SourceRevisionId::new(src_rev).unwrap(),
+                SourceLocator::whole_body(),
+                CanonicalHash::sha256(digest.clone()).unwrap(),
+            ),
+        })
+    };
+    let r1 = engine
+        .write(&[
+            fixtures::provenanced_node(
+                Some("pub-src"),
+                src_body,
+                "fixture:public",
+                None,
+                WriteProvenanceV1::canonical(
+                    ArtifactRevisionId::new("pub-src-r1").unwrap(),
+                    SourceVersionId::new("v1").unwrap(),
+                ),
+            ),
+            fixtures::provenanced_node(
+                Some("sec-src"),
+                src_body,
+                "fixture:secret",
+                None,
+                WriteProvenanceV1::canonical(
+                    ArtifactRevisionId::new("sec-src-r1").unwrap(),
+                    SourceVersionId::new("v1").unwrap(),
+                ),
+            ),
+            fixtures::provenanced_node(
+                Some("purged-src"),
+                src_body,
+                "fixture:purged",
+                None,
+                WriteProvenanceV1::canonical(
+                    ArtifactRevisionId::new("purged-src-r1").unwrap(),
+                    SourceVersionId::new("v1").unwrap(),
+                ),
+            ),
+            mk_node("pub-seed", "pub-seed-r1", "fixture:public", "pub-src-r1", None),
+            mk_node(
+                "sec-target",
+                "sec-target-r1",
+                "fixture:secret",
+                "sec-src-r1",
+                Some("HISTORICAL_SECRET_TARGET"),
+            ),
+            mk_node(
+                "purged-target",
+                "purged-target-r1",
+                "fixture:purged",
+                "purged-src-r1",
+                Some("PURGED_SECRET"),
+            ),
+            mk_edge(
+                "sec-edge",
+                "sec-edge-r1",
+                "pub-seed",
+                "sec-target",
+                "fixture:secret",
+                "sec-src-r1",
+                Some("HISTORICAL_SECRET_EDGE"),
+            ),
+            mk_edge(
+                "purged-edge",
+                "purged-edge-r1",
+                "pub-seed",
+                "purged-target",
+                "fixture:purged",
+                "purged-src-r1",
+                Some("PURGED_SECRET_EDGE"),
+            ),
+        ])
+        .unwrap();
+    let c1 = r1.cursor;
+    // Supersede sec-target and sec-edge so c1 revisions are BOTH inactive (superseded) and queued erasure-pending.
+    engine
+        .write(&[
+            mk_node(
+                "sec-target",
+                "sec-target-r2",
+                "fixture:secret",
+                "sec-src-r1",
+                Some("CURRENT_SECRET_TARGET"),
+            ),
+            mk_edge(
+                "sec-edge",
+                "sec-edge-r2",
+                "pub-seed",
+                "sec-target",
+                "fixture:secret",
+                "sec-src-r1",
+                Some("CURRENT_SECRET_EDGE"),
+            ),
+        ])
+        .unwrap();
+    // Physically erase fixture:purged completely, and leave fixture:secret queued.
+    let mut maintenance = engine.begin_erasure_maintenance(1000).unwrap();
+    let purged_ticket = match maintenance
+        .queue_physical_erasure(
+            PhysicalErasureSelector::SourceAllAtCut { source_id: "fixture:purged".into() },
+            "22222222222222222222222222222222",
+        )
+        .unwrap()
+    {
+        QueueResult::Accepted { ticket, .. } => ticket,
+        other => panic!("{other:?}"),
+    };
+    assert!(matches!(
+        maintenance.complete_physical_erasure(&purged_ticket).unwrap(),
+        fathomdb_engine::CleanupResult::Complete { .. }
+    ));
+    assert!(matches!(
+        maintenance
+            .queue_physical_erasure(
+                PhysicalErasureSelector::SourceAllAtCut { source_id: "fixture:secret".into() },
+                "33333333333333333333333333333333",
+            )
+            .unwrap(),
+        QueueResult::Accepted { .. }
+    ));
+    maintenance.close().unwrap();
+    drop(maintenance);
+    engine.close().unwrap();
+    drop(engine);
+
+    for n in [false, true] {
+        for e in [false, true] {
+            for t in [false, true] {
+                let policy = Policy { no_show_inactive: n, show_erased: e, show_payloads: t };
+                let mut r = Reader::new(Session::attach(&path, policy).unwrap());
+                let seed = handle(&mut r, Class::Node, "pub-seed", true);
+                let stored = r
+                    .graph_as_of(
+                        &seed,
+                        Direction::Outgoing,
+                        Some("links".into()),
+                        1,
+                        vec![seed.clone()],
+                        AsOf::WriteCursor(c1),
+                    )
+                    .unwrap();
+                let serving = r
+                    .graph_serving_as_of(
+                        &seed,
+                        Direction::Outgoing,
+                        Some("links".into()),
+                        1,
+                        AsOf::WriteCursor(c1),
+                    )
+                    .unwrap();
+                let stored_s = stored.to_string();
+                let serving_s = serving.to_string();
+                // Physically erased rows never resurrect under any flag combination.
+                assert!(
+                    !stored_s.contains("PURGED_SECRET"),
+                    "stored resurrected purged (n={n},e={e},t={t})"
+                );
+                assert!(
+                    !serving_s.contains("PURGED_SECRET"),
+                    "serving resurrected purged (n={n},e={e},t={t})"
+                );
+                let visible = e && !n;
+                assert_eq!(
+                    stored_s.contains("HISTORICAL_SECRET_TARGET"),
+                    visible,
+                    "stored target properties D01 mismatch (n={n},e={e},t={t})"
+                );
+                assert_eq!(
+                    stored_s.contains("HISTORICAL_SECRET_EDGE"),
+                    visible,
+                    "stored edge properties D01 mismatch (n={n},e={e},t={t})"
+                );
+                assert_eq!(
+                    serving_s.contains("HISTORICAL_SECRET_TARGET"),
+                    visible,
+                    "serving target properties D01 mismatch (n={n},e={e},t={t})"
+                );
+                assert_eq!(
+                    serving_s.contains("HISTORICAL_SECRET_EDGE"),
+                    visible,
+                    "serving edge properties D01 mismatch (n={n},e={e},t={t})"
+                );
+                assert_eq!(
+                    serving["items"].as_array().unwrap().len(),
+                    usize::from(visible),
+                    "serving items count D01 mismatch (n={n},e={e},t={t})"
+                );
+                if !visible {
+                    assert_eq!(serving["scope"]["withheld"], 1);
+                }
+                r.session.close().unwrap();
+            }
+        }
+    }
+}

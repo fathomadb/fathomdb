@@ -11,4 +11,6 @@ fn artifact_description_identifies_target_profile_features_and_compiler() {
     assert_eq!(d["fixture_control"], cfg!(feature = "fixture-control"));
     assert_eq!(d["build"], crate::process::BUILD);
     assert_eq!(d["protocol"], 1);
+    assert_eq!(d["version"], env!("CARGO_PKG_VERSION"));
+    assert_eq!(d["compiled_schema"], fathomdb_schema::SCHEMA_VERSION);
 }

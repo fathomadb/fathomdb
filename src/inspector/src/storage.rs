@@ -78,6 +78,7 @@ impl Class {
                 "kind",
                 "logical_id",
                 "source_id",
+                "scope",
                 "row_kind",
                 "state",
                 "reason",
@@ -90,6 +91,7 @@ impl Class {
                 "kind",
                 "logical_id",
                 "source_id",
+                "scope",
                 "from_id",
                 "to_id",
                 "t_valid",
@@ -99,7 +101,7 @@ impl Class {
                 "extractor_model_id",
                 "temporal_fallback",
             ],
-            _ => &["collection_name", "record_key", "schema_id"],
+            _ => &["collection_name", "record_key", "schema_id", "scope"],
         }
     }
     fn canonical(self) -> bool {
@@ -197,7 +199,7 @@ impl Reader {
         let locator = self.attributes.get(handle).cloned().ok_or("reference_expired")?;
         let c = self.session.connection()?;
         let context = self.context(&c)?;
-        let (origin, classification) = Self::summary(&c, &locator.origin)?;
+        let (origin, classification) = Self::summary(&c, &locator.origin, self.session.policy)?;
         if !self.session.policy.permits(classification) {
             return Err("refused");
         }
@@ -262,8 +264,16 @@ impl Reader {
     fn summary(
         c: &crate::session::ReadConnection,
         locator: &Locator,
+        policy: crate::policy::Policy,
     ) -> Result<(Value, Classification), &'static str> {
-        Self::summary_fields(c, locator, locator.class.fields())
+        let mut remaining = usize::MAX;
+        Self::summary_fields_budget(
+            c,
+            locator,
+            locator.class.fields(),
+            Some(policy),
+            &mut remaining,
+        )
     }
     fn inventory_summary(
         c: &crate::session::ReadConnection,
@@ -285,12 +295,13 @@ impl Reader {
         columns: &[&str],
     ) -> Result<(Value, Classification), &'static str> {
         let mut remaining = usize::MAX;
-        Self::summary_fields_budget(c, locator, columns, &mut remaining)
+        Self::summary_fields_budget(c, locator, columns, None, &mut remaining)
     }
     fn summary_fields_budget(
         c: &crate::session::ReadConnection,
         locator: &Locator,
         columns: &[&str],
+        properties_policy: Option<crate::policy::Policy>,
         remaining: &mut usize,
     ) -> Result<(Value, Classification), &'static str> {
         if *remaining == 0 {
@@ -414,7 +425,34 @@ impl Reader {
         record["inactive_or_history"] = json!(inactive);
         record["retained_erasure_pending"] = json!(erased);
         record["telemetry_payload"] = json!(telemetry);
-        Ok((record, Classification { inactive, erased, telemetry, known }))
+        let classification = Classification { inactive, erased, telemetry, known };
+        if class.canonical() {
+            if let Some(policy) = properties_policy {
+                if policy.permits(classification) {
+                    let (mut preview, bytes, storage): (Option<String>, Option<i64>, String) = c
+                        .query_row(
+                            &format!(
+                                "SELECT CASE WHEN octet_length(properties)<=16384 THEN substr(CAST(properties AS TEXT),1,4096) END,octet_length(properties),typeof(properties) FROM {} WHERE rowid=?1 AND write_cursor=?2",
+                                class.table()
+                            ),
+                            params![locator.rowid, locator.cursor],
+                            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+                        )
+                        .map_err(|_| "storage")?;
+                    if bytes.is_some_and(|n| n > 16384) {
+                        preview =
+                            Self::preview(c, class.table(), "properties", locator.rowid, 4096)?;
+                    }
+                    record["properties_status"] = json!("available");
+                    record["properties"] = json!(preview);
+                    record["properties_bytes"] = json!(bytes);
+                    record["properties_storage"] = json!(storage);
+                } else {
+                    record["properties_status"] = json!("refused");
+                }
+            }
+        }
+        Ok((record, classification))
     }
     fn display_preview(
         c: &crate::session::ReadConnection,
@@ -426,37 +464,57 @@ impl Reader {
             return Err("budget_exhausted");
         }
         let unavailable = |state: &str| json!({"state":state,"text":null,"field":null,"complete":false,"source":"bounded_stored_json_field"});
-        let column = crate::window::Column::open(
-            c,
-            locator.class.table(),
-            locator.class.body(),
-            locator.rowid,
-        )?;
-        let Some(total) = column.len() else {
-            return Ok(unavailable("null"));
+        let inspect = |column_name: &str,
+                       budget: &mut usize|
+         -> Result<(Option<Value>, &'static str), &'static str> {
+            let column =
+                crate::window::Column::open(c, locator.class.table(), column_name, locator.rowid)?;
+            let Some(total) = column.len() else {
+                return Ok((None, "null"));
+            };
+            if total > 4096 {
+                return Ok((None, "oversize_not_inspected"));
+            }
+            if total > *budget {
+                return Ok((None, "preview_budget_exhausted"));
+            }
+            *budget -= total;
+            let bytes = column.read(0, total)?.ok_or("unavailable")?;
+            let Ok(value) = serde_json::from_slice::<Value>(&bytes) else {
+                return Ok((None, "no_display_field"));
+            };
+            for field in ["title", "name"] {
+                if let Some(text) =
+                    value.get(field).and_then(Value::as_str).filter(|v| !v.trim().is_empty())
+                {
+                    let preview = text.chars().take(120).collect::<String>();
+                    return Ok((
+                        Some(
+                            json!({"state":"available","text":preview,"field":field,"complete":text.chars().count()<=120,"source":"bounded_stored_json_field"}),
+                        ),
+                        "available",
+                    ));
+                }
+            }
+            Ok((None, "no_display_field"))
         };
-        if total > 4096 {
-            return Ok(unavailable("oversize_not_inspected"));
+        let (body_preview, body_state) = inspect(locator.class.body(), budget)?;
+        if let Some(found) = body_preview {
+            return Ok(found);
         }
-        if total > *budget {
-            return Ok(unavailable("preview_budget_exhausted"));
-        }
-        *budget -= total;
-        let body = column.read(0, total)?.ok_or("unavailable")?;
-        let Ok(value) = serde_json::from_slice::<Value>(&body) else {
-            return Ok(unavailable("no_display_field"));
-        };
-        for field in ["title", "name"] {
-            if let Some(text) =
-                value.get(field).and_then(Value::as_str).filter(|v| !v.trim().is_empty())
-            {
-                let preview = text.chars().take(120).collect::<String>();
-                return Ok(
-                    json!({"state":"available","text":preview,"field":field,"complete":text.chars().count()<=120,"source":"bounded_stored_json_field"}),
-                );
+        if locator.class.canonical() {
+            if std::time::Instant::now() >= deadline {
+                return Err("budget_exhausted");
+            }
+            let (props_preview, props_state) = inspect("properties", budget)?;
+            if let Some(found) = props_preview {
+                return Ok(found);
+            }
+            if matches!(body_state, "no_display_field" | "null") && props_state != "null" {
+                return Ok(unavailable(props_state));
             }
         }
-        Ok(unavailable("no_display_field"))
+        Ok(unavailable(body_state))
     }
     fn sample_fields(
         c: &crate::session::ReadConnection,
@@ -658,7 +716,7 @@ impl Reader {
                 None
             };
             let locator = Locator { class, rowid, cursor, revision_rowid };
-            let (mut item, classification) = Self::summary(&c, &locator)?;
+            let (mut item, classification) = Self::summary(&c, &locator, self.session.policy)?;
             if classification.inactive && self.session.policy.no_show_inactive {
                 last = position;
                 continue;
@@ -805,6 +863,7 @@ impl Reader {
                 } else {
                     &["collection_name"]
                 },
+                None,
                 &mut remaining,
             )?;
             if !classification.known
@@ -891,7 +950,7 @@ impl Reader {
             collections.push(item);
         }
         let mut projections = vec![];
-        let mut statement=c.prepare("SELECT rowid,vector_declared,octet_length(name),octet_length(roles),octet_length(fts_tokenizer) FROM _fathomdb_projection_registry ORDER BY name LIMIT 201").map_err(|_|"storage")?;
+        let mut statement=c.prepare("SELECT rowid,vector_declared,octet_length(name),octet_length(roles),octet_length(fts_tokenizer),octet_length(entity_class),octet_length(vector_kinds) FROM _fathomdb_projection_registry ORDER BY name,entity_class LIMIT 201").map_err(|_|"storage")?;
         let mut rows = statement.query([]).map_err(|_| "storage")?;
         while let Some(row) = rows.next().map_err(|_| "storage")? {
             if std::time::Instant::now() >= deadline {
@@ -914,16 +973,25 @@ impl Reader {
                 .ok_or("storage")?;
             let tokenizer =
                 Self::preview(&c, "_fathomdb_projection_registry", "fts_tokenizer", rowid, 4096)?;
+            let entity_class =
+                Self::preview(&c, "_fathomdb_projection_registry", "entity_class", rowid, 4096)?
+                    .ok_or("storage")?;
+            let vector_kinds =
+                Self::preview(&c, "_fathomdb_projection_registry", "vector_kinds", rowid, 4096)?;
             let name_bytes: i64 = row.get(2).map_err(|_| "storage")?;
             let roles_bytes: i64 = row.get(3).map_err(|_| "storage")?;
             let tokenizer_bytes: Option<i64> = row.get(4).map_err(|_| "storage")?;
+            let entity_class_bytes: i64 = row.get(5).map_err(|_| "storage")?;
+            let vector_kinds_bytes: Option<i64> = row.get(6).map_err(|_| "storage")?;
             let complete = name_bytes as usize == name.len();
             let declaration_complete = complete
                 && roles_bytes as usize == roles.len()
-                && tokenizer_bytes.map(|n| n as usize) == tokenizer.as_ref().map(|v| v.len());
+                && tokenizer_bytes.map(|n| n as usize) == tokenizer.as_ref().map(|v| v.len())
+                && entity_class_bytes as usize == entity_class.len()
+                && vector_kinds_bytes.map(|n| n as usize) == vector_kinds.as_ref().map(|v| v.len());
             exact &= declaration_complete;
             projections_complete &= declaration_complete;
-            let item = json!({"name":name,"name_bytes":name_bytes.to_string(),"name_complete":complete,"roles":roles,"roles_bytes":roles_bytes.to_string(),"recorded_tokenizer":tokenizer,"tokenizer_bytes":tokenizer_bytes.map(|n|n.to_string()),"vector_declared":vector,"materialization":"unknown_until_record_check","runtime":if self.session.cached_cpu{"available_cached_cpu"}else{"model_unavailable"}});
+            let item = json!({"name":name,"name_bytes":name_bytes.to_string(),"name_complete":complete,"entity_class":entity_class,"roles":roles,"roles_bytes":roles_bytes.to_string(),"recorded_tokenizer":tokenizer,"tokenizer_bytes":tokenizer_bytes.map(|n|n.to_string()),"vector_declared":vector,"vector_kinds":vector_kinds,"vector_kinds_bytes":vector_kinds_bytes.map(|n|n.to_string()),"materialization":"unknown_until_record_check","runtime":if self.session.cached_cpu{"available_cached_cpu"}else{"model_unavailable"}});
             if !budget.include(&item)? {
                 projections_complete = false;
                 exact = false;
@@ -1061,7 +1129,82 @@ impl Reader {
         if scanned >= remaining {
             exact = false;
         }
-        counts["projection"] = json!({"attribute_entries":projected.to_string(),"examined":scanned,"unknown_classification":projected_unknown,"exact":scanned<remaining&&projected_unknown==0&&!time_capped,"scope":"verified canonical attribute origins; other representations separately inspected"});
+        let attr_exact = scanned < remaining && projected_unknown == 0 && !time_capped;
+        let cpv_remaining = 100000_usize.saturating_sub(examined);
+        let mut cpv_entries = 0_usize;
+        let mut cpv_unknown = 0_usize;
+        let mut cpv_scanned = 0_usize;
+        let mut statement = c
+            .prepare(
+                "SELECT p.entity_class,p.write_cursor,CASE WHEN p.entity_class='node' THEN n.rowid ELSE e.rowid END,r.rowid \
+                 FROM canonical_property_values p \
+                 LEFT JOIN canonical_nodes n ON p.entity_class='node' AND n.write_cursor=p.write_cursor \
+                 LEFT JOIN canonical_edges e ON p.entity_class='edge' AND e.write_cursor=p.write_cursor \
+                 LEFT JOIN _fathomdb_artifact_revisions r ON r.artifact_class=p.entity_class AND r.write_cursor=p.write_cursor \
+                 WHERE (p.entity_class='node' AND n.rowid IS NOT NULL) OR (p.entity_class='edge' AND e.rowid IS NOT NULL) \
+                 ORDER BY p.rowid LIMIT ?1",
+            )
+            .map_err(|_| "storage")?;
+        let mut rows = statement.query([cpv_remaining as i64]).map_err(|_| "storage")?;
+        while let Some(row) = rows.next().map_err(|_| "budget_exhausted")? {
+            if std::time::Instant::now() >= deadline {
+                time_capped = true;
+                exact = false;
+                break;
+            }
+            examined += 1;
+            cpv_scanned += 1;
+            let entity_class: String = row.get(0).map_err(|_| "storage")?;
+            let class = match entity_class.as_str() {
+                "node" => Class::Node,
+                "edge" => Class::Edge,
+                _ => {
+                    cpv_unknown += 1;
+                    exact = false;
+                    continue;
+                }
+            };
+            let locator = Locator {
+                class,
+                cursor: row.get(1).map_err(|_| "storage")?,
+                rowid: row.get(2).map_err(|_| "storage")?,
+                revision_rowid: row.get(3).map_err(|_| "storage")?,
+            };
+            let (_, policy) = Self::inventory_summary(&c, &locator)?;
+            if !policy.known {
+                cpv_unknown += 1;
+                exact = false;
+            }
+            if policy.known && !(policy.inactive && self.session.policy.no_show_inactive) {
+                cpv_entries += 1;
+            }
+        }
+        if cpv_scanned >= cpv_remaining {
+            exact = false;
+        }
+        let cpv_exact = cpv_scanned < cpv_remaining && cpv_unknown == 0 && !time_capped;
+        counts["projection"] = json!({"attribute_entries":projected.to_string(),"property_value_entries":cpv_entries.to_string(),"property_value_examined":cpv_scanned,"property_value_unknown_classification":cpv_unknown,"property_value_exact":cpv_exact,"examined":scanned,"unknown_classification":projected_unknown,"exact":attr_exact&&cpv_exact,"scope":"verified canonical attribute and property-value origins; other representations separately inspected"});
+        let ts_remaining = 100000_usize.saturating_sub(examined);
+        let mut ts_scanned = 0_usize;
+        let mut statement = c
+            .prepare("SELECT write_cursor FROM _fathomdb_commit_timestamps ORDER BY write_cursor LIMIT ?1")
+            .map_err(|_| "storage")?;
+        let mut rows = statement.query([ts_remaining as i64]).map_err(|_| "storage")?;
+        while rows.next().map_err(|_| "budget_exhausted")?.is_some() {
+            if std::time::Instant::now() >= deadline {
+                time_capped = true;
+                exact = false;
+                break;
+            }
+            examined += 1;
+            ts_scanned += 1;
+        }
+        if ts_scanned >= ts_remaining {
+            exact = false;
+        }
+        let ts_exact = ts_scanned < ts_remaining && !time_capped;
+        counts["commit_timestamps"] =
+            json!({"entries":ts_scanned.to_string(),"examined":ts_scanned,"exact":ts_exact});
         for key in groups.keys() {
             if let Some((class, name)) = key.split_once(':') {
                 if matches!(class, "current" | "log")
@@ -1114,6 +1257,7 @@ impl Reader {
         }
         let column = match field {
             "body" => class.body(),
+            "properties" if class.canonical() => "properties",
             "structural_role" if class == Class::Node => "row_kind",
             "entry_id" if class == Class::Log => "rowid",
             _ if class.fields().contains(&field) => field,
@@ -1137,7 +1281,7 @@ impl Reader {
         let locator = self.handles.get(handle).cloned().ok_or("reference_expired")?;
         let c = self.session.connection()?;
         let context = self.context(&c)?;
-        let (_, class) = Self::summary(&c, &locator)?;
+        let (_, class) = Self::summary(&c, &locator, self.session.policy)?;
         if !self.session.policy.permits(class) {
             return Err("refused");
         }
@@ -1161,25 +1305,36 @@ impl Reader {
             json!({"status":"complete","state":if total==0{"empty"}else{"value"},"text":text,"offset":offset.to_string(),"total_bytes":total.to_string(),"continuation":if offset+n<total{Some((offset+n).to_string())}else{None},"context":Self::finished(context)}),
         )
     }
+    #[allow(dead_code)]
     pub(crate) fn tree(
         &mut self,
         handle: &str,
         start: usize,
         after: Option<usize>,
     ) -> Result<Value, &'static str> {
+        self.tree_field(handle, None, start, after)
+    }
+    pub(crate) fn tree_field(
+        &mut self,
+        handle: &str,
+        field: Option<&str>,
+        start: usize,
+        after: Option<usize>,
+    ) -> Result<Value, &'static str> {
+        let selected = match field {
+            None | Some("body") => "body",
+            Some("properties") => "properties",
+            Some(_) => return Err("unsupported_field"),
+        };
         let locator = self.handles.get(handle).cloned().ok_or("reference_expired")?;
+        let (table, column, rowid) = Self::field(&locator, selected)?;
         let c = self.session.connection()?;
         let context = self.context(&c)?;
-        let (_, class) = Self::summary(&c, &locator)?;
+        let (_, class) = Self::summary(&c, &locator, self.session.policy)?;
         if !self.session.policy.permits(class) {
             return Err("refused");
         }
-        let value = crate::window::Column::open(
-            &c,
-            locator.class.table(),
-            locator.class.body(),
-            locator.rowid,
-        )?;
+        let value = crate::window::Column::open(&c, table, column, rowid)?;
         let total = value.len().ok_or("null")?;
         let mut result = crate::tree::children(
             |offset, limit| value.read(offset, limit)?.ok_or("null"),
@@ -1187,6 +1342,7 @@ impl Reader {
             start,
             after,
         )?;
+        result["field"] = json!(selected);
         result["context"] = Self::finished(context);
         Ok(result)
     }
@@ -1194,15 +1350,17 @@ impl Reader {
         let locator = self.handles.get(handle).cloned().ok_or("reference_expired")?;
         let c = self.session.connection()?;
         let context = self.context(&c)?;
-        let (_, classification) = Self::summary(&c, &locator)?;
+        let (_, classification) = Self::summary(&c, &locator, self.session.policy)?;
         if !self.session.policy.permits(classification) {
             return Err("refused");
         }
         let mut budget = AssociationBudget::default();
         let mut links = vec![];
         let mut attributes = vec![];
+        let mut property_values = vec![];
         let mut projections = vec![];
         let mut attributes_complete = true;
+        let mut property_values_complete = true;
         let mut projections_complete = true;
         if locator.class.canonical() {
             for (kind,sql) in [
@@ -1219,7 +1377,7 @@ impl Reader {
                         let cursor:i64=row.get(1).map_err(|_|"storage")?;let revision_rowid=Some(row.get(2).map_err(|_|"storage")?);
                         let rowid:Option<i64>=c.query_row(&format!("SELECT rowid FROM {} WHERE write_cursor=?1",class.table()),[cursor],|r|r.get(0)).optional().map_err(|_|"storage")?;
                         if let Some(rowid)=rowid {
-                            let target=Locator{class,rowid,cursor,revision_rowid};let(mut record,policy)=Self::summary(&c,&target)?;
+                            let target=Locator{class,rowid,cursor,revision_rowid};let(mut record,policy)=Self::summary(&c,&target,self.session.policy)?;
                             if self.session.policy.permits(policy){if !budget.include(&record)?{truncated=true;break;}record["handle"]=json!(self.mint(target));targets.push(record);}else{withheld=true;}
                         }else{unavailable=true;}
                     }
@@ -1275,30 +1433,118 @@ impl Reader {
                     }
                     attributes.push(item);
                 }
-                let mut statement=c.prepare("SELECT p.rowid,CASE WHEN octet_length(p.name)<=65536 THEN EXISTS(SELECT 1 FROM canonical_attributes a WHERE CASE WHEN octet_length(a.attr_name)=octet_length(p.name) THEN a.attr_name=p.name ELSE 0 END AND a.write_cursor=?1) END,p.vector_declared FROM _fathomdb_projection_registry p ORDER BY p.name LIMIT 201").map_err(|_|"storage")?;
-                let mut rows = statement.query([locator.cursor]).map_err(|_| "storage")?;
-                while let Some(row) = rows.next().map_err(|_| "budget_exhausted")? {
-                    budget.examined += 1;
-                    let rowid: i64 = row.get(0).map_err(|_| "storage")?;
-                    let name =
-                        Self::preview(&c, "_fathomdb_projection_registry", "name", rowid, 4096)?
-                            .ok_or("storage")?;
-                    let roles =
-                        Self::preview(&c, "_fathomdb_projection_registry", "roles", rowid, 4096)?
-                            .ok_or("storage")?;
-                    let materialized: Option<bool> = row.get(1).map_err(|_| "storage")?;
-                    let vector: bool = row.get(2).map_err(|_| "storage")?;
-                    let item = json!({"name":name,"roles":roles,"declared":true,"materialized_attribute":materialized,"vector_declared":vector,"query_runtime":if self.session.cached_cpu{"available_cached_cpu"}else{"unavailable_without_loaded_model"},"readiness":"unknown; declaration is not a ready proof"});
-                    if !budget.include(&item)? {
-                        projections_complete = false;
-                        break;
+            }
+            let entity_class = locator.class.label();
+            let mut statement = c
+                .prepare(
+                    "SELECT rowid,value_type,octet_length(text_val),typeof(num_val),bool_val \
+                     FROM canonical_property_values \
+                     WHERE entity_class=?1 AND write_cursor=?2 \
+                     ORDER BY attr_name LIMIT 201",
+                )
+                .map_err(|_| "storage")?;
+            let mut rows =
+                statement.query(params![entity_class, locator.cursor]).map_err(|_| "storage")?;
+            while let Some(row) = rows.next().map_err(|_| "budget_exhausted")? {
+                budget.examined += 1;
+                let rowid: i64 = row.get(0).map_err(|_| "storage")?;
+                let value_type: String = row.get(1).map_err(|_| "storage")?;
+                let text_bytes: Option<i64> = row.get(2).map_err(|_| "storage")?;
+                let num_type: String = row.get(3).map_err(|_| "storage")?;
+                let bool_val: Option<i64> = row.get(4).map_err(|_| "storage")?;
+                let name =
+                    Self::preview(&c, "canonical_property_values", "attr_name", rowid, 4096)?
+                        .ok_or("storage")?;
+                let value = match value_type.as_str() {
+                    "string" => {
+                        Self::preview(&c, "canonical_property_values", "text_val", rowid, 4096)?
                     }
-                    projections.push(item);
+                    "integer" => {
+                        if num_type == "integer" {
+                            let n: i64 = c
+                                .query_row(
+                                    "SELECT num_val FROM canonical_property_values WHERE rowid=?1",
+                                    [rowid],
+                                    |r| r.get(0),
+                                )
+                                .map_err(|_| "storage")?;
+                            Some(n.to_string())
+                        } else {
+                            let f: f64 = c
+                                .query_row(
+                                    "SELECT num_val FROM canonical_property_values WHERE rowid=?1",
+                                    [rowid],
+                                    |r| r.get(0),
+                                )
+                                .map_err(|_| "storage")?;
+                            Some(f.to_string())
+                        }
+                    }
+                    "float" => {
+                        let f: f64 = c
+                            .query_row(
+                                "SELECT num_val FROM canonical_property_values WHERE rowid=?1",
+                                [rowid],
+                                |r| r.get(0),
+                            )
+                            .map_err(|_| "storage")?;
+                        Some(f.to_string())
+                    }
+                    "boolean" => {
+                        bool_val
+                            .map(|b| if b != 0 { "true".to_string() } else { "false".to_string() })
+                    }
+                    _ => None,
+                };
+                let item = json!({"entity_class":entity_class,"name":name,"value_type":value_type,"value":value,"total_bytes":text_bytes.map(|n|n.to_string()),"origin":"this_exact_canonical_cursor","preview_limit":4096});
+                if !budget.include(&item)? {
+                    property_values_complete = false;
+                    break;
                 }
+                property_values.push(item);
+            }
+            let mut statement = c
+                .prepare(
+                    "SELECT p.rowid,\
+                     CASE WHEN ?2='node' AND octet_length(p.name)<=65536 THEN EXISTS(SELECT 1 FROM canonical_attributes a WHERE CASE WHEN octet_length(a.attr_name)=octet_length(p.name) THEN a.attr_name=p.name ELSE 0 END AND a.write_cursor=?1) END,\
+                     CASE WHEN octet_length(p.name)<=65536 THEN EXISTS(SELECT 1 FROM canonical_property_values pv WHERE pv.entity_class=?2 AND pv.write_cursor=?1 AND CASE WHEN octet_length(pv.attr_name)=octet_length(p.name) THEN pv.attr_name=p.name ELSE 0 END) END,\
+                     p.vector_declared \
+                     FROM _fathomdb_projection_registry p \
+                     WHERE p.entity_class=?2 \
+                     ORDER BY p.name LIMIT 201",
+                )
+                .map_err(|_| "storage")?;
+            let mut rows =
+                statement.query(params![locator.cursor, entity_class]).map_err(|_| "storage")?;
+            while let Some(row) = rows.next().map_err(|_| "budget_exhausted")? {
+                budget.examined += 1;
+                let rowid: i64 = row.get(0).map_err(|_| "storage")?;
+                let name = Self::preview(&c, "_fathomdb_projection_registry", "name", rowid, 4096)?
+                    .ok_or("storage")?;
+                let roles =
+                    Self::preview(&c, "_fathomdb_projection_registry", "roles", rowid, 4096)?
+                        .ok_or("storage")?;
+                let vector_kinds = Self::preview(
+                    &c,
+                    "_fathomdb_projection_registry",
+                    "vector_kinds",
+                    rowid,
+                    4096,
+                )?;
+                let materialized: Option<bool> = row.get(1).map_err(|_| "storage")?;
+                let materialized_property_value: Option<bool> =
+                    row.get(2).map_err(|_| "storage")?;
+                let vector: bool = row.get(3).map_err(|_| "storage")?;
+                let item = json!({"name":name,"entity_class":entity_class,"roles":roles,"declared":true,"materialized_attribute":materialized,"materialized_property_value":materialized_property_value,"vector_declared":vector,"vector_kinds":vector_kinds,"query_runtime":if self.session.cached_cpu{"available_cached_cpu"}else{"unavailable_without_loaded_model"},"readiness":"unknown; declaration is not a ready proof"});
+                if !budget.include(&item)? {
+                    projections_complete = false;
+                    break;
+                }
+                projections.push(item);
             }
         }
         Ok(
-            json!({"status":if budget.partial{"partial"}else{"complete"},"links":links,"attributes":attributes,"projections":projections,"attributes_complete":attributes_complete,"projections_complete":projections_complete,"context":Self::finished(context),"scope":{"limit":200,"returned":budget.returned,"examined":budget.examined,"item_bytes_with_handle_reserve":budget.bytes,"reason":if budget.partial{Some("shared_item_or_byte_or_link_scan_cap")}else{None},"ordering":"recorded_links_then_attribute_rowid_then_declaration_name","policy":self.session.policy}}),
+            json!({"status":if budget.partial{"partial"}else{"complete"},"links":links,"attributes":attributes,"property_values":property_values,"projections":projections,"attributes_complete":attributes_complete,"property_values_complete":property_values_complete,"projections_complete":projections_complete,"context":Self::finished(context),"scope":{"limit":200,"returned":budget.returned,"examined":budget.examined,"item_bytes_with_handle_reserve":budget.bytes,"reason":if budget.partial{Some("shared_item_or_byte_or_link_scan_cap")}else{None},"ordering":"recorded_links_then_attribute_rowid_then_property_value_name_then_declaration_name","policy":self.session.policy}}),
         )
     }
     fn export_destination(
@@ -1350,7 +1596,7 @@ impl Reader {
         use std::os::unix::fs::MetadataExt;
         let locator = self.handles.get(handle).cloned().ok_or("reference_expired")?;
         let c = self.session.connection()?;
-        let (_, classification) = Self::summary(&c, &locator)?;
+        let (_, classification) = Self::summary(&c, &locator, self.session.policy)?;
         if !classification.known {
             return Err("unknown_classification");
         }
@@ -1401,7 +1647,7 @@ impl Reader {
         use std::os::unix::fs::OpenOptionsExt;
         let locator = self.handles.get(handle).cloned().ok_or("reference_expired")?;
         let c = self.session.connection()?;
-        let (record, classification) = Self::summary(&c, &locator)?;
+        let (record, classification) = Self::summary(&c, &locator, self.session.policy)?;
         if !classification.known {
             return Err("unknown_classification");
         }
@@ -1464,7 +1710,7 @@ impl Reader {
             empty = false;
             let result = (|| {
                 let c = self.session.connection()?;
-                let (_, classification) = Self::summary(&c, &locator)?;
+                let (_, classification) = Self::summary(&c, &locator, policy)?;
                 if !classification.known
                     || !classification.erased
                     || !policy.permits(classification)
@@ -1541,7 +1787,7 @@ impl Reader {
         let (table, column, rowid) = Self::field(&locator, field)?;
         let c = self.session.connection()?;
         let context = self.context(&c)?;
-        let (mut record, class) = Self::summary(&c, &locator)?;
+        let (mut record, class) = Self::summary(&c, &locator, self.session.policy)?;
         if !self.session.policy.permits(class) {
             return Err("refused");
         }
@@ -1551,7 +1797,7 @@ impl Reader {
                 &c,
                 &locator,
                 std::time::Instant::now() + WORK_TIME,
-                &mut 4096,
+                &mut 8192,
             )?;
         }
         let value = crate::window::Column::open(&c, table, column, rowid)?;

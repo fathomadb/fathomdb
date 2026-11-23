@@ -8,6 +8,88 @@ pub(crate) enum Direction {
     Outgoing,
     Both,
 }
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(crate) enum AsOf {
+    #[default]
+    Current,
+    WriteCursor(u64),
+    EpochMs(i64),
+}
+impl AsOf {
+    pub(crate) fn parse(
+        write_cursor: Option<&str>,
+        epoch_ms: Option<&str>,
+    ) -> Result<Self, &'static str> {
+        match (write_cursor, epoch_ms) {
+            (None, None) => Ok(Self::Current),
+            (Some(_), Some(_)) => Err("invalid_as_of"),
+            (Some(raw), None) => {
+                if raw.is_empty() || !raw.bytes().all(|b| b.is_ascii_digit()) {
+                    return Err("invalid_as_of");
+                }
+                let parsed = raw.parse::<u64>().map_err(|_| "invalid_as_of")?;
+                if parsed.to_string() != raw {
+                    return Err("invalid_as_of");
+                }
+                Ok(Self::WriteCursor(parsed))
+            }
+            (None, Some(raw)) => {
+                if raw.is_empty() {
+                    return Err("invalid_as_of");
+                }
+                let parsed = raw.parse::<i64>().map_err(|_| "invalid_as_of")?;
+                if parsed.to_string() != raw {
+                    return Err("invalid_as_of");
+                }
+                Ok(Self::EpochMs(parsed))
+            }
+        }
+    }
+}
+fn as_of_sql_i64(cursor: u64) -> i64 {
+    i64::try_from(cursor).unwrap_or(i64::MAX)
+}
+fn as_of_metadata(as_of: AsOf, resolved: Option<u64>) -> Value {
+    match as_of {
+        AsOf::Current => json!({
+            "mode": "current",
+            "requested_as_of_write_cursor": Value::Null,
+            "requested_as_of_epoch_ms": Value::Null,
+            "resolved_as_of_write_cursor": Value::Null,
+        }),
+        AsOf::WriteCursor(cursor) => json!({
+            "mode": "write_cursor",
+            "requested_as_of_write_cursor": cursor.to_string(),
+            "requested_as_of_epoch_ms": Value::Null,
+            "resolved_as_of_write_cursor": resolved.unwrap_or(cursor).to_string(),
+        }),
+        AsOf::EpochMs(epoch_ms) => json!({
+            "mode": "epoch_ms",
+            "requested_as_of_write_cursor": Value::Null,
+            "requested_as_of_epoch_ms": epoch_ms.to_string(),
+            "resolved_as_of_write_cursor": resolved.unwrap_or(0).to_string(),
+        }),
+    }
+}
+fn property_map_json(map: Option<&fathomdb_engine::PropertyMap>) -> Result<Value, &'static str> {
+    let Some(map) = map else {
+        return Ok(Value::Null);
+    };
+    let mut object = serde_json::Map::new();
+    for (k, v) in map {
+        let val = match v {
+            fathomdb_engine::PropertyValue::String(s) => {
+                let (prefix, _) = utf8_prefix(s.as_bytes(), 4096)?;
+                json!(prefix)
+            }
+            fathomdb_engine::PropertyValue::Int(i) => json!(i),
+            fathomdb_engine::PropertyValue::Float(f) => json!(f),
+            fathomdb_engine::PropertyValue::Bool(b) => json!(b),
+        };
+        object.insert(k.clone(), val);
+    }
+    Ok(Value::Object(object))
+}
 struct Budget {
     work: usize,
     bytes: usize,
@@ -75,16 +157,20 @@ impl Reader {
             budget.partial = true;
             return Ok(None);
         }
-        let (mut record, classification) =
-            match Self::summary_fields_budget(c, locator, locator.class.fields(), &mut budget.work)
-            {
-                Ok(v) => v,
-                Err("budget_exhausted" | "unknown_classification") => {
-                    budget.partial = true;
-                    return Ok(None);
-                }
-                Err(e) => return Err(e),
-            };
+        let (mut record, classification) = match Self::summary_fields_budget(
+            c,
+            locator,
+            locator.class.fields(),
+            Some(self.session.policy),
+            &mut budget.work,
+        ) {
+            Ok(v) => v,
+            Err("budget_exhausted" | "unknown_classification") => {
+                budget.partial = true;
+                return Ok(None);
+            }
+            Err(e) => return Err(e),
+        };
         if !self.session.policy.permits(classification) {
             budget.partial = true;
             return Ok(None);
@@ -93,8 +179,9 @@ impl Reader {
         record["handle"] = json!(self.mint(locator.clone()));
         Ok(Some(record))
     }
-    // There is no format37 index covering historical logical IDs. One explicit
-    // scan bounds work and leaves cardinality unknown when coverage is incomplete.
+    // Current-mode stored adjacency collects all retained revisions for each
+    // endpoint across history; one explicit scan bounds work and leaves
+    // cardinality unknown when coverage is incomplete.
     fn graph_scan(
         c: &crate::session::ReadConnection,
         class: Class,
@@ -136,6 +223,69 @@ impl Reader {
         budget.partial |= !complete;
         Ok((targets, complete))
     }
+    fn resolve_as_of_cursor(
+        c: &crate::session::ReadConnection,
+        as_of: AsOf,
+    ) -> Result<Option<u64>, &'static str> {
+        match as_of {
+            AsOf::Current => Ok(None),
+            AsOf::WriteCursor(cursor) => Ok(Some(cursor)),
+            AsOf::EpochMs(epoch_ms) => {
+                let resolved = c
+                    .query_row(
+                        "SELECT write_cursor FROM _fathomdb_commit_timestamps WHERE committed_at_ms <= ?1 ORDER BY committed_at_ms DESC, write_cursor DESC LIMIT 1",
+                        [epoch_ms],
+                        |row| row.get::<_, i64>(0),
+                    )
+                    .optional()
+                    .map_err(|_| "storage")?
+                    .and_then(|v| u64::try_from(v).ok())
+                    .unwrap_or(0);
+                Ok(Some(resolved))
+            }
+        }
+    }
+    fn historical_node_at(
+        c: &crate::session::ReadConnection,
+        logical_id: &str,
+        cursor_sql: i64,
+    ) -> Result<Option<Locator>, &'static str> {
+        let row: Option<(i64, i64)> = c
+            .query_row(
+                "SELECT rowid,write_cursor FROM canonical_nodes \
+                 WHERE logical_id=?1 AND superseded_at IS NULL AND write_cursor<=?2 \
+                 UNION ALL \
+                 SELECT rowid,write_cursor FROM canonical_nodes \
+                 WHERE logical_id=?1 AND superseded_at>?2 AND write_cursor<=?2 \
+                 ORDER BY write_cursor DESC LIMIT 1",
+                params![logical_id, cursor_sql],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .optional()
+            .map_err(|_| "storage")?;
+        row.map(|(rowid, write_cursor)| Self::graph_locator(c, Class::Node, rowid, write_cursor))
+            .transpose()
+    }
+    fn edge_alive_at(
+        c: &crate::session::ReadConnection,
+        locator: &Locator,
+        cursor_sql: i64,
+    ) -> Result<bool, &'static str> {
+        if locator.cursor > cursor_sql {
+            return Ok(false);
+        }
+        let sup: Option<i64> = c
+            .query_row(
+                "SELECT superseded_at FROM canonical_edges WHERE rowid=?1 AND write_cursor=?2",
+                params![locator.rowid, locator.cursor],
+                |r| r.get(0),
+            )
+            .optional()
+            .map_err(|_| "storage")?
+            .flatten();
+        Ok(sup.is_none_or(|s| s > cursor_sql))
+    }
+    #[allow(dead_code)]
     pub(crate) fn graph(
         &mut self,
         handle: &str,
@@ -143,6 +293,17 @@ impl Reader {
         kind: Option<String>,
         depth: usize,
         expanded: Vec<String>,
+    ) -> Result<Value, &'static str> {
+        self.graph_as_of(handle, direction, kind, depth, expanded, AsOf::Current)
+    }
+    pub(crate) fn graph_as_of(
+        &mut self,
+        handle: &str,
+        direction: Direction,
+        kind: Option<String>,
+        depth: usize,
+        expanded: Vec<String>,
+        as_of: AsOf,
     ) -> Result<Value, &'static str> {
         if !(1..=3).contains(&depth)
             || expanded.len() > 100
@@ -156,9 +317,11 @@ impl Reader {
         }
         let c = self.session.connection()?;
         let context = self.context(&c)?;
+        let resolved_cursor = Self::resolve_as_of_cursor(&c, as_of)?;
+        let as_of_meta = as_of_metadata(as_of, resolved_cursor);
         let mut budget = Budget::new();
         let (_, policy) =
-            Self::summary_fields_budget(&c, &root, root.class.fields(), &mut budget.work)?;
+            Self::summary_fields_budget(&c, &root, root.class.fields(), None, &mut budget.work)?;
         if !self.session.policy.permits(policy) {
             return Err("refused");
         }
@@ -170,7 +333,7 @@ impl Reader {
                 return Err("unsupported_constraint");
             }
             let (_, policy) =
-                Self::summary_fields_budget(&c, l, l.class.fields(), &mut budget.work)?;
+                Self::summary_fields_budget(&c, l, l.class.fields(), None, &mut budget.work)?;
             if !self.session.policy.permits(policy) {
                 return Err("refused");
             }
@@ -184,39 +347,114 @@ impl Reader {
         let mut exact_ids = BTreeMap::new();
         let mut identities = BTreeSet::new();
         let mut frontier = VecDeque::new();
-        if root.class == Class::Node {
-            if let Some(id) = Self::graph_text(&c, &root, "logical_id")? {
+        let mut seed_key = key(&root);
+        let mut seed_handle = handle.to_string();
+        if let Some(cursor) = resolved_cursor {
+            let cursor_sql = as_of_sql_i64(cursor);
+            if root.class == Class::Node {
+                if let Some(id) = Self::graph_text(&c, &root, "logical_id")? {
+                    if let Some(hist) = Self::historical_node_at(&c, &id, cursor_sql)? {
+                        if let Some(mut record) = self.graph_record(&c, &hist, &mut budget)? {
+                            if hist.rowid == root.rowid && hist.cursor == root.cursor {
+                                record["handle"] = json!(handle);
+                            } else if let Some(h) = record["handle"].as_str() {
+                                seed_handle = h.to_string();
+                            }
+                            seed_key = key(&hist);
+                            budget.include(&record, 0);
+                            identities.insert(id.clone());
+                            exact_ids.insert(seed_key.clone(), id.clone());
+                            frontier.push_back((id, 0));
+                            nodes.insert(seed_key.clone(), record);
+                        }
+                    }
+                } else if root.cursor <= cursor_sql {
+                    let sup: Option<i64> = c
+                        .query_row(
+                            "SELECT superseded_at FROM canonical_nodes WHERE rowid=?1 AND write_cursor=?2",
+                            params![root.rowid, root.cursor],
+                            |r| r.get(0),
+                        )
+                        .optional()
+                        .map_err(|_| "storage")?
+                        .flatten();
+                    if sup.is_none_or(|s| s > cursor_sql) {
+                        if let Some(mut record) = self.graph_record(&c, &root, &mut budget)? {
+                            record["handle"] = json!(handle);
+                            budget.include(&record, 0);
+                            nodes.insert(key(&root), record);
+                        }
+                    }
+                }
+            } else if Self::edge_alive_at(&c, &root, cursor_sql)? {
+                if let Some(record) = self.graph_record(&c, &root, &mut budget)? {
+                    let from = Self::graph_text(&c, &root, "from_id")?.ok_or("unavailable")?;
+                    let to = Self::graph_text(&c, &root, "to_id")?.ok_or("unavailable")?;
+                    identities.extend([from.clone(), to.clone()]);
+                    frontier.extend([(from.clone(), 0), (to.clone(), 0)]);
+                    budget.include(&record, 0);
+                    edges.insert(key(&root), (record, from, to));
+                }
+            }
+            for (_, (locator, owner_handle, id)) in expansion_locations {
+                let Some(hist) = Self::historical_node_at(&c, &id, cursor_sql)? else {
+                    continue;
+                };
+                let hk = key(&hist);
+                if nodes.contains_key(&hk) {
+                    identities.insert(id.clone());
+                    frontier.push_back((id, 0));
+                    continue;
+                }
+                let Some(mut record) = self.graph_record(&c, &hist, &mut budget)? else {
+                    continue;
+                };
+                if hist.rowid == locator.rowid && hist.cursor == locator.cursor {
+                    record["handle"] = json!(owner_handle);
+                }
+                if !budget.include(&record, nodes.len() + edges.len()) {
+                    return Err("budget_exhausted");
+                }
                 identities.insert(id.clone());
-                exact_ids.insert(key(&root), id.clone());
-                frontier.push_back((id, 0));
+                frontier.push_back((id.clone(), 0));
+                exact_ids.insert(hk.clone(), id);
+                nodes.insert(hk, record);
             }
-            let mut record = self.graph_record(&c, &root, &mut budget)?.ok_or("refused")?;
-            record["handle"] = json!(handle);
-            budget.include(&record, 0);
-            nodes.insert(key(&root), record);
         } else {
-            let record = self.graph_record(&c, &root, &mut budget)?.ok_or("refused")?;
-            let from = Self::graph_text(&c, &root, "from_id")?.ok_or("unavailable")?;
-            let to = Self::graph_text(&c, &root, "to_id")?.ok_or("unavailable")?;
-            identities.extend([from.clone(), to.clone()]);
-            frontier.extend([(from.clone(), 0), (to.clone(), 0)]);
-            budget.include(&record, 0);
-            edges.insert(key(&root), (record, from, to));
-        }
-        // Explicitly selected expansion anchors consume the same response budget before edges.
-        for (k, (locator, owner_handle, id)) in expansion_locations {
-            identities.insert(id.clone());
-            frontier.push_back((id.clone(), 0));
-            if nodes.contains_key(&k) {
-                continue;
+            if root.class == Class::Node {
+                if let Some(id) = Self::graph_text(&c, &root, "logical_id")? {
+                    identities.insert(id.clone());
+                    exact_ids.insert(key(&root), id.clone());
+                    frontier.push_back((id, 0));
+                }
+                let mut record = self.graph_record(&c, &root, &mut budget)?.ok_or("refused")?;
+                record["handle"] = json!(handle);
+                budget.include(&record, 0);
+                nodes.insert(key(&root), record);
+            } else {
+                let record = self.graph_record(&c, &root, &mut budget)?.ok_or("refused")?;
+                let from = Self::graph_text(&c, &root, "from_id")?.ok_or("unavailable")?;
+                let to = Self::graph_text(&c, &root, "to_id")?.ok_or("unavailable")?;
+                identities.extend([from.clone(), to.clone()]);
+                frontier.extend([(from.clone(), 0), (to.clone(), 0)]);
+                budget.include(&record, 0);
+                edges.insert(key(&root), (record, from, to));
             }
-            let mut record = self.graph_record(&c, &locator, &mut budget)?.ok_or("refused")?;
-            record["handle"] = json!(owner_handle);
-            if !budget.include(&record, nodes.len() + edges.len()) {
-                return Err("budget_exhausted");
+            // Explicitly selected expansion anchors consume the same response budget before edges.
+            for (k, (locator, owner_handle, id)) in expansion_locations {
+                identities.insert(id.clone());
+                frontier.push_back((id.clone(), 0));
+                if nodes.contains_key(&k) {
+                    continue;
+                }
+                let mut record = self.graph_record(&c, &locator, &mut budget)?.ok_or("refused")?;
+                record["handle"] = json!(owner_handle);
+                if !budget.include(&record, nodes.len() + edges.len()) {
+                    return Err("budget_exhausted");
+                }
+                exact_ids.insert(k.clone(), id);
+                nodes.insert(k, record);
             }
-            exact_ids.insert(k.clone(), id);
-            nodes.insert(k, record);
         }
         let deadline = std::time::Instant::now() + WORK_TIME;
         let mut visited = BTreeSet::new();
@@ -229,21 +467,66 @@ impl Reader {
                 Direction::Outgoing => vec!["from_id"],
                 Direction::Both => vec!["from_id", "to_id"],
             } {
-                let sql=format!("SELECT rowid,write_cursor FROM canonical_edges INDEXED BY canonical_edges_{column}_idx WHERE {column}=?1 ORDER BY rowid LIMIT ?2");
-                let mut statement = c.prepare(&sql).map_err(|_| "storage")?;
-                let mut rows = statement.query(params![id, budget.work]).map_err(|_| "storage")?;
-                while let Some(row) = rows.next().map_err(|_| "budget_exhausted")? {
+                let mut edge_candidates = vec![];
+                if let Some(cursor) = resolved_cursor {
+                    let cursor_sql = as_of_sql_i64(cursor);
+                    let idx = if column == "from_id" {
+                        "canonical_edges_from_sup_kind_idx"
+                    } else {
+                        "canonical_edges_to_sup_kind_idx"
+                    };
+                    let sql = format!(
+                        "SELECT rowid,write_cursor FROM canonical_edges INDEXED BY {idx} \
+                         WHERE {column}=?1 AND superseded_at IS NULL AND write_cursor<=?2 \
+                         UNION ALL \
+                         SELECT rowid,write_cursor FROM canonical_edges INDEXED BY {idx} \
+                         WHERE {column}=?1 AND superseded_at>?2 AND write_cursor<=?2 \
+                         ORDER BY rowid LIMIT ?3"
+                    );
+                    let mut statement = c.prepare(&sql).map_err(|_| "storage")?;
+                    let mut rows = statement
+                        .query(params![id, cursor_sql, budget.work])
+                        .map_err(|_| "storage")?;
+                    while let Some(row) = rows.next().map_err(|_| "budget_exhausted")? {
+                        edge_candidates.push((
+                            row.get::<_, i64>(0).map_err(|_| "storage")?,
+                            row.get::<_, i64>(1).map_err(|_| "storage")?,
+                        ));
+                    }
+                } else {
+                    let sql = if self.session.policy.no_show_inactive {
+                        let idx = if column == "from_id" {
+                            "canonical_edges_from_active_idx"
+                        } else {
+                            "canonical_edges_to_active_idx"
+                        };
+                        format!(
+                            "SELECT rowid,write_cursor FROM canonical_edges INDEXED BY {idx} \
+                             WHERE {column}=?1 AND superseded_at IS NULL ORDER BY rowid LIMIT ?2"
+                        )
+                    } else {
+                        format!(
+                            "SELECT rowid,write_cursor FROM canonical_edges INDEXED BY canonical_edges_{column}_idx \
+                             WHERE {column}=?1 ORDER BY rowid LIMIT ?2"
+                        )
+                    };
+                    let mut statement = c.prepare(&sql).map_err(|_| "storage")?;
+                    let mut rows =
+                        statement.query(params![id, budget.work]).map_err(|_| "storage")?;
+                    while let Some(row) = rows.next().map_err(|_| "budget_exhausted")? {
+                        edge_candidates.push((
+                            row.get::<_, i64>(0).map_err(|_| "storage")?,
+                            row.get::<_, i64>(1).map_err(|_| "storage")?,
+                        ));
+                    }
+                }
+                for (rowid, write_cursor) in edge_candidates {
                     if std::time::Instant::now() >= deadline || !budget.charge() {
                         budget.partial = true;
                         break;
                     }
                     budget.incident += 1;
-                    let locator = Self::graph_locator(
-                        &c,
-                        Class::Edge,
-                        row.get(0).map_err(|_| "storage")?,
-                        row.get(1).map_err(|_| "storage")?,
-                    )?;
+                    let locator = Self::graph_locator(&c, Class::Edge, rowid, write_cursor)?;
                     if edges.contains_key(&key(&locator)) {
                         continue;
                     }
@@ -279,25 +562,59 @@ impl Reader {
                 break;
             }
         }
-        let (candidates, mut resolved) =
-            Self::graph_scan(&c, Class::Node, &identities, &mut budget)?;
-        for locator in candidates {
-            if nodes.contains_key(&key(&locator)) {
-                continue;
-            }
-            if let Some(record) = self.graph_record(&c, &locator, &mut budget)? {
-                if !budget.include(&record, nodes.len() + edges.len()) {
+        let mut resolved = true;
+        if let Some(cursor) = resolved_cursor {
+            let cursor_sql = as_of_sql_i64(cursor);
+            for id in &identities {
+                if std::time::Instant::now() >= deadline {
                     resolved = false;
+                    budget.partial = true;
                     break;
                 }
-                if let Some(id) = Self::graph_text(&c, &locator, "logical_id")? {
-                    exact_ids.insert(key(&locator), id);
+                let Some(locator) = Self::historical_node_at(&c, id, cursor_sql)? else {
+                    continue;
+                };
+                if nodes.contains_key(&key(&locator)) {
+                    continue;
                 }
-                nodes.insert(key(&locator), record);
-            } else {
-                resolved = false;
+                if let Some(record) = self.graph_record(&c, &locator, &mut budget)? {
+                    if !budget.include(&record, nodes.len() + edges.len()) {
+                        resolved = false;
+                        break;
+                    }
+                    exact_ids.insert(key(&locator), id.clone());
+                    nodes.insert(key(&locator), record);
+                } else {
+                    resolved = false;
+                }
+            }
+        } else {
+            let (candidates, complete) =
+                Self::graph_scan(&c, Class::Node, &identities, &mut budget)?;
+            resolved = complete;
+            for locator in candidates {
+                if nodes.contains_key(&key(&locator)) {
+                    continue;
+                }
+                if let Some(record) = self.graph_record(&c, &locator, &mut budget)? {
+                    if !budget.include(&record, nodes.len() + edges.len()) {
+                        resolved = false;
+                        break;
+                    }
+                    if let Some(id) = Self::graph_text(&c, &locator, "logical_id")? {
+                        exact_ids.insert(key(&locator), id);
+                    }
+                    nodes.insert(key(&locator), record);
+                } else {
+                    resolved = false;
+                }
             }
         }
+        let endpoint_meaning = if resolved_cursor.is_some() {
+            "logical_endpoint; resolved_as_of_write_cursor"
+        } else {
+            "logical_endpoint; observed_retained_candidates_not_historical_membership"
+        };
         let mut endpoints = BTreeMap::new();
         for id in identities {
             let targets = exact_ids
@@ -315,7 +632,7 @@ impl Reader {
                 }
             };
             let (preview, _) = utf8_prefix(id.as_bytes(), 4096)?;
-            endpoints.insert(id.clone(),json!({"key":format!("endpoint:{}",endpoints.len()),"identity":preview,"identity_complete":id.len()<=4096,"resolution":resolution,"targets":targets,"meaning":"logical_endpoint; observed_retained_candidates_not_historical_membership"}));
+            endpoints.insert(id.clone(),json!({"key":format!("endpoint:{}",endpoints.len()),"identity":preview,"identity_complete":id.len()<=4096,"resolution":resolution,"targets":targets,"meaning":endpoint_meaning}));
         }
         let mut output = vec![];
         for (_, (mut edge, from, to)) in edges {
@@ -323,7 +640,7 @@ impl Reader {
             edge["to"] = endpoints[&to].clone();
             output.push(edge);
         }
-        let mut result = json!({"status":if budget.partial{"partial"}else{"complete"},"nodes":nodes.into_values().collect::<Vec<_>>(),"edges":output,"seed":{"handle":handle,"key":key(&root)},"context":Self::finished(context),"scope":{"route":"stored_adjacency","direction":direction,"kind":kind,"depth":depth,"depth_origin":"each_explicit_expansion_anchor","examined_links":budget.incident,"work_units":1000-budget.work,"examined_canonical_rows":budget.scanned,"object_cap":200,"examined_link_cap":1000,"row_cap":100000,"key_byte_cap":16*1024*1024,"response_byte_cap":RESPONSE,"layout":"presentation_only","absence_cause":"undetermined","endpoint_resolution_complete":resolved,"policy":self.session.policy}});
+        let mut result = json!({"status":if budget.partial{"partial"}else{"complete"},"nodes":nodes.into_values().collect::<Vec<_>>(),"edges":output,"seed":{"handle":seed_handle,"key":seed_key},"query_context":{"route":"stored_adjacency","as_of":as_of_meta},"context":Self::finished(context),"scope":{"route":"stored_adjacency","direction":direction,"kind":kind,"depth":depth,"as_of":as_of_meta,"depth_origin":"each_explicit_expansion_anchor","examined_links":budget.incident,"work_units":1000-budget.work,"examined_canonical_rows":budget.scanned,"object_cap":200,"examined_link_cap":1000,"row_cap":100000,"key_byte_cap":16*1024*1024,"response_byte_cap":RESPONSE,"layout":"presentation_only","absence_cause":"undetermined","endpoint_resolution_complete":resolved,"policy":self.session.policy}});
         while serde_json::to_vec(&result).map_err(|_| "storage")?.len() > RESPONSE {
             result["status"] = json!("partial");
             result["scope"]["endpoint_resolution_complete"] = json!(false);
@@ -374,8 +691,13 @@ impl Reader {
         let c = self.session.connection()?;
         let context = self.context(&c)?;
         let mut budget = Budget::new();
-        let (mut record, policy) =
-            Self::summary_fields_budget(&c, &root, root.class.fields(), &mut budget.work)?;
+        let (mut record, policy) = Self::summary_fields_budget(
+            &c,
+            &root,
+            root.class.fields(),
+            Some(self.session.policy),
+            &mut budget.work,
+        )?;
         if !self.session.policy.permits(policy) {
             return Err("refused");
         }
@@ -450,11 +772,12 @@ impl Reader {
         let mut source_max = 0u64;
         let mut key_max = 0u64;
         for (table, columns) in [
-            ("canonical_nodes", &["body", "kind", "logical_id", "source_id"][..]),
+            ("canonical_nodes", &["body", "properties", "kind", "logical_id", "source_id"][..]),
             (
                 "canonical_edges",
                 &[
                     "body",
+                    "properties",
                     "kind",
                     "logical_id",
                     "source_id",
@@ -500,20 +823,24 @@ impl Reader {
                     return Err("budget_exhausted");
                 }
                 let mut metadata = 0u64;
+                let mut node_payload = 0u64;
+                let mut edge_payload = 0u64;
                 for index in 0..columns.len() {
                     let n: u64 = row.get(index).map_err(|_| "storage")?;
                     total = total.checked_add(n + 128).ok_or("budget_exhausted")?;
-                    if index == 0 && table == "canonical_nodes" {
-                        node_max = node_max.max(n);
-                        if row.get::<_, bool>(columns.len()).map_err(|_| "storage")? {
+                    if (index == 0 || index == 1) && table == "canonical_nodes" {
+                        node_payload = node_payload.checked_add(n).ok_or("budget_exhausted")?;
+                        if index == 0 && row.get::<_, bool>(columns.len()).map_err(|_| "storage")? {
                             source_max = source_max.max(n);
                         }
-                    } else if index == 0 && table == "canonical_edges" {
-                        edge_max = edge_max.max(n);
+                    } else if (index == 0 || index == 1) && table == "canonical_edges" {
+                        edge_payload = edge_payload.checked_add(n).ok_or("budget_exhausted")?;
                     } else {
                         metadata = metadata.checked_add(n).ok_or("budget_exhausted")?;
                     }
                 }
+                node_max = node_max.max(node_payload);
+                edge_max = edge_max.max(edge_payload);
                 key_max = key_max.max(metadata);
                 if total > 32 * 1024 * 1024 {
                     return Err("budget_exhausted");
@@ -529,12 +856,23 @@ impl Reader {
             json!({"scope":"before_native_call; separate_read","rows":count,"scanned_bytes":total,"charged_bytes":charged,"byte_cap":64*1024*1024,"source_hydration_multiplicity":100,"target_body_multiplicity":50,"terminal_body_multiplicity":50,"whole_payload_preload":false,"context":Self::finished(context)}),
         )
     }
+    #[allow(dead_code)]
     pub(crate) fn graph_serving(
         &mut self,
         handle: &str,
         direction: Direction,
         kind: Option<String>,
         depth: usize,
+    ) -> Result<Value, &'static str> {
+        self.graph_serving_as_of(handle, direction, kind, depth, AsOf::Current)
+    }
+    pub(crate) fn graph_serving_as_of(
+        &mut self,
+        handle: &str,
+        direction: Direction,
+        kind: Option<String>,
+        depth: usize,
+        as_of: AsOf,
     ) -> Result<Value, &'static str> {
         use fathomdb_engine::{
             GraphExpandRequestV1, GraphReadContextV1, GraphSeedV1, ReadContextV1, ReadView,
@@ -550,7 +888,8 @@ impl Reader {
         let id = {
             let c = self.session.connection()?;
             let mut work = 1000;
-            let (_, p) = Self::summary_fields_budget(&c, &seed, seed.class.fields(), &mut work)?;
+            let (_, p) =
+                Self::summary_fields_budget(&c, &seed, seed.class.fields(), None, &mut work)?;
             if !self.session.policy.permits(p) {
                 return Err("refused");
             }
@@ -565,40 +904,57 @@ impl Reader {
                     .map_err(|_| "native_query_refused")?,
             )
             .map_err(|_| "native_query_refused")?;
+        let mut expand_request = GraphExpandRequestV1::new(
+            GraphSeedV1::Explicit {
+                schema_version: 1,
+                logical_ids: vec![fathomdb_engine::IdSpace::logical(id.clone())],
+            },
+            match direction {
+                Direction::Incoming => TraversalDirection::Incoming,
+                Direction::Outgoing => TraversalDirection::Outgoing,
+                Direction::Both => TraversalDirection::Both,
+            },
+            GraphReadContextV1::Frozen { schema_version: 1, context: frozen.clone() },
+            depth as u32,
+            50,
+            1000,
+        )
+        .with_edge_kinds(kind.clone().into_iter().collect())
+        .with_explanation(true)
+        .with_evidence(true);
+        expand_request = match as_of {
+            AsOf::Current => expand_request,
+            AsOf::WriteCursor(cursor) => expand_request.with_as_of_write_cursor(cursor),
+            AsOf::EpochMs(epoch_ms) => expand_request.with_as_of_epoch_ms(epoch_ms),
+        };
         let started = crate::session::epoch_ms();
-        let result = self
-            .session
-            .engine
-            .graph_expand(
-                &GraphExpandRequestV1::new(
-                    GraphSeedV1::Explicit {
-                        schema_version: 1,
-                        logical_ids: vec![fathomdb_engine::IdSpace::logical(id.clone())],
-                    },
-                    match direction {
-                        Direction::Incoming => TraversalDirection::Incoming,
-                        Direction::Outgoing => TraversalDirection::Outgoing,
-                        Direction::Both => TraversalDirection::Both,
-                    },
-                    GraphReadContextV1::Frozen { schema_version: 1, context: frozen.clone() },
-                    depth as u32,
-                    50,
-                    1000,
-                )
-                .with_edge_kinds(kind.clone().into_iter().collect())
-                .with_explanation(true)
-                .with_evidence(true),
-            )
-            .map_err(|_| "native_query_refused")?;
+        let expand_result = self.session.engine.graph_expand(&expand_request);
         let ended = crate::session::epoch_ms();
         let c = self.session.connection()?;
         let context = self.context(&c)?;
+        let resolved_cursor = Self::resolve_as_of_cursor(&c, as_of)?;
+        let as_of_meta = as_of_metadata(as_of, resolved_cursor);
         let mut budget = Budget::new();
         let (_, seed_policy) =
-            Self::summary_fields_budget(&c, &seed, seed.class.fields(), &mut budget.work)?;
+            Self::summary_fields_budget(&c, &seed, seed.class.fields(), None, &mut budget.work)?;
         if !self.session.policy.permits(seed_policy) {
             return Err("refused");
         }
+        let result = match expand_result {
+            Ok(result) => result,
+            Err(fathomdb_engine::EngineError::GraphExpansion(err))
+                if as_of != AsOf::Current
+                    && err.reason
+                        == fathomdb_engine::GraphExpansionErrorReasonV1::GraphSeedUnavailable =>
+            {
+                let value = json!({"status":"complete","items":[],"admission":admission,"request":{"seed_kind":"explicit_logical; not_exact_historical_revision","seed_logical_id":id,"seed_reference":{"class":"node","key":key(&seed),"handle":handle},"direction":direction,"kind":kind,"depth":depth,"as_of":as_of_meta,"result_limit":50,"max_work_units":1000},"query_context":{"route":"engine_frozen_graph_expand","snapshot":"native_frozen_graph_expand","as_of":as_of_meta,"read_started_epoch_ms":started.to_string(),"read_ended_epoch_ms":ended.to_string(),"effective_valid_at":frozen.effective_valid_at.to_string(),"frozen_token":frozen.token,"work_units":0,"complete":true,"read_mode":"Frozen","correlation_id":null,"projection_origin":null,"projection_readiness":null,"seed_absent_at_as_of":true},"context":Self::finished(context),"scope":{"route":"actual_serving_graph_evidence","as_of":as_of_meta,"native_returned":0,"returned":0,"withheld":0,"hydration_snapshot":"separate_later_policy_read","absence_cause":"seed_absent_at_as_of","rank":"not_applicable","policy":self.session.policy}});
+                if serde_json::to_vec(&value).map_err(|_| "storage")?.len() > RESPONSE {
+                    return Err("budget_exhausted");
+                }
+                return Ok(value);
+            }
+            Err(_) => return Err("native_query_refused"),
+        };
         let mut items = vec![];
         let mut withheld = 0;
         let evidence = result.evidence.as_ref().ok_or("native_evidence_unavailable")?;
@@ -611,12 +967,25 @@ impl Reader {
             let mut origins = vec![];
             let mut allowed = true;
             for logical in [&target.origin.seed_logical_id, &target.origin.predecessor_logical_id] {
-                let row:Option<(i64,i64)>=c.query_row("SELECT rowid,write_cursor FROM canonical_nodes INDEXED BY canonical_nodes_logical_active_idx WHERE logical_id=?1 AND superseded_at IS NULL",[logical],|r|Ok((r.get(0)?,r.get(1)?))).optional().map_err(|_|"storage")?;
-                let Some((rowid, cursor)) = row else {
+                let locator = if let Some(cursor) = resolved_cursor {
+                    // P4-13: lift INDEXED BY canonical_nodes_logical_active_idx in historical mode.
+                    Self::historical_node_at(&c, logical, as_of_sql_i64(cursor))?
+                } else {
+                    let row: Option<(i64, i64)> = c
+                        .query_row(
+                            "SELECT rowid,write_cursor FROM canonical_nodes INDEXED BY canonical_nodes_logical_active_idx WHERE logical_id=?1 AND superseded_at IS NULL",
+                            [logical],
+                            |r| Ok((r.get(0)?, r.get(1)?)),
+                        )
+                        .optional()
+                        .map_err(|_| "storage")?;
+                    row.map(|(rowid, cursor)| Self::graph_locator(&c, Class::Node, rowid, cursor))
+                        .transpose()?
+                };
+                let Some(locator) = locator else {
                     allowed = false;
                     break;
                 };
-                let locator = Self::graph_locator(&c, Class::Node, rowid, cursor)?;
                 if let Some(record) = self.graph_record(&c, &locator, &mut budget)? {
                     origins.push(record);
                 } else {
@@ -656,14 +1025,17 @@ impl Reader {
                 .as_ref()
                 .and_then(|e| e.per_target.iter().find(|v| v.target_index == index as u32));
             let (payload_text, payload_bytes) = utf8_prefix(target.body.as_bytes(), 4096)?;
-            let item = json!({"payload":{"text":payload_text,"total_bytes":target.body.len().to_string(),"complete":payload_bytes==target.body.len(),"scope":"native_frozen_graph_expand"},"target":target_record,"terminal_edge":edge,"origin_records":origins,"evidence":{"target_revision":sidecar.target_artifact_revision_id.as_str(),"terminal_edge_revision":sidecar.terminal_edge_artifact_revision_id.as_str(),"target_reference":sidecar.target_evidence_ref.as_str(),"edge_reference":sidecar.terminal_edge_evidence_ref.as_str(),"hop_count":target.origin.hop_count,"terminal_direction":format!("{:?}",target.origin.terminal_direction),"lifecycle":explanation.map(|e|format!("{:?}",e.lifecycle_state)),"dependency":explanation.map(|e|format!("{:?}",e.dependency_state)),"scope":"actual_frozen_selected_artifacts"}});
+            let target_properties = property_map_json(target.properties.as_ref())?;
+            let terminal_edge_properties =
+                property_map_json(target.origin.terminal_edge_properties.as_ref())?;
+            let item = json!({"payload":{"text":payload_text,"total_bytes":target.body.len().to_string(),"complete":payload_bytes==target.body.len(),"properties":target_properties,"terminal_edge_properties":terminal_edge_properties,"scope":"native_frozen_graph_expand"},"target":target_record,"terminal_edge":edge,"origin_records":origins,"evidence":{"target_revision":sidecar.target_artifact_revision_id.as_str(),"terminal_edge_revision":sidecar.terminal_edge_artifact_revision_id.as_str(),"target_reference":sidecar.target_evidence_ref.as_str(),"edge_reference":sidecar.terminal_edge_evidence_ref.as_str(),"hop_count":target.origin.hop_count,"terminal_direction":format!("{:?}",target.origin.terminal_direction),"lifecycle":explanation.map(|e|format!("{:?}",e.lifecycle_state)),"dependency":explanation.map(|e|format!("{:?}",e.dependency_state)),"scope":"actual_frozen_selected_artifacts"}});
             if !budget.include(&item, items.len() * 4) {
                 break;
             }
             items.push(item);
         }
         let explanation = result.explanation.as_ref();
-        let value = json!({"status":if budget.partial{"partial"}else{"complete"},"items":items,"admission":admission,"request":{"seed_kind":"explicit_logical; not_exact_historical_revision","seed_logical_id":id,"seed_reference":{"class":"node","key":key(&seed),"handle":handle},"direction":direction,"kind":kind,"depth":depth,"result_limit":50,"max_work_units":1000},"query_context":{"route":"engine_frozen_graph_expand","snapshot":"native_frozen_graph_expand","read_started_epoch_ms":started.to_string(),"read_ended_epoch_ms":ended.to_string(),"effective_valid_at":frozen.effective_valid_at.to_string(),"frozen_token":frozen.token,"work_units":result.work_units,"complete":result.complete,"read_mode":explanation.map(|e|format!("{:?}",e.read_mode)),"correlation_id":explanation.map(|e|&e.correlation_id),"projection_origin":explanation.map(|e|format!("{:?}",e.projection_origin)),"projection_readiness":explanation.map(|e|format!("{:?}",e.projection_readiness))},"context":Self::finished(context),"scope":{"route":"actual_serving_graph_evidence","native_returned":result.targets.len(),"returned":items.len(),"withheld":withheld,"hydration_snapshot":"separate_later_policy_read","absence_cause":"undetermined","rank":"not_applicable","policy":self.session.policy}});
+        let value = json!({"status":if budget.partial{"partial"}else{"complete"},"items":items,"admission":admission,"request":{"seed_kind":"explicit_logical; not_exact_historical_revision","seed_logical_id":id,"seed_reference":{"class":"node","key":key(&seed),"handle":handle},"direction":direction,"kind":kind,"depth":depth,"as_of":as_of_meta,"result_limit":50,"max_work_units":1000},"query_context":{"route":"engine_frozen_graph_expand","snapshot":"native_frozen_graph_expand","as_of":as_of_meta,"read_started_epoch_ms":started.to_string(),"read_ended_epoch_ms":ended.to_string(),"effective_valid_at":frozen.effective_valid_at.to_string(),"frozen_token":frozen.token,"work_units":result.work_units,"complete":result.complete,"read_mode":explanation.map(|e|format!("{:?}",e.read_mode)),"correlation_id":explanation.map(|e|&e.correlation_id),"projection_origin":explanation.map(|e|format!("{:?}",e.projection_origin)),"projection_readiness":explanation.map(|e|format!("{:?}",e.projection_readiness))},"context":Self::finished(context),"scope":{"route":"actual_serving_graph_evidence","as_of":as_of_meta,"native_returned":result.targets.len(),"returned":items.len(),"withheld":withheld,"hydration_snapshot":"separate_later_policy_read","absence_cause":"undetermined","rank":"not_applicable","policy":self.session.policy}});
         if serde_json::to_vec(&value).map_err(|_| "storage")?.len() > RESPONSE {
             return Err("budget_exhausted");
         }

@@ -307,10 +307,7 @@ fn serving_reports_embedder_absent_degradation_rejects_ownerless_fts_and_propaga
 #[test]
 fn cached_cpu_candle013_serving_preserves_equal_body_records_reports_timeout_and_validates_open_spans(
 ) {
-    use fathomdb_engine::{
-        EmbedderChoice, Engine, EngineConfig, PreparedWrite, ProjectionRole, ProjectionSpec,
-        ProjectionVector, SourceId,
-    };
+    use fathomdb_engine::{EmbedderChoice, Engine, EngineConfig, ProjectionRole};
     let cache_root = std::env::var_os("XDG_CACHE_HOME")
         .map(std::path::PathBuf::from)
         .or_else(|| std::env::var_os("HOME").map(|h| std::path::PathBuf::from(h).join(".cache")))

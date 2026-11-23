@@ -29,7 +29,7 @@ impl Reader {
         }
         let c = self.session.connection()?;
         let context = self.context(&c)?;
-        let (record, classification) = Self::summary(&c, &locator)?;
+        let (record, classification) = Self::summary(&c, &locator, self.session.policy)?;
         if !self.session.policy.permits(classification) {
             return Err("refused");
         }
@@ -203,7 +203,7 @@ impl Reader {
         }
         let c = self.session.connection()?;
         let context = self.context(&c)?;
-        let (seed_record, classification) = Self::summary(&c, &locator)?;
+        let (seed_record, classification) = Self::summary(&c, &locator, self.session.policy)?;
         if !self.session.policy.permits(classification) {
             return Err("refused");
         }
@@ -310,7 +310,7 @@ impl Reader {
         for (rank, item) in heap.into_sorted_vec().into_iter().enumerate() {
             let mut origins = vec![];
             for locator in item.origins {
-                let (record, classification) = Self::summary(&c, &locator)?;
+                let (record, classification) = Self::summary(&c, &locator, self.session.policy)?;
                 if !self.session.policy.permits(classification) {
                     return Err("refused");
                 }

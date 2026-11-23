@@ -1027,7 +1027,7 @@ dependencies = [
 
 [[package]]
 name = "fathomdb-inspector"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "fathomdb-engine",
  "fathomdb-schema",

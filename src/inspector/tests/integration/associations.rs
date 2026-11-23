@@ -294,3 +294,169 @@ fn materialization_origin_reference_navigates_to_the_exact_retained_document() {
     );
     r.session.close().unwrap();
 }
+
+#[test]
+fn node_and_edge_property_values_and_bounded_catalog_respect_entity_class_and_policy() {
+    use fathomdb_engine::{
+        EmbedderChoice, Engine, PreparedWrite, ProjectionRole, ProjectionSpec, PropertyEntityClass,
+        PropertyMap, PropertyValue, SourceId,
+    };
+    let dir = tempfile::tempdir().unwrap();
+    let path = database(dir.path());
+    let opened = Engine::open_with_choice(&path, EmbedderChoice::None).unwrap();
+    opened
+        .engine
+        .configure_projections(
+            &[
+                ProjectionSpec {
+                    name: "category".into(),
+                    roles: [ProjectionRole::Filterable].into_iter().collect(),
+                    fts: None,
+                    vector: None,
+                    source: None,
+                    entity_class: PropertyEntityClass::Node,
+                },
+                ProjectionSpec {
+                    name: "relation_weight".into(),
+                    roles: [ProjectionRole::Filterable].into_iter().collect(),
+                    fts: None,
+                    vector: None,
+                    source: None,
+                    entity_class: PropertyEntityClass::Edge,
+                },
+            ],
+            &[],
+        )
+        .unwrap();
+    let mut node_props_expired = PropertyMap::new();
+    node_props_expired.insert("category".into(), PropertyValue::String("expired".into()));
+    let mut node_props_current = PropertyMap::new();
+    node_props_current.insert("category".into(), PropertyValue::String("current".into()));
+    let mut edge_props = PropertyMap::new();
+    edge_props.insert("relation_weight".into(), PropertyValue::Int(9007199254740993));
+    opened
+        .engine
+        .write(&[PreparedWrite::Node {
+            kind: "document".into(),
+            body: "expired window".into(),
+            source_id: SourceId::new("fixture:cpv").unwrap(),
+            logical_id: Some("cpv-expired".into()),
+            state: fathomdb_engine::InitialState::Active,
+            reason: None,
+            valid_from: None,
+            valid_until: Some(1),
+            properties: Some(node_props_expired),
+        }])
+        .unwrap();
+    opened
+        .engine
+        .write(&[
+            PreparedWrite::Node {
+                kind: "document".into(),
+                body: "v2".into(),
+                source_id: SourceId::new("fixture:cpv").unwrap(),
+                logical_id: Some("cpv-node".into()),
+                state: fathomdb_engine::InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                properties: Some(node_props_current),
+            },
+            PreparedWrite::Edge {
+                kind: "links".into(),
+                from: "cpv-node".into(),
+                to: "alpha".into(),
+                source_id: SourceId::new("fixture:cpv").unwrap(),
+                logical_id: Some("cpv-edge".into()),
+                body: Some("edge".into()),
+                t_valid: None,
+                t_invalid: None,
+                confidence: None,
+                extractor_model_id: None,
+                temporal_fallback: None,
+                properties: Some(edge_props),
+            },
+        ])
+        .unwrap();
+    opened.engine.close().unwrap();
+    drop(opened);
+
+    let mut r = Reader::new(Session::attach(&path, Policy::default()).unwrap());
+    let catalog = r.catalog().unwrap();
+    assert_eq!(catalog["counts"]["projection"]["property_value_entries"], "3");
+    assert_eq!(catalog["counts"]["projection"]["property_value_exact"], true);
+    assert!(
+        catalog["counts"]["commit_timestamps"]["entries"].as_str().unwrap().parse::<u64>().unwrap()
+            >= 2
+    );
+    let projections = catalog["projections"].as_array().unwrap();
+    assert!(projections.iter().any(|p| p["name"] == "category" && p["entity_class"] == "node"));
+    assert!(projections
+        .iter()
+        .any(|p| p["name"] == "relation_weight" && p["entity_class"] == "edge"));
+
+    let node_page = r
+        .page(
+            Class::Node,
+            0,
+            20,
+            Filter { identity: Some("cpv-node".into()), ..Default::default() },
+        )
+        .unwrap();
+    let node_h = node_page["items"][0]["handle"].as_str().unwrap();
+    let node_assoc = r.associations(node_h).unwrap();
+    assert!(node_assoc["projections"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|p| p["entity_class"] == "node"));
+    assert!(node_assoc["projections"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|p| p["name"] == "category" && p["materialized_property_value"] == true));
+    assert!(node_assoc["property_values"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|v| v["name"] == "category"
+            && v["value_type"] == "string"
+            && v["value"] == "current"));
+
+    let edge_page = r
+        .page(
+            Class::Edge,
+            0,
+            20,
+            Filter { identity: Some("cpv-edge".into()), ..Default::default() },
+        )
+        .unwrap();
+    let edge_h = edge_page["items"][0]["handle"].as_str().unwrap();
+    let edge_assoc = r.associations(edge_h).unwrap();
+    assert!(edge_assoc["projections"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|p| p["entity_class"] == "edge"));
+    assert!(edge_assoc["projections"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|p| p["name"] == "relation_weight" && p["materialized_property_value"] == true));
+    assert!(edge_assoc["property_values"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|v| v["name"] == "relation_weight"
+            && v["value_type"] == "integer"
+            && v["value"] == "9007199254740993"));
+    r.session.close().unwrap();
+
+    // With --no-show-inactive, superseded cpv-node v1 property value is excluded from catalog count.
+    let mut r_active = Reader::new(
+        Session::attach(&path, Policy { no_show_inactive: true, ..Default::default() }).unwrap(),
+    );
+    let catalog_active = r_active.catalog().unwrap();
+    assert_eq!(catalog_active["counts"]["projection"]["property_value_entries"], "2");
+    r_active.session.close().unwrap();
+}

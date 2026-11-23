@@ -51,6 +51,8 @@ enum Request {
     },
     Tree {
         handle: String,
+        #[serde(default)]
+        field: Option<String>,
         start: String,
         after: Option<String>,
     },
@@ -59,6 +61,10 @@ enum Request {
         direction: crate::storage::graph::Direction,
         kind: Option<String>,
         depth: usize,
+        #[serde(default)]
+        as_of_write_cursor: Option<String>,
+        #[serde(default)]
+        as_of_epoch_ms: Option<String>,
     },
     Investigate {
         handle: String,
@@ -69,6 +75,10 @@ enum Request {
         kind: Option<String>,
         depth: usize,
         expanded: Vec<String>,
+        #[serde(default)]
+        as_of_write_cursor: Option<String>,
+        #[serde(default)]
+        as_of_epoch_ms: Option<String>,
     },
     Associations {
         handle: String,
@@ -187,17 +197,41 @@ fn dispatch(reader: &mut Reader, value: Value) -> Result<Value, &'static str> {
         Request::Chunk { handle, field, offset, limit } => {
             reader.chunk(&handle, &field, offset.parse().map_err(|_| "invalid_range")?, limit)
         }
-        Request::Tree { handle, start, after } => reader.tree(
+        Request::Tree { handle, field, start, after } => reader.tree_field(
             &handle,
+            field.as_deref(),
             start.parse().map_err(|_| "invalid_range")?,
             after.map(|v| v.parse().map_err(|_| "invalid_range")).transpose()?,
         ),
-        Request::GraphServing { handle, direction, kind, depth } => {
-            reader.graph_serving(&handle, direction, kind, depth)
+        Request::GraphServing {
+            handle,
+            direction,
+            kind,
+            depth,
+            as_of_write_cursor,
+            as_of_epoch_ms,
+        } => {
+            let as_of = crate::storage::graph::AsOf::parse(
+                as_of_write_cursor.as_deref(),
+                as_of_epoch_ms.as_deref(),
+            )?;
+            reader.graph_serving_as_of(&handle, direction, kind, depth, as_of)
         }
         Request::Investigate { handle } => reader.investigate(&handle),
-        Request::Graph { handle, direction, kind, depth, expanded } => {
-            reader.graph(&handle, direction, kind, depth, expanded)
+        Request::Graph {
+            handle,
+            direction,
+            kind,
+            depth,
+            expanded,
+            as_of_write_cursor,
+            as_of_epoch_ms,
+        } => {
+            let as_of = crate::storage::graph::AsOf::parse(
+                as_of_write_cursor.as_deref(),
+                as_of_epoch_ms.as_deref(),
+            )?;
+            reader.graph_as_of(&handle, direction, kind, depth, expanded, as_of)
         }
         Request::Associations { handle } => reader.associations(&handle),
         Request::Lexical { route, query, property, filter, view, limit } => {

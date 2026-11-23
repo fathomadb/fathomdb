@@ -6,13 +6,14 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 use fathomdb_engine::{
-    ArtifactRevisionId, CanonicalHash, Engine, EngineError, GraphExpandRequestV1,
-    GraphExpansionErrorReasonV1, GraphReadContextV1, GraphSeedV1, IdSpace, InitialState,
-    LifecycleState, PreparedWrite, ProjectionRole, ProjectionSpec, PropertyComparisonOp,
-    PropertyEntityClass, PropertyMap, PropertyPredicate, PropertyValue, ProvenancedEdgeV1,
-    ProvenancedNodeV1, ReadContextV1, ReadView, SearchFilter, SourceDependencyRegistrationV1,
-    SourceId, SourceLocator, SourceRevisionId, SourceVersionId, StructuralDependencyStateV1,
-    TraversalDirection, WriteProvenanceV1,
+    ArtifactRevisionId, CanonicalHash, Engine, EngineError, EvidenceArtifactLifecycleV1,
+    EvidenceErrorReasonV1, GraphEvidenceArtifactV1, GraphEvidenceResolveRequestV1,
+    GraphExpandRequestV1, GraphExpansionErrorReasonV1, GraphReadContextV1, GraphSeedV1, IdSpace,
+    InitialState, LifecycleState, PreparedWrite, ProjectionRole, ProjectionSpec,
+    PropertyComparisonOp, PropertyEntityClass, PropertyMap, PropertyPredicate, PropertyValue,
+    ProvenancedEdgeV1, ProvenancedNodeV1, ReadContextV1, ReadView, SearchFilter,
+    SourceDependencyRegistrationV1, SourceId, SourceLocator, SourceRevisionId, SourceVersionId,
+    StructuralDependencyStateV1, TraversalDirection, WriteProvenanceV1,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use proptest::prelude::*;
@@ -1694,5 +1695,1178 @@ proptest! {
         }
 
         engine.close().unwrap();
+    }
+}
+
+fn assert_evidence_unavailable(err: EngineError) {
+    match err {
+        EngineError::Evidence(e) => {
+            assert_eq!(
+                e.reason,
+                EvidenceErrorReasonV1::EvidenceUnavailable,
+                "expected EvidenceUnavailable, got {e:?}"
+            );
+        }
+        other => panic!("expected EngineError::Evidence(EvidenceUnavailable), got {other:?}"),
+    }
+}
+
+#[test]
+fn ac31_40_06_historical_frozen_evidence_resolves_superseded_self_sourced_and_derived_artifacts() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("hist-evidence{SQLITE_SUFFIX}"));
+    let engine = Engine::open(&path).unwrap().engine;
+
+    let src_v1_body = "canonical source body v1";
+    let self_v1_body = "self-sourced target body v1";
+    let derived_v1 = |rev: &str| {
+        WriteProvenanceV1::derived(
+            ArtifactRevisionId::new(rev).unwrap(),
+            SourceVersionId::new("src-v1").unwrap(),
+            SourceRevisionId::new("src-r1").unwrap(),
+            SourceLocator::whole_body(),
+            CanonicalHash::sha256(sha256_hex(src_v1_body)).unwrap(),
+        )
+    };
+
+    let c1 = write_cursor(
+        &engine,
+        &[
+            PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+                logical_id: Some("src-doc".into()),
+                kind: "document".into(),
+                body: src_v1_body.into(),
+                source_id: SourceId::new("owner").unwrap(),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                provenance: WriteProvenanceV1::canonical(
+                    ArtifactRevisionId::new("src-r1").unwrap(),
+                    SourceVersionId::new("src-v1").unwrap(),
+                ),
+                properties: Some(BTreeMap::from([("rev".into(), PropertyValue::Int(1))])),
+            }),
+            PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+                logical_id: Some("root".into()),
+                kind: "claim".into(),
+                body: "root v1".into(),
+                source_id: SourceId::new("owner").unwrap(),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                provenance: derived_v1("root-r1"),
+                properties: None,
+            }),
+            PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+                logical_id: Some("self-target".into()),
+                kind: "document".into(),
+                body: self_v1_body.into(),
+                source_id: SourceId::new("self-owner").unwrap(),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                provenance: WriteProvenanceV1::canonical(
+                    ArtifactRevisionId::new("self-target-r1").unwrap(),
+                    SourceVersionId::new("self-v1").unwrap(),
+                ),
+                properties: Some(BTreeMap::from([(
+                    "ver".into(),
+                    PropertyValue::String("v1".into()),
+                )])),
+            }),
+            PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+                logical_id: Some("derived-target".into()),
+                kind: "claim".into(),
+                body: "derived target v1".into(),
+                source_id: SourceId::new("owner").unwrap(),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                provenance: derived_v1("derived-target-r1"),
+                properties: Some(BTreeMap::from([(
+                    "ver".into(),
+                    PropertyValue::String("v1".into()),
+                )])),
+            }),
+            PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+                logical_id: Some("stable-target".into()),
+                kind: "claim".into(),
+                body: "stable target v1".into(),
+                source_id: SourceId::new("owner").unwrap(),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                provenance: derived_v1("stable-target-r1"),
+                properties: None,
+            }),
+            PreparedWrite::ProvenancedEdge(ProvenancedEdgeV1 {
+                logical_id: Some("edge-self".into()),
+                kind: "cites".into(),
+                from: "root".into(),
+                to: "self-target".into(),
+                source_id: SourceId::new("owner").unwrap(),
+                body: None,
+                t_valid: None,
+                t_invalid: None,
+                confidence: Some(0.9),
+                extractor_model_id: None,
+                temporal_fallback: None,
+                provenance: derived_v1("edge-self-r1"),
+                properties: Some(BTreeMap::from([("w".into(), PropertyValue::Int(10))])),
+            }),
+            PreparedWrite::ProvenancedEdge(ProvenancedEdgeV1 {
+                logical_id: Some("edge-derived".into()),
+                kind: "supports".into(),
+                from: "root".into(),
+                to: "derived-target".into(),
+                source_id: SourceId::new("owner").unwrap(),
+                body: None,
+                t_valid: None,
+                t_invalid: None,
+                confidence: Some(0.8),
+                extractor_model_id: None,
+                temporal_fallback: None,
+                provenance: derived_v1("edge-derived-r1"),
+                properties: Some(BTreeMap::from([("w".into(), PropertyValue::Int(20))])),
+            }),
+            PreparedWrite::ProvenancedEdge(ProvenancedEdgeV1 {
+                logical_id: Some("edge-stable".into()),
+                kind: "mentions".into(),
+                from: "root".into(),
+                to: "stable-target".into(),
+                source_id: SourceId::new("owner").unwrap(),
+                body: None,
+                t_valid: None,
+                t_invalid: None,
+                confidence: None,
+                extractor_model_id: None,
+                temporal_fallback: None,
+                provenance: derived_v1("edge-stable-r1"),
+                properties: None,
+            }),
+        ],
+    );
+    let dep_target = engine
+        .register_source_dependency(
+            SourceDependencyRegistrationV1::new("dep-target-1", "src-r1", "derived-target-r1")
+                .unwrap(),
+        )
+        .unwrap();
+    let dep_edge = engine
+        .register_source_dependency(
+            SourceDependencyRegistrationV1::new("dep-edge-1", "src-r1", "edge-derived-r1").unwrap(),
+        )
+        .unwrap();
+
+    // Capture commit timestamp for c1 before superseding.
+    let conn = Connection::open(&path).unwrap();
+    let c1_epoch_ms: i64 = conn
+        .query_row(
+            "SELECT committed_at_ms FROM _fathomdb_commit_timestamps WHERE write_cursor = ?1",
+            [c1 as i64],
+            |row| row.get(0),
+        )
+        .unwrap();
+    drop(conn);
+
+    // Ensure distinct timestamp for batch 2 so as_of_epoch_ms(c1_epoch_ms) resolves strictly to c1.
+    std::thread::sleep(std::time::Duration::from_millis(5));
+
+    // Supersede self-target, derived-target, edge-self, and edge-derived FIRST (so their v1
+    // revisions remain `state = 'active'` with `superseded_at > c1`), then supersede `src-doc`
+    // (`src-r1` -> `src-r2`). Leave stable-target and edge-stable un-superseded.
+    let src_v2_body = "canonical source body v2";
+    let derived_v2 = |rev: &str| {
+        WriteProvenanceV1::derived(
+            ArtifactRevisionId::new(rev).unwrap(),
+            SourceVersionId::new("src-b-v1").unwrap(),
+            SourceRevisionId::new("src-b-r1").unwrap(),
+            SourceLocator::whole_body(),
+            CanonicalHash::sha256(sha256_hex(src_v2_body)).unwrap(),
+        )
+    };
+    write_cursor(
+        &engine,
+        &[
+            PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+                logical_id: Some("src-doc-b".into()),
+                kind: "document".into(),
+                body: src_v2_body.into(),
+                source_id: SourceId::new("owner").unwrap(),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                provenance: WriteProvenanceV1::canonical(
+                    ArtifactRevisionId::new("src-b-r1").unwrap(),
+                    SourceVersionId::new("src-b-v1").unwrap(),
+                ),
+                properties: Some(BTreeMap::from([("rev".into(), PropertyValue::Int(2))])),
+            }),
+            PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+                logical_id: Some("self-target".into()),
+                kind: "document".into(),
+                body: "self-sourced target body v2".into(),
+                source_id: SourceId::new("self-owner").unwrap(),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                provenance: WriteProvenanceV1::canonical(
+                    ArtifactRevisionId::new("self-target-r2").unwrap(),
+                    SourceVersionId::new("self-v2").unwrap(),
+                ),
+                properties: Some(BTreeMap::from([(
+                    "ver".into(),
+                    PropertyValue::String("v2".into()),
+                )])),
+            }),
+            PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+                logical_id: Some("derived-target".into()),
+                kind: "claim".into(),
+                body: "derived target v2".into(),
+                source_id: SourceId::new("owner").unwrap(),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                provenance: derived_v2("derived-target-r2"),
+                properties: Some(BTreeMap::from([(
+                    "ver".into(),
+                    PropertyValue::String("v2".into()),
+                )])),
+            }),
+            PreparedWrite::ProvenancedEdge(ProvenancedEdgeV1 {
+                logical_id: Some("edge-self".into()),
+                kind: "cites".into(),
+                from: "root".into(),
+                to: "self-target".into(),
+                source_id: SourceId::new("owner").unwrap(),
+                body: None,
+                t_valid: None,
+                t_invalid: None,
+                confidence: Some(0.5),
+                extractor_model_id: None,
+                temporal_fallback: None,
+                provenance: derived_v2("edge-self-r2"),
+                properties: Some(BTreeMap::from([("w".into(), PropertyValue::Int(99))])),
+            }),
+            PreparedWrite::ProvenancedEdge(ProvenancedEdgeV1 {
+                logical_id: Some("edge-derived".into()),
+                kind: "supports".into(),
+                from: "root".into(),
+                to: "derived-target".into(),
+                source_id: SourceId::new("owner").unwrap(),
+                body: None,
+                t_valid: None,
+                t_invalid: None,
+                confidence: Some(0.5),
+                extractor_model_id: None,
+                temporal_fallback: None,
+                provenance: derived_v2("edge-derived-r2"),
+                properties: Some(BTreeMap::from([("w".into(), PropertyValue::Int(99))])),
+            }),
+        ],
+    );
+    write_cursor(
+        &engine,
+        &[PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+            logical_id: Some("src-doc".into()),
+            kind: "document".into(),
+            body: src_v2_body.into(),
+            source_id: SourceId::new("owner").unwrap(),
+            state: InitialState::Active,
+            reason: None,
+            valid_from: None,
+            valid_until: None,
+            provenance: WriteProvenanceV1::canonical(
+                ArtifactRevisionId::new("src-r2").unwrap(),
+                SourceVersionId::new("src-v2").unwrap(),
+            ),
+            properties: Some(BTreeMap::from([("rev".into(), PropertyValue::Int(2))])),
+        })],
+    );
+    engine.drain(30_000).unwrap();
+
+    let frozen = engine
+        .freeze_read_context(
+            &ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap(),
+        )
+        .unwrap();
+
+    for req in [
+        GraphExpandRequestV1::new(
+            GraphSeedV1::Explicit {
+                schema_version: 1,
+                logical_ids: vec![IdSpace::logical("root")],
+            },
+            TraversalDirection::Outgoing,
+            GraphReadContextV1::Frozen { schema_version: 1, context: frozen.clone() },
+            1,
+            50,
+            10_000,
+        )
+        .with_evidence(true)
+        .with_as_of_write_cursor(c1),
+        GraphExpandRequestV1::new(
+            GraphSeedV1::Explicit {
+                schema_version: 1,
+                logical_ids: vec![IdSpace::logical("root")],
+            },
+            TraversalDirection::Outgoing,
+            GraphReadContextV1::Frozen { schema_version: 1, context: frozen.clone() },
+            1,
+            50,
+            10_000,
+        )
+        .with_evidence(true)
+        .with_as_of_epoch_ms(c1_epoch_ms),
+    ] {
+        let expanded = engine.graph_expand(&req).unwrap();
+        assert_eq!(expanded.targets.len(), 3);
+        let sidecar = expanded.evidence.as_ref().expect("evidence sidecar must be present");
+        assert_eq!(sidecar.entries.len(), 3);
+
+        let mut by_rev = HashMap::new();
+        for entry in &sidecar.entries {
+            assert_eq!(entry.target_evidence_ref.as_str().len(), 704);
+            assert!(entry.target_evidence_ref.as_str().starts_with("fdbgev1."));
+            assert_eq!(entry.terminal_edge_evidence_ref.as_str().len(), 704);
+            assert!(entry.terminal_edge_evidence_ref.as_str().starts_with("fdbgev1."));
+
+            let resolved_target = engine
+                .resolve_graph_evidence(&GraphEvidenceResolveRequestV1 {
+                    schema_version: 1,
+                    evidence_ref: entry.target_evidence_ref.clone(),
+                    context: frozen.clone(),
+                })
+                .unwrap();
+            let resolved_edge = engine
+                .resolve_graph_evidence(&GraphEvidenceResolveRequestV1 {
+                    schema_version: 1,
+                    evidence_ref: entry.terminal_edge_evidence_ref.clone(),
+                    context: frozen.clone(),
+                })
+                .unwrap();
+            by_rev.insert(
+                resolved_target.artifact_revision_id.as_str().to_string(),
+                (resolved_target, resolved_edge),
+            );
+        }
+
+        // 1. Superseded self-sourced target + superseded derived edge.
+        let (self_t, self_e) = &by_rev["self-target-r1"];
+        assert_eq!(
+            self_t.artifact_lifecycle,
+            EvidenceArtifactLifecycleV1::Node { state: LifecycleState::Active, superseded: true }
+        );
+        assert_eq!(self_t.canonical_source_body, self_v1_body);
+        assert_eq!(self_t.evidence_text, self_v1_body);
+        assert!(self_t.dependency.is_none());
+        match &self_t.artifact {
+            GraphEvidenceArtifactV1::Node { logical_id, body, properties, .. } => {
+                assert_eq!(logical_id, "self-target");
+                assert_eq!(body, self_v1_body);
+                assert_eq!(
+                    properties.as_ref().and_then(|p| p.get("ver")),
+                    Some(&PropertyValue::String("v1".into()))
+                );
+            }
+            other => panic!("expected Node artifact, got {other:?}"),
+        }
+        assert_eq!(self_e.artifact_revision_id.as_str(), "edge-self-r1");
+        assert_eq!(
+            self_e.artifact_lifecycle,
+            EvidenceArtifactLifecycleV1::Edge { superseded: true, valid_at_effective: true }
+        );
+        assert_eq!(self_e.canonical_source_body, src_v1_body);
+
+        // 2. Superseded derived target + superseded derived edge with registered dependencies.
+        let (der_t, der_e) = &by_rev["derived-target-r1"];
+        assert_eq!(
+            der_t.artifact_lifecycle,
+            EvidenceArtifactLifecycleV1::Node { state: LifecycleState::Active, superseded: true }
+        );
+        assert_eq!(der_t.canonical_source_body, src_v1_body);
+        assert_eq!(der_t.dependency.as_ref(), Some(&dep_target));
+        assert_eq!(der_e.artifact_revision_id.as_str(), "edge-derived-r1");
+        assert_eq!(
+            der_e.artifact_lifecycle,
+            EvidenceArtifactLifecycleV1::Edge { superseded: true, valid_at_effective: true }
+        );
+        assert_eq!(der_e.dependency.as_ref(), Some(&dep_edge));
+        match &der_e.artifact {
+            GraphEvidenceArtifactV1::Edge { body, properties, .. } => {
+                assert_eq!(body.as_deref(), None);
+                assert_eq!(
+                    properties.as_ref().and_then(|p| p.get("w")),
+                    Some(&PropertyValue::Int(20))
+                );
+            }
+            other => panic!("expected Edge artifact, got {other:?}"),
+        }
+
+        // 3. Un-superseded target + un-superseded edge (whose source src-r1 WAS superseded!).
+        let (stb_t, stb_e) = &by_rev["stable-target-r1"];
+        assert_eq!(
+            stb_t.artifact_lifecycle,
+            EvidenceArtifactLifecycleV1::Node { state: LifecycleState::Active, superseded: false }
+        );
+        assert_eq!(
+            stb_e.artifact_lifecycle,
+            EvidenceArtifactLifecycleV1::Edge { superseded: false, valid_at_effective: true }
+        );
+        assert_eq!(stb_t.source_revision_id.as_str(), "src-r1");
+    }
+
+    // Empty cursor-0 result set with Query seed + include_evidence: true succeeds cleanly.
+    let empty_req = GraphExpandRequestV1::new(
+        GraphSeedV1::Query { schema_version: 1, text: "root".into(), ranked_limit: 10 },
+        TraversalDirection::Outgoing,
+        GraphReadContextV1::Frozen { schema_version: 1, context: frozen.clone() },
+        1,
+        50,
+        10_000,
+    )
+    .with_evidence(true)
+    .with_as_of_write_cursor(0);
+    let empty_res = engine.graph_expand(&empty_req).unwrap();
+    assert!(empty_res.targets.is_empty());
+    assert!(empty_res.evidence.unwrap().entries.is_empty());
+
+    // Future cursor u64::MAX saturates cleanly and resolves current v2 artifacts (superseded=false).
+    let max_req = GraphExpandRequestV1::new(
+        GraphSeedV1::Explicit { schema_version: 1, logical_ids: vec![IdSpace::logical("root")] },
+        TraversalDirection::Outgoing,
+        GraphReadContextV1::Frozen { schema_version: 1, context: frozen.clone() },
+        1,
+        50,
+        10_000,
+    )
+    .with_edge_kinds(vec!["supports".into()])
+    .with_evidence(true)
+    .with_as_of_write_cursor(u64::MAX);
+    let max_res = engine.graph_expand(&max_req).unwrap();
+    assert_eq!(max_res.targets.len(), 1);
+    let max_entry = &max_res.evidence.unwrap().entries[0];
+    let resolved_max = engine
+        .resolve_graph_evidence(&GraphEvidenceResolveRequestV1 {
+            schema_version: 1,
+            evidence_ref: max_entry.target_evidence_ref.clone(),
+            context: frozen,
+        })
+        .unwrap();
+    assert_eq!(resolved_max.artifact_revision_id.as_str(), "derived-target-r2");
+    assert_eq!(
+        resolved_max.artifact_lifecycle,
+        EvidenceArtifactLifecycleV1::Node { state: LifecycleState::Active, superseded: false }
+    );
+
+    engine.close().unwrap();
+}
+
+#[test]
+fn ac31_40_06_historical_frozen_evidence_enforces_inline_filterable_eligibility_on_target_and_source(
+) {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("hist-evidence-filter{SQLITE_SUFFIX}"));
+    let engine = Engine::open(&path).unwrap().engine;
+
+    engine
+        .configure_projections(
+            &[
+                ProjectionSpec {
+                    name: "tenant".into(),
+                    roles: BTreeSet::from([ProjectionRole::Filterable]),
+                    fts: None,
+                    vector: None,
+                    source: None,
+                    entity_class: PropertyEntityClass::Node,
+                },
+                ProjectionSpec {
+                    name: "score".into(),
+                    roles: BTreeSet::from([ProjectionRole::Filterable]),
+                    fts: None,
+                    vector: None,
+                    source: None,
+                    entity_class: PropertyEntityClass::Node,
+                },
+            ],
+            &[],
+        )
+        .unwrap();
+
+    // Body JSON holds mismatching values; properties override with matching values (properties > body).
+    let src_good_body = r#"{"tenant":"wrong-body","score":1}"#;
+    let src_bad_body = r#"{"tenant":"wrong","score":5}"#;
+    let target_body_v1 = r#"{"tenant":"wrong-body","score":1}"#;
+
+    let derived_good = |rev: &str| {
+        WriteProvenanceV1::derived(
+            ArtifactRevisionId::new(rev).unwrap(),
+            SourceVersionId::new("src-good-v1").unwrap(),
+            SourceRevisionId::new("src-good-r1").unwrap(),
+            SourceLocator::whole_body(),
+            CanonicalHash::sha256(sha256_hex(src_good_body)).unwrap(),
+        )
+    };
+    let derived_bad = |rev: &str| {
+        WriteProvenanceV1::derived(
+            ArtifactRevisionId::new(rev).unwrap(),
+            SourceVersionId::new("src-bad-v1").unwrap(),
+            SourceRevisionId::new("src-bad-r1").unwrap(),
+            SourceLocator::whole_body(),
+            CanonicalHash::sha256(sha256_hex(src_bad_body)).unwrap(),
+        )
+    };
+
+    let matching_props = BTreeMap::from([
+        ("tenant".into(), PropertyValue::String("acme".into())),
+        ("score".into(), PropertyValue::Int(50)),
+    ]);
+    let mismatch_props = BTreeMap::from([
+        ("tenant".into(), PropertyValue::String("other".into())),
+        ("score".into(), PropertyValue::Int(5)),
+    ]);
+
+    let c1 = write_cursor(
+        &engine,
+        &[
+            PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+                logical_id: Some("src-good".into()),
+                kind: "document".into(),
+                body: src_good_body.into(),
+                source_id: SourceId::new("owner-good").unwrap(),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                provenance: WriteProvenanceV1::canonical(
+                    ArtifactRevisionId::new("src-good-r1").unwrap(),
+                    SourceVersionId::new("src-good-v1").unwrap(),
+                ),
+                properties: Some(matching_props.clone()),
+            }),
+            PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+                logical_id: Some("src-bad".into()),
+                kind: "document".into(),
+                body: src_bad_body.into(),
+                source_id: SourceId::new("owner-bad").unwrap(),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                provenance: WriteProvenanceV1::canonical(
+                    ArtifactRevisionId::new("src-bad-r1").unwrap(),
+                    SourceVersionId::new("src-bad-v1").unwrap(),
+                ),
+                properties: Some(mismatch_props.clone()),
+            }),
+            PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+                logical_id: Some("root".into()),
+                kind: "claim".into(),
+                body: target_body_v1.into(),
+                source_id: SourceId::new("owner-good").unwrap(),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                provenance: derived_good("root-r1"),
+                properties: Some(matching_props.clone()),
+            }),
+            PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+                logical_id: Some("target-good".into()),
+                kind: "claim".into(),
+                body: target_body_v1.into(),
+                source_id: SourceId::new("owner-good").unwrap(),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                provenance: derived_good("target-good-r1"),
+                properties: Some(matching_props.clone()),
+            }),
+            PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+                logical_id: Some("target-bad-src".into()),
+                kind: "claim".into(),
+                body: target_body_v1.into(),
+                source_id: SourceId::new("owner-bad").unwrap(),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                provenance: derived_bad("target-bad-src-r1"),
+                properties: Some(matching_props.clone()),
+            }),
+            PreparedWrite::ProvenancedEdge(ProvenancedEdgeV1 {
+                logical_id: Some("edge-good".into()),
+                kind: "supports".into(),
+                from: "root".into(),
+                to: "target-good".into(),
+                source_id: SourceId::new("owner-good").unwrap(),
+                body: None,
+                t_valid: None,
+                t_invalid: None,
+                confidence: None,
+                extractor_model_id: None,
+                temporal_fallback: None,
+                provenance: derived_good("edge-good-r1"),
+                properties: None,
+            }),
+            PreparedWrite::ProvenancedEdge(ProvenancedEdgeV1 {
+                logical_id: Some("edge-bad-src".into()),
+                kind: "denies".into(),
+                from: "root".into(),
+                to: "target-bad-src".into(),
+                source_id: SourceId::new("owner-bad").unwrap(),
+                body: None,
+                t_valid: None,
+                t_invalid: None,
+                confidence: None,
+                extractor_model_id: None,
+                temporal_fallback: None,
+                provenance: derived_bad("edge-bad-src-r1"),
+                properties: None,
+            }),
+        ],
+    );
+
+    // Supersede all sources and targets with mismatching v2 properties (purges active-only
+    // canonical_attributes and canonical_property_values for v1 revisions!).
+    let src_good_v2 = r#"{"tenant":"other","score":5}"#;
+    let derived_good_v2 = |rev: &str| {
+        WriteProvenanceV1::derived(
+            ArtifactRevisionId::new(rev).unwrap(),
+            SourceVersionId::new("src-good-v2").unwrap(),
+            SourceRevisionId::new("src-good-r2").unwrap(),
+            SourceLocator::whole_body(),
+            CanonicalHash::sha256(sha256_hex(src_good_v2)).unwrap(),
+        )
+    };
+    write_cursor(
+        &engine,
+        &[
+            PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+                logical_id: Some("src-good".into()),
+                kind: "document".into(),
+                body: src_good_v2.into(),
+                source_id: SourceId::new("owner-good").unwrap(),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                provenance: WriteProvenanceV1::canonical(
+                    ArtifactRevisionId::new("src-good-r2").unwrap(),
+                    SourceVersionId::new("src-good-v2").unwrap(),
+                ),
+                properties: Some(mismatch_props.clone()),
+            }),
+            PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+                logical_id: Some("src-bad".into()),
+                kind: "document".into(),
+                body: src_good_v2.into(),
+                source_id: SourceId::new("owner-bad").unwrap(),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                provenance: WriteProvenanceV1::canonical(
+                    ArtifactRevisionId::new("src-bad-r2").unwrap(),
+                    SourceVersionId::new("src-bad-v2").unwrap(),
+                ),
+                properties: Some(matching_props.clone()),
+            }),
+            PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+                logical_id: Some("target-good".into()),
+                kind: "claim".into(),
+                body: src_good_v2.into(),
+                source_id: SourceId::new("owner-good").unwrap(),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                provenance: derived_good_v2("target-good-r2"),
+                properties: Some(mismatch_props.clone()),
+            }),
+            PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+                logical_id: Some("target-bad-src".into()),
+                kind: "claim".into(),
+                body: src_good_v2.into(),
+                source_id: SourceId::new("owner-bad").unwrap(),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                provenance: WriteProvenanceV1::derived(
+                    ArtifactRevisionId::new("target-bad-src-r2").unwrap(),
+                    SourceVersionId::new("src-bad-v2").unwrap(),
+                    SourceRevisionId::new("src-bad-r2").unwrap(),
+                    SourceLocator::whole_body(),
+                    CanonicalHash::sha256(sha256_hex(src_good_v2)).unwrap(),
+                ),
+                properties: Some(matching_props),
+            }),
+        ],
+    );
+    engine.drain(30_000).unwrap();
+
+    // Freeze context with BOTH eligibility.attributes AND eligibility.property_predicates.
+    let mut eligibility = SearchFilter::default();
+    eligibility.kind = Some("claim".into());
+    eligibility.attributes.push(("tenant".into(), "acme".into()));
+    eligibility.property_predicates.push(PropertyPredicate {
+        key: "score".into(),
+        op: PropertyComparisonOp::Gte,
+        value: PropertyValue::Int(40),
+    });
+    let frozen = engine
+        .freeze_read_context(&ReadContextV1::new(ReadView::default(), eligibility).unwrap())
+        .unwrap();
+
+    // Target + source both match inline (properties > body) at c1 even though v1 was purged from cpv/ca.
+    let good_req = GraphExpandRequestV1::new(
+        GraphSeedV1::Explicit { schema_version: 1, logical_ids: vec![IdSpace::logical("root")] },
+        TraversalDirection::Outgoing,
+        GraphReadContextV1::Frozen { schema_version: 1, context: frozen.clone() },
+        1,
+        50,
+        10_000,
+    )
+    .with_edge_kinds(vec!["supports".into()])
+    .with_evidence(true)
+    .with_as_of_write_cursor(c1);
+    let expanded = engine.graph_expand(&good_req).unwrap();
+    assert_eq!(expanded.targets.len(), 1);
+    let entry = &expanded.evidence.unwrap().entries[0];
+    let resolved_target = engine
+        .resolve_graph_evidence(&GraphEvidenceResolveRequestV1 {
+            schema_version: 1,
+            evidence_ref: entry.target_evidence_ref.clone(),
+            context: frozen.clone(),
+        })
+        .unwrap();
+    assert_eq!(resolved_target.artifact_revision_id.as_str(), "target-good-r1");
+    assert_eq!(
+        resolved_target.artifact_lifecycle,
+        EvidenceArtifactLifecycleV1::Node { state: LifecycleState::Active, superseded: true }
+    );
+    let resolved_edge = engine
+        .resolve_graph_evidence(&GraphEvidenceResolveRequestV1 {
+            schema_version: 1,
+            evidence_ref: entry.terminal_edge_evidence_ref.clone(),
+            context: frozen.clone(),
+        })
+        .unwrap();
+    assert_eq!(resolved_edge.artifact_revision_id.as_str(), "edge-good-r1");
+
+    // Source revision at c1 fails inline eligibility (even though its v2 head matches!) -> fails closed!
+    let bad_src_req = GraphExpandRequestV1::new(
+        GraphSeedV1::Explicit { schema_version: 1, logical_ids: vec![IdSpace::logical("root")] },
+        TraversalDirection::Outgoing,
+        GraphReadContextV1::Frozen { schema_version: 1, context: frozen.clone() },
+        1,
+        50,
+        10_000,
+    )
+    .with_edge_kinds(vec!["denies".into()])
+    .with_evidence(true)
+    .with_as_of_write_cursor(c1);
+    assert_evidence_unavailable(engine.graph_expand(&bad_src_req).unwrap_err());
+
+    // Replaying the minted historical token against a different eligibility context fails closed.
+    let mut wrong_elig = SearchFilter::default();
+    wrong_elig.kind = Some("claim".into());
+    wrong_elig.attributes.push(("tenant".into(), "other".into()));
+    let wrong_frozen = engine
+        .freeze_read_context(&ReadContextV1::new(ReadView::default(), wrong_elig).unwrap())
+        .unwrap();
+    assert_evidence_unavailable(
+        engine
+            .resolve_graph_evidence(&GraphEvidenceResolveRequestV1 {
+                schema_version: 1,
+                evidence_ref: entry.target_evidence_ref.clone(),
+                context: wrong_frozen,
+            })
+            .unwrap_err(),
+    );
+
+    engine.close().unwrap();
+}
+
+#[test]
+fn ac31_40_06_historical_evidence_revokes_on_erasure_transition_and_closure_barrier() {
+    let build_fixture = |name: &str| {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join(format!("{name}{SQLITE_SUFFIX}"));
+        let engine = Engine::open(&path).unwrap().engine;
+        let src_v1 = "canonical source v1";
+        let derived_v1 = |rev: &str| {
+            WriteProvenanceV1::derived(
+                ArtifactRevisionId::new(rev).unwrap(),
+                SourceVersionId::new("src-v1").unwrap(),
+                SourceRevisionId::new("src-r1").unwrap(),
+                SourceLocator::whole_body(),
+                CanonicalHash::sha256(sha256_hex(src_v1)).unwrap(),
+            )
+        };
+        let c1 = write_cursor(
+            &engine,
+            &[
+                PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+                    logical_id: Some("src".into()),
+                    kind: "document".into(),
+                    body: src_v1.into(),
+                    source_id: SourceId::new("owner").unwrap(),
+                    state: InitialState::Active,
+                    reason: None,
+                    valid_from: None,
+                    valid_until: None,
+                    provenance: WriteProvenanceV1::canonical(
+                        ArtifactRevisionId::new("src-r1").unwrap(),
+                        SourceVersionId::new("src-v1").unwrap(),
+                    ),
+                    properties: None,
+                }),
+                PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+                    logical_id: Some("root".into()),
+                    kind: "claim".into(),
+                    body: "root".into(),
+                    source_id: SourceId::new("owner").unwrap(),
+                    state: InitialState::Active,
+                    reason: None,
+                    valid_from: None,
+                    valid_until: None,
+                    provenance: derived_v1("root-r1"),
+                    properties: None,
+                }),
+                PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+                    logical_id: Some("target".into()),
+                    kind: "claim".into(),
+                    body: "target v1".into(),
+                    source_id: SourceId::new("owner").unwrap(),
+                    state: InitialState::Active,
+                    reason: None,
+                    valid_from: None,
+                    valid_until: None,
+                    provenance: derived_v1("target-r1"),
+                    properties: None,
+                }),
+                PreparedWrite::ProvenancedEdge(ProvenancedEdgeV1 {
+                    logical_id: Some("winner".into()),
+                    kind: "supports".into(),
+                    from: "root".into(),
+                    to: "target".into(),
+                    source_id: SourceId::new("owner").unwrap(),
+                    body: None,
+                    t_valid: None,
+                    t_invalid: None,
+                    confidence: None,
+                    extractor_model_id: None,
+                    temporal_fallback: None,
+                    provenance: derived_v1("edge-r1"),
+                    properties: None,
+                }),
+            ],
+        );
+        // Supersede src, target, and edge so historical tokens point at superseded v1 rows.
+        let src_v2 = "canonical source v2";
+        let derived_v2 = |rev: &str| {
+            WriteProvenanceV1::derived(
+                ArtifactRevisionId::new(rev).unwrap(),
+                SourceVersionId::new("src-v2").unwrap(),
+                SourceRevisionId::new("src-r2").unwrap(),
+                SourceLocator::whole_body(),
+                CanonicalHash::sha256(sha256_hex(src_v2)).unwrap(),
+            )
+        };
+        write_cursor(
+            &engine,
+            &[
+                PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+                    logical_id: Some("src".into()),
+                    kind: "document".into(),
+                    body: src_v2.into(),
+                    source_id: SourceId::new("owner").unwrap(),
+                    state: InitialState::Active,
+                    reason: None,
+                    valid_from: None,
+                    valid_until: None,
+                    provenance: WriteProvenanceV1::canonical(
+                        ArtifactRevisionId::new("src-r2").unwrap(),
+                        SourceVersionId::new("src-v2").unwrap(),
+                    ),
+                    properties: None,
+                }),
+                PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+                    logical_id: Some("target".into()),
+                    kind: "claim".into(),
+                    body: "target v2".into(),
+                    source_id: SourceId::new("owner").unwrap(),
+                    state: InitialState::Active,
+                    reason: None,
+                    valid_from: None,
+                    valid_until: None,
+                    provenance: derived_v2("target-r2"),
+                    properties: None,
+                }),
+                PreparedWrite::ProvenancedEdge(ProvenancedEdgeV1 {
+                    logical_id: Some("winner".into()),
+                    kind: "supports".into(),
+                    from: "root".into(),
+                    to: "target".into(),
+                    source_id: SourceId::new("owner").unwrap(),
+                    body: None,
+                    t_valid: None,
+                    t_invalid: None,
+                    confidence: None,
+                    extractor_model_id: None,
+                    temporal_fallback: None,
+                    provenance: derived_v2("edge-r2"),
+                    properties: None,
+                }),
+            ],
+        );
+        engine.drain(30_000).unwrap();
+        let read_ctx = ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap();
+        let frozen = engine.freeze_read_context(&read_ctx).unwrap();
+        let req = GraphExpandRequestV1::new(
+            GraphSeedV1::Explicit {
+                schema_version: 1,
+                logical_ids: vec![IdSpace::logical("root")],
+            },
+            TraversalDirection::Outgoing,
+            GraphReadContextV1::Frozen { schema_version: 1, context: frozen.clone() },
+            1,
+            50,
+            10_000,
+        )
+        .with_evidence(true)
+        .with_as_of_write_cursor(c1);
+        let expanded = engine.graph_expand(&req).unwrap();
+        let entry = expanded.evidence.unwrap().entries.into_iter().next().unwrap();
+        (dir, path, engine, c1, read_ctx, frozen, entry)
+    };
+
+    // 1. erase_source revokes both target and edge historical tokens (both original & reminted ctx).
+    {
+        let (_dir, _path, engine, _c1, read_ctx, frozen, entry) = build_fixture("erase-src");
+        engine.erase_source("owner").unwrap();
+        let reminted = engine.freeze_read_context(&read_ctx).unwrap();
+        for ctx in [&frozen, &reminted] {
+            for r in [&entry.target_evidence_ref, &entry.terminal_edge_evidence_ref] {
+                assert_evidence_unavailable(
+                    engine
+                        .resolve_graph_evidence(&GraphEvidenceResolveRequestV1 {
+                            schema_version: 1,
+                            evidence_ref: r.clone(),
+                            context: ctx.clone(),
+                        })
+                        .unwrap_err(),
+                );
+            }
+        }
+        engine.close().unwrap();
+    }
+
+    // 2. purge on target revokes historical tokens (non-resurrection).
+    {
+        let (_dir, _path, engine, _c1, read_ctx, frozen, entry) = build_fixture("purge-target");
+        engine.transition("target", LifecycleState::Deleted, Some("for purge".into())).unwrap();
+        engine.purge("target").unwrap();
+        let reminted = engine.freeze_read_context(&read_ctx).unwrap();
+        for ctx in [&frozen, &reminted] {
+            for r in [&entry.target_evidence_ref, &entry.terminal_edge_evidence_ref] {
+                assert_evidence_unavailable(
+                    engine
+                        .resolve_graph_evidence(&GraphEvidenceResolveRequestV1 {
+                            schema_version: 1,
+                            evidence_ref: r.clone(),
+                            context: ctx.clone(),
+                        })
+                        .unwrap_err(),
+                );
+            }
+        }
+        engine.close().unwrap();
+    }
+
+    // 3. Current logical head of artifact node transitioned to Deleted OR superseded by a Pending
+    //    head revokes BOTH historical minting and resolve_graph_evidence (even with reminted ctx!).
+    for pending_head in [false, true] {
+        let label = if pending_head { "pending" } else { "deleted" };
+        let (_dir, _path, engine, c1, read_ctx, _frozen, entry) =
+            build_fixture(&format!("trans-target-{label}"));
+        if pending_head {
+            let src_v2 = "canonical source v2";
+            write_cursor(
+                &engine,
+                &[PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+                    logical_id: Some("target".into()),
+                    kind: "claim".into(),
+                    body: "target v3 pending".into(),
+                    source_id: SourceId::new("owner").unwrap(),
+                    state: InitialState::Pending,
+                    reason: None,
+                    valid_from: None,
+                    valid_until: None,
+                    provenance: WriteProvenanceV1::derived(
+                        ArtifactRevisionId::new("target-r3").unwrap(),
+                        SourceVersionId::new("src-v2").unwrap(),
+                        SourceRevisionId::new("src-r2").unwrap(),
+                        SourceLocator::whole_body(),
+                        CanonicalHash::sha256(sha256_hex(src_v2)).unwrap(),
+                    ),
+                    properties: None,
+                })],
+            );
+            engine.drain(30_000).unwrap();
+        } else {
+            engine.transition("target", LifecycleState::Deleted, Some("revoked".into())).unwrap();
+        }
+        let reminted = engine.freeze_read_context(&read_ctx).unwrap();
+        // Historical resolve on target token MUST return EvidenceUnavailable (artifact_head_inactive).
+        assert_evidence_unavailable(
+            engine
+                .resolve_graph_evidence(&GraphEvidenceResolveRequestV1 {
+                    schema_version: 1,
+                    evidence_ref: entry.target_evidence_ref.clone(),
+                    context: reminted.clone(),
+                })
+                .unwrap_err(),
+        );
+        // Historical graph_expand no longer returns target at c1 (current-head inactive).
+        let remint_req = GraphExpandRequestV1::new(
+            GraphSeedV1::Explicit {
+                schema_version: 1,
+                logical_ids: vec![IdSpace::logical("root")],
+            },
+            TraversalDirection::Outgoing,
+            GraphReadContextV1::Frozen { schema_version: 1, context: reminted },
+            1,
+            50,
+            10_000,
+        )
+        .with_evidence(true)
+        .with_as_of_write_cursor(c1);
+        let expanded = engine.graph_expand(&remint_req).unwrap();
+        assert!(expanded.targets.is_empty());
+        assert!(expanded.evidence.unwrap().entries.is_empty());
+        engine.close().unwrap();
+    }
+
+    // 4. Current logical head of canonical source node transitioned to Deleted OR superseded by a
+    //    Pending head revokes BOTH target and edge historical tokens AND historical minting!
+    for pending_head in [false, true] {
+        let label = if pending_head { "pending" } else { "deleted" };
+        let (_dir, _path, engine, c1, read_ctx, _frozen, entry) =
+            build_fixture(&format!("trans-src-{label}"));
+        if pending_head {
+            write_cursor(
+                &engine,
+                &[PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+                    logical_id: Some("src".into()),
+                    kind: "document".into(),
+                    body: "canonical source v3 pending".into(),
+                    source_id: SourceId::new("owner").unwrap(),
+                    state: InitialState::Pending,
+                    reason: None,
+                    valid_from: None,
+                    valid_until: None,
+                    provenance: WriteProvenanceV1::canonical(
+                        ArtifactRevisionId::new("src-r3").unwrap(),
+                        SourceVersionId::new("src-v3").unwrap(),
+                    ),
+                    properties: None,
+                })],
+            );
+            engine.drain(30_000).unwrap();
+        } else {
+            engine
+                .transition("src", LifecycleState::Deleted, Some("source revoked".into()))
+                .unwrap();
+        }
+        let reminted = engine.freeze_read_context(&read_ctx).unwrap();
+        for r in [&entry.target_evidence_ref, &entry.terminal_edge_evidence_ref] {
+            assert_evidence_unavailable(
+                engine
+                    .resolve_graph_evidence(&GraphEvidenceResolveRequestV1 {
+                        schema_version: 1,
+                        evidence_ref: r.clone(),
+                        context: reminted.clone(),
+                    })
+                    .unwrap_err(),
+            );
+        }
+        // Historical minting at c1 also fails closed / excludes derived artifacts whose source head is inactive.
+        let remint_req = GraphExpandRequestV1::new(
+            GraphSeedV1::Explicit {
+                schema_version: 1,
+                logical_ids: vec![IdSpace::logical("root")],
+            },
+            TraversalDirection::Outgoing,
+            GraphReadContextV1::Frozen { schema_version: 1, context: reminted },
+            1,
+            50,
+            10_000,
+        )
+        .with_evidence(true)
+        .with_as_of_write_cursor(c1);
+        let err = engine.graph_expand(&remint_req).unwrap_err();
+        assert_evidence_unavailable(err);
+        engine.close().unwrap();
+    }
+
+    // 5. Active closure barrier on src-r1 revokes historical tokens AND historical minting!
+    {
+        let (_dir, path, engine, c1, read_ctx, _frozen, entry) = build_fixture("barrier-src");
+        engine.close().unwrap();
+        let conn = Connection::open(&path).unwrap();
+        conn.execute_batch(
+            "UPDATE _fathomdb_open_state SET value='1' WHERE key='_fathomdb_closure_sequence';
+             INSERT INTO _fathomdb_dependency_closures(
+               schema_version,closure_operation_id,root_kind,root_value,cause,
+               effective_at_epoch_s,admitted_write_boundary,admitted_dependency_generation,
+               closure_sequence,retry_fingerprint,phase,affected_count,blocker_code,
+               structural_proof_write_boundary,proof_json
+             ) VALUES(1,'_fdb:c:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+               'source_revision','src-r1','soft_deleted',0,4,0,1,
+               'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+               'proving',1,NULL,NULL,NULL);",
+        )
+        .unwrap();
+        drop(conn);
+        let reopened = Engine::open(&path).unwrap().engine;
+        let reminted = reopened.freeze_read_context(&read_ctx).unwrap();
+        for r in [&entry.target_evidence_ref, &entry.terminal_edge_evidence_ref] {
+            assert_evidence_unavailable(
+                reopened
+                    .resolve_graph_evidence(&GraphEvidenceResolveRequestV1 {
+                        schema_version: 1,
+                        evidence_ref: r.clone(),
+                        context: reminted.clone(),
+                    })
+                    .unwrap_err(),
+            );
+        }
+        let remint_req = GraphExpandRequestV1::new(
+            GraphSeedV1::Explicit {
+                schema_version: 1,
+                logical_ids: vec![IdSpace::logical("root")],
+            },
+            TraversalDirection::Outgoing,
+            GraphReadContextV1::Frozen { schema_version: 1, context: reminted },
+            1,
+            50,
+            10_000,
+        )
+        .with_evidence(true)
+        .with_as_of_write_cursor(c1);
+        assert_evidence_unavailable(reopened.graph_expand(&remint_req).unwrap_err());
+        reopened.close().unwrap();
     }
 }

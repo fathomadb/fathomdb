@@ -1422,10 +1422,36 @@ pub(crate) fn text_hit_passes_filter_view(
     filter: Option<&SearchFilter>,
     view: &ReadView,
 ) -> rusqlite::Result<bool> {
+    text_hit_passes_filter_with_inline(
+        tx,
+        id,
+        kind,
+        filter,
+        view.include_superseded || view.include_inactive,
+    )
+}
+
+/// Evaluate node filter eligibility inline against historical row JSON
+/// (`properties > body`) for BOTH `attributes` and `property_predicates`,
+/// bypassing active-only `canonical_attributes` / `canonical_property_values`.
+pub(crate) fn text_hit_passes_filter_historical(
+    tx: &Connection,
+    id: u64,
+    kind: &str,
+    filter: Option<&SearchFilter>,
+) -> rusqlite::Result<bool> {
+    text_hit_passes_filter_with_inline(tx, id, kind, filter, true)
+}
+
+fn text_hit_passes_filter_with_inline(
+    tx: &Connection,
+    id: u64,
+    kind: &str,
+    filter: Option<&SearchFilter>,
+    force_inline: bool,
+) -> rusqlite::Result<bool> {
     let Some(filter) = filter else { return Ok(true) };
-    if (!view.include_superseded && !view.include_inactive)
-        || (filter.attributes.is_empty() && filter.property_predicates.is_empty())
-    {
+    if !force_inline || (filter.attributes.is_empty() && filter.property_predicates.is_empty()) {
         return text_hit_passes_filter(tx, id, kind, Some(filter));
     }
     let mut base = filter.clone();

@@ -1615,9 +1615,14 @@ pub(crate) fn read_graph_expand_with_stop_words_in_tx(
         if selected.is_empty() {
             Some(crate::evidence::GraphEvidenceSidecarV1 { schema_version: 1, entries: Vec::new() })
         } else {
+            let history_as_of = match history_cursor {
+                ResolvedHistoryCursor::Current => None,
+                ResolvedHistoryCursor::AsOf(cursor) => Some(cursor),
+            };
             let preflight = crate::evidence::preflight_graph_evidence(
                 &tx,
                 frozen,
+                history_as_of,
                 &node_cursors,
                 &edge_cursors,
             )
@@ -1651,6 +1656,7 @@ pub(crate) fn read_graph_expand_with_stop_words_in_tx(
                     target_revision_id: target_material.artifact_revision_id(),
                     terminal_edge_revision_id: edge_material.artifact_revision_id(),
                     request_commitment,
+                    historical: history_as_of.is_some(),
                 };
                 let (target_revision, target_reference) =
                     crate::evidence::mint_graph_evidence_reference(

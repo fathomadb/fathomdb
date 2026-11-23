@@ -3,14 +3,14 @@
 use fathomdb_embedder::NoopEmbedder;
 use fathomdb_engine::{
     decode_graph_expand_result_v1, encode_graph_expand_result_v1, ArtifactRevisionId,
-    CanonicalHash, ConsolidateAxis, Engine, EngineError, EvidenceErrorReasonV1, EvidenceRefV1,
-    EvidenceResolveRequestV1, EvidenceSearchRequestV1, FrozenReadErrorReason,
-    GraphEvidenceArtifactV1, GraphEvidenceRefV1, GraphEvidenceResolveRequestV1,
-    GraphExpandRequestV1, GraphExpansionErrorReasonV1, GraphReadContextV1, GraphSeedV1, IdSpace,
-    InitialState, LifecycleState, PreparedWrite, ProjectionRole, ProjectionSpec, ProvenancedEdgeV1,
-    ProvenancedNodeV1, ReadContextV1, ReadView, SearchFilter, SourceDependencyRegistrationV1,
-    SourceId, SourceLocator, SourceRevisionId, SourceVersionId, TraversalDirection,
-    WriteProvenanceV1,
+    CanonicalHash, ConsolidateAxis, Engine, EngineError, EvidenceArtifactLifecycleV1,
+    EvidenceErrorReasonV1, EvidenceRefV1, EvidenceResolveRequestV1, EvidenceSearchRequestV1,
+    FrozenReadErrorReason, GraphEvidenceArtifactV1, GraphEvidenceRefV1,
+    GraphEvidenceResolveRequestV1, GraphExpandRequestV1, GraphExpansionErrorReasonV1,
+    GraphReadContextV1, GraphSeedV1, IdSpace, InitialState, LifecycleState, PreparedWrite,
+    ProjectionRole, ProjectionSpec, ProvenancedEdgeV1, ProvenancedNodeV1, ReadContextV1, ReadView,
+    SearchFilter, SourceDependencyRegistrationV1, SourceId, SourceLocator, SourceRevisionId,
+    SourceVersionId, TraversalDirection, WriteProvenanceV1,
 };
 use rusqlite::Connection;
 use sha2::{Digest, Sha256};
@@ -1863,4 +1863,142 @@ fn canonical_source_graph_target_resolves_without_dependency() {
         .unwrap();
     assert_eq!(target.artifact_revision_id.as_str(), "source-r1");
     assert!(target.dependency.is_none());
+}
+
+#[test]
+fn historical_source_cursor_after_as_of_is_refused_in_preflight() {
+    let (directory, engine, request) = fixture();
+    // Move canonical source's write_cursor above the derived target/edge cursors so that
+    // at as_of = 4, target (cursor 3) and edge (cursor 4) satisfy write_cursor <= 4 while
+    // their canonical source (cursor 100) violates source_cursor <= as_of.
+    let engine = reopen_after_sql(
+        &directory,
+        engine,
+        "UPDATE canonical_nodes SET write_cursor = 100 WHERE logical_id = 'source';
+         UPDATE _fathomdb_artifact_revisions SET write_cursor = 100 WHERE revision_id = 'source-r1';",
+    );
+    let context = match request.context {
+        GraphReadContextV1::Frozen { context, .. } => context.context,
+        GraphReadContextV1::Current { .. } => unreachable!(),
+    };
+    let frozen = engine.freeze_read_context(&context).unwrap();
+    let hist_req = GraphExpandRequestV1::new(
+        request.seed,
+        request.direction,
+        GraphReadContextV1::Frozen { schema_version: 1, context: frozen },
+        request.max_depth,
+        request.result_limit,
+        request.max_work_units,
+    )
+    .with_edge_kinds(request.edge_kinds)
+    .with_target_kinds(request.target_kinds)
+    .with_evidence(true)
+    .with_as_of_write_cursor(4);
+    expansion_unavailable(engine.graph_expand(&hist_req).unwrap_err());
+}
+
+#[test]
+fn historical_and_current_tokens_enforce_payload_mode_and_tamper_resistance() {
+    let (_directory, engine, mut request) = fixture();
+    let original_ctx = match &request.context {
+        GraphReadContextV1::Frozen { context, .. } => context.clone(),
+        GraphReadContextV1::Current { .. } => unreachable!(),
+    };
+
+    // Mint a current-time token (payload[7] == 0) and a historical token (payload[7] == 1).
+    request.include_evidence = true;
+    let current_expanded = engine.graph_expand(&request).unwrap();
+    let current_ref = current_expanded.evidence.unwrap().entries[0].target_evidence_ref.clone();
+    assert_eq!(current_ref.as_str().len(), 704);
+
+    let hist_req = request.clone().with_as_of_write_cursor(4);
+    let hist_expanded = engine.graph_expand(&hist_req).unwrap();
+    let hist_ref = hist_expanded.evidence.unwrap().entries[0].target_evidence_ref.clone();
+    assert_eq!(hist_ref.as_str().len(), 704);
+    assert_ne!(current_ref, hist_ref);
+
+    // Flipping the hex char corresponding to payload[7] (offset 8 prefix + 32 nonce hex + 14 payload hex)
+    // must fail HMAC authentication with nondisclosing EvidenceUnavailable.
+    let mut flipped = hist_ref.as_str().as_bytes().to_vec();
+    let idx = 8 + 32 + 14;
+    flipped[idx] = if flipped[idx] == b'0' { b'1' } else { b'0' };
+    let flipped_ref = GraphEvidenceRefV1::new(String::from_utf8(flipped).unwrap()).unwrap();
+    unavailable(
+        engine
+            .resolve_graph_evidence(&GraphEvidenceResolveRequestV1 {
+                schema_version: 1,
+                evidence_ref: flipped_ref,
+                context: original_ctx.clone(),
+            })
+            .unwrap_err(),
+    );
+
+    // Supersede the target node, then remint an equivalent FrozenReadContextV1.
+    engine
+        .write(&[PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+            logical_id: Some("target".into()),
+            kind: "claim".into(),
+            body: "superseding target v2".into(),
+            source_id: SourceId::new("owner").unwrap(),
+            state: InitialState::Active,
+            reason: None,
+            valid_from: None,
+            valid_until: None,
+            provenance: WriteProvenanceV1::derived(
+                ArtifactRevisionId::new("target-r2").unwrap(),
+                SourceVersionId::new("source-v1").unwrap(),
+                SourceRevisionId::new("source-r1").unwrap(),
+                SourceLocator::whole_body(),
+                CanonicalHash::sha256(digest("canonical source bytes")).unwrap(),
+            ),
+            properties: None,
+        })])
+        .unwrap();
+    engine.drain(30_000).unwrap();
+    let reminted = engine.freeze_read_context(&original_ctx.context).unwrap();
+
+    // Current-time token (payload[7] == 0) MUST still fail closed once superseded!
+    unavailable(
+        engine
+            .resolve_graph_evidence(&GraphEvidenceResolveRequestV1 {
+                schema_version: 1,
+                evidence_ref: current_ref,
+                context: reminted.clone(),
+            })
+            .unwrap_err(),
+    );
+
+    // Historical token (payload[7] == 1) resolves the superseded active revision and reports superseded=true!
+    let resolved = engine
+        .resolve_graph_evidence(&GraphEvidenceResolveRequestV1 {
+            schema_version: 1,
+            evidence_ref: hist_ref.clone(),
+            context: reminted,
+        })
+        .unwrap();
+    assert_eq!(resolved.artifact_revision_id.as_str(), "target-r1");
+    assert_eq!(
+        resolved.artifact_lifecycle,
+        EvidenceArtifactLifecycleV1::Node { state: LifecycleState::Active, superseded: true }
+    );
+
+    // Resolving a historical token against a FrozenReadContextV1 with a different valid_as_of fails closed.
+    let other_view_ctx = engine
+        .freeze_read_context(
+            &ReadContextV1::new(
+                ReadView { valid_as_of: Some(1_800_000_001), ..ReadView::default() },
+                original_ctx.context.eligibility.clone(),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    unavailable(
+        engine
+            .resolve_graph_evidence(&GraphEvidenceResolveRequestV1 {
+                schema_version: 1,
+                evidence_ref: hist_ref,
+                context: other_view_ctx,
+            })
+            .unwrap_err(),
+    );
 }

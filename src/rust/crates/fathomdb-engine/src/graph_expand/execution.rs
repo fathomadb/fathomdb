@@ -22,7 +22,7 @@ use crate::properties::{
 };
 use crate::reader_transaction::begin_attributed_reader_tx;
 use crate::search_types::StructuralLifecycleStateV1;
-use crate::structural_state::structural_dependency_state;
+use crate::structural_state::{structural_dependency_state, structural_dependency_state_as_of};
 use crate::temporal::FrozenView;
 use crate::wal_attribution::WalAttributionCollector;
 use crate::write_commit::load_next_cursor;
@@ -469,7 +469,59 @@ pub(crate) fn validate_semantics(request: &GraphExpandRequestV1) -> Result<(), E
             "/maxWorkUnits",
         ));
     }
+    if request.as_of_write_cursor.is_some() && request.as_of_epoch_ms.is_some() {
+        return Err(graph_error(GraphExpansionErrorReasonV1::GraphContextInvalid, "/asOfEpochMs"));
+    }
     Ok(())
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum ResolvedHistoryCursor {
+    Current,
+    AsOf(u64),
+}
+
+pub(crate) fn as_of_sql_i64(cursor: u64) -> i64 {
+    i64::try_from(cursor).unwrap_or(i64::MAX)
+}
+
+pub(crate) const COMMIT_TIMESTAMP_RESOLVE_SQL: &str = "\
+    SELECT write_cursor \
+    FROM _fathomdb_commit_timestamps \
+    WHERE committed_at_ms <= ?1 \
+    ORDER BY committed_at_ms DESC, write_cursor DESC \
+    LIMIT 1";
+
+fn resolve_history_cursor(
+    tx: &Connection,
+    request: &GraphExpandRequestV1,
+) -> Result<ResolvedHistoryCursor, EngineError> {
+    match (request.as_of_write_cursor, request.as_of_epoch_ms) {
+        (None, None) => Ok(ResolvedHistoryCursor::Current),
+        (Some(cursor), None) => Ok(ResolvedHistoryCursor::AsOf(cursor)),
+        (None, Some(epoch_ms)) => {
+            let resolved = tx
+                .query_row(COMMIT_TIMESTAMP_RESOLVE_SQL, [epoch_ms], |row| row.get::<_, i64>(0))
+                .optional()
+                .map_err(|_| EngineError::Storage)?
+                .and_then(|c| u64::try_from(c).ok())
+                .unwrap_or(0);
+            Ok(ResolvedHistoryCursor::AsOf(resolved))
+        }
+        (Some(_), Some(_)) => {
+            Err(graph_error(GraphExpansionErrorReasonV1::GraphContextInvalid, "/asOfEpochMs"))
+        }
+    }
+}
+
+fn has_dependency_or_closure_rows(tx: &Connection) -> Result<bool, EngineError> {
+    tx.query_row(
+        "SELECT EXISTS(SELECT 1 FROM _fathomdb_source_dependencies) \
+         OR EXISTS(SELECT 1 FROM _fathomdb_dependency_closures)",
+        [],
+        |row| row.get(0),
+    )
+    .map_err(|_| EngineError::Storage)
 }
 
 #[derive(Clone)]
@@ -477,7 +529,7 @@ struct EdgeRow {
     write_cursor: u64,
     kind: Box<str>,
     terminal_direction: TraversalDirection,
-    superseded: bool,
+    superseded_at: Option<i64>,
     next_logical_id: Box<str>,
     logical_id: Option<Box<str>>,
     t_invalid: Option<i64>,
@@ -572,40 +624,96 @@ pub(crate) fn append_cpv_exists_prefilter(
     }
 }
 
+pub(crate) fn build_historical_load_node_query(
+    tx: &Connection,
+    logical_id: &str,
+    view: FrozenView,
+    filter: &SearchFilter,
+    as_of_cursor: i64,
+) -> Result<(String, Vec<rusqlite::types::Value>), EngineError> {
+    let mut params = vec![
+        rusqlite::types::Value::Text(logical_id.to_string()),
+        rusqlite::types::Value::Integer(as_of_cursor),
+    ];
+    let now_idx = if let Some(now) = view.now_param() {
+        params.push(rusqlite::types::Value::Integer(now));
+        params.len()
+    } else {
+        0
+    };
+    let eligibility =
+        crate::filter::append_node_eligibility_sql_historical(tx, Some(filter), "n", &mut params)
+            .map_err(|_| EngineError::Storage)?;
+    let validity_sql = view.validity_sql("n", now_idx);
+    let dep_eligibility_sql = crate::dependency_closure::read_eligibility_sql_historical_for_cursor(
+        "n.write_cursor",
+        2,
+        now_idx,
+        view.view.include_out_of_window,
+    );
+    let common_where = format!(
+        " AND n.write_cursor<=?2 AND n.state='active' \
+         AND NOT EXISTS(\
+           SELECT 1 FROM canonical_nodes cur \
+           WHERE cur.logical_id=n.logical_id \
+             AND cur.superseded_at IS NULL \
+             AND cur.state!='active'\
+         ){validity_sql}{dep_eligibility_sql}{eligibility}"
+    );
+    let sql = format!(
+        "SELECT n.kind,n.body,n.write_cursor,n.properties FROM canonical_nodes n \
+         WHERE n.logical_id=?1 AND n.superseded_at IS NULL{common_where} \
+         UNION ALL \
+         SELECT n.kind,n.body,n.write_cursor,n.properties FROM canonical_nodes n \
+         WHERE n.logical_id=?1 AND n.superseded_at>?2{common_where} \
+         ORDER BY write_cursor DESC LIMIT 1"
+    );
+    Ok((sql, params))
+}
+
 fn load_node(
     tx: &Connection,
     logical_id: &str,
     view: FrozenView,
     filter: &SearchFilter,
     pushed_target_predicates: &[&PropertyPredicate],
+    history_cursor: ResolvedHistoryCursor,
 ) -> Result<Option<LoadedNodeRow>, EngineError> {
-    let mut params = vec![rusqlite::types::Value::Text(logical_id.to_string())];
-    if let Some(now) = view.now_param() {
-        params.push(rusqlite::types::Value::Integer(now));
-    }
-    let eligibility = crate::filter::append_node_eligibility_sql_view(
-        tx,
-        Some(filter),
-        "n",
-        &mut params,
-        &view.view,
-    )
-    .map_err(|_| EngineError::Storage)?;
-    let mut target_cpv_sql = String::new();
-    for (idx, pred) in pushed_target_predicates.iter().enumerate() {
-        append_cpv_exists_prefilter(
-            "node",
-            "n.write_cursor",
-            &format!("cpv_t{idx}"),
-            pred,
-            &mut params,
-            &mut target_cpv_sql,
-        );
-    }
-    let sql = format!(
-        "SELECT n.kind,n.body,n.write_cursor,n.properties FROM canonical_nodes n WHERE n.logical_id=?1{}{}{} ORDER BY n.write_cursor DESC LIMIT 1",
-        view.node_sql("n", 2), eligibility, target_cpv_sql
-    );
+    let (sql, params) = match history_cursor {
+        ResolvedHistoryCursor::Current => {
+            let mut params = vec![rusqlite::types::Value::Text(logical_id.to_string())];
+            if let Some(now) = view.now_param() {
+                params.push(rusqlite::types::Value::Integer(now));
+            }
+            let eligibility = crate::filter::append_node_eligibility_sql_view(
+                tx,
+                Some(filter),
+                "n",
+                &mut params,
+                &view.view,
+            )
+            .map_err(|_| EngineError::Storage)?;
+            let mut target_cpv_sql = String::new();
+            for (idx, pred) in pushed_target_predicates.iter().enumerate() {
+                append_cpv_exists_prefilter(
+                    "node",
+                    "n.write_cursor",
+                    &format!("cpv_t{idx}"),
+                    pred,
+                    &mut params,
+                    &mut target_cpv_sql,
+                );
+            }
+            let sql = format!(
+                "SELECT n.kind,n.body,n.write_cursor,n.properties FROM canonical_nodes n WHERE n.logical_id=?1{}{}{} ORDER BY n.write_cursor DESC LIMIT 1",
+                view.node_sql("n", 2), eligibility, target_cpv_sql
+            );
+            (sql, params)
+        }
+        ResolvedHistoryCursor::AsOf(as_of) => {
+            build_historical_load_node_query(tx, logical_id, view, filter, as_of_sql_i64(as_of))?
+        }
+    };
     tx.query_row(&sql, rusqlite::params_from_iter(params.iter()), |row| {
         Ok(LoadedNodeRow {
             kind: row.get(0)?,
@@ -620,11 +728,20 @@ fn load_node(
 
 /// Modular edge-visibility boundary for `graph_expand` incident queries.
 ///
-/// Slice 30 handles current-time expansion; Slice 40 extends this carrier with
-/// historical `AsOf` replay without altering the current-time SQL path.
+/// `Current` preserves the zero-overhead unpredicated current-time SQL path;
+/// `AsOf` emits direct compound `UNION ALL` queries over active and
+/// superseded-after-`as_of` index arms.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum EdgeViewBoundary {
-    Current { edge_now: i64 },
+    Current {
+        edge_now: i64,
+    },
+    AsOf {
+        edge_now: i64,
+        as_of_cursor: i64,
+        include_out_of_window: bool,
+        check_derived_eligibility: bool,
+    },
 }
 
 pub(crate) struct GraphExpandIncidentQuery {
@@ -634,24 +751,71 @@ pub(crate) struct GraphExpandIncidentQuery {
 
 fn graph_expand_incident_sql(
     direction: TraversalDirection,
+    as_of_idx: Option<usize>,
     extra_where: &str,
     limit_idx: usize,
 ) -> String {
     const COLS: &str =
         "write_cursor,kind,from_id,to_id,logical_id,superseded_at,t_invalid,properties";
-    match direction {
-        TraversalDirection::Outgoing => format!(
+    match (as_of_idx, direction) {
+        (None, TraversalDirection::Outgoing) => format!(
             "SELECT {COLS} FROM canonical_edges WHERE from_id=?1 AND superseded_at IS NULL{extra_where} LIMIT ?{limit_idx}"
         ),
-        TraversalDirection::Incoming => format!(
+        (None, TraversalDirection::Incoming) => format!(
             "SELECT {COLS} FROM canonical_edges WHERE to_id=?1 AND superseded_at IS NULL{extra_where} LIMIT ?{limit_idx}"
         ),
-        TraversalDirection::Both => format!(
+        (None, TraversalDirection::Both) => format!(
             "SELECT {COLS} FROM canonical_edges WHERE from_id=?1 AND superseded_at IS NULL{extra_where} \
              UNION ALL \
              SELECT {COLS} FROM canonical_edges WHERE to_id=?1 AND from_id!=?1 AND superseded_at IS NULL{extra_where} \
              LIMIT ?{limit_idx}"
         ),
+        (Some(as_of_idx), TraversalDirection::Outgoing) => format!(
+            "SELECT {COLS} FROM canonical_edges WHERE from_id=?1 AND superseded_at IS NULL{extra_where} \
+             UNION ALL \
+             SELECT {COLS} FROM canonical_edges WHERE from_id=?1 AND superseded_at>?{as_of_idx}{extra_where} \
+             LIMIT ?{limit_idx}"
+        ),
+        (Some(as_of_idx), TraversalDirection::Incoming) => format!(
+            "SELECT {COLS} FROM canonical_edges WHERE to_id=?1 AND superseded_at IS NULL{extra_where} \
+             UNION ALL \
+             SELECT {COLS} FROM canonical_edges WHERE to_id=?1 AND superseded_at>?{as_of_idx}{extra_where} \
+             LIMIT ?{limit_idx}"
+        ),
+        (Some(as_of_idx), TraversalDirection::Both) => format!(
+            "SELECT {COLS} FROM canonical_edges WHERE from_id=?1 AND superseded_at IS NULL{extra_where} \
+             UNION ALL \
+             SELECT {COLS} FROM canonical_edges WHERE from_id=?1 AND superseded_at>?{as_of_idx}{extra_where} \
+             UNION ALL \
+             SELECT {COLS} FROM canonical_edges WHERE to_id=?1 AND from_id!=?1 AND superseded_at IS NULL{extra_where} \
+             UNION ALL \
+             SELECT {COLS} FROM canonical_edges WHERE to_id=?1 AND from_id!=?1 AND superseded_at>?{as_of_idx}{extra_where} \
+             LIMIT ?{limit_idx}"
+        ),
+    }
+}
+
+fn append_edge_kind_filter(
+    edge_kinds: &[String],
+    params: &mut Vec<rusqlite::types::Value>,
+    extra_where: &mut String,
+) {
+    use rusqlite::types::Value;
+    if edge_kinds.len() == 1 {
+        params.push(Value::Text(edge_kinds[0].clone()));
+        let kind_idx = params.len();
+        extra_where.push_str(&format!(" AND kind=?{kind_idx}"));
+    } else if !edge_kinds.is_empty() {
+        extra_where.push_str(" AND kind IN (");
+        for (i, kind) in edge_kinds.iter().enumerate() {
+            if i > 0 {
+                extra_where.push(',');
+            }
+            params.push(Value::Text(kind.clone()));
+            let kind_idx = params.len();
+            extra_where.push_str(&format!("?{kind_idx}"));
+        }
+        extra_where.push(')');
     }
 }
 
@@ -667,48 +831,76 @@ pub(crate) fn graph_expand_incident_query(
 
     let mut params = vec![Value::Text(logical_id.to_string())];
     let mut extra_where = String::new();
-
-    match boundary {
+    let as_of_idx = match boundary {
         EdgeViewBoundary::Current { edge_now } => {
             params.push(Value::Integer(edge_now));
             let now_idx = params.len();
-            if edge_kinds.len() == 1 {
-                params.push(Value::Text(edge_kinds[0].clone()));
-                let kind_idx = params.len();
-                extra_where.push_str(&format!(" AND kind=?{kind_idx}"));
-            } else if !edge_kinds.is_empty() {
-                extra_where.push_str(" AND kind IN (");
-                for (i, kind) in edge_kinds.iter().enumerate() {
-                    if i > 0 {
-                        extra_where.push(',');
-                    }
-                    params.push(Value::Text(kind.clone()));
-                    let kind_idx = params.len();
-                    extra_where.push_str(&format!("?{kind_idx}"));
-                }
-                extra_where.push(')');
-            }
+            append_edge_kind_filter(edge_kinds, &mut params, &mut extra_where);
             extra_where.push_str(&format!(
                 " AND (t_valid IS NULL OR t_valid<=?{now_idx}) AND (t_invalid IS NULL OR t_invalid>?{now_idx})"
             ));
+            for (idx, pred) in pushed_edge_predicates.iter().enumerate() {
+                append_cpv_exists_prefilter(
+                    "edge",
+                    "canonical_edges.write_cursor",
+                    &format!("cpv_e{idx}"),
+                    pred,
+                    &mut params,
+                    &mut extra_where,
+                );
+            }
+            None
         }
-    }
-
-    for (idx, pred) in pushed_edge_predicates.iter().enumerate() {
-        append_cpv_exists_prefilter(
-            "edge",
-            "canonical_edges.write_cursor",
-            &format!("cpv_e{idx}"),
-            pred,
-            &mut params,
-            &mut extra_where,
-        );
-    }
+        EdgeViewBoundary::AsOf {
+            edge_now,
+            as_of_cursor,
+            include_out_of_window,
+            check_derived_eligibility,
+        } => {
+            params.push(Value::Integer(edge_now));
+            let now_idx = params.len();
+            params.push(Value::Integer(as_of_cursor));
+            let as_of_idx = params.len();
+            extra_where.push_str(&format!(" AND write_cursor<=?{as_of_idx}"));
+            append_edge_kind_filter(edge_kinds, &mut params, &mut extra_where);
+            extra_where.push_str(&format!(
+                " AND (t_valid IS NULL OR t_valid<=?{now_idx}) \
+                 AND (t_invalid IS NULL OR t_invalid>?{now_idx}) \
+                 AND (temporal_fallback IS NULL OR temporal_fallback=0)"
+            ));
+            if check_derived_eligibility {
+                extra_where.push_str(
+                    &crate::dependency_closure::read_eligibility_sql_historical_for_cursor(
+                        "canonical_edges.write_cursor",
+                        as_of_idx,
+                        now_idx,
+                        include_out_of_window,
+                    ),
+                );
+            }
+            Some(as_of_idx)
+        }
+    };
 
     params.push(Value::Integer(i64::try_from(limit).unwrap_or(i64::MAX)));
     let limit_idx = params.len();
-    let sql = graph_expand_incident_sql(direction, &extra_where, limit_idx);
+    let sql = graph_expand_incident_sql(direction, as_of_idx, &extra_where, limit_idx);
     GraphExpandIncidentQuery { sql, params }
+}
+
+#[cfg(any(test, feature = "test-hooks"))]
+pub(crate) fn explain_sql_with_params(
+    connection: &Connection,
+    sql: &str,
+    params: &[rusqlite::types::Value],
+) -> Result<Vec<String>, EngineError> {
+    let mut statement = connection
+        .prepare(&format!("EXPLAIN QUERY PLAN {sql}"))
+        .map_err(|_| EngineError::Storage)?;
+    let rows = statement
+        .query_map(rusqlite::params_from_iter(params.iter()), |row| row.get(3))
+        .map_err(|_| EngineError::Storage)?;
+    rows.collect::<rusqlite::Result<Vec<String>>>().map_err(|_| EngineError::Storage)
 }
 
 #[cfg(any(test, feature = "test-hooks"))]
@@ -716,14 +908,7 @@ pub(crate) fn explain_graph_expand_incident_query(
     connection: &Connection,
     query: &GraphExpandIncidentQuery,
 ) -> Result<Vec<String>, EngineError> {
-    let sql = &query.sql;
-    let mut statement = connection
-        .prepare(&format!("EXPLAIN QUERY PLAN {sql}"))
-        .map_err(|_| EngineError::Storage)?;
-    let rows = statement
-        .query_map(rusqlite::params_from_iter(query.params.iter()), |row| row.get(3))
-        .map_err(|_| EngineError::Storage)?;
-    rows.collect::<rusqlite::Result<Vec<String>>>().map_err(|_| EngineError::Storage)
+    explain_sql_with_params(connection, &query.sql, &query.params)
 }
 
 fn load_incident_edges(
@@ -764,7 +949,7 @@ fn load_incident_edges(
                 write_cursor: u64::try_from(row.get::<_, i64>(0)?).unwrap_or(0),
                 kind: kind.into_boxed_str(),
                 terminal_direction,
-                superseded: row.get::<_, Option<i64>>(5)?.is_some(),
+                superseded_at: row.get(5)?,
                 next_logical_id: next_logical_id.into_boxed_str(),
                 logical_id: row.get::<_, Option<String>>(4)?.map(String::into_boxed_str),
                 t_invalid: row.get(6)?,
@@ -856,13 +1041,14 @@ fn resolve_seeds(
     view: FrozenView,
     filter: &SearchFilter,
     stop_words: &StopWordSet,
+    history_cursor: ResolvedHistoryCursor,
 ) -> Result<Vec<ResolvedGraphSeedV1>, EngineError> {
     match &request.seed {
         GraphSeedV1::Explicit { logical_ids, .. } => logical_ids
             .iter()
             .enumerate()
             .map(|(index, id)| {
-                if load_node(tx, &id.value, view, filter, &[])?.is_none() {
+                if load_node(tx, &id.value, view, filter, &[], history_cursor)?.is_none() {
                     return Err(graph_error(
                         GraphExpansionErrorReasonV1::GraphSeedUnavailable,
                         format!("/seed/logicalIds/{index}"),
@@ -878,24 +1064,75 @@ fn resolve_seeds(
             .collect(),
         GraphSeedV1::Query { text, ranked_limit, .. } => {
             let compiled = compile_text_query_with(text, stop_words);
-            let mut params = vec![rusqlite::types::Value::Text(compiled.match_expression)];
-            if let Some(now) = view.now_param() {
-                params.push(rusqlite::types::Value::Integer(now));
-            }
-            let eligibility = crate::filter::append_node_eligibility_sql_view(
-                tx,
-                Some(filter),
-                "cn",
-                &mut params,
-                &view.view,
-            )
-            .map_err(|_| EngineError::Storage)?;
-            params.push(rusqlite::types::Value::Integer(i64::from(*ranked_limit)));
-            let limit_index = params.len();
-            let sql = format!(
-                "SELECT cn.logical_id,bm25(search_index) FROM search_index JOIN canonical_nodes cn ON cn.write_cursor=search_index.write_cursor WHERE search_index MATCH ?1 AND cn.logical_id IS NOT NULL{}{}{} ORDER BY bm25(search_index),search_index.write_cursor LIMIT ?{limit_index}",
-                view.node_sql("cn", 2), eligibility, ""
-            );
+            let (sql, params) = match history_cursor {
+                ResolvedHistoryCursor::Current => {
+                    let mut params = vec![rusqlite::types::Value::Text(compiled.match_expression)];
+                    if let Some(now) = view.now_param() {
+                        params.push(rusqlite::types::Value::Integer(now));
+                    }
+                    let eligibility = crate::filter::append_node_eligibility_sql_view(
+                        tx,
+                        Some(filter),
+                        "cn",
+                        &mut params,
+                        &view.view,
+                    )
+                    .map_err(|_| EngineError::Storage)?;
+                    params.push(rusqlite::types::Value::Integer(i64::from(*ranked_limit)));
+                    let limit_index = params.len();
+                    let sql = format!(
+                        "SELECT cn.logical_id,bm25(search_index) FROM search_index JOIN canonical_nodes cn ON cn.write_cursor=search_index.write_cursor WHERE search_index MATCH ?1 AND cn.logical_id IS NOT NULL{}{}{} ORDER BY bm25(search_index),search_index.write_cursor LIMIT ?{limit_index}",
+                        view.node_sql("cn", 2), eligibility, ""
+                    );
+                    (sql, params)
+                }
+                ResolvedHistoryCursor::AsOf(as_of) => {
+                    let mut params = vec![
+                        rusqlite::types::Value::Text(compiled.match_expression),
+                        rusqlite::types::Value::Integer(as_of_sql_i64(as_of)),
+                    ];
+                    let now_idx = if let Some(now) = view.now_param() {
+                        params.push(rusqlite::types::Value::Integer(now));
+                        params.len()
+                    } else {
+                        0
+                    };
+                    let eligibility = crate::filter::append_node_eligibility_sql_historical(
+                        tx,
+                        Some(filter),
+                        "cn",
+                        &mut params,
+                    )
+                    .map_err(|_| EngineError::Storage)?;
+                    params.push(rusqlite::types::Value::Integer(i64::from(*ranked_limit)));
+                    let limit_index = params.len();
+                    let validity_sql = view.validity_sql("cn", now_idx);
+                    let dep_eligibility_sql =
+                        crate::dependency_closure::read_eligibility_sql_historical_for_cursor(
+                            "cn.write_cursor",
+                            2,
+                            now_idx,
+                            view.view.include_out_of_window,
+                        );
+                    let sql = format!(
+                        "SELECT cn.logical_id,bm25(search_index) \
+                         FROM search_index \
+                         JOIN canonical_nodes cn ON cn.write_cursor=search_index.write_cursor \
+                         WHERE search_index MATCH ?1 AND cn.logical_id IS NOT NULL \
+                           AND cn.write_cursor<=?2 \
+                           AND (cn.superseded_at IS NULL OR cn.superseded_at>?2) \
+                           AND cn.state='active' \
+                           AND NOT EXISTS(\
+                             SELECT 1 FROM canonical_nodes cur \
+                             WHERE cur.logical_id=cn.logical_id \
+                               AND cur.superseded_at IS NULL \
+                               AND cur.state!='active'\
+                           ){validity_sql}{dep_eligibility_sql}{eligibility} \
+                         ORDER BY bm25(search_index),search_index.write_cursor LIMIT ?{limit_index}"
+                    );
+                    (sql, params)
+                }
+            };
             let mut statement = tx.prepare(&sql).map_err(|_| {
                 graph_error(GraphExpansionErrorReasonV1::GraphProjectionUnavailable, "/projection")
             })?;
@@ -1000,7 +1237,9 @@ pub(crate) fn read_graph_expand_with_stop_words_in_tx(
         },
     )?;
     let view = context.view.freeze();
-    let seeds = resolve_seeds(&tx, request, view, &context.eligibility, stop_words)?;
+    let history_cursor = resolve_history_cursor(&tx, request)?;
+    let seeds =
+        resolve_seeds(&tx, request, view, &context.eligibility, stop_words, history_cursor)?;
     let seed_source = match request.seed {
         GraphSeedV1::Query { .. } => GraphSeedSourceV1::Query,
         GraphSeedV1::Explicit { .. } => GraphSeedSourceV1::Explicit,
@@ -1049,7 +1288,9 @@ pub(crate) fn read_graph_expand_with_stop_words_in_tx(
     let (pushed_edge_predicates, pushed_target_predicates): (
         Vec<&PropertyPredicate>,
         Vec<&PropertyPredicate>,
-    ) = if request.edge_predicates.is_empty() && request.target_predicates.is_empty() {
+    ) = if matches!(history_cursor, ResolvedHistoryCursor::AsOf(_))
+        || (request.edge_predicates.is_empty() && request.target_predicates.is_empty())
+    {
         (Vec::new(), Vec::new())
     } else {
         let registry = load_projection_registry(&tx).map_err(|_| EngineError::Storage)?;
@@ -1081,7 +1322,15 @@ pub(crate) fn read_graph_expand_with_stop_words_in_tx(
         };
         (edge_pushed, target_pushed)
     };
-    let edge_boundary = EdgeViewBoundary::Current { edge_now: view.edge_now() };
+    let edge_boundary = match history_cursor {
+        ResolvedHistoryCursor::Current => EdgeViewBoundary::Current { edge_now: view.edge_now() },
+        ResolvedHistoryCursor::AsOf(as_of) => EdgeViewBoundary::AsOf {
+            edge_now: view.edge_now(),
+            as_of_cursor: as_of_sql_i64(as_of),
+            include_out_of_window: view.view.include_out_of_window,
+            check_derived_eligibility: has_dependency_or_closure_rows(&tx)?,
+        },
+    };
 
     let all_seed_ids = seeds.iter().map(|seed| seed.logical_id.clone()).collect::<HashSet<_>>();
     let mut work_units = 0_u64;
@@ -1172,7 +1421,14 @@ pub(crate) fn read_graph_expand_with_stop_words_in_tx(
                 {
                     continue;
                 }
-                if edge.superseded
+                let edge_visible_at_history = match history_cursor {
+                    ResolvedHistoryCursor::Current => edge.superseded_at.is_none(),
+                    ResolvedHistoryCursor::AsOf(as_of) => {
+                        edge.write_cursor <= as_of
+                            && edge.superseded_at.is_none_or(|sup| sup > as_of_sql_i64(as_of))
+                    }
+                };
+                if !edge_visible_at_history
                     || edge.t_invalid.is_some_and(|invalid| invalid <= view.edge_now())
                 {
                     continue;
@@ -1240,7 +1496,14 @@ pub(crate) fn read_graph_expand_with_stop_words_in_tx(
                 let hop_target_cpv: &[&PropertyPredicate] =
                     if is_terminal_depth { &pushed_target_predicates } else { &[] };
                 let Some(LoadedNodeRow { kind, body, write_cursor, properties: node_properties }) =
-                    load_node(&tx, next, view, &context.eligibility, hop_target_cpv)?
+                    load_node(
+                        &tx,
+                        next,
+                        view,
+                        &context.eligibility,
+                        hop_target_cpv,
+                        history_cursor,
+                    )?
                 else {
                     continue;
                 };
@@ -1425,9 +1688,19 @@ pub(crate) fn read_graph_expand_with_stop_words_in_tx(
             .iter()
             .enumerate()
             .map(|(index, target)| {
-                let dependency_state =
-                    structural_dependency_state(&tx, target.write_cursor, view.edge_now())
-                        .map_err(|_| EngineError::Storage)?;
+                let dependency_state = match history_cursor {
+                    ResolvedHistoryCursor::Current => {
+                        structural_dependency_state(&tx, target.write_cursor, view.edge_now())
+                    }
+                    ResolvedHistoryCursor::AsOf(as_of) => structural_dependency_state_as_of(
+                        &tx,
+                        target.write_cursor,
+                        view.edge_now(),
+                        as_of,
+                        view.view.include_out_of_window,
+                    ),
+                }
+                .map_err(|_| EngineError::Storage)?;
                 Ok(GraphTargetExplanationV1 {
                     schema_version: 1,
                     target_index: u32::try_from(index).unwrap_or(u32::MAX),
@@ -1558,6 +1831,13 @@ pub(super) fn encode_graph_evidence_request(value: &GraphExpandRequestV1) -> Vec
         bytes.push(1);
         encode_sorted_predicates(&mut bytes, &value.edge_predicates);
         encode_sorted_predicates(&mut bytes, &value.target_predicates);
+    }
+    if let Some(cursor) = value.as_of_write_cursor {
+        bytes.push(2);
+        frozen_read::encode_u64(&mut bytes, cursor);
+    } else if let Some(epoch_ms) = value.as_of_epoch_ms {
+        bytes.push(3);
+        frozen_read::encode_i64(&mut bytes, epoch_ms);
     }
     bytes
 }

@@ -111,11 +111,15 @@ pub struct GraphExpandRequestV1 {
     pub max_work_units: u64,
     pub include_explanation: bool,
     pub include_evidence: bool,
+    /// Optional knowledge-time upper bound by monotonic write cursor (mutually exclusive with `as_of_epoch_ms`).
+    pub as_of_write_cursor: Option<u64>,
+    /// Optional knowledge-time upper bound by commit timestamp in epoch milliseconds (mutually exclusive with `as_of_write_cursor`).
+    pub as_of_epoch_ms: Option<i64>,
 }
 
 impl GraphExpandRequestV1 {
     /// Construct a `v1` constrained graph-expansion request with empty kind/predicate
-    /// filters and explanation/evidence disabled.
+    /// filters, current knowledge-time view, and explanation/evidence disabled.
     #[must_use]
     pub fn new(
         seed: GraphSeedV1,
@@ -139,6 +143,8 @@ impl GraphExpandRequestV1 {
             max_work_units,
             include_explanation: false,
             include_evidence: false,
+            as_of_write_cursor: None,
+            as_of_epoch_ms: None,
         }
     }
 
@@ -181,6 +187,20 @@ impl GraphExpandRequestV1 {
     #[must_use]
     pub fn with_evidence(mut self, include_evidence: bool) -> Self {
         self.include_evidence = include_evidence;
+        self
+    }
+
+    /// Restrict traversal and node/edge hydration to revisions alive at `cursor`.
+    #[must_use]
+    pub fn with_as_of_write_cursor(mut self, cursor: u64) -> Self {
+        self.as_of_write_cursor = Some(cursor);
+        self
+    }
+
+    /// Restrict traversal and node/edge hydration to revisions committed at or before `epoch_ms`.
+    #[must_use]
+    pub fn with_as_of_epoch_ms(mut self, epoch_ms: i64) -> Self {
+        self.as_of_epoch_ms = Some(epoch_ms);
         self
     }
 }

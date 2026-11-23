@@ -150,4 +150,47 @@ mod graph_evidence_request_tests {
         tampered.target_predicates[1].value = PropertyValue::Int((1_i64 << 53) + 2);
         assert_ne!(encode_graph_evidence_request(&left), encode_graph_evidence_request(&tampered));
     }
+
+    #[test]
+    fn graph_request_commitment_input_binds_history_tags_prefix_free_and_preserves_current_bytes() {
+        let base = request("tok");
+        let base_bytes = encode_graph_evidence_request(&base);
+
+        let pred = PropertyPredicate {
+            key: "weight".into(),
+            op: PropertyComparisonOp::Gte,
+            value: PropertyValue::Int(1),
+        };
+        let with_pred = base.clone().with_edge_predicates(vec![pred.clone()]);
+        let with_cursor = base.clone().with_as_of_write_cursor(42);
+        let with_cursor_zero = base.clone().with_as_of_write_cursor(0);
+        let with_epoch = base.clone().with_as_of_epoch_ms(42);
+        let with_pred_and_cursor =
+            base.clone().with_edge_predicates(vec![pred.clone()]).with_as_of_write_cursor(42);
+        let with_pred_and_epoch =
+            base.clone().with_edge_predicates(vec![pred]).with_as_of_epoch_ms(42);
+
+        let b_pred = encode_graph_evidence_request(&with_pred);
+        let b_cursor = encode_graph_evidence_request(&with_cursor);
+        let b_cursor_zero = encode_graph_evidence_request(&with_cursor_zero);
+        let b_epoch = encode_graph_evidence_request(&with_epoch);
+        let b_pred_cursor = encode_graph_evidence_request(&with_pred_and_cursor);
+        let b_pred_epoch = encode_graph_evidence_request(&with_pred_and_epoch);
+
+        // Current-time encoding has no trailing tag; history/predicate tags are disjoint (1, 2, 3).
+        assert_eq!(b_pred[base_bytes.len()], 1);
+        assert_eq!(b_cursor[base_bytes.len()], 2);
+        assert_eq!(b_epoch[base_bytes.len()], 3);
+        assert_eq!(b_pred_cursor[b_pred.len()], 2);
+        assert_eq!(b_pred_epoch[b_pred.len()], 3);
+
+        // All distinct combinations produce distinct byte sequences (no collision across tags or values).
+        let all =
+            [base_bytes, b_pred, b_cursor, b_cursor_zero, b_epoch, b_pred_cursor, b_pred_epoch];
+        for i in 0..all.len() {
+            for j in (i + 1)..all.len() {
+                assert_ne!(all[i], all[j], "collision between encoding {i} and {j}");
+            }
+        }
+    }
 }

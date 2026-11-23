@@ -9,10 +9,14 @@ use rusqlite::params;
 #[cfg(feature = "test-hooks")]
 use crate::dependency_closure::{self, ClosureCauseV1};
 use crate::errors::EngineError;
+#[cfg(any(test, feature = "test-hooks"))]
+use crate::filter::SearchFilter;
 use crate::frozen_read;
 #[cfg(any(test, feature = "test-hooks"))]
 use crate::graph_expand::execution::{
-    explain_graph_expand_incident_query, graph_expand_incident_query, EdgeViewBoundary,
+    as_of_sql_i64, build_historical_load_node_query, explain_graph_expand_incident_query,
+    explain_sql_with_params, graph_expand_incident_query, EdgeViewBoundary,
+    COMMIT_TIMESTAMP_RESOLVE_SQL,
 };
 use crate::graph_expand::execution::{graph_error, validate_semantics};
 #[cfg(feature = "test-hooks")]
@@ -610,6 +614,76 @@ impl Engine {
             1,
         );
         explain_graph_expand_incident_query(connection, &query)
+    }
+
+    /// Return endpoint-index query plans used by historical `EdgeViewBoundary::AsOf`
+    /// graph expansion with optional `edge_kinds` and derived-edge eligibility pushdown.
+    #[cfg(any(test, feature = "test-hooks"))]
+    #[doc(hidden)]
+    pub fn explain_graph_expand_as_of_with_kinds_for_test(
+        &self,
+        direction: TraversalDirection,
+        edge_kinds: &[String],
+        as_of_write_cursor: u64,
+        check_derived_eligibility: bool,
+    ) -> Result<Vec<String>, EngineError> {
+        let _operation = self.ensure_open()?;
+        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+        let query = graph_expand_incident_query(
+            "fixture",
+            direction,
+            EdgeViewBoundary::AsOf {
+                edge_now: 1_750_000_000,
+                as_of_cursor: as_of_sql_i64(as_of_write_cursor),
+                include_out_of_window: false,
+                check_derived_eligibility,
+            },
+            edge_kinds,
+            &[],
+            1,
+        );
+        explain_graph_expand_incident_query(connection, &query)
+    }
+
+    /// Return the production query plan for historical two-arm `load_node` hydration.
+    #[cfg(any(test, feature = "test-hooks"))]
+    #[doc(hidden)]
+    pub fn explain_graph_expand_load_node_as_of_for_test(
+        &self,
+        logical_id: &str,
+        as_of_write_cursor: u64,
+    ) -> Result<Vec<String>, EngineError> {
+        let _operation = self.ensure_open()?;
+        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+        let view = ReadView { valid_as_of: Some(1_750_000_000), ..ReadView::default() }.freeze();
+        let (sql, params) = build_historical_load_node_query(
+            connection,
+            logical_id,
+            view,
+            &SearchFilter::default(),
+            as_of_sql_i64(as_of_write_cursor),
+        )?;
+        explain_sql_with_params(connection, &sql, &params)
+    }
+
+    /// Return the production query plan for O(log N) `_fathomdb_commit_timestamps`
+    /// reverse-seek resolution (`as_of_epoch_ms`).
+    #[cfg(any(test, feature = "test-hooks"))]
+    #[doc(hidden)]
+    pub fn explain_commit_timestamp_resolve_for_test(
+        &self,
+        as_of_epoch_ms: i64,
+    ) -> Result<Vec<String>, EngineError> {
+        let _operation = self.ensure_open()?;
+        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+        explain_sql_with_params(
+            connection,
+            COMMIT_TIMESTAMP_RESOLVE_SQL,
+            &[rusqlite::types::Value::Integer(as_of_epoch_ms)],
+        )
     }
 }
 

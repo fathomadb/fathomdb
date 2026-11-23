@@ -185,6 +185,73 @@ fn request_rejects_noncanonical_integers_unions_and_boolean_substitutions() {
 }
 
 #[test]
+fn request_as_of_fields_round_trip_refuse_null_and_enforce_mutual_exclusion() {
+    let request_fixture: Value = serde_json::from_str(include_str!(
+        "../../../../../dev/fixtures/slice60-fix1-canonical-request-v1.json"
+    ))
+    .unwrap();
+    let canonical_bytes = request_fixture["request"].as_str().unwrap().as_bytes();
+    // Default current-time request remains byte-identical when neither asOf field is set.
+    let current_req = request();
+    assert_eq!(current_req.as_of_write_cursor, None);
+    assert_eq!(current_req.as_of_epoch_ms, None);
+    assert_eq!(encode_graph_expand_request_v1(&current_req).unwrap(), canonical_bytes);
+
+    // Canonical asOfWriteCursor round-trip ("0" and u64::MAX).
+    for cursor in [0_u64, 42_u64, u64::MAX] {
+        let req = request().with_as_of_write_cursor(cursor);
+        let encoded = encode_graph_expand_request_v1(&req).unwrap();
+        let parsed: Value = serde_json::from_slice(&encoded).unwrap();
+        assert_eq!(parsed["asOfWriteCursor"], json!(cursor.to_string()));
+        assert!(parsed.get("asOfEpochMs").is_none());
+        assert_eq!(decode_graph_expand_request_v1(&encoded).unwrap(), req);
+    }
+
+    // Canonical asOfEpochMs round-trip (negative, 0, positive, i64::MAX).
+    for epoch_ms in [-100_i64, 0_i64, 1_750_000_000_123_i64, i64::MAX] {
+        let req = request().with_as_of_epoch_ms(epoch_ms);
+        let encoded = encode_graph_expand_request_v1(&req).unwrap();
+        let parsed: Value = serde_json::from_slice(&encoded).unwrap();
+        assert_eq!(parsed["asOfEpochMs"], json!(epoch_ms));
+        assert!(parsed.get("asOfWriteCursor").is_none());
+        assert_eq!(decode_graph_expand_request_v1(&encoded).unwrap(), req);
+    }
+
+    // Mutual exclusion fails deterministically with GraphContextInvalid at /asOfEpochMs.
+    let mut both = fixture()["request"].clone();
+    both.as_object_mut().unwrap().insert("asOfWriteCursor".into(), json!("5"));
+    both.as_object_mut().unwrap().insert("asOfEpochMs".into(), json!(1_750_000_000_000_i64));
+    let err = decode_request(&both);
+    assert_eq!(err.reason, GraphExpansionErrorReasonV1::GraphContextInvalid);
+    assert_eq!(err.field_path, "/asOfEpochMs");
+
+    // Refusals for null, wrong types, leading zeros, negative strings, and overflow.
+    let base = fixture()["request"].clone();
+    for (field, invalid, expected_path) in [
+        ("asOfWriteCursor", json!(null), "/asOfWriteCursor"),
+        ("asOfWriteCursor", json!(5), "/asOfWriteCursor"),
+        ("asOfWriteCursor", json!("01"), "/asOfWriteCursor"),
+        ("asOfWriteCursor", json!("-1"), "/asOfWriteCursor"),
+        ("asOfWriteCursor", json!(""), "/asOfWriteCursor"),
+        ("asOfWriteCursor", json!("18446744073709551616"), "/asOfWriteCursor"),
+        ("asOfEpochMs", json!(null), "/asOfEpochMs"),
+        ("asOfEpochMs", json!("1750000000000"), "/asOfEpochMs"),
+        ("asOfEpochMs", json!(1.5), "/asOfEpochMs"),
+        ("asOfEpochMs", json!(true), "/asOfEpochMs"),
+    ] {
+        let mut value = base.clone();
+        value.as_object_mut().unwrap().insert(field.into(), invalid.clone());
+        let err = decode_request(&value);
+        assert_eq!(
+            err.reason,
+            GraphExpansionErrorReasonV1::GraphContextInvalid,
+            "field={field} invalid={invalid}"
+        );
+        assert_eq!(err.field_path, expected_path, "field={field} invalid={invalid}");
+    }
+}
+
+#[test]
 fn response_accepts_additive_fields_and_rejects_closed_variants() {
     let base = fixture()["response"].clone();
     let mut additive = base.clone();

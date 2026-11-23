@@ -141,6 +141,10 @@ struct RequestWire<'a> {
     include_explanation: bool,
     #[serde(skip_serializing_if = "is_false")]
     include_evidence: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    as_of_write_cursor: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    as_of_epoch_ms: Option<i64>,
 }
 
 fn predicate_field_suffix(field: PropertyPredicateInvalidField) -> &'static str {
@@ -300,6 +304,12 @@ pub fn encode_graph_expand_request_v1(
         GraphExpansionErrorReasonV1::GraphTargetPredicatesInvalid,
         "/targetPredicates",
     )?;
+    if value.as_of_write_cursor.is_some() && value.as_of_epoch_ms.is_some() {
+        return Err(request_error(
+            GraphExpansionErrorReasonV1::GraphContextInvalid,
+            "/asOfEpochMs",
+        ));
+    }
     serde_json::to_vec(&RequestWire {
         schema_version: value.schema_version,
         seed,
@@ -314,6 +324,8 @@ pub fn encode_graph_expand_request_v1(
         max_work_units: value.max_work_units.to_string(),
         include_explanation: value.include_explanation,
         include_evidence: value.include_evidence,
+        as_of_write_cursor: value.as_of_write_cursor.map(|cursor| cursor.to_string()),
+        as_of_epoch_ms: value.as_of_epoch_ms,
     })
     .map_err(|_| GraphExpansionErrorV1::new(GraphExpansionErrorReasonV1::GraphCorrupt, ""))
 }
@@ -587,6 +599,8 @@ pub fn decode_graph_expand_request_v1(
             "maxWorkUnits",
             "includeExplanation",
             "includeEvidence",
+            "asOfWriteCursor",
+            "asOfEpochMs",
         ],
         "",
     )?;
@@ -877,7 +891,31 @@ pub fn decode_graph_expand_request_v1(
         })
         .transpose()?
         .unwrap_or(false);
-    let request = GraphExpandRequestV1::new(
+    let as_of_write_cursor = root
+        .get("asOfWriteCursor")
+        .map(|value| {
+            parse_canonical_u64(
+                value,
+                GraphExpansionErrorReasonV1::GraphContextInvalid,
+                "/asOfWriteCursor",
+            )
+        })
+        .transpose()?;
+    let as_of_epoch_ms = root
+        .get("asOfEpochMs")
+        .map(|value| {
+            value.as_i64().ok_or_else(|| {
+                request_error(GraphExpansionErrorReasonV1::GraphContextInvalid, "/asOfEpochMs")
+            })
+        })
+        .transpose()?;
+    if as_of_write_cursor.is_some() && as_of_epoch_ms.is_some() {
+        return Err(request_error(
+            GraphExpansionErrorReasonV1::GraphContextInvalid,
+            "/asOfEpochMs",
+        ));
+    }
+    let mut request = GraphExpandRequestV1::new(
         seed,
         direction,
         context,
@@ -891,6 +929,8 @@ pub fn decode_graph_expand_request_v1(
     .with_target_predicates(target_predicates)
     .with_explanation(include_explanation)
     .with_evidence(include_evidence);
+    request.as_of_write_cursor = as_of_write_cursor;
+    request.as_of_epoch_ms = as_of_epoch_ms;
     Ok(request)
 }
 

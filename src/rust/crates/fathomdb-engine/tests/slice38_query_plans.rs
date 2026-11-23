@@ -571,3 +571,173 @@ fn slice38_graph_arm_phase2_union_all_uses_active_or_sup_kind_indexes_zero_scan(
 
     engine.close().expect("close");
 }
+
+#[test]
+fn slice40_historical_graph_expand_production_plans_use_dual_indexes_and_reverse_timestamp_seek() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("hist-qp{SQLITE_SUFFIX}"));
+    let opened = Engine::open(&path).expect("open");
+    let engine = opened.engine;
+
+    engine
+        .write(&[
+            PreparedWrite::Node {
+                kind: "note".into(),
+                body: "a v1".into(),
+                source_id: SourceId::new("src:hqp").unwrap(),
+                logical_id: Some("hqp-a".into()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                properties: None,
+            },
+            PreparedWrite::Node {
+                kind: "note".into(),
+                body: "b v1".into(),
+                source_id: SourceId::new("src:hqp").unwrap(),
+                logical_id: Some("hqp-b".into()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                properties: None,
+            },
+            PreparedWrite::Edge {
+                kind: "supports".into(),
+                from: "hqp-a".into(),
+                to: "hqp-b".into(),
+                source_id: SourceId::new("src:hqp").unwrap(),
+                logical_id: Some("hqp-e1".into()),
+                body: None,
+                t_valid: None,
+                t_invalid: None,
+                confidence: None,
+                extractor_model_id: None,
+                temporal_fallback: None,
+                properties: None,
+            },
+        ])
+        .expect("write v1");
+    engine
+        .write(&[PreparedWrite::Node {
+            kind: "note".into(),
+            body: "a v2".into(),
+            source_id: SourceId::new("src:hqp").unwrap(),
+            logical_id: Some("hqp-a".into()),
+            state: InitialState::Active,
+            reason: None,
+            valid_from: None,
+            valid_until: None,
+            properties: None,
+        }])
+        .expect("write v2");
+
+    // 1. EdgeViewBoundary::AsOf production incident-edge plans across directions & kind sets.
+    let kind_sets: &[&[&str]] = &[&[], &["supports"], &["supports", "contradicts"]];
+    for check_derived in [false, true] {
+        for direction in
+            [TraversalDirection::Outgoing, TraversalDirection::Incoming, TraversalDirection::Both]
+        {
+            for kinds in kind_sets {
+                let kinds_vec: Vec<String> = kinds.iter().map(|s| (*s).to_string()).collect();
+                let plan = engine
+                    .explain_graph_expand_as_of_with_kinds_for_test(
+                        direction,
+                        &kinds_vec,
+                        3,
+                        check_derived,
+                    )
+                    .unwrap_or_else(|e| {
+                        panic!("as_of explain ({direction:?}, {kinds:?}, derived={check_derived}) failed: {e:?}")
+                    });
+                let has_from_active = plan.iter().any(|l| {
+                    l.contains("SEARCH canonical_edges USING INDEX canonical_edges_from_active_idx")
+                        || l.contains(
+                            "SEARCH canonical_edges USING INDEX canonical_edges_from_sup_kind_idx",
+                        )
+                });
+                let has_from_sup = plan.iter().any(|l| {
+                    l.contains(
+                        "SEARCH canonical_edges USING INDEX canonical_edges_from_sup_kind_idx",
+                    )
+                });
+                let has_to_active = plan.iter().any(|l| {
+                    l.contains("SEARCH canonical_edges USING INDEX canonical_edges_to_active_idx")
+                        || l.contains(
+                            "SEARCH canonical_edges USING INDEX canonical_edges_to_sup_kind_idx",
+                        )
+                });
+                let has_to_sup = plan.iter().any(|l| {
+                    l.contains("SEARCH canonical_edges USING INDEX canonical_edges_to_sup_kind_idx")
+                });
+                match direction {
+                    TraversalDirection::Outgoing => {
+                        assert!(
+                            has_from_active && has_from_sup && !has_to_active && !has_to_sup,
+                            "AsOf Outgoing {kinds:?} derived={check_derived} plan:\n{}",
+                            plan.join("\n")
+                        );
+                    }
+                    TraversalDirection::Incoming => {
+                        assert!(
+                            has_to_active && has_to_sup && !has_from_active && !has_from_sup,
+                            "AsOf Incoming {kinds:?} derived={check_derived} plan:\n{}",
+                            plan.join("\n")
+                        );
+                    }
+                    TraversalDirection::Both => {
+                        assert!(
+                            has_from_active && has_from_sup && has_to_active && has_to_sup,
+                            "AsOf Both {kinds:?} derived={check_derived} plan:\n{}",
+                            plan.join("\n")
+                        );
+                    }
+                }
+                assert!(
+                    !plan.iter().any(|l| l.contains("SCAN canonical_edges")),
+                    "AsOf {direction:?} {kinds:?} derived={check_derived} must never SCAN canonical_edges:\n{}",
+                    plan.join("\n")
+                );
+            }
+        }
+    }
+
+    // 2. Historical two-arm load_node production plan uses logical_active_idx + logical_sup_idx.
+    let load_node_plan = engine
+        .explain_graph_expand_load_node_as_of_for_test("hqp-a", 3)
+        .expect("explain load_node");
+    assert!(
+        load_node_plan.iter().any(|l| {
+            l.contains("SEARCH n USING INDEX canonical_nodes_logical_active_idx")
+                || l.contains("SEARCH n USING INDEX canonical_nodes_logical_sup_idx")
+        }),
+        "historical load_node arm 1 must use active/sup logical index:\n{}",
+        load_node_plan.join("\n")
+    );
+    assert!(
+        load_node_plan
+            .iter()
+            .any(|l| l.contains("SEARCH n USING INDEX canonical_nodes_logical_sup_idx")),
+        "historical load_node arm 2 must use canonical_nodes_logical_sup_idx:\n{}",
+        load_node_plan.join("\n")
+    );
+    assert!(
+        !load_node_plan.iter().any(|l| l.contains("SCAN n") || l.contains("SCAN canonical_nodes")),
+        "historical load_node must never SCAN canonical_nodes:\n{}",
+        load_node_plan.join("\n")
+    );
+
+    // 3. _fathomdb_commit_timestamps O(log N) reverse-seek production plan.
+    let ts_plan = engine
+        .explain_commit_timestamp_resolve_for_test(1_800_000_000_000)
+        .expect("explain commit timestamp resolve");
+    assert_uses_index(&ts_plan, "_fathomdb_commit_timestamps_ms_idx");
+    assert!(
+        !ts_plan.iter().any(|l| l.contains("SCAN") || l.contains("USE TEMP B-TREE")),
+        "commit timestamp resolution must be a single reverse index seek with zero SCAN/TEMP B-TREE:\n{}",
+        ts_plan.join("\n")
+    );
+
+    engine.close().expect("close");
+}

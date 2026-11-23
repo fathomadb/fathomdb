@@ -1207,7 +1207,35 @@ pub(crate) fn append_node_eligibility_sql_view(
     params: &mut Vec<rusqlite::types::Value>,
     view: &ReadView,
 ) -> rusqlite::Result<String> {
-    if !view.include_superseded && !view.include_inactive {
+    append_node_eligibility_sql_with_inline(
+        connection,
+        filter,
+        alias,
+        params,
+        view.include_superseded || view.include_inactive,
+    )
+}
+
+/// Compile node eligibility into SQL evaluating BOTH `attributes` and
+/// `property_predicates` inline against historical row JSON (`properties > body`)
+/// rather than active-only `canonical_attributes` / `canonical_property_values`.
+pub(crate) fn append_node_eligibility_sql_historical(
+    connection: &Connection,
+    filter: Option<&SearchFilter>,
+    alias: &str,
+    params: &mut Vec<rusqlite::types::Value>,
+) -> rusqlite::Result<String> {
+    append_node_eligibility_sql_with_inline(connection, filter, alias, params, true)
+}
+
+fn append_node_eligibility_sql_with_inline(
+    connection: &Connection,
+    filter: Option<&SearchFilter>,
+    alias: &str,
+    params: &mut Vec<rusqlite::types::Value>,
+    force_inline: bool,
+) -> rusqlite::Result<String> {
+    if !force_inline {
         return Ok(append_node_eligibility_sql(filter, alias, params));
     }
     let Some(filter) = filter else {

@@ -1084,6 +1084,55 @@ pub(crate) fn read_eligibility_sql_for_cursor(
     )
 }
 
+/// Historical derived-artifact read eligibility for `AsOf(as_of_cursor)` graph
+/// reconstruction. Enforces active closure barriers (`phase != 'complete'`) and
+/// requires every registered canonical source to physically exist at `as_of`,
+/// remain active (both the `as_of` revision and its logical head), and satisfy
+/// world-time validity unless `include_out_of_window` is set.
+pub(crate) fn read_eligibility_sql_historical_for_cursor(
+    cursor_expression: &str,
+    as_of_idx: usize,
+    now_idx: usize,
+    include_out_of_window: bool,
+) -> String {
+    let mut source_predicate = format!(
+        " AND source_node.write_cursor <= ?{as_of_idx} \
+         AND (source_node.superseded_at IS NULL OR source_node.superseded_at > ?{as_of_idx}) \
+         AND source_node.state='active' \
+         AND NOT EXISTS(\
+           SELECT 1 FROM canonical_nodes scur \
+           WHERE scur.logical_id=source_node.logical_id \
+             AND scur.superseded_at IS NULL \
+             AND scur.state!='active'\
+         )"
+    );
+    if !include_out_of_window {
+        source_predicate.push_str(&format!(
+            " AND (source_node.valid_from IS NULL OR source_node.valid_from <= ?{now_idx}) \
+             AND (source_node.valid_until IS NULL OR source_node.valid_until > ?{now_idx})"
+        ));
+    }
+    format!(
+        "{} AND NOT EXISTS(\
+           SELECT 1 FROM _fathomdb_artifact_revisions source_owner \
+           JOIN _fathomdb_source_dependencies source_dep \
+             ON source_dep.derived_revision_id=source_owner.revision_id \
+           JOIN _fathomdb_source_links derived_link \
+             ON derived_link.artifact_revision_id=source_owner.revision_id \
+           WHERE source_owner.write_cursor={cursor_expression} AND NOT EXISTS(\
+             SELECT 1 FROM _fathomdb_artifact_revisions source_revision \
+             JOIN canonical_nodes source_node \
+               ON source_node.write_cursor=source_revision.write_cursor \
+             WHERE source_revision.revision_id=derived_link.source_revision_id \
+               AND source_revision.artifact_class='node' \
+               AND source_revision.artifact_role='canonical_source' \
+               AND source_revision.completeness='complete'{source_predicate}\
+           )\
+         )",
+        read_barrier_sql_for_cursor(cursor_expression)
+    )
+}
+
 pub(crate) fn read_barrier_sql_for_cursor(cursor_expression: &str) -> String {
     format!(
         " AND NOT EXISTS(\
@@ -1400,6 +1449,63 @@ pub(crate) fn source_revision_is_strictly_eligible(
             |row| row.get(0),
         )
         .map_err(|_| EngineError::Storage)
+}
+
+pub(crate) fn source_revision_is_eligible_as_of(
+    connection: &Connection,
+    source_revision_id: &str,
+    effective_at: i64,
+    as_of_cursor: u64,
+    include_out_of_window: bool,
+) -> Result<bool, EngineError> {
+    let as_of_i64 = i64::try_from(as_of_cursor).unwrap_or(i64::MAX);
+    if include_out_of_window {
+        connection
+            .query_row(
+                "SELECT EXISTS(\
+                   SELECT 1 FROM _fathomdb_artifact_revisions r \
+                   JOIN canonical_nodes n ON n.write_cursor=r.write_cursor \
+                   WHERE r.revision_id=?1 AND r.artifact_class='node' \
+                     AND r.artifact_role='canonical_source' AND r.completeness='complete' \
+                     AND n.write_cursor <= ?2 \
+                     AND (n.superseded_at IS NULL OR n.superseded_at > ?2) \
+                     AND n.state='active' \
+                     AND NOT EXISTS(\
+                       SELECT 1 FROM canonical_nodes cur \
+                       WHERE cur.logical_id=n.logical_id \
+                         AND cur.superseded_at IS NULL \
+                         AND cur.state!='active'\
+                     )\
+                 )",
+                params![source_revision_id, as_of_i64],
+                |row| row.get(0),
+            )
+            .map_err(|_| EngineError::Storage)
+    } else {
+        connection
+            .query_row(
+                "SELECT EXISTS(\
+                   SELECT 1 FROM _fathomdb_artifact_revisions r \
+                   JOIN canonical_nodes n ON n.write_cursor=r.write_cursor \
+                   WHERE r.revision_id=?1 AND r.artifact_class='node' \
+                     AND r.artifact_role='canonical_source' AND r.completeness='complete' \
+                     AND n.write_cursor <= ?2 \
+                     AND (n.superseded_at IS NULL OR n.superseded_at > ?2) \
+                     AND n.state='active' \
+                     AND NOT EXISTS(\
+                       SELECT 1 FROM canonical_nodes cur \
+                       WHERE cur.logical_id=n.logical_id \
+                         AND cur.superseded_at IS NULL \
+                         AND cur.state!='active'\
+                     ) \
+                     AND (n.valid_from IS NULL OR n.valid_from <= ?3) \
+                     AND (n.valid_until IS NULL OR n.valid_until > ?3)\
+                 )",
+                params![source_revision_id, as_of_i64, effective_at],
+                |row| row.get(0),
+            )
+            .map_err(|_| EngineError::Storage)
+    }
 }
 
 fn direct_dependents(

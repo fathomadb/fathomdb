@@ -589,6 +589,32 @@ pub(crate) fn registered_dependency_for_cursor(
     write_cursor: u64,
     effective_at: i64,
 ) -> Result<bool, EngineError> {
+    registered_dependency_for_cursor_inner(connection, write_cursor, effective_at, None, false)
+}
+
+pub(crate) fn registered_dependency_for_cursor_as_of(
+    connection: &Connection,
+    write_cursor: u64,
+    effective_at: i64,
+    as_of_cursor: u64,
+    include_out_of_window: bool,
+) -> Result<bool, EngineError> {
+    registered_dependency_for_cursor_inner(
+        connection,
+        write_cursor,
+        effective_at,
+        Some(as_of_cursor),
+        include_out_of_window,
+    )
+}
+
+fn registered_dependency_for_cursor_inner(
+    connection: &Connection,
+    write_cursor: u64,
+    effective_at: i64,
+    as_of_cursor: Option<u64>,
+    include_out_of_window: bool,
+) -> Result<bool, EngineError> {
     let cursor = i64::try_from(write_cursor).map_err(|_| EngineError::Storage)?;
     let derived_revision_id: Option<String> = connection
         .query_row(
@@ -617,6 +643,20 @@ pub(crate) fn registered_dependency_for_cursor(
         return Ok(false);
     };
     let current_generation = load_dependency_generation(connection)?;
+    let source_eligible = match as_of_cursor {
+        None => crate::dependency_closure::source_revision_is_strictly_eligible(
+            connection,
+            &source_revision_id,
+            effective_at,
+        )?,
+        Some(as_of) => crate::dependency_closure::source_revision_is_eligible_as_of(
+            connection,
+            &source_revision_id,
+            effective_at,
+            as_of,
+            include_out_of_window,
+        )?,
+    };
     if schema != 1
         || !valid_caller_identity(&dependency_id)
         || generation <= 0
@@ -631,11 +671,7 @@ pub(crate) fn registered_dependency_for_cursor(
         || !source_link_valid(connection, &derived_revision_id, Some(&source_revision_id))?
         || !canonical_source_chain_valid(connection, &source_revision_id)?
         || crate::dependency_closure::active_barrier_for_source(connection, &source_revision_id)?
-        || !crate::dependency_closure::source_revision_is_strictly_eligible(
-            connection,
-            &source_revision_id,
-            effective_at,
-        )?
+        || !source_eligible
     {
         return Ok(false);
     }

@@ -173,11 +173,27 @@
     "publication_authorized": false,
     "scope": "Publication requires completed Slice 70 qualification and separate explicit HITL publication authorization."
   },
+  "published": null,
   "generated_views": [
+    {
+      "id": "plan-immediate-next",
+      "file": "dev/plans/0.8.31/plan.md",
+      "location": "Immediate next slice"
+    },
     {
       "id": "plan-landed-roll-up",
       "file": "dev/plans/0.8.31/plan.md",
       "location": "Landed slice roll-up"
+    },
+    {
+      "id": "status-current-state",
+      "file": "dev/plans/runs/STATUS-0.8.31.md",
+      "location": "Current state"
+    },
+    {
+      "id": "status-next-action",
+      "file": "dev/plans/runs/STATUS-0.8.31.md",
+      "location": "Next action"
     }
   ]
 }

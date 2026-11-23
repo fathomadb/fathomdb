@@ -90,7 +90,8 @@ PYTHON
     'printf "npm|%s" "$PWD" >> "$FAKE_CALL_LOG"' \
     'printf "|%s" "$@" >> "$FAKE_CALL_LOG"' \
     'printf "\\n" >> "$FAKE_CALL_LOG"' \
-    'if [ "$PWD" = "$FAKE_REPO" ]; then mkdir -p node_modules/js-yaml; fi' >"$FAKE_BIN/npm"
+    'if [ "$PWD" = "$FAKE_REPO" ]; then mkdir -p node_modules/js-yaml; fi' \
+    'if [ "$PWD" = "$FAKE_REPO/src/ts" ]; then mkdir -p node_modules/typescript/bin node_modules/@napi-rs/cli && : >node_modules/typescript/bin/tsc && : >node_modules/@napi-rs/cli/package.json; fi' >"$FAKE_BIN/npm"
   chmod +x "$FAKE_BIN/npm"
 
   printf '#!/usr/bin/env bash\nprintf "1.7.12\\n"\n' >"$FAKE_BIN/actionlint"

@@ -58,6 +58,12 @@ class CapabilityContract(unittest.TestCase):
         self.assertIn(positive, runner.CASES)
         self.assertEqual(negative, "closure")
 
+    def test_0831_operations_have_positive_real_database_routes(self) -> None:
+        for op in ("read.operational_collection", "read.operational_collections", "engine.resolve_evidence_many"):
+            positive, negative = runner.PLANNED[op]
+            self.assertIn(positive, runner.CASES)
+            self.assertTrue(negative)
+
 
 if __name__ == "__main__":
     unittest.main()

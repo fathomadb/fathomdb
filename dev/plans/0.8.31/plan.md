@@ -148,6 +148,11 @@ rework (deferred post-`0.8.34`, documented as legacy in `0.8.33`).
 
 ## Immediate next slice
 
+<!-- BEGIN GENERATED release-state:0.8.31:plan-immediate-next -->
+**IMMEDIATE NEXT: Slice 70** (`QUALIFICATION`) — Full-workspace qualification, paired 0.8.30 vs. 0.8.31 10k/50k/100k bootstrap latency gate, release docs, and golden schema-38 archive
+
+**Remaining ladder:** 70 → 80.<!-- END GENERATED release-state:0.8.31:plan-immediate-next -->
+
 Active slice is owned by [release-state-0.8.31.json](../release-state-0.8.31.json)
 and [STATUS-0.8.31.md](../runs/STATUS-0.8.31.md). Slice plans live under
 `dev/plans/0.8.31/features/slice-<N>/plan.md`.

@@ -49,19 +49,19 @@ def check_published_lookup() -> None:
 def check_dependency() -> None:
     lock = json.loads((ROOT / "package-lock.json").read_text())
     markdownlint = lock["packages"]["node_modules/markdownlint-cli2"]
-    require(markdownlint["version"] == "0.24.0", "markdownlint-cli2 must use the patched upstream release")
+    require(markdownlint["version"] == "0.24.2", "markdownlint-cli2 must use the patched upstream release")
     version = lock["packages"]["node_modules/smol-toml"]["version"]
     require(version == "1.9.1", "smol-toml must resolve to the patched 1.9.1 dependency")
     require(markdownlint["dependencies"]["smol-toml"] == "1.9.1", "the upstream dependency must be patched")
     expected_cohort = {
-        "node_modules/js-yaml": "5.4.3",
+        "node_modules/js-yaml": "5.5.0",
         "node_modules/markdown-it": "15.0.3",
         "node_modules/linkify-it": "6.1.0",
     }
     for path, expected in expected_cohort.items():
         require(lock["packages"][path]["version"] == expected, f"{path} must resolve to {expected}")
     package = json.loads((ROOT / "package.json").read_text())
-    for expected in ("js-yaml@5.4.3", "markdown-it@15.0.3", "linkify-it@6.1.0"):
+    for expected in ("js-yaml@5.5.0", "markdown-it@15.0.3", "linkify-it@6.1.0"):
         require(expected in package["comment-security"], f"security provenance must name {expected}")
 
 

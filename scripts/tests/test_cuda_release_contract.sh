@@ -763,6 +763,7 @@ for least_privilege_mutation in candidate-write candidate-credentials publishing
   make_fixture "$FIXTURE"
   python3 - "$FIXTURE/.github/workflows/release.yml" "$least_privilege_mutation" <<'PY'
 from pathlib import Path
+import re
 import sys
 
 path = Path(sys.argv[1])
@@ -773,7 +774,10 @@ if mutation == "candidate-write":
     replacement = needle + "    permissions:\n      contents: write\n      id-token: write\n"
 elif mutation == "candidate-credentials":
     start = text.index("  build-python:\n")
-    end = text.index("  build-napi:\n", start)
+    end_match = re.search(r"\n  [A-Za-z0-9_-]+:\n", text[start + 1:])
+    if end_match is None:
+        raise SystemExit("fixture lacks the end of the build-python job")
+    end = start + 1 + end_match.start() + 1
     job = text[start:end]
     needle = "          ref: ${{ env.RELEASE_CHECKOUT_REF }}\n"
     replacement = needle + "          persist-credentials: true\n"

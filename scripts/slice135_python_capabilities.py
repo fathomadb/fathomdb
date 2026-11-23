@@ -61,6 +61,9 @@ CASES = {
     "graph_evidence": ("test_slice20_graph_evidence.py", "test_real_engine_resolves_exact_target_and_terminal_edge"),
     "evidence": ("test_slice50_evidence.py", "test_search_and_resolve_exact_source_evidence"),
     "evidence_error": ("test_slice50_evidence.py", "test_unsupported_evidence_schema_is_typed"),
+    "evidence_many": ("test_slice50_sdk_ergonomics.py", "test_resolve_evidence_many_duplicates_partial_outcomes_and_drift"),
+    "evidence_many_error": ("test_slice50_sdk_ergonomics.py", "test_resolve_evidence_many_validation_and_bounds"),
+    "operational_collections": ("test_slice38_properties.py", "test_slice38_operational_collections_and_erase_report_flag"),
     "embed": ("test_embed.py", "test_embed_returns_fixed_dim_float_vector"),
     "embed_determinism": ("test_embed.py", "test_embed_is_deterministic"),
     "embed_error": ("test_embed.py", "test_embed_without_embedder_raises"),
@@ -88,6 +91,7 @@ PLANNED = {
     "engine.search_projected_text": ("projected", "boundary_errors"),
     "engine.search_with_evidence": ("evidence", "evidence_error"),
     "engine.resolve_evidence": ("evidence", "evidence_refusals"),
+    "engine.resolve_evidence_many": ("evidence_many", "evidence_many_error"),
     "engine.resolve_graph_evidence": ("graph_evidence", "evidence_refusals"),
     "engine.trace_dependency": ("trace", "trace"),
     "engine.close": ("retrieve", "boundary_errors"),
@@ -110,6 +114,8 @@ PLANNED = {
     "read.canonical_page": ("pages", "pages_error"),
     "read.operational_state": ("pages", "operational_errors"),
     "read.operational_state_page": ("pages", "operational_errors"),
+    "read.operational_collection": ("operational_collections", "boundary_errors"),
+    "read.operational_collections": ("operational_collections", "closed_reads"),
 }
 UNAVAILABLE = {
     **{
@@ -296,6 +302,7 @@ def _extra_case(name: str, temporary: Path) -> dict[str, Any]:
                 "engine.search_projected_text": lambda: refusal(lambda: engine.search_projected_text("bad\0query", "missing"), f.errors.WriteValidationError),
                 "engine.freeze_read_context": lambda: refusal(lambda: engine.freeze_read_context(f.ReadContextV1(schema_version=2)), f.errors.FrozenReadError, reason="unsupported_schema_version", field_path="/schemaVersion"),
                 "read.crossed_boundary_since": lambda: refusal(lambda: f.read.crossed_boundary_since(engine, True), ValueError),
+                "read.operational_collection": lambda: refusal(lambda: f.read.operational_collection(engine, ""), f.errors.InvalidArgumentError),
             }
             for operation, call in calls.items():
                 try:
@@ -310,7 +317,7 @@ def _extra_case(name: str, temporary: Path) -> dict[str, Any]:
             observed["engine.close"] = {"idempotent_close": True}
         elif name == "closed_reads":
             engine.close()
-            for op in ("projections", "projection_status", "embedding_readiness", "projection_generation_status"):
+            for op in ("projections", "projection_status", "embedding_readiness", "projection_generation_status", "operational_collections"):
                 observed["read." + op] = refusal(lambda op=op: getattr(f.read, op)(engine), f.errors.ClosingError)
         elif name in ("dependency_errors", "trace", "evidence_refusals", "graph_refusals", "search_text"):
             engine.write(s02.make_graph_records())

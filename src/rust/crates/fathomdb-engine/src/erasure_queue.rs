@@ -555,11 +555,11 @@ fn check_identity(
     }
     Ok(())
 }
-pub(crate) fn guard_plain(c: &Connection, batch: &[PreparedWrite]) -> Result<(), EngineError> {
+pub(crate) fn guard_plain(c: &Connection, batch: &[PreparedWrite]) -> Result<bool, EngineError> {
     validate_active(c)?;
     let queued = queued(c)?;
     if queued.is_empty() {
-        return Ok(());
+        return Ok(false);
     }
     if !write_commit::canonical_batch_has_no_custom_triggers(c).map_err(|_| EngineError::Storage)? {
         return Err(error(MaintenanceError::QueuedScopeFenced));
@@ -639,7 +639,7 @@ pub(crate) fn guard_plain(c: &Connection, batch: &[PreparedWrite]) -> Result<(),
             }
         }
     }
-    Ok(())
+    Ok(true)
 }
 pub(crate) fn guard_admin(c: &Connection) -> Result<(), EngineError> {
     crate::frozen_read::require_clean_visibility(c)?;

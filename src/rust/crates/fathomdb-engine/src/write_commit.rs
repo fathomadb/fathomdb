@@ -670,6 +670,7 @@ pub(crate) fn apply_batch_in_transaction(
     endpoint_validation: EndpointValidationMode,
 ) -> Result<(u64, bool, Vec<ClosureOperationId>), CommitBatchError> {
     let scoped_physical = physical_erasure::guard_plain_write(tx, batch)?;
+    let queued_erasure = erasure_queue::guard_plain(tx, batch)?;
     if !scoped_physical {
         dependency_closure::guard_no_pending_physical(tx)?;
     }
@@ -698,7 +699,9 @@ pub(crate) fn apply_batch_in_transaction(
         if scoped_physical {
             physical_erasure::guard_plain_write(tx, std::slice::from_ref(original_write))?;
         }
-        erasure_queue::guard_plain(tx, std::slice::from_ref(original_write))?;
+        if queued_erasure {
+            erasure_queue::guard_plain(tx, std::slice::from_ref(original_write))?;
+        }
         let write = storage_write_shape(original_write);
         match (write.as_ref(), plan) {
             (

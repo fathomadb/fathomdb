@@ -660,8 +660,8 @@ pub async fn read_operational_collections(
     Ok(rows.iter().map(OperationalCollectionInfo::from_rust).collect())
 }
 
-#[napi(js_name = "readOperationalCollection")]
-pub async fn read_operational_collection(
+#[napi(js_name = "readOperationalCollectionInfo")]
+pub async fn read_operational_collection_info(
     engine: &Engine,
     name: String,
 ) -> Result<Option<OperationalCollectionInfo>> {
@@ -681,7 +681,7 @@ pub async fn read_operational_collection(
         ));
     }
     let inner = Arc::clone(&engine.inner);
-    let row = call_engine(move || inner.read_operational_collection(&name)).await?;
+    let row = call_engine(move || inner.read_operational_collection_info(&name)).await?;
     Ok(row.as_ref().map(OperationalCollectionInfo::from_rust))
 }
 

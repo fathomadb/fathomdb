@@ -102,7 +102,7 @@ pub fn operational_collection(
     name: &str,
 ) -> Result<Option<OperationalCollectionInfo>> {
     guard::non_empty_identifier("collection name", name)?;
-    Ok(engine.core().read_operational_collection(name)?)
+    Ok(engine.core().read_operational_collection_info(name)?)
 }
 
 /// The operational-state record for `record_key`, optionally under a frozen context.

@@ -1,5 +1,5 @@
 //! 0.8.31 Slice 20 (`PROPERTY-SCHEMA`) — Layer 4 RED/GREEN suite for
-//! `read_operational_collections`, `read_operational_collection`, and
+//! `read_operational_collections`, `read_operational_collection_info`, and
 //! `AdminSchema` kind-conflict refusal.
 
 use fathomdb_engine::{Engine, EngineError, OperationalCollectionInfo, PreparedWrite};
@@ -28,7 +28,7 @@ fn slice38_read_operational_collections_sorted_and_kind_conflict_refused() {
         initial.iter().map(|c| c.name.as_str()).collect::<Vec<_>>(),
         vec!["projection_failures"]
     );
-    assert_eq!(engine.read_operational_collection("missing").expect("get missing"), None);
+    assert_eq!(engine.read_operational_collection_info("missing").expect("get missing"), None);
 
     // Register out of lexicographic order to verify deterministic `name ASC` sorting.
     engine
@@ -49,7 +49,7 @@ fn slice38_read_operational_collections_sorted_and_kind_conflict_refused() {
     assert_eq!(names, vec!["alpha_log", "mid_state", "projection_failures", "zeta_state"]);
 
     assert_eq!(
-        engine.read_operational_collection("alpha_log").expect("get alpha_log"),
+        engine.read_operational_collection_info("alpha_log").expect("get alpha_log"),
         Some(OperationalCollectionInfo {
             name: "alpha_log".into(),
             kind: "append_only_log".into(),
@@ -60,7 +60,7 @@ fn slice38_read_operational_collections_sorted_and_kind_conflict_refused() {
         })
     );
     assert_eq!(
-        engine.read_operational_collection("zeta_state").expect("get zeta_state"),
+        engine.read_operational_collection_info("zeta_state").expect("get zeta_state"),
         Some(OperationalCollectionInfo {
             name: "zeta_state".into(),
             kind: "latest_state".into(),
@@ -70,7 +70,7 @@ fn slice38_read_operational_collections_sorted_and_kind_conflict_refused() {
             created_at: 0,
         })
     );
-    assert_eq!(engine.read_operational_collection("absent").expect("get absent"), None);
+    assert_eq!(engine.read_operational_collection_info("absent").expect("get absent"), None);
 
     // Idempotent update on matching `kind` updates `schema_json` and `retention_json`.
     engine
@@ -82,7 +82,7 @@ fn slice38_read_operational_collections_sorted_and_kind_conflict_refused() {
         )])
         .expect("idempotent schema/retention update");
     let updated = engine
-        .read_operational_collection("alpha_log")
+        .read_operational_collection_info("alpha_log")
         .expect("get updated")
         .expect("alpha_log exists");
     assert_eq!(updated.kind, "append_only_log");
@@ -101,9 +101,12 @@ fn slice38_read_operational_collections_sorted_and_kind_conflict_refused() {
         "expected WriteValidation, got {err_log_to_state:?}"
     );
     // Zero mutation from atomic refusal: neither `untouched_new` nor `alpha_log` changed.
-    assert_eq!(engine.read_operational_collection("untouched_new").expect("check rollback"), None);
     assert_eq!(
-        engine.read_operational_collection("alpha_log").expect("check unchanged"),
+        engine.read_operational_collection_info("untouched_new").expect("check rollback"),
+        None
+    );
+    assert_eq!(
+        engine.read_operational_collection_info("alpha_log").expect("check unchanged"),
         Some(updated.clone())
     );
 
@@ -117,7 +120,7 @@ fn slice38_read_operational_collections_sorted_and_kind_conflict_refused() {
     );
     assert_eq!(
         engine
-            .read_operational_collection("zeta_state")
+            .read_operational_collection_info("zeta_state")
             .expect("zeta_state unchanged")
             .unwrap()
             .kind,
@@ -136,7 +139,7 @@ fn slice38_read_operational_collections_sorted_and_kind_conflict_refused() {
         "expected WriteValidation for same-batch conflict, got {err_same_batch:?}"
     );
     assert_eq!(
-        engine.read_operational_collection("same_batch_conflict").expect("check rollback"),
+        engine.read_operational_collection_info("same_batch_conflict").expect("check rollback"),
         None
     );
 

@@ -254,7 +254,7 @@ impls for both. `Unified` is lowered through the public
 | `read.operational_state` | `read::operational_state(engine, collection, record_key, context: Option<&FrozenReadContextV1>) -> Result<Option<OperationalStateRecordV1>>` | same |
 | `read.operational_state_page` | `read::operational_state_page(engine, collection, context, page) -> Result<PageV1<OperationalStateRecordV1>>` | same |
 | `read.operational_collections` | `read::operational_collections(engine) -> Result<Vec<OperationalCollectionInfo>>` | `read_operational_collections` |
-| `read.operational_collection` | `read::operational_collection(engine, name: &str) -> Result<Option<OperationalCollectionInfo>>` | `read_operational_collection` |
+| `read.operational_collection` | `read::operational_collection(engine, name: &str) -> Result<Option<OperationalCollectionInfo>>` | `read_operational_collection_info` |
 | `read.crossed_boundary_since` | `read::crossed_boundary_since(engine, since: i64, view: Option<&ReadView>) -> Result<Vec<BoundaryCrossing>>` | same |
 | `read.projections` / `projection_status` / `projection_generation_status` / `embedding_readiness` | `read::<name>(engine)` | `read_<name>` |
 | `read.mutation_projection_status` | `read::mutation_projection_status(engine, request: MutationProjectionStatusRequestV1)` | same |

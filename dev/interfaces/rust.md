@@ -2484,7 +2484,7 @@ Fallible reranker APIs map it to the shared overload class. Infallible
   refused with `EngineError::InvalidArgument`; unenrolled node kinds are
   reported in `vector_unsupported_kinds` without embedding.
 - **Operational-collection reads:** `Engine::read_operational_collections(&self) -> Result<Vec<OperationalCollectionInfo>, EngineError>`
-  and `Engine::read_operational_collection(&self, name: &str) -> Result<Option<OperationalCollectionInfo>, EngineError>`
+  and `Engine::read_operational_collection_info(&self, name: &str) -> Result<Option<OperationalCollectionInfo>, EngineError>`
   inspect registered collections (fresh stores include `projection_failures`).
 - **Erasure reporting:** `ExciseReport` adds `completed_pending_erasure: bool`
   (`false` on ordinary erasure; `true` when completing pending post-commit

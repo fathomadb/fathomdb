@@ -612,7 +612,7 @@ def test_python_declarations_match_pre_move_baseline_with_approved_deltas() -> N
         ),
         (
             "def read_operational_collections(engine: Engine) -> list[OperationalCollectionInfo]: ...\n"
-            "def read_operational_collection(\n"
+            "def read_operational_collection_info(\n"
             "    engine: Engine, name: str\n"
             ") -> OperationalCollectionInfo | None: ...\n",
             "",

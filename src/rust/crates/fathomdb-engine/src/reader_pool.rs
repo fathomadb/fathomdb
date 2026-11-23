@@ -453,7 +453,7 @@ impl ReaderRequest {
         Self::ReadOperationalCollections { respond }
     }
 
-    pub(crate) fn read_operational_collection(
+    pub(crate) fn read_operational_collection_info(
         name: String,
         respond: SyncSender<rusqlite::Result<Option<crate::properties::OperationalCollectionInfo>>>,
     ) -> Self {

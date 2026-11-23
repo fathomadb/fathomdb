@@ -529,7 +529,7 @@ export const read = {
     name: string,
   ): Promise<OperationalCollectionInfo | null> {
     validateFfiString(name);
-    const row = await intercept(() => native.readOperationalCollection(engine._native, name));
+    const row = await intercept(() => native.readOperationalCollectionInfo(engine._native, name));
     return row === null ? null : toOperationalCollectionInfo(row);
   },
 

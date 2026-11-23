@@ -1113,7 +1113,7 @@ export interface NativeModule {
     page: NativePageRequestV1,
   ): Promise<NativeNodePageV1>;
   readOperationalCollections(engine: NativeEngine): Promise<NativeOperationalCollectionInfo[]>;
-  readOperationalCollection(
+  readOperationalCollectionInfo(
     engine: NativeEngine,
     name: string,
   ): Promise<NativeOperationalCollectionInfo | null>;

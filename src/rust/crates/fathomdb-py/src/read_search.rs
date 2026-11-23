@@ -225,7 +225,7 @@ pub(super) fn read_operational_collections(
 
 #[pyfunction]
 #[pyo3(signature = (engine, name))]
-pub(super) fn read_operational_collection(
+pub(super) fn read_operational_collection_info(
     py: Python<'_>,
     engine: &PyEngine,
     name: &Bound<'_, PyAny>,
@@ -240,7 +240,7 @@ pub(super) fn read_operational_collection(
         ));
     }
     let inner = Arc::clone(&engine.inner);
-    let row = call_engine(py, move || inner.read_operational_collection(&name))?;
+    let row = call_engine(py, move || inner.read_operational_collection_info(&name))?;
     Ok(row.as_ref().map(PyOperationalCollectionInfo::from_rust))
 }
 

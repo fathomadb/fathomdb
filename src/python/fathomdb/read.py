@@ -43,7 +43,7 @@ from fathomdb._fathomdb import (
     read_operational_collections as _native_operational_collections,
 )
 from fathomdb._fathomdb import (
-    read_operational_collection as _native_operational_collection,
+    read_operational_collection_info as _native_operational_collection,
 )
 from fathomdb._fathomdb import read_operational_state as _native_operational_state
 from fathomdb._fathomdb import (

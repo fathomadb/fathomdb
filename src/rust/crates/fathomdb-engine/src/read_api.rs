@@ -153,13 +153,14 @@ impl Engine {
 
     /// 0.8.31 Slice 20 — look up one registered operational collection by
     /// `name` via the `ReaderWorkerPool`. Returns `Ok(None)` when absent.
-    pub fn read_operational_collection(
+    pub fn read_operational_collection_info(
         &self,
         name: &str,
     ) -> Result<Option<crate::properties::OperationalCollectionInfo>, EngineError> {
         let _operation = self.ensure_open()?;
         let (response_tx, response_rx) = mpsc::sync_channel(1);
-        let request = ReaderRequest::read_operational_collection(name.to_string(), response_tx);
+        let request =
+            ReaderRequest::read_operational_collection_info(name.to_string(), response_tx);
         if self.reader_pool.dispatch(request).is_err() {
             return Err(EngineError::Closing);
         }

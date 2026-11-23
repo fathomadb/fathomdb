@@ -315,7 +315,7 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(read_list_filter, &m)?)?;
     m.add_function(wrap_pyfunction!(read_canonical_page, &m)?)?;
     m.add_function(wrap_pyfunction!(read_operational_collections, &m)?)?;
-    m.add_function(wrap_pyfunction!(read_operational_collection, &m)?)?;
+    m.add_function(wrap_pyfunction!(read_operational_collection_info, &m)?)?;
     m.add_function(wrap_pyfunction!(read_operational_state, &m)?)?;
     m.add_function(wrap_pyfunction!(read_operational_state_page, &m)?)?;
     // Slice 20 — G5/G6 graph traversal fns.

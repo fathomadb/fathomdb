@@ -20,7 +20,13 @@ fn sha256_file(path: &Path) -> String {
     Sha256::digest(&bytes).iter().map(|b| format!("{b:02x}")).collect()
 }
 
+fn configure_test_runtime() {
+    fathomdb_engine::configure_runtime(fathomdb_engine::RuntimeSqliteMode::Performance)
+        .expect("configure test runtime");
+}
+
 fn copy_golden(dir: &TempDir, name: &str) -> PathBuf {
+    configure_test_runtime();
     let dst = dir.path().join(name);
     fs::copy(GOLDEN_SCHEMA_37_PATH, &dst).expect("copy golden schema-37 fixture");
     assert_eq!(sha256_file(&dst), GOLDEN_SCHEMA_37_SHA256, "golden fixture checksum mismatch");
@@ -91,6 +97,7 @@ fn migrate_lock_held_exits_71_with_json_error_and_no_backup() {
 
 #[test]
 fn migrate_wrong_versions_36_38_39_exit_70_untouched() {
+    configure_test_runtime();
     let dir = TempDir::new().unwrap();
     let backup_dir = dir.path().join("backups");
 

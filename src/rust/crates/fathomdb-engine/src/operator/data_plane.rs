@@ -11,14 +11,14 @@ fn data_plane_inspection_error(
 }
 
 #[cfg(feature = "operator")]
-pub(super) fn data_plane_sidecar_path(path: &Path, suffix: &str) -> PathBuf {
+fn data_plane_sidecar_path(path: &Path, suffix: &str) -> PathBuf {
     let mut sidecar = path.as_os_str().to_os_string();
     sidecar.push(suffix);
     PathBuf::from(sidecar)
 }
 
 #[cfg(feature = "operator")]
-pub(super) fn immutable_sqlite_uri(path: &Path) -> String {
+fn immutable_sqlite_uri(path: &Path) -> String {
     sqlite_uri(path, "immutable=1")
 }
 
@@ -263,7 +263,7 @@ pub fn recover_complete_erasures(
 }
 
 #[cfg(feature = "operator")]
-pub(super) fn validate_recovery_database_file(path: &Path) -> Result<(), EngineOpenError> {
+fn validate_recovery_database_file(path: &Path) -> Result<(), EngineOpenError> {
     let metadata = std::fs::metadata(path).map_err(|_| EngineOpenError::Io {
         message: "recovery requires an existing database file".to_string(),
     })?;
@@ -313,7 +313,7 @@ fn validate_effective_recovery_schema(path: &Path) -> Result<(), EngineOpenError
 }
 
 #[cfg(feature = "operator")]
-pub(super) fn validate_recovery_schema_invariants(
+fn validate_recovery_schema_invariants(
     connection: &Connection,
     schema_version: u32,
 ) -> Result<(), EngineOpenError> {
@@ -477,4 +477,28 @@ pub fn inspect_data_plane_integrity(
         EngineError::DataPlaneIntegrity(_) => error,
         _ => data_plane_inspection_error(DataPlaneIntegrityErrorReasonV1::IntegrityCorrupt, ""),
     })
+}
+
+#[cfg(feature = "operator")]
+pub(super) mod shared_for_migrate {
+    use super::*;
+
+    pub(in crate::operator) fn sidecar_path(path: &Path, suffix: &str) -> PathBuf {
+        data_plane_sidecar_path(path, suffix)
+    }
+
+    pub(in crate::operator) fn immutable_uri(path: &Path) -> String {
+        immutable_sqlite_uri(path)
+    }
+
+    pub(in crate::operator) fn validate_database_file(path: &Path) -> Result<(), EngineOpenError> {
+        validate_recovery_database_file(path)
+    }
+
+    pub(in crate::operator) fn validate_schema_invariants(
+        connection: &Connection,
+        schema_version: u32,
+    ) -> Result<(), EngineOpenError> {
+        validate_recovery_schema_invariants(connection, schema_version)
+    }
 }

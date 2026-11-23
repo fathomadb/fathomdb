@@ -1,7 +1,7 @@
 ---
 title: Slice 90 Phase 3 root reconciliation
 target_release: 0.8.27
-lib_rs_blob: 1e77eb68da245c82b3e52b56ce755cd2a5e25276
+lib_rs_blob: 28d555941facef9c12b8e6ed236a10fecb521d7d
 ---
 
 # Slice 90 Phase 3 root reconciliation
@@ -174,3 +174,11 @@ engine-owned `stored_head_coverage` cache. The current exact inventory therefore
 has 49 fields. The cache's snapshot-key validation and consumers remain below
 root; root method ownership is unchanged. The source blob above tracks this
 accepted addition.
+
+2026-11-23: 0.8.31 adds the private `properties` module and its public property
+and operational-collection re-exports, the gated `export_manifest` module,
+batch evidence-resolution and graph-arm search re-exports, the `operator`-gated
+Schema 37-to-38 migration re-exports, and `test-hooks` CE-scorer / WAL-probe
+re-exports, advancing the current-format composition fixture to 38. All 49 root
+storage fields, root declarations, and root method ownership remain unchanged;
+the source blob above tracks these composition updates.

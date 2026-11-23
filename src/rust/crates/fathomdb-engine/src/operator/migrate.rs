@@ -2,9 +2,10 @@ use std::fmt::{Display, Formatter};
 use std::io::{Read, Write};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use super::data_plane::{
-    data_plane_sidecar_path, immutable_sqlite_uri, validate_recovery_database_file,
-    validate_recovery_schema_invariants,
+use super::data_plane::shared_for_migrate::{
+    immutable_uri as immutable_sqlite_uri, sidecar_path as data_plane_sidecar_path,
+    validate_database_file as validate_recovery_database_file,
+    validate_schema_invariants as validate_recovery_schema_invariants,
 };
 use super::*;
 use crate::errors::map_open_sqlite_error;

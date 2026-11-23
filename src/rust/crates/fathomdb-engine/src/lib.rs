@@ -312,9 +312,10 @@ pub use operator::arm_migrate_37_to_38_before_version_stamp_hook_for_test;
 #[cfg(feature = "operator")]
 pub use operator::recover_complete_erasures;
 #[cfg(feature = "operator")]
+pub use operator::{inspect_data_plane_integrity, recover_truncate_wal};
+#[cfg(feature = "operator")]
 pub use operator::{
-    inspect_data_plane_integrity, migrate_37_to_38, recover_truncate_wal, MigrateError,
-    MigrateErrorCode, MigratePreflightReport, MigrateReport,
+    migrate_37_to_38, MigrateError, MigrateErrorCode, MigratePreflightReport, MigrateReport,
 };
 pub use operator::{
     CheckIntegrityOpts, DumpProfileReport, DumpRowCountsReport, DumpSchemaReport, Finding,

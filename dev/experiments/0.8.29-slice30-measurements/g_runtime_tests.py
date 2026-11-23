@@ -60,7 +60,7 @@ class GNormalCliTests(unittest.TestCase):
                 self.assertEqual(control["dropped_records"], 0)
                 self.assertEqual(control["issues"], [])
             self.assertTrue(all(fixture["natural_records"] == 2
-                                and fixture["format"] == 37
+                                and fixture["format"] == 38
                                 and fixture["qualified_dense_fixture"] is False
                                 for fixture in result["fixtures"]))
 
@@ -97,7 +97,7 @@ class GNormalCliTests(unittest.TestCase):
                     self.assertEqual(fixture["vector_rows"], 0)
                     self.assertEqual(fixture["span_rows"], 0)
                     self.assertEqual(fixture["physical_vector_rows"], 0)
-                    self.assertEqual(fixture["format"], 37)
+                    self.assertEqual(fixture["format"], 38)
                     self.assertFalse(fixture["usable_embedder"])
                     self.assertFalse(fixture["qualified_dense_fixture"])
 
@@ -448,7 +448,7 @@ class GNormalCliTests(unittest.TestCase):
                 self.assertTrue(report["available"])
                 self.assertEqual(report["pid"], actual_pid)
                 self.assertEqual(Path(report["executable"]).resolve(), binary)
-                self.assertEqual(report["schema_version_after"], 37)
+                self.assertEqual(report["schema_version_after"], 38)
                 self.assertEqual(report["requested_provider"], "none")
                 self.assertIsNone(report["embedder_device_resolution"])
                 self.assertIsNone(report["embedder_download_ms"])

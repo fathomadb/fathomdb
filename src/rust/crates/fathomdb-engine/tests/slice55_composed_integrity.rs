@@ -128,7 +128,7 @@ fn seed(engine: &Engine) -> Vec<u64> {
             body: None,
             source_id: SourceId::new("cohesion:source-b").unwrap(),
             logical_id: Some("cohesion:edge".into()),
-            t_valid: Some(2_000_000_100),
+            t_valid: Some(2_000_000_000),
             t_invalid: Some(2_000_000_002),
             confidence: None,
             extractor_model_id: None,
@@ -218,10 +218,14 @@ fn assert_initial(engine: &Engine, vectors: bool) {
     );
     assert_eq!(text_ids(engine, 2_000_000_000), vec!["cohesion:a", "cohesion:b"]);
     assert_eq!(text_ids(engine, 2_000_000_001), vec!["cohesion:b"]);
+    assert!(
+        graph_ids(engine, 1_999_999_999, true).is_empty(),
+        "node relaxation never admits an edge before its t_valid"
+    );
     assert_eq!(
         graph_ids(engine, 2_000_000_000, false),
         vec!["cohesion:a"],
-        "future edge t_valid does not gate traversal"
+        "edge is admitted inside [t_valid, t_invalid)"
     );
     assert!(graph_ids(engine, 2_000_000_001, false).is_empty(), "node end is exclusive");
     assert_eq!(
@@ -232,7 +236,7 @@ fn assert_initial(engine: &Engine, vectors: bool) {
     assert_eq!(
         graph_ids(engine, 2_000_000_001, true),
         vec!["cohesion:a"],
-        "relaxed node windows leave the edge eligible before expiry"
+        "relaxed node windows leave the edge eligible inside [t_valid, t_invalid)"
     );
     assert!(
         graph_ids(engine, 2_000_000_002, true).is_empty(),
@@ -441,7 +445,7 @@ fn assert_durable(path: &Path, updated: bool, projected: bool) {
             "cohesion:b".into(),
             "cohesion:a".into(),
             "supports".into(),
-            2_000_000_100,
+            2_000_000_000,
             2_000_000_002
         )
     );

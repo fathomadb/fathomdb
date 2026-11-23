@@ -1,10 +1,10 @@
 ---
 title: Wire Format
-date: 2026-11-22
+date: 2026-11-23
 target_release: 0.8.31
 desc: On-disk + IPC formats (if any) for 0.8.31; short OK
 blast_radius: design/fathomdb-data-plane-architecture-v2.md; design/engine.md; design/migrations.md
-status: draft-0.8.31
+status: locked
 ---
 
 # Wire Format

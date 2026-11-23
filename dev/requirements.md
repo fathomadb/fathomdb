@@ -12,14 +12,23 @@ status: locked
 ## Current applicability
 
 The stable 0.6 rewrite identifiers below are retained traceability, not permission
-for public migration or superseded identity/provider behavior. Current contracts
-are owned by accepted [ADRs](adr/ADR-0.6.0-decision-index.md), maintained
-[interfaces](interfaces/rust.md) and the [active architecture](design/fathomdb-data-plane-architecture-v2.md).
-The current integrated tree admits fresh/current format37 only, with logical_id-alone active identity,
-built-in-provider-or-none admission and explicit maintenance as documented there.
+for public automatic migration or superseded identity/provider behavior. Current
+contracts are owned by accepted [ADRs](adr/ADR-0.6.0-decision-index.md), maintained
+[interfaces](interfaces/rust.md) and the
+[active architecture](design/fathomdb-data-plane-architecture-v2.md).
+The current integrated tree admits fresh/current schema 38 only on `Engine::open`,
+with logical_id-alone active identity, built-in-provider-or-none admission, and
+explicit maintenance as documented there. Per
+[`ADR-0.8.31-cli-pypi-wheel-and-37-to-38-upgrade.md`](adr/ADR-0.8.31-cli-pypi-wheel-and-37-to-38-upgrade.md),
+`REQ-036`/`REQ-045` permit the narrow third operator CLI root `fathomdb migrate`
+(`37 -> 38`) while `Engine::open` remains schema-38-only (no public automatic
+migration), and `REQ-037`/`AC-041` remain intact via companion `fathomdb-cli`
+PyPI wheels (`fathomdb` keeps `[project.scripts]` empty).
 Current release-local needs/requirements and accepted measurement replacements
-are in the [release plan](plans/plan-0.8.29.md). Historical migration fixtures do
-not establish a public upgrade path; global acceptance IDs/thresholds are unchanged.
+live in the canonical active release selected by `scripts/release-current.py`
+(currently [`dev/plans/0.8.31/plan.md`](plans/0.8.31/plan.md)). Historical
+migration fixtures do not establish a general automatic upgrade path; global
+acceptance IDs/thresholds in `dev/acceptance.md` are unchanged.
 
 User-visible outcomes only. Each entry is a single, falsifiable statement
 about what an operator, application caller, or release process can

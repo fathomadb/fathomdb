@@ -1,7 +1,7 @@
 ---
 title: Rust SDK interface (fathomdb-sdk)
-date: 2026-11-04
-target_release: 0.8.28
+date: 2026-11-23
+target_release: 0.8.31
 desc: Public contract of the dedicated fathomdb-sdk crate and its mapping to the Python and TypeScript SDKs
 blast_radius: src/rust/crates/fathomdb-sdk; src/conformance/governed-operation-parity.json; scripts/check-sdk-surface-parity.py
 status: locked

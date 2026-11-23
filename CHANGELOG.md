@@ -10,6 +10,72 @@ AC-050c) gates merges against this invariant.
 
 ## Unreleased
 
+## 0.8.31 — Pre-publication qualification
+
+**Pre-publication qualification.** Registry publication (crates.io, PyPI
+`fathomdb` and `fathomdb-cli`, npm, GitHub Pages, and GitHub Releases) remains
+pending Slice 80 authorization.
+
+### Added
+
+- Schema 38 inline typed `properties` (`String`, `Int` with full `i64`
+  precision, `Float`, `Bool`) on canonical nodes and edges outside plain-text
+  `body`, with O(1) readback and `properties = NULL` compatibility for upgraded
+  rows.
+- Declared `Filterable` node and edge property projections into
+  `canonical_property_values` (`ProjectionSpec.entity_class`) and pre-KNN
+  `vec0` `attr_<hex>` slots, paired with typed `SearchFilter.property_predicates`
+  (`eq`, `ne`, `lt`, `lte`, `gt`, `gte`).
+- `_fathomdb_commit_timestamps` batch commit timestamp table recording
+  monotonic `(write_cursor, committed_at_ms)` pairs for Schema 38 writes.
+- Explicit opt-in custom node vector kind enrollment via
+  `ProjectionSpec.vector_kinds` persisted in `_fathomdb_vector_kinds`, while
+  unenrolled custom kinds continue reporting in `vector_unsupported_kinds`.
+- Operational collection readback (`read.operational_collections` and
+  `read.collection`) with typed refusal for unknown collections.
+- Typed graph traversal predicates (`edge_predicates`, `target_predicates`) on
+  `GraphExpandRequestV1` with SQLite index pushdown, valid-time filtering, and
+  explicit opt-in hybrid `graph_seed` (`graph_fts`, `fused_top_k`, `both`) with
+  per-hit seed provenance and single-pass cross-encoder reuse.
+- Historical bitemporal `graph.expand` via `as_of_write_cursor` and
+  `as_of_epoch_ms` backed by composite indexes
+  (`canonical_edges_{from,to}_sup_kind_idx`), plus historical frozen graph
+  evidence preflight and resolution.
+- Governed `resolve_evidence_many`, opt-in `search(hints=...)` / `search_hints`,
+  and `OpenReport` capability booleans across Rust (`fathomdb-sdk`), Python,
+  and TypeScript (56 live governed operations).
+- Narrow operator CLI upgrade root `fathomdb migrate --backup-dir <dir> [--json] <db_path>`
+  for offline `37 -> 38` upgrades with pre-upgrade SHA-256 backup verification.
+- Lockstep companion `fathomdb-cli` PyPI wheel (`fathomdb[cli]` extra) keeping
+  the `fathomdb` SDK wheel's `[project.scripts]` empty (`AC-041`).
+- Integrated FathomDB Inspector `0.3.0` workspace crate with Schema 38
+  admission, erasure-gated inline `properties`, historical `as_of` graph view,
+  and `build-inspector` release asset packaging.
+
+### Changed
+
+- Bumped store `SCHEMA_VERSION` from **37** to **38**. `Engine::open` remains
+  strictly schema-38-only (no public automatic migration); offline `37 -> 38`
+  upgrades use `fathomdb migrate`.
+- Enforced strict-only canonical write endpoint integrity: edge writes require
+  both `from` and `to` endpoints to reference existing canonical nodes.
+- Retained CUDA 12.6 support policy (`cudarc`/Candle fork with PTX0 producer
+  policy and F32); CUDA 13 remains deferred out of `0.8.31`.
+
+### Fixed
+
+- Hardened physical erasure (`erase_source`, `purge`) across inline
+  `properties`, `canonical_property_values`, custom-kind vector rows, and
+  operational rows while preserving `ROW_OWNED_PROJECTIONS` byte accounting.
+- Fixed mixed-edge slot handling and `EntityFts` depth-0 revision emission in
+  graph retrieval and evidence search.
+- Fixed lone-surrogate parity in Python/PyO3 error handling and post-upgrade
+  error propagation in `fathomdb migrate`.
+
+### Removed
+
+- None (no public symbols removed since `0.8.30`).
+
 ## 0.8.30 — 2026-11-21
 
 **Published.** crates.io, PyPI, npm `latest` and GitHub Releases carry 0.8.30.

@@ -1,6 +1,6 @@
 ---
 title: Slice 70 Plan — 0.8.31 Full Qualification, Paired Latency Gate, Pre-Publish Docs & Golden Archive
-status: READY
+status: ACTIVE
 target_release: 0.8.31
 slice: 70
 date: 2026-11-23
@@ -270,7 +270,7 @@ Author deterministic builder `dev/plans/0.8.31/features/slice-70/build-golden-0.
 5. **`experiments/sdk_benchmark.py` Schema Isolation:**
    - Do not modify `experiments/sdk_benchmark.py`'s `PLAN_SCHEMA` (`sdk.experiment.v1`) or `experiments/measurement_classification.py` rules just to force two same-SDK versions into one suite; keep cross-version paired bootstrap orchestration in `dev/plans/0.8.31/features/slice-70/run-paired-latency-gate.py` alongside standard `experiments/sdk_benchmark.py` cross-SDK verification.
 6. **Plan/Markdown Hygiene Before `ACTIVE` Promotion:**
-   - When promoting this plan from `status: DRAFT` to `status: ACTIVE` at Slice 70 execution start, ensure zero bare `<name>:<3+digits>` line anchors, zero orphan release-state markers, zero unverified symbol citations, and zero consumer-project specifics.
+   - When promoting this plan from `status: READY` to `status: ACTIVE` at Slice 70 execution start, ensure zero bare `<name>:<3+digits>` line anchors, zero orphan release-state markers, zero unverified symbol citations, and zero consumer-project specifics.
 
 ---
 

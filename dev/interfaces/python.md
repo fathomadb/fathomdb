@@ -1,8 +1,8 @@
 ---
 title: Python Public Interface
-date: 2026-11-04
-target_release: 0.8.28
-desc: Public Python surface for 0.8.28
+date: 2026-11-23
+target_release: 0.8.31
+desc: Public Python surface for 0.8.31
 blast_radius: src/python/; design/bindings.md; design/errors.md; design/lifecycle.md; design/engine.md
 status: locked
 ---

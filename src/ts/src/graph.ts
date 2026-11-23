@@ -112,6 +112,8 @@ export interface GraphExpandRequestV1 {
   maxWorkUnits: string;
   includeExplanation: boolean;
   includeEvidence?: boolean;
+  asOfWriteCursor?: string;
+  asOfEpochMs?: number;
 }
 
 export interface GraphEvidenceSidecarEntryV1 {
@@ -756,6 +758,8 @@ export function validateGraphExpandRequest(value: unknown): asserts value is Gra
     "maxWorkUnits",
     "includeExplanation",
     "includeEvidence",
+    "asOfWriteCursor",
+    "asOfEpochMs",
   ]);
   const unknown = Object.keys(root)
     .filter((key) => !allowed.has(key))
@@ -974,6 +978,23 @@ export function validateGraphExpandRequest(value: unknown): asserts value is Gra
     graphRefuse("graph_context_invalid", "/includeExplanation");
   if (root.includeEvidence !== undefined && typeof root.includeEvidence !== "boolean")
     graphRefuse("graph_context_invalid", "/includeEvidence");
+  if (root.asOfWriteCursor !== undefined) {
+    if (
+      typeof root.asOfWriteCursor !== "string" ||
+      !/^(?:0|[1-9][0-9]*)$/.test(root.asOfWriteCursor) ||
+      BigInt(root.asOfWriteCursor) > 0xffff_ffff_ffff_ffffn
+    ) {
+      graphRefuse("graph_context_invalid", "/asOfWriteCursor");
+    }
+  }
+  if (root.asOfEpochMs !== undefined) {
+    if (typeof root.asOfEpochMs !== "number" || !Number.isSafeInteger(root.asOfEpochMs)) {
+      graphRefuse("graph_context_invalid", "/asOfEpochMs");
+    }
+  }
+  if (root.asOfWriteCursor !== undefined && root.asOfEpochMs !== undefined) {
+    graphRefuse("graph_context_invalid", "/asOfEpochMs");
+  }
   // The canonical Rust decoder remains the semantic authority for bounds,
   // duplicate seeds, eligibility values, and frozen authentication precedence.
 }
@@ -1062,6 +1083,10 @@ export function canonicalGraphRequest(request: GraphExpandRequestV1): GraphObjec
     maxWorkUnits: request.maxWorkUnits,
     includeExplanation: request.includeExplanation,
     ...(request.includeEvidence === true ? { includeEvidence: true } : {}),
+    ...(request.asOfWriteCursor !== undefined ? { asOfWriteCursor: request.asOfWriteCursor } : {}),
+    ...(request.asOfEpochMs !== undefined
+      ? { asOfEpochMs: Object.is(request.asOfEpochMs, -0) ? 0 : request.asOfEpochMs }
+      : {}),
   };
 }
 

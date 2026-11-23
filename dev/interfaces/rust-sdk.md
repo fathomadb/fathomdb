@@ -691,3 +691,23 @@ follow the [core engine contract](rust.md#typed-inline-properties-operational-co
   `graph_seed_source` and `graph_hop_depth`; `EvidenceGraphOriginV1` carries
   `seed_source`. Full semantics are owned by the
   [core engine contract](rust.md#strict-endpoint-integrity-typed-traversal-predicates-and-opt-in-fused-seeding-0831-slice-30).
+
+## Historical bitemporal graph reconstruction (0.8.31 Slice 40)
+
+`fathomdb_sdk` adds zero new governed operations and re-exports the extended
+`GraphExpandRequestV1` fields (`as_of_write_cursor: Option<u64>`,
+`as_of_epoch_ms: Option<i64>`) and fluent builders
+(`GraphExpandRequestV1::with_as_of_write_cursor`,
+`GraphExpandRequestV1::with_as_of_epoch_ms`), pinned by type in
+`fathomdb-sdk/tests/surface.rs`.
+
+- `as_of_write_cursor` and `as_of_epoch_ms` are mutually exclusive
+  (`GraphContextInvalid` at `/asOfEpochMs`), compose orthogonally with
+  `ReadView.valid_as_of` (`ReadView` remains world-time-only), and support
+  historical frozen evidence (`include_evidence: true` with `Frozen` context,
+  reporting `artifact_lifecycle.superseded == true` when later superseded).
+- Epoch lookup (`_fathomdb_commit_timestamps_ms_idx` + cursor-`0` pre-upgrade
+  semantics), future-cursor saturation, current-state `Engine::transition`,
+  inline historical eligibility, and erasure/derived-edge closure-barrier
+  subordination follow the
+  [core engine contract](rust.md#historical-bitemporal-graph-reconstruction-0831-slice-40).

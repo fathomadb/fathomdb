@@ -307,6 +307,10 @@ def _request_wire(request: GraphExpandRequestV1) -> dict[str, object]:
         wire["targetPredicates"] = [_predicate_wire(pred) for pred in request.target_predicates]
     if request.include_evidence:
         wire["includeEvidence"] = True
+    if request.as_of_write_cursor is not None:
+        wire["asOfWriteCursor"] = request.as_of_write_cursor
+    if request.as_of_epoch_ms is not None:
+        wire["asOfEpochMs"] = request.as_of_epoch_ms
     return wire
 
 
@@ -435,6 +439,24 @@ def _validate_graph_expand_request(request: GraphExpandRequestV1) -> None:
     string(request.max_work_units, "graph_work_limit_invalid", "/maxWorkUnits")
     if type(request.include_evidence) is not bool:
         refuse("graph_context_invalid", "/includeEvidence")
+    u64_max = (1 << 64) - 1
+    if request.as_of_write_cursor is not None:
+        if (
+            type(request.as_of_write_cursor) is not str
+            or len(request.as_of_write_cursor) > 20
+            or re.fullmatch(r"0|[1-9][0-9]*", request.as_of_write_cursor) is None
+            or int(request.as_of_write_cursor) > u64_max
+        ):
+            refuse("graph_context_invalid", "/asOfWriteCursor")
+    if request.as_of_epoch_ms is not None:
+        if (
+            type(request.as_of_epoch_ms) is not int
+            or request.as_of_epoch_ms < i64_min
+            or request.as_of_epoch_ms > i64_max
+        ):
+            refuse("graph_context_invalid", "/asOfEpochMs")
+    if request.as_of_write_cursor is not None and request.as_of_epoch_ms is not None:
+        refuse("graph_context_invalid", "/asOfEpochMs")
 
 
 def expand(engine: "Engine", request: GraphExpandRequestV1) -> GraphExpandResultV1:

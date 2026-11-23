@@ -397,6 +397,44 @@ fn slice30_graph_predicates_and_seeding_surface() {
     .with_evidence(false);
     assert_eq!(req.edge_predicates.len(), 1);
     assert_eq!(req.target_predicates.len(), 1);
+    assert_eq!(req.as_of_write_cursor, None);
+    assert_eq!(req.as_of_epoch_ms, None);
+}
+
+/// 0.8.31 Slice 40 (`HISTORY-GRAPH`) — `GraphExpandRequestV1` bitemporal
+/// `as_of_write_cursor` / `as_of_epoch_ms` fields and fluent builders.
+#[test]
+fn slice40_historical_graph_surface() {
+    let _: fn(GraphExpandRequestV1, u64) -> GraphExpandRequestV1 =
+        GraphExpandRequestV1::with_as_of_write_cursor;
+    let _: fn(GraphExpandRequestV1, i64) -> GraphExpandRequestV1 =
+        GraphExpandRequestV1::with_as_of_epoch_ms;
+    let base = || {
+        GraphExpandRequestV1::new(
+            GraphSeedV1::Explicit {
+                schema_version: 1,
+                logical_ids: vec![IdSpace::logical("seed:1")],
+            },
+            TraversalDirection::Outgoing,
+            GraphReadContextV1::Current {
+                schema_version: 1,
+                context: ReadContextV1 {
+                    schema_version: 1,
+                    view: ReadView::default(),
+                    eligibility: SearchFilter::default(),
+                },
+            },
+            2,
+            10,
+            100,
+        )
+    };
+    let by_cursor = base().with_as_of_write_cursor(42);
+    assert_eq!(by_cursor.as_of_write_cursor, Some(42));
+    assert_eq!(by_cursor.as_of_epoch_ms, None);
+    let by_epoch = base().with_as_of_epoch_ms(1_700_000_000_000);
+    assert_eq!(by_epoch.as_of_write_cursor, None);
+    assert_eq!(by_epoch.as_of_epoch_ms, Some(1_700_000_000_000));
 }
 
 /// 0.8.28 Slice 30 (AC30-06) — the allocator report on an open report's CUDA

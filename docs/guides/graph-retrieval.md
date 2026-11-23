@@ -33,10 +33,13 @@ visited. Node-attribute eligibility is enforced before seed selection and
 expansion: an ineligible intermediate node cannot bridge to an otherwise
 eligible target. `target_kinds` / `targetKinds` and `target_predicates` /
 `targetPredicates` instead select emitted targets;
-an eligible node outside those filters can still carry the traversal. Superseded
-edges, wrong-kind edges, edges whose `t_valid` is in the future (`t_valid > now`),
-and edges whose `t_invalid` is at or before the resolved instant (`t_invalid <= now`)
-are excluded in SQL before consuming incident limits or work units. Returned
+an eligible node outside those filters can still carry the traversal. In the
+default current-time mode (`as_of_write_cursor` / `asOfWriteCursor` and
+`as_of_epoch_ms` / `asOfEpochMs` both omitted), superseded edges
+(`superseded_at IS NOT NULL`), wrong-kind edges, edges whose `t_valid` is in
+the future (`t_valid > now`), and edges whose `t_invalid` is at or before the
+resolved instant (`t_invalid <= now`) are excluded in SQL before consuming
+incident limits or work units. Returned
 targets carry `properties` and `origin.terminal_edge_properties` /
 `origin.terminalEdgeProperties`. Use frozen authority when results and evidence
 must share the same resolved view; it remains reproduce-or-fail rather than a
@@ -47,6 +50,40 @@ and winning terminal-edge artifacts, without claiming that every edge on a path
 was resolved. See [exact graph evidence](frozen-evidence.md#exact-graph-evidence)
 and the [Python](../reference/python-api.md) / [TypeScript](../reference/typescript-api.md)
 request carriers.
+
+## Historical bitemporal traversal
+
+`GraphExpandRequestV1` accepts two optional, mutually exclusive knowledge-time
+bounds — `as_of_write_cursor` / `asOfWriteCursor` (monotonic write cursor,
+canonical unsigned decimal string in Python/TypeScript and `u64` in Rust) or
+`as_of_epoch_ms` / `asOfEpochMs` (commit timestamp in epoch milliseconds) —
+that compose orthogonally with world/validity time (`ReadView.valid_as_of` /
+`validAsOf` and `[valid_from, valid_until)` / `[t_valid, t_invalid)`). Supplying
+both bounds or explicit JSON `null` is refused with `graph_context_invalid`.
+`ReadView` stays world-time-only (`include_superseded` and `include_inactive`
+remain refused on `graph.expand`).
+
+- **Point-in-time reconstruction:** Seeds, edges, and hydrated target `kind`,
+  `body`, `properties`, `write_cursor`, and `origin.terminal_edge_properties`
+  are reconstructed from the immutable write revisions alive at `as_of`
+  (`write_cursor <= as_of` and `superseded_at IS NULL OR superseded_at > as_of`).
+  Declared `Filterable` property keys evaluate inline against historical row
+  JSON so superseded revisions remain filterable.
+- **Epoch lookup and pre-upgrade stores:** `as_of_epoch_ms` resolves once per
+  reader transaction against Schema 38's commit-timestamp index
+  (`_fathomdb_commit_timestamps_ms_idx`). A cursor of `0` — including
+  `as_of_epoch_ms` before the first Schema-38 commit on a fresh or upgraded
+  Schema 37-to-38 store — yields empty query seeds and `graph_seed_unavailable`
+  for explicit seeds; pre- and post-upgrade revisions remain directly
+  addressable via `as_of_write_cursor`. Cursors beyond the current or pinned
+  boundary act as a snapshot-bounded upper bound.
+- **Lifecycle and erasure subordination:** Because `Engine.transition` updates
+  current node state in place without allocating a new write cursor, a node
+  whose active head is no longer `active` is excluded from historical reads.
+  Physical erasure (`purge`, `erase_source` / `eraseSource`), soft-deleted
+  canonical sources, and active dependency-closure barriers prevent nodes,
+  derived nodes, and derived edges from reconstructing at any `as_of` cursor or
+  timestamp.
 
 ## Hybrid convenience paths
 

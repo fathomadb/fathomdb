@@ -93,9 +93,21 @@ is built-in default or none, with no caller-provider injection.
   `GraphExpandRequestV1::new(...)` and fluent builders for closed inline
   `edge_predicates` and `target_predicates` (`<= 32` each, implicit `AND`;
   malformed predicates return `GraphExpansionErrorReasonV1::GraphEdgePredicatesInvalid`
-  or `GraphTargetPredicatesInvalid`). Current-time expansion pushes
+  or `GraphTargetPredicatesInvalid`) plus optional mutually exclusive
+  knowledge-time bounds `as_of_write_cursor: Option<u64>`
+  (`.with_as_of_write_cursor(u64)`) and `as_of_epoch_ms: Option<i64>`
+  (`.with_as_of_epoch_ms(i64)`). Setting both bounds or passing JSON `null` on
+  wire refuses with `GraphExpansionErrorReasonV1::GraphContextInvalid`
+  (`/asOfEpochMs` or `/asOfWriteCursor`). Default current-time expansion pushes
   `superseded_at IS NULL`, `kind`, and bitemporal `[t_valid, t_invalid)` gating
-  into indexed SQL (`UNION ALL` for `TraversalDirection::Both`).
+  into indexed SQL (`UNION ALL` for `TraversalDirection::Both`); historical
+  `as_of` mode composes orthogonally with `ReadView.valid_as_of`, resolves
+  `as_of_epoch_ms` via `_fathomdb_commit_timestamps_ms_idx` (cursor `0` yields
+  empty query seeds and `GraphSeedUnavailable` for explicit seeds), evaluates
+  declared `Filterable` keys inline on superseded revisions, honors
+  current-state `Engine::transition` and erasure/closure-barrier subordination,
+  and supports `include_evidence: true` with `Frozen` context
+  (`artifact_lifecycle.superseded == true` when later superseded).
 - `GraphSeedMode`, `GraphArmSeedSource`, and `GraphArmOptions` configure
   opt-in graph-arm seeding (`GraphFts` default, `FusedTopK`, `Both`),
   `graph_seed_k` (`1..=100`), `graph_edge_kinds`, and `graph_edge_predicates`

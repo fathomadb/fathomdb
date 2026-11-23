@@ -2542,3 +2542,61 @@ Fallible reranker APIs map it to the shared overload class. Infallible
   `graph_hop_depth: Option<u32>`, and both `EvidenceGraphOriginV1` variants
   carry `seed_source: GraphArmSeedSource`. `use_graph_arm = false` remains
   byte-identical with zero added SQL or joins.
+
+## Historical bitemporal graph reconstruction (0.8.31 Slice 40)
+
+`GraphExpandRequestV1` adds two optional, mutually exclusive knowledge-time
+bounds (`as_of_write_cursor: Option<u64>` and `as_of_epoch_ms: Option<i64>`,
+defaulting to `None` in `GraphExpandRequestV1::new`) plus fluent builders
+`with_as_of_write_cursor(u64)` and `with_as_of_epoch_ms(i64)`. Both fields
+compose orthogonally with world/validity time (`ReadView.valid_as_of` /
+`FrozenReadContextV1.effective_valid_at` and `[t_valid, t_invalid)` /
+`[valid_from, valid_until)`). `ReadView` remains strictly world-time-only, and
+`include_superseded` / `include_inactive` remain refused on `graph_expand`.
+
+- **Closed validation & mutual exclusion:** Setting both `as_of_write_cursor`
+  and `as_of_epoch_ms` refuses with `GraphExpansionErrorReasonV1::GraphContextInvalid`
+  at `/asOfEpochMs`. On wire, `asOfWriteCursor` is a canonical unsigned decimal
+  string and `asOfEpochMs` is a signed 64-bit JSON integer; explicit JSON
+  `null` refuses at `/asOfWriteCursor` or `/asOfEpochMs`.
+- **Epoch resolution, cursor-`0`, and future cursors:** `as_of_epoch_ms`
+  resolves once per reader transaction via an O(log N) single reverse seek on
+  `_fathomdb_commit_timestamps_ms_idx`
+  (`WHERE committed_at_ms <= ?1 ORDER BY committed_at_ms DESC, write_cursor DESC LIMIT 1`,
+  defaulting to cursor `0`). Cursor `0` (including timestamps prior to the
+  first Schema-38 commit on fresh or upgraded Schema 37-to-38 stores) yields
+  empty `Query` seeds and `GraphSeedUnavailable` for `Explicit` seeds, while
+  pre- and post-upgrade revisions remain directly addressable via
+  `as_of_write_cursor`. Future cursors (including `> current_write_cursor`,
+  `> canonical_write_boundary` on `Frozen`, and `u64::MAX`) saturate safely to
+  `i64::MAX` for SQLite binding and act as a monotonic upper bound bounded by
+  the pinned snapshot.
+- **Zero-penalty default & dual-index `AsOf` traversal:** When both fields are
+  `None`, `graph_expand` runs the unchanged current-time fast path
+  (`superseded_at IS NULL` via `canonical_edges_{from,to}_active_idx`). When
+  historical `AsOf` is active, edge traversal emits direct compound `UNION ALL`
+  queries over `canonical_edges_{from,to}_active_idx` and
+  `canonical_edges_{from,to}_sup_kind_idx` (with `AND from_id != ?1` on `Both`
+  incoming arms to prevent self-loop duplication and `(temporal_fallback IS NULL OR temporal_fallback = 0)`),
+  pushes `[t_valid, t_invalid)` and `edge_kinds` into SQL, hydrates node `kind`,
+  `body`, `properties`, `write_cursor`, and `origin.terminal_edge_properties`
+  from the revisions alive at `as_of`, disables active-only
+  `canonical_property_values` pushdown so declared `Filterable` keys evaluate
+  inline against historical row JSON (`properties > body`) for both
+  `eligibility.attributes` and `eligibility.property_predicates`, and reports
+  historical `StructuralDependencyStateV1::Registered` accurately when
+  `include_explanation` is enabled.
+- **Lifecycle, erasure & historical frozen evidence:** Because
+  `Engine::transition` updates `canonical_nodes.state` in place without
+  allocating a new `write_cursor`, current-state lifecycle (`state = 'active'`
+  on both the historical revision and the logical identity's active head)
+  applies to historical reads. Physical erasure (`purge`, `erase_source`),
+  active dependency-closure barriers (`phase != 'complete'`), and soft-deleted
+  canonical sources strictly subordinate historical reads and prevent nodes,
+  derived nodes, and derived edges from reconstructing at any `as_of` cursor or
+  timestamp. With `Frozen` context and `include_evidence: true`, `graph_expand`
+  mints 704-character `fdbgev1.` references (`payload[7] = 1`, `source_cursor <= c`,
+  prefix-free `request_commitment` tags `2u8`/`3u8`), reports
+  `artifact_lifecycle.superseded == true` when later superseded in the frozen
+  snapshot, and resolves to `EvidenceErrorReasonV1::EvidenceUnavailable` once
+  erased, transitioned, or barrier-blocked.

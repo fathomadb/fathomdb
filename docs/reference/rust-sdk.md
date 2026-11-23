@@ -134,13 +134,21 @@ is added.
   committed batches always report `WriteReceipt.dangling_edge_endpoints == 0`.
   Same-batch forward references and active self-loops succeed. `Engine::actuate`
   retains `ActuationOutcomeV1::Refused` (`ReferenceUnavailable`).
-- **Bounded `graph::expand` predicates:** Construct `GraphExpandRequestV1` via
-  `GraphExpandRequestV1::new(...)` (`#[non_exhaustive]`) and optional fluent
-  builders `.with_edge_predicates(...)` / `.with_target_predicates(...)` (at
-  most 32 closed inline `PropertyPredicate` entries each, implicit `AND`;
-  invalid predicates return `GraphEdgePredicatesInvalid` or
-  `GraphTargetPredicatesInvalid`). Current-time traversal enforces bitemporal
-  `[t_valid, t_invalid)` edge gating via indexed SQL pushdown.
+- **Bounded `graph::expand` predicates and historical reconstruction:**
+  Construct `GraphExpandRequestV1` via `GraphExpandRequestV1::new(...)`
+  (`#[non_exhaustive]`) and optional fluent builders `.with_edge_predicates(...)`
+  / `.with_target_predicates(...)` (at most 32 closed inline `PropertyPredicate`
+  entries each, implicit `AND`; invalid predicates return
+  `GraphEdgePredicatesInvalid` or `GraphTargetPredicatesInvalid`) plus mutually
+  exclusive knowledge-time builders `.with_as_of_write_cursor(u64)` and
+  `.with_as_of_epoch_ms(i64)` (specifying both refuses with
+  `GraphContextInvalid` at `/asOfEpochMs`). Default traversal enforces
+  current-time `[t_valid, t_invalid)` gating via indexed SQL pushdown;
+  historical `as_of` mode composes orthogonally with `ReadView.valid_as_of`,
+  resolves `as_of_epoch_ms` against `_fathomdb_commit_timestamps_ms_idx`,
+  respects current-state `Engine::transition` and physical erasure /
+  dependency-closure barriers, and supports frozen historical evidence
+  (`artifact_lifecycle.superseded == true`).
 - **Opt-in `use_graph_arm` seeding and provenance:** `SearchOptions`,
   `FrozenSearchOptions`, and `EvidenceSearchRequestV1::new(...)` accept
   `graph_seed: GraphSeedMode` (`GraphFts` default, `FusedTopK`, `Both`),

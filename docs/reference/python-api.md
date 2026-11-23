@@ -468,12 +468,23 @@ workflow and retry rules.
 
 The principal graph carriers are `GraphExpandRequestV1` (including optional
 `edge_predicates` and `target_predicates`, each at most `32` `PropertyPredicate`
-entries evaluated strictly against inline `properties`, plus bitemporal
-`[t_valid, t_invalid)` edge gating), `GraphExpandResultV1`,
+entries evaluated strictly against inline `properties`, bitemporal
+`[t_valid, t_invalid)` edge gating, and optional mutually exclusive
+knowledge-time bounds `as_of_write_cursor: str | None = None` — canonical
+unsigned decimal `u64` string — and `as_of_epoch_ms: int | None = None` —
+signed 64-bit integer epoch milliseconds), `GraphExpandResultV1`,
 `GraphQuerySeedV1`, `GraphExplicitSeedV1`, `GraphReadContextV1`,
 `GraphTargetV1` (with `properties` and `origin.terminal_edge_properties`), and
-`GraphExpansionExplanationV1`. Invalid graph requests raise
-`GraphExpansionError` (including reasons `"graph_edge_predicates_invalid"` and
+`GraphExpansionExplanationV1`. Historical `as_of` expansion composes
+orthogonally with `ReadView.valid_as_of` (`ReadView` remains world-time-only),
+resolves `as_of_epoch_ms` against `_fathomdb_commit_timestamps_ms_idx` (cursor
+`"0"` returns empty query seeds and `GraphExpansionError("graph_seed_unavailable")`
+for explicit seeds), evaluates declared `Filterable` keys inline on superseded
+revisions, respects current-state `Engine.transition` and physical erasure /
+closure barriers, and supports historical frozen evidence
+(`artifact_lifecycle.superseded is True` when later superseded). Invalid graph
+requests raise `GraphExpansionError` (including reasons
+`"graph_context_invalid"`, `"graph_edge_predicates_invalid"`, and
 `"graph_target_predicates_invalid"`); invalid projection-generation reads raise
 `ProjectionGenerationError`.
 

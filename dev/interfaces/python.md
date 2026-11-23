@@ -1755,3 +1755,48 @@ Zero new governed operations are added.
   and `graph_hop_depth: int | None = None`; `EvidenceGraphOriginV1` exposes
   `seed_source: GraphArmSeedSource`. `Engine.search_text_only` does not accept
   graph-arm seeding options.
+
+## Historical bitemporal graph reconstruction (0.8.31 Slice 40)
+
+Zero new governed operations are added. `GraphExpandRequestV1` adds two
+defaulted, mutually exclusive knowledge-time bounds:
+
+- `as_of_write_cursor: str | None = None` — canonical unsigned base-10 decimal
+  string (`"0"` through `2**64 - 1`, matching `max_work_units` and
+  `GraphTargetV1.write_cursor`). Non-strings, leading zeros, negative values,
+  or values exceeding `u64::MAX` raise `GraphExpansionError` with reason
+  `"graph_context_invalid"` at `"/asOfWriteCursor"`.
+- `as_of_epoch_ms: int | None = None` — signed 64-bit integer
+  (`-(2**63) <= v <= 2**63 - 1`; `bool`, `float`, `str`, and out-of-range
+  values raise `GraphExpansionError` with reason `"graph_context_invalid"` at
+  `"/asOfEpochMs"`).
+
+Setting both fields raises `GraphExpansionError` (`"graph_context_invalid"` at
+`"/asOfEpochMs"`). Both keys are omitted from wire JSON when `None`, and
+explicit JSON `null` on raw wire input is refused at `/asOfWriteCursor` /
+`/asOfEpochMs`. `ReadView` remains world-time-only (`include_superseded=True`
+and `include_inactive=True` remain refused on `graph.expand`).
+
+- **Bitemporal semantics & cursor-`0`:** Knowledge time (`as_of_write_cursor`
+  or `as_of_epoch_ms`, resolved once per reader transaction via
+  `_fathomdb_commit_timestamps_ms_idx`) composes orthogonally with
+  `ReadView.valid_as_of`. Cursor `"0"` (including `as_of_epoch_ms` prior to the
+  first Schema-38 commit on fresh or upgraded Schema 37-to-38 stores) returns
+  empty `Query` seeds and `GraphExpansionError("graph_seed_unavailable")` for
+  `Explicit` seeds, while pre- and post-upgrade revisions remain addressable
+  via `as_of_write_cursor`. Future cursors (including `str(2**64 - 1)`) act as
+  a snapshot-bounded monotonic upper bound.
+- **Hydration, eligibility, lifecycle, erasure & frozen evidence:** Returned
+  `GraphTargetV1` rows carry point-in-time `kind`, `body`, `properties`,
+  `write_cursor`, and `origin.terminal_edge_properties`. Declared `Filterable`
+  keys in `eligibility.attributes`, `eligibility.property_predicates`,
+  `edge_predicates`, and `target_predicates` evaluate inline against historical
+  row JSON on superseded revisions. Current-state `Engine.transition`
+  (`state != "active"` on the logical head) removes entities from historical
+  reads, and `purge` / `erase_source` / active dependency-closure barriers
+  prevent nodes and derived edges from reconstructing at any `as_of` point.
+  `include_evidence=True` with `FrozenGraphReadContextV1` mints 704-character
+  `fdbgev1.` references whose `resolve_graph_evidence` output sets
+  `artifact_lifecycle.superseded is True` when later superseded and raises
+  `EvidenceError("evidence_unavailable")` after erasure, transition, or
+  closure-barrier revocation.

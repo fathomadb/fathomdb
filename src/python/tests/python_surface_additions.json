@@ -2781,6 +2781,42 @@
         "path": "fathomdb.types.PerHitExplain.graph_seed_source",
         "signature": "graph_seed_source: GraphArmSeedSource | None = None"
       }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 40,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.GraphExpandRequestV1.as_of_epoch_ms",
+        "signature": "as_of_epoch_ms: int | None = None"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 40,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.GraphExpandRequestV1.as_of_write_cursor",
+        "signature": "as_of_write_cursor: str | None = None"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 40,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.GraphExpandRequestV1.as_of_epoch_ms",
+        "signature": "as_of_epoch_ms: int | None = None"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 40,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.GraphExpandRequestV1.as_of_write_cursor",
+        "signature": "as_of_write_cursor: str | None = None"
+      }
     }
   ],
   "native_stub_sha256": "4f3939dbb5bff1f0616cdc3520d1d7d9bcf7f946d9c2d1421d1e7b7f8a2f7dac",

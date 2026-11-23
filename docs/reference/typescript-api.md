@@ -453,14 +453,25 @@ evidence, and trace failures throw `PageError`, `EvidenceError`, and
 
 The principal graph carriers are `GraphExpandRequestV1` (including optional
 `edgePredicates` and `targetPredicates`, each at most `32` `PropertyPredicate`
-entries evaluated strictly against inline `properties`, plus bitemporal
-`[tValid, tInvalid)` edge gating), `GraphExpandResultV1`,
-`GraphQuerySeedV1`, `GraphExplicitSeedV1`, `GraphReadContextV1`,
-`GraphTargetV1` (with `properties` and `origin.terminalEdgeProperties`), and
-`GraphExpansionExplanationV1`. Invalid graph requests throw
-`GraphExpansionError` (including reasons `"graph_edge_predicates_invalid"` and
-`"graph_target_predicates_invalid"`); invalid projection-generation reads throw
-`ProjectionGenerationError`.
+entries evaluated strictly against inline `properties`, bitemporal
+`[tValid, tInvalid)` edge gating, and optional mutually exclusive
+knowledge-time bounds `asOfWriteCursor?: string` — canonical unsigned decimal
+`u64` string — and `asOfEpochMs?: number` — safe integer epoch milliseconds),
+`GraphExpandResultV1`, `GraphQuerySeedV1`, `GraphExplicitSeedV1`,
+`GraphReadContextV1`, `GraphTargetV1` (with `properties` and
+`origin.terminalEdgeProperties`), and `GraphExpansionExplanationV1`. Historical
+`asOf` expansion composes orthogonally with `ReadView.validAsOf` (`ReadView`
+remains world-time-only), resolves `asOfEpochMs` against
+`_fathomdb_commit_timestamps_ms_idx` (cursor `"0"` returns empty query seeds
+and `GraphExpansionError("graph_seed_unavailable")` for explicit seeds),
+evaluates declared `filterable` keys inline on superseded revisions, respects
+current-state `Engine.transition` and physical erasure / closure barriers, and
+supports historical frozen evidence (`artifactLifecycle.superseded === true`
+when later superseded). Invalid graph requests throw `GraphExpansionError`
+(including reasons `"graph_context_invalid"`, `"graph_edge_predicates_invalid"`,
+and `"graph_target_predicates_invalid"`, including explicit `null`, mutual
+exclusion, or non-safe integer `asOfEpochMs`); invalid projection-generation
+reads throw `ProjectionGenerationError`.
 
 ## `admin.configure`
 

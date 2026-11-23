@@ -109,6 +109,19 @@ database mutation after the context was minted is reported as frozen-state
 drift before provenance detail is inspected. Rerun the whole freeze, expand,
 and resolve sequence after any such mutation.
 
+Historical `graph.expand` requests (`as_of_write_cursor` / `asOfWriteCursor` or
+`as_of_epoch_ms` / `asOfEpochMs`) also support `include_evidence=True` /
+`includeEvidence: true` under frozen authority. The engine authenticates the
+`as_of` bound inside the request commitment, verifies that both the artifact
+and its canonical source existed at or before the resolved cursor, and mints
+the same 704-character `fdbgev1.` references. When the historical revision was
+later superseded in the frozen snapshot, `resolve_graph_evidence` /
+`resolveGraphEvidence` succeeds for retained active revisions and reports
+`artifact_lifecycle.superseded == True` (`artifactLifecycle.superseded === true`).
+Physical erasure (`purge`, `erase_source` / `eraseSource`), transitioning an
+artifact's active head out of `active`, or an active dependency-closure barrier
+revokes both minting and resolution with `evidence_unavailable`.
+
 When requested, both frozen search operations return a non-empty correlation
 identity. With local telemetry enabled it is the matching `q...` query identity;
 without telemetry it is an Engine-minted `x...` identity. Disabling explanation

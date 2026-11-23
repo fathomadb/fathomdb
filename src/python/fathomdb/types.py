@@ -725,6 +725,8 @@ class GraphExpandRequestV1:
     include_evidence: bool = False
     edge_predicates: tuple[PropertyPredicate, ...] = ()
     target_predicates: tuple[PropertyPredicate, ...] = ()
+    as_of_write_cursor: str | None = None
+    as_of_epoch_ms: int | None = None
 
 
 @dataclass(frozen=True)

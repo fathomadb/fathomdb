@@ -295,3 +295,35 @@ arrays.
 `EvidenceGraphOriginV1` adds required `seedSource`
 (`"fused_top_k" | "edge_fts" | "entity_fts"`) on both `edge_seed` and
 `traversal` origins, authenticated inside the opaque evidence token payload.
+
+## Historical bitemporal graph expansion wire (0.8.31 Slice 40)
+
+`GraphExpandRequestV1` adds two optional, mutually exclusive knowledge-time
+bounds, both omitted during canonical encoding when absent so default
+current-time request bytes stay unchanged:
+
+- `asOfWriteCursor`: canonical unsigned base-10 decimal string (`"0"` through
+  `u64::MAX`, matching `maxWorkUnits` / `writeCursor`). Non-strings, explicit
+  JSON `null`, leading zeros, negative values, and values exceeding `u64::MAX`
+  refuse with `FDB_GRAPH_EXPANSION`, reason `graph_context_invalid`, at
+  `/asOfWriteCursor`.
+- `asOfEpochMs`: signed 64-bit JSON integer (`i64`; TypeScript validates
+  `Number.isSafeInteger`). Non-integers, floats, strings, booleans, explicit
+  JSON `null`, and out-of-range values refuse with `FDB_GRAPH_EXPANSION`, reason
+  `graph_context_invalid`, at `/asOfEpochMs`.
+
+Supplying both `asOfWriteCursor` and `asOfEpochMs` refuses deterministically
+with `FDB_GRAPH_EXPANSION`, reason `graph_context_invalid`, at `/asOfEpochMs`.
+`ReadView` remains world-time-only; `includeSuperseded: true` and
+`includeInactive: true` remain refused on `graph.expand` at `/context`.
+
+Frozen graph evidence commitments bind historical requests via prefix-free
+trailing tags (`2u8` + `u64` for `asOfWriteCursor`, `3u8` + `i64` for
+`asOfEpochMs`, emitted after the optional `1u8` predicate block and omitted
+when neither bound is set). The `fdbgev1.` reference wire grammar stays 704
+characters (`nonce[16] || ciphertext[300] || mac[32]`), using reserved selector
+byte `payload[7]` (`0` = current-time minted, `1` = historical `as_of` minted).
+Resolved historical evidence sets `artifactLifecycle.superseded: true` when the
+bound revision was later superseded in the frozen snapshot, and collapses
+erased, transitioned, or closure-barrier-blocked artifacts to
+`evidence_unavailable`.

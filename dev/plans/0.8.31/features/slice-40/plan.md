@@ -1,6 +1,6 @@
 ---
 title: Slice 40 Plan — Historical Graph Reconstruction (HISTORY-GRAPH)
-status: ACTIVE
+status: CLOSED
 target_release: 0.8.31
 slice: 40
 date: 2026-11-22

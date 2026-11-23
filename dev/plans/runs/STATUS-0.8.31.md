@@ -26,8 +26,11 @@ own settled HITL decisions, requirements, and execution contracts.
 - **Slice 30 (`STRICT-GRAPH`) — LANDED (`8e44a47ad`):**
   - Landed Layers 1–4 (`0a43d66b7`, `3f8dbc470`, `87cd6a633`, `eda733775`) plus `FIX-1` (`8e44a47ad`) after moving the worktree to `/mnt/data/worktrees/release-0.8.31`: strict write endpoint integrity + 32 convenience-edge test & 3 Inspector forensic fixture updates, `GraphExpandRequestV1` `#[non_exhaustive]` + `::new(...)` + closed typed predicates + current-time SQL pushdown (`UNION ALL`, `t_valid`, `proptest` equivalence), `search.rs` `SEED_FTS_N` mixed-edge fix + Phase 2 `UNION ALL` + opt-in `graph_seed` (`GraphFts`/`FusedTopK`/`Both`) + single-pass `CeScoreCache` + `PerHitExplain`/`EvidenceGraphOriginV1` provenance + `#[non_exhaustive]` `EvidenceSearchRequestV1::new(...)`, Rust/Python/TypeScript parity (1,789 Python / 653 TS / all Rust crates), and updated interface/public docs.
   - Independent adversarial code review returned **`APPROVE`** at HEAD `8e44a47ad`; recorded in `features/slice-30/status.md`.
-- **Slice 40 (`HISTORY-GRAPH`) — ACTIVE:** Applying Plan Review `FIX-1` to `features/slice-40/plan.md` for `APPROVE`, then executing RED -> GREEN TDD implementation.
+- **Slice 40 (`HISTORY-GRAPH`) — LANDED (`fe5e7d8a1`):**
+  - Landed Layers 1–3 (`039bc7f88`, `e00a3b359`, `9f362ed1f`) plus `search.rs` `EntityFts` fix (`9ca376e57`) and `FIX-1` (`fe5e7d8a1`): bitemporal `graph_expand` (`as_of_write_cursor` / `as_of_epoch_ms`), `EdgeViewBoundary::AsOf` (`UNION ALL`, derived-edge closure barriers, zero-`SCAN` query plans), two-arm historical `load_node` + `Engine::transition` current-head check, inline `(properties > body)` historical eligibility, `proptest` snapshot BFS oracle, historical frozen graph evidence (`payload[7]`, `artifact_lifecycle.superseded`, erasure/transition/barrier revocation), Rust/Python/TypeScript parity (1,794 Python / 657 TS / all 13 Rust crates), and updated interface/guide/reference docs.
+  - Independent adversarial code review returned **`APPROVE`** at HEAD `fe5e7d8a1`; recorded in `features/slice-40/status.md`.
+- **Slice 50 (`SDK-CLI-UPGRADE`) — ACTIVE:** Applying Plan Review `FIX-1` to `features/slice-50/plan.md` for `APPROVE`, then executing RED -> GREEN TDD implementation.
 
 ## Next action
 
-Complete Slice 40 (`HISTORY-GRAPH`) Plan Review `FIX-1` (`APPROVE`), then execute Slices `40 → 50 → 60 → 70` sequentially (stopping before Slice 80 Publication for separate HITL approval).
+Complete Slice 50 (`SDK-CLI-UPGRADE`) Plan Review `FIX-1` (`APPROVE`), then execute Slices `50 → 60 → 70` sequentially (stopping before Slice 80 Publication for separate HITL approval).

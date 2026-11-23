@@ -161,4 +161,4 @@ authorization after Slice 70 qualification completes.
 ## Landed slice roll-up
 
 <!-- BEGIN GENERATED release-state:0.8.31:plan-landed-roll-up -->
-**LANDED on `origin/main`, in full:** Slices 0 (`42595212c`) · 10 (`3c4b84439`) · 20 (`975637f3c`) · 30 (`8e44a47ad`). SCHEMA is 38; remaining ladder = 40 → 50 → 60 → 70 → 80.<!-- END GENERATED release-state:0.8.31:plan-landed-roll-up -->
+**LANDED on `origin/main`, in full:** Slices 0 (`42595212c`) · 10 (`3c4b84439`) · 20 (`975637f3c`) · 30 (`8e44a47ad`) · 40 (`fe5e7d8a1`). SCHEMA is 38; remaining ladder = 50 → 60 → 70 → 80.<!-- END GENERATED release-state:0.8.31:plan-landed-roll-up -->

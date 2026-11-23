@@ -173,6 +173,10 @@ crate = "fathomdb-inspector"
 features = ["cached-cpu"]
 
 [[extra]]
+crate = "fathomdb-inspector"
+features = ["fixture-control"]
+
+[[extra]]
 crate = "fathomdb-napi"
 features = ["default-embedder"]
 

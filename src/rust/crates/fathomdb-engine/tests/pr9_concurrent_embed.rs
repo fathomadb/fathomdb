@@ -119,6 +119,7 @@ fn sustained_seed_default_pool_completes_and_is_correct() {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             })
             .collect();
         engine.write(&batch).expect("seed write");

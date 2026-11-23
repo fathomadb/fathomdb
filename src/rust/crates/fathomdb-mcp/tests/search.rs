@@ -433,8 +433,13 @@ fn vector_mismatch_store(fixture: &Fixture) {
         name: "text".into(),
         roles: [fathomdb_sdk::ProjectionRole::Searchable].into_iter().collect(),
         fts: Some(fathomdb_sdk::ProjectionFts { tokenizer: None }),
-        vector: Some(fathomdb_sdk::ProjectionVector { embedder: None, dense_readiness: None }),
+        vector: Some(fathomdb_sdk::ProjectionVector {
+            embedder: None,
+            dense_readiness: None,
+            kinds: None,
+        }),
         source: None,
+        entity_class: fathomdb_sdk::PropertyEntityClass::Node,
     };
     engine.configure_projections(&[spec], &[]).expect("declare a vector projection");
     engine.write(&river_notes(3)).expect("write notes");

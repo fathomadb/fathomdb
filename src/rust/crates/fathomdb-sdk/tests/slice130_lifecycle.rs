@@ -55,6 +55,7 @@ fn open(path: &std::path::Path) -> Engine {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("real write");
     engine.drain(60_000).expect("accepted work drained");

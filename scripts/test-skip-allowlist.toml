@@ -23,6 +23,16 @@ class = "ignored-by-design"
 reason = "Explicit ordinary-OOM qualification requires one separately reviewed exclusive CUDA child, a 120s outer deadline and resource floors; normal feature coverage must not activate this manual hardware-pressure control."
 
 [[entry]]
+id = "fathomdb-embedder::lib::candle_bge::module_image_tests::native_wrong_image_and_missing_function_preserve_classifier_and_device_policy"
+class = "ignored-by-design"
+reason = "#[ignore]: requires an exact native CUDA child process, exclusive GPU lease, resource bounds, and the committed sm90-only cubin fixture passed via FATHOMDB_TEST_SM90_CUBIN; normal feature coverage must not invoke this manual hardware control."
+
+[[entry]]
+id = "fathomdb-embedder::lib::candle_bge::completed_model_tests::completed_models_preserve_healthy_or_coordinated_loss_drop_contract"
+class = "ignored-by-design"
+reason = "#[ignore]: requires an exclusive leased CUDA child with explicit FATHOMDB_COORDINATED_RESET and FATHOMDB_SELECTED_UUID controls, and its reset modes issue cuDevicePrimaryCtxReset_v2 requiring separate authorization; normal feature coverage must not run it."
+
+[[entry]]
 id = "fathomdb-sdk::slice130_lifecycle::lifecycle_max"
 class = "ignored-by-design"
 reason = "Slice 130D manual Orin CUDA12.6 private-pool window: max-threshold first/last close and surviving forward require the reserved real-model venue; normal x86 feature coverage does not qualify this control."

@@ -384,6 +384,7 @@ mod cdf_runner_impl {
                         reason: None,
                         valid_from: None,
                         valid_until: None,
+                        properties: None,
                     })
                     .collect();
                 engine.write(&batch).expect("seed write");

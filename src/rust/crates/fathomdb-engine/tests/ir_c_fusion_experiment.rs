@@ -286,6 +286,7 @@ fn ir_c_fusion_experiment() {
                     reason: None,
                     valid_from: None,
                     valid_until: None,
+                    properties: None,
                 })
                 .collect();
             engine.write(&batch).expect("seed write");

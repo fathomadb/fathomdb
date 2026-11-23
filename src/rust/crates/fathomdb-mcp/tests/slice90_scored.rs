@@ -3,7 +3,8 @@ mod common;
 
 use common::{Fixture, Harness};
 use fathomdb_sdk::{
-    Engine, OpenOptions, ProjectionRole, ProjectionSpec, ProjectionVector, SearchOptions,
+    Engine, OpenOptions, ProjectionRole, ProjectionSpec, ProjectionVector, PropertyEntityClass,
+    SearchOptions,
 };
 use serde_json::json;
 use std::sync::Arc;
@@ -26,8 +27,13 @@ async fn s90_real_mcp_vector_hit_keeps_scored_extent_and_final_budget() {
                 name: "body".into(),
                 roles: [ProjectionRole::Searchable].into_iter().collect(),
                 fts: None,
-                vector: Some(ProjectionVector { embedder: None, dense_readiness: None }),
+                vector: Some(ProjectionVector {
+                    embedder: None,
+                    dense_readiness: None,
+                    kinds: None,
+                }),
                 source: None,
+                entity_class: PropertyEntityClass::Node,
             }],
             &[],
         )

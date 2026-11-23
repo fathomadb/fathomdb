@@ -766,15 +766,16 @@ fn tagged_and_plain_corpora_rank_identically() {
 #[cfg(feature = "default-embedder")]
 #[test]
 fn tagged_and_plain_corpora_fuse_identically() {
-    use fathomdb_engine::{ProjectionRole, ProjectionSpec, ProjectionVector};
+    use fathomdb_engine::{ProjectionRole, ProjectionSpec, ProjectionVector, PropertyEntityClass};
     use std::collections::BTreeSet;
 
     let dense = ProjectionSpec {
         name: "dense".to_string(),
         roles: BTreeSet::from([ProjectionRole::Searchable]),
         fts: None,
-        vector: Some(ProjectionVector { embedder: None, dense_readiness: None }),
+        vector: Some(ProjectionVector { embedder: None, dense_readiness: None, kinds: None }),
         source: None,
+        entity_class: PropertyEntityClass::Node,
     };
     let dir = TempDir::new().expect("tempdir");
     let open = |name: &str| {

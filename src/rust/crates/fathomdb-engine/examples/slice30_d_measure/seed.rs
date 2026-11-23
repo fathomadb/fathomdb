@@ -27,6 +27,7 @@ pub(crate) fn seed_rows(
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             })
             .collect::<Vec<_>>();
         if batch.is_empty() {

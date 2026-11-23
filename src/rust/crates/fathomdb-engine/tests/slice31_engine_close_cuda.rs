@@ -65,6 +65,7 @@ fn engine_close_child() {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     };
     engine.write(&[node]).expect("write");
     engine.drain(60_000).expect("drain");

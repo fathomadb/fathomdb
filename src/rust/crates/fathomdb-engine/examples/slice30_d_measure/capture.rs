@@ -341,6 +341,7 @@ pub(crate) fn run_characterized(
                     fts: None,
                     vector: Some(ProjectionVector::default()),
                     source: None,
+                    entity_class: fathomdb_engine::PropertyEntityClass::Node,
                 }],
                 &[],
             )

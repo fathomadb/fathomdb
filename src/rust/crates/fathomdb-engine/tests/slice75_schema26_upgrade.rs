@@ -59,6 +59,7 @@ fn node(logical_id: &str, body: &str, state: InitialState) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 
@@ -269,6 +270,7 @@ fn schema26_upgrade_supports_lifecycle_dependency_erasure_recreation_and_reopen(
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
                 provenance: WriteProvenanceV1::canonical(
                     ArtifactRevisionId::new("upgraded-source-r1").expect("revision"),
                     SourceVersionId::new("v1").expect("version"),
@@ -283,6 +285,7 @@ fn schema26_upgrade_supports_lifecycle_dependency_erasure_recreation_and_reopen(
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
                 provenance: WriteProvenanceV1::derived(
                     ArtifactRevisionId::new("upgraded-derived-r1").expect("revision"),
                     SourceVersionId::new("v1").expect("version"),

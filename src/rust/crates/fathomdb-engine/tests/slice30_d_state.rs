@@ -52,6 +52,7 @@ fn projection_snapshot_reports_actual_held_and_busy_state_without_sql_inference(
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     });
     engine.write(&writes).unwrap();
     let held = engine.slice30_projection_snapshot_for_test();

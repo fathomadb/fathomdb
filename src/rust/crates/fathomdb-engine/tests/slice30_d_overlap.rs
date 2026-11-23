@@ -58,6 +58,7 @@ fn actual_pending_bracket_inside_same_call_and_worker_requires_observed_overlap(
                 fts: None,
                 vector: Some(ProjectionVector::default()),
                 source: None,
+                entity_class: fathomdb_engine::PropertyEntityClass::Node,
             }],
             &[],
         )
@@ -78,6 +79,7 @@ fn actual_pending_bracket_inside_same_call_and_worker_requires_observed_overlap(
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     });
     engine.write(&writes).unwrap();
     drop(frozen);

@@ -74,6 +74,7 @@ fn node(body: &str) -> PreparedWrite {
         valid_until: None,
         state: Default::default(),
         reason: None,
+        properties: None,
     }
 }
 

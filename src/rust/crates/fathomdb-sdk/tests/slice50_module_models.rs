@@ -35,6 +35,7 @@ fn native_release_reload_and_busy_preserve_engine_ownership() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .unwrap();
     engine.drain(30_000).unwrap();

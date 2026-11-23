@@ -5,10 +5,10 @@ use std::fs::{self, OpenOptions};
 use std::path::{Path, PathBuf};
 
 use fathomdb_engine::{
-    arm_migrate_37_to_38_before_version_stamp_hook_for_test, migrate_37_to_38, Engine, EngineError,
-    EngineOpenError, GraphExpandRequestV1, GraphExpansionErrorReasonV1, GraphReadContextV1,
-    GraphSeedV1, IdSpace, MigrateErrorCode, ReadContextV1, ReadView, SearchFilter,
-    TraversalDirection,
+    arm_migrate_37_to_38_before_version_stamp_hook_for_test, configure_runtime, migrate_37_to_38,
+    Engine, EngineError, EngineOpenError, GraphExpandRequestV1, GraphExpansionErrorReasonV1,
+    GraphReadContextV1, GraphSeedV1, IdSpace, MigrateErrorCode, ReadContextV1, ReadView,
+    RuntimeSqliteMode, SearchFilter, TraversalDirection,
 };
 use rusqlite::Connection;
 use sha2::{Digest, Sha256};
@@ -24,7 +24,12 @@ fn sha256_file(path: &Path) -> String {
     Sha256::digest(&bytes).iter().map(|b| format!("{b:02x}")).collect()
 }
 
+fn configure_test_runtime() {
+    configure_runtime(RuntimeSqliteMode::Performance).expect("configure test runtime");
+}
+
 fn copy_golden(dir: &TempDir, name: &str) -> PathBuf {
+    configure_test_runtime();
     let dst = dir.path().join(name);
     fs::copy(GOLDEN_SCHEMA_37_PATH, &dst).expect("copy golden schema-37 fixture");
     assert_eq!(sha256_file(&dst), GOLDEN_SCHEMA_37_SHA256, "golden fixture checksum mismatch");

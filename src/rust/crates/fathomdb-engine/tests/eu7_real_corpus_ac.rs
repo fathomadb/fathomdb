@@ -376,6 +376,7 @@ fn seed_slice(engine: &Engine, bodies: &[String], from: usize, to: usize) -> Dur
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             })
             .collect();
         engine.write(&batch).expect("seed write");

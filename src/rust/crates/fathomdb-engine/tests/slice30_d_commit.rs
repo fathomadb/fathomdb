@@ -46,6 +46,7 @@ impl Fixture {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             })
             .collect::<Vec<_>>();
         self.engine.write(&writes).unwrap().row_cursors

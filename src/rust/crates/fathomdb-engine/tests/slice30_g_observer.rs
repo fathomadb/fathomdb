@@ -15,6 +15,7 @@ fn seed(path: &std::path::Path) -> Engine {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .unwrap();
     opened.engine
@@ -100,6 +101,7 @@ fn seed_dense(path: &std::path::Path) -> Engine {
                 fts: None,
                 vector: Some(fathomdb_engine::ProjectionVector::default()),
                 source: None,
+                entity_class: fathomdb_engine::PropertyEntityClass::Node,
             }],
             &[],
         )
@@ -114,6 +116,7 @@ fn seed_dense(path: &std::path::Path) -> Engine {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         });
     engine.write(&rows).unwrap();
     engine.drain(5_000).unwrap();
@@ -138,6 +141,7 @@ fn mixed_edge_hybrid_observes_each_actual_guard_once_without_invented_sql() {
             confidence: None,
             extractor_model_id: None,
             temporal_fallback: None,
+            properties: None,
         }])
         .unwrap();
     engine.drain(5_000).unwrap();
@@ -266,6 +270,7 @@ fn source_window_controls_observe_actual_fallback_selection_without_clock_change
         reason: None,
         valid_from: Some(now - 1),
         valid_until: Some(boundary),
+        properties: None,
         provenance: WriteProvenanceV1::canonical(
             ArtifactRevisionId::new("g-source-r1").unwrap(),
             SourceVersionId::new("v1").unwrap(),
@@ -284,6 +289,7 @@ fn source_window_controls_observe_actual_fallback_selection_without_clock_change
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
         provenance: WriteProvenanceV1::derived(
             ArtifactRevisionId::new("g-derived-r1").unwrap(),
             SourceVersionId::new("v1").unwrap(),
@@ -356,6 +362,7 @@ fn pending_vector_probe_records_the_selected_fallback_not_only_eligibility() {
                 fts: None,
                 vector: Some(fathomdb_engine::ProjectionVector::default()),
                 source: None,
+                entity_class: fathomdb_engine::PropertyEntityClass::Node,
             }],
             &[],
         )
@@ -371,6 +378,7 @@ fn pending_vector_probe_records_the_selected_fallback_not_only_eligibility() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .unwrap()
         .cursor;
@@ -444,6 +452,7 @@ fn authority_observation_uses_reader_transaction_and_frozen_validity() {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .unwrap();
     let (third, result) = capture(703, 200);
@@ -483,6 +492,7 @@ fn boundary_capture_binds_same_call_authority_to_derived_membership() {
         reason: None,
         valid_from: Some(now - 1),
         valid_until: Some(boundary),
+        properties: None,
         provenance: WriteProvenanceV1::canonical(
             ArtifactRevisionId::new("g-source-r1").unwrap(),
             SourceVersionId::new("v1").unwrap(),
@@ -501,6 +511,7 @@ fn boundary_capture_binds_same_call_authority_to_derived_membership() {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
         provenance: WriteProvenanceV1::derived(
             ArtifactRevisionId::new("g-derived-r1").unwrap(),
             SourceVersionId::new("v1").unwrap(),
@@ -759,6 +770,7 @@ fn stored_span_witness_preserves_utf8_byte_ranges_and_unknown_coverage() {
                     fts: None,
                     vector: Some(fathomdb_engine::ProjectionVector::default()),
                     source: None,
+                    entity_class: fathomdb_engine::PropertyEntityClass::Node,
                 }],
                 &[],
             )
@@ -773,6 +785,7 @@ fn stored_span_witness_preserves_utf8_byte_ranges_and_unknown_coverage() {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             }
         });
         engine.write(&writes).unwrap();

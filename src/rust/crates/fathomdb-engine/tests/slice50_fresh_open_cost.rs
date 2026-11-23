@@ -67,7 +67,7 @@ fn seed(path: &Path, model: Arc<CandleBgeEmbedder>, rows: usize) {
     let writes: Vec<_> = (0..rows).map(|i| PreparedWrite::Node {
         kind: "doc".into(), body: format!("Verification timing document {i}. This corpus discusses astronomy, databases, memory and information retrieval."),
         source_id: SourceId::new("fresh-open-measurement").unwrap(), logical_id: Some(format!("doc-{i}")),
-        state: InitialState::Active, reason: None, valid_from: None, valid_until: None,
+        state: InitialState::Active, reason: None, valid_from: None, valid_until: None, properties: None,
     }).collect();
     setup.engine.write(&writes).unwrap();
     setup.engine.drain(120_000).unwrap();

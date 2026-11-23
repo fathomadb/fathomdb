@@ -44,6 +44,7 @@ fn seed_driver_commits_real_rows_in_1000_row_batches_without_interbatch_drain() 
                     fts: None,
                     vector: Some(ProjectionVector::default()),
                     source: None,
+                    entity_class: fathomdb_engine::PropertyEntityClass::Node,
                 }],
                 &[],
             )

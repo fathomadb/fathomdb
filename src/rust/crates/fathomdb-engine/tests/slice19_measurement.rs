@@ -128,6 +128,7 @@ fn fixture_writes() -> (Vec<PreparedWrite>, Vec<PreparedWrite>) {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         })
         .collect();
     let edges = (0..FIXTURE_EDGES)
@@ -146,6 +147,7 @@ fn fixture_writes() -> (Vec<PreparedWrite>, Vec<PreparedWrite>) {
             confidence: None,
             extractor_model_id: None,
             temporal_fallback: None,
+            properties: None,
         })
         .collect();
     (nodes, edges)

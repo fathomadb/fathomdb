@@ -38,6 +38,7 @@ fn open(path: &std::path::Path) -> Engine {
                 fts: None,
                 vector: Some(ProjectionVector::default()),
                 source: None,
+                entity_class: fathomdb_engine::PropertyEntityClass::Node,
             }],
             &[],
         )
@@ -69,6 +70,7 @@ fn seed(engine: &Engine, prefix: &str, count: usize) -> Vec<u64> {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         })
         .collect::<Vec<_>>();
     engine.write(&writes).unwrap().row_cursors

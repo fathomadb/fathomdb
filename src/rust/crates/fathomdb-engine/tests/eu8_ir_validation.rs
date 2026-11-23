@@ -589,6 +589,7 @@ fn eu8_ir_validation() {
                     reason: None,
                     valid_from: None,
                     valid_until: None,
+                    properties: None,
                 })
                 .collect();
             engine.write(&batch).expect("seed write");

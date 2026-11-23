@@ -154,6 +154,7 @@ pub(super) fn seed_held(
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             })
             .collect::<Vec<_>>();
         if batch.is_empty() {
@@ -294,6 +295,7 @@ fn write_overlap(
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             })
             .collect::<Vec<_>>();
         if batch.is_empty() {
@@ -478,6 +480,7 @@ pub(crate) fn run_ordinary(
                     fts: None,
                     vector: Some(ProjectionVector::default()),
                     source: None,
+                    entity_class: fathomdb_engine::PropertyEntityClass::Node,
                 }],
                 &[],
             )

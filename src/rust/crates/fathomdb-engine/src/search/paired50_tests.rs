@@ -62,6 +62,7 @@ fn node(index: usize, kind: &str, body: String) -> PreparedWrite {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }
 }
 fn allocated<T>(operation: impl FnOnce() -> T) -> (T, usize) {

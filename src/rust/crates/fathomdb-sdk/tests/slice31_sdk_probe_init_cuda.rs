@@ -81,6 +81,7 @@ fn sdk_child(mode: &str) {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("write");
     engine.drain(60_000).expect("drain");

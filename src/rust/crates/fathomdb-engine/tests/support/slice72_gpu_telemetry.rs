@@ -1015,6 +1015,7 @@ fn write_projection(engine: &Engine, body: &str) {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])
         .expect("projection write");
 }
@@ -1070,6 +1071,7 @@ fn hit(id: u64, body: &str, score: f64) -> SearchHit {
         branch: SoftFallbackBranch::Vector,
         source_id: None,
         ce_score: None,
+        properties: None,
     }
 }
 

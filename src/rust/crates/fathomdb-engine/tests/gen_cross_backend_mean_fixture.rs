@@ -96,6 +96,7 @@ fn write_docs(engine: &Engine, count: usize, batch: usize) {
                 reason: None,
                 valid_from: None,
                 valid_until: None,
+                properties: None,
             })
             .collect();
         engine.write(&nodes).expect("production write");

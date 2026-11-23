@@ -167,7 +167,7 @@ def needs(job):
 abp = set(needs("all-builds-passed"))
 gate_ok = {
     "verify-release", "build-python", "build-python-cli", "build-napi", "build-rust",
-    "cuda-package-rehearsal", "build-cuda-linux-x64-gnu",
+    "build-inspector", "cuda-package-rehearsal", "build-cuda-linux-x64-gnu",
 } <= abp
 print("GATE", gate_ok, sorted(abp))
 
@@ -293,7 +293,7 @@ UPLOAD_ACTION="$REPO_ROOT/.github/actions/upload-artifact-retry/action.yml"
 JETSON_WF="$REPO_ROOT/.github/workflows/jetson-tegra-cuda-evidence.yml"
 if [ -f "$UPLOAD_ACTION" ] \
    && ! grep -q 'uses: actions/upload-artifact@' "$WF" \
-   && [ "$(grep -c 'uses: .*/upload-artifact-retry' "$WF")" -eq 14 ] \
+   && [ "$(grep -c 'uses: .*/upload-artifact-retry' "$WF")" -eq 15 ] \
    && ! grep -q 'uses: actions/upload-artifact@' "$JETSON_WF" \
    && [ "$(grep -c 'uses: .*/upload-artifact-retry' "$JETSON_WF")" -eq 1 ] \
    && [ "$(grep -c 'uses: actions/upload-artifact@' "$UPLOAD_ACTION")" -eq 3 ] \
@@ -301,7 +301,7 @@ if [ -f "$UPLOAD_ACTION" ] \
    && grep -q 'artifact-id' "$UPLOAD_ACTION"; then
   pass "release uploads and the single Jetson package upload retry in-place"
 else
-  fail "all 14 release uploads and the single Jetson package upload must use bounded retries"
+  fail "all 15 release uploads and the single Jetson package upload must use bounded retries"
 fi
 
 # Runner connectivity must be delivered by GitHub without touching build inputs.

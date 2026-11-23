@@ -958,6 +958,54 @@ jobs:
       - name: Package fathomdb-query (leaf, no in-workspace deps)
         run: cargo package --no-verify -p fathomdb-query
 
+  # Native Linux x86_64 Inspector release archive (D4 = B, Ubuntu 24.04 /
+  # glibc 2.39, bundled SQLite + embedded Chromium UI, zero GTK/WebKit deps).
+  # Stages non-colliding .tar.gz + .tar.gz.sha256 assets for github-release.
+  build-inspector:
+    runs-on: ubuntu-24.04
+    needs: [verify-release, verify-cuda-trusted-route]
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, canonical release tag
+        with:
+          ref: ${{ env.RELEASE_CHECKOUT_REF }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # stable
+        with:
+          toolchain: "1.95.0"
+      - name: Build, verify, seal, and stage Inspector release archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo fetch --locked
+          bash src/inspector/tools/package.sh "$RUNNER_TEMP/inspector-dist"
+          VERSION="$(awk '
+            /^\[/ { in_pkg = ($0 == "[package]") }
+            in_pkg && /^version[[:space:]]*=/ {
+              gsub(/^[^"]*"/, "")
+              gsub(/".*$/, "")
+              print
+              exit
+            }
+          ' src/inspector/Cargo.toml)"
+          test -n "$VERSION"
+          bash scripts/check-glibc-floor.sh --floor 2.39 "$RUNNER_TEMP/inspector-dist/fathomdb-inspector-${VERSION}-linux-x86_64/fathomdb-inspector"
+          python3 src/inspector/tools/local-release.py seal "$RUNNER_TEMP/inspector-dist"
+          python3 src/inspector/tools/local-release.py verify --source "$RUNNER_TEMP/inspector-dist"
+          archive="fathomdb-inspector-${VERSION}-linux-x86_64.tar.gz"
+          mkdir -p "$RUNNER_TEMP/inspector-release-assets"
+          cp "$RUNNER_TEMP/inspector-dist/$archive" "$RUNNER_TEMP/inspector-release-assets/$archive"
+          grep -F "  $archive" "$RUNNER_TEMP/inspector-dist/SHA256SUMS" > "$RUNNER_TEMP/inspector-release-assets/$archive.sha256"
+          test -s "$RUNNER_TEMP/inspector-release-assets/$archive.sha256"
+          (cd "$RUNNER_TEMP/inspector-release-assets" && sha256sum --check "$archive.sha256")
+      - uses: ./.github/actions/upload-artifact-retry
+        with:
+          name: inspector-linux-x64-gnu
+          path: ${{ runner.temp }}/inspector-release-assets/*
+          if-no-files-found: error
+
   # The normal Linux x64 Python wheel and npm platform package are built with
   # CUDA. Their package names stay unchanged; the existing publishers consume
   # these artifact names alongside the CPU-only platform artifacts.
@@ -1029,14 +1077,16 @@ jobs:
     runs-on: ubuntu-latest
     # Normal releases require every artifact build. The explicit v0.8.20
     # recovery dispatch omits only N-API, whose npm artifact is intentionally
-    # not being recovered; verify, Python, and Rust remain hard gates.
-    if: ${{ always() && needs.verify-release.result == 'success' && needs.build-python.result == 'success' && needs.build-python-cli.result == 'success' && needs.build-rust.result == 'success' && ((github.event_name == 'workflow_dispatch' && inputs.dry_run == true && needs.cuda-package-rehearsal.result == 'success') || ((github.event_name != 'workflow_dispatch' || inputs.dry_run != true) && needs.build-cuda-linux-x64-gnu.result == 'success')) && ((github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') || needs.build-napi.result == 'success') }}
+    # not being recovered; verify, Python, Python-CLI, Inspector, and Rust
+    # remain hard gates.
+    if: ${{ always() && needs.verify-release.result == 'success' && needs.build-python.result == 'success' && needs.build-python-cli.result == 'success' && needs.build-inspector.result == 'success' && needs.build-rust.result == 'success' && ((github.event_name == 'workflow_dispatch' && inputs.dry_run == true && needs.cuda-package-rehearsal.result == 'success') || ((github.event_name != 'workflow_dispatch' || inputs.dry_run != true) && needs.build-cuda-linux-x64-gnu.result == 'success')) && ((github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') || needs.build-napi.result == 'success') }}
     needs:
       - verify-release
       - build-python
       - build-python-cli
       - build-napi
       - build-rust
+      - build-inspector
       - cuda-package-rehearsal
       - build-cuda-linux-x64-gnu
     steps:
@@ -1803,6 +1853,10 @@ jobs:
         with:
           pattern: python-cli-dist-*
           merge-multiple: true
+          path: dist
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: inspector-linux-x64-gnu
           path: dist
       - uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe # v2.6.1
         with:

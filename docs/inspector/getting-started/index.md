@@ -1,30 +1,34 @@
 # Inspector availability and getting started
 
-Inspector 0.2.1 is available locally at `dist/inspector/0.2.1/` in the
-dedicated `inspector/dev/0.2.1` release checkout (released locally on
-2026-11-21; `dist/inspector/0.2.0/` remains separate). There is no registry
-download. Obtain the complete local bundle from its owner, including the
-archive and outer `SHA256SUMS`. [Release notes](../releases/0.2.1.md) explain
-the current boundary.
+Inspector 0.3.0 targets FathomDB 0.8.31 (schema 38). The `build-inspector` job
+in `.github/workflows/release.yml` builds, checks ELF `GLIBC <= 2.39`, seals,
+verifies, and attaches `fathomdb-inspector-0.3.0-linux-x86_64.tar.gz` and
+`fathomdb-inspector-0.3.0-linux-x86_64.tar.gz.sha256` to the FathomDB GitHub
+Release. Local candidate builds can also be sealed, verified, and promoted
+with `src/inspector/tools/local-release.py`. [Release notes](../releases/0.3.0.md)
+explain the current boundary and verification steps.
 
-The package builds against unchanged FathomDB Engine 0.8.30 source (schema 37)
-and is qualified against fresh closed databases produced by both published
-FathomDB 0.8.29 and published FathomDB 0.8.30, with all external writers
-stopped. It does not migrate older formats. It embeds the UI; Node, Python and
-a development server are not application requirements. The qualified pairing is
-Ubuntu 24.04 / glibc 2.39 Linux x86_64 userland, kernel `7.0.0-43-generic` /
-Landlock ABI 8 and Chromium `156.0.8078.4`. Ubuntu 22.04 / glibc 2.35 is not
-supported. Cached CPU requires Landlock ABI >= 3. This is an exact pairing
-qualification, not all-Linux or all-Chromium support. Allow four CPU cores,
-8 GiB available RAM and scratch at least twice the inspected fixture size.
+The package builds against FathomDB Engine 0.8.31 source (compiled schema 38,
+bundled SQLite) and admits closed Schema 38 databases with all external writers
+stopped. Schema 37 (`0.8.30`) and older databases refuse cleanly; Inspector
+does not migrate older formats. It embeds the UI; Node, Python, GTK4/WebKitGTK,
+and a development server are not application requirements. The qualified pairing
+is Ubuntu 24.04 / glibc 2.39 Linux x86_64 userland (`D4 = B`), kernel
+`7.0.0-43-generic` / Landlock ABI 8 and Chromium `156.0.8078.4`. Ubuntu 22.04 /
+glibc 2.35 is not supported. Cached CPU requires Landlock ABI >= 3. This is an
+exact pairing qualification, not all-Linux or all-Chromium support. Allow four
+CPU cores, 8 GiB available RAM and scratch at least twice the inspected fixture
+size.
 
-From the supplied distribution directory, extract into a new owned directory:
+From the GitHub Release download directory (or local distribution directory),
+verify checksums and extract into a new owned directory:
 
 ```sh
-sha256sum --check SHA256SUMS
+sha256sum --check fathomdb-inspector-0.3.0-linux-x86_64.tar.gz.sha256
+# (or `sha256sum --check SHA256SUMS` from a local candidate directory)
 mkdir inspector-install
-tar -xzf fathomdb-inspector-0.2.1-linux-x86_64.tar.gz -C inspector-install
-cd inspector-install/fathomdb-inspector-0.2.1-linux-x86_64
+tar -xzf fathomdb-inspector-0.3.0-linux-x86_64.tar.gz -C inspector-install
+cd inspector-install/fathomdb-inspector-0.3.0-linux-x86_64
 sha256sum --check SHA256SUMS
 ./fathomdb-inspector --help
 ./fathomdb-inspector --build-description

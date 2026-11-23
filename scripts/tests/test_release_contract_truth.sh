@@ -333,6 +333,51 @@ PY
 expect_fail "$FIXTURE" 'rejects publish-pypi omitting python-cli-dist-* download'
 
 make_fixture "$FIXTURE"
+python3 - "$FIXTURE/.github/workflows/release.yml" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+needle = "  build-inspector:\n"
+if text.count(needle) != 1:
+    raise SystemExit("test fixture lacks build-inspector")
+path.write_text(text.replace(needle, "  build-inspector-removed:\n", 1))
+PY
+expect_fail "$FIXTURE" 'rejects removal of build-inspector'
+
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/.github/workflows/release.yml" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+needle = " && needs.build-inspector.result == 'success'"
+if text.count(needle) != 1:
+    raise SystemExit("test fixture lacks build-inspector gate condition")
+path.write_text(text.replace(needle, "", 1))
+PY
+expect_fail "$FIXTURE" 'rejects all-builds-passed missing build-inspector success guard'
+
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/.github/workflows/release.yml" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+start = text.index("  github-release:\n")
+end = text.index("  record-v0820-partial-registry-recovery:\n", start)
+block = text[start:end]
+needle = "          name: inspector-linux-x64-gnu\n"
+if block.count(needle) != 1:
+    raise SystemExit("test fixture lacks github-release inspector-linux-x64-gnu download")
+path.write_text(text[:start] + block.replace(needle, "          name: inspector-missing\n", 1) + text[end:])
+PY
+expect_fail "$FIXTURE" 'rejects github-release omitting inspector-linux-x64-gnu download'
+
+make_fixture "$FIXTURE"
 sed -i '/target: aarch64-apple-darwin/d' "$FIXTURE/.github/workflows/release.yml"
 expect_fail "$FIXTURE" 'rejects a missing native build target'
 

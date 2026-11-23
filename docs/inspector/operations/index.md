@@ -1,9 +1,11 @@
 # Inspector operating boundaries
 
-The local Inspector 0.2.1 application starts and owns a FathomDB 0.8.30 Engine
-to inspect one existing current-schema (schema 37) database produced by
-published FathomDB 0.8.29 or 0.8.30. These boundaries apply to all implemented
-record, record-keyed lexical, vector, graph, provenance and comparison views.
+The local Inspector 0.3.0 application starts and owns a FathomDB Engine
+(targeting 0.8.31 / schema 38) to inspect one existing Schema 38 database
+(Schema 37 / `0.8.30` and older databases refuse cleanly). These boundaries
+apply to all implemented record, outside-`body` `properties` / reserved `scope`,
+record-keyed lexical, vector, current and historical `as_of` graph, provenance,
+and comparison views.
 
 ## Before attachment
 
@@ -63,9 +65,12 @@ new runtime pass; no extra policy confirmation is needed.
 All three flags may be combined. Every applicable gate must permit the read:
 `--show-erased` does not bypass `--no-show-inactive` or unlock telemetry
 payloads; `--show-payloads` does not unlock erasure-pending content. Restrictions
-apply equally to detail, representations, graph labels/links, query evidence,
-copying and export. Counts state the policy-filtered scope. Flags allow
-disclosure, not invented retrieval eligibility, ranks or missing data.
+apply equally to `body` and `properties` detail (including withholding
+`properties_bytes` and `typeof(properties)` metadata when unpermitted),
+representations, current and historical `as_of` graph targets/edges/origins/
+inline properties, query evidence, copying and export. Counts state the
+policy-filtered scope. Flags allow disclosure, not invented retrieval
+eligibility, ranks or missing data.
 
 The policy is fixed for the launched session and shown as session state.
 Normally accessible unrelated content remains usable when one payload is

@@ -514,6 +514,37 @@ def main() -> None:
         if consumer_block is None or "pattern: python-cli-dist-*" not in consumer_block:
             fail(f"{consumer} must download python-cli-dist-* artifacts")
 
+    inspector_block = jobs.get("build-inspector")
+    if inspector_block is None:
+        fail("release workflow lacks build-inspector")
+    require_runner("build-inspector", inspector_block, "ubuntu-24.04")
+    inspector_needs = set(needs("build-inspector", inspector_block))
+    if not {"verify-release", "verify-cuda-trusted-route"} <= inspector_needs:
+        fail("build-inspector must depend on verify-release and verify-cuda-trusted-route")
+    if UNSAFE_STATUS_BYPASS.search(inspector_block):
+        fail("build-inspector must not use an unsafe status bypass")
+    for fragment in (
+        "permissions:\n      contents: read",
+        "ref: ${{ env.RELEASE_CHECKOUT_REF }}",
+        "persist-credentials: false",
+        "cargo fetch --locked",
+        "bash src/inspector/tools/package.sh",
+        "bash scripts/check-glibc-floor.sh --floor 2.39",
+        "python3 src/inspector/tools/local-release.py seal",
+        "python3 src/inspector/tools/local-release.py verify --source",
+        "uses: ./.github/actions/upload-artifact-retry",
+        "name: inspector-linux-x64-gnu",
+    ):
+        if fragment not in inspector_block:
+            fail(f"build-inspector is missing required fragment {fragment!r}")
+    if "build-inspector" not in needs("all-builds-passed", all_builds):
+        fail("all-builds-passed must depend on build-inspector")
+    if "needs.build-inspector.result == 'success'" not in all_builds:
+        fail("all-builds-passed must gate on build-inspector success")
+    github_release_block = jobs.get("github-release")
+    if github_release_block is None or "name: inspector-linux-x64-gnu" not in github_release_block:
+        fail("github-release must download inspector-linux-x64-gnu artifact")
+
     publish_jobs: list[str] = []
     smoke_jobs: list[str] = []
     for entry in ready:

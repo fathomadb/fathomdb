@@ -1,6 +1,6 @@
 ---
 title: Inspector backlog
-date: 2026-11-18
+date: 2026-11-23
 product: FathomDB Inspector
 status: ACTIVE
 desc: Canonical Inspector-only worklist for survey examples and follow-up opportunities
@@ -11,36 +11,38 @@ desc: Canonical Inspector-only worklist for survey examples and follow-up opport
 This is the canonical Inspector backlog, including the examples and
 recommendations accepted for backlog capture on 2026-11-18. The
 [ROADMAP](ROADMAP.md) owns release commitments and promotion conditions;
-[requirements](requirements.md), [acceptance](acceptance.md) and the
-[adopted 0.2.0 scope](plans/0.2.0/scope.md) remain authoritative for required work;
-the original v0.1 plan preserves draft allocation/history. The
+[requirements](requirements.md), [acceptance](acceptance.md),
+[Slice 60](../plans/0.8.31/features/slice-60/plan.md) (`0.3.0` / FathomDB
+`0.8.31` / Schema `38`), and the
+[adopted 0.2.0 scope](plans/0.2.0/scope.md) remain authoritative for required
+work; the original v0.1 plan preserves draft allocation/history. The
 [survey](research/inspector-tool-survey-and-parity.md) owns the broader findings
 and evidence limits. These entries are actionable follow-ups, not a second
 requirements or roadmap register.
 
-All delivery items below remain OPEN; scoped does not mean implemented or
-verified. **Scoped 0.2.0 carry-forward** makes already required work concrete,
-without making it optional. **Deferred RM candidate** develops an existing roadmap
-candidate. **New unscheduled candidate** has no assigned release and needs an
-explicit scope decision before delivery. Only B01–B04 are scoped into 0.2.0; B05–B10 remain deferred/unscheduled.
+B01–B04 were scoped into `0.2.0`, delivered and carried forward through
+`0.2.1` and `0.3.0` (which adds Schema `38` outside-`body` `properties` /
+reserved `scope`, historical `as_of` graph exploration subordinate to 8-flag
+`D-01` erasure non-disclosure, `--scoped` default `local-ci.sh`, bounded
+`P7-02` timeouts, retained `D4 = B` Ubuntu 24.04 qualification, and
+`build-inspector` GitHub Release artifact delivery). **Deferred RM candidate**
+develops an existing roadmap candidate. **New unscheduled candidate** has no
+assigned release and needs an explicit scope decision before delivery.
+B05–B10 remain deferred/unscheduled.
 
-The [current port](plans/0.1/compatibility-0.8.29-port.md) implements the record
-foundation; text/vector/interactive graph work remains planned in Slices
-30/40/50, with integration in 60. Existing coordinated views, basic
-metric-faithful neighborhoods, directed graph interaction and actual retrieval
-evidence remain required regardless of this backlog.
-
-The [adopted 0.2.0 scope](plans/0.2.0/scope.md) carries required views and
-adds bounded in-session comparison. Scope adoption is not feature execution.
+Existing coordinated views, outside-`body` `properties` / `scope` display,
+historical `as_of` graph exploration, metric-faithful neighborhoods, directed
+graph interaction, in-session comparison, and actual retrieval evidence remain
+required regardless of this backlog.
 
 ## Worklist
 
 | ID / status | Category | Desired interaction / concrete example | Completion check | Existing owner / precedent |
 | --- | --- | --- | --- | --- |
-| INSP-B01 / SCOPED 0.2.0; delivery OPEN | Scoped 0.2.0 carry-forward | Keep the selected person's canonical ID, revision and read context visible across document, lexical, vector, stored-relation and provenance panes. Selection resolves/highlights the same verified identity in other views; Back restores the originating request/selection. Keep derived canonical records distinct. | Exercise pointer and keyboard navigation in both directions; equal names/text and retained revisions never merge; zero/multiple origins stay unresolved or offer exact choices. Physical index copies do not create new canonical identity. | INS-04/05/09 in [requirements](requirements.md); [acceptance](acceptance.md#ins-09--structure-appropriate-views); [Slice 60](plans/0.1/slice-60/plan.md). [Neo4j linked selection](https://neo4j.com/docs/browser/operations/result-frames/), [Arango document/graph workflow](https://docs.arango.ai/arangodb/stable/components/web-interface/graphs/), [Surrealist person/knows example](https://surrealdb.com/blog/visualising-your-data-with-surrealists-graph-view). |
-| INSP-B02 / SCOPED 0.2.0; delivery OPEN | Scoped 0.2.0 carry-forward | Make the person investigation a concrete end-to-end fixture/task: biography and metadata, indexed text, lexical query, similar people through the selected supported head window/profile; within-source multiple-window positive is deferred by S9-010, actual known relations with edge content, origins/readiness/lifecycle and a return to the original record. Include equal names, revisions and unknown linkage. | Map the scenario to existing F-01/02/04/07 and T-03; independently seed intended identities/adjacency and check lexical evidence/distances. Perform the actual cross-view task with keyboard and pointer; do not generate golden answers from implementation output. | [F-07 and T-03](acceptance.md), [shared verification plan](plans/0.1/verification-plan.md), Slices 30/40/50/60. Examples from B01 plus [Weaviate object search](https://docs.weaviate.io/cloud/tools/explorer-tool). This captures a test/task example, not a tutoring feature. |
-| INSP-B03 / SCOPED 0.2.0; delivery OPEN | Scoped 0.2.0 carry-forward | Provide direct supported keyword, semantic/hybrid and Find similar interactions from a record/result, with actual inputs, filters, model/profile, limits and request context visible. Offer controls only for parameters the selected Engine route actually supports. | Run each supported route against an independent fixture; distinguish unavailable/empty/error/cancel. Preserve original evidence on navigation. Label lexical score, fused rank and vector distance separately; expose no fictional alpha slider or no-code mode merely because a competitor has one. | INS-04.3, INS-05.4–05.5, INS-09.2–09.3 in [acceptance](acceptance.md); [Slice 30](plans/0.1/slice-30/plan.md), [Slice 40](plans/0.1/slice-40/plan.md). [Weaviate modes/Find similar](https://docs.weaviate.io/cloud/tools/explorer-tool). |
-| INSP-B04 / SCOPED 0.2.0; delivery OPEN | Scoped 0.2.0 new increment | Add an explicit cross-method result comparison: membership, per-method rank/metric and original requests, filters, seeds and observation contexts side by side. | Under comparable declared query scopes, show returned/capped/unsupported/unknown separately. Do not assign absent ranks, infer exclusion causes or normalize unrelated metrics onto one scale. Verify changed filters and observations cannot masquerade as one matched experiment. | Builds on existing INS-05 correlation, without making its required context optional. [OpenSearch comparison](https://docs.opensearch.org/latest/search-plugins/search-relevance/compare-search-results/), [Workbench](https://docs.opensearch.org/latest/search-plugins/search-relevance/using-search-relevance-workbench/). Two-observation comparison is now specified in INS-05.7–05.10 and matrix M40. |
+| INSP-B01 / DELIVERED 0.2.0 (retained 0.3.0) | Scoped 0.2.0 carry-forward | Keep the selected person's canonical ID, revision and read context visible across document, lexical, vector, stored-relation and provenance panes. Selection resolves/highlights the same verified identity in other views; Back restores the originating request/selection. Keep derived canonical records distinct. | Exercise pointer and keyboard navigation in both directions; equal names/text and retained revisions never merge; zero/multiple origins stay unresolved or offer exact choices. Physical index copies do not create new canonical identity. | INS-04/05/09 in [requirements](requirements.md); [acceptance](acceptance.md#ins-09--structure-appropriate-views); [Slice 60](plans/0.1/slice-60/plan.md). [Neo4j linked selection](https://neo4j.com/docs/browser/operations/result-frames/), [Arango document/graph workflow](https://docs.arango.ai/arangodb/stable/components/web-interface/graphs/), [Surrealist person/knows example](https://surrealdb.com/blog/visualising-your-data-with-surrealists-graph-view). |
+| INSP-B02 / DELIVERED 0.2.0 (retained 0.3.0) | Scoped 0.2.0 carry-forward | Make the person investigation a concrete end-to-end fixture/task: biography and metadata, indexed text, lexical query, similar people through the selected supported head window/profile; within-source multiple-window positive is deferred by S9-010, actual known relations with edge content, origins/readiness/lifecycle and a return to the original record. Include equal names, revisions and unknown linkage. | Map the scenario to existing F-01/02/04/07 and T-03; independently seed intended identities/adjacency and check lexical evidence/distances. Perform the actual cross-view task with keyboard and pointer; do not generate golden answers from implementation output. | [F-07 and T-03](acceptance.md), [shared verification plan](plans/0.1/verification-plan.md), Slices 30/40/50/60. Examples from B01 plus [Weaviate object search](https://docs.weaviate.io/cloud/tools/explorer-tool). This captures a test/task example, not a tutoring feature. |
+| INSP-B03 / DELIVERED 0.2.0 (retained 0.3.0) | Scoped 0.2.0 carry-forward | Provide direct supported keyword, semantic/hybrid and Find similar interactions from a record/result, with actual inputs, filters, model/profile, limits and request context visible. Offer controls only for parameters the selected Engine route actually supports. | Run each supported route against an independent fixture; distinguish unavailable/empty/error/cancel. Preserve original evidence on navigation. Label lexical score, fused rank and vector distance separately; expose no fictional alpha slider or no-code mode merely because a competitor has one. | INS-04.3, INS-05.4–05.5, INS-09.2–09.3 in [acceptance](acceptance.md); [Slice 30](plans/0.1/slice-30/plan.md), [Slice 40](plans/0.1/slice-40/plan.md). [Weaviate modes/Find similar](https://docs.weaviate.io/cloud/tools/explorer-tool). |
+| INSP-B04 / DELIVERED 0.2.0 (extended 0.3.0 with `as_of`) | Scoped 0.2.0 new increment | Add an explicit cross-method result comparison: membership, per-method rank/metric and original requests, filters, seeds and observation contexts side by side. | Under comparable declared query scopes, show returned/capped/unsupported/unknown separately. Do not assign absent ranks, infer exclusion causes or normalize unrelated metrics onto one scale. Verify changed filters and observations cannot masquerade as one matched experiment. | Builds on existing INS-05 correlation, without making its required context optional. [OpenSearch comparison](https://docs.opensearch.org/latest/search-plugins/search-relevance/compare-search-results/), [Workbench](https://docs.opensearch.org/latest/search-plugins/search-relevance/using-search-relevance-workbench/). Two-observation comparison is now specified in INS-05.7–05.10 and matrix M40. |
 | INSP-B05 / OPEN | Deferred RM candidate | Save named queries, history, bookmarks and investigation workspaces so a user can resume a person investigation. | Define privacy/storage lifetime and explicit saved-versus-live observations; test changed revisions, expired sessions, withheld content and unavailable targets without silent substitution. Preserve supported query options on restore. | [RM-09](ROADMAP.md#beyond-v01--candidates-no-version-or-delivery-date-assigned). [Compass history/favorites](https://www.mongodb.com/docs/compass/query/recent/), [Arango saved queries](https://docs.arango.ai/arangodb/stable/components/web-interface/queries/). |
 | INSP-B06 / OPEN | Deferred RM candidate | Export/share selected records or query results with their exact scope, values and available request context, beyond the existing narrow retained-erasure export. | Specify format/type fidelity, policy evaluation at delivery, truncation and destination behavior; test policy refusal, partial failure and cancel without reporting a complete export. No broader access follows from an export action. | [RM-09](ROADMAP.md#beyond-v01--candidates-no-version-or-delivery-date-assigned). [Compass filtered/pipeline export](https://www.mongodb.com/docs/compass/import-export/). Existing D-01 conditional export remains required and unchanged. |
 | INSP-B07 / OPEN | Deferred RM candidate | Add richer bounded filters/facets, field/schema inspection and distributions that help narrow a large person collection or inspect missing metadata. | Distinguish exhaustive counts from samples and scoped results; label population, filters and limits. Check sparse/missing/null fields, cancellation and sampled fields omitted from inference. Define each new predicate rather than implying generic query support. | [RM-03/RM-08](ROADMAP.md#beyond-v01--candidates-no-version-or-delivery-date-assigned). [Kibana Discover](https://www.elastic.co/docs/explore-analyze/discover/discover-get-started), [Compass inspection](https://www.mongodb.com/docs/compass/create-agg-pipeline/). Existing browse filters/scoped counts are not deferred. |

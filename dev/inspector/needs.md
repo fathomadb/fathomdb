@@ -1,22 +1,29 @@
 ---
 title: Inspector user needs
-date: 2026-10-28
+date: 2026-11-23
 product: FathomDB Inspector
-target_release: 0.2.0
+target_release: 0.3.0
 desc: Research and user outcomes for FathomDB-native inspection
 status: ACTIVE
 ---
 
 # Inspector user needs
 
-Current delivery scope is [owner-adopted 0.2.0](plans/0.2.0/scope.md), amended by
-[INS-020-LOCAL-RELEASE](plans/0.2.0/release-decisions.md). Functional INS/V01/X,
-T-01–T-05 and High investigation goals remain required. The five-person study
-was removed by owner decision; no human sessions occurred or count as passed.
-Slices20–60/70 technical qualification and75 UX remediation are complete;
-80 completed readiness and[90 released locally](plans/0.2.0/slice-90/status.md)
-to ignored `dist/inspector/0.2.0/`. Historical
-source/design evidence retains its actual version and execution scope.
+Current delivery scope is Inspector `0.3.0`, aligned to FathomDB `0.8.31`
+(Schema `38`) under [Slice 60](../plans/0.8.31/features/slice-60/plan.md)
+(`R31-08`), building on the completed [owner-adopted 0.2.0](plans/0.2.0/scope.md)
+and `0.2.1` baselines. Functional INS/V01/X, T-01–T-05, High investigation
+goals, and `AC31-60-*` requirements remain required. Inspector `0.3.0` adds
+Schema `38` admission, outside-`body` node/edge `properties` and read-only
+reserved `scope` inspection, historical `as_of` graph exploration subordinate
+to the 8-flag `D-01` erasure policy, `--scoped` default `local-ci.sh`,
+bounded `P7-02` subprocess/browser timeouts, retained `D4 = B` native Ubuntu
+24.04 (`glibc 2.39`) Chromium + bundled SQLite qualification, and GitHub
+Release artifact delivery via `.github/workflows/release.yml`
+(`build-inspector`). The five-person study remains removed by owner decision
+([INS-020-LOCAL-RELEASE](plans/0.2.0/release-decisions.md)); no human sessions
+occurred or count as passed. Historical `0.2.0` / `0.2.1` source/design
+evidence retains its actual version and execution scope.
 
 ## Purpose and status
 
@@ -31,8 +38,9 @@ The broader needs inventory is informed by research into existing tools;
 the owner has placed the assessed Need and Should actions in Inspector v0.2.0
 scope. Usability targets and unresolved detailed contracts remain proposals.
 Inspector versions are separate from FathomDB database release numbering.
-The current record-browser port targets `dev/0.8.29`; the original preparation
-material records its earlier `dev/0.8.30` source context.
+Inspector `0.3.0` targets FathomDB `0.8.31` (Schema `38`), superseding the
+earlier `0.2.1` (`0.8.30`, Schema `37`) and `0.2.0` (`0.8.29`) records; the
+original preparation material retains its historical source context.
 
 The Inspector is a tool for inspecting a database, not a tutor or explanatory
 agent. Users build their mental model through documentation and operation of

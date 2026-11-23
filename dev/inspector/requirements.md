@@ -1,22 +1,24 @@
 ---
 title: Inspector requirements
-date: 2026-10-28
+date: 2026-11-23
 product: FathomDB Inspector
-target_release: 0.2.0
-desc: Product requirements and owner-scoped Need and Should actions for v0.2.0
+target_release: 0.3.0
+desc: Product requirements and adopted scope through Inspector 0.3.0 (FathomDB 0.8.31 / Schema 38)
 status: ACTIVE
 ---
 
 # Inspector requirements
 
-Current delivery scope is [owner-adopted 0.2.0](plans/0.2.0/scope.md), amended by
-[INS-020-LOCAL-RELEASE](plans/0.2.0/release-decisions.md). Functional INS/V01/X,
-T-01–T-05 and High investigation goals remain required. The five-person study
-was removed by owner decision; no human sessions occurred or count as passed.
-Slices20–60/70 technical qualification and75 UX remediation are complete;
-80 completed readiness and[90 released locally](plans/0.2.0/slice-90/status.md)
-to ignored `dist/inspector/0.2.0/`. Historical
-source/design evidence retains its actual version and execution scope.
+Current delivery scope is Inspector `0.3.0` for FathomDB `0.8.31` (Schema `38`),
+owned by [Slice 60](../plans/0.8.31/features/slice-60/plan.md) (`R31-08` /
+`AC31-60-01`..`AC31-60-09`), extending the completed
+[owner-adopted 0.2.0](plans/0.2.0/scope.md) and `0.2.1` baselines. Functional
+INS/V01/X, T-01–T-05, High investigation goals, and `AC31-60-*` requirements
+remain required; repo-level `dev/acceptance.md` stays locked. The five-person
+study remains removed by owner decision
+([INS-020-LOCAL-RELEASE](plans/0.2.0/release-decisions.md)); no human sessions
+occurred or count as passed. Historical `0.2.0` / `0.2.1` source/design
+evidence retains its actual version and execution scope.
 
 ## Conceptual distinctions and identity rules
 
@@ -201,6 +203,57 @@ Stored indexed text/configured declarations/effective schema tokenizer and later
 exact-origin/policy reads have their own scope, never an invented query snapshot.
 Native allocation and relaxed scratch amplification require bounded admission;
 resource refusal is explicit and does not waive positive lexical functionality.
+
+### Inspector 0.3.0 / FathomDB 0.8.31 contract additions (Schema 38)
+
+Inspector `0.3.0` (`R31-08`, `AC31-60-01`..`AC31-60-09`) extends the adopted
+`0.2.x` baseline onto FathomDB `0.8.31` (Schema `38`) without modifying
+`dev/acceptance.md`:
+
+- **Schema 38 strict admission (`AC31-60-01`):** Admit only Schema `38`
+  (`compiled_schema = 38`), validating `properties` and `scope` on
+  `canonical_nodes` / `canonical_edges`, `scope` on `operational_mutations` /
+  `operational_state`, `_fathomdb_projection_registry.{entity_class,vector_kinds}`,
+  `canonical_property_values`, `_fathomdb_commit_timestamps`, and
+  `_fathomdb_vector_kinds`. Schema `37` (`0.8.30`) and older or missing-layout
+  stores refuse cleanly without mutating the file.
+- **Outside-`body` `properties` & reserved `scope` (`AC31-60-02`, `AC31-60-03`):**
+  Inspect, expand (`detail_field`, `chunk`, `tree` with explicit `field`
+  threaded through `drawTree()`), and exactly copy outside-`body` node and edge
+  `properties` (preserving 64-bit integer lexemes outside `2^53`, `-0`, empty
+  strings, typed primitives, and `SQL NULL`) alongside plain-text `body`
+  documents, while surfacing reserved `scope` read-only (empty in `0.8.31`).
+  Include `"properties"` in the 64 MiB `graph_admission()` /
+  `lexical_admission()` scans and surface bounded `canonical_property_values`
+  for both nodes and edges in `associations` and `catalog`. Render every key,
+  value, and `scope` purely via DOM `.textContent` (zero HTML/SVG/script
+  injection), and withhold `properties`, `properties_bytes`, and
+  `typeof(properties)` whenever `!policy.permits(class)` across all 8 `D-01`
+  flag combinations.
+- **Historical `as_of` graph exploration & 8-flag subordination (`AC31-60-04`):**
+  Support mutually exclusive `as_of_write_cursor` and `as_of_epoch_ms`
+  (`Option<String>` wire encoding, resolved via O(log N) reverse seek over
+  `_fathomdb_commit_timestamps`) for both stored-adjacency (`graph`) and native
+  engine (`graph_serving` via `GraphExpandRequestV1::with_as_of_{write_cursor,epoch_ms}`)
+  traversals. Lift `INDEXED BY canonical_nodes_logical_active_idx` in
+  historical mode using two-branch `UNION ALL` over Schema 38's
+  `canonical_nodes_logical_{active,sup}_idx`, preserve non-partial
+  `canonical_edges_{from_id,to_id}_idx` in current mode when `!no_show_inactive`,
+  retain `as_of` parameters across comparison pins, and subordinate every
+  historical target, edge, origin, and inline property payload to all 8 `D-01`
+  disclosure flags.
+- **Scoped local CI, bounded timeouts, `D4 = B` lock & GitHub Release delivery
+  (`AC31-60-05`..`AC31-60-09`):** Default `src/inspector/tools/local-ci.sh` to
+  `--scoped` (~5 min Inspector-only source check with fail-closed diff guard,
+  `--base <ref>` / `INSPECTOR_SCOPED_BASE`, and mutually exclusive
+  `--full-workspace` / `--installed-only` modes); enforce bounded timeouts and
+  non-blocking `SIGKILL` + `/proc` descendant reaping (`P7-02`) across shell,
+  Node/Playwright, and Rust `launch.rs` harnesses; retain `D4 = B` Docker-free
+  Ubuntu 24.04 (`glibc 2.39`) Chromium + bundled SQLite qualification; and
+  deliver `fathomdb-inspector-0.3.0-linux-x86_64.tar.gz` plus
+  `fathomdb-inspector-0.3.0-linux-x86_64.tar.gz.sha256` via the `build-inspector`
+  job in `.github/workflows/release.yml` (gated by `all-builds-passed` and
+  attached in `github-release`).
 
 ## Document ownership
 

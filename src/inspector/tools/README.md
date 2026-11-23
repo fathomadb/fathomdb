@@ -129,24 +129,32 @@ policy independently of generation updates. Neither fixture is a product control
 Installed/all-view technical checks completed70/75; the unperformed human
 study is historical and removed.
 
-## Installed 0.2.1 qualification
+## Installed 0.3.0 qualification
 
-Inspector `0.2.1` builds and qualifies natively on Ubuntu 24.04 (`glibc 2.39`);
-Docker, Ubuntu 22.04 (`glibc 2.35`), `openbox`, and `xdotool` have been
-removed. Build with pinned Rust 1.95, locked offline dependencies, explicit
-`--features cached-cpu`, and an isolated build target directory. Package using
-`package.sh`, inspect ELF versioned GLIBC requirements (`<= 2.39`), and
-independently extract the tar to run the extracted executable.
+Inspector `0.3.0` targets FathomDB `0.8.31` (compiled schema `38`) and retains
+the `D4 = B` Docker-free native Ubuntu 24.04 (`glibc 2.39`) qualification stack
+(Chromium + bundled SQLite + Landlock; zero Docker, Ubuntu 22.04, `openbox`,
+`xdotool`, or `sudo`). Build with pinned Rust 1.95.0, locked offline
+dependencies, explicit `--features cached-cpu`, and an isolated build target
+directory. Package using `package.sh` (which derives `VERSION` dynamically from
+`src/inspector/Cargo.toml`), inspect ELF versioned GLIBC requirements
+(`<= 2.39`), and independently extract the tar to run the extracted executable.
 
 `run-installed.sh ABSOLUTE_EXTRACTED_PACKAGE ABSOLUTE_FIXTURE_BASELINES
 ABSOLUTE_BUILD_TARGET [node test arguments...]` runs existing native/workspace/
-comparison oracles against actual production launch directly on the host under
-an isolated `Xvfb -displayfd` display and temporary `HOME` (unsetting host
-`WAYLAND_DISPLAY`, `XAUTHORITY`, `DBUS_SESSION_BUS_ADDRESS`, and
-`XDG_RUNTIME_DIR`). Baselines (`person`, `vector`, `study-training`,
-`study-unseen`) are generated beforehand by `vector-fixture.py` with the owned
-Python/native wheel and pinned existing cache. Ordinary nonvector fixtures use
-the same-source release `fixture` example. `INSPECTOR_CHROMIUM_DIRECTORY` and
+attributes/comparison/graph oracles against actual production launch directly on
+the host under an isolated `Xvfb -displayfd` display and temporary `HOME`
+(unsetting host `WAYLAND_DISPLAY`, `XAUTHORITY`, `DBUS_SESSION_BUS_ADDRESS`,
+and `XDG_RUNTIME_DIR`). Both `run-installed.sh` and
+`qualify-installed-network.sh` enforce bounded `timeout --kill-after=10s`
+deadlines (`INSPECTOR_RUN_TIMEOUT_SECS` / `INSPECTOR_NETWORK_TIMEOUT_SECS`,
+default `900`), 2 s `SIGKILL` escalation on `Xvfb` teardown, and bounded
+`browser.close()` + `/proc` descendant-tree `SIGKILL` reaping in
+`installed-harness.mjs` (avoiding `strace` stdout pipe deadlocks and orphan
+processes). Baselines (`person`, `vector`, `study-training`, `study-unseen`)
+are generated beforehand by `vector-fixture.py` with the owned Python/native
+wheel and pinned existing cache. Ordinary nonvector fixtures use the
+same-source release `fixture` example. `INSPECTOR_CHROMIUM_DIRECTORY` and
 `INSPECTOR_NODE_MODULES` select existing local Chromium/Playwright installs.
 Node is an external measurement tool, not bundled or needed by the application.
 
@@ -204,8 +212,35 @@ and resource assertions still apply.
 Source/package/runtime checks use one entry point from a clean target checkout:
 
 ```sh
-bash src/inspector/tools/local-ci.sh /absolute/new/candidate /absolute/fixtures /absolute/build-target
+bash src/inspector/tools/local-ci.sh [--scoped | --full-workspace | --installed-only] [--base <ref>] [ABSOLUTE_CANDIDATE ABSOLUTE_FIXTURES ABSOLUTE_BUILD_TARGET]
 ```
+
+Mode flags are mutually exclusive (combining two or more exits `2`):
+
+- `--scoped` (**default**, ~5 min target): enforces a fail-closed diff guard
+  against `--base <ref>` (or `INSPECTOR_SCOPED_BASE`, defaulting to
+  `origin/main`; fails closed if the base ref is unresolvable or if any changed
+  path lies outside `src/inspector/`, `dev/inspector/`, or `docs/inspector/`).
+  Runs `scripts/agent-lint.sh`, `scripts/agent-typecheck.sh`, and
+  `cargo test --locked --offline -p fathomdb-inspector` (both default and
+  `--no-default-features --features cached-cpu`), followed by `tooling`, `unit`,
+  `native-build`, `seal`, `candidate`, `abi`, `extract`, and `installed`. Per
+  `AGENTS.md` §3, a `--scoped` pass is **not** a full-workspace green claim.
+- `--full-workspace`: replaces the scoped `source` stage with the full typed
+  `scripts/agent-verify.sh` gate before running the Inspector packaging,
+  sealing, ABI, and installed stages. Required whenever changes cross shared or
+  non-Inspector workspace files, or when an explicit release gate requires it.
+- `--installed-only`: requires explicit `ABSOLUTE_CANDIDATE ABSOLUTE_FIXTURES
+  ABSOLUTE_BUILD_TARGET` for an already-sealed candidate after only permitted
+  documentation closure (`dev/inspector/*.md`, `docs/inspector/*.md`,
+  `src/inspector/README.md`, `src/inspector/tools/README.md`, `mkdocs.yml`;
+  excluding packaged README). Makes no source-gate claim and rechecks
+  package/ABI/installed behavior.
+
+When `ABSOLUTE_CANDIDATE ABSOLUTE_FIXTURES ABSOLUTE_BUILD_TARGET` are omitted
+in `--scoped` or `--full-workspace`, `local-ci.sh` stages deterministic
+temporary paths under `${TMPDIR:-/tmp}` (respecting optional
+`INSPECTOR_FIXTURE_DIR` and `CARGO_TARGET_DIR`) and cleans them up on exit.
 
 Use `.venv/bin/python` for release tooling; Python >= 3.12 is preflighted. Keep
 source HEAD unchanged through the source gate, native build and host seal. No
@@ -213,11 +248,11 @@ model download, global installation, tag, upload or final-dist release occurs.
 
 Prerequisites: checkout-owned Python >= 3.12 `.venv` (system `/usr/bin/python3.12`
 recommended so `fathomdb-py --lib` links against system `libpython3.12`) and
-pinned dev tools, Rust 1.95 / GNU target and offline dependencies, checkout-owned
-`node_modules` and `src/ts/node_modules`, Node/Playwright, existing Chromium 156,
-host `Xvfb`, `flock`, `readelf`, `strace`, and existing pinned BGE cache.
-`INSPECTOR_CHROMIUM_DIRECTORY` and `INSPECTOR_NODE_MODULES` select existing
-local installations; nothing is pulled implicitly.
+pinned dev tools, Rust 1.95.0 / GNU target and offline dependencies,
+checkout-owned `node_modules` and `src/ts/node_modules`, Node/Playwright,
+existing Chromium 156, host `Xvfb`, `flock`, `readelf`, `strace`, and existing
+pinned BGE cache. `INSPECTOR_CHROMIUM_DIRECTORY` and `INSPECTOR_NODE_MODULES`
+select existing local installations; nothing is pulled implicitly.
 
 Prepare a new owned fixtures directory using this checkout's installed native
 wheel (never editable worktree bindings): `vector-fixture.py NEW_DIRECTORY` for
@@ -227,37 +262,21 @@ deadline corpus. `f06` first builds ordinary vectors via `vector-fixture.py`,
 then appends the release `fixture` example's `scale` variant. Preserve
 generated `work/fixture.sqlite` plus sidecars/sentinel; producers must close
 normally and leave no nonempty WAL/journal. Never manufacture a missing lock.
-For dual published producer qualification (`0.8.29` and `0.8.30`), preserve
-both originals read-only and copy each closed store + `.lock` sentinel into a
-disposable `review/work/` baseline.
-
-Default local CI runs the full typed `scripts/agent-verify.sh` gate once, tool
-filesystem/failure tests and JS unit tests, then builds the native Ubuntu 24.04
-(`glibc 2.39`) package and release examples consumed by `run-installed.sh`. It
-seals the candidate with the same clean source SHA and actual executable build
-identity, checks ELF `GLIBC <= 2.39`, and freshly extracts the actual tar for
-installed native/lexical/vector/graph/workspace/comparison/UX tests. Failures
-report `stage=...` and preserve status; missing prerequisites exit 2.
 
 After a source-stage failure, fix with focused tests and preserve the failure.
-Use `--installed-only` solely for a separately completed source phase and an
-already sealed candidate. It verifies clean source equal to the candidate or an
-Inspector documentation-only descendant (`dev/inspector/*.md`,
-`docs/inspector/*.md`, `src/inspector/README.md`,
-`src/inspector/tools/README.md`, `mkdocs.yml`; excluding packaged README),
-makes no source-gate claim, and rechecks package/ABI/installed behavior.
 Substantive source, packaging or test changes require a freshly qualified
 source/candidate.
 
-### Candidate contract and local promotion
+### Candidate contract, local promotion, and GitHub Release delivery
 
-Stable top-level candidate contents:
+Stable top-level candidate contents (with version derived dynamically from
+`src/inspector/Cargo.toml`):
 
 ```text
-fathomdb-inspector-0.2.1-linux-x86_64.tar.gz
+fathomdb-inspector-0.3.0-linux-x86_64.tar.gz
 SHA256SUMS                       # archive checksum
 candidate.json                   # actual source/build/hash/support metadata
-fathomdb-inspector-0.2.1-linux-x86_64/
+fathomdb-inspector-0.3.0-linux-x86_64/
   fathomdb-inspector
   build-description.json
   LICENSE
@@ -266,21 +285,22 @@ fathomdb-inspector-0.2.1-linux-x86_64/
 ```
 
 `candidate.json` is unsigned local provenance. It binds actual
-archive/executable bytes to clean packaging HEAD, selected Engine commit/schema,
-features and declared support. It is not a registry signature or proof of
-bit-reproducible compilation. Verify candidate source before releasing and
-retain the real source SHA even when later status/docs commits have a different
-HEAD. The candidate source remains reviewable in Git. Final dist contains the
-same metadata and exact approved bytes.
+archive/executable bytes to clean packaging HEAD, workspace engine version,
+compiled schema `38`, features and declared `D4 = B` support. It is not a
+registry signature or proof of bit-reproducible compilation. Verify candidate
+source before releasing and retain the real source SHA even when later
+status/docs commits have a different HEAD. The candidate source remains
+reviewable in Git.
 
-To promote a verified candidate to the gitignored local release directory:
+To promote a verified candidate locally to the gitignored local release
+directory:
 
 ```sh
 .venv/bin/python src/inspector/tools/local-release.py verify /absolute/candidate --source
 mkdir -p dist/inspector
-.venv/bin/python src/inspector/tools/local-release.py promote /absolute/candidate "$PWD/dist/inspector/0.2.1"
-.venv/bin/python src/inspector/tools/local-release.py verify "$PWD/dist/inspector/0.2.1" --source
-git check-ignore dist/inspector/0.2.1/candidate.json
+.venv/bin/python src/inspector/tools/local-release.py promote /absolute/candidate "$PWD/dist/inspector/0.3.0"
+.venv/bin/python src/inspector/tools/local-release.py verify "$PWD/dist/inspector/0.3.0" --source
+git check-ignore dist/inspector/0.3.0/candidate.json
 git ls-files dist
 ```
 
@@ -288,11 +308,13 @@ The existing root ignore covers all dist payloads; do not add duplicate rules.
 Promotion refuses any existing destination, even identical/empty, without
 replacing it. A fresh sibling stage is revalidated before Linux atomic
 `RENAME_NOREPLACE`. Failed or interrupted copy removes only that self-created
-stage; unrelated entries remain. After promotion, independently extract/check
-the final tar and run `qualify-installed-network.sh` plus dual published
-`0.8.29` / `0.8.30` verification using the installed harness.
+stage; unrelated entries remain.
 
-The public `0.2.1` release notes document future archive/registry channels and
-the remaining credentials, Inspector-specific version/tag/signing and supported
-CI work. No uploader, credential request or Engine publishing tag is
-implemented.
+For FathomDB `0.8.31` release automation, `.github/workflows/release.yml`
+includes the `build-inspector` job on `ubuntu-24.04`, which runs
+`cargo fetch --locked`, `package.sh`, `scripts/check-glibc-floor.sh --floor 2.39`,
+`local-release.py seal`, and `local-release.py verify --source`, stages
+non-colliding `fathomdb-inspector-0.3.0-linux-x86_64.tar.gz` and
+`fathomdb-inspector-0.3.0-linux-x86_64.tar.gz.sha256` assets via
+`upload-artifact-retry` (`inspector-linux-x64-gnu`), gates `all-builds-passed`,
+and attaches both files in `github-release`.

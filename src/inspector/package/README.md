@@ -1,20 +1,21 @@
-# FathomDB Inspector 0.2.1 local bundle
+# FathomDB Inspector 0.3.0 bundle
 
 This bundle contains the Linux x86_64 executable, embedded UI, license, build
 description and internal checksums. No Node, Python or development server is
-needed to run it. The surrounding candidate/local distribution contains the tar,
-outer `SHA256SUMS` and unsigned `candidate.json` source/build/support metadata.
-A candidate becomes the local release only when `local-release.py promote`
-copies its exact bytes atomically to `dist/inspector/0.2.1/`. No registry
-release or human-study validation is claimed.
+needed to run it. Release builds are delivered as GitHub Release assets
+(`fathomdb-inspector-0.3.0-linux-x86_64.tar.gz` and
+`fathomdb-inspector-0.3.0-linux-x86_64.tar.gz.sha256` from the `build-inspector`
+release job) and can also be sealed, verified, and promoted locally via
+`local-release.py`. No human-study validation is claimed.
 
-From the surrounding distribution directory:
+From the download or local distribution directory:
 
 ```sh
-sha256sum --check SHA256SUMS
+sha256sum --check fathomdb-inspector-0.3.0-linux-x86_64.tar.gz.sha256
+# (or `sha256sum --check SHA256SUMS` from a local candidate directory)
 mkdir inspector-install
-tar -xzf fathomdb-inspector-0.2.1-linux-x86_64.tar.gz -C inspector-install
-cd inspector-install/fathomdb-inspector-0.2.1-linux-x86_64
+tar -xzf fathomdb-inspector-0.3.0-linux-x86_64.tar.gz -C inspector-install
+cd inspector-install/fathomdb-inspector-0.3.0-linux-x86_64
 sha256sum --check SHA256SUMS
 ./fathomdb-inspector --help
 ./fathomdb-inspector --build-description
@@ -23,11 +24,11 @@ sha256sum --check SHA256SUMS
 
 Omit the database path to select it in the local UI. Close the application before
 removing only its owned extraction folder/archive; preserve databases and caches.
-Stop all external writers before attach. The selected Engine 0.8.30 source commit
-is `72fe93634321616214352a7e07066ce0f93bcf4c` (byte-identical Rust/Cargo source
-to `v0.8.30` `e3d31f5cd`), compiled schema 37, qualified against fresh closed
-databases produced by both published FathomDB 0.8.29 and published FathomDB
-0.8.30. Normal owned Engine startup/background/shutdown can change files.
+Stop all external writers before attach. Inspector `0.3.0` builds against
+FathomDB `0.8.31` Engine source (compiled schema `38`, bundled SQLite) and
+admits closed Schema `38` databases; Schema `37` (`0.8.30`) and older or
+non-conforming layouts refuse cleanly without mutating the file. Normal owned
+Engine startup/background/shutdown can change files after admission.
 Missing/held lock, nonempty initial WAL/journal, unsupported schema/layout/encoding
 and corrupt input refuse. Preserve original files/sidecars; do not delete WAL or
 create a missing lock to force admission. There is no migration, recovery or
@@ -35,7 +36,8 @@ repair control.
 
 ## Exact qualified environment
 
-Ubuntu 24.04 / glibc 2.39 Linux x86_64 userland, kernel 7.0.0-43-generic /
+Ubuntu 24.04 / glibc 2.39 Linux x86_64 userland (`D4 = B`, bundled SQLite,
+zero GTK4/WebKitGTK or Docker requirements), kernel 7.0.0-43-generic /
 Landlock ABI 8, Chromium 156.0.8078.4 in a graphical session. The native
 executable requires at most GLIBC 2.39 (Ubuntu 22.04 / glibc 2.35 is not
 supported). Cached CPU requires Landlock ABI >= 3. This is not blanket
@@ -52,21 +54,30 @@ stored/text inspection when CPU assets are unavailable. No GPU/reranker chooser.
 ## Operation
 
 Browse records by bounded stored title/name plus exact identity; inspect complete
-document/tree, metadata and scalar values. Indexed text provides effective
+`body` documents (plain text or JSON), outside-`body` typed node and edge
+`properties` (expandable tree and exact copy preserving 64-bit integer lexemes
+outside `2^53`, `-0`, empty strings, and `SQL NULL`), read-only reserved `scope`
+(empty in `0.8.31`), metadata, and scalar values. Indexed text provides effective
 property choices and nearby validation; original requests and separately timed
-evidence remain distinguishable, and 0.8.30 body/property lexical results are
+evidence remain distinguishable, and body/property lexical results remain
 record-keyed rather than merged across equal bodies. Stored vector/L2
-neighborhoods retain exact origins. Directed graph branches retain explicit
-scope; source/dependency/history navigation and Back preserve admitted original
-context. Pin two actual bounded observations for typed membership and separate
-exact-origin correspondence; methods retain their own ranks/values, without a
-common score scale.
+neighborhoods retain exact origins. Directed graph branches support both current
+and historical `as_of` snapshots (`as_of_write_cursor` or `as_of_epoch_ms`,
+mutually exclusive) across stored-adjacency and native engine traversals while
+retaining explicit scope; source/dependency/history navigation and Back preserve
+admitted original context. Pin two actual bounded observations (including
+distinct `as_of` graph snapshots) for typed membership and separate exact-origin
+correspondence; methods retain their own ranks/values, without a common score
+scale.
 
 Independent flags: `--no-show-inactive` hides otherwise retained history/inactive
-records; `--show-erased` permits legitimately retained erasure content and narrow
-selected export; `--show-payloads` permits telemetry payloads. Every applicable
-gate must permit each read. Physically absent content is unavailable.
-No general export, saved investigation, automatic rerun or shared snapshot.
+records (including in historical `as_of` graph queries); `--show-erased` permits
+legitimately retained erasure content and narrow selected export;
+`--show-payloads` permits telemetry payloads. Every applicable gate must permit
+each read across `body`, `properties` (and `properties_bytes`/storage metadata),
+and historical graph targets/edges/origins. Physically absent content is
+unavailable. No general export, saved investigation, automatic rerun or shared
+snapshot.
 
 Detach releases the owned session. Cancel expires it and requests termination;
 UI acknowledgement is separate from native quiescence. Close the native window

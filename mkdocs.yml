@@ -66,6 +66,7 @@ nav:
       - Operations: inspector/operations/index.md
       - Contributing: inspector/contributing/index.md
       - Release Notes:
+          - 0.3.0: inspector/releases/0.3.0.md
           - 0.2.1: inspector/releases/0.2.1.md
           - 0.2.0: inspector/releases/0.2.0.md
       - Roadmap: inspector/ROADMAP.md

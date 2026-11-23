@@ -1,22 +1,52 @@
 ---
 title: Inspector ROADMAP
-date: 2026-11-21
+date: 2026-11-23
 product: FathomDB Inspector
-target_release: 0.2.1
+target_release: 0.3.0
 desc: Adopted release commitment and explicitly deferred product work
 status: ACTIVE
 ---
 
 # Inspector ROADMAP
 
-The [adopted 0.2.1 scope](plans/0.2.1/scope.md) and
-[completed 0.2.1 plan](plans/0.2.1/README.md) own the current release line,
-upgrading the completed [0.2.0 ladder](plans/0.2.0/README.md) onto FathomDB
-`0.8.30` and native Ubuntu 24.04 (`glibc 2.39`) delivery (removing Docker,
-Ubuntu 22.04, `openbox`, and `xdotool`) and promoting locally to ignored
-`dist/inspector/0.2.1/`. [INS-020-LOCAL-RELEASE](plans/0.2.0/release-decisions.md)
-(carried forward via 0.2.1 D2 = A) keeps delivery local-only without a
-five-person UX study.
+Inspector `0.3.0` (`R31-08`, [Slice 60](../plans/0.8.31/features/slice-60/plan.md))
+owns the current release line, upgrading the completed `0.2.1`
+([scope](plans/0.2.1/scope.md), [plan](plans/0.2.1/README.md)) and
+[0.2.0 ladder](plans/0.2.0/README.md) onto FathomDB `0.8.31` (Schema `38`)
+while retaining `D4 = B` native Ubuntu 24.04 (`glibc 2.39`) Chromium + bundled
+SQLite qualification (zero Docker, `openbox`, `xdotool`, or `sudo`) and adding
+automated GitHub Release artifact delivery via `.github/workflows/release.yml`
+(`build-inspector`). The five-person UX study remains removed by owner decision
+([INS-020-LOCAL-RELEASE](plans/0.2.0/release-decisions.md)).
+
+## 0.3.0 — FathomDB 0.8.31 / Schema 38 and GitHub Release delivery
+
+- **Schema `38` admission & reserved `scope`:** Strict Schema `38` admission
+  (`compiled_schema = 38`), rejecting Schema `37` (`0.8.30`) cleanly, validating
+  Schema `38` `properties`/`scope` columns, `_fathomdb_projection_registry.{entity_class,vector_kinds}`,
+  `canonical_property_values`, `_fathomdb_commit_timestamps`, and
+  `_fathomdb_vector_kinds`, and exposing reserved `scope` read-only (empty in
+  `0.8.31`; multi-tenant scope enforcement belongs to `0.8.32`).
+- **Outside-`body` `properties` UI & strict safety:** Expandable typed node/edge
+  `properties` inspection and exact copy (preserving 64-bit integers outside
+  `2^53`, `-0`, empty strings, and `NULL`), `.textContent`-only XSS safety,
+  64 MiB admission parity, and complete 8-flag `D-01` erasure non-disclosure.
+- **Historical `as_of` graph exploration:** Mutually exclusive
+  `as_of_write_cursor` / `as_of_epoch_ms` in stored-adjacency (`graph`) and
+  native (`graph_serving`) traversals (`P4-13` `INDEXED BY` lift via O(log N)
+  two-branch `UNION ALL`), preserved across comparison pins and strictly
+  subordinate to all 8 `D-01` disclosure flags.
+- **Engineering loop & reliability (`P2-13`, `P7-01`, `P7-02`, `P7-04`):**
+  `local-ci.sh` defaults to `--scoped` (~5 min Inspector-scoped check with
+  fail-closed diff guard and `--base <ref>`) while retaining `--full-workspace`
+  and `--installed-only`; bounded timeouts and `/proc` descendant reaping apply
+  across shell, Node/Playwright, and Rust `launch.rs` harnesses; `local-release.py`
+  stays locked to `D4 = B` Ubuntu 24.04 / `glibc 2.39`.
+- **GitHub Release delivery (`P7-06`):** `.github/workflows/release.yml`
+  `build-inspector` builds, verifies ELF `GLIBC <= 2.39`, seals, verifies, and
+  stages non-colliding `fathomdb-inspector-0.3.0-linux-x86_64.tar.gz` and
+  `fathomdb-inspector-0.3.0-linux-x86_64.tar.gz.sha256` assets for attachment
+  by `github-release` (gated by `all-builds-passed`).
 
 ## 0.2.0 — adopted connected exploration scope
 
@@ -50,13 +80,17 @@ the within-source multiple-window positive is deferred.
 
 ## Distribution after0.2.0
 
-Current0.2.0 is a local tar/extracted bundle, not registry publication. Future
-public download/GitHub Release, an Inspector-only crates.io source package, or
-OS package channels require a separate commission, independently scoped version
-and artifact naming, credentials, signing/checksum policy, supported-platform
-CI and registry-specific install/uninstall qualification. Existing Engine `v*`
-tags trigger its publisher and must not be reused. No registry uploader or
-credential collection is added here.
+`0.2.0` and `0.2.1` shipped as local-only tar/extracted bundles under
+gitignored `dist/inspector/`. Starting with `0.3.0` (`R31-08` / `P7-06`),
+`.github/workflows/release.yml` adds the `build-inspector` job on
+`ubuntu-24.04`, gating `all-builds-passed` and attaching
+`fathomdb-inspector-0.3.0-linux-x86_64.tar.gz` and
+`fathomdb-inspector-0.3.0-linux-x86_64.tar.gz.sha256` to the GitHub Release
+alongside core FathomDB release artifacts while preserving `local-release.py`
+for local candidate sealing, verification, and atomic promotion. Any future
+Inspector-only crates.io source package, OS package channel, or additional
+host platform beyond `D4 = B` (Ubuntu 24.04 / `glibc 2.39` Linux x86_64)
+still requires a separate commission, qualification matrix, and signing policy.
 
 ## Beyond v0.1 — candidates, no version or delivery date assigned
 

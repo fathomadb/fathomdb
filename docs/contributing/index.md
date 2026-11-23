@@ -60,6 +60,30 @@ Markdown or invoke `markdownlint-cli2 --fix` directly.
 A scoped pass does not establish a full-workspace pass. Keep the command,
 candidate commit, result, and any environment limits in the review record.
 
+## Inspector local CI
+
+Inspector changes use `bash src/inspector/tools/local-ci.sh` from a clean
+checkout (see [Inspector contributing](../inspector/contributing/index.md) for
+prerequisites and fixture setup):
+
+- **Default (`--scoped`, ~5 min target):** Enforces a fail-closed diff guard
+  allowing only changes under `src/inspector/`, `dev/inspector/`, or
+  `docs/inspector/` relative to `--base <ref>` (or `INSPECTOR_SCOPED_BASE`,
+  default `origin/main`), runs `scripts/agent-lint.sh`,
+  `scripts/agent-typecheck.sh`, and default + `cached-cpu`
+  `fathomdb-inspector` Rust tests, then executes Inspector tooling, unit,
+  native Ubuntu 24.04 packaging, sealing, ABI (`GLIBC <= 2.39`), and installed
+  browser checks. A `--scoped` pass is **not** a full-workspace green claim.
+- **`--full-workspace`:** Runs the full `./scripts/agent-verify.sh` gate
+  before the Inspector packaging and installed stages. Required whenever edits
+  cross shared or non-Inspector workspace files or when a release gate requires
+  full verification.
+- **`--installed-only`:** Re-verifies an already-sealed candidate after
+  Inspector documentation-only changes (requires explicit candidate, fixtures,
+  and build-target paths; makes no source-gate claim).
+
+Mode flags are mutually exclusive (combining two or more exits `2`).
+
 ## Maintain generated documentation
 
 The tracked generated pages index source, rather than inventing API

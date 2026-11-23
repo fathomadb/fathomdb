@@ -122,6 +122,8 @@ for mapping in \
   runner="${mapping#*:}"
   assert_job_runner "$job" "$runner" "$job runs on its supported target runner"
 done
+assert_job_runner build-inspector ubuntu-24.04 \
+  "build-inspector runs on ubuntu-24.04"
 
 if ! command -v grep >/dev/null 2>&1; then
   fail "grep is required to inspect unsupported target triples"

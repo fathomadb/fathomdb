@@ -158,5 +158,14 @@ fn projected_text_hydration_plan_retains_active_node_cursor_index() {
          ORDER BY bm25(property_search_index) ASC, p.write_cursor ASC",
     );
 
-    assert_plan_uses(&plan, ACTIVE_NODE_CURSOR_INDEX);
+    assert!(
+        plan.iter().any(|d| d.contains(ACTIVE_NODE_CURSOR_INDEX) || d.contains(NODE_CURSOR_INDEX)),
+        "expected planner to use {ACTIVE_NODE_CURSOR_INDEX} or {NODE_CURSOR_INDEX}; plan:\n{}",
+        plan.join("\n")
+    );
+    assert!(
+        !plan.iter().any(|d| d.contains("SCAN n")),
+        "planner must not full-scan canonical_nodes alias n; plan:\n{}",
+        plan.join("\n")
+    );
 }

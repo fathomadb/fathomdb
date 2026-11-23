@@ -185,24 +185,25 @@ fn filterable_attribute_capacity_is_ten_and_overflow_is_atomic() {
         })
         .collect::<Vec<_>>();
     opened.engine.configure_projections(&specs[..10], &[]).unwrap();
+    // 0.8.31 ADR #73 contract: declaring 11 node filterable properties succeeds atomically,
+    // `_fathomdb_projection_registry` holds all 11 rows, and `vector_default` keeps at most
+    // 8 `attr_*` columns (`MAX_VEC0_NODE_PROPERTY_SLOTS = 8`) without overflowing SQLite's
+    // 16-column `vec0` limit.
+    opened.engine.configure_projections(&specs, &[]).unwrap();
     let conn = Connection::open(&path).unwrap();
-    let before: String = conn
-        .query_row("SELECT sql FROM sqlite_master WHERE name='vector_default'", [], |r| r.get(0))
-        .unwrap();
-    assert!(opened.engine.configure_projections(&specs, &[]).is_err());
     assert_eq!(
         conn.query_row("SELECT count(*) FROM _fathomdb_projection_registry", [], |r| r
             .get::<_, i64>(0))
             .unwrap(),
-        10
+        11
     );
-    assert_eq!(
-        conn.query_row("SELECT sql FROM sqlite_master WHERE name='vector_default'", [], |r| r
-            .get::<_, String>(
-            0
-        ))
-        .unwrap(),
-        before
+    let vec0_sql: String = conn
+        .query_row("SELECT sql FROM sqlite_master WHERE name='vector_default'", [], |r| r.get(0))
+        .unwrap();
+    let attr_col_count = vec0_sql.matches("attr_").count();
+    assert!(
+        attr_col_count <= 8,
+        "vector_default must keep at most 8 attr_* columns (ADR #73), got {attr_col_count}: {vec0_sql}"
     );
 }
 

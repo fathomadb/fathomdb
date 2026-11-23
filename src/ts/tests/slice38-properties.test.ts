@@ -12,7 +12,11 @@ import {
   type PropertyMap,
   type PropertyPredicate,
 } from "../src/index.js";
-import { InvalidFilterError, WriteValidationError } from "../src/errors.js";
+import {
+  GraphExpansionError,
+  InvalidFilterError,
+  WriteValidationError,
+} from "../src/errors.js";
 import { freshDbPath } from "./helpers.js";
 
 const I64_MIN = -(1n << 63n);
@@ -424,6 +428,205 @@ test("slice38 operationalCollections, AdminSchema kind conflict, and EraseReport
     const noop = await engine.eraseSource("src:erase");
     assert.equal(noop.nodesExcised, 0);
     assert.equal(noop.completedPendingErasure, false);
+  } finally {
+    await engine.close();
+  }
+});
+
+test("slice38 frozen context with eligibility.propertyPredicates works on evidence and traceDependency", async () => {
+  const engine = await Engine.open(freshDbPath(), { useDefaultEmbedder: false });
+  try {
+    await engine.configureProjections([
+      { name: "tier", roles: ["filterable"], fts: false, vector: false, entityClass: "node" },
+    ]);
+    const srcBody = "frozen predicate source alpha";
+    const srcHash = createHash("sha256").update(srcBody).digest("hex");
+
+    await engine.write([
+      {
+        kind: "note",
+        body: srcBody,
+        sourceId: "src:fpred",
+        logicalId: "fp:src",
+        properties: { tier: 1 },
+        provenance: {
+          schemaVersion: 1,
+          role: "canonical",
+          artifactRevisionId: "rev-fp-src",
+          sourceVersionId: "sv-fp-1",
+        },
+      },
+      {
+        kind: "note",
+        body: "frozen predicate derived target beta",
+        sourceId: "src:fpred",
+        logicalId: "fp:derived",
+        properties: { tier: 2 },
+        provenance: {
+          schemaVersion: 1,
+          role: "derived",
+          artifactRevisionId: "rev-fp-derived",
+          sourceVersionId: "sv-fp-1",
+          sourceRevisionId: "rev-fp-src",
+          sourceLocator: { kind: "whole_body" },
+          canonicalSourceHash: { algorithm: "sha256", digestHex: srcHash },
+        },
+      },
+      {
+        edge: {
+          kind: "supports",
+          from: "fp:src",
+          to: "fp:derived",
+          sourceId: "src:fpred",
+          logicalId: "fp:edge",
+          body: "supporting frozen link",
+          provenance: {
+            schemaVersion: 1,
+            role: "derived",
+            artifactRevisionId: "rev-fp-edge",
+            sourceVersionId: "sv-fp-1",
+            sourceRevisionId: "rev-fp-src",
+            sourceLocator: { kind: "whole_body" },
+            canonicalSourceHash: { algorithm: "sha256", digestHex: srcHash },
+          },
+        },
+      },
+    ]);
+
+    await engine.registerSourceDependency({
+      schemaVersion: 1,
+      dependencyId: "dep-fp-1",
+      sourceRevisionId: "rev-fp-src",
+      derivedRevisionId: "rev-fp-derived",
+    });
+
+    const frozen = await engine.freezeReadContext({
+      schemaVersion: 1,
+      view: {},
+      eligibility: {
+        propertyPredicates: [{ key: "tier", op: "gte", value: 1 }],
+      },
+    });
+
+    const evSearch = await engine.searchWithEvidence({
+      schemaVersion: 1,
+      query: "frozen predicate derived target beta",
+      context: frozen,
+      limit: 5,
+    });
+    const sidecar = evSearch.evidence.find((e) => e.artifactRevisionId === "rev-fp-derived");
+    assert.ok(sidecar !== undefined);
+
+    const resolvedEv = await engine.resolveEvidence({
+      schemaVersion: 1,
+      evidenceRef: sidecar.evidenceRef,
+      context: frozen,
+    });
+    assert.deepEqual(resolvedEv.properties, { tier: 2 });
+
+    const expanded = await graph.expand(engine, {
+      schemaVersion: 1,
+      seed: {
+        schemaVersion: 1,
+        type: "explicit",
+        logicalIds: [{ space: "logical", value: "fp:src" }],
+      },
+      direction: "outgoing",
+      edgeKinds: ["supports"],
+      targetKinds: [],
+      context: {
+        schemaVersion: 1,
+        type: "frozen",
+        context: frozen,
+      },
+      maxDepth: 1,
+      resultLimit: 10,
+      maxWorkUnits: "100",
+      includeExplanation: false,
+      includeEvidence: true,
+    });
+    assert.equal(expanded.targets.length, 1);
+    const gEntry = expanded.evidence!.entries[0]!;
+    const resolvedGraphEv = await engine.resolveGraphEvidence({
+      schemaVersion: 1,
+      evidenceRef: gEntry.targetEvidenceRef,
+      context: frozen,
+    });
+    assert.equal(resolvedGraphEv.artifact.artifactClass, "node");
+    assert.deepEqual(resolvedGraphEv.artifact.properties, { tier: 2 });
+
+    const traced = await engine.traceDependency({
+      schemaVersion: 1,
+      rootRevisionId: "rev-fp-derived",
+      direction: "to_source",
+      context: frozen,
+    });
+    assert.equal(traced.rootRevisionId, "rev-fp-derived");
+    assert.equal(traced.dependencyEdges.length, 1);
+  } finally {
+    await engine.close();
+  }
+});
+
+test("slice38 graph.expand rejects lone surrogate and NUL in eligibility.propertyPredicates with GraphExpansionError", async () => {
+  const engine = await Engine.open(freshDbPath(), { useDefaultEmbedder: false });
+  try {
+    await engine.configureProjections([
+      { name: "tag", roles: ["filterable"], fts: false, vector: false, entityClass: "node" },
+    ]);
+    await engine.write([
+      {
+        kind: "note",
+        body: "graph expand ffi string seed",
+        sourceId: "src:gffi",
+        logicalId: "gffi:1",
+        properties: { tag: "ok" },
+      },
+    ]);
+
+    const badPredicates: Array<{ pred: PropertyPredicate; fieldPath: string }> = [
+      { pred: { key: "tag\uD800", op: "eq", value: "ok" }, fieldPath: "/context/context/eligibility/propertyPredicates/0/key" },
+      { pred: { key: "tag\0", op: "eq", value: "ok" }, fieldPath: "/context/context/eligibility/propertyPredicates/0/key" },
+      { pred: { key: "tag", op: "eq", value: "bad\uD800val" }, fieldPath: "/context/context/eligibility/propertyPredicates/0/value" },
+      { pred: { key: "tag", op: "eq", value: "bad\0val" }, fieldPath: "/context/context/eligibility/propertyPredicates/0/value" },
+      { pred: { key: "tag", op: "eq", value: Number.NaN }, fieldPath: "/context/context/eligibility/propertyPredicates/0/value" },
+    ];
+
+    for (const { pred, fieldPath } of badPredicates) {
+      await assert.rejects(
+        () =>
+          graph.expand(engine, {
+            schemaVersion: 1,
+            seed: {
+              schemaVersion: 1,
+              type: "explicit",
+              logicalIds: [{ space: "logical", value: "gffi:1" }],
+            },
+            direction: "outgoing",
+            edgeKinds: [],
+            targetKinds: [],
+            context: {
+              schemaVersion: 1,
+              type: "current",
+              context: {
+                schemaVersion: 1,
+                view: {},
+                eligibility: {
+                  propertyPredicates: [pred],
+                },
+              },
+            },
+            maxDepth: 1,
+            resultLimit: 10,
+            maxWorkUnits: "100",
+            includeExplanation: false,
+          }),
+        (err: unknown) =>
+          err instanceof GraphExpansionError &&
+          err.reason === "graph_context_invalid" &&
+          err.fieldPath === fieldPath,
+      );
+    }
   } finally {
     await engine.close();
   }

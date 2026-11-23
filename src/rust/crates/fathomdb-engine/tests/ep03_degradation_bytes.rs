@@ -29,11 +29,11 @@ impl Embedder for ByteSumEmbedder {
 
 /// Captured from the engine before `degradations` existed.
 const PINNED: &str = concat!(
-    r#"(5, None, [SearchHit { id: IdSpace { space: Logical, value: "ep03-bytes-0" }, write_cursor: 1, kind: "note", body: "river stone carried downstream", score: 0.12903225806451613, branch: Vector, source_id: Some("test:ep03-bytes"), ce_score: None }"#,
-    r#", SearchHit { id: IdSpace { space: Logical, value: "ep03-bytes-3" }, write_cursor: 4, kind: "note", body: "stone walls and river banks", score: 0.125, branch: Vector, source_id: Some("test:ep03-bytes"), ce_score: None }"#,
-    r#", SearchHit { id: IdSpace { space: Logical, value: "ep03-bytes-1" }, write_cursor: 2, kind: "note", body: "a stone bridge over the river", score: 0.12032085561497327, branch: Vector, source_id: Some("test:ep03-bytes"), ce_score: None }"#,
-    r#", SearchHit { id: IdSpace { space: Logical, value: "ep03-bytes-2" }, write_cursor: 3, kind: "note", body: "mountain lake at dawn", score: 0.030303030303030304, branch: Vector, source_id: Some("test:ep03-bytes"), ce_score: None }"#,
-    r#", SearchHit { id: IdSpace { space: Logical, value: "ep03-bytes-4" }, write_cursor: 5, kind: "note", body: "quiet forest path", score: 0.02857142857142857, branch: Vector, source_id: Some("test:ep03-bytes"), ce_score: None }])"#,
+    r#"(5, None, [SearchHit { id: IdSpace { space: Logical, value: "ep03-bytes-0" }, write_cursor: 1, kind: "note", body: "river stone carried downstream", score: 0.12903225806451613, branch: Vector, source_id: Some("test:ep03-bytes"), ce_score: None, properties: None }"#,
+    r#", SearchHit { id: IdSpace { space: Logical, value: "ep03-bytes-3" }, write_cursor: 4, kind: "note", body: "stone walls and river banks", score: 0.125, branch: Vector, source_id: Some("test:ep03-bytes"), ce_score: None, properties: None }"#,
+    r#", SearchHit { id: IdSpace { space: Logical, value: "ep03-bytes-1" }, write_cursor: 2, kind: "note", body: "a stone bridge over the river", score: 0.12032085561497327, branch: Vector, source_id: Some("test:ep03-bytes"), ce_score: None, properties: None }"#,
+    r#", SearchHit { id: IdSpace { space: Logical, value: "ep03-bytes-2" }, write_cursor: 3, kind: "note", body: "mountain lake at dawn", score: 0.030303030303030304, branch: Vector, source_id: Some("test:ep03-bytes"), ce_score: None, properties: None }"#,
+    r#", SearchHit { id: IdSpace { space: Logical, value: "ep03-bytes-4" }, write_cursor: 5, kind: "note", body: "quiet forest path", score: 0.02857142857142857, branch: Vector, source_id: Some("test:ep03-bytes"), ce_score: None, properties: None }])"#,
 );
 
 #[test]

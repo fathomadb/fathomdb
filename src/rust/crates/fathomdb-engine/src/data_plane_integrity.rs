@@ -1471,6 +1471,68 @@ fn edge_is_legitimate_bodyless_terminal_only(
 }
 
 #[cfg(feature = "operator")]
+fn node_is_legitimate_non_vector_terminal_only(
+    connection: &Connection,
+    cursor: i64,
+    effective_at_epoch_s: i64,
+) -> Result<bool, EngineError> {
+    let cursor_u64 = u64::try_from(cursor).map_err(|_| EngineError::Storage)?;
+    let row = connection
+        .query_row(
+            "SELECT kind,state,superseded_at FROM canonical_nodes WHERE write_cursor=?1",
+            [cursor],
+            |row| Ok((text_value(row, 0), text_value(row, 1), nullable_integer_value(row, 2))),
+        )
+        .optional()
+        .map_err(|_| EngineError::Storage)?;
+    let Some((Some(kind), Some(state), NullableValue::Null)) = row else {
+        return Ok(false);
+    };
+    if state == "deleted" || crate::kind_is_vector_committable_on(connection, &kind) {
+        return Ok(false);
+    }
+    if !crate::dependency_closure::projection_owner_is_eligible_at(
+        connection,
+        cursor_u64,
+        effective_at_epoch_s,
+    )? {
+        return Ok(false);
+    }
+    let terminal_state = connection
+        .query_row(
+            "SELECT state FROM _fathomdb_projection_terminal WHERE write_cursor=?1",
+            [cursor],
+            |row| Ok(text_value(row, 0)),
+        )
+        .optional()
+        .map_err(|_| EngineError::Storage)?;
+    if terminal_state.as_ref().and_then(|s| s.as_deref()) != Some("up_to_date") {
+        return Ok(false);
+    }
+    let has_sidecar: bool = connection
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM _fathomdb_vector_rows WHERE write_cursor=?1)",
+            [cursor],
+            |row| row.get(0),
+        )
+        .map_err(|_| EngineError::Storage)?;
+    if has_sidecar {
+        return Ok(false);
+    }
+    let has_vector: bool = connection
+        .query_row("SELECT EXISTS(SELECT 1 FROM vector_default WHERE rowid=?1)", [cursor], |row| {
+            row.get(0)
+        })
+        .map_err(|_| EngineError::Storage)?;
+    if has_vector {
+        return Ok(false);
+    }
+    let span_count = crate::vector_spans::count_for_cursor(connection, cursor_u64)
+        .map_err(|_| EngineError::Storage)?;
+    Ok(span_count == 0)
+}
+
+#[cfg(feature = "operator")]
 fn body_residue_finding(
     connection: &Connection,
     artifact_class: &str,
@@ -1924,6 +1986,15 @@ fn active_projection_findings(
             {
                 continue;
             }
+            if artifact_class == Some("node")
+                && node_is_legitimate_non_vector_terminal_only(
+                    connection,
+                    cursor_i64,
+                    effective_at_epoch_s,
+                )?
+            {
+                continue;
+            }
             let retention = if let Some(class) = artifact_class {
                 owner_retention_at(
                     connection,
@@ -2358,6 +2429,15 @@ fn projection_generation_findings(
             if expected.is_none() {
                 if artifact_class == Some("edge")
                     && edge_is_legitimate_bodyless_terminal_only(
+                        connection,
+                        cursor,
+                        effective_at_epoch_s,
+                    )?
+                {
+                    continue;
+                }
+                if artifact_class == Some("node")
+                    && node_is_legitimate_non_vector_terminal_only(
                         connection,
                         cursor,
                         effective_at_epoch_s,

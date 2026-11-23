@@ -36,7 +36,7 @@ The checker also refuses these routes to the core:
 
 Operation membership is enforced by `scripts/check-sdk-surface-parity.py`
 against the `rust` endpoints of `src/conformance/governed-operation-parity.json`
-(53/53 live operations).
+(55/55 live operations).
 
 ## Translation rules
 
@@ -183,7 +183,7 @@ observation guard through normal SDK error translation, without exposing the
 core engine. The feature forwards only `fathomdb-engine/slice30-observer`; no other
 SDK feature may enable it. It is passive observation, not state/provider/SQL
 injection or a test hook. Its feature/declaration/forwarding are checked separately
-from all53 governed operations and ordinary non-command members. See the
+from all 55 governed operations and ordinary non-command members. See the
 [narrow addendum](../adr/ADR-0.8.29-sdk-qualification-observation.md) and
 [guard contract](rust.md#private-slice30-qualification-observations).
 
@@ -252,6 +252,8 @@ impls for both. `Unified` is lowered through the public
 | `read.canonical_page` | `read::canonical_page(engine, kind, context: &FrozenReadContextV1, page: &PageRequestV1) -> Result<PageV1<NodeRecord>>` | same |
 | `read.operational_state` | `read::operational_state(engine, collection, record_key, context: Option<&FrozenReadContextV1>) -> Result<Option<OperationalStateRecordV1>>` | same |
 | `read.operational_state_page` | `read::operational_state_page(engine, collection, context, page) -> Result<PageV1<OperationalStateRecordV1>>` | same |
+| `read.operational_collections` | `read::operational_collections(engine) -> Result<Vec<OperationalCollectionInfo>>` | `read_operational_collections` |
+| `read.operational_collection` | `read::operational_collection(engine, name: &str) -> Result<Option<OperationalCollectionInfo>>` | `read_operational_collection` |
 | `read.crossed_boundary_since` | `read::crossed_boundary_since(engine, since: i64, view: Option<&ReadView>) -> Result<Vec<BoundaryCrossing>>` | same |
 | `read.projections` / `projection_status` / `projection_generation_status` / `embedding_readiness` | `read::<name>(engine)` | `read_<name>` |
 | `read.mutation_projection_status` | `read::mutation_projection_status(engine, request: MutationProjectionStatusRequestV1)` | same |

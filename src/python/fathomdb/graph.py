@@ -342,6 +342,50 @@ def _validate_graph_expand_request(request: GraphExpandRequestV1) -> None:
             refuse("graph_context_invalid", f"{context_path}/eligibility/attributes/{index}")
         string(pair[0], "graph_context_invalid", f"{context_path}/eligibility/attributes/{index}/0")
         string(pair[1], "graph_context_invalid", f"{context_path}/eligibility/attributes/{index}/1")
+    predicates = eligibility.property_predicates
+    preds_base = f"{context_path}/eligibility/propertyPredicates"
+    if not isinstance(predicates, (list, tuple)) or len(predicates) > 32:
+        refuse("graph_context_invalid", preds_base)
+    import math
+
+    valid_ops = {"eq", "ne", "lt", "lte", "gt", "gte"}
+    order_ops = {"lt", "lte", "gt", "gte"}
+    i64_min = -(1 << 63)
+    i64_max = (1 << 63) - 1
+    for index, pred in enumerate(predicates):
+        pred_base = f"{preds_base}/{index}"
+        if isinstance(pred, dict):
+            if set(pred.keys()) != {"key", "op", "value"}:
+                refuse("graph_context_invalid", pred_base)
+            key = pred["key"]
+            op = pred["op"]
+            val = pred["value"]
+        elif hasattr(pred, "key") and hasattr(pred, "op") and hasattr(pred, "value"):
+            key = pred.key
+            op = pred.op
+            val = pred.value
+        else:
+            refuse("graph_context_invalid", pred_base)
+        string(key, "graph_context_invalid", f"{pred_base}/key")
+        if len(key) == 0 or "\x1e" in key:
+            refuse("graph_context_invalid", f"{pred_base}/key")
+        if not isinstance(op, str) or op not in valid_ops:
+            refuse("graph_context_invalid", f"{pred_base}/op")
+        if isinstance(val, bool):
+            if op in order_ops:
+                refuse("graph_context_invalid", f"{pred_base}/op")
+        elif isinstance(val, int):
+            if val < i64_min or val > i64_max:
+                refuse("graph_context_invalid", f"{pred_base}/value")
+        elif isinstance(val, float):
+            if not math.isfinite(val):
+                refuse("graph_context_invalid", f"{pred_base}/value")
+        elif isinstance(val, str):
+            string(val, "graph_context_invalid", f"{pred_base}/value")
+            if "\x1e" in val:
+                refuse("graph_context_invalid", f"{pred_base}/value")
+        else:
+            refuse("graph_context_invalid", f"{pred_base}/value")
     string(request.max_work_units, "graph_work_limit_invalid", "/maxWorkUnits")
     if type(request.include_evidence) is not bool:
         refuse("graph_context_invalid", "/includeEvidence")

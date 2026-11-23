@@ -2,7 +2,9 @@
 //! for Schema 38 indexes and fast paths.
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Arc;
 
+use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{
     vector_phase1_sql_for_test, Engine, InitialState, PreparedWrite, ProjectionRole,
     ProjectionSpec, PropertyComparisonOp, PropertyEntityClass, PropertyPredicate, PropertyValue,
@@ -256,4 +258,121 @@ fn slice38_query_plans_use_declared_indexes_and_skip_cpv_on_unpredicated_search(
         "SELECT from_id FROM canonical_edges INDEXED BY canonical_edges_to_sup_kind_idx WHERE to_id = 'qp-n2' AND superseded_at IS NULL AND kind = 'supports'",
     );
     assert_uses_index(&edge_to_sup_kind, "canonical_edges_to_sup_kind_idx");
+}
+
+#[derive(Clone, Debug)]
+struct QpEmbedder;
+
+impl Embedder for QpEmbedder {
+    fn identity(&self) -> EmbedderIdentity {
+        EmbedderIdentity::new("slice38-qp-embedder", "v1", 8)
+    }
+
+    fn embed(&self, text: &str) -> Result<Vector, EmbedderError> {
+        let mut vec = vec![0.0_f32; 8];
+        for (i, b) in text.bytes().enumerate() {
+            vec[i % 8] += f32::from(b) / 255.0;
+        }
+        if vec.iter().all(|v| *v == 0.0) {
+            vec[0] = 1.0;
+        }
+        Ok(vec)
+    }
+}
+
+#[test]
+fn slice38_vector_preselection_uses_cpv_indexes_and_never_scans_canonical_nodes() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("qp-vec{SQLITE_SUFFIX}"));
+    let opened =
+        Engine::open_with_embedder_for_test(&path, Arc::new(QpEmbedder)).expect("open embedder");
+    let engine = opened.engine;
+
+    // Declare 8 filler slots + 3 overflow slots (`z_text`, `z_num`, `z_bool`) so all three
+    // predicate types route through pre-selection (`canonical_property_values`) even on `Eq`.
+    let mut specs: Vec<ProjectionSpec> = (0..8)
+        .map(|i| ProjectionSpec {
+            name: format!("a_slot_{i}"),
+            roles: BTreeSet::from([ProjectionRole::Filterable]),
+            fts: None,
+            vector: None,
+            source: None,
+            entity_class: PropertyEntityClass::Node,
+        })
+        .collect();
+    for name in ["z_text", "z_num", "z_bool"] {
+        specs.push(ProjectionSpec {
+            name: name.into(),
+            roles: BTreeSet::from([ProjectionRole::Filterable]),
+            fts: None,
+            vector: None,
+            source: None,
+            entity_class: PropertyEntityClass::Node,
+        });
+    }
+    engine.configure_projections(&specs, &[]).expect("configure projections");
+
+    engine
+        .write(&[PreparedWrite::Node {
+            kind: "note".into(),
+            body: "vector preselection plan fixture".into(),
+            source_id: SourceId::new("src:qp-vec").unwrap(),
+            logical_id: Some("qp-vec-1".into()),
+            state: InitialState::Active,
+            reason: None,
+            valid_from: None,
+            valid_until: None,
+            properties: Some(BTreeMap::from([
+                ("z_text".into(), PropertyValue::String("alpha".into())),
+                ("z_num".into(), PropertyValue::Int(42)),
+                ("z_bool".into(), PropertyValue::Bool(true)),
+            ])),
+        }])
+        .expect("write");
+
+    let cases: &[(&str, PropertyPredicate, &str)] = &[
+        (
+            "string",
+            PropertyPredicate {
+                key: "z_text".into(),
+                op: PropertyComparisonOp::Eq,
+                value: PropertyValue::String("alpha".into()),
+            },
+            "canonical_property_values_text_idx",
+        ),
+        (
+            "numeric",
+            PropertyPredicate {
+                key: "z_num".into(),
+                op: PropertyComparisonOp::Gt,
+                value: PropertyValue::Int(10),
+            },
+            "canonical_property_values_num_idx",
+        ),
+        (
+            "boolean",
+            PropertyPredicate {
+                key: "z_bool".into(),
+                op: PropertyComparisonOp::Eq,
+                value: PropertyValue::Bool(true),
+            },
+            "canonical_property_values_bool_idx",
+        ),
+    ];
+
+    for (label, pred, expected_idx) in cases {
+        let mut filter = SearchFilter::default();
+        filter.property_predicates = vec![pred.clone()];
+        let plan = engine
+            .explain_vector_phase1_for_test(Some(&filter))
+            .unwrap_or_else(|e| panic!("explain vector phase1 ({label}) failed: {e:?}"));
+        assert_uses_index(&plan, expected_idx);
+        assert!(
+            !plan.iter().any(|line| line.contains("SCAN canonical_nodes")),
+            "vector preselection ({label}) must NOT emit SCAN canonical_nodes:\n{}",
+            plan.join("\n")
+        );
+    }
+
+    engine.close().expect("close");
 }

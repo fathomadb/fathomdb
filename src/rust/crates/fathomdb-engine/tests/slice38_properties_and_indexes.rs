@@ -10,15 +10,16 @@ use std::sync::{Arc, Mutex};
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{
-    ActuationBatchV1, ActuationErrorReason, ActuationOperationV1, ArtifactRevisionId,
-    CanonicalHash, Engine, EngineError, EvidenceResolveRequestV1, EvidenceSearchRequestV1, Filter,
-    FilterTerm, GraphEvidenceArtifactV1, GraphEvidenceResolveRequestV1, GraphExpandRequestV1,
-    GraphReadContextV1, GraphSeedV1, IdSpace, InitialState, LifecycleActuationV1, LifecycleState,
-    PageRequestV1, PreparedWrite, ProjectionRole, ProjectionSpec, ProjectionVector,
-    PropertyComparisonOp, PropertyEntityClass, PropertyMap, PropertyPredicate, PropertyValue,
-    ProvenancedEdgeV1, ProvenancedNodeV1, ReadContextV1, ReadView, SearchFilter,
-    SourceDependencyRegistrationV1, SourceId, SourceLocator, SourceRevisionId, SourceVersionId,
-    TraversalDirection, WriteProvenanceV1, TOP_K_BIT_CANDIDATES,
+    ActuationBatchV1, ActuationErrorReason, ActuationOperationV1, ActuationOutcomeV1,
+    ArtifactRevisionId, CanonicalHash, DataPlaneIntegrityCheckV1, DataPlaneIntegrityRequestV1,
+    Engine, EngineError, EvidenceResolveRequestV1, EvidenceSearchRequestV1, Filter, FilterTerm,
+    FrozenReadErrorReason, GraphEvidenceArtifactV1, GraphEvidenceResolveRequestV1,
+    GraphExpandRequestV1, GraphReadContextV1, GraphSeedV1, IdSpace, InitialState,
+    LifecycleActuationV1, LifecycleState, PageRequestV1, PreparedWrite, ProjectionFts,
+    ProjectionRole, ProjectionSpec, ProjectionVector, PropertyComparisonOp, PropertyEntityClass,
+    PropertyMap, PropertyPredicate, PropertyValue, ProvenancedEdgeV1, ProvenancedNodeV1,
+    ReadContextV1, ReadView, SearchFilter, SourceDependencyRegistrationV1, SourceId, SourceLocator,
+    SourceRevisionId, SourceVersionId, TraversalDirection, WriteProvenanceV1, TOP_K_BIT_CANDIDATES,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use rusqlite::Connection;
@@ -1391,4 +1392,196 @@ fn slice38_commit_timestamps_monotonic_and_actuate_cursor_guard() {
         )
         .unwrap();
     assert_eq!(latest_ts, vec![simulated_future_ms], "actuate timestamp must clamp monotonically");
+}
+
+#[test]
+fn slice38_neg_zero_eav_and_property_fts_doctor_integrity_clean() {
+    let dir = TempDir::new().unwrap();
+    let path = db_path(&dir, "neg-zero-eav");
+    {
+        let opened = Engine::open(&path).expect("open");
+        let engine = opened.engine;
+        engine
+            .configure_projections(
+                &[ProjectionSpec {
+                    name: "score".into(),
+                    roles: BTreeSet::from([ProjectionRole::Filterable, ProjectionRole::Searchable]),
+                    fts: Some(ProjectionFts { tokenizer: None }),
+                    vector: None,
+                    source: None,
+                    entity_class: PropertyEntityClass::Node,
+                }],
+                &[],
+            )
+            .expect("configure filterable+searchable score");
+
+        engine
+            .write(&[PreparedWrite::Node {
+                kind: "note".into(),
+                body: "negative zero score check".into(),
+                source_id: SourceId::new("src:negzero").unwrap(),
+                logical_id: Some("nz-1".into()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                properties: Some(BTreeMap::from([("score".into(), PropertyValue::Float(-0.0))])),
+            }])
+            .expect("write -0.0");
+
+        let eav_vals = engine
+            .query_text_col_for_test(
+                "SELECT attr_value FROM canonical_attributes WHERE attr_name = 'score'",
+            )
+            .unwrap();
+        assert_eq!(
+            eav_vals,
+            vec!["0.0".to_string()],
+            "canonical_attributes must canonicalize -0.0 -> 0.0"
+        );
+
+        let fts_vals = engine
+            .query_text_col_for_test(
+                "SELECT attr_value FROM property_search_index WHERE attr_name = 'score'",
+            )
+            .unwrap();
+        assert_eq!(
+            fts_vals,
+            vec!["0.0".to_string()],
+            "property_search_index must canonicalize -0.0 -> 0.0"
+        );
+
+        for check in [
+            DataPlaneIntegrityCheckV1::DependencyChain,
+            DataPlaneIntegrityCheckV1::ActiveSearchableOrphans,
+            DataPlaneIntegrityCheckV1::ProjectionGeneration,
+            DataPlaneIntegrityCheckV1::MutationReadiness,
+        ] {
+            let report = engine
+                .check_data_plane_integrity(
+                    DataPlaneIntegrityRequestV1::new(vec![check], 10_000, 100).unwrap(),
+                )
+                .expect("integrity check");
+            assert!(
+                report.findings.is_empty(),
+                "expected 0 data-plane integrity findings for {check:?}, got: {:#?}",
+                report.findings
+            );
+        }
+
+        engine.close().expect("close");
+    }
+
+    // Reopen and verify clean re-derive + 0 integrity findings.
+    let reopened = Engine::open(&path).expect("reopen");
+    for check in [
+        DataPlaneIntegrityCheckV1::DependencyChain,
+        DataPlaneIntegrityCheckV1::ActiveSearchableOrphans,
+        DataPlaneIntegrityCheckV1::ProjectionGeneration,
+        DataPlaneIntegrityCheckV1::MutationReadiness,
+    ] {
+        let report = reopened
+            .engine
+            .check_data_plane_integrity(
+                DataPlaneIntegrityRequestV1::new(vec![check], 10_000, 100).unwrap(),
+            )
+            .expect("integrity check after reopen");
+        assert!(
+            report.findings.is_empty(),
+            "expected 0 integrity findings after reopen for {check:?}, got: {:#?}",
+            report.findings
+        );
+    }
+    reopened.engine.close().expect("close reopened");
+}
+
+#[test]
+fn slice38_actuate_invalid_properties_returns_write_validation_without_consuming_op_id() {
+    let dir = TempDir::new().unwrap();
+    let path = db_path(&dir, "actuate-invalid-props");
+    let opened = Engine::open(&path).expect("open");
+    let engine = opened.engine;
+
+    let make_batch = |op_id: &str, props: PropertyMap| {
+        ActuationBatchV1::new(
+            op_id,
+            vec![ActuationOperationV1::PutCanonicalNode(ProvenancedNodeV1 {
+                kind: "note".into(),
+                body: "actuate invalid property validation".into(),
+                source_id: SourceId::new("src:act-val").unwrap(),
+                logical_id: Some("act-val-1".into()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                provenance: WriteProvenanceV1::canonical(
+                    ArtifactRevisionId::new("rev-act-val-1").unwrap(),
+                    SourceVersionId::new("ver-act-val-1").unwrap(),
+                ),
+                properties: Some(props),
+            })],
+        )
+        .unwrap()
+    };
+
+    for (label, bad_props) in [
+        ("nan", BTreeMap::from([("k".into(), PropertyValue::Float(f64::NAN))])),
+        ("inf", BTreeMap::from([("k".into(), PropertyValue::Float(f64::INFINITY))])),
+        ("empty_key", BTreeMap::from([("".into(), PropertyValue::Int(1))])),
+        ("nul_key", BTreeMap::from([("a\0b".into(), PropertyValue::Int(1))])),
+        ("nul_val", BTreeMap::from([("k".into(), PropertyValue::String("x\0y".into()))])),
+        ("rs_val", BTreeMap::from([("k".into(), PropertyValue::String("x\u{1e}y".into()))])),
+    ] {
+        let err = engine
+            .actuate(make_batch("op-reusable-after-invalid", bad_props))
+            .expect_err(&format!("invalid properties ({label}) must return Err(WriteValidation)"));
+        assert!(
+            matches!(err, EngineError::WriteValidation),
+            "expected EngineError::WriteValidation for {label}, got {err:?}"
+        );
+    }
+
+    // The same operation_id must remain unconsumed and succeed with valid properties.
+    let receipt = engine
+        .actuate(make_batch(
+            "op-reusable-after-invalid",
+            BTreeMap::from([("ok".into(), PropertyValue::Int(7))]),
+        ))
+        .expect("subsequent valid actuation with same operation_id must succeed");
+    assert_eq!(receipt.outcome, ActuationOutcomeV1::Committed);
+    engine.close().expect("close");
+}
+
+#[test]
+fn slice38_frozen_read_rejects_excessive_property_predicates() {
+    let dir = TempDir::new().unwrap();
+    let path = db_path(&dir, "frozen-pred-bound");
+    let opened = Engine::open(&path).expect("open");
+    let engine = opened.engine;
+
+    let mut eligibility = SearchFilter::default();
+    eligibility.property_predicates = (0..65)
+        .map(|i| PropertyPredicate {
+            key: format!("k{i}"),
+            op: PropertyComparisonOp::Eq,
+            value: PropertyValue::Int(i),
+        })
+        .collect();
+    let err = engine
+        .freeze_read_context(&ReadContextV1 {
+            schema_version: 1,
+            view: ReadView::default(),
+            eligibility,
+        })
+        .expect_err("65 property_predicates must fail context validation");
+    assert!(
+        matches!(
+            err,
+            EngineError::FrozenRead(ref fe)
+                if fe.reason == FrozenReadErrorReason::ContextInvalid
+                    && fe.field_path == "/eligibility/propertyPredicates"
+        ),
+        "expected FrozenRead(ContextInvalid, /eligibility/propertyPredicates), got {err:?}"
+    );
+    engine.close().expect("close");
 }

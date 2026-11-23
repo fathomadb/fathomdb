@@ -438,13 +438,13 @@ pub(crate) fn validate_semantics(request: &GraphExpandRequestV1) -> Result<(), E
 #[derive(Clone)]
 struct EdgeRow {
     write_cursor: u64,
-    kind: String,
+    kind: Box<str>,
     terminal_direction: TraversalDirection,
-    next_logical_id: String,
-    logical_id: Option<String>,
-    superseded_at: Option<i64>,
+    superseded: bool,
+    next_logical_id: Box<str>,
+    logical_id: Option<Box<str>>,
     t_invalid: Option<i64>,
-    properties: Option<crate::PropertyMap>,
+    properties: Option<Box<crate::PropertyMap>>,
 }
 
 struct GraphCandidate {
@@ -545,6 +545,7 @@ fn load_incident_edges(
     let mut statement = tx.prepare(&query.sql).map_err(|_| EngineError::Storage)?;
     let rows = statement
         .query_map(rusqlite::params![query.logical_id, query.limit], |row| {
+            let kind: String = row.get(1)?;
             let from_id: String = row.get(2)?;
             let to_id: String = row.get(3)?;
             let (terminal_direction, next_logical_id) = if from_id == logical_id {
@@ -554,13 +555,13 @@ fn load_incident_edges(
             };
             Ok(EdgeRow {
                 write_cursor: u64::try_from(row.get::<_, i64>(0)?).unwrap_or(0),
-                kind: row.get(1)?,
+                kind: kind.into_boxed_str(),
                 terminal_direction,
-                next_logical_id,
-                logical_id: row.get(4)?,
-                superseded_at: row.get(5)?,
+                superseded: row.get::<_, Option<i64>>(5)?.is_some(),
+                next_logical_id: next_logical_id.into_boxed_str(),
+                logical_id: row.get::<_, Option<String>>(4)?.map(String::into_boxed_str),
                 t_invalid: row.get(6)?,
-                properties: crate::properties::decode_properties_row_col(row, 7)?,
+                properties: crate::properties::decode_properties_row_col(row, 7)?.map(Box::new),
             })
         })
         .map_err(|_| EngineError::Storage)?;
@@ -890,10 +891,12 @@ pub(crate) fn read_graph_expand_with_stop_words_in_tx(
             );
             for edge in edges {
                 work_units += 1;
-                if !request.edge_kinds.is_empty() && !request.edge_kinds.contains(&edge.kind) {
+                if !request.edge_kinds.is_empty()
+                    && !request.edge_kinds.iter().any(|k| k.as_str() == &*edge.kind)
+                {
                     continue;
                 }
-                if edge.superseded_at.is_some()
+                if edge.superseded
                     || edge.t_invalid.is_some_and(|invalid| invalid <= view.edge_now())
                 {
                     continue;
@@ -924,34 +927,35 @@ pub(crate) fn read_graph_expand_with_stop_words_in_tx(
                 {
                     continue;
                 }
+                let next_owned = next.to_string();
                 let origin = GraphOriginV1 {
                     schema_version: 1,
                     seed_logical_id: seed.logical_id.clone(),
                     seed_ordinal: seed.seed_ordinal,
                     predecessor_logical_id: current.clone(),
-                    target_logical_id: next.to_string(),
+                    target_logical_id: next_owned.clone(),
                     hop_count: depth + 1,
-                    terminal_edge_kind: edge.kind.clone(),
+                    terminal_edge_kind: edge.kind.into_string(),
                     terminal_direction,
-                    terminal_edge_properties: edge.properties.clone(),
+                    terminal_edge_properties: edge.properties.map(|props| *props),
                 };
                 let target = GraphTargetV1 {
                     schema_version: 1,
-                    logical_id: next.to_string(),
+                    logical_id: next_owned.clone(),
                     kind,
                     body,
                     write_cursor,
                     properties: node_properties,
                     origin,
                 };
-                if let Some(existing) = candidates.get_mut(next) {
+                if let Some(existing) = candidates.get_mut(&next_owned) {
                     if origin_cmp(&target.origin, &existing.target.origin).is_lt() {
                         *existing =
                             GraphCandidate { target, terminal_edge_cursor: edge.write_cursor };
                     }
                 } else if candidates.len() < request.result_limit as usize {
                     candidates.insert(
-                        next.to_string(),
+                        next_owned,
                         GraphCandidate { target, terminal_edge_cursor: edge.write_cursor },
                     );
                 } else {
@@ -965,7 +969,7 @@ pub(crate) fn read_graph_expand_with_stop_words_in_tx(
                     if origin_cmp(&target.origin, &candidates[&worst].target.origin).is_lt() {
                         candidates.remove(&worst);
                         candidates.insert(
-                            next.to_string(),
+                            next_owned,
                             GraphCandidate { target, terminal_edge_cursor: edge.write_cursor },
                         );
                     }

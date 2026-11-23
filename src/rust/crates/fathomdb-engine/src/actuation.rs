@@ -374,48 +374,68 @@ fn request_digest(request: &ActuationBatchV1) -> String {
     hex_encode(&hasher.finalize())
 }
 
-fn validate_request(request: &ActuationBatchV1) -> Result<(), ActuationError> {
+fn validate_request(request: &ActuationBatchV1) -> Result<(), EngineError> {
     if request.schema_version != 1 {
         return Err(ActuationError::new(
             ActuationErrorReason::UnsupportedSchemaVersion,
             "/schemaVersion",
-        ));
+        )
+        .into());
     }
     if !valid_caller_identity(&request.operation_id) {
-        return Err(ActuationError::new(ActuationErrorReason::OperationIdInvalid, "/operationId"));
+        return Err(
+            ActuationError::new(ActuationErrorReason::OperationIdInvalid, "/operationId").into()
+        );
     }
     if request.decision_policy_id.as_deref().is_some_and(|value| !valid_caller_identity(value)) {
         return Err(ActuationError::new(
             ActuationErrorReason::DecisionPolicyIdInvalid,
             "/decisionPolicyId",
-        ));
+        )
+        .into());
     }
     if !(1..=MAX_OPERATIONS).contains(&request.operations.len()) {
         return Err(ActuationError::new(
             ActuationErrorReason::OperationCountInvalid,
             "/operations",
-        ));
+        )
+        .into());
     }
     for (index, operation) in request.operations.iter().enumerate() {
-        let ActuationOperationV1::TransitionLifecycle(lifecycle) = operation else {
-            continue;
-        };
-        if lifecycle.logical_id.is_empty()
-            || lifecycle.logical_id.contains('\x1e')
-            || lifecycle.logical_id.starts_with("l:")
-            || lifecycle.logical_id.starts_with("h:")
-            || lifecycle.logical_id.starts_with("p:")
-        {
-            return Err(ActuationError::new(
-                ActuationErrorReason::LogicalIdInvalid,
-                format!("/operations/{index}/logicalId"),
-            ));
-        }
-        if !matches!(lifecycle.to_state, LifecycleState::Active | LifecycleState::Deleted) {
-            return Err(ActuationError::new(
-                ActuationErrorReason::LifecycleTargetInvalid,
-                format!("/operations/{index}/toState"),
-            ));
+        match operation {
+            ActuationOperationV1::PutCanonicalNode(node)
+            | ActuationOperationV1::PutDerivedNode(node) => {
+                if let Some(props) = node.properties.as_ref() {
+                    crate::properties::validate_property_map(props)?;
+                }
+            }
+            ActuationOperationV1::PutDerivedEdge(edge) => {
+                if let Some(props) = edge.properties.as_ref() {
+                    crate::properties::validate_property_map(props)?;
+                }
+            }
+            ActuationOperationV1::RegisterSourceDependency(_) => {}
+            ActuationOperationV1::TransitionLifecycle(lifecycle) => {
+                if lifecycle.logical_id.is_empty()
+                    || lifecycle.logical_id.contains('\x1e')
+                    || lifecycle.logical_id.starts_with("l:")
+                    || lifecycle.logical_id.starts_with("h:")
+                    || lifecycle.logical_id.starts_with("p:")
+                {
+                    return Err(ActuationError::new(
+                        ActuationErrorReason::LogicalIdInvalid,
+                        format!("/operations/{index}/logicalId"),
+                    )
+                    .into());
+                }
+                if !matches!(lifecycle.to_state, LifecycleState::Active | LifecycleState::Deleted) {
+                    return Err(ActuationError::new(
+                        ActuationErrorReason::LifecycleTargetInvalid,
+                        format!("/operations/{index}/toState"),
+                    )
+                    .into());
+                }
+            }
         }
     }
     Ok(())

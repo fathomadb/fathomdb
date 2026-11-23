@@ -1656,6 +1656,39 @@ impl Engine {
     pub fn set_vector_stage_only_for_test(&self, enabled: bool) {
         self.projection_runtime.shared.vector_stage_only_for_test.store(enabled, Ordering::SeqCst);
     }
+
+    /// Test seam — runs SQLite `EXPLAIN QUERY PLAN` on the exact phase-1 vector
+    /// SQL built by [`build_vector_phase1_plan`] against the live database.
+    #[cfg(any(test, feature = "test-hooks"))]
+    #[doc(hidden)]
+    pub fn explain_vector_phase1_for_test(
+        &self,
+        filter: Option<&SearchFilter>,
+    ) -> Result<Vec<String>, EngineError> {
+        let _operation = self.ensure_open()?;
+        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+        let (sql, tail_params) = crate::filter::build_vector_phase1_plan(
+            Some(connection),
+            filter,
+            SEARCH_RERANK_LIMIT,
+            &ReadView::default(),
+            0,
+        )
+        .map_err(|_| EngineError::Storage)?;
+        let mut all_params = vec![
+            rusqlite::types::Value::Text("[1,0,0,0,0,0,0,0]".to_string()),
+            rusqlite::types::Value::Text("[1,0,0,0,0,0,0,0]".to_string()),
+        ];
+        all_params.extend(tail_params);
+        let mut stmt = connection
+            .prepare(&format!("EXPLAIN QUERY PLAN {sql}"))
+            .map_err(|_| EngineError::Storage)?;
+        let rows = stmt
+            .query_map(rusqlite::params_from_iter(all_params.iter()), |row| row.get::<_, String>(3))
+            .map_err(|_| EngineError::Storage)?;
+        rows.collect::<rusqlite::Result<Vec<_>>>().map_err(|_| EngineError::Storage)
+    }
 }
 
 /// Test seam — exposes [`build_vector_phase1_sql`] at the production

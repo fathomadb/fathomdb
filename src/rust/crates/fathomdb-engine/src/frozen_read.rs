@@ -174,6 +174,12 @@ pub(crate) fn validate_context(context: &ReadContextV1) -> Result<Vec<u8>, Froze
             "/eligibility/attributes",
         ));
     }
+    if context.eligibility.property_predicates.len() > CONTEXT_MAX_ATTRIBUTES {
+        return Err(FrozenReadError::new(
+            FrozenReadErrorReason::ContextInvalid,
+            "/eligibility/propertyPredicates",
+        ));
+    }
     let bytes = encode_context(context);
     if bytes.len() > CONTEXT_MAX_BYTES {
         return Err(FrozenReadError::new(FrozenReadErrorReason::ContextInvalid, "/eligibility"));

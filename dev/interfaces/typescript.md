@@ -17,9 +17,9 @@ translation rules are in [`rust-sdk.md`](rust-sdk.md).
 
 ## Fresh-database open boundary
 
-`Engine.open` bootstraps a missing or zero-length path at schema 37. A
+`Engine.open` bootstraps a missing or zero-length path at schema 38. A
 non-empty database is admitted only when its effective committed
-`PRAGMA user_version` is exactly 37; any other version rejects with the typed
+`PRAGMA user_version` is exactly 38; any other version rejects with the typed
 `FDB_INCOMPATIBLE_SCHEMA_VERSION` envelope before product mutation. TypeScript
 exposes no automatic-upgrade or custom-migration route.
 
@@ -96,7 +96,7 @@ denylist name).
   whitespace-only / reserved (`_`-prefixed) id, and with
   `ErasureIncompleteError` (with `stage` / `detail`) rather than resolving when
   the at-rest step did not complete. `EraseReport` is
-  `{ sourceRef, nodesExcised, edgesExcised, projectionsInvalidated }`. A source
+  `{ sourceRef, nodesExcised, edgesExcised, projectionsInvalidated, completedPendingErasure }`. A source
   remains erasable after correction supersedes it; the original and
   replacement source buckets may be erased in either order. Counts remain
   exact for only the requested bucket, with no cross-bucket expansion or

@@ -1114,7 +1114,10 @@ fn property_value_to_eav_string(value: &PropertyValue) -> String {
     match value {
         PropertyValue::String(s) => s.clone(),
         PropertyValue::Int(i) => i.to_string(),
-        PropertyValue::Float(f) => serde_json::to_string(f).unwrap_or_else(|_| f.to_string()),
+        PropertyValue::Float(f) => {
+            let norm = crate::properties::normalize_finite_f64(*f).unwrap_or(*f);
+            serde_json::to_string(&norm).unwrap_or_else(|_| norm.to_string())
+        }
         PropertyValue::Bool(b) => if *b { "true" } else { "false" }.to_string(),
     }
 }
@@ -1829,10 +1832,8 @@ fn apply_projection_config(
     let current_custom_kinds = declared_custom_vector_kinds_from(&post_registry);
     let vector_declared_after = post_registry.values().any(StoredProjection::wants_vector);
     if vector_declared_after {
-        for kind in &current_custom_kinds {
-            register_vector_kind(tx, kind).map_err(|_| EngineError::Storage)?;
-        }
         for removed_kind in previous_custom_kinds.difference(&current_custom_kinds) {
+            prune_dense_rows_for_custom_kind(tx, removed_kind).map_err(|_| EngineError::Storage)?;
             tx.execute(
                 "DELETE FROM _fathomdb_vector_kinds WHERE kind = ?1 AND kind <> 'edge_fact'",
                 [removed_kind],
@@ -1844,6 +1845,9 @@ fn apply_projection_config(
         delta.vector_unsupported_kinds =
             unsupported_vector_kinds(tx).map_err(|_| EngineError::Storage)?;
         if dense_arm_live {
+            for kind in &current_custom_kinds {
+                register_vector_kind(tx, kind).map_err(|_| EngineError::Storage)?;
+            }
             enqueue_declared_vector_backfill(tx).map_err(|_| EngineError::Storage)?
         } else {
             false
@@ -2044,7 +2048,52 @@ impl Engine {
 /// scheduler and the pending-work probe join `_fathomdb_vector_kinds` and so no
 /// longer see it, and it is precisely what lets a later RE-declaration pick the
 /// row up again instead of stranding it.
+fn prune_dense_rows_for_custom_kind(tx: &Connection, kind: &str) -> rusqlite::Result<()> {
+    if kind == "edge_fact" || vector_storage::kind_is_builtin_vector_committable(kind) {
+        return Ok(());
+    }
+    let cursors: Vec<i64> = {
+        let mut stmt = tx.prepare(
+            "SELECT write_cursor FROM canonical_nodes WHERE kind = ?1
+             UNION
+             SELECT write_cursor FROM _fathomdb_vector_rows WHERE kind = ?1",
+        )?;
+        let rows = stmt.query_map([kind], |row| row.get::<_, i64>(0))?;
+        rows.collect::<rusqlite::Result<Vec<_>>>()?
+    };
+    if cursors.is_empty() {
+        return Ok(());
+    }
+    physical_erasure::mark_dirty(tx)?;
+    let has_vector_default: bool = tx.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'vector_default')",
+        [],
+        |row| row.get(0),
+    )?;
+    for cursor in cursors {
+        if has_vector_default {
+            vector_storage::delete_vector_partition_row(tx, cursor)?;
+        }
+        tx.prepare_cached("DELETE FROM _fathomdb_vector_rows WHERE write_cursor = ?1")?
+            .execute([cursor])?;
+        tx.prepare_cached(
+            "DELETE FROM _fathomdb_vector_spans WHERE vector_rowid = ?1 OR write_cursor = ?1",
+        )?
+        .execute([cursor])?;
+    }
+    Ok(())
+}
+
 fn unenrol_registry_vector_node_kinds(tx: &Connection) -> rusqlite::Result<()> {
+    let enrolled_kinds: Vec<String> = {
+        let mut stmt =
+            tx.prepare("SELECT kind FROM _fathomdb_vector_kinds WHERE kind <> 'edge_fact'")?;
+        let rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
+        rows.collect::<rusqlite::Result<Vec<_>>>()?
+    };
+    for kind in &enrolled_kinds {
+        prune_dense_rows_for_custom_kind(tx, kind)?;
+    }
     tx.execute("DELETE FROM _fathomdb_vector_kinds WHERE kind <> 'edge_fact'", [])?;
     Ok(())
 }

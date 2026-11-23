@@ -597,3 +597,63 @@ def test_slice38_operational_collections_and_erase_report_flag(db_path: str) -> 
         assert noop.completed_pending_erasure is False
     finally:
         engine.close()
+
+
+def test_slice38_graph_expand_rejects_lone_surrogate_and_nul_in_property_predicates(
+    db_path: str,
+) -> None:
+    from fathomdb.errors import GraphExpansionError
+
+    engine = Engine.open(db_path, use_default_embedder=False)
+    try:
+        engine.configure_projections(
+            [ProjectionSpec(name="tag", roles=frozenset([ProjectionRole.FILTERABLE]))]
+        )
+        engine.write(
+            [
+                {
+                    "kind": "note",
+                    "body": "graph expand python ffi string seed",
+                    "source_id": "src:py-gffi",
+                    "logical_id": "py-gffi:1",
+                    "properties": {"tag": "ok"},
+                }
+            ]
+        )
+
+        bad_preds = [
+            PropertyPredicate("tag\ud800", "eq", "ok"),
+            PropertyPredicate("tag\x00", "eq", "ok"),
+            PropertyPredicate("tag", "eq", "bad\ud800val"),
+            PropertyPredicate("tag", "eq", "bad\x00val"),
+        ]
+        for pred in bad_preds:
+            with pytest.raises(GraphExpansionError) as exc_info:
+                graph.expand(
+                    engine,
+                    GraphExpandRequestV1(
+                        schema_version=1,
+                        seed=GraphExplicitSeedV1(
+                            schema_version=1,
+                            type="explicit",
+                            logical_ids=(IdSpace(space="logical", value="py-gffi:1"),),
+                        ),
+                        direction="outgoing",
+                        edge_kinds=(),
+                        target_kinds=(),
+                        context=CurrentGraphReadContextV1(
+                            schema_version=1,
+                            type="current",
+                            context=ReadContextV1(
+                                eligibility=SearchFilter(property_predicates=[pred]),
+                            ),
+                        ),
+                        max_depth=1,
+                        result_limit=10,
+                        max_work_units="100",
+                        include_explanation=False,
+                    ),
+                )
+            assert exc_info.value.reason == "graph_context_invalid"
+    finally:
+        engine.close()

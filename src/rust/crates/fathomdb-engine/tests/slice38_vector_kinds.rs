@@ -7,24 +7,34 @@ use std::sync::Arc;
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{
-    DenseReadiness, Engine, EngineError, Filter, FilterTerm, IdSpace, InitialState, PreparedWrite,
-    ProjectionFts, ProjectionRole, ProjectionSpec, ProjectionVector, SearchFilter, SourceId,
+    DataPlaneIntegrityCheckV1, DataPlaneIntegrityRequestV1, DenseReadiness, Engine, EngineError,
+    Filter, FilterTerm, IdSpace, InitialState, PreparedWrite, ProjectionFts, ProjectionRole,
+    ProjectionSpec, ProjectionVector, SearchFilter, SourceId,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use tempfile::TempDir;
 
 #[derive(Clone, Debug)]
-struct CustomKindEmbedder;
+struct CustomKindEmbedder {
+    identity: EmbedderIdentity,
+}
+
+impl Default for CustomKindEmbedder {
+    fn default() -> Self {
+        Self { identity: EmbedderIdentity::new("slice38-vk-embedder", "v1", 8) }
+    }
+}
 
 impl Embedder for CustomKindEmbedder {
     fn identity(&self) -> EmbedderIdentity {
-        EmbedderIdentity::new("slice38-vk-embedder", "v1", 8)
+        self.identity.clone()
     }
 
     fn embed(&self, text: &str) -> Result<Vector, EmbedderError> {
-        let mut vec = vec![0.0_f32; 8];
+        let dim = self.identity.dimension as usize;
+        let mut vec = vec![0.0_f32; dim];
         for (i, b) in text.bytes().enumerate() {
-            vec[i % 8] += f32::from(b) / 255.0;
+            vec[i % dim] += f32::from(b) / 255.0;
         }
         if vec.iter().all(|v| *v == 0.0) {
             vec[0] = 1.0;
@@ -55,7 +65,8 @@ fn slice38_explicit_vector_kind_enrolment_indexes_searches_and_reopens() {
 
     {
         let opened =
-            Engine::open_with_embedder_for_test(&path, Arc::new(CustomKindEmbedder)).expect("open");
+            Engine::open_with_embedder_for_test(&path, Arc::new(CustomKindEmbedder::default()))
+                .expect("open");
         let engine = opened.engine;
 
         let delta = engine
@@ -174,7 +185,8 @@ fn slice38_explicit_vector_kind_enrolment_indexes_searches_and_reopens() {
 
     // Reopen and verify persistence, read_projections round-trip, readiness, and searchability.
     let reopened =
-        Engine::open_with_embedder_for_test(&path, Arc::new(CustomKindEmbedder)).expect("reopen");
+        Engine::open_with_embedder_for_test(&path, Arc::new(CustomKindEmbedder::default()))
+            .expect("reopen");
     let specs = reopened.engine.read_projections().expect("read_projections after reopen");
     let summary = specs.iter().find(|s| s.name == "summary").expect("summary after reopen");
     assert_eq!(
@@ -213,7 +225,8 @@ fn slice38_vector_kind_rejects_edge_fact_and_preserves_tc67() {
     let dir = TempDir::new().unwrap();
     let path = db_path(&dir, "vk-reject");
     let opened =
-        Engine::open_with_embedder_for_test(&path, Arc::new(CustomKindEmbedder)).expect("open");
+        Engine::open_with_embedder_for_test(&path, Arc::new(CustomKindEmbedder::default()))
+            .expect("open");
     let engine = opened.engine;
 
     for bad_kind in ["edge_fact", "", "   ", "bad\0kind", "bad\u{1e}kind"] {
@@ -302,4 +315,168 @@ fn slice38_vector_kind_rejects_edge_fact_and_preserves_tc67() {
         .unwrap();
     assert!(!enrolled.contains(&"entity".to_string()));
     assert!(!enrolled.contains(&"invoice".to_string()));
+}
+
+fn assert_data_plane_integrity_clean(engine: &Engine, stage: &str) {
+    for check in [
+        DataPlaneIntegrityCheckV1::DependencyChain,
+        DataPlaneIntegrityCheckV1::ActiveSearchableOrphans,
+        DataPlaneIntegrityCheckV1::ProjectionGeneration,
+        DataPlaneIntegrityCheckV1::MutationReadiness,
+    ] {
+        let report = engine
+            .check_data_plane_integrity(
+                DataPlaneIntegrityRequestV1::new(vec![check], 10_000, 100).unwrap(),
+            )
+            .unwrap_or_else(|e| panic!("integrity check {check:?} failed at {stage}: {e:?}"));
+        assert!(
+            report.findings.is_empty(),
+            "expected 0 integrity findings at {stage} for {check:?}, got: {:#?}",
+            report.findings
+        );
+    }
+}
+
+#[test]
+fn slice38_provider_free_custom_vector_kinds_defer_enrolment_until_embedder_reopen() {
+    let dir = TempDir::new().unwrap();
+    let path = db_path(&dir, "vk-provider-free");
+
+    let stored_identity = {
+        let opened = Engine::open(&path).expect("open provider-free");
+        let stored_identity = opened.report.default_embedder.clone();
+        let engine = opened.engine;
+        engine
+            .configure_projections(
+                &[vector_spec("summary", Some(vec!["custom:deferred".into()]))],
+                &[],
+            )
+            .expect("declare custom vector_kinds without embedder");
+
+        engine
+            .write(&[PreparedWrite::Node {
+                kind: "custom:deferred".into(),
+                body: "deferred custom kind payload".into(),
+                source_id: SourceId::new("src:vk-pf").unwrap(),
+                logical_id: Some("def-1".into()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                properties: None,
+            }])
+            .expect("write custom kind without embedder");
+
+        let enrolled = engine
+            .query_text_col_for_test("SELECT kind FROM _fathomdb_vector_kinds ORDER BY kind ASC")
+            .unwrap();
+        assert!(
+            !enrolled.contains(&"custom:deferred".to_string()),
+            "provider-free store must NOT enrol custom kind in _fathomdb_vector_kinds: {enrolled:?}"
+        );
+
+        let terminals = engine
+            .query_text_col_for_test(
+                "SELECT state FROM _fathomdb_projection_terminal ORDER BY write_cursor ASC",
+            )
+            .unwrap();
+        assert_eq!(
+            terminals,
+            vec!["up_to_date".to_string()],
+            "provider-free write must terminate cleanly as up_to_date (no stranded pending work)"
+        );
+
+        engine.close().expect("close provider-free");
+        stored_identity
+    };
+
+    // Reopen WITH embedder: boot graft must enrol custom:deferred and embed the node cleanly.
+    let reopened = Engine::open_with_embedder_for_test(
+        &path,
+        Arc::new(CustomKindEmbedder { identity: stored_identity }),
+    )
+    .expect("reopen with embedder");
+    reopened.engine.drain(15_000).expect("drain after boot graft");
+
+    let enrolled_after = reopened
+        .engine
+        .query_text_col_for_test("SELECT kind FROM _fathomdb_vector_kinds ORDER BY kind ASC")
+        .unwrap();
+    assert!(
+        enrolled_after.contains(&"custom:deferred".to_string()),
+        "boot graft with embedder must enrol custom:deferred: {enrolled_after:?}"
+    );
+
+    reopened.engine.set_vector_stage_only_for_test(true);
+    let mut sf = SearchFilter::default();
+    sf.source_type = Some("custom:deferred".into());
+    let hits = reopened
+        .engine
+        .search_filtered("deferred custom kind payload", Some(sf))
+        .expect("vector search after boot graft");
+    assert_eq!(hits.results.len(), 1);
+    assert_eq!(hits.results[0].id, IdSpace::logical("def-1"));
+    reopened.engine.set_vector_stage_only_for_test(false);
+
+    assert_data_plane_integrity_clean(&reopened.engine, "after boot graft");
+    reopened.engine.close().expect("close reopened");
+}
+
+#[test]
+fn slice38_custom_vector_kinds_shrink_and_drop_keep_data_plane_integrity_clean() {
+    let dir = TempDir::new().unwrap();
+    let path = db_path(&dir, "vk-integrity-lifecycle");
+    let opened =
+        Engine::open_with_embedder_for_test(&path, Arc::new(CustomKindEmbedder::default()))
+            .expect("open");
+    let engine = opened.engine;
+
+    // (a) Enroll two custom kinds + write + drain -> integrity clean.
+    engine
+        .configure_projections(
+            &[vector_spec("summary", Some(vec!["custom:alpha".into(), "custom:beta".into()]))],
+            &[],
+        )
+        .expect("enroll custom kinds");
+
+    engine
+        .write(&[
+            PreparedWrite::Node {
+                kind: "custom:alpha".into(),
+                body: "alpha dense payload".into(),
+                source_id: SourceId::new("src:vk-int").unwrap(),
+                logical_id: Some("alpha-1".into()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                properties: None,
+            },
+            PreparedWrite::Node {
+                kind: "custom:beta".into(),
+                body: "beta dense payload".into(),
+                source_id: SourceId::new("src:vk-int").unwrap(),
+                logical_id: Some("beta-1".into()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                properties: None,
+            },
+        ])
+        .expect("write custom nodes");
+    engine.drain(15_000).expect("drain");
+    assert_data_plane_integrity_clean(&engine, "(a) enrolled + drained");
+
+    // (b) Shrink custom:alpha out while custom:beta stays -> integrity clean.
+    engine
+        .configure_projections(&[vector_spec("summary", Some(vec!["custom:beta".into()]))], &[])
+        .expect("shrink custom:alpha out");
+    assert_data_plane_integrity_clean(&engine, "(b) shrunk custom:alpha");
+
+    // (c) Drop the vector projection completely -> integrity clean.
+    engine.configure_projections(&[], &["summary".into()]).expect("drop summary projection");
+    assert_data_plane_integrity_clean(&engine, "(c) dropped projection completely");
+
+    engine.close().expect("close");
 }

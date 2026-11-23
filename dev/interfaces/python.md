@@ -17,9 +17,9 @@ translation rules are in [`rust-sdk.md`](rust-sdk.md).
 
 ## Fresh-database open boundary
 
-`Engine.open` bootstraps a missing or zero-length path at schema 37. A
+`Engine.open` bootstraps a missing or zero-length path at schema 38. A
 non-empty database is admitted only when its effective committed
-`PRAGMA user_version` is exactly 37; any other version raises
+`PRAGMA user_version` is exactly 38; any other version raises
 `IncompatibleSchemaVersionError` before product mutation. Python exposes no
 automatic-upgrade or custom-migration route.
 
@@ -101,7 +101,7 @@ denylist name).
   reserved (`_`-prefixed) id, and `ErasureIncompleteError` (with `stage` /
   `detail`) rather than reporting success when the at-rest step did not
   complete. `EraseReport` carries `source_ref`, `nodes_excised`,
-  `edges_excised`, `projections_invalidated`. A source remains erasable after
+  `edges_excised`, `projections_invalidated`, `completed_pending_erasure`. A source remains erasable after
   correction supersedes it; the original and replacement source buckets may
   be erased in either order. Counts remain exact for only the requested
   bucket, with no cross-bucket expansion or report-shape change. The

@@ -70,13 +70,20 @@ Its fresh-bootstrap step adds the column before replacing all 57 visibility
 triggers, without canonical or projection backfill. The triggers retain external-writer invalidation; vector mapping
 DELETE cleanup stays active. Earlier nonempty formats are refused, not migrated.
 
-Format 38 adds nullable `properties_json` columns to `canonical_nodes` and
-`canonical_edges`, typed property index tables (`node_property_index` and
-`edge_property_index` with `val_type` discriminant and SQLite-typed value
-columns for `Str`, `Int`, `Float`, and `Bool`), `projection_registry` columns
-for `entity_class` (`'node'` | `'edge'`) and explicit `vector_kinds_json`, and
-visibility-trigger coverage for the new property index tables. No legacy format
-is migrated.
+Format 38 adds nullable `properties` and inert `scope` columns to
+`canonical_nodes` and `canonical_edges` (and `scope` to `operational_mutations`
+and `operational_state`), the unified typed property index table
+`canonical_property_values(entity_class, write_cursor, attr_name, value_type, text_val, num_val, bool_val)`
+with its four indexes (`canonical_property_values_cursor_idx`,
+`canonical_property_values_text_idx`, `canonical_property_values_num_idx`,
+`canonical_property_values_bool_idx`), `_fathomdb_projection_registry` columns
+`entity_class` (`'node'` | `'edge'`) and `vector_kinds`,
+`_fathomdb_commit_timestamps` with `_fathomdb_commit_timestamps_ms_idx`, the
+five composite node/edge indexes (`canonical_nodes_logical_sup_idx`,
+`canonical_edges_from_active_idx`, `canonical_edges_to_active_idx`,
+`canonical_edges_from_sup_kind_idx`, `canonical_edges_to_sup_kind_idx`), and
+`cpv` visibility coalescing triggers on `canonical_property_values`. No legacy
+format is migrated.
 
 ## Compatibility contract
 
@@ -246,7 +253,7 @@ this release refuses previous formats; no migration or metadata-only opt-in exis
 ## Format 38 typed inline properties and operational collections (0.8.31 Slice 20)
 
 Inline typed properties are persisted canonically as sorted-key JSON objects in
-nullable `properties_json` columns on `canonical_nodes` and `canonical_edges`
+nullable `properties` columns on `canonical_nodes` and `canonical_edges`
 (`NULL` when omitted or empty `{}`). Values are flat primitives only (`Str`,
 signed 64-bit `Int`, finite IEEE-754 `Float` with `-0.0` canonicalized to `0.0`,
 and `Bool`); `null`, nested objects/arrays, non-finite floats, empty keys, and

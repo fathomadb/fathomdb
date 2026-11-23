@@ -253,6 +253,75 @@ export function assertKnownEvidenceKeys(value: object, allowed: readonly string[
   }
 }
 
+const VALID_PROPERTY_PREDICATE_OPS = new Set(["eq", "ne", "lt", "lte", "gt", "gte"]);
+const ORDER_PROPERTY_PREDICATE_OPS = new Set(["lt", "lte", "gt", "gte"]);
+const I64_MIN_BIGINT = -(1n << 63n);
+const I64_MAX_BIGINT = (1n << 63n) - 1n;
+
+function isValidPredicateString(value: unknown, allowEmpty: boolean): value is string {
+  if (typeof value !== "string") return false;
+  if (!allowEmpty && value.length === 0) return false;
+  if (value.includes("\0") || value.includes("\x1e")) return false;
+  for (let i = 0; i < value.length; i += 1) {
+    const code = value.charCodeAt(i);
+    if (code >= 0xd800 && code <= 0xdbff) {
+      if (i + 1 >= value.length) return false;
+      const next = value.charCodeAt(i + 1);
+      if (next < 0xdc00 || next > 0xdfff) return false;
+      i += 1;
+    } else if (code >= 0xdc00 && code <= 0xdfff) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function validateFrozenPropertyPredicates(
+  value: unknown,
+  basePath: string,
+  checkEntryKeys: (entry: Record<string, unknown>, path: string) => void,
+  failInvalid: (path: string) => never,
+): void {
+  if (value === undefined) return;
+  if (!Array.isArray(value) || value.length > 32) {
+    failInvalid(basePath);
+  }
+  value.forEach((item, index) => {
+    const itemPath = `${basePath}/${index}`;
+    if (typeof item !== "object" || item === null || Array.isArray(item)) {
+      failInvalid(itemPath);
+    }
+    const entry = item as Record<string, unknown>;
+    checkEntryKeys(entry, itemPath);
+    if (!isValidPredicateString(entry.key, false)) {
+      failInvalid(`${itemPath}/key`);
+    }
+    if (typeof entry.op !== "string" || !VALID_PROPERTY_PREDICATE_OPS.has(entry.op)) {
+      failInvalid(`${itemPath}/op`);
+    }
+    const predVal = entry.value;
+    if (typeof predVal === "boolean") {
+      if (ORDER_PROPERTY_PREDICATE_OPS.has(entry.op)) {
+        failInvalid(`${itemPath}/op`);
+      }
+    } else if (typeof predVal === "number") {
+      if (!Number.isFinite(predVal)) {
+        failInvalid(`${itemPath}/value`);
+      }
+    } else if (typeof predVal === "bigint") {
+      if (predVal < I64_MIN_BIGINT || predVal > I64_MAX_BIGINT) {
+        failInvalid(`${itemPath}/value`);
+      }
+    } else if (typeof predVal === "string") {
+      if (!isValidPredicateString(predVal, true)) {
+        failInvalid(`${itemPath}/value`);
+      }
+    } else {
+      failInvalid(`${itemPath}/value`);
+    }
+  });
+}
+
 export function validateEvidenceFrozenContext(context: FrozenReadContextV1): void {
   assertKnownEvidenceKeys(
     context,
@@ -271,8 +340,14 @@ export function validateEvidenceFrozenContext(context: FrozenReadContextV1): voi
   );
   assertKnownEvidenceKeys(
     context.context.eligibility,
-    ["sourceType", "kind", "createdAfter", "status", "attributes"],
+    ["sourceType", "kind", "createdAfter", "status", "attributes", "propertyPredicates"],
     "/context/context/eligibility",
+  );
+  validateFrozenPropertyPredicates(
+    context.context.eligibility.propertyPredicates,
+    "/context/context/eligibility/propertyPredicates",
+    (entry, path) => assertKnownEvidenceKeys(entry, ["key", "op", "value"], path),
+    (path) => frozenTraceRequestError("context_invalid", path),
   );
 }
 
@@ -349,7 +424,7 @@ export function validateFrozenTraceContext(value: unknown): FrozenReadContextV1 
   const eligibility = frozenTraceRecord(context.eligibility, "/context/context/eligibility");
   validateFrozenTraceKeys(
     eligibility,
-    ["sourceType", "kind", "createdAfter", "status", "attributes"],
+    ["sourceType", "kind", "createdAfter", "status", "attributes", "propertyPredicates"],
     "/context/context/eligibility",
   );
   for (const field of ["sourceType", "kind", "status"] as const) {
@@ -382,6 +457,12 @@ export function validateFrozenTraceContext(value: unknown): FrozenReadContextV1 
       }
     });
   }
+  validateFrozenPropertyPredicates(
+    eligibility.propertyPredicates,
+    "/context/context/eligibility/propertyPredicates",
+    (entry, path) => validateFrozenTraceKeys(entry, ["key", "op", "value"], path),
+    (path) => frozenTraceRequestError("context_invalid", path),
+  );
   return value as FrozenReadContextV1;
 }
 

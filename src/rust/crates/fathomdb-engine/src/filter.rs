@@ -606,6 +606,70 @@ fn is_vec0_pushable_property_predicate(pred: &PropertyPredicate) -> bool {
         && matches!(pred.value, PropertyValue::String(_) | PropertyValue::Bool(_))
 }
 
+fn append_cpv_property_join(
+    alias: &str,
+    cpv_alias: &str,
+    pred: &PropertyPredicate,
+    base_offset: usize,
+    params: &mut Vec<rusqlite::types::Value>,
+    sql: &mut String,
+) {
+    use rusqlite::types::Value;
+    let mut bind = |value: Value| {
+        params.push(value);
+        base_offset + params.len()
+    };
+    let key_index = bind(Value::Text(pred.key.clone()));
+    let sql_op = property_comparison_sql_op(pred.op);
+    match &pred.value {
+        PropertyValue::String(s) => {
+            let val_index = bind(Value::Text(s.clone()));
+            sql.push_str(&format!(
+                " INNER JOIN canonical_property_values {cpv_alias} \
+                  ON {cpv_alias}.entity_class = 'node' \
+                  AND {cpv_alias}.write_cursor = {alias}.write_cursor \
+                  AND {cpv_alias}.attr_name = ?{key_index} \
+                  AND {cpv_alias}.value_type = 'string' \
+                  AND {cpv_alias}.text_val {sql_op} ?{val_index}"
+            ));
+        }
+        PropertyValue::Int(i) => {
+            let val_index = bind(Value::Integer(*i));
+            sql.push_str(&format!(
+                " INNER JOIN canonical_property_values {cpv_alias} \
+                  ON {cpv_alias}.entity_class = 'node' \
+                  AND {cpv_alias}.write_cursor = {alias}.write_cursor \
+                  AND {cpv_alias}.attr_name = ?{key_index} \
+                  AND {cpv_alias}.value_type IN ('integer', 'float') \
+                  AND {cpv_alias}.num_val {sql_op} ?{val_index}"
+            ));
+        }
+        PropertyValue::Float(f) => {
+            let norm = normalize_finite_f64(*f).unwrap_or(0.0);
+            let val_index = bind(Value::Real(norm));
+            sql.push_str(&format!(
+                " INNER JOIN canonical_property_values {cpv_alias} \
+                  ON {cpv_alias}.entity_class = 'node' \
+                  AND {cpv_alias}.write_cursor = {alias}.write_cursor \
+                  AND {cpv_alias}.attr_name = ?{key_index} \
+                  AND {cpv_alias}.value_type IN ('integer', 'float') \
+                  AND {cpv_alias}.num_val {sql_op} ?{val_index}"
+            ));
+        }
+        PropertyValue::Bool(b) => {
+            let val_index = bind(Value::Integer(i64::from(*b)));
+            sql.push_str(&format!(
+                " INNER JOIN canonical_property_values {cpv_alias} \
+                  ON {cpv_alias}.entity_class = 'node' \
+                  AND {cpv_alias}.write_cursor = {alias}.write_cursor \
+                  AND {cpv_alias}.attr_name = ?{key_index} \
+                  AND {cpv_alias}.value_type = 'boolean' \
+                  AND {cpv_alias}.bool_val {sql_op} ?{val_index}"
+            ));
+        }
+    }
+}
+
 fn append_cpv_property_predicate(
     alias: &str,
     cpv_alias: &str,
@@ -926,6 +990,7 @@ pub(crate) fn build_vector_phase1_plan(
     let filter = filter.expect("needs_preselection guarantees Some(filter)");
     let mut tail_params: Vec<Value> = Vec::new();
     let base_offset = 2usize; // ?1 = bin_vector, ?2 = query_vector
+    let mut candidate_joins = String::new();
     let mut candidate_where = String::from(
         "WHERE (?1 IS NOT NULL OR ?1 IS NULL) \
          AND EXISTS(SELECT 1 FROM _fathomdb_vector_rows vr WHERE vr.write_cursor = cn.write_cursor)",
@@ -934,13 +999,13 @@ pub(crate) fn build_vector_phase1_plan(
     if !relaxed {
         candidate_where.push_str(" AND cn.superseded_at IS NULL AND cn.state = 'active'");
         for (ordinal, pred) in filter.property_predicates.iter().enumerate() {
-            append_cpv_property_predicate(
+            append_cpv_property_join(
                 "cn",
                 &format!("cpv_v{ordinal}"),
                 pred,
                 base_offset,
                 &mut tail_params,
-                &mut candidate_where,
+                &mut candidate_joins,
             );
         }
         for (ordinal, (name, value)) in filter.attributes.iter().enumerate() {
@@ -948,11 +1013,11 @@ pub(crate) fn build_vector_phase1_plan(
             let name_index = base_offset + tail_params.len();
             tail_params.push(Value::Text(value.clone()));
             let value_index = base_offset + tail_params.len();
-            candidate_where.push_str(&format!(
-                " AND EXISTS(SELECT 1 FROM canonical_attributes ca_v{ordinal} \
-                 WHERE ca_v{ordinal}.write_cursor = cn.write_cursor \
-                 AND ca_v{ordinal}.attr_name = ?{name_index} \
-                 AND ca_v{ordinal}.attr_value = ?{value_index})"
+            candidate_joins.push_str(&format!(
+                " INNER JOIN canonical_attributes ca_v{ordinal} \
+                  ON ca_v{ordinal}.write_cursor = cn.write_cursor \
+                  AND ca_v{ordinal}.attr_name = ?{name_index} \
+                  AND ca_v{ordinal}.attr_value = ?{value_index}"
             ));
         }
     } else if let Some(conn) = conn {
@@ -1015,7 +1080,7 @@ pub(crate) fn build_vector_phase1_plan(
     }
     let sql = format!(
         "WITH candidates AS (\
-            SELECT cn.write_cursor AS rowid FROM canonical_nodes cn {candidate_where}\
+            SELECT cn.write_cursor AS rowid FROM canonical_nodes cn{candidate_joins} {candidate_where}\
          ) \
          SELECT c.rowid, vec_distance_l2(v.embedding, vec_f32(?2)) AS l2 \
          FROM candidates c JOIN vector_default v ON v.rowid=c.rowid \

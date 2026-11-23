@@ -266,8 +266,13 @@ fn s20_endpoint_probe_hits_partial_index_no_scan() {
     let detail = plan.join(" | ");
 
     assert!(
-        detail.contains("canonical_nodes_logical_active_idx"),
-        "probe must use the partial index canonical_nodes_logical_active_idx; plan: {detail}"
+        detail.contains("canonical_nodes_logical_active_idx")
+            || detail.contains("canonical_nodes_logical_sup_idx"),
+        "probe must use canonical_nodes_logical_active_idx or canonical_nodes_logical_sup_idx; plan: {detail}"
+    );
+    assert!(
+        detail.contains("USING COVERING INDEX"),
+        "probe must stay a covering index seek; plan: {detail}"
     );
     assert!(
         !detail.contains("SCAN canonical_nodes"),

@@ -726,6 +726,7 @@ export function graphRequestString(value: unknown, reason: string, path: string)
   for (let index = 0; index < value.length; index += 1) {
     const code = value.charCodeAt(index);
     if (code >= 0xd800 && code <= 0xdbff) {
+      if (index + 1 >= value.length) graphRefuse(reason, path);
       const next = value.charCodeAt(index + 1);
       if (next < 0xdc00 || next > 0xdfff) graphRefuse(reason, path);
       index += 1;
@@ -873,6 +874,49 @@ export function validateGraphExpandRequest(value: unknown): asserts value is Gra
       if (!Array.isArray(pair) || pair.length !== 2) graphRefuse("graph_context_invalid", `${currentBase}/eligibility/attributes/${index}`);
       graphRequestString(pair[0], "graph_context_invalid", `${currentBase}/eligibility/attributes/${index}/0`);
       graphRequestString(pair[1], "graph_context_invalid", `${currentBase}/eligibility/attributes/${index}/1`);
+    });
+  }
+  if (eligibility.propertyPredicates !== undefined) {
+    const predsBase = `${currentBase}/eligibility/propertyPredicates`;
+    if (!Array.isArray(eligibility.propertyPredicates) || eligibility.propertyPredicates.length > 32) {
+      graphRefuse("graph_context_invalid", predsBase);
+    }
+    const validOps = new Set(["eq", "ne", "lt", "lte", "gt", "gte"]);
+    const orderOps = new Set(["lt", "lte", "gt", "gte"]);
+    const i64Min = -(1n << 63n);
+    const i64Max = (1n << 63n) - 1n;
+    eligibility.propertyPredicates.forEach((item, index) => {
+      const predBase = `${predsBase}/${index}`;
+      const predObj = requestObject(item, "graph_context_invalid", predBase);
+      close(predObj, ["key", "op", "value"], predBase);
+      graphRequestString(predObj.key, "graph_context_invalid", `${predBase}/key`);
+      if (predObj.key.length === 0 || predObj.key.includes("\x1e")) {
+        graphRefuse("graph_context_invalid", `${predBase}/key`);
+      }
+      if (typeof predObj.op !== "string" || !validOps.has(predObj.op)) {
+        graphRefuse("graph_context_invalid", `${predBase}/op`);
+      }
+      const predVal = predObj.value;
+      if (typeof predVal === "boolean") {
+        if (orderOps.has(predObj.op)) {
+          graphRefuse("graph_context_invalid", `${predBase}/op`);
+        }
+      } else if (typeof predVal === "number") {
+        if (!Number.isFinite(predVal)) {
+          graphRefuse("graph_context_invalid", `${predBase}/value`);
+        }
+      } else if (typeof predVal === "bigint") {
+        if (predVal < i64Min || predVal > i64Max) {
+          graphRefuse("graph_context_invalid", `${predBase}/value`);
+        }
+      } else if (typeof predVal === "string") {
+        graphRequestString(predVal, "graph_context_invalid", `${predBase}/value`);
+        if (predVal.includes("\x1e")) {
+          graphRefuse("graph_context_invalid", `${predBase}/value`);
+        }
+      } else {
+        graphRefuse("graph_context_invalid", `${predBase}/value`);
+      }
     });
   }
   if (!["incoming", "outgoing", "both"].includes(String(root.direction)))

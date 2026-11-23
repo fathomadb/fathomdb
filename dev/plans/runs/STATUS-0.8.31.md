@@ -23,8 +23,11 @@ own settled HITL decisions, requirements, and execution contracts.
 - **Slice 20 (`PROPERTY-SCHEMA`) — LANDED (`975637f3c`):**
   - Landed Layers 1–5 (`022b62b49`, `3da57de2e`, `644333afb`, `947398398`, `36802ba4e`, `9ee29cd3e`) plus `FIX-1` (`1c61aea20`) and `FIX-2` (`975637f3c`): Schema 38 (`STEP_38_SQL`), inline typed properties + O(1) hydration, `canonical_property_values` with 4 composite indexes and indexed `INNER JOIN` vector pre-selection, `vec0` 8-slot node budget, `_fathomdb_commit_timestamps`, explicit opt-in `R1` vector kinds, `read.operational_collections`/`collection` (`55/55` governed surface pinned at `36802ba4e`), W12 erasure fixes 3a/3b/3c, `ExportClass` audit, Rust/Python/TypeScript SDK parity, and updated interface docs.
   - Independent adversarial code review returned **`APPROVE`** at HEAD `975637f3c`; recorded in `features/slice-20/status.md`.
-- **Slice 30 (`STRICT-GRAPH`) — ACTIVE:** Applying Plan Review `FIX-1` to `features/slice-30/plan.md` for `APPROVE`, then executing RED -> GREEN TDD implementation.
+- **Slice 30 (`STRICT-GRAPH`) — LANDED (`8e44a47ad`):**
+  - Landed Layers 1–4 (`0a43d66b7`, `3f8dbc470`, `87cd6a633`, `eda733775`) plus `FIX-1` (`8e44a47ad`) after moving the worktree to `/mnt/data/worktrees/release-0.8.31`: strict write endpoint integrity + 32 convenience-edge test & 3 Inspector forensic fixture updates, `GraphExpandRequestV1` `#[non_exhaustive]` + `::new(...)` + closed typed predicates + current-time SQL pushdown (`UNION ALL`, `t_valid`, `proptest` equivalence), `search.rs` `SEED_FTS_N` mixed-edge fix + Phase 2 `UNION ALL` + opt-in `graph_seed` (`GraphFts`/`FusedTopK`/`Both`) + single-pass `CeScoreCache` + `PerHitExplain`/`EvidenceGraphOriginV1` provenance + `#[non_exhaustive]` `EvidenceSearchRequestV1::new(...)`, Rust/Python/TypeScript parity (1,789 Python / 653 TS / all Rust crates), and updated interface/public docs.
+  - Independent adversarial code review returned **`APPROVE`** at HEAD `8e44a47ad`; recorded in `features/slice-30/status.md`.
+- **Slice 40 (`HISTORY-GRAPH`) — ACTIVE:** Applying Plan Review `FIX-1` to `features/slice-40/plan.md` for `APPROVE`, then executing RED -> GREEN TDD implementation.
 
 ## Next action
 
-Complete Slice 30 (`STRICT-GRAPH`) Plan Review `FIX-1` (`APPROVE`), then execute Slices `30 → 40 → 50 → 60 → 70` sequentially (stopping before Slice 80 Publication for separate HITL approval).
+Complete Slice 40 (`HISTORY-GRAPH`) Plan Review `FIX-1` (`APPROVE`), then execute Slices `40 → 50 → 60 → 70` sequentially (stopping before Slice 80 Publication for separate HITL approval).

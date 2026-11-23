@@ -63,12 +63,15 @@
       "depends_on": [
         20
       ],
-      "status": "ACTIVE",
+      "status": "LANDED",
+      "sha": "8e44a47ad",
       "design_refs": [
         "dev/adr/ADR-0.8.31-strict-endpoint-integrity.md",
         "dev/adr/ADR-0.8.31-historical-graph-and-fused-seeding.md",
-        "dev/plans/0.8.31/features/slice-30/plan.md"
-      ]
+        "dev/plans/0.8.31/features/slice-30/plan.md",
+        "dev/plans/0.8.31/features/slice-30/status.md"
+      ],
+      "evidence": "Layers 1-4 + FIX-1 landed through 8e44a47ad; strict endpoint integrity, GraphExpandRequestV1 #[non_exhaustive] + predicates + SQL pushdown + proptest equivalence, search graph-arm SEED_FTS_N fix + opt-in graph_seed + single-pass CE reuse + provenance, cross-SDK parity (1,789 Py / 653 TS / all Rust crates), and docs verified green; independent adversarial code review APPROVE."
     },
     {
       "slice": 40,
@@ -78,9 +81,10 @@
         20,
         30
       ],
-      "status": "PLANNED",
+      "status": "ACTIVE",
       "design_refs": [
-        "dev/adr/ADR-0.8.31-historical-graph-and-fused-seeding.md"
+        "dev/adr/ADR-0.8.31-historical-graph-and-fused-seeding.md",
+        "dev/plans/0.8.31/features/slice-40/plan.md"
       ]
     },
     {
@@ -141,17 +145,17 @@
   "landed": [
     0,
     10,
-    20
+    20,
+    30
   ],
   "remaining_ladder": [
-    30,
     40,
     50,
     60,
     70,
     80
   ],
-  "next_slice": 30,
+  "next_slice": 40,
   "publish_gate": {
     "status": "HELD",
     "publication_authorized": false,

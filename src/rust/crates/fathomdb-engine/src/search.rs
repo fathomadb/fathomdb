@@ -1973,6 +1973,7 @@ fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
                 kind: String,
                 body: String,
                 write_cursor: i64,
+                selected_source: Option<String>,
                 properties: Option<crate::PropertyMap>,
             }
             let row: Option<BfsActiveNodeRow> = active_stmt
@@ -1981,43 +1982,55 @@ fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
                         kind: r.get(0)?,
                         body: r.get(1)?,
                         write_cursor: r.get(2)?,
+                        selected_source: r.get(3)?,
                         properties: crate::properties::decode_properties_row_col(r, 4)?,
                     })
                 })
                 .optional()?;
-            if let Some(BfsActiveNodeRow { kind, body, write_cursor, properties }) = row {
+            if let Some(BfsActiveNodeRow {
+                kind,
+                body,
+                write_cursor,
+                selected_source,
+                properties,
+            }) = row
+            {
+                let source_id = if seed_source == GraphArmSeedSource::EntityFts {
+                    selected_source
+                } else {
+                    source_id
+                };
                 stats.seeds_resolved += 1;
                 if visited.insert(lid.clone()) {
                     let id = derive_stable_id(Some(&lid), &body);
                     frontier.push_back((lid, 0, seed_source));
-                    if let Some(origin) = graph_origin {
-                        if !seed_records.contains(&RecordKey::CanonicalNode(write_cursor as u64))
-                            && candidates.len() < cap
-                        {
-                            let score = if kind == "unknown" { SYNTHESIZED_PENALTY } else { 1.0 };
-                            if let Some(c) = seed_confidence {
-                                edge_confidence_by_cursor.insert(write_cursor as u64, c);
-                            }
-                            if explain {
-                                graph_origin_by_cursor
-                                    .insert(write_cursor as u64, (seed_source, 0));
-                            }
-                            capture.record_graph_origin(write_cursor as u64, origin);
-                            candidates.push(FusionHit {
-                                ownership: FusionOwnership::CanonicalNode,
-                                hit: SearchHit {
-                                    id,
-                                    write_cursor: write_cursor as u64,
-                                    kind,
-                                    body,
-                                    score,
-                                    branch: SoftFallbackBranch::GraphArm,
-                                    source_id,
-                                    ce_score: None,
-                                    properties,
-                                },
-                            });
+                    if !seed_records.contains(&RecordKey::CanonicalNode(write_cursor as u64))
+                        && candidates.len() < cap
+                    {
+                        let score = if kind == "unknown" { SYNTHESIZED_PENALTY } else { 1.0 };
+                        if let Some(c) = seed_confidence {
+                            edge_confidence_by_cursor.insert(write_cursor as u64, c);
                         }
+                        if explain {
+                            graph_origin_by_cursor.insert(write_cursor as u64, (seed_source, 0));
+                        }
+                        if let Some(origin) = graph_origin {
+                            capture.record_graph_origin(write_cursor as u64, origin);
+                        }
+                        candidates.push(FusionHit {
+                            ownership: FusionOwnership::CanonicalNode,
+                            hit: SearchHit {
+                                id,
+                                write_cursor: write_cursor as u64,
+                                kind,
+                                body,
+                                score,
+                                branch: SoftFallbackBranch::GraphArm,
+                                source_id,
+                                ce_score: None,
+                                properties,
+                            },
+                        });
                     }
                 }
             }

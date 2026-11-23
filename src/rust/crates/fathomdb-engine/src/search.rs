@@ -739,6 +739,10 @@ pub(crate) enum CapturedGraphOrigin {
 pub(crate) trait SearchOriginCapture: Sized {
     type Output;
 
+    fn requires_edge_origin(&self) -> bool {
+        false
+    }
+
     fn record_graph_origin(&mut self, _node_cursor: u64, _origin: CapturedGraphOrigin) {}
 
     #[allow(clippy::too_many_arguments)]
@@ -1440,6 +1444,10 @@ impl SearchOriginCapture for NoEvidenceCapture {
 impl SearchOriginCapture for EvidenceCapture {
     type Output = EvidenceSearchResultV1;
 
+    fn requires_edge_origin(&self) -> bool {
+        true
+    }
+
     fn record_graph_origin(&mut self, node_cursor: u64, origin: CapturedGraphOrigin) {
         self.graph_origins.entry(node_cursor).or_insert(origin);
     }
@@ -2004,7 +2012,8 @@ fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
                 if visited.insert(lid.clone()) {
                     let id = derive_stable_id(Some(&lid), &body);
                     frontier.push_back((lid, 0, seed_source));
-                    if !seed_records.contains(&RecordKey::CanonicalNode(write_cursor as u64))
+                    if (graph_origin.is_some() || !capture.requires_edge_origin())
+                        && !seed_records.contains(&RecordKey::CanonicalNode(write_cursor as u64))
                         && candidates.len() < cap
                     {
                         let score = if kind == "unknown" { SYNTHESIZED_PENALTY } else { 1.0 };

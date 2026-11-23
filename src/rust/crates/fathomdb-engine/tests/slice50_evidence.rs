@@ -2848,3 +2848,171 @@ fn historical_evidence_issuance_refuses_source_missing_access_attribute() {
     );
     opened.engine.close().unwrap();
 }
+
+#[test]
+fn graph_arm_entity_fts_depth_zero_never_breaks_evidence_search() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("entity-fts-evidence{SQLITE_SUFFIX}"));
+    let opened = Engine::open(&path).unwrap();
+
+    // Case 1: Default ReadView — 15 provenanced non-entity docs outrank 1 entity node
+    // in the text arm (`limit: 10`), so the entity node is absent from `seed_records`
+    // while `EntityFts` selects it as a depth-0 seed (and still traverses to `neighbor`).
+    let mut writes = Vec::new();
+    for i in 0..15 {
+        writes.push(PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+            kind: "document".into(),
+            body: format!("quantum quantum quantum doc {i}"),
+            source_id: SourceId::new(format!("doc-src-{i}")).unwrap(),
+            logical_id: None,
+            state: InitialState::Active,
+            reason: None,
+            valid_from: None,
+            valid_until: None,
+            provenance: WriteProvenanceV1::canonical(
+                ArtifactRevisionId::new(format!("doc-rev-{i}")).unwrap(),
+                SourceVersionId::new(format!("doc-ver-{i}")).unwrap(),
+            ),
+            properties: None,
+        }));
+    }
+    writes.push(canonical_named(
+        "ent-1",
+        "ent-1-r1",
+        "ent-1-v1",
+        "ent-1-src",
+        "quantum filler words so bm25 ranks below short docs alpha beta gamma delta",
+    ));
+    writes.push(canonical_named(
+        "ent-neighbor",
+        "ent-neighbor-r1",
+        "ent-neighbor-v1",
+        "ent-neighbor-src",
+        "unrelated neighbor body",
+    ));
+    let edge_source_body = "edge source text";
+    writes.push(canonical_named(
+        "edge-source-node",
+        "edge-source-r1",
+        "edge-source-v1",
+        "edge-src",
+        edge_source_body,
+    ));
+    writes.push(PreparedWrite::ProvenancedEdge(ProvenancedEdgeV1 {
+        from: "ent-1".into(),
+        to: "ent-neighbor".into(),
+        kind: "links".into(),
+        body: None,
+        source_id: SourceId::new("edge-src").unwrap(),
+        logical_id: Some("ent-edge-1".into()),
+        t_valid: Some(10),
+        t_invalid: None,
+        confidence: Some(0.9),
+        extractor_model_id: None,
+        temporal_fallback: Some(false),
+        provenance: WriteProvenanceV1::derived(
+            ArtifactRevisionId::new("ent-edge-r1").unwrap(),
+            SourceVersionId::new("edge-source-v1").unwrap(),
+            SourceRevisionId::new("edge-source-r1").unwrap(),
+            SourceLocator::utf8_bytes(0, edge_source_body.len() as u64),
+            CanonicalHash::sha256(digest(edge_source_body)).unwrap(),
+        ),
+        properties: None,
+    }));
+    opened.engine.write(&writes).unwrap();
+
+    let default_ctx = ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap();
+    let frozen_default = freeze_stable(&opened.engine, &default_ctx);
+    let mut req = request("quantum", frozen_default.clone());
+    req.use_graph_arm = true;
+    let res = opened
+        .engine
+        .search_with_evidence(&req)
+        .expect("EntityFts depth-0 seed must not fail evidence search with EvidenceIncomplete");
+    assert!(!res.search_result.results.is_empty());
+    assert!(
+        res.search_result.results.iter().any(
+            |h| h.body == "unrelated neighbor body" && h.branch == SoftFallbackBranch::GraphArm
+        ),
+        "EntityFts seed must still traverse to depth-1 neighbor: {:?}",
+        res.search_result.results
+    );
+    for (idx, item) in res.evidence.iter().enumerate() {
+        let resolved = opened
+            .engine
+            .resolve_evidence(&EvidenceResolveRequestV1 {
+                schema_version: 1,
+                evidence_ref: item.evidence_ref.clone(),
+                context: frozen_default.clone(),
+            })
+            .unwrap_or_else(|e| panic!("evidence[{idx}] must resolve: {e:?}"));
+        if res.search_result.results[idx].body == "unrelated neighbor body" {
+            assert!(matches!(
+                resolved.projection_origin.graph_origin,
+                Some(EvidenceGraphOriginV1::Traversal { hop_count: 1, .. })
+            ));
+        }
+    }
+
+    // Case 2: include_superseded=true — old derived entity revision matches FTS (`seed_records`),
+    // while `EntityFts` resolves the newest revision (`r2`) which is absent from `seed_records`.
+    let hist_source_body = "active canonical source for historical entity";
+    opened
+        .engine
+        .write(&[
+            canonical_named(
+                "hist-src-node",
+                "hist-src-r1",
+                "hist-src-v1",
+                "hist-src",
+                hist_source_body,
+            ),
+            derived_named(
+                "hist-ent",
+                "hist-ent-r1",
+                "hist-src-r1",
+                "hist-src-v1",
+                "hist-src",
+                hist_source_body,
+                "oldhistseed",
+            ),
+        ])
+        .unwrap();
+    opened
+        .engine
+        .write(&[derived_named(
+            "hist-ent",
+            "hist-ent-r2",
+            "hist-src-r1",
+            "hist-src-v1",
+            "hist-src",
+            hist_source_body,
+            "newhistbody",
+        )])
+        .unwrap();
+    let hist_ctx = ReadContextV1::new(
+        ReadView { include_superseded: true, ..ReadView::default() },
+        SearchFilter::default(),
+    )
+    .unwrap();
+    let frozen_hist = freeze_stable(&opened.engine, &hist_ctx);
+    let mut hist_req = request("oldhistseed", frozen_hist.clone());
+    hist_req.use_graph_arm = true;
+    let hist_res = opened
+        .engine
+        .search_with_evidence(&hist_req)
+        .expect("historical EntityFts depth-0 revision must not fail evidence search");
+    assert!(hist_res.search_result.results.iter().any(|h| h.body == "oldhistseed"));
+    for (idx, item) in hist_res.evidence.iter().enumerate() {
+        opened
+            .engine
+            .resolve_evidence(&EvidenceResolveRequestV1 {
+                schema_version: 1,
+                evidence_ref: item.evidence_ref.clone(),
+                context: frozen_hist.clone(),
+            })
+            .unwrap_or_else(|e| panic!("historical evidence[{idx}] must resolve: {e:?}"));
+    }
+
+    opened.engine.close().unwrap();
+}

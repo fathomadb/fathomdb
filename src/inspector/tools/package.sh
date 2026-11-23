@@ -10,6 +10,24 @@ if [[ "$platform" != "Linux x86_64" ]]; then
   echo "unsupported_platform: package target is Linux x86_64" >&2
   exit 2
 fi
+cargo_toml="$root/src/inspector/Cargo.toml"
+if [[ ! -f "$cargo_toml" ]]; then
+  echo "missing Inspector Cargo.toml: $cargo_toml" >&2
+  exit 2
+fi
+version="$(awk '
+  /^\[/ { in_pkg = ($0 == "[package]") }
+  in_pkg && /^version[[:space:]]*=/ {
+    gsub(/^[^"]*"/, "")
+    gsub(/".*$/, "")
+    print
+    exit
+  }
+' "$cargo_toml")"
+if [[ -z "$version" ]]; then
+  echo "failed to read [package].version from $cargo_toml" >&2
+  exit 2
+fi
 output="$1"
 parent="$(realpath -e -- "$(dirname -- "$output")")"
 leaf="$(basename -- "$output")"
@@ -34,18 +52,18 @@ if [[ "$build_target" != /* ]]; then
 fi
 cd -- "$root"
 cargo build --quiet --target-dir "$build_target" --release --target x86_64-unknown-linux-gnu --locked --offline --no-default-features --features cached-cpu -p fathomdb-inspector
-name="fathomdb-inspector-0.2.1-linux-x86_64"
+name="fathomdb-inspector-${version}-linux-x86_64"
 stage="$output/$name"
 mkdir -m 755 -- "$stage"
 install -m 755 -- "$build_target/x86_64-unknown-linux-gnu/release/fathomdb-inspector" "$stage/fathomdb-inspector"
 install -m 644 -- LICENSE "$stage/LICENSE"
 install -m 644 -- src/inspector/package/README.md "$stage/README.md"
 env -i "$stage/fathomdb-inspector" --build-description > "$stage/build-description.json"
-if ! rg -q -F '"cached_default_cpu":true' "$stage/build-description.json"; then
+if ! grep -Fq '"cached_default_cpu":true' "$stage/build-description.json"; then
   echo "shipping artifact must compile cached CPU support" >&2
   exit 1
 fi
-if ! rg -q -F '"fixture_control":false' "$stage/build-description.json"; then
+if ! grep -Fq '"fixture_control":false' "$stage/build-description.json"; then
   echo "default artifact must exclude fixture control" >&2
   exit 1
 fi

@@ -1,7 +1,9 @@
 import {installedWorkspace} from "./installed-harness.mjs";
+import { boundedExecFileSync, closeBrowserBounded, stopChildBounded } from "./helpers.mjs";
+import { DatabaseSync } from "node:sqlite";
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {spawn,execFileSync} from 'node:child_process';
+import {spawn} from 'node:child_process';
 import {mkdtemp,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {resolve} from 'node:path';
@@ -13,14 +15,14 @@ async function workspace(action,fixture='lexical',flags=[]){
  if(process.env.INSPECTOR_QUALIFY_BINARY)return installedWorkspace(action,fixture,flags,false);
  const dir=await mkdtemp(`${tmpdir()}/inspector60-browser-`);let child,browser;
  try{
-  const db=fixture==='person'?execFileSync(`${root}/.venv/bin/python`,[`${root}/src/inspector/tools/vector-fixture.py`,dir,'person'],{encoding:'utf8'}).trim():execFileSync(`${root}/target/debug/examples/fixture`,[dir,fixture],{encoding:'utf8'}).trim();
+  const db=fixture==='person'?boundedExecFileSync(`${root}/.venv/bin/python`,[`${root}/src/inspector/tools/vector-fixture.py`,dir,'person'],{encoding:'utf8'},120000).trim():boundedExecFileSync(`${root}/target/debug/examples/fixture`,[dir,fixture],{encoding:'utf8'},120000).trim();
   child=spawn(`${root}/target/debug/examples/driver`,[db,`${root}/target/debug/fathomdb-inspector`,...flags],{stdio:['pipe','pipe','pipe']});
   const iter=createInterface({input:child.stdout})[Symbol.asyncIterator]();const info=JSON.parse((await iter.next()).value);
   browser=await chromium.launch({executablePath:process.env.INSPECTOR_CHROMIUM??'/home/coreyt/.cache/ms-playwright/chromium-1248/chrome-linux64/chrome',headless:true,args:['--no-sandbox','--disable-background-networking']});
   const page=await browser.newPage();page.setDefaultTimeout(fixture==='person'?30000:5000);
   await page.goto(pathToFileURL(info.bootstrap).href);await page.waitForURL(`http://${info.address}/`);await page.getByRole('button',{name:'Attach database',exact:true}).click();await page.getByRole('heading',{name:'Database inventory',exact:true}).waitFor();
-  await action(page,child,iter);
- }finally{if(browser)await browser.close();if(child&&child.exitCode===null){child.stdin.end('close\n');await new Promise(r=>child.on('exit',r));}await rm(dir,{recursive:true,force:true});}
+  await action(page,child,iter,{db});
+ }finally{await closeBrowserBounded(browser,5000);await stopChildBounded(child);await rm(dir,{recursive:true,force:true});}
 }
 async function orchid(page){
  await page.getByRole('button',{name:'Text retrieval',exact:true}).click();await page.getByLabel('Lexical route',{exact:true}).selectOption('property');await page.getByLabel('Property name',{exact:true}).fill('biography');await page.getByLabel('Query text',{exact:true}).fill('orchid');await page.getByRole('button',{name:'Run lexical query',exact:true}).click();await page.waitForFunction(()=>document.querySelectorAll('.lexical-hit').length===3);
@@ -128,8 +130,9 @@ test('pins have no FIFO entitlement or additional ten-observation budget',{timeo
 for(let bits=0;bits<8;bits++)test(`D01 comparison membership and metadata obey flags ${bits}`,{timeout:30000},async()=>workspace(async page=>{
  await click(page,'Canonical nodes');await page.getByRole('heading',{name:'node records',exact:true}).waitFor();
  assert.equal(await page.getByRole('button',{name:'Inspect alpha',exact:true}).count(),bits&1?1:2);assert.equal(await page.getByRole('button',{name:'Inspect pending',exact:true}).count(),bits&1?0:1);
+ if(!(bits&2))assert.doesNotMatch(await page.locator('#app').textContent(),/ERASED_SECRET_PROP_VALUE|ERASED_SECRET_TITLE/);
  await click(page,'Pin A');await page.getByText('A pinned.',{exact:true}).waitFor();await click(page,'Operational current values');await page.getByRole('heading',{name:'current records',exact:true}).waitFor();await click(page,'Pin B');await page.getByText('B pinned.',{exact:true}).waitFor();await click(page,'Compare observations');await page.getByRole('heading',{name:'Compare observations',exact:true}).waitFor();
- const alpha=page.locator('.comparison-row').filter({has:page.getByRole('heading',{name:'alpha',exact:true})});assert.equal(await alpha.count(),bits&1?1:2);assert.equal(await page.locator('.comparison-payload').count(),0,'browse/telemetry metadata observations never manufacture cached payloads');assert.doesNotMatch(await page.locator('.comparison-workspace').textContent(),/pending retained body|derived body|source body/);assert.match(await page.locator('.comparison-side-A').textContent(),new RegExp(`"no_show_inactive": ${!!(bits&1)}`));
+ const alpha=page.locator('.comparison-row').filter({has:page.getByRole('heading',{name:'alpha',exact:true})});assert.equal(await alpha.count(),bits&1?1:2);assert.equal(await page.locator('.comparison-payload').count(),0,'browse/telemetry metadata observations never manufacture cached payloads');assert.doesNotMatch(await page.locator('.comparison-workspace').textContent(),/pending retained body|derived body|source body|ERASED_SECRET_PROP_VALUE|ERASED_SECRET_TITLE/);assert.match(await page.locator('.comparison-side-A').textContent(),new RegExp(`"no_show_inactive": ${!!(bits&1)}`));
 },'comparison-policy',[...(bits&1?['--no-show-inactive']:[]),...(bits&2?['--show-erased']:[]),...(bits&4?['--show-payloads']:[])]));
 
 
@@ -163,3 +166,24 @@ test('each side keeps the actual native admission/population and index metadata'
  const response=page.waitForResponse(r=>r.url().endsWith('/api')&&r.request().postDataJSON().request.op==='lexical');await orchid(page);const observed=await (await response).json();assert.ok(observed.admission,'native query has its own measured admission evidence');
  await click(page,'Pin A');await page.getByText('A pinned.',{exact:true}).waitFor();await click(page,'Compare observations');await page.getByRole('heading',{name:'Compare observations',exact:true}).waitFor();const side=JSON.parse(await page.locator('.comparison-side-A pre').textContent());assert.deepEqual(side.admission,observed.admission,'comparison must preserve the actual source population/admission facts');assert.deepEqual(side.metadata,observed.metadata,'effective index metadata keeps its original observation');
 }));
+
+test('historical as_of graph pins keep distinct snapshot metadata across comparison and openPinned',{timeout:45000},async()=>workspace(async(page,_child,_iter,meta)=>{
+ const oracle=new DatabaseSync(meta.db,{readOnly:true});
+ let c1;
+ try{
+  const row=oracle.prepare("SELECT write_cursor AS c1 FROM _fathomdb_commit_timestamps WHERE write_cursor >= (SELECT write_cursor FROM canonical_nodes WHERE logical_id='hist-root' ORDER BY write_cursor ASC LIMIT 1) ORDER BY write_cursor ASC LIMIT 1").get();
+  c1=String(row.c1);
+ }finally{oracle.close();}
+ await click(page,'Canonical nodes');await page.getByRole('button',{name:'Inspect hist-root',exact:true}).last().click();await click(page,'Stored graph');await page.getByRole('heading',{name:'Stored directed graph',exact:true}).waitFor();
+ await click(page,'Pin B');await page.getByText('B pinned.',{exact:true}).waitFor();
+ await page.getByLabel('Snapshot',{exact:true}).selectOption('write_cursor');await page.getByLabel('Snapshot value',{exact:true}).fill(c1);await click(page,'Apply graph filters');
+ await page.waitForFunction(cursor=>{const pre=document.querySelector('pre.scope');return pre&&JSON.parse(pre.textContent).scope?.as_of?.resolved_as_of_write_cursor===cursor;},c1);
+ await click(page,'Pin A');await page.getByText('A pinned.',{exact:true}).waitFor();
+ await click(page,'Compare observations');await page.getByRole('heading',{name:'Compare observations',exact:true}).waitFor();
+ assert.match(await page.locator('.comparison-side-A').textContent(),new RegExp(`write_cursor ${c1}`));
+ assert.match(await page.locator('.comparison-side-B').textContent(),/Snapshot \(as_of\): current/);
+ assert.match(await page.locator('.comparison-workspace').textContent(),/e-late/);
+ await click(page,'Open A original observation');await page.getByRole('heading',{name:'Stored directed graph',exact:true}).waitFor();
+ assert.equal(await page.getByLabel('Snapshot',{exact:true}).inputValue(),'write_cursor');
+ assert.equal(await page.getByLabel('Snapshot value',{exact:true}).inputValue(),c1);
+},'graph-history'));

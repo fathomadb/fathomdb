@@ -5,7 +5,7 @@ import json
 from fathomdb import Engine, ProjectionSpec, ProjectionRole
 
 
-def add_people(engine: Engine) -> None:
+def add_people(engine: Engine) -> list[str]:
     """Write/drain real person revisions and links using the already confined Default session."""
     engine.configure_projections(
         [ProjectionSpec(name="biography", roles=frozenset({ProjectionRole.SEARCHABLE}),
@@ -37,6 +37,8 @@ def add_people(engine: Engine) -> None:
     engine.write([person("person-a", "person-a-r2", biography),
                   person("person-b", "person-b-r1", biography),
                   person("person-c", "person-c-r1", "Alex Rivera is an astronomer studying icy distant planets"),
+                  {"kind": "document", "logical_id": "unknown-person", "source_id": "fixture:people",
+                   "body": "temporary forensic unresolved endpoint"},
                   {"edge": {"kind": "knows", "logical_id": "person-knows", "from": "person-a", "to": "person-b",
                             "source_id": "fixture:people", "body": "Alex and Alex met at the orchid laboratory; full directed relationship é🦀",
                             "provenance": provenance("person-knows-r1")}},
@@ -47,3 +49,4 @@ def add_people(engine: Engine) -> None:
         engine.register_source_dependency({"schema_version": 1, "dependency_id": "people-" + revision,
                                            "source_revision_id": "people-source-r1", "derived_revision_id": revision})
     engine.drain(timeout_s=25)
+    return ["unknown-person"]

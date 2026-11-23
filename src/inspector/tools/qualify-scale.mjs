@@ -7,7 +7,10 @@ import { resolve, join, dirname } from "node:path";
 import { createInterface } from "node:readline";
 import { pathToFileURL } from "node:url";
 import { setTimeout as delay } from "node:timers/promises";
-import { clipboardEquals } from "../tests/browser/helpers.mjs";
+import {
+  clipboardEquals,
+  killDescendantTree,
+} from "../tests/browser/helpers.mjs";
 assert.equal(
   process.env.AGENT_LONG,
   "1",
@@ -135,7 +138,7 @@ try {
         'import json,sqlite3,sys\nc=sqlite3.connect("file:"+sys.argv[1]+"?mode=ro",uri=True)\nprint(json.dumps({"nodes":c.execute("select count(*) from canonical_nodes").fetchone()[0],"edges":c.execute("select count(*) from canonical_edges").fetchone()[0],"logs":c.execute("select count(*) from operational_mutations").fetchone()[0],"large_bytes":c.execute("select length(CAST(body AS BLOB)) from canonical_nodes where logical_id=\'scale-large\'").fetchone()[0]}))',
         baseline,
       ],
-      { encoding: "utf8" },
+      { encoding: "utf8", timeout: 30000 },
     ),
   );
   assert.ok(manifest.nodes >= 100000);
@@ -147,6 +150,7 @@ try {
     execFileSync(join(root, "target/debug/fathomdb-inspector"), ["--build-description"], {
       env: {},
       encoding: "utf8",
+      timeout: 30000,
     }),
   );
   assert.equal(description.fixture_control, false);
@@ -157,7 +161,10 @@ try {
       .digest("hex");
   report.runtime = {
     os: (await readFile("/etc/os-release", "utf8")).match(/^PRETTY_NAME="(.*)"$/m)?.[1],
-    glibc: execFileSync("/usr/bin/getconf", ["GNU_LIBC_VERSION"], { encoding: "utf8" }).trim(),
+    glibc: execFileSync("/usr/bin/getconf", ["GNU_LIBC_VERSION"], {
+      encoding: "utf8",
+      timeout: 10000,
+    }).trim(),
     architecture: arch(),
     cpu: cpus()[0].model,
     node_version: process.version,
@@ -446,7 +453,10 @@ try {
       await before(exited, performance.now() + 30000, "driver graceful cleanup deadline");
     } catch (error) {
       cleanupError ??= error;
-      child.kill("SIGKILL");
+      await killDescendantTree(child.pid, "SIGKILL");
+      try {
+        child.kill("SIGKILL");
+      } catch {}
       try {
         await before(exited, performance.now() + 5000, "driver kill/reap cleanup deadline");
       } catch (failure) {

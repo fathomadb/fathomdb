@@ -11,6 +11,21 @@ import unittest
 ROOT = Path(__file__).resolve().parents[4]
 
 
+def _inspector_version():
+    cargo = (ROOT / 'src/inspector/Cargo.toml').read_text(encoding='utf-8')
+    in_pkg = False
+    for line in cargo.splitlines():
+        s = line.strip()
+        if s.startswith('['):
+            in_pkg = s == '[package]'
+        elif in_pkg and s.startswith('version'):
+            return s.split('=', 1)[1].strip().strip('"')
+    raise AssertionError('missing [package].version in src/inspector/Cargo.toml')
+
+
+VERSION = _inspector_version()
+
+
 class PackageTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(prefix='inspector-package-command-')
@@ -20,6 +35,10 @@ class PackageTests(unittest.TestCase):
         tools.mkdir(parents=True)
         self.script = tools / 'package.sh'
         shutil.copyfile(ROOT / 'src/inspector/tools/package.sh', self.script)
+        (self.root / 'src/inspector/Cargo.toml').write_text(
+            f'[package]\nname = "fathomdb-inspector"\nversion = "{VERSION}"\n',
+            encoding='utf-8',
+        )
         package = self.root / 'src/inspector/package'
         package.mkdir()
         (package / 'README.md').write_text('Install locally')
@@ -38,22 +57,56 @@ binary.write_text("#!/bin/sh\\nprintf '%s' '{\\\"cached_default_cpu\\\":true,\\\
 binary.chmod(0o755)
 ''')
         cargo.chmod(0o755)
+        # Poison rg so package.sh must use POSIX grep -Fq rather than ripgrep.
+        rg = bins / 'rg'
+        rg.write_text('#!/bin/sh\necho "unexpected rg call" >&2\nexit 98\n')
+        rg.chmod(0o755)
         self.env = dict(os.environ, PATH=str(bins) + ':' + os.environ['PATH'])
 
     def test_archive_has_outer_checksum_and_respects_isolated_target(self):
         target = self.root / 'isolated-target'
         output = self.root / 'candidate'
-        result = subprocess.run(['bash', str(self.script), str(output)], env=dict(self.env, CARGO_TARGET_DIR=str(target)), capture_output=True, text=True)
+        result = subprocess.run(
+            ['bash', str(self.script), str(output)],
+            env=dict(self.env, CARGO_TARGET_DIR=str(target)),
+            capture_output=True,
+            text=True,
+        )
         self.assertEqual(result.returncode, 0, result.stderr)
-        archive = output / 'fathomdb-inspector-0.2.1-linux-x86_64.tar.gz'
-        self.assertEqual((output / 'SHA256SUMS').read_text(), hashlib.sha256(archive.read_bytes()).hexdigest() + '  ' + archive.name + '\n')
+        archive = output / f'fathomdb-inspector-{VERSION}-linux-x86_64.tar.gz'
+        self.assertTrue(archive.is_file(), f'missing expected archive {archive}')
+        self.assertEqual(
+            (output / 'SHA256SUMS').read_text(),
+            hashlib.sha256(archive.read_bytes()).hexdigest() + '  ' + archive.name + '\n',
+        )
         self.assertTrue((target / 'x86_64-unknown-linux-gnu/release/fathomdb-inspector').is_file())
+
+    def test_dynamic_version_derivation_from_cargo_toml(self):
+        (self.root / 'src/inspector/Cargo.toml').write_text(
+            '[package]\nname = "fathomdb-inspector"\nversion = "0.9.9-test"\n',
+            encoding='utf-8',
+        )
+        target = self.root / 'isolated-target'
+        output = self.root / 'candidate'
+        result = subprocess.run(
+            ['bash', str(self.script), str(output)],
+            env=dict(self.env, CARGO_TARGET_DIR=str(target)),
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue((output / 'fathomdb-inspector-0.9.9-test-linux-x86_64.tar.gz').is_file())
 
     def test_failed_build_propagates_status_and_removes_only_new_output(self):
         output = self.root / 'candidate'
         sentinel = self.root / 'unrelated'
         sentinel.write_text('keep')
-        result = subprocess.run(['bash', str(self.script), str(output)], env=dict(self.env, FAIL_BUILD='1'), capture_output=True, text=True)
+        result = subprocess.run(
+            ['bash', str(self.script), str(output)],
+            env=dict(self.env, FAIL_BUILD='1'),
+            capture_output=True,
+            text=True,
+        )
         self.assertEqual(result.returncode, 19)
         self.assertFalse(output.exists(), 'failed build must not leave a partial candidate')
         self.assertEqual(sentinel.read_text(), 'keep')

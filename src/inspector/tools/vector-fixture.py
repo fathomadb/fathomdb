@@ -185,14 +185,15 @@ result = e.search("puppy", explain=True)
 assert (
     result.explanation.trace.vector_hits > 0 and result.explanation.trace.text_hits == 0
 )
+dangling_ids = []
 if len(sys.argv) > 2 and sys.argv[2] == "person":
     from person_fixture import add_people
 
-    add_people(e)
+    dangling_ids.extend(add_people(e) or [])
 if len(sys.argv) > 2 and sys.argv[2] in ("study-training", "study-unseen"):
     from study_fixture import add_study
 
-    add_study(e, sys.argv[2].removeprefix("study-"))
+    dangling_ids.extend(add_study(e, sys.argv[2].removeprefix("study-")) or [])
 if len(sys.argv) > 2 and sys.argv[2] == "history-queued":
     e.write(
         [
@@ -213,4 +214,33 @@ if len(sys.argv) > 2 and sys.argv[2] in ("queued", "history-queued"):
     assert queued["outcome"] == "accepted"
     maintenance.close()
 e.close()
+if dangling_ids:
+    import sqlite3
+
+    conn = sqlite3.connect(str(work / "fixture.sqlite"))
+    try:
+        with conn:
+            cursors = [
+                row[0]
+                for logical_id in dangling_ids
+                for row in conn.execute(
+                    "SELECT write_cursor FROM canonical_nodes WHERE logical_id = ?",
+                    (logical_id,),
+                ).fetchall()
+            ]
+            for cursor in cursors:
+                conn.execute("DELETE FROM search_index WHERE write_cursor = ?", (cursor,))
+                conn.execute(
+                    "DELETE FROM _fathomdb_artifact_revisions WHERE artifact_class = 'node' AND write_cursor = ?",
+                    (cursor,),
+                )
+                conn.execute(
+                    "DELETE FROM _fathomdb_projection_terminal WHERE write_cursor = ?",
+                    (cursor,),
+                )
+                conn.execute(
+                    "DELETE FROM canonical_nodes WHERE write_cursor = ?", (cursor,)
+                )
+    finally:
+        conn.close()
 print(work / "fixture.sqlite", flush=True)

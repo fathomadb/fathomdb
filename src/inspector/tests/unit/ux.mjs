@@ -18,10 +18,12 @@ test('exact canonical correspondence is separate from native membership and pres
 });
 
 import {propertyChoices} from '../../assets/presentation.mjs';
-test('property choices accept default tokenizer and exact CSV roles but refuse incomplete declarations',()=>{
- const p={name:'title',name_bytes:'5',name_complete:true,roles:'filterable,searchable',roles_bytes:'21',recorded_tokenizer:'',tokenizer_bytes:'0'};
+test('property choices accept default tokenizer and exact CSV roles but refuse incomplete or edge-only declarations',()=>{
+ const p={name:'title',name_bytes:'5',name_complete:true,entity_class:'node',roles:'filterable,searchable',roles_bytes:'21',recorded_tokenizer:'',tokenizer_bytes:'0'};
  assert.deepEqual(propertyChoices({projections:[p]}),['title']);
- for(const change of [{recorded_tokenizer:null,tokenizer_bytes:null},{name_complete:false},{name_bytes:'5000'},{roles_bytes:'4'},{roles:'filterable',roles_bytes:'10'},{tokenizer_bytes:'20'}])assert.deepEqual(propertyChoices({projections:[{...p,...change}]}),[]);
+ const legacy={name:'legacy',name_bytes:'6',name_complete:true,roles:'filterable,searchable',roles_bytes:'21',recorded_tokenizer:'',tokenizer_bytes:'0'};
+ assert.deepEqual(propertyChoices({projections:[legacy]}),['legacy']);
+ for(const change of [{entity_class:'edge'},{recorded_tokenizer:null,tokenizer_bytes:null},{name_complete:false},{name_bytes:'5000'},{roles_bytes:'4'},{roles:'filterable',roles_bytes:'10'},{tokenizer_bytes:'20'}])assert.deepEqual(propertyChoices({projections:[{...p,...change}]}),[]);
  assert.deepEqual(propertyChoices({evicted:true,projections:[p]}),[]);
 });
 

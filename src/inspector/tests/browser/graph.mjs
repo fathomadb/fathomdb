@@ -1,8 +1,9 @@
 import {installedWorkspace} from "./installed-harness.mjs";
-import { clipboardEquals } from "./helpers.mjs";
+import { boundedExecFileSync, clipboardEquals, closeBrowserBounded, stopChildBounded } from "./helpers.mjs";
+import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import assert from "node:assert/strict";
-import { spawn, execFileSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
@@ -16,8 +17,8 @@ async function workspace(action, fixture = "graph", flags = []) {
   let child, browser;
   try {
     const db = fixture==="vector"
-      ? execFileSync(`${root}/.venv/bin/python`,[`${root}/src/inspector/tools/vector-fixture.py`,dir],{encoding:"utf8"}).trim()
-      : execFileSync(`${root}/target/debug/examples/fixture`, [dir, fixture], { encoding: "utf8" }).trim();
+      ? boundedExecFileSync(`${root}/.venv/bin/python`,[`${root}/src/inspector/tools/vector-fixture.py`,dir],{encoding:"utf8"},120000).trim()
+      : boundedExecFileSync(`${root}/target/debug/examples/fixture`, [dir, fixture], { encoding: "utf8" }, 120000).trim();
     child = spawn(`${root}/target/debug/examples/driver`, [db, `${root}/target/debug/fathomdb-inspector`, ...flags], { stdio: ["pipe", "pipe", "pipe"] });
     const lines = createInterface({ input: child.stdout });
     const iter = lines[Symbol.asyncIterator]();
@@ -29,13 +30,10 @@ async function workspace(action, fixture = "graph", flags = []) {
     await page.getByRole("button", { name: "Attach database", exact: true }).click();
     await page.getByRole("heading", { name: "Database inventory", exact: true }).waitFor();
     await page.getByRole("button", { name: "Canonical nodes", exact: true }).click();
-    await action(page, child, iter);
+    await action(page, child, iter, { db });
   } finally {
-    if (browser) await browser.close();
-    if (child) {
-      child.stdin.end("close\n");
-      await new Promise((r) => child.on("exit", r));
-    }
+    await closeBrowserBounded(browser, 5000);
+    await stopChildBounded(child);
     await rm(dir, { recursive: true, force: true });
   }
 }
@@ -187,4 +185,57 @@ test("high-degree bounded graph keeps every arrow within its SVG viewport",{time
   assert.equal(await page.locator("path.graph-edge").count(),160);
   assert.equal(await page.locator("svg.stored-graph").evaluate(svg=>{const v=svg.viewBox.baseVal;return [...svg.querySelectorAll("path.graph-edge")].every(path=>{const b=path.getBBox();return b.x>=v.x&&b.y>=v.y&&b.x+b.width<=v.x+v.width&&b.y+b.height<=v.y+v.height;});}),true,"declared graph scope must not silently clip high-degree arrows outside its viewport");
  },"graph-highdegree");
+});
+
+test("historical as_of graph controls validate locally, query stored and native snapshots, render properties safely, and survive Back",{timeout:45000},async()=>{
+ await workspace(async(page,_child,_iter,meta)=>{
+  const oracle=new DatabaseSync(meta.db,{readOnly:true});
+  let c1,t1;
+  try{
+   const row=oracle.prepare("SELECT write_cursor AS c1, committed_at_ms AS t1 FROM _fathomdb_commit_timestamps WHERE write_cursor >= (SELECT write_cursor FROM canonical_nodes WHERE logical_id='hist-root' ORDER BY write_cursor ASC LIMIT 1) ORDER BY write_cursor ASC LIMIT 1").get();
+   c1=String(row.c1);t1=String(row.t1);
+  }finally{oracle.close();}
+  let apiCalls=0;
+  page.on("request",r=>{if(r.url().endsWith("/api")&&["graph","graph_serving"].includes(r.postDataJSON()?.request?.op))apiCalls++;});
+  await page.getByRole("button",{name:"Inspect hist-root",exact:true}).last().click();
+  await page.getByRole("button",{name:"Stored graph",exact:true}).click();
+  await page.getByRole("heading",{name:"Stored directed graph",exact:true}).waitFor();
+  const callsBeforeInvalid=apiCalls;
+  await page.getByLabel("Snapshot",{exact:true}).selectOption("write_cursor");
+  await page.getByLabel("Snapshot value",{exact:true}).fill("not-an-int");
+  await page.getByRole("button",{name:"Apply graph filters",exact:true}).click();
+  assert.match(await page.getByRole("status",{name:"Graph query feedback",exact:true}).textContent(),/Invalid snapshot write cursor/);
+  assert.equal(apiCalls,callsBeforeInvalid,"invalid as_of input must validate locally before api() to avoid cache eviction");
+  assert.equal(await page.locator("svg.stored-graph").count(),1,"cached graph observation must remain intact after invalid input");
+
+  await page.getByLabel("Snapshot value",{exact:true}).fill(c1);
+  await page.getByRole("button",{name:"Apply graph filters",exact:true}).click();
+  await page.waitForFunction(cursor=>{const pre=document.querySelector("pre.scope");return pre&&JSON.parse(pre.textContent).scope?.as_of?.resolved_as_of_write_cursor===cursor;},c1);
+  assert.equal(await page.getByRole("button",{name:"Select edge e-early",exact:true}).count(),1);
+  assert.equal(await page.getByRole("button",{name:"Select edge e-late",exact:true}).count(),0);
+
+  await page.getByRole("button",{name:"Run native graph traversal",exact:true}).click();
+  await page.getByRole("heading",{name:"Actual frozen graph evidence",exact:true}).waitFor();
+  const nativeMeta=JSON.parse(await page.locator("pre.native-graph-context").textContent());
+  assert.equal(nativeMeta.request.as_of.mode,"write_cursor");
+  assert.equal(nativeMeta.request.as_of.resolved_as_of_write_cursor,c1);
+  assert.match(await page.locator(".graph-native").textContent(),/<img src=x onerror=alert\(1\)>/);
+  assert.match(await page.locator(".graph-native").textContent(),/"><svg onload=alert\(1\)>/);
+  assert.equal(await page.locator("img").count(),0);
+  assert.equal(await page.locator("svg").count(),1,"only the stored-graph svg may exist; hostile svg payload must render as text");
+
+  await page.getByRole("button",{name:"Open selected record",exact:true}).click();
+  await page.getByRole("heading",{name:"Record detail",exact:true}).waitFor();
+  await page.getByRole("button",{name:"Back",exact:true}).click();
+  await page.getByRole("heading",{name:"Stored directed graph",exact:true}).waitFor();
+  assert.equal(await page.getByLabel("Snapshot",{exact:true}).inputValue(),"write_cursor");
+  assert.equal(await page.getByLabel("Snapshot value",{exact:true}).inputValue(),c1);
+
+  await page.getByLabel("Snapshot",{exact:true}).selectOption("epoch_ms");
+  await page.getByLabel("Snapshot value",{exact:true}).fill(t1);
+  await page.getByRole("button",{name:"Apply graph filters",exact:true}).click();
+  await page.waitForFunction(ms=>{const pre=document.querySelector("pre.scope");return pre&&JSON.parse(pre.textContent).scope?.as_of?.mode==="epoch_ms"&&JSON.parse(pre.textContent).scope?.as_of?.requested_as_of_epoch_ms===ms;},t1);
+  assert.equal(await page.getByRole("button",{name:"Select edge e-early",exact:true}).count(),1);
+  assert.equal(await page.getByRole("button",{name:"Select edge e-late",exact:true}).count(),0);
+ },"graph-history");
 });

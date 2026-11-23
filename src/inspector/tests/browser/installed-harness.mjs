@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
-import {spawn,execFileSync} from 'node:child_process';
+import {spawn} from 'node:child_process';
 import {mkdtemp,mkdir,cp,readdir,readFile,rm} from 'node:fs/promises';
 import {setTimeout as delay} from 'node:timers/promises';
 import {tmpdir} from 'node:os';
 import {resolve,join} from 'node:path';
 import {pathToFileURL} from 'node:url';
+import {boundedExecFileSync,closeBrowserBounded,killDescendantTree} from './helpers.mjs';
+export {killDescendantTree};
 async function identity(pid){try{const f=(await readFile(`/proc/${pid}/stat`,'utf8')).split(') ').slice(1).join(') ').split(' ');return {start:f[19],live:f[0]!=='Z'};}catch{return null;}}
 const root=resolve(import.meta.dirname,'../../../..');
 const {chromium}=await import(pathToFileURL(process.env.INSPECTOR_PLAYWRIGHT??'/home/coreyt/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright/index.mjs'));
@@ -30,15 +32,15 @@ export async function installedWorkspace(action,fixture='linked',flags=[],nodes=
   let db;
   if(['person','vector','study-training','study-unseen','f06','lexical-deadline','review'].includes(fixture)){
    const directory=join(dir,'fixture');await mkdir(directory);await cp(join(process.env.INSPECTOR_FIXTURE_DIR,fixture,'work'),directory,{recursive:true});db=join(directory,'fixture.sqlite');
-  }else db=execFileSync(process.env.INSPECTOR_FIXTURE_BINARY??join(root,'target/debug/examples/fixture'),fixture==='default'?[dir]:[dir,fixture],{encoding:'utf8',timeout:600000,env:{PATH:process.env.PATH,HOME:process.env.HOME,LANG:'C.UTF-8',LC_ALL:'C.UTF-8'}}).trim();
+  }else db=boundedExecFileSync(process.env.INSPECTOR_FIXTURE_BINARY??join(root,'target/debug/examples/fixture'),fixture==='default'?[dir]:[dir,fixture],{encoding:'utf8',timeout:600000,env:{PATH:process.env.PATH,HOME:process.env.HOME,LANG:'C.UTF-8',LC_ALL:'C.UTF-8'}}).trim();
   const traceOutput=process.env.INSPECTOR_TRACE_OUTPUT;
   const spawnEnv={...process.env,...environment,TMPDIR:dir};
   delete spawnEnv.INSPECTOR_TRACE_OUTPUT;
   if(traceOutput){
    assert.ok(traceOutput.startsWith('/'),'INSPECTOR_TRACE_OUTPUT must be absolute');
-   child=spawn('strace',['-ff','-e','trace=network,%file,process','-o',traceOutput,binary,...flags,db],{env:spawnEnv,stdio:['ignore','pipe','pipe']});
+   child=spawn('strace',['-ff','-e','trace=network,%file,process','-o',traceOutput,binary,...flags,db],{env:spawnEnv,stdio:['ignore','ignore','pipe']});
   }else{
-   child=spawn(binary,[...flags,db],{env:spawnEnv,stdio:['ignore','pipe','pipe']});
+   child=spawn(binary,[...flags,db],{env:spawnEnv,stdio:['ignore','ignore','pipe']});
   }
   exited=new Promise(r=>child.once('exit',(code,signal)=>r({code,signal})));let stderr='';child.stderr.on('data',b=>stderr+=b);
   const profile=await until(async()=>{assert.equal(child.exitCode,null,stderr);for(const entry of await readdir(dir)){const path=join(dir,entry,'browser');try{const port=await readFile(join(path,'DevToolsActivePort'),'utf8');return {path,port:Number(port.split('\n')[0])};}catch{}}});
@@ -69,18 +71,20 @@ export async function installedWorkspace(action,fixture='linked',flags=[],nodes=
   const closeStart=performance.now();
   await cdp.send('Browser.close').catch(()=>page.close().catch(()=>{}));
   const result=await Promise.race([exited,delay(30000,undefined,{ref:false}).then(()=>{throw new Error('actual native window close deadline');})]);
-  assert.deepEqual(result,{code:0,signal:null},stderr);clearInterval(sample);await until(async()=>{if(sampling)return false;for(const [pid,start]of owned){const current=await identity(pid);if(current?.live&&current.start===start)return false;}return true;},Math.max(1,30000-(performance.now()-closeStart)));assert.ok(performance.now()-closeStart<30000);closed=true;execFileSync('flock',['--nonblock',`${db}.lock`,'true']);
+  assert.deepEqual(result,{code:0,signal:null},stderr);clearInterval(sample);await until(async()=>{if(sampling)return false;for(const [pid,start]of owned){const current=await identity(pid);if(current?.live&&current.start===start)return false;}return true;},Math.max(1,30000-(performance.now()-closeStart)));assert.ok(performance.now()-closeStart<30000);closed=true;boundedExecFileSync('flock',['--nonblock',`${db}.lock`,'true'],{},10000);
   const retained=(await readdir(dir)).filter(n=>n.startsWith('fdi-'));assert.deepEqual(retained,[],'private native launch resources released');
   assert.deepEqual(external,[],'no external UI requests');
-  console.log(JSON.stringify({qualification:'installed_native_window',fixture,build:JSON.parse(execFileSync(binary,['--build-description'],{encoding:'utf8',env:{}})).build,native_window_closed:true,close_ms:performance.now()-closeStart,sample_ms:25,samples,attached_service_rss:attachedBaseline,service_sampled_peak_rss:servicePeak,browser_tree_sampled_peak_rss:browserRssPeak,total_tree_sampled_peak_rss:totalRssPeak,model_residency_conservative_upper_bound:servicePeak,owned_descendants_no_longer_live:true,browser_heap_growth:heapPeak-heapStart}));
+  console.log(JSON.stringify({qualification:'installed_native_window',fixture,build:JSON.parse(boundedExecFileSync(binary,['--build-description'],{encoding:'utf8',env:{}},15000)).build,native_window_closed:true,close_ms:performance.now()-closeStart,sample_ms:25,samples,attached_service_rss:attachedBaseline,service_sampled_peak_rss:servicePeak,browser_tree_sampled_peak_rss:browserRssPeak,total_tree_sampled_peak_rss:totalRssPeak,model_residency_conservative_upper_bound:servicePeak,owned_descendants_no_longer_live:true,browser_heap_growth:heapPeak-heapStart}));
  }finally{
   clearInterval(sample);
-  if(browser)await browser.close().catch(()=>{});
+  await closeBrowserBounded(browser,5000);
   if(!closed&&child&&child.exitCode===null){
    if(supervisorPid&&supervisorPid!==child.pid){try{process.kill(supervisorPid,'SIGTERM');}catch{}}
-   child.kill('SIGTERM');await Promise.race([exited,delay(5000,undefined,{ref:false})]);
-   if(supervisorPid&&supervisorPid!==child.pid){try{process.kill(supervisorPid,'SIGKILL');}catch{}}
-   if(child.exitCode===null){child.kill('SIGKILL');await exited;}
+   try{child.kill('SIGTERM');}catch{}
+   await Promise.race([exited,delay(5000,undefined,{ref:false})]);
+   if(supervisorPid&&supervisorPid!==child.pid){await killDescendantTree(supervisorPid,'SIGKILL');}
+   await killDescendantTree(child.pid,'SIGKILL');
+   if(child.exitCode===null){try{child.kill('SIGKILL');}catch{}await Promise.race([exited,delay(5000,undefined,{ref:false})]);}
   }
   await rm(dir,{recursive:true,force:true});
   if(!closed)console.error('installed native window close NOT qualified for this failed run');

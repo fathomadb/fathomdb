@@ -5,6 +5,7 @@ import {tmpdir} from "node:os";
 import {resolve,join} from "node:path";
 import {createInterface} from "node:readline";
 import {setTimeout as delay} from "node:timers/promises";
+import {stopChildBounded} from "../tests/browser/helpers.mjs";
 assert.equal(process.env.AGENT_LONG,"1","AGENT_LONG=1 required for native deadline qualification");
 const root=resolve(import.meta.dirname,"../../..");
 const scratch=await mkdtemp(join(tmpdir(),"inspector-lexical-native-"));
@@ -147,8 +148,8 @@ try {
   report.execution_witness="owned main dispatch-thread CPU progress with real lexical reply pending; no synthetic pause";
   report.composition="paired default/debug None-model artifact; installed qualification remains70";
 } finally {
-  stopping=true;if(monitor)await before(monitor,performance.now()+6000,"monitor cleanup");
-  if(child&&child.exitCode===null) {const exited=new Promise(r=>child.once("exit",r));child.stdin.end("close\n");await before(exited,performance.now()+30000,"driver cleanup");}
+  stopping=true;if(monitor)await before(monitor,performance.now()+6000,"monitor cleanup").catch(()=>{});
+  await stopChildBounded(child,{gracefulMs:10000,sigtermMs:2000,sigkillMs:5000,extraPids:[...ownedWorkers]});
   for(const pid of ownedWorkers)await until(()=>gone(pid),performance.now()+5000,"owned worker cleanup");
   await rm(scratch,{recursive:true,force:true});
 }

@@ -6,6 +6,10 @@ import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { createInterface } from "node:readline";
+import {
+  closeBrowserBounded,
+  stopChildBounded,
+} from "../tests/browser/helpers.mjs";
 const root = resolve(import.meta.dirname, "../../..");
 const interval = Number(process.env.INSPECTOR_COPY_INTERVAL_MS ?? 100),
   samples = Number(process.env.INSPECTOR_COPY_SAMPLES ?? 10);
@@ -33,6 +37,7 @@ test(
     try {
       const db = execFileSync(`${root}/target/debug/examples/fixture`, [dir], {
         encoding: "utf8",
+        timeout: 120000,
       }).trim();
       child = spawn(
         `${root}/target/debug/examples/driver`,
@@ -96,11 +101,8 @@ test(
       assert.equal(await page.evaluate(() => navigator.clipboard.readText()), "structured");
       if (screenshot) await page.screenshot({ path: screenshot, fullPage: true });
     } finally {
-      if (browser) await browser.close();
-      if (child) {
-        child.stdin.end("close\n");
-        await new Promise((r) => child.on("exit", r));
-      }
+      await closeBrowserBounded(browser, 5000);
+      await stopChildBounded(child);
       await rm(dir, { recursive: true, force: true });
     }
   },

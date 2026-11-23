@@ -5,7 +5,7 @@ import json
 from fathomdb import Engine, ProjectionRole, ProjectionSpec
 
 
-def add_study(engine: Engine, variant: str) -> None:
+def add_study(engine: Engine, variant: str) -> list[str]:
     """Write the fixed study variant into an already confined Default session."""
     if variant not in ("training", "unseen"):
         raise ValueError("unknown study variant")
@@ -38,7 +38,9 @@ def add_study(engine: Engine, variant: str) -> None:
                   person(revised, "r1", "Retained earlier note about sailing; different revision, same logical identity.")])
     engine.write([person("a", "r2" if revised == "a" else "r1", biography),
                   person("b", "r2" if revised == "b" else "r1", biography),
-                  person("c", "r1", f"{name} is a musician collecting recordings of distant birds.")])
+                  person("c", "r1", f"{name} is a musician collecting recordings of distant birds."),
+                  {"kind": "document", "logical_id": prefix + "-missing", "source_id": "study:" + prefix,
+                   "body": "temporary forensic unresolved endpoint"}])
     relationships = [("a", "b", "collaborates")] if training else [("a", "c", "records"), ("c", "b", "introduces")]
     relationships.append(("a", "missing", "mentions"))
     for index, (start, end, kind) in enumerate(relationships):
@@ -54,3 +56,4 @@ def add_study(engine: Engine, variant: str) -> None:
         engine.register_source_dependency({"schema_version": 1, "dependency_id": "study-" + revision,
                                            "source_revision_id": source_revision, "derived_revision_id": revision})
     engine.drain(timeout_s=25)
+    return [prefix + "-missing"]

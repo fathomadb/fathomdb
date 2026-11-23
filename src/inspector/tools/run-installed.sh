@@ -10,7 +10,7 @@ fixtures="$2"
 build_target="$3"
 shift 3
 fail_prerequisite() { echo "prerequisite: $*" >&2; exit 2; }
-for tool in node Xvfb flock python3; do
+for tool in node Xvfb flock python3 timeout; do
   command -v "$tool" >/dev/null || fail_prerequisite "$tool is missing"
 done
 [[ -x "$package/fathomdb-inspector" ]] || fail_prerequisite 'extracted fathomdb-inspector executable is missing'
@@ -33,6 +33,7 @@ if [[ -n "${INSPECTOR_EVIDENCE_DIRECTORY:-}" ]]; then
 fi
 if [[ $# -eq 0 ]]; then
   set -- --test --test-concurrency=1 \
+    src/inspector/tests/browser/attributes.mjs \
     src/inspector/tests/browser/comparison.mjs \
     src/inspector/tests/browser/lexical.mjs \
     src/inspector/tests/browser/vector.mjs \
@@ -42,8 +43,18 @@ fi
 runtime_tmp="$(mktemp -d "${TMPDIR:-/tmp}/inspector-installed.XXXXXX")"
 display_pid=""
 cleanup() {
+  local i
   if [[ -n "$display_pid" ]]; then
     kill "$display_pid" 2>/dev/null || true
+    for ((i = 0; i < 20; i++)); do
+      if ! kill -0 "$display_pid" 2>/dev/null; then
+        break
+      fi
+      sleep 0.1
+    done
+    if kill -0 "$display_pid" 2>/dev/null; then
+      kill -KILL "$display_pid" 2>/dev/null || true
+    fi
     wait "$display_pid" 2>/dev/null || true
   fi
   rm -rf -- "$runtime_tmp"
@@ -89,6 +100,7 @@ getconf GNU_LIBC_VERSION
 uname -r
 "$browser/chrome" --version
 
+run_timeout="${INSPECTOR_RUN_TIMEOUT_SECS:-900}"
 cd -- "$root"
 env \
   -u WAYLAND_DISPLAY \
@@ -112,4 +124,4 @@ env \
   FATHOMDB_PERF_READER_PRAGMAS=query_only=0 \
   FATHOMDB_PERF_SEARCH_LIMIT=1 \
   FATHOMDB_EMBED_DEVICE=cuda:999 \
-  node "$@"
+  timeout --kill-after=10s "$run_timeout" node "$@"

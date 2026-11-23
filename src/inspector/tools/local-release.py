@@ -13,16 +13,37 @@ import subprocess
 import tarfile
 import tempfile
 
-VERSION = '0.2.1'
+ROOT = Path(__file__).resolve().parents[3]
+
+
+def _read_toml_version(path, section):
+    in_section = False
+    for line in path.read_text(encoding='utf-8').splitlines():
+        stripped = line.strip()
+        if stripped.startswith('['):
+            in_section = stripped == f'[{section}]'
+        elif in_section:
+            match = re.match(r'^version\s*=\s*"([^"]+)"', stripped)
+            if match:
+                return match.group(1)
+    raise ValueError(f'missing [{section}].version in {path}')
+
+
+VERSION = _read_toml_version(ROOT / 'src/inspector/Cargo.toml', 'package')
+ENGINE_VERSION = _read_toml_version(ROOT / 'Cargo.toml', 'workspace.package')
+COMPILED_SCHEMA = 38
 NAME = f'fathomdb-inspector-{VERSION}-linux-x86_64'
 ARCHIVE = NAME + '.tar.gz'
 FILES = {'fathomdb-inspector', 'build-description.json', 'LICENSE', 'README.md'}
-ENGINE = '72fe93634321616214352a7e07066ce0f93bcf4c'
-ROOT = Path(__file__).resolve().parents[3]
-SUPPORT = {'userland': 'Ubuntu 24.04 / glibc 2.39', 'architecture': 'Linux x86_64',
-           'kernel_qualified': '7.0.0-43-generic', 'landlock_abi_minimum': 3,
-           'chromium_qualified': '156.0.8078.4', 'distribution': 'local-only',
-           'models': 'existing pinned cache only; not bundled or downloaded'}
+SUPPORT = {
+    'userland': 'Ubuntu 24.04 / glibc 2.39',
+    'architecture': 'Linux x86_64',
+    'kernel_qualified': '7.0.0-43-generic',
+    'landlock_abi_minimum': 3,
+    'chromium_qualified': '156.0.8078.4',
+    'distribution': 'GitHub Release assets (build-inspector) and verified local archive',
+    'models': 'existing pinned cache only; not bundled or downloaded',
+}
 
 
 def require(condition, message):
@@ -67,7 +88,7 @@ def payload(candidate):
     check_sums(candidate, {ARCHIVE})
     description = json.loads((bundle / 'build-description.json').read_text())
     for key, expected in {'version': VERSION, 'target': 'x86_64-unknown-linux-gnu',
-                          'profile': 'release', 'compiled_schema': 37, 'protocol': 1,
+                          'profile': 'release', 'compiled_schema': COMPILED_SCHEMA, 'protocol': 1,
                           'fixture_control': False, 'cached_default_cpu': True}.items():
         require(type(description.get(key)) is type(expected) and description[key] == expected,
                 f'invalid production build: {key}')
@@ -99,12 +120,23 @@ def verify(candidate, source=False):
     metadata_path = candidate / 'candidate.json'
     require(metadata_path.is_file() and not metadata_path.is_symlink(), 'candidate metadata must be regular')
     metadata = json.loads(metadata_path.read_text())
-    require(metadata.get('version') == VERSION and metadata.get('engine_commit') == ENGINE, 'wrong product/Engine identity')
+    require(metadata.get('version') == VERSION, 'wrong product version')
+    require(
+        type(metadata.get('compiled_schema')) is int and metadata['compiled_schema'] == COMPILED_SCHEMA,
+        'wrong compiled schema metadata',
+    )
+    engine_version = metadata.get('engine_version')
+    require(
+        isinstance(engine_version, str)
+        and bool(re.fullmatch(r'\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?', engine_version)),
+        'invalid engine version metadata',
+    )
     require(re.fullmatch('[0-9a-f]{40}', metadata.get('source_sha', '')), 'invalid source SHA')
     require(metadata.get('build') == description, 'candidate build metadata differs')
     require(metadata.get('archive_sha256') == sha(candidate / ARCHIVE), 'archive metadata checksum differs')
     require(metadata.get('executable_sha256') == sha(candidate / NAME / 'fathomdb-inspector'), 'executable metadata checksum differs')
     if source:
+        require(engine_version == ENGINE_VERSION, 'candidate engine version differs from workspace')
         require(not git('status', '--porcelain'), 'source checkout must be clean')
         base = metadata['source_sha']
         subprocess.run(['git', '-C', str(ROOT), 'merge-base', '--is-ancestor', base, 'HEAD'], check=True)
@@ -119,9 +151,16 @@ def seal(candidate):
     require(not (candidate / 'candidate.json').exists(), 'candidate is already sealed')
     require(not git('status', '--porcelain'), 'source checkout must be clean before sealing')
     description = payload(candidate)
-    metadata = {'version': VERSION, 'source_sha': git('rev-parse', 'HEAD'), 'engine_commit': ENGINE,
-                'build': description, 'archive_sha256': sha(candidate / ARCHIVE),
-                'executable_sha256': sha(candidate / NAME / 'fathomdb-inspector'), 'support': SUPPORT}
+    metadata = {
+        'version': VERSION,
+        'source_sha': git('rev-parse', 'HEAD'),
+        'engine_version': ENGINE_VERSION,
+        'compiled_schema': COMPILED_SCHEMA,
+        'build': description,
+        'archive_sha256': sha(candidate / ARCHIVE),
+        'executable_sha256': sha(candidate / NAME / 'fathomdb-inspector'),
+        'support': SUPPORT,
+    }
     with (candidate / 'candidate.json').open('x') as stream:
         stream.write(json.dumps(metadata, indent=2, sort_keys=True) + '\n')
     return verify(candidate, source=True)
@@ -132,6 +171,7 @@ def promote(candidate, destination):
     require(destination.is_absolute() and destination.parent.resolve(strict=True) == destination.parent,
             'destination requires an absolute canonical existing parent')
     require(not destination.exists() and not destination.is_symlink(), 'destination already exists; refusing overwrite')
+
     def terminate(_signum, _frame):
         raise SystemExit(143)
 

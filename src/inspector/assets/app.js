@@ -314,6 +314,9 @@ async function run(action) {
       busy: "The request queue is full. Retry after current work finishes.",
       cancelled: "Request cancelled; the session has expired.",
       not_json: "This stored value is text, rather than a supported structured value.",
+      invalid_as_of:
+        "Invalid snapshot parameter: specify either a non-negative integer write cursor or a signed integer commit time in milliseconds, not both.",
+      unsupported_field: "The requested field is not supported for this record class.",
     };
     say(
       error.message === "unsupported_schema"
@@ -449,6 +452,15 @@ function observationSummary(parent,data,submitted={}) {
   add("Filters",request.filter??"not supplied by this route");add("View",request.view??"not supplied by this route");
   add("Result limit",data.scope?.limit??request.limit??"unknown");
   add("Metric / direction",`${data.scope?.metric??data.scope?.score_family??"not supplied"} / ${data.scope?.direction??data.scope?.score_direction??"not supplied"}`);
+  const asOf=data.query_context?.as_of??data.scope?.as_of??data.request?.as_of;
+  if(asOf){
+    const label=asOf.mode==="write_cursor"
+      ?`write_cursor ${asOf.requested_as_of_write_cursor} (resolved cursor ${asOf.resolved_as_of_write_cursor})`
+      :asOf.mode==="epoch_ms"
+        ?`epoch_ms ${asOf.requested_as_of_epoch_ms} (resolved cursor ${asOf.resolved_as_of_write_cursor})`
+        :"current";
+    add("Snapshot (as_of)",label);
+  }
   if(data.query_context)add("Native retrieval time",timed(data.query_context));
   add(data.query_context?"Later policy/origin read":"Inspection read time",timed(data.context));
   add("Read source",data.context?.route??"unknown");
@@ -471,6 +483,7 @@ function metadata(parent, record, current = null) {
   for (const [key, value] of Object.entries(record)) {
     if (
       key === "handle" || key === "display_preview" ||
+      key === "properties" || key === "properties_status" ||
       key.endsWith("_bytes") ||
       key.endsWith("_storage") ||
       key.endsWith("_representation")
@@ -588,13 +601,16 @@ function renderInventory() {
           ? "retained mutation entries"
           : k === "projection"
             ? "materialized attribute entries"
-            : "canonical revisions";
-    const category={current:"Operational",log:"Operational",projection:"Projection",node:"Node",edge:"Edge"}[k]??k;
+            : k === "commit_timestamps"
+              ? "commit timestamp entries"
+              : "canonical revisions";
+    const category={current:"Operational",log:"Operational",projection:"Projection",commit_timestamps:"History",node:"Node",edge:"Edge"}[k]??k;
+    const extra=k==="projection"&&v.property_value_entries!==undefined?`; property value entries: ${v.property_value_entries}`:"";
     counts.append(
       el("dt", `${category} ${unit}`),
       el(
         "dd",
-        `${v.revisions ?? v.values ?? v.entries ?? v.attribute_entries} (${v.exact ? "exact" : "partial"}); logical identities: ${v.logical_identities ?? "not applicable / unknown"}`,
+        `${v.revisions ?? v.values ?? v.entries ?? v.attribute_entries} (${v.exact ? "exact" : "partial"}); logical identities: ${v.logical_identities ?? "not applicable / unknown"}${extra}`,
       ),
     );
   }
@@ -659,7 +675,14 @@ function renderProjection() {
       "Stored scalar attribute materialization does not prove body-field absence or vector readiness. Declarations and observed materialization are separate.",
     ),
   );
-  if (view.data.name_complete !== false)
+  if (view.data.entity_class === "edge")
+    panel.append(
+      el(
+        "p",
+        "Edge property declarations materialize into canonical property values; inspect canonical edges to review per-edge values.",
+      ),
+    );
+  else if (view.data.name_complete !== false)
     panel.append(
       button("Browse verified attribute origins", () =>
         page("node", { attribute: view.data.name }),
@@ -851,11 +874,12 @@ async function copyField(handle, field, start = 0, end = null, decodeString = fa
   await navigator.clipboard.writeText(text);
   say(nullValue ? "Copied null as JSON null." : "Copied exact stored value.");
 }
-async function tree(parent, handle, start = 0, accept = () => true) {
-  const data = await api({ op: "tree", handle, start: String(start), after: null }, true, accept);
-  drawTree(parent, handle, data, accept);
+async function tree(parent, handle, start = 0, accept = () => true, field = "body") {
+  const data = await api({ op: "tree", handle, field, start: String(start), after: null }, true, accept);
+  drawTree(parent, handle, data, accept, data.field ?? field);
 }
-function drawTree(parent, handle, data, accept) {
+function drawTree(parent, handle, data, accept, field = "body") {
+  const targetField = data.field ?? field ?? "body";
   const list = el("ul", null, { class: "tree", role: "tree" });
   for (const item of data.items) {
     const li = el("li", null, { role: "treeitem" }),
@@ -873,7 +897,7 @@ function drawTree(parent, handle, data, accept) {
               toggle.setAttribute("aria-expanded", "false");
               expanded = false;
             } else {
-              await tree(contents, handle, Number(item.start), () => accept() && !data.evicted);
+              await tree(contents, handle, Number(item.start), () => accept() && !data.evicted, targetField);
               toggle.textContent = `Collapse ${name}`;
               toggle.setAttribute("aria-expanded", "true");
               expanded = true;
@@ -891,10 +915,10 @@ function drawTree(parent, handle, data, accept) {
       );
     li.append(
       button(`Copy value ${name}`, () =>
-        copyField(handle, "body", Number(item.start), Number(item.end), item.kind === "string"),
+        copyField(handle, targetField, Number(item.start), Number(item.end), item.kind === "string"),
       ),
       button(`Copy raw JSON ${name}`, () =>
-        copyField(handle, "body", Number(item.start), Number(item.end)),
+        copyField(handle, targetField, Number(item.start), Number(item.end)),
       ),
     );
     list.append(li);
@@ -903,8 +927,8 @@ function drawTree(parent, handle, data, accept) {
   if (data.continuation)
     parent.append(
       button("More structured fields", async () => {
-        const next = await api({ op: "tree", handle, start: data.start, after: data.continuation }, true, () => accept() && !data.evicted);
-        drawTree(parent, handle, next, accept);
+        const next = await api({ op: "tree", handle, field: targetField, start: data.start, after: data.continuation }, true, () => accept() && !data.evicted);
+        drawTree(parent, handle, next, accept, targetField);
       }),
     );
   bind(data, () => {
@@ -931,6 +955,16 @@ function renderDetail() {
   panel.append(el("h2", field === "body" ? "Record detail" : `Full field: ${field}`));
   const preview=current.data.record.display_preview;
   recordDisplay(panel,preview);
+  if (current.data.record.scope !== undefined) {
+    const scopeVal = current.data.record.scope;
+    panel.append(
+      el(
+        "p",
+        `Scope: ${scopeVal === "" ? '"" (empty / default namespace)' : scopeVal === null ? "SQL NULL" : String(scopeVal)}`,
+        { class: "record-scope muted" },
+      ),
+    );
+  }
   const buttons = el("div", null, { class: "actions" });
   if (current.data.record.class === "attribute")
     buttons.append(
@@ -1050,14 +1084,72 @@ function renderDetail() {
   const structured = el("section", null, { "aria-label": "Structured content" });
   panel.append(structured);
   if (
-    field === "body" &&
+    (field === "body" || field === "properties") &&
     current.data.record.class !== "attribute" &&
     /^[\s]*[\[{]/.test(content.text)
   )
     run(async () => {
       structured.append(el("h3", "Structured values"));
-      await tree(structured, current.handle, 0, ownsWorkspace);
+      await tree(structured, current.handle, 0, ownsWorkspace, field);
     });
+  let propertiesSection = null;
+  if (field === "body" && ["node", "edge"].includes(current.data.record.class)) {
+    const rec = current.data.record;
+    propertiesSection = el("section", null, {
+      class: "record-properties",
+      "aria-label": "Properties",
+    });
+    propertiesSection.append(el("h3", "Properties"));
+    if (rec.properties_status === "refused") {
+      propertiesSection.append(
+        el("p", "refused (erasure-pending)", { class: "properties-status muted" }),
+      );
+    } else if (rec.properties_status === "available") {
+      if (rec.properties_bytes === null || rec.properties_bytes === undefined || rec.properties === null) {
+        propertiesSection.append(el("p", "null", { class: "properties-null" }));
+      } else {
+        propertiesSection.append(
+          el(
+            "p",
+            `Stored bytes: ${rec.properties_bytes} · storage type: ${rec.properties_storage ?? "unknown"}`,
+            { class: "properties-meta muted" },
+          ),
+        );
+        const propActions = el("div", null, { class: "actions" });
+        propActions.append(
+          button("Open full properties", () => openField(current, "properties")),
+          button("Copy full properties", () => copyField(current.handle, "properties")),
+        );
+        propertiesSection.append(propActions);
+        const propText = String(rec.properties);
+        propertiesSection.append(
+          el("pre", propText === "" ? "Empty string" : propText, { class: "properties-preview" }),
+        );
+        const shown = new TextEncoder().encode(propText).length;
+        const total = Number(rec.properties_bytes);
+        if (shown < total) {
+          propertiesSection.append(
+            el(
+              "p",
+              `Preview: ${shown} of ${total} stored bytes; open or copy the full properties.`,
+              { class: "muted" },
+            ),
+          );
+        }
+        if (total <= 16384 && /^[\s]*[\[{]/.test(propText)) {
+          const propTree = el("div", null, {
+            class: "properties-tree",
+            "aria-label": "Structured properties",
+          });
+          propertiesSection.append(propTree);
+          run(async () => {
+            await tree(propTree, current.handle, 0, ownsWorkspace, "properties");
+          });
+        }
+      }
+    }
+    panel.append(propertiesSection);
+  }
   const associations = el("section", null, { "aria-label": "Recorded associations" });
   panel.append(associations);
   if (current.data.record.class === "attribute") {
@@ -1077,7 +1169,7 @@ function renderDetail() {
         ),
       );
   }
-  for(const node of [facts,contentHeading,display,paging,structured,associations])panel.insertBefore(node,identityHeading);
+  for(const node of [facts,contentHeading,display,paging,structured,...(propertiesSection?[propertiesSection]:[]),associations])panel.insertBefore(node,identityHeading);
   scope(panel, current.data);
   bind(owner, () => {
     if (current.data !== owner) return;
@@ -1171,6 +1263,38 @@ async function renderAssociations(parent, current) {
         { class: "muted" },
       ),
     );
+  }
+  parent.append(el("h3", "Materialized property values"));
+  const propValues = data.property_values ?? [];
+  if (!propValues.length)
+    parent.append(
+      el(
+        "p",
+        data.property_values_complete !== false
+          ? "No verified property-value materializations for this revision."
+          : "Property-value materializations are not fully covered by this response budget.",
+      ),
+    );
+  for (const pv of propValues) {
+    const entry = el("div", null, { class: "property-value-entry" });
+    entry.append(
+      el("p", `${pv.name} (${pv.value_type} · ${pv.entity_class})`),
+      el(
+        "pre",
+        pv.value === null || pv.value === undefined
+          ? "null"
+          : pv.value === ""
+            ? "Empty string"
+            : String(pv.value),
+        { class: "property-value" },
+      ),
+      el(
+        "p",
+        `Stored bytes: ${pv.total_bytes ?? "null"}; preview limit: ${pv.preview_limit}`,
+        { class: "muted" },
+      ),
+    );
+    parent.append(entry);
   }
   parent.append(el("h3", "Declarations and observed materialization"));
   for (const projection of data.projections) metadata(parent, projection);
@@ -1416,14 +1540,94 @@ function releaseObservation(data) {
   observations.delete(data.observation);
   evict(data, item);
 }
+function asOfFromRequest(request) {
+  if (request?.as_of_write_cursor != null)
+    return { mode: "write_cursor", value: String(request.as_of_write_cursor) };
+  if (request?.as_of_epoch_ms != null)
+    return { mode: "epoch_ms", value: String(request.as_of_epoch_ms) };
+  if (request?.as_of?.mode === "write_cursor" && request.as_of.requested_as_of_write_cursor != null)
+    return { mode: "write_cursor", value: String(request.as_of.requested_as_of_write_cursor) };
+  if (request?.as_of?.mode === "epoch_ms" && request.as_of.requested_as_of_epoch_ms != null)
+    return { mode: "epoch_ms", value: String(request.as_of.requested_as_of_epoch_ms) };
+  return { mode: "current", value: "" };
+}
+function validateAsOfInput(mode, raw) {
+  const text = String(raw ?? "").trim();
+  if (mode === "current") return { ok: true, payload: {} };
+  if (mode === "write_cursor") {
+    if (!/^(0|[1-9]\d*)$/.test(text))
+      return {
+        ok: false,
+        message:
+          "Invalid snapshot write cursor: enter a canonical non-negative 64-bit integer.",
+      };
+    if (BigInt(text) > 18446744073709551615n)
+      return {
+        ok: false,
+        message: "Invalid snapshot write cursor: exceeds maximum 64-bit unsigned integer.",
+      };
+    return { ok: true, payload: { as_of_write_cursor: text } };
+  }
+  if (mode === "epoch_ms") {
+    if (!/^(0|-?[1-9]\d*)$/.test(text))
+      return {
+        ok: false,
+        message: "Invalid snapshot commit time (ms): enter a canonical signed 64-bit integer.",
+      };
+    const v = BigInt(text);
+    if (v < -9223372036854775808n || v > 9223372036854775807n)
+      return {
+        ok: false,
+        message: "Invalid snapshot commit time (ms): exceeds 64-bit signed integer range.",
+      };
+    return { ok: true, payload: { as_of_epoch_ms: text } };
+  }
+  return { ok: false, message: "Invalid snapshot mode." };
+}
+function stripAsOf(request) {
+  const next = { ...request };
+  delete next.as_of_write_cursor;
+  delete next.as_of_epoch_ms;
+  return next;
+}
+function renderGraphProperties(parent, label, inlineProps, hydratedRecord) {
+  if (inlineProps && typeof inlineProps === "object" && Object.keys(inlineProps).length > 0) {
+    parent.append(el("h5", label));
+    const dl = el("dl", null, { class: "graph-properties" });
+    for (const [k, v] of Object.entries(inlineProps)) {
+      dl.append(
+        el("dt", k),
+        el("dd", v === null ? "null" : v === "" ? "Empty string" : String(v)),
+      );
+    }
+    parent.append(dl);
+  } else if (
+    hydratedRecord?.properties_status === "available" &&
+    hydratedRecord.properties_bytes !== null &&
+    hydratedRecord.properties_bytes !== undefined &&
+    hydratedRecord.properties !== null
+  ) {
+    parent.append(
+      el("h5", label),
+      el(
+        "pre",
+        hydratedRecord.properties === "" ? "Empty string" : String(hydratedRecord.properties),
+        { class: "graph-properties" },
+      ),
+    );
+  } else if (hydratedRecord?.properties_status === "refused") {
+    parent.append(el("p", `${label}: refused (erasure-pending)`, { class: "muted" }));
+  }
+}
 async function openGraph(handle) {
   const current=view, focus=document.activeElement, token=++navigation;
   const record=current?.data?.record;
-  const expanded=record?.class==="node"?[handle]:[];
+  const seedClass=record?.class??null;
+  const expanded=seedClass==="node"?[handle]:[];
   const request={op:"graph",handle,direction:"both",kind:null,depth:3,expanded};
   const data=await api(request,true,()=>token===navigation);
   remember(current,focus);
-  view={kind:"graph",handle,data,request,selected:data.seed.key,native:null,expansions:new Map(expanded.map(h=>[data.seed.key,h]))};render();
+  view={kind:"graph",handle,seedClass,data,request,asOfDraft:{mode:"current",value:""},graphFeedback:null,selected:data.seed.key,native:null,expansions:new Map(expanded.map(h=>[data.seed.key,h]))};render();
 }
 async function openInvestigation(handle) {
   const current=view, focus=document.activeElement, token=++navigation;
@@ -1442,8 +1646,12 @@ async function updateGraph(current,request,owners=current.expansions) {
   const token=++navigation;
   const data=await api(request,true,()=>token===navigation&&view===current);
   const old=current.data, oldNative=current.native,oldWorkspace=current.workspace,focused=document.activeElement?.textContent;
-  current.expansions=new Map([...owners].filter(([key])=>data.nodes.some(record=>record.key===key)));
-  current.data=data;current.request={...request,expanded:[...current.expansions.values()]};current.workspace=null;current.native=null;current.returnFocus=null;
+  const oldSeedKey=old?.seed?.key;
+  const nextExpansions=new Map([...owners].filter(([key])=>data.nodes.some(record=>record.key===key)));
+  if(oldSeedKey&&owners.has(oldSeedKey)&&data.seed?.key&&data.nodes.some(record=>record.key===data.seed.key)&&!nextExpansions.has(data.seed.key))
+    nextExpansions.set(data.seed.key,data.seed.handle);
+  current.expansions=nextExpansions;
+  current.data=data;current.request={...request,expanded:[...current.expansions.values()]};current.asOfDraft=asOfFromRequest(current.request);current.graphFeedback=null;current.workspace=null;current.native=null;current.returnFocus=null;
   scrubDOM(oldWorkspace);
   if(![...data.nodes,...data.edges].some(v=>v.key===current.selected))current.selected=data.seed.key;
   releaseObservation(old);releaseObservation(oldNative);render();
@@ -1461,7 +1669,42 @@ function renderGraph() {
   for(const [v,text] of [["both","Both"],["outgoing","Outgoing"],["incoming","Incoming"]])direction.append(el("option",text,{value:v}));
   direction.value=current.request.direction;label.append(direction);
   const [kindLabel,kind]=labelInput("Edge kind filter",current.request.kind??"");
-  form.append(label,kindLabel,button("Apply graph filters",()=>updateGraph(current,{...current.request,direction:direction.value,kind:kind.value||null})),button("Refresh this view",()=>updateGraph(current,current.request)));
+  const initialAsOf=current.asOfDraft??asOfFromRequest(current.request);
+  const snapLabel=el("label","Snapshot"),snapshotMode=el("select",null,{"aria-label":"Snapshot"});
+  for(const [v,text] of [["current","Current"],["write_cursor","At write cursor"],["epoch_ms","At commit time (ms)"]])snapshotMode.append(el("option",text,{value:v}));
+  snapshotMode.value=initialAsOf.mode;snapLabel.append(snapshotMode);
+  const [snapValLabel,snapshotInput]=labelInput("Snapshot value",initialAsOf.value??"");
+  snapshotInput.setAttribute("aria-label","Snapshot value");
+  snapshotInput.disabled=snapshotMode.value==="current";
+  const graphFeedback=el("div",null,{role:"status","aria-label":"Graph query feedback",class:"graph-feedback"});
+  if(current.graphFeedback)graphFeedback.append(el("p",current.graphFeedback));
+  const syncDraft=()=>{
+    snapshotInput.disabled=snapshotMode.value==="current";
+    current.asOfDraft={mode:snapshotMode.value,value:snapshotInput.value};
+    if(snapshotMode.value==="current"){current.graphFeedback=null;graphFeedback.replaceChildren();}
+  };
+  snapshotMode.addEventListener("change",syncDraft);
+  snapshotInput.addEventListener("input",syncDraft);
+  form.append(
+    label,
+    kindLabel,
+    snapLabel,
+    snapValLabel,
+    button("Apply graph filters",()=>{
+      const checked=validateAsOfInput(snapshotMode.value,snapshotInput.value);
+      if(!checked.ok){
+        current.graphFeedback=checked.message;
+        graphFeedback.replaceChildren(el("p",checked.message));
+        return;
+      }
+      current.graphFeedback=null;
+      graphFeedback.replaceChildren();
+      const baseReq=stripAsOf(current.request);
+      return updateGraph(current,{...baseReq,...checked.payload,direction:direction.value,kind:kind.value||null});
+    }),
+    button("Refresh this view",()=>updateGraph(current,current.request)),
+    graphFeedback,
+  );
   panel.append(form);
   pinControls(panel,current,owner);
   const records=[...owner.nodes,...owner.edges];
@@ -1469,11 +1712,22 @@ function renderGraph() {
   const controls=el("div",null,{class:"actions"});
   const open=button("Open selected record",async()=>{const record=selected();if(record)await openDetail(record.handle);});
   const investigate=button("Investigate selected record",async()=>{const record=selected();if(record)await openInvestigation(record.handle);});
-  const expand=button("Expand selected node",()=>{const record=selected(),owners=new Map(current.expansions);if(owners.size>=100)throw Error("Expansion owner limit reached; collapse first.");owners.set(record.key,record.handle);return updateGraph(current,{...current.request,expanded:[...owners.values()]},owners);});
-  const collapse=button("Collapse selected node",()=>{const record=selected(),owners=new Map(current.expansions);owners.delete(record.key);return updateGraph(current,{...current.request,expanded:[...owners.values()]},owners);});
+  const expand=button("Expand selected node",()=>{const record=selected();if(!record)return;const owners=new Map(current.expansions);if(owners.size>=100)throw Error("Expansion owner limit reached; collapse first.");owners.set(record.key,record.handle);return updateGraph(current,{...current.request,expanded:[...owners.values()]},owners);});
+  const collapse=button("Collapse selected node",()=>{const record=selected();if(!record)return;const owners=new Map(current.expansions);owners.delete(record.key);return updateGraph(current,{...current.request,expanded:[...owners.values()]},owners);});
   const native=button("Run native graph traversal",async()=>{
-    const record=selected(),token=++navigation;
-    const data=await api({op:"graph_serving",handle:record.handle,direction:current.request.direction,kind:current.request.kind,depth:current.request.depth},true,()=>token===navigation&&view===current&&current.data===owner);
+    const record=selected();
+    const targetHandle=record?.handle??(current.seedClass==="node"?(owner.seed?.handle??current.handle):null);
+    if(!targetHandle)return;
+    const checked=validateAsOfInput(snapshotMode.value,snapshotInput.value);
+    if(!checked.ok){
+      current.graphFeedback=checked.message;
+      graphFeedback.replaceChildren(el("p",checked.message));
+      return;
+    }
+    current.graphFeedback=null;
+    graphFeedback.replaceChildren();
+    const token=++navigation;
+    const data=await api({op:"graph_serving",handle:targetHandle,direction:current.request.direction,kind:current.request.kind,depth:current.request.depth,...checked.payload},true,()=>token===navigation&&view===current&&current.data===owner);
     const old=current.native,oldWorkspace=current.workspace;current.native=data;current.workspace=null;current.returnFocus=null;scrubDOM(oldWorkspace);releaseObservation(old);render();
     [...current.workspace.querySelectorAll("button")].find(b=>b.textContent==="Run native graph traversal")?.focus();
   });
@@ -1501,6 +1755,7 @@ function renderGraph() {
   function select(record,focus=false) {
     current.selected=record.key;for(const label of svg.querySelectorAll("[data-graph-label]"))label.classList.toggle("active",label.dataset.graphLabel===record.key);selection.textContent=`Selected ${record.class}: ${graphName(record)} · ${record.revision_id??"no recorded revision"}`;
     for(const node of panel.querySelectorAll("[data-graph-key]")){const active=node.dataset.graphKey===record.key;node.classList.toggle("selected",active);if(node.tagName==="BUTTON"){node.setAttribute("aria-pressed",String(active));node.tabIndex=active?0:-1;if(active&&focus)node.focus();}}
+    open.disabled=investigate.disabled=false;
     expand.disabled=collapse.disabled=native.disabled=record.class!=="node";
     const nodeExpanded=current.expansions.has(record.key);
     if(record.class==="node"){expand.disabled=nodeExpanded;collapse.disabled=!nodeExpanded;}
@@ -1540,7 +1795,8 @@ function renderGraph() {
   });
   const viewport=el("div",null,{class:"graph-viewport",tabindex:"0","aria-label":"Scrollable graph viewport"}),camera=el("div",null,{class:"actions","aria-label":"Graph viewport controls"});
   viewport.append(svg);panel.append(camera);
-  panel.append(viewport,el("p",`${owner.status}: ${owner.nodes.length} retained nodes, ${owner.edges.length} edges; ${owner.scope.examined_links} examined incident links. Endpoint resolution: ${owner.scope.endpoint_resolution_complete?"covered":"unknown/partial"}. Missing-result cause: undetermined.`,{class:"graph-summary"}),list,el("pre",JSON.stringify(owner.context,null,2),{class:"graph-context"}));
+  const asOfSummary=owner.scope?.as_of&&owner.scope.as_of.mode!=="current"?` Snapshot: ${owner.scope.as_of.mode} (resolved cursor ${owner.scope.as_of.resolved_as_of_write_cursor}).`:"";
+  panel.append(viewport,el("p",`${owner.status}: ${owner.nodes.length} retained nodes, ${owner.edges.length} edges; ${owner.scope.examined_links} examined incident links.${asOfSummary} Endpoint resolution: ${owner.scope.endpoint_resolution_complete?"covered":"unknown/partial"}. Missing-result cause: undetermined.`,{class:"graph-summary"}),list,el("pre",JSON.stringify(owner.context,null,2),{class:"graph-context"}));
   const bounds=svg.getBBox(),width=Math.max(1100,bounds.width+80),height=Math.max(760,bounds.height+80);
   svg.setAttribute("viewBox",`${bounds.x+(bounds.width-width)/2} ${bounds.y+(bounds.height-height)/2} ${width} ${height}`);
   let zoom=current.zoom??1;
@@ -1548,10 +1804,18 @@ function renderGraph() {
   camera.append(button("Zoom in graph",()=>{zoom=Math.min(3,zoom*1.25);size();}),button("Zoom out graph",()=>{zoom=Math.max(.35,zoom/1.25);size();}),button("Fit graph width",()=>{zoom=Math.max(.35,Math.min(1,viewport.clientWidth/width));size();}),button("Readable graph scale",()=>{zoom=1;size();}),button("Show selected in graph",()=>{const pos=positions.get(current.selected);if(pos){viewport.scrollLeft=Math.max(0,pos.x*zoom-viewport.clientWidth/2);viewport.scrollTop=Math.max(0,pos.y*zoom-viewport.clientHeight/2);}viewport.scrollIntoView({block:"nearest"});viewport.focus();}));size();
   scope(panel,owner);
   if(records.length)select(selected()??records[0]);
+  else {
+    open.disabled=investigate.disabled=expand.disabled=collapse.disabled=true;
+    native.disabled=current.seedClass!=="node";
+    selection.textContent="No retained records in this snapshot.";
+  }
   if(current.native&&!current.native.evicted){
     const data=current.native,section=el("section",null,{class:"graph-native","aria-label":"Actual frozen graph evidence"});section.append(el("h3","Actual frozen graph evidence"),el("p","Actual selected target and terminal edge · no rank. Later origin hydration is a separate observation. Missing-result cause: undetermined."));
+    if(!data.items.length)section.append(el("p",data.query_context?.seed_absent_at_as_of?"No native graph results: seed absent at requested snapshot.":"No permitted native graph targets in this observation."));
     for(const item of data.items){
       section.append(el("h4","Original frozen target payload"),el("pre",item.payload.text,{class:"graph-native-payload"}),el("p",`${item.payload.scope} · ${item.payload.total_bytes} bytes · window complete ${item.payload.complete}`),button("Copy observed graph payload window",()=>copyLexical(current,item.payload.text)));
+      renderGraphProperties(section,"Target properties",item.payload.properties,item.target);
+      renderGraphProperties(section,"Terminal edge properties",item.payload.terminal_edge_properties,item.terminal_edge);
       for(const [label,record] of [["native target",item.target],["native terminal edge",item.terminal_edge]])section.append(button(`Open ${label} ${record.revision_id??graphName(record)}`,()=>openDetail(record.handle)));
       metadata(section,item.evidence);
     }
@@ -1582,8 +1846,10 @@ function collectComparisonHandles(item,content,metadataHandles) {
     if(origin.handle)(origin.metadataOnly?metadataHandles:content).add(origin.handle);
 }
 function pinDescriptor(current,data) {
+  const obsReq=observations.get(data.observation)?.request??current.request;
   return {kind:data.scope?.route==="actual_serving_graph_evidence"?"graph_evidence":current.kind,
-    handle:current.handle??null,source:current.source?.observation??null,declarations:current.declarations?.observation??null,
+    handle:current.handle??null,seedClass:current.seedClass??null,source:current.source?.observation??null,declarations:current.declarations?.observation??null,
+    asOf:asOfFromRequest(obsReq),
     selected:current.selected??null,expanded:current.expansions?[...current.expansions]:null};
 }
 function pinControls(parent,current,data,prefix="") {
@@ -1695,8 +1961,10 @@ async function openPinned(side) {
   const slot=pins[side],item=observations.get(slot.id);if(!item)return;
   const descriptor=slot.descriptor,request=item.request,previous=view,focus=document.activeElement;
   navigation++;remember(previous,focus);
+  const restoredRequest=structuredClone(item.data.request??request);
   view={...descriptor,data:item.data,source:observations.get(descriptor.source)?.data??{evicted:true},declarations:observations.get(descriptor.declarations)?.data??null,
-    request:structuredClone(item.data.request??request),className:request.class,filter:request.filter,after:request.after,sample:request.op==="sample",
+    request:restoredRequest,asOfDraft:descriptor.asOf?structuredClone(descriptor.asOf):asOfFromRequest(request),graphFeedback:null,
+    className:request.class,filter:request.filter,after:request.after,sample:request.op==="sample",
     lastRequest:request.op==="serving"||request.op==="neighborhood"?request:null,
     nativeQuery:request.query??"",expansions:new Map(descriptor.expanded??[]),native:null};
   if(!["lexical","vector"].includes(view.kind))delete view.source;
@@ -1707,6 +1975,8 @@ function renderFrozenGraph() {
   panel.append(el("h2","Actual frozen graph evidence"),el("pre",JSON.stringify(sideContext(observations.get(data.observation)),null,2),{class:"native-graph-context"}));
   for(const entry of entries(data,{op:"graph_serving"})) {
     const section=el("section");section.append(el("h3",entry.label),el("pre",entry.item.payload.text),el("pre",JSON.stringify(entry.item.evidence,null,2)));
+    renderGraphProperties(section,"Target properties",entry.item.payload.properties,entry.item.target);
+    renderGraphProperties(section,"Terminal edge properties",entry.item.payload.terminal_edge_properties,entry.item.terminal_edge);
     for(const origin of entry.origins)if(origin.handle)section.append(button(`Open native origin ${origin.record.revision_id??origin.record.write_cursor}`,()=>openDetail(origin.handle)));
     panel.append(section);
   }

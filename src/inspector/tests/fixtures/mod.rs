@@ -741,10 +741,29 @@ pub(crate) fn comparison_policy(dir: &Path) -> PathBuf {
         .engine
         .write(&[node("alpha", "old comparison needle"), node("beta", "safe unrelated body")])
         .unwrap();
+    let mut alpha_props = fathomdb_engine::PropertyMap::new();
+    alpha_props.insert(
+        "secret_prop".into(),
+        fathomdb_engine::PropertyValue::String("ERASED_SECRET_PROP_VALUE".into()),
+    );
+    alpha_props.insert(
+        "title".into(),
+        fathomdb_engine::PropertyValue::String("ERASED_SECRET_TITLE".into()),
+    );
     opened
         .engine
         .write(&[
-            node("alpha", "current comparison needle"),
+            PreparedWrite::Node {
+                kind: "document".into(),
+                body: "current comparison needle".into(),
+                source_id: SourceId::new("fixture:source").unwrap(),
+                logical_id: Some("alpha".into()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                properties: Some(alpha_props),
+            },
             node_with(
                 "document",
                 Some("pending"),
@@ -848,5 +867,222 @@ pub(crate) fn add_ux_hub(path: &Path) {
         writes.push(ux_edge(format!("ux-edge-{n}"), "ux-hub".into(), format!("ux-leaf-{n}")));
     }
     opened.engine.write(&writes).unwrap();
+    opened.engine.close().unwrap();
+}
+
+#[allow(dead_code)]
+pub(crate) fn add_properties(path: &Path) {
+    use fathomdb_engine::{PropertyMap, PropertyValue};
+    let opened = Engine::open_with_choice(path, EmbedderChoice::None).unwrap();
+    let mut edge_proj =
+        projection_spec("weight_tag", &[ProjectionRole::Filterable], None, None, None);
+    edge_proj.entity_class = PropertyEntityClass::Edge;
+    opened
+        .engine
+        .configure_projections(
+            &[
+                projection_spec(
+                    "topic",
+                    &[ProjectionRole::Filterable, ProjectionRole::Searchable],
+                    Some(ProjectionFts { tokenizer: Some("unicode61".into()) }),
+                    None,
+                    None,
+                ),
+                edge_proj,
+            ],
+            &[],
+        )
+        .unwrap();
+
+    let mut node_props = PropertyMap::new();
+    node_props.insert("topic".into(), PropertyValue::String("botany".into()));
+    node_props.insert("big_i64".into(), PropertyValue::Int(9007199254740993));
+    node_props.insert("empty_str".into(), PropertyValue::String(String::new()));
+    node_props.insert("verified".into(), PropertyValue::Bool(true));
+    node_props
+        .insert("xss_img".into(), PropertyValue::String("<img src=x onerror=alert(1)>".into()));
+    node_props
+        .insert("script".into(), PropertyValue::String("<script>window.__xss=1</script>".into()));
+    node_props
+        .insert("\"><svg onload=alert(1)>".into(), PropertyValue::String("hostile-key-val".into()));
+
+    let mut edge_props = PropertyMap::new();
+    edge_props.insert("weight_tag".into(), PropertyValue::String("heavy".into()));
+    edge_props.insert("edge_big".into(), PropertyValue::Int(9007199254740993));
+    edge_props.insert("xss_svg".into(), PropertyValue::String("\"><svg onload=alert(1)>".into()));
+
+    opened
+        .engine
+        .write(&[
+            PreparedWrite::Node {
+                kind: "document".into(),
+                body: "plain text body without json".into(),
+                source_id: SourceId::new("fixture:props").unwrap(),
+                logical_id: Some("prop-node".into()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                properties: Some(node_props),
+            },
+            PreparedWrite::Node {
+                kind: "document".into(),
+                body: "plain text body with null properties".into(),
+                source_id: SourceId::new("fixture:props").unwrap(),
+                logical_id: Some("null-props".into()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                properties: None,
+            },
+            PreparedWrite::Edge {
+                kind: "relates".into(),
+                from: "prop-node".into(),
+                to: "alpha".into(),
+                source_id: SourceId::new("fixture:props").unwrap(),
+                logical_id: Some("prop-edge".into()),
+                body: Some("plain edge text body".into()),
+                t_valid: None,
+                t_invalid: None,
+                confidence: Some(0.95),
+                extractor_model_id: None,
+                temporal_fallback: None,
+                properties: Some(edge_props),
+            },
+        ])
+        .unwrap();
+    opened.engine.close().unwrap();
+}
+
+#[allow(dead_code)]
+pub(crate) fn add_properties_raw(path: &Path) {
+    let opened = Engine::open_with_choice(path, EmbedderChoice::None).unwrap();
+    opened
+        .engine
+        .write(&[
+            node("prop-raw-node", "plain text body without json"),
+            edge(
+                "relates",
+                "prop-raw-node",
+                "alpha",
+                "fixture:props-raw",
+                Some("prop-raw-edge"),
+                Some("plain edge text body".into()),
+            ),
+        ])
+        .unwrap();
+    opened.engine.close().unwrap();
+    drop(opened);
+
+    let node_raw = r#"{"huge":9007199254740993123456789,"nested":{"nil":null,"empty":"","img":"<img src=x onerror=alert(1)>"},"script":"<script>window.__xss=1</script>","\"><svg onload=alert(1)>":"hostile-key-val"}"#;
+    let edge_raw = r#"{"edge_huge":9007199254740993123456789,"xss":"\"><svg onload=alert(1)>"}"#;
+    let c = rusqlite::Connection::open(path).unwrap();
+    c.execute(
+        "UPDATE canonical_nodes SET properties=?1 WHERE logical_id='prop-raw-node'",
+        [node_raw],
+    )
+    .unwrap();
+    c.execute(
+        "UPDATE canonical_edges SET properties=?1 WHERE logical_id='prop-raw-edge'",
+        [edge_raw],
+    )
+    .unwrap();
+}
+
+#[allow(dead_code)]
+pub(crate) fn add_graph_history(path: &Path) {
+    use fathomdb_engine::{
+        ArtifactRevisionId, CanonicalHash, PropertyMap, PropertyValue, SourceLocator,
+        SourceRevisionId, SourceVersionId,
+    };
+    use sha2::{Digest, Sha256};
+
+    let src_body = "historical graph source body";
+    let digest: String =
+        Sha256::digest(src_body.as_bytes()).iter().map(|b| format!("{b:02x}")).collect();
+    let derived = |rev: &str| {
+        WriteProvenanceV1::derived(
+            ArtifactRevisionId::new(rev).unwrap(),
+            SourceVersionId::new("hist-v1").unwrap(),
+            SourceRevisionId::new("hist-src-r1").unwrap(),
+            SourceLocator::whole_body(),
+            CanonicalHash::sha256(digest.clone()).unwrap(),
+        )
+    };
+    let mk_node = |id: &str, rev: &str, body: &str, stage: &str, xss: Option<&str>| {
+        let mut props = PropertyMap::new();
+        props.insert("stage".into(), PropertyValue::String(stage.into()));
+        if let Some(payload) = xss {
+            props.insert("xss".into(), PropertyValue::String(payload.into()));
+        }
+        PreparedWrite::ProvenancedNode(fathomdb_engine::ProvenancedNodeV1 {
+            kind: "document".into(),
+            body: body.into(),
+            source_id: SourceId::new("fixture:hist").unwrap(),
+            logical_id: Some(id.into()),
+            state: InitialState::Active,
+            reason: None,
+            valid_from: None,
+            valid_until: None,
+            properties: Some(props),
+            provenance: derived(rev),
+        })
+    };
+    let mk_edge = |id: &str, rev: &str, from: &str, to: &str, ver: &str| {
+        let mut props = PropertyMap::new();
+        props.insert("ver".into(), PropertyValue::String(ver.into()));
+        props.insert("edge_xss".into(), PropertyValue::String("\"><svg onload=alert(1)>".into()));
+        PreparedWrite::ProvenancedEdge(fathomdb_engine::ProvenancedEdgeV1 {
+            kind: "links".into(),
+            from: from.into(),
+            to: to.into(),
+            source_id: SourceId::new("fixture:hist").unwrap(),
+            logical_id: Some(id.into()),
+            body: Some(format!("edge {ver}")),
+            t_valid: None,
+            t_invalid: None,
+            confidence: Some(0.9),
+            extractor_model_id: Some("extractor-v1".into()),
+            temporal_fallback: Some(false),
+            properties: Some(props),
+            provenance: derived(rev),
+        })
+    };
+
+    let opened = Engine::open_with_choice(path, EmbedderChoice::None).unwrap();
+    opened
+        .engine
+        .write(&[
+            provenanced_node(
+                Some("hist-src"),
+                src_body,
+                "fixture:hist",
+                None,
+                WriteProvenanceV1::canonical(
+                    ArtifactRevisionId::new("hist-src-r1").unwrap(),
+                    SourceVersionId::new("hist-v1").unwrap(),
+                ),
+            ),
+            mk_node("hist-root", "hist-root-r1", "root v1", "v1", None),
+            mk_node(
+                "hist-early",
+                "hist-early-r1",
+                "early v1",
+                "early",
+                Some("<img src=x onerror=alert(1)>"),
+            ),
+            mk_edge("e-early", "e-early-r1", "hist-root", "hist-early", "e1"),
+        ])
+        .unwrap();
+    std::thread::sleep(std::time::Duration::from_millis(15));
+    opened
+        .engine
+        .write(&[
+            mk_node("hist-root", "hist-root-r2", "root v2", "v2", None),
+            mk_node("hist-late", "hist-late-r2", "late v2", "late", None),
+            mk_edge("e-late", "e-late-r2", "hist-root", "hist-late", "e2"),
+        ])
+        .unwrap();
     opened.engine.close().unwrap();
 }

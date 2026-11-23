@@ -63,7 +63,7 @@ try {
       "--no-run",
       "--message-format=json",
     ],
-    { cwd: root, encoding: "utf8" },
+    { cwd: root, encoding: "utf8", timeout: 120000 },
   )
     .split("\n")
     .filter(Boolean)
@@ -77,6 +77,7 @@ try {
     execFileSync(join(root, "target/debug/fathomdb-inspector"), ["--build-description"], {
       encoding: "utf8",
       env: {},
+      timeout: 30000,
     }),
   );
   const partial = join(
@@ -108,7 +109,7 @@ try {
       "-c",
       'import errno,socket\ntry: socket.socket(socket.AF_INET,socket.SOCK_STREAM)\nexcept OSError as e: assert e.errno==errno.EACCES\nelse: raise AssertionError("network denial did not apply")',
     ],
-    { cwd: root, encoding: "utf8", env: { LANG: "C.UTF-8", LC_ALL: "C.UTF-8" } },
+    { cwd: root, encoding: "utf8", env: { LANG: "C.UTF-8", LC_ALL: "C.UTF-8" }, timeout: 60000 },
   );
   assert.equal(calibration, "");
   const hostile = {
@@ -137,7 +138,13 @@ try {
       "real_cleared_session_worker_owns_lock_and_preserves_header_under_hostile_parent",
       "--nocapture",
     ],
-    { cwd: root, encoding: "utf8", env: hostile },
+    { cwd: root, encoding: "utf8", env: hostile, timeout: 60000 },
+  );
+  if (execution.error) throw execution.error;
+  assert.equal(
+    execution.signal,
+    null,
+    `strace worker terminated by signal ${execution.signal}: ${execution.stderr}`,
   );
   assert.equal(execution.status, 0, execution.stderr);
   const result = execution.stdout + execution.stderr;

@@ -6,6 +6,7 @@ import {resolve,join} from "node:path";
 import {pathToFileURL} from "node:url";
 import {createInterface} from "node:readline";
 import {setTimeout as delay} from "node:timers/promises";
+import {closeBrowserBounded,stopChildBounded} from "../tests/browser/helpers.mjs";
 assert.equal(process.env.AGENT_LONG,"1","AGENT_LONG=1 required for F06 graph qualification");
 const root=resolve(import.meta.dirname,"../../..");
 const scratch=await mkdtemp(join(tmpdir(),"inspector-graph-F06-"));
@@ -90,7 +91,7 @@ function lockFree(path, deadline = performance.now() + 5000) {
 try {
  const producer=join(scratch,"producer");await mkdir(producer);
  const base=execFileSync(join(root,"target/debug/examples/fixture"),[producer,"scale"],{encoding:"utf8",timeout:600000}).trim();
- const manifest=JSON.parse(execFileSync(join(root,".venv/bin/python"),["-c",'import sqlite3,json,sys\nc=sqlite3.connect(sys.argv[1]);print(json.dumps(dict(nodes=c.execute("select count(*) from canonical_nodes").fetchone()[0],edges=c.execute("select count(*) from canonical_edges").fetchone()[0],logs=c.execute("select count(*) from operational_mutations").fetchone()[0],large_bytes=c.execute("select max(length(cast(body as blob))) from canonical_nodes").fetchone()[0])))',base],{encoding:"utf8"}));
+ const manifest=JSON.parse(execFileSync(join(root,".venv/bin/python"),["-c",'import sqlite3,json,sys\nc=sqlite3.connect(sys.argv[1]);print(json.dumps(dict(nodes=c.execute("select count(*) from canonical_nodes").fetchone()[0],edges=c.execute("select count(*) from canonical_edges").fetchone()[0],logs=c.execute("select count(*) from operational_mutations").fetchone()[0],large_bytes=c.execute("select max(length(cast(body as blob))) from canonical_nodes").fetchone()[0])))',base],{encoding:"utf8",timeout:30000}));
  assert.ok(manifest.nodes>=100000);assert.equal(manifest.edges,10000);assert.equal(manifest.logs,100000);assert.ok(manifest.large_bytes>=10*1024*1024);report.fixture=manifest;
  const paths={};for(const phase of ["positive","cancel","fault","detach","browser"]){const dir=join(scratch,phase);await mkdir(dir);paths[phase]=join(dir,"fixture.sqlite");await copyFile(base,paths[phase]);await copyFile(`${base}.lock`,`${paths[phase]}.lock`);}
  child=spawn(join(root,"target/debug/examples/driver"),[paths.browser,join(root,"target/debug/fathomdb-inspector")],{cwd:root,stdio:["pipe","pipe","pipe"]});child.stdin.on("error",()=>{});
@@ -115,5 +116,5 @@ try {
  stopping=true;await monitor;if(measurementError)throw measurementError;report.memory={attached_idle:idle,sampled_total_peak:peak,growth:Math.max(0,peak-idle),sample_ms:10};assert.ok(peak-idle<=1024*1024*1024);report.execution_witness="recorded owned worker main-dispatch CPU progress while real graph request pending; no synthetic pause";
  console.log(JSON.stringify(report,null,2));
 } finally {
- stopping=true;if(monitor)await monitor;if(browser)await browser.close();if(child){const ended=new Promise(r=>child.once("exit",r));child.stdin.end("close\n");await before(ended,performance.now()+30000,"driver cleanup");}for(const pid of ownedWorkers)assert.ok(await gone(pid),`owned worker ${pid} not reaped`);await rm(scratch,{recursive:true,force:true});
+ stopping=true;if(monitor)await before(monitor,performance.now()+6000,"monitor cleanup").catch(()=>{});await closeBrowserBounded(browser,10000);await stopChildBounded(child,{gracefulMs:10000,sigtermMs:2000,sigkillMs:5000,extraPids:[...ownedWorkers]});for(const pid of ownedWorkers)assert.ok(await gone(pid),`owned worker ${pid} not reaped`);await rm(scratch,{recursive:true,force:true});
 }

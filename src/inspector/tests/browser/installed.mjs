@@ -3,11 +3,10 @@ import {createHash} from 'node:crypto';
 import {request as httpRequest} from 'node:http';
 import {DatabaseSync} from 'node:sqlite';
 import assert from 'node:assert/strict';
-import {execFileSync} from 'node:child_process';
 import {readFile,writeFile,copyFile,access,mkdtemp,mkdir,symlink,readdir,lstat,readlink,rename,rm} from 'node:fs/promises';
 import {setTimeout as delay} from 'node:timers/promises';
 import {installedWorkspace} from './installed-harness.mjs';
-import {clipboardEquals} from './helpers.mjs';
+import {boundedExecFileSync,clipboardEquals} from './helpers.mjs';
 assert.ok(process.env.INSPECTOR_QUALIFY_BINARY,'this suite requires an extracted installed target');
 const click=(page,name)=>page.getByRole('button',{name,exact:true}).click();
 async function client(page,context){
@@ -27,7 +26,7 @@ async function until(action,ms=30000){const end=performance.now()+ms;while(perfo
 async function gone(pid){try{await access(`/proc/${pid}`);return false;}catch{return true;}}
 async function cpu(pid){const stat=await readFile(`/proc/${pid}/task/${pid}/stat`,'utf8');const f=stat.slice(stat.lastIndexOf(')')+2).split(' ');return Number(f[11])+Number(f[12]);}
 async function worker(meta){for(const pid of await meta.tree()){try{if((await readFile(`/proc/${pid}/cmdline`,'utf8')).includes('--session-worker'))return pid;}catch{}}throw Error('actual owned native worker required');}
-function lockFree(db){execFileSync('flock',['--nonblock',`${db}.lock`,'true']);}
+function lockFree(db){boundedExecFileSync('flock',['--nonblock',`${db}.lock`,'true'],{},10000);}
 
 test('installed structured document/tree, exact copy, hostile content and keyboard Back',{timeout:45000},async()=>installedWorkspace(async(page,_child,_iter,meta)=>{
  await meta.context.grantPermissions(['clipboard-read','clipboard-write'],{origin:new URL(page.url()).origin});
@@ -57,10 +56,10 @@ test('installed authentication/origin/Host/build/session/control and candidate r
  assert.equal((await api({op:'catalog',origin:'fixture',control:{control:'pause_next'}})).value.status,'unsupported');
  assert.equal((await fetch(`${origin}/fixture`,{headers:{Cookie:cookie}})).status,403);
  assert.equal((await api({op:'detach'})).value.status,'complete');lockFree(meta.db);
- const bytes=await readFile(meta.db);const refused=`${meta.dir}/older.sqlite`;const old=Buffer.from(bytes);old.writeUInt32BE(36,60);await writeFile(refused,old);await writeFile(`${refused}.lock`,'existing sentinel');
- const response=(await api({op:'attach',path:refused})).value;assert.equal(response.status,'refused');assert.equal(response.error,'unsupported_schema');assert.deepEqual(await readFile(refused),old);
+ const bytes=await readFile(meta.db);const refused=`${meta.dir}/older.sqlite`;const old=Buffer.from(bytes);old.writeUInt32BE(37,60);await writeFile(refused,old);await writeFile(`${refused}.lock`,'existing sentinel');
+ const response=(await api({op:'attach',path:refused})).value;assert.equal(response.status,'refused');assert.equal(response.error,'unsupported_schema');assert.equal(response.observed_schema,37);assert.equal(response.supported_schema,38);assert.deepEqual(await readFile(refused),old);
  assert.equal((await api({op:'attach',path:meta.db})).value.status,'complete');
- assert.equal(pair.build,JSON.parse(execFileSync(meta.binary,['--build-description'],{encoding:'utf8'})).build);
+ assert.equal(pair.build,JSON.parse(boundedExecFileSync(meta.binary,['--build-description'],{encoding:'utf8'},15000)).build);
 },'default',[],false));
 
 test('installed aggregate F06 queue/cancel/retry/native fault/detach and bounded reads',{timeout:240000},async()=>installedWorkspace(async(page,_child,_iter,meta)=>{
@@ -104,10 +103,10 @@ test('installed actual lexical native deadline expires and releases worker witho
 
 
 for(let bits=0;bits<8;bits++)test(`installed retained content/chunk/export and inactive gates ${bits}`,{timeout:45000},async()=>installedWorkspace(async(page,_child,_iter,meta)=>{
- const {api}=await client(page,meta.context);const rows=(await api({op:'page',class:'node',after:'0',limit:200,filter:{identity:'alpha'}})).value.items;assert.equal(rows.length,bits&1?1:2);const handle=rows.at(-1).handle;
- const detail=(await api({op:'detail',handle})).value,chunk=(await api({op:'chunk',handle,field:'body',offset:'0',limit:262144})).value;const destination=`${meta.dir}/retained.txt`;const exported=(await api({op:'export',handle,destination})).value;
- if(bits&2){assert.equal(detail.content.text,'current comparison needle');assert.equal(chunk.text,'current comparison needle');assert.equal(exported.status,'complete');const bytes=await readFile(destination,'utf8');assert.equal(bytes.slice(bytes.indexOf('\n')+1),'current comparison needle');assert.notEqual((await api({op:'export',handle,destination})).value.status,'complete');}
- else {assert.equal(detail.status,'refused');assert.equal(chunk.status,'refused');assert.notEqual(exported.status,'complete');await assert.rejects(access(destination));}
+ const {api}=await client(page,meta.context);const rows=(await api({op:'page',class:'node',after:'0',limit:200,filter:{identity:'alpha'}})).value.items;assert.equal(rows.length,bits&1?1:2);const item=rows.at(-1),handle=item.handle;
+ const detail=(await api({op:'detail',handle})).value,chunk=(await api({op:'chunk',handle,field:'body',offset:'0',limit:262144})).value;const propDetail=(await api({op:'detail',handle,field:'properties'})).value,propChunk=(await api({op:'chunk',handle,field:'properties',offset:'0',limit:262144})).value,propTree=(await api({op:'tree',handle,field:'properties',start:'0',after:null})).value;const destination=`${meta.dir}/retained.txt`;const exported=(await api({op:'export',handle,destination})).value;
+ if(bits&2){assert.equal(item.properties_status,'available');assert.ok(item.properties_bytes>0);assert.match(item.properties,/ERASED_SECRET_PROP_VALUE/);assert.equal(detail.content.text,'current comparison needle');assert.equal(chunk.text,'current comparison needle');assert.match(propDetail.content.text,/ERASED_SECRET_PROP_VALUE/);assert.match(propChunk.text,/ERASED_SECRET_PROP_VALUE/);assert.equal(propTree.status,'complete');assert.equal(exported.status,'complete');const bytes=await readFile(destination,'utf8');assert.equal(bytes.slice(bytes.indexOf('\n')+1),'current comparison needle');assert.notEqual((await api({op:'export',handle,destination})).value.status,'complete');}
+ else {assert.equal(item.properties_status,'refused');for(const k of ['properties','properties_bytes','properties_storage'])assert.equal(k in item,false);assert.equal(detail.status,'refused');assert.equal(chunk.status,'refused');assert.equal(propDetail.status,'refused');assert.equal(propChunk.status,'refused');assert.equal(propTree.status,'refused');assert.notEqual(exported.status,'complete');await assert.rejects(access(destination));}
 },'comparison-policy',[...(bits&1?['--no-show-inactive']:[]),...(bits&2?['--show-erased']:[]),...(bits&4?['--show-payloads']:[])],false));
 
 for(let bits=0;bits<8;bits++)test(`installed autonomous absence and independent telemetry gates ${bits}`,{timeout:45000},async()=>installedWorkspace(async(page,_child,_iter,meta)=>{

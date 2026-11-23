@@ -5,6 +5,7 @@ import {tmpdir} from "node:os";
 import {resolve,join} from "node:path";
 import {createInterface} from "node:readline";
 import {setTimeout as delay} from "node:timers/promises";
+import {stopChildBounded} from "../tests/browser/helpers.mjs";
 assert.equal(process.env.AGENT_LONG,"1","AGENT_LONG=1 required for native deadline qualification");
 const root=resolve(import.meta.dirname,"../../..");
 const scratch=await mkdtemp(join(tmpdir(),"inspector-vector-native-"));
@@ -146,7 +147,7 @@ try {
   const scaleProducer=join(scratch,"scale-producer");await mkdir(scaleProducer);
   await copyFile(base,join(scaleProducer,"fixture.sqlite"));await copyFile(`${base}.lock`,join(scaleProducer,"fixture.sqlite.lock"));
   const scalePath=execFileSync(join(root,"target/debug/examples/fixture"),[scaleProducer,"scale"],{encoding:"utf8",timeout:120000}).trim();
-  const facts=JSON.parse(execFileSync(join(root,".venv/bin/python"),["-c",'import json,sqlite3,sys\nc=sqlite3.connect(sys.argv[1]);print(json.dumps({"nodes":c.execute("select count(*) from canonical_nodes").fetchone()[0],"mutations":c.execute("select count(*) from operational_mutations").fetchone()[0],"edges":c.execute("select count(*) from canonical_edges").fetchone()[0],"large_bytes":c.execute("select max(octet_length(body)) from canonical_nodes").fetchone()[0],"dog_rowid":c.execute("select rowid from canonical_nodes where logical_id=?",("dog",)).fetchone()[0]}))',scalePath],{encoding:"utf8"}));
+  const facts=JSON.parse(execFileSync(join(root,".venv/bin/python"),["-c",'import json,sqlite3,sys\nc=sqlite3.connect(sys.argv[1]);print(json.dumps({"nodes":c.execute("select count(*) from canonical_nodes").fetchone()[0],"mutations":c.execute("select count(*) from operational_mutations").fetchone()[0],"edges":c.execute("select count(*) from canonical_edges").fetchone()[0],"large_bytes":c.execute("select max(octet_length(body)) from canonical_nodes").fetchone()[0],"dog_rowid":c.execute("select rowid from canonical_nodes where logical_id=?",("dog",)).fetchone()[0]}))',scalePath],{encoding:"utf8",timeout:30000}));
   assert.ok(facts.nodes>=100000&&facts.mutations>=100000&&facts.edges>=10000&&facts.large_bytes>=10*1024*1024);
   assert.equal((await api({op:"attach",path:scalePath})).status,"complete");const scalePid=(await childPids())[0];
   const selected=await api({op:"page",class:"node",after:String(facts.dog_rowid-1),limit:10,filter:{identity:"dog"}});assert.equal(selected.items.length,1);const handle=selected.items[0].handle;
@@ -160,8 +161,8 @@ try {
   report.execution_witness="owned process CPU progress with actual128-token CPU embedding query pending; no synthetic pause";
   report.composition="paired cached-cpu/debug sealed cached CPU artifact; installed qualification remains70";
 } finally {
-  stopping=true;if(monitor)await before(monitor,performance.now()+6000,"monitor cleanup");
-  if(child&&child.exitCode===null) {const exited=new Promise(r=>child.once("exit",r));child.stdin.end("close\n");await before(exited,performance.now()+30000,"driver cleanup");}
+  stopping=true;if(monitor)await before(monitor,performance.now()+6000,"monitor cleanup").catch(()=>{});
+  await stopChildBounded(child,{gracefulMs:10000,sigtermMs:2000,sigkillMs:5000,extraPids:[...ownedWorkers]});
   for(const pid of ownedWorkers)await until(()=>gone(pid),performance.now()+5000,"owned worker cleanup");
   await rm(scratch,{recursive:true,force:true});
 }

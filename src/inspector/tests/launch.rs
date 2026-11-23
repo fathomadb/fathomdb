@@ -1,7 +1,22 @@
 #![cfg(target_os = "linux")]
 use std::io::{BufRead, BufReader};
-use std::process::{Command, Stdio};
+use std::os::unix::process::ExitStatusExt;
+use std::process::{Child, Command, ExitStatus, Stdio};
 use std::time::{Duration, Instant};
+
+fn wait_with_sigkill_fallback(child: &mut Child, timeout: Duration) -> std::io::Result<ExitStatus> {
+    let deadline = Instant::now() + timeout;
+    loop {
+        if let Some(status) = child.try_wait()? {
+            return Ok(status);
+        }
+        if Instant::now() >= deadline {
+            let _ = child.kill();
+            return child.wait();
+        }
+        std::thread::sleep(Duration::from_millis(25));
+    }
+}
 fn binary() -> std::path::PathBuf {
     let binary = std::env::var_os("INSPECTOR_QUALIFY_BINARY")
         .map(std::path::PathBuf::from)
@@ -67,7 +82,7 @@ fn production_launch_owns_browser_bootstrap_until_exit() {
         libc::kill(child.id() as i32, libc::SIGTERM);
     }
     let stop = Instant::now();
-    let status = child.wait().unwrap();
+    let status = wait_with_sigkill_fallback(&mut child, Duration::from_secs(30)).unwrap();
     assert!(status.success());
     assert!(stop.elapsed() < Duration::from_secs(30));
     assert!(consumed, "real selected browser must consume the private bootstrap");
@@ -92,5 +107,37 @@ fn installed_identity_exposes_own_version_in_help_and_description() {
         description["version"],
         env!("CARGO_PKG_VERSION"),
         "build description must identify the Inspector package version"
+    );
+}
+
+#[test]
+fn wait_with_sigkill_fallback_escalates_on_sigterm_ignoring_child() {
+    let mut child = Command::new("python3")
+        .args([
+            "-c",
+            "import signal, time; signal.signal(signal.SIGTERM, signal.SIG_IGN); print('ready', flush=True); time.sleep(60)",
+        ])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap();
+    let mut line = String::new();
+    BufReader::new(child.stdout.take().unwrap()).read_line(&mut line).unwrap();
+    assert_eq!(line.trim(), "ready");
+    unsafe {
+        libc::kill(child.id() as i32, libc::SIGTERM);
+    }
+    let started = Instant::now();
+    let status = wait_with_sigkill_fallback(&mut child, Duration::from_millis(500)).unwrap();
+    let elapsed = started.elapsed();
+    assert!(!status.success(), "SIGKILL-escalated child must not report success");
+    assert_eq!(
+        status.signal(),
+        Some(libc::SIGKILL),
+        "stalled child must be terminated via SIGKILL"
+    );
+    assert!(
+        elapsed >= Duration::from_millis(450) && elapsed < Duration::from_secs(5),
+        "escalation must respect the 500ms bound (elapsed={elapsed:?})"
     );
 }

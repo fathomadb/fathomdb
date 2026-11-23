@@ -5,12 +5,15 @@ if [[ $# -ne 4 || "$1" != /* || "$2" != /* || "$3" != /* || "$4" != /* || -e "$4
   exit 2
 fi
 command -v strace >/dev/null || { echo 'prerequisite: strace is missing' >&2; exit 2; }
+command -v timeout >/dev/null || { echo 'prerequisite: timeout is missing' >&2; exit 2; }
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../../.." && pwd -P)"
 mkdir -m 700 -- "$4"
 output="$4/runtime.log"
 cache_root="${XDG_CACHE_HOME:-$HOME/.cache}/fathomdb"
+network_timeout="${INSPECTOR_NETWORK_TIMEOUT_SECS:-900}"
 rc=0
 INSPECTOR_TRACE_OUTPUT="$4/native" \
+  timeout --kill-after=10s "$network_timeout" \
   bash "$root/src/inspector/tools/run-installed.sh" "$1" "$2" "$3" \
     --test --test-name-pattern='real person investigation' \
     src/inspector/tests/browser/comparison.mjs >"$output" 2>&1 || rc=$?

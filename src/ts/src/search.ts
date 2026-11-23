@@ -1263,7 +1263,7 @@ export async function searchTextOnly(nativeEngine: NativeEngine, query: string, 
     };
   }
 
-export async function searchProjectedText(nativeEngine: NativeEngine, query: string, name: string, filter?: SearchFilter, view?: SearchOptions): Promise<SearchResult> {
+export async function searchProjectedText(nativeEngine: NativeEngine, query: string, name: string, filter?: SearchFilter, view?: BaseSearchOptions): Promise<SearchResult> {
     validateFfiString(query);
     validateFfiString(name);
     if (filter?.sourceType !== undefined) validateFfiString(filter.sourceType);

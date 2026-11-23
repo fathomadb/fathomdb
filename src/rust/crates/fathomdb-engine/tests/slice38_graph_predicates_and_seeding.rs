@@ -2381,3 +2381,146 @@ fn wp30c_both_min_hop_merge_evidence_origin_roundtrip_tamper_baseline_and_erasur
 
     engine.close().unwrap();
 }
+
+/// Regression for Slice 30 FIX-1 [P1 #1]: `graph_expand` enforces `GraphContextInvalid`
+/// on `include_inactive` / `include_superseded` (`graph_api.rs:532-534`), guards
+/// `pushed_target_predicates` defensively in `execution.rs:1067`, and preserves exact
+/// `B-tree == inline` parity on `include_out_of_window: true` with declared `Filterable`
+/// `target_predicates`.
+#[test]
+fn wp30b_relaxed_view_declared_target_predicate_matches_inline_parity() {
+    let dir = TempDir::new().unwrap();
+    let instant = 1_700_000_000_i64;
+
+    let run_store = |name: &str, declare_filterable: bool| -> Vec<String> {
+        let opened = Engine::open(db_path(&dir, name)).unwrap();
+        let engine = opened.engine;
+        if declare_filterable {
+            engine
+                .configure_projections(
+                    &[ProjectionSpec {
+                        name: "tier".into(),
+                        roles: BTreeSet::from([ProjectionRole::Filterable]),
+                        fts: None,
+                        vector: None,
+                        source: None,
+                        entity_class: PropertyEntityClass::Node,
+                    }],
+                    &[],
+                )
+                .unwrap();
+        }
+        let mut gold = PropertyMap::new();
+        gold.insert("tier".into(), PropertyValue::String("gold".into()));
+        let mut silver = PropertyMap::new();
+        silver.insert("tier".into(), PropertyValue::String("silver".into()));
+
+        engine
+            .write(&[
+                node("seed", "entity", "seed", None),
+                PreparedWrite::Node {
+                    logical_id: Some("t_oow_gold".into()),
+                    kind: "entity".into(),
+                    body: "out of window gold".into(),
+                    source_id: SourceId::new("slice30-src").unwrap(),
+                    state: InitialState::Active,
+                    reason: None,
+                    valid_from: Some(instant + 1_000),
+                    valid_until: None,
+                    properties: Some(gold.clone()),
+                },
+                PreparedWrite::Node {
+                    logical_id: Some("t_oow_silver".into()),
+                    kind: "entity".into(),
+                    body: "out of window silver".into(),
+                    source_id: SourceId::new("slice30-src").unwrap(),
+                    state: InitialState::Active,
+                    reason: None,
+                    valid_from: Some(instant + 1_000),
+                    valid_until: None,
+                    properties: Some(silver),
+                },
+                node("t_in_window_gold", "entity", "in window gold", Some(gold)),
+                edge("e1", "rel", "seed", "t_oow_gold", None, None, None),
+                edge("e2", "rel", "seed", "t_oow_silver", None, None, None),
+                edge("e3", "rel", "seed", "t_in_window_gold", None, None, None),
+            ])
+            .unwrap();
+
+        let pred = PropertyPredicate {
+            key: "tier".into(),
+            op: PropertyComparisonOp::Eq,
+            value: PropertyValue::String("gold".into()),
+        };
+
+        // `include_inactive` and `include_superseded` are refused at the graph_expand boundary.
+        for bad_view in [
+            ReadView { include_inactive: true, ..ReadView::default() },
+            ReadView { include_superseded: true, ..ReadView::default() },
+        ] {
+            let bad_req = GraphExpandRequestV1::new(
+                GraphSeedV1::Explicit {
+                    schema_version: 1,
+                    logical_ids: vec![IdSpace::logical("seed")],
+                },
+                TraversalDirection::Outgoing,
+                GraphReadContextV1::Current {
+                    schema_version: 1,
+                    context: ReadContextV1::new(bad_view, SearchFilter::default()).unwrap(),
+                },
+                1,
+                10,
+                100,
+            )
+            .with_target_predicates(vec![pred.clone()]);
+            assert!(matches!(
+                engine.graph_expand(&bad_req),
+                Err(EngineError::GraphExpansion(ref e))
+                    if e.reason == GraphExpansionErrorReasonV1::GraphContextInvalid
+                        && e.field_path == "/context"
+            ));
+        }
+
+        // `include_out_of_window: true` is admitted and must match declared vs undeclared parity.
+        let oow_req = GraphExpandRequestV1::new(
+            GraphSeedV1::Explicit {
+                schema_version: 1,
+                logical_ids: vec![IdSpace::logical("seed")],
+            },
+            TraversalDirection::Outgoing,
+            GraphReadContextV1::Current {
+                schema_version: 1,
+                context: ReadContextV1::new(
+                    ReadView {
+                        include_out_of_window: true,
+                        valid_as_of: Some(instant),
+                        ..ReadView::default()
+                    },
+                    SearchFilter::default(),
+                )
+                .unwrap(),
+            },
+            1,
+            10,
+            100,
+        )
+        .with_target_predicates(vec![pred]);
+        let mut oow_ids: Vec<String> = engine
+            .graph_expand(&oow_req)
+            .unwrap()
+            .targets
+            .into_iter()
+            .map(|t| t.logical_id)
+            .collect();
+        oow_ids.sort();
+
+        engine.close().unwrap();
+        oow_ids
+    };
+
+    let declared_oow = run_store("relaxed_declared", true);
+    let undeclared_oow = run_store("relaxed_undeclared", false);
+
+    assert_eq!(declared_oow, undeclared_oow);
+    assert_eq!(declared_oow, vec!["t_in_window_gold".to_string(), "t_oow_gold".to_string()]);
+}

@@ -365,6 +365,9 @@ def _validate_graph_expand_request(request: GraphExpandRequestV1) -> None:
     i64_min = -(1 << 63)
     i64_max = (1 << 63) - 1
 
+    def escape_pointer(token: str) -> str:
+        return token.replace("~", "~0").replace("/", "~1")
+
     def validate_predicates(
         preds: object, reason: str, base: str, max_count: int
     ) -> None:
@@ -373,8 +376,14 @@ def _validate_graph_expand_request(request: GraphExpandRequestV1) -> None:
         for index, pred in enumerate(preds):
             pred_base = f"{base}/{index}"
             if isinstance(pred, dict):
-                if set(pred.keys()) != {"key", "op", "value"}:
-                    refuse(reason, pred_base)
+                allowed = {"key", "op", "value"}
+                extras = sorted(k for k in pred if not isinstance(k, str) or k not in allowed)
+                if extras:
+                    extra_key = extras[0]
+                    refuse("unknown_field", f"{pred_base}/{escape_pointer(str(extra_key))}")
+                for required_field in ("key", "op", "value"):
+                    if required_field not in pred:
+                        refuse(reason, f"{pred_base}/{required_field}")
                 key = pred["key"]
                 op = pred["op"]
                 val = pred["value"]

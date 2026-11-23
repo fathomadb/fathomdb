@@ -328,6 +328,7 @@ def test_graph_expand_predicates_validation_refusals(db_path: str) -> None:
             edge_preds: Any = (),
             target_preds: Any = (),
             expected_reason: str,
+            expected_path: str | None = None,
         ) -> None:
             with pytest.raises(GraphExpansionError) as exc:
                 graph.expand(
@@ -348,6 +349,8 @@ def test_graph_expand_predicates_validation_refusals(db_path: str) -> None:
                     ),
                 )
             assert exc.value.reason == expected_reason
+            if expected_path is not None:
+                assert exc.value.field_path == expected_path
 
         # Bool ordering refused
         for op in ("lt", "lte", "gt", "gte"):
@@ -378,12 +381,30 @@ def test_graph_expand_predicates_validation_refusals(db_path: str) -> None:
             PropertyPredicate("k", "eq", math.inf),
             PropertyPredicate("k", "eq", I64_MAX + 1),
             PropertyPredicate("k", "eq", I64_MIN - 1),
-            {"key": "k", "op": "eq", "value": "v", "extra": 1},
             {"key": "k", "op": "like", "value": "v"},
         ]
         for bad in bad_preds:
             check_refusal(edge_preds=(bad,), expected_reason="graph_edge_predicates_invalid")
             check_refusal(target_preds=(bad,), expected_reason="graph_target_predicates_invalid")
+
+        # Closed wire semantics parity with Rust/TS: unknown key -> unknown_field + RFC 6901 pointer,
+        # missing required field -> predicate invalid + per-field pointer.
+        extra_dict = {"key": "k", "op": "eq", "value": "v", "extra": 1}
+        check_refusal(
+            edge_preds=(extra_dict,),
+            expected_reason="unknown_field",
+            expected_path="/edgePredicates/0/extra",
+        )
+        check_refusal(
+            target_preds=(extra_dict,),
+            expected_reason="unknown_field",
+            expected_path="/targetPredicates/0/extra",
+        )
+        check_refusal(
+            edge_preds=({"key": "k", "op": "eq"},),
+            expected_reason="graph_edge_predicates_invalid",
+            expected_path="/edgePredicates/0/value",
+        )
     finally:
         engine.close()
 

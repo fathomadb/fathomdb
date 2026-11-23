@@ -1064,17 +1064,21 @@ pub(crate) fn read_graph_expand_with_stop_words_in_tx(
                 })
             })
             .collect();
-        let target_pushed = request
-            .target_predicates
-            .iter()
-            .filter(|pred| {
-                registry.get(&pred.key).is_some_and(|stored| {
-                    stored.entity_class == PropertyEntityClass::Node
-                        && stored.roles.contains(&ProjectionRole::Filterable)
-                        && stored.source.is_none()
+        let target_pushed = if view.view.include_superseded || view.view.include_inactive {
+            Vec::new()
+        } else {
+            request
+                .target_predicates
+                .iter()
+                .filter(|pred| {
+                    registry.get(&pred.key).is_some_and(|stored| {
+                        stored.entity_class == PropertyEntityClass::Node
+                            && stored.roles.contains(&ProjectionRole::Filterable)
+                            && stored.source.is_none()
+                    })
                 })
-            })
-            .collect();
+                .collect()
+        };
         (edge_pushed, target_pushed)
     };
     let edge_boundary = EdgeViewBoundary::Current { edge_now: view.edge_now() };

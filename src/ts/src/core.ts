@@ -62,6 +62,7 @@ import {
   ReadContextV1,
   FrozenReadContextV1,
   FrozenSearchOptions,
+  BaseSearchOptions,
   SearchOptions,
   TextSearchOptions,
   SearchExpandOptions,
@@ -474,7 +475,7 @@ export class Engine {
     query: string,
     name: string,
     filter?: SearchFilter,
-    view?: SearchOptions,
+    view?: BaseSearchOptions,
   ): Promise<SearchResult> { return searchProjectedText(this.#native, query, name, filter, view); }
 
   async close(): Promise<void> {

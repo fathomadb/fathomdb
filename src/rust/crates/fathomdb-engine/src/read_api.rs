@@ -135,7 +135,7 @@ impl Engine {
     /// deterministically by `name ASC` via the `ReaderWorkerPool`.
     pub fn read_operational_collections(
         &self,
-    ) -> Result<Vec<crate::OperationalCollectionInfo>, EngineError> {
+    ) -> Result<Vec<crate::properties::OperationalCollectionInfo>, EngineError> {
         let _operation = self.ensure_open()?;
         let (response_tx, response_rx) = mpsc::sync_channel(1);
         let request = ReaderRequest::read_operational_collections(response_tx);
@@ -156,7 +156,7 @@ impl Engine {
     pub fn read_operational_collection(
         &self,
         name: &str,
-    ) -> Result<Option<crate::OperationalCollectionInfo>, EngineError> {
+    ) -> Result<Option<crate::properties::OperationalCollectionInfo>, EngineError> {
         let _operation = self.ensure_open()?;
         let (response_tx, response_rx) = mpsc::sync_channel(1);
         let request = ReaderRequest::read_operational_collection(name.to_string(), response_tx);
@@ -221,7 +221,7 @@ impl Engine {
         kind: &str,
         predicates: &[Predicate],
         source_types: &[String],
-        property_predicates: &[crate::PropertyPredicate],
+        property_predicates: &[crate::properties::PropertyPredicate],
         limit: usize,
         view: &ReadView,
     ) -> Result<Vec<NodeRecord>, EngineError> {

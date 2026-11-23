@@ -8,12 +8,11 @@ the Python, TypeScript, or Rust application SDK.
 ## Release 0.8.30 (0.8.31 in development)
 
 FathomDB is pre-1.0 beta; public contracts can change between micro releases.
-This checkout targets the in-development **0.8.31** release; **0.8.30** is the
-newest published release on crates.io, PyPI and npm, with its matching Tegra
-CUDA wheel and Node addon available through first-party GitHub Pages.
-0.8.30 adds explicit module model release, optimizes eligible node-only hybrid
-retrieval, and fixes MCP revision attribution and partial-span dependency tracing.
-Store format remains 37, with no automatic migration. See the
+This checkout targets the in-development **0.8.31** release (store format **38**,
+with an explicit offline `fathomdb migrate` upgrade from format 37 to 38);
+**0.8.30** is the newest published release on crates.io, PyPI and npm (format 37),
+with its matching Tegra CUDA wheel and Node addon available through first-party
+GitHub Pages. See the
 [release notes](docs/release-notes/0.8.30.md) and [changelog](CHANGELOG.md).
 
 ## What you can build
@@ -31,7 +30,9 @@ business, knowledge management and personal agent examples.
   source evidence resolution, and constrained graph expansion.
 - **Derived projections:** declarative text, vector, filter, and ranking
   configuration with readiness and runtime diagnostics.
-- **Operations:** a separate CLI for integrity inspection and explicit recovery.
+- **Operations:** a separate CLI (`doctor`, `recover`, and offline `migrate`
+  for 37-to-38 upgrades) for integrity inspection, schema upgrade, and explicit
+  recovery.
 
 The three application SDKs share governed operations and option defaults with
 language-specific naming, calling conventions, and error handling. Rust uses
@@ -106,15 +107,21 @@ device selection, shared-GPU limits, and
 Explicit release drops cached standalone CLS and cross-encoder models while
 engine-owned Mean providers retain their own close lifecycle.
 
-The operator CLI is installed from source; no prebuilt CLI binary is published:
+For the published 0.8.30 release, install the operator CLI from source:
 
 ```bash
 cargo install fathomdb-cli --version '=0.8.30' --locked
 ```
 
+In the 0.8.31 release line, the operator CLI is also packaged as a lockstep
+`fathomdb-cli` binary wheel installable via `pip install 'fathomdb[cli]'` while
+keeping the base `fathomdb` SDK package free of console scripts.
+
 Use the [CLI reference](docs/reference/cli.md) and
 [integrity inspection guide](docs/operations/integrity-inspection.md) before
-operating on a store. Application SDKs do not expose recovery or raw SQL.
+operating on a store (including offline `fathomdb migrate --backup-dir <dir> <db_path>`
+upgrades from Schema 37 to Schema 38). Application SDKs do not expose recovery,
+migration, or raw SQL.
 
 ## Develop and contribute
 

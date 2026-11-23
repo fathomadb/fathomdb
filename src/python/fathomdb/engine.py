@@ -60,6 +60,8 @@ from fathomdb.types import (
     DependencySourceLookupV1,
     DependencyTraceRequestV1,
     DependencyTraceResultV1,
+    EvidenceResolveManyItemV1,
+    EvidenceResolveManyRequestV1,
     EvidenceResolveRequestV1,
     EvidenceSearchRequestV1,
     EvidenceSearchResultV1,
@@ -339,6 +341,7 @@ class Engine:
         graph_seed_k: int = 10,
         graph_edge_kinds: Sequence[str] | None = None,
         graph_edge_predicates: Sequence[PropertyPredicate] | None = None,
+        hints: bool = False,
     ) -> SearchResult:
         """Hybrid search with optional CE reranking and optional graph-BFS arm.
 
@@ -410,6 +413,7 @@ class Engine:
             graph_seed_k=graph_seed_k,
             graph_edge_kinds=graph_edge_kinds,
             graph_edge_predicates=graph_edge_predicates,
+            hints=hints,
         )
 
     def freeze_read_context(self, context: ReadContextV1) -> FrozenReadContextV1:
@@ -436,6 +440,7 @@ class Engine:
         graph_seed_k: int = 10,
         graph_edge_kinds: Sequence[str] | None = None,
         graph_edge_predicates: Sequence[PropertyPredicate] | None = None,
+        hints: bool = False,
     ) -> SearchResult:
         """Search under an Engine-authenticated frozen context.
 
@@ -460,6 +465,7 @@ class Engine:
             graph_seed_k=graph_seed_k,
             graph_edge_kinds=graph_edge_kinds,
             graph_edge_predicates=graph_edge_predicates,
+            hints=hints,
         )
 
     def search_with_evidence(
@@ -475,6 +481,13 @@ class Engine:
     def resolve_evidence(self, request: EvidenceResolveRequestV1) -> ResolvedEvidenceV1:
         """Resolve exact source bytes under an equivalent frozen context."""
         return _sdk_evidence.resolve_evidence(self, request)
+
+    def resolve_evidence_many(
+        self,
+        request: EvidenceResolveManyRequestV1,
+    ) -> list[EvidenceResolveManyItemV1]:
+        """Resolve a bounded batch (1..=50) of evidence references under one frozen context."""
+        return _sdk_evidence.resolve_evidence_many(self, request)
 
     def resolve_graph_evidence(
         self, request: GraphEvidenceResolveRequestV1

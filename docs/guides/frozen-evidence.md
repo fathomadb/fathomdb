@@ -8,7 +8,8 @@ validity, eligibility, and database state.
 | Need | Use |
 | --- | --- |
 | Frozen top-K ranking without source evidence | `freeze_read_context` → `search_frozen` |
-| Evidence-backed answer | `freeze_read_context` → `search_with_evidence` → `resolve_evidence` for selected hits |
+| Evidence-backed answer (single hit) | `freeze_read_context` → `search_with_evidence` → `resolve_evidence` for one selected hit |
+| Evidence-backed answer (batch up to 50 hits) | `freeze_read_context` → `search_with_evidence` → `resolve_evidence_many` / `resolveEvidenceMany` (`1..=50`, per-slot partial outcomes) |
 | Stable collection pagination | `read.canonical_page`; search is top-K, not a page stream |
 | Evidence for an exact graph target and winning edge | `graph.expand` with `include_evidence=True` / `includeEvidence: true` → `resolve_graph_evidence` / `resolveGraphEvidence` |
 
@@ -50,6 +51,36 @@ governed evidence but is not authorization by itself; resolution rechecks the
 equivalent frozen context and current visibility. Reference strings contain
 fresh randomness, so compare artifact revision identity and resolved semantics,
 not reference bytes from separate searches.
+
+### Batch resolution (`resolve_evidence_many` / `resolveEvidenceMany`)
+
+To hydrate multiple hits from a `search_with_evidence` response in a single
+snapshot lock, pass `1..=50` references (`EVIDENCE_RESOLVE_MANY_MAX = 50`) under
+one `FrozenReadContextV1`:
+
+```python
+items = engine.resolve_evidence_many(
+    fathomdb.EvidenceResolveManyRequestV1(
+        evidence_refs=[entry.evidence_ref for entry in result.evidence],
+        context=context,
+    )
+)
+for item in items:
+    if item.status == "resolved":
+        print(item.resolved.canonical_source_body)
+    else:
+        print(item.reason, item.field_path)  # e.g. "evidence_unavailable", "/evidenceRefs/1"
+```
+
+Duplicate references preserve exact request order and arity. Invalid, tampered,
+empty, oversized, wrong-context, erased, or superseded references return a
+per-slot `refused` outcome (`reason="evidence_unavailable"`,
+`field_path="/evidenceRefs/{i}"`) without failing valid slots; stale or drifted
+frozen contexts fail the whole call with `EvidenceError("evidence_unavailable")`.
+Out-of-bounds lengths (`0` or `> 50`) fail before database access with
+`InvalidArgumentError`. Opt-in search hints (`hints=True` / `hints: true`) are
+also supported on `search`, `search_frozen`, and `EvidenceSearchRequestV1`,
+populating `SearchResult.hints` without altering hit ranking.
 
 ## Trace registered dependencies
 

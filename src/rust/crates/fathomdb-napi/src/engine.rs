@@ -413,6 +413,7 @@ impl Engine {
         limit: Option<i64>,
         snippet: Option<SnippetOptionsInput>,
         graph_options: Option<GraphArmOptionsInput>,
+        hints: Option<bool>,
     ) -> Result<SearchResult> {
         let context = frozen_context_to_rust(context)?;
         let depth = usize::try_from(rerank_depth.unwrap_or(0)).unwrap_or(usize::MAX);
@@ -424,9 +425,10 @@ impl Engine {
         let limit = usize::try_from(limit.unwrap_or(10)).unwrap_or(usize::MAX);
         let snippet = snippet.map(|options| options.to_rust()).transpose()?;
         let graph_options = graph_arm_options_input_to_rust(graph_options)?;
+        let hints = hints.unwrap_or(false);
         let engine = Arc::clone(&self.inner);
         let result = call_engine(move || {
-            engine.search_frozen_with_graph_options(
+            engine.search_frozen_with_hints(
                 &query,
                 &context,
                 depth,
@@ -437,6 +439,7 @@ impl Engine {
                 limit,
                 snippet.as_ref(),
                 &graph_options,
+                hints,
             )
         })
         .await?;
@@ -457,6 +460,7 @@ impl Engine {
         include_explanation: Option<bool>,
         limit: Option<i64>,
         graph_options: Option<GraphArmOptionsInput>,
+        hints: Option<bool>,
     ) -> Result<EvidenceSearchResultV1> {
         let rerank_depth = u32::try_from(rerank_depth.unwrap_or(0)).map_err(|_| {
             engine_error_to_napi(RustEngineError::InvalidArgument {
@@ -484,7 +488,8 @@ impl Engine {
             .with_graph_seed(graph_options.graph_seed)
             .with_graph_seed_k(graph_options.graph_seed_k)
             .with_graph_edge_kinds(graph_options.graph_edge_kinds)
-            .with_graph_edge_predicates(graph_options.graph_edge_predicates);
+            .with_graph_edge_predicates(graph_options.graph_edge_predicates)
+            .with_hints(hints.unwrap_or(false));
         let engine = Arc::clone(&self.inner);
         call_engine(move || engine.search_with_evidence(&request)).await.map(Into::into)
     }
@@ -504,6 +509,29 @@ impl Engine {
         };
         let engine = Arc::clone(&self.inner);
         call_engine(move || engine.resolve_evidence(&request)).await.map(Into::into)
+    }
+
+    /// Resolve a bounded batch (`1..=50`) of raw evidence references under one
+    /// authenticated frozen read context with per-slot partial outcomes.
+    #[napi]
+    pub async fn resolve_evidence_many(
+        &self,
+        schema_version: u32,
+        evidence_refs: Vec<String>,
+        context: FrozenReadContextV1,
+    ) -> Result<Vec<EvidenceResolveManyItemV1>> {
+        if schema_version == 1 {
+            for evidence_ref in &evidence_refs {
+                validate_ffi_string_napi(evidence_ref)?;
+            }
+        }
+        let context = frozen_context_to_rust(context)?;
+        let engine = Arc::clone(&self.inner);
+        call_engine(move || {
+            engine.resolve_evidence_many_raw_refs(schema_version, &evidence_refs, &context)
+        })
+        .await
+        .map(|items| items.into_iter().map(Into::into).collect())
     }
 
     /// Resolve one exact artifact disclosed by frozen graph expansion.
@@ -579,6 +607,7 @@ impl Engine {
         // EP-17 — fills `SearchResult.snippets`; omitted leaves it absent.
         snippet: Option<SnippetOptionsInput>,
         graph_options: Option<GraphArmOptionsInput>,
+        hints: Option<bool>,
     ) -> Result<SearchResult> {
         validate_ffi_string_napi(&query)?;
         if query.trim().is_empty() {
@@ -612,11 +641,12 @@ impl Engine {
         let limit = limit.unwrap_or(10) as usize;
         let snippet = snippet.map(|options| options.to_rust()).transpose()?;
         let graph_options = graph_arm_options_input_to_rust(graph_options)?;
+        let hints = hints.unwrap_or(false);
         let engine = Arc::clone(&self.inner);
         // fix-2: ONE call — `explain` is a parameter of the full-arity view entry
         // point, so the two arms can no longer drift on `view`.
         let result = call_engine(move || {
-            engine.search_reranked_view_with_graph_options(
+            engine.search_reranked_view_with_hints(
                 &query,
                 filter,
                 depth,
@@ -628,6 +658,7 @@ impl Engine {
                 limit,
                 snippet.as_ref(),
                 &graph_options,
+                hints,
             )
         })
         .await?;

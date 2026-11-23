@@ -533,7 +533,7 @@ struct EdgeRow {
     next_logical_id: Box<str>,
     logical_id: Option<Box<str>>,
     t_invalid: Option<i64>,
-    properties: Option<Box<crate::PropertyMap>>,
+    properties: Option<Box<crate::properties::PropertyMap>>,
 }
 
 struct GraphCandidate {
@@ -545,7 +545,7 @@ struct LoadedNodeRow {
     kind: String,
     body: String,
     write_cursor: u64,
-    properties: Option<crate::PropertyMap>,
+    properties: Option<crate::properties::PropertyMap>,
 }
 
 fn property_sql_op(op: PropertyComparisonOp) -> &'static str {

@@ -145,7 +145,12 @@ The 0.8.31 line sets `SCHEMA_VERSION` to **38**. A missing or
 zero-length path bootstraps directly at schema 38. A non-empty database opens
 only when its effective committed `PRAGMA user_version` is exactly 38; older,
 future, and non-empty zero-version databases are rejected before product
-mutation. There is no public automatic migration or compatibility reader.
+mutation. There is no public automatic migration or compatibility reader on
+`Engine::open`; committed Schema 37 databases upgrade explicitly offline through
+`fathomdb migrate --backup-dir <dir> <db_path>` followed by
+`fathomdb doctor check-integrity --full` (see the
+[CLI reference](../reference/cli.md)). Pre-37 formats have no in-place upgrade
+path.
 
 ## Versioning — two axes
 
@@ -171,7 +176,7 @@ This decouples embedder-protocol stability from binding cadence.
 | Search results are ordered by **RRF fusion**, not union-dedup | re-baseline any pinned result ordering |
 | `valid_from >= valid_until` is refused with a **message-less** `WriteValidationError` (was `InvalidArgumentError` carrying both bounds) | validate the pair before calling |
 | A projection spec with `fts` / `vector` but no `searchable` role is refused | add the role, or name the projection in `drop` |
-| Public open does not upgrade older non-empty databases | create a fresh 0.8.30 database and re-ingest through the public write surface |
+| Public open does not auto-migrate older non-empty databases | upgrade committed Schema 37 stores offline with `fathomdb migrate --backup-dir <dir> <db_path>`, or create a fresh Schema 38 database and re-ingest for `< 37` |
 
 The [CHANGELOG](https://github.com/fathomadb/fathomdb/blob/main/CHANGELOG.md)
 is the authoritative list.

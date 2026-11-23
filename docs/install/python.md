@@ -29,6 +29,21 @@ a virtual environment for your application.
 pip install fathomdb==0.8.30
 ```
 
+### Operator CLI extra (`fathomdb[cli]`)
+
+The base `fathomdb` Python SDK package ships zero console scripts. Starting with
+the 0.8.31 release line, the operator CLI (`fathomdb doctor`, `fathomdb recover`,
+and offline `fathomdb migrate`) is packaged as a lockstep `fathomdb-cli` binary
+wheel across the same five native targets and linked via the optional `cli` extra:
+
+```bash
+pip install 'fathomdb[cli]'
+```
+
+For the published 0.8.30 release, install the CLI from crates.io via
+`cargo install fathomdb-cli --version '=0.8.30' --locked`. See the
+[CLI reference](../reference/cli.md) for offline Schema 37-to-38 upgrades.
+
 ## Build from source
 
 Use a trusted `release/0.8.30` checkout and the declared Rust 1.95.0 toolchain.

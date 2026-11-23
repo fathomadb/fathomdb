@@ -943,6 +943,9 @@ class DependencyTraceResultV1:
     read_boundary: TraceReadBoundaryV1
 
 
+EVIDENCE_RESOLVE_MANY_MAX = 50
+
+
 @dataclass(frozen=True)
 class EvidenceSearchRequestV1:
     """Opt-in frozen search that requests one evidence reference per hit."""
@@ -960,6 +963,7 @@ class EvidenceSearchRequestV1:
     graph_seed_k: int = 10
     graph_edge_kinds: Sequence[str] | None = None
     graph_edge_predicates: Sequence[PropertyPredicate] | None = None
+    hints: bool = False
 
 
 @dataclass(frozen=True)
@@ -969,6 +973,25 @@ class EvidenceResolveRequestV1:
     evidence_ref: str
     context: FrozenReadContextV1
     schema_version: int = 1
+
+
+@dataclass(frozen=True)
+class EvidenceResolveManyRequestV1:
+    """Resolve a bounded batch (1..=50) of opaque references under one frozen context."""
+
+    evidence_refs: list[str] | tuple[str, ...]
+    context: FrozenReadContextV1
+    schema_version: int = 1
+
+
+@dataclass(frozen=True)
+class EvidenceResolveManyItemV1:
+    """Per-reference outcome returned by ``Engine.resolve_evidence_many``."""
+
+    status: Literal["resolved", "refused"]
+    resolved: ResolvedEvidenceV1 | None = None
+    reason: str | None = None
+    field_path: str | None = None
 
 
 @dataclass(frozen=True)
@@ -1356,6 +1379,18 @@ class Explanation:
 
 
 @dataclass(frozen=True)
+class Hint:
+    """One opt-in agent search hint returned on ``SearchResult.hints``."""
+
+    action: str
+    reason: str
+    mode: str | None = None
+    limit: int | None = None
+    arm: str | None = None
+    cause: str | None = None
+
+
+@dataclass(frozen=True)
 class SearchResult:
     """Result returned by ordinary, frozen, or evidence-bearing search."""
 
@@ -1371,6 +1406,8 @@ class SearchResult:
     #: EP-17 snippet sidecar: one ``SnippetV1`` per hit, in ``results`` order,
     #: when the search passed ``snippet=``; ``None`` otherwise.
     snippets: list[SnippetV1] | None = None
+    #: Opt-in agent search hints sidecar when ``hints=True``; ``None`` otherwise.
+    hints: list[Hint] | None = None
 
 
 @dataclass(frozen=True)
@@ -1687,6 +1724,12 @@ class OpenReport:
     #: SHA-256 (lowercase hex) of the engine's effective query stop words, so a
     #: receipt can record it without running a query.
     stop_words_sha256: str = ""
+    #: True when this binary was compiled with the ``default-reranker`` feature.
+    reranker_compiled: bool = False
+    #: True when this binary was compiled with CUDA support (``embed-cuda`` or ``rerank-cuda``).
+    cuda_compiled: bool = False
+    #: True when local reranking is ready at open time without network I/O or GPU allocation.
+    rerank_available: bool = False
 
 
 @dataclass(frozen=True)
@@ -1779,10 +1822,13 @@ __all__ = [
     "EmbedderEvent",
     "EmbedderIdentity",
     "EffectiveEmbedDevice",
+    "EVIDENCE_RESOLVE_MANY_MAX",
     "EvidenceArtifactLifecycleV1",
     "EvidenceContributionV1",
     "EvidenceGraphOriginV1",
     "EvidenceProjectionOriginV1",
+    "EvidenceResolveManyItemV1",
+    "EvidenceResolveManyRequestV1",
     "EvidenceResolveRequestV1",
     "EvidenceSearchRequestV1",
     "EvidenceSearchResultV1",
@@ -1793,6 +1839,7 @@ __all__ = [
     "GpuAllocationMeasurement",
     "GpuGlobalFreeMeasurement",
     "GpuPrivatePoolUsedMeasurement",
+    "Hint",
     "MeanVecPinnedEvent",
     "MigrationStepReport",
     "NodeRecord",

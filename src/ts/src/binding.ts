@@ -411,6 +411,15 @@ export interface NativeSnippetV1 {
   cut: boolean;
 }
 
+export interface NativeHint {
+  action: string;
+  reason: string;
+  mode?: string | null;
+  limit?: number | null;
+  arm?: string | null;
+  cause?: string | null;
+}
+
 export interface NativeSearchResult {
   projectionCursor: number;
   softFallback: NativeSoftFallback | null;
@@ -421,6 +430,8 @@ export interface NativeSearchResult {
   degradations?: NativeArmDegradation[] | null;
   /** EP-17 snippet sidecar; absent or null unless requested. */
   snippets?: NativeSnippetV1[] | null;
+  /** Opt-in agent search hints sidecar; absent or null unless requested. */
+  hints?: NativeHint[] | null;
 }
 
 export interface NativeEvidenceSidecarEntryV1 {
@@ -490,6 +501,13 @@ export interface NativeResolvedEvidenceV1 {
   retrievalContribution: NativeEvidenceContributionV1;
   dependency?: NativeSourceDependencyV1 | null;
   properties?: NativePropertyEntry[] | null;
+}
+
+export interface NativeEvidenceResolveManyItemV1 {
+  status: string;
+  resolved?: NativeResolvedEvidenceV1 | null;
+  reason?: string | null;
+  fieldPath?: string | null;
 }
 
 export interface NativeSearchFilter {
@@ -758,6 +776,9 @@ export interface NativeOpenReport {
   // "a witness measured nothing".
   embedderGpuAllocationWitness?: NativeGpuAllocationWitness | null;
   stopWordsSha256?: string;
+  rerankerCompiled: boolean;
+  cudaCompiled: boolean;
+  rerankAvailable: boolean;
 }
 
 interface NativeCounterSnapshot {
@@ -910,6 +931,7 @@ export interface NativeEngine {
     limit?: number,
     snippet?: NativeSnippetOptions,
     graphOptions?: NativeGraphArmOptionsInput,
+    hints?: boolean,
   ): Promise<NativeSearchResult>;
   searchWithEvidence(
     query: string,
@@ -921,11 +943,17 @@ export interface NativeEngine {
     includeExplanation?: boolean,
     limit?: number,
     graphOptions?: NativeGraphArmOptionsInput,
+    hints?: boolean,
   ): Promise<NativeEvidenceSearchResultV1>;
   resolveEvidence(
     evidenceRef: string,
     context: NativeFrozenReadContextV1,
   ): Promise<NativeResolvedEvidenceV1>;
+  resolveEvidenceMany(
+    schemaVersion: number,
+    evidenceRefs: string[],
+    context: NativeFrozenReadContextV1,
+  ): Promise<NativeEvidenceResolveManyItemV1[]>;
   resolveGraphEvidence(
     evidenceRef: string,
     context: NativeFrozenReadContextV1,
@@ -951,6 +979,7 @@ export interface NativeEngine {
     limit?: number,
     snippet?: NativeSnippetOptions,
     graphOptions?: NativeGraphArmOptionsInput,
+    hints?: boolean,
   ): Promise<NativeSearchResult>;
   // 0.8.18 Slice 5 (#5 vector-equivalence probe) — text-only/FTS-only path +
   // degraded-state observability.

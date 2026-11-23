@@ -1755,3 +1755,51 @@ canonical wire JSON when `undefined`. `ReadView` remains world-time-only
   `artifactLifecycle.superseded === true` when later superseded and rejects
   with `EvidenceError("evidence_unavailable")` after erasure, transition, or
   closure-barrier revocation.
+
+## Batch evidence resolution, search hints, and OpenReport capabilities (0.8.31 Slice 50)
+
+Slice 50 adds one live governed operation (`engine.resolveEvidenceMany`,
+advancing the governed surface to `56` live operations and `93` allowlist
+members), opt-in agent search hints across `search`, `searchFrozen`, and
+`searchWithEvidence`, and three runtime capability booleans on `OpenReport`.
+
+### `Engine.resolveEvidenceMany`
+
+- Constant: `EVIDENCE_RESOLVE_MANY_MAX = 50`.
+- Types: `EvidenceErrorReasonV1`,
+  `EvidenceResolveManyRequestV1 { schemaVersion: 1; evidenceRefs: string[]; context: FrozenReadContextV1 }`,
+  and
+  `EvidenceResolveManyItemV1 = { status: "resolved"; resolved: ResolvedEvidenceV1 } | { status: "refused"; reason: EvidenceErrorReasonV1; fieldPath: string }`.
+- Method: `engine.resolveEvidenceMany(request: EvidenceResolveManyRequestV1): Promise<EvidenceResolveManyItemV1[]>`.
+- Validation precedence before native dispatch:
+  1. Unknown top-level keys reject with `EvidenceError("unknown_field")`.
+  2. `schemaVersion !== 1` rejects with
+     `EvidenceError("unsupported_schema_version", "/schemaVersion")`.
+  3. Non-array `evidenceRefs` or non-string elements reject with `TypeError`.
+  4. Embedded NUL or lone UTF-16 surrogates reject with `WriteValidationError`.
+  5. Raw length `0` or `> 50` (before deduplication) rejects with
+     `InvalidArgumentError`.
+- Execution semantics: validates `context` once inside one snapshot (and again
+  before returning), collapsing stale or drifted contexts into whole-call
+  `EvidenceError("evidence_unavailable")`. Preserves order and duplicate arity.
+  Per-slot bad/tampered/empty/oversized/erased/wrong-context tokens return
+  `{ status: "refused", reason: "evidence_unavailable", fieldPath: "/evidenceRefs/{i}" }`.
+
+### Opt-in search hints (`hints?: boolean`)
+
+- Exported types: `HintAction = "search" | "none"`,
+  `HintReason = "degraded" | "no_results" | "more_results"`,
+  `HintMode = "text" | "hybrid"`, and
+  `Hint { action, reason, mode?, limit?, arm?, cause? }`.
+- `SearchResult.hints?: Hint[]` (omitted when `hints` is omitted or `false`).
+- Accepted on `SearchOptions` (`SearchCallOptions`), `FrozenSearchOptions`, and
+  `EvidenceSearchRequestV1`. Non-boolean non-`undefined` values reject with
+  `TypeError`; `searchTextOnly` and `searchProjectedText` reject `hints` with
+  `InvalidArgumentError`.
+
+### `OpenReport` capability booleans
+
+- `OpenReport.rerankerCompiled: boolean`, `OpenReport.cudaCompiled: boolean`,
+  and `OpenReport.rerankAvailable: boolean` (zero network I/O and zero GPU
+  allocation during `Engine.open`). `mapOpenReport` strictly validates all three
+  as `boolean` and throws `TypeError` when missing or non-boolean.

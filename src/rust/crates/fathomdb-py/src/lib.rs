@@ -73,7 +73,8 @@ use fathomdb_engine::{
     EvidenceContributionV1 as RustEvidenceContributionV1,
     EvidenceGraphOriginV1 as RustEvidenceGraphOriginV1,
     EvidenceProjectionOriginV1 as RustEvidenceProjectionOriginV1,
-    EvidenceRefV1 as RustEvidenceRefV1, EvidenceResolveRequestV1 as RustEvidenceResolveRequestV1,
+    EvidenceRefV1 as RustEvidenceRefV1, EvidenceResolveManyItemV1 as RustEvidenceResolveManyItemV1,
+    EvidenceResolveRequestV1 as RustEvidenceResolveRequestV1,
     EvidenceSearchRequestV1 as RustEvidenceSearchRequestV1,
     EvidenceSearchResultV1 as RustEvidenceSearchResultV1,
     EvidenceSidecarEntryV1 as RustEvidenceSidecarEntryV1, ExciseReport as RustExciseReport,
@@ -81,7 +82,7 @@ use fathomdb_engine::{
     FilterTerm as RustFilterTerm, FrozenReadContextV1 as RustFrozenReadContextV1,
     GraphArmOptions as RustGraphArmOptions, GraphEvidenceRefV1 as RustGraphEvidenceRefV1,
     GraphEvidenceResolveRequestV1 as RustGraphEvidenceResolveRequestV1,
-    GraphSeedMode as RustGraphSeedMode, IdSpace as RustIdSpace,
+    GraphSeedMode as RustGraphSeedMode, Hint as RustHint, IdSpace as RustIdSpace,
     IngestWithExtractorReceipt as RustIngestWithExtractorReceipt, InitialState,
     LifecycleActuationV1, LifecycleState as RustLifecycleState,
     MutationProjectionStatusRequestV1 as RustMutationProjectionStatusRequestV1,
@@ -240,6 +241,7 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     // C-2 (0.8.19 / TC-8) — typed IdSpace id carrier for SearchHit.id.
     m.add_class::<PyIdSpace>()?;
     m.add_class::<PySearchHit>()?;
+    m.add_class::<PyHint>()?;
     m.add_class::<PySearchResult>()?;
     m.add_class::<PySnippetV1>()?;
     m.add_class::<PyEvidenceSidecarEntryV1>()?;
@@ -247,6 +249,7 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyEvidenceContributionV1>()?;
     m.add_class::<PyEvidenceProjectionOriginV1>()?;
     m.add_class::<PyResolvedEvidenceV1>()?;
+    m.add_class::<PyEvidenceResolveManyItemV1>()?;
     // 0.8.8 EXP-OBS (Slice 10) — explanation sidecar types.
     m.add_class::<PyQueryTrace>()?;
     m.add_class::<PyPerHitExplain>()?;

@@ -18,23 +18,25 @@ use fathomdb_sdk::{
     CudaAllocatorReason, CudaAllocatorReport, CudaDeviceInfo, DependencyDerivedLookupV1,
     DependencyListV1, DependencySourceLookupV1, DependencyTraceRequestV1, DependencyTraceResultV1,
     DeviceResolution, EmbedderEvent, EmbedderIdentity, EmbeddingReadiness, Engine, EngineConfig,
-    EngineError, EngineOpenError, EraseReport, Error, ErrorKind, EvidenceResolveRequestV1,
-    EvidenceSearchRequestV1, EvidenceSearchResultV1, ExtractDocument, Filter, FilterTerm,
-    FrozenReadContextV1, FrozenSearchOptions, GpuAllocationMeasurement, GpuAllocationWitness,
-    GraphArmOptions, GraphArmSeedSource, GraphEvidenceResolveRequestV1, GraphExpandRequestV1,
-    GraphExpandResultV1, GraphReadContextV1, GraphSeedMode, GraphSeedV1, IdSpace, IdSpaceKind,
-    IngestWithExtractorReceipt, LifecycleState, ListOptions, MigrationStepReport, ModuleLoadInit,
-    MutationProjectionStatusRequestV1, MutationProjectionStatusV1, NeighborsOptions, NodeRecord,
-    OpStoreRow, OpenOptions, OpenReport, OperationalCollectionInfo, OperationalStateRecordV1,
-    PageRequestV1, PageV1, Predicate, PreparedWrite, ProjectedTextSearchOptions, ProjectionDelta,
-    ProjectionGenerationStatusV1, ProjectionRuntimeStatus, ProjectionSpec, PropertyComparisonOp,
-    PropertyEntityClass, PropertyMap, PropertyPredicate, PropertyValue, ReadContextV1, ReadView,
-    ReleaseThreshold, RerankOptions, RerankPassage, RerankResult, RerankerDeviceResolution,
-    ResolvedEvidenceV1, ResolvedGraphEvidenceV1, Result, RuntimeConfiguration,
-    RuntimeConfigurationError, RuntimeSqliteMode, SearchExpandOptions, SearchExpandResult,
-    SearchFilter, SearchFilterArg, SearchHit, SearchOptions, SearchResult,
-    SourceDependencyRegistrationV1, SourceDependencyV1, SourceId, Subscriber, SubscriberEvent,
-    TextSearchOptions, TraversalDirection, WriteReceipt,
+    EngineError, EngineOpenError, EraseReport, Error, ErrorKind, EvidenceResolveManyItemV1,
+    EvidenceResolveManyRequestV1, EvidenceResolveRequestV1, EvidenceSearchRequestV1,
+    EvidenceSearchResultV1, ExtractDocument, Filter, FilterTerm, FrozenReadContextV1,
+    FrozenSearchOptions, GpuAllocationMeasurement, GpuAllocationWitness, GraphArmOptions,
+    GraphArmSeedSource, GraphEvidenceResolveRequestV1, GraphExpandRequestV1, GraphExpandResultV1,
+    GraphReadContextV1, GraphSeedMode, GraphSeedV1, Hint, HintAction, HintArm, HintCause, HintMode,
+    HintReason, IdSpace, IdSpaceKind, IngestWithExtractorReceipt, LifecycleState, ListOptions,
+    MigrationStepReport, ModuleLoadInit, MutationProjectionStatusRequestV1,
+    MutationProjectionStatusV1, NeighborsOptions, NodeRecord, OpStoreRow, OpenOptions, OpenReport,
+    OperationalCollectionInfo, OperationalStateRecordV1, PageRequestV1, PageV1, Predicate,
+    PreparedWrite, ProjectedTextSearchOptions, ProjectionDelta, ProjectionGenerationStatusV1,
+    ProjectionRuntimeStatus, ProjectionSpec, PropertyComparisonOp, PropertyEntityClass,
+    PropertyMap, PropertyPredicate, PropertyValue, ReadContextV1, ReadView, ReleaseThreshold,
+    RerankOptions, RerankPassage, RerankResult, RerankerDeviceResolution, ResolvedEvidenceV1,
+    ResolvedGraphEvidenceV1, Result, RuntimeConfiguration, RuntimeConfigurationError,
+    RuntimeSqliteMode, SearchExpandOptions, SearchExpandResult, SearchFilter, SearchFilterArg,
+    SearchHit, SearchOptions, SearchResult, SourceDependencyRegistrationV1, SourceDependencyV1,
+    SourceId, Subscriber, SubscriberEvent, TextSearchOptions, TraversalDirection, WriteReceipt,
+    EVIDENCE_RESOLVE_MANY_MAX,
 };
 
 #[test]
@@ -93,6 +95,8 @@ fn engine_search_signatures() {
         Engine::search_with_evidence;
     let _: fn(&Engine, &EvidenceResolveRequestV1) -> Result<ResolvedEvidenceV1> =
         Engine::resolve_evidence;
+    let _: fn(&Engine, &EvidenceResolveManyRequestV1) -> Result<Vec<EvidenceResolveManyItemV1>> =
+        Engine::resolve_evidence_many;
     let _: fn(&Engine, &GraphEvidenceResolveRequestV1) -> Result<ResolvedGraphEvidenceV1> =
         Engine::resolve_graph_evidence;
 }
@@ -176,6 +180,7 @@ fn option_defaults_match_python_and_typescript() {
     assert_eq!(search.graph_seed_k, 10);
     assert!(search.graph_edge_kinds.is_empty());
     assert!(search.graph_edge_predicates.is_empty());
+    assert!(!search.hints);
 
     let text = TextSearchOptions::default();
     assert_eq!((text.view, text.limit), (ReadView::default(), 10));
@@ -195,6 +200,7 @@ fn option_defaults_match_python_and_typescript() {
     assert_eq!(frozen.graph_seed_k, 10);
     assert!(frozen.graph_edge_kinds.is_empty());
     assert!(frozen.graph_edge_predicates.is_empty());
+    assert!(!frozen.hints);
 
     assert_eq!(SearchExpandOptions::default().search_limit, 10);
 
@@ -345,6 +351,19 @@ fn shared_types_are_nameable() {
     named::<GraphSeedMode>();
     named::<GraphArmSeedSource>();
     named::<GraphArmOptions>();
+    named::<EvidenceResolveManyRequestV1>();
+    named::<EvidenceResolveManyItemV1>();
+    named::<Hint>();
+    named::<HintAction>();
+    named::<HintReason>();
+    named::<HintMode>();
+    named::<HintArm>();
+    named::<HintCause>();
+    assert_eq!(EVIDENCE_RESOLVE_MANY_MAX, 50);
+    let _: fn(&OpenReport) -> (bool, bool, bool) =
+        |r| (r.reranker_compiled, r.cuda_compiled, r.rerank_available);
+    let _: fn(EvidenceSearchRequestV1, bool) -> EvidenceSearchRequestV1 =
+        EvidenceSearchRequestV1::with_hints;
 }
 
 /// 0.8.31 Slice 30 (`STRICT-GRAPH`) — `GraphExpandRequestV1::new`,

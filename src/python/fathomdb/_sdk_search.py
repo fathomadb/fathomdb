@@ -30,6 +30,7 @@ from fathomdb.types import (
     FrozenReadContextV1,
     GraphArmSeedSource,
     GraphSeedMode,
+    Hint,
     IdSpace,
     NodeRecord,
     PerHitExplain,
@@ -84,6 +85,7 @@ def _map_native_search_result(result: Any) -> SearchResult:
         explanation=explanation,
         degradations=degradations,
         snippets=_map_native_snippets(result),
+        hints=_map_native_hints(result),
     )
 
 
@@ -179,6 +181,24 @@ def _map_native_snippet(entry: Any) -> SnippetV1:
         highlights=[(int(a), int(b)) for a, b in entry.highlights],
         cut=entry.cut,
     )
+
+
+def _map_native_hints(result: Any) -> list[Hint] | None:
+    """A native result's opt-in agent search hints sidecar, or ``None`` when absent."""
+    native_hints = getattr(result, "hints", None)
+    if native_hints is None:
+        return None
+    return [
+        Hint(
+            action=entry.action,
+            reason=entry.reason,
+            mode=entry.mode,
+            limit=entry.limit,
+            arm=entry.arm,
+            cause=entry.cause,
+        )
+        for entry in native_hints
+    ]
 
 
 def _map_native_degradations(result: Any) -> list[ArmDegradation] | None:
@@ -596,6 +616,7 @@ def search(
     graph_seed_k: int = 10,
     graph_edge_kinds: Sequence[str] | None = None,
     graph_edge_predicates: Sequence[PropertyPredicate] | None = None,
+    hints: bool = False,
 ) -> SearchResult:
     # FIX-3: reject bool and non-int before the negative check.
     # bool is a subclass of int in Python so it passes isinstance(x, int);
@@ -612,6 +633,8 @@ def search(
     # mirroring use_graph_arm + the TS `search` guard (cross-SDK parity).
     if not isinstance(explain, bool):
         raise TypeError(f"explain must be a bool, got {type(explain).__name__!r}")
+    if not isinstance(hints, bool):
+        raise TypeError("hints must be a bool")
     # 0.8.5 (codex §9 P2-2) — validate the new α/pool_n knobs before the native
     # call, mirroring the rerank_depth guard and the TS `search` validation
     # (cross-SDK parity). bool is rejected explicitly (it is an int/float
@@ -653,6 +676,7 @@ def search(
             graph_seed_k=seed_k,
             graph_edge_kinds=native_edge_kinds,
             graph_edge_predicates=native_edge_preds,
+            hints=hints,
         )
     else:
         result = self._native.search(
@@ -678,6 +702,7 @@ def search(
             graph_seed_k=seed_k,
             graph_edge_kinds=native_edge_kinds,
             graph_edge_predicates=native_edge_preds,
+            hints=hints,
         )
     fallback = result.soft_fallback
     soft = (
@@ -712,6 +737,7 @@ def search(
         explanation=explanation,
         degradations=_map_native_degradations(result),
         snippets=_map_native_snippets(result),
+        hints=_map_native_hints(result),
     )
 
 
@@ -759,6 +785,7 @@ def search_frozen(
     graph_seed_k: int = 10,
     graph_edge_kinds: Sequence[str] | None = None,
     graph_edge_predicates: Sequence[PropertyPredicate] | None = None,
+    hints: bool = False,
 ) -> SearchResult:
     if not isinstance(context, FrozenReadContextV1):
         raise TypeError(f"context must be a FrozenReadContextV1, got {type(context).__name__!r}")
@@ -781,6 +808,8 @@ def search_frozen(
             raise InvalidArgumentError(f"pool_n must be >= 0, got {pool_n!r}")
     if not isinstance(explain, bool):
         raise TypeError("explain must be a bool")
+    if not isinstance(hints, bool):
+        raise TypeError("hints must be a bool")
     _validate_snippet(snippet)
     _validate_ranked_result_limit("limit", limit)
     seed_mode, seed_k, native_edge_kinds, native_edge_preds = _validate_graph_arm_options(
@@ -800,6 +829,7 @@ def search_frozen(
         graph_seed_k=seed_k,
         graph_edge_kinds=native_edge_kinds,
         graph_edge_predicates=native_edge_preds,
+        hints=hints,
     )
     return _map_native_search_result(native)
 

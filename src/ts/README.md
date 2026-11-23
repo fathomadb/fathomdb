@@ -64,13 +64,18 @@ Every write field accepts both the camelCase and the snake_case spelling.
 
 ## What is on the surface
 
-- **Engine lifecycle** — `Engine.open`, `engine.close`, `engine.counters()`, plus an open report and
-  an event-subscriber seam.
+- **Engine lifecycle** — `Engine.open`, `engine.close`, `engine.counters()`,
+  `engine.openReport()` (including `rerankerCompiled`, `cudaCompiled`, and
+  `rerankAvailable` capability booleans), and an event-subscriber seam.
 - **Writes** — `engine.write(batch)` of canonical nodes (`{ kind, body, sourceId, logicalId?,
-  state?, reason?, validFrom?, validUntil? }`) and edges (`{ edge: { kind, from, to, sourceId } }`).
+  state?, reason?, validFrom?, validUntil?, properties? }`) and edges (`{ edge: { kind, from, to, sourceId, properties? } }`).
 - **Search** — `engine.search(query, ...)` fuses FTS5 lexical retrieval with dense vector retrieval,
-  with optional cross-encoder reranking, JSON filters, and an explain sidecar. A `softFallback`
+  with optional cross-encoder reranking, JSON/property filters, an explain sidecar, and opt-in
+  agent search `hints` (`SearchResult.hints`). A `softFallback`
   field tells you when a branch could not contribute rather than silently degrading.
+- **Frozen reads and evidence** — `engine.freezeReadContext`, `engine.searchFrozen`,
+  `engine.searchWithEvidence`, `engine.resolveEvidence`, and bounded batch
+  `engine.resolveEvidenceMany` (`1..=50` refs with per-slot partial-result outcomes).
 - **Reads** — the `read` namespace: `read.get`, `read.getMany`, `read.list`, `read.collection`,
   `read.crossedBoundarySince`, each taking a `ReadView` that selects existence state and world-time
   validity.

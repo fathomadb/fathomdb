@@ -158,3 +158,23 @@ is added.
   `graph_hop_depth: Option<u32>`, and `EvidenceGraphOriginV1` exposes
   `seed_source: GraphArmSeedSource`. `TextSearchOptions` does not carry
   graph-arm seeding fields.
+
+## Batch evidence resolution, search hints, and OpenReport capabilities
+
+- **`Engine::resolve_evidence_many(&self, &EvidenceResolveManyRequestV1) -> Result<Vec<EvidenceResolveManyItemV1>>`:**
+  Resolves `1..=50` (`EVIDENCE_RESOLVE_MANY_MAX = 50`) evidence references under
+  one `FrozenReadContextV1` in a single read snapshot. Rejects
+  `schema_version != 1` (`ErrorKind::Evidence`, `UnsupportedSchemaVersion`) and
+  raw lengths `0` or `> 50` (`ErrorKind::InvalidArgument`), preserves duplicate
+  order and arity, returns per-slot `EvidenceResolveManyItemV1::Resolved` or
+  nondisclosing `EvidenceResolveManyItemV1::Refused` (`"/evidenceRefs/{i}"`),
+  and collapses frozen-context drift into whole-call `EvidenceUnavailable`.
+- **Opt-in search hints (`hints: bool`):** `SearchOptions.hints`,
+  `FrozenSearchOptions.hints`, and `EvidenceSearchRequestV1::with_hints(bool)`
+  default to `false` (`SearchResult.hints == None`). Setting `true` populates
+  `SearchResult.hints: Option<Vec<Hint>>` (`Hint`, `HintAction`, `HintReason`,
+  `HintMode`, `HintArm`, `HintCause`) without altering hit rankings.
+- **`OpenReport` capability booleans:** `OpenReport` exposes
+  `reranker_compiled`, `cuda_compiled`, and `rerank_available` with zero
+  network I/O and zero GPU allocation during `Engine::open`. Offline `37 -> 38`
+  migration remains CLI-only (`fathomdb migrate`).

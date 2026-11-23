@@ -116,6 +116,16 @@ is built-in default or none, with no caller-provider injection.
   `EvidenceSearchRequestV1::new(...)`. `PerHitExplain` reports
   `graph_seed_source` and `graph_hop_depth`, and `EvidenceGraphOriginV1`
   reports `seed_source`.
+- `Engine::resolve_evidence_many`, `EVIDENCE_RESOLVE_MANY_MAX` (`50`),
+  `EvidenceResolveManyRequestV1`, and `EvidenceResolveManyItemV1` resolve
+  bounded batches of evidence references in one read snapshot with duplicate
+  preservation and per-slot nondisclosing refusals (`"/evidenceRefs/{i}"`).
+- `Engine::search_reranked_view_with_hints`, `Engine::search_frozen_with_hints`,
+  `EvidenceSearchRequestV1::with_hints(bool)`, and `SearchResult.hints` expose
+  opt-in agent search hints (`Hint`, `HintAction`, `HintReason`, `HintMode`,
+  `HintArm`, `HintCause`) with zero overhead when `false`.
+- `OpenReport` exposes `reranker_compiled`, `cuda_compiled`, and
+  `rerank_available` without triggering network I/O or GPU allocation.
 
 ## Errors
 
@@ -128,10 +138,12 @@ engine errors with a wildcard arm.
 
 ## Operator boundary
 
-Enable the `operator` feature only for diagnostics or recovery. It exposes
-report types and methods used by `fathomdb doctor` and `fathomdb recover`,
-including the current data-plane-integrity report. Python and TypeScript do not
-expose an SDK equivalent of the doctor or recovery surface.
+Enable the `operator` feature only for diagnostics, migration, or recovery. It
+exposes report types and functions used by `fathomdb doctor`,
+`fathomdb recover`, and offline `fathomdb migrate` (`migrate_37_to_38` /
+`MigrateReport`), including the current data-plane-integrity report. Python and
+TypeScript do not expose an SDK equivalent of the doctor, migrate, or recovery
+surface.
 
 ## See also
 

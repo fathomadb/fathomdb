@@ -1800,3 +1800,58 @@ and `include_inactive=True` remain refused on `graph.expand`).
   `artifact_lifecycle.superseded is True` when later superseded and raises
   `EvidenceError("evidence_unavailable")` after erasure, transition, or
   closure-barrier revocation.
+
+## Batch evidence resolution, search hints, and OpenReport capabilities (0.8.31 Slice 50)
+
+Slice 50 adds one live governed operation (`engine.resolve_evidence_many`,
+advancing the governed surface to `56` live operations and `93` allowlist
+members), opt-in agent search hints across `search`, `search_frozen`, and
+`search_with_evidence`, and three runtime capability booleans on `OpenReport`.
+
+### `Engine.resolve_evidence_many`
+
+- Constant: `EVIDENCE_RESOLVE_MANY_MAX = 50`.
+- Request: `@dataclass(frozen=True) class EvidenceResolveManyRequestV1` with
+  `evidence_refs: list[str] | tuple[str, ...]`, `context: FrozenReadContextV1`,
+  and `schema_version: int = 1`.
+- Outcome item: `@dataclass(frozen=True) class EvidenceResolveManyItemV1` with
+  `status: Literal["resolved", "refused"]`,
+  `resolved: ResolvedEvidenceV1 | None = None`, `reason: str | None = None`,
+  and `field_path: str | None = None`.
+- Method: `engine.resolve_evidence_many(request: EvidenceResolveManyRequestV1) -> list[EvidenceResolveManyItemV1]`.
+- Validation precedence before database access:
+  1. `schema_version != 1` (or `bool`) raises
+     `EvidenceError(reason="unsupported_schema_version", field_path="/schemaVersion")`.
+  2. Non-`list`/`tuple` `evidence_refs` or non-`str` elements raise `TypeError`.
+  3. Embedded NUL bytes (`"\x00"`) raise `WriteValidationError` (`AC-068a`).
+  4. Raw length `0` or `> 50` (before deduplication) raises
+     `InvalidArgumentError`.
+- Execution semantics: authenticates and validates `context` once inside one
+  read transaction (and re-validates before returning), collapsing stale or
+  drifted frozen-context failures into whole-call
+  `EvidenceError(reason="evidence_unavailable")`. Preserves exact input order
+  and arity including duplicates. Empty strings, oversized (`> 2048`-byte),
+  malformed, tampered, wrong-DB, wrong-context, erased, or superseded tokens
+  return per-slot `EvidenceResolveManyItemV1(status="refused", reason="evidence_unavailable", field_path=f"/evidenceRefs/{i}")`
+  without aborting valid slots.
+
+### Opt-in search hints (`hints: bool = False`)
+
+- `@dataclass(frozen=True) class Hint` (`action: str`, `reason: str`,
+  `mode: str | None = None`, `limit: int | None = None`,
+  `arm: str | None = None`, `cause: str | None = None`), exported at
+  `fathomdb.Hint` and `fathomdb.types.Hint`.
+- `SearchResult.hints: list[Hint] | None = None`.
+- `Engine.search(..., *, hints: bool = False)`,
+  `Engine.search_frozen(..., *, hints: bool = False)`, and
+  `EvidenceSearchRequestV1.hints: bool = False`. Omitted or `False` leaves
+  `SearchResult.hints is None` with zero hint allocation and identical ranking.
+  Non-`bool` values (`1`, `0`, `"true"`, `None`) raise `TypeError`.
+
+### `OpenReport` capability booleans
+
+- `OpenReport.reranker_compiled: bool` (`cfg!(feature = "default-reranker")`),
+  `OpenReport.cuda_compiled: bool` (`cfg!(any(feature = "embed-cuda", feature = "rerank-cuda"))`),
+  and `OpenReport.rerank_available: bool` (local readiness verified without
+  network I/O or CUDA context creation). `_map_open_report` enforces strict
+  `bool` values with no silent fallback on missing attributes.

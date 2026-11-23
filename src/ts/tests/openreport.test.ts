@@ -43,6 +43,9 @@ test("openReport returns the spec-locked native fields", async () => {
     assert.ok(id.revision.length > 0);
     assert.equal(typeof id.dimension, "number");
     assert.ok(id.dimension > 0);
+    assert.equal(typeof report.rerankerCompiled, "boolean");
+    assert.equal(typeof report.cudaCompiled, "boolean");
+    assert.equal(typeof report.rerankAvailable, "boolean");
   } finally {
     await engine.close();
   }
@@ -115,6 +118,9 @@ test("openReport maps a present auto-to-CPU device resolution", () => {
       reason: null,
     },
     embedderGpuAllocationWitness: null,
+    rerankerCompiled: false,
+    cudaCompiled: false,
+    rerankAvailable: false,
   });
 
   assert.deepEqual(report.embedderDeviceResolution, {
@@ -206,6 +212,9 @@ test("openReport maps the CUDA allocator report on CUDA device resolutions", () 
       reason: null,
     },
     embedderGpuAllocationWitness: null,
+    rerankerCompiled: true,
+    cudaCompiled: true,
+    rerankAvailable: true,
   });
 
   const privatePool: CudaAllocatorReport = {
@@ -330,4 +339,39 @@ test("device resolution maps the loaded CUDA library report", () => {
     { library: "curand", openedAs: "libcurand.so.10", path: null, version: null, builtMajor: 12 },
   ];
   assert.deepEqual(resolution.effectiveDevice.cudaDevice?.cudaLibraries, expected);
+});
+
+test("mapOpenReport enforces strict capability booleans", () => {
+  const base = {
+    schemaVersionBefore: 38,
+    schemaVersionAfter: 38,
+    migrationSteps: [],
+    embedderWarmupMs: 0,
+    queryBackend: "sqlite",
+    defaultEmbedder: { name: "test", revision: "test", dimension: 384 },
+    embedderDownloadMs: null,
+    embedderEvents: [],
+    embedderMeanCenteringRequired: false,
+    embedderMeanVecPinned: false,
+    embedderDeviceResolution: null,
+    rerankerDeviceResolution: null,
+    embedderGpuAllocationWitness: null,
+    rerankerCompiled: true,
+    cudaCompiled: false,
+    rerankAvailable: true,
+  };
+  const mapped = mapOpenReport(base);
+  assert.equal(mapped.rerankerCompiled, true);
+  assert.equal(mapped.cudaCompiled, false);
+  assert.equal(mapped.rerankAvailable, true);
+
+  for (const key of ["rerankerCompiled", "cudaCompiled", "rerankAvailable"] as const) {
+    const missing = { ...base } as Record<string, unknown>;
+    delete missing[key];
+    assert.throws(() => mapOpenReport(missing as never), TypeError);
+    for (const badValue of [1, 0, "true", null]) {
+      const bad = { ...base, [key]: badValue } as Record<string, unknown>;
+      assert.throws(() => mapOpenReport(bad as never), TypeError);
+    }
+  }
 });

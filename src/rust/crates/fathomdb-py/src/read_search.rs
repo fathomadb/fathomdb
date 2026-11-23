@@ -423,6 +423,30 @@ impl PySearchHit {
     }
 }
 
+#[pyclass(module = "fathomdb._fathomdb", name = "Hint", frozen, get_all, skip_from_py_object)]
+#[derive(Clone)]
+pub(super) struct PyHint {
+    action: String,
+    reason: String,
+    mode: Option<String>,
+    limit: Option<usize>,
+    arm: Option<String>,
+    cause: Option<String>,
+}
+
+impl PyHint {
+    pub(super) fn from_rust(hint: &RustHint) -> Self {
+        Self {
+            action: hint.action.as_str().to_string(),
+            reason: hint.reason.as_str().to_string(),
+            mode: hint.mode.map(|mode| mode.as_str().to_string()),
+            limit: hint.limit,
+            arm: hint.arm.map(|arm| arm.as_str().to_string()),
+            cause: hint.cause.map(|cause| cause.as_str().to_string()),
+        }
+    }
+}
+
 #[pyclass(
     module = "fathomdb._fathomdb",
     name = "SearchResult",
@@ -444,6 +468,8 @@ pub(super) struct PySearchResult {
     /// EP-17 snippet sidecar, one per hit in `results` order; `None` unless
     /// the search asked for snippets.
     snippets: Option<Vec<PySnippetV1>>,
+    /// Opt-in agent search hints sidecar; `None` unless `hints=True`.
+    hints: Option<Vec<PyHint>>,
 }
 
 impl PySearchResult {
@@ -455,6 +481,7 @@ impl PySearchResult {
             explanation: r.explanation.as_ref().map(PyExplanation::from_rust),
             degradations: degradations_from_rust(&r.degradations),
             snippets: snippets_from_rust(r.snippets.as_ref()),
+            hints: r.hints.as_ref().map(|items| items.iter().map(PyHint::from_rust).collect()),
         }
     }
 }

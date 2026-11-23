@@ -179,6 +179,14 @@ class Explanation:
     per_hit: list[PerHitExplain]
     correlation_id: str
 
+class Hint:
+    action: str
+    reason: str
+    mode: str | None
+    limit: int | None
+    arm: str | None
+    cause: str | None
+
 class SearchResult:
     projection_cursor: int
     soft_fallback: SoftFallback | None
@@ -189,6 +197,8 @@ class SearchResult:
     degradations: list[ArmDegradation] | None
     # EP-17: one per hit when the search passed `snippet`; None otherwise.
     snippets: list[SnippetV1] | None
+    # Opt-in agent search hints sidecar when `hints=True`; None otherwise.
+    hints: list[Hint] | None
 
 class SnippetV1:
     scored_bytes: int | None
@@ -256,6 +266,12 @@ class ResolvedEvidenceV1:
     retrieval_contribution: EvidenceContributionV1
     dependency: SourceDependencyV1 | None
     properties: PropertyMap | None
+
+class EvidenceResolveManyItemV1:
+    status: str
+    resolved: ResolvedEvidenceV1 | None
+    reason: str | None
+    field_path: str | None
 
 class CounterSnapshot:
     queries: int
@@ -488,6 +504,9 @@ class OpenReport:
     # `None` means no witness was taken, never "a witness measured nothing".
     embedder_gpu_allocation_witness: GpuAllocationWitness | None
     stop_words_sha256: str
+    reranker_compiled: bool
+    cuda_compiled: bool
+    rerank_available: bool
 
 class ErasureMaintenance:
     def reattach_original_erasure_sink(self, ticket: str, path: str) -> None: ...
@@ -544,6 +563,7 @@ class Engine:
         graph_seed_k: int = ...,
         graph_edge_kinds: list[str] | None = ...,
         graph_edge_predicates: list[tuple[str, str, Any]] | None = ...,
+        hints: bool = ...,
     ) -> SearchResult: ...
     def search_with_evidence(
         self,
@@ -559,12 +579,19 @@ class Engine:
         graph_seed_k: int = ...,
         graph_edge_kinds: list[str] | None = ...,
         graph_edge_predicates: list[tuple[str, str, Any]] | None = ...,
+        hints: bool = ...,
     ) -> EvidenceSearchResultV1: ...
     def resolve_evidence(
         self,
         evidence_ref: str,
         context: FrozenReadContextV1,
     ) -> ResolvedEvidenceV1: ...
+    def resolve_evidence_many(
+        self,
+        schema_version: int,
+        evidence_refs: list[str],
+        context: FrozenReadContextV1,
+    ) -> list[EvidenceResolveManyItemV1]: ...
     def resolve_graph_evidence(
         self,
         evidence_ref: str,
@@ -628,6 +655,7 @@ class Engine:
         graph_seed_k: int = ...,
         graph_edge_kinds: list[str] | None = ...,
         graph_edge_predicates: list[tuple[str, str, Any]] | None = ...,
+        hints: bool = ...,
     ) -> SearchResult: ...
     def search_projected_text(
         self,

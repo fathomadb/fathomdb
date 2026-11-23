@@ -327,3 +327,30 @@ Resolved historical evidence sets `artifactLifecycle.superseded: true` when the
 bound revision was later superseded in the frozen snapshot, and collapses
 erased, transitioned, or closure-barrier-blocked artifacts to
 `evidence_unavailable`.
+
+## Batch evidence resolution and search hints wire (0.8.31 Slice 50)
+
+- **`EvidenceResolveManyRequestV1` / `EvidenceResolveManyItemV1`:**
+  `EvidenceResolveManyRequestV1` is closed to `schemaVersion` (`1`),
+  `evidenceRefs` (`1..=50` raw strings before deduplication), and `context`
+  (`FrozenReadContextV1`). Request-level schema mismatch uses `FDB_EVIDENCE`
+  (`unsupported_schema_version` at `/schemaVersion`); raw count `0` or `> 50`
+  uses `InvalidArgument`; embedded NUL / lone UTF-16 surrogates use
+  `WriteValidation`; invalid or drifted frozen contexts collapse into whole-call
+  `FDB_EVIDENCE` (`evidence_unavailable`). Each slot in the response array is
+  either `{ status: "resolved", resolved: ResolvedEvidenceV1 }` or
+  `{ status: "refused", reason: EvidenceErrorReasonV1, fieldPath: "/evidenceRefs/{i}" }`,
+  preserving exact input order and duplicate arity. Empty, oversized (`> 2048`
+  bytes), malformed, tampered, wrong-DB, wrong-context, erased, or superseded
+  tokens all yield per-slot `evidence_unavailable` at `"/evidenceRefs/{i}"`.
+- **`EvidenceSearchRequestV1.hints` & `SearchResult.hints`:**
+  `EvidenceSearchRequestV1` accepts optional boolean `hints` (default `false`);
+  omission and `false` leave `SearchResult.hints` absent/`None`. When `true`,
+  `SearchResult.hints` carries closed-enum `Hint` entries
+  (`action`: `"search" | "none"`, `reason`: `"degraded" | "no_results" | "more_results"`,
+  optional `mode`: `"text" | "hybrid"`, optional `limit`, optional `arm`,
+  optional `cause`), never containing record content.
+- **Governed operation parity:** Adding `engine.resolve_evidence_many` advances
+  `src/conformance/governed-operation-parity.json` and
+  `src/conformance/governed-surface-allowlist.json` to `56` live operations and
+  `93` allowlist members (`5` core, `5` recovery denylist, `2` runtime controls).

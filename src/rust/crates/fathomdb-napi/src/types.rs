@@ -533,6 +533,12 @@ pub struct OpenReport {
     pub embedder_gpu_allocation_witness: Option<GpuAllocationWitness>,
     /// SHA-256 (lowercase hex) of the engine's effective query stop words.
     pub stop_words_sha256: String,
+    /// True when this binary was compiled with the `default-reranker` feature.
+    pub reranker_compiled: bool,
+    /// True when this binary was compiled with CUDA support (`embed-cuda` or `rerank-cuda`).
+    pub cuda_compiled: bool,
+    /// True when local reranking is ready without network download or GPU allocation.
+    pub rerank_available: bool,
 }
 
 impl OpenReport {
@@ -561,6 +567,9 @@ impl OpenReport {
                 .as_ref()
                 .map(GpuAllocationWitness::from_rust),
             stop_words_sha256: r.stop_words_sha256.clone(),
+            reranker_compiled: r.reranker_compiled,
+            cuda_compiled: r.cuda_compiled,
+            rerank_available: r.rerank_available,
         }
     }
 }

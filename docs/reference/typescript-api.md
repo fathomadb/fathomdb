@@ -913,3 +913,26 @@ vector participation. Known zero stays zero; unknown/nonparticipant makes no
 extent claim. Standalone snippet selection and text-only search have no extent
 lookup. This does not change ranking, snippet anchors, frozen eligibility or
 body-byte coordinates, including role tags.
+
+## Batch evidence resolution, search hints, and OpenReport capabilities
+
+- **`engine.resolveEvidenceMany(request: EvidenceResolveManyRequestV1): Promise<EvidenceResolveManyItemV1[]>`:**
+  Resolves `1..=50` (`EVIDENCE_RESOLVE_MANY_MAX = 50`) opaque evidence
+  references under one `FrozenReadContextV1` inside one snapshot. Rejects
+  unknown keys and `schemaVersion !== 1` (`EvidenceError`), non-array or
+  non-string elements (`TypeError`), embedded NUL / lone UTF-16 surrogates
+  (`WriteValidationError`), and raw length `0` or `> 50`
+  (`InvalidArgumentError`). Preserves duplicate order and arity; returns
+  per-slot `{ status: "resolved", resolved }` or
+  `{ status: "refused", reason: "evidence_unavailable", fieldPath: "/evidenceRefs/{i}" }`,
+  while collapsing frozen-context drift into whole-call
+  `EvidenceError("evidence_unavailable")`.
+- **Opt-in search hints (`hints?: boolean`):** Accepted on `SearchOptions`
+  (`SearchCallOptions`), `FrozenSearchOptions`, and `EvidenceSearchRequestV1`
+  (non-boolean non-`undefined` values reject with `TypeError`). When omitted or
+  `false`, `SearchResult.hints` is omitted; when `true`, `SearchResult.hints`
+  contains `Hint[]` (`HintAction`, `HintReason`, `HintMode`).
+- **`OpenReport` capability booleans:** `engine.openReport()` exposes
+  `rerankerCompiled: boolean`, `cudaCompiled: boolean`, and
+  `rerankAvailable: boolean` with zero network I/O and zero GPU allocation
+  during `Engine.open`.

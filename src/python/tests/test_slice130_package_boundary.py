@@ -198,7 +198,8 @@ def test_package_boundary_matches_pre_move_baseline() -> None:
         "limit: 'int' = 10, snippet: 'SnippetOptions | None' = None, "
         "graph_seed: 'GraphSeedMode' = 'graph_fts', graph_seed_k: 'int' = 10, "
         "graph_edge_kinds: 'Sequence[str] | None' = None, "
-        "graph_edge_predicates: 'Sequence[PropertyPredicate] | None' = None) -> 'SearchResult'"
+        "graph_edge_predicates: 'Sequence[PropertyPredicate] | None' = None, "
+        "hints: 'bool' = False) -> 'SearchResult'"
     )
 
 
@@ -274,12 +275,14 @@ def test_python_declarations_match_pre_move_baseline_with_approved_deltas() -> N
                 **old,
                 "signature": old["signature"].replace(") -> SearchResult", EP17_SNIPPET_PARAMETER),
             }
-        # 0.8.31 Slice 30: opt-in graph-arm seeding & edge filtering kwargs on
-        # search and search_frozen (never on search_text_only).
+        # 0.8.31 Slice 30 + Slice 50: opt-in graph-arm seeding & edge filtering kwargs
+        # plus opt-in agent search hints kwarg on search and search_frozen
+        # (never on search_text_only).
         graph_arm_params = (
             ", graph_seed: GraphSeedMode='graph_fts', graph_seed_k: int=10, "
             "graph_edge_kinds: Sequence[str] | None=None, "
-            "graph_edge_predicates: Sequence[PropertyPredicate] | None=None) -> SearchResult"
+            "graph_edge_predicates: Sequence[PropertyPredicate] | None=None, "
+            "hints: bool=False) -> SearchResult"
         )
         for method in ("search", "search_frozen"):
             old = expected[prefix + method]
@@ -400,6 +403,94 @@ def test_python_declarations_match_pre_move_baseline_with_approved_deltas() -> N
     assert observed == expected
 
     stub = (package / "_fathomdb.pyi").read_text()
+    # Reverse the approved 0.8.31 Slice 50 native stub additions before Slice 30.
+    slice50_stub_edits = (
+        (
+            "class Hint:\n"
+            "    action: str\n"
+            "    reason: str\n"
+            "    mode: str | None\n"
+            "    limit: int | None\n"
+            "    arm: str | None\n"
+            "    cause: str | None\n\n"
+            "class SearchResult:\n",
+            "class SearchResult:\n",
+        ),
+        (
+            "    # EP-17: one per hit when the search passed `snippet`; None otherwise.\n"
+            "    snippets: list[SnippetV1] | None\n"
+            "    # Opt-in agent search hints sidecar when `hints=True`; None otherwise.\n"
+            "    hints: list[Hint] | None\n",
+            "    # EP-17: one per hit when the search passed `snippet`; None otherwise.\n"
+            "    snippets: list[SnippetV1] | None\n",
+        ),
+        (
+            "    dependency: SourceDependencyV1 | None\n"
+            "    properties: PropertyMap | None\n\n"
+            "class EvidenceResolveManyItemV1:\n"
+            "    status: str\n"
+            "    resolved: ResolvedEvidenceV1 | None\n"
+            "    reason: str | None\n"
+            "    field_path: str | None\n",
+            "    dependency: SourceDependencyV1 | None\n"
+            "    properties: PropertyMap | None\n",
+        ),
+        (
+            "    embedder_gpu_allocation_witness: GpuAllocationWitness | None\n"
+            "    stop_words_sha256: str\n"
+            "    reranker_compiled: bool\n"
+            "    cuda_compiled: bool\n"
+            "    rerank_available: bool\n",
+            "    embedder_gpu_allocation_witness: GpuAllocationWitness | None\n"
+            "    stop_words_sha256: str\n",
+        ),
+        (
+            "        graph_edge_predicates: list[tuple[str, str, Any]] | None = ...,\n"
+            "        hints: bool = ...,\n"
+            "    ) -> SearchResult: ...\n"
+            "    def search_with_evidence(\n",
+            "        graph_edge_predicates: list[tuple[str, str, Any]] | None = ...,\n"
+            "    ) -> SearchResult: ...\n"
+            "    def search_with_evidence(\n",
+        ),
+        (
+            "        graph_edge_predicates: list[tuple[str, str, Any]] | None = ...,\n"
+            "        hints: bool = ...,\n"
+            "    ) -> EvidenceSearchResultV1: ...\n",
+            "        graph_edge_predicates: list[tuple[str, str, Any]] | None = ...,\n"
+            "    ) -> EvidenceSearchResultV1: ...\n",
+        ),
+        (
+            "    def resolve_evidence(\n"
+            "        self,\n"
+            "        evidence_ref: str,\n"
+            "        context: FrozenReadContextV1,\n"
+            "    ) -> ResolvedEvidenceV1: ...\n"
+            "    def resolve_evidence_many(\n"
+            "        self,\n"
+            "        schema_version: int,\n"
+            "        evidence_refs: list[str],\n"
+            "        context: FrozenReadContextV1,\n"
+            "    ) -> list[EvidenceResolveManyItemV1]: ...\n",
+            "    def resolve_evidence(\n"
+            "        self,\n"
+            "        evidence_ref: str,\n"
+            "        context: FrozenReadContextV1,\n"
+            "    ) -> ResolvedEvidenceV1: ...\n",
+        ),
+        (
+            "        graph_edge_predicates: list[tuple[str, str, Any]] | None = ...,\n"
+            "        hints: bool = ...,\n"
+            "    ) -> SearchResult: ...\n"
+            "    def search_projected_text(\n",
+            "        graph_edge_predicates: list[tuple[str, str, Any]] | None = ...,\n"
+            "    ) -> SearchResult: ...\n"
+            "    def search_projected_text(\n",
+        ),
+    )
+    for new_text, old_text in slice50_stub_edits:
+        assert stub.count(new_text) == 1, f"missing Slice 50 stub edit: {new_text!r}"
+        stub = stub.replace(new_text, old_text, 1)
     # Reverse the approved 0.8.31 Slice 30 native stub additions before Slice 20.
     slice30_stub_edits = (
         (
@@ -714,7 +805,10 @@ class GpuAllocationWitness:
 
 
 def test_python_cli_package_boundary_and_zero_sdk_scripts() -> None:
-    import tomllib
+    try:
+        import tomllib  # pyright: ignore[reportMissingImports]
+    except ModuleNotFoundError:  # pragma: no cover - Python 3.10 fallback
+        import tomli as tomllib  # pyright: ignore[reportMissingImports]
 
     checkout = Path(__file__).resolve().parents[3]
     sdk_pyproject = tomllib.loads((checkout / "src/python/pyproject.toml").read_text(encoding="utf-8"))

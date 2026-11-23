@@ -3155,7 +3155,7 @@ mod tests {
     /// Slice 65 projection-worker witness: preserve the original typed
     /// refusal, then observe post-finish connection state without retrying
     /// that erasure.
-    #[cfg(any(test, feature = "test-hooks"))]
+    #[cfg(all(feature = "operator", any(test, feature = "test-hooks")))]
     #[test]
     fn wal_attribution_projection_worker_typed_refusal_then_post_release_sampler_is_recorded() {
         let dir = TempDir::new().expect("temp dir");

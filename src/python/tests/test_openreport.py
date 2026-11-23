@@ -46,6 +46,9 @@ def test_open_report_returns_native_fields(db_path: str) -> None:
         assert isinstance(identity.name, str) and identity.name
         assert isinstance(identity.revision, str) and identity.revision
         assert isinstance(identity.dimension, int) and identity.dimension > 0
+        assert isinstance(report.reranker_compiled, bool)
+        assert isinstance(report.cuda_compiled, bool)
+        assert isinstance(report.rerank_available, bool)
     finally:
         engine.close()
 
@@ -119,6 +122,9 @@ def test_open_report_maps_present_auto_cpu_device_resolution() -> None:
         # this branch before Slice 80.6 touched it.
         reranker_device_resolution=None,
         embedder_gpu_allocation_witness=None,
+        reranker_compiled=False,
+        cuda_compiled=False,
+        rerank_available=False,
     )
 
     resolution = _map_open_report(native).embedder_device_resolution
@@ -196,6 +202,9 @@ def test_open_report_maps_the_cuda_allocator_report() -> None:
             )
         ),
         embedder_gpu_allocation_witness=None,
+        reranker_compiled=True,
+        cuda_compiled=True,
+        rerank_available=True,
     )
 
     report = _map_open_report(native)
@@ -299,6 +308,9 @@ def test_open_report_maps_a_present_gpu_allocation_witness(kind: str, context_id
         embedder_device_resolution=None,
         reranker_device_resolution=None,
         embedder_gpu_allocation_witness=witness,
+        reranker_compiled=False,
+        cuda_compiled=False,
+        rerank_available=False,
     )
 
     mapped = _map_open_report(native).embedder_gpu_allocation_witness
@@ -383,3 +395,42 @@ def test_open_report_maps_the_cuda_library_report() -> None:
             built_major=12,
         ),
     )
+
+
+def test_open_report_strict_capability_booleans() -> None:
+    """Slice 50 (AC31-50-07): capability booleans reject missing keys and non-bool values."""
+
+    base = dict(
+        schema_version_before=38,
+        schema_version_after=38,
+        migration_steps=[],
+        embedder_warmup_ms=0,
+        query_backend="sqlite",
+        default_embedder=SimpleNamespace(name="test", revision="test", dimension=384),
+        embedder_download_ms=None,
+        embedder_events=[],
+        embedder_mean_centering_required=False,
+        embedder_mean_vec_pinned=False,
+        embedder_device_resolution=None,
+        reranker_device_resolution=None,
+        embedder_gpu_allocation_witness=None,
+        reranker_compiled=True,
+        cuda_compiled=False,
+        rerank_available=True,
+    )
+    mapped = _map_open_report(SimpleNamespace(**base))
+    assert mapped.reranker_compiled is True
+    assert mapped.cuda_compiled is False
+    assert mapped.rerank_available is True
+
+    for key in ("reranker_compiled", "cuda_compiled", "rerank_available"):
+        missing = dict(base)
+        missing.pop(key)
+        with pytest.raises(AttributeError):
+            _map_open_report(SimpleNamespace(**missing))
+
+        for bad_value in (1, 0, "true", None):
+            bad = dict(base)
+            bad[key] = bad_value
+            with pytest.raises(TypeError):
+                _map_open_report(SimpleNamespace(**bad))

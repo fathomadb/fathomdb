@@ -315,6 +315,13 @@ def _map_cuda_device_info(native: Any) -> CudaDeviceInfo:
     )
 
 
+def _require_open_report_bool(native: Any, attr: str) -> bool:
+    value = getattr(native, attr)
+    if not isinstance(value, bool):
+        raise TypeError(f"OpenReport.{attr} must be a bool, got {type(value).__name__!r}")
+    return value
+
+
 def _map_open_report(native: Any) -> OpenReport:
     """Map one native open-time snapshot into the public Python contract."""
 
@@ -408,6 +415,9 @@ def _map_open_report(native: Any) -> OpenReport:
             else _map_gpu_allocation_witness(gpu_allocation_witness)
         ),
         stop_words_sha256=getattr(native, "stop_words_sha256", ""),
+        reranker_compiled=_require_open_report_bool(native, "reranker_compiled"),
+        cuda_compiled=_require_open_report_bool(native, "cuda_compiled"),
+        rerank_available=_require_open_report_bool(native, "rerank_available"),
     )
 
 

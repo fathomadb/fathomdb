@@ -19,6 +19,7 @@
   ],
   "_slice85_explicit_erasure_signature": "Owner approved explicit persisted policy, queue/status/withdraw and exclusive maintenance 2026-11-04; dev/design/explicit-maintenance-erasure/contract.md. Five Engine operations added. Handle queue/complete/original-sink reattachment/close use the same authority; no recovery-named SDK operation or MCP surface. Core membership and recovery denylist unchanged.",
   "_slice20_op_collections_signature": "Owner pre-authorized 0.8.31 Slice 20 (HITL Gate 1): adds pure governed introspection reads read.operational_collections/read.operationalCollections and read.operational_collection/read.operationalCollection returning OperationalCollectionInfo, alongside non-command inline typed property types (PropertyValue, PropertyMap, PropertyEntityClass, PropertyComparisonOp, PropertyPredicate) and additive fields on existing write/search/projection/erasure DTOs. Core membership, runtime controls, and the five-name recovery denylist are unchanged.",
+  "_slice50_resolve_evidence_many_signature": "Owner approved 0.8.31 Slice 50 (ADR-0.8.31-cli-pypi-wheel-and-37-to-38-upgrade.md #76): adds bounded (1..=50) batch evidence resolution resolve_evidence_many/resolveEvidenceMany under one authenticated frozen read context with per-slot partial-result nondisclosure, alongside opt-in search hints and OpenReport capability booleans. Core membership, runtime controls, and the five-name recovery denylist are unchanged.",
   "allowlist": [
     "Engine.open",
     "admin.configure",
@@ -110,7 +111,9 @@
     "read.operational_collections",
     "read.operationalCollections",
     "read.operational_collection",
-    "read.operationalCollection"
+    "read.operationalCollection",
+    "resolve_evidence_many",
+    "resolveEvidenceMany"
   ],
   "core": [
     "Engine.open",

@@ -338,6 +338,33 @@ impl From<RustResolvedEvidenceV1> for ResolvedEvidenceV1 {
     }
 }
 
+#[napi(object)]
+pub struct EvidenceResolveManyItemV1 {
+    pub status: String,
+    pub resolved: Option<ResolvedEvidenceV1>,
+    pub reason: Option<String>,
+    pub field_path: Option<String>,
+}
+
+impl From<RustEvidenceResolveManyItemV1> for EvidenceResolveManyItemV1 {
+    fn from(value: RustEvidenceResolveManyItemV1) -> Self {
+        match value {
+            RustEvidenceResolveManyItemV1::Resolved(resolved) => Self {
+                status: "resolved".to_string(),
+                resolved: Some((*resolved).into()),
+                reason: None,
+                field_path: None,
+            },
+            RustEvidenceResolveManyItemV1::Refused(error) => Self {
+                status: "refused".to_string(),
+                resolved: None,
+                reason: Some(error.reason.as_str().to_string()),
+                field_path: Some(error.field_path),
+            },
+        }
+    }
+}
+
 /// 0.8.8 EXP-OBS (Slice 10) — query-level retrieval trace (mirror of engine
 /// `QueryTrace`). napi maps snake_case → camelCase JS (`queryChars`,
 /// `rerankDepth`, `useGraphArm`, `embedderId`, `ceActive`, `vectorHits`, …).

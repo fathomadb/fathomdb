@@ -11,9 +11,11 @@ recovery semantics owned by `dev/design/recovery.md`.
 ## Roots
 
 - `fathomdb doctor <verb> ...` — read-only or artifact-producing
-  diagnostics.
+  diagnostics (17 subcommands).
 - `fathomdb recover --accept-data-loss <sub-flag> ...` — the only
   lossy / non-bit-preserving root.
+- `fathomdb migrate --backup-dir <dir> [--json] <db_path>` — offline,
+  backup-verified Schema 37-to-38 upgrade root (0.8.31).
 
 ## Output
 
@@ -104,16 +106,23 @@ Inspection failures use `inspection_unavailable`, `inspection_lock_missing`,
 `database_schema_mismatch`, or `integrity_corrupt` without exposing raw SQLite
 diagnostics.
 
-Install the 0.8.30 CLI after publication at the exact version and confirm its identity:
+Install the 0.8.30 CLI at the exact version and confirm its identity:
 
 ```bash
 cargo install fathomdb-cli --version '=0.8.30' --locked
 fathomdb --version
 ```
 
+In the 0.8.31 release line, the operator CLI is also packaged as a lockstep
+`fathomdb-cli` PyPI binary wheel installable via `pip install 'fathomdb[cli]'`
+without requiring a Rust toolchain (while keeping the base `fathomdb` SDK
+package free of console scripts).
+
 During source qualification, use the [Rust install procedure](../install/rust.md).
-Public 0.8.30 opens require a fresh or already-current schema-37 database; an
-older non-empty database is rejected before product mutation.
+Public 0.8.31 opens require a fresh or already-current schema-38 database
+(published 0.8.30 uses schema 37); an older non-empty database is rejected
+before product mutation. Upgrade committed schema-37 stores explicitly offline
+using `fathomdb migrate --backup-dir <dir> <db_path>`.
 
 ### GPU and platform diagnostics
 
@@ -301,6 +310,42 @@ fathomdb recover --accept-data-loss --excise-source <id> --json ./app.sqlite
 
 See [Erasure](../operations/erasure.md) for the full boundary — what
 erasure reaches and what it does not.
+
+## Migrate root
+
+```text
+fathomdb migrate --backup-dir <dir> [--json] <db_path>
+```
+
+Upgrades a quiescent committed Schema `37` database offline to Schema `38`
+(0.8.31). `Engine::open` never auto-migrates and continues refusing
+`user_version != 38`.
+
+Execution guarantees:
+
+1. Acquires `<db_path>.lock` exclusively (`exit 71` when held) and refuses
+   non-empty rollback journals.
+2. Verifies integrity and strict `PRAGMA user_version == 37` (`exit 70` on `36`,
+   `38`, `39`, or corrupt inputs).
+3. Fails closed (`exit 70`, `E_MIGRATE_PENDING_ERASURE`) before backup or DDL if
+   any pending physical erasure closure, active/queued erasure request, root/FTS
+   sanitization debt, or pending telemetry redaction row exists.
+4. Runs read-only edge-endpoint preflight reporting both
+   `dangling_edge_endpoints` and `superseded_edge_endpoints`, failing closed
+   (`exit 70`, `E_MIGRATE_DANGLING_EDGES`) whenever `dangling_edge_endpoints > 0`
+   while admitting stores where `dangling_edge_endpoints == 0` and
+   `superseded_edge_endpoints > 0`.
+5. Checkpoints WAL (`TRUNCATE`, `busy == 0`), writes a SHA-256-verified backup
+   and `.sha256` receipt into `--backup-dir` without overwriting prior backups.
+6. Applies Schema 38 DDL (`fathomdb_schema::STEP_38_SQL`) and
+   `PRAGMA user_version = 38` inside a single `BEGIN IMMEDIATE` transaction
+   (rolling back cleanly to byte-identical Schema 37 on any SQL failure).
+7. Runs post-upgrade `check-integrity --full` (`exit 0` clean, `exit 65` if
+   findings exist).
+
+Exit codes: `0` (upgraded and clean), `65` (upgraded with post-upgrade integrity
+findings), `70` (unrecoverable preflight/version/DDL refusal), `71` (lock held
+or busy WAL checkpoint).
 
 ## Exit-code classes
 

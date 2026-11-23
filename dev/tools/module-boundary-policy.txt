@@ -52,6 +52,7 @@ reported physical_erasure::tests
 admitted errors
 reported evidence
 reported evidence::tests
+reported export_manifest
 governed filter
 reported filter::slice85_boundary_tests
 governed frozen_read
@@ -93,6 +94,8 @@ reported projection_registry::historical_reconciliation_tests
 reported projection_registry::span_erasure_tests
 reported projection_runtime
 reported projection_worker
+reported properties
+reported properties::tests
 reported provenance
 reported provider
 governed read
@@ -256,7 +259,8 @@ unparsed-macro cuda_pool_observation::tests <module> proptest 1b1e1d90698cb78d
 unparsed-macro evidence::tests <module> proptest 174c5b885c19479e
 unparsed-macro frozen_read::tests <module> proptest 8077e5a8a7846daf
 unparsed-macro pagination::tests <module> proptest b18a9c1d1a2ce7f9
-unparsed-macro root::tests <module> proptest ea8d95990855291e
+unparsed-macro properties::tests <module> proptest 717aea22ff638526
+unparsed-macro root::tests <module> proptest 63b596e64e50b5bf
 unparsed-macro visibility_coalescing_tests <module> proptest::proptest e248e1679fc0f020
 
 reported slice30_observer

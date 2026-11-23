@@ -52,7 +52,9 @@ const engine = await Engine.open("./quickstart.fdb");
 ```
 
 The structured open report is available after open via
-`engine.open_report()` / `engine.openReport()`.
+`engine.open_report()` / `engine.openReport()`, including runtime capability
+booleans (`reranker_compiled`, `cuda_compiled`, `rerank_available` /
+`rerankerCompiled`, `cudaCompiled`, `rerankAvailable`).
 
 ## 3. Write a small batch of canonical rows
 
@@ -192,6 +194,6 @@ sequence per AC-056.
 - [Reference — errors](../reference/errors.md) — the shared typed taxonomy
   and recovery hints.
 - [Reference — CLI](../reference/cli.md) — operator verbs (`doctor`,
-  `recover`).
+  `recover`, `migrate`) and `fathomdb[cli]` packaging.
 - [Erasure](../operations/erasure.md) — `erase_source` / `purge`, and
   what they do not reach.

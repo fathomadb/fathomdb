@@ -482,7 +482,7 @@ fn read_historical_projected_text(
             view.view.include_out_of_window,
             1,
         );
-        let relaxed_rows: Vec<(u64, String, Option<crate::PropertyMap>)> = {
+        let relaxed_rows: Vec<(u64, String, Option<crate::properties::PropertyMap>)> = {
             let mut additions = tx.prepare(&format!(
                 "SELECT n.write_cursor,n.body,n.properties FROM canonical_nodes n
                 WHERE ?1 IS NOT NULL AND (n.superseded_at IS NOT NULL OR n.state!='active')
@@ -498,7 +498,8 @@ fn read_historical_projected_text(
             rows.collect::<rusqlite::Result<Vec<_>>>()?
         };
         for (attribute, stored) in registry.iter().filter(|(_, stored)| {
-            stored.entity_class == crate::PropertyEntityClass::Node && stored.wants_property_fts()
+            stored.entity_class == crate::properties::PropertyEntityClass::Node
+                && stored.wants_property_fts()
         }) {
             for (cursor, body, props) in &relaxed_rows {
                 let value = crate::extract_scalar_attribute_with_properties(
@@ -1705,8 +1706,10 @@ fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
                 .iter()
                 .filter(|pred| {
                     registry.get(&pred.key).is_some_and(|stored| {
-                        stored.entity_class == crate::PropertyEntityClass::Edge
-                            && stored.roles.contains(&crate::ProjectionRole::Filterable)
+                        stored.entity_class == crate::properties::PropertyEntityClass::Edge
+                            && stored
+                                .roles
+                                .contains(&crate::projection_registry::ProjectionRole::Filterable)
                             && stored.source.is_none()
                     })
                 })
@@ -1987,7 +1990,7 @@ fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
                 body: String,
                 write_cursor: i64,
                 selected_source: Option<String>,
-                properties: Option<crate::PropertyMap>,
+                properties: Option<crate::properties::PropertyMap>,
             }
             let row: Option<BfsActiveNodeRow> = active_stmt
                 .query_row(rusqlite::params_from_iter(active_params.iter()), |r| {
@@ -2127,16 +2130,17 @@ fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
 
             let mut body_params = body_params_template.clone();
             body_params[0] = rusqlite::types::Value::Text(neighbor.clone());
-            let row: Option<(String, String, i64, Option<crate::PropertyMap>)> = body_stmt
-                .query_row(rusqlite::params_from_iter(body_params.iter()), |row| {
-                    Ok((
-                        row.get::<_, String>(0)?,
-                        row.get::<_, String>(1)?,
-                        row.get::<_, i64>(2)?,
-                        crate::properties::decode_properties_row_col(row, 3)?,
-                    ))
-                })
-                .optional()?;
+            let row: Option<(String, String, i64, Option<crate::properties::PropertyMap>)> =
+                body_stmt
+                    .query_row(rusqlite::params_from_iter(body_params.iter()), |row| {
+                        Ok((
+                            row.get::<_, String>(0)?,
+                            row.get::<_, String>(1)?,
+                            row.get::<_, i64>(2)?,
+                            crate::properties::decode_properties_row_col(row, 3)?,
+                        ))
+                    })
+                    .optional()?;
 
             if let Some((kind, body, write_cursor, properties)) = row {
                 if !seed_records.contains(&RecordKey::CanonicalNode(write_cursor as u64)) {

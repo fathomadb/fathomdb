@@ -2817,6 +2817,393 @@
         "path": "fathomdb.types.GraphExpandRequestV1.as_of_write_cursor",
         "signature": "as_of_write_cursor: str | None = None"
       }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 50,
+      "declaration": {
+        "kind": "python-value",
+        "path": "fathomdb.EVIDENCE_RESOLVE_MANY_MAX",
+        "signature": "EVIDENCE_RESOLVE_MANY_MAX = 50"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 50,
+      "declaration": {
+        "kind": "python-method",
+        "path": "fathomdb.Engine.resolve_evidence_many",
+        "signature": "def resolve_evidence_many(self, request: EvidenceResolveManyRequestV1) -> list[EvidenceResolveManyItemV1]"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 50,
+      "declaration": {
+        "kind": "python-class",
+        "path": "fathomdb.EvidenceResolveManyItemV1",
+        "signature": "@dataclass(frozen=True) class EvidenceResolveManyItemV1"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 50,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.EvidenceResolveManyItemV1.field_path",
+        "signature": "field_path: str | None = None"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 50,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.EvidenceResolveManyItemV1.reason",
+        "signature": "reason: str | None = None"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 50,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.EvidenceResolveManyItemV1.resolved",
+        "signature": "resolved: ResolvedEvidenceV1 | None = None"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 50,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.EvidenceResolveManyItemV1.status",
+        "signature": "status: Literal['resolved', 'refused']"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 50,
+      "declaration": {
+        "kind": "python-class",
+        "path": "fathomdb.EvidenceResolveManyRequestV1",
+        "signature": "@dataclass(frozen=True) class EvidenceResolveManyRequestV1"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 50,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.EvidenceResolveManyRequestV1.context",
+        "signature": "context: FrozenReadContextV1"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 50,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.EvidenceResolveManyRequestV1.evidence_refs",
+        "signature": "evidence_refs: list[str] | tuple[str, ...]"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 50,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.EvidenceResolveManyRequestV1.schema_version",
+        "signature": "schema_version: int = 1"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 50,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.EvidenceSearchRequestV1.hints",
+        "signature": "hints: bool = False"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 50,
+      "declaration": {
+        "kind": "python-class",
+        "path": "fathomdb.Hint",
+        "signature": "@dataclass(frozen=True) class Hint"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 50,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.Hint.action",
+        "signature": "action: str"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 50,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.Hint.arm",
+        "signature": "arm: str | None = None"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 50,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.Hint.cause",
+        "signature": "cause: str | None = None"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 50,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.Hint.limit",
+        "signature": "limit: int | None = None"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 50,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.Hint.mode",
+        "signature": "mode: str | None = None"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 50,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.Hint.reason",
+        "signature": "reason: str"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 50,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.SearchResult.hints",
+        "signature": "hints: list[Hint] | None = None"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 50,
+      "declaration": {
+        "kind": "python-method",
+        "path": "fathomdb.engine.Engine.resolve_evidence_many",
+        "signature": "def resolve_evidence_many(self, request: EvidenceResolveManyRequestV1) -> list[EvidenceResolveManyItemV1]"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 50,
+      "declaration": {
+        "kind": "python-value",
+        "path": "fathomdb.types.EVIDENCE_RESOLVE_MANY_MAX",
+        "signature": "EVIDENCE_RESOLVE_MANY_MAX = 50"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 50,
+      "declaration": {
+        "kind": "python-class",
+        "path": "fathomdb.types.EvidenceResolveManyItemV1",
+        "signature": "@dataclass(frozen=True) class EvidenceResolveManyItemV1"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 50,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.EvidenceResolveManyItemV1.field_path",
+        "signature": "field_path: str | None = None"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 50,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.EvidenceResolveManyItemV1.reason",
+        "signature": "reason: str | None = None"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 50,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.EvidenceResolveManyItemV1.resolved",
+        "signature": "resolved: ResolvedEvidenceV1 | None = None"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 50,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.EvidenceResolveManyItemV1.status",
+        "signature": "status: Literal['resolved', 'refused']"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 50,
+      "declaration": {
+        "kind": "python-class",
+        "path": "fathomdb.types.EvidenceResolveManyRequestV1",
+        "signature": "@dataclass(frozen=True) class EvidenceResolveManyRequestV1"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 50,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.EvidenceResolveManyRequestV1.context",
+        "signature": "context: FrozenReadContextV1"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 50,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.EvidenceResolveManyRequestV1.evidence_refs",
+        "signature": "evidence_refs: list[str] | tuple[str, ...]"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 50,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.EvidenceResolveManyRequestV1.schema_version",
+        "signature": "schema_version: int = 1"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 50,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.EvidenceSearchRequestV1.hints",
+        "signature": "hints: bool = False"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 50,
+      "declaration": {
+        "kind": "python-class",
+        "path": "fathomdb.types.Hint",
+        "signature": "@dataclass(frozen=True) class Hint"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 50,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.Hint.action",
+        "signature": "action: str"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 50,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.Hint.arm",
+        "signature": "arm: str | None = None"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 50,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.Hint.cause",
+        "signature": "cause: str | None = None"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 50,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.Hint.limit",
+        "signature": "limit: int | None = None"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 50,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.Hint.mode",
+        "signature": "mode: str | None = None"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 50,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.Hint.reason",
+        "signature": "reason: str"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 50,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.OpenReport.cuda_compiled",
+        "signature": "cuda_compiled: bool = False"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 50,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.OpenReport.rerank_available",
+        "signature": "rerank_available: bool = False"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 50,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.OpenReport.reranker_compiled",
+        "signature": "reranker_compiled: bool = False"
+      }
+    },
+    {
+      "release": "0.8.31",
+      "slice": 50,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.SearchResult.hints",
+        "signature": "hints: list[Hint] | None = None"
+      }
     }
   ],
   "native_stub_sha256": "4f3939dbb5bff1f0616cdc3520d1d7d9bcf7f946d9c2d1421d1e7b7f8a2f7dac",

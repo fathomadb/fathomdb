@@ -36,7 +36,7 @@ The checker also refuses these routes to the core:
 
 Operation membership is enforced by `scripts/check-sdk-surface-parity.py`
 against the `rust` endpoints of `src/conformance/governed-operation-parity.json`
-(55/55 live operations).
+(56/56 live operations).
 
 ## Translation rules
 
@@ -123,14 +123,15 @@ function in every row.
 | `engine.purge` | `purge(&self, logical_id: &str) -> Result<()>` | same |
 | `engine.erase_source` | `erase_source(&self, source_id: &str) -> Result<EraseReport>` | `erase_source`; accepts every Engine-valid `SourceId`, including embedded NUL |
 | `engine.configure_projections` | `configure_projections(&self, specs: &[ProjectionSpec], drop: &[String]) -> Result<ProjectionDelta>` | same |
-| `engine.search` | `search(&self, query: &str, options: SearchOptions) -> Result<SearchResult>` | `search_reranked_view_with_snippets` |
+| `engine.search` | `search(&self, query: &str, options: SearchOptions) -> Result<SearchResult>` | `search_reranked_view_with_hints` |
 | `engine.search_text_only` | `search_text_only(&self, query: &str, options: TextSearchOptions) -> Result<SearchResult>` | `search_text_only_view_with_snippets` |
 | `engine.search_projected_text` | `search_projected_text(&self, query: &str, name: &str, options: ProjectedTextSearchOptions) -> Result<SearchResult>` | `search_projected_text_with_limit` |
 | `engine.freeze_read_context` | `freeze_read_context(&self, context: &ReadContextV1) -> Result<FrozenReadContextV1>` | same |
-| `engine.search_frozen` | `search_frozen(&self, query: &str, context: &FrozenReadContextV1, options: FrozenSearchOptions) -> Result<SearchResult>` | `validate_frozen_read_context_for_binding`, then `search_frozen_with_snippets` |
+| `engine.search_frozen` | `search_frozen(&self, query: &str, context: &FrozenReadContextV1, options: FrozenSearchOptions) -> Result<SearchResult>` | `validate_frozen_read_context_for_binding`, then `search_frozen_with_hints` |
 | `engine.search_expand_frozen` | `search_expand_frozen(&self, query: &str, context: &FrozenReadContextV1, depth: u32, options: SearchExpandOptions) -> Result<SearchExpandResult>` | Same validation, then `search_expand_frozen`. |
 | `engine.search_with_evidence` | `search_with_evidence(&self, &EvidenceSearchRequestV1) -> Result<EvidenceSearchResultV1>` | same |
 | `engine.resolve_evidence` | `resolve_evidence(&self, &EvidenceResolveRequestV1) -> Result<ResolvedEvidenceV1>` | same |
+| `engine.resolve_evidence_many` | `resolve_evidence_many(&self, &EvidenceResolveManyRequestV1) -> Result<Vec<EvidenceResolveManyItemV1>>` | same |
 | `engine.resolve_graph_evidence` | `resolve_graph_evidence(&self, &GraphEvidenceResolveRequestV1) -> Result<ResolvedGraphEvidenceV1>` | same |
 | `engine.ingest_with_extractor` | `ingest_with_extractor(&self, cmd: &[&str], documents: &[ExtractDocument]) -> Result<IngestWithExtractorReceipt>` | same |
 | `engine.consolidate_with_provider` | `consolidate_with_provider(&self, cmd: &[&str], axes: &[ConsolidateAxis]) -> Result<ConsolidateReceipt>` | same |
@@ -183,7 +184,7 @@ observation guard through normal SDK error translation, without exposing the
 core engine. The feature forwards only `fathomdb-engine/slice30-observer`; no other
 SDK feature may enable it. It is passive observation, not state/provider/SQL
 injection or a test hook. Its feature/declaration/forwarding are checked separately
-from all 55 governed operations and ordinary non-command members. See the
+from all 56 governed operations and ordinary non-command members. See the
 [narrow addendum](../adr/ADR-0.8.29-sdk-qualification-observation.md) and
 [guard contract](rust.md#private-slice30-qualification-observations).
 
@@ -231,10 +232,10 @@ impls for both. `Unified` is lowered through the public
 
 | Struct | Fields and defaults |
 | --- | --- |
-| `SearchOptions` | `filter: Option<SearchFilterArg> = None`, `rerank_depth: usize = 0`, `use_graph_arm: bool = false`, `alpha: Option<f64>` (None → 0.3), `pool_n: Option<usize>` (None → `rerank_depth`), `explain: bool = false`, `view: ReadView = default`, `limit: usize = 10`, `snippet: Option<SnippetOptions> = None`, `graph_seed: GraphSeedMode = GraphFts`, `graph_seed_k: usize = 10`, `graph_edge_kinds: Vec<String> = []`, `graph_edge_predicates: Vec<PropertyPredicate> = []` |
+| `SearchOptions` | `filter: Option<SearchFilterArg> = None`, `rerank_depth: usize = 0`, `use_graph_arm: bool = false`, `alpha: Option<f64>` (None → 0.3), `pool_n: Option<usize>` (None → `rerank_depth`), `explain: bool = false`, `view: ReadView = default`, `limit: usize = 10`, `snippet: Option<SnippetOptions> = None`, `graph_seed: GraphSeedMode = GraphFts`, `graph_seed_k: usize = 10`, `graph_edge_kinds: Vec<String> = []`, `graph_edge_predicates: Vec<PropertyPredicate> = []`, `hints: bool = false` |
 | `TextSearchOptions` | `view: ReadView = default`, `limit: usize = 10`, `snippet: Option<SnippetOptions> = None` |
 | `ProjectedTextSearchOptions` | `filter: Option<SearchFilter> = None`, `view: ReadView = default`, `limit: usize = 10` |
-| `FrozenSearchOptions` | `rerank_depth = 0`, `use_graph_arm = false`, `alpha: Option<f64>` (None → 0.3), `pool_n: Option<usize>` (None → `rerank_depth`), `explain = false`, `limit = 10`, `snippet = None`, `graph_seed = GraphFts`, `graph_seed_k = 10`, `graph_edge_kinds = []`, `graph_edge_predicates = []` |
+| `FrozenSearchOptions` | `rerank_depth = 0`, `use_graph_arm = false`, `alpha: Option<f64>` (None → 0.3), `pool_n: Option<usize>` (None → `rerank_depth`), `explain = false`, `limit = 10`, `snippet = None`, `graph_seed = GraphFts`, `graph_seed_k = 10`, `graph_edge_kinds = []`, `graph_edge_predicates = []`, `hints: bool = false` |
 | `SearchExpandOptions` | `search_limit: usize = 10` |
 | `ListOptions` | `predicates: Vec<Predicate> = []`, `filter: Option<Filter> = None`, `limit: usize = 100`, `view: Option<ReadView> = None` |
 | `NeighborsOptions` | `direction: TraversalDirection = Both`, `view: Option<ReadView> = None` |
@@ -711,3 +712,26 @@ follow the [core engine contract](rust.md#typed-inline-properties-operational-co
   inline historical eligibility, and erasure/derived-edge closure-barrier
   subordination follow the
   [core engine contract](rust.md#historical-bitemporal-graph-reconstruction-0831-slice-40).
+
+## Batch evidence resolution, search hints, and OpenReport capabilities (0.8.31 Slice 50)
+
+`fathomdb_sdk` adds one live governed operation (`Engine::resolve_evidence_many`,
+advancing governed parity to `56/56` live operations and `93` allowlist
+members) and re-exports `EVIDENCE_RESOLVE_MANY_MAX` (`50`),
+`EvidenceResolveManyRequestV1`, `EvidenceResolveManyItemV1`, `Hint`,
+`HintAction`, `HintArm`, `HintCause`, `HintMode`, and `HintReason`.
+
+- `Engine::resolve_evidence_many(&self, &EvidenceResolveManyRequestV1) -> Result<Vec<EvidenceResolveManyItemV1>>`:
+  enforces `schema_version == 1` (`ErrorKind::Evidence`, `UnsupportedSchemaVersion`
+  at `/schemaVersion`), raw length `1..=50` (`ErrorKind::InvalidArgument`),
+  single-lock snapshot validation (collapsing context drift into whole-call
+  `EvidenceUnavailable`), duplicate order/arity preservation, and per-slot
+  `EvidenceResolveManyItemV1::Resolved(Box<ResolvedEvidenceV1>)` vs.
+  `EvidenceResolveManyItemV1::Refused(EvidenceErrorV1)` (`"/evidenceRefs/{i}"`).
+- `SearchOptions.hints`, `FrozenSearchOptions.hints`, and
+  `EvidenceSearchRequestV1::with_hints(bool)` default to `false` (`SearchResult.hints == None`);
+  when `true`, `SearchResult.hints` is populated by the pure engine hint planner.
+- `OpenReport` exposes `reranker_compiled`, `cuda_compiled`, and
+  `rerank_available` with zero network I/O and zero GPU allocation during open.
+  Offline `37 -> 38` migration remains CLI-only and is not exposed on
+  `fathomdb-sdk`.

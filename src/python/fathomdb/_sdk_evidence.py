@@ -18,8 +18,10 @@ from fathomdb.errors import (
     DependencyTraceError,
     EvidenceError,
     InvalidArgumentError,
+    WriteValidationError,
 )
 from fathomdb.types import (
+    EVIDENCE_RESOLVE_MANY_MAX,
     DependencyTraceEdgeV1,
     DependencyTraceNodeV1,
     DependencyTraceRequestV1,
@@ -28,6 +30,8 @@ from fathomdb.types import (
     EvidenceContributionV1,
     EvidenceGraphOriginV1,
     EvidenceProjectionOriginV1,
+    EvidenceResolveManyItemV1,
+    EvidenceResolveManyRequestV1,
     EvidenceResolveRequestV1,
     EvidenceSearchRequestV1,
     EvidenceSearchResultV1,
@@ -658,6 +662,8 @@ def search_with_evidence(
         raise InvalidArgumentError(f"pool_n must be <= 4294967295, got {request.pool_n!r}")
     if not isinstance(request.include_explanation, bool):
         raise TypeError("include_explanation must be a bool")
+    if not isinstance(request.hints, bool):
+        raise TypeError("hints must be a bool")
     seed_mode, seed_k, native_edge_kinds, native_edge_preds = _validate_graph_arm_options(
         request.graph_seed,
         request.graph_seed_k,
@@ -678,6 +684,7 @@ def search_with_evidence(
         graph_seed_k=seed_k,
         graph_edge_kinds=native_edge_kinds,
         graph_edge_predicates=native_edge_preds,
+        hints=request.hints,
     )
     return _map_native_evidence_search(native)
 
@@ -695,3 +702,87 @@ def resolve_evidence(self: Engine, request: EvidenceResolveRequestV1) -> Resolve
     return _map_native_resolved_evidence(
         self._native.resolve_evidence(request.evidence_ref, native_context)
     )
+
+
+_EVIDENCE_REFUSAL_REASONS = frozenset(
+    {
+        "unsupported_schema_version",
+        "evidence_unavailable",
+        "evidence_corrupt",
+        "evidence_incomplete",
+    }
+)
+
+
+def resolve_evidence_many(
+    self: Engine,
+    request: EvidenceResolveManyRequestV1,
+) -> list[EvidenceResolveManyItemV1]:
+    if not isinstance(request, EvidenceResolveManyRequestV1):
+        raise TypeError("request must be an EvidenceResolveManyRequestV1")
+    if isinstance(request.schema_version, bool) or request.schema_version != 1:
+        raise EvidenceError(
+            "unsupported_schema_version at /schemaVersion",
+            reason="unsupported_schema_version",
+            field_path="/schemaVersion",
+        )
+    if not isinstance(request.evidence_refs, (list, tuple)):
+        raise TypeError("evidence_refs must be a list or tuple of str")
+    refs: list[str] = []
+    for ref in request.evidence_refs:
+        if not isinstance(ref, str):
+            raise TypeError("evidence_refs entries must be str")
+        if "\x00" in ref:
+            raise WriteValidationError("evidence_refs entries must not contain NUL bytes")
+        refs.append(ref)
+    if len(refs) == 0 or len(refs) > EVIDENCE_RESOLVE_MANY_MAX:
+        raise InvalidArgumentError(
+            f"evidence_refs must contain between 1 and {EVIDENCE_RESOLVE_MANY_MAX} references, "
+            f"got {len(refs)}"
+        )
+    if not isinstance(request.context, FrozenReadContextV1):
+        raise TypeError(
+            f"context must be a FrozenReadContextV1, got {type(request.context).__name__!r}"
+        )
+    native_context = _to_native_frozen_context(request.context)
+    native_items = self._native.resolve_evidence_many(
+        request.schema_version,
+        refs,
+        native_context,
+    )
+    if not isinstance(native_items, list) or len(native_items) != len(refs):
+        _evidence_response_error("evidence_corrupt", "/evidenceRefs")
+    out: list[EvidenceResolveManyItemV1] = []
+    for index, item in enumerate(native_items):
+        slot_path = f"/evidenceRefs/{index}"
+        status = getattr(item, "status", None)
+        if status == "resolved":
+            native_resolved = getattr(item, "resolved", None)
+            if native_resolved is None:
+                _evidence_response_error("evidence_corrupt", slot_path)
+            out.append(
+                EvidenceResolveManyItemV1(
+                    status="resolved",
+                    resolved=_map_native_resolved_evidence(native_resolved),
+                )
+            )
+        elif status == "refused":
+            reason = getattr(item, "reason", None)
+            field_path = getattr(item, "field_path", None)
+            if (
+                not isinstance(reason, str)
+                or reason not in _EVIDENCE_REFUSAL_REASONS
+                or not isinstance(field_path, str)
+                or not field_path
+            ):
+                _evidence_response_error("evidence_corrupt", slot_path)
+            out.append(
+                EvidenceResolveManyItemV1(
+                    status="refused",
+                    reason=reason,
+                    field_path=field_path,
+                )
+            )
+        else:
+            _evidence_response_error("evidence_corrupt", slot_path)
+    return out

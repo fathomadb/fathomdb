@@ -198,7 +198,7 @@ pub(crate) fn read_operational_collections_in_tx(
     reader: &mut Connection,
     attribution: &Arc<WalAttributionCollector>,
     worker_idx: usize,
-) -> rusqlite::Result<Vec<crate::OperationalCollectionInfo>> {
+) -> rusqlite::Result<Vec<crate::properties::OperationalCollectionInfo>> {
     let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
     let mut statement = tx.prepare_cached(
         "SELECT name, kind, schema_json, retention_json, format_version, created_at
@@ -206,7 +206,7 @@ pub(crate) fn read_operational_collections_in_tx(
          ORDER BY name ASC",
     )?;
     let rows = statement.query_map([], |row| {
-        Ok(crate::OperationalCollectionInfo {
+        Ok(crate::properties::OperationalCollectionInfo {
             name: row.get(0)?,
             kind: row.get(1)?,
             schema_json: row.get(2)?,
@@ -229,7 +229,7 @@ pub(crate) fn read_operational_collection_in_tx(
     name: &str,
     attribution: &Arc<WalAttributionCollector>,
     worker_idx: usize,
-) -> rusqlite::Result<Option<crate::OperationalCollectionInfo>> {
+) -> rusqlite::Result<Option<crate::properties::OperationalCollectionInfo>> {
     let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
     let mut statement = tx.prepare_cached(
         "SELECT name, kind, schema_json, retention_json, format_version, created_at
@@ -238,7 +238,7 @@ pub(crate) fn read_operational_collection_in_tx(
     )?;
     statement
         .query_row([name], |row| {
-            Ok(crate::OperationalCollectionInfo {
+            Ok(crate::properties::OperationalCollectionInfo {
                 name: row.get(0)?,
                 kind: row.get(1)?,
                 schema_json: row.get(2)?,
@@ -264,7 +264,7 @@ pub(crate) struct ReadListQuery<'a> {
     pub(crate) kind: &'a str,
     pub(crate) predicates: &'a [Predicate],
     pub(crate) source_types: &'a [String],
-    pub(crate) property_predicates: &'a [crate::PropertyPredicate],
+    pub(crate) property_predicates: &'a [crate::properties::PropertyPredicate],
     pub(crate) limit: usize,
     pub(crate) view: &'a ReadView,
 }

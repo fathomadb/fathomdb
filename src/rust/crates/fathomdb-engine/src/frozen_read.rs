@@ -751,21 +751,21 @@ fn encode_context(context: &ReadContextV1) -> Vec<u8> {
             .iter()
             .map(|pred| {
                 let op_byte = match pred.op {
-                    crate::PropertyComparisonOp::Eq => 1,
-                    crate::PropertyComparisonOp::Ne => 2,
-                    crate::PropertyComparisonOp::Lt => 3,
-                    crate::PropertyComparisonOp::Lte => 4,
-                    crate::PropertyComparisonOp::Gt => 5,
-                    crate::PropertyComparisonOp::Gte => 6,
+                    crate::properties::PropertyComparisonOp::Eq => 1,
+                    crate::properties::PropertyComparisonOp::Ne => 2,
+                    crate::properties::PropertyComparisonOp::Lt => 3,
+                    crate::properties::PropertyComparisonOp::Lte => 4,
+                    crate::properties::PropertyComparisonOp::Gt => 5,
+                    crate::properties::PropertyComparisonOp::Gte => 6,
                 };
                 let (val_tag, val_bytes) = match &pred.value {
-                    crate::PropertyValue::String(s) => (1_u8, s.as_bytes().to_vec()),
-                    crate::PropertyValue::Int(i) => (2_u8, i.to_le_bytes().to_vec()),
-                    crate::PropertyValue::Float(f) => {
+                    crate::properties::PropertyValue::String(s) => (1_u8, s.as_bytes().to_vec()),
+                    crate::properties::PropertyValue::Int(i) => (2_u8, i.to_le_bytes().to_vec()),
+                    crate::properties::PropertyValue::Float(f) => {
                         let norm = if *f == 0.0 { 0.0_f64 } else { *f };
                         (3_u8, norm.to_bits().to_le_bytes().to_vec())
                     }
-                    crate::PropertyValue::Bool(b) => (4_u8, vec![u8::from(*b)]),
+                    crate::properties::PropertyValue::Bool(b) => (4_u8, vec![u8::from(*b)]),
                 };
                 (pred.key.as_str(), op_byte, val_tag, val_bytes)
             })

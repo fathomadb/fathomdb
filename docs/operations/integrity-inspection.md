@@ -56,3 +56,22 @@ omits raw SQLite diagnostics and row content.
 
 The report is diagnostic evidence, not repair authorization. Use a separately
 reviewed recovery procedure if a finding requires mutation.
+
+## Upgrading a Schema 37 database before inspection
+
+In the 0.8.31 release line (Schema 38), `fathomdb doctor data-plane-integrity`
+and `Engine::open` both require `user_version == 38`. To upgrade an existing
+quiescent Schema 37 store before inspecting or opening it under 0.8.31, run the
+offline migrate command:
+
+```bash
+fathomdb migrate --backup-dir ./backups --json ./store.sqlite
+fathomdb doctor check-integrity --full --json ./store.sqlite
+```
+
+`fathomdb migrate` acquires the exclusive `.lock`, refuses pending erasures or
+genuinely dangling edge endpoints before mutating anything, writes a
+SHA-256-verified backup in `--backup-dir`, upgrades `37 -> 38` atomically in a
+single transaction, and runs post-upgrade `check-integrity --full`. See the
+[CLI reference](../reference/cli.md#migrate-root) for full details and exit
+codes.

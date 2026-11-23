@@ -1460,7 +1460,7 @@ fn text_hit_passes_filter_with_inline(
     if !text_hit_passes_filter(tx, id, kind, Some(&base))? {
         return Ok(false);
     }
-    let row: Option<(String, Option<crate::PropertyMap>)> = tx
+    let row: Option<(String, Option<crate::properties::PropertyMap>)> = tx
         .query_row(
             "SELECT body, properties FROM canonical_nodes WHERE write_cursor=?1",
             [id],

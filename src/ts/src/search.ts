@@ -4,6 +4,7 @@ import {
   type NativeFrozenReadContextV1,
   type NativeArmDegradation,
   type NativeGraphArmOptionsInput,
+  type NativeHint,
   type NativeSearchExpandResult,
   type NativeSearchFilter,
   type NativePerHitExplain,
@@ -189,6 +190,25 @@ export interface FrozenReadContextV1 {
   token: string;
 }
 
+/** What an opt-in search hint suggests doing next. */
+export type HintAction = "search" | "none";
+
+/** Why an opt-in search hint was emitted. */
+export type HintReason = "degraded" | "no_results" | "more_results";
+
+/** Search mode suggested by a `no_results` hint. */
+export type HintMode = "text" | "hybrid";
+
+/** One opt-in agent search hint returned on `SearchResult.hints`. */
+export interface Hint {
+  action: HintAction;
+  reason: HintReason;
+  mode?: HintMode;
+  limit?: number;
+  arm?: string;
+  cause?: string;
+}
+
 /**
  * Per-call ranked-search controls that cannot weaken a frozen context.
  * `snippet` (EP-17) is presentation, not part of the frozen context.
@@ -205,6 +225,7 @@ export interface FrozenSearchOptions {
   graphSeedK?: number;
   graphEdgeKinds?: readonly string[];
   graphEdgePredicates?: readonly PropertyPredicate[];
+  hints?: boolean;
 }
 
 /**
@@ -220,13 +241,18 @@ export type BaseSearchOptions = ReadView & {
  * `snippet` (EP-17) fills `SearchResult.snippets`.
  * `graphSeed`/`graphSeedK`/`graphEdgeKinds`/`graphEdgePredicates` configure
  * opt-in graph-arm seeding and edge filtering.
+ * `hints` enables opt-in agent hints on `SearchResult.hints`.
  */
 export type SearchOptions = BaseSearchOptions & {
   graphSeed?: GraphSeedMode;
   graphSeedK?: number;
   graphEdgeKinds?: readonly string[];
   graphEdgePredicates?: readonly PropertyPredicate[];
+  hints?: boolean;
 };
+
+/** Alias for {@link SearchOptions} covering per-call hybrid search options. */
+export type SearchCallOptions = SearchOptions;
 
 /** Direct body FTS options. Filters apply before candidate bounds and ranking. */
 export type TextSearchOptions = BaseSearchOptions & { filter?: SearchFilter };
@@ -409,9 +435,16 @@ export function splitSearchOptions(options: SearchOptions | undefined): {
   view: ReadView | undefined;
   snippet: SnippetOptions | undefined;
   graphOptions: NativeGraphArmOptionsInput | undefined;
+  hints: boolean | undefined;
 } {
   if (options === undefined) {
-    return { limit: 10, view: undefined, snippet: undefined, graphOptions: undefined };
+    return {
+      limit: 10,
+      view: undefined,
+      snippet: undefined,
+      graphOptions: undefined,
+      hints: undefined,
+    };
   }
   const {
     limit,
@@ -420,8 +453,12 @@ export function splitSearchOptions(options: SearchOptions | undefined): {
     graphSeedK,
     graphEdgeKinds,
     graphEdgePredicates,
+    hints,
     ...view
   } = options;
+  if (hints !== undefined && typeof hints !== "boolean") {
+    throw new TypeError(`hints must be a boolean, got ${typeof hints}`);
+  }
   validateSnippetOptions(snippet);
   const graphOptions = validateAndEncodeGraphArmOptions({
     graphSeed,
@@ -434,6 +471,21 @@ export function splitSearchOptions(options: SearchOptions | undefined): {
     view: Object.keys(view).length === 0 ? undefined : view,
     snippet,
     graphOptions,
+    hints,
+  };
+}
+
+export function mapNativeHints(native: NativeHint[] | null | undefined): { hints?: Hint[] } {
+  if (native === null || native === undefined) return {};
+  return {
+    hints: native.map((entry) => ({
+      action: entry.action as HintAction,
+      reason: entry.reason as HintReason,
+      ...(entry.mode == null ? {} : { mode: entry.mode as HintMode }),
+      ...(entry.limit == null ? {} : { limit: entry.limit }),
+      ...(entry.arm == null ? {} : { arm: entry.arm }),
+      ...(entry.cause == null ? {} : { cause: entry.cause }),
+    })),
   };
 }
 
@@ -462,6 +514,7 @@ export function mapNativeSearchResult(r: NativeSearchResult): SearchResult {
     explanation: e ? mapCandidateNativeExplanation(e, r.results) : null,
     ...mapNativeDegradations(r.degradations),
     ...mapNativeSnippets(r.snippets),
+    ...mapNativeHints(r.hints),
   };
 }
 
@@ -980,6 +1033,8 @@ export interface SearchResult {
    * when the search asked for snippets; absent otherwise.
    */
   snippets?: SnippetV1[];
+  /** Opt-in agent search hints sidecar when `hints: true`; absent otherwise. */
+  hints?: Hint[];
 }
 
 export async function freezeReadContext(nativeEngine: NativeEngine, context: ReadContextV1): Promise<FrozenReadContextV1> {
@@ -1045,6 +1100,7 @@ export async function searchFrozen(nativeEngine: NativeEngine, query: string, co
         "graphSeedK",
         "graphEdgeKinds",
         "graphEdgePredicates",
+        "hints",
       ],
       "FrozenSearchOptions",
     );
@@ -1078,6 +1134,9 @@ export async function searchFrozen(nativeEngine: NativeEngine, query: string, co
     if (options.explain !== undefined && typeof options.explain !== "boolean") {
       throw new TypeError(`explain must be a boolean, got ${typeof options.explain}`);
     }
+    if (options.hints !== undefined && typeof options.hints !== "boolean") {
+      throw new TypeError(`hints must be a boolean, got ${typeof options.hints}`);
+    }
     validateRankedResultLimit("limit", options.limit);
     validateSnippetOptions(options.snippet);
     const graphOptions = validateAndEncodeGraphArmOptions({
@@ -1098,6 +1157,7 @@ export async function searchFrozen(nativeEngine: NativeEngine, query: string, co
         options.limit,
         options.snippet,
         graphOptions,
+        options.hints,
       ),
     );
     return mapNativeSearchResult(result);
@@ -1210,6 +1270,7 @@ export async function search(nativeEngine: NativeEngine, query: string, filter?:
         searchOptions.limit,
         searchOptions.snippet,
         searchOptions.graphOptions,
+        searchOptions.hints,
       ),
     );
     return mapNativeSearchResult(r);
@@ -1224,6 +1285,7 @@ export async function searchTextOnly(nativeEngine: NativeEngine, query: string, 
         "graphSeedK",
         "graphEdgeKinds",
         "graphEdgePredicates",
+        "hints",
       ]) {
         if (raw[forbidden] !== undefined) {
           throw new InvalidArgumentError(`searchTextOnly does not accept ${forbidden}`);
@@ -1284,6 +1346,9 @@ export async function searchProjectedText(nativeEngine: NativeEngine, query: str
     }
     if (searchOptions.graphOptions !== undefined) {
       throw new InvalidArgumentError("searchProjectedText takes no graph-arm seeding options");
+    }
+    if (searchOptions.hints !== undefined) {
+      throw new InvalidArgumentError("searchProjectedText takes no hints option");
     }
     const nativeFilter = toNativeSearchFilter(filter);
     const r = await intercept(() =>

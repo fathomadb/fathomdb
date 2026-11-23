@@ -194,6 +194,12 @@ export interface OpenReport {
    * receipt can record it without running a query.
    */
   readonly stopWordsSha256: string;
+  /** True when this binary was compiled with the `default-reranker` feature. */
+  readonly rerankerCompiled: boolean;
+  /** True when this binary was compiled with CUDA support (`embed-cuda` or `rerank-cuda`). */
+  readonly cudaCompiled: boolean;
+  /** True when local reranking is ready at open time without network I/O or GPU allocation. */
+  readonly rerankAvailable: boolean;
 }
 
 /** Discrete-device raw control for the global-free witness. */
@@ -457,6 +463,13 @@ export function mapGpuAllocationWitness(witness: NativeGpuAllocationWitness): Gp
   };
 }
 
+function requireOpenReportBoolean(value: unknown, field: string): boolean {
+  if (typeof value !== "boolean") {
+    throw new TypeError(`OpenReport.${field} must be a boolean, got ${typeof value}`);
+  }
+  return value;
+}
+
 /**
  * @internal Map the native open-time snapshot into the public SDK shape.
  * Kept separate so the binding contract is testable without a CUDA host.
@@ -483,6 +496,9 @@ export function mapOpenReport(r: NativeOpenReport): OpenReport {
       ? mapGpuAllocationWitness(r.embedderGpuAllocationWitness)
       : null,
     stopWordsSha256: r.stopWordsSha256 ?? "",
+    rerankerCompiled: requireOpenReportBoolean(r.rerankerCompiled, "rerankerCompiled"),
+    cudaCompiled: requireOpenReportBoolean(r.cudaCompiled, "cudaCompiled"),
+    rerankAvailable: requireOpenReportBoolean(r.rerankAvailable, "rerankAvailable"),
   };
 }
 

@@ -55,6 +55,7 @@ for (const measurement of [globalMeasurement, privateMeasurement, { ...privateMe
       embedderMeanCenteringRequired: false, embedderMeanVecPinned: false,
       embedderDeviceResolution: null, rerankerDeviceResolution: null,
       embedderGpuAllocationWitness: witness,
+      rerankerCompiled: false, cudaCompiled: true, rerankAvailable: false,
     });
     assert.deepEqual(report.embedderGpuAllocationWitness, witness);
     const mapped = report.embedderGpuAllocationWitness;

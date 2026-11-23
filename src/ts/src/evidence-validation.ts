@@ -1,4 +1,8 @@
-import type { NativeEvidenceSearchResultV1, NativeResolvedEvidenceV1 } from "./binding.js";
+import type {
+  NativeEvidenceResolveManyItemV1,
+  NativeEvidenceSearchResultV1,
+  NativeResolvedEvidenceV1,
+} from "./binding.js";
 import { EvidenceError } from "./errors.js";
 
 function fail(reason: string, fieldPath: string): never {
@@ -73,6 +77,62 @@ export function validateNativeEvidenceSearch(r: NativeEvidenceSearchResultV1): v
     );
     finite(hit.score, `/searchResult/results/${index}/score`, true);
     finite(hit.ceScore, `/searchResult/results/${index}/ceScore`);
+  });
+  if (r.searchResult.hints != null) {
+    if (!Array.isArray(r.searchResult.hints)) {
+      fail("evidence_corrupt", "/searchResult/hints");
+    }
+    r.searchResult.hints.forEach((hint, index) => {
+      const base = `/searchResult/hints/${index}`;
+      variant(hint.action, ["search", "none"], `${base}/action`);
+      variant(hint.reason, ["degraded", "no_results", "more_results"], `${base}/reason`);
+      if (hint.mode != null) {
+        variant(hint.mode, ["text", "hybrid"], `${base}/mode`);
+      }
+      if (hint.limit != null) {
+        u32(hint.limit, `${base}/limit`, true);
+      }
+      if (hint.arm != null) {
+        nonEmptyString(hint.arm, `${base}/arm`);
+      }
+      if (hint.cause != null) {
+        nonEmptyString(hint.cause, `${base}/cause`);
+      }
+    });
+  }
+}
+
+const VALID_EVIDENCE_REFUSAL_REASONS = [
+  "unsupported_schema_version",
+  "evidence_unavailable",
+  "evidence_corrupt",
+  "evidence_incomplete",
+] as const;
+
+/** Validate the native `resolveEvidenceMany` response array before mapping public items. */
+export function validateNativeEvidenceResolveMany(
+  items: NativeEvidenceResolveManyItemV1[],
+  expectedLength: number,
+): void {
+  if (!Array.isArray(items) || items.length !== expectedLength) {
+    fail("evidence_corrupt", "/evidenceRefs");
+  }
+  items.forEach((item, index) => {
+    const base = `/evidenceRefs/${index}`;
+    if (typeof item !== "object" || item === null) {
+      fail("evidence_corrupt", base);
+    }
+    if (item.status === "resolved") {
+      if (item.resolved == null) {
+        fail("evidence_corrupt", `${base}/resolved`);
+      }
+      validateNativeResolvedEvidence(item.resolved);
+    } else if (item.status === "refused") {
+      variant(item.reason ?? "", VALID_EVIDENCE_REFUSAL_REASONS, `${base}/reason`);
+      nonEmptyString(item.fieldPath, `${base}/fieldPath`);
+    } else {
+      fail("evidence_corrupt", `${base}/status`);
+    }
   });
 }
 

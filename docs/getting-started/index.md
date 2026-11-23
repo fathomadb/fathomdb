@@ -26,8 +26,8 @@ exposes lower-level inherent methods and re-exported types:
 - **Model lifetime** — standalone `release_models` / `releaseModels` releases
   CLS and cross-encoder caches; engine-owned providers close with their engine.
 - **Retrieval** — `search` (hybrid FTS5 + vector, RRF-fused, optional
-  cross-encoder rerank and graph arm), `search_text_only`, `rerank`,
-  `embed`.
+  cross-encoder rerank, graph arm, and opt-in agent `hints`), `search_text_only`,
+  `rerank`, `embed`.
 - **Reads** — `read.get`, `read.get_many`, `read.list`,
   `read.collection`, `read.mutations`, `read.crossed_boundary_since`,
   `read.projections`, projection-generation and mutation readiness,
@@ -38,7 +38,9 @@ exposes lower-level inherent methods and re-exported types:
 - **Atomic actuation** — bounded caller-decided batches with idempotent terminal
   receipts.
 - **Frozen retrieval and evidence** — authenticated frozen contexts, frozen
-  search, and opt-in exact source evidence resolution.
+  search, single (`resolve_evidence`) and bounded batch
+  (`resolve_evidence_many`, `1..=50` with per-slot outcomes) exact source
+  evidence resolution.
 - **Graph** — `graph.neighbors`, `graph.search_expand`, and the constrained
   `graph.expand` API.
 - **Lifecycle / erasure** — `transition`, `purge`, `erase_source`.
@@ -49,12 +51,17 @@ exposes lower-level inherent methods and re-exported types:
   `set_profiling`, `set_slow_threshold_ms`, host-logger / subscriber
   attach.
 - Operator CLI: `fathomdb doctor` (integrity, bounded data-plane integrity,
-  safe-export, verify-embedder, trace, dumps, `orphan-provenance`) and
+  safe-export, verify-embedder, trace, dumps, `orphan-provenance`),
   `fathomdb recover --accept-data-loss` (truncate-wal, rebuild-vec0,
-  rebuild-projections, complete-erasures, excise-source, excise-record).
+  rebuild-projections, complete-erasures, excise-source, excise-record), and
+  `fathomdb migrate --backup-dir <dir> <db_path>` (offline Schema 37-to-38
+  upgrade). In the 0.8.31 line the CLI is also packaged via `fathomdb-cli` /
+  `pip install 'fathomdb[cli]'` while keeping base `fathomdb` script-free.
 - Local-first storage on SQLite (FTS5 + `sqlite-vec`), on-disk schema
-  version **37**. Public opens create a fresh schema-37 database or accept an
-  existing schema-37 database; they do not upgrade older non-empty databases.
+  version **38** (0.8.31 target; published 0.8.30 uses schema 37). Public opens
+  create a fresh schema-38 database or accept an existing schema-38 database;
+  they never auto-migrate. Existing committed schema-37 stores upgrade offline
+  via `fathomdb migrate --backup-dir <dir> <db_path>`.
 - Two-axis versioning: workspace lockstep across the
   runtime/binding/CLI crates and the independently versioned
   `fathomdb-embedder-api` trait crate.
@@ -87,6 +94,7 @@ surface. Rust users can also consume the lower-level `fathomdb` facade crate. Th
   [compatibility § performance posture](../compatibility/index.md).
 - **Caller-supplied engine embedders** are unsupported before 1.x in every SDK;
   production engine admission selects the pinned built-in default or none.
-- **No compatibility shims or public automatic upgrades.** A non-empty
-  database must already have the compiled schema version (37) — see
-  [compatibility](../compatibility/index.md).
+- **No automatic upgrades on `Engine.open`.** A non-empty database must already
+  have the compiled schema version (38 in 0.8.31); upgrade committed schema-37
+  stores offline with `fathomdb migrate --backup-dir <dir> <db_path>` — see
+  [compatibility](../compatibility/index.md) and [CLI reference](../reference/cli.md).

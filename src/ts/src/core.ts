@@ -21,7 +21,13 @@ import {
   searchTextOnly,
   searchProjectedText,
 } from "./search.js";
-import { traceDependency, searchWithEvidence, resolveEvidence, resolveGraphEvidence } from "./evidence.js";
+import {
+  traceDependency,
+  searchWithEvidence,
+  resolveEvidence,
+  resolveEvidenceMany,
+  resolveGraphEvidence,
+} from "./evidence.js";
 import { openReport } from "./open.js";
 import { embed } from "./embedding.js";
 import {
@@ -74,6 +80,8 @@ import {
   DependencyTraceResultV1,
   EvidenceSearchRequestV1,
   EvidenceResolveRequestV1,
+  EvidenceResolveManyRequestV1,
+  EvidenceResolveManyItemV1,
   EvidenceSearchResultV1,
   ResolvedEvidenceV1,
 } from "./evidence.js";
@@ -417,6 +425,9 @@ export class Engine {
 
   /** Resolve exact source bytes under an equivalent frozen context. */
   async resolveEvidence(request: EvidenceResolveRequestV1): Promise<ResolvedEvidenceV1> { return resolveEvidence(this.#native, request); }
+
+  /** Resolve a bounded batch (1..=50) of evidence references under one frozen context. */
+  async resolveEvidenceMany(request: EvidenceResolveManyRequestV1): Promise<EvidenceResolveManyItemV1[]> { return resolveEvidenceMany(this.#native, request); }
 
   /** Resolve one exact artifact disclosed by frozen graph expansion. */
   async resolveGraphEvidence(

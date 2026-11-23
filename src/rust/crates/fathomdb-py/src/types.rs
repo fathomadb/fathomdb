@@ -907,6 +907,12 @@ pub(super) struct PyOpenReport {
     pub(super) embedder_gpu_allocation_witness: Option<PyGpuAllocationWitness>,
     /// SHA-256 (lowercase hex) of the engine's effective query stop words.
     pub(super) stop_words_sha256: String,
+    /// True when this binary was compiled with the `default-reranker` feature.
+    pub(super) reranker_compiled: bool,
+    /// True when this binary was compiled with CUDA support (`embed-cuda` or `rerank-cuda`).
+    pub(super) cuda_compiled: bool,
+    /// True when local reranking is ready without network download or GPU allocation.
+    pub(super) rerank_available: bool,
 }
 
 impl PyOpenReport {
@@ -941,6 +947,9 @@ impl PyOpenReport {
                 .as_ref()
                 .map(PyGpuAllocationWitness::from_rust),
             stop_words_sha256: r.stop_words_sha256.clone(),
+            reranker_compiled: r.reranker_compiled,
+            cuda_compiled: r.cuda_compiled,
+            rerank_available: r.rerank_available,
         }
     }
 }

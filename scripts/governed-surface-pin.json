@@ -189,21 +189,30 @@
     "  previous git_blob_sha1: 85b5c9865db906c5e43b6c6ed62d355782cb5739",
     "  previous sha256:        15aa74ceb99792e12c2eeec917cbadb497f038474857630efd1f329f4bb7effc",
     "",
+    "0.8.31 Slice 50 (SDK-CLI-UPGRADE) — owner approved ADR-0.8.31 #76.",
+    "Adds bounded (1..=50) batch evidence resolution resolve_evidence_many/",
+    "resolveEvidenceMany under one authenticated frozen read context with",
+    "per-slot partial-result nondisclosure, alongside opt-in search hints and",
+    "OpenReport capability booleans. Core, runtime controls, and the five-name",
+    "recovery denylist remain unchanged.",
+    "  previous git_blob_sha1: 3941a112a0c4f27213329d2b2ed0c77bfb4295a8",
+    "  previous sha256:        604a6896051c403784b7c6b5c0b96f3a3b4436f3ed0f6c12fc647537bd963214",
+    "",
     "REPRODUCE THE PIN FROM GIT:",
-    "  git cat-file blob 3941a112a0c4f27213329d2b2ed0c77bfb4295a8",
+    "  git cat-file blob 7ad1499c2c0b0ac9511f7ae828edcbc2b19ee840",
     "    -> the signed allowlist bytes (content-addressed; no commit needed)",
     "  sha256sum src/conformance/governed-surface-allowlist.json",
-    "    -> 604a6896051c403784b7c6b5c0b96f3a3b4436f3ed0f6c12fc647537bd963214   (= sha256 below)"
+    "    -> 9bdb72f5b540010974667bd271f85a1a3d1b61d8bf3a3630592f1d1a624bef9c   (= sha256 below)"
   ],
-  "ac": "AC-079; 0.8.21 Slice 60; 0.8.22 Slice 21 F5; 0.8.22 Slice 22 C5; 0.8.23 Slice 30; approved 0.8.25 Slices 20 and 25; approved 0.8.25 Slice 30; approved 0.8.25 Slice 35; approved 0.8.25 Slice 40; approved 0.8.25 Slice 45; approved 0.8.25 Slice 50; approved 0.8.25 Slice 55; approved 0.8.25 Slice 60; approved 0.8.25 Slice 79 under seq-276; approved 0.8.26 Slice 20 under seq-290; approved 0.8.28 Slice 41 by owner 2026-10-16; approved 0.8.28 Slice 85 by owner 2026-11-04 under seq-363 and current completion authorization; pre-authorized 0.8.31 Slice 20 under HITL Gate 1",
-  "covers": "Prior signed surfaces plus the approved 0.8.25 Slice 20 dependency registry, Slice 25 bounded atomic actuation, Slice 30 keyed closure-status read, Slice 35 optional frozen reads, Slice 40 projection-generation status reads, Slice 45 canonical pagination and operational-state reads, Slice 50 compact source evidence reads, Slice 55 governed dependency trace reads, Slice 60 bounded constrained graph expansion, Slice 79 startup-only runtime controls, 0.8.26 Slice 20 exact graph evidence, 0.8.28 Slice 41 package-level context pack, 0.8.28 Slice 85 explicit physical-erasure policy, queued requests and owned maintenance, and 0.8.31 Slice 20 operational-collection introspection reads",
+  "ac": "AC-079; 0.8.21 Slice 60; 0.8.22 Slice 21 F5; 0.8.22 Slice 22 C5; 0.8.23 Slice 30; approved 0.8.25 Slices 20 and 25; approved 0.8.25 Slice 30; approved 0.8.25 Slice 35; approved 0.8.25 Slice 40; approved 0.8.25 Slice 45; approved 0.8.25 Slice 50; approved 0.8.25 Slice 55; approved 0.8.25 Slice 60; approved 0.8.25 Slice 79 under seq-276; approved 0.8.26 Slice 20 under seq-290; approved 0.8.28 Slice 41 by owner 2026-10-16; approved 0.8.28 Slice 85 by owner 2026-11-04 under seq-363 and current completion authorization; pre-authorized 0.8.31 Slice 20 under HITL Gate 1; approved 0.8.31 Slice 50 under ADR-0.8.31 #76",
+  "covers": "Prior signed surfaces plus the approved 0.8.25 Slice 20 dependency registry, Slice 25 bounded atomic actuation, Slice 30 keyed closure-status read, Slice 35 optional frozen reads, Slice 40 projection-generation status reads, Slice 45 canonical pagination and operational-state reads, Slice 50 compact source evidence reads, Slice 55 governed dependency trace reads, Slice 60 bounded constrained graph expansion, Slice 79 startup-only runtime controls, 0.8.26 Slice 20 exact graph evidence, 0.8.28 Slice 41 package-level context pack, 0.8.28 Slice 85 explicit physical-erasure policy, queued requests and owned maintenance, 0.8.31 Slice 20 operational-collection introspection reads, and 0.8.31 Slice 50 bounded batch evidence resolution",
   "pinned_file": "src/conformance/governed-surface-allowlist.json",
   "pinned_at_commit": "36802ba4ec6e17ef2e9a25df1e2adfe6721ba7cd",
   "pinned_at_commit_short": "36802ba4e",
-  "git_blob_sha1": "3941a112a0c4f27213329d2b2ed0c77bfb4295a8",
-  "sha256": "604a6896051c403784b7c6b5c0b96f3a3b4436f3ed0f6c12fc647537bd963214",
+  "git_blob_sha1": "7ad1499c2c0b0ac9511f7ae828edcbc2b19ee840",
+  "sha256": "9bdb72f5b540010974667bd271f85a1a3d1b61d8bf3a3630592f1d1a624bef9c",
   "counts": {
-    "allowlist": 91,
+    "allowlist": 93,
     "core": 5,
     "recovery_denylist": 5,
     "runtime_controls": 2
@@ -299,7 +308,9 @@
     "read.operational_collections",
     "read.operationalCollections",
     "read.operational_collection",
-    "read.operationalCollection"
+    "read.operationalCollection",
+    "resolve_evidence_many",
+    "resolveEvidenceMany"
   ],
   "core": [
     "Engine.open",

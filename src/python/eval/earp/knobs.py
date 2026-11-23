@@ -192,6 +192,13 @@ CATALOG: tuple[KnobEntry, ...] = (
         reason="Produces the EP-17 match-centred snippet sidecar; changes no result.",
     ),
     KnobEntry(
+        name="hints",
+        classification=KnobClass.OBSERVABILITY,
+        call_path="Engine.search(hints=)",
+        witness="search_result.hints",
+        reason="Produces the opt-in agent search hints sidecar; changes no result.",
+    ),
+    KnobEntry(
         name="view",
         classification=KnobClass.SEMANTIC,
         call_path="Engine.search(view=)",

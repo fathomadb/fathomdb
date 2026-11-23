@@ -400,6 +400,40 @@ impl From<RustResolvedEvidenceV1> for PyResolvedEvidenceV1 {
     }
 }
 
+#[pyclass(
+    module = "fathomdb._fathomdb",
+    name = "EvidenceResolveManyItemV1",
+    frozen,
+    get_all,
+    skip_from_py_object
+)]
+#[derive(Clone)]
+pub(super) struct PyEvidenceResolveManyItemV1 {
+    status: String,
+    resolved: Option<PyResolvedEvidenceV1>,
+    reason: Option<String>,
+    field_path: Option<String>,
+}
+
+impl From<RustEvidenceResolveManyItemV1> for PyEvidenceResolveManyItemV1 {
+    fn from(value: RustEvidenceResolveManyItemV1) -> Self {
+        match value {
+            RustEvidenceResolveManyItemV1::Resolved(resolved) => Self {
+                status: "resolved".to_string(),
+                resolved: Some((*resolved).into()),
+                reason: None,
+                field_path: None,
+            },
+            RustEvidenceResolveManyItemV1::Refused(error) => Self {
+                status: "refused".to_string(),
+                resolved: None,
+                reason: Some(error.reason.as_str().to_string()),
+                field_path: Some(error.field_path),
+            },
+        }
+    }
+}
+
 /// 0.8.8 EXP-OBS (Slice 10) — query-level retrieval trace (mirror of engine
 /// `QueryTrace`). New fields append with the binding evolution rule
 /// (`frozen, get_all, skip_from_py_object`).

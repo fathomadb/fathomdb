@@ -1071,6 +1071,29 @@ pub(crate) fn graph_arm_options_input_to_rust(
 }
 
 #[napi(object)]
+pub struct Hint {
+    pub action: String,
+    pub reason: String,
+    pub mode: Option<String>,
+    pub limit: Option<u32>,
+    pub arm: Option<String>,
+    pub cause: Option<String>,
+}
+
+impl Hint {
+    pub(crate) fn from_rust(hint: &RustHint) -> Self {
+        Self {
+            action: hint.action.as_str().to_string(),
+            reason: hint.reason.as_str().to_string(),
+            mode: hint.mode.map(|mode| mode.as_str().to_string()),
+            limit: hint.limit.and_then(|value| u32::try_from(value).ok()),
+            arm: hint.arm.map(|arm| arm.as_str().to_string()),
+            cause: hint.cause.map(|cause| cause.as_str().to_string()),
+        }
+    }
+}
+
+#[napi(object)]
 pub struct SearchResult {
     pub projection_cursor: i64,
     pub soft_fallback: Option<SoftFallback>,
@@ -1084,6 +1107,8 @@ pub struct SearchResult {
     /// EP-17 snippet sidecar, one per hit in `results` order; absent unless
     /// the search asked for snippets.
     pub snippets: Option<Vec<SnippetV1>>,
+    /// Opt-in agent search hints sidecar; absent unless `hints: true`.
+    pub hints: Option<Vec<Hint>>,
 }
 
 impl SearchResult {
@@ -1098,6 +1123,7 @@ impl SearchResult {
             explanation: r.explanation.as_ref().map(Explanation::from_rust),
             degradations: degradations_from_rust(&r.degradations),
             snippets: snippets_from_rust(r.snippets.as_ref()),
+            hints: r.hints.as_ref().map(|items| items.iter().map(Hint::from_rust).collect()),
         }
     }
 }

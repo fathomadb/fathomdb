@@ -11,7 +11,7 @@ signatures, options, return shapes, or error behavior. Use the maintained
 [TypeScript API](../reference/typescript-api.md), and
 [Rust SDK reference](../reference/rust-sdk.md) for those contracts.
 
-Governed operations: **55**. Each language cell is
+Governed operations: **56**. Each language cell is
 `locator` / `spelling`; `engine_static` is on `Engine`,
 `engine_instance` is on an open handle, `package` is standalone,
 and `read`, `graph`, and `admin` name their respective surfaces.
@@ -42,6 +42,7 @@ and `read`, `graph`, and `admin` name their respective surfaces.
 | `engine.search_projected_text` | live | `engine_instance` / `search_projected_text` | `engine_instance` / `searchProjectedText` | `engine_instance` / `search_projected_text` |
 | `engine.search_with_evidence` | live | `engine_instance` / `search_with_evidence` | `engine_instance` / `searchWithEvidence` | `engine_instance` / `search_with_evidence` |
 | `engine.resolve_evidence` | live | `engine_instance` / `resolve_evidence` | `engine_instance` / `resolveEvidence` | `engine_instance` / `resolve_evidence` |
+| `engine.resolve_evidence_many` | live | `engine_instance` / `resolve_evidence_many` | `engine_instance` / `resolveEvidenceMany` | `engine_instance` / `resolve_evidence_many` |
 | `engine.resolve_graph_evidence` | live | `engine_instance` / `resolve_graph_evidence` | `engine_instance` / `resolveGraphEvidence` | `engine_instance` / `resolve_graph_evidence` |
 | `engine.trace_dependency` | live | `engine_instance` / `trace_dependency` | `engine_instance` / `traceDependency` | `engine_instance` / `trace_dependency` |
 | `engine.close` | live | `engine_instance` / `close` | `engine_instance` / `close` | `engine_instance` / `close` |

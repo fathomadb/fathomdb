@@ -17,6 +17,7 @@ flag spelling, root command paths, and exit-code classes.
 
 - `fathomdb recover --accept-data-loss <sub-flag>...`
 - `fathomdb doctor <verb> ...`
+- `fathomdb migrate --backup-dir <dir> [--json] <db_path>`
 
 The CLI is **operator-only**. It does not mirror the SDK application
 surface and does not ship `search` / `get` / `list` query verbs.
@@ -552,3 +553,66 @@ the same-identity backend-drift residual. Production providers are built-in BGE/
 or deliberate none, with no custom admission before 1.x; loader/device and
 standalone CLS behavior remain unchanged. See the
 [complete admission limits](rust.md#built-in-provider-admission-and-cached-verification).
+
+## Migrate root (`37 -> 38`, 0.8.31 Slice 50)
+
+`fathomdb migrate --backup-dir <dir> [--json] <db_path>` is a third top-level
+operator root alongside `recover` and `doctor` (all 17 `doctor` subcommands
+remain unchanged). It upgrades a quiescent committed Schema `37` database to
+Schema `38` offline; `Engine::open` remains strictly Schema-38-only and never
+auto-migrates.
+
+### 7-step fail-closed upgrade flow
+
+1. **Exclusive lock & backup target checks:** Canonicalize `<db_path>`, acquire
+   `<db_path>.lock` exclusively (`exit 71` when held), refuse non-empty
+   `-journal`, and verify `--backup-dir` is writable and distinct from the live
+   database path.
+2. **Header, integrity & strict Schema-37 admission:** Validate header/integrity
+   and effective `PRAGMA user_version == 37`; refuse `36`, `38`
+   (`E_MIGRATE_ALREADY_CURRENT`), `39`, or corrupt files with `exit 70` before
+   backup or mutation.
+3. **Fail-closed unfinished-erasure preflight:** Refuse (`exit 70`,
+   `E_MIGRATE_PENDING_ERASURE`) if any pending physical erasure closure, active
+   or queued `_fathomdb_erasure_requests` row, root/FTS sanitization debt, or
+   `ERASURE_PENDING_REDACTION_COLLECTION` row exists.
+4. **Fail-closed edge-endpoint preflight:** Count active edges whose endpoints
+   are missing from `canonical_nodes` (`dangling_edge_endpoints`) vs. present
+   only as superseded rows (`superseded_edge_endpoints`). Fail closed with
+   `exit 70` (`E_MIGRATE_DANGLING_EDGES`) whenever `dangling_edge_endpoints > 0`;
+   admit stores where `dangling_edge_endpoints == 0` even when
+   `superseded_edge_endpoints > 0`.
+5. **WAL-checkpointed SHA-256-verified backup:** Run
+   `PRAGMA wal_checkpoint(TRUNCATE)` (`busy == 0`, else `exit 71`), copy the
+   quiescent database into `--backup-dir/<stem>.schema37.<utc>-<pid>.sqlite`
+   using `create_new`, re-read and verify `SHA-256` equality, and write a
+   sibling `.sha256` receipt before executing any DDL.
+6. **Single-transaction Schema 38 DDL:** Execute `fathomdb_schema::STEP_38_SQL`
+   verbatim via `execute_batch` plus `PRAGMA user_version = 38` inside one
+   `BEGIN IMMEDIATE` transaction. Any failure rolls back to byte-identical
+   Schema 37 while preserving the verified backup.
+7. **Post-upgrade full integrity check:** Checkpoint WAL and execute
+   `check-integrity --full` (`exit 0` clean, `exit 65` if post-upgrade findings
+   exist). Pre-upgrade rows have no `_fathomdb_commit_timestamps` entries, so
+   post-upgrade `as_of_epoch_ms` queries strictly before the first Schema-38
+   commit resolve deterministically to cursor `0`.
+
+### Migrate JSON output & exit codes
+
+- Exit codes: `0` (upgraded and `check-integrity --full` clean), `65` (upgraded
+  to Schema 38 with post-upgrade integrity findings), `70` (unrecoverable
+  admission/preflight/DDL refusal), `71` (`.lock` held or busy WAL checkpoint).
+- `--json` emits one object with `verb: "migrate"`, `status`, `from_version: 37`,
+  `to_version: 38`, `db_path`, `backup_path`, `backup_sha256`,
+  `preflight: { dangling_edge_endpoints, superseded_edge_endpoints }`, and
+  `integrity: { status, full: true }` (or structured `error_code` / `message` on
+  refusal).
+
+### Python CLI distribution (`fathomdb-cli` / `fathomdb[cli]`)
+
+The operator CLI binary is packaged in lockstep as a standalone `fathomdb-cli`
+PyPI binary wheel (`src/python-cli/pyproject.toml`, Maturin `bindings = "bin"`,
+targeting only the `fathomdb` binary and excluding `perf-regression-check` and
+`_fathomdb`). The `fathomdb` Python SDK package exposes an optional
+`cli = ["fathomdb-cli==<version>"]` extra while preserving zero
+`[project.scripts]` on base `fathomdb` (`AC-041`).

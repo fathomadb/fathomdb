@@ -2600,3 +2600,33 @@ compose orthogonally with world/validity time (`ReadView.valid_as_of` /
   `artifact_lifecycle.superseded == true` when later superseded in the frozen
   snapshot, and resolves to `EvidenceErrorReasonV1::EvidenceUnavailable` once
   erased, transitioned, or barrier-blocked.
+
+## Batch evidence resolution, search hints, OpenReport capabilities, and operator migrate (0.8.31 Slice 50)
+
+- **Batch evidence resolution:** `fathomdb` re-exports
+  `EVIDENCE_RESOLVE_MANY_MAX = 50`, `EvidenceResolveManyRequestV1`, and
+  `EvidenceResolveManyItemV1` (`Resolved(Box<ResolvedEvidenceV1>)` |
+  `Refused(EvidenceErrorV1)`). `Engine::resolve_evidence_many` checks
+  `schema_version == 1`, checks raw length `1..=50` (`EngineError::InvalidArgument`),
+  authenticates and validates `FrozenReadContextV1` before and after resolution
+  inside one reader transaction (collapsing context errors to whole-call
+  `EvidenceUnavailable`), deduplicates repeated tokens while preserving exact
+  input order/arity, and returns per-slot nondisclosing `Refused` outcomes at
+  `"/evidenceRefs/{i}"`.
+- **Opt-in search hints:** `fathomdb` re-exports `Hint`, `HintAction`, `HintArm`,
+  `HintCause`, `HintMode`, and `HintReason`. `SearchResult` gains
+  `pub hints: Option<Vec<Hint>>` (`None` by default). Additive methods
+  `Engine::search_reranked_view_with_hints`, `Engine::search_frozen_with_hints`,
+  and `EvidenceSearchRequestV1::with_hints(bool)` compute hints via
+  `search_hints` only when `hints == true`.
+- **`OpenReport` capability booleans:** `OpenReport` gains
+  `reranker_compiled: bool` (`cfg!(feature = "default-reranker")`),
+  `cuda_compiled: bool` (`cfg!(any(feature = "embed-cuda", feature = "rerank-cuda"))`),
+  and `rerank_available: bool` (local singleton + SHA-256 cache check with zero
+  network I/O and zero GPU allocation, preserving fail-closed open on forced
+  CUDA policy failure).
+- **Operator-only `37 -> 38` migration:** Behind `#[cfg(feature = "operator")]`
+  only (verified absent on the default facade by `compile_fail` doctest),
+  `fathomdb` re-exports `migrate_37_to_38`, `MigrateReport`,
+  `MigratePreflightReport`, `MigrateError`, and `MigrateErrorCode` for
+  `fathomdb-cli`. `Engine::open` remains strictly Schema-38-only.

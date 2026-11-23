@@ -1,6 +1,10 @@
 import type { NativeEngine } from "./binding.js";
 // Private evidence owner for the TypeScript SDK package root.
-import { type NativeEvidenceSearchResultV1, type NativeResolvedEvidenceV1 } from "./binding.js";
+import {
+  type NativeEvidenceResolveManyItemV1,
+  type NativeEvidenceSearchResultV1,
+  type NativeResolvedEvidenceV1,
+} from "./binding.js";
 import { DependencyTraceError, EvidenceError, FrozenReadError, InvalidArgumentError } from "./errors.js";
 import { intercept } from "./native-call.js";
 import {
@@ -23,7 +27,11 @@ import {
   type GraphSeedMode,
 } from "./search.js";
 
-import { validateNativeEvidenceSearch, validateNativeResolvedEvidence } from "./evidence-validation.js";
+import {
+  validateNativeEvidenceResolveMany,
+  validateNativeEvidenceSearch,
+  validateNativeResolvedEvidence,
+} from "./evidence-validation.js";
 
 import { LifecycleState, SourceDependencyV1 } from "./write.js";
 
@@ -85,6 +93,16 @@ export interface DependencyTraceResultV1 {
   readBoundary: TraceReadBoundaryV1;
 }
 
+/** Maximum number of evidence references accepted by `Engine.resolveEvidenceMany`. */
+export const EVIDENCE_RESOLVE_MANY_MAX = 50;
+
+/** Closed refusal reasons returned on per-slot `resolveEvidenceMany` outcomes. */
+export type EvidenceErrorReasonV1 =
+  | "unsupported_schema_version"
+  | "evidence_unavailable"
+  | "evidence_corrupt"
+  | "evidence_incomplete";
+
 export interface EvidenceSearchRequestV1 {
   schemaVersion: 1;
   query: string;
@@ -99,6 +117,7 @@ export interface EvidenceSearchRequestV1 {
   graphSeedK?: number;
   graphEdgeKinds?: readonly string[];
   graphEdgePredicates?: readonly PropertyPredicate[];
+  hints?: boolean;
 }
 
 export interface EvidenceResolveRequestV1 {
@@ -106,6 +125,16 @@ export interface EvidenceResolveRequestV1 {
   evidenceRef: string;
   context: FrozenReadContextV1;
 }
+
+export interface EvidenceResolveManyRequestV1 {
+  schemaVersion: 1;
+  evidenceRefs: string[];
+  context: FrozenReadContextV1;
+}
+
+export type EvidenceResolveManyItemV1 =
+  | { status: "resolved"; resolved: ResolvedEvidenceV1 }
+  | { status: "refused"; reason: EvidenceErrorReasonV1; fieldPath: string };
 
 export interface EvidenceSidecarEntryV1 {
   schemaVersion: 1;
@@ -866,6 +895,7 @@ export async function searchWithEvidence(nativeEngine: NativeEngine, request: Ev
       "graphSeedK",
       "graphEdgeKinds",
       "graphEdgePredicates",
+      "hints",
     ]);
     if (request.schemaVersion !== 1) {
       evidenceRequestError("unsupported_schema_version", "/schemaVersion");
@@ -908,6 +938,9 @@ export async function searchWithEvidence(nativeEngine: NativeEngine, request: Ev
         `includeExplanation must be a boolean, got ${typeof request.includeExplanation}`,
       );
     }
+    if (request.hints !== undefined && typeof request.hints !== "boolean") {
+      throw new TypeError(`hints must be a boolean, got ${typeof request.hints}`);
+    }
     const graphOptions = validateAndEncodeGraphArmOptions({
       graphSeed: request.graphSeed,
       graphSeedK: request.graphSeedK,
@@ -925,6 +958,7 @@ export async function searchWithEvidence(nativeEngine: NativeEngine, request: Ev
         request.includeExplanation,
         limit,
         graphOptions,
+        request.hints,
       ),
     );
     return mapNativeEvidenceSearch(result);
@@ -943,6 +977,54 @@ export async function resolveEvidence(nativeEngine: NativeEngine, request: Evide
       ),
     );
   }
+
+export async function resolveEvidenceMany(
+  nativeEngine: NativeEngine,
+  request: EvidenceResolveManyRequestV1,
+): Promise<EvidenceResolveManyItemV1[]> {
+  if (typeof request !== "object" || request === null || Array.isArray(request)) {
+    throw new TypeError("request must be an EvidenceResolveManyRequestV1 object");
+  }
+  assertKnownEvidenceKeys(request, ["schemaVersion", "evidenceRefs", "context"]);
+  if (request.schemaVersion !== 1) {
+    evidenceRequestError("unsupported_schema_version", "/schemaVersion");
+  }
+  if (!Array.isArray(request.evidenceRefs)) {
+    throw new TypeError("evidenceRefs must be an array of strings");
+  }
+  const refs: string[] = [];
+  for (const ref of request.evidenceRefs) {
+    if (typeof ref !== "string") {
+      throw new TypeError(`evidenceRefs entries must be strings, got ${typeof ref}`);
+    }
+    validateFfiString(ref);
+    refs.push(ref);
+  }
+  if (refs.length === 0 || refs.length > EVIDENCE_RESOLVE_MANY_MAX) {
+    throw new InvalidArgumentError(
+      `evidenceRefs must contain between 1 and ${EVIDENCE_RESOLVE_MANY_MAX} references; got ${refs.length}`,
+    );
+  }
+  validateEvidenceFrozenContext(request.context);
+  const nativeItems: NativeEvidenceResolveManyItemV1[] = await intercept(() =>
+    nativeEngine.resolveEvidenceMany(
+      request.schemaVersion,
+      refs,
+      nativeFrozenContext(request.context),
+    ),
+  );
+  validateNativeEvidenceResolveMany(nativeItems, refs.length);
+  return nativeItems.map((item): EvidenceResolveManyItemV1 => {
+    if (item.status === "resolved") {
+      return { status: "resolved", resolved: mapNativeResolvedEvidence(item.resolved!) };
+    }
+    return {
+      status: "refused",
+      reason: item.reason as EvidenceErrorReasonV1,
+      fieldPath: item.fieldPath!,
+    };
+  });
+}
 
 export async function resolveGraphEvidence(nativeEngine: NativeEngine, request: GraphEvidenceResolveRequestV1): Promise<ResolvedGraphEvidenceV1> {
     assertKnownEvidenceKeys(request, ["schemaVersion", "evidenceRef", "context"]);

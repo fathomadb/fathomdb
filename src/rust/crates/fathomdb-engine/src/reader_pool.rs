@@ -155,7 +155,7 @@ pub(crate) struct ReadListReaderRequest {
     kind: String,
     predicates: Vec<Predicate>,
     source_types: Vec<String>,
-    property_predicates: Vec<crate::PropertyPredicate>,
+    property_predicates: Vec<crate::properties::PropertyPredicate>,
     limit: usize,
     view: ReadView,
     respond: SyncSender<Result<Vec<NodeRecord>, crate::read::PageReaderError>>,
@@ -250,12 +250,12 @@ pub(crate) enum ReaderRequest {
     },
     /// 0.8.31 Slice 20 — list registered operational collections (`name ASC`).
     ReadOperationalCollections {
-        respond: SyncSender<rusqlite::Result<Vec<crate::OperationalCollectionInfo>>>,
+        respond: SyncSender<rusqlite::Result<Vec<crate::properties::OperationalCollectionInfo>>>,
     },
     /// 0.8.31 Slice 20 — point lookup of one registered operational collection.
     ReadOperationalCollection {
         name: String,
-        respond: SyncSender<rusqlite::Result<Option<crate::OperationalCollectionInfo>>>,
+        respond: SyncSender<rusqlite::Result<Option<crate::properties::OperationalCollectionInfo>>>,
     },
     /// Slice 35 (G4) — list active canonical nodes of a `kind`, filtered by
     /// zero or more `Predicate`s (AND-combined), up to `limit` rows.
@@ -448,14 +448,14 @@ impl ReaderRequest {
     }
 
     pub(crate) fn read_operational_collections(
-        respond: SyncSender<rusqlite::Result<Vec<crate::OperationalCollectionInfo>>>,
+        respond: SyncSender<rusqlite::Result<Vec<crate::properties::OperationalCollectionInfo>>>,
     ) -> Self {
         Self::ReadOperationalCollections { respond }
     }
 
     pub(crate) fn read_operational_collection(
         name: String,
-        respond: SyncSender<rusqlite::Result<Option<crate::OperationalCollectionInfo>>>,
+        respond: SyncSender<rusqlite::Result<Option<crate::properties::OperationalCollectionInfo>>>,
     ) -> Self {
         Self::ReadOperationalCollection { name, respond }
     }
@@ -464,7 +464,7 @@ impl ReaderRequest {
         kind: String,
         predicates: Vec<Predicate>,
         source_types: Vec<String>,
-        property_predicates: Vec<crate::PropertyPredicate>,
+        property_predicates: Vec<crate::properties::PropertyPredicate>,
         limit: usize,
         view: ReadView,
         respond: SyncSender<Result<Vec<NodeRecord>, crate::read::PageReaderError>>,

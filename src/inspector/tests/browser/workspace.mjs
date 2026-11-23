@@ -1,7 +1,8 @@
 import {installedWorkspace} from "./installed-harness.mjs";
+import { boundedExecFileSync, closeBrowserBounded, stopChildBounded } from "./helpers.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
-import { spawn, execFileSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
@@ -14,7 +15,7 @@ async function workspace(action, fixture = "linked", flags = []) {
   const dir = await mkdtemp(`${tmpdir()}/inspector-workspace-`);
   let child, browser;
   try {
-    const db = execFileSync(`${root}/target/debug/examples/fixture`, [dir, fixture], { encoding: "utf8" }).trim();
+    const db = boundedExecFileSync(`${root}/target/debug/examples/fixture`, [dir, fixture], { encoding: "utf8" }, 120000).trim();
     child = spawn(`${root}/target/debug/examples/driver`, [db, `${root}/target/debug/fathomdb-inspector`, ...flags], { stdio: ["pipe", "pipe", "pipe"] });
     const lines = createInterface({ input: child.stdout });
     const iter = lines[Symbol.asyncIterator]();
@@ -28,11 +29,8 @@ async function workspace(action, fixture = "linked", flags = []) {
     await page.getByRole("button", { name: "Canonical nodes", exact: true }).click();
     await action(page, child, iter);
   } finally {
-    if (browser) await browser.close();
-    if (child) {
-      child.stdin.end("close\n");
-      await new Promise((r) => child.on("exit", r));
-    }
+    await closeBrowserBounded(browser, 5000);
+    await stopChildBounded(child);
     await rm(dir, { recursive: true, force: true });
   }
 }

@@ -82,11 +82,17 @@ fn property_map_json(map: Option<&fathomdb_engine::PropertyMap>) -> Result<Value
                 let (prefix, _) = utf8_prefix(s.as_bytes(), 4096)?;
                 json!(prefix)
             }
-            fathomdb_engine::PropertyValue::Int(i) => json!(i),
-            fathomdb_engine::PropertyValue::Float(f) => json!(f),
+            fathomdb_engine::PropertyValue::Int(i) => json!(i.to_string()),
+            fathomdb_engine::PropertyValue::Float(f) => {
+                if !f.is_finite() {
+                    return Err("unsupported_value_encoding");
+                }
+                json!(f)
+            }
             fathomdb_engine::PropertyValue::Bool(b) => json!(b),
         };
-        object.insert(k.clone(), val);
+        let (key_prefix, _) = utf8_prefix(k.as_bytes(), 4096)?;
+        object.insert(key_prefix, val);
     }
     Ok(Value::Object(object))
 }

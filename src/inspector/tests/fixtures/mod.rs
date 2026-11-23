@@ -1013,6 +1013,7 @@ pub(crate) fn add_graph_history(path: &Path) {
     let mk_node = |id: &str, rev: &str, body: &str, stage: &str, xss: Option<&str>| {
         let mut props = PropertyMap::new();
         props.insert("stage".into(), PropertyValue::String(stage.into()));
+        props.insert("big_i64".into(), PropertyValue::Int(9_007_199_254_740_993));
         if let Some(payload) = xss {
             props.insert("xss".into(), PropertyValue::String(payload.into()));
         }
@@ -1032,6 +1033,7 @@ pub(crate) fn add_graph_history(path: &Path) {
     let mk_edge = |id: &str, rev: &str, from: &str, to: &str, ver: &str| {
         let mut props = PropertyMap::new();
         props.insert("ver".into(), PropertyValue::String(ver.into()));
+        props.insert("edge_big_i64".into(), PropertyValue::Int(9_007_199_254_740_993));
         props.insert("edge_xss".into(), PropertyValue::String("\"><svg onload=alert(1)>".into()));
         PreparedWrite::ProvenancedEdge(fathomdb_engine::ProvenancedEdgeV1 {
             kind: "links".into(),

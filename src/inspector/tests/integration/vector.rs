@@ -483,3 +483,272 @@ fn cached_cpu_candle013_serving_preserves_equal_body_records_reports_timeout_and
         "corrupted vector span must fail in Engine startup, not preflight: {failure:?}"
     );
 }
+
+#[test]
+fn schema38_custom_enrolled_node_vector_kind_and_edge_fact_rejection() {
+    use fathomdb_engine::{
+        EmbedderChoice, Engine, EngineConfig, EngineError, InitialState, ProjectionRole,
+        ProjectionVector,
+    };
+
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("schema38-custom-vector-kind.sqlite");
+    fathomdb_engine::configure_runtime(fathomdb_engine::RuntimeSqliteMode::Diagnostics).unwrap();
+
+    #[cfg(feature = "cached-cpu")]
+    let opened = Engine::open_with_choice_and_config(
+        &path,
+        EmbedderChoice::Default,
+        EngineConfig {
+            scheduler_runtime_threads: Some(1),
+            embedder_pool_size: Some(1),
+            embedder_call_timeout_ms: Some(25_000),
+            ..EngineConfig::default()
+        },
+    )
+    .unwrap();
+    #[cfg(not(feature = "cached-cpu"))]
+    let opened =
+        Engine::open_with_choice_and_config(&path, EmbedderChoice::None, EngineConfig::default())
+            .unwrap();
+
+    // 1. Enrolling reserved "edge_fact" as a node vector kind must be rejected on Schema 38.
+    let mut reserved_spec = crate::fixtures::projection_spec(
+        "summary",
+        &[ProjectionRole::Searchable],
+        None,
+        Some(ProjectionVector {
+            embedder: None,
+            dense_readiness: None,
+            kinds: Some(vec!["edge_fact".into()]),
+        }),
+        None,
+    );
+    reserved_spec.entity_class = fathomdb_engine::PropertyEntityClass::Node;
+    assert!(
+        matches!(
+            opened.engine.configure_projections(&[reserved_spec], &[]),
+            Err(EngineError::WriteValidation)
+        ),
+        "Schema 38 must reject reserved 'edge_fact' as an enrolled node vector kind"
+    );
+
+    // 2. Enroll custom node vector kind "domain_fact" and write custom-kind nodes plus an edge.
+    let custom_spec = crate::fixtures::projection_spec(
+        "summary",
+        &[ProjectionRole::Searchable],
+        None,
+        Some(ProjectionVector {
+            embedder: None,
+            dense_readiness: None,
+            kinds: Some(vec!["domain_fact".into()]),
+        }),
+        None,
+    );
+    opened.engine.configure_projections(&[custom_spec], &[]).unwrap();
+
+    let body_a = r#"{"summary":"custom domain fact alpha telemetry"}"#;
+    let body_b = r#"{"summary":"custom domain fact beta telemetry"}"#;
+    let body_edge = r#"{"summary":"edge linking custom domain facts"}"#;
+    opened
+        .engine
+        .write(&[
+            crate::fixtures::node_with(
+                "domain_fact",
+                Some("domain-a"),
+                body_a,
+                "fixture:custom-vec",
+                InitialState::Active,
+                None,
+                None,
+                None,
+            ),
+            crate::fixtures::node_with(
+                "domain_fact",
+                Some("domain-b"),
+                body_b,
+                "fixture:custom-vec",
+                InitialState::Active,
+                None,
+                None,
+                None,
+            ),
+            crate::fixtures::edge_with(
+                "links",
+                "domain-a",
+                "domain-b",
+                "fixture:custom-vec",
+                Some("domain-edge"),
+                Some(body_edge.into()),
+                None,
+                None,
+                Some(0.9),
+                None,
+                None,
+            ),
+        ])
+        .unwrap();
+
+    #[cfg(feature = "cached-cpu")]
+    {
+        opened.engine.drain(30_000).unwrap();
+        opened.engine.close().unwrap();
+    }
+    #[cfg(not(feature = "cached-cpu"))]
+    {
+        opened.engine.close().unwrap();
+        let c = rusqlite::Connection::open(&path).unwrap();
+        let persisted_kinds: Option<String> = c
+            .query_row(
+                "SELECT vector_kinds FROM _fathomdb_projection_registry WHERE name='summary'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            persisted_kinds.as_deref(),
+            Some("[\"domain_fact\"]"),
+            "configure_projections must persist custom vector_kinds in _fathomdb_projection_registry"
+        );
+        // Model-free Engine defers _fathomdb_vector_kinds enrollment until a live embedder runs;
+        // materialize deterministic Schema 38 stored vector rows as produced by a live embedder.
+        for kind in ["domain_fact", "edge_fact"] {
+            c.execute(
+                "INSERT OR IGNORE INTO _fathomdb_vector_kinds(kind, profile, created_at) VALUES(?1, 'default', 0)",
+                [kind],
+            )
+            .unwrap();
+        }
+        let make_vec = |seed: f32| -> (Vec<u8>, Vec<u8>) {
+            let mut bytes = Vec::with_capacity(384 * 4);
+            let mut bits = vec![0u8; 48];
+            for idx in 0..384 {
+                let v = if idx == 0 { seed } else { 0.01 * ((idx % 7) as f32 + 1.0) };
+                bytes.extend_from_slice(&v.to_le_bytes());
+                if v > 0.0 {
+                    bits[idx / 8] |= 1 << (idx % 8);
+                }
+            }
+            (bytes, bits)
+        };
+        for (table, logical_id, kind, source_type, seed) in [
+            ("canonical_nodes", "domain-a", "domain_fact", "domain_fact", 1.0_f32),
+            ("canonical_nodes", "domain-b", "domain_fact", "domain_fact", 0.9_f32),
+            ("canonical_edges", "domain-edge", "edge_fact", "edge_fact", 0.5_f32),
+        ] {
+            let (cursor, body_len): (i64, i64) = c
+                .query_row(
+                    &format!(
+                        "SELECT write_cursor, octet_length(body) FROM {table} WHERE logical_id=?1"
+                    ),
+                    [logical_id],
+                    |r| Ok((r.get(0)?, r.get(1)?)),
+                )
+                .unwrap();
+            let (emb, bin) = make_vec(seed);
+            c.execute(
+                "INSERT INTO _fathomdb_vector_rows(rowid, kind, write_cursor) VALUES(?1, ?2, ?1)",
+                rusqlite::params![cursor, kind],
+            )
+            .unwrap();
+            c.execute(
+                "INSERT INTO _fathomdb_vector_spans(vector_rowid, write_cursor, window_number, byte_start, byte_end, body_length) VALUES(?1, ?1, 0, 0, ?2, ?2)",
+                rusqlite::params![cursor, body_len],
+            )
+            .unwrap();
+            c.execute(
+                "INSERT INTO vector_default(rowid, embedding, embedding_bin, source_type, kind, created_at, status, lifecycle, valid_from, valid_until) VALUES(?1, ?2, vec_bit(?3), ?4, ?5, 0, '', 0, -9223372036854775808, 9223372036854775807)",
+                rusqlite::params![cursor, emb, bin, source_type, kind],
+            )
+            .unwrap();
+            c.execute(
+                "INSERT OR REPLACE INTO _fathomdb_projection_terminal(write_cursor, state) VALUES(?1, 'up_to_date')",
+                [cursor],
+            )
+            .unwrap();
+        }
+    }
+
+    // Verify physical vector_default rows carry source_type='domain_fact' for the enrolled custom kind.
+    {
+        let c = rusqlite::Connection::open(&path).unwrap();
+        let custom_rows: i64 = c
+            .query_row(
+                "SELECT count(*) FROM vector_default WHERE source_type='domain_fact' AND kind='domain_fact'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            custom_rows, 2,
+            "both custom domain_fact nodes must be stored under source_type='domain_fact'"
+        );
+    }
+
+    // 3. Inspector admits the Schema 38 store and routes Reader::vectors & Reader::neighborhood cleanly.
+    let mut reader = Reader::new(Session::attach(&path, Policy::default()).unwrap());
+    let catalog = dispatch(&mut reader, json!({"op":"catalog"})).unwrap();
+    let projections = catalog["projections"].as_array().unwrap();
+    assert!(
+        projections.iter().any(|p| {
+            p["name"] == "summary"
+                && p["vector_declared"] == true
+                && p["vector_kinds"] == "[\"domain_fact\"]"
+        }),
+        "catalog must surface enrolled custom vector_kinds: {projections:?}"
+    );
+
+    let page = dispatch(
+        &mut reader,
+        json!({"op":"page","class":"node","after":"0","limit":10,"filter":{"identity":"domain-a"}}),
+    )
+    .unwrap();
+    let handle = page["items"][0]["handle"].as_str().unwrap();
+
+    let vectors = dispatch(&mut reader, json!({"op":"vectors","handle":handle})).unwrap();
+    assert_eq!(vectors["items"].as_array().unwrap().len(), 1);
+    let vec_item = &vectors["items"][0];
+    assert_eq!(vec_item["kind"], "domain_fact");
+    assert_eq!(vec_item["materialization"], "present");
+    assert_eq!(vec_item["window"]["coverage"], "recorded");
+    assert_eq!(vec_item["origin"]["targets"][0]["record"]["logical_id"], "domain-a");
+    let vec_rowid = vec_item["vector_rowid"].as_str().unwrap();
+
+    let neighbors = dispatch(
+        &mut reader,
+        json!({"op":"neighborhood","handle":handle,"vector_rowid":vec_rowid,"after":"0","limit":10}),
+    )
+    .unwrap();
+    assert_eq!(neighbors["seed"]["source_type"], "domain_fact");
+    let items = neighbors["items"].as_array().unwrap();
+    assert_eq!(
+        items.len(),
+        3,
+        "neighborhood must include both custom nodes and the edge: {items:?}"
+    );
+    let mut routed: std::collections::BTreeMap<String, (String, String)> =
+        std::collections::BTreeMap::new();
+    for hit in items {
+        let rec = &hit["origin"]["targets"][0]["record"];
+        routed.insert(
+            rec["logical_id"].as_str().unwrap().to_string(),
+            (rec["class"].as_str().unwrap().to_string(), rec["kind"].as_str().unwrap().to_string()),
+        );
+    }
+    assert_eq!(
+        routed.get("domain-a").map(|(c, k)| (c.as_str(), k.as_str())),
+        Some(("node", "domain_fact")),
+        "custom enrolled node kind must route to Class::Node"
+    );
+    assert_eq!(
+        routed.get("domain-b").map(|(c, k)| (c.as_str(), k.as_str())),
+        Some(("node", "domain_fact")),
+        "custom enrolled peer node kind must route to Class::Node"
+    );
+    assert_eq!(
+        routed.get("domain-edge").map(|(c, k)| (c.as_str(), k.as_str())),
+        Some(("edge", "links")),
+        "reserved edge_fact source_type must continue routing to Class::Edge"
+    );
+    reader.session.close().unwrap();
+}

@@ -1,7 +1,8 @@
 import {installedWorkspace} from "./installed-harness.mjs";
+import { boundedExecFileSync, closeBrowserBounded, stopChildBounded } from "./helpers.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
-import {spawn,execFileSync} from "node:child_process";
+import {spawn} from "node:child_process";
 import {mkdtemp,rm} from "node:fs/promises";
 import {tmpdir} from "node:os";
 import {resolve} from "node:path";
@@ -13,14 +14,14 @@ async function workspace(action,model=true){
  if(process.env.INSPECTOR_QUALIFY_BINARY)return installedWorkspace(action,model?"vector":"default",[],true);
  const dir=await mkdtemp(`${tmpdir()}/inspector-vector-ui-`);let child,browser;
  try{
-  const db=model?execFileSync(`${root}/.venv/bin/python`,[`${root}/src/inspector/tools/vector-fixture.py`,dir],{encoding:"utf8"}).trim():execFileSync(`${root}/target/debug/examples/fixture`,[dir],{encoding:"utf8"}).trim();
+  const db=model?boundedExecFileSync(`${root}/.venv/bin/python`,[`${root}/src/inspector/tools/vector-fixture.py`,dir],{encoding:"utf8"},120000).trim():boundedExecFileSync(`${root}/target/debug/examples/fixture`,[dir],{encoding:"utf8"},120000).trim();
   child=spawn(`${root}/target/debug/examples/driver`,[db,`${root}/target/debug/fathomdb-inspector`],{stdio:["pipe","pipe","pipe"]});
   const iter=createInterface({input:child.stdout})[Symbol.asyncIterator]();const info=JSON.parse((await iter.next()).value);
   browser=await chromium.launch({executablePath:process.env.INSPECTOR_CHROMIUM??"/home/coreyt/.cache/ms-playwright/chromium-1248/chrome-linux64/chrome",headless:true,args:["--no-sandbox","--disable-background-networking"]});
   const page=await browser.newPage();await page.goto(pathToFileURL(info.bootstrap).href);await page.waitForURL(`http://${info.address}/`);
   await page.getByRole("button",{name:"Attach database",exact:true}).click();await page.getByRole("heading",{name:"Database inventory",exact:true}).waitFor();
   await page.getByRole("button",{name:"Canonical nodes",exact:true}).click();await action(page);
- }finally{if(browser)await browser.close();if(child){child.stdin.end("close\n");await new Promise(r=>child.on("exit",r));}await rm(dir,{recursive:true,force:true});}
+ }finally{await closeBrowserBounded(browser,5000);await stopChildBounded(child);await rm(dir,{recursive:true,force:true});}
 }
 test("stored vector keyboard workflow preserves numeric observation, exact origin and Back; cached native scores stay separate",{timeout:60000},async()=>{
  await workspace(async page=>{

@@ -94,7 +94,10 @@ if [[ "${#positional[@]}" -eq 3 ]]; then
     usage
   fi
 elif [[ "${#positional[@]}" -eq 0 && "$mode" != "installed-only" ]]; then
-  auto_tmp="$(mktemp -d "${TMPDIR:-/tmp}/fathomdb-inspector-ci.XXXXXX")"
+  tmp_base="${TMPDIR:-/tmp}"
+  tmp_base="${tmp_base%/}"
+  auto_tmp="$(mktemp -d "${tmp_base}/fathomdb-inspector-ci.XXXXXX")"
+  auto_tmp="$(realpath -e -- "$auto_tmp")"
   candidate="$auto_tmp/candidate"
   fixtures="${INSPECTOR_FIXTURE_DIR:-$auto_tmp/fixtures}"
   build_target="${CARGO_TARGET_DIR:-$auto_tmp/target}"

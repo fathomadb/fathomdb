@@ -221,6 +221,9 @@ test("historical as_of graph controls validate locally, query stored and native 
   assert.equal(nativeMeta.request.as_of.resolved_as_of_write_cursor,c1);
   assert.match(await page.locator(".graph-native").textContent(),/<img src=x onerror=alert\(1\)>/);
   assert.match(await page.locator(".graph-native").textContent(),/"><svg onload=alert\(1\)>/);
+  const propValues=await page.locator(".graph-native dl.graph-properties dd").allTextContents();
+  assert.equal(propValues.filter(v=>v==="9007199254740993").length,2,"node and edge 64-bit integer properties (2^53 + 1) must survive renderGraphProperties verbatim");
+  assert.equal(propValues.includes("9007199254740992"),false,"64-bit integer properties must not suffer JS double rounding");
   assert.equal(await page.locator("img").count(),0);
   assert.equal(await page.locator("svg").count(),1,"only the stored-graph svg may exist; hostile svg payload must render as text");
 
@@ -237,5 +240,31 @@ test("historical as_of graph controls validate locally, query stored and native 
   await page.waitForFunction(ms=>{const pre=document.querySelector("pre.scope");return pre&&JSON.parse(pre.textContent).scope?.as_of?.mode==="epoch_ms"&&JSON.parse(pre.textContent).scope?.as_of?.requested_as_of_epoch_ms===ms;},t1);
   assert.equal(await page.getByRole("button",{name:"Select edge e-early",exact:true}).count(),1);
   assert.equal(await page.getByRole("button",{name:"Select edge e-late",exact:true}).count(),0);
+
+  // Visiting an empty snapshot (cursor 0) must not drop seed expansion when returning to Current.
+  await page.getByLabel("Snapshot",{exact:true}).selectOption("write_cursor");
+  await page.getByLabel("Snapshot value",{exact:true}).fill("0");
+  await page.getByRole("button",{name:"Apply graph filters",exact:true}).click();
+  await page.waitForFunction(()=>{const pre=document.querySelector("pre.scope");return pre&&JSON.parse(pre.textContent).scope?.as_of?.resolved_as_of_write_cursor==="0";});
+  assert.equal(await page.locator("svg.stored-graph path.graph-edge").count(),0);
+  await page.getByLabel("Snapshot",{exact:true}).selectOption("current");
+  await page.getByRole("button",{name:"Apply graph filters",exact:true}).click();
+  await page.waitForFunction(()=>{const pre=document.querySelector("pre.scope");return pre&&JSON.parse(pre.textContent).scope?.as_of?.mode==="current";});
+  assert.equal(await page.locator("svg.stored-graph path.graph-edge").count(),2,"returning from empty as_of=0 snapshot must restore seed expansion without manual re-expand");
+  assert.equal(await page.getByRole("button",{name:"Select edge e-early",exact:true}).count(),1);
+  assert.equal(await page.getByRole("button",{name:"Select edge e-late",exact:true}).count(),1);
+  assert.equal(await page.getByRole("button",{name:"Collapse selected node",exact:true}).isEnabled(),true);
+
+  // Explicit seed collapse must still remain collapsed across an empty snapshot round-trip.
+  await page.getByRole("button",{name:"Collapse selected node",exact:true}).click();
+  await page.waitForFunction(()=>document.querySelectorAll("svg.stored-graph path.graph-edge").length===0);
+  await page.getByLabel("Snapshot",{exact:true}).selectOption("write_cursor");
+  await page.getByLabel("Snapshot value",{exact:true}).fill("0");
+  await page.getByRole("button",{name:"Apply graph filters",exact:true}).click();
+  await page.waitForFunction(()=>{const pre=document.querySelector("pre.scope");return pre&&JSON.parse(pre.textContent).scope?.as_of?.resolved_as_of_write_cursor==="0";});
+  await page.getByLabel("Snapshot",{exact:true}).selectOption("current");
+  await page.getByRole("button",{name:"Apply graph filters",exact:true}).click();
+  await page.waitForFunction(()=>{const pre=document.querySelector("pre.scope");return pre&&JSON.parse(pre.textContent).scope?.as_of?.mode==="current";});
+  assert.equal(await page.locator("svg.stored-graph path.graph-edge").count(),0,"explicitly collapsed seed must stay collapsed after empty snapshot round-trip");
  },"graph-history");
 });

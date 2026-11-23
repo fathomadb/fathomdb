@@ -1277,3 +1277,66 @@ fn historical_as_of_graph_obeys_all_eight_disclosure_flags_including_inline_prop
         }
     }
 }
+
+#[test]
+fn native_graph_serving_preserves_i64_properties_bounds_keys_and_rejects_non_finite_floats() {
+    use crate::storage::graph::AsOf;
+    use fathomdb_engine::{PropertyMap, PropertyValue};
+
+    // 1. Unit checks on property_map_json: exact i64 decimal string, non-finite float rejection, 4096-byte key bound.
+    let mut non_finite_nan = PropertyMap::new();
+    non_finite_nan.insert("bad".into(), PropertyValue::Float(f64::NAN));
+    assert_eq!(
+        super::property_map_json(Some(&non_finite_nan)),
+        Err("unsupported_value_encoding"),
+        "NaN property float must be refused instead of serializing as null"
+    );
+    let mut non_finite_inf = PropertyMap::new();
+    non_finite_inf.insert("bad".into(), PropertyValue::Float(f64::INFINITY));
+    assert_eq!(
+        super::property_map_json(Some(&non_finite_inf)),
+        Err("unsupported_value_encoding"),
+        "Infinite property float must be refused"
+    );
+    let mut bounded = PropertyMap::new();
+    let long_key = "🦀".repeat(1500); // 6000 bytes (> 4096)
+    bounded.insert(long_key, PropertyValue::Int(9_007_199_254_740_993));
+    let encoded = super::property_map_json(Some(&bounded)).unwrap();
+    let obj = encoded.as_object().unwrap();
+    assert_eq!(obj.len(), 1);
+    let (encoded_key, encoded_val) = obj.iter().next().unwrap();
+    assert!(
+        encoded_key.len() <= 4096,
+        "property key must be bounded to <= 4096 bytes, got {}",
+        encoded_key.len()
+    );
+    assert_eq!(
+        encoded_val,
+        &serde_json::json!("9007199254740993"),
+        "i64 > 2^53 must serialize as exact decimal string"
+    );
+
+    // 2. End-to-end graph_serving_as_of against a real Schema 38 store with 2^53 + 1 on node and edge.
+    let dir = tempfile::tempdir().unwrap();
+    let path = fixtures::database(dir.path());
+    fixtures::add_graph_history(&path);
+    let mut r = Reader::new(Session::attach(&path, Policy::default()).unwrap());
+    let root = handle(&mut r, Class::Node, "hist-root", true);
+    let gs = r
+        .graph_serving_as_of(&root, Direction::Outgoing, Some("links".into()), 1, AsOf::Current)
+        .unwrap();
+    let items = gs["items"].as_array().unwrap();
+    assert!(!items.is_empty(), "expected native graph targets");
+    let early = items.iter().find(|i| i["target"]["logical_id"] == "hist-early").unwrap();
+    assert_eq!(
+        early["payload"]["properties"]["big_i64"],
+        serde_json::json!("9007199254740993"),
+        "node 64-bit integer property must survive graph_serving_as_of as exact decimal string"
+    );
+    assert_eq!(
+        early["payload"]["terminal_edge_properties"]["edge_big_i64"],
+        serde_json::json!("9007199254740993"),
+        "edge 64-bit integer property must survive graph_serving_as_of as exact decimal string"
+    );
+    r.session.close().unwrap();
+}

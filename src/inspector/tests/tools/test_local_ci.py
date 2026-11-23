@@ -329,6 +329,35 @@ exit {node_exit}
         self.assertIn('agent-verify.sh', calls.read_text(encoding='utf-8'))
         self.assertEqual(list(temp_root.iterdir()), [], 'auto temp workspace must be cleaned on exit')
 
+    def test_optional_positional_args_canonicalize_trailing_slash_and_symlink_tmpdir(self):
+        fixtures, env, calls = self._prepare_native_env(lambda p: p.symlink_to(sys.executable))
+        temp_root = self.base / 'auto-tmp-slash'
+        temp_root.mkdir()
+        env_slash = dict(env, TMPDIR=f'{temp_root}/', INSPECTOR_FIXTURE_DIR=str(fixtures))
+        result_slash = subprocess.run(
+            ['bash', str(self.script), '--full-workspace'],
+            env=env_slash,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(result_slash.returncode, 37, result_slash.stderr)
+        self.assertIn('agent-verify.sh', calls.read_text(encoding='utf-8'))
+        self.assertEqual(list(temp_root.iterdir()), [], 'auto temp workspace must be cleaned on exit')
+
+        symlink_root = self.base / 'auto-tmp-link'
+        symlink_root.symlink_to(temp_root)
+        calls.unlink(missing_ok=True)
+        env_link = dict(env, TMPDIR=f'{symlink_root}/', INSPECTOR_FIXTURE_DIR=str(fixtures))
+        result_link = subprocess.run(
+            ['bash', str(self.script), '--full-workspace'],
+            env=env_link,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(result_link.returncode, 37, result_link.stderr)
+        self.assertIn('agent-verify.sh', calls.read_text(encoding='utf-8'))
+        self.assertEqual(list(temp_root.iterdir()), [], 'auto temp workspace via symlink must be cleaned on exit')
+
     def test_unusable_checkout_python_fails_before_source(self):
         def bad_python(path):
             path.write_text('#!/bin/sh\nexit 49\n')

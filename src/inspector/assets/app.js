@@ -1627,7 +1627,7 @@ async function openGraph(handle) {
   const request={op:"graph",handle,direction:"both",kind:null,depth:3,expanded};
   const data=await api(request,true,()=>token===navigation);
   remember(current,focus);
-  view={kind:"graph",handle,seedClass,data,request,asOfDraft:{mode:"current",value:""},graphFeedback:null,selected:data.seed.key,native:null,expansions:new Map(expanded.map(h=>[data.seed.key,h]))};render();
+  view={kind:"graph",handle,seedClass,seedExpanded:expanded.length>0,data,request,asOfDraft:{mode:"current",value:""},graphFeedback:null,selected:data.seed.key,native:null,expansions:new Map(expanded.map(h=>[data.seed.key,h]))};render();
 }
 async function openInvestigation(handle) {
   const current=view, focus=document.activeElement, token=++navigation;
@@ -1642,16 +1642,20 @@ function svgElement(tag,attrs={},text) {
 }
 function graphName(record) { return record.logical_id ?? `${record.class} cursor ${record.write_cursor}`; }
 function graphLabel(value,limit) {const chars=Array.from(String(value));return chars.length>limit?chars.slice(0,limit).join("")+"…":String(value);}
-async function updateGraph(current,request,owners=current.expansions) {
+async function updateGraph(current,request,owners=current.expansions,seedExpanded=current.seedExpanded) {
   const token=++navigation;
   const data=await api(request,true,()=>token===navigation&&view===current);
   const old=current.data, oldNative=current.native,oldWorkspace=current.workspace,focused=document.activeElement?.textContent;
   const oldSeedKey=old?.seed?.key;
   const nextExpansions=new Map([...owners].filter(([key])=>data.nodes.some(record=>record.key===key)));
-  if(oldSeedKey&&owners.has(oldSeedKey)&&data.seed?.key&&data.nodes.some(record=>record.key===data.seed.key)&&!nextExpansions.has(data.seed.key))
+  if(((seedExpanded&&current.seedClass==="node")||(oldSeedKey&&owners.has(oldSeedKey)))&&data.seed?.key&&data.nodes.some(record=>record.key===data.seed.key)&&!nextExpansions.has(data.seed.key))
     nextExpansions.set(data.seed.key,data.seed.handle);
+  current.seedExpanded=seedExpanded;
   current.expansions=nextExpansions;
-  current.data=data;current.request={...request,expanded:[...current.expansions.values()]};current.asOfDraft=asOfFromRequest(current.request);current.graphFeedback=null;current.workspace=null;current.native=null;current.returnFocus=null;
+  const nextExpanded=[...current.expansions.values()];
+  if(seedExpanded&&current.seedClass==="node"&&!nextExpansions.has(data.seed?.key)&&current.handle&&!nextExpanded.includes(current.handle))
+    nextExpanded.push(current.handle);
+  current.data=data;current.request={...request,expanded:nextExpanded};current.asOfDraft=asOfFromRequest(current.request);current.graphFeedback=null;current.workspace=null;current.native=null;current.returnFocus=null;
   scrubDOM(oldWorkspace);
   if(![...data.nodes,...data.edges].some(v=>v.key===current.selected))current.selected=data.seed.key;
   releaseObservation(old);releaseObservation(oldNative);render();
@@ -1700,7 +1704,10 @@ function renderGraph() {
       current.graphFeedback=null;
       graphFeedback.replaceChildren();
       const baseReq=stripAsOf(current.request);
-      return updateGraph(current,{...baseReq,...checked.payload,direction:direction.value,kind:kind.value||null});
+      const expanded=Array.isArray(baseReq.expanded)?[...baseReq.expanded]:[];
+      if(current.seedExpanded&&current.seedClass==="node"&&!current.expansions.has(current.data?.seed?.key)&&current.handle&&!expanded.includes(current.handle))
+        expanded.push(current.handle);
+      return updateGraph(current,{...baseReq,...checked.payload,direction:direction.value,kind:kind.value||null,expanded});
     }),
     button("Refresh this view",()=>updateGraph(current,current.request)),
     graphFeedback,
@@ -1712,8 +1719,8 @@ function renderGraph() {
   const controls=el("div",null,{class:"actions"});
   const open=button("Open selected record",async()=>{const record=selected();if(record)await openDetail(record.handle);});
   const investigate=button("Investigate selected record",async()=>{const record=selected();if(record)await openInvestigation(record.handle);});
-  const expand=button("Expand selected node",()=>{const record=selected();if(!record)return;const owners=new Map(current.expansions);if(owners.size>=100)throw Error("Expansion owner limit reached; collapse first.");owners.set(record.key,record.handle);return updateGraph(current,{...current.request,expanded:[...owners.values()]},owners);});
-  const collapse=button("Collapse selected node",()=>{const record=selected();if(!record)return;const owners=new Map(current.expansions);owners.delete(record.key);return updateGraph(current,{...current.request,expanded:[...owners.values()]},owners);});
+  const expand=button("Expand selected node",()=>{const record=selected();if(!record)return;const owners=new Map(current.expansions);if(owners.size>=100)throw Error("Expansion owner limit reached; collapse first.");owners.set(record.key,record.handle);const seedExpanded=record.key===current.data?.seed?.key?true:current.seedExpanded;return updateGraph(current,{...current.request,expanded:[...owners.values()]},owners,seedExpanded);});
+  const collapse=button("Collapse selected node",()=>{const record=selected();if(!record)return;const owners=new Map(current.expansions);owners.delete(record.key);const seedExpanded=record.key===current.data?.seed?.key?false:current.seedExpanded;return updateGraph(current,{...current.request,expanded:[...owners.values()]},owners,seedExpanded);});
   const native=button("Run native graph traversal",async()=>{
     const record=selected();
     const targetHandle=record?.handle??(current.seedClass==="node"?(owner.seed?.handle??current.handle):null);
@@ -1848,7 +1855,7 @@ function collectComparisonHandles(item,content,metadataHandles) {
 function pinDescriptor(current,data) {
   const obsReq=observations.get(data.observation)?.request??current.request;
   return {kind:data.scope?.route==="actual_serving_graph_evidence"?"graph_evidence":current.kind,
-    handle:current.handle??null,seedClass:current.seedClass??null,source:current.source?.observation??null,declarations:current.declarations?.observation??null,
+    handle:current.handle??null,seedClass:current.seedClass??null,seedExpanded:current.seedExpanded??false,source:current.source?.observation??null,declarations:current.declarations?.observation??null,
     asOf:asOfFromRequest(obsReq),
     selected:current.selected??null,expanded:current.expansions?[...current.expansions]:null};
 }

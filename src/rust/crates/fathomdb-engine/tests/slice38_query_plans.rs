@@ -185,6 +185,40 @@ fn slice38_query_plans_use_declared_indexes_and_skip_cpv_on_unpredicated_search(
     );
     assert_uses_index(&bool_plan, "canonical_property_values_bool_idx");
 
+    let cpv_delete_one_plan = explain(
+        &conn,
+        "DELETE FROM canonical_property_values WHERE entity_class IN ('node', 'edge') AND write_cursor = 1",
+    );
+    assert!(
+        cpv_delete_one_plan
+            .iter()
+            .any(|l| l.contains("SEARCH canonical_property_values USING PRIMARY KEY")),
+        "single-cursor CPV delete must use PRIMARY KEY search; got:\n{}",
+        cpv_delete_one_plan.join("\n")
+    );
+    assert!(
+        !cpv_delete_one_plan.iter().any(|l| l.contains("SCAN canonical_property_values")),
+        "single-cursor CPV delete must never SCAN; got:\n{}",
+        cpv_delete_one_plan.join("\n")
+    );
+
+    let cpv_delete_many_plan = explain(
+        &conn,
+        "DELETE FROM canonical_property_values WHERE entity_class IN ('node', 'edge') AND write_cursor IN (SELECT value FROM json_each('[1,2]'))",
+    );
+    assert!(
+        cpv_delete_many_plan
+            .iter()
+            .any(|l| l.contains("SEARCH canonical_property_values USING PRIMARY KEY")),
+        "multi-cursor CPV delete must use PRIMARY KEY search; got:\n{}",
+        cpv_delete_many_plan.join("\n")
+    );
+    assert!(
+        !cpv_delete_many_plan.iter().any(|l| l.contains("SCAN canonical_property_values")),
+        "multi-cursor CPV delete must never SCAN; got:\n{}",
+        cpv_delete_many_plan.join("\n")
+    );
+
     let cursor_plan =
         explain(&conn, "SELECT kind, body, properties FROM canonical_nodes WHERE write_cursor = 1");
     assert_uses_index(&cursor_plan, "canonical_nodes_write_cursor_idx");

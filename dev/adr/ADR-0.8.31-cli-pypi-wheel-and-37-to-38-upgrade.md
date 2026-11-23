@@ -66,7 +66,8 @@ status: accepted
         `scope TEXT NOT NULL DEFAULT ''` across canonical & operational tables,
         `_fathomdb_projection_registry` `entity_class` + `vector_kinds` columns,
         `_fathomdb_vector_kinds` explicit opt-in vector-kind registry table,
-        `canonical_property_values` + 4 indexes,
+        `canonical_property_values` (`WITHOUT ROWID`, clustered primary key
+        `(entity_class, write_cursor, attr_name)`) + 3 partial typed-value indexes,
         `_fathomdb_commit_timestamps(write_cursor INTEGER PRIMARY KEY, committed_at_ms INTEGER NOT NULL)`
         and `_fathomdb_commit_timestamps_ms_idx(committed_at_ms, write_cursor)`,
         partial active edge incident indexes (`canonical_edges_from_active_idx`,

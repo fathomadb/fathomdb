@@ -855,14 +855,20 @@ fn slice55_projection_scan_plans_use_indexed_order() {
             .iter()
             .find(|sql| sql.contains(&format!("FROM {table}")))
             .unwrap_or_else(|| panic!("missing production candidate query for {table}"));
-        if matches!(
+        if table == "canonical_property_values" {
+            assert!(
+                sql.contains(
+                    "entity_class>=?1 ORDER BY entity_class,write_cursor,attr_name LIMIT ?2"
+                ),
+                "missing WITHOUT ROWID clustered primary-key scan: {sql}"
+            );
+        } else if matches!(
             table,
             "search_index"
                 | "search_index_v2"
                 | "search_index_edges"
                 | "canonical_attributes"
                 | "property_search_index"
-                | "canonical_property_values"
         ) {
             assert!(sql.contains("rowid>=?1"), "missing inclusive signed start: {sql}");
         } else {
@@ -890,7 +896,7 @@ fn slice55_projection_scan_plans_use_indexed_order() {
         "search_index_edges",
         "canonical_attributes",
         "property_search_index",
-        "canonical_property_values",
+        "SEARCH canonical_property_values USING PRIMARY KEY",
         "_fathomdb_vector_spans USING INTEGER PRIMARY KEY",
     ] {
         assert!(plans.iter().any(|plan| plan.contains(required)), "missing {required}: {plans:#?}");

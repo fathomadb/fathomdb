@@ -428,6 +428,24 @@ fn delete_row_owned_projection(
         }
         return Ok(deleted);
     }
+    if projection.table == "canonical_property_values" {
+        // `canonical_property_values` is `WITHOUT ROWID` with clustered PK
+        // `(entity_class, write_cursor, attr_name)`. Constraining `entity_class`
+        // keeps single- and multi-cursor deletes on `SEARCH USING PRIMARY KEY`.
+        let (sql, parameter) = match targets {
+            EraseTargets::One(cursor) => (
+                "DELETE FROM canonical_property_values WHERE entity_class IN ('node', 'edge') AND write_cursor = ?1",
+                rusqlite::types::Value::Integer(*cursor),
+            ),
+            EraseTargets::Many(_) => (
+                "DELETE FROM canonical_property_values WHERE entity_class IN ('node', 'edge') AND write_cursor IN (SELECT value FROM json_each(?1))",
+                rusqlite::types::Value::Text(
+                    encoded.ok_or(rusqlite::Error::InvalidQuery)?.to_owned(),
+                ),
+            ),
+        };
+        return tx.execute(sql, [parameter]);
+    }
     let (column, predicate, parameter) = match targets {
         EraseTargets::One(cursor) => {
             (projection.cursor_column, "= ?1".into(), rusqlite::types::Value::Integer(*cursor))

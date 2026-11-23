@@ -1142,7 +1142,7 @@ impl Reader {
                  LEFT JOIN canonical_edges e ON p.entity_class='edge' AND e.write_cursor=p.write_cursor \
                  LEFT JOIN _fathomdb_artifact_revisions r ON r.artifact_class=p.entity_class AND r.write_cursor=p.write_cursor \
                  WHERE (p.entity_class='node' AND n.rowid IS NOT NULL) OR (p.entity_class='edge' AND e.rowid IS NOT NULL) \
-                 ORDER BY p.rowid LIMIT ?1",
+                 ORDER BY p.entity_class,p.write_cursor,p.attr_name LIMIT ?1",
             )
             .map_err(|_| "storage")?;
         let mut rows = statement.query([cpv_remaining as i64]).map_err(|_| "storage")?;
@@ -1437,7 +1437,10 @@ impl Reader {
             let entity_class = locator.class.label();
             let mut statement = c
                 .prepare(
-                    "SELECT rowid,value_type,octet_length(text_val),typeof(num_val),bool_val \
+                    "SELECT substr(CAST(attr_name AS BLOB),1,16384),\
+                     value_type,octet_length(text_val),typeof(num_val),bool_val,\
+                     CASE WHEN value_type='string' THEN substr(CAST(text_val AS BLOB),1,16384) END,\
+                     CASE WHEN value_type IN ('integer','float') THEN num_val END \
                      FROM canonical_property_values \
                      WHERE entity_class=?1 AND write_cursor=?2 \
                      ORDER BY attr_name LIMIT 201",
@@ -1447,47 +1450,34 @@ impl Reader {
                 statement.query(params![entity_class, locator.cursor]).map_err(|_| "storage")?;
             while let Some(row) = rows.next().map_err(|_| "budget_exhausted")? {
                 budget.examined += 1;
-                let rowid: i64 = row.get(0).map_err(|_| "storage")?;
+                let name_bytes: Vec<u8> = row.get(0).map_err(|_| "storage")?;
+                let (name_prefix, _) = utf8_prefix(&name_bytes, name_bytes.len())?;
+                let name: String = name_prefix.chars().take(4096).collect();
                 let value_type: String = row.get(1).map_err(|_| "storage")?;
                 let text_bytes: Option<i64> = row.get(2).map_err(|_| "storage")?;
                 let num_type: String = row.get(3).map_err(|_| "storage")?;
                 let bool_val: Option<i64> = row.get(4).map_err(|_| "storage")?;
-                let name =
-                    Self::preview(&c, "canonical_property_values", "attr_name", rowid, 4096)?
-                        .ok_or("storage")?;
                 let value = match value_type.as_str() {
                     "string" => {
-                        Self::preview(&c, "canonical_property_values", "text_val", rowid, 4096)?
+                        let bytes: Option<Vec<u8>> = row.get(5).map_err(|_| "storage")?;
+                        bytes
+                            .map(|bytes| {
+                                utf8_prefix(&bytes, bytes.len())
+                                    .map(|(text, _)| text.chars().take(4096).collect())
+                            })
+                            .transpose()?
                     }
                     "integer" => {
                         if num_type == "integer" {
-                            let n: i64 = c
-                                .query_row(
-                                    "SELECT num_val FROM canonical_property_values WHERE rowid=?1",
-                                    [rowid],
-                                    |r| r.get(0),
-                                )
-                                .map_err(|_| "storage")?;
+                            let n: i64 = row.get(6).map_err(|_| "storage")?;
                             Some(n.to_string())
                         } else {
-                            let f: f64 = c
-                                .query_row(
-                                    "SELECT num_val FROM canonical_property_values WHERE rowid=?1",
-                                    [rowid],
-                                    |r| r.get(0),
-                                )
-                                .map_err(|_| "storage")?;
+                            let f: f64 = row.get(6).map_err(|_| "storage")?;
                             Some(f.to_string())
                         }
                     }
                     "float" => {
-                        let f: f64 = c
-                            .query_row(
-                                "SELECT num_val FROM canonical_property_values WHERE rowid=?1",
-                                [rowid],
-                                |r| r.get(0),
-                            )
-                            .map_err(|_| "storage")?;
+                        let f: f64 = row.get(6).map_err(|_| "storage")?;
                         Some(f.to_string())
                     }
                     "boolean" => {

@@ -339,7 +339,52 @@ fn step38_canonical_property_values_checks_and_indexes() {
         assert!(conn.execute(sql, []).is_err(), "{label} should fail CHECK constraint");
     }
 
-    assert_eq!(index_columns(&conn, "canonical_property_values_cursor_idx"), vec!["write_cursor"]);
+    let cpv_sql: String = conn
+        .query_row(
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'canonical_property_values'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert!(
+        cpv_sql.contains("WITHOUT ROWID"),
+        "canonical_property_values must be a WITHOUT ROWID table: {cpv_sql}"
+    );
+    assert!(
+        conn.prepare("SELECT rowid FROM canonical_property_values").is_err(),
+        "WITHOUT ROWID table must not expose a rowid column"
+    );
+    let cursor_idx_count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type = 'index' AND name = 'canonical_property_values_cursor_idx'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(
+        cursor_idx_count, 0,
+        "redundant canonical_property_values_cursor_idx must be absent"
+    );
+
+    let mut delete_plan_stmt = conn
+        .prepare(
+            "EXPLAIN QUERY PLAN DELETE FROM canonical_property_values \
+             WHERE entity_class IN ('node', 'edge') AND write_cursor = ?1",
+        )
+        .unwrap();
+    let delete_plan: Vec<String> =
+        delete_plan_stmt.query_map([1_i64], |r| r.get(3)).unwrap().map(Result::unwrap).collect();
+    assert!(
+        delete_plan
+            .iter()
+            .any(|line| line.contains("SEARCH canonical_property_values USING PRIMARY KEY")),
+        "expected PRIMARY KEY search on canonical_property_values delete; got {delete_plan:?}"
+    );
+    assert!(
+        !delete_plan.iter().any(|line| line.contains("SCAN canonical_property_values")),
+        "canonical_property_values delete must not full-table SCAN; got {delete_plan:?}"
+    );
+
     assert_eq!(
         index_columns(&conn, "canonical_property_values_text_idx"),
         vec!["entity_class", "attr_name", "text_val", "write_cursor"]

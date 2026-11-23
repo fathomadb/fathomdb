@@ -57,8 +57,9 @@ const PROPERTY_MEMBER_QUERY: &str =
      WHERE rowid>=?1 ORDER BY rowid LIMIT ?2";
 #[cfg(feature = "operator")]
 const PROPERTY_VALUE_MEMBER_QUERY: &str =
-    "SELECT rowid,entity_class,write_cursor,attr_name,value_type,text_val,num_val,bool_val \
-     FROM canonical_property_values WHERE rowid>=?1 ORDER BY rowid LIMIT ?2";
+    "SELECT entity_class,write_cursor,attr_name,value_type,text_val,num_val,bool_val \
+     FROM canonical_property_values WHERE entity_class>=?1 \
+     ORDER BY entity_class,write_cursor,attr_name LIMIT ?2";
 #[cfg(feature = "operator")]
 const ATTRIBUTE_OWNER_QUERY: &str =
     "SELECT n.write_cursor,r.revision_id,n.body,n.properties,n.state,n.superseded_at \
@@ -2216,21 +2217,20 @@ fn active_projection_findings(
     }
     {
         type PhysicalPropertyValueRow =
-            (i64, Option<String>, Option<String>, rusqlite::types::Value, Option<i64>);
+            (usize, Option<String>, Option<String>, rusqlite::types::Value, Option<i64>);
         let remaining = max_work_units.saturating_sub(*aggregate_checked);
         let mut physical_statement =
             connection.prepare(PROPERTY_VALUE_MEMBER_QUERY).map_err(|_| EngineError::Storage)?;
         let physical = physical_statement
-            .query_map(rusqlite::params![FIRST_SQLITE_ROWID, i64::from(remaining) + 1], |row| {
+            .query_map(rusqlite::params!["", i64::from(remaining) + 1], |row| {
                 Ok((
-                    integer_value(row, 0),
-                    text_value(row, 1),
-                    integer_value(row, 2),
+                    text_value(row, 0),
+                    integer_value(row, 1),
+                    text_value(row, 2),
                     text_value(row, 3),
                     text_value(row, 4),
-                    text_value(row, 5),
-                    row.get::<_, rusqlite::types::Value>(6)?,
-                    integer_value(row, 7),
+                    row.get::<_, rusqlite::types::Value>(5)?,
+                    integer_value(row, 6),
                 ))
             })
             .map_err(|_| EngineError::Storage)?
@@ -2239,20 +2239,20 @@ fn active_projection_findings(
         let mut physical_members: BTreeMap<(String, String, i64), Vec<PhysicalPropertyValueRow>> =
             BTreeMap::new();
         let mut invalid_physical = Vec::new();
-        for (rowid, entity_class, cursor, name, value_type, text_val, num_val, bool_val) in physical
+        for (ordinal, (entity_class, cursor, name, value_type, text_val, num_val, bool_val)) in
+            physical.into_iter().enumerate()
         {
             take_work(aggregate_checked, max_work_units)?;
-            match (rowid, entity_class, cursor, name) {
-                (Some(rowid), Some(class), Some(cursor), Some(name))
+            match (entity_class, cursor, name) {
+                (Some(class), Some(cursor), Some(name))
                     if matches!(class.as_str(), "node" | "edge") && cursor > 0 =>
                 {
                     physical_members
                         .entry((class, name, cursor))
                         .or_default()
-                        .push((rowid, value_type, text_val, num_val, bool_val));
+                        .push((ordinal, value_type, text_val, num_val, bool_val));
                 }
-                (Some(rowid), _, _, _) => invalid_physical.push(rowid),
-                (None, _, _, _) => invalid_physical.push(i64::MAX),
+                _ => invalid_physical.push(ordinal),
             }
         }
         for ((class, name, cursor), (expected_value, revision)) in &expected_property_values {

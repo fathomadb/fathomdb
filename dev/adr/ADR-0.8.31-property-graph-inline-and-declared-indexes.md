@@ -43,8 +43,9 @@ visibility contracts:
      edge's properties creates a new `write_cursor` and `_fathomdb_artifact_revisions`
      entry superseding the prior version — never an in-place `UPDATE`.
 2. **Declared typed property indexes for corpus-wide `SearchFilter`**:
-   - Add a row-owned derived index table `canonical_property_values` keyed by
-     `(entity_class, write_cursor, attr_name)` with typed columns:
+   - Add a `WITHOUT ROWID` row-owned derived index table
+     `canonical_property_values` with clustered primary key
+     `(entity_class, write_cursor, attr_name)` and typed columns:
      - `entity_class TEXT NOT NULL CHECK(entity_class IN ('node', 'edge'))`
      - `write_cursor INTEGER NOT NULL`
      - `attr_name TEXT NOT NULL`
@@ -56,9 +57,12 @@ visibility contracts:
        `Float` comparisons use exact numeric ordering without lossy `i64 -> f64`
        truncation for `Int` vs `Int` predicates)
      - `bool_val INTEGER CHECK(bool_val IS NULL OR bool_val IN (0, 1))`
-   - Composite B-tree indexes (typed value indexes are partial on non-NULL value
-     columns to eliminate NULL-entry bloat):
-     - `canonical_property_values_cursor_idx(write_cursor)`
+   - Clustered primary key + partial typed-value B-tree indexes (typed value
+     indexes are partial on non-NULL value columns to eliminate NULL-entry
+     bloat, while row-owned cursor deletion uses the clustered primary key via
+     `WHERE entity_class IN ('node', 'edge') AND write_cursor = ?` instead of a
+     redundant secondary cursor index):
+     - `PRIMARY KEY(entity_class, write_cursor, attr_name)` (`WITHOUT ROWID`)
      - `canonical_property_values_text_idx(entity_class, attr_name, text_val, write_cursor) WHERE text_val IS NOT NULL`
      - `canonical_property_values_num_idx(entity_class, attr_name, num_val, write_cursor) WHERE num_val IS NOT NULL`
      - `canonical_property_values_bool_idx(entity_class, attr_name, bool_val, write_cursor) WHERE bool_val IS NOT NULL`

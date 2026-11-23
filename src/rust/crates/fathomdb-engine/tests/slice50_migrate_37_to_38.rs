@@ -425,7 +425,6 @@ fn fresh_vs_migrated_sqlite_master_structural_parity() {
     // Explicitly assert key Schema 38 objects exist
     for expected in [
         ("table", "canonical_property_values"),
-        ("index", "canonical_property_values_cursor_idx"),
         ("index", "canonical_property_values_text_idx"),
         ("index", "canonical_property_values_num_idx"),
         ("index", "canonical_property_values_bool_idx"),
@@ -445,6 +444,19 @@ fn fresh_vs_migrated_sqlite_master_structural_parity() {
             "missing expected Schema 38 object {expected:?}"
         );
     }
+    assert!(
+        migrated_objects
+            .get(&("table".to_string(), "canonical_property_values".to_string()))
+            .is_some_and(|sql| sql.contains("WITHOUT ROWID")),
+        "canonical_property_values must be a WITHOUT ROWID table"
+    );
+    assert!(
+        !migrated_objects.contains_key(&(
+            "index".to_string(),
+            "canonical_property_values_cursor_idx".to_string()
+        )),
+        "redundant canonical_property_values_cursor_idx must not exist"
+    );
 }
 
 #[test]

@@ -74,9 +74,10 @@ Format 38 adds nullable `properties` and inert `scope` columns to
 `canonical_nodes` and `canonical_edges` (and `scope` to `operational_mutations`
 and `operational_state`), the unified typed property index table
 `canonical_property_values(entity_class, write_cursor, attr_name, value_type, text_val, num_val, bool_val)`
-with its four indexes (`canonical_property_values_cursor_idx`,
-`canonical_property_values_text_idx`, `canonical_property_values_num_idx`,
-`canonical_property_values_bool_idx`), `_fathomdb_projection_registry` columns
+(`WITHOUT ROWID`, clustered primary key `(entity_class, write_cursor, attr_name)`)
+with its three partial typed-value indexes (`canonical_property_values_text_idx`,
+`canonical_property_values_num_idx`, `canonical_property_values_bool_idx`),
+`_fathomdb_projection_registry` columns
 `entity_class` (`'node'` | `'edge'`) and `vector_kinds`,
 `_fathomdb_commit_timestamps` with `_fathomdb_commit_timestamps_ms_idx`, the
 five composite node/edge indexes (`canonical_nodes_logical_sup_idx`,

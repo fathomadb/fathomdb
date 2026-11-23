@@ -207,8 +207,8 @@
   "ac": "AC-079; 0.8.21 Slice 60; 0.8.22 Slice 21 F5; 0.8.22 Slice 22 C5; 0.8.23 Slice 30; approved 0.8.25 Slices 20 and 25; approved 0.8.25 Slice 30; approved 0.8.25 Slice 35; approved 0.8.25 Slice 40; approved 0.8.25 Slice 45; approved 0.8.25 Slice 50; approved 0.8.25 Slice 55; approved 0.8.25 Slice 60; approved 0.8.25 Slice 79 under seq-276; approved 0.8.26 Slice 20 under seq-290; approved 0.8.28 Slice 41 by owner 2026-10-16; approved 0.8.28 Slice 85 by owner 2026-11-04 under seq-363 and current completion authorization; pre-authorized 0.8.31 Slice 20 under HITL Gate 1; approved 0.8.31 Slice 50 under ADR-0.8.31 #76",
   "covers": "Prior signed surfaces plus the approved 0.8.25 Slice 20 dependency registry, Slice 25 bounded atomic actuation, Slice 30 keyed closure-status read, Slice 35 optional frozen reads, Slice 40 projection-generation status reads, Slice 45 canonical pagination and operational-state reads, Slice 50 compact source evidence reads, Slice 55 governed dependency trace reads, Slice 60 bounded constrained graph expansion, Slice 79 startup-only runtime controls, 0.8.26 Slice 20 exact graph evidence, 0.8.28 Slice 41 package-level context pack, 0.8.28 Slice 85 explicit physical-erasure policy, queued requests and owned maintenance, 0.8.31 Slice 20 operational-collection introspection reads, and 0.8.31 Slice 50 bounded batch evidence resolution",
   "pinned_file": "src/conformance/governed-surface-allowlist.json",
-  "pinned_at_commit": "36802ba4ec6e17ef2e9a25df1e2adfe6721ba7cd",
-  "pinned_at_commit_short": "36802ba4e",
+  "pinned_at_commit": "9780e9181a231c0fd0abc1714757b685c4b15398",
+  "pinned_at_commit_short": "9780e9181",
   "git_blob_sha1": "7ad1499c2c0b0ac9511f7ae828edcbc2b19ee840",
   "sha256": "9bdb72f5b540010974667bd271f85a1a3d1b61d8bf3a3630592f1d1a624bef9c",
   "counts": {

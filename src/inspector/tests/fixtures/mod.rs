@@ -552,6 +552,43 @@ pub(crate) fn add_lexical_native(path: &Path) {
     opened.engine.close().unwrap();
 }
 
+/// Forensic fixture-only helper: deletes temporary endpoint node rows after
+/// strict `Engine::write` + `Engine::close` so Inspector's unresolved-endpoint
+/// tests can simulate a pre-0.8.31 / partially damaged store while keeping
+/// `Engine::write` strictly validated.
+#[allow(dead_code)]
+fn remove_forensic_dangling_node_rows(path: &Path, logical_ids: &[&str]) {
+    let mut conn = rusqlite::Connection::open(path).expect("open forensic fixture sqlite");
+    let tx = conn.transaction().expect("begin forensic cleanup tx");
+    let mut cursors: Vec<i64> = Vec::new();
+    {
+        let mut stmt = tx
+            .prepare("SELECT write_cursor FROM canonical_nodes WHERE logical_id = ?1")
+            .expect("prepare cursor lookup");
+        for logical_id in logical_ids {
+            let rows =
+                stmt.query_map([*logical_id], |row| row.get::<_, i64>(0)).expect("query cursors");
+            for cursor in rows {
+                cursors.push(cursor.expect("read cursor"));
+            }
+        }
+    }
+    for cursor in cursors {
+        tx.execute("DELETE FROM search_index WHERE write_cursor = ?1", [cursor])
+            .expect("delete forensic search_index row");
+        tx.execute(
+            "DELETE FROM _fathomdb_artifact_revisions WHERE artifact_class = 'node' AND write_cursor = ?1",
+            [cursor],
+        )
+        .expect("delete forensic artifact revision row");
+        tx.execute("DELETE FROM _fathomdb_projection_terminal WHERE write_cursor = ?1", [cursor])
+            .expect("delete forensic projection terminal row");
+        tx.execute("DELETE FROM canonical_nodes WHERE write_cursor = ?1", [cursor])
+            .expect("delete forensic canonical_nodes row");
+    }
+    tx.commit().expect("commit forensic cleanup tx");
+}
+
 #[allow(dead_code)]
 pub(crate) fn add_graph(path: &Path) {
     use fathomdb_engine::{
@@ -587,7 +624,7 @@ pub(crate) fn add_graph(path: &Path) {
             ),
         )])
         .unwrap();
-    let mut writes = vec![];
+    let mut writes = vec![node("not-retained", "temporary forensic endpoint")];
     for (id, from, to, kind, body) in [
         (
             "parallel-a",
@@ -622,6 +659,7 @@ pub(crate) fn add_graph(path: &Path) {
     }
     opened.engine.write(&writes).unwrap();
     opened.engine.close().unwrap();
+    remove_forensic_dangling_node_rows(path, &["not-retained"]);
 }
 
 #[allow(dead_code)]
@@ -651,35 +689,36 @@ pub(crate) fn add_graph_missing_prefix(path: &Path) {
     let to = format!("{}q", "p".repeat(5000));
     opened
         .engine
-        .write(&[edge(
-            "missing-prefix",
-            &from,
-            &to,
-            "fixture:missing-prefix",
-            Some("prefix-edge"),
-            None,
-        )])
+        .write(&[
+            node(&from, "temporary forensic prefix from"),
+            node(&to, "temporary forensic prefix to"),
+            edge("missing-prefix", &from, &to, "fixture:missing-prefix", Some("prefix-edge"), None),
+        ])
         .unwrap();
     opened.engine.close().unwrap();
+    remove_forensic_dangling_node_rows(path, &[&from, &to]);
 }
 
 #[allow(dead_code)]
 pub(crate) fn add_graph_highdegree(path: &Path) {
     let opened = Engine::open_with_choice(path, EmbedderChoice::None).unwrap();
-    let writes = (0..160)
-        .map(|i| {
-            edge(
-                "bounded-incident",
-                "alpha",
-                &format!("missing-{i}"),
-                "fixture:highdegree",
-                Some(&format!("incident-{i}")),
-                None,
-            )
-        })
-        .collect::<Vec<_>>();
+    let missing_ids: Vec<String> = (0..160).map(|i| format!("missing-{i}")).collect();
+    let mut writes: Vec<PreparedWrite> =
+        missing_ids.iter().map(|id| node(id, "temporary forensic endpoint")).collect();
+    writes.extend((0..160).map(|i| {
+        edge(
+            "bounded-incident",
+            "alpha",
+            &missing_ids[i],
+            "fixture:highdegree",
+            Some(&format!("incident-{i}")),
+            None,
+        )
+    }));
     opened.engine.write(&writes).unwrap();
     opened.engine.close().unwrap();
+    let missing_refs: Vec<&str> = missing_ids.iter().map(String::as_str).collect();
+    remove_forensic_dangling_node_rows(path, &missing_refs);
 }
 
 #[allow(dead_code)]

@@ -551,10 +551,10 @@ fn search_expand_reports_nearest_hop_count() {
     opened.engine.close().unwrap();
 }
 
-/// Regression: dangling intermediate nodes must not extend traversal.
-/// Graph: A → MISSING (no active node) → C
+/// Regression: inactive intermediate nodes must not extend traversal.
+/// Graph: A → MISSING (transitioned Deleted) → C
 /// With depth=2, graph_neighbors("A", 2, Outgoing) must NOT return C because
-/// the intermediate node "MISSING" has no active canonical_nodes row.
+/// the intermediate node "MISSING" is inactive (`state = 'deleted'`).
 /// (Fix-6: recursive CTE JOIN canonical_nodes on next hop.)
 #[test]
 fn graph_neighbors_inactive_intermediate_not_traversed() {
@@ -564,14 +564,16 @@ fn graph_neighbors_inactive_intermediate_not_traversed() {
         .engine
         .write(&[
             node("doc", "Root A", "A"),
-            // MISSING is intentionally never written as a node.
+            node("doc", "Node MISSING", "MISSING"),
             node("doc", "Node C", "C"),
-            // Edge from A to a node that doesn't exist in canonical_nodes.
             edge("A", "MISSING", "E-AM"),
-            // Edge from that missing node onward to C.
             edge("MISSING", "C", "E-MC"),
         ])
         .expect("write");
+    opened
+        .engine
+        .transition("MISSING", fathomdb_engine::LifecycleState::Deleted, Some("deactivate".into()))
+        .expect("transition MISSING to Deleted");
 
     let results = opened
         .engine

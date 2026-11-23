@@ -219,6 +219,8 @@ async fn direct_text_filters_precede_candidate_cap_and_keep_node_attribute_scope
         .collect::<Vec<_>>();
     let body =
         format!(r#"{{"text":"capriver {}","group":"wanted","level":2}}"#, "padding ".repeat(100));
+    writes.push(node("a", "entity", "endpoint"));
+    writes.push(node("b", "entity", "endpoint"));
     writes.push(node("target", "doc", &body));
     writes.push(edge("twin", &body));
     engine.write(&writes).unwrap();

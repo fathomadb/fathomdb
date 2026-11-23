@@ -200,6 +200,26 @@ fn slice38_query_plans_use_declared_indexes_and_skip_cpv_on_unpredicated_search(
     );
     assert_uses_index(&node_sup_plan, "canonical_nodes_logical_sup_idx");
 
+    // Slice 30 (`AC31-30-02`) — write-time strict endpoint probe must use indexed SEARCH
+    // on canonical_nodes_logical_active_idx or canonical_nodes_logical_sup_idx with zero SCAN.
+    let endpoint_probe_plan = explain(
+        &conn,
+        "SELECT 1 FROM canonical_nodes WHERE logical_id = 'qp-n1' AND superseded_at IS NULL AND state = 'active' LIMIT 1",
+    );
+    assert!(
+        endpoint_probe_plan.iter().any(|l| {
+            l.contains("SEARCH canonical_nodes USING INDEX canonical_nodes_logical_active_idx")
+                || l.contains("SEARCH canonical_nodes USING INDEX canonical_nodes_logical_sup_idx")
+        }),
+        "write-time endpoint probe must use indexed SEARCH on canonical_nodes_logical_{{active,sup}}_idx; got:\n{}",
+        endpoint_probe_plan.join("\n")
+    );
+    assert!(
+        !endpoint_probe_plan.iter().any(|l| l.contains("SCAN canonical_nodes")),
+        "write-time endpoint probe must never SCAN canonical_nodes; got:\n{}",
+        endpoint_probe_plan.join("\n")
+    );
+
     // Edge active indexes (empty edge_kinds) and sup_kind indexes (non-empty edge_kinds / suppressed-aware lookup)
     let edge_from_active = explain(
         &conn,

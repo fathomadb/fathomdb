@@ -379,6 +379,7 @@ async fn named_repeated_reference_refuses_atomically_before_any_feedback_label()
         fixture.store(
             "a.sqlite",
             vec![
+                node("missing", "entity", "endpoint"),
                 node("shared", "note", "river node fact"),
                 duplicate,
                 node("unique", "note", "river unique fact"),
@@ -428,6 +429,7 @@ fn repeated_reference_notes() -> Vec<fathomdb_sdk::PreparedWrite> {
     vec![
         node("shared", "note", "river node fact"),
         duplicate,
+        node("missing", "entity", "endpoint"),
         node("unique", "note", "river unique fact"),
     ]
 }

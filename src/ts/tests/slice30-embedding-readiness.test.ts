@@ -23,7 +23,21 @@ test("read.embeddingReadiness and immediate typed drain rejection keep edge bodi
   const secret = "slice30-private-edge-body-must-not-cross-readiness";
   const engine = await Engine.open(freshDbPath(), { useDefaultEmbedder: false });
   try {
-    await engine.write([bodyEdge(secret)]);
+    await engine.write([
+      {
+        kind: "doc",
+        body: "endpoint a",
+        logicalId: "memex-a",
+        sourceId: "ts-test:slice30-readiness",
+      },
+      {
+        kind: "doc",
+        body: "endpoint b",
+        logicalId: "memex-b",
+        sourceId: "ts-test:slice30-readiness",
+      },
+      bodyEdge(secret),
+    ]);
 
     const readiness = await read.embeddingReadiness(engine);
     assert.equal(readiness.state, "blocked");

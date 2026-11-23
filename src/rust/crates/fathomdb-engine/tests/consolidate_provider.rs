@@ -11,7 +11,7 @@
 //! consolidation records supersession/recency METADATA only and never rewrites a
 //! body or deletes a row (ADR-0.8.12 §2.1).
 
-use fathomdb_engine::{ConsolidateAxis, Engine, EngineError, PreparedWrite};
+use fathomdb_engine::{ConsolidateAxis, Engine, EngineError, InitialState, PreparedWrite};
 use rusqlite::Connection;
 use tempfile::TempDir;
 
@@ -75,11 +75,28 @@ fn fact_edge(
     }
 }
 
+fn endpoint_node(logical_id: &str) -> PreparedWrite {
+    PreparedWrite::Node {
+        kind: "entity".to_string(),
+        body: "endpoint".to_string(),
+        source_id: fathomdb_engine::SourceId::new("test:endpoint-seed").expect("test source id"),
+        logical_id: Some(logical_id.to_string()),
+        state: InitialState::Active,
+        reason: None,
+        valid_from: None,
+        valid_until: None,
+        properties: None,
+    }
+}
+
 /// Seed two COMPETING active fact-edges on one (subject=`bob`, relation=
 /// `works_for`) axis: an older `bob→acme` (t_valid 2019) and a newer
 /// `bob→globex` (t_valid 2022). Different `to_id` ⇒ both stay active (the G11
 /// invalidate-not-accumulate triple key does not collapse them).
 fn seed_competing_edges(engine: &Engine) {
+    engine
+        .write(&[endpoint_node("bob"), endpoint_node("acme"), endpoint_node("globex")])
+        .expect("seed endpoint nodes");
     let older = fact_edge(
         "works_for",
         "bob",

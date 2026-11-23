@@ -30,7 +30,23 @@ def test_embedding_readiness_and_immediate_error_are_typed_and_body_private(tmp_
     secret = "slice30-private-edge-body-must-not-cross-readiness"
     engine = Engine.open(str(tmp_path / "readiness.sqlite"), use_default_embedder=False)
     try:
-        engine.write([_body_edge(secret)])
+        engine.write(
+            [
+                {
+                    "kind": "doc",
+                    "body": "endpoint a",
+                    "logical_id": "memex-a",
+                    "source_id": "py-test:slice30-readiness",
+                },
+                {
+                    "kind": "doc",
+                    "body": "endpoint b",
+                    "logical_id": "memex-b",
+                    "source_id": "py-test:slice30-readiness",
+                },
+                _body_edge(secret),
+            ]
+        )
 
         readiness = read.embedding_readiness(engine)
         assert readiness.state == "blocked"

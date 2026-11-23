@@ -46,6 +46,18 @@ fn fact_edge(
 
 /// Two competing active edges on one (subject=`bob`, relation=`works_for`) axis.
 fn seed_competing_edges(engine: &Engine) {
+    let endpoint = |id: &str| PreparedWrite::Node {
+        kind: "entity".to_string(),
+        body: "endpoint".to_string(),
+        source_id: fathomdb_engine::SourceId::new("test:endpoint-seed").expect("test source id"),
+        logical_id: Some(id.to_string()),
+        state: fathomdb_engine::InitialState::Active,
+        reason: None,
+        valid_from: None,
+        valid_until: None,
+        properties: None,
+    };
+    engine.write(&[endpoint("bob"), endpoint("acme"), endpoint("globex")]).expect("seed endpoints");
     let older = fact_edge(
         "works_for",
         "bob",

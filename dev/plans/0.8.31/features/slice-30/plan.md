@@ -1,6 +1,6 @@
 ---
 title: Slice 30 Plan — Strict Endpoint Integrity, Typed Traversal Predicates & Opt-In Fused-Hit Seeding
-status: DRAFT
+status: ACTIVE
 target_release: 0.8.31
 slice: 30
 date: 2026-11-22

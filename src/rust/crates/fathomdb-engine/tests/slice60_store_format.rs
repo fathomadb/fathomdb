@@ -277,12 +277,24 @@ fn custom_span_trigger_runs_and_invalidates_frozen_reads() {
 
 #[test]
 fn edge_supersession_retains_spans_until_source_erasure() {
-    use fathomdb_engine::{PreparedWrite, SourceId};
+    use fathomdb_engine::{InitialState, PreparedWrite, SourceId};
     fathomdb_engine::configure_runtime(fathomdb_engine::RuntimeSqliteMode::Performance).unwrap();
     for logical in [false, true] {
         let dir = TempDir::new().unwrap();
         let path = dir.path().join("edge-spans.sqlite");
         let opened = Engine::open_with_embedder_for_test(&path, Arc::new(Provider)).unwrap();
+        let endpoint = |id: &str| PreparedWrite::Node {
+            kind: "entity".into(),
+            body: "endpoint".into(),
+            source_id: SourceId::new("test:endpoint-seed").unwrap(),
+            logical_id: Some(id.into()),
+            state: InitialState::Active,
+            reason: None,
+            valid_from: None,
+            valid_until: None,
+            properties: None,
+        };
+        opened.engine.write(&[endpoint("a"), endpoint("b"), endpoint("c")]).unwrap();
         let edge = |new: bool| PreparedWrite::Edge {
             kind: "rel".into(),
             from: "a".into(),

@@ -121,6 +121,20 @@ fn seed_rows(engine: &Engine, source_id: &str) {
     engine.write(&writes).expect("write");
 }
 
+fn endpoint_node(logical_id: &str) -> PreparedWrite {
+    PreparedWrite::Node {
+        kind: "entity".to_string(),
+        body: "endpoint".to_string(),
+        source_id: fathomdb_engine::SourceId::new("test:endpoint-seed").expect("test source id"),
+        logical_id: Some(logical_id.to_string()),
+        state: InitialState::Active,
+        reason: None,
+        valid_from: None,
+        valid_until: None,
+        properties: None,
+    }
+}
+
 fn body_bearing_edge(source_id: &str) -> PreparedWrite {
     PreparedWrite::Edge {
         kind: "link".to_string(),
@@ -148,6 +162,10 @@ fn erase_source_removes_no_embedder_pending_edge_work() {
     let path = dir.path().join(format!("erase_no_embedder{SQLITE_SUFFIX}"));
     let opened = Engine::open_without_embedder_for_test(&path).expect("open without embedder");
 
+    opened
+        .engine
+        .write(&[endpoint_node("source"), endpoint_node("target")])
+        .expect("seed endpoint nodes");
     opened.engine.write(&[body_bearing_edge("S1")]).expect("write pending edge");
     assert!(
         matches!(opened.engine.drain(1_000), Err(EngineError::EmbedderRequired(_))),
@@ -180,6 +198,10 @@ fn excise_source_removes_no_embedder_pending_edge_work() {
     let path = dir.path().join(format!("excise_no_embedder{SQLITE_SUFFIX}"));
     let opened = Engine::open_without_embedder_for_test(&path).expect("open without embedder");
 
+    opened
+        .engine
+        .write(&[endpoint_node("source"), endpoint_node("target")])
+        .expect("seed endpoint nodes");
     opened.engine.write(&[body_bearing_edge("S1")]).expect("write pending edge");
     let report = opened
         .engine

@@ -1009,6 +1009,20 @@ fn nonterminal_barrier_hides_derived_edge_vector_hits() {
     opened.engine.configure_vector_kind_for_test("edge_fact").unwrap();
     opened
         .engine
+        .write(&[PreparedWrite::Node {
+            kind: "entity".into(),
+            body: "endpoint".into(),
+            source_id: SourceId::new("test:endpoint-seed").unwrap(),
+            logical_id: Some("derived".into()),
+            state: InitialState::Active,
+            reason: None,
+            valid_from: None,
+            valid_until: None,
+            properties: None,
+        }])
+        .unwrap();
+    let receipt = opened
+        .engine
         .write(&[
             canonical("source-r1", "v1", "source", "source body"),
             derived_edge("edge-r1", "source-r1"),
@@ -1029,7 +1043,7 @@ fn nonterminal_barrier_hides_derived_edge_vector_hits() {
         .iter()
         .any(|hit| hit.body == "derived edge body"));
 
-    install_soft_barrier(&db, "source-r1", 2);
+    install_soft_barrier(&db, "source-r1", receipt.cursor as i64);
 
     assert!(opened
         .engine

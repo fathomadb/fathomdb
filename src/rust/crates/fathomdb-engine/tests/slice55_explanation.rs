@@ -546,6 +546,18 @@ fn slice55_structural_edge_lifecycle_is_live() {
     let dir = TempDir::new().unwrap();
     let path = dir.path().join(format!("explanation-edge{SQLITE_SUFFIX}"));
     let opened = Engine::open(&path).unwrap();
+    let endpoint = |id: &str| PreparedWrite::Node {
+        kind: "entity".into(),
+        body: "endpoint".into(),
+        source_id: SourceId::new("test:endpoint-seed").unwrap(),
+        logical_id: Some(id.into()),
+        state: InitialState::Active,
+        reason: None,
+        valid_from: None,
+        valid_until: None,
+        properties: None,
+    };
+    opened.engine.write(&[endpoint("a"), endpoint("b")]).unwrap();
     opened
         .engine
         .write(&[PreparedWrite::Edge {

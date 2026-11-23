@@ -597,6 +597,11 @@ for line in sys.stdin:
 fn consolidate_out_of_cluster_verdict_rolls_back_applied_invalidate() {
     let mut fixture = seeded("consolidate-verdict");
     fixture.write(&[
+        plain_node("entity", "carol", "endpoint", None, None),
+        plain_node("entity", "acme", "endpoint", None, None),
+        plain_node("entity", "globex", "endpoint", None, None),
+    ]);
+    fixture.write(&[
         plain_edge(
             "works_for",
             "carol",
@@ -707,8 +712,8 @@ fn validation_precedes_mutation_for_generated_batches() {
                     ValidItem::Node => late_node(&format!("prop-node-{index}")),
                     ValidItem::Edge => plain_edge(
                         "links",
-                        &format!("prop-from-{index}"),
-                        &format!("prop-to-{index}"),
+                        "alice",
+                        "bob",
                         &format!("prop-edge-{index}"),
                         Some(&format!("prop edge body {index}")),
                         None,

@@ -795,6 +795,27 @@ fn retained_consolidated_history_changes_edge_corpus_statistics_consistently() {
     let dir = TempDir::new().unwrap();
     let path = dir.path().join("edge-statistics.sqlite");
     let opened = Engine::open_with_embedder_for_test(&path, Arc::new(Provider)).unwrap();
+    let endpoint = |id: &str| PreparedWrite::Node {
+        kind: "entity".into(),
+        body: "endpoint".into(),
+        source_id: SourceId::new("test:endpoint-seed").unwrap(),
+        logical_id: Some(id.into()),
+        state: InitialState::Active,
+        reason: None,
+        valid_from: None,
+        valid_until: None,
+        properties: None,
+    };
+    opened
+        .engine
+        .write(&[
+            endpoint("first"),
+            endpoint("second"),
+            endpoint("history"),
+            endpoint("old"),
+            endpoint("new"),
+        ])
+        .unwrap();
     let mut writes = Vec::new();
     for (id, body, to, valid) in [
         ("first", "needle", "first", 100),
@@ -844,6 +865,18 @@ fn lexical_only_boot_repair_invalidates_frozen_tokens_once() {
     let dir = TempDir::new().unwrap();
     let path = dir.path().join("lexical-repair-generation.sqlite");
     let opened = Engine::open_with_embedder_for_test(&path, Arc::new(Provider)).unwrap();
+    let endpoint = |id: &str| PreparedWrite::Node {
+        kind: "entity".into(),
+        body: "endpoint".into(),
+        source_id: SourceId::new("test:endpoint-seed").unwrap(),
+        logical_id: Some(id.into()),
+        state: InitialState::Active,
+        reason: None,
+        valid_from: None,
+        valid_until: None,
+        properties: None,
+    };
+    opened.engine.write(&[endpoint("a"), endpoint("b")]).unwrap();
     let old = opened.engine.write(&[edge("history", "repairneedle old")]).unwrap().row_cursors[0];
     opened.engine.write(&[edge("history", "current")]).unwrap();
     opened.engine.drain(10_000).unwrap();

@@ -14,7 +14,7 @@
 //! FOOTPRINT / NO-EGRESS (R-CON-3): the harness is the local deterministic recency stub; no network,
 //! no LLM, no randomness. The library query path stays CPU-only.
 
-use fathomdb_engine::{ConsolidateAxis, Engine, PreparedWrite};
+use fathomdb_engine::{ConsolidateAxis, Engine, InitialState, PreparedWrite};
 use rusqlite::Connection;
 use tempfile::TempDir;
 
@@ -59,9 +59,26 @@ const SUBJECTS: &[(&str, &str, &str)] = &[
     ("gwen", "soylent", "aperture"),
 ];
 
+fn endpoint_node(logical_id: &str) -> PreparedWrite {
+    PreparedWrite::Node {
+        kind: "entity".to_string(),
+        body: "endpoint".to_string(),
+        source_id: fathomdb_engine::SourceId::new("test:endpoint-seed").expect("test source id"),
+        logical_id: Some(logical_id.to_string()),
+        state: InitialState::Active,
+        reason: None,
+        valid_from: None,
+        valid_until: None,
+        properties: None,
+    }
+}
+
 fn seed(engine: &Engine) {
     let mut writes = Vec::new();
     for (subj, stale, updated) in SUBJECTS {
+        writes.push(endpoint_node(subj));
+        writes.push(endpoint_node(stale));
+        writes.push(endpoint_node(updated));
         writes.push(fact_edge(
             subj,
             stale,

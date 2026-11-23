@@ -69,6 +69,20 @@ fn derived(revision: &str, logical: &str, source_revision: &str, body: &str) -> 
     })
 }
 
+fn endpoint_node(logical_id: &str) -> PreparedWrite {
+    PreparedWrite::Node {
+        kind: "entity".into(),
+        body: "endpoint".into(),
+        source_id: SourceId::new("test:endpoint-seed").unwrap(),
+        logical_id: Some(logical_id.into()),
+        state: InitialState::Active,
+        reason: None,
+        valid_from: None,
+        valid_until: None,
+        properties: None,
+    }
+}
+
 fn edge(from: &str, to: &str, body: &str) -> PreparedWrite {
     PreparedWrite::Edge {
         kind: "mentions".into(),
@@ -1541,7 +1555,11 @@ fn slice55_fix6_clock_expired_edge_retains_fts_and_dense_without_a_finding() {
     .unwrap();
     opened
         .engine
-        .write(&[edge_with_expiry("from", "to", "retained expired edge", future)])
+        .write(&[
+            edge_with_expiry("from", "to", "retained expired edge", future),
+            endpoint_node("from"),
+            endpoint_node("to"),
+        ])
         .unwrap();
     let generation = opened.engine.read_projection_generation_status().unwrap().generation_id;
     opened.engine.publish_projection_success_for_test(1, "edge_fact", generation).unwrap();
@@ -1564,7 +1582,14 @@ fn slice55_fix6_deleted_canonical_owner_with_retained_revision_is_missing() {
     for (is_edge, expected_count) in [(false, 2), (true, 1)] {
         let (_dir, opened) = opened();
         if is_edge {
-            opened.engine.write(&[edge("from", "to", "deleted edge owner")]).unwrap();
+            opened
+                .engine
+                .write(&[
+                    edge("from", "to", "deleted edge owner"),
+                    endpoint_node("from"),
+                    endpoint_node("to"),
+                ])
+                .unwrap();
             opened
                 .engine
                 .execute_for_test("DELETE FROM canonical_edges WHERE write_cursor=1")
@@ -1846,7 +1871,14 @@ fn slice55_fix6_physical_fts_dynamic_types_preserve_matrix_order_and_privacy() {
                 opened.engine.write(&[canonical("fix6-node-r1", "fix6-node", "body")]).unwrap();
             }
             "edge" => {
-                opened.engine.write(&[edge("from", "to", "edge body")]).unwrap();
+                opened
+                    .engine
+                    .write(&[
+                        edge("from", "to", "edge body"),
+                        endpoint_node("from"),
+                        endpoint_node("to"),
+                    ])
+                    .unwrap();
             }
             "attribute" => {
                 opened.engine.configure_projections(&[property_spec()], &[]).unwrap();

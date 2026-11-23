@@ -87,20 +87,46 @@ fn no_canonical_row_has_null_source_id() {
         }])
         .expect("public node write");
     engine
-        .write(&[PreparedWrite::Edge {
-            kind: "mentions".to_string(),
-            from: "a".to_string(),
-            to: "b".to_string(),
-            source_id: fathomdb_engine::SourceId::new("doc-public").expect("test source id"),
-            logical_id: Some("edge-public".to_string()),
-            body: Some("public edge body".to_string()),
-            t_valid: None,
-            t_invalid: None,
-            confidence: None,
-            extractor_model_id: None,
-            temporal_fallback: None,
-            properties: None,
-        }])
+        .write(&[
+            PreparedWrite::Node {
+                kind: "entity".to_string(),
+                body: "endpoint".to_string(),
+                source_id: fathomdb_engine::SourceId::new("test:endpoint-seed")
+                    .expect("test source id"),
+                logical_id: Some("a".to_string()),
+                state: fathomdb_engine::InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                properties: None,
+            },
+            PreparedWrite::Node {
+                kind: "entity".to_string(),
+                body: "endpoint".to_string(),
+                source_id: fathomdb_engine::SourceId::new("test:endpoint-seed")
+                    .expect("test source id"),
+                logical_id: Some("b".to_string()),
+                state: fathomdb_engine::InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                properties: None,
+            },
+            PreparedWrite::Edge {
+                kind: "mentions".to_string(),
+                from: "a".to_string(),
+                to: "b".to_string(),
+                source_id: fathomdb_engine::SourceId::new("doc-public").expect("test source id"),
+                logical_id: Some("edge-public".to_string()),
+                body: Some("public edge body".to_string()),
+                t_valid: None,
+                t_invalid: None,
+                confidence: None,
+                extractor_model_id: None,
+                temporal_fallback: None,
+                properties: None,
+            },
+        ])
         .expect("public edge write");
 
     // The engine-derived path: EXP-S coverage/graph substrate rows. These do NOT

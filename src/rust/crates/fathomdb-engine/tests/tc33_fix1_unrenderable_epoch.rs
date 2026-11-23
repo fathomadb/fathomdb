@@ -133,6 +133,18 @@ fn tc33_fix1_max_renderable_epoch_is_storable() {
     let dir = TempDir::new().unwrap();
     let path = db_path(&dir, "max_renderable");
     let engine = Engine::open(&path).expect("open").engine;
+    let endpoint = |id: &str| PreparedWrite::Node {
+        kind: "entity".to_string(),
+        body: "endpoint".to_string(),
+        source_id: fathomdb_engine::SourceId::new("test:endpoint-seed").expect("test source id"),
+        logical_id: Some(id.to_string()),
+        state: fathomdb_engine::InitialState::Active,
+        reason: None,
+        valid_from: None,
+        valid_until: None,
+        properties: None,
+    };
+    engine.write(&[endpoint("A"), endpoint("B")]).expect("seed endpoints");
 
     engine
         .write(&[edge_with_temporal(Some(0), Some(MAX_RENDERABLE_EPOCH))])

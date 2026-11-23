@@ -133,7 +133,7 @@ fn canonical_and_derived_revisions_persist_exact_utf8_provenance_across_restart(
         let derived = PreparedWrite::ProvenancedEdge(ProvenancedEdgeV1 {
             kind: "mentions".into(),
             from: "source-logical".into(),
-            to: "entity-logical".into(),
+            to: "source-logical".into(),
             source_id: SourceId::new("source-1").unwrap(),
             logical_id: Some("derived-logical".into()),
             body: Some("é".into()),
@@ -523,7 +523,19 @@ fn runtime_edge_revision_distinguishes_null_from_empty_body_at_the_same_cursor()
         let dir = TempDir::new().unwrap();
         let path = db_path(&dir, "edge-digest");
         let opened = Engine::open(&path).unwrap();
-        opened
+        let endpoint = |id: &str| PreparedWrite::Node {
+            kind: "entity".into(),
+            body: "endpoint".into(),
+            source_id: SourceId::new("test:endpoint-seed").unwrap(),
+            logical_id: Some(id.into()),
+            state: InitialState::Active,
+            reason: None,
+            valid_from: None,
+            valid_until: None,
+            properties: None,
+        };
+        opened.engine.write(&[endpoint("a"), endpoint("b")]).unwrap();
+        let receipt = opened
             .engine
             .write(&[PreparedWrite::Edge {
                 kind: "rel".into(),
@@ -543,7 +555,11 @@ fn runtime_edge_revision_distinguishes_null_from_empty_body_at_the_same_cursor()
         opened.engine.close().unwrap();
         Connection::open(path)
             .unwrap()
-            .query_row("SELECT revision_id FROM _fathomdb_artifact_revisions", [], |row| row.get(0))
+            .query_row(
+                "SELECT revision_id FROM _fathomdb_artifact_revisions WHERE write_cursor = ?1",
+                [receipt.cursor as i64],
+                |row| row.get(0),
+            )
             .unwrap()
     }
 

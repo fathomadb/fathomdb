@@ -241,6 +241,23 @@ fn slice_a_rebuild_projections_excludes_recency_invalidated_edge() {
         let opened = Engine::open_with_embedder_for_test(&path, embedder.clone()).expect("open");
         opened.engine.configure_vector_kind_for_test("edge_fact").expect("vector kind");
 
+        let endpoint = |id: &str| PreparedWrite::Node {
+            kind: "entity".to_string(),
+            body: "endpoint".to_string(),
+            source_id: fathomdb_engine::SourceId::new("test:endpoint-seed")
+                .expect("test source id"),
+            logical_id: Some(id.to_string()),
+            state: fathomdb_engine::InitialState::Active,
+            reason: None,
+            valid_from: None,
+            valid_until: None,
+            properties: None,
+        };
+        opened
+            .engine
+            .write(&[endpoint("bob"), endpoint("acme"), endpoint("globex")])
+            .expect("seed endpoints");
+
         let older = PreparedWrite::Edge {
             kind: "works_for".to_string(),
             from: "bob".to_string(),

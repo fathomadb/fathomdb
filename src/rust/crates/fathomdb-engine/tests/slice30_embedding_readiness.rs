@@ -20,6 +20,21 @@ fn db_path(dir: &TempDir, name: &str) -> std::path::PathBuf {
     dir.path().join(format!("{name}{SQLITE_SUFFIX}"))
 }
 
+fn seed_edge_endpoints(engine: &Engine) {
+    let endpoint = |id: &str| PreparedWrite::Node {
+        kind: "entity".to_string(),
+        body: "endpoint".to_string(),
+        source_id: SourceId::new("test:endpoint-seed").expect("source id"),
+        logical_id: Some(id.to_string()),
+        state: InitialState::Active,
+        reason: None,
+        valid_from: None,
+        valid_until: None,
+        properties: None,
+    };
+    engine.write(&[endpoint("memex-a"), endpoint("memex-b")]).expect("seed edge endpoints");
+}
+
 fn body_edge() -> PreparedWrite {
     PreparedWrite::Edge {
         kind: "relates_to".to_string(),
@@ -102,6 +117,7 @@ fn make_probe_verdict_stale(path: &Path) {
 fn body_bearing_edge_without_embedder_reports_blocked_and_drain_is_immediate_typed_feedback() {
     let dir = TempDir::new().expect("tempdir");
     let opened = Engine::open(db_path(&dir, "missing_embedder")).expect("open without embedder");
+    seed_edge_endpoints(&opened.engine);
     opened.engine.write(&[body_edge()]).expect("accepted deferred edge write");
 
     let readiness = opened.engine.read_embedding_readiness().expect("readiness");
@@ -140,6 +156,7 @@ fn absent_embedder_does_not_dispatch_body_edge_into_a_failed_terminal() {
     let path = db_path(&dir, "missing_embedder_no_dispatch");
     let opened = Engine::open(&path).expect("open without embedder");
     opened.engine.set_projection_retry_delays_for_test(&[]);
+    seed_edge_endpoints(&opened.engine);
     let receipt = opened.engine.write(&[body_edge()]).expect("accepted deferred edge write");
 
     let deadline = Instant::now() + Duration::from_secs(1);
@@ -194,6 +211,7 @@ fn equivalence_refused_open_preserves_pending_work_for_explicit_recovery() {
     make_probe_verdict_stale(&path);
     {
         let opened = Engine::open(&path).expect("open without runtime to create pending work");
+        seed_edge_endpoints(&opened.engine);
         opened.engine.write(&[body_edge()]).expect("write deferred edge");
         opened.engine.close().expect("close pending-work session");
     }

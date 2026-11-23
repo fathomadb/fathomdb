@@ -116,6 +116,14 @@ fn s15_edge_supersession_is_idempotent_one_active_version() {
     let path = db_path(&dir, "edge_supersede");
     {
         let opened = Engine::open(&path).expect("open");
+        opened
+            .engine
+            .write(&[
+                node("entity", "endpoint", Some("a")),
+                node("entity", "endpoint", Some("b")),
+                node("entity", "endpoint", Some("c")),
+            ])
+            .expect("seed endpoints");
         opened.engine.write(&[edge("rel", "a", "b", Some("E1"))]).expect("write v1");
         opened.engine.write(&[edge("rel", "a", "c", Some("E1"))]).expect("supersede to v2");
         opened.engine.close().unwrap();
@@ -283,6 +291,10 @@ fn s31_edge_kind_change_reingest_supersedes() {
     let path = db_path(&dir, "edge_kind_change");
     {
         let opened = Engine::open(&path).expect("open");
+        opened
+            .engine
+            .write(&[node("entity", "endpoint", Some("a")), node("entity", "endpoint", Some("b"))])
+            .expect("seed endpoints");
         opened.engine.write(&[edge("rel", "a", "b", Some("E1"))]).expect("write kind=rel");
         opened
             .engine

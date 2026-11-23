@@ -56,6 +56,18 @@ fn ac_042_trace_source_ref_includes_edges_alongside_nodes() {
     let opened = Engine::open(&path).expect("open");
 
     write_node(&opened.engine, "node from S1", "S1");
+    let endpoint = |id: &str| PreparedWrite::Node {
+        kind: "entity".to_string(),
+        body: "endpoint".to_string(),
+        source_id: fathomdb_engine::SourceId::new("test:endpoint-seed").expect("test source id"),
+        logical_id: Some(id.to_string()),
+        state: fathomdb_engine::InitialState::Active,
+        reason: None,
+        valid_from: None,
+        valid_until: None,
+        properties: None,
+    };
+    opened.engine.write(&[endpoint("a"), endpoint("b")]).expect("seed endpoints");
     opened
         .engine
         .write(&[PreparedWrite::Edge {

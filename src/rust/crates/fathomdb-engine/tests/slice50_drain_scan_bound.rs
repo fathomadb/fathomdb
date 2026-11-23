@@ -209,11 +209,24 @@ fn node(i: usize, fail: bool) -> PreparedWrite {
         properties: None,
     }
 }
+fn endpoint_node(logical_id: &str) -> PreparedWrite {
+    PreparedWrite::Node {
+        kind: "entity".into(),
+        body: "endpoint".into(),
+        source_id: SourceId::new("test:endpoint-seed").unwrap(),
+        logical_id: Some(logical_id.into()),
+        state: InitialState::Active,
+        reason: None,
+        valid_from: None,
+        valid_until: None,
+        properties: None,
+    }
+}
 fn edge(i: usize, fail: bool) -> PreparedWrite {
     PreparedWrite::Edge {
-        kind: "relates_to".into(),
-        from: format!("a-{i}"),
-        to: "b".into(),
+        kind: format!("relates_to_{i}"),
+        from: "ep-a".into(),
+        to: "ep-b".into(),
         source_id: SourceId::new("test:slice50").unwrap(),
         logical_id: None,
         body: Some(format!("{} edge {i}", if fail { "fail" } else { "ok" })),
@@ -230,7 +243,7 @@ fn edge(i: usize, fail: bool) -> PreparedWrite {
 fn slice50_node_edge_ordering_cases() {
     for layout in 0..3 {
         let f = Fixture::new();
-        let writes: Vec<_> = (0..1200)
+        let mut writes: Vec<_> = (0..1200)
             .map(|i| {
                 let is_edge = match layout {
                     0 => i < 600,
@@ -245,6 +258,11 @@ fn slice50_node_edge_ordering_cases() {
                 }
             })
             .collect();
+        // Append non-vector-enrolled endpoint nodes at the end of the batch
+        // (same-batch forward refs) so test cursors 1..=1200 and MIN(write_cursor)
+        // stay unchanged.
+        writes.push(endpoint_node("ep-a"));
+        writes.push(endpoint_node("ep-b"));
         f.engine.write(&writes).unwrap();
         if layout == 2 {
             f.raw.execute("UPDATE canonical_nodes SET superseded_at=1 WHERE write_cursor=(SELECT MIN(write_cursor) FROM canonical_nodes)",[]).unwrap();
@@ -258,7 +276,7 @@ fn slice50_node_edge_ordering_cases() {
         }
         // Ordinary canonical nodes remain projection members when superseded;
         // query-time eligibility is separate. Edges retain supersession too; expiry stays excluded.
-        let expected = f.raw.prepare("SELECT write_cursor FROM canonical_nodes WHERE body NOT LIKE '%fail%' UNION ALL SELECT write_cursor FROM canonical_edges WHERE t_invalid IS NULL AND body NOT LIKE '%fail%' ORDER BY write_cursor").unwrap().query_map([],|r|r.get::<_,u64>(0)).unwrap().collect::<rusqlite::Result<Vec<_>>>().unwrap();
+        let expected = f.raw.prepare("SELECT write_cursor FROM canonical_nodes WHERE kind = 'doc' AND body NOT LIKE '%fail%' UNION ALL SELECT write_cursor FROM canonical_edges WHERE t_invalid IS NULL AND body NOT LIKE '%fail%' ORDER BY write_cursor").unwrap().query_map([],|r|r.get::<_,u64>(0)).unwrap().collect::<rusqlite::Result<Vec<_>>>().unwrap();
         f.engine.set_projection_scheduler_frozen_for_test(false);
         f.engine.drain(30_000).unwrap();
         let actual = f

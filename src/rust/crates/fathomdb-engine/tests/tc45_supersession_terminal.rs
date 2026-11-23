@@ -156,6 +156,19 @@ fn run_pair(
     let embedder = Arc::new(DeterministicEmbedder::new(8));
     let opened = Engine::open_with_embedder_for_test(&path, embedder).expect("open");
 
+    let endpoint = |id: &str| PreparedWrite::Node {
+        kind: "entity".to_string(),
+        body: "endpoint".to_string(),
+        source_id: fathomdb_engine::SourceId::new("test:endpoint-seed").expect("test source id"),
+        logical_id: Some(id.to_string()),
+        state: fathomdb_engine::InitialState::Active,
+        reason: None,
+        valid_from: None,
+        valid_until: None,
+        properties: None,
+    };
+    opened.engine.write(&[endpoint("a"), endpoint("b"), endpoint("c")]).expect("seed endpoints");
+
     // ONE batch: the second write supersedes the first INSIDE the same
     // transaction, before the embed worker can terminal the first cursor.
     let receipt = opened.engine.write(&[first, second]).expect("write supersession pair");

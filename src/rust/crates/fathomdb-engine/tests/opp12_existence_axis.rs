@@ -192,11 +192,12 @@ fn r_ex_2_pending_absent_from_default_search_and_read() {
 /// the identical graph with an `active` neighbor surfaces it (the no-op control).
 #[test]
 fn r_ex_2_graph_traversal_excludes_pending_neighbor() {
-    // Pending neighbor — excluded.
+    // Pending neighbor — excluded (seed active so the edge writes legally under
+    // strict endpoint validation, then supersede the neighbor into Pending).
     let (_d1, o1) = open("rex2_graph_pending");
     let e1 = &o1.engine;
     e1.write(&[active_node("doc", "root node", "root")]).unwrap();
-    e1.write(&[pending_node("doc", "neighbor node", "nbr", "quarantine")]).unwrap();
+    e1.write(&[active_node("doc", "neighbor node", "nbr")]).unwrap();
     e1.write(&[PreparedWrite::Edge {
         kind: "link".to_string(),
         from: "root".to_string(),
@@ -212,6 +213,7 @@ fn r_ex_2_graph_traversal_excludes_pending_neighbor() {
         properties: None,
     }])
     .unwrap();
+    e1.write(&[pending_node("doc", "neighbor node", "nbr", "quarantine")]).unwrap();
     let neighbors: Vec<String> = e1
         .graph_neighbors("root", 1, TraversalDirection::Outgoing, &ReadView::default())
         .unwrap()

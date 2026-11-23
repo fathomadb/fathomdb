@@ -18,7 +18,10 @@ import json
 import time
 from pathlib import Path
 
+import pytest
+
 from fathomdb import Engine, SearchFilter, SearchHit
+from fathomdb.errors import WriteValidationError
 
 # 0.8.20 (R-20-E3): `source_id` is mandatory on every canonical write.
 _SOURCE_ID = "py-test:functional-search"
@@ -201,15 +204,15 @@ def test_functional_supersession_write_surfaces_row_cursor(db_path: str) -> None
 
 
 def test_functional_dangling_edge_count_across_ffi(db_path: str) -> None:
-    """Slice 20 / X1 / G8 — a write whose batch contains a dangling edge returns
-    `dangling_edge_endpoints` > 0; a clean batch returns 0. The TS harness
-    (`functional-dangling-edges.test.ts`) asserts the SAME values for the SAME
-    batches, proving Py ≡ TS for the dangling count (real engine, no mocks)."""
+    """0.8.31 Slice 30 / R31-04 — a clean batch commits with
+    `dangling_edge_endpoints == 0`; a batch with missing edge endpoints fails
+    atomically with `WriteValidationError` and commits zero rows. The TS
+    harness (`functional-search.test.ts`) asserts the SAME contract."""
 
     engine = Engine.open(db_path)
     try:
         # Clean batch: the edge's endpoints resolve to live `logical_id` nodes
-        # inserted later in the SAME batch (cross-row) -> 0 dangling.
+        # inserted in the SAME batch (cross-row) -> 0 dangling.
         clean = engine.write(
             [
                 {"kind": "doc", "body": "n1", "logical_id": "N1", "source_id": _SOURCE_ID},
@@ -226,21 +229,27 @@ def test_functional_dangling_edge_count_across_ffi(db_path: str) -> None:
         )
         assert clean.dangling_edge_endpoints == 0
 
-        # Dangling batch: both endpoints reference missing `logical_id`s -> 2
-        # (flag-and-count: the write still succeeds).
-        dangling = engine.write(
-            [
-                {
-                    "edge": {
-                        "kind": "rel",
-                        "from": "GHOST_A",
-                        "to": "GHOST_B",
+        # Dangling batch: missing endpoints are strictly refused atomically.
+        with pytest.raises(WriteValidationError):
+            engine.write(
+                [
+                    {
+                        "kind": "doc",
+                        "body": "rollback-witness-py",
+                        "logical_id": "ROLLBACK_WITNESS",
                         "source_id": _SOURCE_ID,
-                    }
-                }
-            ]
-        )
-        assert dangling.dangling_edge_endpoints == 2
+                    },
+                    {
+                        "edge": {
+                            "kind": "rel",
+                            "from": "GHOST_A",
+                            "to": "GHOST_B",
+                            "source_id": _SOURCE_ID,
+                        }
+                    },
+                ]
+            )
+        assert engine.search_text_only("rollback-witness-py").results == []
     finally:
         engine.close()
 

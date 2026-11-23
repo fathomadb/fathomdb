@@ -145,6 +145,18 @@ fn complete_edge_without_required_enrolment_is_corrupt() {
     let dir = TempDir::new().unwrap();
     let path = dir.path().join(format!("edge-enrolment{SQLITE_SUFFIX}"));
     let opened = open(&path);
+    let endpoint = |id: &str| PreparedWrite::Node {
+        kind: "entity".into(),
+        body: "endpoint".into(),
+        source_id: SourceId::new("test:endpoint-seed").unwrap(),
+        logical_id: Some(id.into()),
+        state: InitialState::Active,
+        reason: None,
+        valid_from: None,
+        valid_until: None,
+        properties: None,
+    };
+    opened.engine.write(&[endpoint("a"), endpoint("b")]).unwrap();
     opened
         .engine
         .write(&[PreparedWrite::Edge {
@@ -369,6 +381,18 @@ fn generation_status_cache_invalidates_at_an_edge_membership_boundary() {
     let path = dir.path().join(format!("status-cache-edge-expiry{SQLITE_SUFFIX}"));
     let opened = open(&path);
     opened.engine.set_projection_scheduler_frozen_for_test(true);
+    let endpoint = |id: &str| PreparedWrite::Node {
+        kind: "entity".into(),
+        body: "endpoint".into(),
+        source_id: SourceId::new("test:endpoint-seed").unwrap(),
+        logical_id: Some(id.into()),
+        state: InitialState::Active,
+        reason: None,
+        valid_from: None,
+        valid_until: None,
+        properties: None,
+    };
+    opened.engine.write(&[endpoint("a"), endpoint("b")]).unwrap();
     opened
         .engine
         .write(&[PreparedWrite::Edge {

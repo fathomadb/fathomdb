@@ -280,20 +280,38 @@ fn unrelated_growth_leaves_ticket_queued_when_resource_envelope_changes() {
 fn absent_logical_root_never_completes_over_retained_touching_edges() {
     let (_dir, engine) = fixture();
     engine
-        .write(&[PreparedWrite::Edge {
-            kind: "rel".into(),
-            from: "already-absent".into(),
-            to: "survivor".into(),
-            source_id: SourceId::new("edge-source").unwrap(),
-            logical_id: Some("dangling-edge".into()),
-            body: Some("danglingphysicalmarker85".into()),
-            t_valid: None,
-            t_invalid: None,
-            confidence: None,
-            extractor_model_id: None,
-            temporal_fallback: None,
-            properties: None,
-        }])
+        .write(&[
+            PreparedWrite::Node {
+                kind: "doc".into(),
+                body: "temporary endpoint for forensic absence".into(),
+                source_id: SourceId::new("edge-source").unwrap(),
+                logical_id: Some("already-absent".into()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                properties: None,
+            },
+            PreparedWrite::Edge {
+                kind: "rel".into(),
+                from: "already-absent".into(),
+                to: "survivor".into(),
+                source_id: SourceId::new("edge-source").unwrap(),
+                logical_id: Some("dangling-edge".into()),
+                body: Some("danglingphysicalmarker85".into()),
+                t_valid: None,
+                t_invalid: None,
+                confidence: None,
+                extractor_model_id: None,
+                temporal_fallback: None,
+                properties: None,
+            },
+        ])
+        .unwrap();
+    // Simulate a legacy/damaged store whose endpoint node row is already absent
+    // while the touching edge row remains retained.
+    engine
+        .execute_for_test("DELETE FROM canonical_nodes WHERE logical_id = 'already-absent'")
         .unwrap();
     assert_eq!(
         engine

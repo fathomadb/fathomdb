@@ -214,12 +214,14 @@ fn test_seed_excludes_temporal_fallback_and_expired_edges() {
             entity_node("nodea record", "a"),
             entity_node("nodeb record", "b"),
             entity_node("nodec record", "c"),
+            entity_node("nodecx record", "cx"),
             entity_node("noded record", "d"),
+            entity_node("nodedx record", "dx"),
             // LIVE edge (a-b) — seeds.
             edge("a", "b", "live", "treaty negotiation summit", None, None, None),
-            // temporal_fallback edge (c-?) — must NOT seed.
+            // temporal_fallback edge (c-cx) — must NOT seed.
             edge("c", "cx", "fb", "treaty negotiation summit", None, None, Some(true)),
-            // expired edge (d-?) — t_invalid in the past — must NOT seed.
+            // expired edge (d-dx) — t_invalid in the past — must NOT seed.
             edge(
                 "d",
                 "dx",
@@ -233,8 +235,8 @@ fn test_seed_excludes_temporal_fallback_and_expired_edges() {
         .expect("write");
 
     let s = opened.engine._graph_frontier_stats_for_test("treaty negotiation").expect("stats");
-    // Only the live edge's endpoints (a, b) are active seeds. `cx`/`dx` are not
-    // even written as nodes; `c`/`d` would only seed via their excluded edges.
+    // Only the live edge's endpoints (a, b) are active seeds; `c`/`cx`/`d`/`dx`
+    // would only seed via their excluded edges.
     // Entity bodies ("... record") do not contain the query terms, so source B is empty.
     assert_eq!(
         s.seeds_resolved, 2,

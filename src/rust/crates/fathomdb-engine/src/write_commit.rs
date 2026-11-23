@@ -53,6 +53,16 @@ pub(crate) fn max_cursor(connection: &Connection, table: &str) -> rusqlite::Resu
     connection.query_row(&sql, [], |row| row.get::<_, u64>(0))
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum EndpointValidationMode {
+    /// Enforce active, non-superseded endpoints for every edge in `batch`.
+    Strict,
+    /// Single-operation actuation loop: `validate_prospective_edge_endpoints`
+    /// runs post-loop in `simulate_request` so same-batch `[PutDerivedEdge, PutNode]`
+    /// succeeds and dangling actuation edges return `ActuationOutcomeV1::Refused`.
+    DeferredToActuationSimulation,
+}
+
 #[derive(Debug)]
 pub(crate) enum CommitBatchError {
     Sql(rusqlite::Error),
@@ -561,6 +571,7 @@ fn commit_batch_transaction(
             provenance_row_cap,
             vector_kinds_to_enrol,
             dependency_closure::SoftClosureMode::Complete,
+            EndpointValidationMode::Strict,
         )
         .and_then(|result| {
             if !batch.is_empty() {
@@ -593,6 +604,7 @@ fn commit_batch_transaction(
         provenance_row_cap,
         vector_kinds_to_enrol,
         dependency_closure::SoftClosureMode::Complete,
+        EndpointValidationMode::Strict,
     )?;
     if !batch.is_empty() {
         crate::temporal::record_batch_commit_timestamp(
@@ -646,6 +658,7 @@ pub(crate) fn advance_read_visibility(connection: &Connection) -> rusqlite::Resu
 /// lifecycle changes, and their terminal receipt share one SQLite commit. The
 /// enclosing owner remains responsible for committing, publishing the cursor,
 /// and notifying the projection worker.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn apply_batch_in_transaction(
     tx: &Connection,
     batch: &[PreparedWrite],
@@ -654,6 +667,7 @@ pub(crate) fn apply_batch_in_transaction(
     provenance_row_cap: u64,
     vector_kinds_to_enrol: &[String],
     closure_mode: dependency_closure::SoftClosureMode,
+    endpoint_validation: EndpointValidationMode,
 ) -> Result<(u64, bool, Vec<ClosureOperationId>), CommitBatchError> {
     let scoped_physical = physical_erasure::guard_plain_write(tx, batch)?;
     if !scoped_physical {
@@ -954,21 +968,16 @@ pub(crate) fn apply_batch_in_transaction(
         register_artifact_identity(tx, original_write, cursor)?;
     }
 
-    // G8 (Slice 20 / F10) — cross-row dangling-edge flag-and-count. This runs
-    // AFTER the batch loop (so every same-batch node is already on disk in `tx`
-    // and a same-batch later-inserted endpoint is visible) and BEFORE retention /
-    // projection-cursor / commit. It is the cross-row reason this lives here and
-    // not in single-row pre-insert `validate_write`. Default is FLAG-AND-COUNT:
-    // we only COUNT, never roll back (strict-mode rollback is deferred to
-    // reserved-gap band 22 — adding a write-options surface is out of scope).
-    //
-    // Probe is `logical_id`-alone against the step-12 partial index
-    // `canonical_nodes_logical_active_idx ON canonical_nodes(logical_id)
-    // WHERE superseded_at IS NULL` (its leading column + partial predicate), so
-    // it SEARCHes the index with no SCAN (see `tests/pr_g8_dangling_edges.rs`
-    // case (f)). There is no node-kind to match: `canonical_edges` stores only
-    // the edge's own kind, not the endpoint node's kind.
-    let dangling_edge_endpoints = count_dangling_edge_endpoints(tx, batch)?;
+    // Strict write-time endpoint integrity: runs AFTER the batch loop (so
+    // same-batch later-inserted active endpoints are visible and in-batch
+    // deactivations are observed) and BEFORE retention / visibility advance /
+    // commit. Single-operation actuation simulation defers this check to
+    // `validate_prospective_edge_endpoints` post-loop so edge-before-node
+    // batches commit and dangling actuation edges return typed Refused.
+    if matches!(endpoint_validation, EndpointValidationMode::Strict) {
+        validate_strict_batch_edge_endpoints(tx, batch)?;
+    }
+    let dangling_edge_endpoints: u64 = 0;
 
     enforce_provenance_retention(tx, provenance_row_cap)?;
     advance_projection_cursor(tx)?;
@@ -979,60 +988,35 @@ pub(crate) fn apply_batch_in_transaction(
     Ok((dangling_edge_endpoints, unstranded, closure_ids))
 }
 
-fn count_dangling_edge_endpoints(
+fn validate_strict_batch_edge_endpoints(
     tx: &Connection,
     batch: &[PreparedWrite],
-) -> rusqlite::Result<u64> {
-    // O(N) pre-pass: record, per `logical_id`, the LAST (highest) index at
-    // which an `Edge { logical_id: Some(_), .. }` with that id appears. Keyed
-    // by `logical_id` ALONE (Decision 5, HITL-SIGNED 2026-06-05) to match the
-    // supersession UPDATE, which keys by logical_id alone: a kind-change
-    // re-ingest of the same edge logical_id SUPERSEDES the earlier one.
-    // Iterating front-to-back and overwriting means the stored value ends up
-    // as the final index for each id. An edge at index `i` with that id is
-    // then in-batch-superseded iff `last_index[lid] > i`. This is
-    // behavior-identical to the prior per-edge `batch[i+1..]` `.any(..)` scan
-    // (which was O(N²) under the single-writer txn) — same skip-set, same count.
-    let mut last_index: HashMap<String, usize> = HashMap::new();
-    for (i, write) in batch.iter().enumerate() {
-        let write = storage_write_shape(write);
-        if let PreparedWrite::Edge { logical_id: Some(lid), .. } = write.as_ref() {
-            last_index.insert(lid.clone(), i);
-        }
+) -> Result<(), CommitBatchError> {
+    // Zero-SQL fast path: node-only / non-edge batches must not prepare or run
+    // any query against `canonical_nodes`.
+    let has_edges = batch
+        .iter()
+        .any(|write| matches!(storage_write_shape(write).as_ref(), PreparedWrite::Edge { .. }));
+    if !has_edges {
+        return Ok(());
     }
 
-    let mut probe = None;
-    let mut count: u64 = 0;
-    for (i, write) in batch.iter().enumerate() {
+    let mut probe = tx.prepare(
+        "SELECT 1 FROM canonical_nodes WHERE logical_id = ?1 AND superseded_at IS NULL AND state = 'active' LIMIT 1",
+    )?;
+    // Validate EVERY edge in the batch (including edges superseded later in the
+    // same batch under G0 `logical_id` or G11 `(from_id, to_id, kind)` rules).
+    for write in batch {
         let write = storage_write_shape(write);
-        if let PreparedWrite::Edge { from, to, logical_id, .. } = write.as_ref() {
-            // Honor `edge.superseded_at IS NULL`: an edge inserted in this
-            // batch is active unless a LATER same-batch edge with the same
-            // `Some(logical_id)` tombstoned it (the loop's supersession
-            // UPDATE). Skip such an in-batch-superseded edge. Edges with
-            // `logical_id: None` are never superseded-in-batch.
-            if let Some(lid) = logical_id {
-                let superseded_in_batch =
-                    last_index.get(lid.as_str()).is_some_and(|&last| last > i);
-                if superseded_in_batch {
-                    continue;
-                }
-            }
-            if probe.is_none() {
-                probe = Some(tx.prepare(
-                    "SELECT 1 FROM canonical_nodes WHERE logical_id = ?1 AND superseded_at IS NULL LIMIT 1",
-                )?);
-            }
-            let probe = probe.as_mut().expect("endpoint probe prepared for active edge");
-            // Probe `from_id` and `to_id` independently (0, 1, or 2 per edge).
+        if let PreparedWrite::Edge { from, to, .. } = write.as_ref() {
             for endpoint in [from, to] {
                 if !probe.exists(params![endpoint])? {
-                    count = count.saturating_add(1);
+                    return Err(CommitBatchError::Engine(EngineError::WriteValidation));
                 }
             }
         }
     }
-    Ok(count)
+    Ok(())
 }
 
 /// Cap sweep over the op-store mutation log: keeps the newest `cap` SWEEPABLE
@@ -1113,8 +1097,8 @@ impl Engine {
 
 #[cfg(test)]
 mod tests {
-    use super::count_dangling_edge_endpoints;
-    use crate::{Engine, InitialState, PreparedWrite, SourceId};
+    use super::{validate_strict_batch_edge_endpoints, CommitBatchError};
+    use crate::{Engine, EngineError, InitialState, PreparedWrite, SourceId};
     use rusqlite::hooks::{AuthAction, AuthContext, Authorization};
 
     #[test]
@@ -1166,16 +1150,25 @@ mod tests {
                 }))
                 .unwrap();
             let node_result =
-                count_dangling_edge_endpoints(connection, std::slice::from_ref(&node));
-            let edge_error = count_dangling_edge_endpoints(connection, std::slice::from_ref(&edge))
-                .expect_err("Edge endpoint checks must consult SQLite");
+                validate_strict_batch_edge_endpoints(connection, std::slice::from_ref(&node));
+            let edge_error =
+                validate_strict_batch_edge_endpoints(connection, std::slice::from_ref(&edge))
+                    .expect_err("Edge endpoint checks must consult SQLite");
             connection.authorizer(None::<fn(AuthContext<'_>) -> Authorization>).unwrap();
-            assert!(matches!(edge_error, rusqlite::Error::SqliteFailure(error, _)
-                if error.code == rusqlite::ErrorCode::AuthorizationForStatementDenied));
-            assert_eq!(count_dangling_edge_endpoints(connection, &[edge]).unwrap(), 2);
+            assert!(matches!(
+                edge_error,
+                CommitBatchError::Sql(rusqlite::Error::SqliteFailure(error, _))
+                    if error.code == rusqlite::ErrorCode::AuthorizationForStatementDenied
+            ));
+            let strict_err = validate_strict_batch_edge_endpoints(connection, &[edge])
+                .expect_err("Dangling edge must be rejected with WriteValidation");
             assert!(
-                matches!(node_result, Ok(0)),
-                "Node-only dangling check must not read endpoint state: {node_result:?}"
+                matches!(strict_err, CommitBatchError::Engine(EngineError::WriteValidation)),
+                "expected CommitBatchError::Engine(WriteValidation), got {strict_err:?}"
+            );
+            assert!(
+                matches!(node_result, Ok(())),
+                "Node-only endpoint check must not read canonical_nodes: {node_result:?}"
             );
         }
         let receipt = opened.engine.write(&[node]).unwrap();

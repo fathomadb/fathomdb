@@ -528,6 +528,12 @@ fn slice38_properties_physical_erasure_autonomous_and_explicit() {
         let engine = Engine::open(&path).expect("open").engine;
         let huge_prop = "p".repeat((2 << 20) + 64);
         engine
+            .write(&[
+                node("a", "test:endpoint-seed", "entity", "endpoint", None),
+                node("b", "test:endpoint-seed", "entity", "endpoint", None),
+            ])
+            .expect("seed endpoints");
+        engine
             .write(&[edge(
                 "huge-edge",
                 "src-huge",

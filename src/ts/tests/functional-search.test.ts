@@ -16,7 +16,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { Engine } from "../src/index.js";
+import { Engine, WriteValidationError } from "../src/index.js";
 import type { SearchHit } from "../src/index.js";
 import { freshDbPath } from "./helpers.js";
 
@@ -202,15 +202,15 @@ test("functional write: a supersession write surfaces its row cursor", async () 
   }
 });
 
-// Slice 20 / X1 / G8 — a write whose batch contains a dangling edge returns
-// danglingEdgeEndpoints > 0; a clean batch returns 0. The Python harness
-// (test_functional_dangling_edge_count_across_ffi) asserts the SAME values for
-// the SAME batches, proving Py ≡ TS for the dangling count.
-test("functional write: dangling-edge count (Py ≡ TS)", async () => {
+// 0.8.31 Slice 30 / R31-04 — a clean batch commits with
+// danglingEdgeEndpoints === 0; a batch with missing edge endpoints fails
+// atomically with WriteValidationError and commits zero rows. The Python
+// harness (test_functional_dangling_edge_count_across_ffi) asserts the SAME contract.
+test("functional write: strict edge endpoints (Py ≡ TS)", async () => {
   const engine = await Engine.open(freshDbPath());
   try {
     // Clean batch: the edge's endpoints resolve to live logicalId nodes inserted
-    // later in the SAME batch (cross-row) -> 0 dangling.
+    // in the SAME batch (cross-row) -> 0 dangling.
     const clean = await engine.write([
       { kind: "doc", body: "n1", logicalId: "N1", sourceId: SOURCE_ID },
       { kind: "doc", body: "n2", logicalId: "N2", sourceId: SOURCE_ID },
@@ -218,12 +218,22 @@ test("functional write: dangling-edge count (Py ≡ TS)", async () => {
     ]);
     assert.equal(clean.danglingEdgeEndpoints, 0);
 
-    // Dangling batch: both endpoints reference missing logicalIds -> 2
-    // (flag-and-count: the write still succeeds).
-    const dangling = await engine.write([
-      { edge: { kind: "rel", from: "GHOST_A", to: "GHOST_B", sourceId: SOURCE_ID } },
-    ]);
-    assert.equal(dangling.danglingEdgeEndpoints, 2);
+    // Dangling batch: missing endpoints are strictly refused atomically.
+    await assert.rejects(
+      () =>
+        engine.write([
+          {
+            kind: "doc",
+            body: "rollback-witness-ts",
+            logicalId: "ROLLBACK_WITNESS",
+            sourceId: SOURCE_ID,
+          },
+          { edge: { kind: "rel", from: "GHOST_A", to: "GHOST_B", sourceId: SOURCE_ID } },
+        ]),
+      (error: unknown) => error instanceof WriteValidationError,
+    );
+    const witness = await engine.searchTextOnly("rollback-witness-ts");
+    assert.equal(witness.results.length, 0);
   } finally {
     await engine.close();
   }

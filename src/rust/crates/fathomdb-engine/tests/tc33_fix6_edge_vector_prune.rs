@@ -73,6 +73,18 @@ fn count(conn: &Connection, sql: &str, cursor: i64) -> u64 {
 }
 
 fn write_fact_edge(engine: &Engine, logical: &str, body: &str) -> i64 {
+    let endpoint = |id: &str| PreparedWrite::Node {
+        kind: "entity".to_string(),
+        body: "endpoint".to_string(),
+        source_id: SourceId::new("test:endpoint-seed").expect("source id"),
+        logical_id: Some(id.to_string()),
+        state: fathomdb_engine::InitialState::Active,
+        reason: None,
+        valid_from: None,
+        valid_until: None,
+        properties: None,
+    };
+    engine.write(&[endpoint("bob"), endpoint("acme")]).expect("seed endpoints");
     let edge = PreparedWrite::Edge {
         kind: "works_for".to_string(),
         from: "bob".to_string(),

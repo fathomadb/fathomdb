@@ -170,6 +170,7 @@ fn edge_presence_keeps_exact_mixed_text_reference_ranks() {
     let path = dir.path().join(format!("edges{SQLITE_SUFFIX}"));
     let opened = Engine::open_with_embedder_for_test(&path, Arc::new(Fixed)).unwrap();
     opened.engine.configure_vector_kind_for_test("doc").unwrap();
+    opened.engine.write(&[node(Some("missing"), "entity", "endpoint")]).unwrap();
     let receipt = opened
         .engine
         .write(&[

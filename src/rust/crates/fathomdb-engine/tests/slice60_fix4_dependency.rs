@@ -3,13 +3,14 @@
 #![cfg(all(feature = "test-hooks", feature = "operator"))]
 
 use fathomdb_engine::{
-    ArtifactRevisionId, Engine, GraphExpandRequestV1, GraphReadContextV1, GraphSeedV1, IdSpace,
-    InitialState, PreparedWrite, ProvenancedNodeV1, ReadContextV1, ReadView, SearchFilter,
-    SourceDependencyRegistrationV1, SourceId, SourceVersionId, StructuralDependencyStateV1,
-    TraversalDirection, WriteProvenanceV1,
+    ArtifactRevisionId, CanonicalHash, Engine, GraphExpandRequestV1, GraphReadContextV1,
+    GraphSeedV1, IdSpace, InitialState, PreparedWrite, ProvenancedNodeV1, ReadContextV1, ReadView,
+    SearchFilter, SourceDependencyRegistrationV1, SourceId, SourceLocator, SourceRevisionId,
+    SourceVersionId, StructuralDependencyStateV1, TraversalDirection, WriteProvenanceV1,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use rusqlite::Connection;
+use sha2::{Digest, Sha256};
 use tempfile::TempDir;
 
 fn request() -> GraphExpandRequestV1 {
@@ -42,6 +43,8 @@ fn fixture(directory: &TempDir, name: &str) -> (std::path::PathBuf, Engine) {
     let path = directory.path().join(format!("{name}{SQLITE_SUFFIX}"));
     let opened = Engine::open(&path).unwrap();
     let source_body = "source body";
+    let source_digest: String =
+        Sha256::digest(source_body.as_bytes()).iter().map(|b| format!("{b:02x}")).collect();
     opened
         .engine
         .write(&[
@@ -71,6 +74,24 @@ fn fixture(directory: &TempDir, name: &str) -> (std::path::PathBuf, Engine) {
                 ),
                 properties: None,
             }),
+            PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+                logical_id: Some("derived".into()),
+                kind: "fact".into(),
+                body: "derived".into(),
+                source_id: SourceId::new("source-owner").unwrap(),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                provenance: WriteProvenanceV1::derived(
+                    ArtifactRevisionId::new("derived-r1").unwrap(),
+                    SourceVersionId::new("v1").unwrap(),
+                    SourceRevisionId::new("source-r1").unwrap(),
+                    SourceLocator::whole_body(),
+                    CanonicalHash::sha256(source_digest).unwrap(),
+                ),
+                properties: None,
+            }),
             PreparedWrite::Edge {
                 logical_id: Some("root-derived".into()),
                 kind: "link".into(),
@@ -86,23 +107,6 @@ fn fixture(directory: &TempDir, name: &str) -> (std::path::PathBuf, Engine) {
                 properties: None,
             },
         ])
-        .unwrap();
-    opened
-        .engine
-        .execute_for_test(
-            "INSERT INTO canonical_nodes(\
-                write_cursor,kind,body,source_id,logical_id,row_kind,state,reason,valid_from,valid_until\
-             ) VALUES(4,'fact','derived','source-owner','derived','leaf','active',NULL,NULL,NULL); \
-             INSERT INTO _fathomdb_artifact_revisions(\
-                schema_version,revision_id,artifact_class,write_cursor,artifact_role,completeness\
-             ) VALUES(1,'derived-r1','node',4,'derived_semantic','complete'); \
-             INSERT INTO _fathomdb_source_links(\
-                schema_version,artifact_revision_id,source_id,source_version_id,source_revision_id,\
-                locator_kind,start_byte,end_byte,hash_algorithm,hash_digest\
-             ) SELECT schema_version,'derived-r1','source-owner',source_version_id,source_revision_id,\
-                      locator_kind,start_byte,end_byte,hash_algorithm,hash_digest \
-               FROM _fathomdb_source_links WHERE artifact_revision_id='source-r1'",
-        )
         .unwrap();
     (path, opened.engine)
 }

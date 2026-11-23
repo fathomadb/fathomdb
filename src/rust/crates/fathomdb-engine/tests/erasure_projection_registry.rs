@@ -22,7 +22,7 @@ use std::thread;
 use std::time::Duration;
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
-use fathomdb_engine::{Engine, PreparedWrite};
+use fathomdb_engine::{Engine, InitialState, PreparedWrite};
 use fathomdb_schema::SQLITE_SUFFIX;
 use rusqlite::Connection;
 use tempfile::TempDir;
@@ -298,6 +298,22 @@ fn rebuild_edge_projection_matches_write_path() {
     let embedder = Arc::new(DeterministicEmbedder::new(8));
     let opened = Engine::open_with_embedder_for_test(&path, embedder.clone()).expect("open");
     opened.engine.configure_vector_kind_for_test("edge_fact").expect("vector kind");
+
+    let endpoint = |id: &str| PreparedWrite::Node {
+        kind: "entity".to_string(),
+        body: "endpoint".to_string(),
+        source_id: fathomdb_engine::SourceId::new("test:endpoint-seed").expect("test source id"),
+        logical_id: Some(id.to_string()),
+        state: InitialState::Active,
+        reason: None,
+        valid_from: None,
+        valid_until: None,
+        properties: None,
+    };
+    opened
+        .engine
+        .write(&[endpoint("bob"), endpoint("acme"), endpoint("carol")])
+        .expect("seed endpoints");
 
     let fact_edge = PreparedWrite::Edge {
         kind: "works_for".to_string(),

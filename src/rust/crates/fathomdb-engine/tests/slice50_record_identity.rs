@@ -137,6 +137,7 @@ fn equal_body_node_and_edge_keep_their_namespaces_and_text_positions() {
     )
     .unwrap();
     let body = "peculiar wombat telemetry";
+    opened.engine.write(&[node(Some("missing"), "test:endpoint-seed", "endpoint")]).unwrap();
     let receipt = opened
         .engine
         .write(&[
@@ -315,6 +316,7 @@ fn ownerless_fixture(
     let dir = TempDir::new().unwrap();
     let path = dir.path().join(format!("{name}{SQLITE_SUFFIX}"));
     let opened = Engine::open_with_choice(&path, EmbedderChoice::None).unwrap();
+    opened.engine.write(&[node(Some("missing"), "test:endpoint-seed", "endpoint")]).unwrap();
     let receipt = opened
         .engine
         .write(&[
@@ -482,6 +484,13 @@ fn conflicting_fts_owner_bodies_and_stored_kinds_refuse_instead_of_returning_for
             let write = if table == "search_index" {
                 node(Some("record"), "src:record", "cafe original")
             } else {
+                opened
+                    .engine
+                    .write(&[
+                        node(Some("missing-a"), "test:endpoint-seed", "endpoint"),
+                        node(Some("missing-b"), "test:endpoint-seed", "endpoint"),
+                    ])
+                    .unwrap();
                 PreparedWrite::Edge {
                     kind: "link".into(),
                     from: "missing-a".into(),
@@ -554,6 +563,13 @@ fn same_record_vector_edge_keeps_its_representative_kind_and_source() {
         std::sync::Arc::new(FixedEmbedder),
     )
     .unwrap();
+    opened
+        .engine
+        .write(&[
+            node(Some("missing-a"), "test:endpoint-seed", "endpoint"),
+            node(Some("missing-b"), "test:endpoint-seed", "endpoint"),
+        ])
+        .unwrap();
     let receipt = opened
         .engine
         .write(&[PreparedWrite::Edge {

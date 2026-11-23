@@ -68,10 +68,13 @@ In FathomDB 0.8.30:
      (`canonical_edges_from_active_idx(from_id, kind) WHERE superseded_at IS NULL`
      and `canonical_edges_to_active_idx(to_id, kind) WHERE superseded_at IS NULL`)
      so superseded rows never consume incident-edge `LIMIT` or `work_units`,
-     even when `edge_kinds` is empty. Historical traversal uses unified
-     composite indexes `canonical_edges_from_sup_kind_idx(from_id, superseded_at, kind)`
-     and `canonical_edges_to_sup_kind_idx(to_id, superseded_at, kind)` plus
-     `canonical_nodes_logical_sup_idx(logical_id, superseded_at, write_cursor)`
+     even when `edge_kinds` is empty. Historical traversal uses partial
+     composite indexes `canonical_edges_from_sup_kind_idx(from_id, superseded_at,
+     kind) WHERE superseded_at IS NOT NULL` and
+     `canonical_edges_to_sup_kind_idx(to_id, superseded_at, kind) WHERE
+     superseded_at IS NOT NULL` plus
+     `canonical_nodes_logical_sup_idx(logical_id, superseded_at, write_cursor)
+     WHERE superseded_at IS NOT NULL`
      (verified via `EXPLAIN QUERY PLAN` `SEARCH` for both empty and non-empty
      `edge_kinds` and historical node resolution).
 2. **Closed typed predicates on edges and target nodes**:

@@ -344,14 +344,20 @@ fn step38_canonical_property_values_checks_and_indexes() {
         index_columns(&conn, "canonical_property_values_text_idx"),
         vec!["entity_class", "attr_name", "text_val", "write_cursor"]
     );
+    assert!(index_sql(&conn, "canonical_property_values", "canonical_property_values_text_idx")
+        .contains("WHERE text_val IS NOT NULL"));
     assert_eq!(
         index_columns(&conn, "canonical_property_values_num_idx"),
         vec!["entity_class", "attr_name", "num_val", "write_cursor"]
     );
+    assert!(index_sql(&conn, "canonical_property_values", "canonical_property_values_num_idx")
+        .contains("WHERE num_val IS NOT NULL"));
     assert_eq!(
         index_columns(&conn, "canonical_property_values_bool_idx"),
         vec!["entity_class", "attr_name", "bool_val", "write_cursor"]
     );
+    assert!(index_sql(&conn, "canonical_property_values", "canonical_property_values_bool_idx")
+        .contains("WHERE bool_val IS NOT NULL"));
 }
 
 #[test]
@@ -394,6 +400,8 @@ fn step38_commit_timestamps_and_canonical_indexes_exist() {
         index_columns(&conn, "canonical_nodes_logical_sup_idx"),
         vec!["logical_id", "superseded_at", "write_cursor"]
     );
+    assert!(index_sql(&conn, "canonical_nodes", "canonical_nodes_logical_sup_idx")
+        .contains("WHERE superseded_at IS NOT NULL"));
     assert_eq!(index_columns(&conn, "canonical_edges_from_active_idx"), vec!["from_id", "kind"]);
     assert!(index_sql(&conn, "canonical_edges", "canonical_edges_from_active_idx")
         .contains("WHERE superseded_at IS NULL"));
@@ -404,10 +412,14 @@ fn step38_commit_timestamps_and_canonical_indexes_exist() {
         index_columns(&conn, "canonical_edges_from_sup_kind_idx"),
         vec!["from_id", "superseded_at", "kind"]
     );
+    assert!(index_sql(&conn, "canonical_edges", "canonical_edges_from_sup_kind_idx")
+        .contains("WHERE superseded_at IS NOT NULL"));
     assert_eq!(
         index_columns(&conn, "canonical_edges_to_sup_kind_idx"),
         vec!["to_id", "superseded_at", "kind"]
     );
+    assert!(index_sql(&conn, "canonical_edges", "canonical_edges_to_sup_kind_idx")
+        .contains("WHERE superseded_at IS NOT NULL"));
 }
 
 #[test]

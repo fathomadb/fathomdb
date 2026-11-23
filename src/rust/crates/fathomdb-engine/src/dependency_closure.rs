@@ -1733,13 +1733,11 @@ pub(crate) fn source_revision_for_cursor(
     cursor: i64,
 ) -> Result<Option<String>, EngineError> {
     connection
-        .query_row(
+        .prepare_cached(
             "SELECT revision_id FROM _fathomdb_artifact_revisions \
              WHERE write_cursor=?1 AND artifact_role='canonical_source'",
-            [cursor],
-            |row| row.get(0),
         )
-        .optional()
+        .and_then(|mut stmt| stmt.query_row([cursor], |row| row.get(0)).optional())
         .map_err(|_| EngineError::Storage)
 }
 

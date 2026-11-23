@@ -1218,40 +1218,76 @@ fn insert_canonical_property_value(
     Ok(())
 }
 
+fn parse_body_json_object(body: &str) -> Option<serde_json::Value> {
+    if !body.trim_start().starts_with('{') {
+        return None;
+    }
+    match serde_json::from_str::<serde_json::Value>(body) {
+        Ok(value @ serde_json::Value::Object(_)) => Some(value),
+        _ => None,
+    }
+}
+
+fn extract_typed_node_property_from_parsed_body(
+    parsed_body: Option<&serde_json::Value>,
+    name: &str,
+    stored: &StoredProjection,
+) -> Option<PropertyValue> {
+    let root = parsed_body?;
+    let terminal = match &stored.source {
+        None => root.as_object()?.get(name)?,
+        Some(segments) => {
+            let mut current = root;
+            for segment in segments {
+                current = current.as_object()?.get(segment.as_str())?;
+            }
+            current
+        }
+    };
+    match terminal {
+        serde_json::Value::String(s) => Some(PropertyValue::String(s.clone())),
+        serde_json::Value::Bool(b) => Some(PropertyValue::Bool(*b)),
+        serde_json::Value::Number(n) => {
+            if let Some(i) = n.as_i64() {
+                Some(PropertyValue::Int(i))
+            } else {
+                n.as_f64()
+                    .and_then(crate::properties::normalize_finite_f64)
+                    .map(PropertyValue::Float)
+            }
+        }
+        serde_json::Value::Null | serde_json::Value::Array(_) | serde_json::Value::Object(_) => {
+            None
+        }
+    }
+}
+
+fn extract_typed_node_property_with_cache(
+    body: &str,
+    properties: Option<&PropertyMap>,
+    name: &str,
+    stored: &StoredProjection,
+    parsed_body: &mut Option<Option<serde_json::Value>>,
+) -> Option<PropertyValue> {
+    if stored.entity_class != PropertyEntityClass::Node {
+        return None;
+    }
+    if let Some(prop_val) = properties.and_then(|map| map.get(name)) {
+        return Some(prop_val.clone());
+    }
+    let parsed = parsed_body.get_or_insert_with(|| parse_body_json_object(body));
+    extract_typed_node_property_from_parsed_body(parsed.as_ref(), name, stored)
+}
+
 pub(crate) fn extract_typed_node_property(
-    conn: &Connection,
+    _conn: &Connection,
     body: &str,
     properties: Option<&PropertyMap>,
     name: &str,
     stored: &StoredProjection,
 ) -> rusqlite::Result<Option<PropertyValue>> {
-    if stored.entity_class != PropertyEntityClass::Node {
-        return Ok(None);
-    }
-    if let Some(prop_val) = properties.and_then(|map| map.get(name)) {
-        return Ok(Some(prop_val.clone()));
-    }
-    let path = projection_json_path(name, stored);
-    let mut stmt = conn.prepare_cached(
-        "SELECT CASE WHEN json_valid(?1) THEN json_type(?1, ?2) END,
-                CASE WHEN json_valid(?1) THEN json_extract(?1, ?2) END",
-    )?;
-    let (json_type, raw_val): (Option<String>, rusqlite::types::Value) =
-        stmt.query_row(params![body, path], |row| Ok((row.get(0)?, row.get(1)?)))?;
-    let parsed = match (json_type.as_deref(), raw_val) {
-        (Some("text"), rusqlite::types::Value::Text(s)) => Some(PropertyValue::String(s)),
-        (Some("integer"), rusqlite::types::Value::Integer(i)) => Some(PropertyValue::Int(i)),
-        (Some("real"), rusqlite::types::Value::Real(f)) => {
-            crate::properties::normalize_finite_f64(f).map(PropertyValue::Float)
-        }
-        (Some("real"), rusqlite::types::Value::Integer(i)) => {
-            crate::properties::normalize_finite_f64(i as f64).map(PropertyValue::Float)
-        }
-        (Some("true"), _) => Some(PropertyValue::Bool(true)),
-        (Some("false"), _) => Some(PropertyValue::Bool(false)),
-        _ => None,
-    };
-    Ok(parsed)
+    let mut parsed_body = None;
+    Ok(extract_typed_node_property_with_cache(body, properties, name, stored, &mut parsed_body))
 }
 
 fn project_one_attribute(
@@ -1261,6 +1297,7 @@ fn project_one_attribute(
     properties: Option<&PropertyMap>,
     name: &str,
     stored: &StoredProjection,
+    parsed_body: &mut Option<Option<serde_json::Value>>,
 ) -> rusqlite::Result<()> {
     if stored.entity_class != PropertyEntityClass::Node {
         return Ok(());
@@ -1268,7 +1305,9 @@ fn project_one_attribute(
     if !stored.wants_eav() && !stored.wants_property_value() {
         return Ok(());
     }
-    let Some(typed_value) = extract_typed_node_property(tx, body, properties, name, stored)? else {
+    let Some(typed_value) =
+        extract_typed_node_property_with_cache(body, properties, name, stored, parsed_body)
+    else {
         return Ok(());
     };
     if stored.wants_property_value() {
@@ -1276,18 +1315,18 @@ fn project_one_attribute(
     }
     if stored.wants_eav() {
         let value = property_value_to_eav_string(&typed_value);
-        tx.execute(
+        tx.prepare_cached(
             "INSERT INTO canonical_attributes(write_cursor, attr_name, attr_value)
              VALUES(?1, ?2, ?3)",
-            params![cursor, name, value],
-        )?;
+        )?
+        .execute(params![cursor, name, value])?;
         if stored.wants_property_fts() {
             physical_erasure::mark_dirty(tx)?;
-            tx.execute(
+            tx.prepare_cached(
                 "INSERT INTO property_search_index(attr_value, attr_name, write_cursor)
                  VALUES(?1, ?2, ?3)",
-                params![value, name, cursor],
-            )?;
+            )?
+            .execute(params![value, name, cursor])?;
         }
     }
     Ok(())
@@ -1380,6 +1419,7 @@ pub(crate) fn vector_attr_insert_fragments(
     let mut col_sql = String::new();
     let mut ph_sql = String::new();
     let mut values: Vec<rusqlite::types::Value> = Vec::new();
+    let mut parsed_body = None;
     for (i, col) in cols.iter().enumerate() {
         let name = decode_attr_vec0_column(col).unwrap_or_default();
         let typed = match registry.get(&name) {
@@ -1387,7 +1427,13 @@ pub(crate) fn vector_attr_insert_fragments(
                 if stored.entity_class == PropertyEntityClass::Node
                     && stored.roles.contains(&ProjectionRole::Filterable) =>
             {
-                extract_typed_node_property(conn, body, properties, &name, stored)?
+                extract_typed_node_property_with_cache(
+                    body,
+                    properties,
+                    &name,
+                    stored,
+                    &mut parsed_body,
+                )
             }
             _ => None,
         };
@@ -1405,17 +1451,39 @@ pub(crate) fn project_node_attributes(
     body: &str,
     properties: Option<&PropertyMap>,
 ) -> rusqlite::Result<()> {
-    let registry = load_projection_registry(tx)?;
-    for (name, stored) in &registry {
-        project_one_attribute(tx, cursor, body, properties, name, stored)?;
+    project_node_attributes_with_registry(tx, cursor, body, properties, None)
+}
+
+pub(crate) fn project_node_attributes_with_registry(
+    tx: &Connection,
+    cursor: i64,
+    body: &str,
+    properties: Option<&PropertyMap>,
+    registry: Option<&BTreeMap<String, StoredProjection>>,
+) -> rusqlite::Result<()> {
+    let loaded;
+    let registry = match registry {
+        Some(reg) => reg,
+        None => {
+            loaded = load_projection_registry(tx)?;
+            &loaded
+        }
+    };
+    if registry.is_empty() {
+        return Ok(());
+    }
+    let mut parsed_body = None;
+    for (name, stored) in registry {
+        project_one_attribute(tx, cursor, body, properties, name, stored, &mut parsed_body)?;
     }
     Ok(())
 }
 
-pub(crate) fn project_edge_properties(
+pub(crate) fn project_edge_properties_with_registry(
     tx: &Connection,
     cursor: i64,
     properties: Option<&PropertyMap>,
+    registry: Option<&BTreeMap<String, StoredProjection>>,
 ) -> rusqlite::Result<()> {
     let Some(props) = properties else {
         return Ok(());
@@ -1423,16 +1491,15 @@ pub(crate) fn project_edge_properties(
     if props.is_empty() {
         return Ok(());
     }
-    let has_edge_specs: bool = tx
-        .prepare_cached(
-            "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = '_fathomdb_projection_registry')",
-        )?
-        .query_row([], |row| row.get(0))?;
-    if !has_edge_specs {
-        return Ok(());
-    }
-    let registry = load_projection_registry(tx)?;
-    for (name, stored) in &registry {
+    let loaded;
+    let registry = match registry {
+        Some(reg) => reg,
+        None => {
+            loaded = load_projection_registry(tx)?;
+            &loaded
+        }
+    };
+    for (name, stored) in registry {
         if stored.entity_class == PropertyEntityClass::Edge && stored.wants_property_value() {
             if let Some(value) = props.get(name) {
                 insert_canonical_property_value(
@@ -1475,7 +1542,16 @@ fn backfill_attribute(
                 collected
             };
             for (cursor, body, properties) in rows {
-                project_one_attribute(tx, cursor, &body, properties.as_ref(), name, stored)?;
+                let mut parsed_body = None;
+                project_one_attribute(
+                    tx,
+                    cursor,
+                    &body,
+                    properties.as_ref(),
+                    name,
+                    stored,
+                    &mut parsed_body,
+                )?;
             }
         }
         PropertyEntityClass::Edge => {
@@ -2656,8 +2732,8 @@ pub(crate) fn rederive_projections_on_boot(conn: &Connection) -> rusqlite::Resul
     if registry.is_empty() {
         return Ok(());
     }
-    let persisted = projection_registry_cache_snapshot(conn)?;
-    let expected = expected_projection_registry_cache_snapshot(conn, &registry)?;
+    let persisted = persisted_projection_registry_cache_digest(conn)?;
+    let expected = expected_projection_registry_cache_digest(conn, &registry)?;
     if persisted == expected {
         return Ok(());
     }
@@ -2680,241 +2756,379 @@ pub(crate) fn rederive_projections_on_boot(conn: &Connection) -> rusqlite::Resul
     }
 }
 
-type ProjectionAttributeCacheRow = (i64, String, Option<String>);
-
-type ProjectionPropertyFtsCacheRow = (i64, String, String);
-
-#[derive(Eq, Ord, PartialEq, PartialOrd)]
-struct ProjectionPropertyValueCacheRow {
-    entity_class: String,
-    write_cursor: i64,
-    attr_name: String,
-    value_type: String,
-    text_val: Option<String>,
-    num_int: Option<i64>,
-    num_real_bits: Option<u64>,
-    bool_val: Option<i64>,
+struct StreamDigest {
+    count: u64,
+    hasher: Sha256,
 }
 
-impl ProjectionPropertyValueCacheRow {
-    fn from_property_value(
+impl StreamDigest {
+    fn new(domain: &[u8]) -> Self {
+        let mut hasher = Sha256::new();
+        hasher.update((domain.len() as u64).to_be_bytes());
+        hasher.update(domain);
+        Self { count: 0, hasher }
+    }
+
+    fn update_bytes(&mut self, bytes: &[u8]) {
+        self.hasher.update((bytes.len() as u64).to_be_bytes());
+        self.hasher.update(bytes);
+    }
+
+    fn update_opt_str(&mut self, value: Option<&str>) {
+        match value {
+            None => self.hasher.update([0u8]),
+            Some(s) => {
+                self.hasher.update([1u8]);
+                self.update_bytes(s.as_bytes());
+            }
+        }
+    }
+
+    fn update_opt_i64(&mut self, value: Option<i64>) {
+        match value {
+            None => self.hasher.update([0u8]),
+            Some(v) => {
+                self.hasher.update([1u8]);
+                self.hasher.update(v.to_be_bytes());
+            }
+        }
+    }
+
+    fn update_opt_u64(&mut self, value: Option<u64>) {
+        match value {
+            None => self.hasher.update([0u8]),
+            Some(v) => {
+                self.hasher.update([1u8]);
+                self.hasher.update(v.to_be_bytes());
+            }
+        }
+    }
+
+    fn push_attribute(&mut self, write_cursor: i64, attr_name: &str, attr_value: Option<&str>) {
+        self.count = self.count.saturating_add(1);
+        self.hasher.update(write_cursor.to_be_bytes());
+        self.update_bytes(attr_name.as_bytes());
+        self.update_opt_str(attr_value);
+    }
+
+    fn push_property_fts(&mut self, write_cursor: i64, attr_name: &str, attr_value: &str) {
+        self.count = self.count.saturating_add(1);
+        self.hasher.update(write_cursor.to_be_bytes());
+        self.update_bytes(attr_name.as_bytes());
+        self.update_bytes(attr_value.as_bytes());
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn push_property_value(
+        &mut self,
+        entity_class: &str,
+        write_cursor: i64,
+        attr_name: &str,
+        value_type: &str,
+        text_val: Option<&str>,
+        num_int: Option<i64>,
+        num_real_bits: Option<u64>,
+        bool_val: Option<i64>,
+    ) {
+        self.count = self.count.saturating_add(1);
+        self.update_bytes(entity_class.as_bytes());
+        self.hasher.update(write_cursor.to_be_bytes());
+        self.update_bytes(attr_name.as_bytes());
+        self.update_bytes(value_type.as_bytes());
+        self.update_opt_str(text_val);
+        self.update_opt_i64(num_int);
+        self.update_opt_u64(num_real_bits);
+        self.update_opt_i64(bool_val);
+    }
+
+    fn push_typed_property_value(
+        &mut self,
         entity_class: PropertyEntityClass,
         write_cursor: i64,
-        attr_name: String,
+        attr_name: &str,
         value: &PropertyValue,
-    ) -> rusqlite::Result<Self> {
-        Ok(match value {
-            PropertyValue::String(s) => Self {
-                entity_class: entity_class.as_str().to_string(),
-                write_cursor,
-                attr_name,
-                value_type: "string".to_string(),
-                text_val: Some(s.clone()),
-                num_int: None,
-                num_real_bits: None,
-                bool_val: None,
-            },
-            PropertyValue::Int(i) => Self {
-                entity_class: entity_class.as_str().to_string(),
-                write_cursor,
-                attr_name,
-                value_type: "integer".to_string(),
-                text_val: None,
-                num_int: Some(*i),
-                num_real_bits: None,
-                bool_val: None,
-            },
+    ) -> rusqlite::Result<()> {
+        let class_str = entity_class.as_str();
+        match value {
+            PropertyValue::String(s) => {
+                self.push_property_value(
+                    class_str,
+                    write_cursor,
+                    attr_name,
+                    "string",
+                    Some(s.as_str()),
+                    None,
+                    None,
+                    None,
+                );
+            }
+            PropertyValue::Int(i) => {
+                self.push_property_value(
+                    class_str,
+                    write_cursor,
+                    attr_name,
+                    "integer",
+                    None,
+                    Some(*i),
+                    None,
+                    None,
+                );
+            }
             PropertyValue::Float(f) => {
                 let norm = crate::properties::normalize_finite_f64(*f)
                     .ok_or(rusqlite::Error::InvalidQuery)?;
-                Self {
-                    entity_class: entity_class.as_str().to_string(),
+                self.push_property_value(
+                    class_str,
                     write_cursor,
                     attr_name,
-                    value_type: "float".to_string(),
-                    text_val: None,
-                    num_int: None,
-                    num_real_bits: Some(norm.to_bits()),
-                    bool_val: None,
-                }
+                    "float",
+                    None,
+                    None,
+                    Some(norm.to_bits()),
+                    None,
+                );
             }
-            PropertyValue::Bool(b) => Self {
-                entity_class: entity_class.as_str().to_string(),
-                write_cursor,
-                attr_name,
-                value_type: "boolean".to_string(),
-                text_val: None,
-                num_int: None,
-                num_real_bits: None,
-                bool_val: Some(i64::from(*b)),
-            },
-        })
+            PropertyValue::Bool(b) => {
+                self.push_property_value(
+                    class_str,
+                    write_cursor,
+                    attr_name,
+                    "boolean",
+                    None,
+                    None,
+                    None,
+                    Some(i64::from(*b)),
+                );
+            }
+        }
+        Ok(())
+    }
+
+    fn finish(self) -> (u64, [u8; 32]) {
+        (self.count, self.hasher.finalize().into())
     }
 }
 
-type ProjectionRegistryCacheSnapshot = (
-    Vec<ProjectionAttributeCacheRow>,
-    Vec<ProjectionPropertyFtsCacheRow>,
-    Vec<ProjectionPropertyValueCacheRow>,
-);
+#[derive(Eq, PartialEq)]
+struct ProjectionRegistryCacheDigest {
+    attributes: (u64, [u8; 32]),
+    property_fts: (u64, [u8; 32]),
+    node_property_values: (u64, [u8; 32]),
+    edge_property_values: (u64, [u8; 32]),
+}
 
-fn expected_projection_registry_cache_snapshot(
+fn expected_projection_registry_cache_digest(
     conn: &Connection,
     registry: &BTreeMap<String, StoredProjection>,
-) -> rusqlite::Result<ProjectionRegistryCacheSnapshot> {
-    let nodes = {
+) -> rusqlite::Result<ProjectionRegistryCacheDigest> {
+    let mut attributes = StreamDigest::new(b"fathomdb:proj-cache:attributes:v1");
+    let mut property_fts = StreamDigest::new(b"fathomdb:proj-cache:property_fts:v1");
+    let mut node_property_values = StreamDigest::new(b"fathomdb:proj-cache:node_cpv:v1");
+    let mut edge_property_values = StreamDigest::new(b"fathomdb:proj-cache:edge_cpv:v1");
+
+    // `registry` is a `BTreeMap` in ascending UTF-8 byte order (`CAST(attr_name AS BLOB)`),
+    // so streaming canonical rows ordered by `write_cursor` emits each row class already in
+    // canonical `(write_cursor, attr_name)` order with O(1) RAM.
+    let node_specs: Vec<(&str, &StoredProjection)> = registry
+        .iter()
+        .filter(|(_, stored)| {
+            stored.entity_class == PropertyEntityClass::Node
+                && (stored.wants_eav() || stored.wants_property_value())
+        })
+        .map(|(name, stored)| (name.as_str(), stored))
+        .collect();
+    if !node_specs.is_empty() {
         let mut statement = conn.prepare(
             "SELECT write_cursor,body,properties FROM canonical_nodes \
              WHERE superseded_at IS NULL AND state='active' ORDER BY write_cursor",
         )?;
-        let rows = statement
-            .query_map([], |row| {
-                Ok((
-                    row.get::<_, i64>(0)?,
-                    row.get::<_, String>(1)?,
-                    crate::properties::decode_properties_row_col(row, 2)?,
-                ))
-            })?
-            .collect::<rusqlite::Result<Vec<_>>>()?;
-        rows
-    };
-    let edges = {
-        let mut statement = conn.prepare(
-            "SELECT write_cursor,properties FROM canonical_edges \
-             WHERE superseded_at IS NULL AND properties IS NOT NULL ORDER BY write_cursor",
-        )?;
-        let rows = statement
-            .query_map([], |row| {
-                Ok((row.get::<_, i64>(0)?, crate::properties::decode_properties_row_col(row, 1)?))
-            })?
-            .collect::<rusqlite::Result<Vec<_>>>()?;
-        rows
-    };
-    let mut attributes = Vec::new();
-    let mut property_fts = Vec::new();
-    let mut property_values = Vec::new();
-    for (name, stored) in registry {
-        match stored.entity_class {
-            PropertyEntityClass::Node => {
-                if !stored.wants_eav() && !stored.wants_property_value() {
-                    continue;
-                }
-                for (cursor, body, properties) in &nodes {
-                    if let Some(typed) =
-                        extract_typed_node_property(conn, body, properties.as_ref(), name, stored)?
-                    {
-                        if stored.wants_property_value() {
-                            property_values.push(
-                                ProjectionPropertyValueCacheRow::from_property_value(
-                                    PropertyEntityClass::Node,
-                                    *cursor,
-                                    name.clone(),
-                                    &typed,
-                                )?,
-                            );
-                        }
-                        if stored.wants_eav() {
-                            let value = property_value_to_eav_string(&typed);
-                            attributes.push((*cursor, name.clone(), Some(value.clone())));
-                            if stored.wants_property_fts() {
-                                property_fts.push((*cursor, name.clone(), value));
-                            }
-                        }
+        let mut rows = statement.query([])?;
+        while let Some(row) = rows.next()? {
+            let cursor: i64 = row.get(0)?;
+            let body: String = row.get(1)?;
+            let properties = crate::properties::decode_properties_row_col(row, 2)?;
+            let mut parsed_body = None;
+            for &(name, stored) in &node_specs {
+                if let Some(typed) = extract_typed_node_property_with_cache(
+                    &body,
+                    properties.as_ref(),
+                    name,
+                    stored,
+                    &mut parsed_body,
+                ) {
+                    if stored.wants_property_value() {
+                        node_property_values.push_typed_property_value(
+                            PropertyEntityClass::Node,
+                            cursor,
+                            name,
+                            &typed,
+                        )?;
                     }
-                }
-            }
-            PropertyEntityClass::Edge => {
-                if !stored.wants_property_value() {
-                    continue;
-                }
-                for (cursor, properties) in &edges {
-                    if let Some(val) = properties.as_ref().and_then(|map| map.get(name)) {
-                        property_values.push(ProjectionPropertyValueCacheRow::from_property_value(
-                            PropertyEntityClass::Edge,
-                            *cursor,
-                            name.clone(),
-                            val,
-                        )?);
+                    if stored.wants_eav() {
+                        let value = property_value_to_eav_string(&typed);
+                        attributes.push_attribute(cursor, name, Some(value.as_str()));
+                        if stored.wants_property_fts() {
+                            property_fts.push_property_fts(cursor, name, value.as_str());
+                        }
                     }
                 }
             }
         }
     }
-    attributes.sort_by(|left, right| {
-        left.0.cmp(&right.0).then_with(|| left.1.cmp(&right.1)).then_with(|| left.2.cmp(&right.2))
-    });
-    property_fts.sort_by(|left, right| {
-        left.0.cmp(&right.0).then_with(|| left.1.cmp(&right.1)).then_with(|| left.2.cmp(&right.2))
-    });
-    property_values.sort();
-    Ok((attributes, property_fts, property_values))
+
+    let edge_specs: Vec<&str> = registry
+        .iter()
+        .filter(|(_, stored)| {
+            stored.entity_class == PropertyEntityClass::Edge && stored.wants_property_value()
+        })
+        .map(|(name, _)| name.as_str())
+        .collect();
+    if !edge_specs.is_empty() {
+        let mut statement = conn.prepare(
+            "SELECT write_cursor,properties FROM canonical_edges \
+             WHERE superseded_at IS NULL AND properties IS NOT NULL ORDER BY write_cursor",
+        )?;
+        let mut rows = statement.query([])?;
+        while let Some(row) = rows.next()? {
+            let cursor: i64 = row.get(0)?;
+            let properties = crate::properties::decode_properties_row_col(row, 1)?;
+            if let Some(props) = properties.as_ref() {
+                for &name in &edge_specs {
+                    if let Some(val) = props.get(name) {
+                        edge_property_values.push_typed_property_value(
+                            PropertyEntityClass::Edge,
+                            cursor,
+                            name,
+                            val,
+                        )?;
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(ProjectionRegistryCacheDigest {
+        attributes: attributes.finish(),
+        property_fts: property_fts.finish(),
+        node_property_values: node_property_values.finish(),
+        edge_property_values: edge_property_values.finish(),
+    })
 }
 
-fn projection_registry_cache_snapshot(
+fn stream_persisted_cpv_digest(
     conn: &Connection,
-) -> rusqlite::Result<ProjectionRegistryCacheSnapshot> {
-    let attributes = {
+    entity_class: &str,
+    digest: &mut StreamDigest,
+) -> rusqlite::Result<()> {
+    // Primary key `(entity_class, write_cursor, attr_name)` with BINARY collation satisfies
+    // `ORDER BY write_cursor, attr_name` directly with zero temp B-tree.
+    let mut statement = conn.prepare(
+        "SELECT write_cursor,attr_name,value_type,text_val,num_val,bool_val \
+         FROM canonical_property_values \
+         WHERE entity_class=?1 \
+         ORDER BY write_cursor,attr_name",
+    )?;
+    let mut rows = statement.query([entity_class])?;
+    while let Some(row) = rows.next()? {
+        let write_cursor: i64 = row.get(0)?;
+        let attr_name: String = row.get(1)?;
+        let value_type: String = row.get(2)?;
+        let text_val: Option<String> = row.get(3)?;
+        let num_val: rusqlite::types::Value = row.get(4)?;
+        let bool_val: Option<i64> = row.get(5)?;
+        let (num_int, num_real_bits) = match (value_type.as_str(), num_val) {
+            ("integer", rusqlite::types::Value::Integer(i)) => (Some(i), None),
+            ("float", rusqlite::types::Value::Real(f)) => {
+                let norm = crate::properties::normalize_finite_f64(f).unwrap_or(f);
+                (None, Some(norm.to_bits()))
+            }
+            ("float", rusqlite::types::Value::Integer(i)) => {
+                let norm = crate::properties::normalize_finite_f64(i as f64).unwrap_or(0.0);
+                (None, Some(norm.to_bits()))
+            }
+            _ => (None, None),
+        };
+        digest.push_property_value(
+            entity_class,
+            write_cursor,
+            &attr_name,
+            &value_type,
+            text_val.as_deref(),
+            num_int,
+            num_real_bits,
+            bool_val,
+        );
+    }
+    Ok(())
+}
+
+fn persisted_projection_registry_cache_digest(
+    conn: &Connection,
+) -> rusqlite::Result<ProjectionRegistryCacheDigest> {
+    let mut attributes = StreamDigest::new(b"fathomdb:proj-cache:attributes:v1");
+    {
+        // Stream via `canonical_attributes_cursor_idx` (`ORDER BY write_cursor`) and sort
+        // only the tiny per-cursor group in RAM so SQLite needs no full-table temp B-tree.
         let mut statement = conn.prepare(
             "SELECT write_cursor,attr_name,attr_value FROM canonical_attributes \
-             ORDER BY write_cursor,CAST(attr_name AS BLOB),CAST(attr_value AS BLOB)",
+             ORDER BY write_cursor",
         )?;
-        let rows = statement
-            .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?
-            .collect::<rusqlite::Result<Vec<_>>>()?;
-        rows
-    };
-    let property_fts = {
+        let mut rows = statement.query([])?;
+        let mut current_cursor: Option<i64> = None;
+        let mut group: Vec<(String, Option<String>)> = Vec::new();
+        let flush_group =
+            |cursor: i64, group: &mut Vec<(String, Option<String>)>, digest: &mut StreamDigest| {
+                group.sort();
+                for (name, value) in group.drain(..) {
+                    digest.push_attribute(cursor, &name, value.as_deref());
+                }
+            };
+        while let Some(row) = rows.next()? {
+            let cursor: i64 = row.get(0)?;
+            let attr_name: String = row.get(1)?;
+            let attr_value: Option<String> = row.get(2)?;
+            if let Some(prev) = current_cursor {
+                if prev != cursor {
+                    flush_group(prev, &mut group, &mut attributes);
+                    current_cursor = Some(cursor);
+                }
+            } else {
+                current_cursor = Some(cursor);
+            }
+            group.push((attr_name, attr_value));
+        }
+        if let Some(prev) = current_cursor {
+            flush_group(prev, &mut group, &mut attributes);
+        }
+    }
+
+    let mut property_fts = StreamDigest::new(b"fathomdb:proj-cache:property_fts:v1");
+    {
         let mut statement = conn.prepare(
             "SELECT write_cursor,attr_name,attr_value FROM property_search_index \
              ORDER BY write_cursor,CAST(attr_name AS BLOB),CAST(attr_value AS BLOB)",
         )?;
-        let rows = statement
-            .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?
-            .collect::<rusqlite::Result<Vec<_>>>()?;
-        rows
-    };
-    let mut property_values = {
-        let mut statement = conn.prepare(
-            "SELECT entity_class,write_cursor,attr_name,value_type,text_val,num_val,bool_val \
-             FROM canonical_property_values",
-        )?;
-        let rows = statement
-            .query_map([], |row| {
-                let entity_class: String = row.get(0)?;
-                let write_cursor: i64 = row.get(1)?;
-                let attr_name: String = row.get(2)?;
-                let value_type: String = row.get(3)?;
-                let text_val: Option<String> = row.get(4)?;
-                let num_val: rusqlite::types::Value = row.get(5)?;
-                let bool_val: Option<i64> = row.get(6)?;
-                let (num_int, num_real_bits) = match (value_type.as_str(), num_val) {
-                    ("integer", rusqlite::types::Value::Integer(i)) => (Some(i), None),
-                    ("float", rusqlite::types::Value::Real(f)) => {
-                        let norm = crate::properties::normalize_finite_f64(f).unwrap_or(f);
-                        (None, Some(norm.to_bits()))
-                    }
-                    ("float", rusqlite::types::Value::Integer(i)) => {
-                        let norm = crate::properties::normalize_finite_f64(i as f64).unwrap_or(0.0);
-                        (None, Some(norm.to_bits()))
-                    }
-                    _ => (None, None),
-                };
-                Ok(ProjectionPropertyValueCacheRow {
-                    entity_class,
-                    write_cursor,
-                    attr_name,
-                    value_type,
-                    text_val,
-                    num_int,
-                    num_real_bits,
-                    bool_val,
-                })
-            })?
-            .collect::<rusqlite::Result<Vec<_>>>()?;
-        rows
-    };
-    property_values.sort();
-    Ok((attributes, property_fts, property_values))
+        let mut rows = statement.query([])?;
+        while let Some(row) = rows.next()? {
+            let write_cursor: i64 = row.get(0)?;
+            let attr_name: String = row.get(1)?;
+            let attr_value: String = row.get(2)?;
+            property_fts.push_property_fts(write_cursor, &attr_name, &attr_value);
+        }
+    }
+
+    let mut node_property_values = StreamDigest::new(b"fathomdb:proj-cache:node_cpv:v1");
+    stream_persisted_cpv_digest(conn, "node", &mut node_property_values)?;
+
+    let mut edge_property_values = StreamDigest::new(b"fathomdb:proj-cache:edge_cpv:v1");
+    stream_persisted_cpv_digest(conn, "edge", &mut edge_property_values)?;
+
+    Ok(ProjectionRegistryCacheDigest {
+        attributes: attributes.finish(),
+        property_fts: property_fts.finish(),
+        node_property_values: node_property_values.finish(),
+        edge_property_values: edge_property_values.finish(),
+    })
 }
 
 impl Engine {

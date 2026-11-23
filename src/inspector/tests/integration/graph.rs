@@ -866,11 +866,11 @@ fn historical_as_of_graph_and_graph_serving_resolve_superseded_revisions_and_p4_
     for (label, sql) in [
         (
             "historical_node",
-            "EXPLAIN QUERY PLAN SELECT rowid, write_cursor FROM canonical_nodes WHERE logical_id='hist-root' AND superseded_at IS NULL AND write_cursor<=10 UNION ALL SELECT rowid, write_cursor FROM canonical_nodes WHERE logical_id='hist-root' AND superseded_at>10 AND write_cursor<=10 ORDER BY write_cursor DESC LIMIT 1",
+            "EXPLAIN QUERY PLAN SELECT rowid, write_cursor FROM canonical_nodes WHERE logical_id='hist-root' AND superseded_at IS NULL AND write_cursor<=10 UNION ALL SELECT rowid, write_cursor FROM canonical_nodes WHERE logical_id='hist-root' AND superseded_at IS NOT NULL AND superseded_at>10 AND write_cursor<=10 ORDER BY write_cursor DESC LIMIT 1",
         ),
         (
             "historical_edge",
-            "EXPLAIN QUERY PLAN SELECT rowid, write_cursor FROM canonical_edges INDEXED BY canonical_edges_from_sup_kind_idx WHERE from_id='hist-root' AND superseded_at IS NULL AND write_cursor<=10 UNION ALL SELECT rowid, write_cursor FROM canonical_edges INDEXED BY canonical_edges_from_sup_kind_idx WHERE from_id='hist-root' AND superseded_at>10 AND write_cursor<=10 ORDER BY rowid LIMIT 100",
+            "EXPLAIN QUERY PLAN SELECT rowid, write_cursor FROM canonical_edges INDEXED BY canonical_edges_from_active_idx WHERE from_id='hist-root' AND superseded_at IS NULL AND write_cursor<=10 UNION ALL SELECT rowid, write_cursor FROM canonical_edges INDEXED BY canonical_edges_from_sup_kind_idx WHERE from_id='hist-root' AND superseded_at IS NOT NULL AND superseded_at>10 AND write_cursor<=10 ORDER BY rowid LIMIT 100",
         ),
     ] {
         let mut stmt = c.prepare(sql).unwrap();

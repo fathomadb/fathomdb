@@ -111,7 +111,8 @@ pub(crate) fn initialize_fresh(c: &Connection) -> Result<(), EngineError> {
 
 pub(crate) fn mark_dirty(c: &Connection) -> rusqlite::Result<()> {
     // Absence already means legacy dirty; only an existing clean certificate changes.
-    c.execute("UPDATE _fathomdb_open_state SET value='{\"version\":1,\"phase\":\"dirty\",\"family\":0,\"started\":false}' WHERE key=?1 AND json_extract(value,'$.phase')='clean'", [FTS_KEY])?;
+    c.prepare_cached("UPDATE _fathomdb_open_state SET value='{\"version\":1,\"phase\":\"dirty\",\"family\":0,\"started\":false}' WHERE key=?1 AND json_extract(value,'$.phase')='clean'")?
+        .execute([FTS_KEY])?;
     Ok(())
 }
 

@@ -1220,6 +1220,9 @@ impl Engine {
             &managed_connections,
         )
         .map_err(|err| map_open_sqlite_error(err, OpenStage::HeaderProbe))?;
+        // Keep all hot-path write-batch cached statements resident without LRU eviction
+        // (rusqlite defaults to 16, whereas a canonical batch touches ~20 distinct statements).
+        connection.set_prepared_statement_cache_capacity(64);
         // Order pinned by `dev/design/errors.md` § OpenStage matrix: each
         // step routes its own SQLite-level error to a distinct
         // `CorruptionKind` (Header → WalReplay → Schema → EmbedderIdentity).

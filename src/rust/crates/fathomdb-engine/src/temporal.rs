@@ -308,12 +308,11 @@ pub(crate) fn record_batch_commit_timestamp(
     now_epoch_ms: i64,
 ) -> rusqlite::Result<()> {
     let prev_ms: Option<i64> = tx
-        .query_row(
+        .prepare_cached(
             "SELECT committed_at_ms FROM _fathomdb_commit_timestamps \
              ORDER BY write_cursor DESC LIMIT 1",
-            [],
-            |r| r.get(0),
-        )
+        )?
+        .query_row([], |r| r.get(0))
         .optional()?;
     let committed_at_ms = prev_ms.map_or(now_epoch_ms, |prev| prev.max(now_epoch_ms));
     let cursor_i64 = i64::try_from(high_water_cursor).map_err(|_| rusqlite::Error::InvalidQuery)?;

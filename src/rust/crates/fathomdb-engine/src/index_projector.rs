@@ -85,6 +85,7 @@ pub(crate) fn restore_registered_derived_projections(
                 ProjectionPass::FtsOnly,
                 true,
                 properties,
+                None,
             )
             .map_err(|_| EngineError::Storage)?;
         }
@@ -215,6 +216,7 @@ pub(crate) fn reproject_search_index_after_tokenizer_upgrade(
                 // has a reader in every build configuration.
                 row.attr_projected,
                 row.properties.as_ref(),
+                None,
             )?;
         }
         connection.execute(
@@ -365,6 +367,7 @@ pub(crate) fn project_canonical_node_row(
     pass: ProjectionPass,
     node_active: bool,
     properties: Option<&crate::PropertyMap>,
+    registry: Option<&BTreeMap<String, StoredProjection>>,
 ) -> rusqlite::Result<bool> {
     let targets = index_targets_for_row_kind(row_kind);
     if targets.fts && pass.writes_fts() {
@@ -419,7 +422,13 @@ pub(crate) fn project_canonical_node_row(
     // `Engine::transition`). Passes where `writes_attributes()` is false ignore the
     // flag entirely.
     if pass.writes_attributes() && node_active {
-        project_node_attributes(tx, cursor as i64, body, properties)?;
+        crate::projection_registry::project_node_attributes_with_registry(
+            tx,
+            cursor as i64,
+            body,
+            properties,
+            registry,
+        )?;
     }
     // 0.8.20 Slice 20c (R-20-DR remainder) — UNCHANGED, deliberately. Late
     // enrolment of a kind first written AFTER a `searchable→vector` declaration
@@ -465,6 +474,7 @@ pub(crate) fn project_canonical_node_row(
 /// `_fathomdb_vector_kinds` (idempotent).
 ///
 /// Returns `true` iff async vector work was enqueued.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn project_canonical_edge_row(
     tx: &Connection,
     cursor: u64,
@@ -473,38 +483,44 @@ pub(crate) fn project_canonical_edge_row(
     pass: ProjectionPass,
     properties: Option<&crate::PropertyMap>,
     edge_active: bool,
+    registry: Option<&BTreeMap<String, StoredProjection>>,
 ) -> rusqlite::Result<bool> {
     if pass.writes_fts() {
         physical_erasure::mark_dirty(tx)?;
         if let Some(edge_body) = body {
-            tx.execute(
+            tx.prepare_cached(
                 "INSERT INTO search_index_edges(body, kind, write_cursor)
                  VALUES(?1, ?2, ?3)",
-                params![edge_body, kind, cursor],
-            )?;
+            )?
+            .execute(params![edge_body, kind, cursor])?;
         }
     }
     if pass.writes_attributes() && edge_active {
-        crate::projection_registry::project_edge_properties(tx, cursor as i64, properties)?;
+        crate::projection_registry::project_edge_properties_with_registry(
+            tx,
+            cursor as i64,
+            properties,
+            registry,
+        )?;
     }
     let enqueue_vector = body.is_some();
     if pass.writes_vector_state() {
         if enqueue_vector {
             let now_unix =
                 SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs() as i64;
-            tx.execute(
+            tx.prepare_cached(
                 "INSERT OR IGNORE INTO _fathomdb_vector_kinds(kind, profile, created_at)
                  VALUES('edge_fact', 'default', ?1)",
-                params![now_unix],
-            )?;
-            tx.execute(
+            )?
+            .execute(params![now_unix])?;
+            tx.prepare_cached(
                 "INSERT INTO _fathomdb_projection_state(
                      kind, last_enqueued_cursor, updated_at
                  ) VALUES('edge_fact', ?1, 0)
                  ON CONFLICT(kind) DO UPDATE
                      SET last_enqueued_cursor = excluded.last_enqueued_cursor",
-                params![cursor],
-            )?;
+            )?
+            .execute(params![cursor])?;
             // Do NOT call record_projection_terminal — let the scheduler embed
             // the body and mark it terminal after projection.
         } else {

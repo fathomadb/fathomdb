@@ -169,19 +169,19 @@ fn slice38_query_plans_use_declared_indexes_and_skip_cpv_on_unpredicated_search(
 
     let text_plan = explain(
         &conn,
-        "SELECT write_cursor FROM canonical_property_values WHERE entity_class = 'node' AND attr_name = 'p_text' AND text_val = 'v'",
+        "SELECT write_cursor FROM canonical_property_values WHERE entity_class = 'node' AND attr_name = 'p_text' AND text_val IS NOT NULL AND text_val = 'v'",
     );
     assert_uses_index(&text_plan, "canonical_property_values_text_idx");
 
     let num_plan = explain(
         &conn,
-        "SELECT write_cursor FROM canonical_property_values WHERE entity_class = 'node' AND attr_name = 'p_num' AND num_val > 5",
+        "SELECT write_cursor FROM canonical_property_values WHERE entity_class = 'node' AND attr_name = 'p_num' AND num_val IS NOT NULL AND num_val > 5",
     );
     assert_uses_index(&num_plan, "canonical_property_values_num_idx");
 
     let bool_plan = explain(
         &conn,
-        "SELECT write_cursor FROM canonical_property_values WHERE entity_class = 'node' AND attr_name = 'p_bool' AND bool_val = 1",
+        "SELECT write_cursor FROM canonical_property_values WHERE entity_class = 'node' AND attr_name = 'p_bool' AND bool_val IS NOT NULL AND bool_val = 1",
     );
     assert_uses_index(&bool_plan, "canonical_property_values_bool_idx");
 
@@ -197,7 +197,7 @@ fn slice38_query_plans_use_declared_indexes_and_skip_cpv_on_unpredicated_search(
 
     let node_sup_plan = explain(
         &conn,
-        "SELECT kind, body, write_cursor FROM canonical_nodes WHERE logical_id = 'qp-n1' AND superseded_at IS NULL ORDER BY write_cursor DESC LIMIT 1",
+        "SELECT kind, body, write_cursor FROM canonical_nodes WHERE logical_id = 'qp-n1' AND superseded_at IS NOT NULL AND superseded_at > 10 ORDER BY write_cursor DESC LIMIT 1",
     );
     assert_uses_index(&node_sup_plan, "canonical_nodes_logical_sup_idx");
 
@@ -270,13 +270,13 @@ fn slice38_query_plans_use_declared_indexes_and_skip_cpv_on_unpredicated_search(
     // Explicitly check sup_kind planner usability when querying specific superseded_at + kind.
     let edge_from_sup_kind = explain(
         &conn,
-        "SELECT to_id FROM canonical_edges INDEXED BY canonical_edges_from_sup_kind_idx WHERE from_id = 'qp-n1' AND superseded_at IS NULL AND kind = 'supports'",
+        "SELECT to_id FROM canonical_edges INDEXED BY canonical_edges_from_sup_kind_idx WHERE from_id = 'qp-n1' AND superseded_at IS NOT NULL AND superseded_at > 10 AND kind = 'supports'",
     );
     assert_uses_index(&edge_from_sup_kind, "canonical_edges_from_sup_kind_idx");
 
     let edge_to_sup_kind = explain(
         &conn,
-        "SELECT from_id FROM canonical_edges INDEXED BY canonical_edges_to_sup_kind_idx WHERE to_id = 'qp-n2' AND superseded_at IS NULL AND kind = 'supports'",
+        "SELECT from_id FROM canonical_edges INDEXED BY canonical_edges_to_sup_kind_idx WHERE to_id = 'qp-n2' AND superseded_at IS NOT NULL AND superseded_at > 10 AND kind = 'supports'",
     );
     assert_uses_index(&edge_to_sup_kind, "canonical_edges_to_sup_kind_idx");
 }

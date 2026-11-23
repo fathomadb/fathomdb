@@ -70,11 +70,13 @@ status: accepted
         `_fathomdb_commit_timestamps(write_cursor INTEGER PRIMARY KEY, committed_at_ms INTEGER NOT NULL)`
         and `_fathomdb_commit_timestamps_ms_idx(committed_at_ms, write_cursor)`,
         partial active edge incident indexes (`canonical_edges_from_active_idx`,
-        `canonical_edges_to_active_idx`), unified historical edge composite
-        indexes (`canonical_edges_from_sup_kind_idx(from_id, superseded_at, kind)`,
-        `canonical_edges_to_sup_kind_idx(to_id, superseded_at, kind)`),
+        `canonical_edges_to_active_idx`), partial historical edge composite
+        indexes (`canonical_edges_from_sup_kind_idx(from_id, superseded_at, kind)
+        WHERE superseded_at IS NOT NULL`, `canonical_edges_to_sup_kind_idx(to_id,
+        superseded_at, kind) WHERE superseded_at IS NOT NULL`), partial
         historical node lookup index
-        (`canonical_nodes_logical_sup_idx(logical_id, superseded_at, write_cursor)`),
+        (`canonical_nodes_logical_sup_idx(logical_id, superseded_at, write_cursor)
+        WHERE superseded_at IS NOT NULL`),
         updated read-visibility triggers via `visibility_coalescing_trigger_sql!`
         for `("cpv", "canonical_property_values")`, and `PRAGMA user_version = 38`),
         preserving existing `vector_default` / `_fathomdb_vector_spans` /

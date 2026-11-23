@@ -262,7 +262,7 @@ impl Reader {
                  WHERE logical_id=?1 AND superseded_at IS NULL AND write_cursor<=?2 \
                  UNION ALL \
                  SELECT rowid,write_cursor FROM canonical_nodes \
-                 WHERE logical_id=?1 AND superseded_at>?2 AND write_cursor<=?2 \
+                 WHERE logical_id=?1 AND superseded_at IS NOT NULL AND superseded_at>?2 AND write_cursor<=?2 \
                  ORDER BY write_cursor DESC LIMIT 1",
                 params![logical_id, cursor_sql],
                 |r| Ok((r.get(0)?, r.get(1)?)),
@@ -476,17 +476,17 @@ impl Reader {
                 let mut edge_candidates = vec![];
                 if let Some(cursor) = resolved_cursor {
                     let cursor_sql = as_of_sql_i64(cursor);
-                    let idx = if column == "from_id" {
-                        "canonical_edges_from_sup_kind_idx"
+                    let (active_idx, sup_idx) = if column == "from_id" {
+                        ("canonical_edges_from_active_idx", "canonical_edges_from_sup_kind_idx")
                     } else {
-                        "canonical_edges_to_sup_kind_idx"
+                        ("canonical_edges_to_active_idx", "canonical_edges_to_sup_kind_idx")
                     };
                     let sql = format!(
-                        "SELECT rowid,write_cursor FROM canonical_edges INDEXED BY {idx} \
+                        "SELECT rowid,write_cursor FROM canonical_edges INDEXED BY {active_idx} \
                          WHERE {column}=?1 AND superseded_at IS NULL AND write_cursor<=?2 \
                          UNION ALL \
-                         SELECT rowid,write_cursor FROM canonical_edges INDEXED BY {idx} \
-                         WHERE {column}=?1 AND superseded_at>?2 AND write_cursor<=?2 \
+                         SELECT rowid,write_cursor FROM canonical_edges INDEXED BY {sup_idx} \
+                         WHERE {column}=?1 AND superseded_at IS NOT NULL AND superseded_at>?2 AND write_cursor<=?2 \
                          ORDER BY rowid LIMIT ?3"
                     );
                     let mut statement = c.prepare(&sql).map_err(|_| "storage")?;

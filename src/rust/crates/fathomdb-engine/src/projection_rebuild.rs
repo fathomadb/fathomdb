@@ -107,6 +107,11 @@ impl Engine {
         // are identical to what a re-write would have produced. `include_fts`
         // selects the pass: a vec0-only rebuild must not write FTS rows.
         let pass = if include_fts { ProjectionPass::Write } else { ProjectionPass::VectorOnly };
+        let registry = if pass.writes_attributes() {
+            Some(load_projection_registry(&tx).map_err(|_| EngineError::Storage)?)
+        } else {
+            None
+        };
         let mut rows_rebuilt: u64 = 0;
         for row in canonical_node_rows(&tx).map_err(|_| EngineError::Storage)? {
             project_canonical_node_row(
@@ -121,6 +126,7 @@ impl Engine {
                 // rebuild for every row (read-side lifecycle filter, unchanged).
                 row.attr_projected,
                 row.properties.as_ref(),
+                registry.as_ref(),
             )
             .map_err(|_| EngineError::Storage)?;
             if include_fts {
@@ -182,6 +188,7 @@ impl Engine {
                 pass,
                 props.as_ref(),
                 superseded_at.is_none(),
+                registry.as_ref(),
             )
             .map_err(|_| EngineError::Storage)?;
             if include_fts && has_body {

@@ -383,11 +383,12 @@ impl<'transaction, 'connection> VisibilityCoalescingGuard<'transaction, 'connect
         if transaction.is_autocommit() {
             return Err(rusqlite::Error::InvalidQuery.into());
         }
-        let changed = transaction.execute(
-            "UPDATE _fathomdb_read_visibility_state SET coalescing=1
-             WHERE singleton=1 AND typeof(coalescing)='integer' AND coalescing=0",
-            [],
-        )?;
+        let changed = transaction
+            .prepare_cached(
+                "UPDATE _fathomdb_read_visibility_state SET coalescing=1
+                 WHERE singleton=1 AND typeof(coalescing)='integer' AND coalescing=0",
+            )?
+            .execute([])?;
         if changed != 1 {
             return Err(rusqlite::Error::InvalidQuery.into());
         }
@@ -401,20 +402,19 @@ impl<'transaction, 'connection> VisibilityCoalescingGuard<'transaction, 'connect
         }
         let flag = self
             .transaction
-            .query_row(
+            .prepare_cached(
                 "SELECT coalescing FROM _fathomdb_read_visibility_state WHERE singleton=1",
-                [],
-                |row| row.get::<_, i64>(0),
             )
+            .and_then(|mut stmt| stmt.query_row([], |row| row.get::<_, i64>(0)))
             .map_err(|_| CommitBatchError::WriterPoisoned)?;
         if flag == 1 {
             let changed = self
                 .transaction
-                .execute(
+                .prepare_cached(
                     "UPDATE _fathomdb_read_visibility_state SET coalescing=0
-                 WHERE singleton=1 AND typeof(coalescing)='integer' AND coalescing=1",
-                    [],
+                     WHERE singleton=1 AND typeof(coalescing)='integer' AND coalescing=1",
                 )
+                .and_then(|mut stmt| stmt.execute([]))
                 .map_err(|_| CommitBatchError::WriterPoisoned)?;
             if changed != 1 {
                 return Err(CommitBatchError::WriterPoisoned);
@@ -679,6 +679,17 @@ pub(crate) fn apply_batch_in_transaction(
     }
     let unstranded =
         if vector_kinds_to_enrol.is_empty() { false } else { reenqueue_stranded_vector_rows(tx)? };
+    let has_canonical_writes = batch.iter().any(|write| {
+        matches!(
+            write,
+            PreparedWrite::Node { .. }
+                | PreparedWrite::Edge { .. }
+                | PreparedWrite::ProvenancedNode(_)
+                | PreparedWrite::ProvenancedEdge(_)
+        )
+    });
+    let projection_registry =
+        if has_canonical_writes { Some(load_projection_registry(tx)?) } else { None };
 
     for (i, (original_write, plan)) in batch.iter().zip(plans).enumerate() {
         // Per-row cursor: row i gets `base_cursor + i + 1`. See the
@@ -735,11 +746,13 @@ pub(crate) fn apply_batch_in_transaction(
                             }
                         }
                     }
-                    tx.prepare_cached(
-                        "UPDATE canonical_nodes SET superseded_at = ?1
-                         WHERE logical_id = ?2 AND superseded_at IS NULL",
-                    )?
-                    .execute(params![cursor, logical_id])?;
+                    if !prior_g0.is_empty() {
+                        tx.prepare_cached(
+                            "UPDATE canonical_nodes SET superseded_at = ?1
+                             WHERE logical_id = ?2 AND superseded_at IS NULL",
+                        )?
+                        .execute(params![cursor, logical_id])?;
+                    }
                     // Purge only the Attribute + PropertyFts classes: those tables
                     // have NO `superseded_at IS NULL` read-side filter (the FTS5
                     // `property_search_index` cannot carry one), so their stale rows
@@ -807,6 +820,7 @@ pub(crate) fn apply_batch_in_transaction(
                     ProjectionPass::Write,
                     matches!(state, InitialState::Active),
                     properties.as_ref(),
+                    projection_registry.as_ref(),
                 )?;
             }
             (
@@ -834,18 +848,20 @@ pub(crate) fn apply_batch_in_transaction(
                 if let Some(logical_id) = logical_id {
                     // Retained vectors must receive the canonical supersession metadata.
                     let prior_g0 = prior_edge_cursors_by_logical_id(tx, logical_id)?;
-                    tx.execute(
-                        "UPDATE canonical_edges SET superseded_at = ?1
-                         WHERE logical_id = ?2 AND superseded_at IS NULL",
-                        params![cursor, logical_id],
-                    )?;
-                    for sc in &prior_g0 {
-                        vector_storage::refresh_vector_eligibility_for_cursor(tx, *sc)?;
-                        purge_row_projections_for_cursor_in(
-                            tx,
-                            *sc,
-                            &[ProjectionClass::PropertyValue],
-                        )?;
+                    if !prior_g0.is_empty() {
+                        tx.prepare_cached(
+                            "UPDATE canonical_edges SET superseded_at = ?1
+                             WHERE logical_id = ?2 AND superseded_at IS NULL",
+                        )?
+                        .execute(params![cursor, logical_id])?;
+                        for sc in &prior_g0 {
+                            vector_storage::refresh_vector_eligibility_for_cursor(tx, *sc)?;
+                            purge_row_projections_for_cursor_in(
+                                tx,
+                                *sc,
+                                &[ProjectionClass::PropertyValue],
+                            )?;
+                        }
                     }
                 }
                 // G11 — invalidate-not-accumulate: for fact-edges (body IS NOT NULL),
@@ -856,18 +872,20 @@ pub(crate) fn apply_batch_in_transaction(
                 if body.is_some() {
                     // Update all vector rows for superseded endpoint facts.
                     let prior_g11 = prior_edge_cursors_by_triple(tx, from, to, kind)?;
-                    tx.execute(
-                        "UPDATE canonical_edges SET superseded_at = ?1
-                         WHERE from_id = ?2 AND to_id = ?3 AND kind = ?4 AND superseded_at IS NULL",
-                        params![cursor, from, to, kind],
-                    )?;
-                    for sc in &prior_g11 {
-                        vector_storage::refresh_vector_eligibility_for_cursor(tx, *sc)?;
-                        purge_row_projections_for_cursor_in(
-                            tx,
-                            *sc,
-                            &[ProjectionClass::PropertyValue],
-                        )?;
+                    if !prior_g11.is_empty() {
+                        tx.prepare_cached(
+                            "UPDATE canonical_edges SET superseded_at = ?1
+                             WHERE from_id = ?2 AND to_id = ?3 AND kind = ?4 AND superseded_at IS NULL",
+                        )?
+                        .execute(params![cursor, from, to, kind])?;
+                        for sc in &prior_g11 {
+                            vector_storage::refresh_vector_eligibility_for_cursor(tx, *sc)?;
+                            purge_row_projections_for_cursor_in(
+                                tx,
+                                *sc,
+                                &[ProjectionClass::PropertyValue],
+                            )?;
+                        }
                     }
                 }
                 let temporal_fallback_i: Option<i64> =
@@ -875,28 +893,28 @@ pub(crate) fn apply_batch_in_transaction(
                 let encoded_properties =
                     crate::properties::encode_properties_json(properties.as_ref())
                         .map_err(CommitBatchError::Engine)?;
-                tx.execute(
+                tx.prepare_cached(
                     "INSERT INTO canonical_edges(
                          write_cursor, kind, from_id, to_id, source_id, logical_id,
                          body, t_valid, t_invalid, confidence, extractor_model_id,
                          temporal_fallback, properties
                      ) VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
-                    params![
-                        cursor,
-                        kind,
-                        from,
-                        to,
-                        source_id.as_str(),
-                        logical_id,
-                        body,
-                        t_valid,
-                        t_invalid,
-                        confidence,
-                        extractor_model_id,
-                        temporal_fallback_i,
-                        encoded_properties
-                    ],
-                )?;
+                )?
+                .execute(params![
+                    cursor,
+                    kind,
+                    from,
+                    to,
+                    source_id.as_str(),
+                    logical_id,
+                    body,
+                    t_valid,
+                    t_invalid,
+                    confidence,
+                    extractor_model_id,
+                    temporal_fallback_i,
+                    encoded_properties
+                ])?;
                 // 0.8.20 Slice 5a (R-20-E1, work item 1) — edge projection is no
                 // longer inlined here: the write path and the rebuild replay
                 // share ONE projector, so they cannot drift.
@@ -908,6 +926,7 @@ pub(crate) fn apply_batch_in_transaction(
                     ProjectionPass::Write,
                     properties.as_ref(),
                     true,
+                    projection_registry.as_ref(),
                 )?;
             }
             (
@@ -915,43 +934,40 @@ pub(crate) fn apply_batch_in_transaction(
                 WritePlan::AdminSchema,
             ) => {
                 let existing_kind: Option<String> = tx
-                    .query_row(
-                        "SELECT kind FROM operational_collections WHERE name = ?1",
-                        [name],
-                        |row| row.get(0),
-                    )
+                    .prepare_cached("SELECT kind FROM operational_collections WHERE name = ?1")?
+                    .query_row([name], |row| row.get(0))
                     .optional()?;
                 if existing_kind.as_deref().is_some_and(|existing| existing != kind.as_str()) {
                     return Err(EngineError::WriteValidation.into());
                 }
-                tx.execute(
+                tx.prepare_cached(
                     "INSERT INTO operational_collections(
                         name, kind, schema_json, retention_json, format_version, created_at
                      ) VALUES(?1, ?2, ?3, ?4, 1, 0)
                      ON CONFLICT(name) DO UPDATE SET
                         schema_json = excluded.schema_json,
                         retention_json = excluded.retention_json",
-                    params![name, kind, schema_json, retention_json],
-                )?;
+                )?
+                .execute(params![name, kind, schema_json, retention_json])?;
                 record_projection_terminal(tx, cursor, "up_to_date")?;
             }
             (
                 PreparedWrite::OpStore { collection, record_key, schema_id, body },
                 WritePlan::AppendOnlyLog,
             ) => {
-                tx.execute(
+                tx.prepare_cached(
                     "INSERT INTO operational_mutations(
                         collection_name, record_key, op_kind, payload_json, schema_id, write_cursor
                      ) VALUES(?1, ?2, 'append', ?3, ?4, ?5)",
-                    params![collection, record_key, body, schema_id, cursor],
-                )?;
+                )?
+                .execute(params![collection, record_key, body, schema_id, cursor])?;
                 record_projection_terminal(tx, cursor, "up_to_date")?;
             }
             (
                 PreparedWrite::OpStore { collection, record_key, schema_id, body },
                 WritePlan::LatestState,
             ) => {
-                tx.execute(
+                tx.prepare_cached(
                     "INSERT INTO operational_state(
                         collection_name, record_key, payload_json, schema_id, write_cursor
                      ) VALUES(?1, ?2, ?3, ?4, ?5)
@@ -959,8 +975,8 @@ pub(crate) fn apply_batch_in_transaction(
                         payload_json = excluded.payload_json,
                         schema_id = excluded.schema_id,
                         write_cursor = excluded.write_cursor",
-                    params![collection, record_key, body, schema_id, cursor],
-                )?;
+                )?
+                .execute(params![collection, record_key, body, schema_id, cursor])?;
                 record_projection_terminal(tx, cursor, "up_to_date")?;
             }
             _ => return Err(rusqlite::Error::InvalidQuery.into()),
@@ -994,23 +1010,29 @@ fn validate_strict_batch_edge_endpoints(
 ) -> Result<(), CommitBatchError> {
     // Zero-SQL fast path: node-only / non-edge batches must not prepare or run
     // any query against `canonical_nodes`.
-    let has_edges = batch
-        .iter()
-        .any(|write| matches!(storage_write_shape(write).as_ref(), PreparedWrite::Edge { .. }));
+    let has_edges = batch.iter().any(|write| {
+        matches!(write, PreparedWrite::Edge { .. } | PreparedWrite::ProvenancedEdge(_))
+    });
     if !has_edges {
         return Ok(());
     }
 
-    let mut probe = tx.prepare(
+    let mut probe = tx.prepare_cached(
         "SELECT 1 FROM canonical_nodes WHERE logical_id = ?1 AND superseded_at IS NULL AND state = 'active' LIMIT 1",
     )?;
+    let mut seen: std::collections::HashSet<&str> = std::collections::HashSet::new();
     // Validate EVERY edge in the batch (including edges superseded later in the
-    // same batch under G0 `logical_id` or G11 `(from_id, to_id, kind)` rules).
+    // same batch under G0 `logical_id` or G11 `(from_id, to_id, kind)` rules),
+    // probing each distinct endpoint logical_id at most once.
     for write in batch {
-        let write = storage_write_shape(write);
-        if let PreparedWrite::Edge { from, to, .. } = write.as_ref() {
+        let endpoints = match write {
+            PreparedWrite::Edge { from, to, .. } => Some((from.as_str(), to.as_str())),
+            PreparedWrite::ProvenancedEdge(edge) => Some((edge.from.as_str(), edge.to.as_str())),
+            _ => None,
+        };
+        if let Some((from, to)) = endpoints {
             for endpoint in [from, to] {
-                if !probe.exists(params![endpoint])? {
+                if seen.insert(endpoint) && !probe.exists(params![endpoint])? {
                     return Err(CommitBatchError::Engine(EngineError::WriteValidation));
                 }
             }

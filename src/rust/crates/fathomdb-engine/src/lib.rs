@@ -3733,10 +3733,21 @@ mod tests {
         opened.engine.write(&batch).expect("batch write");
 
         assert_eq!(canonical_prepares.load(Ordering::Relaxed), 1);
-        assert_eq!(supersession_prepares.load(Ordering::Relaxed), 1);
+        assert_eq!(supersession_prepares.load(Ordering::Relaxed), 0);
         assert_eq!(search_index_prepares.load(Ordering::Relaxed), 1);
         assert_eq!(fielded_index_prepares.load(Ordering::Relaxed), 1);
         assert_eq!(revision_probe_prepares.load(Ordering::Relaxed), 1);
+        assert_eq!(artifact_prepares.load(Ordering::Relaxed), 1);
+        assert_eq!(terminal_prepares.load(Ordering::Relaxed), 1);
+
+        // Superseding the same 4 logical_ids prepares the UPDATE statement and source-revision
+        // lookup once across all 4 rows without evicting any cached batch statements.
+        opened.engine.write(&batch).expect("superseding batch write");
+        assert_eq!(canonical_prepares.load(Ordering::Relaxed), 1);
+        assert_eq!(supersession_prepares.load(Ordering::Relaxed), 1);
+        assert_eq!(search_index_prepares.load(Ordering::Relaxed), 1);
+        assert_eq!(fielded_index_prepares.load(Ordering::Relaxed), 1);
+        assert_eq!(revision_probe_prepares.load(Ordering::Relaxed), 2);
         assert_eq!(artifact_prepares.load(Ordering::Relaxed), 1);
         assert_eq!(terminal_prepares.load(Ordering::Relaxed), 1);
     }

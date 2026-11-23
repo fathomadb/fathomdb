@@ -605,6 +605,7 @@ impl Engine {
                 // is always active and its attributes project.
                 true,
                 None,
+                None,
             )
             .map_err(|_| EngineError::Storage)?;
             advance_projection_cursor(&tx).map_err(|_| EngineError::Storage)?;

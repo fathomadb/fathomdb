@@ -56,11 +56,12 @@ visibility contracts:
        `Float` comparisons use exact numeric ordering without lossy `i64 -> f64`
        truncation for `Int` vs `Int` predicates)
      - `bool_val INTEGER CHECK(bool_val IS NULL OR bool_val IN (0, 1))`
-   - Composite B-tree indexes:
+   - Composite B-tree indexes (typed value indexes are partial on non-NULL value
+     columns to eliminate NULL-entry bloat):
      - `canonical_property_values_cursor_idx(write_cursor)`
-     - `canonical_property_values_text_idx(entity_class, attr_name, text_val, write_cursor)`
-     - `canonical_property_values_num_idx(entity_class, attr_name, num_val, write_cursor)`
-     - `canonical_property_values_bool_idx(entity_class, attr_name, bool_val, write_cursor)`
+     - `canonical_property_values_text_idx(entity_class, attr_name, text_val, write_cursor) WHERE text_val IS NOT NULL`
+     - `canonical_property_values_num_idx(entity_class, attr_name, num_val, write_cursor) WHERE num_val IS NOT NULL`
+     - `canonical_property_values_bool_idx(entity_class, attr_name, bool_val, write_cursor) WHERE bool_val IS NOT NULL`
    - **Active-only maintenance contract**: `canonical_property_values` is
      strictly active-only (mirroring `canonical_attributes`):
      - On node supersession (`logical_id`), purge prior cursor's rows via
@@ -77,15 +78,18 @@ visibility contracts:
      indexes (`canonical_edges_from_active_idx ON canonical_edges(from_id, kind)
      WHERE superseded_at IS NULL` and `canonical_edges_to_active_idx ON
      canonical_edges(to_id, kind) WHERE superseded_at IS NULL`) for zero-waste
-     current-time `graph.expand`, unified historical composite indexes
-     (`canonical_edges_from_sup_kind_idx(from_id, superseded_at, kind)` and
-     `canonical_edges_to_sup_kind_idx(to_id, superseded_at, kind)`), and a
-     non-partial historical node lookup index
-     (`canonical_nodes_logical_sup_idx(logical_id, superseded_at, write_cursor)`)
+     current-time `graph.expand`, partial historical composite indexes
+     (`canonical_edges_from_sup_kind_idx(from_id, superseded_at, kind) WHERE
+     superseded_at IS NOT NULL` and `canonical_edges_to_sup_kind_idx(to_id,
+     superseded_at, kind) WHERE superseded_at IS NOT NULL`), and a partial
+     historical node lookup index
+     (`canonical_nodes_logical_sup_idx(logical_id, superseded_at, write_cursor)
+     WHERE superseded_at IS NOT NULL`)
      so SQLite can range-seek on `superseded_at` for both empty and non-empty
      `edge_kinds` and resolve historical nodes without full `canonical_nodes`
-     table scans during bitemporal `as_of` traversal — avoiding any second
-     schema bump in later `0.8.31` slices.
+     table scans during bitemporal `as_of` traversal (with zero index overhead
+     for active-only stores) — avoiding any second schema bump in later `0.8.31`
+     slices.
    - **`vec0` 16-column metadata budget (`sqlite-vec 0.1.9`)**:
      - `sqlite-vec` caps metadata columns at 16 (`VEC0_MAX_METADATA_COLUMNS = 16`,
        7 built-in columns leaving 9 dynamic slots) and rejects SQL `NULL`.

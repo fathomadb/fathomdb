@@ -581,6 +581,7 @@ pub(crate) fn append_cpv_exists_prefilter(
                  AND {cpv_alias}.write_cursor={cursor_expr} \
                  AND {cpv_alias}.attr_name=?{key_idx} \
                  AND {cpv_alias}.value_type='string' \
+                 AND {cpv_alias}.text_val IS NOT NULL \
                  AND {cpv_alias}.text_val {sql_op} ?{val_idx})"
             ));
         }
@@ -593,6 +594,7 @@ pub(crate) fn append_cpv_exists_prefilter(
                  AND {cpv_alias}.write_cursor={cursor_expr} \
                  AND {cpv_alias}.attr_name=?{key_idx} \
                  AND {cpv_alias}.value_type IN ('integer','float') \
+                 AND {cpv_alias}.num_val IS NOT NULL \
                  AND {cpv_alias}.num_val {sql_op} ?{val_idx})"
             ));
         }
@@ -606,6 +608,7 @@ pub(crate) fn append_cpv_exists_prefilter(
                  AND {cpv_alias}.write_cursor={cursor_expr} \
                  AND {cpv_alias}.attr_name=?{key_idx} \
                  AND {cpv_alias}.value_type IN ('integer','float') \
+                 AND {cpv_alias}.num_val IS NOT NULL \
                  AND {cpv_alias}.num_val {sql_op} ?{val_idx})"
             ));
         }
@@ -618,6 +621,7 @@ pub(crate) fn append_cpv_exists_prefilter(
                  AND {cpv_alias}.write_cursor={cursor_expr} \
                  AND {cpv_alias}.attr_name=?{key_idx} \
                  AND {cpv_alias}.value_type='boolean' \
+                 AND {cpv_alias}.bool_val IS NOT NULL \
                  AND {cpv_alias}.bool_val {sql_op} ?{val_idx})"
             ));
         }
@@ -665,7 +669,7 @@ pub(crate) fn build_historical_load_node_query(
          WHERE n.logical_id=?1 AND n.superseded_at IS NULL{common_where} \
          UNION ALL \
          SELECT n.kind,n.body,n.write_cursor,n.properties FROM canonical_nodes n \
-         WHERE n.logical_id=?1 AND n.superseded_at>?2{common_where} \
+         WHERE n.logical_id=?1 AND n.superseded_at IS NOT NULL AND n.superseded_at>?2{common_where} \
          ORDER BY write_cursor DESC LIMIT 1"
     );
     Ok((sql, params))
@@ -773,23 +777,23 @@ fn graph_expand_incident_sql(
         (Some(as_of_idx), TraversalDirection::Outgoing) => format!(
             "SELECT {COLS} FROM canonical_edges WHERE from_id=?1 AND superseded_at IS NULL{extra_where} \
              UNION ALL \
-             SELECT {COLS} FROM canonical_edges WHERE from_id=?1 AND superseded_at>?{as_of_idx}{extra_where} \
+             SELECT {COLS} FROM canonical_edges WHERE from_id=?1 AND superseded_at IS NOT NULL AND superseded_at>?{as_of_idx}{extra_where} \
              LIMIT ?{limit_idx}"
         ),
         (Some(as_of_idx), TraversalDirection::Incoming) => format!(
             "SELECT {COLS} FROM canonical_edges WHERE to_id=?1 AND superseded_at IS NULL{extra_where} \
              UNION ALL \
-             SELECT {COLS} FROM canonical_edges WHERE to_id=?1 AND superseded_at>?{as_of_idx}{extra_where} \
+             SELECT {COLS} FROM canonical_edges WHERE to_id=?1 AND superseded_at IS NOT NULL AND superseded_at>?{as_of_idx}{extra_where} \
              LIMIT ?{limit_idx}"
         ),
         (Some(as_of_idx), TraversalDirection::Both) => format!(
             "SELECT {COLS} FROM canonical_edges WHERE from_id=?1 AND superseded_at IS NULL{extra_where} \
              UNION ALL \
-             SELECT {COLS} FROM canonical_edges WHERE from_id=?1 AND superseded_at>?{as_of_idx}{extra_where} \
+             SELECT {COLS} FROM canonical_edges WHERE from_id=?1 AND superseded_at IS NOT NULL AND superseded_at>?{as_of_idx}{extra_where} \
              UNION ALL \
              SELECT {COLS} FROM canonical_edges WHERE to_id=?1 AND from_id!=?1 AND superseded_at IS NULL{extra_where} \
              UNION ALL \
-             SELECT {COLS} FROM canonical_edges WHERE to_id=?1 AND from_id!=?1 AND superseded_at>?{as_of_idx}{extra_where} \
+             SELECT {COLS} FROM canonical_edges WHERE to_id=?1 AND from_id!=?1 AND superseded_at IS NOT NULL AND superseded_at>?{as_of_idx}{extra_where} \
              LIMIT ?{limit_idx}"
         ),
     }

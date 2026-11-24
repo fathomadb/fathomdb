@@ -145,6 +145,7 @@ jobs:
 
   github-release:
     needs: promote-npm-latest
+    if: ${{ !cancelled() && needs.promote-npm-latest.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       actions: read

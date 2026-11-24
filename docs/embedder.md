@@ -6,7 +6,7 @@ fresh engine has no embedder configured and vector writes fail with
 `EmbedderNotConfiguredError` until you enable the pinned default provider.
 Caller-supplied engine providers are unsupported before 1.x in all SDKs.
 
-> Documentation target: 0.8.31 (pre-publication). Release 0.8.30 is published, including its matching Tegra Pages artifacts.
+> Release 0.8.31 is published, including its matching Tegra Pages artifacts.
 > Vector fidelity measures agreement with the same model's exact-f32 neighbors,
 > not answer relevance. See [qualification limits](#caveats-and-limitations).
 

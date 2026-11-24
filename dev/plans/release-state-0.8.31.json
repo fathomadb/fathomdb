@@ -153,10 +153,13 @@
       "depends_on": [
         70
       ],
-      "status": "HELD",
+      "status": "LANDED",
+      "sha": "64e21c3c5",
       "design_refs": [
-        "dev/plans/0.8.31/plan.md"
-      ]
+        "dev/plans/0.8.31/plan.md",
+        "dev/plans/0.8.31/features/slice-80/status.md"
+      ],
+      "evidence": "Authorized v0.8.31 (tag object 48a224e5ac691d5b88a7979b920e87352d31e87f -> peeled commit 8965af93d6f42d160474acb382596c5aab6b5c2d) delivered across crates.io T1-T7 (Axis-W 0.8.31, Axis-E 0.8.0), PyPI (fathomdb==0.8.31 + fathomdb-cli==0.8.31), npm (5 platform packages + fathomdb@0.8.31 promoted to latest via OIDC), GitHub Release v0.8.31 (12 assets incl. Inspector 0.3.0), and Jetson Orin Tegra Pages (run 45325322000 7/7 pass, 11 retained artifacts). Original release run 45318429916 passed all builds, all publishers, co-tagging, and 7/8 smokes; sole failure post-publish-smoke (crates-sdk) (missing Schema-38 properties: None in smoke fixture registry-sdk.rs) repaired at 64e21c3c5 and verified in finalization run 45326999920 + live local PyPI/crates.io consumer proofs. Temporary GPU0 runner 170 retired (0 org runners); Orin listener 22 stopped cleanly."
     }
   ],
   "landed": [
@@ -167,38 +170,37 @@
     40,
     50,
     60,
-    70
-  ],
-  "remaining_ladder": [
+    70,
     80
   ],
-  "next_slice": 80,
+  "remaining_ladder": [],
+  "next_slice": null,
   "publish_gate": {
-    "status": "HELD",
-    "publication_authorized": false,
-    "scope": "Publication requires completed Slice 70 qualification and separate explicit HITL publication authorization."
+    "status": "PUBLISHED",
+    "publication_authorized": true,
+    "scope": "Slice 70 qualification complete and Slice 80 publication authorized and verified across crates.io, PyPI (fathomdb + fathomdb-cli), npm latest, GitHub Releases (with Inspector 0.3.0), and Jetson Orin Tegra Pages."
   },
-  "published": null,
+  "release_readiness": {
+    "status": "PUBLISHED_COMPLETE",
+    "publication_authorized": true,
+    "pages_publication_authorized": true,
+    "public_release_notes": "https://fathomadb.github.io/fathomdb/release-notes/0.8.31/"
+  },
+  "published": {
+    "tag": "v0.8.31",
+    "tag_object": "48a224e5ac691d5b88a7979b920e87352d31e87f",
+    "tag_commit": "8965af93d6f42d160474acb382596c5aab6b5c2d",
+    "published_on": "2026-11-23",
+    "npm_dist_tag": "latest",
+    "release_run_id": 45318429916,
+    "recovery_run_id": 45326999920,
+    "tegra_run_id": 45325322000
+  },
   "generated_views": [
-    {
-      "id": "plan-immediate-next",
-      "file": "dev/plans/0.8.31/plan.md",
-      "location": "Immediate next slice"
-    },
     {
       "id": "plan-landed-roll-up",
       "file": "dev/plans/0.8.31/plan.md",
-      "location": "Landed slice roll-up"
-    },
-    {
-      "id": "status-current-state",
-      "file": "dev/plans/runs/STATUS-0.8.31.md",
-      "location": "Current state"
-    },
-    {
-      "id": "status-next-action",
-      "file": "dev/plans/runs/STATUS-0.8.31.md",
-      "location": "Next action"
+      "location": "Final landed source roll-up; completed ladder has no next-slice controls"
     }
   ]
 }

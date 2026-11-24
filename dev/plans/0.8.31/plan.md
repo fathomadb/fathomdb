@@ -1,16 +1,16 @@
 ---
 title: FathomDB 0.8.31 release plan
-status: ACTIVE
+status: COMPLETE
 target_release: 0.8.31
-date: 2026-11-22
+date: 2026-11-23
 ---
 
 # FathomDB 0.8.31 release plan
 
-> **Status: ACTIVE on `release/0.8.31` (owner go-ahead 2026-11-22; HITL Gate 1 approved 2026-11-22).**
-> Live state lives in [release-state-0.8.31.json](../release-state-0.8.31.json)
-> and [STATUS-0.8.31.md](../runs/STATUS-0.8.31.md). Slice 80 publication
-> remains separately HITL-gated.
+> **Status: COMPLETE — `v0.8.31` published 2026-11-23.**
+> Final state lives in [release-state-0.8.31.json](../release-state-0.8.31.json),
+> [STATUS-0.8.31.md](../runs/STATUS-0.8.31.md), and
+> [features/slice-80/status.md](features/slice-80/status.md).
 
 ## Goal and scope
 
@@ -148,22 +148,17 @@ rework (deferred post-`0.8.34`, documented as legacy in `0.8.33`).
 
 ## Immediate next slice
 
-<!-- BEGIN GENERATED release-state:0.8.31:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 80** (`PUBLICATION`) — Authorized 0.8.31 publication (crates, PyPI fathomdb + fathomdb-cli, npm, Tegra, Inspector)
-
-**Remaining ladder:** 80.<!-- END GENERATED release-state:0.8.31:plan-immediate-next -->
-
-Active slice is owned by [release-state-0.8.31.json](../release-state-0.8.31.json)
-and [STATUS-0.8.31.md](../runs/STATUS-0.8.31.md). Slice plans live under
-`dev/plans/0.8.31/features/slice-<N>/plan.md`.
+**None — `0.8.31` ladder is complete (`v0.8.31` published 2026-11-23).** See
+[release-state-0.8.31.json](../release-state-0.8.31.json),
+[STATUS-0.8.31.md](../runs/STATUS-0.8.31.md), and
+[features/slice-80/status.md](features/slice-80/status.md).
 
 ## Open HITL decisions
 
-HITL Gate 1 approved (`2026-11-22`). HITL Gate 2 covers the reviewed Slice 10
-plan (`features/slice-10/plan.md`). Publication (Slice 80) requires separate HITL
-authorization after Slice 70 qualification completes.
+All `0.8.31` HITL gates (Gate 1, Gate 2, and Slice 80 publication authorization)
+are resolved and closed.
 
 ## Landed slice roll-up
 
 <!-- BEGIN GENERATED release-state:0.8.31:plan-landed-roll-up -->
-**LANDED on `origin/main`, in full:** Slices 0 (`42595212c`) · 10 (`3c4b84439`) · 20 (`975637f3c`) · 30 (`8e44a47ad`) · 40 (`fe5e7d8a1`) · 50 (`28f5def55`) · 60 (`6685b0ccf`) · 70 (`dda61cfae`). SCHEMA is 38; remaining ladder = 80.<!-- END GENERATED release-state:0.8.31:plan-landed-roll-up -->
+**LANDED on `origin/main`, in full:** Slices 0 (`42595212c`) · 10 (`3c4b84439`) · 20 (`975637f3c`) · 30 (`8e44a47ad`) · 40 (`fe5e7d8a1`) · 50 (`28f5def55`) · 60 (`6685b0ccf`) · 70 (`dda61cfae`) · 80 (`64e21c3c5`). SCHEMA is 38; remaining ladder = none.<!-- END GENERATED release-state:0.8.31:plan-landed-roll-up -->

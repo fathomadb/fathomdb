@@ -4,13 +4,13 @@ FathomDB is a local-first retrieval and graph-oriented data system
 designed for application and agent workloads. This site is the public
 documentation source for users, operators, and SDK consumers.
 
-> **Release 0.8.31 (pre-publication documentation target; newest published release is 0.8.30), pre-1.0 beta.** The surface may change between micro
+> **Release 0.8.31, pre-1.0 beta.** The surface may change between micro
 > releases. The release provides Python, TypeScript, and Rust application SDKs,
-> plus a separate operator CLI.
-> Version 0.8.30 is published on crates.io, PyPI and npm, with its matching
-> Tegra CUDA wheel and Node addon on first-party GitHub Pages.
-> See [Install](install/python.md) and the
-> [CHANGELOG](https://github.com/fathomadb/fathomdb/blob/release/0.8.30/CHANGELOG.md).
+> plus a separate operator CLI (`fathomdb-cli`) and FathomDB Inspector `0.3.0`.
+> Version 0.8.31 is published on crates.io, PyPI (`fathomdb` and `fathomdb-cli`),
+> npm, and GitHub Releases, with its matching Tegra CUDA wheel and Node addon on
+> first-party GitHub Pages. See [Install](install/python.md) and the
+> [CHANGELOG](https://github.com/fathomadb/fathomdb/blob/release/0.8.31/CHANGELOG.md).
 
 Native Python and Node artifacts cover Linux x86_64/glibc, Linux
 AArch64/glibc, macOS x64/arm64, and Windows x64. See the
@@ -46,9 +46,9 @@ AArch64/glibc, macOS x64/arm64, and Windows x64. See the
 - [Positions](positions/index.md) — consumer-relevant technical
   positions (SDK parity, recovery surface, tokenizer policy,
   embedder identity).
-- [0.8.30 release notes](release-notes/0.8.30.md) (published) and
-  [0.8.31 release notes](release-notes/0.8.31.md) (pre-publication target).
-- [Release changelog](https://github.com/fathomadb/fathomdb/blob/release/0.8.30/CHANGELOG.md) — 0.8.30 changes.
+- [0.8.31 release notes](release-notes/0.8.31.md) (and earlier
+  [0.8.30 release notes](release-notes/0.8.30.md)).
+- [Release changelog](https://github.com/fathomadb/fathomdb/blob/release/0.8.31/CHANGELOG.md) — 0.8.31 changes.
   Earlier detailed changes are recorded in the repo
   [CHANGELOG](https://github.com/fathomadb/fathomdb/blob/main/CHANGELOG.md).
 

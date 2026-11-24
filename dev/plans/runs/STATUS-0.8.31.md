@@ -1,13 +1,13 @@
 # FathomDB 0.8.31 release status
 
-**ACTIVE — release implementation on `release/0.8.31`.**
-The [state](../release-state-0.8.31.json) owns structured status and next
-actions. The [master plan](../0.8.31/plan.md) and [scope](../0.8.31/scope.md)
+**COMPLETE — `v0.8.31` published 2026-11-23.**
+The [state](../release-state-0.8.31.json) owns structured status and delivery
+receipts. The [master plan](../0.8.31/plan.md) and [scope](../0.8.31/scope.md)
 own settled HITL decisions, requirements, and execution contracts.
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.31:status-current-state -->**Next is Slice 80 (PUBLICATION), HELD.** Completed on local `release/0.8.31` per release state: 0 (`42595212c`) · 10 (`3c4b84439`) · 20 (`975637f3c`) · 30 (`8e44a47ad`) · 40 (`fe5e7d8a1`) · 50 (`28f5def55`) · 60 (`6685b0ccf`) · 70 (`dda61cfae`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.31:status-current-state -->
+**Release `0.8.31` is COMPLETE and PUBLISHED (`v0.8.31`, tag object `48a224e5ac691d5b88a7979b920e87352d31e87f` → peeled commit `8965af93d6f42d160474acb382596c5aab6b5c2d`).** All slices (`0, 10, 20, 30, 40, 50, 60, 70, 80`) are landed on `main`; remaining ladder = none.
 
 - **Slice 0 (`PREFLIGHT`) & Phase A Prework Audits (`Slices 1–9`) — LANDED (`bf8e905e3`, `42595212c`):**
   - Merged completed `origin/inspector/dev/0.2.1` (`d6501cc5a`) cleanly at `086d5af0a`.
@@ -37,10 +37,11 @@ own settled HITL decisions, requirements, and execution contracts.
 - **Slice 60 (`INSPECTOR`) — LANDED (`6685b0ccf`):**
   - Landed Layers 1–3 (`35543da54`, `e86100641`, `8689b781d`) plus `FIX-1` (`6685b0ccf`): Inspector `0.3.0` Schema 38 strict admission, erasure-gated outside-`body` `properties` & reserved `scope`, `"properties"` memory admission, bounded `catalog`/`associations`, historical `as_of` graph + `P4-13` `INDEXED BY` lift + O(log N) two-branch `UNION ALL`, `.textContent`-only XSS-safe UI with `drawTree()` `field` threading + `i64` precision + `seedExpanded` preservation, `P7-02` bounded timeouts & `/proc` reaping across all harnesses, scoped `local-ci.sh`, `D4 = B` `local-release.py`, `build-inspector` in `.github/workflows/release.yml` (`upload-artifact-retry` `15`), all 4 workflow contract suites, and Inspector `0.3.0` docs.
   - Independent adversarial code review returned **`APPROVE`** at HEAD `6685b0ccf`; recorded in `features/slice-60/status.md`.
-- **Slice 70 (`QUALIFICATION`) — ACTIVE:** Applying Plan Review `FIX-1` to `features/slice-70/plan.md` for `APPROVE`, then executing full `0.8.31` qualification gates (stopping strictly before Slice 80 Publication for separate HITL authorization).
+- **Slice 70 (`QUALIFICATION`) — LANDED (`dda61cfae`, frozen product code `f13244689`):**
+  - Completed `WP-70A`–`WP-70G` + `FIX-1`: unconfined `agent-verify.sh` (`243/246` suites, `0` failed, `agent-security` `0` violations), all 7 canonical `AGENT_LONG=1` & `--release` perf gates, `WP-70B` `warmup_rounds=5` paired `0.8.30` vs. `0.8.31` `10k`/`50k`/`100k` latency/resource gate + `50k` micro-gates (`passed: true`, `0` parity mismatches), `WP-70C` live RTX 3090 feature-complete matrix (`223` passed, `0` failed, `27` allowlisted ignored), `WP-70D` Inspector `0.3.0` `--full-workspace` (`86/86` Playwright tests) + 4-arg network silence, `WP-70E` clean-venv `fathomdb` + `fathomdb-cli` wheels & stripped-`PATH` `37 -> 38` upgrade proof, `WP-70F` release docs, and `WP-70G` golden Schema-38 archive (`sha256: e0a078bd...`). Independent adversarial review Round 2 returned **`APPROVE`**.
+- **Slice 80 (`PUBLICATION`) — LANDED (`64e21c3c5`, `v0.8.31`):**
+  - Published across crates.io (`T1–T7`, Axis-W `0.8.31`, Axis-E `0.8.0`), PyPI (`fathomdb==0.8.31` and `fathomdb-cli==0.8.31`), npm (`fathomdb@0.8.31` on `latest` + 5 platform packages), GitHub Release `v0.8.31` (12 production assets incl. Inspector `0.3.0`), and Jetson Orin Tegra Pages (run `45325322000` 7/7 pass, 11 retained artifacts). Original release run `45318429916` passed all builds, all publishers, `co-tagging-assert`, and 7/8 smokes; sole failure `post-publish-smoke (crates-sdk)` (smoke fixture `registry-sdk.rs` missing Schema-38 `properties: None`) repaired at `64e21c3c5` and verified in finalization run `45326999920` + live local PyPI/crates.io consumer proofs. Owned GPU0 runner `170` retired and Orin listener `22` stopped cleanly. Full receipts in [features/slice-80/status.md](../0.8.31/features/slice-80/status.md).
 
 ## Next action
 
-<!-- BEGIN GENERATED release-state:0.8.31:status-next-action -->**Commission Slice 80 (PUBLICATION)** — Authorized 0.8.31 publication (crates, PyPI fathomdb + fathomdb-cli, npm, Tegra, Inspector). **Remaining ladder:** 80.<!-- END GENERATED release-state:0.8.31:status-next-action -->
-
-Complete Slice 70 (`QUALIFICATION`) Plan Review `FIX-1` (`APPROVE`), then execute WP-70F/70A–70G qualification gates and stop before Slice 80 Publication for separate HITL approval.
+None — `0.8.31` is complete and published. Next release planning begins with `0.8.32` upon owner direction.

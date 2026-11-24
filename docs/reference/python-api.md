@@ -3,7 +3,7 @@
 Module: `fathomdb`. Authoritative spec:
 [`dev/interfaces/python.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.31/dev/interfaces/python.md).
 
-> **Release 0.8.31 (pre-publication documentation target; newest published release is 0.8.30), pre-1.0 beta.**
+> **Release 0.8.31, pre-1.0 beta.**
 
 ## Representative top-level imports
 

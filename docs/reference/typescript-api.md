@@ -3,7 +3,7 @@
 Package: `fathomdb`. Authoritative spec:
 [`dev/interfaces/typescript.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.31/dev/interfaces/typescript.md).
 
-> **Release 0.8.31 (pre-publication documentation target; newest published release is 0.8.30), pre-1.0 beta.**
+> **Release 0.8.31, pre-1.0 beta.**
 
 The TypeScript, Python, and Rust SDKs share the governed operation surface
 and error categories. Language calling conventions differ. See

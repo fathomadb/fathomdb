@@ -6,8 +6,7 @@ AArch64/glibc, macOS x64/arm64, and Windows x64. See the
 
 ## Where to go
 
-- [0.8.30 release notes](../release-notes/0.8.30.md) (published) and
-  [0.8.31 release notes](../release-notes/0.8.31.md) (pre-publication target) —
+- [0.8.31 release notes](../release-notes/0.8.31.md) —
   changes, compatibility boundaries, and schema migration guidance.
 
 - [Quickstart](quickstart.md) — install, open, write, search,
@@ -16,7 +15,7 @@ AArch64/glibc, macOS x64/arm64, and Windows x64. See the
 - [Install — TypeScript / Node.js](../install/typescript.md)
 - [Install — Rust](../install/rust.md)
 
-## Release 0.8.31 surface (pre-publication target; newest published release is 0.8.30)
+## Release 0.8.31 surface
 
 The Python, TypeScript, and Rust application SDKs use equivalent idiomatic
 names and the same governed operation membership. The separate Rust facade
@@ -60,7 +59,7 @@ exposes lower-level inherent methods and re-exported types:
   upgrade). In the 0.8.31 line the CLI is also packaged via `fathomdb-cli` /
   `pip install 'fathomdb[cli]'` while keeping base `fathomdb` script-free.
 - Local-first storage on SQLite (FTS5 + `sqlite-vec`), on-disk schema
-  version **38** (0.8.31 target; published 0.8.30 uses schema 37). Public opens
+  version **38**. Public opens
   create a fresh schema-38 database or accept an existing schema-38 database;
   they never auto-migrate. Existing committed schema-37 stores upgrade offline
   via `fathomdb migrate --backup-dir <dir> <db_path>`.

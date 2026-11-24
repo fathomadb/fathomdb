@@ -10,11 +10,12 @@ AC-050c) gates merges against this invariant.
 
 ## Unreleased
 
-## 0.8.31 — Pre-publication qualification
+## 0.8.31 — 2026-11-23
 
-**Pre-publication qualification.** Registry publication (crates.io, PyPI
-`fathomdb` and `fathomdb-cli`, npm, GitHub Pages, and GitHub Releases) remains
-pending Slice 80 authorization.
+**Published.** crates.io, PyPI (`fathomdb` and `fathomdb-cli`), npm `latest`,
+and GitHub Releases (including FathomDB Inspector `0.3.0`) carry 0.8.31. The
+matching 0.8.31 Tegra CUDA wheel and Node addon are public on first-party
+GitHub Pages.
 
 ### Added
 

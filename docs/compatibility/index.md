@@ -1,7 +1,7 @@
 # Compatibility
 
 Supported platforms, toolchains, and version-alignment policy for the
-Documentation target: **0.8.31** (pre-publication; newest published release is **0.8.30**).
+**0.8.31** release line.
 
 > **Pre-1.0 = beta.** FathomDB is on a pre-1.0 line. The surface may
 > change between micro releases; consult the
@@ -17,13 +17,13 @@ targets those three interpreters explicitly.
 
 ## Supported Node versions
 
-The 0.8.30 package supports Node **25.x** and **26.x** and declares
+The 0.8.31 package supports Node **25.x** and **26.x** and declares
 `engines.node = ">=25 <27"`. Target-native installed qualification covers all
 five generic native targets. Development uses Node **26.13.1** with npm
 **11.20.0**; held release and Tegra producers use Node **25.9.0** with npm
 **11.12.1**. npm OIDC promotion separately uses npm **11.21.0**.
 
-Version 0.8.30 is published. The older 0.8.29 package retains its Node 25-only
+Version 0.8.31 is published. The older 0.8.29 package retains its Node 25-only
 contract; a newer development runtime does not extend that older package's support.
 
 ## Supported Rust toolchain
@@ -33,7 +33,7 @@ and release jobs.
 
 ## Prebuilt artifacts — five native targets
 
-⚠ **The 0.8.30 wheel and npm platform binaries support Linux
+⚠ **The 0.8.31 wheel and npm platform binaries support Linux
 `x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu` glibc, macOS x64 and
 arm64, and Windows x64.** Linux musl and other targets remain source-build-only.
 
@@ -65,37 +65,37 @@ same gate, not exempted from it: both numbers come from
 `scripts/check-glibc-floor-doc-truth.sh` fails if either claim on this page
 drifts from it.
 
-The `0.8.30+tegra` Python wheel and matching 0.8.30 Node addon use
+The `0.8.31+tegra` Python wheel and matching 0.8.31 Node addon use
 first-party GitHub Pages for classic Jetson Orin. Public readback and installed
 Orin smokes passed; verify the exact retained version and digest before
-installing. Generic 0.8.30
+installing. Generic 0.8.31
 AArch64 packages remain CPU-only, including on Jetson. CUDA 13 artifact
 delivery is deferred beyond 0.8.31 (`0.8.31` retains the CUDA 12.6 + classic Jetson Orin stack).
 
-For a confirmed classic Jetson Orin only, the 0.8.30 distribution route for
-the exact `fathomdb==0.8.30+tegra` wheel is the interim first-party PEP 503
+For a confirmed classic Jetson Orin only, the 0.8.31 distribution route for
+the exact `fathomdb==0.8.31+tegra` wheel is the interim first-party PEP 503
 index. Install it only after the retained manifest lists the exact wheel and
 digest:
 
 ```bash
 python -m pip install --isolated --no-cache-dir --only-binary=:all: \
   --index-url https://fathomadb.github.io/fathomdb/tegra/simple/ \
-  'fathomdb==0.8.30+tegra'
+  'fathomdb==0.8.31+tegra'
 ```
 
 Do not use a floating requirement or `--extra-index-url`: pip merges candidate
-sets and does not prioritize indexes. The Pages route is interim 0.8.30
+sets and does not prioritize indexes. The Pages route is interim 0.8.31
 hosting, not a durable multi-version distribution decision. Use
 `fathomdb doctor platform --json` to distinguish classic Tegra from ARM64 SBSA
 before diagnosing an incompatible CUDA provider.
 
 For Node.js, the generic `linux-arm64-gnu` npm package stays CPU-only on every
-AArch64 host, including Jetson. In 0.8.30, a
+AArch64 host, including Jetson. In 0.8.31, a
 confirmed classic Jetson Orin can add the CUDA-capable
 `fathomdb-linux-arm64-gnu-tegra` package. It is distributed only as an
 exact-version tarball from the Tegra Pages site, never from the npm registry,
 and must match the `fathomdb` version exactly. Keep the main package at
-0.8.30 for this addon; do not combine different main/addon versions. Without an
+0.8.31 for this addon; do not combine different main/addon versions. Without an
 installed Tegra addon, the loader uses the generic CPU package. Check its SHA-256 against the release's retained artifact manifest before
 installation; follow the [verification procedure](../install/typescript.md#classic-jetson-orin-with-cuda):
 

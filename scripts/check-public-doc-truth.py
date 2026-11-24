@@ -58,7 +58,7 @@ STATE_RE = re.compile(r"dev/plans/release-state-(\d+)\.(\d+)\.(\d+)\.json$")
 COMMIT_RE = re.compile(r"[0-9a-f]{40}$")
 DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}$")
 # Accepted release-format boundaries; independent of publication status.
-RELEASE_SCHEMAS = {"0.8.26": 34, "0.8.27": 34, "0.8.28": 37, "0.8.29": 37, "0.8.30": 37}
+RELEASE_SCHEMAS = {"0.8.26": 34, "0.8.27": 34, "0.8.28": 37, "0.8.29": 37, "0.8.30": 37, "0.8.31": 38}
 
 
 def repo_root() -> Path:

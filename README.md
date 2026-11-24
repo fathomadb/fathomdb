@@ -5,15 +5,15 @@ agents. It combines SQLite, FTS5, and `sqlite-vec` in your process: open a
 local database file, write records with provenance, and retrieve them through
 the Python, TypeScript, or Rust application SDK.
 
-## Release 0.8.30 (0.8.31 in development)
+## Release 0.8.31
 
 FathomDB is pre-1.0 beta; public contracts can change between micro releases.
-This checkout targets the in-development **0.8.31** release (store format **38**,
-with an explicit offline `fathomdb migrate` upgrade from format 37 to 38);
-**0.8.30** is the newest published release on crates.io, PyPI and npm (format 37),
-with its matching Tegra CUDA wheel and Node addon available through first-party
-GitHub Pages. See the [0.8.30 release notes](docs/release-notes/0.8.30.md), the
-pre-publication [0.8.31 release notes](docs/release-notes/0.8.31.md), and the
+**0.8.31** is published on crates.io, PyPI (`fathomdb` and `fathomdb-cli`), npm,
+and GitHub Releases (store format **38**, with an explicit offline
+`fathomdb migrate` upgrade from format 37 to 38, plus FathomDB Inspector
+**0.3.0**), with its matching Tegra CUDA wheel and Node addon available through
+first-party GitHub Pages. See the
+[0.8.31 release notes](docs/release-notes/0.8.31.md) and the
 [changelog](CHANGELOG.md).
 
 ## What you can build
@@ -44,9 +44,9 @@ error classes. See [SDK parity](docs/positions/sdk-parity.md).
 
 | Language | Package and installation | Import | Documentation |
 | --- | --- | --- | --- |
-| Python | `python -m pip install fathomdb==0.8.30` | `from fathomdb import Engine, read, graph, admin` | [Install](docs/install/python.md) · [API](docs/reference/python-api.md) |
-| TypeScript / Node.js | `npm install --save-exact fathomdb@0.8.30` | `import { Engine, read, graph, admin } from "fathomdb"` | [Install](docs/install/typescript.md) · [API](docs/reference/typescript-api.md) |
-| Rust application SDK | `cargo add fathomdb-sdk@=0.8.30` | `use fathomdb_sdk::{Engine, read, graph, admin};` | [Install](docs/install/rust.md#install-the-application-sdk) · [API](docs/reference/rust-sdk.md) |
+| Python | `python -m pip install fathomdb==0.8.31` | `from fathomdb import Engine, read, graph, admin` | [Install](docs/install/python.md) · [API](docs/reference/python-api.md) |
+| TypeScript / Node.js | `npm install --save-exact fathomdb@0.8.31` | `import { Engine, read, graph, admin } from "fathomdb"` | [Install](docs/install/typescript.md) · [API](docs/reference/typescript-api.md) |
+| Rust application SDK | `cargo add fathomdb-sdk@=0.8.31` | `use fathomdb_sdk::{Engine, read, graph, admin};` | [Install](docs/install/rust.md#install-the-application-sdk) · [API](docs/reference/rust-sdk.md) |
 
 The [`fathomdb` Rust crate](docs/reference/rust-api.md) is the
 lower-level engine facade. The application SDK is `fathomdb-sdk`.
@@ -91,7 +91,7 @@ and Windows artifacts are CPU-only. The default `auto` policy uses CPU when
 no usable GPU is available. Retrieval, fusion, graph traversal, and SQLite
 vector stages run on CPU. See the [compatibility matrix](docs/compatibility/index.md)
 for exact versions, ABI floors, and the Node 25/26 contract. Classic Jetson Orin
-uses a separate `0.8.30+tegra` Python wheel and matching 0.8.30 Node addon through
+uses a separate `0.8.31+tegra` Python wheel and matching 0.8.31 Node addon through
 first-party GitHub Pages, with exact URLs and digests in the
 [retained manifest](scripts/release/tegra-pages-retained.json). Keep the Node
 main/addon versions matched; omit the addon to use the generic ARM64 CPU
@@ -108,15 +108,13 @@ device selection, shared-GPU limits, and
 Explicit release drops cached standalone CLS and cross-encoder models while
 engine-owned Mean providers retain their own close lifecycle.
 
-For the published 0.8.30 release, install the operator CLI from source:
+Install the operator CLI from crates.io or via the lockstep `fathomdb-cli` PyPI
+binary wheel (`pip install 'fathomdb[cli]==0.8.31'`, keeping the base `fathomdb`
+SDK wheel free of console scripts):
 
 ```bash
-cargo install fathomdb-cli --version '=0.8.30' --locked
+cargo install fathomdb-cli --version '=0.8.31' --locked
 ```
-
-In the 0.8.31 release line, the operator CLI is also packaged as a lockstep
-`fathomdb-cli` binary wheel installable via `pip install 'fathomdb[cli]'` while
-keeping the base `fathomdb` SDK package free of console scripts.
 
 Use the [CLI reference](docs/reference/cli.md) and
 [integrity inspection guide](docs/operations/integrity-inspection.md) before

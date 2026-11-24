@@ -571,7 +571,7 @@ class Engine:
         telemetry ``result_ids`` / ``write_cursor`` keys (the pre-0.8.19
         ``SearchHit.id`` space), NOT the post-C-2 typed ``SearchHit.id``;
         ``label_source`` is the caller-declared label origin (e.g.
-        ``"agent:hermes"``). Raises when telemetry is off."""
+        ``"agent:assistant"``). Raises when telemetry is off."""
         _sdk_instrumentation.record_feedback(
             self, query_id, relevant_ids, irrelevant_ids, label_source
         )

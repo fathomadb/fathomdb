@@ -7,10 +7,10 @@ authority.
 ## Before you run it
 
 1. Install the exact CLI version paired with the store and confirm
-   `fathomdb --version`. For published 0.8.30, use
-   `cargo install fathomdb-cli --version '=0.8.30' --locked`. In the 0.8.31
-   release line, the CLI is also packaged as a lockstep `fathomdb-cli` PyPI
-   binary wheel installable via `pip install 'fathomdb[cli]'`.
+   `fathomdb --version`. For published 0.8.31, use
+   `cargo install fathomdb-cli --version '=0.8.31' --locked` or install the
+   lockstep `fathomdb-cli` PyPI binary wheel via `pip install 'fathomdb[cli]'`
+   (`pip install fathomdb-cli==0.8.31`).
 2. Stop every FathomDB process using the database. The product `.lock` must
    exist and be acquirable. Raw external SQLite writers do not participate in
    this lock protocol and must also be stopped.

@@ -1,6 +1,6 @@
 # Rust API
 
-Crate: `fathomdb` (0.8.31 documentation target; newest published release: 0.8.30). The facade re-exports the supported application
+Crate: `fathomdb` (published 0.8.31 release). The facade re-exports the supported application
 surface from `fathomdb-engine`; generated item-level documentation is published
 at [`docs.rs/fathomdb`](https://docs.rs/fathomdb/). The locked
 [Rust interface](https://github.com/fathomadb/fathomdb/blob/main/dev/interfaces/rust.md)
@@ -9,7 +9,7 @@ owns the contract and feature-gating details.
 ## Surface model
 
 This facade is not namespace-identical to the Python and TypeScript SDKs;
-for that surface in Rust, use [`fathomdb-sdk`](rust-sdk.md) (0.8.30). Application
+for that surface in Rust, use [`fathomdb-sdk`](rust-sdk.md) (0.8.31). Application
 operations are inherent `Engine` methods and public carriers are facade
 re-exports. The default feature set contains no recovery-named or raw-SQL
 method. The `operator` feature enables the diagnostic and recovery seam used by
@@ -88,8 +88,7 @@ is built-in default or none, with no caller-provider injection.
   properties into `canonical_property_values` (returned on `NodeRecord` and
   `SearchHit`).
 - `SearchFilter.property_predicates` adds typed inline property predicates
-  (`eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `in`, `contains`, `exists`, `not_exists`)
-  alongside `attributes`.
+  (`eq`, `ne`, `lt`, `lte`, `gt`, `gte`) alongside `attributes`.
 - `ProjectionSpec` adds `entity_class` (`Node` or `Edge` projection targeting)
   and `vector_kinds` (opt-in custom node kinds enrolled in `_fathomdb_vector_kinds`
   alongside the 7 built-in defaults; reserved `"edge_fact"` is rejected).

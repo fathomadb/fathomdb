@@ -9,22 +9,22 @@ fetch verified weights on a cold cache, as described below.
 
 ## Status: pre-1.0, beta
 
-The 0.8.x line is under active development (documentation target: 0.8.31; newest
-published release: 0.8.30). The public surface can change between minor releases,
-and scale/stability guarantees are staged for 0.9.x and later.
+The 0.8.x line is under active development (published release: 0.8.31). The
+public surface can change between minor releases, and scale/stability guarantees
+are staged for 0.9.x and later.
 
 ## Install
 
 ```bash
-pip install fathomdb==0.8.30
+pip install fathomdb==0.8.31
 ```
 
 Requires Python 3.10 or newer. Wheels are `abi3`, so one wheel per platform serves every supported
 interpreter. The package is a PyO3 binding to the FathomDB Rust engine and has no Python
-dependencies of its own. In the in-development `0.8.31` release line, the
-optional `fathomdb[cli]` extra (`pip install 'fathomdb[cli]'`) installs the
-lockstep `fathomdb-cli` binary wheel alongside the SDK while keeping the base
-`fathomdb` wheel free of console scripts.
+dependencies of its own. Starting in `0.8.31`, the optional `fathomdb[cli]`
+extra (`pip install 'fathomdb[cli]==0.8.31'`) installs the lockstep
+`fathomdb-cli` binary wheel alongside the SDK while keeping the base `fathomdb`
+wheel free of console scripts.
 
 ## Quick start
 
@@ -95,7 +95,7 @@ admitted model work finishes. Loading, cache waits, inference or another release
 raises `OverloadedError` immediately and clears neither cache. Empty/repeated
 release constructs nothing; later healthy calls reload on demand. Engine-owned
 Mean providers close separately with their Engine. Terminal CUDA loss still
-requires process restart. See [model lifetime and examples](https://github.com/fathomadb/fathomdb/blob/release/0.8.30/docs/embedder.md#release-module-models).
+requires process restart. See [model lifetime and examples](https://github.com/fathomadb/fathomdb/blob/release/0.8.31/docs/embedder.md#release-module-models).
 
 ## Erasing data
 
@@ -110,14 +110,14 @@ requires an exclusive maintenance window for physical erasure; direct
 erase/purge outside that window raises `MaintenanceError`. Queueing an erasure
 intent does not delete or hide records. Completion is certified by the
 maintenance result, while incomplete cleanup retains its durable fences. See
-the [maintenance guide](https://github.com/fathomadb/fathomdb/blob/release/0.8.30/docs/operations/erasure.md).
+the [maintenance guide](https://github.com/fathomadb/fathomdb/blob/release/0.8.31/docs/operations/erasure.md).
 
 ## Other SDKs
 
 The same engine is available as a Node.js package (`npm install fathomdb`). The Rust
 application peer is `fathomdb-sdk` (import `fathomdb_sdk`), available in
-0.8.30; use the
-[Rust SDK installation guide](https://github.com/fathomadb/fathomdb/blob/release/0.8.30/docs/install/rust.md).
+0.8.31; use the
+[Rust SDK installation guide](https://github.com/fathomadb/fathomdb/blob/release/0.8.31/docs/install/rust.md).
 The [`fathomdb` crate](https://crates.io/crates/fathomdb) remains the
 separate lower-level engine facade.
 

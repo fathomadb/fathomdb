@@ -57,7 +57,7 @@ The published Python wheel already includes the default embedder; there is no
 `default-embedder` extra to install. Install the package normally:
 
 ```bash
-python -m pip install fathomdb==0.8.30
+python -m pip install fathomdb==0.8.31
 ```
 
 ### TypeScript
@@ -341,7 +341,7 @@ These measurements come from one Jetson AGX Orin 64 GB (L4T R36, CUDA 12.6).
 Other Jetson models are unmeasured. So are non-Tegra AArch64 Linux CUDA hosts
 such as Grace Hopper, GB10 and SBSA servers, which also build this behaviour.
 These non-Tegra ARM+GPU configurations are not known-working CUDA environments
-and are excluded from 0.8.30 qualification; no GPU support claim is implied.
+and are excluded from 0.8.31 qualification; no GPU support claim is implied.
 
 ### Jetson: private CUDA memory pool
 
@@ -541,14 +541,15 @@ See [errors](reference/errors.md) for typed failures and operational limits.
 
 ## Caveats and limitations
 
-- **Vector fidelity.** The 0.8.30 Orin TC5 direct-vector measurement reports
+- **Vector fidelity (historical 0.8.30 baseline).** The historical 0.8.30 Orin
+  TC5 direct-vector baseline measurement reports
   recall@10 **0.958** (95% CI **0.938–0.974**) across 100 frozen query ordinals,
   7,666 eligible rows, K=192 and an exact-f32 top-10 reference. It measures
   quantization fidelity for the same model. FTS, fusion, graph and cross-encoder
   routes did not run in those measurements; this is not answer relevance or a
   general retrieval-quality guarantee. The evidence was assembled after scoped
   executor recoveries; the original wrapper failures remain recorded in the
-  [qualification status](https://github.com/fathomadb/fathomdb/blob/release/0.8.30/dev/plans/0.8.30/features/slice-70/status.md).
+  [historical 0.8.30 qualification status](https://github.com/fathomadb/fathomdb/blob/release/0.8.30/dev/plans/0.8.30/features/slice-70/status.md).
 - **Memory measurements are bounded.** The paired Orin Node 25 default-heap
   comparison covered ten minutes per ON/OFF arm. The diagnostic ON RSS-slope
   assessment passed while OFF growth failed; the original protocol result

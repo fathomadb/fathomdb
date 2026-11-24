@@ -25,6 +25,17 @@ platform-tagged `.node` binary at load time.
   [compatibility](../compatibility/index.md)).
 - SQLite + `sqlite-vec` (statically linked into the platform binary).
 
+### Prebuilt native package matrix (embedder, cross-encoder, CUDA, and glibc)
+
+| Target | Native package / channel | Linux glibc floor | Default embedder (`bge-small`) | Cross-encoder (`rerank`) | CUDA (`embed-cuda` + `rerank-cuda`) |
+| --- | --- | --- | --- | --- | --- |
+| Linux `x86_64-unknown-linux-gnu` | `fathomdb-linux-x64-gnu` (npm) | `2.39` | CPU + CUDA | CPU + CUDA | **yes** (driverless CPU fallback) |
+| Linux `aarch64-unknown-linux-gnu` (generic) | `fathomdb-linux-arm64-gnu` (npm) | `2.28` | CPU only | CPU only | no |
+| Linux `aarch64-unknown-linux-gnu` (classic Jetson Orin) | `fathomdb-linux-arm64-gnu-tegra` (Tegra Pages) | `2.35` | CPU + CUDA | CPU + CUDA | **yes** (`tegra-pool`, JetPack 6 / CUDA 12.6) |
+| macOS `x86_64-apple-darwin` | `fathomdb-darwin-x64` (npm) | N/A | CPU only | CPU only | no |
+| macOS `aarch64-apple-darwin` | `fathomdb-darwin-arm64` (npm) | N/A | CPU only | CPU only | no |
+| Windows `x86_64-pc-windows-msvc` | `fathomdb-native-win32-x64-msvc` (npm) | N/A | CPU only | CPU only | no |
+
 ## Install the package
 
 Version 0.8.31 is published on npm. Use the exact-version command below for the

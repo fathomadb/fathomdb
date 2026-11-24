@@ -4,7 +4,7 @@ FathomDB fits applications that need compact discovery followed by exact,
 revision-aware evidence verification. It keeps retrieval, records and explicit
 relationships in an embedded database, close to the application using them.
 The host decides what to store, who may access it and which actions to take.
-These examples use the published 0.8.30 SDKs and, where identified, the
+These examples use the published 0.8.31 SDKs and, where identified, the
 repository MCP adapter. Each keeps its source of truth explicit.
 
 ## Coding agents: searchable engineering memory

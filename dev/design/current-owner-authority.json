@@ -23,6 +23,20 @@
       "evidence_only": []
     },
     {
+      "path": "dev/design/cross-cutting-change-checklist.md",
+      "profile": "current",
+      "semantic_authority": ["AGENTS.md"],
+      "implementation_witness": [
+        "scripts/check-design-lifecycle.py",
+        "scripts/check-governed-surface-pin.sh",
+        "scripts/check-module-boundaries.sh",
+        "scripts/check-sdk-surface-parity.py",
+        "scripts/generate-public-docs.py",
+        "src/rust/crates/fathomdb-engine/src/export_manifest.rs"
+      ],
+      "evidence_only": []
+    },
+    {
       "path": "dev/design/embedder.md",
       "profile": "current",
       "semantic_authority": ["dev/adr/ADR-0.6.0-embedder-protocol.md"],
@@ -128,13 +142,6 @@
       "profile": "current",
       "semantic_authority": ["dev/adr/ADR-0.6.0-op-store-same-file.md"],
       "implementation_witness": ["src/rust/crates/fathomdb-engine/tests/op_store.rs"],
-      "evidence_only": []
-    },
-    {
-      "path": "dev/design/orchestration.md",
-      "profile": "current",
-      "semantic_authority": ["AGENTS.md"],
-      "implementation_witness": ["scripts/preflight.sh"],
       "evidence_only": []
     },
     {

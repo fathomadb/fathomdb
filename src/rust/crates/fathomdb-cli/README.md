@@ -17,14 +17,14 @@ releases.
 ## Install
 
 ```bash
-cargo install fathomdb-cli --version '=0.8.30' --locked
+cargo install fathomdb-cli --version '=0.8.31' --locked
 fathomdb --version
 ```
 
-That installs a binary named `fathomdb` (the newest published crates.io release
-is `0.8.30`; the in-development `0.8.31` line also packages `fathomdb-cli` as a
-lockstep PyPI binary wheel installable via `pip install 'fathomdb[cli]'` while
-keeping the base `fathomdb` SDK wheel free of console scripts).
+That installs a binary named `fathomdb` (published release `0.8.31`). Starting
+in `0.8.31`, `fathomdb-cli` is also published as a lockstep PyPI binary wheel
+installable via `pip install 'fathomdb[cli]==0.8.31'` while keeping the base
+`fathomdb` SDK wheel free of console scripts.
 
 ## Three roots
 

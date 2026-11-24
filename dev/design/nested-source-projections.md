@@ -4,7 +4,7 @@ date: 2026-08-04
 target_release: 0.8.21 Slice 60
 status: ACTIVE
 desc: Make declared FathomDB projections read scalar values from nested canonical bodies and expose them through public attribute query APIs.
-blast_radius: projection registry, projection extraction, property index, Rust/Python/TypeScript query contracts, Memex C-1 integration
+blast_radius: projection registry, projection extraction, property index, Rust/Python/TypeScript query contracts, C-1 integration
 ---
 
 # Nested-Source Projections
@@ -18,14 +18,14 @@ is unchanged; see the [retrieval owner](retrieval.md) and .28 interfaces.
 
 ## Decision
 
-HITL selected this design for Memex B15 (steward ledger `seq-242` (remap authorization), decision
+HITL selected this design for requirement B15 (steward ledger `seq-242` (remap authorization), decision
 `b15-nested-source-projections`). A projection's source may be a declared,
 nested path in a node's canonical body. FathomDB derives the existing
 engine-owned projection, property, and property-full-text rows from that
 source, and exposes declared projected attributes through public query APIs.
 
 The canonical node body remains authoritative. This design does **not** add a
-first-class engine attribute-write store, ask Memex to duplicate attributes as
+first-class engine attribute-write store, ask callers to duplicate attributes as
 top-level scalar fields, or permit a consumer-owned projection database.
 
 This is a successor to the future-fulfillment mechanics in
@@ -42,8 +42,8 @@ path `$."name"` and skips object and array values. Its public Python and
 TypeScript `SearchFilter` contracts do not expose the Rust-internal attribute
 filter.
 
-Memex's canonical entity body instead stores typed attributes at paths such
-as:
+A structured caller's canonical entity body instead stores typed attributes at
+paths such as:
 
 ```json
 {
@@ -59,8 +59,8 @@ as:
 ```
 
 Requiring a second `deadline` field at the body root would create two
-representations of the same fact. Asking Memex to materialize a private index
-would recreate a projection system that the engine must own. Neither is an
+representations of the same fact. Asking an application to materialize a private
+index would recreate a projection system that the engine must own. Neither is an
 acceptable C-1 outcome.
 
 ## Goals
@@ -84,8 +84,8 @@ acceptable C-1 outcome.
 - Flattening or rewriting existing canonical bodies during migration.
 - Blending projected-property lexical scores with body full-text or vector
   search in the first delivery.
-- A Memex release, schema migration, or changes to Memex's authorization and
-  body-write protocol.
+- External application releases, application-side schema migrations, or changes to
+  a caller's authorization and body-write protocol.
 
 ## Projection declaration
 
@@ -118,7 +118,7 @@ that canonical text, not a new typed scalar union. A string `"1"` and number
 `1` therefore compare equal, as do any other values whose canonical text is the
 same.
 
-**HITL decision (2026-08-04): Memex B15 explicitly accepts this
+**HITL decision (2026-08-04): B15 explicitly accepts this
 type-collapsed equality.** Slice 60 must pin the behavior in all three bindings
 with a real-database test: a projected string `"1"` and projected number `1`
 match the same equality predicate. It is not an accidental coercion and is not
@@ -142,7 +142,7 @@ derived-state cleanup semantics. No projected value is independently writable.
 An application that genuinely needs a repeated property must declare that
 shape in a later, separately designed cardinality extension. This avoids
 accidentally defining fan-out, ordering, duplicate, and query semantics while
-solving Memex's scalar `EntityTypeSpec` attributes.
+solving scalar entity-type attributes.
 
 ## Public query surface
 
@@ -201,20 +201,21 @@ the query contract stable when an application reorganizes its body internally,
 and prevents a query caller from reading arbitrary body fields simply by
 supplying a path.
 
-## Memex mapping
+## Application schema mapping
 
-Memex converts each filterable or searchable `EntityTypeSpec` attribute to one
-FathomDB projection declaration. For a normal scalar attribute, the source is:
+An application converts each filterable or searchable scalar attribute in its
+domain schema to one FathomDB projection declaration. For a nested scalar
+attribute, the source is:
 
 ```text
 ["attributes", "<group>:<key>", "value"]
 ```
 
-Memex continues to validate entity data, author the complete canonical body,
-and enforce graph authorization. It configures the FathomDB registry
+The application continues to validate entity data, author the complete canonical
+body, and enforce graph authorization. It configures the FathomDB registry
 idempotently at startup, then relies on FathomDB to replace/query its derived
-property rows. The mapping creates neither a flattened copy in the body nor a
-Memex-owned index.
+property rows. The mapping creates neither a flattened copy in the body nor an
+application-owned index.
 
 The paired consumer work may begin only after these public contracts land;
 it must use `Engine.write` for node validity windows rather than direct SQLite
@@ -241,8 +242,8 @@ feature prerequisite.
 
 ## Acceptance evidence
 
-- A nested Memex-shaped scalar source creates the expected canonical attribute,
-  property, and property-full-text rows through a normal node write.
+- A nested attribute-envelope scalar source creates the expected canonical
+  attribute, property, and property-full-text rows through a normal node write.
 - Rewriting, deleting, purging, erasing, and changing a projection declaration
   leave no stale projected values or text hits.
 - Existing direct top-level projections retain their current results.
@@ -252,19 +253,20 @@ feature prerequisite.
 - Property-based tests cover literal path segments and scalar round-trips;
   integration tests use a real database and normal writes, not direct SQLite
   mutation.
-- A Memex fixture maps its `EntityTypeSpec` declarations without top-level
-  duplicate fields or a consumer-maintained projection table.
+- An application-schema fixture maps its nested attribute declarations without
+  top-level duplicate fields or a consumer-maintained projection table.
 
 ## Rejected alternatives
 
 **First-class engine attribute-write store.** This would be justified if
 attributes needed independent writes, concurrency, provenance, ACLs, history,
-or lifecycles apart from the node body. Memex does not require those semantics.
+or lifecycles apart from the node body. Nested entity-attribute callers do not
+require those semantics.
 Adding them now would create a second authority and a materially broader data
 model.
 
 **Flattened canonical fields.** This makes FathomDB's current extractor work,
-but duplicates Memex facts and creates update-consistency obligations.
+but duplicates caller facts and creates update-consistency obligations.
 
 **Consumer-owned projections or direct SQLite writes.** Both bypass FathomDB's
 transactional ownership and lifecycle cleanup; direct SQLite mutation is also

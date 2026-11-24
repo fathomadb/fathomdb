@@ -1,6 +1,6 @@
 {
   "name": "fathomdb",
-  "version": "0.8.30",
+  "version": "0.8.31",
   "packageManager": "npm@11.20.0",
   "engines": {
     "node": ">=25 <27"

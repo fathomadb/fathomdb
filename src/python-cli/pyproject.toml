@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "fathomdb-cli"
-version = "0.8.30"
+version = "0.8.31"
 description = "FathomDB operator CLI binary (fathomdb doctor, recover, migrate)"
 readme = "README.md"
 requires-python = ">=3.10"

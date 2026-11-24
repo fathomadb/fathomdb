@@ -7,7 +7,7 @@ own settled HITL decisions, requirements, and execution contracts.
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.31:status-current-state -->**Next is Slice 70 (QUALIFICATION), ACTIVE.** Completed on local `release/0.8.31` per release state: 0 (`42595212c`) · 10 (`3c4b84439`) · 20 (`975637f3c`) · 30 (`8e44a47ad`) · 40 (`fe5e7d8a1`) · 50 (`28f5def55`) · 60 (`6685b0ccf`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.31:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.31:status-current-state -->**Next is Slice 80 (PUBLICATION), HELD.** Completed on local `release/0.8.31` per release state: 0 (`42595212c`) · 10 (`3c4b84439`) · 20 (`975637f3c`) · 30 (`8e44a47ad`) · 40 (`fe5e7d8a1`) · 50 (`28f5def55`) · 60 (`6685b0ccf`) · 70 (`dda61cfae`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.31:status-current-state -->
 
 - **Slice 0 (`PREFLIGHT`) & Phase A Prework Audits (`Slices 1–9`) — LANDED (`bf8e905e3`, `42595212c`):**
   - Merged completed `origin/inspector/dev/0.2.1` (`d6501cc5a`) cleanly at `086d5af0a`.
@@ -41,6 +41,6 @@ own settled HITL decisions, requirements, and execution contracts.
 
 ## Next action
 
-<!-- BEGIN GENERATED release-state:0.8.31:status-next-action -->**Commission Slice 70 (QUALIFICATION)** — Full-workspace qualification, paired 0.8.30 vs. 0.8.31 10k/50k/100k bootstrap latency gate, release docs, and golden schema-38 archive. **Remaining ladder:** 70 → 80.<!-- END GENERATED release-state:0.8.31:status-next-action -->
+<!-- BEGIN GENERATED release-state:0.8.31:status-next-action -->**Commission Slice 80 (PUBLICATION)** — Authorized 0.8.31 publication (crates, PyPI fathomdb + fathomdb-cli, npm, Tegra, Inspector). **Remaining ladder:** 80.<!-- END GENERATED release-state:0.8.31:status-next-action -->
 
 Complete Slice 70 (`QUALIFICATION`) Plan Review `FIX-1` (`APPROVE`), then execute WP-70F/70A–70G qualification gates and stop before Slice 80 Publication for separate HITL approval.

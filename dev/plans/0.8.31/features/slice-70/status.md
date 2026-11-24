@@ -1,6 +1,6 @@
 ---
 title: Slice 70 Status — Full Qualification, Paired Latency Gate, Feature-Complete GPU, Inspector, CLI Proof & Golden Archive
-status: ACTIVE
+status: CLOSED
 target_release: 0.8.31
 slice: 70
 date: 2026-11-23
@@ -11,6 +11,7 @@ date: 2026-11-23
 - **Branch / Worktree:** `release/0.8.31` in `/mnt/data/worktrees/release-0.8.31`
 - **Plan:** [`dev/plans/0.8.31/features/slice-70/plan.md`](./plan.md)
 - **Plan Review:** Independent adversarial Plan Reviewer (`d5dbd158`) returned **`APPROVE`** (Round 2).
+- **Adversarial Code & Qualification Review:** Independent adversarial Reviewer (`33893831`) audited all product code changes clean in Round 1 and returned **`APPROVE`** in Round 2 at `HEAD = dda61cfae` (0 open P0/P1/P2 findings).
 - **Qualification Candidate Commits (`b33b959a7..HEAD`, frozen product-code SHA `f13244689`):**
   - `584bec282` — Layer 1: `plan.md` `ACTIVE`, WP-70F pre-publication docs (`docs/release-notes/0.8.31.md`, `mkdocs.yml`, `CHANGELOG.md`, `scripts/generate-public-docs.py`, `docs/generated/*`, `dev/{needs,requirements}.md` `P3-01`, `dev/interfaces/*.md` `P6-08`), and Phase 5.2 harnesses (`run-paired-latency-gate.py`, `build-golden-0.8.31.py`, `test_slice70_harness.py`).
   - `4f5ec7ce7`, `cfe63ca95` — WP-70C fixes: reconciled 28 feature-gated test targets for Schema 38 fields, fixed `slice50_migrate_37_to_38.rs` `RuntimeConfiguration(TooLate)` race under `--test-threads=1`, reconciled `scripts/test-feature-matrix.toml` (`fathomdb-inspector` `fixture-control`), and allowlisted pre-existing `#[ignore]` CUDA/stress tests in `scripts/test-skip-allowlist.toml`.

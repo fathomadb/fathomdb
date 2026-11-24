@@ -135,11 +135,16 @@
         50,
         60
       ],
-      "status": "ACTIVE",
+      "status": "LANDED",
+      "sha": "dda61cfae",
       "design_refs": [
         "dev/plans/0.8.31/plan.md",
-        "dev/plans/0.8.31/features/slice-70/plan.md"
-      ]
+        "dev/plans/0.8.31/features/slice-70/plan.md",
+        "dev/plans/0.8.31/features/slice-70/status.md",
+        "dev/plans/0.8.31/features/slice-70/paired-latency-report.json",
+        "dev/plans/0.8.31/features/slice-70/golden-0.8.31-manifest.json"
+      ],
+      "evidence": "WP-70A..WP-70G + FIX-1 landed through dda61cfae (frozen product-code SHA f13244689): unconfined agent-verify.sh (243/246 suites, 0 failed, agent-security 0 violations), all 7 canonical AGENT_LONG=1 & --release perf gates, gitleaks-current & single-branch gitleaks-history (0 leaks), WP-70B warmup_rounds=5 paired latency gate passed across 10k/50k/100k & micro_gates_50k (0 parity mismatches) + 10k SDK suite, WP-70C test-feature-complete.sh (223 passed, 0 failed, 27 allowlisted ignored on RTX 3090 GPUs 0,1), WP-70D Inspector 0.3.0 local-ci --full-workspace (86/86 Playwright tests, ELF GLIBC 2.39) + 4-arg network silence (0 outbound/internet attempts, 0 cache mutations), WP-70E clean-venv fathomdb + fathomdb-cli wheels & stripped-PATH migrate 37->38 proof, WP-70F pre-pub docs & truth guard, and WP-70G golden Schema-38 archive (sha256 e0a078bd...); independent adversarial review Round 2 APPROVE. Held before Slice 80 for explicit HITL publication authorization."
     },
     {
       "slice": 80,
@@ -161,13 +166,13 @@
     30,
     40,
     50,
-    60
+    60,
+    70
   ],
   "remaining_ladder": [
-    70,
     80
   ],
-  "next_slice": 70,
+  "next_slice": 80,
   "publish_gate": {
     "status": "HELD",
     "publication_authorized": false,

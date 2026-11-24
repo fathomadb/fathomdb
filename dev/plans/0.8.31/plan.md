@@ -149,9 +149,9 @@ rework (deferred post-`0.8.34`, documented as legacy in `0.8.33`).
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.31:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 70** (`QUALIFICATION`) — Full-workspace qualification, paired 0.8.30 vs. 0.8.31 10k/50k/100k bootstrap latency gate, release docs, and golden schema-38 archive
+**IMMEDIATE NEXT: Slice 80** (`PUBLICATION`) — Authorized 0.8.31 publication (crates, PyPI fathomdb + fathomdb-cli, npm, Tegra, Inspector)
 
-**Remaining ladder:** 70 → 80.<!-- END GENERATED release-state:0.8.31:plan-immediate-next -->
+**Remaining ladder:** 80.<!-- END GENERATED release-state:0.8.31:plan-immediate-next -->
 
 Active slice is owned by [release-state-0.8.31.json](../release-state-0.8.31.json)
 and [STATUS-0.8.31.md](../runs/STATUS-0.8.31.md). Slice plans live under
@@ -166,4 +166,4 @@ authorization after Slice 70 qualification completes.
 ## Landed slice roll-up
 
 <!-- BEGIN GENERATED release-state:0.8.31:plan-landed-roll-up -->
-**LANDED on `origin/main`, in full:** Slices 0 (`42595212c`) · 10 (`3c4b84439`) · 20 (`975637f3c`) · 30 (`8e44a47ad`) · 40 (`fe5e7d8a1`) · 50 (`28f5def55`) · 60 (`6685b0ccf`). SCHEMA is 38; remaining ladder = 70 → 80.<!-- END GENERATED release-state:0.8.31:plan-landed-roll-up -->
+**LANDED on `origin/main`, in full:** Slices 0 (`42595212c`) · 10 (`3c4b84439`) · 20 (`975637f3c`) · 30 (`8e44a47ad`) · 40 (`fe5e7d8a1`) · 50 (`28f5def55`) · 60 (`6685b0ccf`) · 70 (`dda61cfae`). SCHEMA is 38; remaining ladder = 80.<!-- END GENERATED release-state:0.8.31:plan-landed-roll-up -->

@@ -1,6 +1,6 @@
 ---
 title: Slice 70 Plan — 0.8.31 Full Qualification, Paired Latency Gate, Pre-Publish Docs & Golden Archive
-status: ACTIVE
+status: CLOSED
 target_release: 0.8.31
 slice: 70
 date: 2026-11-23

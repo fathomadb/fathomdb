@@ -5,7 +5,7 @@ application-surface verbs like `search`, `get`, or `list`. Use the SDK
 for those.
 
 Authoritative spec:
-[`dev/interfaces/cli.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.30/dev/interfaces/cli.md);
+[`dev/interfaces/cli.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.31/dev/interfaces/cli.md);
 recovery semantics owned by `dev/design/recovery.md`.
 
 ## Roots
@@ -374,4 +374,4 @@ See [Python API](python-api.md) / [TypeScript API](typescript-api.md).
 
 - [Errors](errors.md)
 - [Install — Rust / CLI](../install/rust.md)
-- Locked spec: [`dev/interfaces/cli.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.30/dev/interfaces/cli.md)
+- Locked spec: [`dev/interfaces/cli.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.31/dev/interfaces/cli.md)

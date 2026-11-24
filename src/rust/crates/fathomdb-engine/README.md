@@ -32,10 +32,13 @@ process model layered on top:
 - **Records have a lifecycle.** `transition` and `purge` move and hard-erase governed nodes;
   `ReadView` selects existence and world-time validity for the read verbs.
 
-Public open in 0.8.30 creates missing/empty databases at schema 37 and accepts
-only that exact schema for nonempty stores. It rejects incompatible versions;
-there is no automatic migration. Low-level migration helpers in `fathomdb-schema`
-serve internal/test/tooling uses, not an application upgrade contract.
+Public open in the 0.8.31 source tree creates missing/empty databases at schema
+38 and accepts only that exact schema for nonempty stores (the newest published
+0.8.30 release uses schema 37). It rejects incompatible versions; there is no
+automatic migration on `Engine::open`. Committed schema 37 stores upgrade
+offline via explicit `fathomdb migrate --backup-dir <dir> <db-path>` in
+`fathomdb-cli`; low-level migration helpers in `fathomdb-schema` serve
+internal/test/tooling uses, not an application-open upgrade contract.
 
 ## Install
 

@@ -1,7 +1,7 @@
 ---
 status: ACTIVE
 scope: post-0.8.26
-updated: 2026-11-22
+updated: 2026-11-23
 ---
 
 # FathomDB roadmap after 0.8.26
@@ -69,31 +69,23 @@ draft intake is retained as a superseded record with every item dispositioned.
 
 ### Release-blocking finding
 
-**F27-01 — source erasure after correction/supersession.** Memex reports that
-registry FathomDB 0.8.26 cannot reliably erase a source bucket after a
-revision-pinned correction supersedes the original and writes a live
-replacement. `Engine.erase_source(bucket)` raises `StorageError` even when the
-associated dependency closures report `complete`, leaving the original body
-and other bucket records stored and retrievable.
+**F27-01 — source erasure after correction/supersession.** An external
+consumer reported that registry FathomDB 0.8.26 could not reliably erase a
+source bucket after a revision-pinned correction superseded the original and
+wrote a live replacement. `Engine.erase_source(bucket)` raised `StorageError`
+even when the associated dependency closures reported `complete`, leaving the
+original body and other bucket records stored and retrievable.
 
-The same-bucket case remains locked. In the cross-bucket case, erasing the
-replacement bucket first can unlock the original. Memex truthfully reports
-`storage_failed`; it does not claim erasure or bypass the public API.
+The same-bucket case remained locked. In the cross-bucket case, erasing the
+replacement bucket first could unlock the original. The consumer truthfully
+reported `storage_failed` without claiming erasure or bypassing the public API.
 
-This is a privacy-deletion and authority-boundary risk. Treat it as blocking
-0.8.27 publication until FathomDB resolves it or disproves it with durable
-evidence. Memex later received a narrow exemption for this exact characterized
-refusal, so the finding no longer blocks its 0.6.0 cutover by itself.
-Slice 20 implemented and reviewed correction-safe erasure on
-`release/0.8.27`; the finding stays publication-relevant until the release's
-final qualification (Slice 150) and publication decision. The
-required outcome is a supported,
-truthfully reported erase of buckets containing superseded revisions and closed
-dependents, tested for same-bucket and cross-bucket replacements without private
-database APIs. The exact external characterization is recorded in Memex
-`release/0.6.0` at
-`dev/fathomdb/0.8.26-erase-after-supersede-gap.md` (local checkout:
-`/home/coreyt/projects/memex-worktrees/release-0.6.0/dev/fathomdb/0.8.26-erase-after-supersede-gap.md`).
+This was a privacy-deletion and authority-boundary risk blocking 0.8.27
+publication until resolved with durable evidence. Slice 20 implemented and
+reviewed correction-safe erasure on `release/0.8.27` (shipped in `0.8.27`),
+providing supported, truthfully reported erasure of buckets containing
+superseded revisions and closed dependents for both same-bucket and
+cross-bucket replacements without private database APIs.
 
 ### Deferred candidate work
 
@@ -231,9 +223,11 @@ regression.
   takes about 10 ms, so neither is the known bottleneck. See
   [`design/agent-access/queue-manager-research.md`](design/agent-access/queue-manager-research.md)
   § 10, question 4.
-- **Hints sidecar default for the SDK.** Hints are on by default for MCP.
-  Measure whether SDK callers benefit and what the overhead is, then decide
-  the SDK default. See
+- **Hints sidecar default for the SDK.** Hints are on by default for MCP;
+  opt-in SDK `hints` (`default = false`) landed in `0.8.31` Slice 50 across
+  Rust, Python, and TypeScript (`search`, `search_frozen`, and
+  `EvidenceSearchRequestV1`). Measure whether SDK callers benefit from changing
+  the default from `false`. See
   [`design/agent-access/hints-sidecar.md`](design/agent-access/hints-sidecar.md)
   § 10, question 3.
 
@@ -408,7 +402,7 @@ These records preserve future work but do not override the release map.
 - **ANN indexing:** tracked, not started, and explicitly targeted post-1.0 and
   before 2.1. HNSW, IVF, and DiskANN are candidates to evaluate when the slice
   opens. See [`design/ann-index-vec0.md`](design/ann-index-vec0.md).
-- **Cross-release operational proposals:** CI/CD redesign, FathomDB/Memex
+- **Cross-release operational proposals:** CI/CD redesign, downstream consumer
   roadmap alignment, memory-tier and expiry policy, and preservation-first
   worktree/branch consolidation remain proposal records. The reviewed catalog
   is [`design/document-lifecycle.json`](design/document-lifecycle.json).
@@ -438,6 +432,7 @@ HITL gates.
 ## Inspector product roadmap
 
 Inspector has a separate [engineering section](inspector/README.md),
-[ROADMAP](inspector/ROADMAP.md), and [0.2.1 plan](inspector/plans/0.2.1/plan.md).
+[ROADMAP](inspector/ROADMAP.md), and
+[0.3.0 release notes](../docs/inspector/releases/0.3.0.md).
 This does not change the database release ladder or identify Inspector versions
 with a FathomDB 0.8.x release.

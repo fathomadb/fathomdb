@@ -35,11 +35,11 @@ workers, while data-plane integrity uses the immutable inspection route.
 0.8.30 tests selected CPU process-kill/SIGKILL, WAL, checkpoint, persistent
 SQLite-full/provider-fault and reopen/recovery cases. They do not prove behavior
 under torn/reordered device writes, sudden power loss, or a general hardware
-fault model. Broad coverage-guided fuzzing and power-loss proof are 0.8.31
+fault model. Broad coverage-guided fuzzing and power-loss proof are 0.8.32
 backlog, rather than 0.8.30 coverage claims. SDK/query admission has bounded
 Proptest coverage; no general FFI, MC/DC or numerical line-coverage claim follows.
 
 See also [Reference — CLI](../reference/cli.md) for the full `doctor` /
-`recover` verb tables, and
+`recover` / `migrate` verb tables, and
 [Positions — recovery surface](../positions/recovery-surface.md) for why
 recovery is CLI-only while erasure is not.

@@ -32,6 +32,7 @@ see [Contributing](../contributing/index.md). Package versions are omitted.
 | Language | Package | Manifest |
 | --- | --- | --- |
 | Python | `fathomdb` | [src/python/pyproject.toml](https://github.com/fathomadb/fathomdb/blob/release/0.8.31/src/python/pyproject.toml) |
+| Python | `fathomdb-cli` | [src/python-cli/pyproject.toml](https://github.com/fathomadb/fathomdb/blob/release/0.8.31/src/python-cli/pyproject.toml) |
 | TypeScript | `fathomdb` | [src/ts/package.json](https://github.com/fathomadb/fathomdb/blob/release/0.8.31/src/ts/package.json) |
 
 ## Typed developer entry points

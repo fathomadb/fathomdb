@@ -38,14 +38,19 @@ truth, and the ingest call is batched rather than one whole-corpus transaction.
 
 ## A kind can be text-searchable without being dense-indexable
 
-Dense node projection supports the fixed kinds `email`, `article`, `paper`,
-`meeting`, `note`, `todo`, and `doc`. Extractor entity types such as `person` or
-`entity` can be stored and used by text/graph routes but do not acquire dense
-vectors merely because a vector projection is declared. Inspect
-`vector_unsupported_kinds` / `vectorUnsupportedKinds` and projection readiness.
-The report is computed at declaration time; a new unsupported kind written later
-does not retroactively update that receipt. Custom searchable properties and
-filterable attributes also do not expand the dense kind vocabulary.
+By default, dense node projection covers the 7 built-in kinds `email`,
+`article`, `paper`, `meeting`, `note`, `todo`, and `doc`. Starting in `0.8.31`,
+callers can opt additional custom node kinds into dense projection through
+`ProjectionSpec.vector_kinds` / `vectorKinds`, which enrolls those kinds in
+`_fathomdb_vector_kinds` (the reserved kind `"edge_fact"` is rejected).
+Extractor entity types such as `person` or `entity` can be stored and used by
+text/graph routes, and do not acquire dense vectors unless explicitly enrolled
+via `vector_kinds`. Unenrolled custom kinds continue to report in
+`vector_unsupported_kinds` / `vectorUnsupportedKinds` alongside projection
+readiness. The report is computed at declaration time; a new unenrolled kind
+written later does not retroactively update that receipt. Custom searchable
+properties and filterable attributes also do not expand the dense kind
+vocabulary on their own.
 
 Choose kinds for their stored meaning and verify the retrieval route your
 application actually needs. A healthy embedder does not imply that every record

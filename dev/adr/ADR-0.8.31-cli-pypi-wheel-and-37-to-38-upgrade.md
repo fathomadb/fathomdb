@@ -83,8 +83,8 @@ status: accepted
         preserving existing `vector_default` / `_fathomdb_vector_spans` /
         `_fathomdb_embedder_profiles` verbatim and rolling back atomically on
         any failure.
-     7. Runs `doctor full-integrity` verification on the upgraded database and
-        fails closed if any finding is reported.
+     7. Runs `doctor check-integrity --full` verification on the upgraded
+        database and fails closed if any finding is reported.
    - **Pre-upgrade `as_of_epoch_ms` semantics on migrated stores**: pre-upgrade
      Schema-37 commits have no historical wall-clock timestamps in
      `_fathomdb_commit_timestamps`; `as_of_write_cursor` addresses all pre- and

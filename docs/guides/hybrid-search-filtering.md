@@ -46,13 +46,14 @@ vector-first tiebreak.
 Pass a closed `SearchFilter` to constrain results. Every field is optional; an
 omitted (or all-empty) filter is the unfiltered path.
 
-| Field          | Constrains                                            |
-| -------------- | ----------------------------------------------------- |
-| `source_type`  | the partition `source_type` (derived from `kind`)     |
-| `kind`         | the record `kind`                                     |
-| `created_after`| inclusive projection time >= bound (unix seconds)                  |
-| `status`       | the `status` metadata column (see the caveat below)   |
-| `attributes`   | ordered AND equality over `filterable` projections     |
+| Field                                      | Constrains                                                                   |
+| ------------------------------------------ | ---------------------------------------------------------------------------- |
+| `source_type`                              | the partition `source_type` (derived from `kind`)                            |
+| `kind`                                     | the record `kind`                                                            |
+| `created_after`                            | inclusive projection time >= bound (unix seconds)                            |
+| `status`                                   | the `status` metadata column (see the caveat below)                          |
+| `attributes`                               | ordered AND equality over `filterable` projections                           |
+| `property_predicates` / `propertyPredicates` | closed inline `PropertyPredicate` filters (`eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `in`, `contains`, `exists`, `not_exists`) over materialized properties |
 
 The filter prunes the vector branch inside the single phase-1 KNN statement and
 constrains the text branch by the same metadata. On the optimized node-only
@@ -129,7 +130,7 @@ const notes = await engine.searchTextOnly("retrieval", {
 });
 ```
 
-Rust SDK uses `TextSearchOptions { filter: Some(filter), ..Default::default() }`.
+Rust SDK uses `let mut o = TextSearchOptions::default(); o.filter = Some(filter);` (because `TextSearchOptions` is `#[non_exhaustive]`).
 Predicates are applied inside the node/edge body-FTS selection before fixed
 candidate caps, deduplication, ranking and final limit. For the same immutable
 selection, query, filter and effective validity time, smaller accepted limits

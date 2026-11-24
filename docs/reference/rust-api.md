@@ -73,13 +73,30 @@ applied before direct node/edge body-FTS caps, deduplication, ranking and limit.
 See [filter semantics](../guides/hybrid-search-filtering.md) for metadata and
 historical-view limits. Application SDK users pass `TextSearchOptions.filter`.
 
-Fresh stores use format 37. `PhysicalErasurePolicy` is persisted; the typed
-queue/status/withdraw APIs and owned `ErasureMaintenance` handle implement the
+`0.8.28–0.8.30` used format 37; `0.8.31` uses format 38 (with explicit offline
+`fathomdb migrate` for committed Schema 37 stores). `PhysicalErasurePolicy` is
+persisted; the typed queue/status/withdraw APIs and owned `ErasureMaintenance`
+handle implement the
 [explicit-maintenance contract](../operations/erasure.md#schedule-an-explicit-maintenance-window).
 Open mismatch/verification failures return no Engine. Production provider choice
 is built-in default or none, with no caller-provider injection.
 
-## 0.8.31 strict endpoint integrity, traversal predicates, and fused seeding
+## 0.8.31 properties, operational discovery, endpoint integrity, traversal predicates, and fused seeding
+
+- `PreparedWrite` (`Node`, `Edge`, `ProvenancedNode`, `ProvenancedEdge`)
+  accepts optional inline JSON `properties`, materialized alongside `body`
+  properties into `canonical_property_values` (returned on `NodeRecord` and
+  `SearchHit`).
+- `SearchFilter.property_predicates` adds typed inline property predicates
+  (`eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `in`, `contains`, `exists`, `not_exists`)
+  alongside `attributes`.
+- `ProjectionSpec` adds `entity_class` (`Node` or `Edge` projection targeting)
+  and `vector_kinds` (opt-in custom node kinds enrolled in `_fathomdb_vector_kinds`
+  alongside the 7 built-in defaults; reserved `"edge_fact"` is rejected).
+- `Engine::read_operational_collections` and
+  `Engine::read_operational_collection_info` enumerate and inspect declared
+  operational collections (conflicting `kind` re-registration is refused with
+  `EngineError::WriteValidation`).
 
 - `Engine::write` validates every edge in the batch (including in-batch
   superseded edges and mixed-`source_id` batches) against active,

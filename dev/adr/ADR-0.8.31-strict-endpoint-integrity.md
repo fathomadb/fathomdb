@@ -35,9 +35,9 @@ production-readiness gap.
    - If any edge endpoint is missing, superseded, or inactive (e.g.
      `tombstoned` / `deleted`), the entire batch rolls back atomically and
      returns a typed `EngineError::WriteValidation` (mapped to
-     `WriteValidationError` in Python/TypeScript and `ErrorKind::InvalidInput` /
-     write validation in `fathomdb-sdk`) leaving zero partial state after
-     reopen.
+     `WriteValidationError` in Python/TypeScript and
+     `ErrorKind::WriteValidation` in `fathomdb-sdk`) leaving zero partial state
+     after reopen.
    - `WriteReceipt::dangling_edge_endpoints` remains on the receipt struct for
      wire/SDK compatibility (always `0` on committed `0.8.31` writes, ready to
      report non-zero counts when opt-in bulk mode lands in `0.8.32`).

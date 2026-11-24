@@ -2306,7 +2306,8 @@ changes no default admission, public erasure outcome or shipped schema.
 
 The [approved contract](../design/explicit-maintenance-erasure/contract.md) and
 [production design](../design/explicit-maintenance-erasure/production-design.md)
-own format-37 policy, immutable scope, admission and physical proof.
+own format-38 (originally format-37 in `0.8.28`–`0.8.30`) policy, immutable
+scope, admission and physical proof.
 
 The lower-level `fathomdb` facade re-exports all twelve maintenance types from
 `fathomdb-engine`: `PhysicalErasurePolicy`, `MaintenanceError`, `ErasureServiceState`,
@@ -2316,7 +2317,8 @@ The lower-level `fathomdb` facade re-exports all twelve maintenance types from
 Persisted `PhysicalErasurePolicy::{Autonomous, ExplicitMaintenance}` is selected for fresh
 stores with `EngineConfig.physical_erasure_policy`; absent configuration honors
 persisted policy on reopen. Missing/unknown policy is corruption, and mismatching
-selection refuses before mutation. Both profiles use current-only fresh format 37.
+selection refuses before mutation. Both profiles use current-only format 38 on
+`0.8.31` (committed Schema 37 stores upgrade offline via `fathomdb migrate`).
 
 `Engine::physical_erasure_policy` observes the effective policy.
 `Engine::queue_physical_erasure(selector, key)` returns `QueueResult`;

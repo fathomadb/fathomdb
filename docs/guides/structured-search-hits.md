@@ -16,6 +16,7 @@ can rank, filter, and attribute results without a second lookup.
 | `branch`    | `"vector"` \| `"text"` \| `"text_edge"` \| `"graph_arm"` | Which retrieval branch produced the representative hit. |
 | `source_id` / `sourceId` | `str \| None` / `string \| null` | Source-document ID when known. Caller-provided IDs can be used with `erase_source`. Ownerless FTS hits can carry `None` / `null`. |
 | `ce_score` / `ceScore`   | `float \| None` / `number \| null` | Cross-encoder score (`sigmoid(logit)`) for hits inside the reranked pool; `None`/`null` otherwise. |
+| `properties` | `dict[str, Any] \| None` / `Record<string, unknown> \| null` | Optional inline JSON properties written alongside `body`; `None`/`null` (or omitted in TS) when absent. |
 
 ### `id` is a typed `IdSpace` (breaking since 0.8.9)
 

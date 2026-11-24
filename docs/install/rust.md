@@ -8,8 +8,8 @@ consumption routes:
   [Rust SDK](../reference/rust-sdk.md) with the Python/TypeScript surface.
 - **`fathomdb` facade crate** — re-exports the runtime verbs from
   `fathomdb-engine` for downstream Rust libraries and applications.
-- **`fathomdb-cli` operator CLI** — `fathomdb doctor` and
-  `fathomdb recover` verbs. Operator-only; does **not**
+- **`fathomdb-cli` operator CLI** — `fathomdb doctor`, `fathomdb recover`, and
+  offline `fathomdb migrate` verbs. Operator-only; does **not**
   ship `search` / `get` / `list` query verbs.
 
 > **Release 0.8.31 (pre-publication documentation target; newest published release is 0.8.30), pre-1.0 beta.**
@@ -57,7 +57,10 @@ fathomdb --version
 
 Public 0.8.30 opens bootstrap a missing or zero-length path directly at schema
 37 and accept a non-empty database only when its committed schema is exactly
-37. There is no public automatic-upgrade route.
+37. The in-development 0.8.31 source tree bootstraps and requires schema 38 on
+public open, with explicit offline `fathomdb migrate --backup-dir <dir> <db_path>`
+upgrades from committed schema 37 to 38. There is no public automatic-upgrade
+route on `Engine::open`.
 
 ## Install the application SDK
 
@@ -131,6 +134,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }])?;
 
     engine.search("hello")?;

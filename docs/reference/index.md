@@ -13,8 +13,8 @@ client-facing view.
   TypeScript SDKs (0.8.30)
 - [Rust API](rust-api.md) — facade model, Engine methods, public carrier
   families, feature boundary, and links to generated rustdoc.
-- [CLI](cli.md) — `fathomdb doctor` + `fathomdb recover` verbs, flag
-  spelling, exit-code classes, JSON output shape.
+- [CLI](cli.md) — `fathomdb doctor` + `fathomdb recover` + `fathomdb migrate`
+  verbs, flag spelling, exit-code classes, JSON output shape.
 - [Errors](errors.md) — the shared typed error taxonomy, base class,
   triggers, structured payloads, and recovery hint codes.
 - [Config](config.md) — `EngineConfig` knobs (Python snake_case + TS

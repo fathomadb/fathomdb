@@ -44,7 +44,7 @@ refresh in the closing commit when you touch a doc).
 
 | Path | Purpose | Owning slice / AC | Last-touched |
 |------|---------|-------------------|--------------|
-| `dev/interfaces/wire.md` | Wire Format — current documentation | 0.8.28 Slice 92 | 2026-11-04 |
+| `dev/interfaces/wire.md` | Wire Format — on-disk layout, Schema 38 sentinel, and compatibility contract | 0.8.31 | 2026-11-23 |
 | `dev/README.md` | Entry map for the engineering docs tree | 0.8.28 Slice 92 | 2026-11-04 |
 | `dev/plans/0.8.25/scope-adjustment-2026-09-10-ac020.md` | Slice 75 checkpoint and AC-020 recovery ladder 76/77/80/85 | 0.8.25 planning | 2026-09-10 |
 | `dev/plans/0.8.25/ac020-experiment-protocol.md` | Statistics-enabled experiment controls, correctness, quantitative selection and budgets | Slices 76/77 | 2026-09-10 |
@@ -115,12 +115,13 @@ refresh in the closing commit when you touch a doc).
 | `dev/plans/runs/0.8.23-slice-72-draft-plan.md` | Approved plan for concurrent embedding and CE GPU coexistence characterization | 0.8.23 Slice 72 | 2026-08-18 |
 | `dev/plans/runs/0.8.23-slice-72-status.md` | Local completion and external-GPU-evidence boundary for concurrent BGE and CE characterization | 0.8.23 Slice 72 | 2026-08-18 |
 | `dev/requirements.md` | Numbered requirements (REQ-*); REQ-053 = governed SDK surface (allowlist + parity + recovery-denylist + typed boundary) | 0.8.28 Slice 92 | 2026-11-04 |
-| `dev/ROADMAP.md` | Consolidated post-0.8.26 roadmap and backlog with links to owning records | Program Steward / HITL | 2026-09-21 |
+| `dev/ROADMAP.md` | Consolidated post-0.8.26 roadmap and backlog with links to owning records | 0.8.31 / HITL | 2026-11-23 |
 | `dev/acceptance.md` | Acceptance criteria (AC-*); AC-076 distinguishes its hybrid fixture from bounded direct-text rank collection | 40/GA-2 mints AC-075/076; 0.8.24 Slice 20 corrects AC-076 mechanism | 2026-08-24 |
-| `dev/interfaces/rust.md` | Rust public interface (owner of Rust-visible spelling + governed facade contract); Slice 21 records dense readiness and Slice 22 records the pure projection-status facade. | 0.8.28 Slice 92 | 2026-11-04 |
-| `dev/interfaces/python.md` | Python public interface (owner of Python-visible spelling + attribute casing); Slice 21 records engine-set dense readiness and Slice 22 records `read.projection_status`. | Slices 21/22 integrated in `main`; parity owned by `design/bindings.md` | 2026-08-08 |
-| `dev/interfaces/typescript.md` | TypeScript public interface (owner of TS-visible spelling + export shape); Slice 21 records engine-set dense readiness and Slice 22 records `read.projectionStatus`. | Slices 21/22 integrated in `main`; parity owned by `design/bindings.md` | 2026-08-08 |
-| `dev/interfaces/cli.md` | CLI public interface (concrete flag spelling, root paths, exit-code classes, `--json` wrapping for the two-root... | 0.8.28 Slice 92 | 2026-11-04 |
+| `dev/interfaces/rust.md` | Rust lower-level facade public interface (`fathomdb`) and governed engine contract | 0.8.31 | 2026-11-23 |
+| `dev/interfaces/rust-sdk.md` | Rust application SDK public interface (`fathomdb-sdk`), peer of Python and TypeScript | 0.8.31 | 2026-11-23 |
+| `dev/interfaces/python.md` | Python public interface (`fathomdb`), spellings, carriers, and error contract | 0.8.31 | 2026-11-23 |
+| `dev/interfaces/typescript.md` | TypeScript public interface (`fathomdb`), camelCase spellings, exports, and error contract | 0.8.31 | 2026-11-23 |
+| `dev/interfaces/cli.md` | CLI public interface (flag spelling, exit-code classes, `--json` wrapping for the three-root operator CLI) | 0.8.31 | 2026-11-23 |
 | `dev/architecture.md` | Superseded 0.6.0 architecture snapshot with an active-successor pointer | 0.8.26 Slice 45 | 2026-09-15 |
 | `dev/test-plan.md` | Test strategy + tiers (incl. functional-harness tier X1 + the Slice 10 G9/G10/G12-recency tier) | 0.8.28 Slice 92 | 2026-11-04 |
 | `dev/traceability.md` | REQ ↔ AC ↔ test trace matrix | 0.8.28 Slice 92 | 2026-11-04 |
@@ -367,7 +368,9 @@ refresh in the closing commit when you touch a doc).
 | `CHANGELOG.md` | Changelog — current documentation | 0.8.28 Slice 92 | 2026-11-04 |
 | `docs/operations/integrity-inspection.md` | Immutable integrity inspection — current documentation | 0.8.28 Slice 92 | 2026-11-04 |
 | `docs/release-notes/0.8.28.md` | Published .28 retrieval, provider, format37, maintenance and dependency notes | 0.8.28 Slice 92 | 2026-11-10 |
-| `src/python/README.md` | FathomDB — current documentation | 0.8.28 Slice 92 | 2026-11-04 |
+| `docs/release-notes/0.8.31.md` | Pre-publication 0.8.31 release notes (Schema 38, properties, as_of graph, migrate, CLI wheel) | 0.8.31 Slice 70 | 2026-11-23 |
+| `src/python/README.md` | FathomDB Python SDK README | 0.8.31 | 2026-11-23 |
+| `src/python-cli/README.md` | Lockstep `fathomdb-cli` PyPI binary wheel README (`pip install 'fathomdb[cli]'`) | 0.8.31 Slice 50 | 2026-11-23 |
 | `src/rust/crates/fathomdb-cli/README.md` | fathomdb-cli — current documentation | 0.8.28 Slice 92 | 2026-11-04 |
 | `src/rust/crates/fathomdb-embedder-api/README.md` | Embedder trait, head coverage and standalone-use admission boundary | 0.8.28 Slice 92 | 2026-11-04 |
 | `src/rust/crates/fathomdb-embedder/README.md` | Built-in standalone runtimes, qualified forks, CUDA pool and loader behavior | 0.8.28 Slice 92 | 2026-11-04 |
@@ -444,8 +447,9 @@ refresh in the closing commit when you touch a doc).
 | `dev/inspector/plans/plan-0.1.md` | Historical delivery plan, decisions and quality strategy | Inspector v0.1 history | 2026-10-29 |
 | `dev/inspector/ROADMAP.md` | Initial commitment and deferred candidates | Inspector roadmap | 2026-10-29 |
 | `dev/design/db-inspector/` | Redirects preserving earlier Inspector design links | Historical entry paths | 2026-10-28 |
-| `docs/inspector/` | Public Inspector overview, concepts, views, boundaries and roadmap | Inspector 0.2.0 / 0.2.1 | 2026-11-21 |
-| `src/inspector/README.md` | Inspector application source, development commands and ownership | Inspector 0.2.0 / 0.2.1 | 2026-11-21 |
+| `docs/inspector/` | Public Inspector overview, concepts, views, boundaries and roadmap | Inspector 0.3.0 | 2026-11-23 |
+| `docs/inspector/releases/0.3.0.md` | Inspector 0.3.0 release notes (FathomDB 0.8.31 / Schema 38, properties, as_of graph, release asset) | Inspector 0.3.0 / 0.8.31 Slice 60 | 2026-11-23 |
+| `src/inspector/README.md` | Inspector application source, development commands and ownership | Inspector 0.3.0 | 2026-11-23 |
 
 ## Inspector v0.1 slice drafts
 

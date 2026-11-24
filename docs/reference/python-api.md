@@ -1,7 +1,7 @@
 # Python API
 
 Module: `fathomdb`. Authoritative spec:
-[`dev/interfaces/python.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.30/dev/interfaces/python.md).
+[`dev/interfaces/python.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.31/dev/interfaces/python.md).
 
 > **Release 0.8.31 (pre-publication documentation target; newest published release is 0.8.30), pre-1.0 beta.**
 
@@ -80,9 +80,10 @@ The structured open report is available after open via
 ### `engine.open_report() -> OpenReport`
 
 The structured open report defined in `dev/design/engine.md`:
-`migration_version_reached`, embedder identity confirmation,
-open-stage data, `stop_words_sha256`, and the
-embedder telemetry fields (`embedder_download_ms`, `embedder_events`,
+`schema_version_before`, `schema_version_after`, `migration_steps`,
+embedder identity confirmation, open-stage data, `stop_words_sha256`,
+capability booleans (`reranker_compiled`, `cuda_compiled`, `rerank_available`),
+and the embedder telemetry fields (`embedder_download_ms`, `embedder_events`,
 `embedder_mean_centering_required`, `embedder_mean_vec_pinned`).
 
 Numerical mismatch or inability to verify fails open without an Engine; there
@@ -110,9 +111,11 @@ Every **node** item accepts these keys:
 | `reason` | `str` | no | advisory cause for `state`; stored verbatim, never interpreted |
 | `valid_from` | `int` | no | world-time window, INCLUSIVE lower bound, epoch **seconds** UTC |
 | `valid_until` | `int` | no | world-time window, EXCLUSIVE upper bound, epoch **seconds** UTC |
+| `properties` | `dict[str, Any]` | no | optional inline JSON object of structured properties outside `body` |
 
 An **edge** item takes `kind`, `from`, `to`, the same mandatory
-`source_id`, an optional `logical_id`, and the temporal pair
+`source_id`, an optional `logical_id`, optional inline `properties`
+(`dict[str, Any] | None`), and the temporal pair
 `t_valid` / `t_invalid` (`int | None`, epoch **seconds** UTC; `None`
 means "still valid").
 
@@ -166,7 +169,7 @@ receipt = engine.write([
   `dangling_edge_endpoints` is `0` on every committed batch — see
   [`WriteReceipt`](#writereceipt).
 
-### `engine.search(query, filter=None, *, rerank_depth=0, use_graph_arm=False, alpha=None, pool_n=None, explain=False, view=None, limit=10, snippet=None, graph_seed="graph_fts", graph_seed_k=10, graph_edge_kinds=None, graph_edge_predicates=None) -> SearchResult`
+### `engine.search(query, filter=None, *, rerank_depth=0, use_graph_arm=False, alpha=None, pool_n=None, explain=False, view=None, limit=10, snippet=None, graph_seed="graph_fts", graph_seed_k=10, graph_edge_kinds=None, graph_edge_predicates=None, hints=False) -> SearchResult`
 
 Run hybrid retrieval (FTS5 + vector) for `query`, ranked by **G9 RRF fusion**,
 with optional cross-encoder reranking (0.8.1 R1) and optional graph-BFS third
@@ -229,10 +232,13 @@ arm (0.8.1 R3).
 - `limit` (`int`, default `10`) — maximum ranked hits returned. It must be in
   `1..=100`; zero, negative values, and values above 100 raise
   `InvalidArgumentError` and are never silently clamped.
+- `hints` (`bool`, default `False`) — opt-in agent search hints populated on
+  `SearchResult.hints` without altering hit rankings (zero overhead when
+  `False`; non-`bool` raises `TypeError`).
 - Returns: `SearchResult(projection_cursor: int, soft_fallback:
-  SoftFallback | None, results: list[SearchHit])`. Each
+  SoftFallback | None, results: list[SearchHit], hints: list[Hint] | None)`. Each
   [`SearchHit`](#searchhit) carries the matched record's `id`, `kind`,
-  `body`, the **RRF-fused** `score`, the `branch` that produced it
+  `body`, optional inline `properties`, the **RRF-fused** `score`, the `branch` that produced it
   (`"graph_arm"` for nodes surfaced only via graph traversal), and `ce_score`
   (the per-candidate CE score for in-pool reranked hits, `None` otherwise).
 
@@ -557,6 +563,17 @@ next page.
 Mutation-log-oriented alias surface over the **same** op-store read-back as
 `read.collection` (identical args + semantics).
 
+### `read.operational_collections(engine) -> list[OperationalCollectionInfo]`
+
+List all declared operational collections and their metadata (name, kind,
+retention/policy details) in stable order.
+
+### `read.operational_collection(engine, name: str) -> OperationalCollectionInfo | None`
+
+Inspect one declared operational collection by `name`; returns `None` when no
+collection with that name is registered. Conflicting `kind` re-registration on
+write/configuration raises `WriteValidationError`.
+
 ### `read.list(engine, kind, predicates=None, *, limit=100) -> list[NodeRecord]`
 
 *(G4 / Slice 35)* List **active** `canonical_nodes` of the given `kind`
@@ -594,8 +611,11 @@ open_high = read.list(engine, "task", predicates=[
 `engine.configure_projections(specs, drop=None) -> ProjectionDelta` declares
 the durable projection registry. It is idempotent: omitting a live declaration
 does not delete it, while an explicit destructive change requires its name in
-`drop`. `read.projections(engine) -> list[ProjectionSpec]` returns those
-durable declarations in name order.
+`drop`. `ProjectionSpec` supports `entity_class` (`"node"` default or `"edge"`
+projection targeting) and `vector_kinds` (opt-in custom node kinds enrolled in
+`_fathomdb_vector_kinds` alongside the 7 built-in defaults; reserved
+`"edge_fact"` is rejected). `read.projections(engine) -> list[ProjectionSpec]`
+returns those durable declarations in name order.
 
 For an effective vector declaration, the returned
 `ProjectionSpec.vector_dense_readiness: DenseReadiness | None` is engine-set
@@ -721,6 +741,7 @@ class NodeRecord:
     kind: str
     body: str
     write_cursor: int   # engine-internal positional cursor — NOT SearchHit.id
+    properties: dict[str, Any] | None = None
 ```
 
 Returned by `read.get` / `read.get_many` for an **active** canonical node
@@ -755,6 +776,7 @@ class SearchResult:
     projection_cursor: int
     soft_fallback: SoftFallback | None = None
     results: list[SearchHit] = []
+    hints: list[Hint] | None = None
 ```
 
 ### `SearchHit`
@@ -774,6 +796,7 @@ class SearchHit:
     branch: SoftFallbackBranch  # Literal["vector", "text", "text_edge", "graph_arm"]
     source_id: str | None = None  # provenance (`erase_source` arg); set on EVERY hit (TC-31)
     ce_score: float | None = None  # 0.8.5 CE score (sigmoid logit) for in-pool reranked hits
+    properties: dict[str, Any] | None = None  # optional inline JSON properties
 ```
 
 > **BREAKING since 0.8.9.** `SearchHit.id` was an `int` row cursor. It is now
@@ -813,6 +836,7 @@ class SearchFilter:
     created_after: int | None = None   # created_at >= bound (unix seconds)
     status: str | None = None
     attributes: tuple[tuple[str, str], ...] = ()
+    property_predicates: tuple[PropertyPredicate, ...] = ()
 ```
 
 G10 — a **closed** metadata filter (not an open DSL) for `engine.search`. Each
@@ -824,7 +848,9 @@ population source yet — vec0 TEXT metadata is not NULL-able), so a
 `status="open"`-style filter prunes every row until a population slice lands.
 `attributes` is ordered AND equality over declared `filterable` projections;
 its values are canonical text, so projected string `"1"` and number `1` both
-match `"1"`.
+match `"1"`. `property_predicates` adds closed typed predicates (`eq`, `ne`,
+`gt`, `gte`, `lt`, `lte`, `in`, `contains`, `exists`, `not_exists`) over
+materialized properties.
 
 ### `SoftFallback`
 
@@ -913,14 +939,6 @@ requirements. Acquisition wait is not a cleanup timeout. Handle close does not
 forgive debt. See [the complete maintenance example](../operations/erasure.md#schedule-an-explicit-maintenance-window)
 for typed outcomes, original-sink reattachment and retry rules.
 
-## See also
-
-- [Quickstart](../getting-started/quickstart.md)
-- [Config knobs](config.md)
-- [Errors](errors.md)
-- [Erasure](../operations/erasure.md)
-- Locked spec: [`dev/interfaces/python.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.30/dev/interfaces/python.md)
-
 ## Stored-head reporting
 
 Projection runtime status includes required stored mapped-head coverage in
@@ -962,3 +980,11 @@ body-byte coordinates, including role tags.
   `reranker_compiled: bool`, `cuda_compiled: bool`, and
   `rerank_available: bool` with zero network I/O and zero GPU allocation during
   `Engine.open`.
+
+## See also
+
+- [Quickstart](../getting-started/quickstart.md)
+- [Config knobs](config.md)
+- [Errors](errors.md)
+- [Erasure](../operations/erasure.md)
+- Locked spec: [`dev/interfaces/python.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.31/dev/interfaces/python.md)

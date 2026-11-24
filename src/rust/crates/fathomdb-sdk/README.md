@@ -15,8 +15,9 @@ If you are writing a Rust application against FathomDB, depend on this crate.
 
 ## Status: pre-1.0, beta
 
-This is the Rust application SDK for FathomDB 0.8.30. Public contracts may
-change between micro releases.
+This source tree targets FathomDB **0.8.31** (in development; newest published
+crates.io release is **0.8.30**). Public contracts may change between micro
+releases.
 
 ## Install
 
@@ -32,7 +33,8 @@ model feature. See the
 ## Example
 
 Save this complete program as `src/main.rs`, then run `cargo run` in the
-application project:
+application project (on the `0.8.31` source surface, `PreparedWrite::Node`
+includes `properties: None`):
 
 ```rust
 use fathomdb_sdk::{read, Engine, InitialState, OpenOptions, PreparedWrite,
@@ -49,6 +51,7 @@ fn main() -> fathomdb_sdk::Result<()> {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }])?;
 
     let note = read::get(&engine, "note:1", None)?;
@@ -104,6 +107,7 @@ loss still requires process restart. See [model lifetime](https://github.com/fat
 
 ## Not in this crate
 
-Custom embedder injection, the operator/recovery seam (`fathomdb doctor` /
-`recover` in `fathomdb-cli`), raw SQL, and test hooks are not reachable here.
+Custom embedder injection, the operator/recovery/migration seam (`fathomdb doctor`,
+`fathomdb recover`, and `fathomdb migrate` in `fathomdb-cli`), raw SQL, and test
+hooks are not reachable here.
 The lower-level `fathomdb` crate remains available as the engine facade.

@@ -46,7 +46,8 @@ AArch64/glibc, macOS x64/arm64, and Windows x64. See the
 - [Positions](positions/index.md) — consumer-relevant technical
   positions (SDK parity, recovery surface, tokenizer policy,
   embedder identity).
-- [0.8.30 release notes](release-notes/0.8.30.md).
+- [0.8.30 release notes](release-notes/0.8.30.md) (published) and
+  [0.8.31 release notes](release-notes/0.8.31.md) (pre-publication target).
 - [Release changelog](https://github.com/fathomadb/fathomdb/blob/release/0.8.30/CHANGELOG.md) — 0.8.30 changes.
   Earlier detailed changes are recorded in the repo
   [CHANGELOG](https://github.com/fathomadb/fathomdb/blob/main/CHANGELOG.md).

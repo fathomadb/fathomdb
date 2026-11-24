@@ -12,8 +12,9 @@ This checkout targets the in-development **0.8.31** release (store format **38**
 with an explicit offline `fathomdb migrate` upgrade from format 37 to 38);
 **0.8.30** is the newest published release on crates.io, PyPI and npm (format 37),
 with its matching Tegra CUDA wheel and Node addon available through first-party
-GitHub Pages. See the
-[release notes](docs/release-notes/0.8.30.md) and [changelog](CHANGELOG.md).
+GitHub Pages. See the [0.8.30 release notes](docs/release-notes/0.8.30.md), the
+pre-publication [0.8.31 release notes](docs/release-notes/0.8.31.md), and the
+[changelog](CHANGELOG.md).
 
 ## What you can build
 

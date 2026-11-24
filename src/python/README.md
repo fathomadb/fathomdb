@@ -9,7 +9,8 @@ fetch verified weights on a cold cache, as described below.
 
 ## Status: pre-1.0, beta
 
-The 0.8.x line is under active development. The public surface can change between minor releases,
+The 0.8.x line is under active development (documentation target: 0.8.31; newest
+published release: 0.8.30). The public surface can change between minor releases,
 and scale/stability guarantees are staged for 0.9.x and later.
 
 ## Install
@@ -20,7 +21,10 @@ pip install fathomdb==0.8.30
 
 Requires Python 3.10 or newer. Wheels are `abi3`, so one wheel per platform serves every supported
 interpreter. The package is a PyO3 binding to the FathomDB Rust engine and has no Python
-dependencies of its own.
+dependencies of its own. In the in-development `0.8.31` release line, the
+optional `fathomdb[cli]` extra (`pip install 'fathomdb[cli]'`) installs the
+lockstep `fathomdb-cli` binary wheel alongside the SDK while keeping the base
+`fathomdb` wheel free of console scripts.
 
 ## Quick start
 
@@ -49,18 +53,25 @@ engine.close()
 ## What is on the surface
 
 - **Engine lifecycle** — `Engine.open`, `engine.close`, `engine.drain`, `engine.counters()`,
-  `engine.open_report()`, and a logging-subscriber seam.
+  `engine.open_report()` (including `reranker_compiled`, `cuda_compiled`, and
+  `rerank_available` capability booleans), and a logging-subscriber seam.
 - **Writes** — `engine.write(batch)` of canonical nodes
   (`{"kind", "body", "source_id", "logical_id"?, "state"?, "reason"?, "valid_from"?,
-  "valid_until"?}`) and edges (`{"edge": {"kind", "from", "to", "source_id"}}`).
+  "valid_until"?, "properties"?}`) and edges (`{"edge": {"kind", "from", "to", "source_id", "properties"?}}`).
 - **Search** — `engine.search(query, ...)` fuses FTS5 lexical retrieval with dense vector
-  retrieval, with optional cross-encoder reranking, JSON filters, and an opt-in explain sidecar. A
+  retrieval, with optional cross-encoder reranking, JSON/property filters, an opt-in explain
+  sidecar, and opt-in agent search `hints` (`SearchResult.hints`). A
   `soft_fallback` field reports when a branch could not contribute, rather than degrading silently.
+- **Frozen reads and evidence** — `engine.freeze_read_context`, `engine.search_frozen`,
+  `engine.search_with_evidence`, `engine.resolve_evidence`, and bounded batch
+  `engine.resolve_evidence_many` (`1..=50` refs with per-slot partial-result outcomes).
 - **Reads** — the `fathomdb.read` module: `read.get`, `read.get_many`, `read.list`,
-  `read.collection`, `read.mutations`, `read.projections`, `read.crossed_boundary_since`. Each
-  takes a `ReadView` selecting existence state and world-time validity.
-- **Graph** — `fathomdb.graph.neighbors` and `fathomdb.graph.search_expand` for bounded BFS
-  expansion from search hits.
+  `read.collection`, `read.operational_collections`, `read.operational_collection`,
+  `read.mutations`, `read.projections`, `read.crossed_boundary_since`. Each
+  takes a `ReadView` selecting existence state and world-time validity where applicable.
+- **Graph** — `fathomdb.graph.neighbors`, `fathomdb.graph.search_expand` for bounded BFS
+  expansion from search hits, and `fathomdb.graph.expand` with predicates and optional
+  historical `as_of_write_cursor` / `as_of_epoch_ms` coordinates.
 - **Record lifecycle** — `engine.transition`, `engine.purge`, `engine.erase_source`.
 - **Projections** — `engine.configure_projections`, declaring which fields are filterable,
   searchable or rankable. The engine owns every derived index; you never maintain one by hand.

@@ -79,12 +79,14 @@ with its three partial typed-value indexes (`canonical_property_values_text_idx`
 `canonical_property_values_num_idx`, `canonical_property_values_bool_idx`),
 `_fathomdb_projection_registry` columns
 `entity_class` (`'node'` | `'edge'`) and `vector_kinds`,
+`_fathomdb_vector_kinds` (opt-in custom node vector-kind registry),
 `_fathomdb_commit_timestamps` with `_fathomdb_commit_timestamps_ms_idx`, the
 five composite node/edge indexes (`canonical_nodes_logical_sup_idx`,
 `canonical_edges_from_active_idx`, `canonical_edges_to_active_idx`,
 `canonical_edges_from_sup_kind_idx`, `canonical_edges_to_sup_kind_idx`), and
 `cpv` visibility coalescing triggers on `canonical_property_values`. No legacy
-format is migrated.
+format is auto-migrated on `Engine::open` (committed Schema 37 stores upgrade
+offline via `fathomdb migrate`).
 
 ## Compatibility contract
 

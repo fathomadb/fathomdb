@@ -26,12 +26,13 @@ in a source identity and remains addressable by an exact matching erase call.
 
 For every canonical row whose `source_id` matches, `erase_source` deletes:
 
-1. the **canonical rows** themselves (`canonical_nodes`, `canonical_edges`) —
-   *every version*, not only the latest;
+1. the **canonical rows** themselves (`canonical_nodes`, `canonical_edges`,
+   including inline `properties`) — *every version*, not only the latest;
 2. every **row-owned projection** of those rows. This is registry-driven rather
    than a hand-maintained list, so a projection table added later is covered by
-   construction: FTS5 (`search_index`, `search_index_v2`), the `vec0` shadow
-   tables, and `_fathomdb_vector_rows`;
+   construction: FTS5 (`search_index`, `search_index_v2`),
+   `canonical_property_values`, the `vec0` shadow tables (covering both built-in
+   and enrolled custom-kind vector rows), and `_fathomdb_vector_rows`;
 3. the erased ids from the **telemetry sink**, by selective redaction — the
    unrelated records in the same sink survive;
 4. the erased bytes from the **write-ahead log**, via a truncating checkpoint.
@@ -179,7 +180,8 @@ specific caller source.
 
 ## Schedule an explicit maintenance window
 
-New format-37 stores can opt into persisted explicit maintenance:
+New format-38 stores (format-37 in published `0.8.30`) can opt into persisted
+explicit maintenance:
 
 ```python
 from secrets import token_hex
@@ -217,9 +219,12 @@ Handle close/drop releases temporary ownership but cannot forgive durable debt.
 Explicit reopen preserves policy/fences and performs no autonomous cleanup.
 
 Autonomous remains the default. Direct online erase/purge under explicit policy
-refuses `maintenance_required`; use the window's selected ticket. Fresh format 37
-is required for both profiles: earlier stores are refused, with no automatic
-migration or in-place opt-in. Finish/export old stores using their supported old
-product procedures. This API promises no immediate revocation, completion deadline,
-backup deletion or universal storage remanence. TypeScript uses camelCase methods
-and fields with the same outcome values; Rust exposes typed matching enums.
+refuses `maintenance_required`; use the window's selected ticket. Format 38 is
+required for both profiles in `0.8.31` (published `0.8.30` uses format 37):
+quiescent committed Schema 37 stores with no pending erasures upgrade offline
+via `fathomdb migrate --backup-dir <dir> <db_path>`, while earlier stores are
+refused with no automatic migration or in-place opt-in. Finish/export older
+stores using their supported old product procedures. This API promises no
+immediate revocation, completion deadline, backup deletion or universal storage
+remanence. TypeScript uses camelCase methods and fields with the same outcome
+values; Rust exposes typed matching enums.

@@ -77,9 +77,12 @@ Every write field accepts both the camelCase and the snake_case spelling.
   `engine.searchWithEvidence`, `engine.resolveEvidence`, and bounded batch
   `engine.resolveEvidenceMany` (`1..=50` refs with per-slot partial-result outcomes).
 - **Reads** — the `read` namespace: `read.get`, `read.getMany`, `read.list`, `read.collection`,
+  `read.operationalCollections`, `read.operationalCollection`,
   `read.crossedBoundarySince`, each taking a `ReadView` that selects existence state and world-time
-  validity.
-- **Graph** — `graph.neighbors` and `graph.searchExpand` for BFS expansion from search hits.
+  validity where applicable.
+- **Graph** — `graph.neighbors`, `graph.searchExpand` for BFS expansion from search hits, and
+  `graph.expand` with predicates and optional historical `asOfWriteCursor` / `asOfEpochMs`
+  coordinates.
 - **Record lifecycle** — `engine.transition`, `engine.purge`, `engine.eraseSource`.
 - **Projections** — `engine.configureProjections`, declaring which fields are filterable,
   searchable or rankable; the engine owns every derived index.

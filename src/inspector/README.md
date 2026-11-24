@@ -10,18 +10,22 @@ hybrid serving. Slice 50 adds directed stored graph exploration, recorded
 dependency/source investigation, retained history and actual frozen graph evidence
 in [adopted 0.2.0](../../dev/inspector/plans/0.2.0/scope.md).
 Slice 60 adds bounded A/B observation comparison and complete person investigation.
-The source package is `0.2.1`, upgrading the locally released `0.2.0` product
-onto delivered FathomDB `0.8.30` and native Ubuntu 24.04 (`glibc 2.39`)
-delivery. See the [0.2.1 plan](../../dev/inspector/plans/0.2.1/README.md) and
-[Slice 30 release evidence](../../dev/inspector/plans/0.2.1/slice-30/status.md);
-the verified local distribution lives at ignored `dist/inspector/0.2.1/` in the
-`inspector/dev/0.2.1` release checkout (`dist/inspector/0.2.0/` remains
-separate). No registry availability or human-validation claim is made.
+The source package is `0.3.0`, targeting FathomDB `0.8.31` (compiled Schema
+`38`) on native Ubuntu 24.04 (`glibc 2.39`) with outside-`body` node/edge
+`properties` inspection, read-only reserved `scope` display, historical `as_of`
+stored and native graph exploration, default `local-ci.sh --scoped` checks, and
+GitHub Release artifact delivery via the `build-inspector` job in
+`.github/workflows/release.yml`. See the
+[0.3.0 release notes](../../docs/inspector/releases/0.3.0.md) (and the earlier
+[0.2.1 plan](../../dev/inspector/plans/0.2.1/README.md) and
+[Slice 30 release evidence](../../dev/inspector/plans/0.2.1/slice-30/status.md));
+local candidate distributions promote to ignored `dist/inspector/0.3.0/`
+(`dist/inspector/0.2.1/` and `dist/inspector/0.2.0/` remain separate). No
+human-validation claim is made.
 
-This branch targets the unchanged `release/0.8.30` Engine/schema (commit
-`72fe93634321616214352a7e07066ce0f93bcf4c`, byte-identical Rust/Cargo source to
-`v0.8.30` `e3d31f5cd`, format 37) and is qualified against fresh closed
-databases from both published FathomDB `0.8.29` and published FathomDB `0.8.30`.
+This branch targets the `release/0.8.31` Engine/schema (compiled format `38`).
+Inspector `0.3.0` admits Schema `38` stores and cleanly refuses Schema `37`
+(`0.8.30`) and older or missing-layout stores without mutating files.
 
 ## Build and launch
 
@@ -88,7 +92,7 @@ probe baseline, materialization and Linux LandlockABI3+ are available. Bytes are
 sealed before the loader sees them; source cache is never downloaded/repaired.
 No persisted embeddings are created by Inspector. A failed Default open is not
 retried None; deliberately selected model-free mode leaves stored/text
-inspection usable. CPU/reranker/GPU choosers are absent. Inspector `0.2.1` is
+inspection usable. CPU/reranker/GPU choosers are absent. Inspector `0.3.0` is
 qualified natively on Ubuntu 24.04 / glibc 2.39 userland, kernel
 `7.0.0-43-generic` / Landlock ABI 8 and Chromium `156.0.8078.4` (Ubuntu 22.04 /
 glibc 2.35 is dropped). Cached CPU requires Landlock ABI >= 3.
@@ -169,31 +173,35 @@ license/install notes/build description and inner/outer checksums. Failure remov
 only its newly created output and preserves compiler exit status.
 
 `local-ci.sh` is the documented local source+package+installed path: preflight,
-one typed full source gate, tooling/JS tests, native Ubuntu 24.04 (`glibc 2.39`)
+a default `--scoped` Inspector source check (with fail-closed diff guard
+against `--base` / `INSPECTOR_SCOPED_BASE`; `--full-workspace` selects the full
+workspace source gate), tooling/JS tests, native Ubuntu 24.04 (`glibc 2.39`)
 offline production build/examples, clean-source candidate seal, ELF
 `GLIBC <= 2.39` check and actual installed native/browser qualification under
 host `Xvfb`, `/proc` process discovery and CDP `Browser.close` (no Docker, no
 `openbox`, no `xdotool`). The candidate stays outside final dist. An explicit
 `--installed-only` path rechecks existing bytes after permitted docs-only closure;
 it makes no source-gate claim. No required positive stage silently skips.
-Existing hosted CI already routes Inspector changes to Ubuntu verify; it does not
-claim the local installed target has run remotely.
+Hosted CI runs `build-inspector` in `.github/workflows/release.yml` on
+`ubuntu-24.04` to produce and attach `fathomdb-inspector-0.3.0-linux-x86_64.tar.gz`
+and its `.sha256` to the GitHub Release; it does not claim the local installed
+target has run remotely.
 
 [Tool instructions](tools/README.md#local-release-readiness) give exact
 preparation, commands and promotion steps. `local-release.py` verifies strict
 contents/hashes/actual executable build identity, seals unsigned source-bound
 metadata, and copies to verified same-filesystem staging before atomic
 no-overwrite promotion. Existing or mismatched destinations refuse;
-failures/interrupts clean only owned staging. The verified `0.2.1` bytes are
-released locally at ignored `dist/inspector/0.2.1/`. See
-[0.2.1 release notes](../../docs/inspector/releases/0.2.1.md) for the final
-archive/executable hashes and support limits.
+failures/interrupts clean only owned staging. Local verified `0.3.0` bytes
+promote to ignored `dist/inspector/0.3.0/`. See
+[0.3.0 release notes](../../docs/inspector/releases/0.3.0.md) for artifact
+verification and support limits.
 
 The native Ubuntu 24.04 build uses an isolated build target directory. The
-actual `0.2.1` binary's maximum GLIBC symbol is `2.39`. Runtime support remains
+`0.3.0` binary's maximum GLIBC symbol is `2.39`. Runtime support remains
 the exact qualified kernel/browser/userland pairing (`Ubuntu 24.04 / glibc 2.39`,
-`7.0.0-43-generic`, Chromium `156.0.8078.4`). Historical `0.2.0` artifacts
-retain their original identities and are not relabeled.
+`7.0.0-43-generic`, Chromium `156.0.8078.4`). Historical `0.2.1` and `0.2.0`
+artifacts retain their original identities and are not relabeled.
 
 ## Stored graph and retained investigation
 
@@ -212,17 +220,19 @@ never reconstructed. Existing disclosure gates also govern graph/history,
 copy and selected retained-content export.
 
 **Run native graph traversal** performs a separate default-eligible frozen Engine
-read with actual selected target and terminal-edge evidence. Full provenance is
+read with actual selected target and terminal-edge evidence (both stored and
+native graph views accept mutually exclusive historical `as_of_write_cursor` or
+`as_of_epoch_ms` coordinates). Full provenance is
 required by that public route; legacy records can be inspected in stored graph
 while native evidence refuses. Later detail/policy reads have separate contexts;
 bounded absence has an undetermined cause. Conservative pre-call admission
 accounts for repeated source hydration. No diagram geometry implies a metric.
 
-Graph responses share200 objects/2MiB,1000 work units and depth3. Historical
-logical-ID resolution scans at most100k canonical rows/16MiB keys because the
+Graph responses share 200 objects / 2 MiB, 1000 work units and depth 3. Historical
+logical-ID resolution scans at most 100k canonical rows / 16 MiB keys because the
 current format has no all-revision ID index; exhausted coverage is explicitly
-unknown. Aggregate retained graph observations stay within500 objects and the
-shared10-observation/20MiB limit. Collapse/replacement releases hidden state.
+unknown. Aggregate retained graph observations stay within 500 objects and the
+shared 10-observation / 20 MiB limit. Collapse/replacement releases hidden state.
 
 ```sh
 cargo build -p fathomdb-inspector --locked --offline --bins --examples --features cached-cpu

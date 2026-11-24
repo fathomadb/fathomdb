@@ -6,8 +6,9 @@ AArch64/glibc, macOS x64/arm64, and Windows x64. See the
 
 ## Where to go
 
-- [0.8.30 release notes](../release-notes/0.8.30.md) — current changes and
-  compatibility boundaries, including explicit module model release.
+- [0.8.30 release notes](../release-notes/0.8.30.md) (published) and
+  [0.8.31 release notes](../release-notes/0.8.31.md) (pre-publication target) —
+  changes, compatibility boundaries, and schema migration guidance.
 
 - [Quickstart](quickstart.md) — install, open, write, search,
   counters, close, exit. ~5 minutes.
@@ -29,9 +30,10 @@ exposes lower-level inherent methods and re-exported types:
   cross-encoder rerank, graph arm, and opt-in agent `hints`), `search_text_only`,
   `rerank`, `embed`.
 - **Reads** — `read.get`, `read.get_many`, `read.list`,
-  `read.collection`, `read.mutations`, `read.crossed_boundary_since`,
-  `read.projections`, projection-generation and mutation readiness,
-  frozen canonical pagination, and operational-state reads.
+  `read.collection`, `read.operational_collections`,
+  `read.operational_collection`, `read.mutations`,
+  `read.crossed_boundary_since`, `read.projections`, projection-generation and
+  mutation readiness, frozen canonical pagination, and operational-state reads.
 - **Provenance and dependencies** — versioned source provenance, immutable
   source dependencies, keyed dependency-closure status, and bounded dependency
   tracing.

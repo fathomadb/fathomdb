@@ -1,7 +1,7 @@
 # TypeScript API
 
 Package: `fathomdb`. Authoritative spec:
-[`dev/interfaces/typescript.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.30/dev/interfaces/typescript.md).
+[`dev/interfaces/typescript.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.31/dev/interfaces/typescript.md).
 
 > **Release 0.8.31 (pre-publication documentation target; newest published release is 0.8.30), pre-1.0 beta.**
 
@@ -90,9 +90,10 @@ The structured open report is available after open via
 ### `engine.openReport() -> OpenReport`
 
 The structured open report defined in `dev/design/engine.md`:
-`migrationVersionReached`, embedder identity confirmation, open-stage
-data, `stopWordsSha256`, and the embedder
-telemetry fields (`embedderDownloadMs`, `embedderEvents`,
+`schemaVersionBefore`, `schemaVersionAfter`, `migrationSteps`,
+embedder identity confirmation, open-stage data, `stopWordsSha256`,
+capability booleans (`rerankerCompiled`, `cudaCompiled`, `rerankAvailable`),
+and the embedder telemetry fields (`embedderDownloadMs`, `embedderEvents`,
 `embedderMeanCenteringRequired`, `embedderMeanVecPinned`).
 
 Numerical mismatch or inability to verify fails open without an Engine; there
@@ -119,9 +120,11 @@ Every **node** item accepts these keys:
 | `reason` | `string` | no | advisory cause for `state`; stored verbatim, never interpreted |
 | `validFrom` / `valid_from` | `number` | no | world-time window, INCLUSIVE lower bound, epoch **seconds** UTC |
 | `validUntil` / `valid_until` | `number` | no | world-time window, EXCLUSIVE upper bound, epoch **seconds** UTC |
+| `properties` | `Record<string, unknown>` | no | optional inline JSON object of structured properties outside `body` |
 
 An **edge** item takes `kind`, `from`, `to`, the same mandatory
-`sourceId`, an optional `logicalId`, and the temporal pair
+`sourceId`, an optional `logicalId`, optional inline `properties`
+(`Record<string, unknown> | null`), and the temporal pair
 `tValid` / `tInvalid` (`number | null`, epoch **seconds** UTC; `null`
 means "still valid"). Both camelCase and snake_case spellings are
 accepted for every dual-spelled key (camelCase is consulted first).
@@ -207,22 +210,26 @@ cross-encoder reranking (0.8.1 R1) and optional graph-BFS third arm (0.8.1 R3).
   `rerankDepth === 0` is still the identity gate, so `rerankDepth: 0, poolN: 10`
   does **not** rerank. Must be a non-negative integer (`RangeError` otherwise).
 - `options` (`SearchOptions`, optional) — carries `ReadView` fields,
-  `limit` (`1..=100`, default `10`), `snippet`, and opt-in graph-arm seeding
-  controls `graphSeed` (`"graph_fts"` default | `"fused_top_k"` | `"both"`),
-  `graphSeedK` (`1..=100`, default `10`), `graphEdgeKinds` (`readonly string[]`),
-  and `graphEdgePredicates` (`readonly PropertyPredicate[]`, at most `32`,
-  implicit `AND`). The same four graph-arm fields are accepted on
-  `FrozenSearchOptions` and `EvidenceSearchRequestV1`, and are excluded from
-  `TextSearchOptions` (`searchTextOnly`). When explanation or evidence is
+  `limit` (`1..=100`, default `10`), `snippet`, opt-in `hints` (`boolean`,
+  default `false`; populates `SearchResult.hints` without altering rankings),
+  and opt-in graph-arm seeding controls `graphSeed` (`"graph_fts"` default |
+  `"fused_top_k"` | `"both"`), `graphSeedK` (`1..=100`, default `10`),
+  `graphEdgeKinds` (`readonly string[]`), and `graphEdgePredicates`
+  (`readonly PropertyPredicate[]`, at most `32`, implicit `AND`). The same
+  graph-arm fields and `hints` are accepted on `FrozenSearchOptions` and
+  `EvidenceSearchRequestV1`, and are excluded from `TextSearchOptions`
+  (`searchTextOnly`). When explanation or evidence is
   requested, `PerHitExplain` reports `graphSeedSource` and `graphHopDepth`, and
   `EvidenceGraphOriginV1` reports `seedSource`. Validity, dependency and
   mandatory edge-expiry restrictions remain; incomplete historical dense
   coverage uses lexical fallback.
 - Resolves to a `SearchResult` whose `results` is a `SearchHit[]`; each
   [`SearchHit`](#searchhit) carries the matched record's `id`, `kind`, `body`,
-  the **RRF-fused** `score`, the `branch` that produced it (`"graph_arm"`
-  for nodes surfaced only via graph traversal), and `ceScore` (the per-candidate
-  CE score for in-pool reranked hits, `null` otherwise).
+  optional inline `properties`, the **RRF-fused** `score`, the `branch` that
+  produced it (`"graph_arm"` for nodes surfaced only via graph traversal), and
+  `ceScore` (the per-candidate CE score for in-pool reranked hits, `null`
+  otherwise). When `options.hints` is `true`, `SearchResult.hints` carries
+  `Hint[]`.
 
 > **Ranking is RRF (behavior-compat event).** Results are ordered by Reciprocal
 > Rank Fusion (`Σ w/(30 + rank)`, text weight 3, vector weight 1) of the vector and text branches — the
@@ -541,6 +548,17 @@ so no call yields an unbounded read); `afterId` is the exclusive cursor.
 Mutation-log-oriented alias surface over the **same** op-store read-back as
 `read.collection` (identical args + semantics).
 
+### `read.operationalCollections(engine): Promise<OperationalCollectionInfo[]>`
+
+List all declared operational collections and their metadata (name, kind,
+retention/policy details) in stable order.
+
+### `read.operationalCollection(engine, name: string): Promise<OperationalCollectionInfo | null>`
+
+Inspect one declared operational collection by `name`; resolves to `null` when
+no collection with that name is registered. Conflicting `kind` re-registration
+on write/configuration rejects with `WriteValidationError`.
+
 ### `read.list(engine, kind, predicates?, limit?): Promise<NodeRecord[]>`
 
 *(G4 / Slice 35)* List **active** `canonical_nodes` of the given `kind`
@@ -580,8 +598,11 @@ const openHigh = await read.list(engine, "task", [
 `engine.configureProjections(specs, drop?)` declares the durable projection
 registry. It is idempotent: omitting a live declaration does not delete it,
 while an explicit destructive change requires its name in `drop`.
-`read.projections(engine): Promise<ProjectionSpec[]>` returns those durable
-declarations in name order.
+`ProjectionSpec` supports `entityClass` (`"node"` default or `"edge"`
+projection targeting) and `vectorKinds` (opt-in custom node kinds enrolled in
+`_fathomdb_vector_kinds` alongside the 7 built-in defaults; reserved
+`"edge_fact"` is rejected). `read.projections(engine): Promise<ProjectionSpec[]>`
+returns those durable declarations in name order.
 
 For an effective vector declaration, the returned
 `ProjectionSpec.vectorDenseReadiness: DenseReadiness | null` is engine-set
@@ -660,6 +681,7 @@ interface NodeRecord {
   kind: string;
   body: string;
   writeCursor: number; // engine-internal positional cursor — NOT SearchHit.id
+  properties?: Record<string, unknown> | null;
 }
 ```
 
@@ -693,6 +715,7 @@ interface SearchResult {
   projectionCursor: number;
   softFallback: SoftFallback | null;
   results: SearchHit[];
+  hints?: Hint[];
 }
 ```
 
@@ -712,6 +735,7 @@ interface SearchHit {
   branch: SoftFallbackBranch; // "vector" | "text" | "text_edge" | "graph_arm"
   sourceId: string | null; // provenance (`eraseSource` arg); set on EVERY hit (TC-31)
   ceScore: number | null; // 0.8.5 CE score (sigmoid logit) for in-pool reranked hits
+  properties?: Record<string, unknown> | null; // optional inline JSON properties
 }
 ```
 
@@ -751,6 +775,7 @@ interface SearchFilter {
   createdAfter?: number; // created_at >= bound (unix seconds)
   status?: string;
   attributes?: [string, string][];
+  propertyPredicates?: PropertyPredicate[];
 }
 ```
 
@@ -763,7 +788,9 @@ population source yet — vec0 TEXT metadata is not NULL-able), so a
 `status: "open"`-style filter prunes every row until a population slice lands.
 `attributes` is ordered AND equality over declared `filterable` projections;
 its values are canonical text, so projected string `"1"` and number `1` both
-match `"1"`.
+match `"1"`. `propertyPredicates` adds closed typed predicates (`eq`, `ne`,
+`gt`, `gte`, `lt`, `lte`, `in`, `contains`, `exists`, `not_exists`) over
+materialized properties.
 
 ### `SoftFallback`
 
@@ -886,15 +913,6 @@ requirements. Acquisition wait is not a cleanup timeout. Handle close does not
 forgive debt. See [the complete maintenance example](../operations/erasure.md#schedule-an-explicit-maintenance-window)
 for typed outcomes, original-sink reattachment and retry rules.
 
-## See also
-
-- [Quickstart](../getting-started/quickstart.md)
-- [Config knobs](config.md)
-- [Errors](errors.md)
-- [Erasure](../operations/erasure.md)
-- Locked spec: [`dev/interfaces/typescript.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.30/dev/interfaces/typescript.md)
-- TS↔Python parity matrix: [`dev/notes/12-TX-parity-matrix.md`](https://github.com/fathomadb/fathomdb/blob/main/dev/notes/12-TX-parity-matrix.md)
-
 ## Stored-head reporting
 
 Projection runtime status includes required stored mapped-head coverage in
@@ -936,3 +954,12 @@ body-byte coordinates, including role tags.
   `rerankerCompiled: boolean`, `cudaCompiled: boolean`, and
   `rerankAvailable: boolean` with zero network I/O and zero GPU allocation
   during `Engine.open`.
+
+## See also
+
+- [Quickstart](../getting-started/quickstart.md)
+- [Config knobs](config.md)
+- [Errors](errors.md)
+- [Erasure](../operations/erasure.md)
+- Locked spec: [`dev/interfaces/typescript.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.31/dev/interfaces/typescript.md)
+- TS↔Python parity matrix: [`dev/notes/12-TX-parity-matrix.md`](https://github.com/fathomadb/fathomdb/blob/main/dev/notes/12-TX-parity-matrix.md)

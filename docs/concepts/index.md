@@ -15,8 +15,10 @@ open → write / search / admin.configure / instrumentation → close → proces
    at `path`. The handle owns the primary SQLite connection, the reader pool with
    thread-affine workers, the scheduler, the op-store, and the
    embedder pool. A missing or zero-length database is initialized at schema
-   37. A non-empty database must already have schema 37; public open does not
-   upgrade it and rejects a different version with a typed incompatibility error.
+   38 (published `0.8.30` uses schema 37). A non-empty database must already
+   have schema 38; public open does not upgrade it and rejects a different
+   version with a typed incompatibility error. Committed schema 37 stores
+   upgrade offline via `fathomdb migrate --backup-dir <dir> <db_path>`.
 2. **Write / search / configure** — application code calls the
    governed verb surface. Writes are serialized on the primary
    connection; retrieval reads are served by the reader pool; admin
@@ -163,7 +165,7 @@ owed work completes. There is no deadline guarantee. See
 
 ## Recovery surface
 
-The CLI exposes two roots:
+The CLI exposes three roots:
 
 - `fathomdb doctor <verb>` — read-only or artifact-producing
   diagnostics. `check-integrity`, `data-plane-integrity`, `safe-export`, `verify-embedder`,
@@ -174,6 +176,10 @@ The CLI exposes two roots:
   root. `--truncate-wal`, `--rebuild-vec0`, `--rebuild-projections`,
   `--complete-erasures`, `--excise-source <id>`,
   `--excise-collection`/`--excise-record-key`.
+- `fathomdb migrate --backup-dir <dir> [--json] <db_path>` — explicit offline
+  Schema 37 to Schema 38 upgrade for quiescent committed Schema 37 stores with
+  no pending erasures; writes a SHA-256-verified backup and runs post-upgrade
+  `check-integrity --full`.
 
 Engine errors from the SDK carry recovery hints (notably
 `CorruptionError.recovery_hint_code`); operators dispatch on the

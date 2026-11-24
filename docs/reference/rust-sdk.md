@@ -1,6 +1,8 @@
 # Rust SDK
 
-Crate: `fathomdb-sdk` 0.8.30 (import `fathomdb_sdk`). It has the same surface as the Python and TypeScript SDKs:
+Crate: `fathomdb-sdk` (0.8.31 documentation target; newest published crates.io
+release: `0.8.30`; import `fathomdb_sdk`). It has the same surface as the Python
+and TypeScript SDKs:
 
 - an `Engine` with the same operations;
 - the `read`, `graph`, and `admin` namespaces;
@@ -29,6 +31,7 @@ fn main() -> fathomdb_sdk::Result<()> {
         reason: None,
         valid_from: None,
         valid_until: None,
+        properties: None,
     }])?;
 
     let note = read::get(&engine, "note:1", None)?;
@@ -119,10 +122,29 @@ cache_cold/state_changed availability without numeric facts. The stored profile
 and numeric dimension describe retained mapped heads, not current eligibility
 or physical-vector health. Status reads reuse only committed matching captures.
 Opt-in `SnippetV1.scored_bytes: Option<u32>` describes this exact returned
-record's original contributing stored head extent. Some(0)is known zero;
-None makes no extent claim. Pure `snippet_for` and text-only selection return
-None without extent reads. No governed operation, ranking change or refresh API
+record's original contributing stored head extent. `Some(0)` is known zero;
+`None` makes no extent claim. Pure `snippet_for` and text-only selection return
+`None` without extent reads. No governed operation, ranking change or refresh API
 is added.
+
+## Inline properties, custom vector kinds, and operational discovery
+
+- **Inline `properties`:** `PreparedWrite::Node`, `PreparedWrite::Edge`,
+  `PreparedWrite::ProvenancedNode`, and `PreparedWrite::ProvenancedEdge` accept
+  optional inline JSON `properties`, surfaced on `NodeRecord` and `SearchHit`
+  and indexed for declared filterable/searchable projections.
+- **Typed `SearchFilter.property_predicates`:** `SearchFilter` accepts
+  `property_predicates` (`eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `in`, `contains`,
+  `exists`, `not_exists`) in addition to `attributes`.
+- **`ProjectionSpec` targeting and custom vector kinds:** `ProjectionSpec`
+  adds `entity_class` (`Node` or `Edge`) and `vector_kinds` (opt-in custom node
+  kinds enrolled in `_fathomdb_vector_kinds` alongside the 7 built-in defaults;
+  reserved `"edge_fact"` is rejected).
+- **Operational collection discovery:** `read::operational_collections(&engine)`
+  lists declared operational collections and
+  `read::operational_collection(&engine, name)` inspects one collection's
+  metadata (conflicting `kind` re-registration returns
+  `ErrorKind::WriteValidation`).
 
 ## Strict endpoint integrity, traversal predicates, and opt-in fused seeding
 

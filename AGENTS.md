@@ -29,7 +29,7 @@ Bullet form, prescriptive, ≤300 lines. Link out, do not inline.
 ## 2. Repo shape
 
 - **Rust workspace** — 13 crates: 12 under `src/rust/crates/` (`fathomdb`, `fathomdb-sdk`, `fathomdb-cli`, `fathomdb-engine`, `fathomdb-query`, `fathomdb-schema`, `fathomdb-embedder`, `fathomdb-embedder-api`, `fathomdb-mcp` [MCP server, `publish = false`], `fathomdb-napi`, `fathomdb-py`, `fathomdb-tc5-benchmark`) plus `fathomdb-inspector` under `src/inspector/`.
-- **Python bindings** under `src/python/` (package: `fathomdb`).
+- **Python bindings** under `src/python/` (package: `fathomdb`) and the lockstep CLI binary wheel under `src/python-cli/` (package: `fathomdb-cli`).
 - **TypeScript bindings** under `src/ts/`.
 - **Public docs** under `docs/` (MkDocs-built).
 - **Internal engineering docs** under `dev/` — load-bearing: `dev/adr/`, `dev/interfaces/`, `dev/design/`, `dev/plans/` (boards, plans, prompts), `dev/steward/`. List `dev/` for the rest. `dev/progress/` is **historical** (0.6.x only).
@@ -169,7 +169,7 @@ No tracked file enforces permissions: `.claude/settings.json` and `.claude/setti
 
 - **read-only** (no confirmation): `Read`, `Grep`, `Glob`, the agent-loop verbs, read-only git/cargo/uv operations.
 - **workspace-write** (no confirmation): `Edit`, `Write` within the repo or your worktree; `git add`, `git commit`, `git restore`.
-- **push** (no per-push confirmation, owner 2026-10-11): branch pushes to this repo and to the owner's forks `coreyt/cudarc` and `coreyt/candle-fathomdb`. Never force-push. A `v*` tag push fires the real multi-registry publish (§ 10). Never push to Memex or any other repository, and never to upstream third-party repositories.
+- **push** (no per-push confirmation, owner 2026-10-11): branch pushes to this repo and to the owner's forks `coreyt/cudarc` and `coreyt/candle-fathomdb`. Never force-push. A `v*` tag push fires the real multi-registry publish (§ 10). Never push to any external consumer or other repository, and never to upstream third-party repositories.
 - **escalated** (surface to the user first): destructive ops (`rm`, `mv`, `git reset --hard`, `git clean`); network beyond the package registries and the repositories above (`curl`, `wget`).
 
 If the agent needs an op outside this model, surface it to the user; do not look for workarounds.

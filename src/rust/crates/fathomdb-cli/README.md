@@ -21,13 +21,17 @@ cargo install fathomdb-cli --version '=0.8.30' --locked
 fathomdb --version
 ```
 
-That installs a binary named `fathomdb`.
+That installs a binary named `fathomdb` (the newest published crates.io release
+is `0.8.30`; the in-development `0.8.31` line also packages `fathomdb-cli` as a
+lockstep PyPI binary wheel installable via `pip install 'fathomdb[cli]'` while
+keeping the base `fathomdb` SDK wheel free of console scripts).
 
-## Two roots
+## Three roots
 
 ```text
-fathomdb doctor <verb> [--json] [<db-path>]             # diagnostics / export / maintenance
-fathomdb recover --accept-data-loss [flags] <db-path>   # lossy repair
+fathomdb doctor <verb> [--json] [<db-path>]              # diagnostics / export / maintenance
+fathomdb recover --accept-data-loss [flags] <db-path>    # lossy repair
+fathomdb migrate --backup-dir <dir> [--json] <db-path>   # offline Schema 37 -> 38 upgrade
 ```
 
 `doctor` contains diagnostics, exports and explicit maintenance. Ordinary-open
@@ -36,7 +40,10 @@ commands can initialize a missing database or start projection workers;
 lossy repair, which is why every invocation requires an
 explicit `--accept-data-loss` acknowledgement: without it the command refuses with
 `E_RECOVER_REQUIRES_ACCEPT_DATA_LOSS` and exits 70. There is no way to run a lossy workflow by
-accident.
+accident. `migrate` performs an explicit offline Schema `37 -> 38` upgrade on a
+quiescent committed Schema 37 store with no pending erasures: it writes a
+SHA-256-verified backup under `--backup-dir`, executes the `37 -> 38` upgrade,
+and runs post-upgrade `check-integrity --full`.
 
 Most `doctor` verbs take a database path. `gpu`, `reranker-gpu`, `platform`,
 `cuda-allocator`, `cuda-libraries` and `warm-cache` are database-free;

@@ -20,7 +20,7 @@ class GeneratedDocs(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         inputs = ['Cargo.toml', 'src/inspector/Cargo.toml', 'src/conformance/governed-operation-parity.json',
-                  'src/python/pyproject.toml', 'src/ts/package.json']
+                  'src/python/pyproject.toml', 'src/python-cli/pyproject.toml', 'src/ts/package.json']
         inputs += [p.relative_to(REPO).as_posix() for p in (REPO / 'src/rust/crates').glob('*/Cargo.toml')]
         inputs += [f'scripts/agent-{verb}.sh' for verb in VERBS]
         for name in inputs:
@@ -108,14 +108,19 @@ class GeneratedDocs(unittest.TestCase):
         text = pages[1].read_text()
         self.assertIn('Python and TypeScript packages', text)
         self.assertIn('src/python/pyproject.toml', text)
+        self.assertIn('src/python-cli/pyproject.toml', text)
         self.assertIn('src/ts/package.json', text)
-        for language in ('python', 'typescript'):
-            manifest = self.root / ('src/python/pyproject.toml' if language == 'python' else 'src/ts/package.json')
-            name = f'fixture-{language}-package'
-            if language == 'python':
+        for kind, rel_path, original_name in (
+            ('python', 'src/python/pyproject.toml', 'fathomdb'),
+            ('python-cli', 'src/python-cli/pyproject.toml', 'fathomdb-cli'),
+            ('typescript', 'src/ts/package.json', 'fathomdb'),
+        ):
+            manifest = self.root / rel_path
+            name = f'fixture-{kind}-package'
+            if kind in ('python', 'python-cli'):
                 before = manifest.read_text()
-                self.assertIn('name = "fathomdb"', before)
-                manifest.write_text(before.replace('name = "fathomdb"', f'name = "{name}"', 1))
+                self.assertIn(f'name = "{original_name}"', before)
+                manifest.write_text(before.replace(f'name = "{original_name}"', f'name = "{name}"', 1))
             else:
                 data = json.loads(manifest.read_text())
                 data['name'] = name

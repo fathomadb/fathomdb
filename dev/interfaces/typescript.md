@@ -1526,8 +1526,10 @@ Only mappings derived from the removed refused-open runtime state disappear.
 
 The normative [approved contract](../design/explicit-maintenance-erasure/contract.md)
 and [production design](../design/explicit-maintenance-erasure/production-design.md)
-own guarantees, scope, limits and recovery. Fresh format 37 requires persisted
-policy metadata; prior formats are refused before mutation with no upgrade.
+own guarantees, scope, limits and recovery. Format 38 (format 37 in `0.8.28`–`0.8.30`)
+requires persisted policy metadata; `Engine.open` refuses prior formats before
+mutation with no automatic upgrade (committed Schema 37 stores upgrade offline
+via `fathomdb migrate`).
 `EngineConfig.physicalErasurePolicy` is `"autonomous"` or `"explicit_maintenance"`;
 unset honors reopen policy and defaults fresh stores to Autonomous. Mismatch
 refuses open. Explicit reopen never starts autonomous physical cleanup.

@@ -15,12 +15,15 @@
       "short": "PREWORK-PREP",
       "title": "Prework prep: worktree bootstrap, release state, baseline CI fixes, R32-07 orientation/gate aids, immediate doc fixes, four ADR-0.8.32-* drafts, Slice 50 venue/fuzzing prep, and Decision 1 Schema-38 vs. Schema-39 empirical experiment",
       "depends_on": [],
-      "status": "IN_PROGRESS",
-      "sha": null,
+      "status": "LANDED",
+      "sha": "e8853997a",
       "design_refs": [
         "dev/plans/0.8.32/prework/slice-9-triage.md",
-        "dev/plans/0.8.32/features/slice-10/plan.md"
-      ]
+        "dev/plans/0.8.32/features/slice-10/plan.md",
+        "dev/plans/0.8.32/features/slice-10/status.md",
+        "dev/plans/0.8.32/features/slice-10/scope-schema-experiment.md"
+      ],
+      "evidence": "WP-10A..WP-10E + FIX-1 (f961e4537) landed at e8853997a; full unconfined agent-verify.sh EXIT 0 (246/249 suites passed, 3 skipped, 0 failed, 0 security violations), mkdocs --strict PASS, 106/106 non-shipping Dependabot alerts dismissed, 2 stale remote branches deleted, independent pro adversarial review VERDICT: APPROVE."
     },
     {
       "slice": 20,
@@ -114,9 +117,10 @@
       ]
     }
   ],
-  "landed": [],
+  "landed": [
+    10
+  ],
   "remaining_ladder": [
-    10,
     20,
     30,
     40,
@@ -124,7 +128,7 @@
     60,
     70
   ],
-  "next_slice": 10,
+  "next_slice": 20,
   "decisions": {
     "ruled": [
       {
@@ -162,8 +166,8 @@
       {
         "id": "Gate1-D1",
         "topic": "Schema-38 non-breaking vs. Schema-39 breaking scope layout",
-        "status": "EXPERIMENT_IN_PROGRESS",
-        "blocking": "ADR-0.8.32-caller-scope-isolation.md ratification and Slices 20-70 lock; decided from Slice 10 WP-10D 100k benchmark results."
+        "status": "READY_FOR_OWNER_RULING",
+        "blocking": "ADR-0.8.32-caller-scope-isolation.md ratification and Phase C Slices 20-70 lock; WP-10D 100k benchmark completed (scope-schema-experiment.md recommends S39-COMPOSITE over S38-PARTIAL-A2 fallback)."
       },
       {
         "id": "Slice70-Publish",

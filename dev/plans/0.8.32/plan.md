@@ -18,9 +18,9 @@ date: 2026-11-24
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.32:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 10** (`PREWORK-PREP`) — Prework prep: worktree bootstrap, release state, baseline CI fixes, R32-07 orientation/gate aids, immediate doc fixes, four ADR-0.8.32-* drafts, Slice 50 venue/fuzzing prep, and Decision 1 Schema-38 vs. Schema-39 empirical experiment
+**IMMEDIATE NEXT: Slice 20** (`SCOPE-AND-REFACTOR`) — Zero-behavior-change engine test relocation & search/evidence hotspot splits, declarative TABLE_MANIFEST, and engine-enforced caller scope & write authority (Rust/Python/TS parity, Pin A)
 
-**Remaining ladder:** 10 → 20 → 30 → 40 → 50 → 60 → 70.<!-- END GENERATED release-state:0.8.32:plan-immediate-next -->
+**Remaining ladder:** 20 → 30 → 40 → 50 → 60 → 70.<!-- END GENERATED release-state:0.8.32:plan-immediate-next -->
 
 ## Goal and scope
 

@@ -8,7 +8,7 @@ own settled HITL Gate 1 decisions, requirements, and execution contracts.
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.32:status-current-state -->**Next is Slice 10 (PREWORK-PREP), IN_PROGRESS.** Completed on local `dev/0.8.32` per release state: no slices — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.32:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.32:status-current-state -->**Next is Slice 20 (SCOPE-AND-REFACTOR), NOT_STARTED.** Completed on local `dev/0.8.32` per release state: 10 (`e8853997a`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.32:status-current-state -->
 
 - **Phase A Prework Audits (`Slices 0–9`) — COMPLETE (HITL Gate 1 approved 2026-11-24):**
   - Cut `dev/0.8.32` worktree at `/mnt/data/worktrees/release-0.8.32` from `main` (`38a1594bf`).
@@ -20,13 +20,13 @@ own settled HITL Gate 1 decisions, requirements, and execution contracts.
     - **Decision 4:** Option 1 — pre-authorized `governed-surface-pin.json` updates (`Pin A` / `Pin B` / `Pin C`; `core = 5` and `recovery_denylist = 5` fixed).
     - **Decision 5:** Option 1 — `--features default-embedder` for 5-target `fathomdb-mcp` GH Release binaries & PyPI wheels; `default = []` on crates.io.
     - **Decision 6:** Option 1 — all recommended `include` / `postpone` / `reject` dispositions in `prework/slice-9-triage.md` approved.
-- **Slice 10 (`PREWORK-PREP`) — IN PROGRESS:** Executing `WP-10A`–`WP-10E` per [features/slice-10/plan.md](../0.8.32/features/slice-10/plan.md).
+- **Slice 10 (`PREWORK-PREP`) — LANDED (`e8853997a`):** Completed `WP-10A`–`WP-10E` + `FIX-1` (`f961e4537`), full unconfined `./scripts/agent-verify.sh` (`246/249` suites passed, `0` failed, `0` security violations), and independent `pro` adversarial review (`VERDICT: APPROVE`) per [features/slice-10/status.md](../0.8.32/features/slice-10/status.md). `Gate1-D1` (`S39-COMPOSITE` recommended vs. `S38-PARTIAL-A2` fallback) is ready for owner ruling in [scope-schema-experiment.md](../0.8.32/features/slice-10/scope-schema-experiment.md) before locking Phase C plans for Slices 20–70.
 
 ## Slice ladder
 
 | Slice | Codename | Title | Depends on | Status |
 | --- | --- | --- | --- | --- |
-| 10 | `PREWORK-PREP` | Prework prep, baseline CI fixes, `R32-07` orientation/gate aids, immediate doc fixes, four `ADR-0.8.32-*` drafts, Slice 50 venue/fuzzing prep, and Decision 1 empirical experiment | Prework `0–9` | `IN_PROGRESS` |
+| 10 | `PREWORK-PREP` | Prework prep, baseline CI fixes, `R32-07` orientation/gate aids, immediate doc fixes, four `ADR-0.8.32-*` drafts, Slice 50 venue/fuzzing prep, and Decision 1 empirical experiment | Prework `0–9` | `LANDED` (`e8853997a`) |
 | 20 | `SCOPE-AND-REFACTOR` | Engine test relocation & `search`/`evidence` hotspot splits, declarative `TABLE_MANIFEST`, and engine-enforced caller scope & write authority (`Pin A`) | 10 | `NOT_STARTED` |
 | 30 | `BULK-AND-INSPECTOR` | Opt-in bulk/non-strict write mode (`Pin B`, strict default preserved) and Inspector active-scope UI + Playwright CI wiring | 20 | `NOT_STARTED` |
 | 40 | `MCP-RW` | Atomic governed write + `latest_state` checkpoint seam + `EP-07`/`EP-01` (`Pin C`), production read+write `fathomdb-mcp`, and 3-channel packaging | 20 | `NOT_STARTED` |
@@ -36,4 +36,4 @@ own settled HITL Gate 1 decisions, requirements, and execution contracts.
 
 ## Next action
 
-<!-- BEGIN GENERATED release-state:0.8.32:status-next-action -->**Continue Slice 10 (PREWORK-PREP)** — Prework prep: worktree bootstrap, release state, baseline CI fixes, R32-07 orientation/gate aids, immediate doc fixes, four ADR-0.8.32-* drafts, Slice 50 venue/fuzzing prep, and Decision 1 Schema-38 vs. Schema-39 empirical experiment. **Remaining ladder:** 10 → 20 → 30 → 40 → 50 → 60 → 70.<!-- END GENERATED release-state:0.8.32:status-next-action -->
+<!-- BEGIN GENERATED release-state:0.8.32:status-next-action -->**Commission Slice 20 (SCOPE-AND-REFACTOR)** — Zero-behavior-change engine test relocation & search/evidence hotspot splits, declarative TABLE_MANIFEST, and engine-enforced caller scope & write authority (Rust/Python/TS parity, Pin A). **Remaining ladder:** 20 → 30 → 40 → 50 → 60 → 70.<!-- END GENERATED release-state:0.8.32:status-next-action -->

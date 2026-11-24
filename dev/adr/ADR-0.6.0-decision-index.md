@@ -15,8 +15,8 @@ release plan and board.
 
 Numbering preserves historical IDs `#1`–`#76` (with `#67` formatted for
 `ADR-0.8.28-vector-compatibility-open-policy.md`, the duplicate `#66` for
-`ADR-0.8.29-agent-hints-sidecar.md` reassigned to `#77`, and previously
-unindexed ADRs assigned `#78`–`#98`).
+`ADR-0.8.29-agent-hints-sidecar.md` reassigned to `#77`, previously
+unindexed ADRs assigned `#78`–`#98`, and `0.8.32` ADRs assigned `#99`–`#102`).
 
 ## Active / Governing ADRs
 
@@ -33,7 +33,7 @@ unindexed ADRs assigned `#78`–`#98`).
 | 9 | 0.6.0 | interface | No pre-1.0 compatibility shims or multi-release deprecation cycles | accepted | [ADR-0.6.0-no-shims-policy.md](ADR-0.6.0-no-shims-policy.md) |
 | 10 | 0.6.0 | architecture | Single-writer-thread engine; MVCC out of scope | accepted; writer mechanism partially superseded by #56 | [ADR-0.6.0-single-writer-thread.md](ADR-0.6.0-single-writer-thread.md) |
 | 11 | 0.6.0 | design | Vector identity belongs to the embedder; vector configs never carry identity strings | accepted | [ADR-0.6.0-vector-identity-embedder-owned.md](ADR-0.6.0-vector-identity-embedder-owned.md) |
-| 7b | 0.6.0 | acceptance | Single-process durability target (fsync policy, recovery time) | accepted (HITL 2026-04-27) | [ADR-0.6.0-durability-fsync-policy.md](ADR-0.6.0-durability-fsync-policy.md) |
+| 7b | 0.6.0 | acceptance | Single-process durability target (fsync policy, recovery time) | accepted (HITL 2026-04-27); amended by #101 | [ADR-0.6.0-durability-fsync-policy.md](ADR-0.6.0-durability-fsync-policy.md) |
 | 8b | 0.6.0 | acceptance | Projection freshness SLI numerical target | accepted (HITL 2026-04-27) | [ADR-0.6.0-projection-freshness-sli.md](ADR-0.6.0-projection-freshness-sli.md) |
 | 9b | 0.6.0 | acceptance | Retrieval p50/p99 latency gates | accepted (HITL 2026-04-27) | [ADR-0.6.0-retrieval-latency-gates.md](ADR-0.6.0-retrieval-latency-gates.md) |
 | 10b | 0.6.0 | acceptance | Tier-1 CI platforms list | accepted (HITL 2026-04-27) | [ADR-0.6.0-tier1-ci-platforms.md](ADR-0.6.0-tier1-ci-platforms.md) |
@@ -108,9 +108,20 @@ unindexed ADRs assigned `#78`–`#98`).
 | 90 | 0.8.29 | interface | Narrow passive diagnostic addendum for `fathomdb-sdk` qualification observation | accepted (amends #60) | [ADR-0.8.29-sdk-qualification-observation.md](ADR-0.8.29-sdk-qualification-observation.md) |
 | 91 | 0.8.30 | interface | Explicit module model release (`B30-01`) | accepted (0.8.30 Slice 50) | [ADR-0.8.30-explicit-module-model-release.md](ADR-0.8.30-explicit-module-model-release.md) |
 | 73 | 0.8.31 | architecture | Schema 38 inline canonical JSON `properties` on nodes and edges + declared typed B-tree/`vec0` indexes, batch commit timestamps, reserved `scope` column, opt-in vector-committable kinds, and `ExportClass` erasure audit | accepted (owner 2026-11-21; amended 2026-11-22) | [ADR-0.8.31-property-graph-inline-and-declared-indexes.md](ADR-0.8.31-property-graph-inline-and-declared-indexes.md) |
-| 74 | 0.8.31 | interface | Strict-only write endpoint integrity (`superseded_at IS NULL AND state = 'active'`) on all 0.8.31 write paths with atomic rollback | accepted (owner 2026-11-21) | [ADR-0.8.31-strict-endpoint-integrity.md](ADR-0.8.31-strict-endpoint-integrity.md) |
+| 74 | 0.8.31 | interface | Strict-only write endpoint integrity (`superseded_at IS NULL AND state = 'active'`) on all 0.8.31 write paths with atomic rollback | accepted (owner 2026-11-21); extended by #100 | [ADR-0.8.31-strict-endpoint-integrity.md](ADR-0.8.31-strict-endpoint-integrity.md) |
 | 75 | 0.8.31 | architecture | Bitemporal/revision-aware `as_of` historical graph traversal, closed typed edge/target predicates, opt-in `graph_seed` fused-hit seeding + seed/depth provenance | accepted (owner 2026-11-21; amended 2026-11-22) | [ADR-0.8.31-historical-graph-and-fused-seeding.md](ADR-0.8.31-historical-graph-and-fused-seeding.md) |
 | 76 | 0.8.31 | release | Lockstep `fathomdb-cli` PyPI binary wheels via Maturin `bindings = "bin"` and verified `fathomdb migrate` (`37 -> 38`) helper | accepted (owner 2026-11-21; amended 2026-11-22) | [ADR-0.8.31-cli-pypi-wheel-and-37-to-38-upgrade.md](ADR-0.8.31-cli-pypi-wheel-and-37-to-38-upgrade.md) |
+| 99 | 0.8.32 | interface | Production read+write `fathomdb-mcp` (`allow_writes: false` default, per-store opt-in + bound `scope`), `SC-01`–`SC-10` startup conflicts, `AC32-MCP-SAFETY-01`–`09`, atomic `PutLatestState` + `EP-07` + `EP-01` (Pin C), and 3-channel distribution (`--features default-embedder` GH/PyPI, `default = []` crates.io, `AC-041` empty base scripts) | accepted (Owner Rulings 1 & 3; Gate 1 Decisions 4 & 5, 2026-11-24) | [ADR-0.8.32-mcp-read-write-and-distribution.md](ADR-0.8.32-mcp-read-write-and-distribution.md) |
+| 100 | 0.8.32 | interface | Opt-in bulk/non-strict write mode (`WriteOptions` / `write_with_options`, `BulkNonStrict`) keeping default `Engine::write` and `Engine::actuate` strict, truthful `WriteReceipt.dangling_edge_endpoints`, and `fathomdb doctor` dangling + cross-scope edge verification | accepted (Gate 1 Decision 4 Pin B, 2026-11-24); extends #74 | [ADR-0.8.32-opt-in-bulk-write-mode.md](ADR-0.8.32-opt-in-bulk-write-mode.md) |
+| 101 | 0.8.32 | acceptance | Declared WAL durability (`SyncMode::Normal` checkpoint-bounded prefix-recovery default + opt-in `SyncMode::Full`), QEMU/KVM `dm-flakey` power-loss oracle (`AC32-DMFLAKEY-01`–`04`), and isolated `fuzz/` workspace (`AC32-FUZZ-01`–`03`) | accepted (Gate 1 Decision 2 Option 1, 2026-11-24); amends #7b | [ADR-0.8.32-durability-sync-mode-and-power-loss-oracle.md](ADR-0.8.32-durability-sync-mode-and-power-loss-oracle.md) |
+
+## Proposed / Pending Ratification ADRs
+
+Draft specifications awaiting explicit owner decision before activation:
+
+| # | Release | Category | Proposed decision | Status / blocking checkpoint | ADR file |
+| --- | --- | --- | --- | --- | --- |
+| 102 | 0.8.32 | architecture | Engine-enforced caller `scope` isolation (`ScopePolicy` anti-spoof, Pin A), full read/search/graph/frozen/write/erasure isolation, single-source `TABLE_MANIFEST`, mandatory 8-col `vec0`, and `WP-10D` comparison (`S39-COMPOSITE` vs. `S38-PARTIAL-A2`) | proposed — awaiting `WP-10D` Decision 1 ruling | [ADR-0.8.32-caller-scope-isolation.md](ADR-0.8.32-caller-scope-isolation.md) |
 
 ## Superseded, Historical, and Deferred ADRs
 

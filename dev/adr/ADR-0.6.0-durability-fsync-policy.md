@@ -9,7 +9,9 @@ status: accepted
 
 # ADR-0.6.0 — Durability + fsync policy
 
-**Status:** accepted (HITL 2026-04-27).
+**Status:** accepted (HITL 2026-04-27); amended by [ADR-0.8.32-durability-sync-mode-and-power-loss-oracle.md](ADR-0.8.32-durability-sync-mode-and-power-loss-oracle.md) (`#101`, HITL Gate 1 Decision 2 Option 1, 2026-11-24).
+
+> **0.8.32 Amendment Note:** `SyncMode::Normal` (`synchronous = NORMAL`) remains the library default, with its power-loss contract restated truthfully as zero corruption and atomic prefix recovery to the last flushed/checkpointed WAL frame (rather than a 100 ms power-cut bound or zero OS-crash loss heuristic). Opt-in `EngineConfig::sync_mode = SyncMode::Full` (`synchronous = FULL`) provides strict zero loss of acknowledged commits across OS crash and power failure; both modes are qualified under `AC32-DMFLAKEY-01`–`04` in [ADR-0.8.32-durability-sync-mode-and-power-loss-oracle.md](ADR-0.8.32-durability-sync-mode-and-power-loss-oracle.md).
 
 Phase 2 #7 acceptance ADR. Sets fsync policy + numerical durability and recovery-time targets.
 

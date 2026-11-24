@@ -488,3 +488,15 @@ refresh in the closing commit when you touch a doc).
 | `dev/adr/ADR-0.8.31-cli-pypi-wheel-and-37-to-38-upgrade.md` | Lockstep fathomdb-cli PyPI binary wheel, minimal 37->38 migrate helper & SDK enhancements | 0.8.31 Slice 0 / 10 / 50 | 2026-11-22 |
 | `dev/plans/0.8.31/scope.md` · `plan.md` | Active 0.8.31 scope, HITL decisions, requirements and Phase B slice ladder (Slices 0–80) | 0.8.31 Slice 0 / 10 | 2026-11-22 |
 | `dev/plans/release-state-0.8.31.json` · `dev/plans/runs/STATUS-0.8.31.md` | Machine-readable 0.8.31 release state and board of record | 0.8.31 | 2026-11-22 |
+
+## Release 0.8.32 ADRs and plans
+
+| Path | Purpose | Owning slice / AC | Last-touched |
+| --- | --- | --- | --- |
+| `dev/adr/ADR-0.8.32-mcp-read-write-and-distribution.md` | Production read+write `fathomdb-mcp` gating, startup conflicts, write safety, and 3-channel distribution | 0.8.32 Slice 10 / 40 | 2026-11-24 |
+| `dev/adr/ADR-0.8.32-opt-in-bulk-write-mode.md` | Strict default `Engine::write`/`actuate`, opt-in bulk write mode, and `doctor` dangling/scope checks | 0.8.32 Slice 10 / 30 | 2026-11-24 |
+| `dev/adr/ADR-0.8.32-durability-sync-mode-and-power-loss-oracle.md` | Amends `ADR-0.6.0` for `SyncMode::{Normal,Full}`, QEMU/KVM `dm-flakey` oracle, and isolated `fuzz/` | 0.8.32 Slice 10 / 50 | 2026-11-24 |
+| `dev/adr/ADR-0.8.32-caller-scope-isolation.md` | Proposed caller `scope` isolation, 8-col `vec0`, and `WP-10D` `S39` vs. `S38-A2` empirical tradeoff | 0.8.32 Slice 10 / 20 | 2026-11-24 |
+| `dev/plans/0.8.32/scope.md` · `plan.md` | Active 0.8.32 scope, Gate 1 rulings, CUDA review, tripwires, and Phase B ladder (Slices 10–70) | 0.8.32 Slice 10 | 2026-11-24 |
+| `dev/plans/0.8.32/features/slice-10/scope-schema-experiment.md` | 100k Schema 38 vs. Schema 39 and `SyncMode::Normal` vs. `Full` empirical experiment report | 0.8.32 Slice 10 (`WP-10D`) | 2026-11-24 |
+| `dev/plans/release-state-0.8.32.json` · `dev/plans/runs/STATUS-0.8.32.md` | Machine-readable 0.8.32 release state and live board of record | 0.8.32 | 2026-11-24 |

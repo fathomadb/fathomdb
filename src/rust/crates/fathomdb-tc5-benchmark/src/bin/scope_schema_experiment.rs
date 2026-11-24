@@ -2667,7 +2667,7 @@ fn exec_search_hybrid(
 ) -> Result<Vec<i64>, String> {
     let vec_hits = exec_search_vector_k10(conn, layout, spec)?;
     let text_hits = exec_search_text_only(conn, layout, spec)?;
-    // RRF fusion (RRF_K = 60.0) mirroring `fusion.rs`.
+    // Simplified equal-weight RRF (K = 60.0) benchmark fusion (production fusion.rs uses RRF_K = 30.0, 3:1 weights).
     let mut scores: HashMap<i64, f64> = HashMap::new();
     for (rank, (wc, _)) in vec_hits.iter().enumerate() {
         *scores.entry(*wc).or_default() += 1.0 / (60.0 + (rank as f64 + 1.0));

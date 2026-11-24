@@ -114,14 +114,11 @@ unindexed ADRs assigned `#78`–`#98`, and `0.8.32` ADRs assigned `#99`–`#102`
 | 99 | 0.8.32 | interface | Production read+write `fathomdb-mcp` (`allow_writes: false` default, per-store opt-in + bound `scope`), `SC-01`–`SC-10` startup conflicts, `AC32-MCP-SAFETY-01`–`09`, atomic `PutLatestState` + `EP-07` + `EP-01` (Pin C), and 3-channel distribution (`--features default-embedder` GH/PyPI, `default = []` crates.io, `AC-041` empty base scripts) | accepted (Owner Rulings 1 & 3; Gate 1 Decisions 4 & 5, 2026-11-24) | [ADR-0.8.32-mcp-read-write-and-distribution.md](ADR-0.8.32-mcp-read-write-and-distribution.md) |
 | 100 | 0.8.32 | interface | Opt-in bulk/non-strict write mode (`WriteOptions` / `write_with_options`, `BulkNonStrict`) keeping default `Engine::write` and `Engine::actuate` strict, truthful `WriteReceipt.dangling_edge_endpoints`, and `fathomdb doctor` dangling + cross-scope edge verification | accepted (Gate 1 Decision 4 Pin B, 2026-11-24); extends #74 | [ADR-0.8.32-opt-in-bulk-write-mode.md](ADR-0.8.32-opt-in-bulk-write-mode.md) |
 | 101 | 0.8.32 | acceptance | Declared WAL durability (`SyncMode::Normal` checkpoint-bounded prefix-recovery default + opt-in `SyncMode::Full`), QEMU/KVM `dm-flakey` power-loss oracle (`AC32-DMFLAKEY-01`–`04`), and isolated `fuzz/` workspace (`AC32-FUZZ-01`–`03`) | accepted (Gate 1 Decision 2 Option 1, 2026-11-24); amends #7b | [ADR-0.8.32-durability-sync-mode-and-power-loss-oracle.md](ADR-0.8.32-durability-sync-mode-and-power-loss-oracle.md) |
+| 102 | 0.8.32 | architecture | Engine-enforced caller `scope` isolation (`ScopePolicy` anti-spoof, Pin A), Schema 39 composite `(scope, ...)` layout (`S39-COMPOSITE` + `fathomdb migrate 38 -> 39`), single-scope/single-agent default posture, mandatory 8-col `vec0`, and single-source `TABLE_MANIFEST` | accepted (Gate 1 Decision 1 Option 1, 2026-11-24) | [ADR-0.8.32-caller-scope-isolation.md](ADR-0.8.32-caller-scope-isolation.md) |
 
 ## Proposed / Pending Ratification ADRs
 
-Draft specifications awaiting explicit owner decision before activation:
-
-| # | Release | Category | Proposed decision | Status / blocking checkpoint | ADR file |
-| --- | --- | --- | --- | --- | --- |
-| 102 | 0.8.32 | architecture | Engine-enforced caller `scope` isolation (`ScopePolicy` anti-spoof, Pin A), full read/search/graph/frozen/write/erasure isolation, single-source `TABLE_MANIFEST`, mandatory 8-col `vec0`, and `WP-10D` comparison (`S39-COMPOSITE` vs. `S38-PARTIAL-A2`) | proposed — awaiting `WP-10D` Decision 1 ruling | [ADR-0.8.32-caller-scope-isolation.md](ADR-0.8.32-caller-scope-isolation.md) |
+None currently pending ratification.
 
 ## Superseded, Historical, and Deferred ADRs
 

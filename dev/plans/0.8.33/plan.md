@@ -67,5 +67,11 @@ end-to-end use-case recipes.
    specified open-source theme) and hosting `rustdoc` / API bundles alongside
    the MkDocs site on GitHub Pages.
 3. **Versioned release vs. docs-only publish**: Confirm whether `0.8.33` cuts a
-   full synchronized package bump (carrying package-local agent docs and
-   docstrings into crates/PyPI/npm) or docs-site-only.
+   full synchronized package bump (carrying package-local agent docs,
+   docstrings, and the deferred Rust `1.95.0 → 1.100.0` toolchain/MSRV upgrade
+   into crates/PyPI/npm) or splits the toolchain bump from docs-site work.
+4. **Single-agent default posture relaxation (owner `2026-11-24` note):**
+   Revisit `0.8.32`'s single-scope / one-agent-per-database default user-doc
+   guidance (`ADR-0.8.32-caller-scope-isolation.md`) and decide how broadly
+   `0.8.33` docs and recipes should relax it for multi-agent shared-store
+   deployments.

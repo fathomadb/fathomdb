@@ -18,7 +18,7 @@ date: 2026-11-24
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.32:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 20** (`SCOPE-AND-REFACTOR`) — Zero-behavior-change engine test relocation & search/evidence hotspot splits, declarative TABLE_MANIFEST, and engine-enforced caller scope & write authority (Rust/Python/TS parity, Pin A)
+**IMMEDIATE NEXT: Slice 20** (`SCOPE-AND-REFACTOR`) — Zero-behavior-change engine test relocation & search/evidence hotspot splits, declarative TABLE_MANIFEST, Schema 39 (S39-COMPOSITE + 8-col vec0 + fathomdb migrate 38->39), and engine-enforced caller scope & write authority (single-scope default, Rust/Python/TS parity, Pin A)
 
 **Remaining ladder:** 20 → 30 → 40 → 50 → 60 → 70.<!-- END GENERATED release-state:0.8.32:plan-immediate-next -->
 
@@ -95,7 +95,7 @@ workloads. Full scope boundaries live in [scope.md](./scope.md).
 
 | ID | Requirement | Falsifiable acceptance signal |
 | --- | --- | --- |
-| R32-01 | Engine-enforced caller scope and write authority (schema layout locked by Decision 1 after Slice 10 `WP-10D` experiment) | Two-caller fixtures with overlapping records and distinct grants prove zero cross-scope leakage across `search` (including `use_graph_arm`), `fetch`, `expand`, frozen contexts, continuations, and stale refs after grant revocation; unauthorized/stale writes leave state unchanged and retries remain idempotent; `0.8.31` store compatibility follows the owner-ratified Decision 1 ADR. |
+| R32-01 | Engine-enforced caller scope and write authority (Schema 39 `S39-COMPOSITE` + 8-col `vec0` + `fathomdb migrate 38 → 39`; single-scope/single-agent default) | Two-caller fixtures with overlapping records and distinct grants prove zero cross-scope leakage across `search` (including `use_graph_arm`), `fetch`, `expand`, frozen contexts, continuations, and stale refs after grant revocation; unauthorized/stale writes leave state unchanged and retries remain idempotent; single-scope (`scope = ''`) holds `0.8.31` parity and is documented as the default in `docs/`; verified offline `fathomdb migrate` upgrades golden `0.8.31` Schema 38 stores to Schema 39 cleanly (`ADR-0.8.32-caller-scope-isolation.md`). |
 | R32-02 | Production read+write `fathomdb-mcp` with scoped frozen evidence, governed writes/checkpoints, and 3-channel release packaging | `allow_writes: false` default, per-store opt-in + bound `scope`, `SC-01`–`SC-10` fail-fast startup conflicts, and `AC32-MCP-SAFETY-01`–`09` pass; identical tasks run through SDK and MCP prove exact bytes, revision identity, typed drift/erasure/truncation outcomes, caller scope enforcement, and idempotent governed writes/`latest_state` checkpoints (`operation_id` replay + `expected_write_boundary`); `fathomdb-mcp` release binaries, PyPI wheel, and crates.io crate pass installed consumer smoke tests. |
 | R32-03 | Opt-in bulk / non-strict write mode (default remains strict) | Explicit bulk-write opt-in (`WriteOptions` / `write_with_options`) admits out-of-order edges with accurate `dangling_edge_endpoints` counts and post-import `fathomdb doctor` verification; default `Engine::write` and `Engine::actuate` remain strict and atomically refuse missing/inactive/cross-scope endpoints. |
 | R32-04 | Backup, restore, and full rebuild proof (External Reviewer P0) | On pinned installed artifacts, backup/restore and full rebuild from authoritative corpus match revisions, evidence spans, properties, scopes, and graph results identically; internal `fathomdb.logical-export/v1` round-trip validates `ExportClass` completeness (uncentered f32 + `_fathomdb_vector_spans` + `EmbedderIdentity`, excluding `embedding_bin`/`mean_vec`). |
@@ -127,7 +127,7 @@ workloads. Full scope boundaries live in [scope.md](./scope.md).
 | Slice | Codename | Title | Requirements | Depends on | Parallel / conflict notes |
 | --- | --- | --- | --- | --- | --- |
 | 10 | `PREWORK-PREP` | Worktree bootstrap, release state, baseline CI fixes, `R32-07` orientation/gate aids, immediate doc fixes, four `ADR-0.8.32-*` drafts, Slice 50 venue/fuzzing prep, and Decision 1 empirical experiment | R32-07, All | Prework `0–9` + Gate 1 | Restores green baseline CI, dismisses non-shipping Dependabot noise, delivers `WP-10D` 100k Schema-38 vs. Schema-39 + `NORMAL`/`FULL` measurements, and pre-stages `cargo-fuzz` + QEMU `/dev/kvm` venue. |
-| 20 | `SCOPE-AND-REFACTOR` | Pre-scope `search`/`evidence` hotspot splits, single-source `TABLE_MANIFEST`, and engine-enforced caller scope/write authority (Rust/Python/TS SDK parity, `Pin A`) | R32-01, R32-06, R32-07 | 10 + Decision 1 lock | Opens with zero-behavior-change test-file relocation and `search.rs`/`evidence.rs` submodule split (`module-boundary-policy.txt` updated), promotes `sqlite_master` audit to declarative `TABLE_MANIFEST`, then activates `scope` across read, search, graph, frozen, write, actuate, and erasure paths with single-scope fast path. |
+| 20 | `SCOPE-AND-REFACTOR` | Pre-scope `search`/`evidence` hotspot splits, single-source `TABLE_MANIFEST`, Schema 39 (`S39-COMPOSITE` + 8-col `vec0` + `fathomdb migrate 38 → 39`), and engine-enforced caller scope/write authority (Rust/Python/TS SDK parity, `Pin A`) | R32-01, R32-06, R32-07 | 10 (DONE) | Opens with zero-behavior-change test-file relocation and `search.rs`/`evidence.rs` submodule split (`module-boundary-policy.txt` updated), promotes `sqlite_master` audit to declarative `TABLE_MANIFEST`, lands `SCHEMA_VERSION = 39` (`STEP_39_SQL`, 8-col `vec0`, verified `fathomdb migrate 38 → 39` against golden `0.8.31` fixture), activates `scope` across read/search/graph/frozen/write/actuate/erasure paths binding `scope = ''` on the single-scope default fast path, and updates `docs/` to state single-scope (one agent per DB) is the default. |
 | 30 | `BULK-AND-INSPECTOR` | Opt-in bulk / non-strict write mode (`Pin B`) and Inspector active-`scope` UI + Playwright CI wiring | R32-03, R32-06 | 20 | Parallelizable with Slice 40 after Slice 20; touches write validation/commit, SDK bindings, and `src/inspector/`. |
 | 40 | `MCP-RW` | Atomic governed write + `latest_state` checkpoint seam + `EP-07`/`EP-01` (`Pin C`), production read+write `fathomdb-mcp`, and 3-channel packaging | R32-02, R32-06 | 20 | Parallelizable with Slice 30 after Slice 20; touches SDK actuation/read surface, `fathomdb-mcp`, `src/python-mcp/`, `dev/interfaces/mcp.md`, and release workflows/contract tests. |
 | 50 | `DURABILITY-AND-FUZZ` | Backup/restore/rebuild proof (`logical-export/v1`), `SyncMode::{Normal, Full}` + QEMU/KVM `dm-flakey` power-loss campaign, and isolated `fuzz/` workspace | R32-04, R32-05 | 30, 40 | Executes `quality-backlog.md`, External Reviewer P0 durability proofs, and internal `fathomdb.logical-export/v1` round-trip validation on real stores and disposable fault environment. |
@@ -140,12 +140,14 @@ Recorded in [prework/slice-9-triage.md](./prework/slice-9-triage.md) § 4:
 
 | Decision | Status | Ruling / Checkpoint |
 | --- | --- | --- |
-| **Decision 1** — Schema-38 non-breaking vs. Schema-39 breaking `scope` layout | **EXPERIMENT IN PROGRESS (`WP-10D`)** | Execute 100k-node / 150k-edge benchmark comparing Baseline `0.8.31` Schema 38 vs. Candidate A (Schema 38 + partial indexes `WHERE scope != ''`) vs. Candidate B (Schema 39 composite PKs/indexes) across single-scope and multi-scope profiles, plus `SyncMode::Normal` vs. `Full` write latency, before locking `ADR-0.8.32-caller-scope-isolation.md` and Slices 20–70. |
+| **Decision 1** — Schema-38 non-breaking vs. Schema-39 breaking `scope` layout | **RULED (Option 1 — `S39-COMPOSITE`, Schema 39)** | Owner ratified `S39-COMPOSITE` (`SCHEMA_VERSION = 39`, composite `(scope, ...)` PKs/indexes, 8-column `vec0`, verified `fathomdb migrate 38 → 39`) from Slice 10 `WP-10D` measurements (`ADR-0.8.32-caller-scope-isolation.md` `#102` accepted). Single-scope (one agent per database, `scope = ''`) is the default posture and MUST be stated in user `docs/`; `0.8.33` records a follow-up to revisit/relax that direction. |
 | **Decision 2** — WAL `PRAGMA synchronous` durability contract vs. `dm-flakey` | **RULED (Option 1)** | Retain `SyncMode::Normal` as library default (honest WAL checkpoint-bounded durability amending `ADR-0.6.0-durability-fsync-policy.md`) and add opt-in `EngineConfig` `SyncMode::{Normal, Full}`; qualify both in Slice 50 disposable QEMU/KVM + `dm-flakey`. |
 | **Decision 3** — Canonical slice ladder renumbering | **RULED (Option 1)** | Adopt `Slice 10` (`PREWORK-PREP`) and feature slices `20–70` (`70 = PUBLICATION`, separately HITL-gated). |
 | **Decision 4** — Governed-surface pin pre-authorization | **RULED (Option 1)** | Pre-authorize targeted `scripts/governed-surface-pin.json` updates (`core = 5`, `recovery_denylist = 5` fixed) for Pin A (Slice 20), Pin B (Slice 30), and Pin C (`PutLatestState` + `EP-07` + `EP-01`, Slice 40). |
 | **Decision 5** — `fathomdb-mcp` shipped binary & PyPI wheel feature set | **RULED (Option 1)** | Build 5-target GitHub Release binaries and lockstep PyPI `fathomdb-mcp` wheels with `--features default-embedder`; keep `default = []` in `fathomdb-mcp/Cargo.toml` for `crates.io`. |
 | **Decision 6** — Consolidated 102-proposal triage bundle (`P1-01`–`P8-05`) | **RULED (Option 1)** | Approve all recommended `include` / `postpone` / `reject` dispositions (including `P1-01` API dismissal of 106 non-shipping Dependabot alerts without editing immutable `slice-135` lockfiles, `allow_writes: false` MCP default with per-store opt-in + bound `scope`, and `0.8.33`/`0.8.34`/CUDA 13 deferrals). |
+| **Decision 7** — Rust `1.95.0 → 1.100.0` toolchain upgrade timing | **RULED (Defer to `0.8.33`)** | Keep Rust `1.95.0` pinned through `0.8.32`; upgrade to `1.100.0` (with Cargo build-dir v2 smoke/`rust-cache` fixes, 19 `clippy::chunks_exact_to_as_chunks` sites, Docker/runner updates) in `0.8.33` (`dev/plans/0.8.33/scope.md` § 6). |
+| **Decision 8** — Slice 50 Ubuntu 24.04 cloud-image egress (`AGENTS.md` § 11) | **RULED (Approved)** | Owner authorized downloading the pinned official Ubuntu `24.04` Noble cloud image (`cloud-images.ubuntu.com`, SHA-256 verified) into `/mnt/data/worktrees/fathomdb-0.8.32-dmflakey-vm/` for Slice 50's `/dev/kvm` `dm-flakey` VM. |
 | **Publication Gate** — `v0.8.32` tag & multi-registry publish | **HELD** | Requires completed Slice 60 qualification and separate explicit HITL publication approval before Slice 70 begins. |
 
 ## Reserved-gap policy and deferred work
@@ -154,8 +156,9 @@ Slice numbers advance in steps of 10 (`10, 20, 30, 40, 50, 60, 70`), leaving
 gaps reserved for necessary coherent follow-ups; scope overflow halts for owner
 disposition. Explicitly deferred out of `0.8.32` per [scope.md](./scope.md) and
 [prework/slice-9-triage.md](./prework/slice-9-triage.md): public OSS repo/doc
-IA overhaul, bulk `dev/` pruning, and auto-doc pipeline redesign (`0.8.33`);
-general multi-version `fathomdb migrate`, public CLI `export`/`import`, and
-personal-agent kits (`0.8.34`); publishable competitive benchmark campaigns
-(`0.8.35`); and CUDA 13 delivery (`cuda-delivery-plan.md`, post-`0.8.35` or
-dedicated release).
+IA overhaul, bulk `dev/` pruning, auto-doc pipeline redesign, Rust `1.95.0 →
+1.100.0` toolchain/MSRV upgrade, and revisiting the single-agent default doc
+direction (`0.8.33`); general multi-version `fathomdb migrate`, public CLI
+`export`/`import`, and personal-agent kits (`0.8.34`); publishable competitive
+benchmark campaigns (`0.8.35`); and CUDA 13 delivery (`cuda-delivery-plan.md`,
+post-`0.8.35` or dedicated release).

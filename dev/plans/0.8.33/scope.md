@@ -103,11 +103,33 @@ open-source database candidate** — documenting the complete stabilized
 - **MCP (`docs/mcp/`)**: first-class public documentation covering setup for
   Claude Desktop, Cursor, Hermes, OpenClaw, and generic MCP hosts; configuration schema;
   all read and write/checkpoint tools (`0.8.32`) and error codes; caller
-  scoping/security; token budgets; frozen-evidence workflow; and
+  scoping/security (revisiting/relaxing `0.8.32`'s single-agent-per-database
+  default guidance per owner `2026-11-24` follow-up once multi-agent shared-store
+  usage matures); token budgets; frozen-evidence workflow; and
   troubleshooting.
 - **Inspector (`docs/inspector/`)**: integrate Inspector's user and operator
   documentation into `mkdocs.yml` covering the `0.8.31`/`0.8.32` property,
   history, and scope views.
+
+### 6. Deferred toolchain & hygiene upgrades (owner `2026-11-24` rulings)
+
+- **Rust toolchain / MSRV upgrade (`1.95.0` → `1.100.0`, LLVM `22.1` → `23.1`):**
+  Deferred from `0.8.32` by owner decision (`2026-11-24`). Execute as an
+  isolated early-release slice covering:
+  - Cargo `1.100.0` intermediate build-dir v2 fixes in
+    `scripts/release/smoke/smoke-source-archive.sh` and bumping
+    `Swatinem/rust-cache` from `v2.9.1` to `>= v2.9.2` across `.github/workflows/`.
+  - `clippy::chunks_exact_to_as_chunks` (19 sites), Edition `2021` `!`
+    never-type fallback checks, and `linker-messages` checks across all feature
+    matrices (`onnx-embedder`, `embed-cuda,rerank-cuda,tegra-pool`, PyO3, N-API).
+  - Lockstep updates to `Cargo.toml` (`rust-version = "1.100"`),
+    `rust-toolchain.toml`, `Dockerfile.{cuda,napi}-manylinux`, self-hosted
+    runners (`windchill3`, Jetson Orin), contract tests, and docs.
+- **Revisit single-agent default direction (`ADR-0.8.32-caller-scope-isolation.md`):**
+  `0.8.32` documents single-scope (one agent per database) as the default
+  posture with Schema 39 `scope` isolating multi-agent deployments; review and
+  relax that default guidance in `0.8.33` docs/recipes as multi-agent
+  shared-store patterns mature.
 
 ### 5. User-facing value proposition, visual illustrations, and tested recipes
 

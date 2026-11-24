@@ -1,16 +1,17 @@
 ---
-title: ADR-0.8.32 — Engine-enforced caller scope isolation, 8-column vec0, TABLE_MANIFEST, and Schema 38 vs. 39 selection
+title: ADR-0.8.32 — Engine-enforced caller scope isolation, Schema 39 composite layout, 8-column vec0, and TABLE_MANIFEST
 date: 2026-11-24
 target_release: 0.8.32
-desc: Proposed specification for opener-bound ScopePolicy anti-spoof enforcement across read, search, graph, frozen, evidence, write, actuate, and erasure paths; mandatory 8-column vec0 (scope TEXT DEFAULT ''); single-source TABLE_MANIFEST; and WP-10D empirical comparison between S39-COMPOSITE (recommended technical winner) and S38-PARTIAL-A2 (non-breaking fallback) awaiting HITL Decision 1 ruling.
-blast_radius: src/rust/crates/fathomdb-schema/src/lib.rs; src/rust/crates/fathomdb-engine/**; src/rust/crates/fathomdb-sdk/**; src/rust/crates/fathomdb-py/**; src/rust/crates/fathomdb-napi/**; src/python/**; src/ts/**; src/conformance/governed-*.json; scripts/governed-surface-pin.json; dev/interfaces/{rust,rust-sdk,python,typescript,wire}.md
-status: proposed
+desc: Accepted specification for opener-bound ScopePolicy anti-spoof enforcement across read, search, graph, frozen, evidence, write, actuate, and erasure paths; S39-COMPOSITE (Schema 39 + fathomdb migrate 38 -> 39) with single-scope/single-agent default posture; mandatory 8-column vec0 (scope TEXT DEFAULT ''); and single-source TABLE_MANIFEST.
+blast_radius: src/rust/crates/fathomdb-schema/src/lib.rs; src/rust/crates/fathomdb-engine/**; src/rust/crates/fathomdb-cli/**; src/rust/crates/fathomdb-sdk/**; src/rust/crates/fathomdb-py/**; src/rust/crates/fathomdb-napi/**; src/python/**; src/ts/**; src/conformance/governed-*.json; scripts/governed-surface-pin.json; dev/interfaces/{rust,rust-sdk,python,typescript,cli,wire}.md; docs/**
+status: accepted
 ---
 
-# ADR-0.8.32: Engine-enforced caller `scope` isolation, 8-column `vec0`, `TABLE_MANIFEST`, and Schema 38 vs. 39 selection
+# ADR-0.8.32: Engine-enforced caller `scope` isolation, Schema 39 composite layout, 8-column `vec0`, and `TABLE_MANIFEST`
 
-> **Status: `proposed` — awaiting owner HITL Decision 1 ruling from Slice 10 `WP-10D`.**
-> All runtime isolation, `ScopePolicy` anti-spoof, `TABLE_MANIFEST`, and mandatory 8-column `vec0` contracts below are settled architecturally; **Section 4 presents the measured `WP-10D` evidence for the final owner choice between `S39-COMPOSITE` (Schema 39, recommended technical winner) and `S38-PARTIAL-A2` (Schema 38 non-breaking fallback)** before ratifying this ADR to `accepted` and unlocking Slice 20.
+> **Status: `accepted` — ratified by owner HITL Decision 1 Option 1 (`2026-11-24`) from Slice 10 `WP-10D` measurements.**
+> **Ratified layout:** `S39-COMPOSITE` (`SCHEMA_VERSION = 39`, composite `(scope, ...)` indexes/PKs, 8-column `vec0`, and verified offline `fathomdb migrate 38 -> 39` upgrade).
+> **Default operational posture (owner addendum `2026-11-24`):** By default, a FathomDB database is **single-scope / single-agent** (`scope = ""`); Schema 39 adds `scope` as the opt-in isolation layer for multi-agent / shared-store deployments. Public user documentation (`docs/`) **MUST** state that single-scope (one agent per database) is the default. A follow-up note is recorded in `0.8.33` (`dev/plans/0.8.33/{scope,plan}.md`) to revisit/relax this single-agent default direction as multi-agent usage matures.
 
 ## Context
 
@@ -23,9 +24,13 @@ Direct code audit (`dev/plans/0.8.32/prework/slice-4.md`) and the `WP-10D` empir
 3. **Fragmented table inventories:** Seven separate table lists (`CANONICAL_TABLES`, visibility triggers, `ROW_OWNED_PROJECTIONS`, non-projection cursor tables, `export_manifest.rs`, `write_commit.rs` already missing 7+ tables, and `physical_erasure/admission.rs`) can drift whenever schema objects or scope rules change.
 4. **Full read/write/frozen/graph threading without single-scope regression:** Every read, search, graph, frozen-context, continuation, write, actuation, lifecycle transition, and erasure route must enforce caller scope, while single-scope (`scope == ""`) workloads must hold `0.8.31` latency parity (`HANDOFF-02`).
 
-## Proposed Specification
+## Decision
 
-### 1. Caller `ScopePolicy` Grammar & Opener-Bound Anti-Spoof (`Pin A`)
+### 1. Caller `ScopePolicy` Grammar, Default Single-Agent Posture & Opener-Bound Anti-Spoof (`Pin A`)
+
+- **Default posture and user-documentation requirement (owner ruling `2026-11-24`):**
+  - By default, a FathomDB store operates in **single-scope / single-agent** mode (`scope = ""`, default `ScopePolicy`). Schema 39 adds `scope` specifically to isolate multi-agent / shared-store deployments without degrading the default single-scope path.
+  - Public user documentation (`docs/`) **MUST** explicitly state that single-scope (one agent per database) is the default posture and document `scope` as the opt-in multi-agent isolation boundary. `0.8.33` tracks a follow-up to revisit/relax this single-agent default guidance once multi-agent deployments mature.
 
 - **Token and policy grammar:**
   - Empty `""` denotes the default single-scope (`unscoped`) namespace for single-tenant stores.
@@ -78,16 +83,15 @@ Measured in `src/rust/crates/fathomdb-tc5-benchmark/src/bin/scope_schema_experim
 | Subprocess `process_open` & Peak RSS (`N = 30`) | Zero regression (`10.09–12.50 ms` probe; `21.59–22.23 MiB` RSS) | Zero regression (`9.48–12.67 ms` probe; `21.57–22.25 MiB` RSS) | `B0` `10.43 ms` / `22.32 MiB`; full `Engine::open` `1264.94 ms` / `29.69 MiB` max |
 | SQLite query-planner safety (`EXPLAIN QUERY PLAN`) | **No `WHERE scope != ''` trap;** requires binding `scope = ''` (never omitting `scope`) on single-scope paths | **Planner trap:** SQLite cannot prove `? != ''` at prepare time — every non-empty scoped query MUST emit `AND col.scope != ''` explicitly, and partial indexes cannot accelerate `scope = ''` | `clean = true` on all 78 captured plans once guards applied |
 
-#### Pending Owner Decision 1 Ruling
+#### Ratified Owner Decision 1 Ruling (`2026-11-24`)
 
-1. **Recommended Technical Winner (`S39-COMPOSITE` — Schema 39):** Beats `S38-PARTIAL-A2` on fresh `200`-node batch writes (`-8.2%` to `-13.0%` `NORMAL`; noting the `multi_scope_skewed` `node_batch_200_upsert` `NORMAL` autocheckpoint outlier `191.01 ms`, which drops to `137.95 ms` under `FULL`), multi-scope single-row checkpoints (`-26.0%` to `-42.8%` `NORMAL` vs. `S38-A2`; `-1.2%` [CI spans zero] to `-57.5%` vs. `S38-A1`), multi-scope disk footprint (`5.83–6.65 MiB` smaller), operational paging (`-12.6%` to `-49.8%` vs. `S38-A1`), native per-scope key isolation (`(scope, logical_id)` and `(scope, collection_name, record_key)`), and zero SQLite partial-index planner traps — at the cost of bumping `SCHEMA_VERSION` `38 -> 39` (requiring `fathomdb migrate 38 -> 39` for existing `0.8.31` stores).
-2. **Non-Breaking Fallback (`S38-PARTIAL-A2` — Schema 38):** Retains `SCHEMA_VERSION = 38` so `0.8.31` stores open without migration and limits `single_scope` disk growth to `+0.46%`, while adopting store-global keyspace semantics (same-scope ownership rejection on collision) and mandatory `AND col.scope != ''` query-builder guards.
-
-Once the owner locks Decision 1 (`S39-COMPOSITE` vs. `S38-PARTIAL-A2`), this ADR will be updated to record the ratified option, flip `status: accepted`, and synchronize `dev/plans/release-state-0.8.32.json` (`schema_version`) ahead of Slice 20.
+- **Accepted (`S39-COMPOSITE` — Schema 39, Option 1):** Owner ratified `S39-COMPOSITE` (`SCHEMA_VERSION = 39`, composite `(scope, ...)` PKs/indexes, 8-column `vec0`, and verified offline `fathomdb migrate 38 -> 39` upgrade alongside the existing `37 -> 38` path under `MIGRATION-ACCRETION-EXEMPTION`). Single-scope queries MUST always bind `scope = ''` so SQLite uses the composite leading-column B-trees with zero planner traps (`EXPLAIN QUERY PLAN` `SEARCH`-only).
+- **Rejected (`S38-PARTIAL-A2` — Schema 38 fallback, and `S38-PARTIAL-A1`):** Rejected because `S38-PARTIAL-A1` collapses `19.5x` on heavy vector scopes and `S38-PARTIAL-A2` incurs duplicate multi-scope B-tree disk/write overhead, store-wide `logical_id`/`record_key` collisions across callers, and silent `WHERE scope != ''` partial-index scan traps.
 
 ## Consequences
 
-- Slice 20 entry remains gated on owner ratification of Decision 1 (`S39-COMPOSITE` vs. `S38-PARTIAL-A2`).
+- `SCHEMA_VERSION` advances `38 -> 39` in Slice 20 (`STEP_39_SQL` in `fathomdb-schema/src/lib.rs`), paired with a verified offline `fathomdb migrate` (`38 -> 39`) path tested against a committed golden `0.8.31` Schema 38 fixture.
+- Single-scope (one agent per database, `scope = ""`) remains the documented default in `docs/`; `dev/plans/0.8.33/{scope,plan}.md` records the follow-up note to revisit/relax that single-agent default guidance.
 - Zero-behavior-change test relocation (`10` `*_tests.rs` files) and `search.rs`/`evidence.rs` submodule splits (`P2-01`, `P2-02`, `R32-07`) plus declarative `TABLE_MANIFEST` (`R32-06`) land at Slice 20 entry ahead of `scope` threading.
 
 ## Citations

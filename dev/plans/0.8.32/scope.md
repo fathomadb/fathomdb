@@ -25,14 +25,24 @@ read+write MCP, bulk opt-in, and deep durability receive dedicated focus here.)*
 ### 1. Engine-enforced caller scope and write authority (External Reviewer P1)
 
 - Activate and enforce the first-class caller/namespace **`scope`** boundary
-  (using the `scope` column reserved in `0.8.31` schema 38 — **no breaking
-  schema bump for `0.8.31` stores**) across:
-  - `search` (FTS, vector, hybrid, filtered, and `use_graph_arm`),
-  - `fetch` / `read.*`,
-  - `graph.expand` (current and historical `as_of`),
-  - `freeze_read_context`, continuations, and `resolve_evidence` /
-    `resolve_evidence_many` / `resolve_graph_evidence`, and
-  - `write`, `actuate`, `transition`, `purge`, and `erase_source`.
+  via **Schema 39 (`S39-COMPOSITE`, composite `(scope, ...)` PKs/indexes +
+  8-column `vec0` + verified offline `fathomdb migrate 38 → 39`)**, ratified
+  by owner Decision 1 Option 1 (`2026-11-24`) from Slice 10 `WP-10D` 100k
+  measurements (`ADR-0.8.32-caller-scope-isolation.md`):
+  - **Default operational posture:** By default, a FathomDB store is
+    **single-scope / single-agent** (`scope = ""`, one agent per database);
+    Schema 39 adds `scope` as the opt-in isolation layer for multi-agent /
+    shared-store deployments. User documentation (`docs/`) **MUST** state that
+    single-scope is the default (`0.8.33` tracks a follow-up to revisit/relax
+    this direction).
+  - Enforced across:
+    - `search` (FTS, vector, hybrid, filtered, and `use_graph_arm`),
+    - `fetch` / `read.*`,
+    - `graph.expand` (current and historical `as_of`) and `graph.search_expand`
+      (`ReadView` parity),
+    - `freeze_read_context`, continuations, and `resolve_evidence` /
+      `resolve_evidence_many` / `resolve_graph_evidence`, and
+    - `write`, `actuate`, `transition`, `purge`, and `erase_source`.
 - Prove with overlapping multi-caller fixtures and distinct grants that:
   - restricted records stay inaccessible through every route, including old
     references and cursors after access changes;
@@ -131,8 +141,9 @@ read+write MCP, bulk opt-in, and deep durability receive dedicated focus here.)*
 
 ## Out of scope
 
-- Public OSS repo/doc overhaul, `dev/` declutter, and auto-doc redesign —
-  scheduled in [0.8.33](../0.8.33/scope.md).
+- Public OSS repo/doc overhaul, `dev/` declutter, auto-doc redesign, Rust
+  toolchain/MSRV upgrade (`1.95.0 → 1.100.0`), and revisiting the single-agent
+  default doc direction — scheduled in [0.8.33](../0.8.33/scope.md).
 - Full general multi-version `fathomdb migrate` and Hermes/OpenClaw personal
   agent kits — scheduled in [0.8.34](../0.8.34/scope.md).
 - Publishable competitive benchmark campaigns — scheduled in

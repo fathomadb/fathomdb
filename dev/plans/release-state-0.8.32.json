@@ -6,7 +6,7 @@
   "master": "dev/plans/0.8.32/plan.md",
   "active_ref": "refs/heads/dev/0.8.32",
   "schema_version": 38,
-  "schema_version_source": "pub const SCHEMA_VERSION in src/rust/crates/fathomdb-schema/src/lib.rs (provisional 38 pending Decision 1 WP-10D experiment)",
+  "schema_version_source": "pub const SCHEMA_VERSION in src/rust/crates/fathomdb-schema/src/lib.rs (currently 38; target 39 ratified by Gate1-D1 Option 1 to land in Slice 20)",
   "published": null,
   "completion": null,
   "ladder": [
@@ -28,13 +28,15 @@
     {
       "slice": 20,
       "short": "SCOPE-AND-REFACTOR",
-      "title": "Zero-behavior-change engine test relocation & search/evidence hotspot splits, declarative TABLE_MANIFEST, and engine-enforced caller scope & write authority (Rust/Python/TS parity, Pin A)",
+      "title": "Zero-behavior-change engine test relocation & search/evidence hotspot splits, declarative TABLE_MANIFEST, Schema 39 (S39-COMPOSITE + 8-col vec0 + fathomdb migrate 38->39), and engine-enforced caller scope & write authority (single-scope default, Rust/Python/TS parity, Pin A)",
       "depends_on": [
         10
       ],
       "status": "NOT_STARTED",
       "sha": null,
       "design_refs": [
+        "dev/adr/ADR-0.8.32-caller-scope-isolation.md",
+        "dev/plans/0.8.32/features/slice-10/scope-schema-experiment.md",
         "dev/plans/0.8.32/prework/slice-9-triage.md",
         "dev/plans/0.8.32/plan.md",
         "dev/plans/0.8.32/scope.md"
@@ -132,6 +134,12 @@
   "decisions": {
     "ruled": [
       {
+        "id": "Gate1-D1",
+        "topic": "Schema-38 non-breaking vs. Schema-39 breaking scope layout",
+        "ruling": "Option 1 (2026-11-24): S39-COMPOSITE (SCHEMA_VERSION = 39, composite (scope, ...) PKs/indexes, 8-column vec0, verified fathomdb migrate 38 -> 39) ratified from Slice 10 WP-10D results (ADR-0.8.32-caller-scope-isolation.md #102 accepted). Single-scope (one agent per database, scope = '') is the default posture and MUST be stated in user docs/; 0.8.33 tracks a follow-up to revisit/relax that direction.",
+        "source": "dev/adr/ADR-0.8.32-caller-scope-isolation.md"
+      },
+      {
         "id": "Gate1-D2",
         "topic": "WAL PRAGMA synchronous durability contract vs. Slice 50 dm-flakey oracle",
         "ruling": "Option 1 (2026-11-24): keep SyncMode::Normal default (honest WAL checkpoint-bounded durability amending ADR-0.6.0-durability-fsync-policy.md) + opt-in SyncMode::Full; qualify both in Slice 50 QEMU/KVM dm-flakey.",
@@ -160,15 +168,21 @@
         "topic": "Consolidated 102-proposal prework triage bundle (P1-01..P8-05)",
         "ruling": "Option 1 (2026-11-24): all recommended include/postpone/reject dispositions approved.",
         "source": "dev/plans/0.8.32/prework/slice-9-triage.md"
+      },
+      {
+        "id": "Gate1-D7",
+        "topic": "Rust 1.95.0 -> 1.100.0 toolchain upgrade timing",
+        "ruling": "Deferred to 0.8.33 (2026-11-24): keep Rust 1.95.0 through 0.8.32; tracked in dev/plans/0.8.33/scope.md § 6.",
+        "source": "dev/plans/0.8.33/scope.md"
+      },
+      {
+        "id": "Gate1-D8",
+        "topic": "Slice 50 Ubuntu 24.04 cloud-image egress (AGENTS.md § 11)",
+        "ruling": "Approved (2026-11-24): authorized to download pinned official Ubuntu 24.04 Noble cloud image from cloud-images.ubuntu.com (SHA-256 verified) for Slice 50 QEMU/KVM dm-flakey VM.",
+        "source": "dev/adr/ADR-0.8.32-durability-sync-mode-and-power-loss-oracle.md"
       }
     ],
     "unruled": [
-      {
-        "id": "Gate1-D1",
-        "topic": "Schema-38 non-breaking vs. Schema-39 breaking scope layout",
-        "status": "READY_FOR_OWNER_RULING",
-        "blocking": "ADR-0.8.32-caller-scope-isolation.md ratification and Phase C Slices 20-70 lock; WP-10D 100k benchmark completed (scope-schema-experiment.md recommends S39-COMPOSITE over S38-PARTIAL-A2 fallback)."
-      },
       {
         "id": "Slice70-Publish",
         "topic": "Explicit HITL authorization for v0.8.32 publication",

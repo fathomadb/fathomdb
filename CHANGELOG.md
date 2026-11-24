@@ -32,7 +32,9 @@ pending Slice 80 authorization.
   `ProjectionSpec.vector_kinds` persisted in `_fathomdb_vector_kinds`, while
   unenrolled custom kinds continue reporting in `vector_unsupported_kinds`.
 - Operational collection readback (`read.operational_collections` and
-  `read.collection`) with typed refusal for unknown collections.
+  `read.operational_collection`, returning `None` / `null` when absent) with
+  typed `WriteValidation` refusal on conflicting `kind` re-registration via
+  `admin.configure`.
 - Typed graph traversal predicates (`edge_predicates`, `target_predicates`) on
   `GraphExpandRequestV1` with SQLite index pushdown, valid-time filtering, and
   explicit opt-in hybrid `graph_seed` (`graph_fts`, `fused_top_k`, `both`) with

@@ -669,13 +669,18 @@ def _worker_query_block(spec: dict[str, Any]) -> dict[str, Any]:
     hybrid_ids: list[list[str]] = []
     expand_ids: list[list[str]] = []
 
+    import gc
+
     eng = Engine.open(db_path)
+    gc_was_enabled = gc.isenabled()
     try:
         for w in range(warmup):
             eng.search_text_only(f"metric_{w % 97} benchmark", limit=10)
-            eng.search(f"metric_{w % 97} architecture", limit=10)
+            eng.search(f"metric_{w % 97} benchmark", limit=10)
             graph.expand(eng, make_expand_req(f"node:{w % num_nodes}"))
 
+        gc.collect()
+        gc.disable()
         for q in query_indices:
             term = f"metric_{q % 97} benchmark"
 
@@ -703,6 +708,8 @@ def _worker_query_block(spec: dict[str, Any]) -> dict[str, Any]:
                 raise RuntimeError(f"graph.expand returned 0 targets for query {q}")
             expand_ids.append(ids_e)
     finally:
+        if gc_was_enabled:
+            gc.enable()
         eng.close()
 
     return {
@@ -1762,6 +1769,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _dispatch_worker(args.worker, args.spec_json)
     if args.run_sdk_benchmark_10k:
         return _run_sdk_benchmark_10k(args)
+    if args.warmup_rounds < 5:
+        parser.error("--warmup-rounds must be >= 5 per AC31-70-02")
     return _run_primary_gate(args)
 
 

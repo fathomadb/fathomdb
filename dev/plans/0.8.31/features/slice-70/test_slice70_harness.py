@@ -263,3 +263,11 @@ def test_golden_verifier_fails_closed_on_canary_reappearance_and_doctor_findings
 
     with pytest.raises(RuntimeError, match="doctor check-integrity"):
         mod.verify_doctor_integrity(db_clean, fathomdb_bin, runner=_fake_nonzero_runner)
+
+
+def test_paired_gate_rejects_warmup_rounds_below_five() -> None:
+    """AC31-70-02 requires warmup_rounds >= 5; lower values must fail closed."""
+    mod = _load_module(PAIRED_GATE_PATH, "slice70_paired_gate_warmup")
+    with pytest.raises(SystemExit) as excinfo:
+        mod.main(["--warmup-rounds", "3", "--skip-build"])
+    assert excinfo.value.code == 2

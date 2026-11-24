@@ -1,6 +1,7 @@
 # FathomDB 0.8.31 release status
 
-**COMPLETE — `v0.8.31` published 2026-11-23.**
+**CLOSED — historical record. COMPLETE — `v0.8.31` published 2026-11-23.**
+Active release work has moved to [STATUS-0.8.32.md](./STATUS-0.8.32.md).
 The [state](../release-state-0.8.31.json) owns structured status and delivery
 receipts. The [master plan](../0.8.31/plan.md) and [scope](../0.8.31/scope.md)
 own settled HITL decisions, requirements, and execution contracts.

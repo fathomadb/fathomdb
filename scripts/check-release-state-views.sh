@@ -651,11 +651,14 @@ def render_status_current_state(st):
     entry = by[nxt]
     active_ref = st.get("active_ref")
     if st.get("completion") is None and active_ref is not None:
-        expected_ref = "refs/heads/release/%s" % st["release"]
-        if active_ref != expected_ref:
+        allowed_refs = (
+            "refs/heads/release/%s" % st["release"],
+            "refs/heads/dev/%s" % st["release"],
+        )
+        if active_ref not in allowed_refs:
             raise ValueError(
-                "`active_ref` is %r; release %s must name %r"
-                % (active_ref, st["release"], expected_ref))
+                "`active_ref` is %r; release %s must name %r or %r"
+                % (active_ref, st["release"], allowed_refs[0], allowed_refs[1]))
         completed = " · ".join(
             "%s (`%s`)" % (_slice_str(item["slice"]), item["sha"])
             for item in st["ladder"]

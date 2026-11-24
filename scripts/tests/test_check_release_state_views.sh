@@ -2058,6 +2058,56 @@ else
   fail "arm R6a (active release-branch state): rc=$RC out=$OUT"
 fi
 
+# --- Arm R6a-dev: active dev/<version> branch + initial-state release -------
+setup_fixture
+python3 - "$FIX/dev/plans/release-state-9.9.9.json" <<'PY'
+import json, sys
+p = sys.argv[1]
+s = json.load(open(p))
+s["active_ref"] = "refs/heads/dev/9.9.9"
+s["landed"] = []
+s["next_slice"] = 10
+s["remaining_ladder"] = [10, 20]
+s["ladder"] = [
+    {"slice": 10, "short": "PREWORK-PREP", "title": "Initial prep", "depends_on": [], "status": "IN_PROGRESS", "sha": None},
+    {"slice": 20, "short": "NEXT", "title": "Next slice", "depends_on": [10], "status": "NOT_STARTED", "sha": None},
+]
+s["generated_views"] = [
+    {"id": "status-current-state", "file": "dev/plans/runs/board.md"},
+    {"id": "status-next-action", "file": "dev/plans/runs/board.md"},
+]
+json.dump(s, open(p, "w"), indent=2)
+PY
+git -C "$FIX" rm -q -- dev/plans/master.md dev/plans/runs/handoff.md
+cat >"$FIX/dev/plans/runs/board.md" <<'EOF'
+# Board
+
+<!-- BEGIN GENERATED release-state:9.9.9:status-current-state -->**Next is Slice 10 (PREWORK-PREP), IN_PROGRESS.** Completed on local `dev/9.9.9` per release state: no slices — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:9.9.9:status-current-state -->
+
+<!-- BEGIN GENERATED release-state:9.9.9:status-next-action -->**Continue Slice 10 (PREWORK-PREP)** — Initial prep. **Remaining ladder:** 10 → 20.<!-- END GENERATED release-state:9.9.9:status-next-action -->
+EOF
+run_gate
+if [ "$RC" -eq 0 ]; then
+  pass "arm R6a-dev: active dev/<version> initial release state renders cleanly"
+else
+  fail "arm R6a-dev (active dev/<version> initial state): rc=$RC out=$OUT"
+fi
+
+# And a mismatched dev/<other> active_ref must still fail closed.
+python3 - "$FIX/dev/plans/release-state-9.9.9.json" <<'PY'
+import json, sys
+p = sys.argv[1]
+s = json.load(open(p))
+s["active_ref"] = "refs/heads/dev/9.9.8"
+json.dump(s, open(p, "w"), indent=2)
+PY
+run_gate
+if [ "$RC" -ne 0 ] && grep -q 'active_ref' <<<"$OUT"; then
+  pass "arm R6a-dev-neg: mismatched dev/<other> active_ref fails closed"
+else
+  fail "arm R6a-dev-neg (mismatched dev active_ref): rc=$RC out=$OUT"
+fi
+
 # --- Arm R6b: a release with no landings says so explicitly -----------------
 # A newly opened release legitimately has `landed: []`. Both roll-up renderers
 # used the ordinary "Slices %s" template, yielding the malformed "Slices ."

@@ -112,13 +112,19 @@ def validate_state(
     if plan is not None and plan != state_plan:
         raise StateError(f"--plan must match state plan {state_plan}")
 
-    expected_active_ref = f"refs/heads/release/{release}"
-    if state.get("active_ref") != expected_active_ref:
-        raise StateError(f"active_ref must be {expected_active_ref}")
+    allowed_active_refs = (
+        f"refs/heads/release/{release}",
+        f"refs/heads/dev/{release}",
+    )
+    active_ref = state.get("active_ref")
+    if active_ref not in allowed_active_refs:
+        raise StateError(
+            f"active_ref must be {allowed_active_refs[0]} or {allowed_active_refs[1]}"
+        )
 
     completion = state.get("completion")
     if completion is None:
-        baseline_ref = expected_active_ref
+        baseline_ref = active_ref
     else:
         if not isinstance(completion, dict) or set(completion) != {
             "ref",

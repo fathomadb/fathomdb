@@ -1,8 +1,8 @@
 ---
 title: FathomDB 0.8.32 release scope — caller scope, production read/write MCP, bulk opt-in and hardened durability
-status: PROPOSED
+status: ACTIVE
 target_release: 0.8.32
-date: 2026-11-21
+date: 2026-11-24
 ---
 
 # FathomDB 0.8.32 release scope
@@ -107,7 +107,7 @@ read+write MCP, bulk opt-in, and deep durability receive dedicated focus here.)*
 
 ### 6. Contributor & agent ergonomics and targeted engine hotspot splits
 
-- **Slice 0 orientation & gate diagnostics**:
+- **Slice 10 orientation & gate diagnostics**:
   - Add `dev/design/cross-cutting-change-checklist.md` (linked from
     `AGENTS.md`) and a 1-page `dev/design/README.md` live subsystem owner map.
   - Split `dev/adr/ADR-0.6.0-decision-index.md` into **Active / Governing** and
@@ -117,7 +117,7 @@ read+write MCP, bulk opt-in, and deep durability receive dedicated focus here.)*
     `scripts/check-governed-surface-pin.sh`, and
     `scripts/check-module-boundaries.sh` to name the exact registry or config
     file to update.
-- **Zero-behavior-change engine hotspot splits (Slice 10 entry, pre-scope)**:
+- **Zero-behavior-change engine hotspot splits (Slice 20 entry, pre-scope)**:
   - Move top-level `slice*_tests.rs` and `*_tests.rs` files out of
     `fathomdb-engine/src/` so the source directory maps cleanly to engine
     subsystems.
@@ -125,9 +125,9 @@ read+write MCP, bulk opt-in, and deep durability receive dedicated focus here.)*
     `fathomdb-engine/src/evidence.rs` into cohesive submodules
     (`search/{mod,fts_fast_path,vector_arm,fusion_stage,hydration}.rs`,
     `evidence/{mod,ranked,graph}.rs`) and update
-    `dev/tools/module-boundary-gate/src/config.rs` before threading `scope`
+    `dev/tools/module-boundary-policy.txt` before threading `scope`
     through them, reducing diff blast radius and merge conflicts across Slices
-    10, 20, and 30.
+    20, 30, and 40.
 
 ## Out of scope
 

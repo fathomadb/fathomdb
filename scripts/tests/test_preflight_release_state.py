@@ -144,11 +144,21 @@ class PreflightReleaseStateTests(unittest.TestCase):
         self.assertEqual(facts["baseline_ref"], "refs/heads/release/9.1.0")
         self.assertEqual(facts["dependency_sha"], self.fixture.dependency_sha)
 
-    def test_wrong_active_ref_fails(self) -> None:
-        self.fixture.data["active_ref"] = "refs/heads/release/9.1.1"
+    def test_dev_branch_active_ref_passes(self) -> None:
+        release_head = git(self.fixture.root, "rev-parse", "release/9.1.0")
+        git(self.fixture.root, "update-ref", "refs/heads/dev/9.1.0", release_head)
+        self.fixture.data["active_ref"] = "refs/heads/dev/9.1.0"
         self.fixture.write_state()
-        with self.assertRaisesRegex(MODULE.StateError, "active_ref"):
-            self.fixture.validate()
+        facts = self.fixture.validate()
+        self.assertEqual(facts["baseline_ref"], "refs/heads/dev/9.1.0")
+        self.assertEqual(facts["dependency_sha"], self.fixture.dependency_sha)
+
+    def test_wrong_active_ref_fails(self) -> None:
+        for bad_ref in ("refs/heads/release/9.1.1", "refs/heads/dev/9.1.1", "refs/heads/main"):
+            self.fixture.data["active_ref"] = bad_ref
+            self.fixture.write_state()
+            with self.assertRaisesRegex(MODULE.StateError, "active_ref"):
+                self.fixture.validate()
 
     def test_plan_identity_fails_closed(self) -> None:
         self.fixture.data["plan"] = "dev/plans/wrong.md"
@@ -326,21 +336,23 @@ class RealPreflightRegressionTest(unittest.TestCase):
             for item in state["ladder"]
             if item["status"] in {"COMPLETE_ON_RELEASE_BRANCH", "LANDED"}
         ]
-        latest_closed = max(closed)
+        cmd = [
+            "bash",
+            str(ROOT / "scripts" / "preflight.sh"),
+            "--worktree",
+            str(ROOT),
+        ]
+        if closed:
+            cmd.extend(["--expect-closed", str(max(closed))])
+        cmd.extend([
+            "--plan",
+            state["plan"],
+            "--min-disk-gb",
+            "1",
+        ])
 
         result = subprocess.run(
-            [
-                "bash",
-                str(ROOT / "scripts" / "preflight.sh"),
-                "--worktree",
-                str(ROOT),
-                "--expect-closed",
-                str(latest_closed),
-                "--plan",
-                state["plan"],
-                "--min-disk-gb",
-                "1",
-            ],
+            cmd,
             cwd=ROOT,
             text=True,
             stdout=subprocess.PIPE,

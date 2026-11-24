@@ -1,0 +1,198 @@
+{
+  "release": "0.8.32",
+  "release_kind": "Active implementation release on dev/0.8.32: engine-enforced caller scope and write authority, production read+write fathomdb-mcp (with 3-channel packaging), opt-in bulk write mode, Inspector scope UI, backup/restore/rebuild proof, power-loss recovery, and coverage-guided fuzzing.",
+  "board": "dev/plans/runs/STATUS-0.8.32.md",
+  "plan": "dev/plans/0.8.32/plan.md",
+  "master": "dev/plans/0.8.32/plan.md",
+  "active_ref": "refs/heads/dev/0.8.32",
+  "schema_version": 38,
+  "schema_version_source": "pub const SCHEMA_VERSION in src/rust/crates/fathomdb-schema/src/lib.rs (provisional 38 pending Decision 1 WP-10D experiment)",
+  "published": null,
+  "completion": null,
+  "ladder": [
+    {
+      "slice": 10,
+      "short": "PREWORK-PREP",
+      "title": "Prework prep: worktree bootstrap, release state, baseline CI fixes, R32-07 orientation/gate aids, immediate doc fixes, four ADR-0.8.32-* drafts, Slice 50 venue/fuzzing prep, and Decision 1 Schema-38 vs. Schema-39 empirical experiment",
+      "depends_on": [],
+      "status": "IN_PROGRESS",
+      "sha": null,
+      "design_refs": [
+        "dev/plans/0.8.32/prework/slice-9-triage.md",
+        "dev/plans/0.8.32/features/slice-10/plan.md"
+      ]
+    },
+    {
+      "slice": 20,
+      "short": "SCOPE-AND-REFACTOR",
+      "title": "Zero-behavior-change engine test relocation & search/evidence hotspot splits, declarative TABLE_MANIFEST, and engine-enforced caller scope & write authority (Rust/Python/TS parity, Pin A)",
+      "depends_on": [
+        10
+      ],
+      "status": "NOT_STARTED",
+      "sha": null,
+      "design_refs": [
+        "dev/plans/0.8.32/prework/slice-9-triage.md",
+        "dev/plans/0.8.32/plan.md",
+        "dev/plans/0.8.32/scope.md"
+      ]
+    },
+    {
+      "slice": 30,
+      "short": "BULK-AND-INSPECTOR",
+      "title": "Opt-in bulk/non-strict write mode (Pin B, default strict preserved, fathomdb doctor verification) and Inspector active-scope UI + Playwright CI wiring",
+      "depends_on": [
+        20
+      ],
+      "status": "NOT_STARTED",
+      "sha": null,
+      "design_refs": [
+        "dev/plans/0.8.32/prework/slice-9-triage.md",
+        "dev/plans/0.8.32/plan.md",
+        "dev/plans/0.8.32/scope.md"
+      ]
+    },
+    {
+      "slice": 40,
+      "short": "MCP-RW",
+      "title": "Atomic governed write + latest_state checkpoint seam + EP-07/EP-01 (Pin C), production read+write fathomdb-mcp (allow_writes: false default, per-store opt-in + bound scope, AC32-MCP-SAFETY-01..09), and 3-channel packaging",
+      "depends_on": [
+        20
+      ],
+      "status": "NOT_STARTED",
+      "sha": null,
+      "design_refs": [
+        "dev/plans/0.8.32/prework/slice-9-triage.md",
+        "dev/plans/0.8.32/plan.md",
+        "dev/plans/0.8.32/scope.md"
+      ]
+    },
+    {
+      "slice": 50,
+      "short": "DURABILITY-AND-FUZZ",
+      "title": "Internal fathomdb.logical-export/v1 backup/restore/rebuild proof, SyncMode::{Normal, Full} + disposable QEMU/KVM dm-flakey power-loss campaign, isolated fuzz/ workspace (7 targets), and leak/state-machine checks",
+      "depends_on": [
+        30,
+        40
+      ],
+      "status": "NOT_STARTED",
+      "sha": null,
+      "design_refs": [
+        "dev/plans/0.8.32/prework/slice-9-triage.md",
+        "dev/plans/0.8.32/plan.md",
+        "dev/plans/0.8.32/scope.md"
+      ]
+    },
+    {
+      "slice": 60,
+      "short": "QUALIFICATION",
+      "title": "Full-workspace qualification, paired 0.8.31 vs. 0.8.32 10k/50k/100k latency/RSS/DB-size gate, candidate smokes, release docs, and golden 0.8.32 archive",
+      "depends_on": [
+        50
+      ],
+      "status": "NOT_STARTED",
+      "sha": null,
+      "design_refs": [
+        "dev/plans/0.8.32/prework/slice-9-triage.md",
+        "dev/plans/0.8.32/plan.md",
+        "dev/plans/0.8.32/scope.md"
+      ]
+    },
+    {
+      "slice": 70,
+      "short": "PUBLICATION",
+      "title": "Authorized 0.8.32 publication (crates.io incl. fathomdb-mcp, PyPI fathomdb/fathomdb-cli/fathomdb-mcp, npm, 5-target GH Releases incl. Inspector & fathomdb-mcp, Tegra Pages)",
+      "depends_on": [
+        60
+      ],
+      "status": "NOT_STARTED",
+      "sha": null,
+      "design_refs": [
+        "dev/plans/0.8.32/prework/slice-9-triage.md",
+        "dev/plans/0.8.32/plan.md",
+        "dev/plans/0.8.32/scope.md"
+      ]
+    }
+  ],
+  "landed": [],
+  "remaining_ladder": [
+    10,
+    20,
+    30,
+    40,
+    50,
+    60,
+    70
+  ],
+  "next_slice": 10,
+  "decisions": {
+    "ruled": [
+      {
+        "id": "Gate1-D2",
+        "topic": "WAL PRAGMA synchronous durability contract vs. Slice 50 dm-flakey oracle",
+        "ruling": "Option 1 (2026-11-24): keep SyncMode::Normal default (honest WAL checkpoint-bounded durability amending ADR-0.6.0-durability-fsync-policy.md) + opt-in SyncMode::Full; qualify both in Slice 50 QEMU/KVM dm-flakey.",
+        "source": "dev/plans/0.8.32/prework/slice-9-triage.md"
+      },
+      {
+        "id": "Gate1-D3",
+        "topic": "Canonical Phase B slice ladder renumbering",
+        "ruling": "Option 1 (2026-11-24): Slice 10 (PREWORK-PREP) and feature slices 20-70 (70 = PUBLICATION, separately HITL-gated).",
+        "source": "dev/plans/0.8.32/prework/slice-9-triage.md"
+      },
+      {
+        "id": "Gate1-D4",
+        "topic": "Governed-surface pin pre-authorization (Pin A/B/C)",
+        "ruling": "Option 1 (2026-11-24): pre-authorize targeted governed-surface-pin.json updates (core=5, recovery_denylist=5 fixed) across Slices 20/30/40 for Pin A (ScopePolicy/scope/search_expand ReadView), Pin B (WriteOptions/write_with_options), and Pin C (PutLatestState + EP-07 + EP-01).",
+        "source": "dev/plans/0.8.32/prework/slice-9-triage.md"
+      },
+      {
+        "id": "Gate1-D5",
+        "topic": "fathomdb-mcp shipped binary and PyPI wheel feature set",
+        "ruling": "Option 1 (2026-11-24): build 5-target GH Release binaries and PyPI wheels with --features default-embedder; keep default = [] in fathomdb-mcp/Cargo.toml for crates.io.",
+        "source": "dev/plans/0.8.32/prework/slice-9-triage.md"
+      },
+      {
+        "id": "Gate1-D6",
+        "topic": "Consolidated 102-proposal prework triage bundle (P1-01..P8-05)",
+        "ruling": "Option 1 (2026-11-24): all recommended include/postpone/reject dispositions approved.",
+        "source": "dev/plans/0.8.32/prework/slice-9-triage.md"
+      }
+    ],
+    "unruled": [
+      {
+        "id": "Gate1-D1",
+        "topic": "Schema-38 non-breaking vs. Schema-39 breaking scope layout",
+        "status": "EXPERIMENT_IN_PROGRESS",
+        "blocking": "ADR-0.8.32-caller-scope-isolation.md ratification and Slices 20-70 lock; decided from Slice 10 WP-10D 100k benchmark results."
+      },
+      {
+        "id": "Slice70-Publish",
+        "topic": "Explicit HITL authorization for v0.8.32 publication",
+        "status": "HELD",
+        "blocking": "Slice 70 publication after Slice 60 qualification passes."
+      }
+    ]
+  },
+  "publish_gate": {
+    "status": "HELD_PENDING_QUALIFICATION_AND_HITL_APPROVAL",
+    "publication_authorized": false,
+    "scope": "Slice 70 publication requires Slice 60 qualification completion and explicit HITL publication authorization."
+  },
+  "generated_views": [
+    {
+      "id": "plan-immediate-next",
+      "file": "dev/plans/0.8.32/plan.md",
+      "location": "Immediate next slice pointer in master release plan"
+    },
+    {
+      "id": "status-current-state",
+      "file": "dev/plans/runs/STATUS-0.8.32.md",
+      "location": "Current release state pointer on live STATUS board"
+    },
+    {
+      "id": "status-next-action",
+      "file": "dev/plans/runs/STATUS-0.8.32.md",
+      "location": "Lifecycle-aware next action on live STATUS board"
+    }
+  ]
+}

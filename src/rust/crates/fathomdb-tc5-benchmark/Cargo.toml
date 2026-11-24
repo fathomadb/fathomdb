@@ -22,15 +22,17 @@ tc5-benchmark-cuda = [
 
 [dependencies]
 fathomdb-engine = { workspace = true }
+fathomdb-schema = { workspace = true }
 fathomdb-embedder = { workspace = true, optional = true }
 fathomdb-embedder-api = { workspace = true, optional = true }
+rusqlite = { version = "0.41", features = ["bundled", "fallible_uint"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.11"
+tempfile = "3"
 
 [dev-dependencies]
 proptest = "1"
-tempfile = "3"
 
 [[bin]]
 name = "fathomdb-tc5-benchmark"

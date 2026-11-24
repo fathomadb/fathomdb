@@ -57,6 +57,9 @@ NUMBER_WORDS = {
 STATE_RE = re.compile(r"dev/plans/release-state-(\d+)\.(\d+)\.(\d+)\.json$")
 COMMIT_RE = re.compile(r"[0-9a-f]{40}$")
 DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}$")
+NEWEST_PUBLISHED_RE = re.compile(
+    r"(?i)\bnewest\s+published\s+release\s*:\s*v?(\d+\.\d+\.\d+)\b"
+)
 # Accepted release-format boundaries; independent of publication status.
 RELEASE_SCHEMAS = {"0.8.26": 34, "0.8.27": 34, "0.8.28": 37, "0.8.29": 37, "0.8.30": 37, "0.8.31": 38}
 
@@ -279,6 +282,13 @@ def main() -> None:
         normalized = text.replace("**", "").replace("`", "")
         if unpublished.search(normalized):
             fail(f"{relative} says published {published_version} is unpublished")
+        for match in NEWEST_PUBLISHED_RE.finditer(normalized):
+            claimed_published = match.group(1)
+            if claimed_published != published_version:
+                fail(
+                    f"{relative} claims newest published release is {claimed_published}; "
+                    f"newest published receipt is {published_version}"
+                )
         if pending and asserts_published_version(text, version):
             fail(f"{relative} says unpublished documentation target {version} is published")
 

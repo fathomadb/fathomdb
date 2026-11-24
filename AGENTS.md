@@ -7,7 +7,7 @@ Bullet form, prescriptive, ≤300 lines. Link out, do not inline.
 ## 0. System layers — where each rule fits
 
 - **Invariants layer** — this file (front-loaded, cached, ≤300, bullets).
-- **Index layer** — `dev/adr/ADR-0.6.0-decision-index.md`, `dev/interfaces/*.md`. Linked, never inlined.
+- **Index layer** — `dev/adr/ADR-0.6.0-decision-index.md`, `dev/interfaces/*.md`, `dev/design/README.md`, `dev/design/cross-cutting-change-checklist.md`. Linked, never inlined.
 - **Retrieval layer** — grep / glob / read / LSP / tree-sitter map on demand. No local vector index.
 - **Execution layer** — typed dev-loop verbs under `scripts/agent-*.sh` emit structured JSON. Tests are oracle.
 - **Persistence layer** — the per-release board `dev/plans/runs/STATUS-<version>.md`, its single writer `dev/plans/release-state-<version>.json`, durable operational memory under `dev/agent-memory/`, the append-only JSONL ledgers, and ADR supersession. Compaction-safe. Concrete files: § 9. `dev/progress/` is **historical** — frozen at 0.6.x; read for history, never write.
@@ -133,6 +133,7 @@ Do not paraphrase, summarize, or shorten compiler diagnostics — pass them thro
 ## 9. Pointers
 
 - **Decisions:** `dev/adr/ADR-0.6.0-decision-index.md`
+- **Design owners & checklist:** `dev/design/README.md` · `dev/design/cross-cutting-change-checklist.md`
 - **Interfaces:** `dev/interfaces/{rust,rust-sdk,python,typescript,cli,wire,mcp}.md`
 - **Release & slice planning template (canonical):** `dev/plans/prompts/RELEASE-AND-SLICE-PLANNING-TEMPLATE.md` (cross-harness release scaffolding, prework, slice planning, and Slices 20+ execution; supersedes deprecated `PLAN-TEMPLATE.md` and `0.8.0-SLICE-TEMPLATE.md`)
 - **Preflight gate:** `scripts/preflight.sh` (run before every worktree spawn — stale-base + dep-CLOSED + disk)

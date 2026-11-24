@@ -1,7 +1,7 @@
 ---
 status: ACTIVE
 scope: post-0.8.26
-updated: 2026-11-23
+updated: 2026-11-24
 ---
 
 # FathomDB roadmap after 0.8.26
@@ -22,16 +22,19 @@ file, and board. Publishing always requires a separate explicit HITL decision.
 ## Current position
 
 - **Active release lookup:** Run `python3 scripts/release-current.py` for the
-  authoritative live release state and board. As of `2026-11-22`, **`0.8.31` is
-  the active release** on `release/0.8.31` (property graph core Option 1,
-  strict-only write integrity, historical graph `as_of`, SDK/CLI unblockers +
-  lockstep `fathomdb-cli` PyPI wheel + minimal 37→38 `fathomdb migrate`, and
-  Inspector integration). See [0.8.31 plan](plans/0.8.31/plan.md),
+  authoritative live release state and board. As of `2026-11-24`, **`0.8.32` is
+  the active release** on `dev/0.8.32` (engine-enforced caller `scope` & write
+  authority, production read+write `fathomdb-mcp`, opt-in bulk writes,
+  Inspector active-`scope` UI, and `dm-flakey` durability + fuzzing). See
+  [0.8.32 plan](plans/0.8.32/plan.md),
+  [state](plans/release-state-0.8.32.json), and
+  [board](plans/runs/STATUS-0.8.32.md).
+- **`0.8.31` is published** (`v0.8.31`, published `2026-11-23`, schema `38`,
+  including lockstep `fathomdb-cli` PyPI wheels and matching Tegra CUDA Pages
+  artifacts). See [0.8.31 plan](plans/0.8.31/plan.md),
   [state](plans/release-state-0.8.31.json), and
-  [board](plans/runs/STATUS-0.8.31.md).
-- **`0.8.30` is published** (`v0.8.30`, schema `37`, including matching Tegra
-  CUDA Pages artifacts). Historical `0.8.27`–`0.8.30` snapshots below remain
-  for archival continuity until the `0.8.33` repo declutter.
+  [board](plans/runs/STATUS-0.8.31.md). Historical `0.8.27`–`0.8.30` snapshots
+  below remain for archival continuity until the `0.8.33` repo declutter.
 - An open todo does not automatically become roadmap scope. This file includes
   work only when a current schedule, draft scope, or explicit backlog/proposal
   record preserves it.
@@ -51,9 +54,8 @@ file, and board. Publishing always requires a separate explicit HITL decision.
 
 | Release | Status | Theme |
 | --- | --- | --- |
-| **0.8.27–0.8.30** | **Published** | Completed historical releases (`0.8.30` is the newest published release on schema 37). |
-| **0.8.31** | **Active implementation (`release/0.8.31`)** | Property graph core (Option 1), strict-only write integrity, bitemporal historical graph (`as_of`), SDK/CLI unblockers (`fathomdb-cli` PyPI wheel, minimal 37→38 `fathomdb migrate`), and Inspector integration ([plan](plans/0.8.31/plan.md)). |
-| **0.8.32** | **Planned** | Engine-enforced caller scope & write authority, production read+write `fathomdb-mcp`, opt-in bulk writes, and hardened durability/fuzzing ([plan](plans/0.8.32/plan.md)). |
+| **0.8.27–0.8.31** | **Published** | Completed releases (`0.8.31` published `2026-11-23` on schema 38: property graph core Option 1, strict-only write integrity, historical graph `as_of`, lockstep `fathomdb-cli` PyPI wheel, offline `37 -> 38` `fathomdb migrate`, Inspector integration; [0.8.31 plan](plans/0.8.31/plan.md)). |
+| **0.8.32** | **Active implementation (`dev/0.8.32`)** | Engine-enforced caller scope & write authority, production read+write `fathomdb-mcp`, opt-in bulk writes, Inspector active-`scope` UI, and hardened durability/fuzzing ([plan](plans/0.8.32/plan.md)). |
 | **0.8.33** | **Planned** | Public OSS readiness, repo declutter, automated docs, architecture guides, and CI-tested recipes ([plan](plans/0.8.33/plan.md)). |
 | **0.8.34** | **Planned** | Full crash-resilient multi-version `fathomdb migrate` (`0.8.30+`) and local personal-agent enablement ([plan](plans/0.8.34/plan.md)). |
 | **0.8.35** | **Planned** | Publishable scale/latency benchmarking and competitive evaluations ([plan](plans/0.8.35/plan.md)). |
@@ -170,13 +172,12 @@ D28-08 and ruled:
 The [draft scope](plans/0.8.28-draft-scope.md#d28-08-tegra-private-cuda-memory-pool)
 holds the full rulings.
 
-## 0.8.30 backlog
+## 0.8.30 backlog (historical — completed in `v0.8.30`)
 
-Placed by HITL decision on 2026-10-07. This is backlog with a release slot,
-not implementation authority. The [active quality release plan](plans/0.8.30/plan.md)
-reconciles this backlog. Its [state](plans/release-state-0.8.30.json) and
-[board](plans/runs/STATUS-0.8.30.md) own commissioning, progress and qualification;
-the backlog itself grants no additional execution authority.
+Placed by HITL decision on 2026-10-07. This historical backlog record is
+preserved for traceability; the completed [0.8.30 release plan](plans/0.8.30/plan.md),
+[state](plans/release-state-0.8.30.json), and
+[board](plans/runs/STATUS-0.8.30.md) record its published disposition.
 
 **B30-01 — release the module-level CUDA models.** Todo
 `TC-8d3c1cde-97d7-46d5-af50-9cc479da6de7`. The embedder-close fix releases the

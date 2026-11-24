@@ -1,6 +1,6 @@
 # CLI
 
-Binary: `fathomdb` (0.8.31 documentation target; newest published release: 0.8.30). Operator-only; the CLI does **not** ship
+Binary: `fathomdb` (published 0.8.31 release). Operator-only; the CLI does **not** ship
 application-surface verbs like `search`, `get`, or `list`. Use the SDK
 for those.
 
@@ -106,23 +106,23 @@ Inspection failures use `inspection_unavailable`, `inspection_lock_missing`,
 `database_schema_mismatch`, or `integrity_corrupt` without exposing raw SQLite
 diagnostics.
 
-Install the 0.8.30 CLI at the exact version and confirm its identity:
+Install the 0.8.31 CLI at the exact version and confirm its identity:
 
 ```bash
-cargo install fathomdb-cli --version '=0.8.30' --locked
+cargo install fathomdb-cli --version '=0.8.31' --locked
 fathomdb --version
 ```
 
-In the 0.8.31 release line, the operator CLI is also packaged as a lockstep
+In 0.8.31, the operator CLI is also published as a lockstep
 `fathomdb-cli` PyPI binary wheel installable via `pip install 'fathomdb[cli]'`
-without requiring a Rust toolchain (while keeping the base `fathomdb` SDK
-package free of console scripts).
+(`pip install fathomdb-cli==0.8.31`) without requiring a Rust toolchain (while
+keeping the base `fathomdb` SDK package free of console scripts).
 
 During source qualification, use the [Rust install procedure](../install/rust.md).
-Public 0.8.31 opens require a fresh or already-current schema-38 database
-(published 0.8.30 uses schema 37); an older non-empty database is rejected
-before product mutation. Upgrade committed schema-37 stores explicitly offline
-using `fathomdb migrate --backup-dir <dir> <db_path>`.
+Public 0.8.31 opens require a fresh or already-current schema-38 database;
+an older non-empty database is rejected before product mutation. Upgrade
+committed schema-37 stores explicitly offline using
+`fathomdb migrate --backup-dir <dir> <db_path>`.
 
 ### GPU and platform diagnostics
 
@@ -177,9 +177,9 @@ version, and whether one is refused. Its JSON record is
 exits `70`; otherwise it exits `0`. See
 [GPU acceleration](../embedder.md#cuda-library-and-gpu-requirements).
 
-For a confirmed classic Jetson/Tegra CUDA host, use the separate 0.8.30
+For a confirmed classic Jetson/Tegra CUDA host, use the separate 0.8.31
 [Python installation route](../install/python.md#jetson-tegra-cuda) after
-publication and manifest verification: `fathomdb==0.8.30+tegra` from
+publication and manifest verification: `fathomdb==0.8.31+tegra` from
 `https://fathomadb.github.io/fathomdb/tegra/simple/`. It uses one index and an
 exact version; do not use a floating requirement or `--extra-index-url`.
 Unsupported targets have no supported Tegra CUDA route.

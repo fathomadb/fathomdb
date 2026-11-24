@@ -272,8 +272,8 @@ Python, TypeScript, and Rust application SDKs.
 ### Preserved boundary and deferred destination
 
 FathomDB owns durable identity, provenance, dependency, lifecycle, visibility,
-retrieval, projection, evidence, mutation, and integrity mechanisms. Memex or
-another semantic caller owns extraction, ontology, truth/contradiction,
+retrieval, projection, evidence, mutation, and integrity mechanisms. The
+application or semantic caller owns extraction, ontology, truth/contradiction,
 retrieval planning, synthesis, answer verification, model/provider choice,
 spend, and HITL policy.
 
@@ -296,7 +296,7 @@ Architecture v2 distinguishes three classes that v1 treated too broadly:
 
 1. **Canonical source records** preserve caller content, source identity,
    immutable record revisions, source versions, exact locators, and hashes.
-2. **Caller-authored derived semantic records** preserve Memex-decided facts,
+2. **Caller-authored derived semantic records** preserve caller-decided facts,
    relationships, passages, summaries, and metadata with explicit dependencies.
    Their meaning remains caller-owned; FathomDB need not be able to regenerate
    them without caller input.
@@ -379,8 +379,8 @@ request supports query or explicit seeds, incoming/outgoing/both directions,
 canonical edge kind, target kind, indexed predicates, bounded depth/work/result
 size, one read context, deterministic one-page targets, and compact graph
 origin. Deterministic continuation and full path evidence are later profiles.
-Consumer vocabulary such as a Memex slot maps to these generic constraints
-outside the Engine.
+Application-specific domain vocabulary (such as typed entity slots) maps to
+these generic constraints outside the Engine.
 
 0.8.25 structural explanation covers included results, retrieval/reranking
 contributions, fallback/degraded state, projection/graph origin,
@@ -394,7 +394,7 @@ FathomDB may expose deterministic entity/alias matching, duplicate suppression,
 diversity, complementary-evidence selection, coverage selection, candidate
 fusion, temporal retrieval, or associative graph diffusion only through named,
 bounded profiles that pass preregistered data-plane quality and performance
-gates. Memex decides when to invoke an accepted profile. A failed treatment is
+gates. The caller decides when to invoke an accepted profile. A failed treatment is
 retained as experimental evidence and does not change a default.
 
 ## Measurement boundary

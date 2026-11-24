@@ -53,7 +53,7 @@ omitted (or all-empty) filter is the unfiltered path.
 | `created_after`                            | inclusive projection time >= bound (unix seconds)                            |
 | `status`                                   | the `status` metadata column (see the caveat below)                          |
 | `attributes`                               | ordered AND equality over `filterable` projections                           |
-| `property_predicates` / `propertyPredicates` | closed inline `PropertyPredicate` filters (`eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `in`, `contains`, `exists`, `not_exists`) over materialized properties |
+| `property_predicates` / `propertyPredicates` | closed inline `PropertyPredicate` filters (`eq`, `ne`, `lt`, `lte`, `gt`, `gte`) over materialized properties |
 
 The filter prunes the vector branch inside the single phase-1 KNN statement and
 constrains the text branch by the same metadata. On the optimized node-only

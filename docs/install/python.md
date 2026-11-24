@@ -20,6 +20,17 @@ required on supported platforms).
 - Official wheels bundle SQLite and statically link `sqlite-vec`; no system
   SQLite headers or separate extension installation are needed.
 
+### Prebuilt wheel matrix (embedder, cross-encoder, CUDA, and glibc)
+
+| Target | Wheel tag / channel | Linux glibc floor | Default embedder (`bge-small`) | Cross-encoder (`rerank`) | CUDA (`embed-cuda` + `rerank-cuda`) |
+| --- | --- | --- | --- | --- | --- |
+| Linux `x86_64-unknown-linux-gnu` | `manylinux_2_28_x86_64` (PyPI) | `2.28` | CPU + CUDA | CPU + CUDA | **yes** (driverless CPU fallback) |
+| Linux `aarch64-unknown-linux-gnu` (generic) | `manylinux_2_28_aarch64` (PyPI) | `2.28` | CPU only | CPU only | no |
+| Linux `aarch64-unknown-linux-gnu` (classic Jetson Orin) | `0.8.31+tegra` (Tegra Pages) | `2.35` | CPU + CUDA | CPU + CUDA | **yes** (`tegra-pool`, JetPack 6 / CUDA 12.6) |
+| macOS `x86_64-apple-darwin` | `macosx_10_12_x86_64` (PyPI) | N/A | CPU only | CPU only | no |
+| macOS `aarch64-apple-darwin` | `macosx_11_0_arm64` (PyPI) | N/A | CPU only | CPU only | no |
+| Windows `x86_64-pc-windows-msvc` | `win_amd64` (PyPI) | N/A | CPU only | CPU only | no |
+
 ## Install the wheel
 
 Version 0.8.31 is published on PyPI. Use the exact-version install below in

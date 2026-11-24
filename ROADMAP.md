@@ -1,11 +1,14 @@
 # Roadmap
 
-This file parks future work; entries do not commission implementation or change
-the release plan of record.
+This file parks future runtime and read-performance candidates; entries do not
+commission implementation or change the release plan of record. For the active
+release schedule (`0.8.31` published `2026-11-23`; `0.8.32` active on
+`dev/0.8.32`), see [`dev/ROADMAP.md`](dev/ROADMAP.md).
 
 ## Deferred additions to admin.configure_runtime
 
-The 0.8.28 API already provides SQLite memory-statistics configuration:
+The published 0.8.31 API provides SQLite memory-statistics configuration
+(introduced in 0.8.25):
 performance (`MEMSTATUS=0`) and diagnostics (`MEMSTATUS=1`), selected before
 SQLite initialization, with an application restart to change modes. Its current
 contract is documented in [runtime configuration](docs/reference/config.md).
@@ -82,9 +85,8 @@ a change; neither item is implemented by this entry.
 
 ## Deferred read-performance experiments
 
-Do not add these to Slice 79's statement-reuse plus MEMSTATUS on/off comparison.
-They are candidates for separately approved bounded experiments, not shipping
-features or reasons to delay that comparison.
+These remain deferred candidates for separately approved bounded experiments,
+not shipping features or active release commitments.
 
 1. **Lookaside sizing.** First measure per-reader `LOOKASIDE_HIT`,
    `LOOKASIDE_MISS_SIZE`, `LOOKASIDE_MISS_FULL` and usage high-water over a defined
@@ -96,8 +98,8 @@ features or reasons to delay that comparison.
    provisioning versus connection cache policy. Page-cache stack samples do not
    prove lookaside misses. Preserve bounded memory and use direct workload
    comparisons; no custom PCACHE2 or allocator replacement is commissioned.
-3. **Query-vector BLOB transport.** Not tested as a treatment in Slice 77 and
-   not ruled out by its under-sampled profile. The research identifies JSON
+3. **Query-vector BLOB transport.** Not yet evaluated in a dedicated treatment
+   run. The research identifies JSON
    serialization/parsing and allocation work that binary float32 binding may
    remove, but provides no measured FathomDB recovery result. First compare
    JSON versus f32 BLOB transport with SQLite quantization unchanged. Use RED
@@ -117,8 +119,7 @@ features or reasons to delay that comparison.
 For any later experiment, hold statement reuse and MEMSTATUS mode fixed between
 control and treatment. Effects measured with statistics on may change after
 statistics are disabled. Use a corrected, sufficiently sampled search-only
-profile if profile-based selection is required; do not repeat Slice 77's full
-timing series solely to repair its diagnostic shortfall.
+profile if profile-based selection is required.
 
 Grounding: [retained research](dev/plans/runs/0.8.25-ac020-research/report.md),
 [SQLite allocation architecture](https://www.sqlite.org/malloc.html), and

@@ -929,6 +929,15 @@
       "successor": null
     },
     {
+      "path": "dev/design/cross-cutting-change-checklist.md",
+      "class": "maintained",
+      "topic": "cross-cutting-changes",
+      "role": "method",
+      "owner": "dev/design/cross-cutting-change-checklist.md",
+      "release": "cross-release",
+      "successor": null
+    },
+    {
       "path": "dev/design/cuda-version-support-review.md",
       "class": "reference",
       "topic": "cuda-version-support-review",
@@ -1587,12 +1596,12 @@
     },
     {
       "path": "dev/design/orchestration.md",
-      "class": "maintained",
+      "class": "historical",
       "topic": "orchestration",
       "role": "method",
       "owner": "dev/design/orchestration.md",
-      "release": "cross-release",
-      "successor": null
+      "release": "historical:0.8.30",
+      "successor": "dev/plans/prompts/RELEASE-AND-SLICE-PLANNING-TEMPLATE.md"
     },
     {
       "path": "dev/design/overflow-chunking-reevaluation.md",

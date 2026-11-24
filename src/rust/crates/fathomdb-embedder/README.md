@@ -53,7 +53,7 @@ CUDA features imply `tegra-pool`: qualified AGX Orin builds use the private
 pool, while generic AArch64 CPU artifacts do not acquire CUDA capability. CUDA
 Python/Node builds on AArch64 can initialize the driver at import; select CPU
 policies before import or use the documented early-init control. See the
-[embedder guide](https://github.com/fathomadb/fathomdb/blob/release/0.8.30/docs/embedder.md)
+[embedder guide](https://github.com/fathomadb/fathomdb/blob/release/0.8.31/docs/embedder.md)
 for pool configuration, fork/linkage requirements and import/fork limits.
 
 ## Cache ownership
@@ -63,7 +63,7 @@ the shared standalone CLS and cross-encoder caches. Engine-owned Mean providers
 have a separate close lifecycle. Concurrent admitted model work makes explicit
 release refuse without clearing either cache; healthy calls can later reload.
 Release preserves terminal CUDA generation loss until process restart. See
-[the lifecycle guide](https://github.com/fathomadb/fathomdb/blob/release/0.8.30/docs/embedder.md#release-module-models).
+[the lifecycle guide](https://github.com/fathomadb/fathomdb/blob/release/0.8.31/docs/embedder.md#release-module-models).
 
 ## Weight loading
 

@@ -1,7 +1,7 @@
 # Rust SDK
 
-Crate: `fathomdb-sdk` (0.8.31 documentation target; newest published crates.io
-release: `0.8.30`; import `fathomdb_sdk`). It has the same surface as the Python
+Crate: `fathomdb-sdk` (published `0.8.31` crates.io release; import
+`fathomdb_sdk`). It has the same surface as the Python
 and TypeScript SDKs:
 
 - an `Engine` with the same operations;
@@ -134,8 +134,8 @@ is added.
   optional inline JSON `properties`, surfaced on `NodeRecord` and `SearchHit`
   and indexed for declared filterable/searchable projections.
 - **Typed `SearchFilter.property_predicates`:** `SearchFilter` accepts
-  `property_predicates` (`eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `in`, `contains`,
-  `exists`, `not_exists`) in addition to `attributes`.
+  `property_predicates` (`eq`, `ne`, `lt`, `lte`, `gt`, `gte`) in addition to
+  `attributes`.
 - **`ProjectionSpec` targeting and custom vector kinds:** `ProjectionSpec`
   adds `entity_class` (`Node` or `Edge`) and `vector_kinds` (opt-in custom node
   kinds enrolled in `_fathomdb_vector_kinds` alongside the 7 built-in defaults;

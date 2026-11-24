@@ -275,4 +275,13 @@ expect_fail 'generated contributor workspace coverage cannot lose a member' 'con
 make_fixture
 sed -i -E 's/npm install fathomdb@(next|latest)/npm install fathomdb@0.8.23/g' "$FIXTURE/docs/install/typescript.md"
 expect_fail 'published fallback requires exact version or recorded npm tag' 'typescript.md.*0.8.26.*latest'
+make_fixture
+printf '\nMental model for 0.8.26 (newest published release: 0.8.25).\n' >>"$FIXTURE/docs/concepts/index.md"
+expect_fail 'stale newest published release banner on published target fails' 'concepts/index.md.*newest published release.*0.8.25.*0.8.26'
+pending_fixture
+printf '\nMental model for 0.8.27 (newest published release: 0.8.25).\n' >>"$FIXTURE/docs/concepts/index.md"
+expect_fail 'stale newest published release banner on pending target fails' 'concepts/index.md.*newest published release.*0.8.25.*0.8.26'
+pending_fixture
+printf '\nMental model for 0.8.27 (newest published release: 0.8.26).\nHistorical 0.8.25 baseline measurement.\n' >>"$FIXTURE/docs/concepts/index.md"
+expect_pass 'current newest published release banner and historical baseline pass'
 printf '\nAll public-doc-truth tests passed\n'

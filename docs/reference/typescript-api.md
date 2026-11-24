@@ -789,8 +789,7 @@ population source yet — vec0 TEXT metadata is not NULL-able), so a
 `attributes` is ordered AND equality over declared `filterable` projections;
 its values are canonical text, so projected string `"1"` and number `1` both
 match `"1"`. `propertyPredicates` adds closed typed predicates (`eq`, `ne`,
-`gt`, `gte`, `lt`, `lte`, `in`, `contains`, `exists`, `not_exists`) over
-materialized properties.
+`lt`, `lte`, `gt`, `gte`) over materialized properties.
 
 ### `SoftFallback`
 

@@ -9,7 +9,9 @@ contracts remain in the language references.
 ## Change a behavior
 
 Read the repository's [agent and contributor instructions](https://github.com/fathomadb/fathomdb/blob/main/AGENTS.md),
-the relevant accepted ADR and interface contract before editing. Use TDD:
+the [subsystem design owner map](https://github.com/fathomadb/fathomdb/blob/main/dev/design/README.md),
+the [cross-cutting change checklist](https://github.com/fathomadb/fathomdb/blob/main/dev/design/cross-cutting-change-checklist.md),
+and the relevant accepted ADR and interface contract before editing. Use TDD:
 write a test that fails for the required behavior, commit or stage that RED
 test for review, then implement the GREEN change without weakening the test.
 Use real databases for integration tests. Property tests cover codec,

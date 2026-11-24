@@ -1,6 +1,6 @@
 # Concepts
 
-Mental model for the 0.8.31 release target (newest published release: 0.8.30). Detailed treatment lives in internal design
+Mental model for the published 0.8.31 release. Detailed treatment lives in internal design
 docs under
 [`dev/design/`](https://github.com/fathomadb/fathomdb/tree/main/dev/design);
 this page is the consumer-facing overview.
@@ -15,7 +15,7 @@ open → write / search / admin.configure / instrumentation → close → proces
    at `path`. The handle owns the primary SQLite connection, the reader pool with
    thread-affine workers, the scheduler, the op-store, and the
    embedder pool. A missing or zero-length database is initialized at schema
-   38 (published `0.8.30` uses schema 37). A non-empty database must already
+   38. A non-empty database must already
    have schema 38; public open does not upgrade it and rejects a different
    version with a typed incompatibility error. Committed schema 37 stores
    upgrade offline via `fathomdb migrate --backup-dir <dir> <db_path>`.

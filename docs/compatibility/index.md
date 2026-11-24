@@ -111,20 +111,20 @@ is set to `cpu` at load time or `FATHOMDB_CUDA_EARLY_INIT=off`. See
 [TypeScript install](../install/typescript.md#classic-jetson-orin-with-cuda)
 for the SHA-256 check and the `package.json` form.
 
-| OS      | Architecture                | Prebuilt package? |
-| ------- | --------------------------- | ------------------- |
-| Linux   | `x86_64-unknown-linux-gnu`  | **yes** (CUDA host glibc 2.39) |
-| Linux   | `aarch64-unknown-linux-gnu` | **yes** (manylinux 2_28) |
-| macOS   | `x86_64-apple-darwin`       | **yes** |
-| macOS   | `aarch64-apple-darwin`      | **yes** |
-| Windows | `x86_64-pc-windows-msvc`    | **yes** |
+| OS | Architecture | Prebuilt package? | Linux glibc floor (Python / N-API) | Embedder & cross-encoder runtime |
+| --- | --- | --- | --- | --- |
+| Linux | `x86_64-unknown-linux-gnu` | **yes** | `2.28` (`manylinux_2_28`) / `2.39` (CUDA N-API host) | CPU + CUDA (`embed-cuda`, `rerank-cuda`; driverless CPU mode) |
+| Linux | `aarch64-unknown-linux-gnu` | **yes** (manylinux 2_28) | `2.28` (`manylinux_2_28`) / `2.28` (`manylinux_2_28`) | CPU only (classic Jetson Orin CUDA + `rerank-cuda` via Tegra Pages, glibc `2.35`) |
+| macOS | `x86_64-apple-darwin` | **yes** | N/A | CPU only |
+| macOS | `aarch64-apple-darwin` | **yes** | N/A | CPU only |
+| Windows | `x86_64-pc-windows-msvc` | **yes** | N/A | CPU only |
 
 Platforms outside these five native targets are unsupported for the generic
 Python and npm native packages in this release.
 
 Non-Tegra ARM hosts with NVIDIA GPUs are not in the known-working CUDA
 environment set. This configuration is unqualified and is excluded from the
-0.8.30 release qualification scope. Generic AArch64 CPU support and the separately
+0.8.31 release qualification scope. Generic AArch64 CPU support and the separately
 qualified classic Jetson route keep their existing scope.
 
 ## SQLite + sqlite-vec
@@ -154,7 +154,7 @@ path.
 
 ## Versioning — two axes
 
-0.8.30 follows two-axis versioning (W = **0.8.30**, E = **0.8.0**):
+0.8.31 follows two-axis versioning (W = **0.8.31**, E = **0.8.0**):
 
 - **Axis W (workspace lockstep)** — the runtime / binding / CLI crates
   plus the Python and TypeScript packages all carry the same workspace
@@ -191,7 +191,7 @@ re-ingest through the public write surface.
 
 Release qualification validates concrete workloads on named machines; it is
 not a general latency SLA. Current qualification and its limits are recorded
-in the [0.8.30 release status](https://github.com/fathomadb/fathomdb/blob/release/0.8.30/dev/plans/runs/STATUS-0.8.30.md).
+in the [0.8.31 release status](https://github.com/fathomadb/fathomdb/blob/release/0.8.31/dev/plans/runs/STATUS-0.8.31.md).
 
 Clients evaluating FathomDB for performance-sensitive workloads should still
 measure on their own corpus and hardware rather than treating a release-gate

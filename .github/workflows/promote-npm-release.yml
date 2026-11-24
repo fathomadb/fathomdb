@@ -18,6 +18,11 @@ on:
         required: false
         default: false
         type: boolean
+      recover_0831_crates_sdk:
+        description: "Recover only post-publish-smoke (crates-sdk) from production 0.8.31 attempt 1"
+        required: false
+        default: false
+        type: boolean
       candidate_sha:
         description: "Exact tagged source commit"
         required: true
@@ -45,11 +50,13 @@ jobs:
           RUN_ID: ${{ inputs.release_run_id }}
           CANDIDATE_SHA: ${{ inputs.candidate_sha }}
           RECOVER: ${{ inputs.recover_0830_public_smokes }}
+          RECOVER_0831: ${{ inputs.recover_0831_crates_sdk }}
         shell: bash
         run: |
           set -euo pipefail
           extra=()
-          if [ "$RECOVER" = true ]; then extra=(--recover-0830-public-smokes); fi
+          if [ "$RECOVER" = true ]; then extra+=(--recover-0830-public-smokes); fi
+          if [ "$RECOVER_0831" = true ]; then extra+=(--recover-0831-crates-sdk); fi
           python3 scripts/release/verify-public-smoke-recovery.py "$VERSION" "$RUN_ID" "$CANDIDATE_SHA" "${extra[@]}"
 
   recover-public-smokes:
@@ -91,9 +98,29 @@ jobs:
         shell: bash
         run: /bin/bash scripts/release/smoke/smoke-npm-package.sh "$VERSION"
 
+  recover-crates-sdk-smoke:
+    needs: verify-production
+    if: ${{ inputs.recover_0831_crates_sdk && needs.verify-production.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      VERSION: ${{ inputs.release_version }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # stable
+        with:
+          toolchain: "1.95.0"
+      - name: Smoke exact registry Rust SDK
+        shell: bash
+        run: bash scripts/release/smoke/smoke-crates-sdk.sh "$VERSION"
+
   promote-npm-latest:
-    needs: [verify-production, recover-public-smokes]
-    if: ${{ !cancelled() && github.ref == 'refs/heads/main' && needs.verify-production.result == 'success' && ((inputs.recover_0830_public_smokes && needs.recover-public-smokes.result == 'success') || (!inputs.recover_0830_public_smokes && needs.recover-public-smokes.result == 'skipped')) }}
+    needs: [verify-production, recover-public-smokes, recover-crates-sdk-smoke]
+    if: ${{ !cancelled() && github.ref == 'refs/heads/main' && needs.verify-production.result == 'success' && ((inputs.recover_0830_public_smokes && needs.recover-public-smokes.result == 'success') || (!inputs.recover_0830_public_smokes && needs.recover-public-smokes.result == 'skipped')) && ((inputs.recover_0831_crates_sdk && needs.recover-crates-sdk-smoke.result == 'success') || (!inputs.recover_0831_crates_sdk && needs.recover-crates-sdk-smoke.result == 'skipped')) }}
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -138,6 +165,21 @@ jobs:
           github-token: ${{ github.token }}
           pattern: python-dist-*
           merge-multiple: true
+          path: dist
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        if: ${{ inputs.release_version != '0.8.30' }}
+        with:
+          run-id: ${{ inputs.release_run_id }}
+          github-token: ${{ github.token }}
+          pattern: python-cli-dist-*
+          merge-multiple: true
+          path: dist
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        if: ${{ inputs.release_version != '0.8.30' }}
+        with:
+          run-id: ${{ inputs.release_run_id }}
+          github-token: ${{ github.token }}
+          name: inspector-linux-x64-gnu
           path: dist
       - uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe # v2.6.1
         with:

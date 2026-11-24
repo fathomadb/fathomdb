@@ -23,6 +23,7 @@ fn main() -> fathomdb_sdk::Result<()> {
             reason: None,
             valid_from: None,
             valid_until: None,
+            properties: None,
         }])?;
     }
     let found = read::get(&engine, RECORD_ID, None)?.expect("persisted record is missing");

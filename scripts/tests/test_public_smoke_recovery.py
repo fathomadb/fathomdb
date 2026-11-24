@@ -115,19 +115,63 @@ class PublicSmokeRecoveryTests(unittest.TestCase):
         data["run"]["head_branch"] = "v0.8.31"
         self.helper.validate(**data)
 
+    def fixture_0831(self):
+        good_0831 = [
+            "publish-rust-t7-cli", "publish-pypi", "publish-npm",
+            "post-publish-smoke (crates-cli)", "post-publish-smoke (pypi-wheel)",
+            "post-publish-smoke (npm-package)", "post-publish-smoke-aarch64",
+            "post-publish-smoke-darwin-x64", "post-publish-smoke-darwin-arm64",
+            "post-publish-smoke-win32-x64", "co-tagging-assert",
+        ]
+        jobs = [{"name": name, "status": "completed", "conclusion": "success"} for name in good_0831]
+        jobs.append({"name": "post-publish-smoke (crates-sdk)", "status": "completed", "conclusion": "failure"})
+        sha = "8965af93d6f42d160474acb382596c5aab6b5c2d"
+        tag = "48a224e5ac691d5b88a7979b920e87352d31e87f"
+        return dict(
+            version="0.8.31", run_id="45318429916", candidate_sha=sha, recover=False,
+            recover_0831_crates_sdk=True, tag_object=tag, tag_commit=sha,
+            run={"id": 45318429916, "run_attempt": 1, "event": "push", "head_branch": "v0.8.31",
+                 "head_sha": sha, "path": ".github/workflows/release.yml", "status": "completed",
+                 "conclusion": "failure", "repository": {"full_name": "fathomadb/fathomdb"}},
+            jobs=jobs, repository="fathomadb/fathomdb",
+        )
+
+    def test_0831_crates_sdk_recovery_accepts_exact_run_and_rejects_mutations(self):
+        self.helper.validate(**self.fixture_0831())
+        base = self.fixture_0831()
+        for mutation in (
+            {"version": "0.8.32"},
+            {"run_id": "45318429917"},
+            {"candidate_sha": "a" * 40},
+            {"tag_object": "b" * 40},
+            {"recover": True},
+        ):
+            with self.subTest(mutation=mutation), self.assertRaises(ValueError):
+                self.helper.validate(**(base | mutation))
+        # Missing or non-success on any of the other 7 smokes must fail.
+        bad = self.fixture_0831()
+        bad["jobs"][0]["conclusion"] = "failure"
+        with self.assertRaises(ValueError):
+            self.helper.validate(**bad)
+
 
 class RecoveryWorkflowTests(unittest.TestCase):
     def test_workflow_requires_recovery_success_before_oidc(self):
         source = (ROOT / ".github/workflows/promote-npm-release.yml").read_text()
         for required in (
-            "!cancelled()", "recover_0830_public_smokes:", "verify-production:", "recover-public-smokes:",
-            "needs: [verify-production, recover-public-smokes]",
+            "!cancelled()", "recover_0830_public_smokes:", "recover_0831_crates_sdk:",
+            "verify-production:", "recover-public-smokes:", "recover-crates-sdk-smoke:",
+            "needs: [verify-production, recover-public-smokes, recover-crates-sdk-smoke]",
             "needs.verify-production.result == 'success'",
             "needs.recover-public-smokes.result == 'success'",
             "needs.recover-public-smokes.result == 'skipped'",
+            "needs.recover-crates-sdk-smoke.result == 'success'",
+            "needs.recover-crates-sdk-smoke.result == 'skipped'",
             "macos-15-intel", "macos-15", "ubuntu-latest",
             'run: /bin/bash scripts/release/smoke/smoke-pypi-wheel.sh "$VERSION"',
             'run: /bin/bash scripts/release/smoke/smoke-npm-package.sh "$VERSION"',
+            'run: bash scripts/release/smoke/smoke-crates-sdk.sh "$VERSION"',
+            "python-cli-dist-*", "inspector-linux-x64-gnu",
             "ref: ${{ github.workflow_sha }}",
         ):
             self.assertIn(required, source)

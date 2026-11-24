@@ -189,6 +189,7 @@ run_tier_suite fast test-agent-test-collect-all bash scripts/tests/test_agent_te
 run_tier_suite fast test-verify-release-gates bash scripts/tests/test_verify_release_gates.sh
 run_tier_suite fast test-extract-changelog-section bash scripts/tests/test_extract_changelog_section.sh
 run_tier_suite fast test-check-tag-cuda-route bash scripts/tests/test_check_tag_cuda_route.sh
+run_tier_suite fast test-configure-tag-cuda-route bash scripts/tests/test_configure_tag_cuda_route.sh
 run_tier_suite fast test-verify-release-python-wheel bash scripts/tests/test_verify_release_python_wheel.sh
 run_tier_suite fast test-slice50-hook-inventory python3 scripts/tests/test_slice50_hook_inventory.py
 run_tier_suite fast test-wait-for-registry-visibility python3 scripts/tests/test_wait_for_registry_visibility.py
@@ -455,6 +456,7 @@ run_tier_suite fast test-smoke-scripts bash scripts/tests/test_smoke_scripts.sh
 run_tier_suite fast test-release-workflow-scope bash scripts/tests/test_release_workflow_scope.sh
 run_tier_suite fast test-npm-promotion python3 scripts/tests/test_npm_promotion.py
 run_tier_suite fast test-public-smoke-recovery python3 scripts/tests/test_public_smoke_recovery.py
+run_tier_suite fast test-check-agents-md-paths python3 scripts/tests/test_check_agents_md_paths.py
 run_tier_suite fast test-pypi-smoke-shell bash scripts/tests/test_pypi_smoke_shell.sh
 
 # Fast mutation coverage for the manifest-derived release-ready native matrix.

@@ -7,7 +7,8 @@ date: 2026-11-21
 
 # FathomDB 0.8.32 release plan
 
-> **Status: PROPOSED — awaiting completion of `0.8.31` and owner go-ahead.**
+> **Status: PROPOSED — awaiting owner go-ahead (`0.8.31` published 2026-11-23).**
+> Start with [HANDOFF-FROM-0.8.31.md](./HANDOFF-FROM-0.8.31.md) before Slice 0.
 > Execution requires an approved `release-state-0.8.32.json`, live board
 > `dev/plans/runs/STATUS-0.8.32.md`, and separate publication authority.
 

@@ -818,6 +818,12 @@ jobs:
             Write-Output $text
             if ($exit -ne 0 -or $text -notmatch '1 passed; 0 failed') { throw "Windows path selector did not execute/pass: $selector exit=$exit" }
           }
+      - name: Run Windows fathomdb migrate 37-to-38 CLI smoke tests
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          cargo test --locked -p fathomdb-cli --test migrate_cli -- --nocapture
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Upload cross-process WAL checkpoint diagnostics
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a

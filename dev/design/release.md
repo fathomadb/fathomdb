@@ -53,9 +53,14 @@ The unchanged pre-push hook runs the guard: bootstrap requires a confirmed
 remote HTTP404 for that exact tag, the restricted selected GPU group allowing
 `release.yml@refs/heads/main`, the exact environment tag policy and nonempty
 required reviewers. It reports bootstrap readiness with GPU approval held.
-After pushing, add the exact approved tag workflow to group3, verify the remote
-peeled commit, and pass the normal marker-free tag guard **before** approving
-the required GPU environment. Default routing and hook checks stay active.
+After pushing, run `scripts/release/configure-tag-cuda-route.sh <tag>` (which
+fresh-reads group 3 and its `selected_repositories`, adds only the exact
+approved tag workflow while preserving `selected_repository_ids`, verifies
+repository attachment, and runs the normal marker-free tag guard) **before**
+approving the required GPU environment. Before pushing any `v*` tag, wait for
+cross-OS `ci.yml` on `main` to finish and confirm Trusted/Pending Publishers
+exist for every newly added registry package. Default routing and hook checks
+stay active.
 
 ## Tiered publish order
 

@@ -149,7 +149,7 @@ Spawn `ROLE_AUDITOR` subagents for Slices 1–7. Each writes `<plan-dir>/prework
    | ID | Source Slice | Proposal | Understood (H/M/L) | Risk (H/M/L) | Effort (S/M/L) | Recommendation (`include` / `postpone` / `reject`) |
    | --- | --- | --- | --- | --- | --- | --- |
 
-2. **HITL Gate 1:** Present the scored triage clearly and concisely using your harness's native HITL mechanism. **STOP and collect owner decisions.**
+2. **HITL Gate 1:** Present the scored triage clearly and concisely using your harness's native HITL mechanism — every decision item must present concrete numbered options plus a clear recommendation with justification. **STOP and collect owner decisions.**
 3. Record all owner decisions durably.
 4. Draft the **Slice 10 implementation plan** (`<plan-dir>/slice-10/plan.md`) covering every approved prework item (`TIER_ANALYSIS_PLAN`).
 5. **Plan Review Loop (up to 4 `FIX-n` cycles):**
@@ -231,8 +231,14 @@ Copy and instantiate the block below when dispatching a subagent (or starting a 
 - Implement according to the approved plan (`ROLE_IMPLEMENTER` per Section 0) using **TDD (RED → GREEN → Refactor)**—failing test first; fix code rather than weakening tests.
 - Spawn `ROLE_REVIEWER` (`TIER_DEEP` per Section 0) for an adversarial code review of the full slice diff. Resolve all material findings with targeted verification.
 
-### 5. Independent Verification
+### 5. Independent Verification & Per-Slice Fast Guards
 - Spawn `ROLE_VERIFIER` (`TIER_STANDARD` / `terra` / `browser` as applicable per Section 0) to independently run the slice's verification suite against real artifacts/databases (no mocks) and report raw results.
+- Run fast per-slice cross-cutting guards before closing any feature slice (do not defer them to the final qualification slice):
+  - `cargo check --workspace --all-targets --all-features`
+  - `bash scripts/check-release-smoke-sdk-compile.sh`
+  - `bash scripts/check-module-boundaries.sh`
+  - `python3 scripts/check-sdk-surface-parity.py` (and `AC-050a` verb-surface check when public SDK/engine methods changed)
+  - Review affected `README.md`, `docs/`, and `dev/interfaces/*.md` diffs in the same slice so documentation stays in lockstep.
 
 ### 6. Status Record, Cleanup & Commit
 1. Write `<plan-dir>/slice-<N>/status.md` recording landed changes, review verdicts, and verified test results.

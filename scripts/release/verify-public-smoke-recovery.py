@@ -6,6 +6,7 @@ import json
 import os
 import re
 import subprocess
+import tempfile
 
 VERSION = "0.8.30"
 RUN_ID = "44929252460"
@@ -115,7 +116,17 @@ def main():
     if not re.fullmatch(r"[0-9]+", args.run_id) or not re.fullmatch(r"[0-9a-f]{40}", args.candidate_sha):
         parser.error("invalid run/source")
     repository = os.environ["GITHUB_REPOSITORY"]
-    subprocess.run(["git", "fetch", "--no-tags", "--depth=1", "origin", f"refs/tags/v{args.version}"], check=True)
+    origin_url = output("git", "remote", "get-url", "origin")
+    with tempfile.TemporaryDirectory(prefix="fathomdb-tag-verify-") as tmp_git:
+        # Fetch into an isolated bare repo so --depth=1 never writes .git/shallow
+        # into the caller's full checkout or worktree.
+        subprocess.run(["git", "init", "--bare", "--quiet", tmp_git], check=True)
+        subprocess.run(
+            ["git", "-C", tmp_git, "fetch", "--no-tags", "--filter=blob:none", "--depth=1", origin_url, f"refs/tags/v{args.version}"],
+            check=True,
+        )
+        tag_object = output("git", "-C", tmp_git, "rev-parse", "FETCH_HEAD")
+        tag_commit = output("git", "-C", tmp_git, "rev-parse", "FETCH_HEAD^{commit}")
     run = json.loads(output("gh", "api", f"repos/{repository}/actions/runs/{args.run_id}"))
     attempt = run["run_attempt"]
     jobs_json = output("gh", "api", "--paginate", "--jq", ".jobs[] | @json",
@@ -124,8 +135,8 @@ def main():
         version=args.version, run_id=args.run_id, candidate_sha=args.candidate_sha,
         recover=args.recover_0830_public_smokes,
         recover_0831_crates_sdk=args.recover_0831_crates_sdk,
-        tag_object=output("git", "rev-parse", "FETCH_HEAD"),
-        tag_commit=output("git", "rev-parse", "FETCH_HEAD^{commit}"), run=run,
+        tag_object=tag_object,
+        tag_commit=tag_commit, run=run,
         jobs=[json.loads(line) for line in jobs_json.splitlines()], repository=repository,
     )
     print(f"verified production v{args.version} run={args.run_id} attempt={attempt}; "

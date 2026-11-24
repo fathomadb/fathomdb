@@ -162,6 +162,7 @@ python3 - "$ROOT" "$ONLY" "$SKIP_PACKAGING" "$WITH_WHEEL" <<'PY'
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -552,32 +553,44 @@ if not SKIP_PACKAGING:
     if "npm" in legs:
         if subprocess.run(["sh", "-c", "command -v npm >/dev/null 2>&1"]).returncode != 0:
             die_env("npm is not on PATH — cannot read any npm tarball file list")
-        for d in npm_dirs:
-            pj = load_json(os.path.join(d, "package.json"))
-            if pj.get("private") is True:
-                continue
-            res = run(["npm", "pack", "--dry-run", "--json"], cwd=d)
-            if res.returncode != 0:
-                fail(
-                    "npm pack --dry-run in %s exited %d; its file list could not be "
-                    "read, so the license file in it is UNVERIFIED.\n%s"
-                    % (d, res.returncode, res.stderr.strip()[:2000])
-                )
-                continue
-            try:
-                packs = json.loads(res.stdout)
-            except ValueError as exc:
-                fail("npm pack --dry-run --json in %s emitted unparseable JSON: %s" % (d, exc))
-                continue
-            paths = npm_pack_paths(packs, d)
-            if "LICENSE" not in paths:
-                fail(
-                    "npm package %s: `npm pack --dry-run` file list does NOT contain "
-                    "LICENSE (%d files listed) — the published tarball would carry "
-                    "no license text." % (pj.get("name", d), len(paths))
-                )
-            else:
-                print("  ok  npm %s ships LICENSE" % pj.get("name", d))
+        npm_tmp_cache = None
+        if not os.environ.get("npm_config_cache"):
+            home_npm = os.path.join(os.path.expanduser("~"), ".npm")
+            if (os.path.exists(home_npm) and not os.access(home_npm, os.W_OK)) or (
+                not os.path.exists(home_npm) and not os.access(os.path.expanduser("~"), os.W_OK)
+            ):
+                npm_tmp_cache = tempfile.mkdtemp(prefix="fathomdb-license-npm-cache-")
+                os.environ["npm_config_cache"] = npm_tmp_cache
+        try:
+            for d in npm_dirs:
+                pj = load_json(os.path.join(d, "package.json"))
+                if pj.get("private") is True:
+                    continue
+                res = run(["npm", "pack", "--dry-run", "--json"], cwd=d)
+                if res.returncode != 0:
+                    fail(
+                        "npm pack --dry-run in %s exited %d; its file list could not be "
+                        "read, so the license file in it is UNVERIFIED.\n%s"
+                        % (d, res.returncode, res.stderr.strip()[:2000])
+                    )
+                    continue
+                try:
+                    packs = json.loads(res.stdout)
+                except ValueError as exc:
+                    fail("npm pack --dry-run --json in %s emitted unparseable JSON: %s" % (d, exc))
+                    continue
+                paths = npm_pack_paths(packs, d)
+                if "LICENSE" not in paths:
+                    fail(
+                        "npm package %s: `npm pack --dry-run` file list does NOT contain "
+                        "LICENSE (%d files listed) — the published tarball would carry "
+                        "no license text." % (pj.get("name", d), len(paths))
+                    )
+                else:
+                    print("  ok  npm %s ships LICENSE" % pj.get("name", d))
+        finally:
+            if npm_tmp_cache:
+                shutil.rmtree(npm_tmp_cache, ignore_errors=True)
 
     if "python" in legs:
         if not WITH_WHEEL:

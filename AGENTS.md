@@ -1,6 +1,6 @@
 # AGENTS.md — FathomDB
 
-Operating manual for AI coding agents (Claude Code, Codex, Cursor, Aider, Copilot) working in this repo. Cross-vendor convention. This is the canonical agent-instruction file; **no `CLAUDE.md` is maintained** — Claude Code reads `AGENTS.md` natively.
+Operating manual for AI coding agents (Antigravity/Gemini, Claude Code, Codex, Cursor, Aider, Copilot) working in this repo. Cross-vendor convention. This is the canonical agent-instruction file; **no `CLAUDE.md` is maintained** — harnesses read `AGENTS.md` natively.
 
 Bullet form, prescriptive, ≤300 lines. Link out, do not inline.
 
@@ -10,15 +10,15 @@ Bullet form, prescriptive, ≤300 lines. Link out, do not inline.
 - **Index layer** — `dev/adr/ADR-0.6.0-decision-index.md`, `dev/interfaces/*.md`. Linked, never inlined.
 - **Retrieval layer** — grep / glob / read / LSP / tree-sitter map on demand. No local vector index.
 - **Execution layer** — typed dev-loop verbs under `scripts/agent-*.sh` emit structured JSON. Tests are oracle.
-- **Persistence layer** — the per-release board `dev/plans/runs/STATUS-<version>.md`, its single writer `dev/plans/release-state-<version>.json`, the append-only JSONL ledgers, and ADR supersession. Compaction-safe. Concrete files: § 9. `dev/progress/` is **historical** — frozen at 0.6.x; read for history, never write.
+- **Persistence layer** — the per-release board `dev/plans/runs/STATUS-<version>.md`, its single writer `dev/plans/release-state-<version>.json`, durable operational memory under `dev/agent-memory/`, the append-only JSONL ledgers, and ADR supersession. Compaction-safe. Concrete files: § 9. `dev/progress/` is **historical** — frozen at 0.6.x; read for history, never write.
 - **Permission layer** — conduct tiers (§ 11; harness config is local, not tracked) + worktree-per-task + egress limits.
-- **Topology layer** — main thread orchestrates; implementer (worktree) + the codex review gate fan out at clean seams; single-agent for shared-state edits; **one writer per checkout** — concurrent file-mutating sessions/agents each get their own worktree, or are serialized.
+- **Topology layer** — main thread coordinates; specialist implementer (isolated worktree) + independent adversarial reviewer fan out at clean seams; single-agent for shared-state edits; **one writer per checkout** — concurrent file-mutating sessions/agents each get their own worktree, or are serialized.
 
 ---
 
 ## 1. Invariants — read these first
 
-- **Memory first.** The store is **outside the repo**, under `~/.claude/projects/<repo-path-slug>/memory/` (the slug is this repo's absolute path with `/` replaced by `-`) — kebab-case topic files (e.g. `orchestration-execution-traps.md`, `release-publish-gotchas.md`) indexed by `MEMORY.md` in that same directory, auto-loaded at Claude Code session start. Read the index, then the entries bearing on your change, before planning. They encode prior corrections that override default behavior. Cite entries by their real filename — **verify the file exists before citing it** (this file once carried ten citations to files that never existed).
+- **Memory first.** Durable, cross-harness operational memory lives **in the repo** under `dev/agent-memory/` indexed by `dev/agent-memory/README.md`. Read the index and entries bearing on your change before planning; record new durable, product-generic FathomDB corrections there (never external consumer specifics). Claude Code's legacy out-of-repo `~/.claude/projects/<repo-path-slug>/memory/MEMORY.md` redirects here. Cite entries by real repo path — enforced by `scripts/check-agents-md-paths.py` in `scripts/agent-lint-md.sh`.
 - **ADRs are authoritative.** Decisions live in `dev/adr/`. Index: `dev/adr/ADR-0.6.0-decision-index.md`. Do not contradict an accepted ADR; propose a successor instead.
 - **TDD is mandatory.** Failing test first; red → green → refactor. Mechanical version bumps and renames are the only exception. Discipline: § 5.
 - **Stale > missing.** A wrong comment, doc, or ADR is more harmful than its absence. If you cannot maintain something, delete it.
@@ -32,7 +32,8 @@ Bullet form, prescriptive, ≤300 lines. Link out, do not inline.
 - **Python bindings** under `src/python/` (package: `fathomdb`) and the lockstep CLI binary wheel under `src/python-cli/` (package: `fathomdb-cli`).
 - **TypeScript bindings** under `src/ts/`.
 - **Public docs** under `docs/` (MkDocs-built).
-- **Internal engineering docs** under `dev/` — load-bearing: `dev/adr/`, `dev/interfaces/`, `dev/design/`, `dev/plans/` (boards, plans, prompts), `dev/steward/`. List `dev/` for the rest. `dev/progress/` is **historical** (0.6.x only).
+- **Internal engineering docs** under `dev/` — load-bearing: `dev/agent-memory/`, `dev/adr/`, `dev/interfaces/`, `dev/design/`, `dev/plans/` (boards, plans, prompts), `dev/steward/`. List `dev/` for the rest. `dev/progress/` is **historical** (0.6.x only).
+- **Worktrees:** Create release and feature worktrees under `/mnt/data/worktrees/<name>` (off `origin/main`), not on the root SSD. Linked worktrees point at the parent checkout's `.git/worktrees/`, so `git commit`/`git push` inside a sandbox requires write access to the parent `.git` metadata.
 
 ## 3. Build / test / lint commands
 
@@ -110,20 +111,23 @@ Do not paraphrase, summarize, or shorten compiler diagnostics — pass them thro
 
 ## 7. Subagent rules
 
-- **Canonical release & slice workflow:** Follow `dev/plans/prompts/RELEASE-AND-SLICE-PLANNING-TEMPLATE.md` with direct native subagent delegation for your active harness/model pairing. The legacy Steward and Release Orchestrator workflows and skills (`/steward`, `/orchestrate`, `/orch`, `fathomdb-steward`, `fathomdb-orchestrate`) are retired and removed — do **not** route work through Steward/Orchestrator wrappers or spawn `orchestrator`, `sealed-orchestrator`, or `steward`.
+- **Canonical release & slice workflow:** Follow `dev/plans/prompts/RELEASE-AND-SLICE-PLANNING-TEMPLATE.md` with direct native subagent delegation for your active harness/model pairing (Antigravity/Gemini, Claude Code, Codex). The legacy Steward and Release Orchestrator workflows and skills (`/steward`, `/orchestrate`, `/orch`, `fathomdb-steward`, `fathomdb-orchestrate`) are retired and removed — do **not** route work through Steward/Orchestrator wrappers or spawn `orchestrator`, `sealed-orchestrator`, or `steward`.
 - **Main thread coordinates.** Do not nest orchestrator subagents; the main thread coordinates work directly and delegates research, planning, implementation, review, and verification to specialist subagents.
-- **Reviews:** Every plan, design, and slice diff passes an independent read-only adversarial review before landing (per `dev/plans/prompts/RELEASE-AND-SLICE-PLANNING-TEMPLATE.md` Section 0). When an external reviewer is unavailable or rate-limited, fall back to an independent adversarial review subagent rather than stalling (memory `orchestration-execution-traps.md`, `codex-unavailable-use-claude-code-review.md`).
+- **Act first within agent-appropriate scope.** Before asking the user about repo state, CI runs, GitHub runners/environments, reachable build hosts, or published registry metadata, inspect them directly with read-only or authorized tools (§ 11). Escalate only true human gates: interactive auth/2FA, HITL architectural/scope rulings, destructive or privileged (`sudo`) host ops, and irreversible `v*` tag publication.
+- **Reviews:** Every plan, design, and slice diff passes an independent read-only adversarial review before landing (per `dev/plans/prompts/RELEASE-AND-SLICE-PLANNING-TEMPLATE.md` Section 0). When an external reviewer is unavailable or rate-limited, fall back to an independent adversarial review subagent rather than stalling (`dev/agent-memory/execution-and-review-traps.md`).
 - **Subagents win for fan-out.** Parallel research, format-strict review, output isolation. Examples: searching across crates, auditing a diff, generating an ADR draft.
 - **Subagents lose for shared-state edits.** A multi-agent edit pipeline drops tacit context at every handoff. Single-agent for any edit on shared mutable state.
-- **Worktrees** are the unit of isolation. Concurrent file-mutating subagents always operate in separate git worktrees; never edit in another active writer's worktree.
+- **Worktrees** are the unit of isolation. Concurrent file-mutating subagents always operate in separate git worktrees under `/mnt/data/worktrees/`; never edit in another active writer's worktree.
 - **One writer per checkout — NEVER share a checkout across concurrent file-mutating sessions or subagents.** Two writers in one working tree race on `HEAD`/branch-switch/uncommitted edits — commits land on the wrong branch and one writer's edits surface on another's. Each concurrent writer MUST have its own git worktree (cut off `origin/main`); if you can't isolate, **serialize** (run one, let it finish + verify, then the next). Read-only subagents (audit, search, review) MAY share a checkout and run concurrently. After any concurrent run, verify-from-git and push **explicit branch refs** (HEAD-independent), never relying on current HEAD. (incident 2026-06-29)
-- **Valid agent types (Claude Code `subagent_type`): enumerate, do not recall.** Project-defined types are the basenames in `.claude/agents/` — list that directory and ignore deprecated legacy seats (`orchestrator`, `sealed-orchestrator`, `steward`). The harness enumerates its own built-ins in-session. Never guess or invent a type — if none fits, omit `subagent_type` (defaults to `claude`). A wrong type is a hard error that cascades to every child.
+- **Valid agent types: enumerate, do not recall.** Check your active harness's native subagent types (or `.claude/agents/` when using Claude Code, ignoring deprecated `orchestrator`/`sealed-orchestrator`/`steward`). Never guess or invent an agent type.
 - **Legacy orchestration docs (deprecated):** `dev/design/orchestration.md` is retained only as historical reference for pre-0.8.31 runs; new work follows `dev/plans/prompts/RELEASE-AND-SLICE-PLANNING-TEMPLATE.md`.
 
 ## 8. Iteration discipline
 
 - **Cap retry-budget at ~2 same-issue corrections.** Beyond that, stop, externalize the plan to the live release board (`dev/plans/runs/STATUS-<version>.md`) or a `dev/plans/` plan file, `/clear`, restart with the plan in front of you.
-- **Compact-aware.** Anything that must survive compaction goes on disk: ADRs, the release board, `dev/plans/release-state-*.json`, the ledgers, plan files, memory entries (§ 9). Do not rely on chat to remember.
+- **Watchdog, ETA & shared-host benchmarks.** Never let a subagent or long local run wait silently >15 minutes without checking progress and giving an ETA. On shared hosts, never stall indefinitely waiting for an idle CPU — use interleaved paired runs / CPU-time controls or confirm running on the current load floor (`dev/agent-memory/execution-and-review-traps.md`).
+- **Clear HITL decisions.** When requesting a human decision, keep the prompt concise, provide concrete options, and state a clear recommendation with justification.
+- **Compact-aware.** Anything that must survive compaction goes on disk: ADRs, the release board, `dev/plans/release-state-*.json`, `dev/agent-memory/`, the ledgers, and plan files (§ 9). Do not rely on chat to remember.
 - **Front-load invariants, end-load tasks.** When prompting yourself or constructing context, put rules near the top, the immediate task near the bottom (lost-in-the-middle).
 
 ## 9. Pointers
@@ -136,7 +140,7 @@ Do not paraphrase, summarize, or shorten compiler diagnostics — pass them thro
 - **Plans:** `dev/plans/`
 - **Research:** `dev/notes/context-research-agentic-best-practices.md` (the best-practices synthesis this file operationalizes)
 - **Quality planning:** `dev/notes/fathomdb-quality-testing-roadmap.md` (testing maturity, SQLite-method fit, and release-line recommendations; consult for every new release plan)
-- **Memory:** `MEMORY.md` in the out-of-repo memory store (§ 1) — index of the kebab-case topic entries; auto-loaded at Claude Code session start.
+- **Durable agent memory:** `dev/agent-memory/README.md` (repo-tracked cross-harness operational memory index; § 1).
 
 ### Release state — where the current release actually lives
 
@@ -156,21 +160,21 @@ Hard-won from prior incidents. Violations are correctness bugs, not style prefer
 - **No backwards-compatibility shims** in pre-1.0 rewrites.
 - **No data migrations** in managed-vec projection releases — schema additions are additive ALTERs, never `INSERT…SELECT` across legacy tables. Enforced by `scripts/agent-lint-migrations.sh` in the lint verb; applied form: `dev/design/slice-G0-design.md`.
 - **No `c_char` hardcoded as `i8` or `u8`** at C interop boundaries — always `std::os::raw::c_char`. It is `i8` on x86_64/Darwin and `u8` on aarch64 Linux; hardcoding breaks one target, and only the cross-platform CI matrix catches it.
-- **No `pip install` + manual `cargo build` + `cp`** for Python native modules — use `scripts/setup-python-owned.sh --provision` for an owned noneditable wheel. Packaging contract: `dev/design/bindings.md`. (Also never `pip install -e` or `maturin develop` from a worktree — memory `agent-worktree-stale-base-trap.md`.)
+- **No `pip install` + manual `cargo build` + `cp`** for Python native modules — use `scripts/setup-python-owned.sh --provision` for an owned noneditable wheel. Packaging contract: `dev/design/bindings.md`. Never run `pip install -e` or `maturin develop` from a worktree (`dev/agent-memory/release-and-packaging-traps.md`).
 - **No `yaml.safe_load` as workflow validator** — use `actionlint`; it is wired as the canonical validator in `scripts/agent-lint.sh` and `.github/workflows/release.yml`. `yaml.safe_load` passes schema-invalid syntax GitHub silently rejects.
 - **No "fix in 0.7"** for reliability bugs. Net-negative LoC on reliability releases. (`dev/learnings.md`)
-- **No "green CI = done"** for releases — install the published wheel from the registry and run end-to-end open/close/exit before declaring done. `dev/design/release.md` § "Post-publish smoke"; memory `release-publish-gotchas.md` (pushing a `v*` tag auto-fires the real multi-registry publish) and `release-dod-requires-full-workspace-gate.md` (full-workspace clippy + check before any green claim).
-- **No shared checkout across concurrent writers.** Never run more than one file-mutating session/subagent in the same working tree at once — worktree-isolate each writer (off `origin/main`) or serialize them (§ 7). (incident 2026-06-29; memory `shared-checkout-branch-can-be-stale-vs-session-env.md`)
+- **No "green CI = done" or blind tagging for releases** — wait for cross-OS `ci.yml` on `main`, verify Trusted/Pending Publishers for any newly added package before tagging, use `scripts/release/configure-tag-cuda-route.sh` instead of hand-crafted runner-group `PATCH` calls, never run `git fetch --depth=1` in a full repo/worktree, and verify live registry installs + GitHub Release + Docs Pages before declaring done (`dev/design/release.md`, `dev/agent-memory/release-and-packaging-traps.md`).
+- **No shared checkout across concurrent writers.** Never run more than one file-mutating session/subagent in the same working tree at once — worktree-isolate each writer (off `origin/main`) or serialize them (§ 7; `dev/agent-memory/execution-and-review-traps.md`).
 - **Vector identity belongs to the embedder** — vector configs never carry identity strings. `dev/adr/ADR-0.6.0-vector-identity-embedder-owned.md` (accepted; decision-index row 11).
 
-## 11. Permission model (for the Claude Code harness)
+## 11. Permission model (cross-harness conduct tiers)
 
-No tracked file enforces permissions: `.claude/settings.json` and `.claude/settings.local.json` are gitignored (`.gitignore`), so prompts and allow/deny lists are each operator's local harness config. The conduct below holds whatever that config says:
+No tracked file enforces permissions: local harness settings (such as gitignored `.claude/settings.json` / `.claude/settings.local.json`) control prompts and allow/deny lists per operator. The conduct below holds across Antigravity/Gemini, Claude Code, Codex, and other harnesses:
 
-- **read-only** (no confirmation): `Read`, `Grep`, `Glob`, the agent-loop verbs, read-only git/cargo/uv operations.
+- **read-only** (no confirmation): `Read`, `Grep`, `Glob`, the agent-loop verbs, read-only git/cargo/uv/gh/registry inspection.
 - **workspace-write** (no confirmation): `Edit`, `Write` within the repo or your worktree; `git add`, `git commit`, `git restore`.
 - **push** (no per-push confirmation, owner 2026-10-11): branch pushes to this repo and to the owner's forks `coreyt/cudarc` and `coreyt/candle-fathomdb`. Never force-push. A `v*` tag push fires the real multi-registry publish (§ 10). Never push to any external consumer or other repository, and never to upstream third-party repositories.
-- **escalated** (surface to the user first): destructive ops (`rm`, `mv`, `git reset --hard`, `git clean`); network beyond the package registries and the repositories above (`curl`, `wget`).
+- **escalated** (surface to the user first): destructive ops (`rm`, `mv`, `git reset --hard`, `git clean`); privileged host changes (`sudo`, `/etc/hosts`); interactive authentication; network beyond the package registries and the repositories above (`curl`, `wget`).
 
 If the agent needs an op outside this model, surface it to the user; do not look for workarounds.
 
@@ -179,4 +183,4 @@ If the agent needs an op outside this model, surface it to the user; do not look
 - This file should stay ≤300 lines. If it grows, link out to a scoped doc and reference it.
 - Per-crate `AGENTS.md` files are **not maintained** until each crate has non-scaffold content. Stale > missing.
 - Update this file in the same PR as any change that invalidates one of its rules.
-- **Every path this file cites must resolve.** Before committing a change here, confirm each backticked path/filename exists — in the repo, or in the memory store for memory entries (§ 1). Unverified citations are how this file came to cite ten `feedback_*.md` / `project_*.md` files that never existed anywhere, plus `dev/progress/<release>.md` two releases after that directory froze. Prefer pointing at a **directory to enumerate** over transcribing a list that will rot (§ 7, agent types).
+- **Every path this file cites must resolve.** Enforced mechanically by `scripts/check-agents-md-paths.py` in `scripts/agent-lint-md.sh`. Prefer pointing at a **directory to enumerate** over transcribing a list that will rot (§ 7, agent types).

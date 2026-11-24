@@ -32,6 +32,12 @@ run_capped typecheck-rust-engine-release-tests \
 run_capped typecheck-rust-engine-release-test-hooks-tests \
   env RUSTFLAGS="${RUSTFLAGS:-} -Dwarnings" cargo check --release -p fathomdb-engine --lib --tests --features test-hooks,operator
 
+# Standalone release smoke fixture (not a workspace member) must stay in sync
+# with fathomdb-sdk's public structs so post-publish-smoke (crates-sdk) never
+# fails after tagging.
+run_capped typecheck-rust-release-smoke-sdk \
+  bash "$SCRIPT_DIR/check-release-smoke-sdk-compile.sh"
+
 # Python preflight: use the project's exact pinned version, so local prework
 # cannot report a false green from version drift or an absent type checker.
 readonly PYRIGHT_VERSION="1.1.410"

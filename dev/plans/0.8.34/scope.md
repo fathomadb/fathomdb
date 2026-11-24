@@ -42,6 +42,25 @@ local-first agents) to adopt FathomDB cleanly as their primary database.
        operational collections, and queued erasure state.
     4. Rebuilds affected derived projections cleanly and runs full post-upgrade
        integrity verification (`fathomdb doctor full-integrity`).
+- **Public logical export / import (`fathomdb export` / `fathomdb import`,
+  `fathomdb.logical-export/v1`)**:
+  - Ship streaming cursor-free NDJSON + `manifest.json` export/import via the
+    lockstep `fathomdb-cli` PyPI wheel alongside `fathomdb migrate` (preserving
+    `scope`, outside-`body` `properties`, app-declared vector kinds,
+    provenance/dependencies, operational collections/state, and causal
+    `full-history` order; fail-closed on unfinished erasure obligations).
+  - Support opt-in `--include-vectors` (packed uncentered `vectors.f32.bin` +
+    `_fathomdb_vector_spans` + `EmbedderIdentity`, never `embedding_bin` or
+    `mean_vec`), defaulting FathomDB-to-FathomDB import to re-embedding with an
+    opt-in same-`EmbedderIdentity` `--reuse-vectors` fast path (running
+    `recompute-mean` and open-time equivalence verification).
+- **Zero-behavior-change CLI / schema / engine-root hotspot splits (Slice 10)**:
+  - Split `fathomdb-cli/src/lib.rs` into
+    `cli/{args,doctor,recover,migrate,export,output}.rs`, split
+    `fathomdb-schema/src/lib.rs` into `schema/{mod,migrations,manifest,triggers}.rs`,
+    and thin `fathomdb-engine/src/lib.rs` into focused handle/admin modules
+    (updating `dev/tools/module-boundary-gate/src/config.rs`) as Slice 10 builds
+    the generalized migration and export engine.
 - **Real historical producer qualification**:
   - Qualify migrations against **closed golden `0.8.30` (schema 37)**,
     **`0.8.31` (schema 38+)**, and **`0.8.32`** databases created by the actual
@@ -77,6 +96,10 @@ local-first agents) to adopt FathomDB cleanly as their primary database.
     (agent SDK writer + MCP reader/writer + Inspector inspection).
   - Portable local backup/export and live upgrade proof on real closed `0.8.30`
     and `0.8.31` databases upgraded directly to `0.8.34`.
+  - Tested **Postgres + `pgvector` exit recipe** and **multi-database combine
+    workflow** (explicit conflict policies for `logical_id`/`source_id`/`scope`
+    and erasure-resurrection blocking) in `docs/operations/`, eliminating
+    pre-1.0 data lock-in concerns for personal-agent and application adopters.
 
 ## Out of scope
 

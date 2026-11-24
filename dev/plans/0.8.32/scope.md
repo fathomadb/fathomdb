@@ -73,6 +73,11 @@ read+write MCP, bulk opt-in, and deep durability receive dedicated focus here.)*
     installed artifacts, asserting identical revisions, evidence spans,
     properties, scopes, and graph results (preserving the CLI operator boundary
     in [recovery-surface.md](../../../docs/positions/recovery-surface.md)).
+  - Exercise the internal `fathomdb.logical-export/v1` durable-authority
+    round-trip as part of the rebuild proof (validating `0.8.31`'s
+    `ExportClass` manifest against real stores with properties, history, and
+    scopes, and verifying uncentered f32 vector + `_fathomdb_vector_spans` +
+    `EmbedderIdentity` export without `embedding_bin` or `mean_vec`).
 - **Power-loss / torn-write recovery proof** (from
   [0.8.31/quality-backlog.md](../0.8.31/quality-backlog.md)):
   - Declare the supported filesystem/storage/cache configuration, SQLite
@@ -91,9 +96,38 @@ read+write MCP, bulk opt-in, and deep durability receive dedicated focus here.)*
 - Scope revocation (immediate visibility hide) remains cleanly separated from
   physical erasure (`purge` / `erase_source`), and erasure respects scope
   authority while removing any scope-owned metadata cleanly.
+- Promote `0.8.31`'s `sqlite_master` completeness audit into a single-source
+  declarative `TABLE_MANIFEST` in `fathomdb-schema` deriving
+  `CANONICAL_TABLES`, `ROW_OWNED_PROJECTIONS`, visibility triggers, erasure
+  coverage, `doctor` checks, Inspector visibility, and `ExportClass` from one
+  definition so distributed implicit invariants cannot drift.
 - `sqlite_master` completeness audit, read-visibility triggers, and paired
   `v0.8.31` vs. `0.8.32` latency/RSS regression gate pass (verifying single-
   scope fast path preserves `0.8.30`/`0.8.31` latency).
+
+### 6. Contributor & agent ergonomics and targeted engine hotspot splits
+
+- **Slice 0 orientation & gate diagnostics**:
+  - Add `dev/design/cross-cutting-change-checklist.md` (linked from
+    `AGENTS.md`) and a 1-page `dev/design/README.md` live subsystem owner map.
+  - Split `dev/adr/ADR-0.6.0-decision-index.md` into **Active / Governing** and
+    **Superseded / Historical** tables so readers orient on current rulings
+    first.
+  - Tighten failure diagnostics in `scripts/check-sdk-surface-parity.py`,
+    `scripts/check-governed-surface-pin.sh`, and
+    `scripts/check-module-boundaries.sh` to name the exact registry or config
+    file to update.
+- **Zero-behavior-change engine hotspot splits (Slice 10 entry, pre-scope)**:
+  - Move top-level `slice*_tests.rs` and `*_tests.rs` files out of
+    `fathomdb-engine/src/` so the source directory maps cleanly to engine
+    subsystems.
+  - Split `fathomdb-engine/src/search.rs` and
+    `fathomdb-engine/src/evidence.rs` into cohesive submodules
+    (`search/{mod,fts_fast_path,vector_arm,fusion_stage,hydration}.rs`,
+    `evidence/{mod,ranked,graph}.rs`) and update
+    `dev/tools/module-boundary-gate/src/config.rs` before threading `scope`
+    through them, reducing diff blast radius and merge conflicts across Slices
+    10, 20, and 30.
 
 ## Out of scope
 

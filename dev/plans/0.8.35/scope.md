@@ -57,6 +57,15 @@ Build on the existing config-driven coordinators on `main`
   - Maintain fast deterministic CI smoke checks for config validation, rerun
     repeatability (identical treatment hashes), and driver contracts (measuring
     correctness only — no tamper-test bloat).
+- **Benchmark artifact hygiene & optional gate timing review**:
+  - Enforce `scripts/check-dev-hygiene.sh` throughout the campaign: keep raw
+    multi-hundred-MB benchmark traces and run outputs outside git (`data/` or
+    external/release archives, never inside `dev/plans/`), committing only
+    pinned experiment manifests and generated summary tables/charts in
+    `docs/benchmarks/`.
+  - Optional quality-of-life follow-up if full-gate wall-clock remains a
+    bottleneck: profile and parallelize the slowest serial suites in
+    `scripts/agent-verify.sh` without weakening any check.
 
 ### 2. Competitive benchmark evaluations (four apples-to-apples tracks)
 
@@ -109,8 +118,9 @@ identical LLM reader/answerer and judge models on verified installed packages:
 
 ## Out of scope
 
-- Engine architecture rewrites (ANN/HNSW stays post-1.0 / 2.x; 1–2M custom
-  kernel stays gated on E1 attribution).
+- Engine architecture rewrites or repo/source structural refactors (ANN/HNSW
+  stays post-1.0 / 2.x; 1–2M custom kernel stays gated on E1 attribution; code
+  and docs stay frozen for apples-to-apples benchmark runs).
 - Unrepeatable single-run marketing claims or undisclosed judge/hardware
   comparisons.
 - Mixing historical `0.8.x` numbers with `0.8.35` results in published tables.

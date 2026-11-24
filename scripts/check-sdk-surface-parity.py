@@ -65,6 +65,37 @@ RUST_QUALIFICATION_DIAGNOSTICS = {
 RUST_ENGINE_TRAITS = {"Debug", "Drop"}
 RUST_NAMESPACE_FILES = {"read.rs": "read", "graph.rs": "graph", "admin.rs": "admin"}
 
+PARITY_MAP_PATH = "src/conformance/governed-operation-parity.json"
+ALLOWLIST_PATH = "src/conformance/governed-surface-allowlist.json"
+SURFACE_PIN_PATH = "scripts/governed-surface-pin.json"
+PARITY_SCRIPT_PATH = "scripts/check-sdk-surface-parity.py"
+CHECKLIST_PATH = "dev/design/cross-cutting-change-checklist.md"
+BINDING_SOURCE_PATHS = {
+    "python": "src/python/fathomdb/ (and src/rust/crates/fathomdb-py/src/)",
+    "typescript": "src/ts/src/ (and src/rust/crates/fathomdb-napi/src/)",
+    "rust": "src/rust/crates/fathomdb-sdk/src/",
+}
+
+
+def _failure_remediation(binding: str | None = None) -> str:
+    if binding in BINDING_SOURCE_PATHS:
+        binding_sources = f"{binding}: {BINDING_SOURCE_PATHS[binding]}"
+    else:
+        binding_sources = "; ".join(
+            f"{name}: {path}" for name, path in BINDING_SOURCE_PATHS.items()
+        )
+    return (
+        "HINT  sdk-surface-parity: inspect and update in lockstep (with HITL sign-off for "
+        "governed-surface changes):\n"
+        f"        parity map:         {PARITY_MAP_PATH}\n"
+        f"        signed allowlist:   {ALLOWLIST_PATH}\n"
+        f"        HITL pin:           {SURFACE_PIN_PATH}\n"
+        f"        gate constants:     {PARITY_SCRIPT_PATH} "
+        "(RUST_NON_COMMAND, RUST_QUALIFICATION_DIAGNOSTICS, RUST_ENGINE_TRAITS, RUST_NAMESPACE_FILES)\n"
+        f"        binding sources:    {binding_sources}\n"
+        f"        checklist:          {CHECKLIST_PATH}"
+    )
+
 
 class ParityError(ValueError):
     """The canonical map or an observed binding surface is inconsistent."""
@@ -643,6 +674,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     except ParityError as error:
         print(f"FAIL  sdk-surface-parity: {error}", file=sys.stderr)
+        print(_failure_remediation(args.binding), file=sys.stderr)
         return 1
 
 

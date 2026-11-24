@@ -100,19 +100,20 @@ run_capped release-contract-truth "$SCRIPT_DIR/check-release-contract-truth.py"
 run_capped public-doc-truth "$SCRIPT_DIR/check-public-doc-truth.py"
 run_capped pinned-override-rot "$SCRIPT_DIR/check-pinned-override-rot.sh"
 run_capped property-test-scaffolds "$SCRIPT_DIR/check-property-test-scaffolds.py" --root .
-classification_python=""
+python311_bin=""
 for candidate in .venv/bin/python python3.13 python3.12 python3.11 python3; do
   if { [ -x "$candidate" ] || command -v "$candidate" >/dev/null 2>&1; } &&
     "$candidate" -c 'import sys; raise SystemExit(sys.version_info < (3, 11))'; then
-    classification_python="$candidate"
+    python311_bin="$candidate"
     break
   fi
 done
-if [ -z "$classification_python" ]; then
-  printf 'FAIL measurement-classification: Python >=3.11 is required. Run scripts/bootstrap.sh in a clean non-worktree checkout.\n' >&2
+if [ -z "$python311_bin" ]; then
+  printf 'FAIL lint-python311: Python >=3.11 is required for generated-public-docs and measurement-classification. Run scripts/bootstrap.sh in a clean non-worktree checkout.\n' >&2
   exit 1
 fi
-run_capped measurement-classification "$classification_python" -m experiments.measurement_classification validate-tree --repository-root .
+run_capped generated-public-docs "$python311_bin" "$SCRIPT_DIR/generate-public-docs.py" --check
+run_capped measurement-classification "$python311_bin" -m experiments.measurement_classification validate-tree --repository-root .
 
 # Python
 run_capped lint-python "$ruff_bin" check src/python

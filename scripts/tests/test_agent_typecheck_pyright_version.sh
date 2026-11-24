@@ -16,9 +16,10 @@ trap 'rm -rf "$FIX"' EXIT
   mkdir -p scripts/lib .venv/bin
   cp "$REPO_ROOT/scripts/agent-typecheck.sh" scripts/agent-typecheck.sh
   cp "$REPO_ROOT/scripts/lib/agent-output.sh" scripts/lib/agent-output.sh
-  printf '#!/usr/bin/env bash\nexit 0\n' >.venv/bin/cargo
+  printf '#!/usr/bin/env bash\nexit 0\n' >scripts/check-release-smoke-sdk-compile.sh
+  printf '#!/usr/bin/env bash\nprintf "called\\n" >>"%s/cargo-called"\nexit 0\n' "$FIX" >.venv/bin/cargo
   printf '#!/usr/bin/env bash\nprintf "pyright 1.1.409\\n"\n' >.venv/bin/pyright
-  chmod +x scripts/agent-typecheck.sh .venv/bin/cargo .venv/bin/pyright
+  chmod +x scripts/agent-typecheck.sh scripts/check-release-smoke-sdk-compile.sh .venv/bin/cargo .venv/bin/pyright
   touch README.md
   git add -A
   git commit -q -m fixture
@@ -36,6 +37,10 @@ if [ "$RC" -eq 0 ]; then
   printf 'FAIL  agent-typecheck.sh accepted an out-of-date Pyright\n' >&2
   exit 1
 fi
+if [ -e "$FIX/cargo-called" ]; then
+  printf 'FAIL  agent-typecheck.sh invoked cargo before failing Pyright version preflight\n' >&2
+  exit 1
+fi
 if ! grep -Fq 'Pyright 1.1.410' <<<"$OUT" || ! grep -Fq 'pyright 1.1.409' <<<"$OUT"; then
   printf 'FAIL  Pyright version guard did not identify required and selected versions\n' >&2
   exit 1
@@ -44,7 +49,7 @@ if ! grep -Fq 'scripts/bootstrap.sh in a clean non-worktree checkout' <<<"$OUT";
   printf 'FAIL  Pyright version guard lacks bootstrap remediation\n' >&2
   exit 1
 fi
-printf 'PASS  agent-typecheck.sh rejects a Pyright version that differs from CI\n'
+printf 'PASS  agent-typecheck.sh rejects a Pyright version that differs from CI before invoking cargo\n'
 
 cat >"$FIX/.venv/bin/pyright" <<'PYRIGHT'
 #!/usr/bin/env bash

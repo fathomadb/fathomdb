@@ -7,6 +7,36 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$SCRIPT_DIR/lib/agent-output.sh"
 cd_repo_root
 
+# Python preflight: use the project's exact pinned version before running Rust
+# checks, so local prework fails fast on version drift or an absent type
+# checker instead of spending time on cargo check first.
+readonly PYRIGHT_VERSION="1.1.410"
+pyright_bin=""
+if [ -x .venv/bin/pyright ]; then
+  pyright_bin=".venv/bin/pyright"
+elif command -v pyright >/dev/null 2>&1; then
+  pyright_bin="$(command -v pyright)"
+fi
+
+if [ -z "$pyright_bin" ]; then
+  printf 'FAIL typecheck-python: Pyright %s is required but not installed. Run scripts/bootstrap.sh in a clean non-worktree checkout.\n' "$PYRIGHT_VERSION" >&2
+  exit 1
+fi
+
+if ! pyright_version_output="$("$pyright_bin" --version 2>&1)"; then
+  printf 'FAIL typecheck-python: could not read the installed Pyright version. Run scripts/bootstrap.sh in a clean non-worktree checkout.\n' >&2
+  exit 1
+fi
+
+# Pyright's canonical version line comes first; later lines may be update
+# notices, but must not be allowed to mask an incompatible first line.
+pyright_version_line="${pyright_version_output%%$'\n'*}"
+
+if [ "$pyright_version_line" != "pyright $PYRIGHT_VERSION" ]; then
+  printf 'FAIL typecheck-python: Pyright %s is required; selected %s. Run scripts/bootstrap.sh in a clean non-worktree checkout.\n' "$PYRIGHT_VERSION" "$pyright_version_output" >&2
+  exit 1
+fi
+
 # Rust: cargo check is the type-only gate (clippy already does this in lint, but check is cheaper).
 run_capped typecheck-rust cargo check --workspace --quiet
 
@@ -37,35 +67,6 @@ run_capped typecheck-rust-engine-release-test-hooks-tests \
 # fails after tagging.
 run_capped typecheck-rust-release-smoke-sdk \
   bash "$SCRIPT_DIR/check-release-smoke-sdk-compile.sh"
-
-# Python preflight: use the project's exact pinned version, so local prework
-# cannot report a false green from version drift or an absent type checker.
-readonly PYRIGHT_VERSION="1.1.410"
-pyright_bin=""
-if [ -x .venv/bin/pyright ]; then
-  pyright_bin=".venv/bin/pyright"
-elif command -v pyright >/dev/null 2>&1; then
-  pyright_bin="$(command -v pyright)"
-fi
-
-if [ -z "$pyright_bin" ]; then
-  printf 'FAIL typecheck-python: Pyright %s is required but not installed. Run scripts/bootstrap.sh in a clean non-worktree checkout.\n' "$PYRIGHT_VERSION" >&2
-  exit 1
-fi
-
-if ! pyright_version_output="$("$pyright_bin" --version 2>&1)"; then
-  printf 'FAIL typecheck-python: could not read the installed Pyright version. Run scripts/bootstrap.sh in a clean non-worktree checkout.\n' >&2
-  exit 1
-fi
-
-# Pyright's canonical version line comes first; later lines may be update
-# notices, but must not be allowed to mask an incompatible first line.
-pyright_version_line="${pyright_version_output%%$'\n'*}"
-
-if [ "$pyright_version_line" != "pyright $PYRIGHT_VERSION" ]; then
-  printf 'FAIL typecheck-python: Pyright %s is required; selected %s. Run scripts/bootstrap.sh in a clean non-worktree checkout.\n' "$PYRIGHT_VERSION" "$pyright_version_output" >&2
-  exit 1
-fi
 
 run_capped typecheck-python "$pyright_bin" -p src/python
 

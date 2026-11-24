@@ -187,6 +187,11 @@ def fail(msg):
 
 def die_env(msg):
     print("check-governed-surface-pin: " + msg)
+    print(
+        "  Cross-references: src/conformance/governed-operation-parity.json, "
+        "scripts/check-sdk-surface-parity.py, dev/steward/steward-ledger.jsonl, "
+        "dev/design/cross-cutting-change-checklist.md"
+    )
     sys.exit(2)
 
 
@@ -405,7 +410,13 @@ if failures:
         "  prevent.\n"
         "\n"
         "  (A governed-surface change is expected to trip this gate. Tripping is CORRECT\n"
-        "  BEHAVIOUR, not a bug: it ensures every changed surface routes back to the HITL.)"
+        "  BEHAVIOUR, not a bug: it ensures every changed surface routes back to the HITL.)\n"
+        "\n"
+        "  Cross-references for HITL-approved surface changes:\n"
+        "    - canonical operation parity map: src/conformance/governed-operation-parity.json\n"
+        "    - SDK parity gate:              scripts/check-sdk-surface-parity.py\n"
+        "    - HITL decision ledger:           dev/steward/steward-ledger.jsonl\n"
+        "    - cross-cutting change checklist: dev/design/cross-cutting-change-checklist.md"
     )
     sys.exit(1)
 

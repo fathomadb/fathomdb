@@ -342,6 +342,11 @@ run_tier_suite fast test-check-governed-surface-pin bash scripts/tests/test_chec
 # mutations through the production predicate.
 run_tier_suite fast test-check-sdk-surface-parity python3 scripts/tests/test_check_sdk_surface_parity.py
 
+# 0.8.32 Slice 10 (R32-07): failure diagnostics across SDK parity, governed-
+# surface pin, and module-boundary gates must name exact owner config/policy
+# files while preserving existing diagnostic substrings.
+run_tier_suite fast test-gate-diagnostics-0832 bash scripts/tests/test_gate_diagnostics_0832.sh
+
 # 0.8.21 Slice 40: an offline GitHub-advisory snapshot and recorded
 # no-override evidence make a root npm override fail the moment it becomes
 # vulnerable, obsolete, or undocumented. The fixture includes the historical

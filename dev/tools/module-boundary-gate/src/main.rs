@@ -32,6 +32,10 @@ struct ModuleInfo {
     analysis: Analysis,
 }
 
+const POLICY_FILE_HINT: &str = "dev/tools/module-boundary-policy.txt";
+const CONFIG_EVALUATOR_HINT: &str = "dev/tools/module-boundary-gate/src/config.rs";
+const ENGINE_LIB_HINT: &str = "src/rust/crates/fathomdb-engine/src/lib.rs";
+
 fn main() -> ExitCode {
     match run() {
         Ok(()) => ExitCode::SUCCESS,
@@ -39,6 +43,11 @@ fn main() -> ExitCode {
             for error in errors {
                 eprintln!("FAIL module-boundary: {error}");
             }
+            eprintln!(
+                "HINT module-boundary: policy={POLICY_FILE_HINT} \
+                 cfg-evaluator={CONFIG_EVALUATOR_HINT} \
+                 crate-root={ENGINE_LIB_HINT}"
+            );
             ExitCode::FAILURE
         }
     }
@@ -194,10 +203,14 @@ fn discover_modules(
     }
     let physical_files = modules.keys().cloned().collect::<BTreeSet<_>>();
     for missing in declared_files.difference(&physical_files) {
-        errors.push(format!("declared out-of-line module has no source file {missing}"));
+        errors.push(format!(
+            "declared out-of-line module has no source file {missing} (check module declarations in {ENGINE_LIB_HINT} and {POLICY_FILE_HINT})"
+        ));
     }
     for undeclared in physical_files.difference(&declared_files) {
-        errors.push(format!("Rust source file is not declared from lib.rs {undeclared}"));
+        errors.push(format!(
+            "Rust source file is not declared from lib.rs {undeclared} (declare it in {ENGINE_LIB_HINT} and classify it in {POLICY_FILE_HINT})"
+        ));
     }
     if errors.is_empty() {
         Ok(modules)
@@ -464,10 +477,14 @@ fn evaluate(
     let discovered = module_inventory(modules);
     let classified = policy.classified.keys().cloned().collect::<BTreeSet<_>>();
     for missing in discovered.difference(&classified) {
-        errors.push(format!("module classification missing {missing}"));
+        errors.push(format!(
+            "module classification missing {missing} (update {POLICY_FILE_HINT} and module declarations in {ENGINE_LIB_HINT})"
+        ));
     }
     for stale in classified.difference(&discovered) {
-        errors.push(format!("module classification stale {stale}"));
+        errors.push(format!(
+            "module classification stale {stale} (update {POLICY_FILE_HINT} and module declarations in {ENGINE_LIB_HINT})"
+        ));
     }
 
     let root = modules.get("root");
@@ -475,10 +492,14 @@ fn evaluate(
         root.map_or_else(BTreeSet::new, |module| module.analysis.engine_fields.clone());
     let configured_fields = policy.field_owners.keys().cloned().collect::<BTreeSet<_>>();
     for missing in engine_fields.difference(&configured_fields) {
-        errors.push(format!("Engine field map missing {missing}"));
+        errors.push(format!(
+            "Engine field map missing {missing} (update {POLICY_FILE_HINT} and struct Engine in {ENGINE_LIB_HINT})"
+        ));
     }
     for stale in configured_fields.difference(&engine_fields) {
-        errors.push(format!("Engine field map stale {stale}"));
+        errors.push(format!(
+            "Engine field map stale {stale} (update {POLICY_FILE_HINT} and struct Engine in {ENGINE_LIB_HINT})"
+        ));
     }
 
     let mut method_owners: MethodOwners = BTreeMap::new();
@@ -551,7 +572,7 @@ fn evaluate(
     for (module, info) in modules {
         for predicate in &info.analysis.unsupported_cfg {
             errors.push(format!(
-                "unsupported cfg predicate in {}: {predicate}",
+                "unsupported cfg predicate in {}: {predicate} (check supported predicates in {CONFIG_EVALUATOR_HINT} and configuration directives in {POLICY_FILE_HINT})",
                 relative(source_root, &info.file)
             ));
         }
@@ -783,7 +804,7 @@ fn evaluate(
         }
         for index in configurations.indices() {
             errors.push(format!(
-                "forbidden dependency {source} -> {target} configuration={}",
+                "forbidden dependency {source} -> {target} configuration={} (policy: {POLICY_FILE_HINT}; cfg: {CONFIG_EVALUATOR_HINT}; crate root: {ENGINE_LIB_HINT})",
                 space.configurations[index].label
             ));
         }

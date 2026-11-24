@@ -2,6 +2,10 @@
 use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
 
+const POLICY_FILE_HINT: &str = "dev/tools/module-boundary-policy.txt";
+const CONFIG_EVALUATOR_HINT: &str = "dev/tools/module-boundary-gate/src/config.rs";
+const ENGINE_MANIFEST_HINT: &str = "src/rust/crates/fathomdb-engine/Cargo.toml";
+
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct ConfigSet(pub u128);
 impl ConfigSet {
@@ -59,26 +63,34 @@ impl ConfigSpace {
         let mut labels = BTreeSet::new();
         for (feature, label) in axes {
             if !table.contains_key(feature) {
-                errors.push(format!("configuration feature {feature} is not declared"));
+                errors.push(format!(
+                    "configuration feature {feature} is not declared (check {POLICY_FILE_HINT}, {ENGINE_MANIFEST_HINT}, and {CONFIG_EVALUATOR_HINT})"
+                ));
             }
             if !labels.insert(label.clone()) {
-                errors.push(format!("duplicate configuration label {label}"));
+                errors.push(format!(
+                    "duplicate configuration label {label} (check {POLICY_FILE_HINT} and {CONFIG_EVALUATOR_HINT})"
+                ));
             }
         }
         for (label, features) in cases {
             if !labels.insert(label.clone()) {
-                errors.push(format!("duplicate configuration label {label}"));
+                errors.push(format!(
+                    "duplicate configuration label {label} (check {POLICY_FILE_HINT} and {CONFIG_EVALUATOR_HINT})"
+                ));
             }
             for feature in features {
                 if !table.contains_key(feature) {
                     errors.push(format!(
-                        "configuration case {label} names undeclared feature {feature}"
+                        "configuration case {label} names undeclared feature {feature} (check {POLICY_FILE_HINT}, {ENGINE_MANIFEST_HINT}, and {CONFIG_EVALUATOR_HINT})"
                     ));
                 }
             }
         }
         if axes.len() > 4 || (1usize << axes.len()) + cases.len() > 16 {
-            errors.push("reviewed configuration table exceeds 128 points".to_string());
+            errors.push(format!(
+                "reviewed configuration table exceeds 128 points (check {POLICY_FILE_HINT} and {CONFIG_EVALUATOR_HINT})"
+            ));
         }
         if !errors.is_empty() {
             return Err(errors);
@@ -276,12 +288,16 @@ pub fn parse_features_table(manifest: &str) -> Result<BTreeMap<String, Vec<Strin
             continue;
         }
         let Some((name, value)) = line.split_once('=') else {
-            return Err(vec![format!("cannot parse manifest feature line {raw:?}")]);
+            return Err(vec![format!(
+                "cannot parse manifest feature line {raw:?} (check {ENGINE_MANIFEST_HINT} and {CONFIG_EVALUATOR_HINT})"
+            )]);
         };
         let name = name.trim().trim_matches('"').to_string();
         let value = value.trim().to_string();
         if !value.starts_with('[') {
-            return Err(vec![format!("manifest feature {name} is not an array")]);
+            return Err(vec![format!(
+                "manifest feature {name} is not an array (check {ENGINE_MANIFEST_HINT} and {CONFIG_EVALUATOR_HINT})"
+            )]);
         }
         if value.contains(']') {
             table.insert(name, parse_feature_array(&value)?);
@@ -290,10 +306,14 @@ pub fn parse_features_table(manifest: &str) -> Result<BTreeMap<String, Vec<Strin
         }
     }
     if pending.is_some() {
-        return Err(vec!["unterminated manifest feature array".to_string()]);
+        return Err(vec![format!(
+            "unterminated manifest feature array (check {ENGINE_MANIFEST_HINT} and {CONFIG_EVALUATOR_HINT})"
+        )]);
     }
     if table.is_empty() {
-        return Err(vec!["engine manifest declares no [features] table".to_string()]);
+        return Err(vec![format!(
+            "engine manifest declares no [features] table (check {ENGINE_MANIFEST_HINT} and {CONFIG_EVALUATOR_HINT})"
+        )]);
     }
     Ok(table)
 }

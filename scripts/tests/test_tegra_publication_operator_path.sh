@@ -7,7 +7,34 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 PUBLISHER="$REPO_ROOT/scripts/release/publish-tegra-pages.sh"
 RUNBOOK="$REPO_ROOT/docs/operations/tegra-pages-publication.md"
 PROMPT="$REPO_ROOT/dev/plans/prompts/0.8.27-TEGRA-PAGES-PUBLICATION.md"
+RETAINED_MANIFEST="$REPO_ROOT/scripts/release/tegra-pages-retained.json"
 failed=0
+
+newest_tegra_wheel_version() {
+  local manifest="$1"
+  python3 - "$manifest" <<'PY'
+import json
+import re
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as fh:
+    data = json.load(fh)
+
+versions = []
+for artifact in data.get("artifacts", []):
+    if artifact.get("kind") != "wheel":
+        continue
+    version = artifact.get("version", "")
+    match = re.fullmatch(r"(\d+)\.(\d+)\.(\d+)\+tegra", version)
+    if match:
+        versions.append((tuple(int(part) for part in match.groups()), version))
+
+if not versions:
+    raise SystemExit("no +tegra wheel version found in retained manifest")
+
+print(max(versions, key=lambda item: item[0])[1])
+PY
+}
 
 require_file() {
   local path="$1" label="$2"
@@ -42,8 +69,9 @@ if [ -f "$PUBLISHER" ]; then
   require_absent "$PUBLISHER" 'npm publish' 'publisher never publishes to the npm registry'
 fi
 if [ -f "$RUNBOOK" ]; then
+  EXPECTED_TEGRA_VERSION="$(newest_tegra_wheel_version "$RETAINED_MANIFEST")"
   require_text "$RUNBOOK" 'publish-tegra-pages.sh' 'runbook names the one-command publisher'
-  require_text "$RUNBOOK" '0.8.30+tegra' 'runbook names the exact Tegra distribution'
+  require_text "$RUNBOOK" "$EXPECTED_TEGRA_VERSION" "runbook names the exact Tegra distribution ($EXPECTED_TEGRA_VERSION)"
   require_text "$RUNBOOK" 'Maturin 1.14.1' 'runbook records the pinned build tool'
   require_text "$RUNBOOK" 'not published to PyPI' 'runbook states the registry boundary'
 fi
@@ -59,6 +87,48 @@ fi
 # publication check, even when an operator deliberately skips that smoke.
 TMPROOT="$(mktemp -d)"
 trap 'rm -rf "$TMPROOT"' EXIT
+
+# Verify the retained-manifest lookup adapts dynamically when a newer +tegra
+# version is added rather than relying on any hardcoded release version.
+DYNAMIC_MANIFEST="$TMPROOT/tegra-pages-retained.json"
+python3 - "$RETAINED_MANIFEST" "$DYNAMIC_MANIFEST" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as fh:
+    data = json.load(fh)
+data["artifacts"].append(
+    {
+        "kind": "wheel",
+        "version": "0.8.99+tegra",
+        "filename": "fathomdb-0.8.99+tegra-cp310-abi3-linux_aarch64.whl",
+        "sha256": "0" * 64,
+        "url": "https://fathomadb.github.io/fathomdb/tegra/packages/fathomdb-0.8.99+tegra-cp310-abi3-linux_aarch64.whl",
+    }
+)
+with open(sys.argv[2], "w", encoding="utf-8") as fh:
+    json.dump(data, fh, indent=2)
+    fh.write("\n")
+PY
+DYNAMIC_VERSION="$(newest_tegra_wheel_version "$DYNAMIC_MANIFEST")"
+if [ "$DYNAMIC_VERSION" = "0.8.99+tegra" ]; then
+  printf 'PASS  retained-manifest lookup adapts dynamically when newest +tegra version changes (%s)\n' "$DYNAMIC_VERSION"
+else
+  printf 'FAIL  expected dynamic newest +tegra version 0.8.99+tegra, got %s\n' "$DYNAMIC_VERSION" >&2
+  exit 1
+fi
+if grep -Fq -- "$DYNAMIC_VERSION" "$RUNBOOK"; then
+  printf 'FAIL  runbook unexpectedly already contains synthetic version %s\n' "$DYNAMIC_VERSION" >&2
+  exit 1
+fi
+DYNAMIC_RUNBOOK="$TMPROOT/runbook.md"
+sed "s/$EXPECTED_TEGRA_VERSION/$DYNAMIC_VERSION/g" "$RUNBOOK" >"$DYNAMIC_RUNBOOK"
+if grep -Fq -- "$DYNAMIC_VERSION" "$DYNAMIC_RUNBOOK"; then
+  printf 'PASS  runbook version check tracks dynamic retained-manifest updates\n'
+else
+  printf 'FAIL  updated runbook did not match dynamic version %s\n' "$DYNAMIC_VERSION" >&2
+  exit 1
+fi
 mkdir -p "$TMPROOT/bin"
 cat > "$TMPROOT/bin/git" <<'MOCK_GIT'
 #!/usr/bin/env bash

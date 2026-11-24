@@ -14,10 +14,18 @@ use rusqlite::Connection;
 use sha2::{Digest, Sha256};
 use tempfile::TempDir;
 
-const GOLDEN_SCHEMA_37_PATH: &str =
-    "/mnt/data/worktrees/fathomdb-0.8.31-golden/golden-0.8.30-schema37.sqlite";
 const GOLDEN_SCHEMA_37_SHA256: &str =
     "59d56eabb9a6e817168c5c540b4bb2ec6eb7f741fb24a72c7617df4aa5004548";
+
+fn golden_schema_37_path() -> PathBuf {
+    if let Some(path) =
+        std::env::var_os("FATHOMDB_GOLDEN_SCHEMA_37_PATH").filter(|value| !value.is_empty())
+    {
+        return PathBuf::from(path);
+    }
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../../../dev/fixtures/golden-0.8.30-schema37.sqlite")
+}
 
 fn sha256_file(path: &Path) -> String {
     let bytes = fs::read(path).expect("read file for sha256");
@@ -31,7 +39,10 @@ fn configure_test_runtime() {
 fn copy_golden(dir: &TempDir, name: &str) -> PathBuf {
     configure_test_runtime();
     let dst = dir.path().join(name);
-    fs::copy(GOLDEN_SCHEMA_37_PATH, &dst).expect("copy golden schema-37 fixture");
+    let src = golden_schema_37_path();
+    fs::copy(&src, &dst).unwrap_or_else(|err| {
+        panic!("copy golden schema-37 fixture from {}: {err}", src.display())
+    });
     assert_eq!(sha256_file(&dst), GOLDEN_SCHEMA_37_SHA256, "golden fixture checksum mismatch");
     dst
 }
@@ -65,8 +76,13 @@ fn lock_contention_fails_with_lock_held() {
     let mut lock_os = db.as_os_str().to_os_string();
     lock_os.push(".lock");
     let lock_path = PathBuf::from(lock_os);
-    let lock_file =
-        OpenOptions::new().create(true).read(true).write(true).open(&lock_path).unwrap();
+    let lock_file = OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .read(true)
+        .write(true)
+        .open(&lock_path)
+        .unwrap();
     lock_file.try_lock().unwrap();
 
     let err = migrate_37_to_38(&db, &backup_dir).unwrap_err();

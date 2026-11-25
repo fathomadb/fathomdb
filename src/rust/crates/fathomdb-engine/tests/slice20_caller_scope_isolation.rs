@@ -17,14 +17,17 @@ use fathomdb_engine::{
     Engine, EngineConfig, EngineConfigurationError, EngineError, EngineOpenError,
     EvidenceErrorReasonV1, EvidenceResolveRequestV1, EvidenceSearchRequestV1,
     FrozenReadErrorReason, GraphArmOptions, GraphEvidenceResolveRequestV1, GraphExpandRequestV1,
-    GraphReadContextV1, GraphSeedMode, GraphSeedV1, IdSpace, InitialState, LifecycleActuationV1,
-    LifecycleState, MutationProjectionStatusRequestV1, PageRequestV1, PhysicalErasurePolicy,
-    PhysicalErasureSelector, PreparedWrite, ProjectionFts, ProjectionRole, ProjectionSpec,
-    ProjectionVector, PropertyEntityClass, PropertyMap, PropertyValue, ProvenancedEdgeV1,
-    ProvenancedNodeV1, ReadContextV1, ReadView, ScopePolicy, ScopePolicyError, SearchFilter,
+    GraphExpansionDegradationCodeV1, GraphProjectionReadinessV1, GraphReadContextV1, GraphSeedMode,
+    GraphSeedV1, IdSpace, InitialState, LifecycleActuationV1, LifecycleState,
+    MutationProjectionStatusRequestV1, PageRequestV1, PhysicalErasurePolicy,
+    PhysicalErasureSelector, PreparedWrite, ProjectionFts, ProjectionGenerationErrorReason,
+    ProjectionReadinessV1, ProjectionRole, ProjectionSpec, ProjectionVector, PropertyEntityClass,
+    PropertyMap, PropertyValue, ProvenancedEdgeV1, ProvenancedNodeV1, ReadContextV1, ReadView,
+    ScopePolicy, ScopePolicyError, SearchFilter, SoftFallback, SoftFallbackBranch,
     SourceDependencyRegistrationV1, SourceId, SourceLocator, SourceRevisionId, SourceVersionId,
-    TestEmbedderChoice, TraversalDirection, WriteProvenanceV1, MAX_READ_SCOPES,
-    MAX_SCOPE_TOKEN_BYTES, MEAN_VEC_PIN_THRESHOLD,
+    StructuralDegradationCodeV1, StructuralInclusionStateV1, TestEmbedderChoice,
+    TraversalDirection, WriteProvenanceV1, MAX_READ_SCOPES, MAX_SCOPE_TOKEN_BYTES,
+    MEAN_VEC_PIN_THRESHOLD,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use proptest::prelude::*;
@@ -1728,6 +1731,548 @@ fn explain_query_plan_uses_search_only_for_unscoped_and_scoped_queries() {
             "{label} graph_expand must not SCAN: {ge_plan:?}"
         );
         handle.close().unwrap();
+    }
+}
+
+#[test]
+fn historical_dense_incomplete_does_not_leak_unembedded_scope_b_history_into_scope_a_search() {
+    let dir = TempDir::new().unwrap();
+    let path = db_path(&dir, "hist_dense_scope");
+    let emb: Arc<dyn Embedder> = Arc::new(DeterministicEmbedder);
+
+    {
+        let a = open_scoped_with_embedder(&path, ScopePolicy::single("agent-a"), Arc::clone(&emb));
+        a.configure_projections(&[body_vector_spec()], &[]).unwrap();
+        a.write(&[
+            plain_node("doc", "vec_a_near alpha_v1", "src-a", Some("a-hist"), None),
+            plain_node("doc", "vec_a_near alpha_del", "src-a", Some("a-del"), None),
+            plain_node("doc", "vec_a_near alpha_end", "src-a", Some("a-end"), None),
+        ])
+        .unwrap();
+        a.write(&[plain_node("doc", "vec_a_near alpha_v2", "src-a", Some("a-hist"), None)])
+            .unwrap();
+        a.write(&[plain_edge(
+            "a-hist",
+            "a-end",
+            "rel",
+            "vec_a_near alpha_edge_v1",
+            "e-a",
+            "src-a",
+        )])
+        .unwrap();
+        a.write(&[plain_edge(
+            "a-hist",
+            "a-end",
+            "rel",
+            "vec_a_near alpha_edge_v2",
+            "e-a",
+            "src-a",
+        )])
+        .unwrap();
+        a.transition("a-del", LifecycleState::Deleted, Some("deleted in a".into())).unwrap();
+        a.drain(10_000).unwrap();
+        a.close().unwrap();
+    }
+
+    {
+        let b = open_scoped(&path, ScopePolicy::single("agent-b"));
+        b.write(&[
+            plain_node("doc", "vec_a_near beta_v1", "src-b", Some("b-hist"), None),
+            plain_node("doc", "vec_a_near beta_del", "src-b", Some("b-del"), None),
+            plain_node("doc", "vec_a_near beta_end", "src-b", Some("b-end"), None),
+        ])
+        .unwrap();
+        b.write(&[plain_node("doc", "vec_a_near beta_v2", "src-b", Some("b-hist"), None)]).unwrap();
+        b.write(&[plain_edge("b-hist", "b-end", "rel", "vec_a_near beta_edge_v1", "e-b", "src-b")])
+            .unwrap();
+        b.write(&[plain_edge("b-hist", "b-end", "rel", "vec_a_near beta_edge_v2", "e-b", "src-b")])
+            .unwrap();
+        b.transition("b-del", LifecycleState::Deleted, Some("deleted in b".into())).unwrap();
+        b.close().unwrap();
+    }
+
+    let a = open_scoped_with_embedder(&path, ScopePolicy::single("agent-a"), Arc::clone(&emb));
+    for view in [
+        ReadView { include_superseded: true, ..ReadView::default() },
+        ReadView { include_inactive: true, ..ReadView::default() },
+        ReadView { include_superseded: true, include_inactive: true, ..ReadView::default() },
+    ] {
+        let res =
+            a.search_reranked_view("vec_a_near", None, 0, false, 0.3, 0, false, &view).unwrap();
+        assert_eq!(
+            res.soft_fallback, None,
+            "Scope B un-embedded history must NOT mark Scope A relaxed search as dense-incomplete ({view:?})"
+        );
+        assert!(
+            res.results.iter().all(|hit| hit.body.contains("alpha")),
+            "Scope B hit leaked into Scope A relaxed search: {:?}",
+            res.results
+        );
+        assert!(
+            res.results.iter().any(|hit| hit.branch == SoftFallbackBranch::Vector),
+            "Scope A vector arm must execute cleanly under relaxed ReadView ({view:?}): {:?}",
+            res.results
+        );
+    }
+    a.close().unwrap();
+
+    // Positive control: Scope B itself DOES observe dense incompleteness under relaxed ReadView
+    // when its own historical rows remain un-embedded.
+    let b = open_scoped_with_embedder(&path, ScopePolicy::single("agent-b"), Arc::clone(&emb));
+    b.set_projection_scheduler_frozen_for_test(true);
+    b.write(&[plain_node("doc", "vec_a_near beta_v3", "src-b", Some("b-hist-frozen"), None)])
+        .unwrap();
+    b.write(&[plain_node("doc", "vec_a_near beta_v4", "src-b", Some("b-hist-frozen"), None)])
+        .unwrap();
+    let res_b = b
+        .search_reranked_view(
+            "vec_a_near",
+            None,
+            0,
+            false,
+            0.3,
+            0,
+            false,
+            &ReadView { include_superseded: true, ..ReadView::default() },
+        )
+        .unwrap();
+    assert_eq!(res_b.soft_fallback, Some(SoftFallback { branch: SoftFallbackBranch::Vector }));
+    b.close().unwrap();
+}
+
+#[test]
+fn cross_scope_pending_or_failed_projection_work_does_not_degrade_clean_scope_search_or_graph_expand(
+) {
+    let dir = TempDir::new().unwrap();
+    let pending_path = db_path(&dir, "pending_cross_scope");
+    let emb: Arc<dyn Embedder> = Arc::new(DeterministicEmbedder);
+
+    {
+        let a = open_scoped_with_embedder(
+            &pending_path,
+            ScopePolicy::single("agent-a"),
+            Arc::clone(&emb),
+        );
+        a.configure_projections(&[body_vector_spec()], &[]).unwrap();
+        a.write(&[
+            plain_node("doc", "vec_a_near graphanchor alpha_root", "src-a", Some("a-root"), None),
+            plain_node("doc", "alpha_leaf", "src-a", Some("a-leaf"), None),
+            plain_edge("a-root", "a-leaf", "rel", "alpha_edge", "e-a", "src-a"),
+        ])
+        .unwrap();
+        a.drain(10_000).unwrap();
+        a.close().unwrap();
+    }
+    {
+        // Scope B writes pending un-embedded work.
+        let b = open_scoped(&pending_path, ScopePolicy::single("agent-b"));
+        b.write(&[plain_node("doc", "beta_pending", "src-b", Some("b-pending"), None)]).unwrap();
+        b.close().unwrap();
+    }
+
+    // Scope A opens with Absent embedder runtime: Scope A is fully projected, Scope B is pending.
+    let a_absent = open_scoped(&pending_path, ScopePolicy::single("agent-a"));
+    let status_a = a_absent.read_projection_generation_status().unwrap();
+    assert_eq!(status_a.readiness, ProjectionReadinessV1::Ready);
+    assert_eq!(status_a.pending_count, 0);
+    assert_eq!(status_a.failed_count, 0);
+
+    let explained_a = a_absent
+        .search_reranked_view("graphanchor", None, 0, false, 0.3, 0, true, &ReadView::default())
+        .unwrap();
+    let per_hit_a = &explained_a.explanation.as_ref().expect("explanation").per_hit;
+    assert!(!per_hit_a.is_empty());
+    for hit in per_hit_a {
+        assert_eq!(
+            hit.structural.inclusion_state,
+            StructuralInclusionStateV1::Included,
+            "Scope B pending work must NOT degrade Scope A search hit: {:?}",
+            hit.structural
+        );
+        assert!(
+            !hit.structural
+                .degradation_codes
+                .contains(&StructuralDegradationCodeV1::ProjectionBlocked),
+            "Scope B pending work must NOT emit ProjectionBlocked on Scope A: {:?}",
+            hit.structural
+        );
+    }
+
+    let expand_req = GraphExpandRequestV1::new(
+        GraphSeedV1::Query { schema_version: 1, text: "graphanchor".into(), ranked_limit: 5 },
+        TraversalDirection::Outgoing,
+        GraphReadContextV1::Current {
+            schema_version: 1,
+            context: ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap(),
+        },
+        1,
+        20,
+        1_000,
+    )
+    .with_explanation(true);
+    let expanded_a = a_absent.graph_expand(&expand_req).unwrap();
+    assert_eq!(
+        expanded_a.explanation.as_ref().expect("explanation").projection_readiness,
+        GraphProjectionReadinessV1::Ready,
+        "Scope B pending work must NOT mark Scope A GraphSeedV1::Query as Blocked"
+    );
+    assert!(
+        !expanded_a.degradation_codes.contains(&GraphExpansionDegradationCodeV1::ProjectionBlocked),
+        "Scope A graph_expand degradation_codes must not carry ProjectionBlocked: {:?}",
+        expanded_a.degradation_codes
+    );
+    a_absent.close().unwrap();
+
+    // Positive control: Scope B sees Blocked readiness under Absent runtime.
+    let b_absent = open_scoped(&pending_path, ScopePolicy::single("agent-b"));
+    let status_b = b_absent.read_projection_generation_status().unwrap();
+    assert_eq!(status_b.readiness, ProjectionReadinessV1::Blocked);
+    assert!(status_b.pending_count >= 1);
+    let expand_req_b = GraphExpandRequestV1::new(
+        GraphSeedV1::Query { schema_version: 1, text: "beta_pending".into(), ranked_limit: 5 },
+        TraversalDirection::Outgoing,
+        GraphReadContextV1::Current {
+            schema_version: 1,
+            context: ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap(),
+        },
+        1,
+        20,
+        1_000,
+    )
+    .with_explanation(true);
+    let expanded_b = b_absent.graph_expand(&expand_req_b).unwrap();
+    assert_eq!(
+        expanded_b.explanation.as_ref().expect("explanation").projection_readiness,
+        GraphProjectionReadinessV1::Blocked
+    );
+    b_absent.close().unwrap();
+
+    // Failed dense projection work in Scope B must NOT mark Scope A as Degraded.
+    let failed_path = db_path(&dir, "failed_cross_scope");
+    {
+        let a = open_scoped_with_embedder(
+            &failed_path,
+            ScopePolicy::single("agent-a"),
+            Arc::clone(&emb),
+        );
+        a.configure_projections(&[body_vector_spec()], &[]).unwrap();
+        a.write(&[plain_node(
+            "doc",
+            "vec_a_near graphanchor alpha_clean",
+            "src-a",
+            Some("a-clean"),
+            None,
+        )])
+        .unwrap();
+        a.drain(10_000).unwrap();
+        a.close().unwrap();
+    }
+    let failed_cursor_b = {
+        let b = open_scoped(&failed_path, ScopePolicy::single("agent-b"));
+        let cursor = b
+            .write(&[plain_node("doc", "beta_fail broken_doc", "src-b", Some("b-fail"), None)])
+            .unwrap()
+            .row_cursors[0];
+        b.close().unwrap();
+        cursor
+    };
+    Connection::open(&failed_path)
+        .unwrap()
+        .execute(
+            "INSERT INTO _fathomdb_projection_terminal(write_cursor,state) VALUES(?1,'failed')",
+            [failed_cursor_b],
+        )
+        .unwrap();
+    {
+        let b = open_scoped_with_embedder(
+            &failed_path,
+            ScopePolicy::single("agent-b"),
+            Arc::clone(&emb),
+        );
+        let status_b = b.read_projection_generation_status().unwrap();
+        assert_eq!(status_b.readiness, ProjectionReadinessV1::Degraded);
+        assert!(status_b.failed_count >= 1);
+        b.close().unwrap();
+    }
+    let a_usable =
+        open_scoped_with_embedder(&failed_path, ScopePolicy::single("agent-a"), Arc::clone(&emb));
+    let status_a_usable = a_usable.read_projection_generation_status().unwrap();
+    assert_eq!(status_a_usable.readiness, ProjectionReadinessV1::Ready);
+    assert_eq!(status_a_usable.failed_count, 0);
+    let expanded_a_usable = a_usable.graph_expand(&expand_req).unwrap();
+    assert_eq!(
+        expanded_a_usable.explanation.as_ref().expect("explanation").projection_readiness,
+        GraphProjectionReadinessV1::Ready
+    );
+    assert!(
+        !expanded_a_usable
+            .degradation_codes
+            .contains(&GraphExpansionDegradationCodeV1::ProjectionDegraded)
+            && !expanded_a_usable
+                .degradation_codes
+                .contains(&GraphExpansionDegradationCodeV1::ProjectionBlocked),
+        "Scope A must not observe cross-scope projection degradation: {:?}",
+        expanded_a_usable.degradation_codes
+    );
+    a_usable.close().unwrap();
+}
+
+#[test]
+fn multi_read_scope_resolves_shared_operation_id_and_detects_ambiguous_derived_lookup() {
+    let dir = TempDir::new().unwrap();
+    let path = db_path(&dir, "multi_read_shadowing");
+    let emb: Arc<dyn Embedder> = Arc::new(DeterministicEmbedder);
+
+    let (cursor_a, gen_id) = {
+        let a = open_scoped_with_embedder(&path, ScopePolicy::single("agent-a"), Arc::clone(&emb));
+        a.configure_projections(&[body_vector_spec()], &[]).unwrap();
+        let node_a = match canonical_node(
+            "doc",
+            "vec_a_near src a",
+            "src-a",
+            "node-a",
+            "shared-src-rev",
+            "v1",
+            None,
+        ) {
+            PreparedWrite::ProvenancedNode(n) => n,
+            _ => unreachable!(),
+        };
+        let der_a = match derived_node(
+            "fact",
+            "vec_a_near der a",
+            "src-a",
+            "der-a",
+            "shared-der-rev",
+            "v1",
+            "shared-src-rev",
+            "vec_a_near src a",
+        ) {
+            PreparedWrite::ProvenancedNode(n) => n,
+            _ => unreachable!(),
+        };
+        let rec_a = a
+            .actuate(
+                ActuationBatchV1::new(
+                    "shared-op",
+                    vec![
+                        ActuationOperationV1::PutCanonicalNode(node_a),
+                        ActuationOperationV1::PutDerivedNode(der_a),
+                        ActuationOperationV1::RegisterSourceDependency(
+                            SourceDependencyRegistrationV1::new(
+                                "dep-a",
+                                "shared-src-rev",
+                                "shared-der-rev",
+                            )
+                            .unwrap(),
+                        ),
+                    ],
+                )
+                .unwrap(),
+            )
+            .unwrap();
+        assert_eq!(rec_a.outcome, ActuationOutcomeV1::Committed);
+        a.drain(10_000).unwrap();
+        let gen_id = a.read_projection_generation_status().unwrap().generation_id;
+        let cursor = rec_a.pending_projection_write_cursors[0];
+        a.close().unwrap();
+        (cursor, gen_id)
+    };
+
+    let cursor_b = {
+        let b = open_scoped_with_embedder(&path, ScopePolicy::single("agent-b"), Arc::clone(&emb));
+        let node_b = match canonical_node(
+            "doc",
+            "vec_b_mid src b",
+            "src-b",
+            "node-b",
+            "shared-src-rev",
+            "v1",
+            None,
+        ) {
+            PreparedWrite::ProvenancedNode(n) => n,
+            _ => unreachable!(),
+        };
+        let der_b = match derived_node(
+            "fact",
+            "vec_b_mid der b",
+            "src-b",
+            "der-b",
+            "shared-der-rev",
+            "v1",
+            "shared-src-rev",
+            "vec_b_mid src b",
+        ) {
+            PreparedWrite::ProvenancedNode(n) => n,
+            _ => unreachable!(),
+        };
+        let der_b_unique = match derived_node(
+            "fact",
+            "vec_b_mid only b",
+            "src-b",
+            "der-b-only",
+            "only-b-der-rev",
+            "v1",
+            "shared-src-rev",
+            "vec_b_mid src b",
+        ) {
+            PreparedWrite::ProvenancedNode(n) => n,
+            _ => unreachable!(),
+        };
+        let rec_b = b
+            .actuate(
+                ActuationBatchV1::new(
+                    "shared-op",
+                    vec![
+                        ActuationOperationV1::PutCanonicalNode(node_b),
+                        ActuationOperationV1::PutDerivedNode(der_b),
+                        ActuationOperationV1::PutDerivedNode(der_b_unique),
+                        ActuationOperationV1::RegisterSourceDependency(
+                            SourceDependencyRegistrationV1::new(
+                                "dep-b",
+                                "shared-src-rev",
+                                "shared-der-rev",
+                            )
+                            .unwrap(),
+                        ),
+                        ActuationOperationV1::RegisterSourceDependency(
+                            SourceDependencyRegistrationV1::new(
+                                "dep-b-only",
+                                "shared-src-rev",
+                                "only-b-der-rev",
+                            )
+                            .unwrap(),
+                        ),
+                    ],
+                )
+                .unwrap(),
+            )
+            .unwrap();
+        assert_eq!(rec_b.outcome, ActuationOutcomeV1::Committed);
+        b.drain(10_000).unwrap();
+        let cursor = rec_b.pending_projection_write_cursors[0];
+        b.close().unwrap();
+        cursor
+    };
+
+    {
+        let ab = open_scoped_with_embedder(
+            &path,
+            ScopePolicy::read_only(["agent-a", "agent-b"]),
+            Arc::clone(&emb),
+        );
+        // Both Scope A's cursor and Scope B's cursor under shared `operation_id = "shared-op"` must resolve!
+        let status_a = ab
+            .read_mutation_projection_status(MutationProjectionStatusRequestV1 {
+                schema_version: 1,
+                operation_id: "shared-op".into(),
+                write_cursor: cursor_a,
+                expected_generation_id: gen_id.clone(),
+            })
+            .unwrap();
+        assert_eq!(status_a.write_cursor, cursor_a);
+        let status_b = ab
+            .read_mutation_projection_status(MutationProjectionStatusRequestV1 {
+                schema_version: 1,
+                operation_id: "shared-op".into(),
+                write_cursor: cursor_b,
+                expected_generation_id: gen_id.clone(),
+            })
+            .unwrap();
+        assert_eq!(status_b.write_cursor, cursor_b);
+
+        let missing_cursor_err = ab
+            .read_mutation_projection_status(MutationProjectionStatusRequestV1 {
+                schema_version: 1,
+                operation_id: "shared-op".into(),
+                write_cursor: cursor_b + 9_999,
+                expected_generation_id: gen_id.clone(),
+            })
+            .unwrap_err();
+        assert!(matches!(
+            missing_cursor_err,
+            EngineError::ProjectionGeneration(ref e)
+                if e.reason == ProjectionGenerationErrorReason::MutationNotTracked
+                    && e.field_path == "/writeCursor"
+        ));
+
+        // Unambiguous derived lookup resolves Scope B cleanly.
+        let unique_b = ab
+            .dependency_for_derived(DependencyDerivedLookupV1::new("only-b-der-rev").unwrap())
+            .unwrap()
+            .expect("only-b-der-rev exists in agent-b");
+        assert_eq!(unique_b.dependency_id.as_str(), "dep-b-only");
+
+        // Shared `derived_revision_id` across multiple readable scopes must error deterministically.
+        let ambig_dep = ab
+            .dependency_for_derived(DependencyDerivedLookupV1::new("shared-der-rev").unwrap())
+            .unwrap_err();
+        assert!(
+            matches!(ambig_dep, EngineError::InvalidArgument { ref msg } if msg.contains("derived_revision_id") && msg.contains("multiple")),
+            "expected explicit ambiguity error, got {ambig_dep:?}"
+        );
+
+        // `trace_dependency` on shared revision_id across multiple readable scopes must also error deterministically.
+        let frozen_ab = strict_frozen(&ab);
+        let ambig_trace = ab
+            .trace_dependency(
+                DependencyTraceRequestV1::new(
+                    "shared-src-rev",
+                    DependencyTraceDirectionV1::ToDependents,
+                    frozen_ab.clone(),
+                )
+                .unwrap(),
+            )
+            .unwrap_err();
+        assert!(
+            matches!(ambig_trace, EngineError::InvalidArgument { ref msg } if msg.contains("multiple")),
+            "expected explicit trace ambiguity error, got {ambig_trace:?}"
+        );
+        let unique_trace = ab
+            .trace_dependency(
+                DependencyTraceRequestV1::new(
+                    "only-b-der-rev",
+                    DependencyTraceDirectionV1::ToSource,
+                    frozen_ab,
+                )
+                .unwrap(),
+            )
+            .unwrap();
+        assert_eq!(unique_trace.dependency_edges.len(), 1);
+        ab.close().unwrap();
+    }
+
+    // Erasing Scope A's source redacts Scope A's `"shared-op"` receipt to `outcome = 'erased'`,
+    // which must NOT shadow Scope B's `"shared-op"` receipt or shared derived revision!
+    {
+        let a = open_scoped_with_embedder(&path, ScopePolicy::single("agent-a"), Arc::clone(&emb));
+        a.transition("der-a", LifecycleState::Deleted, None).unwrap();
+        a.purge("der-a").unwrap();
+        a.erase_source("src-a").unwrap();
+        a.close().unwrap();
+    }
+    {
+        let ab = open_scoped_with_embedder(
+            &path,
+            ScopePolicy::read_only(["agent-a", "agent-b"]),
+            Arc::clone(&emb),
+        );
+        let status_b_after_erase = ab
+            .read_mutation_projection_status(MutationProjectionStatusRequestV1 {
+                schema_version: 1,
+                operation_id: "shared-op".into(),
+                write_cursor: cursor_b,
+                expected_generation_id: gen_id,
+            })
+            .unwrap();
+        assert_eq!(status_b_after_erase.write_cursor, cursor_b);
+
+        let der_b_after_erase = ab
+            .dependency_for_derived(DependencyDerivedLookupV1::new("shared-der-rev").unwrap())
+            .unwrap()
+            .expect("agent-b dependency remains unambiguous once agent-a erased");
+        assert_eq!(der_b_after_erase.dependency_id.as_str(), "dep-b");
+        ab.close().unwrap();
     }
 }
 

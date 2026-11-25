@@ -13,10 +13,11 @@ use crate::search_types::{
 use crate::temporal::{edge_validity_sql_for_view, FrozenView};
 use crate::vector_storage::kind_is_vector_committable_on;
 use fathomdb_query::CompiledQuery;
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{Connection, OptionalExtension};
 
 pub(super) fn historical_dense_incomplete(
     tx: &Connection,
+    scope: &crate::scope::ScopePredicate,
     view: FrozenView,
 ) -> rusqlite::Result<bool> {
     let node_predicate = view.node_sql("n", 1);
@@ -26,14 +27,22 @@ pub(super) fn historical_dense_incomplete(
         edge_validity_sql_for_view("e", 1, &view.view)
     );
     let declared = vector_projection_declared(tx)?;
+    let mut binds = vec![
+        rusqlite::types::Value::Integer(view.edge_now()),
+        rusqlite::types::Value::Integer(i64::from(declared)),
+    ];
+    let mut node_scope_sql = String::new();
+    scope.append_sql_values("n.scope", &mut node_scope_sql, &mut binds);
+    let mut edge_scope_sql = String::new();
+    scope.append_sql_values("e.scope", &mut edge_scope_sql, &mut binds);
     let mut stmt = tx.prepare(&format!(
         "SELECT n.write_cursor,n.kind,0 FROM canonical_nodes n
-        WHERE n.row_kind IN ('leaf','coverage') {node_predicate}
+        WHERE n.row_kind IN ('leaf','coverage') AND ({node_scope_sql}){node_predicate}
         AND (?2 OR EXISTS(SELECT 1 FROM _fathomdb_vector_kinds vk WHERE vk.kind=n.kind))
         UNION ALL SELECT e.write_cursor,'edge_fact',1 FROM canonical_edges e
-        WHERE e.body IS NOT NULL {edge_predicate}"
+        WHERE e.body IS NOT NULL AND ({edge_scope_sql}){edge_predicate}"
     ))?;
-    let rows = stmt.query_map(params![view.edge_now(), declared], |r| {
+    let rows = stmt.query_map(rusqlite::params_from_iter(binds.iter()), |r| {
         Ok((r.get::<_, u64>(0)?, r.get::<_, String>(1)?, r.get::<_, bool>(2)?))
     })?;
     let mut incomplete = false;

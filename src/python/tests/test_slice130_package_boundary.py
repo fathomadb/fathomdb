@@ -808,7 +808,7 @@ class GpuAllocationWitness:
         + "    ) -> SearchResult: ...\n"
         + suffix
     )
-    # 0.8.32 Slice 20 (WP-20D) — ScopeViolationError and search_expand(view=...).
+    # 0.8.32 Slice 20 (WP-20D) — ScopeViolationError, search_expand(view=...), and Engine.open config stub.
     wp20d_deltas = (
         (
             "    search_limit: int = ...,\n    view: ReadView | None = ...,\n"
@@ -818,6 +818,14 @@ class GpuAllocationWitness:
         (
             "class ScopeViolationError(EngineError): ...\n\n\n",
             "",
+        ),
+        (
+            "        use_default_embedder: bool = ...,\n"
+            "        config: dict[str, Any] | None = ...,\n"
+            '    ) -> "Engine": ...',
+            "        use_default_embedder: bool = ...,\n"
+            "        config: dict[str, int | str | None] | None = ...,\n"
+            '    ) -> "Engine": ...',
         ),
     )
     for approved_stub, old_stub in wp20d_deltas:

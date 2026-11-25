@@ -1401,6 +1401,7 @@ pub(crate) fn read_graph_expand_with_stop_words_in_tx(
     {
         let status = projection_generation::status_in_snapshot(
             &tx,
+            scope,
             projection_runtime_state,
             view.edge_now(),
             load_next_cursor(&tx),

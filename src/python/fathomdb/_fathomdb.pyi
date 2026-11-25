@@ -524,7 +524,7 @@ class Engine:
     def open(
         path: str,
         use_default_embedder: bool = ...,
-        config: dict[str, int | str | None] | None = ...,
+        config: dict[str, Any] | None = ...,
     ) -> "Engine": ...
     # NOTE: `_configure_vector_kind_for_test`, `_write_vector_for_test`, and
     # `_set_legacy_projection_search_subobjects_for_test`

@@ -58,9 +58,9 @@ impl MigrateReport {
 pub enum MigrateErrorCode {
     /// Exclusive product lock is held or WAL checkpoint reported `busy != 0`.
     LockHeld,
-    /// Database is already at Schema 38.
+    /// Database is already at the target schema version (Schema 39, or Schema 38 for `migrate_37_to_38`).
     AlreadyCurrent,
-    /// Database `PRAGMA user_version` is neither 37 nor 38.
+    /// Database `PRAGMA user_version` is unsupported for the requested upgrade (`38 -> 39` or chained `37 -> 38 -> 39`).
     UnsupportedVersion,
     /// Unfinished physical erasure, active/queued erasure request, or redaction debt exists.
     PendingErasure,
@@ -70,7 +70,7 @@ pub enum MigrateErrorCode {
     BackupDirInvalid,
     /// Source database is missing, empty, corrupt, or has a non-empty rollback journal / bad WAL.
     DatabaseInvalid,
-    /// Schema 38 DDL transaction failed and rolled back leaving Schema 37 intact.
+    /// Schema DDL transaction (`38 -> 39` or `37 -> 38`) failed and rolled back leaving the prior schema intact.
     RollbackFailedOrDdlAborted,
 }
 

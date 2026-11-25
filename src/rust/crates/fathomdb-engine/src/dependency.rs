@@ -1249,15 +1249,33 @@ impl Engine {
              LEFT JOIN _fathomdb_source_links l \
                ON l.scope=d.scope AND l.artifact_revision_id=d.derived_revision_id \
              WHERE d.derived_revision_id=?1 AND ({scope_sql}) \
-             ORDER BY d.scope LIMIT 1"
+             ORDER BY d.scope LIMIT 2"
         );
-        let row: Option<(i64, String, i64, String, String)> = connection
-            .query_row(&sql, rusqlite::params_from_iter(binds.iter()), |row| {
-                Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?))
+        let mut statement = connection.prepare(&sql).map_err(|_| EngineError::Storage)?;
+        let rows = statement
+            .query_map(rusqlite::params_from_iter(binds.iter()), |row| {
+                Ok((
+                    row.get::<_, i64>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, i64>(2)?,
+                    row.get::<_, String>(3)?,
+                    row.get::<_, String>(4)?,
+                ))
             })
-            .optional()
+            .map_err(|_| EngineError::Storage)?
+            .collect::<rusqlite::Result<Vec<_>>>()
             .map_err(|_| EngineError::Storage)?;
-        let Some((schema, dependency_id, generation, source_revision_id, row_scope)) = row else {
+        if rows.len() > 1 {
+            return Err(EngineError::InvalidArgument {
+                msg: format!(
+                    "derived_revision_id '{}' matches multiple readable scopes",
+                    request.derived_revision_id.as_str()
+                ),
+            });
+        }
+        let Some((schema, dependency_id, generation, source_revision_id, row_scope)) =
+            rows.into_iter().next()
+        else {
             return Ok(None);
         };
         validate_persisted_dependency_row(

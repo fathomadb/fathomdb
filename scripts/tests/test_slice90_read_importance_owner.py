@@ -15,11 +15,14 @@ FAMILY = re.compile(
 )
 ORDER = (
     "self.ensure_open()?;",
+    "let scope = self.scope_predicate();",
     "self.connection.lock().map_err(|_| EngineError::Storage)?;",
     "connection.as_ref().ok_or(EngineError::Closing)?;",
+    "current_epoch_seconds()",
     'dependency_closure::read_eligibility_sql("canonical_nodes", false, false, false, 2)',
-    '"SELECT importance FROM canonical_nodes \\\n                     WHERE write_cursor = ?1{eligibility} LIMIT 1"',
-    "params![write_cursor, current_epoch_seconds()]",
+    'scope.append_sql_values("canonical_nodes.scope", &mut scope_sql, &mut binds);',
+    '"SELECT importance FROM canonical_nodes \\\n                     WHERE write_cursor = ?1 AND {scope_sql}{eligibility} LIMIT 1"',
+    "rusqlite::params_from_iter(binds.iter())",
     ".optional()",
     ".map(Option::flatten)",
 )

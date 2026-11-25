@@ -1882,7 +1882,7 @@ members), opt-in agent search hints across `search`, `search_frozen`, and
   - `ScopePolicy.read_write(read_scopes: Sequence[str] | Iterable[str], write_scope: str)`
   Passed via `EngineConfig(scope_policy=...)` or
   `Engine.open(path, scope_policy=...)` (`None` selects the single-scope
-  default; passing both `config=` and keyword `scope_policy=` raises `TypeError`
+  default; passing both `config=` and keyword `scope_policy=` raises `ValueError`
   per the `EngineConfig` exclusivity rule). Native validation enforces `1..=32`
   read scopes, non-empty UTF-8 tokens `<= 128` bytes, no ASCII
   control/`NUL`/`\x1e`, no leading/trailing whitespace, no wildcard `"*"`, and

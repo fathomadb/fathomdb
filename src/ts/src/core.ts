@@ -133,6 +133,24 @@ export type ScopePolicy =
       readonly writeScope?: string | null;
     };
 
+function assertNoLoneUtf16Surrogates(value: string, label: string): void {
+  for (let i = 0; i < value.length; i++) {
+    const code = value.charCodeAt(i);
+    if (code >= 0xd800 && code <= 0xdbff) {
+      if (i + 1 >= value.length) {
+        throw new TypeError(`${label} must not contain unpaired UTF-16 surrogates`);
+      }
+      const next = value.charCodeAt(i + 1);
+      if (next < 0xdc00 || next > 0xdfff) {
+        throw new TypeError(`${label} must not contain unpaired UTF-16 surrogates`);
+      }
+      i++;
+    } else if (code >= 0xdc00 && code <= 0xdfff) {
+      throw new TypeError(`${label} must not contain unpaired UTF-16 surrogates`);
+    }
+  }
+}
+
 /** Factory helpers matching Rust `ScopePolicy::{unscoped,single,read_only,read_write}`. */
 export const ScopePolicy = {
   unscoped(): ScopePolicy {
@@ -142,6 +160,7 @@ export const ScopePolicy = {
     if (typeof scope !== "string") {
       throw new TypeError("ScopePolicy.single scope must be a string");
     }
+    assertNoLoneUtf16Surrogates(scope, "ScopePolicy.single scope");
     return Object.freeze({
       mode: "scoped" as const,
       readScopes: Object.freeze([scope]),
@@ -151,6 +170,9 @@ export const ScopePolicy = {
   readOnly(readScopes: readonly string[]): ScopePolicy {
     if (!Array.isArray(readScopes) || !readScopes.every((s) => typeof s === "string")) {
       throw new TypeError("ScopePolicy.readOnly readScopes must be an array of strings");
+    }
+    for (const s of readScopes) {
+      assertNoLoneUtf16Surrogates(s, "ScopePolicy.readOnly readScopes entry");
     }
     return Object.freeze({
       mode: "scoped" as const,
@@ -162,9 +184,13 @@ export const ScopePolicy = {
     if (!Array.isArray(readScopes) || !readScopes.every((s) => typeof s === "string")) {
       throw new TypeError("ScopePolicy.readWrite readScopes must be an array of strings");
     }
+    for (const s of readScopes) {
+      assertNoLoneUtf16Surrogates(s, "ScopePolicy.readWrite readScopes entry");
+    }
     if (typeof writeScope !== "string") {
       throw new TypeError("ScopePolicy.readWrite writeScope must be a string");
     }
+    assertNoLoneUtf16Surrogates(writeScope, "ScopePolicy.readWrite writeScope");
     return Object.freeze({
       mode: "scoped" as const,
       readScopes: Object.freeze([...readScopes]),
@@ -196,8 +222,14 @@ function snapshotScopePolicy(value: unknown): ScopePolicy {
   if (!Array.isArray(readScopes) || !readScopes.every((s) => typeof s === "string")) {
     throw new TypeError("engineConfig.scopePolicy.readScopes must be an array of strings");
   }
+  for (const s of readScopes) {
+    assertNoLoneUtf16Surrogates(s, "engineConfig.scopePolicy.readScopes entry");
+  }
   if (writeScope !== undefined && writeScope !== null && typeof writeScope !== "string") {
     throw new TypeError("engineConfig.scopePolicy.writeScope must be a string or null");
+  }
+  if (typeof writeScope === "string") {
+    assertNoLoneUtf16Surrogates(writeScope, "engineConfig.scopePolicy.writeScope");
   }
   return Object.freeze({
     mode: "scoped" as const,

@@ -977,7 +977,7 @@ pub(crate) fn execute(
     let binding = frozen_read::authenticate(&tx, &request.context, scope)?;
     frozen_read::validate_snapshot(&tx, &binding)?;
     let effective = request.context.effective_valid_at;
-    let mut matched_root: Option<(String, DependencyTraceNodeV1)> = None;
+    let mut matched_roots: Vec<(String, DependencyTraceNodeV1)> = Vec::new();
     for candidate_scope in scope.read_scopes() {
         let Some(preflight_role) =
             root_chain_role(&tx, candidate_scope, &request.root_revision_id)?
@@ -998,10 +998,17 @@ pub(crate) fn execute(
             continue;
         }
         candidate_root.depth = 0;
-        matched_root = Some((candidate_scope.clone(), candidate_root));
-        break;
+        matched_roots.push((candidate_scope.clone(), candidate_root));
     }
-    let Some((row_scope, root)) = matched_root else {
+    if matched_roots.len() > 1 {
+        return Err(EngineError::InvalidArgument {
+            msg: format!(
+                "root_revision_id '{}' matches multiple readable scopes",
+                request.root_revision_id
+            ),
+        });
+    }
+    let Some((row_scope, root)) = matched_roots.into_iter().next() else {
         return Err(unavailable());
     };
     let role_ok = matches!(

@@ -416,9 +416,9 @@ refresh in the closing commit when you touch a doc).
 | `docs/positions/tokenizer-policy.md` | Position: tokenizer policy | 5 (FTS5 default upgrade) | 2026-05-01 |
 | `dev/archive/release-notes/0.8.26.md` | Historical 0.8.26 highlights, schema boundary, published artifacts and install routes | 0.8.27 Slice 10 | 2026-09-21 |
 | `docs/positions/embedder-identity.md` | Position: embedder identity | — | 2026-05-01 |
-| `dev/archive/release-notes/0.6.0.md` | 0.6.0 historical release notes; current-link banner names 0.8.31 | 0.8.31 Slice 70 | 2026-11-23 |
-| `dev/archive/release-notes/0.6.1.md` | 0.6.1 historical release notes; current-link banner names 0.8.31 | 0.8.31 Slice 70 | 2026-11-23 |
-| `dev/archive/release-notes/0.8.0.md` | 0.8.0 historical release notes; current-link banner names 0.8.31 | 0.8.31 Slice 70 | 2026-11-23 |
+| `dev/archive/release-notes/0.6.0.md` | 0.6.0 historical release notes; current-link banner names 0.8.32 | 0.8.32 Slice 20 | 2026-11-25 |
+| `dev/archive/release-notes/0.6.1.md` | 0.6.1 historical release notes; current-link banner names 0.8.32 | 0.8.32 Slice 20 | 2026-11-25 |
+| `dev/archive/release-notes/0.8.0.md` | 0.8.0 historical release notes; current-link banner names 0.8.32 | 0.8.32 Slice 20 | 2026-11-25 |
 | `dev/releases/0.8.0.md` | 0.8.0 internal release record | 40/GA-2 | 2026-06-08 |
 
 ## Corpus / eval expansion (out-of-band, owner-managed — integrated at Slice-5 push 2026-06-02)

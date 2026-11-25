@@ -174,6 +174,8 @@ pub(crate) struct CachedProjectionGenerationStatus {
     effective_from_epoch_s: i64,
     valid_before_epoch_s: Option<i64>,
     runtime_state: ProjectionRuntimeStateV1,
+    is_unscoped: bool,
+    scope_read_scopes: Vec<String>,
     status: ProjectionGenerationStatusV1,
 }
 
@@ -184,6 +186,8 @@ pub(crate) struct CachedMutationProjectionStatus {
     authoritative_boundary: u64,
     effective_at_epoch_s: i64,
     runtime_state: ProjectionRuntimeStateV1,
+    is_unscoped: bool,
+    scope_read_scopes: Vec<String>,
     request: MutationProjectionStatusRequestV1,
     status: MutationProjectionStatusV1,
 }
@@ -1109,7 +1113,7 @@ fn completion_aggregate_row(
     Ok((pending, failed, first_incomplete))
 }
 
-fn unregistered_node_completion_sql() -> String {
+fn unregistered_node_completion_sql(scope: &crate::scope::ScopePredicate) -> String {
     let builtin_kinds = super::VECTOR_COMMITTABLE_NODE_KIND_SOURCE_TYPES
         .iter()
         .map(|(kind, _)| format!("'{kind}'"))
@@ -1121,6 +1125,7 @@ fn unregistered_node_completion_sql() -> String {
         .map(|(kind, source_type)| format!("WHEN '{kind}' THEN '{source_type}'"))
         .collect::<Vec<_>>()
         .join(" ");
+    let (scope_sql, _) = scope.sql_clause("n.scope", 3);
     format!(
         "WITH members AS (
         SELECT n.write_cursor AS cursor,
@@ -1134,7 +1139,8 @@ fn unregistered_node_completion_sql() -> String {
         LEFT JOIN _fathomdb_vector_rows vr ON vr.write_cursor=n.write_cursor
         LEFT JOIN vector_default vd ON vd.rowid=n.write_cursor
         LEFT JOIN _fathomdb_vector_kinds vk ON vk.kind=n.kind AND vk.kind<>'edge_fact'
-        WHERE n.row_kind IN ('leaf','coverage')
+        WHERE ({scope_sql})
+          AND n.row_kind IN ('leaf','coverage')
           AND (n.kind IN ({builtin_kinds}) OR vk.kind IS NOT NULL)
           AND (?1!=0 OR vk.kind IS NOT NULL)
           AND NOT EXISTS(
@@ -1166,22 +1172,25 @@ fn unregistered_node_completion_sql() -> String {
 
 fn aggregate_unregistered_node_completion(
     connection: &Connection,
+    scope: &crate::scope::ScopePredicate,
     node_arm_declared: bool,
     runtime_state: ProjectionRuntimeStateV1,
 ) -> Result<(u64, u64, Option<u64>), EngineError> {
-    let sql = unregistered_node_completion_sql();
-    completion_aggregate_row(
-        connection,
-        &sql,
-        params![
-            i64::from(node_arm_declared),
-            i64::from(runtime_state == ProjectionRuntimeStateV1::Usable)
-        ],
-    )
+    let sql = unregistered_node_completion_sql(scope);
+    let mut binds = vec![
+        rusqlite::types::Value::Integer(i64::from(node_arm_declared)),
+        rusqlite::types::Value::Integer(i64::from(
+            runtime_state == ProjectionRuntimeStateV1::Usable,
+        )),
+    ];
+    scope.push_values(&mut binds);
+    completion_aggregate_row(connection, &sql, rusqlite::params_from_iter(binds.iter()))
 }
 
-fn unregistered_edge_completion_sql() -> &'static str {
-    "WITH members AS (
+fn unregistered_edge_completion_sql(scope: &crate::scope::ScopePredicate) -> String {
+    let (scope_sql, _) = scope.sql_clause("e.scope", 2);
+    format!(
+        "WITH members AS (
         SELECT e.write_cursor AS cursor,pt.state AS terminal,
                vr.rowid AS sidecar_rowid,vr.kind AS sidecar_kind,
                vd.source_type AS physical_source_type,vd.kind AS physical_kind,
@@ -1191,7 +1200,8 @@ fn unregistered_edge_completion_sql() -> &'static str {
         LEFT JOIN _fathomdb_vector_rows vr ON vr.write_cursor=e.write_cursor
         LEFT JOIN vector_default vd ON vd.rowid=e.write_cursor
         LEFT JOIN _fathomdb_vector_kinds vk ON vk.kind='edge_fact'
-        WHERE e.body IS NOT NULL
+        WHERE ({scope_sql})
+          AND e.body IS NOT NULL
           AND (e.t_invalid IS NULL OR e.t_invalid>?1)
           AND NOT EXISTS(
             SELECT 1 FROM _fathomdb_artifact_revisions r
@@ -1214,27 +1224,35 @@ fn unregistered_edge_completion_sql() -> &'static str {
              MIN(CASE WHEN pending OR failed THEN cursor END),
              COALESCE(SUM(NOT (complete OR failed OR pending)),0)
       FROM classified"
+    )
 }
 
 fn aggregate_unregistered_edge_completion(
     connection: &Connection,
+    scope: &crate::scope::ScopePredicate,
     effective_at: i64,
 ) -> Result<(u64, u64, Option<u64>), EngineError> {
-    completion_aggregate_row(connection, unregistered_edge_completion_sql(), [effective_at])
+    let sql = unregistered_edge_completion_sql(scope);
+    let mut binds = vec![rusqlite::types::Value::Integer(effective_at)];
+    scope.push_values(&mut binds);
+    completion_aggregate_row(connection, &sql, rusqlite::params_from_iter(binds.iter()))
 }
 
 fn add_registered_completion(
     connection: &Connection,
+    scope: &crate::scope::ScopePredicate,
     effective_at: i64,
     runtime_state: ProjectionRuntimeStateV1,
     artifact_class: &str,
     accumulator: &mut CompletionAccumulator,
 ) -> Result<(), EngineError> {
     let owner_table = if artifact_class == "node" { "canonical_nodes" } else { "canonical_edges" };
-    let sql = registered_completion_sql(owner_table);
+    let sql = registered_completion_sql(owner_table, scope);
+    let mut binds = vec![rusqlite::types::Value::Text(artifact_class.to_string())];
+    scope.push_values(&mut binds);
     let mut statement = connection.prepare(&sql).map_err(|_| EngineError::Storage)?;
     let rows = statement
-        .query_map([artifact_class], |row| row.get::<_, u64>(0))
+        .query_map(rusqlite::params_from_iter(binds.iter()), |row| row.get::<_, u64>(0))
         .map_err(|_| EngineError::Storage)?;
     for row in rows {
         let cursor = row.map_err(|_| EngineError::Storage)?;
@@ -1247,19 +1265,22 @@ fn add_registered_completion(
     Ok(())
 }
 
-fn registered_completion_sql(owner_table: &str) -> String {
+fn registered_completion_sql(owner_table: &str, scope: &crate::scope::ScopePredicate) -> String {
+    let (scope_sql, _) = scope.sql_clause("d.scope", 2);
     format!(
         "SELECT DISTINCT owner.write_cursor FROM _fathomdb_source_dependencies d
          CROSS JOIN _fathomdb_artifact_revisions r
            ON r.scope=d.scope AND r.revision_id=d.derived_revision_id AND r.artifact_class=?1
          CROSS JOIN {owner_table} owner
            ON owner.scope=r.scope AND owner.write_cursor=r.write_cursor
+         WHERE ({scope_sql})
          ORDER BY owner.write_cursor"
     )
 }
 
 fn empty_physical_fast_path(
     connection: &Connection,
+    scope: &crate::scope::ScopePredicate,
     effective_at: i64,
     node_arm_declared: bool,
 ) -> Result<Option<CompletionAccumulator>, EngineError> {
@@ -1287,25 +1308,35 @@ fn empty_physical_fast_path(
         .map(|(kind, _)| format!("'{kind}'"))
         .collect::<Vec<_>>()
         .join(",");
+    let (node_scope_sql, _) = scope.sql_clause("n.scope", 2);
+    let mut node_binds = vec![rusqlite::types::Value::Integer(i64::from(node_arm_declared))];
+    scope.push_values(&mut node_binds);
     let node_sql = format!(
         "SELECT COUNT(*),MIN(n.write_cursor),COALESCE(SUM(vk.kind IS NULL),0)
          FROM canonical_nodes n
          LEFT JOIN _fathomdb_vector_kinds vk ON vk.kind=n.kind AND vk.kind<>'edge_fact'
-         WHERE n.row_kind IN ('leaf','coverage')
+         WHERE ({node_scope_sql})
+           AND n.row_kind IN ('leaf','coverage')
            AND (n.kind IN ({builtin_kinds}) OR vk.kind IS NOT NULL)
            AND (?1!=0 OR vk.kind IS NOT NULL)"
     );
     let (node_count, first_node, unenrolled_nodes): (u64, Option<u64>, u64) = connection
-        .query_row(&node_sql, [i64::from(node_arm_declared)], |row| {
+        .query_row(&node_sql, rusqlite::params_from_iter(node_binds.iter()), |row| {
             Ok((row.get(0)?, row.get(1)?, row.get(2)?))
         })
         .map_err(|_| EngineError::Storage)?;
+    let (edge_scope_sql, _) = scope.sql_clause("scope", 2);
+    let mut edge_binds = vec![rusqlite::types::Value::Integer(effective_at)];
+    scope.push_values(&mut edge_binds);
     let (edge_count, first_edge): (u64, Option<u64>) = connection
         .query_row(
-            "SELECT COUNT(*),MIN(write_cursor) FROM canonical_edges
-             WHERE body IS NOT NULL
-               AND (t_invalid IS NULL OR t_invalid>?1)",
-            [effective_at],
+            &format!(
+                "SELECT COUNT(*),MIN(write_cursor) FROM canonical_edges
+                 WHERE ({edge_scope_sql})
+                   AND body IS NOT NULL
+                   AND (t_invalid IS NULL OR t_invalid>?1)"
+            ),
+            rusqlite::params_from_iter(edge_binds.iter()),
             |row| Ok((row.get(0)?, row.get(1)?)),
         )
         .map_err(|_| EngineError::Storage)?;
@@ -1399,30 +1430,31 @@ fn explain_status_query(
 pub(crate) fn status_query_plans_for_test(
     connection: &Connection,
 ) -> Result<Vec<String>, EngineError> {
+    let unscoped = crate::scope::ScopePredicate::unscoped();
     let mut plans = Vec::new();
     plans.extend(explain_status_query(
         connection,
         "unregistered_node",
-        &unregistered_node_completion_sql(),
-        vec![1_i64.into(), 1_i64.into()],
+        &unregistered_node_completion_sql(&unscoped),
+        vec![1_i64.into(), 1_i64.into(), "".to_string().into()],
     )?);
     plans.extend(explain_status_query(
         connection,
         "unregistered_edge",
-        unregistered_edge_completion_sql(),
-        vec![current_epoch_seconds().into()],
+        &unregistered_edge_completion_sql(&unscoped),
+        vec![current_epoch_seconds().into(), "".to_string().into()],
     )?);
     plans.extend(explain_status_query(
         connection,
         "registered_node",
-        &registered_completion_sql("canonical_nodes"),
-        vec!["node".to_string().into()],
+        &registered_completion_sql("canonical_nodes", &unscoped),
+        vec!["node".to_string().into(), "".to_string().into()],
     )?);
     plans.extend(explain_status_query(
         connection,
         "registered_edge",
-        &registered_completion_sql("canonical_edges"),
-        vec!["edge".to_string().into()],
+        &registered_completion_sql("canonical_edges", &unscoped),
+        vec!["edge".to_string().into(), "".to_string().into()],
     )?);
     plans.extend(explain_status_query(
         connection,
@@ -1435,6 +1467,7 @@ pub(crate) fn status_query_plans_for_test(
 
 fn physical_completion(
     connection: &Connection,
+    scope: &crate::scope::ScopePredicate,
     effective_at: i64,
     runtime_state: ProjectionRuntimeStateV1,
     observed_boundary: u64,
@@ -1469,7 +1502,7 @@ fn physical_completion(
         )
         .map_err(|_| EngineError::Storage)?;
     let accumulator = if let Some(accumulator) =
-        empty_physical_fast_path(connection, effective_at, node_arm_declared)?
+        empty_physical_fast_path(connection, scope, effective_at, node_arm_declared)?
     {
         accumulator
     } else {
@@ -1477,12 +1510,14 @@ fn physical_completion(
         if node_arm_declared || has_explicit_node_enrolment {
             let (pending, failed, first) = aggregate_unregistered_node_completion(
                 connection,
+                scope,
                 node_arm_declared,
                 runtime_state,
             )?;
             accumulator.add_aggregate(pending, failed, first)?;
             add_registered_completion(
                 connection,
+                scope,
                 effective_at,
                 runtime_state,
                 "node",
@@ -1490,10 +1525,11 @@ fn physical_completion(
             )?;
         }
         let (pending, failed, first) =
-            aggregate_unregistered_edge_completion(connection, effective_at)?;
+            aggregate_unregistered_edge_completion(connection, scope, effective_at)?;
         accumulator.add_aggregate(pending, failed, first)?;
         add_registered_completion(
             connection,
+            scope,
             effective_at,
             runtime_state,
             "edge",
@@ -1517,12 +1553,14 @@ fn physical_completion(
 
 pub(crate) fn status_in_snapshot(
     connection: &Connection,
+    scope: &crate::scope::ScopePredicate,
     runtime_state: ProjectionRuntimeStateV1,
     effective_at_epoch_s: i64,
     observed_boundary: u64,
 ) -> Result<ProjectionGenerationStatusV1, EngineError> {
     status_with_capture_in_snapshot(
         connection,
+        scope,
         runtime_state,
         effective_at_epoch_s,
         observed_boundary,
@@ -1533,6 +1571,7 @@ pub(crate) fn status_in_snapshot(
 
 fn status_with_capture_in_snapshot(
     connection: &Connection,
+    scope: &crate::scope::ScopePredicate,
     runtime_state: ProjectionRuntimeStateV1,
     effective_at_epoch_s: i64,
     observed_boundary: u64,
@@ -1541,6 +1580,7 @@ fn status_with_capture_in_snapshot(
     let generation = current_generation(connection)?;
     let (completion, coverage) = physical_completion(
         connection,
+        scope,
         effective_at_epoch_s,
         runtime_state,
         observed_boundary,
@@ -1582,43 +1622,75 @@ pub(crate) fn next_status_membership_boundary(
     connection: &Connection,
     effective_at_epoch_s: i64,
 ) -> Result<Option<i64>, EngineError> {
+    next_status_membership_boundary_with_scope(connection, effective_at_epoch_s, None)
+}
+
+fn next_status_membership_boundary_in_scope(
+    connection: &Connection,
+    effective_at_epoch_s: i64,
+    scope: &crate::scope::ScopePredicate,
+) -> Result<Option<i64>, EngineError> {
+    next_status_membership_boundary_with_scope(connection, effective_at_epoch_s, Some(scope))
+}
+
+fn next_status_membership_boundary_with_scope(
+    connection: &Connection,
+    effective_at_epoch_s: i64,
+    scope: Option<&crate::scope::ScopePredicate>,
+) -> Result<Option<i64>, EngineError> {
+    let mut binds = vec![rusqlite::types::Value::Integer(effective_at_epoch_s)];
+    let (edge_scope_predicate, dep_scope_predicate_from, dep_scope_predicate_until) =
+        if let Some(scope) = scope {
+            let mut edge_sql = String::new();
+            scope.append_sql_values("scope", &mut edge_sql, &mut binds);
+            let mut dep_from_sql = String::new();
+            scope.append_sql_values("dependency.scope", &mut dep_from_sql, &mut binds);
+            let mut dep_until_sql = String::new();
+            scope.append_sql_values("dependency.scope", &mut dep_until_sql, &mut binds);
+            (
+                format!(" AND ({edge_sql})"),
+                format!(" AND ({dep_from_sql})"),
+                format!(" AND ({dep_until_sql})"),
+            )
+        } else {
+            (String::new(), String::new(), String::new())
+        };
+    let sql = format!(
+        "WITH boundaries(boundary) AS (\
+           SELECT t_invalid FROM canonical_edges \
+           WHERE body IS NOT NULL \
+             AND t_invalid>?1{edge_scope_predicate} \
+           UNION ALL \
+           SELECT source_node.valid_from \
+           FROM _fathomdb_source_dependencies dependency \
+           JOIN _fathomdb_source_links derived_link \
+             ON derived_link.scope=dependency.scope \
+            AND derived_link.artifact_revision_id=dependency.derived_revision_id \
+           JOIN _fathomdb_artifact_revisions source_revision \
+             ON source_revision.scope=dependency.scope \
+            AND source_revision.revision_id=derived_link.source_revision_id \
+           JOIN canonical_nodes source_node \
+             ON source_node.scope=source_revision.scope \
+            AND source_node.write_cursor=source_revision.write_cursor \
+           WHERE source_node.valid_from>?1{dep_scope_predicate_from} \
+           UNION ALL \
+           SELECT source_node.valid_until \
+           FROM _fathomdb_source_dependencies dependency \
+           JOIN _fathomdb_source_links derived_link \
+             ON derived_link.scope=dependency.scope \
+            AND derived_link.artifact_revision_id=dependency.derived_revision_id \
+           JOIN _fathomdb_artifact_revisions source_revision \
+             ON source_revision.scope=dependency.scope \
+            AND source_revision.revision_id=derived_link.source_revision_id \
+           JOIN canonical_nodes source_node \
+             ON source_node.scope=source_revision.scope \
+            AND source_node.write_cursor=source_revision.write_cursor \
+           WHERE source_node.valid_until>?1{dep_scope_predicate_until}\
+         ) \
+         SELECT MIN(boundary) FROM boundaries"
+    );
     connection
-        .query_row(
-            "WITH boundaries(boundary) AS (\
-               SELECT t_invalid FROM canonical_edges \
-               WHERE body IS NOT NULL \
-                 AND t_invalid>?1 \
-               UNION ALL \
-               SELECT source_node.valid_from \
-               FROM _fathomdb_source_dependencies dependency \
-               JOIN _fathomdb_source_links derived_link \
-                 ON derived_link.scope=dependency.scope \
-                AND derived_link.artifact_revision_id=dependency.derived_revision_id \
-               JOIN _fathomdb_artifact_revisions source_revision \
-                 ON source_revision.scope=dependency.scope \
-                AND source_revision.revision_id=derived_link.source_revision_id \
-               JOIN canonical_nodes source_node \
-                 ON source_node.scope=source_revision.scope \
-                AND source_node.write_cursor=source_revision.write_cursor \
-               WHERE source_node.valid_from>?1 \
-               UNION ALL \
-               SELECT source_node.valid_until \
-               FROM _fathomdb_source_dependencies dependency \
-               JOIN _fathomdb_source_links derived_link \
-                 ON derived_link.scope=dependency.scope \
-                AND derived_link.artifact_revision_id=dependency.derived_revision_id \
-               JOIN _fathomdb_artifact_revisions source_revision \
-                 ON source_revision.scope=dependency.scope \
-                AND source_revision.revision_id=derived_link.source_revision_id \
-               JOIN canonical_nodes source_node \
-                 ON source_node.scope=source_revision.scope \
-                AND source_node.write_cursor=source_revision.write_cursor \
-               WHERE source_node.valid_until>?1\
-             ) \
-             SELECT MIN(boundary) FROM boundaries",
-            [effective_at_epoch_s],
-            |row| row.get(0),
-        )
+        .query_row(&sql, rusqlite::params_from_iter(binds.iter()), |row| row.get(0))
         .map_err(|_| EngineError::Storage)
 }
 
@@ -1626,6 +1698,7 @@ impl Engine {
     fn cached_status_in_snapshot(
         &self,
         connection: &Connection,
+        scope: &crate::scope::ScopePredicate,
         runtime_state: ProjectionRuntimeStateV1,
         effective_at_epoch_s: i64,
         boundary: u64,
@@ -1649,6 +1722,8 @@ impl Engine {
                     .valid_before_epoch_s
                     .is_none_or(|boundary| effective_at_epoch_s < boundary)
                 && cached.runtime_state == runtime_state
+                && cached.is_unscoped == scope.is_unscoped()
+                && cached.scope_read_scopes.as_slice() == scope.read_scopes()
             {
                 let mut status = cached.status.clone();
                 status.effective_at_epoch_s = effective_at_epoch_s;
@@ -1660,6 +1735,7 @@ impl Engine {
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let (status, counts) = status_with_capture_in_snapshot(
             connection,
+            scope,
             runtime_state,
             effective_at_epoch_s,
             boundary,
@@ -1671,7 +1747,7 @@ impl Engine {
             None => None,
         };
         let valid_before_epoch_s =
-            next_status_membership_boundary(connection, effective_at_epoch_s)?;
+            next_status_membership_boundary_in_scope(connection, effective_at_epoch_s, scope)?;
         *cache = Some(CachedProjectionGenerationStatus {
             visibility_generation,
             data_version,
@@ -1679,6 +1755,8 @@ impl Engine {
             effective_from_epoch_s: effective_at_epoch_s,
             valid_before_epoch_s,
             runtime_state,
+            is_unscoped: scope.is_unscoped(),
+            scope_read_scopes: scope.read_scopes().to_vec(),
             status: status.clone(),
         });
         Ok((status, coverage))
@@ -1689,6 +1767,7 @@ impl Engine {
         effective_at_epoch_s: i64,
     ) -> Result<ProjectionGenerationStatusV1, EngineError> {
         let _operation = self.ensure_open()?;
+        let scope = self.scope_predicate();
         let mut guard = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = guard.as_mut().ok_or(EngineError::Closing)?;
         let tx = connection
@@ -1700,8 +1779,13 @@ impl Engine {
             ProjectionRuntimeStateV1::Usable
         };
         let boundary = authoritative_boundary(&tx)?;
-        let (status, coverage) =
-            self.cached_status_in_snapshot(&tx, runtime_state, effective_at_epoch_s, boundary)?;
+        let (status, coverage) = self.cached_status_in_snapshot(
+            &tx,
+            &scope,
+            runtime_state,
+            effective_at_epoch_s,
+            boundary,
+        )?;
         tx.commit().map_err(|_| EngineError::Storage)?;
         self.publish_stored_head_coverage(coverage)?;
         Ok(status)
@@ -1770,12 +1854,15 @@ impl Engine {
         {
             let cache =
                 self.mutation_projection_status_cache.lock().map_err(|_| EngineError::Storage)?;
+            let scope = self.scope_predicate();
             if let Some(cached) = cache.as_ref() {
                 if cached.visibility_generation == visibility_generation
                     && cached.data_version == data_version
                     && cached.authoritative_boundary == boundary
                     && cached.effective_at_epoch_s == effective_at_epoch_s
                     && cached.runtime_state == runtime_state
+                    && cached.is_unscoped == scope.is_unscoped()
+                    && cached.scope_read_scopes.as_slice() == scope.read_scopes()
                     && cached.request == request
                 {
                     let status = cached.status.clone();
@@ -1790,50 +1877,60 @@ impl Engine {
         let mut scope_sql = String::new();
         scope.append_sql_values("scope", &mut scope_sql, &mut binds);
         let receipt_sql = format!(
-            "SELECT outcome,request_sha256,scope FROM _fathomdb_actuation_receipts \
-             WHERE operation_id=?1 AND ({scope_sql}) ORDER BY scope LIMIT 1"
+            "SELECT outcome,request_sha256,scope,pending_projection_write_cursors_json \
+             FROM _fathomdb_actuation_receipts \
+             WHERE operation_id=?1 AND ({scope_sql}) ORDER BY scope"
         );
-        let raw_receipt: Option<(String, Option<String>, String)> = tx
-            .query_row(&receipt_sql, rusqlite::params_from_iter(binds.iter()), |row| {
-                Ok((row.get(0)?, row.get(1)?, row.get(2)?))
-            })
-            .optional()
-            .map_err(|_| EngineError::Storage)?;
-        let Some((outcome, digest, row_scope)) = raw_receipt else {
+        let rows = {
+            let mut statement = tx.prepare(&receipt_sql).map_err(|_| EngineError::Storage)?;
+            let mapped = statement
+                .query_map(rusqlite::params_from_iter(binds.iter()), |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, Option<String>>(1)?,
+                        row.get::<_, String>(2)?,
+                        row.get::<_, String>(3)?,
+                    ))
+                })
+                .map_err(|_| EngineError::Storage)?;
+            mapped.collect::<rusqlite::Result<Vec<_>>>().map_err(|_| EngineError::Storage)?
+        };
+        let mut saw_active_receipt = false;
+        let mut matched: Option<(String, super::actuation::ActuationReceiptV1)> = None;
+        let target_cursor_str = request.write_cursor.to_string();
+        for (outcome, digest, row_scope, pending_json) in rows {
+            if outcome == "erased" {
+                continue;
+            }
+            saw_active_receipt = true;
+            let cursor_strs: Vec<String> =
+                serde_json::from_str(&pending_json).map_err(|_| EngineError::Storage)?;
+            if !cursor_strs.iter().any(|s| s == &target_cursor_str) {
+                continue;
+            }
+            let Some(receipt) = super::actuation::load_receipt(
+                &tx,
+                &row_scope,
+                &request.operation_id,
+                digest.as_deref().unwrap_or_default(),
+                None,
+            )?
+            else {
+                continue;
+            };
+            if receipt.pending_projection_write_cursors.contains(&request.write_cursor) {
+                matched = Some((row_scope, receipt));
+                break;
+            }
+        }
+        let Some((row_scope, receipt)) = matched else {
+            let field_path = if saw_active_receipt { "/writeCursor" } else { "/operationId" };
             return Err(ProjectionGenerationError::new(
                 ProjectionGenerationErrorReason::MutationNotTracked,
-                "/operationId",
+                field_path,
             )
             .into());
         };
-        if outcome == "erased" {
-            return Err(ProjectionGenerationError::new(
-                ProjectionGenerationErrorReason::MutationNotTracked,
-                "/operationId",
-            )
-            .into());
-        }
-        let Some(receipt) = super::actuation::load_receipt(
-            &tx,
-            &row_scope,
-            &request.operation_id,
-            digest.as_deref().unwrap_or_default(),
-            None,
-        )?
-        else {
-            return Err(ProjectionGenerationError::new(
-                ProjectionGenerationErrorReason::MutationNotTracked,
-                "/operationId",
-            )
-            .into());
-        };
-        if !receipt.pending_projection_write_cursors.contains(&request.write_cursor) {
-            return Err(ProjectionGenerationError::new(
-                ProjectionGenerationErrorReason::MutationNotTracked,
-                "/writeCursor",
-            )
-            .into());
-        }
         let Some(stored_generation) = receipt.projection_generation_id else {
             return Err(ProjectionGenerationError::new(
                 ProjectionGenerationErrorReason::ProjectionGenerationUnavailable,
@@ -1857,8 +1954,13 @@ impl Engine {
             effective_at_epoch_s,
             runtime_state,
         )?;
-        let (status, coverage) =
-            self.cached_status_in_snapshot(&tx, runtime_state, effective_at_epoch_s, boundary)?;
+        let (status, coverage) = self.cached_status_in_snapshot(
+            &tx,
+            &scope,
+            runtime_state,
+            effective_at_epoch_s,
+            boundary,
+        )?;
         let (owner_readiness, owner_pending, owner_failed) = match owner_completion {
             Completion::Complete => (ProjectionReadinessV1::Ready, false, false),
             Completion::Failed => (ProjectionReadinessV1::Degraded, false, true),
@@ -1893,6 +1995,8 @@ impl Engine {
                 authoritative_boundary: boundary,
                 effective_at_epoch_s,
                 runtime_state,
+                is_unscoped: scope.is_unscoped(),
+                scope_read_scopes: scope.read_scopes().to_vec(),
                 request: cache_request,
                 status: result.clone(),
             });
@@ -2218,5 +2322,131 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn cached_status_in_snapshot_partitions_cache_by_scope() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let path =
+            dir.path().join(format!("cached-scope-partition{}", fathomdb_schema::SQLITE_SUFFIX));
+        let embedder = std::sync::Arc::new(fathomdb_embedder::NoopEmbedder::default());
+
+        {
+            let a = crate::Engine::open_with_test_choice_and_config_for_test(
+                &path,
+                crate::TestEmbedderChoice::Caller(embedder),
+                crate::EngineConfig::default()
+                    .with_scope_policy(crate::ScopePolicy::single("agent-a")),
+            )
+            .unwrap()
+            .engine;
+            a.configure_projections(
+                &[crate::ProjectionSpec {
+                    name: "memory".into(),
+                    roles: [crate::ProjectionRole::Searchable].into_iter().collect(),
+                    fts: None,
+                    vector: Some(crate::ProjectionVector {
+                        embedder: None,
+                        dense_readiness: None,
+                        kinds: None,
+                    }),
+                    source: None,
+                    entity_class: crate::PropertyEntityClass::Node,
+                }],
+                &[],
+            )
+            .unwrap();
+            a.write(&[crate::PreparedWrite::Node {
+                kind: "doc".into(),
+                body: "alpha".into(),
+                source_id: crate::SourceId::new("src-a").unwrap(),
+                logical_id: Some("a1".into()),
+                state: crate::InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                properties: None,
+            }])
+            .unwrap();
+            a.drain(10_000).unwrap();
+            a.close().unwrap();
+        }
+        {
+            let b = crate::Engine::open_with_choice_and_config(
+                &path,
+                crate::EmbedderChoice::None,
+                crate::EngineConfig::default()
+                    .with_scope_policy(crate::ScopePolicy::single("agent-b")),
+            )
+            .unwrap()
+            .engine;
+            b.write(&[crate::PreparedWrite::Node {
+                kind: "doc".into(),
+                body: "beta pending".into(),
+                source_id: crate::SourceId::new("src-b").unwrap(),
+                logical_id: Some("b1".into()),
+                state: crate::InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                properties: None,
+            }])
+            .unwrap();
+            b.close().unwrap();
+        }
+
+        let engine = crate::Engine::open_with_choice_and_config(
+            &path,
+            crate::EmbedderChoice::None,
+            crate::EngineConfig::default(),
+        )
+        .unwrap()
+        .engine;
+        let scope_a = crate::scope::ScopePredicate::single_for_query("agent-a");
+        let scope_b = crate::scope::ScopePredicate::single_for_query("agent-b");
+        {
+            let mut guard = engine.connection.lock().unwrap();
+            let conn = guard.as_mut().unwrap();
+            let tx = conn.transaction().unwrap();
+            let boundary = authoritative_boundary(&tx).unwrap();
+            let now = 1_000_i64;
+
+            let (status_a1, _) = engine
+                .cached_status_in_snapshot(
+                    &tx,
+                    &scope_a,
+                    ProjectionRuntimeStateV1::Absent,
+                    now,
+                    boundary,
+                )
+                .unwrap();
+            assert_eq!(status_a1.readiness, ProjectionReadinessV1::Ready);
+            assert_eq!(status_a1.pending_count, 0);
+
+            let (status_b1, _) = engine
+                .cached_status_in_snapshot(
+                    &tx,
+                    &scope_b,
+                    ProjectionRuntimeStateV1::Absent,
+                    now,
+                    boundary,
+                )
+                .unwrap();
+            assert_eq!(status_b1.readiness, ProjectionReadinessV1::Blocked);
+            assert_eq!(status_b1.pending_count, 1);
+
+            let (status_a2, _) = engine
+                .cached_status_in_snapshot(
+                    &tx,
+                    &scope_a,
+                    ProjectionRuntimeStateV1::Absent,
+                    now,
+                    boundary,
+                )
+                .unwrap();
+            assert_eq!(status_a2.readiness, ProjectionReadinessV1::Ready);
+            assert_eq!(status_a2.pending_count, 0);
+        }
+        engine.close().unwrap();
     }
 }

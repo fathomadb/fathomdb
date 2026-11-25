@@ -58,6 +58,42 @@ test("invalid ScopePolicy fails Engine.open with InvalidArgumentError", async ()
   }
 });
 
+test("ScopePolicy rejects lone UTF-16 surrogates with TypeError (AC-068b)", async () => {
+  const loneHigh = "\uD800";
+  const loneLow = "\uDFFF";
+  for (const bad of [loneHigh, loneLow, `prefix${loneHigh}`, `${loneLow}suffix`]) {
+    assert.throws(() => ScopePolicy.single(bad), TypeError);
+    assert.throws(() => ScopePolicy.readOnly([bad]), TypeError);
+    assert.throws(() => ScopePolicy.readOnly(["agent-a", bad]), TypeError);
+    assert.throws(() => ScopePolicy.readWrite([bad], "agent-a"), TypeError);
+    assert.throws(() => ScopePolicy.readWrite(["agent-a"], bad), TypeError);
+    assert.throws(() => ScopePolicy.readWrite([bad], bad), TypeError);
+
+    await assert.rejects(
+      Engine.open(freshDbPath(), {
+        scopePolicy: { mode: "scoped", readScopes: [bad], writeScope: null },
+      }),
+      TypeError,
+    );
+    await assert.rejects(
+      Engine.open(freshDbPath(), {
+        engineConfig: {
+          scopePolicy: { mode: "scoped", readScopes: ["agent-a"], writeScope: bad },
+        },
+      }),
+      TypeError,
+    );
+  }
+
+  // Valid surrogate pair passes UTF-16 validation.
+  const validPair = ScopePolicy.single("agent-\uD83D\uDE80");
+  assert.deepEqual(validPair, {
+    mode: "scoped",
+    readScopes: ["agent-\uD83D\uDE80"],
+    writeScope: "agent-\uD83D\uDE80",
+  });
+});
+
 test("two callers are isolated and readOnly rejects writes with ScopeViolationError", async () => {
   const path = freshDbPath();
   const aWriter = await Engine.open(path, { engineConfig: { scopePolicy: ScopePolicy.single("a") } });

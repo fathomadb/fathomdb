@@ -16,10 +16,11 @@ FAMILY = re.compile(
 ORDER = (
     "if !importance.is_finite() || !(0.0..=1.0).contains(&importance)",
     "self.ensure_open()?;",
+    'self.scope_predicate().require_write_scope("write_node_importance")',
     "dependency_closure::maintain_before_writer(connection)?;",
     "transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)",
     "dependency_closure::guard_no_pending_physical(&tx)?;",
-    '"UPDATE canonical_nodes SET importance = ?1 WHERE write_cursor = ?2"',
+    '"UPDATE canonical_nodes SET importance = ?1 WHERE scope = ?2 AND write_cursor = ?3"',
     "tx.commit().map_err(|_| EngineError::Storage)?;",
 )
 

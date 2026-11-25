@@ -18,8 +18,8 @@
 //!   `--rebuild-projections`, `--excise-source`, and the
 //!   `--excise-collection` / `--excise-record-key` pair.
 //! - `fathomdb migrate --backup-dir <dir> [--json] <db_path>` — explicit
-//!   offline Schema 37 -> 38 database upgrade with SHA-256-verified backup
-//!   and post-upgrade full integrity verification.
+//!   offline Schema 38 -> 39 (and chained 37 -> 38 -> 39) database upgrade with
+//!   SHA-256-verified backup and post-upgrade full integrity verification.
 //!
 //! `--json` is the normative machine-readable contract on every verb; exit
 //! codes are a stable class set (`0` clean, `64` data-loss acknowledged, `65`
@@ -98,18 +98,18 @@ pub struct Cli {
 ///
 /// Three roots per `dev/interfaces/cli.md` § Roots: `recover` for lossy
 /// operator workflows, `doctor` for diagnostics, and `migrate` for explicit
-/// offline Schema 37 -> 38 upgrades.
+/// offline Schema 38 -> 39 (and chained 37 -> 38 -> 39) upgrades.
 #[derive(Debug, Subcommand)]
 pub enum Command {
     /// Run a lossy / non-bit-preserving recovery workflow.
     Recover(RecoverArgs),
     /// Run an operator diagnostic verb.
     Doctor(DoctorArgs),
-    /// Upgrade a quiescent Schema-37 database offline to Schema 38.
+    /// Upgrade a quiescent Schema-38 or Schema-37 database offline to Schema 39.
     Migrate(MigrateArgs),
 }
 
-/// Argument set for the `migrate` root command (`37 -> 38` offline upgrade).
+/// Argument set for the `migrate` root command (`38 -> 39` and chained `37 -> 38 -> 39` offline upgrade).
 #[derive(Debug, Args)]
 pub struct MigrateArgs {
     /// Directory where the pre-upgrade SHA-256-verified backup is written.
@@ -120,7 +120,7 @@ pub struct MigrateArgs {
     #[arg(long)]
     pub json: bool,
 
-    /// Path to the Schema-37 database file to upgrade.
+    /// Path to the Schema-38 or Schema-37 database file to upgrade to Schema 39.
     pub db_path: PathBuf,
 }
 

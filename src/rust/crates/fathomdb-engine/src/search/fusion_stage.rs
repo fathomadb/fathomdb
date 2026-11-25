@@ -330,7 +330,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     let history_incomplete = if (view.view.include_superseded || view.view.include_inactive)
         && direct_text_candidate_limit.is_none()
     {
-        let incomplete = historical_dense_incomplete(&tx, view)?;
+        let incomplete = historical_dense_incomplete(&tx, scope, view)?;
         query_vector.is_none() || incomplete
     } else {
         false
@@ -627,6 +627,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         .then(|| {
             projection_generation::status_in_snapshot(
                 &tx,
+                scope,
                 projection_runtime_state,
                 view.edge_now(),
                 next_write_cursor_for_search(&tx),

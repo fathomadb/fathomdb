@@ -1026,3 +1026,7 @@ name = "slice50_open_report_capabilities"
 [[test]]
 name = "slice50_migrate_37_to_38"
 required-features = ["operator", "migration-test-hooks", "test-hooks"]
+
+[[test]]
+name = "slice20_migrate_38_to_39"
+required-features = ["operator", "migration-test-hooks", "test-hooks"]

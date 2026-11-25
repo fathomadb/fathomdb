@@ -434,6 +434,36 @@ impl Drop for VisibilityCoalescingGuard<'_, '_> {
     }
 }
 
+fn quote_sql_list<'a>(names: impl Iterator<Item = &'a str>) -> String {
+    names.map(|name| format!("'{}'", name.replace('\'', "''"))).collect::<Vec<_>>().join(",")
+}
+
+static CANONICAL_CUSTOM_TRIGGER_CHECK_SQL: std::sync::LazyLock<String> =
+    std::sync::LazyLock::new(|| {
+        let tables = quote_sql_list(
+            fathomdb_schema::TABLE_MANIFEST
+                .iter()
+                .filter(|entry| entry.guard_canonical_custom_triggers)
+                .map(|entry| entry.name),
+        );
+        let builtins =
+            quote_sql_list(fathomdb_schema::BUILTIN_NON_VISIBILITY_TRIGGERS.iter().copied());
+        format!(
+            "SELECT EXISTS(\
+             SELECT 1 FROM sqlite_master \
+             WHERE type='trigger' \
+               AND tbl_name IN ({tables}) \
+               AND name NOT LIKE '_fathomdb_read_visibility_%' \
+               AND name NOT IN ({builtins}) \
+             UNION ALL \
+             SELECT 1 FROM sqlite_temp_master \
+             WHERE type='trigger' \
+               AND tbl_name IN ({tables}) \
+               AND name NOT LIKE '_fathomdb_read_visibility_%'\
+         )"
+        )
+    });
+
 pub(crate) fn canonical_batch_has_no_custom_triggers(
     connection: &Connection,
 ) -> rusqlite::Result<bool> {
@@ -441,36 +471,7 @@ pub(crate) fn canonical_batch_has_no_custom_triggers(
         return Ok(false);
     }
     let unexpected: bool = connection
-        .prepare_cached(
-            "SELECT EXISTS(
-             SELECT 1 FROM sqlite_master
-             WHERE type='trigger'
-               AND tbl_name IN (
-                   'canonical_nodes','canonical_edges','_fathomdb_artifact_revisions',
-                   '_fathomdb_source_versions','_fathomdb_source_links',
-                   '_fathomdb_source_dependencies','_fathomdb_dependency_closures',
-                   'canonical_attributes','canonical_property_values','_fathomdb_projection_state',
-                   '_fathomdb_projection_terminal','_fathomdb_vector_kinds',
-                   '_fathomdb_vector_rows','_fathomdb_vector_spans','operational_mutations',
-                   '_fathomdb_open_state','_fathomdb_read_visibility_state'
-               )
-               AND name NOT LIKE '_fathomdb_read_visibility_%'
-               AND name!='_fathomdb_vector_spans_mapping_delete'
-             UNION ALL
-             SELECT 1 FROM sqlite_temp_master
-             WHERE type='trigger'
-               AND tbl_name IN (
-                   'canonical_nodes','canonical_edges','_fathomdb_artifact_revisions',
-                   '_fathomdb_source_versions','_fathomdb_source_links',
-                   '_fathomdb_source_dependencies','_fathomdb_dependency_closures',
-                   'canonical_attributes','canonical_property_values','_fathomdb_projection_state',
-                   '_fathomdb_projection_terminal','_fathomdb_vector_kinds',
-                   '_fathomdb_vector_rows','_fathomdb_vector_spans','operational_mutations',
-                   '_fathomdb_open_state','_fathomdb_read_visibility_state'
-               )
-               AND name NOT LIKE '_fathomdb_read_visibility_%'
-         )",
-        )?
+        .prepare_cached(CANONICAL_CUSTOM_TRIGGER_CHECK_SQL.as_str())?
         .query_row([], |row| row.get(0))?;
     Ok(!unexpected)
 }
@@ -974,7 +975,7 @@ pub(crate) fn apply_batch_in_transaction(
                     "INSERT INTO operational_state(
                         collection_name, record_key, payload_json, schema_id, write_cursor
                      ) VALUES(?1, ?2, ?3, ?4, ?5)
-                     ON CONFLICT(collection_name, record_key) DO UPDATE SET
+                     ON CONFLICT(scope, collection_name, record_key) DO UPDATE SET
                         payload_json = excluded.payload_json,
                         schema_id = excluded.schema_id,
                         write_cursor = excluded.write_cursor",

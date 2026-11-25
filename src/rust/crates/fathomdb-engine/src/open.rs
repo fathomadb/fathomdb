@@ -2611,7 +2611,7 @@ mod device_policy_open_error_tests {
 #[test]
 fn slice70_orphan_prune_compares_vector_identity() {
     let conn = crate::vector_storage::slice70_mapping_fixture(false);
-    conn.execute_batch("INSERT INTO vector_default(rowid,embedding,embedding_bin,source_type,kind,created_at,status,lifecycle,valid_from,valid_until) VALUES(103,vec_f32('[1,1,1,1,1,1,1,1]'),vec_quantize_binary(vec_f32('[1,1,1,1,1,1,1,1]')),'article','doc',0,'',0,-9223372036854775808,9223372036854775807);").unwrap();
+    conn.execute_batch("INSERT INTO vector_default(rowid,embedding,embedding_bin,source_type,kind,created_at,status,lifecycle,valid_from,valid_until,scope) VALUES(103,vec_f32('[1,1,1,1,1,1,1,1]'),vec_quantize_binary(vec_f32('[1,1,1,1,1,1,1,1]')),'article','doc',0,'',0,-9223372036854775808,9223372036854775807,'');").unwrap();
     prune_orphaned_edge_vectors(&conn).unwrap();
     let ids = conn
         .prepare("SELECT rowid FROM vector_default ORDER BY rowid")

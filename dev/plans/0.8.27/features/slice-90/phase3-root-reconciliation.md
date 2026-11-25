@@ -1,7 +1,7 @@
 ---
 title: Slice 90 Phase 3 root reconciliation
 target_release: 0.8.27
-lib_rs_blob: 06dbe6bff9dd64803b224047f2f02d81716f38ac
+lib_rs_blob: e199f78088610d80c97fa3787a8cb68c316194b2
 ---
 
 # Slice 90 Phase 3 root reconciliation

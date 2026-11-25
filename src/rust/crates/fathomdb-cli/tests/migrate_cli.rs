@@ -1,4 +1,4 @@
-//! End-to-end binary execution tests for `fathomdb migrate` (Schema 37 -> 38).
+//! End-to-end binary execution tests for `fathomdb migrate` (Schema 37/38 -> 39).
 
 use std::fs::{self, OpenOptions};
 use std::path::{Path, PathBuf};
@@ -12,6 +12,8 @@ use tempfile::TempDir;
 
 const GOLDEN_SCHEMA_37_SHA256: &str =
     "59d56eabb9a6e817168c5c540b4bb2ec6eb7f741fb24a72c7617df4aa5004548";
+const GOLDEN_SCHEMA_38_SHA256: &str =
+    "e0a078bde37ec3e973bba8b03c9bfb7c42505b16da1b038ca946fb08332c8036";
 
 fn golden_schema_37_path() -> PathBuf {
     if let Some(path) =
@@ -21,6 +23,16 @@ fn golden_schema_37_path() -> PathBuf {
     }
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../../../dev/fixtures/golden-0.8.30-schema37.sqlite")
+}
+
+fn golden_schema_38_path() -> PathBuf {
+    if let Some(path) =
+        std::env::var_os("FATHOMDB_GOLDEN_SCHEMA_38_PATH").filter(|value| !value.is_empty())
+    {
+        return PathBuf::from(path);
+    }
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../../../dev/fixtures/golden-0.8.31-schema38.sqlite")
 }
 
 fn sha256_file(path: &Path) -> String {
@@ -41,6 +53,22 @@ fn copy_golden(dir: &TempDir, name: &str) -> PathBuf {
         panic!("copy golden schema-37 fixture from {}: {err}", src.display())
     });
     assert_eq!(sha256_file(&dst), GOLDEN_SCHEMA_37_SHA256, "golden fixture checksum mismatch");
+    dst
+}
+
+fn copy_golden_38(dir: &TempDir, name: &str) -> PathBuf {
+    configure_test_runtime();
+    let dst = dir.path().join(name);
+    let src = golden_schema_38_path();
+    fs::copy(&src, &dst).unwrap_or_else(|err| {
+        panic!("copy golden schema-38 fixture from {}: {err}", src.display())
+    });
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(&dst, fs::Permissions::from_mode(0o644)).unwrap();
+    }
+    assert_eq!(sha256_file(&dst), GOLDEN_SCHEMA_38_SHA256, "golden schema-38 checksum mismatch");
     dst
 }
 
@@ -107,34 +135,34 @@ fn migrate_lock_held_exits_71_with_json_error_and_no_backup() {
 }
 
 #[test]
-fn migrate_wrong_versions_36_38_39_exit_70_untouched() {
+fn migrate_wrong_versions_36_39_40_exit_70_untouched() {
     configure_test_runtime();
     let dir = TempDir::new().unwrap();
     let backup_dir = dir.path().join("backups");
 
-    // Version 38 (fresh) -> AlreadyCurrent (exit 70)
-    let db38 = dir.path().join("v38.sqlite");
+    // Version 39 (fresh) -> AlreadyCurrent (exit 70)
+    let db39 = dir.path().join("v39.sqlite");
     {
-        let opened = Engine::open(&db38).unwrap();
+        let opened = Engine::open(&db39).unwrap();
         opened.engine.close().unwrap();
     }
-    let before38 = sha256_file(&db38);
+    let before39 = sha256_file(&db39);
     let (code, body) = run_cli_json(&[
         "migrate",
         "--backup-dir",
         backup_dir.to_str().unwrap(),
         "--json",
-        db38.to_str().unwrap(),
+        db39.to_str().unwrap(),
     ]);
     assert_eq!(code, 70, "{body}");
     assert_eq!(body["verb"], "migrate");
     assert_eq!(body["status"], "error");
     assert_eq!(body["code"], "E_MIGRATE_ALREADY_CURRENT");
-    assert_eq!(sha256_file(&db38), before38);
+    assert_eq!(sha256_file(&db39), before39);
     assert_eq!(dir_file_count(&backup_dir), 0);
 
-    // Versions 36 and 39 -> UnsupportedVersion (exit 70)
-    for version in [36u32, 39u32] {
+    // Versions 36 and 40 -> UnsupportedVersion (exit 70)
+    for version in [36u32, 40u32] {
         let db = copy_golden(&dir, &format!("v{version}.sqlite"));
         {
             let conn = Connection::open(&db).unwrap();
@@ -255,7 +283,7 @@ fn migrate_dangling_edges_fail_closed_70_and_superseded_only_admitted_0() {
     assert_eq!(body["verb"], "migrate");
     assert_eq!(body["status"], "ok");
     assert_eq!(body["from_version"], 37);
-    assert_eq!(body["to_version"], 38);
+    assert_eq!(body["to_version"], 39);
     assert_eq!(body["preflight"]["dangling_edge_endpoints"], 0);
     assert_eq!(body["preflight"]["superseded_edge_endpoints"], 1);
     assert_eq!(body["integrity"]["status"], "clean");
@@ -270,7 +298,7 @@ fn migrate_dangling_edges_fail_closed_70_and_superseded_only_admitted_0() {
 fn migrate_golden_schema_37_db_json_and_human_and_full_integrity_check() {
     let dir = TempDir::new().unwrap();
 
-    // JSON mode on golden copy
+    // JSON mode on golden copy (37 -> 38 -> 39 preserving original schema-37 backup)
     let db = copy_golden(&dir, "golden_json.sqlite");
     let backup_dir = dir.path().join("backups_json");
     let (code, body) = run_cli_json(&[
@@ -284,7 +312,7 @@ fn migrate_golden_schema_37_db_json_and_human_and_full_integrity_check() {
     assert_eq!(body["verb"], "migrate");
     assert_eq!(body["status"], "ok");
     assert_eq!(body["from_version"], 37);
-    assert_eq!(body["to_version"], 38);
+    assert_eq!(body["to_version"], 39);
     assert_eq!(body["backup_sha256"], GOLDEN_SCHEMA_37_SHA256);
     assert_eq!(body["preflight"]["dangling_edge_endpoints"], 0);
     assert_eq!(body["preflight"]["superseded_edge_endpoints"], 0);
@@ -314,6 +342,58 @@ fn migrate_golden_schema_37_db_json_and_human_and_full_integrity_check() {
         db_human.to_str().unwrap(),
     ]);
     assert_eq!(human_code, 0, "stdout={stdout}\nstderr={stderr}");
-    assert!(stdout.contains("37") && stdout.contains("38"), "stdout={stdout}");
+    assert!(stdout.contains("37") && stdout.contains("39"), "stdout={stdout}");
     assert!(stdout.contains(GOLDEN_SCHEMA_37_SHA256), "stdout={stdout}");
+}
+
+#[test]
+fn migrate_golden_schema_38_db_json_and_human_and_full_integrity_check() {
+    let dir = TempDir::new().unwrap();
+
+    // JSON mode on golden Schema-38 copy (38 -> 39)
+    let db = copy_golden_38(&dir, "golden38_json.sqlite");
+    let backup_dir = dir.path().join("backups_38_json");
+    let (code, body) = run_cli_json(&[
+        "migrate",
+        "--backup-dir",
+        backup_dir.to_str().unwrap(),
+        "--json",
+        db.to_str().unwrap(),
+    ]);
+    assert_eq!(code, 0, "{body}");
+    assert_eq!(body["verb"], "migrate");
+    assert_eq!(body["status"], "ok");
+    assert_eq!(body["from_version"], 38);
+    assert_eq!(body["to_version"], 39);
+    assert_eq!(body["backup_sha256"], GOLDEN_SCHEMA_38_SHA256);
+    assert_eq!(body["preflight"]["dangling_edge_endpoints"], 0);
+    assert_eq!(body["preflight"]["superseded_edge_endpoints"], 0);
+    assert_eq!(body["integrity"]["status"], "clean");
+    assert_eq!(body["integrity"]["full"], true);
+
+    let backup_path = PathBuf::from(body["backup_path"].as_str().expect("backup_path string"));
+    assert!(backup_path.is_file());
+    assert_eq!(sha256_file(&backup_path), GOLDEN_SCHEMA_38_SHA256);
+
+    // Follow-up doctor check-integrity --full exits 0
+    let (doc_code, doc_body) =
+        run_cli_json(&["doctor", "check-integrity", "--full", "--json", db.to_str().unwrap()]);
+    assert_eq!(doc_code, 0, "{doc_body}");
+    assert_eq!(doc_body["verb"], "check-integrity");
+    assert_eq!(doc_body["physical"]["status"], "clean");
+    assert_eq!(doc_body["logical"]["status"], "clean");
+    assert_eq!(doc_body["semantic"]["status"], "clean");
+
+    // Human text mode on a second golden Schema-38 copy
+    let db_human = copy_golden_38(&dir, "golden38_human.sqlite");
+    let backup_human = dir.path().join("backups_38_human");
+    let (human_code, stdout, stderr) = run_cli_raw(&[
+        "migrate",
+        "--backup-dir",
+        backup_human.to_str().unwrap(),
+        db_human.to_str().unwrap(),
+    ]);
+    assert_eq!(human_code, 0, "stdout={stdout}\nstderr={stderr}");
+    assert!(stdout.contains("38") && stdout.contains("39"), "stdout={stdout}");
+    assert!(stdout.contains(GOLDEN_SCHEMA_38_SHA256), "stdout={stdout}");
 }

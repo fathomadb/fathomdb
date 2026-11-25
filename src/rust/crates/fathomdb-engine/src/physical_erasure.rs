@@ -767,7 +767,7 @@ mod tests {
         admit(&c, debt, "purge", "subject", &[]).unwrap();
         validate_pending(&c, &[]).unwrap();
         let blob = vector_storage::encode_vector_blob(&[1.; 8]);
-        c.execute("INSERT INTO vector_default(rowid,embedding,embedding_bin,source_type,kind,created_at,status,lifecycle,valid_from,valid_until) VALUES(102,?1,vec_quantize_binary(?1),'article','doc',0,'',0,-9223372036854775808,9223372036854775807)", [blob]).unwrap();
+        c.execute("INSERT INTO vector_default(rowid,embedding,embedding_bin,source_type,kind,created_at,status,lifecycle,valid_from,valid_until,scope) VALUES(102,?1,vec_quantize_binary(?1),'article','doc',0,'',0,-9223372036854775808,9223372036854775807,'')", [blob]).unwrap();
         assert!(
             validate_pending(&c, &[]).is_err(),
             "late non-head vector residue cannot satisfy a replay proof"

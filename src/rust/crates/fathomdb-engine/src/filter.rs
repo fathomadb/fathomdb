@@ -1832,7 +1832,7 @@ fn slice70_relaxed_node_windows_still_filter_expired_edges() {
     conn.execute("UPDATE vector_default SET valid_from=?1 WHERE rowid=101", [i64::MAX]).unwrap();
     let vector = serde_json::to_string(&vec![1.0f32; 8]).unwrap();
     for id in 1000..1201 {
-        conn.execute("INSERT INTO vector_default(rowid,embedding,embedding_bin,source_type,kind,created_at,status,lifecycle,valid_from,valid_until) VALUES(?1,vec_f32(?2),vec_quantize_binary(vec_f32(?2)),'edge_fact','edge_fact',0,'',0,-9223372036854775808,0)",params![id,vector]).unwrap();
+        conn.execute("INSERT INTO vector_default(rowid,embedding,embedding_bin,source_type,kind,created_at,status,lifecycle,valid_from,valid_until,scope) VALUES(?1,vec_f32(?2),vec_quantize_binary(vec_f32(?2)),'edge_fact','edge_fact',0,'',0,-9223372036854775808,0,'')",params![id,vector]).unwrap();
     }
     let view = ReadView { include_out_of_window: true, ..ReadView::default() };
     let sql = build_vector_phase1_sql(None, 192, &view);

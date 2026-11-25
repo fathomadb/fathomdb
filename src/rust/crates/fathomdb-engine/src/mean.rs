@@ -148,20 +148,19 @@ pub(crate) fn run_pin_and_requantize_pass(
         let centered = subtract_mean(&un_centered, mean);
         let centered_blob = encode_vector_blob(&centered);
 
-        let (source_type, kind, created_at): (String, String, i64) = tx
+        let (source_type, kind, created_at, scope): (String, String, i64, String) = tx
             .query_row(
-                "SELECT source_type, kind, created_at FROM vector_default WHERE rowid = ?1",
+                "SELECT source_type, kind, created_at, scope FROM vector_default WHERE rowid = ?1",
                 params![rowid],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
             )
             .map_err(|_| EngineError::Storage)?;
 
         // 0.8.20 Slice 15e — this DELETE+INSERT re-quantize (its BIT-subtype
         // workaround, condition #4's SEPARATE same-shape op) must PRESERVE every
-        // `filterable` `attr_<hex>` value, not just re-`''` them: a projection may
-        // have been declared before the pin. Read the live attr columns + this
-        // row's values BEFORE the DELETE, then re-bind them. Empty ⇒ the INSERT is
-        // byte-identical to the shipped statement.
+        // `filterable` `attr_<hex>` value and Schema-39 `scope`, not reset them:
+        // a projection may have been declared before the pin. Read the live
+        // attr columns + this row's values BEFORE the DELETE, then re-bind them.
         let attr_cols = actual_vector_attr_columns(tx).map_err(|_| EngineError::Storage)?;
         let attr_vals: Vec<String> = if attr_cols.is_empty() {
             Vec::new()
@@ -196,12 +195,12 @@ pub(crate) fn run_pin_and_requantize_pass(
         let mut ph_sql = String::new();
         for (i, col) in attr_cols.iter().enumerate() {
             cols_sql.push_str(&format!(", {col}"));
-            ph_sql.push_str(&format!(", ?{}", 10 + i));
+            ph_sql.push_str(&format!(", ?{}", 11 + i));
         }
         let sql = format!(
             "INSERT INTO vector_default(
-                rowid, embedding, embedding_bin, source_type, kind, created_at, status,lifecycle,valid_from,valid_until{cols_sql}
-             ) VALUES(?1, ?2, vec_quantize_binary(?3), ?4, ?5, ?6, '',?7,?8,?9{ph_sql})"
+                rowid, embedding, embedding_bin, source_type, kind, created_at, status,lifecycle,valid_from,valid_until,scope{cols_sql}
+             ) VALUES(?1, ?2, vec_quantize_binary(?3), ?4, ?5, ?6, '',?7,?8,?9,?10{ph_sql})"
         );
         let mut pv: Vec<rusqlite::types::Value> = vec![
             rusqlite::types::Value::Integer(*rowid),
@@ -213,6 +212,7 @@ pub(crate) fn run_pin_and_requantize_pass(
             rusqlite::types::Value::Integer(eligibility.0),
             rusqlite::types::Value::Integer(eligibility.1),
             rusqlite::types::Value::Integer(eligibility.2),
+            rusqlite::types::Value::Text(scope),
         ];
         for v in attr_vals {
             pv.push(rusqlite::types::Value::Text(v));

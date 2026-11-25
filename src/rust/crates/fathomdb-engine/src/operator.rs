@@ -11,10 +11,14 @@ pub use data_plane::recover_complete_erasures;
 #[cfg(feature = "operator")]
 pub use data_plane::{inspect_data_plane_integrity, recover_truncate_wal};
 #[cfg(all(feature = "operator", any(test, feature = "migration-test-hooks")))]
-pub use migrate::arm_migrate_37_to_38_before_version_stamp_hook_for_test;
+pub use migrate::{
+    arm_migrate_37_to_38_before_version_stamp_hook_for_test,
+    arm_migrate_38_to_39_before_version_stamp_hook_for_test,
+};
 #[cfg(feature = "operator")]
 pub use migrate::{
-    migrate_37_to_38, MigrateError, MigrateErrorCode, MigratePreflightReport, MigrateReport,
+    migrate_37_to_38, migrate_38_to_39, MigrateError, MigrateErrorCode, MigratePreflightReport,
+    MigrateReport,
 };
 
 /// Outcome of offline completion of owed physical erasures.

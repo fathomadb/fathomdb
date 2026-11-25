@@ -721,7 +721,7 @@ fn continuation_survives_restart_only_while_bound_state_is_unchanged() {
 #[test]
 fn open_refuses_missing_page_schema_and_duplicate_post_migration_keys() {
     for (name, removal) in [
-        ("missing-index", "DROP INDEX canonical_nodes_kind_cursor_page_idx"),
+        ("missing-index", "DROP INDEX canonical_nodes_scope_kind_cursor_page_idx"),
         ("missing-trigger", "DROP TRIGGER _fathomdb_read_visibility_os_au"),
     ] {
         let dir = TempDir::new().unwrap();
@@ -739,7 +739,7 @@ fn open_refuses_missing_page_schema_and_duplicate_post_migration_keys() {
     let connection = Connection::open(&path).unwrap();
     connection
         .execute_batch(
-            "DROP INDEX canonical_nodes_kind_cursor_page_idx;
+            "DROP INDEX canonical_nodes_scope_kind_cursor_page_idx;
              INSERT INTO canonical_nodes(write_cursor,kind,body,logical_id)
              VALUES(7,'doc','{}','a'),(7,'doc','{}','b');",
         )

@@ -174,7 +174,7 @@ fn phase9_pack_b_migration_008_adds_source_id_columns_and_indexes() {
     let nodes_idx = conn
         .query_row(
             "SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name=?1",
-            ["canonical_nodes_source_id_idx"],
+            ["canonical_nodes_scope_source_id_idx"],
             |row| row.get::<_, i64>(0),
         )
         .unwrap() as u64;
@@ -183,7 +183,7 @@ fn phase9_pack_b_migration_008_adds_source_id_columns_and_indexes() {
     let edges_idx = conn
         .query_row(
             "SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name=?1",
-            ["canonical_edges_source_id_idx"],
+            ["canonical_edges_scope_source_id_idx"],
             |row| row.get::<_, i64>(0),
         )
         .unwrap() as u64;
@@ -252,19 +252,21 @@ fn s12_g0_adds_logical_id_superseded_at_columns_and_partial_unique_index() {
         .unwrap() as u64
     };
     for idx in [
-        "canonical_nodes_logical_active_idx",
-        "canonical_edges_logical_active_idx",
-        "canonical_nodes_kind_idx",
-        "canonical_edges_from_id_idx",
-        "canonical_edges_to_id_idx",
+        "canonical_nodes_scope_logical_active_idx",
+        "canonical_edges_scope_logical_active_idx",
+        "canonical_nodes_scope_kind_idx",
+        "canonical_edges_scope_from_id_idx",
+        "canonical_edges_scope_to_id_idx",
     ] {
-        assert_eq!(index_present(idx), 1, "index {idx} must exist after step 12");
+        assert_eq!(index_present(idx), 1, "index {idx} must exist after migrate");
     }
 
     // The active-row uniqueness index must be partial (WHERE superseded_at IS NULL)
-    // and — per Decision 5 (HITL-SIGNED 2026-06-05) — scoped to `logical_id` ALONE
-    // (NOT the pre-Slice-31 compound `(logical_id, kind)`), on BOTH tables.
-    for idx_name in ["canonical_nodes_logical_active_idx", "canonical_edges_logical_active_idx"] {
+    // and — per Decision 5 + Schema 39 caller-scope composite isolation — scoped to
+    // `(scope, logical_id)` WITHOUT `kind`, on BOTH tables.
+    for idx_name in
+        ["canonical_nodes_scope_logical_active_idx", "canonical_edges_scope_logical_active_idx"]
+    {
         let active_sql: String = conn
             .query_row(
                 "SELECT sql FROM sqlite_master WHERE type='index' AND name=?1",
@@ -277,8 +279,8 @@ fn s12_g0_adds_logical_id_superseded_at_columns_and_partial_unique_index() {
             "{idx_name} must be partial on superseded_at IS NULL, got: {active_sql}"
         );
         assert!(
-            active_sql.contains("(logical_id)"),
-            "{idx_name} must be scoped to logical_id alone (Decision 5), got: {active_sql}"
+            active_sql.contains("(scope, logical_id)"),
+            "{idx_name} must be scoped to (scope, logical_id), got: {active_sql}"
         );
         assert!(
             !active_sql.contains("kind"),
@@ -291,8 +293,7 @@ fn s12_g0_adds_logical_id_superseded_at_columns_and_partial_unique_index() {
 
 // Slice 33 (G3 / F4-READ) — the step-13 additive index makes the op-store
 // paginated read-back (`read.collection` / `read.mutations`) index-driven on a
-// large multi-collection log. Pure `CREATE INDEX` (no table/column add, no DROP),
-// so the accretion guard does not flag it and no exemption marker is required.
+// large multi-collection log (extended with leading `scope` in Schema 39).
 #[test]
 fn s13_op_store_collection_index_present_after_migrate() {
     register_sqlite_vec_once();
@@ -303,19 +304,18 @@ fn s13_op_store_collection_index_present_after_migrate() {
     let idx_count = conn
         .query_row(
             "SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name=?1",
-            ["operational_mutations_collection_id_idx"],
+            ["operational_mutations_scope_collection_id_idx"],
             |row| row.get::<_, i64>(0),
         )
         .unwrap() as u64;
-    assert_eq!(idx_count, 1, "step-13 must create operational_mutations_collection_id_idx");
+    assert_eq!(idx_count, 1, "schema 39 must carry operational_mutations_scope_collection_id_idx");
 
-    // The index is shaped (collection_name, id): leading column collection_name
-    // serves the equality predicate, trailing id serves both the after-id cursor
-    // range and ORDER BY id (no temp B-tree).
+    // The index is shaped (scope, collection_name, id): leading scope + collection_name
+    // serve equality predicates, trailing id serves both the after-id cursor range and ORDER BY id.
     let idx_sql: String = conn
         .query_row(
             "SELECT sql FROM sqlite_master WHERE type='index' AND name=?1",
-            ["operational_mutations_collection_id_idx"],
+            ["operational_mutations_scope_collection_id_idx"],
             |row| row.get(0),
         )
         .unwrap();

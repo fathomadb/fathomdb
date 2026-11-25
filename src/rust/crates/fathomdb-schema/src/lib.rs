@@ -21,7 +21,7 @@ use std::time::Instant;
 use rusqlite::Connection;
 
 /// Exact admitted on-disk format; nonempty stores at another version are refused.
-pub const SCHEMA_VERSION: u32 = 38;
+pub const SCHEMA_VERSION: u32 = 39;
 
 /// SQLite `PRAGMA` name carrying the on-disk schema-version sentinel.
 ///
@@ -51,19 +51,558 @@ pub fn bootstrap_steps() -> &'static [&'static str] {
     &["create canonical tables", "register projection metadata", "seed rewrite-era configuration"]
 }
 
+/// Coarse export/audit classification for every Schema-39 table and shadow.
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub enum TableExportClass {
+    /// Canonical, operational, provenance, and schema declaration authority.
+    DurableAuthority,
+    /// Opt-in actuation receipts and dependency closure audit records.
+    OptInAudit,
+    /// Opt-in dense vector index and embedder metadata tables.
+    OptInVector,
+    /// Recomputable lexical, attribute, and typed-property projections.
+    DerivedProjection,
+    /// Internal runtime watermarks, migration history, and virtual-table shadows.
+    InternalRuntime,
+}
+
+/// Single-source metadata declaration for every Schema-39 named table.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct TableManifestEntry {
+    pub name: &'static str,
+    pub is_canonical: bool,
+    pub visibility_trigger_prefix: Option<&'static str>,
+    pub visibility_trigger_min_version: Option<u32>,
+    pub row_owned_cursor_column: Option<&'static str>,
+    pub has_non_projection_write_cursor: bool,
+    pub export_class: TableExportClass,
+    pub guard_canonical_custom_triggers: bool,
+    pub guard_projection_custom_triggers: bool,
+    pub physical_erasure_metadata: bool,
+}
+
+/// FTS5 shadow-table suffixes materialized alongside virtual FTS tables.
+pub const FTS5_SHADOW_SUFFIXES: &[&str] = &["_config", "_content", "_data", "_docsize", "_idx"];
+
+/// Named shadow suffixes materialized alongside the `vector_default` `vec0` partition.
+pub const VEC0_NAMED_SHADOW_SUFFIXES: &[&str] = &["chunks", "info", "rowids", "auxiliary"];
+
+/// Numbered shadow prefixes materialized per chunk/column alongside `vector_default`.
+pub const VEC0_NUMBERED_SHADOW_PREFIXES: &[&str] =
+    &["vector_chunks", "metadatachunks", "metadatatext"];
+
+/// Built-in non-visibility triggers that FathomDB creates natively on `sqlite_master`.
+pub const BUILTIN_NON_VISIBILITY_TRIGGERS: &[&str] = &[
+    "_fathomdb_vector_spans_mapping_delete",
+    "_fathomdb_projection_generation_immutable",
+    "_fathomdb_projection_generation_retain",
+    "_fathomdb_actuation_ref_owner_before_insert",
+];
+
+const FTS5_VIRTUAL_TABLES: &[&str] =
+    &["search_index", "search_index_v2", "search_index_edges", "property_search_index"];
+
+/// Returns `true` when `name` is a SQLite FTS5 shadow table for any FathomDB FTS index.
+#[must_use]
+pub fn is_fts5_shadow_table(name: &str) -> bool {
+    for base in FTS5_VIRTUAL_TABLES {
+        if let Some(suffix) = name.strip_prefix(base) {
+            if FTS5_SHADOW_SUFFIXES.contains(&suffix) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+/// Returns `true` when `name` is a `sqlite-vec` shadow table for `vector_default`.
+#[must_use]
+pub fn is_vec0_shadow_table(name: &str) -> bool {
+    let Some(rest) = name.strip_prefix("vector_default_") else {
+        return false;
+    };
+    if VEC0_NAMED_SHADOW_SUFFIXES.contains(&rest) {
+        return true;
+    }
+    for prefix in VEC0_NUMBERED_SHADOW_PREFIXES {
+        if let Some(digits) = rest.strip_prefix(prefix) {
+            if !digits.is_empty() && digits.bytes().all(|b| b.is_ascii_digit()) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+/// Single authoritative Schema-39 manifest covering all 35 named tables
+/// (30 regular tables + 5 FTS5/vec0 virtual tables).
+///
+/// Canonical tables appear first in stable display order for [`CANONICAL_TABLES`],
+/// and visibility-trigger entries preserve the schema-version progression
+/// order (`31 -> 32 -> 33 -> 35 -> 38`).
+pub const TABLE_MANIFEST: &[TableManifestEntry] = &[
+    // --- Canonical tables (lead in stable display order) ---
+    TableManifestEntry {
+        name: "canonical_nodes",
+        is_canonical: true,
+        visibility_trigger_prefix: Some("cn"),
+        visibility_trigger_min_version: Some(31),
+        row_owned_cursor_column: None,
+        has_non_projection_write_cursor: true,
+        export_class: TableExportClass::DurableAuthority,
+        guard_canonical_custom_triggers: true,
+        guard_projection_custom_triggers: true,
+        physical_erasure_metadata: false,
+    },
+    TableManifestEntry {
+        name: "canonical_edges",
+        is_canonical: true,
+        visibility_trigger_prefix: Some("ce"),
+        visibility_trigger_min_version: Some(31),
+        row_owned_cursor_column: None,
+        has_non_projection_write_cursor: true,
+        export_class: TableExportClass::DurableAuthority,
+        guard_canonical_custom_triggers: true,
+        guard_projection_custom_triggers: true,
+        physical_erasure_metadata: false,
+    },
+    TableManifestEntry {
+        name: "operational_collections",
+        is_canonical: true,
+        visibility_trigger_prefix: Some("oc"),
+        visibility_trigger_min_version: Some(33),
+        row_owned_cursor_column: None,
+        has_non_projection_write_cursor: false,
+        export_class: TableExportClass::DurableAuthority,
+        guard_canonical_custom_triggers: true,
+        guard_projection_custom_triggers: true,
+        physical_erasure_metadata: false,
+    },
+    TableManifestEntry {
+        name: "operational_mutations",
+        is_canonical: true,
+        visibility_trigger_prefix: None,
+        visibility_trigger_min_version: None,
+        row_owned_cursor_column: None,
+        has_non_projection_write_cursor: true,
+        export_class: TableExportClass::DurableAuthority,
+        guard_canonical_custom_triggers: true,
+        guard_projection_custom_triggers: true,
+        physical_erasure_metadata: true,
+    },
+    TableManifestEntry {
+        name: "operational_state",
+        is_canonical: true,
+        visibility_trigger_prefix: Some("os"),
+        visibility_trigger_min_version: Some(33),
+        row_owned_cursor_column: None,
+        has_non_projection_write_cursor: true,
+        export_class: TableExportClass::DurableAuthority,
+        guard_canonical_custom_triggers: true,
+        guard_projection_custom_triggers: true,
+        physical_erasure_metadata: true,
+    },
+    // --- Provenance, registry, timestamps (DurableAuthority) ---
+    TableManifestEntry {
+        name: "_fathomdb_artifact_revisions",
+        is_canonical: false,
+        visibility_trigger_prefix: Some("ar"),
+        visibility_trigger_min_version: Some(31),
+        row_owned_cursor_column: None,
+        has_non_projection_write_cursor: true,
+        export_class: TableExportClass::DurableAuthority,
+        guard_canonical_custom_triggers: true,
+        guard_projection_custom_triggers: true,
+        physical_erasure_metadata: true,
+    },
+    TableManifestEntry {
+        name: "_fathomdb_source_versions",
+        is_canonical: false,
+        visibility_trigger_prefix: Some("sv"),
+        visibility_trigger_min_version: Some(31),
+        row_owned_cursor_column: None,
+        has_non_projection_write_cursor: false,
+        export_class: TableExportClass::DurableAuthority,
+        guard_canonical_custom_triggers: true,
+        guard_projection_custom_triggers: true,
+        physical_erasure_metadata: true,
+    },
+    TableManifestEntry {
+        name: "_fathomdb_source_links",
+        is_canonical: false,
+        visibility_trigger_prefix: Some("sl"),
+        visibility_trigger_min_version: Some(31),
+        row_owned_cursor_column: None,
+        has_non_projection_write_cursor: false,
+        export_class: TableExportClass::DurableAuthority,
+        guard_canonical_custom_triggers: true,
+        guard_projection_custom_triggers: true,
+        physical_erasure_metadata: true,
+    },
+    TableManifestEntry {
+        name: "_fathomdb_source_dependencies",
+        is_canonical: false,
+        visibility_trigger_prefix: Some("sd"),
+        visibility_trigger_min_version: Some(31),
+        row_owned_cursor_column: None,
+        has_non_projection_write_cursor: false,
+        export_class: TableExportClass::DurableAuthority,
+        guard_canonical_custom_triggers: true,
+        guard_projection_custom_triggers: true,
+        physical_erasure_metadata: true,
+    },
+    TableManifestEntry {
+        name: "_fathomdb_projection_registry",
+        is_canonical: false,
+        visibility_trigger_prefix: Some("pr"),
+        visibility_trigger_min_version: Some(31),
+        row_owned_cursor_column: None,
+        has_non_projection_write_cursor: false,
+        export_class: TableExportClass::DurableAuthority,
+        guard_canonical_custom_triggers: true,
+        guard_projection_custom_triggers: true,
+        physical_erasure_metadata: false,
+    },
+    TableManifestEntry {
+        name: "_fathomdb_vector_kinds",
+        is_canonical: false,
+        visibility_trigger_prefix: Some("vk"),
+        visibility_trigger_min_version: Some(31),
+        row_owned_cursor_column: None,
+        has_non_projection_write_cursor: false,
+        export_class: TableExportClass::DurableAuthority,
+        guard_canonical_custom_triggers: true,
+        guard_projection_custom_triggers: true,
+        physical_erasure_metadata: false,
+    },
+    TableManifestEntry {
+        name: "_fathomdb_commit_timestamps",
+        is_canonical: false,
+        visibility_trigger_prefix: None,
+        visibility_trigger_min_version: None,
+        row_owned_cursor_column: None,
+        has_non_projection_write_cursor: true,
+        export_class: TableExportClass::DurableAuthority,
+        guard_canonical_custom_triggers: true,
+        guard_projection_custom_triggers: true,
+        physical_erasure_metadata: false,
+    },
+    // --- Audit tables (OptInAudit) ---
+    TableManifestEntry {
+        name: "_fathomdb_actuation_receipts",
+        is_canonical: false,
+        visibility_trigger_prefix: None,
+        visibility_trigger_min_version: None,
+        row_owned_cursor_column: None,
+        has_non_projection_write_cursor: false,
+        export_class: TableExportClass::OptInAudit,
+        guard_canonical_custom_triggers: true,
+        guard_projection_custom_triggers: true,
+        physical_erasure_metadata: true,
+    },
+    TableManifestEntry {
+        name: "_fathomdb_actuation_receipt_source_refs",
+        is_canonical: false,
+        visibility_trigger_prefix: None,
+        visibility_trigger_min_version: None,
+        row_owned_cursor_column: None,
+        has_non_projection_write_cursor: false,
+        export_class: TableExportClass::OptInAudit,
+        guard_canonical_custom_triggers: true,
+        guard_projection_custom_triggers: true,
+        physical_erasure_metadata: true,
+    },
+    TableManifestEntry {
+        name: "_fathomdb_dependency_closures",
+        is_canonical: false,
+        visibility_trigger_prefix: Some("dc"),
+        visibility_trigger_min_version: Some(31),
+        row_owned_cursor_column: None,
+        has_non_projection_write_cursor: false,
+        export_class: TableExportClass::OptInAudit,
+        guard_canonical_custom_triggers: true,
+        guard_projection_custom_triggers: true,
+        physical_erasure_metadata: true,
+    },
+    // --- Vector partition and metadata (OptInVector) ---
+    TableManifestEntry {
+        name: "vector_default",
+        is_canonical: false,
+        visibility_trigger_prefix: None,
+        visibility_trigger_min_version: None,
+        row_owned_cursor_column: Some("rowid"),
+        has_non_projection_write_cursor: false,
+        export_class: TableExportClass::OptInVector,
+        guard_canonical_custom_triggers: false,
+        guard_projection_custom_triggers: true,
+        physical_erasure_metadata: false,
+    },
+    TableManifestEntry {
+        name: "_fathomdb_vector_rows",
+        is_canonical: false,
+        visibility_trigger_prefix: Some("vr"),
+        visibility_trigger_min_version: Some(31),
+        row_owned_cursor_column: Some("write_cursor"),
+        has_non_projection_write_cursor: false,
+        export_class: TableExportClass::OptInVector,
+        guard_canonical_custom_triggers: true,
+        guard_projection_custom_triggers: true,
+        physical_erasure_metadata: false,
+    },
+    TableManifestEntry {
+        name: "_fathomdb_vector_spans",
+        is_canonical: false,
+        visibility_trigger_prefix: Some("vs"),
+        visibility_trigger_min_version: Some(35),
+        row_owned_cursor_column: Some("write_cursor"),
+        has_non_projection_write_cursor: false,
+        export_class: TableExportClass::OptInVector,
+        guard_canonical_custom_triggers: true,
+        guard_projection_custom_triggers: true,
+        physical_erasure_metadata: false,
+    },
+    TableManifestEntry {
+        name: "_fathomdb_embedder_profiles",
+        is_canonical: false,
+        visibility_trigger_prefix: Some("ep"),
+        visibility_trigger_min_version: Some(31),
+        row_owned_cursor_column: None,
+        has_non_projection_write_cursor: false,
+        export_class: TableExportClass::OptInVector,
+        guard_canonical_custom_triggers: true,
+        guard_projection_custom_triggers: true,
+        physical_erasure_metadata: false,
+    },
+    TableManifestEntry {
+        name: "_fathomdb_embed_probe",
+        is_canonical: false,
+        visibility_trigger_prefix: None,
+        visibility_trigger_min_version: None,
+        row_owned_cursor_column: None,
+        has_non_projection_write_cursor: false,
+        export_class: TableExportClass::OptInVector,
+        guard_canonical_custom_triggers: true,
+        guard_projection_custom_triggers: true,
+        physical_erasure_metadata: false,
+    },
+    // --- Derived projections (DerivedProjection) ---
+    TableManifestEntry {
+        name: "canonical_attributes",
+        is_canonical: false,
+        visibility_trigger_prefix: Some("ca"),
+        visibility_trigger_min_version: Some(31),
+        row_owned_cursor_column: Some("write_cursor"),
+        has_non_projection_write_cursor: false,
+        export_class: TableExportClass::DerivedProjection,
+        guard_canonical_custom_triggers: true,
+        guard_projection_custom_triggers: true,
+        physical_erasure_metadata: false,
+    },
+    TableManifestEntry {
+        name: "canonical_property_values",
+        is_canonical: false,
+        visibility_trigger_prefix: Some("cpv"),
+        visibility_trigger_min_version: Some(38),
+        row_owned_cursor_column: Some("write_cursor"),
+        has_non_projection_write_cursor: false,
+        export_class: TableExportClass::DerivedProjection,
+        guard_canonical_custom_triggers: true,
+        guard_projection_custom_triggers: true,
+        physical_erasure_metadata: false,
+    },
+    TableManifestEntry {
+        name: "search_index",
+        is_canonical: false,
+        visibility_trigger_prefix: None,
+        visibility_trigger_min_version: None,
+        row_owned_cursor_column: Some("write_cursor"),
+        has_non_projection_write_cursor: false,
+        export_class: TableExportClass::DerivedProjection,
+        guard_canonical_custom_triggers: false,
+        guard_projection_custom_triggers: false,
+        physical_erasure_metadata: false,
+    },
+    TableManifestEntry {
+        name: "search_index_v2",
+        is_canonical: false,
+        visibility_trigger_prefix: None,
+        visibility_trigger_min_version: None,
+        row_owned_cursor_column: Some("write_cursor"),
+        has_non_projection_write_cursor: false,
+        export_class: TableExportClass::DerivedProjection,
+        guard_canonical_custom_triggers: false,
+        guard_projection_custom_triggers: false,
+        physical_erasure_metadata: false,
+    },
+    TableManifestEntry {
+        name: "search_index_edges",
+        is_canonical: false,
+        visibility_trigger_prefix: None,
+        visibility_trigger_min_version: None,
+        row_owned_cursor_column: Some("write_cursor"),
+        has_non_projection_write_cursor: false,
+        export_class: TableExportClass::DerivedProjection,
+        guard_canonical_custom_triggers: false,
+        guard_projection_custom_triggers: false,
+        physical_erasure_metadata: false,
+    },
+    TableManifestEntry {
+        name: "property_search_index",
+        is_canonical: false,
+        visibility_trigger_prefix: None,
+        visibility_trigger_min_version: None,
+        row_owned_cursor_column: Some("write_cursor"),
+        has_non_projection_write_cursor: false,
+        export_class: TableExportClass::DerivedProjection,
+        guard_canonical_custom_triggers: false,
+        guard_projection_custom_triggers: false,
+        physical_erasure_metadata: false,
+    },
+    // --- Internal runtime tables (InternalRuntime) ---
+    TableManifestEntry {
+        name: "_fathomdb_projection_state",
+        is_canonical: false,
+        visibility_trigger_prefix: Some("ps"),
+        visibility_trigger_min_version: Some(31),
+        row_owned_cursor_column: None,
+        has_non_projection_write_cursor: false,
+        export_class: TableExportClass::InternalRuntime,
+        guard_canonical_custom_triggers: true,
+        guard_projection_custom_triggers: true,
+        physical_erasure_metadata: false,
+    },
+    TableManifestEntry {
+        name: "_fathomdb_projection_terminal",
+        is_canonical: false,
+        visibility_trigger_prefix: Some("pt"),
+        visibility_trigger_min_version: Some(31),
+        row_owned_cursor_column: Some("write_cursor"),
+        has_non_projection_write_cursor: false,
+        export_class: TableExportClass::InternalRuntime,
+        guard_canonical_custom_triggers: true,
+        guard_projection_custom_triggers: true,
+        physical_erasure_metadata: false,
+    },
+    TableManifestEntry {
+        name: "_fathomdb_projection_generations",
+        is_canonical: false,
+        visibility_trigger_prefix: Some("pg"),
+        visibility_trigger_min_version: Some(32),
+        row_owned_cursor_column: None,
+        has_non_projection_write_cursor: false,
+        export_class: TableExportClass::InternalRuntime,
+        guard_canonical_custom_triggers: true,
+        guard_projection_custom_triggers: true,
+        physical_erasure_metadata: false,
+    },
+    TableManifestEntry {
+        name: "_fathomdb_projection_generation_current",
+        is_canonical: false,
+        visibility_trigger_prefix: Some("pc"),
+        visibility_trigger_min_version: Some(32),
+        row_owned_cursor_column: None,
+        has_non_projection_write_cursor: false,
+        export_class: TableExportClass::InternalRuntime,
+        guard_canonical_custom_triggers: true,
+        guard_projection_custom_triggers: true,
+        physical_erasure_metadata: false,
+    },
+    TableManifestEntry {
+        name: "_fathomdb_migrations",
+        is_canonical: false,
+        visibility_trigger_prefix: None,
+        visibility_trigger_min_version: None,
+        row_owned_cursor_column: None,
+        has_non_projection_write_cursor: false,
+        export_class: TableExportClass::InternalRuntime,
+        guard_canonical_custom_triggers: true,
+        guard_projection_custom_triggers: true,
+        physical_erasure_metadata: false,
+    },
+    TableManifestEntry {
+        name: "_fathomdb_schema_meta",
+        is_canonical: false,
+        visibility_trigger_prefix: None,
+        visibility_trigger_min_version: None,
+        row_owned_cursor_column: None,
+        has_non_projection_write_cursor: false,
+        export_class: TableExportClass::InternalRuntime,
+        guard_canonical_custom_triggers: true,
+        guard_projection_custom_triggers: true,
+        physical_erasure_metadata: false,
+    },
+    TableManifestEntry {
+        name: "_fathomdb_open_state",
+        is_canonical: false,
+        visibility_trigger_prefix: None,
+        visibility_trigger_min_version: None,
+        row_owned_cursor_column: None,
+        has_non_projection_write_cursor: false,
+        export_class: TableExportClass::InternalRuntime,
+        guard_canonical_custom_triggers: true,
+        guard_projection_custom_triggers: true,
+        physical_erasure_metadata: false,
+    },
+    TableManifestEntry {
+        name: "_fathomdb_read_visibility_state",
+        is_canonical: false,
+        visibility_trigger_prefix: None,
+        visibility_trigger_min_version: None,
+        row_owned_cursor_column: None,
+        has_non_projection_write_cursor: false,
+        export_class: TableExportClass::InternalRuntime,
+        guard_canonical_custom_triggers: true,
+        guard_projection_custom_triggers: true,
+        physical_erasure_metadata: false,
+    },
+    TableManifestEntry {
+        name: "_fathomdb_erasure_requests",
+        is_canonical: false,
+        visibility_trigger_prefix: None,
+        visibility_trigger_min_version: None,
+        row_owned_cursor_column: None,
+        has_non_projection_write_cursor: false,
+        export_class: TableExportClass::InternalRuntime,
+        guard_canonical_custom_triggers: true,
+        guard_projection_custom_triggers: true,
+        physical_erasure_metadata: false,
+    },
+];
+
+const CANONICAL_TABLE_COUNT: usize = {
+    let mut count = 0;
+    let mut i = 0;
+    while i < TABLE_MANIFEST.len() {
+        if TABLE_MANIFEST[i].is_canonical {
+            count += 1;
+        }
+        i += 1;
+    }
+    count
+};
+
+const CANONICAL_TABLES_STORAGE: [&str; CANONICAL_TABLE_COUNT] = {
+    let mut out = [""; CANONICAL_TABLE_COUNT];
+    let mut src = 0;
+    let mut dst = 0;
+    while src < TABLE_MANIFEST.len() {
+        if TABLE_MANIFEST[src].is_canonical {
+            out[dst] = TABLE_MANIFEST[src].name;
+            dst += 1;
+        }
+        src += 1;
+    }
+    out
+};
+
 /// Canonical tables owned by the rewrite-era schema, in stable display
-/// order. Excludes FTS, vec0, and projection shadow tables (re-derivable
-/// from canonical state) and internal `_fathomdb_*` metadata.
+/// order, derived directly from [`TABLE_MANIFEST`]. Excludes FTS, vec0,
+/// and projection shadow tables (re-derivable from canonical state) and
+/// internal `_fathomdb_*` metadata.
 ///
 /// `doctor dump-row-counts` enumerates this set; `doctor dump-schema`
 /// uses it to order canonical tables ahead of derived/internal ones.
-pub const CANONICAL_TABLES: &[&str] = &[
-    "canonical_nodes",
-    "canonical_edges",
-    "operational_collections",
-    "operational_mutations",
-    "operational_state",
-];
+pub const CANONICAL_TABLES: &[&str] = &CANONICAL_TABLES_STORAGE;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Migration {
@@ -214,6 +753,287 @@ pub const STEP_38_SQL: &str = concat!(
     visibility_coalescing_trigger_sql!("cpv", "ai", "INSERT", "canonical_property_values"),
     visibility_coalescing_trigger_sql!("cpv", "au", "UPDATE", "canonical_property_values"),
     visibility_coalescing_trigger_sql!("cpv", "ad", "DELETE", "canonical_property_values"),
+);
+
+/// Schema step 39 SQL DDL (`S39-COMPOSITE`): caller-scope composite indexes on
+/// `canonical_nodes`, `canonical_edges`, and `operational_mutations` (no node/edge
+/// table rebuild per TC-11), plus composite `(scope, ...)` primary/unique keys and
+/// restored triggers/indexes on `operational_state`, actuation receipts, provenance,
+/// source dependencies, dependency closures, and erasure requests.
+pub const STEP_39_SQL: &str = concat!(
+    "-- MIGRATION-ACCRETION-EXEMPTION: Schema 39 (S39-COMPOSITE) caller-scope composite indexes and composite keys on operational, actuation, provenance, dependency, and erasure tables; preserves all canonical and control-plane rows without node or edge rebuild.\n",
+    // 1. canonical_nodes composite (scope, ...) indexes (NO table recreate - TC-11 safe).
+    "DROP INDEX IF EXISTS canonical_nodes_source_id_idx;\n",
+    "DROP INDEX IF EXISTS canonical_nodes_logical_active_idx;\n",
+    "DROP INDEX IF EXISTS canonical_nodes_kind_idx;\n",
+    "DROP INDEX IF EXISTS canonical_nodes_state_active_idx;\n",
+    "DROP INDEX IF EXISTS canonical_nodes_validity_idx;\n",
+    "DROP INDEX IF EXISTS canonical_nodes_kind_cursor_page_idx;\n",
+    "DROP INDEX IF EXISTS canonical_nodes_logical_sup_idx;\n",
+    "CREATE INDEX canonical_nodes_scope_source_id_idx ON canonical_nodes(scope, source_id);\n",
+    "CREATE UNIQUE INDEX canonical_nodes_scope_logical_active_idx ON canonical_nodes(scope, logical_id) WHERE superseded_at IS NULL;\n",
+    "CREATE INDEX canonical_nodes_scope_kind_idx ON canonical_nodes(scope, kind);\n",
+    "CREATE INDEX canonical_nodes_scope_state_active_idx ON canonical_nodes(scope, write_cursor) WHERE state = 'active' AND superseded_at IS NULL;\n",
+    "CREATE INDEX canonical_nodes_scope_validity_idx ON canonical_nodes(scope, valid_from, valid_until) WHERE superseded_at IS NULL AND state = 'active';\n",
+    "CREATE INDEX IF NOT EXISTS canonical_nodes_write_cursor_idx ON canonical_nodes(write_cursor);\n",
+    "CREATE INDEX canonical_nodes_scope_cursor_idx ON canonical_nodes(scope, write_cursor);\n",
+    "CREATE UNIQUE INDEX canonical_nodes_scope_kind_cursor_page_idx ON canonical_nodes(scope, kind, write_cursor) WHERE logical_id IS NOT NULL;\n",
+    "CREATE INDEX canonical_nodes_scope_logical_sup_idx ON canonical_nodes(scope, logical_id, superseded_at, write_cursor) WHERE superseded_at IS NOT NULL;\n",
+    "\n",
+    // 2. canonical_edges composite (scope, ...) indexes (NO table recreate - TC-11 safe).
+    "DROP INDEX IF EXISTS canonical_edges_source_id_idx;\n",
+    "DROP INDEX IF EXISTS canonical_edges_logical_active_idx;\n",
+    "DROP INDEX IF EXISTS canonical_edges_from_id_idx;\n",
+    "DROP INDEX IF EXISTS canonical_edges_to_id_idx;\n",
+    "DROP INDEX IF EXISTS canonical_edges_from_active_idx;\n",
+    "DROP INDEX IF EXISTS canonical_edges_to_active_idx;\n",
+    "DROP INDEX IF EXISTS canonical_edges_from_sup_kind_idx;\n",
+    "DROP INDEX IF EXISTS canonical_edges_to_sup_kind_idx;\n",
+    "CREATE INDEX canonical_edges_scope_source_id_idx ON canonical_edges(scope, source_id);\n",
+    "CREATE UNIQUE INDEX canonical_edges_scope_logical_active_idx ON canonical_edges(scope, logical_id) WHERE superseded_at IS NULL;\n",
+    "CREATE INDEX canonical_edges_scope_from_id_idx ON canonical_edges(scope, from_id);\n",
+    "CREATE INDEX canonical_edges_scope_to_id_idx ON canonical_edges(scope, to_id);\n",
+    "CREATE INDEX IF NOT EXISTS canonical_edges_write_cursor_idx ON canonical_edges(write_cursor);\n",
+    "CREATE INDEX canonical_edges_scope_cursor_idx ON canonical_edges(scope, write_cursor);\n",
+    "CREATE INDEX canonical_edges_scope_from_active_idx ON canonical_edges(scope, from_id, kind) WHERE superseded_at IS NULL;\n",
+    "CREATE INDEX canonical_edges_scope_to_active_idx ON canonical_edges(scope, to_id, kind) WHERE superseded_at IS NULL;\n",
+    "CREATE INDEX canonical_edges_scope_from_sup_kind_idx ON canonical_edges(scope, from_id, superseded_at, kind) WHERE superseded_at IS NOT NULL;\n",
+    "CREATE INDEX canonical_edges_scope_to_sup_kind_idx ON canonical_edges(scope, to_id, superseded_at, kind) WHERE superseded_at IS NOT NULL;\n",
+    "\n",
+    // 3. operational_state recreate with PRIMARY KEY(scope, collection_name, record_key) + triggers.
+    "CREATE TABLE _s39_os_tmp AS SELECT collection_name, record_key, payload_json, schema_id, write_cursor, scope FROM operational_state;\n",
+    "DROP TABLE operational_state;\n",
+    "CREATE TABLE operational_state(\n",
+    "    collection_name TEXT NOT NULL,\n",
+    "    record_key TEXT NOT NULL,\n",
+    "    payload_json TEXT NOT NULL,\n",
+    "    schema_id TEXT,\n",
+    "    write_cursor INTEGER NOT NULL,\n",
+    "    scope TEXT NOT NULL DEFAULT '',\n",
+    "    PRIMARY KEY(scope, collection_name, record_key)\n",
+    ");\n",
+    "INSERT INTO operational_state(collection_name, record_key, payload_json, schema_id, write_cursor, scope)\n",
+    "    SELECT collection_name, record_key, payload_json, schema_id, write_cursor, scope FROM _s39_os_tmp;\n",
+    "DROP TABLE _s39_os_tmp;\n",
+    "CREATE INDEX operational_state_write_cursor_idx ON operational_state(write_cursor);\n",
+    "CREATE UNIQUE INDEX operational_state_scope_collection_cursor_page_idx ON operational_state(scope, collection_name, write_cursor);\n",
+    visibility_coalescing_trigger_sql!("os", "ai", "INSERT", "operational_state"),
+    visibility_coalescing_trigger_sql!("os", "au", "UPDATE", "operational_state"),
+    visibility_coalescing_trigger_sql!("os", "ad", "DELETE", "operational_state"),
+    "\n",
+    // 4. operational_mutations index swap (NO table recreate).
+    "DROP INDEX IF EXISTS operational_mutations_collection_id_idx;\n",
+    "CREATE INDEX operational_mutations_scope_collection_id_idx ON operational_mutations(scope, collection_name, id);\n",
+    "\n",
+    // 5. _fathomdb_actuation_receipts & _fathomdb_actuation_receipt_source_refs (child-first drop for FK).
+    "CREATE TABLE _s39_act_refs_tmp AS SELECT operation_id, schema_version, ref_kind, ref_value FROM _fathomdb_actuation_receipt_source_refs;\n",
+    "CREATE TABLE _s39_act_tmp AS SELECT operation_id, schema_version, request_sha256, operations_count, outcome, refused_operation_index, refused_field_path, reason_codes_json, affected_revision_ids_json, resulting_write_boundary, resulting_dependency_generation, pending_projection_write_cursors_json, closure_operation_ids_json, projection_generation_id FROM _fathomdb_actuation_receipts;\n",
+    "DROP TABLE _fathomdb_actuation_receipt_source_refs;\n",
+    "DROP TABLE _fathomdb_actuation_receipts;\n",
+    "CREATE TABLE _fathomdb_actuation_receipts(\n",
+    "    operation_id TEXT NOT NULL,\n",
+    "    schema_version INTEGER NOT NULL CHECK(schema_version = 1),\n",
+    "    request_sha256 TEXT,\n",
+    "    operations_count INTEGER,\n",
+    "    outcome TEXT NOT NULL CHECK(outcome IN ('committed','committed_closure_pending','refused','erased')),\n",
+    "    refused_operation_index INTEGER,\n",
+    "    refused_field_path TEXT,\n",
+    "    reason_codes_json TEXT NOT NULL,\n",
+    "    affected_revision_ids_json TEXT NOT NULL,\n",
+    "    resulting_write_boundary INTEGER,\n",
+    "    resulting_dependency_generation INTEGER,\n",
+    "    pending_projection_write_cursors_json TEXT NOT NULL,\n",
+    "    closure_operation_ids_json TEXT NOT NULL,\n",
+    "    projection_generation_id TEXT,\n",
+    "    scope TEXT NOT NULL DEFAULT '',\n",
+    "    PRIMARY KEY(scope, operation_id),\n",
+    "    CHECK((outcome = 'erased' AND request_sha256 IS NULL) OR (outcome != 'erased' AND request_sha256 IS NOT NULL AND length(request_sha256) = 64 AND request_sha256 NOT GLOB '*[^0-9a-f]*')),\n",
+    "    CHECK((outcome = 'erased' AND operations_count IS NULL) OR (outcome != 'erased' AND operations_count BETWEEN 1 AND 128)),\n",
+    "    CHECK(json_valid(reason_codes_json) AND json_type(reason_codes_json) = 'array'),\n",
+    "    CHECK(json_valid(affected_revision_ids_json) AND json_type(affected_revision_ids_json) = 'array'),\n",
+    "    CHECK(json_valid(pending_projection_write_cursors_json) AND json_type(pending_projection_write_cursors_json) = 'array'),\n",
+    "    CHECK(json_valid(closure_operation_ids_json) AND json_type(closure_operation_ids_json) = 'array'),\n",
+    "    CHECK(json_array_length(affected_revision_ids_json) <= 256),\n",
+    "    CHECK(json_array_length(pending_projection_write_cursors_json) <= 128),\n",
+    "    CHECK(json_array_length(closure_operation_ids_json) <= 128),\n",
+    "    CHECK(\n",
+    "        (outcome = 'refused' AND json_array_length(reason_codes_json) = 1 AND json_array_length(affected_revision_ids_json) = 0 AND json_array_length(pending_projection_write_cursors_json) = 0 AND json_array_length(closure_operation_ids_json) = 0 AND (refused_operation_index IS NULL OR (refused_operation_index >= 0 AND refused_operation_index < operations_count)) AND resulting_write_boundary IS NULL AND resulting_dependency_generation IS NULL) OR\n",
+    "        (outcome IN ('committed','committed_closure_pending') AND json_array_length(reason_codes_json) = 0 AND refused_operation_index IS NULL AND refused_field_path IS NULL AND resulting_write_boundary IS NOT NULL AND resulting_write_boundary >= 0 AND (resulting_dependency_generation IS NULL OR resulting_dependency_generation > 0) AND ((outcome = 'committed' AND json_array_length(closure_operation_ids_json) = 0) OR (outcome = 'committed_closure_pending' AND json_array_length(closure_operation_ids_json) BETWEEN 1 AND 128))) OR\n",
+    "        (outcome = 'erased' AND request_sha256 IS NULL AND operations_count IS NULL AND refused_operation_index IS NULL AND refused_field_path IS NULL AND json_array_length(reason_codes_json) = 0 AND json_array_length(affected_revision_ids_json) = 0 AND resulting_write_boundary IS NULL AND resulting_dependency_generation IS NULL AND json_array_length(pending_projection_write_cursors_json) = 0 AND json_array_length(closure_operation_ids_json) = 0)\n",
+    "    )\n",
+    ");\n",
+    "INSERT INTO _fathomdb_actuation_receipts(operation_id, schema_version, request_sha256, operations_count, outcome, refused_operation_index, refused_field_path, reason_codes_json, affected_revision_ids_json, resulting_write_boundary, resulting_dependency_generation, pending_projection_write_cursors_json, closure_operation_ids_json, projection_generation_id, scope)\n",
+    "    SELECT operation_id, schema_version, request_sha256, operations_count, outcome, refused_operation_index, refused_field_path, reason_codes_json, affected_revision_ids_json, resulting_write_boundary, resulting_dependency_generation, pending_projection_write_cursors_json, closure_operation_ids_json, projection_generation_id, '' FROM _s39_act_tmp;\n",
+    "CREATE TABLE _fathomdb_actuation_receipt_source_refs(\n",
+    "    operation_id TEXT NOT NULL,\n",
+    "    schema_version INTEGER NOT NULL CHECK(schema_version = 1),\n",
+    "    ref_kind TEXT NOT NULL CHECK(ref_kind IN ('source_id','source_revision_id','artifact_revision_id')),\n",
+    "    ref_value TEXT NOT NULL,\n",
+    "    scope TEXT NOT NULL DEFAULT '',\n",
+    "    PRIMARY KEY(scope, operation_id, ref_kind, ref_value),\n",
+    "    FOREIGN KEY(scope, operation_id) REFERENCES _fathomdb_actuation_receipts(scope, operation_id) ON DELETE CASCADE\n",
+    ");\n",
+    "INSERT INTO _fathomdb_actuation_receipt_source_refs(operation_id, schema_version, ref_kind, ref_value, scope)\n",
+    "    SELECT operation_id, schema_version, ref_kind, ref_value, '' FROM _s39_act_refs_tmp;\n",
+    "DROP TABLE _s39_act_refs_tmp;\n",
+    "DROP TABLE _s39_act_tmp;\n",
+    "CREATE INDEX _fathomdb_actuation_receipt_refs_reverse ON _fathomdb_actuation_receipt_source_refs(scope, ref_kind, ref_value, operation_id);\n",
+    "CREATE TRIGGER _fathomdb_actuation_ref_owner_before_insert BEFORE INSERT ON _fathomdb_actuation_receipt_source_refs WHEN NOT EXISTS (SELECT 1 FROM _fathomdb_actuation_receipts WHERE scope = NEW.scope AND operation_id = NEW.operation_id AND outcome != 'erased') BEGIN SELECT RAISE(ABORT, 'actuation receipt reference owner invalid'); END;\n",
+    "\n",
+    // 6. _fathomdb_artifact_revisions (composite PK, derive scope from matching node/edge if any, restore triggers & indexes).
+    "CREATE TABLE _s39_ar_tmp AS SELECT schema_version, revision_id, artifact_class, write_cursor, artifact_role, completeness FROM _fathomdb_artifact_revisions;\n",
+    "DROP TABLE _fathomdb_artifact_revisions;\n",
+    "CREATE TABLE _fathomdb_artifact_revisions(\n",
+    "    schema_version INTEGER NOT NULL CHECK(schema_version = 1),\n",
+    "    revision_id TEXT NOT NULL,\n",
+    "    artifact_class TEXT NOT NULL CHECK(artifact_class IN ('node', 'edge')),\n",
+    "    write_cursor INTEGER NOT NULL,\n",
+    "    artifact_role TEXT NOT NULL CHECK(artifact_role IN ('canonical_source', 'derived_semantic', 'legacy')),\n",
+    "    completeness TEXT NOT NULL CHECK(completeness IN ('complete', 'migrated_incomplete')),\n",
+    "    scope TEXT NOT NULL DEFAULT '',\n",
+    "    PRIMARY KEY(scope, revision_id),\n",
+    "    UNIQUE(scope, artifact_class, write_cursor)\n",
+    ");\n",
+    "INSERT INTO _fathomdb_artifact_revisions(schema_version, revision_id, artifact_class, write_cursor, artifact_role, completeness, scope)\n",
+    "    SELECT schema_version, revision_id, artifact_class, write_cursor, artifact_role, completeness,\n",
+    "           CASE\n",
+    "               WHEN artifact_class = 'node' THEN COALESCE((SELECT scope FROM canonical_nodes WHERE write_cursor = _s39_ar_tmp.write_cursor), '')\n",
+    "               WHEN artifact_class = 'edge' THEN COALESCE((SELECT scope FROM canonical_edges WHERE write_cursor = _s39_ar_tmp.write_cursor), '')\n",
+    "               ELSE ''\n",
+    "           END\n",
+    "      FROM _s39_ar_tmp;\n",
+    "DROP TABLE _s39_ar_tmp;\n",
+    "CREATE INDEX _fathomdb_artifact_revisions_write_cursor_idx ON _fathomdb_artifact_revisions(write_cursor);\n",
+    "CREATE INDEX _fathomdb_artifact_revisions_scope_write_cursor_idx ON _fathomdb_artifact_revisions(scope, write_cursor);\n",
+    visibility_coalescing_trigger_sql!("ar", "ai", "INSERT", "_fathomdb_artifact_revisions"),
+    visibility_coalescing_trigger_sql!("ar", "au", "UPDATE", "_fathomdb_artifact_revisions"),
+    visibility_coalescing_trigger_sql!("ar", "ad", "DELETE", "_fathomdb_artifact_revisions"),
+    "\n",
+    // 7. _fathomdb_source_versions (remove global source_revision_id UNIQUE, composite PK & UNIQUE(scope, source_revision_id)).
+    "CREATE TABLE _s39_sv_tmp AS SELECT schema_version, source_id, source_version_id, source_revision_id FROM _fathomdb_source_versions;\n",
+    "DROP TABLE _fathomdb_source_versions;\n",
+    "CREATE TABLE _fathomdb_source_versions(\n",
+    "    schema_version INTEGER NOT NULL CHECK(schema_version = 1),\n",
+    "    source_id TEXT NOT NULL,\n",
+    "    source_version_id TEXT NOT NULL,\n",
+    "    source_revision_id TEXT NOT NULL,\n",
+    "    scope TEXT NOT NULL DEFAULT '',\n",
+    "    PRIMARY KEY(scope, source_id, source_version_id),\n",
+    "    UNIQUE(scope, source_revision_id)\n",
+    ");\n",
+    "INSERT INTO _fathomdb_source_versions(schema_version, source_id, source_version_id, source_revision_id, scope)\n",
+    "    SELECT schema_version, source_id, source_version_id, source_revision_id, '' FROM _s39_sv_tmp;\n",
+    "DROP TABLE _s39_sv_tmp;\n",
+    visibility_coalescing_trigger_sql!("sv", "ai", "INSERT", "_fathomdb_source_versions"),
+    visibility_coalescing_trigger_sql!("sv", "au", "UPDATE", "_fathomdb_source_versions"),
+    visibility_coalescing_trigger_sql!("sv", "ad", "DELETE", "_fathomdb_source_versions"),
+    "\n",
+    // 8. _fathomdb_source_links (composite PK(scope, artifact_revision_id), scoped source_derived index, triggers).
+    "CREATE TABLE _s39_sl_tmp AS SELECT schema_version, artifact_revision_id, source_id, source_version_id, source_revision_id, locator_kind, start_byte, end_byte, hash_algorithm, hash_digest FROM _fathomdb_source_links;\n",
+    "DROP TABLE _fathomdb_source_links;\n",
+    "CREATE TABLE _fathomdb_source_links(\n",
+    "    schema_version INTEGER NOT NULL CHECK(schema_version = 1),\n",
+    "    artifact_revision_id TEXT NOT NULL,\n",
+    "    source_id TEXT NOT NULL,\n",
+    "    source_version_id TEXT NOT NULL,\n",
+    "    source_revision_id TEXT NOT NULL,\n",
+    "    locator_kind TEXT NOT NULL CHECK(locator_kind IN ('whole_body', 'utf8_bytes')),\n",
+    "    start_byte INTEGER,\n",
+    "    end_byte INTEGER,\n",
+    "    hash_algorithm TEXT NOT NULL CHECK(hash_algorithm = 'sha256'),\n",
+    "    hash_digest TEXT NOT NULL,\n",
+    "    scope TEXT NOT NULL DEFAULT '',\n",
+    "    PRIMARY KEY(scope, artifact_revision_id),\n",
+    "    CHECK((locator_kind = 'whole_body' AND start_byte IS NULL AND end_byte IS NULL) OR (locator_kind = 'utf8_bytes' AND start_byte IS NOT NULL AND end_byte IS NOT NULL))\n",
+    ");\n",
+    "INSERT INTO _fathomdb_source_links(schema_version, artifact_revision_id, source_id, source_version_id, source_revision_id, locator_kind, start_byte, end_byte, hash_algorithm, hash_digest, scope)\n",
+    "    SELECT schema_version, artifact_revision_id, source_id, source_version_id, source_revision_id, locator_kind, start_byte, end_byte, hash_algorithm, hash_digest,\n",
+    "           COALESCE((SELECT scope FROM _fathomdb_artifact_revisions WHERE revision_id = _s39_sl_tmp.artifact_revision_id LIMIT 1), '')\n",
+    "      FROM _s39_sl_tmp;\n",
+    "DROP TABLE _s39_sl_tmp;\n",
+    "CREATE INDEX _fathomdb_source_links_source_derived_idx ON _fathomdb_source_links(scope, source_revision_id, artifact_revision_id);\n",
+    visibility_coalescing_trigger_sql!("sl", "ai", "INSERT", "_fathomdb_source_links"),
+    visibility_coalescing_trigger_sql!("sl", "au", "UPDATE", "_fathomdb_source_links"),
+    visibility_coalescing_trigger_sql!("sl", "ad", "DELETE", "_fathomdb_source_links"),
+    "\n",
+    // 9. _fathomdb_source_dependencies (composite PK & UNIQUE(scope, derived_revision_id), scoped index, triggers).
+    "CREATE TABLE _s39_sd_tmp AS SELECT schema_version, dependency_id, derived_revision_id, registered_dependency_generation FROM _fathomdb_source_dependencies;\n",
+    "DROP TABLE _fathomdb_source_dependencies;\n",
+    "CREATE TABLE _fathomdb_source_dependencies(\n",
+    "    schema_version INTEGER NOT NULL CHECK(schema_version = 1),\n",
+    "    dependency_id TEXT NOT NULL,\n",
+    "    derived_revision_id TEXT NOT NULL,\n",
+    "    registered_dependency_generation INTEGER NOT NULL CHECK(registered_dependency_generation > 0),\n",
+    "    scope TEXT NOT NULL DEFAULT '',\n",
+    "    PRIMARY KEY(scope, dependency_id),\n",
+    "    UNIQUE(scope, derived_revision_id)\n",
+    ");\n",
+    "INSERT INTO _fathomdb_source_dependencies(schema_version, dependency_id, derived_revision_id, registered_dependency_generation, scope)\n",
+    "    SELECT schema_version, dependency_id, derived_revision_id, registered_dependency_generation,\n",
+    "           COALESCE((SELECT scope FROM _fathomdb_artifact_revisions WHERE revision_id = _s39_sd_tmp.derived_revision_id LIMIT 1), '')\n",
+    "      FROM _s39_sd_tmp;\n",
+    "DROP TABLE _s39_sd_tmp;\n",
+    "CREATE INDEX _fathomdb_source_dependencies_scope_derived_idx ON _fathomdb_source_dependencies(scope, derived_revision_id);\n",
+    visibility_coalescing_trigger_sql!("sd", "ai", "INSERT", "_fathomdb_source_dependencies"),
+    visibility_coalescing_trigger_sql!("sd", "au", "UPDATE", "_fathomdb_source_dependencies"),
+    visibility_coalescing_trigger_sql!("sd", "ad", "DELETE", "_fathomdb_source_dependencies"),
+    "\n",
+    // 10. _fathomdb_dependency_closures (composite PK, all 3 scoped closure indexes, triggers).
+    "CREATE TABLE _s39_dc_tmp AS SELECT schema_version, closure_operation_id, root_kind, root_value, cause, effective_at_epoch_s, admitted_write_boundary, admitted_dependency_generation, closure_sequence, retry_fingerprint, phase, affected_count, blocker_code, structural_proof_write_boundary, proof_json FROM _fathomdb_dependency_closures;\n",
+    "DROP TABLE _fathomdb_dependency_closures;\n",
+    "CREATE TABLE _fathomdb_dependency_closures(\n",
+    "    schema_version INTEGER NOT NULL CHECK(schema_version = 1),\n",
+    "    closure_operation_id TEXT NOT NULL,\n",
+    "    root_kind TEXT NOT NULL CHECK(root_kind IN ('source_revision','source_bucket')),\n",
+    "    root_value TEXT NOT NULL,\n",
+    "    cause TEXT NOT NULL CHECK(cause IN ('superseded','soft_deleted','purged','source_erased')),\n",
+    "    effective_at_epoch_s INTEGER NOT NULL,\n",
+    "    admitted_write_boundary INTEGER NOT NULL CHECK(admitted_write_boundary >= 0),\n",
+    "    admitted_dependency_generation INTEGER NOT NULL CHECK(admitted_dependency_generation >= 0),\n",
+    "    closure_sequence INTEGER NOT NULL UNIQUE CHECK(closure_sequence > 0),\n",
+    "    retry_fingerprint TEXT NOT NULL CHECK(length(retry_fingerprint) = 64 AND retry_fingerprint = lower(retry_fingerprint) AND retry_fingerprint NOT GLOB '*[^0-9a-f]*'),\n",
+    "    phase TEXT NOT NULL CHECK(phase IN ('proving','at_rest_pending','complete','incomplete')),\n",
+    "    affected_count INTEGER NOT NULL CHECK(affected_count > 0),\n",
+    "    blocker_code TEXT CHECK(blocker_code IN ('projection_state_unavailable','proof_unavailable','telemetry_redaction','wal_checkpoint')),\n",
+    "    structural_proof_write_boundary INTEGER CHECK(structural_proof_write_boundary >= 0),\n",
+    "    proof_json TEXT CHECK(proof_json IS NULL OR json_valid(proof_json)),\n",
+    "    scope TEXT NOT NULL DEFAULT '',\n",
+    "    PRIMARY KEY(scope, closure_operation_id),\n",
+    "    CHECK(\n",
+    "        (phase = 'complete' AND blocker_code IS NULL AND structural_proof_write_boundary IS NOT NULL AND proof_json IS NOT NULL) OR\n",
+    "        (phase = 'incomplete' AND blocker_code IS NOT NULL AND ((cause IN ('purged','source_erased') AND structural_proof_write_boundary IS NOT NULL AND proof_json IS NOT NULL) OR (cause IN ('superseded','soft_deleted') AND structural_proof_write_boundary IS NULL AND proof_json IS NULL))) OR\n",
+    "        (phase = 'proving' AND blocker_code IS NULL AND cause IN ('superseded','soft_deleted') AND structural_proof_write_boundary IS NULL AND proof_json IS NULL) OR\n",
+    "        (phase = 'at_rest_pending' AND blocker_code IS NULL AND cause IN ('purged','source_erased') AND structural_proof_write_boundary IS NOT NULL AND proof_json IS NOT NULL)\n",
+    "    )\n",
+    ");\n",
+    "INSERT INTO _fathomdb_dependency_closures(schema_version, closure_operation_id, root_kind, root_value, cause, effective_at_epoch_s, admitted_write_boundary, admitted_dependency_generation, closure_sequence, retry_fingerprint, phase, affected_count, blocker_code, structural_proof_write_boundary, proof_json, scope)\n",
+    "    SELECT schema_version, closure_operation_id, root_kind, root_value, cause, effective_at_epoch_s, admitted_write_boundary, admitted_dependency_generation, closure_sequence, retry_fingerprint, phase, affected_count, blocker_code, structural_proof_write_boundary, proof_json, '' FROM _s39_dc_tmp;\n",
+    "DROP TABLE _s39_dc_tmp;\n",
+    "CREATE INDEX _fathomdb_dependency_closures_root ON _fathomdb_dependency_closures(scope, root_kind, root_value, phase);\n",
+    "CREATE INDEX _fathomdb_dependency_closures_recovery ON _fathomdb_dependency_closures(scope, phase, closure_sequence);\n",
+    "CREATE UNIQUE INDEX _fathomdb_dependency_closures_active_retry ON _fathomdb_dependency_closures(scope, retry_fingerprint) WHERE phase != 'complete';\n",
+    visibility_coalescing_trigger_sql!("dc", "ai", "INSERT", "_fathomdb_dependency_closures"),
+    visibility_coalescing_trigger_sql!("dc", "au", "UPDATE", "_fathomdb_dependency_closures"),
+    visibility_coalescing_trigger_sql!("dc", "ad", "DELETE", "_fathomdb_dependency_closures"),
+    "\n",
+    // 11. _fathomdb_erasure_requests (recreate without global idempotency_key UNIQUE; copy explicit non-generated cols).
+    "CREATE TABLE _s39_er_tmp AS SELECT ticket, idempotency_key, payload FROM _fathomdb_erasure_requests;\n",
+    "DROP TABLE _fathomdb_erasure_requests;\n",
+    "CREATE TABLE _fathomdb_erasure_requests(\n",
+    "    ticket TEXT PRIMARY KEY NOT NULL,\n",
+    "    idempotency_key TEXT NOT NULL,\n",
+    "    payload TEXT NOT NULL CHECK(json_valid(payload)),\n",
+    "    scope TEXT NOT NULL DEFAULT '',\n",
+    "    phase TEXT GENERATED ALWAYS AS (json_extract(payload,'$.status.phase')) STORED NOT NULL CHECK(phase IN ('queued','executing','sanitizing','finalizing','complete','withdrawn_before_removal')),\n",
+    "    UNIQUE(scope, idempotency_key),\n",
+    "    CHECK(json_type(payload,'$.ticket')='text' AND json_extract(payload,'$.ticket') IS NOT NULL AND ticket=json_extract(payload,'$.ticket')),\n",
+    "    CHECK(json_type(payload,'$.key')='text' AND json_extract(payload,'$.key') IS NOT NULL AND idempotency_key=json_extract(payload,'$.key'))\n",
+    ");\n",
+    "INSERT INTO _fathomdb_erasure_requests(ticket, idempotency_key, payload, scope)\n",
+    "    SELECT ticket, idempotency_key, payload, '' FROM _s39_er_tmp;\n",
+    "DROP TABLE _s39_er_tmp;\n",
+    "CREATE INDEX _fathomdb_erasure_requests_phase ON _fathomdb_erasure_requests(phase);\n",
+    "CREATE INDEX _fathomdb_erasure_requests_scope_phase ON _fathomdb_erasure_requests(scope, phase);\n",
 );
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -1469,6 +2289,7 @@ pub const MIGRATIONS: &[Migration] = &[
         ),
     },
     Migration { step_id: 38, sql: STEP_38_SQL },
+    Migration { step_id: 39, sql: STEP_39_SQL },
 ];
 
 /// `_fathomdb_open_state` key under which step 23 reserved the pre-TC-33

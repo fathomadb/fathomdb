@@ -38,7 +38,7 @@ fn format37_has_constrained_clean_state_and_all57_gated_triggers() {
     let dir = TempDir::new().unwrap();
     let path = dir.path().join("format37.sqlite");
     let opened = Engine::open(&path).unwrap();
-    assert_eq!(opened.report.schema_version_after, 38);
+    assert_eq!(opened.report.schema_version_after, 39);
     let connection = Connection::open(&path).unwrap();
     assert_eq!(
         connection
@@ -166,7 +166,7 @@ fn format36_refusal_preserves_database_wal_shm_and_lock_bytes() {
     let before = bytes(dir.path());
     assert!(matches!(
         Engine::open(&path),
-        Err(EngineOpenError::IncompatibleSchemaVersion { seen: 36, supported: 38 })
+        Err(EngineOpenError::IncompatibleSchemaVersion { seen: 36, supported: 39 })
     ));
     assert_eq!(bytes(dir.path()), before);
     assert_eq!(

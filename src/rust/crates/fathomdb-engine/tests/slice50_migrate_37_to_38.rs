@@ -6,9 +6,9 @@ use std::path::{Path, PathBuf};
 
 use fathomdb_engine::{
     arm_migrate_37_to_38_before_version_stamp_hook_for_test, configure_runtime, migrate_37_to_38,
-    Engine, EngineError, EngineOpenError, GraphExpandRequestV1, GraphExpansionErrorReasonV1,
-    GraphReadContextV1, GraphSeedV1, IdSpace, MigrateErrorCode, ReadContextV1, ReadView,
-    RuntimeSqliteMode, SearchFilter, TraversalDirection,
+    migrate_38_to_39, Engine, EngineError, EngineOpenError, GraphExpandRequestV1,
+    GraphExpansionErrorReasonV1, GraphReadContextV1, GraphSeedV1, IdSpace, MigrateErrorCode,
+    ReadContextV1, ReadView, RuntimeSqliteMode, SearchFilter, TraversalDirection,
 };
 use rusqlite::Connection;
 use sha2::{Digest, Sha256};
@@ -60,8 +60,8 @@ fn engine_open_still_refuses_schema_37() {
     let db = copy_golden(&dir, "refuse37.sqlite");
     let err = Engine::open(&db).unwrap_err();
     assert!(
-        matches!(err, EngineOpenError::IncompatibleSchemaVersion { seen: 37, supported: 38 }),
-        "expected IncompatibleSchemaVersion 37/38, got {err:?}"
+        matches!(err, EngineOpenError::IncompatibleSchemaVersion { seen: 37, supported: 39 }),
+        "expected IncompatibleSchemaVersion 37/39, got {err:?}"
     );
     assert_eq!(sha256_file(&db), GOLDEN_SCHEMA_37_SHA256, "open refusal must not mutate db");
 }
@@ -97,10 +97,11 @@ fn wrong_user_version_36_38_39_fails_closed_without_backup_or_mutation() {
     let dir = TempDir::new().unwrap();
     let backup_dir = dir.path().join("backups");
 
-    // 1. Fresh Schema 38 -> AlreadyCurrent
-    let db38 = dir.path().join("v38.sqlite");
-    let engine = Engine::open(&db38).unwrap().engine;
-    engine.close().unwrap();
+    // 1. True Schema 38 fixture (golden 37 upgraded via migrate_37_to_38) -> AlreadyCurrent
+    let db38 = copy_golden(&dir, "v38.sqlite");
+    let setup_backups = dir.path().join("setup_backups");
+    let r38 = migrate_37_to_38(&db38, &setup_backups).unwrap();
+    assert_eq!(r38.to_version, 38);
     let err38 = migrate_37_to_38(&db38, &backup_dir).unwrap_err();
     assert_eq!(err38.code, MigrateErrorCode::AlreadyCurrent);
     assert_eq!(err38.seen_version, Some(38));
@@ -332,6 +333,9 @@ fn dangling_edge_endpoints_fail_closed_and_superseded_endpoints_are_admitted() {
     assert_eq!(report.preflight.dangling_edge_endpoints, 0);
     assert_eq!(report.preflight.superseded_edge_endpoints, 1);
     assert!(report.integrity_clean());
+    let report39 = migrate_38_to_39(&sup_db, &sup_backup)
+        .expect("chain 38 -> 39 before Schema 39 Engine::open");
+    assert!(report39.integrity_clean());
     let opened = Engine::open(&sup_db).expect("upgraded db opens cleanly");
     opened.engine.close().unwrap();
 }
@@ -398,6 +402,8 @@ fn fresh_vs_migrated_sqlite_master_structural_parity() {
     let backup_dir = dir.path().join("backups");
     let report = migrate_37_to_38(&migrated_db, &backup_dir).unwrap();
     assert!(report.integrity_clean());
+    let report39 = migrate_38_to_39(&migrated_db, &backup_dir).unwrap();
+    assert!(report39.integrity_clean());
 
     let normalize = |sql: &str| -> String { sql.split_whitespace().collect::<Vec<_>>().join(" ") };
 
@@ -446,11 +452,11 @@ fn fresh_vs_migrated_sqlite_master_structural_parity() {
         ("index", "canonical_property_values_bool_idx"),
         ("table", "_fathomdb_commit_timestamps"),
         ("index", "_fathomdb_commit_timestamps_ms_idx"),
-        ("index", "canonical_nodes_logical_sup_idx"),
-        ("index", "canonical_edges_from_active_idx"),
-        ("index", "canonical_edges_to_active_idx"),
-        ("index", "canonical_edges_from_sup_kind_idx"),
-        ("index", "canonical_edges_to_sup_kind_idx"),
+        ("index", "canonical_nodes_scope_logical_sup_idx"),
+        ("index", "canonical_edges_scope_from_active_idx"),
+        ("index", "canonical_edges_scope_to_active_idx"),
+        ("index", "canonical_edges_scope_from_sup_kind_idx"),
+        ("index", "canonical_edges_scope_to_sup_kind_idx"),
         ("trigger", "_fathomdb_read_visibility_cpv_ai"),
         ("trigger", "_fathomdb_read_visibility_cpv_au"),
         ("trigger", "_fathomdb_read_visibility_cpv_ad"),
@@ -493,10 +499,16 @@ fn golden_schema_37_upgrade_end_to_end() {
         report.integrity
     );
 
-    // Open migrated DB with Engine::open
-    let opened = Engine::open(&db).expect("Engine::open must succeed on migrated Schema 38 DB");
-    assert_eq!(opened.report.schema_version_before, 38);
-    assert_eq!(opened.report.schema_version_after, 38);
+    let report39 =
+        migrate_38_to_39(&db, &backup_dir).expect("chain 38 -> 39 before Schema 39 Engine::open");
+    assert_eq!(report39.from_version, 38);
+    assert_eq!(report39.to_version, 39);
+    assert!(report39.integrity_clean());
+
+    // Open migrated DB with Engine::open (Schema 39 head)
+    let opened = Engine::open(&db).expect("Engine::open must succeed on migrated Schema 39 DB");
+    assert_eq!(opened.report.schema_version_before, 39);
+    assert_eq!(opened.report.schema_version_after, 39);
 
     // Existing live nodes present with default empty properties
     let req1 =

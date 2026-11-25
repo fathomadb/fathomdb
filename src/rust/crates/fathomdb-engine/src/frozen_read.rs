@@ -31,28 +31,6 @@ const SERVING_DOMAIN_V2: &[u8] = b"fathomdb.projection-serving-binding.v2\0";
 const SERVING_DOMAIN_V3: &[u8] = b"fathomdb.projection-serving-binding.v3\0";
 const DATABASE_ID_KEY: &str = "_fathomdb_database_id";
 const READ_CONTEXT_KEY: &str = "_fathomdb_read_context_key";
-const VISIBILITY_TRIGGER_TABLES: [(&str, &str); 20] = [
-    ("cn", "canonical_nodes"),
-    ("ce", "canonical_edges"),
-    ("ar", "_fathomdb_artifact_revisions"),
-    ("sv", "_fathomdb_source_versions"),
-    ("sl", "_fathomdb_source_links"),
-    ("sd", "_fathomdb_source_dependencies"),
-    ("dc", "_fathomdb_dependency_closures"),
-    ("pr", "_fathomdb_projection_registry"),
-    ("ca", "canonical_attributes"),
-    ("ps", "_fathomdb_projection_state"),
-    ("pt", "_fathomdb_projection_terminal"),
-    ("vk", "_fathomdb_vector_kinds"),
-    ("vr", "_fathomdb_vector_rows"),
-    ("ep", "_fathomdb_embedder_profiles"),
-    ("pg", "_fathomdb_projection_generations"),
-    ("pc", "_fathomdb_projection_generation_current"),
-    ("oc", "operational_collections"),
-    ("os", "operational_state"),
-    ("vs", "_fathomdb_vector_spans"),
-    ("cpv", "canonical_property_values"),
-];
 
 /// Versioned search eligibility and validity requested by a caller.
 #[derive(Clone, Debug, PartialEq)]
@@ -422,18 +400,14 @@ pub(crate) fn validate_on_open(connection: &Connection, schema_version: u32) -> 
             return Err("invalid frozen-read branch-sensitive state".to_string());
         }
     }
-    let trigger_tables = if schema_version >= 38 {
-        &VISIBILITY_TRIGGER_TABLES[..20]
-    } else if schema_version >= 35 {
-        &VISIBILITY_TRIGGER_TABLES[..19]
-    } else if schema_version >= 33 {
-        &VISIBILITY_TRIGGER_TABLES[..18]
-    } else if schema_version >= 32 {
-        &VISIBILITY_TRIGGER_TABLES[..16]
-    } else {
-        &VISIBILITY_TRIGGER_TABLES[..14]
-    };
-    for &(short, table) in trigger_tables {
+    let mut trigger_table_count = 0usize;
+    for entry in fathomdb_schema::TABLE_MANIFEST.iter().filter(|entry| {
+        entry.visibility_trigger_prefix.is_some()
+            && entry.visibility_trigger_min_version.is_some_and(|min| min <= schema_version)
+    }) {
+        trigger_table_count += 1;
+        let short = entry.visibility_trigger_prefix.expect("checked some");
+        let table = entry.name;
         for (suffix, operation) in [("ai", "INSERT"), ("au", "UPDATE"), ("ad", "DELETE")] {
             let name = format!("_fathomdb_read_visibility_{short}_{suffix}");
             let sql = connection
@@ -473,7 +447,7 @@ pub(crate) fn validate_on_open(connection: &Connection, schema_version: u32) -> 
         [],
         |row| row.get::<_, i64>(0),
     ).map_err(|error| error.to_string())?;
-    if count != i64::try_from(trigger_tables.len() * 3).unwrap_or(i64::MAX) {
+    if count != i64::try_from(trigger_table_count * 3).unwrap_or(i64::MAX) {
         return Err("unexpected frozen-read visibility trigger".to_string());
     }
     if schema_version >= 35
@@ -482,7 +456,32 @@ pub(crate) fn validate_on_open(connection: &Connection, schema_version: u32) -> 
     {
         return Err("missing or altered vector span cleanup trigger".to_string());
     }
-    if schema_version >= 33 {
+    if schema_version >= 39 {
+        validate_page_index(
+            connection,
+            "canonical_nodes_scope_kind_cursor_page_idx",
+            "canonical_nodes",
+            "CREATE UNIQUE INDEX canonical_nodes_scope_kind_cursor_page_idx ON canonical_nodes(scope, kind, write_cursor) WHERE logical_id IS NOT NULL",
+        )?;
+        validate_page_index(
+            connection,
+            "operational_state_scope_collection_cursor_page_idx",
+            "operational_state",
+            "CREATE UNIQUE INDEX operational_state_scope_collection_cursor_page_idx ON operational_state(scope, collection_name, write_cursor)",
+        )?;
+        validate_page_index(
+            connection,
+            "operational_state_write_cursor_idx",
+            "operational_state",
+            "CREATE INDEX operational_state_write_cursor_idx ON operational_state(write_cursor)",
+        )?;
+        validate_page_index(
+            connection,
+            "_fathomdb_artifact_revisions_write_cursor_idx",
+            "_fathomdb_artifact_revisions",
+            "CREATE INDEX _fathomdb_artifact_revisions_write_cursor_idx ON _fathomdb_artifact_revisions(write_cursor)",
+        )?;
+    } else if schema_version >= 33 {
         validate_page_index(
             connection,
             "canonical_nodes_kind_cursor_page_idx",

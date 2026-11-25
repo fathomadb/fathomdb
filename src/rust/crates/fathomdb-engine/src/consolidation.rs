@@ -415,7 +415,7 @@ fn slice70_future_invalidation_refreshes_native_edge_deadline() {
     let dim = default_profile_dimension(&conn).unwrap();
     let vector = serde_json::to_string(&vec![1.0f32; dim as usize]).unwrap();
     conn.execute("INSERT INTO _fathomdb_vector_rows VALUES(3,'edge_fact',3)", []).unwrap();
-    conn.execute("INSERT INTO vector_default(rowid,embedding,embedding_bin,source_type,kind,created_at,status,lifecycle,valid_from,valid_until) VALUES(3,vec_f32(?1),vec_quantize_binary(vec_f32(?1)),'edge_fact','edge_fact',0,'',0,-9223372036854775808,9223372036854775807)",[vector]).unwrap();
+    conn.execute("INSERT INTO vector_default(rowid,embedding,embedding_bin,source_type,kind,created_at,status,lifecycle,valid_from,valid_until,scope) VALUES(3,vec_f32(?1),vec_quantize_binary(vec_f32(?1)),'edge_fact','edge_fact',0,'',0,-9223372036854775808,9223372036854775807,'')",[vector]).unwrap();
     let cluster = [ConsolidateCandidateEdge {
         edge_ref: "edge".into(),
         body: Some("edge body".into()),

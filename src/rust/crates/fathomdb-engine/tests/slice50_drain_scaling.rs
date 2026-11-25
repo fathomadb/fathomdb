@@ -250,7 +250,7 @@ fn digest_detects_orphan_vector_row() {
         .into_iter()
         .flat_map(f32::to_le_bytes)
         .collect();
-    raw.execute("INSERT INTO vector_default(rowid,embedding,embedding_bin,source_type,kind,created_at,status,lifecycle,valid_from,valid_until) VALUES(1000,?1,vec_quantize_binary(?1),'document','doc',0,'',0,-9223372036854775808,9223372036854775807)",[vector]).unwrap();
+    raw.execute("INSERT INTO vector_default(rowid,embedding,embedding_bin,source_type,kind,created_at,status,lifecycle,valid_from,valid_until,scope) VALUES(1000,?1,vec_quantize_binary(?1),'document','doc',0,'',0,-9223372036854775808,9223372036854775807,'')",[vector]).unwrap();
     assert_ne!(digest(&raw), before, "unregistered vec0 row must affect whole-store digest");
 }
 

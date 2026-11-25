@@ -231,22 +231,22 @@ fn slice38_query_plans_use_declared_indexes_and_skip_cpv_on_unpredicated_search(
 
     let node_sup_plan = explain(
         &conn,
-        "SELECT kind, body, write_cursor FROM canonical_nodes WHERE logical_id = 'qp-n1' AND superseded_at IS NOT NULL AND superseded_at > 10 ORDER BY write_cursor DESC LIMIT 1",
+        "SELECT kind, body, write_cursor FROM canonical_nodes WHERE scope = '' AND logical_id = 'qp-n1' AND superseded_at IS NOT NULL AND superseded_at > 10 ORDER BY write_cursor DESC LIMIT 1",
     );
-    assert_uses_index(&node_sup_plan, "canonical_nodes_logical_sup_idx");
+    assert_uses_index(&node_sup_plan, "canonical_nodes_scope_logical_sup_idx");
 
     // Slice 30 (`AC31-30-02`) — write-time strict endpoint probe must use indexed SEARCH
-    // on canonical_nodes_logical_active_idx or canonical_nodes_logical_sup_idx with zero SCAN.
+    // on canonical_nodes_scope_logical_active_idx or canonical_nodes_scope_logical_sup_idx with zero SCAN.
     let endpoint_probe_plan = explain(
         &conn,
-        "SELECT 1 FROM canonical_nodes WHERE logical_id = 'qp-n1' AND superseded_at IS NULL AND state = 'active' LIMIT 1",
+        "SELECT 1 FROM canonical_nodes WHERE scope = '' AND logical_id = 'qp-n1' AND superseded_at IS NULL AND state = 'active' LIMIT 1",
     );
     assert!(
         endpoint_probe_plan.iter().any(|l| {
-            l.contains("SEARCH canonical_nodes USING INDEX canonical_nodes_logical_active_idx")
-                || l.contains("SEARCH canonical_nodes USING INDEX canonical_nodes_logical_sup_idx")
+            l.contains("SEARCH canonical_nodes USING INDEX canonical_nodes_scope_logical_active_idx")
+                || l.contains("SEARCH canonical_nodes USING INDEX canonical_nodes_scope_logical_sup_idx")
         }),
-        "write-time endpoint probe must use indexed SEARCH on canonical_nodes_logical_{{active,sup}}_idx; got:\n{}",
+        "write-time endpoint probe must use indexed SEARCH on canonical_nodes_scope_logical_{{active,sup}}_idx; got:\n{}",
         endpoint_probe_plan.join("\n")
     );
     assert!(
@@ -258,61 +258,61 @@ fn slice38_query_plans_use_declared_indexes_and_skip_cpv_on_unpredicated_search(
     // Edge active indexes (empty edge_kinds) and sup_kind indexes (non-empty edge_kinds / suppressed-aware lookup)
     let edge_from_active = explain(
         &conn,
-        "SELECT to_id, kind FROM canonical_edges WHERE from_id = 'qp-n1' AND superseded_at IS NULL",
+        "SELECT to_id, kind FROM canonical_edges WHERE scope = '' AND from_id = 'qp-n1' AND superseded_at IS NULL",
     );
     assert!(
         edge_from_active.iter().any(|l| {
-            l.contains("canonical_edges_from_active_idx")
-                || l.contains("canonical_edges_from_sup_kind_idx")
+            l.contains("canonical_edges_scope_from_active_idx")
+                || l.contains("canonical_edges_scope_from_sup_kind_idx")
         }),
         "expected from active/sup_kind index, got {edge_from_active:?}"
     );
     let edge_from_active_pinned = explain(
         &conn,
-        "SELECT to_id, kind FROM canonical_edges INDEXED BY canonical_edges_from_active_idx WHERE from_id = 'qp-n1' AND superseded_at IS NULL",
+        "SELECT to_id, kind FROM canonical_edges INDEXED BY canonical_edges_scope_from_active_idx WHERE scope = '' AND from_id = 'qp-n1' AND superseded_at IS NULL",
     );
-    assert_uses_index(&edge_from_active_pinned, "canonical_edges_from_active_idx");
+    assert_uses_index(&edge_from_active_pinned, "canonical_edges_scope_from_active_idx");
 
     let edge_to_active = explain(
         &conn,
-        "SELECT from_id, kind FROM canonical_edges WHERE to_id = 'qp-n2' AND superseded_at IS NULL",
+        "SELECT from_id, kind FROM canonical_edges WHERE scope = '' AND to_id = 'qp-n2' AND superseded_at IS NULL",
     );
     assert!(
         edge_to_active.iter().any(|l| {
-            l.contains("canonical_edges_to_active_idx")
-                || l.contains("canonical_edges_to_sup_kind_idx")
+            l.contains("canonical_edges_scope_to_active_idx")
+                || l.contains("canonical_edges_scope_to_sup_kind_idx")
         }),
         "expected to active/sup_kind index, got {edge_to_active:?}"
     );
     let edge_to_active_pinned = explain(
         &conn,
-        "SELECT from_id, kind FROM canonical_edges INDEXED BY canonical_edges_to_active_idx WHERE to_id = 'qp-n2' AND superseded_at IS NULL",
+        "SELECT from_id, kind FROM canonical_edges INDEXED BY canonical_edges_scope_to_active_idx WHERE scope = '' AND to_id = 'qp-n2' AND superseded_at IS NULL",
     );
-    assert_uses_index(&edge_to_active_pinned, "canonical_edges_to_active_idx");
+    assert_uses_index(&edge_to_active_pinned, "canonical_edges_scope_to_active_idx");
 
     let edge_from_kind = explain(
         &conn,
-        "SELECT to_id FROM canonical_edges WHERE from_id = 'qp-n1' AND superseded_at IS NULL AND kind = 'supports'",
+        "SELECT to_id FROM canonical_edges WHERE scope = '' AND from_id = 'qp-n1' AND superseded_at IS NULL AND kind = 'supports'",
     );
     assert!(
         edge_from_kind.iter().any(|l| {
-            l.contains("canonical_edges_from_sup_kind_idx")
-                || l.contains("canonical_edges_from_active_idx")
+            l.contains("canonical_edges_scope_from_sup_kind_idx")
+                || l.contains("canonical_edges_scope_from_active_idx")
         }),
         "expected from sup_kind/active index, got {edge_from_kind:?}"
     );
     // Explicitly check sup_kind planner usability when querying specific superseded_at + kind.
     let edge_from_sup_kind = explain(
         &conn,
-        "SELECT to_id FROM canonical_edges INDEXED BY canonical_edges_from_sup_kind_idx WHERE from_id = 'qp-n1' AND superseded_at IS NOT NULL AND superseded_at > 10 AND kind = 'supports'",
+        "SELECT to_id FROM canonical_edges INDEXED BY canonical_edges_scope_from_sup_kind_idx WHERE scope = '' AND from_id = 'qp-n1' AND superseded_at IS NOT NULL AND superseded_at > 10 AND kind = 'supports'",
     );
-    assert_uses_index(&edge_from_sup_kind, "canonical_edges_from_sup_kind_idx");
+    assert_uses_index(&edge_from_sup_kind, "canonical_edges_scope_from_sup_kind_idx");
 
     let edge_to_sup_kind = explain(
         &conn,
-        "SELECT from_id FROM canonical_edges INDEXED BY canonical_edges_to_sup_kind_idx WHERE to_id = 'qp-n2' AND superseded_at IS NOT NULL AND superseded_at > 10 AND kind = 'supports'",
+        "SELECT from_id FROM canonical_edges INDEXED BY canonical_edges_scope_to_sup_kind_idx WHERE scope = '' AND to_id = 'qp-n2' AND superseded_at IS NOT NULL AND superseded_at > 10 AND kind = 'supports'",
     );
-    assert_uses_index(&edge_to_sup_kind, "canonical_edges_to_sup_kind_idx");
+    assert_uses_index(&edge_to_sup_kind, "canonical_edges_scope_to_sup_kind_idx");
 }
 
 #[derive(Clone, Debug)]

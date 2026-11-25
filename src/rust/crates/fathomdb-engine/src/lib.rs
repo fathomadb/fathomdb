@@ -303,15 +303,19 @@ use mean::{
     run_pin_and_requantize_pass, subtract_mean, MeanAccumulator,
 };
 pub use mean::{MeanRecomputeReport, MEAN_VEC_PIN_THRESHOLD};
-#[cfg(all(feature = "operator", any(test, feature = "migration-test-hooks")))]
-pub use operator::arm_migrate_37_to_38_before_version_stamp_hook_for_test;
 #[cfg(feature = "operator")]
 pub use operator::recover_complete_erasures;
+#[cfg(all(feature = "operator", any(test, feature = "migration-test-hooks")))]
+pub use operator::{
+    arm_migrate_37_to_38_before_version_stamp_hook_for_test,
+    arm_migrate_38_to_39_before_version_stamp_hook_for_test,
+};
 #[cfg(feature = "operator")]
 pub use operator::{inspect_data_plane_integrity, recover_truncate_wal};
 #[cfg(feature = "operator")]
 pub use operator::{
-    migrate_37_to_38, MigrateError, MigrateErrorCode, MigratePreflightReport, MigrateReport,
+    migrate_37_to_38, migrate_38_to_39, MigrateError, MigrateErrorCode, MigratePreflightReport,
+    MigrateReport,
 };
 pub use operator::{
     CheckIntegrityOpts, DumpProfileReport, DumpRowCountsReport, DumpSchemaReport, Finding,
@@ -361,7 +365,10 @@ use projection_worker::{
 #[cfg(any(test, feature = "test-hooks", feature = "operator"))]
 mod export_manifest;
 #[cfg(any(test, feature = "test-hooks", feature = "operator"))]
-pub use export_manifest::{audit_schema_38_sqlite_master, classify_schema_38_table, ExportClass};
+pub use export_manifest::{
+    audit_schema_38_sqlite_master, audit_schema_39_sqlite_master, classify_schema_38_table,
+    classify_schema_39_table, ExportClass,
+};
 pub use properties::{
     OperationalCollectionInfo, PropertyComparisonOp, PropertyEntityClass, PropertyMap,
     PropertyPredicate, PropertyValue,
@@ -1192,8 +1199,8 @@ mod tests {
         assert!(!older_installed_schema, "the losing older opener must not install schema 33");
         let opened = current.join().expect("current opener thread").expect("current open");
         assert_eq!(opened.report.schema_version_before, 0);
-        assert_eq!(opened.report.schema_version_after, 38);
-        assert_eq!(opened.report.migration_steps.last().map(|step| step.step_id), Some(38));
+        assert_eq!(opened.report.schema_version_after, 39);
+        assert_eq!(opened.report.migration_steps.last().map(|step| step.step_id), Some(39));
         opened.engine.close().expect("close current engine");
     }
 
@@ -3350,19 +3357,34 @@ mod tests {
     /// watermark, so it must NEVER be deleted per-cursor. The test asserts both
     /// halves of that claim — that it carries no `write_cursor` column, and that
     /// it is absent from the row-owned registry.
+    const NON_PROJECTION_CURSOR_COUNT: usize = {
+        let mut count = 0;
+        let mut i = 0;
+        while i < fathomdb_schema::TABLE_MANIFEST.len() {
+            if fathomdb_schema::TABLE_MANIFEST[i].has_non_projection_write_cursor {
+                count += 1;
+            }
+            i += 1;
+        }
+        count
+    };
+
+    const NON_PROJECTION_CURSOR_TABLES: [&str; NON_PROJECTION_CURSOR_COUNT] = {
+        let mut out = [""; NON_PROJECTION_CURSOR_COUNT];
+        let mut src = 0;
+        let mut dst = 0;
+        while src < fathomdb_schema::TABLE_MANIFEST.len() {
+            if fathomdb_schema::TABLE_MANIFEST[src].has_non_projection_write_cursor {
+                out[dst] = fathomdb_schema::TABLE_MANIFEST[src].name;
+                dst += 1;
+            }
+            src += 1;
+        }
+        out
+    };
+
     #[test]
     fn guard_row_owned_registry() {
-        /// Canonical + operational tables: `write_cursor`-carrying SOURCES OF
-        /// TRUTH, never row-owned projections of another row.
-        const NON_PROJECTION_CURSOR_TABLES: &[&str] = &[
-            "canonical_nodes",
-            "canonical_edges",
-            "operational_mutations",
-            "operational_state",
-            "_fathomdb_artifact_revisions",
-            "_fathomdb_commit_timestamps",
-        ];
-
         let dir = TempDir::new().unwrap();
         let path = dir.path().join("registry_guard.fathomdb");
         Engine::open(&path).expect("open").engine.close().expect("close");
@@ -3456,15 +3478,6 @@ mod tests {
     /// content-storing projection a red test, not a silent erasure leak.
     #[test]
     fn slice15d_attribute_projections_registered_and_guard_bites() {
-        const NON_PROJECTION_CURSOR_TABLES: &[&str] = &[
-            "canonical_nodes",
-            "canonical_edges",
-            "operational_mutations",
-            "operational_state",
-            "_fathomdb_artifact_revisions",
-            "_fathomdb_commit_timestamps",
-        ];
-
         let registered: Vec<&str> = ROW_OWNED_PROJECTIONS.iter().map(|p| p.table).collect();
 
         // (1) Content-storing property/attribute projections are registered as row-owned.

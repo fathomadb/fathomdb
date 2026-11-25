@@ -27,7 +27,7 @@ const NODE_BODY_OWNER_QUERY: &str =
     "SELECT n.write_cursor,r.revision_id,n.body,n.kind FROM canonical_nodes n \
      INDEXED BY canonical_nodes_write_cursor_idx \
      LEFT JOIN _fathomdb_artifact_revisions r \
-       ON r.artifact_class='node' AND r.write_cursor=n.write_cursor \
+       ON r.scope=n.scope AND r.artifact_class='node' AND r.write_cursor=n.write_cursor \
      WHERE n.write_cursor>?1 ORDER BY n.write_cursor LIMIT ?2";
 #[cfg(feature = "operator")]
 const EDGE_BODY_OWNER_QUERY: &str =
@@ -35,7 +35,7 @@ const EDGE_BODY_OWNER_QUERY: &str =
      FROM canonical_edges e \
      INDEXED BY canonical_edges_write_cursor_idx \
      LEFT JOIN _fathomdb_artifact_revisions r \
-       ON r.artifact_class='edge' AND r.write_cursor=e.write_cursor \
+       ON r.scope=e.scope AND r.artifact_class='edge' AND r.write_cursor=e.write_cursor \
      WHERE e.write_cursor>?1 ORDER BY e.write_cursor LIMIT ?2";
 #[cfg(feature = "operator")]
 const SEARCH_V1_MEMBER_QUERY: &str = "SELECT rowid,write_cursor,body,kind FROM search_index \
@@ -66,7 +66,7 @@ const ATTRIBUTE_OWNER_QUERY: &str =
      FROM canonical_nodes n \
      INDEXED BY canonical_nodes_write_cursor_idx \
      LEFT JOIN _fathomdb_artifact_revisions r \
-       ON r.artifact_class='node' AND r.write_cursor=n.write_cursor \
+       ON r.scope=n.scope AND r.artifact_class='node' AND r.write_cursor=n.write_cursor \
      WHERE n.write_cursor>?1 ORDER BY n.write_cursor LIMIT ?2";
 #[cfg(feature = "operator")]
 const DENSE_TERMINAL_MEMBER_QUERY: &str =
@@ -474,13 +474,14 @@ struct StoredCanonicalNode {
 #[cfg(feature = "operator")]
 fn load_artifact_owner(
     connection: &Connection,
+    scope: &str,
     revision_id: &str,
 ) -> Result<Option<StoredArtifactOwner>, EngineError> {
     connection
         .query_row(
             "SELECT schema_version,artifact_class,artifact_role,completeness,write_cursor \
-             FROM _fathomdb_artifact_revisions WHERE revision_id=?1",
-            [revision_id],
+             FROM _fathomdb_artifact_revisions WHERE scope=?1 AND revision_id=?2",
+            rusqlite::params![scope, revision_id],
             |row| {
                 Ok(StoredArtifactOwner {
                     schema: integer_value(row, 0),
@@ -498,12 +499,13 @@ fn load_artifact_owner(
 #[cfg(feature = "operator")]
 fn load_canonical_node(
     connection: &Connection,
+    scope: &str,
     cursor: i64,
 ) -> Result<Option<StoredCanonicalNode>, EngineError> {
     connection
         .query_row(
-            "SELECT source_id,body FROM canonical_nodes WHERE write_cursor=?1",
-            [cursor],
+            "SELECT source_id,body FROM canonical_nodes WHERE write_cursor=?1 AND scope=?2",
+            rusqlite::params![cursor, scope],
             |row| {
                 Ok(StoredCanonicalNode { source_id: text_value(row, 0), body: text_value(row, 1) })
             },
@@ -515,17 +517,18 @@ fn load_canonical_node(
 #[cfg(feature = "operator")]
 fn load_canonical_self_link(
     connection: &Connection,
+    scope: &str,
     source_revision: &str,
 ) -> Result<Option<[Option<String>; 4]>, EngineError> {
     connection
         .query_row(
             "SELECT source_id,source_version_id,hash_algorithm,hash_digest \
              FROM _fathomdb_source_links \
-             WHERE artifact_revision_id=?1 AND source_revision_id=?1 \
+             WHERE scope=?1 AND artifact_revision_id=?2 AND source_revision_id=?2 \
              AND schema_version=1 \
              AND locator_kind='whole_body' AND start_byte IS NULL \
              AND end_byte IS NULL",
-            [source_revision],
+            rusqlite::params![scope, source_revision],
             |row| {
                 Ok([text_value(row, 0), text_value(row, 1), text_value(row, 2), text_value(row, 3)])
             },
@@ -919,8 +922,8 @@ fn dependency_findings(
     }
     let remaining = max_work_units.saturating_sub(*aggregate_checked);
     let sql =
-        "SELECT schema_version,dependency_id,derived_revision_id,registered_dependency_generation \
-               FROM _fathomdb_source_dependencies ORDER BY dependency_id LIMIT ?1";
+        "SELECT schema_version,dependency_id,derived_revision_id,registered_dependency_generation,scope \
+               FROM _fathomdb_source_dependencies ORDER BY scope, dependency_id LIMIT ?1";
     let mut statement = connection.prepare(sql).map_err(|_| EngineError::Storage)?;
     let mut rows = statement.query([i64::from(remaining) + 1]).map_err(|_| EngineError::Storage)?;
     while let Some(row) = rows.next().map_err(|_| EngineError::Storage)? {
@@ -930,10 +933,12 @@ fn dependency_findings(
         let derived_revision =
             text_value(row, 2).filter(|value| crate::valid_caller_identity(value));
         let registered_generation = integer_value(row, 3);
+        let dep_scope = text_value(row, 4);
         if schema != Some(1)
             || dependency_id.is_none()
             || derived_revision.is_none()
             || registered_generation.is_none_or(|value| value < 0)
+            || dep_scope.is_none()
         {
             let mut item = finding(
                 DataPlaneIntegrityFindingCodeV1::DependencyRowInvalid,
@@ -946,8 +951,9 @@ fn dependency_findings(
         let dependency_id = dependency_id.expect("validated dependency id");
         let derived_revision = derived_revision.expect("validated derived revision");
         let registered_generation = registered_generation.expect("validated generation");
+        let dep_scope = dep_scope.expect("validated scope");
         let mut item = None;
-        let derived_owner = load_artifact_owner(connection, &derived_revision)?;
+        let derived_owner = load_artifact_owner(connection, &dep_scope, &derived_revision)?;
         if item.is_none() && derived_owner.is_none() {
             item = Some(finding(
                 DataPlaneIntegrityFindingCodeV1::DependencyDerivedOwnerMissing,
@@ -959,15 +965,15 @@ fn dependency_findings(
             let owner_exists = match (owner.class.as_deref(), owner.cursor) {
                 (Some("node"), Some(cursor)) => connection
                     .query_row(
-                        "SELECT EXISTS(SELECT 1 FROM canonical_nodes WHERE write_cursor=?1)",
-                        [cursor],
+                        "SELECT EXISTS(SELECT 1 FROM canonical_nodes WHERE write_cursor=?1 AND scope=?2)",
+                        rusqlite::params![cursor, &dep_scope],
                         |row| row.get(0),
                     )
                     .map_err(|_| EngineError::Storage)?,
                 (Some("edge"), Some(cursor)) => connection
                     .query_row(
-                        "SELECT EXISTS(SELECT 1 FROM canonical_edges WHERE write_cursor=?1)",
-                        [cursor],
+                        "SELECT EXISTS(SELECT 1 FROM canonical_edges WHERE write_cursor=?1 AND scope=?2)",
+                        rusqlite::params![cursor, &dep_scope],
                         |row| row.get(0),
                     )
                     .map_err(|_| EngineError::Storage)?,
@@ -992,8 +998,8 @@ fn dependency_findings(
                 .query_row(
                     "SELECT schema_version,source_id,source_version_id,source_revision_id,locator_kind,\
                             start_byte,end_byte,hash_algorithm,hash_digest \
-                     FROM _fathomdb_source_links WHERE artifact_revision_id=?1",
-                    [&derived_revision],
+                     FROM _fathomdb_source_links WHERE scope=?1 AND artifact_revision_id=?2",
+                    rusqlite::params![&dep_scope, &derived_revision],
                     |row| {
                         Ok(StoredSourceLink {
                             schema: integer_value(row, 0),
@@ -1073,10 +1079,12 @@ fn dependency_findings(
                     NullableValue::Null | NullableValue::Invalid => None,
                 };
                 let digest = link.digest.as_ref().expect("validated digest");
-                let source_owner = load_artifact_owner(connection, source_revision)?;
+                let source_owner = load_artifact_owner(connection, &dep_scope, source_revision)?;
                 if let Some(owner) = source_owner {
                     let canonical_node = match (owner.class.as_deref(), owner.cursor) {
-                        (Some("node"), Some(cursor)) => load_canonical_node(connection, cursor)?,
+                        (Some("node"), Some(cursor)) => {
+                            load_canonical_node(connection, &dep_scope, cursor)?
+                        }
                         _ => None,
                     };
                     if let Some(canonical_node) = canonical_node {
@@ -1123,9 +1131,9 @@ fn dependency_findings(
                             let version_matches: bool = connection
                                 .query_row(
                                     "SELECT EXISTS(SELECT 1 FROM _fathomdb_source_versions \
-                                     WHERE source_revision_id=?1 AND source_id=?2 AND source_version_id=?3 \
+                                     WHERE scope=?1 AND source_revision_id=?2 AND source_id=?3 AND source_version_id=?4 \
                                      AND schema_version=1)",
-                                    rusqlite::params![source_revision, source_id, version_id],
+                                    rusqlite::params![&dep_scope, source_revision, source_id, version_id],
                                     |row| row.get(0),
                                 )
                                 .map_err(|_| EngineError::Storage)?;
@@ -1135,8 +1143,11 @@ fn dependency_findings(
                                     DataPlaneIntegritySeverityV1::Critical,
                                 ));
                             } else if item.is_none() {
-                                let self_link =
-                                    load_canonical_self_link(connection, source_revision)?;
+                                let self_link = load_canonical_self_link(
+                                    connection,
+                                    &dep_scope,
+                                    source_revision,
+                                )?;
                                 let canonical_digest = canonical_node.body.as_ref().map(|body| {
                                     Sha256::digest(body.as_bytes())
                                         .iter()
@@ -2584,17 +2595,18 @@ fn mutation_readiness_findings(
         if pending_count > max_work_units.saturating_sub(*aggregate_checked) {
             return Err(bound_error());
         }
-        let (operation_id, operations_count, outcome, boundary, json, generation): (
+        let (operation_id, operations_count, outcome, boundary, json, generation, receipt_scope): (
             String,
             Option<i64>,
             String,
             Option<i64>,
             String,
             Option<String>,
+            String,
         ) = connection
             .query_row(
                 "SELECT operation_id,operations_count,outcome,resulting_write_boundary,\
-                        pending_projection_write_cursors_json,projection_generation_id \
+                        pending_projection_write_cursors_json,projection_generation_id,scope \
                  FROM _fathomdb_actuation_receipts WHERE rowid=?1",
                 [rowid],
                 |row| {
@@ -2605,6 +2617,7 @@ fn mutation_readiness_findings(
                         row.get(3)?,
                         row.get(4)?,
                         row.get(5)?,
+                        row.get(6)?,
                     ))
                 },
             )
@@ -2687,8 +2700,11 @@ fn mutation_readiness_findings(
             let owner_exists: bool = connection
                 .query_row(
                     "SELECT EXISTS(SELECT 1 FROM _fathomdb_artifact_revisions \
-                     WHERE write_cursor=?1)",
-                    [i64::try_from(cursor).map_err(|_| EngineError::Storage)?],
+                     WHERE scope=?1 AND write_cursor=?2)",
+                    rusqlite::params![
+                        &receipt_scope,
+                        i64::try_from(cursor).map_err(|_| EngineError::Storage)?
+                    ],
                     |row| row.get(0),
                 )
                 .map_err(|_| EngineError::Storage)?;

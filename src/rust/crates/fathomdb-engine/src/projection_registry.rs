@@ -301,66 +301,79 @@ impl RowOwnedProjection {
 /// watermark. Erasing one row must NOT rewind a whole kind's watermark, so it
 /// must never be deleted per-cursor. A rebuild resets it deliberately; erasure
 /// leaves it alone.
-pub(crate) const ROW_OWNED_PROJECTIONS: &[RowOwnedProjection] = &[
-    RowOwnedProjection {
-        table: "search_index",
-        cursor_column: "write_cursor",
-        class: ProjectionClass::NodeFts,
-    },
-    RowOwnedProjection {
-        table: "search_index_v2",
-        cursor_column: "write_cursor",
-        class: ProjectionClass::NodeFts,
-    },
-    RowOwnedProjection {
-        table: "search_index_edges",
-        cursor_column: "write_cursor",
-        class: ProjectionClass::EdgeFts,
-    },
-    RowOwnedProjection {
-        table: "vector_default",
-        cursor_column: "rowid",
-        class: ProjectionClass::Vector,
-    },
-    RowOwnedProjection {
-        table: "_fathomdb_vector_spans",
-        cursor_column: "write_cursor",
-        class: ProjectionClass::Vector,
-    },
-    RowOwnedProjection {
-        table: "_fathomdb_vector_rows",
-        cursor_column: "write_cursor",
-        class: ProjectionClass::Vector,
-    },
-    RowOwnedProjection {
-        table: "_fathomdb_projection_terminal",
-        cursor_column: "write_cursor",
-        class: ProjectionClass::Readiness,
-    },
-    // 0.8.20 Slice 15d (R-20-EAV) — the EAV attribute store and its property-FTS
-    // shadow both hold declared attribute VALUES at rest (potential PII), keyed
-    // 1:1 with the owning node's write_cursor. They MUST be reachable by
-    // `purge`/`excise_source`: registering them here is what makes
-    // `erase_row_projections` delete them without a hand-rolled list (an
-    // unregistered content-storing table is exactly the `search_index_v2` leak
-    // class this registry closes). The `guard_row_owned_registry` unit test
-    // FAILS if either is left unregistered.
-    RowOwnedProjection {
-        table: "canonical_attributes",
-        cursor_column: "write_cursor",
-        class: ProjectionClass::Attribute,
-    },
-    RowOwnedProjection {
-        table: "property_search_index",
-        cursor_column: "write_cursor",
-        class: ProjectionClass::PropertyFts,
-    },
-    RowOwnedProjection {
-        table: "canonical_property_values",
-        cursor_column: "write_cursor",
-        class: ProjectionClass::PropertyValue,
-    },
-];
+const fn manifest_str_eq(a: &str, b: &str) -> bool {
+    let ab = a.as_bytes();
+    let bb = b.as_bytes();
+    if ab.len() != bb.len() {
+        return false;
+    }
+    let mut i = 0;
+    while i < ab.len() {
+        if ab[i] != bb[i] {
+            return false;
+        }
+        i += 1;
+    }
+    true
+}
+
+const fn projection_class_for_table(table: &str) -> ProjectionClass {
+    if manifest_str_eq(table, "search_index") || manifest_str_eq(table, "search_index_v2") {
+        ProjectionClass::NodeFts
+    } else if manifest_str_eq(table, "search_index_edges") {
+        ProjectionClass::EdgeFts
+    } else if manifest_str_eq(table, "vector_default")
+        || manifest_str_eq(table, "_fathomdb_vector_spans")
+        || manifest_str_eq(table, "_fathomdb_vector_rows")
+    {
+        ProjectionClass::Vector
+    } else if manifest_str_eq(table, "_fathomdb_projection_terminal") {
+        ProjectionClass::Readiness
+    } else if manifest_str_eq(table, "canonical_attributes") {
+        ProjectionClass::Attribute
+    } else if manifest_str_eq(table, "property_search_index") {
+        ProjectionClass::PropertyFts
+    } else if manifest_str_eq(table, "canonical_property_values") {
+        ProjectionClass::PropertyValue
+    } else {
+        panic!("row-owned TABLE_MANIFEST entry missing ProjectionClass mapping");
+    }
+}
+
+const ROW_OWNED_PROJECTION_COUNT: usize = {
+    let mut count = 0;
+    let mut i = 0;
+    while i < fathomdb_schema::TABLE_MANIFEST.len() {
+        if fathomdb_schema::TABLE_MANIFEST[i].row_owned_cursor_column.is_some() {
+            count += 1;
+        }
+        i += 1;
+    }
+    count
+};
+
+const ROW_OWNED_PROJECTIONS_STORAGE: [RowOwnedProjection; ROW_OWNED_PROJECTION_COUNT] = {
+    const DUMMY: RowOwnedProjection =
+        RowOwnedProjection { table: "", cursor_column: "", class: ProjectionClass::NodeFts };
+    let mut out = [DUMMY; ROW_OWNED_PROJECTION_COUNT];
+    let mut src = 0;
+    let mut dst = 0;
+    while src < fathomdb_schema::TABLE_MANIFEST.len() {
+        let entry = &fathomdb_schema::TABLE_MANIFEST[src];
+        if let Some(cursor_column) = entry.row_owned_cursor_column {
+            out[dst] = RowOwnedProjection {
+                table: entry.name,
+                cursor_column,
+                class: projection_class_for_table(entry.name),
+            };
+            dst += 1;
+        }
+        src += 1;
+    }
+    out
+};
+
+pub(crate) const ROW_OWNED_PROJECTIONS: &[RowOwnedProjection] = &ROW_OWNED_PROJECTIONS_STORAGE;
 
 /// 0.8.20 Slice 5a (R-20-E1) — erase EVERY row-owned projection for one
 /// canonical `write_cursor`. Returns the number of shadow rows deleted.

@@ -11,8 +11,9 @@ use super::*;
 use crate::errors::map_open_sqlite_error;
 use crate::open::{admit_current_database, read_only_sqlite_uri, sqlite_uri};
 
-const MIGRATE_FROM_VERSION: u32 = 37;
-const MIGRATE_TO_VERSION: u32 = 38;
+const SCHEMA_37: u32 = 37;
+const SCHEMA_38: u32 = 38;
+const SCHEMA_39: u32 = 39;
 
 /// Preflight edge-endpoint counts observed on a Schema-37 database before upgrade.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -126,8 +127,22 @@ impl MigrateError {
 type MigrateFaultHook = Box<dyn FnOnce() -> Result<(), String> + Send>;
 
 #[cfg(any(test, feature = "migration-test-hooks"))]
-static MIGRATE_BEFORE_VERSION_STAMP_HOOKS: Mutex<Vec<(PathBuf, MigrateFaultHook)>> =
+static MIGRATE_BEFORE_VERSION_STAMP_HOOKS: Mutex<Vec<(PathBuf, u32, MigrateFaultHook)>> =
     Mutex::new(Vec::new());
+
+#[cfg(any(test, feature = "migration-test-hooks"))]
+fn arm_migrate_before_version_stamp_hook(
+    db_path: &Path,
+    target_version: u32,
+    hook: impl FnOnce() -> Result<(), String> + Send + 'static,
+) {
+    let target = canonical_database_path(db_path).unwrap_or_else(|_| db_path.to_path_buf());
+    let mut hooks = MIGRATE_BEFORE_VERSION_STAMP_HOOKS
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    hooks.retain(|(existing, ver, _)| existing != &target || *ver != target_version);
+    hooks.push((target, target_version, Box::new(hook)));
+}
 
 /// Test-only path-scoped fault-injection hook invoked inside [`migrate_37_to_38`]'s
 /// single `BEGIN IMMEDIATE` transaction immediately after `STEP_38_SQL` executes
@@ -137,22 +152,33 @@ pub fn arm_migrate_37_to_38_before_version_stamp_hook_for_test(
     db_path: impl AsRef<Path>,
     hook: impl FnOnce() -> Result<(), String> + Send + 'static,
 ) {
-    let target = canonical_database_path(db_path.as_ref())
-        .unwrap_or_else(|_| db_path.as_ref().to_path_buf());
-    let mut hooks = MIGRATE_BEFORE_VERSION_STAMP_HOOKS
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    hooks.retain(|(existing, _)| existing != &target);
-    hooks.push((target, Box::new(hook)));
+    arm_migrate_before_version_stamp_hook(db_path.as_ref(), SCHEMA_38, hook);
+}
+
+/// Test-only path-scoped fault-injection hook invoked inside [`migrate_38_to_39`]'s
+/// single `BEGIN IMMEDIATE` transaction immediately after `STEP_39_SQL` and any
+/// `vec0` reshape execute and immediately before `PRAGMA user_version = 39`.
+#[cfg(any(test, feature = "migration-test-hooks"))]
+pub fn arm_migrate_38_to_39_before_version_stamp_hook_for_test(
+    db_path: impl AsRef<Path>,
+    hook: impl FnOnce() -> Result<(), String> + Send + 'static,
+) {
+    arm_migrate_before_version_stamp_hook(db_path.as_ref(), SCHEMA_39, hook);
 }
 
 #[cfg(any(test, feature = "migration-test-hooks"))]
-fn fire_migrate_before_version_stamp_hook(canonical_path: &Path) -> Result<(), String> {
+fn fire_migrate_before_version_stamp_hook(
+    canonical_path: &Path,
+    target_version: u32,
+) -> Result<(), String> {
     let hook = {
         let mut hooks = MIGRATE_BEFORE_VERSION_STAMP_HOOKS
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        hooks.iter().position(|(p, _)| p == canonical_path).map(|idx| hooks.remove(idx).1)
+        hooks
+            .iter()
+            .position(|(p, ver, _)| p == canonical_path && *ver == target_version)
+            .map(|idx| hooks.remove(idx).2)
     };
     if let Some(hook) = hook {
         hook()?;
@@ -160,50 +186,28 @@ fn fire_migrate_before_version_stamp_hook(canonical_path: &Path) -> Result<(), S
     Ok(())
 }
 
-/// Offline, fail-closed upgrade of a quiescent Schema-37 database to Schema 38.
-///
-/// Implements the 7-step contract from `ADR-0.8.31-cli-pypi-wheel-and-37-to-38-upgrade.md`:
-/// 1. Canonicalize path, verify regular non-empty file, acquire exclusive `.lock`,
-///    refuse non-empty `-journal`, and validate `backup_dir`.
-/// 2. Probe header, open integrity, legacy shape, strict `PRAGMA user_version == 37`,
-///    and Schema-37 recovery invariants on read-only connections (restoring `-shm` on refusal).
-/// 3. Fail closed if any pending physical closure, physical erasure debt, active/queued
-///    `_fathomdb_erasure_requests` row, or pending telemetry redaction exists.
-/// 4. Run read-only edge endpoint preflight (`from_id`/`to_id`): fail closed before
-///    backup/DDL whenever `dangling_edge_endpoints > 0`, while admitting valid
-///    superseded-only targets (`dangling_edge_endpoints == 0`).
-/// 5. Execute `PRAGMA wal_checkpoint(TRUNCATE)` (`busy == 0`), write a SHA-256-verified
-///    atomic backup (`create_new`) and sibling `.sha256` receipt into `backup_dir`.
-/// 6. Apply `fathomdb_schema::STEP_38_SQL` verbatim via `execute_batch` and stamp
-///    `PRAGMA user_version = 38` inside a single `BEGIN IMMEDIATE` transaction
-///    (rolling back atomically to byte-identical Schema 37 on any failure).
-/// 7. Checkpoint-truncate, run full post-upgrade integrity (`physical(full=true)`,
-///    `logical`, `semantic`, `pending_erasures`), and verify Schema-38 open admission.
-///
-/// # Errors
-///
-/// Returns [`MigrateError`] with a typed [`MigrateErrorCode`] without modifying
-/// the database on any preflight refusal, and leaves Schema 37 intact with the
-/// verified backup preserved if DDL aborts.
-pub fn migrate_37_to_38(
-    db_path: impl Into<PathBuf>,
-    backup_dir: impl Into<PathBuf>,
-) -> Result<MigrateReport, MigrateError> {
-    let requested_path = db_path.into();
-    let backup_dir_requested = backup_dir.into();
-
+fn prepare_migration_environment(
+    requested_path: &Path,
+    backup_dir_requested: &Path,
+    from_version: u32,
+    to_version: u32,
+) -> Result<(PathBuf, File, MigratePreflightReport), MigrateError> {
     // Step 1: Quiescence, exclusive product lock, rollback-journal refusal, and backup-dir precheck.
-    let canonical_path =
-        canonical_database_path(&requested_path).map_err(map_open_error_for_migrate)?;
-    validate_recovery_database_file(&canonical_path).map_err(map_open_error_for_migrate)?;
-    precheck_backup_dir(&backup_dir_requested, &canonical_path)?;
+    let canonical_path = canonical_database_path(requested_path)
+        .map_err(|err| map_open_error_for_migrate(err, from_version, to_version))?;
+    validate_recovery_database_file(&canonical_path)
+        .map_err(|err| map_open_error_for_migrate(err, from_version, to_version))?;
+    precheck_backup_dir(backup_dir_requested, &canonical_path)?;
 
     let pending_lock = acquire_lock_without_metadata_mutation(&canonical_path)
-        .map_err(map_open_error_for_migrate)?;
-    let _lock = pending_lock.initialize().map_err(map_open_error_for_migrate)?;
+        .map_err(|err| map_open_error_for_migrate(err, from_version, to_version))?;
+    let lock = pending_lock
+        .initialize()
+        .map_err(|err| map_open_error_for_migrate(err, from_version, to_version))?;
 
     // Re-validate after acquiring lock (closes rename/truncate race).
-    validate_recovery_database_file(&canonical_path).map_err(map_open_error_for_migrate)?;
+    validate_recovery_database_file(&canonical_path)
+        .map_err(|err| map_open_error_for_migrate(err, from_version, to_version))?;
     match std::fs::metadata(data_plane_sidecar_path(&canonical_path, "-journal")) {
         Ok(metadata) if metadata.len() > 0 => {
             return Err(MigrateError::simple(
@@ -221,15 +225,21 @@ pub fn migrate_37_to_38(
         }
     }
 
-    configure_runtime_for_open()
-        .map_err(|err| map_open_error_for_migrate(EngineOpenError::RuntimeConfiguration(err)))?;
+    configure_runtime_for_open().map_err(|err| {
+        map_open_error_for_migrate(
+            EngineOpenError::RuntimeConfiguration(err),
+            from_version,
+            to_version,
+        )
+    })?;
     register_sqlite_vec_extension();
 
     // Capture SHM snapshot so any refusal in Steps 2-4 restores transient sidecar state.
-    let shm = ShmSnapshot::capture(&canonical_path).map_err(map_open_error_for_migrate)?;
+    let shm = ShmSnapshot::capture(&canonical_path)
+        .map_err(|err| map_open_error_for_migrate(err, from_version, to_version))?;
 
     // Steps 2, 3, 4: Strictly read-only validation, erasure debt refusal, and edge endpoint preflight.
-    let preflight = match run_readonly_preflights(&canonical_path) {
+    let preflight = match run_readonly_preflights(&canonical_path, from_version, to_version) {
         Ok(preflight) => preflight,
         Err(err) => {
             let _ = shm.restore();
@@ -237,55 +247,37 @@ pub fn migrate_37_to_38(
         }
     };
 
-    // Step 5: WAL-checkpoint (`TRUNCATE`, `busy == 0`) and SHA-256-verified backup.
-    let connection = Connection::open_with_flags(
-        sqlite_uri(&canonical_path, "mode=rw"),
-        rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE
-            | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX
-            | rusqlite::OpenFlags::SQLITE_OPEN_URI,
-    )
-    .map_err(|error| {
-        map_open_error_for_migrate(map_open_sqlite_error(error, OpenStage::WalReplay))
-    })?;
-    connection.busy_timeout(Duration::ZERO).map_err(|error| {
-        map_open_error_for_migrate(map_open_sqlite_error(error, OpenStage::WalReplay))
-    })?;
+    Ok((canonical_path, lock, preflight))
+}
 
-    checkpoint_truncate_quiescent(&connection, &canonical_path)?;
+fn execute_upgrade_transaction_and_verify<F>(
+    connection: &Connection,
+    canonical_path: &Path,
+    backup_dir_requested: &Path,
+    from_version: u32,
+    to_version: u32,
+    preflight: MigratePreflightReport,
+    apply_ddl: F,
+) -> Result<MigrateReport, MigrateError>
+where
+    F: FnOnce(&Connection) -> Result<(), String>,
+{
+    checkpoint_truncate_quiescent(connection, canonical_path, from_version, to_version)?;
 
     let (backup_path, backup_sha256_path, backup_sha256) =
-        write_verified_backup(&canonical_path, &backup_dir_requested)?;
+        write_verified_backup(canonical_path, backup_dir_requested, from_version)?;
 
-    // Step 6: Single `BEGIN IMMEDIATE` transaction applying `STEP_38_SQL` verbatim.
+    // Step 6: Single `BEGIN IMMEDIATE` transaction applying schema DDL verbatim.
     connection.execute_batch("BEGIN IMMEDIATE").map_err(|err| MigrateError {
         code: MigrateErrorCode::RollbackFailedOrDdlAborted,
-        message: format!("failed to begin Schema 38 migration transaction: {err}"),
-        seen_version: Some(MIGRATE_FROM_VERSION),
+        message: format!("failed to begin Schema {to_version} migration transaction: {err}"),
+        seen_version: Some(from_version),
         preflight: Some(preflight),
         backup_path: Some(backup_path.clone()),
         backup_sha256: Some(backup_sha256.clone()),
     })?;
 
-    let ddl_result: Result<(), String> = (|| {
-        connection
-            .execute_batch(fathomdb_schema::STEP_38_SQL)
-            .map_err(|err| format!("Schema 38 DDL batch failed: {err}"))?;
-        projection_registry::backfill_canonical_property_values_for_schema_38(&connection)
-            .map_err(|err| {
-                format!("failed to backfill canonical_property_values for Schema 38: {err}")
-            })?;
-        #[cfg(any(test, feature = "migration-test-hooks"))]
-        fire_migrate_before_version_stamp_hook(&canonical_path)?;
-        connection
-            .pragma_update(None, "user_version", MIGRATE_TO_VERSION)
-            .map_err(|err| format!("failed to stamp PRAGMA user_version = 38: {err}"))?;
-        projection_generation::rehash_serving_declaration_for_schema_38(&connection).map_err(
-            |err| format!("failed to refresh Schema 38 serving declaration digest: {err}"),
-        )?;
-        Ok(())
-    })();
-
-    match ddl_result {
+    match apply_ddl(connection) {
         Ok(()) => {
             if let Err(err) = connection.execute_batch("COMMIT") {
                 let _ = connection.execute_batch("ROLLBACK");
@@ -294,8 +286,10 @@ pub fn migrate_37_to_38(
                 });
                 return Err(MigrateError {
                     code: MigrateErrorCode::RollbackFailedOrDdlAborted,
-                    message: format!("Schema 38 COMMIT failed and was rolled back: {err}"),
-                    seen_version: Some(MIGRATE_FROM_VERSION),
+                    message: format!(
+                        "Schema {to_version} COMMIT failed and was rolled back: {err}"
+                    ),
+                    seen_version: Some(from_version),
                     preflight: Some(preflight),
                     backup_path: Some(backup_path),
                     backup_sha256: Some(backup_sha256),
@@ -310,7 +304,7 @@ pub fn migrate_37_to_38(
             return Err(MigrateError {
                 code: MigrateErrorCode::RollbackFailedOrDdlAborted,
                 message,
-                seen_version: Some(MIGRATE_FROM_VERSION),
+                seen_version: Some(from_version),
                 preflight: Some(preflight),
                 backup_path: Some(backup_path),
                 backup_sha256: Some(backup_sha256),
@@ -318,47 +312,44 @@ pub fn migrate_37_to_38(
         }
     }
 
-    // Step 7: Post-upgrade WAL checkpoint truncate, full integrity check, and Schema-38 admission.
-    checkpoint_truncate_quiescent(&connection, &canonical_path)?;
-    validate_recovery_schema_invariants(&connection, MIGRATE_TO_VERSION).map_err(|err| {
-        MigrateError {
-            code: MigrateErrorCode::DatabaseInvalid,
-            message: format!("post-upgrade Schema 38 invariants failed: {err}"),
-            seen_version: Some(MIGRATE_TO_VERSION),
-            preflight: Some(preflight),
-            backup_path: Some(backup_path.clone()),
-            backup_sha256: Some(backup_sha256.clone()),
-        }
-    })?;
-    let integrity = IntegrityReport {
-        physical: physical_section(&connection, true),
-        logical: logical_section(&connection),
-        semantic: semantic_section(&connection),
-    };
-    let pending_erasures = collect_pending_erasures(&connection).map_err(|err| MigrateError {
+    // Step 7: Post-upgrade WAL checkpoint truncate, recovery schema invariants, and full integrity check.
+    checkpoint_truncate_quiescent(connection, canonical_path, from_version, to_version)?;
+    validate_recovery_schema_invariants(connection, to_version).map_err(|err| MigrateError {
         code: MigrateErrorCode::DatabaseInvalid,
-        message: format!("post-upgrade pending-erasure check failed: {err}"),
-        seen_version: Some(MIGRATE_TO_VERSION),
+        message: format!("post-upgrade Schema {to_version} invariants failed: {err}"),
+        seen_version: Some(to_version),
         preflight: Some(preflight),
         backup_path: Some(backup_path.clone()),
         backup_sha256: Some(backup_sha256.clone()),
     })?;
-    drop(connection);
-
-    // Verify upgraded DB passes Engine::open's Schema-38 admission while still holding `_lock`.
-    admit_current_database(&canonical_path).map_err(|err| MigrateError {
+    projection_generation::current_generation(connection).map_err(|err| MigrateError {
         code: MigrateErrorCode::DatabaseInvalid,
-        message: format!("post-upgrade Schema 38 admission failed: {err}"),
-        seen_version: Some(MIGRATE_TO_VERSION),
+        message: format!(
+            "post-upgrade Schema {to_version} projection generation validation failed: {err}"
+        ),
+        seen_version: Some(to_version),
+        preflight: Some(preflight),
+        backup_path: Some(backup_path.clone()),
+        backup_sha256: Some(backup_sha256.clone()),
+    })?;
+    let integrity = IntegrityReport {
+        physical: physical_section(connection, true),
+        logical: logical_section(connection),
+        semantic: semantic_section(connection),
+    };
+    let pending_erasures = collect_pending_erasures(connection).map_err(|err| MigrateError {
+        code: MigrateErrorCode::DatabaseInvalid,
+        message: format!("post-upgrade pending-erasure check failed: {err}"),
+        seen_version: Some(to_version),
         preflight: Some(preflight),
         backup_path: Some(backup_path.clone()),
         backup_sha256: Some(backup_sha256.clone()),
     })?;
 
     Ok(MigrateReport {
-        from_version: MIGRATE_FROM_VERSION,
-        to_version: MIGRATE_TO_VERSION,
-        db_path: canonical_path,
+        from_version,
+        to_version,
+        db_path: canonical_path.to_path_buf(),
         backup_path,
         backup_sha256_path,
         backup_sha256,
@@ -366,6 +357,147 @@ pub fn migrate_37_to_38(
         integrity,
         pending_erasures,
     })
+}
+
+/// Offline, fail-closed upgrade of a quiescent Schema-37 database to Schema 38.
+///
+/// Implements the 7-step contract from `ADR-0.8.31-cli-pypi-wheel-and-37-to-38-upgrade.md`.
+pub fn migrate_37_to_38(
+    db_path: impl Into<PathBuf>,
+    backup_dir: impl Into<PathBuf>,
+) -> Result<MigrateReport, MigrateError> {
+    let requested_path = db_path.into();
+    let backup_dir_requested = backup_dir.into();
+    let (canonical_path, _lock, preflight) = prepare_migration_environment(
+        &requested_path,
+        &backup_dir_requested,
+        SCHEMA_37,
+        SCHEMA_38,
+    )?;
+
+    let connection = Connection::open_with_flags(
+        sqlite_uri(&canonical_path, "mode=rw"),
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE
+            | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX
+            | rusqlite::OpenFlags::SQLITE_OPEN_URI,
+    )
+    .map_err(|error| {
+        map_open_error_for_migrate(
+            map_open_sqlite_error(error, OpenStage::WalReplay),
+            SCHEMA_37,
+            SCHEMA_38,
+        )
+    })?;
+    connection.busy_timeout(Duration::ZERO).map_err(|error| {
+        map_open_error_for_migrate(
+            map_open_sqlite_error(error, OpenStage::WalReplay),
+            SCHEMA_37,
+            SCHEMA_38,
+        )
+    })?;
+
+    execute_upgrade_transaction_and_verify(
+        &connection,
+        &canonical_path,
+        &backup_dir_requested,
+        SCHEMA_37,
+        SCHEMA_38,
+        preflight,
+        |conn| {
+            conn.execute_batch(fathomdb_schema::STEP_38_SQL)
+                .map_err(|err| format!("Schema 38 DDL batch failed: {err}"))?;
+            projection_registry::backfill_canonical_property_values_for_schema_38(conn).map_err(
+                |err| format!("failed to backfill canonical_property_values for Schema 38: {err}"),
+            )?;
+            #[cfg(any(test, feature = "migration-test-hooks"))]
+            fire_migrate_before_version_stamp_hook(&canonical_path, SCHEMA_38)?;
+            conn.pragma_update(None, "user_version", SCHEMA_38)
+                .map_err(|err| format!("failed to stamp PRAGMA user_version = 38: {err}"))?;
+            projection_generation::rehash_serving_declaration_for_schema_38(conn).map_err(
+                |err| format!("failed to refresh Schema 38 serving declaration digest: {err}"),
+            )?;
+            Ok(())
+        },
+    )
+}
+
+/// Offline, fail-closed upgrade of a quiescent Schema-38 database to Schema 39 (`S39-COMPOSITE`).
+///
+/// Reuses the fail-closed preflight, `.lock` quiescence, SHA-256-verified backup
+/// (`{stem}.schema38.{utc}-{pid}.sqlite`), single-`BEGIN IMMEDIATE` transaction
+/// (`STEP_39_SQL` + non-destructive 7-to-8-column `vec0` reshape if `vector_default`
+/// exists), post-upgrade Schema-39 invariant checks, and open admission.
+pub fn migrate_38_to_39(
+    db_path: impl Into<PathBuf>,
+    backup_dir: impl Into<PathBuf>,
+) -> Result<MigrateReport, MigrateError> {
+    let requested_path = db_path.into();
+    let backup_dir_requested = backup_dir.into();
+    let (canonical_path, _lock, preflight) = prepare_migration_environment(
+        &requested_path,
+        &backup_dir_requested,
+        SCHEMA_38,
+        SCHEMA_39,
+    )?;
+
+    let connection = Connection::open_with_flags(
+        sqlite_uri(&canonical_path, "mode=rw"),
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE
+            | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX
+            | rusqlite::OpenFlags::SQLITE_OPEN_URI,
+    )
+    .map_err(|error| {
+        map_open_error_for_migrate(
+            map_open_sqlite_error(error, OpenStage::WalReplay),
+            SCHEMA_38,
+            SCHEMA_39,
+        )
+    })?;
+    connection.busy_timeout(Duration::ZERO).map_err(|error| {
+        map_open_error_for_migrate(
+            map_open_sqlite_error(error, OpenStage::WalReplay),
+            SCHEMA_38,
+            SCHEMA_39,
+        )
+    })?;
+
+    let report = execute_upgrade_transaction_and_verify(
+        &connection,
+        &canonical_path,
+        &backup_dir_requested,
+        SCHEMA_38,
+        SCHEMA_39,
+        preflight,
+        |conn| {
+            conn.execute_batch(fathomdb_schema::STEP_39_SQL)
+                .map_err(|err| format!("Schema 39 DDL batch failed: {err}"))?;
+            if let Some(dim) = crate::vector_storage::vector_partition_dimension(conn)
+                .map_err(|err| format!("failed to inspect Schema 38 vector_default shape: {err}"))?
+            {
+                crate::vector_storage::reconcile_vector_attr_columns(conn, dim).map_err(|err| {
+                    format!("failed to upgrade vector_default to 8-column Schema 39 layout: {err}")
+                })?;
+            }
+            #[cfg(any(test, feature = "migration-test-hooks"))]
+            fire_migrate_before_version_stamp_hook(&canonical_path, SCHEMA_39)?;
+            conn.pragma_update(None, "user_version", SCHEMA_39)
+                .map_err(|err| format!("failed to stamp PRAGMA user_version = 39: {err}"))?;
+            Ok(())
+        },
+    )?;
+    drop(connection);
+
+    // Verify upgraded DB passes Engine::open's Schema-39 admission while still holding `_lock`.
+    admit_current_database(&canonical_path).map_err(|err| MigrateError {
+        code: MigrateErrorCode::DatabaseInvalid,
+        message: format!("post-upgrade Schema 39 admission failed: {err}"),
+        seen_version: Some(SCHEMA_39),
+        preflight: Some(report.preflight),
+        backup_path: Some(report.backup_path.clone()),
+        backup_sha256: Some(report.backup_sha256.clone()),
+    })?;
+
+    Ok(report)
 }
 
 fn precheck_backup_dir(backup_dir: &Path, canonical_db: &Path) -> Result<(), MigrateError> {
@@ -394,7 +526,11 @@ fn precheck_backup_dir(backup_dir: &Path, canonical_db: &Path) -> Result<(), Mig
     Ok(())
 }
 
-fn run_readonly_preflights(canonical_path: &Path) -> Result<MigratePreflightReport, MigrateError> {
+fn run_readonly_preflights(
+    canonical_path: &Path,
+    from_version: u32,
+    to_version: u32,
+) -> Result<MigratePreflightReport, MigrateError> {
     // Immutable probe on main database file first.
     {
         let immutable = Connection::open_with_flags(
@@ -404,18 +540,30 @@ fn run_readonly_preflights(canonical_path: &Path) -> Result<MigratePreflightRepo
                 | rusqlite::OpenFlags::SQLITE_OPEN_URI,
         )
         .map_err(|error| {
-            map_open_error_for_migrate(map_open_sqlite_error(error, OpenStage::HeaderProbe))
+            map_open_error_for_migrate(
+                map_open_sqlite_error(error, OpenStage::HeaderProbe),
+                from_version,
+                to_version,
+            )
         })?;
         immutable.pragma_update(None, "query_only", "ON").map_err(|error| {
-            map_open_error_for_migrate(map_open_sqlite_error(error, OpenStage::SchemaProbe))
+            map_open_error_for_migrate(
+                map_open_sqlite_error(error, OpenStage::SchemaProbe),
+                from_version,
+                to_version,
+            )
         })?;
-        probe_database_header(&immutable).map_err(map_open_error_for_migrate)?;
-        probe_open_integrity(&immutable).map_err(map_open_error_for_migrate)?;
-        reject_legacy_shape(&immutable).map_err(map_open_error_for_migrate)?;
+        probe_database_header(&immutable)
+            .map_err(|err| map_open_error_for_migrate(err, from_version, to_version))?;
+        probe_open_integrity(&immutable)
+            .map_err(|err| map_open_error_for_migrate(err, from_version, to_version))?;
+        reject_legacy_shape(&immutable)
+            .map_err(|err| map_open_error_for_migrate(err, from_version, to_version))?;
     }
 
     // Refuse malformed or short non-empty WAL sidecar.
-    let wal_header = classify_wal_sidecar(canonical_path).map_err(map_open_error_for_migrate)?;
+    let wal_header = classify_wal_sidecar(canonical_path)
+        .map_err(|err| map_open_error_for_migrate(err, from_version, to_version))?;
     let malformed_wal = matches!(wal_header, WalSidecarHeader::Malformed { .. });
     let wal_short_nonempty =
         match std::fs::metadata(data_plane_sidecar_path(canonical_path, "-wal")) {
@@ -435,7 +583,7 @@ fn run_readonly_preflights(canonical_path: &Path) -> Result<MigratePreflightRepo
         ));
     }
 
-    // WAL-aware read-only snapshot for strict Schema-37 admission, erasure debt, and edge preflight.
+    // WAL-aware read-only snapshot for strict schema admission, erasure debt, and edge preflight.
     let ro = Connection::open_with_flags(
         read_only_sqlite_uri(canonical_path),
         rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY
@@ -443,33 +591,50 @@ fn run_readonly_preflights(canonical_path: &Path) -> Result<MigratePreflightRepo
             | rusqlite::OpenFlags::SQLITE_OPEN_URI,
     )
     .map_err(|error| {
-        map_open_error_for_migrate(map_open_sqlite_error(error, OpenStage::WalReplay))
+        map_open_error_for_migrate(
+            map_open_sqlite_error(error, OpenStage::WalReplay),
+            from_version,
+            to_version,
+        )
     })?;
     ro.pragma_update(None, "query_only", "ON").map_err(|error| {
-        map_open_error_for_migrate(map_open_sqlite_error(error, OpenStage::SchemaProbe))
+        map_open_error_for_migrate(
+            map_open_sqlite_error(error, OpenStage::SchemaProbe),
+            from_version,
+            to_version,
+        )
     })?;
-    probe_database_header(&ro).map_err(map_open_error_for_migrate)?;
-    probe_open_integrity(&ro).map_err(map_open_error_for_migrate)?;
-    reject_legacy_shape(&ro).map_err(map_open_error_for_migrate)?;
+    probe_database_header(&ro)
+        .map_err(|err| map_open_error_for_migrate(err, from_version, to_version))?;
+    probe_open_integrity(&ro)
+        .map_err(|err| map_open_error_for_migrate(err, from_version, to_version))?;
+    reject_legacy_shape(&ro)
+        .map_err(|err| map_open_error_for_migrate(err, from_version, to_version))?;
 
     let seen = ro.pragma_query_value(None, "user_version", |row| row.get::<_, u32>(0)).map_err(
-        |error| map_open_error_for_migrate(map_open_sqlite_error(error, OpenStage::SchemaProbe)),
+        |error| {
+            map_open_error_for_migrate(
+                map_open_sqlite_error(error, OpenStage::SchemaProbe),
+                from_version,
+                to_version,
+            )
+        },
     )?;
-    if seen == MIGRATE_TO_VERSION {
+    if seen == to_version {
         return Err(MigrateError {
             code: MigrateErrorCode::AlreadyCurrent,
-            message: format!("database is already at Schema {MIGRATE_TO_VERSION}"),
+            message: format!("database is already at Schema {seen}"),
             seen_version: Some(seen),
             preflight: None,
             backup_path: None,
             backup_sha256: None,
         });
     }
-    if seen != MIGRATE_FROM_VERSION {
+    if seen != from_version {
         return Err(MigrateError {
             code: MigrateErrorCode::UnsupportedVersion,
             message: format!(
-                "offline migrate supports only Schema {MIGRATE_FROM_VERSION} -> {MIGRATE_TO_VERSION}; found user_version {seen}"
+                "offline migrate supports only Schema {from_version} -> {to_version}; found user_version {seen}"
             ),
             seen_version: Some(seen),
             preflight: None,
@@ -478,17 +643,19 @@ fn run_readonly_preflights(canonical_path: &Path) -> Result<MigratePreflightRepo
         });
     }
 
-    validate_recovery_schema_invariants(&ro, MIGRATE_FROM_VERSION)
-        .map_err(map_open_error_for_migrate)?;
+    validate_recovery_schema_invariants(&ro, from_version)
+        .map_err(|err| map_open_error_for_migrate(err, from_version, to_version))?;
     projection_generation::current_generation(&ro).map_err(|err| {
         MigrateError::simple(
             MigrateErrorCode::DatabaseInvalid,
-            format!("pre-upgrade Schema 37 projection generation validation failed: {err}"),
+            format!(
+                "pre-upgrade Schema {from_version} projection generation validation failed: {err}"
+            ),
         )
     })?;
 
     // Step 3: Fail-closed unfinished-erasure preflight (all 4 gates).
-    check_no_unfinished_erasures(&ro)?;
+    check_no_unfinished_erasures(&ro, from_version)?;
 
     // Step 4: Fail-closed read-only edge endpoint preflight (`dangling` vs `superseded`).
     let preflight = count_edge_endpoint_preflight(&ro)?;
@@ -496,10 +663,10 @@ fn run_readonly_preflights(canonical_path: &Path) -> Result<MigratePreflightRepo
         return Err(MigrateError {
             code: MigrateErrorCode::DanglingEdges,
             message: format!(
-                "refusing upgrade: found {} genuinely dangling active edge endpoint(s) (and {} superseded-only endpoint(s)); resolve dangling edges before migrating to Schema 38",
+                "refusing upgrade: found {} genuinely dangling active edge endpoint(s) (and {} superseded-only endpoint(s)); resolve dangling edges before migrating to Schema {to_version}",
                 preflight.dangling_edge_endpoints, preflight.superseded_edge_endpoints
             ),
-            seen_version: Some(MIGRATE_FROM_VERSION),
+            seen_version: Some(from_version),
             preflight: Some(preflight),
             backup_path: None,
             backup_sha256: None,
@@ -509,7 +676,7 @@ fn run_readonly_preflights(canonical_path: &Path) -> Result<MigratePreflightRepo
     Ok(preflight)
 }
 
-fn check_no_unfinished_erasures(conn: &Connection) -> Result<(), MigrateError> {
+fn check_no_unfinished_erasures(conn: &Connection, from_version: u32) -> Result<(), MigrateError> {
     let pending_closures = dependency_closure::pending_physical_closures(conn).map_err(|_| {
         MigrateError::simple(
             MigrateErrorCode::DatabaseInvalid,
@@ -562,7 +729,7 @@ fn check_no_unfinished_erasures(conn: &Connection) -> Result<(), MigrateError> {
                 active_requests,
                 pending_redactions
             ),
-            seen_version: Some(MIGRATE_FROM_VERSION),
+            seen_version: Some(from_version),
             preflight: None,
             backup_path: None,
             backup_sha256: None,
@@ -641,13 +808,22 @@ fn count_edge_endpoint_preflight(
     })
 }
 
-fn checkpoint_truncate_quiescent(conn: &Connection, db_path: &Path) -> Result<(), MigrateError> {
+fn checkpoint_truncate_quiescent(
+    conn: &Connection,
+    db_path: &Path,
+    from_version: u32,
+    to_version: u32,
+) -> Result<(), MigrateError> {
     let (busy, _log_frames, _checkpointed_frames): (i64, i64, i64) = conn
         .query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |row| {
             Ok((row.get(0)?, row.get(1)?, row.get(2)?))
         })
         .map_err(|error| {
-            map_open_error_for_migrate(map_open_sqlite_error(error, OpenStage::WalReplay))
+            map_open_error_for_migrate(
+                map_open_sqlite_error(error, OpenStage::WalReplay),
+                from_version,
+                to_version,
+            )
         })?;
     if busy != 0 {
         return Err(MigrateError::simple(
@@ -677,6 +853,7 @@ fn checkpoint_truncate_quiescent(conn: &Connection, db_path: &Path) -> Result<()
 fn write_verified_backup(
     canonical_db: &Path,
     backup_dir_requested: &Path,
+    from_version: u32,
 ) -> Result<(PathBuf, PathBuf, String), MigrateError> {
     std::fs::create_dir_all(backup_dir_requested).map_err(|err| {
         MigrateError::simple(
@@ -719,7 +896,7 @@ fn write_verified_backup(
     let pid = std::process::id();
 
     let (backup_path, mut backup_file) =
-        create_unique_backup_file(&backup_dir, canonical_db, stem, &utc, pid)?;
+        create_unique_backup_file(&backup_dir, canonical_db, stem, from_version, &utc, pid)?;
 
     let copy_result: std::io::Result<()> = (|| {
         let mut src = File::open(canonical_db)?;
@@ -797,14 +974,15 @@ fn create_unique_backup_file(
     backup_dir: &Path,
     canonical_db: &Path,
     stem: &str,
+    from_version: u32,
     utc: &str,
     pid: u32,
 ) -> Result<(PathBuf, File), MigrateError> {
     for attempt in 0u32..1_000 {
         let filename = if attempt == 0 {
-            format!("{stem}.schema37.{utc}-{pid}.sqlite")
+            format!("{stem}.schema{from_version}.{utc}-{pid}.sqlite")
         } else {
-            format!("{stem}.schema37.{utc}-{pid}-{attempt}.sqlite")
+            format!("{stem}.schema{from_version}.{utc}-{pid}-{attempt}.sqlite")
         };
         let candidate = backup_dir.join(&filename);
         if candidate == canonical_db {
@@ -867,7 +1045,11 @@ fn format_utc_compact(now: SystemTime) -> String {
     format!("{year:04}{month:02}{day:02}T{hour:02}{minute:02}{second:02}Z")
 }
 
-fn map_open_error_for_migrate(err: EngineOpenError) -> MigrateError {
+fn map_open_error_for_migrate(
+    err: EngineOpenError,
+    from_version: u32,
+    to_version: u32,
+) -> MigrateError {
     match err {
         EngineOpenError::DatabaseLocked { holder_pid } => MigrateError::simple(
             MigrateErrorCode::LockHeld,
@@ -876,10 +1058,10 @@ fn map_open_error_for_migrate(err: EngineOpenError) -> MigrateError {
                 None => "database lock is held by another process".to_string(),
             },
         ),
-        EngineOpenError::IncompatibleSchemaVersion { seen, .. } if seen == MIGRATE_TO_VERSION => {
+        EngineOpenError::IncompatibleSchemaVersion { seen, .. } if seen == to_version => {
             MigrateError {
                 code: MigrateErrorCode::AlreadyCurrent,
-                message: format!("database is already at Schema {MIGRATE_TO_VERSION}"),
+                message: format!("database is already at Schema {to_version}"),
                 seen_version: Some(seen),
                 preflight: None,
                 backup_path: None,
@@ -889,7 +1071,7 @@ fn map_open_error_for_migrate(err: EngineOpenError) -> MigrateError {
         EngineOpenError::IncompatibleSchemaVersion { seen, .. } => MigrateError {
             code: MigrateErrorCode::UnsupportedVersion,
             message: format!(
-                "offline migrate supports only Schema {MIGRATE_FROM_VERSION} -> {MIGRATE_TO_VERSION}; found user_version {seen}"
+                "offline migrate supports only Schema {from_version} -> {to_version}; found user_version {seen}"
             ),
             seen_version: Some(seen),
             preflight: None,

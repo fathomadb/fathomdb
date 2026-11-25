@@ -64,12 +64,12 @@ fn visibility_state(conn: &Connection) -> (i64, String) {
 
 #[test]
 fn step38_schema_version_and_columns_match_contract() {
-    assert_eq!(SCHEMA_VERSION, 38);
-    assert_eq!(MIGRATIONS.len(), 38);
-    assert_eq!(MIGRATIONS.last().map(|m| m.step_id), Some(38));
+    assert_eq!(SCHEMA_VERSION, 39);
+    assert_eq!(MIGRATIONS.len(), 39);
+    assert!(MIGRATIONS.iter().any(|m| m.step_id == 38));
 
     let conn = Connection::open_in_memory().unwrap();
-    let report = migrate(&conn).unwrap();
+    let report = migrate_with_steps(&conn, &MIGRATIONS[..38]).unwrap();
     assert_eq!(report.schema_version_after, 38);
     let user_version: u32 = conn.query_row("PRAGMA user_version", [], |row| row.get(0)).unwrap();
     assert_eq!(user_version, 38);
@@ -191,7 +191,7 @@ fn step38_upgrades_step37_rows_with_additive_defaults() {
     )
     .unwrap();
 
-    let report = migrate(&conn).unwrap();
+    let report = migrate_with_steps(&conn, &MIGRATIONS[..38]).unwrap();
     assert_eq!(report.schema_version_before, 37);
     assert_eq!(report.schema_version_after, 38);
     assert_eq!(report.migration_steps.len(), 1);
@@ -408,7 +408,7 @@ fn step38_canonical_property_values_checks_and_indexes() {
 #[test]
 fn step38_commit_timestamps_and_canonical_indexes_exist() {
     let conn = Connection::open_in_memory().unwrap();
-    migrate(&conn).unwrap();
+    migrate_with_steps(&conn, &MIGRATIONS[..38]).unwrap();
 
     let ts_cols = table_columns(&conn, "_fathomdb_commit_timestamps");
     assert_eq!(

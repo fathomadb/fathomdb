@@ -15,37 +15,44 @@ struct ProjectionCommitObservation {
     staged_failure: usize,
 }
 
+fn quote_sql_list<'a>(names: impl Iterator<Item = &'a str>) -> String {
+    names.map(|name| format!("'{}'", name.replace('\'', "''"))).collect::<Vec<_>>().join(",")
+}
+
+static PROJECTION_CUSTOM_TRIGGER_CHECK_SQL: std::sync::LazyLock<String> =
+    std::sync::LazyLock::new(|| {
+        let tables = quote_sql_list(
+            fathomdb_schema::TABLE_MANIFEST
+                .iter()
+                .filter(|entry| entry.guard_projection_custom_triggers)
+                .map(|entry| entry.name),
+        );
+        let builtins =
+            quote_sql_list(fathomdb_schema::BUILTIN_NON_VISIBILITY_TRIGGERS.iter().copied());
+        format!(
+            "SELECT EXISTS(\
+             SELECT 1 FROM sqlite_master \
+             WHERE type='trigger' \
+               AND tbl_name IN ({tables}) \
+               AND name NOT LIKE '_fathomdb_read_visibility_%' \
+               AND name NOT IN ({builtins}) \
+             UNION ALL \
+             SELECT 1 FROM sqlite_temp_master \
+             WHERE type='trigger' \
+               AND tbl_name IN ({tables}) \
+               AND name NOT LIKE '_fathomdb_read_visibility_%'\
+         )"
+        )
+    });
+
 fn projection_batch_has_no_custom_triggers(connection: &Connection) -> rusqlite::Result<bool> {
-    // Only the authenticated DELETE-only cleanup trigger is harmless while
-    // insertion visibility is coalesced. TEMP/name-spoofed triggers stay custom.
+    // Only authenticated built-in triggers are harmless while insertion visibility is
+    // coalesced. TEMP/name-spoofed triggers stay custom.
     if !crate::vector_spans::cleanup_trigger_is_valid(connection)? {
         return Ok(false);
     }
     let unexpected: bool = connection
-        .prepare_cached(
-            "SELECT EXISTS(
-             SELECT 1 FROM sqlite_master
-             WHERE type='trigger'
-               AND tbl_name IN (
-                   '_fathomdb_vector_rows','_fathomdb_vector_spans','_fathomdb_projection_terminal',
-                   '_fathomdb_embedder_profiles','operational_mutations',
-                   '_fathomdb_open_state','_fathomdb_read_visibility_state',
-                   'vector_default'
-               )
-               AND name NOT LIKE '_fathomdb_read_visibility_%'
-               AND name!='_fathomdb_vector_spans_mapping_delete'
-             UNION ALL
-             SELECT 1 FROM sqlite_temp_master
-             WHERE type='trigger'
-               AND tbl_name IN (
-                   '_fathomdb_vector_rows','_fathomdb_vector_spans','_fathomdb_projection_terminal',
-                   '_fathomdb_embedder_profiles','operational_mutations',
-                   '_fathomdb_open_state','_fathomdb_read_visibility_state',
-                   'vector_default'
-               )
-               AND name NOT LIKE '_fathomdb_read_visibility_%'
-         )",
-        )?
+        .prepare_cached(PROJECTION_CUSTOM_TRIGGER_CHECK_SQL.as_str())?
         .query_row([], |row| row.get(0))?;
     Ok(!unexpected)
 }
@@ -396,14 +403,17 @@ pub(crate) fn commit_projection_outcomes(
                     // `write_cursor` (== rowid) — but ONLY when attr columns exist, so
                     // the common no-filterable hot path stays byte-identical and does
                     // NO extra lookup.
-                    let (lifecycle, valid_from, valid_until) =
-                        vector_storage::vector_eligibility_for_cursor(&tx, *cursor as i64)?;
+                    let (lifecycle, valid_from, valid_until, scope) =
+                        vector_storage::vector_eligibility_and_scope_for_cursor(
+                            &tx,
+                            *cursor as i64,
+                        )?;
                     if actual_vector_attr_columns(&tx)?.is_empty() {
                         tx.execute(
                             "INSERT INTO vector_default(
-                                rowid, embedding, embedding_bin, source_type, kind, created_at, status,lifecycle,valid_from,valid_until
-                             ) VALUES(?1, ?2, vec_quantize_binary(?3), ?4, ?5, ?6, '',?7,?8,?9)",
-                            params![cursor, blob, centered_blob, source_type, kind, now_unix,lifecycle,valid_from,valid_until],
+                                rowid, embedding, embedding_bin, source_type, kind, created_at, status,lifecycle,valid_from,valid_until,scope
+                             ) VALUES(?1, ?2, vec_quantize_binary(?3), ?4, ?5, ?6, '',?7,?8,?9,?10)",
+                            params![cursor, blob, centered_blob, source_type, kind, now_unix,lifecycle,valid_from,valid_until,scope],
                         )?;
                     } else {
                         let (body, props): (String, Option<crate::PropertyMap>) = tx
@@ -420,11 +430,11 @@ pub(crate) fn commit_projection_outcomes(
                             .optional()?
                             .unwrap_or_default();
                         let (cols_sql, ph_sql, attr_vals) =
-                            vector_attr_insert_fragments(&tx, &body, props.as_ref(), 10)?;
+                            vector_attr_insert_fragments(&tx, &body, props.as_ref(), 11)?;
                         let sql = format!(
                             "INSERT INTO vector_default(
-                                rowid, embedding, embedding_bin, source_type, kind, created_at, status,lifecycle,valid_from,valid_until{cols_sql}
-                             ) VALUES(?1, ?2, vec_quantize_binary(?3), ?4, ?5, ?6, '',?7,?8,?9{ph_sql})"
+                                rowid, embedding, embedding_bin, source_type, kind, created_at, status,lifecycle,valid_from,valid_until,scope{cols_sql}
+                             ) VALUES(?1, ?2, vec_quantize_binary(?3), ?4, ?5, ?6, '',?7,?8,?9,?10{ph_sql})"
                         );
                         let mut pv: Vec<rusqlite::types::Value> = vec![
                             rusqlite::types::Value::Integer(*cursor as i64),
@@ -436,6 +446,7 @@ pub(crate) fn commit_projection_outcomes(
                             rusqlite::types::Value::Integer(lifecycle),
                             rusqlite::types::Value::Integer(valid_from),
                             rusqlite::types::Value::Integer(valid_until),
+                            rusqlite::types::Value::Text(scope),
                         ];
                         pv.extend(attr_vals);
                         tx.execute(&sql, rusqlite::params_from_iter(pv.iter()))?;

@@ -329,6 +329,21 @@ fn validate_recovery_schema_invariants(
     dependency_closure::validate_closure_state_on_open(connection, schema_version)?;
     physical_erasure::validate_state(connection)
         .map_err(|_| recovery_schema_corruption("_fathomdb_open_state"))?;
+    if schema_version >= 39 {
+        let vec_exists: bool = connection
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='vector_default')",
+                [],
+                |row| row.get(0),
+            )
+            .map_err(|_| recovery_schema_corruption("vector_default"))?;
+        if vec_exists
+            && !crate::vector_storage::vector_partition_has_scope_column(connection)
+                .map_err(|_| recovery_schema_corruption("vector_default"))?
+        {
+            return Err(recovery_schema_corruption("vector_default"));
+        }
+    }
     Ok(())
 }
 

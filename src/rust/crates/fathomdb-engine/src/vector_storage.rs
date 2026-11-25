@@ -54,15 +54,22 @@ pub(crate) fn ensure_vector_partition(
         None => create_vector_partition(connection, dimension),
         Some(sql) => {
             let attrs = actual_vector_attr_columns(connection)?;
-            let expected = vector_partition_create_sql(dimension, false, &attrs);
             let normalize = |sql: &str| {
                 sql.chars().filter(|c| !c.is_whitespace()).collect::<String>().to_lowercase()
             };
             let actual = normalize(&sql);
-            let expected = normalize(&expected);
-            if actual.split_once("usingvec0").map(|(_, shape)| shape)
-                == expected.split_once("usingvec0").map(|(_, shape)| shape)
-            {
+            let actual_shape = actual.split_once("usingvec0").map(|(_, shape)| shape);
+            let expected_v39 = normalize(&vector_partition_create_sql(dimension, false, &attrs));
+            let expected_v39_shape = expected_v39.split_once("usingvec0").map(|(_, shape)| shape);
+            if actual_shape == expected_v39_shape {
+                return Ok(());
+            }
+            let expected_v38 =
+                normalize(&vector_partition_create_sql_with_scope(dimension, false, &attrs, false));
+            let expected_v38_shape = expected_v38.split_once("usingvec0").map(|(_, shape)| shape);
+            let user_version: u32 =
+                connection.pragma_query_value(None, "user_version", |row| row.get(0))?;
+            if user_version < 39 && actual_shape == expected_v38_shape {
                 Ok(())
             } else {
                 Err(rusqlite::Error::InvalidQuery)
@@ -71,17 +78,20 @@ pub(crate) fn ensure_vector_partition(
     }
 }
 
-/// Format-38 layout: plain metadata is filtered inside KNN; declared node
-/// properties share the sixteen-column metadata budget with seven built-in
-/// metadata columns and one slot reserved for future scope filtering.
-/// Every partition, including attribute reshapes, uses 64-row chunks.
+/// Format-39 layout: plain metadata is filtered inside KNN; declared node
+/// properties share the sixteen-column metadata budget with eight built-in
+/// metadata columns (`source_type`, `kind`, `created_at`, `status`,
+/// `lifecycle`, `valid_from`, `valid_until`, `scope`). Every partition,
+/// including attribute reshapes, uses 64-row chunks.
 pub(crate) const MAX_VEC0_NODE_PROPERTY_SLOTS: usize = 8;
-fn vector_partition_create_sql(
+fn vector_partition_create_sql_with_scope(
     dimension: u32,
     if_not_exists: bool,
     attr_cols: &[String],
+    include_scope: bool,
 ) -> String {
     let guard = if if_not_exists { "IF NOT EXISTS " } else { "" };
+    let scope_col = if include_scope { ",scope TEXT" } else { "" };
     let mut attrs = String::new();
     for col in attr_cols {
         attrs.push_str(&format!(",{col} TEXT"));
@@ -93,9 +103,40 @@ fn vector_partition_create_sql(
             source_type TEXT partition key,\
             kind TEXT,\
             created_at INTEGER,\
-            status TEXT,lifecycle INTEGER,valid_from INTEGER,valid_until INTEGER{attrs},chunk_size=64\
+            status TEXT,lifecycle INTEGER,valid_from INTEGER,valid_until INTEGER{scope_col}{attrs},chunk_size=64\
          )"
     )
+}
+
+fn vector_partition_create_sql(
+    dimension: u32,
+    if_not_exists: bool,
+    attr_cols: &[String],
+) -> String {
+    vector_partition_create_sql_with_scope(dimension, if_not_exists, attr_cols, true)
+}
+
+#[cfg(feature = "operator")]
+pub(crate) fn vector_partition_dimension(conn: &Connection) -> rusqlite::Result<Option<u32>> {
+    let sql: Option<String> = conn
+        .query_row(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name=?1",
+            [DEFAULT_VECTOR_PARTITION],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()?;
+    let Some(sql) = sql else {
+        return Ok(None);
+    };
+    let lower = sql.to_ascii_lowercase();
+    let Some((_, after)) = lower.split_once("embedding float[") else {
+        return Err(rusqlite::Error::InvalidQuery);
+    };
+    let Some((digits, _)) = after.split_once(']') else {
+        return Err(rusqlite::Error::InvalidQuery);
+    };
+    let dim = digits.trim().parse::<u32>().map_err(|_| rusqlite::Error::InvalidQuery)?;
+    Ok(Some(dim))
 }
 
 fn create_vector_partition(connection: &Connection, dimension: u32) -> rusqlite::Result<()> {
@@ -163,11 +204,7 @@ pub(crate) fn desired_vector_attr_columns(conn: &Connection) -> rusqlite::Result
         .collect())
 }
 
-/// 0.8.20 Slice 15e — the `attr_<hex>` columns actually present on the live
-/// `vector_default` vec0 table, parsed from its `CREATE VIRTUAL TABLE` SQL and
-/// sorted. Empty when the table is absent. Parsing the SQL (rather than a PRAGMA)
-/// keeps this robust across vec0 versions and shadow-table layouts.
-pub(crate) fn actual_vector_attr_columns(conn: &Connection) -> rusqlite::Result<Vec<String>> {
+fn vector_partition_column_tokens(conn: &Connection) -> rusqlite::Result<Option<Vec<String>>> {
     let sql: Option<String> = conn
         .prepare_cached("SELECT sql FROM sqlite_master WHERE type='table' AND name=?1")
         .and_then(|mut statement| {
@@ -175,16 +212,14 @@ pub(crate) fn actual_vector_attr_columns(conn: &Connection) -> rusqlite::Result<
         })
         .optional()?;
     let Some(sql) = sql else {
-        return Ok(Vec::new());
+        return Ok(None);
     };
-    let mut cols: Vec<String> = Vec::new();
-    // Tokenize on any non-identifier byte; a token is an attribute column iff it
-    // decodes as a well-formed `attr_<hex>` identifier.
+    let mut tokens: Vec<String> = Vec::new();
     let mut token = String::new();
-    let flush = |token: &mut String, cols: &mut Vec<String>| {
+    let flush = |token: &mut String, tokens: &mut Vec<String>| {
         if !token.is_empty() {
-            if decode_attr_vec0_column(token).is_some() && !cols.contains(token) {
-                cols.push(token.clone());
+            if !tokens.contains(token) {
+                tokens.push(token.clone());
             }
             token.clear();
         }
@@ -193,10 +228,30 @@ pub(crate) fn actual_vector_attr_columns(conn: &Connection) -> rusqlite::Result<
         if ch.is_ascii_alphanumeric() || ch == '_' {
             token.push(ch);
         } else {
-            flush(&mut token, &mut cols);
+            flush(&mut token, &mut tokens);
         }
     }
-    flush(&mut token, &mut cols);
+    flush(&mut token, &mut tokens);
+    Ok(Some(tokens))
+}
+
+pub(crate) fn vector_partition_has_scope_column(conn: &Connection) -> rusqlite::Result<bool> {
+    let Some(tokens) = vector_partition_column_tokens(conn)? else {
+        return Ok(false);
+    };
+    Ok(tokens.iter().any(|t| t == "scope"))
+}
+
+/// 0.8.20 Slice 15e — the `attr_<hex>` columns actually present on the live
+/// `vector_default` vec0 table, parsed from its `CREATE VIRTUAL TABLE` SQL and
+/// sorted. Empty when the table is absent. Parsing the SQL (rather than a PRAGMA)
+/// keeps this robust across vec0 versions and shadow-table layouts.
+pub(crate) fn actual_vector_attr_columns(conn: &Connection) -> rusqlite::Result<Vec<String>> {
+    let Some(tokens) = vector_partition_column_tokens(conn)? else {
+        return Ok(Vec::new());
+    };
+    let mut cols: Vec<String> =
+        tokens.into_iter().filter(|token| decode_attr_vec0_column(token).is_some()).collect();
     cols.sort();
     Ok(cols)
 }
@@ -242,10 +297,11 @@ pub(crate) fn reconcile_vector_attr_columns(
     }
     let desired = desired_vector_attr_columns(conn)?;
     let actual = actual_vector_attr_columns(conn)?;
-    if desired == actual {
+    let has_scope = vector_partition_has_scope_column(conn)?;
+    if desired == actual && has_scope {
         return Ok(false);
     }
-    reshape_vector_partition_nondestructive(conn, dimension, &desired, &actual, false)?;
+    reshape_vector_partition_nondestructive(conn, dimension, &desired, &actual, false, has_scope)?;
     Ok(true)
 }
 
@@ -258,8 +314,11 @@ pub(crate) fn refresh_vector_attr_values(
 ) -> rusqlite::Result<()> {
     let desired = desired_vector_attr_columns(conn)?;
     let actual = actual_vector_attr_columns(conn)?;
-    if desired != actual || !desired.is_empty() {
-        reshape_vector_partition_nondestructive(conn, dimension, &desired, &actual, true)?;
+    let has_scope = vector_partition_has_scope_column(conn)?;
+    if desired != actual || !desired.is_empty() || !has_scope {
+        reshape_vector_partition_nondestructive(
+            conn, dimension, &desired, &actual, true, has_scope,
+        )?;
     }
     Ok(())
 }
@@ -308,12 +367,17 @@ fn reshape_vector_partition_nondestructive(
     desired_cols: &[String],
     actual_cols: &[String],
     refresh_values: bool,
+    actual_has_scope: bool,
 ) -> rusqlite::Result<()> {
-    // Stage: base columns + every ACTUAL attribute column (so no at-rest value is
-    // lost, even for a column being dropped).
+    // Stage: base columns + optional `scope` + every ACTUAL attribute column
+    // (so no at-rest value is lost, even for a column being dropped).
     let mut stage_defs = String::new();
     let mut stage_names =
         String::from("rowid, embedding, embedding_bin, source_type, kind, created_at, status, lifecycle, valid_from, valid_until");
+    if actual_has_scope {
+        stage_defs.push_str(",\n             scope         TEXT");
+        stage_names.push_str(", scope");
+    }
     for col in actual_cols {
         stage_defs.push_str(&format!(",\n             {col} TEXT"));
         stage_names.push_str(&format!(", {col}"));
@@ -336,12 +400,12 @@ fn reshape_vector_partition_nondestructive(
          DROP TABLE {DEFAULT_VECTOR_PARTITION};"
     ))?;
 
-    // Recreate at the DESIRED shape (plain TEXT attr columns — condition #2).
+    // Recreate at the DESIRED Schema-39 8-col shape (scope + plain TEXT attr columns).
     conn.execute_batch(&vector_partition_create_sql(dimension, false, desired_cols))?;
 
     let mut insert_cols =
-        String::from("rowid, embedding, embedding_bin, source_type, kind, created_at, status, lifecycle, valid_from, valid_until");
-    let mut placeholders = String::from("?1, ?2, vec_bit(?3), ?4, ?5, ?6, ?7, ?8, ?9, ?10");
+        String::from("rowid, embedding, embedding_bin, source_type, kind, created_at, status, lifecycle, valid_from, valid_until, scope");
+    let mut placeholders = String::from("?1, ?2, vec_bit(?3), ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11");
     let mut stage_select_actual = String::new();
     let mut need_owner_source = false;
     let mut col_plan: Vec<(usize, Option<(String, StoredProjection)>)> =
@@ -349,7 +413,7 @@ fn reshape_vector_partition_nondestructive(
     let registry = load_projection_registry(conn)?;
     for (idx, col) in desired_cols.iter().enumerate() {
         insert_cols.push_str(&format!(", {col}"));
-        placeholders.push_str(&format!(", ?{}", 11 + idx));
+        placeholders.push_str(&format!(", ?{}", 12 + idx));
         if let Some(actual_pos) = actual_cols.iter().position(|a| a == col) {
             if !refresh_values {
                 stage_select_actual.push_str(&format!(", s.{col}"));
@@ -366,17 +430,22 @@ fn reshape_vector_partition_nondestructive(
         }
     }
 
-    let select_stage_sql = if need_owner_source {
-        "SELECT s.rowid, s.embedding, s.embedding_bin, s.source_type, s.kind, s.created_at, \
-         s.status, s.lifecycle, s.valid_from, s.valid_until, cn.body, cn.properties \
-         FROM _fathomdb_vector_reshape_stage s \
-         LEFT JOIN _fathomdb_vector_rows vr ON vr.rowid = s.rowid \
-         LEFT JOIN canonical_nodes cn ON cn.write_cursor = vr.write_cursor"
-            .to_string()
+    let scope_expr =
+        if actual_has_scope { "COALESCE(s.scope, '')" } else { "COALESCE(cn.scope, ce.scope, '')" };
+    let select_stage_sql = if !actual_has_scope || need_owner_source {
+        let extra_owner_cols = if need_owner_source { ", cn.body, cn.properties" } else { "" };
+        format!(
+            "SELECT s.rowid, s.embedding, s.embedding_bin, s.source_type, s.kind, s.created_at, \
+             s.status, s.lifecycle, s.valid_from, s.valid_until, {scope_expr}{extra_owner_cols}{stage_select_actual} \
+             FROM _fathomdb_vector_reshape_stage s \
+             LEFT JOIN _fathomdb_vector_rows vr ON vr.rowid = s.rowid \
+             LEFT JOIN canonical_nodes cn ON cn.write_cursor = vr.write_cursor \
+             LEFT JOIN canonical_edges ce ON ce.write_cursor = vr.write_cursor"
+        )
     } else {
         format!(
             "SELECT s.rowid, s.embedding, s.embedding_bin, s.source_type, s.kind, s.created_at, \
-             s.status, s.lifecycle, s.valid_from, s.valid_until{stage_select_actual} \
+             s.status, s.lifecycle, s.valid_from, s.valid_until, {scope_expr}{stage_select_actual} \
              FROM _fathomdb_vector_reshape_stage s"
         )
     };
@@ -387,7 +456,7 @@ fn reshape_vector_partition_nondestructive(
         let mut write_stmt = conn.prepare(&insert_sql)?;
         let mut rows = read_stmt.query([])?;
         let mut surviving_idx_map = Vec::with_capacity(col_plan.len());
-        let mut next_surviving_col = 10_usize;
+        let mut next_surviving_col = if need_owner_source { 13_usize } else { 11_usize };
         for (actual_pos, back_spec) in &col_plan {
             if *actual_pos != usize::MAX && back_spec.is_none() {
                 surviving_idx_map.push(Some(next_surviving_col));
@@ -398,11 +467,11 @@ fn reshape_vector_partition_nondestructive(
         }
         while let Some(row) = rows.next()? {
             let mut binds: Vec<rusqlite::types::Value> =
-                Vec::with_capacity(10 + desired_cols.len());
-            for i in 0..10 {
+                Vec::with_capacity(11 + desired_cols.len());
+            for i in 0..11 {
                 let val: rusqlite::types::Value = row.get(i)?;
-                if i == 6 {
-                    // status: ensure non-NULL for vec0 NOT-NULL semantics
+                if i == 6 || i == 10 {
+                    // status and scope: ensure non-NULL for vec0 NOT-NULL semantics
                     match val {
                         rusqlite::types::Value::Text(s) => {
                             binds.push(rusqlite::types::Value::Text(s))
@@ -416,8 +485,8 @@ fn reshape_vector_partition_nondestructive(
             let (owner_body, owner_props): (Option<String>, Option<PropertyMap>) =
                 if need_owner_source {
                     (
-                        row.get::<_, Option<String>>(10)?,
-                        crate::properties::decode_properties_row_col(row, 11)?,
+                        row.get::<_, Option<String>>(11)?,
+                        crate::properties::decode_properties_row_col(row, 12)?,
                     )
                 } else {
                     (None, None)
@@ -645,12 +714,22 @@ impl Engine {
         // `filterable` `attr_<hex>` column binds the `''` sentinel (an empty body
         // extracts nothing). When the table has no attr columns the statement is
         // byte-identical to the shipped form.
+        let scope: String = tx
+            .query_row(
+                "SELECT scope FROM canonical_nodes WHERE write_cursor = ?1
+                 UNION ALL SELECT scope FROM canonical_edges WHERE write_cursor = ?1 LIMIT 1",
+                [cursor as i64],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(|_| EngineError::Storage)?
+            .unwrap_or_default();
         let (cols_sql, ph_sql, attr_vals) =
-            vector_attr_insert_fragments(&tx, "", None, 7).map_err(|_| EngineError::Storage)?;
+            vector_attr_insert_fragments(&tx, "", None, 8).map_err(|_| EngineError::Storage)?;
         let sql = format!(
             "INSERT INTO vector_default(
-                rowid, embedding, embedding_bin, source_type, kind, created_at, status,lifecycle,valid_from,valid_until{cols_sql}
-             ) VALUES(?1, ?2, vec_quantize_binary(?3), ?4, ?5, ?6, '',0,-9223372036854775808,9223372036854775807{ph_sql})"
+                rowid, embedding, embedding_bin, source_type, kind, created_at, status,lifecycle,valid_from,valid_until,scope{cols_sql}
+             ) VALUES(?1, ?2, vec_quantize_binary(?3), ?4, ?5, ?6, '',0,-9223372036854775808,9223372036854775807,?7{ph_sql})"
         );
         let mut pv: Vec<rusqlite::types::Value> = vec![
             rusqlite::types::Value::Integer(cursor as i64),
@@ -659,6 +738,7 @@ impl Engine {
             rusqlite::types::Value::Text(source_type.to_string()),
             rusqlite::types::Value::Text(kind.to_string()),
             rusqlite::types::Value::Integer(now_unix),
+            rusqlite::types::Value::Text(scope),
         ];
         pv.extend(attr_vals);
         tx.execute(&sql, rusqlite::params_from_iter(pv.iter()))
@@ -778,17 +858,25 @@ pub(crate) fn vector_validity_bounds(from: Option<i64>, until: Option<i64>) -> (
     }
 }
 
+pub(crate) fn vector_eligibility_and_scope_for_cursor(
+    conn: &Connection,
+    cursor: i64,
+) -> rusqlite::Result<(i64, i64, i64, String)> {
+    let canonical: Option<(i64, Option<i64>, Option<i64>, String)> = conn.query_row(
+        "SELECT (CASE WHEN superseded_at IS NULL THEN 0 ELSE 2 END) + (CASE WHEN state='active' THEN 0 ELSE 1 END),valid_from,valid_until,scope FROM canonical_nodes WHERE write_cursor=?1
+         UNION ALL SELECT CASE WHEN superseded_at IS NULL THEN 0 ELSE 2 END,NULL,t_invalid,scope FROM canonical_edges WHERE write_cursor=?1 LIMIT 1",
+        [cursor], |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?)),
+    ).optional()?;
+    let (lifecycle, from, until, scope) = canonical.unwrap_or((0, None, None, String::new()));
+    let (from, until) = vector_validity_bounds(from, until);
+    Ok((lifecycle, from, until, scope))
+}
+
 pub(crate) fn vector_eligibility_for_cursor(
     conn: &Connection,
     cursor: i64,
 ) -> rusqlite::Result<(i64, i64, i64)> {
-    let canonical: Option<(i64, Option<i64>, Option<i64>)> = conn.query_row(
-        "SELECT (CASE WHEN superseded_at IS NULL THEN 0 ELSE 2 END) + (CASE WHEN state='active' THEN 0 ELSE 1 END),valid_from,valid_until FROM canonical_nodes WHERE write_cursor=?1
-         UNION ALL SELECT CASE WHEN superseded_at IS NULL THEN 0 ELSE 2 END,NULL,t_invalid FROM canonical_edges WHERE write_cursor=?1 LIMIT 1",
-        [cursor], |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?)),
-    ).optional()?;
-    let (lifecycle, from, until) = canonical.unwrap_or((0, None, None));
-    let (from, until) = vector_validity_bounds(from, until);
+    let (lifecycle, from, until, _) = vector_eligibility_and_scope_for_cursor(conn, cursor)?;
     Ok((lifecycle, from, until))
 }
 
@@ -839,7 +927,7 @@ mod tests {
                 String::new()
             };
             let value = if with_attribute { ",''" } else { "" };
-            conn.execute(&format!("INSERT INTO vector_default(rowid,embedding,embedding_bin,source_type,kind,created_at,status,lifecycle,valid_from,valid_until{attr}) VALUES(?1,?2,vec_quantize_binary(?2),'article','doc',0,'',0,-9223372036854775808,9223372036854775807{value})"),params![id,blob]).unwrap();
+            conn.execute(&format!("INSERT INTO vector_default(rowid,embedding,embedding_bin,source_type,kind,created_at,status,lifecycle,valid_from,valid_until,scope{attr}) VALUES(?1,?2,vec_quantize_binary(?2),'article','doc',0,'',0,-9223372036854775808,9223372036854775807,''{value})"),params![id,blob]).unwrap();
         }
         opened.engine.close().unwrap();
         conn
@@ -890,7 +978,7 @@ fn slice70_attribute_backfill_uses_record_mapping() {
     );
 
     let col = attr_vec0_column("owner");
-    reshape_vector_partition_nondestructive(&conn, 8, std::slice::from_ref(&col), &[], false)
+    reshape_vector_partition_nondestructive(&conn, 8, std::slice::from_ref(&col), &[], false, true)
         .unwrap();
     let values = conn
         .prepare(&format!("SELECT {col} FROM vector_default"))

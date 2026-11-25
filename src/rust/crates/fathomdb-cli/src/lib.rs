@@ -50,7 +50,7 @@ use std::{
 
 use clap::{Args, Parser, Subcommand};
 use fathomdb::{
-    inspect_data_plane_integrity, migrate_37_to_38, recover_complete_erasures,
+    inspect_data_plane_integrity, migrate_37_to_38, migrate_38_to_39, recover_complete_erasures,
     recover_truncate_wal, CheckIntegrityOpts, CompleteErasuresReport, CorruptionLocator,
     DataPlaneIntegrityCheckV1, DataPlaneIntegrityErrorReasonV1, DataPlaneIntegrityRequestV1,
     DataPlaneIntegrityResultV1, DumpProfileReport, DumpRowCountsReport, DumpSchemaReport, Engine,
@@ -677,7 +677,24 @@ fn migrate_error_json(db_path: &Path, err: &MigrateError) -> Value {
 }
 
 fn run_migrate(args: MigrateArgs) -> i32 {
-    match migrate_37_to_38(&args.db_path, &args.backup_dir) {
+    let outcome_result = match migrate_38_to_39(&args.db_path, &args.backup_dir) {
+        Err(err)
+            if err.code == MigrateErrorCode::UnsupportedVersion && err.seen_version == Some(37) =>
+        {
+            migrate_37_to_38(&args.db_path, &args.backup_dir).and_then(|r37| {
+                let mut r39 = migrate_38_to_39(&args.db_path, &args.backup_dir)?;
+                r39.from_version = r37.from_version;
+                r39.backup_path = r37.backup_path;
+                r39.backup_sha256_path = r37.backup_sha256_path;
+                r39.backup_sha256 = r37.backup_sha256;
+                r39.preflight = r37.preflight;
+                Ok(r39)
+            })
+        }
+        other => other,
+    };
+
+    match outcome_result {
         Ok(report) => {
             let clean = report.integrity_clean();
             if args.json {

@@ -96,16 +96,16 @@ fn s20_existence_columns_remain_present_at_current_head() {
     assert_eq!(reason.1, "TEXT", "reason must be TEXT");
     assert_eq!(reason.2, 0, "reason must be nullable");
 
-    // The active-only partial index serving the hot path.
+    // The active-only partial index serving the hot path (composite `(scope, ...)` in Schema 39).
     let idx = index_set(&conn, "canonical_nodes");
     let active_idx = idx
         .iter()
-        .find(|(name, _)| name == "canonical_nodes_state_active_idx")
-        .expect("canonical_nodes_state_active_idx must exist");
+        .find(|(name, _)| name == "canonical_nodes_scope_state_active_idx")
+        .expect("canonical_nodes_scope_state_active_idx must exist");
     let sql = active_idx.1.as_deref().unwrap_or_default();
     assert!(
         sql.contains("state = 'active'"),
-        "canonical_nodes_state_active_idx must be partial on state='active', got: {sql}"
+        "canonical_nodes_scope_state_active_idx must be partial on state='active', got: {sql}"
     );
 }
 

@@ -237,7 +237,7 @@ pub use fathomdb_engine::{
 //     the same posture as `dump-mutations` (Slice 34).
 #[cfg(feature = "operator")]
 pub use fathomdb_engine::{
-    inspect_data_plane_integrity, migrate_37_to_38, recover_complete_erasures,
+    inspect_data_plane_integrity, migrate_37_to_38, migrate_38_to_39, recover_complete_erasures,
     recover_truncate_wal, CheckIntegrityOpts, CompleteErasuresReport, DataPlaneIntegrityBoundaryV1,
     DataPlaneIntegrityCheckCountV1, DataPlaneIntegrityCheckV1, DataPlaneIntegrityErrorReasonV1,
     DataPlaneIntegrityErrorV1, DataPlaneIntegrityFindingCodeV1, DataPlaneIntegrityFindingV1,
@@ -289,6 +289,13 @@ pub use fathomdb_engine::{
 /// ```compile_fail
 /// fn _no_migrate_37_to_38(path: std::path::PathBuf, backup_dir: std::path::PathBuf) {
 ///     let _ = fathomdb::migrate_37_to_38(path, backup_dir);
+/// }
+/// ```
+///
+/// The offline Schema 38 -> 39 migration helper does not resolve on the default facade:
+/// ```compile_fail
+/// fn _no_migrate_38_to_39(path: std::path::PathBuf, backup_dir: std::path::PathBuf) {
+///     let _ = fathomdb::migrate_38_to_39(path, backup_dir);
 /// }
 /// ```
 #[cfg(not(feature = "operator"))]

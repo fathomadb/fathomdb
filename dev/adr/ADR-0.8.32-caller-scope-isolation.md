@@ -2,7 +2,7 @@
 title: ADR-0.8.32 — Engine-enforced caller scope isolation, Schema 39 composite layout, 8-column vec0, and TABLE_MANIFEST
 date: 2026-11-24
 target_release: 0.8.32
-desc: Accepted specification for opener-bound ScopePolicy anti-spoof enforcement across read, search, graph, frozen, evidence, write, actuate, and erasure paths; S39-COMPOSITE (Schema 39 + fathomdb migrate 38 -> 39) with single-scope/single-agent default posture; mandatory 8-column vec0 (scope TEXT DEFAULT ''); and single-source TABLE_MANIFEST.
+desc: Accepted specification for opener-bound ScopePolicy anti-spoof enforcement across read, search, graph, frozen, evidence, write, actuate, and erasure paths; S39-COMPOSITE (Schema 39 + fathomdb migrate 38 -> 39) with single-scope/single-agent default posture; mandatory 8-column vec0 (scope TEXT); and single-source TABLE_MANIFEST.
 blast_radius: src/rust/crates/fathomdb-schema/src/lib.rs; src/rust/crates/fathomdb-engine/**; src/rust/crates/fathomdb-cli/**; src/rust/crates/fathomdb-sdk/**; src/rust/crates/fathomdb-py/**; src/rust/crates/fathomdb-napi/**; src/python/**; src/ts/**; src/conformance/governed-*.json; scripts/governed-surface-pin.json; dev/interfaces/{rust,rust-sdk,python,typescript,cli,wire}.md; docs/**
 status: accepted
 ---
@@ -57,7 +57,7 @@ Thread a single-authority `ScopeFilter` across every data-plane route:
 - **Erasure separation:** Immediate scope-grant revocation hides out-of-scope records from visibility at once, independently of physical erasure (`purge`, `erase_source`, `fathomdb doctor orphan-provenance`, `fathomdb recover --excise-source`), which remains scope-aware and scrubs only authorized rows cleanly.
 - **Single-scope (`scope == ""`) fast path:** Single-scope callers preserve `0.8.31` read/write performance (`-4.4%` to `+3.1%` in `WP-10D`, zero `process_open` or peak RSS regression).
 
-### 3. Mandatory 8-Column `vec0` (`scope TEXT DEFAULT ''`) & `TABLE_MANIFEST`
+### 3. Mandatory 8-Column `vec0` (`scope TEXT`) & `TABLE_MANIFEST`
 
 - **8-column `vec0` (`S38-PARTIAL-A1` rejected):**
   - `WP-10D` proved 7-column `vec0` CTE pre-selection (`S38-PARTIAL-A1`) collapses to **`543.11 ms` p50 / `805.57 ms` p95** on `heavy_90pct` (`90,000` vectors in scope — **`19.5x` slower** than 8-col `vec0`) and `67.71 ms` p50 on `uniform_10pct` (`4.5x` slower), while evicting SQLite's 2 MiB cache (`graph_2hop` rises from `0.09 ms` to `1.14 ms`).

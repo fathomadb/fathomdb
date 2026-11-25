@@ -24,12 +24,13 @@ fn state_nonce(connection: &Connection) -> String {
 
 #[test]
 fn step33_installs_unique_page_indexes_and_state_visibility_triggers() {
-    assert_eq!(SCHEMA_VERSION, 38);
+    assert_eq!(SCHEMA_VERSION, 39);
     let connection = Connection::open_in_memory().unwrap();
     migrate(&connection).unwrap();
-    for name in
-        ["canonical_nodes_kind_cursor_page_idx", "operational_state_collection_cursor_page_idx"]
-    {
+    for name in [
+        "canonical_nodes_scope_kind_cursor_page_idx",
+        "operational_state_scope_collection_cursor_page_idx",
+    ] {
         let unique: i64 = connection
             .query_row(
                 "SELECT [unique] FROM pragma_index_list(CASE WHEN ?1 LIKE 'canonical%' THEN 'canonical_nodes' ELSE 'operational_state' END) WHERE name=?1",

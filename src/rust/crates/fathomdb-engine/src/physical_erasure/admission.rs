@@ -38,17 +38,8 @@ pub(crate) fn envelope(c: &Connection) -> Result<(), EngineError> {
     let _metadata = physical_metrics::stage("envelope_metadata");
     // The file-size cap bounds the scans before any target-set collection.
     let mut metadata = 0_u64;
-    for table in [
-        "_fathomdb_artifact_revisions",
-        "_fathomdb_source_versions",
-        "_fathomdb_source_links",
-        "_fathomdb_source_dependencies",
-        "_fathomdb_dependency_closures",
-        "_fathomdb_actuation_receipts",
-        "_fathomdb_actuation_receipt_source_refs",
-        "operational_mutations",
-        "operational_state",
-    ] {
+    for entry in fathomdb_schema::TABLE_MANIFEST.iter().filter(|e| e.physical_erasure_metadata) {
+        let table = entry.name;
         let mut statement =
             c.prepare(&format!("PRAGMA table_info({table})")).map_err(|_| EngineError::Storage)?;
         let columns = statement

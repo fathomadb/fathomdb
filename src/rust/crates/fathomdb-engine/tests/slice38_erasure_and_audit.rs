@@ -14,7 +14,8 @@ use std::time::{Duration, Instant};
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{
-    arm_physical_erasure_hook_for_test, audit_schema_38_sqlite_master, classify_schema_38_table,
+    arm_physical_erasure_hook_for_test, audit_schema_38_sqlite_master,
+    audit_schema_39_sqlite_master, classify_schema_38_table, classify_schema_39_table,
     ActuationBatchV1, ActuationOperationV1, ArtifactRevisionId, CleanupResult,
     DataPlaneIntegrityCheckV1, DataPlaneIntegrityFindingCodeV1, DataPlaneIntegrityRequestV1,
     EmbedderChoice, Engine, EngineConfig, EngineError, ExportClass, InitialState, LifecycleState,
@@ -22,7 +23,7 @@ use fathomdb_engine::{
     ProjectionSpec, ProjectionVector, PropertyEntityClass, PropertyMap, PropertyValue,
     ProvenancedNodeV1, QueueResult, ReadView, SourceId, SourceVersionId, WriteProvenanceV1,
 };
-use fathomdb_schema::SQLITE_SUFFIX;
+use fathomdb_schema::{SQLITE_SUFFIX, TABLE_MANIFEST};
 use rusqlite::Connection;
 use tempfile::TempDir;
 
@@ -173,10 +174,29 @@ fn slice38_sqlite_master_and_export_class_completeness_audit() {
     engine.close().expect("close");
 
     let conn = Connection::open(&path).expect("open sqlite");
+    let manifest38: BTreeMap<String, ExportClass> =
+        audit_schema_38_sqlite_master(&conn).expect("schema-38 alias audit must classify cleanly");
     let manifest: BTreeMap<String, ExportClass> =
-        audit_schema_38_sqlite_master(&conn).expect("all schema-38 tables must classify cleanly");
+        audit_schema_39_sqlite_master(&conn).expect("all schema-39 tables must classify cleanly");
+    assert_eq!(manifest, manifest38);
 
-    // Verify key Schema-38 classifications explicitly.
+    // Zero drift against single-source TABLE_MANIFEST: every manifest entry appears and matches class.
+    for entry in TABLE_MANIFEST {
+        assert_eq!(
+            classify_schema_39_table(entry.name),
+            Some(entry.export_class),
+            "TABLE_MANIFEST export_class drift for {}",
+            entry.name
+        );
+        assert_eq!(
+            manifest.get(entry.name),
+            Some(&entry.export_class),
+            "opened DB sqlite_master missing or mismatched for TABLE_MANIFEST entry {}",
+            entry.name
+        );
+    }
+
+    // Verify key Schema-39 classifications explicitly.
     assert_eq!(manifest.get("_fathomdb_vector_kinds"), Some(&ExportClass::DurableAuthority));
     assert_eq!(manifest.get("_fathomdb_commit_timestamps"), Some(&ExportClass::DurableAuthority));
     assert_eq!(manifest.get("canonical_nodes"), Some(&ExportClass::DurableAuthority));
@@ -204,11 +224,13 @@ fn slice38_sqlite_master_and_export_class_completeness_audit() {
 
     // Negative test: injecting an unclassified dummy table fails the audit loudly.
     assert_eq!(classify_schema_38_table("_fathomdb_unclassified_dummy"), None);
+    assert_eq!(classify_schema_39_table("_fathomdb_unclassified_dummy"), None);
     assert_eq!(classify_schema_38_table("vector_default_bogus_dummy"), None);
+    assert_eq!(classify_schema_39_table("vector_default_bogus_dummy"), None);
     conn.execute_batch("CREATE TABLE _fathomdb_unclassified_dummy(id INTEGER PRIMARY KEY)")
         .expect("inject dummy table");
     let unclassified =
-        audit_schema_38_sqlite_master(&conn).expect_err("unclassified table must fail audit");
+        audit_schema_39_sqlite_master(&conn).expect_err("unclassified table must fail audit");
     assert_eq!(unclassified, vec!["_fathomdb_unclassified_dummy".to_string()]);
 }
 

@@ -49,10 +49,11 @@ EXPECTED_RAW_OPENS = Counter({
     ("operator/data_plane.rs", "open_recovery_connection", "open_with_flags", "sqlite_uri(&canonical_path,\"mode=rw\"),rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE|rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX|rusqlite::OpenFlags::SQLITE_OPEN_URI,"): 1,
     ("operator/data_plane.rs", "validate_effective_recovery_schema", "open_with_flags", "read_only_sqlite_uri(path)," + RO_FLAGS): 1,
     ("operator/data_plane.rs", "inspect_data_plane_integrity", "open_with_flags", "immutable_sqlite_uri(&canonical_path),OpenFlags::SQLITE_OPEN_READ_ONLY|OpenFlags::SQLITE_OPEN_NO_MUTEX|OpenFlags::SQLITE_OPEN_URI,"): 1,
-    # 0.8.31 Slice 50 offline Schema 37 -> 38 migration read-only preflight probes and exclusive-locked upgrade connection.
+    # 0.8.31 Slice 50 & 0.8.32 Slice 20 offline Schema 37->38 / 38->39 migration read-only preflight probes and exclusive-locked upgrade connections.
     ("operator/migrate.rs", "run_readonly_preflights", "open_with_flags", "immutable_sqlite_uri(canonical_path)," + RO_FLAGS): 1,
     ("operator/migrate.rs", "run_readonly_preflights", "open_with_flags", "read_only_sqlite_uri(canonical_path)," + RO_FLAGS): 1,
     ("operator/migrate.rs", "migrate_37_to_38", "open_with_flags", "sqlite_uri(&canonical_path,\"mode=rw\"),rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE|rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX|rusqlite::OpenFlags::SQLITE_OPEN_URI,"): 1,
+    ("operator/migrate.rs", "migrate_38_to_39", "open_with_flags", "sqlite_uri(&canonical_path,\"mode=rw\"),rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE|rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX|rusqlite::OpenFlags::SQLITE_OPEN_URI,"): 1,
 })
 
 

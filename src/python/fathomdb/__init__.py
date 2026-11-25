@@ -43,6 +43,7 @@ from fathomdb.maintenance import (
 )
 from fathomdb.engine import Engine, ErasureMaintenance
 from fathomdb.errors import (
+    DatabaseNotFoundError,
     MaintenanceError,
     DependencyTraceError,
     EvidenceError,
@@ -177,6 +178,7 @@ from fathomdb.types import (
     TraversalDirection,
     TraceNodeLifecycleV1,
     TraceReadBoundaryV1,
+    VisibilityStateV1,
     WriteOptions,
     WriteReceipt,
     WriteProvenanceV1,
@@ -202,6 +204,7 @@ __all__ = [
     "ClosureStatusV1",
     "CudaDeviceInfo",
     "CudaVisibleDevice",
+    "DatabaseNotFoundError",
     "DenseReadiness",
     "DeviceResolution",
     "DerivedWriteProvenanceV1",
@@ -332,6 +335,7 @@ __all__ = [
     "TraversalDirection",
     "TraceNodeLifecycleV1",
     "TraceReadBoundaryV1",
+    "VisibilityStateV1",
     "WriteOptions",
     "WriteReceipt",
     "WriteProvenanceV1",

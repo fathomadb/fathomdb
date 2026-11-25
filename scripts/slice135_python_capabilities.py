@@ -70,6 +70,7 @@ CASES = {
     "closure_committed": ("test_slice30_dependency_closure.py", "test_committed_closure_status_survives_reopen"),
     "bulk_write": ("test_bulk_write_opt_in.py", "test_bulk_non_strict_counts_dangling_and_resolves_later"),
     "bulk_write_error": ("test_bulk_write_opt_in.py", "test_write_with_options_rejects_invalid_option_types_and_literals"),
+    "visibility_state": ("test_slice40_pin_c.py", "test_ep01_read_visibility_state_tracks_writes_reopen_and_close"),
 }
 
 # The second member names an independently executed error case, if available.
@@ -119,6 +120,7 @@ PLANNED = {
     "read.operational_state_page": ("pages", "operational_errors"),
     "read.operational_collection": ("operational_collections", "boundary_errors"),
     "read.operational_collections": ("operational_collections", "closed_reads"),
+    "read.visibility_state": ("visibility_state", "closed_reads"),
 }
 UNAVAILABLE = {
     **{
@@ -320,7 +322,7 @@ def _extra_case(name: str, temporary: Path) -> dict[str, Any]:
             observed["engine.close"] = {"idempotent_close": True}
         elif name == "closed_reads":
             engine.close()
-            for op in ("projections", "projection_status", "embedding_readiness", "projection_generation_status", "operational_collections"):
+            for op in ("projections", "projection_status", "embedding_readiness", "projection_generation_status", "operational_collections", "visibility_state"):
                 observed["read." + op] = refusal(lambda op=op: getattr(f.read, op)(engine), f.errors.ClosingError)
         elif name in ("dependency_errors", "trace", "evidence_refusals", "graph_refusals", "search_text"):
             engine.write(s02.make_graph_records())

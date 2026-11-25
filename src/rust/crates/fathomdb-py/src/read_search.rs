@@ -224,6 +224,17 @@ pub(super) fn read_operational_collections(
 }
 
 #[pyfunction]
+#[pyo3(signature = (engine))]
+pub(super) fn read_visibility_state(
+    py: Python<'_>,
+    engine: &PyEngine,
+) -> PyResult<PyVisibilityStateV1> {
+    let inner = Arc::clone(&engine.inner);
+    let state = call_engine(py, move || inner.read_visibility_state())?;
+    Ok(PyVisibilityStateV1::from_rust(&state))
+}
+
+#[pyfunction]
 #[pyo3(signature = (engine, name))]
 pub(super) fn read_operational_collection_info(
     py: Python<'_>,
@@ -538,6 +549,36 @@ impl PyOperationalCollectionInfo {
             retention_json: c.retention_json.clone(),
             format_version: c.format_version,
             created_at: c.created_at,
+        }
+    }
+}
+
+#[pyclass(
+    module = "fathomdb._fathomdb",
+    name = "VisibilityStateV1",
+    frozen,
+    get_all,
+    skip_from_py_object
+)]
+#[derive(Clone, Debug)]
+pub(super) struct PyVisibilityStateV1 {
+    schema_version: u32,
+    database_id: String,
+    generation: u64,
+    nonce: String,
+    canonical_write_boundary: u64,
+    projection_cursor: u64,
+}
+
+impl PyVisibilityStateV1 {
+    pub(super) fn from_rust(s: &RustVisibilityStateV1) -> Self {
+        Self {
+            schema_version: s.schema_version,
+            database_id: s.database_id.clone(),
+            generation: s.generation,
+            nonce: s.nonce.clone(),
+            canonical_write_boundary: s.canonical_write_boundary,
+            projection_cursor: s.projection_cursor,
         }
     }
 }

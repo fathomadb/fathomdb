@@ -135,12 +135,17 @@ class Engine:
         *,
         config: EngineConfig | None = None,
         use_default_embedder: bool = False,
+        create_if_missing: bool = True,
         **engine_config: Any,
     ) -> "Engine":
         """Open the database at `path`.
 
         Either `config` or per-knob keyword arguments may be supplied,
         but not both. Unknown keyword arguments are rejected.
+
+        ``create_if_missing`` defaults to ``True``; passing ``False`` refuses a
+        missing or zero-length path with ``DatabaseNotFoundError`` under the
+        sidecar lock without creating database or lock files.
 
         EU-6: ``use_default_embedder`` opts into the engine's pinned
         default embedder (``fathomdb-bge-small-en-v1.5``). On first use,
@@ -150,6 +155,9 @@ class Engine:
         ``EmbedderNotConfiguredError``. Caller-supplied custom embedders
         are deferred to a later release (see ``dev/interfaces/python.md``).
         """
+
+        if not isinstance(create_if_missing, bool):
+            raise TypeError("create_if_missing must be a bool")
 
         if config is not None and engine_config:
             raise ValueError(
@@ -165,7 +173,10 @@ class Engine:
         resolved = config if config is not None else EngineConfig(**engine_config)
         native_config = _native_engine_config(resolved)
         native = _NativeEngine.open(
-            path, use_default_embedder=use_default_embedder, config=native_config
+            path,
+            use_default_embedder=use_default_embedder,
+            config=native_config,
+            create_if_missing=create_if_missing,
         )
         return cls(native, path=path, config=resolved)
 

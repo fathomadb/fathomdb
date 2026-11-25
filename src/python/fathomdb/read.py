@@ -45,6 +45,7 @@ from fathomdb._fathomdb import (
 from fathomdb._fathomdb import (
     read_operational_collection_info as _native_operational_collection,
 )
+from fathomdb._fathomdb import read_visibility_state as _native_visibility_state
 from fathomdb._fathomdb import read_operational_state as _native_operational_state
 from fathomdb._fathomdb import (
     read_operational_state_page as _native_operational_state_page,
@@ -90,6 +91,7 @@ from fathomdb.types import (
     ProjectionSpec,
     PropertyEntityClass,
     ReadView,
+    VisibilityStateV1,
 )
 
 _PROJECTION_ORIGINS = frozenset({"fresh", "legacy_unverified", "configuration", "rebuild"})
@@ -735,6 +737,19 @@ def embedding_readiness(engine: "Engine") -> EmbeddingReadiness:
     )
 
 
+def visibility_state(engine: "Engine") -> VisibilityStateV1:
+    """Return the database's content-free visibility state on one reader snapshot (`EP-01`)."""
+    state = _native_visibility_state(engine._native)
+    return VisibilityStateV1(
+        schema_version=state.schema_version,
+        database_id=state.database_id,
+        generation=state.generation,
+        nonce=state.nonce,
+        canonical_write_boundary=state.canonical_write_boundary,
+        projection_cursor=state.projection_cursor,
+    )
+
+
 def _validate_limit(limit: int) -> None:
     if not isinstance(limit, int) or isinstance(limit, bool):
         raise ValueError("read.collection/read.mutations require an integer limit")
@@ -759,4 +774,5 @@ __all__ = [
     "projection_generation_status",
     "mutation_projection_status",
     "embedding_readiness",
+    "visibility_state",
 ]

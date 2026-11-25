@@ -5,11 +5,13 @@ use crate::errors::EngineError;
 #[cfg(feature = "test-hooks")]
 use crate::filter::SearchFilter;
 use crate::filter::{Filter, Predicate, PREDICATE_PATH_ALLOWLIST};
-use crate::frozen_read::FrozenReadContextV1;
+use crate::frozen_read::{FrozenReadContextV1, FrozenReadError, FrozenReadErrorReason};
 use crate::pagination::{self, PageRequestV1, PageV1};
 #[cfg(feature = "test-hooks")]
 use crate::read::{canonical_page_query, operational_state_page_sql, operational_state_point_sql};
-use crate::read::{NodeRecord, OpStoreRow, OperationalStateRecordV1, PageReaderError};
+use crate::read::{
+    NodeRecord, OpStoreRow, OperationalStateRecordV1, PageReaderError, VisibilityStateV1,
+};
 use crate::reader_pool::ReaderRequest;
 use crate::temporal::{current_epoch_seconds, ReadView};
 #[cfg(feature = "test-hooks")]
@@ -180,6 +182,35 @@ impl Engine {
                 Err(EngineError::Storage)
             }
         }
+    }
+
+    /// `EP-01` — read the database's content-free visibility state in one
+    /// deferred reader transaction without acquiring the writer lock.
+    ///
+    /// Applies the in-process monotonic `fetch_max` generation-regression guard
+    /// (`EngineError::FrozenRead(StateUnavailable)` on regression). Note that
+    /// append-only `operational_mutations` writes do not carry a read-visibility
+    /// trigger, so `canonical_write_boundary` can advance without advancing
+    /// `generation`.
+    pub fn read_visibility_state(&self) -> Result<VisibilityStateV1, EngineError> {
+        let _operation = self.ensure_open()?;
+        let (response_tx, response_rx) = mpsc::sync_channel(1);
+        let request = ReaderRequest::visibility_state(response_tx);
+        if self.reader_pool.dispatch(request).is_err() {
+            return Err(EngineError::Closing);
+        }
+        let state = response_rx.recv().map_err(|_| EngineError::Storage)??;
+        let previous = self
+            .read_visibility_generation
+            .fetch_max(state.generation, std::sync::atomic::Ordering::AcqRel);
+        if state.generation < previous {
+            return Err(FrozenReadError {
+                reason: FrozenReadErrorReason::StateUnavailable,
+                field_path: "/token".to_string(),
+            }
+            .into());
+        }
+        Ok(state)
     }
 
     fn read_collection_dispatch(

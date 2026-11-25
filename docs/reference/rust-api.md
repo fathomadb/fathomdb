@@ -99,6 +99,15 @@ is built-in default or none, with no caller-provider injection.
   `Engine::read_operational_collection_info` enumerate and inspect declared
   operational collections (conflicting `kind` re-registration is refused with
   `EngineError::WriteValidation`).
+- `Engine::read_visibility_state` returns `VisibilityStateV1` on one deferred
+  reader transaction without acquiring the writer lock (`EP-01`).
+- `Engine::open_with_choice_config_and_create` supports `create_if_missing: false`
+  (`EP-07`), failing with `EngineOpenError::DatabaseNotFound` under the sidecar
+  lock before CUDA/embedder setup and leaving no newly created `.lock` or
+  SQLite files behind.
+- `ActuationOperationV1::PutLatestState(LatestStateActuationV1)` atomically
+  upserts a schema-validated `latest_state` operational checkpoint inside
+  `Engine::actuate` under the opener-bound caller `scope`.
 
 - `Engine::write` validates every edge in the batch (including in-batch
   superseded edges and mixed-`source_id` batches) against active,

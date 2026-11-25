@@ -35,6 +35,69 @@ pub enum ActuationOperationV1 {
     RegisterSourceDependency(SourceDependencyRegistrationV1),
     /// Apply one revision-pinned lifecycle transition.
     TransitionLifecycle(LifecycleActuationV1),
+    /// Atomically upsert one record in a registered `latest_state` operational collection.
+    PutLatestState(LatestStateActuationV1),
+}
+
+/// Atomic `latest_state` operational checkpoint upsert in an actuation batch.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct LatestStateActuationV1 {
+    /// Registered `latest_state` operational collection name.
+    pub collection: String,
+    /// Caller-owned record key within the collection.
+    pub record_key: String,
+    /// Exact JSON payload text validated against the collection's schema.
+    pub payload_json: String,
+}
+
+impl LatestStateActuationV1 {
+    /// Validate and construct a `latest_state` actuation operation.
+    ///
+    /// # Errors
+    ///
+    /// Returns `nested_request_invalid` at `/collection`, `/recordKey`, or
+    /// `/payloadJson` if any field is empty/whitespace, contains NUL bytes, or
+    /// carries invalid JSON.
+    pub fn new(
+        collection: impl Into<String>,
+        record_key: impl Into<String>,
+        payload_json: impl Into<String>,
+    ) -> Result<Self, ActuationError> {
+        let collection = collection.into();
+        let record_key = record_key.into();
+        let payload_json = payload_json.into();
+        validate_latest_state_fields(&collection, &record_key, &payload_json, "")?;
+        Ok(Self { collection, record_key, payload_json })
+    }
+}
+
+fn validate_latest_state_fields(
+    collection: &str,
+    record_key: &str,
+    payload_json: &str,
+    prefix: &str,
+) -> Result<(), ActuationError> {
+    if collection.trim().is_empty() || collection.contains('\0') {
+        return Err(ActuationError::new(
+            ActuationErrorReason::NestedRequestInvalid,
+            format!("{prefix}/collection"),
+        ));
+    }
+    if record_key.trim().is_empty() || record_key.contains('\0') {
+        return Err(ActuationError::new(
+            ActuationErrorReason::NestedRequestInvalid,
+            format!("{prefix}/recordKey"),
+        ));
+    }
+    if payload_json.contains('\0')
+        || serde_json::from_str::<serde_json::Value>(payload_json).is_err()
+    {
+        return Err(ActuationError::new(
+            ActuationErrorReason::NestedRequestInvalid,
+            format!("{prefix}/payloadJson"),
+        ));
+    }
+    Ok(())
 }
 
 /// Revision-pinned lifecycle change in an actuation batch.
@@ -436,6 +499,14 @@ fn validate_request(request: &ActuationBatchV1) -> Result<(), EngineError> {
                     .into());
                 }
             }
+            ActuationOperationV1::PutLatestState(state) => {
+                validate_latest_state_fields(
+                    &state.collection,
+                    &state.record_key,
+                    &state.payload_json,
+                    &format!("/operations/{index}"),
+                )?;
+            }
         }
     }
     Ok(())
@@ -478,6 +549,14 @@ fn encode_operation(hasher: &mut Sha256, operation: &ActuationOperationV1) {
             }]);
             hasher.update([0x53]);
             encode_optional(hasher, lifecycle.reason.as_deref(), encode_string);
+        }
+        ActuationOperationV1::PutLatestState(state) => {
+            hasher.update([0x15, 0x60]);
+            encode_string(hasher, &state.collection);
+            hasher.update([0x61]);
+            encode_string(hasher, &state.record_key);
+            hasher.update([0x62]);
+            encode_string(hasher, &state.payload_json);
         }
     }
 }
@@ -1022,8 +1101,11 @@ fn validate_refusal_shape(
             "/record/provenance/sourceRevisionId",
             "/record/provenance/sourceLocator",
             "/record/provenance/canonicalSourceHash",
+            "/collection",
+            "/recordKey",
+            "/payloadJson",
         ]),
-        ActuationRefusalReasonV1::WriteCursorExhausted => matches_one(&["/record"]),
+        ActuationRefusalReasonV1::WriteCursorExhausted => matches_one(&["/record", "/collection"]),
         ActuationRefusalReasonV1::ProvenanceRoleMismatch => {
             matches_one(&["/record/provenance/role"])
         }
@@ -1191,6 +1273,7 @@ fn collect_source_refs(request: &ActuationBatchV1) -> BTreeSet<(&'static str, St
                     lifecycle.expected_current_revision_id.as_str().to_string(),
                 ));
             }
+            ActuationOperationV1::PutLatestState(_) => {}
         }
     }
     refs
@@ -1513,6 +1596,7 @@ fn expected_affected_revisions(
             ActuationOperationV1::TransitionLifecycle(lifecycle) => {
                 push(lifecycle.expected_current_revision_id.as_str().to_string());
             }
+            ActuationOperationV1::PutLatestState(_) => {}
         }
     }
     Ok(revisions)
@@ -1596,7 +1680,9 @@ fn simulate_request(
                     let write = PreparedWrite::ProvenancedNode(node.clone());
                     let plan = match validate_write(connection, &write) {
                         Ok(plan) => plan,
-                        Err(error) => return map_domain_error(error, index, None).map(Some),
+                        Err(error) => {
+                            return map_domain_error(error, index, operation, None).map(Some);
+                        }
                     };
                     match apply_batch_in_transaction(
                         connection,
@@ -1625,8 +1711,13 @@ fn simulate_request(
                             }
                         }
                         Err(CommitBatchError::Provenance(error)) => {
-                            return map_domain_error(EngineError::Provenance(error), index, None)
-                                .map(Some);
+                            return map_domain_error(
+                                EngineError::Provenance(error),
+                                index,
+                                operation,
+                                None,
+                            )
+                            .map(Some);
                         }
                         Err(CommitBatchError::Sql(_)) => return Err(EngineError::Storage),
                         Err(CommitBatchError::Engine(error)) => return Err(error),
@@ -1639,7 +1730,9 @@ fn simulate_request(
                     let write = PreparedWrite::ProvenancedEdge(edge.clone());
                     let plan = match validate_write(connection, &write) {
                         Ok(plan) => plan,
-                        Err(error) => return map_domain_error(error, index, None).map(Some),
+                        Err(error) => {
+                            return map_domain_error(error, index, operation, None).map(Some);
+                        }
                     };
                     match apply_batch_in_transaction(
                         connection,
@@ -1666,8 +1759,13 @@ fn simulate_request(
                             }
                         }
                         Err(CommitBatchError::Provenance(error)) => {
-                            return map_domain_error(EngineError::Provenance(error), index, None)
-                                .map(Some);
+                            return map_domain_error(
+                                EngineError::Provenance(error),
+                                index,
+                                operation,
+                                None,
+                            )
+                            .map(Some);
                         }
                         Err(CommitBatchError::Sql(_)) => return Err(EngineError::Storage),
                         Err(CommitBatchError::Engine(error)) => return Err(error),
@@ -1686,7 +1784,7 @@ fn simulate_request(
                         Err(error) => {
                             let field =
                                 missing_dependency_field(connection, scope, dependency).ok();
-                            return map_domain_error(error, index, field).map(Some);
+                            return map_domain_error(error, index, operation, field).map(Some);
                         }
                     };
                     apply_validated_source_dependency(connection, scope, &validated, 1)?;
@@ -1715,6 +1813,52 @@ fn simulate_request(
                                 RefusalOrInfrastructure::Infrastructure(error) => Err(error),
                             }
                         }
+                    }
+                }
+                ActuationOperationV1::PutLatestState(state) => {
+                    let plan = match crate::write_validation::validate_latest_state_actuation(
+                        connection,
+                        &state.collection,
+                        &state.record_key,
+                        &state.payload_json,
+                    ) {
+                        Ok(plan) => plan,
+                        Err(error) => {
+                            return map_domain_error(error, index, operation, None).map(Some);
+                        }
+                    };
+                    let write = PreparedWrite::OpStore {
+                        collection: state.collection.clone(),
+                        record_key: state.record_key.clone(),
+                        schema_id: Some(state.collection.clone()),
+                        body: state.payload_json.clone(),
+                    };
+                    match apply_batch_in_transaction(
+                        connection,
+                        scope,
+                        &[write],
+                        &[plan],
+                        next_cursor,
+                        provenance_row_cap,
+                        &[],
+                        dependency_closure::SoftClosureMode::Proving,
+                        CommitEndpointValidationMode::DeferredToActuationSimulation,
+                    ) {
+                        Ok(_) => {
+                            next_cursor = next_cursor.saturating_add(1);
+                        }
+                        Err(CommitBatchError::Provenance(error)) => {
+                            return map_domain_error(
+                                EngineError::Provenance(error),
+                                index,
+                                operation,
+                                None,
+                            )
+                            .map(Some);
+                        }
+                        Err(CommitBatchError::Sql(_)) => return Err(EngineError::Storage),
+                        Err(CommitBatchError::Engine(error)) => return Err(error),
+                        Err(CommitBatchError::WriterPoisoned) => return Err(EngineError::Storage),
                     }
                 }
             }
@@ -1763,8 +1907,30 @@ fn validate_prospective_edge_endpoints(
 fn map_domain_error(
     error: EngineError,
     index: usize,
+    operation: &ActuationOperationV1,
     missing_dependency_field: Option<&str>,
 ) -> Result<Refusal, EngineError> {
+    if let ActuationOperationV1::PutLatestState(state) = operation {
+        let suffix = match error {
+            EngineError::OpStore => "/collection",
+            EngineError::SchemaValidation => "/payloadJson",
+            EngineError::WriteValidation => {
+                if state.collection.trim().is_empty() {
+                    "/collection"
+                } else if state.record_key.trim().is_empty() {
+                    "/recordKey"
+                } else {
+                    "/payloadJson"
+                }
+            }
+            other => return Err(other),
+        };
+        return Ok(Refusal {
+            reason: ActuationRefusalReasonV1::WriteRefused,
+            index: Some(index),
+            path: Some(format!("/operations/{index}{suffix}")),
+        });
+    }
     let (reason, suffix) = match error {
         EngineError::WriteValidation | EngineError::SchemaValidation => {
             (ActuationRefusalReasonV1::WriteRefused, "/record")
@@ -2035,6 +2201,7 @@ impl Engine {
                                 ActuationOperationV1::PutCanonicalNode(_)
                                     | ActuationOperationV1::PutDerivedNode(_)
                                     | ActuationOperationV1::PutDerivedEdge(_)
+                                    | ActuationOperationV1::PutLatestState(_)
                             )
                         })
                         .count() as u64
@@ -2139,6 +2306,7 @@ impl Engine {
                     ActuationOperationV1::PutCanonicalNode(_)
                         | ActuationOperationV1::PutDerivedNode(_)
                         | ActuationOperationV1::PutDerivedEdge(_)
+                        | ActuationOperationV1::PutLatestState(_)
                 )
             })
             .count() as u64;
@@ -2179,16 +2347,21 @@ impl Engine {
                         ActuationOperationV1::PutCanonicalNode(_)
                             | ActuationOperationV1::PutDerivedNode(_)
                             | ActuationOperationV1::PutDerivedEdge(_)
+                            | ActuationOperationV1::PutLatestState(_)
                     )
                 })
                 .unwrap_or(0);
+            let field_suffix = match request.operations.get(index) {
+                Some(ActuationOperationV1::PutLatestState(_)) => "/collection",
+                _ => "/record",
+            };
             let receipt = receipt_for_refusal(
                 request,
                 digest.to_string(),
                 Refusal {
                     reason: ActuationRefusalReasonV1::WriteCursorExhausted,
                     index: Some(index),
-                    path: Some(format!("/operations/{index}/record")),
+                    path: Some(format!("/operations/{index}{field_suffix}")),
                 },
             );
             store_receipt(&tx, scope, &receipt, request.operations.len())?;
@@ -2261,7 +2434,7 @@ impl Engine {
                             .map(|(revision, _, _)| revision);
                         let write = PreparedWrite::ProvenancedNode(node.clone());
                         let plan = validate_write(&tx, &write).map_err(|error| {
-                            map_domain_error(error, index, None)
+                            map_domain_error(error, index, operation, None)
                                 .map(RefusalOrInfrastructure::Refusal)
                                 .unwrap_or_else(RefusalOrInfrastructure::Infrastructure)
                         })?;
@@ -2315,6 +2488,7 @@ impl Engine {
                                 Err(RefusalOrInfrastructure::Refusal(map_domain_error(
                                     EngineError::Provenance(error),
                                     index,
+                                    operation,
                                     None,
                                 )?))
                             }
@@ -2336,7 +2510,7 @@ impl Engine {
                             .map_err(RefusalOrInfrastructure::Infrastructure)?;
                     let write = PreparedWrite::ProvenancedEdge(edge.clone());
                     let plan = validate_write(&tx, &write).map_err(|error| {
-                        map_domain_error(error, index, None)
+                        map_domain_error(error, index, operation, None)
                             .map(RefusalOrInfrastructure::Refusal)
                             .unwrap_or_else(RefusalOrInfrastructure::Infrastructure)
                     })?;
@@ -2384,6 +2558,7 @@ impl Engine {
                             Err(RefusalOrInfrastructure::Refusal(map_domain_error(
                                 EngineError::Provenance(error),
                                 index,
+                                operation,
                                 None,
                             )?))
                         }
@@ -2408,7 +2583,7 @@ impl Engine {
                     )
                     .map_err(|error| {
                         let field = missing_dependency_field(&tx, scope, dependency).ok();
-                        map_domain_error(error, index, field)
+                        map_domain_error(error, index, operation, field)
                             .map(RefusalOrInfrastructure::Refusal)
                             .unwrap_or_else(RefusalOrInfrastructure::Infrastructure)
                     })?;
@@ -2424,12 +2599,16 @@ impl Engine {
                                         generation
                                     }
                                     Err(error) => {
-                                        return Err(match map_domain_error(error, index, None) {
-                                            Ok(mapped) => RefusalOrInfrastructure::Refusal(mapped),
-                                            Err(error) => {
-                                                RefusalOrInfrastructure::Infrastructure(error)
-                                            }
-                                        });
+                                        return Err(
+                                            match map_domain_error(error, index, operation, None) {
+                                                Ok(mapped) => {
+                                                    RefusalOrInfrastructure::Refusal(mapped)
+                                                }
+                                                Err(error) => {
+                                                    RefusalOrInfrastructure::Infrastructure(error)
+                                                }
+                                            },
+                                        );
                                     }
                                 },
                             };
@@ -2464,6 +2643,62 @@ impl Engine {
                             Ok(())
                         }
                         Err(error) => Err(error),
+                    }
+                }
+                ActuationOperationV1::PutLatestState(state) => {
+                    let plan = crate::write_validation::validate_latest_state_actuation(
+                        &tx,
+                        &state.collection,
+                        &state.record_key,
+                        &state.payload_json,
+                    )
+                    .map_err(|error| {
+                        map_domain_error(error, index, operation, None)
+                            .map(RefusalOrInfrastructure::Refusal)
+                            .unwrap_or_else(RefusalOrInfrastructure::Infrastructure)
+                    })?;
+                    let write = PreparedWrite::OpStore {
+                        collection: state.collection.clone(),
+                        record_key: state.record_key.clone(),
+                        schema_id: Some(state.collection.clone()),
+                        body: state.payload_json.clone(),
+                    };
+                    match apply_batch_in_transaction(
+                        &tx,
+                        scope,
+                        &[write],
+                        &[plan],
+                        next_cursor,
+                        self.provenance_row_cap.load(Ordering::Relaxed),
+                        &[],
+                        dependency_closure::SoftClosureMode::Proving,
+                        CommitEndpointValidationMode::DeferredToActuationSimulation,
+                    ) {
+                        Ok((_, repaired, closure_ids)) => {
+                            unstranded |= repaired;
+                            closure_operation_ids.extend(closure_ids);
+                            next_cursor += 1;
+                            // LatestState writes mark `_fathomdb_projection_terminal` immediately;
+                            // emit no pending projection write cursor.
+                            Ok(())
+                        }
+                        Err(CommitBatchError::Provenance(error)) => {
+                            Err(RefusalOrInfrastructure::Refusal(map_domain_error(
+                                EngineError::Provenance(error),
+                                index,
+                                operation,
+                                None,
+                            )?))
+                        }
+                        Err(CommitBatchError::Sql(_)) => {
+                            Err(RefusalOrInfrastructure::Infrastructure(EngineError::Storage))
+                        }
+                        Err(CommitBatchError::Engine(error)) => {
+                            Err(RefusalOrInfrastructure::Infrastructure(error))
+                        }
+                        Err(CommitBatchError::WriterPoisoned) => {
+                            Err(RefusalOrInfrastructure::Infrastructure(EngineError::Storage))
+                        }
                     }
                 }
             })();
@@ -2751,7 +2986,11 @@ mod tests {
                 ActuationRefusalReasonV1::WriteRefused,
                 "/operations/0/record/provenance/canonicalSourceHash",
             ),
+            (ActuationRefusalReasonV1::WriteRefused, "/operations/0/collection"),
+            (ActuationRefusalReasonV1::WriteRefused, "/operations/0/recordKey"),
+            (ActuationRefusalReasonV1::WriteRefused, "/operations/0/payloadJson"),
             (ActuationRefusalReasonV1::WriteCursorExhausted, "/operations/0/record"),
+            (ActuationRefusalReasonV1::WriteCursorExhausted, "/operations/0/collection"),
             (
                 ActuationRefusalReasonV1::ProvenanceRoleMismatch,
                 "/operations/0/record/provenance/role",

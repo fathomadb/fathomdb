@@ -188,6 +188,12 @@ export type ActuationOperationV1 =
       expectedCurrentRevisionId: string;
       toState: "active" | "deleted";
       reason?: string | null;
+    }
+  | {
+      type: "put_latest_state";
+      collection: string;
+      recordKey: string;
+      payloadJson: string;
     };
 
 /** Bounded, model-free, caller-decided atomic actuation request. */

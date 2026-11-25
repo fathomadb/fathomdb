@@ -63,6 +63,68 @@ pub struct OperationalStateRecordV1 {
     pub write_cursor: u64,
 }
 
+/// Content-free visibility snapshot of the database (`EP-01`), read in one
+/// deferred reader transaction without acquiring the writer lock.
+///
+/// Note that append-only `operational_mutations` does not carry a
+/// read-visibility trigger, so `canonical_write_boundary` can advance without
+/// advancing `generation` on append-only mutation writes.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub struct VisibilityStateV1 {
+    /// Wire schema version. Always `1`.
+    pub schema_version: u32,
+    /// Database identity (32 lowercase hex characters from `_fathomdb_open_state`).
+    pub database_id: String,
+    /// Monotonic read-visibility generation from `_fathomdb_read_visibility_state`.
+    pub generation: u64,
+    /// Branch-sensitive 64 lowercase hex nonce paired with `generation`.
+    pub nonce: String,
+    /// Canonical write boundary (`load_next_cursor`) observed on this snapshot.
+    pub canonical_write_boundary: u64,
+    /// Persisted projection cursor (`_fathomdb_open_state`) observed on this snapshot.
+    pub projection_cursor: u64,
+}
+
+fn is_lower_hex_len(value: &str, expected_len: usize) -> bool {
+    value.len() == expected_len
+        && value.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+}
+
+/// `EP-01` — read `VisibilityStateV1` in one deferred reader transaction
+/// without acquiring the writer lock.
+pub(crate) fn read_visibility_state_in_tx(
+    reader: &mut Connection,
+    attribution: &Arc<WalAttributionCollector>,
+    worker_idx: usize,
+) -> Result<VisibilityStateV1, EngineError> {
+    let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)
+        .map_err(|_| EngineError::Storage)?;
+    let database_id = frozen_read::read_open_state(&tx, "_fathomdb_database_id")?;
+    let (generation_i64, nonce): (i64, String) = tx
+        .query_row(
+            "SELECT generation, state_nonce FROM _fathomdb_read_visibility_state WHERE singleton = 1",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .map_err(|_| EngineError::Storage)?;
+    let generation = u64::try_from(generation_i64).map_err(|_| EngineError::Storage)?;
+    if !is_lower_hex_len(&database_id, 32) || !is_lower_hex_len(&nonce, 64) {
+        return Err(EngineError::Storage);
+    }
+    let canonical_write_boundary = crate::write_commit::load_next_cursor(&tx);
+    let projection_cursor =
+        crate::projection_commit::load_projection_cursor(&tx).map_err(|_| EngineError::Storage)?;
+    Ok(VisibilityStateV1 {
+        schema_version: 1,
+        database_id,
+        generation,
+        nonce,
+        canonical_write_boundary,
+        projection_cursor,
+    })
+}
+
 /// Slice 30 (G3) — the ~1M cap on a single op-store read-back page. The public
 /// `read.collection` / `read.mutations` LIMIT is `min(caller_limit, this)`, so
 /// no API path can issue an unbounded SELECT. Cursor/limit hardening under a

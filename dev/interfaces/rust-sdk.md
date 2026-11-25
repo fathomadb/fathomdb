@@ -37,7 +37,7 @@ The checker also refuses these routes to the core:
 
 Operation membership is enforced by `scripts/check-sdk-surface-parity.py`
 against the `rust` endpoints of `src/conformance/governed-operation-parity.json`
-(57/57 live operations).
+(58/58 live operations).
 
 ## Translation rules
 
@@ -190,7 +190,7 @@ observation guard through normal SDK error translation, without exposing the
 core engine. The feature forwards only `fathomdb-engine/slice30-observer`; no other
 SDK feature may enable it. It is passive observation, not state/provider/SQL
 injection or a test hook. Its feature/declaration/forwarding are checked separately
-from all 57 governed operations and ordinary non-command members. See the
+from all 58 governed operations and ordinary non-command members. See the
 [narrow addendum](../adr/ADR-0.8.29-sdk-qualification-observation.md) and
 [guard contract](rust.md#private-slice30-qualification-observations).
 
@@ -261,6 +261,7 @@ impls for both. `Unified` is lowered through the public
 | `read.operational_state_page` | `read::operational_state_page(engine, collection, context, page) -> Result<PageV1<OperationalStateRecordV1>>` | same |
 | `read.operational_collections` | `read::operational_collections(engine) -> Result<Vec<OperationalCollectionInfo>>` | `read_operational_collections` |
 | `read.operational_collection` | `read::operational_collection(engine, name: &str) -> Result<Option<OperationalCollectionInfo>>` | `read_operational_collection_info` |
+| `read.visibility_state` | `read::visibility_state(engine) -> Result<VisibilityStateV1>` | `read_visibility_state` |
 | `read.crossed_boundary_since` | `read::crossed_boundary_since(engine, since: i64, view: Option<&ReadView>) -> Result<Vec<BoundaryCrossing>>` | same |
 | `read.projections` / `projection_status` / `projection_generation_status` / `embedding_readiness` | `read::<name>(engine)` | `read_<name>` |
 | `read.mutation_projection_status` | `read::mutation_projection_status(engine, request: MutationProjectionStatusRequestV1)` | same |
@@ -669,6 +670,7 @@ and adds two governed `read` namespace functions matching Python and TypeScript:
 
 - `read::operational_collections(&Engine) -> Result<Vec<OperationalCollectionInfo>>`
 - `read::operational_collection(&Engine, &str) -> Result<Option<OperationalCollectionInfo>>`
+- `read::visibility_state(&Engine) -> Result<VisibilityStateV1>`
 
 Write items (`PreparedWrite::Node`/`Edge` and actuation records), O(1) read
 results (`NodeRecord`, `SearchHit`, `GraphTargetV1`,
@@ -795,3 +797,35 @@ namespaces `admin`, `graph`, and `read` unchanged) and re-exports
   surviving active edge; `0` for node-only batches), while cross-scope active
   endpoints and read-only handles fail atomically with `ErrorKind::ScopeViolation`
   and all other batch invariants remain strict.
+
+## Pin C seams: `PutLatestState`, `EP-07` open-without-create, and `EP-01` visibility state (0.8.32 Slice 40, Pin C)
+
+`fathomdb_sdk` adds one live governed read (`read::visibility_state`, advancing
+governed parity to `58/58` live operations and `97` allowlist members while
+keeping `core = 5`, `recovery_denylist = 5`, `runtime_controls = 2`, and the
+exact three namespaces `admin`, `graph`, and `read` unchanged) and re-exports
+`LatestStateActuationV1` and `VisibilityStateV1`:
+
+- **Atomic `PutLatestState` in `ActuationBatchV1`:**
+  `ActuationOperationV1::PutLatestState(LatestStateActuationV1)` validates
+  `collection`, `record_key`, and JSON `payload_json`, verifies the collection
+  is registered with kind `latest_state` and satisfies
+  `operational_collections.schema_json` unconditionally, upserts under the
+  opener-bound caller `scope`, and maps domain refusals to
+  `/operations/{i}/collection`, `/operations/{i}/recordKey`, or
+  `/operations/{i}/payloadJson`.
+- **`OpenOptions::create_if_missing` & `ErrorKind::DatabaseNotFound` (`EP-07`):**
+  `OpenOptions` adds `pub create_if_missing: bool` (default `true`) and
+  `with_create_if_missing(self, bool) -> Self` (keeping `EngineConfig`
+  unchanged). When `false`, opening a missing or zero-length path fails under
+  the sidecar lock with `ErrorKind::DatabaseNotFound` (`49` shared error
+  classes: base + `48` leaf) before CUDA pool claims or default embedder
+  loading, leaving no newly created `.lock` or SQLite files behind (dangling
+  symlinks keep `Io` -> `Storage` precedence).
+- **`read::visibility_state(&Engine) -> Result<VisibilityStateV1>` (`EP-01`):**
+  Returns content-free `VisibilityStateV1 { schema_version, database_id,
+  generation, nonce, canonical_write_boundary, projection_cursor }` from one
+  deferred reader transaction without acquiring the writer lock, enforcing the
+  in-process `fetch_max` generation-regression guard (`FrozenRead`). Append-only
+  `operational_mutations` writes may advance `canonical_write_boundary` without
+  advancing `generation`.

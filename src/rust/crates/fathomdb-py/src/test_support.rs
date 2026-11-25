@@ -322,10 +322,11 @@ mod tests {
         rewrite_schema_header(&path, 33);
 
         Python::attach(|py| {
-            let error = match PyEngine::open(py, path.to_string_lossy().into_owned(), false, None) {
-                Ok(_) => panic!("Python open must refuse schema 33"),
-                Err(error) => error,
-            };
+            let error =
+                match PyEngine::open(py, path.to_string_lossy().into_owned(), false, None, true) {
+                    Ok(_) => panic!("Python open must refuse schema 33"),
+                    Err(error) => error,
+                };
             assert!(error.is_instance_of::<IncompatibleSchemaVersionError>(py));
             assert!(error.to_string().contains("schema version 33"));
             assert!(error

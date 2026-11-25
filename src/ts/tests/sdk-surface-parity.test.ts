@@ -95,7 +95,7 @@ test("TypeScript surface equals the live canonical operation set", async () => {
       ],
       { encoding: "utf8" },
     );
-    assert.match(output, /ok +sdk-surface-parity: typescript 57\/57 live canonical operations/);
+    assert.match(output, /ok +sdk-surface-parity: typescript 58\/58 live canonical operations/);
   } finally {
     await engine.close();
   }

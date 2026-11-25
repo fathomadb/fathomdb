@@ -35,7 +35,9 @@ fn re_exports_compile() {
     let _ = std::any::type_name::<fathomdb::DependencyErrorReason>();
     let _ = std::any::type_name::<fathomdb::ActuationBatchV1>();
     let _ = std::any::type_name::<fathomdb::ActuationOperationV1>();
+    let _ = std::any::type_name::<fathomdb::LatestStateActuationV1>();
     let _ = std::any::type_name::<fathomdb::LifecycleActuationV1>();
+    let _ = std::any::type_name::<fathomdb::VisibilityStateV1>();
     let _ = std::any::type_name::<fathomdb::ActuationReceiptV1>();
     let _ = std::any::type_name::<fathomdb::ActuationOutcomeV1>();
     let _ = std::any::type_name::<fathomdb::ActuationRefusalReasonV1>();

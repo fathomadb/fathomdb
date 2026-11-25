@@ -66,7 +66,12 @@ impl Engine {
         } else {
             EmbedderChoice::None
         };
-        let opened = CoreEngine::open_with_choice_and_config(path, choice, options.config.clone())?;
+        let opened = CoreEngine::open_with_choice_config_and_create(
+            path,
+            choice,
+            options.config.clone(),
+            options.create_if_missing,
+        )?;
         Ok(Engine {
             core: Arc::new(opened.engine),
             report: opened.report,

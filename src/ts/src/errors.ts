@@ -222,6 +222,22 @@ export class DatabaseLockedError extends FathomDbError {
   }
 }
 
+export interface DatabaseNotFoundErrorPayload {
+  path?: string;
+}
+
+export class DatabaseNotFoundError extends FathomDbError {
+  readonly path?: string;
+  constructor(payload: DatabaseNotFoundErrorPayload = {}) {
+    super(
+      payload.path !== undefined
+        ? `database not found at ${payload.path}`
+        : "database not found",
+    );
+    this.path = payload.path;
+  }
+}
+
 export interface CorruptionErrorPayload {
   kind: string;
   stage: string;
@@ -525,6 +541,7 @@ type ErrorCode =
   | "FDB_OVERLOADED"
   | "FDB_CLOSING"
   | "FDB_DATABASE_LOCKED"
+  | "FDB_DATABASE_NOT_FOUND"
   | "FDB_CORRUPTION"
   | "FDB_INCOMPATIBLE_SCHEMA_VERSION"
   | "FDB_MIGRATION"
@@ -697,6 +714,10 @@ function build(envelope: Envelope): Error {
     case "FDB_DATABASE_LOCKED":
       return new DatabaseLockedError({
         holderPid: typeof p.holderPid === "number" ? p.holderPid : undefined,
+      });
+    case "FDB_DATABASE_NOT_FOUND":
+      return new DatabaseNotFoundError({
+        path: typeof p.path === "string" ? p.path : undefined,
       });
     case "FDB_CORRUPTION":
       return new CorruptionError({

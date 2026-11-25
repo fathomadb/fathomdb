@@ -137,6 +137,10 @@ pub enum EngineOpenError {
     DatabaseLocked {
         holder_pid: Option<u32>,
     },
+    /// Opening with `create_if_missing = false` refused a missing or zero-length path.
+    DatabaseNotFound {
+        path: PathBuf,
+    },
     Corruption(CorruptionDetail),
     IncompatibleSchemaVersion {
         seen: u32,
@@ -208,6 +212,9 @@ impl Display for EngineOpenError {
                 Some(pid) => write!(f, "database is locked by process {pid}"),
                 None => write!(f, "database is locked by another engine instance"),
             },
+            Self::DatabaseNotFound { path } => {
+                write!(f, "database not found at {}", path.display())
+            }
             Self::Corruption(detail) => {
                 write!(
                     f,

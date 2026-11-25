@@ -146,6 +146,18 @@ is added.
   `read::operational_collection(&engine, name)` inspects one collection's
   metadata (conflicting `kind` re-registration returns
   `ErrorKind::WriteValidation`).
+- **Content-free visibility state (`EP-01`):** `read::visibility_state(&engine)`
+  returns `VisibilityStateV1 { schema_version, database_id, generation, nonce,
+  canonical_write_boundary, projection_cursor }` from one deferred reader
+  snapshot without acquiring the writer lock.
+- **Open without create (`EP-07`):** `OpenOptions::create_if_missing` (default
+  `true`; `.with_create_if_missing(false)`) refuses missing or zero-length paths
+  under the sidecar lock with `ErrorKind::DatabaseNotFound` without creating
+  database or lock files.
+- **Atomic `PutLatestState` in `ActuationBatchV1`:**
+  `ActuationOperationV1::PutLatestState(LatestStateActuationV1)` upserts a
+  validated `latest_state` operational checkpoint atomically alongside graph
+  actuation operations under the opener-bound caller `scope`.
 
 ## Strict endpoint integrity, traversal predicates, and opt-in fused seeding
 

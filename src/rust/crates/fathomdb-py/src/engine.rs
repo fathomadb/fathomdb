@@ -240,12 +240,13 @@ pub(super) struct PyEngine {
 #[pymethods]
 impl PyEngine {
     #[staticmethod]
-    #[pyo3(signature = (path, use_default_embedder = false, config = None))]
+    #[pyo3(signature = (path, use_default_embedder = false, config = None, create_if_missing = true))]
     pub(super) fn open(
         py: Python<'_>,
         path: String,
         use_default_embedder: bool,
         config: Option<Bound<'_, PyDict>>,
+        create_if_missing: bool,
     ) -> PyResult<Self> {
         logging_subscriber::reject_reentry()?;
         validate_ffi_string_py(&path)?;
@@ -265,7 +266,12 @@ impl PyEngine {
                     } else {
                         EmbedderChoice::None
                     };
-                    RustEngine::open_with_choice_and_config(path, choice, config)
+                    RustEngine::open_with_choice_config_and_create(
+                        path,
+                        choice,
+                        config,
+                        create_if_missing,
+                    )
                 }))
             })
             .map_err(|_| PanicException::new_err("engine panic during open"))?

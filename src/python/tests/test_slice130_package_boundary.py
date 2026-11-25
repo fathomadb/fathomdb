@@ -426,6 +426,37 @@ def test_python_declarations_match_pre_move_baseline_with_approved_deltas() -> N
         old = expected[path_name]
         assert old["signature"] == f"{attr_name}: list[str]"
         expected[path_name] = {**old, "signature": f"{attr_name}: list[ProjectionTarget]"}
+    # 0.8.32 Slice 40 WP-40A2 (Pin C): EP-07 create_if_missing on Engine.open and
+    # PutLatestStateActuationV1 in ActuationOperationV1.
+    for namespace in ("fathomdb", "fathomdb.engine"):
+        path_name = f"{namespace}.Engine.open"
+        old = expected[path_name]
+        assert old["signature"] == (
+            "@classmethod def open(cls, path: str, *, config: EngineConfig | None=None, "
+            "use_default_embedder: bool=False, **engine_config: Any) -> 'Engine'"
+        )
+        expected[path_name] = {
+            **old,
+            "signature": (
+                "@classmethod def open(cls, path: str, *, config: EngineConfig | None=None, "
+                "use_default_embedder: bool=False, create_if_missing: bool=True, "
+                "**engine_config: Any) -> 'Engine'"
+            ),
+        }
+    actuation_op_row = expected["fathomdb.ActuationOperationV1"]
+    assert actuation_op_row["signature"] == (
+        "ActuationOperationV1 = Union[PutCanonicalNodeActuationV1, PutDerivedNodeActuationV1, "
+        "PutDerivedEdgeActuationV1, RegisterSourceDependencyActuationV1, "
+        "TransitionLifecycleActuationV1]"
+    )
+    expected["fathomdb.ActuationOperationV1"] = {
+        **actuation_op_row,
+        "signature": (
+            "ActuationOperationV1 = Union[PutCanonicalNodeActuationV1, PutDerivedNodeActuationV1, "
+            "PutDerivedEdgeActuationV1, RegisterSourceDependencyActuationV1, "
+            "TransitionLifecycleActuationV1, PutLatestStateActuationV1]"
+        ),
+    }
     observed = {row["path"]: row for row in declarations}
     assert len(declarations) == len(observed) == len(expected) == (
         1132 + len(declared) - 8 + 1 - 12 + 2 * len(EP03_EP17_TYPE_DECLARATIONS) + 1
@@ -433,6 +464,47 @@ def test_python_declarations_match_pre_move_baseline_with_approved_deltas() -> N
     assert observed == expected
 
     stub = (package / "_fathomdb.pyi").read_text()
+    # Reverse the approved 0.8.32 Slice 40 WP-40A2 (Pin C) native stub edits before WP-40A1.
+    slice40_wp40a2_stub_edits = (
+        (
+            "\nclass VisibilityStateV1:\n"
+            "    schema_version: int\n"
+            "    database_id: str\n"
+            "    generation: int\n"
+            "    nonce: str\n"
+            "    canonical_write_boundary: int\n"
+            "    projection_cursor: int\n",
+            "",
+        ),
+        (
+            "    @staticmethod\n"
+            "    def open(\n"
+            "        path: str,\n"
+            "        use_default_embedder: bool = ...,\n"
+            "        config: dict[str, Any] | None = ...,\n"
+            "        create_if_missing: bool = ...,\n"
+            '    ) -> "Engine": ...\n',
+            "    @staticmethod\n"
+            "    def open(\n"
+            "        path: str,\n"
+            "        use_default_embedder: bool = ...,\n"
+            "        config: dict[str, Any] | None = ...,\n"
+            '    ) -> "Engine": ...\n',
+        ),
+        (
+            "def read_visibility_state(engine: Engine) -> VisibilityStateV1: ...\n",
+            "",
+        ),
+        (
+            "\nclass DatabaseNotFoundError(EngineError):\n"
+            "    path: str | None\n"
+            "    def __init__(self, *args: Any, path: str | None = ...) -> None: ...\n",
+            "",
+        ),
+    )
+    for current, previous in slice40_wp40a2_stub_edits:
+        assert stub.count(current) == 1
+        stub = stub.replace(current, previous, 1)
     # Reverse the approved 0.8.32 Slice 40 WP-40A1 (Gate1-D9) native stub edits before Slice 50.
     slice40_wp40a1_stub_edits = (
         (

@@ -77,6 +77,7 @@ handle.
   with `config`.
 
 Raises `EngineError` subclasses on failure: `DatabaseLockedError`,
+`DatabaseNotFoundError` (when `create_if_missing=False` on a missing or zero-length path),
 `CorruptionError`, `IncompatibleSchemaVersionError`,
 `MigrationError`, `EmbedderIdentityMismatchError`,
 `EmbedderDimensionMismatchError`. See [errors](errors.md).
@@ -601,6 +602,13 @@ retention/policy details) in stable order.
 Inspect one declared operational collection by `name`; returns `None` when no
 collection with that name is registered. Conflicting `kind` re-registration on
 write/configuration raises `WriteValidationError`.
+
+### `read.visibility_state(engine) -> VisibilityStateV1`
+
+Return the database's content-free visibility snapshot (`schema_version`,
+`database_id`, `generation`, `nonce`, `canonical_write_boundary`,
+`projection_cursor`) on one deferred reader transaction without acquiring the
+writer lock. Raises `ClosingError` after close.
 
 ### `read.list(engine, kind, predicates=None, *, limit=100) -> list[NodeRecord]`
 

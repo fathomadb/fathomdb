@@ -21,6 +21,7 @@
   "_slice20_op_collections_signature": "Owner pre-authorized 0.8.31 Slice 20 (HITL Gate 1): adds pure governed introspection reads read.operational_collections/read.operationalCollections and read.operational_collection/read.operationalCollection returning OperationalCollectionInfo, alongside non-command inline typed property types (PropertyValue, PropertyMap, PropertyEntityClass, PropertyComparisonOp, PropertyPredicate) and additive fields on existing write/search/projection/erasure DTOs. Core membership, runtime controls, and the five-name recovery denylist are unchanged.",
   "_slice50_resolve_evidence_many_signature": "Owner approved 0.8.31 Slice 50 (ADR-0.8.31-cli-pypi-wheel-and-37-to-38-upgrade.md #76): adds bounded (1..=50) batch evidence resolution resolve_evidence_many/resolveEvidenceMany under one authenticated frozen read context with per-slot partial-result nondisclosure, alongside opt-in search hints and OpenReport capability booleans. Core membership, runtime controls, and the five-name recovery denylist are unchanged.",
   "_slice30_bulk_write_opt_in_signature": "Owner pre-authorized 0.8.32 Slice 30 (HITL Gate 1 Decision 4 Pin B; ADR-0.8.32-opt-in-bulk-write-mode.md #100): adds explicit opt-in bulk write method write_with_options/writeWithOptions accepting WriteOptions (EndpointValidationMode Strict [default] or BulkNonStrict) with truthful WriteReceipt.dangling_edge_endpoints counts and non-bypassable scope/cross-scope/batch invariants, keeping default Engine.write and Engine.actuate strict. Core membership, runtime controls, and the five-name recovery denylist are unchanged.",
+  "_slice40_pin_c_visibility_state_signature": "Owner pre-authorized 0.8.32 Slice 40 (HITL Gate 1 Decision 4 Pin C; ADR-0.8.32-mcp-read-write-and-distribution.md #99): adds pure content-free visibility snapshot read read.visibility_state/read.visibilityState returning VisibilityStateV1 on one deferred reader transaction without acquiring the writer lock, alongside non-command PutLatestState actuation operation and OpenOptions.create_if_missing/DatabaseNotFoundError. Core membership, runtime controls, and the five-name recovery denylist are unchanged.",
   "allowlist": [
     "Engine.open",
     "admin.configure",
@@ -116,7 +117,9 @@
     "resolve_evidence_many",
     "resolveEvidenceMany",
     "write_with_options",
-    "writeWithOptions"
+    "writeWithOptions",
+    "read.visibility_state",
+    "read.visibilityState"
   ],
   "core": [
     "Engine.open",

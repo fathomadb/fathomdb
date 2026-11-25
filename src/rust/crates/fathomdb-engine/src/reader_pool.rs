@@ -257,6 +257,9 @@ pub(crate) enum ReaderRequest {
         name: String,
         respond: SyncSender<rusqlite::Result<Option<crate::properties::OperationalCollectionInfo>>>,
     },
+    VisibilityState {
+        respond: SyncSender<Result<VisibilityStateV1, crate::errors::EngineError>>,
+    },
     /// Slice 35 (G4) — list active canonical nodes of a `kind`, filtered by
     /// zero or more `Predicate`s (AND-combined), up to `limit` rows.
     /// Path validation already happened at `Predicate` construction time;
@@ -458,6 +461,12 @@ impl ReaderRequest {
         respond: SyncSender<rusqlite::Result<Option<crate::properties::OperationalCollectionInfo>>>,
     ) -> Self {
         Self::ReadOperationalCollection { name, respond }
+    }
+
+    pub(crate) fn visibility_state(
+        respond: SyncSender<Result<VisibilityStateV1, crate::errors::EngineError>>,
+    ) -> Self {
+        Self::VisibilityState { respond }
     }
 
     pub(crate) fn read_list(
@@ -845,6 +854,17 @@ fn reader_worker_loop(
                     &wal_attribution,
                     worker_idx,
                 );
+                finish_reader_request(
+                    &connection,
+                    &wal_attribution,
+                    worker_idx,
+                    physical_read.take(),
+                );
+                let _ = respond.send(result);
+            }
+            ReaderRequest::VisibilityState { respond } => {
+                let result =
+                    read_visibility_state_in_tx(&mut connection, &wal_attribution, worker_idx);
                 finish_reader_request(
                     &connection,
                     &wal_attribution,
@@ -1678,8 +1698,8 @@ use crate::read::read_canonical_page_baseline_in_tx;
 use crate::read::{
     read_canonical_page_in_tx, read_collection_in_tx, read_get_by_id_in_tx, read_list_in_tx,
     read_operational_collection_in_tx, read_operational_collections_in_tx,
-    read_operational_state_in_tx, read_operational_state_page_in_tx, NodeRecord, OpStoreRow,
-    OperationalStateRecordV1, PageReaderError,
+    read_operational_state_in_tx, read_operational_state_page_in_tx, read_visibility_state_in_tx,
+    NodeRecord, OpStoreRow, OperationalStateRecordV1, PageReaderError, VisibilityStateV1,
 };
 use crate::search::{
     read_projected_text_in_tx, read_search_work_in_tx, EvidenceCapture, NoEvidenceCapture,

@@ -187,7 +187,8 @@ mod write_validation;
 
 pub use actuation::{
     ActuationBatchV1, ActuationError, ActuationErrorReason, ActuationOperationV1,
-    ActuationOutcomeV1, ActuationReceiptV1, ActuationRefusalReasonV1, LifecycleActuationV1,
+    ActuationOutcomeV1, ActuationReceiptV1, ActuationRefusalReasonV1, LatestStateActuationV1,
+    LifecycleActuationV1,
 };
 pub use consolidation::{ConsolidateAxis, ConsolidateCandidateEdge, ConsolidateReceipt};
 #[cfg(feature = "operator")]
@@ -380,7 +381,7 @@ pub use provenance::{
     ProvenancedNodeV1, SourceLocator, TraceEvent, TraceReport, WriteProvenanceV1,
 };
 pub(crate) use provider::{ProviderSession, ProviderTask};
-pub use read::{NodeRecord, OpStoreRow, OperationalStateRecordV1};
+pub use read::{NodeRecord, OpStoreRow, OperationalStateRecordV1, VisibilityStateV1};
 #[cfg(any(test, feature = "test-hooks"))]
 pub use reader_pool::CacheStatusReply;
 pub(crate) use reader_pool::ReaderWorkerPool;

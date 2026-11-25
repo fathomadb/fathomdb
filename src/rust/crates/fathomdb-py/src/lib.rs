@@ -84,7 +84,7 @@ use fathomdb_engine::{
     GraphEvidenceResolveRequestV1 as RustGraphEvidenceResolveRequestV1,
     GraphSeedMode as RustGraphSeedMode, Hint as RustHint, IdSpace as RustIdSpace,
     IngestWithExtractorReceipt as RustIngestWithExtractorReceipt, InitialState,
-    LifecycleActuationV1, LifecycleState as RustLifecycleState,
+    LatestStateActuationV1, LifecycleActuationV1, LifecycleState as RustLifecycleState,
     MutationProjectionStatusRequestV1 as RustMutationProjectionStatusRequestV1,
     MutationProjectionStatusV1 as RustMutationProjectionStatusV1, NodeRecord as RustNodeRecord,
     OpStoreRow as RustOpStoreRow, OpenReport as RustOpenReport, OpenStage,
@@ -116,8 +116,8 @@ use fathomdb_engine::{
     StructuralInclusionV1 as RustStructuralInclusionV1,
     StructuralLifecycleStateV1 as RustStructuralLifecycleStateV1,
     StructuralProjectionOriginV1 as RustStructuralProjectionOriginV1,
-    TraversalDirection as RustTraversalDirection, WriteProvenanceV1,
-    WriteReceipt as RustWriteReceipt,
+    TraversalDirection as RustTraversalDirection, VisibilityStateV1 as RustVisibilityStateV1,
+    WriteProvenanceV1, WriteReceipt as RustWriteReceipt,
 };
 use fathomdb_schema::MigrationStepReport as RustMigrationStepReport;
 use pyo3::create_exception;
@@ -317,6 +317,8 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(read_canonical_page, &m)?)?;
     m.add_function(wrap_pyfunction!(read_operational_collections, &m)?)?;
     m.add_function(wrap_pyfunction!(read_operational_collection_info, &m)?)?;
+    m.add_function(wrap_pyfunction!(read_visibility_state, &m)?)?;
+    m.add_class::<PyVisibilityStateV1>()?;
     m.add_function(wrap_pyfunction!(read_operational_state, &m)?)?;
     m.add_function(wrap_pyfunction!(read_operational_state_page, &m)?)?;
     // Slice 20 — G5/G6 graph traversal fns.
@@ -369,6 +371,7 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add("OverloadedError", py.get_type::<OverloadedError>())?;
     m.add("ClosingError", py.get_type::<ClosingError>())?;
     m.add("DatabaseLockedError", py.get_type::<DatabaseLockedError>())?;
+    m.add("DatabaseNotFoundError", py.get_type::<DatabaseNotFoundError>())?;
     m.add("CorruptionError", py.get_type::<CorruptionError>())?;
     m.add("IncompatibleSchemaVersionError", py.get_type::<IncompatibleSchemaVersionError>())?;
     m.add("MigrationError", py.get_type::<MigrationError>())?;

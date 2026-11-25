@@ -2737,3 +2737,28 @@ compose orthogonally with world/validity time (`ReadView.valid_as_of` /
   (`Error`) and `CrossScopeEdgeEndpoint` (`Critical`); `check_integrity`
   emits matching `"dangling_edge_endpoint"` / `"cross_scope_edge_endpoint"`
   semantic findings anchored to `design/recovery.md`.
+
+## Pin C seams: `PutLatestState`, `EP-07` open-without-create, and `EP-01` visibility state (0.8.32 Slice 40)
+
+- **Atomic `PutLatestState` in `ActuationBatchV1`:** `fathomdb` re-exports
+  `LatestStateActuationV1` alongside `ActuationOperationV1::PutLatestState`.
+  Operations validate non-empty `collection`/`record_key` and valid JSON
+  `payload_json`, enforce `latest_state` kind and `schema_json` unconditionally
+  inside the actuation transaction under opener-bound caller `scope`, record
+  immediate terminal projection state (`pending_projection_write_cursors`
+  omits `PutLatestState` cursors), include all three fields in the idempotency
+  digest, and emit operation-aware `/operations/{i}/{collection,recordKey,payloadJson}`
+  refusal paths.
+- **`EP-07` open-without-create & `EngineOpenError::DatabaseNotFound`:**
+  `Engine::open_with_choice_config_and_create(path, choice, config, create_if_missing)`
+  acquires the sidecar lock and checks dangling symlinks (`Io` precedence) and
+  `create_if_missing == false` missing/zero-length refusal
+  (`EngineOpenError::DatabaseNotFound { path }`, unlinking `.lock` only when
+  created by this call) before claiming CUDA pools or loading default embedder
+  weights, holding that lock into `open_with_migrations`.
+- **`EP-01` `Engine::read_visibility_state`:** `fathomdb` re-exports
+  `#[non_exhaustive] VisibilityStateV1 { schema_version, database_id,
+  generation, nonce, canonical_write_boundary, projection_cursor }`.
+  `Engine::read_visibility_state(&self) -> Result<VisibilityStateV1, EngineError>`
+  executes on one deferred reader transaction without acquiring the writer lock,
+  applying the in-process `fetch_max` regression guard (`EngineError::FrozenRead`).

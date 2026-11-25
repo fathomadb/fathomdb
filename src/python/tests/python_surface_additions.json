@@ -3537,6 +3537,159 @@
         "path": "fathomdb.types.ProjectionTarget.name",
         "signature": "name: str"
       }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 40,
+      "declaration": {
+        "kind": "python-value",
+        "path": "fathomdb.DatabaseNotFoundError",
+        "signature": "DatabaseNotFoundError = _DatabaseNotFoundError"
+      }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 40,
+      "declaration": {
+        "kind": "python-class",
+        "path": "fathomdb.VisibilityStateV1",
+        "signature": "@dataclass(frozen=True) class VisibilityStateV1"
+      }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 40,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.VisibilityStateV1.canonical_write_boundary",
+        "signature": "canonical_write_boundary: int"
+      }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 40,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.VisibilityStateV1.database_id",
+        "signature": "database_id: str"
+      }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 40,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.VisibilityStateV1.generation",
+        "signature": "generation: int"
+      }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 40,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.VisibilityStateV1.nonce",
+        "signature": "nonce: str"
+      }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 40,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.VisibilityStateV1.projection_cursor",
+        "signature": "projection_cursor: int"
+      }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 40,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.VisibilityStateV1.schema_version",
+        "signature": "schema_version: int"
+      }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 40,
+      "declaration": {
+        "kind": "python-value",
+        "path": "fathomdb.errors.DatabaseNotFoundError",
+        "signature": "DatabaseNotFoundError = _DatabaseNotFoundError"
+      }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 40,
+      "declaration": {
+        "kind": "python-function",
+        "path": "fathomdb.read.visibility_state",
+        "signature": "def visibility_state(engine: 'Engine') -> VisibilityStateV1"
+      }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 40,
+      "declaration": {
+        "kind": "python-class",
+        "path": "fathomdb.types.VisibilityStateV1",
+        "signature": "@dataclass(frozen=True) class VisibilityStateV1"
+      }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 40,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.VisibilityStateV1.canonical_write_boundary",
+        "signature": "canonical_write_boundary: int"
+      }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 40,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.VisibilityStateV1.database_id",
+        "signature": "database_id: str"
+      }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 40,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.VisibilityStateV1.generation",
+        "signature": "generation: int"
+      }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 40,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.VisibilityStateV1.nonce",
+        "signature": "nonce: str"
+      }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 40,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.VisibilityStateV1.projection_cursor",
+        "signature": "projection_cursor: int"
+      }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 40,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.VisibilityStateV1.schema_version",
+        "signature": "schema_version: int"
+      }
     }
   ],
   "native_stub_sha256": "4f3939dbb5bff1f0616cdc3520d1d7d9bcf7f946d9c2d1421d1e7b7f8a2f7dac",

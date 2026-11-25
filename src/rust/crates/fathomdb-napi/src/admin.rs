@@ -293,6 +293,8 @@ pub struct EngineOpenOptions {
     /// without an embedder; vector writes then fail with
     /// `EmbedderNotConfigured`.
     pub use_default_embedder: Option<bool>,
+    /// `EP-07`: create a fresh database if `path` is missing or zero-length (default `true`).
+    pub create_if_missing: Option<bool>,
 }
 
 #[napi(object)]

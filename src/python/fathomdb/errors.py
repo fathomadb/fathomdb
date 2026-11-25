@@ -29,6 +29,7 @@ from fathomdb._fathomdb import (
 from fathomdb._fathomdb import RuntimeConfigurationError as _RuntimeConfigurationError
 from fathomdb._fathomdb import (
     DatabaseLockedError as _DatabaseLockedError,
+    DatabaseNotFoundError as _DatabaseNotFoundError,
 )
 from fathomdb._fathomdb import (
     EmbedderDimensionMismatchError as _EmbedderDimensionMismatchError,
@@ -158,6 +159,7 @@ SchemaValidationError = _SchemaValidationError
 OverloadedError = _OverloadedError
 ClosingError = _ClosingError
 DatabaseLockedError = _DatabaseLockedError
+DatabaseNotFoundError = _DatabaseNotFoundError
 CorruptionError = _CorruptionError
 RuntimeConfigurationError = _RuntimeConfigurationError
 IncompatibleSchemaVersionError = _IncompatibleSchemaVersionError
@@ -211,6 +213,7 @@ def _install_typed_init(cls: type, fields: tuple[str, ...]) -> None:
 
 
 _install_typed_init(DatabaseLockedError, ("holder_pid",))
+_install_typed_init(DatabaseNotFoundError, ("path",))
 _install_typed_init(
     RuntimeConfigurationError,
     ("reason", "requested_mode", "effective_mode", "sqlite_code"),
@@ -266,6 +269,7 @@ __all__ = [
     "CudaPoolExhaustedError",
     "CudaPrivateBuildRefusedError",
     "DatabaseLockedError",
+    "DatabaseNotFoundError",
     "EmbedderDimensionMismatchError",
     "EmbedDevicePolicyError",
     "RerankerDevicePolicyError",

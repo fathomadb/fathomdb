@@ -72,7 +72,11 @@ fn open_keeps_report_and_requested_config() {
     let config = EngineConfig { slow_threshold_ms: Some(250), ..EngineConfig::default() };
     let engine = Engine::open(
         dir.path().join("sdk.sqlite"),
-        OpenOptions { config: config.clone(), use_default_embedder: false },
+        OpenOptions {
+            config: config.clone(),
+            use_default_embedder: false,
+            create_if_missing: true,
+        },
     )
     .expect("open");
     assert_eq!(engine.config(), &config);
@@ -88,7 +92,7 @@ fn invalid_engine_config_is_invalid_argument() {
     let config = EngineConfig { embedder_pool_size: Some(0), ..EngineConfig::default() };
     let result = Engine::open(
         dir.path().join("sdk.sqlite"),
-        OpenOptions { config, use_default_embedder: false },
+        OpenOptions { config, use_default_embedder: false, create_if_missing: true },
     );
     assert_eq!(kind_of(result), ErrorKind::InvalidArgument);
 }
@@ -99,7 +103,11 @@ fn default_embedder_without_feature_is_a_typed_open_error() {
     let dir = tempfile::tempdir().expect("tempdir");
     let result = Engine::open(
         dir.path().join("sdk.sqlite"),
-        OpenOptions { config: EngineConfig::default(), use_default_embedder: true },
+        OpenOptions {
+            config: EngineConfig::default(),
+            use_default_embedder: true,
+            create_if_missing: true,
+        },
     );
     assert_eq!(kind_of(result), ErrorKind::Embedder);
 }
@@ -791,4 +799,58 @@ fn filtered_snippets_keep_node_attribute_scope_and_edge_rowid_identity() {
     options.filter.as_mut().unwrap().attributes = vec![("undeclared".into(), "wanted".into())];
     assert_eq!(kind_of(engine.search_text_only(term, options)), ErrorKind::InvalidFilter);
     engine.close().unwrap();
+}
+
+#[test]
+fn slice40_pin_c_sdk_ep07_ep01_and_put_latest_state() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let missing = dir.path().join("absent.sqlite");
+    let err = Engine::open(&missing, OpenOptions::default().with_create_if_missing(false))
+        .expect_err("missing db must fail");
+    assert_eq!(err.kind(), ErrorKind::DatabaseNotFound);
+    assert!(!missing.exists());
+
+    let db = dir.path().join("sdk_pin_c.sqlite");
+    let engine = Engine::open(&db, OpenOptions::default()).expect("create db");
+    let s0 = read::visibility_state(&engine).expect("initial visibility state");
+    assert_eq!(s0.schema_version, 1);
+    assert_eq!(s0.canonical_write_boundary, 0);
+
+    engine
+        .write(&[PreparedWrite::AdminSchema {
+            name: "checkpoints".into(),
+            kind: "latest_state".into(),
+            schema_json:
+                r#"{"type":"object","required":["step"],"properties":{"step":{"type":"integer"}}}"#
+                    .into(),
+            retention_json: "{}".into(),
+        }])
+        .expect("register collection");
+
+    let batch = fathomdb_sdk::ActuationBatchV1::new(
+        "sdk-pin-c-op",
+        vec![fathomdb_sdk::ActuationOperationV1::PutLatestState(
+            fathomdb_sdk::LatestStateActuationV1::new("checkpoints", "k1", r#"{"step":7}"#)
+                .expect("valid latest state op"),
+        )],
+    )
+    .expect("valid batch");
+    let receipt = engine.actuate(batch).expect("actuate");
+    assert_eq!(receipt.outcome, fathomdb_sdk::ActuationOutcomeV1::Committed);
+    let stored = read::operational_state(&engine, "checkpoints", "k1", None)
+        .expect("read operational state")
+        .expect("row present");
+    assert_eq!(stored.payload, r#"{"step":7}"#);
+
+    let s1 = read::visibility_state(&engine).expect("post-write visibility state");
+    assert_eq!(s1.database_id, s0.database_id);
+    assert!(s1.generation > s0.generation);
+    assert_ne!(s1.nonce, s0.nonce);
+    assert!(s1.canonical_write_boundary >= 2);
+    engine.close().expect("close");
+
+    let reopened = Engine::open(&db, OpenOptions::default().with_create_if_missing(false))
+        .expect("open existing db with create_if_missing=false");
+    assert_eq!(read::visibility_state(&reopened).expect("reopened state"), s1);
+    reopened.close().expect("close reopened");
 }

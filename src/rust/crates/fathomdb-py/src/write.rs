@@ -384,6 +384,27 @@ pub(super) fn translate_actuation_operation(
                     )
                 })
         }
+        "put_latest_state" => {
+            strict_actuation_dict(
+                value,
+                &["type", "collection", "record_key", "payload_json"],
+                &root,
+            )?;
+            let collection =
+                actuation_required_string(dict, "collection", &format!("{root}/collection"))?;
+            let record_key =
+                actuation_required_string(dict, "record_key", &format!("{root}/recordKey"))?;
+            let payload_json =
+                actuation_required_string(dict, "payload_json", &format!("{root}/payloadJson"))?;
+            LatestStateActuationV1::new(collection, record_key, payload_json)
+                .map(ActuationOperationV1::PutLatestState)
+                .map_err(|error| {
+                    actuation_input_error(
+                        error.reason.as_str(),
+                        format!("{root}{}", error.field_path),
+                    )
+                })
+        }
         _ => Err(actuation_input_error("unknown_operation_variant", format!("{root}/type"))),
     }
 }

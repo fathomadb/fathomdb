@@ -13,6 +13,7 @@ export type {
   Predicate,
   ReadCollectionOptions,
   ReadView,
+  VisibilityStateV1,
 } from "./read.js";
 export type {
   PropertyComparisonOp,

@@ -5,7 +5,7 @@ use fathomdb_engine::{
     BoundaryCrossing, EmbeddingReadiness, FrozenReadContextV1, MutationProjectionStatusRequestV1,
     MutationProjectionStatusV1, NodeRecord, OpStoreRow, OperationalCollectionInfo,
     OperationalStateRecordV1, PageRequestV1, PageV1, ProjectionGenerationStatusV1,
-    ProjectionRuntimeStatus, ProjectionSpec, ReadView,
+    ProjectionRuntimeStatus, ProjectionSpec, ReadView, VisibilityStateV1,
 };
 
 use crate::error::{Error, Result};
@@ -164,4 +164,9 @@ pub fn mutation_projection_status(
 /// Embedding readiness of the dense projection.
 pub fn embedding_readiness(engine: &Engine) -> Result<EmbeddingReadiness> {
     Ok(engine.core().read_embedding_readiness()?)
+}
+
+/// Content-free visibility snapshot of the database on one reader transaction (`EP-01`).
+pub fn visibility_state(engine: &Engine) -> Result<VisibilityStateV1> {
+    Ok(engine.core().read_visibility_state()?)
 }

@@ -279,12 +279,22 @@ class TransitionLifecycleActuationV1(_TransitionLifecycleActuationRequiredV1, to
     reason: str | None
 
 
+class PutLatestStateActuationV1(TypedDict):
+    """Actuation operation upserting one `latest_state` operational checkpoint."""
+
+    type: Literal["put_latest_state"]
+    collection: str
+    record_key: str
+    payload_json: str
+
+
 ActuationOperationV1 = Union[
     PutCanonicalNodeActuationV1,
     PutDerivedNodeActuationV1,
     PutDerivedEdgeActuationV1,
     RegisterSourceDependencyActuationV1,
     TransitionLifecycleActuationV1,
+    PutLatestStateActuationV1,
 ]
 
 
@@ -1800,6 +1810,18 @@ class SearchExpandResult:
 
 
 @dataclass(frozen=True)
+class VisibilityStateV1:
+    """Content-free visibility snapshot of the database (`EP-01`)."""
+
+    schema_version: int
+    database_id: str
+    generation: int
+    nonce: str
+    canonical_write_boundary: int
+    projection_cursor: int
+
+
+@dataclass(frozen=True)
 class CounterSnapshot:
     """Snapshot of engine-internal counters returned by `engine.counters`.
 
@@ -1908,6 +1930,7 @@ __all__ = [
     "SnippetOptions",
     "SnippetV1",
     "UnknownEmbedderEvent",
+    "VisibilityStateV1",
     "WriteOptions",
     "WriteReceipt",
     "is_known_embedder_event",

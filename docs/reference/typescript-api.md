@@ -87,7 +87,7 @@ Open or create a FathomDB database at `path`.
     passing both throws `TypeError`).
 
 Rejects with a `FathomDbError` subclass on failure:
-`DatabaseLockedError`, `CorruptionError`,
+`DatabaseLockedError`, `DatabaseNotFoundError`, `CorruptionError`,
 `IncompatibleSchemaVersionError`, `MigrationError`,
 `EmbedderIdentityMismatchError`, `EmbedderDimensionMismatchError`.
 See [errors](errors.md).
@@ -586,6 +586,13 @@ retention/policy details) in stable order.
 Inspect one declared operational collection by `name`; resolves to `null` when
 no collection with that name is registered. Conflicting `kind` re-registration
 on write/configuration rejects with `WriteValidationError`.
+
+### `read.visibilityState(engine): Promise<VisibilityStateV1>`
+
+Return the database's content-free visibility snapshot (`schemaVersion`,
+`databaseId`, `generation`, `nonce`, `canonicalWriteBoundary`,
+`projectionCursor`) on one deferred reader transaction without acquiring the
+writer lock. Rejects with `ClosingError` after close.
 
 ### `read.list(engine, kind, predicates?, limit?): Promise<NodeRecord[]>`
 

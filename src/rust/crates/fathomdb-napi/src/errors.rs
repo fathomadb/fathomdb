@@ -30,6 +30,7 @@ pub(crate) const CODE_ACTUATION: &str = "FDB_ACTUATION";
 pub(crate) const CODE_OVERLOADED: &str = "FDB_OVERLOADED";
 pub(crate) const CODE_CLOSING: &str = "FDB_CLOSING";
 pub(crate) const CODE_DATABASE_LOCKED: &str = "FDB_DATABASE_LOCKED";
+pub(crate) const CODE_DATABASE_NOT_FOUND: &str = "FDB_DATABASE_NOT_FOUND";
 pub(crate) const CODE_CORRUPTION: &str = "FDB_CORRUPTION";
 pub(crate) const CODE_INCOMPATIBLE_SCHEMA_VERSION: &str = "FDB_INCOMPATIBLE_SCHEMA_VERSION";
 pub(crate) const CODE_MIGRATION: &str = "FDB_MIGRATION";
@@ -559,6 +560,11 @@ pub(crate) fn engine_open_error_to_napi(err: EngineOpenError) -> Error {
                 None => "database is locked by another engine instance".to_string(),
             },
             json!({ "holderPid": holder_pid }),
+        ),
+        EngineOpenError::DatabaseNotFound { path } => typed_error(
+            CODE_DATABASE_NOT_FOUND,
+            format!("database not found at {}", path.display()),
+            json!({ "path": path.to_string_lossy() }),
         ),
         EngineOpenError::Corruption(detail) => corruption_to_napi(detail),
         EngineOpenError::IncompatibleSchemaVersion { seen, supported } => typed_error(

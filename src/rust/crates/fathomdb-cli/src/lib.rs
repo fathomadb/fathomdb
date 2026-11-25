@@ -2278,6 +2278,7 @@ fn engine_open_error_code(err: &EngineOpenError) -> &'static str {
         EngineOpenError::RuntimeConfiguration(_) => "RuntimeConfigurationError",
         EngineOpenError::EngineConfiguration(_) => "EngineConfigurationError",
         EngineOpenError::DatabaseLocked { .. } => "DatabaseLockedError",
+        EngineOpenError::DatabaseNotFound { .. } => "DatabaseNotFoundError",
         EngineOpenError::Corruption(detail) => detail.recovery_hint.code,
         EngineOpenError::IncompatibleSchemaVersion { .. } => "IncompatibleSchemaVersionError",
         EngineOpenError::MigrationError { .. } => "MigrationError",

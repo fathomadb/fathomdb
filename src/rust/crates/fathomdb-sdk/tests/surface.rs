@@ -25,7 +25,7 @@ use fathomdb_sdk::{
     GraphArmOptions, GraphArmSeedSource, GraphEvidenceResolveRequestV1, GraphExpandRequestV1,
     GraphExpandResultV1, GraphReadContextV1, GraphSeedMode, GraphSeedV1, Hint, HintAction, HintArm,
     HintCause, HintMode, HintReason, IdSpace, IdSpaceKind, IngestWithExtractorReceipt,
-    LifecycleState, ListOptions, MigrationStepReport, ModuleLoadInit,
+    LatestStateActuationV1, LifecycleState, ListOptions, MigrationStepReport, ModuleLoadInit,
     MutationProjectionStatusRequestV1, MutationProjectionStatusV1, NeighborsOptions, NodeRecord,
     OpStoreRow, OpenOptions, OpenReport, OperationalCollectionInfo, OperationalStateRecordV1,
     PageRequestV1, PageV1, Predicate, PreparedWrite, ProjectedTextSearchOptions, ProjectionDelta,
@@ -36,8 +36,9 @@ use fathomdb_sdk::{
     RuntimeConfiguration, RuntimeConfigurationError, RuntimeSqliteMode, ScopePolicy,
     ScopePolicyError, SearchExpandOptions, SearchExpandResult, SearchFilter, SearchFilterArg,
     SearchHit, SearchOptions, SearchResult, SourceDependencyRegistrationV1, SourceDependencyV1,
-    SourceId, Subscriber, SubscriberEvent, TextSearchOptions, TraversalDirection, WriteOptions,
-    WriteReceipt, EVIDENCE_RESOLVE_MANY_MAX, MAX_READ_SCOPES, MAX_SCOPE_TOKEN_BYTES,
+    SourceId, Subscriber, SubscriberEvent, TextSearchOptions, TraversalDirection,
+    VisibilityStateV1, WriteOptions, WriteReceipt, EVIDENCE_RESOLVE_MANY_MAX, MAX_READ_SCOPES,
+    MAX_SCOPE_TOKEN_BYTES,
 };
 
 #[test]
@@ -148,6 +149,7 @@ fn read_namespace_signatures() {
     let _: fn(&Engine) -> Result<Vec<OperationalCollectionInfo>> = read::operational_collections;
     let _: fn(&Engine, &str) -> Result<Option<OperationalCollectionInfo>> =
         read::operational_collection;
+    let _: fn(&Engine) -> Result<VisibilityStateV1> = read::visibility_state;
 }
 
 #[test]
@@ -223,6 +225,7 @@ fn option_defaults_match_python_and_typescript() {
     let open = OpenOptions::default();
     assert_eq!(open.config, EngineConfig::default());
     assert!(!open.use_default_embedder);
+    assert!(open.create_if_missing);
 }
 
 #[test]
@@ -235,7 +238,7 @@ fn search_filter_arg_accepts_both_filter_forms() {
 
 /// The shared Python/TypeScript error classes, minus the `Error` suffix, plus
 /// the base. Python: `fathomdb.errors`; TypeScript: `src/ts/src/errors.ts`.
-const SHARED_ERROR_CLASSES: [&str; 48] = [
+const SHARED_ERROR_CLASSES: [&str; 49] = [
     "EngineError",
     "RuntimeConfigurationError",
     "StorageError",
@@ -259,6 +262,7 @@ const SHARED_ERROR_CLASSES: [&str; 48] = [
     "OverloadedError",
     "ClosingError",
     "DatabaseLockedError",
+    "DatabaseNotFoundError",
     "CorruptionError",
     "IncompatibleSchemaVersionError",
     "MigrationError",
@@ -317,6 +321,10 @@ fn error_wraps_typed_core_payloads() {
     assert_eq!(error.kind(), ErrorKind::Closing);
     let error: Error = EngineOpenError::DatabaseLocked { holder_pid: Some(7) }.into();
     assert_eq!(error.kind(), ErrorKind::DatabaseLocked);
+    let error: Error =
+        EngineOpenError::DatabaseNotFound { path: std::path::PathBuf::from("missing.sqlite") }
+            .into();
+    assert_eq!(error.kind(), ErrorKind::DatabaseNotFound);
     let error: Error = RuntimeConfigurationError::TooLate.into();
     assert_eq!(error.kind(), ErrorKind::RuntimeConfiguration);
     let _: &dyn std::error::Error = &error;
@@ -326,6 +334,8 @@ fn error_wraps_typed_core_payloads() {
 #[test]
 fn shared_types_are_nameable() {
     fn named<T: ?Sized>() {}
+    named::<LatestStateActuationV1>();
+    named::<VisibilityStateV1>();
     named::<SearchHit>();
     named::<IdSpace>();
     named::<IdSpaceKind>();

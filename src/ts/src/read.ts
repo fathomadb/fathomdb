@@ -28,6 +28,7 @@ import {
   type NativeNodeRecord,
   type NativeOpStoreRow,
   type NativeOperationalCollectionInfo,
+  type NativeVisibilityStateV1,
   type NativeNodePageV1,
   type NativeOperationalStatePageV1,
   type NativeOperationalStateRecordV1,
@@ -125,6 +126,16 @@ export interface OperationalCollectionInfo {
   retentionJson: string;
   formatVersion: number;
   createdAt: number;
+}
+
+/** Content-free visibility snapshot of the database (`EP-01`). */
+export interface VisibilityStateV1 {
+  schemaVersion: number;
+  databaseId: string;
+  generation: number;
+  nonce: string;
+  canonicalWriteBoundary: number;
+  projectionCursor: number;
 }
 
 /** Slice 30 (G3) — one `operational_mutations` row from `read.collection`/`read.mutations`. */
@@ -532,6 +543,21 @@ export const read = {
     validateFfiString(name);
     const row = await intercept(() => native.readOperationalCollectionInfo(engine._native, name));
     return row === null ? null : toOperationalCollectionInfo(row);
+  },
+
+  /** Return the database's content-free visibility state on one reader snapshot (`EP-01`). */
+  async visibilityState(engine: Engine): Promise<VisibilityStateV1> {
+    const state: NativeVisibilityStateV1 = await intercept(() =>
+      native.readVisibilityState(engine._native),
+    );
+    return {
+      schemaVersion: state.schemaVersion,
+      databaseId: state.databaseId,
+      generation: state.generation,
+      nonce: state.nonce,
+      canonicalWriteBoundary: state.canonicalWriteBoundary,
+      projectionCursor: state.projectionCursor,
+    };
   },
 
   /** Read one current value from a governed `latest_state` collection. */

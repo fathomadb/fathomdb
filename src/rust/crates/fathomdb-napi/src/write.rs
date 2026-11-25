@@ -434,6 +434,27 @@ pub(crate) fn translate_actuation_operation(
                     )
                 })
         }
+        "put_latest_state" => {
+            strict_actuation_object(
+                value,
+                &["type", "collection", "recordKey", "payloadJson"],
+                &root,
+            )?;
+            let collection =
+                actuation_required_string(object, "collection", &format!("{root}/collection"))?;
+            let record_key =
+                actuation_required_string(object, "recordKey", &format!("{root}/recordKey"))?;
+            let payload_json =
+                actuation_required_string(object, "payloadJson", &format!("{root}/payloadJson"))?;
+            LatestStateActuationV1::new(collection, record_key, payload_json)
+                .map(ActuationOperationV1::PutLatestState)
+                .map_err(|error| {
+                    actuation_napi_error(
+                        error.reason.as_str(),
+                        format!("{root}{}", error.field_path),
+                    )
+                })
+        }
         _ => Err(actuation_napi_error("unknown_operation_variant", format!("{root}/type"))),
     }
 }

@@ -72,6 +72,7 @@ fn engine_open_error_variants_exist() {
 
     let variants: Vec<EngineOpenError> = vec![
         EngineOpenError::DatabaseLocked { holder_pid: Some(1) },
+        EngineOpenError::DatabaseNotFound { path: std::path::PathBuf::from("missing.sqlite") },
         EngineOpenError::Corruption(detail),
         EngineOpenError::IncompatibleSchemaVersion { seen: 5, supported: 4 },
         EngineOpenError::MigrationError {

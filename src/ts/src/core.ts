@@ -345,6 +345,12 @@ export interface EngineOpenOptions {
    * ADR-0.6.0-embedder-protocol Invariant 3.
    */
   useDefaultEmbedder?: boolean;
+  /**
+   * `EP-07`: create a fresh database if `path` does not exist or is zero-length
+   * (default `true`). When `false`, opening a missing or zero-length path
+   * throws `DatabaseNotFoundError` without creating database or lock files.
+   */
+  createIfMissing?: boolean;
 }
 
 export class Engine {
@@ -372,6 +378,10 @@ export class Engine {
         : requestedConfig;
     const config = snapshotEngineConfig(mergedConfig);
     const useDefaultEmbedder = options.useDefaultEmbedder;
+    const createIfMissing = options.createIfMissing;
+    if (createIfMissing !== undefined && typeof createIfMissing !== "boolean") {
+      throw new TypeError("Engine.open option createIfMissing must be a boolean");
+    }
     const nativeConfig =
       mergedConfig === undefined
         ? undefined
@@ -385,8 +395,8 @@ export class Engine {
             }
           : config;
     const nativeOptions = nativeConfig === undefined
-      ? { useDefaultEmbedder }
-      : { useDefaultEmbedder, engineConfig: nativeConfig };
+      ? { useDefaultEmbedder, createIfMissing }
+      : { useDefaultEmbedder, createIfMissing, engineConfig: nativeConfig };
     const inner = await intercept(() => native.Engine.open(path, nativeOptions));
     return new Engine(inner, config);
   }

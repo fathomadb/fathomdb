@@ -953,6 +953,7 @@ below `FathomDbError`. The maintained matrix owns the current membership.
 Examples of caller-visible subclasses:
 
 - `DatabaseLockedError`
+- `DatabaseNotFoundError`
 - `CorruptionError`
 - `MigrationError`
 - `IncompatibleSchemaVersionError`
@@ -1929,3 +1930,21 @@ members), opt-in agent search hints across `search`, `search_frozen`, and
   - Cross-scope active edge endpoints and read-only `ScopePolicy` handles raise
     `ScopeViolationError` with atomic rollback; all other batch invariants
     remain strictly enforced.
+
+## Pin C seams: `PutLatestState`, `EP-07` open-without-create, and `EP-01` visibility state (0.8.32 Slice 40, Pin C)
+
+- **Atomic `put_latest_state` in `ActuationBatchV1`:** `ActuationOperationV1`
+  adds `PutLatestStateActuationV1` (`type: "put_latest_state"`, `collection`,
+  `record_key`, `payload_json`), validating `latest_state` collection kind and
+  `schema_json` unconditionally under opener-bound caller `scope` with
+  `/operations/{i}/{collection,recordKey,payloadJson}` refusal paths.
+- **`Engine.open(..., create_if_missing=True)` & `DatabaseNotFoundError` (`EP-07`):**
+  `DatabaseNotFoundError` (carrying `path: str | None`) is exported from
+  `fathomdb` and `fathomdb.errors` beneath `EngineError` (`49` shared error
+  classes: base + `48` leaf). Passing `create_if_missing=False` refuses missing
+  or zero-length paths under the sidecar lock with `DatabaseNotFoundError`
+  without creating database or lock files; non-bool raises `TypeError`.
+- **`read.visibility_state(engine) -> VisibilityStateV1` (`EP-01`):** Exported
+  governed read returning frozen `VisibilityStateV1(schema_version, database_id,
+  generation, nonce, canonical_write_boundary, projection_cursor)` from one
+  deferred reader snapshot without acquiring the writer lock.

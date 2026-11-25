@@ -269,6 +269,15 @@ export interface NativeOperationalCollectionInfo {
   createdAt: number;
 }
 
+export interface NativeVisibilityStateV1 {
+  schemaVersion: number;
+  databaseId: string;
+  generation: number;
+  nonce: string;
+  canonicalWriteBoundary: number;
+  projectionCursor: number;
+}
+
 /** Strictly typed projection target scoped by `(entityClass, name)`. */
 export interface NativeProjectionTarget {
   name: string;
@@ -857,6 +866,7 @@ export interface NativeConsolidateAxis {
 interface NativeEngineOpenOptions {
   engineConfig?: NativeEngineConfig;
   useDefaultEmbedder?: boolean;
+  createIfMissing?: boolean;
 }
 
 interface NativeAdminConfigureOptions {
@@ -1130,6 +1140,7 @@ export interface NativeModule {
     engine: NativeEngine,
     name: string,
   ): Promise<NativeOperationalCollectionInfo | null>;
+  readVisibilityState(engine: NativeEngine): Promise<NativeVisibilityStateV1>;
   readOperationalState(
     engine: NativeEngine,
     collection: string,

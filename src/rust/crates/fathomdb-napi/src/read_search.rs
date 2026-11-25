@@ -269,6 +269,29 @@ impl OperationalCollectionInfo {
 }
 
 #[napi(object)]
+pub struct VisibilityStateV1 {
+    pub schema_version: u32,
+    pub database_id: String,
+    pub generation: i64,
+    pub nonce: String,
+    pub canonical_write_boundary: i64,
+    pub projection_cursor: i64,
+}
+
+impl VisibilityStateV1 {
+    pub(crate) fn from_rust(s: &RustVisibilityStateV1) -> Self {
+        Self {
+            schema_version: s.schema_version,
+            database_id: s.database_id.clone(),
+            generation: s.generation as i64,
+            nonce: s.nonce.clone(),
+            canonical_write_boundary: s.canonical_write_boundary as i64,
+            projection_cursor: s.projection_cursor as i64,
+        }
+    }
+}
+
+#[napi(object)]
 pub struct ReadViewInput {
     /// Relax `superseded_at IS NULL` — include historical versions.
     pub include_superseded: Option<bool>,
@@ -658,6 +681,13 @@ pub async fn read_operational_collections(
     let inner = Arc::clone(&engine.inner);
     let rows = call_engine(move || inner.read_operational_collections()).await?;
     Ok(rows.iter().map(OperationalCollectionInfo::from_rust).collect())
+}
+
+#[napi(js_name = "readVisibilityState")]
+pub async fn read_visibility_state(engine: &Engine) -> Result<VisibilityStateV1> {
+    let inner = Arc::clone(&engine.inner);
+    let state = call_engine(move || inner.read_visibility_state()).await?;
+    Ok(VisibilityStateV1::from_rust(&state))
 }
 
 #[napi(js_name = "readOperationalCollectionInfo")]

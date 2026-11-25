@@ -995,6 +995,7 @@ matrix owns the current membership.
 Class examples:
 
 - `DatabaseLockedError`
+- `DatabaseNotFoundError`
 - `CorruptionError`
 - `MigrationError`
 - `IncompatibleSchemaVersionError`
@@ -1875,3 +1876,21 @@ members), opt-in agent search hints across `search`, `searchFrozen`, and
   - Cross-scope active edge endpoints and read-only `ScopePolicy` handles reject
     with `ScopeViolationError` (`code = "FDB_SCOPE_VIOLATION"`) and atomic
     rollback; all other batch invariants remain strictly enforced.
+
+## Pin C seams: `put_latest_state`, `EP-07` open-without-create, and `EP-01` visibility state (0.8.32 Slice 40, Pin C)
+
+- **Atomic `put_latest_state` in `ActuationBatchV1`:** `ActuationOperationV1`
+  adds `{ type: "put_latest_state"; collection: string; recordKey: string; payloadJson: string }`,
+  validating `latest_state` collection kind and `schemaJson` unconditionally
+  under opener-bound caller `scope` with `/operations/{i}/{collection,recordKey,payloadJson}`
+  refusal paths.
+- **`Engine.open(path, { createIfMissing?: boolean })` & `DatabaseNotFoundError` (`EP-07`):**
+  `DatabaseNotFoundError extends FathomDbError` (carrying `readonly path?: string`,
+  mapped from `FDB_DATABASE_NOT_FOUND`) adds the 48th leaf class (`49` shared
+  classes including base `FathomDbError`). Passing `{ createIfMissing: false }`
+  refuses missing or zero-length paths under the sidecar lock without creating
+  database or lock files; non-boolean rejects with `TypeError`.
+- **`read.visibilityState(engine): Promise<VisibilityStateV1>` (`EP-01`):**
+  Exported governed read returning `{ schemaVersion, databaseId, generation,
+  nonce, canonicalWriteBoundary, projectionCursor }` from one deferred reader
+  snapshot without acquiring the writer lock.

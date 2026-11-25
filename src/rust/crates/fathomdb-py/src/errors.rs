@@ -29,6 +29,7 @@ create_exception!(_fathomdb, ActuationError, EngineError);
 create_exception!(_fathomdb, OverloadedError, EngineError);
 create_exception!(_fathomdb, ClosingError, EngineError);
 create_exception!(_fathomdb, DatabaseLockedError, EngineError);
+create_exception!(_fathomdb, DatabaseNotFoundError, EngineError);
 create_exception!(_fathomdb, CorruptionError, EngineError);
 create_exception!(_fathomdb, IncompatibleSchemaVersionError, EngineError);
 create_exception!(_fathomdb, MigrationError, EngineError);
@@ -525,6 +526,16 @@ pub(super) fn engine_open_error_to_py(err: EngineOpenError) -> PyErr {
             });
             Python::attach(|py| {
                 let _ = exc.value(py).setattr("holder_pid", holder_pid);
+            });
+            exc
+        }
+        EngineOpenError::DatabaseNotFound { path } => {
+            let exc = DatabaseNotFoundError::new_err(format!(
+                "database not found at {}",
+                path.display()
+            ));
+            Python::attach(|py| {
+                let _ = exc.value(py).setattr("path", path.to_string_lossy().into_owned());
             });
             exc
         }

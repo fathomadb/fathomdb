@@ -356,6 +356,14 @@ class OperationalCollectionInfo:
     format_version: int
     created_at: int
 
+class VisibilityStateV1:
+    schema_version: int
+    database_id: str
+    generation: int
+    nonce: str
+    canonical_write_boundary: int
+    projection_cursor: int
+
 class OperationalStateRecordV1:
     schema_version: int
     collection: str
@@ -525,6 +533,7 @@ class Engine:
         path: str,
         use_default_embedder: bool = ...,
         config: dict[str, Any] | None = ...,
+        create_if_missing: bool = ...,
     ) -> "Engine": ...
     # NOTE: `_configure_vector_kind_for_test`, `_write_vector_for_test`, and
     # `_set_legacy_projection_search_subobjects_for_test`
@@ -906,6 +915,7 @@ def read_operational_collections(engine: Engine) -> list[OperationalCollectionIn
 def read_operational_collection_info(
     engine: Engine, name: str
 ) -> OperationalCollectionInfo | None: ...
+def read_visibility_state(engine: Engine) -> VisibilityStateV1: ...
 def read_operational_state(
     engine: Engine,
     collection: str,
@@ -1116,6 +1126,10 @@ class ActuationError(EngineError):
 class DatabaseLockedError(EngineError):
     holder_pid: int | None
     def __init__(self, *args: Any, holder_pid: int | None = ...) -> None: ...
+
+class DatabaseNotFoundError(EngineError):
+    path: str | None
+    def __init__(self, *args: Any, path: str | None = ...) -> None: ...
 
 class CorruptionError(EngineError):
     kind: str

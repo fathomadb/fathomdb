@@ -255,6 +255,26 @@ pub(crate) fn validate_write(
     }
 }
 
+/// Validate one atomic `latest_state` actuation upsert unconditionally:
+/// collection must exist with kind `latest_state`, `record_key` must be
+/// non-empty, and `payload_json` must satisfy `operational_collections.schema_json`.
+pub(crate) fn validate_latest_state_actuation(
+    connection: &Connection,
+    collection: &str,
+    record_key: &str,
+    payload_json: &str,
+) -> Result<WritePlan, EngineError> {
+    if collection.trim().is_empty() || record_key.trim().is_empty() {
+        return Err(EngineError::WriteValidation);
+    }
+    let (kind, schema_json) = collection_metadata(connection, collection)?;
+    if kind != "latest_state" {
+        return Err(EngineError::OpStore);
+    }
+    validate_payload(&schema_json, payload_json)?;
+    Ok(WritePlan::LatestState)
+}
+
 fn collection_metadata(
     connection: &Connection,
     collection: &str,

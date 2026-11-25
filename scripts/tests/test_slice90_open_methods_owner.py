@@ -12,6 +12,7 @@ METHODS = {
     "open": 1,
     "open_with_choice": 1,
     "open_with_choice_and_config": 1,
+    "open_with_choice_config_and_create": 1,
     "open_default_embedder": 2,
     "open_with_migration_event_sink": 1,
     "open_with_migrations_for_test": 1,

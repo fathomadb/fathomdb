@@ -43,7 +43,7 @@ pub(crate) use fathomdb_engine::{
     GraphEvidenceResolveRequestV1 as RustGraphEvidenceResolveRequestV1,
     GraphSeedMode as RustGraphSeedMode, Hint as RustHint, IdSpace as RustIdSpace,
     IngestWithExtractorReceipt as RustIngestWithExtractorReceipt, InitialState,
-    LifecycleActuationV1, LifecycleState as RustLifecycleState,
+    LatestStateActuationV1, LifecycleActuationV1, LifecycleState as RustLifecycleState,
     MutationProjectionStatusRequestV1 as RustMutationProjectionStatusRequestV1,
     MutationProjectionStatusV1 as RustMutationProjectionStatusV1, NodeRecord as RustNodeRecord,
     OpStoreRow as RustOpStoreRow, OpenReport as RustOpenReport, OpenStage,
@@ -74,8 +74,8 @@ pub(crate) use fathomdb_engine::{
     StructuralInclusionV1 as RustStructuralInclusionV1,
     StructuralLifecycleStateV1 as RustStructuralLifecycleStateV1,
     StructuralProjectionOriginV1 as RustStructuralProjectionOriginV1,
-    TraversalDirection as RustTraversalDirection, WriteProvenanceV1,
-    WriteReceipt as RustWriteReceipt,
+    TraversalDirection as RustTraversalDirection, VisibilityStateV1 as RustVisibilityStateV1,
+    WriteProvenanceV1, WriteReceipt as RustWriteReceipt,
 };
 pub(crate) use fathomdb_schema::MigrationStepReport as RustMigrationStepReport;
 pub(crate) use napi::{Env, Error, JsFunction, JsObject, Result, Status};

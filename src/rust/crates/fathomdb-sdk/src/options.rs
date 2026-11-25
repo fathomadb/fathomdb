@@ -9,13 +9,29 @@ use fathomdb_engine::{
 use crate::error::Result;
 use crate::guard;
 
-/// `Engine::open` options: `config` and `use_default_embedder` (default `false`).
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+/// `Engine::open` options: `config`, `use_default_embedder` (default `false`),
+/// and `create_if_missing` (default `true`).
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct OpenOptions {
     pub config: EngineConfig,
     /// Open with the pinned default embedder. Requires the `default-embedder`
     /// feature; without it the open fails with an `Embedder` error.
     pub use_default_embedder: bool,
+    /// Create a fresh database if `path` does not exist or is zero-length
+    /// (default `true`). When `false`, opening a missing or zero-length path
+    /// fails with `ErrorKind::DatabaseNotFound` without creating database or
+    /// lock files.
+    pub create_if_missing: bool,
+}
+
+impl Default for OpenOptions {
+    fn default() -> Self {
+        Self {
+            config: EngineConfig::default(),
+            use_default_embedder: false,
+            create_if_missing: true,
+        }
+    }
 }
 
 impl OpenOptions {
@@ -23,6 +39,13 @@ impl OpenOptions {
     #[must_use]
     pub fn with_scope_policy(mut self, scope_policy: ScopePolicy) -> Self {
         self.config.scope_policy = scope_policy;
+        self
+    }
+
+    /// Set whether `Engine::open` creates a fresh database when `path` is missing.
+    #[must_use]
+    pub fn with_create_if_missing(mut self, create_if_missing: bool) -> Self {
+        self.create_if_missing = create_if_missing;
         self
     }
 }

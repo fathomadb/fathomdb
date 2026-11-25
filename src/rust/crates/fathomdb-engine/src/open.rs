@@ -286,6 +286,8 @@ pub(crate) struct DatabaseOpenPlan {
     pub(crate) migrations: &'static [fathomdb_schema::Migration],
     pub(crate) admission: DatabaseAdmission,
     pub(crate) config: EngineConfig,
+    pub(crate) create_if_missing: bool,
+    pub(crate) pre_locked: Option<(PathBuf, PendingDatabaseLock)>,
 }
 
 pub(crate) struct ShmSnapshot {
@@ -346,10 +348,42 @@ fn read_effective_schema_version(path: &Path) -> Result<u32, EngineOpenError> {
         .map_err(|error| map_open_sqlite_error(error, OpenStage::SchemaProbe))
 }
 
-pub(crate) fn admit_current_database(path: &Path) -> Result<(), EngineOpenError> {
+fn ensure_existing_database_present(path: &Path) -> Result<(), EngineOpenError> {
     let metadata = match std::fs::metadata(path) {
         Ok(metadata) => metadata,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return Err(EngineOpenError::DatabaseNotFound { path: path.to_path_buf() });
+        }
+        Err(_) => {
+            return Err(EngineOpenError::Io {
+                message: "database candidate metadata is not accessible".to_string(),
+            });
+        }
+    };
+    if metadata.len() == 0 {
+        return Err(EngineOpenError::DatabaseNotFound { path: path.to_path_buf() });
+    }
+    Ok(())
+}
+
+#[cfg(feature = "operator")]
+pub(crate) fn admit_current_database(path: &Path) -> Result<(), EngineOpenError> {
+    admit_current_database_with_create(path, true)
+}
+
+pub(crate) fn admit_current_database_with_create(
+    path: &Path,
+    create_if_missing: bool,
+) -> Result<(), EngineOpenError> {
+    let metadata = match std::fs::metadata(path) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return if create_if_missing {
+                Ok(())
+            } else {
+                Err(EngineOpenError::DatabaseNotFound { path: path.to_path_buf() })
+            };
+        }
         Err(_) => {
             return Err(EngineOpenError::Io {
                 message: "database candidate metadata is not accessible".to_string(),
@@ -357,7 +391,11 @@ pub(crate) fn admit_current_database(path: &Path) -> Result<(), EngineOpenError>
         }
     };
     if metadata.len() == 0 {
-        return Ok(());
+        return if create_if_missing {
+            Ok(())
+        } else {
+            Err(EngineOpenError::DatabaseNotFound { path: path.to_path_buf() })
+        };
     }
     let shm = ShmSnapshot::capture(path)?;
     match read_effective_schema_version(path) {
@@ -425,6 +463,8 @@ pub(crate) fn canonical_database_path(path: &Path) -> Result<PathBuf, EngineOpen
 
 pub(crate) struct PendingDatabaseLock {
     file: Option<File>,
+    lock_path: PathBuf,
+    created: bool,
 }
 
 impl PendingDatabaseLock {
@@ -442,6 +482,25 @@ impl PendingDatabaseLock {
         })?;
         Ok(self.file.take().expect("initialized database lock retains its file"))
     }
+
+    pub(crate) fn cleanup_if_created(mut self) {
+        #[cfg(unix)]
+        {
+            // Unlink while holding the exclusive flock so another opener cannot
+            // create and lock a new sidecar at the same path before we unlink it.
+            if self.created {
+                let _ = std::fs::remove_file(&self.lock_path);
+            }
+            let _ = self.file.take();
+        }
+        #[cfg(not(unix))]
+        {
+            let _ = self.file.take();
+            if self.created {
+                let _ = std::fs::remove_file(&self.lock_path);
+            }
+        }
+    }
 }
 
 pub(crate) fn acquire_lock_without_metadata_mutation(
@@ -452,14 +511,15 @@ pub(crate) fn acquire_lock_without_metadata_mutation(
     create_options.read(true).write(true).create_new(true);
     #[cfg(unix)]
     create_options.mode(0o600);
-    let file = match create_options.open(&lock_path) {
-        Ok(file) => file,
+    let (file, created) = match create_options.open(&lock_path) {
+        Ok(file) => (file, true),
         Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
             let mut existing_options = OpenOptions::new();
             existing_options.read(true).write(true);
-            existing_options.open(&lock_path).map_err(|_| EngineOpenError::Io {
+            let file = existing_options.open(&lock_path).map_err(|_| EngineOpenError::Io {
                 message: "could not open database lock file".to_string(),
-            })?
+            })?;
+            (file, false)
         }
         Err(_) => {
             return Err(EngineOpenError::Io {
@@ -467,7 +527,7 @@ pub(crate) fn acquire_lock_without_metadata_mutation(
             })
         }
     };
-    let pending = PendingDatabaseLock { file: Some(file) };
+    let pending = PendingDatabaseLock { file: Some(file), lock_path: lock_path.clone(), created };
 
     match pending.file.as_ref().expect("pending database lock retains its file").try_lock() {
         Ok(()) => Ok(pending),
@@ -524,24 +584,62 @@ impl Engine {
         choice: EmbedderChoice,
         config: EngineConfig,
     ) -> Result<OpenedEngine, EngineOpenError> {
+        Self::open_with_choice_config_and_create(path, choice, config, true)
+    }
+
+    /// Open with an embedder choice, per-engine settings, and explicit missing-file
+    /// policy (`EP-07`). Invalid settings fail before path, lock, provider, or
+    /// SQLite side effects. When `create_if_missing` is `false`, missing or
+    /// zero-length paths fail under the sidecar lock with
+    /// [`EngineOpenError::DatabaseNotFound`] before CUDA pool claims or default
+    /// embedder loading, removing the lock file only if this call created it.
+    pub fn open_with_choice_config_and_create(
+        path: impl Into<PathBuf>,
+        choice: EmbedderChoice,
+        config: EngineConfig,
+        create_if_missing: bool,
+    ) -> Result<OpenedEngine, EngineOpenError> {
         ResolvedRuntimeConfiguration::resolve(&config)
             .map_err(EngineOpenError::EngineConfiguration)?;
         crate::runtime_configuration::resolve_query_stop_words(&config)
             .map_err(EngineOpenError::EngineConfiguration)?;
+        let canonical_path = canonical_database_path(&path.into())?;
+        let pending_lock = acquire_lock_without_metadata_mutation(&canonical_path)?;
+        #[cfg(test)]
+        run_admission_locked_hook_for_test(&canonical_path);
+        if !create_if_missing {
+            if let Err(error) = ensure_existing_database_present(&canonical_path) {
+                pending_lock.cleanup_if_created();
+                return Err(error);
+            }
+        }
         // Before the embedder choice: the default embedder's device probe
         // builds the process's first CUDA device.
-        crate::runtime_configuration::claim_cuda_pool(&config)
-            .map_err(EngineOpenError::EngineConfiguration)?;
+        if let Err(error) = crate::runtime_configuration::claim_cuda_pool(&config) {
+            pending_lock.cleanup_if_created();
+            return Err(EngineOpenError::EngineConfiguration(error));
+        }
         match choice {
-            EmbedderChoice::Default => Self::open_default_embedder(path, config),
-            EmbedderChoice::None => Self::open_with_embedder_and_subscriber_config(
-                path,
+            EmbedderChoice::Default => Self::open_default_embedder(
+                canonical_path,
+                Some(pending_lock),
+                config,
+                create_if_missing,
+            ),
+            EmbedderChoice::None => Self::open_with_migrations(
+                canonical_path.clone(),
+                DatabaseOpenPlan {
+                    migrations: MIGRATIONS,
+                    admission: DatabaseAdmission::CurrentOnly,
+                    config,
+                    create_if_missing,
+                    pre_locked: Some((canonical_path, pending_lock)),
+                },
                 default_embedder_identity(),
                 None,
                 None,
-                None,
                 &mut |_| {},
-                config,
+                None,
             ),
         }
     }
@@ -575,7 +673,7 @@ impl Engine {
         crate::runtime_configuration::claim_cuda_pool(&config)
             .map_err(EngineOpenError::EngineConfiguration)?;
         match choice {
-            TestEmbedderChoice::Default => Self::open_default_embedder(path, config),
+            TestEmbedderChoice::Default => Self::open_default_embedder(path, None, config, true),
             TestEmbedderChoice::Caller(embedder) => {
                 let identity = embedder.identity();
                 Self::open_with_embedder_and_subscriber_config(
@@ -626,51 +724,81 @@ impl Engine {
     #[cfg(feature = "default-embedder")]
     fn open_default_embedder(
         path: impl Into<PathBuf>,
+        pre_locked: Option<PendingDatabaseLock>,
         config: EngineConfig,
+        create_if_missing: bool,
     ) -> Result<OpenedEngine, EngineOpenError> {
         use std::time::Instant as DownloadInstant;
-        let device_resolution = fathomdb_embedder::resolve_default_embedder_device_from_env()
-            .map_err(embed_device_policy_open_error)?;
-        // 0.8.23 Slice 80.6 (D-80.6-6) — the witness runs BEFORE this open's
-        // own model reaches the device, so its `free_before`/`free_after`
-        // bracket surrounds nothing but the load it is measuring. Opted in
-        // only; see `ENV_GPU_ALLOCATION_WITNESS`.
-        let gpu_allocation_witness = witness_gpu_allocation_if_requested(&device_resolution)?;
-        let download_start = DownloadInstant::now();
-        let weights = fathomdb_embedder::loader::load_pinned_default_embedder()
-            .map_err(|err| default_embedder_load_error("loader", err))?;
-        let events = weights.events.clone();
-        let download_ms = if weights.bytes_downloaded > 0 {
-            Some(u64::try_from(download_start.elapsed().as_millis()).unwrap_or(u64::MAX))
-        } else {
-            None
+        let path = path.into();
+        let loaded: Result<(EmbedderIdentity, Arc<dyn Embedder>, LoaderInfo), EngineOpenError> =
+            (|| {
+                let device_resolution =
+                    fathomdb_embedder::resolve_default_embedder_device_from_env()
+                        .map_err(embed_device_policy_open_error)?;
+                // 0.8.23 Slice 80.6 (D-80.6-6) — the witness runs BEFORE this open's
+                // own model reaches the device, so its `free_before`/`free_after`
+                // bracket surrounds nothing but the load it is measuring. Opted in
+                // only; see `ENV_GPU_ALLOCATION_WITNESS`.
+                let gpu_allocation_witness =
+                    witness_gpu_allocation_if_requested(&device_resolution)?;
+                let download_start = DownloadInstant::now();
+                let weights = fathomdb_embedder::loader::load_pinned_default_embedder()
+                    .map_err(|err| default_embedder_load_error("loader", err))?;
+                let events = weights.events.clone();
+                let download_ms = if weights.bytes_downloaded > 0 {
+                    Some(u64::try_from(download_start.elapsed().as_millis()).unwrap_or(u64::MAX))
+                } else {
+                    None
+                };
+                let embedder =
+                    fathomdb_embedder::CandleBgeEmbedder::new_from_weights_with_device_resolution(
+                        weights,
+                        &device_resolution,
+                    )
+                    .map_err(|err| default_embedder_load_error("construct", err))?;
+                let embedder: Arc<dyn Embedder> = Arc::new(embedder);
+                let identity = embedder.identity();
+                let loader_info =
+                    LoaderInfo { download_ms, events, device_resolution, gpu_allocation_witness };
+                Ok((identity, embedder, loader_info))
+            })();
+        let (identity, embedder, loader_info) = match loaded {
+            Ok(loaded) => loaded,
+            Err(error) => {
+                if let Some(lock) = pre_locked {
+                    lock.cleanup_if_created();
+                }
+                return Err(error);
+            }
         };
-        let embedder =
-            fathomdb_embedder::CandleBgeEmbedder::new_from_weights_with_device_resolution(
-                weights,
-                &device_resolution,
-            )
-            .map_err(|err| default_embedder_load_error("construct", err))?;
-        let embedder: Arc<dyn Embedder> = Arc::new(embedder);
-        let identity = embedder.identity();
-        let loader_info =
-            LoaderInfo { download_ms, events, device_resolution, gpu_allocation_witness };
-        Self::open_with_embedder_and_subscriber_config(
+        let pre_locked = pre_locked.map(|lock| (path.clone(), lock));
+        Self::open_with_migrations(
             path,
+            DatabaseOpenPlan {
+                migrations: MIGRATIONS,
+                admission: DatabaseAdmission::CurrentOnly,
+                config,
+                create_if_missing,
+                pre_locked,
+            },
             identity,
             Some(embedder),
             Some(loader_info),
-            None,
             &mut |_| {},
-            config,
+            None,
         )
     }
 
     #[cfg(not(feature = "default-embedder"))]
     fn open_default_embedder(
         _path: impl Into<PathBuf>,
+        pre_locked: Option<PendingDatabaseLock>,
         _config: EngineConfig,
+        _create_if_missing: bool,
     ) -> Result<OpenedEngine, EngineOpenError> {
+        if let Some(lock) = pre_locked {
+            lock.cleanup_if_created();
+        }
         Err(EngineOpenError::Embedder(RuntimeEmbedderError::Failed {
             message: "EmbedderChoice::Default requires the `default-embedder` Cargo feature"
                 .to_string(),
@@ -704,6 +832,8 @@ impl Engine {
                 migrations,
                 admission: DatabaseAdmission::TestMigrations,
                 config: EngineConfig::default(),
+                create_if_missing: true,
+                pre_locked: None,
             },
             default_embedder_identity(),
             None,
@@ -795,6 +925,8 @@ impl Engine {
                 migrations: MIGRATIONS,
                 admission: DatabaseAdmission::CurrentOnly,
                 config,
+                create_if_missing: true,
+                pre_locked: None,
             },
             embedder_identity,
             runtime_embedder,
@@ -813,52 +945,98 @@ impl Engine {
         emit_migration_event: &mut impl FnMut(&MigrationStepReport),
         initial_subscriber: Option<Arc<dyn lifecycle::Subscriber>>,
     ) -> Result<OpenedEngine, EngineOpenError> {
-        let resolved_config = ResolvedRuntimeConfiguration::resolve(&plan.config)
-            .map_err(EngineOpenError::EngineConfiguration)?;
-        let query_stop_words = Arc::new(
-            crate::runtime_configuration::resolve_query_stop_words(&plan.config)
-                .map_err(EngineOpenError::EngineConfiguration)?,
-        );
-        // Every open path passes here; repeating the claim is idempotent.
-        crate::runtime_configuration::claim_cuda_pool(&plan.config)
-            .map_err(EngineOpenError::EngineConfiguration)?;
-        let config = plan.config.clone();
-        // Resolve at open rather than piggybacking on embedding selection. This
-        // probes no model/cache/database and makes an invalid or forced CUDA
-        // policy visible to every SDK before a query could silently fall back.
-        #[cfg(feature = "default-reranker")]
-        let reranker_device_resolution = Some(
-            fathomdb_embedder::resolve_default_reranker_device_from_env()
-                .map_err(reranker_device_policy_open_error)?,
-        );
-        #[cfg(not(feature = "default-reranker"))]
-        let reranker_device_resolution = None;
-        let canonical_path = canonical_database_path(&path.into())?;
+        let DatabaseOpenPlan { migrations, admission, config, create_if_missing, pre_locked } =
+            plan;
         let report_preopen_error = |error| {
             if let Some(subscriber) = initial_subscriber.as_ref() {
                 emit_open_error_event(subscriber, &error);
             }
             error
         };
-        let embed_dispatch = Arc::new(
-            EmbedDispatcher::new(
-                runtime_embedder.clone(),
-                resolved_config.embedder_pool_size,
-                Duration::from_millis(resolved_config.embedder_call_timeout_ms),
-            )
-            .map_err(|error| EngineOpenError::Io { message: error.to_string() })
-            .map_err(&report_preopen_error)?,
-        );
+        let resolved_config = match ResolvedRuntimeConfiguration::resolve(&config) {
+            Ok(resolved) => resolved,
+            Err(error) => {
+                if let Some((_, lock)) = pre_locked {
+                    lock.cleanup_if_created();
+                }
+                return Err(EngineOpenError::EngineConfiguration(error));
+            }
+        };
+        let query_stop_words = match crate::runtime_configuration::resolve_query_stop_words(&config)
+        {
+            Ok(stop_words) => Arc::new(stop_words),
+            Err(error) => {
+                if let Some((_, lock)) = pre_locked {
+                    lock.cleanup_if_created();
+                }
+                return Err(EngineOpenError::EngineConfiguration(error));
+            }
+        };
+        // Every open path passes here; repeating the claim is idempotent.
+        if let Err(error) = crate::runtime_configuration::claim_cuda_pool(&config) {
+            if let Some((_, lock)) = pre_locked {
+                lock.cleanup_if_created();
+            }
+            return Err(EngineOpenError::EngineConfiguration(error));
+        }
+        // Resolve at open rather than piggybacking on embedding selection. This
+        // probes no model/cache/database and makes an invalid or forced CUDA
+        // policy visible to every SDK before a query could silently fall back.
+        #[cfg(feature = "default-reranker")]
+        let reranker_device_resolution =
+            match fathomdb_embedder::resolve_default_reranker_device_from_env() {
+                Ok(res) => Some(res),
+                Err(error) => {
+                    if let Some((_, lock)) = pre_locked {
+                        lock.cleanup_if_created();
+                    }
+                    return Err(reranker_device_policy_open_error(error));
+                }
+            };
+        #[cfg(not(feature = "default-reranker"))]
+        let reranker_device_resolution = None;
+        let (canonical_path, pending_lock, ran_admission_hook) = match pre_locked {
+            Some((canonical_path, pending_lock)) => (canonical_path, pending_lock, true),
+            None => {
+                let canonical_path = canonical_database_path(&path.into())?;
+                let pending_lock = acquire_lock_without_metadata_mutation(&canonical_path)
+                    .map_err(&report_preopen_error)?;
+                (canonical_path, pending_lock, false)
+            }
+        };
+        let embed_dispatch = match EmbedDispatcher::new(
+            runtime_embedder.clone(),
+            resolved_config.embedder_pool_size,
+            Duration::from_millis(resolved_config.embedder_call_timeout_ms),
+        ) {
+            Ok(dispatch) => Arc::new(dispatch),
+            Err(error) => {
+                pending_lock.cleanup_if_created();
+                return Err(report_preopen_error(EngineOpenError::Io {
+                    message: error.to_string(),
+                }));
+            }
+        };
         let mut embed_dispatch_guard = OpenEmbedDispatchGuard(Some(Arc::clone(&embed_dispatch)));
-        let pending_lock = acquire_lock_without_metadata_mutation(&canonical_path)
-            .map_err(&report_preopen_error)?;
-        configure_runtime_for_open()
-            .map_err(EngineOpenError::RuntimeConfiguration)
-            .map_err(&report_preopen_error)?;
+        if let Err(error) = configure_runtime_for_open() {
+            pending_lock.cleanup_if_created();
+            return Err(report_preopen_error(EngineOpenError::RuntimeConfiguration(error)));
+        }
         #[cfg(test)]
-        run_admission_locked_hook_for_test(&canonical_path);
-        if plan.admission == DatabaseAdmission::CurrentOnly {
-            admit_current_database(&canonical_path).map_err(&report_preopen_error)?;
+        if !ran_admission_hook {
+            run_admission_locked_hook_for_test(&canonical_path);
+        }
+        #[cfg(not(test))]
+        let _ = ran_admission_hook;
+        if admission == DatabaseAdmission::CurrentOnly {
+            if let Err(error) =
+                admit_current_database_with_create(&canonical_path, create_if_missing)
+            {
+                if matches!(error, EngineOpenError::DatabaseNotFound { .. }) {
+                    pending_lock.cleanup_if_created();
+                }
+                return Err(report_preopen_error(error));
+            }
             erasure_maintenance::validate_policy_before_open(
                 &canonical_path,
                 config.physical_erasure_policy,
@@ -870,12 +1048,12 @@ impl Engine {
         let managed_connections = Arc::new(ManagedConnectionRegistry::default());
         #[cfg(feature = "migration-test-hooks")]
         let allow_populated_legacy_projection_bootstrap =
-            plan.admission == DatabaseAdmission::TestMigrations;
+            admission == DatabaseAdmission::TestMigrations;
         #[cfg(not(feature = "migration-test-hooks"))]
         let allow_populated_legacy_projection_bootstrap = false;
         let open_result = Self::open_locked(
             canonical_path.clone(),
-            plan.migrations,
+            migrations,
             allow_populated_legacy_projection_bootstrap,
             &embedder_identity,
             runtime_embedder.is_some(),
@@ -2624,4 +2802,44 @@ fn slice70_orphan_prune_compares_vector_identity() {
         .collect::<rusqlite::Result<Vec<_>>>()
         .unwrap();
     assert_eq!(ids, [101, 102]);
+}
+
+#[cfg(test)]
+#[test]
+fn ep07_deleted_under_admission_lock_returns_database_not_found_without_artifacts() {
+    let dir = tempfile::TempDir::new().unwrap();
+    let path = dir.path().join(format!("raced{}", fathomdb_schema::SQLITE_SUFFIX));
+    {
+        let opened = Engine::open(&path).unwrap();
+        opened.engine.close().unwrap();
+    }
+    // Remove the pre-existing lock so this open creates it fresh and must clean it up on refusal.
+    let _ = std::fs::remove_file(lock_path(&path));
+    assert!(path.exists());
+    assert!(!lock_path(&path).exists());
+
+    let rendezvous = Arc::new(Barrier::new(2));
+    install_admission_locked_hook_for_test(path.clone(), Arc::clone(&rendezvous));
+    let open_path = path.clone();
+    let handle = std::thread::spawn(move || {
+        Engine::open_with_choice_config_and_create(
+            &open_path,
+            EmbedderChoice::None,
+            EngineConfig::default(),
+            false,
+        )
+    });
+
+    // Opener now holds PendingDatabaseLock before existence check.
+    rendezvous.wait();
+    std::fs::remove_file(&path).unwrap();
+    rendezvous.wait();
+
+    let result = handle.join().unwrap();
+    assert!(
+        matches!(result, Err(EngineOpenError::DatabaseNotFound { .. })),
+        "expected DatabaseNotFound when deleted under lock, got {result:?}"
+    );
+    assert!(!path.exists(), "must not recreate deleted database");
+    assert!(!lock_path(&path).exists(), "must remove newly created lockfile on refusal");
 }

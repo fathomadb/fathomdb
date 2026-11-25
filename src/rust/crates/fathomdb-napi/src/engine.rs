@@ -16,9 +16,13 @@ impl Engine {
     #[napi(factory)]
     pub async fn open(path: String, options: Option<EngineOpenOptions>) -> Result<Engine> {
         validate_ffi_string_napi(&path)?;
-        let (config, use_default_embedder) = match options {
-            Some(options) => (options.engine_config, options.use_default_embedder.unwrap_or(false)),
-            None => (None, false),
+        let (config, use_default_embedder, create_if_missing) = match options {
+            Some(options) => (
+                options.engine_config,
+                options.use_default_embedder.unwrap_or(false),
+                options.create_if_missing.unwrap_or(true),
+            ),
+            None => (None, false, true),
         };
         let config = config.map(EngineConfig::into_rust).transpose()?.unwrap_or_default();
         // EU-6: `useDefaultEmbedder: true` → EmbedderChoice::Default
@@ -34,7 +38,12 @@ impl Engine {
                 } else {
                     EmbedderChoice::None
                 };
-                RustEngine::open_with_choice_and_config(path, choice, config)
+                RustEngine::open_with_choice_config_and_create(
+                    path,
+                    choice,
+                    config,
+                    create_if_missing,
+                )
             }))
         })
         .await;

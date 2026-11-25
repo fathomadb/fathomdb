@@ -33,15 +33,18 @@
       "depends_on": [
         10
       ],
-      "status": "NOT_STARTED",
-      "sha": null,
+      "status": "LANDED",
+      "sha": "165c445c2",
       "design_refs": [
         "dev/adr/ADR-0.8.32-caller-scope-isolation.md",
         "dev/plans/0.8.32/features/slice-10/scope-schema-experiment.md",
+        "dev/plans/0.8.32/features/slice-20/plan.md",
+        "dev/plans/0.8.32/features/slice-20/status.md",
         "dev/plans/0.8.32/prework/slice-9-triage.md",
         "dev/plans/0.8.32/plan.md",
         "dev/plans/0.8.32/scope.md"
-      ]
+      ],
+      "evidence": "WP-20A..WP-20E + FIX-1..FIX-3 (7bd48de48) landed at 165c445c2; full unconfined agent-verify.sh EXIT 0 (246/249 suites passed, 3 platform-skipped, 0 failed, 0 security violations), mkdocs --strict PASS, independent pro adversarial review VERDICT: APPROVE."
     },
     {
       "slice": 30,
@@ -121,17 +124,17 @@
     }
   ],
   "landed": [
-    10
+    10,
+    20
   ],
   "remaining_ladder": [
-    20,
     30,
     40,
     50,
     60,
     70
   ],
-  "next_slice": 20,
+  "next_slice": 30,
   "decisions": {
     "ruled": [
       {

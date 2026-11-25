@@ -18,9 +18,9 @@ date: 2026-11-24
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.32:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 20** (`SCOPE-AND-REFACTOR`) — Zero-behavior-change engine test relocation & search/evidence hotspot splits, declarative TABLE_MANIFEST, Schema 39 (S39-COMPOSITE + 8-col vec0 + fathomdb migrate 38->39), and engine-enforced caller scope & write authority (single-scope default, Rust/Python/TS parity, Pin A)
+**IMMEDIATE NEXT: Slice 30** (`BULK-AND-INSPECTOR`) — Opt-in bulk/non-strict write mode (Pin B, default strict preserved, fathomdb doctor verification) and Inspector active-scope UI + Playwright CI wiring
 
-**Remaining ladder:** 20 → 30 → 40 → 50 → 60 → 70.<!-- END GENERATED release-state:0.8.32:plan-immediate-next -->
+**Remaining ladder:** 30 → 40 → 50 → 60 → 70.<!-- END GENERATED release-state:0.8.32:plan-immediate-next -->
 
 ## Goal and scope
 

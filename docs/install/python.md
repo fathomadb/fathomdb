@@ -4,9 +4,10 @@ The `fathomdb` Python SDK is a [PyO3](https://pyo3.rs/) binding over the
 native Rust runtime. Wheels are platform-tagged (no source build
 required on supported platforms).
 
-> **Release 0.8.31, pre-1.0 beta.** Wheels cover Linux x86_64/glibc, Linux
-> AArch64/glibc, macOS x64/arm64, and Windows x64. Other hosts must use the
-> from-source path below. FathomDB is pre-1.0 and the surface is **beta**.
+> **Documentation target: 0.8.32 (pre-publish, pre-1.0 beta); newest published release: 0.8.31.**
+> Wheels cover Linux x86_64/glibc, Linux AArch64/glibc, macOS x64/arm64, and
+> Windows x64. Other hosts must use the from-source path below. FathomDB is
+> pre-1.0 and the surface is **beta**.
 
 ## Requirements
 
@@ -53,7 +54,8 @@ pip install 'fathomdb[cli]==0.8.31'
 
 You can also install the CLI from crates.io via
 `cargo install fathomdb-cli --version '=0.8.31' --locked`. See the
-[CLI reference](../reference/cli.md) for offline Schema 37-to-38 upgrades.
+[CLI reference](../reference/cli.md) for offline Schema `38 -> 39` (and chained
+`37 -> 38 -> 39`) upgrades targeted in `0.8.32`.
 
 ## Build from source
 

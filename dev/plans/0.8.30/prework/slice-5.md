@@ -44,7 +44,7 @@ new suite execution or product verdict. [Requirements](../../../requirements.md)
   change.
 
 - **Truthful coverage and UTF-8 spans, R30-COR (30).** In-crate
-  [`stored_coverage_tests`](../../../../src/rust/crates/fathomdb-engine/src/stored_coverage_tests.rs)
+  [`stored_coverage_tests`](../../../../src/rust/crates/fathomdb-engine/src/unit_tests/stored_coverage_tests.rs)
   covers rollback/external changes, failed capture publication, reopen, and malformed-open error
   ordering. [`snippet_search`](../../../../src/rust/crates/fathomdb-engine/tests/snippet_search.rs)
   owns public search-sidecar cases. The in-crate suite already exercises pinned-reader scored extents.
@@ -65,7 +65,7 @@ new suite execution or product verdict. [Requirements](../../../requirements.md)
 - **Typed refusal, owned capacity and clean close, R30-ROB (50).**
   [`slice90_foreground_dispatch`](../../../../src/rust/crates/fathomdb-engine/tests/slice90_foreground_dispatch.rs),
   [MCP admission](../../../../src/rust/crates/fathomdb-mcp/tests/admission.rs) and in-crate
-  [`provider_deadline_starts_after_sqlite_quiescence_and_is_never_renewed`](../../../../src/rust/crates/fathomdb-engine/src/slice90_close_review_tests.rs).
+  [`provider_deadline_starts_after_sqlite_quiescence_and_is_never_renewed`](../../../../src/rust/crates/fathomdb-engine/src/unit_tests/slice90_close_review_tests.rs).
   The last holds a real SQLite transaction and compares first/concurrent/repeated/Drop deadlines and
   retained-worker accounting. Retain the separate MCP permit and engine slot assertions. Probe a
   deterministic two-engine alias schedule with positive sibling work and reopen. A wrong owner, early

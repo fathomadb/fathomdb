@@ -15,14 +15,24 @@ AArch64/glibc, macOS x64/arm64, and Windows x64. See the
 - [Install — TypeScript / Node.js](../install/typescript.md)
 - [Install — Rust](../install/rust.md)
 
-## Release 0.8.31 surface
+## Documentation target 0.8.32 surface (newest published release: 0.8.31)
+
+> **Documentation target: 0.8.32 (pre-publish); newest published release: 0.8.31.**
+>
+> **Single-scope default:** By default a FathomDB database is **single-scope /
+> single-agent** (one agent per database, `scope = ""`, using the default
+> `ScopePolicy.unscoped()` / `ScopePolicy::Unscoped`). Schema **39** `scope`
+> (`ScopePolicy`) is the **opt-in** engine-enforced isolation layer for
+> multi-agent or shared-store deployments; existing single-agent code needs no
+> configuration changes.
 
 The Python, TypeScript, and Rust application SDKs use equivalent idiomatic
 names and the same governed operation membership. The separate Rust facade
 exposes lower-level inherent methods and re-exported types:
 
-- **Core** — `Engine.open`, `write`, `search`, `close`,
-  `admin.configure`.
+- **Core** — `Engine.open` (with optional `scope_policy` / `scopePolicy` to opt
+  into multi-agent scope isolation over the single-scope default), `write`,
+  `search`, `close`, `admin.configure`.
 - **Model lifetime** — standalone `release_models` / `releaseModels` releases
   CLS and cross-encoder caches; engine-owned providers close with their engine.
 - **Retrieval** — `search` (hybrid FTS5 + vector, RRF-fused, optional
@@ -55,14 +65,15 @@ exposes lower-level inherent methods and re-exported types:
   safe-export, verify-embedder, trace, dumps, `orphan-provenance`),
   `fathomdb recover --accept-data-loss` (truncate-wal, rebuild-vec0,
   rebuild-projections, complete-erasures, excise-source, excise-record), and
-  `fathomdb migrate --backup-dir <dir> <db_path>` (offline Schema 37-to-38
-  upgrade). In the 0.8.31 line the CLI is also packaged via `fathomdb-cli` /
-  `pip install 'fathomdb[cli]'` while keeping base `fathomdb` script-free.
+  `fathomdb migrate --backup-dir <dir> <db_path>` (offline Schema `38 -> 39`
+  and chained `37 -> 38 -> 39` upgrades). The CLI is also packaged via
+  `fathomdb-cli` / `pip install 'fathomdb[cli]'` while keeping base `fathomdb`
+  script-free.
 - Local-first storage on SQLite (FTS5 + `sqlite-vec`), on-disk schema
-  version **38**. Public opens
-  create a fresh schema-38 database or accept an existing schema-38 database;
-  they never auto-migrate. Existing committed schema-37 stores upgrade offline
-  via `fathomdb migrate --backup-dir <dir> <db_path>`.
+  version **39** in `0.8.32` (`38` in published `0.8.31`). Public opens
+  create a fresh schema-39 database or accept an existing schema-39 database;
+  they never auto-migrate. Existing committed Schema 37 or Schema 38 stores
+  upgrade offline via `fathomdb migrate --backup-dir <dir> <db_path>`.
 - Two-axis versioning: workspace lockstep across the
   runtime/binding/CLI crates and the independently versioned
   `fathomdb-embedder-api` trait crate.
@@ -96,6 +107,7 @@ surface. Rust users can also consume the lower-level `fathomdb` facade crate. Th
 - **Caller-supplied engine embedders** are unsupported before 1.x in every SDK;
   production engine admission selects the pinned built-in default or none.
 - **No automatic upgrades on `Engine.open`.** A non-empty database must already
-  have the compiled schema version (38 in 0.8.31); upgrade committed schema-37
-  stores offline with `fathomdb migrate --backup-dir <dir> <db_path>` — see
+  have the compiled schema version (**39** in `0.8.32`; `38` in `0.8.31`);
+  upgrade committed Schema 37 or 38 stores offline with
+  `fathomdb migrate --backup-dir <dir> <db_path>` — see
   [compatibility](../compatibility/index.md) and [CLI reference](../reference/cli.md).

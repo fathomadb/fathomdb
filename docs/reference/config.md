@@ -26,7 +26,7 @@ so call `configure_runtime` or open the first Engine before it. This API does no
 
 ## Engine configuration
 
-Engine-owned runtime knobs (0.8.31; GPU pool settings introduced in 0.8.28). The same knobs are exposed by
+Engine-owned runtime knobs (documentation target **0.8.32**, newest published release **0.8.31**; GPU pool settings introduced in 0.8.28). The same knobs are exposed by
 every binding in idiomatic spelling (Python snake_case, TS camelCase,
 Rust snake_case).
 
@@ -45,6 +45,38 @@ cross-binding symmetry pinned by `dev/design/bindings.md` § 6.
 | GPU pool mode (0.8.28) | `cuda_pool` | `cudaPool` | `"auto"`, `"on"`, `"off"` | `FATHOMDB_POOL_MODE`, else `"auto"` | The Jetson private CUDA memory pool ([embedder](../embedder.md#jetson-private-cuda-memory-pool)); `"off"` keeps the earlier allocator. |
 | GPU pool cap (0.8.28) | `cuda_pool_max_size` | `cudaPoolMaxSize` | `33,554,432..` bytes | `FATHOMDB_POOL_MAXSIZE`, else 1/20 of device memory (3 GiB on the AGX Orin 64 GB) | The pool's cap; it serves about a third of it on JetPack 6. |
 | GPU pool release threshold (0.8.28) | `cuda_pool_release_threshold` | `cudaPoolReleaseThreshold` | `"0"`, `"max"` | `FATHOMDB_POOL_RELEASE_THRESHOLD`, else `"0"` | `"0"`: freed GPU memory returns to the system automatically. `"max"`: it stays reserved while any FathomDB model is open in the process and is returned when the last one closes. |
+| Caller scope policy (0.8.32) | `scope_policy` | `scopePolicy` | `ScopePolicy` (`unscoped`, `single`, `read_only`/`readOnly`, `read_write`/`readWrite`) | `ScopePolicy.unscoped()` | Selects single-scope default (`scope = ""`) or opts a multi-agent handle into enforced read visibility and write authority. |
+
+## Single-scope default and `ScopePolicy` (0.8.32, Schema 39)
+
+**By default a FathomDB database is single-scope / single-agent** (one agent per
+database, storing `scope = ""` under the default `ScopePolicy.unscoped()` /
+`ScopePolicy::Unscoped`). Schema **39** `scope` is the **opt-in** isolation
+layer for multi-agent or shared-store deployments — existing single-agent code
+needs no changes.
+
+When opening a handle onto a shared multi-agent store, select an explicit policy:
+
+- **Python (`fathomdb.ScopePolicy`):** `ScopePolicy.unscoped()`,
+  `ScopePolicy.single(scope)`, `ScopePolicy.read_only(read_scopes)`, or
+  `ScopePolicy.read_write(read_scopes, write_scope)`. Pass via
+  `EngineConfig(scope_policy=...)` or `Engine.open(path, scope_policy=...)` (not
+  both).
+- **TypeScript (`ScopePolicy`):** `ScopePolicy.unscoped()`,
+  `ScopePolicy.single(scope)`, `ScopePolicy.readOnly(readScopes)`, or
+  `ScopePolicy.readWrite(readScopes, writeScope)`. Pass via
+  `EngineOpenOptions.engineConfig.scopePolicy` or top-level
+  `EngineOpenOptions.scopePolicy` (passing both throws `TypeError`).
+- **Rust (`fathomdb_sdk::ScopePolicy` / `fathomdb::ScopePolicy`):**
+  `ScopePolicy::Unscoped`, `ScopePolicy::single`, `ScopePolicy::read_only`, or
+  `ScopePolicy::read_write`, configured with `EngineConfig::with_scope_policy`
+  or `OpenOptions::with_scope_policy`.
+
+Validation before filesystem/SQLite open requires `1..=32` read scopes, non-empty
+UTF-8 tokens of at most `128` bytes, no leading or trailing whitespace, no ASCII
+control characters (`NUL` or `\x1e`), no wildcard `"*"`, and `write_scope`
+contained in `read_scopes`. `scope_policy` is fixed for the lifetime of the open
+handle.
 
 ### Query compilation and persisted erasure policy
 

@@ -154,10 +154,11 @@ An actual future engine heartbeat event can still be forwarded.
 ### Open, storage, and concurrency
 
 `Engine::open` configures the process SQLite runtime before admission. A
-missing or zero-length path bootstraps directly at schema 37. A nonempty
+missing or zero-length path bootstraps directly at schema 39. A nonempty
 database is admitted only when its effective committed schema and required
-shape are current; otherwise it is refused under the persistent admission lock
-before product mutation. There is no public migration from an earlier database.
+shape match Schema 39 (via explicit offline `fathomdb migrate` for Schema 37/38
+stores; `Engine::open` performs no public automatic migration); otherwise it is
+refused under the persistent admission lock before product mutation.
 
 Canonical records, provenance, dependencies, operational state, actuation
 receipts, projection state, FTS, and vector state remain in one SQLite product
@@ -179,14 +180,17 @@ on the primary writer connection.
 
 ### Current storage, retrieval and maintenance boundaries
 
-The .28 SQLite registry dependencies provide per-connection page caches. Current
-format 37 retains format 36's maintenance policy/queue/fence metadata and
-format 35's cursor-keyed FTS, 64-row vec0 chunks and UTF-8 head coverage. It adds
-[transaction-owned visibility coalescing](../adr/ADR-0.8.28-transactional-visibility-coalescing.md)
-to avoid connection-wide prepared-statement invalidation. Canonical/projection
+Current format 39 (`S39-COMPOSITE`) builds on format 38's commit-timestamp index
+and format 37's maintenance policy/queue/fence metadata and
+[transaction-owned visibility coalescing](../adr/ADR-0.8.28-transactional-visibility-coalescing.md),
+adding composite `(scope, ...)` keys/indexes, an 8-column `vec0` index
+(`scope TEXT`), scoped provenance/dependency/actuation/erasure tables, and the
+single-source `TABLE_MANIFEST` contract, while the `0.8.28+` SQLite registry
+dependencies continue providing per-connection page caches. Canonical/projection
 batches retain one checked generation/nonce advance; vector cleanup stays active,
 and outer writer admissions validate clean state under the SQLite write lock.
-Old formats are refused, not migrated. Runtime vec0 lifecycle/validity metadata enforces dense
+Runtime opens refuse older formats until upgraded offline with `fathomdb migrate`
+(from Schema 37 or 38; older formats remain refused without automatic migration). Runtime vec0 lifecycle/validity metadata enforces dense
 eligibility before KNN limits; historical-view fallback and direct filtered body
 FTS share the maintained [retrieval owner](retrieval.md).
 
@@ -468,8 +472,8 @@ reuses, amends, or supersedes them.
 Run `python3 scripts/release-current.py` to find the current release state
 and its allocation. The [engineering index](../README.md#where-the-live-work-is)
 links the plan and board conventions. Accepted ADRs and maintained interface
-contracts define semantics. The [.30 release notes](../../docs/release-notes/0.8.30.md)
+contracts define semantics. The [.31 release notes](../../docs/release-notes/0.8.31.md)
 describe the current published registry and Tegra Pages delivery. The
-[.29 notes](../../docs/release-notes/0.8.29.md) retain their historical scope. Historical
+[.30](../../docs/release-notes/0.8.30.md) and [.29 notes](../../docs/release-notes/0.8.29.md) retain their historical scope. Historical
 allocations and activation evidence remain in their release plans and Git
 history.

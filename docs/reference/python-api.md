@@ -3,7 +3,7 @@
 Module: `fathomdb`. Authoritative spec:
 [`dev/interfaces/python.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.31/dev/interfaces/python.md).
 
-> **Release 0.8.31, pre-1.0 beta.**
+> **Documentation target: 0.8.32 (pre-publish, pre-1.0 beta); newest published release: 0.8.31.**
 
 ## Representative top-level imports
 
@@ -27,6 +27,8 @@ from fathomdb import (
     ProjectionSpec,
     ProjectionStatusDenseReadiness,
     ReadView,
+    ScopePolicy,
+    ScopeViolationError,
     SearchFilter,
     SearchHit,
     SearchResult,
@@ -67,7 +69,10 @@ handle.
   writes and `engine.embed` raise `EmbedderNotConfiguredError`. See the
   [embedder guide](../embedder.md) for runtime policy and typed failures.
 - `**engine_config` — per-knob keyword arguments (see
-  [config](config.md)). Mutually exclusive with `config`.
+  [config](config.md)), including `scope_policy: ScopePolicy | None = None`
+  (defaults to `ScopePolicy.unscoped()` for single-scope/single-agent
+  databases; opt into `ScopePolicy` for multi-agent stores). Mutually exclusive
+  with `config`.
 
 Raises `EngineError` subclasses on failure: `DatabaseLockedError`,
 `CorruptionError`, `IncompatibleSchemaVersionError`,
@@ -694,7 +699,7 @@ Returns up to **50** `NodeRecord`s reachable within `depth` hops
 
 Raises `InvalidArgumentError` for depth > 3 or an unrecognised direction.
 
-### `graph.search_expand(engine, query, depth, *, source_type=None, kind=None, created_after=None, status=None, search_limit=10) -> SearchExpandResult`
+### `graph.search_expand(engine, query, depth, *, source_type=None, kind=None, created_after=None, status=None, search_limit=10, view=None) -> SearchExpandResult`
 
 G6 — FTS/vector search (G1) followed by bounded BFS expansion.
 
@@ -704,6 +709,9 @@ G6 — FTS/vector search (G1) followed by bounded BFS expansion.
 - Optional filter kwargs match `engine.search` semantics.
 - `search_limit` (`int`, default `10`) — maximum initial ranked `search_hits`,
   in `1..=100`. It does not change the 50-per-root graph expansion cap.
+- `view` (`ReadView | None`, default `None`) — optional validity/lifecycle
+  `ReadView` applied consistently to both search and expansion (`search_expand_frozen`
+  uses the view bound inside `FrozenReadContextV1` instead).
 
 Returns a `SearchExpandResult`. Nodes that appear in both the search hit set
 and the traversal reach appear **only** in `search_hits` (deduplication:
@@ -902,9 +910,10 @@ Returned by `graph.search_expand`. `all_logical_ids` contains the
 
 ## Errors
 
-`fathomdb.errors` exports `EngineError` (the catch-all base) plus **46**
-concrete classes below it. See [errors reference](errors.md) for the full
-matrix and recovery-hint codes.
+`fathomdb.errors` exports `EngineError` (the catch-all base) plus **47**
+concrete leaf classes below it (`48` shared error classes total), including
+`ScopeViolationError` (`0.8.32`). See [errors reference](errors.md) for the
+full matrix and recovery-hint codes.
 
 The lifecycle / erasure verbs raise `IllegalTransitionError`,
 `NotLifecycleAddressableError`, `ErasureIncompleteError` and
@@ -979,6 +988,27 @@ body-byte coordinates, including role tags.
   `reranker_compiled: bool`, `cuda_compiled: bool`, and
   `rerank_available: bool` with zero network I/O and zero GPU allocation during
   `Engine.open`.
+
+## Caller scope isolation (0.8.32, Schema 39)
+
+By default a FathomDB database is **single-scope / single-agent** (`scope = ""`,
+`ScopePolicy.unscoped()`). Multi-agent or shared-store deployments opt into
+engine-enforced isolation by constructing a frozen `ScopePolicy`:
+
+- `ScopePolicy.unscoped()` — single-scope default (`scope = ""`).
+- `ScopePolicy.single(scope: str)` — read and write one scope token.
+- `ScopePolicy.read_only(read_scopes)` — read-only across `1..=32` scopes (any
+  write/mutation/admin verb raises `ScopeViolationError`).
+- `ScopePolicy.read_write(read_scopes, write_scope)` — read `read_scopes`,
+  write `write_scope` (must be an element of `read_scopes`).
+
+Pass via `EngineConfig(scope_policy=...)` or `Engine.open(path, scope_policy=...)`.
+Tokens must be non-empty UTF-8 `<= 128` bytes without leading/trailing
+whitespace, ASCII control/`NUL`/`\x1e`, or `"*"`. `FrozenReadContextV1` binds
+the handle's policy digest (cross-policy reuse raises `FrozenReadError`);
+cross-scope edge endpoints raise `WriteValidationError` and cross-scope
+evidence tokens raise `EvidenceError("evidence_unavailable")` (D-01
+nondisclosure).
 
 ## See also
 

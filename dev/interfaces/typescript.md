@@ -1,8 +1,8 @@
 ---
 title: TypeScript Public Interface
-date: 2026-11-23
-target_release: 0.8.31
-desc: Public TypeScript surface for 0.8.31
+date: 2026-11-25
+target_release: 0.8.32
+desc: Public TypeScript surface for 0.8.32
 blast_radius: src/ts/; design/bindings.md; design/errors.md; design/lifecycle.md; design/engine.md
 status: locked
 ---
@@ -17,11 +17,12 @@ translation rules are in [`rust-sdk.md`](rust-sdk.md).
 
 ## Fresh-database open boundary
 
-`Engine.open` bootstraps a missing or zero-length path at schema 38. A
+`Engine.open` bootstraps a missing or zero-length path at schema 39. A
 non-empty database is admitted only when its effective committed
-`PRAGMA user_version` is exactly 38; any other version rejects with the typed
+`PRAGMA user_version` is exactly 39; any other version rejects with the typed
 `FDB_INCOMPATIBLE_SCHEMA_VERSION` envelope before product mutation. TypeScript
-exposes no automatic-upgrade or custom-migration route.
+exposes no automatic-upgrade or custom-migration route (upgrade Schema 37/38
+stores offline with `fathomdb migrate`).
 
 ## Runtime surface
 
@@ -159,6 +160,10 @@ member carrying the engine-owned knobs from `design/engine.md` in camelCase:
   number of bytes, at least 33554432) and `cudaPoolReleaseThreshold`
   (`"0"`, `"max"`): the GPU memory pool settings (0.8.28 Slice 31;
   § Tegra private CUDA memory pool)
+- `scopePolicy`: optional `ScopePolicy` (`ScopePolicy.unscoped()` default for
+  single-scope/single-agent databases; 0.8.32 Slice 20). May also be passed at
+  top-level as `EngineOpenOptions.scopePolicy` (mutually exclusive with
+  `engineConfig.scopePolicy`; passing both throws `TypeError`).
 
 `engine.config` is a cloned, frozen, readonly snapshot of the requested
 open-time values. Mutating the caller's original object after `Engine.open`
@@ -1027,14 +1032,17 @@ The 0.8.25 additions are `RuntimeConfigurationError`,
 `EvidenceError`, `DependencyTraceError`, and `GraphExpansionError`. Their
 request-facing payloads use stable `reason` and `fieldPath` properties except
 for runtime configuration, which exposes requested/effective modes and the
-optional SQLite code.
+optional SQLite code. In 0.8.32, `ScopeViolationError` (`code = "FDB_SCOPE_VIOLATION"`)
+is added (`47` concrete leaf classes beneath `FathomDbError`; `48` shared error
+classes total).
 
 TypeScript exports one catch-all base class, `FathomDbError`, and every
 concrete class in the `design/errors.md` matrix extends it. Open-time and
 runtime classes remain distinct, but callers can catch `FathomDbError` for
 both. `FathomDbPanicError` extends `Error`, **not** `FathomDbError`, and is
 deliberately outside the catch-all root — it is TS-only (the Python peer is
-PyO3's `PanicException`) and is therefore not one of the 41.
+PyO3's `PanicException`) and is therefore not one of the `47` shared leaf
+classes.
 
 ⚠ `WriteValidationError` is **message-less** since decision #18: the envelope
 is `FDB_WRITE_VALIDATION` with the fixed message `"write validation error"` and
@@ -1223,9 +1231,11 @@ These are ARGUMENTS, not new verbs — the governed command surface
 `SearchOptions` extends `ReadView` with optional `limit`, used as the final options argument
 for `search`, `searchTextOnly`, and `searchProjectedText`. It defaults to 10. The legacy
 `ReadView` shape remains accepted in that position. `graph.searchExpand` takes a final
-`SearchExpandOptions` object with optional `searchLimit`, also defaulting to 10. Each value must
-be an integer in `1..=100`; an out-of-range request rejects with `InvalidArgumentError` rather
-than silently clamping. `graph.neighbors` retains its separate 50-result traversal cap.
+`SearchExpandOptions` object with optional `searchLimit` (default `10`) and optional
+`view?: ReadView`. Each limit value must be an integer in `1..=100`; an out-of-range
+request rejects with `InvalidArgumentError` rather than silently clamping.
+`engine.searchExpandFrozen` accepts `{ searchLimit }` only (`view` is fixed by
+`FrozenReadContextV1`). `graph.neighbors` retains its separate 50-result traversal cap.
 
 ### Direct FTS-only prefix stability (0.8.22 Slice 23)
 
@@ -1805,3 +1815,37 @@ members), opt-in agent search hints across `search`, `searchFrozen`, and
   and `OpenReport.rerankAvailable: boolean` (zero network I/O and zero GPU
   allocation during `Engine.open`). `mapOpenReport` strictly validates all three
   as `boolean` and throws `TypeError` when missing or non-boolean.
+
+## Caller scope isolation and Schema 39 (0.8.32 Slice 20)
+
+- **Default single-scope / single-agent posture:** By default, a FathomDB
+  database is single-scope / single-agent (`ScopePolicy.unscoped()`, storing
+  `scope = ""`). Multi-agent or shared-store deployments opt into
+  engine-enforced isolation via `ScopePolicy`.
+- **`ScopePolicy` type and factory (`fathomdb` root export):**
+  - Type: `{ readonly mode: "unscoped" } | { readonly mode: "scoped"; readonly readScopes: readonly string[]; readonly writeScope?: string | null }`.
+  - Factory helpers: `ScopePolicy.unscoped()`, `ScopePolicy.single(scope)`,
+    `ScopePolicy.readOnly(readScopes)`, and
+    `ScopePolicy.readWrite(readScopes, writeScope)`.
+  - Passed via `EngineOpenOptions.engineConfig.scopePolicy` or top-level
+    `EngineOpenOptions.scopePolicy` (setting both rejects synchronously/async
+    with `TypeError`). Native validation enforces `1..=32` read scopes,
+    non-empty UTF-8 tokens `<= 128` bytes, no ASCII control/`NUL`/`\x1e`, no
+    leading/trailing whitespace, no wildcard `"*"`, and `writeScope` within
+    `readScopes` (`InvalidArgumentError` on policy violations; `TypeError` for
+    malformed shapes or lone UTF-16 surrogates).
+- **`ScopeViolationError` & D-01 nondisclosure:** `ScopeViolationError extends
+  FathomDbError` (`static readonly code = "FDB_SCOPE_VIOLATION"`), adding the
+  47th leaf class (`48` shared classes including base `FathomDbError`). Write
+  and mutation verbs on a read-only handle reject with `ScopeViolationError`;
+  cross-scope edge endpoints reject with `WriteValidationError` (or actuation
+  `reference_unavailable`), and cross-scope evidence tokens reject with
+  `EvidenceError("evidence_unavailable")`.
+- **`SearchExpandOptions.view`:** `graph.searchExpand(engine, query, depth,
+  filter?, options?)` accepts `{ searchLimit?: number; view?: ReadView }`.
+  `engine.searchExpandFrozen` accepts `{ searchLimit }` only (`view` is bound in
+  `FrozenReadContextV1`).
+- **Frozen context & Schema 39:** `FrozenReadContextV1` authenticates and binds
+  the canonicalized `ScopePolicy` digest (cross-policy reuse rejects with
+  `FrozenReadError`). `Engine.open` admits committed Schema `39` only; offline
+  upgrade (`38 -> 39`, plus chained `37 -> 38 -> 39`) stays CLI-only.

@@ -1,8 +1,8 @@
 ---
 title: Rust Public Interface
-date: 2026-11-23
-target_release: 0.8.31
-desc: Public Rust surface (traits, functions, types, errors) for 0.8.31
+date: 2026-11-25
+target_release: 0.8.32
+desc: Public Rust surface (traits, functions, types, errors) for 0.8.32
 blast_radius: src/rust/crates/fathomdb; design/engine.md; design/bindings.md; design/errors.md; design/lifecycle.md
 status: locked
 ---
@@ -19,12 +19,14 @@ contract is [`rust-sdk.md`](rust-sdk.md).
 ## Fresh-database open boundary
 
 All public `Engine::open*` routes bootstrap a missing or zero-length path at
-schema 38. A non-empty database is admitted only when its effective committed
-`PRAGMA user_version` is exactly 38. Any other version returns
-`EngineOpenError::IncompatibleSchemaVersion { seen, supported: 38 }` before
-product mutation or migration events. There is no public automatic-upgrade
-route; the custom migration seam is private to explicitly feature-gated engine
-tests and is not forwarded by the facade.
+schema 39. A non-empty database is admitted only when its effective committed
+`PRAGMA user_version` is exactly 39. Any other version returns
+`EngineOpenError::IncompatibleSchemaVersion { seen, supported: 39 }` before
+product mutation or migration events. `Engine::open*` performs no public
+automatic-upgrade migration; offline upgrades from committed Schema 37 or
+Schema 38 run explicitly via `fathomdb migrate` (using the `#[cfg(feature =
+"operator")]` `migrate_37_to_38` and `migrate_38_to_39` entry points, not
+exposed on the default `fathomdb` facade).
 
 On Windows, database paths with a component ending in a dot or space are
 refused before database creation because SQLite can resolve them to a
@@ -90,12 +92,16 @@ and native-width capacity overflow return
 SQLite mode failures retain `EngineOpenError::RuntimeConfiguration`.
 
 Since 0.8.28 Slice 41 phase 2, `EngineConfig` also has
-`query_stop_words: Option<QueryStopWords>` (§ Query stop words). `EngineConfig`
+`query_stop_words: Option<QueryStopWords>` (§ Query stop words), and since
+0.8.32 Slice 20 it carries `scope_policy: ScopePolicy` (plus builder
+`EngineConfig::with_scope_policy(self, ScopePolicy) -> Self`, defaulting to
+`ScopePolicy::Unscoped` for single-scope/single-agent databases). `EngineConfig`
 is not `#[non_exhaustive]`, so a downstream struct literal that does not end
 in `..EngineConfig::default()` stops compiling when a field is added; pre-1.0
-this is accepted. `EngineConfigurationError` is `#[non_exhaustive]` since the
-same slice, and gained `QueryStopWords { field, index, reason }`; it stays
-`Copy`. Match it with a wildcard arm.
+this is accepted. `EngineConfigurationError` is `#[non_exhaustive]` since
+0.8.28, gained `QueryStopWords { field, index, reason }` in 0.8.28 and
+`ScopePolicy { reason: ScopePolicyError }` in 0.8.32 (`MAX_READ_SCOPES = 32`,
+`MAX_SCOPE_TOKEN_BYTES = 128`); it stays `Copy`. Match it with a wildcard arm.
 
 `scheduler_runtime_threads` starts exactly that many projection workers and
 worker-owned SQLite connections. Projection admission and each dispatcher scan
@@ -561,9 +567,9 @@ has no existence or validity axis.
 ### Graph verbs
 
 - `Engine::graph_neighbors(&self, ..., view: &ReadView) -> Result<Vec<NodeRecord>, EngineError>`
-- `Engine::search_expand(&self, query: &str, filter: Option<SearchFilter>, depth: u32) ->
+- `Engine::search_expand(&self, query: &str, filter: Option<SearchFilter>, depth: u32, view: Option<ReadView>) ->
   Result<SearchExpandResult, EngineError>`
-- `Engine::search_expand_with_limit(query, filter, depth, limit) -> Result<SearchExpandResult,
+- `Engine::search_expand_with_limit(query, filter, depth, limit, view: Option<ReadView>) -> Result<SearchExpandResult,
   EngineError>` — limits only initial ranked `search_hits`; expansion remains capped at 50 per root.
 
 ### Lifecycle + erasure verbs (0.8.19 Slice 10 / 0.8.20 Slice 5d)
@@ -2631,4 +2637,60 @@ compose orthogonally with world/validity time (`ReadView.valid_as_of` /
   only (verified absent on the default facade by `compile_fail` doctest),
   `fathomdb` re-exports `migrate_37_to_38`, `MigrateReport`,
   `MigratePreflightReport`, `MigrateError`, and `MigrateErrorCode` for
-  `fathomdb-cli`. `Engine::open` remains strictly Schema-38-only.
+  `fathomdb-cli`. `Engine::open` remains strictly current-schema-only.
+
+## Caller scope isolation, Schema 39, and TABLE_MANIFEST (0.8.32 Slice 20)
+
+- **Default single-scope / single-agent posture:** By default, a FathomDB
+  database operates as a single-scope store (`EngineConfig.scope_policy ==
+  ScopePolicy::Unscoped`, storing `scope = ""`). Multi-agent or shared-store
+  deployments opt into engine-enforced caller scope isolation by configuring
+  `ScopePolicy::Scoped { read_scopes, write_scope }` at `Engine::open` time.
+- **`ScopePolicy` & validation (`fathomdb` root re-exports):** `fathomdb`
+  re-exports `ScopePolicy`, `ScopePolicyError`, `MAX_READ_SCOPES` (`32`), and
+  `MAX_SCOPE_TOKEN_BYTES` (`128`):
+  - `ScopePolicy::Unscoped` (`Default`) — single-scope default (`scope = ""`).
+  - `ScopePolicy::Scoped { read_scopes: Vec<String>, write_scope: Option<String> }`
+    with smart constructors `ScopePolicy::single(scope)`,
+    `ScopePolicy::read_only(read_scopes)`, and
+    `ScopePolicy::read_write(read_scopes, write_scope)`, plus
+    `is_unscoped(&self) -> bool`, `read_scopes(&self) -> &[String]`, and
+    `write_scope(&self) -> Option<&str>`.
+  - Validation (`EngineOpenError::EngineConfiguration(EngineConfigurationError::ScopePolicy { reason })`
+    before filesystem/SQLite open): `1..=32` read scopes, non-empty UTF-8 tokens
+    `<= 128` bytes, no ASCII control/`NUL`/`\x1e`, no leading/trailing
+    whitespace, no wildcard `"*"`, and any `write_scope` must appear in
+    `read_scopes`. Canonicalized read-scope sets sort/deduplicate deterministically.
+- **Engine accessor & `ScopeViolation`:** `Engine::scope_policy(&self) -> &ScopePolicy`
+  returns the validated handle policy. `EngineError::ScopeViolation { detail: String }`
+  is returned when a read-only scoped handle attempts a write verb (including
+  `write`, `actuate`, `transition`, `purge`, `erase_source`,
+  `register_source_dependency`, `begin_erasure_maintenance`,
+  `queue_physical_erasure`, `withdraw_queued_erasure`,
+  `complete_physical_erasure`, `configure_projections`, `ingest_with_extractor`,
+  and `consolidate_with_provider`). D-01 nondisclosure is preserved on cross-scope
+  probes: edge endpoints outside `write_scope` fail identically to missing nodes
+  (`WriteValidation` / `ActuationRefusalReasonV1::ReferenceUnavailable`), and
+  out-of-scope evidence tokens fail with `EvidenceUnavailable` rather than
+  `ScopeViolation`.
+- **Schema 39 (`S39-COMPOSITE`) & 8-column `vec0`:** `SCHEMA_VERSION = 39`
+  upgrades keys/indexes on canonical, provenance, dependency, actuation,
+  erasure, and projection tables to scope-leading `(scope, ...)` composite
+  identities, expands `vec0` tables to 8 metadata/auxiliary columns including
+  `scope TEXT` (preserving `mean.rs` vector storage and parity invariants), and
+  scopes visibility/actuation triggers (`_fathomdb_actuation_ref_owner_before_insert`).
+- **Frozen contexts & cursors:** `FrozenReadContextV1` authenticates and binds
+  the canonicalized `ScopePolicy` SHA-256 digest
+  (`fathomdb-scope-policy-v1\x00`), rejecting cross-policy replay with
+  `EngineError::FrozenRead`. `PageCursor` carries policy-isolated continuations
+  under the same handle binding.
+- **Single-source `TABLE_MANIFEST`:** `fathomdb_schema` exposes
+  `TABLE_MANIFEST` (`TableManifestEntry`, `TableExportClass`),
+  `FTS5_SHADOW_SUFFIXES`, `VEC0_NAMED_SHADOW_SUFFIXES`,
+  `VEC0_NUMBERED_SHADOW_PREFIXES`, and `BUILTIN_NON_VISIBILITY_TRIGGERS` as the
+  single declarative owner for inspection/export table classification.
+- **Operator-only `38 -> 39` migration:** Behind `#[cfg(feature = "operator")]`
+  only (verified absent on default `fathomdb` by `compile_fail` doctest),
+  `fathomdb` re-exports `migrate_38_to_39` alongside `migrate_37_to_38` (and test
+  fault-injection hook helpers stay internal/test-only). `Engine::open` remains
+  strictly Schema-39-only.

@@ -68,7 +68,7 @@ try {
 | `DatabaseLockedError`              | On-disk lock held by another process                                          | `holder_pid` / `holderPid`                                               | wait for holder to release, or kill it |
 | `CorruptionError`                  | Open-time integrity failure                                                   | `kind`, `stage`, `recovery_hint_code` / camelCase + `doc_anchor`         | follow `recovery_hint_code`; see `doctor` + `recover` |
 | `RuntimeConfigurationError`        | SQLite startup mode is late, conflicts, or SQLite rejected configuration      | `reason`, `requested_mode`, `effective_mode`, `sqlite_code` / camelCase | configure once before the first Engine open; restart to change mode |
-| `IncompatibleSchemaVersionError`   | DB on-disk schema not compatible with this build                              | —                                                                        | for committed Schema 37 stores, run offline `fathomdb migrate --backup-dir <dir> <db_path>`; for stores older than 37 or downgrades, export with the matching old product and re-ingest into a fresh current store |
+| `IncompatibleSchemaVersionError`   | DB on-disk schema not compatible with this build                              | —                                                                        | for committed Schema 37 or 38 stores, run offline `fathomdb migrate --backup-dir <dir> <db_path>`; for stores older than 37 or downgrades, export with the matching old product and re-ingest into a fresh current store |
 | `MigrationError`                   | Migration step failed                                                         | —                                                                        | see `doctor check-integrity`; may require `recover` |
 | `EmbedderIdentityMismatchError`    | Configured embedder identity differs from stored                              | `stored_name`, `stored_revision`, `supplied_name`, `supplied_revision`   | restore prior embedder OR re-embed with new identity |
 | `EmbedderDimensionMismatchError`   | Configured embedder dimension differs from stored                             | `stored`, `supplied`                                                     | restore prior dimension OR re-embed |
@@ -88,6 +88,7 @@ try {
 | `EvidenceError`                    | Evidence search or resolution cannot authenticate or disclose the requested source | `reason`, `field_path` / `fieldPath` | preserve the frozen context; treat `evidence_unavailable` as nondisclosure |
 | `DependencyTraceError`             | A bounded dependency trace request is malformed or exceeds its contract       | `reason`, `field_path` / `fieldPath` | correct the root, direction, context, or bounds |
 | `GraphExpansionError`              | A constrained graph request or native response violates its closed contract (including `graph_edge_predicates_invalid` and `graph_target_predicates_invalid`) | `reason`, `field_path` / `fieldPath` | correct seeds, read context, filters, predicates, or work bounds |
+| `ScopeViolationError`              | A read-only scoped handle invoked a write, mutation, or admin verb            | `FDB_SCOPE_VIOLATION` (TS envelope code; message-only detail in Py)      | reopen with `ScopePolicy.single` / `read_write` / `readWrite` authorizing the target scope |
 
 Per-engine configuration errors are separate from process-start SQLite mode
 errors: Rust returns `EngineOpenError::EngineConfiguration`, which maps to
@@ -104,6 +105,29 @@ Projection capacity waits leave durable work pending without spending a
 provider retry; started failures/timeouts use the fixed retry ladder and may
 record a failed terminal. Closing cancels queued work; a provider still
 running after the shared 30-second drain budget yields `SchedulerError`.
+
+`EngineError` (Python) and `FathomDbError` (TypeScript) share **47** concrete
+leaf subclasses (**48** total shared error classes including the base class,
+matching Rust `fathomdb_sdk::ErrorKind::ALL`).
+
+## Caller scope isolation and D-01 nondisclosure (0.8.32)
+
+`ScopeViolationError` (`FDB_SCOPE_VIOLATION` in TypeScript, `ErrorKind::ScopeViolation`
+in `fathomdb-sdk`) is raised when a read-only scoped handle (`ScopePolicy.read_only`
+/ `ScopePolicy.readOnly` with no `write_scope`) attempts any write, mutation,
+actuation, erasure, projection-configuration, or extraction verb.
+
+Cross-scope lookups preserve **D-01 nondisclosure** — out-of-scope records
+never announce their existence:
+
+- An edge targeting a node in another scope fails with `WriteValidationError`
+  (or `ActuationOutcomeV1::Refused` with `reference_unavailable`), identically to
+  a missing node.
+- An evidence reference minted in another scope fails with
+  `EvidenceError("evidence_unavailable")`, identically to a missing or superseded
+  token.
+- Replaying a `FrozenReadContextV1` across different read/write `ScopePolicy`
+  handles fails with `FrozenReadError`.
 
 ## `WriteValidationError` carries no payload (breaking in 0.8.20)
 

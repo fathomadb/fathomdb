@@ -1,7 +1,7 @@
 # Compatibility
 
-Supported platforms, toolchains, and version-alignment policy for the
-**0.8.31** release line.
+Supported platforms, toolchains, and version-alignment policy for the **0.8.32**
+documentation target (pre-publish; newest published release: **0.8.31**).
 
 > **Pre-1.0 = beta.** FathomDB is on a pre-1.0 line. The surface may
 > change between micro releases; consult the
@@ -141,12 +141,14 @@ qualified classic Jetson route keep their existing scope.
 
 ## On-disk schema
 
-The 0.8.31 line sets `SCHEMA_VERSION` to **38**. A missing or
-zero-length path bootstraps directly at schema 38. A non-empty database opens
-only when its effective committed `PRAGMA user_version` is exactly 38; older,
+The **0.8.32** line sets `SCHEMA_VERSION` to **39** (newest published **0.8.31**
+sets `SCHEMA_VERSION` to **38**). A missing or
+zero-length path bootstraps directly at schema 39. A non-empty database opens
+only when its effective committed `PRAGMA user_version` is exactly 39; older,
 future, and non-empty zero-version databases are rejected before product
 mutation. There is no public automatic migration or compatibility reader on
-`Engine::open`; committed Schema 37 databases upgrade explicitly offline through
+`Engine::open`; committed Schema 38 databases (and Schema 37 databases via
+chained `37 -> 38 -> 39`) upgrade explicitly offline through
 `fathomdb migrate --backup-dir <dir> <db_path>` followed by
 `fathomdb doctor check-integrity --full` (see the
 [CLI reference](../reference/cli.md)). Pre-37 formats have no in-place upgrade
@@ -154,7 +156,8 @@ path.
 
 ## Versioning — two axes
 
-0.8.31 follows two-axis versioning (W = **0.8.31**, E = **0.8.0**):
+The `0.8.32` documentation target uses two-axis versioning (`W = 0.8.32`,
+`E = 0.8.0`; newest published release `0.8.31` uses `W = 0.8.31`, `E = 0.8.0`):
 
 - **Axis W (workspace lockstep)** — the runtime / binding / CLI crates
   plus the Python and TypeScript packages all carry the same workspace
@@ -176,16 +179,16 @@ This decouples embedder-protocol stability from binding cadence.
 | Search results are ordered by **RRF fusion**, not union-dedup | re-baseline any pinned result ordering |
 | `valid_from >= valid_until` is refused with a **message-less** `WriteValidationError` (was `InvalidArgumentError` carrying both bounds) | validate the pair before calling |
 | A projection spec with `fts` / `vector` but no `searchable` role is refused | add the role, or name the projection in `drop` |
-| Public open does not auto-migrate older non-empty databases | upgrade committed Schema 37 stores offline with `fathomdb migrate --backup-dir <dir> <db_path>`, or create a fresh Schema 38 database and re-ingest for `< 37` |
+| Public open does not auto-migrate older non-empty databases | upgrade committed Schema 37 or 38 stores offline with `fathomdb migrate --backup-dir <dir> <db_path>`, or create a fresh Schema 39 database and re-ingest for `< 37` |
 
 The [CHANGELOG](https://github.com/fathomadb/fathomdb/blob/main/CHANGELOG.md)
 is the authoritative list.
 
 ## 0.5.x / 0.6.x compatibility
 
-**No 0.5.x compatibility shims or public migrations.** Do not point 0.8.31
-binaries at an older non-empty database. Create a fresh schema-38 database and
-re-ingest through the public write surface.
+**No 0.5.x compatibility shims or public migrations.** Do not point 0.8.31 or
+0.8.32 binaries at an older non-empty database. Create a fresh schema-39
+database (`0.8.32`) and re-ingest through the public write surface.
 
 ## Performance posture
 

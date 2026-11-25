@@ -1,7 +1,8 @@
 # Rust SDK
 
-Crate: `fathomdb-sdk` (published `0.8.31` crates.io release; import
-`fathomdb_sdk`). It has the same surface as the Python
+Crate: `fathomdb-sdk` (documentation target `0.8.32`, pre-publish; newest
+published crates.io release `0.8.31`; import `fathomdb_sdk`). It has the same
+surface as the Python
 and TypeScript SDKs:
 
 - an `Engine` with the same operations;
@@ -198,5 +199,27 @@ is added.
   `HintMode`, `HintArm`, `HintCause`) without altering hit rankings.
 - **`OpenReport` capability booleans:** `OpenReport` exposes
   `reranker_compiled`, `cuda_compiled`, and `rerank_available` with zero
-  network I/O and zero GPU allocation during `Engine::open`. Offline `37 -> 38`
-  migration remains CLI-only (`fathomdb migrate`).
+  network I/O and zero GPU allocation during `Engine::open`. Offline `38 -> 39`
+  and chained `37 -> 38 -> 39` migrations remain CLI-only (`fathomdb migrate`).
+
+## Caller scope isolation and `search_expand` view (0.8.32, Schema 39)
+
+- **Single-scope default:** By default a FathomDB database is single-scope /
+  single-agent (`ScopePolicy::Unscoped`, storing `scope = ""`). Multi-agent or
+  shared-store applications opt into caller isolation at open via
+  `OpenOptions::with_scope_policy(...)` or `EngineConfig::with_scope_policy(...)`
+  (`engine.config().scope_policy` reflects the open-time policy).
+- **`ScopePolicy` exports:** `ScopePolicy` (`Unscoped`,
+  `Scoped { read_scopes, write_scope }`, `single`, `read_only`, `read_write`,
+  `is_unscoped`, `read_scopes`, `write_scope`), `ScopePolicyError`,
+  `MAX_READ_SCOPES` (`32`), and `MAX_SCOPE_TOKEN_BYTES` (`128`). Invalid
+  policies fail before file/lock open with `ErrorKind::InvalidArgument`.
+- **`ErrorKind::ScopeViolation`:** Added to `ErrorKind::ALL` (`48` total variants
+  = base `ErrorKind::Engine` + `47` leaf classes; `.name() == "ScopeViolationError"`),
+  returned on read-only handle mutation attempts while preserving D-01
+  nondisclosure on cross-scope endpoint/evidence lookups (`WriteValidation` /
+  `ReferenceUnavailable` / `EvidenceUnavailable`).
+- **`SearchExpandOptions.view`:** `SearchExpandOptions` gains `pub view:
+  Option<ReadView>` and `.with_view(ReadView)`. `graph::search_expand` applies
+  `options.view`; `Engine::search_expand_frozen` rejects `options.view.is_some()`
+  with `ErrorKind::InvalidArgument` (`FrozenReadContextV1` fixes its view).

@@ -4,8 +4,21 @@ FathomDB fits applications that need compact discovery followed by exact,
 revision-aware evidence verification. It keeps retrieval, records and explicit
 relationships in an embedded database, close to the application using them.
 The host decides what to store, who may access it and which actions to take.
-These examples use the published 0.8.31 SDKs and, where identified, the
+These examples reflect the **0.8.32** documentation target (pre-publish; newest
+published release: **0.8.31**) and, where identified, the
 repository MCP adapter. Each keeps its source of truth explicit.
+
+## Single-scope default and multi-agent isolation
+
+**By default a FathomDB database is single-scope / single-agent** (one agent per
+database, `scope = ""`, using the default `ScopePolicy.unscoped()` /
+`ScopePolicy::Unscoped`). Most single-agent applications can open a database and
+write or search without specifying any scope. When multiple agents or tenants
+share one Schema **39** database file, **opt into** engine-enforced caller
+isolation with `ScopePolicy` (`single`, `read_only` / `readOnly`, or
+`read_write` / `readWrite`) at open time so read queries, frozen contexts, and
+writes are confined to authorized scopes (`ScopeViolationError` on unauthorized
+writes; cross-scope nondisclosure on lookups).
 
 ## Coding agents: searchable engineering memory
 

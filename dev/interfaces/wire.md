@@ -1,8 +1,8 @@
 ---
 title: Wire Format
-date: 2026-11-23
-target_release: 0.8.31
-desc: On-disk + IPC formats (if any) for 0.8.31; short OK
+date: 2026-11-25
+target_release: 0.8.32
+desc: On-disk + IPC formats (if any) for 0.8.32; short OK
 blast_radius: design/fathomdb-data-plane-architecture-v2.md; design/engine.md; design/migrations.md
 status: locked
 ---
@@ -28,7 +28,7 @@ The current layout and admission owners are [engine](../design/engine.md) and
 ## Schema-version sentinel
 
 The canonical schema-version sentinel is SQLite `PRAGMA user_version`. In the
-0.8.31 line `fathomdb-schema::SCHEMA_VERSION` is **38**. Step 28
+0.8.32 line `fathomdb-schema::SCHEMA_VERSION` is **39**. Step 28
 adds the source-dependency registry and generation singleton. Step 29 adds the
 bounded terminal actuation-receipt and source-reference tables without
 backfilling legacy rows. Actuation request bodies and source locators are never
@@ -84,19 +84,29 @@ with its three partial typed-value indexes (`canonical_property_values_text_idx`
 five composite node/edge indexes (`canonical_nodes_logical_sup_idx`,
 `canonical_edges_from_active_idx`, `canonical_edges_to_active_idx`,
 `canonical_edges_from_sup_kind_idx`, `canonical_edges_to_sup_kind_idx`), and
-`cpv` visibility coalescing triggers on `canonical_property_values`. No legacy
-format is auto-migrated on `Engine::open` (committed Schema 37 stores upgrade
-offline via `fathomdb migrate`).
+`cpv` visibility coalescing triggers on `canonical_property_values`.
+
+Format 39 (`S39-COMPOSITE`, `ADR-0.8.32-caller-scope-isolation.md`) adds
+scope-leading `(scope, ...)` composite primary keys, unique constraints, and
+lookup indexes across canonical, provenance, dependency, closure, actuation,
+erasure, and projection tables (single-scope/single-agent stores default to
+`scope = ""`), expands `vec0` virtual tables to 8 columns (`scope TEXT` added),
+restores/scopes visibility and actuation reference triggers, binds
+canonicalized `ScopePolicy` digests in `FrozenReadContextV1` tokens, and establishes
+`fathomdb_schema::TABLE_MANIFEST` as the single declarative table/shadow/trigger
+registry. No legacy format is auto-migrated on `Engine::open` (committed
+Schema 37 and Schema 38 stores upgrade offline via `fathomdb migrate`).
 
 ## Compatibility contract
 
-- a missing or zero-length path bootstraps directly to schema 38
+- a missing or zero-length path bootstraps directly to schema 39
 - a non-empty database opens only when its effective committed
-  `PRAGMA user_version` is exactly 38; schema 37 and earlier, future versions, and
+  `PRAGMA user_version` is exactly 39; schema 38 and earlier, future versions, and
   non-empty zero-version SQLite files return the typed incompatible-schema
   error before product mutation
 - there is no public automatic migration, compatibility reader, translator,
-  or historical receipt/replay reader for earlier database layouts
+  or historical receipt/replay reader for earlier database layouts (offline
+  `fathomdb migrate` upgrades committed Schema 37/38 stores to Schema 39)
 
 ## Non-surface
 
@@ -357,3 +367,40 @@ erased, transitioned, or closure-barrier-blocked artifacts to
   `src/conformance/governed-operation-parity.json` and
   `src/conformance/governed-surface-allowlist.json` to `56` live operations and
   `93` allowlist members (`5` core, `5` recovery denylist, `2` runtime controls).
+
+## Format 39 caller scope isolation and TABLE_MANIFEST (0.8.32 Slice 20)
+
+- **`S39-COMPOSITE` composite keys & indexes:** `SCHEMA_VERSION = 39`
+  upgrades key/index identities across canonical (`canonical_nodes`,
+  `canonical_edges`, `canonical_property_values`), provenance
+  (`canonical_node_provenance`, `source_locators`), dependency/closure
+  (`source_dependencies`, `dependency_closures`), actuation
+  (`actuation_receipts`, `actuation_receipt_refs`), erasure
+  (`_fathomdb_erasure_requests`, `_fathomdb_erasure_pending_closures`,
+  `_fathomdb_erasure_pending_redactions`), and projection
+  (`projection_mapping`, `_fathomdb_projection_pending`) tables to scope-leading
+  `(scope, ...)` composite definitions, keeping single-scope stores defaulted to
+  `scope = ""`.
+- **8-column `vec0` layout:** Dense vector virtual tables add `scope TEXT`
+  (8 metadata/auxiliary columns total), preserving `mean.rs` vector storage and
+  dense search semantics while enabling native `vec0` SQLite scope filtering.
+- **Scoped triggers & actuation guard:** Restores/scopes the `os_*`, `ar_*`,
+  `sv_*`, `sl_*`, `sd_*`, and `dc_*` triggers plus
+  `_fathomdb_actuation_ref_owner_before_insert`, enforcing same-scope ownership
+  between actuation receipts and referenced targets.
+- **`FrozenReadContextV1` & `PageRequestV1.cursor` binding:** `FrozenReadContextV1`
+  canonical token encoding includes the SHA-256 digest of the canonicalized
+  handle `ScopePolicy` (`fathomdb-scope-policy-v1\x00`), rejecting replay across
+  different read/write scope policies with `FDB_FROZEN_READ`. `PageV1.nextCursor`
+  inherits the bound context digest under `FDB_PAGE`.
+- **Write-authority envelope:** Read-only scoped handles attempting mutations
+  reject with `ScopeViolationError` (`FDB_SCOPE_VIOLATION`, adding the 47th
+  shared leaf error class; `48` total classes).
+- **Single-source `TABLE_MANIFEST`:** `fathomdb_schema::TABLE_MANIFEST`
+  (`35` entries: `30` regular + `5` virtual tables classified by
+  `TableExportClass`), `FTS5_SHADOW_SUFFIXES`, `VEC0_NAMED_SHADOW_SUFFIXES`,
+  `VEC0_NUMBERED_SHADOW_PREFIXES`, and `BUILTIN_NON_VISIBILITY_TRIGGERS` form
+  the authoritative table/shadow/trigger manifest.
+- **Offline Schema `38 -> 39` & chained `37 -> 39` migration:** Handled strictly
+  offline by `fathomdb migrate` (never on `Engine::open`), including offline
+  reshape of legacy 7-column `vec0` tables into 8-column `scope TEXT` tables.

@@ -4,10 +4,10 @@ The `fathomdb` npm package is a [napi-rs](https://napi.rs/) binding
 over the native Rust runtime. The package selects a
 platform-tagged `.node` binary at load time.
 
-> **Release 0.8.31, pre-1.0 beta.** The release supplies
-> Linux x86_64/glibc, Linux AArch64/glibc, macOS x64/arm64, and Windows x64
-> native packages; other hosts must build from source.
-> FathomDB is pre-1.0 and the surface is **beta**.
+> **Documentation target: 0.8.32 (pre-publish, pre-1.0 beta); newest published release: 0.8.31.**
+> The native release supplies Linux x86_64/glibc, Linux AArch64/glibc, macOS
+> x64/arm64, and Windows x64 native packages; other hosts must build from
+> source. FathomDB is pre-1.0 and the surface is **beta**.
 >
 > See [SDK parity](../positions/sdk-parity.md) for language conventions.
 
@@ -38,17 +38,20 @@ platform-tagged `.node` binary at load time.
 
 ## Install the package
 
-Version 0.8.31 is published on npm. Use the exact-version command below for the
-current published release, and verify the matching Tegra Pages addon digest
-before adding it on classic Orin.
+Version **0.8.31** is the newest published release on npm. Use the exact pin
+for the target **0.8.32** line once authorized and released, or pin **0.8.31**
+when installing today's published npm + Tegra Pages artifacts:
 
 ```bash
-npm install --save-exact fathomdb@0.8.31
+# Pre-publish target pin (0.8.32):
+npm install --save-exact fathomdb@0.8.32
 ```
 
-On Linux AArch64 this installs the CPU-only `fathomdb-linux-arm64-gnu`
-package, including on a Jetson. For CUDA on classic Jetson Orin, install
-the published, version-matched 0.8.31 Tegra addon from Pages as shown below.
+For the currently published `0.8.31` registry release, run
+`npm install --save-exact fathomdb@0.8.31`. On Linux AArch64 this installs the
+CPU-only `fathomdb-linux-arm64-gnu` package, including on a Jetson. For CUDA on
+classic Jetson Orin, install the published, version-matched `0.8.31` Tegra
+addon from Pages as shown below.
 
 ## Classic Jetson Orin with CUDA
 

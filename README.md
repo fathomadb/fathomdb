@@ -5,14 +5,16 @@ agents. It combines SQLite, FTS5, and `sqlite-vec` in your process: open a
 local database file, write records with provenance, and retrieve them through
 the Python, TypeScript, or Rust application SDK.
 
-## Release 0.8.31
+## Releases and documentation target
 
 FathomDB is pre-1.0 beta; public contracts can change between micro releases.
-**0.8.31** is published on crates.io, PyPI (`fathomdb` and `fathomdb-cli`), npm,
-and GitHub Releases (store format **38**, with an explicit offline
-`fathomdb migrate` upgrade from format 37 to 38, plus FathomDB Inspector
-**0.3.0**), with its matching Tegra CUDA wheel and Node addon available through
-first-party GitHub Pages. See the
+**Documentation target: `0.8.32`** (pre-publish on `dev/0.8.32`: Schema
+**39**, opt-in `ScopePolicy` caller isolation with a single-scope /
+single-agent default, and offline `38 -> 39` / chained `37 -> 39` migration).
+**Newest published release: `0.8.31`** on crates.io, PyPI (`fathomdb` and
+`fathomdb-cli`), npm, and GitHub Releases (store format **38**, plus FathomDB
+Inspector **0.3.0**), with its matching Tegra CUDA wheel and Node addon
+available through first-party GitHub Pages. See the
 [0.8.31 release notes](docs/release-notes/0.8.31.md) and the
 [changelog](CHANGELOG.md).
 
@@ -31,9 +33,13 @@ business, knowledge management and personal agent examples.
   source evidence resolution, and constrained graph expansion.
 - **Derived projections:** declarative text, vector, filter, and ranking
   configuration with readiness and runtime diagnostics.
+- **Scope isolation (0.8.32, Schema 39):** By default a FathomDB database is
+  single-scope / single-agent (`scope = ""`, `ScopePolicy.unscoped`); multi-agent
+  or shared-store deployments can opt into engine-enforced `ScopePolicy` read
+  and write boundaries.
 - **Operations:** a separate CLI (`doctor`, `recover`, and offline `migrate`
-  for 37-to-38 upgrades) for integrity inspection, schema upgrade, and explicit
-  recovery.
+  for `38 -> 39` and chained `37 -> 38 -> 39` upgrades) for integrity
+  inspection, schema upgrade, and explicit recovery.
 
 The three application SDKs share governed operations and option defaults with
 language-specific naming, calling conventions, and error handling. Rust uses
@@ -119,7 +125,7 @@ cargo install fathomdb-cli --version '=0.8.31' --locked
 Use the [CLI reference](docs/reference/cli.md) and
 [integrity inspection guide](docs/operations/integrity-inspection.md) before
 operating on a store (including offline `fathomdb migrate --backup-dir <dir> <db_path>`
-upgrades from Schema 37 to Schema 38). Application SDKs do not expose recovery,
+upgrades to Schema 39 in `0.8.32`). Application SDKs do not expose recovery,
 migration, or raw SQL.
 
 ## Develop and contribute

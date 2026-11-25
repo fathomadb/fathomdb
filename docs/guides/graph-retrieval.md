@@ -70,10 +70,11 @@ remain refused on `graph.expand`).
   Declared `Filterable` property keys evaluate inline against historical row
   JSON so superseded revisions remain filterable.
 - **Epoch lookup and pre-upgrade stores:** `as_of_epoch_ms` resolves once per
-  reader transaction against Schema 38's commit-timestamp index
-  (`_fathomdb_commit_timestamps_ms_idx`). A cursor of `0` — including
-  `as_of_epoch_ms` before the first Schema-38 commit on a fresh or upgraded
-  Schema 37-to-38 store — yields empty query seeds and `graph_seed_unavailable`
+  reader transaction against Schema 38+ commit-timestamp indexing
+  (`_fathomdb_commit_timestamps_ms_idx`), retained across Schema `38 -> 39`
+  and chained `37 -> 38 -> 39` upgrades. A cursor of `0` — including
+  `as_of_epoch_ms` before the first Schema-38+ commit on a fresh or migrated
+  store — yields empty query seeds and `graph_seed_unavailable`
   for explicit seeds; pre- and post-upgrade revisions remain directly
   addressable via `as_of_write_cursor`. Cursors beyond the current or pinned
   boundary act as a snapshot-bounded upper bound.
@@ -87,11 +88,17 @@ remain refused on `graph.expand`).
 
 ## Hybrid convenience paths
 
-`search_expand` begins with the ranked hybrid result and then expands its
-logical seeds. The ordinary helper uses a second read for expansion and drops
-search versions that are no longer active in that snapshot. It is distinct from bounded `graph.expand` and has its own
-`search_limit` / `searchLimit` and traversal options. Its frozen counterpart
-binds that operation to frozen authority.
+`search_expand` / `searchExpand` begins with the ranked hybrid result and then
+expands its logical seeds. The ordinary helper accepts an optional `ReadView`
+(`view=None` keyword in Python, `options.view` in TypeScript,
+`SearchExpandOptions.view` in `fathomdb-sdk`), uses a second read for expansion
+(within the same open `ScopePolicy`), and drops search versions that are no
+longer active in that view. It is distinct from bounded `graph.expand` and has
+its own `search_limit` / `searchLimit` and traversal options. Its frozen
+counterpart (`search_expand_frozen` / `searchExpandFrozen`) binds both ranking
+and expansion to the frozen `ReadView`, eligibility filter, and `ScopePolicy`
+digest inside `FrozenReadContextV1` (passing `SearchExpandOptions.view` on the
+frozen route is rejected).
 
 The optional graph arm inside `engine.search`, `engine.search_frozen` /
 `engine.searchFrozen`, and `engine.search_with_evidence` /

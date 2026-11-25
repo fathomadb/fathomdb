@@ -1,8 +1,8 @@
 ---
 title: Rust SDK interface (fathomdb-sdk)
-date: 2026-11-23
-target_release: 0.8.31
-desc: Public contract of the dedicated fathomdb-sdk crate and its mapping to the Python and TypeScript SDKs
+date: 2026-11-25
+target_release: 0.8.32
+desc: Public contract of the dedicated fathomdb-sdk crate and its mapping to the Python and TypeScript SDKs for 0.8.32
 blast_radius: src/rust/crates/fathomdb-sdk; src/conformance/governed-operation-parity.json; scripts/check-sdk-surface-parity.py
 status: locked
 ---
@@ -18,7 +18,8 @@ its separate contract in [`rust.md`](rust.md).
 
 ## Boundary
 
-`fathomdb_sdk` exports `Engine`, `EngineConfig`, `OpenOptions`, the option
+`fathomdb_sdk` exports `Engine`, `EngineConfig`, `OpenOptions`, `ScopePolicy`,
+`ScopePolicyError`, `MAX_READ_SCOPES`, `MAX_SCOPE_TOKEN_BYTES`, the option
 structs, `SearchFilterArg`, `Error`, `ErrorKind`, `Result`, `rerank`,
 `embed_batch_cls`, `release_models`, `snippet_for`, `search_hints`, the rerank DTOs, the shared DTO re-exports, and the
 modules `read`, `graph` and `admin`. The SDK `Engine` owns its core engine
@@ -99,8 +100,12 @@ These are the only allowed differences from the Python and TypeScript SDKs:
 ## Open and engine members
 
 `OpenOptions { config: EngineConfig, use_default_embedder: bool }` derives
-`Default`, which gives the default `EngineConfig` and `use_default_embedder =
-false`. `EngineConfig` is the core struct, re-exported: its fields, ranges,
+`Default`, which gives the default `EngineConfig` (including `scope_policy:
+ScopePolicy::Unscoped`, the single-scope/single-agent default binding
+`scope = ""`) and `use_default_embedder = false`. `OpenOptions::with_scope_policy(self,
+policy: ScopePolicy) -> Self` and `EngineConfig::with_scope_policy(self,
+policy: ScopePolicy) -> Self` opt a handle into multi-agent caller-scope
+isolation. `EngineConfig` is the core struct, re-exported: its fields, ranges,
 and defaults are already identical across the three SDKs.
 
 The core-call column names a method on `fathomdb_engine::Engine` unless
@@ -236,7 +241,7 @@ impls for both. `Unified` is lowered through the public
 | `TextSearchOptions` | `view: ReadView = default`, `limit: usize = 10`, `snippet: Option<SnippetOptions> = None` |
 | `ProjectedTextSearchOptions` | `filter: Option<SearchFilter> = None`, `view: ReadView = default`, `limit: usize = 10` |
 | `FrozenSearchOptions` | `rerank_depth = 0`, `use_graph_arm = false`, `alpha: Option<f64>` (None → 0.3), `pool_n: Option<usize>` (None → `rerank_depth`), `explain = false`, `limit = 10`, `snippet = None`, `graph_seed = GraphFts`, `graph_seed_k = 10`, `graph_edge_kinds = []`, `graph_edge_predicates = []`, `hints: bool = false` |
-| `SearchExpandOptions` | `search_limit: usize = 10` |
+| `SearchExpandOptions` | `search_limit: usize = 10`, `view: Option<ReadView> = None` (`with_view(ReadView)`) |
 | `ListOptions` | `predicates: Vec<Predicate> = []`, `filter: Option<Filter> = None`, `limit: usize = 100`, `view: Option<ReadView> = None` |
 | `NeighborsOptions` | `direction: TraversalDirection = Both`, `view: Option<ReadView> = None` |
 | `RerankOptions` | `alpha: Option<f64>` (None → 0.3), `pool_n: Option<usize>` (None → `rerank_depth`) |
@@ -260,7 +265,7 @@ impls for both. `Unified` is lowered through the public
 | `read.mutation_projection_status` | `read::mutation_projection_status(engine, request: MutationProjectionStatusRequestV1)` | same |
 | `graph.expand` | `graph::expand(engine, request: &GraphExpandRequestV1) -> Result<GraphExpandResultV1>` | `graph_expand` |
 | `graph.neighbors` | `graph::neighbors(engine, logical_id: &str, depth: u32, options: NeighborsOptions) -> Result<Vec<NodeRecord>>` | `graph_neighbors` |
-| `graph.search_expand` | `graph::search_expand(engine, query: &str, depth: u32, filter: Option<SearchFilter>, options: SearchExpandOptions) -> Result<SearchExpandResult>`. Non-empty `filter.attributes` is `InvalidArgument`, because neither SDK forwards attributes on this path. | `search_expand_with_limit` |
+| `graph.search_expand` | `graph::search_expand(engine, query: &str, depth: u32, filter: Option<SearchFilter>, options: SearchExpandOptions) -> Result<SearchExpandResult>`. Non-empty `filter.attributes` is `InvalidArgument`, because neither SDK forwards attributes on this path. `options.view` applies to ordinary `graph::search_expand`; `Engine::search_expand_frozen` rejects `options.view.is_some()` with `InvalidArgument` because its `ReadView` is fixed by `FrozenReadContextV1`. | `search_expand_with_limit` |
 | `admin.configure` | `admin::configure(engine, name: &str, body: &str) -> Result<WriteReceipt>` | `write(&[PreparedWrite::AdminSchema { name, kind: "latest_state", schema_json: body, retention_json: "{}" }])` |
 | — | `admin::configure_runtime(sqlite_mode: RuntimeSqliteMode) -> Result<RuntimeConfiguration>` | `fathomdb_engine::configure_runtime` |
 | `rerank` | `rerank(query: &str, passages: &[RerankPassage], rerank_depth: usize, options: RerankOptions) -> Result<Vec<RerankResult>>`. Takes `RerankPassage { id: u64, body: String, score: f64 }` and returns `RerankResult { id: u64, score: f64, ce_score: Option<f64> }`. A non-finite `alpha` is `InvalidArgument`, matching TypeScript. A non-finite passage `score` is `WriteValidation`, following Python and napi; a reranker refusal from the core's `RerankPassagesError` keeps its typed kind (`RerankerDevicePolicy` or a CUDA pool kind). This is a deliberate exception to rule 6, because the TypeScript wrapper's `RangeError` is a host-side check. | `fathomdb_engine::rerank_passages` |
@@ -733,5 +738,38 @@ members) and re-exports `EVIDENCE_RESOLVE_MANY_MAX` (`50`),
   when `true`, `SearchResult.hints` is populated by the pure engine hint planner.
 - `OpenReport` exposes `reranker_compiled`, `cuda_compiled`, and
   `rerank_available` with zero network I/O and zero GPU allocation during open.
-  Offline `37 -> 38` migration remains CLI-only and is not exposed on
-  `fathomdb-sdk`.
+  Offline `37 -> 38` and `38 -> 39` migrations remain CLI-only and are not
+  exposed on `fathomdb-sdk`.
+
+## Caller scope isolation & Schema 39 (0.8.32 Slice 20)
+
+- **Default single-scope posture:** By default, a FathomDB database is
+  single-scope / single-agent (`ScopePolicy::Unscoped`, storing `scope = ""`).
+  Multi-agent or shared-store deployments opt into caller-scope isolation at
+  open time via `OpenOptions::with_scope_policy` or
+  `EngineConfig::with_scope_policy` (`engine.config().scope_policy` returns the
+  open-time policy snapshot).
+- **`ScopePolicy` & validation:** Re-exports `ScopePolicy` (`Unscoped`,
+  `Scoped { read_scopes, write_scope }`, `single`, `read_only`, `read_write`,
+  `is_unscoped`, `read_scopes`, `write_scope`), `ScopePolicyError`,
+  `MAX_READ_SCOPES` (`32`), and `MAX_SCOPE_TOKEN_BYTES` (`128`). Invalid
+  policies (`0` or `> 32` read scopes, empty/`> 128`-byte tokens, leading or
+  trailing whitespace, ASCII control/`NUL`/`\x1e`, wildcard `"*"`, or
+  `write_scope` outside `read_scopes`) fail before database/lock open with
+  `ErrorKind::InvalidArgument`.
+- **`ErrorKind::ScopeViolation`:** Added to `ErrorKind::ALL` (now `48` total
+  variants = base `ErrorKind::Engine` `"EngineError"` plus `47` leaf classes;
+  `ErrorKind::ScopeViolation.name() == "ScopeViolationError"`), raised on
+  write-authority refusals (read-only handles calling write/mutation/admin verbs).
+  D-01 nondisclosure is preserved on cross-scope endpoint/evidence lookups
+  (`WriteValidation` / `ActuationRefusalReasonV1::ReferenceUnavailable` /
+  `EvidenceUnavailable`).
+- **`SearchExpandOptions.view`:** `SearchExpandOptions` gains `pub view:
+  Option<ReadView>` and `SearchExpandOptions::with_view(self, ReadView) -> Self`
+  (struct literals without `..Default::default()` stop compiling pre-1.0).
+  `graph::search_expand` forwards `options.view`; `Engine::search_expand_frozen`
+  rejects `options.view.is_some()` with `InvalidArgument`.
+- **Schema 39:** `Engine::open` admits committed `PRAGMA user_version == 39`
+  only (refusing `38` and earlier with `ErrorKind::IncompatibleSchemaVersion`);
+  offline `fathomdb migrate` (`38 -> 39`, plus chained `37 -> 38 -> 39`) remains
+  CLI-only.

@@ -1,6 +1,7 @@
 # Rust API
 
-Crate: `fathomdb` (published 0.8.31 release). The facade re-exports the supported application
+Crate: `fathomdb` (documentation target `0.8.32`, pre-publish; newest
+published crates.io release: `0.8.31`). The facade re-exports the supported application
 surface from `fathomdb-engine`; generated item-level documentation is published
 at [`docs.rs/fathomdb`](https://docs.rs/fathomdb/). The locked
 [Rust interface](https://github.com/fathomadb/fathomdb/blob/main/dev/interfaces/rust.md)
@@ -9,7 +10,8 @@ owns the contract and feature-gating details.
 ## Surface model
 
 This facade is not namespace-identical to the Python and TypeScript SDKs;
-for that surface in Rust, use [`fathomdb-sdk`](rust-sdk.md) (0.8.31). Application
+for that surface in Rust, use [`fathomdb-sdk`](rust-sdk.md) (`0.8.32` target;
+`0.8.31` published). Application
 operations are inherent `Engine` methods and public carriers are facade
 re-exports. The default feature set contains no recovery-named or raw-SQL
 method. The `operator` feature enables the diagnostic and recovery seam used by
@@ -73,8 +75,9 @@ applied before direct node/edge body-FTS caps, deduplication, ranking and limit.
 See [filter semantics](../guides/hybrid-search-filtering.md) for metadata and
 historical-view limits. Application SDK users pass `TextSearchOptions.filter`.
 
-`0.8.28–0.8.30` used format 37; `0.8.31` uses format 38 (with explicit offline
-`fathomdb migrate` for committed Schema 37 stores). `PhysicalErasurePolicy` is
+`0.8.28–0.8.30` used format 37, `0.8.31` used format 38, and `0.8.32` uses
+format 39 (`S39-COMPOSITE`, with explicit offline `fathomdb migrate` for
+committed Schema 38 or chained Schema 37 stores). `PhysicalErasurePolicy` is
 persisted; the typed queue/status/withdraw APIs and owned `ErasureMaintenance`
 handle implement the
 [explicit-maintenance contract](../operations/erasure.md#schedule-an-explicit-maintenance-window).
@@ -143,6 +146,25 @@ is built-in default or none, with no caller-provider injection.
 - `OpenReport` exposes `reranker_compiled`, `cuda_compiled`, and
   `rerank_available` without triggering network I/O or GPU allocation.
 
+## 0.8.32 caller scope isolation and Schema 39
+
+- **Single-scope default:** By default a database is single-scope /
+  single-agent (`EngineConfig.scope_policy == ScopePolicy::Unscoped`,
+  storing `scope = ""`). Multi-agent or shared stores opt into isolation via
+  `ScopePolicy` (`single`, `read_only`, `read_write`) and
+  `EngineConfig::with_scope_policy` (`EngineConfig` remains non-`#[non_exhaustive]`).
+- **Facade exports & accessor:** `fathomdb` re-exports `ScopePolicy`,
+  `ScopePolicyError`, `MAX_READ_SCOPES` (`32`), and `MAX_SCOPE_TOKEN_BYTES`
+  (`128`); `Engine::scope_policy(&self) -> &ScopePolicy` inspects the bound
+  policy, and `FrozenReadContextV1` binds its SHA-256 digest.
+- **Scoped `search_expand`:** `Engine::search_expand` and
+  `Engine::search_expand_with_limit` take trailing `view: Option<ReadView>`.
+- **Schema 39 & `EngineError::ScopeViolation`:** `SCHEMA_VERSION = 39` adds
+  composite `(scope, ...)` keys/indexes, 8-column `vec0` (`scope TEXT`), scoped
+  triggers, and declarative `fathomdb_schema::TABLE_MANIFEST`. Unauthorized
+  writes on read-only handles return `EngineError::ScopeViolation`, while
+  cross-scope endpoint/evidence lookups preserve D-01 nondisclosure.
+
 ## Errors
 
 Methods return `EngineError` or `EngineOpenError` and preserve the typed
@@ -156,10 +178,10 @@ engine errors with a wildcard arm.
 
 Enable the `operator` feature only for diagnostics, migration, or recovery. It
 exposes report types and functions used by `fathomdb doctor`,
-`fathomdb recover`, and offline `fathomdb migrate` (`migrate_37_to_38` /
-`MigrateReport`), including the current data-plane-integrity report. Python and
-TypeScript do not expose an SDK equivalent of the doctor, migrate, or recovery
-surface.
+`fathomdb recover`, and offline `fathomdb migrate` (`migrate_37_to_38`,
+`migrate_38_to_39`, `MigrateReport`), including the current
+data-plane-integrity report. Python and TypeScript do not expose an SDK
+equivalent of the doctor, migrate, or recovery surface.
 
 ## See also
 

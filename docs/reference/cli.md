@@ -1,6 +1,7 @@
 # CLI
 
-Binary: `fathomdb` (published 0.8.31 release). Operator-only; the CLI does **not** ship
+Binary: `fathomdb` (documentation target `0.8.32`, pre-publish; newest
+published release: `0.8.31`). Operator-only; the CLI does **not** ship
 application-surface verbs like `search`, `get`, or `list`. Use the SDK
 for those.
 
@@ -15,7 +16,8 @@ recovery semantics owned by `dev/design/recovery.md`.
 - `fathomdb recover --accept-data-loss <sub-flag> ...` — the only
   lossy / non-bit-preserving root.
 - `fathomdb migrate --backup-dir <dir> [--json] <db_path>` — offline,
-  backup-verified Schema 37-to-38 upgrade root (0.8.31).
+  backup-verified Schema `38 -> 39` (and chained `37 -> 38 -> 39`) upgrade root
+  (`0.8.32`).
 
 ## Output
 
@@ -317,16 +319,17 @@ erasure reaches and what it does not.
 fathomdb migrate --backup-dir <dir> [--json] <db_path>
 ```
 
-Upgrades a quiescent committed Schema `37` database offline to Schema `38`
-(0.8.31). `Engine::open` never auto-migrates and continues refusing
-`user_version != 38`.
+Upgrades a quiescent committed Schema `38` database offline to Schema `39`, or
+chains `37 -> 38 -> 39` for a committed Schema `37` database (`0.8.32`).
+`Engine::open` never auto-migrates and continues refusing `user_version != 39`.
 
 Execution guarantees:
 
 1. Acquires `<db_path>.lock` exclusively (`exit 71` when held) and refuses
    non-empty rollback journals.
-2. Verifies integrity and strict `PRAGMA user_version == 37` (`exit 70` on `36`,
-   `38`, `39`, or corrupt inputs).
+2. Verifies integrity and dispatches on `PRAGMA user_version`: `38` runs
+   `38 -> 39`; `37` chains `37 -> 38` then `38 -> 39` (`exit 70` on `36` and
+   earlier, `39` `E_MIGRATE_ALREADY_CURRENT`, `40+`, or corrupt inputs).
 3. Fails closed (`exit 70`, `E_MIGRATE_PENDING_ERASURE`) before backup or DDL if
    any pending physical erasure closure, active/queued erasure request, root/FTS
    sanitization debt, or pending telemetry redaction row exists.
@@ -336,16 +339,20 @@ Execution guarantees:
    while admitting stores where `dangling_edge_endpoints == 0` and
    `superseded_edge_endpoints > 0`.
 5. Checkpoints WAL (`TRUNCATE`, `busy == 0`), writes a SHA-256-verified backup
-   and `.sha256` receipt into `--backup-dir` without overwriting prior backups.
-6. Applies Schema 38 DDL (`fathomdb_schema::STEP_38_SQL`) and
-   `PRAGMA user_version = 38` inside a single `BEGIN IMMEDIATE` transaction
-   (rolling back cleanly to byte-identical Schema 37 on any SQL failure).
-7. Runs post-upgrade `check-integrity --full` (`exit 0` clean, `exit 65` if
-   findings exist).
+   and `.sha256` receipt into `--backup-dir` without overwriting prior backups
+   (chained `37 -> 39` runs preserve the original pre-38 backup and report
+   `from_version: 37`, `to_version: 39`).
+6. Applies Schema 39 DDL (`fathomdb_schema::STEP_39_SQL`), offline 8-column
+   `vec0` reshape (`scope TEXT`), and `PRAGMA user_version = 39` inside a single
+   `BEGIN IMMEDIATE` transaction (running `STEP_38_SQL` first when starting from
+   Schema `37` and rolling back cleanly on any SQL failure).
+7. Verifies current-schema admission and runs post-upgrade
+   `check-integrity --full` (`exit 0` clean, `exit 65` if findings exist).
 
 Exit codes: `0` (upgraded and clean), `65` (upgraded with post-upgrade integrity
-findings), `70` (unrecoverable preflight/version/DDL refusal), `71` (lock held
-or busy WAL checkpoint).
+findings), `70` (unrecoverable preflight/version/DDL/scope-violation refusal,
+mapping `EngineError::ScopeViolation` to `"ScopeViolationError"`), `71` (lock
+held or busy WAL checkpoint).
 
 ## Exit-code classes
 

@@ -1,6 +1,7 @@
 # Concepts
 
-Mental model for the published 0.8.31 release. Detailed treatment lives in internal design
+Mental model for the **0.8.32** documentation target (pre-publish; newest
+published release: **0.8.31**). Detailed treatment lives in internal design
 docs under
 [`dev/design/`](https://github.com/fathomadb/fathomdb/tree/main/dev/design);
 this page is the consumer-facing overview.
@@ -15,10 +16,11 @@ open → write / search / admin.configure / instrumentation → close → proces
    at `path`. The handle owns the primary SQLite connection, the reader pool with
    thread-affine workers, the scheduler, the op-store, and the
    embedder pool. A missing or zero-length database is initialized at schema
-   38. A non-empty database must already
-   have schema 38; public open does not upgrade it and rejects a different
-   version with a typed incompatibility error. Committed schema 37 stores
-   upgrade offline via `fathomdb migrate --backup-dir <dir> <db_path>`.
+   **39** in `0.8.32` (`38` in `0.8.31`). A non-empty database must already
+   have the compiled schema version; public open does not upgrade it and
+   rejects a different version with a typed incompatibility error. Committed
+   Schema 37 and Schema 38 stores upgrade offline via
+   `fathomdb migrate --backup-dir <dir> <db_path>`.
 2. **Write / search / configure** — application code calls the
    governed verb surface. Writes are serialized on the primary
    connection; retrieval reads are served by the reader pool; admin
@@ -95,6 +97,27 @@ source-bound references, resolution returns the exact authorized source bytes,
 dependency trace is bounded to the registered relationship graph, and
 `graph.expand` uses explicit work limits with deterministic ordering and
 degradation codes.
+
+## Single-scope default and caller isolation (0.8.32, Schema 39)
+
+**By default a FathomDB database is single-scope / single-agent** (one agent per
+database, storing `scope = ""` under the default `ScopePolicy.unscoped()` /
+`ScopePolicy::Unscoped`). Schema **39** `scope` is the **opt-in** isolation
+layer for multi-agent or shared-store deployments (`S39-COMPOSITE` composite
+`(scope, ...)` keys and 8-column `vec0` index):
+
+- Single-agent applications do not need to pass a scope or change existing
+  `Engine.open` calls.
+- Multi-agent or shared-store applications open a handle with an explicit
+  `ScopePolicy` (`single`, `read_only` / `readOnly`, or
+  `read_write` / `readWrite`). The engine enforces read-scope visibility across
+  all retrieval, read, graph, projection, and evidence queries, restricts writes
+  to `write_scope`, binds frozen contexts (`FrozenReadContextV1`) to the
+  canonicalized policy digest, refuses unauthorized writes with
+  `ScopeViolationError` (`FDB_SCOPE_VIOLATION`), and maintains cross-scope
+  nondisclosure on missing/out-of-scope edge endpoints and evidence references.
+
+See [Config — Caller scope isolation](../reference/config.md#single-scope-default-and-scopepolicy-0832-schema-39).
 
 ## Provenance is mandatory
 
@@ -177,9 +200,9 @@ The CLI exposes three roots:
   `--complete-erasures`, `--excise-source <id>`,
   `--excise-collection`/`--excise-record-key`.
 - `fathomdb migrate --backup-dir <dir> [--json] <db_path>` — explicit offline
-  Schema 37 to Schema 38 upgrade for quiescent committed Schema 37 stores with
-  no pending erasures; writes a SHA-256-verified backup and runs post-upgrade
-  `check-integrity --full`.
+  Schema `38 -> 39` (and chained `37 -> 38 -> 39`) upgrade for quiescent
+  committed Schema 37/38 stores with no pending erasures; writes a
+  SHA-256-verified backup and runs post-upgrade `check-integrity --full`.
 
 Engine errors from the SDK carry recovery hints (notably
 `CorruptionError.recovery_hint_code`); operators dispatch on the

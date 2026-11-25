@@ -1,15 +1,15 @@
 ---
 title: CLI Public Interface
-date: 2026-11-23
-target_release: 0.8.31
-desc: Current 0.8.31 operator CLI surface
+date: 2026-11-25
+target_release: 0.8.32
+desc: Current 0.8.32 operator CLI surface
 blast_radius: src/rust/crates/fathomdb-cli/src/lib.rs; design/recovery.md; design/errors.md
 status: locked
 ---
 
 # CLI Interface
 
-Public CLI surface for the 0.8.31 operator binary. The canonical verb table and
+Public CLI surface for the 0.8.32 operator binary. The canonical verb table and
 recovery semantics are owned by `design/recovery.md`; this file owns concrete
 flag spelling, root command paths, and exit-code classes.
 
@@ -363,7 +363,7 @@ Exit class: `recover-*` = 0 / 64 / 70 / 71.
 first calling fail-closed `Engine::open`. It still requires
 `--accept-data-loss`, holds the canonical product lock, refuses a nonempty
 rollback journal and invalid database, and delegates destructive WAL recovery
-to SQLite. A malformed WAL requires schema 38 and current Fathom schema
+to SQLite. A malformed WAL requires schema 39 and current Fathom schema
 invariants in the standalone main file; a healthy or absent WAL requires the
 same in SQLite's effective view and may therefore carry current schema state
 over an older standalone main. If effective-view preflight refuses, it restores
@@ -466,6 +466,7 @@ to its class.
 | `EngineError::OpStore`                           | 70        | unrecoverable |
 | `EngineError::Overloaded`                        | 70        | unrecoverable |
 | `EngineError::Maintenance(_)` (`MaintenanceError`) | 70        | unrecoverable |
+| `EngineError::ScopeViolation{..}` (`ScopeViolationError`) | 70 | unrecoverable |
 | `EngineError::SchemaValidation`                  | 70        | unrecoverable |
 | `EngineError::WriteValidation`                   | 70        | unrecoverable |
 | `EngineError::EmbedderNotConfigured`             | 70        | unrecoverable |
@@ -554,13 +555,14 @@ or deliberate none, with no custom admission before 1.x; loader/device and
 standalone CLS behavior remain unchanged. See the
 [complete admission limits](rust.md#built-in-provider-admission-and-cached-verification).
 
-## Migrate root (`37 -> 38`, 0.8.31 Slice 50)
+## Migrate root (`38 -> 39`, plus chained `37 -> 38 -> 39`, 0.8.32 Slice 20)
 
 `fathomdb migrate --backup-dir <dir> [--json] <db_path>` is a third top-level
 operator root alongside `recover` and `doctor` (all 17 `doctor` subcommands
-remain unchanged). It upgrades a quiescent committed Schema `37` database to
-Schema `38` offline; `Engine::open` remains strictly Schema-38-only and never
-auto-migrates.
+remain unchanged). It upgrades a quiescent committed Schema `38` database to
+Schema `39` offline (`38 -> 39`), or chains `37 -> 38 -> 39` when the input
+database has committed `PRAGMA user_version == 37`; `Engine::open` remains
+strictly Schema-39-only and never auto-migrates.
 
 ### 7-step fail-closed upgrade flow
 
@@ -568,10 +570,11 @@ auto-migrates.
    `<db_path>.lock` exclusively (`exit 71` when held), refuse non-empty
    `-journal`, and verify `--backup-dir` is writable and distinct from the live
    database path.
-2. **Header, integrity & strict Schema-37 admission:** Validate header/integrity
-   and effective `PRAGMA user_version == 37`; refuse `36`, `38`
-   (`E_MIGRATE_ALREADY_CURRENT`), `39`, or corrupt files with `exit 70` before
-   backup or mutation.
+2. **Header, integrity & Schema-37/38 admission:** Validate header/integrity
+   and dispatch on effective `PRAGMA user_version`: `38` runs `migrate_38_to_39`;
+   `37` runs `migrate_37_to_38` followed immediately by `migrate_38_to_39`;
+   `36` and earlier, `39` (`E_MIGRATE_ALREADY_CURRENT`), `40+`, or corrupt
+   files are refused with `exit 70` before backup or mutation.
 3. **Fail-closed unfinished-erasure preflight:** Refuse (`exit 70`,
    `E_MIGRATE_PENDING_ERASURE`) if any pending physical erasure closure, active
    or queued `_fathomdb_erasure_requests` row, root/FTS sanitization debt, or
@@ -584,28 +587,35 @@ auto-migrates.
    `superseded_edge_endpoints > 0`.
 5. **WAL-checkpointed SHA-256-verified backup:** Run
    `PRAGMA wal_checkpoint(TRUNCATE)` (`busy == 0`, else `exit 71`), copy the
-   quiescent database into `--backup-dir/<stem>.schema37.<utc>-<pid>.sqlite`
-   using `create_new`, re-read and verify `SHA-256` equality, and write a
-   sibling `.sha256` receipt before executing any DDL.
-6. **Single-transaction Schema 38 DDL:** Execute `fathomdb_schema::STEP_38_SQL`
-   verbatim via `execute_batch` plus `PRAGMA user_version = 38` inside one
-   `BEGIN IMMEDIATE` transaction. Any failure rolls back to byte-identical
-   Schema 37 while preserving the verified backup.
-7. **Post-upgrade full integrity check:** Checkpoint WAL and execute
+   quiescent database into `--backup-dir/<stem>.schema38.<utc>-<pid>.sqlite`
+   (or `<stem>.schema37.<utc>-<pid>.sqlite` on a chained `37 -> 39` run, which
+   retains the original pre-38 backup path and receipt) using `create_new`,
+   re-read and verify `SHA-256` equality, and write a sibling `.sha256` receipt
+   before executing any DDL.
+6. **Single-transaction Schema 39 DDL (`S39-COMPOSITE` + 8-column `vec0`):**
+   Execute `fathomdb_schema::STEP_39_SQL` (`S39-COMPOSITE` composite
+   `(scope, ...)` PKs/indexes and scoped triggers) plus offline `vec0` virtual
+   table reshape (expanding to 8 columns including `scope TEXT` while preserving
+   stored dense vectors) and `PRAGMA user_version = 39` inside one
+   `BEGIN IMMEDIATE` transaction. Any failure rolls back while preserving the
+   verified backup. (Chained `37 -> 38 -> 39` runs `STEP_38_SQL` then step 39.)
+7. **Post-upgrade admission & full integrity check:** Checkpoint WAL, verify
+   current schema admission (`admit_current_database`), and execute
    `check-integrity --full` (`exit 0` clean, `exit 65` if post-upgrade findings
-   exist). Pre-upgrade rows have no `_fathomdb_commit_timestamps` entries, so
-   post-upgrade `as_of_epoch_ms` queries strictly before the first Schema-38
-   commit resolve deterministically to cursor `0`.
+   exist). Pre-38 rows have no `_fathomdb_commit_timestamps` entries, so
+   post-upgrade `as_of_epoch_ms` queries before the first post-37 commit resolve
+   deterministically to cursor `0`.
 
 ### Migrate JSON output & exit codes
 
 - Exit codes: `0` (upgraded and `check-integrity --full` clean), `65` (upgraded
-  to Schema 38 with post-upgrade integrity findings), `70` (unrecoverable
+  to Schema 39 with post-upgrade integrity findings), `70` (unrecoverable
   admission/preflight/DDL refusal), `71` (`.lock` held or busy WAL checkpoint).
 - `--json` emits one object:
   - On upgrade completion (`exit 0` or `exit 65`): `verb: "migrate"`, `status`
-    (`"ok"` or `"findings"`), `from_version: 37`, `to_version: 38`, `db_path`,
-    `backup_path`, `backup_sha256_path`, `backup_sha256`,
+    (`"ok"` or `"findings"`), `from_version: 38` (or `37` on a chained `37 -> 39`
+    run), `to_version: 39`, `db_path`, `backup_path`, `backup_sha256_path`,
+    `backup_sha256`,
     `preflight: { dangling_edge_endpoints, superseded_edge_endpoints }`,
     `integrity: { status, full: true }`, and `findings`.
   - On refusal (`exit 70` or `exit 71`): `verb: "migrate"`, `status: "error"`,

@@ -3,7 +3,7 @@
 Package: `fathomdb`. Authoritative spec:
 [`dev/interfaces/typescript.md`](https://github.com/fathomadb/fathomdb/blob/release/0.8.31/dev/interfaces/typescript.md).
 
-> **Release 0.8.31, pre-1.0 beta.**
+> **Documentation target: 0.8.32 (pre-publish, pre-1.0 beta); newest published release: 0.8.31.**
 
 The TypeScript, Python, and Rust SDKs share the governed operation surface
 and error categories. Language calling conventions differ. See
@@ -21,6 +21,8 @@ families summarized in [0.8.25 data-plane additions](#0825-data-plane-additions)
 ```ts
 import {
   Engine,
+  ScopePolicy,
+  ScopeViolationError,
   admin,
   graph,
   read,
@@ -75,8 +77,12 @@ Open or create a FathomDB database at `path`.
     weights into `~/.cache/fathomdb/embedders/`. Without an embedder, vector
     writes and `engine.embed` reject with `EmbedderNotConfiguredError`.
     See the [embedder guide](../embedder.md) for runtime policy.
-  - `engineConfig` (`EngineConfig`) — engine knobs in camelCase.
-    See [config](config.md).
+  - `engineConfig` (`EngineConfig`) — engine knobs in camelCase, including
+    optional `scopePolicy?: ScopePolicy` (defaults to `ScopePolicy.unscoped()`
+    for single-scope/single-agent databases). See [config](config.md).
+  - `scopePolicy` (`ScopePolicy`) — top-level shorthand for
+    `engineConfig.scopePolicy` (mutually exclusive with `engineConfig.scopePolicy`;
+    passing both throws `TypeError`).
 
 Rejects with a `FathomDbError` subclass on failure:
 `DatabaseLockedError`, `CorruptionError`,
@@ -848,6 +854,10 @@ G6 — FTS/vector search (G1) followed by bounded BFS expansion.
   `engine.search`).
 - `options.searchLimit` (`number`, default `10`) — maximum initial ranked
   `searchHits`, in `1..=100`; it does not change the 50-per-root expansion cap.
+- `options.view` (`ReadView | undefined`) — optional validity/lifecycle
+  `ReadView` applied to both search and expansion (`engine.searchExpandFrozen`
+  accepts `{ searchLimit }` only and uses the view bound in
+  `FrozenReadContextV1`).
 
 Returns a `SearchExpandResult`. Nodes appearing in both the search hit set and
 the traversal reach appear **only** in `searchHits` (deduplication: search score
@@ -874,8 +884,10 @@ interface SearchExpandResult {
 
 ## Errors
 
-`fathomdb` exports `FathomDbError` (the catch-all base) plus **46**
-concrete classes below it. See [errors reference](errors.md).
+`fathomdb` exports `FathomDbError` (the catch-all base) plus **47**
+concrete leaf classes below it (`48` shared error classes total), including
+`ScopeViolationError` (`code = "FDB_SCOPE_VIOLATION"`). See
+[errors reference](errors.md).
 
 The lifecycle / erasure verbs reject with `IllegalTransitionError`,
 `NotLifecycleAddressableError`, `ErasureIncompleteError` and
@@ -953,6 +965,27 @@ body-byte coordinates, including role tags.
   `rerankerCompiled: boolean`, `cudaCompiled: boolean`, and
   `rerankAvailable: boolean` with zero network I/O and zero GPU allocation
   during `Engine.open`.
+
+## Caller scope isolation (0.8.32, Schema 39)
+
+By default a FathomDB database is **single-scope / single-agent** (`scope = ""`,
+`ScopePolicy.unscoped()`). Multi-agent or shared-store deployments opt into
+engine-enforced isolation via `ScopePolicy`:
+
+- `ScopePolicy.unscoped()` — `{ mode: "unscoped" }`, single-scope default.
+- `ScopePolicy.single(scope: string)` — read and write one scope token.
+- `ScopePolicy.readOnly(readScopes: readonly string[])` — read-only across
+  `1..=32` scopes (any write, mutation, or admin verb rejects with
+  `ScopeViolationError`, `code = "FDB_SCOPE_VIOLATION"`).
+- `ScopePolicy.readWrite(readScopes: readonly string[], writeScope: string)` —
+  read `readScopes`, write `writeScope` (must appear in `readScopes`).
+
+Pass via `EngineOpenOptions.engineConfig.scopePolicy` or top-level
+`EngineOpenOptions.scopePolicy` (never both). `FrozenReadContextV1` binds the
+handle's policy digest (cross-policy reuse rejects with `FrozenReadError`);
+cross-scope edge endpoints reject with `WriteValidationError` and cross-scope
+evidence tokens reject with `EvidenceError` (`"evidence_unavailable"`) per D-01
+nondisclosure.
 
 ## See also
 

@@ -9,7 +9,7 @@ embedder can download its weights. Retrieval runs in your own process.
 
 ## Status: pre-1.0, beta
 
-The 0.8.x line is under active development (published release: 0.8.31). The public surface can change between minor releases,
+The 0.8.x line is under active development (documentation target: 0.8.32, pre-publish; newest published release: 0.8.31). The public surface can change between minor releases,
 and scale/stability guarantees are staged for 0.9.x and later.
 
 ## Install
@@ -86,6 +86,9 @@ Every write field accepts both the camelCase and the snake_case spelling.
 - **Record lifecycle** — `engine.transition`, `engine.purge`, `engine.eraseSource`.
 - **Projections** — `engine.configureProjections`, declaring which fields are filterable,
   searchable or rankable; the engine owns every derived index.
+- **Caller scope isolation (0.8.32, Schema 39)** — single-scope / single-agent default
+  (`ScopePolicy.unscoped()`), with opt-in `ScopePolicy.single` / `readOnly` / `readWrite` for
+  multi-agent or shared stores (`ScopeViolationError` / `FDB_SCOPE_VIOLATION` on write refusal).
 - **Typed errors** — a leaf-class hierarchy under `FathomDbError`, so you can branch on
   `InvalidFilterError` or `IllegalTransitionError` instead of matching on message strings.
 

@@ -64,4 +64,4 @@ The printed timings include tracing and are descriptive on the shared host;
 no latency threshold or performance benefit is inferred. The test asserts fixed
 status work, one full capture statement, no aggregate physical-vector access,
 and one transferred row per mapped head. Source:
-[stored_coverage_tests.rs](../../../src/rust/crates/fathomdb-engine/src/stored_coverage_tests.rs).
+[stored_coverage_tests.rs](../../../src/rust/crates/fathomdb-engine/src/unit_tests/stored_coverage_tests.rs).

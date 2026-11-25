@@ -95,7 +95,7 @@ platform proof. Erasure remains lower-priority, defects-only regression.
   renewal. Assert provider-only retention on drain expiry and reuse after
   release. Fixture watchdogs bound tests. The production 30-second budget
   applies after quiescence. [Runtime ADR](../../../../adr/ADR-0.8.27-engine-owned-runtime-topology.md),
-  [close observer tests](../../../../../src/rust/crates/fathomdb-engine/src/slice90_close_review_tests.rs).
+  [close observer tests](../../../../../src/rust/crates/fathomdb-engine/src/unit_tests/slice90_close_review_tests.rs).
 - For B30-01, inventory actual consumers of the
   [PyO3 CLS](../../../../../src/rust/crates/fathomdb-py/src/embedding.rs),
   [NAPI CLS](../../../../../src/rust/crates/fathomdb-napi/src/embedding.rs) and

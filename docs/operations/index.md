@@ -1,6 +1,19 @@
 # Operations
 
-Operations docs cover the published 0.8.31 release.
+Operations docs cover the **0.8.32** documentation target (pre-publish; newest
+published release: **0.8.31**).
+
+## Single-scope default and multi-agent isolation (0.8.32, Schema 39)
+
+**By default a FathomDB database is single-scope / single-agent** (one agent per
+database, storing `scope = ""` under the default `ScopePolicy.unscoped()` /
+`ScopePolicy::Unscoped`). Schema **39** `scope` is the **opt-in** isolation
+layer for multi-agent or shared-store deployments (`ScopePolicy.single`,
+`read_only` / `readOnly`, or `read_write` / `readWrite`). Because FathomDB
+retains one-Engine-per-file exclusive locking (`<db-name>.sqlite.lock`), a
+shared-store process shares its open handle across callers or opens sequential
+scoped handles per phase, while single-agent deployments can run without
+configuring `ScopePolicy`.
 
 - [Tegra Pages publication](tegra-pages-publication.md) — the separately
   authorized, exact-commit route for the matching Tegra wheel and Node addon.
@@ -32,12 +45,14 @@ and `doctor data-plane-integrity` inspect different layers; neither repairs a
 store. Ordinary-open doctor commands may bootstrap a missing path or start
 workers, while data-plane integrity uses the immutable inspection route.
 
-0.8.31 tests selected CPU process-kill/SIGKILL, WAL, checkpoint, persistent
-SQLite-full/provider-fault and reopen/recovery cases. They do not prove behavior
-under torn/reordered device writes, sudden power loss, or a general hardware
-fault model. Broad coverage-guided fuzzing and power-loss proof are 0.8.32
-backlog, rather than 0.8.31 coverage claims. SDK/query admission has bounded
-Proptest coverage; no general FFI, MC/DC or numerical line-coverage claim follows.
+Published `0.8.31` tests cover selected CPU process-kill/SIGKILL, WAL,
+checkpoint, persistent SQLite-full/provider-fault, and reopen/recovery cases.
+They do not prove behavior under torn/reordered device writes, sudden power
+loss, or a general hardware fault model; expanded power-loss proof and
+coverage-guided fuzzing remain staged within the `0.8.32` release program
+rather than already-published `0.8.31` coverage claims. SDK/query admission has
+bounded Proptest coverage; no general FFI, MC/DC or numerical line-coverage
+claim follows.
 
 See also [Reference — CLI](../reference/cli.md) for the full `doctor` /
 `recover` / `migrate` verb tables, and

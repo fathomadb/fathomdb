@@ -1,8 +1,8 @@
 ---
 title: Python Public Interface
-date: 2026-11-23
-target_release: 0.8.31
-desc: Public Python surface for 0.8.31
+date: 2026-11-25
+target_release: 0.8.32
+desc: Public Python surface for 0.8.32
 blast_radius: src/python/; design/bindings.md; design/errors.md; design/lifecycle.md; design/engine.md
 status: locked
 ---
@@ -17,11 +17,12 @@ translation rules are in [`rust-sdk.md`](rust-sdk.md).
 
 ## Fresh-database open boundary
 
-`Engine.open` bootstraps a missing or zero-length path at schema 38. A
+`Engine.open` bootstraps a missing or zero-length path at schema 39. A
 non-empty database is admitted only when its effective committed
-`PRAGMA user_version` is exactly 38; any other version raises
+`PRAGMA user_version` is exactly 39; any other version raises
 `IncompatibleSchemaVersionError` before product mutation. Python exposes no
-automatic-upgrade or custom-migration route.
+automatic-upgrade or custom-migration route (upgrade Schema 37/38 stores offline
+with `fathomdb migrate`).
 
 On Windows, `Engine.open` refuses a path component ending in a dot or space
 before database creation because SQLite may resolve it to a different file.
@@ -154,6 +155,9 @@ engine-owned knobs from `design/engine.md` in snake_case:
 - `cuda_pool` (`"auto"`, `"on"`, `"off"`), `cuda_pool_max_size` (bytes, at
   least 32 MiB) and `cuda_pool_release_threshold` (`"0"`, `"max"`): the GPU
   memory pool settings (0.8.28 Slice 31; § Tegra private CUDA memory pool)
+- `scope_policy`: optional `ScopePolicy` (`None` defaults to
+  `ScopePolicy.unscoped()` for single-scope/single-agent databases; 0.8.32
+  Slice 20)
 
 The keyword form and `EngineConfig` object form are equivalent. Python
 executor usage remains caller-owned and is not an engine config field.
@@ -983,7 +987,9 @@ The 0.8.25 additions are `RuntimeConfigurationError`,
 `EvidenceError`, `DependencyTraceError`, and `GraphExpansionError`. Their
 request-facing payloads use stable `reason` and `field_path` attributes except
 for runtime configuration, which exposes its requested/effective modes and
-optional SQLite code.
+optional SQLite code. In 0.8.32, `ScopeViolationError` is added (`47` concrete
+leaf classes under `EngineError`; `48` shared error classes total including the
+base class).
 
 Payload fields remain typed attributes; callers do not dispatch on message
 text. ⚠ `WriteValidationError` is **message-less** since decision #18 — its
@@ -1197,7 +1203,9 @@ hits are text branch with no soft fallback or explanation.
 
 `engine.search`, `engine.search_text_only`, and `engine.search_projected_text` each expose a
 keyword-only `limit=10`. `graph.search_expand` exposes keyword-only `search_limit=10` for its
-initial ranked `search_hits`. Every value must be an integer in `1..=100`; zero, negatives, and
+initial ranked `search_hits` and trailing keyword-only `view: ReadView | None = None` for
+ordinary search-plus-expansion (`engine.search_expand_frozen` takes its `ReadView` from
+`FrozenReadContextV1`). Every limit value must be an integer in `1..=100`; zero, negatives, and
 values above 100 raise `InvalidArgumentError` rather than silently clamping. `graph.neighbors`
 remains a separately bounded traversal API with its existing 50-result cap.
 
@@ -1857,3 +1865,41 @@ members), opt-in agent search hints across `search`, `search_frozen`, and
   and `OpenReport.rerank_available: bool` (local readiness verified without
   network I/O or CUDA context creation). `_map_open_report` enforces strict
   `bool` values with no silent fallback on missing attributes.
+
+## Caller scope isolation and Schema 39 (0.8.32 Slice 20)
+
+- **Default single-scope / single-agent posture:** By default, a FathomDB
+  database is single-scope / single-agent (`ScopePolicy.unscoped()`, storing
+  `scope = ""`). Multi-agent or shared-store deployments opt into
+  engine-enforced isolation by passing `ScopePolicy` at open time.
+- **`ScopePolicy` (`fathomdb.ScopePolicy` / `fathomdb.config.ScopePolicy`):**
+  Frozen dataclass `@dataclass(frozen=True) class ScopePolicy(read_scopes:
+  tuple[str, ...] = (), write_scope: str | None = None, scoped: bool = False)`
+  with property `is_unscoped -> bool` and classmethods:
+  - `ScopePolicy.unscoped()`
+  - `ScopePolicy.single(scope: str)`
+  - `ScopePolicy.read_only(read_scopes: Sequence[str] | Iterable[str])`
+  - `ScopePolicy.read_write(read_scopes: Sequence[str] | Iterable[str], write_scope: str)`
+  Passed via `EngineConfig(scope_policy=...)` or
+  `Engine.open(path, scope_policy=...)` (`None` selects the single-scope
+  default; passing both `config=` and keyword `scope_policy=` raises `TypeError`
+  per the `EngineConfig` exclusivity rule). Native validation enforces `1..=32`
+  read scopes, non-empty UTF-8 tokens `<= 128` bytes, no ASCII
+  control/`NUL`/`\x1e`, no leading/trailing whitespace, no wildcard `"*"`, and
+  `write_scope in read_scopes`, raising `InvalidArgumentError` (or `TypeError` /
+  `ValueError` on malformed host objects before open).
+- **`ScopeViolationError` & D-01 nondisclosure:** Added beneath `EngineError`
+  (`47` concrete leaf classes; `48` total shared classes). Read-only handles
+  calling write/mutation/admin verbs raise `ScopeViolationError`. Cross-scope
+  probes on edge endpoints raise `WriteValidationError` (or actuation
+  `reference_unavailable`) and out-of-scope evidence tokens raise
+  `EvidenceError("evidence_unavailable")`, matching missing-row nondisclosure.
+- **`graph.search_expand` `view`:** `graph.search_expand(engine, query, depth,
+  *, source_type=None, kind=None, created_after=None, status=None,
+  search_limit=10, view=None) -> SearchExpandResult` accepts optional trailing
+  `view: ReadView | None = None` (`engine.search_expand_frozen` keeps its view
+  inside `FrozenReadContextV1`).
+- **Frozen context & Schema 39:** `FrozenReadContextV1` authenticates and binds
+  the handle's canonicalized `ScopePolicy` digest (cross-policy reuse raises
+  `FrozenReadError`). `Engine.open` requires committed Schema `39`; offline
+  upgrade from `37` or `38` stays CLI-only (`fathomdb migrate`).

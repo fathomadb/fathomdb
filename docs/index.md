@@ -4,11 +4,13 @@ FathomDB is a local-first retrieval and graph-oriented data system
 designed for application and agent workloads. This site is the public
 documentation source for users, operators, and SDK consumers.
 
-> **Release 0.8.31, pre-1.0 beta.** The surface may change between micro
-> releases. The release provides Python, TypeScript, and Rust application SDKs,
-> plus a separate operator CLI (`fathomdb-cli`) and FathomDB Inspector `0.3.0`.
-> Version 0.8.31 is published on crates.io, PyPI (`fathomdb` and `fathomdb-cli`),
-> npm, and GitHub Releases, with its matching Tegra CUDA wheel and Node addon on
+> **Documentation target: 0.8.32 (pre-publish, pre-1.0 beta); newest published release: 0.8.31.**
+> The surface may change between micro releases. `0.8.32` documents Schema
+> **39**, opt-in `ScopePolicy` caller isolation with a single-scope /
+> single-agent default, and offline `38 -> 39` / chained `37 -> 39` migration.
+> Version **0.8.31** is the newest published release on crates.io, PyPI
+> (`fathomdb` and `fathomdb-cli`), npm, and GitHub Releases (with FathomDB
+> Inspector `0.3.0`), plus its matching Tegra CUDA wheel and Node addon on
 > first-party GitHub Pages. See [Install](install/python.md) and the
 > [CHANGELOG](https://github.com/fathomadb/fathomdb/blob/release/0.8.31/CHANGELOG.md).
 

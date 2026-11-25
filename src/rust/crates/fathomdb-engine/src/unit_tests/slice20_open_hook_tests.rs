@@ -1,5 +1,5 @@
-use super::reader_pool::READER_POOL_SIZE;
-use super::{
+use crate::reader_pool::READER_POOL_SIZE;
+use crate::{
     acquire_lock_without_metadata_mutation, install_post_probe_startup_fault_for_test,
     install_post_probe_visibility_fault_for_test, Engine, EngineConfig, EngineOpenError,
     InitialState, PreparedWrite, ReadView, SourceId, TestEmbedderChoice,
@@ -97,7 +97,7 @@ impl Embedder for FixedProvider {
 #[test]
 fn startup_fault_matches_canonical_database_alias() {
     isolated_case(
-        "slice20_open_hook_tests::startup_fault_matches_canonical_database_alias",
+        "unit_tests::slice20_open_hook_tests::startup_fault_matches_canonical_database_alias",
         startup_fault_alias_body,
     );
 }
@@ -212,7 +212,7 @@ fn exact_record(engine: &Engine, id: &str, body: &str) {
 #[test]
 fn visibility_fault_matches_canonical_database_alias() {
     isolated_case(
-        "slice20_open_hook_tests::visibility_fault_matches_canonical_database_alias",
+        "unit_tests::slice20_open_hook_tests::visibility_fault_matches_canonical_database_alias",
         visibility_fault_alias_body,
     );
 }

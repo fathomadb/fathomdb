@@ -1,6 +1,6 @@
-use super::*;
 use crate::fusion::RecordKey;
 use crate::stored_coverage::StoredHeadCoverageUnavailableReason as Reason;
+use crate::*;
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use proptest::test_runner::{Config, RngSeed, TestRunner};
 use rusqlite::hooks::{AuthAction, AuthContext, Authorization, TransactionOperation};

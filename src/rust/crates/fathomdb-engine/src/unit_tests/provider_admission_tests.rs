@@ -1,4 +1,4 @@
-use super::*;
+use crate::*;
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use rusqlite::hooks::{AuthAction, AuthContext, Authorization};
 use std::sync::Arc;

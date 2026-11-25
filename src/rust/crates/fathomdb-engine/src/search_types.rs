@@ -103,6 +103,12 @@ impl GraphArmSeedSource {
     }
 }
 
+#[derive(Clone, Debug)]
+pub(crate) enum CapturedGraphOrigin {
+    EdgeSeed { edge_cursor: u64 },
+    Traversal { edge_cursor: u64, hop_count: u32, seed_source: GraphArmSeedSource },
+}
+
 /// Opt-in graph-arm seeding and edge-traversal controls for hybrid/frozen/evidence search.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]

@@ -50,7 +50,10 @@ reported physical_metrics::slice84_tests
 reported physical_reader_admission
 reported physical_erasure::tests
 admitted errors
-reported evidence
+governed evidence
+governed evidence::codec
+governed evidence::graph
+governed evidence::ranked
 reported evidence::tests
 reported export_manifest
 governed filter
@@ -115,18 +118,28 @@ reported runtime_configuration
 reported runtime_configuration::tests
 reported runtime_lifecycle
 governed search
+governed search::bm25f
+governed search::fts_fast_path
+governed search::fusion_stage
+governed search::graph_arm
+governed search::projected_text
+governed search::vector_arm
 reported search::paired50_tests
 reported search::historical_property_lifecycle_tests
 reported search::ranking_tests
 governed search_api
 governed search_types
-reported slice20_fix1_tests
-reported slice20_open_hook_tests
-reported slice90_close_review_tests
-reported slice90_close_tests
-reported slice90_concurrent_close_tests
-reported provider_admission_tests
-reported slice90_post_probe_real_error_tests
+reported unit_tests
+reported unit_tests::provider_admission_tests
+reported unit_tests::slice20_fix1_tests
+reported unit_tests::slice20_open_hook_tests
+reported unit_tests::slice90_close_review_tests
+reported unit_tests::slice90_close_tests
+reported unit_tests::slice90_concurrent_close_tests
+reported unit_tests::slice90_post_probe_real_error_tests
+reported unit_tests::stored_coverage_tests
+reported unit_tests::visibility_admission_tests
+reported unit_tests::visibility_coalescing_tests
 governed snippet
 governed snippet_query
 governed structural_state
@@ -145,12 +158,9 @@ reported test_hooks::slice15_erasure_lock_hook
 reported test_hooks::slice72_test_hooks
 reported vector_equivalence
 reported stored_coverage
-reported stored_coverage_tests
 reported vector_spans
 reported vector_storage
 reported vector_storage::tests
-reported visibility_admission_tests
-reported visibility_coalescing_tests
 governed wal_attribution
 reported wal_runtime
 reported write
@@ -252,6 +262,7 @@ forbid-cycle read reader_pool
 forbid-cycle graph_expand reader_pool
 forbid-cycle graph_expand search_api
 forbid-cycle search reader_pool
+admit-type errors EngineError::Evidence evidence EvidenceErrorV1
 admit-type errors EngineError::GraphExpansion graph_expand::types GraphExpansionErrorV1
 local-macro identity caller_identity_newtype 7294cc907f93c51b
 unparsed-macro actuation::tests <module> proptest ddd003ceb259de46
@@ -262,7 +273,7 @@ unparsed-macro frozen_read::tests <module> proptest 8077e5a8a7846daf
 unparsed-macro pagination::tests <module> proptest b18a9c1d1a2ce7f9
 unparsed-macro properties::tests <module> proptest 717aea22ff638526
 unparsed-macro root::tests <module> proptest 63b596e64e50b5bf
-unparsed-macro visibility_coalescing_tests <module> proptest::proptest e248e1679fc0f020
+unparsed-macro unit_tests::visibility_coalescing_tests <module> proptest::proptest e248e1679fc0f020
 
 reported slice30_observer
 reported slice30_observer::transport_tests

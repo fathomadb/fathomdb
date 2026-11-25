@@ -1725,7 +1725,15 @@ pub(crate) fn read_graph_expand_with_stop_words_in_tx(
                     target_index: u32::try_from(index).map_err(|_| EngineError::Storage)?,
                     target_cursor: candidate.target.write_cursor,
                     terminal_edge_cursor: candidate.terminal_edge_cursor,
-                    direction: candidate.target.origin.terminal_direction,
+                    direction: match candidate.target.origin.terminal_direction {
+                        TraversalDirection::Outgoing => {
+                            crate::evidence::GraphEvidenceDirection::Outgoing
+                        }
+                        TraversalDirection::Incoming => {
+                            crate::evidence::GraphEvidenceDirection::Incoming
+                        }
+                        TraversalDirection::Both => crate::evidence::GraphEvidenceDirection::Both,
+                    },
                     target_logical_id: &candidate.target.logical_id,
                     predecessor_logical_id: &candidate.target.origin.predecessor_logical_id,
                     terminal_edge_kind: &candidate.target.origin.terminal_edge_kind,

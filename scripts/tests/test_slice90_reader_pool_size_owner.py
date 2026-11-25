@@ -14,7 +14,7 @@ FAMILY = re.compile(r"^[ \t]*(?:pub(?:\([^)]*\))?[ \t]+)?const[ \t]+(READER_POOL
 CALLERS = (
     ("open.rs", "use crate::reader_pool::READER_POOL_SIZE;"),
     ("wal_runtime.rs", "use crate::reader_pool::READER_POOL_SIZE;"),
-    ("slice90_close_review_tests.rs", "use super::reader_pool::READER_POOL_SIZE;"),
+    ("unit_tests/slice90_close_review_tests.rs", "use crate::reader_pool::READER_POOL_SIZE;"),
 )
 
 

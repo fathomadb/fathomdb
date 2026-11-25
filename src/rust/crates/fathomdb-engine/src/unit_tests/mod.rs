@@ -1,0 +1,10 @@
+mod provider_admission_tests;
+mod slice20_fix1_tests;
+mod slice20_open_hook_tests;
+mod slice90_close_review_tests;
+mod slice90_close_tests;
+mod slice90_concurrent_close_tests;
+mod slice90_post_probe_real_error_tests;
+mod stored_coverage_tests;
+mod visibility_admission_tests;
+mod visibility_coalescing_tests;

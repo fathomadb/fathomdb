@@ -113,8 +113,6 @@ pub use projection_registry::{
     ProjectionVector,
 };
 mod stored_coverage;
-#[cfg(test)]
-mod stored_coverage_tests;
 pub use stored_coverage::{
     StoredHeadCoverageCounts, StoredHeadCoverageFraction, StoredHeadCoverageProfile,
     StoredHeadCoverageUnavailableReason, StoredHeadCoverageV1,
@@ -200,10 +198,10 @@ pub use data_plane_integrity::{
 };
 pub(crate) use dependency::{
     apply_validated_source_dependency, canonical_dependency_generation, load_dependency_generation,
-    load_persisted_canonical_source, reserve_dependency_generation, store_dependency_generation,
+    reserve_dependency_generation, store_dependency_generation,
     stored_artifact_revision_id_is_valid, stored_source_id_is_valid, validate_dependency_chain,
-    validate_persisted_dependency_row, validate_source_dependency_registration,
-    DependencyProspectiveState, DependencyValidationMode, ValidatedSourceDependencyRegistration,
+    validate_source_dependency_registration, DependencyProspectiveState, DependencyValidationMode,
+    ValidatedSourceDependencyRegistration,
 };
 pub use dependency::{
     DependencyDerivedLookupV1, DependencyError, DependencyErrorReason, DependencyListV1,
@@ -257,9 +255,7 @@ pub use fathomdb_embedder::{
 pub use fathomdb_query::{
     QueryStopWords, StopWordBase, StopWordRejection, DEFAULT_STOP_WORDS_SHA256,
 };
-pub(crate) use filter::{
-    append_node_eligibility_sql, edge_fts_hit_passes_filter, text_hit_passes_filter,
-};
+pub(crate) use filter::edge_fts_hit_passes_filter;
 pub use filter::{ComparisonOp, Filter, FilterTerm, Predicate, ScalarValue, SearchFilter};
 #[cfg(feature = "test-hooks")]
 #[doc(hidden)]
@@ -338,17 +334,20 @@ pub use projection_generation::{
     ProjectionGenerationStatusV1, ProjectionReadinessV1, ProjectionRuntimeStateV1,
 };
 use projection_registry::{
-    boot_graft_declared_vector_backfill, erase_row_projections,
-    extract_scalar_attribute_with_properties, load_projection_registry, project_node_attributes,
-    purge_row_projections_for_cursor_in, reconcile_inert_vector_enrolments_on_boot,
-    rederive_projections_on_boot, reenqueue_stranded_vector_rows, register_vector_kind,
-    truncate_row_projections_in, unsupported_vector_kinds,
-    validate_nested_projection_sources_for_body, validate_nested_projection_sources_for_write,
-    vector_attr_insert_fragments, vector_projection_declared, ProjectionClass, ProjectionPass,
-    StoredProjection, ROW_OWNED_PROJECTIONS,
+    boot_graft_declared_vector_backfill, erase_row_projections, load_projection_registry,
+    project_node_attributes, purge_row_projections_for_cursor_in,
+    reconcile_inert_vector_enrolments_on_boot, rederive_projections_on_boot,
+    reenqueue_stranded_vector_rows, register_vector_kind, truncate_row_projections_in,
+    unsupported_vector_kinds, validate_nested_projection_sources_for_body,
+    validate_nested_projection_sources_for_write, vector_attr_insert_fragments,
+    vector_projection_declared, ProjectionClass, ProjectionPass, StoredProjection,
+    ROW_OWNED_PROJECTIONS,
 };
 #[cfg(feature = "operator")]
-use projection_registry::{load_projection_registry_row, truncate_all_row_projections};
+use projection_registry::{
+    extract_scalar_attribute_with_properties, load_projection_registry_row,
+    truncate_all_row_projections,
+};
 #[cfg(test)]
 use projection_runtime::ProjectionRuntimeStartupFaultForTest;
 use projection_runtime::{
@@ -391,11 +390,11 @@ pub use runtime_configuration::{
 use runtime_configuration::{
     configure_runtime_for_open, effective_runtime_configuration, ResolvedRuntimeConfiguration,
 };
+pub(crate) use search::prepare_search_statement;
 #[cfg(test)]
 pub(crate) use search::retain_complete_rank_boundary_candidates;
 #[cfg(feature = "test-hooks")]
 pub(crate) use search::{append_json_witness_for_test, record_slice71_profile_statement_for_test};
-pub(crate) use search::{prepare_search_statement, CapturedGraphOrigin};
 #[cfg(feature = "test-hooks")]
 #[doc(hidden)]
 pub use search_types::vector_fusion_pool_for_test;
@@ -889,25 +888,7 @@ impl Engine {
 }
 
 #[cfg(test)]
-mod provider_admission_tests;
-
-#[cfg(test)]
-mod slice20_fix1_tests;
-
-#[cfg(test)]
-mod slice20_open_hook_tests;
-
-#[cfg(test)]
-mod slice90_close_tests;
-
-#[cfg(test)]
-mod slice90_concurrent_close_tests;
-
-#[cfg(test)]
-mod slice90_close_review_tests;
-
-#[cfg(test)]
-mod slice90_post_probe_real_error_tests;
+mod unit_tests;
 
 #[cfg(test)]
 mod tests {
@@ -4109,9 +4090,3 @@ mod tests {
         }
     }
 }
-
-#[cfg(test)]
-mod visibility_coalescing_tests;
-
-#[cfg(test)]
-mod visibility_admission_tests;

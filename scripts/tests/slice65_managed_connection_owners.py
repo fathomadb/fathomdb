@@ -78,10 +78,12 @@ def source_inventory(src: Path, overrides: dict[str, Path] | None = None) -> dic
     overrides = overrides or {}
     root = overrides.get("lib.rs", src / "lib.rs").read_text()
     test_modules = set(re.findall(r"#\[cfg\(test\)\]\s*\nmod\s+(\w+);", root))
+    excluded = {f"{name}.rs" for name in test_modules}
     return {
-        path.relative_to(src).as_posix(): production(overrides.get(path.relative_to(src).as_posix(), path).read_text())
+        rel: production(overrides.get(rel, path).read_text())
         for path in sorted(src.rglob("*.rs"))
-        if path.relative_to(src).as_posix() not in {f"{name}.rs" for name in test_modules}
+        if (rel := path.relative_to(src).as_posix()) not in excluded
+        and not ("unit_tests" in test_modules and rel.startswith("unit_tests/"))
     }
 
 

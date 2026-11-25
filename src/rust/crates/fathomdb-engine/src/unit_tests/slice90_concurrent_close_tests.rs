@@ -1,4 +1,4 @@
-use super::{Engine, EngineConfig, EngineError, TestEmbedderChoice};
+use crate::{Engine, EngineConfig, EngineError, TestEmbedderChoice};
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use std::sync::{mpsc, Arc, Mutex};
 use std::time::{Duration, Instant};

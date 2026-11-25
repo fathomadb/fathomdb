@@ -1,5 +1,5 @@
-use super::reader_pool::READER_POOL_SIZE;
-use super::{
+use crate::reader_pool::READER_POOL_SIZE;
+use crate::{
     acquire_lock_without_metadata_mutation, install_post_probe_startup_fault_for_test, Engine,
     EngineConfig, EngineError, EngineOpenError, TestEmbedderChoice,
 };

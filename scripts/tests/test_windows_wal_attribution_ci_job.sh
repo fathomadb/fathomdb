@@ -8,7 +8,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 CI="${CI_YML:-$REPO_ROOT/.github/workflows/ci.yml}"
 SOURCE_TEST="${SOURCE_TEST:-$REPO_ROOT/src/rust/crates/fathomdb-engine/tests/erasure_completeness.rs}"
 ENGINE_SOURCE="${ENGINE_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs}"
-SLICE20_FIX1_SOURCE="${SLICE20_FIX1_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/slice20_fix1_tests.rs}"
+SLICE20_FIX1_SOURCE="${SLICE20_FIX1_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/unit_tests/slice20_fix1_tests.rs}"
 WAL_RUNTIME_SOURCE="${WAL_RUNTIME_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/wal_runtime.rs}"
 CONNECTION_SOURCE="${CONNECTION_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/connection_runtime.rs}"
 OPEN_SOURCE="${OPEN_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/open.rs}"
@@ -781,7 +781,7 @@ check_managed_owners() {
   if managed_owner_out="$(python3 "$SCRIPT_DIR/slice65_managed_connection_owners.py" \
     "$REPO_ROOT/src/rust/crates/fathomdb-engine/src" \
     --override "lib.rs=$ENGINE_SOURCE" \
-    --override "slice20_fix1_tests.rs=$SLICE20_FIX1_SOURCE" \
+    --override "unit_tests/slice20_fix1_tests.rs=$SLICE20_FIX1_SOURCE" \
     --override "wal_runtime.rs=$WAL_RUNTIME_SOURCE" \
     --override "connection_runtime.rs=$CONNECTION_SOURCE" \
     --override "open.rs=$OPEN_SOURCE" \
@@ -1129,9 +1129,9 @@ import sys
 
 source, output, test_source, test_output = map(Path, sys.argv[1:])
 text = source.read_text()
-original = "#[cfg(test)]\nmod slice20_fix1_tests;"
+original = "#[cfg(test)]\nmod unit_tests;"
 assert text.count(original) == 1
-output.write_text(text.replace(original, "mod slice20_fix1_tests;", 1))
+output.write_text(text.replace(original, "mod unit_tests;", 1))
 test_text = test_source.read_text()
 assert "#[test]" in test_text
 test_output.write_text(test_text.replace("#[test]", ""))
@@ -1142,7 +1142,7 @@ PY
   set -e
   if [ "$ungated_test_module_rc" -ne 0 ] \
     && grep -Fq 'direct SQLite open outside sole audited factory' <<<"$ungated_test_module_out" \
-    && grep -Fq 'slice20_fix1_tests.rs' <<<"$ungated_test_module_out"; then
+    && grep -Fq 'unit_tests/slice20_fix1_tests.rs' <<<"$ungated_test_module_out"; then
     pass "mutation rejects external test openers after module and function test gates are removed"
   else
     fail "mutation missed an ungated external test module: $ungated_test_module_out"

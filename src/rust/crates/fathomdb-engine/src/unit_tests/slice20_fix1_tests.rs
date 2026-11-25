@@ -1,4 +1,4 @@
-use super::{
+use crate::{
     apply_validated_source_dependency, load_dependency_generation, reserve_dependency_generation,
     store_dependency_generation, validate_source_dependency_registration, ArtifactRevisionId,
     CanonicalHash, DependencyProspectiveState, InitialState, PreparedWrite, ProvenancedNodeV1,

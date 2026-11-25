@@ -1,4 +1,4 @@
-use super::{
+use crate::{
     acquire_lock_without_metadata_mutation, install_post_probe_visibility_fault_for_test, Engine,
     EngineConfig, EngineOpenError, TestEmbedderChoice, VectorVerificationFailure,
 };

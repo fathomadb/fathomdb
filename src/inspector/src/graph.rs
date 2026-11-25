@@ -253,18 +253,19 @@ impl Reader {
     }
     fn historical_node_at(
         c: &crate::session::ReadConnection,
+        scope: &str,
         logical_id: &str,
         cursor_sql: i64,
     ) -> Result<Option<Locator>, &'static str> {
         let row: Option<(i64, i64)> = c
             .query_row(
                 "SELECT rowid,write_cursor FROM canonical_nodes \
-                 WHERE logical_id=?1 AND superseded_at IS NULL AND write_cursor<=?2 \
+                 WHERE scope=?1 AND logical_id=?2 AND superseded_at IS NULL AND write_cursor<=?3 \
                  UNION ALL \
                  SELECT rowid,write_cursor FROM canonical_nodes \
-                 WHERE logical_id=?1 AND superseded_at IS NOT NULL AND superseded_at>?2 AND write_cursor<=?2 \
+                 WHERE scope=?1 AND logical_id=?2 AND superseded_at IS NOT NULL AND superseded_at>?3 AND write_cursor<=?3 \
                  ORDER BY write_cursor DESC LIMIT 1",
-                params![logical_id, cursor_sql],
+                params![scope, logical_id, cursor_sql],
                 |r| Ok((r.get(0)?, r.get(1)?)),
             )
             .optional()
@@ -331,6 +332,7 @@ impl Reader {
         if !self.session.policy.permits(policy) {
             return Err("refused");
         }
+        let scope = Self::graph_text(&c, &root, "scope")?.unwrap_or_default();
         let mut expansions = BTreeSet::new();
         let mut expansion_locations = BTreeMap::new();
         for h in expanded {
@@ -359,7 +361,7 @@ impl Reader {
             let cursor_sql = as_of_sql_i64(cursor);
             if root.class == Class::Node {
                 if let Some(id) = Self::graph_text(&c, &root, "logical_id")? {
-                    if let Some(hist) = Self::historical_node_at(&c, &id, cursor_sql)? {
+                    if let Some(hist) = Self::historical_node_at(&c, &scope, &id, cursor_sql)? {
                         if let Some(mut record) = self.graph_record(&c, &hist, &mut budget)? {
                             if hist.rowid == root.rowid && hist.cursor == root.cursor {
                                 record["handle"] = json!(handle);
@@ -403,7 +405,7 @@ impl Reader {
                 }
             }
             for (_, (locator, owner_handle, id)) in expansion_locations {
-                let Some(hist) = Self::historical_node_at(&c, &id, cursor_sql)? else {
+                let Some(hist) = Self::historical_node_at(&c, &scope, &id, cursor_sql)? else {
                     continue;
                 };
                 let hk = key(&hist);
@@ -477,21 +479,27 @@ impl Reader {
                 if let Some(cursor) = resolved_cursor {
                     let cursor_sql = as_of_sql_i64(cursor);
                     let (active_idx, sup_idx) = if column == "from_id" {
-                        ("canonical_edges_from_active_idx", "canonical_edges_from_sup_kind_idx")
+                        (
+                            "canonical_edges_scope_from_active_idx",
+                            "canonical_edges_scope_from_sup_kind_idx",
+                        )
                     } else {
-                        ("canonical_edges_to_active_idx", "canonical_edges_to_sup_kind_idx")
+                        (
+                            "canonical_edges_scope_to_active_idx",
+                            "canonical_edges_scope_to_sup_kind_idx",
+                        )
                     };
                     let sql = format!(
                         "SELECT rowid,write_cursor FROM canonical_edges INDEXED BY {active_idx} \
-                         WHERE {column}=?1 AND superseded_at IS NULL AND write_cursor<=?2 \
+                         WHERE scope=?1 AND {column}=?2 AND superseded_at IS NULL AND write_cursor<=?3 \
                          UNION ALL \
                          SELECT rowid,write_cursor FROM canonical_edges INDEXED BY {sup_idx} \
-                         WHERE {column}=?1 AND superseded_at IS NOT NULL AND superseded_at>?2 AND write_cursor<=?2 \
-                         ORDER BY rowid LIMIT ?3"
+                         WHERE scope=?1 AND {column}=?2 AND superseded_at IS NOT NULL AND superseded_at>?3 AND write_cursor<=?3 \
+                         ORDER BY rowid LIMIT ?4"
                     );
                     let mut statement = c.prepare(&sql).map_err(|_| "storage")?;
                     let mut rows = statement
-                        .query(params![id, cursor_sql, budget.work])
+                        .query(params![scope, id, cursor_sql, budget.work])
                         .map_err(|_| "storage")?;
                     while let Some(row) = rows.next().map_err(|_| "budget_exhausted")? {
                         edge_candidates.push((
@@ -502,23 +510,23 @@ impl Reader {
                 } else {
                     let sql = if self.session.policy.no_show_inactive {
                         let idx = if column == "from_id" {
-                            "canonical_edges_from_active_idx"
+                            "canonical_edges_scope_from_active_idx"
                         } else {
-                            "canonical_edges_to_active_idx"
+                            "canonical_edges_scope_to_active_idx"
                         };
                         format!(
                             "SELECT rowid,write_cursor FROM canonical_edges INDEXED BY {idx} \
-                             WHERE {column}=?1 AND superseded_at IS NULL ORDER BY rowid LIMIT ?2"
+                             WHERE scope=?1 AND {column}=?2 AND superseded_at IS NULL ORDER BY rowid LIMIT ?3"
                         )
                     } else {
                         format!(
-                            "SELECT rowid,write_cursor FROM canonical_edges INDEXED BY canonical_edges_{column}_idx \
-                             WHERE {column}=?1 ORDER BY rowid LIMIT ?2"
+                            "SELECT rowid,write_cursor FROM canonical_edges INDEXED BY canonical_edges_scope_{column}_idx \
+                             WHERE scope=?1 AND {column}=?2 ORDER BY rowid LIMIT ?3"
                         )
                     };
                     let mut statement = c.prepare(&sql).map_err(|_| "storage")?;
                     let mut rows =
-                        statement.query(params![id, budget.work]).map_err(|_| "storage")?;
+                        statement.query(params![scope, id, budget.work]).map_err(|_| "storage")?;
                     while let Some(row) = rows.next().map_err(|_| "budget_exhausted")? {
                         edge_candidates.push((
                             row.get::<_, i64>(0).map_err(|_| "storage")?,
@@ -577,7 +585,7 @@ impl Reader {
                     budget.partial = true;
                     break;
                 }
-                let Some(locator) = Self::historical_node_at(&c, id, cursor_sql)? else {
+                let Some(locator) = Self::historical_node_at(&c, &scope, id, cursor_sql)? else {
                     continue;
                 };
                 if nodes.contains_key(&key(&locator)) {
@@ -734,18 +742,24 @@ impl Reader {
             history_complete = false;
         }
         if let Some(revision_rowid) = root.revision_rowid {
-            let revision: String=c.query_row("SELECT revision_id FROM _fathomdb_artifact_revisions WHERE rowid=?1 AND octet_length(revision_id)<=65536",[revision_rowid],|r|r.get(0)).map_err(|_|"budget_exhausted")?;
+            let (revision, scope): (String, String) = c
+                .query_row(
+                    "SELECT revision_id, scope FROM _fathomdb_artifact_revisions WHERE rowid=?1 AND octet_length(revision_id)<=65536",
+                    [revision_rowid],
+                    |r| Ok((r.get(0)?, r.get(1)?)),
+                )
+                .map_err(|_| "budget_exhausted")?;
             for (kind,sql) in [
-                ("recorded_source","SELECT source_revision_id, NULL, NULL, locator_kind, start_byte, end_byte, hash_algorithm, hash_digest FROM _fathomdb_source_links WHERE artifact_revision_id=?1 AND source_revision_id!=artifact_revision_id LIMIT ?2"),
-                ("recorded_derived","SELECT artifact_revision_id, NULL, NULL, locator_kind, start_byte, end_byte, hash_algorithm, hash_digest FROM _fathomdb_source_links INDEXED BY _fathomdb_source_links_source_derived_idx WHERE source_revision_id=?1 AND artifact_revision_id!=source_revision_id ORDER BY artifact_revision_id LIMIT ?2"),
-                ("registered_dependency_to_source","SELECT l.source_revision_id, d.dependency_id, d.registered_dependency_generation, l.locator_kind, l.start_byte,l.end_byte,l.hash_algorithm,l.hash_digest FROM _fathomdb_source_dependencies d JOIN _fathomdb_source_links l ON l.artifact_revision_id=d.derived_revision_id WHERE d.derived_revision_id=?1 LIMIT ?2"),
-                ("registered_dependency_to_dependents","SELECT l.artifact_revision_id, d.dependency_id, d.registered_dependency_generation, l.locator_kind,l.start_byte,l.end_byte,l.hash_algorithm,l.hash_digest FROM _fathomdb_source_links l INDEXED BY _fathomdb_source_links_source_derived_idx JOIN _fathomdb_source_dependencies d ON d.derived_revision_id=l.artifact_revision_id WHERE l.source_revision_id=?1 ORDER BY l.artifact_revision_id LIMIT ?2"),
+                ("recorded_source","SELECT source_revision_id, NULL, NULL, locator_kind, start_byte, end_byte, hash_algorithm, hash_digest FROM _fathomdb_source_links WHERE scope=?1 AND artifact_revision_id=?2 AND source_revision_id!=artifact_revision_id LIMIT ?3"),
+                ("recorded_derived","SELECT artifact_revision_id, NULL, NULL, locator_kind, start_byte, end_byte, hash_algorithm, hash_digest FROM _fathomdb_source_links INDEXED BY _fathomdb_source_links_source_derived_idx WHERE scope=?1 AND source_revision_id=?2 AND artifact_revision_id!=source_revision_id ORDER BY artifact_revision_id LIMIT ?3"),
+                ("registered_dependency_to_source","SELECT l.source_revision_id, d.dependency_id, d.registered_dependency_generation, l.locator_kind, l.start_byte,l.end_byte,l.hash_algorithm,l.hash_digest FROM _fathomdb_source_dependencies d JOIN _fathomdb_source_links l ON l.scope=d.scope AND l.artifact_revision_id=d.derived_revision_id WHERE d.scope=?1 AND d.derived_revision_id=?2 LIMIT ?3"),
+                ("registered_dependency_to_dependents","SELECT l.artifact_revision_id, d.dependency_id, d.registered_dependency_generation, l.locator_kind,l.start_byte,l.end_byte,l.hash_algorithm,l.hash_digest FROM _fathomdb_source_links l INDEXED BY _fathomdb_source_links_source_derived_idx JOIN _fathomdb_source_dependencies d ON d.scope=l.scope AND d.derived_revision_id=l.artifact_revision_id WHERE l.scope=?1 AND l.source_revision_id=?2 ORDER BY l.artifact_revision_id LIMIT ?3"),
             ]{
                 let (columns,from)=sql.strip_prefix("SELECT ").unwrap().split_once(" FROM ").unwrap();
                 let columns=columns.split(',').map(str::trim).collect::<Vec<_>>();
                 let sql=format!("SELECT CASE WHEN octet_length({target})<=65536 THEN {target} END,substr({dep},1,4096),{generation},{locator},{start},{end},{algorithm},substr({digest},1,4096),octet_length({dep}) FROM {from}",target=columns[0],dep=columns[1],generation=columns[2],locator=columns[3],start=columns[4],end=columns[5],algorithm=columns[6],digest=columns[7]);
                 let mut statement=c.prepare(&sql).map_err(|_|"storage")?;
-                let mut rows=statement.query(params![revision,budget.work]).map_err(|_|"storage")?;
+                let mut rows=statement.query(params![scope,revision,budget.work]).map_err(|_|"storage")?;
                 while let Some(row)=rows.next().map_err(|_|"budget_exhausted")?{
                     if !budget.charge(){break;}
                     budget.incident+=1;
@@ -946,6 +960,7 @@ impl Reader {
         if !self.session.policy.permits(seed_policy) {
             return Err("refused");
         }
+        let scope = Self::graph_text(&c, &seed, "scope")?.unwrap_or_default();
         let result = match expand_result {
             Ok(result) => result,
             Err(fathomdb_engine::EngineError::GraphExpansion(err))
@@ -974,13 +989,13 @@ impl Reader {
             let mut allowed = true;
             for logical in [&target.origin.seed_logical_id, &target.origin.predecessor_logical_id] {
                 let locator = if let Some(cursor) = resolved_cursor {
-                    // P4-13: lift INDEXED BY canonical_nodes_logical_active_idx in historical mode.
-                    Self::historical_node_at(&c, logical, as_of_sql_i64(cursor))?
+                    // P4-13: lift INDEXED BY canonical_nodes_scope_logical_active_idx in historical mode.
+                    Self::historical_node_at(&c, &scope, logical, as_of_sql_i64(cursor))?
                 } else {
                     let row: Option<(i64, i64)> = c
                         .query_row(
-                            "SELECT rowid,write_cursor FROM canonical_nodes INDEXED BY canonical_nodes_logical_active_idx WHERE logical_id=?1 AND superseded_at IS NULL",
-                            [logical],
+                            "SELECT rowid,write_cursor FROM canonical_nodes INDEXED BY canonical_nodes_scope_logical_active_idx WHERE scope=?1 AND logical_id=?2 AND superseded_at IS NULL",
+                            params![scope, logical],
                             |r| Ok((r.get(0)?, r.get(1)?)),
                         )
                         .optional()

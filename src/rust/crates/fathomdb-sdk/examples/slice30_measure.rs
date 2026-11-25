@@ -366,7 +366,7 @@ fn g_fixture_observation_after_replacements(
         && vectors == expected_vectors
         && spans == expected_vectors
         && physical == expected_vectors
-        && format == Some(38);
+        && format == Some(fathomdb_schema::SCHEMA_VERSION);
     let mut fixture = json!({"natural_records":natural,"vector_rows":vectors,"span_rows":spans,
         "physical_vector_rows":physical,"format":format,
         "pending_count":readiness.pending_count,"readiness":readiness.state.as_str(),
@@ -1004,7 +1004,7 @@ fn run_cell_observed(config: &Value, out: &Path, observer: &mut dyn FnMut(&str, 
     let complete = attribution_ok
         && natural == n as u64
         && vectors == 0
-        && format == 38
+        && format == fathomdb_schema::SCHEMA_VERSION
         && markers == if filtered { 10 } else { 0 }
         && rows.iter().chain(&warmups).all(|row| row["ok"] == true)
         && probes.iter().all(|row| row["marker_current"] == true);
@@ -2304,7 +2304,7 @@ mod g_fixture_tests {
             assert_eq!(observed["usable_embedder"], false);
             assert_eq!(observed["vector_rows"], 0);
             assert_eq!(observed["span_rows"], 0);
-            assert_eq!(observed["format"], 38);
+            assert_eq!(observed["format"], fathomdb_schema::SCHEMA_VERSION);
             assert!(observed["generation_id"].as_str().unwrap().starts_with("pgen1:"));
             assert_eq!(observed["qualified_dense_fixture"], false);
             engine.close();
@@ -2412,7 +2412,10 @@ mod g_schedule_tests {
                     );
                     assert_eq!(count("SELECT COUNT(*) FROM canonical_nodes WHERE kind='note'"), 0);
                     assert_eq!(count("SELECT COUNT(*) FROM _fathomdb_vector_rows"), 0);
-                    assert_eq!(count("PRAGMA user_version"), 38);
+                    assert_eq!(
+                        count("PRAGMA user_version"),
+                        u64::from(fathomdb_schema::SCHEMA_VERSION)
+                    );
                 }
             }
         }

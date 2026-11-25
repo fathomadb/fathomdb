@@ -1086,9 +1086,9 @@ fn build_anchor_database(
     let vec_insert_sql = format!(
         "INSERT INTO vector_default(\
             rowid, embedding, embedding_bin, source_type, kind, created_at, status, \
-            lifecycle, valid_from, valid_until, {cols_joined}\
+            lifecycle, valid_from, valid_until, scope, {cols_joined}\
          ) VALUES(?1, ?2, vec_quantize_binary(?2), 'note', 'note', ?3, '', 0, -9223372036854775808, 9223372036854775807, \
-                  ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)"
+                  ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)"
     );
 
     let chunk_tx_size = 2000;
@@ -1112,6 +1112,7 @@ fn build_anchor_database(
                 let cursor = node_cursors[i] as i64;
                 let body_len = node_body_lens[i];
                 let vec_blob = encode_f32_blob(&emb_gen.node_vector(i));
+                let scope = scope_for_node_scaled(profile, i, num_nodes);
                 let props = node_properties(i);
                 let a0 = encode_attr_vec0_text(&props["tier"]);
                 let a1 = encode_attr_vec0_text(&props["topic"]);
@@ -1128,6 +1129,7 @@ fn build_anchor_database(
                         cursor,
                         vec_blob,
                         1_700_000_000_i64 + i as i64,
+                        scope,
                         a0,
                         a1,
                         a2,

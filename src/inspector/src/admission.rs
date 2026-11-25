@@ -134,11 +134,11 @@ fn validate_layout(c: &Connection) -> Result<(), &'static str> {
         ("operational_collections", "name,kind,schema_json,retention_json,format_version,created_at"),
         ("operational_mutations", "id,collection_name,record_key,op_kind,payload_json,schema_id,write_cursor,scope"),
         ("operational_state", "collection_name,record_key,payload_json,schema_id,write_cursor,scope"),
-        ("_fathomdb_artifact_revisions", "schema_version,revision_id,artifact_class,write_cursor,artifact_role,completeness"),
-        ("_fathomdb_source_links", "schema_version,artifact_revision_id,source_id,source_version_id,source_revision_id,locator_kind,start_byte,end_byte,hash_algorithm,hash_digest"),
-        ("_fathomdb_source_versions", "schema_version,source_id,source_version_id,source_revision_id"),
-        ("_fathomdb_source_dependencies", "schema_version,dependency_id,derived_revision_id,registered_dependency_generation"),
-        ("_fathomdb_dependency_closures", "schema_version,closure_operation_id,root_kind,root_value,cause,phase,proof_json,closure_sequence"),
+        ("_fathomdb_artifact_revisions", "schema_version,revision_id,artifact_class,write_cursor,artifact_role,completeness,scope"),
+        ("_fathomdb_source_links", "schema_version,artifact_revision_id,source_id,source_version_id,source_revision_id,locator_kind,start_byte,end_byte,hash_algorithm,hash_digest,scope"),
+        ("_fathomdb_source_versions", "schema_version,source_id,source_version_id,source_revision_id,scope"),
+        ("_fathomdb_source_dependencies", "schema_version,dependency_id,derived_revision_id,registered_dependency_generation,scope"),
+        ("_fathomdb_dependency_closures", "schema_version,closure_operation_id,root_kind,root_value,cause,phase,proof_json,closure_sequence,scope"),
         ("_fathomdb_projection_registry", "name,roles,fts_tokenizer,vector_embedder,vector_declared,source,entity_class,vector_kinds"),
         ("canonical_attributes", "write_cursor,attr_name,attr_value"),
         ("canonical_property_values", "entity_class,write_cursor,attr_name,value_type,text_val,num_val,bool_val"),
@@ -148,11 +148,11 @@ fn validate_layout(c: &Connection) -> Result<(), &'static str> {
         ("_fathomdb_vector_kinds", "kind,profile,created_at"),
         ("_fathomdb_vector_rows", "rowid,kind,write_cursor"),
         ("_fathomdb_vector_spans", "vector_rowid,write_cursor,window_number,byte_start,byte_end,body_length"),
-        ("_fathomdb_erasure_requests", "ticket,idempotency_key,payload,phase"),
+        ("_fathomdb_erasure_requests", "ticket,idempotency_key,payload,phase,scope"),
         ("_fathomdb_embedder_profiles", "profile,name,revision,dimension,mean_vec"),
         ("_fathomdb_embed_probe", "probe_ordinal,probe_text,reference_vec,embedder_name,embedder_revision,dim"),
-        ("_fathomdb_actuation_receipts", "projection_generation_id"),
-        ("_fathomdb_actuation_receipt_source_refs", "operation_id,ref_kind,ref_value"),
+        ("_fathomdb_actuation_receipts", "projection_generation_id,scope"),
+        ("_fathomdb_actuation_receipt_source_refs", "operation_id,ref_kind,ref_value,scope"),
         ("_fathomdb_migrations", "step_id,applied_at_ms"),
         ("_fathomdb_schema_meta", "key,value"),
         ("_fathomdb_read_visibility_state", "singleton,generation,state_nonce,coalescing"),
@@ -200,6 +200,7 @@ fn validate_layout(c: &Connection) -> Result<(), &'static str> {
         || !sql.contains(&format!("embedding_binbit[{dimension}]"))
         || !sql.contains("source_typetextpartitionkey")
         || !sql.contains("statustext")
+        || !sql.contains("scopetext")
     {
         return Err("malformed_vector_shape");
     }

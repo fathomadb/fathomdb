@@ -657,7 +657,7 @@ fn schema38_custom_enrolled_node_vector_kind_and_edge_fact_rejection() {
             )
             .unwrap();
             c.execute(
-                "INSERT INTO vector_default(rowid, embedding, embedding_bin, source_type, kind, created_at, status, lifecycle, valid_from, valid_until) VALUES(?1, ?2, vec_bit(?3), ?4, ?5, 0, '', 0, -9223372036854775808, 9223372036854775807)",
+                "INSERT INTO vector_default(rowid, embedding, embedding_bin, source_type, kind, created_at, status, lifecycle, valid_from, valid_until, scope) VALUES(?1, ?2, vec_bit(?3), ?4, ?5, 0, '', 0, -9223372036854775808, 9223372036854775807, '')",
                 rusqlite::params![cursor, emb, bin, source_type, kind],
             )
             .unwrap();

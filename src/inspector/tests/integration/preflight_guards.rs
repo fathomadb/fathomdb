@@ -16,7 +16,7 @@ fn compiled_profile_vector_shape_markers_and_mean_recovery_refuse_before_open() 
     vector[..4].copy_from_slice(&1_f32.to_le_bytes());
     let binary = vec![0_u8; 384 / 8];
     for id in 1..=fathomdb_engine::MEAN_VEC_PIN_THRESHOLD {
-        c.execute("INSERT INTO vector_default(rowid,embedding,embedding_bin,source_type,kind,created_at,status,lifecycle,valid_from,valid_until) VALUES(?1,?2,vec_bit(?3),'canonical','document',0,'',0,-9223372036854775808,9223372036854775807)",rusqlite::params![id,vector,binary]).unwrap();
+        c.execute("INSERT INTO vector_default(rowid,embedding,embedding_bin,source_type,kind,created_at,status,lifecycle,valid_from,valid_until,scope) VALUES(?1,?2,vec_bit(?3),'canonical','document',0,'',0,-9223372036854775808,9223372036854775807,'')",rusqlite::params![id,vector,binary]).unwrap();
     }
     drop(c);
     let before = fs::read(&mean).unwrap();

@@ -33,7 +33,7 @@ fn current_existing_admission_and_refusals_preserve_product() {
     lock.lock().unwrap();
     assert_eq!(preflight(&path).unwrap_err(), "locked");
     drop(lock);
-    for version in [33_u32, 35, 37] {
+    for version in [33_u32, 35, 37, 38] {
         let target = dir.path().join(format!("schema{version}.sqlite"));
         let mut contents = original.clone();
         contents[60..64].copy_from_slice(&version.to_be_bytes());
@@ -49,8 +49,8 @@ fn current_existing_admission_and_refusals_preserve_product() {
 }
 
 #[test]
-fn schema_38_admission_rejects_missing_schema_38_tables_and_columns() {
-    assert_eq!(fathomdb_schema::SCHEMA_VERSION, 38);
+fn schema_39_admission_rejects_missing_schema_39_tables_and_columns() {
+    assert_eq!(fathomdb_schema::SCHEMA_VERSION, 39);
     let dir = tempfile::tempdir().unwrap();
     let base = database(dir.path());
     let clone = |name: &str| {
@@ -64,11 +64,47 @@ fn schema_38_admission_rejects_missing_schema_38_tables_and_columns() {
         ("drop-commit-ts", "DROP TABLE _fathomdb_commit_timestamps;"),
         ("drop-vec-kinds", "DROP TABLE _fathomdb_vector_kinds;"),
         ("drop-node-props", "ALTER TABLE canonical_nodes DROP COLUMN properties;"),
-        ("drop-node-scope", "ALTER TABLE canonical_nodes DROP COLUMN scope;"),
+        (
+            "drop-node-scope",
+            "DROP INDEX canonical_nodes_scope_source_id_idx;\
+             DROP INDEX canonical_nodes_scope_logical_active_idx;\
+             DROP INDEX canonical_nodes_scope_kind_idx;\
+             DROP INDEX canonical_nodes_scope_state_active_idx;\
+             DROP INDEX canonical_nodes_scope_validity_idx;\
+             DROP INDEX canonical_nodes_scope_cursor_idx;\
+             DROP INDEX canonical_nodes_scope_kind_cursor_page_idx;\
+             DROP INDEX canonical_nodes_scope_logical_sup_idx;\
+             ALTER TABLE canonical_nodes DROP COLUMN scope;",
+        ),
         ("drop-edge-props", "ALTER TABLE canonical_edges DROP COLUMN properties;"),
-        ("drop-edge-scope", "ALTER TABLE canonical_edges DROP COLUMN scope;"),
-        ("drop-mut-scope", "ALTER TABLE operational_mutations DROP COLUMN scope;"),
-        ("drop-state-scope", "ALTER TABLE operational_state DROP COLUMN scope;"),
+        (
+            "drop-edge-scope",
+            "DROP INDEX canonical_edges_scope_source_id_idx;\
+             DROP INDEX canonical_edges_scope_logical_active_idx;\
+             DROP INDEX canonical_edges_scope_from_id_idx;\
+             DROP INDEX canonical_edges_scope_to_id_idx;\
+             DROP INDEX canonical_edges_scope_cursor_idx;\
+             DROP INDEX canonical_edges_scope_from_active_idx;\
+             DROP INDEX canonical_edges_scope_to_active_idx;\
+             DROP INDEX canonical_edges_scope_from_sup_kind_idx;\
+             DROP INDEX canonical_edges_scope_to_sup_kind_idx;\
+             ALTER TABLE canonical_edges DROP COLUMN scope;",
+        ),
+        (
+            "drop-mut-scope",
+            "DROP INDEX operational_mutations_scope_collection_id_idx;\
+             ALTER TABLE operational_mutations DROP COLUMN scope;",
+        ),
+        (
+            "drop-state-scope",
+            "DROP TABLE operational_state;\
+             CREATE TABLE operational_state(collection_name TEXT NOT NULL, record_key TEXT NOT NULL, payload_json TEXT NOT NULL, schema_id TEXT, write_cursor INTEGER NOT NULL, PRIMARY KEY(collection_name, record_key));",
+        ),
+        (
+            "drop-ar-scope",
+            "DROP TABLE _fathomdb_artifact_revisions;\
+             CREATE TABLE _fathomdb_artifact_revisions(schema_version INTEGER NOT NULL, revision_id TEXT PRIMARY KEY NOT NULL, artifact_class TEXT NOT NULL, write_cursor INTEGER NOT NULL, artifact_role TEXT NOT NULL, completeness TEXT NOT NULL);",
+        ),
         ("drop-proj-class", "ALTER TABLE _fathomdb_projection_registry DROP COLUMN entity_class;"),
         ("drop-proj-vkinds", "ALTER TABLE _fathomdb_projection_registry DROP COLUMN vector_kinds;"),
     ] {
@@ -80,7 +116,7 @@ fn schema_38_admission_rejects_missing_schema_38_tables_and_columns() {
         assert_eq!(
             preflight(&target).unwrap_err(),
             "malformed_layout",
-            "missing Schema 38 layout element must fail closed: {name}"
+            "missing Schema 39 layout element must fail closed: {name}"
         );
         assert_eq!(bytes(&target), before, "refused database bytes must be untouched: {name}");
     }

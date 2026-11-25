@@ -229,8 +229,8 @@
   "ac": "AC-079; 0.8.21 Slice 60; 0.8.22 Slice 21 F5; 0.8.22 Slice 22 C5; 0.8.23 Slice 30; approved 0.8.25 Slices 20 and 25; approved 0.8.25 Slice 30; approved 0.8.25 Slice 35; approved 0.8.25 Slice 40; approved 0.8.25 Slice 45; approved 0.8.25 Slice 50; approved 0.8.25 Slice 55; approved 0.8.25 Slice 60; approved 0.8.25 Slice 79 under seq-276; approved 0.8.26 Slice 20 under seq-290; approved 0.8.28 Slice 41 by owner 2026-10-16; approved 0.8.28 Slice 85 by owner 2026-11-04 under seq-363 and current completion authorization; pre-authorized 0.8.31 Slice 20 under HITL Gate 1; approved 0.8.31 Slice 50 under ADR-0.8.31 #76; pre-authorized Gate1-D4 Pin B (0.8.32 Slice 30) under ADR-0.8.32 #100; pre-authorized Gate1-D4 Pin C (0.8.32 Slice 40) under ADR-0.8.32 #99",
   "covers": "Prior signed surfaces plus the approved 0.8.25 Slice 20 dependency registry, Slice 25 bounded atomic actuation, Slice 30 keyed closure-status read, Slice 35 optional frozen reads, Slice 40 projection-generation status reads, Slice 45 canonical pagination and operational-state reads, Slice 50 compact source evidence reads, Slice 55 governed dependency trace reads, Slice 60 bounded constrained graph expansion, Slice 79 startup-only runtime controls, 0.8.26 Slice 20 exact graph evidence, 0.8.28 Slice 41 package-level context pack, 0.8.28 Slice 85 explicit physical-erasure policy, queued requests and owned maintenance, 0.8.31 Slice 20 operational-collection introspection reads, 0.8.31 Slice 50 bounded batch evidence resolution, 0.8.32 Slice 30 opt-in bulk write mode (write_with_options/writeWithOptions), and 0.8.32 Slice 40 Pin C visibility-state read (read.visibility_state/read.visibilityState)",
   "pinned_file": "src/conformance/governed-surface-allowlist.json",
-  "pinned_at_commit": "b8276b51a5ab44e56e3d12fa0934278cb95d03cd",
-  "pinned_at_commit_short": "b8276b51a",
+  "pinned_at_commit": "8e18ba9b49a4553080285c5fd1eba77331f6f91d",
+  "pinned_at_commit_short": "8e18ba9b4",
   "git_blob_sha1": "358793ed88e11688abfcc3e14cb03525e97ba0b3",
   "sha256": "fc2c3398ed73c95ed64bee493415d5e202bfe080347be999867338d79c35f112",
   "counts": {

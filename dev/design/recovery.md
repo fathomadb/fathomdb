@@ -246,12 +246,20 @@ is not an `Engine::open` stage.
 
 `E_DANGLING_EDGE_ENDPOINT` is emitted by `doctor check-integrity` (semantic
 section) when an active edge (`superseded_at IS NULL`) references a `from_id`
-or `to_id` that does not resolve to an active, non-superseded canonical node in
-the edge's own scope (and does not resolve in another scope). This state can
-arise legitimately after an opt-in `BulkNonStrict` write whose target nodes
-have not yet been ingested. Doctor performs read-only verification only and
-exits `65` while dangling endpoints remain; ingesting the missing nodes in the
-same scope resolves the finding without rewriting the edge.
+or `to_id` that resolves neither to a current active node
+(`superseded_at IS NULL AND state = 'active'`) nor to a genuine historical
+superseded-only active node (`superseded_at IS NOT NULL AND state = 'active'`
+with no `superseded_at IS NULL` row, matching `fathomdb migrate` preflight) in
+the edge's own scope (and does not resolve to an active node in another scope).
+In particular, missing targets and endpoints whose current row is `pending`,
+`deleted`, or `purged` (even when an older superseded `'active'` revision
+exists) are flagged. By contrast, `doctor data-plane-integrity --check
+edge_endpoint_integrity` strictly requires a current non-superseded active node
+(`superseded_at IS NULL AND state = 'active'`). This state can arise
+legitimately after an opt-in `BulkNonStrict` write whose target nodes have not
+yet been ingested. Doctor performs read-only verification only and exits `65`
+while dangling endpoints remain; ingesting the missing nodes in the same scope
+resolves the finding without rewriting the edge.
 
 ### E cross-scope edge endpoint
 

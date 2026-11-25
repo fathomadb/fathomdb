@@ -517,12 +517,16 @@ typed report structs; the CLI serializes them under a `verb` discriminator.
 order (`dependency_chain`, `active_searchable_orphans`, `projection_generation`,
 `mutation_readiness`, `edge_endpoint_integrity`); omitting `--check` selects all.
 The `edge_endpoint_integrity` check inspects active edges (`superseded_at IS NULL`)
-read-only and reports content-free `dangling_edge_endpoint` (`error`) and
-`cross_scope_edge_endpoint` (`critical`) findings without mutating the store
-(`check-integrity` emits `E_DANGLING_EDGE_ENDPOINT` and
-`E_CROSS_SCOPE_EDGE_ENDPOINT` under `semantic.findings` anchored to
-`design/recovery.md#e-dangling-edge-endpoint` and
-`design/recovery.md#e-cross-scope-edge-endpoint`). The command does not call
+read-only against current non-superseded active nodes
+(`superseded_at IS NULL AND state = 'active'`) and reports content-free
+`dangling_edge_endpoint` (`error`) and `cross_scope_edge_endpoint` (`critical`)
+findings without mutating the store (`check-integrity` emits
+`E_DANGLING_EDGE_ENDPOINT` and `E_CROSS_SCOPE_EDGE_ENDPOINT` under
+`semantic.findings` anchored to `design/recovery.md#e-dangling-edge-endpoint`
+and `design/recovery.md#e-cross-scope-edge-endpoint`, admitting genuine
+historical superseded-only active same-scope nodes with no `superseded_at IS NULL`
+row to match `fathomdb migrate` preflight while flagging missing, `pending`,
+`deleted`, `purged`, or cross-scope endpoints). The command does not call
 `Engine::open`: it requires an existing database and product lock, acquires the
 lock without rewriting it, refuses a non-empty WAL or rollback journal, then
 uses SQLite URI `immutable=1` plus read-only/query-only enforcement. A

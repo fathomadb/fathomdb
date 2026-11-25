@@ -64,8 +64,8 @@ quiescent route below. `safe-export` includes committed WAL data via SQLite
 returns 66, while an earlier open refusal retains 70/71.
 
 `check-integrity --full` may emit doctor-only finding codes such as
-`E_CORRUPT_INTEGRITY_CHECK`, `dangling_edge_endpoint`, and
-`cross_scope_edge_endpoint` (semantic read-only edge verification).
+`E_CORRUPT_INTEGRITY_CHECK`, `E_DANGLING_EDGE_ENDPOINT`, and
+`E_CROSS_SCOPE_EDGE_ENDPOINT` (semantic read-only edge verification).
 
 ### Reranker device diagnostic
 

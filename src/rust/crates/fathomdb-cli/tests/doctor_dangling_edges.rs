@@ -384,3 +384,115 @@ fn superseded_dangling_edge_is_ignored_by_edge_endpoint_checks() {
     let ci_json = parse_json(&ci);
     assert_eq!(ci_json["semantic"]["status"], "clean");
 }
+
+#[test]
+fn check_integrity_admits_superseded_only_active_endpoint_but_flags_inactive_current_revisions() {
+    let dir = TempDir::new().unwrap();
+
+    // 1. Genuine superseded-only same-scope active node (no current `superseded_at IS NULL` row):
+    //    `check-integrity` exits 0 (matching `fathomdb migrate`), while strict
+    //    `data-plane-integrity --check edge_endpoint_integrity` exits 65 (`dangling_edge_endpoint`).
+    let sup_only_path = dir.path().join("superseded-only.sqlite");
+    {
+        let opened = Engine::open(&sup_only_path).unwrap();
+        opened
+            .engine
+            .write(&[
+                node("n-src", "source"),
+                node("n-hist", "historical"),
+                edge(Some("e1"), "n-src", "n-hist"),
+            ])
+            .unwrap();
+        opened.engine.close().unwrap();
+    }
+    {
+        let conn = Connection::open(&sup_only_path).unwrap();
+        conn.execute(
+            "UPDATE canonical_nodes SET superseded_at = 99 \
+             WHERE logical_id = 'n-hist' AND superseded_at IS NULL",
+            [],
+        )
+        .unwrap();
+    }
+    certify_fts_sanitation(&sup_only_path);
+    let sup_str = sup_only_path.to_str().unwrap();
+
+    let ci_sup = run_cli(&["doctor", "check-integrity", "--json", sup_str]);
+    assert_eq!(ci_sup.status.code(), Some(exit_code::OK), "{ci_sup:#?}");
+    assert_eq!(parse_json(&ci_sup)["semantic"]["status"], "clean");
+
+    let dpi_sup = run_cli(&[
+        "doctor",
+        "data-plane-integrity",
+        "--json",
+        "--check",
+        "edge_endpoint_integrity",
+        sup_str,
+    ]);
+    assert_eq!(dpi_sup.status.code(), Some(exit_code::DOCTOR_FOUND_ISSUES), "{dpi_sup:#?}");
+    let dpi_findings = parse_json(&dpi_sup)["report"]["findings"].as_array().unwrap().clone();
+    assert_eq!(dpi_findings.len(), 1, "{dpi_findings:?}");
+    assert_eq!(dpi_findings[0]["code"], "dangling_edge_endpoint");
+
+    // 2. Earlier `'active'` revision superseded by a current `pending` row AND another
+    //    superseded by a soft-`deleted` row: `check-integrity` MUST flag both with exit 65
+    //    (`E_DANGLING_EDGE_ENDPOINT`), never masked by the older superseded `'active'` revision.
+    let pending_path = dir.path().join("superseded-by-pending.sqlite");
+    {
+        let opened = Engine::open(&pending_path).unwrap();
+        opened
+            .engine
+            .write(&[
+                node("n-src", "source"),
+                node("n-pend", "v1 active"),
+                edge(Some("e1"), "n-src", "n-pend"),
+            ])
+            .unwrap();
+        opened
+            .engine
+            .write(&[PreparedWrite::Node {
+                kind: "doc".into(),
+                body: "v2 pending".into(),
+                source_id: SourceId::new("test:doctor-edges").unwrap(),
+                logical_id: Some("n-pend".into()),
+                state: InitialState::Pending,
+                reason: Some("quarantine".into()),
+                valid_from: None,
+                valid_until: None,
+                properties: None,
+            }])
+            .unwrap();
+        opened.engine.close().unwrap();
+    }
+    certify_fts_sanitation(&pending_path);
+    let ci_pend = run_cli(&["doctor", "check-integrity", "--json", pending_path.to_str().unwrap()]);
+    assert_eq!(ci_pend.status.code(), Some(exit_code::DOCTOR_FOUND_ISSUES), "{ci_pend:#?}");
+    let pend_findings = parse_json(&ci_pend)["semantic"]["findings"].as_array().unwrap().clone();
+    assert_eq!(pend_findings.len(), 1, "{pend_findings:?}");
+    assert_eq!(pend_findings[0]["code"], "E_DANGLING_EDGE_ENDPOINT");
+
+    let deleted_path = dir.path().join("superseded-by-deleted.sqlite");
+    {
+        let opened = Engine::open(&deleted_path).unwrap();
+        opened
+            .engine
+            .write(&[
+                node("n-src", "source"),
+                node("n-del", "v1 active"),
+                edge(Some("e1"), "n-src", "n-del"),
+            ])
+            .unwrap();
+        opened.engine.write(&[node("n-del", "v2 active")]).unwrap();
+        opened
+            .engine
+            .transition("n-del", fathomdb_engine::LifecycleState::Deleted, Some("retire".into()))
+            .unwrap();
+        opened.engine.close().unwrap();
+    }
+    certify_fts_sanitation(&deleted_path);
+    let ci_del = run_cli(&["doctor", "check-integrity", "--json", deleted_path.to_str().unwrap()]);
+    assert_eq!(ci_del.status.code(), Some(exit_code::DOCTOR_FOUND_ISSUES), "{ci_del:#?}");
+    let del_findings = parse_json(&ci_del)["semantic"]["findings"].as_array().unwrap().clone();
+    assert_eq!(del_findings.len(), 1, "{del_findings:?}");
+    assert_eq!(del_findings[0]["code"], "E_DANGLING_EDGE_ENDPOINT");
+}

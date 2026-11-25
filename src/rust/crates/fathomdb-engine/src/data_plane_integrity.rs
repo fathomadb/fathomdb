@@ -2953,16 +2953,30 @@ pub(crate) fn collect_operator_edge_endpoint_findings(
     for (rowid, write_cursor, edge_scope, from_id, to_id) in rows {
         for (endpoint_role, endpoint) in [("from", from_id.as_str()), ("to", to_id.as_str())] {
             // `check_integrity` (and `fathomdb migrate` post-upgrade verification)
-            // admits historical superseded-only same-scope nodes (`superseded_at IS NOT NULL`)
-            // while flagging missing, inactive (`pending`/`deleted`/`purged`), or cross-scope
-            // endpoints. Strict non-superseded active verification lives in
-            // `edge_endpoint_findings` (`doctor data-plane-integrity`).
+            // admits either a current active node (`superseded_at IS NULL AND state='active'`)
+            // OR a genuine historical superseded-only active node (no `superseded_at IS NULL`
+            // row, at least one `superseded_at IS NOT NULL AND state='active'` row), hitting
+            // both Schema-39 partial `(scope, logical_id)` indexes in O(log N) while still
+            // flagging missing, `pending`, `deleted`, `purged`, or cross-scope endpoints.
+            // Strict non-superseded active verification lives in `edge_endpoint_findings`
+            // (`doctor data-plane-integrity --check edge_endpoint_integrity`).
             let present_in_scope: bool = connection
                 .prepare_cached(
-                    "SELECT EXISTS(\
-                         SELECT 1 FROM canonical_nodes \
-                         WHERE scope=?1 AND logical_id=?2 AND state='active'\
-                     )",
+                    "SELECT \
+                         EXISTS(\
+                             SELECT 1 FROM canonical_nodes \
+                             WHERE scope=?1 AND logical_id=?2 AND superseded_at IS NULL AND state='active'\
+                         ) \
+                         OR (\
+                             NOT EXISTS(\
+                                 SELECT 1 FROM canonical_nodes \
+                                 WHERE scope=?1 AND logical_id=?2 AND superseded_at IS NULL\
+                             ) \
+                             AND EXISTS(\
+                                 SELECT 1 FROM canonical_nodes \
+                                 WHERE scope=?1 AND logical_id=?2 AND superseded_at IS NOT NULL AND state='active'\
+                             )\
+                         )",
                 )?
                 .query_row(rusqlite::params![&edge_scope, endpoint], |row| row.get(0))?;
             if present_in_scope {

@@ -8,7 +8,7 @@ own settled HITL Gate 1 decisions, requirements, and execution contracts.
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.32:status-current-state -->**Next is Slice 30 (BULK-AND-INSPECTOR), NOT_STARTED.** Completed on local `dev/0.8.32` per release state: 10 (`e8853997a`) · 20 (`165c445c2`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.32:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.32:status-current-state -->**Next is Slice 40 (MCP-RW), NOT_STARTED.** Completed on local `dev/0.8.32` per release state: 10 (`e8853997a`) · 20 (`165c445c2`) · 30 (`e3a95688a`) — state-owned, not an `origin/main` claim.<!-- END GENERATED release-state:0.8.32:status-current-state -->
 
 - **Phase A Prework Audits (`Slices 0–9`) — COMPLETE (HITL Gate 1 approved 2026-11-24):**
   - Cut `dev/0.8.32` worktree at `/mnt/data/worktrees/release-0.8.32` from `main` (`38a1594bf`).
@@ -23,6 +23,7 @@ own settled HITL Gate 1 decisions, requirements, and execution contracts.
     - **Decisions 7 & 8 (`2026-11-24`):** Rust `1.95.0 → 1.100.0` deferred to `0.8.33`; Slice 50 official Ubuntu `24.04` cloud-image download (`cloud-images.ubuntu.com`) approved.
 - **Slice 10 (`PREWORK-PREP`) — LANDED (`e8853997a`):** Completed `WP-10A`–`WP-10E` + `FIX-1` (`f961e4537`), full unconfined `./scripts/agent-verify.sh` (`246/249` suites passed, `0` failed, `0` security violations), and independent `pro` adversarial review (`VERDICT: APPROVE`) per [features/slice-10/status.md](../0.8.32/features/slice-10/status.md). All Gate 1 decisions (`1–8`) are now ruled and Phase C Slices `20–70` scope is locked (Slice `70` publication separately HITL-gated).
 - **Slice 20 (`SCOPE-AND-REFACTOR`) — LANDED (`165c445c2`):** Completed `WP-20A`–`WP-20E` + `FIX-1`–`FIX-3` (`7bd48de48`) — engine test relocation & `search`/`evidence` splits, declarative `TABLE_MANIFEST` (`35` tables), Schema 39 (`S39-COMPOSITE` + 8-col `vec0` + `fathomdb migrate 38 → 39` + golden `0.8.31` fixture), route-by-route `ScopePolicy`/`ScopePredicate` enforcement (single-scope default documented across `docs/`), and `Pin A` Rust/Python/TS parity — verified green by full unconfined `./scripts/agent-verify.sh` (`246/249` suites passed, `0` failed, `0` security violations), `mkdocs build --strict`, and independent `pro` adversarial review (`VERDICT: APPROVE`) per [features/slice-20/status.md](../0.8.32/features/slice-20/status.md).
+- **Slice 30 (`BULK-AND-INSPECTOR`) — LANDED (`e3a95688a`):** Completed `WP-30A`–`WP-30C` + `FIX-1`–`FIX-3` (`56b897085`) — opt-in `WriteOptions` / `EndpointValidationMode::BulkNonStrict` / `Engine.write_with_options` (strict default preserved, cross-scope `ScopeViolation`, `fathomdb doctor` dangling/cross-scope verification), `Pin B` Rust/Python/TS parity (`57` ops / `95` allowlist, `core = 5`, `recovery_denylist = 5`), `TABLE_MANIFEST`-backed Inspector active-`scope` UI (`D-01` nondisclosure), and `inspector-browser-smoke` Playwright CI wiring — verified green by full unconfined `./scripts/agent-verify.sh` (`246/249` suites passed, `0` failed, `0` security violations), live Playwright smoke (`13/13`), `mkdocs build --strict`, and independent `pro` adversarial review (`VERDICT: APPROVE`) per [features/slice-30/status.md](../0.8.32/features/slice-30/status.md).
 
 ## Slice ladder
 
@@ -30,7 +31,7 @@ own settled HITL Gate 1 decisions, requirements, and execution contracts.
 | --- | --- | --- | --- | --- |
 | 10 | `PREWORK-PREP` | Prework prep, baseline CI fixes, `R32-07` orientation/gate aids, immediate doc fixes, four `ADR-0.8.32-*` drafts, Slice 50 venue/fuzzing prep, and Decision 1 empirical experiment | Prework `0–9` | `LANDED` (`e8853997a`) |
 | 20 | `SCOPE-AND-REFACTOR` | Engine test relocation & `search`/`evidence` hotspot splits, declarative `TABLE_MANIFEST`, Schema 39 (`S39-COMPOSITE` + 8-col `vec0` + `fathomdb migrate 38 → 39`), and engine-enforced caller scope & write authority (single-scope default, `Pin A`) | 10 | `LANDED` (`165c445c2`) |
-| 30 | `BULK-AND-INSPECTOR` | Opt-in bulk/non-strict write mode (`Pin B`, strict default preserved) and Inspector active-scope UI + Playwright CI wiring | 20 | `NOT_STARTED` |
+| 30 | `BULK-AND-INSPECTOR` | Opt-in bulk/non-strict write mode (`Pin B`, strict default preserved) and Inspector active-scope UI + Playwright CI wiring | 20 | `LANDED` (`e3a95688a`) |
 | 40 | `MCP-RW` | Atomic governed write + `latest_state` checkpoint seam + `EP-07`/`EP-01` (`Pin C`), production read+write `fathomdb-mcp`, and 3-channel packaging | 20 | `NOT_STARTED` |
 | 50 | `DURABILITY-AND-FUZZ` | Internal `fathomdb.logical-export/v1` backup/restore/rebuild proof, `SyncMode::{Normal, Full}` + QEMU/KVM `dm-flakey` power-loss campaign, and isolated `fuzz/` workspace | 30, 40 | `NOT_STARTED` |
 | 60 | `QUALIFICATION` | Full-workspace qualification, paired `0.8.31` vs. `0.8.32` 10k/50k/100k latency/RSS/DB-size gate, candidate smokes, release docs, and golden `0.8.32` archive | 50 | `NOT_STARTED` |
@@ -38,4 +39,4 @@ own settled HITL Gate 1 decisions, requirements, and execution contracts.
 
 ## Next action
 
-<!-- BEGIN GENERATED release-state:0.8.32:status-next-action -->**Commission Slice 30 (BULK-AND-INSPECTOR)** — Opt-in bulk/non-strict write mode (Pin B, default strict preserved, fathomdb doctor verification) and Inspector active-scope UI + Playwright CI wiring. **Remaining ladder:** 30 → 40 → 50 → 60 → 70.<!-- END GENERATED release-state:0.8.32:status-next-action -->
+<!-- BEGIN GENERATED release-state:0.8.32:status-next-action -->**Commission Slice 40 (MCP-RW)** — Atomic governed write + latest_state checkpoint seam + EP-07/EP-01 (Pin C), production read+write fathomdb-mcp (allow_writes: false default, per-store opt-in + bound scope, AC32-MCP-SAFETY-01..09), and 3-channel packaging. **Remaining ladder:** 40 → 50 → 60 → 70.<!-- END GENERATED release-state:0.8.32:status-next-action -->

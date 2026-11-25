@@ -53,13 +53,17 @@
       "depends_on": [
         20
       ],
-      "status": "NOT_STARTED",
-      "sha": null,
+      "status": "LANDED",
+      "sha": "e3a95688a",
       "design_refs": [
+        "dev/adr/ADR-0.8.32-opt-in-bulk-write-mode.md",
+        "dev/plans/0.8.32/features/slice-30/plan.md",
+        "dev/plans/0.8.32/features/slice-30/status.md",
         "dev/plans/0.8.32/prework/slice-9-triage.md",
         "dev/plans/0.8.32/plan.md",
         "dev/plans/0.8.32/scope.md"
-      ]
+      ],
+      "evidence": "WP-30A..WP-30C + FIX-1..FIX-3 (56b897085) landed at e3a95688a; full unconfined agent-verify.sh EXIT 0 (246/249 suites passed, 3 platform-skipped, 0 failed, 0 security violations), live local Inspector Playwright smoke 13/13 PASS, mkdocs --strict PASS, independent pro adversarial review VERDICT: APPROVE."
     },
     {
       "slice": 40,
@@ -125,16 +129,16 @@
   ],
   "landed": [
     10,
-    20
+    20,
+    30
   ],
   "remaining_ladder": [
-    30,
     40,
     50,
     60,
     70
   ],
-  "next_slice": 30,
+  "next_slice": 40,
   "decisions": {
     "ruled": [
       {

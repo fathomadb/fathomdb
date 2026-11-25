@@ -18,9 +18,9 @@ date: 2026-11-24
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.32:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 30** (`BULK-AND-INSPECTOR`) — Opt-in bulk/non-strict write mode (Pin B, default strict preserved, fathomdb doctor verification) and Inspector active-scope UI + Playwright CI wiring
+**IMMEDIATE NEXT: Slice 40** (`MCP-RW`) — Atomic governed write + latest_state checkpoint seam + EP-07/EP-01 (Pin C), production read+write fathomdb-mcp (allow_writes: false default, per-store opt-in + bound scope, AC32-MCP-SAFETY-01..09), and 3-channel packaging
 
-**Remaining ladder:** 30 → 40 → 50 → 60 → 70.<!-- END GENERATED release-state:0.8.32:plan-immediate-next -->
+**Remaining ladder:** 40 → 50 → 60 → 70.<!-- END GENERATED release-state:0.8.32:plan-immediate-next -->
 
 ## Goal and scope
 

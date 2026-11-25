@@ -80,7 +80,8 @@ if [ -z "$MCP_BIN" ]; then
 fi
 chmod +x "$MCP_BIN" 2>/dev/null || true
 
-if [ "$(uname -s)" = "Linux" ]; then
+host_os="$(uname -s)"
+if [ "$host_os" = "Linux" ]; then
   # shellcheck source=/dev/null
   . "$REPO_ROOT/scripts/release/glibc-floor-contract.sh"
   bash "$REPO_ROOT/scripts/check-glibc-floor.sh" --floor "$GLIBC_FLOOR" "$MCP_BIN"

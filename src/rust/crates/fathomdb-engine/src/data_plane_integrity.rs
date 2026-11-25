@@ -1486,15 +1486,17 @@ fn edge_is_legitimate_bodyless_terminal_only(
     )? {
         return Ok(false);
     }
-    let terminal_state = connection
+    let terminal_row = connection
         .query_row(
-            "SELECT state FROM _fathomdb_projection_terminal WHERE write_cursor=?1",
+            "SELECT state, owner_kind FROM _fathomdb_projection_terminal WHERE write_cursor=?1",
             [cursor],
-            |row| Ok(text_value(row, 0)),
+            |row| Ok((text_value(row, 0), text_value(row, 1))),
         )
         .optional()
         .map_err(|_| EngineError::Storage)?;
-    if terminal_state.as_ref().and_then(|s| s.as_deref()) != Some("up_to_date") {
+    if terminal_row.as_ref().map(|(state, owner_kind)| (state.as_deref(), owner_kind.as_deref()))
+        != Some((Some("up_to_date"), Some("canonical")))
+    {
         return Ok(false);
     }
     Ok(dense_physical_shape(connection, cursor, "edge_fact")?.terminal_only)
@@ -1528,15 +1530,17 @@ fn node_is_legitimate_non_vector_terminal_only(
     )? {
         return Ok(false);
     }
-    let terminal_state = connection
+    let terminal_row = connection
         .query_row(
-            "SELECT state FROM _fathomdb_projection_terminal WHERE write_cursor=?1",
+            "SELECT state, owner_kind FROM _fathomdb_projection_terminal WHERE write_cursor=?1",
             [cursor],
-            |row| Ok(text_value(row, 0)),
+            |row| Ok((text_value(row, 0), text_value(row, 1))),
         )
         .optional()
         .map_err(|_| EngineError::Storage)?;
-    if terminal_state.as_ref().and_then(|s| s.as_deref()) != Some("up_to_date") {
+    if terminal_row.as_ref().map(|(state, owner_kind)| (state.as_deref(), owner_kind.as_deref()))
+        != Some((Some("up_to_date"), Some("canonical")))
+    {
         return Ok(false);
     }
     let has_sidecar: bool = connection
@@ -1568,28 +1572,17 @@ fn non_canonical_is_legitimate_terminal_only(
     cursor: i64,
 ) -> Result<bool, EngineError> {
     let cursor_u64 = u64::try_from(cursor).map_err(|_| EngineError::Storage)?;
-    let non_canonical_owner: bool = connection
+    let terminal_row = connection
         .query_row(
-            "SELECT \
-               EXISTS(SELECT 1 FROM operational_mutations WHERE write_cursor=?1) \
-               OR EXISTS(SELECT 1 FROM operational_state WHERE write_cursor=?1) \
-               OR EXISTS(SELECT 1 FROM _fathomdb_commit_timestamps WHERE write_cursor=?1)",
+            "SELECT state, owner_kind FROM _fathomdb_projection_terminal WHERE write_cursor=?1",
             [cursor],
-            |row| row.get(0),
-        )
-        .map_err(|_| EngineError::Storage)?;
-    if !non_canonical_owner {
-        return Ok(false);
-    }
-    let terminal_state = connection
-        .query_row(
-            "SELECT state FROM _fathomdb_projection_terminal WHERE write_cursor=?1",
-            [cursor],
-            |row| Ok(text_value(row, 0)),
+            |row| Ok((text_value(row, 0), text_value(row, 1))),
         )
         .optional()
         .map_err(|_| EngineError::Storage)?;
-    if terminal_state.as_ref().and_then(|s| s.as_deref()) != Some("up_to_date") {
+    if terminal_row.as_ref().map(|(state, owner_kind)| (state.as_deref(), owner_kind.as_deref()))
+        != Some((Some("up_to_date"), Some("non_canonical")))
+    {
         return Ok(false);
     }
     let has_sidecar: bool = connection

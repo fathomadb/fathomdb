@@ -1057,6 +1057,19 @@ pub const STEP_39_SQL: &str = concat!(
     visibility_coalescing_trigger_sql!("pr", "ai", "INSERT", "_fathomdb_projection_registry"),
     visibility_coalescing_trigger_sql!("pr", "au", "UPDATE", "_fathomdb_projection_registry"),
     visibility_coalescing_trigger_sql!("pr", "ad", "DELETE", "_fathomdb_projection_registry"),
+    "\n",
+    // 13. _fathomdb_projection_terminal additive owner_kind column + Schema-38 backfill.
+    "ALTER TABLE _fathomdb_projection_terminal ADD COLUMN owner_kind TEXT NOT NULL DEFAULT 'canonical' CHECK(owner_kind IN ('canonical', 'non_canonical'));\n",
+    "UPDATE _fathomdb_projection_terminal\n",
+    "   SET owner_kind = 'non_canonical'\n",
+    " WHERE NOT EXISTS (SELECT 1 FROM _fathomdb_artifact_revisions WHERE write_cursor = _fathomdb_projection_terminal.write_cursor)\n",
+    "   AND NOT EXISTS (SELECT 1 FROM canonical_nodes WHERE write_cursor = _fathomdb_projection_terminal.write_cursor)\n",
+    "   AND NOT EXISTS (SELECT 1 FROM canonical_edges WHERE write_cursor = _fathomdb_projection_terminal.write_cursor)\n",
+    "   AND (\n",
+    "       EXISTS (SELECT 1 FROM operational_mutations WHERE write_cursor = _fathomdb_projection_terminal.write_cursor)\n",
+    "       OR EXISTS (SELECT 1 FROM operational_state WHERE write_cursor = _fathomdb_projection_terminal.write_cursor)\n",
+    "       OR EXISTS (SELECT 1 FROM _fathomdb_commit_timestamps WHERE write_cursor = _fathomdb_projection_terminal.write_cursor)\n",
+    "   );\n",
 );
 
 #[derive(Clone, Debug, Eq, PartialEq)]

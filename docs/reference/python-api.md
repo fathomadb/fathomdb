@@ -58,7 +58,7 @@ terminal CUDA generation loss still requires process restart. See
 
 ## `Engine`
 
-### `Engine.open(path, *, config=None, use_default_embedder=False, **engine_config) -> Engine`
+### `Engine.open(path, *, config=None, use_default_embedder=False, create_if_missing=True, **engine_config) -> Engine`
 
 Open or create a FathomDB database at `path`. Returns the engine
 handle.
@@ -70,6 +70,9 @@ handle.
   `~/.cache/fathomdb/embedders/`. `False` opens without an embedder; vector
   writes and `engine.embed` raise `EmbedderNotConfiguredError`. See the
   [embedder guide](../embedder.md) for runtime policy and typed failures.
+- `create_if_missing` (`bool`, default `True`) — `True` creates a fresh
+  database when `path` is absent or zero-length; `False` refuses missing or
+  zero-length paths with `DatabaseNotFoundError` without creating a file.
 - `**engine_config` — per-knob keyword arguments (see
   [config](config.md)), including `scope_policy: ScopePolicy | None = None`
   (defaults to `ScopePolicy.unscoped()` for single-scope/single-agent

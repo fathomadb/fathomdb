@@ -507,3 +507,107 @@ fn bug2_golden_schema38_migrates_projection_registry_to_composite_pk() {
         assert!(dup_err.is_err(), "duplicate (node, legacy_tag) must violate composite PK");
     }
 }
+
+#[test]
+fn bug1_schema38_to_39_backfills_projection_terminal_owner_kind_accurately() {
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../../../dev/fixtures/golden-0.8.31-schema38.sqlite");
+    assert!(fixture.is_file(), "missing golden fixture at {}", fixture.display());
+
+    let dir = TempDir::new().expect("tempdir");
+    let copy = db_path(&dir, "golden_s38_terminal_owner_kind");
+    std::fs::copy(&fixture, &copy).expect("copy golden fixture");
+
+    {
+        let conn = Connection::open(&copy).expect("open pre-migration sqlite");
+        let base: i64 = conn
+            .query_row(
+                "SELECT COALESCE(MAX(write_cursor), 0) + 100 FROM _fathomdb_projection_terminal",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        let canonical_cursor = base + 1;
+        let op_state_cursor = base + 2;
+        let admin_ts_cursor = base + 3;
+        let orphan_cursor = base + 4;
+
+        // Canonical row that also happens to have a commit timestamp at its cursor.
+        conn.execute(
+            "INSERT INTO canonical_nodes(write_cursor, kind, body, source_id, logical_id, row_kind, state) \
+             VALUES(?1, 'note', 's38 canonical', 's38-src', 's38-lid', 'leaf', 'active')",
+            [canonical_cursor],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO _fathomdb_artifact_revisions(schema_version, revision_id, artifact_class, write_cursor, artifact_role, completeness) \
+             VALUES(1, 's38-rev-canonical', 'node', ?1, 'canonical_source', 'complete')",
+            [canonical_cursor],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO _fathomdb_commit_timestamps(write_cursor, committed_at_ms) VALUES(?1, 1000)",
+            [canonical_cursor],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO _fathomdb_projection_terminal(write_cursor, state) VALUES(?1, 'up_to_date')",
+            [canonical_cursor],
+        )
+        .unwrap();
+
+        // Non-canonical row with operational_state.
+        conn.execute(
+            "INSERT OR IGNORE INTO operational_collections(name, kind, schema_json, retention_json, format_version, created_at) \
+             VALUES('s38_state', 'latest_state', '{}', '{}', 1, 0)",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO operational_state(collection_name, record_key, payload_json, schema_id, write_cursor) \
+             VALUES('s38_state', 'k1', '{}', NULL, ?1)",
+            [op_state_cursor],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO _fathomdb_projection_terminal(write_cursor, state) VALUES(?1, 'up_to_date')",
+            [op_state_cursor],
+        )
+        .unwrap();
+
+        // Non-canonical AdminSchema row with only _fathomdb_commit_timestamps.
+        conn.execute(
+            "INSERT INTO _fathomdb_commit_timestamps(write_cursor, committed_at_ms) VALUES(?1, 2000)",
+            [admin_ts_cursor],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO _fathomdb_projection_terminal(write_cursor, state) VALUES(?1, 'up_to_date')",
+            [admin_ts_cursor],
+        )
+        .unwrap();
+
+        // Truly orphaned terminal row (no owner and no commit timestamp).
+        conn.execute(
+            "INSERT INTO _fathomdb_projection_terminal(write_cursor, state) VALUES(?1, 'up_to_date')",
+            [orphan_cursor],
+        )
+        .unwrap();
+
+        let report = fathomdb_schema::migrate(&conn).expect("migrate 38 -> 39");
+        assert_eq!(report.schema_version_after, 39);
+
+        let owner_kind = |cursor: i64| -> String {
+            conn.query_row(
+                "SELECT owner_kind FROM _fathomdb_projection_terminal WHERE write_cursor = ?1",
+                [cursor],
+                |r| r.get(0),
+            )
+            .unwrap()
+        };
+        assert_eq!(owner_kind(canonical_cursor), "canonical");
+        assert_eq!(owner_kind(op_state_cursor), "non_canonical");
+        assert_eq!(owner_kind(admin_ts_cursor), "non_canonical");
+        assert_eq!(owner_kind(orphan_cursor), "canonical");
+    }
+}

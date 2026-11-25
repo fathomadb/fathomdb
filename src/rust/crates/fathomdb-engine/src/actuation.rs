@@ -1623,25 +1623,44 @@ fn simulation_cursor_base(
     put_count: u64,
     preferred: u64,
 ) -> Result<u64, EngineError> {
+    if put_count == 0 {
+        return Ok(preferred.min(i64::MAX as u64));
+    }
     if preferred.checked_add(put_count).is_some_and(|value| value <= i64::MAX as u64) {
         return Ok(preferred);
     }
-    let ceiling = i64::MAX
-        .checked_sub(i64::try_from(put_count).map_err(|_| EngineError::Storage)?)
-        .ok_or(EngineError::Storage)?;
-    let highest: i64 = connection
-        .query_row(
-            "SELECT COALESCE(MAX(write_cursor),0) FROM (\
-               SELECT write_cursor FROM canonical_nodes WHERE write_cursor <= ?1 \
-               UNION ALL SELECT write_cursor FROM canonical_edges WHERE write_cursor <= ?1 \
-               UNION ALL SELECT write_cursor FROM operational_mutations WHERE write_cursor <= ?1 \
-               UNION ALL SELECT write_cursor FROM operational_state WHERE write_cursor <= ?1\
+    let needed = i64::try_from(put_count).map_err(|_| EngineError::Storage)?;
+    let mut ceiling = i64::MAX;
+    let mut stmt = connection
+        .prepare_cached(
+            "SELECT MAX(write_cursor) FROM (\
+               SELECT MAX(write_cursor) AS write_cursor FROM canonical_nodes WHERE write_cursor <= ?1 \
+               UNION ALL SELECT MAX(write_cursor) FROM canonical_edges WHERE write_cursor <= ?1 \
+               UNION ALL SELECT MAX(write_cursor) FROM _fathomdb_artifact_revisions WHERE write_cursor <= ?1 \
+               UNION ALL SELECT MAX(write_cursor) FROM operational_mutations WHERE write_cursor <= ?1 \
+               UNION ALL SELECT MAX(write_cursor) FROM operational_state WHERE write_cursor <= ?1 \
+               UNION ALL SELECT MAX(write_cursor) FROM _fathomdb_projection_terminal WHERE write_cursor <= ?1 \
+               UNION ALL SELECT MAX(write_cursor) FROM _fathomdb_commit_timestamps WHERE write_cursor <= ?1 \
+               UNION ALL SELECT MAX(write_cursor) FROM _fathomdb_vector_rows WHERE write_cursor <= ?1 \
+               UNION ALL SELECT MAX(write_cursor) FROM _fathomdb_vector_spans WHERE write_cursor <= ?1 \
+               UNION ALL SELECT MAX(write_cursor) FROM canonical_attributes WHERE write_cursor <= ?1 \
+               UNION ALL SELECT MAX(write_cursor) FROM canonical_property_values WHERE entity_class='node' AND write_cursor <= ?1 \
+               UNION ALL SELECT MAX(write_cursor) FROM canonical_property_values WHERE entity_class='edge' AND write_cursor <= ?1\
              )",
-            [ceiling],
-            |row| row.get(0),
         )
         .map_err(|_| EngineError::Storage)?;
-    u64::try_from(highest).map_err(|_| EngineError::Storage)
+    loop {
+        let highest: Option<i64> =
+            stmt.query_row([ceiling], |row| row.get(0)).map_err(|_| EngineError::Storage)?;
+        let floor = highest.unwrap_or(0).max(0);
+        if ceiling.saturating_sub(floor) >= needed {
+            return u64::try_from(floor).map_err(|_| EngineError::Storage);
+        }
+        if floor <= needed {
+            return Err(EngineError::Storage);
+        }
+        ceiling = floor - 1;
+    }
 }
 
 fn simulate_request(
@@ -3079,5 +3098,101 @@ mod tests {
         let expected = hex_encode(&Sha256::digest(bytes));
 
         assert_eq!(request_digest(&request), expected);
+    }
+
+    #[test]
+    fn actuate_returns_write_cursor_exhausted_when_high_artifact_revisions_occupy_i64_max_tail() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join(format!("exhausted-tail{}", fathomdb_schema::SQLITE_SUFFIX));
+        let opened = Engine::open(&path).unwrap();
+        opened
+            .engine
+            .write(&[PreparedWrite::AdminSchema {
+                name: "checkpoints".to_string(),
+                kind: "latest_state".to_string(),
+                schema_json: r#"{"type":"object"}"#.to_string(),
+                retention_json: "{}".to_string(),
+            }])
+            .unwrap();
+        opened.engine.close().unwrap();
+
+        // Seed canonical_nodes + _fathomdb_artifact_revisions at i64::MAX - 2, i64::MAX - 1,
+        // and i64::MAX (leaving next_cursor = i64::MAX). A 2-op batch hits !cursor_available
+        // AND the old simulation_cursor_base clamped ceiling = i64::MAX - 2, causing
+        // simulate_request to allocate i64::MAX - 1 and collide with UNIQUE(scope, artifact_class, write_cursor).
+        {
+            let conn = Connection::open(&path).unwrap();
+            for (cursor, rev, lid) in [
+                (i64::MAX - 2, "seed-rev-m2", "seed-lid-m2"),
+                (i64::MAX - 1, "seed-rev-m1", "seed-lid-m1"),
+                (i64::MAX, "seed-rev-max", "seed-lid-max"),
+            ] {
+                conn.execute(
+                    "INSERT INTO canonical_nodes(write_cursor, kind, body, source_id, logical_id, row_kind, state, scope) \
+                     VALUES(?1, 'note', 'seeded body', 'seed-source', ?2, 'leaf', 'active', '')",
+                    params![cursor, lid],
+                )
+                .unwrap();
+                conn.execute(
+                    "INSERT INTO _fathomdb_artifact_revisions(schema_version, revision_id, artifact_class, write_cursor, artifact_role, completeness, scope) \
+                     VALUES(1, ?1, 'node', ?2, 'canonical_source', 'complete', '')",
+                    params![rev, cursor],
+                )
+                .unwrap();
+            }
+        }
+
+        let reopened = Engine::open(&path).unwrap();
+
+        // 1. Valid 2-op mixed batch must return Ok(Refused(WriteCursorExhausted)), NOT Err(Storage).
+        let mixed = ActuationBatchV1::new(
+            "exhausted-mixed-2op",
+            vec![
+                ActuationOperationV1::PutCanonicalNode(canonical("fresh-rev-1")),
+                ActuationOperationV1::PutLatestState(
+                    LatestStateActuationV1::new("checkpoints", "k1", r#"{"step":1}"#).unwrap(),
+                ),
+            ],
+        )
+        .unwrap();
+        let receipt = reopened
+            .engine
+            .actuate(mixed)
+            .expect("2-op batch near i64::MAX must refuse cleanly, not fail with Storage");
+        assert_eq!(receipt.outcome, ActuationOutcomeV1::Refused);
+        assert_eq!(receipt.reason_codes, vec![ActuationRefusalReasonV1::WriteCursorExhausted]);
+        assert_eq!(receipt.refused_operation_index, Some(0));
+
+        // 2. Domain validation refusal still takes precedence over WriteCursorExhausted.
+        let bad_role = ActuationBatchV1::new(
+            "exhausted-bad-role-precedence",
+            vec![
+                ActuationOperationV1::PutDerivedNode(canonical("fresh-rev-bad-role")),
+                ActuationOperationV1::PutCanonicalNode(canonical("fresh-rev-2")),
+            ],
+        )
+        .unwrap();
+        let role_receipt = reopened
+            .engine
+            .actuate(bad_role)
+            .expect("domain refusal must still take precedence over WriteCursorExhausted");
+        assert_eq!(role_receipt.outcome, ActuationOutcomeV1::Refused);
+        assert_eq!(
+            role_receipt.reason_codes,
+            vec![ActuationRefusalReasonV1::ProvenanceRoleMismatch]
+        );
+        assert_eq!(role_receipt.refused_operation_index, Some(0));
+
+        // 3. Committed high-cursor rows must remain completely intact.
+        reopened.engine.close().unwrap();
+        let conn = Connection::open(&path).unwrap();
+        let seeded_count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM _fathomdb_artifact_revisions WHERE write_cursor >= ?1",
+                [i64::MAX - 2],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(seeded_count, 3);
     }
 }

@@ -62,7 +62,7 @@ impl Fixture {
             }
             if terminals.get(i).copied().unwrap_or(false) {
                 tx.execute(
-                    "INSERT INTO _fathomdb_projection_terminal VALUES(?1,?2)",
+                    "INSERT INTO _fathomdb_projection_terminal(write_cursor,state) VALUES(?1,?2)",
                     params![c, if i % 2 == 0 { "failed" } else { "up_to_date" }],
                 )
                 .unwrap();

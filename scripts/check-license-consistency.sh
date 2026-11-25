@@ -595,14 +595,15 @@ if not SKIP_PACKAGING:
     if "python" in legs:
         if not WITH_WHEEL:
             # MECHANISM PROXY, stated plainly. The declaration half already
-            # asserted src/python/LICENSE and src/python-cli/LICENSE are real,
-            # byte-identical copies and that `license-files` matches each; that
-            # is the mechanism maturin uses. The REAL wheels are read only under
-            # --with-wheel because building them compiles the Rust tree.
+            # asserted src/python/LICENSE, src/python-cli/LICENSE, and
+            # src/python-mcp/LICENSE are real, byte-identical copies and that
+            # `license-files` matches each; that is the mechanism maturin uses.
+            # The REAL wheels are read only under --with-wheel because building
+            # them compiles the Rust tree.
             print(
                 "  ~   wheel: MECHANISM PROXY only (src/python/LICENSE + "
-                "src/python-cli/LICENSE + license-files). Run with --with-wheel "
-                "to read real wheels."
+                "src/python-cli/LICENSE + src/python-mcp/LICENSE + license-files). "
+                "Run with --with-wheel to read real wheels."
             )
         else:
             import shutil

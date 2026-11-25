@@ -2322,3 +2322,186 @@ proptest! {
         prop_assert_eq!(result.findings.iter().map(|finding| finding.code).collect::<Vec<_>>(), expected.into_iter().collect::<Vec<_>>());
     }
 }
+
+#[test]
+fn slice55_deleted_trailing_canonical_row_is_caught_despite_commit_timestamp() {
+    let (_dir, opened) = opened();
+    // Non-vector canonical node receives an immediate `_fathomdb_projection_terminal`
+    // row (`up_to_date`, `owner_kind = 'canonical'`) and `_fathomdb_commit_timestamps`
+    // at the trailing batch cursor, with empty vector/sidecar/spans.
+    let receipt = opened
+        .engine
+        .write(&[
+            PreparedWrite::Node {
+                kind: "note".to_string(),
+                body: "leading canonical note".to_string(),
+                source_id: SourceId::new("src-p1-1").unwrap(),
+                logical_id: Some("n-leading".to_string()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                properties: None,
+            },
+            PreparedWrite::Node {
+                kind: "note".to_string(),
+                body: "trailing canonical note".to_string(),
+                source_id: SourceId::new("src-p1-1").unwrap(),
+                logical_id: Some("n-trailing".to_string()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                properties: None,
+            },
+        ])
+        .unwrap();
+    let trailing_cursor = receipt.cursor;
+
+    // Delete the trailing canonical node row (and its lexical rows so we isolate
+    // dense/projection-terminal checks), leaving `_fathomdb_commit_timestamps`
+    // and `_fathomdb_projection_terminal` intact at `trailing_cursor`.
+    opened
+        .engine
+        .execute_for_test(&format!(
+            "DELETE FROM canonical_nodes WHERE write_cursor={trailing_cursor}; \
+             DELETE FROM search_index WHERE write_cursor={trailing_cursor}; \
+             DELETE FROM search_index_v2 WHERE write_cursor={trailing_cursor};"
+        ))
+        .unwrap();
+
+    let orphan_result = opened
+        .engine
+        .check_data_plane_integrity(request(
+            DataPlaneIntegrityCheckV1::ActiveSearchableOrphans,
+            10_000,
+        ))
+        .unwrap();
+    assert!(
+        orphan_result.findings.iter().any(|finding| {
+            finding.code == DataPlaneIntegrityFindingCodeV1::DenseProjectionOwnerMissing
+                && finding.write_cursor == Some(trailing_cursor)
+        }),
+        "deleting trailing canonical row must trigger DenseProjectionOwnerMissing even when _fathomdb_commit_timestamps exists: {orphan_result:#?}"
+    );
+
+    let generation_result = opened
+        .engine
+        .check_data_plane_integrity(request(
+            DataPlaneIntegrityCheckV1::ProjectionGeneration,
+            10_000,
+        ))
+        .unwrap();
+    assert!(
+        generation_result.findings.iter().any(|finding| {
+            finding.code == DataPlaneIntegrityFindingCodeV1::ProjectionMemberCorrupt
+                && finding.write_cursor == Some(trailing_cursor)
+        }),
+        "deleting trailing canonical row must trigger ProjectionMemberCorrupt even when _fathomdb_commit_timestamps exists: {generation_result:#?}"
+    );
+}
+
+#[test]
+fn slice55_non_canonical_multi_op_overwritten_latest_state_and_pruned_log_pass_integrity() {
+    let (_dir, opened) = opened();
+
+    // 1. Multi-op batch where op 0 is AdminSchema (no `_fathomdb_commit_timestamps`
+    //    at cursor 1 because commit timestamps only record the trailing batch cursor)
+    //    and op 1 is a canonical node.
+    opened
+        .engine
+        .write(&[
+            PreparedWrite::AdminSchema {
+                name: "checkpoints".to_string(),
+                kind: "latest_state".to_string(),
+                schema_json: r#"{"type":"object"}"#.to_string(),
+                retention_json: "{}".to_string(),
+            },
+            PreparedWrite::Node {
+                kind: "note".to_string(),
+                body: "batch trailing note".to_string(),
+                source_id: SourceId::new("src-p1-1-fp").unwrap(),
+                logical_id: Some("n-after-admin".to_string()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                properties: None,
+            },
+        ])
+        .unwrap();
+
+    // 2. Register an append_only_log collection, write a log row, and prune it
+    //    (simulating retention pruning removing the row from operational_mutations)
+    //    inside a multi-op batch so its cursor has no commit timestamp either.
+    opened
+        .engine
+        .write(&[PreparedWrite::AdminSchema {
+            name: "audit_log".to_string(),
+            kind: "append_only_log".to_string(),
+            schema_json: r#"{"type":"object"}"#.to_string(),
+            retention_json: "{}".to_string(),
+        }])
+        .unwrap();
+    let log_receipt = opened
+        .engine
+        .write(&[
+            PreparedWrite::OpStore {
+                collection: "audit_log".to_string(),
+                record_key: "ev-1".to_string(),
+                schema_id: None,
+                body: r#"{"step":1}"#.to_string(),
+            },
+            PreparedWrite::Node {
+                kind: "note".to_string(),
+                body: "note after log append".to_string(),
+                source_id: SourceId::new("src-p1-1-fp").unwrap(),
+                logical_id: Some("n-after-log".to_string()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                properties: None,
+            },
+        ])
+        .unwrap();
+    let pruned_log_cursor = log_receipt.cursor - 1;
+    opened
+        .engine
+        .execute_for_test(&format!(
+            "DELETE FROM operational_mutations WHERE write_cursor={pruned_log_cursor}"
+        ))
+        .unwrap();
+
+    // 3. Overwrite a LatestState key twice (first write inside a multi-op batch so
+    //    neither `operational_state` nor `_fathomdb_commit_timestamps` retains its
+    //    first cursor).
+    opened
+        .engine
+        .write(&[
+            PreparedWrite::OpStore {
+                collection: "checkpoints".to_string(),
+                record_key: "k1".to_string(),
+                schema_id: None,
+                body: r#"{"v":1}"#.to_string(),
+            },
+            PreparedWrite::OpStore {
+                collection: "checkpoints".to_string(),
+                record_key: "k1".to_string(),
+                schema_id: None,
+                body: r#"{"v":2}"#.to_string(),
+            },
+        ])
+        .unwrap();
+
+    for check in [
+        DataPlaneIntegrityCheckV1::ActiveSearchableOrphans,
+        DataPlaneIntegrityCheckV1::ProjectionGeneration,
+    ] {
+        let result = opened.engine.check_data_plane_integrity(request(check, 10_000)).unwrap();
+        assert!(
+            result.findings.is_empty(),
+            "legitimate non-canonical terminals must produce 0 findings for {check:?}: {result:#?}"
+        );
+    }
+}

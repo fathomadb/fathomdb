@@ -99,14 +99,16 @@ These are the only allowed differences from the Python and TypeScript SDKs:
 
 ## Open and engine members
 
-`OpenOptions { config: EngineConfig, use_default_embedder: bool }` derives
-`Default`, which gives the default `EngineConfig` (including `scope_policy:
+`OpenOptions { config: EngineConfig, use_default_embedder: bool, create_if_missing: bool }`
+implements `Default`, which gives the default `EngineConfig` (including `scope_policy:
 ScopePolicy::Unscoped`, the single-scope/single-agent default binding
-`scope = ""`) and `use_default_embedder = false`. `OpenOptions::with_scope_policy(self,
-policy: ScopePolicy) -> Self` and `EngineConfig::with_scope_policy(self,
-policy: ScopePolicy) -> Self` opt a handle into multi-agent caller-scope
-isolation. `EngineConfig` is the core struct, re-exported: its fields, ranges,
-and defaults are already identical across the three SDKs.
+`scope = ""`), `use_default_embedder = false`, and `create_if_missing = true`.
+`OpenOptions::with_scope_policy(self, policy: ScopePolicy) -> Self`,
+`OpenOptions::with_create_if_missing(self, create_if_missing: bool) -> Self`, and
+`EngineConfig::with_scope_policy(self, policy: ScopePolicy) -> Self` configure
+multi-agent caller-scope isolation and existing-database-only opens. `EngineConfig`
+is the core struct, re-exported: its fields, ranges, and defaults are already
+identical across the three SDKs.
 
 The core-call column names a method on `fathomdb_engine::Engine` unless
 another path is given. The Python and TypeScript bindings call the same core
@@ -114,7 +116,7 @@ function in every row.
 
 | Canonical ID | `fathomdb_sdk` member | Core call |
 | --- | --- | --- |
-| `engine.open` | `Engine::open(path: impl AsRef<Path>, options: OpenOptions) -> Result<Engine>` | `open_with_choice_and_config(path, Default or None, config)` |
+| `engine.open` | `Engine::open(path: impl AsRef<Path>, options: OpenOptions) -> Result<Engine>` | `open_with_choice_config_and_create(path, Default or None, config, options.create_if_missing)` |
 | — | `open_report(&self) -> &OpenReport`, `config(&self) -> &EngineConfig` (both SDKs expose `config`) | Stored at open: the requested config. |
 | `engine.close` | `close(&self) -> Result<()>` (idempotent) | Mark closing and detach the subscriber, as napi does, then call `close`. |
 | `engine.write` | `write(&self, batch: &[PreparedWrite]) -> Result<WriteReceipt>` | `write` |

@@ -448,7 +448,12 @@ pub(crate) fn project_canonical_node_row(
         } else {
             // Never-vector-projected rows terminate the cursor up-front so
             // `advance_projection_cursor` can advance the readiness watermark.
-            record_projection_terminal(tx, cursor, "up_to_date")?;
+            record_projection_terminal(
+                tx,
+                cursor,
+                "up_to_date",
+                ProjectionTerminalOwnerKind::Canonical,
+            )?;
         }
     }
     Ok(enqueue_vector)
@@ -524,7 +529,12 @@ pub(crate) fn project_canonical_edge_row(
             // Do NOT call record_projection_terminal — let the scheduler embed
             // the body and mark it terminal after projection.
         } else {
-            record_projection_terminal(tx, cursor, "up_to_date")?;
+            record_projection_terminal(
+                tx,
+                cursor,
+                "up_to_date",
+                ProjectionTerminalOwnerKind::Canonical,
+            )?;
         }
     }
     Ok(enqueue_vector)

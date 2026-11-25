@@ -79,6 +79,9 @@ Open or create a FathomDB database at `path`.
     weights into `~/.cache/fathomdb/embedders/`. Without an embedder, vector
     writes and `engine.embed` reject with `EmbedderNotConfiguredError`.
     See the [embedder guide](../embedder.md) for runtime policy.
+  - `createIfMissing` (`boolean`, default `true`) — `true` creates a fresh
+    database when `path` is absent or zero-length; `false` rejects missing or
+    zero-length paths with `DatabaseNotFoundError` without creating a file.
   - `engineConfig` (`EngineConfig`) — engine knobs in camelCase, including
     optional `scopePolicy?: ScopePolicy` (defaults to `ScopePolicy.unscoped()`
     for single-scope/single-agent databases). See [config](config.md).

@@ -704,7 +704,7 @@ fn parse_transition_lifecycle(obj: &Map<String, Value>) -> Result<ActuationOpera
         obj,
         &["op", "logical_id", "expected_current_revision_id", "to_state", "reason"],
     )?;
-    let logical_id = req_str(obj, "logical_id")?;
+    let logical_id = strip_logical_prefix(req_str(obj, "logical_id")?)?;
     let rev = ArtifactRevisionId::new(req_str(obj, "expected_current_revision_id")?)
         .map_err(|_| ToolError::bad_argument("invalid expected_current_revision_id"))?;
     let to_state = match req_str(obj, "to_state")?.as_str() {
@@ -730,4 +730,54 @@ fn parse_put_latest_state(
     let op = LatestStateActuationV1::new(collection, record_key, payload_json)
         .map_err(|_| ToolError::bad_argument("invalid collection, record_key, or payload_json"))?;
     Ok(ActuationOperationV1::PutLatestState(op))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn parse_transition_lifecycle_strips_logical_id_prefix() {
+        let val = json!({
+            "op": "transition_lifecycle",
+            "logical_id": "l:doc-42",
+            "expected_current_revision_id": "rev-1",
+            "to_state": "deleted",
+            "reason": "retired"
+        });
+        let parsed = parse_transition_lifecycle(val.as_object().unwrap())
+            .expect("l:-prefixed logical_id must parse");
+        match parsed {
+            ActuationOperationV1::TransitionLifecycle(op) => {
+                assert_eq!(op.logical_id, "doc-42");
+                assert_eq!(op.expected_current_revision_id.as_str(), "rev-1");
+                assert_eq!(op.to_state, LifecycleState::Deleted);
+                assert_eq!(op.reason.as_deref(), Some("retired"));
+            }
+            other => panic!("unexpected op variant: {other:?}"),
+        }
+
+        let empty_prefix = json!({
+            "op": "transition_lifecycle",
+            "logical_id": "l:",
+            "expected_current_revision_id": "rev-1",
+            "to_state": "active"
+        });
+        assert!(
+            parse_transition_lifecycle(empty_prefix.as_object().unwrap()).is_err(),
+            "empty l: prefix must be rejected"
+        );
+
+        let nul_logical = json!({
+            "op": "transition_lifecycle",
+            "logical_id": "l:doc\0bad",
+            "expected_current_revision_id": "rev-1",
+            "to_state": "active"
+        });
+        assert!(
+            parse_transition_lifecycle(nul_logical.as_object().unwrap()).is_err(),
+            "NUL byte in logical_id must be rejected by strip_logical_prefix"
+        );
+    }
 }

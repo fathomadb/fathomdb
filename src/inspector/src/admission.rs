@@ -144,7 +144,7 @@ fn manifest_columns(table: &str) -> &'static str {
         "canonical_property_values" => "entity_class,write_cursor,attr_name,value_type,text_val,num_val,bool_val",
         "_fathomdb_commit_timestamps" => "write_cursor,committed_at_ms",
         "_fathomdb_projection_state" => "kind,last_enqueued_cursor,updated_at",
-        "_fathomdb_projection_terminal" => "write_cursor,state",
+        "_fathomdb_projection_terminal" => "write_cursor,state,owner_kind",
         "_fathomdb_vector_kinds" => "kind,profile,created_at",
         "_fathomdb_vector_rows" => "rowid,kind,write_cursor",
         "_fathomdb_vector_spans" => "vector_rowid,write_cursor,window_number,byte_start,byte_end,body_length",

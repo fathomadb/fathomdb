@@ -331,7 +331,7 @@ pub use pagination::{PageCursor, PageError, PageErrorReason, PageRequestV1, Page
 use projection_commit::terminal_state_for_cursor;
 use projection_commit::{
     advance_projection_cursor, commit_projection_outcomes, load_projection_cursor,
-    record_projection_terminal, store_projection_cursor,
+    record_projection_terminal, store_projection_cursor, ProjectionTerminalOwnerKind,
 };
 use projection_generation::derive_dense_readiness;
 pub use projection_generation::{

@@ -83,16 +83,32 @@ pub(crate) fn store_projection_cursor(
     Ok(())
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum ProjectionTerminalOwnerKind {
+    Canonical,
+    NonCanonical,
+}
+
+impl ProjectionTerminalOwnerKind {
+    const fn as_str(self) -> &'static str {
+        match self {
+            Self::Canonical => "canonical",
+            Self::NonCanonical => "non_canonical",
+        }
+    }
+}
+
 pub(crate) fn record_projection_terminal(
     connection: &Connection,
     cursor: u64,
     state: &str,
+    owner_kind: ProjectionTerminalOwnerKind,
 ) -> rusqlite::Result<()> {
     connection
         .prepare_cached(
-            "INSERT OR IGNORE INTO _fathomdb_projection_terminal(write_cursor, state) VALUES(?1, ?2)",
+            "INSERT OR IGNORE INTO _fathomdb_projection_terminal(write_cursor, state, owner_kind) VALUES(?1, ?2, ?3)",
         )?
-        .execute(params![cursor, state])?;
+        .execute(params![cursor, state, owner_kind.as_str()])?;
     Ok(())
 }
 
@@ -138,6 +154,9 @@ fn projection_tuple_corruption() -> rusqlite::Error {
 pub(crate) fn advance_projection_cursor(connection: &Connection) -> rusqlite::Result<u64> {
     let mut cursor = load_projection_cursor(connection)?;
     loop {
+        if cursor >= i64::MAX as u64 {
+            break;
+        }
         let next = cursor.saturating_add(1);
         if terminal_state_for_cursor(connection, next)?.is_some() {
             cursor = next;
@@ -451,7 +470,12 @@ pub(crate) fn commit_projection_outcomes(
                         pv.extend(attr_vals);
                         tx.execute(&sql, rusqlite::params_from_iter(pv.iter()))?;
                     }
-                    record_projection_terminal(&tx, *cursor, "up_to_date")?;
+                    record_projection_terminal(
+                        &tx,
+                        *cursor,
+                        "up_to_date",
+                        ProjectionTerminalOwnerKind::Canonical,
+                    )?;
                     #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
                     if let Some(counts) = observation_counts.as_mut() {
                         counts.staged_success += 1;
@@ -547,7 +571,12 @@ pub(crate) fn commit_projection_outcomes(
                             params![cursor.to_string(), payload, cursor, row_scope],
                         )?;
                     }
-                    record_projection_terminal(&tx, *cursor, "failed")?;
+                    record_projection_terminal(
+                        &tx,
+                        *cursor,
+                        "failed",
+                        ProjectionTerminalOwnerKind::Canonical,
+                    )?;
                     #[cfg(all(feature = "slice30-observer", feature = "test-hooks"))]
                     if let Some(counts) = observation_counts.as_mut() {
                         counts.staged_failure += 1;

@@ -123,7 +123,7 @@ are preserved. Fetch bodies retain every byte.
 | search | Header `search store=q epoch=N validity_instant=N mode=<word> hits=N completeness=<word> [kind=q] [continuation=c] [continuation_exact=false] response_id=r tokens=U/M[ cut]`. Common kind may appear once in the header. |
 | search hit | `q arm=<word> score=<x.xxx> [ce=<x.xxx>] [anchor=<word>] [cut] [kind=q] [src=q] [hl=a-b,…] [scored_bytes=N] \| <snippet>`. Whole anchor is omitted; requested empty highlights are `hl=[]`, distinct from absence. |
 | explanations | `explain: j` (two leading spaces) after its hit contains the full per-hit object; `explanation: j` contains trace or unavailable status/reason once. No per-hit trace duplication. |
-| fetch | Header names store/epoch/validity/items/tokens. `record q kind=q bytes=N[ cut]`, LF, exactly N raw UTF-8 body bytes, then one framing LF. Empty bodies have N=0. |
+| fetch | Header names store/epoch/validity/items/[state=j]/tokens. `record q kind=q bytes=N[ cut][ rev=q]`, LF, exactly N raw UTF-8 body bytes, then one framing LF. Empty bodies have N=0. |
 | fetch item error | `error q <class>/<code> message=q remedy=q [candidates=j] [detail=q] [busy=j]`. Input order, duplicates and all item outcomes remain intact. |
 | expand | Header names store/epoch/validity/targets/complete/optional bound/tokens; ordered rows `q kind=q hop=N edge=q[ cut] \| <body>`, with degradation and hints. |
 | feedback | Header names store/epoch/validity/status/optional reason/tokens and retains degradation. |
@@ -170,8 +170,8 @@ meaning. Every listed field is retained in structured mode.
 
 | Group | Exact fields | Compact classification |
 | --- | --- | --- |
-| Envelope | store, epoch, validity_instant; degradation[].arm/reason; budget.max_tokens/used_tokens/cut | Header, degradation lines, converged tokens/flag. |
-| Unavailable capabilities | optional state.status; optional search verdict; orient kinds.status/counts.status; not_in_this_release[] | State/verdict are absent in both formats. Orient names all four capabilities; kinds/counts placeholders remain only in structured data. |
+| Envelope | store, epoch, validity_instant; state.status/database_id/generation/nonce/canonical_write_boundary/projection_cursor/drift; degradation[].arm/reason; budget.max_tokens/used_tokens/cut | Header (including live `EP-01` `state=j`), degradation lines, converged tokens/flag. |
+| Unavailable capabilities | optional search verdict; orient kinds.status/counts.status; not_in_this_release[] | Verdict is absent in both formats. Orient names the three omitted capabilities (`["verdict", "kinds", "counts"]`); kinds/counts placeholders remain only in structured data. |
 | list_stores | default_store; stores[].name/open/readiness/default | Quoted name and words/flags; length supplies header count. |
 | use_store | store | Quoted selected store. |
 | orient projections | projections[].name/roles[]/fts/vector; projection_status.projections[].name/dense_readiness | Joined by exact name in projection rows; unmatched status rows remain visible. |
@@ -182,7 +182,7 @@ meaning. Every listed field is retained in structured mode.
 | explanation trace | explanation.trace.query_chars/k/rerank_depth/pool_n/alpha/use_graph_arm/recency/embedder_id/ce_active/vector_hits/text_hits/graph_hits/dropped_edge_hits | Complete compact JSON in explanation line. |
 | per-hit explanation | explanation.per_hit[].ref/arm/vector_rank/text_rank/graph_rank/fused_score/ce_score/blended | Complete compact JSON after corresponding hit, retaining nulls/raw f64. |
 | unavailable explanation | explanation.status/reason | Complete compact JSON. |
-| fetch record | items[].ref/record.kind/body/body_cut | Quoted metadata, exact UTF-8 byte frame/cut. |
+| fetch record | items[].ref/record.kind/body/body_cut plus optional frozen-evidence fields record.artifact_revision_id/source_id/source_version_id/source_revision_id/evidence_text/canonical_source_hash/artifact_class/source_lifecycle_state | Quoted metadata (with optional `rev=q` when `artifact_revision_id` is present), exact UTF-8 byte frame/cut. |
 | fetch error | items[].ref/error plus every Error field below | Quoted reference and full typed error rendering, one outcome per input. |
 | expand | complete, bound; targets[].ref/kind/hop_count/terminal_edge_kind/body/body_cut | Header bound/complete; ordered quoted metadata/flattened body/cut rows. |
 | feedback | status, reason | Header words, with envelope above. |
@@ -590,8 +590,12 @@ A continuation call takes only `store`, `continuation`, `max_tokens`,
 - **Embedded:** the host may write between pages, so a same-epoch continuation
   is best effort and carries `continuation_exact: false`. Standalone results
   omit the field.
-- In this release `stale_handle` is `invalid_request`. The `drift` class and
-  re-derivation (MR-041.4, MR-051.3) arrive with the engine state read.
+- Unfrozen continuation handles from another store, another epoch, or evicted
+  LRU entries fail as `invalid_request/stale_handle`.
+- When a live `EP-01` `frozen_context` handle detects that the store visibility
+  state changed since the context was frozen, the call fails as
+  `conflict/state_drift` (remedy: re-run `search` with `freeze: true` to obtain
+  a fresh `frozen_context`).
 
 ## 6. Errors
 
@@ -608,7 +612,7 @@ tool handler is a JSON-RPC internal error for that request (MR-002.2).
 | --- | --- | --- |
 | `invalid_request` | `unknown_store`, `bad_store_name`, `unknown_argument`, `refs_not_in_response`, `bad_argument`, `unsupported_ref`, `stale_handle`, `wrong_store`, `bound_exceeded`, `writes_disabled`, `kind_not_allowed`, `forbidden_operation`, `scope_violation` | Adapter validation; SDK `InvalidArgument`, `WriteValidation`, `SchemaValidation`, `ScopeViolation`, filter errors; `bound_exceeded` is an expansion past 10,000 edges; `writes_disabled` refuses writes on read-only stores; `kind_not_allowed` enforces `allowed_*` metadata; `forbidden_operation` refuses operator/bulk escape hatches |
 | `not_found` | `not_found` | Absent record (per item in `fetch`) or nondisclosing cross-scope read/continuation reference (`AC32-MCP-SAFETY-04`) |
-| `conflict` | `stale_write_boundary`, `operation_id_conflict` | Atomic CAS precondition mismatch (`stale_write_boundary`, optionally carrying content-free `observed_write_boundary`) or `operation_id` reused with a differing canonical payload or scope (`operation_id_conflict`) |
+| `conflict` | `stale_write_boundary`, `operation_id_conflict`, `state_drift`, `lifecycle_conflict` | Atomic CAS precondition mismatch (`stale_write_boundary`, optionally carrying content-free `observed_write_boundary`), `operation_id` reused with a differing canonical payload or scope (`operation_id_conflict`), frozen-context visibility drift (`state_drift`), or revision/lifecycle state mismatch (`lifecycle_conflict`) |
 | `not_ready` | `opening`, `reopening`, `draining`, `embedder_not_ready`, `vector_disabled` | Readiness gate: the code is the phase word. Every call waits for an open or reopen in progress up to its deadline before returning it; calls with a progress token also get progress notifications (MR-003.2, MR-006.4). SDK `EmbedderNotConfigured`, `KindNotVectorIndexed` (`embedder_not_ready`); SDK `VectorEquivalenceMismatch` (`vector_disabled`): a hybrid search on a store whose dense side the open-time equivalence check disabled; remedy: use mode `"text"` |
 | `unavailable` | `open_failed`, `database_locked`, `corrupt`, `migration_refused`, `missing_file` | Store open failure (MR-003.3) |
 | `timeout` | `deadline`, `cancelled` | `deadline`: the call was still running at `run_limit_ms` after its admission (MR-033.1); it is abandoned and keeps its admission permit until its engine work returns. `cancelled`: the client cancelled the call (`notifications/cancelled`). A waiting call leaves the queue; a running call is abandoned at once and its read runs to its end. rmcp discards the response of a cancelled request, so clients do not see this result |

@@ -944,7 +944,12 @@ pub(crate) fn apply_batch_in_transaction(
                         retention_json = excluded.retention_json",
                 )?
                 .execute(params![name, kind, schema_json, retention_json])?;
-                record_projection_terminal(tx, cursor, "up_to_date")?;
+                record_projection_terminal(
+                    tx,
+                    cursor,
+                    "up_to_date",
+                    ProjectionTerminalOwnerKind::NonCanonical,
+                )?;
             }
             (
                 PreparedWrite::OpStore { collection, record_key, schema_id, body },
@@ -956,7 +961,12 @@ pub(crate) fn apply_batch_in_transaction(
                      ) VALUES(?1, ?2, 'append', ?3, ?4, ?5, ?6)",
                 )?
                 .execute(params![collection, record_key, body, schema_id, cursor, scope])?;
-                record_projection_terminal(tx, cursor, "up_to_date")?;
+                record_projection_terminal(
+                    tx,
+                    cursor,
+                    "up_to_date",
+                    ProjectionTerminalOwnerKind::NonCanonical,
+                )?;
             }
             (
                 PreparedWrite::OpStore { collection, record_key, schema_id, body },
@@ -972,7 +982,12 @@ pub(crate) fn apply_batch_in_transaction(
                         write_cursor = excluded.write_cursor",
                 )?
                 .execute(params![collection, record_key, body, schema_id, cursor, scope])?;
-                record_projection_terminal(tx, cursor, "up_to_date")?;
+                record_projection_terminal(
+                    tx,
+                    cursor,
+                    "up_to_date",
+                    ProjectionTerminalOwnerKind::NonCanonical,
+                )?;
             }
             _ => return Err(rusqlite::Error::InvalidQuery.into()),
         }

@@ -109,7 +109,7 @@ pub(super) fn crossed_boundary_since(
 /// plus expanded nodes reachable by traversal that are not already in the hit set.
 #[pyfunction]
 #[pyo3(
-    signature = (engine, query, depth, source_type=None, kind=None, created_after=None, status=None, search_limit=10)
+    signature = (engine, query, depth, source_type=None, kind=None, created_after=None, status=None, search_limit=10, view=None)
 )]
 #[allow(clippy::too_many_arguments)]
 pub(super) fn search_expand(
@@ -122,6 +122,7 @@ pub(super) fn search_expand(
     created_after: Option<i64>,
     status: Option<Bound<'_, PyAny>>,
     search_limit: usize,
+    view: Option<&PyReadView>,
 ) -> PyResult<PySearchExpandResult> {
     let query = extract_validated_str(query)?;
     // Use extract_opt_validated_str (same path as Engine.search) so lone UTF-16
@@ -142,9 +143,10 @@ pub(super) fn search_expand(
         } else {
             None
         };
+    let view = view.map(PyReadView::to_rust);
     let inner = Arc::clone(&engine.inner);
     let result = call_engine(py, move || {
-        inner.search_expand_with_limit(&query, filter, depth, search_limit, None)
+        inner.search_expand_with_limit(&query, filter, depth, search_limit, view)
     })?;
     Ok(PySearchExpandResult::from_rust(result))
 }

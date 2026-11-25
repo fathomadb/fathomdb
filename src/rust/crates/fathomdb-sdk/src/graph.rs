@@ -48,5 +48,11 @@ pub fn search_expand(
         }
         guard::search_filter(filter)?;
     }
-    Ok(engine.core().search_expand_with_limit(query, filter, depth, options.search_limit, None)?)
+    Ok(engine.core().search_expand_with_limit(
+        query,
+        filter,
+        depth,
+        options.search_limit,
+        options.view,
+    )?)
 }

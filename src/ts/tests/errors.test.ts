@@ -29,6 +29,7 @@ import {
   ProjectionError,
   SchedulerError,
   SchemaValidationError,
+  ScopeViolationError,
   StorageError,
   VectorError,
   WriteValidationError,
@@ -62,6 +63,8 @@ const LEAF_CLASSES = [
   CudaPoolExhaustedError,
   CudaContextLostError,
   CudaPrivateBuildRefusedError,
+  // 0.8.32 Slice 20 (WP-20D) — caller-scope boundary denial.
+  ScopeViolationError,
 ] as const;
 
 test("every leaf class extends FathomDbError", () => {
@@ -225,4 +228,12 @@ test("decision #18: InvalidArgumentError survives as a distinct leaf", () => {
   assert.ok(!(err instanceof WriteValidationError));
   assert.ok(!(new WriteValidationError("x") instanceof InvalidArgumentError));
   assert.match(err.message, /depth must be 1-3/);
+});
+
+test("ScopeViolationError extends FathomDbError as a distinct leaf", () => {
+  const err = new ScopeViolationError("write scope denied");
+  assert.ok(err instanceof FathomDbError);
+  assert.ok(!(err instanceof InvalidArgumentError));
+  assert.ok(!(err instanceof WriteValidationError));
+  assert.equal(err.name, "ScopeViolationError");
 });

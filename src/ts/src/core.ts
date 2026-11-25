@@ -120,6 +120,90 @@ export interface EngineConfig {
    * the open report and on explain traces.
    */
   readonly queryStopWords?: QueryStopWords;
+  /** Caller-scope isolation policy bound at open (`undefined` = unscoped). */
+  readonly scopePolicy?: ScopePolicy;
+}
+
+/** Caller-scope isolation policy bound at engine open (0.8.32 Slice 20 / Pin A). */
+export type ScopePolicy =
+  | { readonly mode: "unscoped" }
+  | {
+      readonly mode: "scoped";
+      readonly readScopes: readonly string[];
+      readonly writeScope?: string | null;
+    };
+
+/** Factory helpers matching Rust `ScopePolicy::{unscoped,single,read_only,read_write}`. */
+export const ScopePolicy = {
+  unscoped(): ScopePolicy {
+    return Object.freeze({ mode: "unscoped" as const });
+  },
+  single(scope: string): ScopePolicy {
+    if (typeof scope !== "string") {
+      throw new TypeError("ScopePolicy.single scope must be a string");
+    }
+    return Object.freeze({
+      mode: "scoped" as const,
+      readScopes: Object.freeze([scope]),
+      writeScope: scope,
+    });
+  },
+  readOnly(readScopes: readonly string[]): ScopePolicy {
+    if (!Array.isArray(readScopes) || !readScopes.every((s) => typeof s === "string")) {
+      throw new TypeError("ScopePolicy.readOnly readScopes must be an array of strings");
+    }
+    return Object.freeze({
+      mode: "scoped" as const,
+      readScopes: Object.freeze([...readScopes]),
+      writeScope: null,
+    });
+  },
+  readWrite(readScopes: readonly string[], writeScope: string): ScopePolicy {
+    if (!Array.isArray(readScopes) || !readScopes.every((s) => typeof s === "string")) {
+      throw new TypeError("ScopePolicy.readWrite readScopes must be an array of strings");
+    }
+    if (typeof writeScope !== "string") {
+      throw new TypeError("ScopePolicy.readWrite writeScope must be a string");
+    }
+    return Object.freeze({
+      mode: "scoped" as const,
+      readScopes: Object.freeze([...readScopes]),
+      writeScope,
+    });
+  },
+} as const;
+
+function snapshotScopePolicy(value: unknown): ScopePolicy {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw new TypeError("engineConfig.scopePolicy must be an object");
+  }
+  const setting = value as Record<string, unknown>;
+  const mode = setting.mode;
+  if (mode !== "unscoped" && mode !== "scoped") {
+    throw new TypeError("engineConfig.scopePolicy.mode must be unscoped or scoped");
+  }
+  const readScopes = setting.readScopes;
+  const writeScope = setting.writeScope;
+  if (mode === "unscoped") {
+    if (
+      (readScopes !== undefined && (!Array.isArray(readScopes) || readScopes.length > 0)) ||
+      (writeScope !== undefined && writeScope !== null)
+    ) {
+      throw new TypeError("unscoped ScopePolicy cannot carry readScopes or writeScope");
+    }
+    return Object.freeze({ mode: "unscoped" as const });
+  }
+  if (!Array.isArray(readScopes) || !readScopes.every((s) => typeof s === "string")) {
+    throw new TypeError("engineConfig.scopePolicy.readScopes must be an array of strings");
+  }
+  if (writeScope !== undefined && writeScope !== null && typeof writeScope !== "string") {
+    throw new TypeError("engineConfig.scopePolicy.writeScope must be a string or null");
+  }
+  return Object.freeze({
+    mode: "scoped" as const,
+    readScopes: Object.freeze([...readScopes]),
+    writeScope: writeScope === undefined ? null : writeScope,
+  });
 }
 
 /**
@@ -208,11 +292,15 @@ export function snapshotEngineConfig(value: unknown): EngineConfig {
   if (config.queryStopWords !== undefined) {
     config.queryStopWords = snapshotQueryStopWords(config.queryStopWords);
   }
+  if (config.scopePolicy !== undefined) {
+    config.scopePolicy = snapshotScopePolicy(config.scopePolicy);
+  }
   return Object.freeze(config) as EngineConfig;
 }
 
 export interface EngineOpenOptions {
   engineConfig?: EngineConfig;
+  scopePolicy?: ScopePolicy;
   /**
    * EU-6: opt-in to the engine's pinned default embedder
    * (`fathomdb-bge-small-en-v1.5`). On first use, weights are downloaded
@@ -238,11 +326,33 @@ export class Engine {
     validateFfiString(path);
     // Read caller-owned accessors once so native open receives the validated snapshot.
     const requestedConfig = options.engineConfig;
-    const config = snapshotEngineConfig(requestedConfig);
+    const requestedScopePolicy = options.scopePolicy;
+    if (requestedScopePolicy !== undefined && requestedConfig?.scopePolicy !== undefined) {
+      throw new TypeError(
+        "Engine.open accepts scopePolicy on options or options.engineConfig, not both",
+      );
+    }
+    const mergedConfig =
+      requestedScopePolicy !== undefined
+        ? { ...(requestedConfig ?? {}), scopePolicy: requestedScopePolicy }
+        : requestedConfig;
+    const config = snapshotEngineConfig(mergedConfig);
     const useDefaultEmbedder = options.useDefaultEmbedder;
-    const nativeOptions = requestedConfig === undefined
+    const nativeConfig =
+      mergedConfig === undefined
+        ? undefined
+        : config.scopePolicy?.mode === "scoped" && config.scopePolicy.writeScope === null
+          ? {
+              ...config,
+              scopePolicy: {
+                mode: config.scopePolicy.mode,
+                readScopes: config.scopePolicy.readScopes,
+              },
+            }
+          : config;
+    const nativeOptions = nativeConfig === undefined
       ? { useDefaultEmbedder }
-      : { useDefaultEmbedder, engineConfig: config };
+      : { useDefaultEmbedder, engineConfig: nativeConfig };
     const inner = await intercept(() => native.Engine.open(path, nativeOptions));
     return new Engine(inner, config);
   }

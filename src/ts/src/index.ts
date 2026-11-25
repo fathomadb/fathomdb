@@ -70,6 +70,7 @@ export {
   EngineOpenOptions,
   Engine,
   QueryStopWords,
+  ScopePolicy,
 } from "./core.js";
 export {
   ProjectionReadinessV1,

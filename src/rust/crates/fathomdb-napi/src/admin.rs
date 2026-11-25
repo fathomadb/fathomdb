@@ -72,6 +72,53 @@ pub struct EngineConfig {
     pub cuda_pool_release_threshold: Option<String>,
     /// Query stop words; `None` is the built-in list.
     pub query_stop_words: Option<QueryStopWordsConfig>,
+    /// Caller-scope isolation policy bound at open (`None` = unscoped).
+    pub scope_policy: Option<ScopePolicyConfig>,
+}
+
+/// `{ mode: "unscoped" | "scoped", readScopes?: string[], writeScope?: string | null }`.
+#[napi(object)]
+pub struct ScopePolicyConfig {
+    pub mode: String,
+    pub read_scopes: Option<Vec<String>>,
+    pub write_scope: Option<String>,
+}
+
+impl ScopePolicyConfig {
+    pub(crate) fn into_rust(self) -> Result<fathomdb_engine::ScopePolicy> {
+        let read_scopes = self.read_scopes.unwrap_or_default();
+        match self.mode.as_str() {
+            "unscoped" => {
+                if !read_scopes.is_empty() || self.write_scope.is_some() {
+                    return Err(invalid_config_string(
+                        "scope_policy",
+                        "unscoped with readScopes/writeScope",
+                        "unscoped without readScopes/writeScope",
+                    ));
+                }
+                Ok(fathomdb_engine::ScopePolicy::Unscoped)
+            }
+            "scoped" => Ok(fathomdb_engine::ScopePolicy::Scoped {
+                read_scopes,
+                write_scope: self.write_scope,
+            }),
+            other => Err(invalid_config_string("scope_policy.mode", other, "unscoped or scoped")),
+        }
+    }
+
+    #[cfg(any(test, feature = "test-hooks"))]
+    pub(crate) fn from_rust(policy: &fathomdb_engine::ScopePolicy) -> Self {
+        match policy {
+            fathomdb_engine::ScopePolicy::Unscoped => {
+                Self { mode: "unscoped".to_string(), read_scopes: None, write_scope: None }
+            }
+            fathomdb_engine::ScopePolicy::Scoped { read_scopes, write_scope } => Self {
+                mode: "scoped".to_string(),
+                read_scopes: Some(read_scopes.clone()),
+                write_scope: write_scope.clone(),
+            },
+        }
+    }
 }
 
 /// `{ base?: "fathomdb" | "none", extra?: string[], keep?: string[] }`; the
@@ -227,7 +274,11 @@ impl EngineConfig {
                 .query_stop_words
                 .map(QueryStopWordsConfig::into_rust)
                 .transpose()?,
-            scope_policy: fathomdb_engine::ScopePolicy::default(),
+            scope_policy: self
+                .scope_policy
+                .map(ScopePolicyConfig::into_rust)
+                .transpose()?
+                .unwrap_or_default(),
         })
     }
 }

@@ -33,10 +33,11 @@ use fathomdb_sdk::{
     PropertyMap, PropertyPredicate, PropertyValue, ReadContextV1, ReadView, ReleaseThreshold,
     RerankOptions, RerankPassage, RerankResult, RerankerDeviceResolution, ResolvedEvidenceV1,
     ResolvedGraphEvidenceV1, Result, RuntimeConfiguration, RuntimeConfigurationError,
-    RuntimeSqliteMode, SearchExpandOptions, SearchExpandResult, SearchFilter, SearchFilterArg,
-    SearchHit, SearchOptions, SearchResult, SourceDependencyRegistrationV1, SourceDependencyV1,
-    SourceId, Subscriber, SubscriberEvent, TextSearchOptions, TraversalDirection, WriteReceipt,
-    EVIDENCE_RESOLVE_MANY_MAX,
+    RuntimeSqliteMode, ScopePolicy, ScopePolicyError, SearchExpandOptions, SearchExpandResult,
+    SearchFilter, SearchFilterArg, SearchHit, SearchOptions, SearchResult,
+    SourceDependencyRegistrationV1, SourceDependencyV1, SourceId, Subscriber, SubscriberEvent,
+    TextSearchOptions, TraversalDirection, WriteReceipt, EVIDENCE_RESOLVE_MANY_MAX,
+    MAX_READ_SCOPES, MAX_SCOPE_TOKEN_BYTES,
 };
 
 #[test]
@@ -232,7 +233,7 @@ fn search_filter_arg_accepts_both_filter_forms() {
 
 /// The shared Python/TypeScript error classes, minus the `Error` suffix, plus
 /// the base. Python: `fathomdb.errors`; TypeScript: `src/ts/src/errors.ts`.
-const SHARED_ERROR_CLASSES: [&str; 47] = [
+const SHARED_ERROR_CLASSES: [&str; 48] = [
     "EngineError",
     "RuntimeConfigurationError",
     "StorageError",
@@ -280,6 +281,7 @@ const SHARED_ERROR_CLASSES: [&str; 47] = [
     "CudaPoolExhaustedError",
     "CudaContextLostError",
     "CudaPrivateBuildRefusedError",
+    "ScopeViolationError",
 ];
 
 #[test]
@@ -528,4 +530,25 @@ fn snippet_selector_signatures() {
     let _: fn(&str, &[(u32, u32)], &SnippetOptions) -> SnippetV1 = snippet_for;
     let s = snippet_for("pear", &[(0, 4)], &SnippetOptions::default());
     assert_eq!((s.text.as_str(), s.anchor), ("pear", SnippetAnchor::Whole));
+}
+
+#[test]
+fn scope_policy_and_search_expand_view_surface() {
+    let _: fn(OpenOptions, ScopePolicy) -> OpenOptions = OpenOptions::with_scope_policy;
+    let _: fn(SearchExpandOptions, ReadView) -> SearchExpandOptions =
+        SearchExpandOptions::with_view;
+    assert_eq!(MAX_READ_SCOPES, 32);
+    assert_eq!(MAX_SCOPE_TOKEN_BYTES, 128);
+    assert!(ScopePolicy::default().is_unscoped());
+    let single = ScopePolicy::single("agent-a");
+    assert_eq!(single.read_scopes(), &["agent-a"]);
+    assert_eq!(single.write_scope(), Some("agent-a"));
+    let open_opts = OpenOptions::default().with_scope_policy(single.clone());
+    assert_eq!(open_opts.config.scope_policy, single);
+    let view = ReadView { include_inactive: true, ..ReadView::default() };
+    let expand_opts = SearchExpandOptions::default().with_view(view);
+    assert_eq!(expand_opts.view, Some(view));
+    let _: ScopePolicyError = ScopePolicyError::EmptyReadScopes;
+    let err: Error = EngineError::ScopeViolation { detail: "denied".into() }.into();
+    assert_eq!(err.kind(), ErrorKind::ScopeViolation);
 }

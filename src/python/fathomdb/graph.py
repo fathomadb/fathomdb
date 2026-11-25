@@ -127,6 +127,7 @@ def search_expand(
     created_after: int | None = None,
     status: str | None = None,
     search_limit: int = 10,
+    view: ReadView | None = None,
 ) -> SearchExpandResult:
     """G6 — FTS/vector search followed by bounded BFS expansion.
 
@@ -184,6 +185,7 @@ def search_expand(
         created_after,
         status,
         search_limit,
+        _to_native_view(view),
     )
     return _to_search_expand_result(native_result)
 

@@ -393,6 +393,11 @@ impl Engine {
         depth: u32,
         options: SearchExpandOptions,
     ) -> Result<SearchExpandResult> {
+        if options.view.is_some() {
+            return Err(Error::invalid_argument(
+                "Engine::search_expand_frozen takes its ReadView from FrozenReadContextV1; SearchExpandOptions.view must be None",
+            ));
+        }
         self.core.validate_frozen_read_context_for_binding(context)?;
         guard::ranked_limit("search_limit", options.search_limit)?;
         guard::text(query)?;

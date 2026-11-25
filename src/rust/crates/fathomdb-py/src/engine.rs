@@ -69,6 +69,7 @@ pub(super) fn engine_config_from_py(
                 | "cuda_pool_max_size"
                 | "cuda_pool_release_threshold"
                 | "query_stop_words"
+                | "scope_policy"
         ) {
             return Err(PyTypeError::new_err(format!("unknown engine config field: {name}")));
         }
@@ -134,8 +135,58 @@ pub(super) fn engine_config_from_py(
             "0 or max",
         )?,
         query_stop_words: query_stop_words_from_py(config)?,
-        scope_policy: fathomdb_engine::ScopePolicy::default(),
+        scope_policy: scope_policy_from_py(config)?,
     })
+}
+
+/// `{"mode": "unscoped" | "scoped", "read_scopes": [str], "write_scope": str | None}` or `None`;
+/// the core validates scope tokens, limits, and write-grant membership at open.
+fn scope_policy_from_py(config: &Bound<'_, PyDict>) -> PyResult<fathomdb_engine::ScopePolicy> {
+    let Some(value) = config.get_item("scope_policy")? else {
+        return Ok(fathomdb_engine::ScopePolicy::default());
+    };
+    if value.is_none() {
+        return Ok(fathomdb_engine::ScopePolicy::default());
+    }
+    let setting =
+        value.cast::<PyDict>().map_err(|_| PyTypeError::new_err("scope_policy must be a dict"))?;
+    let mode = match setting.get_item("mode")? {
+        None => {
+            return Err(PyTypeError::new_err("scope_policy.mode must be 'unscoped' or 'scoped'"))
+        }
+        Some(raw) => raw
+            .extract::<String>()
+            .map_err(|_| PyTypeError::new_err("scope_policy.mode must be a str"))?,
+    };
+    let read_scopes = match setting.get_item("read_scopes")? {
+        None => Vec::new(),
+        Some(raw) if raw.is_none() => Vec::new(),
+        Some(raw) => raw
+            .extract::<Vec<String>>()
+            .map_err(|_| PyTypeError::new_err("scope_policy.read_scopes must be a list of str"))?,
+    };
+    let write_scope = match setting.get_item("write_scope")? {
+        None => None,
+        Some(raw) if raw.is_none() => None,
+        Some(raw) => Some(
+            raw.extract::<String>()
+                .map_err(|_| PyTypeError::new_err("scope_policy.write_scope must be a str"))?,
+        ),
+    };
+    match mode.as_str() {
+        "unscoped" => {
+            if !read_scopes.is_empty() || write_scope.is_some() {
+                return Err(PyValueError::new_err(
+                    "unscoped scope_policy cannot carry read_scopes or write_scope",
+                ));
+            }
+            Ok(fathomdb_engine::ScopePolicy::Unscoped)
+        }
+        "scoped" => Ok(fathomdb_engine::ScopePolicy::Scoped { read_scopes, write_scope }),
+        other => Err(PyValueError::new_err(format!(
+            "scope_policy.mode={other:?}: expected unscoped or scoped"
+        ))),
+    }
 }
 
 /// `{"base": "fathomdb" | "none", "extra": [str], "keep": [str]}` or `None`;

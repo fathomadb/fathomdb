@@ -7,6 +7,7 @@ snake_case per `dev/interfaces/python.md`.
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from typing import Literal
 
@@ -27,6 +28,65 @@ class QueryStopWords:
     base: Literal["fathomdb", "none"] = "fathomdb"
     extra: tuple[str, ...] = ()
     keep: tuple[str, ...] = ()
+
+
+def _coerce_scope_sequence(scopes: Sequence[str] | Iterable[str], field: str) -> tuple[str, ...]:
+    if isinstance(scopes, (str, bytes)):
+        raise TypeError(f"ScopePolicy {field} must be a sequence of str, not {type(scopes).__name__}")
+    if not isinstance(scopes, Iterable):
+        raise TypeError(f"ScopePolicy {field} must be a sequence of str, got {type(scopes).__name__}")
+    items = tuple(scopes)
+    for item in items:
+        if not isinstance(item, str):
+            raise TypeError(f"ScopePolicy {field} entries must be str, got {type(item).__name__}")
+    return items
+
+
+@dataclass(frozen=True)
+class ScopePolicy:
+    """Caller-scope isolation policy bound at engine open (0.8.32 Slice 20 / Pin A)."""
+
+    read_scopes: tuple[str, ...] = ()
+    write_scope: str | None = None
+    scoped: bool = False
+
+    @classmethod
+    def unscoped(cls) -> ScopePolicy:
+        """Return an unscoped policy permitting full read/write visibility."""
+        return cls(read_scopes=(), write_scope=None, scoped=False)
+
+    @classmethod
+    def single(cls, scope: str) -> ScopePolicy:
+        """Construct a single-scope read/write policy."""
+        if not isinstance(scope, str):
+            raise TypeError(f"ScopePolicy.single scope must be a str, got {type(scope).__name__}")
+        return cls(read_scopes=(scope,), write_scope=scope, scoped=True)
+
+    @classmethod
+    def read_only(cls, read_scopes: Sequence[str] | Iterable[str]) -> ScopePolicy:
+        """Construct a read-only policy granting ``read_scopes`` (`write_scope = None`)."""
+        return cls(
+            read_scopes=_coerce_scope_sequence(read_scopes, "read_scopes"),
+            write_scope=None,
+            scoped=True,
+        )
+
+    @classmethod
+    def read_write(
+        cls, read_scopes: Sequence[str] | Iterable[str], write_scope: str
+    ) -> ScopePolicy:
+        """Construct a multi-scope read policy with an explicit write grant."""
+        scopes = _coerce_scope_sequence(read_scopes, "read_scopes")
+        if not isinstance(write_scope, str):
+            raise TypeError(
+                f"ScopePolicy.read_write write_scope must be a str, got {type(write_scope).__name__}"
+            )
+        return cls(read_scopes=scopes, write_scope=write_scope, scoped=True)
+
+    @property
+    def is_unscoped(self) -> bool:
+        """Return ``True`` when this policy runs in unscoped mode."""
+        return not self.scoped
 
 
 @dataclass(frozen=True)
@@ -58,6 +118,8 @@ class EngineConfig:
     #: Query stop words; ``None`` is the built-in list. Fixed at open and
     #: recorded as ``stop_words_sha256`` on the open report and on traces.
     query_stop_words: QueryStopWords | None = None
+    #: Caller-scope isolation policy bound at engine open; ``None`` = unscoped.
+    scope_policy: ScopePolicy | None = None
 
 
-__all__ = ["EngineConfig", "QueryStopWords"]
+__all__ = ["EngineConfig", "QueryStopWords", "ScopePolicy"]

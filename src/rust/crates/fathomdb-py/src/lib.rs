@@ -390,5 +390,6 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add("ErasureIncompleteError", py.get_type::<ErasureIncompleteError>())?;
     m.add("ProjectionDestructiveError", py.get_type::<ProjectionDestructiveError>())?;
     m.add("ProjectionGenerationError", py.get_type::<ProjectionGenerationError>())?;
+    m.add("ScopeViolationError", py.get_type::<ScopeViolationError>())?;
     Ok(())
 }

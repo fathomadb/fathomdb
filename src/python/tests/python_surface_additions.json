@@ -3204,6 +3204,204 @@
         "path": "fathomdb.types.SearchResult.hints",
         "signature": "hints: list[Hint] | None = None"
       }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.EngineConfig.scope_policy",
+        "signature": "scope_policy: ScopePolicy | None = None"
+      }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-class",
+        "path": "fathomdb.ScopePolicy",
+        "signature": "@dataclass(frozen=True) class ScopePolicy"
+      }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-method",
+        "path": "fathomdb.ScopePolicy.is_unscoped",
+        "signature": "@property def is_unscoped(self) -> bool"
+      }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-method",
+        "path": "fathomdb.ScopePolicy.read_only",
+        "signature": "@classmethod def read_only(cls, read_scopes: Sequence[str] | Iterable[str]) -> ScopePolicy"
+      }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.ScopePolicy.read_scopes",
+        "signature": "read_scopes: tuple[str, ...] = ()"
+      }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-method",
+        "path": "fathomdb.ScopePolicy.read_write",
+        "signature": "@classmethod def read_write(cls, read_scopes: Sequence[str] | Iterable[str], write_scope: str) -> ScopePolicy"
+      }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.ScopePolicy.scoped",
+        "signature": "scoped: bool = False"
+      }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-method",
+        "path": "fathomdb.ScopePolicy.single",
+        "signature": "@classmethod def single(cls, scope: str) -> ScopePolicy"
+      }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-method",
+        "path": "fathomdb.ScopePolicy.unscoped",
+        "signature": "@classmethod def unscoped(cls) -> ScopePolicy"
+      }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.ScopePolicy.write_scope",
+        "signature": "write_scope: str | None = None"
+      }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-value",
+        "path": "fathomdb.ScopeViolationError",
+        "signature": "ScopeViolationError = _ScopeViolationError"
+      }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.config.EngineConfig.scope_policy",
+        "signature": "scope_policy: ScopePolicy | None = None"
+      }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-class",
+        "path": "fathomdb.config.ScopePolicy",
+        "signature": "@dataclass(frozen=True) class ScopePolicy"
+      }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-method",
+        "path": "fathomdb.config.ScopePolicy.is_unscoped",
+        "signature": "@property def is_unscoped(self) -> bool"
+      }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-method",
+        "path": "fathomdb.config.ScopePolicy.read_only",
+        "signature": "@classmethod def read_only(cls, read_scopes: Sequence[str] | Iterable[str]) -> ScopePolicy"
+      }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.config.ScopePolicy.read_scopes",
+        "signature": "read_scopes: tuple[str, ...] = ()"
+      }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-method",
+        "path": "fathomdb.config.ScopePolicy.read_write",
+        "signature": "@classmethod def read_write(cls, read_scopes: Sequence[str] | Iterable[str], write_scope: str) -> ScopePolicy"
+      }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.config.ScopePolicy.scoped",
+        "signature": "scoped: bool = False"
+      }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-method",
+        "path": "fathomdb.config.ScopePolicy.single",
+        "signature": "@classmethod def single(cls, scope: str) -> ScopePolicy"
+      }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-method",
+        "path": "fathomdb.config.ScopePolicy.unscoped",
+        "signature": "@classmethod def unscoped(cls) -> ScopePolicy"
+      }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.config.ScopePolicy.write_scope",
+        "signature": "write_scope: str | None = None"
+      }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 20,
+      "declaration": {
+        "kind": "python-value",
+        "path": "fathomdb.errors.ScopeViolationError",
+        "signature": "ScopeViolationError = _ScopeViolationError"
+      }
     }
   ],
   "native_stub_sha256": "4f3939dbb5bff1f0616cdc3520d1d7d9bcf7f946d9c2d1421d1e7b7f8a2f7dac",

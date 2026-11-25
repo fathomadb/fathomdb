@@ -448,6 +448,11 @@ export class VectorVerificationError extends FathomDbError {
   }
 }
 
+export class ScopeViolationError extends FathomDbError {
+  static readonly code = "FDB_SCOPE_VIOLATION";
+  readonly code = ScopeViolationError.code;
+}
+
 // 0.8.20 Slice 15d (R-20-PR) — `configureProjections` refused a destructive
 // change to a live projection without an explicit `drop` (carries the
 // projection `name` and the `delta` describing what would be lost).
@@ -542,6 +547,8 @@ type ErrorCode =
   | "FDB_PAGE"
   // Slice 20 — depth > 3 or invalid argument (G5/G6).
   | "FDB_INVALID_ARGUMENT"
+  // 0.8.32 Slice 20 (WP-20D) — caller-scope boundary denial.
+  | "FDB_SCOPE_VIOLATION"
   // 0.8.18 Slice 5 (#5 vector-equivalence probe) — query-time dense refusal.
   | "FDB_VECTOR_EQUIVALENCE_MISMATCH"
   | "FDB_VECTOR_VERIFICATION"
@@ -741,6 +748,8 @@ function build(envelope: Envelope): Error {
       return new PageError(envelope.message, String(p.reason ?? ""), String(p.fieldPath ?? ""));
     case "FDB_INVALID_ARGUMENT":
       return new InvalidArgumentError(envelope.message);
+    case "FDB_SCOPE_VIOLATION":
+      return new ScopeViolationError(envelope.message);
     case "FDB_VECTOR_VERIFICATION": {
       const providerEnvelope = p.providerError as Envelope | null | undefined;
       const providerError = providerEnvelope == null ? null : build(providerEnvelope);

@@ -66,6 +66,8 @@ create_exception!(_fathomdb, MaintenanceError, EngineError);
 // `delta`). Omission never drops; a role removal / tokenizer / embedder change
 // requires an explicit drop.
 create_exception!(_fathomdb, ProjectionDestructiveError, EngineError);
+// 0.8.32 Slice 20 (`WP-20D`) — caller-scope boundary denial.
+create_exception!(_fathomdb, ScopeViolationError, EngineError);
 // 0.8.28 Slice 30 (R30-04) — the three CUDA pool kinds.
 create_exception!(_fathomdb, CudaPoolExhaustedError, EmbedderError);
 create_exception!(_fathomdb, CudaContextLostError, EmbedderError);
@@ -178,6 +180,7 @@ pub(super) fn engine_error_to_py(err: RustEngineError) -> PyErr {
             exc
         }
         RustEngineError::InvalidArgument { msg } => InvalidArgumentError::new_err(msg),
+        RustEngineError::ScopeViolation { detail } => ScopeViolationError::new_err(detail),
         RustEngineError::VectorEquivalenceMismatch { reason } => {
             let exc = VectorEquivalenceMismatchError::new_err(format!(
                 "vector-equivalence self-check failed; dense retrieval refused: {reason}"

@@ -10,7 +10,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 
-import { Engine } from "../src/index.js";
+import { Engine, ScopePolicy } from "../src/index.js";
 import {
   CorruptionError,
   CudaContextLostError,
@@ -28,6 +28,7 @@ import {
   InvalidArgumentError,
   KindNotVectorIndexedError,
   rethrowTyped,
+  ScopeViolationError,
   VectorError,
   WriteValidationError,
 } from "../src/errors.js";
@@ -335,3 +336,30 @@ for (const [field, update] of [
     }
   });
 }
+
+test("ScopeViolationError rehydrates and rejects read-only scoped writes", async () => {
+  const rehydrated = rehydrate("FDB_SCOPE_VIOLATION", "write scope denied", {});
+  assert.ok(rehydrated instanceof ScopeViolationError);
+  assert.ok(rehydrated instanceof FathomDbError);
+  assert.ok(!(rehydrated instanceof InvalidArgumentError));
+  assert.equal(rehydrated.code, "FDB_SCOPE_VIOLATION");
+  assert.equal(rehydrated.message, "write scope denied");
+
+  const engine = await Engine.open(freshDbPath(), {
+    useDefaultEmbedder: false,
+    scopePolicy: ScopePolicy.readOnly(["agent-a"]),
+  });
+  try {
+    await assert.rejects(
+      engine.write([{ kind: "note", body: "denied", sourceId: "typed-scope" }]),
+      (error: unknown) => {
+        assert.ok(error instanceof ScopeViolationError);
+        assert.ok(error instanceof FathomDbError);
+        assert.equal(error.code, "FDB_SCOPE_VIOLATION");
+        return true;
+      },
+    );
+  } finally {
+    await engine.close();
+  }
+});

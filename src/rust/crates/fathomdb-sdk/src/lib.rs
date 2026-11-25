@@ -140,6 +140,7 @@ pub use fathomdb_engine::{
 pub use fathomdb_engine::{
     QueryStopWords, StopWordBase, StopWordRejection, DEFAULT_STOP_WORDS_SHA256,
 };
+pub use fathomdb_engine::{ScopePolicy, ScopePolicyError, MAX_READ_SCOPES, MAX_SCOPE_TOKEN_BYTES};
 pub use fathomdb_engine::{SnippetAnchor, SnippetOptions, SnippetV1};
 pub use fathomdb_schema::MigrationStepReport;
 

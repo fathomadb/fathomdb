@@ -2,8 +2,8 @@
 //! arguments. Each `Default` equals the documented Python/TypeScript defaults.
 
 use fathomdb_engine::{
-    EngineConfig, Filter, GraphSeedMode, Predicate, PropertyPredicate, ReadView, SearchFilter,
-    SnippetOptions, TraversalDirection, DEFAULT_GRAPH_SEED_K,
+    EngineConfig, Filter, GraphSeedMode, Predicate, PropertyPredicate, ReadView, ScopePolicy,
+    SearchFilter, SnippetOptions, TraversalDirection, DEFAULT_GRAPH_SEED_K,
 };
 
 use crate::error::Result;
@@ -16,6 +16,15 @@ pub struct OpenOptions {
     /// Open with the pinned default embedder. Requires the `default-embedder`
     /// feature; without it the open fails with an `Embedder` error.
     pub use_default_embedder: bool,
+}
+
+impl OpenOptions {
+    /// Set the caller-scope isolation policy on [`Self::config`].
+    #[must_use]
+    pub fn with_scope_policy(mut self, scope_policy: ScopePolicy) -> Self {
+        self.config.scope_policy = scope_policy;
+        self
+    }
 }
 
 /// Either filter form `search` accepts, as Python and TypeScript do.
@@ -188,11 +197,24 @@ impl Default for FrozenSearchOptions {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SearchExpandOptions {
     pub search_limit: usize,
+    /// Optional lifecycle and validity view (`None` = strict default view).
+    /// Accepted by `graph::search_expand`; `Engine::search_expand_frozen` takes
+    /// its view from `FrozenReadContextV1` and rejects a non-`None` override.
+    pub view: Option<ReadView>,
 }
 
 impl Default for SearchExpandOptions {
     fn default() -> Self {
-        Self { search_limit: 10 }
+        Self { search_limit: 10, view: None }
+    }
+}
+
+impl SearchExpandOptions {
+    /// Set the lifecycle and validity [`ReadView`] for [`crate::graph::search_expand`].
+    #[must_use]
+    pub fn with_view(mut self, view: ReadView) -> Self {
+        self.view = Some(view);
+        self
     }
 }
 

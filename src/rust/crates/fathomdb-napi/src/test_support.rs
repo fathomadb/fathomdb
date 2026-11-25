@@ -47,6 +47,8 @@ impl Engine {
                     .query_stop_words
                     .as_ref()
                     .map(crate::admin::QueryStopWordsConfig::from_rust),
+                scope_policy: (!requested.scope_policy.is_unscoped())
+                    .then(|| crate::admin::ScopePolicyConfig::from_rust(&requested.scope_policy)),
             })
         })
     }

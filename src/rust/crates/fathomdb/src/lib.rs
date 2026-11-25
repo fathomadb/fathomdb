@@ -224,6 +224,8 @@ pub use fathomdb_engine::{
     PhysicalErasureSelector, QueueResult, WithdrawResult,
 };
 
+pub use fathomdb_engine::{ScopePolicy, ScopePolicyError, MAX_READ_SCOPES, MAX_SCOPE_TOKEN_BYTES};
+
 // The operator-seam report types (`dev/interfaces/rust.md` § 2b) — CLI-only,
 // gated behind `operator`. The backing `Engine` methods are operator-gated in
 // `fathomdb-engine`, so the default facade is recovery-clean at the method level.

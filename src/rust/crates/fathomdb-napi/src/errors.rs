@@ -64,6 +64,7 @@ pub(crate) const CODE_GRAPH_EXPANSION: &str = "FDB_GRAPH_EXPANSION";
 pub(crate) const CODE_CUDA_POOL_EXHAUSTED: &str = "FDB_CUDA_POOL_EXHAUSTED";
 pub(crate) const CODE_CUDA_CONTEXT_LOST: &str = "FDB_CUDA_CONTEXT_LOST";
 pub(crate) const CODE_CUDA_PRIVATE_BUILD_REFUSED: &str = "FDB_CUDA_PRIVATE_BUILD_REFUSED";
+pub(crate) const CODE_SCOPE_VIOLATION: &str = "FDB_SCOPE_VIOLATION";
 pub(crate) const CODE_PANIC: &str = "FDB_PANIC";
 
 // ===== Typed-error encoder ============================================
@@ -292,6 +293,9 @@ pub(crate) fn engine_error_to_napi(err: RustEngineError) -> Error {
         }
         RustEngineError::InvalidArgument { msg } => {
             typed_error(CODE_INVALID_ARGUMENT, msg, JsonValue::Null)
+        }
+        RustEngineError::ScopeViolation { detail } => {
+            typed_error(CODE_SCOPE_VIOLATION, detail, JsonValue::Null)
         }
         RustEngineError::IllegalTransition { from_state, to_state, legal } => {
             let legal_str: Vec<&'static str> = legal.iter().map(|s| s.as_str()).collect();

@@ -935,6 +935,7 @@ def search_expand(
     created_after: int | None = ...,
     status: str | None = ...,
     search_limit: int = ...,
+    view: ReadView | None = ...,
 ) -> SearchExpandResult:
     """G6 — FTS/vector search followed by bounded BFS expansion.
 
@@ -1239,6 +1240,9 @@ class ProjectionGenerationError(EngineError):
 class MaintenanceError(EngineError):
     reason: str
     def __init__(self, *args: Any, reason: str = ...) -> None: ...
+
+
+class ScopeViolationError(EngineError): ...
 
 
 def release_models() -> None:

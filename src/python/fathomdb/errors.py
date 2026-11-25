@@ -129,6 +129,7 @@ from fathomdb._fathomdb import FrozenReadError as _FrozenReadError
 from fathomdb._fathomdb import EvidenceError as _EvidenceError
 from fathomdb._fathomdb import PageError as _PageError
 from fathomdb._fathomdb import GraphExpansionError as _GraphExpansionError
+from fathomdb._fathomdb import ScopeViolationError as _ScopeViolationError
 
 EngineError = _EngineError
 StorageError = _StorageError
@@ -193,6 +194,7 @@ DependencyTraceError = _DependencyTraceError
 setattr(DependencyTraceError, "code", "FDB_DEPENDENCY_TRACE")
 GraphExpansionError = _GraphExpansionError
 setattr(GraphExpansionError, "code", "FDB_GRAPH_EXPANSION")
+ScopeViolationError = _ScopeViolationError
 
 
 def _install_typed_init(cls: type, fields: tuple[str, ...]) -> None:
@@ -299,6 +301,7 @@ __all__ = [
     "DependencyTraceError",
     "SchedulerError",
     "SchemaValidationError",
+    "ScopeViolationError",
     "StorageError",
     "VectorEquivalenceMismatchError",
     "VectorVerificationError",

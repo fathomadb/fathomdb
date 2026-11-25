@@ -801,6 +801,7 @@ interface NativeEngineConfig {
   cudaPoolMaxSize?: number;
   cudaPoolReleaseThreshold?: string;
   queryStopWords?: { base?: string; extra?: readonly string[]; keep?: readonly string[] };
+  scopePolicy?: { mode: string; readScopes?: readonly string[]; writeScope?: string | null };
 }
 
 // Slice 20 (G5/G6) — graph traversal result shapes.
@@ -1146,6 +1147,7 @@ export interface NativeModule {
     createdAfter?: number,
     status?: string,
     searchLimit?: number,
+    view?: NativeReadView,
   ): Promise<NativeSearchExpandResult>;
   forcePanicForTest?: () => void;
   forcePanicInAccessorForTest?: () => void;

@@ -308,6 +308,7 @@ fn engine_kind(error: &EngineError) -> ErrorKind {
         EngineError::ErasureIncomplete { .. } => ErrorKind::ErasureIncomplete,
         EngineError::Maintenance(_) => ErrorKind::Maintenance,
         EngineError::ProjectionDestructive { .. } => ErrorKind::ProjectionDestructive,
+        EngineError::ScopeViolation { .. } => ErrorKind::ScopeViolation,
         // Variants compiled only with the engine's `operator` feature (which
         // workspace builds unify on) surface as the base class, as in Python.
         _ => ErrorKind::Engine,
@@ -466,6 +467,7 @@ error_kinds! {
     CudaPoolExhausted => "CudaPoolExhaustedError",
     CudaContextLost => "CudaContextLostError",
     CudaPrivateBuildRefused => "CudaPrivateBuildRefusedError",
+    ScopeViolation => "ScopeViolationError",
 }
 
 impl ErrorKind {

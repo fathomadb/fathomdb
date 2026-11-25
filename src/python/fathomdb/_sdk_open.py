@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Literal, NoReturn, cast
 
-from fathomdb.config import EngineConfig, QueryStopWords
+from fathomdb.config import EngineConfig, QueryStopWords, ScopePolicy
 from fathomdb.errors import (
     FrozenReadError,
 )
@@ -43,6 +43,7 @@ _KWARG_FIELDS = {
     "cuda_pool_max_size",
     "cuda_pool_release_threshold",
     "query_stop_words",
+    "scope_policy",
 }
 
 
@@ -80,7 +81,35 @@ def _native_engine_config(config: EngineConfig) -> dict[str, Any]:
             raise ValueError(f"{name} must be one of {', '.join(choices)}; got {choice!r}")
         native[name] = choice
     native["query_stop_words"] = _native_query_stop_words(config.query_stop_words)
+    native["scope_policy"] = _native_scope_policy(config.scope_policy)
     return native
+
+
+def _native_scope_policy(setting: object) -> dict[str, Any] | None:
+    if setting is None:
+        return None
+    if not isinstance(setting, ScopePolicy):
+        raise TypeError("scope_policy must be a ScopePolicy")
+    if not isinstance(setting.scoped, bool):
+        raise TypeError("scope_policy.scoped must be a bool")
+    if isinstance(setting.read_scopes, (str, bytes)) or not isinstance(
+        setting.read_scopes, (tuple, list)
+    ):
+        raise TypeError("scope_policy.read_scopes must be a sequence of str, not a str")
+    if not all(isinstance(scope, str) for scope in setting.read_scopes):
+        raise TypeError("scope_policy.read_scopes must hold only str")
+    if setting.write_scope is not None and not isinstance(setting.write_scope, str):
+        raise TypeError("scope_policy.write_scope must be a str or None")
+    read_scopes = list(setting.read_scopes)
+    if not setting.scoped:
+        if read_scopes or setting.write_scope is not None:
+            raise ValueError("unscoped ScopePolicy cannot carry read_scopes or write_scope")
+        return {"mode": "unscoped", "read_scopes": [], "write_scope": None}
+    return {
+        "mode": "scoped",
+        "read_scopes": read_scopes,
+        "write_scope": setting.write_scope,
+    }
 
 
 def _native_query_stop_words(setting: object) -> dict[str, Any] | None:

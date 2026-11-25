@@ -18,7 +18,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { Engine, admin, read, type EngineConfig, type SoftFallback } from "../src/index.js";
+import { Engine, ScopePolicy, admin, read, type EngineConfig, type SoftFallback } from "../src/index.js";
 import { freshDbPath } from "./helpers.js";
 
 // The governed SDK surface allowlist (AC-074 / REQ-053) is declared exactly
@@ -358,4 +358,38 @@ test("instrumentation stubs return canonical types", async () => {
   } finally {
     await engine.close();
   }
+});
+
+test("ScopePolicy config and EngineOpenOptions.scopePolicy snapshot immutably", async () => {
+  assert.deepEqual(ScopePolicy.unscoped(), { mode: "unscoped" });
+  const policy = ScopePolicy.readWrite(["agent-a", "agent-b"], "agent-a");
+  assert.deepEqual(policy, {
+    mode: "scoped",
+    readScopes: ["agent-a", "agent-b"],
+    writeScope: "agent-a",
+  });
+  assert.deepEqual(ScopePolicy.readOnly(["agent-a"]), {
+    mode: "scoped",
+    readScopes: ["agent-a"],
+    writeScope: null,
+  });
+
+  const viaOption = await Engine.open(freshDbPath(), { scopePolicy: policy });
+  const viaConfig = await Engine.open(freshDbPath(), { engineConfig: { scopePolicy: policy } });
+  try {
+    assert.deepEqual(viaOption.config.scopePolicy, policy);
+    assert.deepEqual(viaConfig.config.scopePolicy, policy);
+    assert.equal(Object.isFrozen(viaOption.config.scopePolicy), true);
+  } finally {
+    await viaOption.close();
+    await viaConfig.close();
+  }
+
+  await assert.rejects(
+    Engine.open(freshDbPath(), {
+      scopePolicy: ScopePolicy.single("a"),
+      engineConfig: { scopePolicy: ScopePolicy.single("b") },
+    }),
+    TypeError,
+  );
 });

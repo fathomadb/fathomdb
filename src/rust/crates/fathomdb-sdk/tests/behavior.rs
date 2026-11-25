@@ -520,7 +520,7 @@ fn embedded_nul_in_predicates_filters_and_cursors_is_write_validation() {
 #[test]
 fn graph_search_expand_checks_search_limit_first() {
     let (_dir, engine) = open_engine();
-    let options = SearchExpandOptions { search_limit: 0 };
+    let options = SearchExpandOptions { search_limit: 0, view: None };
     assert_eq!(
         kind_of(graph::search_expand(&engine, "a\0b", 1, None, options)),
         ErrorKind::InvalidArgument

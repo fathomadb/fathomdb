@@ -1168,6 +1168,7 @@ export const graph = {
         filter?.createdAfter,
         filter?.status,
         searchLimit,
+        options?.view,
       ),
     );
     return mapNativeGraphSearchExpandResult(r);

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from fathomdb import Engine
+from fathomdb import Engine, ScopePolicy
 from fathomdb.errors import (
     CorruptionError,
     CudaContextLostError,
@@ -23,6 +23,7 @@ from fathomdb.errors import (
     EmbedderNotConfiguredError,
     EngineError,
     KindNotVectorIndexedError,
+    ScopeViolationError,
     VectorError,
 )
 
@@ -141,6 +142,21 @@ def test_the_cuda_pool_classes_are_distinct_leaves() -> None:
         assert cls is not EmbedderError
     assert not issubclass(CudaPoolExhaustedError, CudaContextLostError)
     assert not issubclass(CudaPrivateBuildRefusedError, CudaPoolExhaustedError)
+
+
+def test_read_only_scope_write_raises_scope_violation_error(db_path: str) -> None:
+    engine = Engine.open(
+        db_path,
+        use_default_embedder=False,
+        scope_policy=ScopePolicy.read_only(["agent-a"]),
+    )
+    try:
+        with pytest.raises(ScopeViolationError) as excinfo:
+            engine.write([{"kind": "note", "body": "denied", "source_id": "typed-scope"}])
+        assert isinstance(excinfo.value, EngineError)
+        assert str(excinfo.value)
+    finally:
+        engine.close()
 
 
 @pytest.mark.parametrize("update", [

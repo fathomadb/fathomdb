@@ -257,6 +257,15 @@ def test_python_declarations_match_pre_move_baseline_with_approved_deltas() -> N
         "path": "fathomdb.errors.DependencyTraceError",
         "signature": "DependencyTraceError = _DependencyTraceError",
     }
+    search_expand_row = expected["fathomdb.graph.search_expand"]
+    assert "search_limit: int=10)" in search_expand_row["signature"]
+    expected["fathomdb.graph.search_expand"] = {
+        **search_expand_row,
+        "signature": search_expand_row["signature"].replace(
+            "search_limit: int=10)",
+            "search_limit: int=10, view: ReadView | None=None)",
+        ),
+    }
     version_row = expected["fathomdb.__version__"]
     assert version_row["signature"] == "__version__ = '0.8.26'"
     release_version = json.loads((checkout / "src/ts/package.json").read_text())["version"]
@@ -799,6 +808,21 @@ class GpuAllocationWitness:
         + "    ) -> SearchResult: ...\n"
         + suffix
     )
+    # 0.8.32 Slice 20 (WP-20D) — ScopeViolationError and search_expand(view=...).
+    wp20d_deltas = (
+        (
+            "    search_limit: int = ...,\n    view: ReadView | None = ...,\n"
+            ") -> SearchExpandResult:",
+            "    search_limit: int = ...,\n) -> SearchExpandResult:",
+        ),
+        (
+            "class ScopeViolationError(EngineError): ...\n\n\n",
+            "",
+        ),
+    )
+    for approved_stub, old_stub in wp20d_deltas:
+        assert pre_027_delta_stub.count(approved_stub) == 1
+        pre_027_delta_stub = pre_027_delta_stub.replace(approved_stub, old_stub, 1)
     assert (
         hashlib.sha256(pre_027_delta_stub.encode()).hexdigest() == additions["native_stub_sha256"]
     )

@@ -260,6 +260,7 @@ export type TextSearchOptions = BaseSearchOptions & { filter?: SearchFilter };
 /** Options for the initial ranked hits returned by {@link graph.searchExpand}. */
 export interface SearchExpandOptions {
   searchLimit?: number;
+  view?: ReadView;
 }
 
 export function validateRankedResultLimit(name: string, limit: number | undefined): number {

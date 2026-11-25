@@ -112,6 +112,7 @@ pub async fn search_expand(
     created_after: Option<i64>,
     status: Option<String>,
     search_limit: Option<u32>,
+    view: Option<ReadViewInput>,
 ) -> Result<SearchExpandResult> {
     validate_ffi_string_napi(&query)?;
     let filter =
@@ -127,10 +128,11 @@ pub async fn search_expand(
         } else {
             None
         };
+    let view = view.map(|v| read_view_or_default(Some(v)));
     let inner = Arc::clone(&engine.inner);
     let limit = search_limit.unwrap_or(10) as usize;
     let result =
-        call_engine(move || inner.search_expand_with_limit(&query, filter, depth, limit, None))
+        call_engine(move || inner.search_expand_with_limit(&query, filter, depth, limit, view))
             .await?;
     Ok(SearchExpandResult::from_rust(result))
 }

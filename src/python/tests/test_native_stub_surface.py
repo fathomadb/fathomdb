@@ -11,6 +11,7 @@ from fathomdb._fathomdb import (
     NotLifecycleAddressableError,
     OpenReport,
     ProjectionDestructiveError,
+    ScopeViolationError,
     VectorEquivalenceMismatchError,
 )
 
@@ -41,6 +42,7 @@ def test_native_stub_exposes_runtime_members() -> None:
         destructive: ProjectionDestructiveError = ProjectionDestructiveError(
             "destructive projection", name="facts", delta="roles"
         )
+        scope_violation: ScopeViolationError = ScopeViolationError("scope denied")
 
         _ = (
             device_resolution,
@@ -50,6 +52,7 @@ def test_native_stub_exposes_runtime_members() -> None:
             addressable,
             incomplete,
             destructive,
+            scope_violation,
         )
 
     # `verify` is intentionally type-checked, not invoked: it needs no database.

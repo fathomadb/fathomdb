@@ -69,6 +69,11 @@ fn re_exports_compile() {
     let _ = std::any::type_name::<fathomdb::QueueResult>();
     let _ = std::any::type_name::<fathomdb::WithdrawResult>();
     let _ = std::any::type_name::<fathomdb::CleanupResult>();
+
+    let _ = std::any::type_name::<fathomdb::ScopePolicy>();
+    let _ = std::any::type_name::<fathomdb::ScopePolicyError>();
+    let _ = fathomdb::MAX_READ_SCOPES;
+    let _ = fathomdb::MAX_SCOPE_TOKEN_BYTES;
 }
 
 #[test]

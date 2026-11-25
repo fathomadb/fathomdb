@@ -33,6 +33,7 @@ from fathomdb.errors import (
     ProjectionError,
     SchedulerError,
     SchemaValidationError,
+    ScopeViolationError,
     StorageError,
     VectorError,
     WriteValidationError,
@@ -65,6 +66,8 @@ LEAF_CLASSES = [
     CudaPoolExhaustedError,
     CudaContextLostError,
     CudaPrivateBuildRefusedError,
+    # 0.8.32 Slice 20 (`WP-20D`) — caller-scope boundary denial.
+    ScopeViolationError,
 ]
 
 
@@ -196,3 +199,10 @@ def test_invalid_argument_error_survives_as_a_distinct_leaf() -> None:
     assert not issubclass(InvalidArgumentError, WriteValidationError)
     assert not issubclass(WriteValidationError, InvalidArgumentError)
     assert str(InvalidArgumentError("depth must be 1-3, got 9")).startswith("depth must be 1-3")
+
+
+def test_scope_violation_error_is_distinct_engine_error_leaf() -> None:
+    assert issubclass(ScopeViolationError, EngineError)
+    assert not issubclass(ScopeViolationError, InvalidArgumentError)
+    assert not issubclass(ScopeViolationError, WriteValidationError)
+    assert "ScopeViolationError" in errors.__all__

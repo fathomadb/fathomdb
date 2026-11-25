@@ -23,6 +23,7 @@ from fathomdb import (
     CounterSnapshot,
     Engine,
     EngineConfig,
+    ScopePolicy,
     SearchResult,
     SoftFallback,
     WriteReceipt,
@@ -397,3 +398,32 @@ def test_counters_snapshot_carries_six_canonical_fields(db_path: str) -> None:
             )
     finally:
         engine.close()
+
+
+def test_scope_policy_config_and_open_kwargs(tmp_path) -> None:
+    policy = ScopePolicy.read_write(["agent-a", "agent-b"], "agent-a")
+    assert ScopePolicy.unscoped().is_unscoped
+    assert ScopePolicy.single("agent-a") == ScopePolicy(
+        read_scopes=("agent-a",), write_scope="agent-a", scoped=True
+    )
+    assert ScopePolicy.read_only(["agent-a"]).write_scope is None
+    assert not policy.is_unscoped
+
+    a = Engine.open(str(tmp_path / "a.sqlite"), scope_policy=policy)
+    b = Engine.open(str(tmp_path / "b.sqlite"), config=EngineConfig(scope_policy=policy))
+    try:
+        assert a.config == b.config
+        assert a.config.scope_policy == policy
+    finally:
+        a.close()
+        b.close()
+
+    try:
+        Engine.open(
+            str(tmp_path / "c.sqlite"),
+            config=EngineConfig(),
+            scope_policy=ScopePolicy.single("agent-a"),
+        )
+    except ValueError:
+        return
+    raise AssertionError("Engine.open must reject config + scope_policy kwarg together")

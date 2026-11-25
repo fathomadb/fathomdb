@@ -557,6 +557,7 @@ pub fn engine_error_to_outcome(err: &EngineError) -> CliOutcome {
         // `code` + `detail` naming the real stage, so the precise cause is not
         // lost.
         EngineError::ErasureIncomplete { .. } => CliOutcome::LockHeld,
+        EngineError::ScopeViolation { .. } => CliOutcome::Unrecoverable,
         EngineError::CudaPoolExhausted { .. }
         | EngineError::CudaContextLost { .. }
         | EngineError::CudaPrivateBuildRefused { .. } => CliOutcome::Unrecoverable,
@@ -2881,6 +2882,15 @@ mod tests {
         let error = EngineError::Maintenance(fathomdb::MaintenanceError::MaintenanceRequired);
         assert_eq!(engine_error_code(&error), "MaintenanceError");
         assert_eq!(engine_error_to_outcome(&error), CliOutcome::Unrecoverable);
+    }
+
+    #[test]
+    fn scope_violation_uses_the_stable_cli_error_code_and_exits_70() {
+        let error = EngineError::ScopeViolation { detail: "write scope denied".to_owned() };
+        assert_eq!(engine_error_code(&error), "ScopeViolationError");
+        let outcome = engine_error_to_outcome(&error);
+        assert_eq!(outcome, CliOutcome::Unrecoverable);
+        assert_eq!(outcome_to_exit_code(outcome), 70);
     }
 
     /// 0.8.28 Slice 30 (R30-04) — each CUDA pool kind has its own stable code

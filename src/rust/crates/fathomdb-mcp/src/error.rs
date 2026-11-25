@@ -421,6 +421,12 @@ impl ToolError {
                 },
             ),
             ErrorKind::Closing => Self::not_ready(store, "draining"),
+            ErrorKind::ScopeViolation => Self::new(
+                ErrorClass::InvalidRequest,
+                "scope_violation",
+                "the active scope policy denies this operation".to_string(),
+                "open with a ScopePolicy granting the required scope",
+            ),
             _ => Self::internal(),
         };
         mapped.with_detail(kind)
@@ -568,5 +574,19 @@ mod tests {
         assert_eq!(mapped.detail, Some("OverloadedError"));
         let json = serde_json::to_value(&mapped).unwrap();
         assert_eq!(json["busy"]["reason"], "engine_overloaded", "{json}");
+    }
+
+    #[test]
+    fn scope_violation_maps_to_invalid_request_scope_violation_without_echoing_detail() {
+        let mapped = ToolError::from_sdk(
+            "notes",
+            &SdkError::Engine(EngineError::ScopeViolation {
+                detail: "secret-id-should-not-leak".to_owned(),
+            }),
+        );
+        assert_eq!(mapped.class, ErrorClass::InvalidRequest);
+        assert_eq!(mapped.code, "scope_violation");
+        assert_eq!(mapped.detail, Some("ScopeViolationError"));
+        assert!(!mapped.message.contains("secret-id-should-not-leak"));
     }
 }

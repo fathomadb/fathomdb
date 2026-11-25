@@ -35,7 +35,7 @@ from fathomdb._sdk_context_pack import (
     pack_context,
 )
 from fathomdb._sdk_search import snippet_for
-from fathomdb.config import EngineConfig, QueryStopWords
+from fathomdb.config import EngineConfig, QueryStopWords, ScopePolicy
 from fathomdb.maintenance import (
     CleanupResult, ErasureBlocker, ErasureLogicalState, ErasurePhase, ErasureServiceState,
     ErasureStatus, PhysicalErasurePolicy, PhysicalErasureSelector, QueueResult,
@@ -49,6 +49,7 @@ from fathomdb.errors import (
     FrozenReadError,
     GraphExpansionError,
     PageError,
+    ScopeViolationError,
 )
 from fathomdb.filter import Filter
 from fathomdb.types import (
@@ -233,6 +234,8 @@ __all__ = [
     "QueueResult", "SourceAllAtCut", "DeletedLogicalAllAtCut", "WithdrawResult",
     "EngineConfig",
     "QueryStopWords",
+    "ScopePolicy",
+    "ScopeViolationError",
     "Filter",
     "IngestWithExtractorReceipt",
     "ExpandedNode",

@@ -2229,7 +2229,7 @@ fn commit_single_checkpoint(
             tx.prepare_cached(
                 "INSERT INTO operational_state(collection_name, record_key, payload_json, schema_id, write_cursor, scope)
                  VALUES(?1, ?2, ?3, 'checkpoint.v1', ?4, '')
-                 ON CONFLICT(collection_name, record_key) DO UPDATE SET
+                 ON CONFLICT(scope, collection_name, record_key) DO UPDATE SET
                     payload_json = excluded.payload_json,
                     schema_id = excluded.schema_id,
                     write_cursor = excluded.write_cursor",
@@ -2257,7 +2257,7 @@ fn commit_single_checkpoint(
             tx.prepare_cached(
                 "INSERT INTO operational_state(collection_name, record_key, payload_json, schema_id, write_cursor, scope)
                  VALUES(?1, ?2, ?3, 'checkpoint.v1', ?4, ?5)
-                 ON CONFLICT(collection_name, record_key) DO UPDATE SET
+                 ON CONFLICT(scope, collection_name, record_key) DO UPDATE SET
                     payload_json = excluded.payload_json,
                     schema_id = excluded.schema_id,
                     write_cursor = excluded.write_cursor,

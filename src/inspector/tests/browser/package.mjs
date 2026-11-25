@@ -59,7 +59,7 @@ test(
         boundedExecFileSync(binary, ["--build-description"], { encoding: "utf8", env: {} }, 15000),
       );
       assert.equal(description.version, version);
-      assert.equal(description.compiled_schema, 38);
+      assert.equal(description.compiled_schema, 39);
       assert.equal(description.fixture_control, false);
       assert.equal(
         description.cached_default_cpu,

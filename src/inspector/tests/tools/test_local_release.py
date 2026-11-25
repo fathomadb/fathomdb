@@ -53,7 +53,7 @@ class ReleaseTests(unittest.TestCase):
             'build': 'a' * 64,
             'target': 'x86_64-unknown-linux-gnu',
             'profile': 'release',
-            'compiled_schema': 38,
+            'compiled_schema': 39,
             'fixture_control': False,
             'cached_default_cpu': True,
             'protocol': 1,
@@ -72,7 +72,7 @@ class ReleaseTests(unittest.TestCase):
             'version': VERSION,
             'source_sha': 'b' * 40,
             'engine_version': ENGINE_VERSION,
-            'compiled_schema': 38,
+            'compiled_schema': 39,
             'build': description,
             'archive_sha256': digest(archive),
             'executable_sha256': digest(bundle / 'fathomdb-inspector'),
@@ -93,11 +93,12 @@ class ReleaseTests(unittest.TestCase):
     def test_verify_rejects_schema_37_and_wrong_production_features(self):
         manifest = self.candidate / 'candidate.json'
         value = json.loads(manifest.read_text())
-        value['compiled_schema'] = 37
-        manifest.write_text(json.dumps(value))
-        result = self.run_tool('verify', self.candidate)
-        self.assertNotEqual(result.returncode, 0)
-        value['compiled_schema'] = 38
+        for older_schema in (37, 38):
+            value['compiled_schema'] = older_schema
+            manifest.write_text(json.dumps(value))
+            result = self.run_tool('verify', self.candidate)
+            self.assertNotEqual(result.returncode, 0)
+        value['compiled_schema'] = 39
         value['build']['fixture_control'] = True
         manifest.write_text(json.dumps(value))
         self.assertNotEqual(self.run_tool('verify', self.candidate).returncode, 0)
@@ -192,7 +193,7 @@ module.promote(pathlib.Path(sys.argv[2]), pathlib.Path(sys.argv[3]))
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         self.assertEqual(module.VERSION, VERSION)
-        self.assertEqual(module.COMPILED_SCHEMA, 38)
+        self.assertEqual(module.COMPILED_SCHEMA, 39)
         self.assertEqual(module.ENGINE_VERSION, ENGINE_VERSION)
         self.assertEqual(module.SUPPORT['userland'], 'Ubuntu 24.04 / glibc 2.39')
         self.assertEqual(module.SUPPORT['chromium_qualified'], '156.0.8078.4')

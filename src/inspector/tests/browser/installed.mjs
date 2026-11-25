@@ -57,7 +57,7 @@ test('installed authentication/origin/Host/build/session/control and candidate r
  assert.equal((await fetch(`${origin}/fixture`,{headers:{Cookie:cookie}})).status,403);
  assert.equal((await api({op:'detach'})).value.status,'complete');lockFree(meta.db);
  const bytes=await readFile(meta.db);const refused=`${meta.dir}/older.sqlite`;const old=Buffer.from(bytes);old.writeUInt32BE(37,60);await writeFile(refused,old);await writeFile(`${refused}.lock`,'existing sentinel');
- const response=(await api({op:'attach',path:refused})).value;assert.equal(response.status,'refused');assert.equal(response.error,'unsupported_schema');assert.equal(response.observed_schema,37);assert.equal(response.supported_schema,38);assert.deepEqual(await readFile(refused),old);
+ const response=(await api({op:'attach',path:refused})).value;assert.equal(response.status,'refused');assert.equal(response.error,'unsupported_schema');assert.equal(response.observed_schema,37);assert.equal(response.supported_schema,39);assert.deepEqual(await readFile(refused),old);
  assert.equal((await api({op:'attach',path:meta.db})).value.status,'complete');
  assert.equal(pair.build,JSON.parse(boundedExecFileSync(meta.binary,['--build-description'],{encoding:'utf8'},15000)).build);
 },'default',[],false));

@@ -29,9 +29,20 @@ def _read_toml_version(path, section):
     raise ValueError(f'missing [{section}].version in {path}')
 
 
+def _read_schema_version(path):
+    match = re.search(
+        r'^pub const SCHEMA_VERSION:\s*u32\s*=\s*(\d+);',
+        path.read_text(encoding='utf-8'),
+        re.MULTILINE,
+    )
+    if match:
+        return int(match.group(1))
+    raise ValueError(f'missing SCHEMA_VERSION in {path}')
+
+
 VERSION = _read_toml_version(ROOT / 'src/inspector/Cargo.toml', 'package')
 ENGINE_VERSION = _read_toml_version(ROOT / 'Cargo.toml', 'workspace.package')
-COMPILED_SCHEMA = 38
+COMPILED_SCHEMA = _read_schema_version(ROOT / 'src/rust/crates/fathomdb-schema/src/lib.rs')
 NAME = f'fathomdb-inspector-{VERSION}-linux-x86_64'
 ARCHIVE = NAME + '.tar.gz'
 FILES = {'fathomdb-inspector', 'build-description.json', 'LICENSE', 'README.md'}

@@ -513,8 +513,15 @@ typed report structs; the CLI serializes them under a `verb` discriminator.
 ## Data-plane integrity
 
 `fathomdb doctor data-plane-integrity --check <kind>... --max-work <1..10000>
---max-findings <1..100> [--json] <db_path>` runs the four checks in canonical
-order; omitting `--check` selects all. The command does not call
+--max-findings <1..100> [--json] <db_path>` runs the five checks in canonical
+order (`dependency_chain`, `active_searchable_orphans`, `projection_generation`,
+`mutation_readiness`, `edge_endpoint_integrity`); omitting `--check` selects all.
+The `edge_endpoint_integrity` check inspects active edges (`superseded_at IS NULL`)
+read-only and reports content-free `dangling_edge_endpoint` (`error`) and
+`cross_scope_edge_endpoint` (`critical`) findings without mutating the store
+(`check-integrity` emits the same codes under `semantic.findings` anchored to
+`design/recovery.md#dangling-edge-endpoint` and
+`design/recovery.md#cross-scope-edge-endpoint`). The command does not call
 `Engine::open`: it requires an existing database and product lock, acquires the
 lock without rewriting it, refuses a non-empty WAL or rollback journal, then
 uses SQLite URI `immutable=1` plus read-only/query-only enforcement. A

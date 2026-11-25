@@ -11,7 +11,7 @@ signatures, options, return shapes, or error behavior. Use the maintained
 [TypeScript API](../reference/typescript-api.md), and
 [Rust SDK reference](../reference/rust-sdk.md) for those contracts.
 
-Governed operations: **56**. Each language cell is
+Governed operations: **57**. Each language cell is
 `locator` / `spelling`; `engine_static` is on `Engine`,
 `engine_instance` is on an open handle, `package` is standalone,
 and `read`, `graph`, and `admin` name their respective surfaces.
@@ -21,6 +21,7 @@ and `read`, `graph`, and `admin` name their respective surfaces.
 | `engine.open` | live | `engine_static` / `open` | `engine_static` / `open` | `engine_static` / `open` |
 | `admin.configure` | live | `admin` / `configure` | `admin` / `configure` | `admin` / `configure` |
 | `engine.write` | live | `engine_instance` / `write` | `engine_instance` / `write` | `engine_instance` / `write` |
+| `engine.write_with_options` | live | `engine_instance` / `write_with_options` | `engine_instance` / `writeWithOptions` | `engine_instance` / `write_with_options` |
 | `engine.actuate` | live | `engine_instance` / `actuate` | `engine_instance` / `actuate` | `engine_instance` / `actuate` |
 | `engine.register_source_dependency` | live | `engine_instance` / `register_source_dependency` | `engine_instance` / `registerSourceDependency` | `engine_instance` / `register_source_dependency` |
 | `engine.dependencies_for_source` | live | `engine_instance` / `dependencies_for_source` | `engine_instance` / `dependenciesForSource` | `engine_instance` / `dependencies_for_source` |

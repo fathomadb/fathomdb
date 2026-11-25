@@ -925,8 +925,9 @@ pub(super) struct PyWriteReceipt {
     cursor: u64,
     /// G0 (Slice 15) — per-row `write_cursor`s, 1:1 with the input batch order.
     row_cursors: Vec<u64>,
-    /// G8 (Slice 20) — count of edge endpoints in this batch pointing at a
-    /// non-existent or superseded canonical node (informational; flag-and-count).
+    /// Count of unresolved edge endpoints across surviving active edges written
+    /// by this batch (`0` under strict mode; exact `0`/`1`/`2` per surviving
+    /// active edge under opt-in `bulk_non_strict` mode).
     dangling_edge_endpoints: u64,
 }
 

@@ -496,6 +496,7 @@ Rust exposes:
 
 - `Engine::open(...) -> Result<OpenedEngine, EngineOpenError>`
 - `Engine::write(...) -> Result<WriteReceipt, EngineError>`
+- `Engine::write_with_options(&self, batch: &[PreparedWrite], options: &WriteOptions) -> Result<WriteReceipt, EngineError>`
 - `Engine::search(...) -> Result<SearchResult, EngineError>` — defaults to 10 ranked hits.
 - `Engine::search_with_limit(query, limit) -> Result<SearchResult, EngineError>` — `limit` is
   `1..=100`; out-of-range values return `EngineError::InvalidArgument`.
@@ -809,7 +810,9 @@ The Rust workspace also exposes the semver-stable companion crate
 
 - `WriteReceipt` exposes `cursor` (the batch high-water `write_cursor`),
   `row_cursors` (per-row, 1:1 with the batch) and `dangling_edge_endpoints`
-  (always `0` on committed `0.8.31` batches under strict endpoint integrity)
+  (`0` on every commit under `EndpointValidationMode::Strict` / default
+  `Engine::write`; truthful `0`/`1`/`2` per surviving active edge under opt-in
+  `EndpointValidationMode::BulkNonStrict` via `Engine::write_with_options`)
 - `SearchResult` exposes `projection_cursor`, which names the terminal
   projection-visible point for the search snapshot
 - hybrid fallback, when present, exposes a typed branch enum whose values are
@@ -2694,3 +2697,39 @@ compose orthogonally with world/validity time (`ReadView.valid_as_of` /
   `fathomdb` re-exports `migrate_38_to_39` alongside `migrate_37_to_38` (and test
   fault-injection hook helpers stay internal/test-only). `Engine::open` remains
   strictly Schema-39-only.
+
+## Opt-in bulk write mode (`WriteOptions`, `Engine::write_with_options`, 0.8.32 Slice 30)
+
+- **Strict defaults preserved:** `Engine::write` delegates to
+  `Engine::write_with_options(batch, &WriteOptions::default())`
+  (`EndpointValidationMode::Strict`), rejecting missing, inactive, superseded,
+  or cross-scope edge endpoints atomically with `EngineError::WriteValidation`
+  and guaranteeing `WriteReceipt.dangling_edge_endpoints == 0` on every commit.
+  `Engine::actuate` stays strict-only and never accepts bulk endpoint flags.
+- **Re-exported types (`fathomdb` root):**
+  - `EndpointValidationMode::{Strict, BulkNonStrict}` (`Default::default() == Strict`).
+  - `#[non_exhaustive] WriteOptions { pub endpoint_validation: EndpointValidationMode }`
+    with `WriteOptions::strict()`, `WriteOptions::bulk_non_strict()`, and
+    `WriteOptions::with_endpoint_validation(self, EndpointValidationMode) -> Self`.
+- **Opt-in `BulkNonStrict` semantics:** `Engine::write_with_options(batch, &WriteOptions::bulk_non_strict())`
+  admits edges whose same-scope `from`/`to` endpoints do not yet exist as active
+  canonical nodes (`superseded_at IS NULL AND state = 'active'`), reporting the
+  exact unresolved endpoint count in `WriteReceipt.dangling_edge_endpoints`
+  (`0`, `1`, or `2` per surviving active edge written in the batch; node-only /
+  non-edge batches take the zero-SQL fast path and return `0`). Subsequent
+  same-scope writes supplying the missing nodes resolve graph traversal without
+  rewriting edges.
+- **Non-bypassable invariants:** Under `BulkNonStrict`, active endpoints
+  belonging to a distinct caller `scope` are refused atomically with
+  `EngineError::ScopeViolation` (never admitted as dangling); read-only
+  `ScopePolicy` handles are refused with `EngineError::ScopeViolation`; and
+  anti-spoof `scope` stamping, validity windows, typed scalar `properties`,
+  mandatory `SourceId`, `InitialState`, provenance, triggers, and erasure
+  invariants remain strictly enforced.
+- **Operator verification (`operator` feature):**
+  `DataPlaneIntegrityCheckV1::EdgeEndpointIntegrity` (`"edge_endpoint_integrity"`)
+  is the 5th closed check in `DataPlaneIntegrityRequestV1::all`, emitting
+  content-free `DataPlaneIntegrityFindingCodeV1::DanglingEdgeEndpoint`
+  (`Error`) and `CrossScopeEdgeEndpoint` (`Critical`); `check_integrity`
+  emits matching `"dangling_edge_endpoint"` / `"cross_scope_edge_endpoint"`
+  semantic findings anchored to `design/recovery.md`.

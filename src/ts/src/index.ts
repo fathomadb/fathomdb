@@ -23,7 +23,9 @@ export type {
 } from "./properties.js";
 
 export {
+  EndpointValidationMode,
   LifecycleState,
+  WriteOptions,
   WriteReceipt,
   WholeBodySourceLocator,
   Utf8BytesSourceLocator,

@@ -461,20 +461,46 @@ class EmbeddingReadiness:
     documentation_url: str | None
 
 
+#: Edge endpoint validation policy for :class:`WriteOptions` and
+#: :meth:`fathomdb.Engine.write_with_options`.
+EndpointValidationMode = Literal["strict", "bulk_non_strict"]
+
+
+@dataclass(frozen=True)
+class WriteOptions:
+    """Options controlling :meth:`fathomdb.Engine.write_with_options`.
+
+    Defaults to ``endpoint_validation="strict"``. Opt into ``"bulk_non_strict"``
+    to admit out-of-order same-scope edges with truthful
+    :attr:`WriteReceipt.dangling_edge_endpoints` counts while keeping
+    cross-scope endpoint refusal (``ScopeViolationError``) and all other batch
+    invariants strict.
+    """
+
+    endpoint_validation: EndpointValidationMode = "strict"
+
+
 @dataclass(frozen=True)
 class WriteReceipt:
-    """Receipt returned by `engine.write` and `admin.configure`."""
+    """Receipt returned by ``engine.write``, ``engine.write_with_options``, and ``admin.configure``."""
 
     cursor: int
     #: G0 (Slice 15) — per-row ``write_cursor``s, 1:1 with the input batch
     #: order. The ``write_cursor``-as-row-id identity carrier; for an N-row
     #: batch this is ``[cursor - N + 1, …, cursor]``.
     row_cursors: tuple[int, ...] = ()
-    #: G8 (Slice 20 / F10) — count of edge endpoints in this batch that point at
-    #: a non-existent or superseded canonical node (an active node carrying that
-    #: ``logical_id``). ``from_id``/``to_id`` are probed independently, so one
-    #: edge contributes 0, 1, or 2. Informational only: the batch commits
-    #: regardless (flag-and-count). ``0`` when the batch committed no active edges.
+    #: Count of unresolved edge endpoints across surviving active edges
+    #: (``superseded_at IS NULL``) written by this batch.
+    #:
+    #: Under ``"strict"`` endpoint validation (the default for ``engine.write``
+    #: and ``engine.write_with_options``), any missing, inactive, superseded, or
+    #: cross-scope endpoint rolls the batch back atomically with
+    #: ``WriteValidationError``, so committed receipts always report ``0``.
+    #: Under opt-in ``"bulk_non_strict"`` via ``engine.write_with_options``,
+    #: ``from`` and ``to`` are probed independently against active same-scope
+    #: canonical nodes (``superseded_at IS NULL AND state = 'active'``), so each
+    #: surviving active edge contributes ``0``, ``1``, or ``2`` (and node-only /
+    #: non-edge batches report ``0``).
     dangling_edge_endpoints: int = 0
 
 
@@ -1822,6 +1848,7 @@ __all__ = [
     "EmbedderEvent",
     "EmbedderIdentity",
     "EffectiveEmbedDevice",
+    "EndpointValidationMode",
     "EVIDENCE_RESOLVE_MANY_MAX",
     "EvidenceArtifactLifecycleV1",
     "EvidenceContributionV1",
@@ -1870,6 +1897,7 @@ __all__ = [
     "SnippetOptions",
     "SnippetV1",
     "UnknownEmbedderEvent",
+    "WriteOptions",
     "WriteReceipt",
     "is_known_embedder_event",
 ]

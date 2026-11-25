@@ -1,6 +1,7 @@
 // Private core owner for the TypeScript SDK package root.
 import {
   write,
+  writeWithOptions,
   registerSourceDependency,
   actuate,
   dependenciesForSource,
@@ -45,6 +46,7 @@ import { validateFfiString } from "./validation.js";
 
 import {
   LifecycleState,
+  WriteOptions,
   WriteReceipt,
   SourceDependencyRegistrationV1,
   DependencySourceLookupV1,
@@ -451,6 +453,19 @@ export class Engine {
    * longer recoverable from the error, so validate the pair before calling.
    */
   async write(batch: unknown[] = []): Promise<WriteReceipt> { return write(this.#native, batch); }
+
+  /**
+   * Write a batch of items under explicit {@link WriteOptions}.
+   *
+   * Defaults to `endpointValidation: "strict"`, matching {@link Engine.write}.
+   * Passing `{ endpointValidation: "bulk_non_strict" }` admits out-of-order
+   * same-scope edges with truthful {@link WriteReceipt.danglingEdgeEndpoints}
+   * counts while keeping cross-scope endpoint refusal (`ScopeViolationError`)
+   * and all other batch invariants strict.
+   */
+  async writeWithOptions(batch: unknown[] = [], options?: WriteOptions): Promise<WriteReceipt> {
+    return writeWithOptions(this.#native, batch, options);
+  }
 
   /** Register one pinned dependency; exact replay is a no-op success. */
   async registerSourceDependency(

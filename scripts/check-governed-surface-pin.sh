@@ -14,9 +14,9 @@
 #   5d + 10b + 15b + 15d (AC-079), then 0.8.21 Slice 60's projected-text search
 #   delta, 0.8.22 Slice 21's DenseReadiness type commentary, and 0.8.22 Slice
 #   22's C5 projection-status reads (steward-ledger seq-247), and the approved
-#   later approved surfaces through 0.8.31 Slice 50 (ADR-0.8.31 #76) — pinned to the EXACT CONTENT of
+#   later approved surfaces through 0.8.32 Slice 30 (Gate1-D4 Pin B, ADR-0.8.32 #100) — pinned to the EXACT CONTENT of
 #   src/conformance/governed-surface-allowlist.json at the commit recorded in
-#   scripts/governed-surface-pin.json: 93 allowlist members,
+#   scripts/governed-surface-pin.json: 95 allowlist members,
 #   5 core, recovery_denylist unchanged at the five REQ-054 names, and the
 #   separately classified runtime controls. A signature keyed to specific content is worth exactly as much
 #   as the mechanism that notices when that content moves. This is that

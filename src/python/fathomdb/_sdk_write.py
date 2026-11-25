@@ -19,6 +19,7 @@ from fathomdb.types import (
     DependencySourceLookupV1,
     SourceDependencyRegistrationV1,
     SourceDependencyV1,
+    WriteOptions,
     WriteReceipt,
 )
 
@@ -28,6 +29,32 @@ if TYPE_CHECKING:
 
 def write(self: Engine, batch: list[Any] | None = None) -> WriteReceipt:
     receipt = self._native.write(batch or [])
+    return WriteReceipt(
+        cursor=receipt.cursor,
+        row_cursors=tuple(receipt.row_cursors),
+        dangling_edge_endpoints=receipt.dangling_edge_endpoints,
+    )
+
+
+def write_with_options(
+    self: Engine,
+    batch: list[Any] | None = None,
+    options: WriteOptions | None = None,
+) -> WriteReceipt:
+    if options is None:
+        endpoint_validation = "strict"
+    elif isinstance(options, WriteOptions):
+        mode = options.endpoint_validation
+        if not isinstance(mode, str):
+            raise TypeError("WriteOptions.endpoint_validation must be a str")
+        if mode not in ("strict", "bulk_non_strict"):
+            raise ValueError(
+                f"WriteOptions.endpoint_validation={mode!r}: expected 'strict' or 'bulk_non_strict'"
+            )
+        endpoint_validation = mode
+    else:
+        raise TypeError("options must be a WriteOptions instance or None")
+    receipt = self._native.write_with_options(batch or [], endpoint_validation)
     return WriteReceipt(
         cursor=receipt.cursor,
         row_cursors=tuple(receipt.row_cursors),

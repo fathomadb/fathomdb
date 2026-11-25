@@ -64,7 +64,8 @@ quiescent route below. `safe-export` includes committed WAL data via SQLite
 returns 66, while an earlier open refusal retains 70/71.
 
 `check-integrity --full` may emit doctor-only finding codes such as
-`E_CORRUPT_INTEGRITY_CHECK`.
+`E_CORRUPT_INTEGRITY_CHECK`, `dangling_edge_endpoint`, and
+`cross_scope_edge_endpoint` (semantic read-only edge verification).
 
 ### Reranker device diagnostic
 
@@ -78,9 +79,14 @@ ordinal returns 65; an unavailable runtime or a build without
 ### Data-plane integrity
 
 `fathomdb doctor data-plane-integrity` runs bounded read-only checks over
-dependency and serving-projection authority. The four check kinds—
-`dependency_chain`, `active_searchable_orphans`, `projection_generation`, and
-`mutation_readiness`—run in canonical order; omit `--check` to select all.
+dependency, serving-projection, and edge-endpoint authority. The five check
+kinds—`dependency_chain`, `active_searchable_orphans`, `projection_generation`,
+`mutation_readiness`, and `edge_endpoint_integrity`—run in canonical order;
+omit `--check` to select all. `edge_endpoint_integrity` detects unresolved
+same-scope active edge endpoints (`dangling_edge_endpoint`, severity `error`,
+e.g. after incomplete `bulk_non_strict` ingestion) and cross-scope active edge
+anomalies (`cross_scope_edge_endpoint`, severity `critical`) read-only without
+repairing or mutating the database.
 `--max-work` accepts 1 through 10,000 and `--max-findings` accepts 1 through
 100. A failure returns no partial report. Stop every FathomDB process using the
 store first. The command requires the existing product `.lock`, refuses a

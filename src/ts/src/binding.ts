@@ -884,6 +884,10 @@ export interface NativeErasureMaintenance {
   close(): Promise<string>;
 }
 
+export interface NativeWriteOptions {
+  endpointValidation?: string | null;
+}
+
 export interface NativeEngine {
   queuePhysicalErasure(selector: unknown, key: string): Promise<NativeQueueResult>;
   physicalErasureStatus(ticket: string): Promise<NativeErasureStatus | null>;
@@ -891,6 +895,7 @@ export interface NativeEngine {
   physicalErasurePolicy(): string;
   beginErasureMaintenance(acquisitionWaitMs: number): Promise<NativeErasureMaintenance>;
   write(batch: unknown[]): Promise<NativeWriteReceipt>;
+  writeWithOptions(batch: unknown[], options?: NativeWriteOptions | null): Promise<NativeWriteReceipt>;
   actuate(request: unknown): Promise<NativeActuationReceiptV1>;
   registerSourceDependency(request: unknown): Promise<NativeSourceDependencyV1>;
   dependenciesForSource(request: unknown): Promise<NativeDependencyListV1>;

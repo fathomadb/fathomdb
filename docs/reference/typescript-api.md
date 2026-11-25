@@ -28,6 +28,8 @@ import {
   read,
   type EngineConfig,
   type EngineOpenOptions,
+  type EndpointValidationMode,
+  type WriteOptions,
   type WriteReceipt,
   type EraseReport,
   type IdSpace,
@@ -178,8 +180,28 @@ const receipt = await engine.write([
 - Returns: `WriteReceipt { cursor, rowCursors, danglingEdgeEndpoints }` —
   `cursor` is the batch high-water `write_cursor`; `rowCursors` are the
   per-row `write_cursor`s, 1:1 with the input batch order;
-  `danglingEdgeEndpoints` is `0` on every committed batch — see
+  `danglingEdgeEndpoints` is `0` on every committed strict batch — see
   [`WriteReceipt`](#writereceipt).
+
+### `engine.writeWithOptions(batch?, options?) -> Promise<WriteReceipt>`
+
+Write a batch under explicit `WriteOptions` (`0.8.32`):
+
+- `options` (`WriteOptions`, optional) — omitted `options` or
+  `{ endpointValidation: "strict" }` enforces strict active-endpoint validation
+  identical to `engine.write`. Non-object `options` or invalid/non-string
+  `endpointValidation` values reject with `TypeError`.
+- Opting into `{ endpointValidation: "bulk_non_strict" }` admits out-of-order
+  same-scope edges and reports the exact unresolved endpoint count across
+  surviving active edges written by the batch in
+  `WriteReceipt.danglingEdgeEndpoints` (`0`, `1`, or `2` per edge; `0` for
+  node-only batches). Subsequent same-scope batches supplying the missing nodes
+  resolve traversal automatically without rewriting edges.
+- Cross-scope active endpoints and read-only `ScopePolicy` handles still roll
+  back atomically with `ScopeViolationError` (`code = "FDB_SCOPE_VIOLATION"`),
+  and all other batch invariants remain strict. Verify post-import completeness
+  read-only with `fathomdb doctor data-plane-integrity --check edge_endpoint_integrity`
+  or `fathomdb doctor check-integrity`.
 
 ### `engine.search(query, filter?, rerankDepth?, useGraphArm?, alpha?, poolN?, explain?, options?) -> Promise<SearchResult>`
 
@@ -664,20 +686,36 @@ vector declarations. `vectorUnsupportedKinds` is sorted and deduplicated; it is
 interface WriteReceipt {
   cursor: number; // batch high-water write_cursor
   rowCursors: number[]; // G0 — per-row write_cursor, 1:1 with the batch
-  danglingEdgeEndpoints: number; // always 0 on committed batches (strict endpoint integrity)
+  danglingEdgeEndpoints: number; // 0 under strict mode; truthful count under bulk_non_strict
 }
 ```
 
 `rowCursors` is the `write_cursor`-as-row-id identity carrier (G0 /
 Slice 15): for an N-row batch it is `[cursor - N + 1, …, cursor]`.
 
-`danglingEdgeEndpoints` is retained on `WriteReceipt` for structural
-compatibility and is always `0` on every committed batch: `engine.write`
-enforces strict atomic active-endpoint integrity across all edges in the batch
-(rejecting missing, superseded-only, `pending`, or `deleted` endpoints with
-`WriteValidationError` and rolling back the entire batch). Only active
-`logicalId`-keyed nodes satisfy edge endpoints; same-batch forward references
-and active self-loops are valid.
+`danglingEdgeEndpoints` reports the count of unresolved edge endpoints across
+surviving active edges (`superseded_at IS NULL`) written by the batch:
+
+- Under `"strict"` mode (`engine.write` and default `engine.writeWithOptions`),
+  missing, superseded-only, `pending`, `deleted`, or cross-scope endpoints
+  reject with `WriteValidationError` and roll back the batch atomically, so
+  committed receipts always report `0`.
+- Under opt-in `"bulk_non_strict"` mode (`engine.writeWithOptions(batch, {
+  endpointValidation: "bulk_non_strict" })`), `from` and `to` are probed
+  independently against active same-scope canonical nodes, so each surviving
+  active edge contributes `0`, `1`, or `2` (and node-only batches report `0`).
+  Cross-scope active endpoints still reject atomically with
+  `ScopeViolationError`.
+
+### `WriteOptions` and `EndpointValidationMode`
+
+```ts
+type EndpointValidationMode = "strict" | "bulk_non_strict";
+
+interface WriteOptions {
+  readonly endpointValidation?: EndpointValidationMode;
+}
+```
 
 ### `NodeRecord`
 

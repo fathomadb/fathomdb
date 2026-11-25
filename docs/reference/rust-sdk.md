@@ -223,3 +223,23 @@ is added.
   Option<ReadView>` and `.with_view(ReadView)`. `graph::search_expand` applies
   `options.view`; `Engine::search_expand_frozen` rejects `options.view.is_some()`
   with `ErrorKind::InvalidArgument` (`FrozenReadContextV1` fixes its view).
+
+## Opt-in bulk write mode (`WriteOptions`, `Engine::write_with_options`, 0.8.32)
+
+- **Strict defaults preserved:** `Engine::write(&self, batch: &[PreparedWrite])`
+  and `Engine::actuate` remain strictly endpoint-validated
+  (`WriteReceipt.dangling_edge_endpoints == 0` on every commit).
+- **Exports:** `EndpointValidationMode::{Strict, BulkNonStrict}` (`Default::default() == Strict`)
+  and `#[non_exhaustive] WriteOptions` (`WriteOptions::strict()`,
+  `WriteOptions::bulk_non_strict()`, `WriteOptions::with_endpoint_validation(...)`).
+- **`Engine::write_with_options(&self, batch: &[PreparedWrite], options: &WriteOptions) -> Result<WriteReceipt>`:**
+  Under `WriteOptions::bulk_non_strict()`, out-of-order same-scope edges are
+  admitted and `WriteReceipt.dangling_edge_endpoints` reports the exact
+  unresolved endpoint count (`0`, `1`, or `2` per surviving active edge written
+  in the batch; `0` for node-only batches). Subsequent same-scope batches
+  providing the missing nodes resolve graph traversal without rewriting edges.
+  Cross-scope active endpoints and read-only handles fail atomically with
+  `ErrorKind::ScopeViolation`, and all other batch invariants remain strict.
+  After bulk loading, verify graph completeness read-only with
+  `fathomdb doctor data-plane-integrity --check edge_endpoint_integrity` or
+  `fathomdb doctor check-integrity`.

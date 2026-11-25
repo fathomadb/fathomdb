@@ -1,4 +1,4 @@
-import type { NativeEngine } from "./binding.js";
+import type { NativeEngine, NativeWriteOptions } from "./binding.js";
 import { prepareActuationBatch, prepareWriteBatchItem } from "./properties.js";
 // Private write owner for the TypeScript SDK package root.
 
@@ -14,6 +14,25 @@ import { sanitizeActuationFfiTree, validateFfiString, validateSourceIdFfiString,
  */
 export type LifecycleState = "pending" | "active" | "deleted" | "purged";
 
+/**
+ * Edge endpoint validation policy for {@link WriteOptions} and
+ * {@link Engine.writeWithOptions}.
+ */
+export type EndpointValidationMode = "strict" | "bulk_non_strict";
+
+/**
+ * Options controlling {@link Engine.writeWithOptions}.
+ *
+ * Defaults to `endpointValidation: "strict"`. Opt into `"bulk_non_strict"` to
+ * admit out-of-order same-scope edges with truthful
+ * {@link WriteReceipt.danglingEdgeEndpoints} accounting while keeping
+ * cross-scope endpoint refusal (`ScopeViolationError`) and all other batch
+ * invariants strict.
+ */
+export interface WriteOptions {
+  readonly endpointValidation?: EndpointValidationMode;
+}
+
 export interface WriteReceipt {
   cursor: number;
   /**
@@ -23,11 +42,18 @@ export interface WriteReceipt {
    */
   rowCursors: number[];
   /**
-   * G8 (Slice 20 / F10) — count of edge endpoints in this batch that point at a
-   * non-existent or superseded canonical node (an active node carrying that
-   * `logical_id`). `from_id`/`to_id` are probed independently, so one edge
-   * contributes 0, 1, or 2. Informational only: the batch commits regardless
-   * (flag-and-count). `0` when the batch committed no active edges.
+   * Count of unresolved edge endpoints across surviving active edges
+   * (`superseded_at IS NULL`) written by this batch.
+   *
+   * Under `"strict"` endpoint validation (the default for {@link Engine.write}
+   * and {@link Engine.writeWithOptions}), any missing, inactive, superseded, or
+   * cross-scope endpoint rolls the batch back atomically with
+   * `WriteValidationError`, so committed receipts always report `0`. Under
+   * opt-in `"bulk_non_strict"` via {@link Engine.writeWithOptions}, `from` and
+   * `to` are probed independently against active same-scope canonical nodes
+   * (`superseded_at IS NULL AND state = 'active'`), so each surviving active
+   * edge contributes `0`, `1`, or `2` (and node-only / non-edge batches report
+   * `0`).
    */
   danglingEdgeEndpoints: number;
 }
@@ -500,6 +526,29 @@ export async function write(nativeEngine: NativeEngine, batch: unknown[] = []): 
     validateWriteFfiTree(batch);
     const prepared = batch.map(prepareWriteBatchItem);
     return intercept(() => nativeEngine.write(prepared));
+  }
+
+export async function writeWithOptions(
+    nativeEngine: NativeEngine,
+    batch: unknown[] = [],
+    options?: WriteOptions,
+  ): Promise<WriteReceipt> {
+    let nativeOptions: NativeWriteOptions | null = null;
+    if (options !== undefined) {
+      if (options === null || typeof options !== "object" || Array.isArray(options)) {
+        throw new TypeError("writeOptions must be an object");
+      }
+      const mode = (options as Record<string, unknown>).endpointValidation;
+      if (mode !== undefined) {
+        if (typeof mode !== "string" || (mode !== "strict" && mode !== "bulk_non_strict")) {
+          throw new TypeError("writeOptions.endpointValidation must be one of strict, bulk_non_strict");
+        }
+        nativeOptions = { endpointValidation: mode };
+      }
+    }
+    validateWriteFfiTree(batch);
+    const prepared = batch.map(prepareWriteBatchItem);
+    return intercept(() => nativeEngine.writeWithOptions(prepared, nativeOptions));
   }
 
 export async function registerSourceDependency(nativeEngine: NativeEngine, request: SourceDependencyRegistrationV1): Promise<SourceDependencyV1> {

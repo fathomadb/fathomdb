@@ -831,6 +831,19 @@ class GpuAllocationWitness:
     for approved_stub, old_stub in wp20d_deltas:
         assert pre_027_delta_stub.count(approved_stub) == 1
         pre_027_delta_stub = pre_027_delta_stub.replace(approved_stub, old_stub, 1)
+    # 0.8.32 Slice 30 (WP-30B) — Engine.write_with_options native stub.
+    wp30b_deltas = (
+        (
+            "    def write(self, batch: Iterable[Any]) -> WriteReceipt: ...\n"
+            "    def write_with_options(\n"
+            "        self, batch: Iterable[Any], endpoint_validation: str = ...\n"
+            "    ) -> WriteReceipt: ...\n",
+            "    def write(self, batch: Iterable[Any]) -> WriteReceipt: ...\n",
+        ),
+    )
+    for approved_stub, old_stub in wp30b_deltas:
+        assert pre_027_delta_stub.count(approved_stub) == 1
+        pre_027_delta_stub = pre_027_delta_stub.replace(approved_stub, old_stub, 1)
     assert (
         hashlib.sha256(pre_027_delta_stub.encode()).hexdigest() == additions["native_stub_sha256"]
     )

@@ -224,6 +224,7 @@ pub use fathomdb_engine::{
     PhysicalErasureSelector, QueueResult, WithdrawResult,
 };
 
+pub use fathomdb_engine::{EndpointValidationMode, WriteOptions};
 pub use fathomdb_engine::{ScopePolicy, ScopePolicyError, MAX_READ_SCOPES, MAX_SCOPE_TOKEN_BYTES};
 
 // The operator-seam report types (`dev/interfaces/rust.md` § 2b) — CLI-only,

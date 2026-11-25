@@ -13,7 +13,7 @@ use fathomdb_engine::{
     GraphEvidenceResolveRequestV1, IngestWithExtractorReceipt, LifecycleState, OpenReport,
     PreparedWrite, ProjectionDelta, ProjectionSpec, ReadContextV1, ResolvedEvidenceV1,
     ResolvedGraphEvidenceV1, SearchExpandResult, SearchResult, SourceDependencyRegistrationV1,
-    SourceDependencyV1, Subscription, WriteReceipt,
+    SourceDependencyV1, Subscription, WriteOptions, WriteReceipt,
 };
 
 use crate::error::{Error, Result};
@@ -155,10 +155,26 @@ impl Engine {
         Ok(self.core.drain(timeout_ms)?)
     }
 
-    /// Commit a batch of typed writes atomically.
+    /// Commit a batch of typed writes atomically with strict edge endpoint validation.
     pub fn write(&self, batch: &[PreparedWrite]) -> Result<WriteReceipt> {
         batch.iter().try_for_each(guard::prepared_write)?;
         Ok(self.core.write(batch)?)
+    }
+
+    /// Commit a batch of typed writes atomically under explicit [`WriteOptions`].
+    ///
+    /// Defaults to strict endpoint validation; opt into
+    /// [`crate::EndpointValidationMode::BulkNonStrict`] to admit out-of-order
+    /// same-scope edges with truthful [`WriteReceipt::dangling_edge_endpoints`]
+    /// accounting while keeping cross-scope endpoint refusal and all other
+    /// batch invariants strict.
+    pub fn write_with_options(
+        &self,
+        batch: &[PreparedWrite],
+        options: &WriteOptions,
+    ) -> Result<WriteReceipt> {
+        batch.iter().try_for_each(guard::prepared_write)?;
+        Ok(self.core.write_with_options(batch, options)?)
     }
 
     /// Apply one atomic actuation batch.

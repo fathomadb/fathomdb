@@ -144,6 +144,20 @@ impl Engine {
     }
 
     #[napi]
+    pub async fn write_with_options(
+        &self,
+        batch: Vec<JsonValue>,
+        options: Option<WriteOptions>,
+    ) -> Result<WriteReceipt> {
+        let rust_options = options.map(WriteOptions::into_rust).transpose()?.unwrap_or_default();
+        let prepared = translate_batch(batch)?;
+        let engine = Arc::clone(&self.inner);
+        let receipt =
+            call_engine(move || engine.write_with_options(&prepared, &rust_options)).await?;
+        Ok(WriteReceipt::from_rust(receipt))
+    }
+
+    #[napi]
     pub async fn actuate(&self, request: JsonValue) -> Result<ActuationReceiptV1> {
         let request = translate_actuation_request(&request)?;
         let engine = Arc::clone(&self.inner);

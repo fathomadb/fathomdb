@@ -17,27 +17,27 @@ use fathomdb_sdk::{
     ContextItem, ContextPack, ContextPart, ContextPolicy, CounterSnapshot, CudaAllocatorPath,
     CudaAllocatorReason, CudaAllocatorReport, CudaDeviceInfo, DependencyDerivedLookupV1,
     DependencyListV1, DependencySourceLookupV1, DependencyTraceRequestV1, DependencyTraceResultV1,
-    DeviceResolution, EmbedderEvent, EmbedderIdentity, EmbeddingReadiness, Engine, EngineConfig,
-    EngineError, EngineOpenError, EraseReport, Error, ErrorKind, EvidenceResolveManyItemV1,
-    EvidenceResolveManyRequestV1, EvidenceResolveRequestV1, EvidenceSearchRequestV1,
-    EvidenceSearchResultV1, ExtractDocument, Filter, FilterTerm, FrozenReadContextV1,
-    FrozenSearchOptions, GpuAllocationMeasurement, GpuAllocationWitness, GraphArmOptions,
-    GraphArmSeedSource, GraphEvidenceResolveRequestV1, GraphExpandRequestV1, GraphExpandResultV1,
-    GraphReadContextV1, GraphSeedMode, GraphSeedV1, Hint, HintAction, HintArm, HintCause, HintMode,
-    HintReason, IdSpace, IdSpaceKind, IngestWithExtractorReceipt, LifecycleState, ListOptions,
-    MigrationStepReport, ModuleLoadInit, MutationProjectionStatusRequestV1,
-    MutationProjectionStatusV1, NeighborsOptions, NodeRecord, OpStoreRow, OpenOptions, OpenReport,
-    OperationalCollectionInfo, OperationalStateRecordV1, PageRequestV1, PageV1, Predicate,
-    PreparedWrite, ProjectedTextSearchOptions, ProjectionDelta, ProjectionGenerationStatusV1,
-    ProjectionRuntimeStatus, ProjectionSpec, PropertyComparisonOp, PropertyEntityClass,
-    PropertyMap, PropertyPredicate, PropertyValue, ReadContextV1, ReadView, ReleaseThreshold,
-    RerankOptions, RerankPassage, RerankResult, RerankerDeviceResolution, ResolvedEvidenceV1,
-    ResolvedGraphEvidenceV1, Result, RuntimeConfiguration, RuntimeConfigurationError,
-    RuntimeSqliteMode, ScopePolicy, ScopePolicyError, SearchExpandOptions, SearchExpandResult,
-    SearchFilter, SearchFilterArg, SearchHit, SearchOptions, SearchResult,
-    SourceDependencyRegistrationV1, SourceDependencyV1, SourceId, Subscriber, SubscriberEvent,
-    TextSearchOptions, TraversalDirection, WriteReceipt, EVIDENCE_RESOLVE_MANY_MAX,
-    MAX_READ_SCOPES, MAX_SCOPE_TOKEN_BYTES,
+    DeviceResolution, EmbedderEvent, EmbedderIdentity, EmbeddingReadiness, EndpointValidationMode,
+    Engine, EngineConfig, EngineError, EngineOpenError, EraseReport, Error, ErrorKind,
+    EvidenceResolveManyItemV1, EvidenceResolveManyRequestV1, EvidenceResolveRequestV1,
+    EvidenceSearchRequestV1, EvidenceSearchResultV1, ExtractDocument, Filter, FilterTerm,
+    FrozenReadContextV1, FrozenSearchOptions, GpuAllocationMeasurement, GpuAllocationWitness,
+    GraphArmOptions, GraphArmSeedSource, GraphEvidenceResolveRequestV1, GraphExpandRequestV1,
+    GraphExpandResultV1, GraphReadContextV1, GraphSeedMode, GraphSeedV1, Hint, HintAction, HintArm,
+    HintCause, HintMode, HintReason, IdSpace, IdSpaceKind, IngestWithExtractorReceipt,
+    LifecycleState, ListOptions, MigrationStepReport, ModuleLoadInit,
+    MutationProjectionStatusRequestV1, MutationProjectionStatusV1, NeighborsOptions, NodeRecord,
+    OpStoreRow, OpenOptions, OpenReport, OperationalCollectionInfo, OperationalStateRecordV1,
+    PageRequestV1, PageV1, Predicate, PreparedWrite, ProjectedTextSearchOptions, ProjectionDelta,
+    ProjectionGenerationStatusV1, ProjectionRuntimeStatus, ProjectionSpec, PropertyComparisonOp,
+    PropertyEntityClass, PropertyMap, PropertyPredicate, PropertyValue, ReadContextV1, ReadView,
+    ReleaseThreshold, RerankOptions, RerankPassage, RerankResult, RerankerDeviceResolution,
+    ResolvedEvidenceV1, ResolvedGraphEvidenceV1, Result, RuntimeConfiguration,
+    RuntimeConfigurationError, RuntimeSqliteMode, ScopePolicy, ScopePolicyError,
+    SearchExpandOptions, SearchExpandResult, SearchFilter, SearchFilterArg, SearchHit,
+    SearchOptions, SearchResult, SourceDependencyRegistrationV1, SourceDependencyV1, SourceId,
+    Subscriber, SubscriberEvent, TextSearchOptions, TraversalDirection, WriteOptions, WriteReceipt,
+    EVIDENCE_RESOLVE_MANY_MAX, MAX_READ_SCOPES, MAX_SCOPE_TOKEN_BYTES,
 };
 
 #[test]
@@ -53,6 +53,8 @@ fn engine_root_and_lifecycle_signatures() {
 #[test]
 fn engine_write_and_lifecycle_command_signatures() {
     let _: fn(&Engine, &[PreparedWrite]) -> Result<WriteReceipt> = Engine::write;
+    let _: fn(&Engine, &[PreparedWrite], &WriteOptions) -> Result<WriteReceipt> =
+        Engine::write_with_options;
     let _: fn(&Engine, ActuationBatchV1) -> Result<ActuationReceiptV1> = Engine::actuate;
     let _: fn(&Engine, SourceDependencyRegistrationV1) -> Result<SourceDependencyV1> =
         Engine::register_source_dependency;
@@ -551,4 +553,21 @@ fn scope_policy_and_search_expand_view_surface() {
     let _: ScopePolicyError = ScopePolicyError::EmptyReadScopes;
     let err: Error = EngineError::ScopeViolation { detail: "denied".into() }.into();
     assert_eq!(err.kind(), ErrorKind::ScopeViolation);
+}
+
+#[test]
+fn write_options_and_endpoint_validation_mode_surface() {
+    assert_eq!(EndpointValidationMode::default(), EndpointValidationMode::Strict);
+    assert_eq!(WriteOptions::default(), WriteOptions::strict());
+    assert_eq!(WriteOptions::default().endpoint_validation, EndpointValidationMode::Strict);
+    let bulk = WriteOptions::bulk_non_strict();
+    assert_eq!(bulk.endpoint_validation, EndpointValidationMode::BulkNonStrict);
+    assert_eq!(
+        WriteOptions::default().with_endpoint_validation(EndpointValidationMode::BulkNonStrict),
+        bulk
+    );
+    assert_eq!(
+        bulk.with_endpoint_validation(EndpointValidationMode::Strict),
+        WriteOptions::strict()
+    );
 }

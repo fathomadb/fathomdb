@@ -164,6 +164,18 @@ is built-in default or none, with no caller-provider injection.
   triggers, and declarative `fathomdb_schema::TABLE_MANIFEST`. Unauthorized
   writes on read-only handles return `EngineError::ScopeViolation`, while
   cross-scope endpoint/evidence lookups preserve D-01 nondisclosure.
+- **Opt-in bulk write mode (`EndpointValidationMode`, `WriteOptions`, `Engine::write_with_options`):**
+  Default `Engine::write` and `Engine::actuate` remain strictly endpoint-validated
+  (`WriteReceipt.dangling_edge_endpoints == 0` on every commit). Re-exported
+  `WriteOptions::bulk_non_strict()` (`EndpointValidationMode::BulkNonStrict`)
+  with `Engine::write_with_options(&self, batch, options)` admits out-of-order
+  same-scope edges and returns exact `WriteReceipt.dangling_edge_endpoints`
+  counts (`0`/`1`/`2` per surviving active edge; `0` for node-only batches)
+  while still rejecting cross-scope active endpoints and read-only handles
+  atomically with `EngineError::ScopeViolation`. Under the `operator` feature,
+  `DataPlaneIntegrityCheckV1::EdgeEndpointIntegrity` (`"edge_endpoint_integrity"`)
+  and `check_integrity` detect dangling (`dangling_edge_endpoint`) and
+  cross-scope (`cross_scope_edge_endpoint`) active edges read-only.
 
 ## Errors
 

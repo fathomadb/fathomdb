@@ -1156,16 +1156,39 @@ pub(crate) fn translate_admin_schema(item: &JsonValue) -> Result<PreparedWrite> 
 // ===== Data classes ===================================================
 
 #[napi(object)]
+pub struct WriteOptions {
+    pub endpoint_validation: Option<String>,
+}
+
+impl WriteOptions {
+    pub(crate) fn into_rust(self) -> Result<fathomdb_engine::WriteOptions> {
+        match self.endpoint_validation.as_deref() {
+            None | Some("strict") => Ok(fathomdb_engine::WriteOptions::strict()),
+            Some("bulk_non_strict") => Ok(fathomdb_engine::WriteOptions::bulk_non_strict()),
+            Some(other) => Err(typed_error(
+                CODE_INVALID_ARGUMENT,
+                format!(
+                    "writeOptions.endpointValidation={other:?}: expected strict or bulk_non_strict"
+                ),
+                JsonValue::Null,
+            )),
+        }
+    }
+}
+
+#[napi(object)]
 pub struct WriteReceipt {
     pub cursor: i64,
     /// G0 (Slice 15) — per-row `write_cursor`s, 1:1 with the input batch order
     /// (surfaced as `rowCursors`). Each `u64` is narrowed to `i64` at the FFI
     /// boundary, matching the existing `cursor` cast.
     pub row_cursors: Vec<i64>,
-    /// G8 (Slice 20) — count of edge endpoints in this batch pointing at a
-    /// non-existent or superseded canonical node (surfaced as
-    /// `danglingEdgeEndpoints`; informational, flag-and-count). Narrowed `u64 →
-    /// i64` at the FFI boundary, matching the `cursor`/`rowCursors` precedent.
+    /// Count of unresolved edge endpoints across surviving active edges written
+    /// by this batch (surfaced as `danglingEdgeEndpoints`). Always `0` under
+    /// strict mode (`write` and default `writeWithOptions`); exact `0`/`1`/`2`
+    /// per surviving active edge under opt-in `bulk_non_strict` mode. Narrowed
+    /// `u64 → i64` at the FFI boundary, matching the `cursor`/`rowCursors`
+    /// precedent.
     pub dangling_edge_endpoints: i64,
 }
 

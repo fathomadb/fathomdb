@@ -3402,6 +3402,78 @@
         "path": "fathomdb.errors.ScopeViolationError",
         "signature": "ScopeViolationError = _ScopeViolationError"
       }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 30,
+      "declaration": {
+        "kind": "python-value",
+        "path": "fathomdb.EndpointValidationMode",
+        "signature": "EndpointValidationMode = Literal['strict', 'bulk_non_strict']"
+      }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 30,
+      "declaration": {
+        "kind": "python-method",
+        "path": "fathomdb.Engine.write_with_options",
+        "signature": "def write_with_options(self, batch: list[Any] | None=None, options: WriteOptions | None=None) -> WriteReceipt"
+      }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 30,
+      "declaration": {
+        "kind": "python-class",
+        "path": "fathomdb.WriteOptions",
+        "signature": "@dataclass(frozen=True) class WriteOptions"
+      }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 30,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.WriteOptions.endpoint_validation",
+        "signature": "endpoint_validation: EndpointValidationMode = 'strict'"
+      }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 30,
+      "declaration": {
+        "kind": "python-method",
+        "path": "fathomdb.engine.Engine.write_with_options",
+        "signature": "def write_with_options(self, batch: list[Any] | None=None, options: WriteOptions | None=None) -> WriteReceipt"
+      }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 30,
+      "declaration": {
+        "kind": "python-value",
+        "path": "fathomdb.types.EndpointValidationMode",
+        "signature": "EndpointValidationMode = Literal['strict', 'bulk_non_strict']"
+      }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 30,
+      "declaration": {
+        "kind": "python-class",
+        "path": "fathomdb.types.WriteOptions",
+        "signature": "@dataclass(frozen=True) class WriteOptions"
+      }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 30,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.WriteOptions.endpoint_validation",
+        "signature": "endpoint_validation: EndpointValidationMode = 'strict'"
+      }
     }
   ],
   "native_stub_sha256": "4f3939dbb5bff1f0616cdc3520d1d7d9bcf7f946d9c2d1421d1e7b7f8a2f7dac",

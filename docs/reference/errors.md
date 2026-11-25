@@ -88,7 +88,7 @@ try {
 | `EvidenceError`                    | Evidence search or resolution cannot authenticate or disclose the requested source | `reason`, `field_path` / `fieldPath` | preserve the frozen context; treat `evidence_unavailable` as nondisclosure |
 | `DependencyTraceError`             | A bounded dependency trace request is malformed or exceeds its contract       | `reason`, `field_path` / `fieldPath` | correct the root, direction, context, or bounds |
 | `GraphExpansionError`              | A constrained graph request or native response violates its closed contract (including `graph_edge_predicates_invalid` and `graph_target_predicates_invalid`) | `reason`, `field_path` / `fieldPath` | correct seeds, read context, filters, predicates, or work bounds |
-| `ScopeViolationError`              | A read-only scoped handle invoked a write, mutation, or admin verb            | `FDB_SCOPE_VIOLATION` (TS envelope code; message-only detail in Py)      | reopen with `ScopePolicy.single` / `read_write` / `readWrite` authorizing the target scope |
+| `ScopeViolationError`              | A read-only scoped handle invoked a write, mutation, or admin verb, or a `bulk_non_strict` write referenced an active edge endpoint in another scope | `FDB_SCOPE_VIOLATION` (TS envelope code; message-only detail in Py)      | reopen with `ScopePolicy.single` / `read_write` / `readWrite` authorizing the target scope, or keep bulk edges within the caller's `write_scope` |
 
 Per-engine configuration errors are separate from process-start SQLite mode
 errors: Rust returns `EngineOpenError::EngineConfiguration`, which maps to
@@ -120,9 +120,13 @@ actuation, erasure, projection-configuration, or extraction verb.
 Cross-scope lookups preserve **D-01 nondisclosure** — out-of-scope records
 never announce their existence:
 
-- An edge targeting a node in another scope fails with `WriteValidationError`
-  (or `ActuationOutcomeV1::Refused` with `reference_unavailable`), identically to
-  a missing node.
+- Under strict mode (`engine.write` and `engine.actuate`), an edge targeting a
+  node in another scope fails with `WriteValidationError` (or
+  `ActuationOutcomeV1::Refused` with `reference_unavailable`), identically to a
+  missing node. Under opt-in `bulk_non_strict` mode (`write_with_options` /
+  `writeWithOptions`), an edge whose `from` or `to` matches an active node in a
+  distinct scope is refused atomically with `ScopeViolationError` rather than
+  admitted as dangling.
 - An evidence reference minted in another scope fails with
   `EvidenceError("evidence_unavailable")`, identically to a missing or superseded
   token.

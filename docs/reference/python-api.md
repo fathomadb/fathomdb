@@ -13,6 +13,7 @@ families summarized in [0.8.25 data-plane additions](#0825-data-plane-additions)
 ```python
 from fathomdb import (
     DenseReadiness,
+    EndpointValidationMode,
     Engine,
     EngineConfig,
     Filter,
@@ -34,6 +35,7 @@ from fathomdb import (
     SearchResult,
     SoftFallback,
     SoftFallbackBranch,
+    WriteOptions,
     WriteReceipt,
     CounterSnapshot,
     admin,
@@ -171,8 +173,29 @@ receipt = engine.write([
   dangling_edge_endpoints: int)`. `cursor` advances monotonically across
   writes (the batch high-water cursor); `row_cursors` are the per-row
   `write_cursor`s, 1:1 with the input batch order;
-  `dangling_edge_endpoints` is `0` on every committed batch — see
+  `dangling_edge_endpoints` is `0` on every committed strict batch — see
   [`WriteReceipt`](#writereceipt).
+
+### `engine.write_with_options(batch=None, options=None) -> WriteReceipt`
+
+Write a batch under explicit `WriteOptions(endpoint_validation=...)` (`0.8.32`):
+
+- `options` (`WriteOptions | None`, default `None`) — `None` or
+  `WriteOptions(endpoint_validation="strict")` enforces strict active-endpoint
+  validation identical to `engine.write`. Passing a non-`WriteOptions` value or
+  non-`str` mode raises `TypeError`; an unknown mode literal raises `ValueError`.
+- Opting into `WriteOptions(endpoint_validation="bulk_non_strict")` admits
+  out-of-order same-scope edges and reports the exact count of unresolved
+  endpoints across surviving active edges written by the batch in
+  `WriteReceipt.dangling_edge_endpoints` (`0`, `1`, or `2` per edge; `0` for
+  node-only batches). Subsequent same-scope batches supplying the missing nodes
+  resolve traversal automatically without rewriting edges.
+- Cross-scope active endpoints and read-only `ScopePolicy` handles still roll
+  back atomically with `ScopeViolationError`, and all other batch invariants
+  (validity windows, typed `properties`, mandatory `source_id`, `state`,
+  provenance, triggers, erasure) remain strict. Verify post-import completeness
+  read-only with `fathomdb doctor data-plane-integrity --check edge_endpoint_integrity`
+  or `fathomdb doctor check-integrity`.
 
 ### `engine.search(query, filter=None, *, rerank_depth=0, use_graph_arm=False, alpha=None, pool_n=None, explain=False, view=None, limit=10, snippet=None, graph_seed="graph_fts", graph_seed_k=10, graph_edge_kinds=None, graph_edge_predicates=None, hints=False) -> SearchResult`
 
@@ -726,19 +749,35 @@ search score takes priority).
 class WriteReceipt:
     cursor: int                       # batch high-water write_cursor
     row_cursors: tuple[int, ...]      # G0 — per-row write_cursor, 1:1 with the batch
-    dangling_edge_endpoints: int      # always 0 on committed batches (strict endpoint integrity)
+    dangling_edge_endpoints: int      # 0 under strict mode; truthful count under bulk_non_strict
 ```
 
 `row_cursors` is the `write_cursor`-as-row-id identity carrier (G0 /
 Slice 15): for an N-row batch it is `(cursor - N + 1, …, cursor)`.
 
-`dangling_edge_endpoints` is retained on `WriteReceipt` for structural
-compatibility and is always `0` on every committed batch: `engine.write`
-enforces strict atomic active-endpoint integrity across all edges in the batch
-(refusing missing, superseded-only, `pending`, or `deleted` endpoints with
-`WriteValidationError` and rolling back the entire batch). Only active
-`logical_id`-keyed nodes satisfy edge endpoints; same-batch forward references
-and active self-loops are valid.
+`dangling_edge_endpoints` reports the count of unresolved edge endpoints across
+surviving active edges (`superseded_at IS NULL`) written by the batch:
+
+- Under `"strict"` mode (`engine.write` and default `engine.write_with_options`),
+  missing, superseded-only, `pending`, `deleted`, or cross-scope endpoints roll
+  back atomically with `WriteValidationError`, so committed receipts always
+  report `0`.
+- Under opt-in `"bulk_non_strict"` mode (`engine.write_with_options(...,
+  WriteOptions(endpoint_validation="bulk_non_strict"))`), `from` and `to` are
+  probed independently against active same-scope canonical nodes, so each
+  surviving active edge contributes `0`, `1`, or `2` (and node-only batches
+  report `0`). Cross-scope active endpoints still fail atomically with
+  `ScopeViolationError`.
+
+### `WriteOptions` and `EndpointValidationMode`
+
+```python
+EndpointValidationMode = Literal["strict", "bulk_non_strict"]
+
+@dataclass(frozen=True)
+class WriteOptions:
+    endpoint_validation: EndpointValidationMode = "strict"
+```
 
 ### `NodeRecord`
 

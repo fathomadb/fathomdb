@@ -618,6 +618,36 @@ impl PyEngine {
         Ok(PyWriteReceipt::from_rust(receipt))
     }
 
+    #[pyo3(signature = (batch, endpoint_validation = None))]
+    fn write_with_options(
+        &self,
+        py: Python<'_>,
+        batch: Bound<'_, PyList>,
+        endpoint_validation: Option<Bound<'_, PyAny>>,
+    ) -> PyResult<PyWriteReceipt> {
+        let options = match endpoint_validation {
+            None => fathomdb_engine::WriteOptions::strict(),
+            Some(raw) => {
+                let mode = raw
+                    .extract::<String>()
+                    .map_err(|_| PyTypeError::new_err("endpoint_validation must be a str"))?;
+                match mode.as_str() {
+                    "strict" => fathomdb_engine::WriteOptions::strict(),
+                    "bulk_non_strict" => fathomdb_engine::WriteOptions::bulk_non_strict(),
+                    other => {
+                        return Err(PyValueError::new_err(format!(
+                            "endpoint_validation={other:?}: expected strict or bulk_non_strict"
+                        )))
+                    }
+                }
+            }
+        };
+        let prepared = translate_batch(&batch)?;
+        let engine = Arc::clone(&self.inner);
+        let receipt = call_engine(py, move || engine.write_with_options(&prepared, &options))?;
+        Ok(PyWriteReceipt::from_rust(receipt))
+    }
+
     fn actuate(
         &self,
         py: Python<'_>,

@@ -37,7 +37,7 @@ The checker also refuses these routes to the core:
 
 Operation membership is enforced by `scripts/check-sdk-surface-parity.py`
 against the `rust` endpoints of `src/conformance/governed-operation-parity.json`
-(56/56 live operations).
+(57/57 live operations).
 
 ## Translation rules
 
@@ -118,6 +118,7 @@ function in every row.
 | — | `open_report(&self) -> &OpenReport`, `config(&self) -> &EngineConfig` (both SDKs expose `config`) | Stored at open: the requested config. |
 | `engine.close` | `close(&self) -> Result<()>` (idempotent) | Mark closing and detach the subscriber, as napi does, then call `close`. |
 | `engine.write` | `write(&self, batch: &[PreparedWrite]) -> Result<WriteReceipt>` | `write` |
+| `engine.write_with_options` | `write_with_options(&self, batch: &[PreparedWrite], options: &WriteOptions) -> Result<WriteReceipt>` | `write_with_options` |
 | `engine.actuate` | `actuate(&self, request: ActuationBatchV1) -> Result<ActuationReceiptV1>` | `actuate` |
 | `engine.register_source_dependency` | `register_source_dependency(&self, SourceDependencyRegistrationV1) -> Result<SourceDependencyV1>` | same |
 | `engine.dependencies_for_source` | `dependencies_for_source(&self, DependencySourceLookupV1) -> Result<DependencyListV1>` | same |
@@ -773,3 +774,24 @@ members) and re-exports `EVIDENCE_RESOLVE_MANY_MAX` (`50`),
   only (refusing `38` and earlier with `ErrorKind::IncompatibleSchemaVersion`);
   offline `fathomdb migrate` (`38 -> 39`, plus chained `37 -> 38 -> 39`) remains
   CLI-only.
+
+## Opt-in bulk write mode (0.8.32 Slice 30, Pin B)
+
+`fathomdb_sdk` adds one live governed operation (`Engine::write_with_options`,
+advancing governed parity to `57/57` live operations and `95` allowlist members
+while keeping `core = 5`, `recovery_denylist = 5`, and the exact three
+namespaces `admin`, `graph`, and `read` unchanged) and re-exports
+`EndpointValidationMode` and `WriteOptions`:
+
+- `Engine::write(&self, batch: &[PreparedWrite]) -> Result<WriteReceipt>` keeps
+  strict endpoint validation (`EndpointValidationMode::Strict`,
+  `WriteReceipt.dangling_edge_endpoints == 0` on every commit); `Engine::actuate`
+  remains strict-only.
+- `Engine::write_with_options(&self, batch: &[PreparedWrite], options: &WriteOptions) -> Result<WriteReceipt>`
+  applies the SDK string-transport guard (`AC-068a`) to every item in `batch`
+  and delegates to `fathomdb_engine::Engine::write_with_options`. Under
+  `WriteOptions::bulk_non_strict()`, out-of-order same-scope edges are admitted
+  with truthful `WriteReceipt.dangling_edge_endpoints` counts (`0`/`1`/`2` per
+  surviving active edge; `0` for node-only batches), while cross-scope active
+  endpoints and read-only handles fail atomically with `ErrorKind::ScopeViolation`
+  and all other batch invariants remain strict.

@@ -74,6 +74,9 @@ fn re_exports_compile() {
     let _ = std::any::type_name::<fathomdb::ScopePolicyError>();
     let _ = fathomdb::MAX_READ_SCOPES;
     let _ = fathomdb::MAX_SCOPE_TOKEN_BYTES;
+
+    let _ = std::any::type_name::<fathomdb::EndpointValidationMode>();
+    let _ = std::any::type_name::<fathomdb::WriteOptions>();
 }
 
 #[test]

@@ -137,6 +137,7 @@ pub use fathomdb_engine::{
     TraceReadBoundaryV1, TraversalDirection, WriteProvenanceV1, WriteReceipt,
     EVIDENCE_RESOLVE_MANY_MAX,
 };
+pub use fathomdb_engine::{EndpointValidationMode, WriteOptions};
 pub use fathomdb_engine::{
     QueryStopWords, StopWordBase, StopWordRejection, DEFAULT_STOP_WORDS_SHA256,
 };

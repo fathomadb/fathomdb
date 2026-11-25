@@ -82,6 +82,7 @@ from fathomdb.types import (
     SnippetOptions,
     SourceDependencyRegistrationV1,
     SourceDependencyV1,
+    WriteOptions,
     WriteReceipt,
 )
 
@@ -208,6 +209,23 @@ class Engine:
         pair before calling.
         """
         return _sdk_write.write(self, batch)
+
+    def write_with_options(
+        self,
+        batch: list[Any] | None = None,
+        options: WriteOptions | None = None,
+    ) -> WriteReceipt:
+        """Write a batch of items under explicit :class:`~fathomdb.types.WriteOptions`.
+
+        ``options=None`` (the default) applies ``endpoint_validation="strict"``,
+        matching :meth:`write`. Passing
+        ``WriteOptions(endpoint_validation="bulk_non_strict")`` admits
+        out-of-order same-scope edges and reports the exact unresolved endpoint
+        count in :attr:`WriteReceipt.dangling_edge_endpoints`, while keeping
+        cross-scope endpoint refusal (``ScopeViolationError``) and all other
+        batch invariants strict.
+        """
+        return _sdk_write.write_with_options(self, batch, options)
 
     def register_source_dependency(
         self, request: SourceDependencyRegistrationV1

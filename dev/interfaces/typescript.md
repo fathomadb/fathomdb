@@ -1849,3 +1849,25 @@ members), opt-in agent search hints across `search`, `searchFrozen`, and
   the canonicalized `ScopePolicy` digest (cross-policy reuse rejects with
   `FrozenReadError`). `Engine.open` admits committed Schema `39` only; offline
   upgrade (`38 -> 39`, plus chained `37 -> 38 -> 39`) stays CLI-only.
+
+## Opt-in bulk write mode (0.8.32 Slice 30, Pin B)
+
+- **Strict defaults preserved:** `engine.write(batch?)` stays strictly
+  endpoint-validated (`WriteReceipt.danglingEdgeEndpoints === 0` on every
+  commit), and `engine.actuate(request)` remains strict-only. `write.ts`
+  remains private (no public `write` namespace is exported from `index.ts`).
+- **Exports (`fathomdb` root):**
+  - `type EndpointValidationMode = "strict" | "bulk_non_strict"`
+  - `interface WriteOptions { readonly endpointValidation?: EndpointValidationMode }`
+- **`engine.writeWithOptions(batch?, options?) -> Promise<WriteReceipt>`:**
+  - Omitted `options` or omitted `options.endpointValidation` defaults to
+    `"strict"`.
+  - Non-object `options` or unknown/non-string `endpointValidation` literals
+    reject with `TypeError`.
+  - Under `{ endpointValidation: "bulk_non_strict" }`, out-of-order same-scope
+    edges are admitted with truthful `WriteReceipt.danglingEdgeEndpoints`
+    counts (`0`/`1`/`2` per surviving active edge; `0` for node-only batches)
+    and resolve automatically when missing nodes arrive in later batches.
+  - Cross-scope active edge endpoints and read-only `ScopePolicy` handles reject
+    with `ScopeViolationError` (`code = "FDB_SCOPE_VIOLATION"`) and atomic
+    rollback; all other batch invariants remain strictly enforced.

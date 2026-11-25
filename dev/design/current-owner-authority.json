@@ -124,6 +124,38 @@
       "evidence_only": []
     },
     {
+      "path": "dev/design/mcp-adapter/design.md",
+      "profile": "current",
+      "semantic_authority": [
+        "dev/adr/ADR-0.8.32-mcp-read-write-and-distribution.md",
+        "dev/interfaces/mcp.md"
+      ],
+      "implementation_witness": [
+        "src/rust/crates/fathomdb-mcp/src/lib.rs",
+        "src/rust/crates/fathomdb-mcp/tests/manifest.rs",
+        "src/rust/crates/fathomdb-mcp/tests/startup_conflicts.rs"
+      ],
+      "evidence_only": [
+        "dev/design/mcp-adapter/conformance-0.8.29.md"
+      ]
+    },
+    {
+      "path": "dev/design/mcp-adapter/requirements.md",
+      "profile": "current",
+      "semantic_authority": [
+        "dev/adr/ADR-0.8.32-mcp-read-write-and-distribution.md",
+        "dev/interfaces/mcp.md"
+      ],
+      "implementation_witness": [
+        "src/rust/crates/fathomdb-mcp/tests/mcp_frozen_evidence.rs",
+        "src/rust/crates/fathomdb-mcp/tests/mcp_write_safety.rs",
+        "src/rust/crates/fathomdb-mcp/tests/protocol.rs"
+      ],
+      "evidence_only": [
+        "dev/design/mcp-adapter/conformance-0.8.29.md"
+      ]
+    },
+    {
       "path": "dev/design/migrations.md",
       "profile": "current",
       "semantic_authority": ["dev/adr/ADR-0.8.26-breaking-v1-contract-and-fresh-database-boundary.md"],

@@ -12,6 +12,11 @@ consumption routes:
 - **`fathomdb-cli` operator CLI** — `fathomdb doctor`, `fathomdb recover`, and
   offline `fathomdb migrate` verbs. Operator-only; does **not**
   ship `search` / `get` / `list` query verbs.
+- **`fathomdb-mcp` MCP server** (targeted in `0.8.32`, pre-publish) — stdio MCP
+  server and embeddable Rust library over `fathomdb-sdk` with default read-only
+  posture (`allow_writes: false`) and opt-in per-store scoped writes (`default = []`
+  on crates.io; pass `--features default-embedder` for hybrid search). See the
+  [MCP reference](../reference/mcp.md).
 
 > **Documentation target: 0.8.32 (pre-publish, pre-1.0 beta); newest published release: 0.8.31.**
 

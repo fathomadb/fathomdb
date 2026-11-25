@@ -88,17 +88,22 @@ def release_packages(root: Path, version: str, *, include_npm: bool) -> tuple[Re
     """Return the manifest-derived PyPI/npm release package set."""
 
     packages = [RegistryPackage("pypi", "fathomdb", version)]
-    cli_manifest = root / "src/python-cli/pyproject.toml"
-    if cli_manifest.is_file():
-        cli_project = _load_toml(cli_manifest).get("project")
-        if not isinstance(cli_project, dict):
-            raise ValueError(f"python-cli manifest lacks [project]: {cli_manifest}")
-        if cli_project.get("version") != version:
-            raise ValueError("python-cli manifest version does not match requested release")
-        cli_name = cli_project.get("name")
-        if cli_name != "fathomdb-cli":
-            raise ValueError(f"unexpected python-cli package name: {cli_name!r}")
-        packages.append(RegistryPackage("pypi", "fathomdb-cli", version))
+    for subdir, expected_name in (
+        ("src/python-cli", "fathomdb-cli"),
+        ("src/python-mcp", "fathomdb-mcp"),
+    ):
+        extra_manifest = root / subdir / "pyproject.toml"
+        if extra_manifest.is_file():
+            extra_project = _load_toml(extra_manifest).get("project")
+            label = Path(subdir).name
+            if not isinstance(extra_project, dict):
+                raise ValueError(f"{label} manifest lacks [project]: {extra_manifest}")
+            if extra_project.get("version") != version:
+                raise ValueError(f"{label} manifest version does not match requested release")
+            extra_name = extra_project.get("name")
+            if extra_name != expected_name:
+                raise ValueError(f"unexpected {label} package name: {extra_name!r}")
+            packages.append(RegistryPackage("pypi", expected_name, version))
     if not include_npm:
         return tuple(packages)
     main = json.loads((root / "src/ts/package.json").read_text(encoding="utf-8"))

@@ -117,6 +117,15 @@ jobs:
             echo 'CARGO_REGISTRY_TOKEN is required for the first fathomdb-sdk publish' >&2
             exit 1
           fi
+      - name: Require first-publish MCP API token before any release tier
+        if: ${{ env.RELEASE_TAG == 'v0.8.32' && (github.event_name != 'workflow_dispatch' || inputs.dry_run != true) }}
+        env:
+          MCP_FIRST_PUBLISH_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          if [ -z "$MCP_FIRST_PUBLISH_TOKEN" ]; then
+            echo 'CARGO_REGISTRY_TOKEN is required for the first fathomdb-mcp publish' >&2
+            exit 1
+          fi
       - name: Run release gates
         # Runs on push (tag-format + version-axis enforced) and dispatch.
         # Dry runs require and verify the selected full candidate SHA; non-dry
@@ -582,6 +591,149 @@ jobs:
         with:
           name: python-cli-dist-${{ matrix.target }}
           path: src/python-cli/dist/*
+
+  # Prebuilt `fathomdb-mcp` stdio server binary wheels (`--features default-embedder`,
+  # Maturin `bindings = "bin"`) plus matching 5-target GitHub Release archives
+  # reusing the exact `manylinux_2_28` glibc-checked Linux binaries (Gate1-D5).
+  build-python-mcp:
+    needs: [verify-release, verify-cuda-trusted-route]
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            manylinux: "2_28"
+          - runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            manylinux: "2_28"
+          - runner: macos-15-intel
+            target: x86_64-apple-darwin
+            manylinux: "auto"
+          - runner: macos-15
+            target: aarch64-apple-darwin
+            manylinux: "auto"
+          - runner: windows-latest
+            target: x86_64-pc-windows-msvc
+            manylinux: "auto"
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, canonical release tag
+        with:
+          ref: ${{ env.RELEASE_CHECKOUT_REF }}
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.11"
+      - uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # stable
+        with:
+          toolchain: "1.95.0"
+          targets: ${{ matrix.target }}
+      - uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
+        with:
+          target: ${{ matrix.target }}
+          command: build
+          args: --release --out dist --locked --features default-embedder
+          manylinux: ${{ matrix.manylinux }}
+          working-directory: src/python-mcp
+      - name: Verify MCP wheel contents
+        shell: bash
+        run: python3 scripts/check_python_wheel_contents.py --kind mcp src/python-mcp/dist/*.whl
+      - name: Assert Linux MCP binary glibc floor
+        if: ${{ runner.os == 'Linux' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          . scripts/release/glibc-floor-contract.sh
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+          python3 - "$tmp" src/python-mcp/dist/*.whl <<'PY'
+          from pathlib import Path
+          import sys
+          from zipfile import ZipFile
+
+          out_dir = Path(sys.argv[1])
+          wheels = sys.argv[2:]
+          assert len(wheels) == 1, f"expected 1 MCP wheel, got {wheels}"
+          with ZipFile(wheels[0]) as archive:
+              bins = [n for n in archive.namelist() if n.endswith(".data/scripts/fathomdb-mcp")]
+              assert len(bins) == 1, f"expected 1 fathomdb-mcp binary in wheel, got {bins}"
+              target = out_dir / "fathomdb-mcp"
+              target.write_bytes(archive.read(bins[0]))
+          PY
+          bash scripts/check-glibc-floor.sh --floor "$GLIBC_FLOOR" "$tmp/fathomdb-mcp"
+      - name: Seal and smoke GitHub Release MCP binary archive
+        shell: bash
+        env:
+          TARGET_TRIPLE: ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+          out_dir="$RUNNER_TEMP/mcp-release-assets"
+          mkdir -p "$out_dir"
+          archive_path="$(python3 - "$out_dir" "$TARGET_TRIPLE" src/python-mcp/dist/*.whl <<'PY'
+          import hashlib
+          from pathlib import Path
+          import stat
+          import sys
+          import tarfile
+          import tomllib
+          from zipfile import ZIP_DEFLATED, ZipFile
+
+          out_dir = Path(sys.argv[1])
+          target = sys.argv[2]
+          wheels = sys.argv[3:]
+          assert len(wheels) == 1, f"expected 1 MCP wheel, got {wheels}"
+          version = tomllib.loads(Path("src/python-mcp/pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
+          is_windows = target.endswith("-windows-msvc")
+          bin_name = "fathomdb-mcp.exe" if is_windows else "fathomdb-mcp"
+          suffix = f".data/scripts/{bin_name}"
+          with ZipFile(wheels[0]) as wheel:
+              bins = [n for n in wheel.namelist() if n.endswith(suffix)]
+              assert len(bins) == 1, f"expected 1 {bin_name} in wheel, got {bins}"
+              bin_bytes = wheel.read(bins[0])
+
+          stage = out_dir / f"fathomdb-mcp-{version}-{target}"
+          stage.mkdir(parents=True, exist_ok=True)
+          bin_path = stage / bin_name
+          bin_path.write_bytes(bin_bytes)
+          if not is_windows:
+              bin_path.chmod(bin_path.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+          (stage / "LICENSE").write_bytes(Path("src/rust/crates/fathomdb-mcp/LICENSE").read_bytes())
+          (stage / "README.md").write_bytes(Path("src/rust/crates/fathomdb-mcp/README.md").read_bytes())
+
+          if is_windows:
+              archive = out_dir / f"fathomdb-mcp-{version}-{target}.zip"
+              with ZipFile(archive, "w", compression=ZIP_DEFLATED) as zf:
+                  for item in sorted(stage.iterdir()):
+                      zf.write(item, arcname=f"{stage.name}/{item.name}")
+          else:
+              archive = out_dir / f"fathomdb-mcp-{version}-{target}.tar.gz"
+              with tarfile.open(archive, "w:gz") as tf:
+                  for item in sorted(stage.iterdir()):
+                      tf.add(item, arcname=f"{stage.name}/{item.name}")
+
+          digest = hashlib.sha256(archive.read_bytes()).hexdigest()
+          (out_dir / f"{archive.name}.sha256").write_text(f"{digest}  {archive.name}\n", encoding="utf-8")
+          for item in stage.iterdir():
+              item.unlink()
+          stage.rmdir()
+          print(archive)
+          PY
+          )"
+          bash scripts/release/smoke/smoke-gh-release-mcp.sh \
+            --archive "$archive_path" \
+            --sha256 "${archive_path}.sha256"
+      - uses: ./.github/actions/upload-artifact-retry
+        with:
+          name: python-mcp-dist-${{ matrix.target }}
+          path: src/python-mcp/dist/*
+      - uses: ./.github/actions/upload-artifact-retry
+        with:
+          name: mcp-${{ matrix.target }}
+          path: ${{ runner.temp }}/mcp-release-assets/*
+          if-no-files-found: error
 
   # Native binding prebuilds for npm. The napi-rs CLI handles the rename to
   # fathomdb.<platform-label>.node per the `napi.triples` block in
@@ -1079,11 +1231,12 @@ jobs:
     # recovery dispatch omits only N-API, whose npm artifact is intentionally
     # not being recovered; verify, Python, Python-CLI, Inspector, and Rust
     # remain hard gates.
-    if: ${{ always() && needs.verify-release.result == 'success' && needs.build-python.result == 'success' && needs.build-python-cli.result == 'success' && needs.build-inspector.result == 'success' && needs.build-rust.result == 'success' && ((github.event_name == 'workflow_dispatch' && inputs.dry_run == true && needs.cuda-package-rehearsal.result == 'success') || ((github.event_name != 'workflow_dispatch' || inputs.dry_run != true) && needs.build-cuda-linux-x64-gnu.result == 'success')) && ((github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') || needs.build-napi.result == 'success') }}
+    if: ${{ always() && needs.verify-release.result == 'success' && needs.build-python.result == 'success' && needs.build-python-cli.result == 'success' && needs.build-python-mcp.result == 'success' && needs.build-inspector.result == 'success' && needs.build-rust.result == 'success' && ((github.event_name == 'workflow_dispatch' && inputs.dry_run == true && needs.cuda-package-rehearsal.result == 'success') || ((github.event_name != 'workflow_dispatch' || inputs.dry_run != true) && needs.build-cuda-linux-x64-gnu.result == 'success')) && ((github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') || needs.build-napi.result == 'success') }}
     needs:
       - verify-release
       - build-python
       - build-python-cli
+      - build-python-mcp
       - build-napi
       - build-rust
       - build-inspector
@@ -1345,6 +1498,40 @@ jobs:
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.dry_run != true }}
         run: bash scripts/release/wait-for-crate-version.sh fathomdb-cli
 
+  publish-rust-t7-mcp:
+    runs-on: ubuntu-latest
+    if: ${{ always() && inputs.candidate_commit == '' && inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') && needs.publish-rust-t6-facade.result == 'success' }}
+    needs: publish-rust-t6-facade
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, canonical release tag
+        with:
+          ref: ${{ env.RELEASE_CHECKOUT_REF }}
+      - uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # stable
+        with:
+          toolchain: "1.95.0"
+      - name: Authenticate with crates.io
+        id: crates_io_auth
+        if: ${{ inputs.dry_run != true }}
+        uses: rust-lang/crates-io-auth-action@c6f97d42243bad5fab37ca0427f495c86d5b1a18 # v1.0.5
+      - name: cargo publish fathomdb-mcp
+        # fathomdb-mcp depends on fathomdb-sdk (T6). Its first publish at v0.8.32
+        # cannot use trusted publishing before the crate exists on crates.io;
+        # CARGO_REGISTRY_TOKEN is scoped to v0.8.32 and OIDC takes over thereafter.
+        run: |
+          if [ "${DRY_RUN}" = "true" ]; then
+            bash scripts/release/cargo-publish-if-new.sh --dry-run fathomdb-mcp
+          else
+            bash scripts/release/cargo-publish-if-new.sh fathomdb-mcp
+          fi
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ env.RELEASE_TAG == 'v0.8.32' && secrets.CARGO_REGISTRY_TOKEN || steps.crates_io_auth.outputs.token }}
+      - name: Wait for crates.io index propagation (poll, not sleep)
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.dry_run != true }}
+        run: bash scripts/release/wait-for-crate-version.sh fathomdb-mcp
+
   # --- Tier 8: binding-package parallel publishes ----------------------------
   # PyPI + npm wrap fathomdb-engine directly (PyO3 / napi-rs). They publish
   # in parallel after T5 (engine) resolves on crates.io — independent of
@@ -1372,6 +1559,11 @@ jobs:
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: python-cli-dist-*
+          merge-multiple: true
+          path: dist
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: python-mcp-dist-*
           merge-multiple: true
           path: dist
       - name: Publish to PyPI
@@ -1619,8 +1811,8 @@ jobs:
   # --- Post-publish verification --------------------------------------------
   wait-for-package-registry-visibility:
     runs-on: ubuntu-latest
-    if: ${{ always() && inputs.candidate_commit == '' && inputs.dry_run != true && needs.publish-rust-t7-cli.result == 'success' && needs.publish-pypi.result == 'success' && ((github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') || needs.publish-npm.result == 'success') }}
-    needs: [publish-rust-t7-cli, publish-pypi, publish-npm]
+    if: ${{ always() && inputs.candidate_commit == '' && inputs.dry_run != true && needs.publish-rust-t7-cli.result == 'success' && ((github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') || needs.publish-rust-t7-mcp.result == 'success') && needs.publish-pypi.result == 'success' && ((github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') || needs.publish-npm.result == 'success') }}
+    needs: [publish-rust-t7-cli, publish-rust-t7-mcp, publish-pypi, publish-npm]
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, reviewed workflow control plane
@@ -1662,13 +1854,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        smoke: ${{ fromJSON((github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') && '["crates-cli","pypi-wheel"]' || '["crates-cli","crates-sdk","pypi-wheel","npm-package"]') }}
+        smoke: ${{ fromJSON((github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') && '["crates-cli","pypi-wheel"]' || '["crates-cli","crates-sdk","crates-mcp","pypi-wheel","pypi-mcp","npm-package"]') }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, canonical release tag
         with:
           ref: ${{ env.RELEASE_CHECKOUT_REF }}
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
-        if: matrix.smoke == 'pypi-wheel'
+        if: matrix.smoke == 'pypi-wheel' || matrix.smoke == 'pypi-mcp'
         with:
           python-version: "3.12"
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
@@ -1676,7 +1868,7 @@ jobs:
         with:
           node-version: "25.9.0"
       - uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # stable
-        if: matrix.smoke == 'crates-cli' || matrix.smoke == 'crates-sdk'
+        if: matrix.smoke == 'crates-cli' || matrix.smoke == 'crates-sdk' || matrix.smoke == 'crates-mcp'
         with:
           toolchain: "1.95.0"
       - name: Resolve tag version
@@ -1711,6 +1903,8 @@ jobs:
           echo "version=${v}" >> "$GITHUB_OUTPUT"
       - name: Smoke AArch64 Python wheel
         run: bash scripts/release/smoke/smoke-pypi-wheel.sh "${{ steps.ver.outputs.version }}"
+      - name: Smoke AArch64 Python MCP wheel
+        run: bash scripts/release/smoke/smoke-pypi-mcp.sh "${{ steps.ver.outputs.version }}"
       - name: Smoke AArch64 npm package
         run: bash scripts/release/smoke/smoke-npm-package.sh "${{ steps.ver.outputs.version }}"
 
@@ -1731,6 +1925,7 @@ jobs:
       - id: ver
         run: echo "version=${RELEASE_TAG#v}" >> "$GITHUB_OUTPUT"
       - run: bash scripts/release/smoke/smoke-pypi-wheel.sh "${{ steps.ver.outputs.version }}"
+      - run: bash scripts/release/smoke/smoke-pypi-mcp.sh "${{ steps.ver.outputs.version }}"
       - run: bash scripts/release/smoke/smoke-npm-package.sh "${{ steps.ver.outputs.version }}"
 
   post-publish-smoke-darwin-arm64:
@@ -1750,6 +1945,7 @@ jobs:
       - id: ver
         run: echo "version=${RELEASE_TAG#v}" >> "$GITHUB_OUTPUT"
       - run: bash scripts/release/smoke/smoke-pypi-wheel.sh "${{ steps.ver.outputs.version }}"
+      - run: bash scripts/release/smoke/smoke-pypi-mcp.sh "${{ steps.ver.outputs.version }}"
       - run: bash scripts/release/smoke/smoke-npm-package.sh "${{ steps.ver.outputs.version }}"
 
   post-publish-smoke-win32-x64:
@@ -1772,6 +1968,8 @@ jobs:
       - shell: pwsh
         run: ./scripts/release/smoke/smoke-pypi-wheel.ps1 "${{ steps.ver.outputs.version }}"
       - shell: pwsh
+        run: ./scripts/release/smoke/smoke-pypi-mcp.ps1 "${{ steps.ver.outputs.version }}"
+      - shell: pwsh
         run: ./scripts/release/smoke/smoke-npm-package.ps1 "${{ steps.ver.outputs.version }}"
 
   # AC-052: sibling triple (fathomdb + fathomdb-embedder + fathomdb-embedder-
@@ -1780,9 +1978,10 @@ jobs:
   # happened.
   co-tagging-assert:
     runs-on: ubuntu-latest
-    if: ${{ always() && inputs.candidate_commit == '' && inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') && needs.publish-rust-t7-cli.result == 'success' && needs.publish-pypi.result == 'success' && needs.publish-npm.result == 'success' }}
+    if: ${{ always() && inputs.candidate_commit == '' && inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') && needs.publish-rust-t7-cli.result == 'success' && needs.publish-rust-t7-mcp.result == 'success' && needs.publish-pypi.result == 'success' && needs.publish-npm.result == 'success' }}
     needs:
       - publish-rust-t7-cli
+      - publish-rust-t7-mcp
       - publish-pypi
       - publish-npm
     steps:
@@ -1852,6 +2051,16 @@ jobs:
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: python-cli-dist-*
+          merge-multiple: true
+          path: dist
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: python-mcp-dist-*
+          merge-multiple: true
+          path: dist
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: mcp-*
           merge-multiple: true
           path: dist
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1

@@ -16,6 +16,8 @@ client-facing view.
   families, feature boundary, and links to generated rustdoc.
 - [CLI](cli.md) — `fathomdb doctor` + `fathomdb recover` + `fathomdb migrate`
   verbs, flag spelling, exit-code classes, JSON output shape.
+- [MCP Server](mcp.md) — `fathomdb-mcp` stdio launch, JSON config, `SC-01`–`SC-10`
+  startup conflict matrix, 7/9-tool surface, error classes, and Rust `Adapter` API.
 - [Errors](errors.md) — the shared typed error taxonomy, base class,
   triggers, structured payloads, and recovery hint codes.
 - [Config](config.md) — `EngineConfig` knobs (Python snake_case + TS

@@ -38,6 +38,15 @@ pycli_version="$(awk '
     exit
   }
 ' "$REPO_ROOT/src/python-cli/pyproject.toml")"
+pymcp_version="$(awk '
+  /^\[project\]/ { in_block = 1; next }
+  /^\[/ { in_block = 0 }
+  in_block && /^version[[:space:]]*=/ {
+    n = split($0, fields, "\"")
+    if (n >= 3) { print fields[2] }
+    exit
+  }
+' "$REPO_ROOT/src/python-mcp/pyproject.toml")"
 py_cli_extra="$(awk '
   /^\[project\.optional-dependencies\]/ { in_block = 1; next }
   /^\[/ { in_block = 0 }
@@ -45,6 +54,18 @@ py_cli_extra="$(awk '
     if (match($0, /fathomdb-cli==[^"]+/)) {
       val = substr($0, RSTART, RLENGTH)
       sub(/^fathomdb-cli==/, "", val)
+      print val
+    }
+    exit
+  }
+' "$REPO_ROOT/src/python/pyproject.toml")"
+py_mcp_extra="$(awk '
+  /^\[project\.optional-dependencies\]/ { in_block = 1; next }
+  /^\[/ { in_block = 0 }
+  in_block && /^mcp[[:space:]]*=/ {
+    if (match($0, /fathomdb-mcp==[^"]+/)) {
+      val = substr($0, RSTART, RLENGTH)
+      sub(/^fathomdb-mcp==/, "", val)
       print val
     }
     exit
@@ -75,13 +96,15 @@ lock_package_versions() {
 }
 
 failed=0
-for label in 'package-lock top-level' 'package-lock root package' 'python runtime' 'python-cli pyproject' 'python cli extra'; do
+for label in 'package-lock top-level' 'package-lock root package' 'python runtime' 'python-cli pyproject' 'python-mcp pyproject' 'python cli extra' 'python mcp extra'; do
   case "$label" in
     'package-lock top-level') observed="$lock_top" ;;
     'package-lock root package') observed="$lock_root" ;;
     'python runtime') observed="$runtime_version" ;;
     'python-cli pyproject') observed="$pycli_version" ;;
+    'python-mcp pyproject') observed="$pymcp_version" ;;
     'python cli extra') observed="$py_cli_extra" ;;
+    'python mcp extra') observed="$py_mcp_extra" ;;
   esac
   if [ "$observed" = "$workspace_version" ]; then
     printf 'PASS  %s version matches workspace (%s)\n' "$label" "$workspace_version"
@@ -97,6 +120,7 @@ axis_w_packages=(
   fathomdb-cli
   fathomdb-embedder
   fathomdb-engine
+  fathomdb-mcp
   fathomdb-napi
   fathomdb-py
   fathomdb-query

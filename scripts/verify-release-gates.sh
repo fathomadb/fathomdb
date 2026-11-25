@@ -195,6 +195,7 @@ PUBLISHABLE_CRATES=(
   fathomdb-embedder
   fathomdb-embedder-api
   fathomdb-engine
+  fathomdb-mcp
   fathomdb-query
   fathomdb-schema
   fathomdb-sdk

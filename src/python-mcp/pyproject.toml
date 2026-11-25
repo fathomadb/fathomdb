@@ -1,0 +1,28 @@
+[build-system]
+requires = ["maturin>=1.9,<2"]
+build-backend = "maturin"
+
+[project]
+name = "fathomdb-mcp"
+version = "0.8.31"
+description = "FathomDB MCP server binary (default read-only, opt-in per-store scoped writes over stdio)"
+readme = "README.md"
+requires-python = ">=3.10"
+# PEP-639 SPDX string form + `license-files`, matching src/python/pyproject.toml.
+# `LICENSE` here is a byte-identical copy of the repo-root MIT LICENSE enforced
+# by scripts/check-license-consistency.sh. Do NOT add a `License ::` Trove
+# classifier: PyPI rejects PEP-639 Metadata-Version 2.4 wheels that combine
+# `License-Expression` with deprecated `License ::` classifiers.
+license = "MIT"
+license-files = ["LICENSE"]
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: 3",
+]
+dependencies = []
+
+[tool.maturin]
+bindings = "bin"
+manifest-path = "../rust/crates/fathomdb-mcp/Cargo.toml"
+targets = [{ name = "fathomdb-mcp", kind = "bin" }]
+features = ["default-embedder"]

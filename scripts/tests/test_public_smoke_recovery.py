@@ -171,7 +171,7 @@ class RecoveryWorkflowTests(unittest.TestCase):
             'run: /bin/bash scripts/release/smoke/smoke-pypi-wheel.sh "$VERSION"',
             'run: /bin/bash scripts/release/smoke/smoke-npm-package.sh "$VERSION"',
             'run: bash scripts/release/smoke/smoke-crates-sdk.sh "$VERSION"',
-            "python-cli-dist-*", "inspector-linux-x64-gnu",
+            "python-cli-dist-*", "python-mcp-dist-*", "mcp-*", "inspector-linux-x64-gnu",
             "ref: ${{ github.workflow_sha }}",
         ):
             self.assertIn(required, source)

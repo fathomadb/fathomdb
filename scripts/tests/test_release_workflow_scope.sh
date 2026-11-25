@@ -47,6 +47,7 @@ def targets(job):
 
 py = targets("build-python")
 py_cli = targets("build-python-cli")
+py_mcp = targets("build-python-mcp")
 napi = targets("build-napi")
 expected = [
     "aarch64-unknown-linux-gnu",
@@ -63,9 +64,11 @@ expected_cli = [
 ]
 ok_py = py == expected
 ok_py_cli = py_cli == expected_cli
+ok_py_mcp = py_mcp == expected_cli
 ok_napi = napi == expected
 print("PY", ok_py, py)
 print("PYCLI", ok_py_cli, py_cli)
+print("PYMCP", ok_py_mcp, py_mcp)
 print("NAPI", ok_napi, napi)
 PY
 )"
@@ -79,10 +82,15 @@ if printf '%s\n' "$scope_out" | grep -q '^PYCLI True'; then
 else
   fail "build-python-cli matrix must carry all five supported targets: $(printf '%s' "$scope_out" | sed -n '2p')"
 fi
+if printf '%s\n' "$scope_out" | grep -q '^PYMCP True'; then
+  pass "build-python-mcp matrix carries all five supported targets"
+else
+  fail "build-python-mcp matrix must carry all five supported targets: $(printf '%s' "$scope_out" | sed -n '3p')"
+fi
 if printf '%s\n' "$scope_out" | grep -q '^NAPI True'; then
   pass "build-napi matrix carries every supported 0.8.22 target"
 else
-  fail "build-napi matrix must carry the 0.8.22 stable target matrix: $(printf '%s' "$scope_out" | sed -n '3p')"
+  fail "build-napi matrix must carry the 0.8.22 stable target matrix: $(printf '%s' "$scope_out" | sed -n '4p')"
 fi
 
 # --- Safe dry-run dispatch: all jobs use the one immutable candidate SHA ----
@@ -166,8 +174,9 @@ def needs(job):
 # all-builds-passed must gate on every build lane.
 abp = set(needs("all-builds-passed"))
 gate_ok = {
-    "verify-release", "build-python", "build-python-cli", "build-napi", "build-rust",
-    "build-inspector", "cuda-package-rehearsal", "build-cuda-linux-x64-gnu",
+    "verify-release", "build-python", "build-python-cli", "build-python-mcp",
+    "build-napi", "build-rust", "build-inspector", "cuda-package-rehearsal",
+    "build-cuda-linux-x64-gnu",
 } <= abp
 print("GATE", gate_ok, sorted(abp))
 
@@ -185,7 +194,8 @@ print("CANONICAL", canonical_ok)
 tiers = [f"publish-rust-t{i}-{s}" for i, s in enumerate(
     ["embedder-api", "schema", "query", "embedder", "engine", "facade", "cli"], start=1)]
 # t1 gated on all-builds-passed; each subsequent tier gated on its predecessor.
-chain_ok = "all-builds-passed" in needs(tiers[0])
+# publish-rust-t7-mcp runs in parallel with publish-rust-t7-cli after t6-facade.
+chain_ok = "all-builds-passed" in needs(tiers[0]) and "publish-rust-t6-facade" in needs("publish-rust-t7-mcp")
 for prev, cur in zip(tiers, tiers[1:]):
     if prev not in needs(cur):
         chain_ok = False
@@ -293,7 +303,7 @@ UPLOAD_ACTION="$REPO_ROOT/.github/actions/upload-artifact-retry/action.yml"
 JETSON_WF="$REPO_ROOT/.github/workflows/jetson-tegra-cuda-evidence.yml"
 if [ -f "$UPLOAD_ACTION" ] \
    && ! grep -q 'uses: actions/upload-artifact@' "$WF" \
-   && [ "$(grep -c 'uses: .*/upload-artifact-retry' "$WF")" -eq 15 ] \
+   && [ "$(grep -c 'uses: .*/upload-artifact-retry' "$WF")" -eq 17 ] \
    && ! grep -q 'uses: actions/upload-artifact@' "$JETSON_WF" \
    && [ "$(grep -c 'uses: .*/upload-artifact-retry' "$JETSON_WF")" -eq 1 ] \
    && [ "$(grep -c 'uses: actions/upload-artifact@' "$UPLOAD_ACTION")" -eq 3 ] \
@@ -301,7 +311,7 @@ if [ -f "$UPLOAD_ACTION" ] \
    && grep -q 'artifact-id' "$UPLOAD_ACTION"; then
   pass "release uploads and the single Jetson package upload retry in-place"
 else
-  fail "all 15 release uploads and the single Jetson package upload must use bounded retries"
+  fail "all 17 release uploads and the single Jetson package upload must use bounded retries"
 fi
 
 # Runner connectivity must be delivered by GitHub without touching build inputs.

@@ -38,6 +38,7 @@ RELEASE_JOB_NEEDS = {
     "publish-rust-t5-engine": ("publish-rust-t4-embedder",),
     "publish-rust-t6-facade": ("publish-rust-t5-engine",),
     "publish-rust-t7-cli": ("publish-rust-t6-facade",),
+    "publish-rust-t7-mcp": ("publish-rust-t6-facade",),
     "publish-pypi": ("publish-rust-t5-engine",),
     "publish-npm-platform-linux-x64-gnu": ("all-builds-passed",),
     "publish-npm-platform-linux-arm64-gnu": ("all-builds-passed",),
@@ -54,6 +55,7 @@ RELEASE_JOB_NEEDS = {
     ),
     "wait-for-package-registry-visibility": (
         "publish-rust-t7-cli",
+        "publish-rust-t7-mcp",
         "publish-pypi",
         "publish-npm",
     ),
@@ -62,7 +64,12 @@ RELEASE_JOB_NEEDS = {
     "post-publish-smoke-darwin-x64": ("wait-for-package-registry-visibility",),
     "post-publish-smoke-darwin-arm64": ("wait-for-package-registry-visibility",),
     "post-publish-smoke-win32-x64": ("wait-for-package-registry-visibility",),
-    "co-tagging-assert": ("publish-rust-t7-cli", "publish-pypi", "publish-npm"),
+    "co-tagging-assert": (
+        "publish-rust-t7-cli",
+        "publish-rust-t7-mcp",
+        "publish-pypi",
+        "publish-npm",
+    ),
     "promote-npm-latest": (
         "post-publish-smoke",
         "post-publish-smoke-aarch64",
@@ -114,8 +121,18 @@ UNIX_NPM_SMOKE = re.compile(
     r'"\$\{\{ steps\.ver\.outputs\.version \}\}"\s*$',
     re.MULTILINE,
 )
+UNIX_MCP_SMOKE = re.compile(
+    r'^(?:      - |        )run: bash scripts/release/smoke/smoke-pypi-mcp\.sh '
+    r'"\$\{\{ steps\.ver\.outputs\.version \}\}"\s*$',
+    re.MULTILINE,
+)
 WINDOWS_WHEEL_SMOKE = re.compile(
     r'^        run: \./scripts/release/smoke/smoke-pypi-wheel\.ps1 '
+    r'"\$\{\{ steps\.ver\.outputs\.version \}\}"\s*$',
+    re.MULTILINE,
+)
+WINDOWS_MCP_SMOKE = re.compile(
+    r'^        run: \./scripts/release/smoke/smoke-pypi-mcp\.ps1 '
     r'"\$\{\{ steps\.ver\.outputs\.version \}\}"\s*$',
     re.MULTILINE,
 )
@@ -272,17 +289,21 @@ def require_smoke_commands(job_name: str, block: str, runner: str) -> None:
     if job_name == "post-publish-smoke":
         smoke_matrix = re.search(r"^        smoke: (.+)$", block, re.MULTILINE)
         if smoke_matrix is None or not all(
-            token in smoke_matrix.group(1) for token in ('"pypi-wheel"', '"npm-package"')
+            token in smoke_matrix.group(1)
+            for token in ('"pypi-wheel"', '"pypi-mcp"', '"crates-mcp"', '"npm-package"')
         ):
-            fail(f"{job_name} matrix must select both Python-wheel and npm-package smokes")
+            fail(
+                f"{job_name} matrix must select Python-wheel, Python-MCP, crates-MCP, and npm-package smokes"
+            )
         if not SHARED_SMOKE_COMMAND.search(block):
             fail(f"{job_name} must execute the selected shared smoke command")
         return
 
     wheel = WINDOWS_WHEEL_SMOKE if runner == "windows-latest" else UNIX_WHEEL_SMOKE
+    mcp = WINDOWS_MCP_SMOKE if runner == "windows-latest" else UNIX_MCP_SMOKE
     npm = WINDOWS_NPM_SMOKE if runner == "windows-latest" else UNIX_NPM_SMOKE
-    if not wheel.search(block) or not npm.search(block):
-        fail(f"{job_name} must execute Python-wheel and npm-package smoke commands")
+    if not wheel.search(block) or not mcp.search(block) or not npm.search(block):
+        fail(f"{job_name} must execute Python-wheel, Python-MCP, and npm-package smoke commands")
 
 
 def require_failing_smoke_stops(job_name: str, block: str) -> None:
@@ -302,7 +323,12 @@ def expected_release_condition(job_name: str, expected_needs: tuple[str, ...]) -
     success = [f"needs.{dependency}.result == 'success'" for dependency in expected_needs]
     candidate_release = "always() && inputs.candidate_commit == '' && inputs.dry_run != true"
     if job_name == "wait-for-package-registry-visibility":
-        guarded = success[:-1] + [f"(({RECOVERY_ROUTE}) || {success[-1]})"]
+        guarded = [
+            f"needs.{dependency}.result == 'success'"
+            if dependency in RECOVERY_ALLOWED_JOBS
+            else f"(({RECOVERY_ROUTE}) || needs.{dependency}.result == 'success')"
+            for dependency in expected_needs
+        ]
         return "${{ " + " && ".join([candidate_release, *guarded]) + " }}"
     if job_name == "post-publish-smoke":
         return "${{ " + " && ".join([candidate_release, *success]) + " }}"
@@ -513,6 +539,40 @@ def main() -> None:
         consumer_block = jobs.get(consumer)
         if consumer_block is None or "pattern: python-cli-dist-*" not in consumer_block:
             fail(f"{consumer} must download python-cli-dist-* artifacts")
+
+    mcp_block = jobs.get("build-python-mcp")
+    if mcp_block is None:
+        fail("release workflow lacks build-python-mcp")
+    require_matrix_runner("build-python-mcp", mcp_block)
+    mcp_rows = matrix_rows("build-python-mcp", mcp_block, False)
+    actual_mcp = {(runner, target) for runner, target, _ in mcp_rows}
+    if len(mcp_rows) != len(actual_mcp):
+        fail("build-python-mcp matrix repeats a runner/target row")
+    if actual_mcp != expected_build:
+        fail(
+            f"build-python-mcp runner/target coverage is {sorted(actual_mcp)}, "
+            f"expected {sorted(expected_build)}"
+        )
+    for fragment in (
+        "--features default-embedder",
+        "scripts/check_python_wheel_contents.py --kind mcp",
+        "scripts/release/smoke/smoke-gh-release-mcp.sh",
+        "name: python-mcp-dist-${{ matrix.target }}",
+        "name: mcp-${{ matrix.target }}",
+    ):
+        if fragment not in mcp_block:
+            fail(f"build-python-mcp is missing required fragment {fragment!r}")
+    if "build-python-mcp" not in needs("all-builds-passed", all_builds):
+        fail("all-builds-passed must depend on build-python-mcp")
+    if "needs.build-python-mcp.result == 'success'" not in all_builds:
+        fail("all-builds-passed must gate on build-python-mcp success")
+    for consumer in ("publish-pypi", "github-release"):
+        consumer_block = jobs.get(consumer)
+        if consumer_block is None or "pattern: python-mcp-dist-*" not in consumer_block:
+            fail(f"{consumer} must download python-mcp-dist-* artifacts")
+    github_release_block = jobs.get("github-release")
+    if github_release_block is None or "pattern: mcp-*" not in github_release_block:
+        fail("github-release must download mcp-* artifacts")
 
     inspector_block = jobs.get("build-inspector")
     if inspector_block is None:

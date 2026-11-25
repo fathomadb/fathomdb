@@ -208,6 +208,86 @@ done
 SDK="$SMOKE_DIR/smoke-crates-sdk.sh"
 check_common "$SDK" "smoke-crates-sdk"
 assert_contains "Rust SDK reads in a separate process" "$SDK" '"$consumer" "$work/smoke.sqlite" reopen'
+
+CRATES_MCP="$SMOKE_DIR/smoke-crates-mcp.sh"
+PYPI_MCP="$SMOKE_DIR/smoke-pypi-mcp.sh"
+PYPI_MCP_WINDOWS="$SMOKE_DIR/smoke-pypi-mcp.ps1"
+GH_MCP="$SMOKE_DIR/smoke-gh-release-mcp.sh"
+MCP_STDIO="$SMOKE_DIR/mcp-stdio-smoke.py"
+
+check_common "$CRATES_MCP" "smoke-crates-mcp"
+assert_contains "smoke-crates-mcp: exact cargo install" "$CRATES_MCP" \
+  'cargo install fathomdb-mcp --version "=$VERSION" --root "$WORK" --locked'
+assert_contains "smoke-crates-mcp: runs shared stdio smoke" "$CRATES_MCP" \
+  'mcp-stdio-smoke.py" --binary "$MCP_BIN"'
+
+check_common "$PYPI_MCP" "smoke-pypi-mcp"
+assert_contains "smoke-pypi-mcp: fresh venv" "$PYPI_MCP" 'python3 -m venv'
+assert_contains "smoke-pypi-mcp: pinned pip install with mcp extra" "$PYPI_MCP" \
+  'pip install --quiet "fathomdb[mcp]==${PIP_VERSION}"'
+assert_contains "smoke-pypi-mcp: transient CDN skew retries fathomdb or fathomdb-mcp" "$PYPI_MCP" \
+  'No matching distribution found for (fathomdb|fathomdb-mcp)=='
+assert_contains "smoke-pypi-mcp: verifies co-installed python import" "$PYPI_MCP" \
+  'import fathomdb; print(fathomdb.__version__)'
+assert_contains "smoke-pypi-mcp: checks Linux glibc floor on installed MCP binary" "$PYPI_MCP" \
+  'check-glibc-floor.sh" --floor "$GLIBC_FLOOR" "$MCP_BIN"'
+assert_contains "smoke-pypi-mcp: runs shared stdio smoke" "$PYPI_MCP" \
+  'mcp-stdio-smoke.py" --binary "$MCP_BIN"'
+assert_contains "smoke-pypi-mcp: PEP 440 normalization" "$PYPI_MCP" \
+  'pep440_normalize()'
+
+assert_contains "windows PyPI MCP smoke: creates a fresh venv" "$PYPI_MCP_WINDOWS" 'python -m venv'
+assert_contains "windows PyPI MCP smoke: pinned install with mcp extra" "$PYPI_MCP_WINDOWS" '"fathomdb[mcp]==$Version"'
+assert_contains "windows PyPI MCP smoke: wheel install retries transient CDN skew" "$PYPI_MCP_WINDOWS" \
+  'No matching distribution found for (fathomdb|fathomdb-mcp)=='
+assert_contains "windows PyPI MCP smoke: wheel install propagates non-retry failure" "$PYPI_MCP_WINDOWS" \
+  'if ($installExit -ne 0) { exit $installExit }'
+assert_next_line "windows PyPI MCP smoke: co-install import propagates native failure" "$PYPI_MCP_WINDOWS" \
+  '  & $python -c "import fathomdb; print(fathomdb.__version__)"' "$native_exit_guard"
+assert_next_line "windows PyPI MCP smoke: stdio smoke propagates native failure" "$PYPI_MCP_WINDOWS" \
+  '  & $python $stdioSmoke --binary $mcp' "$native_exit_guard"
+
+[ -x "$GH_MCP" ] && pass "smoke-gh-release-mcp: executable" || fail "smoke-gh-release-mcp: not executable"
+assert_contains "smoke-gh-release-mcp: set -euo pipefail" "$GH_MCP" 'set -euo pipefail'
+assert_contains "smoke-gh-release-mcp: verifies sha256" "$GH_MCP" 'hashlib.sha256'
+assert_contains "smoke-gh-release-mcp: checks Linux glibc floor" "$GH_MCP" \
+  'check-glibc-floor.sh" --floor "$GLIBC_FLOOR" "$MCP_BIN"'
+assert_contains "smoke-gh-release-mcp: runs shared stdio smoke" "$GH_MCP" \
+  'mcp-stdio-smoke.py" --binary "$MCP_BIN"'
+assert_contains "mcp-stdio-smoke: validates 7 read-only tools" "$MCP_STDIO" \
+  'EXPECTED_READONLY_TOOLS'
+
+for s in "$CRATES_MCP" "$PYPI_MCP"; do
+  name="$(basename "$s")"
+  if out="$("$s" not-a-semver 2>&1)"; then
+    fail "$name: non-semver version should be rejected"
+  else
+    if printf '%s' "$out" | grep -qiE 'invalid|usage|version'; then
+      pass "$name: non-semver rejected pre-install"
+    else
+      fail "$name: wrong diagnostic for non-semver; got: $out"
+    fi
+  fi
+  if out="$("$s" 2>&1)"; then
+    fail "$name: missing arg should fail"
+  else
+    if printf '%s' "$out" | grep -qi usage; then
+      pass "$name: missing arg → usage"
+    else
+      fail "$name: wrong diagnostic for missing arg; got: $out"
+    fi
+  fi
+done
+if out="$("$GH_MCP" 2>&1)"; then
+  fail "smoke-gh-release-mcp.sh: missing args should fail"
+else
+  if printf '%s' "$out" | grep -qi usage; then
+    pass "smoke-gh-release-mcp.sh: missing args → usage"
+  else
+    fail "smoke-gh-release-mcp.sh: wrong diagnostic for missing args; got: $out"
+  fi
+fi
+
 assert_contains "Python SDK reads in a separate process" "$PYPI" '"$consumer" "$PIP_VERSION" "$DB" reopen'
 assert_contains "Windows Python SDK reads in a separate process" "$PYPI_WINDOWS" '& $python -I $consumer $Version $db reopen'
 assert_contains "Node SDK reads in a separate process" "$NPM" 'node "$consumer" reopen "$WORK" "$VERSION"'

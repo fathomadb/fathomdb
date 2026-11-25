@@ -442,7 +442,7 @@ if "cargo" in legs:
         die_env("no publishable workspace members found under %s" % ws_path)
 
 # ------------------------------------------------------------ python leg -----
-python_pkg_dirs = [p("src", "python"), p("src", "python-cli")]
+python_pkg_dirs = [p("src", "python"), p("src", "python-cli"), p("src", "python-mcp")]
 if "python" in legs:
     import glob as globmod
 

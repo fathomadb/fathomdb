@@ -284,11 +284,53 @@ import sys
 path = Path(sys.argv[1])
 text = path.read_text()
 needle = "    runs-on: ${{ matrix.runner }}\n"
-if text.count(needle) != 3:
-    raise SystemExit("test fixture no longer contains all three matrix runner bindings")
+if text.count(needle) != 4:
+    raise SystemExit("test fixture no longer contains all four matrix runner bindings")
 path.write_text(text.replace(needle, "    runs-on: ubuntu-latest\n", 1))
 PY
 expect_fail "$FIXTURE" 'rejects a build matrix that ignores matrix.runner'
+
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/.github/workflows/release.yml" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+needle = "  build-python-mcp:\n"
+if text.count(needle) != 1:
+    raise SystemExit("test fixture lacks build-python-mcp")
+path.write_text(text.replace(needle, "  build-python-mcp-removed:\n", 1))
+PY
+expect_fail "$FIXTURE" 'rejects removal of build-python-mcp'
+
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/.github/workflows/release.yml" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+needle = "          pattern: python-mcp-dist-*\n"
+if text.count(needle) != 2:
+    raise SystemExit("test fixture lacks both python-mcp-dist-* artifact downloads")
+path.write_text(text.replace(needle, "          pattern: python-dist-*\n", 1))
+PY
+expect_fail "$FIXTURE" 'rejects publish-pypi omitting python-mcp-dist-* download'
+
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/.github/workflows/release.yml" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+needle = "          pattern: mcp-*\n"
+if text.count(needle) != 1:
+    raise SystemExit("test fixture lacks github-release mcp-* download")
+path.write_text(text.replace(needle, "          pattern: mcp-missing-*\n", 1))
+PY
+expect_fail "$FIXTURE" 'rejects github-release omitting mcp-* download'
 
 make_fixture "$FIXTURE"
 python3 - "$FIXTURE/.github/workflows/release.yml" <<'PY'

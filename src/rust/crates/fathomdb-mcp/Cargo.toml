@@ -1,13 +1,14 @@
 [package]
 name = "fathomdb-mcp"
-description = "FathomDB MCP server: read-only tools over fathomdb-sdk, served over stdio."
+description = "FathomDB MCP server: default read-only tools with opt-in per-store scoped writes over fathomdb-sdk, served over stdio."
+readme = "README.md"
+keywords = ["mcp", "database", "sqlite", "ai", "embedded"]
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
-# Evaluation build; not published until the MCP evaluation is done.
-publish = false
+publish = true
 autoexamples = false
 exclude = ["examples/locomo_load.rs", "examples/locomo_eval"]
 

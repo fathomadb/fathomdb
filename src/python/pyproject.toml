@@ -29,6 +29,7 @@ dependencies = []
 
 [project.optional-dependencies]
 cli = ["fathomdb-cli==0.8.31"]
+mcp = ["fathomdb-mcp==0.8.31"]
 test = ["pytest>=8", "hypothesis>=6", "maturin>=1.9,<2", "pyyaml>=6", "numpy>=1.24", "scipy>=1.11", "networkx>=3.0"]
 # Clean-clone quality gate: Ruff 0.15.17 is the reviewed version that passes
 # `ruff check src/python`. Upgrades require an explicit reproducibility review,

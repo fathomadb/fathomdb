@@ -1371,11 +1371,11 @@
     },
     {
       "path": "dev/design/mcp-adapter/design.md",
-      "class": "proposal",
+      "class": "maintained",
       "topic": "mcp-adapter-design",
       "role": "design",
       "owner": "dev/design/mcp-adapter/design.md",
-      "release": "future:mcp-adapter",
+      "release": "current:0.8.32",
       "successor": null
     },
     {
@@ -1551,11 +1551,11 @@
     },
     {
       "path": "dev/design/mcp-adapter/requirements.md",
-      "class": "proposal",
+      "class": "maintained",
       "topic": "mcp-adapter-requirements",
       "role": "requirements",
       "owner": "dev/design/mcp-adapter/requirements.md",
-      "release": "future:mcp-adapter",
+      "release": "current:0.8.32",
       "successor": null
     },
     {

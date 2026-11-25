@@ -79,7 +79,7 @@ expect() {
 # workspace, a real pyproject, real package.json/package-lock.json.
 mkfix() {
   local d="$TMPROOT/$1"
-  mkdir -p "$d/crates/foo/src" "$d/src/python" "$d/src/python-cli" "$d/src/ts/npm/plat"
+  mkdir -p "$d/crates/foo/src" "$d/src/python" "$d/src/python-cli" "$d/src/python-mcp" "$d/src/ts/npm/plat"
 
   cp "$REPO_ROOT/LICENSE" "$d/LICENSE"
 
@@ -121,6 +121,15 @@ license = "MIT"
 license-files = ["LICENSE"]
 EOF
   cp "$REPO_ROOT/LICENSE" "$d/src/python-cli/LICENSE"
+
+  cat >"$d/src/python-mcp/pyproject.toml" <<'EOF'
+[project]
+name = "foo-mcp"
+version = "0.0.1"
+license = "MIT"
+license-files = ["LICENSE"]
+EOF
+  cp "$REPO_ROOT/LICENSE" "$d/src/python-mcp/LICENSE"
 
   cat >"$d/src/ts/package.json" <<'EOF'
 {

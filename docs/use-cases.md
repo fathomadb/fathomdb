@@ -39,20 +39,21 @@ the stored note provides supporting evidence for that inspection.
 
 Store addressable runbook sections or individual procedure steps so an agent
 can discover a small relevant excerpt before fetching a selected record. The
-repository MCP adapter remains an evaluation build available from source. Its
-retrieval tools provide budgeted search snippets and logical-ref fetch;
-inspect truncation and adjust the budget when the needed text was cut.
-[Logical fetch](guides/structured-search-hits.md#stored-versions-and-public-ids)
-selects the latest eligible revision for its own view. Exact source-revision or
-span verification belongs to the SDK evidence APIs.
+`fathomdb-mcp` server (graduating to production read+write in the `0.8.32`
+documentation target, read-only by default) provides budgeted search snippets,
+logical-ref fetch, and integrated bounded frozen evidence (`search` with
+`freeze: true`, `expand` with `include_evidence_refs`, and `fetch` with
+`evidence_refs` / `graph_evidence_refs`); inspect truncation and adjust the
+budget when the needed text was cut.
 
-Have the host maintain a registered `latest_state` checkpoint collection through
-the SDK, recording a confirmed step and the evidence of its completion. Check
-the live UI before a consequential retry. Database idempotency covers database
-changes; confirming and safely retrying an external UI action remains the host's
-responsibility. MCP feedback may persist agent labels, but the adapter exposes
-no checkpoint-write or actuation tools. Coordinate
-SDK writes and adapter reads under the documented
+Maintain a registered `latest_state` checkpoint collection through the SDK or,
+on a store explicitly opted into writes with a bound caller `scope`
+(`allow_writes: true` + `scope`), via MCP `put_latest_state` or `actuate` with
+idempotent `operation_id` replay and CAS `expected_write_boundary`
+preconditions. Check the live UI before a consequential retry. Database
+idempotency covers database changes; confirming and safely retrying an external
+UI action remains the host's responsibility. Coordinate concurrent host SDK
+and MCP access by embedding `fathomdb_mcp::Adapter` or respecting
 [one-Engine-per-file ownership](operations/index.md#concurrency-and-durability-limits).
 
 ## Business processes: case records with applicable evidence
@@ -112,8 +113,9 @@ only selected references from that attempt. Ordinary search or logical fetch
 can select a different eligible revision; a source ID alone does not prove
 source bytes. If frozen state drifts, restart the evidence sequence.
 
-Use the [application SDK references](reference/index.md) for advanced provenance,
-actuation and exact evidence. MCP supplies a compact read surface for discovery and logical fetch. Configure embeddings and supported dense kinds for
+Use the [application SDK references](reference/index.md) or the
+[MCP server guide](guides/mcp-server.md) for governed reads, frozen evidence,
+and opt-in scoped actuation. Configure embeddings and supported dense kinds for
 hybrid retrieval, and check the [extractor and provenance limits](guides/extractor-provenance.md)
 when importing material. Measure relevance on your own records while keeping
 host access policy and live external state explicit.

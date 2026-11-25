@@ -1,23 +1,29 @@
 ---
 title: MCP Server Interface (fathomdb-mcp)
-date: 2026-11-10
-target_release: unscheduled (evaluation build)
-desc: Tool contract, launch configuration, result envelope and error model for the evaluation adapter; governed-record reads and feedback labels.
-blast_radius: src/rust/crates/fathomdb-mcp/**; dev/design/mcp-adapter/*.md
-status: proposed
+date: 2026-11-25
+target_release: 0.8.32
+desc: Tool contract, launch configuration, SC-01..SC-10 startup conflict matrix, frozen evidence, opt-in scoped writes, result envelope, error model, and embedded Rust API for fathomdb-mcp.
+blast_radius: src/rust/crates/fathomdb-mcp/**; dev/design/mcp-adapter/*.md; docs/reference/mcp.md; docs/guides/mcp-server.md
+status: locked
 ---
 
 # MCP Server Interface (`fathomdb-mcp`)
 
-Contract for the first, adapter-only release of the FathomDB MCP server. It
-records the original `fathomdb-sdk` 0.8.27 evaluation baseline. Current integration
-includes queue/hints, compact formats and direct text filters. Selected historical-view flags and atomic repeated-ref refusal are integrated.
-0.8.29 adds omission/disclosure, bounded corrective details, explicit session
-default and stored-head reporting. Semantics
-are owned by `dev/design/mcp-adapter/requirements.md` (MR-###); this file owns
-names, shapes, defaults and codes. The retrieval/governed-record surface is
-read-only and unscoped in this evaluation build. Feedback may persist agent
-labels; no checkpoint-write or actuation tools are exposed.
+Authoritative contract for the production read+write `fathomdb-mcp` server
+(graduated in `0.8.32` under `dev/adr/ADR-0.8.32-mcp-read-write-and-distribution.md`
+and `dev/adr/ADR-0.8.32-caller-scope-isolation.md`). Semantics are owned by
+`dev/design/mcp-adapter/requirements.md` (`MR-###` and `AC32-MCP-SAFETY-01`–`09`);
+this file owns names, shapes, defaults, startup conflict rules (`SC-01`–`SC-10`),
+error codes, and the embedded Rust API.
+
+By default `fathomdb-mcp` runs strictly **read-only** (`allow_writes: false`),
+exposing the exact `7`-tool read-only surface (`list_stores`, `use_store`,
+`orient`, `search`, `fetch`, `expand`, `feedback`) with bounded exact
+frozen-evidence retrieval. Write tools (`actuate`, `put_latest_state`) are
+opt-in per store, require an explicit non-empty writable caller `scope` policy,
+enforce strict-only atomic writes with idempotent `(store, scope, operation_id)`
+replay and CAS `expected_write_boundary` preconditions, and never expose
+operator recovery, erasure, migration, or raw SQL escape hatches.
 
 ## 1. Launch
 
@@ -42,27 +48,44 @@ fathomdb-mcp --config <path.json> --check-config
 
 | Key | Type | Default | Rule |
 | --- | --- | --- | --- |
-| `stores` | object `name → {path, create?, eager?}` | `{}` | Explicit entries. `path` absolute or relative to the config file. `create` (default `false`) permits creating the file; when false the registry checks the file exists before `Engine::open` (which would otherwise create it) and fails `unavailable/missing_file`. `eager` opens at launch. |
-| `roots` | array of `{path, suffix?}` | `[]` | `path` (absolute or relative to the config file) must be an existing directory. Every regular file directly in it ending in `suffix` (default `.sqlite`) whose name without the suffix matches the store-name grammar is addressable by that name. No recursion; symlinked files are not addressable. An explicit `stores` name wins over a root name. |
-| `default_store` | string or null | null | Session default when a call omits `store`. Must be addressable. |
+| `stores` | object `name → {path, create?, eager?, allow_writes?, scope?, allowed_kinds?, allowed_node_kinds?, allowed_edge_kinds?, allowed_collections?}` | `{}` | Explicit entries. `path` absolute or relative to the config file. `create` (default `false`; requires `allow_writes: true`, `SC-03`) passes `OpenOptions.create_if_missing` (`EP-07`), mapping `DatabaseNotFound` to `unavailable/missing_file` with no check-then-open race. `eager` opens at launch. `allow_writes` (default `false`) enables governed write tools for this store when paired with a non-empty writable `scope` (`SC-01`, `SC-02`). `scope` accepts either a single-scope string shorthand (e.g. `"alpha"`, expanding to `read_write(["alpha"], "alpha")` when `allow_writes: true` or `read_only(["alpha"])` when `allow_writes: false`) or `{read: [...], write?: "..."}`. `allowed_kinds`, `allowed_node_kinds`, `allowed_edge_kinds`, and `allowed_collections` are optional write-only constraint allowlists (`SC-03` rejects them when `allow_writes: false`). |
+| `roots` | array of `{path, suffix?}` | `[]` | `path` (absolute or relative to the config file) must be an existing directory. Every regular file directly in it ending in `suffix` (default `.sqlite`) whose name without the suffix matches the store-name grammar is addressable by that name. No recursion; symlinked files are not addressable. Auto-discovered `roots` entries are always strictly read-only (`SC-05` rejects pairing `roots` with write enablement). An explicit `stores` name wins over a root name. |
+| `default_store` | string or null | null | Session default when a call omits `store`. Must be addressable (`SC-09`). |
+| `allow_writes` | bool | false | Global write posture flag (default `false`). Cannot be paired with `roots` (`SC-05`); per-store writes still require explicit per-store `allow_writes: true` and a non-empty writable `scope`. The legacy evaluation key `"write"` is rejected fail-fast (`SC-04`). |
 | `idle_timeout_secs` | integer ≥ 0 | 60 | 0 = never close (MR-005.4). |
-| `max_open_stores` | integer | 1 | Must be 1 in this release (MR-005.7); any other value is invalid. |
+| `max_open_stores` | integer | 1 | Must be 1 in this release (MR-005.7); multiple `eager: true` stores when `max_open_stores == 1` are rejected (`SC-07`). |
 | `admission_cap` | integer ≥ 1 | 4 | Engine calls in flight per store, including abandoned ones (MR-033.2). Must be < 8. A call that finds every permit held waits for one in arrival (FIFO) order while its deadline allows; it is refused as `busy/admission` only when the line is full or it cannot start in time (§ 6). |
 | `queue_limit` | integer ≥ 1 | 32 | Calls that may wait for a permit per store. A call that arrives when no permit is free and `queue_limit` calls already wait is refused at once as `busy/admission`, `busy.reason` `queue_full`. |
 | `call_deadline_ms` | integer ≥ 100 | 10000 | Per tool call (MR-033), measured from arrival. It bounds the wait for an opening store and for a permit: a waiting call starts as soon as it gets a permit before this deadline; otherwise it is refused as `busy/admission`, `busy.reason` `deadline`. There is no start check (owner, 2026-10-19). It does not bound a started call: that call runs to completion and returns its result, even after this deadline (`run_limit_ms`). |
-| `run_limit_ms` | integer ≥ `call_deadline_ms` | 30000, or `call_deadline_ms` when that is larger (owner, 2026-10-19) | Bound on a started call, measured from its admission permit. It exists to report stuck work: a call still running at the limit returns `timeout/deadline` and is abandoned (its read keeps its permit until it returns, and it is counted in `busy.abandoned`). Engine reads cannot be interrupted, so the limit frees nothing. A call with a progress token gets a progress notification `queued: q waiting, c running` each second while it waits for a permit and `running` each second while it runs, numbered in one increasing sequence. |
+| `run_limit_ms` | integer ≥ `call_deadline_ms` | 30000, or `call_deadline_ms` when that is larger (owner, 2026-10-19) | Bound on a started call, measured from its admission permit (`SC-09` rejects `run_limit_ms < call_deadline_ms`). A call still running at the limit returns `timeout/deadline` and is tracked by the per-store blocking drain fence (`AC32-MCP-SAFETY-06`) so shutdown and store eviction wait deterministically within bounds. A call with a progress token gets a progress notification `queued: q waiting, c running` each second while it waits for a permit and `running` each second while it runs, numbered in one increasing sequence. |
 | `default_max_tokens` | integer ≥ 256 | 4000 | Budget when a call omits `max_tokens` (MR-041.3). |
-| `snippet_bytes` | integer 40..2000 | 300 | Snippet cap in UTF-8 bytes, ellipses included (MR-040). Each search requests the engine's match-centred snippets (EP-17) with `max_bytes` = this value, one window, and a record head of `min(48, snippet_bytes / 2)` bytes. 48 holds a LoCoMo-style header such as `(unknown date) [8 May 2023] Caroline:` (37 bytes). The old key `snippet_chars` is unknown (no alias). |
-| `search_mode` | `"text"` or `"hybrid"` | `"text"` | Default search path. `"text"` until the MR-021 evaluation shows hybrid at or above BM25 precision@3. |
+| `snippet_bytes` | integer 40..2000 | 300 | Snippet cap in UTF-8 bytes, ellipses included (MR-040). Each search requests the engine's match-centred snippets (EP-17) with `max_bytes` = this value, one window, and a record head of `min(48, snippet_bytes / 2)` bytes. The old key `snippet_chars` is unknown (no alias). |
+| `search_mode` | `"text"` or `"hybrid"` | `"text"` | Default search path. `"hybrid"` requires `use_default_embedder: true` (`SC-09`). |
 | `use_default_embedder` | bool | false | Passed to `OpenOptions`. Required for `"hybrid"`. |
 | `telemetry_dir` | path or null | null | Absolute or relative to the config file. When set, a fresh sink `<dir>/<store>.<pid>.<epoch>.jsonl` is enabled on every open and feedback is recorded (MR-024, MR-024.7). |
 | `result_format` | `"text"` or `"structured"` | `"text"` | Exact, case-sensitive configuration; invalid values/types/unknown keys fail. Embedded Config values are revalidated. Structured consumers must explicitly select `"structured"`. |
 | `hints` | bool | true | Whether results carry the `hints` sidecar of suggested next calls (§ 3) when a call does not pass its own `hints` argument. Precedence: the call's argument, then this key, then the default. |
-| `write` | bool | false | Must be false in this release. |
-| `scope` | null | null | Must be null in this release (MR-014.4). |
 
 Store names match `^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$` and must not be `.` or
 `..`. Unknown keys are invalid.
+
+### Startup Conflict Matrix (`SC-01`–`SC-10`)
+
+Validated identically across `fathomdb-mcp --config <path.json> --check-config`
+(exit `2`, empty `stdout`, JSON error on `stderr`, zero database or `.lock`
+files touched), `Config::load` / `Config::from_json_str` / `Config::validate`,
+`Adapter::new`, and `Adapter::register_engine[_with_policy]`:
+
+- **`SC-01`:** `allow_writes: true` with `scope: null`, omitted, or empty `""`.
+- **`SC-02`:** `allow_writes: true` paired with a read-only `scope` grant (`write` omitted/null).
+- **`SC-03`:** `allow_writes: false` paired with write-grant `scope.write`, `allowed_*`, or `create: true`.
+- **`SC-04`:** Legacy evaluation key `"write"` present (alone or with `"allow_writes"`).
+- **`SC-05`:** `roots` auto-discovery paired with write enablement.
+- **`SC-06`:** Duplicate store aliases resolving via canonical path or symlink to the same database file with incompatible settings OR where either entry enables `allow_writes: true`.
+- **`SC-07`:** Multiple `eager: true` stores when `max_open_stores == 1`.
+- **`SC-08`:** Contradictory or malformed `scope` policy grammar (empty/duplicate tokens, wildcard `"*"`, write scope absent from read scopes, NUL/control bytes, exceeding bounds).
+- **`SC-09`:** Non-addressable `default_store`, `search_mode: "hybrid"` with `use_default_embedder: false`, or `run_limit_ms < call_deadline_ms`.
+- **`SC-10`:** Embedded `Adapter::register_engine[_with_policy]` conflicts with configured `stores[name]` or host `engine.config().scope_policy` (returns `AdapterError::PolicyConflict`, leaving the hosted engine untouched).
 
 ## 3. Common call arguments and envelope
 
@@ -107,11 +130,14 @@ are preserved. Fetch bodies retain every byte.
 | top-level error | `error <class>/<code> message=q remedy=q [candidates=j] [detail=q] [busy=j] [argument=q accepted=j] [refs_not_in_response=j] [refs_omitted=N]`. Empty candidates remain explicit; busy retains reason/in_flight/queued/abandoned/stuck. |
 
 Displayed score/CE values use three decimals only in compact text; raw scores,
-rankings and explanation JSON retain exact typed values. Unavailable-only state
-and verdict are omitted in both formats; their declared schema fields are
-optional. Orient discloses exactly `["state","verdict","kinds","counts"]` in
-`not_in_this_release`. Structured kinds/counts placeholders remain; compact text
-omits their placeholder rows. Real readiness/degradation facts remain explicit.
+rankings and explanation JSON retain exact typed values. Live `EP-01`
+visibility `state` (`status: "available"`, `database_id`, `generation`, `nonce`,
+`canonical_write_boundary`, `projection_cursor`) is populated on store-bound
+responses. Unavailable-only verdict is omitted in both formats; its declared
+schema field is optional. Orient discloses exactly `["verdict","kinds","counts"]`
+in `not_in_this_release`, and keys projection/status rows by `(entity_class, name)`.
+Structured kinds/counts placeholders remain; compact text omits their
+placeholder rows. Real readiness/degradation facts remain explicit.
 
 For compact text T(u), `used_tokens = ceil(len_utf8(T(u))/4)` includes its own
 count, framing, quotes, flags and hints. For structured S(u) and P=S without
@@ -170,7 +196,7 @@ Common envelope fields (present on every store-bound result):
 | `store` | string | The store answered. |
 | `epoch` | integer | Open epoch of that store; increments on each open. |
 | `validity_instant` | integer | Epoch seconds the read was answered at. The adapter resolves now itself when the caller gives no `as_of` and always passes it as `ReadView.valid_as_of`, so this is never null (MR-023.2). It is the only time-derived field (MR-043.2). `orient` and `feedback` take no `as_of`; theirs is the call time. A continuation page reuses the instant of its first page. |
-| `state` | optional | Omitted until a supported state identity exists (MR-050); never a manufactured freshness value. |
+| `state` | optional | Live `EP-01` `read::visibility_state` snapshot (`status: "available"`, `database_id`, `generation`, `nonce`, `canonical_write_boundary`, `projection_cursor`) on store-bound responses; never a manufactured freshness value. |
 | `degradation` | array of `{arm, reason}` | MR-032. Empty when nothing degraded. |
 | `budget` | `{max_tokens, used_tokens, cut}` | Final format-specific count and fit as above (MR-041). Compact text presents these as `tokens=U/M[ cut]`. |
 
@@ -248,12 +274,12 @@ Opening is not forced; the next store-bound call opens it.
 
 Args: `store`. Result adds:
 
-- `projections`: from `read.projections` — `{name, roles, fts, vector}` (whether
-  each is configured) in name order.
-- `projection_status`, `embedding_readiness`: summarized from the SDK.
+- `projections`: from `read.projections` — `{name, entity_class, roles, fts, vector}` (whether
+  each is configured) ordered by `(entity_class, name)`.
+- `projection_status`, `embedding_readiness`: summarized from the SDK (keyed by `(entity_class, name)`).
 - Required top-level `vector_coverage`, exactly once outside projection_status,
   follows the exact stored mapped-head contract below.
-- `not_in_this_release`: exactly `["state","verdict","kinds","counts"]`.
+- `not_in_this_release`: exactly `["verdict","kinds","counts"]`.
 An actual provider verification refusal returns `unavailable/open_failed` with
 its typed detail; no Engine or `dense_disabled` orient field is returned.
 Text access requires a separate deliberate None-provider configuration, as
@@ -451,11 +477,59 @@ Feedback takes an admission permit but never queues for one: with no free
 permit it is refused at once as `busy/admission`, `busy.reason`
 `deadline`.
 
-### Not present in this release
+### Frozen evidence on `search`, `expand`, and `fetch`
 
-Change queries (MR-055), remember/replace/retract (MR-060–062) and scope
-(MR-014) have no tools. Their absence is the contract, so `tools/list` is
-fixed and identical for every configuration (MR-012.1, MR-006.7).
+Read-only profiles retain the exact `7`-tool surface while integrating bounded
+exact frozen-evidence workflows:
+
+- **`search`:** accepts optional `freeze: bool` (mints a caller-scoped
+  `FrozenReadContextV1` and runs `search_with_evidence` / `search_frozen`,
+  returning an authenticated `frozen_context` handle plus per-hit
+  `evidence_ref`) and optional `frozen_context: string` (reuses an existing
+  frozen context handle). `freeze` and `frozen_context` are rejected on
+  continuation-only calls.
+- **`expand`:** accepts optional `frozen_context: string` and
+  `include_evidence_refs: bool`, returning per-target `graph_evidence_ref`s.
+- **`fetch`:** accepts optional `frozen_context: string`,
+  `evidence_refs: string[]`, and `graph_evidence_refs: string[]`, calling
+  `engine.resolve_evidence_many` / `engine.resolve_graph_evidence` and
+  returning exact UTF-8 bytes, `artifact_revision_id`, caller-scope filtering,
+  and typed `state_drift`, `erased`, `truncated`, and `unavailable` outcomes
+  matching `fathomdb-sdk` identically.
+
+### Governed write tools (`allow_writes: true` profiles only)
+
+When at least one configured or hosted store enables `allow_writes: true` with
+a bound writable `scope`, `tools/list` exposes `9` tools (the `7` read-only
+tools above plus `actuate` and `put_latest_state`). On read-only profiles these
+two tools are omitted from `tools/list`, and direct JSON-RPC invocation against
+a read-only profile or read-only store fails deterministically with
+`invalid_request/writes_disabled` and zero database mutation.
+
+- **`actuate`:** bounded governed `ActuationBatchV1` (`store?`, `operation_id`,
+  `expected_write_boundary?`, `operations`, `hints?`). Supports strict-only
+  operations: `PutCanonicalNode`, `PutDerivedNode`, `PutDerivedEdge`,
+  `RegisterSourceDependency`, `TransitionLifecycle`, and `PutLatestState`.
+  Enforces `allowed_kinds` / `allowed_node_kinds` / `allowed_edge_kinds` /
+  `allowed_collections`, per-canonical-path write serialization
+  (`AC32-MCP-SAFETY-01`), idempotent `(store, scope, operation_id)` replay
+  (`AC32-MCP-SAFETY-02`), atomic CAS `expected_write_boundary` checks
+  (`AC32-MCP-SAFETY-03`), caller-scope isolation (`AC32-MCP-SAFETY-04`), and
+  atomic batch rollback (`AC32-MCP-SAFETY-05`). Rejects bulk/non-strict flags
+  and forbidden operator escape hatches (`AC32-MCP-SAFETY-09`).
+- **`put_latest_state`:** ergonomic `latest_state` checkpoint tool (`store?`,
+  `operation_id`, `collection`, `record_key`, `payload_json`,
+  `expected_write_boundary?`, `hints?`), delegating atomically to an
+  `ActuationBatchV1` containing one `PutLatestState` operation under the same
+  serialization, replay, CAS, and `allowed_collections` guarantees.
+
+### Deferred and forbidden surfaces
+
+Change feeds (`EP-16`) remain deferred beyond `0.8.32`. Recovery and
+destructive/bulk maintenance commands (`recover`, `restore`, `repair`, `fix`,
+`rebuild`, `purge`, `erase_source`, `migrate`, `safe_export`, bulk non-strict
+writes, and raw SQL) are permanently forbidden on the MCP surface
+(`AC32-MCP-SAFETY-09`).
 
 ### Corrective details and stored-head reporting (0.8.29)
 
@@ -532,8 +606,9 @@ tool handler is a JSON-RPC internal error for that request (MR-002.2).
 
 | `class` | Typical `code`s | Source |
 | --- | --- | --- |
-| `invalid_request` | `unknown_store`, `bad_store_name`, `unknown_argument`, `refs_not_in_response`, `bad_argument`, `unsupported_ref`, `stale_handle`, `wrong_store`, `bound_exceeded` | Adapter validation; SDK `InvalidArgument`, `WriteValidation`, `SchemaValidation`, filter errors; `bound_exceeded` is an expansion past 10,000 edges |
-| `not_found` | `not_found` | Absent record (per item in `fetch`) |
+| `invalid_request` | `unknown_store`, `bad_store_name`, `unknown_argument`, `refs_not_in_response`, `bad_argument`, `unsupported_ref`, `stale_handle`, `wrong_store`, `bound_exceeded`, `writes_disabled`, `kind_not_allowed`, `forbidden_operation`, `scope_violation` | Adapter validation; SDK `InvalidArgument`, `WriteValidation`, `SchemaValidation`, `ScopeViolation`, filter errors; `bound_exceeded` is an expansion past 10,000 edges; `writes_disabled` refuses writes on read-only stores; `kind_not_allowed` enforces `allowed_*` metadata; `forbidden_operation` refuses operator/bulk escape hatches |
+| `not_found` | `not_found` | Absent record (per item in `fetch`) or nondisclosing cross-scope read/continuation reference (`AC32-MCP-SAFETY-04`) |
+| `conflict` | `stale_write_boundary`, `operation_id_conflict` | Atomic CAS precondition mismatch (`stale_write_boundary`, optionally carrying content-free `observed_write_boundary`) or `operation_id` reused with a differing canonical payload or scope (`operation_id_conflict`) |
 | `not_ready` | `opening`, `reopening`, `draining`, `embedder_not_ready`, `vector_disabled` | Readiness gate: the code is the phase word. Every call waits for an open or reopen in progress up to its deadline before returning it; calls with a progress token also get progress notifications (MR-003.2, MR-006.4). SDK `EmbedderNotConfigured`, `KindNotVectorIndexed` (`embedder_not_ready`); SDK `VectorEquivalenceMismatch` (`vector_disabled`): a hybrid search on a store whose dense side the open-time equivalence check disabled; remedy: use mode `"text"` |
 | `unavailable` | `open_failed`, `database_locked`, `corrupt`, `migration_refused`, `missing_file` | Store open failure (MR-003.3) |
 | `timeout` | `deadline`, `cancelled` | `deadline`: the call was still running at `run_limit_ms` after its admission (MR-033.1); it is abandoned and keeps its admission permit until its engine work returns. `cancelled`: the client cancelled the call (`notifications/cancelled`). A waiting call leaves the queue; a running call is abandoned at once and its read runs to its end. rmcp discards the response of a cancelled request, so clients do not see this result |
@@ -573,10 +648,14 @@ is crate-private.
   `AdapterError::InvalidConfig(ConfigError)` for any §2 rule, and
   `AdapterError::NoRuntime` outside a runtime. `Adapter` is `Clone`; clones
   share one registry.
-- **`Adapter::register_engine(&self, name: &str, engine: Arc<fathomdb_sdk::Engine>) -> Result<(), AdapterError>`.**
-  Serves a host-owned open engine under `name`. Errors:
-  `AdapterError::BadStoreName` for a name outside the grammar and
-  `AdapterError::DuplicateStore` for a name already registered or configured.
+- **`Adapter::register_engine(&self, name: &str, engine: Arc<fathomdb_sdk::Engine>) -> Result<(), AdapterError>`** and **`Adapter::register_engine_with_policy(&self, name: &str, engine: Arc<fathomdb_sdk::Engine>, policy: HostedStorePolicy) -> Result<(), AdapterError>`.**
+  Serves a host-owned open engine under `name`. `register_engine` delegates to
+  `register_engine_with_policy` with the default read-only `HostedStorePolicy`.
+  Validates `policy` against `engine.config().scope_policy` and any configured
+  filesystem `stores[name]` (`SC-10`) before touching the engine. Errors:
+  `AdapterError::BadStoreName` for a name outside the grammar,
+  `AdapterError::DuplicateStore` for a hosted name already registered, and
+  `AdapterError::PolicyConflict` for any `SC-10` policy or store collision.
   A rejected call leaves the engine untouched. Hosted-engine semantics:
   - The adapter never opens, drains or closes the engine.
   - Its epoch is fixed at 1, it never goes idle, and it is excluded from the
@@ -584,17 +663,22 @@ is crate-private.
   - When `telemetry_dir` is set, a sink `<dir>/<name>.<pid>.1.jsonl` is
     enabled on it, replacing any sink the host enabled.
   - Its search results carry `continuation_exact: false`.
+- **`HostedStorePolicy`.** Public struct (`allow_writes`, `scope`,
+  `allowed_kinds`, `allowed_node_kinds`, `allowed_edge_kinds`,
+  `allowed_collections`, `Default` = read-only).
 - **`Adapter::connection(&self) -> edge::FathomServer`.** A server handler for
-  one MCP connection, with its own session (default store, continuations,
-  response ids). Serve it with rmcp's `ServiceExt::serve` on any transport.
-- **`Adapter::shutdown(&self)` (async).** Stops admitting calls, then drains
-  and closes every adapter-opened store, waiting at most five seconds past
-  `call_deadline_ms`; a store whose started or abandoned call is still
-  running then is not waited for. Hosted engines stay open.
+  one MCP connection, with its own session (default store, scope-keyed
+  continuations and response ids). Serve it with rmcp's `ServiceExt::serve` on
+  any transport.
+- **`Adapter::shutdown(&self)` (async).** Stops admitting calls, enforces the
+  blocking drain fence (`AC32-MCP-SAFETY-06`) across active blocking SDK
+  closures, and drains and closes every adapter-opened store cleanly. Hosted
+  engines stay open.
 - **`edge::FathomServer`.** The rmcp `ServerHandler` (tools capability only,
-  the static tool list of §4, server info `fathomdb-mcp`). It is `Clone`;
-  clones share one session.
-- **`AdapterError`.** The four variants above; `Display` names the cause.
+  `7` tools on read-only profiles or `9` tools on write-enabled profiles,
+  server info `fathomdb-mcp`). It is `Clone`; clones share one session.
+- **`AdapterError`.** The five variants above (`InvalidConfig`, `NoRuntime`,
+  `BadStoreName`, `DuplicateStore`, `PolicyConflict`); `Display` names the cause.
 - **`config::Config`.** The §2 configuration, with public fields and
   `Default` equal to parsing `{}`.
   - `Config::from_json_str(text, base_dir)` and `Config::load(path)` parse

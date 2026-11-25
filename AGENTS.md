@@ -28,8 +28,8 @@ Bullet form, prescriptive, ≤300 lines. Link out, do not inline.
 
 ## 2. Repo shape
 
-- **Rust workspace** — 13 crates: 12 under `src/rust/crates/` (`fathomdb`, `fathomdb-sdk`, `fathomdb-cli`, `fathomdb-engine`, `fathomdb-query`, `fathomdb-schema`, `fathomdb-embedder`, `fathomdb-embedder-api`, `fathomdb-mcp` [MCP server, `publish = false`], `fathomdb-napi`, `fathomdb-py`, `fathomdb-tc5-benchmark`) plus `fathomdb-inspector` under `src/inspector/`.
-- **Python bindings** under `src/python/` (package: `fathomdb`) and the lockstep CLI binary wheel under `src/python-cli/` (package: `fathomdb-cli`).
+- **Rust workspace** — 13 crates: 12 under `src/rust/crates/` (`fathomdb`, `fathomdb-sdk`, `fathomdb-cli`, `fathomdb-engine`, `fathomdb-query`, `fathomdb-schema`, `fathomdb-embedder`, `fathomdb-embedder-api`, `fathomdb-mcp` [MCP server], `fathomdb-napi`, `fathomdb-py`, `fathomdb-tc5-benchmark`) plus `fathomdb-inspector` under `src/inspector/`.
+- **Python bindings** under `src/python/` (package: `fathomdb`) plus lockstep binary wheels under `src/python-cli/` (`fathomdb-cli`) and `src/python-mcp/` (`fathomdb-mcp`).
 - **TypeScript bindings** under `src/ts/`.
 - **Public docs** under `docs/` (MkDocs-built).
 - **Internal engineering docs** under `dev/` — load-bearing: `dev/agent-memory/`, `dev/adr/`, `dev/interfaces/`, `dev/design/`, `dev/plans/` (boards, plans, prompts), `dev/steward/`. List `dev/` for the rest. `dev/progress/` is **historical** (0.6.x only).

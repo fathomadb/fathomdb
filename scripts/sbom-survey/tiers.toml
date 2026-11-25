@@ -17,6 +17,16 @@ action = "tier"
 tier   = "shipped"
 
 [[rule]]
+prefix = "src/python-cli/"
+action = "tier"
+tier   = "shipped"
+
+[[rule]]
+prefix = "src/python-mcp/"
+action = "tier"
+tier   = "shipped"
+
+[[rule]]
 prefix = "src/ts/"
 action = "tier"
 tier   = "shipped"

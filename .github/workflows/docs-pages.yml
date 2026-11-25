@@ -20,6 +20,8 @@ on:
       - Cargo.toml
       - src/rust/crates/**/Cargo.toml
       - src/python/pyproject.toml
+      - src/python-cli/pyproject.toml
+      - src/python-mcp/pyproject.toml
       - src/ts/package.json
       - scripts/agent-*.sh
       - scripts/release/check-pages-source.py

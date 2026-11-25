@@ -23,6 +23,7 @@ nav:
       - Python API: reference/python-api.md
       - TypeScript API: reference/typescript-api.md
       - CLI: reference/cli.md
+      - MCP Server: reference/mcp.md
       - Errors: reference/errors.md
       - Config: reference/config.md
   - Contributing:
@@ -46,6 +47,7 @@ nav:
       - Extractor Provenance: guides/extractor-provenance.md
       - Frozen Evidence: guides/frozen-evidence.md
       - Prompt Context: guides/prompt-context.md
+      - MCP Server: guides/mcp-server.md
   - Release Notes:
       - 0.8.31: release-notes/0.8.31.md
       - 0.8.30: release-notes/0.8.30.md

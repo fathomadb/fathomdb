@@ -113,6 +113,11 @@ def contributor_index(root: Path) -> str:
     python_cli_name = identifier(
         python_cli_metadata.get('project', {}).get('name'), 'Python CLI package name'
     )
+    python_mcp_manifest = 'src/python-mcp/pyproject.toml'
+    python_mcp_metadata = tomllib.loads(source(root, python_mcp_manifest).read_text())
+    python_mcp_name = identifier(
+        python_mcp_metadata.get('project', {}).get('name'), 'Python MCP package name'
+    )
     ts_manifest = 'src/ts/package.json'
     ts_metadata = json.loads(source(root, ts_manifest).read_text())
     ts_name = ts_metadata.get('name')
@@ -120,6 +125,7 @@ def contributor_index(root: Path) -> str:
         raise ValueError(f'invalid TypeScript package name: {ts_name!r}')
     lines.append(f'| Python | `{python_name}` | {link(python_manifest)} |')
     lines.append(f'| Python | `{python_cli_name}` | {link(python_cli_manifest)} |')
+    lines.append(f'| Python | `{python_mcp_name}` | {link(python_mcp_manifest)} |')
     lines.append(f'| TypeScript | `{ts_name}` | {link(ts_manifest)} |')
     lines += ['', '## Typed developer entry points', '',
               '| Verb | Script |', '| --- | --- |']

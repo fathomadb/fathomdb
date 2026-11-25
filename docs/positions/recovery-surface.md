@@ -10,7 +10,10 @@ five-name denylist is asserted by the conformance suites in all three
 languages, and by a compile-fail proof on the Rust facade. In Rust the whole
 operator seam sits behind the `operator` cargo feature, which only
 `fathomdb-cli` enables; the default facade resolves no recovery-named and no
-raw-SQL method. Gating, not deletion: engine behaviour is identical either way.
+raw-SQL method. The `fathomdb-mcp` server enforces an even stricter boundary:
+it links only `fathomdb-sdk`, defaults to read-only, and never exposes recovery,
+erasure, migration, bulk non-strict writes, or raw SQL even on write-enabled
+stores. Gating, not deletion: engine behaviour is identical either way.
 
 ## Erasure is not recovery
 

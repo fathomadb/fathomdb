@@ -18,5 +18,8 @@ Guides cover the current public surface.
   evidence, or canonical pagination without weakening read authority.
 - [Prompt context from search hits](prompt-context.md) — render ranked hits
   into prompt text within a character budget with `pack_context`.
+- [MCP server (`fathomdb-mcp`)](mcp-server.md) — serve FathomDB over MCP stdio
+  or embedded in Rust with default read-only posture, bounded frozen evidence,
+  and opt-in per-store scoped writes.
 
 See also [Erasure](../operations/erasure.md) for `purge` / `erase_source`.

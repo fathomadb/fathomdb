@@ -69,3 +69,36 @@ def test_cli_wheel_rejects_native_python_extension_module(tmp_path: Path) -> Non
 
         with pytest.raises(ValueError, match="forbidden native Python extension"):
             validate_archive(wheel, kind="cli")
+
+
+def test_mcp_wheel_accepts_unix_and_windows_fathomdb_mcp_binary(tmp_path: Path) -> None:
+    for binary in ("fathomdb-mcp", "fathomdb-mcp.exe"):
+        wheel = tmp_path / f"fathomdb_mcp-{binary}.whl"
+        with ZipFile(wheel, "w") as archive:
+            archive.writestr(f"fathomdb_mcp-0.8.32.data/scripts/{binary}", b"ELF")
+            archive.writestr("fathomdb_mcp-0.8.32.dist-info/METADATA", "Name: fathomdb-mcp\n")
+            archive.writestr("fathomdb_mcp-0.8.32.dist-info/licenses/LICENSE", "MIT License\n")
+        assert validate_archive(wheel, kind="mcp") == 3
+
+
+def test_mcp_wheel_rejects_missing_binary_license_or_native_extension(tmp_path: Path) -> None:
+    missing_bin = tmp_path / "fathomdb_mcp_missing_bin.whl"
+    with ZipFile(missing_bin, "w") as archive:
+        archive.writestr("fathomdb_mcp-0.8.32.dist-info/licenses/LICENSE", "MIT License\n")
+    with pytest.raises(ValueError, match="missing required MCP binary"):
+        validate_archive(missing_bin, kind="mcp")
+
+    missing_license = tmp_path / "fathomdb_mcp_missing_license.whl"
+    with ZipFile(missing_license, "w") as archive:
+        archive.writestr("fathomdb_mcp-0.8.32.data/scripts/fathomdb-mcp", b"ELF")
+    with pytest.raises(ValueError, match="missing required LICENSE"):
+        validate_archive(missing_license, kind="mcp")
+
+    for ext in ("fathomdb/_fathomdb.abi3.so", "fathomdb/_fathomdb.pyd"):
+        wheel = tmp_path / f"fathomdb_mcp_{Path(ext).name}.whl"
+        with ZipFile(wheel, "w") as archive:
+            archive.writestr("fathomdb_mcp-0.8.32.data/scripts/fathomdb-mcp", b"ELF")
+            archive.writestr("fathomdb_mcp-0.8.32.dist-info/licenses/LICENSE", "MIT License\n")
+            archive.writestr(ext, b"native")
+        with pytest.raises(ValueError, match="forbidden native Python extension"):
+            validate_archive(wheel, kind="mcp")

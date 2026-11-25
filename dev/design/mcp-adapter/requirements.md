@@ -1,9 +1,11 @@
 ---
 title: MCP adapter requirements and acceptance criteria
-date: 2026-10-17
-status: PROPOSED
-desc: Falsifiable requirements and acceptance criteria for an MCP adapter over FathomDB that meet the Agent Needs in agent-needs.md.
+date: 2026-11-25
+status: ACTIVE
+desc: Falsifiable requirements and acceptance criteria (MR-###, SC-01..SC-10, AC32-MCP-SAFETY-01..09) for the production read+write fathomdb-mcp server over FathomDB.
 inputs:
+  - dev/adr/ADR-0.8.32-mcp-read-write-and-distribution.md
+  - dev/adr/ADR-0.8.32-caller-scope-isolation.md
   - dev/design/mcp-adapter/agent-needs.md
   - dev/adr/ADR-0.6.0-cli-scope.md
   - dev/adr/ADR-0.6.0-async-surface.md
@@ -13,6 +15,15 @@ inputs:
 ---
 
 # MCP adapter requirements and acceptance criteria
+
+> **0.8.32 production status:** Adopted under
+> `dev/adr/ADR-0.8.32-mcp-read-write-and-distribution.md` and
+> `dev/interfaces/mcp.md`. In addition to the `MR-###` criteria below,
+> production `0.8.32` enforces the `SC-01`–`SC-10` fail-fast startup conflict
+> matrix (`tests/startup_conflicts.rs`), `AC32-MCP-SAFETY-01`–`09` write-safety
+> contract (`tests/mcp_write_safety.rs`), exact SDK-vs-MCP frozen-evidence
+> equivalence (`tests/mcp_frozen_evidence.rs`), live `EP-01` visibility state,
+> `EP-07` `create_if_missing`, and 3-channel distribution (`Gate1-D5`).
 
 Conventions:
 

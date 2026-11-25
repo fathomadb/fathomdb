@@ -290,8 +290,9 @@ def main() -> None:
         assert shared_deadline.returncode == 1, shared_deadline.stderr
         assert "registry_visibility_pass registry=pypi package=fathomdb " in shared_deadline.stdout
         assert "registry_visibility_pass registry=pypi package=fathomdb-cli " in shared_deadline.stdout
+        assert "registry_visibility_pass registry=pypi package=fathomdb-mcp " in shared_deadline.stdout
         assert "registry=npm" in shared_deadline.stderr
-        assert Handler.counts["delayed"] == 5
+        assert Handler.counts["delayed"] == 6
         remaining_bound = float(
             shared_deadline.stderr.split("timeout_seconds=", 1)[1].split()[0]
         )
@@ -305,9 +306,10 @@ def main() -> None:
 
     module = load_module()
     packages = module.release_packages(ROOT, RELEASE_VERSION, include_npm=True)
-    assert [(item.registry, item.name) for item in packages[:3]] == [
+    assert [(item.registry, item.name) for item in packages[:4]] == [
         ("pypi", "fathomdb"),
         ("pypi", "fathomdb-cli"),
+        ("pypi", "fathomdb-mcp"),
         ("npm", "fathomdb"),
     ]
     expected_npm = {
@@ -318,10 +320,11 @@ def main() -> None:
     assert module.release_packages(ROOT, RELEASE_VERSION, include_npm=False) == (
         module.RegistryPackage("pypi", "fathomdb", RELEASE_VERSION),
         module.RegistryPackage("pypi", "fathomdb-cli", RELEASE_VERSION),
+        module.RegistryPackage("pypi", "fathomdb-mcp", RELEASE_VERSION),
     )
 
-    # Historical tags (e.g. v0.8.20) lack src/python-cli/pyproject.toml and must
-    # omit fathomdb-cli rather than failing visibility checks.
+    # Historical tags (e.g. v0.8.20) lack src/python-cli and src/python-mcp
+    # manifests and must omit them rather than failing visibility checks.
     import tempfile
     with tempfile.TemporaryDirectory() as td:
         historical_root = Path(td)
@@ -341,6 +344,23 @@ def main() -> None:
             assert "python-cli manifest version" in str(err)
         else:
             raise AssertionError("expected ValueError on mismatched python-cli version")
+        # Mismatched src/python-mcp/pyproject.toml version must fail closed.
+        (cli_dir / "pyproject.toml").write_text(
+            '[project]\nname = "fathomdb-cli"\nversion = "0.8.32"\n',
+            encoding="utf-8",
+        )
+        mcp_dir = historical_root / "src/python-mcp"
+        mcp_dir.mkdir(parents=True)
+        (mcp_dir / "pyproject.toml").write_text(
+            '[project]\nname = "fathomdb-mcp"\nversion = "0.8.99"\n',
+            encoding="utf-8",
+        )
+        try:
+            module.release_packages(historical_root, "0.8.32", include_npm=False)
+        except ValueError as err:
+            assert "python-mcp manifest version" in str(err)
+        else:
+            raise AssertionError("expected ValueError on mismatched python-mcp version")
     print("PASS test-wait-for-registry-visibility")
 
 

@@ -42,6 +42,7 @@ SNAP_VERSIONED=(
   Cargo.lock
   src/python/pyproject.toml
   src/python-cli/pyproject.toml
+  src/python-mcp/pyproject.toml
   src/python/fathomdb/__init__.py
   src/ts/package.json
   src/ts/package-lock.json

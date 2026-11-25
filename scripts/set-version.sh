@@ -41,6 +41,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CARGO="$REPO_ROOT/Cargo.toml"
 PYPROJ="$REPO_ROOT/src/python/pyproject.toml"
 PYCLIPROJ="$REPO_ROOT/src/python-cli/pyproject.toml"
+PYMCPPROJ="$REPO_ROOT/src/python-mcp/pyproject.toml"
 NPMPKG="$REPO_ROOT/src/ts/package.json"
 NPMLOCK="$REPO_ROOT/src/ts/package-lock.json"
 PYRUNTIME="$REPO_ROOT/src/python/fathomdb/__init__.py"
@@ -160,10 +161,44 @@ set_pyproject_cli_extra_version() {
   '
 }
 
+# Set [project.optional-dependencies].mcp = ["fathomdb-mcp==<ver>"] in src/python/pyproject.toml.
+set_pyproject_mcp_extra_version() {
+  local new="$1"
+  awk_inplace "$PYPROJ" '
+    BEGIN { in_block = 0 }
+    /^\[project\.optional-dependencies\]/ { in_block = 1; print; next }
+    /^\[/ { in_block = 0; print; next }
+    {
+      if (in_block && $0 ~ /^mcp[[:space:]]*=/) {
+        print "mcp = [\"fathomdb-mcp=='"$new"'\"]"
+      } else {
+        print
+      }
+    }
+  '
+}
+
 # Set [project].version in src/python-cli/pyproject.toml.
 set_pycli_pyproject_version() {
   local new="$1"
   awk_inplace "$PYCLIPROJ" '
+    BEGIN { in_block = 0 }
+    /^\[project\]/ { in_block = 1; print; next }
+    /^\[/ { in_block = 0; print; next }
+    {
+      if (in_block && $0 ~ /^version[[:space:]]*=/) {
+        print "version = \"'"$new"'\""
+      } else {
+        print
+      }
+    }
+  '
+}
+
+# Set [project].version in src/python-mcp/pyproject.toml.
+set_pymcp_pyproject_version() {
+  local new="$1"
+  awk_inplace "$PYMCPPROJ" '
     BEGIN { in_block = 0 }
     /^\[project\]/ { in_block = 1; print; next }
     /^\[/ { in_block = 0; print; next }
@@ -362,6 +397,21 @@ read_pyproject_cli_extra_version() {
   ' "$PYPROJ"
 }
 
+read_pyproject_mcp_extra_version() {
+  awk '
+    /^\[project\.optional-dependencies\]/ { in_block = 1; next }
+    /^\[/                                 { in_block = 0 }
+    in_block && /^mcp[[:space:]]*=/ {
+      if (match($0, /fathomdb-mcp==[^"]+/)) {
+        val = substr($0, RSTART, RLENGTH)
+        sub(/^fathomdb-mcp==/, "", val)
+        print val
+      }
+      exit
+    }
+  ' "$PYPROJ"
+}
+
 read_pycli_pyproject_version() {
   awk '
     /^\[project\]/ { in_block = 1; next }
@@ -372,6 +422,18 @@ read_pycli_pyproject_version() {
       exit
     }
   ' "$PYCLIPROJ"
+}
+
+read_pymcp_pyproject_version() {
+  awk '
+    /^\[project\]/ { in_block = 1; next }
+    /^\[/          { in_block = 0 }
+    in_block && /^version[[:space:]]*=/ {
+      n = split($0, parts, "\"")
+      if (n >= 3) { print parts[2] }
+      exit
+    }
+  ' "$PYMCPPROJ"
 }
 
 read_python_runtime_version() {
@@ -485,6 +547,14 @@ _pyproject_cli_extra_line() {
   ' "$PYPROJ"
 }
 
+_pyproject_mcp_extra_line() {
+  awk '
+    $0 == "[project.optional-dependencies]" { in_block = 1; next }
+    /^\[/ && in_block { exit }
+    in_block && /^mcp[[:space:]]*=/ { print NR; exit }
+  ' "$PYPROJ"
+}
+
 _cargo_lock_package_version_line() {
   local target="$1"
   awk -v target="$target" '
@@ -509,11 +579,13 @@ _drift() {
 }
 
 check_files() {
-  local ws py py_cli_extra pycli runtime npm npm_lock_top npm_lock_root emb
+  local ws py py_cli_extra py_mcp_extra pycli pymcp runtime npm npm_lock_top npm_lock_root emb
   ws="$(read_workspace_version)"
   py="$(read_pyproject_version)"
   py_cli_extra="$(read_pyproject_cli_extra_version)"
+  py_mcp_extra="$(read_pyproject_mcp_extra_version)"
   pycli="$(read_pycli_pyproject_version)"
+  pymcp="$(read_pymcp_pyproject_version)"
   runtime="$(read_python_runtime_version)"
   npm="$(read_npm_version)"
   npm_lock_top="$(read_npm_lock_version top)"
@@ -537,8 +609,18 @@ check_files() {
     rc=1
   fi
 
+  if [ "$py_mcp_extra" != "$ws" ]; then
+    _drift "$PYPROJ" "$(_pyproject_mcp_extra_line)" "${py_mcp_extra:-<missing>}" "$ws"
+    rc=1
+  fi
+
   if [ "$pycli" != "$ws" ]; then
     _drift "$PYCLIPROJ" "$(_toml_version_line "$PYCLIPROJ" '[project]')" "${pycli:-<missing>}" "$ws"
+    rc=1
+  fi
+
+  if [ "$pymcp" != "$ws" ]; then
+    _drift "$PYMCPPROJ" "$(_toml_version_line "$PYMCPPROJ" '[project]')" "${pymcp:-<missing>}" "$ws"
     rc=1
   fi
 
@@ -696,7 +778,9 @@ case "$mode" in
     set_workspace_dep_axis_w_versions "$new"
     set_pyproject_version "$new"
     set_pyproject_cli_extra_version "$new"
+    set_pyproject_mcp_extra_version "$new"
     set_pycli_pyproject_version "$new"
+    set_pymcp_pyproject_version "$new"
     set_python_runtime_version "$new"
     set_npm_version "$new"
     set_npm_lock_versions "$new"

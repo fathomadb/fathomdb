@@ -23,7 +23,7 @@ Public contracts remain owned by `dev/interfaces/` and accepted decisions by
 
 ## Live subsystem owner map (`"class": "maintained"`)
 
-All 27 maintained design documents in [`document-lifecycle.json`](document-lifecycle.json):
+All 29 maintained design documents in [`document-lifecycle.json`](document-lifecycle.json):
 
 | Subsystem / topic | Role | Maintained owner | Scope summary |
 | --- | --- | --- | --- |
@@ -33,6 +33,8 @@ All 27 maintained design documents in [`document-lifecycle.json`](document-lifec
 | Engine (`engine`) | `design` | [`engine.md`](engine.md) | Core engine runtime, write/read paths, and v1 boundary |
 | Actuation (`actuation`) | `design` | [`actuation.md`](actuation.md) | Bounded atomic actuation semantics |
 | Lifecycle (`lifecycle-observability`) | `design` | [`lifecycle.md`](lifecycle.md) | Record lifecycle transitions and observability |
+| MCP server (`mcp-adapter-design`) | `design` | [`mcp-adapter/design.md`](mcp-adapter/design.md) | Production read+write `fathomdb-mcp` architecture, `rmcp` confinement, and 3-channel distribution |
+| MCP requirements (`mcp-adapter-requirements`) | `requirements` | [`mcp-adapter/requirements.md`](mcp-adapter/requirements.md) | `MR-###`, `SC-01`–`SC-10`, and `AC32-MCP-SAFETY-01`–`09` behavioral acceptance criteria |
 | Operational store (`op-store`) | `design` | [`op-store.md`](op-store.md) | Same-file operational state collections and mutations |
 | Migrations (`migrations`) | `design` | [`migrations.md`](migrations.md) | Schema versioning and fresh-database boundary policy |
 | Errors (`errors`) | `design` | [`errors.md`](errors.md) | Engine and SDK typed error taxonomy |

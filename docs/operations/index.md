@@ -55,6 +55,7 @@ bounded Proptest coverage; no general FFI, MC/DC or numerical line-coverage
 claim follows.
 
 See also [Reference — CLI](../reference/cli.md) for the full `doctor` /
-`recover` / `migrate` verb tables, and
+`recover` / `migrate` verb tables, [Guide — MCP Server](../guides/mcp-server.md)
+for `fathomdb-mcp` stdio lifecycle and opt-in scoped writes, and
 [Positions — recovery surface](../positions/recovery-surface.md) for why
 recovery is CLI-only while erasure is not.

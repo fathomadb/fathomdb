@@ -57,6 +57,15 @@ You can also install the CLI from crates.io via
 [CLI reference](../reference/cli.md) for offline Schema `38 -> 39` (and chained
 `37 -> 38 -> 39`) upgrades targeted in `0.8.32`.
 
+### MCP server extra (`fathomdb[mcp]`, targeted in 0.8.32, pre-publish)
+
+In the `0.8.32` documentation target, the `fathomdb-mcp` stdio server is
+packaged as a lockstep `fathomdb-mcp` binary wheel across the same five native
+targets (compiled with `--features default-embedder`) and exposed via the
+optional `mcp` extra while keeping base `fathomdb`'s `[project.scripts]`
+strictly empty. See the [MCP server guide](../guides/mcp-server.md) and
+[MCP reference](../reference/mcp.md) for configuration and write opt-in rules.
+
 ## Build from source
 
 Use a trusted `release/0.8.31` checkout and the declared Rust 1.95.0 toolchain.

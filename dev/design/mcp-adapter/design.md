@@ -1,40 +1,59 @@
 ---
-title: MCP adapter design (first release, adapter-only)
-date: 2026-10-17
-status: PROPOSED
-desc: Module structure, lifecycle implementation, rmcp usage and TDD test plan for the first fathomdb-mcp release. Contract in dev/interfaces/mcp.md; semantics in requirements.md; shape in architecture.md.
+title: MCP adapter design (production read+write, 0.8.32)
+date: 2026-11-25
+status: ACTIVE
+desc: Module structure, lifecycle implementation, rmcp confinement, opt-in scoped write safety (SC-01..SC-10, AC32-MCP-SAFETY-01..09), frozen evidence, and 3-channel distribution design for fathomdb-mcp. Contract in dev/interfaces/mcp.md; semantics in requirements.md.
 inputs:
+  - dev/adr/ADR-0.8.32-mcp-read-write-and-distribution.md
+  - dev/adr/ADR-0.8.32-caller-scope-isolation.md
   - dev/design/mcp-adapter/requirements.md
   - dev/design/mcp-adapter/architecture.md
   - dev/interfaces/mcp.md
   - src/rust/crates/fathomdb-sdk/src/{engine,read,graph,options,error}.rs
-  - src/rust/crates/fathomdb-engine/src/{telemetry,read,graph_expand/execution}.rs
+  - src/rust/crates/fathomdb-engine/src/{telemetry,read,graph_expand/execution,actuation}.rs
 ---
 
-# MCP adapter design (first release, adapter-only)
+# MCP adapter design (`fathomdb-mcp`)
 
 ## 1. Scope
 
-Builds `fathomdb-mcp` over `fathomdb-sdk` 0.8.27 with **no engine or SDK
-change** (owner decision, 2026-10-17: evaluate the MCP work first, then propose
-engine additions). In scope: every requirement in the "SDK as-is" row of
-`requirements.md` § First-release scope. Out of scope here: the "needs the state
-read" row (reported `unavailable`), and every `[engine]` item. Tool names,
-arguments, results, configuration and errors are fixed by
-`dev/interfaces/mcp.md`.
+Graduated in `0.8.32` (`dev/adr/ADR-0.8.32-mcp-read-write-and-distribution.md`)
+as FathomDB's production read+write MCP server over `fathomdb-sdk`, preserving
+`MR-070.2` (only `fathomdb-sdk` in runtime dependencies; zero `rusqlite` or
+direct `fathomdb-engine` linkage) and `rmcp = "=3.5.1"` confinement to
+`src/edge.rs` and `src/main.rs`.
 
-Corrections found while grounding this design, carried back to the
-requirements: `NodeRecord` exposes only `logical_id`, `kind`, `body` and
-`write_cursor`, and reads only active rows. So MR-013 currency is `[engine]` on
-fetch as well as on search hits, and fetch cannot report a record's lifecycle
-state. `graph.expand` accepts `max_depth ≤ 3`, `result_limit 1..=50` and
-`max_work_units 1..=10_000`.
+- **Default read-only posture (`allow_writes: false`):** Read-only profiles
+  expose the exact `7`-tool surface (`list_stores`, `use_store`, `orient`,
+  `search`, `fetch`, `expand`, `feedback`), integrating bounded exact
+  frozen-evidence retrieval via optional parameters on `search`, `expand`, and
+  `fetch`.
+- **Per-store write opt-in & `SC-01`–`SC-10`:** Write-enabled profiles expose
+  `9` tools (adding `actuate` and `put_latest_state`) only when at least one
+  store enables `allow_writes: true` with an explicit non-empty writable caller
+  `ScopePolicy`. Startup conflicts (`SC-01`–`SC-10`) fail fast before opening
+  any database or `.lock` file.
+- **Pin C SDK seams:** Uses `EP-07` (`OpenOptions.create_if_missing`, closing
+  the check-then-open race), `EP-01` (`read::visibility_state`, populating live
+  `Envelope.state`), and atomic `ActuationOperationV1::PutLatestState` inside
+  `ActuationBatchV1`.
+- **Write safety & drain fence (`AC32-MCP-SAFETY-01`–`09`):** Enforces
+  per-canonical-path write serialization, idempotent `(store, scope, operation_id)`
+  replay, CAS `expected_write_boundary`, scope-keyed continuations/sessions,
+  strict-only atomic rollback, blocking cancellation/shutdown drain fencing,
+  template-only secret-scrubbed errors, and zero operator escape hatches.
+
+Tool names, arguments, results, configuration, and errors are owned by
+`dev/interfaces/mcp.md`.
 
 ## 2. Crate and dependencies
 
-`src/rust/crates/fathomdb-mcp`, a workspace member on Axis W, `publish = false`
-until the evaluation is done. One library target (embedded use, MR-004) and one
-binary target, `fathomdb-mcp`.
+`src/rust/crates/fathomdb-mcp`, a publishable workspace member on Axis W
+(`publish = true`, `default = []` on `crates.io`). Prebuilt 5-target GitHub
+Release archives and lockstep PyPI `fathomdb-mcp` wheels (`src/python-mcp/`,
+exposed via `fathomdb[mcp]`) build with `--features default-embedder`
+(`Gate1-D5`). One library target (embedded use, MR-004) and one binary target,
+`fathomdb-mcp`.
 
 | Dependency | Version | Features | Why |
 | --- | --- | --- | --- |

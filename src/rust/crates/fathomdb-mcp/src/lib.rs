@@ -1,14 +1,16 @@
 //! # fathomdb-mcp
 //!
-//! A read-only Model Context Protocol server over `fathomdb-sdk`. The tool
-//! contract is `dev/interfaces/mcp.md`; the design is
-//! `dev/design/mcp-adapter/design.md`.
+//! A Model Context Protocol server over `fathomdb-sdk` with default read-only
+//! posture (`allow_writes: false`) and per-store opt-in governed writes bound
+//! to explicit caller `ScopePolicy`. The tool contract is `dev/interfaces/mcp.md`;
+//! the design is `dev/design/mcp-adapter/design.md`.
 //!
 //! Standalone use is the `fathomdb-mcp` binary over stdio. Embedded use
 //! (MR-004) is this library: build an [`Adapter`], register the host's open
 //! engines under names, and serve [`Adapter::connection`] over any rmcp
 //! transport.
 
+mod actuate;
 mod bridge;
 pub mod config;
 pub mod edge;
@@ -28,6 +30,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use config::Config;
+pub use config::HostedStorePolicy;
 use hooks::Hooks;
 use registry::{RegisterError, Registry};
 use tools::Shared;
@@ -35,7 +38,7 @@ use tools::Shared;
 /// Why an adapter could not be built or an engine registered.
 #[derive(Debug, thiserror::Error)]
 pub enum AdapterError {
-    /// The configuration breaks a rule of `dev/interfaces/mcp.md` §2.
+    /// The configuration breaks a rule of `dev/interfaces/mcp.md` §2 or `SC-01`–`SC-09`.
     #[error("invalid configuration: {0}")]
     InvalidConfig(#[from] config::ConfigError),
     /// [`Adapter::new`] was called outside a Tokio runtime.
@@ -44,9 +47,12 @@ pub enum AdapterError {
     /// The name breaks the store-name grammar.
     #[error("{0:?} is not a valid store name")]
     BadStoreName(String),
-    /// The name is already registered or configured.
+    /// The name is already registered as a hosted engine.
     #[error("store {0:?} is already registered")]
     DuplicateStore(String),
+    /// Embedded host policy or configured store collision (`SC-10`).
+    #[error("policy conflict: {0}")]
+    PolicyConflict(String),
 }
 
 /// The shared adapter core: configuration, store registry and idle clock.
@@ -61,7 +67,7 @@ impl Adapter {
     ///
     /// # Errors
     /// [`AdapterError::InvalidConfig`] when `config` breaks a rule of the
-    /// interface (it is re-validated here, since its fields are public), and
+    /// interface or startup conflict matrix (`SC-01`–`SC-09`), and
     /// [`AdapterError::NoRuntime`] outside a Tokio runtime.
     pub fn new(config: Config) -> Result<Adapter, AdapterError> {
         config.validate()?;
@@ -86,24 +92,46 @@ impl Adapter {
         Ok(Adapter { shared: Arc::new(Shared { config, registry, hooks }) })
     }
 
-    /// Register a host-owned open engine under `name` (MR-004). The adapter
-    /// serves it but never opens, drains or closes it, and it does not count
-    /// toward the open-store limit. Its epoch is fixed at 1. When the config
-    /// sets `telemetry_dir`, the apply-on-open list enables a sink
-    /// `<dir>/<name>.<pid>.1.jsonl` on the engine, replacing any sink the host
-    /// had enabled.
+    /// Register a host-owned open engine under `name` (MR-004) with the
+    /// default read-only [`HostedStorePolicy`].
+    ///
+    /// Delegates to [`Self::register_engine_with_policy`], validating against
+    /// `engine.config().scope_policy` and configured filesystem stores (`SC-10`).
     ///
     /// # Errors
-    /// [`AdapterError::BadStoreName`] for a name outside the grammar and
-    /// [`AdapterError::DuplicateStore`] for a name already in use.
+    /// [`AdapterError::BadStoreName`] for a name outside the grammar,
+    /// [`AdapterError::DuplicateStore`] for a hosted name already registered, and
+    /// [`AdapterError::PolicyConflict`] on a configured-store or scope-policy conflict.
     pub fn register_engine(
         &self,
         name: &str,
         engine: Arc<fathomdb_sdk::Engine>,
     ) -> Result<(), AdapterError> {
-        self.shared.registry.register_hosted(name, engine).map_err(|error| match error {
-            RegisterError::BadName => AdapterError::BadStoreName(name.to_string()),
-            RegisterError::Duplicate => AdapterError::DuplicateStore(name.to_string()),
+        self.register_engine_with_policy(name, engine, HostedStorePolicy::default())
+    }
+
+    /// Register a host-owned open engine under `name` with an explicit
+    /// [`HostedStorePolicy`] (`SC-10`).
+    ///
+    /// Validates `policy` against `engine.config().scope_policy` and configured
+    /// `stores[name]` BEFORE touching `engine` (e.g., before enabling telemetry).
+    /// A rejected call leaves `engine` untouched.
+    ///
+    /// # Errors
+    /// [`AdapterError::BadStoreName`], [`AdapterError::DuplicateStore`], or
+    /// [`AdapterError::PolicyConflict`].
+    pub fn register_engine_with_policy(
+        &self,
+        name: &str,
+        engine: Arc<fathomdb_sdk::Engine>,
+        policy: HostedStorePolicy,
+    ) -> Result<(), AdapterError> {
+        self.shared.registry.register_hosted_with_policy(name, engine, policy).map_err(|error| {
+            match error {
+                RegisterError::BadName => AdapterError::BadStoreName(name.to_string()),
+                RegisterError::Duplicate => AdapterError::DuplicateStore(name.to_string()),
+                RegisterError::PolicyConflict(reason) => AdapterError::PolicyConflict(reason),
+            }
         })
     }
 
@@ -113,10 +141,10 @@ impl Adapter {
         edge::FathomServer::new(self.shared.clone())
     }
 
-    /// Stop admitting calls, then drain and close every store the adapter
-    /// opened. Host-registered engines are left open. Waits at most
-    /// `call_deadline_ms` + 5 s: a store whose started or abandoned engine
-    /// call is still running after that is not waited for.
+    /// Stop admitting calls, then drain all active blocking calls (both
+    /// managed and hosted) and close every store the adapter opened.
+    /// Host-registered engines are left open. Waits at most
+    /// `call_deadline_ms` + 5 s.
     pub async fn shutdown(&self) {
         self.shared.registry.shutdown().await;
     }

@@ -49,7 +49,7 @@ fn relative_paths_resolve_against_the_config_directory() {
     let dir = tempfile::tempdir().unwrap();
     fs::create_dir(dir.path().join("dbs")).unwrap();
     let json = r#"{
-        "stores": {"notes": {"path": "notes.sqlite", "create": true, "eager": true},
+        "stores": {"notes": {"path": "notes.sqlite", "allow_writes": true, "scope": "alpha", "create": true, "eager": true},
                    "abs": {"path": "/var/tmp/abs.sqlite"}},
         "roots": [{"path": "dbs"}, {"path": "dbs", "suffix": ".db"}],
         "default_store": "notes",
@@ -61,8 +61,6 @@ fn relative_paths_resolve_against_the_config_directory() {
         "search_mode": "hybrid",
         "use_default_embedder": true,
         "telemetry_dir": "telemetry",
-        "write": false,
-        "scope": null,
         "max_open_stores": 1
     }"#;
     let config = parse(json, dir.path()).unwrap();
@@ -240,7 +238,17 @@ fn root_files_are_addressable_by_name_without_suffix_and_without_recursion() {
     assert_eq!(config.addressable_names(), vec!["alpha".to_string(), "beta".to_string()]);
     assert_eq!(
         config.resolve("alpha"),
-        Ok(Resolution { path: root.join("alpha.sqlite"), create: false, eager: false })
+        Ok(Resolution {
+            path: root.join("alpha.sqlite"),
+            create: false,
+            eager: false,
+            allow_writes: false,
+            scope: None,
+            allowed_kinds: None,
+            allowed_node_kinds: None,
+            allowed_edge_kinds: None,
+            allowed_collections: None,
+        })
     );
     for name in ["gamma", "delta", "dir", "link", "sub"] {
         assert_eq!(config.resolve(name), Err(NameError::Unknown), "{name}");
@@ -255,11 +263,21 @@ fn explicit_store_wins_over_a_root_name() {
     fs::create_dir(&root).unwrap();
     fs::write(root.join("alpha.sqlite"), b"").unwrap();
     let json = r#"{"roots": [{"path": "root"}],
-                   "stores": {"alpha": {"path": "elsewhere.sqlite", "create": true}}}"#;
+                   "stores": {"alpha": {"path": "elsewhere.sqlite", "allow_writes": true, "scope": "alpha", "create": true}}}"#;
     let config = parse(json, dir.path()).unwrap();
     assert_eq!(
         config.resolve("alpha"),
-        Ok(Resolution { path: dir.path().join("elsewhere.sqlite"), create: true, eager: false })
+        Ok(Resolution {
+            path: dir.path().join("elsewhere.sqlite"),
+            create: true,
+            eager: false,
+            allow_writes: true,
+            scope: Some(fathomdb_sdk::ScopePolicy::single("alpha")),
+            allowed_kinds: None,
+            allowed_node_kinds: None,
+            allowed_edge_kinds: None,
+            allowed_collections: None,
+        })
     );
     assert_eq!(config.addressable_names(), vec!["alpha".to_string()]);
 }
@@ -283,7 +301,11 @@ fn path_like_names_are_rejected_before_any_filesystem_access() {
 fn load_reads_a_file_and_resolves_relative_to_it() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("mcp.json");
-    fs::write(&path, r#"{"stores": {"n": {"path": "n.sqlite", "create": true}}}"#).unwrap();
+    fs::write(
+        &path,
+        r#"{"stores": {"n": {"path": "n.sqlite", "allow_writes": true, "scope": "alpha", "create": true}}}"#,
+    )
+    .unwrap();
     let config = Config::load(&path).unwrap();
     assert_eq!(config.stores["n"].path, dir.path().join("n.sqlite"));
     assert!(Config::load(&dir.path().join("absent.json")).is_err());
@@ -297,7 +319,11 @@ fn binary() -> Command {
 fn check_config_reports_valid_on_stderr_and_exits_zero() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("mcp.json");
-    fs::write(&path, r#"{"stores": {"n": {"path": "n.sqlite", "create": true}}}"#).unwrap();
+    fs::write(
+        &path,
+        r#"{"stores": {"n": {"path": "n.sqlite", "allow_writes": true, "scope": "alpha", "create": true}}}"#,
+    )
+    .unwrap();
     let output = binary().arg("--config").arg(&path).arg("--check-config").output().unwrap();
     assert_eq!(output.status.code(), Some(0));
     assert!(output.stdout.is_empty(), "stdout must stay empty");

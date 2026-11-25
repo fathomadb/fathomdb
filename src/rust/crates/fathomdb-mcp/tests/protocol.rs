@@ -170,14 +170,14 @@ fn stdio_carries_only_json_rpc_across_every_tool() {
     let config = fixture.config_file(json!({
         "stores": {
             "old": {"path": "old.sqlite"},
-            "fresh": {"path": "fresh.sqlite", "create": true}
+            "fresh": {"path": "fresh.sqlite", "allow_writes": true, "scope": "alpha", "create": true}
         }
     }));
     let mut server = Spawned::start(&config);
     let init = server.initialize();
     assert_eq!(init["result"]["serverInfo"]["name"], "fathomdb-mcp");
     let tools = server.request("tools/list", json!({}));
-    assert_eq!(tools["result"]["tools"].as_array().unwrap().len(), 7);
+    assert_eq!(tools["result"]["tools"].as_array().unwrap().len(), 9);
 
     // MR-001.1: both the fresh and the existing store are usable.
     let fresh = server.call("orient", json!({"store": "fresh"}));

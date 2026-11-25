@@ -8,6 +8,8 @@ repository.workspace = true
 rust-version.workspace = true
 # Evaluation build; not published until the MCP evaluation is done.
 publish = false
+autoexamples = false
+exclude = ["examples/locomo_load.rs", "examples/locomo_eval"]
 
 [lib]
 path = "src/lib.rs"
@@ -39,17 +41,9 @@ embed-cuda = ["default-embedder", "fathomdb-sdk/embed-cuda"]
 # (MR-003.1, MR-033.1, MR-002.2). No engine hook is involved.
 test-seams = []
 
-# Evaluation tools (dev/experiments/mcp-hybrid-vs-keyword/); not part of the
-# library. `test = true` runs the evaluator's metric unit tests under
-# `cargo test -p fathomdb-mcp`.
 [[example]]
-name = "locomo_load"
-path = "examples/locomo_load.rs"
-
-[[example]]
-name = "locomo_eval"
-path = "examples/locomo_eval/main.rs"
-test = true
+name = "ac013_mcp"
+path = "examples/ac013_mcp.rs"
 
 [[example]]
 name = "slice30_m_helper"

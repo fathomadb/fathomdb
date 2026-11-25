@@ -12,13 +12,84 @@ use std::sync::atomic::{AtomicU8, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, Weak};
 use std::time::{Duration, Instant};
 
-use fathomdb_sdk::{read, Engine, OpenOptions};
+use fathomdb_sdk::{read, Engine, OpenOptions, ScopePolicy};
 use tokio::sync::{watch, Notify, OwnedSemaphorePermit, Semaphore};
 
-use crate::config::Config;
+use crate::config::{canonical_scope_key, validate_hosted_policy, Config, HostedStorePolicy};
 use crate::error::{Busy, BusyReason, ToolError};
 use crate::hooks::Hooks;
 use crate::names::{validate_store_name, NameError};
+
+/// Resolved runtime policy for one store slot (managed or hosted).
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub(crate) struct StorePolicy {
+    pub(crate) allow_writes: bool,
+    pub(crate) scope: ScopePolicy,
+    pub(crate) scope_key: String,
+    pub(crate) allowed_kinds: Option<BTreeSet<String>>,
+    pub(crate) allowed_node_kinds: Option<BTreeSet<String>>,
+    pub(crate) allowed_edge_kinds: Option<BTreeSet<String>>,
+    pub(crate) allowed_collections: Option<BTreeSet<String>>,
+}
+
+impl StorePolicy {
+    fn from_parts(
+        allow_writes: bool,
+        scope: ScopePolicy,
+        allowed_kinds: Option<Vec<String>>,
+        allowed_node_kinds: Option<Vec<String>>,
+        allowed_edge_kinds: Option<Vec<String>>,
+        allowed_collections: Option<Vec<String>>,
+    ) -> Self {
+        let scope_key = canonical_scope_key(Some(&scope));
+        Self {
+            allow_writes,
+            scope,
+            scope_key,
+            allowed_kinds: allowed_kinds.map(|v| v.into_iter().collect()),
+            allowed_node_kinds: allowed_node_kinds.map(|v| v.into_iter().collect()),
+            allowed_edge_kinds: allowed_edge_kinds.map(|v| v.into_iter().collect()),
+            allowed_collections: allowed_collections.map(|v| v.into_iter().collect()),
+        }
+    }
+
+    pub(crate) fn check_node_kind(&self, kind: &str) -> Result<(), ToolError> {
+        if let Some(allowed) = &self.allowed_kinds {
+            if !allowed.contains(kind) {
+                return Err(ToolError::kind_not_allowed());
+            }
+        }
+        if let Some(allowed) = &self.allowed_node_kinds {
+            if !allowed.contains(kind) {
+                return Err(ToolError::kind_not_allowed());
+            }
+        }
+        Ok(())
+    }
+
+    pub(crate) fn check_edge_kind(&self, kind: &str) -> Result<(), ToolError> {
+        if let Some(allowed) = &self.allowed_kinds {
+            if !allowed.contains(kind) {
+                return Err(ToolError::kind_not_allowed());
+            }
+        }
+        if let Some(allowed) = &self.allowed_edge_kinds {
+            if !allowed.contains(kind) {
+                return Err(ToolError::kind_not_allowed());
+            }
+        }
+        Ok(())
+    }
+
+    pub(crate) fn check_collection(&self, collection: &str) -> Result<(), ToolError> {
+        if let Some(allowed) = &self.allowed_collections {
+            if !allowed.contains(collection) {
+                return Err(ToolError::kind_not_allowed());
+            }
+        }
+        Ok(())
+    }
+}
 
 /// Store lifecycle phase.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -91,6 +162,7 @@ enum Source {
 
 struct Slot {
     source: Source,
+    policy: Arc<StorePolicy>,
     phase: Phase,
     epoch: u64,
     attempt: u64,
@@ -103,9 +175,10 @@ struct Slot {
 }
 
 impl Slot {
-    fn new(source: Source, cap: usize) -> Self {
+    fn new(source: Source, policy: StorePolicy, cap: usize) -> Self {
         Self {
             source,
+            policy: Arc::new(policy),
             phase: Phase::Closed,
             epoch: 0,
             attempt: 0,
@@ -134,8 +207,8 @@ impl Slot {
     }
 }
 
-/// Admission state of one store. Kept across reopens, so waiters survive a
-/// drain.
+/// Admission state of one store. Kept across reopens, so waiters and
+/// per-store write serialization survive a drain.
 struct Load {
     cap: usize,
     /// `admission_cap` permits, handed out in request order.
@@ -144,7 +217,11 @@ struct Load {
     queued: AtomicUsize,
     /// Abandoned calls whose engine work still holds a permit.
     abandoned: AtomicUsize,
-    /// Fires when the last permit is returned.
+    /// Active blocking SDK closures currently executing on blocking threads.
+    active_blocking: AtomicUsize,
+    /// Serializes mutating calls (`actuate`, `put_latest_state`) per canonical store (`AC32-MCP-SAFETY-01`).
+    write_lock: Arc<tokio::sync::Mutex<()>>,
+    /// Fires when the last permit and blocking closure return.
     idle: Notify,
 }
 
@@ -155,6 +232,8 @@ impl Load {
             permits: Arc::new(Semaphore::new(cap)),
             queued: AtomicUsize::new(0),
             abandoned: AtomicUsize::new(0),
+            active_blocking: AtomicUsize::new(0),
+            write_lock: Arc::new(tokio::sync::Mutex::new(())),
             idle: Notify::new(),
         }
     }
@@ -165,9 +244,15 @@ impl Load {
         self.cap - self.permits.available_permits()
     }
 
-    /// Calls holding or waiting for a permit.
+    fn is_idle(&self) -> bool {
+        self.in_flight() == 0 && self.active_blocking.load(Ordering::SeqCst) == 0
+    }
+
+    /// Calls holding or waiting for a permit or running on a blocking thread.
     fn busy_calls(&self) -> usize {
-        self.in_flight() + self.queued.load(Ordering::SeqCst)
+        self.in_flight()
+            + self.queued.load(Ordering::SeqCst)
+            + self.active_blocking.load(Ordering::SeqCst)
     }
 
     fn busy(&self, reason: BusyReason) -> Busy {
@@ -194,7 +279,21 @@ struct Permit {
 impl Drop for Permit {
     fn drop(&mut self) {
         drop(self.permit.take());
-        if self.load.in_flight() == 0 {
+        if self.load.is_idle() {
+            self.load.idle.notify_waiters();
+        }
+    }
+}
+
+/// RAII guard for one active `spawn_blocking` SDK closure (`AC32-MCP-SAFETY-06`).
+pub(crate) struct BlockingGuard {
+    load: Arc<Load>,
+}
+
+impl Drop for BlockingGuard {
+    fn drop(&mut self) {
+        self.load.active_blocking.fetch_sub(1, Ordering::SeqCst);
+        if self.load.is_idle() {
             self.load.idle.notify_waiters();
         }
     }
@@ -265,6 +364,7 @@ pub(crate) struct StoreGuard {
     pub(crate) epoch: u64,
     pub(crate) engine: Arc<Engine>,
     pub(crate) info: Arc<OpenInfo>,
+    pub(crate) policy: Arc<StorePolicy>,
     last_used: LastUsed,
     /// When the permit was acquired.
     started: Instant,
@@ -300,6 +400,12 @@ impl StoreGuard {
     /// into the blocking closure.
     pub(crate) fn abandoner(&self) -> Abandoner {
         Abandoner { run: self.run.clone(), load: self.permit.load.clone() }
+    }
+
+    /// Enter the blocking SDK drain fence for this call (`AC32-MCP-SAFETY-06`).
+    pub(crate) fn enter_blocking(&self) -> BlockingGuard {
+        self.permit.load.active_blocking.fetch_add(1, Ordering::SeqCst);
+        BlockingGuard { load: self.permit.load.clone() }
     }
 }
 
@@ -349,6 +455,7 @@ enum Waited {
 pub(crate) enum RegisterError {
     BadName,
     Duplicate,
+    PolicyConflict(String),
 }
 
 pub(crate) struct Registry {
@@ -385,24 +492,42 @@ impl Registry {
         self.me.upgrade().expect("registry is alive while its methods run")
     }
 
-    /// Register a host-owned engine under `name` (MR-004). The registry never
-    /// opens, drains or closes it.
-    pub(crate) fn register_hosted(
+    /// Register a host-owned engine under `name` (MR-004, `SC-10`). The registry
+    /// validates `policy` against `engine.config().scope_policy` and configured
+    /// `stores[name]` before touching `engine`. The registry never opens, drains
+    /// or closes hosted engines.
+    pub(crate) fn register_hosted_with_policy(
         &self,
         name: &str,
         engine: Arc<Engine>,
+        policy: HostedStorePolicy,
     ) -> Result<(), RegisterError> {
         validate_store_name(name).map_err(|_| RegisterError::BadName)?;
+        if self.config.stores.contains_key(name) {
+            return Err(RegisterError::PolicyConflict(format!(
+                "store {name:?} collides with configured filesystem stores[{name:?}]"
+            )));
+        }
+        let validated_scope = validate_hosted_policy(name, &policy, &engine.config().scope_policy)
+            .map_err(RegisterError::PolicyConflict)?;
+        let store_policy = StorePolicy::from_parts(
+            policy.allow_writes,
+            validated_scope,
+            policy.allowed_kinds,
+            policy.allowed_node_kinds,
+            policy.allowed_edge_kinds,
+            policy.allowed_collections,
+        );
         // Reserve the name before touching the engine, so a rejected
         // duplicate never re-runs apply-on-open (which would restart the
         // engine's telemetry sequence). The list itself runs outside the
         // mutex because it does file I/O.
         {
             let mut inner = self.lock();
-            if inner.slots.contains_key(name) || self.config.stores.contains_key(name) {
+            if inner.slots.contains_key(name) {
                 return Err(RegisterError::Duplicate);
             }
-            let mut slot = Slot::new(Source::Hosted, self.cap());
+            let mut slot = Slot::new(Source::Hosted, store_policy, self.cap());
             slot.phase = Phase::Opening;
             inner.slots.insert(name.to_string(), slot);
         }
@@ -416,6 +541,30 @@ impl Registry {
         slot.info = Some(Arc::new(info));
         slot.bump();
         Ok(())
+    }
+
+    /// Whether any configured or hosted store enables writes.
+    pub(crate) fn writes_enabled(&self) -> bool {
+        if self.config.any_writes_enabled() {
+            return true;
+        }
+        self.lock().slots.values().any(|slot| slot.policy.allow_writes)
+    }
+
+    /// Return the resolved policy for `name` without opening the store.
+    pub(crate) fn store_policy(&self, name: &str) -> Result<Arc<StorePolicy>, ToolError> {
+        self.ensure_slot(name)?;
+        let inner = self.lock();
+        let slot = inner.slots.get(name).expect("slot exists after ensure_slot");
+        Ok(slot.policy.clone())
+    }
+
+    /// Return the per-store write-serialization mutex without opening the store.
+    pub(crate) fn write_lock(&self, name: &str) -> Result<Arc<tokio::sync::Mutex<()>>, ToolError> {
+        self.ensure_slot(name)?;
+        let inner = self.lock();
+        let slot = inner.slots.get(name).expect("slot exists after ensure_slot");
+        Ok(slot.load.write_lock.clone())
     }
 
     /// Validate that `name` is addressable, creating its slot on first use.
@@ -432,8 +581,17 @@ impl Registry {
                 let mut inner = self.lock();
                 let cap = self.cap();
                 inner.slots.entry(name.to_string()).or_insert_with(|| {
+                    let policy = StorePolicy::from_parts(
+                        resolution.allow_writes,
+                        resolution.scope.unwrap_or_default(),
+                        resolution.allowed_kinds,
+                        resolution.allowed_node_kinds,
+                        resolution.allowed_edge_kinds,
+                        resolution.allowed_collections,
+                    );
                     Slot::new(
                         Source::Managed { path: resolution.path, create: resolution.create },
+                        policy,
                         cap,
                     )
                 });
@@ -754,6 +912,7 @@ impl Registry {
             epoch: slot.epoch,
             engine: slot.engine.clone().expect("ready slots hold an engine"),
             info: slot.info.clone().expect("ready slots hold open info"),
+            policy: slot.policy.clone(),
             last_used: slot.last_used.clone(),
             started,
             run: Arc::new(AtomicU8::new(RUNNING)),
@@ -806,6 +965,7 @@ impl Registry {
             unreachable!("hosted slots are always ready");
         };
         let (path, create) = (path.clone(), *create);
+        let scope = slot.policy.scope.clone();
         slot.phase = if slot.epoch > 0 { Phase::Reopening } else { Phase::Opening };
         slot.attempt += 1;
         slot.bump();
@@ -830,7 +990,7 @@ impl Registry {
             let hooks = registry.hooks.clone();
             let task_name = name.clone();
             let opened = tokio::task::spawn_blocking(move || {
-                open_store(&task_name, &path, create, next_epoch, &config, &hooks)
+                open_store(&task_name, &path, create, scope, next_epoch, &config, &hooks)
             })
             .await
             .unwrap_or_else(|_| Err(ToolError::panic()));
@@ -963,14 +1123,25 @@ impl Registry {
         }
     }
 
-    /// Stop admitting calls and drain every adapter-opened store. Host
-    /// engines are left to their host.
+    /// Stop admitting calls, drain every active blocking call (managed and
+    /// hosted), and close every adapter-opened store (`AC32-MCP-SAFETY-06`).
+    /// Host engines are left open for their host.
     pub(crate) async fn shutdown(&self) {
         let started = Instant::now();
+        let bound = Duration::from_millis(self.config.call_deadline_ms) + SHUTDOWN_MARGIN;
         loop {
+            enum Pending {
+                Managed(watch::Receiver<u64>),
+                Hosted(Arc<Load>),
+            }
             let pending = {
                 let mut inner = self.lock();
-                inner.shutting_down = true;
+                if !inner.shutting_down {
+                    inner.shutting_down = true;
+                    for slot in inner.slots.values() {
+                        slot.bump();
+                    }
+                }
                 let ready: Vec<String> = inner
                     .slots
                     .iter()
@@ -980,19 +1151,31 @@ impl Registry {
                 for name in ready {
                     self.start_drain_locked(&mut inner, &name);
                 }
-                inner
-                    .slots
-                    .values()
-                    .find(|slot| slot.managed() && slot.phase != Phase::Closed)
-                    .map(|slot| slot.changed.subscribe())
+                if let Some(slot) =
+                    inner.slots.values().find(|slot| slot.managed() && slot.phase != Phase::Closed)
+                {
+                    Some(Pending::Managed(slot.changed.subscribe()))
+                } else {
+                    inner
+                        .slots
+                        .values()
+                        .find(|slot| !slot.managed() && !slot.load.is_idle())
+                        .map(|slot| Pending::Hosted(slot.load.clone()))
+                }
             };
-            let Some(mut changed) = pending else { return };
-            let bound = Duration::from_millis(self.config.call_deadline_ms) + SHUTDOWN_MARGIN;
+            let Some(pending) = pending else { return };
             let Some(remaining) = bound.checked_sub(started.elapsed()) else {
                 tracing::warn!("shutdown: stores still busy after the bound; exiting anyway");
                 return;
             };
-            let _ = tokio::time::timeout(remaining, changed.changed()).await;
+            match pending {
+                Pending::Managed(mut changed) => {
+                    let _ = tokio::time::timeout(remaining, changed.changed()).await;
+                }
+                Pending::Hosted(load) => {
+                    let _ = tokio::time::timeout(remaining, wait_idle(&load)).await;
+                }
+            }
         }
     }
 }
@@ -1002,7 +1185,7 @@ async fn wait_idle(load: &Load) {
         let notified = load.idle.notified();
         tokio::pin!(notified);
         notified.as_mut().enable();
-        if load.in_flight() == 0 {
+        if load.is_idle() {
             return;
         }
         notified.await;
@@ -1013,28 +1196,24 @@ fn open_store(
     name: &str,
     path: &Path,
     create: bool,
+    scope: ScopePolicy,
     epoch: u64,
     config: &Config,
     hooks: &Hooks,
 ) -> Result<(Arc<Engine>, OpenInfo), ToolError> {
     hooks.before_open(name);
-    // `Engine::open` creates a missing file, so `create: false` is enforced
-    // here. The check-then-open race is accepted: the directory is
-    // operator-controlled.
-    if !create && !path.try_exists().unwrap_or(false) {
-        let error = ToolError::missing_file(name);
-        tracing::warn!(store = %name, class = "unavailable", code = %error.code, "store open failed");
-        return Err(error);
-    }
-    let options =
-        OpenOptions { use_default_embedder: config.use_default_embedder, ..OpenOptions::default() };
+    // EP-07: atomic lock-before-embedder `create_if_missing` enforced inside
+    // `fathomdb-engine` (`DatabaseNotFound` -> `unavailable/missing_file`).
+    let mut options =
+        OpenOptions::default().with_create_if_missing(create).with_scope_policy(scope);
+    options.use_default_embedder = config.use_default_embedder;
     let engine = Engine::open(path, options).map_err(|error| {
         let mapped = ToolError::from_open(name, &error);
         tracing::warn!(
             store = %name,
             class = "unavailable",
             code = %mapped.code,
-            error = %error,
+            detail = error.kind().name(),
             "store open failed"
         );
         mapped

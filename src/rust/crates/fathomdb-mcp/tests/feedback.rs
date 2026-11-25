@@ -158,8 +158,14 @@ async fn feedback_preserves_an_earlier_response_after_same_ref_revision() {
         assert_eq!(labels[index]["query_id"], events[index]["query_id"], "response {index} query");
     }
     assert_ne!(old["response_id"], new["response_id"]);
-    let repeated = harness.ok("search", args).await;
-    assert_eq!(new, repeated, "identical state and inputs preserve deterministic output");
+    assert_eq!(new["state"]["drift"], "canonical", "first read after external write notes drift");
+    let repeated = harness.ok("search", args.clone()).await;
+    assert_eq!(repeated["state"]["drift"], "unchanged");
+    let mut new_steady = new.clone();
+    new_steady["state"]["drift"] = json!("unchanged");
+    assert_eq!(new_steady, repeated, "identical state and inputs preserve deterministic output");
+    let repeated_again = harness.ok("search", args).await;
+    assert_eq!(repeated, repeated_again, "steady-state repeated calls are byte-identical");
     harness.shutdown().await;
     engine.close().unwrap();
 }

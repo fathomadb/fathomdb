@@ -45,6 +45,52 @@ pub struct Budget {
     pub cut: bool,
 }
 
+/// The literal `"available"` for live `EP-01` visibility state.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum StateStatusWord {
+    Available,
+}
+
+/// Content-free drift classification relative to the previous observation in
+/// the same session (`EP-01`).
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum DriftLabel {
+    Unchanged,
+    Canonical,
+    Index,
+}
+
+/// Live content-free store visibility state (`EP-01`).
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, JsonSchema)]
+pub struct StoreStateOut {
+    pub status: StateStatusWord,
+    pub database_id: String,
+    pub generation: u64,
+    pub nonce: String,
+    pub canonical_write_boundary: u64,
+    pub projection_cursor: u64,
+    pub drift: DriftLabel,
+}
+
+impl StoreStateOut {
+    pub(crate) fn from_visibility(
+        state: &fathomdb_sdk::VisibilityStateV1,
+        drift: DriftLabel,
+    ) -> Self {
+        Self {
+            status: StateStatusWord::Available,
+            database_id: state.database_id.clone(),
+            generation: state.generation,
+            nonce: state.nonce.clone(),
+            canonical_write_boundary: state.canonical_write_boundary,
+            projection_cursor: state.projection_cursor,
+            drift,
+        }
+    }
+}
+
 /// Fields present on every store-bound result (interface §3).
 #[derive(Clone, Debug, Serialize, JsonSchema)]
 pub struct Envelope {
@@ -53,7 +99,7 @@ pub struct Envelope {
     /// Epoch seconds the read was answered at; the only time-derived field.
     pub validity_instant: i64,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub state: Option<Unavailable>,
+    pub state: Option<StoreStateOut>,
     pub degradation: Vec<Degradation>,
     pub budget: Budget,
 }
@@ -120,6 +166,7 @@ pub struct UseStoreOutput {
 
 #[derive(Clone, Debug, Serialize, JsonSchema)]
 pub struct ProjectionRow {
+    pub entity_class: String,
     pub name: String,
     pub roles: Vec<String>,
     pub fts: bool,
@@ -128,6 +175,7 @@ pub struct ProjectionRow {
 
 #[derive(Clone, Debug, Serialize, JsonSchema)]
 pub struct ProjectionDenseRow {
+    pub entity_class: String,
     pub name: String,
     pub dense_readiness: String,
 }
@@ -296,7 +344,7 @@ pub struct OrientOutput {
     pub kinds: Unavailable,
     pub counts: Unavailable,
     /// Capabilities omitted until they have meaningful supported values.
-    pub not_in_this_release: [&'static str; 4],
+    pub not_in_this_release: [&'static str; 3],
 }
 
 /// Search completeness (MR-030). `partial`: fewer results than the limit
@@ -351,6 +399,12 @@ pub struct Hit {
     pub arm: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ce_score: Option<f64>,
+    /// Opaque search evidence reference (present when frozen search is requested).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub evidence_ref: Option<String>,
+    /// Immutable artifact revision id (present when frozen search is requested).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub artifact_revision_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize, JsonSchema)]
@@ -637,6 +691,10 @@ pub struct SearchOutput {
     /// pages.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub continuation_exact: Option<bool>,
+    /// Opaque session handle for the frozen read context (present when `freeze: true`
+    /// or `frozen_context` is supplied).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub frozen_context: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub explanation: Option<ExplanationOut>,
     /// Suggested next calls; absent when there are none or hints are off.
@@ -649,6 +707,22 @@ pub struct RecordOut {
     pub kind: String,
     pub body: String,
     pub body_cut: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub artifact_revision_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_version_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_revision_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub evidence_text: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub canonical_source_hash: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub artifact_class: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_lifecycle_state: Option<String>,
 }
 
 /// One `fetch` item: a record or a per-item error (MR-052).
@@ -687,6 +761,14 @@ pub struct Target {
     pub terminal_edge_kind: String,
     pub body: String,
     pub body_cut: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub artifact_revision_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub graph_evidence_ref: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub terminal_edge_artifact_revision_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub terminal_edge_evidence_ref: Option<String>,
 }
 
 /// `expand` result. `bound` names the cap that was reached, or is null.
@@ -697,6 +779,8 @@ pub struct ExpandOutput {
     pub targets: Vec<Target>,
     pub complete: bool,
     pub bound: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub frozen_context: Option<String>,
     /// Suggested next calls; absent when there are none or hints are off.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub hints: Vec<Hint>,
@@ -726,6 +810,22 @@ pub struct FeedbackOutput {
     pub status: FeedbackStatus,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reason: Option<NotRecordedReason>,
+}
+
+/// `actuate` and `put_latest_state` result.
+#[derive(Clone, Debug, Serialize, JsonSchema)]
+pub struct ActuateOutput {
+    #[serde(flatten)]
+    pub envelope: Envelope,
+    pub operation_id: String,
+    pub request_sha256: String,
+    pub outcome: String,
+    pub affected_revision_ids: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub resulting_write_boundary: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub resulting_dependency_generation: Option<u64>,
+    pub pending_projection_write_cursors: Vec<u64>,
 }
 
 /// A tool's structured content: its result, or a tool error. Only its schema

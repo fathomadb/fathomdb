@@ -7,11 +7,14 @@ use std::sync::Arc;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 use fathomdb_sdk::{
-    graph, read, ArmDegradation, Explanation, GraphExpandRequestV1,
+    graph, read, snippet_for, ArmDegradation, EvidenceErrorReasonV1, EvidenceRefV1,
+    EvidenceResolveManyItemV1, EvidenceResolveManyRequestV1, EvidenceSearchRequestV1,
+    EvidenceSidecarEntryV1, Explanation, FrozenReadContextV1, GraphEvidenceArtifactV1,
+    GraphEvidenceRefV1, GraphEvidenceResolveRequestV1, GraphExpandRequestV1,
     GraphExpansionDegradationCodeV1, GraphReadContextV1, GraphSeedV1, IdSpace, IdSpaceKind,
     PerHitExplain, ReadContextV1, ReadView, SearchFilter, SearchFilterArg, SearchHit,
     SearchOptions, SearchResult, SnippetOptions, SnippetV1, SoftFallbackBranch, TextSearchOptions,
-    TraversalDirection,
+    TraversalDirection, VisibilityStateV1,
 };
 use schemars::JsonSchema;
 use serde::de::DeserializeOwned;
@@ -27,11 +30,13 @@ use crate::output::{
     Budget, CoverageOut, Degradation, EmbeddingReadinessOut, Envelope, ExpandOutput,
     ExplanationOut, FeedbackOutput, FeedbackStatus, FetchItem, FetchOutput, Hit, ListStoresOutput,
     ModeWord, NotRecordedReason, OrientOutput, PerHitOut, ProjectionDenseRow, ProjectionRow,
-    ProjectionStatusOut, Readiness, RecordOut, SearchOutput, StoreRow, Target, TraceOut,
-    Unavailable, UnavailableWord, UseStoreOutput,
+    ProjectionStatusOut, Readiness, RecordOut, SearchOutput, StoreRow, StoreStateOut, Target,
+    TraceOut, Unavailable, UnavailableWord, UseStoreOutput,
 };
 use crate::registry::{Admission, Cancel, ProgressFn, Registry, StoreGuard};
-use crate::session::{fold_response_refs, Continuation, ResponseContext, ResponseLookup, Session};
+use crate::session::{
+    fold_response_refs, Continuation, FrozenEntry, ResponseContext, ResponseLookup, Session,
+};
 use crate::shape::{self, CanonicalSearch};
 
 /// The engine's ranked-result cap (`MAX_RANKED_LIMIT`).
@@ -163,6 +168,10 @@ pub struct SearchArgs {
     /// Add per-hit `highlights`, byte ranges into `snippet` of the matched
     /// words; default false.
     pub highlights: Option<bool>,
+    /// Mint a scoped `FrozenReadContextV1` and attach exact per-hit `evidence_ref`s.
+    pub freeze: Option<bool>,
+    /// Reuse a previously minted `frozen_context` handle for exact frozen search.
+    pub frozen_context: Option<String>,
 }
 
 /// `fetch` arguments.
@@ -171,7 +180,8 @@ pub struct SearchArgs {
 pub struct FetchArgs {
     /// Store name; defaults to the session default store.
     pub store: Option<String>,
-    /// 1..=50 references (`l:<logical id>`).
+    /// 1..=50 references (`l:<logical id>`). Omit when resolving `evidence_refs` or `graph_evidence_refs`.
+    #[serde(default)]
     #[schemars(length(min = 1, max = 50))]
     pub refs: Vec<String>,
     /// Validity instant, epoch seconds; defaults to now.
@@ -180,6 +190,14 @@ pub struct FetchArgs {
     pub include_superseded: Option<bool>,
     /// Include records in a non-active lifecycle state.
     pub include_inactive: Option<bool>,
+    /// Opaque `frozen_context` handle required when resolving `evidence_refs` or `graph_evidence_refs`.
+    pub frozen_context: Option<String>,
+    /// 1..=50 opaque search `evidence_ref` tokens to resolve under `frozen_context`.
+    #[schemars(length(min = 1, max = 50))]
+    pub evidence_refs: Option<Vec<String>>,
+    /// 1..=50 opaque graph `graph_evidence_ref` tokens to resolve under `frozen_context`.
+    #[schemars(length(min = 1, max = 50))]
+    pub graph_evidence_refs: Option<Vec<String>>,
     /// Response budget in estimated tokens (bytes / 4), at least 256.
     #[schemars(range(min = 256))]
     pub max_tokens: Option<u64>,
@@ -220,6 +238,10 @@ pub struct ExpandArgs {
     pub target_kinds: Option<Vec<String>>,
     /// Validity instant, epoch seconds; defaults to now.
     pub as_of: Option<i64>,
+    /// Reuse a previously minted `frozen_context` handle for frozen graph expansion.
+    pub frozen_context: Option<String>,
+    /// Attach exact `graph_evidence_ref` and `terminal_edge_evidence_ref` handles per target.
+    pub include_evidence_refs: Option<bool>,
     /// Response budget in estimated tokens (bytes / 4), at least 256.
     #[schemars(range(min = 256))]
     pub max_tokens: Option<u64>,
@@ -256,19 +278,19 @@ where
 
 fn parse<T: DeserializeOwned>(arguments: Map<String, Value>) -> Result<T, ToolError> {
     serde_json::from_value(Value::Object(arguments))
-        .map_err(|error| ToolError::bad_argument(format!("invalid arguments: {error}")))
+        .map_err(|_| ToolError::bad_argument("invalid tool arguments"))
 }
 
 // ------------------------------------------------------------------ helpers
 
-fn now_secs() -> i64 {
+pub(crate) fn now_secs() -> i64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|elapsed| i64::try_from(elapsed.as_secs()).unwrap_or(i64::MAX))
         .unwrap_or(0)
 }
 
-fn resolve_store(ctx: &Ctx<'_>, store: Option<&str>) -> Result<String, ToolError> {
+pub(crate) fn resolve_store(ctx: &Ctx<'_>, store: Option<&str>) -> Result<String, ToolError> {
     match store {
         Some(store) => Ok(store.to_string()),
         None => ctx.session.default_store().ok_or_else(ToolError::no_store),
@@ -285,16 +307,20 @@ fn max_tokens(ctx: &Ctx<'_>, given: Option<u64>) -> Result<u32, ToolError> {
 
 impl Ctx<'_> {
     /// The wait deadline, from arrival (`call_deadline_ms`).
-    fn deadline(&self) -> Instant {
+    pub(crate) fn deadline(&self) -> Instant {
         Instant::now() + std::time::Duration::from_millis(self.shared.config.call_deadline_ms)
     }
 
     /// The bound on a started call, from its permit (`run_limit_ms`).
-    fn run_limit(&self) -> std::time::Duration {
+    pub(crate) fn run_limit(&self) -> std::time::Duration {
         std::time::Duration::from_millis(self.shared.config.run_limit_ms)
     }
 
-    async fn acquire(&self, store: &str, deadline: Instant) -> Result<StoreGuard, ToolError> {
+    pub(crate) async fn acquire(
+        &self,
+        store: &str,
+        deadline: Instant,
+    ) -> Result<StoreGuard, ToolError> {
         // Every call waits for an open in progress, and for an admission
         // permit, up to its deadline; only calls with a progress token are
         // sent progress notifications.
@@ -324,10 +350,11 @@ impl Ctx<'_> {
     }
 }
 
-fn envelope(
+pub(crate) fn envelope(
     answered_store: &str,
     epoch: u64,
     validity_instant: i64,
+    state: Option<StoreStateOut>,
     degradation: Vec<Degradation>,
     max_tokens: u32,
 ) -> Envelope {
@@ -335,9 +362,27 @@ fn envelope(
         store: answered_store.to_string(),
         epoch,
         validity_instant,
-        state: None,
+        state,
         degradation,
         budget: Budget { max_tokens, used_tokens: 0, cut: false },
+    }
+}
+
+fn state_for(
+    ctx: &Ctx<'_>,
+    answered: &Answered,
+    visibility: &VisibilityStateV1,
+) -> Option<StoreStateOut> {
+    let drift = ctx.session.observe_state(&answered.store, &answered.policy.scope_key, visibility);
+    Some(StoreStateOut::from_visibility(visibility, drift))
+}
+
+fn append_state_header(text: &mut String, state: Option<&StoreStateOut>) {
+    if let Some(state) = state {
+        text.push_str(&format!(
+            " state={}",
+            serde_json::to_string(state).expect("state serializes")
+        ));
     }
 }
 
@@ -361,7 +406,12 @@ fn counted_text(text: &str, max_tokens: u32, cut: bool) -> String {
     panic!("text budget count did not converge within four renders");
 }
 
-fn finish(output: &impl Serialize, text: String, max_tokens: u32, cut: bool) -> (Rendered, u64) {
+pub(crate) fn finish(
+    output: &impl Serialize,
+    text: String,
+    max_tokens: u32,
+    cut: bool,
+) -> (Rendered, u64) {
     let text = counted_text(&text, max_tokens, cut);
     let mut value = serde_json::to_value(output).expect("tool outputs serialize");
     let object = value.as_object_mut().expect("tool output is an object");
@@ -502,6 +552,7 @@ pub(crate) async fn use_store(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> O
 }
 
 struct OrientRead {
+    visibility: VisibilityStateV1,
     vector_coverage: CoverageOut,
     projections: Vec<ProjectionRow>,
     status: ProjectionStatusOut,
@@ -510,14 +561,18 @@ struct OrientRead {
 
 fn render_orient(output: &OrientOutput) -> String {
     let mut text = format!(
-        "orient store={} epoch={} validity_instant={} tokens={}/{}{}",
+        "orient store={} epoch={} validity_instant={}",
         shape::quote(&output.envelope.store),
         output.envelope.epoch,
         output.envelope.validity_instant,
+    );
+    append_state_header(&mut text, output.envelope.state.as_ref());
+    text.push_str(&format!(
+        " tokens={}/{}{}",
         output.envelope.budget.used_tokens,
         output.envelope.budget.max_tokens,
         if output.envelope.budget.cut { " cut" } else { "" }
-    );
+    ));
     text.push_str(&format!(
         "\nnot_in_this_release={}",
         serde_json::to_string(&output.not_in_this_release).expect("closed words serialize")
@@ -526,11 +581,13 @@ fn render_orient(output: &OrientOutput) -> String {
         text.push_str(&format!("\ndegraded: {} {}", entry.arm, entry.reason));
     }
     for projection in &output.projections {
-        let dense =
-            output.projection_status.projections.iter().find(|entry| entry.name == projection.name);
+        let dense = output.projection_status.projections.iter().find(|entry| {
+            entry.entity_class == projection.entity_class && entry.name == projection.name
+        });
         text.push_str(&format!(
-            "\nprojection {} roles={} fts={} vector={}",
+            "\nprojection {} class={} roles={} fts={} vector={}",
             shape::quote(&projection.name),
+            projection.entity_class,
             projection.roles.join(","),
             projection.fts,
             projection.vector
@@ -541,10 +598,13 @@ fn render_orient(output: &OrientOutput) -> String {
     }
     // Status rows remain explicit if a hosted registry changes between reads.
     for status in &output.projection_status.projections {
-        if !output.projections.iter().any(|projection| projection.name == status.name) {
+        if !output.projections.iter().any(|projection| {
+            projection.entity_class == status.entity_class && projection.name == status.name
+        }) {
             text.push_str(&format!(
-                "\nprojection {} dense={}",
+                "\nprojection {} class={} dense={}",
                 shape::quote(&status.name),
+                status.entity_class,
                 status.dense_readiness
             ));
         }
@@ -577,19 +637,36 @@ pub(crate) async fn orient(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
     let validity_instant = now_secs();
     let (answered, read) = ctx
         .run(&store, |engine| {
+            let visibility = read::visibility_state(engine)?;
             let mut projections: Vec<ProjectionRow> = read::projections(engine)?
                 .into_iter()
                 .map(|spec| ProjectionRow {
+                    entity_class: spec.entity_class.as_str().to_string(),
                     roles: spec.roles.iter().map(|role| role.as_str().to_string()).collect(),
                     fts: spec.fts.is_some(),
                     vector: spec.vector.is_some(),
                     name: spec.name,
                 })
                 .collect();
-            projections.sort_by(|left, right| left.name.cmp(&right.name));
+            projections.sort_by(|left, right| {
+                (&left.entity_class, &left.name).cmp(&(&right.entity_class, &right.name))
+            });
             let status = read::projection_status(engine)?;
+            let mut status_projections: Vec<ProjectionDenseRow> = status
+                .projections
+                .into_iter()
+                .map(|entry| ProjectionDenseRow {
+                    entity_class: entry.entity_class.as_str().to_string(),
+                    name: entry.name,
+                    dense_readiness: entry.dense_readiness.as_str().to_string(),
+                })
+                .collect();
+            status_projections.sort_by(|left, right| {
+                (&left.entity_class, &left.name).cmp(&(&right.entity_class, &right.name))
+            });
             let readiness = read::embedding_readiness(engine)?;
             Ok(OrientRead {
+                visibility,
                 vector_coverage: CoverageOut::from(&status.vector_coverage),
                 projections,
                 status: ProjectionStatusOut {
@@ -598,14 +675,7 @@ pub(crate) async fn orient(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
                         .runtime_unavailability_reason
                         .as_str()
                         .to_string(),
-                    projections: status
-                        .projections
-                        .into_iter()
-                        .map(|entry| ProjectionDenseRow {
-                            name: entry.name,
-                            dense_readiness: entry.dense_readiness.as_str().to_string(),
-                        })
-                        .collect(),
+                    projections: status_projections,
                     vector_unsupported_kinds: status.vector_unsupported_kinds,
                 },
                 readiness: EmbeddingReadinessOut {
@@ -617,16 +687,24 @@ pub(crate) async fn orient(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
             })
         })
         .await?;
+    let state = state_for(ctx, &answered, &read.visibility);
     let max_tokens = ctx.shared.config.default_max_tokens;
     let output = OrientOutput {
         vector_coverage: read.vector_coverage,
-        envelope: envelope(&answered.store, answered.epoch, validity_instant, vec![], max_tokens),
+        envelope: envelope(
+            &answered.store,
+            answered.epoch,
+            validity_instant,
+            state,
+            vec![],
+            max_tokens,
+        ),
         projections: read.projections,
         projection_status: read.status,
         embedding_readiness: read.readiness,
         kinds: Unavailable::new(),
         counts: Unavailable::new(),
-        not_in_this_release: ["state", "verdict", "kinds", "counts"],
+        not_in_this_release: ["verdict", "kinds", "counts"],
     };
     Ok(finish(&output, render_orient(&output), max_tokens, false).0)
 }
@@ -758,9 +836,13 @@ fn render_search(output: &SearchOutput) -> String {
     if let Some(exact) = output.continuation_exact {
         text.push_str(&format!(" continuation_exact={exact}"));
     }
+    text.push_str(&format!(" response_id={}", output.response_id));
+    if let Some(frozen) = &output.frozen_context {
+        text.push_str(&format!(" frozen_context={frozen}"));
+    }
+    append_state_header(&mut text, output.envelope.state.as_ref());
     text.push_str(&format!(
-        " response_id={} tokens={}/{}{}",
-        output.response_id,
+        " tokens={}/{}{}",
         output.envelope.budget.used_tokens,
         output.envelope.budget.max_tokens,
         if output.envelope.budget.cut { " cut" } else { "" }
@@ -810,6 +892,12 @@ fn render_search(output: &SearchOutput) -> String {
         if let Some(extent) = hit.scored_bytes {
             text.push_str(&format!(" scored_bytes={extent}"));
         }
+        if let Some(rev) = &hit.artifact_revision_id {
+            text.push_str(&format!(" rev={}", shape::quote(rev)));
+        }
+        if let Some(ev) = &hit.evidence_ref {
+            text.push_str(&format!(" ev={}", shape::quote(ev)));
+        }
         text.push_str(" | ");
         text.push_str(&hit.snippet.replace(['\r', '\n'], " "));
         if let Some(explain) = per_hit.and_then(|per_hit| per_hit.get(index)) {
@@ -839,6 +927,7 @@ pub(crate) struct SearchShape<'a> {
     pub(crate) store: &'a str,
     pub(crate) epoch: u64,
     pub(crate) validity_instant: i64,
+    pub(crate) state: Option<StoreStateOut>,
     pub(crate) degradation: &'a [Degradation],
     pub(crate) max_tokens: u32,
     pub(crate) format: &'a str,
@@ -850,6 +939,7 @@ pub(crate) struct SearchShape<'a> {
     pub(crate) page_limit: usize,
     pub(crate) trace: Option<&'a TraceOut>,
     pub(crate) hosted: bool,
+    pub(crate) frozen_context: Option<String>,
     pub(crate) hints: &'a SearchPlan,
 }
 
@@ -871,6 +961,7 @@ pub(crate) fn shape_search_page(input: &SearchShape<'_>) -> Shaped {
         store,
         epoch,
         validity_instant,
+        ref state,
         degradation,
         max_tokens,
         format,
@@ -881,6 +972,7 @@ pub(crate) fn shape_search_page(input: &SearchShape<'_>) -> Shaped {
         page_limit,
         trace,
         hosted,
+        ref frozen_context,
         hints,
     } = *input;
     let mode = canonical.search_mode();
@@ -928,7 +1020,14 @@ pub(crate) fn shape_search_page(input: &SearchShape<'_>) -> Shaped {
             },
         });
         let output = SearchOutput {
-            envelope: envelope(store, epoch, validity_instant, degradation.to_vec(), max_tokens),
+            envelope: envelope(
+                store,
+                epoch,
+                validity_instant,
+                state.clone(),
+                degradation.to_vec(),
+                max_tokens,
+            ),
             mode: match mode {
                 SearchMode::Text => ModeWord::Text,
                 SearchMode::Hybrid => ModeWord::Hybrid,
@@ -945,6 +1044,7 @@ pub(crate) fn shape_search_page(input: &SearchShape<'_>) -> Shaped {
             verdict: None,
             continuation: continuation.clone(),
             continuation_exact: hosted.then_some(false),
+            frozen_context: frozen_context.clone(),
             explanation,
             hints: if with_hints {
                 hints.emit(page, kept, continuation.as_deref(), cut, max_tokens)
@@ -978,9 +1078,10 @@ pub(crate) fn shape_search_page(input: &SearchShape<'_>) -> Shaped {
 }
 
 /// The shaped hits of a search run from `offset`: each hit with its engine
-/// snippet (EP-17), cursor and explanation.
+/// snippet (EP-17), cursor, explanation, and optional frozen evidence metadata.
 fn search_page(
     run: &SearchRun,
+    evidence: Option<&[EvidenceSidecarEntryV1]>,
     per_hit: &[Option<&PerHitExplain>],
     offset: usize,
     highlights: bool,
@@ -990,15 +1091,30 @@ fn search_page(
     if run.snippets.len() != run.hits.len() {
         return Err(ToolError::internal());
     }
+    if let Some(entries) = evidence {
+        if entries.len() != run.hits.len() {
+            return Err(ToolError::internal());
+        }
+    }
     Ok(run
         .hits
         .iter()
+        .enumerate()
         .zip(&run.snippets)
         .zip(per_hit.iter().copied())
         .skip(offset)
-        .map(|((hit, snippet), explain)| {
+        .map(|(((index, hit), snippet), explain)| {
             let reference = hit.id.to_prefixed();
             let per_hit = explain.map(|explain| per_hit_out(&reference, explain));
+            let (evidence_ref, artifact_revision_id) = evidence
+                .and_then(|entries| entries.get(index))
+                .map(|entry| {
+                    (
+                        Some(entry.evidence_ref.as_str().to_string()),
+                        Some(entry.artifact_revision_id.clone()),
+                    )
+                })
+                .unwrap_or((None, None));
             (
                 Hit {
                     scored_bytes: snippet.scored_bytes,
@@ -1012,6 +1128,8 @@ fn search_page(
                     score: hit.score,
                     arm: branch_str(hit.branch).to_string(),
                     ce_score: hit.ce_score,
+                    evidence_ref,
+                    artifact_revision_id,
                 },
                 hit.write_cursor,
                 per_hit,
@@ -1020,73 +1138,122 @@ fn search_page(
         .collect())
 }
 
+struct SearchExecData {
+    visibility: VisibilityStateV1,
+    run: SearchRun,
+    frozen: Option<(FrozenReadContextV1, Vec<EvidenceSidecarEntryV1>)>,
+}
+
+enum SearchExecOutcome {
+    Ok(Box<SearchExecData>),
+    Drifted,
+}
+
 pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outcome {
     let args: SearchArgs = parse(arguments)?;
     let store = resolve_store(ctx, args.store.as_deref())?;
     let max_tokens = max_tokens(ctx, args.max_tokens)?;
-    let (canonical, offset, validity_instant, continued_epoch) = match &args.continuation {
-        Some(handle) => {
-            let only_paging = args.query.is_none()
-                && args.mode.is_none()
-                && args.kind.is_none()
-                && args.source_type.is_none()
-                && args.status.is_none()
-                && args.created_after.is_none()
-                && args.attributes.is_none()
-                && args.as_of.is_none()
-                && args.include_superseded.is_none()
-                && args.include_inactive.is_none()
-                && args.limit.is_none()
-                && args.explain.is_none();
-            if !only_paging {
-                return Err(ToolError::bad_argument(
-                    "a continuation call takes only store, continuation, max_tokens, hints and \
-                     highlights",
-                ));
+    let policy = ctx.shared.registry.store_policy(&store)?;
+    let (canonical, offset, validity_instant, continued_epoch, freeze_req, reused_frozen) =
+        match &args.continuation {
+            Some(handle) => {
+                let only_paging = args.query.is_none()
+                    && args.mode.is_none()
+                    && args.kind.is_none()
+                    && args.source_type.is_none()
+                    && args.status.is_none()
+                    && args.created_after.is_none()
+                    && args.attributes.is_none()
+                    && args.as_of.is_none()
+                    && args.include_superseded.is_none()
+                    && args.include_inactive.is_none()
+                    && args.limit.is_none()
+                    && args.explain.is_none()
+                    && args.freeze.is_none()
+                    && args.frozen_context.is_none();
+                if !only_paging {
+                    return Err(ToolError::bad_argument(
+                        "a continuation call takes only store, continuation, max_tokens, hints \
+                         and highlights",
+                    ));
+                }
+                let entry = ctx
+                    .session
+                    .continuation(&store, &policy.scope_key, handle)
+                    .ok_or_else(|| {
+                        if policy.scope.is_unscoped() {
+                            ToolError::stale_handle("continuation")
+                        } else {
+                            ToolError::not_found()
+                        }
+                    })?;
+                (entry.args, entry.offset, entry.validity_instant, Some(entry.epoch), false, None)
             }
-            ctx.shared.registry.ensure_slot(&store)?;
-            let entry = ctx
-                .session
-                .continuation(&store, handle)
-                .ok_or_else(|| ToolError::stale_handle("continuation"))?;
-            (entry.args, entry.offset, entry.validity_instant, Some(entry.epoch))
-        }
-        None => {
-            let query = args.query.clone().unwrap_or_default();
-            if query.trim().is_empty() {
-                return Err(ToolError::bad_argument("query must be a non-empty string"));
+            None => {
+                let freeze_req = args.freeze.unwrap_or(false);
+                if freeze_req && args.frozen_context.is_some() {
+                    return Err(ToolError::bad_argument(
+                        "pass either freeze or frozen_context, not both",
+                    ));
+                }
+                let reused_frozen = match &args.frozen_context {
+                    Some(handle) => {
+                        let entry = ctx
+                            .session
+                            .frozen_context(&store, &policy.scope_key, handle)
+                            .ok_or_else(ToolError::not_found)?;
+                        Some((handle.clone(), entry))
+                    }
+                    None => None,
+                };
+                let query = args.query.clone().unwrap_or_default();
+                if query.trim().is_empty() {
+                    return Err(ToolError::bad_argument("query must be a non-empty string"));
+                }
+                let mode = match args.mode {
+                    Some(ModeArg::Text) => SearchMode::Text,
+                    Some(ModeArg::Hybrid) => SearchMode::Hybrid,
+                    None => ctx.shared.config.search_mode,
+                };
+                let limit = args.limit.unwrap_or(10);
+                if !(1..=MAX_RANKED as u64).contains(&limit) {
+                    return Err(ToolError::bad_argument("limit must be in 1..=100"));
+                }
+                let canonical = CanonicalSearch {
+                    query,
+                    mode: mode.as_str(),
+                    kind: args.kind.clone(),
+                    source_type: args.source_type.clone(),
+                    status: args.status.clone(),
+                    created_after: args.created_after,
+                    attributes: args.attributes.clone().unwrap_or_default().into_iter().collect(),
+                    as_of: args.as_of,
+                    include_superseded: args.include_superseded.unwrap_or(false),
+                    include_inactive: args.include_inactive.unwrap_or(false),
+                    limit: limit as usize,
+                    explain: args.explain.unwrap_or(false),
+                };
+                let instant = reused_frozen
+                    .as_ref()
+                    .map(|(_, entry)| entry.context.effective_valid_at)
+                    .unwrap_or_else(|| args.as_of.unwrap_or_else(now_secs));
+                (canonical, 0, instant, None, freeze_req, reused_frozen)
             }
-            let mode = match args.mode {
-                Some(ModeArg::Text) => SearchMode::Text,
-                Some(ModeArg::Hybrid) => SearchMode::Hybrid,
-                None => ctx.shared.config.search_mode,
-            };
-            let limit = args.limit.unwrap_or(10);
-            if !(1..=MAX_RANKED as u64).contains(&limit) {
-                return Err(ToolError::bad_argument("limit must be in 1..=100"));
-            }
-            let canonical = CanonicalSearch {
-                query,
-                mode: mode.as_str(),
-                kind: args.kind.clone(),
-                source_type: args.source_type.clone(),
-                status: args.status.clone(),
-                created_after: args.created_after,
-                attributes: args.attributes.clone().unwrap_or_default().into_iter().collect(),
-                as_of: args.as_of,
-                include_superseded: args.include_superseded.unwrap_or(false),
-                include_inactive: args.include_inactive.unwrap_or(false),
-                limit: limit as usize,
-                explain: args.explain.unwrap_or(false),
-            };
-            (canonical, 0, args.as_of.unwrap_or_else(now_secs), None)
-        }
-    };
+        };
 
     let mode = canonical.search_mode();
     let guard = ctx.acquire(&store, ctx.deadline()).await?;
     if continued_epoch.is_some_and(|epoch| epoch != guard.epoch) {
-        return Err(ToolError::stale_handle("continuation"));
+        return Err(if policy.scope.is_unscoped() {
+            ToolError::stale_handle("continuation")
+        } else {
+            ToolError::not_found()
+        });
+    }
+    if let Some((_, ref entry)) = reused_frozen {
+        if entry.epoch != guard.epoch {
+            return Err(ToolError::state_drift());
+        }
     }
     let telemetry = guard.info.telemetry;
     let (run_limit, page_limit) = shape::page_window(offset, canonical.limit, MAX_RANKED);
@@ -1106,24 +1273,72 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
     snippet_options.max_windows = 1;
     snippet_options.head_bytes = ctx.shared.config.snippet_head_bytes();
     snippet_options.highlights = args.highlights.unwrap_or(false);
-    // One point query per hit of the run window, so every page of a
-    // continuation chain is anchored alike and `highlights` (which also
-    // queries hits that fit) never changes another hit's snippet. The
-    // engine's per-term pool is the same size, so only the first
-    // window / k eligible hits get the exact-identity window: a hit's
-    // snippet text, though not its anchor, can depend on the window, and
-    // a page equals the same ranks of an unpaged search over its window.
     snippet_options.max_point_queries = u8::try_from(run_limit).unwrap_or(u8::MAX);
+    let snippet_for_fallback = snippet_options;
     let snippet = Some(snippet_options);
     let started_limit = ctx.run_limit();
     let hooks = ctx.shared.hooks.clone();
-    let (answered, run) = bridge::call(
+    let existing_frozen = reused_frozen.as_ref().map(|(_, entry)| entry.clone());
+    let (answered, exec) = bridge::call(
         guard,
         started_limit,
         &ctx.cancel,
         ctx.progress.as_ref(),
         &ctx.shared.hooks,
         move |engine| {
+            let visibility = read::visibility_state(engine)?;
+            if freeze_req || existing_frozen.is_some() {
+                let frozen_ctx = match existing_frozen {
+                    Some(entry) => {
+                        if visibility != entry.minted_state {
+                            return Ok(SearchExecOutcome::Drifted);
+                        }
+                        entry.context
+                    }
+                    None => {
+                        let rc =
+                            ReadContextV1::new(view, search_filter(&request).unwrap_or_default())?;
+                        engine.freeze_read_context(&rc)?
+                    }
+                };
+                hooks.before_search(mode == SearchMode::Hybrid);
+                let ev_req =
+                    EvidenceSearchRequestV1::new(request.query.clone(), frozen_ctx.clone())
+                        .with_limit(run_limit as u32)
+                        .with_explain(explain);
+                let mut ev_res = match engine.search_with_evidence(&ev_req) {
+                    Ok(res) => res,
+                    Err(err)
+                        if matches!(
+                            err.kind(),
+                            fathomdb_sdk::ErrorKind::Evidence | fathomdb_sdk::ErrorKind::FrozenRead
+                        ) =>
+                    {
+                        let after = read::visibility_state(engine)?;
+                        if after != visibility {
+                            return Ok(SearchExecOutcome::Drifted);
+                        }
+                        return Err(err);
+                    }
+                    Err(err) => return Err(err),
+                };
+                if ev_res.search_result.snippets.is_none() {
+                    let synthesized: Vec<SnippetV1> = ev_res
+                        .search_result
+                        .results
+                        .iter()
+                        .map(|hit| snippet_for(&hit.body, &[], &snippet_for_fallback))
+                        .collect();
+                    ev_res.search_result.snippets = Some(synthesized);
+                }
+                let final_vis = read::visibility_state(engine)?;
+                return Ok(SearchExecOutcome::Ok(Box::new(SearchExecData {
+                    visibility: final_vis,
+                    run: SearchRun::from_result(ev_res.search_result),
+                    frozen: Some((frozen_ctx, ev_res.evidence)),
+                })));
+            }
+
             let result = match mode {
                 SearchMode::Text => {
                     let mut options = TextSearchOptions::default();
@@ -1145,10 +1360,45 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
                     engine.search(&request.query, options)?
                 }
             };
-            Ok(SearchRun::from_result(result))
+            Ok(SearchExecOutcome::Ok(Box::new(SearchExecData {
+                visibility,
+                run: SearchRun::from_result(result),
+                frozen: None,
+            })))
         },
     )
     .await?;
+
+    let (visibility, run, frozen_res) = match exec {
+        SearchExecOutcome::Drifted => return Err(ToolError::state_drift()),
+        SearchExecOutcome::Ok(data) => (data.visibility, data.run, data.frozen),
+    };
+
+    let state = state_for(ctx, &answered, &visibility);
+    let (frozen_handle, evidence_entries) = match frozen_res {
+        Some((frozen_ctx, entries)) => {
+            let handle = match &reused_frozen {
+                Some((h, _)) => h.clone(),
+                None => shape::handle(
+                    'f',
+                    answered.epoch,
+                    &[&store, &answered.policy.scope_key, &frozen_ctx.token],
+                ),
+            };
+            ctx.session.put_frozen_context(
+                &store,
+                &answered.policy.scope_key,
+                handle.clone(),
+                FrozenEntry {
+                    epoch: answered.epoch,
+                    context: frozen_ctx,
+                    minted_state: visibility.clone(),
+                },
+            );
+            (Some(handle), Some(entries))
+        }
+        None => (None, None),
+    };
 
     let degradation = shape::canonical_degradation(search_degradations(
         mode,
@@ -1166,7 +1416,13 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
             run.explanation.as_ref().and_then(|explanation| explanation.per_hit.get(index))
         })
         .collect();
-    let page = search_page(&run, &per_hit, offset, args.highlights.unwrap_or(false))?;
+    let page = search_page(
+        &run,
+        evidence_entries.as_deref(),
+        &per_hit,
+        offset,
+        args.highlights.unwrap_or(false),
+    )?;
     let canonical_json = serde_json::to_string(&canonical).expect("serializes");
     let trace = run.explanation.as_ref().map(trace_out);
     // § 3.3: a text search may suggest hybrid only when the store has a
@@ -1187,6 +1443,7 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
         store: &store,
         epoch: answered.epoch,
         validity_instant,
+        state,
         degradation: &degradation,
         max_tokens,
         format: &ctx.shared.config.result_format,
@@ -1197,6 +1454,7 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
         page_limit,
         trace: trace.as_ref(),
         hosted: answered.info.hosted,
+        frozen_context: frozen_handle,
         hints: &plan,
     });
     let Shaped { rendered, response_id, continuation, kept, .. } = shaped;
@@ -1204,6 +1462,7 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
     if let Some(handle) = continuation {
         ctx.session.put_continuation(
             &store,
+            &answered.policy.scope_key,
             handle,
             Continuation {
                 epoch: answered.epoch,
@@ -1215,6 +1474,7 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
     }
     ctx.session.put_response(
         &store,
+        &answered.policy.scope_key,
         response_id,
         ResponseContext {
             epoch: answered.epoch,
@@ -1230,27 +1490,35 @@ pub(crate) async fn search(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
 
 fn render_fetch(output: &FetchOutput) -> String {
     let mut text = format!(
-        "fetch store={} epoch={} validity_instant={} items={} tokens={}/{}{}",
+        "fetch store={} epoch={} validity_instant={} items={}",
         shape::quote(&output.envelope.store),
         output.envelope.epoch,
         output.envelope.validity_instant,
         output.items.len(),
+    );
+    append_state_header(&mut text, output.envelope.state.as_ref());
+    text.push_str(&format!(
+        " tokens={}/{}{}",
         output.envelope.budget.used_tokens,
         output.envelope.budget.max_tokens,
         if output.envelope.budget.cut { " cut" } else { "" }
-    );
+    ));
     hints::render(&output.hints, &mut text);
     text.push('\n');
     for item in &output.items {
         match item {
             FetchItem::Record { reference, record } => {
                 text.push_str(&format!(
-                    "record {} kind={} bytes={}{}\n",
+                    "record {} kind={} bytes={}{}",
                     shape::quote(reference),
                     shape::quote(&record.kind),
                     record.body.len(),
                     if record.body_cut { " cut" } else { "" }
                 ));
+                if let Some(rev) = &record.artifact_revision_id {
+                    text.push_str(&format!(" rev={}", shape::quote(rev)));
+                }
+                text.push('\n');
                 text.push_str(&record.body);
                 text.push('\n');
             }
@@ -1268,10 +1536,350 @@ enum Slot {
     Error(ToolError),
 }
 
+struct ResolvedFetchSlot {
+    reference: String,
+    record: Option<RecordOut>,
+    error: Option<ToolError>,
+}
+
+enum FetchEvidenceExec {
+    Drifted,
+    Ok { visibility: VisibilityStateV1, slots: Vec<ResolvedFetchSlot> },
+}
+
+fn plain_record(kind: String, body: String, body_cut: bool) -> RecordOut {
+    RecordOut {
+        kind,
+        body,
+        body_cut,
+        artifact_revision_id: None,
+        source_id: None,
+        source_version_id: None,
+        source_revision_id: None,
+        evidence_text: None,
+        canonical_source_hash: None,
+        artifact_class: None,
+        source_lifecycle_state: None,
+    }
+}
+
+fn map_evidence_reason(reason: EvidenceErrorReasonV1) -> ToolError {
+    match reason {
+        EvidenceErrorReasonV1::EvidenceUnavailable => ToolError::not_found(),
+        EvidenceErrorReasonV1::EvidenceIncomplete => ToolError::evidence_incomplete(),
+        EvidenceErrorReasonV1::EvidenceCorrupt => ToolError::internal(),
+        _ => ToolError::bad_argument("invalid evidence reference"),
+    }
+}
+
+async fn fetch_evidence(ctx: &Ctx<'_>, store: &str, args: FetchArgs, max_tokens: u32) -> Outcome {
+    if !args.refs.is_empty() {
+        return Err(ToolError::bad_argument(
+            "pass either refs or evidence_refs/graph_evidence_refs, not both",
+        ));
+    }
+    if args.as_of.is_some() || args.include_superseded.is_some() || args.include_inactive.is_some()
+    {
+        return Err(ToolError::bad_argument(
+            "as_of, include_superseded, and include_inactive cannot accompany frozen evidence_refs",
+        ));
+    }
+    let Some(frozen_handle) = args.frozen_context.as_deref() else {
+        return Err(ToolError::bad_argument(
+            "frozen_context is required when resolving evidence_refs or graph_evidence_refs",
+        ));
+    };
+    let ev_refs = args.evidence_refs.unwrap_or_default();
+    let graph_refs = args.graph_evidence_refs.unwrap_or_default();
+    let total = ev_refs.len() + graph_refs.len();
+    if total == 0 || total > MAX_FETCH_REFS {
+        return Err(ToolError::bad_argument(
+            "evidence_refs + graph_evidence_refs must hold 1..=50 references",
+        ));
+    }
+    let policy = ctx.shared.registry.store_policy(store)?;
+    let entry = ctx
+        .session
+        .frozen_context(store, &policy.scope_key, frozen_handle)
+        .ok_or_else(ToolError::not_found)?;
+    let validity_instant = entry.context.effective_valid_at;
+
+    let guard = ctx.acquire(store, ctx.deadline()).await?;
+    if guard.epoch != entry.epoch {
+        return Err(ToolError::state_drift());
+    }
+    let minted_state = entry.minted_state;
+    let frozen_ctx = entry.context;
+    let (answered, exec) = bridge::call(
+        guard,
+        ctx.run_limit(),
+        &ctx.cancel,
+        ctx.progress.as_ref(),
+        &ctx.shared.hooks,
+        move |engine| {
+            let visibility = read::visibility_state(engine)?;
+            if visibility != minted_state {
+                return Ok(FetchEvidenceExec::Drifted);
+            }
+            let mut out: Vec<ResolvedFetchSlot> = Vec::with_capacity(total);
+
+            if !ev_refs.is_empty() {
+                let mut valid_indices = Vec::new();
+                let mut valid_tokens = Vec::new();
+                let mut slot_errors: Vec<Option<ToolError>> = vec![None; ev_refs.len()];
+                for (i, raw) in ev_refs.iter().enumerate() {
+                    match EvidenceRefV1::new(raw.clone()) {
+                        Ok(token) => {
+                            valid_indices.push(i);
+                            valid_tokens.push(token);
+                        }
+                        Err(_) => slot_errors[i] = Some(ToolError::not_found()),
+                    }
+                }
+                let mut resolved_map: BTreeMap<usize, ResolvedFetchSlot> = BTreeMap::new();
+                if !valid_tokens.is_empty() {
+                    let req = EvidenceResolveManyRequestV1 {
+                        schema_version: 1,
+                        evidence_refs: valid_tokens,
+                        context: frozen_ctx.clone(),
+                    };
+                    let items = match engine.resolve_evidence_many(&req) {
+                        Ok(items) => items,
+                        Err(err)
+                            if matches!(
+                                err.kind(),
+                                fathomdb_sdk::ErrorKind::Evidence
+                                    | fathomdb_sdk::ErrorKind::FrozenRead
+                            ) =>
+                        {
+                            let after = read::visibility_state(engine)?;
+                            if after != minted_state {
+                                return Ok(FetchEvidenceExec::Drifted);
+                            }
+                            return Err(err);
+                        }
+                        Err(err) => return Err(err),
+                    };
+                    for (idx, item) in valid_indices.into_iter().zip(items) {
+                        let reference = ev_refs[idx].clone();
+                        let slot = match item {
+                            EvidenceResolveManyItemV1::Resolved(ev) => ResolvedFetchSlot {
+                                reference,
+                                record: Some(RecordOut {
+                                    kind: ev.projection_origin.artifact_class.as_str().to_string(),
+                                    body: ev.canonical_source_body,
+                                    body_cut: false,
+                                    artifact_revision_id: Some(ev.artifact_revision_id),
+                                    source_id: Some(ev.source_id),
+                                    source_version_id: Some(ev.source_version_id),
+                                    source_revision_id: Some(ev.source_revision_id),
+                                    evidence_text: Some(ev.evidence_text),
+                                    canonical_source_hash: Some(
+                                        ev.canonical_source_hash.digest_hex().to_string(),
+                                    ),
+                                    artifact_class: Some(
+                                        ev.projection_origin.artifact_class.as_str().to_string(),
+                                    ),
+                                    source_lifecycle_state: Some(
+                                        ev.source_lifecycle_state.as_str().to_string(),
+                                    ),
+                                }),
+                                error: None,
+                            },
+                            EvidenceResolveManyItemV1::Refused(err) => ResolvedFetchSlot {
+                                reference,
+                                record: None,
+                                error: Some(map_evidence_reason(err.reason)),
+                            },
+                        };
+                        resolved_map.insert(idx, slot);
+                    }
+                }
+                for (i, raw) in ev_refs.into_iter().enumerate() {
+                    if let Some(slot) = resolved_map.remove(&i) {
+                        out.push(slot);
+                    } else {
+                        out.push(ResolvedFetchSlot {
+                            reference: raw,
+                            record: None,
+                            error: Some(slot_errors[i].take().unwrap_or_else(ToolError::not_found)),
+                        });
+                    }
+                }
+            }
+
+            for raw in graph_refs {
+                let token = match GraphEvidenceRefV1::new(raw.clone()) {
+                    Ok(token) => token,
+                    Err(_) => {
+                        out.push(ResolvedFetchSlot {
+                            reference: raw,
+                            record: None,
+                            error: Some(ToolError::not_found()),
+                        });
+                        continue;
+                    }
+                };
+                let req = GraphEvidenceResolveRequestV1 {
+                    schema_version: 1,
+                    evidence_ref: token,
+                    context: frozen_ctx.clone(),
+                };
+                match engine.resolve_graph_evidence(&req) {
+                    Ok(ev) => {
+                        let (kind, artifact_class) = match &ev.artifact {
+                            GraphEvidenceArtifactV1::Node { kind, .. } => {
+                                (kind.clone(), "node".to_string())
+                            }
+                            GraphEvidenceArtifactV1::Edge { kind, .. } => {
+                                (kind.clone(), "edge".to_string())
+                            }
+                        };
+                        out.push(ResolvedFetchSlot {
+                            reference: raw,
+                            record: Some(RecordOut {
+                                kind,
+                                body: ev.canonical_source_body,
+                                body_cut: false,
+                                artifact_revision_id: Some(
+                                    ev.artifact_revision_id.as_str().to_string(),
+                                ),
+                                source_id: Some(ev.source_id),
+                                source_version_id: Some(ev.source_version_id),
+                                source_revision_id: Some(
+                                    ev.source_revision_id.as_str().to_string(),
+                                ),
+                                evidence_text: Some(ev.evidence_text),
+                                canonical_source_hash: Some(
+                                    ev.canonical_source_hash.digest_hex().to_string(),
+                                ),
+                                artifact_class: Some(artifact_class),
+                                source_lifecycle_state: Some(
+                                    ev.source_lifecycle_state.as_str().to_string(),
+                                ),
+                            }),
+                            error: None,
+                        });
+                    }
+                    Err(err)
+                        if matches!(
+                            err.kind(),
+                            fathomdb_sdk::ErrorKind::Evidence | fathomdb_sdk::ErrorKind::FrozenRead
+                        ) =>
+                    {
+                        let after = read::visibility_state(engine)?;
+                        if after != minted_state {
+                            return Ok(FetchEvidenceExec::Drifted);
+                        }
+                        out.push(ResolvedFetchSlot {
+                            reference: raw,
+                            record: None,
+                            error: Some(ToolError::from_sdk("evidence", &err)),
+                        });
+                    }
+                    Err(err) => return Err(err),
+                }
+            }
+
+            let final_vis = read::visibility_state(engine)?;
+            Ok(FetchEvidenceExec::Ok { visibility: final_vis, slots: out })
+        },
+    )
+    .await?;
+
+    let (visibility, slots) = match exec {
+        FetchEvidenceExec::Drifted => return Err(ToolError::state_drift()),
+        FetchEvidenceExec::Ok { visibility, slots } => (visibility, slots),
+    };
+    let state = state_for(ctx, &answered, &visibility);
+
+    let mut bodies: Vec<(String, bool)> =
+        slots.iter().filter_map(|s| s.record.as_ref().map(|r| (r.body.clone(), false))).collect();
+    let with_hints = hints::enabled(args.hints, ctx.shared.config.hints);
+    let uncut_whole = std::cell::Cell::new(0_u64);
+    let build = |bodies: &[(String, bool)]| -> FetchOutput {
+        let hints = if with_hints && bodies.iter().any(|(_, cut)| *cut) {
+            let mut cut = bodies.iter().map(|(_, cut)| *cut);
+            let refs = slots
+                .iter()
+                .filter(|s| s.record.is_some())
+                .map(|s| s.reference.as_str())
+                .filter(|_| cut.next().unwrap_or(false));
+            hints::body_cut(refs, uncut_whole.get()).into_iter().collect()
+        } else {
+            Vec::new()
+        };
+        let mut bodies_iter = bodies.iter();
+        let items = slots
+            .iter()
+            .map(|slot| match (&slot.record, &slot.error) {
+                (Some(rec), _) => {
+                    let (body, body_cut) = bodies_iter.next().cloned().unwrap_or_default();
+                    let mut rec = rec.clone();
+                    if body_cut {
+                        if let Some(ev_text) = &mut rec.evidence_text {
+                            let (cut_ev, _) = shape::snippet(ev_text, body.chars().count());
+                            *ev_text = cut_ev;
+                        }
+                    }
+                    rec.body = body;
+                    rec.body_cut = body_cut;
+                    FetchItem::Record { reference: slot.reference.clone(), record: rec }
+                }
+                (None, err) => FetchItem::Error {
+                    reference: slot.reference.clone(),
+                    error: err.clone().unwrap_or_else(ToolError::internal),
+                },
+            })
+            .collect();
+        FetchOutput {
+            envelope: envelope(
+                store,
+                answered.epoch,
+                validity_instant,
+                state.clone(),
+                vec![],
+                max_tokens,
+            ),
+            items,
+            hints,
+        }
+    };
+    let format = &ctx.shared.config.result_format;
+    uncut_whole.set(uncut_fetch_budget(&build(&bodies), format));
+    shape::cut_bodies(
+        &mut bodies,
+        |bodies| {
+            let output = build(bodies);
+            let cut = bodies.iter().any(|(_, cut)| *cut);
+            let (rendered, whole) = finish(&output, render_fetch(&output), max_tokens, cut);
+            bytes_over(whole_for_format(&rendered, whole, format), max_tokens)
+        },
+        if format == "structured" { 2 } else { 1 },
+    );
+    let output = build(&bodies);
+    let cut = bodies.iter().any(|(_, cut)| *cut);
+    let (rendered, whole) = finish(&output, render_fetch(&output), max_tokens, cut);
+    if whole_for_format(&rendered, whole, format) > u64::from(max_tokens) {
+        return Err(ToolError::bad_argument(
+            "the result cannot fit max_tokens even with empty bodies; fetch fewer refs or raise max_tokens",
+        ));
+    }
+    Ok(rendered)
+}
+
 pub(crate) async fn fetch(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outcome {
     let args: FetchArgs = parse(arguments)?;
     let store = resolve_store(ctx, args.store.as_deref())?;
     let max_tokens = max_tokens(ctx, args.max_tokens)?;
+    if args.evidence_refs.is_some() || args.graph_evidence_refs.is_some() {
+        return fetch_evidence(ctx, &store, args, max_tokens).await;
+    }
+    if args.frozen_context.is_some() {
+        return Err(ToolError::bad_argument(
+            "frozen_context on fetch requires evidence_refs or graph_evidence_refs",
+        ));
+    }
     if args.refs.is_empty() || args.refs.len() > MAX_FETCH_REFS {
         return Err(ToolError::bad_argument("refs must hold 1..=50 references"));
     }
@@ -1298,14 +1906,18 @@ pub(crate) async fn fetch(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outco
         valid_as_of: Some(validity_instant),
         ..ReadView::default()
     };
-    let (answered, records) = ctx
+    let (answered, (visibility, records)) = ctx
         .run(&store, move |engine| {
-            if ids.is_empty() {
-                return Ok(Vec::new());
-            }
-            read::get_many(engine, &ids, Some(&view))
+            let visibility = read::visibility_state(engine)?;
+            let records = if ids.is_empty() {
+                Vec::new()
+            } else {
+                read::get_many(engine, &ids, Some(&view))?
+            };
+            Ok((visibility, records))
         })
         .await?;
+    let state = state_for(ctx, &answered, &visibility);
     let mut records = records.into_iter();
     // (reference, kind, body, error) in request order.
     let mut resolved: Vec<(String, Option<String>, Option<ToolError>)> = Vec::new();
@@ -1344,7 +1956,7 @@ pub(crate) async fn fetch(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outco
                     let (body, body_cut) = bodies.next().cloned().unwrap_or_default();
                     FetchItem::Record {
                         reference: reference.clone(),
-                        record: RecordOut { kind: kind.clone(), body, body_cut },
+                        record: plain_record(kind.clone(), body, body_cut),
                     }
                 }
                 (None, error) => FetchItem::Error {
@@ -1354,7 +1966,14 @@ pub(crate) async fn fetch(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outco
             })
             .collect();
         FetchOutput {
-            envelope: envelope(&store, answered.epoch, validity_instant, vec![], max_tokens),
+            envelope: envelope(
+                &store,
+                answered.epoch,
+                validity_instant,
+                state.clone(),
+                vec![],
+                max_tokens,
+            ),
             items,
             hints,
         }
@@ -1407,6 +2026,10 @@ fn render_expand(output: &ExpandOutput) -> String {
     if let Some(bound) = &output.bound {
         text.push_str(&format!(" bound={bound}"));
     }
+    if let Some(frozen) = &output.frozen_context {
+        text.push_str(&format!(" frozen_context={frozen}"));
+    }
+    append_state_header(&mut text, output.envelope.state.as_ref());
     text.push_str(&format!(
         " tokens={}/{}{}",
         output.envelope.budget.used_tokens,
@@ -1419,16 +2042,34 @@ fn render_expand(output: &ExpandOutput) -> String {
     hints::render(&output.hints, &mut text);
     for target in &output.targets {
         text.push_str(&format!(
-            "\n{} kind={} hop={} edge={}{} | {}",
+            "\n{} kind={} hop={} edge={}{}",
             shape::quote(&target.reference),
             shape::quote(&target.kind),
             target.hop_count,
             shape::quote(&target.terminal_edge_kind),
             if target.body_cut { " cut" } else { "" },
-            target.body.replace(['\r', '\n'], " ")
         ));
+        if let Some(rev) = &target.artifact_revision_id {
+            text.push_str(&format!(" rev={}", shape::quote(rev)));
+        }
+        if let Some(ev) = &target.graph_evidence_ref {
+            text.push_str(&format!(" ev={}", shape::quote(ev)));
+        }
+        text.push_str(" | ");
+        text.push_str(&target.body.replace(['\r', '\n'], " "));
     }
     text
+}
+
+struct ExpandExecData {
+    visibility: VisibilityStateV1,
+    result: fathomdb_sdk::GraphExpandResultV1,
+    minted_frozen: Option<FrozenReadContextV1>,
+}
+
+enum ExpandExec {
+    Drifted,
+    Ok(Box<ExpandExecData>),
 }
 
 pub(crate) async fn expand(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outcome {
@@ -1459,29 +2100,139 @@ pub(crate) async fn expand(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
         DirectionArg::In => TraversalDirection::Incoming,
         DirectionArg::Both => TraversalDirection::Both,
     };
-    let validity_instant = args.as_of.unwrap_or_else(now_secs);
+    let include_evidence = args.include_evidence_refs.unwrap_or(false);
+    let policy = ctx.shared.registry.store_policy(&store)?;
+    let reused_frozen = match &args.frozen_context {
+        Some(handle) => {
+            if args.as_of.is_some() {
+                return Err(ToolError::bad_argument(
+                    "as_of cannot accompany frozen_context on expand",
+                ));
+            }
+            let entry = ctx
+                .session
+                .frozen_context(&store, &policy.scope_key, handle)
+                .ok_or_else(ToolError::not_found)?;
+            Some((handle.clone(), entry))
+        }
+        None => None,
+    };
+    let validity_instant = reused_frozen
+        .as_ref()
+        .map(|(_, entry)| entry.context.effective_valid_at)
+        .unwrap_or_else(|| args.as_of.unwrap_or_else(now_secs));
     let view = ReadView { valid_as_of: Some(validity_instant), ..ReadView::default() };
     let edge_kinds = args.edge_kinds.unwrap_or_default();
     let target_kinds = args.target_kinds.unwrap_or_default();
-    let (answered, result) = ctx
-        .run(&store, move |engine| {
+
+    let guard = ctx.acquire(&store, ctx.deadline()).await?;
+    if let Some((_, ref entry)) = reused_frozen {
+        if entry.epoch != guard.epoch {
+            return Err(ToolError::state_drift());
+        }
+    }
+    let existing_frozen = reused_frozen.as_ref().map(|(_, entry)| entry.clone());
+    let (answered, exec) = bridge::call(
+        guard,
+        ctx.run_limit(),
+        &ctx.cancel,
+        ctx.progress.as_ref(),
+        &ctx.shared.hooks,
+        move |engine| {
+            let visibility = read::visibility_state(engine)?;
+            let (read_context, minted_frozen) = match existing_frozen {
+                Some(entry) => {
+                    if visibility != entry.minted_state {
+                        return Ok(ExpandExec::Drifted);
+                    }
+                    (GraphReadContextV1::Frozen { schema_version: 1, context: entry.context }, None)
+                }
+                None if include_evidence => {
+                    let rc = ReadContextV1::new(view, SearchFilter::default())?;
+                    let frozen = engine.freeze_read_context(&rc)?;
+                    (
+                        GraphReadContextV1::Frozen { schema_version: 1, context: frozen.clone() },
+                        Some(frozen),
+                    )
+                }
+                None => (
+                    GraphReadContextV1::Current {
+                        schema_version: 1,
+                        context: ReadContextV1::new(view, SearchFilter::default())?,
+                    },
+                    None,
+                ),
+            };
             let request = GraphExpandRequestV1::new(
                 GraphSeedV1::Explicit { schema_version: 1, logical_ids: ids },
                 direction,
-                GraphReadContextV1::Current {
-                    schema_version: 1,
-                    context: ReadContextV1::new(view, SearchFilter::default())?,
-                },
+                read_context,
                 u32::try_from(max_depth).unwrap_or(3),
                 u32::try_from(limit).unwrap_or(50),
                 EXPAND_WORK_UNITS,
             )
             .with_edge_kinds(edge_kinds)
             .with_target_kinds(target_kinds)
-            .with_explanation(true);
-            graph::expand(engine, &request)
+            .with_explanation(true)
+            .with_evidence(include_evidence);
+            let result = match graph::expand(engine, &request) {
+                Ok(result) => result,
+                Err(err)
+                    if matches!(
+                        err.kind(),
+                        fathomdb_sdk::ErrorKind::FrozenRead | fathomdb_sdk::ErrorKind::Evidence
+                    ) =>
+                {
+                    let after = read::visibility_state(engine)?;
+                    if after != visibility {
+                        return Ok(ExpandExec::Drifted);
+                    }
+                    return Err(err);
+                }
+                Err(err) => return Err(err),
+            };
+            let final_vis = read::visibility_state(engine)?;
+            Ok(ExpandExec::Ok(Box::new(ExpandExecData {
+                visibility: final_vis,
+                result,
+                minted_frozen,
+            })))
+        },
+    )
+    .await?;
+
+    let (visibility, result, minted_frozen) = match exec {
+        ExpandExec::Drifted => return Err(ToolError::state_drift()),
+        ExpandExec::Ok(data) => (data.visibility, data.result, data.minted_frozen),
+    };
+    let state = state_for(ctx, &answered, &visibility);
+    let frozen_handle = match (reused_frozen, minted_frozen) {
+        (Some((handle, _)), _) => Some(handle),
+        (None, Some(frozen)) => {
+            let handle = shape::handle(
+                'f',
+                answered.epoch,
+                &[&store, &answered.policy.scope_key, &frozen.token],
+            );
+            ctx.session.put_frozen_context(
+                &store,
+                &answered.policy.scope_key,
+                handle.clone(),
+                FrozenEntry { epoch: answered.epoch, context: frozen, minted_state: visibility },
+            );
+            Some(handle)
+        }
+        (None, None) => None,
+    };
+
+    let evidence_by_idx: BTreeMap<usize, &fathomdb_sdk::GraphEvidenceSidecarEntryV1> = result
+        .evidence
+        .as_ref()
+        .map(|sidecar| {
+            sidecar.entries.iter().map(|entry| (entry.target_index as usize, entry)).collect()
         })
-        .await?;
+        .unwrap_or_default();
+
     let degradation = shape::canonical_degradation(
         result
             .degradation_codes
@@ -1528,20 +2279,32 @@ pub(crate) async fn expand(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
                 &store,
                 answered.epoch,
                 validity_instant,
+                state.clone(),
                 degradation.clone(),
                 max_tokens,
             ),
             targets: result.targets[..kept]
                 .iter()
+                .enumerate()
                 .zip(bodies)
                 .zip(&references)
-                .map(|((target, (body, body_cut)), reference)| Target {
-                    reference: reference.clone(),
-                    kind: target.kind.clone(),
-                    hop_count: target.origin.hop_count,
-                    terminal_edge_kind: target.origin.terminal_edge_kind.clone(),
-                    body: body.clone(),
-                    body_cut: *body_cut,
+                .map(|(((index, target), (body, body_cut)), reference)| {
+                    let ev = evidence_by_idx.get(&index).copied();
+                    Target {
+                        reference: reference.clone(),
+                        kind: target.kind.clone(),
+                        hop_count: target.origin.hop_count,
+                        terminal_edge_kind: target.origin.terminal_edge_kind.clone(),
+                        body: body.clone(),
+                        body_cut: *body_cut,
+                        artifact_revision_id: ev
+                            .map(|e| e.target_artifact_revision_id.as_str().to_string()),
+                        graph_evidence_ref: ev.map(|e| e.target_evidence_ref.as_str().to_string()),
+                        terminal_edge_artifact_revision_id: ev
+                            .map(|e| e.terminal_edge_artifact_revision_id.as_str().to_string()),
+                        terminal_edge_evidence_ref: ev
+                            .map(|e| e.terminal_edge_evidence_ref.as_str().to_string()),
+                    }
                 })
                 .collect(),
             complete: result.complete,
@@ -1551,23 +2314,20 @@ pub(crate) async fn expand(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outc
             } else {
                 bound.clone()
             },
+            frozen_context: frozen_handle.clone(),
             hints,
         }
     };
     let format = &ctx.shared.config.result_format;
     let complete_fetch = FetchOutput {
-        envelope: envelope(&store, answered.epoch, validity_instant, vec![], 256),
+        envelope: envelope(&store, answered.epoch, validity_instant, state.clone(), vec![], 256),
         items: result
             .targets
             .iter()
             .zip(&references)
             .map(|(target, reference)| FetchItem::Record {
                 reference: reference.clone(),
-                record: RecordOut {
-                    kind: target.kind.clone(),
-                    body: target.body.clone(),
-                    body_cut: false,
-                },
+                record: plain_record(target.kind.clone(), target.body.clone(), false),
             })
             .collect(),
         hints: vec![],
@@ -1609,6 +2369,7 @@ fn render_feedback(output: &FeedbackOutput) -> String {
         let reason = serde_json::to_value(reason).expect("reason serializes");
         text.push_str(&format!(" reason={}", reason.as_str().expect("reason word")));
     }
+    append_state_header(&mut text, output.envelope.state.as_ref());
     text.push_str(&format!(
         " tokens={}/{}{}",
         output.envelope.budget.used_tokens,
@@ -1623,7 +2384,7 @@ fn render_feedback(output: &FeedbackOutput) -> String {
 
 fn not_recorded(store: &str, epoch: u64, reason: NotRecordedReason, max_tokens: u32) -> Rendered {
     let output = FeedbackOutput {
-        envelope: envelope(store, epoch, now_secs(), vec![], max_tokens),
+        envelope: envelope(store, epoch, now_secs(), None, vec![], max_tokens),
         status: FeedbackStatus::NotRecorded,
         reason: Some(reason),
     };
@@ -1633,10 +2394,10 @@ fn not_recorded(store: &str, epoch: u64, reason: NotRecordedReason, max_tokens: 
 pub(crate) async fn feedback(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Outcome {
     let args: FeedbackArgs = parse(arguments)?;
     let store = resolve_store(ctx, args.store.as_deref())?;
-    ctx.shared.registry.ensure_slot(&store)?;
+    let policy = ctx.shared.registry.store_policy(&store)?;
     let max_tokens = ctx.shared.config.default_max_tokens;
     let current_epoch = ctx.shared.registry.ready_epoch(&store);
-    let entry = match ctx.session.response(&store, &args.response_id) {
+    let entry = match ctx.session.response(&store, &policy.scope_key, &args.response_id) {
         ResponseLookup::Found(entry) => entry,
         ResponseLookup::OtherStore => return Err(ToolError::wrong_store(&store)),
         ResponseLookup::Missing => {
@@ -1723,13 +2484,15 @@ pub(crate) async fn feedback(ctx: &Ctx<'_>, arguments: Map<String, Value>) -> Ou
     };
     let used = resolve(&args.used)?;
     let unused = resolve(&unused)?;
-    let (answered, ()) =
+    let (answered, visibility) =
         bridge::call(guard, ctx.run_limit(), &ctx.cancel, None, &ctx.shared.hooks, move |engine| {
-            engine.record_feedback(&query_id, &used, &unused, "agent")
+            engine.record_feedback(&query_id, &used, &unused, "agent")?;
+            read::visibility_state(engine)
         })
         .await?;
+    let state = state_for(ctx, &answered, &visibility);
     let output = FeedbackOutput {
-        envelope: envelope(&store, answered.epoch, now_secs(), vec![], max_tokens),
+        envelope: envelope(&store, answered.epoch, now_secs(), state, vec![], max_tokens),
         status: FeedbackStatus::Recorded,
         reason: None,
     };
@@ -1752,7 +2515,7 @@ mod degradation_tests {
         assert!(result.snippets.is_none(), "precondition: no snippets were requested");
         let run = SearchRun::from_result(result);
         let per_hit = vec![None; run.hits.len()];
-        let page = search_page(&run, &per_hit, 0, false);
+        let page = search_page(&run, None, &per_hit, 0, false);
         assert!(
             matches!(&page, Err(error) if error.code == "internal"),
             "{:?}",
@@ -1821,7 +2584,7 @@ mod compact_render_tests {
 
     fn search_output() -> SearchOutput {
         SearchOutput {
-            envelope: envelope("s", 1, 0, Vec::new(), 4000),
+            envelope: envelope("s", 1, 0, None, Vec::new(), 4000),
             mode: ModeWord::Hybrid,
             response_id: "r1-0000000000000000".into(),
             results: vec![Hit {
@@ -1836,11 +2599,14 @@ mod compact_render_tests {
                 score: 0.123456,
                 arm: "text".into(),
                 ce_score: Some(0.987654),
+                evidence_ref: None,
+                artifact_revision_id: None,
             }],
             completeness: crate::output::Completeness::Complete,
             verdict: None,
             continuation: None,
             continuation_exact: None,
+            frozen_context: None,
             explanation: None,
             hints: Vec::new(),
         }
@@ -1941,8 +2707,9 @@ mod compact_render_tests {
                 },
                 reason: fathomdb_sdk::StoredHeadCoverageUnavailableReason::CacheCold,
             }),
-            envelope: envelope("s", 1, 0, Vec::new(), 4000),
+            envelope: envelope("s", 1, 0, None, Vec::new(), 4000),
             projections: vec![ProjectionRow {
+                entity_class: "node".into(),
                 name: "text".into(),
                 roles: vec!["searchable".into()],
                 fts: true,
@@ -1952,6 +2719,7 @@ mod compact_render_tests {
                 runtime_embedder_available: false,
                 runtime_unavailability_reason: "no_runtime".into(),
                 projections: vec![ProjectionDenseRow {
+                    entity_class: "node".into(),
                     name: "text".into(),
                     dense_readiness: "not_declared".into(),
                 }],
@@ -1965,15 +2733,15 @@ mod compact_render_tests {
             },
             kinds: Unavailable::new(),
             counts: Unavailable::new(),
-            not_in_this_release: ["state", "verdict", "kinds", "counts"],
+            not_in_this_release: ["verdict", "kinds", "counts"],
         };
         let text = render_orient(&output);
-        let disclosure = r#"not_in_this_release=["state","verdict","kinds","counts"]"#;
+        let disclosure = r#"not_in_this_release=["verdict","kinds","counts"]"#;
         assert_eq!(text.lines().filter(|line| *line == disclosure).count(), 1);
         for expected in [
             "orient store=\"s\" epoch=1 validity_instant=0 tokens=0/4000",
             disclosure,
-            "projection \"text\" roles=searchable fts=true vector=false dense=not_declared",
+            "projection \"text\" class=node roles=searchable fts=true vector=false dense=not_declared",
             "embedding: state=blocked usable_embedder=false pending=2 affected_kinds=[\"note\"]",
             "runtime_embedder: available=false reason=no_runtime",
             "vector_unsupported_kinds=[\"edgekind\"]",
@@ -1999,8 +2767,8 @@ mod compact_render_tests {
             chars in proptest::collection::vec(proptest::sample::select(vec!['a',' ','"','\\','\r','\n','|','é','😀']), 0..120),
         ) {
             let body = chars.into_iter().collect::<String>();
-            let output = FetchOutput { envelope:envelope("s",1,0,Vec::new(),100000),
-                items:vec![FetchItem::Record {reference:"l:a".into(),record:RecordOut {kind:"note".into(),body:body.clone(),body_cut:body.trim().is_empty()}}],hints:Vec::new() };
+            let output = FetchOutput { envelope:envelope("s",1,0,None,Vec::new(),100000),
+                items:vec![FetchItem::Record {reference:"l:a".into(),record:plain_record("note".into(),body.clone(),body.trim().is_empty())}],hints:Vec::new() };
             let text = render_fetch(&output);
             let (_, framed) = text.split_once('\n').unwrap();
             let (header, framed) = framed.split_once('\n').expect("record header then verbatim body");
@@ -2062,9 +2830,11 @@ mod compact_render_tests {
             let targets = bodies.iter().enumerate().map(|(i,chars)| Target {
                 reference:format!("l:odd \" | é\r\n{i}"),kind:"note".into(),hop_count:1,
                 terminal_edge_kind:"link".into(),body:chars.iter().collect(),body_cut:false,
+                artifact_revision_id:None,graph_evidence_ref:None,
+                terminal_edge_artifact_revision_id:None,terminal_edge_evidence_ref:None,
             }).collect::<Vec<_>>();
-            let output = ExpandOutput {envelope:envelope("s",1,0,Vec::new(),100000),targets,
-                complete:true,bound:None,hints:Vec::new()};
+            let output = ExpandOutput {envelope:envelope("s",1,0,None,Vec::new(),100000),targets,
+                complete:true,bound:None,frozen_context:None,hints:Vec::new()};
             let text = render_expand(&output);
             proptest::prop_assert!(text.starts_with("expand store=\"s\" epoch=1 validity_instant=0 targets="),"{text}");
             let rows = text.lines().skip(1).collect::<Vec<_>>();

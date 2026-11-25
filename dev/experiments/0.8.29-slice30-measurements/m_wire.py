@@ -170,7 +170,7 @@ def _current_metadata(payload):
         if defaults != ([] if payload["default_store"] is None else [payload["default_store"]]):
             raise ValueError("store flags disagree with session default")
     if "projection_status" in payload:
-        if payload.get("not_in_this_release") != ["state", "verdict", "kinds", "counts"]:
+        if payload.get("not_in_this_release") != ["verdict", "kinds", "counts"]:
             raise ValueError("invalid unsupported-capability disclosure")
         _coverage(payload.get("vector_coverage"))
     return payload
@@ -190,12 +190,18 @@ def _compact(text):
             if line.startswith("projection "):
                 name, size = json.JSONDecoder().raw_decode(line[len("projection "):])
                 fields, _ = _fields(line[len("projection ") + size:])
+                entity_class = fields.get("class")
                 if "roles" in fields:
-                    payload["projections"].append({"name": name, "roles": fields["roles"].split(","),
-                                                   "fts": fields["fts"], "vector": fields["vector"]})
+                    row = {"name": name, "roles": fields["roles"].split(","),
+                           "fts": fields["fts"], "vector": fields["vector"]}
+                    if entity_class is not None:
+                        row["entity_class"] = entity_class
+                    payload["projections"].append(row)
                 if "dense" in fields:
-                    payload["projection_status"]["projections"].append(
-                        {"name": name, "dense_readiness": fields["dense"]})
+                    row = {"name": name, "dense_readiness": fields["dense"]}
+                    if entity_class is not None:
+                        row["entity_class"] = entity_class
+                    payload["projection_status"]["projections"].append(row)
             elif line.startswith("embedding: "):
                 fields, _ = _fields(line[len("embedding: "):])
                 fields["pending_count"] = fields.pop("pending")

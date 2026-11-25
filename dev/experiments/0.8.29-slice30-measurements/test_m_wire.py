@@ -9,7 +9,7 @@ from hypothesis import given, settings, strategies as st
 from m_wire import decode_tool
 
 
-DISCLOSURE = ["state", "verdict", "kinds", "counts"]
+DISCLOSURE = ["verdict", "kinds", "counts"]
 PROFILE = {"key": "default", "name": "fixture", "revision": "1", "dimension": 8}
 AVAILABLE = {
     "status": "available", "population": "stored_mapped_spans", "profile": PROFILE,
@@ -34,7 +34,7 @@ def orient(coverage):
     template = '\n'.join([
         'orient store="a" epoch=1 validity_instant=0 tokens={used}/4000',
         'not_in_this_release=' + json.dumps(DISCLOSURE, separators=(',', ':')),
-        'projection "body" roles=searchable fts=true vector=false dense=not_declared',
+        'projection "body" class=node roles=searchable fts=true vector=false dense=not_declared',
         'embedding: state=blocked usable_embedder=false pending=2 affected_kinds=["note"]',
         'runtime_embedder: available=false reason=no_runtime',
         'vector_unsupported_kinds=["edge"]',
@@ -80,7 +80,8 @@ class CurrentMetadataTests(unittest.TestCase):
             self.assertEqual(payload["embedding_readiness"], {"state": "blocked",
                 "usable_embedder": False, "pending_count": 2, "affected_kinds": ["note"]})
             self.assertEqual(payload["projection_status"]["vector_unsupported_kinds"], ["edge"])
-            self.assertEqual(payload["projections"], [{"name": "body", "roles": ["searchable"],
+            self.assertEqual(payload["projections"], [{"entity_class": "node", "name": "body",
+                                                     "roles": ["searchable"],
                                                      "fts": True, "vector": False}])
             self.assertEqual(decode_tool(message("unused", payload))["payload"], payload)
             self.assertNotIn("state", payload)

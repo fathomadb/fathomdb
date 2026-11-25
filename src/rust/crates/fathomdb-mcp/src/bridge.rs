@@ -14,7 +14,7 @@ use fathomdb_sdk::Engine;
 
 use crate::error::{BusyReason, ToolError};
 use crate::hooks::Hooks;
-use crate::registry::{Cancel, OpenInfo, ProgressFn, StoreGuard};
+use crate::registry::{Cancel, OpenInfo, ProgressFn, StoreGuard, StorePolicy};
 
 /// What a call learned about the store it ran on.
 #[derive(Clone)]
@@ -22,6 +22,7 @@ pub(crate) struct Answered {
     pub(crate) store: String,
     pub(crate) epoch: u64,
     pub(crate) info: Arc<OpenInfo>,
+    pub(crate) policy: Arc<StorePolicy>,
 }
 
 pub(crate) async fn call<T, F>(
@@ -36,14 +37,20 @@ where
     T: Send + 'static,
     F: FnOnce(&Engine) -> fathomdb_sdk::Result<T> + Send + 'static,
 {
-    let answered =
-        Answered { store: guard.name.clone(), epoch: guard.epoch, info: guard.info.clone() };
+    let answered = Answered {
+        store: guard.name.clone(),
+        epoch: guard.epoch,
+        info: guard.info.clone(),
+        policy: guard.policy.clone(),
+    };
     let abandoner = guard.abandoner();
     // A started call runs to completion; the run limit, from its permit,
     // only reports stuck work.
     let run_until = guard.admitted_at() + run_limit;
     let hooks = hooks.clone();
+    let blocking = guard.enter_blocking();
     let task = tokio::task::spawn_blocking(move || {
+        let _blocking = blocking;
         let guard = guard;
         #[cfg(feature = "test-seams")]
         if let Some(observation) = &guard.pre_enqueue {

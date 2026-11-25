@@ -183,6 +183,60 @@ fn current_wire(expected: &Value, payload: Value) -> Value {
     current
 }
 
+fn is_lower_hex(s: &str, len: usize) -> bool {
+    s.len() == len && s.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+}
+
+fn validate_live_ep01_state(state: &Value) -> Result<(), String> {
+    let obj = state.as_object().ok_or("live EP-01 state must be an object")?;
+    let mut keys: Vec<&str> = obj.keys().map(String::as_str).collect();
+    keys.sort_unstable();
+    if keys
+        != [
+            "canonical_write_boundary",
+            "database_id",
+            "drift",
+            "generation",
+            "nonce",
+            "projection_cursor",
+            "status",
+        ]
+    {
+        return Err(format!("live EP-01 state keys mismatch: {keys:?}"));
+    }
+    if obj["status"] != "available" {
+        return Err("live EP-01 state status must be available".into());
+    }
+    if obj["drift"] != "unchanged" {
+        return Err("live EP-01 state drift must be unchanged on steady fixture".into());
+    }
+    if !obj["database_id"].as_str().is_some_and(|s| is_lower_hex(s, 32)) {
+        return Err("live EP-01 state database_id must be 32 lowercase hex chars".into());
+    }
+    if !obj["nonce"].as_str().is_some_and(|s| is_lower_hex(s, 64)) {
+        return Err("live EP-01 state nonce must be 64 lowercase hex chars".into());
+    }
+    if obj["generation"].as_u64().unwrap_or(0) == 0 {
+        return Err("live EP-01 state generation must be > 0".into());
+    }
+    if obj["canonical_write_boundary"] != 18 || obj["projection_cursor"] != 18 {
+        return Err("live EP-01 state write boundary/projection cursor mismatch".into());
+    }
+    Ok(())
+}
+
+fn sample_live_ep01_state() -> Value {
+    json!({
+        "status": "available",
+        "database_id": "0123456789abcdef0123456789abcdef",
+        "generation": 5,
+        "nonce": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "canonical_write_boundary": 18,
+        "projection_cursor": 18,
+        "drift": "unchanged"
+    })
+}
+
 fn compare_baseline(current: &Value, expected: &Value, index: usize) -> Result<(), String> {
     let payload = &current["result"]["structuredContent"];
     if !payload.is_object() {
@@ -212,7 +266,10 @@ fn compare_baseline(current: &Value, expected: &Value, index: usize) -> Result<(
         {
             return Err("historical unavailable-state successor guard mismatch".into());
         }
-        desired.as_object_mut().unwrap().remove("state");
+        let live_state =
+            payload.get("state").ok_or("live EP-01 state is required on store responses")?;
+        validate_live_ep01_state(live_state)?;
+        desired["state"] = live_state.clone();
         if index <= 6 {
             let mode = if index == 4 { "hybrid" } else { "text" };
             if original["mode"] != mode || original["verdict"] != "unavailable" {
@@ -484,7 +541,7 @@ fn historical_hybrid_absence_has_only_the_authored_successor_delta() {
 
 fn authored_omission(mut payload: Value) -> Value {
     assert_eq!(payload["state"], json!({"status":"unavailable"}));
-    payload.as_object_mut().unwrap().remove("state");
+    payload["state"] = sample_live_ep01_state();
     if payload.get("verdict").is_some() {
         assert_eq!(payload["verdict"], "unavailable");
         payload.as_object_mut().unwrap().remove("verdict");

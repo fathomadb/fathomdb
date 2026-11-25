@@ -1,15 +1,19 @@
-//! Per-connection session: the default store and, per store, the last 256
-//! continuations and response ids (interface §5). Handles are short
-//! server-side keys, not encoded state, so a forged or edited handle simply
-//! misses (MR-041.5).
+//! Per-connection session: the default store and, per `(store, scope_key)`,
+//! the last 256 continuations, response ids, frozen read contexts, and last
+//! observed visibility state (interface §5, `AC32-MCP-SAFETY-04`). Handles are
+//! short server-side keys, not encoded state, so a forged or cross-scope handle
+//! simply misses (MR-041.5).
 
 use std::collections::{BTreeMap, VecDeque};
 use std::sync::{Mutex, MutexGuard};
 
+use fathomdb_sdk::{FrozenReadContextV1, VisibilityStateV1};
+
 use crate::config::SearchMode;
+use crate::output::DriftLabel;
 use crate::shape::CanonicalSearch;
 
-/// Handles kept per store and kind; the least recently used is dropped.
+/// Handles kept per `(store, scope_key)` and kind; the least recently used is dropped.
 pub(crate) const HANDLES_PER_STORE: usize = 256;
 
 /// The state a continuation re-runs.
@@ -19,6 +23,14 @@ pub(crate) struct Continuation {
     pub(crate) args: CanonicalSearch,
     pub(crate) offset: usize,
     pub(crate) validity_instant: i64,
+}
+
+/// One frozen read context minted or reused in this session.
+#[derive(Clone, Debug)]
+pub(crate) struct FrozenEntry {
+    pub(crate) epoch: u64,
+    pub(crate) context: FrozenReadContextV1,
+    pub(crate) minted_state: VisibilityStateV1,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -98,11 +110,18 @@ impl<V: Clone> Lru<V> {
 struct Tables {
     continuations: Lru<Continuation>,
     responses: Lru<ResponseContext>,
+    frozen_contexts: Lru<FrozenEntry>,
+    last_state: Option<VisibilityStateV1>,
 }
 
 impl Tables {
     fn new() -> Self {
-        Self { continuations: Lru::new(), responses: Lru::new() }
+        Self {
+            continuations: Lru::new(),
+            responses: Lru::new(),
+            frozen_contexts: Lru::new(),
+            last_state: None,
+        }
     }
 }
 
@@ -113,9 +132,11 @@ pub(crate) enum ResponseLookup {
     Missing,
 }
 
+type TableKey = (String, String);
+
 pub(crate) struct Session {
     default_store: Mutex<Option<String>>,
-    tables: Mutex<BTreeMap<String, Tables>>,
+    tables: Mutex<BTreeMap<TableKey, Tables>>,
 }
 
 impl Session {
@@ -123,7 +144,7 @@ impl Session {
         Self { default_store: Mutex::new(default_store), tables: Mutex::new(BTreeMap::new()) }
     }
 
-    fn tables(&self) -> MutexGuard<'_, BTreeMap<String, Tables>> {
+    fn tables(&self) -> MutexGuard<'_, BTreeMap<TableKey, Tables>> {
         self.tables.lock().unwrap_or_else(|poison| poison.into_inner())
     }
 
@@ -136,37 +157,130 @@ impl Session {
             Some(store.to_string());
     }
 
-    pub(crate) fn put_continuation(&self, store: &str, handle: String, value: Continuation) {
+    pub(crate) fn put_continuation(
+        &self,
+        store: &str,
+        scope_key: &str,
+        handle: String,
+        value: Continuation,
+    ) {
         self.tables()
-            .entry(store.to_string())
+            .entry((store.to_string(), scope_key.to_string()))
             .or_insert_with(Tables::new)
             .continuations
             .insert(handle, value);
     }
 
-    pub(crate) fn continuation(&self, store: &str, handle: &str) -> Option<Continuation> {
-        self.tables().get_mut(store)?.continuations.get(handle)
+    pub(crate) fn continuation(
+        &self,
+        store: &str,
+        scope_key: &str,
+        handle: &str,
+    ) -> Option<Continuation> {
+        self.tables()
+            .get_mut(&(store.to_string(), scope_key.to_string()))?
+            .continuations
+            .get(handle)
     }
 
-    pub(crate) fn put_response(&self, store: &str, handle: String, value: ResponseContext) {
+    pub(crate) fn put_frozen_context(
+        &self,
+        store: &str,
+        scope_key: &str,
+        handle: String,
+        entry: FrozenEntry,
+    ) {
         self.tables()
-            .entry(store.to_string())
+            .entry((store.to_string(), scope_key.to_string()))
+            .or_insert_with(Tables::new)
+            .frozen_contexts
+            .insert(handle, entry);
+    }
+
+    pub(crate) fn frozen_context(
+        &self,
+        store: &str,
+        scope_key: &str,
+        handle: &str,
+    ) -> Option<FrozenEntry> {
+        self.tables()
+            .get_mut(&(store.to_string(), scope_key.to_string()))?
+            .frozen_contexts
+            .get(handle)
+    }
+
+    pub(crate) fn put_response(
+        &self,
+        store: &str,
+        scope_key: &str,
+        handle: String,
+        value: ResponseContext,
+    ) {
+        self.tables()
+            .entry((store.to_string(), scope_key.to_string()))
             .or_insert_with(Tables::new)
             .responses
             .insert(handle, value);
     }
 
-    pub(crate) fn response(&self, store: &str, handle: &str) -> ResponseLookup {
+    pub(crate) fn response(&self, store: &str, scope_key: &str, handle: &str) -> ResponseLookup {
         let mut tables = self.tables();
-        if let Some(found) = tables.get_mut(store).and_then(|tables| tables.responses.get(handle)) {
+        if let Some(found) = tables
+            .get_mut(&(store.to_string(), scope_key.to_string()))
+            .and_then(|tables| tables.responses.get(handle))
+        {
             return ResponseLookup::Found(found);
         }
-        if tables.values().any(|tables| tables.responses.contains(handle)) {
+        // Only check other stores within the SAME scope_key so cross-scope
+        // response handles never disclose existence (`AC32-MCP-SAFETY-04`).
+        if tables
+            .iter()
+            .any(|((_, sk), tables)| sk == scope_key && tables.responses.contains(handle))
+        {
             ResponseLookup::OtherStore
         } else {
             ResponseLookup::Missing
         }
     }
+
+    /// Record the latest visibility snapshot for `(store, scope_key)` and
+    /// classify drift relative to the previous observation in this session.
+    pub(crate) fn observe_state(
+        &self,
+        store: &str,
+        scope_key: &str,
+        current: &VisibilityStateV1,
+    ) -> DriftLabel {
+        let mut tables = self.tables();
+        let entry =
+            tables.entry((store.to_string(), scope_key.to_string())).or_insert_with(Tables::new);
+        let drift = match &entry.last_state {
+            None => DriftLabel::Unchanged,
+            Some(prev) => classify_drift(prev, current),
+        };
+        entry.last_state = Some(current.clone());
+        drift
+    }
+}
+
+pub(crate) fn classify_drift(prev: &VisibilityStateV1, current: &VisibilityStateV1) -> DriftLabel {
+    if prev.database_id == current.database_id
+        && prev.generation == current.generation
+        && prev.nonce == current.nonce
+        && prev.canonical_write_boundary == current.canonical_write_boundary
+        && prev.projection_cursor == current.projection_cursor
+    {
+        return DriftLabel::Unchanged;
+    }
+    if prev.database_id != current.database_id
+        || prev.canonical_write_boundary != current.canonical_write_boundary
+    {
+        return DriftLabel::Canonical;
+    }
+    if prev.projection_cursor != current.projection_cursor {
+        return DriftLabel::Index;
+    }
+    DriftLabel::Canonical
 }
 
 #[cfg(test)]

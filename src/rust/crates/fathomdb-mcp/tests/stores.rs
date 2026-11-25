@@ -71,7 +71,7 @@ async fn files_are_created_only_where_the_registry_allows_it() {
     let harness = Harness::start(fixture.config(json!({
         "stores": {
             "fixed": {"path": "fixed.sqlite"},
-            "growable": {"path": "growable.sqlite", "create": true}
+            "growable": {"path": "growable.sqlite", "allow_writes": true, "scope": "alpha", "create": true}
         }
     })))
     .await;

@@ -169,13 +169,13 @@ async fn hints_validate_against_output_schema() {
     seen.extend(reasons(&harness.ok("list_stores", json!({})).await));
     let page = harness.ok("search", json!({"query": "river", "limit": 3})).await;
     seen.extend(reasons(&page));
-    seen.extend(reasons(&harness.ok("search", json!({"query": "river", "max_tokens": 400})).await));
+    seen.extend(reasons(&harness.ok("search", json!({"query": "river", "max_tokens": 550})).await));
     seen.extend(reasons(&harness.ok("search", json!({"query": "zebra", "mode": "hybrid"})).await));
     seen.extend(reasons(
-        &harness.ok("fetch", json!({"refs": ["l:note:01"], "max_tokens": 256})).await,
+        &harness.ok("fetch", json!({"refs": ["l:note:01"], "max_tokens": 400})).await,
     ));
     seen.extend(reasons(
-        &harness.ok("expand", json!({"refs": ["l:note:00"], "max_tokens": 256})).await,
+        &harness.ok("expand", json!({"refs": ["l:note:00"], "max_tokens": 400})).await,
     ));
     seen.sort();
     seen.dedup();

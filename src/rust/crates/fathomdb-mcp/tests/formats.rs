@@ -178,7 +178,10 @@ async fn hosted_continuation_reports_best_effort() {
     let header = text.lines().next().unwrap();
     assert!(header.contains(" continuation=c1-"), "{header}");
     assert!(header.contains(" continuation_exact=false "), "{header}");
-    assert!(!header.contains("state="), "epoch is not a new freshness assertion");
+    assert!(
+        header.contains("state={\"status\":\"available\""),
+        "live EP-01 state must be present: {header}"
+    );
     harness.shutdown().await;
     engine.close().unwrap();
 }
@@ -207,7 +210,7 @@ async fn compact_orient_reports_real_projection_status_without_a_provider() {
     let text = text_of(&wire(&harness, "orient", json!({"store":"host"})).await);
     assert!(
         text.contains(
-            "projection \"text\" roles=searchable fts=true vector=false dense=not_declared"
+            "projection \"text\" class=node roles=searchable fts=true vector=false dense=not_declared"
         ),
         "{text}"
     );
@@ -269,7 +272,7 @@ async fn compact_fetch_frames_exact_utf8_in_request_order() {
     let result = wire(&harness,"fetch",json!({"refs":[reference,"l:missing","bad","h:x",reference,"p:7","l:small"],"as_of":1900000000,"max_tokens":100000})).await;
     let text = text_of(&result);
     assert!(
-        text.starts_with("fetch store=\"a\" epoch=1 validity_instant=1900000000 items=7 tokens="),
+        text.starts_with("fetch store=\"a\" epoch=1 validity_instant=1900000000 items=7 state={"),
         "{text}"
     );
     let items = fetch_frames(&text);
@@ -367,7 +370,7 @@ async fn compact_expand_has_one_ordered_line_per_target() {
         &wire(&harness, "expand", json!({"refs":["l:hub"],"as_of":1900000000,"max_tokens":100000}))
             .await,
     );
-    assert!(text.starts_with("expand store=\"a\" epoch=1 validity_instant=1900000000 targets=1 complete=true tokens="),"{text}");
+    assert!(text.starts_with("expand store=\"a\" epoch=1 validity_instant=1900000000 targets=1 complete=true state={"),"{text}");
     let reference = serde_json::to_string(&format!("l:{id}")).unwrap();
     assert_eq!(
         text.lines().nth(1).unwrap(),
@@ -412,7 +415,9 @@ async fn compact_feedback_unique_ref_keeps_recorded_envelope() {
     let result = wire(&harness, "feedback", json!({"response_id":response,"used":["l:one"]})).await;
     let text = text_of(&result);
     assert!(text.starts_with("feedback store=\"a\" epoch=1 validity_instant="), "{text}");
-    assert!(text.contains(" status=recorded tokens="), "{text}");
+    assert!(text.contains(" status=recorded state="), "{text}");
+    assert!(text.contains("\"status\":\"available\""), "{text}");
+    assert!(text.contains(" tokens="), "{text}");
     assert!(!text.contains(" reason="), "{text}");
     let expired =
         text_of(&wire(&harness, "feedback", json!({"response_id":"expired","used":[]})).await);

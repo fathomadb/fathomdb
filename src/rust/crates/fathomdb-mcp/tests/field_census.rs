@@ -2,7 +2,7 @@
 //! decision as well as a schema update; skipped internal cut_anchors is absent.
 mod common;
 
-use serde_json::Value;
+use serde_json::{json, Value};
 use std::collections::BTreeSet;
 
 fn leaves(root: &Value, node: &Value, path: &str, out: &mut BTreeSet<String>) {
@@ -50,7 +50,13 @@ fn add(out: &mut BTreeSet<String>, prefix: &str, fields: &str) {
 }
 
 fn error(out: &mut BTreeSet<String>, prefix: &str) {
-    add(out,prefix,"class code message remedy candidates[] detail argument accepted[] refs_not_in_response[] refs_omitted busy.reason busy.in_flight busy.queued busy.abandoned busy.stuck");
+    add(
+        out,
+        prefix,
+        "class code message remedy candidates[] detail argument accepted[] \
+         refs_not_in_response[] refs_omitted observed_write_boundary \
+         busy.reason busy.in_flight busy.queued busy.abandoned busy.stuck",
+    );
 }
 
 fn hints(out: &mut BTreeSet<String>) {
@@ -65,7 +71,15 @@ fn expected(tool: &str) -> BTreeSet<String> {
     let mut out = BTreeSet::new();
     error(&mut out, "error.");
     if !matches!(tool, "list_stores" | "use_store") {
-        add(&mut out,"","store epoch validity_instant state.status degradation[].arm degradation[].reason budget.max_tokens budget.used_tokens budget.cut");
+        add(
+            &mut out,
+            "",
+            "store epoch validity_instant \
+             state.status state.database_id state.generation state.nonce \
+             state.canonical_write_boundary state.projection_cursor state.drift \
+             degradation[].arm degradation[].reason \
+             budget.max_tokens budget.used_tokens budget.cut",
+        );
     }
     match tool {
         "list_stores" => {
@@ -75,8 +89,14 @@ fn expected(tool: &str) -> BTreeSet<String> {
         }
         "use_store" => add(&mut out, "", "store"),
         "orient" => {
-            add(&mut out, "projections[].", "name roles[] fts vector");
-            add(&mut out,"projection_status.","runtime_embedder_available runtime_unavailability_reason projections[].name projections[].dense_readiness vector_unsupported_kinds[]");
+            add(&mut out, "projections[].", "entity_class name roles[] fts vector");
+            add(
+                &mut out,
+                "projection_status.",
+                "runtime_embedder_available runtime_unavailability_reason \
+                 projections[].entity_class projections[].name projections[].dense_readiness \
+                 vector_unsupported_kinds[]",
+            );
             add(
                 &mut out,
                 "embedding_readiness.",
@@ -86,9 +106,19 @@ fn expected(tool: &str) -> BTreeSet<String> {
             add(&mut out, "vector_coverage.", "status population reason profile.key profile.name profile.revision profile.dimension records known_records unknown_records truncated_known_records known_body_bytes unrepresented_known_bytes unattributed_heads truncated_known_share.numerator truncated_known_share.denominator unrepresented_known_byte_share.numerator unrepresented_known_byte_share.denominator");
         }
         "search" => {
-            add(&mut out,"","mode response_id completeness verdict continuation continuation_exact explanation.status explanation.reason");
-            add(&mut out,"results[].","ref kind snippet snippet_cut snippet_anchor scored_bytes highlights[][] source_id score arm ce_score");
-            add(&mut out,"explanation.trace.","query_chars k rerank_depth pool_n alpha use_graph_arm recency embedder_id ce_active vector_hits text_hits graph_hits dropped_edge_hits");
+            add(
+                &mut out,
+                "",
+                "mode response_id completeness verdict continuation continuation_exact \
+                 frozen_context explanation.status explanation.reason",
+            );
+            add(
+                &mut out,
+                "results[].",
+                "ref kind snippet snippet_cut snippet_anchor scored_bytes highlights[][] \
+                 source_id score arm ce_score evidence_ref artifact_revision_id",
+            );
+            add(&mut out, "explanation.trace.", "query_chars k rerank_depth pool_n alpha use_graph_arm recency embedder_id ce_active vector_hits text_hits graph_hits dropped_edge_hits");
             add(
                 &mut out,
                 "explanation.per_hit[].",
@@ -97,16 +127,38 @@ fn expected(tool: &str) -> BTreeSet<String> {
             hints(&mut out);
         }
         "fetch" => {
-            add(&mut out, "items[].", "ref record.kind record.body record.body_cut");
+            add(
+                &mut out,
+                "items[].",
+                "ref record.kind record.body record.body_cut \
+                 record.artifact_revision_id record.source_id record.source_version_id \
+                 record.source_revision_id record.evidence_text record.canonical_source_hash \
+                 record.artifact_class record.source_lifecycle_state",
+            );
             error(&mut out, "items[].error.");
             hints(&mut out);
         }
         "expand" => {
-            add(&mut out, "targets[].", "ref kind hop_count terminal_edge_kind body body_cut");
-            add(&mut out, "", "complete bound");
+            add(
+                &mut out,
+                "targets[].",
+                "ref kind hop_count terminal_edge_kind body body_cut \
+                 artifact_revision_id graph_evidence_ref \
+                 terminal_edge_artifact_revision_id terminal_edge_evidence_ref",
+            );
+            add(&mut out, "", "complete bound frozen_context");
             hints(&mut out);
         }
         "feedback" => add(&mut out, "", "status reason"),
+        "actuate" | "put_latest_state" => {
+            add(
+                &mut out,
+                "",
+                "operation_id request_sha256 outcome affected_revision_ids[] \
+                 resulting_write_boundary resulting_dependency_generation \
+                 pending_projection_write_cursors[]",
+            );
+        }
         _ => panic!("unclassified tool {tool}"),
     }
     out
@@ -114,30 +166,52 @@ fn expected(tool: &str) -> BTreeSet<String> {
 
 #[tokio::test]
 async fn every_serialized_field_has_an_explicit_presentation_contract() {
+    // Check read-only 7-tool surface
     let harness = common::Harness::start(common::structured_config()).await;
-    for tool in harness.tools().await {
+    let tools = harness.tools().await;
+    assert_eq!(tools.len(), 7);
+    for tool in tools {
         let schema = serde_json::to_value(tool.output_schema.unwrap()).unwrap();
         let mut actual = BTreeSet::new();
         leaves(&schema, &schema, "", &mut actual);
-        assert_eq!(actual,expected(&tool.name),"{} serialized paths need an explicit kept/presentation/omission decision in dev/interfaces/mcp.md",tool.name);
+        assert_eq!(
+            actual,
+            expected(&tool.name),
+            "{} serialized paths need an explicit kept/presentation/omission decision in dev/interfaces/mcp.md",
+            tool.name
+        );
         let omitted = actual
             .iter()
             .filter(|path| {
-                path.as_str() == "state.status"
-                    || path.as_str() == "verdict"
+                path.as_str() == "verdict"
                     || tool.name == "orient"
                         && matches!(path.as_str(), "kinds.status" | "counts.status")
             })
             .map(String::as_str)
             .collect::<Vec<_>>();
         let wanted = match tool.name.as_ref() {
-            "list_stores" | "use_store" => vec![],
-            "orient" => vec!["counts.status", "kinds.status", "state.status"],
-            "search" => vec!["state.status", "verdict"],
-            _ => vec!["state.status"],
+            "orient" => vec!["counts.status", "kinds.status"],
+            "search" => vec!["verdict"],
+            _ => vec![],
         };
         assert_eq!(omitted, wanted, "only approved unavailable placeholders are omitted in text");
         assert!(!actual.iter().any(|path| path.contains("cut_anchors")));
     }
     harness.shutdown().await;
+
+    // Also check write-enabled 9-tool surface (`actuate` + `put_latest_state`)
+    let fixture = common::Fixture::new();
+    let rw = common::Harness::start(fixture.config(json!({
+        "stores": {"w": {"path": "w.sqlite", "allow_writes": true, "scope": "alpha"}}
+    })))
+    .await;
+    let rw_tools = rw.tools().await;
+    assert_eq!(rw_tools.len(), 9);
+    for tool in rw_tools {
+        let schema = serde_json::to_value(tool.output_schema.unwrap()).unwrap();
+        let mut actual = BTreeSet::new();
+        leaves(&schema, &schema, "", &mut actual);
+        assert_eq!(actual, expected(&tool.name), "write-enabled {}", tool.name);
+    }
+    rw.shutdown().await;
 }

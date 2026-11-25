@@ -2,7 +2,10 @@
 //! templates; SDK message text is never copied into them because it may
 //! quote record content (MR-012.2).
 
-use fathomdb_sdk::{Error as SdkError, ErrorKind, GraphExpansionErrorReasonV1};
+use fathomdb_sdk::{
+    ActuationErrorReason, EngineError, Error as SdkError, ErrorKind, EvidenceErrorReasonV1,
+    FrozenReadErrorReason, GraphExpansionErrorReasonV1,
+};
 use schemars::JsonSchema;
 use serde::Serialize;
 
@@ -12,6 +15,7 @@ use serde::Serialize;
 pub enum ErrorClass {
     InvalidRequest,
     NotFound,
+    Conflict,
     NotReady,
     Unavailable,
     Timeout,
@@ -59,6 +63,9 @@ pub struct Correction {
     /// Number of omitted offending occurrences; absent at zero.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub refs_omitted: Option<u64>,
+    /// Observed canonical write boundary on `stale_write_boundary` conflicts (content-free).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub observed_write_boundary: Option<u64>,
 }
 
 /// Why an admission was refused (`busy.reason`).
@@ -248,6 +255,100 @@ impl ToolError {
         )
     }
 
+    pub(crate) fn writes_disabled(store: Option<&str>) -> Self {
+        let message = match store {
+            Some(store) => format!("store {store:?} is read-only (allow_writes is false)"),
+            None => "writes are disabled on this server (allow_writes is false)".to_string(),
+        };
+        Self::new(
+            ErrorClass::InvalidRequest,
+            "writes_disabled",
+            message,
+            "enable per-store allow_writes with a bound writable scope in the server configuration",
+        )
+    }
+
+    pub(crate) fn kind_not_allowed() -> Self {
+        Self::new(
+            ErrorClass::InvalidRequest,
+            "kind_not_allowed",
+            "this kind or collection is not permitted by the store's write allowlist".to_string(),
+            "use an allowed kind or collection configured for this store",
+        )
+    }
+
+    pub(crate) fn forbidden_operation() -> Self {
+        Self::new(
+            ErrorClass::InvalidRequest,
+            "forbidden_operation",
+            "this operation or flag is forbidden on the MCP surface".to_string(),
+            "use only strict governed MCP operations listed by tools/list",
+        )
+    }
+
+    pub(crate) fn scope_violation() -> Self {
+        Self::new(
+            ErrorClass::InvalidRequest,
+            "scope_violation",
+            "the active scope policy denies this operation".to_string(),
+            "remove spoofed scope fields and ensure the store's bound scope policy permits this operation",
+        )
+    }
+
+    pub(crate) fn stale_write_boundary(observed: Option<u64>) -> Self {
+        let mut error = Self::new(
+            ErrorClass::Conflict,
+            "stale_write_boundary",
+            "expected_write_boundary does not match the store's current write boundary".to_string(),
+            "re-read the store state and retry with the observed_write_boundary",
+        );
+        if observed.is_some() {
+            error.correction = Some(Box::new(Correction {
+                observed_write_boundary: observed,
+                ..Correction::default()
+            }));
+        }
+        error
+    }
+
+    pub(crate) fn operation_id_conflict() -> Self {
+        Self::new(
+            ErrorClass::Conflict,
+            "operation_id_conflict",
+            "operation_id was already committed or refused with a different request payload"
+                .to_string(),
+            "use a fresh operation_id for a distinct request, or replay the exact original payload",
+        )
+    }
+
+    pub(crate) fn state_drift() -> Self {
+        Self::new(
+            ErrorClass::Conflict,
+            "state_drift",
+            "the store state changed since the frozen context was created".to_string(),
+            "re-run search with freeze: true to obtain a fresh frozen_context",
+        )
+    }
+
+    pub(crate) fn lifecycle_conflict() -> Self {
+        Self::new(
+            ErrorClass::Conflict,
+            "lifecycle_conflict",
+            "the target record's current revision or lifecycle state conflicts with this transition"
+                .to_string(),
+            "re-read the current revision and retry the lifecycle transition",
+        )
+    }
+
+    pub(crate) fn evidence_incomplete() -> Self {
+        Self::new(
+            ErrorClass::Unavailable,
+            "unavailable",
+            "exact source provenance is incomplete for this evidence reference".to_string(),
+            "inspect the record directly or re-ingest with complete provenance",
+        )
+    }
+
     pub(crate) fn not_ready(store: &str, phase: &'static str) -> Self {
         Self::new(
             ErrorClass::NotReady,
@@ -369,6 +470,9 @@ impl ToolError {
     /// list) to the `unavailable` class (MR-003.3).
     pub(crate) fn from_open(store: &str, error: &SdkError) -> Self {
         let kind = error.kind();
+        if kind == ErrorKind::DatabaseNotFound {
+            return Self::missing_file(store).with_detail(kind);
+        }
         let (code, remedy) = match kind {
             ErrorKind::DatabaseLocked => (
                 "database_locked",
@@ -392,7 +496,7 @@ impl ToolError {
         .with_detail(kind)
     }
 
-    /// Map an SDK failure from a read.
+    /// Map an SDK failure from a read or governed actuation call.
     pub(crate) fn from_sdk(store: &str, error: &SdkError) -> Self {
         let kind = error.kind();
         let mapped = match kind {
@@ -400,10 +504,21 @@ impl ToolError {
             | ErrorKind::WriteValidation
             | ErrorKind::SchemaValidation
             | ErrorKind::InvalidFilter
-            | ErrorKind::Page
-            | ErrorKind::FrozenRead => Self::bad_argument(
-                "the engine rejected the request arguments (empty query, bad filter or bounds)",
+            | ErrorKind::Page => Self::bad_argument(
+                "the engine rejected the request arguments (empty query, bad filter, schema or bounds)",
             ),
+            ErrorKind::OpStore => Self::bad_argument(
+                "the operational collection is not registered or does not support this operation",
+            ),
+            ErrorKind::Provenance | ErrorKind::Dependency => Self::bad_argument(
+                "the engine rejected the provenance or source-dependency metadata",
+            ),
+            ErrorKind::Actuation => actuation_error(error),
+            ErrorKind::FrozenRead => frozen_read_error(error),
+            ErrorKind::Evidence => evidence_error(error),
+            ErrorKind::IllegalTransition | ErrorKind::NotLifecycleAddressable => {
+                Self::lifecycle_conflict()
+            }
             ErrorKind::EmbedderNotConfigured | ErrorKind::KindNotVectorIndexed => {
                 Self::embedder_not_ready()
             }
@@ -421,12 +536,7 @@ impl ToolError {
                 },
             ),
             ErrorKind::Closing => Self::not_ready(store, "draining"),
-            ErrorKind::ScopeViolation => Self::new(
-                ErrorClass::InvalidRequest,
-                "scope_violation",
-                "the active scope policy denies this operation".to_string(),
-                "open with a ScopePolicy granting the required scope",
-            ),
+            ErrorKind::ScopeViolation => Self::scope_violation(),
             _ => Self::internal(),
         };
         mapped.with_detail(kind)
@@ -480,6 +590,9 @@ impl ToolError {
             if let Some(omitted) = correction.refs_omitted {
                 text.push_str(&format!(" refs_omitted={omitted}"));
             }
+            if let Some(observed) = correction.observed_write_boundary {
+                text.push_str(&format!(" observed_write_boundary={observed}"));
+            }
         }
         text
     }
@@ -500,12 +613,49 @@ impl ToolError {
         match self.class {
             ErrorClass::InvalidRequest => "invalid_request",
             ErrorClass::NotFound => "not_found",
+            ErrorClass::Conflict => "conflict",
             ErrorClass::NotReady => "not_ready",
             ErrorClass::Unavailable => "unavailable",
             ErrorClass::Timeout => "timeout",
             ErrorClass::Busy => "busy",
             ErrorClass::Internal => "internal",
         }
+    }
+}
+
+fn actuation_error(error: &SdkError) -> ToolError {
+    match error {
+        SdkError::Engine(EngineError::Actuation(inner)) => match inner.reason {
+            ActuationErrorReason::OperationIdConflict | ActuationErrorReason::OperationIdErased => {
+                ToolError::operation_id_conflict()
+            }
+            _ => ToolError::bad_argument(
+                "the engine rejected the actuation request fields or bounds",
+            ),
+        },
+        _ => ToolError::bad_argument("the engine rejected the actuation request"),
+    }
+}
+
+fn frozen_read_error(error: &SdkError) -> ToolError {
+    match error {
+        SdkError::Engine(EngineError::FrozenRead(inner)) => match inner.reason {
+            FrozenReadErrorReason::StateDrifted => ToolError::state_drift(),
+            _ => ToolError::bad_argument("the frozen read context is invalid or unavailable"),
+        },
+        _ => ToolError::bad_argument("the frozen read context is invalid or unavailable"),
+    }
+}
+
+fn evidence_error(error: &SdkError) -> ToolError {
+    match error {
+        SdkError::Engine(EngineError::Evidence(inner)) => match inner.reason {
+            EvidenceErrorReasonV1::EvidenceUnavailable => ToolError::not_found(),
+            EvidenceErrorReasonV1::EvidenceIncomplete => ToolError::evidence_incomplete(),
+            EvidenceErrorReasonV1::EvidenceCorrupt => ToolError::internal(),
+            _ => ToolError::bad_argument("the evidence request is invalid"),
+        },
+        _ => ToolError::bad_argument("the evidence request is invalid"),
     }
 }
 

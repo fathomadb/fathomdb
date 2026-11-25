@@ -234,7 +234,20 @@ async fn fetch_bodies_are_cut_to_fit_the_budget() {
         vec![node("note:1", "note", &long), node("note:2", "note", "short body")],
     )
     .await;
-    for max_tokens in [256_u64, 400, 1000, 3000] {
+    // Single-ref structured fetch fits and cuts cleanly at the minimum 256-token budget
+    // even with live EP-01 Envelope.state (when advisory hints are off).
+    let single_min = harness
+        .call("fetch", json!({"refs": ["l:note:1"], "max_tokens": 256, "hints": false}))
+        .await;
+    let single_structured = single_min.structured_content.clone().unwrap();
+    assert_ne!(single_min.is_error, Some(true), "{single_structured}");
+    let single_whole =
+        serde_json::to_string(&single_structured).unwrap().len() + text_of(&single_min).len();
+    assert!((single_whole as u64).div_ceil(4) <= 256, "MR-041.1 at 256 (1 ref)");
+    assert_eq!(single_structured["items"][0]["record"]["body_cut"], true);
+    assert_eq!(single_structured["budget"]["cut"], true);
+
+    for max_tokens in [400_u64, 1000, 3000] {
         let result = harness
             .call("fetch", json!({"refs": ["l:note:1", "l:note:2"], "max_tokens": max_tokens}))
             .await;

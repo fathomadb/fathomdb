@@ -525,6 +525,8 @@ pub fn prepare_search_page(input: &SearchPageInput) -> PreparedSearchPage {
                     score: hit.score,
                     arm: "text".to_string(),
                     ce_score: None,
+                    evidence_ref: None,
+                    artifact_revision_id: None,
                 },
                 index as u64,
                 None,
@@ -612,6 +614,7 @@ fn shape_with(page: &PreparedSearchPage, plan: &crate::hints::SearchPlan) -> Sha
         store: "s",
         epoch: 1,
         validity_instant: 0,
+        state: None,
         degradation: &page.degradation,
         max_tokens: page.max_tokens,
         format: "structured",
@@ -622,6 +625,7 @@ fn shape_with(page: &PreparedSearchPage, plan: &crate::hints::SearchPlan) -> Sha
         page_limit: page.page_limit,
         trace: None,
         hosted: false,
+        frozen_context: None,
         hints: plan,
     });
     ShapedSearchPage {

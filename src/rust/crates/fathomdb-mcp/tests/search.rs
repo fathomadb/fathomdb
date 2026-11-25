@@ -47,7 +47,7 @@ async fn text_mode_returns_lexical_hits_with_references_and_provenance() {
     assert_eq!(found["mode"], "text");
     assert_eq!(found["store"], "a");
     assert!(found.get("verdict").is_none(), "unavailable verdict is omitted");
-    assert!(found.get("state").is_none(), "unavailable envelope state is omitted");
+    assert_eq!(found["state"]["status"], "available", "live EP-01 envelope state is present");
     assert_eq!(found["degradation"], json!([]));
     let hit = &found["results"][0];
     assert_eq!(hit["ref"], "l:note:1", "MR-042.1: the logical id verbatim");
@@ -246,10 +246,16 @@ fn assert_fits(result: &rmcp::model::CallToolResult, max_tokens: u64) {
 }
 
 // Independent mandatory zero-progress payload: authored envelope/handle widths
-// and exact trace fields from a same-state SDK control read before adapter open.
+// and exact state/trace fields from a same-state SDK control read before adapter open.
 // No production shaper or rendered MCP payload supplies this oracle.
-fn mandatory_search_size(mode: &str, explain: bool, max_tokens: u64, sdk_trace: &Value) -> u64 {
-    let mut p = json!({"store":"a","epoch":1,"validity_instant":1900000000,"degradation":[],"budget":{"max_tokens":max_tokens,"used_tokens":0,"cut":true},"mode":mode,"response_id":"r1-0000000000000000","results":[],"completeness":"cut_by_budget","continuation":null});
+fn mandatory_search_size(
+    mode: &str,
+    explain: bool,
+    max_tokens: u64,
+    sdk_state: &Value,
+    sdk_trace: &Value,
+) -> u64 {
+    let mut p = json!({"store":"a","epoch":1,"validity_instant":1900000000,"state":sdk_state,"degradation":[],"budget":{"max_tokens":max_tokens,"used_tokens":0,"cut":true},"mode":mode,"response_id":"r1-0000000000000000","results":[],"completeness":"cut_by_budget","continuation":null});
     if mode == "hybrid" {
         p["degradation"] = json!([{"arm":"vector","reason":"embedder_absent"},{"arm":"vector","reason":"embedder_unavailable"}]);
     }
@@ -303,6 +309,16 @@ async fn every_response_fits_its_budget() {
         vec![(fathomdb_sdk::SoftFallbackBranch::Vector, "embedder_absent")],
         "the same-state None-provider hybrid control reports exactly its per-call absence"
     );
+    let vis = fathomdb_sdk::read::visibility_state(&sdk).unwrap();
+    let sdk_state = json!({
+        "status": "available",
+        "database_id": vis.database_id,
+        "generation": vis.generation,
+        "nonce": vis.nonce,
+        "canonical_write_boundary": vis.canonical_write_boundary,
+        "projection_cursor": vis.projection_cursor,
+        "drift": "unchanged"
+    });
     let trace = &control.explanation.as_ref().unwrap().trace;
     let sdk_trace = json!({"query_chars":trace.query_chars,"k":trace.k,"rerank_depth":trace.rerank_depth,"pool_n":trace.pool_n,"alpha":trace.alpha,"use_graph_arm":trace.use_graph_arm,"recency":trace.recency,"embedder_id":trace.embedder_id,"ce_active":trace.ce_active,"vector_hits":trace.vector_hits,"text_hits":trace.text_hits,"graph_hits":trace.graph_hits,"dropped_edge_hits":trace.dropped_edge_hits});
     sdk.close().unwrap();
@@ -322,7 +338,7 @@ async fn every_response_fits_its_budget() {
                 if result.is_error == Some(true) {
                     let error = &result.structured_content.as_ref().unwrap()["error"];
                     assert_eq!(error["code"], "bad_argument");
-                    assert!(mandatory_search_size(mode,explain,max_tokens,&sdk_trace)>max_tokens,"refusal requires independent mandatory-overflow proof: {mode}/{explain}/{max_tokens}: {error}");
+                    assert!(mandatory_search_size(mode,explain,max_tokens,&sdk_state,&sdk_trace)>max_tokens,"refusal requires independent mandatory-overflow proof: {mode}/{explain}/{max_tokens}: {error}");
                 } else {
                     assert_fits(&result, max_tokens);
                 }

@@ -54,13 +54,27 @@ pub(crate) fn max_cursor(connection: &Connection, table: &str) -> rusqlite::Resu
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum EndpointValidationMode {
+pub(crate) enum CommitEndpointValidationMode {
     /// Enforce active, non-superseded endpoints for every edge in `batch`.
     Strict,
+    /// Opt-in bulk mode: admit edges whose same-scope endpoints are missing,
+    /// report the exact unresolved endpoint count, and abort atomically with
+    /// [`EngineError::ScopeViolation`] if any missing endpoint resolves to an
+    /// active node in another scope.
+    BulkNonStrict,
     /// Single-operation actuation loop: `validate_prospective_edge_endpoints`
     /// runs post-loop in `simulate_request` so same-batch `[PutDerivedEdge, PutNode]`
     /// succeeds and dangling actuation edges return `ActuationOutcomeV1::Refused`.
     DeferredToActuationSimulation,
+}
+
+impl From<crate::EndpointValidationMode> for CommitEndpointValidationMode {
+    fn from(mode: crate::EndpointValidationMode) -> Self {
+        match mode {
+            crate::EndpointValidationMode::Strict => Self::Strict,
+            crate::EndpointValidationMode::BulkNonStrict => Self::BulkNonStrict,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -507,6 +521,7 @@ pub(crate) fn commit_batch(
     base_cursor: u64,
     provenance_row_cap: u64,
     vector_kinds_to_enrol: &[String],
+    endpoint_validation: CommitEndpointValidationMode,
     #[cfg(feature = "test-hooks")] abort_next_commit_for_test: bool,
 ) -> Result<(u64, bool, Vec<ClosureOperationId>), CommitBatchError> {
     #[cfg(feature = "test-hooks")]
@@ -521,6 +536,7 @@ pub(crate) fn commit_batch(
         base_cursor,
         provenance_row_cap,
         vector_kinds_to_enrol,
+        endpoint_validation,
     );
     #[cfg(feature = "test-hooks")]
     if abort_next_commit_for_test {
@@ -529,6 +545,7 @@ pub(crate) fn commit_batch(
     result
 }
 
+#[allow(clippy::too_many_arguments)]
 fn commit_batch_transaction(
     connection: &mut Connection,
     scope: &str,
@@ -537,6 +554,7 @@ fn commit_batch_transaction(
     base_cursor: u64,
     provenance_row_cap: u64,
     vector_kinds_to_enrol: &[String],
+    endpoint_validation: CommitEndpointValidationMode,
 ) -> Result<(u64, bool, Vec<ClosureOperationId>), CommitBatchError> {
     // 0.8.20 Slice 21a-2 (TC-57) — `BEGIN IMMEDIATE`, not rusqlite's `BEGIN
     // DEFERRED` default. Take the WAL write lock AT `BEGIN`, before the
@@ -599,7 +617,7 @@ fn commit_batch_transaction(
             provenance_row_cap,
             vector_kinds_to_enrol,
             dependency_closure::SoftClosureMode::Complete,
-            EndpointValidationMode::Strict,
+            endpoint_validation,
         )
         .and_then(|result| {
             if !batch.is_empty() {
@@ -633,7 +651,7 @@ fn commit_batch_transaction(
         provenance_row_cap,
         vector_kinds_to_enrol,
         dependency_closure::SoftClosureMode::Complete,
-        EndpointValidationMode::Strict,
+        endpoint_validation,
     )?;
     if !batch.is_empty() {
         crate::temporal::record_batch_commit_timestamp(
@@ -697,7 +715,7 @@ pub(crate) fn apply_batch_in_transaction(
     provenance_row_cap: u64,
     vector_kinds_to_enrol: &[String],
     closure_mode: dependency_closure::SoftClosureMode,
-    endpoint_validation: EndpointValidationMode,
+    endpoint_validation: CommitEndpointValidationMode,
 ) -> Result<(u64, bool, Vec<ClosureOperationId>), CommitBatchError> {
     let scoped_physical = physical_erasure::guard_plain_write(tx, scope, batch)?;
     let queued_erasure = erasure_queue::guard_plain(tx, scope, batch)?;
@@ -957,10 +975,16 @@ pub(crate) fn apply_batch_in_transaction(
         register_artifact_identity(tx, scope, original_write, cursor)?;
     }
 
-    if matches!(endpoint_validation, EndpointValidationMode::Strict) {
-        validate_strict_batch_edge_endpoints(tx, scope, batch)?;
-    }
-    let dangling_edge_endpoints: u64 = 0;
+    let dangling_edge_endpoints: u64 = match endpoint_validation {
+        CommitEndpointValidationMode::Strict => {
+            validate_strict_batch_edge_endpoints(tx, scope, batch)?;
+            0
+        }
+        CommitEndpointValidationMode::BulkNonStrict => {
+            account_bulk_non_strict_batch_edge_endpoints(tx, scope, batch, base_cursor)?
+        }
+        CommitEndpointValidationMode::DeferredToActuationSimulation => 0,
+    };
 
     enforce_provenance_retention(tx, provenance_row_cap)?;
     advance_projection_cursor(tx)?;
@@ -1034,6 +1058,195 @@ fn validate_strict_batch_edge_endpoints(
         }
     }
     Ok(())
+}
+
+pub(crate) fn other_active_node_scope_exists(
+    connection: &Connection,
+    scope: &str,
+) -> rusqlite::Result<bool> {
+    connection
+        .prepare_cached(
+            "SELECT EXISTS(\
+                 SELECT 1 FROM canonical_nodes \
+                 WHERE scope < ?1 AND state = 'active' AND superseded_at IS NULL LIMIT 1\
+             ) OR EXISTS(\
+                 SELECT 1 FROM canonical_nodes \
+                 WHERE scope > ?1 AND state = 'active' AND superseded_at IS NULL LIMIT 1\
+             )",
+        )?
+        .query_row([scope], |row| row.get(0))
+}
+
+pub(crate) fn next_active_node_scope(
+    connection: &Connection,
+    after_scope: Option<&str>,
+) -> rusqlite::Result<Option<String>> {
+    match after_scope {
+        None => connection
+            .prepare_cached(
+                "SELECT scope FROM canonical_nodes \
+                 WHERE state = 'active' AND superseded_at IS NULL \
+                 ORDER BY scope LIMIT 1",
+            )?
+            .query_row([], |row| row.get(0))
+            .optional(),
+        Some(prev) => connection
+            .prepare_cached(
+                "SELECT scope FROM canonical_nodes \
+                 WHERE scope > ?1 AND state = 'active' AND superseded_at IS NULL \
+                 ORDER BY scope LIMIT 1",
+            )?
+            .query_row([prev], |row| row.get(0))
+            .optional(),
+    }
+}
+
+fn scope_contains_any_active_node(
+    connection: &Connection,
+    scope: &str,
+    logical_ids: &[&str],
+) -> rusqlite::Result<bool> {
+    const CHUNK_SIZE: usize = 64;
+    for chunk in logical_ids.chunks(CHUNK_SIZE) {
+        let mut stmt = if chunk.len() == CHUNK_SIZE {
+            connection.prepare_cached(
+                "SELECT 1 FROM canonical_nodes \
+                 WHERE scope = ?1 AND logical_id IN (\
+                     ?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,\
+                     ?18,?19,?20,?21,?22,?23,?24,?25,?26,?27,?28,?29,?30,?31,?32,?33,\
+                     ?34,?35,?36,?37,?38,?39,?40,?41,?42,?43,?44,?45,?46,?47,?48,?49,\
+                     ?50,?51,?52,?53,?54,?55,?56,?57,?58,?59,?60,?61,?62,?63,?64,?65\
+                 ) AND superseded_at IS NULL AND state = 'active' LIMIT 1",
+            )?
+        } else {
+            let mut sql =
+                String::from("SELECT 1 FROM canonical_nodes WHERE scope = ?1 AND logical_id IN (");
+            for idx in 0..chunk.len() {
+                if idx > 0 {
+                    sql.push(',');
+                }
+                sql.push_str(&format!("?{}", idx + 2));
+            }
+            sql.push_str(") AND superseded_at IS NULL AND state = 'active' LIMIT 1");
+            connection.prepare_cached(&sql)?
+        };
+        let found: Option<i64> = stmt
+            .query_row(
+                rusqlite::params_from_iter(std::iter::once(scope).chain(chunk.iter().copied())),
+                |row| row.get(0),
+            )
+            .optional()?;
+        if found.is_some() {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
+fn account_bulk_non_strict_batch_edge_endpoints(
+    tx: &Connection,
+    scope: &str,
+    batch: &[PreparedWrite],
+    base_cursor: u64,
+) -> Result<u64, CommitBatchError> {
+    let has_edges = batch.iter().any(|write| {
+        matches!(write, PreparedWrite::Edge { .. } | PreparedWrite::ProvenancedEdge(_))
+    });
+    if !has_edges {
+        return Ok(0);
+    }
+
+    let first_cursor = base_cursor.saturating_add(1);
+    let last_cursor = base_cursor.saturating_add(u64::try_from(batch.len()).unwrap_or(u64::MAX));
+    let mut edge_stmt = tx.prepare_cached(
+        "SELECT from_id, to_id FROM canonical_edges \
+         WHERE scope = ?1 AND write_cursor BETWEEN ?2 AND ?3 AND superseded_at IS NULL",
+    )?;
+    let surviving_edges: Vec<(String, String)> = edge_stmt
+        .query_map(params![scope, first_cursor, last_cursor], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    if surviving_edges.is_empty() {
+        return Ok(0);
+    }
+
+    let mut distinct_seen: std::collections::HashSet<&str> = std::collections::HashSet::new();
+    let mut distinct_endpoints: Vec<&str> = Vec::new();
+    for (from_id, to_id) in &surviving_edges {
+        for endpoint in [from_id.as_str(), to_id.as_str()] {
+            if distinct_seen.insert(endpoint) {
+                distinct_endpoints.push(endpoint);
+            }
+        }
+    }
+
+    const CHUNK_SIZE: usize = 64;
+    let mut present_in_scope: std::collections::HashSet<String> = std::collections::HashSet::new();
+    for chunk in distinct_endpoints.chunks(CHUNK_SIZE) {
+        let mut stmt = if chunk.len() == CHUNK_SIZE {
+            tx.prepare_cached(
+                "SELECT logical_id FROM canonical_nodes \
+                 WHERE scope = ?1 AND logical_id IN (\
+                     ?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,\
+                     ?18,?19,?20,?21,?22,?23,?24,?25,?26,?27,?28,?29,?30,?31,?32,?33,\
+                     ?34,?35,?36,?37,?38,?39,?40,?41,?42,?43,?44,?45,?46,?47,?48,?49,\
+                     ?50,?51,?52,?53,?54,?55,?56,?57,?58,?59,?60,?61,?62,?63,?64,?65\
+                 ) AND superseded_at IS NULL AND state = 'active'",
+            )?
+        } else {
+            let mut sql = String::from(
+                "SELECT logical_id FROM canonical_nodes WHERE scope = ?1 AND logical_id IN (",
+            );
+            for idx in 0..chunk.len() {
+                if idx > 0 {
+                    sql.push(',');
+                }
+                sql.push_str(&format!("?{}", idx + 2));
+            }
+            sql.push_str(") AND superseded_at IS NULL AND state = 'active'");
+            tx.prepare_cached(&sql)?
+        };
+        let rows = stmt.query_map(
+            rusqlite::params_from_iter(std::iter::once(scope).chain(chunk.iter().copied())),
+            |row| row.get::<_, String>(0),
+        )?;
+        for row in rows {
+            present_in_scope.insert(row?);
+        }
+    }
+
+    let missing: Vec<&str> = distinct_endpoints
+        .iter()
+        .copied()
+        .filter(|endpoint| !present_in_scope.contains(*endpoint))
+        .collect();
+
+    if !missing.is_empty() && other_active_node_scope_exists(tx, scope)? {
+        let mut prev_scope: Option<String> = None;
+        while let Some(other_scope) = next_active_node_scope(tx, prev_scope.as_deref())? {
+            prev_scope = Some(other_scope.clone());
+            if other_scope == scope {
+                continue;
+            }
+            if scope_contains_any_active_node(tx, &other_scope, &missing)? {
+                return Err(CommitBatchError::Engine(EngineError::ScopeViolation {
+                    detail: "bulk non-strict write refused: edge endpoint resolves to an active node in another scope".to_string(),
+                }));
+            }
+        }
+    }
+
+    let mut dangling: u64 = 0;
+    for (from_id, to_id) in &surviving_edges {
+        if !present_in_scope.contains(from_id.as_str()) {
+            dangling = dangling.saturating_add(1);
+        }
+        if !present_in_scope.contains(to_id.as_str()) {
+            dangling = dangling.saturating_add(1);
+        }
+    }
+    Ok(dangling)
 }
 
 /// Cap sweep over the op-store mutation log: keeps the newest `cap` SWEEPABLE
@@ -1114,9 +1327,53 @@ impl Engine {
 
 #[cfg(test)]
 mod tests {
-    use super::{validate_strict_batch_edge_endpoints, CommitBatchError};
+    use super::{
+        account_bulk_non_strict_batch_edge_endpoints, validate_strict_batch_edge_endpoints,
+        CommitBatchError,
+    };
     use crate::{Engine, EngineError, InitialState, PreparedWrite, SourceId};
     use rusqlite::hooks::{AuthAction, AuthContext, Authorization};
+
+    #[test]
+    fn bulk_non_strict_node_only_batch_takes_zero_sql_fast_path() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let opened = Engine::open(dir.path().join("bulk-fast-path.sqlite")).unwrap();
+        let node = PreparedWrite::Node {
+            kind: "note".to_string(),
+            body: "fastpath".to_string(),
+            source_id: SourceId::new("test:bulk-fast-path").unwrap(),
+            logical_id: Some("n1".to_string()),
+            state: InitialState::Active,
+            reason: None,
+            valid_from: None,
+            valid_until: None,
+            properties: None,
+        };
+        let mut guard = opened.engine.connection.lock().unwrap();
+        let connection = guard.as_mut().unwrap();
+        connection
+            .authorizer(Some(|context: AuthContext<'_>| {
+                if context.accessor.is_none()
+                    && matches!(
+                        context.action,
+                        AuthAction::Read { table_name: "canonical_nodes" | "canonical_edges", .. }
+                    )
+                {
+                    Authorization::Deny
+                } else {
+                    Authorization::Allow
+                }
+            }))
+            .unwrap();
+        let result = account_bulk_non_strict_batch_edge_endpoints(
+            connection,
+            "",
+            std::slice::from_ref(&node),
+            0,
+        );
+        connection.authorizer(None::<fn(AuthContext<'_>) -> Authorization>).unwrap();
+        assert_eq!(result.unwrap(), 0);
+    }
 
     #[test]
     fn node_only_dangling_check_does_not_require_endpoint_reads() {

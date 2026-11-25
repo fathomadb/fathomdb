@@ -582,22 +582,38 @@ fn logical_section(connection: &Connection) -> Section {
 
 #[cfg(feature = "operator")]
 fn semantic_section(connection: &Connection) -> Section {
+    let mut findings = Vec::new();
     match load_default_profile(connection) {
-        Ok(_) => Section::Clean,
-        Err(rusqlite::Error::QueryReturnedNoRows) => Section::Findings(vec![Finding {
+        Ok(_) => {}
+        Err(rusqlite::Error::QueryReturnedNoRows) => findings.push(Finding {
             code: "E_CORRUPT_EMBEDDER_IDENTITY",
             stage: "EmbedderIdentity",
             locator: CorruptionLocator::OpaqueSqliteError { sqlite_extended_code: 0 },
             doc_anchor: "design/recovery.md#embedder-identity-drift",
             detail: "default embedder profile row is missing".to_string(),
-        }]),
-        Err(err) => Section::Findings(vec![Finding {
+        }),
+        Err(err) => findings.push(Finding {
             code: "E_CORRUPT_EMBEDDER_IDENTITY",
             stage: "EmbedderIdentity",
             locator: locator_from_rusqlite_error(&err),
             doc_anchor: "design/recovery.md#embedder-identity-drift",
             detail: format!("default embedder profile probe failed: {err}"),
-        }]),
+        }),
+    }
+    match crate::data_plane_integrity::collect_operator_edge_endpoint_findings(connection) {
+        Ok(edge_findings) => findings.extend(edge_findings),
+        Err(err) => findings.push(Finding {
+            code: "E_CORRUPT_SCHEMA",
+            stage: "semantic",
+            locator: locator_from_rusqlite_error(&err),
+            doc_anchor: "design/recovery.md#schema-inconsistent",
+            detail: format!("edge endpoint integrity probe failed: {err}"),
+        }),
+    }
+    if findings.is_empty() {
+        Section::Clean
+    } else {
+        Section::Findings(findings)
     }
 }
 

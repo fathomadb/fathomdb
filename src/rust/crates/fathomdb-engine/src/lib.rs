@@ -462,10 +462,10 @@ use vector_storage::{
 #[cfg(any(test, feature = "test-hooks"))]
 pub use wal_attribution::ReleaseWalAttributionProbe;
 pub(crate) use write::storage_write_shape;
-pub use write::{PreparedWrite, WriteReceipt};
+pub use write::{EndpointValidationMode, PreparedWrite, WriteOptions, WriteReceipt};
 pub(crate) use write_commit::{
     advance_read_visibility, apply_batch_in_transaction, canonical_body_hash,
-    checked_locator_columns, commit_batch, CommitBatchError, EndpointValidationMode,
+    checked_locator_columns, commit_batch, CommitBatchError, CommitEndpointValidationMode,
     VisibilityCoalescingGuard,
 };
 pub use write_types::RowKind;

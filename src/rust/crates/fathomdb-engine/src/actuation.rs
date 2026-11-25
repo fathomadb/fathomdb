@@ -1607,7 +1607,7 @@ fn simulate_request(
                         provenance_row_cap,
                         &[],
                         dependency_closure::SoftClosureMode::Proving,
-                        EndpointValidationMode::DeferredToActuationSimulation,
+                        CommitEndpointValidationMode::DeferredToActuationSimulation,
                     ) {
                         Ok(_) => {
                             next_cursor = next_cursor.saturating_add(1);
@@ -1650,7 +1650,7 @@ fn simulate_request(
                         provenance_row_cap,
                         &[],
                         dependency_closure::SoftClosureMode::Proving,
-                        EndpointValidationMode::DeferredToActuationSimulation,
+                        CommitEndpointValidationMode::DeferredToActuationSimulation,
                     ) {
                         Ok(_) => {
                             next_cursor = next_cursor.saturating_add(1);
@@ -2280,7 +2280,7 @@ impl Engine {
                             self.provenance_row_cap.load(Ordering::Relaxed),
                             enrol,
                             dependency_closure::SoftClosureMode::Proving,
-                            EndpointValidationMode::DeferredToActuationSimulation,
+                            CommitEndpointValidationMode::DeferredToActuationSimulation,
                         ) {
                             Ok((_, repaired, closure_ids)) => {
                                 unstranded |= repaired;
@@ -2349,7 +2349,7 @@ impl Engine {
                         self.provenance_row_cap.load(Ordering::Relaxed),
                         &[],
                         dependency_closure::SoftClosureMode::Proving,
-                        EndpointValidationMode::DeferredToActuationSimulation,
+                        CommitEndpointValidationMode::DeferredToActuationSimulation,
                     ) {
                         Ok((_, repaired, closure_ids)) => {
                             unstranded |= repaired;

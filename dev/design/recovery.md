@@ -191,6 +191,8 @@ actions:
 | `E_CORRUPT_EMBEDDER_IDENTITY` | Treat stored profile drift as corruption; do not auto-accept identity change on open. |
 | `E_CORRUPT_INTEGRITY_CHECK` | Doctor-only full-integrity finding. |
 | `E_ERASURE_INCOMPLETE` | Stop the application, then run the finding's `recover --accept-data-loss --complete-erasures <db_path>` argv; if telemetry is owed, reattach the original sink and retry the originating erasure instead. |
+| `E_DANGLING_EDGE_ENDPOINT` | Active edge endpoint does not resolve to an active same-scope node; inspect and ingest missing nodes in the same scope before relying on graph completeness. |
+| `E_CROSS_SCOPE_EDGE_ENDPOINT` | Active edge endpoint resolves only in a distinct scope; quarantine and inspect the scope isolation anomaly before further reads or writes. |
 
 ### Erasure incomplete
 
@@ -239,6 +241,27 @@ Stored and runtime identity must agree under the embedder owner contract.
 
 `E_CORRUPT_INTEGRITY_CHECK` is emitted by the doctor full-integrity surface and
 is not an `Engine::open` stage.
+
+### E dangling edge endpoint
+
+`E_DANGLING_EDGE_ENDPOINT` is emitted by `doctor check-integrity` (semantic
+section) when an active edge (`superseded_at IS NULL`) references a `from_id`
+or `to_id` that does not resolve to an active, non-superseded canonical node in
+the edge's own scope (and does not resolve in another scope). This state can
+arise legitimately after an opt-in `BulkNonStrict` write whose target nodes
+have not yet been ingested. Doctor performs read-only verification only and
+exits `65` while dangling endpoints remain; ingesting the missing nodes in the
+same scope resolves the finding without rewriting the edge.
+
+### E cross-scope edge endpoint
+
+`E_CROSS_SCOPE_EDGE_ENDPOINT` is emitted by `doctor check-integrity` (semantic
+section) when an active edge (`superseded_at IS NULL`) references a `from_id`
+or `to_id` that is absent from the edge's own scope and resolves to an active
+canonical node in a distinct scope. Normal engine write paths refuse
+cross-scope endpoints atomically, so this finding indicates out-of-band storage
+corruption or bypass. Doctor performs read-only verification only and exits
+`65`.
 
 Historical 0.6.0 verb subsets, deferred purge/restore discussion, and progress-
 stream output are retained in Git history but are not current authority.

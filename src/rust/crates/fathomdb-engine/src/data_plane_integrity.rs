@@ -12,7 +12,9 @@ use rusqlite::{Connection, OptionalExtension};
 use sha2::{Digest, Sha256};
 
 #[cfg(feature = "operator")]
-use crate::write_commit::load_next_cursor;
+use crate::write_commit::{
+    load_next_cursor, next_active_node_scope, other_active_node_scope_exists,
+};
 #[cfg(feature = "operator")]
 use crate::{current_epoch_seconds, Engine, EngineError};
 
@@ -36,6 +38,12 @@ const EDGE_BODY_OWNER_QUERY: &str =
      INDEXED BY canonical_edges_write_cursor_idx \
      LEFT JOIN _fathomdb_artifact_revisions r \
        ON r.scope=e.scope AND r.artifact_class='edge' AND r.write_cursor=e.write_cursor \
+     WHERE e.write_cursor>?1 ORDER BY e.write_cursor LIMIT ?2";
+#[cfg(feature = "operator")]
+const EDGE_ENDPOINT_OWNER_QUERY: &str =
+    "SELECT e.write_cursor,e.scope,e.from_id,e.to_id,e.superseded_at \
+     FROM canonical_edges e \
+     INDEXED BY canonical_edges_write_cursor_idx \
      WHERE e.write_cursor>?1 ORDER BY e.write_cursor LIMIT ?2";
 #[cfg(feature = "operator")]
 const SEARCH_V1_MEMBER_QUERY: &str = "SELECT rowid,write_cursor,body,kind FROM search_index \
@@ -160,10 +168,11 @@ fn nullable_text_value(row: &rusqlite::Row<'_>, index: usize) -> NullableValue<S
 }
 
 #[cfg(all(feature = "operator", feature = "test-hooks"))]
-pub(crate) fn candidate_queries_for_test() -> [&'static str; 14] {
+pub(crate) fn candidate_queries_for_test() -> [&'static str; 15] {
     [
         NODE_BODY_OWNER_QUERY,
         EDGE_BODY_OWNER_QUERY,
+        EDGE_ENDPOINT_OWNER_QUERY,
         SEARCH_V1_MEMBER_QUERY,
         SEARCH_V2_MEMBER_QUERY,
         EDGE_SEARCH_MEMBER_QUERY,
@@ -544,6 +553,7 @@ pub enum DataPlaneIntegrityCheckV1 {
     ActiveSearchableOrphans,
     ProjectionGeneration,
     MutationReadiness,
+    EdgeEndpointIntegrity,
 }
 
 impl DataPlaneIntegrityCheckV1 {
@@ -553,6 +563,7 @@ impl DataPlaneIntegrityCheckV1 {
             Self::ActiveSearchableOrphans => "active_searchable_orphans",
             Self::ProjectionGeneration => "projection_generation",
             Self::MutationReadiness => "mutation_readiness",
+            Self::EdgeEndpointIntegrity => "edge_endpoint_integrity",
         }
     }
 }
@@ -604,6 +615,8 @@ pub enum DataPlaneIntegrityFindingCodeV1 {
     MutationReceiptCorrupt,
     MutationReadinessUnavailable,
     MutationReadinessCorrupt,
+    DanglingEdgeEndpoint,
+    CrossScopeEdgeEndpoint,
 }
 
 impl DataPlaneIntegrityFindingCodeV1 {
@@ -636,6 +649,8 @@ impl DataPlaneIntegrityFindingCodeV1 {
             Self::MutationReceiptCorrupt => "mutation_receipt_corrupt",
             Self::MutationReadinessUnavailable => "mutation_readiness_unavailable",
             Self::MutationReadinessCorrupt => "mutation_readiness_corrupt",
+            Self::DanglingEdgeEndpoint => "dangling_edge_endpoint",
+            Self::CrossScopeEdgeEndpoint => "cross_scope_edge_endpoint",
         }
     }
 }
@@ -736,6 +751,7 @@ impl DataPlaneIntegrityRequestV1 {
                 DataPlaneIntegrityCheckV1::ActiveSearchableOrphans,
                 DataPlaneIntegrityCheckV1::ProjectionGeneration,
                 DataPlaneIntegrityCheckV1::MutationReadiness,
+                DataPlaneIntegrityCheckV1::EdgeEndpointIntegrity,
             ],
             max_work_units,
             max_findings,
@@ -1232,7 +1248,9 @@ fn dependency_findings(
                 | DataPlaneIntegrityFindingCodeV1::ProjectionMemberCorrupt
                 | DataPlaneIntegrityFindingCodeV1::MutationReceiptCorrupt
                 | DataPlaneIntegrityFindingCodeV1::MutationReadinessUnavailable
-                | DataPlaneIntegrityFindingCodeV1::MutationReadinessCorrupt => {}
+                | DataPlaneIntegrityFindingCodeV1::MutationReadinessCorrupt
+                | DataPlaneIntegrityFindingCodeV1::DanglingEdgeEndpoint
+                | DataPlaneIntegrityFindingCodeV1::CrossScopeEdgeEndpoint => {}
             }
             push_finding(findings, item, max_findings)?;
         }
@@ -2781,6 +2799,226 @@ fn mutation_readiness_findings(
 }
 
 #[cfg(feature = "operator")]
+fn active_node_exists_in_scope(
+    connection: &Connection,
+    scope: &str,
+    logical_id: &str,
+) -> Result<bool, EngineError> {
+    connection
+        .prepare_cached(
+            "SELECT EXISTS(\
+                 SELECT 1 FROM canonical_nodes \
+                 WHERE scope=?1 AND logical_id=?2 AND superseded_at IS NULL AND state='active'\
+             )",
+        )
+        .and_then(|mut stmt| stmt.query_row(rusqlite::params![scope, logical_id], |row| row.get(0)))
+        .map_err(|_| EngineError::Storage)
+}
+
+#[cfg(feature = "operator")]
+fn endpoint_resolves_in_other_scope_bounded(
+    connection: &Connection,
+    edge_scope: &str,
+    logical_id: &str,
+    active_scopes_cache: &mut Option<Vec<String>>,
+    max_work_units: u32,
+    aggregate_checked: &mut u32,
+) -> Result<bool, EngineError> {
+    let other_exists =
+        other_active_node_scope_exists(connection, edge_scope).map_err(|_| EngineError::Storage)?;
+    if !other_exists {
+        return Ok(false);
+    }
+    if active_scopes_cache.is_none() {
+        let mut scopes = Vec::new();
+        let mut prev: Option<String> = None;
+        while let Some(scope) =
+            next_active_node_scope(connection, prev.as_deref()).map_err(|_| EngineError::Storage)?
+        {
+            take_work(aggregate_checked, max_work_units)?;
+            prev = Some(scope.clone());
+            scopes.push(scope);
+        }
+        *active_scopes_cache = Some(scopes);
+    }
+    for other_scope in active_scopes_cache.as_deref().unwrap_or(&[]) {
+        if other_scope == edge_scope {
+            continue;
+        }
+        take_work(aggregate_checked, max_work_units)?;
+        if active_node_exists_in_scope(connection, other_scope, logical_id)? {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
+#[cfg(feature = "operator")]
+fn edge_endpoint_findings(
+    connection: &Connection,
+    max_work_units: u32,
+    max_findings: u32,
+    aggregate_checked: &mut u32,
+    findings: &mut Vec<DataPlaneIntegrityFindingV1>,
+) -> Result<u32, EngineError> {
+    let start = *aggregate_checked;
+    let mut active_scopes_cache: Option<Vec<String>> = None;
+    let mut after_cursor = 0_i64;
+    loop {
+        let remaining = max_work_units.saturating_sub(*aggregate_checked);
+        let limit = i64::from(remaining) + 1;
+        let mut statement =
+            connection.prepare(EDGE_ENDPOINT_OWNER_QUERY).map_err(|_| EngineError::Storage)?;
+        let rows = statement
+            .query_map(rusqlite::params![after_cursor, limit], |row| {
+                Ok((
+                    row.get::<_, i64>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                    row.get::<_, Option<i64>>(4)?,
+                ))
+            })
+            .map_err(|_| EngineError::Storage)?
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(|_| EngineError::Storage)?;
+        let exhausted = rows.len() < usize::try_from(limit).unwrap_or(usize::MAX);
+        for (cursor, edge_scope, from_id, to_id, superseded_at) in rows {
+            after_cursor = cursor;
+            take_work(aggregate_checked, max_work_units)?;
+            if superseded_at.is_some() {
+                continue;
+            }
+            let edge_cursor = u64::try_from(cursor).map_err(|_| EngineError::Storage)?;
+            for endpoint in [from_id.as_str(), to_id.as_str()] {
+                if active_node_exists_in_scope(connection, &edge_scope, endpoint)? {
+                    continue;
+                }
+                let cross_scope = endpoint_resolves_in_other_scope_bounded(
+                    connection,
+                    &edge_scope,
+                    endpoint,
+                    &mut active_scopes_cache,
+                    max_work_units,
+                    aggregate_checked,
+                )?;
+                let (code, severity) = if cross_scope {
+                    (
+                        DataPlaneIntegrityFindingCodeV1::CrossScopeEdgeEndpoint,
+                        DataPlaneIntegritySeverityV1::Critical,
+                    )
+                } else {
+                    (
+                        DataPlaneIntegrityFindingCodeV1::DanglingEdgeEndpoint,
+                        DataPlaneIntegritySeverityV1::Error,
+                    )
+                };
+                let mut item = finding(code, severity);
+                item.write_cursor = Some(edge_cursor);
+                push_finding(findings, item, max_findings)?;
+            }
+        }
+        if exhausted {
+            break;
+        }
+    }
+    Ok(*aggregate_checked - start)
+}
+
+#[cfg(feature = "operator")]
+pub(crate) fn collect_operator_edge_endpoint_findings(
+    connection: &Connection,
+) -> rusqlite::Result<Vec<crate::Finding>> {
+    let mut findings = Vec::new();
+    let mut active_scopes_cache: Option<Vec<String>> = None;
+    let mut stmt = connection.prepare(
+        "SELECT e.rowid, e.write_cursor, e.scope, e.from_id, e.to_id \
+         FROM canonical_edges e \
+         INDEXED BY canonical_edges_write_cursor_idx \
+         WHERE e.superseded_at IS NULL \
+         ORDER BY e.write_cursor",
+    )?;
+    let rows = stmt
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, i64>(0)?,
+                row.get::<_, i64>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, String>(4)?,
+            ))
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+
+    for (rowid, write_cursor, edge_scope, from_id, to_id) in rows {
+        for (endpoint_role, endpoint) in [("from", from_id.as_str()), ("to", to_id.as_str())] {
+            let present_in_scope: bool = connection
+                .prepare_cached(
+                    "SELECT EXISTS(\
+                         SELECT 1 FROM canonical_nodes \
+                         WHERE scope=?1 AND logical_id=?2 AND superseded_at IS NULL AND state='active'\
+                     )",
+                )?
+                .query_row(rusqlite::params![&edge_scope, endpoint], |row| row.get(0))?;
+            if present_in_scope {
+                continue;
+            }
+            let mut cross_scope = false;
+            if other_active_node_scope_exists(connection, &edge_scope)? {
+                if active_scopes_cache.is_none() {
+                    let mut scopes = Vec::new();
+                    let mut prev: Option<String> = None;
+                    while let Some(scope) = next_active_node_scope(connection, prev.as_deref())? {
+                        prev = Some(scope.clone());
+                        scopes.push(scope);
+                    }
+                    active_scopes_cache = Some(scopes);
+                }
+                for other_scope in active_scopes_cache.as_deref().unwrap_or(&[]) {
+                    if other_scope == &edge_scope {
+                        continue;
+                    }
+                    let present_elsewhere: bool = connection
+                        .prepare_cached(
+                            "SELECT EXISTS(\
+                                 SELECT 1 FROM canonical_nodes \
+                                 WHERE scope=?1 AND logical_id=?2 AND superseded_at IS NULL AND state='active'\
+                             )",
+                        )?
+                        .query_row(rusqlite::params![other_scope, endpoint], |row| row.get(0))?;
+                    if present_elsewhere {
+                        cross_scope = true;
+                        break;
+                    }
+                }
+            }
+            if cross_scope {
+                findings.push(crate::Finding {
+                    code: "E_CROSS_SCOPE_EDGE_ENDPOINT",
+                    stage: "semantic",
+                    locator: crate::CorruptionLocator::TableRow { table: "canonical_edges", rowid },
+                    doc_anchor: "design/recovery.md#e-cross-scope-edge-endpoint",
+                    detail: format!(
+                        "active edge at write_cursor {write_cursor} has {endpoint_role} endpoint resolving only in another scope"
+                    ),
+                });
+            } else {
+                findings.push(crate::Finding {
+                    code: "E_DANGLING_EDGE_ENDPOINT",
+                    stage: "semantic",
+                    locator: crate::CorruptionLocator::TableRow { table: "canonical_edges", rowid },
+                    doc_anchor: "design/recovery.md#e-dangling-edge-endpoint",
+                    detail: format!(
+                        "active edge at write_cursor {write_cursor} has unresolved {endpoint_role} endpoint"
+                    ),
+                });
+            }
+        }
+    }
+    Ok(findings)
+}
+
+#[cfg(feature = "operator")]
 pub(crate) fn validate_request(request: &DataPlaneIntegrityRequestV1) -> Result<(), EngineError> {
     if request.schema_version != SCHEMA_VERSION {
         return Err(DataPlaneIntegrityErrorV1::new(
@@ -2887,6 +3125,13 @@ pub(crate) fn execute(
                 &mut checked_count,
                 &mut findings,
             )?,
+            DataPlaneIntegrityCheckV1::EdgeEndpointIntegrity => edge_endpoint_findings(
+                &transaction,
+                request.max_work_units,
+                request.max_findings,
+                &mut checked_count,
+                &mut findings,
+            )?,
         };
         check_counts.push(DataPlaneIntegrityCheckCountV1 {
             schema_version: SCHEMA_VERSION,
@@ -2940,7 +3185,7 @@ impl Engine {
     /// Candidate SQL executed by the bounded Slice 55 integrity scans.
     #[cfg(all(feature = "operator", feature = "test-hooks"))]
     #[doc(hidden)]
-    pub fn data_plane_integrity_candidate_queries_for_test(&self) -> [&'static str; 14] {
+    pub fn data_plane_integrity_candidate_queries_for_test(&self) -> [&'static str; 15] {
         crate::data_plane_integrity::candidate_queries_for_test()
     }
 

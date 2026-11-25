@@ -840,7 +840,7 @@ fn slice55_mutation_readiness_receipt_matrix_reports_guarded_corruption() {
 fn slice55_projection_scan_plans_use_indexed_order() {
     let (_dir, opened) = opened();
     let candidates = opened.engine.data_plane_integrity_candidate_queries_for_test();
-    assert_eq!(candidates.len(), 14);
+    assert_eq!(candidates.len(), 15);
     for (table, index) in [
         ("canonical_nodes", "canonical_nodes_write_cursor_idx"),
         ("canonical_edges", "canonical_edges_write_cursor_idx"),

@@ -10,13 +10,69 @@ pub struct WriteReceipt {
     /// (HITL-accepted for 0.8.0; a dedicated `row_id` is deferred). For an
     /// N-row batch this is `[cursor-N+1, …, cursor]`.
     pub row_cursors: Vec<u64>,
-    /// G8 (Slice 20 / F10) — count of edge endpoints in this batch that point at
-    /// a non-existent **or superseded** canonical node. An endpoint is dangling
-    /// when no **active** node (`superseded_at IS NULL`) carries its `logical_id`;
-    /// `from_id` and `to_id` are probed independently, so one edge contributes 0,
-    /// 1, or 2. This is **informational** (default FLAG-AND-COUNT: the batch
-    /// commits regardless) and `0` whenever the batch committed no active edges.
+    /// Count of unresolved edge endpoints across surviving active edges
+    /// (`superseded_at IS NULL`) written by this batch.
+    ///
+    /// Under [`EndpointValidationMode::Strict`] (the default for
+    /// [`Engine::write`]), any missing, inactive, superseded, or cross-scope
+    /// endpoint aborts the batch atomically, so committed receipts always report
+    /// `0`. Under opt-in [`EndpointValidationMode::BulkNonStrict`] via
+    /// [`Engine::write_with_options`], `from_id` and `to_id` are probed
+    /// independently against active same-scope canonical nodes
+    /// (`superseded_at IS NULL AND state = 'active'`), so each surviving active
+    /// edge contributes `0`, `1`, or `2` (and node-only / non-edge batches
+    /// report `0`).
     pub dangling_edge_endpoints: u64,
+}
+
+/// Controls how [`Engine::write_with_options`] validates edge endpoints
+/// against active canonical nodes in the caller's scope.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum EndpointValidationMode {
+    /// Every edge's `from_id` and `to_id` must resolve to an active,
+    /// non-superseded canonical node in the caller's scope in the batch's final
+    /// transaction state, or the entire batch rolls back atomically with
+    /// [`EngineError::WriteValidation`].
+    #[default]
+    Strict,
+    /// Admits edges whose same-scope endpoints do not yet exist as active
+    /// canonical nodes and reports the exact unresolved endpoint count in
+    /// [`WriteReceipt::dangling_edge_endpoints`]. Cross-scope active endpoints
+    /// are still refused atomically with [`EngineError::ScopeViolation`], and
+    /// all other batch invariants remain strict.
+    BulkNonStrict,
+}
+
+/// Options controlling [`Engine::write_with_options`].
+///
+/// Defaults to [`EndpointValidationMode::Strict`].
+#[non_exhaustive]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct WriteOptions {
+    /// Edge endpoint validation policy applied to the batch.
+    pub endpoint_validation: EndpointValidationMode,
+}
+
+impl WriteOptions {
+    /// Construct strict write options (identical to [`WriteOptions::default`]).
+    #[must_use]
+    pub const fn strict() -> Self {
+        Self { endpoint_validation: EndpointValidationMode::Strict }
+    }
+
+    /// Construct opt-in bulk non-strict write options allowing out-of-order
+    /// edge ingestion within the caller's scope.
+    #[must_use]
+    pub const fn bulk_non_strict() -> Self {
+        Self { endpoint_validation: EndpointValidationMode::BulkNonStrict }
+    }
+
+    /// Return a copy of these options with the given endpoint validation mode.
+    #[must_use]
+    pub const fn with_endpoint_validation(mut self, mode: EndpointValidationMode) -> Self {
+        self.endpoint_validation = mode;
+        self
+    }
 }
 
 /// Batch input shape for [`Engine::write`].
@@ -229,7 +285,32 @@ impl Engine {
         Ok(())
     }
 
+    /// Commit an atomic batch of canonical or operational writes using strict
+    /// endpoint validation ([`WriteOptions::default`]).
+    ///
+    /// Every edge's `from_id` and `to_id` must resolve to an active,
+    /// non-superseded canonical node in the caller's scope in the batch's final
+    /// transaction state, or the entire batch rolls back with
+    /// [`EngineError::WriteValidation`].
     pub fn write(&self, batch: &[PreparedWrite]) -> Result<WriteReceipt, EngineError> {
+        self.write_with_options(batch, &WriteOptions::default())
+    }
+
+    /// Commit an atomic batch of canonical or operational writes using explicit
+    /// [`WriteOptions`].
+    ///
+    /// Under [`EndpointValidationMode::Strict`] this behaves identically to
+    /// [`Engine::write`]. Under [`EndpointValidationMode::BulkNonStrict`],
+    /// out-of-order edges whose same-scope endpoints are not yet active are
+    /// admitted and counted in [`WriteReceipt::dangling_edge_endpoints`], while
+    /// cross-scope active endpoints still abort atomically with
+    /// [`EngineError::ScopeViolation`] and all other batch invariants remain
+    /// strict.
+    pub fn write_with_options(
+        &self,
+        batch: &[PreparedWrite],
+        options: &WriteOptions,
+    ) -> Result<WriteReceipt, EngineError> {
         let _operation = self.ensure_open()?;
         let category = if batch_is_admin(batch) {
             lifecycle::EventCategory::Admin
@@ -238,7 +319,7 @@ impl Engine {
         };
         self.emit_event(lifecycle::Phase::Started, category, None);
         let started = Instant::now();
-        let outcome = self.write_inner(batch);
+        let outcome = self.write_inner(batch, options.endpoint_validation.into());
         self.detect_slow(started, category);
         match outcome {
             Ok(receipt) => {
@@ -433,7 +514,11 @@ impl Engine {
         }
     }
 
-    fn write_inner(&self, batch: &[PreparedWrite]) -> Result<WriteReceipt, EngineError> {
+    fn write_inner(
+        &self,
+        batch: &[PreparedWrite],
+        endpoint_validation: CommitEndpointValidationMode,
+    ) -> Result<WriteReceipt, EngineError> {
         let _operation = self.ensure_open()?;
         let write_scope = self.scope_predicate().require_write_scope("write")?.to_string();
 
@@ -495,6 +580,7 @@ impl Engine {
             base_cursor,
             self.provenance_row_cap.load(Ordering::Relaxed),
             &vector_kinds_to_enrol,
+            endpoint_validation,
             #[cfg(feature = "test-hooks")]
             abort_next_commit_for_test,
         ) {

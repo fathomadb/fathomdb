@@ -836,6 +836,9 @@ fn run_doctor(cmd: DoctorCommand) -> i32 {
                         }
                         "projection_generation" => DataPlaneIntegrityCheckV1::ProjectionGeneration,
                         "mutation_readiness" => DataPlaneIntegrityCheckV1::MutationReadiness,
+                        "edge_endpoint_integrity" => {
+                            DataPlaneIntegrityCheckV1::EdgeEndpointIntegrity
+                        }
                         _ => {
                             return emit_data_plane_integrity_error_fields(
                                 "integrity_check_invalid",

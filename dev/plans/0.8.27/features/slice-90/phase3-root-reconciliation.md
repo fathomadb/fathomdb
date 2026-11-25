@@ -1,7 +1,7 @@
 ---
 title: Slice 90 Phase 3 root reconciliation
 target_release: 0.8.27
-lib_rs_blob: 7b8d5d5fa2945c624a0b8ca3715633ccd0616a28
+lib_rs_blob: d023bc63730cc9216d91f156447f92cd97e50a27
 ---
 
 # Slice 90 Phase 3 root reconciliation
@@ -182,3 +182,9 @@ Schema 37-to-38 migration re-exports, and `test-hooks` CE-scorer / WAL-probe
 re-exports, advancing the current-format composition fixture to 38. All 49 root
 storage fields, root declarations, and root method ownership remain unchanged;
 the source blob above tracks these composition updates.
+
+2026-11-25: 0.8.32 Slice 30 (`WP-30A`) re-exports `EndpointValidationMode` and
+`WriteOptions` from `write` and updates the internal `write_commit` import to
+`CommitEndpointValidationMode`. All 49 root storage fields, root declarations,
+and root method ownership remain unchanged; the source blob above tracks this
+composition update.

@@ -2952,11 +2952,16 @@ pub(crate) fn collect_operator_edge_endpoint_findings(
 
     for (rowid, write_cursor, edge_scope, from_id, to_id) in rows {
         for (endpoint_role, endpoint) in [("from", from_id.as_str()), ("to", to_id.as_str())] {
+            // `check_integrity` (and `fathomdb migrate` post-upgrade verification)
+            // admits historical superseded-only same-scope nodes (`superseded_at IS NOT NULL`)
+            // while flagging missing, inactive (`pending`/`deleted`/`purged`), or cross-scope
+            // endpoints. Strict non-superseded active verification lives in
+            // `edge_endpoint_findings` (`doctor data-plane-integrity`).
             let present_in_scope: bool = connection
                 .prepare_cached(
                     "SELECT EXISTS(\
                          SELECT 1 FROM canonical_nodes \
-                         WHERE scope=?1 AND logical_id=?2 AND superseded_at IS NULL AND state='active'\
+                         WHERE scope=?1 AND logical_id=?2 AND state='active'\
                      )",
                 )?
                 .query_row(rusqlite::params![&edge_scope, endpoint], |row| row.get(0))?;

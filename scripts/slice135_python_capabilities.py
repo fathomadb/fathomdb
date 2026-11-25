@@ -68,6 +68,8 @@ CASES = {
     "embed_determinism": ("test_embed.py", "test_embed_is_deterministic"),
     "embed_error": ("test_embed.py", "test_embed_without_embedder_raises"),
     "closure_committed": ("test_slice30_dependency_closure.py", "test_committed_closure_status_survives_reopen"),
+    "bulk_write": ("test_bulk_write_opt_in.py", "test_bulk_non_strict_counts_dangling_and_resolves_later"),
+    "bulk_write_error": ("test_bulk_write_opt_in.py", "test_write_with_options_rejects_invalid_option_types_and_literals"),
 }
 
 # The second member names an independently executed error case, if available.
@@ -75,6 +77,7 @@ PLANNED = {
     "engine.open": ("retrieve", "boundary_errors"),
     "admin.configure": ("admin", "boundary_errors"),
     "engine.write": ("retrieve", "boundary_errors"),
+    "engine.write_with_options": ("bulk_write", "bulk_write_error"),
     "engine.actuate": ("actuation", "actuation_error"),
     "engine.register_source_dependency": ("dependency", "dependency_errors"),
     "engine.dependencies_for_source": ("dependency", "dependency_errors"),

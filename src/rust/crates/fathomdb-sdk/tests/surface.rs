@@ -29,15 +29,15 @@ use fathomdb_sdk::{
     MutationProjectionStatusRequestV1, MutationProjectionStatusV1, NeighborsOptions, NodeRecord,
     OpStoreRow, OpenOptions, OpenReport, OperationalCollectionInfo, OperationalStateRecordV1,
     PageRequestV1, PageV1, Predicate, PreparedWrite, ProjectedTextSearchOptions, ProjectionDelta,
-    ProjectionGenerationStatusV1, ProjectionRuntimeStatus, ProjectionSpec, PropertyComparisonOp,
-    PropertyEntityClass, PropertyMap, PropertyPredicate, PropertyValue, ReadContextV1, ReadView,
-    ReleaseThreshold, RerankOptions, RerankPassage, RerankResult, RerankerDeviceResolution,
-    ResolvedEvidenceV1, ResolvedGraphEvidenceV1, Result, RuntimeConfiguration,
-    RuntimeConfigurationError, RuntimeSqliteMode, ScopePolicy, ScopePolicyError,
-    SearchExpandOptions, SearchExpandResult, SearchFilter, SearchFilterArg, SearchHit,
-    SearchOptions, SearchResult, SourceDependencyRegistrationV1, SourceDependencyV1, SourceId,
-    Subscriber, SubscriberEvent, TextSearchOptions, TraversalDirection, WriteOptions, WriteReceipt,
-    EVIDENCE_RESOLVE_MANY_MAX, MAX_READ_SCOPES, MAX_SCOPE_TOKEN_BYTES,
+    ProjectionGenerationStatusV1, ProjectionRuntimeStatus, ProjectionSpec, ProjectionTarget,
+    PropertyComparisonOp, PropertyEntityClass, PropertyMap, PropertyPredicate, PropertyValue,
+    ReadContextV1, ReadView, ReleaseThreshold, RerankOptions, RerankPassage, RerankResult,
+    RerankerDeviceResolution, ResolvedEvidenceV1, ResolvedGraphEvidenceV1, Result,
+    RuntimeConfiguration, RuntimeConfigurationError, RuntimeSqliteMode, ScopePolicy,
+    ScopePolicyError, SearchExpandOptions, SearchExpandResult, SearchFilter, SearchFilterArg,
+    SearchHit, SearchOptions, SearchResult, SourceDependencyRegistrationV1, SourceDependencyV1,
+    SourceId, Subscriber, SubscriberEvent, TextSearchOptions, TraversalDirection, WriteOptions,
+    WriteReceipt, EVIDENCE_RESOLVE_MANY_MAX, MAX_READ_SCOPES, MAX_SCOPE_TOKEN_BYTES,
 };
 
 #[test]
@@ -69,7 +69,7 @@ fn engine_write_and_lifecycle_command_signatures() {
     let _: fn(&Engine, &str, LifecycleState, Option<&str>) -> Result<()> = Engine::transition;
     let _: fn(&Engine, &str) -> Result<()> = Engine::purge;
     let _: fn(&Engine, &str) -> Result<EraseReport> = Engine::erase_source;
-    let _: fn(&Engine, &[ProjectionSpec], &[String]) -> Result<ProjectionDelta> =
+    let _: fn(&Engine, &[ProjectionSpec], &[ProjectionTarget]) -> Result<ProjectionDelta> =
         Engine::configure_projections;
     let _: fn(&Engine, &[&str], &[ExtractDocument]) -> Result<IngestWithExtractorReceipt> =
         Engine::ingest_with_extractor;

@@ -631,3 +631,91 @@ test("slice38 graph.expand rejects lone surrogate and NUL in eligibility.propert
     await engine.close();
   }
 });
+
+test("slice40: simultaneous (node, status) + (edge, status), isolated drop, ProjectionRuntimeStatusEntry.entityClass, and TypeError on bare-string drop", async () => {
+  const path = freshDbPath();
+  const engine = await Engine.open(path, { useDefaultEmbedder: false });
+  try {
+    await engine.write([
+      {
+        kind: "note",
+        body: '{"status":"open","text":"node status body"}',
+        sourceId: "src:s40",
+        logicalId: "ts-s40:n1",
+        properties: { status: "open" },
+      },
+      {
+        kind: "note",
+        body: '{"status":"closed","text":"node closed body"}',
+        sourceId: "src:s40",
+        logicalId: "ts-s40:n2",
+        properties: { status: "closed" },
+      },
+      {
+        type: "edge",
+        kind: "links",
+        from: "ts-s40:n1",
+        to: "ts-s40:n2",
+        sourceId: "src:s40",
+        logicalId: "ts-s40:e1",
+        properties: { status: "verified" },
+      },
+    ]);
+
+    const delta = await engine.configureProjections([
+      {
+        name: "status",
+        roles: ["filterable", "searchable"],
+        fts: true,
+        vector: false,
+        entityClass: "node",
+      },
+      {
+        name: "status",
+        roles: ["filterable"],
+        fts: false,
+        vector: false,
+        entityClass: "edge",
+      },
+    ]);
+    assert.equal(delta.unchanged, false);
+    assert.deepEqual(delta.built, [
+      { name: "status", entityClass: "node" },
+      { name: "status", entityClass: "edge" },
+    ]);
+
+    const status = await read.projectionStatus(engine);
+    assert.deepEqual(
+      status.projections.map((p) => ({ name: p.name, entityClass: p.entityClass })),
+      [
+        { name: "status", entityClass: "node" },
+        { name: "status", entityClass: "edge" },
+      ],
+    );
+
+    // Strictly reject bare strings in drop with TypeError.
+    await assert.rejects(
+      () => engine.configureProjections([], ["status"] as unknown as Array<{ name: string }>),
+      (err: unknown) => err instanceof TypeError,
+    );
+
+    // Drop ONLY the edge projection; node projection stays intact and searchable.
+    const dropDelta = await engine.configureProjections([], [
+      { name: "status", entityClass: "edge" },
+    ]);
+    assert.deepEqual(dropDelta.dropped, [{ name: "status", entityClass: "edge" }]);
+    const remaining = await read.projections(engine);
+    assert.deepEqual(
+      remaining.map((s) => ({ name: s.name, entityClass: s.entityClass })),
+      [{ name: "status", entityClass: "node" }],
+    );
+
+    const hits = await engine.searchProjectedText("open", "status");
+    assert.deepEqual(
+      hits.results.map((h) => h.id.value),
+      ["ts-s40:n1"],
+    );
+  } finally {
+    await engine.close();
+  }
+});

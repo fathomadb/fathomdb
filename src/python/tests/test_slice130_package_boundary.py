@@ -405,6 +405,27 @@ def test_python_declarations_match_pre_move_baseline_with_approved_deltas() -> N
     }
     assert verification_error["path"] not in expected
     expected[verification_error["path"]] = verification_error
+    # 0.8.32 Slice 40 WP-40A1 (Gate1-D9 Option B2-strict): strictly typed ProjectionTarget
+    # on Engine.configure_projections drop and ProjectionDelta.{built,dropped,deferred}.
+    for namespace in ("fathomdb", "fathomdb.engine"):
+        path_name = f"{namespace}.Engine.configure_projections"
+        old = expected[path_name]
+        assert old["signature"] == (
+            "def configure_projections(self, specs: list[ProjectionSpec], "
+            "drop: list[str] | None=None) -> ProjectionDelta"
+        )
+        expected[path_name] = {
+            **old,
+            "signature": (
+                "def configure_projections(self, specs: list[ProjectionSpec], "
+                "drop: list[ProjectionTarget] | None=None) -> ProjectionDelta"
+            ),
+        }
+    for attr_name in ("built", "dropped", "deferred"):
+        path_name = f"fathomdb.ProjectionDelta.{attr_name}"
+        old = expected[path_name]
+        assert old["signature"] == f"{attr_name}: list[str]"
+        expected[path_name] = {**old, "signature": f"{attr_name}: list[ProjectionTarget]"}
     observed = {row["path"]: row for row in declarations}
     assert len(declarations) == len(observed) == len(expected) == (
         1132 + len(declared) - 8 + 1 - 12 + 2 * len(EP03_EP17_TYPE_DECLARATIONS) + 1
@@ -412,6 +433,55 @@ def test_python_declarations_match_pre_move_baseline_with_approved_deltas() -> N
     assert observed == expected
 
     stub = (package / "_fathomdb.pyi").read_text()
+    # Reverse the approved 0.8.32 Slice 40 WP-40A1 (Gate1-D9) native stub edits before Slice 50.
+    slice40_wp40a1_stub_edits = (
+        (
+            "class ProjectionTarget:\n"
+            "    name: str\n"
+            '    entity_class: Literal["node", "edge"]\n'
+            "    def __init__(\n"
+            "        self,\n"
+            "        name: str,\n"
+            "        entity_class: str = ...,\n"
+            "    ) -> None: ...\n\n"
+            "class ProjectionDelta:\n"
+            "    built: list[ProjectionTarget]\n"
+            "    dropped: list[ProjectionTarget]\n"
+            "    deferred: list[ProjectionTarget]\n"
+            "    unchanged: bool\n"
+            "    # 0.8.20 Slice 22 (R-20-VC / TC-67) — node KINDS (not attribute names) the\n"
+            "    # vector writer can never commit. Empty, never absent.\n"
+            "    vector_unsupported_kinds: list[str]\n\n"
+            "class ProjectionRuntimeStatusEntry:\n"
+            "    name: str\n"
+            '    entity_class: Literal["node", "edge"]\n'
+            "    dense_readiness: ProjectionStatusDenseReadiness\n",
+            "class ProjectionDelta:\n"
+            "    built: list[str]\n"
+            "    dropped: list[str]\n"
+            "    deferred: list[str]\n"
+            "    unchanged: bool\n"
+            "    # 0.8.20 Slice 22 (R-20-VC / TC-67) — node KINDS (not attribute names) the\n"
+            "    # vector writer can never commit. Empty, never absent.\n"
+            "    vector_unsupported_kinds: list[str]\n\n"
+            "class ProjectionRuntimeStatusEntry:\n"
+            "    name: str\n"
+            "    dense_readiness: ProjectionStatusDenseReadiness\n",
+        ),
+        (
+            "def configure_projections(\n"
+            "    engine: Engine,\n"
+            "    specs: list[ProjectionSpec],\n"
+            "    drop: list[ProjectionTarget] | None = ...,\n"
+            ") -> ProjectionDelta: ...\n",
+            "def configure_projections(\n"
+            "    engine: Engine, specs: list[ProjectionSpec], drop: list[str] | None = ...\n"
+            ") -> ProjectionDelta: ...\n",
+        ),
+    )
+    for new_text, old_text in slice40_wp40a1_stub_edits:
+        assert stub.count(new_text) == 1, f"missing Slice 40 WP-40A1 stub edit: {new_text!r}"
+        stub = stub.replace(new_text, old_text, 1)
     # Reverse the approved 0.8.31 Slice 50 native stub additions before Slice 30.
     slice50_stub_edits = (
         (

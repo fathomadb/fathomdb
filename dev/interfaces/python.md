@@ -656,13 +656,16 @@ signature. Its closed `DenseReadiness` vocabulary is separately
 
 - `engine.configure_projections(specs, drop=None)` → `ProjectionDelta`.
   Declarative, idempotent apply: the engine diffs `specs` against the durable
-  registry and backfills the difference in one transaction. `drop` is EXPLICIT —
-  omitting a live projection from `specs` does NOT drop it; removal requires
-  naming it in `drop`. A destructive change (a role removal or a
-  tokenizer/embedder change) without a drop raises `ProjectionDestructiveError`
-  (`name`/`delta` attributes). Re-applying an unchanged spec returns
+  registry keyed by `(entity_class, name)` and backfills the difference in one
+  transaction. `drop` is EXPLICIT and strictly typed as
+  `list[ProjectionTarget] | None` (passing bare `str` entries raises
+  `TypeError`) — omitting a live projection from `specs` does NOT drop it;
+  removal requires naming its `ProjectionTarget(name, entity_class=...)` in
+  `drop`. A destructive change (a role removal or a tokenizer/embedder change)
+  without a matching drop raises `ProjectionDestructiveError` (`name`/`delta`
+  attributes). Re-applying an unchanged spec returns
   `ProjectionDelta(unchanged=True)`.
-- `read.projections(engine)` → `list[ProjectionSpec]`, sorted by name — the
+- `read.projections(engine)` → `list[ProjectionSpec]`, sorted by `(name, entity_class)` — the
   registry introspection (folded into `read.*`).
 - `read.projection_status(engine)` → `ProjectionRuntimeStatus` —
   **HITL-SIGNED 2026-08-07 (steward `seq-247`)** C5 status read. It is a pure
@@ -690,7 +693,7 @@ when a committed receipt has pending projection cursors in the current schema.
 `vector_unsupported_kinds`, and required `vector_coverage: StoredHeadCoverageV1`. The reason Literal is exactly
 `"none" | "no_runtime"`; `"none"` occurs
 exactly when the runtime is available. Each sorted
-`ProjectionRuntimeStatusEntry` has `name` and `dense_readiness`, whose Literal
+`ProjectionRuntimeStatusEntry` has `name`, `entity_class` (`"node" | "edge"`), and `dense_readiness`, whose Literal
 is exactly `"not_declared" | "unavailable" | "embedding" | "ready"`.
 `not_declared` means no effective vector arm (`searchable` plus a vector
 sub-object); a legacy non-searchable vector sub-object therefore remains
@@ -706,8 +709,10 @@ vector_dense_readiness }`.
 are tier labels carried by the `fts`/`vector` sub-object flags, not roles. Cheap
 roles (`filterable`, `searchable→FTS`) build same-transaction; `rankable` and the
 `searchable→vector` sub-target are persisted-but-deferred (reported in
-`ProjectionDelta.deferred`). `ProjectionDelta` is
-`{ built, dropped, deferred, unchanged, vector_unsupported_kinds }`.
+`ProjectionDelta.deferred`). `ProjectionTarget` (`fathomdb.ProjectionTarget`, `fathomdb.types.ProjectionTarget`) is
+`{ name: str, entity_class: PropertyEntityClass = "node" }`.
+`ProjectionDelta` is
+`{ built: list[ProjectionTarget], dropped: list[ProjectionTarget], deferred: list[ProjectionTarget], unchanged: bool, vector_unsupported_kinds: list[str] }`.
 
 ### Embedding readiness (0.8.23 Slice 30)
 

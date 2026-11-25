@@ -79,8 +79,10 @@ impl ProjectionStatusDenseReadiness {
 /// One declaration's current dense status in [`ProjectionRuntimeStatus`].
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ProjectionRuntimeStatusEntry {
-    /// Declared projection name. Entries are returned in ascending name order.
+    /// Declared projection name. Entries are returned in ascending `(name, entity_class)` order.
     pub name: String,
+    /// Entity class targeted by this declaration (`Node` or `Edge`).
+    pub entity_class: PropertyEntityClass,
     /// Current dense state for this declaration's effective vector arm.
     pub dense_readiness: ProjectionStatusDenseReadiness,
 }

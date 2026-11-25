@@ -411,15 +411,52 @@ impl ProjectionSpec {
     }
 }
 
+/// Strictly typed projection target scoped by `(entityClass, name)`.
+#[napi(object)]
+#[derive(Clone)]
+pub struct ProjectionTarget {
+    pub name: String,
+    /// Target entity class (`"node"` or `"edge"`; defaults to `"node"` when omitted).
+    pub entity_class: Option<String>,
+}
+
+impl ProjectionTarget {
+    pub(crate) fn from_rust(t: &RustProjectionTarget) -> Self {
+        Self { name: t.name.clone(), entity_class: Some(t.entity_class.as_str().to_string()) }
+    }
+
+    pub(crate) fn to_rust(&self) -> Result<RustProjectionTarget> {
+        validate_ffi_string_napi(&self.name)?;
+        if let Some(ec) = &self.entity_class {
+            validate_ffi_string_napi(ec)?;
+        }
+        let entity_class = match self.entity_class.as_deref() {
+            None | Some("node") => RustPropertyEntityClass::Node,
+            Some("edge") => RustPropertyEntityClass::Edge,
+            Some(other) => {
+                return Err(typed_error(
+                    CODE_INVALID_ARGUMENT,
+                    format!(
+                        "projection target {:?}: unknown entityClass {other:?}; expected \"node\" or \"edge\"",
+                        self.name
+                    ),
+                    JsonValue::Null,
+                ));
+            }
+        };
+        Ok(RustProjectionTarget::new(self.name.clone(), entity_class))
+    }
+}
+
 /// 0.8.20 Slice 15d (R-20-PR) — the diff `configureProjections` applied.
 #[napi(object)]
 pub struct ProjectionDelta {
-    pub built: Vec<String>,
-    pub dropped: Vec<String>,
-    pub deferred: Vec<String>,
+    pub built: Vec<ProjectionTarget>,
+    pub dropped: Vec<ProjectionTarget>,
+    pub deferred: Vec<ProjectionTarget>,
     pub unchanged: bool,
     /// 0.8.20 Slice 22 (R-20-VC / TC-67) — node KINDS the vector writer can never
-    /// commit. A different axis from the three attribute-name lists above; the
+    /// commit. A different axis from the three target lists above; the
     /// name says so. Output-only: `configureProjections` takes specs, never a
     /// delta, so there is no inbound direction to round-trip.
     pub vector_unsupported_kinds: Vec<String>,
@@ -428,9 +465,9 @@ pub struct ProjectionDelta {
 impl ProjectionDelta {
     pub(crate) fn from_rust(d: &RustProjectionDelta) -> Self {
         Self {
-            built: d.built.clone(),
-            dropped: d.dropped.clone(),
-            deferred: d.deferred.clone(),
+            built: d.built.iter().map(ProjectionTarget::from_rust).collect(),
+            dropped: d.dropped.iter().map(ProjectionTarget::from_rust).collect(),
+            deferred: d.deferred.iter().map(ProjectionTarget::from_rust).collect(),
             unchanged: d.unchanged,
             vector_unsupported_kinds: d.vector_unsupported_kinds.clone(),
         }
@@ -441,6 +478,8 @@ impl ProjectionDelta {
 #[napi(object)]
 pub struct ProjectionRuntimeStatusEntry {
     pub name: String,
+    /// `"node"` or `"edge"`.
+    pub entity_class: String,
     /// `not_declared` / `unavailable` / `embedding` / `ready`.
     pub dense_readiness: String,
 }
@@ -449,6 +488,7 @@ impl ProjectionRuntimeStatusEntry {
     pub(crate) fn from_rust(entry: &RustProjectionRuntimeStatusEntry) -> Self {
         Self {
             name: entry.name.clone(),
+            entity_class: entry.entity_class.as_str().to_string(),
             dense_readiness: entry.dense_readiness.as_str().to_string(),
         }
     }

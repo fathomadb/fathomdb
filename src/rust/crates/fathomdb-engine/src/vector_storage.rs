@@ -190,11 +190,11 @@ pub(crate) fn desired_vector_attr_columns(conn: &Connection) -> rusqlite::Result
     let registry = load_projection_registry(conn)?;
     let mut names: Vec<&String> = registry
         .iter()
-        .filter(|(_, stored)| {
-            stored.entity_class == PropertyEntityClass::Node
+        .filter(|((entity_class, _), stored)| {
+            *entity_class == PropertyEntityClass::Node
                 && stored.roles.contains(&ProjectionRole::Filterable)
         })
-        .map(|(name, _)| name)
+        .map(|((_, name), _)| name)
         .collect();
     names.sort();
     Ok(names
@@ -423,7 +423,10 @@ fn reshape_vector_partition_nondestructive(
         }
         need_owner_source = true;
         if let Some(name) = decode_attr_vec0_column(col) {
-            let stored = registry.get(&name).ok_or(rusqlite::Error::InvalidQuery)?.clone();
+            let stored = registry
+                .get(&(PropertyEntityClass::Node, name.clone()))
+                .ok_or(rusqlite::Error::InvalidQuery)?
+                .clone();
             col_plan.push((usize::MAX, Some((name, stored))));
         } else {
             col_plan.push((usize::MAX, None));

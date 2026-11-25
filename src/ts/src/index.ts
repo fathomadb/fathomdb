@@ -83,6 +83,7 @@ export {
   MutationProjectionStatusV1,
   ProjectionRole,
   ProjectionSpec,
+  ProjectionTarget,
   DenseReadiness,
   ProjectionDelta,
   ProjectionRuntimeUnavailabilityReason,

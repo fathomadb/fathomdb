@@ -217,7 +217,10 @@ fn source_change_refreshes_existing_vec0_attribute_metadata() {
     let new = nested_filterable_vector_spec("priority", &["new"]);
     let extra = filterable_spec("extra");
     engine
-        .configure_projections(&[new, extra], &["priority".to_string()])
+        .configure_projections(
+            &[new, extra],
+            &[fathomdb_engine::ProjectionTarget::node("priority")],
+        )
         .expect("drop and redeclare changed source");
 
     let column = attr_col("priority");
@@ -240,7 +243,7 @@ fn reactivation_refreshes_vec0_metadata_after_a_source_change() {
     engine.transition("N1", LifecycleState::Deleted, None).expect("delete");
     let new = nested_filterable_vector_spec("priority", &["new"]);
     engine
-        .configure_projections(&[new], &["priority".to_string()])
+        .configure_projections(&[new], &[fathomdb_engine::ProjectionTarget::node("priority")])
         .expect("replace source while deleted");
     engine.transition("N1", LifecycleState::Active, None).expect("reactivate");
 
@@ -285,7 +288,10 @@ fn reshape_is_nondestructive_preserves_bits_rowids_and_sentinel() {
     // Declare the filterable projection — triggers the NON-DESTRUCTIVE reshape.
     let delta =
         engine.configure_projections(&[filterable_spec("priority")], &[]).expect("configure");
-    assert!(delta.built.contains(&"priority".to_string()), "projection built");
+    assert!(
+        delta.built.contains(&fathomdb_engine::ProjectionTarget::node("priority")),
+        "projection built"
+    );
 
     // The reshaped table has a PLAIN metadata attr column, never an aux (`+`) one.
     let col = attr_col("priority");
@@ -396,7 +402,10 @@ fn idempotent_refilterable_registration_is_vec0_noop() {
 
     let first =
         engine.configure_projections(&[filterable_spec("priority")], &[]).expect("first configure");
-    assert!(first.built.contains(&"priority".to_string()), "first apply builds + reshapes");
+    assert!(
+        first.built.contains(&fathomdb_engine::ProjectionTarget::node("priority")),
+        "first apply builds + reshapes"
+    );
 
     let sql_after_first = table_sql(&path);
     let rowids = engine
@@ -1096,7 +1105,7 @@ fn undeclared_after_concurrent_drop_is_typed_invalidfilter_not_storage_race() {
         // The race: DROP `priority` on the writer connection NOW — this removes the
         // `attr_<hex>` vec0 column that the in-flight search's filter still names.
         engine
-            .configure_projections(&[], &["priority".to_string()])
+            .configure_projections(&[], &[fathomdb_engine::ProjectionTarget::node("priority")])
             .expect("concurrent DROP of the filterable projection");
         // Release the parked reader; it now pins a snapshot that includes the drop.
         pause.release();

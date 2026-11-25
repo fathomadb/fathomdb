@@ -206,22 +206,21 @@ pub(super) fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
         } else {
             None
         };
-    let pushed_edge_predicates: Vec<&PropertyPredicate> =
-        if let Some(registry) = registry_owned.as_ref() {
-            graph_options
-                .graph_edge_predicates
-                .iter()
-                .filter(|pred| {
-                    registry.get(&pred.key).is_some_and(|stored| {
-                        stored.entity_class == PropertyEntityClass::Edge
-                            && stored.roles.contains(&ProjectionRole::Filterable)
-                            && stored.source.is_none()
-                    })
+    let pushed_edge_predicates: Vec<&PropertyPredicate> = if let Some(registry) =
+        registry_owned.as_ref()
+    {
+        graph_options
+            .graph_edge_predicates
+            .iter()
+            .filter(|pred| {
+                registry.get(&(PropertyEntityClass::Edge, pred.key.clone())).is_some_and(|stored| {
+                    stored.roles.contains(&ProjectionRole::Filterable) && stored.source.is_none()
                 })
-                .collect()
-        } else {
-            Vec::new()
-        };
+            })
+            .collect()
+    } else {
+        Vec::new()
+    };
 
     let mut frontier: VecDeque<((String, String), u32, GraphArmSeedSource)> = VecDeque::new();
     let mut visited: HashSet<(String, String)> = HashSet::new();

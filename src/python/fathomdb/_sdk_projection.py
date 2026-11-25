@@ -6,10 +6,12 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from fathomdb._fathomdb import ProjectionSpec as _NativeProjectionSpec
+from fathomdb._fathomdb import ProjectionTarget as _NativeProjectionTarget
 from fathomdb._fathomdb import configure_projections as _native_configure_projections
 from fathomdb.types import (
     ProjectionDelta,
     ProjectionSpec,
+    ProjectionTarget,
 )
 
 if TYPE_CHECKING:
@@ -27,10 +29,36 @@ def _projection_source_segments(source: object) -> list[str] | None:
     return list(source)
 
 
+def _native_drop_targets(drop: object) -> list[_NativeProjectionTarget] | None:
+    """Validate strictly typed ``ProjectionTarget`` entries (never bare ``str``)."""
+    if drop is None:
+        return None
+    if isinstance(drop, (str, bytes)) or not isinstance(drop, Sequence):
+        raise TypeError("drop must be a sequence of ProjectionTarget instances")
+    native_targets: list[_NativeProjectionTarget] = []
+    for entry in drop:
+        if not isinstance(entry, ProjectionTarget):
+            raise TypeError(
+                "drop entries must be ProjectionTarget instances, "
+                f"got {type(entry).__name__}"
+            )
+        if not isinstance(entry.name, str):
+            raise TypeError(
+                f"ProjectionTarget.name must be str, got {type(entry.name).__name__}"
+            )
+        if not isinstance(entry.entity_class, str):
+            raise TypeError(
+                "ProjectionTarget.entity_class must be str, "
+                f"got {type(entry.entity_class).__name__}"
+            )
+        native_targets.append(_NativeProjectionTarget(entry.name, entry.entity_class))
+    return native_targets
+
+
 def configure_projections(
     self: Engine,
     specs: list[ProjectionSpec],
-    drop: list[str] | None = None,
+    drop: list[ProjectionTarget] | None = None,
 ) -> ProjectionDelta:
     native_specs = [
         _NativeProjectionSpec(
@@ -53,11 +81,21 @@ def configure_projections(
         )
         for s in specs
     ]
-    delta = _native_configure_projections(self._native, native_specs, drop)
+    native_drop = _native_drop_targets(drop)
+    delta = _native_configure_projections(self._native, native_specs, native_drop)
     return ProjectionDelta(
-        built=list(delta.built),
-        dropped=list(delta.dropped),
-        deferred=list(delta.deferred),
+        built=[
+            ProjectionTarget(name=t.name, entity_class=t.entity_class)
+            for t in delta.built
+        ],
+        dropped=[
+            ProjectionTarget(name=t.name, entity_class=t.entity_class)
+            for t in delta.dropped
+        ],
+        deferred=[
+            ProjectionTarget(name=t.name, entity_class=t.entity_class)
+            for t in delta.deferred
+        ],
         unchanged=delta.unchanged,
         # 0.8.20 Slice 22 (R-20-VC / TC-67) — the typed report that replaces
         # the silent drop of a kind the vector writer can never commit.

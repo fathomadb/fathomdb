@@ -235,7 +235,7 @@ fn idempotent_reregistration_is_a_noop() {
     let s = spec("status", &[ProjectionRole::Filterable], false, false);
     let first = engine.configure_projections(std::slice::from_ref(&s), &[]).unwrap();
     assert!(!first.unchanged, "first apply builds the projection");
-    assert_eq!(first.built, vec!["status".to_string()]);
+    assert_eq!(first.built, vec![fathomdb_engine::ProjectionTarget::node("status")]);
 
     let second = engine.configure_projections(std::slice::from_ref(&s), &[]).unwrap();
     assert!(second.unchanged, "identical re-registration must diff to a no-op");
@@ -268,7 +268,11 @@ fn role_add_builds_and_explicit_drop_drops_exactly_one() {
             &[],
         )
         .unwrap();
-    assert_eq!(d.built, vec!["status".to_string()], "the role add rebuilds exactly `status`");
+    assert_eq!(
+        d.built,
+        vec![fathomdb_engine::ProjectionTarget::node("status")],
+        "the role add rebuilds exactly `status`"
+    );
 
     // Add a SECOND projection `title` (searchable/fts).
     engine
@@ -287,8 +291,10 @@ fn role_add_builds_and_explicit_drop_drops_exactly_one() {
     );
 
     // Explicit drop of `status` removes exactly it (and its EAV/property-FTS).
-    let drop = engine.configure_projections(&[], &["status".to_string()]).unwrap();
-    assert_eq!(drop.dropped, vec!["status".to_string()]);
+    let drop = engine
+        .configure_projections(&[], &[fathomdb_engine::ProjectionTarget::node("status")])
+        .unwrap();
+    assert_eq!(drop.dropped, vec![fathomdb_engine::ProjectionTarget::node("status")]);
     let remaining: Vec<String> =
         engine.read_projections().unwrap().into_iter().map(|s| s.name).collect();
     assert_eq!(remaining, vec!["title".to_string()], "only `status` dropped");
@@ -342,10 +348,10 @@ fn destructive_change_requires_explicit_drop() {
     let ok = engine
         .configure_projections(
             &[spec("status", &[ProjectionRole::Filterable], false, false)],
-            &["status".to_string()],
+            &[fathomdb_engine::ProjectionTarget::node("status")],
         )
         .unwrap();
-    assert_eq!(ok.dropped, vec!["status".to_string()]);
+    assert_eq!(ok.dropped, vec![fathomdb_engine::ProjectionTarget::node("status")]);
     assert_eq!(
         engine.read_projections().unwrap()[0].roles,
         roles(&[ProjectionRole::Filterable]),
@@ -370,7 +376,11 @@ fn rankable_is_graceful_deferred_never_blocking() {
         )
         .unwrap();
     assert!(d.built.is_empty(), "rankable builds no same-transaction projection");
-    assert_eq!(d.deferred, vec!["importance".to_string()], "rankable is reported deferred");
+    assert_eq!(
+        d.deferred,
+        vec![fathomdb_engine::ProjectionTarget::node("importance")],
+        "rankable is reported deferred"
+    );
 
     opened.engine.drain(5_000).unwrap();
     opened.engine.close().unwrap();
@@ -390,7 +400,11 @@ fn vector_subobject_is_stored_not_built() {
     // searchable with a VECTOR sub-target only (no fts).
     let s = spec("summary", &[ProjectionRole::Searchable], false, true);
     let d = engine.configure_projections(std::slice::from_ref(&s), &[]).unwrap();
-    assert_eq!(d.deferred, vec!["summary".to_string()], "the vector sub-target defers to Slice 20");
+    assert_eq!(
+        d.deferred,
+        vec![fathomdb_engine::ProjectionTarget::node("summary")],
+        "the vector sub-target defers to Slice 20"
+    );
 
     // The vector sub-object round-trips through read.projections. 0.8.20 Slice 20
     // (R-20-DR) hung `dense_readiness` off exactly this sub-object, so read-back
@@ -1046,7 +1060,9 @@ fn backslash_projection_name_is_rejected() {
     }
 
     // The same rule guards the `drop` list.
-    let drop_err = engine.configure_projections(&[], &["c\\d".to_string()]).unwrap_err();
+    let drop_err = engine
+        .configure_projections(&[], &[fathomdb_engine::ProjectionTarget::node("c\\d")])
+        .unwrap_err();
     assert!(
         matches!(drop_err, EngineError::InvalidArgument { .. }),
         "a backslash drop name must be refused too, got {drop_err:?}"
@@ -1133,7 +1149,13 @@ fn duplicate_drop_entry_in_one_request_is_rejected() {
         .unwrap();
 
     let err = engine
-        .configure_projections(&[], &["status".to_string(), "status".to_string()])
+        .configure_projections(
+            &[],
+            &[
+                fathomdb_engine::ProjectionTarget::node("status"),
+                fathomdb_engine::ProjectionTarget::node("status"),
+            ],
+        )
         .unwrap_err();
     match err {
         EngineError::InvalidArgument { msg } => assert!(
@@ -1182,11 +1204,19 @@ fn name_in_both_specs_and_drop_is_the_supported_rebuild() {
     let d = engine
         .configure_projections(
             &[spec("status", &[ProjectionRole::Filterable], false, false)],
-            &["status".to_string()],
+            &[fathomdb_engine::ProjectionTarget::node("status")],
         )
         .unwrap();
-    assert_eq!(d.dropped, vec!["status".to_string()], "the explicit drop is reported");
-    assert_eq!(d.built, vec!["status".to_string()], "the re-declared spec is (re)built");
+    assert_eq!(
+        d.dropped,
+        vec![fathomdb_engine::ProjectionTarget::node("status")],
+        "the explicit drop is reported"
+    );
+    assert_eq!(
+        d.built,
+        vec![fathomdb_engine::ProjectionTarget::node("status")],
+        "the re-declared spec is (re)built"
+    );
     assert_eq!(
         engine.read_projections().unwrap()[0].roles,
         roles(&[ProjectionRole::Filterable]),
@@ -1220,7 +1250,9 @@ fn dropping_an_absent_name_is_a_clean_noop() {
     let engine = &opened.engine;
     engine.write(&[node("N1", "src:1", r#"{"status":"open"}"#)]).unwrap();
 
-    let d = engine.configure_projections(&[], &["ghost".to_string()]).unwrap();
+    let d = engine
+        .configure_projections(&[], &[fathomdb_engine::ProjectionTarget::node("ghost")])
+        .unwrap();
     assert!(d.dropped.is_empty(), "dropping an absent name reports no drop");
     assert!(d.unchanged, "dropping an absent name is a no-op");
     opened.engine.close().unwrap();
@@ -1240,7 +1272,11 @@ fn idempotent_reregistration_holds_for_deferred_rankable() {
 
     let s = spec("importance", &[ProjectionRole::Rankable], false, false);
     let first = engine.configure_projections(std::slice::from_ref(&s), &[]).unwrap();
-    assert_eq!(first.deferred, vec!["importance".to_string()], "first apply defers rankable");
+    assert_eq!(
+        first.deferred,
+        vec![fathomdb_engine::ProjectionTarget::node("importance")],
+        "first apply defers rankable"
+    );
     assert!(!first.unchanged);
 
     let second = engine.configure_projections(std::slice::from_ref(&s), &[]).unwrap();
@@ -1325,7 +1361,11 @@ fn a_changed_registry_row_reports_its_deferral_even_when_already_deferred() {
             &[],
         )
         .unwrap();
-    assert_eq!(first.deferred, vec!["importance".to_string()], "first apply defers rankable");
+    assert_eq!(
+        first.deferred,
+        vec![fathomdb_engine::ProjectionTarget::node("importance")],
+        "first apply defers rankable"
+    );
     assert!(!first.unchanged);
 
     // 0.8.20 Slice 23 — the mutation this test used to make (`rankable` →
@@ -1377,7 +1417,7 @@ fn a_changed_registry_row_reports_its_deferral_even_when_already_deferred() {
     );
     // THE PIN — the one assertion that fails against the pre-fix guard.
     assert!(
-        second.deferred.contains(&"importance".to_string()),
+        second.deferred.contains(&fathomdb_engine::ProjectionTarget::node("importance")),
         "THE PIN (fix-2 finding 2 [P2]): the `Some(existing)` branch must push `delta.deferred` \
          even when `existing.has_deferred()` is ALREADY true — that extra conjunct is exactly \
          what the pre-fix guard had, and it suppressed the report, got {second:?}"

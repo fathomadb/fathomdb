@@ -934,7 +934,7 @@ impl Engine {
                                     .to_owned(),
                             }
                         })?;
-                    if let Some((name, _)) = registry.iter().find(|(_, projection)| {
+                    if let Some(((_, name), _)) = registry.iter().find(|(_, projection)| {
                         projection.vector_declared && projection.vector_embedder.is_some()
                     }) {
                         return Err(EngineOpenError::Embedder(RuntimeEmbedderError::Failed {

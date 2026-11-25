@@ -124,7 +124,7 @@ test("idempotent re-registration is a no-op", async () => {
     const s = spec("status", ["filterable"]);
     const first = await engine.configureProjections([s]);
     assert.equal(first.unchanged, false);
-    assert.deepEqual(first.built, ["status"]);
+    assert.deepEqual(first.built, [{ name: "status", entityClass: "node" }]);
 
     const second = await engine.configureProjections([s]);
     assert.equal(second.unchanged, true);
@@ -177,8 +177,8 @@ test("explicit drop drops exactly one; omission does not drop", async () => {
       ["status", "title"],
     );
 
-    const d = await engine.configureProjections([], ["status"]);
-    assert.deepEqual(d.dropped, ["status"]);
+    const d = await engine.configureProjections([], [{ name: "status", entityClass: "node" }]);
+    assert.deepEqual(d.dropped, [{ name: "status", entityClass: "node" }]);
     assert.deepEqual(
       (await read.projections(engine)).map((s) => s.name),
       ["title"],
@@ -210,9 +210,9 @@ test("destructive change requires an explicit drop", async () => {
     );
 
     const ok = await engine.configureProjections([spec("status", ["filterable"])], [
-      "status",
+      { name: "status", entityClass: "node" },
     ]);
-    assert.deepEqual(ok.dropped, ["status"]);
+    assert.deepEqual(ok.dropped, [{ name: "status", entityClass: "node" }]);
     assert.deepEqual([...(await read.projections(engine))[0].roles], ["filterable"]);
   } finally {
     await engine.close();
@@ -285,7 +285,7 @@ test("fix-5 NUL in drop entry rejected at binding", async () => {
     await engine.write([node("A", "src:a", '{"status":"open"}')]);
     await engine.configureProjections([spec("status", ["filterable"])]);
     await assert.rejects(
-      () => engine.configureProjections([], [NUL]),
+      () => engine.configureProjections([], [{ name: NUL, entityClass: "node" }]),
       (err: unknown) => {
         assert.ok(err instanceof WriteValidationError, "must be WriteValidationError");
         return true;
@@ -408,7 +408,7 @@ test("TC-47 surrogate in drop entry rejected at binding", async () => {
     await engine.write([node("A", "src:a", '{"status":"open"}')]);
     await engine.configureProjections([spec("status", ["filterable"])]);
     await assert.rejects(
-      () => engine.configureProjections([], [SURROGATE]),
+      () => engine.configureProjections([], [{ name: SURROGATE, entityClass: "node" }]),
       (err: unknown) => {
         assert.ok(err instanceof WriteValidationError, "must be WriteValidationError");
         return true;
@@ -657,12 +657,12 @@ test("rankable and vector sub-target are deferred, not built", async () => {
     await engine.write([node("A", "src:a", '{"importance":"high","summary":"a meaning"}')]);
     const d1 = await engine.configureProjections([spec("importance", ["rankable"])]);
     assert.deepEqual(d1.built, []);
-    assert.deepEqual(d1.deferred, ["importance"]);
+    assert.deepEqual(d1.deferred, [{ name: "importance", entityClass: "node" }]);
 
     const d2 = await engine.configureProjections([
       spec("summary", ["searchable"], { vector: true }),
     ]);
-    assert.deepEqual(d2.deferred, ["summary"]);
+    assert.deepEqual(d2.deferred, [{ name: "summary", entityClass: "node" }]);
     const summary = (await read.projections(engine)).find((s) => s.name === "summary");
     assert.ok(summary && summary.vector === true);
   } finally {

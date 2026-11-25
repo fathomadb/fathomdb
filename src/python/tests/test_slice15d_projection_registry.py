@@ -17,7 +17,7 @@ import sqlite3
 
 import pytest
 
-from fathomdb import Engine, ProjectionRole, ProjectionSpec, read
+from fathomdb import Engine, ProjectionRole, ProjectionSpec, ProjectionTarget, read
 from fathomdb._fathomdb import ProjectionSpec as _NativeProjectionSpec
 from fathomdb._fathomdb import configure_projections as _native_configure_projections
 from fathomdb.errors import (
@@ -115,7 +115,7 @@ def test_idempotent_reregistration_is_a_noop(tmp_path) -> None:
         s = _spec("status", {ProjectionRole.FILTERABLE})
         first = engine.configure_projections([s])
         assert first.unchanged is False
-        assert first.built == ["status"]
+        assert first.built == [ProjectionTarget(name="status", entity_class="node")]
 
         second = engine.configure_projections([s])
         assert second.unchanged is True
@@ -164,8 +164,8 @@ def test_explicit_drop_and_omission_semantics(tmp_path) -> None:
         assert {s.name for s in read.projections(engine)} == {"status", "title"}
 
         # Explicit drop of `status` removes exactly it.
-        d = engine.configure_projections([], drop=["status"])
-        assert d.dropped == ["status"]
+        d = engine.configure_projections([], drop=[ProjectionTarget(name="status")])
+        assert d.dropped == [ProjectionTarget(name="status", entity_class="node")]
         assert {s.name for s in read.projections(engine)} == {"title"}
         engine.drain(timeout_s=30)
     finally:
@@ -188,9 +188,10 @@ def test_destructive_change_requires_explicit_drop(tmp_path) -> None:
 
         # Naming it in `drop` lets it rebuild.
         ok = engine.configure_projections(
-            [_spec("status", {ProjectionRole.FILTERABLE})], drop=["status"]
+            [_spec("status", {ProjectionRole.FILTERABLE})],
+            drop=[ProjectionTarget(name="status")],
         )
-        assert ok.dropped == ["status"]
+        assert ok.dropped == [ProjectionTarget(name="status", entity_class="node")]
         assert read.projections(engine)[0].roles == frozenset({"filterable"})
     finally:
         engine.close()
@@ -260,7 +261,7 @@ def test_ffi_nul_in_drop_entry_rejected_at_binding(tmp_path) -> None:
         engine.write([_node("A", "src:a", '{"status":"open"}')])
         engine.configure_projections([_spec("status", {ProjectionRole.FILTERABLE})])
         with pytest.raises(WriteValidationError) as exc:
-            engine.configure_projections([], drop=[_NUL])
+            engine.configure_projections([], drop=[ProjectionTarget(name=_NUL)])
         assert isinstance(exc.value, EngineError)
         # The real projection is untouched by the refused call.
         assert {s.name for s in read.projections(engine)} == {"status"}
@@ -587,12 +588,12 @@ def test_rankable_and_vector_are_deferred_not_built(tmp_path) -> None:
     try:
         engine.write([_node("A", "src:a", '{"importance":"high","summary":"a meaning"}')])
         d1 = engine.configure_projections([_spec("importance", {ProjectionRole.RANKABLE})])
-        assert d1.built == [] and d1.deferred == ["importance"]
+        assert d1.built == [] and d1.deferred == [ProjectionTarget(name="importance")]
 
         d2 = engine.configure_projections(
             [_spec("summary", {ProjectionRole.SEARCHABLE}, vector=True)]
         )
-        assert d2.deferred == ["summary"]
+        assert d2.deferred == [ProjectionTarget(name="summary")]
         # The vector sub-object round-trips (Slice 20 attaches dense_readiness).
         summary = next(s for s in read.projections(engine) if s.name == "summary")
         assert summary.vector is True

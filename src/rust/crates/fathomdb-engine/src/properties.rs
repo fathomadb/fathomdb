@@ -23,13 +23,46 @@ pub enum PropertyValue {
 pub type PropertyMap = BTreeMap<String, PropertyValue>;
 
 /// Entity class targeted by a declared property projection (`"node"` or `"edge"`).
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, Ord, PartialEq, PartialOrd)]
 pub enum PropertyEntityClass {
     /// Canonical node entity (`canonical_nodes`).
     #[default]
     Node,
     /// Canonical edge entity (`canonical_edges`).
     Edge,
+}
+
+/// Strictly typed projection identifier scoped by `(entity_class, name)`.
+///
+/// Used as the explicit drop target on [`crate::Engine::configure_projections`]
+/// and in [`crate::ProjectionDelta`] so same-name node and edge projections are
+/// never ambiguous.
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct ProjectionTarget {
+    /// Declared projection name.
+    pub name: String,
+    /// Entity class targeted by this projection (`Node` or `Edge`).
+    pub entity_class: PropertyEntityClass,
+}
+
+impl ProjectionTarget {
+    /// Construct a projection target for `name` and `entity_class`.
+    #[must_use]
+    pub fn new(name: impl Into<String>, entity_class: PropertyEntityClass) -> Self {
+        Self { name: name.into(), entity_class }
+    }
+
+    /// Construct a node-scoped projection target.
+    #[must_use]
+    pub fn node(name: impl Into<String>) -> Self {
+        Self::new(name, PropertyEntityClass::Node)
+    }
+
+    /// Construct an edge-scoped projection target.
+    #[must_use]
+    pub fn edge(name: impl Into<String>) -> Self {
+        Self::new(name, PropertyEntityClass::Edge)
+    }
 }
 
 impl PropertyEntityClass {

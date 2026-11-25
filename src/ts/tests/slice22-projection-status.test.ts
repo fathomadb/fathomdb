@@ -33,8 +33,8 @@ test("read.projectionStatus exposes exact current status wires", async () => {
     assert.equal(status.runtimeEmbedderAvailable, false);
     assert.equal(status.runtimeUnavailabilityReason, "no_runtime");
     assert.deepEqual(status.projections, [
-      { name: "alpha", denseReadiness: "unavailable" },
-      { name: "zeta", denseReadiness: "not_declared" },
+      { name: "alpha", entityClass: "node", denseReadiness: "unavailable" },
+      { name: "zeta", entityClass: "node", denseReadiness: "not_declared" },
     ]);
     assert.deepEqual(status.vectorUnsupportedKinds, ["entity", "invoice"]);
     assert.deepEqual(await read.projectionStatus(engine), status, "repeated reads are pure");

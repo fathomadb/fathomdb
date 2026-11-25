@@ -40,9 +40,12 @@ pub(crate) fn read_projected_text_in_tx(
     let frozen = view.freeze();
     let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
     let registry = load_projection_registry(&tx)?;
-    let declared = registry.get(name).ok_or_else(|| {
-        SearchReaderError::InvalidFilter(format!("projected text field {name:?} is not declared"))
-    })?;
+    let declared =
+        registry.get(&(PropertyEntityClass::Node, name.to_string())).ok_or_else(|| {
+            SearchReaderError::InvalidFilter(format!(
+                "projected text field {name:?} is not declared"
+            ))
+        })?;
     if !declared.wants_property_fts() {
         return Err(SearchReaderError::InvalidFilter(format!(
             "projected text field {name:?} is not a declared `searchable` projection with property FTS"
@@ -210,7 +213,7 @@ fn read_historical_projected_text(
     limit: usize,
     view: FrozenView,
     scope: &crate::scope::ScopePredicate,
-    registry: &BTreeMap<String, StoredProjection>,
+    registry: &BTreeMap<(PropertyEntityClass, String), StoredProjection>,
     _attribution: &WalAttributionCollector,
 ) -> ProjectedTextReaderResponse {
     // The caller holds one main-store snapshot through registry, corpus and
@@ -286,8 +289,8 @@ fn read_historical_projected_text(
                 })?;
             rows.collect::<rusqlite::Result<Vec<_>>>()?
         };
-        for (attribute, stored) in registry.iter().filter(|(_, stored)| {
-            stored.entity_class == PropertyEntityClass::Node && stored.wants_property_fts()
+        for ((_, attribute), stored) in registry.iter().filter(|((entity_class, _), stored)| {
+            *entity_class == PropertyEntityClass::Node && stored.wants_property_fts()
         }) {
             for (cursor, body, props) in &relaxed_rows {
                 let value = extract_scalar_attribute_with_properties(

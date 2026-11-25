@@ -330,7 +330,9 @@ fn nested_source_rewrite_and_explicit_source_change_clear_old_derived_rows() {
         &[ProjectionRole::Filterable, ProjectionRole::Searchable],
         true,
     );
-    engine.configure_projections(&[changed], &["field".to_string()]).unwrap();
+    engine
+        .configure_projections(&[changed], &[fathomdb_engine::ProjectionTarget::node("field")])
+        .unwrap();
     assert_eq!(eav_values(&path, "field"), vec!["new-source"]);
     assert!(property_fts_match(&path, "field", "fresh").is_empty());
     assert_eq!(property_fts_match(&path, "field", "new").len(), 1);

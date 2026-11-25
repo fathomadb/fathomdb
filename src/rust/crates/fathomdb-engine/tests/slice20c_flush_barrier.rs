@@ -335,7 +335,7 @@ fn declaring_a_vector_projection_backfills_pre_existing_rows_and_drain_flushes_t
     // ---- the declaration: turn the dense arm on over an existing corpus ----
     let delta = engine.configure_projections(&[vector_spec("summary")], &[]).expect("configure");
     assert!(
-        delta.deferred.contains(&"summary".to_string()),
+        delta.deferred.contains(&fathomdb_engine::ProjectionTarget::node("summary")),
         "the vector sub-target is reported as deferred work"
     );
 
@@ -675,9 +675,12 @@ fn dropping_the_last_vector_projection_un_enrols_the_kind_and_stops_embedding() 
 
     // ---- the drop: remove the LAST `searchable→vector` declaration ----
     let delta = engine
-        .configure_projections(&[], &["summary".to_string()])
+        .configure_projections(&[], &[fathomdb_engine::ProjectionTarget::node("summary")])
         .expect("drop the vector projection");
-    assert!(delta.dropped.contains(&"summary".to_string()), "the drop is reported");
+    assert!(
+        delta.dropped.contains(&fathomdb_engine::ProjectionTarget::node("summary")),
+        "the drop is reported"
+    );
     assert!(
         engine.read_projections().expect("read_projections").is_empty(),
         "the registry no longer declares any projection"
@@ -737,7 +740,9 @@ fn dropping_the_last_vector_projection_un_enrols_the_kind_and_stops_embedding() 
     assert_eq!(calls.load(Ordering::SeqCst), 1, "still exactly the one pre-drop embed");
 
     // (6) re-applying the same drop is an idempotent no-op.
-    let again = engine.configure_projections(&[], &["summary".to_string()]).expect("re-drop");
+    let again = engine
+        .configure_projections(&[], &[fathomdb_engine::ProjectionTarget::node("summary")])
+        .expect("re-drop");
     assert!(again.dropped.is_empty(), "dropping an absent projection is a no-op, not an error");
     let conn = ro(&path);
     assert!(!vector_kind_registered(&conn, "doc"), "re-drop keeps the kind un-enrolled");
@@ -790,7 +795,9 @@ fn dropping_a_vector_projection_leaves_edge_fact_enrolled() {
     assert!(vector_kind_registered(&conn, "edge_fact"), "fixture: `edge_fact` enrolled by G11");
     assert_eq!(vector_kind_count(&conn), 2, "fixture: exactly `doc` + `edge_fact`");
 
-    engine.configure_projections(&[], &["summary".to_string()]).expect("drop");
+    engine
+        .configure_projections(&[], &[fathomdb_engine::ProjectionTarget::node("summary")])
+        .expect("drop");
 
     let conn = ro(&path);
     assert!(!vector_kind_registered(&conn, "doc"), "the node kind is un-enrolled");

@@ -1563,6 +1563,59 @@ fn node_is_legitimate_non_vector_terminal_only(
 }
 
 #[cfg(feature = "operator")]
+fn non_canonical_is_legitimate_terminal_only(
+    connection: &Connection,
+    cursor: i64,
+) -> Result<bool, EngineError> {
+    let cursor_u64 = u64::try_from(cursor).map_err(|_| EngineError::Storage)?;
+    let non_canonical_owner: bool = connection
+        .query_row(
+            "SELECT \
+               EXISTS(SELECT 1 FROM operational_mutations WHERE write_cursor=?1) \
+               OR EXISTS(SELECT 1 FROM operational_state WHERE write_cursor=?1) \
+               OR EXISTS(SELECT 1 FROM _fathomdb_commit_timestamps WHERE write_cursor=?1)",
+            [cursor],
+            |row| row.get(0),
+        )
+        .map_err(|_| EngineError::Storage)?;
+    if !non_canonical_owner {
+        return Ok(false);
+    }
+    let terminal_state = connection
+        .query_row(
+            "SELECT state FROM _fathomdb_projection_terminal WHERE write_cursor=?1",
+            [cursor],
+            |row| Ok(text_value(row, 0)),
+        )
+        .optional()
+        .map_err(|_| EngineError::Storage)?;
+    if terminal_state.as_ref().and_then(|s| s.as_deref()) != Some("up_to_date") {
+        return Ok(false);
+    }
+    let has_sidecar: bool = connection
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM _fathomdb_vector_rows WHERE write_cursor=?1)",
+            [cursor],
+            |row| row.get(0),
+        )
+        .map_err(|_| EngineError::Storage)?;
+    if has_sidecar {
+        return Ok(false);
+    }
+    let has_vector: bool = connection
+        .query_row("SELECT EXISTS(SELECT 1 FROM vector_default WHERE rowid=?1)", [cursor], |row| {
+            row.get(0)
+        })
+        .map_err(|_| EngineError::Storage)?;
+    if has_vector {
+        return Ok(false);
+    }
+    let span_count = crate::vector_spans::count_for_cursor(connection, cursor_u64)
+        .map_err(|_| EngineError::Storage)?;
+    Ok(span_count == 0)
+}
+
+#[cfg(feature = "operator")]
 fn body_residue_finding(
     connection: &Connection,
     artifact_class: &str,
@@ -1634,20 +1687,27 @@ fn active_projection_findings(
     let start = *aggregate_checked;
     let remaining = max_work_units.saturating_sub(*aggregate_checked);
     let mut registry = connection
-        .prepare("SELECT name FROM _fathomdb_projection_registry ORDER BY name LIMIT ?1")
+        .prepare(
+            "SELECT entity_class, name FROM _fathomdb_projection_registry \
+             ORDER BY entity_class, name LIMIT ?1",
+        )
         .map_err(|_| EngineError::Storage)?;
-    let names = registry
-        .query_map([i64::from(remaining) + 1], |row| row.get::<_, String>(0))
+    let keys = registry
+        .query_map([i64::from(remaining) + 1], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })
         .map_err(|_| EngineError::Storage)?
         .collect::<rusqlite::Result<Vec<_>>>()
         .map_err(|_| EngineError::Storage)?;
     let mut registry_snapshot = BTreeMap::new();
-    for name in names {
+    for (entity_class_raw, name) in keys {
         take_work(aggregate_checked, max_work_units)?;
-        let stored = crate::load_projection_registry_row(connection, &name)
+        let entity_class =
+            crate::PropertyEntityClass::parse(&entity_class_raw).ok_or(EngineError::Storage)?;
+        let stored = crate::load_projection_registry_row(connection, entity_class, &name)
             .map_err(|_| EngineError::Storage)?
             .ok_or(EngineError::Storage)?;
-        registry_snapshot.insert(name, stored);
+        registry_snapshot.insert((entity_class, name), stored);
     }
     drop(registry);
 
@@ -2025,6 +2085,11 @@ fn active_projection_findings(
             {
                 continue;
             }
+            if artifact_class.is_none()
+                && non_canonical_is_legitimate_terminal_only(connection, cursor_i64)?
+            {
+                continue;
+            }
             let retention = if let Some(class) = artifact_class {
                 owner_retention_at(
                     connection,
@@ -2092,7 +2157,7 @@ fn active_projection_findings(
 
     let mut expected_attributes = BTreeMap::new();
     let mut expected_properties = BTreeMap::new();
-    for (name, stored) in &registry_snapshot {
+    for ((_, name), stored) in &registry_snapshot {
         if !stored.wants_eav() {
             continue;
         }
@@ -2107,7 +2172,7 @@ fn active_projection_findings(
             expected_attributes.insert((name.clone(), cursor), (value, revision));
         }
     }
-    for (name, stored) in &registry_snapshot {
+    for ((_, name), stored) in &registry_snapshot {
         if !stored.wants_property_fts() {
             continue;
         }
@@ -2227,11 +2292,11 @@ fn active_projection_findings(
 
     // Typed `canonical_property_values` verification (node + edge, entity-class-aware).
     let mut expected_property_values = BTreeMap::new();
-    for (name, stored) in &registry_snapshot {
+    for ((entity_class, name), stored) in &registry_snapshot {
         if !stored.wants_property_value() {
             continue;
         }
-        let class_str = stored.entity_class.as_str().to_string();
+        let class_str = entity_class.as_str().to_string();
         for (cursor, revision, value) in expected_property_value_members(
             connection,
             name,
@@ -2471,6 +2536,11 @@ fn projection_generation_findings(
                         cursor,
                         effective_at_epoch_s,
                     )?
+                {
+                    continue;
+                }
+                if artifact_class.is_none()
+                    && non_canonical_is_legitimate_terminal_only(connection, cursor)?
                 {
                     continue;
                 }

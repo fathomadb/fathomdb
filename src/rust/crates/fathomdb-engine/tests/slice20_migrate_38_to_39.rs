@@ -321,6 +321,20 @@ fn migrate_golden_0_8_31_schema38_upgrades_to_8col_vec0_and_passes_integrity() {
             .unwrap()
     };
     assert_eq!(read_triggers(&up_conn), read_triggers(&fr_conn));
+
+    // Verify `_fathomdb_projection_registry` upgraded to composite `PRIMARY KEY(entity_class, name)`.
+    let mut pk_cols: Vec<(i64, String)> = up_conn
+        .prepare("PRAGMA table_info(_fathomdb_projection_registry)")
+        .unwrap()
+        .query_map([], |r| Ok((r.get::<_, i64>(5)?, r.get::<_, String>(1)?)))
+        .unwrap()
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap()
+        .into_iter()
+        .filter(|(pk, _)| *pk > 0)
+        .collect();
+    pk_cols.sort_by_key(|(pk, _)| *pk);
+    assert_eq!(pk_cols, vec![(1, "entity_class".to_string()), (2, "name".to_string())]);
 }
 
 #[test]

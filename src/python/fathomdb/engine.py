@@ -71,6 +71,7 @@ from fathomdb.types import (
     OpenReport,
     ProjectionDelta,
     ProjectionSpec,
+    ProjectionTarget,
     PropertyPredicate,
     ReadContextV1,
     ReadView,
@@ -309,7 +310,7 @@ class Engine:
     def configure_projections(
         self,
         specs: list[ProjectionSpec],
-        drop: list[str] | None = None,
+        drop: list[ProjectionTarget] | None = None,
     ) -> ProjectionDelta:
         """0.8.20 Slice 15d (R-20-PR / C-1) — the ``configure_projections`` verb.
 

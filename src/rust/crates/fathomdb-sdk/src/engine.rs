@@ -11,9 +11,9 @@ use fathomdb_engine::{
     EvidenceResolveManyRequestV1, EvidenceResolveRequestV1, EvidenceSearchRequestV1,
     EvidenceSearchResultV1, ExciseReport, ExtractDocument, FrozenReadContextV1, GraphArmOptions,
     GraphEvidenceResolveRequestV1, IngestWithExtractorReceipt, LifecycleState, OpenReport,
-    PreparedWrite, ProjectionDelta, ProjectionSpec, ReadContextV1, ResolvedEvidenceV1,
-    ResolvedGraphEvidenceV1, SearchExpandResult, SearchResult, SourceDependencyRegistrationV1,
-    SourceDependencyV1, Subscription, WriteOptions, WriteReceipt,
+    PreparedWrite, ProjectionDelta, ProjectionSpec, ProjectionTarget, ReadContextV1,
+    ResolvedEvidenceV1, ResolvedGraphEvidenceV1, SearchExpandResult, SearchResult,
+    SourceDependencyRegistrationV1, SourceDependencyV1, Subscription, WriteOptions, WriteReceipt,
 };
 
 use crate::error::{Error, Result};
@@ -250,10 +250,10 @@ impl Engine {
     pub fn configure_projections(
         &self,
         specs: &[ProjectionSpec],
-        drop: &[String],
+        drop: &[ProjectionTarget],
     ) -> Result<ProjectionDelta> {
         specs.iter().try_for_each(guard::projection_spec)?;
-        guard::texts(drop)?;
+        drop.iter().try_for_each(guard::projection_target)?;
         Ok(self.core.configure_projections(specs, drop)?)
     }
 

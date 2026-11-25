@@ -39,7 +39,7 @@ import sqlite3
 
 import pytest
 
-from fathomdb import Engine, ProjectionRole, ProjectionSpec, read
+from fathomdb import Engine, ProjectionRole, ProjectionSpec, ProjectionTarget, read
 
 _SOURCE_ID = "py-test:tc67"
 _WEDGE_TIMEOUT_S = 30.0
@@ -129,8 +129,8 @@ def test_an_uncommittable_kind_is_reported_by_kind_not_silently_dropped(tmp_path
         assert _SUPPORTED_KIND not in delta.vector_unsupported_kinds, (
             "the report must not name a kind the vector writer CAN commit"
         )
-        assert delta.deferred == ["summary"], (
-            "the two axes are separate: `deferred` still carries the projection ATTRIBUTE NAME"
+        assert delta.deferred == [ProjectionTarget(name="summary")], (
+            "the two axes are separate: `deferred` still carries the projection target"
         )
         assert "summary" not in delta.vector_unsupported_kinds
     finally:
@@ -220,8 +220,8 @@ def test_no_vector_declaration_means_no_report(tmp_path) -> None:
         declared = engine.configure_projections([_vector_spec("meaning")])
         assert declared.vector_unsupported_kinds == _UNSUPPORTED_KINDS, "fixture"
 
-        dropped = engine.configure_projections([], ["meaning"])
-        assert "meaning" in dropped.dropped, "fixture: the drop is reported"
+        dropped = engine.configure_projections([], [ProjectionTarget(name="meaning")])
+        assert ProjectionTarget(name="meaning") in dropped.dropped, "fixture: the drop is reported"
         assert dropped.vector_unsupported_kinds == [], (
             "once the last `searchable→vector` declaration is gone the report goes quiet with it"
         )

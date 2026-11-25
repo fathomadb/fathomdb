@@ -248,11 +248,11 @@ fn registering_projections_never_alters_a_pre_existing_row_id_space() {
         // Explicit drop.
         let dropped = opened
             .engine
-            .configure_projections(&[], &["title".to_string()])
+            .configure_projections(&[], &[fathomdb_engine::ProjectionTarget::node("title")])
             .expect("drop one projection");
         assert_eq!(
             dropped.dropped,
-            vec!["title".to_string()],
+            vec![fathomdb_engine::ProjectionTarget::node("title")],
             "the drop must drop exactly `title`"
         );
         assert_eq!(snapshot(&path), baseline, "a projection drop must not move any row's IdSpace");

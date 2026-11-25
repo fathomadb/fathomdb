@@ -671,6 +671,7 @@ def projection_status(engine: "Engine") -> ProjectionRuntimeStatus:
             ProjectionRuntimeStatusEntry(
                 name=entry.name,
                 dense_readiness=entry.dense_readiness,
+                entity_class=entry.entity_class,
             )
             for entry in status.projections
         ),

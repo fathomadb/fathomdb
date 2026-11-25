@@ -3474,6 +3474,69 @@
         "path": "fathomdb.types.WriteOptions.endpoint_validation",
         "signature": "endpoint_validation: EndpointValidationMode = 'strict'"
       }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 40,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.ProjectionRuntimeStatusEntry.entity_class",
+        "signature": "entity_class: PropertyEntityClass = 'node'"
+      }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 40,
+      "declaration": {
+        "kind": "python-class",
+        "path": "fathomdb.ProjectionTarget",
+        "signature": "@dataclass(frozen=True) class ProjectionTarget"
+      }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 40,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.ProjectionTarget.entity_class",
+        "signature": "entity_class: PropertyEntityClass = 'node'"
+      }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 40,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.ProjectionTarget.name",
+        "signature": "name: str"
+      }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 40,
+      "declaration": {
+        "kind": "python-class",
+        "path": "fathomdb.types.ProjectionTarget",
+        "signature": "@dataclass(frozen=True) class ProjectionTarget"
+      }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 40,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.ProjectionTarget.entity_class",
+        "signature": "entity_class: PropertyEntityClass = 'node'"
+      }
+    },
+    {
+      "release": "0.8.32",
+      "slice": 40,
+      "declaration": {
+        "kind": "python-attribute",
+        "path": "fathomdb.types.ProjectionTarget.name",
+        "signature": "name: str"
+      }
     }
   ],
   "native_stub_sha256": "4f3939dbb5bff1f0616cdc3520d1d7d9bcf7f946d9c2d1421d1e7b7f8a2f7dac",

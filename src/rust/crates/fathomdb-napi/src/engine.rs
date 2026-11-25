@@ -276,18 +276,18 @@ impl Engine {
     pub async fn configure_projections(
         &self,
         specs: Vec<ProjectionSpec>,
-        drop: Option<Vec<String>>,
+        drop: Option<Vec<ProjectionTarget>>,
     ) -> Result<ProjectionDelta> {
         let rust_specs: Vec<RustProjectionSpec> =
             specs.iter().map(ProjectionSpec::to_rust).collect::<Result<_>>()?;
-        let drop = drop.unwrap_or_default();
-        // AC-068a/b — the `drop` list is a caller-supplied FFI-string vector too;
-        // validate each entry before the engine call, like the spec strings.
-        for name in &drop {
-            validate_ffi_string_napi(name)?;
-        }
+        let rust_drop: Vec<RustProjectionTarget> = drop
+            .unwrap_or_default()
+            .iter()
+            .map(ProjectionTarget::to_rust)
+            .collect::<Result<_>>()?;
         let engine = Arc::clone(&self.inner);
-        let delta = call_engine(move || engine.configure_projections(&rust_specs, &drop)).await?;
+        let delta =
+            call_engine(move || engine.configure_projections(&rust_specs, &rust_drop)).await?;
         Ok(ProjectionDelta::from_rust(&delta))
     }
 

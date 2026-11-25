@@ -92,7 +92,12 @@ lookup indexes across canonical, provenance, dependency, closure, actuation,
 erasure, and projection tables (single-scope/single-agent stores default to
 `scope = ""`), expands `vec0` virtual tables to 8 columns (`scope TEXT` added),
 restores/scopes visibility and actuation reference triggers, binds
-canonicalized `ScopePolicy` digests in `FrozenReadContextV1` tokens, and establishes
+canonicalized `ScopePolicy` digests in `FrozenReadContextV1` tokens, recreates
+`_fathomdb_projection_registry` with composite `PRIMARY KEY(entity_class, name)`
+(restoring `pr_ai`/`pr_au`/`pr_ad` triggers so `node` and `edge` projections can
+share a name without colliding), adds O(log N) write-boundary indexes
+(`operational_mutations_write_cursor_idx`,
+`_fathomdb_dependency_closures_boundary_idx`), and establishes
 `fathomdb_schema::TABLE_MANIFEST` as the single declarative table/shadow/trigger
 registry. No legacy format is auto-migrated on `Engine::open` (committed
 Schema 37 and Schema 38 stores upgrade offline via `fathomdb migrate`).

@@ -624,13 +624,16 @@ const openHigh = await read.list(engine, "task", [
 ### Projection registry and derived readiness
 
 `engine.configureProjections(specs, drop?)` declares the durable projection
-registry. It is idempotent: omitting a live declaration does not delete it,
-while an explicit destructive change requires its name in `drop`.
+registry keyed by `(entityClass, name)`. It is idempotent: omitting a live
+declaration does not delete it, while an explicit destructive change or removal
+requires a strictly typed `ProjectionTarget` (`{ name, entityClass? }`) in
+`drop` (bare strings reject with `TypeError`). `ProjectionDelta.built`,
+`.dropped`, and `.deferred` return `ProjectionTarget[]`.
 `ProjectionSpec` supports `entityClass` (`"node"` default or `"edge"`
 projection targeting) and `vectorKinds` (opt-in custom node kinds enrolled in
 `_fathomdb_vector_kinds` alongside the 7 built-in defaults; reserved
 `"edge_fact"` is rejected). `read.projections(engine): Promise<ProjectionSpec[]>`
-returns those durable declarations in name order.
+returns those durable declarations in `(name, entityClass)` order.
 
 For an effective vector declaration, the returned
 `ProjectionSpec.vectorDenseReadiness: DenseReadiness | null` is engine-set
@@ -666,6 +669,7 @@ interface ProjectionRuntimeStatus {
 }
 interface ProjectionRuntimeStatusEntry {
   name: string;
+  entityClass: "node" | "edge";
   denseReadiness: "not_declared" | "unavailable" | "embedding" | "ready";
 }
 ```

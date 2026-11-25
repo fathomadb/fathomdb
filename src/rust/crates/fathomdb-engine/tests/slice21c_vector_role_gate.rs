@@ -379,7 +379,7 @@ fn a_filterable_vector_declaration_backfills_nothing_and_embeds_nothing() {
     // (5a) INERT, NOT ABSENT — the `filterable` half still builds.
     assert_eq!(
         delta.built,
-        vec!["summary".to_string()],
+        vec![fathomdb_engine::ProjectionTarget::node("summary")],
         "the `filterable` role still builds its EAV projection"
     );
     assert!(
@@ -620,15 +620,27 @@ fn demoting_a_searchable_vector_projection_to_filterable_un_enrols_the_kind() {
     // which is asserted below.
     assert_eq!(
         engine
-            .configure_projections(&[filterable_vector_spec("summary")], &["summary".to_string()])
+            .configure_projections(
+                &[filterable_vector_spec("summary")],
+                &[fathomdb_engine::ProjectionTarget::node("summary")],
+            )
             .expect_err("R-20-SV: the demoted shape is no longer a valid spec"),
         fathomdb_engine::EngineError::WriteValidation,
     );
     let delta = engine
-        .configure_projections(&[filterable_only_spec("summary")], &["summary".to_string()])
+        .configure_projections(
+            &[filterable_only_spec("summary")],
+            &[fathomdb_engine::ProjectionTarget::node("summary")],
+        )
         .expect("drop-then-redeclare is the documented path for a destructive role change");
-    assert!(delta.dropped.contains(&"summary".to_string()), "the drop half is reported");
-    assert!(delta.built.contains(&"summary".to_string()), "the fresh `filterable` half is built");
+    assert!(
+        delta.dropped.contains(&fathomdb_engine::ProjectionTarget::node("summary")),
+        "the drop half is reported"
+    );
+    assert!(
+        delta.built.contains(&fathomdb_engine::ProjectionTarget::node("summary")),
+        "the fresh `filterable` half is built"
+    );
     legacy_add_vector_subobject(engine, "summary");
     // …and a LATER governed call must not let the surviving `vector_declared = 1`
     // row switch the arm back on.
@@ -672,7 +684,10 @@ fn demoting_a_searchable_vector_projection_to_filterable_un_enrols_the_kind() {
     // (5) re-promoting is reversible and strands nothing.
     delay_ms.store(0, Ordering::SeqCst);
     engine
-        .configure_projections(&[searchable_vector_spec("summary")], &["summary".to_string()])
+        .configure_projections(
+            &[searchable_vector_spec("summary")],
+            &[fathomdb_engine::ProjectionTarget::node("summary")],
+        )
         .expect("re-promote");
     engine.drain(30_000).expect("drain the re-promoted backfill");
     let conn = ro(&path);
@@ -730,7 +745,7 @@ fn dropping_the_last_searchable_vector_projection_un_enrols_past_an_inert_siblin
 
     // Drop ONLY the searchable one. The inert sibling survives.
     engine
-        .configure_projections(&[], &["summary".to_string()])
+        .configure_projections(&[], &[fathomdb_engine::ProjectionTarget::node("summary")])
         .expect("drop the real vector projection");
     let back = engine.read_projections().expect("read_projections");
     assert_eq!(back.len(), 1, "the inert sibling survives the drop");
@@ -789,7 +804,7 @@ fn a_filterable_vector_declaration_round_trips_verbatim_without_an_embedder() {
 
     let spec = filterable_vector_spec("summary");
     let delta = declare_legacy_filterable_vector(engine, "summary");
-    assert_eq!(delta.built, vec!["summary".to_string()]);
+    assert_eq!(delta.built, vec![fathomdb_engine::ProjectionTarget::node("summary")]);
 
     assert_eq!(
         engine.read_projections().expect("read_projections"),

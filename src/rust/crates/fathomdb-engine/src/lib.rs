@@ -371,8 +371,8 @@ pub use export_manifest::{
     classify_schema_39_table, ExportClass,
 };
 pub use properties::{
-    OperationalCollectionInfo, PropertyComparisonOp, PropertyEntityClass, PropertyMap,
-    PropertyPredicate, PropertyValue,
+    OperationalCollectionInfo, ProjectionTarget, PropertyComparisonOp, PropertyEntityClass,
+    PropertyMap, PropertyPredicate, PropertyValue,
 };
 pub(crate) use provenance::ProvenanceRole;
 pub use provenance::{

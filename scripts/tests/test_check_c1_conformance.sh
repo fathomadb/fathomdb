@@ -1075,8 +1075,8 @@ text = open(p, encoding="utf-8").read()
 search_types = open(search_types_path, encoding="utf-8").read()
 renames = [
     ("    pub roles: BTreeSet<ProjectionRole>,", "    pub role_set: BTreeSet<ProjectionRole>,"),
-    ("    pub built: Vec<String>,", "    pub built_names: Vec<String>,"),
-    ("    pub deferred: Vec<String>,", "    pub deferred_names: Vec<String>,"),
+    ("    pub built: Vec<ProjectionTarget>,", "    pub built_names: Vec<ProjectionTarget>,"),
+    ("    pub deferred: Vec<ProjectionTarget>,", "    pub deferred_names: Vec<ProjectionTarget>,"),
     ("    pub unchanged: bool,", "    pub no_op: bool,"),
     ("    pub embedder: Option<String>,", "    pub embedder_name: Option<String>,"),
     ("    pub tokenizer: Option<String>,", "    pub tokenizer_name: Option<String>,"),
@@ -1095,8 +1095,8 @@ root_text += """
 /// each clause no longer carries the field at all.
 pub struct FixtureFieldDecoy {
     pub roles: BTreeSet<ProjectionRole>,
-    pub built: Vec<String>,
-    pub deferred: Vec<String>,
+    pub built: Vec<ProjectionTarget>,
+    pub deferred: Vec<ProjectionTarget>,
     pub unchanged: bool,
     pub id: IdSpace,
     pub embedder: Option<String>,
@@ -1156,13 +1156,13 @@ text = open(p, encoding="utf-8").read()
 old = """    pub fn configure_projections(
         &self,
         specs: &[ProjectionSpec],
-        drop: &[String],
+        drop: &[ProjectionTarget],
     ) -> Result<ProjectionDelta, EngineError> {"""
 new = """    pub fn configure_projections(
         &self,
         specs: &[ProjectionSpec],
     ) -> Result<ProjectionDelta, ()> {
-        let drop: &[String] = &[];"""
+        let drop: &[ProjectionTarget] = &[];"""
 assert text.count(old) == 1
 text = text.replace(old, new, 1)
 text += """
@@ -1171,7 +1171,7 @@ text += """
 /// projection apply verb.
 pub fn fixture_decoy_verb(
     specs: &[ProjectionSpec],
-    drop: &[String],
+    drop: &[ProjectionTarget],
 ) -> Result<ProjectionDelta, EngineError> {
     let _ = (specs, drop);
     Ok(ProjectionDelta::default())
@@ -1272,8 +1272,8 @@ new_idx = """CREATE INDEX canonical_attributes_name_value_idx
                   ON canonical_attributes(attr_value);"""
 assert text.count(old_idx) == 1
 text = text.replace(old_idx, new_idx, 1)
-assert text.count("fts_tokenizer TEXT,") == 1
-text = text.replace("fts_tokenizer TEXT,", "fts_tokenizer_name TEXT,", 1)
+assert text.count("fts_tokenizer TEXT,") == 2
+text = text.replace("fts_tokenizer TEXT,", "fts_tokenizer_name TEXT,")
 text += """
 // Fixture only (fix-4 SWEEP). A decoy carrying the exact column text the
 // deferred-tokenizer clause's probe looked for, in a table that is NOT the
@@ -1825,13 +1825,13 @@ text = open(p, encoding="utf-8").read()
 old = """    pub fn configure_projections(
         &self,
         specs: &[ProjectionSpec],
-        drop: &[String],
+        drop: &[ProjectionTarget],
     ) -> Result<ProjectionDelta, EngineError> {"""
 # ONLY the receiver goes. Parameters, return type and name are untouched, which
 # is the whole point: every fix-4 probe still matches.
 new = """    pub fn configure_projections(
         specs: &[ProjectionSpec],
-        drop: &[String],
+        drop: &[ProjectionTarget],
     ) -> Result<ProjectionDelta, EngineError> {"""
 assert text.count(old) == 1
 open(p, "w", encoding="utf-8").write(text.replace(old, new, 1))

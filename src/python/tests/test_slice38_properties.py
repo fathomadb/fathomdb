@@ -657,3 +657,89 @@ def test_slice38_graph_expand_rejects_lone_surrogate_and_nul_in_property_predica
             assert exc_info.value.reason == "graph_context_invalid"
     finally:
         engine.close()
+
+
+def test_slice40_same_name_node_and_edge_projection_namespace_and_strict_target(
+    db_path: str,
+) -> None:
+    """Slice 40 WP-40A1 (Gate1-D9 Option B2-strict): simultaneous (node, 'status')
+    and (edge, 'status'), isolated drop, ProjectionRuntimeStatusEntry.entity_class,
+    and TypeError on bare-string drop."""
+    from fathomdb import ProjectionTarget
+
+    engine = Engine.open(db_path, use_default_embedder=False)
+    try:
+        engine.write(
+            [
+                {
+                    "kind": "note",
+                    "body": '{"status":"open","text":"node status body"}',
+                    "source_id": "src:s40",
+                    "logical_id": "s40:n1",
+                    "properties": {"status": "open"},
+                },
+                {
+                    "kind": "note",
+                    "body": '{"status":"closed","text":"node closed body"}',
+                    "source_id": "src:s40",
+                    "logical_id": "s40:n2",
+                    "properties": {"status": "closed"},
+                },
+                {
+                    "type": "edge",
+                    "kind": "links",
+                    "from": "s40:n1",
+                    "to": "s40:n2",
+                    "source_id": "src:s40",
+                    "logical_id": "s40:e1",
+                    "properties": {"status": "verified"},
+                },
+            ]
+        )
+
+        delta = engine.configure_projections(
+            [
+                ProjectionSpec(
+                    name="status",
+                    roles=frozenset({ProjectionRole.FILTERABLE, ProjectionRole.SEARCHABLE}),
+                    fts=True,
+                    entity_class="node",
+                ),
+                ProjectionSpec(
+                    name="status",
+                    roles=frozenset({ProjectionRole.FILTERABLE}),
+                    entity_class="edge",
+                ),
+            ]
+        )
+        assert not delta.unchanged
+        assert delta.built == [
+            ProjectionTarget(name="status", entity_class="node"),
+            ProjectionTarget(name="status", entity_class="edge"),
+        ]
+
+        # ProjectionRuntimeStatusEntry carries entity_class
+        status = read.projection_status(engine)
+        assert [(p.name, p.entity_class) for p in status.projections] == [
+            ("status", "node"),
+            ("status", "edge"),
+        ]
+
+        # Strictly reject bare strings in drop with TypeError
+        with pytest.raises(TypeError):
+            engine.configure_projections([], drop=["status"])  # type: ignore[list-item]
+        with pytest.raises(TypeError):
+            engine.configure_projections([], drop="status")  # type: ignore[arg-type]
+
+        # Drop ONLY the edge projection; node projection stays intact and searchable
+        dropped = engine.configure_projections(
+            [], drop=[ProjectionTarget(name="status", entity_class="edge")]
+        )
+        assert dropped.dropped == [ProjectionTarget(name="status", entity_class="edge")]
+        remaining = read.projections(engine)
+        assert [(s.name, s.entity_class) for s in remaining] == [("status", "node")]
+
+        hits = engine.search_projected_text("open", "status")
+        assert [h.id.value for h in hits.results] == ["s40:n1"]
+    finally:
+        engine.close()

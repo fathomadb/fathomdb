@@ -1451,10 +1451,8 @@ pub(crate) fn read_graph_expand_with_stop_words_in_tx(
             .edge_predicates
             .iter()
             .filter(|pred| {
-                registry.get(&pred.key).is_some_and(|stored| {
-                    stored.entity_class == PropertyEntityClass::Edge
-                        && stored.roles.contains(&ProjectionRole::Filterable)
-                        && stored.source.is_none()
+                registry.get(&(PropertyEntityClass::Edge, pred.key.clone())).is_some_and(|stored| {
+                    stored.roles.contains(&ProjectionRole::Filterable) && stored.source.is_none()
                 })
             })
             .collect();
@@ -1465,11 +1463,12 @@ pub(crate) fn read_graph_expand_with_stop_words_in_tx(
                 .target_predicates
                 .iter()
                 .filter(|pred| {
-                    registry.get(&pred.key).is_some_and(|stored| {
-                        stored.entity_class == PropertyEntityClass::Node
-                            && stored.roles.contains(&ProjectionRole::Filterable)
-                            && stored.source.is_none()
-                    })
+                    registry.get(&(PropertyEntityClass::Node, pred.key.clone())).is_some_and(
+                        |stored| {
+                            stored.roles.contains(&ProjectionRole::Filterable)
+                                && stored.source.is_none()
+                        },
+                    )
                 })
                 .collect()
         };

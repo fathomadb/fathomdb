@@ -97,8 +97,8 @@ use fathomdb_engine::{
     ProjectionGenerationStatusV1 as RustProjectionGenerationStatusV1,
     ProjectionRole as RustProjectionRole, ProjectionRuntimeStatus as RustProjectionRuntimeStatus,
     ProjectionRuntimeStatusEntry as RustProjectionRuntimeStatusEntry,
-    ProjectionSpec as RustProjectionSpec, ProjectionVector as RustProjectionVector,
-    PropertyComparisonOp as RustPropertyComparisonOp,
+    ProjectionSpec as RustProjectionSpec, ProjectionTarget as RustProjectionTarget,
+    ProjectionVector as RustProjectionVector, PropertyComparisonOp as RustPropertyComparisonOp,
     PropertyEntityClass as RustPropertyEntityClass, PropertyMap as RustPropertyMap,
     PropertyPredicate as RustPropertyPredicate, PropertyValue as RustPropertyValue,
     ProvenanceError as RustProvenanceError, ProvenancedEdgeV1, ProvenancedNodeV1,
@@ -300,6 +300,7 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(read_mutation_projection_status, &m)?)?;
     m.add_function(wrap_pyfunction!(read_embedding_readiness, &m)?)?;
     m.add_class::<PyProjectionSpec>()?;
+    m.add_class::<PyProjectionTarget>()?;
     m.add_class::<PyProjectionDelta>()?;
     m.add_class::<PyProjectionRuntimeStatusEntry>()?;
     m.add_class::<PyProjectionRuntimeStatus>()?;

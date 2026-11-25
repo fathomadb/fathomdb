@@ -614,7 +614,7 @@ fn projection_registry_digest(connection: &Connection) -> Result<[u8; 32], Engin
         let mut statement = connection
             .prepare(
                 "SELECT name,roles,fts_tokenizer,vector_embedder,vector_declared,source,entity_class,vector_kinds \
-                 FROM _fathomdb_projection_registry ORDER BY name",
+                 FROM _fathomdb_projection_registry ORDER BY name, entity_class",
             )
             .map_err(|_| EngineError::Storage)?;
         let rows = statement

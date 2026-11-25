@@ -522,19 +522,19 @@ pub(crate) fn validate_property_predicates_on_snapshot(
     }
     let registry = load_projection_registry(conn)?;
     for pred in predicates {
-        let Some(stored) = registry.get(&pred.key) else {
+        let Some(stored) = registry.get(&(PropertyEntityClass::Node, pred.key.clone())) else {
+            if registry.contains_key(&(PropertyEntityClass::Edge, pred.key.clone())) {
+                return Err(SnapshotFilterError::InvalidFilter(format!(
+                    "property predicate key {:?} is edge-scoped and cannot filter node queries",
+                    pred.key
+                )));
+            }
             return Err(SnapshotFilterError::InvalidFilter(format!(
                 "property predicate key {:?} is not a declared `filterable` projection; \
                  declare it via configure_projections before filtering on it",
                 pred.key
             )));
         };
-        if stored.entity_class != PropertyEntityClass::Node {
-            return Err(SnapshotFilterError::InvalidFilter(format!(
-                "property predicate key {:?} is edge-scoped and cannot filter node queries",
-                pred.key
-            )));
-        }
         if !stored.roles.contains(&ProjectionRole::Filterable) {
             return Err(SnapshotFilterError::InvalidFilter(format!(
                 "property predicate key {:?} is not declared `filterable`",
@@ -557,10 +557,9 @@ pub(crate) fn validate_filter_attributes_on_snapshot(
         // `Storage` semantics for a genuine backend fault) via the `From` impl.
         let registry = load_projection_registry(conn)?;
         for (name, _value) in &filter.attributes {
-            let declared_filterable = registry.get(name).is_some_and(|s| {
-                s.entity_class == PropertyEntityClass::Node
-                    && s.roles.contains(&ProjectionRole::Filterable)
-            });
+            let declared_filterable = registry
+                .get(&(PropertyEntityClass::Node, name.clone()))
+                .is_some_and(|s| s.roles.contains(&ProjectionRole::Filterable));
             if !declared_filterable {
                 return Err(SnapshotFilterError::InvalidFilter(format!(
                     "filter attribute {name:?} is not a declared `filterable` projection; \
@@ -1064,7 +1063,9 @@ pub(crate) fn build_vector_phase1_plan(
     } else if let Some(conn) = conn {
         let registry = load_projection_registry(conn)?;
         for (name, value) in &filter.attributes {
-            let stored = registry.get(name).ok_or(rusqlite::Error::InvalidQuery)?;
+            let stored = registry
+                .get(&(PropertyEntityClass::Node, name.clone()))
+                .ok_or(rusqlite::Error::InvalidQuery)?;
             append_inline_attr_predicate(
                 "cn",
                 name,
@@ -1076,7 +1077,9 @@ pub(crate) fn build_vector_phase1_plan(
             );
         }
         for pred in &filter.property_predicates {
-            let stored = registry.get(&pred.key).ok_or(rusqlite::Error::InvalidQuery)?;
+            let stored = registry
+                .get(&(PropertyEntityClass::Node, pred.key.clone()))
+                .ok_or(rusqlite::Error::InvalidQuery)?;
             append_inline_property_predicate(
                 "cn",
                 pred,
@@ -1294,11 +1297,15 @@ fn append_node_eligibility_sql_with_inline(
     let mut sql = append_node_eligibility_sql(Some(&base), alias, params);
     let registry = load_projection_registry(connection)?;
     for (name, value) in &filter.attributes {
-        let stored = registry.get(name).ok_or(rusqlite::Error::InvalidQuery)?;
+        let stored = registry
+            .get(&(PropertyEntityClass::Node, name.clone()))
+            .ok_or(rusqlite::Error::InvalidQuery)?;
         append_inline_attr_predicate(alias, name, value, stored, 0, params, &mut sql);
     }
     for pred in &filter.property_predicates {
-        let stored = registry.get(&pred.key).ok_or(rusqlite::Error::InvalidQuery)?;
+        let stored = registry
+            .get(&(PropertyEntityClass::Node, pred.key.clone()))
+            .ok_or(rusqlite::Error::InvalidQuery)?;
         append_inline_property_predicate(alias, pred, stored, 0, params, &mut sql);
     }
     Ok(sql)
@@ -1514,7 +1521,9 @@ fn text_hit_passes_filter_with_inline(
     let Some((body, props)) = row else { return Ok(false) };
     let registry = load_projection_registry(tx)?;
     for (name, wanted) in &filter.attributes {
-        let stored = registry.get(name).ok_or(rusqlite::Error::InvalidQuery)?;
+        let stored = registry
+            .get(&(PropertyEntityClass::Node, name.clone()))
+            .ok_or(rusqlite::Error::InvalidQuery)?;
         if crate::projection_registry::extract_scalar_attribute_with_properties(
             tx,
             &body,
@@ -1529,7 +1538,9 @@ fn text_hit_passes_filter_with_inline(
         }
     }
     for pred in &filter.property_predicates {
-        let stored = registry.get(&pred.key).ok_or(rusqlite::Error::InvalidQuery)?;
+        let stored = registry
+            .get(&(PropertyEntityClass::Node, pred.key.clone()))
+            .ok_or(rusqlite::Error::InvalidQuery)?;
         let val = extract_typed_node_property(tx, &body, props.as_ref(), &pred.key, stored)?;
         if !eval_property_value(val.as_ref(), pred.op, &pred.value) {
             return Ok(false);

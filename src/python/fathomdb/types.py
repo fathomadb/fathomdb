@@ -373,13 +373,15 @@ class MutationProjectionStatusV1:
 class ProjectionRuntimeStatusEntry:
     """One declared projection's current dense status.
 
-    Entries are sorted by ``name``. The engine currently has a shared dense
-    pipeline, so effective vector declarations repeat its corpus-wide readiness
-    rather than claiming unsupported per-projection progress.
+    Entries are sorted by ``(name, entity_class)``. The engine currently has a
+    shared dense pipeline, so effective vector declarations repeat its
+    corpus-wide readiness rather than claiming unsupported per-projection
+    progress.
     """
 
     name: str
     dense_readiness: ProjectionStatusDenseReadiness
+    entity_class: PropertyEntityClass = "node"
 
 
 @dataclass(frozen=True)
@@ -1179,6 +1181,14 @@ class ProjectionSpec:
 
 
 @dataclass(frozen=True)
+class ProjectionTarget:
+    """Strictly typed projection identifier scoped by ``(entity_class, name)``."""
+
+    name: str
+    entity_class: PropertyEntityClass = "node"
+
+
+@dataclass(frozen=True)
 class ProjectionDelta:
     """0.8.20 Slice 15d (R-20-PR) — the diff ``configure_projections`` applied.
 
@@ -1187,9 +1197,9 @@ class ProjectionDelta:
     ``ProjectionDestructiveError`` rather than returning a delta.
     """
 
-    built: list[str]
-    dropped: list[str]
-    deferred: list[str]
+    built: list[ProjectionTarget]
+    dropped: list[ProjectionTarget]
+    deferred: list[ProjectionTarget]
     unchanged: bool
     #: 0.8.20 Slice 22 (R-20-VC / TC-67) — node **kinds**, not attribute names:
     #: the vector-eligible kinds present in the corpus that the vector writer can
@@ -1878,6 +1888,7 @@ __all__ = [
     "PageV1",
     "OpenReport",
     "PerHitExplain",
+    "ProjectionTarget",
     "PropertyComparisonOp",
     "PropertyEntityClass",
     "PropertyMap",

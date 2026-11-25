@@ -269,11 +269,17 @@ export interface NativeOperationalCollectionInfo {
   createdAt: number;
 }
 
+/** Strictly typed projection target scoped by `(entityClass, name)`. */
+export interface NativeProjectionTarget {
+  name: string;
+  entityClass?: string | null;
+}
+
 /** 0.8.20 Slice 15d (R-20-PR) — native configure_projections diff. */
 export interface NativeProjectionDelta {
-  built: string[];
-  dropped: string[];
-  deferred: string[];
+  built: NativeProjectionTarget[];
+  dropped: NativeProjectionTarget[];
+  deferred: NativeProjectionTarget[];
   unchanged: boolean;
   // 0.8.20 Slice 22 (R-20-VC / TC-67) — node KINDS (not attribute names) the
   // vector writer can never commit. Empty, never absent.
@@ -283,6 +289,7 @@ export interface NativeProjectionDelta {
 /** Native shape of the pure Slice 22 projection-status facade. */
 export interface NativeProjectionRuntimeStatusEntry {
   name: string;
+  entityClass: string;
   denseReadiness: string;
 }
 
@@ -909,7 +916,7 @@ export interface NativeEngine {
   // 0.8.20 Slice 15d (R-20-PR) — projection registry.
   configureProjections(
     specs: NativeProjectionSpec[],
-    drop?: string[] | null,
+    drop?: NativeProjectionTarget[] | null,
   ): Promise<NativeProjectionDelta>;
   readProjections(): Promise<NativeProjectionSpec[]>;
   readProjectionStatus(): Promise<NativeProjectionRuntimeStatus>;

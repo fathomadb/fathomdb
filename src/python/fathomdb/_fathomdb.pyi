@@ -810,10 +810,19 @@ class ProjectionSpec:
         vector_kinds: list[str] | None = ...,
     ) -> None: ...
 
+class ProjectionTarget:
+    name: str
+    entity_class: Literal["node", "edge"]
+    def __init__(
+        self,
+        name: str,
+        entity_class: str = ...,
+    ) -> None: ...
+
 class ProjectionDelta:
-    built: list[str]
-    dropped: list[str]
-    deferred: list[str]
+    built: list[ProjectionTarget]
+    dropped: list[ProjectionTarget]
+    deferred: list[ProjectionTarget]
     unchanged: bool
     # 0.8.20 Slice 22 (R-20-VC / TC-67) — node KINDS (not attribute names) the
     # vector writer can never commit. Empty, never absent.
@@ -821,6 +830,7 @@ class ProjectionDelta:
 
 class ProjectionRuntimeStatusEntry:
     name: str
+    entity_class: Literal["node", "edge"]
     dense_readiness: ProjectionStatusDenseReadiness
 
 class ProjectionRuntimeStatus:
@@ -841,7 +851,9 @@ class EmbeddingReadiness:
     documentation_url: str | None
 
 def configure_projections(
-    engine: Engine, specs: list[ProjectionSpec], drop: list[str] | None = ...
+    engine: Engine,
+    specs: list[ProjectionSpec],
+    drop: list[ProjectionTarget] | None = ...,
 ) -> ProjectionDelta: ...
 def read_projections(engine: Engine) -> list[ProjectionSpec]: ...
 def read_projection_status(engine: Engine) -> ProjectionRuntimeStatus: ...

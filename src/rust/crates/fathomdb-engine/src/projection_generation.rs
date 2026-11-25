@@ -338,6 +338,13 @@ fn authoritative_boundary(connection: &Connection) -> Result<u64, EngineError> {
             .map_err(|_| EngineError::Storage)?;
         boundary = boundary.max(value);
     }
+    let commit_timestamps = connection
+        .query_row(
+            "SELECT COALESCE(MAX(write_cursor),0) FROM _fathomdb_commit_timestamps",
+            [],
+            |row| row.get::<_, u64>(0),
+        )
+        .unwrap_or(0);
     let reserved = connection
         .query_row(
             "SELECT value FROM _fathomdb_open_state WHERE key=?1",
@@ -359,7 +366,7 @@ fn authoritative_boundary(connection: &Connection) -> Result<u64, EngineError> {
             |row| row.get::<_, u64>(0),
         )
         .map_err(|_| EngineError::Storage)?;
-    Ok(boundary.max(reserved).max(closure_boundary))
+    Ok(boundary.max(commit_timestamps).max(reserved).max(closure_boundary))
 }
 
 fn bootstrap_is_fresh(connection: &Connection, schema_version: u32) -> Result<bool, EngineError> {
@@ -535,7 +542,7 @@ fn declaration_digest(connection: &Connection) -> Result<String, EngineError> {
         let mut statement = connection
             .prepare(
                 "SELECT name,roles,fts_tokenizer,vector_embedder,vector_declared,source,entity_class,vector_kinds \
-                 FROM _fathomdb_projection_registry ORDER BY CAST(name AS BLOB)",
+                 FROM _fathomdb_projection_registry ORDER BY CAST(name AS BLOB), entity_class",
             )
             .map_err(|_| EngineError::Storage)?;
         let rows = statement
@@ -2110,17 +2117,19 @@ impl Engine {
         } else {
             ProjectionStatusDenseReadiness::NotDeclared
         };
-        let projections = registry
+        let mut projections: Vec<ProjectionRuntimeStatusEntry> = registry
             .into_iter()
-            .map(|(name, stored)| {
+            .map(|((entity_class, name), stored)| {
                 let dense_readiness = if stored.wants_vector() {
                     effective_dense_readiness
                 } else {
                     ProjectionStatusDenseReadiness::NotDeclared
                 };
-                ProjectionRuntimeStatusEntry { name, dense_readiness }
+                ProjectionRuntimeStatusEntry { name, entity_class, dense_readiness }
             })
             .collect();
+        projections
+            .sort_by(|a, b| a.name.cmp(&b.name).then_with(|| a.entity_class.cmp(&b.entity_class)));
         let vector_unsupported_kinds = if has_effective_vector_arm {
             unsupported_vector_kinds(connection).map_err(|_| EngineError::Storage)?
         } else {

@@ -475,7 +475,9 @@ fn slice38_custom_vector_kinds_shrink_and_drop_keep_data_plane_integrity_clean()
     assert_data_plane_integrity_clean(&engine, "(b) shrunk custom:alpha");
 
     // (c) Drop the vector projection completely -> integrity clean.
-    engine.configure_projections(&[], &["summary".into()]).expect("drop summary projection");
+    engine
+        .configure_projections(&[], &[fathomdb_engine::ProjectionTarget::node("summary")])
+        .expect("drop summary projection");
     assert_data_plane_integrity_clean(&engine, "(c) dropped projection completely");
 
     engine.close().expect("close");

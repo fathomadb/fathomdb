@@ -126,8 +126,8 @@ test("an uncommittable kind is reported by kind, not silently dropped", async ()
     );
     assert.deepEqual(
       delta.deferred,
-      ["summary"],
-      "the two axes are separate: `deferred` still carries the projection ATTRIBUTE NAME",
+      [{ name: "summary", entityClass: "node" }],
+      "the two axes are separate: `deferred` still carries the projection target",
     );
     assert.ok(!delta.vectorUnsupportedKinds.includes("summary"));
   } finally {
@@ -226,8 +226,11 @@ test("no vector declaration means no report", async () => {
     const declared = await engine.configureProjections([vectorSpec("meaning")]);
     assert.deepEqual(declared.vectorUnsupportedKinds, UNSUPPORTED_KINDS, "fixture");
 
-    const dropped = await engine.configureProjections([], ["meaning"]);
-    assert.ok(dropped.dropped.includes("meaning"), "fixture: the drop is reported");
+    const dropped = await engine.configureProjections([], [{ name: "meaning", entityClass: "node" }]);
+    assert.ok(
+      dropped.dropped.some((t) => t.name === "meaning" && t.entityClass === "node"),
+      "fixture: the drop is reported",
+    );
     assert.deepEqual(
       dropped.vectorUnsupportedKinds,
       [],

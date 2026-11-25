@@ -117,15 +117,21 @@ export interface ProjectionSpec {
  */
 export type DenseReadiness = "unavailable" | "embedding" | "ready";
 
+/** Strictly typed projection identifier scoped by `(entityClass, name)`. */
+export interface ProjectionTarget {
+  readonly name: string;
+  readonly entityClass?: PropertyEntityClass;
+}
+
 /**
  * 0.8.20 Slice 15d (R-20-PR) — the diff `configureProjections` applied.
  * Idempotent re-registration yields `unchanged: true` with all arrays empty; a
  * destructive change without an explicit drop throws instead of returning.
  */
 export interface ProjectionDelta {
-  built: string[];
-  dropped: string[];
-  deferred: string[];
+  built: ProjectionTarget[];
+  dropped: ProjectionTarget[];
+  deferred: ProjectionTarget[];
   unchanged: boolean;
   /**
    * 0.8.20 Slice 22 (R-20-VC / TC-67) — node **kinds**, not attribute names: the
@@ -153,6 +159,7 @@ export type ProjectionStatusDenseReadiness = "not_declared" | "unavailable" | "e
 /** One declared projection's current dense status. */
 export interface ProjectionRuntimeStatusEntry {
   name: string;
+  entityClass: PropertyEntityClass;
   denseReadiness: ProjectionStatusDenseReadiness;
 }
 
@@ -184,7 +191,45 @@ export interface EmbeddingReadiness {
   documentationUrl: string | null;
 }
 
-export async function configureProjections(nativeEngine: NativeEngine, specs: ProjectionSpec[], drop?: string[]): Promise<ProjectionDelta> {
+function normalizeDropTargets(drop?: ProjectionTarget[]): { name: string; entityClass?: string }[] | null {
+    if (drop === undefined || drop === null) return null;
+    if (!Array.isArray(drop)) {
+      throw new TypeError("drop must be an array of ProjectionTarget objects");
+    }
+    return drop.map((entry) => {
+      if (entry === null || typeof entry !== "object" || Array.isArray(entry)) {
+        throw new TypeError(
+          `drop entries must be ProjectionTarget objects ({ name, entityClass? }), got ${entry === null ? "null" : typeof entry}`,
+        );
+      }
+      if (typeof entry.name !== "string") {
+        throw new TypeError(
+          `ProjectionTarget.name must be a string, got ${typeof entry.name}`,
+        );
+      }
+      if (entry.entityClass !== undefined && entry.entityClass !== null && typeof entry.entityClass !== "string") {
+        throw new TypeError(
+          `ProjectionTarget.entityClass must be a string when provided, got ${typeof entry.entityClass}`,
+        );
+      }
+      return {
+        name: entry.name,
+        entityClass: entry.entityClass ?? undefined,
+      };
+    });
+  }
+
+function mapNativeTarget(t: { name: string; entityClass?: string | null }): ProjectionTarget {
+    return {
+      name: t.name,
+      entityClass: (t.entityClass ?? "node") as PropertyEntityClass,
+    };
+  }
+
+export async function configureProjections(nativeEngine: NativeEngine, specs: ProjectionSpec[], drop?: ProjectionTarget[]): Promise<ProjectionDelta> {
+    // Validate strictly typed ProjectionTarget objects BEFORE validateFfiTree / native call
+    // so bare strings in `drop` deterministically reject with TypeError.
+    const nativeDrop = normalizeDropTargets(drop);
     // TC-47 (keystone terminal codex P2) — every string in the spec/drop tree
     // (projection name, each role, ftsTokenizer, vectorEmbedder, each drop entry)
     // crosses to native. napi-rs silently replaces a lone UTF-16 surrogate with
@@ -193,7 +238,7 @@ export async function configureProjections(nativeEngine: NativeEngine, specs: Pr
     // instead of raising WriteValidationError. (A NUL survives the napi UTF-8
     // path as a real byte and is already caught Rust-side; the surrogate is not.)
     validateFfiTree(specs);
-    if (drop !== undefined) validateFfiTree(drop);
+    if (nativeDrop !== null) validateFfiTree(nativeDrop);
     // 0.8.20 keystone closeout fix-4 — normalize an explicit `null` sub-field to
     // `undefined` (⇒ napi `None`). `read.projections` EMITS `ftsTokenizer: null`
     // / `vectorEmbedder: null` for a spec with no custom sub-field, but napi-rs
@@ -217,5 +262,12 @@ export async function configureProjections(nativeEngine: NativeEngine, specs: Pr
       entityClass: s.entityClass ?? undefined,
       vectorKinds: s.vectorKinds ?? undefined,
     }));
-    return intercept(() => nativeEngine.configureProjections(nativeSpecs, drop ?? null));
+    const raw = await intercept(() => nativeEngine.configureProjections(nativeSpecs, nativeDrop));
+    return {
+      built: raw.built.map(mapNativeTarget),
+      dropped: raw.dropped.map(mapNativeTarget),
+      deferred: raw.deferred.map(mapNativeTarget),
+      unchanged: raw.unchanged,
+      vectorUnsupportedKinds: raw.vectorUnsupportedKinds,
+    };
   }

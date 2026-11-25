@@ -637,13 +637,16 @@ open_high = read.list(engine, "task", predicates=[
 ### Projection registry and derived readiness
 
 `engine.configure_projections(specs, drop=None) -> ProjectionDelta` declares
-the durable projection registry. It is idempotent: omitting a live declaration
-does not delete it, while an explicit destructive change requires its name in
-`drop`. `ProjectionSpec` supports `entity_class` (`"node"` default or `"edge"`
-projection targeting) and `vector_kinds` (opt-in custom node kinds enrolled in
-`_fathomdb_vector_kinds` alongside the 7 built-in defaults; reserved
-`"edge_fact"` is rejected). `read.projections(engine) -> list[ProjectionSpec]`
-returns those durable declarations in name order.
+the durable projection registry keyed by `(entity_class, name)`. It is
+idempotent: omitting a live declaration does not delete it, while an explicit
+destructive change or removal requires a strictly typed
+`ProjectionTarget(name=..., entity_class=...)` in `drop` (bare strings raise
+`TypeError`). `ProjectionDelta.built`, `.dropped`, and `.deferred` return
+`list[ProjectionTarget]`. `ProjectionSpec` supports `entity_class` (`"node"`
+default or `"edge"` projection targeting) and `vector_kinds` (opt-in custom node
+kinds enrolled in `_fathomdb_vector_kinds` alongside the 7 built-in defaults;
+reserved `"edge_fact"` is rejected). `read.projections(engine) ->
+list[ProjectionSpec]` returns those durable declarations in `(name, entity_class)` order.
 
 For an effective vector declaration, the returned
 `ProjectionSpec.vector_dense_readiness: DenseReadiness | None` is engine-set
@@ -684,6 +687,7 @@ ProjectionRuntimeStatus(
 ProjectionRuntimeStatusEntry(
     name: str,
     dense_readiness: "not_declared" | "unavailable" | "embedding" | "ready",
+    entity_class: "node" | "edge" = "node",
 )
 ```
 

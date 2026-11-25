@@ -254,6 +254,7 @@ function toProjectionRuntimeStatus(n: NativeProjectionRuntimeStatus): Projection
     runtimeUnavailabilityReason: n.runtimeUnavailabilityReason as ProjectionRuntimeStatus["runtimeUnavailabilityReason"],
     projections: n.projections.map((entry) => ({
       name: entry.name,
+      entityClass: entry.entityClass as PropertyEntityClass,
       denseReadiness: entry.denseReadiness as ProjectionRuntimeStatus["projections"][number]["denseReadiness"],
     })),
     vectorUnsupportedKinds: n.vectorUnsupportedKinds,

@@ -13,18 +13,17 @@ pub(super) fn configure_projections(
     py: Python<'_>,
     engine: &PyEngine,
     specs: Vec<PyProjectionSpec>,
-    drop: Option<Vec<String>>,
+    drop: Option<Vec<PyProjectionTarget>>,
 ) -> PyResult<PyProjectionDelta> {
     let rust_specs: Vec<RustProjectionSpec> =
         specs.iter().map(PyProjectionSpec::to_rust).collect::<PyResult<_>>()?;
-    let drop = drop.unwrap_or_default();
-    // AC-068a/b — the `drop` list is a caller-supplied FFI-string vector too;
-    // validate each entry before the engine call, like the spec strings.
-    for name in &drop {
-        validate_ffi_string_py(name)?;
-    }
+    let rust_drop: Vec<RustProjectionTarget> = drop
+        .unwrap_or_default()
+        .iter()
+        .map(PyProjectionTarget::to_rust)
+        .collect::<PyResult<_>>()?;
     let inner = Arc::clone(&engine.inner);
-    let delta = call_engine(py, move || inner.configure_projections(&rust_specs, &drop))?;
+    let delta = call_engine(py, move || inner.configure_projections(&rust_specs, &rust_drop))?;
     Ok(PyProjectionDelta::from_rust(&delta))
 }
 
@@ -413,6 +412,47 @@ impl PyProjectionSpec {
     }
 }
 
+/// Strictly typed projection target scoped by `(entity_class, name)`.
+#[pyclass(
+    module = "fathomdb._fathomdb",
+    name = "ProjectionTarget",
+    frozen,
+    get_all,
+    from_py_object
+)]
+#[derive(Clone)]
+pub(super) struct PyProjectionTarget {
+    name: String,
+    entity_class: String,
+}
+
+#[pymethods]
+impl PyProjectionTarget {
+    #[new]
+    #[pyo3(signature = (name, entity_class = "node".to_string()))]
+    fn new(name: String, entity_class: String) -> Self {
+        Self { name, entity_class }
+    }
+}
+
+impl PyProjectionTarget {
+    pub(super) fn from_rust(t: &RustProjectionTarget) -> Self {
+        Self { name: t.name.clone(), entity_class: t.entity_class.as_str().to_string() }
+    }
+
+    pub(super) fn to_rust(&self) -> PyResult<RustProjectionTarget> {
+        validate_ffi_string_py(&self.name)?;
+        validate_ffi_string_py(&self.entity_class)?;
+        let entity_class = RustPropertyEntityClass::parse(&self.entity_class).ok_or_else(|| {
+            InvalidArgumentError::new_err(format!(
+                "projection target {:?}: unknown entity_class {:?}; expected \"node\" or \"edge\"",
+                self.name, self.entity_class
+            ))
+        })?;
+        Ok(RustProjectionTarget::new(self.name.clone(), entity_class))
+    }
+}
+
 // 0.8.20 Slice 15d (R-20-PR) — the Python face of the apply diff.
 #[pyclass(
     module = "fathomdb._fathomdb",
@@ -423,12 +463,12 @@ impl PyProjectionSpec {
 )]
 #[derive(Clone)]
 pub(super) struct PyProjectionDelta {
-    built: Vec<String>,
-    dropped: Vec<String>,
-    deferred: Vec<String>,
+    built: Vec<PyProjectionTarget>,
+    dropped: Vec<PyProjectionTarget>,
+    deferred: Vec<PyProjectionTarget>,
     unchanged: bool,
     // 0.8.20 Slice 22 (R-20-VC / TC-67) — node KINDS the vector writer can never
-    // commit. A different axis from the three attribute-name lists above; the
+    // commit. A different axis from the three target lists above; the
     // name says so. Output-only: `configure_projections` takes specs, never a
     // delta, so there is no inbound direction to round-trip.
     vector_unsupported_kinds: Vec<String>,
@@ -437,9 +477,9 @@ pub(super) struct PyProjectionDelta {
 impl PyProjectionDelta {
     pub(super) fn from_rust(d: &RustProjectionDelta) -> Self {
         Self {
-            built: d.built.clone(),
-            dropped: d.dropped.clone(),
-            deferred: d.deferred.clone(),
+            built: d.built.iter().map(PyProjectionTarget::from_rust).collect(),
+            dropped: d.dropped.iter().map(PyProjectionTarget::from_rust).collect(),
+            deferred: d.deferred.iter().map(PyProjectionTarget::from_rust).collect(),
             unchanged: d.unchanged,
             vector_unsupported_kinds: d.vector_unsupported_kinds.clone(),
         }
@@ -457,6 +497,7 @@ impl PyProjectionDelta {
 #[derive(Clone)]
 pub(super) struct PyProjectionRuntimeStatusEntry {
     name: String,
+    entity_class: String,
     dense_readiness: String,
 }
 
@@ -464,6 +505,7 @@ impl PyProjectionRuntimeStatusEntry {
     pub(super) fn from_rust(entry: &RustProjectionRuntimeStatusEntry) -> Self {
         Self {
             name: entry.name.clone(),
+            entity_class: entry.entity_class.as_str().to_string(),
             dense_readiness: entry.dense_readiness.as_str().to_string(),
         }
     }

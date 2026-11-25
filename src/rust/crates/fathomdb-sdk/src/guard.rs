@@ -1,7 +1,7 @@
 //! Argument checks the Python and TypeScript bindings apply before the core.
 
 use fathomdb_engine::{
-    Filter, FilterTerm, PageRequestV1, Predicate, PreparedWrite, ProjectionSpec,
+    Filter, FilterTerm, PageRequestV1, Predicate, PreparedWrite, ProjectionSpec, ProjectionTarget,
     PropertyComparisonOp, PropertyMap, PropertyPredicate, PropertyValue, ScalarValue, SearchFilter,
     MAX_GRAPH_EDGE_PREDICATES,
 };
@@ -204,6 +204,10 @@ pub(crate) fn predicate(predicate: &Predicate) -> Result<()> {
 
 pub(crate) fn page(page: &PageRequestV1) -> Result<()> {
     page.cursor.as_ref().map_or(Ok(()), |cursor| text(&cursor.0))
+}
+
+pub(crate) fn projection_target(target: &ProjectionTarget) -> Result<()> {
+    text(&target.name)
 }
 
 pub(crate) fn projection_spec(spec: &ProjectionSpec) -> Result<()> {

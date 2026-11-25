@@ -246,7 +246,13 @@ fn ac_021_zero_sqlite_schema_warnings_under_concurrent_reads_and_ddl() {
                     if engine.rebuild_projections().is_ok() {
                         projection_rebuilds += 1;
                     }
-                    if engine.configure_projections(&[], &[projection_name]).is_ok() {
+                    if engine
+                        .configure_projections(
+                            &[],
+                            &[fathomdb_engine::ProjectionTarget::node(projection_name)],
+                        )
+                        .is_ok()
+                    {
                         projection_add_drop_cycles += 1;
                     }
                 }

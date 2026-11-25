@@ -750,7 +750,7 @@ ASSERTIONS = {
         ("fn_sig", REGISTRY, "configure_projections",
          r"\(\s*(?:&\s*(?:'[A-Za-z_]\w*\s+)?)?(?:mut\s+)?self\b"),
         ("fn_sig", REGISTRY, "configure_projections", r"specs:\s*&\[ProjectionSpec\]"),
-        ("fn_sig", REGISTRY, "configure_projections", r"drop:\s*&\[String\]"),
+        ("fn_sig", REGISTRY, "configure_projections", r"drop:\s*&\[ProjectionTarget\]"),
         ("fn_sig", REGISTRY, "configure_projections",
          r"->\s*Result<\s*ProjectionDelta\s*,\s*EngineError\s*>"),
     ],
@@ -767,10 +767,10 @@ ASSERTIONS = {
     # a comment could carry.
     "C1-Q3-SOLE-AUTHORITY": [
         ("sql_ddl", SCH, "_fathomdb_projection_registry",
-         r"(?i)\bname\s+TEXT\s+PRIMARY\s+KEY\b"),
+         r"(?i)(?:\bname\s+TEXT\s+PRIMARY\s+KEY\b|\bPRIMARY\s+KEY\s*\(\s*entity_class\s*,\s*name\s*\))"),
         ("fn_defined", REGISTRY, "apply_projection_config"),
         ("in_item", REGISTRY, "struct", "ProjectionDelta",
-         r"pub\s+dropped\s*:\s*Vec\s*<\s*String\s*>"),
+         r"pub\s+dropped\s*:\s*Vec\s*<\s*ProjectionTarget\s*>"),
     ],
     "C1-Q3-DESTRUCTIVE-DELTA": [
         ("in_item", ERR, "enum", "EngineError", r"\bProjectionDestructive\s*\{"),
@@ -844,7 +844,7 @@ ASSERTIONS = {
     # satisfied it while the real call ran outside the transaction.
     "C1-Q4-CHEAP-SAME-TRANSACTION": [
         ("in_item", REGISTRY, "fn", "configure_projections", r"apply_projection_config\(&tx,"),
-        ("in_item", REGISTRY, "struct", "ProjectionDelta", r"pub\s+built\s*:\s*Vec\s*<\s*String\s*>"),
+        ("in_item", REGISTRY, "struct", "ProjectionDelta", r"pub\s+built\s*:\s*Vec\s*<\s*ProjectionTarget\s*>"),
     ],
     # "EXACTLY {unavailable, embedding, ready}" is a CLOSED vocabulary, so it
     # is asserted structurally (fix-1, codex finding #1): the enum has exactly
@@ -909,7 +909,7 @@ ASSERTIONS = {
     ],
     "C1-Q6A-RANKABLE-GRACEFUL-DEFER": [
         ("in_item", REGISTRY, "struct", "ProjectionDelta",
-         r"pub\s+deferred\s*:\s*Vec\s*<\s*String\s*>"),
+         r"pub\s+deferred\s*:\s*Vec\s*<\s*ProjectionTarget\s*>"),
         ("test_defined", T15, "rankable_is_graceful_deferred_never_blocking"),
         ("test_defined", T15, "idempotent_reregistration_holds_for_deferred_rankable"),
     ],

@@ -176,16 +176,16 @@ pub struct ProjectionSpec {
 /// destructive change without an explicit `drop` is an `Err`, not a delta.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct ProjectionDelta {
-    /// Attribute names whose same-transaction projections (EAV / property-FTS)
+    /// Projection targets whose same-transaction projections (EAV / property-FTS / CPV)
     /// were (re)built by this apply.
-    pub built: Vec<String>,
-    /// Attribute names dropped (explicit `drop` list) — their EAV + property-FTS
+    pub built: Vec<ProjectionTarget>,
+    /// Projection targets dropped (explicit `drop` list) — their projection
     /// rows and registry row removed.
-    pub dropped: Vec<String>,
-    /// Attribute names whose declared roles were persisted but NOT built:
+    pub dropped: Vec<ProjectionTarget>,
+    /// Projection targets whose declared roles were persisted but NOT built:
     /// `rankable` (F9 not yet live) and the `searchable→vector` sub-target
     /// (Slice 20). These graft on a future idempotent apply. No error.
-    pub deferred: Vec<String>,
+    pub deferred: Vec<ProjectionTarget>,
     /// True iff nothing was built, dropped, or newly deferred — the whole apply
     /// diffed to a no-op.
     pub unchanged: bool,
@@ -907,10 +907,10 @@ fn validate_nested_projection_sources_for_body_in_registry(
     conn: &Connection,
     body: &str,
     properties: Option<&PropertyMap>,
-    registry: &BTreeMap<String, StoredProjection>,
+    registry: &BTreeMap<(PropertyEntityClass, String), StoredProjection>,
 ) -> Result<(), EngineError> {
-    for (name, stored) in registry {
-        if stored.entity_class != PropertyEntityClass::Node {
+    for ((entity_class, name), stored) in registry {
+        if *entity_class != PropertyEntityClass::Node {
             continue;
         }
         if properties.is_some_and(|map| map.contains_key(name)) {
@@ -992,7 +992,7 @@ fn decode_stored_projection_row(
 
 pub(crate) fn load_projection_registry(
     conn: &Connection,
-) -> rusqlite::Result<BTreeMap<String, StoredProjection>> {
+) -> rusqlite::Result<BTreeMap<(PropertyEntityClass, String), StoredProjection>> {
     let mut out = BTreeMap::new();
     let table_exists: bool = conn
         .prepare_cached(
@@ -1022,7 +1022,7 @@ pub(crate) fn load_projection_registry(
         })?;
         for row in rows {
             let (name, stored) = row?;
-            out.insert(name, stored);
+            out.insert((stored.entity_class, name), stored);
         }
     } else {
         let mut stmt = conn.prepare_cached(
@@ -1036,7 +1036,7 @@ pub(crate) fn load_projection_registry(
         })?;
         for row in rows {
             let (name, stored) = row?;
-            out.insert(name, stored);
+            out.insert((stored.entity_class, name), stored);
         }
     }
     Ok(out)
@@ -1045,6 +1045,7 @@ pub(crate) fn load_projection_registry(
 #[cfg(feature = "operator")]
 pub(crate) fn load_projection_registry_row(
     conn: &Connection,
+    entity_class: PropertyEntityClass,
     name: &str,
 ) -> rusqlite::Result<Option<StoredProjection>> {
     let has_step38_cols = conn
@@ -1055,12 +1056,12 @@ pub(crate) fn load_projection_registry_row(
     if has_step38_cols {
         conn.query_row(
             "SELECT roles,fts_tokenizer,vector_embedder,vector_declared,source,entity_class,vector_kinds \
-             FROM _fathomdb_projection_registry WHERE name=?1",
-            [name],
+             FROM _fathomdb_projection_registry WHERE entity_class=?1 AND name=?2",
+            params![entity_class.as_str(), name],
             |row| decode_stored_projection_row(row, 0, true),
         )
         .optional()
-    } else {
+    } else if entity_class == PropertyEntityClass::Node {
         conn.query_row(
             "SELECT roles,fts_tokenizer,vector_embedder,vector_declared,source \
              FROM _fathomdb_projection_registry WHERE name=?1",
@@ -1068,6 +1069,8 @@ pub(crate) fn load_projection_registry_row(
             |row| decode_stored_projection_row(row, 0, false),
         )
         .optional()
+    } else {
+        Ok(None)
     }
 }
 
@@ -1103,13 +1106,12 @@ fn persist_projection_row(
         "INSERT INTO _fathomdb_projection_registry
              (name, roles, fts_tokenizer, vector_embedder, vector_declared, source, entity_class, vector_kinds)
          VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
-         ON CONFLICT(name) DO UPDATE SET
+         ON CONFLICT(entity_class, name) DO UPDATE SET
              roles = excluded.roles,
              fts_tokenizer = excluded.fts_tokenizer,
              vector_embedder = excluded.vector_embedder,
              vector_declared = excluded.vector_declared,
              source = excluded.source,
-             entity_class = excluded.entity_class,
              vector_kinds = excluded.vector_kinds",
         params![
             name,
@@ -1126,8 +1128,15 @@ fn persist_projection_row(
 }
 
 /// 0.8.20 Slice 15d (R-20-PR) — delete one registry row.
-fn remove_projection_row(tx: &Connection, name: &str) -> rusqlite::Result<()> {
-    tx.execute("DELETE FROM _fathomdb_projection_registry WHERE name = ?1", params![name])?;
+fn remove_projection_row(
+    tx: &Connection,
+    entity_class: PropertyEntityClass,
+    name: &str,
+) -> rusqlite::Result<()> {
+    tx.execute(
+        "DELETE FROM _fathomdb_projection_registry WHERE entity_class = ?1 AND name = ?2",
+        params![entity_class.as_str(), name],
+    )?;
     Ok(())
 }
 
@@ -1163,8 +1172,8 @@ pub(crate) fn backfill_canonical_property_values_for_schema_38(
             .collect::<rusqlite::Result<Vec<_>>>()?;
         collected
     };
-    for (name, stored) in &registry {
-        if stored.entity_class != PropertyEntityClass::Node || !stored.wants_property_value() {
+    for ((entity_class, name), stored) in &registry {
+        if *entity_class != PropertyEntityClass::Node || !stored.wants_property_value() {
             continue;
         }
         for (cursor, body, properties) in &rows {
@@ -1184,13 +1193,22 @@ pub(crate) fn backfill_canonical_property_values_for_schema_38(
     Ok(())
 }
 
-/// 0.8.20 Slice 15d (R-20-EAV) — delete every EAV + property-FTS + cpv row for one
-/// attribute `name` (all owning records).
-fn clear_attribute_projection(tx: &Connection, name: &str) -> rusqlite::Result<()> {
-    physical_erasure::mark_dirty(tx)?;
-    tx.execute("DELETE FROM property_search_index WHERE attr_name = ?1", params![name])?;
-    tx.execute("DELETE FROM canonical_attributes WHERE attr_name = ?1", params![name])?;
-    tx.execute("DELETE FROM canonical_property_values WHERE attr_name = ?1", params![name])?;
+/// 0.8.20 Slice 15d (R-20-EAV) — delete every projection row for one
+/// `(entity_class, name)` pair (node-only EAV + property-FTS untouched on edge drops).
+fn clear_attribute_projection(
+    tx: &Connection,
+    entity_class: PropertyEntityClass,
+    name: &str,
+) -> rusqlite::Result<()> {
+    if entity_class == PropertyEntityClass::Node {
+        physical_erasure::mark_dirty(tx)?;
+        tx.execute("DELETE FROM property_search_index WHERE attr_name = ?1", params![name])?;
+        tx.execute("DELETE FROM canonical_attributes WHERE attr_name = ?1", params![name])?;
+    }
+    tx.execute(
+        "DELETE FROM canonical_property_values WHERE entity_class = ?1 AND attr_name = ?2",
+        params![entity_class.as_str(), name],
+    )?;
     Ok(())
 }
 
@@ -1453,11 +1471,8 @@ pub(crate) fn vector_attr_insert_fragments(
     let mut parsed_body = None;
     for (i, col) in cols.iter().enumerate() {
         let name = decode_attr_vec0_column(col).unwrap_or_default();
-        let typed = match registry.get(&name) {
-            Some(stored)
-                if stored.entity_class == PropertyEntityClass::Node
-                    && stored.roles.contains(&ProjectionRole::Filterable) =>
-            {
+        let typed = match registry.get(&(PropertyEntityClass::Node, name.clone())) {
+            Some(stored) if stored.roles.contains(&ProjectionRole::Filterable) => {
                 extract_typed_node_property_with_cache(
                     body,
                     properties,
@@ -1490,7 +1505,7 @@ pub(crate) fn project_node_attributes_with_registry(
     cursor: i64,
     body: &str,
     properties: Option<&PropertyMap>,
-    registry: Option<&BTreeMap<String, StoredProjection>>,
+    registry: Option<&BTreeMap<(PropertyEntityClass, String), StoredProjection>>,
 ) -> rusqlite::Result<()> {
     let loaded;
     let registry = match registry {
@@ -1504,8 +1519,10 @@ pub(crate) fn project_node_attributes_with_registry(
         return Ok(());
     }
     let mut parsed_body = None;
-    for (name, stored) in registry {
-        project_one_attribute(tx, cursor, body, properties, name, stored, &mut parsed_body)?;
+    for ((entity_class, name), stored) in registry {
+        if *entity_class == PropertyEntityClass::Node {
+            project_one_attribute(tx, cursor, body, properties, name, stored, &mut parsed_body)?;
+        }
     }
     Ok(())
 }
@@ -1514,7 +1531,7 @@ pub(crate) fn project_edge_properties_with_registry(
     tx: &Connection,
     cursor: i64,
     properties: Option<&PropertyMap>,
-    registry: Option<&BTreeMap<String, StoredProjection>>,
+    registry: Option<&BTreeMap<(PropertyEntityClass, String), StoredProjection>>,
 ) -> rusqlite::Result<()> {
     let Some(props) = properties else {
         return Ok(());
@@ -1530,8 +1547,8 @@ pub(crate) fn project_edge_properties_with_registry(
             &loaded
         }
     };
-    for (name, stored) in registry {
-        if stored.entity_class == PropertyEntityClass::Edge && stored.wants_property_value() {
+    for ((entity_class, name), stored) in registry {
+        if *entity_class == PropertyEntityClass::Edge && stored.wants_property_value() {
             if let Some(value) = props.get(name) {
                 insert_canonical_property_value(
                     tx,
@@ -1716,14 +1733,14 @@ fn describe_projection_delta(existing: &StoredProjection, desired: &StoredProjec
 fn apply_projection_config(
     tx: &Connection,
     specs: &[ProjectionSpec],
-    drop: &[String],
+    drop: &[ProjectionTarget],
     dense_arm_live: bool,
 ) -> Result<(ProjectionDelta, bool), EngineError> {
     // Validate up-front so a bad name aborts before any write.
     //
-    // fix-6 finding [P2] — REJECT a duplicate projection `name` within `specs`
+    // fix-6 finding [P2] — REJECT a duplicate projection `(entity_class, name)` within `specs`
     // (and a duplicate entry within `drop`) up front. The diff loop below diffs
-    // every spec against the ONE pre-loop registry snapshot, so a name repeated
+    // every spec against the ONE pre-loop registry snapshot, so a key repeated
     // in `specs` diffed the SECOND spec against state that never saw the first
     // spec's just-persisted row: on a fresh DB `[status(searchable+fts),
     // status(rankable-only)]` reported `built=[status]` in the delta while the
@@ -1733,10 +1750,10 @@ fn apply_projection_config(
     // the row was removed once. A single request naming the same projection twice
     // is ambiguous/malformed, so we refuse it (rejection, not last-wins coalesce)
     // — a rejected request is a total no-op, keeping the registry and delta
-    // consistent with the accepted input. A name that appears in BOTH `specs` and
+    // consistent with the accepted input. A target that appears in BOTH `specs` and
     // `drop` is NOT a duplicate: that is the documented drop-then-rebuild-fresh
     // pattern (drops apply first, then the fresh spec builds), so it is allowed.
-    let mut seen_spec_names: BTreeSet<&str> = BTreeSet::new();
+    let mut seen_spec_keys: BTreeSet<(PropertyEntityClass, &str)> = BTreeSet::new();
     for spec in specs {
         if spec.vector.as_ref().is_some_and(|vector| vector.embedder.is_some()) {
             return Err(EngineError::WriteValidation);
@@ -1758,22 +1775,30 @@ fn apply_projection_config(
                 });
             }
         }
-        if !seen_spec_names.insert(spec.name.as_str()) {
+        if !seen_spec_keys.insert((spec.entity_class, spec.name.as_str())) {
             return Err(EngineError::InvalidArgument {
-                msg: format!("duplicate projection name in one request: '{}'", spec.name),
+                msg: format!(
+                    "duplicate projection target in one request: ({}, '{}')",
+                    spec.entity_class.as_str(),
+                    spec.name
+                ),
             });
         }
     }
-    let mut seen_drop_names: BTreeSet<&str> = BTreeSet::new();
-    for name in drop {
-        if !is_valid_attribute_name(name) {
+    let mut seen_drop_keys: BTreeSet<(PropertyEntityClass, &str)> = BTreeSet::new();
+    for target in drop {
+        if !is_valid_attribute_name(&target.name) {
             return Err(EngineError::InvalidArgument {
-                msg: format!("invalid projection drop name: {name:?}"),
+                msg: format!("invalid projection drop name: {:?}", target.name),
             });
         }
-        if !seen_drop_names.insert(name.as_str()) {
+        if !seen_drop_keys.insert((target.entity_class, target.name.as_str())) {
             return Err(EngineError::InvalidArgument {
-                msg: format!("duplicate projection drop in one request: '{name}'"),
+                msg: format!(
+                    "duplicate projection drop in one request: ({}, '{}')",
+                    target.entity_class.as_str(),
+                    target.name
+                ),
             });
         }
     }
@@ -1842,8 +1867,10 @@ fn apply_projection_config(
     let mut refresh_vector_attributes = false;
     for spec in specs {
         let desired = StoredProjection::from_spec(spec);
-        if let Some(existing) = pre_drop.get(&spec.name) {
-            let replacing = drop.iter().any(|name| name == &spec.name);
+        if let Some(existing) = pre_drop.get(&(spec.entity_class, spec.name.clone())) {
+            let replacing = drop
+                .iter()
+                .any(|target| target.entity_class == spec.entity_class && target.name == spec.name);
             if !replacing && is_destructive_projection_change(existing, &desired) {
                 return Err(EngineError::ProjectionDestructive {
                     name: spec.name.clone(),
@@ -1851,6 +1878,7 @@ fn apply_projection_config(
                 });
             }
             if replacing
+                && desired.entity_class == PropertyEntityClass::Node
                 && existing.source != desired.source
                 && desired.roles.contains(&ProjectionRole::Filterable)
             {
@@ -1880,11 +1908,14 @@ fn apply_projection_config(
 
     // (1) Explicit drops. Omission never drops (C3); only this list does.
     let before_drop = load_projection_registry(tx).map_err(|_| EngineError::Storage)?;
-    for name in drop {
-        if before_drop.contains_key(name) {
-            clear_attribute_projection(tx, name).map_err(|_| EngineError::Storage)?;
-            remove_projection_row(tx, name).map_err(|_| EngineError::Storage)?;
-            delta.dropped.push(name.clone());
+    for target in drop {
+        let key = (target.entity_class, target.name.clone());
+        if before_drop.contains_key(&key) {
+            clear_attribute_projection(tx, target.entity_class, &target.name)
+                .map_err(|_| EngineError::Storage)?;
+            remove_projection_row(tx, target.entity_class, &target.name)
+                .map_err(|_| EngineError::Storage)?;
+            delta.dropped.push(target.clone());
         }
         // dropping an absent projection is an idempotent no-op, not an error.
     }
@@ -1893,7 +1924,9 @@ fn apply_projection_config(
     let current = load_projection_registry(tx).map_err(|_| EngineError::Storage)?;
     for spec in specs {
         let desired = StoredProjection::from_spec(spec);
-        match current.get(&spec.name) {
+        let key = (spec.entity_class, spec.name.clone());
+        let target = ProjectionTarget::new(spec.name.clone(), spec.entity_class);
+        match current.get(&key) {
             Some(existing) if existing == &desired => {
                 // Idempotent re-registration — no-op (the keystone acceptance).
             }
@@ -1912,7 +1945,8 @@ fn apply_projection_config(
                     || existing.source != desired.source
                     || existing.entity_class != desired.entity_class;
                 if eav_or_cpv_changed {
-                    clear_attribute_projection(tx, &spec.name).map_err(|_| EngineError::Storage)?;
+                    clear_attribute_projection(tx, spec.entity_class, &spec.name)
+                        .map_err(|_| EngineError::Storage)?;
                     backfill_attribute(tx, &spec.name, &desired)
                         .map_err(|_| EngineError::Storage)?;
                 }
@@ -1920,7 +1954,7 @@ fn apply_projection_config(
                     || (desired.entity_class == PropertyEntityClass::Edge
                         && desired.wants_property_value())
                 {
-                    delta.built.push(spec.name.clone());
+                    delta.built.push(target.clone());
                 }
                 // 0.8.20 Slice 15e fix-2 finding 2 [P2] — this arm ONLY runs when
                 // the registry row actually CHANGED (`existing != desired`), so the
@@ -1936,22 +1970,23 @@ fn apply_projection_config(
                 // `true` on a persisted change. A genuine no-op (identical spec)
                 // takes the idempotent arm above and is untouched.
                 if desired.has_deferred() {
-                    delta.deferred.push(spec.name.clone());
+                    delta.deferred.push(target.clone());
                 }
             }
             None => {
                 persist_projection_row(tx, &spec.name, &desired)
                     .map_err(|_| EngineError::Storage)?;
-                clear_attribute_projection(tx, &spec.name).map_err(|_| EngineError::Storage)?;
+                clear_attribute_projection(tx, spec.entity_class, &spec.name)
+                    .map_err(|_| EngineError::Storage)?;
                 backfill_attribute(tx, &spec.name, &desired).map_err(|_| EngineError::Storage)?;
                 if desired.wants_eav()
                     || (desired.entity_class == PropertyEntityClass::Edge
                         && desired.wants_property_value())
                 {
-                    delta.built.push(spec.name.clone());
+                    delta.built.push(target.clone());
                 }
                 if desired.has_deferred() {
-                    delta.deferred.push(spec.name.clone());
+                    delta.deferred.push(target);
                 }
             }
         }
@@ -2052,7 +2087,7 @@ impl Engine {
     pub fn configure_projections(
         &self,
         specs: &[ProjectionSpec],
-        drop: &[String],
+        drop: &[ProjectionTarget],
     ) -> Result<ProjectionDelta, EngineError> {
         let _operation = self.ensure_open()?;
         // Settle in-flight async projection work first. The worker commits on its
@@ -2121,7 +2156,8 @@ impl Engine {
         // no-vector default path free of the extra probe.
         let mut readiness: Option<DenseReadiness> = None;
         let mut specs: Vec<ProjectionSpec> =
-            registry.iter().map(|(name, stored)| stored.to_spec(name)).collect();
+            registry.iter().map(|((_, name), stored)| stored.to_spec(name)).collect();
+        specs.sort_by(|a, b| a.name.cmp(&b.name).then_with(|| a.entity_class.cmp(&b.entity_class)));
         for spec in &mut specs {
             if let Some(vector) = spec.vector.as_mut() {
                 let value = match readiness {
@@ -2603,7 +2639,7 @@ fn vector_eligible_node_kinds(tx: &Connection) -> rusqlite::Result<Vec<String>> 
 /// no-embedder caller is exactly the caller who most needs to know that
 /// attaching an embedder later will still not embed these kinds.
 fn declared_custom_vector_kinds_from(
-    registry: &BTreeMap<String, StoredProjection>,
+    registry: &BTreeMap<(PropertyEntityClass, String), StoredProjection>,
 ) -> BTreeSet<String> {
     let mut out = BTreeSet::new();
     for stored in registry.values() {
@@ -2772,8 +2808,8 @@ pub(crate) fn rederive_projections_on_boot(conn: &Connection) -> rusqlite::Resul
     let result = (|| {
         crate::frozen_read::require_clean_visibility(conn)
             .map_err(|_| rusqlite::Error::InvalidQuery)?;
-        for (name, stored) in &registry {
-            clear_attribute_projection(conn, name)?;
+        for ((entity_class, name), stored) in &registry {
+            clear_attribute_projection(conn, *entity_class, name)?;
             backfill_attribute(conn, name, stored)?;
         }
         Ok(())
@@ -2950,23 +2986,24 @@ struct ProjectionRegistryCacheDigest {
 
 fn expected_projection_registry_cache_digest(
     conn: &Connection,
-    registry: &BTreeMap<String, StoredProjection>,
+    registry: &BTreeMap<(PropertyEntityClass, String), StoredProjection>,
 ) -> rusqlite::Result<ProjectionRegistryCacheDigest> {
     let mut attributes = StreamDigest::new(b"fathomdb:proj-cache:attributes:v1");
     let mut property_fts = StreamDigest::new(b"fathomdb:proj-cache:property_fts:v1");
     let mut node_property_values = StreamDigest::new(b"fathomdb:proj-cache:node_cpv:v1");
     let mut edge_property_values = StreamDigest::new(b"fathomdb:proj-cache:edge_cpv:v1");
 
-    // `registry` is a `BTreeMap` in ascending UTF-8 byte order (`CAST(attr_name AS BLOB)`),
+    // `registry` is a `BTreeMap` keyed by `(entity_class, name)`, so within each
+    // `entity_class` entries are in ascending UTF-8 byte order (`CAST(attr_name AS BLOB)`),
     // so streaming canonical rows ordered by `write_cursor` emits each row class already in
     // canonical `(write_cursor, attr_name)` order with O(1) RAM.
     let node_specs: Vec<(&str, &StoredProjection)> = registry
         .iter()
-        .filter(|(_, stored)| {
-            stored.entity_class == PropertyEntityClass::Node
+        .filter(|((entity_class, _), stored)| {
+            *entity_class == PropertyEntityClass::Node
                 && (stored.wants_eav() || stored.wants_property_value())
         })
-        .map(|(name, stored)| (name.as_str(), stored))
+        .map(|((_, name), stored)| (name.as_str(), stored))
         .collect();
     if !node_specs.is_empty() {
         let mut statement = conn.prepare(
@@ -3009,10 +3046,10 @@ fn expected_projection_registry_cache_digest(
 
     let edge_specs: Vec<&str> = registry
         .iter()
-        .filter(|(_, stored)| {
-            stored.entity_class == PropertyEntityClass::Edge && stored.wants_property_value()
+        .filter(|((entity_class, _), stored)| {
+            *entity_class == PropertyEntityClass::Edge && stored.wants_property_value()
         })
-        .map(|(name, _)| name.as_str())
+        .map(|((_, name), _)| name.as_str())
         .collect();
     if !edge_specs.is_empty() {
         let mut statement = conn.prepare(
@@ -3199,7 +3236,8 @@ impl Engine {
         crate::frozen_read::require_clean_visibility(&tx)?;
         let changed = tx
             .execute(
-                "UPDATE _fathomdb_projection_registry SET vector_declared = 1 WHERE name = ?1",
+                "UPDATE _fathomdb_projection_registry SET vector_declared = 1 \
+                 WHERE entity_class = 'node' AND name = ?1",
                 [name],
             )
             .map_err(|_| EngineError::Storage)?;
@@ -3233,7 +3271,7 @@ impl Engine {
             .execute(
                 "UPDATE _fathomdb_projection_registry \
                  SET fts_tokenizer='', vector_declared=1 \
-                 WHERE name=?1 AND roles='filterable' \
+                 WHERE entity_class='node' AND name=?1 AND roles='filterable' \
                    AND fts_tokenizer IS NULL AND vector_declared=0",
                 [name],
             )

@@ -223,8 +223,12 @@ fn the_searchable_role_makes_the_same_sub_objects_valid() {
     let delta = engine
         .configure_projections(std::slice::from_ref(&s), &[])
         .expect("CONTROL: with the `searchable` role the same sub-objects are a VALID spec");
-    assert_eq!(delta.built, vec!["summary".to_string()]);
-    assert_eq!(delta.deferred, vec!["summary".to_string()], "the vector sub-target still defers");
+    assert_eq!(delta.built, vec![fathomdb_engine::ProjectionTarget::node("summary")]);
+    assert_eq!(
+        delta.deferred,
+        vec![fathomdb_engine::ProjectionTarget::node("summary")],
+        "the vector sub-target still defers"
+    );
 
     let back = engine.read_projections().expect("read_projections");
     assert_eq!(back.len(), 1);
@@ -275,7 +279,7 @@ fn a_rejected_spec_makes_the_whole_request_a_total_no_op() {
                 spec("title", &[ProjectionRole::Filterable], false, false),
                 spec("status", &[ProjectionRole::Filterable], true, false),
             ],
-            &["summary".to_string()],
+            &[fathomdb_engine::ProjectionTarget::node("summary")],
         )
         .expect_err("the invalid second spec rejects the request");
     assert_eq!(err, EngineError::WriteValidation);
@@ -331,7 +335,7 @@ fn name_rejections_keep_invalid_argument_while_the_shape_reject_is_write_validat
     );
 
     let bad_drop = engine
-        .configure_projections(&[], &["a\"b".to_string()])
+        .configure_projections(&[], &[fathomdb_engine::ProjectionTarget::node("a\"b")])
         .expect_err("a quote in a drop name is still refused");
     assert!(
         matches!(bad_drop, EngineError::InvalidArgument { .. }),

@@ -300,6 +300,14 @@ fn validate_zero(c: &Connection, debt: &RootDebt) -> Result<(), EngineError> {
     let _timer = physical_metrics::stage("zero_proof");
     let boundary_timer = physical_metrics::stage("zero_boundary");
     let boundary: u64 = c.query_row("SELECT COALESCE(MAX(write_cursor),0) FROM (SELECT write_cursor FROM canonical_nodes UNION ALL SELECT write_cursor FROM canonical_edges UNION ALL SELECT write_cursor FROM operational_mutations UNION ALL SELECT write_cursor FROM operational_state)", [], |r| r.get(0)).map_err(|_| EngineError::Storage)?;
+    let commit_ts_boundary: u64 = c
+        .query_row(
+            "SELECT COALESCE(MAX(write_cursor),0) FROM _fathomdb_commit_timestamps",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
+    let boundary = boundary.max(commit_ts_boundary);
     drop(boundary_timer);
     if boundary > if debt.version == 2 { debt.safe_boundary } else { debt.boundary }
         || load_dependency_generation(c)? != debt.generation

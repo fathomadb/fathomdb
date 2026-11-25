@@ -286,7 +286,7 @@ fn an_uncommittable_kind_is_reported_not_silently_dropped() {
     // states the defect as a fact: the two axes are reported separately.
     assert_eq!(
         delta.deferred,
-        owned(&["summary"]),
+        vec![fathomdb_engine::ProjectionTarget::node("summary")],
         "the `searchable→vector` sub-target still defers by name — unchanged by TC-67; the report \
          is a SEPARATE axis, not a replacement"
     );
@@ -409,7 +409,11 @@ fn a_corpus_of_only_supported_kinds_reports_an_empty_list_not_absent() {
         Vec::<String>::new(),
         "with every kind commit-able the report is EMPTY — present and readable, never absent"
     );
-    assert_eq!(delta.deferred, owned(&["summary"]), "the vector sub-target still defers by name");
+    assert_eq!(
+        delta.deferred,
+        vec![fathomdb_engine::ProjectionTarget::node("summary")],
+        "the vector sub-target still defers by name"
+    );
 
     // An EMPTY corpus likewise: no rows, no kinds, empty report — not an error.
     let dir2 = TempDir::new().unwrap();
@@ -488,7 +492,7 @@ fn the_report_is_the_same_without_an_embedder_and_is_not_the_deferral() {
     // sessions, so it alone can never distinguish them. That is the defect,
     // pinned as an executable fact.
     assert_eq!(delta_absent.deferred, delta_live.deferred);
-    assert_eq!(delta_absent.deferred, owned(&["summary"]));
+    assert_eq!(delta_absent.deferred, vec![fathomdb_engine::ProjectionTarget::node("summary")]);
 
     absent.engine.close().unwrap();
     live.engine.drain(30_000).expect("drain");
@@ -603,9 +607,13 @@ fn no_vector_declaration_means_no_report() {
         "fixture: with a dense arm declared the report is populated"
     );
     engine.drain(30_000).expect("drain");
-    let dropped =
-        engine.configure_projections(&[], &["meaning".to_string()]).expect("drop the dense arm");
-    assert!(dropped.dropped.contains(&"meaning".to_string()), "fixture: the drop is reported");
+    let dropped = engine
+        .configure_projections(&[], &[fathomdb_engine::ProjectionTarget::node("meaning")])
+        .expect("drop the dense arm");
+    assert!(
+        dropped.dropped.contains(&fathomdb_engine::ProjectionTarget::node("meaning")),
+        "fixture: the drop is reported"
+    );
     assert_eq!(
         dropped.vector_unsupported_kinds,
         Vec::<String>::new(),

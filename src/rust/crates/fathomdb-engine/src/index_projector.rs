@@ -367,7 +367,7 @@ pub(crate) fn project_canonical_node_row(
     pass: ProjectionPass,
     node_active: bool,
     properties: Option<&crate::PropertyMap>,
-    registry: Option<&BTreeMap<String, StoredProjection>>,
+    registry: Option<&BTreeMap<(crate::PropertyEntityClass, String), StoredProjection>>,
 ) -> rusqlite::Result<bool> {
     let targets = index_targets_for_row_kind(row_kind);
     if targets.fts && pass.writes_fts() {
@@ -483,7 +483,7 @@ pub(crate) fn project_canonical_edge_row(
     pass: ProjectionPass,
     properties: Option<&crate::PropertyMap>,
     edge_active: bool,
-    registry: Option<&BTreeMap<String, StoredProjection>>,
+    registry: Option<&BTreeMap<(crate::PropertyEntityClass, String), StoredProjection>>,
 ) -> rusqlite::Result<bool> {
     if pass.writes_fts() {
         physical_erasure::mark_dirty(tx)?;

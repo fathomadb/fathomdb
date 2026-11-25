@@ -265,7 +265,10 @@ test("declaring a vector projection backfills pre-existing rows and drain flushe
     assert.equal(vectorRows(path), 0, "fixture: no vectors exist yet");
 
     const delta = await engine.configureProjections([vectorSpec()]);
-    assert.ok(delta.deferred.includes("summary"), "the vector sub-target is deferred work");
+    assert.ok(
+      delta.deferred.some((t) => t.name === "summary" && t.entityClass === "node"),
+      "the vector sub-target is deferred work",
+    );
 
     // `drain` is the flush-to-readiness barrier.
     await engine.drain(DRAIN_TIMEOUT_MS);
@@ -389,8 +392,11 @@ test("dropping the last vector projection un-enrols the kind and stops embedding
     assert.equal(vectorRows(path), 1, "fixture: N1 is embedded");
 
     // ---- drop the LAST `searchable→vector` declaration ----
-    const delta = await engine.configureProjections([], ["summary"]);
-    assert.ok(delta.dropped.includes("summary"), "the drop is reported");
+    const delta = await engine.configureProjections([], [{ name: "summary", entityClass: "node" }]);
+    assert.ok(
+      delta.dropped.some((t) => t.name === "summary" && t.entityClass === "node"),
+      "the drop is reported",
+    );
     assert.equal(await readiness(engine), null, "the projection is gone from the registry");
 
     assert.equal(

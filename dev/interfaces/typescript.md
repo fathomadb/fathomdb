@@ -568,13 +568,16 @@ signature. Their closed `DenseReadiness` vocabulary is separately
 
 - `engine.configureProjections(specs, drop?)` → `Promise<ProjectionDelta>`.
   Declarative, idempotent apply: the engine diffs `specs` against the durable
-  registry and backfills the difference in one transaction. `drop` is EXPLICIT —
-  omitting a live projection from `specs` does NOT drop it; removal requires
-  naming it in `drop`. A destructive change (a role removal or a
-  tokenizer/embedder change) without a drop throws `ProjectionDestructiveError`
-  (`name`/`delta` fields, mapped from the `FDB_PROJECTION_DESTRUCTIVE` envelope).
-  Re-applying an unchanged spec resolves to `{ unchanged: true }`.
-- `read.projections(engine)` → `Promise<ProjectionSpec[]>`, sorted by name — the
+  registry keyed by `(entityClass, name)` and backfills the difference in one
+  transaction. `drop` is EXPLICIT and strictly typed as `ProjectionTarget[]`
+  (`{ name: string; entityClass?: PropertyEntityClass }`; passing bare `string`
+  entries rejects with `TypeError`) — omitting a live projection from `specs`
+  does NOT drop it; removal requires naming its target in `drop`. A destructive
+  change (a role removal or a tokenizer/embedder change) without a matching drop
+  throws `ProjectionDestructiveError` (`name`/`delta` fields, mapped from the
+  `FDB_PROJECTION_DESTRUCTIVE` envelope). Re-applying an unchanged spec resolves
+  to `{ unchanged: true }`.
+- `read.projections(engine)` → `Promise<ProjectionSpec[]>`, sorted by `(name, entityClass)` — the
   registry introspection (folded into `read.*`).
 - `read.projectionStatus(engine)` → `Promise<ProjectionRuntimeStatus>` —
   **HITL-SIGNED 2026-08-07 (steward `seq-247`)** C5 status read. It is a pure
@@ -603,7 +606,7 @@ when a committed receipt has pending projection cursors in the current schema.
 vectorUnsupportedKinds, vectorCoverage: StoredHeadCoverageV1 }`. `ProjectionRuntimeUnavailabilityReason` is exactly
 `"none" | "no_runtime"`; `"none"` occurs
 exactly when the runtime is available. Each sorted
-`ProjectionRuntimeStatusEntry` is `{ name, denseReadiness }`, with
+`ProjectionRuntimeStatusEntry` is `{ name, entityClass, denseReadiness }`, with
 `ProjectionStatusDenseReadiness` exactly `"not_declared" | "unavailable" |
 "embedding" | "ready"`. `not_declared` means no effective vector arm
 (`searchable` plus a vector sub-object); a legacy non-searchable vector
@@ -619,8 +622,9 @@ vectorDenseReadiness? }`.
 `fts`/`vector` sub-object flags, not roles. Cheap roles (`filterable`,
 `searchable→FTS`) build same-transaction; `rankable` and the `searchable→vector`
 sub-target are persisted-but-deferred (reported in `ProjectionDelta.deferred`).
+`ProjectionTarget` is `{ readonly name: string; readonly entityClass?: PropertyEntityClass }`.
 `ProjectionDelta` is
-`{ built, dropped, deferred, unchanged, vectorUnsupportedKinds }`. Field names
+`{ built: ProjectionTarget[], dropped: ProjectionTarget[], deferred: ProjectionTarget[], unchanged: boolean, vectorUnsupportedKinds: string[] }`. Field names
 are camelCase per this file's casing rule.
 
 ### Embedding readiness (0.8.23 Slice 30)

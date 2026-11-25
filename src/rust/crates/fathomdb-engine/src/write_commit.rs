@@ -7,6 +7,8 @@ pub(crate) fn load_next_cursor(connection: &Connection) -> u64 {
     let edges = max_cursor(connection, "canonical_edges").unwrap_or(0);
     let mutations = max_cursor(connection, "operational_mutations").unwrap_or(0);
     let state = max_cursor(connection, "operational_state").unwrap_or(0);
+    let commit_timestamps = max_cursor(connection, "_fathomdb_commit_timestamps").unwrap_or(0);
+    let projection_terminal = max_cursor(connection, "_fathomdb_projection_terminal").unwrap_or(0);
     // TC-33: schema step 23 RECREATES `canonical_edges` (no data migration), so
     // the edge rows that used to hold the high-water mark are gone. Without this
     // term the allocator can hand out a cursor a PREVIOUS edge already used —
@@ -27,6 +29,8 @@ pub(crate) fn load_next_cursor(connection: &Connection) -> u64 {
         .max(edges)
         .max(mutations)
         .max(state)
+        .max(commit_timestamps)
+        .max(projection_terminal)
         .max(reserved)
         .max(closure_boundary)
         .max(physical_erasure::cursor_floor(connection).unwrap_or(0))

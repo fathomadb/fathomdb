@@ -824,6 +824,7 @@ pub const STEP_39_SQL: &str = concat!(
     // 4. operational_mutations index swap (NO table recreate).
     "DROP INDEX IF EXISTS operational_mutations_collection_id_idx;\n",
     "CREATE INDEX operational_mutations_scope_collection_id_idx ON operational_mutations(scope, collection_name, id);\n",
+    "CREATE INDEX IF NOT EXISTS operational_mutations_write_cursor_idx ON operational_mutations(write_cursor);\n",
     "\n",
     // 5. _fathomdb_actuation_receipts & _fathomdb_actuation_receipt_source_refs (child-first drop for FK).
     "CREATE TABLE _s39_act_refs_tmp AS SELECT operation_id, schema_version, ref_kind, ref_value FROM _fathomdb_actuation_receipt_source_refs;\n",
@@ -1012,6 +1013,7 @@ pub const STEP_39_SQL: &str = concat!(
     "CREATE INDEX _fathomdb_dependency_closures_root ON _fathomdb_dependency_closures(scope, root_kind, root_value, phase);\n",
     "CREATE INDEX _fathomdb_dependency_closures_recovery ON _fathomdb_dependency_closures(scope, phase, closure_sequence);\n",
     "CREATE UNIQUE INDEX _fathomdb_dependency_closures_active_retry ON _fathomdb_dependency_closures(scope, retry_fingerprint) WHERE phase != 'complete';\n",
+    "CREATE INDEX IF NOT EXISTS _fathomdb_dependency_closures_boundary_idx ON _fathomdb_dependency_closures(admitted_write_boundary);\n",
     visibility_coalescing_trigger_sql!("dc", "ai", "INSERT", "_fathomdb_dependency_closures"),
     visibility_coalescing_trigger_sql!("dc", "au", "UPDATE", "_fathomdb_dependency_closures"),
     visibility_coalescing_trigger_sql!("dc", "ad", "DELETE", "_fathomdb_dependency_closures"),
@@ -1034,6 +1036,27 @@ pub const STEP_39_SQL: &str = concat!(
     "DROP TABLE _s39_er_tmp;\n",
     "CREATE INDEX _fathomdb_erasure_requests_phase ON _fathomdb_erasure_requests(phase);\n",
     "CREATE INDEX _fathomdb_erasure_requests_scope_phase ON _fathomdb_erasure_requests(scope, phase);\n",
+    "\n",
+    // 12. _fathomdb_projection_registry recreate with PRIMARY KEY(entity_class, name) + triggers.
+    "CREATE TABLE _s39_pr_tmp AS SELECT name, roles, fts_tokenizer, vector_embedder, vector_declared, source, entity_class, vector_kinds FROM _fathomdb_projection_registry;\n",
+    "DROP TABLE _fathomdb_projection_registry;\n",
+    "CREATE TABLE _fathomdb_projection_registry(\n",
+    "    name TEXT NOT NULL,\n",
+    "    roles TEXT NOT NULL,\n",
+    "    fts_tokenizer TEXT,\n",
+    "    vector_embedder TEXT,\n",
+    "    vector_declared INTEGER NOT NULL DEFAULT 0,\n",
+    "    source TEXT,\n",
+    "    entity_class TEXT NOT NULL DEFAULT 'node' CHECK(entity_class IN ('node', 'edge')),\n",
+    "    vector_kinds TEXT,\n",
+    "    PRIMARY KEY(entity_class, name)\n",
+    ");\n",
+    "INSERT INTO _fathomdb_projection_registry(name, roles, fts_tokenizer, vector_embedder, vector_declared, source, entity_class, vector_kinds)\n",
+    "    SELECT name, roles, fts_tokenizer, vector_embedder, vector_declared, source, entity_class, vector_kinds FROM _s39_pr_tmp;\n",
+    "DROP TABLE _s39_pr_tmp;\n",
+    visibility_coalescing_trigger_sql!("pr", "ai", "INSERT", "_fathomdb_projection_registry"),
+    visibility_coalescing_trigger_sql!("pr", "au", "UPDATE", "_fathomdb_projection_registry"),
+    visibility_coalescing_trigger_sql!("pr", "ad", "DELETE", "_fathomdb_projection_registry"),
 );
 
 #[derive(Clone, Debug, Eq, PartialEq)]

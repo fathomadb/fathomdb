@@ -38,7 +38,7 @@ import time
 
 import pytest
 
-from fathomdb import Engine, ProjectionRole, ProjectionSpec, read
+from fathomdb import Engine, ProjectionRole, ProjectionSpec, ProjectionTarget, read
 from fathomdb.errors import EmbedderRequiredError, StorageError
 
 _SOURCE_ID = "py-test:slice20c"
@@ -250,7 +250,9 @@ def test_declaring_a_vector_projection_backfills_and_drain_flushes_to_ready(tmp_
         assert _vector_rows(path) == 0, "fixture: no vectors exist yet"
 
         delta = engine.configure_projections([_vector_spec()])
-        assert "summary" in delta.deferred, "the vector sub-target is reported as deferred work"
+        assert ProjectionTarget(name="summary") in delta.deferred, (
+            "the vector sub-target is reported as deferred work"
+        )
 
         # `drain` is the flush-to-readiness barrier.
         engine.drain(timeout_s=_DRAIN_TIMEOUT_S)
@@ -379,8 +381,8 @@ def test_dropping_the_last_vector_projection_stops_embedding(tmp_path) -> None:
         assert _vector_rows(path) == 1, "fixture: N1 is embedded"
 
         # ---- drop the LAST `searchable→vector` declaration ----
-        delta = engine.configure_projections([], drop=["summary"])
-        assert "summary" in delta.dropped, "the drop is reported"
+        delta = engine.configure_projections([], drop=[ProjectionTarget(name="summary")])
+        assert ProjectionTarget(name="summary") in delta.dropped, "the drop is reported"
         assert _readiness(engine) is None, "the projection is gone from the registry"
 
         assert not _vector_kind_registered(path), (

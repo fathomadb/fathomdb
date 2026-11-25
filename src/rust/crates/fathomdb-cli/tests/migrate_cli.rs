@@ -332,6 +332,23 @@ fn migrate_golden_schema_37_db_json_and_human_and_full_integrity_check() {
     assert_eq!(doc_body["logical"]["status"], "clean");
     assert_eq!(doc_body["semantic"]["status"], "clean");
 
+    // Verify `_fathomdb_projection_registry` upgraded cleanly to PRIMARY KEY(entity_class, name).
+    {
+        let conn = Connection::open(&db).unwrap();
+        let mut pk_cols: Vec<(i64, String)> = conn
+            .prepare("PRAGMA table_info(_fathomdb_projection_registry)")
+            .unwrap()
+            .query_map([], |r| Ok((r.get::<_, i64>(5)?, r.get::<_, String>(1)?)))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap()
+            .into_iter()
+            .filter(|(pk, _)| *pk > 0)
+            .collect();
+        pk_cols.sort_by_key(|(pk, _)| *pk);
+        assert_eq!(pk_cols, vec![(1, "entity_class".to_string()), (2, "name".to_string())]);
+    }
+
     // Human text mode on a second golden copy
     let db_human = copy_golden(&dir, "golden_human.sqlite");
     let backup_human = dir.path().join("backups_human");
@@ -383,6 +400,23 @@ fn migrate_golden_schema_38_db_json_and_human_and_full_integrity_check() {
     assert_eq!(doc_body["physical"]["status"], "clean");
     assert_eq!(doc_body["logical"]["status"], "clean");
     assert_eq!(doc_body["semantic"]["status"], "clean");
+
+    // Verify `_fathomdb_projection_registry` upgraded cleanly to PRIMARY KEY(entity_class, name).
+    {
+        let conn = Connection::open(&db).unwrap();
+        let mut pk_cols: Vec<(i64, String)> = conn
+            .prepare("PRAGMA table_info(_fathomdb_projection_registry)")
+            .unwrap()
+            .query_map([], |r| Ok((r.get::<_, i64>(5)?, r.get::<_, String>(1)?)))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap()
+            .into_iter()
+            .filter(|(pk, _)| *pk > 0)
+            .collect();
+        pk_cols.sort_by_key(|(pk, _)| *pk);
+        assert_eq!(pk_cols, vec![(1, "entity_class".to_string()), (2, "name".to_string())]);
+    }
 
     // Human text mode on a second golden Schema-38 copy
     let db_human = copy_golden_38(&dir, "golden38_human.sqlite");

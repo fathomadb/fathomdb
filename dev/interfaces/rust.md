@@ -1159,19 +1159,22 @@ status. The facade re-exports the five supporting `Projection*` types — plus
 `DenseReadiness` since 0.8.20 Slice 20 (R-20-DR) — all part of the public Rust
 surface:
 
-- `Engine::configure_projections(specs: &[ProjectionSpec], drop: &[String]) ->
+- `Engine::configure_projections(specs: &[ProjectionSpec], drop: &[ProjectionTarget]) ->
   Result<ProjectionDelta, EngineError>` — declarative, idempotent apply: the
   engine is the SOLE projection authority (C-1) and diffs `specs` against the
-  durable registry, backfilling the difference in one write transaction. `drop`
-  is EXPLICIT — omitting a live projection from `specs` does NOT drop it; removal
-  requires naming it in `drop`. A destructive change (a role removal or a
-  tokenizer/embedder change) without a drop is refused with
-  `EngineError::ProjectionDestructive { name, delta }` — the delta names what the
-  caller must drop. Re-applying an unchanged spec returns
+  durable registry keyed by `(entity_class, name)`, backfilling the difference
+  in one write transaction. `drop` is EXPLICIT and strictly typed via
+  `ProjectionTarget { name, entity_class }` (`ProjectionTarget::node` /
+  `ProjectionTarget::edge` / `ProjectionTarget::new`, with zero bare-string
+  shims) — omitting a live projection from `specs` does NOT drop it; removal
+  requires naming its `(entity_class, name)` target in `drop`. A destructive
+  change (a role removal or a tokenizer/embedder change) without a matching drop
+  is refused with `EngineError::ProjectionDestructive { name, delta }` — the
+  delta names what the caller must drop. Re-applying an unchanged spec returns
   `ProjectionDelta { unchanged: true, .. }` with the vecs empty.
 - `Engine::read_projections() -> Result<Vec<ProjectionSpec>, EngineError>` — the
   registry introspection (the Rust analogue of `read.projections`), sorted by
-  name. Pure read; never mutates. Since 0.8.20 Slice 20 (R-20-DR) it is also the
+  `(name, entity_class)`. Pure read; never mutates. Since 0.8.20 Slice 20 (R-20-DR) it is also the
   surface that populates the engine-set `ProjectionVector::dense_readiness`
   READ METADATA (derived on the way out; see below).
 - `Engine::read_projection_status() -> Result<ProjectionRuntimeStatus,
@@ -1184,7 +1187,7 @@ surface:
 `ProjectionRuntimeStatus` has `runtime_embedder_available`, its closed
 `ProjectionRuntimeUnavailabilityReason` (`"none" | "no_runtime"`), sorted `ProjectionRuntimeStatusEntry` values,
 sorted/deduplicated `vector_unsupported_kinds`, and required
-`vector_coverage: StoredHeadCoverageV1`. Each entry has its name and
+`vector_coverage: StoredHeadCoverageV1`. Each entry has its `name`, `entity_class: PropertyEntityClass`, and
 closed `ProjectionStatusDenseReadiness` (`"not_declared" | "unavailable" |
 "embedding" | "ready"`). `not_declared` means the stored declaration has no
 effective vector arm — exactly `StoredProjection::wants_vector`, so a legacy
@@ -1267,7 +1270,8 @@ Types:
   ruling (`steward-ledger` seq-246) signs the vocabulary without adding a
   governed command. Caller input accepts the spelling inertly; reads select
   `Unavailable` when the session has no usable dense runtime.
-- `ProjectionDelta { built, dropped, deferred, unchanged, vector_unsupported_kinds }`.
+- `ProjectionDelta { built, dropped, deferred, unchanged, vector_unsupported_kinds }`
+  where `built`, `dropped`, and `deferred` are `Vec<ProjectionTarget>`.
   Cheap roles (`filterable`, `searchable→FTS`) build same-transaction; `rankable`
   and the `searchable→vector` sub-target are persisted-but-deferred (reported in
   `deferred`, never an error).

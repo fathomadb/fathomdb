@@ -64,7 +64,7 @@ import {
   ConsolidateAxis,
 } from "./write.js";
 
-import { ProjectionSpec, ProjectionDelta } from "./projection.js";
+import { ProjectionSpec, ProjectionTarget, ProjectionDelta } from "./projection.js";
 import {
   SearchFilter,
   ReadContextV1,
@@ -556,7 +556,7 @@ export class Engine {
    *
    * Pair with `read.projections` to inspect current state first.
    */
-  async configureProjections(specs: ProjectionSpec[], drop?: string[]): Promise<ProjectionDelta> { return configureProjections(this.#native, specs, drop); }
+  async configureProjections(specs: ProjectionSpec[], drop?: ProjectionTarget[]): Promise<ProjectionDelta> { return configureProjections(this.#native, specs, drop); }
 
   /** Mint a restart-stable read context bound to this database state. */
   async freezeReadContext(context: ReadContextV1): Promise<FrozenReadContextV1> { return freezeReadContext(this.#native, context); }

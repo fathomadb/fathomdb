@@ -108,6 +108,17 @@ CATALOG: tuple[KnobEntry, ...] = (
         ),
     ),
     KnobEntry(
+        name="scope_policy",
+        classification=KnobClass.HELD_CONSTANT,
+        call_path=None,
+        witness=None,
+        reason=(
+            "Caller scope isolation policy (0.8.32 Slice 20). EARP evaluates "
+            "retrieval quality under the default single-scope posture rather than "
+            "sweeping tenant/caller access-control boundaries as a retrieval knob."
+        ),
+    ),
+    KnobEntry(
         name="rerank_depth",
         classification=KnobClass.SEMANTIC,
         call_path="Engine.search(rerank_depth=)",

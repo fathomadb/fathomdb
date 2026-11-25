@@ -436,6 +436,7 @@ def test_engine_config_has_exactly_the_known_fields() -> None:
         "cuda_pool_release_threshold",
         "query_stop_words",
         "physical_erasure_policy",
+        "scope_policy",
     }
 
 
